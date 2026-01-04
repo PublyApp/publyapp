@@ -130,9 +130,7 @@ export const getServerLoader: GetServerLoader = <
 		// 	args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
 
 		if (!params.requireUser) {
-			const apiClient = initApiClientOnServer({
-				/* locale, requestIp */
-			});
+			const apiClient = initApiClientOnServer({});
 
 			if (!params.withAuthDataPromise) {
 				return params.loader({
@@ -166,11 +164,7 @@ export const getServerLoader: GetServerLoader = <
 			return redirect(FRONT_PATH_NAMES.auth.login) as never;
 		}
 
-		const apiClient = initApiClientOnServer({
-			// locale,
-			sessionToken,
-			// requestIp,
-		});
+		const apiClient = initApiClientOnServer({ sessionToken });
 		// const authData = await apiClient.auth.getUserAuthData();
 
 		return params.loader({
@@ -265,9 +259,7 @@ export const getServerAction: GetServerAction = <
 		// 	args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
 
 		if (!params.requireUser) {
-			const apiClient = initApiClientOnServer({
-				/* locale, requestIp */
-			});
+			const apiClient = initApiClientOnServer({});
 			return params.action({
 				...args,
 				context: finalLoadContext,
@@ -286,11 +278,7 @@ export const getServerAction: GetServerAction = <
 			return redirect(FRONT_PATH_NAMES.auth.login) as never;
 		}
 
-		const apiClient = initApiClientOnServer({
-			sessionToken,
-			// locale,
-			// requestIp,
-		});
+		const apiClient = initApiClientOnServer({ sessionToken });
 
 		// ! Don't force every loader to have auth data
 		// ! Let the developer decide if they want to have auth data or not

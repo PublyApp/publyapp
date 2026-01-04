@@ -10,7 +10,6 @@ import { NotFoundView, View403, View500 } from '@/front/components/error';
 import { SplashScreen } from '@/front/components/loading-screen';
 import type { SettingsState } from '@/front/components/settings';
 import { useTenantParam } from '@/front/hooks/use-tenant-param';
-import { initApiClientOnClient } from '@/front/lib/api';
 import {
 	SIDEBAR_COOKIE_MAX_AGE,
 	SIDEBAR_COOKIE_NAME,
@@ -53,8 +52,6 @@ export const clientLoader = getClientLoader({
 			return null;
 		}
 
-		initApiClientOnClient();
-
 		const browserCookies = cookie.parse(document.cookie);
 		const sideBarCookie = _.get(browserCookies, SIDEBAR_COOKIE_NAME);
 
@@ -88,7 +85,7 @@ const AuthQueriesLoader = ({ children }: { children: ReactNode }) => {
 	const tenantId = useTenantParam();
 
 	// Build queries array - only include tenant auth if we have a tenantId
-	const queries = [useGetUserAuthData.getOptions()];
+	const queries = [useGetUserAuthData.getOptions({})];
 
 	if (tenantId) {
 		queries.push(useGetTenantAuthData.getOptions({ tenantId }));

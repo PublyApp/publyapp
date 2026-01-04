@@ -1,11 +1,8 @@
 import { createUntypedString } from '@microsoft/kiota-abstractions';
 import * as cookie from 'cookie';
 import _ from 'lodash';
-import { createMutation, createQuery } from 'react-query-kit';
 
 import { delay } from '@org/shared/utils/any.utils';
-import { clientManager } from '@/front/lib/js-client/client-manager';
-import type { ApiClient } from '@/js-client/src/apiClient';
 import type {
 	BulkStaffInvitationsCreated,
 	CreateStaffInvitationBody,
@@ -15,67 +12,56 @@ import {
 	SESSION_TOKEN_HEADER_KEY,
 } from '@/shared/lib/constants';
 
-import { getQueryKey } from '../../query-utils';
+import { createStaffMutation, createStaffQuery } from '../../create-hooks';
 
 // Query: Find Staff Invitations
-const findStaffInvitationsQueryKey = getQueryKey<ApiClient>(
-	(client) => client.staff.invitations.get,
-);
-
-export const useFindStaffInvitations = createQuery({
-	queryKey: [findStaffInvitationsQueryKey] as const,
-	fetcher: async () => {
-		const result = await clientManager.apiClient.staff.invitations.get();
+export const useFindStaffInvitations = createStaffQuery({
+	queryKeyFn: (client) => client.staff.invitations.get,
+	fetcher: async (client) => {
+		const result = await client.staff.invitations.get();
 		if (_.isNil(result)) {
-			throw new Error(`[${findStaffInvitationsQueryKey}]: result is nil`);
+			throw new Error('useFindStaffInvitations: result is nil');
 		}
 		return result;
 	},
 });
 
-// Query: Find Staff Profiles
-const findStaffProfilesQueryKey = getQueryKey<ApiClient>(
-	(client) => client.staff.profiles.get,
-);
-
-export const useFindStaffProfiles = createQuery({
-	queryKey: [findStaffProfilesQueryKey] as const,
-	fetcher: async () => {
-		// const result = await clientManager.apiClient.staff.profiles.get();
+// Query: Find Staff Profiles (placeholder using delay)
+export const useFindStaffProfilesFromInvitations = createStaffQuery({
+	queryKeyFn: (client) => client.staff.profiles.get,
+	fetcher: async (_client) => {
+		// const result = await client.staff.profiles.get();
 		const result = await delay(1500, []);
 		if (_.isNil(result)) {
-			throw new Error(`[${findStaffProfilesQueryKey}]: result is nil`);
+			throw new Error('useFindStaffProfilesFromInvitations: result is nil');
 		}
 		return result;
 	},
 });
 
 // Mutation: Create Invitation
-const createInvitationMutationKey = getQueryKey<ApiClient>(
-	(client) => client.staff.invitations.post,
-);
-
 type CreateInvitationPayload = {
 	email: string;
 	profileId: string;
 };
 
-export const useCreateInvitation = createMutation({
-	mutationKey: [createInvitationMutationKey] as const,
-	mutationFn: async (data: CreateInvitationPayload) => {
+export const useCreateInvitation = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.invitations.post,
+	mutationFn: async (client, data: CreateInvitationPayload) => {
 		const body: CreateStaffInvitationBody = {
 			email: createUntypedString(data.email) as typeof body.email,
 			profileId: createUntypedString(data.profileId) as typeof body.profileId,
 		};
-		const result = await clientManager.apiClient.staff.invitations.post(body);
+		const result = await client.staff.invitations.post(body);
 		if (_.isNil(result)) {
-			throw new Error(`[${createInvitationMutationKey}]: result is nil`);
+			throw new Error('useCreateInvitation: result is nil');
 		}
 		return result;
 	},
 });
 
 // Mutation: Bulk Create Invitations
+// Note: This mutation uses a custom fetch due to API limitations with Kiota
 type BulkCreateInvitationsPayload = {
 	invitations: Array<{
 		email: string;
@@ -83,17 +69,11 @@ type BulkCreateInvitationsPayload = {
 	}>;
 };
 
-const bulkCreateInvitationsMutationKey = getQueryKey<ApiClient>(
-	(client) => client.staff.invitations.bulk.post,
-);
-
-export const useBulkCreateInvitations = createMutation({
-	mutationKey: [bulkCreateInvitationsMutationKey] as const,
-	mutationFn: async (data: BulkCreateInvitationsPayload) => {
-		const reqInfo =
-			clientManager.apiClient.staff.invitations.bulk.toPostRequestInformation(
-				{},
-			);
+export const useBulkCreateInvitations = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.invitations.bulk.post,
+	mutationFn: async (client, data: BulkCreateInvitationsPayload) => {
+		// Use client to get request info, but make custom fetch for bulk endpoint
+		const reqInfo = client.staff.invitations.bulk.toPostRequestInformation({});
 		const browserCookies = cookie.parse(document.cookie);
 		const sessionToken = browserCookies[SESSION_TOKEN_COOKIE_KEY];
 
@@ -111,29 +91,25 @@ export const useBulkCreateInvitations = createMutation({
 			await response.json();
 
 		if (_.isNil(result)) {
-			throw new Error(`[${bulkCreateInvitationsMutationKey}]: result is nil`);
+			throw new Error('useBulkCreateInvitations: result is nil');
 		}
 		return result;
 	},
 });
 
 // Mutation: Revoke Invitation
-const revokeInvitationMutationKey = getQueryKey<ApiClient>(
-	(client) => client.staff.invitations.byInvitationId('').delete,
-);
-
 type RevokeInvitationPayload = {
 	invitationId: string;
 };
 
-export const useRevokeInvitation = createMutation({
-	mutationKey: [revokeInvitationMutationKey] as const,
-	mutationFn: async (data: RevokeInvitationPayload) => {
-		const result = await clientManager.apiClient.staff.invitations
+export const useRevokeInvitation = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.invitations.byInvitationId('').delete,
+	mutationFn: async (client, data: RevokeInvitationPayload) => {
+		const result = await client.staff.invitations
 			.byInvitationId(data.invitationId)
 			.delete();
 		if (_.isNil(result)) {
-			throw new Error(`[${revokeInvitationMutationKey}]: result is nil`);
+			throw new Error('useRevokeInvitation: result is nil');
 		}
 		return result;
 	},

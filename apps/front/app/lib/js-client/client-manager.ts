@@ -1,9 +1,4 @@
-import {
-	AnonymousAuthenticationProvider,
-	ApiKeyAuthenticationProvider,
-	ApiKeyLocation,
-	type AuthenticationProvider,
-} from '@microsoft/kiota-abstractions';
+import { AnonymousAuthenticationProvider } from '@microsoft/kiota-abstractions';
 import {
 	FetchRequestAdapter,
 	KiotaClientFactory,
@@ -18,11 +13,6 @@ import {
 
 import { getSessionCookieFromClient } from '../cookies/session-cookie.utils';
 import { env } from '../env';
-
-// import { AnonymousAuthenticationProvider } from '@microsoft/kiota-abstractions';
-// import { FetchRequestAdapter, KiotaClientFactory } from '@microsoft/kiota-http-fetchlibrary';
-
-// import { createClient } from './generated/client.js';
 
 /**
  * Singleton manager for the API clients
@@ -47,20 +37,12 @@ class ClientManager {
 
 	public clientsStore: Map<string, ApiClient>;
 
-	public getStaffClient(sessionToken?: string) {
-		return this.getOrCreateClient('staff', sessionToken);
-	}
-
 	public removeClient(tenantId: string) {
 		this.clientsStore.delete(tenantId);
 	}
 
-	public setClient(tenantId: string, client: ApiClient) {
-		this.clientsStore.set(tenantId, client);
-	}
-
-	public setStaffClient(sessionToken?: string) {
-		this.setClient('staff', this.createClientWithOptions({ sessionToken }));
+	public getStaffClient() {
+		return this.getOrCreateClient('staff');
 	}
 
 	public removeStaffClient() {
@@ -71,11 +53,14 @@ class ClientManager {
 		this.clientsStore.clear();
 	}
 
-	public getOrCreateClient(
-		tenantId: string,
-		sessionToken?: string,
-		// { tryReadFromCookies = true }: { tryReadFromCookies?: boolean } = {},
-	) {
+	/**
+	 * Gets or creates an API client for the specified tenant.
+	 * Session tokens are read fresh from cookies on every request.
+	 *
+	 * @param tenantId - The tenant ID to create the client for
+	 * @returns The API client for the tenant
+	 */
+	public getOrCreateClient(tenantId: string) {
 		if (isServer) {
 			throw new Error(
 				'It is not allowed to use the getOrCreateClient on the server because it uses the clients store internally',
@@ -85,56 +70,49 @@ class ClientManager {
 		let client = this.clientsStore.get(tenantId);
 
 		if (!client) {
-			// If sessionToken not provided, try to read from cookies (client-side only)
-			// let _sessionToken = sessionToken;
-
-			// if (!_sessionToken && tryReadFromCookies && !isServer) {
-			// 	_sessionToken = getSessionCookieFromClient();
-			// }
-
-			client = this.createClientWithOptions({ sessionToken });
+			client = this.createClientWithOptions({ tenantId });
 			this.clientsStore.set(tenantId, client);
-			return client;
 		}
 
 		return client;
 	}
 
+	/**
+	 * Creates an API client with the specified options.
+	 * Session tokens are read fresh from cookies on every request (unless skipAuth is true).
+	 *
+	 * @param options.tenantId - Optional tenant ID to include in requests
+	 * @param options.skipAuth - If true, don't include session token (for anonymous/public endpoints)
+	 * @returns A new API client instance
+	 */
 	public createClientWithOptions(options: {
-		sessionToken?: string;
 		tenantId?: string;
+		skipAuth?: boolean;
 	}) {
-		// Define a custom fetch function to set the 'credentials' option.
-		// This function wraps the global fetch, but adds our required option.
+		// Custom fetch that injects session token and tenant ID headers on every request
 		const customFetch = (
 			url: Parameters<typeof fetch>[0],
 			init?: RequestInit,
-		) =>
-			fetch(url, {
+		) => {
+			// Read session token FRESH on every request (unless skipAuth)
+			const sessionToken = options.skipAuth
+				? undefined
+				: getSessionCookieFromClient();
+
+			return fetch(url, {
 				...init,
 				headers: {
 					...init?.headers,
+					...(sessionToken ? { [SESSION_TOKEN_HEADER_KEY]: sessionToken } : {}),
 					...(options.tenantId
 						? { [TENANT_ID_HEADER_KEY]: options.tenantId }
 						: {}),
-					// already set by the AuthenticationProvider
-					// ...(options.sessionToken ? { [SESSION_TOKEN_HEADER_KEY]: options.sessionToken } : {}),
 				},
-				// credentials: 'include', // 'include' tells the browser to send cookies
 			});
+		};
 
-		let authProvider: AuthenticationProvider;
-
-		if (options.sessionToken) {
-			authProvider = new ApiKeyAuthenticationProvider(
-				options.sessionToken,
-				SESSION_TOKEN_HEADER_KEY,
-				ApiKeyLocation.Header,
-			);
-		} else {
-			authProvider = new AnonymousAuthenticationProvider();
-		}
-
+		// Always use anonymous auth provider - auth is handled via customFetch
+		const authProvider = new AnonymousAuthenticationProvider();
 		const httpClient = KiotaClientFactory.create(customFetch);
 		const adapter = new FetchRequestAdapter(
 			authProvider,
@@ -143,23 +121,14 @@ class ClientManager {
 			httpClient,
 		);
 		adapter.baseUrl = env.VITE_ASP_SERVER_URL;
-		const apiClient = createApiClient(adapter);
-		return apiClient;
+		return createApiClient(adapter);
 	}
 
-	// private static _apiClient: ApiClient;
-
-	// get apiClient() {
-	// 	return ClientManager._apiClient;
-	// }
-
-	// setApiClient(apiClient: ApiClient) {
-	// 	ClientManager._apiClient = apiClient;
-	// }
-
 	private constructor() {
-		ClientManager._anonymousClient = this.createClientWithOptions({});
-		// ClientManager._apiClient = ClientManager._anonymousClient;
+		// Anonymous client explicitly skips auth (no session token)
+		ClientManager._anonymousClient = this.createClientWithOptions({
+			skipAuth: true,
+		});
 
 		if (isServer) {
 			this.clientsStore = new Proxy(this._clientsStore, {
@@ -173,39 +142,6 @@ class ClientManager {
 			this.clientsStore = this._clientsStore;
 		}
 	}
-
-	// public createApiClient(sessionToken?: string) {
-	// 	let authProvider: AuthenticationProvider;
-	// 	if (sessionToken) {
-	// 		authProvider = new ApiKeyAuthenticationProvider(
-	// 			sessionToken,
-	// 			SESSION_TOKEN_HEADER_KEY,
-	// 			ApiKeyLocation.Header,
-	// 		);
-	// 	} else {
-	// 		authProvider = new AnonymousAuthenticationProvider();
-	// 	}
-	// 	const adapter = new FetchRequestAdapter(authProvider);
-	// 	adapter.baseUrl = env.VITE_ASP_SERVER_URL;
-	// 	const apiClient = createApiClient(adapter);
-	// 	return apiClient;
-	// }
 }
 
 export const clientManager = ClientManager.getInstance();
-
-// // API requires no authentication, so use the anonymous
-// // authentication provider
-// const authProvider = new AnonymousAuthenticationProvider();
-
-// // Define a custom fetch function to set the 'credentials' option.
-// // This function wraps the global fetch, but adds our required option.
-// const customFetch = (url: Parameters<typeof fetch>[0], init?: RequestInit) => fetch(url, {
-// 	...init,
-// 	credentials: 'include', // 'include' tells the browser to send cookies
-// });
-
-// const httpClient = KiotaClientFactory.create(customFetch);
-// const adapter = new FetchRequestAdapter(authProvider, undefined, undefined, httpClient);
-// adapter.baseUrl = 'http://localhost:3000';
-// export const client = createApiClient(adapter);

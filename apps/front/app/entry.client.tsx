@@ -7,7 +7,6 @@ import { logger } from '@/shared/lib/logger/iso-logger';
 import { LogLevelEnum } from '@/shared/lib/logger/logger.utils';
 
 import { NonceProvider } from './hooks/use-nonce';
-import { initApiClientOnClient } from './lib/api';
 import { initI18nOnClient } from './lib/i18n/init-i18n.client';
 import { initZodOnClient } from './lib/zod/zod.client';
 
@@ -22,7 +21,6 @@ const hydrate = async () => {
 
 	const i18n = await initI18nOnClient();
 	initZodOnClient(i18n);
-	initApiClientOnClient();
 
 	// Get nonce from meta tag or generate a fallback
 	const nonceMeta = document.querySelector('meta[name="csp-nonce"]');

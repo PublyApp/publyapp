@@ -1,5 +1,11 @@
 # Plan: Tenant-Aware API Client Implementation
 
+**Status: IMPLEMENTED** (2026-01-04)
+
+All phases have been completed. See PR #159 for the full implementation.
+
+---
+
 ## Problem
 API requests don't consistently include the `X-PublyApp-TenantId` header, risking cross-tenant data leakage when users switch organizations.
 

@@ -1,147 +1,106 @@
 import { createUntypedString } from '@microsoft/kiota-abstractions';
 import _ from 'lodash';
-import {
-	createMutation,
-	createQuery,
-	createSuspenseQuery,
-} from 'react-query-kit';
 
-import { clientManager } from '@/front/lib/js-client/client-manager';
 import { isJsClientError } from '@/front/lib/js-client/js-client-error';
-import type { ApiClient } from '@/js-client/src/apiClient';
 import type { VerifyEmailRequestBody } from '@/js-client/src/models';
 
-import { getQueryKey } from '../../query-utils';
+import {
+	createAuthMutation,
+	createAuthQuery,
+	createAuthSuspenseQuery,
+	createTenantSuspenseQuery,
+	type RetryFn,
+} from '../../create-hooks';
 
-const getUserAuthDataQueryKey = getQueryKey<ApiClient>(
-	(client) => client.auth.userAuthData.get,
-);
+// Custom retry logic for auth failures - fail fast on auth errors
+const authRetry: RetryFn = (failureCount, error) => {
+	if (isJsClientError(error)) {
+		const authErrorStatuses = [401, 403, 404];
+		if (authErrorStatuses.includes(error.responseStatusCode)) {
+			// Don't retry on auth errors - fail fast
+			return false;
+		}
+	}
+	// For other errors (network issues, etc.), retry up to 2 times
+	return failureCount < 2;
+};
 
-export const useGetUserAuthData = createSuspenseQuery({
-	queryKey: [getUserAuthDataQueryKey] as const,
-	fetcher: async () => {
-		const result = await clientManager.apiClient.auth.userAuthData.get();
+export const useGetUserAuthData = createAuthSuspenseQuery({
+	queryKeyFn: (client) => client.auth.userAuthData.get,
+	fetcher: async (client) => {
+		const result = await client.auth.userAuthData.get();
 		if (_.isNil(result)) {
-			throw new Error(`[${getUserAuthDataQueryKey}]: result is nil`);
+			throw new Error('useGetUserAuthData: result is nil');
 		}
 		return result;
 	},
-	// Custom retry logic to prevent infinite API calls on auth failures
-	// When user is deleted/suspended or session is invalid, fail immediately
-	// without retries to let ErrorBoundary handle the redirect
-	retry: (failureCount, error) => {
-		if (isJsClientError(error)) {
-			const authErrorStatuses = [401, 403, 404];
-			if (authErrorStatuses.includes(error.responseStatusCode)) {
-				// Don't retry on auth errors - fail fast
-				return false;
-			}
-		}
-		// For other errors (network issues, etc.), retry up to 2 times
-		return failureCount < 2;
-	},
+	retry: authRetry,
 });
 
-const getTenantAuthDataQueryKey = getQueryKey<ApiClient>(
-	(client) => client.auth.tenantAuthData.get,
-);
-
-export const useGetTenantAuthData = createSuspenseQuery({
-	queryKey: [getTenantAuthDataQueryKey] as const,
-	fetcher: async ({ tenantId }: { tenantId: string }) => {
-		const result = await clientManager.apiClient.auth.tenantAuthData.get({
-			queryParameters: {
-				tenantId,
-			},
-		});
+// This hook uses tenant client because it needs tenantId in the header
+export const useGetTenantAuthData = createTenantSuspenseQuery({
+	queryKeyFn: (client) => client.auth.tenantAuthData.get,
+	fetcher: async (client) => {
+		// Note: tenantId is now in the header via the tenant client
+		const result = await client.auth.tenantAuthData.get();
 		if (_.isNil(result)) {
-			throw new Error(`[${getTenantAuthDataQueryKey}]: result is nil`);
+			throw new Error('useGetTenantAuthData: result is nil');
 		}
 		return result;
 	},
-	// Custom retry logic to prevent infinite API calls on auth failures
-	// When user is deleted/suspended or session is invalid, fail immediately
-	// without retries to let ErrorBoundary handle the redirect
-	retry: (failureCount, error) => {
-		if (isJsClientError(error)) {
-			const authErrorStatuses = [401, 403, 404];
-			if (authErrorStatuses.includes(error.responseStatusCode)) {
-				// Don't retry on auth errors - fail fast
-				return false;
-			}
-		}
-		// For other errors (network issues, etc.), retry up to 2 times
-		return failureCount < 2;
-	},
+	retry: authRetry,
 });
 
-const getVerificationLinkQueryKey = getQueryKey<ApiClient>(
-	(client) => client.auth.verificationLink.get,
-);
-
-export const useGetVerificationLink = createQuery({
-	queryKey: [getVerificationLinkQueryKey] as const,
-	fetcher: async ({ userId }: { userId: string }) => {
-		const result = await clientManager.apiClient.auth.verificationLink.get({
+export const useGetVerificationLink = createAuthQuery({
+	queryKeyFn: (client) => client.auth.verificationLink.get,
+	fetcher: async (client, { userId }: { userId: string }) => {
+		const result = await client.auth.verificationLink.get({
 			queryParameters: {
 				userId,
 			},
 		});
 		if (_.isNil(result)) {
-			throw new Error(`[${getVerificationLinkQueryKey}]: result is nil`);
+			throw new Error('useGetVerificationLink: result is nil');
 		}
 		return result;
 	},
 });
 
-const getRedirectCodeQueryKey = getQueryKey<ApiClient>(
-	(client) => client.auth.redirectCode.get,
-);
-
-export const useGetRedirectCode = createQuery({
-	queryKey: [getRedirectCodeQueryKey] as const,
-	fetcher: async ({ tenantId }: { tenantId?: string }) => {
-		const result = await clientManager.apiClient.auth.redirectCode.get({
+export const useGetRedirectCode = createAuthQuery({
+	queryKeyFn: (client) => client.auth.redirectCode.get,
+	fetcher: async (client, { tenantId }: { tenantId?: string }) => {
+		const result = await client.auth.redirectCode.get({
 			queryParameters: {
 				tenantId,
 			},
 		});
 		if (_.isNil(result)) {
-			throw new Error(`[${getRedirectCodeQueryKey}]: result is nil`);
+			throw new Error('useGetRedirectCode: result is nil');
 		}
 		return result;
 	},
 });
 
-const getVerifyEmailRequestQueryKey = getQueryKey<ApiClient>(
-	(client) => client.auth.verifyEmailRequest.post,
-);
-
-export const useSendEmailVerificationReminder = createMutation({
-	mutationKey: [getVerifyEmailRequestQueryKey] as const,
-	mutationFn: async ({ email }: { email: string }) => {
+export const useSendEmailVerificationReminder = createAuthMutation({
+	mutationKeyFn: (client) => client.auth.verifyEmailRequest.post,
+	mutationFn: async (client, { email }: { email: string }) => {
 		const body: VerifyEmailRequestBody = {
 			email: createUntypedString(email) as typeof body.email,
 		};
-		const result =
-			await clientManager.apiClient.auth.verifyEmailRequest.post(body);
+		const result = await client.auth.verifyEmailRequest.post(body);
 		if (_.isNil(result)) {
-			throw new Error(`[${getVerifyEmailRequestQueryKey}]: result is nil`);
+			throw new Error('useSendEmailVerificationReminder: result is nil');
 		}
 		return result;
 	},
 });
 
-const getUserTenantsQueryKey = getQueryKey<ApiClient>(
-	(client) => client.auth.userTenants.get,
-);
-
-export const useGetUserTenants = createQuery({
-	queryKey: [getUserTenantsQueryKey] as const,
-	fetcher: async () => {
-		const result = await clientManager.apiClient.auth.userTenants.get();
+export const useGetUserTenants = createAuthQuery({
+	queryKeyFn: (client) => client.auth.userTenants.get,
+	fetcher: async (client) => {
+		const result = await client.auth.userTenants.get();
 		if (_.isNil(result)) {
-			throw new Error(`[${getUserTenantsQueryKey}]: result is nil`);
+			throw new Error('useGetUserTenants: result is nil');
 		}
 		return result;
 	},
