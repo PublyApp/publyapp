@@ -62,7 +62,8 @@ export const loader = getServerLoader({
 export type LoginActionResult = Awaited<ReturnType<typeof action>>['data'];
 
 export const action = getServerAction({
-	action: async ({ request, apiClient, context }) => {
+	action: async ({ request, context }) => {
+		const apiClient = createClientOnServer({});
 		const formData = await request.formData();
 
 		const email = formData.get('email');

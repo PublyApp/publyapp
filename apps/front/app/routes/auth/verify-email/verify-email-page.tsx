@@ -10,6 +10,7 @@ import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { createClientOnServer } from '@/front/lib/js-client/client-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import {
 	getServerAction,
@@ -36,7 +37,8 @@ const actionIntent = {
 } as const;
 
 export const action = getServerAction({
-	action: async ({ request, apiClient, context, z }) => {
+	action: async ({ request, context, z }) => {
+		const apiClient = createClientOnServer({});
 		const formData = await request.formData();
 		const intent = formData.get('intent');
 
@@ -91,7 +93,8 @@ export const action = getServerAction({
 });
 
 export const loader = getServerLoader({
-	loader: async ({ request, apiClient, z, context }) => {
+	loader: async ({ request, z, context }) => {
+		const apiClient = createClientOnServer({});
 		const searchParams = new URL(request.url).searchParams;
 		const token = searchParams.get(queryParamKey.token);
 		const encodedEmail = searchParams.get(

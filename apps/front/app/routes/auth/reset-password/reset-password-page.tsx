@@ -21,6 +21,7 @@ import { Iconify } from '@/front/components/iconify/iconify';
 import { toast } from '@/front/components/snackbar';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { createClientOnServer } from '@/front/lib/js-client/client-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import {
 	getServerAction,
@@ -39,7 +40,8 @@ import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/reset-password-page';
 
 export const action = getServerAction({
-	action: async ({ request, apiClient, z }) => {
+	action: async ({ request, z }) => {
+		const apiClient = createClientOnServer({});
 		const searchParams = new URL(request.url).searchParams;
 		const token = searchParams.get(queryParamKey.token);
 		const encodedEmail = searchParams.get(
@@ -133,7 +135,8 @@ export const action = getServerAction({
 });
 
 export const loader = getServerLoader({
-	loader: async ({ request, apiClient }) => {
+	loader: async ({ request }) => {
+		const apiClient = createClientOnServer({});
 		const searchParams = new URL(request.url).searchParams;
 		const token = searchParams.get(queryParamKey.token);
 		const encodedEmail = searchParams.get(
