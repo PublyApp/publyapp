@@ -4,6 +4,11 @@
 
 All phases have been completed. See PR #159 for the full implementation.
 
+**Note:** After initial implementation, a follow-up refactoring consolidated server-side client creation:
+- Renamed `createClientWithOptions` → `createClientOnBrowser` (browser-only, reads session from cookies)
+- Added `createClientOnServer` to `ClientManager` (for SSR, requires explicit sessionToken)
+- Deleted `initApiClientOnServer` from `api.ts` (duplicate logic now in ClientManager)
+
 ---
 
 ## Problem
@@ -67,9 +72,9 @@ Instead of baking the session token into `ApiKeyAuthenticationProvider`, we inje
 
 ### Changes:
 
-1. **Refactor `createClientWithOptions` - inject session token in customFetch:**
+1. **`createClientOnBrowser` - for browser-side usage (reads session token from cookies):**
    ```typescript
-   public createClientWithOptions(options: { tenantId?: string; skipAuth?: boolean }) {
+   public createClientOnBrowser(options: { tenantId?: string; skipAuth?: boolean }) {
      const customFetch = (url: Parameters<typeof fetch>[0], init?: RequestInit) => {
        // Read session token FRESH on every request (unless skipAuth)
        const sessionToken = options.skipAuth ? undefined : getSessionCookieFromClient();
@@ -84,7 +89,36 @@ Instead of baking the session token into `ApiKeyAuthenticationProvider`, we inje
        });
      };
 
-     // Always use anonymous - auth handled in customFetch
+     return this.createClientWithFetch(customFetch);
+   }
+   ```
+
+2. **`createClientOnServer` - static method for SSR usage (requires explicit sessionToken):**
+   ```typescript
+   public static createClientOnServer(options: { sessionToken?: string; tenantId?: string }) {
+     const customFetch = (url: Parameters<typeof fetch>[0], init?: RequestInit) => {
+       return fetch(url, {
+         ...init,
+         headers: {
+           ...init?.headers,
+           ...(options.sessionToken ? { [SESSION_TOKEN_HEADER_KEY]: options.sessionToken } : {}),
+           ...(options.tenantId ? { [TENANT_ID_HEADER_KEY]: options.tenantId } : {}),
+         },
+       });
+     };
+
+     return ClientManager.createClientWithFetch(customFetch);
+   }
+   ```
+
+   **Export as standalone function:**
+   ```typescript
+   export const createClientOnServer = ClientManager.createClientOnServer;
+   ```
+
+3. **Private static helper `createClientWithFetch` - shared logic:**
+   ```typescript
+   private static createClientWithFetch(customFetch: typeof fetch) {
      const authProvider = new AnonymousAuthenticationProvider();
      const httpClient = KiotaClientFactory.create(customFetch);
      const adapter = new FetchRequestAdapter(authProvider, undefined, undefined, httpClient);
@@ -93,16 +127,16 @@ Instead of baking the session token into `ApiKeyAuthenticationProvider`, we inje
    }
    ```
 
-   **Update constructor to use skipAuth for anonymous client:**
+   **Update constructor to use createClientOnBrowser for anonymous client:**
    ```typescript
    private constructor() {
      // Anonymous client explicitly skips auth
-     ClientManager._anonymousClient = this.createClientWithOptions({ skipAuth: true });
+     ClientManager._anonymousClient = this.createClientOnBrowser({ skipAuth: true });
      // ...
    }
    ```
 
-2. **Simplify `getOrCreateClient` - no sessionToken parameter needed:**
+4. **Simplify `getOrCreateClient` - no sessionToken parameter needed:**
    ```typescript
    public getOrCreateClient(tenantId: string) {
      if (isServer) {
@@ -112,7 +146,7 @@ Instead of baking the session token into `ApiKeyAuthenticationProvider`, we inje
      let client = this.clientsStore.get(tenantId);
 
      if (!client) {
-       client = this.createClientWithOptions({ tenantId });
+       client = this.createClientOnBrowser({ tenantId });
        this.clientsStore.set(tenantId, client);
      }
 
@@ -120,14 +154,14 @@ Instead of baking the session token into `ApiKeyAuthenticationProvider`, we inje
    }
    ```
 
-3. **Simplify `getStaffClient` - no sessionToken parameter:**
+5. **Simplify `getStaffClient` - no sessionToken parameter:**
    ```typescript
    public getStaffClient() {
      return this.getOrCreateClient('staff');
    }
    ```
 
-4. **Remove commented-out `apiClient` getter** - Clean up dead code
+6. **Remove commented-out `apiClient` getter** - Clean up dead code
 
 ### Benefits of This Approach:
 - **No `_tokenStore` needed** - token read fresh, not baked in
@@ -137,11 +171,19 @@ Instead of baking the session token into `ApiKeyAuthenticationProvider`, we inje
 - **`skipAuth` flag** - for anonymous/public endpoints that shouldn't include session token
 
 ### Client Types Summary:
+
+**Browser-side (reads session from cookies):**
 | Client | tenantId | skipAuth | Session Token |
 |--------|----------|----------|---------------|
 | `getOrCreateClient(tenantId)` | ✓ | ✗ | Fresh from cookie |
 | `getStaffClient()` | ✗ | ✗ | Fresh from cookie |
 | `anonymousClient` | ✗ | ✓ | Never included |
+| `createClientOnBrowser({ tenantId?, skipAuth? })` | Optional | Optional | Fresh from cookie (unless skipAuth) |
+
+**Server-side (requires explicit sessionToken):**
+| Function | sessionToken | tenantId | Import |
+|----------|--------------|----------|--------|
+| `createClientOnServer({ sessionToken?, tenantId? })` | Explicit | Optional | Direct import from `client-manager.ts` |
 
 ---
 
@@ -328,9 +370,10 @@ export const logout = (options?: LogoutOptions): void => {
 
 ## Phase 5: Remove Deprecated API Initialization
 
-**File:** `apps/front/app/lib/api.ts`
+**Files:**
+- `apps/front/app/lib/api.ts` - **DELETED** (all logic consolidated in ClientManager)
 
-Remove `initApiClientOnClient` entirely. Update callers:
+Remove `initApiClientOnClient` and `initApiClientOnServer` entirely. Update callers:
 
 | Caller | Current Usage | New Pattern |
 |--------|---------------|-------------|
@@ -527,13 +570,16 @@ Update the "API Client Integration" section (around line 232) to document the ne
 
 | File | Changes |
 |------|---------|
-| `apps/front/app/lib/js-client/client-manager.ts` | Inject session token in customFetch, simplify API |
+| `apps/front/app/lib/js-client/client-manager.ts` | Add `createClientOnBrowser`, `createClientOnServer`, `createClientWithFetch` |
 | `apps/front/app/lib/react-query/create-hooks.ts` | **NEW** - Hook factories with embedded middleware |
 | `apps/front/app/lib/cookies/logout.utils.ts` | Add `clientManager.clearClients()` |
-| `apps/front/app/lib/api.ts` | Remove `initApiClientOnClient` |
+| `apps/front/app/lib/api.ts` | **DELETED** - Logic consolidated in ClientManager |
 | `apps/front/app/entry.client.tsx` | Remove `initApiClientOnClient()` call |
 | `apps/front/app/routes/authed/_layout/authed-layout.tsx` | Remove `initApiClientOnClient()` call |
 | `apps/front/app/lib/react-router/client-data.ts` | Use `clientManager.getOrCreateClient()` directly |
+| `apps/front/app/lib/react-router/server-data.server.ts` | Use `createClientOnServer()` (direct import) |
+| `apps/front/app/routes/auth/_layout/auth-layout.tsx` | Use `createClientOnServer()` (direct import) |
+| `apps/front/app/routes/auth/login/login-page.tsx` | Use `createClientOnServer()` (direct import) |
 | `apps/front/app/lib/react-query/features/staff/staff-tenant.hooks.ts` | Migrate to factories |
 | `apps/front/app/lib/react-query/features/staff/staff-member.hooks.ts` | Migrate to factories |
 | `apps/front/app/lib/react-query/features/staff/staff-invitation.hooks.ts` | Migrate to factories |
