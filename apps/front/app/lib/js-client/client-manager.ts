@@ -136,7 +136,7 @@ export class ClientManager {
 	/**
 	 * Gets an anonymous client (no session token, no tenant ID).
 	 */
-	public get anonymousClient(): ApiClient {
+	public getAnonymousClient(): ApiClient {
 		let client = this.clientsCache.get('__anonymous__');
 
 		if (!client) {
