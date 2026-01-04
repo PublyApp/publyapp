@@ -45,7 +45,8 @@ import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/reset-password-page';
 
 export const action = getServerAction({
-	action: async ({ request, apiClient, z }) => {
+	action: async ({ request, z }) => {
+		const apiClient = createClientOnServer({});
 		const searchParams = new URL(request.url).searchParams;
 		const token = searchParams.get(queryParamKey.token);
 		const encodedEmail = searchParams.get(
@@ -109,7 +110,8 @@ export const action = getServerAction({
 });
 
 export const loader = getServerLoader({
-	loader: async ({ request, apiClient }) => {
+	loader: async ({ request }) => {
+		const apiClient = createClientOnServer({});
 		const searchParams = new URL(request.url).searchParams;
 		const token = searchParams.get(queryParamKey.token);
 		const encodedEmail = searchParams.get(
