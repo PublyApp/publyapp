@@ -151,6 +151,9 @@ export class ClientManager {
 	 * Removes a cached client.
 	 */
 	public removeClient(tenantId: string): void {
+		if (tenantId === '__anonymous__') {
+			throw new Error('Cannot remove anonymous client');
+		}
 		this.clientsCache.delete(tenantId);
 	}
 
