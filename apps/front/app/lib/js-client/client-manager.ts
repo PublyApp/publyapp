@@ -103,24 +103,29 @@ export class ClientManager {
 
 	/**
 	 * Gets the session token based on context.
-	 * - 'staff': returns staffToken
+	 * - 'staff': returns staffToken, falls back to tenantToken for legacy cookie compatibility
 	 * - 'tenant': returns tenantToken
 	 * - undefined: returns tenantToken if available, otherwise staffToken
 	 *
 	 * On browser, reads fresh from cookies to handle token changes without page reload.
 	 * On server, uses tokens passed at construction time.
+	 *
+	 * Note: Legacy cookies (no s:/t: prefix) are parsed as tenantToken only, so staff
+	 * context must fallback to tenantToken to maintain backward compatibility.
 	 */
 	private getSessionToken(context?: 'staff' | 'tenant'): string | undefined {
 		// On browser, read fresh from cookies to handle token changes
 		if (!isServer) {
 			const tokens = getSessionTokensFromClient();
-			if (context === 'staff') return tokens.staffToken;
+			// Staff context: prefer staffToken, fallback to tenantToken (legacy compatibility)
+			if (context === 'staff') return tokens.staffToken ?? tokens.tenantToken;
 			if (context === 'tenant') return tokens.tenantToken;
 			return tokens.tenantToken ?? tokens.staffToken;
 		}
 
 		// On server, use tokens passed at construction
-		if (context === 'staff') return this.staffToken;
+		// Staff context: prefer staffToken, fallback to tenantToken (legacy compatibility)
+		if (context === 'staff') return this.staffToken ?? this.tenantToken;
 		if (context === 'tenant') return this.tenantToken;
 		return this.tenantToken ?? this.staffToken;
 	}
