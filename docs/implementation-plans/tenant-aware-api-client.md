@@ -6,16 +6,16 @@ All phases have been completed. See PR #159 for the full implementation.
 
 **Note:** After initial implementation, follow-up refactoring was done:
 
-1. **Client creation consolidation:**
-   - Renamed `createClientWithOptions` → `createClientOnBrowser` (browser-only, reads session from cookies)
-   - Added `createClientOnServer` to `ClientManager` (for SSR, requires explicit sessionToken)
-   - Deleted `initApiClientOnServer` from `api.ts` (duplicate logic now in ClientManager)
+1. **Request-scoped ClientManager:**
+   - `ClientManager` now accepts `sessionToken` at construction time
+   - Browser: use exported `clientManager` singleton (reads session from cookie)
+   - Server: create `new ClientManager({ sessionToken })` per request
+   - No more `isServer` checks or error guards - same API everywhere
 
 2. **Server HOF refactoring (getServerLoader/getServerAction):**
    - Removed `apiClient` auto-creation from HOFs
    - Now pass `sessionToken` as a primitive instead
-   - Callers create their own client with `createClientOnServer({ sessionToken, tenantId? })`
-   - This allows callers to specify the exact auth dimensions they need (sessionToken + optional tenantId)
+   - Callers create their own client: `new ClientManager({ sessionToken }).createClient({ tenantId })`
 
 ---
 
@@ -91,20 +91,25 @@ Instead of baking the session token into `ApiKeyAuthenticationProvider`, we inje
    }
    ```
 
-2. **`createClientOnServer` - static method for SSR usage (requires explicit sessionToken):**
+2. **`createClient` - unified method for both server and browser:**
    ```typescript
-   public static createClientOnServer(options: { sessionToken?: string; tenantId?: string }) {
+   public createClient(options?: {
+     sessionToken?: string;  // Server: required for auth. Browser: ignored.
+     tenantId?: string;
+     skipAuth?: boolean;     // Skip auth (anonymous client)
+   }): ApiClient {
+     const getSessionToken = (): string | undefined => {
+       if (options?.skipAuth) return undefined;
+       if (isServer) return options?.sessionToken;
+       return getSessionCookieFromClient();
+     };
+
      const customFetch = ClientManager.createCustomFetch({
-       getSessionToken: () => options.sessionToken,
-       tenantId: options.tenantId,
+       getSessionToken,
+       tenantId: options?.tenantId,
      });
      return ClientManager.createClientWithFetch(customFetch);
    }
-   ```
-
-   **Export as standalone function:**
-   ```typescript
-   export const createClientOnServer = ClientManager.createClientOnServer;
    ```
 
 3. **`createCustomFetch` - creates fetch with header injection:**
@@ -183,18 +188,28 @@ Instead of baking the session token into `ApiKeyAuthenticationProvider`, we inje
 
 ### Client Types Summary:
 
-**Browser-side (reads session from cookies):**
-| Client | tenantId | skipAuth | Session Token |
-|--------|----------|----------|---------------|
-| `getOrCreateClient(tenantId)` | ✓ | ✗ | Fresh from cookie |
-| `getStaffClient()` | ✗ | ✗ | Fresh from cookie |
-| `anonymousClient` | ✗ | ✓ | Never included |
-| `createClientOnBrowser({ tenantId?, skipAuth? })` | Optional | Optional | Fresh from cookie (unless skipAuth) |
+**Unified API via `ClientManager.create()`:**
+```typescript
+import { ClientManager } from '@/front/lib/js-client/client-manager';
 
-**Server-side (requires explicit sessionToken):**
-| Function | sessionToken | tenantId | Import |
-|----------|--------------|----------|--------|
-| `createClientOnServer({ sessionToken?, tenantId? })` | Explicit | Optional | Direct import from `client-manager.ts` |
+// Browser - returns singleton, session from cookie
+ClientManager.create().createClient({ tenantId });
+ClientManager.create().getOrCreateClient(tenantId);  // cached
+ClientManager.create().getStaffClient();              // cached
+ClientManager.create().anonymousClient;               // cached
+
+// Server - new instance per request
+ClientManager.create({ sessionToken }).createClient({ tenantId });
+
+// Server - anonymous/public endpoints
+ClientManager.create().createClient({ skipAuth: true });
+```
+
+| Context | Pattern | Session Token |
+|---------|---------|---------------|
+| Browser | `ClientManager.create().createClient()` | From cookie (singleton) |
+| Server (auth) | `ClientManager.create({ sessionToken }).createClient()` | Explicit (new instance) |
+| Server (public) | `ClientManager.create().createClient({ skipAuth: true })` | None |
 
 ---
 
@@ -581,16 +596,16 @@ Update the "API Client Integration" section (around line 232) to document the ne
 
 | File | Changes |
 |------|---------|
-| `apps/front/app/lib/js-client/client-manager.ts` | Add `createClientOnBrowser`, `createClientOnServer`, `createClientWithFetch` |
+| `apps/front/app/lib/js-client/client-manager.ts` | Add unified `createClient` method |
 | `apps/front/app/lib/react-query/create-hooks.ts` | **NEW** - Hook factories with embedded middleware |
 | `apps/front/app/lib/cookies/logout.utils.ts` | Add `clientManager.clearClients()` |
 | `apps/front/app/lib/api.ts` | **DELETED** - Logic consolidated in ClientManager |
 | `apps/front/app/entry.client.tsx` | Remove `initApiClientOnClient()` call |
 | `apps/front/app/routes/authed/_layout/authed-layout.tsx` | Remove `initApiClientOnClient()` call |
 | `apps/front/app/lib/react-router/client-data.ts` | Use `clientManager.getOrCreateClient()` directly |
-| `apps/front/app/lib/react-router/server-data.server.ts` | Use `createClientOnServer()` (direct import) |
-| `apps/front/app/routes/auth/_layout/auth-layout.tsx` | Use `createClientOnServer()` (direct import) |
-| `apps/front/app/routes/auth/login/login-page.tsx` | Use `createClientOnServer()` (direct import) |
+| `apps/front/app/lib/react-router/server-data.server.ts` | Pass `sessionToken` to callers |
+| `apps/front/app/routes/auth/_layout/auth-layout.tsx` | Use `clientManager.createClient()` |
+| `apps/front/app/routes/auth/login/login-page.tsx` | Use `clientManager.createClient()` |
 | `apps/front/app/lib/react-query/features/staff/staff-tenant.hooks.ts` | Migrate to factories |
 | `apps/front/app/lib/react-query/features/staff/staff-member.hooks.ts` | Migrate to factories |
 | `apps/front/app/lib/react-query/features/staff/staff-invitation.hooks.ts` | Migrate to factories |
