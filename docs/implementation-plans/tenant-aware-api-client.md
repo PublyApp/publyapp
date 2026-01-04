@@ -4,10 +4,18 @@
 
 All phases have been completed. See PR #159 for the full implementation.
 
-**Note:** After initial implementation, a follow-up refactoring consolidated server-side client creation:
-- Renamed `createClientWithOptions` → `createClientOnBrowser` (browser-only, reads session from cookies)
-- Added `createClientOnServer` to `ClientManager` (for SSR, requires explicit sessionToken)
-- Deleted `initApiClientOnServer` from `api.ts` (duplicate logic now in ClientManager)
+**Note:** After initial implementation, follow-up refactoring was done:
+
+1. **Client creation consolidation:**
+   - Renamed `createClientWithOptions` → `createClientOnBrowser` (browser-only, reads session from cookies)
+   - Added `createClientOnServer` to `ClientManager` (for SSR, requires explicit sessionToken)
+   - Deleted `initApiClientOnServer` from `api.ts` (duplicate logic now in ClientManager)
+
+2. **Server HOF refactoring (getServerLoader/getServerAction):**
+   - Removed `apiClient` auto-creation from HOFs
+   - Now pass `sessionToken` as a primitive instead
+   - Callers create their own client with `createClientOnServer({ sessionToken, tenantId? })`
+   - This allows callers to specify the exact auth dimensions they need (sessionToken + optional tenantId)
 
 ---
 
