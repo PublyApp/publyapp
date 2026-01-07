@@ -1,5 +1,6 @@
 import { createUntypedString } from '@microsoft/kiota-abstractions';
 import _ from 'lodash';
+import type { CreateQueryOptions } from 'react-query-kit';
 
 import { isJsClientError } from '@/front/lib/js-client/js-client-error';
 import type { VerifyEmailRequestBody } from '@/js-client/src/models';
@@ -9,11 +10,13 @@ import {
 	createAuthQuery,
 	createAuthSuspenseQuery,
 	createTenantSuspenseQuery,
-	type RetryFn,
 } from '../../create-hooks';
 
 // Custom retry logic for auth failures - fail fast on auth errors
-const authRetry: RetryFn = (failureCount, error) => {
+const authRetry: CreateQueryOptions['retry'] = (
+	failureCount: number,
+	error: Error,
+) => {
 	if (isJsClientError(error)) {
 		const authErrorStatuses = [401, 403, 404];
 		if (authErrorStatuses.includes(error.responseStatusCode)) {
