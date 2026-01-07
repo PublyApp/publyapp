@@ -244,18 +244,17 @@ Form State       → React Hook Form (local form state)
    - `createPublicQuery/Mutation` - Anonymous/public endpoints (no auth)
 
 2. **Client-side (browser)** - Outside React lifecycle (e.g., clientLoaders):
-   - `clientManager.getOrCreateClient(tenantId)` - Tenant client with X-PublyApp-TenantId header
-   - `clientManager.getStaffClient()` - Staff client (no tenant-id header)
-   - `clientManager.anonymousClient` - Anonymous client (no auth, no tenant)
-   - `clientManager.createClientOnBrowser({ tenantId?, skipAuth? })` - Create ad-hoc client
+   - `ClientManager.create().getOrCreateClient(tenantId)` - Tenant client with `X-PublyApp-TenantId`
+   - `ClientManager.create().getOrCreateStaffClient()` - Staff client (no tenant-id header)
+   - `ClientManager.create().getOrCreateAnonymousClient()` - Anonymous client (no auth, no tenant)
+   - `ClientManager.create().createClient({ tenantId?, skipAuth?, context? })` - Create ad-hoc client
 
 3. **Server-side (SSR)** - In React Router loaders/actions:
-   - `createClientOnServer({ sessionToken?, tenantId? })` - Static method, import directly
-   - Session token must be explicitly passed (extracted from request cookies)
-   - Used by `getServerLoader` and `getServerAction` helpers in `server-data.server.ts`
+   - `ClientManager.create({ staffToken?, tenantToken? }).createClient({ tenantId?, context? })` - per-request instance
+   - Tokens are parsed by `getServerLoader` / `getServerAction` and passed to your loader/action
    ```typescript
-   import { createClientOnServer } from '@/front/lib/js-client/client-manager';
-   const apiClient = createClientOnServer({ sessionToken });
+   import { ClientManager } from '@/front/lib/js-client/client-manager';
+   const apiClient = ClientManager.create({ staffToken, tenantToken }).createClient();
    ```
 
 **Data Fetching Pattern (Route-Type Specific):**

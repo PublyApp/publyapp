@@ -40,12 +40,15 @@ export const useGetUserAuthData = createAuthSuspenseQuery({
 	retry: authRetry,
 });
 
-// This hook uses tenant client because it needs tenantId in the header
+// This hook needs tenantId (query param), and we also use the tenant client so the tenant header is set.
 export const useGetTenantAuthData = createTenantSuspenseQuery({
 	queryKeyFn: (client) => client.auth.tenantAuthData.get,
-	fetcher: async (client) => {
-		// Note: tenantId is now in the header via the tenant client
-		const result = await client.auth.tenantAuthData.get();
+	fetcher: async (client, { tenantId }) => {
+		const result = await client.auth.tenantAuthData.get({
+			queryParameters: {
+				tenantId,
+			},
+		});
 		if (_.isNil(result)) {
 			throw new Error('useGetTenantAuthData: result is nil');
 		}
