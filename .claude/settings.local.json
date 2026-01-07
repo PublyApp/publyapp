@@ -34,7 +34,6 @@
 			"Bash(corepack --version:*)",
 			"Bash(npm install:*)",
 			"Bash(find:*)",
-			"Bash(ls -la \"C:\\\\Users\\\\radan\\\\Documents\\\\_RADAN\\\\Dev\\\\PublyApp\\\\publyapp\\\\packages\\\\js-client\\\\src\"\" 2>/dev/null | grep \".ts \")",
 			"WebFetch(domain:github.com)",
 			"WebFetch(domain:www.npmjs.com)"
 		]
