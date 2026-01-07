@@ -31,8 +31,8 @@ type GetCLientLoader = <
  *
  * To access API clients in loaders, use clientManager directly:
  * - `clientManager.getOrCreateClient(tenantId)` - for tenant-scoped requests
- * - `clientManager.getStaffClient()` - for staff requests
- * - `clientManager.getAnonymousClient()` - for public/anonymous requests
+ * - `clientManager.getOrCreateStaffClient()` - for staff requests
+ * - `clientManager.getOrCreateAnonymousClient()` - for public/anonymous requests
  *
  * Session tokens are read fresh from cookies on every request.
  */

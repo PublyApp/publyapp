@@ -3,7 +3,6 @@ import {
 	FetchRequestAdapter,
 	KiotaClientFactory,
 } from '@microsoft/kiota-http-fetchlibrary';
-import _ from 'lodash';
 
 import { type ApiClient, createApiClient } from '@org/js-client/src/apiClient';
 import {
@@ -172,7 +171,7 @@ export class ClientManager {
 	 * Gets or creates a cached staff client.
 	 * Uses staffToken and does NOT send tenant-id header.
 	 */
-	public getStaffClient(): ApiClient {
+	public getOrCreateStaffClient(): ApiClient {
 		let client = this.clientsCache.get('__staff__');
 
 		if (!client) {
@@ -186,7 +185,7 @@ export class ClientManager {
 	/**
 	 * Gets an anonymous client (no session token, no tenant ID).
 	 */
-	public getAnonymousClient(): ApiClient {
+	public getOrCreateAnonymousClient(): ApiClient {
 		let client = this.clientsCache.get('__anonymous__');
 
 		if (!client) {
@@ -209,6 +208,13 @@ export class ClientManager {
 	 */
 	public removeStaffClient(): void {
 		this.clientsCache.delete('__staff__');
+	}
+
+	/**
+	 * Removes the cached anonymous client.
+	 */
+	public removeAnonymousClient(): void {
+		this.clientsCache.delete('__anonymous__');
 	}
 
 	/**

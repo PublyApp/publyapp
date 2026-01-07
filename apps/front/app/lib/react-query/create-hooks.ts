@@ -149,7 +149,7 @@ export function createStaffQuery<
 	return createQuery<TData, TVariables>({
 		queryKey: [queryKey] as const,
 		fetcher: async (variables) => {
-			const client = ClientManager.create().getStaffClient();
+			const client = ClientManager.create().getOrCreateStaffClient();
 			return config.fetcher(client, variables);
 		},
 		...(config.retry ? { retry: config.retry } : {}),
@@ -169,7 +169,7 @@ export function createStaffSuspenseQuery<
 	return createSuspenseQuery<TData, TVariables>({
 		queryKey: [queryKey] as const,
 		fetcher: async (variables) => {
-			const client = ClientManager.create().getStaffClient();
+			const client = ClientManager.create().getOrCreateStaffClient();
 			return config.fetcher(client, variables);
 		},
 		...(config.retry ? { retry: config.retry } : {}),
@@ -194,7 +194,7 @@ export function createStaffMutation<
 	return createMutation<TData, TVariables>({
 		mutationKey: [mutationKey] as const,
 		mutationFn: async (variables) => {
-			const client = ClientManager.create().getStaffClient();
+			const client = ClientManager.create().getOrCreateStaffClient();
 			return config.mutationFn(client, variables);
 		},
 	});
@@ -225,7 +225,7 @@ export function createAuthQuery<
 	return createQuery<TData, TVariables>({
 		queryKey: [queryKey] as const,
 		fetcher: async (variables) => {
-			const client = ClientManager.create().getStaffClient();
+			const client = ClientManager.create().getOrCreateStaffClient();
 			return config.fetcher(client, variables);
 		},
 		...(config.retry ? { retry: config.retry } : {}),
@@ -245,7 +245,7 @@ export function createAuthSuspenseQuery<
 	return createSuspenseQuery<TData, TVariables>({
 		queryKey: [queryKey] as const,
 		fetcher: async (variables) => {
-			const client = ClientManager.create().getStaffClient();
+			const client = ClientManager.create().getOrCreateStaffClient();
 			return config.fetcher(client, variables);
 		},
 		...(config.retry ? { retry: config.retry } : {}),
@@ -270,7 +270,7 @@ export function createAuthMutation<
 	return createMutation<TData, TVariables>({
 		mutationKey: [mutationKey] as const,
 		mutationFn: async (variables) => {
-			const client = ClientManager.create().getStaffClient();
+			const client = ClientManager.create().getOrCreateStaffClient();
 			return config.mutationFn(client, variables);
 		},
 	});
@@ -302,7 +302,7 @@ export function createPublicQuery<
 		queryKey: [queryKey] as const,
 		fetcher: async (variables) => {
 			return config.fetcher(
-				ClientManager.create().getAnonymousClient(),
+				ClientManager.create().getOrCreateAnonymousClient(),
 				variables,
 			);
 		},
@@ -324,7 +324,7 @@ export function createPublicSuspenseQuery<
 		queryKey: [queryKey] as const,
 		fetcher: async (variables) => {
 			return config.fetcher(
-				ClientManager.create().getAnonymousClient(),
+				ClientManager.create().getOrCreateAnonymousClient(),
 				variables,
 			);
 		},
@@ -351,7 +351,7 @@ export function createPublicMutation<
 		mutationKey: [mutationKey] as const,
 		mutationFn: async (variables) => {
 			return config.mutationFn(
-				ClientManager.create().getAnonymousClient(),
+				ClientManager.create().getOrCreateAnonymousClient(),
 				variables,
 			);
 		},
