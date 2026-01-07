@@ -174,13 +174,8 @@ export const clientLoader = getClientLoader({
 			if (redirectCode && redirectCode !== 'unauthorized') {
 				defaultQueryClient.prefetchQuery({
 					queryKey: useGetTenantAuthData.getKey({ tenantId: redirectCode }),
-					queryFn: async ({ queryKey }) => {
-						const tenantId = _.get(queryKey, '1.tenantId');
-						const result = await useGetTenantAuthData.fetcher({
-							tenantId: tenantId as never,
-						});
-						return result;
-					},
+					queryFn: () =>
+						useGetTenantAuthData.fetcher({ tenantId: redirectCode }),
 				});
 
 				if (redirectCode === 'staff') {
