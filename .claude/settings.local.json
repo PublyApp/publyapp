@@ -32,7 +32,8 @@
 			"Bash(npx pnpm@10.13.1 tsc:*)",
 			"Bash(npx pnpm@10.13.1 turbo run:*)",
 			"Bash(corepack --version:*)",
-			"Bash(npm install:*)"
+			"Bash(npm install:*)",
+			"WebFetch(domain:icons8.com)"
 		]
 	}
 }
