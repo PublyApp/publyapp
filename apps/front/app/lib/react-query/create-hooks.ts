@@ -1,4 +1,7 @@
 import {
+	type CreateMutationOptions,
+	type CreateQueryOptions,
+	type CreateSuspenseQueryOptions,
 	createMutation,
 	createQuery,
 	createSuspenseQuery,
@@ -23,16 +26,53 @@ type RetryFn = (failureCount: number, error: Error) => boolean;
 // biome-ignore lint/complexity/noBannedTypes: We need an empty object type here
 type EmptyVariables = {};
 
+// Base query options we accept (from react-query-kit's CreateQueryOptions)
+// Omit fields we handle ourselves: queryKey, fetcher
+type BaseQueryOptions<TData, TVariables, TError = Error> = Omit<
+	CreateQueryOptions<TData, TVariables, TError>,
+	'queryKey' | 'fetcher'
+>;
+
+// Base suspense query options (from react-query-kit's CreateSuspenseQueryOptions)
+type BaseSuspenseQueryOptions<TData, TVariables, TError = Error> = Omit<
+	CreateSuspenseQueryOptions<TData, TVariables, TError>,
+	'queryKey' | 'fetcher'
+>;
+
+// Base mutation options (from react-query-kit's CreateMutationOptions)
+// Omit fields we handle ourselves: mutationKey, mutationFn
+type BaseMutationOptions<TData, TVariables, TError = Error> = Omit<
+	CreateMutationOptions<TData, TVariables, TError>,
+	'mutationKey' | 'mutationFn'
+>;
+
+// For tenant-scoped factories, we omit fields that reference TVariables since the type
+// gets transformed from TVariables to WithTenantId<TVariables>, causing type incompatibility.
+// 'use' middleware, 'variables' default, and callbacks are affected.
+type TenantBaseQueryOptions<TData, TVariables, TError = Error> = Omit<
+	BaseQueryOptions<TData, TVariables, TError>,
+	'use' | 'variables'
+>;
+
+type TenantBaseSuspenseQueryOptions<TData, TVariables, TError = Error> = Omit<
+	BaseSuspenseQueryOptions<TData, TVariables, TError>,
+	'use' | 'variables'
+>;
+
+type TenantBaseMutationOptions<TData, TVariables, TError = Error> = Omit<
+	BaseMutationOptions<TData, TVariables, TError>,
+	'use' | 'onError' | 'onSuccess' | 'onSettled' | 'onMutate'
+>;
+
 // ============================================================================
 // TENANT-SCOPED FACTORIES
 // These require tenantId in variables and include X-PublyApp-TenantId header
 // ============================================================================
 
-type TenantQueryConfig<TData, TVariables> = {
+type TenantQueryConfig<TData, TVariables, TError = Error> = {
 	queryKeyFn: (client: ApiClient) => unknown;
 	fetcher: (client: ApiClient, variables: TVariables) => Promise<TData>;
-	retry?: RetryFn;
-};
+} & TenantBaseQueryOptions<TData, TVariables, TError>;
 
 /**
  * Creates a tenant-scoped query hook.
@@ -44,6 +84,7 @@ type TenantQueryConfig<TData, TVariables> = {
  * export const useFindPosts = createTenantQuery({
  *   queryKeyFn: (client) => client.tenant.posts.get,
  *   fetcher: (client, { page }) => client.tenant.posts.get({ queryParameters: { page } }),
+ *   staleTime: 5 * 60 * 1000, // 5 minutes
  * });
  *
  * // Usage: tenantId is required
@@ -53,19 +94,27 @@ type TenantQueryConfig<TData, TVariables> = {
 export function createTenantQuery<
 	TData,
 	TVariables extends Record<string, unknown> = EmptyVariables,
->(config: TenantQueryConfig<TData, TVariables>) {
-	const queryKey = getQueryKey<ApiClient>(config.queryKeyFn);
+	TError = Error,
+>(config: TenantQueryConfig<TData, TVariables, TError>) {
+	const { queryKeyFn, fetcher, ...restOptions } = config;
+	const queryKey = getQueryKey<ApiClient>(queryKeyFn);
 
-	return createQuery<TData, WithTenantId<TVariables>>({
+	return createQuery<TData, WithTenantId<TVariables>, TError>({
 		queryKey: [queryKey] as const,
 		fetcher: async (variables) => {
 			const { tenantId, ...rest } = variables;
 			const client = ClientManager.create().getOrCreateClient(tenantId);
-			return config.fetcher(client, rest as unknown as TVariables);
+			return fetcher(client, rest as unknown as TVariables);
 		},
-		...(config.retry ? { retry: config.retry } : {}),
+		...restOptions,
 	});
 }
+
+// Suspense variant config type
+type TenantSuspenseQueryConfig<TData, TVariables, TError = Error> = {
+	queryKeyFn: (client: ApiClient) => unknown;
+	fetcher: (client: ApiClient, variables: TVariables) => Promise<TData>;
+} & TenantBaseSuspenseQueryOptions<TData, TVariables, TError>;
 
 /**
  * Creates a tenant-scoped suspense query hook.
@@ -74,24 +123,26 @@ export function createTenantQuery<
 export function createTenantSuspenseQuery<
 	TData,
 	TVariables extends Record<string, unknown> = EmptyVariables,
->(config: TenantQueryConfig<TData, TVariables>) {
-	const queryKey = getQueryKey<ApiClient>(config.queryKeyFn);
+	TError = Error,
+>(config: TenantSuspenseQueryConfig<TData, TVariables, TError>) {
+	const { queryKeyFn, fetcher, ...restOptions } = config;
+	const queryKey = getQueryKey<ApiClient>(queryKeyFn);
 
-	return createSuspenseQuery<TData, WithTenantId<TVariables>>({
+	return createSuspenseQuery<TData, WithTenantId<TVariables>, TError>({
 		queryKey: [queryKey] as const,
 		fetcher: async (variables) => {
 			const { tenantId, ...rest } = variables;
 			const client = ClientManager.create().getOrCreateClient(tenantId);
-			return config.fetcher(client, rest as unknown as TVariables);
+			return fetcher(client, rest as unknown as TVariables);
 		},
-		...(config.retry ? { retry: config.retry } : {}),
+		...restOptions,
 	});
 }
 
-type TenantMutationConfig<TData, TVariables> = {
+type TenantMutationConfig<TData, TVariables, TError = Error> = {
 	mutationKeyFn: (client: ApiClient) => unknown;
 	mutationFn: (client: ApiClient, variables: TVariables) => Promise<TData>;
-};
+} & TenantBaseMutationOptions<TData, TVariables, TError>;
 
 /**
  * Creates a tenant-scoped mutation hook.
@@ -100,16 +151,19 @@ type TenantMutationConfig<TData, TVariables> = {
 export function createTenantMutation<
 	TData,
 	TVariables extends Record<string, unknown> = EmptyVariables,
->(config: TenantMutationConfig<TData, TVariables>) {
-	const mutationKey = getQueryKey<ApiClient>(config.mutationKeyFn);
+	TError = Error,
+>(config: TenantMutationConfig<TData, TVariables, TError>) {
+	const { mutationKeyFn, mutationFn, ...restOptions } = config;
+	const mutationKey = getQueryKey<ApiClient>(mutationKeyFn);
 
-	return createMutation<TData, WithTenantId<TVariables>>({
+	return createMutation<TData, WithTenantId<TVariables>, TError>({
 		mutationKey: [mutationKey] as const,
 		mutationFn: async (variables) => {
 			const { tenantId, ...rest } = variables;
 			const client = ClientManager.create().getOrCreateClient(tenantId);
-			return config.mutationFn(client, rest as unknown as TVariables);
+			return mutationFn(client, rest as unknown as TVariables);
 		},
+		...restOptions,
 	});
 }
 
@@ -118,11 +172,10 @@ export function createTenantMutation<
 // These don't require tenantId and are for staff-only endpoints
 // ============================================================================
 
-type StaffQueryConfig<TData, TVariables> = {
+type StaffQueryConfig<TData, TVariables, TError = Error> = {
 	queryKeyFn: (client: ApiClient) => unknown;
 	fetcher: (client: ApiClient, variables: TVariables) => Promise<TData>;
-	retry?: RetryFn;
-};
+} & BaseQueryOptions<TData, TVariables, TError>;
 
 /**
  * Creates a staff query hook.
@@ -134,6 +187,7 @@ type StaffQueryConfig<TData, TVariables> = {
  * export const useFindTenants = createStaffQuery({
  *   queryKeyFn: (client) => client.staff.tenants.get,
  *   fetcher: (client, { page }) => client.staff.tenants.get({ queryParameters: { page } }),
+ *   staleTime: 5 * 60 * 1000, // 5 minutes
  * });
  *
  * // Usage: no tenantId needed
@@ -143,18 +197,25 @@ type StaffQueryConfig<TData, TVariables> = {
 export function createStaffQuery<
 	TData,
 	TVariables extends Record<string, unknown> = EmptyVariables,
->(config: StaffQueryConfig<TData, TVariables>) {
-	const queryKey = getQueryKey<ApiClient>(config.queryKeyFn);
+	TError = Error,
+>(config: StaffQueryConfig<TData, TVariables, TError>) {
+	const { queryKeyFn, fetcher, ...restOptions } = config;
+	const queryKey = getQueryKey<ApiClient>(queryKeyFn);
 
-	return createQuery<TData, TVariables>({
+	return createQuery<TData, TVariables, TError>({
 		queryKey: [queryKey] as const,
 		fetcher: async (variables) => {
 			const client = ClientManager.create().getOrCreateStaffClient();
-			return config.fetcher(client, variables);
+			return fetcher(client, variables);
 		},
-		...(config.retry ? { retry: config.retry } : {}),
+		...restOptions,
 	});
 }
+
+type StaffSuspenseQueryConfig<TData, TVariables, TError = Error> = {
+	queryKeyFn: (client: ApiClient) => unknown;
+	fetcher: (client: ApiClient, variables: TVariables) => Promise<TData>;
+} & BaseSuspenseQueryOptions<TData, TVariables, TError>;
 
 /**
  * Creates a staff suspense query hook.
@@ -163,23 +224,25 @@ export function createStaffQuery<
 export function createStaffSuspenseQuery<
 	TData,
 	TVariables extends Record<string, unknown> = EmptyVariables,
->(config: StaffQueryConfig<TData, TVariables>) {
-	const queryKey = getQueryKey<ApiClient>(config.queryKeyFn);
+	TError = Error,
+>(config: StaffSuspenseQueryConfig<TData, TVariables, TError>) {
+	const { queryKeyFn, fetcher, ...restOptions } = config;
+	const queryKey = getQueryKey<ApiClient>(queryKeyFn);
 
-	return createSuspenseQuery<TData, TVariables>({
+	return createSuspenseQuery<TData, TVariables, TError>({
 		queryKey: [queryKey] as const,
 		fetcher: async (variables) => {
 			const client = ClientManager.create().getOrCreateStaffClient();
-			return config.fetcher(client, variables);
+			return fetcher(client, variables);
 		},
-		...(config.retry ? { retry: config.retry } : {}),
+		...restOptions,
 	});
 }
 
-type StaffMutationConfig<TData, TVariables> = {
+type StaffMutationConfig<TData, TVariables, TError = Error> = {
 	mutationKeyFn: (client: ApiClient) => unknown;
 	mutationFn: (client: ApiClient, variables: TVariables) => Promise<TData>;
-};
+} & BaseMutationOptions<TData, TVariables, TError>;
 
 /**
  * Creates a staff mutation hook.
@@ -188,15 +251,18 @@ type StaffMutationConfig<TData, TVariables> = {
 export function createStaffMutation<
 	TData,
 	TVariables extends Record<string, unknown> = EmptyVariables,
->(config: StaffMutationConfig<TData, TVariables>) {
-	const mutationKey = getQueryKey<ApiClient>(config.mutationKeyFn);
+	TError = Error,
+>(config: StaffMutationConfig<TData, TVariables, TError>) {
+	const { mutationKeyFn, mutationFn, ...restOptions } = config;
+	const mutationKey = getQueryKey<ApiClient>(mutationKeyFn);
 
-	return createMutation<TData, TVariables>({
+	return createMutation<TData, TVariables, TError>({
 		mutationKey: [mutationKey] as const,
 		mutationFn: async (variables) => {
 			const client = ClientManager.create().getOrCreateStaffClient();
-			return config.mutationFn(client, variables);
+			return mutationFn(client, variables);
 		},
+		...restOptions,
 	});
 }
 
@@ -205,11 +271,10 @@ export function createStaffMutation<
 // For auth endpoints that need session token but may or may not need tenantId
 // ============================================================================
 
-type AuthQueryConfig<TData, TVariables> = {
+type AuthQueryConfig<TData, TVariables, TError = Error> = {
 	queryKeyFn: (client: ApiClient) => unknown;
 	fetcher: (client: ApiClient, variables: TVariables) => Promise<TData>;
-	retry?: RetryFn;
-};
+} & BaseQueryOptions<TData, TVariables, TError>;
 
 /**
  * Creates an auth query hook.
@@ -219,18 +284,25 @@ type AuthQueryConfig<TData, TVariables> = {
 export function createAuthQuery<
 	TData,
 	TVariables extends Record<string, unknown> = EmptyVariables,
->(config: AuthQueryConfig<TData, TVariables>) {
-	const queryKey = getQueryKey<ApiClient>(config.queryKeyFn);
+	TError = Error,
+>(config: AuthQueryConfig<TData, TVariables, TError>) {
+	const { queryKeyFn, fetcher, ...restOptions } = config;
+	const queryKey = getQueryKey<ApiClient>(queryKeyFn);
 
-	return createQuery<TData, TVariables>({
+	return createQuery<TData, TVariables, TError>({
 		queryKey: [queryKey] as const,
 		fetcher: async (variables) => {
 			const client = ClientManager.create().getOrCreateStaffClient();
-			return config.fetcher(client, variables);
+			return fetcher(client, variables);
 		},
-		...(config.retry ? { retry: config.retry } : {}),
+		...restOptions,
 	});
 }
+
+type AuthSuspenseQueryConfig<TData, TVariables, TError = Error> = {
+	queryKeyFn: (client: ApiClient) => unknown;
+	fetcher: (client: ApiClient, variables: TVariables) => Promise<TData>;
+} & BaseSuspenseQueryOptions<TData, TVariables, TError>;
 
 /**
  * Creates an auth suspense query hook.
@@ -239,23 +311,25 @@ export function createAuthQuery<
 export function createAuthSuspenseQuery<
 	TData,
 	TVariables extends Record<string, unknown> = EmptyVariables,
->(config: AuthQueryConfig<TData, TVariables>) {
-	const queryKey = getQueryKey<ApiClient>(config.queryKeyFn);
+	TError = Error,
+>(config: AuthSuspenseQueryConfig<TData, TVariables, TError>) {
+	const { queryKeyFn, fetcher, ...restOptions } = config;
+	const queryKey = getQueryKey<ApiClient>(queryKeyFn);
 
-	return createSuspenseQuery<TData, TVariables>({
+	return createSuspenseQuery<TData, TVariables, TError>({
 		queryKey: [queryKey] as const,
 		fetcher: async (variables) => {
 			const client = ClientManager.create().getOrCreateStaffClient();
-			return config.fetcher(client, variables);
+			return fetcher(client, variables);
 		},
-		...(config.retry ? { retry: config.retry } : {}),
+		...restOptions,
 	});
 }
 
-type AuthMutationConfig<TData, TVariables> = {
+type AuthMutationConfig<TData, TVariables, TError = Error> = {
 	mutationKeyFn: (client: ApiClient) => unknown;
 	mutationFn: (client: ApiClient, variables: TVariables) => Promise<TData>;
-};
+} & BaseMutationOptions<TData, TVariables, TError>;
 
 /**
  * Creates an auth mutation hook.
@@ -264,15 +338,18 @@ type AuthMutationConfig<TData, TVariables> = {
 export function createAuthMutation<
 	TData,
 	TVariables extends Record<string, unknown> = EmptyVariables,
->(config: AuthMutationConfig<TData, TVariables>) {
-	const mutationKey = getQueryKey<ApiClient>(config.mutationKeyFn);
+	TError = Error,
+>(config: AuthMutationConfig<TData, TVariables, TError>) {
+	const { mutationKeyFn, mutationFn, ...restOptions } = config;
+	const mutationKey = getQueryKey<ApiClient>(mutationKeyFn);
 
-	return createMutation<TData, TVariables>({
+	return createMutation<TData, TVariables, TError>({
 		mutationKey: [mutationKey] as const,
 		mutationFn: async (variables) => {
 			const client = ClientManager.create().getOrCreateStaffClient();
-			return config.mutationFn(client, variables);
+			return mutationFn(client, variables);
 		},
+		...restOptions,
 	});
 }
 
@@ -281,11 +358,10 @@ export function createAuthMutation<
 // For endpoints that don't require authentication
 // ============================================================================
 
-type PublicQueryConfig<TData, TVariables> = {
+type PublicQueryConfig<TData, TVariables, TError = Error> = {
 	queryKeyFn: (client: ApiClient) => unknown;
 	fetcher: (client: ApiClient, variables: TVariables) => Promise<TData>;
-	retry?: RetryFn;
-};
+} & BaseQueryOptions<TData, TVariables, TError>;
 
 /**
  * Creates a public query hook.
@@ -295,20 +371,27 @@ type PublicQueryConfig<TData, TVariables> = {
 export function createPublicQuery<
 	TData,
 	TVariables extends Record<string, unknown> = EmptyVariables,
->(config: PublicQueryConfig<TData, TVariables>) {
-	const queryKey = getQueryKey<ApiClient>(config.queryKeyFn);
+	TError = Error,
+>(config: PublicQueryConfig<TData, TVariables, TError>) {
+	const { queryKeyFn, fetcher, ...restOptions } = config;
+	const queryKey = getQueryKey<ApiClient>(queryKeyFn);
 
-	return createQuery<TData, TVariables>({
+	return createQuery<TData, TVariables, TError>({
 		queryKey: [queryKey] as const,
 		fetcher: async (variables) => {
-			return config.fetcher(
+			return fetcher(
 				ClientManager.create().getOrCreateAnonymousClient(),
 				variables,
 			);
 		},
-		...(config.retry ? { retry: config.retry } : {}),
+		...restOptions,
 	});
 }
+
+type PublicSuspenseQueryConfig<TData, TVariables, TError = Error> = {
+	queryKeyFn: (client: ApiClient) => unknown;
+	fetcher: (client: ApiClient, variables: TVariables) => Promise<TData>;
+} & BaseSuspenseQueryOptions<TData, TVariables, TError>;
 
 /**
  * Creates a public suspense query hook.
@@ -317,25 +400,27 @@ export function createPublicQuery<
 export function createPublicSuspenseQuery<
 	TData,
 	TVariables extends Record<string, unknown> = EmptyVariables,
->(config: PublicQueryConfig<TData, TVariables>) {
-	const queryKey = getQueryKey<ApiClient>(config.queryKeyFn);
+	TError = Error,
+>(config: PublicSuspenseQueryConfig<TData, TVariables, TError>) {
+	const { queryKeyFn, fetcher, ...restOptions } = config;
+	const queryKey = getQueryKey<ApiClient>(queryKeyFn);
 
-	return createSuspenseQuery<TData, TVariables>({
+	return createSuspenseQuery<TData, TVariables, TError>({
 		queryKey: [queryKey] as const,
 		fetcher: async (variables) => {
-			return config.fetcher(
+			return fetcher(
 				ClientManager.create().getOrCreateAnonymousClient(),
 				variables,
 			);
 		},
-		...(config.retry ? { retry: config.retry } : {}),
+		...restOptions,
 	});
 }
 
-type PublicMutationConfig<TData, TVariables> = {
+type PublicMutationConfig<TData, TVariables, TError = Error> = {
 	mutationKeyFn: (client: ApiClient) => unknown;
 	mutationFn: (client: ApiClient, variables: TVariables) => Promise<TData>;
-};
+} & BaseMutationOptions<TData, TVariables, TError>;
 
 /**
  * Creates a public mutation hook.
@@ -344,17 +429,20 @@ type PublicMutationConfig<TData, TVariables> = {
 export function createPublicMutation<
 	TData,
 	TVariables extends Record<string, unknown> = EmptyVariables,
->(config: PublicMutationConfig<TData, TVariables>) {
-	const mutationKey = getQueryKey<ApiClient>(config.mutationKeyFn);
+	TError = Error,
+>(config: PublicMutationConfig<TData, TVariables, TError>) {
+	const { mutationKeyFn, mutationFn, ...restOptions } = config;
+	const mutationKey = getQueryKey<ApiClient>(mutationKeyFn);
 
-	return createMutation<TData, TVariables>({
+	return createMutation<TData, TVariables, TError>({
 		mutationKey: [mutationKey] as const,
 		mutationFn: async (variables) => {
-			return config.mutationFn(
+			return mutationFn(
 				ClientManager.create().getOrCreateAnonymousClient(),
 				variables,
 			);
 		},
+		...restOptions,
 	});
 }
 
