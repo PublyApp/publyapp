@@ -19,9 +19,6 @@ type WithTenantId<T> = { tenantId: string } & Omit<T, 'tenantId'>;
 // Type for variables that may or may not have tenantId
 type MaybeWithTenantId<T> = { tenantId?: string } & Omit<T, 'tenantId'>;
 
-// Common retry logic for auth errors
-type RetryFn = (failureCount: number, error: Error) => boolean;
-
 // Empty variables type - use this instead of EmptyVariables
 // biome-ignore lint/complexity/noBannedTypes: We need an empty object type here
 type EmptyVariables = {};
@@ -447,4 +444,4 @@ export function createPublicMutation<
 }
 
 // Re-export types for use in hook files
-export type { MaybeWithTenantId, RetryFn, WithTenantId };
+export type { MaybeWithTenantId, WithTenantId };
