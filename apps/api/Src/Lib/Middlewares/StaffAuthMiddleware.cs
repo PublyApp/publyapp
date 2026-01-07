@@ -1,5 +1,5 @@
 using MainApi.Localization;
-using MainApi.Src.Features.Common.Account;
+using MainApi.Src.Modules.Shared.Users;
 
 namespace MainApi.Src.Lib.Middlewares;
 
@@ -15,14 +15,13 @@ public class StaffAuthMiddleware {
 	public async Task InvokeAsync(
 		HttpContext httpContext,
 		IAccountService accountService,
-		IAuthContext authContext
+		IRequestAuthContext authContext
 	) {
 		if (!authContext.IsAuthenticated) {
-			_logger.LogError("Request userId or sessionToken is missing: {@StaffAuthData}", new {
-				userId = authContext.UserId,
-				sessionToken = authContext.SessionToken,
-			});
-			_logger.LogError($"{nameof(SessionAuthMiddleware)} must be passed before {nameof(StaffAuthMiddleware)}");
+			if (_logger.IsEnabled(LogLevel.Error)) {
+				_logger.LogError("Request userId or sessionToken is missing: {UserId} {SessionToken}", authContext.UserId, authContext.SessionToken);
+				_logger.LogError("{SessionAuthMiddleware} must be passed before {StaffAuthMiddleware}", nameof(SessionAuthMiddleware), nameof(StaffAuthMiddleware));
+			}
 			httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
 			await httpContext.Response.WriteAsJsonAsync(
 				ApiResponse.Create(
@@ -43,7 +42,9 @@ public class StaffAuthMiddleware {
 			.GetUserStaffAccountAsync(userId, httpContext.RequestAborted);
 
 		if (accountStaff is null) {
-			_logger.LogDebug("User is not a staff member: {@StaffAuthData}", new { UserId = authContext.UserId });
+			if (_logger.IsEnabled(LogLevel.Debug)) {
+				_logger.LogDebug("User is not a staff member: {UserId}", authContext.UserId);
+			}
 			httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
 			await httpContext.Response.WriteAsJsonAsync(
 				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),

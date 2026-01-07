@@ -6,7 +6,7 @@ public class CheckSessionHeaderMiddleware {
 	private readonly RequestDelegate _next;
 
 	public static string? GetSessionToken(HttpContext httpContext) {
-		var sessionToken = httpContext.RequestServices.GetRequiredService<IAuthContext>().SessionToken
+		var sessionToken = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>().SessionToken
 			?? httpContext.Request.Headers["X-Session-Token"].FirstOrDefault();
 
 		if (string.IsNullOrEmpty(sessionToken)) {
@@ -20,7 +20,7 @@ public class CheckSessionHeaderMiddleware {
 		_next = next;
 	}
 
-	public async Task InvokeAsync(HttpContext httpContext, IAuthContext authContext) {
+	public async Task InvokeAsync(HttpContext httpContext, IRequestAuthContext authContext) {
 		var token = GetSessionToken(httpContext);
 
 		if (string.IsNullOrEmpty(token)) {
@@ -31,7 +31,6 @@ public class CheckSessionHeaderMiddleware {
 			return;
 		}
 
-		// var authContext = httpContext.RequestServices.GetRequiredService<IAuthContext>();
 		authContext.SessionToken = token;
 		await _next(httpContext);
 	}

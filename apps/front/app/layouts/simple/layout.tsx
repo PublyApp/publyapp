@@ -1,18 +1,15 @@
-import _ from 'lodash';
-
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import type { Breakpoint } from '@mui/material/styles';
+import _ from 'lodash';
 
 import { Logo } from '@/front/components/logo/logo';
 import { RouterLink } from '@/front/components/router-link';
 
-// import { SettingsButton } from '../components/settings-button';
 import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
 import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
 import { MainSection, type MainSectionProps } from '../core/main-section';
-
 import {
 	SimpleCompactContent,
 	type SimpleCompactContentProps,

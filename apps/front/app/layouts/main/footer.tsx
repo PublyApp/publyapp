@@ -4,13 +4,13 @@ import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
-import { styled, type Breakpoint } from '@mui/material/styles';
+import { type Breakpoint, styled } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
 // import { Iconify } from '@/front/components/iconify';
 // import { Logo } from '@/front/components/logo';
-// import { RouterLink } from 'src/routes/components';
-// import { paths } from 'src/routes/paths';
+// import { RouterLink } from '@/front/routes/components';
+// import { paths } from '@/front/routes/paths';
 
 import { Iconify } from '@/front/components/iconify/iconify';
 import { Logo } from '@/front/components/logo/logo';

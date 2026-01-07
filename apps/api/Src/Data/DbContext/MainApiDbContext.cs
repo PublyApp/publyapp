@@ -1,14 +1,19 @@
 using System.Linq.Expressions;
-using MainApi.Src.Features.Common.Account;
-using MainApi.Src.Features.Common.Profile;
-using MainApi.Src.Features.Common.Permission;
-using MainApi.Src.Features.Common.Project;
-using MainApi.Src.Features.Common.Session;
-using MainApi.Src.Features.Common.Tenant;
-using MainApi.Src.Features.Common.User;
-using MainApi.Src.Features.Tenant.Product;
-using Microsoft.EntityFrameworkCore;
+
 using MainApi.Src.Lib;
+using MainApi.Src.Modules.Shared.Auth;
+using MainApi.Src.Modules.Shared.Invitations;
+using MainApi.Src.Modules.Shared.Permissions;
+using MainApi.Src.Modules.Shared.Profiles;
+using MainApi.Src.Modules.Shared.Projects;
+using MainApi.Src.Modules.Shared.Tenants;
+using MainApi.Src.Modules.Shared.Users;
+using MainApi.Src.Modules.Staff.AuditLogs;
+using MainApi.Src.Modules.Staff.SystemNotices;
+using MainApi.Src.Modules.Tenant.Products;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace MainApi.Src.Data.DbContext;
 
@@ -16,45 +21,32 @@ namespace MainApi.Src.Data.DbContext;
 /// Main database context with automatic audit tracking for all entities.
 /// </summary>
 public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
-	private static MainApiDbContext? _singleton = null;
+	private static readonly Lazy<List<Type>> SeederTypeCache = new(DiscoverSeedersInternal, LazyThreadSafetyMode.ExecutionAndPublication);
 
-	public static MainApiDbContext SingleTon {
-		get {
-			if (_singleton is null) {
-				_singleton = new MainApiDbContext(
-					new DbContextOptionsBuilder<MainApiDbContext>()
-						.UseNpgsql(AppEnvironment.POSTGRES_CONNECTION_STRING)
-						.Options
-				);
-			}
-			return _singleton;
-		}
-	}
-
-	public static MainApiDbContext GetSingleTon() {
-		if (_singleton is null) {
-			throw new Exception("You must call SetSingleTon before calling GetSingleTon");
-		}
-
-		return _singleton;
-	}
-
-	public DbSet<Session> Session { get; init; }
-	public DbSet<Product> Product { get; init; }
-	public DbSet<User> User { get; init; }
-	public DbSet<Tenant> Tenant { get; init; }
+	public DbSet<Session> Session { get; init; } = null!;
+	public DbSet<Product> Product { get; init; } = null!;
+	public DbSet<User> User { get; init; } = null!;
+	public DbSet<Tenant> Tenant { get; init; } = null!;
 
 	// Project system entities (still needed for Project entity)
-	public DbSet<Project> Project { get; init; }
+	public DbSet<Project> Project { get; init; } = null!;
 
 	// Unified permission system entities
-	public DbSet<Permission> Permission { get; init; }
-	public DbSet<Profile> Profile { get; init; }
-	public DbSet<ProfilePermission> ProfilePermission { get; init; }
-	public DbSet<UserAccountProfile> UserAccountProfile { get; init; }
+	public DbSet<Permission> Permission { get; init; } = null!;
+	public DbSet<Profile> Profile { get; init; } = null!;
+	public DbSet<ProfilePermission> ProfilePermission { get; init; } = null!;
+	public DbSet<UserAccountProfile> UserAccountProfile { get; init; } = null!;
 
 	// Unified account system (handles Staff, Tenant, and Project accounts)
-	public DbSet<UserAccount> UserAccount { get; init; }
+	public DbSet<UserAccount> UserAccount { get; init; } = null!;
+
+	// Unified invitation system (Staff/Tenant/Project)
+	public DbSet<Invitation> Invitation { get; init; } = null!;
+	public DbSet<InvitationProfile> InvitationProfile { get; init; } = null!;
+
+	// Staff back-office entities
+	public DbSet<AuditLog> AuditLog { get; init; } = null!;
+	public DbSet<SystemNotice> SystemNotice { get; init; } = null!;
 
 	public Guid? TenantId { get; set; }
 
@@ -66,34 +58,113 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) {
 		base.OnConfiguring(optionsBuilder);
 
-		// EF Core 9: Define seeding logic here
+		// EF Core 9: Define seeding logic here using reflection to discover all seeders
 		optionsBuilder.UseSeeding((context, _) => {
 			var dbContext = (MainApiDbContext)context;
 
 			if (dbContext is null) {
-				throw new Exception("dbContext is null");
+				throw new InvalidOperationException("Seeding context cannot be null");
 			}
 
-			Seeder.SeedAll(dbContext);
+			var infrastructure = (IInfrastructure<IServiceProvider>)dbContext;
+			SeedAll(dbContext, infrastructure.Instance);
 		});
 
 		optionsBuilder.UseAsyncSeeding(async (context, _, cancellationToken) => {
 			var dbContext = (MainApiDbContext)context;
 
 			if (dbContext is null) {
-				throw new Exception("dbContext is null");
+				throw new InvalidOperationException("Seeding context cannot be null");
 			}
 
-			await Seeder.SeedAllAsync(dbContext);
+			var infrastructure = (IInfrastructure<IServiceProvider>)dbContext;
+			await SeedAllAsync(dbContext, infrastructure.Instance, cancellationToken);
 		});
+	}
+
+	/// <summary>
+	/// Discovers and executes all entity seeders synchronously.
+	/// </summary>
+	private static void SeedAll(MainApiDbContext dbContext, IServiceProvider serviceProvider) {
+		Task.Run(() => SeedAllAsync(dbContext, serviceProvider, CancellationToken.None))
+			.GetAwaiter()
+			.GetResult();
+	}
+
+	/// <summary>
+	/// Discovers and executes all entity seeders asynchronously using reflection.
+	/// </summary>
+	private static async Task SeedAllAsync(MainApiDbContext dbContext, IServiceProvider serviceProvider, CancellationToken cancellationToken) {
+		var logger = serviceProvider.GetService<ILogger<MainApiDbContext>>();
+		var seeders = CreateSeeders(serviceProvider);
+
+		foreach (var seeder in seeders) {
+			if (logger?.IsEnabled(LogLevel.Information) == true) {
+				logger.LogInformation("Running seeder {Seeder} with order {Order}", seeder.GetType().Name, seeder.Order);
+			}
+			await seeder.SeedAsync(dbContext, cancellationToken);
+		}
+	}
+
+	/// <summary>
+	/// Discovers all classes that implement <see cref="IEntitySeeder"/> using reflection.
+	/// </summary>
+	private static List<Type> DiscoverSeeders() => SeederTypeCache.Value;
+
+	/// <summary>
+	/// Creates seeded instances via dependency injection with robust error handling.
+	/// </summary>
+	/// <param name="serviceProvider">The service provider used for DI instantiation.</param>
+	/// <exception cref="InvalidOperationException">Thrown if a seeder cannot be instantiated.</exception>
+	private static List<IEntitySeeder> CreateSeeders(IServiceProvider serviceProvider) {
+		var seederTypes = DiscoverSeeders();
+		var seeders = new List<IEntitySeeder>(seederTypes.Count);
+
+		foreach (var type in seederTypes) {
+			try {
+				var instance = (IEntitySeeder)ActivatorUtilities.CreateInstance(serviceProvider, type);
+				seeders.Add(instance);
+			} catch (Exception ex) {
+				throw new InvalidOperationException($"Failed to instantiate seeder '{type.FullName}'.", ex);
+			}
+		}
+
+		return seeders
+			.OrderBy(seeder => seeder.Order)
+			.ToList();
+	}
+
+	/// <summary>
+	/// Performs the reflection scan to find available seeders. Results are cached.
+	/// </summary>
+	private static List<System.Type> DiscoverSeedersInternal() {
+		var seederInterface = typeof(IEntitySeeder);
+		var assembly = typeof(MainApiDbContext).Assembly;
+
+		var seederTypes = assembly
+			.GetTypes()
+			.Where(t =>
+				t.IsClass &&
+				!t.IsAbstract &&
+				seederInterface.IsAssignableFrom(t) &&
+				t != seederInterface
+			)
+			.ToList();
+
+		return seederTypes;
 	}
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder) {
 		base.OnModelCreating(modelBuilder);
 
+		// Instantiate AppSettings to access default values for database schema configuration
+		var appSettings = new AppSettings();
+
 		// Database-level lowercase constraints
 		modelBuilder.Entity<Tenant>()
-			.ToTable(t => t.HasCheckConstraint("CK_Tenant_Code_Lowercase", "code = LOWER(code)"));
+			.ToTable(t => t.HasCheckConstraint("CK_Tenant_Code_Lowercase", "code = LOWER(code)"))
+			.Property(t => t.MaxUsers)
+			.HasDefaultValue(appSettings.DEFAULT_MAX_USERS_PER_TENANT);
 
 		modelBuilder.Entity<User>()
 			.ToTable(t => t.HasCheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)"));
@@ -114,15 +185,73 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		// Database-level profile type constraints
 		modelBuilder.Entity<Profile>()
 			.ToTable(t => t.HasCheckConstraint("CK_Profile_Staff_Constraints",
-				"(profile_scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR profile_scope != 0"));
+				"(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0"));
 
 		modelBuilder.Entity<Profile>()
 			.ToTable(t => t.HasCheckConstraint("CK_Profile_Tenant_Constraints",
-				"(profile_scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR profile_scope != 1"));
+				"(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1"));
 
 		modelBuilder.Entity<Profile>()
 			.ToTable(t => t.HasCheckConstraint("CK_Profile_Project_Constraints",
-				"(profile_scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR profile_scope != 2"));
+				"(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2"));
+
+		// Database-level invitation scope constraints
+		modelBuilder.Entity<Invitation>()
+			.ToTable(t => t.HasCheckConstraint("CK_Invitation_Staff_Constraints",
+				"(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0"));
+
+		modelBuilder.Entity<Invitation>()
+			.ToTable(t => t.HasCheckConstraint("CK_Invitation_Tenant_Constraints",
+				"(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1"));
+
+		modelBuilder.Entity<Invitation>()
+			.ToTable(t => t.HasCheckConstraint("CK_Invitation_Project_Constraints",
+				"(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2"));
+
+		// Database-level permission key prefix constraints
+		modelBuilder.Entity<Permission>()
+			.ToTable(t => t.HasCheckConstraint("CK_Permission_Staff_Key_Prefix",
+				"(scope = 0 AND key LIKE 'staff.%') OR scope != 0"));
+
+		modelBuilder.Entity<Permission>()
+			.ToTable(t => t.HasCheckConstraint("CK_Permission_Tenant_Key_Prefix",
+				"(scope = 1 AND key LIKE 'tenant.%') OR scope != 1"));
+
+		modelBuilder.Entity<Permission>()
+			.ToTable(t => t.HasCheckConstraint("CK_Permission_Project_Key_Prefix",
+				"(scope = 2 AND key LIKE 'project.%') OR scope != 2"));
+
+		// Translations is runtime-only, explicitly exclude from mapping
+		modelBuilder.Entity<Permission>()
+			.Ignore(p => p.Translations);
+
+		// Explicit relationships for Session -> User (two FKs to same principal)
+		modelBuilder.Entity<Session>()
+			.HasOne(s => s.User)
+			.WithMany(u => u.Sessions)
+			.HasForeignKey(s => s.UserId)
+			.IsRequired();
+
+		modelBuilder.Entity<Session>()
+			.HasOne(s => s.ImpersonatingStaffUser)
+			.WithMany()
+			.HasForeignKey(s => s.ImpersonatingStaffUserId)
+			.OnDelete(DeleteBehavior.Restrict);
+
+		// Configure InvitationProfile junction table
+		modelBuilder.Entity<InvitationProfile>(entity => {
+			entity.HasKey(e => new { e.InvitationId, e.ProfileId });
+
+			entity.HasOne(e => e.Invitation)
+				.WithMany(i => i.InvitationProfiles)
+				.HasForeignKey(e => e.InvitationId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			entity.HasOne(e => e.Profile)
+				.WithMany()
+				.HasForeignKey(e => e.ProfileId)
+				.OnDelete(DeleteBehavior.Restrict);
+		});
 
 		// Partial indexes to favor active rows without enforcing global filters
 		modelBuilder.Entity<User>()
@@ -139,6 +268,19 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.HasIndex(u => new { u.UserId, u.Scope })
 			.HasDatabaseName("ix_user_accounts_user_id_account_type_active")
 			.HasFilter("\"is_deleted\" = false AND \"is_suspended\" = false");
+
+		// Keyset pagination indexes for staff profiles
+		// Supports efficient sorting by Name with Id as tie-breaker
+		modelBuilder.Entity<Profile>()
+			.HasIndex(p => new { p.Scope, p.Name, p.Id })
+			.HasDatabaseName("ix_profiles_staff_name_id")
+			.HasFilter("\"scope\" = 0");
+
+		// Supports efficient sorting by CreatedAt with Id as tie-breaker
+		modelBuilder.Entity<Profile>()
+			.HasIndex(p => new { p.Scope, p.CreatedAt, p.Id })
+			.HasDatabaseName("ix_profiles_staff_created_at_id")
+			.HasFilter("\"scope\" = 0");
 
 		// Apply matching query filters to ensure consistent filtering
 		if (TenantId != null) {
@@ -181,7 +323,8 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 				modelBuilder.Entity(entityType.ClrType);
 			} else {
 				throw new Exception(
-						$"{entityType.ClrType.Name} must implement {nameof(ITenantEntity)}, {nameof(IOptionalTenantEntity)}, or {nameof(INoTenantEntity)}");
+					$"{entityType.ClrType.Name} must implement {nameof(ITenantEntity)}, {nameof(IOptionalTenantEntity)}, or {nameof(INoTenantEntity)}"
+				);
 			}
 
 			// Configure UUID v7 auto-generation for entities with Guid Id (inheriting from BaseAttributes)
@@ -221,6 +364,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.Where(e => e.State == EntityState.Added || e.State == EntityState.Modified || e.State == EntityState.Deleted);
 
 		foreach (var entry in entries) {
+			// Handle BaseAttributesNoKey entities
 			if (entry.Entity is BaseAttributesNoKey baseEntity) {
 				var now = DateTime.UtcNow;
 
@@ -249,6 +393,38 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 						baseEntity.IsDeleted = true;
 						baseEntity.DeletedAt = now;
 						baseEntity.UpdatedAt = now;
+						break;
+				}
+			}
+			// Handle Permission record (has audit properties but doesn't inherit from BaseAttributesNoKey)
+			else if (entry.Entity is Permission permission) {
+				var now = DateTime.UtcNow;
+
+				switch (entry.State) {
+					case EntityState.Added:
+						permission.CreatedAt = now;
+						permission.UpdatedAt = now;
+						permission.IsDeleted = false;
+						permission.DeletedAt = null;
+						break;
+
+					case EntityState.Modified:
+						permission.UpdatedAt = now;
+						break;
+
+					case EntityState.Deleted:
+						// Check if this is a forced hard delete
+						if (_forceHardDeleteEntities.Contains(entry.Entity)) {
+							// Allow actual deletion - don't convert to soft delete
+							_forceHardDeleteEntities.Remove(entry.Entity);
+							continue;
+						}
+
+						// Default behavior: convert to soft delete
+						entry.State = EntityState.Modified;
+						permission.IsDeleted = true;
+						permission.DeletedAt = now;
+						permission.UpdatedAt = now;
 						break;
 				}
 			}

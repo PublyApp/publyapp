@@ -29,5 +29,22 @@
 	"password-reset-success": "Password reset successfully",
 	"tenant-id-required": "Tenant ID required",
 	"request-body-validation-failed": "Request body validation failed",
-	"query-parameters-validation-failed": "Query parameters validation failed"
+	"query-parameters-validation-failed": "Query parameters validation failed",
+	"failed-to-update-staff-member": "Failed to update staff member",
+	"staff-member-updated-successfully": "Staff member updated successfully",
+	"invitation-revoked": "Invitation revoked successfully",
+	"pending-invitation-exists": "A pending invitation already exists",
+	"staff-profile-created-successfully": "Staff profile created successfully",
+	"profile-name-already-exists": "Profile name already exists",
+	"profiles": "profiles",
+	"profile": "profile",
+	"staff-profiles": "staff profiles",
+	"user-accounts": "user accounts",
+	"no-items-found": "no {{item}} found",
+	"create-first-item": "create your first {{item}}",
+	"error-loading-items": "error loading {{item}}",
+	"view-details": "view details",
+	"delete-item": "delete {{item}}",
+	"confirm-delete-dialog-text": "are you sure you want to delete this item?",
+	"invalid-invitation-token": "Invalid or expired invitation token"
 }

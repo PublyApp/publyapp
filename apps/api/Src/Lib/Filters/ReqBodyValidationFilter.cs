@@ -1,4 +1,5 @@
 using FluentValidation;
+
 using MainApi.Localization;
 
 namespace MainApi.Src.Lib.Filters;
@@ -27,7 +28,24 @@ public class ReqBodyValidationFilter<TRequest> : IEndpointFilter {
 	}
 
 	public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext httpContext, EndpointFilterDelegate next) {
-		var request = httpContext.GetArgument<TRequest>(0);
+		// Find the argument that matches TRequest (skip route/query/service args)
+		var (found, idx) = httpContext.Arguments
+			.Select((arg, i) => (arg, i))
+			.FirstOrDefault(x => x.arg is TRequest);
+
+		if (found is null) {
+			// No matching body argument → fail validation
+			var response = ReqBodyValidationFailedResponse.Create(
+				"Request body is required",
+				ResponseKeys.RequestBodyValidationFailed,
+				new Dictionary<string, string[]> {
+					{ "body", ["Request body is required"] }
+				}
+			);
+			return TypedResults.BadRequest(response);
+		}
+
+		var request = httpContext.GetArgument<TRequest>(idx);
 		var result = await _validator.ValidateAsync(request, httpContext.HttpContext.RequestAborted);
 
 		if (!result.IsValid) {

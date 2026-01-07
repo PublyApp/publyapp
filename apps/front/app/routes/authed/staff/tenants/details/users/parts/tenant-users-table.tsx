@@ -1,7 +1,6 @@
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
 import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
@@ -19,7 +18,7 @@ import {
 } from 'material-react-table';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 import { useMemo } from 'react';
-// import ParseRestError from 'packages/parse-rest-client/ParseRestError';
+
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { CustomPopover } from '@/front/components/custom-popover/custom-popover';
 import DrawerAnchor from '@/front/components/drawer-anchor';
@@ -31,29 +30,18 @@ import { toast } from '@/front/components/snackbar';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
 import {
 	useGetVerificationLink,
 	useSendEmailVerificationReminder,
 } from '@/front/lib/react-query/features/common/auth.hooks';
 import { useFindStaffMember } from '@/front/lib/react-query/features/staff/staff-member.hooks';
 import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { logger } from '@/shared/lib/logger/iso-logger';
+import { getErrorMessage } from '@/shared/utils/error.utils';
 import { getUserFullName } from '@/shared/utils/user.utils';
 
-const UserStatus = {
-	Inactive: 10,
-	Pending: 20,
-	Suspended: 30,
-	Active: 40,
-	Deleted: 50,
-} as const;
-
-const statusMapLabel: Record<number, string> = {
-	[UserStatus.Inactive]: 'inactive',
-	[UserStatus.Pending]: 'pending',
-	[UserStatus.Suspended]: 'suspended',
-	[UserStatus.Active]: 'active',
-	[UserStatus.Deleted]: 'deleted',
-};
+// Status values are now returned as strings from the API
 
 export type TenantUserRowData = {
 	id: string;
@@ -134,16 +122,16 @@ const TenantUsersTable = () => {
 				firstName: staffMember.firstName || '',
 				lastName: staffMember.lastName || '',
 				// role: staffMember.roleData?.role || '',
-				status: statusMapLabel[staffMember.status || 0] || '',
+				status: staffMember.status || '',
 				email: staffMember.email || '',
 			};
 		});
 	}, [data]);
 
-	const table = useMRTTable('default', {
+	const table = useMRTTable('minimal', {
 		columns,
 		data: rows,
-		rowCount: data?.count || 0,
+		rowCount: getUntypedNumber(data?.count, 0),
 		manualPagination: true,
 		onPaginationChange: handlePaginationChange,
 		manualSorting: true,
@@ -161,9 +149,16 @@ const TenantUsersTable = () => {
 	});
 
 	return (
-		<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+		<Box
+			sx={{
+				flexGrow: 1,
+				display: 'flex',
+				flexDirection: 'column',
+				border: 'none',
+			}}
+		>
 			<MaterialReactTable table={table} />
-		</Card>
+		</Box>
 	);
 };
 
@@ -424,7 +419,9 @@ const CopyLinkButton = ({
 					if (!linkData) {
 						const result = await fetchVerificationLink();
 						if (result.error) {
-							console.error(result.error);
+							logger.error(getErrorMessage(result.error), {
+								error: result.error,
+							});
 							toast.error(t('copy-to-clipboard-error'));
 							return;
 						}
@@ -463,8 +460,8 @@ const FollowUpButton = ({
 			toast.success(t('email-verification-follow-up-success'));
 			onClose?.();
 		},
-		onError: (_error) => {
-			console.error(_error);
+		onError: (error) => {
+			logger.error(getErrorMessage(error), { error });
 			// if (error instanceof ParseRestError) {
 			// 	toast.error(error.message);
 			// 	return;

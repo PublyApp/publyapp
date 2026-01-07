@@ -1,0 +1,26 @@
+### @name PasswordLogin
+POST {{rootUrl}}/auth/login
+# Accept: application/json
+Content-Type: application/json
+{
+	"email": "admin@example.com",
+	"password": "password@123-local"
+}
+
+### @name PasswordRegister
+POST {{rootUrl}}/auth/register
+# Accept: application/json
+Content-Type: application/json
+{
+	"email": "staff-admin@example.com",
+	"password": "ChangeMe123!@3#lol"
+}
+
+### @name GetVerificationLink
+GET {{rootUrl}}/auth/verification-link?userId=123
+
+### @name GetTenantAuthData
+GET {{rootUrl}}/auth/tenant-auth-data
+
+### @name GetRedirectCode
+GET {{rootUrl}}/auth/redirect-code?tenantId=123

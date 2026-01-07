@@ -1,5 +1,5 @@
 // core (MUI)
-import type { AppLocale } from '@/shared/lib/i18n/resources';
+
 import { frFR as frFRCore } from '@mui/material/locale';
 // data grid (MUI)
 import {
@@ -11,6 +11,7 @@ import {
 	enUS as enUSDate,
 	frFR as frFRDate,
 } from '@mui/x-date-pickers/locales';
+import type { AppLocale } from '@/shared/lib/i18n/resources';
 
 // ----------------------------------------------------------------------
 

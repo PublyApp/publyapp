@@ -98,31 +98,33 @@ export const common = createPaletteChannel(themeConfig.palette.common);
 // Grey color
 export const grey = createPaletteChannel(themeConfig.palette.grey);
 
-// Text color
+// Text color - UI Foundations exact values
 export const text = {
 	light: createPaletteChannel({
-		primary: grey[800],
-		secondary: grey[600],
-		disabled: grey[500],
+		primary: grey[800], // #1F2937
+		secondary: grey[600], // #4B5563
+		disabled: grey[400], // #9CA3AF
 	}),
 	dark: createPaletteChannel({
-		primary: '#FFFFFF',
-		secondary: grey[500],
-		disabled: grey[600],
+		primary: '#E5E7EB', // gray.800 in dark mode (inverted)
+		secondary: '#9CA3AF', // gray.500 in dark mode
+		disabled: '#6B7280', // gray.400 in dark mode
 	}),
 };
 
-// Background color
+// Background color - UI Foundations exact dark mode
+// Light: default: 'hsla(210, 20%, 99%, 1)', paper: '#fff'
+// Dark: default: 'hsla(220, 2%, 12%, 1)', paper: '#2a2b2e'
 export const background = {
 	light: createPaletteChannel({
 		paper: '#FFFFFF',
-		default: '#FFFFFF',
-		neutral: grey[200],
+		default: '#FCFCFD', // hsla(210, 20%, 99%, 1)
+		neutral: grey[100], // #F3F4F6 - also used for hover states
 	}),
 	dark: createPaletteChannel({
-		paper: grey[800],
-		default: grey[900],
-		neutral: '#28323D',
+		paper: '#2A2B2E', // UI Foundations exact paper color
+		default: '#1E1E1F', // hsla(220, 2%, 12%, 1)
+		neutral: '#3A3B3E', // Slightly elevated for cards, also used for hover states
 	}),
 };
 

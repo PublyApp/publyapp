@@ -12,9 +12,9 @@ import {
 	I18N_NAMESPACES,
 	isServer,
 } from '@/shared/lib/constants';
-import { isoLogger } from '@/shared/lib/logger/iso-logger';
-import { UserNewEditForm } from '../components/user-new-edit-form';
+import { logger } from '@/shared/lib/logger/iso-logger';
 import type { Route } from './+types/new-staff-member-page';
+import NewStaffMemberForm from './components/new-staff-member-form';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = _.capitalize(
@@ -60,7 +60,7 @@ export const clientLoader = async ({
 	serverLoader,
 }: Route.ClientLoaderArgs) => {
 	i18next.loadNamespaces([I18N_NAMESPACES.ZOD]).catch((error) => {
-		isoLogger.error('Failed to load namespaces', error);
+		logger.error('Failed to load namespaces', error);
 	});
 	const serverData = await serverLoader();
 	return data(serverData);
@@ -87,8 +87,7 @@ const NewStaffMemberPage = () => {
 				]}
 				sx={{ mb: { xs: 3, md: 5 } }}
 			/>
-
-			<UserNewEditForm />
+			<NewStaffMemberForm />
 		</DashboardContent>
 	);
 };

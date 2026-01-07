@@ -1,5 +1,3 @@
-import { useCallback, useMemo } from 'react';
-
 import Autocomplete, {
 	type AutocompleteProps,
 	type AutocompleteRenderGetTagProps,
@@ -10,6 +8,7 @@ import { filledInputClasses } from '@mui/material/FilledInput';
 import InputAdornment from '@mui/material/InputAdornment';
 import { outlinedInputClasses } from '@mui/material/OutlinedInput';
 import TextField, { type TextFieldProps } from '@mui/material/TextField';
+import { useCallback, useMemo } from 'react';
 
 import { countries } from '@/front/assets/data/countries';
 

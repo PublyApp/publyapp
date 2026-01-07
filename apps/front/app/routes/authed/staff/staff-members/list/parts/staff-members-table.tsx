@@ -1,11 +1,8 @@
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
 import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
-import MenuItem from '@mui/material/MenuItem';
-import MenuList from '@mui/material/MenuList';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import _ from 'lodash';
@@ -15,10 +12,10 @@ import {
 	type MRT_ColumnDef,
 	type MRT_SortingState,
 } from 'material-react-table';
-import { useBoolean, usePopover } from 'minimal-shared/hooks';
+import { useBoolean } from 'minimal-shared/hooks';
 import { useMemo } from 'react';
+
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
-import { CustomPopover } from '@/front/components/custom-popover/custom-popover';
 import { Iconify } from '@/front/components/iconify/iconify';
 import type { LabelColor } from '@/front/components/label';
 import { Label } from '@/front/components/label/label';
@@ -27,6 +24,8 @@ import { toast } from '@/front/components/snackbar';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { isJsClientError } from '@/front/lib/js-client/js-client-error';
+import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
 import {
 	useGetUserAuthData,
 	useGetVerificationLink,
@@ -38,8 +37,12 @@ import {
 	ACCOUNT_LEVEL_ENUM,
 	DEFAULT_PAGE_SIZE,
 	FRONT_PATH_NAMES,
+	I18N_NAMESPACES,
 	USER_STATUS_ENUM,
+	voidFunction,
 } from '@/shared/lib/constants';
+import { logger } from '@/shared/lib/logger/iso-logger';
+import { getErrorMessage } from '@/shared/utils/error.utils';
 import { getUserFullName } from '@/shared/utils/user.utils';
 
 export type StaffMemberRowData = {
@@ -97,24 +100,24 @@ const StaffMembersTable = () => {
 					id: 'fullName',
 					header: t('name'),
 					Cell: UserCell,
-					size: 300,
 					enableSorting: false,
+					size: 900,
 				},
 			),
 			columnHelper.accessor('level', {
 				header: t('level'),
 				Cell: LevelCell,
-				size: 70,
+				size: 150,
 			}),
 			columnHelper.accessor('status', {
 				header: t('status'),
 				Cell: StatusCell,
-				size: 70,
+				size: 150,
 			}),
 			columnHelper.display({
 				header: 'Actions',
 				Cell: UserActionsCell,
-				size: 5,
+				size: 150,
 			}),
 		];
 	}, [t]);
@@ -123,21 +126,21 @@ const StaffMembersTable = () => {
 		variables: apiVariables,
 	});
 
-	const rows: StaffMemberRowData[] = useMemo(() => {
+	const dataTable = useMemo(() => {
 		return _.map(data?.staffMembers, StaffMemberRowDataMapper);
 	}, [data]);
 
-	const table = useMRTTable('default', {
+	const table = useMRTTable('minimal', {
 		columns,
-		data: rows,
-		rowCount: data?.count || 0,
+		data: dataTable,
+		rowCount: getUntypedNumber(data?.count, 0),
 		manualPagination: true,
 		onPaginationChange: handlePaginationChange,
 		manualSorting: true,
 		onSortingChange: handleSortingChange,
 		state: {
 			...tableState,
-			density: 'comfortable',
+			density: 'compact',
 			isLoading: isPending,
 		},
 		muiTablePaperProps: {
@@ -148,9 +151,16 @@ const StaffMembersTable = () => {
 	});
 
 	return (
-		<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+		<Box
+			sx={{
+				flexGrow: 1,
+				display: 'flex',
+				flexDirection: 'column',
+				border: 'none',
+			}}
+		>
 			<MaterialReactTable table={table} />
-		</Card>
+		</Box>
 	);
 };
 
@@ -263,58 +273,13 @@ const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 	const userId = props.row.original.id;
 	const isUserPending = props.row.original.status === USER_STATUS_ENUM.PENDING;
 
-	const menuActions = usePopover();
 	const confirmDialog = useBoolean();
 	const { t } = useTranslate();
 
 	const onConfirmDeleteRow = () => {
-		menuActions.onClose();
-		toast.warning(`onDelete: ${userId}`);
+		logger.info('onConfirmDeleteRow', { userId });
+		toast.warning('TODO: implement delete');
 	};
-
-	const renderMenuActions = () => (
-		<CustomPopover
-			open={menuActions.open}
-			anchorEl={menuActions.anchorEl}
-			onClose={
-				/* isLoadingGetVerificationLink ? undefined :  */ menuActions.onClose
-			}
-			slotProps={{ arrow: { placement: 'right-top' } }}
-		>
-			<MenuList>
-				<CopyLinkButton
-					isUserPending={isUserPending}
-					userId={userId}
-					onClose={menuActions.onClose}
-				/>
-
-				<FollowUpButton
-					isUserPending={isUserPending}
-					email={props.row.original.email}
-					onClose={menuActions.onClose}
-				/>
-
-				<MenuItem
-					component={RouterLink}
-					href={FRONT_PATH_NAMES.staff.staffMembers.details(userId)}
-					onClick={() => menuActions.onClose()}
-				>
-					<Iconify icon="solar:pen-bold" />
-					{t('edit')}
-				</MenuItem>
-				<MenuItem
-					onClick={() => {
-						confirmDialog.onTrue();
-						menuActions.onClose();
-					}}
-					sx={{ color: 'error.main' }}
-				>
-					<Iconify icon="solar:trash-bin-trash-bold" />
-					{t('delete')}
-				</MenuItem>
-			</MenuList>
-		</CustomPopover>
-	);
 
 	const renderConfirmDialog = () => (
 		<ConfirmDialog
@@ -331,20 +296,47 @@ const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 	);
 
 	return (
-		<Box
-			className="is-actions-column"
-			sx={{ display: 'flex', alignItems: 'center' }}
-		>
-			<IconButton
-				color={menuActions.open ? 'inherit' : 'default'}
-				onClick={menuActions.onOpen}
+		<>
+			<Box
+				// className="is-actions-column"
+				sx={{ display: 'flex', alignItems: 'center' }}
 			>
-				<Iconify icon="eva:more-vertical-fill" />
-			</IconButton>
+				<FollowUpButton
+					isUserPending={isUserPending}
+					email={props.row.original.email}
+					// forceShow={true}
+				/>
 
-			{renderMenuActions()}
+				<CopyLinkButton
+					isUserPending={isUserPending}
+					userId={userId}
+					onClose={voidFunction}
+					// forceShow={true}
+				/>
+
+				<Tooltip title={t('view-details')} placement="top" arrow>
+					<IconButton
+						color={'default'}
+						LinkComponent={RouterLink}
+						href={FRONT_PATH_NAMES.staff.staffMembers.details(userId)}
+					>
+						<Iconify icon="solar:eye-bold" />
+					</IconButton>
+				</Tooltip>
+
+				<Tooltip title="Delete" placement="top" arrow>
+					<IconButton
+						color={'default'}
+						onClick={confirmDialog.onTrue}
+						sx={{ color: 'error.main' }}
+					>
+						<Iconify icon="solar:trash-bin-trash-bold" />
+					</IconButton>
+				</Tooltip>
+			</Box>
+
 			{renderConfirmDialog()}
-		</Box>
+		</>
 	);
 };
 
@@ -352,10 +344,12 @@ const CopyLinkButton = ({
 	isUserPending,
 	userId,
 	onClose,
+	forceShow = false,
 }: {
 	isUserPending: boolean;
 	userId: string;
 	onClose?: () => void;
+	forceShow?: boolean;
 }) => {
 	const { t } = useTranslate();
 
@@ -368,21 +362,24 @@ const CopyLinkButton = ({
 		enabled: false,
 	});
 
-	return isUserPending && ALLOW_COPY_LINK ? (
+	if ((!isUserPending || !ALLOW_COPY_LINK) && !forceShow) return null;
+
+	return (
 		<Tooltip
 			title={_.capitalize(t('copy-item', { item: t('verification-link') }))}
 			placement="top"
 		>
-			<MenuItem
-				component={Button}
+			<IconButton
+				color={'default'}
 				loading={isLoadingGetVerificationLink}
-				fullWidth
 				onClick={async () => {
 					let link = linkData?.link || 'unable to get verification link';
 					if (!linkData) {
 						const result = await fetchVerificationLink();
 						if (result.error) {
-							console.error(result.error);
+							logger.error(getErrorMessage(result.error), {
+								error: result.error,
+							});
 							toast.error(t('copy-to-clipboard-error'));
 							return;
 						}
@@ -396,20 +393,19 @@ const CopyLinkButton = ({
 				}}
 			>
 				<Iconify icon="solar:copy-bold-duotone" />
-				{t('copy-link')}
-			</MenuItem>
+			</IconButton>
 		</Tooltip>
-	) : null;
+	);
 };
 
 const FollowUpButton = ({
 	isUserPending,
 	email,
-	onClose,
+	forceShow = false,
 }: {
 	isUserPending: boolean;
 	email: string;
-	onClose?: () => void;
+	forceShow?: boolean;
 }) => {
 	const { t } = useTranslate();
 
@@ -419,36 +415,37 @@ const FollowUpButton = ({
 	} = useSendEmailVerificationReminder({
 		onSuccess: () => {
 			toast.success(t('email-verification-follow-up-success'));
-			onClose?.();
 		},
 		onError: (error) => {
-			console.error(error);
-			// if (error instanceof ParseRestError) {
-			// 	toast.error(error.message);
-			// 	return;
-			// }
+			if (isJsClientError(error)) {
+				const errorMessage = error.key
+					? t(error.key as never, { ns: I18N_NAMESPACES.RESPONSE_MESSAGE })
+					: error.messageEscaped;
+				toast.error(errorMessage);
+				logger.error(errorMessage, { error });
+				return;
+			}
+			logger.error(getErrorMessage(error), { error });
 			toast.error(t('email-verification-follow-up-error'));
-			onClose?.();
 		},
 	});
 
-	return isUserPending ? (
+	if (!isUserPending && !forceShow) return null;
+
+	return (
 		<Tooltip
 			title={_.capitalize(t('send-email-verification-follow-up'))}
 			placement="top"
 		>
-			<MenuItem
-				component={Button}
+			<IconButton
+				color={'default'}
 				loading={isPendingSendEmailVerificationReminder}
-				fullWidth
 				onClick={async () => {
 					await sendEmailVerificationReminder({ email });
-					onClose?.();
 				}}
 			>
 				<Iconify icon="custom:send-fill" />
-				{t('follow-up')}
-			</MenuItem>
+			</IconButton>
 		</Tooltip>
-	) : null;
+	);
 };

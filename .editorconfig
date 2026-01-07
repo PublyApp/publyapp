@@ -45,3 +45,29 @@ csharp_new_line_before_finally = false
 # ==== Braces syntax to follow Js/Java style ====
 # IDE0042: Deconstruct variable declaration
 dotnet_diagnostic.IDE0042.severity = none
+# IDE0028: Simplify collection initialization
+dotnet_diagnostic.IDE0028.severity = none
+# CA1860: Avoid using 'Enumerable.Any()' extension method
+dotnet_diagnostic.CA1860.severity = warning
+# IDE0130: Namespace declaration does not match folder structure
+dotnet_diagnostic.IDE0130.severity = warning
+# ==== Using directive organization ====
+# Sort System.* using directives first
+dotnet_sort_system_directives_first = true
+# Separate using directive groups with blank lines
+dotnet_separate_import_directive_groups = true
+# ======================================
+# CS0168: The variable 'name' is declared but never used
+dotnet_diagnostic.CS0168.severity = warning
+# CS0219: Variable is assigned but its value is never used
+dotnet_diagnostic.CS0219.severity = warning
+# IDE0059: Unnecessary assignment of a value
+dotnet_diagnostic.IDE0059.severity = warning
+# IDE0060: Remove unused parameter
+dotnet_diagnostic.IDE0060.severity = warning
+# CS1591: Missing XML comment for publicly visible type or member
+dotnet_diagnostic.CS1591.severity = none
+# CA1848: Use the LoggerMessage delegates for performance
+dotnet_diagnostic.CA1848.severity = none
+# CA1062: Validate arguments of public methods
+dotnet_diagnostic.CA1873.severity = warning

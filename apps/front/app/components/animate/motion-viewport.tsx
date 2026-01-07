@@ -1,6 +1,6 @@
 import Box, { type BoxProps } from '@mui/material/Box';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import { m, type MotionProps } from 'framer-motion';
+import { type MotionProps, m } from 'framer-motion';
 
 import { varContainer } from './variants';
 

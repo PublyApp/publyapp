@@ -1,6 +1,5 @@
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
 import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import ListItemText from '@mui/material/ListItemText';
@@ -14,6 +13,7 @@ import {
 } from 'material-react-table';
 import { nanoid } from 'nanoid';
 import { useMemo } from 'react';
+
 import { Iconify } from '@/front/components/iconify/iconify';
 import { Label } from '@/front/components/label/label';
 import type { LabelColor } from '@/front/components/label/types';
@@ -21,12 +21,14 @@ import { RouterLink } from '@/front/components/router-link';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
 import { useFindTenants } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
 import type { TenantAsStaffItem } from '@/js-client/src/models';
 import {
 	DEFAULT_PAGE_SIZE,
 	FRONT_PATH_NAMES,
 	TENANT_STATUS_ENUM,
+	voidFunction,
 } from '@/shared/lib/constants';
 
 export type TenantRowData = {
@@ -43,8 +45,8 @@ const TenantRowDataMapper = (tenant: TenantAsStaffItem): TenantRowData => {
 		id: tenant.id || nanoid(),
 		name: tenant.name || '-',
 		logoUrl: tenant.logoUrl || '-',
-		usersCount: tenant.usersCount || 0,
-		maxUsers: tenant.maxUsers || 0,
+		usersCount: getUntypedNumber(tenant.usersCount, 0),
+		maxUsers: getUntypedNumber(tenant.maxUsers, 0),
 		status: tenant.status || '-',
 	};
 };
@@ -64,18 +66,11 @@ const TenantsTable = () => {
 			columnHelper.accessor('name', {
 				header: t('name'),
 				Cell: TenantCell,
-				// grow: 1,
 				size: 300,
 			}),
 			columnHelper.accessor('usersCount', {
 				header: t('users'),
-				Cell: (props) => {
-					return (
-						<>
-							{props.cell.getValue()} / {props.row.original.maxUsers}
-						</>
-					);
-				},
+				Cell: UsersCountCell,
 				size: 70,
 			}),
 			// columnHelper.accessor('pricingPlan', {
@@ -98,11 +93,6 @@ const TenantsTable = () => {
 		];
 	}, [t]);
 
-	// const [pagination, setPagination] = useState<MRT_PaginationState>({
-	// 	pageIndex: 0,
-	// 	pageSize: DEFAULT_PAGE_SIZE, //customize the default page size
-	// });
-
 	// Use the custom table state hook
 	const {
 		handlePaginationChange,
@@ -122,11 +112,11 @@ const TenantsTable = () => {
 		return _.map(data?.tenants, (tenant) => TenantRowDataMapper(tenant));
 	}, [data]);
 
-	const table = useMRTTable('default', {
+	const table = useMRTTable('minimal', {
 		columns,
 		data: dataTable,
+		rowCount: getUntypedNumber(data?.count, 0),
 		manualPagination: true,
-		rowCount: data?.count || 0,
 		onPaginationChange: handlePaginationChange,
 		manualSorting: true,
 		onSortingChange: handleSortingChange,
@@ -143,9 +133,16 @@ const TenantsTable = () => {
 	});
 
 	return (
-		<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+		<Box
+			sx={{
+				flexGrow: 1,
+				display: 'flex',
+				flexDirection: 'column',
+				border: 'none',
+			}}
+		>
 			<MaterialReactTable table={table} />
-		</Card>
+		</Box>
 	);
 };
 
@@ -217,12 +214,26 @@ const StatusCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 	);
 };
 
+const UsersCountCell: MRT_ColumnDef<TenantRowData, number>['Cell'] = (
+	props,
+) => {
+	return (
+		<>
+			{props.cell.getValue()} / {props.row.original.maxUsers}
+		</>
+	);
+};
+
 const TenantActionsCell: MRT_ColumnDef<TenantRowData>['Cell'] = (props) => {
 	const tenantId = props.row.original.id;
+	const { t } = useTranslate();
 
 	return (
-		<Box sx={{ display: 'flex', alignItems: 'center' }}>
-			<Tooltip title="View details" placement="top" arrow>
+		<Box
+			// className="is-actions-column"
+			sx={{ display: 'flex', alignItems: 'center' }}
+		>
+			<Tooltip title={t('view-details')} placement="top" arrow>
 				<IconButton
 					color={'default'}
 					LinkComponent={RouterLink}
@@ -232,31 +243,15 @@ const TenantActionsCell: MRT_ColumnDef<TenantRowData>['Cell'] = (props) => {
 				</IconButton>
 			</Tooltip>
 
-			<Tooltip title="Quick Edit" placement="top" arrow>
-				<IconButton
-					color={/* quickEditForm.value ? 'inherit' : 'default' */ 'default'}
-					onClick={/* quickEditForm.onTrue */ () => {}}
-				>
-					<Iconify icon="solar:pen-bold" />
-				</IconButton>
-			</Tooltip>
-
 			<Tooltip title="Delete" placement="top" arrow>
 				<IconButton
-					color={/* quickEditForm.value ? 'inherit' : 'default' */ 'default'}
-					onClick={/* quickEditForm.onTrue */ () => {}}
+					color={'default'}
+					onClick={voidFunction}
 					sx={{ color: 'error.main' }}
 				>
 					<Iconify icon="solar:trash-bin-trash-bold" />
 				</IconButton>
 			</Tooltip>
-
-			{/* <IconButton
-              color={menuActions.open ? 'inherit' : 'default'}
-              onClick={menuActions.onOpen}
-            >
-              <Iconify icon="eva:more-vertical-fill" />
-            </IconButton> */}
 		</Box>
 	);
 };

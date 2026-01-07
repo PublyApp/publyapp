@@ -18,13 +18,14 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { nanoid } from 'nanoid';
 import { useMemo } from 'react';
 import { useParams } from 'react-router';
-import type { TenantProfile } from '@/front/_mock/_tenant-profiles';
+
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { toast } from '@/front/components/snackbar';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { useFindTenantProfiles } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
+import type { ProfileAsStaffItem } from '@/js-client/src/models';
 import { TENANT_PROFILES_PERMISSIONS_ENUM } from '@/shared/lib/constants';
 
 type TenantProfileRowData = Record<string, unknown> & { permission: string };
@@ -78,10 +79,11 @@ const TenantProfilesTable = () => {
 	});
 
 	const profilesMap = useMemo(() => {
-		const map = new Map<string, TenantProfile>();
+		const map = new Map<string, ProfileAsStaffItem>();
 
-		_.forEach(profiles, (profile) => {
-			map.set(profile.objectId, profile);
+		_.forEach(profiles?.profiles, (profile) => {
+			if (!profile || !profile.id) return;
+			map.set(profile.id, profile);
 		});
 
 		return map;
@@ -93,14 +95,16 @@ const TenantProfilesTable = () => {
 		const columnsDefinition = [...commonColumns];
 
 		profilesMap.forEach((profile) => {
+			const profileId = profile.id ?? '';
 			columnsDefinition.push(
-				columnHelper.accessor(`${profile.objectId}-${nanoid()}`, {
-					header: profile.name,
+				columnHelper.accessor(`${profileId}-${nanoid()}`, {
+					header: profile.name ?? '',
 					Header: ProfileHeader,
 					size: 190,
 					Cell: ({ row }) => {
+						const currentProfile = profilesMap.get(profileId);
 						const isActive = _.get(
-							profilesMap.get(profile.objectId),
+							currentProfile,
 							`permissions.${row.original.permission}`,
 							false,
 						);
@@ -113,7 +117,7 @@ const TenantProfilesTable = () => {
 		return columnsDefinition;
 	}, [profilesMap]);
 
-	const table = useMRTTable('default', {
+	const table = useMRTTable('minimal', {
 		columns: isPending ? placeholderColumns : columns,
 		data: rows,
 		state: {
@@ -153,7 +157,12 @@ const TenantProfilesTable = () => {
 
 	return (
 		<Card
-			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
+			sx={{
+				flexGrow: 1,
+				display: 'flex',
+				flexDirection: 'column',
+				border: 'none',
+			}}
 			style={{
 				['--permission-column-bg' as string]:
 					mode === 'dark'

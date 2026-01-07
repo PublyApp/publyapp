@@ -1,15 +1,18 @@
-import _ from 'lodash';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import type { Breakpoint } from '@mui/material/styles';
+import _ from 'lodash';
+
 import { Logo } from '@/front/components/logo/logo';
+import { allLangs } from '@/front/lib/locales/all-langs';
+
+import { ColorSchemePopover } from '../components/colorscheme-popover';
+import { LanguagePopover } from '../components/language-popover';
 import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
 import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
 import { MainSection, type MainSectionProps } from '../core/main-section';
 import { AuthSplitContent, type AuthSplitContentProps } from './content';
 import { AuthSplitSection, type AuthSplitSectionProps } from './section';
-import { allLangs } from '@/front/lib/locales/all-langs';
-import { LanguagePopover } from '../components/language-popover';
 
 // ----------------------------------------------------------------------
 
@@ -70,6 +73,9 @@ export const AuthSplitLayout = ({
 					{/** @slot Settings button */}
 					{/* <SettingsButton /> */}
 
+					{/** @slot Color scheme popover */}
+					<ColorSchemePopover />
+
 					{/** @slot Language popover */}
 					<LanguagePopover data={allLangs} />
 				</Box>
@@ -79,12 +85,17 @@ export const AuthSplitLayout = ({
 		return (
 			<HeaderSection
 				disableElevation
+				disableOffset
 				layoutQuery={layoutQuery}
 				{...slotProps?.header}
 				slots={{ ...headerSlots, ...slotProps?.header?.slots }}
 				slotProps={_.merge(headerSlotProps, slotProps?.header?.slotProps ?? {})}
 				sx={[
-					{ position: { [layoutQuery]: 'fixed' } },
+					{
+						position: { [layoutQuery]: 'fixed' },
+						backgroundColor: 'transparent !important',
+						borderBottom: 'none !important',
+					},
 					...(Array.isArray(slotProps?.header?.sx)
 						? (slotProps?.header?.sx ?? [])
 						: [slotProps?.header?.sx]),

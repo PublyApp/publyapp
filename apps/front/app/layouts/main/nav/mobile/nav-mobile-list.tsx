@@ -1,12 +1,11 @@
-import { useCallback, useRef } from 'react';
-
 import Collapse from '@mui/material/Collapse';
 import { useBoolean } from 'minimal-shared/hooks';
 import { isActiveLink, isExternalLink, varAlpha } from 'minimal-shared/utils';
+import { useCallback, useRef } from 'react';
 
 import {
-	navSectionClasses,
 	NavSectionVertical,
+	navSectionClasses,
 } from '@/front/components/nav-section';
 import { usePathname } from '@/front/hooks/use-pathname';
 

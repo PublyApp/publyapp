@@ -9,12 +9,10 @@
 		<PackageReference Include="DotNetEnv" />
 		<PackageReference Include="FluentValidation.AspNetCore" />
 		<PackageReference Include="Microsoft.AspNetCore.OpenApi" />
-		<PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
 		<PackageReference Include="Resend" />
-		<PackageReference Include="System.Text.Json" />
 		<PackageReference Include="Scalar.AspNetCore" />
 		<PackageReference Include="Serilog.AspNetCore" />
 		<PackageReference Include="Serilog.Enrichers.Environment" />
@@ -23,6 +21,7 @@
 		<PackageReference Include="Serilog.Sinks.Console" />
 		<PackageReference Include="Serilog.Sinks.File" />
 		<PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders" />
+		<PackageReference Include="Polly" />
 		<!-- for exporting openapi documents to json file at build time -->
 		<PackageReference Include="Microsoft.Extensions.ApiDescription.Server">
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -41,10 +40,18 @@
 		<GeneratedDir>Generated</GeneratedDir>
 		<TranslationJsonFile>$(MSBuildProjectDirectory)\..\..\packages\shared\lib\i18n\json\response-message.en.json</TranslationJsonFile>
 		<GeneratedKeysFile>$(MSBuildProjectDirectory)\$(GeneratedDir)\ResponseKeys.g.cs</GeneratedKeysFile>
+		<TranslationKeyGenProject>$(MSBuildProjectDirectory)\..\..\packages\_tx-key-gen\TranslationKeyGenerator.csproj</TranslationKeyGenProject>
+		<TranslationKeyGenOutputDir>$(MSBuildProjectDirectory)\..\..\packages\_tx-key-gen\bin\$(Configuration)\net10.0</TranslationKeyGenOutputDir>
+		<TranslationKeyGenDll>$(TranslationKeyGenOutputDir)\TranslationKeyGenerator.dll</TranslationKeyGenDll>
 	</PropertyGroup>
 
-	<Target Name="GenerateTranslationKeys" BeforeTargets="BeforeBuild">
+	<Target Name="BuildTranslationKeyGenerator" BeforeTargets="GenerateTranslationKeys">
+		<Message Text="Building TranslationKeyGenerator..." Importance="normal" />
+		<Exec Command="dotnet build &quot;$(TranslationKeyGenProject)&quot; -c $(Configuration)" ContinueOnError="false" />
+	</Target>
+
+	<Target Name="GenerateTranslationKeys" BeforeTargets="BeforeBuild" DependsOnTargets="BuildTranslationKeyGenerator">
 		<Message Text="Generating translation keys from response-message.en.json..." Importance="high" />
-		<Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\..\packages\_tx-key-gen\TranslationKeyGenerator.csproj&quot; &quot;$(TranslationJsonFile)&quot; &quot;$(GeneratedKeysFile)&quot;" ContinueOnError="false" />
+		<Exec Command="dotnet &quot;$(TranslationKeyGenDll)&quot; &quot;$(TranslationJsonFile)&quot; &quot;$(GeneratedKeysFile)&quot;" ContinueOnError="false" />
 	</Target>
 </Project>

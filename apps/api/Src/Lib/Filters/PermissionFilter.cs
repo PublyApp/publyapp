@@ -1,7 +1,6 @@
 using MainApi.Localization;
-using MainApi.Src.Data.DbContext;
-using MainApi.Src.Features.Common.Account;
-using MainApi.Src.Features.Common.Permission;
+using MainApi.Src.Modules.Shared.Permissions;
+using MainApi.Src.Modules.Shared.Users;
 
 namespace MainApi.Src.Lib.Filters;
 
@@ -30,14 +29,13 @@ public class PermissionFilter : IEndpointFilter {
 		EndpointFilterDelegate next
 	) {
 		var httpContext = context.HttpContext;
-		var authContext = httpContext.RequestServices.GetRequiredService<IAuthContext>();
+		var authContext = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>();
 		var accountStaff = authContext.AccountStaff;
-		var dbContext = httpContext.RequestServices.GetRequiredService<MainApiDbContext>();
 		var permissionService = httpContext.RequestServices.GetRequiredService<IPermissionService>();
 		var logger = httpContext.RequestServices.GetRequiredService<ILogger<PermissionFilter>>();
 
 		if (accountStaff == null) {
-			throw new Exception("PermissionFilter must be set behind StaffAuthMiddleware.");
+			throw new Exception("PermissionFilter must be set behind StaffAuthFilter.");
 		}
 
 		// if user is not admin, check user permissions
@@ -52,16 +50,18 @@ public class PermissionFilter : IEndpointFilter {
 
 				// early clause guard to avoid unnecessary permission checks
 				if (userPermissions.Count == 0) {
-					logger.LogDebug("User is not an admin and has no permissions: {@AccountStaff}", new {
-						accountId = accountStaff.Id,
-						userId = accountStaff.UserId,
-						sessionToken = authContext.SessionToken,
-					});
+					if (logger.IsEnabled(LogLevel.Debug)) {
+						logger.LogDebug("User is not an admin and has no permissions: {@AccountStaff}", new {
+							accountId = accountStaff.Id,
+							userId = accountStaff.UserId,
+							sessionToken = authContext.SessionToken,
+						});
+					}
 
-					return TypedResults.Json(new {
-						message = "Unauthorized",
-						key = "unauthorized",
-					}, statusCode: StatusCodes.Status401Unauthorized);
+					return TypedResults.Json(
+						ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),
+						statusCode: StatusCodes.Status401Unauthorized
+					);
 				}
 
 				bool hasRequiredPermissions;
@@ -79,13 +79,15 @@ public class PermissionFilter : IEndpointFilter {
 				}
 
 				if (!hasRequiredPermissions) {
-					logger.LogDebug("User failed permission check: {@PermissionCheck}", new {
-						accountId = accountStaff.Id,
-						userId = accountStaff.UserId,
-						userPermissionsCount = userPermissions.Count,
-						hasCustomChecker = _customPermissionChecker != null
-						// userPermissions = userPermissions.ToArray(),
-					});
+					if (logger.IsEnabled(LogLevel.Debug)) {
+						logger.LogDebug("User failed permission check: {@PermissionCheck}", new {
+							accountId = accountStaff.Id,
+							userId = accountStaff.UserId,
+							userPermissionsCount = userPermissions.Count,
+							hasCustomChecker = _customPermissionChecker != null
+							// userPermissions = userPermissions.ToArray(),
+						});
+					}
 
 					return TypedResults.Json(ApiResponse.Create(
 						"User does not have the necessary permissions",
@@ -159,36 +161,5 @@ public static class PermissionLogic {
 	/// </summary>
 	public static Func<HashSet<string>, bool> HasPermission(Permission permission) {
 		return userPermissions => userPermissions.Contains(permission.Key);
-	}
-}
-
-public static class PermissionEnum {
-	//--------------------------------------------------------------------------------------//
-	//                                                                                      //
-	//                                  Staff permissions                                   //
-	//                                                                                      //
-	//--------------------------------------------------------------------------------------//
-	public static class Staff {
-		// ==== TENANTS ====
-		public static readonly Permission CAN_LIST_TENANTS = Permission.CreateStaffPermission(nameof(CAN_LIST_TENANTS));
-		public static readonly Permission CAN_CREATE_TENANT = Permission.CreateStaffPermission(nameof(CAN_CREATE_TENANT));
-		public static readonly Permission CAN_GET_TENANT = Permission.CreateStaffPermission(nameof(CAN_GET_TENANT));
-
-		// ==== USERS ====
-		public static readonly Permission CAN_LIST_USERS = Permission.CreateStaffPermission(nameof(CAN_LIST_USERS));
-
-		// ==== PROFILES ====
-		public static readonly Permission CAN_GET_PROFILE = Permission.CreateStaffPermission(nameof(CAN_GET_PROFILE));
-		public static readonly Permission CAN_LIST_PROFILES = Permission.CreateStaffPermission(nameof(CAN_LIST_PROFILES));
-		public static readonly Permission CAN_CREATE_PROFILE = Permission.CreateStaffPermission(nameof(CAN_CREATE_PROFILE));
-	}
-
-	//--------------------------------------------------------------------------------------//
-	//                                                                                      //
-	//                                  Tenant Permissions                                  //
-	//                                                                                      //
-	//--------------------------------------------------------------------------------------//
-	public static class Tenant {
-		// TODO: Add tenant permissions
 	}
 }

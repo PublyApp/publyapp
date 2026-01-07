@@ -29,5 +29,22 @@
 	"password-reset-success": "Mot de passe réinitialisé avec succès",
 	"tenant-id-required": "ID du tenant requis",
 	"request-body-validation-failed": "Validation du corps de la requête échouée",
-	"query-parameters-validation-failed": "Validation des paramètres de requête échouée"
+	"query-parameters-validation-failed": "Validation des paramètres de requête échouée",
+	"failed-to-update-staff-member": "Échec de la mise à jour du compte staff",
+	"staff-member-updated-successfully": "Compte staff mis à jour avec succès",
+	"invitation-revoked": "Invitation révoquée avec succès",
+	"pending-invitation-exists": "Une invitation en attente existe déjà",
+	"staff-profile-created-successfully": "Profil staff créé avec succès",
+	"profile-name-already-exists": "Le nom du profil existe déjà",
+	"profiles": "profils",
+	"profile": "profil",
+	"staff-profiles": "profils staff",
+	"user-accounts": "comptes utilisateur",
+	"no-items-found": "aucun {{item}} trouvé",
+	"create-first-item": "créer votre premier {{item}}",
+	"error-loading-items": "erreur lors du chargement de {{item}}",
+	"view-details": "voir les détails",
+	"delete-item": "supprimer {{item}}",
+	"confirm-delete-dialog-text": "êtes-vous sûr de vouloir supprimer cet élément ?",
+	"invalid-invitation-token": "Jeton d'invitation invalide ou expiré"
 }

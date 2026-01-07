@@ -5,7 +5,7 @@ import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 
 import { fData } from '@/front/utils/format-number';
 
-import { fileData, FileThumbnail } from '../../file-thumbnail';
+import { FileThumbnail, fileData } from '../../file-thumbnail';
 import { Iconify } from '../../iconify/iconify';
 import { uploadClasses } from '../classes';
 import type { MultiFilePreviewProps } from '../types';

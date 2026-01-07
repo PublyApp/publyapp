@@ -1,14 +1,13 @@
-import { useEffect, useRef } from 'react';
-
 import Typography, { type TypographyProps } from '@mui/material/Typography';
 import {
 	animate,
 	m,
+	type UseInViewOptions,
 	useInView,
 	useMotionValue,
 	useTransform,
-	type UseInViewOptions,
 } from 'framer-motion';
+import { useEffect, useRef } from 'react';
 
 // ----------------------------------------------------------------------
 

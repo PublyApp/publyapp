@@ -1,4 +1,5 @@
 import { PassThrough } from 'node:stream';
+
 import { createReadableStreamFromReadable } from '@react-router/node';
 import * as cookie from 'cookie';
 import { isbot } from 'isbot';
@@ -14,6 +15,7 @@ import {
 	type EntryContext,
 	ServerRouter,
 } from 'react-router';
+
 import {
 	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
 	LANGUAGE_DETECTION_METHOD,
@@ -22,12 +24,13 @@ import {
 	queryParamKey,
 	REMIX_CLIENT_IP_HEADER_KEY,
 } from '@/shared/lib/constants';
-// import { getUnifiedCSPConfig } from '@/shared/lib/csp';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
+import { logger } from '@/shared/lib/logger/iso-logger';
+import { getErrorMessage } from '@/shared/utils/error.utils';
+
 import { NonceProvider } from './hooks/use-nonce';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
-// import { getFinalLoadContext } from './lib/react-router/get-final-load-context.server';
 
 export const streamTimeout = import.meta.env.DEV ? 50_000 : 5_000;
 
@@ -153,7 +156,7 @@ const handleRequest = async (
 					// errors encountered during initial shell rendering since they'll
 					// reject and get logged in handleDocumentRequest.
 					if (shellRendered) {
-						console.error(error);
+						logger.error(getErrorMessage(error), { error });
 					}
 				},
 			},

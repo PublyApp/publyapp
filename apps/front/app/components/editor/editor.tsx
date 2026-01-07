@@ -1,5 +1,3 @@
-import { useCallback, useEffect, useState } from 'react';
-
 import Backdrop from '@mui/material/Backdrop';
 import Box from '@mui/material/Box';
 import FormHelperText from '@mui/material/FormHelperText';
@@ -14,6 +12,7 @@ import { EditorContent, ReactNodeViewRenderer, useEditor } from '@tiptap/react';
 import StarterKitExtension from '@tiptap/starter-kit';
 import { common, createLowlight } from 'lowlight';
 import { mergeClasses } from 'minimal-shared/utils';
+import { useCallback, useEffect, useState } from 'react';
 
 import { editorClasses } from './classes';
 import { CodeHighlightBlock } from './components/code-highlight-block';

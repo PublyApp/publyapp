@@ -3,11 +3,13 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import type { Breakpoint } from '@mui/material/styles';
 import { useBoolean } from 'minimal-shared/hooks';
+
 import { Logo } from '@/front/components/logo/logo';
 import { RouterLink } from '@/front/components/router-link';
 import { usePathname } from '@/front/hooks/use-pathname';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
+
 import { MenuButton } from '../components/menu-button';
 import { SignInButton } from '../components/sign-in-button';
 import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
@@ -18,8 +20,6 @@ import { Footer, type FooterProps, HomeFooter } from './footer';
 import { NavDesktop } from './nav/desktop';
 import { NavMobile } from './nav/mobile';
 import type { NavMainProps } from './nav/types';
-
-// import { SettingsButton } from '../components/settings-button';
 
 // ----------------------------------------------------------------------
 
@@ -112,7 +112,7 @@ export const MainLayout = ({
 							component={RouterLink}
 							variant="contained"
 							rel="noopener"
-							href={makePath(FRONT_PATH_NAMES.staff.tenants.root)}
+							href={makePath(FRONT_PATH_NAMES.staff.root)}
 							sx={(theme) => {
 								return {
 									display: 'none',

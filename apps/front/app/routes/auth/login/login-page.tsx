@@ -1,30 +1,63 @@
-import duration from '@org/shared/utils/duration.utils';
 import * as cookie from 'cookie';
 import dayjs from 'dayjs';
+import i18next, { type TFunction } from 'i18next';
 import _ from 'lodash';
 import { useEffect, useRef } from 'react';
 import { data, redirect, useSearchParams } from 'react-router';
 import { serializeError } from 'serialize-error';
+
+import duration from '@org/shared/utils/duration.utils';
 import { toast } from '@/front/components/snackbar';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { clientManager } from '@/front/lib/js-client/client-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
-import { getServerAction } from '@/front/lib/react-router/server-data.server';
+import {
+	getServerAction,
+	getServerLoader,
+} from '@/front/lib/react-router/server-data.server';
 import {
 	APP_NAME,
 	FRONT_PATH_NAMES,
+	isServer,
 	LAST_USED_TENANT_ID_COOKIE_KEY,
 	queryParamKey,
 	queryParamValue,
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
+
 import type { Route } from './+types/login-page';
 import LoginForm from './login-form';
 
-export const meta = (_: Route.MetaArgs) => {
-	return [{ title: `Log in - ${APP_NAME}` }];
+const getPageTitle = (t: TFunction, seo?: boolean) => {
+	let str: string = _.capitalize(t('login'));
+
+	if (seo) {
+		str = `${str} | ${APP_NAME}`;
+	}
+
+	return str;
 };
+
+export const meta = (args: Route.MetaArgs) => {
+	if (isServer) {
+		return _.get(args.loaderData, 'meta', []);
+	}
+
+	const t: TFunction = i18next.t;
+
+	return [{ title: getPageTitle(t, true) }];
+};
+
+export const loader = getServerLoader({
+	loader: async ({ z }) => {
+		const t = z.t;
+
+		return data({
+			meta: [{ title: getPageTitle(t, true) }],
+		});
+	},
+});
 
 export type LoginActionResult = Awaited<ReturnType<typeof action>>['data'];
 

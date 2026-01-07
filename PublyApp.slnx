@@ -1,0 +1,15 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/apps/" />
+  <Folder Name="/apps/api/">
+    <Project Path="apps/api/MainApi.csproj" />
+  </Folder>
+  <Folder Name="/packages/" />
+  <Folder Name="/packages/_tx-key-gen/">
+    <Project Path="packages/_tx-key-gen/TranslationKeyGenerator.csproj" />
+  </Folder>
+</Solution>

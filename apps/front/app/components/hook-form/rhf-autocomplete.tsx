@@ -4,32 +4,29 @@ import Autocomplete, {
 import TextField, { type TextFieldProps } from '@mui/material/TextField';
 import { Controller, useFormContext } from 'react-hook-form';
 
-// ----------------------------------------------------------------------
-
-export type AutocompleteBaseProps = Omit<
-	// biome-ignore lint/suspicious/noExplicitAny: code from template leave as is for now
-	AutocompleteProps<any, boolean, boolean, boolean>,
+export type AutocompleteBaseProps<T> = Omit<
+	AutocompleteProps<T, boolean, boolean, boolean>,
 	'renderInput'
 >;
 
-export type RHFAutocompleteProps = AutocompleteBaseProps & {
+export type RHFAutocompleteProps<T> = AutocompleteBaseProps<T> & {
 	name: string;
 	label?: string;
 	placeholder?: string;
 	helperText?: React.ReactNode;
-	slotProps?: AutocompleteBaseProps['slotProps'] & {
+	slotProps?: AutocompleteBaseProps<T>['slotProps'] & {
 		textfield?: TextFieldProps;
 	};
 };
 
-export const RHFAutocomplete = ({
+export const RHFAutocomplete = <T,>({
 	name,
 	label,
 	slotProps,
 	helperText,
 	placeholder,
 	...other
-}: RHFAutocompleteProps) => {
+}: RHFAutocompleteProps<T>) => {
 	const { control, setValue } = useFormContext();
 
 	const { textfield, ...otherSlotProps } = slotProps ?? {};
@@ -67,7 +64,7 @@ export const RHFAutocomplete = ({
 							);
 						}}
 						{...other}
-						{...otherSlotProps}
+						slotProps={otherSlotProps}
 					/>
 				);
 			}}

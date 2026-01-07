@@ -6,13 +6,14 @@ import express from 'express';
 import helmet from 'helmet';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
-import { analyticsServer } from '@/front/lib/analytics/analytics.server';
+
+import { analytics } from '@/front/lib/analytics/analytics';
 import {
 	isPreRenderPath,
 	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
 } from '@/shared/lib/constants';
 import { getUnifiedCSPConfig } from '@/shared/lib/csp';
-import { isoLogger } from '@/shared/lib/logger/iso-logger';
+import { logger } from '@/shared/lib/logger/iso-logger';
 import { LogLevelEnum } from '@/shared/lib/logger/logger.utils';
 
 declare global {
@@ -26,9 +27,9 @@ declare global {
 const isDevelopment = import.meta.env.DEV;
 
 if (isDevelopment) {
-	isoLogger.logLevel = LogLevelEnum.DEBUG;
+	logger.logLevel = LogLevelEnum.DEBUG;
 } else {
-	isoLogger.logLevel = LogLevelEnum.WARN;
+	logger.logLevel = LogLevelEnum.WARN;
 }
 
 export const app = express();
@@ -65,8 +66,8 @@ const reactRouterHandler = createRequestHandler({
 		}
 
 		return {
-			logger: isoLogger,
-			analytics: analyticsServer,
+			logger: logger,
+			analytics: analytics,
 			nonce,
 		};
 	},

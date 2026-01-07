@@ -12,47 +12,66 @@ const StaffLayout = () => {
 
 	const staffNavData: NavDataType = [
 		{
-			subheader: t('overview'),
 			items: [
 				{
 					title: t('dashboard'),
 					path: FRONT_PATH_NAMES.staff.root,
 					icon: ICONS.dashboard,
-					// deepActiveMatch: true,
-					// children: [],
+					deepActiveMatch: false,
 				},
+			],
+		},
+		{
+			subheader: t('customers'),
+			collapsible: false,
+			items: [
 				{
-					title: t('organizations'),
+					title: t('tenants'),
 					path: FRONT_PATH_NAMES.staff.tenants.root,
 					icon: ICONS.banking,
 					deepActiveMatch: true,
-					// children: [],
 				},
 				{
 					title: t('users'),
 					path: FRONT_PATH_NAMES.staff.users.root,
 					icon: ICONS.user,
 					deepActiveMatch: true,
-					// children: [],
 				},
+			],
+		},
+		{
+			subheader: t('staff'),
+			collapsible: false,
+			items: [
 				{
-					title: t('staff-members'),
+					title: t('users'),
 					path: FRONT_PATH_NAMES.staff.staffMembers.root,
 					icon: ICONS.user,
 					deepActiveMatch: true,
-					// children: [],
+				},
+				{
+					title: `${t('profiles')}`,
+					path: FRONT_PATH_NAMES.staff.profiles.root,
+					icon: ICONS.lock,
+					deepActiveMatch: true,
+				},
+				{
+					title: t('invitations'),
+					path: FRONT_PATH_NAMES.staff.invitations.root,
+					icon: ICONS.mail,
+					deepActiveMatch: true,
 				},
 				{
 					title: t('background-jobs'),
-					// path: FRONT_PATH_NAMES.staff.settings.root,
-					path: 'background-jobs',
-					icon: ICONS.settings,
+					path: FRONT_PATH_NAMES.staff.backgroundJobs.root,
+					icon: ICONS.job,
+					deepActiveMatch: true,
 				},
 				{
 					title: t('settings'),
-					// path: FRONT_PATH_NAMES.staff.settings.root,
-					path: 'settings',
+					path: FRONT_PATH_NAMES.staff.settings.root,
 					icon: ICONS.settings,
+					deepActiveMatch: true,
 				},
 			],
 		},

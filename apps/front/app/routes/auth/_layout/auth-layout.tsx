@@ -3,9 +3,14 @@ import i18next from 'i18next';
 import _ from 'lodash';
 import { Suspense } from 'react';
 import { Outlet, redirect } from 'react-router';
+
 import { SplashScreen } from '@/front/components/loading-screen/splash-screen';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { AuthSplitLayout } from '@/front/layouts/auth-split/layout';
+import {
+	clearSessionCookie,
+	getSessionCookieFromClient,
+} from '@/front/lib/cookies/session-cookie.utils';
 import { clientManager } from '@/front/lib/js-client/client-manager';
 import {
 	useGetTenantAuthData,
@@ -16,24 +21,27 @@ import { getClientLoader } from '@/front/lib/react-router/client-data';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import {
+	formActionKey,
 	FRONT_PATH_NAMES,
 	I18N_NAMESPACES,
 	LAST_USED_TENANT_ID_COOKIE_KEY,
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
-import { isoLogger } from '@/shared/lib/logger/iso-logger';
+import { logger } from '@/shared/lib/logger/iso-logger';
 
 export const loader = getServerLoader({
 	loader: async ({ request }) => {
 		const reqCookies = cookie.parse(request.headers.get('cookie') || '');
 		const sessionToken = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY);
 
+		// If no session token exists, return NOT_AUTHENTICATED
 		if (!sessionToken) {
 			return {
 				status: 'NOT_AUTHENTICATED',
 			} as const;
 		}
 
+		// Session token exists - validate it by calling the API
 		const authedApiClient = clientManager.createApiClient(sessionToken);
 
 		const getUserAuthData = safeRun(async () => {
@@ -51,6 +59,8 @@ export const loader = getServerLoader({
 		const userAuthDataPromise = getUserAuthData();
 		const redirectCodePromise = getRedirectCode();
 
+		// Don't send clear headers when there's a valid session
+		// Only the clientLoader will determine if there's an httpOnly mismatch
 		return {
 			status: 'HAS_AUTH_TOKEN',
 			userAuthDataPromise,
@@ -64,12 +74,54 @@ export const clientLoader = getClientLoader({
 		i18next
 			.loadNamespaces([I18N_NAMESPACES.ZOD, I18N_NAMESPACES.RESPONSE_MESSAGE])
 			.catch((error) => {
-				isoLogger.error('Failed to load namespaces', error);
+				logger.error('Failed to load namespaces', error);
 			});
 
 		const serverData = await serverLoader<typeof loader>();
 
+		// No session token visible to server - user is not authenticated
+		if (serverData.status === 'NOT_AUTHENTICATED') {
+			// Clear any JS-accessible cookies (if any exist) and proceed to render auth page
+			clearSessionCookie();
+			return null;
+		}
+
 		if (serverData.status === 'HAS_AUTH_TOKEN') {
+			// CRITICAL: Detect httpOnly cookie mismatch
+			// If server can see a cookie but JavaScript cannot, it means there's an httpOnly cookie
+			// In this case, we should NOT redirect away from login page, as this would cause
+			// an infinite loop: login → authed (no JS cookie) → login → repeat
+			const clientCanSeeToken = getSessionCookieFromClient();
+
+			if (!clientCanSeeToken) {
+				// httpOnly cookie detected! Server sees it but JS doesn't
+				// Submit a form to the dedicated clear-session route
+				// POST + Origin validation prevents link-based logout attacks
+				// Note: fetch() doesn't apply Set-Cookie headers, so we must use form submission
+				logger.warn(
+					'[auth-layout clientLoader] Detected httpOnly session cookie mismatch. Clearing via POST.',
+				);
+				clearSessionCookie();
+
+				// Create and submit a real form - this ensures Set-Cookie headers are processed
+				const form = document.createElement('form');
+				form.method = 'POST';
+				form.action = FRONT_PATH_NAMES.auth.clearSession;
+
+				const input = document.createElement('input');
+				input.type = 'hidden';
+				input.name = 'action';
+				input.value = formActionKey.clear_httponly_session;
+				form.appendChild(input);
+
+				document.body.appendChild(form);
+				form.submit();
+
+				// Return null while form is submitting
+				return null;
+			}
+
+			// Normal flow: both server and client can see the token
 			const resultsArray = await Promise.all([
 				serverData.userAuthDataPromise,
 				serverData.redirectCodePromise,
@@ -87,16 +139,9 @@ export const clientLoader = getClientLoader({
 							_.toLower(error.error.message) === _.toLower('Unauthorized'),
 					)
 				) {
-					const sessionTokenCookie = cookie.serialize(
-						SESSION_TOKEN_COOKIE_KEY,
-						'',
-						{
-							expires: new Date(0),
-							maxAge: 0,
-							path: '/',
-						},
-					);
-					document.cookie = sessionTokenCookie;
+					// Clear session token cookie with all possible combinations
+					// This handles cases where old httpOnly cookies might exist
+					clearSessionCookie();
 
 					return null;
 				}
