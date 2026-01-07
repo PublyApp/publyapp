@@ -68,7 +68,10 @@ type TenantBaseMutationOptions<TData, TVariables, TError = Error> = Omit<
 
 type TenantQueryConfig<TData, TVariables, TError = Error> = {
 	queryKeyFn: (client: ApiClient) => unknown;
-	fetcher: (client: ApiClient, variables: TVariables) => Promise<TData>;
+	fetcher: (
+		client: ApiClient,
+		variables: WithTenantId<TVariables>,
+	) => Promise<TData>;
 } & TenantBaseQueryOptions<TData, TVariables, TError>;
 
 /**
@@ -99,9 +102,10 @@ export function createTenantQuery<
 	return createQuery<TData, WithTenantId<TVariables>, TError>({
 		queryKey: [queryKey] as const,
 		fetcher: async (variables) => {
-			const { tenantId, ...rest } = variables;
-			const client = ClientManager.create().getOrCreateClient(tenantId);
-			return fetcher(client, rest as unknown as TVariables);
+			const client = ClientManager.create().getOrCreateClient(
+				variables.tenantId,
+			);
+			return fetcher(client, variables);
 		},
 		...restOptions,
 	});
@@ -110,7 +114,10 @@ export function createTenantQuery<
 // Suspense variant config type
 type TenantSuspenseQueryConfig<TData, TVariables, TError = Error> = {
 	queryKeyFn: (client: ApiClient) => unknown;
-	fetcher: (client: ApiClient, variables: TVariables) => Promise<TData>;
+	fetcher: (
+		client: ApiClient,
+		variables: WithTenantId<TVariables>,
+	) => Promise<TData>;
 } & TenantBaseSuspenseQueryOptions<TData, TVariables, TError>;
 
 /**
@@ -128,9 +135,10 @@ export function createTenantSuspenseQuery<
 	return createSuspenseQuery<TData, WithTenantId<TVariables>, TError>({
 		queryKey: [queryKey] as const,
 		fetcher: async (variables) => {
-			const { tenantId, ...rest } = variables;
-			const client = ClientManager.create().getOrCreateClient(tenantId);
-			return fetcher(client, rest as unknown as TVariables);
+			const client = ClientManager.create().getOrCreateClient(
+				variables.tenantId,
+			);
+			return fetcher(client, variables);
 		},
 		...restOptions,
 	});
@@ -138,7 +146,10 @@ export function createTenantSuspenseQuery<
 
 type TenantMutationConfig<TData, TVariables, TError = Error> = {
 	mutationKeyFn: (client: ApiClient) => unknown;
-	mutationFn: (client: ApiClient, variables: TVariables) => Promise<TData>;
+	mutationFn: (
+		client: ApiClient,
+		variables: WithTenantId<TVariables>,
+	) => Promise<TData>;
 } & TenantBaseMutationOptions<TData, TVariables, TError>;
 
 /**
@@ -156,9 +167,10 @@ export function createTenantMutation<
 	return createMutation<TData, WithTenantId<TVariables>, TError>({
 		mutationKey: [mutationKey] as const,
 		mutationFn: async (variables) => {
-			const { tenantId, ...rest } = variables;
-			const client = ClientManager.create().getOrCreateClient(tenantId);
-			return mutationFn(client, rest as unknown as TVariables);
+			const client = ClientManager.create().getOrCreateClient(
+				variables.tenantId,
+			);
+			return mutationFn(client, variables);
 		},
 		...restOptions,
 	});
