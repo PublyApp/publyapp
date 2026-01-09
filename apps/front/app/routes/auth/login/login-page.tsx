@@ -9,7 +9,7 @@ import { serializeError } from 'serialize-error';
 import duration from '@org/shared/utils/duration.utils';
 import { toast } from '@/front/components/snackbar';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { clientManager } from '@/front/lib/js-client/client-manager';
+import { ClientManager } from '@/front/lib/js-client/client-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import {
 	getServerAction,
@@ -62,7 +62,8 @@ export const loader = getServerLoader({
 export type LoginActionResult = Awaited<ReturnType<typeof action>>['data'];
 
 export const action = getServerAction({
-	action: async ({ request, apiClient, context }) => {
+	action: async ({ request, context }) => {
+		const apiClient = ClientManager.create().createClient({ skipAuth: true });
 		const formData = await request.formData();
 
 		const email = formData.get('email');
@@ -112,10 +113,13 @@ export const action = getServerAction({
 		);
 		responseHeaders.append('Set-Cookie', sessionTokenCookie);
 
-		const reqCookies = cookie.parse(request.headers.get('Set-Cookie') || '');
+		const reqCookies = cookie.parse(request.headers.get('Cookie') || '');
 		const tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
 
-		const authedApiClient = clientManager.createApiClient(sessionToken);
+		// Note: Login token is treated as tenantToken for backward compatibility
+		const authedApiClient = ClientManager.create({
+			tenantToken: sessionToken,
+		}).createClient();
 
 		const getRedirectCode = safeRun(async () => {
 			return authedApiClient.auth.redirectCode.get({

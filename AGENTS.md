@@ -232,8 +232,30 @@ Form State       → React Hook Form (local form state)
 **API Client Integration:**
 - Microsoft Kiota auto-generated client from OpenAPI
 - Singleton `ClientManager` in `app/lib/js-client/`
-- Session token from `X-Session-Token` header
-- API client instances: `apiClient` (authenticated), `anonApiClient` (anonymous)
+- Session token from `X-Session-Token` header (read fresh from cookies on every request)
+- Tenant ID from `X-PublyApp-TenantId` header (for multi-tenant data isolation)
+
+**Getting API Clients:**
+
+1. **In React hooks** - Use hook factories from `app/lib/react-query/create-hooks.ts`:
+   - `createTenantQuery/Mutation` - Tenant-scoped (tenantId required in variables)
+   - `createStaffQuery/Mutation` - Staff-only endpoints (no tenantId)
+   - `createAuthQuery/Mutation` - Auth endpoints (session token, no tenantId)
+   - `createPublicQuery/Mutation` - Anonymous/public endpoints (no auth)
+
+2. **Client-side (browser)** - Outside React lifecycle (e.g., clientLoaders):
+   - `ClientManager.create().getOrCreateClient(tenantId)` - Tenant client with `X-PublyApp-TenantId`
+   - `ClientManager.create().getOrCreateStaffClient()` - Staff client (no tenant-id header)
+   - `ClientManager.create().getOrCreateAnonymousClient()` - Anonymous client (no auth, no tenant)
+   - `ClientManager.create().createClient({ tenantId?, skipAuth?, context? })` - Create ad-hoc client
+
+3. **Server-side (SSR)** - In React Router loaders/actions:
+   - `ClientManager.create({ staffToken?, tenantToken? }).createClient({ tenantId?, context? })` - per-request instance
+   - Tokens are parsed by `getServerLoader` / `getServerAction` and passed to your loader/action
+   ```typescript
+   import { ClientManager } from '@/front/lib/js-client/client-manager';
+   const apiClient = ClientManager.create({ staffToken, tenantToken }).createClient();
+   ```
 
 **Data Fetching Pattern (Route-Type Specific):**
 
@@ -251,22 +273,17 @@ export const loader = async ({ apiClient }) => {
   return { data };
 };
 
-// ✅ CORRECT - react-query-kit hooks for authenticated pages
+// ✅ CORRECT - Use hook factories for authenticated pages
 // Step 1: Define hook in app/lib/react-query/features/staff/staff-member.hooks.ts
-import { createQuery } from 'react-query-kit';
-import { getQueryKey } from '../../query-utils';
+import { createStaffQuery } from '../../create-hooks';
 
-const findStaffMemberQueryKey = getQueryKey<ApiClient>(
-  (client) => client.staff.staffMembers.get,
-);
-
-export const useFindStaffMember = createQuery({
-  queryKey: [findStaffMemberQueryKey] as const,
-  fetcher: async (params: { page?: number }) => {
-    const result = await clientManager.apiClient.staff.staffMembers.get({
+export const useFindStaffMember = createStaffQuery({
+  queryKeyFn: (client) => client.staff.staffMembers.get,
+  fetcher: async (client, params: { page?: number }) => {
+    const result = await client.staff.staffMembers.get({
       queryParameters: { page: params.page?.toString() },
     });
-    if (_.isNil(result)) throw new Error(`[${findStaffMemberQueryKey}]: result is nil`);
+    if (_.isNil(result)) throw new Error('useFindStaffMember: result is nil');
     return result;
   },
 });
@@ -289,17 +306,17 @@ export const loader = getServerLoader({
   }
 });
 
-// ✅ CORRECT - Mutations in authed pages use react-query-kit
+// ✅ CORRECT - Mutations in authed pages use hook factories
 // Step 1: Define mutation hook
-import { createMutation } from 'react-query-kit';
+import { createStaffMutation } from '../../create-hooks';
 
-export const useCreateMember = createMutation({
-  mutationKey: [createMemberMutationKey] as const,
-  mutationFn: async (data: { email: string }) => {
-    const result = await clientManager.apiClient.staff.members.post({
+export const useCreateMember = createStaffMutation({
+  mutationKeyFn: (client) => client.staff.members.post,
+  mutationFn: async (client, data: { email: string }) => {
+    const result = await client.staff.members.post({
       email: { getValue() { return data.email; } },
     });
-    if (_.isNil(result)) throw new Error('result is nil');
+    if (_.isNil(result)) throw new Error('useCreateMember: result is nil');
     return result;
   },
 });
