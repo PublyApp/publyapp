@@ -220,6 +220,8 @@ export const DashboardLayout = ({
 	}, [tenantsData?.tenants]);
 
 	const renderSidebar = () => {
+		const hasTenants = tenants.length > 0;
+
 		return (
 			<NavVertical
 				data={navData}
@@ -228,12 +230,14 @@ export const DashboardLayout = ({
 				cssVars={navVars.section}
 				checkPermissions={canDisplayItemByRole}
 				slots={{
-					topArea: (
+					topArea: hasTenants ? (
 						<SidebarWorkspaceSwitcher
 							tenants={tenants}
 							totalCount={tenantsData?.totalCount ?? 0}
 							isCollapsed={isNavMini}
 						/>
+					) : (
+						<Logo sx={isNavMini ? { width: 28, height: 28 } : undefined} />
 					),
 					bottomArea: (
 						<SidebarUserMenu
