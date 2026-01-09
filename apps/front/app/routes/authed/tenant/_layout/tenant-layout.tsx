@@ -2,6 +2,7 @@ import * as cookie from 'cookie';
 import { Suspense, useEffect } from 'react';
 import { Outlet, useParams } from 'react-router';
 
+import duration from '@org/shared/utils/duration.utils';
 import { LoadingScreen } from '@/front/components/loading-screen';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardLayout } from '@/front/layouts/dashboard/layout';
@@ -10,7 +11,6 @@ import {
 	FRONT_PATH_NAMES,
 	LAST_USED_TENANT_ID_COOKIE_KEY,
 } from '@/shared/lib/constants';
-import duration from '@org/shared/utils/duration.utils';
 
 const TenantLayout = () => {
 	const { t } = useTranslate();
