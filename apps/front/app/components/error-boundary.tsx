@@ -1,6 +1,7 @@
 import GlobalStyles from '@mui/material/GlobalStyles';
 import type { CSSObject, Theme } from '@mui/material/styles';
 import { isRouteErrorResponse } from 'react-router';
+
 import { isJsClientError } from '../lib/js-client/js-client-error';
 
 // ----------------------------------------------------------------------

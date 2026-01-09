@@ -8,9 +8,10 @@ public static class CorsConfigExtensions {
 		builder.Services.AddCors(options => {
 			options.AddDefaultPolicy(
 					policy => {
-						// Get session token header name from configuration
+						// Get header names from configuration
 						var appSettings = builder.Services.BuildServiceProvider().GetRequiredService<IOptions<AppSettings>>();
 						var sessionTokenHeaderKey = appSettings.Value.SESSION_TOKEN_HEADER_KEY;
+						var tenantIdHeaderKey = appSettings.Value.TENANT_ID_HEADER_KEY;
 
 						policy
 							.WithOrigins(AppEnvironment.FRONT_URL)
@@ -20,8 +21,8 @@ public static class CorsConfigExtensions {
 								"Content-Type",
 								"Accept",
 								// Custom headers
-								sessionTokenHeaderKey    // X-Session-Token
-																				 // "X-Tenant-Id"
+								sessionTokenHeaderKey,   // X-Session-Token
+								tenantIdHeaderKey        // X-PublyApp-TenantId
 							)
 							.WithExposedHeaders(sessionTokenHeaderKey) // Allow frontend to read this header from responses
 							.SetPreflightMaxAge(TimeSpan.FromMinutes(10)); // Cache preflight requests

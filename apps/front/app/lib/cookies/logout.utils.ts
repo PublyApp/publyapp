@@ -1,5 +1,4 @@
-import { clearSessionCookie } from './session-cookie.utils';
-
+import { ClientManager } from '@/front/lib/js-client/client-manager';
 import { defaultQueryClient } from '@/front/lib/react-query/query-client';
 import {
 	FRONT_PATH_NAMES,
@@ -7,6 +6,8 @@ import {
 	queryParamKey,
 	queryParamValue,
 } from '@/shared/lib/constants';
+
+import { clearSessionCookie } from './session-cookie.utils';
 
 type LogoutOptions = {
 	/**
@@ -29,6 +30,10 @@ export const logout = (options?: LogoutOptions): void => {
 
 	// Clear react-query cache
 	defaultQueryClient.removeQueries();
+
+	// Clear cached API clients and reset singleton (ensures clean state for next user)
+	ClientManager.create().clearClients();
+	ClientManager.resetInstance();
 
 	// Submit form to clear-session route which will:
 	// 1. Clear any httpOnly session cookie on the server

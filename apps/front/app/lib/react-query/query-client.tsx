@@ -3,10 +3,10 @@ import { QueryClient } from '@tanstack/react-query';
 const FIVE_MINUTES_IN_MS = 1000 * 60 * 5;
 
 type Options = {
-	env?: 'production' | 'development';
+	isDev?: boolean;
 };
 
-export const createQueryClient = ({ env = 'development' }: Options = {}) => {
+export const createQueryClient = ({ isDev = true }: Options = {}) => {
 	const queryClient = new QueryClient({
 		defaultOptions: {
 			queries: {
@@ -14,10 +14,12 @@ export const createQueryClient = ({ env = 'development' }: Options = {}) => {
 				refetchOnReconnect: false,
 				staleTime: FIVE_MINUTES_IN_MS,
 				retry: (failureCount, _error) => {
-					if (env === 'development') {
+					if (isDev) {
 						return false;
 					}
 
+					// Retry the query up to 2 times
+					// (i.e., allow the first two failures, no retry after the third failure)
 					return failureCount <= 2;
 				},
 			},
@@ -27,4 +29,6 @@ export const createQueryClient = ({ env = 'development' }: Options = {}) => {
 	return queryClient;
 };
 
-export const defaultQueryClient = createQueryClient();
+export const defaultQueryClient = createQueryClient({
+	isDev: import.meta.env.DEV,
+});

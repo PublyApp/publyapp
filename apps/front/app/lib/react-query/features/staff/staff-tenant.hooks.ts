@@ -1,40 +1,27 @@
 import { createUntypedString } from '@microsoft/kiota-abstractions';
 import _ from 'lodash';
-import { createMutation, createQuery } from 'react-query-kit';
 
-import { clientManager } from '@/front/lib/js-client/client-manager';
-import type { ApiClient } from '@/js-client/src/apiClient';
 import type { CreateTenantAsStaffBody } from '@/js-client/src/models';
 
-import { getQueryKey } from '../../query-utils';
+import { createStaffMutation, createStaffQuery } from '../../create-hooks';
 
-const createTenantMutationKey = getQueryKey<ApiClient>(
-	(client) => client.staff.tenants.post,
-);
-
-export const useCreateTenant = createMutation({
-	mutationKey: [createTenantMutationKey] as const,
-	mutationFn: async (params: { name: string }) => {
+export const useCreateTenant = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.tenants.post,
+	mutationFn: async (client, params: { name: string }) => {
 		const body: CreateTenantAsStaffBody = {
 			name: createUntypedString(params.name) as typeof body.name,
 		};
-		return clientManager.apiClient.staff.tenants.post(body);
+		return client.staff.tenants.post(body);
 	},
 });
 
-const getTenantQueryKey = getQueryKey<ApiClient>(
-	(client) => client.staff.tenants.byTenantId('').get,
-);
-
-export const useGetTenant = createQuery({
-	queryKey: [getTenantQueryKey] as const,
-	fetcher: async (params: { tenantId: string }) => {
-		const result = await clientManager.apiClient.staff.tenants
-			.byTenantId(params.tenantId)
-			.get();
+export const useGetTenant = createStaffQuery({
+	queryKeyFn: (client) => client.staff.tenants.byTenantId('').get,
+	fetcher: async (client, params: { tenantId: string }) => {
+		const result = await client.staff.tenants.byTenantId(params.tenantId).get();
 
 		if (_.isNil(result)) {
-			throw new Error(`[${getTenantQueryKey}]: result is nil`);
+			throw new Error('useGetTenant: result is nil');
 		}
 
 		return result;
@@ -47,14 +34,10 @@ type FindTenantsParams = {
 	sort?: { id: string; order: 'desc' | 'asc' };
 };
 
-const findTenantsQueryKey = getQueryKey<ApiClient>(
-	(client) => client.staff.tenants.get,
-);
-
-export const useFindTenants = createQuery({
-	queryKey: [findTenantsQueryKey] as const,
-	fetcher: async (params: FindTenantsParams) => {
-		const result = await clientManager.apiClient.staff.tenants.get({
+export const useFindTenants = createStaffQuery({
+	queryKeyFn: (client) => client.staff.tenants.get,
+	fetcher: async (client, params: FindTenantsParams) => {
+		const result = await client.staff.tenants.get({
 			queryParameters: {
 				page: params.page ? params.page.toString() : undefined,
 				limit: params.limit ? params.limit.toString() : undefined,
@@ -64,7 +47,7 @@ export const useFindTenants = createQuery({
 		});
 
 		if (_.isNil(result)) {
-			throw new Error(`[${findTenantsQueryKey}] result is nil`);
+			throw new Error('useFindTenants: result is nil');
 		}
 
 		return result;
@@ -78,14 +61,10 @@ type FindTenantProfilesParams = {
 	sort?: { id: string; order: 'desc' | 'asc' };
 };
 
-const findTenantProfilesQueryKey = getQueryKey<ApiClient>(
-	(client) => client.staff.profiles.tenant.byTenantId('').get,
-);
-
-export const useFindTenantProfiles = createQuery({
-	queryKey: [findTenantProfilesQueryKey] as const,
-	fetcher: async (params: FindTenantProfilesParams) => {
-		const result = await clientManager.apiClient.staff.profiles.tenant
+export const useFindTenantProfiles = createStaffQuery({
+	queryKeyFn: (client) => client.staff.profiles.tenant.byTenantId('').get,
+	fetcher: async (client, params: FindTenantProfilesParams) => {
+		const result = await client.staff.profiles.tenant
 			.byTenantId(params.tenantId)
 			.get({
 				queryParameters: {
@@ -97,7 +76,7 @@ export const useFindTenantProfiles = createQuery({
 			});
 
 		if (_.isNil(result)) {
-			throw new Error(`[${findTenantProfilesQueryKey}] result is nil`);
+			throw new Error('useFindTenantProfiles: result is nil');
 		}
 
 		return result;
