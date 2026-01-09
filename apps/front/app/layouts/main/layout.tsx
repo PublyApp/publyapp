@@ -67,7 +67,7 @@ export const MainLayout = ({
 						sx={(theme) => {
 							return {
 								mr: 1,
-								ml: -1,
+								// ml: -1,
 								[theme.breakpoints.up(layoutQuery)]: { display: 'none' },
 							};
 						}}
