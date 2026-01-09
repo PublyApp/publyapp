@@ -2,6 +2,7 @@ import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import type { Breakpoint } from '@mui/material/styles';
+import { mergeSx } from '@mui/x-date-pickers/internals';
 import _ from 'lodash';
 
 import { Logo } from '@/front/components/logo/logo';
@@ -78,7 +79,9 @@ export const SimpleLayout = ({
 				{...slotProps?.header}
 				slots={{ ...headerSlots, ...slotProps?.header?.slots }}
 				slotProps={_.merge(headerSlotProps, slotProps?.header?.slotProps ?? {})}
-				sx={slotProps?.header?.sx}
+				sx={mergeSx(slotProps?.header?.sx, {
+					borderBottom: 'none !important',
+				})}
 			/>
 		);
 	};
