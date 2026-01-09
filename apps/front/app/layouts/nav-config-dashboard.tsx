@@ -1,4 +1,5 @@
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+
 import { Iconify } from '../components/iconify/iconify';
 import { Label } from '../components/label/label';
 import type { NavSectionProps } from '../components/nav-section/types';
