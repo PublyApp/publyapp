@@ -1230,77 +1230,63 @@ public static async Task<...> HandleFindStaffInvitations(...) { }
 
 ### API Response Pattern
 
-**CRITICAL:** All responses MUST follow the `ApiResponse` pattern.
+**CRITICAL:** All error responses MUST use RFC 7807 ProblemDetails via `TypedProblems`.
 
 **Rules:**
 1. **Success WITH data**: Return data directly using `TypedResults.Ok(data)`
-2. **Success WITHOUT data**: Return `ApiResponse` using `TypedResults.Ok(new ApiResponse { ... })`
-3. **All error responses**: MUST return `ApiResponse` with appropriate status code
+2. **Success WITHOUT data**: Return a message using `TypedResults.Ok(new { Message = "..." })`
+3. **All error responses**: MUST use `TypedProblems.*` methods for RFC 7807 compliance and automatic OpenAPI documentation
 
 ```csharp
 // ✅ Success WITH data - return data directly
 public static async Task<Results<
     Ok<User>,
-    NotFound<ApiResponse>
+    NotFoundHttpResult
 >> HandleGetUser(...) {
     var user = await userService.GetUserAsync(id);
 
     if (user is null) {
-        return TypedResults.NotFound(
-            ApiResponse.Create("User not found", ResponseKeys.NotFound)
-        );
+        return TypedProblems.NotFound("User not found", ResponseKeys.NotFound);
     }
 
     return TypedResults.Ok(user);  // Data returned directly
 }
 
-// ✅ Success WITHOUT data - return ApiResponse
-public static async Task<Results<
-    Ok<ApiResponse>,
-    NotFound<ApiResponse>
->> HandleDeleteUser(...) {
-    var success = await userService.DeleteUserAsync(id);
-
-    if (!success) {
-        return TypedResults.NotFound(
-            ApiResponse.Create("User not found", ResponseKeys.NotFound)
-        );
-    }
-
-    // No data to return, so return ApiResponse
-    return TypedResults.Ok(
-        ApiResponse.Create("User deleted successfully", ResponseKeys.UserDeleted)
-    );
-}
-
-// ✅ For responses that don't support custom payload - use JsonHttpResult
+// ✅ All error responses use TypedProblems for automatic OpenAPI documentation
 public static async Task<Results<
     Ok<User>,
-    BadRequest<ApiResponse>,
-    JsonHttpResult  // For 403 since Forbid() doesn't support payload
+    BadRequestHttpResult,
+    ForbiddenHttpResult
 >> HandleUpdateUser(...) {
     if (!hasPermission) {
-        return TypedResults.Json(
-            ApiResponse.Create(
-                "User does not have the necessary permissions",
-                ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
-            ),
-            statusCode: StatusCodes.Status403Forbidden
+        return TypedProblems.Forbidden(
+            "User does not have the necessary permissions",
+            ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
         );
     }
 
     var updatedUser = await userService.UpdateUserAsync(user);
     return TypedResults.Ok(updatedUser);
 }
+
+// ✅ Available TypedProblems methods (all auto-document in OpenAPI):
+// TypedProblems.BadRequest(detail, translationKey)        -> 400
+// TypedProblems.Unauthorized(detail, translationKey)      -> 401
+// TypedProblems.Forbidden(detail, translationKey)         -> 403
+// TypedProblems.NotFound(detail, translationKey)          -> 404
+// TypedProblems.InternalServerError(detail, translationKey) -> 500
 ```
 
-**When TypedResults doesn't support custom payloads** (like `.Forbid()`, `.Unauthorized()`):
-Use `TypedResults.Json()` with explicit status code and `ApiResponse` payload.
+**Why TypedProblems?**
+- Returns RFC 7807 `application/problem+json` responses
+- Includes `translationKey` for frontend i18n
+- Typed result classes implement `IEndpointMetadataProvider` for automatic OpenAPI documentation
+- No manual `.ProducesApiResponses()` needed - status codes are inferred from return type
 
 **❌ NEVER use:**
-- `TypedResults.Ok()` without payload
-- `TypedResults.Forbid()` (use `TypedResults.Json(..., statusCode: 403)` instead)
-- `TypedResults.Unauthorized()` (use `TypedResults.Json(..., statusCode: 401)` instead)
+- `TypedResults.Forbid()` (empty body, no translation key)
+- `TypedResults.Unauthorized()` (empty body, no translation key)
+- `TypedResults.Json(..., statusCode: 4xx)` for errors (breaks OpenAPI inference)
 
 ### String Comparison
 
@@ -1332,38 +1318,35 @@ var user = await (
 
 ### OpenAPI Documentation
 
-**CRITICAL:** Document ALL status codes the handler can return.
+**CRITICAL:** Use `TypedProblems.*` methods for automatic OpenAPI documentation.
 
 ```csharp
-// Handler returns these status codes
+// Handler return type includes typed results - OpenAPI is auto-documented!
 public static async Task<Results<
     Ok<Response>,
-    BadRequest<ApiResponse>,
-    Forbidden<ApiResponse>,       // Must document this!
-    JsonHttpResult<ApiResponse>   // Must document custom status codes!
+    BadRequestHttpResult,     // Auto-documented as 400 with AppProblemDetails
+    ForbiddenHttpResult       // Auto-documented as 403 with AppProblemDetails
 >> HandleAction(...) {
     if (!authorized) {
-        return TypedResults.Json(
-            ApiResponse.Create("Forbidden", ResponseKeys.Forbidden),
-            statusCode: StatusCodes.Status403Forbidden  // Custom status code
-        );
+        return TypedProblems.Forbidden("Forbidden", ResponseKeys.Forbidden);
     }
+    // ...
 }
 
-// Endpoint MUST document ALL possible responses
+// Endpoint registration - no manual status code documentation needed!
 group.MapPost("/", Handler.HandleAction)
-    .WithReqBodyValidation<CreateBody>()
-    .ProducesApiResponses(
-        StatusCodes.Status500InternalServerError,  // Always include
-        StatusCodes.Status403Forbidden             // From JsonHttpResult!
-        // 400 auto-documented by WithReqBodyValidation
-        // 200 auto-documented by Ok<Response>
-    );
+    .WithReqBodyValidation<CreateBody>();
+    // ✅ 200 auto-documented by Ok<Response>
+    // ✅ 400 auto-documented by BadRequestHttpResult AND WithReqBodyValidation
+    // ✅ 403 auto-documented by ForbiddenHttpResult
 ```
 
-**Rule:** If handler uses `JsonHttpResult` → Must add status code to `ProducesApiResponses`.
+**How automatic documentation works:**
+- Typed result classes (`ForbiddenHttpResult`, `UnauthorizedHttpResult`, etc.) implement `IEndpointMetadataProvider`
+- Filter extension methods (`.WithSessionAuthentication()`, `.WithStaffAuthorization()`, etc.) add their possible error responses automatically
+- No manual `.ProducesApiResponses()` calls needed
 
-**Why:** TypeScript API client is auto-generated from OpenAPI spec. Missing status codes = broken error handling in frontend.
+**Why:** TypeScript API client is auto-generated from OpenAPI spec. Typed results ensure accurate documentation without manual maintenance.
 
 ### Code Formatting
 
@@ -1371,13 +1354,13 @@ group.MapPost("/", Handler.HandleAction)
 
 ```csharp
 // ❌ WRONG - Line too long
-public static async Task<Results<Ok<Response>, BadRequest<ApiResponse>, Forbidden<ApiResponse>>> HandleAction([FromServices] IAuthContext authContext, [FromServices] IService service, [FromBody] CreateBody request, CancellationToken cancellationToken = default) {
+public static async Task<Results<Ok<Response>, BadRequestHttpResult, ForbiddenHttpResult>> HandleAction([FromServices] IAuthContext authContext, [FromServices] IService service, [FromBody] CreateBody request, CancellationToken cancellationToken = default) {
 
 // ✅ CORRECT - Break into multiple lines
 public static async Task<Results<
     Ok<Response>,
-    BadRequest<ApiResponse>,
-    Forbidden<ApiResponse>
+    BadRequestHttpResult,
+    ForbiddenHttpResult
 >> HandleAction(
     [FromServices] IAuthContext authContext,
     [FromServices] IService service,

@@ -136,8 +136,8 @@ group.MapGet(
     GetStaffProfileById.HandleGetStaffProfileById
 )
     .WithName("GetStaffProfileById")
-    .WithPermission([ProfileAsStaffPermissions.GET_FOR_STAFF])
-    .ProducesApiResponses(...);
+    .WithPermission([ProfileAsStaffPermissions.GET_FOR_STAFF]);
+    // Status codes auto-documented via typed results
 
 // GetTenantProfileById
 group.MapGet(
@@ -145,8 +145,8 @@ group.MapGet(
     GetTenantProfileById.HandleGetTenantProfileById
 )
     .WithName("GetTenantProfileById")
-    .WithPermission([ProfileAsStaffPermissions.GET_FOR_TENANT])
-    .ProducesApiResponses(...);
+    .WithPermission([ProfileAsStaffPermissions.GET_FOR_TENANT]);
+    // Status codes auto-documented via typed results
 ```
 
 **Permission structure:**
@@ -174,7 +174,7 @@ staff.profile.get_for_project   # Get project profile details
 
 ```csharp
 // UpdateProfile.cs - Handler with dynamic permission check
-public static async Task<Results<Ok<ApiResponse>, BadRequest<ApiResponse>, Forbidden>> HandleUpdateProfile(
+public static async Task<Results<Ok, BadRequestHttpResult, ForbiddenHttpResult>> HandleUpdateProfile(
     [FromServices] IAuthContext auth,
     [FromServices] IProfileAsStaffService profileService,
     [FromRoute] string profileId,
@@ -182,24 +182,24 @@ public static async Task<Results<Ok<ApiResponse>, BadRequest<ApiResponse>, Forbi
     CancellationToken cancellationToken
 ) {
     if (!Guid.TryParse(profileId, out var profileIdGuid)) {
-        return TypedResults.BadRequest(ApiResponse.Create("Invalid profile ID", ResponseKeys.ValidationError));
+        return TypedProblems.BadRequest("Invalid profile ID", ResponseKeys.ValidationError);
     }
 
     // 1. Load the entity to check its scope
     var profile = await profileService.GetProfileByIdAsync(profileIdGuid, cancellationToken);
     if (profile is null) {
-        return TypedResults.BadRequest(ApiResponse.Create("Profile not found", ResponseKeys.NotFound));
+        return TypedProblems.BadRequest("Profile not found", ResponseKeys.NotFound);
     }
 
     // 2. Check permission based on scope
     if (!HasUpdatePermissionForScope(auth, profile.ProfileScope)) {
-        return TypedResults.Forbid();
+        return TypedProblems.Forbidden("Access denied", ResponseKeys.Forbidden);
     }
 
     // 3. Proceed with operation
     await profileService.UpdateProfileAsync(profileIdGuid, request, cancellationToken);
 
-    return TypedResults.Ok(ApiResponse.Create("Profile updated", ResponseKeys.Success));
+    return TypedResults.Ok();
 }
 
 private static bool HasUpdatePermissionForScope(IAuthContext auth, ProfileScope scope) {
@@ -218,9 +218,9 @@ group.MapPut(
     PathUtils.GetLastSegment(RoutePath.Staff.Profiles.Update),
     UpdateProfile.HandleUpdateProfile
 )
-    .WithName("UpdateProfile")
-    .ProducesApiResponses(...);
+    .WithName("UpdateProfile");
     // No .WithPermission() - we check manually in handler
+    // Status codes auto-documented via typed results (BadRequestHttpResult, ForbiddenHttpResult)
 ```
 
 **Permission structure:**
