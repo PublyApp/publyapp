@@ -1,5 +1,4 @@
 using MainApi.Src.Lib;
-using MainApi.Src.Lib.Middlewares;
 using MainApi.Src.Modules.Shared.Users;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -34,7 +33,7 @@ public class GetUserTenants {
 					SessionToken = authContext.SessionToken
 				});
 			}
-			throw new Exception($"{nameof(GetUserTenants)} must be set behind {nameof(SessionAuthMiddleware)}.");
+			throw new Exception($"GetUserTenants must be set behind SessionAuthFilter.");
 		}
 
 		if (authContext.UserId is not Guid userId) {

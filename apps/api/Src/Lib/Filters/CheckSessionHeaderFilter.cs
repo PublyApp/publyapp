@@ -1,4 +1,5 @@
 using MainApi.Localization;
+using MainApi.Src.Lib.ProblemResults;
 
 using Microsoft.Extensions.Options;
 
@@ -22,10 +23,7 @@ public class CheckSessionHeaderFilter : IEndpointFilter {
 			?? httpContext.Request.Headers[appSettings.Value.SESSION_TOKEN_HEADER_KEY].FirstOrDefault();
 
 		if (string.IsNullOrEmpty(sessionToken)) {
-			return TypedResults.Json(
-				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),
-				statusCode: StatusCodes.Status401Unauthorized
-			);
+			return TypedProblems.Unauthorized("Session token is missing", ResponseKeys.Unauthorized);
 		}
 
 		// Set token in AuthContext for downstream filters/handlers
@@ -52,6 +50,8 @@ public static class CheckSessionHeaderFilterExtensions {
 	/// Validates that X-Session-Token header is present.
 	/// </summary>
 	public static RouteHandlerBuilder WithCheckSessionHeader(this RouteHandlerBuilder builder) {
-		return builder.AddEndpointFilter<CheckSessionHeaderFilter>();
+		return builder
+			.AddEndpointFilter<CheckSessionHeaderFilter>()
+			.Produces<AppProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json");
 	}
 }

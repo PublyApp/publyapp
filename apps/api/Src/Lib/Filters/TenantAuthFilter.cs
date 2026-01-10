@@ -1,4 +1,5 @@
 using MainApi.Localization;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Tenants;
 using MainApi.Src.Modules.Shared.Users;
 
@@ -30,10 +31,7 @@ public class TenantAuthFilter : IEndpointFilter {
 				_logger.LogError("Request userId or sessionToken is missing: {UserId}", authContext.UserId);
 				_logger.LogError("{SessionAuthFilter} must be passed before {TenantAuthFilter}", nameof(SessionAuthFilter), nameof(TenantAuthFilter));
 			}
-			return TypedResults.Json(
-				ApiResponse.Create("Failed to authenticate user", ResponseKeys.FailedToAuthenticateUser),
-				statusCode: StatusCodes.Status500InternalServerError
-			);
+			return TypedProblems.InternalServerError("Failed to authenticate user", ResponseKeys.FailedToAuthenticateUser);
 		}
 
 		// 2. Verify CheckTenantHeaderFilter has run
@@ -46,10 +44,7 @@ public class TenantAuthFilter : IEndpointFilter {
 					nameof(TenantAuthFilter)
 				);
 			}
-			return TypedResults.Json(
-				ApiResponse.Create("Failed to authenticate user", ResponseKeys.FailedToAuthenticateUser),
-				statusCode: StatusCodes.Status500InternalServerError
-			);
+			return TypedProblems.InternalServerError("Failed to authenticate user", ResponseKeys.FailedToAuthenticateUser);
 		}
 
 		if (authContext.UserId is not Guid userId) {
@@ -64,10 +59,7 @@ public class TenantAuthFilter : IEndpointFilter {
 					authContext.TenantId
 				);
 			}
-			return TypedResults.Json(
-				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),
-				statusCode: StatusCodes.Status401Unauthorized
-			);
+			return TypedProblems.Unauthorized("Unauthorized", ResponseKeys.Unauthorized);
 		}
 
 		// 4. Verify tenant exists and is active
@@ -80,10 +72,7 @@ public class TenantAuthFilter : IEndpointFilter {
 					tenantId
 				);
 			}
-			return TypedResults.Json(
-				ApiResponse.Create("Tenant not found", ResponseKeys.NotFound),
-				statusCode: StatusCodes.Status404NotFound
-			);
+			return TypedProblems.NotFound("Tenant not found", ResponseKeys.NotFound);
 		}
 
 		// 5. Get user's account for this tenant
@@ -101,10 +90,7 @@ public class TenantAuthFilter : IEndpointFilter {
 					tenantId
 				);
 			}
-			return TypedResults.Json(
-				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),
-				statusCode: StatusCodes.Status403Forbidden
-			);
+			return TypedProblems.Forbidden("User does not have access to this tenant", ResponseKeys.Forbidden);
 		}
 
 		// 6. Store account in context for downstream handlers
@@ -133,6 +119,11 @@ public static class TenantAuthFilterExtensions {
 	/// Requires SessionAuthFilter and CheckTenantHeaderFilter to be applied first.
 	/// </summary>
 	public static RouteHandlerBuilder WithTenantAuthorization(this RouteHandlerBuilder builder) {
-		return builder.AddEndpointFilter<TenantAuthFilter>();
+		return builder
+			.AddEndpointFilter<TenantAuthFilter>()
+			.Produces<AppProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")
+			.Produces<AppProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")
+			.Produces<AppProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")
+			.Produces<AppProblemDetails>(StatusCodes.Status500InternalServerError, "application/problem+json");
 	}
 }

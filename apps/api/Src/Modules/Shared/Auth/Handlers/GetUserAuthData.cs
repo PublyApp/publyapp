@@ -1,6 +1,5 @@
 using MainApi.Localization;
 using MainApi.Src.Lib;
-using MainApi.Src.Lib.Middlewares;
 using MainApi.Src.Modules.Shared.Users;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -35,7 +34,7 @@ public class GetUserAuthData {
 					SessionToken = authContext.SessionToken
 				});
 			}
-			throw new Exception($"{nameof(GetUserAuthData)} must be set behind {nameof(SessionAuthMiddleware)}.");
+			throw new Exception($"GetUserAuthData must be set behind SessionAuthFilter.");
 		}
 
 		if (authContext.UserId is not Guid userId) {

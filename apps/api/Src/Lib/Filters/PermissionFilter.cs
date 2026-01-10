@@ -1,4 +1,5 @@
 using MainApi.Localization;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Permissions;
 using MainApi.Src.Modules.Shared.Users;
 
@@ -58,9 +59,9 @@ public class PermissionFilter : IEndpointFilter {
 						});
 					}
 
-					return TypedResults.Json(
-						ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),
-						statusCode: StatusCodes.Status401Unauthorized
+					return TypedProblems.Forbidden(
+						"User has no permissions",
+						ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
 					);
 				}
 
@@ -89,10 +90,9 @@ public class PermissionFilter : IEndpointFilter {
 						});
 					}
 
-					return TypedResults.Json(ApiResponse.Create(
+					return TypedProblems.Forbidden(
 						"User does not have the necessary permissions",
-						ResponseKeys.UserDoesNotHaveTheNecessaryPermissions),
-						statusCode: StatusCodes.Status403Forbidden
+						ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
 					);
 				}
 			}
@@ -107,14 +107,18 @@ public static class PermissionFilterExtensions {
 		this RouteHandlerBuilder builder,
 		Permission[] requiredPermissions
 	) {
-		return builder.AddEndpointFilter(new PermissionFilter(requiredPermissions));
+		return builder
+			.AddEndpointFilter(new PermissionFilter(requiredPermissions))
+			.Produces<AppProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json");
 	}
 
 	public static RouteHandlerBuilder WithPermission(
 		this RouteHandlerBuilder builder,
 		Func<HashSet<string>, bool> customPermissionChecker
 	) {
-		return builder.AddEndpointFilter(new PermissionFilter(customPermissionChecker));
+		return builder
+			.AddEndpointFilter(new PermissionFilter(customPermissionChecker))
+			.Produces<AppProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json");
 	}
 }
 
