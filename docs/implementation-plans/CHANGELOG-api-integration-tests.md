@@ -151,6 +151,14 @@ Added analysis of why IntegreSQL was **not** chosen:
 ### 9. **File Naming Consistency**
 - Fixed typo: `PassWordLogin` → `PasswordLogin`
 
+### 9.1 **Corrected Runtime Mismatches (Plan vs Repo)**
+- Updated tenant header name to `X-PublyApp-TenantId` (matches `apps/api/appsettings.json`)
+- Updated `/auth/login` negative-case expectations to `400 BadRequest` (matches current handler behavior)
+- Updated Postgres image to `postgres:18-alpine` because migrations use `uuidv7()`
+- Updated `MainApiFactory` example to preserve tenant scoping (`UseTenantId`) instead of bypassing it
+- Switched to a dedicated test project that compiles `apps/api/Src/**/*.IntegrationTests.cs` (avoids Minimal API top-level entrypoint vs test SDK entrypoint conflicts)
+- Noted build-time side effects (OpenAPI export + translation key generation) should be disabled for `Test`
+
 ### 10. **Complete Namespaces**
 - Added proper namespaces to all code examples
 - Matches your project structure (`MainApi.Src.Lib.Testing`)

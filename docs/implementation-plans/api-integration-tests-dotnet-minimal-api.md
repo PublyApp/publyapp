@@ -28,7 +28,7 @@ References / inspiration:
   - **Anonymous endpoints** (e.g. `/health`)
   - **Auth endpoints** (e.g. `/auth/login`)
   - **Staff endpoints** (require `X-Session-Token`)
-  - **Tenant endpoints** (require `X-Session-Token` + `X-Tenant-Id`)
+  - **Tenant endpoints** (require `X-Session-Token` + `X-PublyApp-TenantId`)
 
 ---
 
@@ -140,30 +140,27 @@ Why this is a good fit:
 
 ## Step-by-step implementation tasks
 
-## Project layout (default): colocated tests in `apps/api` + `Test` configuration
+## Project layout (recommended): dedicated test project + colocated test files
 
 This plan uses the **"best of both worlds"** approach:
 
 - **Tests live next to handlers** (Vertical Slice friendly)
-- **Production builds/publish stay clean** (tests + test NuGets compile only in `Test` config)
+- **Production builds/publish stay clean** (API never compiles tests)
+- **`dotnet test` behaves correctly** even with top-level `Program.cs` + `TreatWarningsAsErrors=true`
 
 Pros:
 
 - Tests can live right next to each handler (matches Vertical Slice mindset)
-- No "extra Tests/ project folder" to navigate
- - Release builds don't accidentally ship test code / packages
+- Dedicated test project avoids test-SDK entrypoint conflicts with Minimal API top-level statements
+- Release builds don't accidentally ship test code / packages
 
 Cons / caveats:
 
-- Less common in .NET; requires careful `.csproj` conditioning
-- You must be disciplined about file naming and configuration, otherwise tests will get compiled into normal builds
-
-At the end, there's an appendix describing the more conventional "separate test project" layout if you
-ever want to switch.
+- Slightly more MSBuild setup (the test project compiles `*.IntegrationTests.cs` from `apps/api/Src/`)
 
 ---
 
-### Step 0 — (Optional) Inspect Claude branch
+### Step 0 - (Optional) Inspect Claude branch
 
 If you want to compare with Claude's attempt:
 
@@ -178,13 +175,15 @@ Do **not** merge blindly; prefer implementing this plan cleanly.
 
 ---
 
-### Step 1 — Enable "Test" configuration in `MainApi.csproj` (colocated tests)
+### Step 1 - Set up test project + build configuration
 
 #### 1.1 Create a dedicated build configuration named `Test`
 
 You don't need to "register" it anywhere; just run tests with:
 
-- `dotnet test apps/api/MainApi.csproj -c Test`
+- `dotnet test apps/api/Tests/MainApi.IntegrationTests.csproj -c Test`
+
+Using `-c Test` is recommended so referenced builds of `apps/api/MainApi.csproj` can skip build-time side effects (OpenAPI export + translation key generation) during test runs.
 
 #### 1.2 Adopt a naming convention (critical)
 
@@ -197,47 +196,26 @@ Place test files alongside their handlers, for example:
 - `apps/api/Src/Modules/Shared/Auth/Handlers/PasswordLogin.IntegrationTests.cs`
 - `apps/api/Src/Modules/Staff/PermissionsAsStaff/Handlers/FindStaffPermissions.IntegrationTests.cs`
 
-#### 1.3 Condition test compilation + packages only for `Test`
+#### 1.3 Exclude tests from the API project
 
-In `apps/api/MainApi.csproj`, add:
-
-- `IsTestProject=true` only for `Test`
-- `PackageReference`s for test tooling only for `Test`
-- Exclude `*.IntegrationTests.cs` from all **non-Test** builds
-
-**Important**: Your project uses Central Package Management (all package versions are in `Directory.Packages.props`).
-Add the packages there first, then reference them conditionally in `MainApi.csproj`.
+In `apps/api/MainApi.csproj`, exclude integration test files and test-only infrastructure so the API never compiles them:
 
 Example pattern:
 
 ```xml
-<PropertyGroup Condition="'$(Configuration)' == 'Test'">
-  <IsTestProject>true</IsTestProject>
-</PropertyGroup>
-
-<!-- Exclude test files from non-Test builds -->
-<ItemGroup Condition="'$(Configuration)' != 'Test'">
+<ItemGroup>
   <Compile Remove="**/*.IntegrationTests.cs" />
-</ItemGroup>
-
-<!-- Test-only packages -->
-<ItemGroup Condition="'$(Configuration)' == 'Test'">
-  <PackageReference Include="Microsoft.NET.Test.Sdk" />
-  <PackageReference Include="xunit" />
-  <PackageReference Include="xunit.runner.visualstudio" />
-  <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
-  <PackageReference Include="Testcontainers" />
-  <PackageReference Include="Testcontainers.PostgreSql" />
-  <PackageReference Include="FluentAssertions" />
+  <Compile Remove="Src/Lib/Testing/**/*.cs" />
+  <Compile Remove="Tests/**/*.cs" />
 </ItemGroup>
 ```
 
 Notes:
 
 - SDK-style projects already include `**/*.cs` by default. The critical part is the
-  `Compile Remove` for non-Test builds so you don't ship tests.
+  `Compile Remove` so you don't ship/compile tests in the API project.
 - Keep the suffix consistent (`*.IntegrationTests.cs`) so the glob stays safe.
-- No version numbers needed in `MainApi.csproj` since you use Central Package Management
+- No version numbers needed in `.csproj` since you use Central Package Management
 
 #### 1.4 Parallel tests from day one (recommended)
 
@@ -246,7 +224,7 @@ For performance, **do not disable parallelization**. Instead:
 - Keep isolation at **one DB per test class**
 - Run **test classes in parallel** with a limited thread count
 
-Add `apps/api/Src/Lib/Testing/AssemblyInfo.cs`:
+Add `apps/api/Tests/AssemblyInfo.cs`:
 
 ```csharp
 using Xunit;
@@ -257,17 +235,21 @@ using Xunit;
 [assembly: CollectionBehavior(MaxParallelThreads = 4)]
 ```
 
+#### 1.5 Create the test project
+
+Create `apps/api/Tests/MainApi.IntegrationTests.csproj`:
+
+- Add test packages (xUnit + FluentAssertions + Testcontainers + `Microsoft.AspNetCore.Mvc.Testing`)
+- Reference the API project (`../MainApi.csproj`)
+- Compile `apps/api/Src/**/*.IntegrationTests.cs` and `apps/api/Src/Lib/Testing/**/*.cs` into the test project (so tests can live next to handlers)
+
 ---
 
-### Step 2 — Make `Program` test-hostable
+### Step 2 - Make `Program` test-hostable
 
-Minimal APIs with top-level statements should expose `Program` to `WebApplicationFactory`.
+`Microsoft.AspNetCore.Mvc.Testing` uses the entrypoint type (`Program`) for `WebApplicationFactory<Program>`.
 
-Add this at the bottom of `apps/api/Program.cs`:
-
-```csharp
-public partial class Program { }
-```
+Since this repo uses a non-top-level `Program` class (explicit `Main` method), no extra `partial Program` shim is needed.
 
 This is a common requirement referenced by Minimal API integration testing guides such as:
 
@@ -276,12 +258,11 @@ This is a common requirement referenced by Minimal API integration testing guide
 
 ---
 
-### Step 3 — Add "test host" infrastructure
+### Step 3 - Add "test host" infrastructure
 
-Create a folder structure under the API project:
+Create a folder structure under the API project (these files live in `apps/api/Src/Lib/Testing/` but are compiled into `apps/api/Tests/MainApi.IntegrationTests.csproj`):
 
 - `apps/api/Src/Lib/Testing/`
-  - `AssemblyInfo.cs` (from Step 1.4)
   - `TestEnvironment.cs`
   - `PostgresContainerFixture.cs`
   - `DatabaseCollection.cs`
@@ -366,7 +347,8 @@ public sealed class PostgresContainerFixture : IAsyncLifetime {
   public async Task InitializeAsync() {
     // Start Postgres container
     _container = new PostgreSqlBuilder()
-      .WithImage("postgres:16-alpine")
+      // Postgres 17+ required because migrations use uuidv7() defaults.
+      .WithImage("postgres:18-alpine")
       .WithDatabase("postgres")
       .WithUsername("postgres")
       .WithPassword("postgres")
@@ -583,11 +565,14 @@ namespace MainApi.Src.Lib.Testing;
 
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Infrastructure.Messaging.Email;
+using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 /// <summary>
 /// Custom WebApplicationFactory that configures the app for integration testing.
@@ -607,18 +592,25 @@ public sealed class MainApiFactory : WebApplicationFactory<Program> {
       // 1) Replace DbContext registration to force test connection string
 
       // Remove existing DbContext registration
-      var descriptor = services.SingleOrDefault(
-        d => d.ServiceType == typeof(DbContextOptions<MainApiDbContext>)
-      );
-      if (descriptor != null) {
-        services.Remove(descriptor);
-      }
+      services.RemoveAll<DbContextOptions<MainApiDbContext>>();
+      services.RemoveAll<MainApiDbContext>();
 
-      // Re-register with test connection string
-      services.AddDbContext<MainApiDbContext>(options => {
+      // Re-register with test connection string + tenant scoping (matches production behavior)
+      services.AddDbContext<MainApiDbContext>((serviceProvider, options) => {
+        var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
+        var appSettings = serviceProvider.GetRequiredService<IOptions<AppSettings>>().Value;
+
+        var httpContext = httpContextAccessor.HttpContext;
+        var tenantHeaderValue = httpContext?.Request.Headers[appSettings.TENANT_ID_HEADER_KEY].FirstOrDefault();
+        var tenantId = Guid.TryParse(tenantHeaderValue, out var parsed) ? parsed : (Guid?)null;
+
         options.UseNpgsql(_dbConnectionString);
-        options.EnableSensitiveDataLogging();  // Helpful for debugging tests
-      });
+        if (tenantId.HasValue) {
+          options.UseTenantId(tenantId.Value);
+        }
+
+        options.EnableSensitiveDataLogging(); // Helpful for debugging tests
+      }, ServiceLifetime.Scoped);
 
       // 2) Replace email service with fake
       var emailDescriptor = services.SingleOrDefault(
@@ -806,7 +798,7 @@ public sealed class PasswordLoginIntegrationTests : IClassFixture<ApiFixture> {
     var response = await _http.PostAsJsonAsync("/auth/login", loginRequest);
 
     // Assert
-    response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
   }
 
   [Fact]
@@ -821,7 +813,7 @@ public sealed class PasswordLoginIntegrationTests : IClassFixture<ApiFixture> {
     var response = await _http.PostAsJsonAsync("/auth/login", loginRequest);
 
     // Assert
-    response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
   }
 
   private record LoginResponse(string SessionToken, Guid UserId);
@@ -925,7 +917,7 @@ public sealed class TenantProductsIntegrationTests : IClassFixture<ApiFixture> {
     var sessionToken = await _authClient.LoginAsStaffAdminAsync();
     _http.DefaultRequestHeaders.Add("X-Session-Token", sessionToken);
 
-    // Act (no X-Tenant-Id header)
+    // Act (no X-PublyApp-TenantId header)
     var response = await _http.GetAsync("/tenant/products/");
 
     // Assert
@@ -935,7 +927,7 @@ public sealed class TenantProductsIntegrationTests : IClassFixture<ApiFixture> {
   [Fact]
   public async Task GetProducts_WithoutSessionToken_ReturnsUnauthorized() {
     // Arrange
-    _http.DefaultRequestHeaders.Add("X-Tenant-Id", Guid.NewGuid().ToString());
+    _http.DefaultRequestHeaders.Add("X-PublyApp-TenantId", Guid.NewGuid().ToString());
 
     // Act (no X-Session-Token header)
     var response = await _http.GetAsync("/tenant/products/");
@@ -951,7 +943,7 @@ public sealed class TenantProductsIntegrationTests : IClassFixture<ApiFixture> {
     var tenantId = Guid.NewGuid(); // Use actual seeded tenant ID in real test
 
     _http.DefaultRequestHeaders.Add("X-Session-Token", sessionToken);
-    _http.DefaultRequestHeaders.Add("X-Tenant-Id", tenantId.ToString());
+    _http.DefaultRequestHeaders.Add("X-PublyApp-TenantId", tenantId.ToString());
 
     // Act
     var response = await _http.GetAsync("/tenant/products/");
@@ -969,7 +961,7 @@ public sealed class TenantProductsIntegrationTests : IClassFixture<ApiFixture> {
 From repo root:
 
 ```bash
-dotnet test apps/api/MainApi.csproj -c Test
+dotnet test apps/api/Tests/MainApi.IntegrationTests.csproj -c Test
 ```
 
 Add to your Makefile:
@@ -977,7 +969,7 @@ Add to your Makefile:
 ```makefile
 .PHONY: test-api
 test-api:
-	dotnet test apps/api/MainApi.csproj -c Test
+	dotnet test apps/api/Tests/MainApi.IntegrationTests.csproj -c Test
 ```
 
 Then run:
