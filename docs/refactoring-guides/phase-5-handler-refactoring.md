@@ -41,8 +41,8 @@ This guide documents all the changes needed to bring the Phase 5 implementation 
 - ✅ **Required:** `JsonElement` properties for proper validation
 
 ### 8. OpenAPI Documentation
-- ❌ **Current:** Missing `StatusCodes.Status403Forbidden` in `ProducesApiResponses`
-- ✅ **Required:** Document ALL status codes that handlers can return
+- ❌ **Current:** Using `ApiResponse` with manual `ProducesApiResponses`
+- ✅ **Required:** Use `TypedProblems.*` methods for automatic OpenAPI documentation (RFC 7807)
 
 ## Detailed Refactoring Steps
 
@@ -211,10 +211,11 @@ public class CreateStaffInvitationBodyValidator : AbstractValidator<CreateStaffI
 // ✅ Handler with descriptive method name
 public static class CreateStaffInvitation {
     // ✅ Line length < 100 chars per line
+    // ✅ Use typed result classes for automatic OpenAPI documentation
     public static async Task<Results<
         Ok<InvitationCreated>,
-        BadRequest<ApiResponse>,
-        Forbidden<ApiResponse>
+        BadRequestHttpResult,
+        ForbiddenHttpResult
     >> HandleCreateStaffInvitation(  // ✅ Descriptive name
         [FromServices] IAuthContext authContext,
         [FromServices] IInvitationService invitationService,  // ✅ Service layer
@@ -227,11 +228,9 @@ public static class CreateStaffInvitation {
         if (account is null
             || account.Scope != AccountScope.Staff
             || account.Level != AccountLevel.Admin) {
-            return TypedResults.Forbidden(
-                ApiResponse.Create(
-                    "User does not have the necessary permissions",
-                    ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
-                )
+            return TypedProblems.Forbidden(
+                "User does not have the necessary permissions",
+                ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
             );
         }
 
@@ -245,9 +244,7 @@ public static class CreateStaffInvitation {
             cancellationToken
         );
         if (profile is null) {
-            return TypedResults.BadRequest(
-                ApiResponse.Create("Profile not found", ResponseKeys.NotFound)
-            );
+            return TypedProblems.BadRequest("Profile not found", ResponseKeys.NotFound);
         }
 
         // Check if user exists via service
@@ -256,11 +253,9 @@ public static class CreateStaffInvitation {
             cancellationToken
         );
         if (userExists) {
-            return TypedResults.BadRequest(
-                ApiResponse.Create(
-                    "User already exists",
-                    ResponseKeys.UserAlreadyExists
-                )
+            return TypedProblems.BadRequest(
+                "User already exists",
+                ResponseKeys.UserAlreadyExists
             );
         }
 
@@ -271,11 +266,9 @@ public static class CreateStaffInvitation {
             cancellationToken
         );
         if (pendingExists) {
-            return TypedResults.BadRequest(
-                ApiResponse.Create(
-                    "Pending invitation exists",
-                    ResponseKeys.BadRequest
-                )
+            return TypedProblems.BadRequest(
+                "Pending invitation exists",
+                ResponseKeys.BadRequest
             );
         }
 
@@ -311,7 +304,7 @@ public static class CreateStaffInvitation {
 
 ```csharp
 using MainApi.Src.Features.Common.Invitation;
-using MainApi.Src.Lib.ApiResponse;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Localization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -326,9 +319,10 @@ public record InvitationDetails {
 }
 
 public static class GetInvitationDetails {
+    // ✅ Use typed result classes for automatic OpenAPI documentation
     public static async Task<Results<
         Ok<InvitationDetails>,
-        NotFound<ApiResponse>
+        NotFoundHttpResult
     >> HandleGetInvitationDetails(  // ✅ Descriptive name
         [FromRoute] string token,
         [FromServices] IInvitationService invitationService,
@@ -341,11 +335,9 @@ public static class GetInvitationDetails {
         );
 
         if (invitation is null) {
-            return TypedResults.NotFound(
-                ApiResponse.Create(
-                    "Invitation not found or expired",
-                    ResponseKeys.NotFound
-                )
+            return TypedProblems.NotFound(
+                "Invitation not found or expired",
+                ResponseKeys.NotFound
             );
         }
 
@@ -356,11 +348,9 @@ public static class GetInvitationDetails {
         );
 
         if (profile is null) {
-            return TypedResults.NotFound(
-                ApiResponse.Create(
-                    "Profile not found",
-                    ResponseKeys.ProfileNotFound
-                )
+            return TypedProblems.NotFound(
+                "Profile not found",
+                ResponseKeys.ProfileNotFound
             );
         }
 
@@ -377,7 +367,7 @@ public static class GetInvitationDetails {
 
 **File:** `apps/api/Src/Features/Staff/Invitations/InvitationEndpoints.cs`
 
-Update to use new handler names and document all responses:
+Update to use new handler names. Status codes are automatically documented via typed results:
 
 ```csharp
 using MainApi.Src.Features.Staff.Invitations.Handlers;
@@ -402,8 +392,8 @@ public static class InvitationEndpoints {
                 GetInvitationDetails.HandleGetInvitationDetails  // ✅ Updated name
             )
             .WithName("GetInvitationDetails")
-            .WithSummary("Get invitation details by token")
-            .ProducesApiResponses(StatusCodes.Status500InternalServerError);
+            .WithSummary("Get invitation details by token");
+            // ✅ Status codes auto-documented via NotFoundHttpResult in handler
 
         group.MapPost(
                 PathUtils.GetLastSegment(RoutePath.Invitations.AcceptByToken, 2),
@@ -411,8 +401,8 @@ public static class InvitationEndpoints {
             )
             .WithName("AcceptInvitation")
             .WithSummary("Accept invitation and create account + session")
-            .WithReqBodyValidation<AcceptInvitationBody>()  // ✅ Updated name
-            .ProducesApiResponses(StatusCodes.Status500InternalServerError);
+            .WithReqBodyValidation<AcceptInvitationBody>();  // ✅ Updated name
+            // ✅ Status codes auto-documented via typed results
 
         return app;
     }
@@ -431,33 +421,24 @@ public static class InvitationEndpoints {
             )
             .WithName("CreateStaffInvitation")
             .WithSummary("Create a staff invitation (Admin only)")
-            .WithReqBodyValidation<CreateStaffInvitationBody>()  // ✅ Updated name
-            .ProducesApiResponses(
-                StatusCodes.Status500InternalServerError,
-                StatusCodes.Status403Forbidden  // ✅ ADDED!
-            );
+            .WithReqBodyValidation<CreateStaffInvitationBody>();
+            // ✅ 400/403 auto-documented via BadRequestHttpResult/ForbiddenHttpResult
 
         group.MapGet(
                 PathUtils.GetLastSegment(RoutePath.Staff.Invitations.Find),
                 ListStaffInvitations.HandleListStaffInvitations  // ✅ Updated name
             )
             .WithName("ListStaffInvitations")
-            .WithSummary("List staff invitations")
-            .ProducesApiResponses(
-                StatusCodes.Status500InternalServerError,
-                StatusCodes.Status403Forbidden  // ✅ ADDED!
-            );
+            .WithSummary("List staff invitations");
+            // ✅ 403 auto-documented via ForbiddenHttpResult
 
         group.MapDelete(
                 PathUtils.GetLastSegment(RoutePath.Staff.Invitations.RevokeById),
                 RevokeInvitation.HandleRevokeInvitation  // ✅ Updated name
             )
             .WithName("RevokeInvitation")
-            .WithSummary("Revoke a staff invitation (Admin only)")
-            .ProducesApiResponses(
-                StatusCodes.Status500InternalServerError,
-                StatusCodes.Status403Forbidden  // ✅ ADDED!
-            );
+            .WithSummary("Revoke a staff invitation (Admin only)");
+            // ✅ 403 auto-documented via ForbiddenHttpResult
 
         return routes;
     }
@@ -499,7 +480,7 @@ After refactoring, verify:
 - [ ] No handler accesses `MainApiDbContext` directly
 - [ ] All lines are ≤ 100 characters
 - [ ] String comparisons use `StringComparison.OrdinalIgnoreCase`
-- [ ] All status codes documented in `ProducesApiResponses`
+- [ ] All error responses use `TypedProblems.*` for automatic OpenAPI documentation
 - [ ] Run `make check-write` - no errors
 - [ ] Run `make build-api` - builds successfully
 - [ ] Run `make generate-client` - client generates correctly
