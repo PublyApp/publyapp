@@ -1,14 +1,29 @@
 # Staff Invitations Table Implementation Plan
 
 ## Overview
-Implement a full-featured staff invitations table with extended columns, status filtering, pagination, and row actions (View Details, Copy Link, Resend Email, Revoke).
+Implement a full-featured staff invitations table with extended columns, status filtering, cursor-based pagination, and row actions (View Details, Copy Link, Resend Email, Revoke).
 
 ## Scope Summary
 
 | Area | Changes Required |
 |------|-----------------|
-| Backend | Add `AcceptedAt` to response, pagination/filtering, resend endpoint |
+| Backend | Add `AcceptedAt` to response, pagination/filtering, resend endpoint, get-link endpoint |
 | Frontend | Build table component, update hooks, implement actions |
+
+## Current State (Verified 2026-01-10)
+
+**Existing `InvitationListItem` fields:**
+- `Id`, `Email`, `Scope`, `ProfileName`, `ExpiresAt`, `IsAccepted`, `IsRevoked`, `CreatedAt`, `InvitedByName`
+
+**What's already available:**
+- `InvitedByName` - already populated in `FindStaffInvitationsAsync` (no changes needed)
+
+**What's missing:**
+- `AcceptedAt` - needs to be added to DTO and mapping
+
+**Security note:**
+- `Token` is intentionally NOT included in list responses (good practice)
+- Copy Link feature requires a dedicated endpoint to fetch token on-demand
 
 ---
 
@@ -31,7 +46,7 @@ Update the mapping in `FindStaffInvitationsAsync` to include `AcceptedAt`.
 
 ---
 
-### 1.2 Add Pagination & Filtering to FindStaffInvitations
+### 1.2 Add Cursor Pagination & Filtering to FindStaffInvitations
 
 **Files to modify:**
 - `apps/api/Src/Modules/Staff/InvitationsAsStaff/Handlers/FindStaffInvitations.cs`
@@ -39,7 +54,7 @@ Update the mapping in `FindStaffInvitationsAsync` to include `AcceptedAt`.
 
 **Create Query Class:**
 ```csharp
-public class FindStaffInvitationsQuery : PaginatedQuery {
+public class FindStaffInvitationsQuery : CursorPaginatedQuery {
     [FromQuery] public string? Status { get; set; }  // pending, accepted, expired, revoked
 }
 ```
@@ -50,13 +65,32 @@ public class FindStaffInvitationsQuery : PaginatedQuery {
 - `expired`: `!IsAccepted && !IsRevoked && ExpiresAt <= DateTime.UtcNow`
 - `revoked`: `IsRevoked`
 
+**Note:** Status is computed at query time (not persisted). This means invitations may change status (pending -> expired) between page loads. This is a known acceptable limitation - the alternative of a background job to update status is over-engineering for this use case.
+
 **Response Structure:**
 ```csharp
-public class FindStaffInvitationsResult {
-    public required List<InvitationListItem> Invitations { get; init; }
-    public required int Count { get; init; }
-}
+public class FindStaffInvitationsResult : CursorPaginatedResult<InvitationListItem> { }
 ```
+
+**No Total Count (Cursor Pagination):**
+- Do not add a `Count` / total-count query for cursor pagination (see `docs/guides/CURSOR_KEYSET_PAGINATION_GUIDE.md`).
+- Return `NextCursor` (null means there are no more pages).
+
+**Sorting (Allowlist Only):**
+- Implement an explicit safe mapping (like `StaffMemberService`) so `sortId` cannot become "anything".
+- Implement keyset pagination per `docs/guides/CURSOR_KEYSET_PAGINATION_GUIDE.md` (stable sort + tie-breaker by `Id`).
+- Suggested supported `sortId` values (pick only what you implement correctly):
+  - `createdAt` (default)
+  - `expiresAt`
+  - `email`
+  - `acceptedAt`
+- If `sortId` is not supported: return a validation error (recommended, like `FindStaffProfiles`) or fall back to `createdAt desc`.
+
+**Cursor Parsing (Handler Pattern):**
+- Follow the same approach as `apps/api/Src/Modules/Staff/ProfilesAsStaff/Handlers/FindStaffProfiles.cs`:
+  - `cursor` is optional (first page).
+  - If cursor is provided, validate/parse it (bad cursor -> 400).
+  - If the cursor record no longer exists -> 400 with a clear message.
 
 ---
 
@@ -95,8 +129,10 @@ public record InvitationLinkResult {
 ```
 
 **Handler Implementation:**
-- Validate invitation exists (Admin only)
+- Validate invitation exists and is pending (Admin only)
+- Fetch the invitation's token and email from DB
 - Use `AuthUtils.CreateAcceptInvitationUrl(token, email)` to build the link
+  - URL format: `{FRONT_URL}/accept-invitation?token={token}&id={encryptedEmail}`
 - Return the full URL
 
 **File to create:** `apps/api/Src/Modules/Staff/InvitationsAsStaff/Handlers/GetStaffInvitationLink.cs`
@@ -112,10 +148,9 @@ public record InvitationLinkResult {
 Update `useFindStaffInvitations` to accept pagination and filter params:
 ```typescript
 type FindStaffInvitationsParams = {
-    page: number;
+    cursor?: string;
     limit: number;
-    sortId?: string;
-    sortOrder?: 'asc' | 'desc';
+    sort: { id: string; order: 'asc' | 'desc' };
     status?: 'pending' | 'accepted' | 'expired' | 'revoked';
 };
 ```
@@ -123,7 +158,7 @@ type FindStaffInvitationsParams = {
 Add new hooks:
 ```typescript
 export const useResendInvitation = createMutation({...});
-export const useGetInvitationLink = createQuery({...});  // for copy link action
+export const useGetInvitationLink = createMutation({...});  // click action; avoid caching tokenized URLs
 ```
 
 ---
@@ -143,10 +178,14 @@ export const useGetInvitationLink = createQuery({...});  // for copy link action
 8. Actions
 
 **Table Features:**
-- Use `useMRTTable('minimal', {...})` pattern from staff-members-table
-- Use `useTableState` hook for pagination/sorting state
-- Manual pagination with offset-based approach
+- Use `useMRTTable('minimal-cursor', {...})` pattern from `apps/front/app/routes/authed/staff/profiles/list/parts/staff-profiles-table.tsx`
+- Use `useTableState({ paginationMode: 'cursor' })` for pagination/sorting state
+- Feed `data?.nextCursor` back into `setNextCursor` to enable Next/Previous
 - Status filter dropdown above table
+
+**Cursor Reset on Filter Change:**
+- When `status` changes, reset cursor pagination back to first page (cursor history + current cursor + virtual page index).
+- `useTableState` already resets cursor state when sorting/page size changes; do the same for `status` changes in this table.
 
 **Status Filter Component:**
 ```typescript
@@ -168,7 +207,7 @@ export const useGetInvitationLink = createQuery({...});  // for copy link action
 | Action | Icon | Behavior | Visibility |
 |--------|------|----------|------------|
 | View Details | `solar:eye-bold` | Navigate to details page | Always |
-| Copy Invite Link | `solar:copy-bold-duotone` | Copy `{origin}/auth/accept-invitation/{token}` to clipboard | Pending only |
+| Copy Invite Link | `solar:copy-bold-duotone` | Copy invitation URL to clipboard (via API) | Pending only |
 | Resend Email | `custom:send-fill` | Call resend mutation, show toast | Pending only |
 | Revoke | `solar:trash-bin-trash-bold` | Confirm dialog, call revoke mutation | Pending only |
 
@@ -176,6 +215,15 @@ export const useGetInvitationLink = createQuery({...});  // for copy link action
 - Call `GET /staff/invitations/{id}/link` endpoint
 - Copy returned URL to clipboard
 - Show success toast
+
+**Error Handling:**
+All actions should show toast notifications:
+
+| Action | Success Toast | Error Toast |
+|--------|--------------|-------------|
+| Copy Link | "Invitation link copied to clipboard" | "Failed to copy invitation link" |
+| Resend Email | "Invitation email resent successfully" | "Failed to resend invitation email" |
+| Revoke | "Invitation revoked successfully" | "Failed to revoke invitation" |
 
 ---
 
@@ -222,7 +270,7 @@ After backend changes, run the Kiota generator to update TypeScript types.
 | Columns | Extended: Email, Profile, Status, Invited By, Expires At, Accepted At, Created At, Actions |
 | Actions | Full: View Details, Copy Link, Resend Email, Revoke |
 | Filtering | Status dropdown (All, Pending, Accepted, Expired, Revoked) |
-| Pagination | Offset-based (page numbers) like staff members table |
+| Pagination | Cursor-based (keyset) like staff profiles table |
 | Missing fields | Add AcceptedAt to API response (already in DB) |
 | Backend filtering | Implement server-side pagination + status filter |
 | Resend action | Create new backend endpoint first |
