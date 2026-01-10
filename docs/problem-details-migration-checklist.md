@@ -14,6 +14,9 @@ This is the living reference for PublyApp's API error responses and their OpenAP
 ## Backbone (Do Not Regress)
 
 - Use `TypedProblems.*` in handlers (avoid `TypedResults.Json(..., statusCode: ...)` for errors).
+- Ensure the runtime pipeline supports RFC 7807 formatting:
+  - `builder.Services.AddProblemDetails(...)` is registered (framework integration).
+  - `app.UseCustomExceptionHandler()` normalizes unhandled/binding errors to `AppProblemDetails`.
 - Encode possible error status codes in the handler return type via `Results<...>` unions with typed results:
   - `AppBadRequestHttpResult`
   - `AppUnauthorizedHttpResult`
