@@ -1,3 +1,5 @@
+using MainApi.Src.Lib.ProblemResults;
+
 using Scalar.AspNetCore;
 
 namespace MainApi.Src.Lib.Extensions;
@@ -42,6 +44,20 @@ public static class OpenApiExtensions {
 		if (statusCodes is null || statusCodes.Length == 0) return builder;
 		foreach (var statusCode in statusCodes) {
 			builder = builder.Produces<ApiResponse>(statusCode, "application/json");
+		}
+		return builder;
+	}
+
+	/// <summary>
+	/// Adds one or more RFC 7807 ProblemDetails responses to the OpenAPI documentation.
+	/// Use this to document error responses from filters (e.g., auth filters).
+	/// Handler return types that include ForbiddenHttpResult, NotFoundHttpResult, etc. are auto-documented.
+	/// Usage: builder.ProducesAppProblem(StatusCodes.Status401Unauthorized, StatusCodes.Status500InternalServerError);
+	/// </summary>
+	public static RouteHandlerBuilder ProducesAppProblem(this RouteHandlerBuilder builder, params int[] statusCodes) {
+		if (statusCodes is null || statusCodes.Length == 0) return builder;
+		foreach (var statusCode in statusCodes) {
+			builder = builder.Produces<AppProblemDetails>(statusCode, "application/problem+json");
 		}
 		return builder;
 	}

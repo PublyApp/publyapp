@@ -67,6 +67,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey FailedToUpdateStaffMember = new("failed-to-update-staff-member");
 
 	/// <summary>
+	/// Forbidden
+	/// </summary>
+	public static readonly TranslationKey Forbidden = new("forbidden");
+
+	/// <summary>
 	/// Gateway timeout
 	/// </summary>
 	public static readonly TranslationKey GatewayTimeout = new("gateway-timeout");
@@ -115,6 +120,11 @@ public static partial class ResponseKeys {
 	/// no {{item}} found
 	/// </summary>
 	public static readonly TranslationKey NoItemsFound = new("no-items-found");
+
+	/// <summary>
+	/// Not a staff member
+	/// </summary>
+	public static readonly TranslationKey NotAStaffMember = new("not-a-staff-member");
 
 	/// <summary>
 	/// Not found

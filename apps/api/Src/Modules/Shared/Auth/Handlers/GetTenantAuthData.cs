@@ -1,6 +1,6 @@
 using MainApi.Localization;
 using MainApi.Src.Lib;
-using MainApi.Src.Lib.Middlewares;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Profiles;
 using MainApi.Src.Modules.Shared.Tenants;
 using MainApi.Src.Modules.Shared.Users;
@@ -44,8 +44,8 @@ public class GetTenantAuthData {
 		Results<
 			Ok<GetTenantAuthDataResult.Staff>,
 			Ok<GetTenantAuthDataResult.Tenant>,
-			BadRequest<ApiResponse>,
-			JsonHttpResult<ApiResponse>
+			ForbiddenHttpResult,
+			NotFoundHttpResult
 		>
 	> HandleGetTenantAuthData(
 		IRequestAuthContext authContext,
@@ -64,7 +64,7 @@ public class GetTenantAuthData {
 					SessionToken = authContext.SessionToken
 				});
 			}
-			throw new Exception($"{nameof(GetTenantAuthData)} must be set behind {nameof(SessionAuthMiddleware)}.");
+			throw new Exception($"GetTenantAuthData must be set behind SessionAuthFilter.");
 		}
 
 		if (authContext.UserId is not Guid userId) {
@@ -90,10 +90,7 @@ public class GetTenantAuthData {
 					);
 				}
 
-				return TypedResults.Json(ApiResponse.Create(
-					"Unauthorized",
-					ResponseKeys.Unauthorized
-				), statusCode: StatusCodes.Status403Forbidden);
+				return TypedProblems.Forbidden("User is not a staff member", ResponseKeys.NotAStaffMember);
 			}
 
 			// Get the user's staff account for level info
@@ -125,19 +122,13 @@ public class GetTenantAuthData {
 		var tenantId = query.GetTenantId();
 
 		if (tenantId == Guid.Empty) {
-			return TypedResults.Json(ApiResponse.Create(
-				"Tenant not found",
-				ResponseKeys.NotFound
-			), statusCode: StatusCodes.Status404NotFound);
+			return TypedProblems.NotFound("Tenant not found", ResponseKeys.NotFound);
 		}
 
 		var tenant = await tenantService.GetTenantByIdAsync(tenantId, cancellationToken);
 
 		if (tenant is null) {
-			return TypedResults.Json(ApiResponse.Create(
-				"Tenant not found",
-				ResponseKeys.NotFound
-			), statusCode: StatusCodes.Status404NotFound);
+			return TypedProblems.NotFound("Tenant not found", ResponseKeys.NotFound);
 		}
 
 		var isUserMemberOfTenant = await accountService.IsUserMemberOfTenantAsync(userId, tenantId, cancellationToken);
@@ -154,10 +145,7 @@ public class GetTenantAuthData {
 				);
 			}
 
-			return TypedResults.Json(ApiResponse.Create(
-				"Unauthorized",
-				ResponseKeys.Unauthorized
-			), statusCode: StatusCodes.Status403Forbidden);
+			return TypedProblems.Forbidden("User is not a member of this tenant", ResponseKeys.Forbidden);
 		}
 
 		// Get user's tenant account for level info

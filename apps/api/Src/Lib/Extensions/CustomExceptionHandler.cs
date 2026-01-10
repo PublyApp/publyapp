@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 
 using MainApi.Localization;
+using MainApi.Src.Lib.ProblemResults;
 
 using Microsoft.AspNetCore.Diagnostics;
 
@@ -10,10 +11,11 @@ public static class CustomExceptionHandler {
 	public static void UseCustomExceptionHandler(this IApplicationBuilder app) {
 		app.UseExceptionHandler(exceptionHandlerApp => {
 			exceptionHandlerApp.Run(async context => {
-				context.Response.ContentType = "application/json";
-				context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+				context.Response.ContentType = "application/problem+json";
 
-				var message = "Internal server error";
+				var statusCode = StatusCodes.Status500InternalServerError;
+				var title = "Internal Server Error";
+				var detail = "Internal server error";
 				var key = ResponseKeys.InternalServerError;
 
 				var exceptionHandlerFeature = context.Features.Get<IExceptionHandlerFeature>();
@@ -25,9 +27,10 @@ public static class CustomExceptionHandler {
 							&& badRequestException.Message.Contains("Required parameter")
 							&& badRequestException.Message.Contains("was not provided from body")
 						) {
-						message = "Request body is missing";
+						statusCode = StatusCodes.Status400BadRequest;
+						title = "Bad Request";
+						detail = "Request body is missing";
 						key = ResponseKeys.RequestBodyMissing;
-						context.Response.StatusCode = StatusCodes.Status400BadRequest;
 					}
 
 					if (exceptionType is Microsoft.AspNetCore.Http.BadHttpRequestException validationException
@@ -39,14 +42,20 @@ public static class CustomExceptionHandler {
 						var match = Regex.Match(validationException.Message, pattern);
 						var parameterName = match.Success ? match.Groups[1].Value : "unknown";
 
-						message = $"Query parameter '{parameterName}' is missing";
+						statusCode = StatusCodes.Status400BadRequest;
+						title = "Bad Request";
+						detail = $"Query parameter '{parameterName}' is missing";
 						key = ResponseKeys.QueryParametersMissing;
-						context.Response.StatusCode = StatusCodes.Status400BadRequest;
 					}
 				}
 
-				var response = new ApiResponse { Message = message, Key = key };
-				await context.Response.WriteAsJsonAsync(response);
+				context.Response.StatusCode = statusCode;
+
+				var response = AppProblemDetails.Create(statusCode, title, detail, key);
+				response.Instance = context.Request.Path.Value;
+				response.Extensions["traceId"] = context.TraceIdentifier;
+
+				await context.Response.WriteAsJsonAsync(response, context.RequestAborted);
 			});
 		});
 	}

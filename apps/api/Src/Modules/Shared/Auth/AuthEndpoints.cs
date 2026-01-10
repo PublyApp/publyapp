@@ -51,13 +51,7 @@ public static class AuthEndpoints {
 			.WithName("GetTenantAuthData")
 			.WithSummary("Get Tenant Auth Data")
 			.WithCheckSessionHeader()
-			.WithSessionAuthentication()
-			.ProducesApiResponses(
-				StatusCodes.Status500InternalServerError,
-				StatusCodes.Status401Unauthorized,
-				StatusCodes.Status403Forbidden,
-				StatusCodes.Status404NotFound
-			);
+			.WithSessionAuthentication();
 
 		group.MapPost(
 			PathUtils.GetLastSegment(RoutePath.Auth.VerifyEmailRequest),
