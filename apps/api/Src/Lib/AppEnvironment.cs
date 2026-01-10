@@ -12,6 +12,12 @@ public static class AppEnvironment {
 	public static string RESEND_API_KEY { get { return GetEnvVar(nameof(_RESEND_API_KEY)); } }
 	private static string _RESEND_API_KEY = string.Empty;
 
+	public static string STAFF_OWNER_EMAIL { get { return GetEnvVar(nameof(_STAFF_OWNER_EMAIL)); } }
+	private static string _STAFF_OWNER_EMAIL = string.Empty;
+
+	public static string STAFF_OWNER_BOOTSTRAP_CODE { get { return GetEnvVar(nameof(_STAFF_OWNER_BOOTSTRAP_CODE)); } }
+	private static string _STAFF_OWNER_BOOTSTRAP_CODE = string.Empty;
+
 	// ==================================================
 
 	private static bool IS_DOTENV_LOADED = false;
@@ -345,18 +351,34 @@ public static class AppEnvironment {
 	/// Gets the current environment name (Development, Production, Staging, etc.)
 	/// </summary>
 	public static string GetEnvironmentName() {
-		return Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
+		var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+
+		if (string.IsNullOrEmpty(environment)) {
+			var logger = LoggerFactory
+				.Create(builder => builder.AddConsole())
+				.CreateLogger<MainApi.Program>();
+			logger.LogWarning("ASPNETCORE_ENVIRONMENT is not set, defaulting to Development");
+			environment = "Development";
+		}
+
+		Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", environment);
+
+		return environment;
 	}
 
 	private static void ValidateAndSetEnvironmentVariables() {
 		var postgresConnectionString = Environment.GetEnvironmentVariable(nameof(POSTGRES_CONNECTION_STRING));
 		var frontUrl = Environment.GetEnvironmentVariable(nameof(FRONT_URL));
 		var resendApiKey = Environment.GetEnvironmentVariable(nameof(RESEND_API_KEY));
+		var staffOwnerEmail = Environment.GetEnvironmentVariable(nameof(STAFF_OWNER_EMAIL));
+		var staffOwnerBootstrapCode = Environment.GetEnvironmentVariable(nameof(STAFF_OWNER_BOOTSTRAP_CODE));
 
 		var validationResult = _validator.Validate(new EnvironmentConfig {
 			PostgresConnectionString = postgresConnectionString,
 			FrontUrl = frontUrl,
-			ResendApiKey = resendApiKey
+			ResendApiKey = resendApiKey,
+			StaffOwnerEmail = staffOwnerEmail,
+			StaffOwnerBootstrapCode = staffOwnerBootstrapCode
 		});
 
 		if (!validationResult.IsValid) {
@@ -367,6 +389,8 @@ public static class AppEnvironment {
 		_POSTGRES_CONNECTION_STRING = postgresConnectionString!;
 		_FRONT_URL = frontUrl!;
 		_RESEND_API_KEY = resendApiKey!;
+		_STAFF_OWNER_EMAIL = staffOwnerEmail!;
+		_STAFF_OWNER_BOOTSTRAP_CODE = staffOwnerBootstrapCode!;
 	}
 }
 
@@ -374,6 +398,8 @@ public class EnvironmentConfig {
 	public string? PostgresConnectionString { get; set; }
 	public string? FrontUrl { get; set; }
 	public string? ResendApiKey { get; set; }
+	public string? StaffOwnerEmail { get; set; }
+	public string? StaffOwnerBootstrapCode { get; set; }
 }
 
 public class EnvironmentValidator : AbstractValidator<EnvironmentConfig> {

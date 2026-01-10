@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<IsTestProject>true</IsTestProject>
+		<IsPackable>false</IsPackable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.NET.Test.Sdk" />
+		<PackageReference Include="xunit" />
+		<PackageReference Include="xunit.runner.visualstudio" />
+		<PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+		<PackageReference Include="Testcontainers" />
+		<PackageReference Include="Testcontainers.PostgreSql" />
+		<PackageReference Include="FluentAssertions" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\MainApi.csproj" />
+	</ItemGroup>
+
+	<!-- Keep integration tests physically next to handlers (Vertical Slice friendly),
+	     but compile them into this dedicated test project. -->
+	<ItemGroup>
+		<Compile Include="..\Src\Lib\Testing\**\*.cs" Link="Src\Lib\Testing\%(RecursiveDir)%(Filename)%(Extension)" />
+		<Compile Include="..\Src\**\*.IntegrationTests.cs" Link="Src\%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+
+</Project>
+
