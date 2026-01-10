@@ -1,4 +1,5 @@
 using MainApi.Localization;
+using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Auth;
 
@@ -66,7 +67,9 @@ public static class SessionAuthFilterExtensions {
 	/// Requires CheckSessionHeaderFilter to be applied first.
 	/// </summary>
 	public static RouteGroupBuilder WithSessionAuthentication(this RouteGroupBuilder builder) {
-		return builder.AddEndpointFilter<SessionAuthFilter>();
+		return builder
+			.AddEndpointFilter<SessionAuthFilter>()
+			.ProducesAppProblem(StatusCodes.Status401Unauthorized, StatusCodes.Status500InternalServerError);
 	}
 
 	/// <summary>

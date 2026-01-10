@@ -1,4 +1,6 @@
-## Option 1: HttpOnly Cookie Sessions with Direct API Access (Merged Plan – GPT)
+## Option 1: HttpOnly Cookie Sessions with Direct API Access (Merged Plan - GPT)
+
+> Note (2026-01): This document predates the RFC 7807 ProblemDetails migration. Any API error-response examples using `ApiResponse` should be updated to `TypedProblems.*` + `AppProblemDetails` / `ValidationProblemDetails` where applicable.
 
 > **Status:** Draft, merged from `option1-httponly-with-csrf-protection.md` (Claude) and
 > `httponly-cookie-migration-option-1.md` (GPT). This is the **single canonical plan** for Option 1.

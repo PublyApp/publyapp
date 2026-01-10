@@ -1,4 +1,5 @@
 using MainApi.Localization;
+using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Users;
 
@@ -66,7 +67,9 @@ public static class StaffAuthFilterExtensions {
 	/// Requires SessionAuthFilter to be applied first.
 	/// </summary>
 	public static RouteGroupBuilder WithStaffAuthorization(this RouteGroupBuilder builder) {
-		return builder.AddEndpointFilter<StaffAuthFilter>();
+		return builder
+			.AddEndpointFilter<StaffAuthFilter>()
+			.ProducesAppProblem(StatusCodes.Status403Forbidden, StatusCodes.Status500InternalServerError);
 	}
 
 	/// <summary>

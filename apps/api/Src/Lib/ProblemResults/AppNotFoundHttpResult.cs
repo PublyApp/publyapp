@@ -5,13 +5,13 @@ using Microsoft.AspNetCore.Http.Metadata;
 namespace MainApi.Src.Lib.ProblemResults;
 
 /// <summary>
-/// A 401 Unauthorized result with AppProblemDetails body.
+/// A 404 Not Found result with AppProblemDetails body.
 /// Auto-documents in OpenAPI via IEndpointMetadataProvider.
 /// </summary>
-public sealed class UnauthorizedHttpResult : IResult, IEndpointMetadataProvider {
+public sealed class AppNotFoundHttpResult : IResult, IEndpointMetadataProvider {
 	private readonly AppProblemDetails _problemDetails;
 
-	internal UnauthorizedHttpResult(AppProblemDetails problemDetails) {
+	internal AppNotFoundHttpResult(AppProblemDetails problemDetails) {
 		_problemDetails = problemDetails;
 	}
 
@@ -19,7 +19,7 @@ public sealed class UnauthorizedHttpResult : IResult, IEndpointMetadataProvider 
 		_problemDetails.Instance ??= httpContext.Request.Path.Value;
 		_problemDetails.Extensions["traceId"] = httpContext.TraceIdentifier;
 
-		httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+		httpContext.Response.StatusCode = StatusCodes.Status404NotFound;
 		httpContext.Response.ContentType = "application/problem+json";
 		await httpContext.Response.WriteAsJsonAsync(_problemDetails, httpContext.RequestAborted);
 	}
@@ -28,6 +28,6 @@ public sealed class UnauthorizedHttpResult : IResult, IEndpointMetadataProvider 
 	/// Provides OpenAPI metadata for this result type
 	/// </summary>
 	public static void PopulateMetadata(MethodInfo method, EndpointBuilder builder) {
-		builder.Metadata.Add(new ProducesAppProblemMetadata(StatusCodes.Status401Unauthorized));
+		builder.Metadata.Add(new ProducesAppProblemMetadata(StatusCodes.Status404NotFound));
 	}
 }

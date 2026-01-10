@@ -1,5 +1,6 @@
 using MainApi.Localization;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -13,7 +14,7 @@ public class FindStaffProfilesQuery : CursorPaginatedQuery { }
 public class FindStaffProfilesQueryValidator : CursorPaginatedQueryValidator<FindStaffProfilesQuery> { }
 
 public class FindStaffProfiles {
-	public static async Task<Results<Ok<FindStaffProfilesResult>, BadRequest<ApiResponse>>> HandleFindStaffProfiles(
+	public static async Task<Results<Ok<FindStaffProfilesResult>, AppBadRequestHttpResult>> HandleFindStaffProfiles(
 		[AsParameters] FindStaffProfilesQuery findStaffProfilesQuery,
 		[FromServices] IProfileAsStaffService profileAsStaffService,
 		CancellationToken cancellationToken
@@ -24,7 +25,7 @@ public class FindStaffProfiles {
 		// Support initial page request (null/empty cursor defaults to Guid.Empty)
 		if (!string.IsNullOrEmpty(cursor)) {
 			if (!Guid.TryParse(cursor, out cursorGuid)) {
-				return TypedResults.BadRequest(ApiResponse.Create("Invalid cursor", ResponseKeys.BadRequest));
+				return TypedProblems.BadRequest("Invalid cursor", ResponseKeys.BadRequest);
 			}
 		}
 
@@ -42,17 +43,17 @@ public class FindStaffProfiles {
 
 		// Pattern match on discriminated union result using early return pattern
 		if (serviceResult is ProfilesAsStaff.FindStaffProfilesResult.CursorNotFound cursorError) {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				$"Cursor record not found: {cursorError.Cursor}. The record may have been deleted or the cursor is invalid.",
 				ResponseKeys.BadRequest
-			));
+			);
 		}
 
 		if (serviceResult is ProfilesAsStaff.FindStaffProfilesResult.InvalidSortId sortIdError) {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				$"Invalid sortId: {sortIdError.SortId}. Allowed values: id, name, created_at, user_account_count",
 				ResponseKeys.BadRequest
-			));
+			);
 		}
 
 		if (serviceResult is ProfilesAsStaff.FindStaffProfilesResult.Success success) {

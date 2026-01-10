@@ -1,5 +1,7 @@
 # Phase 4 Fixes: Final Implementation Plan
 
+> Note (2026-01): This document predates the RFC 7807 ProblemDetails migration. Any error-response examples using `ApiResponse`, `JsonHttpResult<ApiResponse>`, or `.ProducesApiResponses(...)` should be updated to `TypedProblems.*` + `App*HttpResult` (validation errors are `422` `ValidationProblemDetails`).
+
 **Date:** 2025-11-02  
 **Status:** Ready for Implementation  
 **Estimated Time:** 30-45 minutes  

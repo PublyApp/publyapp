@@ -17,7 +17,7 @@ public static class TypedProblems {
 	/// <param name="detail">Detailed explanation of the error</param>
 	/// <param name="translationKey">Translation key for frontend i18n</param>
 	/// <param name="title">Short summary (defaults to "Bad Request")</param>
-	public static BadRequestHttpResult BadRequest(
+	public static AppBadRequestHttpResult BadRequest(
 		string detail,
 		TranslationKey translationKey,
 		string title = "Bad Request"
@@ -34,7 +34,7 @@ public static class TypedProblems {
 	/// <param name="detail">Detailed explanation of the error</param>
 	/// <param name="translationKey">Translation key for frontend i18n</param>
 	/// <param name="title">Short summary (defaults to "Unauthorized")</param>
-	public static UnauthorizedHttpResult Unauthorized(
+	public static AppUnauthorizedHttpResult Unauthorized(
 		string detail,
 		TranslationKey translationKey,
 		string title = "Unauthorized"
@@ -51,7 +51,7 @@ public static class TypedProblems {
 	/// <param name="detail">Detailed explanation of the error</param>
 	/// <param name="translationKey">Translation key for frontend i18n</param>
 	/// <param name="title">Short summary (defaults to "Forbidden")</param>
-	public static ForbiddenHttpResult Forbidden(
+	public static AppForbiddenHttpResult Forbidden(
 		string detail,
 		TranslationKey translationKey,
 		string title = "Forbidden"
@@ -68,7 +68,7 @@ public static class TypedProblems {
 	/// <param name="detail">Detailed explanation of the error</param>
 	/// <param name="translationKey">Translation key for frontend i18n</param>
 	/// <param name="title">Short summary (defaults to "Not Found")</param>
-	public static NotFoundHttpResult NotFound(
+	public static AppNotFoundHttpResult NotFound(
 		string detail,
 		TranslationKey translationKey,
 		string title = "Not Found"
@@ -85,7 +85,7 @@ public static class TypedProblems {
 	/// <param name="detail">Detailed explanation of the error</param>
 	/// <param name="translationKey">Translation key for frontend i18n</param>
 	/// <param name="title">Short summary (defaults to "Internal Server Error")</param>
-	public static InternalServerErrorHttpResult InternalServerError(
+	public static AppInternalServerErrorHttpResult InternalServerError(
 		string detail,
 		TranslationKey translationKey,
 		string title = "Internal Server Error"
@@ -95,4 +95,16 @@ public static class TypedProblems {
 		detail,
 		translationKey
 	));
+
+	/// <summary>
+	/// Creates a 422 Unprocessable Entity response with validation errors
+	/// </summary>
+	/// <param name="detail">Detailed explanation of the error</param>
+	/// <param name="translationKey">Translation key for frontend i18n</param>
+	/// <param name="errors">Dictionary of field names to error messages</param>
+	public static AppValidationProblemHttpResult ValidationProblem(
+		string detail,
+		TranslationKey translationKey,
+		IDictionary<string, string[]> errors
+	) => new(ValidationProblemDetails.Create(detail, translationKey, errors));
 }

@@ -1,6 +1,7 @@
 using FluentValidation;
 
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -44,7 +45,7 @@ public class FindStaffPermissions {
 						Dictionary<string, PermissionAsStaffItem> // permission key -> permission item
 					>
 				>,
-				BadRequest<ApiResponse>
+				AppBadRequestHttpResult
 			>
 		> HandleFindStaffPermissions(
 		[FromServices] IPermissionAsStaffService permissionAsStaffService,

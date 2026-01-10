@@ -44,8 +44,8 @@ public class GetTenantAuthData {
 		Results<
 			Ok<GetTenantAuthDataResult.Staff>,
 			Ok<GetTenantAuthDataResult.Tenant>,
-			ForbiddenHttpResult,
-			NotFoundHttpResult
+			AppForbiddenHttpResult,
+			AppNotFoundHttpResult
 		>
 	> HandleGetTenantAuthData(
 		IRequestAuthContext authContext,

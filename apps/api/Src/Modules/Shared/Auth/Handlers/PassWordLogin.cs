@@ -3,7 +3,7 @@ using System.Text.Json;
 using FluentValidation;
 
 using MainApi.Localization;
-using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Users;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -65,8 +65,8 @@ public class PasswordLoginResult {
 
 public class PasswordLogin {
 	public static async Task<Results<
-	Ok<PasswordLoginResult>,
-	BadRequest<ApiResponse>
+		Ok<PasswordLoginResult>,
+		AppBadRequestHttpResult
 	>> HandlePasswordLogin(
 		[FromBody] PasswordLoginBody loginBody,
 		[FromServices] IUserService userService,
@@ -80,39 +80,39 @@ public class PasswordLogin {
 		var user = await userService.GetUserByEmailAsync(email, cancellationToken);
 
 		if (user is null) {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"Invalid email or password",
 				ResponseKeys.InvalidEmailOrPassword
-			));
+			);
 		}
 
 		if (user.IsDeleted == true) {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"Invalid email or password",
 				ResponseKeys.InvalidEmailOrPassword
-			));
+			);
 		}
 
 		if (user.IsSuspended == true) {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"User is suspended",
 				ResponseKeys.UserSuspended
-			));
+			);
 		}
 
 		if (user.IsVerified != true) {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"User is not verified",
 				ResponseKeys.UserNotVerified
-			));
+			);
 		}
 
 		// Verify the password
 		if (PasswordUtils.VerifyPassword(password, user.Password) is false) {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"Invalid email or password",
 				ResponseKeys.InvalidEmailOrPassword
-			));
+			);
 		}
 
 		var session = await sessionService.CreateSessionForUser(user, cancellationToken);

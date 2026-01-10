@@ -1,5 +1,4 @@
 using MainApi.Src.Lib;
-using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Staff.StaffMember.Handlers;
@@ -19,7 +18,7 @@ public static class StaffMemberEndpoints {
 			.WithSummary("Create a new staff member")
 			.WithReqBodyValidation<CreateStaffMemberBody>()
 			.WithPermission([AppPermissions.Staff.StaffMembers.CREATE])
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			;
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Staff.StaffMember.GetById),
@@ -28,7 +27,7 @@ public static class StaffMemberEndpoints {
 			.WithName("GetStaffMemberById")
 			.WithSummary("Get a staff member by id")
 			.WithPermission([AppPermissions.Staff.StaffMembers.GET])
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			;
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Staff.StaffMember.Find),
@@ -38,7 +37,7 @@ public static class StaffMemberEndpoints {
 			.WithSummary("Find staff members")
 			.WithReqQueryValidation<FindStaffMembersQuery>()
 			.WithPermission([AppPermissions.Staff.StaffMembers.LIST])
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			;
 
 		group.MapPatch(
 			PathUtils.GetLastSegment(RoutePath.Staff.StaffMember.Update),
@@ -48,7 +47,7 @@ public static class StaffMemberEndpoints {
 			.WithSummary("Update a staff member")
 			.WithReqBodyValidation<UpdateStaffMemberBody>()
 			.WithPermission([AppPermissions.Staff.StaffMembers.UPDATE])
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			;
 
 		return routes;
 	}

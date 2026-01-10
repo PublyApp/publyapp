@@ -5,13 +5,13 @@ using Microsoft.AspNetCore.Http.Metadata;
 namespace MainApi.Src.Lib.ProblemResults;
 
 /// <summary>
-/// A 500 Internal Server Error result with AppProblemDetails body.
+/// A 403 Forbidden result with AppProblemDetails body.
 /// Auto-documents in OpenAPI via IEndpointMetadataProvider.
 /// </summary>
-public sealed class InternalServerErrorHttpResult : IResult, IEndpointMetadataProvider {
+public sealed class AppForbiddenHttpResult : IResult, IEndpointMetadataProvider {
 	private readonly AppProblemDetails _problemDetails;
 
-	internal InternalServerErrorHttpResult(AppProblemDetails problemDetails) {
+	internal AppForbiddenHttpResult(AppProblemDetails problemDetails) {
 		_problemDetails = problemDetails;
 	}
 
@@ -19,7 +19,7 @@ public sealed class InternalServerErrorHttpResult : IResult, IEndpointMetadataPr
 		_problemDetails.Instance ??= httpContext.Request.Path.Value;
 		_problemDetails.Extensions["traceId"] = httpContext.TraceIdentifier;
 
-		httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
+		httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
 		httpContext.Response.ContentType = "application/problem+json";
 		await httpContext.Response.WriteAsJsonAsync(_problemDetails, httpContext.RequestAborted);
 	}
@@ -28,6 +28,6 @@ public sealed class InternalServerErrorHttpResult : IResult, IEndpointMetadataPr
 	/// Provides OpenAPI metadata for this result type
 	/// </summary>
 	public static void PopulateMetadata(MethodInfo method, EndpointBuilder builder) {
-		builder.Metadata.Add(new ProducesAppProblemMetadata(StatusCodes.Status500InternalServerError));
+		builder.Metadata.Add(new ProducesAppProblemMetadata(StatusCodes.Status403Forbidden));
 	}
 }

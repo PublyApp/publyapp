@@ -1,5 +1,4 @@
 using MainApi.Src.Lib;
-using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Staff.ProfilesAsStaff.Handlers;
@@ -19,7 +18,7 @@ public static class ProfileAsStaffEndpoints {
 			.WithSummary("Find profiles for a staff member")
 			.WithPermission([AppPermissions.Staff.Profiles.LIST_FOR_STAFF])
 			.WithReqQueryValidation<FindStaffProfilesQuery>()
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			;
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Staff.Profiles.FindForTenant, n: 2),
@@ -29,7 +28,7 @@ public static class ProfileAsStaffEndpoints {
 			.WithSummary("Find profiles for a tenant")
 			.WithPermission([AppPermissions.Staff.Profiles.LIST_FOR_TENANT])
 			.WithReqQueryValidation<FindTenantProfilesAsStaffQuery>()
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			;
 
 		group.MapPost(
 			PathUtils.GetLastSegment(RoutePath.Staff.Profiles.CreateForStaff),
@@ -39,7 +38,7 @@ public static class ProfileAsStaffEndpoints {
 			.WithSummary("Create a new staff profile")
 			.WithPermission([AppPermissions.Staff.Profiles.CREATE_FOR_STAFF])
 			.WithReqBodyValidation<CreateStaffProfileBody>()
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			;
 
 		return routes;
 	}

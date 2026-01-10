@@ -1,5 +1,12 @@
 # Analysis: ProblemDetails vs ApiResponse Migration
 
+> Update (2026-01): This migration has been implemented.
+> - API **errors** now use RFC 7807 `application/problem+json` (`AppProblemDetails` / `ValidationProblemDetails`) with `translationKey`.
+> - OpenAPI status codes are documented at build-time via custom typed results (`App*HttpResult`) that implement `IEndpointMetadataProvider`, plus explicit metadata for filter-produced responses.
+> - `ApiResponse` remains in use for **message-only success** responses.
+>
+> Current conventions: `AGENTS.md` and `docs/problem-details-migration-checklist.md`.
+
 ## Context
 
 This analysis evaluates whether to migrate from a custom `ApiResponse` class to ASP.NET Core's built-in `ProblemDetails` (RFC 7807) for error handling in a Minimal API application.
@@ -110,20 +117,20 @@ new ProblemDetails {
 // Response: { "type": "...", "title": "Forbidden", "status": 403, "detail": "...", "translationKey": "..." }
 ```
 
-**Verdict:** Translation keys can be preserved via the `Extensions` dictionary. The frontend would need to look for `response.translationKey` instead of `response.key`.
+**Verdict:** Translation keys can be preserved as a first-class `translationKey` field (see `AppProblemDetails`). The frontend reads `response.translationKey` instead of `response.key`.
 
 ---
 
-## Comparison Matrix
+## Comparison Matrix (Implemented Approach)
 
-| Aspect | Current ApiResponse | With ProblemDetails |
+| Aspect | Current ApiResponse | With ProblemDetails (custom typed results) |
 |--------|---------------------|---------------------|
-| **400 BadRequest** | Manual `.ProducesApiResponses(400)` | Automatic via `TypedResults.BadRequest()` |
-| **404 NotFound** | Manual `.ProducesApiResponses(404)` | Automatic via `TypedResults.NotFound()` |
-| **403 Forbidden** | Manual `.ProducesApiResponses(403)` | **Still manual** via `.ProducesProblem(403)` |
-| **500 Server Error** | Manual `.ProducesApiResponses(500)` | **Still manual** via `.ProducesProblem(500)` |
-| **Translation keys** | Native `Key` property | Via `Extensions["translationKey"]` |
-| **Response structure** | Simple: `{ Message, Key }` | Complex: `{ type, title, status, detail, instance, extensions }` |
+| **400 BadRequest** | Manual `.ProducesApiResponses(400)` | Auto-documented via `AppBadRequestHttpResult` |
+| **404 NotFound** | Manual `.ProducesApiResponses(404)` | Auto-documented via `AppNotFoundHttpResult` |
+| **403 Forbidden** | Manual `.ProducesApiResponses(403)` | Auto-documented via `AppForbiddenHttpResult` |
+| **500 Server Error** | Manual `.ProducesApiResponses(500)` | Documented via filters/groups or `.ProducesAppProblem(500)` (anonymous endpoints) |
+| **Translation keys** | Native `Key` property | First-class `translationKey` on `AppProblemDetails` |
+| **Response structure** | Simple: `{ Message, Key }` | RFC 7807: `{ type, title, status, detail, translationKey, ... }` |
 | **Industry standard** | Custom | RFC 7807 compliant |
 | **Tooling ecosystem** | Limited | Broad (many HTTP clients understand ProblemDetails) |
 
@@ -134,11 +141,11 @@ new ProblemDetails {
 ### Files Requiring Changes
 
 1. **Core Types**
-   - `apps/api/Src/Lib/ApiResponse.cs` - Replace or remove
-   - `apps/api/Src/Lib/Extensions/OpenApiExtensions.cs` - Replace `ProducesApiResponses` with `ProducesProblem`
+   - `apps/api/Src/Lib/ApiResponse.cs` - Retain for success messages (optional)
+   - `apps/api/Src/Lib/Extensions/OpenApiExtensions.cs` - Use `ProducesAppProblem` / `ProducesValidationProblem` for filter-produced responses
 
 2. **All Handlers** (every handler returning ApiResponse)
-   - Replace `ApiResponse.Create(...)` with `new ProblemDetails { ... }`
+   - Replace error `ApiResponse.Create(...)` with `TypedProblems.*`
    - Update return type signatures
 
 3. **Middlewares**
@@ -222,7 +229,7 @@ public class ForbiddenResult<T> : IResult, IEndpointMetadataProvider {
 1. Create ProblemDetails factory methods that include translation keys
 2. Update all handlers, middlewares, exception handler
 3. Update frontend to parse new response structure
-4. Replace `.ProducesApiResponses()` with `.ProducesProblem()`
+4. Replace `.ProducesApiResponses()` with `.ProducesAppProblem()` / `.ProducesValidationProblem()` (for filter-produced responses)
 5. Still manually document 403, 500, and other custom codes
 
 ### Option C: Hybrid Approach
@@ -239,10 +246,10 @@ public class ForbiddenResult<T> : IResult, IEndpointMetadataProvider {
 ### Option D: Custom Typed Results with ProblemDetails (IMPLEMENTED)
 
 **Rationale:**
-- RFC 7807 compliance via custom `TranslatedProblemDetails` class
+- RFC 7807 compliance via custom `AppProblemDetails` / `ValidationProblemDetails` models
 - Full automatic OpenAPI documentation for ALL status codes (including 403, 500)
 - Native translation key support (not buried in Extensions dictionary)
-- Gradual migration possible - new and old patterns can coexist
+- Clear separation between generic 400s and validation 422s
 
 **Implementation:** Custom typed results that implement `IEndpointMetadataProvider`:
 
@@ -256,8 +263,8 @@ return TypedProblems.Forbidden(
 // Handler signature - OpenAPI auto-detects 403!
 public static async Task<Results<
     Ok<Response>,
-    ForbiddenHttpResult,      // <-- 403 is now in the type!
-    NotFoundHttpResult        // <-- 404 is now in the type!
+    AppForbiddenHttpResult,      // <-- 403 is now in the type!
+    AppNotFoundHttpResult        // <-- 404 is now in the type!
 >> Handle(...)
 ```
 
@@ -273,25 +280,26 @@ public static async Task<Results<
 ```
 
 **Files created:**
-- `apps/api/Src/Lib/ProblemResults/TranslatedProblemDetails.cs` - ProblemDetails with TranslationKey
+- `apps/api/Src/Lib/ProblemResults/AppProblemDetails.cs` - RFC 7807 ProblemDetails with `translationKey`
+- `apps/api/Src/Lib/ProblemResults/ValidationProblemDetails.cs` - 422 ProblemDetails with `errors`
 - `apps/api/Src/Lib/ProblemResults/TypedProblems.cs` - Factory methods
-- `apps/api/Src/Lib/ProblemResults/ForbiddenHttpResult.cs` - 403 with auto-documentation
-- `apps/api/Src/Lib/ProblemResults/UnauthorizedHttpResult.cs` - 401 with auto-documentation
-- `apps/api/Src/Lib/ProblemResults/NotFoundHttpResult.cs` - 404 with auto-documentation
-- `apps/api/Src/Lib/ProblemResults/BadRequestHttpResult.cs` - 400 with auto-documentation
-- `apps/api/Src/Lib/ProblemResults/InternalServerErrorHttpResult.cs` - 500 with auto-documentation
+- `apps/api/Src/Lib/ProblemResults/AppBadRequestHttpResult.cs` - 400 with auto-documentation
+- `apps/api/Src/Lib/ProblemResults/AppUnauthorizedHttpResult.cs` - 401 with auto-documentation
+- `apps/api/Src/Lib/ProblemResults/AppForbiddenHttpResult.cs` - 403 with auto-documentation
+- `apps/api/Src/Lib/ProblemResults/AppNotFoundHttpResult.cs` - 404 with auto-documentation
+- `apps/api/Src/Lib/ProblemResults/AppInternalServerErrorHttpResult.cs` - 500 with auto-documentation
+- `apps/api/Src/Lib/ProblemResults/AppValidationProblemHttpResult.cs` - 422 with auto-documentation
 
 **Benefits:**
-- No more `.ProducesApiResponses()` needed for any status code
+- No more `.ProducesApiResponses()` needed (use `.ProducesAppProblem(...)` / `.ProducesValidationProblem()` only for filter-produced responses)
 - OpenAPI generator sees the status code in the handler's return type
 - Translation keys are first-class citizens (not in Extensions)
-- Gradual migration - can use alongside existing `ApiResponse` pattern
 - Type-safe at compile time
 
 **Migration path:**
-1. Start using `TypedProblems.*` for new handlers
-2. Gradually migrate existing handlers
-3. Eventually remove `ApiResponse` and `.ProducesApiResponses()`
+1. Implement the typed results + factories
+2. Migrate handlers and filters
+3. Regenerate OpenAPI + TypeScript client
 
 ---
 
@@ -308,7 +316,7 @@ public static async Task<Results<
 
 ## Conclusion
 
-The migration to standard ProblemDetails does **not** solve the primary pain point of automatic OpenAPI status code detection for all cases. While it provides RFC 7807 compliance and automatic documentation for 400/404, the heavily-used 403 Forbidden pattern still requires manual documentation.
+Using the built-in Minimal API `ProblemDetails`/`ProblemHttpResult` types alone does **not** solve the primary pain point of automatic OpenAPI status code detection for all cases. While it provides RFC 7807 compliance and automatic documentation for some built-in results (e.g., 400/404), the heavily-used 403-with-body pattern is not inferred unless the status code is encoded in the return type.
 
 **However, Option D (Custom Typed Results with ProblemDetails) solves all the issues:**
 - Full RFC 7807 compliance

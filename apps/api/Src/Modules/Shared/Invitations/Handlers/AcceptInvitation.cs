@@ -3,7 +3,7 @@ using System.Text.Json;
 using FluentValidation;
 
 using MainApi.Localization;
-using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Auth;
 using MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Modules.Staff.AuditLogs;
@@ -56,8 +56,8 @@ public class AcceptInvitationBodyValidator : AbstractValidator<AcceptInvitationB
 public static class AcceptInvitation {
 	public static async Task<Results<
 		Ok<InvitationAccepted>,
-		NotFound<ApiResponse>,
-		BadRequest<ApiResponse>
+		AppNotFoundHttpResult,
+		AppBadRequestHttpResult
 	>> HandleAcceptInvitation(
 		[FromRoute] string token,
 		[FromBody] AcceptInvitationBody request,
@@ -73,9 +73,7 @@ public static class AcceptInvitation {
 		);
 
 		if (invitation is null) {
-			return TypedResults.NotFound(
-				ApiResponse.Create("Invitation not found", ResponseKeys.NotFound)
-			);
+			return TypedProblems.NotFound("Invitation not found", ResponseKeys.NotFound);
 		}
 
 		// Check if user already exists
@@ -85,11 +83,9 @@ public static class AcceptInvitation {
 		);
 
 		if (userExists) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create(
-					"User already exists",
-					ResponseKeys.UserAlreadyExists
-				)
+			return TypedProblems.BadRequest(
+				"User already exists",
+				ResponseKeys.UserAlreadyExists
 			);
 		}
 

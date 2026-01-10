@@ -1,5 +1,7 @@
 # Option 1: HttpOnly Cookies with Direct API Access - Implementation Plan
 
+> Note (2026-01): This document predates the RFC 7807 ProblemDetails migration. Any API error-response examples using `ApiResponse` should be updated to `TypedProblems.*` + `AppProblemDetails` / `ValidationProblemDetails` where applicable.
+
 ## Executive Summary
 
 This plan implements **Option 1** from the architecture options document: cookie-based API auth with httpOnly session cookies, maintaining direct browser-to-API communication. Security is the primary focus, with comprehensive CSRF protection.

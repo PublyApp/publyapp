@@ -1,4 +1,5 @@
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Users;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -31,7 +32,7 @@ public class FindStaffMembers {
 	public static async Task<
 		Results<
 			Ok<FindStaffMembersResult>,
-			BadRequest<ApiResponse>
+			AppBadRequestHttpResult
 		>
 	> HandleFindStaffMembers(
 		[AsParameters] FindStaffMembersQuery findStaffMembersQuery,

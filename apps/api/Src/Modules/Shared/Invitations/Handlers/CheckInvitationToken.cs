@@ -1,7 +1,7 @@
 using FluentValidation;
 
 using MainApi.Localization;
-using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Utils;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -34,7 +34,7 @@ public static class CheckInvitationToken {
 	public static async Task<
 		Results<
 			Ok<CheckInvitationTokenResult>,
-			BadRequest<ApiResponse>
+			AppBadRequestHttpResult
 		>
 	> HandleCheckInvitationToken(
 		[AsParameters] CheckInvitationTokenQuery query,
@@ -52,20 +52,20 @@ public static class CheckInvitationToken {
 		try {
 			email = CryptoUtils.DecryptString(id).ToLowerInvariant();
 		} catch {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"Invalid or expired invitation token",
 				ResponseKeys.InvalidInvitationToken
-			));
+			);
 		}
 
 		// Query invitation by token
 		var invitation = await invitationService.GetInvitationByTokenAsync(token, cancellationToken);
 
 		if (invitation is null) {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"Invalid or expired invitation token",
 				ResponseKeys.InvalidInvitationToken
-			));
+			);
 		}
 
 		// check if invitation is for the given email
@@ -76,10 +76,10 @@ public static class CheckInvitationToken {
 					InvitationEmail = invitation.Email,
 				});
 			}
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"Invalid or expired invitation token",
 				ResponseKeys.InvalidInvitationToken
-			));
+			);
 		}
 
 		return TypedResults.Ok(new CheckInvitationTokenResult {

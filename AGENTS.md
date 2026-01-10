@@ -106,7 +106,7 @@ Modules/[Scope]/[Module]/
 - **CQRS-lite**: Request handlers pattern
 - **Minimal APIs**: ASP.NET Core minimal API endpoints
 - **FluentValidation**: Automatic validation via filters
-- **Response Format**: All endpoints return `ApiResponse` with `Message` and `Data`
+- **Response Format**: Success returns `Ok<T>` / `Ok<ApiResponse>`; errors return RFC 7807 `application/problem+json` (`AppProblemDetails` / `ValidationProblemDetails`) with `translationKey`
 
 **Finding Backend Code:**
 - Shared modules (auth, users, profiles, etc.): `apps/api/Src/Modules/Shared/`
@@ -406,7 +406,7 @@ t('key.path');
 
 // Backend
 using static PublyApp.Api.Generated.ResponseKeys;
-return TypedResults.BadRequest(new ApiResponse { Message = ValidationError });
+return TypedProblems.BadRequest("Validation failed", ValidationError);
 ```
 
 ### API Routes
@@ -1046,7 +1046,7 @@ public class CreateStaffInvitationBodyValidator : AbstractValidator<CreateStaffI
 
 // Handler class (descriptive HandleX method name)
 public static class CreateStaffInvitation {
-    public static async Task<Results<Ok<InvitationCreated>, BadRequest<ApiResponse>, Forbidden<ApiResponse>>>
+    public static async Task<Results<Ok<InvitationCreated>, AppBadRequestHttpResult, AppForbiddenHttpResult>>
     HandleCreateStaffInvitation(  // ✅ Descriptive name, NOT just "Handle"
         [FromServices] IAuthContext authContext,
         [FromServices] IInvitationService invitationService,  // ✅ Use service, NOT DbContext
@@ -1241,7 +1241,7 @@ public static async Task<...> HandleFindStaffInvitations(...) { }
 // ✅ Success WITH data - return data directly
 public static async Task<Results<
     Ok<User>,
-    NotFoundHttpResult
+    AppNotFoundHttpResult
 >> HandleGetUser(...) {
     var user = await userService.GetUserAsync(id);
 
@@ -1255,8 +1255,8 @@ public static async Task<Results<
 // ✅ All error responses use TypedProblems for automatic OpenAPI documentation
 public static async Task<Results<
     Ok<User>,
-    BadRequestHttpResult,
-    ForbiddenHttpResult
+    AppBadRequestHttpResult,
+    AppForbiddenHttpResult
 >> HandleUpdateUser(...) {
     if (!hasPermission) {
         return TypedProblems.Forbidden(
@@ -1270,11 +1270,32 @@ public static async Task<Results<
 }
 
 // ✅ Available TypedProblems methods (all auto-document in OpenAPI):
-// TypedProblems.BadRequest(detail, translationKey)        -> 400
+// TypedProblems.BadRequest(detail, translationKey)        -> 400 (generic bad request)
 // TypedProblems.Unauthorized(detail, translationKey)      -> 401
 // TypedProblems.Forbidden(detail, translationKey)         -> 403
 // TypedProblems.NotFound(detail, translationKey)          -> 404
 // TypedProblems.InternalServerError(detail, translationKey) -> 500
+// TypedProblems.ValidationProblem(detail, translationKey, errors) -> 422 (validation errors)
+```
+
+**HTTP Status Code Distinction (400 vs 422):**
+- **400 Bad Request** → Generic bad requests (invalid credentials, user already exists, invalid token, etc.)
+  - Uses `AppProblemDetails` schema
+  - Created via `TypedProblems.BadRequest(...)`
+- **422 Unprocessable Entity** → Field-level validation errors from FluentValidation
+  - Uses `ValidationProblemDetails` schema (includes `errors` dictionary)
+  - Created via `TypedProblems.ValidationProblem(...)` or automatically by validation filters
+
+**Note on framework/binding errors:**
+- Missing required query/body parameters can still produce a **400** (e.g., request body missing / required query parameter missing).
+- These are normalized by `UseCustomExceptionHandler()` to `AppProblemDetails` (`application/problem+json`), so endpoints may legitimately document both `400` (generic/binding) and `422` (validation).
+
+```csharp
+// 400 - Generic bad request (e.g., invalid credentials)
+return TypedProblems.BadRequest("Invalid email or password", ResponseKeys.InvalidCredentials);
+
+// 422 - Validation errors (automatically returned by .WithReqBodyValidation<T>())
+// Response includes field-level errors: { "errors": { "email": ["Email is required"] } }
 ```
 
 **Why TypedProblems?**
@@ -1324,8 +1345,8 @@ var user = await (
 // Handler return type includes typed results - OpenAPI is auto-documented!
 public static async Task<Results<
     Ok<Response>,
-    BadRequestHttpResult,     // Auto-documented as 400 with AppProblemDetails
-    ForbiddenHttpResult       // Auto-documented as 403 with AppProblemDetails
+    AppBadRequestHttpResult,     // Auto-documented as 400 with AppProblemDetails
+    AppForbiddenHttpResult       // Auto-documented as 403 with AppProblemDetails
 >> HandleAction(...) {
     if (!authorized) {
         return TypedProblems.Forbidden("Forbidden", ResponseKeys.Forbidden);
@@ -1337,16 +1358,60 @@ public static async Task<Results<
 group.MapPost("/", Handler.HandleAction)
     .WithReqBodyValidation<CreateBody>();
     // ✅ 200 auto-documented by Ok<Response>
-    // ✅ 400 auto-documented by BadRequestHttpResult AND WithReqBodyValidation
-    // ✅ 403 auto-documented by ForbiddenHttpResult
+    // ✅ 400 auto-documented by AppBadRequestHttpResult (generic bad request)
+    // ✅ 403 auto-documented by AppForbiddenHttpResult
+    // ✅ 422 auto-documented by WithReqBodyValidation (validation errors)
 ```
 
 **How automatic documentation works:**
-- Typed result classes (`ForbiddenHttpResult`, `UnauthorizedHttpResult`, etc.) implement `IEndpointMetadataProvider`
+- Typed result classes (`AppForbiddenHttpResult`, `AppUnauthorizedHttpResult`, etc.) implement `IEndpointMetadataProvider`
 - Filter extension methods (`.WithSessionAuthentication()`, `.WithStaffAuthorization()`, etc.) add their possible error responses automatically
 - No manual `.ProducesApiResponses()` calls needed
 
 **Why:** TypeScript API client is auto-generated from OpenAPI spec. Typed results ensure accurate documentation without manual maintenance.
+
+### 500 Internal Server Error Documentation
+
+**CRITICAL:** The global exception handler can return 500 for ANY endpoint. How 500 is documented depends on the endpoint type.
+
+**Authenticated endpoints (auto-documented):**
+Auth filter extension methods automatically add 500 to OpenAPI documentation:
+- `.WithSessionAuthentication()` → adds 401, 500
+- `.WithStaffAuthorization()` → adds 403, 500
+- `.WithTenantAuthorization()` → adds 401, 403, 404, 500
+
+```csharp
+// ✅ 500 is auto-documented via auth filter
+group.MapGet("/user", GetUser.HandleGetUser)
+    .WithSessionAuthentication();  // Adds 401, 500 automatically
+```
+
+**Anonymous endpoints (manual documentation required):**
+Endpoints without auth filters do NOT automatically document 500, even though the global exception handler can still return it. You MUST add `.ProducesAppProblem(StatusCodes.Status500InternalServerError)` manually.
+
+```csharp
+// ❌ WRONG - Anonymous endpoint missing 500 documentation
+group.MapPost("/login", Login.HandleLogin)
+    .WithReqBodyValidation<LoginBody>();
+    // Global exception handler can return 500, but it's not documented!
+
+// ✅ CORRECT - Manually document 500 for anonymous endpoints
+group.MapPost("/login", Login.HandleLogin)
+    .WithReqBodyValidation<LoginBody>()
+    .ProducesAppProblem(StatusCodes.Status500InternalServerError);
+```
+
+**Rule:** When creating anonymous endpoints (no auth filter), always add:
+```csharp
+.ProducesAppProblem(StatusCodes.Status500InternalServerError)
+```
+
+**Anonymous endpoints requiring manual 500 documentation:**
+- Login/Register endpoints (`/auth/login`, `/auth/register`)
+- Password reset flow (`/auth/reset-password`, `/auth/check-reset-password-token`)
+- Email verification (`/auth/verify-email-request`, `/auth/verification-link`, `/auth/check-email-verification-token`)
+- Public invitation endpoints (`/invitations/{token}/details`, `/invitations/{token}/accept`, `/invitations/check`)
+- Any future public/anonymous endpoints
 
 ### Code Formatting
 
@@ -1354,13 +1419,13 @@ group.MapPost("/", Handler.HandleAction)
 
 ```csharp
 // ❌ WRONG - Line too long
-public static async Task<Results<Ok<Response>, BadRequestHttpResult, ForbiddenHttpResult>> HandleAction([FromServices] IAuthContext authContext, [FromServices] IService service, [FromBody] CreateBody request, CancellationToken cancellationToken = default) {
+public static async Task<Results<Ok<Response>, AppBadRequestHttpResult, AppForbiddenHttpResult>> HandleAction([FromServices] IAuthContext authContext, [FromServices] IService service, [FromBody] CreateBody request, CancellationToken cancellationToken = default) {
 
 // ✅ CORRECT - Break into multiple lines
 public static async Task<Results<
     Ok<Response>,
-    BadRequestHttpResult,
-    ForbiddenHttpResult
+    AppBadRequestHttpResult,
+    AppForbiddenHttpResult
 >> HandleAction(
     [FromServices] IAuthContext authContext,
     [FromServices] IService service,
@@ -1428,13 +1493,13 @@ The TypeScript client is auto-generated - never modify files in `packages/js-cli
 
 **Example:**
 ```csharp
-public static async Task<Results<Ok<Response>, Forbidden>> Handle(
+public static async Task<Results<Ok<Response>, AppForbiddenHttpResult>> Handle(
     [FromServices] IAuthContext auth,
     // ... other params
 )
 {
     if (!auth.HasPermission("staff_member.update"))
-        return TypedResults.Forbid();
+        return TypedProblems.Forbidden("Forbidden", ResponseKeys.Forbidden);
 
     // ... handler logic
 }
@@ -1450,11 +1515,39 @@ public static async Task<Results<Ok<Response>, Forbidden>> Handle(
 
 ### API Response Format
 
-All endpoints return:
+Success responses:
 ```csharp
-public class ApiResponse {
-    public string? Message { get; set; }  // i18n key for translation
-    public object? Data { get; set; }      // Optional response data
+// For message-only successes (optional, some endpoints return Ok<T> with domain data instead)
+public record ApiResponse {
+    public string Message { get; set; } = string.Empty;
+    public string Key { get; set; } = string.Empty;
+}
+```
+
+Error responses:
+```jsonc
+// AppProblemDetails (400/401/403/404/500)
+{
+  "type": "https://httpstatuses.com/403",
+  "title": "Forbidden",
+  "status": 403,
+  "detail": "User does not have permissions",
+  "translationKey": "forbidden",
+  "traceId": "00-...-..."
+}
+```
+
+```jsonc
+// ValidationProblemDetails (422)
+{
+  "type": "https://httpstatuses.com/422",
+  "title": "Validation Failed",
+  "status": 422,
+  "detail": "Request body validation failed",
+  "translationKey": "request-body-validation-failed",
+  "errors": {
+    "email": ["Email is required"]
+  }
 }
 ```
 

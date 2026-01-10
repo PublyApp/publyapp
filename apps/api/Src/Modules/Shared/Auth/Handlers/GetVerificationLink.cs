@@ -1,7 +1,7 @@
 using FluentValidation;
 
 using MainApi.Localization;
-using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Users;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -32,7 +32,7 @@ public class GetVerificationLink {
 	public async static Task<
 		Results<
 			Ok<GetVerificationLinkResult>,
-			BadRequest<ApiResponse>
+			AppBadRequestHttpResult
 		>
 	> HandleGetVerificationLink(
 		[AsParameters] GetVerificationLinkQuery query,
@@ -48,15 +48,13 @@ public class GetVerificationLink {
 			if (logger.IsEnabled(LogLevel.Debug)) {
 				logger.LogDebug("Invalid user ID: {@UserId}", userId);
 			}
-			return TypedResults.BadRequest(
-				ApiResponse.Create("User not found", ResponseKeys.UserNotFound)
-			);
+			return TypedProblems.BadRequest("User not found", ResponseKeys.UserNotFound);
 		}
 
 		var user = await UserService.GetUserByIdAsync(userId, cancellationToken);
 
 		if (user is null) {
-			return TypedResults.BadRequest(ApiResponse.Create("User not found", ResponseKeys.UserNotFound));
+			return TypedProblems.BadRequest("User not found", ResponseKeys.UserNotFound);
 		}
 
 		var link = AuthUtils.CreateVerificationUrl(user.GetRequiredId().ToString(), user.Email);

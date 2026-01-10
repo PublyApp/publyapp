@@ -1,8 +1,10 @@
-# Staff MVP Week 1 – Phase 6 Frontend (Invitations) — Commit d730a2b Review
+# Staff MVP Week 1 - Phase 6 Frontend (Invitations) - Commit d730a2b Review
+
+> Note (2026-01): Backend error responses referenced by this review have since migrated to RFC 7807 `application/problem+json` (`AppProblemDetails` / `ValidationProblemDetails`). Update any `ApiResponse` assumptions accordingly.
 
 Context
 - Plan reference: docs/roadmaps/staff-mvp/week-1-revised-implementation-plan.md (Phase 6)
-- Commit: d730a2b009b1819d251a189811c63162c678dc93 (Nov 5, 2025) — "Implement Phase 6: Frontend Implementation for Staff Invitations"
+- Commit: d730a2b009b1819d251a189811c63162c678dc93 (Nov 5, 2025) - "Implement Phase 6: Frontend Implementation for Staff Invitations"
 
 ## Summary of Changes (per commit)
 - Routes: apps/front/app/routes.ts — added accept-invitation and staff invitations routes using FRONT_PATH_NAMES.

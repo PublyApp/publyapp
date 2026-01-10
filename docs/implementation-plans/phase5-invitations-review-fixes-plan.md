@@ -1,8 +1,10 @@
 # Implementation Plan to Address Review Findings (Phase 5)
 
+> Note (2026-01): This document predates the RFC 7807 ProblemDetails migration. Any error-response examples using `ApiResponse`, `JsonHttpResult<ApiResponse>`, or `.ProducesApiResponses(...)` should be updated to `TypedProblems.*` + `App*HttpResult` (validation errors are `422` `ValidationProblemDetails`).
+
 ## Goals
 - Complete OpenAPI documentation for anonymous invitation endpoints.
-- Add specific i18n key for “pending invitation exists” and use it in handler.
+- Add specific i18n key for "pending invitation exists" and use it in handler.
 - Optionally strengthen email validation while preserving JsonElement pattern.
 - Rebuild API and regenerate the TypeScript client to align with OpenAPI.
 

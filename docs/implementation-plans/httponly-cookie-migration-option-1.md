@@ -1,7 +1,9 @@
-## HttpOnly Cookie Migration – Option 1 (Direct API Cookie Auth) Implementation Plan
+## HttpOnly Cookie Migration - Option 1 (Direct API Cookie Auth) Implementation Plan
 
-> **Status:** Draft – describes the preferred direction (Option 1) and the security model to implement.
-> **Goal:** Move PublyApp to httpOnly cookie–based auth for API access, with a solid CSRF story and minimal disruption to existing UX.
+> Note (2026-01): This document predates the RFC 7807 ProblemDetails migration. Any API error-response examples using `ApiResponse` should be updated to `TypedProblems.*` + `AppProblemDetails` / `ValidationProblemDetails` where applicable.
+
+> **Status:** Draft - describes the preferred direction (Option 1) and the security model to implement.
+> **Goal:** Move PublyApp to httpOnly cookie-based auth for API access, with a solid CSRF story and minimal disruption to existing UX.
 
 ---
 

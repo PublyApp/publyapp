@@ -1,5 +1,5 @@
 using MainApi.Localization;
-using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -15,7 +15,7 @@ public class GetTenantAsStaff {
 	public static async Task<
 		Results<
 			Ok<GetTenantAsStaffResult>,
-			BadRequest<ApiResponse>
+			AppBadRequestHttpResult
 		>
 	> HandleGetTenantAsStaff(
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
@@ -23,19 +23,13 @@ public class GetTenantAsStaff {
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
-			return TypedResults.BadRequest(ApiResponse.Create(
-				"Tenant not found",
-				ResponseKeys.NotFound
-			));
+			return TypedProblems.BadRequest("Tenant not found", ResponseKeys.NotFound);
 		}
 
 		var tenant = await tenantAsStaffService.GetTenantByIdAsync(tenantIdGuid, cancellationToken);
 
 		if (tenant is null) {
-			return TypedResults.BadRequest(ApiResponse.Create(
-				"Tenant not found",
-				ResponseKeys.NotFound
-			));
+			return TypedProblems.BadRequest("Tenant not found", ResponseKeys.NotFound);
 		}
 
 		return TypedResults.Ok(new GetTenantAsStaffResult {

@@ -1,5 +1,5 @@
 using MainApi.Localization;
-using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -15,7 +15,7 @@ public record InvitationDetails {
 public static class GetInvitationDetails {
 	public static async Task<Results<
 		Ok<InvitationDetails>,
-		NotFound<ApiResponse>
+		AppNotFoundHttpResult
 	>> HandleGetInvitationDetails(
 		[FromRoute] string token,
 		[FromServices] IInvitationService invitationService,
@@ -27,9 +27,7 @@ public static class GetInvitationDetails {
 		);
 
 		if (invitation is null) {
-			return TypedResults.NotFound(
-				ApiResponse.Create("Invitation not found", ResponseKeys.NotFound)
-			);
+			return TypedProblems.NotFound("Invitation not found", ResponseKeys.NotFound);
 		}
 
 		// Get profile names from junction table
@@ -39,9 +37,7 @@ public static class GetInvitationDetails {
 			.ToList();
 
 		if (names.Count == 0) {
-			return TypedResults.NotFound(
-				ApiResponse.Create("Profile not found", ResponseKeys.NotFound)
-			);
+			return TypedProblems.NotFound("Profile not found", ResponseKeys.NotFound);
 		}
 
 		var profileNames = string.Join(", ", names);

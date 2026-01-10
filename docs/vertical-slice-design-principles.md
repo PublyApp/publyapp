@@ -174,7 +174,7 @@ staff.profile.get_for_project   # Get project profile details
 
 ```csharp
 // UpdateProfile.cs - Handler with dynamic permission check
-public static async Task<Results<Ok, BadRequestHttpResult, ForbiddenHttpResult>> HandleUpdateProfile(
+public static async Task<Results<Ok, AppBadRequestHttpResult, AppForbiddenHttpResult>> HandleUpdateProfile(
     [FromServices] IAuthContext auth,
     [FromServices] IProfileAsStaffService profileService,
     [FromRoute] string profileId,
@@ -220,7 +220,7 @@ group.MapPut(
 )
     .WithName("UpdateProfile");
     // No .WithPermission() - we check manually in handler
-    // Status codes auto-documented via typed results (BadRequestHttpResult, ForbiddenHttpResult)
+    // Status codes auto-documented via typed results (AppBadRequestHttpResult, AppForbiddenHttpResult)
 ```
 
 **Permission structure:**

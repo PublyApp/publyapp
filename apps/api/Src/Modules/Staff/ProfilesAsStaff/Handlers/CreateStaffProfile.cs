@@ -7,6 +7,7 @@ using MainApi.Localization;
 using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Staff.AuditLogs;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -167,7 +168,7 @@ public class CreateStaffProfileBodyValidator
 public static class CreateStaffProfile {
 	public static async Task<Results<
 		Ok<StaffProfileCreated>,
-		BadRequest<ApiResponse>
+		AppBadRequestHttpResult
 	>> HandleCreateStaffProfile(
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IProfileAsStaffService profileAsStaffService,
@@ -201,47 +202,37 @@ public static class CreateStaffProfile {
 
 		// Handle different result types
 		if (result is CreateStaffProfileResult.ProfileNameExists) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create(
-					"Profile name already exists",
-					ResponseKeys.ProfileNameAlreadyExists
-				)
+			return TypedProblems.BadRequest(
+				"Profile name already exists",
+				ResponseKeys.ProfileNameAlreadyExists
 			);
 		}
 
 		if (result is CreateStaffProfileResult.InvalidPermissions invalidPerms) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create(
-					$"Invalid permission keys: {string.Join(", ", invalidPerms.InvalidKeys)}",
-					ResponseKeys.BadRequest
-				)
+			return TypedProblems.BadRequest(
+				$"Invalid permission keys: {string.Join(", ", invalidPerms.InvalidKeys)}",
+				ResponseKeys.BadRequest
 			);
 		}
 
 		if (result is CreateStaffProfileResult.DuplicateEmails duplicates) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create(
-					$"Duplicate emails provided: {string.Join(", ", duplicates.Emails)}",
-					ResponseKeys.BadRequest
-				)
+			return TypedProblems.BadRequest(
+				$"Duplicate emails provided: {string.Join(", ", duplicates.Emails)}",
+				ResponseKeys.BadRequest
 			);
 		}
 
 		if (result is CreateStaffProfileResult.UsersWithConflictingAccounts conflicts) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create(
-					$"Cannot assign staff profile to users with existing tenant/project accounts: {string.Join(", ", conflicts.Emails)}",
-					ResponseKeys.BadRequest
-				)
+			return TypedProblems.BadRequest(
+				$"Cannot assign staff profile to users with existing tenant/project accounts: {string.Join(", ", conflicts.Emails)}",
+				ResponseKeys.BadRequest
 			);
 		}
 
 		if (result is CreateStaffProfileResult.NoPermissionsProvided) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create(
-					"At least one permission is required",
-					ResponseKeys.BadRequest
-				)
+			return TypedProblems.BadRequest(
+				"At least one permission is required",
+				ResponseKeys.BadRequest
 			);
 		}
 
@@ -256,11 +247,9 @@ public static class CreateStaffProfile {
 			);
 		}
 
-		return TypedResults.BadRequest(
-			ApiResponse.Create(
-				"Failed to create staff profile",
-				ResponseKeys.BadRequest
-			)
+		return TypedProblems.BadRequest(
+			"Failed to create staff profile",
+			ResponseKeys.BadRequest
 		);
 	}
 

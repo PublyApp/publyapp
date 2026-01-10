@@ -1,4 +1,5 @@
 using MainApi.Localization;
+using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Tenants;
 using MainApi.Src.Modules.Shared.Users;
@@ -110,7 +111,14 @@ public static class TenantAuthFilterExtensions {
 	/// Requires SessionAuthFilter and CheckTenantHeaderFilter to be applied first.
 	/// </summary>
 	public static RouteGroupBuilder WithTenantAuthorization(this RouteGroupBuilder builder) {
-		return builder.AddEndpointFilter<TenantAuthFilter>();
+		return builder
+			.AddEndpointFilter<TenantAuthFilter>()
+			.ProducesAppProblem(
+				StatusCodes.Status401Unauthorized,
+				StatusCodes.Status403Forbidden,
+				StatusCodes.Status404NotFound,
+				StatusCodes.Status500InternalServerError
+			);
 	}
 
 	/// <summary>

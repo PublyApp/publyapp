@@ -1,4 +1,7 @@
 # Issue Prioritization Analysis
+
+> Note (2026-01): Since this document was written, the API migrated error responses to RFC 7807 `application/problem+json` (`AppProblemDetails` / `ValidationProblemDetails`). Treat any `ApiResponse`-based error-response references as historical.
+
 **Date:** December 5, 2025
 **Total Open Issues:** 27
 **Context:** Just completed Staff MVP Week 1, preparing for Week 2

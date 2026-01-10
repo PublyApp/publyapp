@@ -21,7 +21,7 @@ export interface AcceptInvitationBody extends AdditionalDataHolder, Parsable {
 /**
  * Represents an API response with a message and a type-safe translation key
  */
-export interface ApiResponse extends AdditionalDataHolder, ApiError, Parsable {
+export interface ApiResponse extends AdditionalDataHolder, Parsable {
     /**
      * The key property
      */
@@ -29,7 +29,36 @@ export interface ApiResponse extends AdditionalDataHolder, ApiError, Parsable {
     /**
      * The message property
      */
-    messageEscaped?: string | null;
+    message?: string | null;
+}
+/**
+ * A ProblemDetails extension that includes a translation key for frontend i18n.Complies with RFC 7807 while supporting localization.
+ */
+export interface AppProblemDetails extends AdditionalDataHolder, ApiError, Parsable {
+    /**
+     * The detail property
+     */
+    detail?: string | null;
+    /**
+     * The instance property
+     */
+    instance?: string | null;
+    /**
+     * The status property
+     */
+    status?: number | null;
+    /**
+     * The title property
+     */
+    title?: string | null;
+    /**
+     * The translation key for frontend localization.Serialized as "translationKey" in the JSON response.
+     */
+    translationKey?: string | null;
+    /**
+     * The type property
+     */
+    type?: string | null;
 }
 export interface BulkCreateStaffInvitationsBody extends AdditionalDataHolder, Parsable {
     /**
@@ -90,6 +119,15 @@ export function createAcceptInvitationBodyFromDiscriminatorValue(parseNode: Pars
 // @ts-ignore
 export function createApiResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoApiResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {AppProblemDetails}
+ */
+// @ts-ignore
+export function createAppProblemDetailsFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoAppProblemDetails;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -836,6 +874,24 @@ export function createUpdateStaffMemberBodyFromDiscriminatorValue(parseNode: Par
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ValidationProblemDetails_errors}
+ */
+// @ts-ignore
+export function createValidationProblemDetails_errorsFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoValidationProblemDetails_errors;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ValidationProblemDetails}
+ */
+// @ts-ignore
+export function createValidationProblemDetailsFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoValidationProblemDetails;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {VerifyEmailRequestBody}
  */
 // @ts-ignore
@@ -873,7 +929,23 @@ export function deserializeIntoAcceptInvitationBody(acceptInvitationBody: Partia
 export function deserializeIntoApiResponse(apiResponse: Partial<ApiResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "key": n => { apiResponse.key = n.getStringValue(); },
-        "message": n => { apiResponse.messageEscaped = n.getStringValue(); },
+        "message": n => { apiResponse.message = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param AppProblemDetails The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoAppProblemDetails(appProblemDetails: Partial<AppProblemDetails> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "detail": n => { appProblemDetails.detail = n.getStringValue(); },
+        "instance": n => { appProblemDetails.instance = n.getStringValue(); },
+        "status": n => { appProblemDetails.status = n.getNumberValue(); },
+        "title": n => { appProblemDetails.title = n.getStringValue(); },
+        "translationKey": n => { appProblemDetails.translationKey = n.getStringValue(); },
+        "type": n => { appProblemDetails.type = n.getStringValue(); },
     }
 }
 /**
@@ -1750,6 +1822,33 @@ export function deserializeIntoUpdateStaffMemberBody_statusMember1(updateStaffMe
 }
 /**
  * The deserialization information for the current model
+ * @param ValidationProblemDetails The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoValidationProblemDetails(validationProblemDetails: Partial<ValidationProblemDetails> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "detail": n => { validationProblemDetails.detail = n.getStringValue(); },
+        "errors": n => { validationProblemDetails.errors = n.getObjectValue<ValidationProblemDetails_errors>(createValidationProblemDetails_errorsFromDiscriminatorValue); },
+        "instance": n => { validationProblemDetails.instance = n.getStringValue(); },
+        "status": n => { validationProblemDetails.status = n.getNumberValue(); },
+        "title": n => { validationProblemDetails.title = n.getStringValue(); },
+        "translationKey": n => { validationProblemDetails.translationKey = n.getStringValue(); },
+        "type": n => { validationProblemDetails.type = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param ValidationProblemDetails_errors The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoValidationProblemDetails_errors(validationProblemDetails_errors: Partial<ValidationProblemDetails_errors> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param VerifyEmailRequestBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -2140,8 +2239,25 @@ export function serializeAcceptInvitationBody(writer: SerializationWriter, accep
 export function serializeApiResponse(writer: SerializationWriter, apiResponse: Partial<ApiResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!apiResponse || isSerializingDerivedType) { return; }
     writer.writeStringValue("key", apiResponse.key);
-    writer.writeStringValue("message", apiResponse.messageEscaped);
+    writer.writeStringValue("message", apiResponse.message);
     writer.writeAdditionalData(apiResponse.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param AppProblemDetails The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeAppProblemDetails(writer: SerializationWriter, appProblemDetails: Partial<AppProblemDetails> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!appProblemDetails || isSerializingDerivedType) { return; }
+    writer.writeStringValue("detail", appProblemDetails.detail);
+    writer.writeStringValue("instance", appProblemDetails.instance);
+    writer.writeNumberValue("status", appProblemDetails.status);
+    writer.writeStringValue("title", appProblemDetails.title);
+    writer.writeStringValue("translationKey", appProblemDetails.translationKey);
+    writer.writeStringValue("type", appProblemDetails.type);
+    writer.writeAdditionalData(appProblemDetails.additionalData);
 }
 /**
  * Serializes information the current object
@@ -3060,6 +3176,35 @@ export function serializeUpdateStaffMemberBody_statusMember1(writer: Serializati
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ValidationProblemDetails The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeValidationProblemDetails(writer: SerializationWriter, validationProblemDetails: Partial<ValidationProblemDetails> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!validationProblemDetails || isSerializingDerivedType) { return; }
+    writer.writeStringValue("detail", validationProblemDetails.detail);
+    writer.writeObjectValue<ValidationProblemDetails_errors>("errors", validationProblemDetails.errors, serializeValidationProblemDetails_errors);
+    writer.writeStringValue("instance", validationProblemDetails.instance);
+    writer.writeNumberValue("status", validationProblemDetails.status);
+    writer.writeStringValue("title", validationProblemDetails.title);
+    writer.writeStringValue("translationKey", validationProblemDetails.translationKey);
+    writer.writeStringValue("type", validationProblemDetails.type);
+    writer.writeAdditionalData(validationProblemDetails.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ValidationProblemDetails_errors The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeValidationProblemDetails_errors(writer: SerializationWriter, validationProblemDetails_errors: Partial<ValidationProblemDetails_errors> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!validationProblemDetails_errors || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(validationProblemDetails_errors.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param VerifyEmailRequestBody The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -3282,6 +3427,44 @@ export interface UpdateStaffMemberBody_lastNameMember1 extends AdditionalDataHol
 }
 export type UpdateStaffMemberBody_status = JsonElement | UpdateStaffMemberBody_statusMember1;
 export interface UpdateStaffMemberBody_statusMember1 extends AdditionalDataHolder, Parsable {
+}
+/**
+ * A ProblemDetails extension for validation errors.Includes field-level errors in addition to the translation key.Complies with RFC 7807 while supporting validation error details.
+ */
+export interface ValidationProblemDetails extends AdditionalDataHolder, ApiError, Parsable {
+    /**
+     * The detail property
+     */
+    detail?: string | null;
+    /**
+     * Dictionary of field names to error messages.Serialized as "errors" in the JSON response.
+     */
+    errors?: ValidationProblemDetails_errors | null;
+    /**
+     * The instance property
+     */
+    instance?: string | null;
+    /**
+     * The status property
+     */
+    status?: number | null;
+    /**
+     * The title property
+     */
+    title?: string | null;
+    /**
+     * The translation key for frontend localization.Serialized as "translationKey" in the JSON response.
+     */
+    translationKey?: string | null;
+    /**
+     * The type property
+     */
+    type?: string | null;
+}
+/**
+ * Dictionary of field names to error messages.Serialized as "errors" in the JSON response.
+ */
+export interface ValidationProblemDetails_errors extends AdditionalDataHolder, Parsable {
 }
 export interface VerifyEmailRequestBody extends AdditionalDataHolder, Parsable {
     /**

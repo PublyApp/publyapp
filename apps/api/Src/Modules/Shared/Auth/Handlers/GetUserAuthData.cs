@@ -1,5 +1,6 @@
 using MainApi.Localization;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Users;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -19,7 +20,7 @@ public class GetUserAuthData {
 	public static async Task<
 	Results<
 		Ok<GetUserAuthDataResult>,
-		JsonHttpResult<ApiResponse>
+		AppUnauthorizedHttpResult
 		>
 	> HandleGetUserAuthData(
 		IRequestAuthContext authContext,
@@ -51,10 +52,7 @@ public class GetUserAuthData {
 				});
 			}
 
-			return TypedResults.Json(
-				ApiResponse.Create("Invalid session", ResponseKeys.InvalidSession),
-				statusCode: StatusCodes.Status401Unauthorized
-			);
+			return TypedProblems.Unauthorized("Invalid session", ResponseKeys.InvalidSession);
 		}
 
 		return TypedResults.Ok(new GetUserAuthDataResult {
