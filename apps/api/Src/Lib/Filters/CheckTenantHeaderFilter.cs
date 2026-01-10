@@ -1,4 +1,5 @@
 using MainApi.Localization;
+using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
 
 using Microsoft.Extensions.Options;
@@ -42,7 +43,9 @@ public static class CheckTenantHeaderFilterExtensions {
 	/// Validates that the tenant ID header is present.
 	/// </summary>
 	public static RouteGroupBuilder WithCheckTenantHeader(this RouteGroupBuilder builder) {
-		return builder.AddEndpointFilter<CheckTenantHeaderFilter>();
+		return builder
+			.AddEndpointFilter<CheckTenantHeaderFilter>()
+			.ProducesAppProblem(StatusCodes.Status401Unauthorized);
 	}
 
 	/// <summary>

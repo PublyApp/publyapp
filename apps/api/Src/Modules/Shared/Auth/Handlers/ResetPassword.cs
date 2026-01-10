@@ -5,6 +5,7 @@ using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Shared.Users;
 
@@ -109,7 +110,7 @@ public class ResetPassword {
 	public static async Task<
 		Results<
 			Ok<ResetPasswordResult>,
-			BadRequest<ApiResponse>
+			AppBadRequestHttpResult
 		>
 	> HandleResetPassword(
 		[FromBody] ResetPasswordBody body,
@@ -128,36 +129,36 @@ public class ResetPassword {
 		try {
 			email = CryptoUtils.DecryptString(id);
 		} catch {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"Invalid or expired password reset token",
 				ResponseKeys.InvalidPasswordResetToken
-			));
+			);
 		}
 
 		// Query user by email and password reset token
 		var user = await userService.GetUserByPasswordResetTokenAsync(token, cancellationToken);
 
 		if (user is null) {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"Invalid or expired password reset token",
 				ResponseKeys.InvalidPasswordResetToken
-			));
+			);
 		}
 
 		// check if token is for the given email
 		if (string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase) is false) {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"Invalid or expired password reset token",
 				ResponseKeys.InvalidPasswordResetToken
-			));
+			);
 		}
 
 		// Check if token is expired
 		if (user.PasswordResetTokenExpiresAt.HasValue && DateTime.UtcNow > user.PasswordResetTokenExpiresAt.Value) {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"Invalid or expired password reset token",
 				ResponseKeys.InvalidPasswordResetToken
-			));
+			);
 		}
 
 		// Hash new password

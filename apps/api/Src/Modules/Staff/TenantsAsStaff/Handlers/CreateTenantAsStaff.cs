@@ -6,6 +6,7 @@ using MainApi.Localization;
 using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Users;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -198,7 +199,7 @@ public static class CreateTenantAsStaff {
 	public static async Task<
 	Results<
 	Ok<CreateTenantAsStaffResult>,
-	BadRequest<ApiResponse>
+	AppBadRequestHttpResult
 	>>
 	HandleCreateTenantAsStaff(
 		[FromBody] CreateTenantAsStaffBody createTenantBody,
@@ -214,9 +215,7 @@ public static class CreateTenantAsStaff {
 		// Get authenticated staff user
 		var staffAccount = authContext.AccountStaff;
 		if (staffAccount is null) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized)
-			);
+			return TypedProblems.BadRequest("Unauthorized", ResponseKeys.Unauthorized);
 		}
 
 		// Parse request
@@ -275,9 +274,7 @@ public static class CreateTenantAsStaff {
 		} catch (InvalidOperationException ex) {
 			// Business logic validation failures
 			logger.LogWarning(ex, "Tenant creation validation failed");
-			return TypedResults.BadRequest(
-				ApiResponse.Create(ex.Message, ResponseKeys.BadRequest)
-			);
+			return TypedProblems.BadRequest(ex.Message, ResponseKeys.BadRequest);
 		}
 	}
 

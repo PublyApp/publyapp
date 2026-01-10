@@ -1,4 +1,5 @@
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -26,7 +27,7 @@ public class FindTenantsAsStaffQuery : PaginatedQuery { }
 public class FindTenantsAsStaffQueryValidator : PaginatedQueryValidator<FindTenantsAsStaffQuery> { }
 
 public class FindTenantsAsStaff {
-	public static async Task<Results<Ok<TenantAsStaffResult>, BadRequest<ApiResponse>>> HandleFindTenantsAsStaff(
+	public static async Task<Results<Ok<TenantAsStaffResult>, AppBadRequestHttpResult>> HandleFindTenantsAsStaff(
 		[AsParameters] FindTenantsAsStaffQuery findTenantsAsStaffQuery,
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		CancellationToken cancellationToken

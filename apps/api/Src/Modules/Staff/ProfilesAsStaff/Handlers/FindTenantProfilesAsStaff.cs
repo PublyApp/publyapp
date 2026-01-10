@@ -1,5 +1,6 @@
 using MainApi.Localization;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -24,7 +25,7 @@ public class FindTenantProfilesAsStaff {
 	public static async Task<
 		Results<
 			Ok<FindTenantProfilesAsStaffResult>,
-			BadRequest<ApiResponse>
+			AppBadRequestHttpResult
 		>
 	> HandleFindTenantProfilesAsStaff(
 		[FromServices] IProfileAsStaffService profileAsStaffService,
@@ -33,7 +34,7 @@ public class FindTenantProfilesAsStaff {
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
-			return TypedResults.BadRequest(ApiResponse.Create("Tenant not found", ResponseKeys.NotFound));
+			return TypedProblems.BadRequest("Tenant not found", ResponseKeys.NotFound);
 		}
 
 		var page = findTenantProfilesAsStaffQuery.GetPage();

@@ -214,8 +214,8 @@ public static class CreateStaffInvitation {
     // ✅ Use typed result classes for automatic OpenAPI documentation
     public static async Task<Results<
         Ok<InvitationCreated>,
-        BadRequestHttpResult,
-        ForbiddenHttpResult
+        AppBadRequestHttpResult,
+        AppForbiddenHttpResult
     >> HandleCreateStaffInvitation(  // ✅ Descriptive name
         [FromServices] IAuthContext authContext,
         [FromServices] IInvitationService invitationService,  // ✅ Service layer
@@ -322,7 +322,7 @@ public static class GetInvitationDetails {
     // ✅ Use typed result classes for automatic OpenAPI documentation
     public static async Task<Results<
         Ok<InvitationDetails>,
-        NotFoundHttpResult
+        AppNotFoundHttpResult
     >> HandleGetInvitationDetails(  // ✅ Descriptive name
         [FromRoute] string token,
         [FromServices] IInvitationService invitationService,
@@ -393,7 +393,7 @@ public static class InvitationEndpoints {
             )
             .WithName("GetInvitationDetails")
             .WithSummary("Get invitation details by token");
-            // ✅ Status codes auto-documented via NotFoundHttpResult in handler
+            // ✅ Status codes auto-documented via AppNotFoundHttpResult in handler
 
         group.MapPost(
                 PathUtils.GetLastSegment(RoutePath.Invitations.AcceptByToken, 2),
@@ -422,7 +422,7 @@ public static class InvitationEndpoints {
             .WithName("CreateStaffInvitation")
             .WithSummary("Create a staff invitation (Admin only)")
             .WithReqBodyValidation<CreateStaffInvitationBody>();
-            // ✅ 400/403 auto-documented via BadRequestHttpResult/ForbiddenHttpResult
+            // ✅ 422 auto-documented via WithReqBodyValidation; 400/403 via AppBadRequestHttpResult/AppForbiddenHttpResult
 
         group.MapGet(
                 PathUtils.GetLastSegment(RoutePath.Staff.Invitations.Find),
@@ -430,7 +430,7 @@ public static class InvitationEndpoints {
             )
             .WithName("ListStaffInvitations")
             .WithSummary("List staff invitations");
-            // ✅ 403 auto-documented via ForbiddenHttpResult
+            // ✅ 403 auto-documented via AppForbiddenHttpResult
 
         group.MapDelete(
                 PathUtils.GetLastSegment(RoutePath.Staff.Invitations.RevokeById),
@@ -438,7 +438,7 @@ public static class InvitationEndpoints {
             )
             .WithName("RevokeInvitation")
             .WithSummary("Revoke a staff invitation (Admin only)");
-            // ✅ 403 auto-documented via ForbiddenHttpResult
+            // ✅ 403 auto-documented via AppForbiddenHttpResult
 
         return routes;
     }

@@ -1,4 +1,5 @@
 using MainApi.Localization;
+using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
 
 using Microsoft.Extensions.Options;
@@ -42,7 +43,9 @@ public static class CheckSessionHeaderFilterExtensions {
 	/// Validates that X-Session-Token header is present.
 	/// </summary>
 	public static RouteGroupBuilder WithCheckSessionHeader(this RouteGroupBuilder builder) {
-		return builder.AddEndpointFilter<CheckSessionHeaderFilter>();
+		return builder
+			.AddEndpointFilter<CheckSessionHeaderFilter>()
+			.ProducesAppProblem(StatusCodes.Status401Unauthorized);
 	}
 
 	/// <summary>

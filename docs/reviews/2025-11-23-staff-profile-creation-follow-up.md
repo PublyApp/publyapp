@@ -1,4 +1,6 @@
-# Staff Profile Creation — Follow-up Review (2025-11-23)
+# Staff Profile Creation - Follow-up Review (2025-11-23)
+
+> Note (2026-01): This review predates the RFC 7807 ProblemDetails migration. Any error-response examples using `ApiResponse` should be updated to `TypedProblems.*` + `AppProblemDetails` / `ValidationProblemDetails` where applicable.
 
 ## ✅ Issues Addressed
 

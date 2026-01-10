@@ -36,22 +36,9 @@ public static class OpenApiExtensions {
 	}
 
 	/// <summary>
-	/// Adds one or more API responses to the OpenAPI documentation for the given status codes
-	/// (works with build-time OpenAPI generation).
-	/// Usage: builder.ProducesApiResponses(StatusCodes.Status401Unauthorized, StatusCodes.Status500InternalServerError);
-	/// </summary>
-	public static RouteHandlerBuilder ProducesApiResponses(this RouteHandlerBuilder builder, params int[] statusCodes) {
-		if (statusCodes is null || statusCodes.Length == 0) return builder;
-		foreach (var statusCode in statusCodes) {
-			builder = builder.Produces<ApiResponse>(statusCode, "application/json");
-		}
-		return builder;
-	}
-
-	/// <summary>
 	/// Adds one or more RFC 7807 ProblemDetails responses to the OpenAPI documentation.
 	/// Use this to document error responses from filters (e.g., auth filters).
-	/// Handler return types that include ForbiddenHttpResult, NotFoundHttpResult, etc. are auto-documented.
+	/// Handler return types that include AppForbiddenHttpResult, AppNotFoundHttpResult, etc. are auto-documented.
 	/// Usage: builder.ProducesAppProblem(StatusCodes.Status401Unauthorized, StatusCodes.Status500InternalServerError);
 	/// </summary>
 	public static RouteHandlerBuilder ProducesAppProblem(this RouteHandlerBuilder builder, params int[] statusCodes) {
@@ -60,5 +47,26 @@ public static class OpenApiExtensions {
 			builder = builder.Produces<AppProblemDetails>(statusCode, "application/problem+json");
 		}
 		return builder;
+	}
+
+	/// <summary>
+	/// Adds one or more RFC 7807 ProblemDetails responses to the OpenAPI documentation for route groups.
+	/// Use this to document error responses from group-level filters (e.g., auth middleware).
+	/// Usage: group.ProducesAppProblem(StatusCodes.Status401Unauthorized, StatusCodes.Status403Forbidden);
+	/// </summary>
+	public static RouteGroupBuilder ProducesAppProblem(this RouteGroupBuilder builder, params int[] statusCodes) {
+		if (statusCodes is null || statusCodes.Length == 0) return builder;
+		foreach (var statusCode in statusCodes) {
+			builder = builder.WithMetadata(new ProducesAppProblemMetadata(statusCode));
+		}
+		return builder;
+	}
+
+	/// <summary>
+	/// Adds ValidationProblemDetails (422) response to the OpenAPI documentation.
+	/// Use this for validation filters to document the response with the errors dictionary.
+	/// </summary>
+	public static RouteHandlerBuilder ProducesValidationProblem(this RouteHandlerBuilder builder) {
+		return builder.WithMetadata(new ProducesValidationProblemMetadata());
 	}
 }
