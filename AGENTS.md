@@ -1279,16 +1279,17 @@ public static async Task<Results<
 ```
 
 **HTTP Status Code Distinction (400 vs 422):**
-- **400 Bad Request** → Generic bad requests (invalid credentials, user already exists, invalid token, etc.)
+- **400 Bad Request** — Generic bad requests (invalid credentials, user already exists, invalid token, etc.)
   - Uses `AppProblemDetails` schema
   - Created via `TypedProblems.BadRequest(...)`
-- **422 Unprocessable Entity** → Field-level validation errors from FluentValidation
+- **422 Unprocessable Entity** — Field-level validation errors from FluentValidation
   - Uses `ValidationProblemDetails` schema (includes `errors` dictionary)
   - Created via `TypedProblems.ValidationProblem(...)` or automatically by validation filters
 
 **Note on framework/binding errors:**
 - Missing required query/body parameters can still produce a **400** (e.g., request body missing / required query parameter missing).
 - These are normalized by `UseCustomExceptionHandler()` to `AppProblemDetails` (`application/problem+json`), so endpoints may legitimately document both `400` (generic/binding) and `422` (validation).
+- `builder.Services.AddProblemDetails()` is registered (see `apps/api/Src/Lib/AppServices.cs`) for framework integration, but endpoints still return ProblemDetails explicitly via `TypedProblems.*`.
 
 ```csharp
 // 400 - Generic bad request (e.g., invalid credentials)
