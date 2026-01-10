@@ -98,7 +98,7 @@ public static class AppServices {
 		}, ServiceLifetime.Scoped);
 
 		// Register FluentValidation
-		builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+		builder.Services.AddValidatorsFromAssemblyContaining<MainApi.Program>();
 
 		// Register services
 		// singleton services

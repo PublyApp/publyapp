@@ -10,52 +10,58 @@ using MainApi.Src.Modules.Staff.StaffMember;
 using MainApi.Src.Modules.Staff.TenantsAsStaff;
 using MainApi.Src.Modules.Tenant.Products;
 
-AppEnvironment.LoadEnv(); // ! must be called before anything else
+namespace MainApi;
 
-var builder = WebApplication.CreateBuilder(args);
+public class Program {
+	public static void Main(string[] args) {
+		AppEnvironment.LoadEnv(); // ! must be called before anything else
 
-builder.ConfigureLogger();
-builder.AddAppServices();
-builder.AddCors();
+		var builder = WebApplication.CreateBuilder(args);
 
-var app = builder.Build();
+		builder.ConfigureLogger();
+		builder.AddAppServices();
+		builder.AddCors();
 
-// ! order matters !
-app.UseResponseCompression(); // Compress responses (should be early in the pipeline)
-app.UseSecurityHeaders();
-app.UseCustomExceptionHandler();
-app.UseHttpsRedirection();
-app.UseCors();
-app.UseOpenApi();
+		var app = builder.Build();
 
-app.MapAuthEndpoints();
-app.MapInvitationAnonymousEndpoints();
+		// ! order matters !
+		app.UseResponseCompression(); // Compress responses (should be early in the pipeline)
+		app.UseSecurityHeaders();
+		app.UseCustomExceptionHandler();
+		app.UseHttpsRedirection();
+		app.UseCors();
+		app.UseOpenApi();
 
-// Apply filters to route groups (in order of execution)
-var tenantGroup = app.MapGroup(RoutePath.Tenant.Root)
-	.WithCheckSessionHeader()         // 1. Check session header
-	.WithCheckTenantHeader()          // 2. Check tenant header
-	.WithSessionAuthentication()      // 3. Authenticate session
-																		// TODO[tenant-auth]: TenantAuthFilter is a placeholder;
-																		// * implement tenant verification logic later.
-	.WithTenantAuthorization();       // 4. Verify tenant access (placeholder)
+		app.MapAuthEndpoints();
+		app.MapInvitationAnonymousEndpoints();
 
-var staffGroup = app.MapGroup(RoutePath.Staff.Root)
-	.WithCheckSessionHeader()         // 1. Check session header
-	.WithSessionAuthentication()      // 2. Authenticate session
-	.WithStaffAuthorization();        // 3. Verify staff account
+		// Apply filters to route groups (in order of execution)
+		var tenantGroup = app.MapGroup(RoutePath.Tenant.Root)
+			.WithCheckSessionHeader()         // 1. Check session header
+			.WithCheckTenantHeader()          // 2. Check tenant header
+			.WithSessionAuthentication()      // 3. Authenticate session
+																				// TODO[tenant-auth]: TenantAuthFilter is a placeholder;
+																				// * implement tenant verification logic later.
+			.WithTenantAuthorization();       // 4. Verify tenant access (placeholder)
 
-// Staff endpoints
-staffGroup.MapPermissionAsStaffEndpoints();
-staffGroup.MapProfileAsStaffEndpoints();
-staffGroup.MapTenantAsStaffEndpoints();
-staffGroup.MapStaffMemberEndpoints();
-staffGroup.MapInvitationAsStaffEndpoints();
+		var staffGroup = app.MapGroup(RoutePath.Staff.Root)
+			.WithCheckSessionHeader()         // 1. Check session header
+			.WithSessionAuthentication()      // 2. Authenticate session
+			.WithStaffAuthorization();        // 3. Verify staff account
 
-// Tenant endpoints
-tenantGroup.MapProductEndpoints();
+		// Staff endpoints
+		staffGroup.MapPermissionAsStaffEndpoints();
+		staffGroup.MapProfileAsStaffEndpoints();
+		staffGroup.MapTenantAsStaffEndpoints();
+		staffGroup.MapStaffMemberEndpoints();
+		staffGroup.MapInvitationAsStaffEndpoints();
 
-app.MapHealthChecks("/health");
-app.MapNotFoundRoute();
+		// Tenant endpoints
+		tenantGroup.MapProductEndpoints();
 
-app.Run();
+		app.MapHealthChecks("/health");
+		app.MapNotFoundRoute();
+
+		app.Run();
+	}
+}

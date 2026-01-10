@@ -80,7 +80,7 @@ public static class AppEnvironment {
 		if (string.IsNullOrEmpty(environment)) {
 			var logger = LoggerFactory
 				.Create(builder => builder.AddConsole())
-				.CreateLogger<Program>();
+				.CreateLogger<MainApi.Program>();
 			logger.LogWarning("ASPNETCORE_ENVIRONMENT is not set, defaulting to Development");
 			environment = "Development";
 		}
