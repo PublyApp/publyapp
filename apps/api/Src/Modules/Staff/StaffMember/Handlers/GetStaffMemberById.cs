@@ -32,7 +32,9 @@ public class GetStaffMemberById {
 		var isUserIdGuid = Guid.TryParse(userId, out var userIdGuid);
 
 		if (!isUserIdGuid) {
-			logger.LogDebug("Invalid user id: {@LogData}", new { UserId = userId });
+			if (logger.IsEnabled(LogLevel.Debug)) {
+				logger.LogDebug("Invalid user id: {@LogData}", new { UserId = userId });
+			}
 
 			return TypedResults.BadRequest(ApiResponse.Create(
 				"User does not exist or is not a staff member",
@@ -44,7 +46,9 @@ public class GetStaffMemberById {
 		var user = await staffMemberService.GetStaffMemberUserByIdAsync(userIdGuid, cancellationToken);
 
 		if (user is null) {
-			logger.LogDebug("User does not exist or is not a staff member: {@LogData}", new { UserId = userIdGuid });
+			if (logger.IsEnabled(LogLevel.Debug)) {
+				logger.LogDebug("User does not exist or is not a staff member: {@LogData}", new { UserId = userIdGuid });
+			}
 
 			return TypedResults.BadRequest(ApiResponse.Create(
 				"User does not exist or is not a staff member",

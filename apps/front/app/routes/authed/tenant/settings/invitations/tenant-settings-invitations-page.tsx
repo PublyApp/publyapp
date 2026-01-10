@@ -1,6 +1,5 @@
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
@@ -140,7 +139,7 @@ const TenantSettingsInvitationsPage = () => {
 	const dataTable: TenantInvitationRowData[] = [];
 
 	// Table configuration
-	const table = useMRTTable('default', {
+	const table = useMRTTable('minimal', {
 		columns,
 		data: dataTable,
 		state: {
@@ -192,9 +191,16 @@ const TenantSettingsInvitationsPage = () => {
 				sx={{ mb: { xs: 3, md: 5 } }}
 			/>
 
-			<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+			<Box
+				sx={{
+					flexGrow: 1,
+					display: 'flex',
+					flexDirection: 'column',
+					border: 'none',
+				}}
+			>
 				<MaterialReactTable table={table} />
-			</Card>
+			</Box>
 		</DashboardContent>
 	);
 };

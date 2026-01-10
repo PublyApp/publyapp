@@ -1,7 +1,6 @@
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
 import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
@@ -15,6 +14,7 @@ import {
 } from 'material-react-table';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useMemo } from 'react';
+
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { Iconify } from '@/front/components/iconify/iconify';
 import type { LabelColor } from '@/front/components/label';
@@ -130,7 +130,7 @@ const StaffMembersTable = () => {
 		return _.map(data?.staffMembers, StaffMemberRowDataMapper);
 	}, [data]);
 
-	const table = useMRTTable('default', {
+	const table = useMRTTable('minimal', {
 		columns,
 		data: dataTable,
 		rowCount: getUntypedNumber(data?.count, 0),
@@ -151,9 +151,16 @@ const StaffMembersTable = () => {
 	});
 
 	return (
-		<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+		<Box
+			sx={{
+				flexGrow: 1,
+				display: 'flex',
+				flexDirection: 'column',
+				border: 'none',
+			}}
+		>
 			<MaterialReactTable table={table} />
-		</Card>
+		</Box>
 	);
 };
 

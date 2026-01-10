@@ -1,8 +1,8 @@
 import type { ClientLoaderFunctionArgs } from 'react-router';
-import type { ApiClient } from '@/js-client/src/apiClient';
+
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import type InterZod from '@/shared/lib/zod/InterZod';
-import { initApiClientOnClient } from '../api';
+
 import { initI18nOnClient } from '../i18n/init-i18n.client';
 import { initZodOnClient } from '../zod/zod.client';
 import { getRequestLocale } from './data.utils';
@@ -15,7 +15,6 @@ type GetCLientLoaderParams<
 		args: T & {
 			z: InterZod;
 			locale: AppLocale;
-			apiClient: ApiClient;
 		},
 	) => Promise<D>;
 };
@@ -27,6 +26,17 @@ type GetCLientLoader = <
 	params: GetCLientLoaderParams<T, D>,
 ) => ((args: T) => Promise<D>) & { hydrate?: boolean };
 
+/**
+ * Creates a client loader with common utilities (i18n, zod).
+ *
+ * To access API clients in loaders, use `ClientManager` directly:
+ * - `ClientManager.create().getOrCreateClient(tenantId)` - for tenant-scoped requests
+ * - `ClientManager.create().getOrCreateStaffClient()` - for staff requests
+ * - `ClientManager.create().getOrCreateAnonymousClient()` - for public/anonymous requests
+ * - `ClientManager.create().createClient({ tenantId?, skipAuth?, context? })` - for ad-hoc clients
+ *
+ * Session tokens are read fresh from cookies on every request.
+ */
 export const getClientLoader: GetCLientLoader = <
 	T extends ClientLoaderFunctionArgs = ClientLoaderFunctionArgs,
 	D = unknown,
@@ -39,9 +49,8 @@ export const getClientLoader: GetCLientLoader = <
 
 		const i18n = await initI18nOnClient();
 		const z = initZodOnClient(i18n);
-		const apiClient = initApiClientOnClient();
 
-		return params.loader({ ...args, apiClient, z, locale });
+		return params.loader({ ...args, z, locale });
 	};
 
 	return loader;

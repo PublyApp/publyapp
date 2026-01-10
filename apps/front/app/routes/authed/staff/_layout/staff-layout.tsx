@@ -26,7 +26,7 @@ const StaffLayout = () => {
 			collapsible: false,
 			items: [
 				{
-					title: t('tenants'),
+					title: t('organizations'),
 					path: FRONT_PATH_NAMES.staff.tenants.root,
 					icon: ICONS.banking,
 					deepActiveMatch: true,
@@ -40,7 +40,7 @@ const StaffLayout = () => {
 			],
 		},
 		{
-			subheader: t('staff'),
+			subheader: t('platform'),
 			collapsible: false,
 			items: [
 				{
@@ -62,7 +62,7 @@ const StaffLayout = () => {
 					deepActiveMatch: true,
 				},
 				{
-					title: t('background-jobs'),
+					title: t('workers'),
 					path: FRONT_PATH_NAMES.staff.backgroundJobs.root,
 					icon: ICONS.job,
 					deepActiveMatch: true,

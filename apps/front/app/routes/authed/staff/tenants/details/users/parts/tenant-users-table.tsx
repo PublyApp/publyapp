@@ -1,7 +1,6 @@
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
 import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
@@ -129,7 +128,7 @@ const TenantUsersTable = () => {
 		});
 	}, [data]);
 
-	const table = useMRTTable('default', {
+	const table = useMRTTable('minimal', {
 		columns,
 		data: rows,
 		rowCount: getUntypedNumber(data?.count, 0),
@@ -150,9 +149,16 @@ const TenantUsersTable = () => {
 	});
 
 	return (
-		<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+		<Box
+			sx={{
+				flexGrow: 1,
+				display: 'flex',
+				flexDirection: 'column',
+				border: 'none',
+			}}
+		>
 			<MaterialReactTable table={table} />
-		</Card>
+		</Box>
 	);
 };
 

@@ -29,10 +29,12 @@ public class GetUserAuthData {
 		CancellationToken cancellationToken
 	) {
 		if (!authContext.IsAuthenticated) {
-			logger.LogError("{@GetUserAuthData}", new {
-				UserId = authContext.UserId,
-				SessionToken = authContext.SessionToken
-			});
+			if (logger.IsEnabled(LogLevel.Error)) {
+				logger.LogError("{@GetUserAuthData}", new {
+					UserId = authContext.UserId,
+					SessionToken = authContext.SessionToken
+				});
+			}
 			throw new Exception($"{nameof(GetUserAuthData)} must be set behind {nameof(SessionAuthMiddleware)}.");
 		}
 
@@ -43,10 +45,12 @@ public class GetUserAuthData {
 		var user = await userService.GetUserByIdAsync(userId, cancellationToken);
 
 		if (user is null) {
-			logger.LogError("User not found for session: {@Context}", new {
-				SessionToken = authContext.SessionToken,
-				UserId = authContext.UserId,
-			});
+			if (logger.IsEnabled(LogLevel.Error)) {
+				logger.LogError("User not found for session: {@Context}", new {
+					SessionToken = authContext.SessionToken,
+					UserId = authContext.UserId,
+				});
+			}
 
 			return TypedResults.Json(
 				ApiResponse.Create("Invalid session", ResponseKeys.InvalidSession),

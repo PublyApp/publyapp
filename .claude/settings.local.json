@@ -26,7 +26,16 @@
 			"Bash(npx react-router:*)",
 			"Bash(timeout:*)",
 			"WebFetch(domain:api.iconify.design)",
-			"Bash(curl:*)"
+			"Bash(curl:*)",
+			"Bash(npx pnpm@10.13.1 install:*)",
+			"Bash(npx pnpm@10.13.1 typecheck:*)",
+			"Bash(npx pnpm@10.13.1 tsc:*)",
+			"Bash(npx pnpm@10.13.1 turbo run:*)",
+			"Bash(corepack --version:*)",
+			"Bash(npm install:*)",
+			"Bash(find:*)",
+			"WebFetch(domain:github.com)",
+			"WebFetch(domain:www.npmjs.com)"
 		]
 	}
 }

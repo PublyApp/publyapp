@@ -14,6 +14,7 @@ import {
 } from 'material-react-table';
 import { useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
+
 import { Iconify } from '@/front/components/iconify/iconify';
 import { Label } from '@/front/components/label/label';
 import { RouterLink } from '@/front/components/router-link';
@@ -130,7 +131,7 @@ const StaffProfilesTable = () => {
 	}, [data]);
 
 	// Table configuration with cursor pagination preset
-	const table = useMRTTable('cursor-pagination', {
+	const table = useMRTTable('minimal-cursor', {
 		columns,
 		data: dataTable,
 		manualSorting: true,
@@ -204,9 +205,16 @@ const StaffProfilesTable = () => {
 	}
 
 	return (
-		<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+		<Box
+			sx={{
+				flexGrow: 1,
+				display: 'flex',
+				flexDirection: 'column',
+				border: 'none',
+			}}
+		>
 			<MaterialReactTable table={table} />
-		</Card>
+		</Box>
 	);
 };
 
