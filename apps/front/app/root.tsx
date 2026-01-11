@@ -13,6 +13,7 @@ import {
 	Outlet,
 	Scripts,
 	ScrollRestoration,
+	useNavigate,
 } from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
 
@@ -27,7 +28,9 @@ import { ProgressBar } from './components/progress-bar';
 import { Snackbar } from './components/snackbar/snackbar';
 import { useNonce } from './hooks/use-nonce';
 import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
-import { defaultQueryClient } from './lib/react-query/query-client';
+import { logout } from './lib/cookies/logout.utils';
+import { getQueryClient } from './lib/react-query/query-client';
+import { setGlobalNavigate } from './lib/react-router/navigation-helper';
 import { getServerLoader } from './lib/react-router/server-data.server';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
@@ -88,9 +91,29 @@ export const loader = getServerLoader({
 	},
 });
 
+/**
+ * Get QueryClient with proper SSR/browser handling.
+ * - Server: creates fresh client per request (no onAuthError - logout doesn't make sense on server)
+ * - Browser: singleton with onAuthError for centralized 401 handling
+ */
+const getRootQueryClient = () => {
+	// On server, getQueryClient() creates a fresh client per call (no caching)
+	if (isServer) {
+		return getQueryClient();
+	}
+
+	// On browser, use singleton with auth error handling
+	return getQueryClient({
+		onAuthError: () => {
+			logout({ redirectCause: 'invalid_session' });
+		},
+	});
+};
+
 export const Layout = ({ children }: { children: React.ReactNode }) => {
 	const { i18n } = useTranslation();
 	const nonce = useNonce();
+	const queryClient = getRootQueryClient();
 
 	return (
 		<html lang={i18n.language} dir={i18n.dir()} suppressHydrationWarning>
@@ -107,7 +130,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 					attribute="[data-color-scheme='%s']"
 					nonce={nonce}
 				/>
-				<QueryClientProvider client={defaultQueryClient}>
+				<QueryClientProvider client={queryClient}>
 					<MuiThemeProvider>
 						<MotionLazy>
 							<Snackbar />
@@ -126,6 +149,10 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
 const App = ({ loaderData }: Route.ComponentProps) => {
 	const { locale } = loaderData;
+	const navigate = useNavigate();
+
+	// Set up global navigate for use outside React components (e.g., logout)
+	setGlobalNavigate(navigate);
 
 	// This hook will change the i18n instance language to the current locale
 	// detected by the loader, this way, when we do something to change the

@@ -2,7 +2,7 @@ import { useSuspenseQueries } from '@tanstack/react-query';
 import * as cookie from 'cookie';
 import i18next from 'i18next';
 import _ from 'lodash';
-import { type ReactNode, Suspense } from 'react';
+import { type ReactNode, Suspense, useEffect } from 'react';
 import { Outlet } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
 
@@ -10,16 +10,17 @@ import { NotFoundView, View403, View500 } from '@/front/components/error';
 import { SplashScreen } from '@/front/components/loading-screen';
 import type { SettingsState } from '@/front/components/settings';
 import { useTenantParam } from '@/front/hooks/use-tenant-param';
+import { toApiFailure } from '@/front/lib/api-failure';
 import {
 	SIDEBAR_COOKIE_MAX_AGE,
 	SIDEBAR_COOKIE_NAME,
 } from '@/front/lib/constants';
 import { getSessionCookieFromClient, logout } from '@/front/lib/cookies';
-import { isJsClientError } from '@/front/lib/js-client/js-client-error';
 import {
 	useGetTenantAuthData,
 	useGetUserAuthData,
 } from '@/front/lib/react-query/features/common/auth.hooks';
+import { resetAuthLogoutFlag } from '@/front/lib/react-query/query-client';
 import { getClientLoader } from '@/front/lib/react-router/client-data';
 // import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { useMainStore } from '@/front/lib/zustand/store';
@@ -94,6 +95,13 @@ const AuthQueriesLoader = ({ children }: { children: ReactNode }) => {
 	// trigger the queries in parallel
 	useSuspenseQueries({ queries });
 
+	// Session is valid - reset the auth logout flag on mount
+	// This ensures the flag doesn't stay stuck after SPA navigation (no page reload)
+	// Using useEffect to avoid side-effects during render (React StrictMode safe)
+	useEffect(() => {
+		resetAuthLogoutFlag();
+	}, []);
+
 	return <>{children}</>;
 };
 
@@ -114,7 +122,7 @@ const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 	return <AuthQueriesLoader>{children}</AuthQueriesLoader>;
 };
 
-const AuthedLayout = ({ loaderData: _l }: Route.ComponentProps) => {
+const AuthedLayout = () => {
 	return (
 		<ClientOnly>
 			{() => {
@@ -137,25 +145,33 @@ export const HydrateFallback = () => {
 };
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
-	// Handle 401 Unauthorized - session expired or invalid
-	if (
-		isJsClientError(error) &&
-		error.responseStatusCode === 401 &&
-		_.toLower(error.messageEscaped) === _.toLower('Unauthorized')
-	) {
-		// Clear session and submit form to clear any httpOnly cookie
-		logout({ redirectCause: 'invalid_session' });
-		return <SplashScreen />;
+	const failure = toApiFailure(error);
+
+	// Handle specific status codes for problem failures
+	if (failure.kind === 'problem') {
+		// Handle 401 Unauthorized - session expired or invalid
+		// Global handler in query-client already triggers logout, but we show SplashScreen
+		// for clean UX during redirect
+		if (failure.status === 401) {
+			// Trigger logout (may be redundant if global handler already fired, but safe)
+			logout({ redirectCause: 'invalid_session' });
+			return <SplashScreen />;
+		}
+
+		// Handle 403 Forbidden - user doesn't have access (no logout!)
+		if (failure.status === 403) {
+			return <View403 />;
+		}
+
+		// Handle 404 Not found
+		if (failure.status === 404) {
+			return <NotFoundView />;
+		}
 	}
 
-	// Handle 403 Forbidden - user doesn't have access to the tenant
-	if (isJsClientError(error) && error.responseStatusCode === 403) {
-		return <View403 />;
-	}
-
-	// handle 404 Not found error
-	if (isJsClientError(error) && error.responseStatusCode === 404) {
-		return <NotFoundView />;
+	// Network errors
+	if (failure.kind === 'network') {
+		return <View500 />;
 	}
 
 	// if (import.meta.env.DEV) {

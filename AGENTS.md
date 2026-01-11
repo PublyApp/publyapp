@@ -1564,6 +1564,69 @@ Error responses:
 - Frontend: React Router error boundaries, custom error pages (400, 403, 404, 500)
 - Always log before rethrowing exceptions
 
+### Frontend API Error Handling
+
+**CRITICAL:** The frontend uses a centralized error handling system. Understanding this is essential for writing correct mutation/query code.
+
+**Architecture:**
+- All API errors are normalized into `ApiFailure` discriminated union via `toApiFailure()`
+- Global handlers in `MutationCache`/`QueryCache` handle toasts and auth errors
+- Forms use `withFormValidation()` helper for field-level error mapping
+
+**Default behavior (no code needed):**
+```typescript
+// ✅ Errors auto-toast - no onError handler required
+const { mutate } = useCreateStaffMember();
+mutate(data);
+```
+
+**Form validation pattern:**
+```typescript
+import { withFormValidation } from '@/front/lib/api-failure';
+
+// ✅ Field errors mapped to form, other errors still toast
+const { mutate } = useCreateStaffMember(
+  withFormValidation(form.setError, {
+    meta: { showSuccessToast: true },
+    onSuccess: () => navigate('/staff'),
+  })
+);
+```
+
+**Opt-out for custom handling:**
+```typescript
+// ✅ Full control - global handler skipped
+const { mutate } = useMyMutation({
+  meta: { skipGlobalErrorHandler: true },
+  onError: (error) => {
+    const failure = toApiFailure(error);
+    // Custom handling
+  },
+});
+```
+
+**ApiFailure kinds:**
+| Kind | HTTP Status | Default Behavior |
+|------|-------------|------------------|
+| `validation` | 422 | Toast (unless form handles) |
+| `problem` | 400/401/403/404/500 | Toast (401 → logout) |
+| `network` | - | Toast "Network error" |
+| `abort` | - | Silent |
+| `unknown` | - | Toast + log |
+
+**Auth error handling:**
+- **401**: Global hook triggers `logout()` immediately
+- **403**: Error boundary shows `View403` (no logout - user is authenticated but forbidden)
+
+**Mutation meta options:**
+- `showSuccessToast: true` - Toast success message from API response
+- `successMessage: "key"` - Override with explicit message
+- `validationHandledByForm: true` - Suppress validation toast
+- `skipGlobalErrorHandler: true` - Handle all errors locally
+- `skipAuthErrorHandler: true` - Don't logout on 401 (rare)
+
+**Reference:** See `docs/guides/frontend-error-handling.md` for complete guide.
+
 ## Development Environment
 
 **Access points when running locally:**
