@@ -5,6 +5,7 @@ using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Invitations;
 using MainApi.Src.Modules.Shared.Users;
@@ -73,11 +74,10 @@ public static class CreateStaffInvitation {
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILoggerFactory loggerFactory,
-		[FromBody] CreateStaffInvitationBody? request,
+		[FromBody] CreateStaffInvitationBody body,
 		CancellationToken cancellationToken = default
 	) {
 		var logger = loggerFactory.CreateLogger(nameof(CreateStaffInvitation));
-		var body = request!;
 		// Authorization check
 		var account = authContext.AccountStaff;
 		if (account is null
@@ -90,8 +90,8 @@ public static class CreateStaffInvitation {
 		}
 
 		// Extract values after validation
-		var email = body.Email.GetString()!;
-		var profileId = Guid.Parse(body.ProfileId.GetString()!);
+		var email = body.Email.GetValueAsString();
+		var profileId = Guid.Parse(body.ProfileId.GetValueAsString());
 
 		// Validate profile via service
 		var profile = await invitationService.GetStaffProfileAsync(

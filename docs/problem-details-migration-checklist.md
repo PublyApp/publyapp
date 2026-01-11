@@ -25,6 +25,7 @@ This is the living reference for PublyApp's API error responses and their OpenAP
 
 - `422 ValidationProblemDetails` is the canonical format for validation problems and must include `errors: Record<string, string[]>`.
 - Missing request body/query params should produce `422` with stable keys (`body` for missing body; the query param name for missing query params).
+- Keep request body parameters non-nullable where possible: nullable `[FromBody]` makes the request body optional in OpenAPI, which can cause Kiota to generate awkward union/optional-body types.
 - There are two sources of missing-body/query-param failures:
   - Validation filters (`ReqBodyValidationFilter` / `ReqQueryValidationFilter`) when the endpoint binds successfully.
   - Global exception handler for binding-time failures that occur before filters run.

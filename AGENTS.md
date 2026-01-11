@@ -391,6 +391,7 @@ export async function clientLoader() { ... }
 **Backend invariants:**
 - Error responses must be RFC 7807 `application/problem+json` via `TypedProblems.*` and the `App*HttpResult` types.
 - `422` is for validation problems and must include `errors: Dictionary<string, string[]>` with stable keys.
+- Avoid nullable `[FromBody]` on validated endpoints unless you also ensure OpenAPI still marks the body required; otherwise Kiota can generate optional/union request-body types.
 - `401` must be reserved for **invalid/missing session** only (frontend treats `401` as “logout now”).
 - Tenant header issues should not return `401` (use `400`/`422` as appropriate).
 - Never log secrets: do not log `X-Session-Token` (or any session token value) in any log level.

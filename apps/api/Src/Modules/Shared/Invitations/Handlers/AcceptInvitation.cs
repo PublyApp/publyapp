@@ -61,14 +61,12 @@ public static class AcceptInvitation {
 		AppBadRequestHttpResult
 	>> HandleAcceptInvitation(
 		[FromRoute] string token,
-		[FromBody] AcceptInvitationBody? request,
+		[FromBody] AcceptInvitationBody body,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] ISessionService sessionService,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
 	) {
-		var body = request!;
-
 		// Validate invitation
 		var invitation = await invitationService.GetInvitationByTokenAsync(
 			token,

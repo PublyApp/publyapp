@@ -217,11 +217,10 @@ public static class BulkCreateStaffInvitations {
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILoggerFactory loggerFactory,
-		[FromBody] BulkCreateStaffInvitationsBody? request,
+		[FromBody] BulkCreateStaffInvitationsBody body,
 		CancellationToken cancellationToken = default
 	) {
 		var logger = loggerFactory.CreateLogger(nameof(BulkCreateStaffInvitations));
-		var body = request!;
 		var account = authContext.AccountStaff;
 
 		// should never happen because handler must be set behind StaffAuthFilter
@@ -417,4 +416,3 @@ public static class BulkCreateStaffInvitations {
 		}
 	}
 }
-
