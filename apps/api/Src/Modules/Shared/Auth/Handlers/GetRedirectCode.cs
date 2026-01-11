@@ -1,7 +1,6 @@
 using FluentValidation;
 
 using MainApi.Src.Lib;
-using MainApi.Src.Lib.Middlewares;
 using MainApi.Src.Modules.Shared.Tenants;
 using MainApi.Src.Modules.Shared.Users;
 
@@ -44,7 +43,7 @@ public class GetRedirectCode {
 					SessionToken = authContext.SessionToken
 				});
 			}
-			throw new Exception($"{nameof(GetRedirectCode)} must be set behind {nameof(SessionAuthMiddleware)}.");
+			throw new Exception($"GetRedirectCode must be set behind SessionAuthFilter.");
 		}
 
 		if (authContext.UserId is not Guid userId) {

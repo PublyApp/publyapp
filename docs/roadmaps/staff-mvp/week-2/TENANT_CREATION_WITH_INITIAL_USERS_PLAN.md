@@ -1,5 +1,7 @@
 # Tenant Creation with Initial Users - Implementation Plan
 
+> Note (2026-01): This plan predates the RFC 7807 ProblemDetails migration. Any error-response examples using `ApiResponse`, `JsonHttpResult<ApiResponse>`, or `.ProducesApiResponses(...)` should be updated to `TypedProblems.*` + `App*HttpResult` (validation errors are `422` `ValidationProblemDetails`).
+
 ## Executive Summary
 
 This document outlines the implementation plan for enhancing tenant creation to support initial users, enforce business rules, and maintain ACID compliance.

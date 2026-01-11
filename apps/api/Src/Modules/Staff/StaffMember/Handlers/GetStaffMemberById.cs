@@ -1,5 +1,5 @@
 using MainApi.Localization;
-using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Users;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -21,7 +21,7 @@ public class GetStaffMemberById {
 	public static async Task<
 		Results<
 			Ok<GetStaffMemberByIdResult>,
-			BadRequest<ApiResponse>
+			AppBadRequestHttpResult
 		>
 	> HandleGetStaffMemberById(
 		[FromRoute] string userId,
@@ -36,10 +36,10 @@ public class GetStaffMemberById {
 				logger.LogDebug("Invalid user id: {@LogData}", new { UserId = userId });
 			}
 
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"User does not exist or is not a staff member",
 				ResponseKeys.UserNotFound
-			));
+			);
 		}
 
 		// Get the staff member user by ID using the account service
@@ -50,10 +50,10 @@ public class GetStaffMemberById {
 				logger.LogDebug("User does not exist or is not a staff member: {@LogData}", new { UserId = userIdGuid });
 			}
 
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"User does not exist or is not a staff member",
 				ResponseKeys.UserNotFound
-			));
+			);
 		}
 
 		return TypedResults.Ok(new GetStaffMemberByIdResult {

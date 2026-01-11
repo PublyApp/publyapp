@@ -1,5 +1,6 @@
 using MainApi.Localization;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Invitations;
 using MainApi.Src.Modules.Shared.Users;
 
@@ -11,7 +12,7 @@ namespace MainApi.Src.Modules.Staff.InvitationsAsStaff.Handlers;
 public static class FindStaffInvitations {
 	public static async Task<Results<
 		Ok<List<InvitationListItem>>,
-		JsonHttpResult<ApiResponse>
+		AppForbiddenHttpResult
 	>> HandleFindStaffInvitations(
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IInvitationService invitationService,
@@ -20,12 +21,9 @@ public static class FindStaffInvitations {
 		// Authorization check
 		var account = authContext.AccountStaff;
 		if (account is null || account.Scope != AccountScope.Staff) {
-			return TypedResults.Json(
-				ApiResponse.Create(
-					"User does not have the necessary permissions",
-					ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
-				),
-				statusCode: StatusCodes.Status403Forbidden
+			return TypedProblems.Forbidden(
+				"User does not have the necessary permissions",
+				ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
 			);
 		}
 

@@ -1,5 +1,4 @@
 using MainApi.Src.Lib;
-using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Staff.TenantsAsStaff.Handlers;
@@ -18,8 +17,7 @@ public static class TenantAsStaffEndpoints {
 			.WithName("CreateTenant")
 			.WithSummary("Create a new tenant")
 			.WithReqBodyValidation<CreateTenantAsStaffBody>()
-			.WithPermission([AppPermissions.Staff.Tenants.CREATE])
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			.WithPermission([AppPermissions.Staff.Tenants.CREATE]);
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Staff.Tenants.GetById),
@@ -27,8 +25,7 @@ public static class TenantAsStaffEndpoints {
 		)
 			.WithName("GetTenantById")
 			.WithSummary("Get a tenant by id")
-			.WithPermission([AppPermissions.Staff.Tenants.GET])
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			.WithPermission([AppPermissions.Staff.Tenants.GET]);
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Staff.Tenants.Find),
@@ -37,8 +34,7 @@ public static class TenantAsStaffEndpoints {
 			.WithName("FindTenants")
 			.WithSummary("Find tenants with pagination")
 			.WithReqQueryValidation<FindTenantsAsStaffQuery>()
-			.WithPermission([AppPermissions.Staff.Tenants.LIST])
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			.WithPermission([AppPermissions.Staff.Tenants.LIST]);
 
 		return group;
 	}

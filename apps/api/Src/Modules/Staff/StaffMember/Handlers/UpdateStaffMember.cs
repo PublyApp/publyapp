@@ -5,6 +5,7 @@ using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
+using MainApi.Src.Lib.ProblemResults;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -225,8 +226,8 @@ public class UpdateStaffMember {
 	public static async Task<
 		Results<
 			Ok<ApiResponse>,
-			BadRequest<ApiResponse>,
-			InternalServerError<ApiResponse>
+			AppBadRequestHttpResult,
+			AppInternalServerErrorHttpResult
 		>
 	> HandleUpdateStaffMember(
 		[FromRoute] string userId,
@@ -242,10 +243,10 @@ public class UpdateStaffMember {
 				logger.LogDebug("Invalid user id: {@LogData}", new { UserId = userId });
 			}
 
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"User does not exist or is not a staff member",
 				ResponseKeys.UserNotFound
-			));
+			);
 		}
 
 		var updateUserDocument = new UpdateUserDocument {
@@ -263,10 +264,10 @@ public class UpdateStaffMember {
 				logger.LogDebug("User not found: {@LogData}", new { UserId = userIdGuid });
 			}
 
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"User does not exist or is not a staff member",
 				ResponseKeys.UserNotFound
-			));
+			);
 		}
 
 		if (result is UpdateUserByIdResult.UserAccountNotFound) {
@@ -274,10 +275,10 @@ public class UpdateStaffMember {
 				logger.LogDebug("User account not found: {@LogData}", new { UserId = userIdGuid });
 			}
 
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"User account does not exist or is not a staff member",
 				ResponseKeys.UserNotFound
-			));
+			);
 		}
 
 		if (result is UpdateUserByIdResult.UpdateFailed updateFailed) {
@@ -285,10 +286,10 @@ public class UpdateStaffMember {
 				logger.LogError("Failed to update staff member: {@LogData}", new { UserId = userIdGuid, ErrorMessage = updateFailed.ErrorMessage });
 			}
 
-			return TypedResults.InternalServerError(ApiResponse.Create(
+			return TypedProblems.InternalServerError(
 				"Failed to update staff member",
 				ResponseKeys.FailedToUpdateStaffMember
-			));
+			);
 		}
 
 		return TypedResults.Ok(ApiResponse.Create("Staff member updated successfully", ResponseKeys.StaffMemberUpdatedSuccessfully));

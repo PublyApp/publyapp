@@ -6,6 +6,7 @@ using MainApi.Localization;
 using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Shared.Auth;
 using MainApi.Src.Modules.Shared.Users;
@@ -199,7 +200,7 @@ public class CreateStaffMember {
 	public static async Task<
 		Results<
 			Ok<CreateStaffMemberResult>,
-			BadRequest<ApiResponse>
+			AppBadRequestHttpResult
 		>
 	> HandleCreateStaffMember(
 		[FromBody] CreateStaffMemberBody body,
@@ -259,10 +260,10 @@ public class CreateStaffMember {
 					new { UserResult = userResult }
 				);
 			}
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"Failed to create user",
 				ResponseKeys.FailedToCreateUser
-			));
+			);
 		}
 
 		// Create staff account using AccountService
@@ -273,10 +274,10 @@ public class CreateStaffMember {
 		);
 
 		if (accountResult is CreateStaffAccountResult.UserAlreadyStaffMember) {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"User is already member of staff",
 				ResponseKeys.UserAlreadyMemberOfStaff
-			));
+			);
 		}
 
 		if (accountResult is CreateStaffAccountResult.Success accountSuccess) {
@@ -296,9 +297,9 @@ public class CreateStaffMember {
 			});
 		}
 
-		return TypedResults.BadRequest(ApiResponse.Create(
+		return TypedProblems.BadRequest(
 			"Failed to create user",
 			ResponseKeys.FailedToCreateUser
-		));
+		);
 	}
 }

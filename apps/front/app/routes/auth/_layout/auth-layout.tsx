@@ -16,7 +16,7 @@ import {
 	useGetTenantAuthData,
 	useGetUserAuthData,
 } from '@/front/lib/react-query/features/common/auth.hooks';
-import { defaultQueryClient } from '@/front/lib/react-query/query-client';
+import { getQueryClient } from '@/front/lib/react-query/query-client';
 import { getClientLoader } from '@/front/lib/react-router/client-data';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
@@ -166,13 +166,10 @@ export const clientLoader = getClientLoader({
 					? redirectCodeResult.data?.redirectCode
 					: undefined;
 
-			defaultQueryClient.setQueryData(
-				useGetUserAuthData.getKey(),
-				userAuthData,
-			);
+			getQueryClient().setQueryData(useGetUserAuthData.getKey(), userAuthData);
 
 			if (redirectCode && redirectCode !== 'unauthorized') {
-				defaultQueryClient.prefetchQuery({
+				getQueryClient().prefetchQuery({
 					queryKey: useGetTenantAuthData.getKey({ tenantId: redirectCode }),
 					queryFn: () =>
 						useGetTenantAuthData.fetcher({ tenantId: redirectCode }),

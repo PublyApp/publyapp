@@ -440,7 +440,7 @@ Create the endpoint handler with proper error handling:
 ```csharp
 // In your handler file (e.g., Handlers/FindEntities.cs)
 using MainApi.Localization;
-using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
@@ -453,7 +453,7 @@ public class FindEntitiesQuery : CursorPaginatedQuery { }
 public class FindEntitiesQueryValidator : CursorPaginatedQueryValidator<FindEntitiesQuery> { }
 
 public class FindEntities {
-    public static async Task<Results<Ok<FindEntitiesResult>, BadRequest<ApiResponse>>> HandleFindEntities(
+    public static async Task<Results<Ok<FindEntitiesResult>, AppBadRequestHttpResult>> HandleFindEntities(
         [AsParameters] FindEntitiesQuery findEntitiesQuery,
         [FromServices] IYourService yourService,
         CancellationToken cancellationToken
@@ -467,7 +467,7 @@ public class FindEntities {
         // Support initial page request (null/empty cursor defaults to Guid.Empty)
         if (!string.IsNullOrEmpty(cursor)) {
             if (!Guid.TryParse(cursor, out cursorGuid)) {
-                return TypedResults.BadRequest(ApiResponse.Create("Invalid cursor", ResponseKeys.BadRequest));
+                return TypedProblems.BadRequest("Invalid cursor", ResponseKeys.BadRequest);
             }
         }
 
@@ -493,17 +493,17 @@ public class FindEntities {
         // STEP 4.4: Handle Result with Pattern Matching
         // ───────────────────────────────────────────────────────────────────
         if (serviceResult is YourFeature.FindEntitiesResult.CursorNotFound cursorError) {
-            return TypedResults.BadRequest(ApiResponse.Create(
+            return TypedProblems.BadRequest(
                 $"Cursor record not found: {cursorError.Cursor}. The record may have been deleted or the cursor is invalid.",
                 ResponseKeys.BadRequest
-            ));
+            );
         }
 
         if (serviceResult is YourFeature.FindEntitiesResult.InvalidSortId sortIdError) {
-            return TypedResults.BadRequest(ApiResponse.Create(
+            return TypedProblems.BadRequest(
                 $"Invalid sortId: {sortIdError.SortId}. Allowed values: id, name, created_at, related_count",
                 ResponseKeys.BadRequest
-            ));
+            );
         }
 
         if (serviceResult is YourFeature.FindEntitiesResult.Success success) {
@@ -648,10 +648,10 @@ var results = entities.Select(e => new EntityItem { ... }).ToList();
 In error messages and documentation, clearly state which sort fields are supported:
 
 ```csharp
-return TypedResults.BadRequest(ApiResponse.Create(
+return TypedProblems.BadRequest(
     $"Invalid sortId: {sortIdError.SortId}. Allowed values: id, name, created_at, user_account_count",
     ResponseKeys.BadRequest
-));
+);
 ```
 
 ### 4. Use Meaningful Default Sort
@@ -692,7 +692,7 @@ Allow `cursor` to be `null` or `Guid.Empty` for the first page:
 var cursorGuid = Guid.Empty;
 if (!string.IsNullOrEmpty(cursor)) {
     if (!Guid.TryParse(cursor, out cursorGuid)) {
-        return TypedResults.BadRequest(ApiResponse.Create("Invalid cursor", ResponseKeys.BadRequest));
+        return TypedProblems.BadRequest("Invalid cursor", ResponseKeys.BadRequest);
     }
 }
 ```
