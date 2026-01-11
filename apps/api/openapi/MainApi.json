@@ -16,17 +16,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/PasswordLoginBody"
-                  }
-                ]
+                "$ref": "#/components/schemas/PasswordLoginBody"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -83,17 +77,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/PasswordRegisterBody"
-                  }
-                ]
+                "$ref": "#/components/schemas/PasswordRegisterBody"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -262,17 +250,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/VerifyEmailRequestBody"
-                  }
-                ]
+                "$ref": "#/components/schemas/VerifyEmailRequestBody"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -629,17 +611,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/ResetPasswordBody"
-                  }
-                ]
+                "$ref": "#/components/schemas/ResetPasswordBody"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -757,17 +733,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/AcceptInvitationBody"
-                  }
-                ]
+                "$ref": "#/components/schemas/AcceptInvitationBody"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -1486,17 +1456,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/CreateStaffProfileBody"
-                  }
-                ]
+                "$ref": "#/components/schemas/CreateStaffProfileBody"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "401": {
@@ -1682,17 +1646,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/CreateTenantAsStaffBody"
-                  }
-                ]
+                "$ref": "#/components/schemas/CreateTenantAsStaffBody"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "401": {
@@ -1939,17 +1897,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/CreateStaffMemberBody"
-                  }
-                ]
+                "$ref": "#/components/schemas/CreateStaffMemberBody"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "401": {
@@ -2204,17 +2156,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/UpdateStaffMemberBody"
-                  }
-                ]
+                "$ref": "#/components/schemas/UpdateStaffMemberBody"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "401": {
@@ -2291,17 +2237,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/CreateStaffInvitationBody"
-                  }
-                ]
+                "$ref": "#/components/schemas/CreateStaffInvitationBody"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "401": {
@@ -2430,17 +2370,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/BulkCreateStaffInvitationsBody"
-                  }
-                ]
+                "$ref": "#/components/schemas/BulkCreateStaffInvitationsBody"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "401": {

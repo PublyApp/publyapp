@@ -231,12 +231,11 @@ public class UpdateStaffMember {
 		>
 	> HandleUpdateStaffMember(
 		[FromRoute] string userId,
-		[FromBody] UpdateStaffMemberBody? body,
+		[FromBody] UpdateStaffMemberBody body,
 		[FromServices] IStaffMemberService staffMemberService,
 		ILogger<UpdateStaffMember> logger,
 		CancellationToken cancellationToken
 	) {
-		var request = body!;
 		var parseResult = Guid.TryParse(userId, out var userIdGuid);
 
 		if (!parseResult) {
@@ -251,11 +250,11 @@ public class UpdateStaffMember {
 		}
 
 		var updateUserDocument = new UpdateUserDocument {
-			Email = request.GetEmail(),
-			LastName = request.GetLastName(),
-			FirstName = request.GetFirstName(),
-			AvatarUrl = request.GetAvatarUrl(),
-			AccountLevel = request.GetAccountLevel(),
+			Email = body.GetEmail(),
+			LastName = body.GetLastName(),
+			FirstName = body.GetFirstName(),
+			AvatarUrl = body.GetAvatarUrl(),
+			AccountLevel = body.GetAccountLevel(),
 		};
 
 		var result = await staffMemberService.UpdateStaffMemberByIdAsync(userIdGuid, updateUserDocument, cancellationToken);

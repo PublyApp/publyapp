@@ -56,11 +56,10 @@ public static class PasswordRegister {
 		Ok<PasswordRegisterResult>,
 		AppBadRequestHttpResult
 	>> HandlePasswordRegister(
-		[FromBody] PasswordRegisterBody? registerBody,
+		[FromBody] PasswordRegisterBody body,
 		[FromServices] IUserService userService,
 		CancellationToken cancellationToken
 	) {
-		var body = registerBody!;
 		var email = body.GetEmail();
 		var password = body.GetPassword();
 

@@ -63,13 +63,11 @@ public class PasswordLogin {
 		Ok<PasswordLoginResult>,
 		AppBadRequestHttpResult
 	>> HandlePasswordLogin(
-		[FromBody] PasswordLoginBody? loginBody,
+		[FromBody] PasswordLoginBody body,
 		[FromServices] IUserService userService,
 		[FromServices] ISessionService sessionService,
 		CancellationToken cancellationToken
 	) {
-		var body = loginBody!;
-
 		// Get validated string values
 		string email = body.GetEmail();
 		string password = body.GetPassword();

@@ -5,6 +5,7 @@ using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Shared.Users;
@@ -22,31 +23,19 @@ public class ResetPasswordBody {
 	public required JsonElement ConfirmPassword { get; set; }
 
 	public string GetId() {
-		return Id.ValueKind switch {
-			JsonValueKind.String => Id.GetString() ?? throw new InvalidOperationException("ID cannot be null"),
-			_ => throw new InvalidOperationException("Invalid ID format")
-		};
+		return Id.GetValueAsString();
 	}
 
 	public string GetToken() {
-		return Token.ValueKind switch {
-			JsonValueKind.String => Token.GetString() ?? throw new InvalidOperationException("Token cannot be null"),
-			_ => throw new InvalidOperationException("Invalid token format")
-		};
+		return Token.GetValueAsString();
 	}
 
 	public string GetNewPassword() {
-		return NewPassword.ValueKind switch {
-			JsonValueKind.String => NewPassword.GetString() ?? throw new InvalidOperationException("Password cannot be null"),
-			_ => throw new InvalidOperationException("Invalid password format")
-		};
+		return NewPassword.GetValueAsString();
 	}
 
 	public string GetConfirmPassword() {
-		return ConfirmPassword.ValueKind switch {
-			JsonValueKind.String => ConfirmPassword.GetString() ?? throw new InvalidOperationException("Confirm password cannot be null"),
-			_ => throw new InvalidOperationException("Invalid confirm password format")
-		};
+		return ConfirmPassword.GetValueAsString();
 	}
 }
 
@@ -113,18 +102,16 @@ public class ResetPassword {
 			AppBadRequestHttpResult
 		>
 	> HandleResetPassword(
-		[FromBody] ResetPasswordBody? body,
+		[FromBody] ResetPasswordBody body,
 		[FromServices] IUserService userService,
 		[FromServices] IEmailService emailService,
 		[FromServices] ILogger<ResetPassword> logger,
 		CancellationToken cancellationToken
 	) {
-		var request = body!;
-
 		// Get validated string values
-		string id = request.GetId();
-		string token = request.GetToken();
-		string newPassword = request.GetNewPassword();
+		string id = body.GetId();
+		string token = body.GetToken();
+		string newPassword = body.GetNewPassword();
 
 		// Decrypt the ID to get email
 		string email;

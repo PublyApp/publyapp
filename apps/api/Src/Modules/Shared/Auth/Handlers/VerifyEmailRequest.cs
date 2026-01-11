@@ -5,6 +5,7 @@ using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Shared.Users;
@@ -19,10 +20,7 @@ public class VerifyEmailRequestBody {
 	public required JsonElement Email { get; set; }
 
 	public string GetEmail() {
-		return Email.ValueKind switch {
-			JsonValueKind.String => Email.GetString() ?? throw new InvalidOperationException("Email cannot be null"),
-			_ => throw new InvalidOperationException("Invalid email format")
-		};
+		return Email.GetValueAsString();
 	}
 }
 
@@ -52,17 +50,15 @@ public class VerifyEmailRequest {
 			AppBadRequestHttpResult
 		>
 	> HandleVerifyEmailRequest(
-		[FromBody] VerifyEmailRequestBody? body,
+		[FromBody] VerifyEmailRequestBody body,
 		[FromServices] IUserService userService,
 		[FromServices] IEmailService emailService,
 		[FromServices] ILogger<VerifyEmailRequest> logger,
 		[FromServices] IOptions<AppSettings> appSettings,
 		CancellationToken cancellationToken
 	) {
-		var request = body!;
-
 		// check if user exists
-		var user = await userService.GetUserByEmailAsync(request.GetEmail(), cancellationToken);
+		var user = await userService.GetUserByEmailAsync(body.GetEmail(), cancellationToken);
 
 		if (user == null) {
 			return TypedProblems.BadRequest("User not found", ResponseKeys.UserNotFound);

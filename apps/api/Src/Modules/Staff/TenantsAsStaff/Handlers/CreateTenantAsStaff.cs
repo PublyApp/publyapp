@@ -202,7 +202,7 @@ public static class CreateTenantAsStaff {
 	AppBadRequestHttpResult
 	>>
 	HandleCreateTenantAsStaff(
-		[FromBody] CreateTenantAsStaffBody? createTenantBody,
+		[FromBody] CreateTenantAsStaffBody body,
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IRequestAuthContext authContext,
@@ -211,7 +211,6 @@ public static class CreateTenantAsStaff {
 		CancellationToken cancellationToken
 	) {
 		var logger = loggerFactory.CreateLogger(nameof(CreateTenantAsStaff));
-		var body = createTenantBody!;
 
 		// Get authenticated staff user
 		var staffAccount = authContext.AccountStaff;
