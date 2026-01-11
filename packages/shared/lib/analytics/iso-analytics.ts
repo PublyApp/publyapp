@@ -1,5 +1,6 @@
 import type { PostHogConfig, Properties } from 'posthog-js';
 import type { PostHog } from 'posthog-node';
+
 import { isServer } from '../constants';
 import { logger } from '../logger/iso-logger';
 import type {

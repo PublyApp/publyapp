@@ -1,32 +1,3 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import Avatar from '@mui/material/Avatar';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import CardHeader from '@mui/material/CardHeader';
-import Collapse from '@mui/material/Collapse';
-import IconButton from '@mui/material/IconButton';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemAvatar from '@mui/material/ListItemAvatar';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemText from '@mui/material/ListItemText';
-import ListSubheader from '@mui/material/ListSubheader';
-import Paper from '@mui/material/Paper';
-import Skeleton from '@mui/material/Skeleton';
-import Stack from '@mui/material/Stack';
-import Switch from '@mui/material/Switch';
-import { useTheme } from '@mui/material/styles';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
-import { useQueryClient } from '@tanstack/react-query';
-import _ from 'lodash';
-import { useBoolean } from 'minimal-shared/hooks';
-import { isExternalLink } from 'minimal-shared/utils';
-import { type RefObject, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useForm } from 'react-hook-form';
-import type zod from 'zod';
 import { FloatingCard } from '@/front/components/floating-card';
 import { Form } from '@/front/components/hook-form';
 import { Field } from '@/front/components/hook-form/fields';
@@ -56,16 +27,44 @@ import { useRouter } from '@/front/hooks/use-router';
 import { useScrollspy } from '@/front/hooks/use-scrollspy';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { isJsClientError } from '@/front/lib/js-client/js-client-error';
 import {
 	useCreateStaffProfile,
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
-import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
+import { zodResolver } from '@hookform/resolvers/zod';
+import Avatar from '@mui/material/Avatar';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import CardHeader from '@mui/material/CardHeader';
+import Collapse from '@mui/material/Collapse';
+import IconButton from '@mui/material/IconButton';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemAvatar from '@mui/material/ListItemAvatar';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
+import ListSubheader from '@mui/material/ListSubheader';
+import Paper from '@mui/material/Paper';
+import Skeleton from '@mui/material/Skeleton';
+import Stack from '@mui/material/Stack';
+import { useTheme } from '@mui/material/styles';
+import Switch from '@mui/material/Switch';
+import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
+import { useQueryClient } from '@tanstack/react-query';
+import _ from 'lodash';
+import { useBoolean } from 'minimal-shared/hooks';
+import { isExternalLink } from 'minimal-shared/utils';
+import { type RefObject, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useForm } from 'react-hook-form';
+import type zod from 'zod';
 
 // ============================================================
 // CONSTANTS & TYPES
@@ -142,7 +141,7 @@ const defaultValues: NewStaffProfileSchemaType = {
  * @returns true if user prefers reduced motion, false otherwise
  */
 const prefersReducedMotion = (): boolean => {
-	if (typeof window === 'undefined') {
+	if (isServer) {
 		return false;
 	}
 
@@ -221,17 +220,7 @@ const NewStaffProfileForm = () => {
 			form.reset();
 			router.push(FRONT_PATH_NAMES.staff.profiles.root);
 		},
-		onError: (error) => {
-			if (isJsClientError(error)) {
-				toast.error(
-					error.key
-						? t(error.key as never, { ns: I18N_NAMESPACES.RESPONSE_MESSAGE })
-						: error.messageEscaped,
-				);
-				return;
-			}
-			toast.error(_.trim(error.message) || t('unknown-error'));
-		},
+		// Error toasts handled by global handler automatically
 	});
 
 	const onSubmit = form.handleSubmit(

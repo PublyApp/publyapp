@@ -1,4 +1,5 @@
 import type winston from 'winston';
+
 import { isServer } from '../constants';
 import type { ILogger } from './logger.types';
 import { type LogLevel, logLevelHierarchy } from './logger.utils';

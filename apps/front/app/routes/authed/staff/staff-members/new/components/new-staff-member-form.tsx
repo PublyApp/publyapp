@@ -7,17 +7,12 @@ import { toast } from '@/front/components/snackbar';
 import { useRouter } from '@/front/hooks/use-router';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { isJsClientError } from '@/front/lib/js-client/js-client-error';
 import {
 	useCreateStaffMember,
 	useFindStaffMember,
 } from '@/front/lib/react-query/features/staff/staff-member.hooks';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
-import {
-	ACCOUNT_LEVEL_ENUM,
-	FRONT_PATH_NAMES,
-	I18N_NAMESPACES,
-} from '@/shared/lib/constants';
+import { ACCOUNT_LEVEL_ENUM, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { getNewStaffMemberSchema } from '@/shared/validations/staff-member.validations';
 import { UserNewEditForm } from '../../components/user-new-edit-form';
 
@@ -63,17 +58,7 @@ const NewStaffMemberForm = () => {
 				form.reset();
 				router.push(FRONT_PATH_NAMES.staff.staffMembers.root);
 			},
-			onError: (error) => {
-				if (isJsClientError(error)) {
-					toast.error(
-						error.key
-							? t(error.key as never, { ns: I18N_NAMESPACES.RESPONSE_MESSAGE })
-							: error.messageEscaped,
-					);
-					return;
-				}
-				toast.error(_.trim(error.message) || t('unknown-error'));
-			},
+			// Error toasts handled by global handler automatically
 		});
 
 	return (

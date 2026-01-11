@@ -6,7 +6,6 @@ import type zod from 'zod';
 import { toast } from '@/front/components/snackbar';
 import { useRouter } from '@/front/hooks/use-router';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { isJsClientError } from '@/front/lib/js-client/js-client-error';
 import {
 	useFindStaffMember,
 	useGetStaffMemberById,
@@ -17,7 +16,6 @@ import {
 	ACCOUNT_LEVEL_ENUM,
 	type AccountLevel,
 	FRONT_PATH_NAMES,
-	I18N_NAMESPACES,
 	USER_STATUS_ENUM,
 	type UserStatus,
 } from '@/shared/lib/constants';
@@ -96,17 +94,7 @@ const StaffMemberUpdateForm = ({
 				});
 				router.push(FRONT_PATH_NAMES.staff.staffMembers.root);
 			},
-			onError: (error) => {
-				if (isJsClientError(error)) {
-					toast.error(
-						error.key
-							? t(error.key as never, { ns: I18N_NAMESPACES.RESPONSE_MESSAGE })
-							: error.messageEscaped,
-					);
-					return;
-				}
-				toast.error(_.trim(error.message) || t('unknown-error'));
-			},
+			// Error toasts handled by global handler automatically
 		});
 
 	return (

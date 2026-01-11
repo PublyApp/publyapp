@@ -1,5 +1,7 @@
 {
 	"unauthorized": "Non autorisé",
+	"forbidden": "Interdit",
+	"not-a-staff-member": "N'est pas un membre du personnel",
 	"internal-server-error": "Erreur interne du serveur",
 	"not-found": "Non trouvé",
 	"bad-request": "Mauvaise requête",
