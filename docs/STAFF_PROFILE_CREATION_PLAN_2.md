@@ -1,5 +1,7 @@
 # Staff Profile Creation Implementation Plan
 
+> Note (2026-01): This document predates the RFC 7807 ProblemDetails migration. Any error-response examples using `ApiResponse`, `JsonHttpResult<ApiResponse>`, or `.ProducesApiResponses(...)` should be updated to `TypedProblems.*` + `App*HttpResult` (validation errors are `422` `ValidationProblemDetails`).
+
 ## Goal
 Support assigning permissions and handling user emails (assignment or invitation) during staff profile creation. This operation must be ACID (Atomic, Consistent, Isolated, Durable).
 

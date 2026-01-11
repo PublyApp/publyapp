@@ -2,7 +2,7 @@ import GlobalStyles from '@mui/material/GlobalStyles';
 import type { CSSObject, Theme } from '@mui/material/styles';
 import { isRouteErrorResponse } from 'react-router';
 
-import { isJsClientError } from '../lib/js-client/js-client-error';
+import { toApiFailure, isProblemFailure } from '../lib/api-failure';
 
 // ----------------------------------------------------------------------
 type ErrorBoundaryProps = {
@@ -51,21 +51,17 @@ const renderErrorMessage = (error: unknown) => {
 		);
 	}
 
-	if (isJsClientError(_error)) {
+	const failure = toApiFailure(_error);
+	if (isProblemFailure(failure)) {
 		return (
 			<>
 				<h1 className={errorBoundaryClasses.title}>
-					{_error.responseStatusCode}: {_error.messageEscaped}
+					{failure.status}: {failure.title}
 				</h1>
-				<p className={errorBoundaryClasses.message}>{_error.messageEscaped}</p>
+				<p className={errorBoundaryClasses.message}>{failure.detail}</p>
 				<pre className={errorBoundaryClasses.details}>
-					{_error.key ? `Key: ${_error.key}` : ''}
-					{_error.responseStatusCode
-						? `,\nStatus Code: ${_error.responseStatusCode}`
-						: ''}
-					{_error.responseHeaders
-						? `,\nHeaders: ${JSON.stringify(_error.responseHeaders, null, 2)}`
-						: ''}
+					{failure.translationKey ? `Key: ${failure.translationKey}` : ''}
+					{failure.status ? `,\nStatus Code: ${failure.status}` : ''}
 				</pre>
 			</>
 		);

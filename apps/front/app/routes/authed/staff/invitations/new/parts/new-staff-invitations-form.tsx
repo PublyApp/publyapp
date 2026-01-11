@@ -21,7 +21,6 @@ import { toast } from '@/front/components/snackbar';
 import { useRouter } from '@/front/hooks/use-router';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { isJsClientError } from '@/front/lib/js-client/js-client-error';
 import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
 import {
 	useBulkCreateInvitations,
@@ -29,7 +28,7 @@ import {
 } from '@/front/lib/react-query/features/staff/staff-invitation.hooks';
 import { useFindStaffProfiles } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
-import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getBulkCreateInvitationsSchema } from '@/shared/validations/invitation.validations';
 
@@ -102,17 +101,7 @@ const NewStaffInvitationsForm = () => {
 			form.reset();
 			router.push(FRONT_PATH_NAMES.staff.invitations.root);
 		},
-		onError: (error) => {
-			if (isJsClientError(error)) {
-				toast.error(
-					error.key
-						? t(error.key as never, { ns: I18N_NAMESPACES.RESPONSE_MESSAGE })
-						: error.messageEscaped,
-				);
-				return;
-			}
-			toast.error(_.trim(error.message) || t('unknown-error'));
-		},
+		// Error toasts handled by global handler automatically
 	});
 
 	const onSubmit = form.handleSubmit(

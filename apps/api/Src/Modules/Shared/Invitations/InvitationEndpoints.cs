@@ -19,10 +19,7 @@ public static class InvitationEndpoints {
 			)
 			.WithName("GetInvitationDetails")
 			.WithSummary("Get invitation details by token")
-			.ProducesApiResponses(
-				StatusCodes.Status500InternalServerError,
-				StatusCodes.Status404NotFound
-			);
+			.ProducesAppProblem(StatusCodes.Status500InternalServerError);
 
 		group.MapPost(
 				PathUtils.GetLastSegment(RoutePath.Invitations.AcceptByToken, 2),
@@ -31,10 +28,7 @@ public static class InvitationEndpoints {
 			.WithName("AcceptInvitation")
 			.WithSummary("Accept invitation and create account + session")
 			.WithReqBodyValidation<AcceptInvitationBody>()
-			.ProducesApiResponses(
-				StatusCodes.Status500InternalServerError,
-				StatusCodes.Status404NotFound
-			);
+			.ProducesAppProblem(StatusCodes.Status500InternalServerError);
 
 		group.MapGet(
 		PathUtils.GetLastSegment(RoutePath.Invitations.Check),
@@ -43,7 +37,7 @@ public static class InvitationEndpoints {
 		.WithName("CheckInvitationToken")
 		.WithSummary("Check Invitation Token")
 		.WithReqQueryValidation<CheckInvitationTokenQuery>()
-		.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+		.ProducesAppProblem(StatusCodes.Status500InternalServerError);
 
 		return app;
 	}

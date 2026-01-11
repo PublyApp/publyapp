@@ -5,6 +5,7 @@ using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Invitations;
 using MainApi.Src.Modules.Staff.AuditLogs;
 
@@ -208,15 +209,15 @@ public class BulkCreateStaffInvitationsBodyValidator
 public static class BulkCreateStaffInvitations {
 	public static async Task<Results<
 		Ok<BulkStaffInvitationsCreated>,
-		BadRequest<ApiResponse>,
-		JsonHttpResult<ApiResponse>
+		AppBadRequestHttpResult,
+		AppInternalServerErrorHttpResult
 	>> HandleBulkCreateStaffInvitations(
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILoggerFactory loggerFactory,
-		[FromBody] BulkCreateStaffInvitationsBody request,
+		[FromBody] BulkCreateStaffInvitationsBody body,
 		CancellationToken cancellationToken = default
 	) {
 		var logger = loggerFactory.CreateLogger(nameof(BulkCreateStaffInvitations));
@@ -224,17 +225,14 @@ public static class BulkCreateStaffInvitations {
 
 		// should never happen because handler must be set behind StaffAuthFilter
 		if (account is null) {
-			return TypedResults.Json(
-				ApiResponse.Create(
-					"Internal server error",
-					ResponseKeys.InternalServerError
-				),
-				statusCode: StatusCodes.Status500InternalServerError
+			return TypedProblems.InternalServerError(
+				"Internal server error",
+				ResponseKeys.InternalServerError
 			);
 		}
 
 		// Parse JsonElement into typed list
-		var invitations = request.GetInvitations();
+		var invitations = body.GetInvitations();
 
 		// Extract all unique emails and profile IDs for batch validation
 		var uniqueEmails = invitations.Select(i => i.Email).Distinct().ToList();
@@ -247,11 +245,9 @@ public static class BulkCreateStaffInvitations {
 		);
 
 		if (existingUserEmails.Count > 0) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create(
-					$"User(s) already exist: {string.Join(", ", existingUserEmails)}",
-					ResponseKeys.UserAlreadyExists
-				)
+			return TypedProblems.BadRequest(
+				$"User(s) already exist: {string.Join(", ", existingUserEmails)}",
+				ResponseKeys.UserAlreadyExists
 			);
 		}
 
@@ -262,11 +258,9 @@ public static class BulkCreateStaffInvitations {
 		);
 
 		if (existingInvitationEmails.Count > 0) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create(
-					$"Pending invitation(s) exist: {string.Join(", ", existingInvitationEmails)}",
-					ResponseKeys.PendingInvitationExists
-				)
+			return TypedProblems.BadRequest(
+				$"Pending invitation(s) exist: {string.Join(", ", existingInvitationEmails)}",
+				ResponseKeys.PendingInvitationExists
 			);
 		}
 
@@ -279,11 +273,9 @@ public static class BulkCreateStaffInvitations {
 		var missingProfileIds = allProfileIds.Except(validProfileIds).ToList();
 
 		if (missingProfileIds.Count > 0) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create(
-					$"Profile(s) not found: {string.Join(", ", missingProfileIds)}",
-					ResponseKeys.NotFound
-				)
+			return TypedProblems.BadRequest(
+				$"Profile(s) not found: {string.Join(", ", missingProfileIds)}",
+				ResponseKeys.NotFound
 			);
 		}
 
@@ -424,5 +416,3 @@ public static class BulkCreateStaffInvitations {
 		}
 	}
 }
-
-

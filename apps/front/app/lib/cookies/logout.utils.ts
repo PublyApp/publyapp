@@ -1,5 +1,6 @@
 import { ClientManager } from '@/front/lib/js-client/client-manager';
-import { defaultQueryClient } from '@/front/lib/react-query/query-client';
+import { getQueryClient } from '@/front/lib/react-query/query-client';
+import { globalNavigate } from '@/front/lib/react-router/navigation-helper';
 import {
 	FRONT_PATH_NAMES,
 	formActionKey,
@@ -22,43 +23,54 @@ type LogoutOptions = {
  * Clears session state and redirects to login.
  * - Clears non-httpOnly session cookies
  * - Clears TanStack Query cache
- * - Submits POST form to /auth/clear-session to clear httpOnly cookies
+ * - Uses fetch to clear httpOnly cookies (Set-Cookie headers are processed)
+ * - Navigates to login page
  */
 export const logout = (options?: LogoutOptions): void => {
 	// Clear session cookie (non-httpOnly only)
 	clearSessionCookie();
 
-	// Clear react-query cache
-	defaultQueryClient.removeQueries();
+	// Clear entire react-query cache (queries + mutations)
+	getQueryClient().clear();
 
 	// Clear cached API clients and reset singleton (ensures clean state for next user)
 	ClientManager.create().clearClients();
 	ClientManager.resetInstance();
 
-	// Submit form to clear-session route which will:
-	// 1. Clear any httpOnly session cookie on the server
-	// 2. Redirect to login page
-	// POST + Origin validation on server prevents link-based logout attacks
-	const form = document.createElement('form');
-	form.method = 'POST';
-	form.action = FRONT_PATH_NAMES.auth.clearSession;
-
-	const actionInput = document.createElement('input');
-	actionInput.type = 'hidden';
-	actionInput.name = 'action';
-	actionInput.value = formActionKey.clear_httponly_session;
-	form.appendChild(actionInput);
-
-	// Add redirect_cause if specified (for auto-logout on 401)
+	// Build login URL with optional redirect_cause
+	const loginUrl = new URL(FRONT_PATH_NAMES.auth.login, window.location.origin);
 	if (options?.redirectCause === 'invalid_session') {
-		const causeInput = document.createElement('input');
-		causeInput.type = 'hidden';
-		causeInput.name = queryParamKey.login_page.redirect_cause;
-		causeInput.value =
-			queryParamValue.login_page.redirect_cause.invalid_session;
-		form.appendChild(causeInput);
+		loginUrl.searchParams.set(
+			queryParamKey.login_page.redirect_cause,
+			queryParamValue.login_page.redirect_cause.invalid_session,
+		);
 	}
 
-	document.body.appendChild(form);
-	form.submit();
+	// Build form data for the clear-session request
+	const formData = new FormData();
+	formData.append('action', formActionKey.clear_httponly_session);
+	if (options?.redirectCause === 'invalid_session') {
+		formData.append(
+			queryParamKey.login_page.redirect_cause,
+			queryParamValue.login_page.redirect_cause.invalid_session,
+		);
+	}
+
+	// Use fetch to clear httpOnly cookies
+	// Set-Cookie headers from the response are processed by the browser
+	// POST + Origin header provides CSRF protection
+	fetch(FRONT_PATH_NAMES.auth.clearSession, {
+		method: 'POST',
+		credentials: 'include',
+		redirect: 'manual',
+		body: formData,
+	})
+		.catch(() => {
+			// Ignore fetch errors - navigate to login regardless
+		})
+		.finally(() => {
+			// Navigate to login page using React Router (no page reload)
+			// Use replace to prevent back-button returning to protected page
+			globalNavigate(loginUrl.pathname + loginUrl.search, { replace: true });
+		});
 };

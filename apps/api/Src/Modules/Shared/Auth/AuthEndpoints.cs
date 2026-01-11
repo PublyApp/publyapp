@@ -20,7 +20,7 @@ public static class AuthEndpoints {
 			.WithName("LoginWithEmailAndPassword")
 			.WithSummary("Password Login")
 			.WithReqBodyValidation<PasswordLoginBody>()
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			.ProducesAppProblem(StatusCodes.Status500InternalServerError);
 
 		group.MapPost(
 			PathUtils.GetLastSegment(RoutePath.Auth.Register),
@@ -29,7 +29,7 @@ public static class AuthEndpoints {
 			.WithName("RegisterWithEmailAndPassword")
 			.WithSummary("Password Register")
 			.WithReqBodyValidation<PasswordRegisterBody>()
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			.ProducesAppProblem(StatusCodes.Status500InternalServerError);
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Auth.GetUserAuthData),
@@ -38,11 +38,7 @@ public static class AuthEndpoints {
 			.WithName("GetUserAuthData")
 			.WithSummary("Get User Auth Data")
 			.WithCheckSessionHeader()
-			.WithSessionAuthentication()
-			.ProducesApiResponses(
-				StatusCodes.Status500InternalServerError,
-				StatusCodes.Status401Unauthorized
-			);
+			.WithSessionAuthentication();
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Auth.GetTenantAuthData),
@@ -51,13 +47,7 @@ public static class AuthEndpoints {
 			.WithName("GetTenantAuthData")
 			.WithSummary("Get Tenant Auth Data")
 			.WithCheckSessionHeader()
-			.WithSessionAuthentication()
-			.ProducesApiResponses(
-				StatusCodes.Status500InternalServerError,
-				StatusCodes.Status401Unauthorized,
-				StatusCodes.Status403Forbidden,
-				StatusCodes.Status404NotFound
-			);
+			.WithSessionAuthentication();
 
 		group.MapPost(
 			PathUtils.GetLastSegment(RoutePath.Auth.VerifyEmailRequest),
@@ -66,7 +56,7 @@ public static class AuthEndpoints {
 			.WithName("VerifyEmailRequest")
 			.WithSummary("Verify Email Request")
 			.WithReqBodyValidation<VerifyEmailRequestBody>()
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			.ProducesAppProblem(StatusCodes.Status500InternalServerError);
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Auth.GetVerificationLink),
@@ -75,7 +65,7 @@ public static class AuthEndpoints {
 			.WithName("GetVerificationLink")
 			.WithSummary("Get Verification Link")
 			.WithReqQueryValidation<GetVerificationLinkQuery>()
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			.ProducesAppProblem(StatusCodes.Status500InternalServerError);
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Auth.GetRedirectCode),
@@ -85,11 +75,7 @@ public static class AuthEndpoints {
 			.WithSummary("Get Redirect Code")
 			.WithReqQueryValidation<GetRedirectCodeQuery>()
 			.WithCheckSessionHeader()
-			.WithSessionAuthentication()
-			.ProducesApiResponses(
-				StatusCodes.Status500InternalServerError,
-				StatusCodes.Status401Unauthorized
-			);
+			.WithSessionAuthentication();
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Auth.GetUserTenants),
@@ -98,11 +84,7 @@ public static class AuthEndpoints {
 			.WithName("GetUserTenants")
 			.WithSummary("Get User Tenants")
 			.WithCheckSessionHeader()
-			.WithSessionAuthentication()
-			.ProducesApiResponses(
-				StatusCodes.Status500InternalServerError,
-				StatusCodes.Status401Unauthorized
-			);
+			.WithSessionAuthentication();
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Auth.CheckEmailVerificationToken),
@@ -111,7 +93,7 @@ public static class AuthEndpoints {
 			.WithName("CheckEmailVerificationToken")
 			.WithSummary("Check Email Verification Token")
 			.WithReqQueryValidation<CheckEmailVerificationTokenQuery>()
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			.ProducesAppProblem(StatusCodes.Status500InternalServerError);
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Auth.CheckResetPasswordToken),
@@ -120,7 +102,7 @@ public static class AuthEndpoints {
 			.WithName("CheckResetPasswordToken")
 			.WithSummary("Check Reset Password Token")
 			.WithReqQueryValidation<CheckResetPasswordTokenQuery>()
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			.ProducesAppProblem(StatusCodes.Status500InternalServerError);
 
 		group.MapPost(
 			PathUtils.GetLastSegment(RoutePath.Auth.ResetPassword),
@@ -129,7 +111,7 @@ public static class AuthEndpoints {
 			.WithName("ResetPassword")
 			.WithSummary("Reset Password")
 			.WithReqBodyValidation<ResetPasswordBody>()
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			.ProducesAppProblem(StatusCodes.Status500InternalServerError);
 
 		return group;
 	}

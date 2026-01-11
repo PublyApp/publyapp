@@ -3,6 +3,7 @@ using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Shared.Users;
 
@@ -37,7 +38,7 @@ public class CheckEmailVerificationToken {
 	public static async Task<
 		Results<
 			Ok<CheckEmailVerificationTokenResult>,
-			BadRequest<ApiResponse>
+			AppBadRequestHttpResult
 		>
 	> HandleCheckEmailVerificationToken(
 		[AsParameters] CheckEmailVerificationTokenQuery query,
@@ -55,28 +56,28 @@ public class CheckEmailVerificationToken {
 		try {
 			email = CryptoUtils.DecryptString(id).ToLowerInvariant();
 		} catch {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"Invalid or expired email verification token",
 				ResponseKeys.InvalidEmailVerificationToken
-			));
+			);
 		}
 
 		// Query user by email verification token
 		var user = await userService.GetUserByEmailVerificationTokenAsync(token, cancellationToken);
 
 		if (user is null) {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"Invalid or expired email verification token",
 				ResponseKeys.InvalidEmailVerificationToken
-			));
+			);
 		}
 
 		// check if token is for the given email
 		if (string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase) is false) {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"Invalid or expired email verification token",
 				ResponseKeys.InvalidEmailVerificationToken
-			));
+			);
 		}
 
 		var shouldResetPassword = false;
@@ -87,10 +88,10 @@ public class CheckEmailVerificationToken {
 
 		// Check if token is expired
 		if (user.EmailVerifyTokenExpiresAt.HasValue && DateTime.UtcNow > user.EmailVerifyTokenExpiresAt.Value) {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"Invalid or expired email verification token",
 				ResponseKeys.InvalidEmailVerificationToken
-			));
+			);
 		}
 
 		// Generate password reset token

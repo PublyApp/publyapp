@@ -1,4 +1,6 @@
 using MainApi.Localization;
+using MainApi.Src.Lib.Extensions;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Permissions;
 using MainApi.Src.Modules.Shared.Users;
 
@@ -54,13 +56,12 @@ public class PermissionFilter : IEndpointFilter {
 						logger.LogDebug("User is not an admin and has no permissions: {@AccountStaff}", new {
 							accountId = accountStaff.Id,
 							userId = accountStaff.UserId,
-							sessionToken = authContext.SessionToken,
 						});
 					}
 
-					return TypedResults.Json(
-						ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),
-						statusCode: StatusCodes.Status401Unauthorized
+					return TypedProblems.Forbidden(
+						"User has no permissions",
+						ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
 					);
 				}
 
@@ -89,10 +90,9 @@ public class PermissionFilter : IEndpointFilter {
 						});
 					}
 
-					return TypedResults.Json(ApiResponse.Create(
+					return TypedProblems.Forbidden(
 						"User does not have the necessary permissions",
-						ResponseKeys.UserDoesNotHaveTheNecessaryPermissions),
-						statusCode: StatusCodes.Status403Forbidden
+						ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
 					);
 				}
 			}
@@ -103,18 +103,54 @@ public class PermissionFilter : IEndpointFilter {
 }
 
 public static class PermissionFilterExtensions {
+	/// <summary>
+	/// Adds PermissionFilter to the route group with required permissions.
+	/// All specified permissions are required (AND logic).
+	/// </summary>
+	public static RouteGroupBuilder WithPermission(
+		this RouteGroupBuilder builder,
+		Permission[] requiredPermissions
+	) {
+		return builder
+			.AddEndpointFilter(new PermissionFilter(requiredPermissions))
+			.ProducesAppProblem(StatusCodes.Status403Forbidden);
+	}
+
+	/// <summary>
+	/// Adds PermissionFilter to the route group with a custom permission checker.
+	/// </summary>
+	public static RouteGroupBuilder WithPermission(
+		this RouteGroupBuilder builder,
+		Func<HashSet<string>, bool> customPermissionChecker
+	) {
+		return builder
+			.AddEndpointFilter(new PermissionFilter(customPermissionChecker))
+			.ProducesAppProblem(StatusCodes.Status403Forbidden);
+	}
+
+	/// <summary>
+	/// Adds PermissionFilter to the route handler with required permissions.
+	/// All specified permissions are required (AND logic).
+	/// </summary>
 	public static RouteHandlerBuilder WithPermission(
 		this RouteHandlerBuilder builder,
 		Permission[] requiredPermissions
 	) {
-		return builder.AddEndpointFilter(new PermissionFilter(requiredPermissions));
+		return builder
+			.AddEndpointFilter(new PermissionFilter(requiredPermissions))
+			.ProducesAppProblem(StatusCodes.Status403Forbidden);
 	}
 
+	/// <summary>
+	/// Adds PermissionFilter to the route handler with a custom permission checker.
+	/// </summary>
 	public static RouteHandlerBuilder WithPermission(
 		this RouteHandlerBuilder builder,
 		Func<HashSet<string>, bool> customPermissionChecker
 	) {
-		return builder.AddEndpointFilter(new PermissionFilter(customPermissionChecker));
+		return builder
+			.AddEndpointFilter(new PermissionFilter(customPermissionChecker))
+			.ProducesAppProblem(StatusCodes.Status403Forbidden);
 	}
 }
 
