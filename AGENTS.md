@@ -386,6 +386,19 @@ export async function clientLoader() { ... }
 6. Session authentication
 7. Staff authorization (for `/staff/*` routes)
 
+### RFC 7807 + Frontend Logout Semantics (Do Not Regress)
+
+**Backend invariants:**
+- Error responses must be RFC 7807 `application/problem+json` via `TypedProblems.*` and the `App*HttpResult` types.
+- `422` is for validation problems and must include `errors: Dictionary<string, string[]>` with stable keys.
+- `401` must be reserved for **invalid/missing session** only (frontend treats `401` as “logout now”).
+- Tenant header issues should not return `401` (use `400`/`422` as appropriate).
+- Never log secrets: do not log `X-Session-Token` (or any session token value) in any log level.
+
+**Frontend invariants:**
+- Only `401` triggers centralized logout; `403` must not log users out.
+- The TanStack Query `QueryClient` is a browser singleton; auth handling must work even if it’s instantiated before root initialization.
+
 ### Internationalization (i18n)
 
 **Translation workflow:**

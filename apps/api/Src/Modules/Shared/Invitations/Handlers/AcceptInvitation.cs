@@ -3,6 +3,7 @@ using System.Text.Json;
 using FluentValidation;
 
 using MainApi.Localization;
+using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Auth;
 using MainApi.Src.Modules.Shared.Users;
@@ -60,12 +61,14 @@ public static class AcceptInvitation {
 		AppBadRequestHttpResult
 	>> HandleAcceptInvitation(
 		[FromRoute] string token,
-		[FromBody] AcceptInvitationBody request,
+		[FromBody] AcceptInvitationBody? request,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] ISessionService sessionService,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
 	) {
+		var body = request!;
+
 		// Validate invitation
 		var invitation = await invitationService.GetInvitationByTokenAsync(
 			token,
@@ -90,9 +93,9 @@ public static class AcceptInvitation {
 		}
 
 		// Extract values after validation
-		var firstName = request.FirstName.GetString()!;
-		var lastName = request.LastName.GetString()!;
-		var password = request.Password.GetString()!;
+		var firstName = body.FirstName.GetValueAsString();
+		var lastName = body.LastName.GetValueAsString();
+		var password = body.Password.GetValueAsString();
 		var passwordHash = PasswordUtils.HashPassword(password);
 
 		// Call appropriate service based on invitation scope

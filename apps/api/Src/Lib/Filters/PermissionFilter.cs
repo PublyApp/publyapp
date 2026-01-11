@@ -56,7 +56,6 @@ public class PermissionFilter : IEndpointFilter {
 						logger.LogDebug("User is not an admin and has no permissions: {@AccountStaff}", new {
 							accountId = accountStaff.Id,
 							userId = accountStaff.UserId,
-							sessionToken = authContext.SessionToken,
 						});
 					}
 

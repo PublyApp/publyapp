@@ -202,7 +202,7 @@ public static class CreateTenantAsStaff {
 	AppBadRequestHttpResult
 	>>
 	HandleCreateTenantAsStaff(
-		[FromBody] CreateTenantAsStaffBody createTenantBody,
+		[FromBody] CreateTenantAsStaffBody? createTenantBody,
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IRequestAuthContext authContext,
@@ -211,6 +211,7 @@ public static class CreateTenantAsStaff {
 		CancellationToken cancellationToken
 	) {
 		var logger = loggerFactory.CreateLogger(nameof(CreateTenantAsStaff));
+		var body = createTenantBody!;
 
 		// Get authenticated staff user
 		var staffAccount = authContext.AccountStaff;
@@ -219,9 +220,9 @@ public static class CreateTenantAsStaff {
 		}
 
 		// Parse request
-		var tenantName = createTenantBody.GetName();
-		var maxUsers = createTenantBody.GetMaxUsers();
-		var initialUsersItems = createTenantBody.GetInitialUsers();
+		var tenantName = body.GetName();
+		var maxUsers = body.GetMaxUsers();
+		var initialUsersItems = body.GetInitialUsers();
 
 		// Apply default MaxUsers if not provided
 		var effectiveMaxUsers = maxUsers ?? appSettings.Value.DEFAULT_MAX_USERS_PER_TENANT;

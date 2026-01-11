@@ -217,10 +217,11 @@ public static class BulkCreateStaffInvitations {
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILoggerFactory loggerFactory,
-		[FromBody] BulkCreateStaffInvitationsBody request,
+		[FromBody] BulkCreateStaffInvitationsBody? request,
 		CancellationToken cancellationToken = default
 	) {
 		var logger = loggerFactory.CreateLogger(nameof(BulkCreateStaffInvitations));
+		var body = request!;
 		var account = authContext.AccountStaff;
 
 		// should never happen because handler must be set behind StaffAuthFilter
@@ -232,7 +233,7 @@ public static class BulkCreateStaffInvitations {
 		}
 
 		// Parse JsonElement into typed list
-		var invitations = request.GetInvitations();
+		var invitations = body.GetInvitations();
 
 		// Extract all unique emails and profile IDs for batch validation
 		var uniqueEmails = invitations.Select(i => i.Email).Distinct().ToList();
@@ -416,5 +417,4 @@ public static class BulkCreateStaffInvitations {
 		}
 	}
 }
-
 

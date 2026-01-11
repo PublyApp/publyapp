@@ -20,7 +20,7 @@ public class ReqBodyValidationFilter<TRequest> : IEndpointFilter {
 			.FirstOrDefault(x => x.arg is TRequest);
 
 		if (found is null) {
-			// No matching body argument → fail validation
+			// No matching body argument -> fail validation
 			return TypedProblems.ValidationProblem(
 				"Request body is required",
 				ResponseKeys.RequestBodyValidationFailed,

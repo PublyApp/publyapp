@@ -49,8 +49,7 @@ export const toApiFailure = (error: unknown): ApiFailure => {
 		(typeof DOMException !== 'undefined' &&
 			error instanceof DOMException &&
 			error.name === 'AbortError') ||
-		(error instanceof Error && error.name === 'AbortError') ||
-		(error instanceof Error && error.message.includes('aborted'))
+		(error instanceof Error && error.name === 'AbortError')
 	) {
 		return {
 			kind: 'abort',

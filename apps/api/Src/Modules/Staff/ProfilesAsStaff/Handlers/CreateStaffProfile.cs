@@ -175,16 +175,17 @@ public static class CreateStaffProfile {
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILoggerFactory loggerFactory,
-		[FromBody] CreateStaffProfileBody body,
+		[FromBody] CreateStaffProfileBody? body,
 		CancellationToken cancellationToken = default
 	) {
 		var logger = loggerFactory.CreateLogger(nameof(CreateStaffProfile));
+		var request = body!;
 
 		// Extract values after validation
-		string name = body.GetName();
-		string? description = body.GetDescription();
-		List<string> permissions = body.GetPermissions();
-		List<string> emails = body.GetEmails();
+		string name = request.GetName();
+		string? description = request.GetDescription();
+		List<string> permissions = request.GetPermissions();
+		List<string> emails = request.GetEmails();
 
 		// Get current user ID for audit logging and invitations
 		var currentUserId = authContext.AccountStaff?.UserId

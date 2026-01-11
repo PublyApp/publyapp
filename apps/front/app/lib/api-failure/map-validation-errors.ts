@@ -44,6 +44,21 @@ export type MapValidationErrorsResult = {
  * Converts PascalCase to camelCase.
  */
 const toCamelCase = (str: string): string => {
+	if (str.length === 0) return str;
+
+	// If the whole string is uppercase (e.g., "ID"), just lowercase it.
+	if (/^[A-Z0-9_]+$/.test(str)) {
+		return str.toLowerCase();
+	}
+
+	// Handle leading acronyms: "XMLParser" -> "xmlParser"
+	const leadingAcronymMatch = str.match(/^[A-Z]+(?=[A-Z][a-z])/);
+	if (leadingAcronymMatch) {
+		const prefix = leadingAcronymMatch[0].toLowerCase();
+		return prefix + str.slice(leadingAcronymMatch[0].length);
+	}
+
+	// Default: lowercase the first character: "UserId" -> "userId"
 	return str.charAt(0).toLowerCase() + str.slice(1);
 };
 
@@ -62,7 +77,7 @@ const isNonFieldError = (fieldName: string): boolean => {
  * This function:
  * - Sets form field errors using setError()
  * - Handles field name mapping (server vs form naming conventions)
- * - Handles nested field names (e.g., "user.email" → "user.email" in RHF)
+ * - Handles nested field names (e.g., "User.Email" -> "user.email" in RHF)
  * - Handles non-field errors ("", "_", "general") based on strategy
  * - Returns unmapped errors for optional toast display
  *
@@ -139,7 +154,7 @@ export const mapValidationErrors = <TForm extends FieldValues>(
 		if (serverField in fieldMapping) {
 			formField = fieldMapping[serverField];
 		}
-		// 2. Handle nested paths (e.g., "User.Email" → "user.email")
+		// 2. Handle nested paths (e.g., "User.Email" -> "user.email")
 		else if (serverField.includes('.')) {
 			formField = autoConvertCase
 				? serverField.split('.').map(toCamelCase).join('.')

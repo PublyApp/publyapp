@@ -113,16 +113,18 @@ public class ResetPassword {
 			AppBadRequestHttpResult
 		>
 	> HandleResetPassword(
-		[FromBody] ResetPasswordBody body,
+		[FromBody] ResetPasswordBody? body,
 		[FromServices] IUserService userService,
 		[FromServices] IEmailService emailService,
 		[FromServices] ILogger<ResetPassword> logger,
 		CancellationToken cancellationToken
 	) {
+		var request = body!;
+
 		// Get validated string values
-		string id = body.GetId();
-		string token = body.GetToken();
-		string newPassword = body.GetNewPassword();
+		string id = request.GetId();
+		string token = request.GetToken();
+		string newPassword = request.GetNewPassword();
 
 		// Decrypt the ID to get email
 		string email;
@@ -187,4 +189,3 @@ public class ResetPassword {
 		});
 	}
 }
-

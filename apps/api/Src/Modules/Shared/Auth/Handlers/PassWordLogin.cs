@@ -3,6 +3,7 @@ using System.Text.Json;
 using FluentValidation;
 
 using MainApi.Localization;
+using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Users;
 
@@ -16,17 +17,11 @@ public class PasswordLoginBody {
 	public JsonElement Password { get; set; }
 
 	public string GetPassword() {
-		return Password.ValueKind switch {
-			JsonValueKind.String => Password.GetString() ?? throw new InvalidOperationException("Password cannot be null"),
-			_ => throw new InvalidOperationException("Invalid password format")
-		};
+		return Password.GetValueAsString();
 	}
 
 	public string GetEmail() {
-		return Email.ValueKind switch {
-			JsonValueKind.String => Email.GetString() ?? throw new InvalidOperationException("Email cannot be null"),
-			_ => throw new InvalidOperationException("Invalid email format")
-		};
+		return Email.GetValueAsString();
 	}
 }
 
@@ -68,14 +63,16 @@ public class PasswordLogin {
 		Ok<PasswordLoginResult>,
 		AppBadRequestHttpResult
 	>> HandlePasswordLogin(
-		[FromBody] PasswordLoginBody loginBody,
+		[FromBody] PasswordLoginBody? loginBody,
 		[FromServices] IUserService userService,
 		[FromServices] ISessionService sessionService,
 		CancellationToken cancellationToken
 	) {
+		var body = loginBody!;
+
 		// Get validated string values
-		string email = loginBody.GetEmail();
-		string password = loginBody.GetPassword();
+		string email = body.GetEmail();
+		string password = body.GetPassword();
 
 		var user = await userService.GetUserByEmailAsync(email, cancellationToken);
 

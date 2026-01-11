@@ -203,7 +203,7 @@ public class CreateStaffMember {
 			AppBadRequestHttpResult
 		>
 	> HandleCreateStaffMember(
-		[FromBody] CreateStaffMemberBody body,
+		[FromBody] CreateStaffMemberBody? body,
 		[FromServices] IUserService userService,
 		[FromServices] IAccountService accountService,
 		[FromServices] IEmailService emailService,
@@ -211,19 +211,21 @@ public class CreateStaffMember {
 		[FromServices] ILogger<CreateStaffMember> logger,
 		CancellationToken cancellationToken
 	) {
+		var request = body!;
+
 		var password = CryptoUtils.RandomString(appSettings.Value.PASSWORD_MIN_LENGTH);
 		password = PasswordUtils.HashPassword(password);
 
 		var user = new User {
-			Email = body.GetEmail(),
+			Email = request.GetEmail(),
 			Password = password,
-			LastName = body.GetLastName(),
-			FirstName = body.GetFirstName(),
-			AvatarUrl = body.GetAvatarUrl(),
+			LastName = request.GetLastName(),
+			FirstName = request.GetFirstName(),
+			AvatarUrl = request.GetAvatarUrl(),
 			IsVerified = false,
 		};
 
-		if (body.GetSendNotification()) {
+		if (request.GetSendNotification()) {
 			user.IsVerified = false;
 			user.EmailVerifyToken = CryptoUtils.RandomString(appSettings.Value.EMAIL_VERIFY_TOKEN_LENGTH);
 			user.EmailVerifyTokenExpiresAt = DateTime.UtcNow.AddDays(appSettings.Value.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION);
@@ -269,7 +271,7 @@ public class CreateStaffMember {
 		// Create staff account using AccountService
 		var accountResult = await accountService.CreateStaffAccountAsync(
 			userIdGuid,
-			accountLevel: body.GetAccountLevel(),
+			accountLevel: request.GetAccountLevel(),
 			cancellationToken
 		);
 
@@ -281,7 +283,7 @@ public class CreateStaffMember {
 		}
 
 		if (accountResult is CreateStaffAccountResult.Success accountSuccess) {
-			if (body.GetSendNotification()) {
+			if (request.GetSendNotification()) {
 				if (shouldVerifyEmail) {
 					if (string.IsNullOrEmpty(user.EmailVerifyToken)) {
 						throw new InvalidOperationException("Email verify should not be null or empty");
