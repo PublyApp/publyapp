@@ -1,3 +1,6 @@
+using MainApi.Localization;
+using MainApi.Src.Lib.ProblemResults;
+
 namespace MainApi.Src.Modules.Tenant.Products;
 
 public static class ProductHandlers {
@@ -9,8 +12,8 @@ public static class ProductHandlers {
 	public static async Task<IResult> GetProductById(Guid id, IProductService productService, CancellationToken cancellationToken = default) {
 		var product = await productService.GetProductByIdAsync(id, cancellationToken);
 
-		if (product == null) {
-			return TypedResults.NotFound();
+		if (product is null) {
+			return TypedProblems.NotFound("Product not found", ResponseKeys.NotFound);
 		}
 
 		return TypedResults.Ok(product);
@@ -23,7 +26,7 @@ public static class ProductHandlers {
 
 	public static async Task<IResult> UpdateProduct(Guid id, Product product, IProductService productService, CancellationToken cancellationToken = default) {
 		if (id != product.Id) {
-			return TypedResults.BadRequest();
+			return TypedProblems.BadRequest("Product ID does not match route ID", ResponseKeys.BadRequest);
 		}
 
 		var updatedProduct = await productService.UpdateProductAsync(product, cancellationToken);
@@ -34,7 +37,7 @@ public static class ProductHandlers {
 		var deleted = await productService.DeleteProductAsync(id, cancellationToken);
 
 		if (!deleted) {
-			return TypedResults.NotFound();
+			return TypedProblems.NotFound("Product not found", ResponseKeys.NotFound);
 		}
 
 		return TypedResults.NoContent();

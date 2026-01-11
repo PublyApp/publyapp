@@ -1,5 +1,4 @@
 using MainApi.Src.Lib;
-using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Staff.InvitationsAsStaff.Handlers;
@@ -19,11 +18,7 @@ public static class InvitationEndpoints {
 			)
 			.WithName("CreateStaffInvitation")
 			.WithSummary("Create a staff invitation (Admin only)")
-			.WithReqBodyValidation<CreateStaffInvitationBody>()
-			.ProducesApiResponses(
-				StatusCodes.Status500InternalServerError,
-				StatusCodes.Status403Forbidden
-			);
+			.WithReqBodyValidation<CreateStaffInvitationBody>();
 
 		group.MapPost(
 				PathUtils.GetLastSegment(RoutePath.Staff.Invitations.BulkCreate),
@@ -31,34 +26,21 @@ public static class InvitationEndpoints {
 			)
 			.WithName("BulkCreateStaffInvitations")
 			.WithSummary("Bulk create staff invitations (Admin only)")
-			.WithReqBodyValidation<BulkCreateStaffInvitationsBody>()
-			.ProducesApiResponses(
-				StatusCodes.Status500InternalServerError,
-				StatusCodes.Status403Forbidden
-			);
+			.WithReqBodyValidation<BulkCreateStaffInvitationsBody>();
 
 		group.MapGet(
 				PathUtils.GetLastSegment(RoutePath.Staff.Invitations.Find),
 				FindStaffInvitations.HandleFindStaffInvitations
 			)
 			.WithName("FindStaffInvitations")
-			.WithSummary("Find staff invitations")
-			.ProducesApiResponses(
-				StatusCodes.Status500InternalServerError,
-				StatusCodes.Status403Forbidden
-			);
+			.WithSummary("Find staff invitations");
 
 		group.MapDelete(
 				PathUtils.GetLastSegment(RoutePath.Staff.Invitations.RevokeById),
 				RevokeInvitation.HandleRevokeInvitation
 			)
 			.WithName("RevokeInvitation")
-			.WithSummary("Revoke a staff invitation (Admin only)")
-			.ProducesApiResponses(
-				StatusCodes.Status500InternalServerError,
-				StatusCodes.Status403Forbidden,
-				StatusCodes.Status404NotFound
-			);
+			.WithSummary("Revoke a staff invitation (Admin only)");
 
 		return routes;
 	}

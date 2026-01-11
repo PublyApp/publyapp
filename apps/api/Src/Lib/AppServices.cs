@@ -43,6 +43,18 @@ public static class AppServices {
 	}
 
 	public static IHostApplicationBuilder AddAppServices(this WebApplicationBuilder builder) {
+		// Enable framework ProblemDetails services (RFC 7807) for exception handling and middleware integration.
+		// Note: Endpoints should still use TypedProblems + App*HttpResult types for OpenAPI status-code inference.
+		builder.Services.AddProblemDetails(options => {
+			options.CustomizeProblemDetails = context => {
+				context.ProblemDetails.Instance ??= context.HttpContext.Request.Path.Value;
+
+				if (!context.ProblemDetails.Extensions.ContainsKey("traceId")) {
+					context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+				}
+			};
+		});
+
 		// Add HealthChecks
 		builder.Services.AddHealthChecks();
 

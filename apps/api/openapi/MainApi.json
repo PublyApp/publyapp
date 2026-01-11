@@ -36,9 +36,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -46,9 +56,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -87,9 +97,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -97,9 +117,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -125,22 +145,22 @@
               }
             }
           },
-          "500": {
-            "description": "Internal Server Error",
+          "401": {
+            "description": "Unauthorized",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
           },
-          "401": {
-            "description": "Unauthorized",
+          "500": {
+            "description": "Internal Server Error",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -176,42 +196,12 @@
               }
             }
           },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
-                }
-              }
-            }
-          },
           "403": {
             "description": "Forbidden",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -219,9 +209,29 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -260,9 +270,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -270,9 +290,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -311,9 +331,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -321,9 +351,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -358,12 +388,12 @@
               }
             }
           },
-          "500": {
-            "description": "Internal Server Error",
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -371,9 +401,19 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -399,22 +439,22 @@
               }
             }
           },
-          "500": {
-            "description": "Internal Server Error",
+          "401": {
+            "description": "Unauthorized",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
           },
-          "401": {
-            "description": "Unauthorized",
+          "500": {
+            "description": "Internal Server Error",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -461,9 +501,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -471,9 +521,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -520,9 +570,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -530,9 +590,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -571,9 +631,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -581,9 +651,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -622,9 +692,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -632,9 +702,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -683,9 +753,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -693,9 +763,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -703,9 +783,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -752,9 +832,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -762,9 +852,9 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -780,12 +870,65 @@
         "summary": "Get all products",
         "operationId": "GetProducts",
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Product"
+                  }
                 }
               }
             }
@@ -809,12 +952,62 @@
           "required": true
         },
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/Product"
                 }
               }
             }
@@ -841,12 +1034,62 @@
           }
         ],
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/Product"
                 }
               }
             }
@@ -881,12 +1124,62 @@
           "required": true
         },
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/Product"
                 }
               }
             }
@@ -911,15 +1204,58 @@
           }
         ],
         "responses": {
-          "500": {
-            "description": "Internal Server Error",
+          "401": {
+            "description": "Unauthorized",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
           }
         }
       }
@@ -941,6 +1277,36 @@
           }
         ],
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
@@ -960,19 +1326,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
           },
-          "500": {
-            "description": "Internal Server Error",
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -1018,6 +1384,36 @@
           }
         ],
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
@@ -1031,19 +1427,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
           },
-          "500": {
-            "description": "Internal Server Error",
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -1067,6 +1463,36 @@
           "required": true
         },
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
@@ -1080,19 +1506,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
           },
-          "500": {
-            "description": "Internal Server Error",
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -1146,6 +1572,36 @@
           }
         ],
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
@@ -1159,19 +1615,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
           },
-          "500": {
-            "description": "Internal Server Error",
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -1197,6 +1653,36 @@
           "required": true
         },
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
@@ -1210,19 +1696,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
           },
-          "500": {
-            "description": "Internal Server Error",
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -1266,6 +1752,36 @@
           }
         ],
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
@@ -1279,19 +1795,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
           },
-          "500": {
-            "description": "Internal Server Error",
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -1317,6 +1833,36 @@
           }
         ],
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
@@ -1330,19 +1876,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -1368,6 +1904,36 @@
           "required": true
         },
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
@@ -1381,19 +1947,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
           },
-          "500": {
-            "description": "Internal Server Error",
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -1437,6 +2003,36 @@
           }
         ],
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
@@ -1450,19 +2046,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
           },
-          "500": {
-            "description": "Internal Server Error",
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -1488,6 +2084,36 @@
           }
         ],
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
@@ -1501,19 +2127,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -1547,6 +2163,36 @@
           "required": true
         },
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
@@ -1560,19 +2206,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
           },
-          "500": {
-            "description": "Internal Server Error",
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -1598,6 +2244,36 @@
           "required": true
         },
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
@@ -1611,29 +2287,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
           },
-          "500": {
-            "description": "Internal Server Error",
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -1647,6 +2313,36 @@
         "summary": "Find staff invitations",
         "operationId": "FindStaffInvitations",
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
@@ -1656,26 +2352,6 @@
                   "items": {
                     "$ref": "#/components/schemas/InvitationListItem"
                   }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
                 }
               }
             }
@@ -1701,6 +2377,36 @@
           "required": true
         },
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
@@ -1714,29 +2420,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
           },
-          "500": {
-            "description": "Internal Server Error",
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -1763,6 +2459,36 @@
           }
         ],
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
@@ -1776,29 +2502,9 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -1839,6 +2545,45 @@
           }
         },
         "description": "Represents an API response with a message and a type-safe translation key"
+      },
+      "AppProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "translationKey": {
+            "type": "string",
+            "description": "The translation key for frontend localization.\r\nSerialized as \"translationKey\" in the JSON response."
+          }
+        },
+        "description": "A ProblemDetails extension that includes a translation key for frontend i18n.\r\nComplies with RFC 7807 while supporting localization."
       },
       "BulkCreateStaffInvitationsBody": {
         "type": "object",
@@ -2799,6 +3544,55 @@
             ]
           }
         }
+      },
+      "ValidationProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "Dictionary of field names to error messages.\r\nSerialized as \"errors\" in the JSON response."
+          },
+          "translationKey": {
+            "type": "string",
+            "description": "The translation key for frontend localization.\r\nSerialized as \"translationKey\" in the JSON response."
+          }
+        },
+        "description": "A ProblemDetails extension for validation errors.\r\nIncludes field-level errors in addition to the translation key.\r\nComplies with RFC 7807 while supporting validation error details."
       },
       "VerifyEmailRequestBody": {
         "required": [

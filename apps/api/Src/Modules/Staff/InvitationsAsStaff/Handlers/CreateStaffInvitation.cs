@@ -5,6 +5,8 @@ using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.Extensions;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Invitations;
 using MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Modules.Staff.AuditLogs;
@@ -64,15 +66,15 @@ public class CreateStaffInvitationBodyValidator : AbstractValidator<CreateStaffI
 public static class CreateStaffInvitation {
 	public static async Task<Results<
 		Ok<InvitationCreated>,
-		BadRequest<ApiResponse>,
-		JsonHttpResult<ApiResponse>
+		AppBadRequestHttpResult,
+		AppForbiddenHttpResult
 	>> HandleCreateStaffInvitation(
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILoggerFactory loggerFactory,
-		[FromBody] CreateStaffInvitationBody request,
+		[FromBody] CreateStaffInvitationBody body,
 		CancellationToken cancellationToken = default
 	) {
 		var logger = loggerFactory.CreateLogger(nameof(CreateStaffInvitation));
@@ -81,18 +83,15 @@ public static class CreateStaffInvitation {
 		if (account is null
 			|| account.Scope != AccountScope.Staff
 			|| account.Level != AccountLevel.Admin) {
-			return TypedResults.Json(
-				ApiResponse.Create(
-					"User does not have the necessary permissions",
-					ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
-				),
-				statusCode: StatusCodes.Status403Forbidden
+			return TypedProblems.Forbidden(
+				"User does not have the necessary permissions",
+				ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
 			);
 		}
 
 		// Extract values after validation
-		var email = request.Email.GetString()!;
-		var profileId = Guid.Parse(request.ProfileId.GetString()!);
+		var email = body.Email.GetValueAsString();
+		var profileId = Guid.Parse(body.ProfileId.GetValueAsString());
 
 		// Validate profile via service
 		var profile = await invitationService.GetStaffProfileAsync(
@@ -100,9 +99,7 @@ public static class CreateStaffInvitation {
 			cancellationToken
 		);
 		if (profile is null) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create("Profile not found", ResponseKeys.NotFound)
-			);
+			return TypedProblems.BadRequest("Profile not found", ResponseKeys.NotFound);
 		}
 
 		// Check if user exists via service
@@ -111,11 +108,9 @@ public static class CreateStaffInvitation {
 			cancellationToken
 		);
 		if (userExists) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create(
-					"User already exists",
-					ResponseKeys.UserAlreadyExists
-				)
+			return TypedProblems.BadRequest(
+				"User already exists",
+				ResponseKeys.UserAlreadyExists
 			);
 		}
 
@@ -126,11 +121,9 @@ public static class CreateStaffInvitation {
 			cancellationToken
 		);
 		if (pendingExists) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create(
-					"Pending invitation exists",
-					ResponseKeys.PendingInvitationExists
-				)
+			return TypedProblems.BadRequest(
+				"Pending invitation exists",
+				ResponseKeys.PendingInvitationExists
 			);
 		}
 

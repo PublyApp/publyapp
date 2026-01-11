@@ -4,6 +4,7 @@ using FluentValidation;
 
 using MainApi.Localization;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Users;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -52,15 +53,15 @@ public class PasswordRegisterResult {
 
 public static class PasswordRegister {
 	public static async Task<Results<
-	Ok<PasswordRegisterResult>,
-	BadRequest<ApiResponse>
+		Ok<PasswordRegisterResult>,
+		AppBadRequestHttpResult
 	>> HandlePasswordRegister(
-		[FromBody] PasswordRegisterBody registerBody,
+		[FromBody] PasswordRegisterBody body,
 		[FromServices] IUserService userService,
 		CancellationToken cancellationToken
-) {
-		var email = registerBody.GetEmail();
-		var password = registerBody.GetPassword();
+	) {
+		var email = body.GetEmail();
+		var password = body.GetPassword();
 
 		// hash the password
 		password = PasswordUtils.HashPassword(password);
@@ -73,10 +74,10 @@ public static class PasswordRegister {
 		var createUserResult = await userService.CreateUserAsync(newUser, cancellationToken);
 
 		if (createUserResult is CreateUserResult.UserAlreadyExists) {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedProblems.BadRequest(
 				"User already exists",
 				ResponseKeys.UserAlreadyExists
-			));
+			);
 		}
 
 		if (createUserResult is CreateUserResult.Success success) {
@@ -88,9 +89,9 @@ public static class PasswordRegister {
 			});
 		}
 
-		return TypedResults.BadRequest(ApiResponse.Create(
+		return TypedProblems.BadRequest(
 			"Failed to register user",
 			ResponseKeys.FailedToRegisterUser
-		));
+		);
 	}
 }

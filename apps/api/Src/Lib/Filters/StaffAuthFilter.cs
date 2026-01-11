@@ -1,4 +1,6 @@
 using MainApi.Localization;
+using MainApi.Src.Lib.Extensions;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Users;
 
 namespace MainApi.Src.Lib.Filters;
@@ -32,10 +34,7 @@ public class StaffAuthFilter : IEndpointFilter {
 					nameof(StaffAuthFilter)
 				);
 			}
-			return TypedResults.Json(
-				ApiResponse.Create("Failed to authenticate user", ResponseKeys.FailedToAuthenticateUser),
-				statusCode: StatusCodes.Status500InternalServerError
-			);
+			return TypedProblems.InternalServerError("Failed to authenticate user", ResponseKeys.FailedToAuthenticateUser);
 		}
 
 		if (authContext.UserId is not Guid userId) {
@@ -50,10 +49,7 @@ public class StaffAuthFilter : IEndpointFilter {
 			if (_logger.IsEnabled(LogLevel.Debug)) {
 				_logger.LogDebug("User is not a staff member: {UserId}", authContext.UserId);
 			}
-			return TypedResults.Json(
-				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),
-				statusCode: StatusCodes.Status401Unauthorized
-			);
+			return TypedProblems.Forbidden("User is not a staff member", ResponseKeys.NotAStaffMember);
 		}
 
 		authContext.AccountStaff = accountStaff;
@@ -71,7 +67,9 @@ public static class StaffAuthFilterExtensions {
 	/// Requires SessionAuthFilter to be applied first.
 	/// </summary>
 	public static RouteGroupBuilder WithStaffAuthorization(this RouteGroupBuilder builder) {
-		return builder.AddEndpointFilter<StaffAuthFilter>();
+		return builder
+			.AddEndpointFilter<StaffAuthFilter>()
+			.ProducesAppProblem(StatusCodes.Status403Forbidden, StatusCodes.Status500InternalServerError);
 	}
 
 	/// <summary>
@@ -80,6 +78,9 @@ public static class StaffAuthFilterExtensions {
 	/// Requires SessionAuthFilter to be applied first.
 	/// </summary>
 	public static RouteHandlerBuilder WithStaffAuthorization(this RouteHandlerBuilder builder) {
-		return builder.AddEndpointFilter<StaffAuthFilter>();
+		return builder
+			.AddEndpointFilter<StaffAuthFilter>()
+			.Produces<AppProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")
+			.Produces<AppProblemDetails>(StatusCodes.Status500InternalServerError, "application/problem+json");
 	}
 }

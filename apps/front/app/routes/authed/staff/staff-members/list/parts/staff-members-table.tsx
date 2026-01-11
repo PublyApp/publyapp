@@ -24,7 +24,6 @@ import { toast } from '@/front/components/snackbar';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { isJsClientError } from '@/front/lib/js-client/js-client-error';
 import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
 import {
 	useGetUserAuthData,
@@ -37,12 +36,10 @@ import {
 	ACCOUNT_LEVEL_ENUM,
 	DEFAULT_PAGE_SIZE,
 	FRONT_PATH_NAMES,
-	I18N_NAMESPACES,
 	USER_STATUS_ENUM,
 	voidFunction,
 } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
-import { getErrorMessage } from '@/shared/utils/error.utils';
 import { getUserFullName } from '@/shared/utils/user.utils';
 
 export type StaffMemberRowData = {
@@ -377,7 +374,7 @@ const CopyLinkButton = ({
 					if (!linkData) {
 						const result = await fetchVerificationLink();
 						if (result.error) {
-							logger.error(getErrorMessage(result.error), {
+							logger.error('Failed to get verification link', {
 								error: result.error,
 							});
 							toast.error(t('copy-to-clipboard-error'));
@@ -413,21 +410,11 @@ const FollowUpButton = ({
 		mutateAsync: sendEmailVerificationReminder,
 		isPending: isPendingSendEmailVerificationReminder,
 	} = useSendEmailVerificationReminder({
+		// Success toast handled manually since we want a custom message
 		onSuccess: () => {
 			toast.success(t('email-verification-follow-up-success'));
 		},
-		onError: (error) => {
-			if (isJsClientError(error)) {
-				const errorMessage = error.key
-					? t(error.key as never, { ns: I18N_NAMESPACES.RESPONSE_MESSAGE })
-					: error.messageEscaped;
-				toast.error(errorMessage);
-				logger.error(errorMessage, { error });
-				return;
-			}
-			logger.error(getErrorMessage(error), { error });
-			toast.error(t('email-verification-follow-up-error'));
-		},
+		// Error toasts handled by global handler automatically
 	});
 
 	if (!isUserPending && !forceShow) return null;

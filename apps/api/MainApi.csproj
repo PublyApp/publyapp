@@ -39,6 +39,9 @@
 	<PropertyGroup Condition="'$(Configuration)' != 'Test'">
 		<OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
 		<OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)\openapi</OpenApiDocumentsDirectory>
+		<!-- Prevent duplicate assembly attributes when OpenAPI doc generation runs -->
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)' == 'Test'">

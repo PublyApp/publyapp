@@ -1,4 +1,6 @@
 using MainApi.Localization;
+using MainApi.Src.Lib.Extensions;
+using MainApi.Src.Lib.ProblemResults;
 
 using Microsoft.Extensions.Options;
 
@@ -22,10 +24,7 @@ public class CheckTenantHeaderFilter : IEndpointFilter {
 			?? httpContext.Request.Headers[appSettings.TENANT_ID_HEADER_KEY].FirstOrDefault();
 
 		if (string.IsNullOrEmpty(tenantId)) {
-			return TypedResults.Json(
-				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),
-				statusCode: StatusCodes.Status401Unauthorized
-			);
+			return TypedProblems.BadRequest("Tenant ID is missing", ResponseKeys.TenantIdRequired);
 		}
 
 		// Set tenant ID in AuthContext for downstream filters/handlers
@@ -44,7 +43,9 @@ public static class CheckTenantHeaderFilterExtensions {
 	/// Validates that the tenant ID header is present.
 	/// </summary>
 	public static RouteGroupBuilder WithCheckTenantHeader(this RouteGroupBuilder builder) {
-		return builder.AddEndpointFilter<CheckTenantHeaderFilter>();
+		return builder
+			.AddEndpointFilter<CheckTenantHeaderFilter>()
+			.ProducesAppProblem(StatusCodes.Status400BadRequest);
 	}
 
 	/// <summary>
@@ -52,6 +53,8 @@ public static class CheckTenantHeaderFilterExtensions {
 	/// Validates that the tenant ID header is present.
 	/// </summary>
 	public static RouteHandlerBuilder WithCheckTenantHeader(this RouteHandlerBuilder builder) {
-		return builder.AddEndpointFilter<CheckTenantHeaderFilter>();
+		return builder
+			.AddEndpointFilter<CheckTenantHeaderFilter>()
+			.Produces<AppProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json");
 	}
 }

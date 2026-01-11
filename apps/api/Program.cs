@@ -40,9 +40,7 @@ public class Program {
 			.WithCheckSessionHeader()         // 1. Check session header
 			.WithCheckTenantHeader()          // 2. Check tenant header
 			.WithSessionAuthentication()      // 3. Authenticate session
-																				// TODO[tenant-auth]: TenantAuthFilter is a placeholder;
-																				// * implement tenant verification logic later.
-			.WithTenantAuthorization();       // 4. Verify tenant access (placeholder)
+			.WithTenantAuthorization();       // 4. Verify tenant access
 
 		var staffGroup = app.MapGroup(RoutePath.Staff.Root)
 			.WithCheckSessionHeader()         // 1. Check session header

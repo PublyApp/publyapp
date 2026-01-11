@@ -3,7 +3,8 @@ using System.Text.Json;
 using FluentValidation;
 
 using MainApi.Localization;
-using MainApi.Src.Lib;
+using MainApi.Src.Lib.Extensions;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Auth;
 using MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Modules.Staff.AuditLogs;
@@ -56,11 +57,11 @@ public class AcceptInvitationBodyValidator : AbstractValidator<AcceptInvitationB
 public static class AcceptInvitation {
 	public static async Task<Results<
 		Ok<InvitationAccepted>,
-		NotFound<ApiResponse>,
-		BadRequest<ApiResponse>
+		AppNotFoundHttpResult,
+		AppBadRequestHttpResult
 	>> HandleAcceptInvitation(
 		[FromRoute] string token,
-		[FromBody] AcceptInvitationBody request,
+		[FromBody] AcceptInvitationBody body,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] ISessionService sessionService,
 		[FromServices] IAuditLogService auditLogService,
@@ -73,9 +74,7 @@ public static class AcceptInvitation {
 		);
 
 		if (invitation is null) {
-			return TypedResults.NotFound(
-				ApiResponse.Create("Invitation not found", ResponseKeys.NotFound)
-			);
+			return TypedProblems.NotFound("Invitation not found", ResponseKeys.NotFound);
 		}
 
 		// Check if user already exists
@@ -85,18 +84,16 @@ public static class AcceptInvitation {
 		);
 
 		if (userExists) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create(
-					"User already exists",
-					ResponseKeys.UserAlreadyExists
-				)
+			return TypedProblems.BadRequest(
+				"User already exists",
+				ResponseKeys.UserAlreadyExists
 			);
 		}
 
 		// Extract values after validation
-		var firstName = request.FirstName.GetString()!;
-		var lastName = request.LastName.GetString()!;
-		var password = request.Password.GetString()!;
+		var firstName = body.FirstName.GetValueAsString();
+		var lastName = body.LastName.GetValueAsString();
+		var password = body.Password.GetValueAsString();
 		var passwordHash = PasswordUtils.HashPassword(password);
 
 		// Call appropriate service based on invitation scope

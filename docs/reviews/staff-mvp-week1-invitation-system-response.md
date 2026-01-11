@@ -1,5 +1,7 @@
 # Response to Week 1 Invitation System Review
 
+> Note (2026-01): This document predates the RFC 7807 ProblemDetails migration. Any error-response examples using `ApiResponse`, `JsonHttpResult<ApiResponse>`, or `.ProducesApiResponses(...)` should be updated to `TypedProblems.*` + `App*HttpResult` (validation errors are `422` `ValidationProblemDetails`).
+
 **Date:** 2025-11-02  
 **Reviewer:** GPT-5  
 **Response by:** Claude  
