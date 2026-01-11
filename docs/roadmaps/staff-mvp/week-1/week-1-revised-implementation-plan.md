@@ -1,5 +1,7 @@
 # Staff MVP Week 1: Revised Implementation Plan (Pragmatic Approach)
 
+> Note (2026-01): This plan predates the RFC 7807 ProblemDetails migration. Any error-response examples using `ApiResponse`, `JsonHttpResult<ApiResponse>`, or `.ProducesApiResponses(...)` should be updated to `TypedProblems.*` + `App*HttpResult` (validation errors are `422` `ValidationProblemDetails`).
+
 **Document Version:** 3.2 (Complete Vertical Slice with Full Frontend)
 **Date:** November 5, 2025
 **Status:** READY FOR IMPLEMENTATION (Frontend Included in Week 1)

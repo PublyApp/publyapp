@@ -5,6 +5,8 @@ using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.Extensions;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Shared.Users;
 
@@ -18,10 +20,7 @@ public class VerifyEmailRequestBody {
 	public required JsonElement Email { get; set; }
 
 	public string GetEmail() {
-		return Email.ValueKind switch {
-			JsonValueKind.String => Email.GetString() ?? throw new InvalidOperationException("Email cannot be null"),
-			_ => throw new InvalidOperationException("Invalid email format")
-		};
+		return Email.GetValueAsString();
 	}
 }
 
@@ -48,7 +47,7 @@ public class VerifyEmailRequest {
 	public static async Task<
 		Results<
 			Ok<VerifyEmailRequestResult>,
-			BadRequest<ApiResponse>
+			AppBadRequestHttpResult
 		>
 	> HandleVerifyEmailRequest(
 		[FromBody] VerifyEmailRequestBody body,
@@ -62,11 +61,11 @@ public class VerifyEmailRequest {
 		var user = await userService.GetUserByEmailAsync(body.GetEmail(), cancellationToken);
 
 		if (user == null) {
-			return TypedResults.BadRequest(ApiResponse.Create("User not found", ResponseKeys.UserNotFound));
+			return TypedProblems.BadRequest("User not found", ResponseKeys.UserNotFound);
 		}
 
 		if (user.IsVerified == true) {
-			return TypedResults.BadRequest(ApiResponse.Create("Email already verified", ResponseKeys.EmailAlreadyVerified));
+			return TypedProblems.BadRequest("Email already verified", ResponseKeys.EmailAlreadyVerified);
 		}
 
 		var userEmail = user.Email;

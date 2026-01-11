@@ -1,5 +1,6 @@
 using MainApi.Localization;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Invitations;
 using MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Modules.Staff.AuditLogs;
@@ -12,8 +13,8 @@ namespace MainApi.Src.Modules.Staff.InvitationsAsStaff.Handlers;
 public static class RevokeInvitation {
 	public static async Task<Results<
 		Ok<ApiResponse>,
-		NotFound<ApiResponse>,
-		JsonHttpResult<ApiResponse>
+		AppNotFoundHttpResult,
+		AppForbiddenHttpResult
 	>> HandleRevokeInvitation(
 		[FromRoute] Guid invitationId,
 		[FromServices] IRequestAuthContext authContext,
@@ -26,12 +27,9 @@ public static class RevokeInvitation {
 		if (account is null
 			|| account.Scope != AccountScope.Staff
 			|| account.Level != AccountLevel.Admin) {
-			return TypedResults.Json(
-				ApiResponse.Create(
-					"User does not have the necessary permissions",
-					ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
-				),
-				statusCode: StatusCodes.Status403Forbidden
+			return TypedProblems.Forbidden(
+				"User does not have the necessary permissions",
+				ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
 			);
 		}
 
@@ -41,9 +39,7 @@ public static class RevokeInvitation {
 		);
 
 		if (!success) {
-			return TypedResults.NotFound(
-				ApiResponse.Create("Invitation not found", ResponseKeys.NotFound)
-			);
+			return TypedProblems.NotFound("Invitation not found", ResponseKeys.NotFound);
 		}
 
 		await auditLogService.LogAsync(

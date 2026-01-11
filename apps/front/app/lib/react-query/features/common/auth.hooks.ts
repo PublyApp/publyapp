@@ -2,7 +2,7 @@ import { createUntypedString } from '@microsoft/kiota-abstractions';
 import _ from 'lodash';
 import type { CreateQueryOptions } from 'react-query-kit';
 
-import { isJsClientError } from '@/front/lib/js-client/js-client-error';
+import { toApiFailure } from '@/front/lib/api-failure';
 import type { VerifyEmailRequestBody } from '@/js-client/src/models';
 
 import {
@@ -17,13 +17,21 @@ const authRetry: CreateQueryOptions['retry'] = (
 	failureCount: number,
 	error: Error,
 ) => {
-	if (isJsClientError(error)) {
+	const failure = toApiFailure(error);
+
+	if (failure.kind === 'problem') {
 		const authErrorStatuses = [401, 403, 404];
-		if (authErrorStatuses.includes(error.responseStatusCode)) {
+		if (authErrorStatuses.includes(failure.status)) {
 			// Don't retry on auth errors - fail fast
 			return false;
 		}
 	}
+
+	// Never retry aborts
+	if (failure.kind === 'abort') {
+		return false;
+	}
+
 	// For other errors (network issues, etc.), retry up to 2 times
 	return failureCount < 2;
 };

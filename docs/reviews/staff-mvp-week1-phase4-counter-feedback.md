@@ -1,5 +1,7 @@
 # Counter-Feedback: Phase 4 Core Services Review
 
+> Note (2026-01): This document predates the RFC 7807 ProblemDetails migration. Any error-response examples using `ApiResponse` should be updated to `TypedProblems.*` + `AppProblemDetails` / `ValidationProblemDetails` where applicable.
+
 **Date:** 2025-11-02  
 **Original Review:** `staff-mvp-week1-phase4-review.md`  
 **Phase 4 Objective:** Create foundational internal services for invitations, audit logging, and impersonation (NOT production-ready endpoints)

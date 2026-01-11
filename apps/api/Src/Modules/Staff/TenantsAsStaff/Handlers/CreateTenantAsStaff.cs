@@ -6,6 +6,7 @@ using MainApi.Localization;
 using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Shared.Users;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -198,10 +199,10 @@ public static class CreateTenantAsStaff {
 	public static async Task<
 	Results<
 	Ok<CreateTenantAsStaffResult>,
-	BadRequest<ApiResponse>
+	AppBadRequestHttpResult
 	>>
 	HandleCreateTenantAsStaff(
-		[FromBody] CreateTenantAsStaffBody createTenantBody,
+		[FromBody] CreateTenantAsStaffBody body,
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IRequestAuthContext authContext,
@@ -214,15 +215,13 @@ public static class CreateTenantAsStaff {
 		// Get authenticated staff user
 		var staffAccount = authContext.AccountStaff;
 		if (staffAccount is null) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized)
-			);
+			return TypedProblems.BadRequest("Unauthorized", ResponseKeys.Unauthorized);
 		}
 
 		// Parse request
-		var tenantName = createTenantBody.GetName();
-		var maxUsers = createTenantBody.GetMaxUsers();
-		var initialUsersItems = createTenantBody.GetInitialUsers();
+		var tenantName = body.GetName();
+		var maxUsers = body.GetMaxUsers();
+		var initialUsersItems = body.GetInitialUsers();
 
 		// Apply default MaxUsers if not provided
 		var effectiveMaxUsers = maxUsers ?? appSettings.Value.DEFAULT_MAX_USERS_PER_TENANT;
@@ -275,9 +274,7 @@ public static class CreateTenantAsStaff {
 		} catch (InvalidOperationException ex) {
 			// Business logic validation failures
 			logger.LogWarning(ex, "Tenant creation validation failed");
-			return TypedResults.BadRequest(
-				ApiResponse.Create(ex.Message, ResponseKeys.BadRequest)
-			);
+			return TypedProblems.BadRequest(ex.Message, ResponseKeys.BadRequest);
 		}
 	}
 

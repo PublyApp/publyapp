@@ -1,5 +1,4 @@
 using MainApi.Src.Lib;
-using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Staff.PermissionsAsStaff.Handlers;
@@ -21,8 +20,7 @@ public static class PermissionAsStaffEndpoints {
 				AppPermissions.Staff.Profiles.GET_FOR_STAFF,
 				AppPermissions.Staff.Permissions.LIST_FOR_STAFF
 			])
-			.WithReqQueryValidation<FindStaffPermissionsQuery>()
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			.WithReqQueryValidation<FindStaffPermissionsQuery>();
 
 		return routes;
 	}
