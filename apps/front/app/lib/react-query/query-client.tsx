@@ -50,6 +50,19 @@ let toastModulePromise: Promise<typeof import('sonner')> | null = null;
 // Idempotency flag to prevent multiple parallel 401s from triggering repeated logout/navigation/toasts
 let authLogoutInProgress = false;
 
+// Browser-only: current auth error callback (set from app root)
+let onAuthErrorRef: OnAuthErrorCallback | undefined;
+
+const setOnAuthErrorCallback = (callback?: OnAuthErrorCallback): void => {
+	// Never store per-request callbacks on the server (avoid cross-request leakage)
+	if (isServer) return;
+	onAuthErrorRef = callback;
+};
+
+const getOnAuthErrorCallback = (): OnAuthErrorCallback | undefined => {
+	return onAuthErrorRef;
+};
+
 /**
  * Reset the auth logout flag.
  * Called by AuthQueriesLoader when a valid session is established.
@@ -146,7 +159,7 @@ const getErrorMessage = (failure: ReturnType<typeof toApiFailure>): string => {
 /**
  * Create a mutation error handler with auth callback.
  */
-const createMutationErrorHandler = (onAuthError?: OnAuthErrorCallback) => {
+const createMutationErrorHandler = () => {
 	return (
 		error: unknown,
 		_variables: unknown,
@@ -154,6 +167,7 @@ const createMutationErrorHandler = (onAuthError?: OnAuthErrorCallback) => {
 		mutation: Mutation<unknown, unknown, unknown, unknown>,
 	): void => {
 		const failure = toApiFailure(error);
+		const onAuthError = getOnAuthErrorCallback();
 
 		// Log all errors for debugging (even on server for SSR debugging)
 		if (import.meta.env.DEV) {
@@ -179,8 +193,13 @@ const createMutationErrorHandler = (onAuthError?: OnAuthErrorCallback) => {
 				onAuthError(failure.status, failure);
 				// Note: authLogoutInProgress stays true - reset happens in AuthQueriesLoader on next login
 			}
-			// Don't toast 401 errors - the redirect/logout handles the UX
-			return;
+
+			// If we don't have a callback (misconfiguration/init order), don't swallow the error silently.
+			// Fall through to normal error handling so users aren't stuck.
+			if (onAuthError) {
+				// Don't toast 401 errors - the redirect/logout handles the UX
+				return;
+			}
 		}
 
 		// Allow full opt-out of global error handling
@@ -277,6 +296,7 @@ const handleMutationSuccess = (
 const createQueryErrorHandler = (onAuthError?: OnAuthErrorCallback) => {
 	return (error: unknown, query: Query<unknown, unknown, unknown>): void => {
 		const failure = toApiFailure(error);
+		const currentOnAuthError = getOnAuthErrorCallback() ?? onAuthError;
 
 		// Don't log abort errors - they're expected during navigation
 		if (failure.kind === 'abort') return;
@@ -294,10 +314,15 @@ const createQueryErrorHandler = (onAuthError?: OnAuthErrorCallback) => {
 			!query.meta?.skipAuthErrorHandler
 		) {
 			// Idempotent: only trigger once even if multiple parallel requests fail
-			if (!authLogoutInProgress && onAuthError) {
+			if (!authLogoutInProgress && currentOnAuthError) {
 				authLogoutInProgress = true;
-				onAuthError(failure.status, failure);
+				currentOnAuthError(failure.status, failure);
 				// Note: authLogoutInProgress stays true - reset happens in AuthQueriesLoader on next login
+			} else if (!currentOnAuthError && import.meta.env.DEV) {
+				logger.error('[Auth Error Handler Missing]', {
+					status: failure.status,
+					failure,
+				});
 			}
 		}
 
@@ -335,6 +360,11 @@ export const createQueryClient = (
 	options: CreateQueryClientOptions = {},
 ): QueryClient => {
 	const { onAuthError, isDev = true } = options;
+
+	// Browser-only: allow setting the auth handler even if the client was created elsewhere first.
+	if (!isServer) {
+		setOnAuthErrorCallback(onAuthError);
+	}
 
 	return new QueryClient({
 		defaultOptions: {
@@ -374,7 +404,7 @@ export const createQueryClient = (
 			onError: createQueryErrorHandler(onAuthError),
 		}),
 		mutationCache: new MutationCache({
-			onError: createMutationErrorHandler(onAuthError),
+			onError: createMutationErrorHandler(),
 			onSuccess: handleMutationSuccess,
 		}),
 	});
@@ -398,6 +428,10 @@ export const getQueryClient = (
 	}
 
 	// Browser: reuse singleton
+	// Still update onAuthError so global 401 handling is available even if the singleton was created earlier.
+	if (options?.onAuthError) {
+		setOnAuthErrorCallback(options.onAuthError);
+	}
 	if (!browserQueryClient) {
 		browserQueryClient = createQueryClient(options);
 	}

@@ -60,7 +60,7 @@ public class TenantAuthFilter : IEndpointFilter {
 					authContext.TenantId
 				);
 			}
-			return TypedProblems.Unauthorized("Unauthorized", ResponseKeys.Unauthorized);
+			return TypedProblems.BadRequest("Invalid tenant ID format", ResponseKeys.BadRequest);
 		}
 
 		// 4. Verify tenant exists and is active
@@ -114,7 +114,7 @@ public static class TenantAuthFilterExtensions {
 		return builder
 			.AddEndpointFilter<TenantAuthFilter>()
 			.ProducesAppProblem(
-				StatusCodes.Status401Unauthorized,
+				StatusCodes.Status400BadRequest,
 				StatusCodes.Status403Forbidden,
 				StatusCodes.Status404NotFound,
 				StatusCodes.Status500InternalServerError
@@ -129,7 +129,7 @@ public static class TenantAuthFilterExtensions {
 	public static RouteHandlerBuilder WithTenantAuthorization(this RouteHandlerBuilder builder) {
 		return builder
 			.AddEndpointFilter<TenantAuthFilter>()
-			.Produces<AppProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")
+			.Produces<AppProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")
 			.Produces<AppProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")
 			.Produces<AppProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")
 			.Produces<AppProblemDetails>(StatusCodes.Status500InternalServerError, "application/problem+json");

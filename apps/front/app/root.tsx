@@ -5,6 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import i18next, { type TFunction } from 'i18next';
 import _ from 'lodash';
 import { NuqsAdapter } from 'nuqs/adapters/react-router/v7';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
 	isRouteErrorResponse,
@@ -27,8 +28,8 @@ import View400 from './components/error/400-view';
 import { ProgressBar } from './components/progress-bar';
 import { Snackbar } from './components/snackbar/snackbar';
 import { useNonce } from './hooks/use-nonce';
-import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
 import { logout } from './lib/cookies/logout.utils';
+import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
 import { getQueryClient } from './lib/react-query/query-client';
 import { setGlobalNavigate } from './lib/react-router/navigation-helper';
 import { getServerLoader } from './lib/react-router/server-data.server';
@@ -152,7 +153,11 @@ const App = ({ loaderData }: Route.ComponentProps) => {
 	const navigate = useNavigate();
 
 	// Set up global navigate for use outside React components (e.g., logout)
-	setGlobalNavigate(navigate);
+	// Use effect to avoid side-effects during render + avoid SSR global mutations.
+	useEffect(() => {
+		if (isServer) return;
+		setGlobalNavigate(navigate);
+	}, [navigate]);
 
 	// This hook will change the i18n instance language to the current locale
 	// detected by the loader, this way, when we do something to change the

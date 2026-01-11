@@ -11,6 +11,37 @@ This is the living reference for PublyApp's API error responses and their OpenAP
   - `translationKey`
   - `errors: Dictionary<string, string[]>` (field-level errors)
 
+## Runtime Semantics (Important Behavior)
+
+### Status Code Semantics
+
+- `401 Unauthorized` means **session invalid/missing** and is the *only* status code that should trigger automatic logout on the frontend.
+- `403 Forbidden` means **authenticated but not allowed** (no logout; show a forbidden view).
+- Tenant header problems are **not** `401`:
+  - Missing tenant header returns `400` with `translationKey: TenantIdRequired`.
+  - Invalid tenant ID format returns `400` with `translationKey: BadRequest`.
+
+### Validation & “Missing Input” Rules
+
+- `422 ValidationProblemDetails` is the canonical format for validation problems and must include `errors: Record<string, string[]>`.
+- Missing request body/query params should produce `422` with stable keys (`body` for missing body; the query param name for missing query params).
+- There are two sources of missing-body/query-param failures:
+  - Validation filters (`ReqBodyValidationFilter` / `ReqQueryValidationFilter`) when the endpoint binds successfully.
+  - Global exception handler for binding-time failures that occur before filters run.
+
+### Frontend Auth Handling (TanStack Query)
+
+- Global query/mutation handlers classify errors via `toApiFailure()` and apply policy:
+  - `401` triggers centralized logout (idempotent).
+  - `403` must never trigger logout.
+- `QueryClient` is a browser singleton. **Do not rely on “first call wins” options** for auth handling:
+  - The code supports setting/updating `onAuthError` even if the singleton is created earlier by another callsite.
+  - If `onAuthError` is missing (misconfiguration), `401` should not be silently swallowed; fallback UX should show an error.
+
+### Security Note (Non-Negotiable)
+
+- Never log session tokens (or other secrets). If correlation is needed, log a non-reversible fingerprint instead.
+
 ## Backbone (Do Not Regress)
 
 - Use `TypedProblems.*` in handlers (avoid `TypedResults.Json(..., statusCode: ...)` for errors).

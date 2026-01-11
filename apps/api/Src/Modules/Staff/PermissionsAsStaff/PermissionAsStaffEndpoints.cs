@@ -20,8 +20,7 @@ public static class PermissionAsStaffEndpoints {
 				AppPermissions.Staff.Profiles.GET_FOR_STAFF,
 				AppPermissions.Staff.Permissions.LIST_FOR_STAFF
 			])
-			.WithReqQueryValidation<FindStaffPermissionsQuery>()
-			;
+			.WithReqQueryValidation<FindStaffPermissionsQuery>();
 
 		return routes;
 	}

@@ -52,15 +52,17 @@ public class VerifyEmailRequest {
 			AppBadRequestHttpResult
 		>
 	> HandleVerifyEmailRequest(
-		[FromBody] VerifyEmailRequestBody body,
+		[FromBody] VerifyEmailRequestBody? body,
 		[FromServices] IUserService userService,
 		[FromServices] IEmailService emailService,
 		[FromServices] ILogger<VerifyEmailRequest> logger,
 		[FromServices] IOptions<AppSettings> appSettings,
 		CancellationToken cancellationToken
 	) {
+		var request = body!;
+
 		// check if user exists
-		var user = await userService.GetUserByEmailAsync(body.GetEmail(), cancellationToken);
+		var user = await userService.GetUserByEmailAsync(request.GetEmail(), cancellationToken);
 
 		if (user == null) {
 			return TypedProblems.BadRequest("User not found", ResponseKeys.UserNotFound);

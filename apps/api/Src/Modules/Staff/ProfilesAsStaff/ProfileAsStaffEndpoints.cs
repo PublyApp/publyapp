@@ -17,8 +17,7 @@ public static class ProfileAsStaffEndpoints {
 			.WithName("FindStaffProfiles")
 			.WithSummary("Find profiles for a staff member")
 			.WithPermission([AppPermissions.Staff.Profiles.LIST_FOR_STAFF])
-			.WithReqQueryValidation<FindStaffProfilesQuery>()
-			;
+			.WithReqQueryValidation<FindStaffProfilesQuery>();
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Staff.Profiles.FindForTenant, n: 2),
@@ -27,8 +26,7 @@ public static class ProfileAsStaffEndpoints {
 			.WithName("FindTenantProfiles")
 			.WithSummary("Find profiles for a tenant")
 			.WithPermission([AppPermissions.Staff.Profiles.LIST_FOR_TENANT])
-			.WithReqQueryValidation<FindTenantProfilesAsStaffQuery>()
-			;
+			.WithReqQueryValidation<FindTenantProfilesAsStaffQuery>();
 
 		group.MapPost(
 			PathUtils.GetLastSegment(RoutePath.Staff.Profiles.CreateForStaff),
@@ -37,8 +35,7 @@ public static class ProfileAsStaffEndpoints {
 			.WithName("CreateStaffProfile")
 			.WithSummary("Create a new staff profile")
 			.WithPermission([AppPermissions.Staff.Profiles.CREATE_FOR_STAFF])
-			.WithReqBodyValidation<CreateStaffProfileBody>()
-			;
+			.WithReqBodyValidation<CreateStaffProfileBody>();
 
 		return routes;
 	}

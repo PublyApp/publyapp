@@ -73,10 +73,11 @@ public static class CreateStaffInvitation {
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILoggerFactory loggerFactory,
-		[FromBody] CreateStaffInvitationBody request,
+		[FromBody] CreateStaffInvitationBody? request,
 		CancellationToken cancellationToken = default
 	) {
 		var logger = loggerFactory.CreateLogger(nameof(CreateStaffInvitation));
+		var body = request!;
 		// Authorization check
 		var account = authContext.AccountStaff;
 		if (account is null
@@ -89,8 +90,8 @@ public static class CreateStaffInvitation {
 		}
 
 		// Extract values after validation
-		var email = request.Email.GetString()!;
-		var profileId = Guid.Parse(request.ProfileId.GetString()!);
+		var email = body.Email.GetString()!;
+		var profileId = Guid.Parse(body.ProfileId.GetString()!);
 
 		// Validate profile via service
 		var profile = await invitationService.GetStaffProfileAsync(

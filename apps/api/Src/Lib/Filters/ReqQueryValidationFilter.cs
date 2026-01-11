@@ -21,7 +21,7 @@ public class ReqQueryValidationFilter<TRequest> : IEndpointFilter where TRequest
 			.Select((arg, i) => (arg, i))
 			.FirstOrDefault(x => x.arg is TRequest);
 
-		// No matching query argument → fail validation
+		// No matching query argument -> fail validation
 		if (found is null) {
 			var empty = (TRequest)RuntimeHelpers.GetUninitializedObject(typeof(TRequest));
 			var resultDefault = await _validator.ValidateAsync(empty, httpContext.HttpContext.RequestAborted);
