@@ -11,6 +11,7 @@ import {
 	enUS as enUSDate,
 	frFR as frFRDate,
 } from '@mui/x-date-pickers/locales';
+
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
 // ----------------------------------------------------------------------
