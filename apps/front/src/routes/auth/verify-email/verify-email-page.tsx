@@ -5,12 +5,13 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { useForm } from 'react-hook-form';
 import { redirect, useFetcher } from 'react-router';
+
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { ClientManager } from '@/front/lib/js-client/client-manager';
+import { getClientManager } from '@/front/lib/js-client/client-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import {
 	getServerAction,
@@ -29,6 +30,7 @@ import {
 	getEmailFormSchema,
 	getRequestEmailVerificationSchema,
 } from '@/shared/validations/auth.validations';
+
 import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/verify-email-page';
 
@@ -38,7 +40,7 @@ const actionIntent = {
 
 export const action = getServerAction({
 	action: async ({ request, context, z }) => {
-		const apiClient = ClientManager.create().createClient({ skipAuth: true });
+		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const formData = await request.formData();
 		const intent = formData.get('intent');
 
@@ -94,7 +96,7 @@ export const action = getServerAction({
 
 export const loader = getServerLoader({
 	loader: async ({ request, z, context }) => {
-		const apiClient = ClientManager.create().createClient({ skipAuth: true });
+		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const searchParams = new URL(request.url).searchParams;
 		const token = searchParams.get(queryParamKey.token);
 		const encodedEmail = searchParams.get(

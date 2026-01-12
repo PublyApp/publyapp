@@ -11,12 +11,12 @@ import {
 	clearSessionCookie,
 	getSessionCookieFromClient,
 } from '@/front/lib/cookies/session-cookie.utils';
-import { ClientManager } from '@/front/lib/js-client/client-manager';
+import { getClientManager } from '@/front/lib/js-client/client-manager';
 import {
 	useGetTenantAuthData,
 	useGetUserAuthData,
 } from '@/front/lib/react-query/features/common/auth.hooks';
-import { defaultQueryClient } from '@/front/lib/react-query/query-client';
+import { getQueryClient } from '@/front/lib/react-query/query-client';
 import { getClientLoader } from '@/front/lib/react-router/client-data';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
@@ -25,16 +25,13 @@ import {
 	formActionKey,
 	I18N_NAMESPACES,
 	LAST_USED_TENANT_ID_COOKIE_KEY,
-	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 
 export const loader = getServerLoader({
-	loader: async ({ request }) => {
-		const reqCookies = cookie.parse(request.headers.get('cookie') || '');
-		const sessionToken = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY);
-
+	loader: async ({ request, sessionToken, staffToken, tenantToken }) => {
 		// If no session token exists, return NOT_AUTHENTICATED
+		// sessionToken is the primary token (tenantToken ?? staffToken) parsed by getServerLoader
 		if (!sessionToken) {
 			return {
 				status: 'NOT_AUTHENTICATED',
@@ -42,9 +39,12 @@ export const loader = getServerLoader({
 		}
 
 		// Session token exists - validate it by calling the API
-		const authedApiClient = ClientManager.create({
-			sessionToken,
+		const authedApiClient = getClientManager({
+			staffToken,
+			tenantToken,
 		}).createClient();
+
+		const reqCookies = cookie.parse(request.headers.get('cookie') || '');
 
 		const getUserAuthData = safeRun(async () => {
 			return authedApiClient.auth.userAuthData.get();
@@ -166,21 +166,13 @@ export const clientLoader = getClientLoader({
 					? redirectCodeResult.data?.redirectCode
 					: undefined;
 
-			defaultQueryClient.setQueryData(
-				useGetUserAuthData.getKey(),
-				userAuthData,
-			);
+			getQueryClient().setQueryData(useGetUserAuthData.getKey(), userAuthData);
 
 			if (redirectCode && redirectCode !== 'unauthorized') {
-				defaultQueryClient.prefetchQuery({
+				getQueryClient().prefetchQuery({
 					queryKey: useGetTenantAuthData.getKey({ tenantId: redirectCode }),
-					queryFn: async ({ queryKey }) => {
-						const tenantId = _.get(queryKey, '1.tenantId');
-						const result = await useGetTenantAuthData.fetcher({
-							tenantId: tenantId as never,
-						});
-						return result;
-					},
+					queryFn: () =>
+						useGetTenantAuthData.fetcher({ tenantId: redirectCode }),
 				});
 
 				if (redirectCode === 'staff') {

@@ -15,14 +15,14 @@ import {
 	useLoaderData,
 	useSearchParams,
 } from 'react-router';
-// import ParseRestError from 'packages/parse-rest-client/ParseRestError';
+
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { toast } from '@/front/components/snackbar';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { ClientManager } from '@/front/lib/js-client/client-manager';
+import { getClientManager } from '@/front/lib/js-client/client-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import {
 	getServerAction,
@@ -37,12 +37,13 @@ import {
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { getErrorMessage } from '@/shared/utils/error.utils';
 import { getResetPasswordSchema } from '@/shared/validations/auth.validations';
+
 import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/reset-password-page';
 
 export const action = getServerAction({
 	action: async ({ request, z }) => {
-		const apiClient = ClientManager.create().createClient({ skipAuth: true });
+		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const searchParams = new URL(request.url).searchParams;
 		const token = searchParams.get(queryParamKey.token);
 		const encodedEmail = searchParams.get(
@@ -53,7 +54,37 @@ export const action = getServerAction({
 		const newPassword = formData.get('newPassword');
 		const confirmPassword = formData.get('confirmPassword');
 
-		const resetPassword = safeRun(apiClient.auth.resetPassword);
+		const resetPassword = safeRun(
+			async (params: {
+				id: string;
+				token: string;
+				newPassword: string;
+				confirmPassword: string;
+			}) => {
+				return await apiClient.auth.resetPassword.post({
+					id: {
+						getValue: () => {
+							return params.id;
+						},
+					},
+					token: {
+						getValue: () => {
+							return params.token;
+						},
+					},
+					newPassword: {
+						getValue: () => {
+							return params.newPassword;
+						},
+					},
+					confirmPassword: {
+						getValue: () => {
+							return params.confirmPassword;
+						},
+					},
+				});
+			},
+		);
 
 		const schema = getResetPasswordSchema(z).and(
 			z.object({
@@ -107,7 +138,7 @@ export const action = getServerAction({
 
 export const loader = getServerLoader({
 	loader: async ({ request }) => {
-		const apiClient = ClientManager.create().createClient({ skipAuth: true });
+		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const searchParams = new URL(request.url).searchParams;
 		const token = searchParams.get(queryParamKey.token);
 		const encodedEmail = searchParams.get(
@@ -121,7 +152,14 @@ export const loader = getServerLoader({
 		}
 
 		const checkResetPasswordToken = safeRun(
-			apiClient.auth.checkResetPasswordToken,
+			async (params: { id: string; token: string }) => {
+				return await apiClient.auth.checkResetPasswordToken.get({
+					queryParameters: {
+						id: params.id,
+						token: params.token,
+					},
+				});
+			},
 		);
 
 		// verify if token belongs to the email
@@ -131,20 +169,18 @@ export const loader = getServerLoader({
 		});
 
 		if (result.status === 'error') {
-			// if (result.error instanceof ParseRestError) {
-			// 	if (result.error.code === X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID) {
-			// 		return {
-			// 			code: 'INVALID_LINK',
-			// 		} as const;
-			// 	}
-			// }
+			if (result.error.message === 'Invalid or expired password reset token') {
+				return {
+					code: 'INVALID_LINK',
+				} as const;
+			}
 
 			throw result.error;
 		}
 
 		return {
 			code: 'OK',
-			email: result.data.email,
+			email: result.data?.email ?? '',
 		} as const;
 	},
 });
