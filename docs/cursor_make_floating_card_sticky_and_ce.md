@@ -7,7 +7,7 @@ _Exported on 11/20/2025 at 08:59:39 GMT+3 from Cursor (2.0.77)_
 
 I want this floating card: CreateStaffProfileActions to be sticky/fixed AND cntered compared to DashboardContent
 
-@new-staff-profile-page.tsx 
+@new-staff-profile-page.tsx
 
 ---
 
@@ -44,7 +44,7 @@ import {
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
 import {
 	APP_NAME,
@@ -112,7 +112,7 @@ const NewStaffProfilePage = () => {
 	const router = useRouter();
 	const queryClient = useQueryClient();
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -297,7 +297,7 @@ import {
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import {
 	APP_NAME,
 	FRONT_PATH_NAMES,
@@ -364,7 +364,7 @@ const NewStaffProfilePage = () => {
 	const router = useRouter();
 	const queryClient = useQueryClient();
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -496,7 +496,7 @@ const NewStaffProfilePage = () => {
 		width: number;
 	} | null>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -634,7 +634,7 @@ import {
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import {
 	APP_NAME,
 	FRONT_PATH_NAMES,
@@ -701,7 +701,7 @@ const NewStaffProfilePage = () => {
 	const router = useRouter();
 	const queryClient = useQueryClient();
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -851,7 +851,7 @@ import {
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import {
 	APP_NAME,
 	FRONT_PATH_NAMES,
@@ -923,7 +923,7 @@ const NewStaffProfilePage = () => {
 		width: number;
 	} | null>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -1099,7 +1099,7 @@ import {
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import {
 	APP_NAME,
 	FRONT_PATH_NAMES,
@@ -1171,7 +1171,7 @@ const NewStaffProfilePage = () => {
 		width: number;
 	} | null>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -1367,7 +1367,7 @@ import {
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import {
 	APP_NAME,
 	FRONT_PATH_NAMES,
@@ -1439,7 +1439,7 @@ const NewStaffProfilePage = () => {
 		width: number;
 	} | null>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -1637,7 +1637,7 @@ import {
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import {
 	APP_NAME,
 	FRONT_PATH_NAMES,
@@ -1709,7 +1709,7 @@ const NewStaffProfilePage = () => {
 		width: number;
 	} | null>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -1903,7 +1903,7 @@ import {
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import {
 	APP_NAME,
 	FRONT_PATH_NAMES,
@@ -1975,7 +1975,7 @@ const NewStaffProfilePage = () => {
 		width: number;
 	} | null>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -2152,7 +2152,7 @@ Checking for linting errors:
 
 1. **Added React hooks**: `useEffect`, `useRef`, and `useState` to track the `DashboardContent` position
 2. **Added MUI Box import**: For the wrapper component
-3. **Position tracking**: 
+3. **Position tracking**:
    - Created a ref (`dashboardContentRef`) to track the `DashboardContent` container
    - Added state (`cardPosition`) to store the calculated left position and width
    - Added a `useEffect` that calculates the position on mount and updates it on window resize and scroll events

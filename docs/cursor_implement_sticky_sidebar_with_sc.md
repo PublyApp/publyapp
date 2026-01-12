@@ -5,7 +5,7 @@ _Exported on 11/23/2025 at 21:57:41 GMT+3 from Cursor (2.1.20)_
 
 **User**
 
-I want the sidebar in @apps/front/app/routes/authed/staff/profiles/new/new-staff-profile-page.tsx  to be sticky AND have a scrollspy on the content of the page in @apps/front/app/routes/authed/staff/profiles/new/new-staff-profile-page.tsx:98-100 . Just like @.dump/metronic-9.3.0-ts-demos/src/pages/account/home/settings-sidebar/account-basic-content.tsx 
+I want the sidebar in @apps/front/app/routes/authed/staff/profiles/new/new-staff-profile-page.tsx  to be sticky AND have a scrollspy on the content of the page in @apps/front/app/routes/authed/staff/profiles/new/new-staff-profile-page.tsx:98-100 . Just like @.dump/metronic-9.3.0-ts-demos/src/pages/account/home/settings-sidebar/account-basic-content.tsx
 
 ---
 
@@ -192,7 +192,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -260,7 +260,7 @@ const NewStaffProfileForm = () => {
 	const queryClient = useQueryClient();
 	const floatingCardContainerRef = useRef<HTMLDivElement>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -675,7 +675,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -743,7 +743,7 @@ const NewStaffProfileForm = () => {
 	const queryClient = useQueryClient();
 	const floatingCardContainerRef = useRef<HTMLDivElement>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -2852,7 +2852,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -2920,7 +2920,7 @@ const NewStaffProfileForm = () => {
 	const queryClient = useQueryClient();
 	const floatingCardContainerRef = useRef<HTMLDivElement>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -3338,7 +3338,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -3406,7 +3406,7 @@ const NewStaffProfileForm = () => {
 	const queryClient = useQueryClient();
 	const floatingCardContainerRef = useRef<HTMLDivElement>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -3824,7 +3824,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -3893,7 +3893,7 @@ const NewStaffProfileForm = () => {
 	const queryClient = useQueryClient();
 	const floatingCardContainerRef = useRef<HTMLDivElement>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -4311,7 +4311,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -4380,7 +4380,7 @@ const NewStaffProfileForm = () => {
 	const queryClient = useQueryClient();
 	const floatingCardContainerRef = useRef<HTMLDivElement>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -4805,7 +4805,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -4874,7 +4874,7 @@ const NewStaffProfileForm = () => {
 	const queryClient = useQueryClient();
 	const floatingCardContainerRef = useRef<HTMLDivElement>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -5306,7 +5306,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -5375,7 +5375,7 @@ const NewStaffProfileForm = () => {
 	const queryClient = useQueryClient();
 	const floatingCardContainerRef = useRef<HTMLDivElement>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -5803,7 +5803,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -5872,7 +5872,7 @@ const NewStaffProfileForm = () => {
 	const queryClient = useQueryClient();
 	const floatingCardContainerRef = useRef<HTMLDivElement>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -6549,7 +6549,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -6618,7 +6618,7 @@ const NewStaffProfileForm = () => {
 	const queryClient = useQueryClient();
 	const floatingCardContainerRef = useRef<HTMLDivElement>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -7048,7 +7048,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -7154,7 +7154,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition, sidebarStyle]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -7584,7 +7584,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -7690,7 +7690,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition, sidebarStyle]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -8138,7 +8138,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -8244,7 +8244,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition, sidebarStyle]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -8687,7 +8687,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -8793,7 +8793,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition, sidebarStyle]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -9246,7 +9246,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -9352,7 +9352,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition, sidebarStyle]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -9829,7 +9829,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -9936,7 +9936,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition, sidebarStyle]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -10416,7 +10416,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -10539,7 +10539,7 @@ const NewStaffProfileForm = () => {
 		return () => cancelAnimationFrame(rafId);
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -10995,7 +10995,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -11118,7 +11118,7 @@ const NewStaffProfileForm = () => {
 		return () => cancelAnimationFrame(rafId);
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -11582,7 +11582,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -11703,7 +11703,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -12546,7 +12546,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -12668,7 +12668,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -13128,7 +13128,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -13250,7 +13250,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -13714,7 +13714,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -13836,7 +13836,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -14900,7 +14900,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -15023,7 +15023,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -19777,7 +19777,7 @@ The sidebar now follows the same pattern as `staff-profile-sidebar.tsx`, using `
 
 **User**
 
-@apps/front/app/routes/authed/staff/profiles/new/parts/new-staff-profile-form.tsx:97  redundant typing. And why us used Array<> ? 
+@apps/front/app/routes/authed/staff/profiles/new/parts/new-staff-profile-form.tsx:97  redundant typing. And why us used Array<> ?
 
 ---
 
@@ -19846,7 +19846,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -19969,7 +19969,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -20974,7 +20974,7 @@ const NewStaffProfileSidebar = () => {
 			}}
 		>
 			<QueryDisplay
-			
+
 				query={permissionsQuery}
 				LoadingSlot={() => (
 					<Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -21302,7 +21302,7 @@ const NewStaffProfileSidebar = () => {
 			}}
 		>
 			<QueryDisplay
-			
+
 				query={permissionsQuery}
 				LoadingSlot={() => (
 					<Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -22561,7 +22561,7 @@ Extracted the skeleton loading UI into a separate `SidebarSkeleton` component in
 
 **User**
 
-@apps/front/app/routes/authed/staff/profiles/new/parts/new-staff-profile-sidebar.tsx @apps/front/app/routes/authed/staff/profiles/new/parts/new-staff-profile-nav-list.tsx @apps/front/app/routes/authed/staff/profiles/new/parts/new-staff-profile-form.tsx @apps/front/app/routes/authed/staff/profiles/new/new-staff-profile-page.tsx 
+@apps/front/app/routes/authed/staff/profiles/new/parts/new-staff-profile-sidebar.tsx @apps/front/app/routes/authed/staff/profiles/new/parts/new-staff-profile-nav-list.tsx @apps/front/app/routes/authed/staff/profiles/new/parts/new-staff-profile-form.tsx @apps/front/app/routes/authed/staff/profiles/new/new-staff-profile-page.tsx
 
 Never use shortened Arrow functions () => () always write full body functions with explicit reurn statement.
 
@@ -24374,7 +24374,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -24501,7 +24501,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -24968,7 +24968,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -25095,7 +25095,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -25564,7 +25564,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -25691,7 +25691,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -26165,7 +26165,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -26292,7 +26292,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -26763,7 +26763,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -26890,7 +26890,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -27389,7 +27389,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -27516,7 +27516,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -28026,7 +28026,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -28345,7 +28345,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -28818,7 +28818,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -29137,7 +29137,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -29453,7 +29453,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -29772,7 +29772,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -30116,7 +30116,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -30238,7 +30238,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -30550,7 +30550,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -30672,7 +30672,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -31239,7 +31239,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -31360,7 +31360,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -31901,7 +31901,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -32037,7 +32037,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -32570,7 +32570,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -32706,7 +32706,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -33711,7 +33711,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -34307,7 +34307,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -35312,7 +35312,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -35908,7 +35908,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -36496,7 +36496,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -36632,7 +36632,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -37165,7 +37165,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -37301,7 +37301,7 @@ const NewStaffProfileForm = () => {
 		}
 	}, [scrollPosition]);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -38616,7 +38616,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -38701,7 +38701,7 @@ const NewStaffProfileForm = () => {
 	const queryClient = useQueryClient();
 	const floatingCardContainerRef = useRef<HTMLDivElement>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -39694,7 +39694,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -39779,7 +39779,7 @@ const NewStaffProfileForm = () => {
 	const queryClient = useQueryClient();
 	const floatingCardContainerRef = useRef<HTMLDivElement>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',
@@ -40765,7 +40765,7 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
@@ -40850,7 +40850,7 @@ const NewStaffProfileForm = () => {
 	const queryClient = useQueryClient();
 	const floatingCardContainerRef = useRef<HTMLDivElement>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',

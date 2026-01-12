@@ -28,7 +28,7 @@ import {
 	getServerAction,
 	getServerLoader,
 } from '@/front/lib/react-router/server-data.server';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import {
 	FRONT_PATH_NAMES,
 	queryParamKey,
@@ -239,7 +239,7 @@ const ResetPasswordForm = () => {
 	const showConfirmPassword = useBoolean();
 	const loaderData = useLoaderData<typeof loader>();
 
-	const schema = getResetPasswordSchema(defaultZodClient);
+	const schema = getResetPasswordSchema(interZodClient);
 
 	const form = useForm({
 		resolver: zodResolver(schema),

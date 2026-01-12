@@ -6,6 +6,7 @@ import Fetch from 'i18next-fetch-backend';
 import _ from 'lodash';
 import { initReactI18next } from 'react-i18next';
 import { getInitialNamespaces } from 'remix-i18next/client';
+
 import {
 	LANGUAGE_DETECTION_METHOD,
 	LANGUAGE_DETECTION_METHOD_ENUM,
@@ -15,7 +16,8 @@ import {
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import duration from '@/shared/utils/duration.utils';
-import { defaultZodClient } from '../zod/zod.client';
+
+import { interZodClient } from '../zod/zod.client';
 import { config } from './i18n.config';
 
 const backendUrl = new URL(window.location.origin);
@@ -86,7 +88,7 @@ export const initI18nOnClient = async () => {
 		// set locale of dayjs (date formatting)
 		dayjs.locale(correctLocale);
 		// set locale for our InterZod instance
-		defaultZodClient.setLocale(correctLocale);
+		interZodClient.setLocale(correctLocale);
 
 		// TODO: set locale for other libraries
 		// ???

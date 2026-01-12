@@ -17,7 +17,7 @@ import {
 	getServerAction,
 	getServerLoader,
 } from '@/front/lib/react-router/server-data.server';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import {
 	FRONT_PATH_NAMES,
 	queryParamKey,
@@ -205,7 +205,7 @@ export default VerifyEmailPage;
 const EmailForForm = ({ intent }: { intent: keyof typeof actionIntent }) => {
 	const { t, i18n } = useTranslate();
 
-	const schema = getEmailFormSchema(defaultZodClient);
+	const schema = getEmailFormSchema(interZodClient);
 
 	const formText = {
 		[actionIntent.REQUEST_EMAIL_VERIFICATION]: {

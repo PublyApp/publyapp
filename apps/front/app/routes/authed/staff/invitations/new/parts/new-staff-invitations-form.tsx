@@ -27,7 +27,7 @@ import {
 	useFindStaffInvitations,
 } from '@/front/lib/react-query/features/staff/staff-invitation.hooks';
 import { useFindStaffProfiles } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getBulkCreateInvitationsSchema } from '@/shared/validations/invitation.validations';
@@ -52,8 +52,7 @@ const NewStaffInvitationsForm = () => {
 	const actionsRef = useRef<HTMLDivElement>(null);
 	const previousFieldsCount = useRef(1);
 
-	const BulkInvitationsSchema =
-		getBulkCreateInvitationsSchema(defaultZodClient);
+	const BulkInvitationsSchema = getBulkCreateInvitationsSchema(interZodClient);
 
 	const form = useForm<BulkInvitationsFormType>({
 		mode: 'onSubmit',

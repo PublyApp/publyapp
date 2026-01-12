@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
 import { useForm } from 'react-hook-form';
 import type zod from 'zod';
+
 import { toast } from '@/front/components/snackbar';
 import { useRouter } from '@/front/hooks/use-router';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
@@ -11,9 +12,10 @@ import {
 	useCreateStaffMember,
 	useFindStaffMember,
 } from '@/front/lib/react-query/features/staff/staff-member.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { ACCOUNT_LEVEL_ENUM, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { getNewStaffMemberSchema } from '@/shared/validations/staff-member.validations';
+
 import { UserNewEditForm } from '../../components/user-new-edit-form';
 
 type NewUserSchemaType = Prettify<
@@ -34,7 +36,7 @@ const NewStaffMemberForm = () => {
 	const queryClient = useQueryClient();
 	const router = useRouter();
 
-	const NewUserSchema = getNewStaffMemberSchema(defaultZodClient);
+	const NewUserSchema = getNewStaffMemberSchema(interZodClient);
 
 	const form = useForm<NewUserSchemaType>({
 		mode: 'onSubmit',
