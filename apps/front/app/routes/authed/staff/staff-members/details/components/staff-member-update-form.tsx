@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
 import { useForm } from 'react-hook-form';
 import type zod from 'zod';
+
 import { toast } from '@/front/components/snackbar';
 import { useRouter } from '@/front/hooks/use-router';
 import { useTranslate } from '@/front/hooks/use-translate';
@@ -11,7 +12,7 @@ import {
 	useGetStaffMemberById,
 	useUpdateStaffMember,
 } from '@/front/lib/react-query/features/staff/staff-member.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import {
 	ACCOUNT_LEVEL_ENUM,
 	type AccountLevel,
@@ -20,6 +21,7 @@ import {
 	type UserStatus,
 } from '@/shared/lib/constants';
 import { getUpdateStaffMemberSchema } from '@/shared/validations/staff-member.validations';
+
 import { UserNewEditForm } from '../../components/user-new-edit-form';
 
 type UpdateUserSchemaType = Prettify<
@@ -49,7 +51,7 @@ const StaffMemberUpdateForm = ({
 	const queryClient = useQueryClient();
 	const router = useRouter();
 
-	const UpdateUserSchema = getUpdateStaffMemberSchema(defaultZodClient);
+	const UpdateUserSchema = getUpdateStaffMemberSchema(interZodClient);
 
 	let _evalUatedAccountLevel: AccountLevel | undefined;
 	if (!accountLevels.includes(currentUser.accountLevel as AccountLevel)) {

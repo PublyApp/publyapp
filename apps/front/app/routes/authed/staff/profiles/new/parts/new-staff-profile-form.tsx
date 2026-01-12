@@ -1,3 +1,33 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import Avatar from '@mui/material/Avatar';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import CardHeader from '@mui/material/CardHeader';
+import Collapse from '@mui/material/Collapse';
+import IconButton from '@mui/material/IconButton';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemAvatar from '@mui/material/ListItemAvatar';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
+import ListSubheader from '@mui/material/ListSubheader';
+import Paper from '@mui/material/Paper';
+import Skeleton from '@mui/material/Skeleton';
+import Stack from '@mui/material/Stack';
+import Switch from '@mui/material/Switch';
+import { useTheme } from '@mui/material/styles';
+import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
+import { useQueryClient } from '@tanstack/react-query';
+import _ from 'lodash';
+import { useBoolean } from 'minimal-shared/hooks';
+import { isExternalLink } from 'minimal-shared/utils';
+import { type RefObject, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useForm } from 'react-hook-form';
+import type zod from 'zod';
+
 import { FloatingCard } from '@/front/components/floating-card';
 import { Form } from '@/front/components/hook-form';
 import { Field } from '@/front/components/hook-form/fields';
@@ -32,39 +62,10 @@ import {
 	useFindStaffPermissions,
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
-import { zodResolver } from '@hookform/resolvers/zod';
-import Avatar from '@mui/material/Avatar';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import CardHeader from '@mui/material/CardHeader';
-import Collapse from '@mui/material/Collapse';
-import IconButton from '@mui/material/IconButton';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemAvatar from '@mui/material/ListItemAvatar';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemText from '@mui/material/ListItemText';
-import ListSubheader from '@mui/material/ListSubheader';
-import Paper from '@mui/material/Paper';
-import Skeleton from '@mui/material/Skeleton';
-import Stack from '@mui/material/Stack';
-import { useTheme } from '@mui/material/styles';
-import Switch from '@mui/material/Switch';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
-import { useQueryClient } from '@tanstack/react-query';
-import _ from 'lodash';
-import { useBoolean } from 'minimal-shared/hooks';
-import { isExternalLink } from 'minimal-shared/utils';
-import { type RefObject, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useForm } from 'react-hook-form';
-import type zod from 'zod';
 
 // ============================================================
 // CONSTANTS & TYPES
@@ -199,7 +200,7 @@ const NewStaffProfileForm = () => {
 	const queryClient = useQueryClient();
 	const floatingCardContainerRef = useRef<HTMLDivElement>(null);
 
-	const NewStaffProfileSchema = getNewStaffProfileSchema(defaultZodClient);
+	const NewStaffProfileSchema = getNewStaffProfileSchema(interZodClient);
 
 	const form = useForm<NewStaffProfileSchemaType>({
 		mode: 'onSubmit',

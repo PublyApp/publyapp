@@ -27,7 +27,7 @@ import { toast } from '@/front/components/snackbar';
 import { useRouter } from '@/front/hooks/use-router';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
 
 import type { Route } from './+types/post-create-edit-page';
@@ -50,7 +50,7 @@ const MAX_CONTENT_LENGTH = 2000;
 
 // ----------------------------------------------------------------------
 
-const getPostCreateEditSchema = (z: typeof defaultZodClient) => {
+const getPostCreateEditSchema = (z: typeof interZodClient) => {
 	return z.object({
 		content: z.string().min(1).max(MAX_CONTENT_LENGTH),
 		platforms: z.array(z.string()).min(1),
@@ -108,7 +108,7 @@ const PostCreateEditPage = () => {
 	const isEdit = !!postId;
 
 	const PostCreateEditSchema = useMemo(() => {
-		return getPostCreateEditSchema(defaultZodClient);
+		return getPostCreateEditSchema(interZodClient);
 	}, []);
 
 	const methods = useForm<PostCreateEditSchemaType>({
