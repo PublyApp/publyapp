@@ -1,5 +1,6 @@
 import type { IAnalytics } from '@/shared/lib/analytics/analytics.types';
 import { IsoAnalytics } from '@/shared/lib/analytics/iso-analytics';
+
 import { env } from '../env';
 
 const _analytics = new IsoAnalytics(env.VITE_POSTHOG_API_KEY);
