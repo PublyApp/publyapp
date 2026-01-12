@@ -38,23 +38,23 @@ type CreateClientOptions = {
  * - tenantToken: For tenant UI access (regular or impersonation)
  *
  * Usage:
- * - Browser: `ClientManager.create()` returns singleton (reads tokens from cookie)
- * - Server: `ClientManager.create({ staffToken, tenantToken })` creates per-request instance
+ * - Browser: `getClientManager()` returns singleton (reads tokens from cookie)
+ * - Server: `getClientManager({ staffToken, tenantToken })` creates per-request instance
  *
  * @example
- * import { ClientManager } from '@/front/lib/js-client/client-manager';
+ * import { getClientManager } from '@/front/lib/js-client/client-manager';
  *
  * // Browser - returns singleton, tokens from cookie
- * ClientManager.create().createClient({ tenantId });
+ * getClientManager().createClient({ tenantId });
  *
  * // Server - new instance per request
- * ClientManager.create({ staffToken, tenantToken }).createClient({ tenantId });
+ * getClientManager({ staffToken, tenantToken }).createClient({ tenantId });
  *
  * // Explicit context (for staff UI while impersonating)
- * ClientManager.create().createClient({ context: 'staff' });
+ * getClientManager().createClient({ context: 'staff' });
  *
  * // Public/anonymous endpoints
- * ClientManager.create().createClient({ skipAuth: true });
+ * getClientManager().createClient({ skipAuth: true });
  */
 export class ClientManager {
 	private static _instance: ClientManager | undefined;
@@ -261,3 +261,9 @@ export class ClientManager {
 		return createApiClient(adapter);
 	}
 }
+
+export const getClientManager = (
+	options?: ClientManagerOptions,
+): ClientManager => {
+	return ClientManager.create(options);
+};

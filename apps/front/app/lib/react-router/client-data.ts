@@ -30,10 +30,10 @@ type GetCLientLoader = <
  * Creates a client loader with common utilities (i18n, zod).
  *
  * To access API clients in loaders, use `ClientManager` directly:
- * - `ClientManager.create().getOrCreateClient(tenantId)` - for tenant-scoped requests
- * - `ClientManager.create().getOrCreateStaffClient()` - for staff requests
- * - `ClientManager.create().getOrCreateAnonymousClient()` - for public/anonymous requests
- * - `ClientManager.create().createClient({ tenantId?, skipAuth?, context? })` - for ad-hoc clients
+ * - `getClientManager().getOrCreateClient(tenantId)` - for tenant-scoped requests
+ * - `getClientManager().getOrCreateStaffClient()` - for staff requests
+ * - `getClientManager().getOrCreateAnonymousClient()` - for public/anonymous requests
+ * - `getClientManager().createClient({ tenantId?, skipAuth?, context? })` - for ad-hoc clients
  *
  * Session tokens are read fresh from cookies on every request.
  */

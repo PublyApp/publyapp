@@ -1871,7 +1871,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router";
-import { ClientManager } from "~/lib/js-client";
+import { getClientManager } from "~/lib/js-client";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -2096,7 +2096,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ClientManager } from "~/lib/js-client";
+import { getClientManager } from "~/lib/js-client";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";

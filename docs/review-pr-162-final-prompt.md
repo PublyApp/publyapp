@@ -703,7 +703,7 @@ const createMutationErrorHandler = (onAuthError?: OnAuthErrorCallback) => {
 export const logout = (options?: LogoutOptions): void => {
     clearSessionCookie();
     getQueryClient().clear();
-    ClientManager.create().clearClients();
+    getClientManager().clearClients();
     ClientManager.resetInstance();
 
     const loginUrl = new URL(FRONT_PATH_NAMES.auth.login, window.location.origin);

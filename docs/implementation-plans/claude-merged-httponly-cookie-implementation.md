@@ -738,7 +738,7 @@ import {
   createCsrfCookie,
   generateCsrfToken
 } from '@/front/lib/cookies/server-cookie.utils';
-import { clientManager } from '@/front/lib/js-client/client-manager';
+import { getClientManager } from '@/front/lib/js-client/client-manager';
 import { redirect } from 'react-router';
 
 export const action = getServerAction({
@@ -837,7 +837,7 @@ export const action = getServerAction({
 ```typescript
 import { getServerAction } from '@/front/lib/react-router/server-data';
 import { clearSessionCookie, clearCsrfCookie } from '@/front/lib/cookies/server-cookie.utils';
-import { clientManager } from '@/front/lib/js-client/client-manager';
+import { getClientManager } from '@/front/lib/js-client/client-manager';
 import { redirect } from 'react-router';
 
 export const action = getServerAction({
