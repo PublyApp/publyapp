@@ -1,8 +1,10 @@
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getErrorMessage } from '@/shared/utils/error.utils';
+
 import { toast } from '../components/snackbar';
 import { config } from '../lib/i18n/i18n.config';
 import { allLangs, changeLangMessages } from '../lib/locales/all-langs';

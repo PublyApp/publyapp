@@ -6,6 +6,7 @@ import {
 	useMaterialReactTable,
 } from 'material-react-table';
 import { useMemo } from 'react';
+
 import { type PresetKey, tablePresets } from '../lib/mrt-table/table-presets';
 
 export const useMRTTable = <TData extends MRT_RowData>(
