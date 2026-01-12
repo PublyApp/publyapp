@@ -62,7 +62,7 @@ export const logout = (options?: LogoutOptions): void => {
 	fetch(FRONT_PATH_NAMES.auth.clearSession, {
 		method: 'POST',
 		credentials: 'include',
-		redirect: 'manual',
+		redirect: 'manual', // prevent automatic redirect to login page
 		body: formData,
 	})
 		.catch(() => {

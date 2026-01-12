@@ -1,4 +1,5 @@
 import { useLocation } from 'react-router';
+
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
 export const useHomePath = () => {

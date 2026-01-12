@@ -27,7 +27,7 @@ import { MotionLazy } from './components/animate/motion-lazy';
 import View400 from './components/error/400-view';
 import { ProgressBar } from './components/progress-bar';
 import { Snackbar } from './components/snackbar/snackbar';
-import { useNonce } from './hooks/use-nonce';
+import { useNonce } from './hooks/use-nonce-context';
 import { logout } from './lib/cookies/logout.utils';
 import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
 import { getQueryClient } from './lib/react-query/query-client';
