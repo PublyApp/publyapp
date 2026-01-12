@@ -236,13 +236,12 @@ Form State       → React Hook Form (local form state)
 **Location:** `apps/front/app/lib/domain/`
 **Docs:** `docs/front/domain-layer.md`
 
-**Recommended structure:**
+**Required top-level structure:**
 ```
 apps/front/app/lib/domain/
-ÀÄÄ features/
-    ÃÄÄ staff/
-    ÃÄÄ tenant/
-    ÀÄÄ shared/
+ÃÄÄ staff/
+ÃÄÄ tenant/
+ÀÄÄ shared/
 ```
 
 **What belongs in `lib/domain/**`:**

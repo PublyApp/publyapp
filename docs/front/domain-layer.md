@@ -6,14 +6,13 @@ This repo uses a small frontend “domain layer” to centralize **pure product 
 
 - `apps/front/app/lib/domain/**`
 
-Recommended structure:
+Required top-level structure:
 
 ```
 apps/front/app/lib/domain/
-ÀÄÄ features/
-    ÃÄÄ staff/
-    ÃÄÄ tenant/
-    ÀÄÄ shared/
+ÃÄÄ staff/
+ÃÄÄ tenant/
+ÀÄÄ shared/
 ```
 
 ## Hard rules (non-negotiable)

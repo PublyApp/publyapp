@@ -54,9 +54,9 @@ Defer:
 **Task Breakdown**
 
 - [ ] Create initial domain modules (pure TS):
-  - [ ] `features/shared/invitations/*` (derive invitation status; action eligibility decisions)
-  - [ ] `features/shared/users/status/*` (derive user status category; action eligibility decisions)
-  - [ ] `features/staff/permissions/mappers/*` (normalize permissions API DTO -> module slices)
+  - [ ] `shared/invitations/*` (derive invitation status; action eligibility decisions)
+  - [ ] `shared/users/status/*` (derive user status category; action eligibility decisions)
+  - [ ] `staff/permissions/mappers/*` (normalize permissions API DTO -> module slices)
 - [ ] Refactor UI to consume domain rules (no functional changes):
   - [ ] `apps/front/app/routes/authed/tenant/settings/invitations/tenant-settings-invitations-page.tsx`
   - [ ] `apps/front/app/routes/authed/staff/invitations/details/staff-invitation-details-page.tsx`
