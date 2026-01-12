@@ -4,8 +4,6 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { isServer } from '@tanstack/react-query';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import _ from 'lodash';
@@ -28,11 +26,9 @@ import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+import { fDate, fIsAfter, fToNow } from '@/front/utils/format-time';
 
 import type { Route } from './+types/tenant-settings-invitations-page';
-
-// Enable dayjs relative time plugin
-dayjs.extend(relativeTime);
 
 // Invitation Status Enum
 const INVITATION_STATUS_ENUM = {
@@ -220,11 +216,9 @@ const SentDateCell: MRT_ColumnDef<TenantInvitationRowData, string>['Cell'] = (
 
 	return (
 		<Box sx={{ display: 'flex', flexDirection: 'column' }}>
-			<Typography variant="body2">
-				{dayjs(sentAt).format('MMM DD, YYYY')}
-			</Typography>
+			<Typography variant="body2">{fDate(sentAt)}</Typography>
 			<Typography variant="caption" sx={{ color: 'text.secondary' }}>
-				{dayjs(sentAt).fromNow()}
+				{fToNow(sentAt)}
 			</Typography>
 		</Box>
 	);
@@ -240,7 +234,7 @@ const ExpiryDateCell: MRT_ColumnDef<TenantInvitationRowData, string>['Cell'] = (
 		return <Typography variant="body2">-</Typography>;
 	}
 
-	const isExpired = dayjs(expiresAt).isBefore(dayjs());
+	const isExpired = fIsAfter(new Date(), expiresAt);
 
 	return (
 		<Box sx={{ display: 'flex', flexDirection: 'column' }}>
@@ -248,13 +242,13 @@ const ExpiryDateCell: MRT_ColumnDef<TenantInvitationRowData, string>['Cell'] = (
 				variant="body2"
 				sx={{ color: isExpired ? 'error.main' : 'text.primary' }}
 			>
-				{dayjs(expiresAt).format('MMM DD, YYYY')}
+				{fDate(expiresAt)}
 			</Typography>
 			<Typography
 				variant="caption"
 				sx={{ color: isExpired ? 'error.main' : 'text.secondary' }}
 			>
-				{isExpired ? t('expired') : dayjs(expiresAt).fromNow()}
+				{isExpired ? t('expired') : fToNow(expiresAt)}
 			</Typography>
 		</Box>
 	);
