@@ -28,7 +28,7 @@ import {
 	getServerAction,
 	getServerLoader,
 } from '@/front/lib/react-router/server-data.server';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import {
 	APP_NAME,
 	FRONT_PATH_NAMES,
@@ -265,7 +265,7 @@ const AcceptInvitationForm = ({
 	const token = searchParams.get(queryParamKey.token);
 	const { t, i18n } = useTranslate();
 
-	const schema = getAcceptInvitationSchema(defaultZodClient);
+	const schema = getAcceptInvitationSchema(interZodClient);
 
 	const form = useForm<AcceptInvitationForm>({
 		resolver: zodResolver(schema),

@@ -30,8 +30,8 @@ import { toast } from '@/front/components/snackbar';
 import { useRouter } from '@/front/hooks/use-router';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { useCreateTenant } from '@/front/lib/react-query/features/tenant/tenant.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { useCreateTenant } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { useMainStore } from '@/front/lib/zustand/store';
 import { fData } from '@/front/utils/format-number';
 import {
@@ -71,10 +71,11 @@ const defaultValues = {
 } satisfies NewTenantSchemaType;
 
 type ITenantItem = {
-	id: string;
-	name: string;
-	maxUsers: number;
-	logo: string;
+	id?: string | null;
+	tenantId?: string | null;
+	name?: string | null;
+	maxUsers?: number | null;
+	logo?: string | null;
 };
 
 type TenantCreateOrEditFormProps = {
@@ -88,7 +89,7 @@ export const TenantCreateOrEditForm = ({
 	const router = useRouter();
 	const openDialog = useBoolean();
 
-	let NewTenantSchema = getNewTenantSchemaClientSide(defaultZodClient, {
+	let NewTenantSchema = getNewTenantSchemaClientSide(interZodClient, {
 		maxUsers: DEFAULT_MAX_USER_PER_TENANT,
 	});
 
@@ -108,7 +109,9 @@ export const TenantCreateOrEditForm = ({
 		defaultValues,
 		values: currentTenant
 			? {
-					...currentTenant,
+					name: currentTenant.name ?? '',
+					maxUsers: currentTenant.maxUsers ?? DEFAULT_MAX_USER_PER_TENANT,
+					logo: currentTenant.logo ?? undefined,
 					initialUsers: [],
 				}
 			: undefined,

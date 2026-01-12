@@ -9,16 +9,16 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
 
-import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
-import { getRegisterSchema } from '@org/shared-ts/validations/auth.validations';
 import { FormHead } from '@/front/components/auth/form-head';
 import { SignUpTerms } from '@/front/components/auth/sign-up-terms';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
-import { useSyncFormToLang } from '@/front/hooks/use-language-trigger-validation';
+import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { interZodClient } from '@/front/lib/zod/zod.client';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { getRegisterSchema } from '@/shared/validations/auth.validations';
 
 // ----------------------------------------------------------------------
 
