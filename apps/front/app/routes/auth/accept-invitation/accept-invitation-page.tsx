@@ -22,7 +22,7 @@ import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { ClientManager } from '@/front/lib/js-client/client-manager';
+import { getClientManager } from '@/front/lib/js-client/client-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import {
 	getServerAction,
@@ -70,7 +70,7 @@ export type InvitationLoaderResult = Awaited<ReturnType<typeof loader>>;
 
 export const loader = getServerLoader({
 	loader: async ({ request, z }) => {
-		const apiClient = ClientManager.create().createClient({ skipAuth: true });
+		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const searchParams = new URL(request.url).searchParams;
 		const encodedEmail = searchParams.get(
 			queryParamKey.accept_invitation_page.encoded_email,
@@ -136,7 +136,7 @@ export type AcceptInvitationActionResult = Awaited<ReturnType<typeof action>>;
 
 export const action = getServerAction({
 	action: async ({ request }) => {
-		const apiClient = ClientManager.create().createClient({ skipAuth: true });
+		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const formData = await request.formData();
 
 		const token = formData.get('token') as string;

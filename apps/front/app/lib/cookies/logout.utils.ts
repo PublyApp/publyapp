@@ -1,4 +1,7 @@
-import { ClientManager } from '@/front/lib/js-client/client-manager';
+import {
+	ClientManager,
+	getClientManager,
+} from '@/front/lib/js-client/client-manager';
 import { getQueryClient } from '@/front/lib/react-query/query-client';
 import { globalNavigate } from '@/front/lib/react-router/navigation-helper';
 import {
@@ -34,7 +37,7 @@ export const logout = (options?: LogoutOptions): void => {
 	getQueryClient().clear();
 
 	// Clear cached API clients and reset singleton (ensures clean state for next user)
-	ClientManager.create().clearClients();
+	getClientManager().clearClients();
 	ClientManager.resetInstance();
 
 	// Build login URL with optional redirect_cause

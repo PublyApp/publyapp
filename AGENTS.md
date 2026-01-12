@@ -244,17 +244,17 @@ Form State       → React Hook Form (local form state)
    - `createPublicQuery/Mutation` - Anonymous/public endpoints (no auth)
 
 2. **Client-side (browser)** - Outside React lifecycle (e.g., clientLoaders):
-   - `ClientManager.create().getOrCreateClient(tenantId)` - Tenant client with `X-PublyApp-TenantId`
-   - `ClientManager.create().getOrCreateStaffClient()` - Staff client (no tenant-id header)
-   - `ClientManager.create().getOrCreateAnonymousClient()` - Anonymous client (no auth, no tenant)
-   - `ClientManager.create().createClient({ tenantId?, skipAuth?, context? })` - Create ad-hoc client
+   - `getClientManager().getOrCreateClient(tenantId)` - Tenant client with `X-PublyApp-TenantId`
+   - `getClientManager().getOrCreateStaffClient()` - Staff client (no tenant-id header)
+   - `getClientManager().getOrCreateAnonymousClient()` - Anonymous client (no auth, no tenant)
+   - `getClientManager().createClient({ tenantId?, skipAuth?, context? })` - Create ad-hoc client
 
 3. **Server-side (SSR)** - In React Router loaders/actions:
-   - `ClientManager.create({ staffToken?, tenantToken? }).createClient({ tenantId?, context? })` - per-request instance
+   - `getClientManager({ staffToken?, tenantToken? }).createClient({ tenantId?, context? })` - per-request instance
    - Tokens are parsed by `getServerLoader` / `getServerAction` and passed to your loader/action
    ```typescript
-   import { ClientManager } from '@/front/lib/js-client/client-manager';
-   const apiClient = ClientManager.create({ staffToken, tenantToken }).createClient();
+   import { getClientManager } from '@/front/lib/js-client/client-manager';
+   const apiClient = getClientManager({ staffToken, tenantToken }).createClient();
    ```
 
 **Data Fetching Pattern (Route-Type Specific):**
