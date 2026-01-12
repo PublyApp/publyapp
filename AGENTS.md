@@ -229,6 +229,48 @@ URL State        → nuqs (filters, pagination, search)
 Form State       → React Hook Form (local form state)
 ```
 
+### Frontend Domain Layer (Business Rules)
+
+**Goal:** Keep product rules consistent and reusable by centralizing *pure* business logic in a dedicated domain layer (separate from React components, TanStack Query hooks, Zustand stores, and router glue).
+
+**Location:** `apps/front/app/lib/domain/`
+**Docs:** `docs/front/domain-layer.md`
+
+**Recommended structure:**
+```
+apps/front/app/lib/domain/
+ÀÄÄ features/
+    ÃÄÄ staff/
+    ÃÄÄ tenant/
+    ÀÄÄ shared/
+```
+
+**What belongs in `lib/domain/**`:**
+- Permissions/capabilities (e.g. `canRevokeInvitation(...)`, `canEditProfile(...)`)
+- Workflow/state-machine rules (valid transitions, allowed actions)
+- Derived business calculations (totals, quotas, limits, eligibility decisions)
+- Cross-entity policies (plan limits, feature flags interpretation, org settings)
+- Mapping/normalization helpers for API DTOs (optional; MUST stay pure and fetch-free)
+
+**What does NOT belong in `lib/domain/**`:**
+- React components, hooks, JSX
+- TanStack Query (`useQuery`, query keys, caching)
+- Zustand stores/slices
+- API calls (`fetch`, Kiota request builders, axios)
+- Router glue (loaders/actions, navigation, `useParams`)
+- Translated strings or UI formatting (domain returns stable codes/keys; UI translates)
+
+**Dependency direction (MUST NOT be violated):**
+- `app/routes/**` and UI components MAY import from `app/lib/domain/**`.
+- `app/lib/react-query/**` and `app/lib/zustand/**` MAY import from `app/lib/domain/**`.
+- `app/lib/domain/**` MUST NOT import from `app/routes/**`, `app/lib/react-query/**`, `app/lib/zustand/**`, or any UI component folder.
+
+**Function style and outputs:**
+- Domain functions MUST be deterministic and side-effect free.
+- Prefer returning decision objects over booleans:
+  - `{ allowed: true }` or `{ allowed: false, reason: 'ALREADY_REVOKED' }`
+  - UI decides label/color/translation based on `reason`.
+
 **API Client Integration:**
 - Microsoft Kiota auto-generated client from OpenAPI
 - Singleton `ClientManager` in `app/lib/js-client/`

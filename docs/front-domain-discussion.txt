@@ -1,0 +1,1310 @@
+r/react icon
+Go to react
+r/react
+•
+5h ago
+Senior_Equipment2745
+
+Why React projects get harder after the MVP even when the code works well
+General Discussion
+A lot of React apps feel great at the start, but become painful once real features, APIs, and users show up. It is usually not React; it is early decisions about component structure, data flow, and where business logic lives. Wanna know how others here handle this? Do you refactor as you grow, or try to design for scale from day one?
+
+
+Upvote
+9
+
+Downvote
+
+13
+Go to comments
+
+
+Share
+u/vast_ai avatar
+vast_ai
+•
+Promoted
+
+Push your creative models further. Vast.ai handles the GPUs.
+Book Now
+vast.ai
+Thumbnail image: Push your creative models further. Vast.ai handles the GPUs.
+Join the conversation
+Sort by:
+
+Best
+
+Search Comments
+Expand comment search
+Comments Section
+u/Competitive_Pair1554 avatar
+Competitive_Pair1554
+•
+4h ago
+Learn Hexagonal Architecture, implement it in all your front-end apps, backed by a state manager.
+
+Everything (states, api requests) should be centralized in your state manager.
+
+Your React Component should be all stateless.
+
+90% unit testing your state manager.
+
+Never use hooks to fetch data.
+
+With that, you will never need to refacto, change your code for a new fancy react-lib, hook etc..
+
+
+
+Upvote
+2
+
+Downvote
+
+Reply
+
+Award
+
+Share
+
+Senior_Equipment2745
+OP
+•
+3h ago
+Great idea, state manager controlling all the things, but sometimes I wonder if it’s overkill for simple stuff
+
+
+
+Upvote
+1
+
+Downvote
+
+Reply
+
+Award
+
+Share
+
+u/Competitive_Pair1554 avatar
+Competitive_Pair1554
+•
+2h ago
+It's always what people says. But we should understand that with AI, we should never accept lack of architecture and unit testing.
+
+Because the AI will replace us as a coding factory.
+
+We will become Product Manager, Architecture Owner, and let AI doing the coding stuff. So, we should never assume "simple" stuff does not require specs and maintenability.
+
+
+Upvote
+1
+
+Downvote
+
+Reply
+
+Award
+
+Share
+
+pazil
+•
+1h ago
+Everything (states, api requests) should be centralized in your state manager.
+
+Why should anything besides state be stored in a state manager? It's called a state manager for a reason - to hold UI state. OP should be using a data fetching library for dealing with network requests.
+
+
+Upvote
+1
+
+Downvote
+
+Reply
+
+Award
+
+Share
+
+u/yksvaan avatar
+yksvaan
+•
+4h ago
+Usually that means you're not keeping (most of ) your components stupid enough. You can't model whole apps based on components and hooks. Those can work for UI ( remember React is UI library ), not for data, business logic, network code etc 
+
+
+
+Upvote
+5
+
+Downvote
+
+Reply
+
+Award
+
+Share
+
+u/Competitive_Pair1554 avatar
+Competitive_Pair1554
+•
+4h ago
+100%
+
+But the hooks, useQuery and some stuff promote business logic inside React. So, majority of devs do it.
+
+Then, they want to share data, so, they think about React Context. Then, they learn that React Context works well only for static state data. Because when they start using it as a real state manager, the app starts to re-render and have bad perfs...
+
+So, they want to use another hook, that caches the data, and use it as a state manager…
+
+
+Upvote
+0
+
+Downvote
+
+Reply
+
+Award
+
+Share
+
+Senior_Equipment2745
+OP
+•
+3h ago
+Yeppp, Hooks and components are awesome, but they are not meant to be a full app architecture
+
+
+Upvote
+1
+
+Downvote
+
+Reply
+
+Award
+
+Share
+
+spurkle
+•
+4h ago
+KISS and refactor if requirements change. Sometimes just duct tape it together. Depends on the situation I guess.
+
+
+
+Upvote
+1
+
+Downvote
+
+Reply
+
+Award
+
+Share
+
+Senior_Equipment2745
+OP
+•
+3h ago
+Totally, sometimes you just gotta patch it and move on. The struggle is knowing when those patches turn into a mess later
+
+
+Upvote
+1
+
+Downvote
+
+Reply
+
+Award
+
+Share
+
+u/Silver_5557 avatar
+u/Silver_5557
+•
+Promoted
+
+Exclusive deal for you: save on fast, secure proxies with global coverage and instant access. Enter promo code REDDIT10 at checkout for 10% off.
+Order Now
+proxy-seller.com
+Thumbnail image: Exclusive deal for you: save on fast, secure proxies with global coverage and instant access. Enter promo code REDDIT10 at checkout for 10% off.
+u/vanillafudgy avatar
+vanillafudgy
+•
+4h ago
+I've started modularizing my apps from the get go and this has helped keeping code much cleaner. The minim example would be a relatively separation between public, application/user and admin with some shared components and those modules beeing a complete route tree that mostly works on its own and having separate component/hooks folders for each module.
+
+e.g.
+
+modules
+public
+- layout
+- components
+- pages
+- hooks
+
+admin
+- layout
+- components
+- pages
+- hooks
+
+
+
+Upvote
+1
+
+Downvote
+
+Reply
+
+Award
+
+Share
+
+Senior_Equipment2745
+OP
+•
+3h ago
+Modular apps feel like magic until you forget one folder, but still worth it
+
+
+Upvote
+1
+
+Downvote
+
+Reply
+
+Award
+
+Share
+
+u/Unhappy-Struggle7406 avatar
+Unhappy-Struggle7406
+•
+3h ago
+Following a feature based folder structure, using a centralised store for state management (i would recommend something like xstate/store) so that event handlers can just send events and all logic is concentrated in a few stores helps a lot. Also using standard libraries like react query which abstracts away a lot of useEffect like logic that otherwise would have to be written helps greatly. You can maybe look into the tanstack libraries that are available out there for different usecases and try them out so that you dont need to manually recreate similar functionality using react primitives. Other than this i would suggest writing end to end tests to test all functionality from an end user perspective which would make it easier for you to swap out underlying libraries, code and still verify no functionality broke.
+
+
+Upvote
+1
+
+Downvote
+
+Reply
+
+Award
+
+Share
+
+Accomplished_End_138
+•
+1h ago
+I had fun making a zombie movie based frontend ready best practices thing.
+
+https://github.com/nivoset/demo-react-app/blob/main/docs/QUICK_REFERENCE.md
+
+Basically keep as much dumb as possible. And otherwise rules on depth and other things I think help make code readable and easily maintainable
+
+
+Upvote
+1
+
+Downvote
+
+Reply
+
+Award
+
+Share
+
+
+
+This thread actually surfaces the core fault line in React app design. Here’s a clean way to frame it—useful whether you’re thinking it through yourself or replying in the comments.
+
+Why React apps feel great at MVP and then hurt later
+
+It’s rarely React itself. It’s that MVPs reward local decisions, while real apps punish them.
+
+During MVP:
+
+Components own their own data
+
+Hooks mix UI + data fetching + business rules
+
+“Just one more useEffect” feels harmless
+
+Refactors are cheap because surface area is small
+
+After MVP:
+
+Features need to share state
+
+Business rules grow cross-cutting
+
+APIs evolve, cache rules appear, permissions enter
+
+Every component becomes indirectly coupled
+
+The pain shows up when UI abstractions are forced to carry non-UI responsibilities.
+
+The real disagreement in the comments (simplified)
+Camp A: “Centralize everything”
+
+Stateless components, state manager owns logic, hexagonal architecture
+
+They’re right about:
+
+Long-term maintainability
+
+Testability
+
+Decoupling React from business logic
+
+They’re wrong when:
+
+Applied dogmatically to small or short-lived apps
+
+State managers become dumping grounds for everything
+
+You lose iteration speed too early
+
+Camp B: “Use React Query / hooks / libraries”
+
+Let tools abstract complexity
+
+They’re right about:
+
+Not reinventing networking, caching, retries
+
+Reducing boilerplate
+
+Faster feature delivery
+
+They’re wrong when:
+
+Business rules leak into hooks
+
+Data fetching logic becomes UI-coupled
+
+“Hooks as architecture” replaces actual boundaries
+
+Camp C: “Keep components dumb”
+
+This is the most consistently correct advice in the thread.
+
+React is:
+
+a rendering system, not an application architecture
+
+If components:
+
+decide what to fetch
+
+decide when to fetch
+
+encode business rules
+
+orchestrate workflows
+
+…then growth will hurt no matter which library you use.
+
+The real answer (non-dogmatic)
+You don’t design for scale on day one
+You design escape hatches on day one
+
+Good early decisions:
+
+Feature-based folders (not technical ones)
+
+Clear separation between:
+
+UI
+
+Application logic
+
+Infrastructure (API, storage, cache)
+
+Business rules that can move out of React later
+
+Bad early decisions:
+
+“This hook owns everything”
+
+Global stores with no domain boundaries
+
+Context as a pseudo-state-manager
+
+Treating React primitives as architecture
+
+A practical heuristic (use this)
+
+If logic answers any of these, it shouldn’t live in a component:
+
+“What happens if…?”
+
+“Who is allowed to…?”
+
+“What is the next step after…?”
+
+“Should this retry / rollback / branch?”
+
+That logic belongs outside React, whether that’s:
+
+a state machine
+
+a domain service
+
+a store
+
+or a plain TS module
+
+When do MVP patches become a mess?
+
+Three warning signs:
+
+You’re afraid to delete code
+
+The same rule exists in 3+ places
+
+A UI change breaks business behavior
+
+That’s the refactor trigger—not time, not app size.
+
+TL;DR you could post
+
+React apps hurt later because early decisions blur UI and application logic.
+Hooks are great for rendering, terrible as an architecture.
+Don’t over-engineer day one—but do design so logic can leave React when it grows.
+
+If you want, I can:
+
+Help you write a concise Reddit reply
+
+Sketch a “minimal but scalable” React structure
+
+Or map when to introduce stores/state machines vs React Query
+
+I am curious about Competitive_Pair1554's answers
+
+Competitive_Pair1554 is arguing from a very opinionated, architecture-first position. Their answers make sense internally, but they mix solid architectural instincts with overgeneralizations. Let’s unpack what they’re really saying—and where it holds vs where it breaks.
+
+What Competitive_Pair1554 is really advocating
+
+Stripped of rhetoric, their position is:
+
+Treat the frontend like a backend.
+React is just an I/O layer. All real logic lives elsewhere.
+
+That’s a legitimate school of thought. It’s essentially:
+
+Hexagonal / Clean Architecture
+
+Ports & adapters
+
+Application core independent of framework
+
+React = rendering adapter
+
+This is not wrong. In fact, it’s how many large, long-lived systems are built.
+
+Where they are strongly correct
+1. “React is not an app architecture”
+
+✅ Correct
+
+React:
+
+Renders UI
+
+Manages local UI state
+
+Coordinates effects
+
+It is not good at:
+
+Business rules
+
+Workflow orchestration
+
+Complex domain logic
+
+Long-lived invariants
+
+Apps that push those into hooks do become painful.
+
+2. “Keep components stateless / dumb”
+
+✅ Mostly correct
+
+The more a component:
+
+fetches data
+
+transforms data
+
+encodes rules
+
+…the harder it becomes to:
+
+reuse
+
+test
+
+refactor
+
+reason about
+
+Their instinct to push logic out of components is solid.
+
+3. “Test the logic, not the UI”
+
+✅ Correct
+
+Testing:
+
+reducers
+
+state machines
+
+domain services
+
+is orders of magnitude easier than testing UI trees.
+
+This is a real advantage of centralized logic.
+
+Where they overreach (important)
+1. “Everything should be centralized in a state manager”
+
+❌ Overgeneralized
+
+Problems with this stance:
+
+State managers become god objects
+
+Simple flows gain unnecessary ceremony
+
+Not all logic is stateful
+
+Examples of logic that does not belong in a state manager:
+
+Data transformation
+
+Validation rules
+
+Formatting
+
+One-off workflows
+
+Pure domain calculations
+
+A better framing:
+
+Centralize state transitions, not all logic
+
+2. “Never use hooks to fetch data”
+
+❌ Dogmatic
+
+This is where they lose most experienced React devs.
+
+Why?
+
+Data fetching is inherently reactive
+
+Hooks are actually a good adapter layer
+
+Libraries like React Query don’t force business logic into components
+
+The real issue is where decisions live, not how data is fetched.
+
+Bad:
+
+useQuery({
+  queryFn: () => {
+    if (!user.isAdmin) throw new Error()
+    return fetchSensitiveStuff()
+  }
+})
+
+
+Fine:
+
+useQuery(fetchSensitiveStuff)
+
+
+Hooks aren’t the enemy—logic placement is.
+
+3. “React Context only works for static data”
+
+⚠️ Half-truth
+
+Context issues are usually:
+
+poor memoization
+
+over-broad providers
+
+misuse as a state manager
+
+Context can work—but it’s fragile and easy to misuse. Their criticism comes from real pain, but the conclusion is too absolute.
+
+The AI argument: insightful but exaggerated
+
+“AI will replace us as a coding factory”
+
+What they’re really pointing at (and this is important):
+
+AI is good at generating local code
+
+AI is bad at maintaining global invariants
+
+Architecture + boundaries become more valuable
+
+That part is true.
+
+But:
+
+“Everything needs hexagonal architecture” ≠ true
+
+Over-architecting makes AI worse, not better, in early stages
+
+The winning skill won’t be “maximum abstraction”
+It’ll be knowing where abstraction starts paying rent
+
+Why their answers resonate with some people
+
+They’re likely someone who:
+
+Maintained a large, painful React app
+
+Got burned by hook-centric architectures
+
+Found relief in strong boundaries
+
+Now applies that solution everywhere
+
+This is a trauma-informed architecture style 😄
+Common. Understandable. Slightly rigid.
+
+A more balanced version of their position
+
+If I rewrote their advice without dogma:
+
+Keep React focused on rendering.
+Move business rules into plain TypeScript.
+Centralize state transitions, not all logic.
+Use hooks as adapters, not brains.
+Introduce architecture when coupling appears, not preemptively.
+
+That version would be hard to argue against.
+
+Bottom line
+
+Competitive_Pair1554 is:
+
+✅ Right about the problem
+
+✅ Right about the direction
+
+❌ Too absolute about the implementation
+
+If you take their advice selectively, it will make your apps much easier to evolve.
+If you apply it literally, you’ll over-engineer and slow yourself down.
+
+If you want, I can:
+
+Translate their approach into a minimal, non-dogmatic React architecture
+
+Show where React Query fits cleanly in a hex-style frontend
+
+Or help you write a thoughtful reply that acknowledges their point without endorsing the extremes
+
+I am currently using tanstack react query for data fetching and zustand for state management. And I usually call hooks directly in my components and His thoughts make me question my culture.
+
+What you’re doing (React Query for server state + Zustand for client/UI state + calling hooks in components) is normal, and it’s a pretty healthy “modern React” culture.
+
+Competitive_Pair1554’s take is basically: treat the UI as a thin adapter and put as much logic as possible outside React. That can be great… but it doesn’t mean your approach is wrong. It just means you should be intentional about what you keep in components.
+
+Here’s a way to reconcile both without switching religions.
+
+The key distinction: server state vs client state vs domain logic
+1) Server state (React Query)
+
+Keep it in React Query. That’s literally what it’s best at:
+
+caching, dedupe, retries
+
+background refetch
+
+stale/refresh policies
+
+request lifecycle
+
+Calling useQuery in components is fine.
+
+2) Client/UI state (Zustand)
+
+Use it for:
+
+modals, drawers, filters, selected row, multi-step wizard UI
+
+optimistic UI that isn’t purely server-cache driven
+
+cross-page UI state
+
+3) Domain logic (the part that hurts later)
+
+This is where the “keep components dumb” advice matters most.
+
+Domain logic is:
+
+“who is allowed to do this?”
+
+“how do we compute price/eligibility/status?”
+
+“what’s the next step in this workflow?”
+
+“how do we merge/sort/validate these entities consistently?”
+
+That stuff should not be scattered across components and hooks. Put it in plain TS modules/services.
+
+A culture upgrade that keeps your stack
+
+You don’t need “never use hooks to fetch data.” You need: hooks are adapters, not brains.
+
+Good pattern
+
+React Query hooks return raw data + status
+
+Components render
+
+Domain functions decide/compute
+
+Optional: a small “controller hook” composes pieces, but stays thin
+
+Example structure:
+
+features/orders/api.ts (fetch functions)
+
+features/orders/queries.ts (useOrdersQuery wrappers)
+
+features/orders/domain.ts (pure functions: totals, rules)
+
+features/orders/ui/*.tsx (components)
+
+stores/uiStore.ts (zustand UI state)
+
+Anti-pattern (what people regret)
+
+Components compute business rules inline
+
+useQuery select or queryFn contains permission logic and workflow branching
+
+Zustand store becomes a “god store” for everything
+
+Quick litmus tests (super practical)
+
+If you see any of this inside a component, consider extracting:
+
+if (user.role !== 'admin') …
+
+const canX = … where it’s used in many places
+
+useEffect(() => { if (A && B) doC() }, [A,B]) repeated across screens
+
+mapping API DTOs into app models in multiple components
+
+What stays inside components:
+
+layout decisions
+
+small view-only transformations (formatting a date, truncating text)
+
+wiring event handlers
+
+How to keep React Query “clean” without going full hexagonal
+
+Wrap queries in feature hooks, even if they’re thin:
+
+export function useOrders() {
+  return useQuery({ queryKey: ['orders'], queryFn: fetchOrders })
+}
+
+
+This prevents query keys/options being copy-pasted all over.
+
+Normalize domain rules in pure functions:
+
+export function canCancel(order: Order, user: User) { ... }
+
+
+Use Zustand for UI composition, not server cache
+Don’t mirror React Query data into Zustand unless you truly need it.
+
+What you should take from Competitive_Pair1554
+
+“Keep components dumb” ✅ yes
+
+“Test logic outside UI” ✅ yes
+
+“Have boundaries so frameworks can change” ✅ yes (at least at the module level)
+
+What you can ignore
+
+“Never fetch with hooks” ❌ (unnecessary and fights the ecosystem)
+
+“Everything in the state manager” ❌ (creates a god-object and slows iteration)
+
+If you tell me one example of a feature in your app that got messy after MVP (like “permissions + list + detail + edit + optimistic update”), I’ll show exactly how I’d split it across React Query + Zustand + domain module so it stays clean without adopting a heavy architecture.
+
+how is this repo handling this matter? >>> https://github.com/makeplane/plane/tree/preview/apps/admin , https://github.com/makeplane/plane/tree/preview/apps/web
+Thought for 2m 22s
+
+From the parts of Plane I can reliably open, they’re not doing what Competitive_Pair1554 suggests (“no hooks for data fetching”, “everything in one state manager”, “components stateless”).
+
+What Plane is doing (web app)
+1) They split code by “product/module”, not “one global store”
+
+In web/ you can already see a deliberate top-level split:
+
+app/ (Next.js app/router surface)
+
+core/ (shared “core” code)
+
+helpers/ (utilities)
+
+ce/ and ee/ (community vs enterprise separation)
+
+plus public/, styles/, etc.
+
+That’s already a signal they’re treating “architecture” as module boundaries + shared core, not “put everything in the store”.
+
+2) Their data-fetching is hook-based (SWR), not “never use hooks”
+
+In web/package.json, they depend on swr. SWR’s whole API is React hooks (useSWR).
+
+So: they do fetch data via hooks in React-land.
+
+3) Their client/app state is MobX (not Zustand), and UI likely reads it directly
+
+Same web/package.json shows mobx, mobx-react, mobx-utils.
+
+MobX apps typically keep state in stores and have components subscribe (often via observer). That’s not “stateless components”; it’s “components are observers of state”.
+
+4) They’re not on TanStack Query (at least in apps/web)
+
+web/package.json does not list @tanstack/react-query.
+So if you’re using TanStack Query + Zustand, you’re already on a different stack than Plane’s web app.
+
+What that means for your “culture” (TanStack Query + Zustand)
+
+Your current approach (query hooks in components + Zustand for UI state) is a very common and sane setup. The thing that does tend to bite teams post-MVP isn’t “hooks are bad” — it’s:
+
+no boundaries (UI, server-state, domain rules all mixed together)
+
+ad-hoc data flow (random components doing orchestration)
+
+duplicated business rules across screens
+
+A practical “best of both worlds” pattern (that still uses hooks)
+
+TanStack Query for server state (fetch/cache/invalidation)
+
+Zustand for UI state (modals, filters, table selection, drafts)
+
+Put business rules in plain TS modules (domain/services), then expose them via:
+
+thin query hooks (useIssuesQuery(params)) that wrap query keys + fetchers
+
+thin actions on Zustand stores for UI workflows
+
+So components call hooks, but the hooks are yours (an API), not a free-for-all.
+
+Where Competitive_Pair1554 is “right”, but too extreme
+
+They’re right that you don’t want business logic to “live” in components.
+They’re overreaching by saying:
+
+“Never use hooks to fetch data” (Plane literally uses SWR hooks)
+
+“Everything should be centralized in your state manager” (Plane’s structure suggests the opposite: modules + core + helpers)
+
+If you want, paste one concrete example from your codebase that feels “too hook-y” (e.g. a page component that fetches + transforms + coordinates 3 calls). I’ll show how I’d split it into: domain/ + queries/ + stores/ + dumb UI, without going full “hexagonal all the things”.
+
+ok, this is my current directory tree (see ttached file). You said:
+
+Normalize domain rules in pure functions:
+export function canCancel(order: Order, user: User) { ... }
+
+where in my structure should I do that?
+Thought for 5s
+
+I don’t actually have the attached file in this chat (nothing was uploaded on my side), so I can’t see your exact tree yet.
+
+If you re-upload it (a screenshot or a text paste of the tree), I’ll point to the exact folder(s) in your structure.
+
+In the meantime, here’s the best-practice placement that works with TanStack Query + Zustand, and it will map cleanly onto almost any React repo:
+
+Where to put pure domain rules (like canCancel(order, user))
+Option A (recommended): per-feature domain/
+
+Put domain rules next to the feature they belong to.
+
+Example:
+
+src/
+  features/
+    orders/
+      domain/
+        permissions.ts   // canCancel, canRefund, canEdit...
+        rules.ts         // invariants, status transitions
+        selectors.ts     // derived data: totals, display status...
+      api/
+        orders.api.ts
+      queries/
+        orders.queries.ts
+      components/
+      pages/ (or routes/)
+
+
+So canCancel lives at:
+
+src/features/orders/domain/permissions.ts
+
+
+This keeps the rules:
+
+close to the feature
+
+independent of React
+
+reusable by UI, hooks, server calls, and tests
+
+Option B: shared domain/ at the top level
+
+If multiple features share the same entities/rules (e.g. Order used across billing + support), centralize:
+
+src/
+  domain/
+    orders/
+      permissions.ts
+      rules.ts
+      types.ts
+
+
+Use this when it’s truly cross-cutting.
+
+What “domain” should contain (and what it should NOT)
+✅ Put in domain/
+
+permission checks (canCancel)
+
+state transitions (nextStatus(current, event))
+
+validation (validateOrder(order))
+
+calculations (computeTotal(order))
+
+mapping between API DTOs and your internal model (if you have one)
+
+❌ Don’t put in domain/
+
+React Query hooks
+
+Zustand stores
+
+API calls
+
+UI components
+
+Domain should be plain TS with no React imports.
+
+How it connects to React Query + Zustand
+
+React Query fetches OrderDTO[]
+
+api/ maps DTO → Order (optional but nice)
+
+domain/ contains rules over Order
+
+components call canCancel(order, user) to decide what to show
+
+mutations can also use canCancel to guard (UI guard + safety guard)
+
+If you paste your tree, I’ll be specific
+
+Upload the screenshot/text of your directory tree and I’ll reply like:
+
+“Put it in src/<this>/orders/<that>/domain/… because you already have features/orders/... and a shared/ folder, so…”
+
+(Without the tree, I’d just be guessing.)
+
+front-directory-tree.md
+File
+My bad, this is the file containing the tree
+Thought for a couple of seconds
+
+Given your tree, the cleanest place for pure domain rules (like canCancel(order, user)) is alongside the feature, not inside routes/ and not inside Zustand or React Query.
+
+You already have two “feature hubs” that make this easy:
+
+app/lib/react-query/features/... 
+
+front-directory-tree
+
+app/lib/zustand/features/... 
+
+front-directory-tree
+
+Recommended placement (fits your current structure)
+
+Create a third sibling feature area for domain logic:
+
+app/lib/domain/
+  features/
+    staff/
+      permissions.ts
+      rules.ts
+      selectors.ts
+    common/
+      ...
+
+
+So canCancel for “staff invitations” would live at:
+
+apps/front/app/lib/domain/features/staff/permissions.ts
+
+
+Why here?
+
+It stays in app/lib/ with other non-UI code (same “layer” as react-query + zustand). 
+
+front-directory-tree
+
+It’s feature-scoped like your existing react-query/features/* layout. 
+
+front-directory-tree
+
+It remains React-free and can be used by:
+
+route components in app/routes/... 
+
+front-directory-tree
+
+query hooks in app/lib/react-query/... 
+
+front-directory-tree
+
+zustand stores in app/lib/zustand/... 
+
+front-directory-tree
+
+tests (later) without any UI setup
+
+Alternative (also valid): put it inside each lib’s feature folder
+
+If you don’t want to add a new top-level domain/, you can colocate:
+
+app/lib/react-query/features/staff/domain/* (rules used mainly for server-state shaping)
+
+app/lib/zustand/features/staff/domain/* (rules used mainly for UI workflows)
+
+But in practice this gets duplicated fast, so I prefer one domain home.
+
+Concrete example in your repo terms
+
+Let’s say you have “invitations” under staff.
+
+Add:
+
+apps/front/app/lib/domain/features/staff/invitations/permissions.ts
+
+
+Then use it from a route:
+
+route is under app/routes/authed/staff/invitations/... 
+
+front-directory-tree
+
+
+so inside .../list/...tsx you can do:
+
+import { canCancelInvitation } from "~/lib/domain/features/staff/invitations/permissions";
+
+
+(Your alias might differ, but conceptually: routes import domain rules.)
+
+Rule of thumb for your structure
+
+app/routes/** = glue + UI
+
+app/lib/react-query/** = fetching/caching hooks + query keys
+
+app/lib/zustand/** = client/UI state + events/actions
+
+app/lib/domain/** = pure business rules, permissions, calculations
+
+If you tell me one feature you want to start with (e.g. “tenant posts scheduling”, “staff invitations”, “billing”), I can propose the exact folder + filenames and show how a route + query hook + zustand slice would consume the same domain functions.
+
+Sources
+this example is only about canCancel wbut what else are domain/business matters that belongs there?
+
+In your app/lib/domain/... (or whatever you name it), put anything that expresses product rules and invariants—the stuff that should stay true no matter whether you’re using React, Remix, TanStack Query, Zustand, or a CLI.
+
+Here are the main categories that belong there (with concrete examples):
+
+1) Permissions & capabilities
+
+Not just canCancel, but any “is the user allowed to…?” rule.
+
+Examples:
+
+canEditProject(user, project)
+
+canInviteMember(user, workspace)
+
+canDeleteIssue(user, issue)
+
+visibleFieldsForRole(role) (field-level rules)
+
+Why domain? Because these rules shouldn’t live in button components or random pages.
+
+2) State machine / workflow transitions
+
+When an entity has states and valid transitions.
+
+Examples:
+
+isValidTransition(issue.status, "DONE")
+
+nextStatus(currentStatus, event)
+
+allowedActions(order) → ["cancel","refund"]
+
+This prevents “status spaghetti” across screens.
+
+3) Validation & invariants
+
+Rules that define “what is a valid entity / command”.
+
+Examples:
+
+validateInviteEmail(email)
+
+validateCreateCampaign(input) → returns typed errors
+
+assertNonEmptyTitle(title)
+
+isWithinQuota(workspace, newUserCount)
+
+Keep these pure so they can be used in UI forms and on submit before calling APIs.
+
+4) Derived calculations (business, not UI formatting)
+
+Anything that computes business meaning.
+
+Examples:
+
+computeInvoiceTotal(lines, taxes, discountRules)
+
+computeCreditsUsage(jobMetrics)
+
+computeAvailability(schedule, constraints)
+
+supplierScore(supplier, signals)
+
+This is a huge source of duplication if left inside components.
+
+5) Normalization / mapping between API DTOs and domain models (optional but powerful)
+
+If your backend shapes data awkwardly, domain mapping cleans it once.
+
+Examples:
+
+toOrder(dto: OrderDTO): Order
+
+toIssue(dto), mergeIssue(existing, patch)
+
+groupByWorkspace(issues)
+
+Important: keep “fetching” out of domain—just mapping/normalizing.
+
+6) Cross-entity rules
+
+Rules that involve multiple entities or constraints.
+
+Examples:
+
+canMoveIssueToProject(issue, targetProject, user)
+
+canSchedulePost(post, account, planLimits)
+
+resolveNotificationRecipients(event, orgPolicy)
+
+These rules always get messy when scattered.
+
+7) Policies & configuration interpretation
+
+When business behavior depends on plan/feature flags/settings.
+
+Examples:
+
+isFeatureEnabled(plan, "exports")
+
+maxTeamMembersForPlan(plan)
+
+shouldRequire2FA(orgSettings, userRole)
+
+This keeps “plan logic” from infecting UI code.
+
+8) Error and decision objects (domain-friendly outputs)
+
+Instead of returning booleans only, domain can return “decision details”.
+
+Examples:
+
+cancelEligibility(order, user) → { allowed: false, reason: "ALREADY_SHIPPED" }
+
+validateCampaign(input) → { ok: false, errors: [...] }
+
+This is perfect for UI tooltips and consistent messaging.
+
+What does NOT belong in domain
+
+To keep the layer clean:
+
+React components, hooks, JSX
+
+TanStack Query setup (useQuery, query keys)
+
+Zustand stores themselves
+
+API calls (fetch, axios)
+
+UI formatting (“pretty date”, “truncate text”) unless it’s business formatting (e.g. invoice number policy)
+
+How this fits your stack (TanStack Query + Zustand)
+
+A nice rule for your repo:
+
+react-query/features/* → fetching + caching
+
+zustand/features/* → UI state + event handlers
+
+domain/features/* → rules/validation/transitions/calculations (pure)
+
+Then:
+
+Components call domain functions to decide what to render
+
+Mutations can guard with domain rules before firing
+
+Stores can use domain rules to decide how to update UI
+
+If you tell me one feature in your app that tends to spread logic everywhere (e.g. “roles/permissions”, “multi-step form”, “status workflows”, “pricing/credits”), I’ll list specific domain modules you should create for it (file names + function signatures) that match your current tree.
