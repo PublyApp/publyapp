@@ -26,16 +26,15 @@ type EmptyVariables = {};
 
 // Base query options we accept (from react-query-kit's CreateQueryOptions)
 // Omit fields we handle ourselves: queryKey, fetcher
-// Omit query callbacks to match React Query v5 (no per-query onSuccess/onError/onSettled).
 type BaseQueryOptions<TData, TVariables, TError = Error> = Omit<
 	CreateQueryOptions<TData, TVariables, TError>,
-	'queryKey' | 'fetcher' | 'onSuccess' | 'onError' | 'onSettled'
+	'queryKey' | 'fetcher'
 >;
 
 // Base suspense query options (from react-query-kit's CreateSuspenseQueryOptions)
 type BaseSuspenseQueryOptions<TData, TVariables, TError = Error> = Omit<
 	CreateSuspenseQueryOptions<TData, TVariables, TError>,
-	'queryKey' | 'fetcher' | 'onSuccess' | 'onError' | 'onSettled'
+	'queryKey' | 'fetcher'
 >;
 
 // Base mutation options (from react-query-kit's CreateMutationOptions)

@@ -30,11 +30,9 @@ import { safeRun } from '#app/lib/react-router/safeRun.ts';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 export const loader = getServerLoader({
-	loader: async ({ request }) => {
-		const reqCookies = cookie.parse(request.headers.get('cookie') || '');
-		const sessionToken = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY);
-
+	loader: async ({ request, sessionToken, staffToken, tenantToken }) => {
 		// If no session token exists, return NOT_AUTHENTICATED
+		// sessionToken is the primary token (tenantToken ?? staffToken) parsed by getServerLoader
 		if (!sessionToken) {
 			return {
 				status: 'NOT_AUTHENTICATED',
@@ -42,9 +40,12 @@ export const loader = getServerLoader({
 		}
 
 		// Session token exists - validate it by calling the API
-		const authedApiClient = ClientManager.create({
-			sessionToken,
+		const authedApiClient = getClientManager({
+			staffToken,
+			tenantToken,
 		}).createClient();
+
+		const reqCookies = cookie.parse(request.headers.get('cookie') || '');
 
 		const getUserAuthData = safeRun(async () => {
 			return authedApiClient.auth.userAuthData.get();
@@ -169,10 +170,7 @@ export const clientLoader = getClientLoader({
 					? redirectCodeResult.data?.redirectCode
 					: undefined;
 
-			defaultQueryClient.setQueryData(
-				useGetUserAuthData.getKey(),
-				userAuthData,
-			);
+			getQueryClient().setQueryData(useGetUserAuthData.getKey(), userAuthData);
 
 			if (isInvitationRoute) {
 				return null;

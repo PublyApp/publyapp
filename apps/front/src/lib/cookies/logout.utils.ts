@@ -1,4 +1,10 @@
 import {
+	ClientManager,
+	getClientManager,
+} from '@/front/lib/js-client/client-manager';
+import { getQueryClient } from '@/front/lib/react-query/query-client';
+import { globalNavigate } from '@/front/lib/react-router/navigation-helper';
+import {
 	FRONT_PATH_NAMES,
 	formActionKey,
 	queryParamKey,
@@ -27,19 +33,6 @@ type LogoutOptions = {
 	redirectTo?: string;
 };
 
-// Re-entrance guard: prevents cascading logout calls.
-// When logout() clears the query cache, active suspense queries re-fetch,
-// fail with 401 (session gone), and the global error handler calls logout() again.
-let logoutInProgress = false;
-
-/**
- * Reset the logout-in-progress flag.
- * Called by AuthQueriesLoader when a valid session is established.
- */
-export const resetLogoutFlag = (): void => {
-	logoutInProgress = false;
-};
-
 /**
  * Clears session state and redirects to login.
  * - Clears non-httpOnly session cookies
@@ -48,14 +41,6 @@ export const resetLogoutFlag = (): void => {
  * - Navigates to login page
  */
 export const logout = (options?: LogoutOptions): void => {
-	if (logoutInProgress) return;
-	logoutInProgress = true;
-
-	// Mark auth logout in progress BEFORE clearing cache.
-	// This prevents the query/mutation 401 error handlers from
-	// triggering another logout() call when re-fetches fail.
-	markAuthLogoutInProgress();
-
 	// Clear session cookie (non-httpOnly only)
 	clearSessionCookie();
 
@@ -102,8 +87,7 @@ export const logout = (options?: LogoutOptions): void => {
 		redirect: 'manual', // prevent automatic redirect to login page
 		body: formData,
 	})
-		.catch((e) => {
-			console.error('Logout failed:', e);
+		.catch(() => {
 			// Ignore fetch errors - navigate to login regardless
 		})
 		.finally(() => {

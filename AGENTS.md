@@ -123,7 +123,7 @@ Features/[Domain]/[Feature]/
 - **CQRS-lite**: Request handlers pattern
 - **Minimal APIs**: ASP.NET Core minimal API endpoints
 - **FluentValidation**: Automatic validation via filters
-- **Response Format**: All endpoints return `ApiResponse` with `Message` and `Data`
+- **Response Format**: Success returns `Ok<T>` / `Ok<ApiResponse>`; errors return RFC 7807 `application/problem+json` (`AppProblemDetails` / `ValidationProblemDetails`) with `translationKey`
 
 **Finding Backend Code:**
 - Common features (auth, accounts, users): `apps/api/Src/Features/Common/`
@@ -188,8 +188,30 @@ Form State       → React Hook Form (local form state)
 **API Client Integration:**
 - Microsoft Kiota auto-generated client from OpenAPI
 - Singleton `ClientManager` in `app/lib/js-client/`
-- Session token from `X-Session-Token` header
-- API client instances: `apiClient` (authenticated), `anonApiClient` (anonymous)
+- Session token from `X-Session-Token` header (read fresh from cookies on every request)
+- Tenant ID from `X-PublyApp-TenantId` header (for multi-tenant data isolation)
+
+**Getting API Clients:**
+
+1. **In React hooks** - Use hook factories from `app/lib/react-query/create-hooks.ts`:
+   - `createTenantQuery/Mutation` - Tenant-scoped (tenantId required in variables)
+   - `createStaffQuery/Mutation` - Staff-only endpoints (no tenantId)
+   - `createAuthQuery/Mutation` - Auth endpoints (session token, no tenantId)
+   - `createPublicQuery/Mutation` - Anonymous/public endpoints (no auth)
+
+2. **Client-side (browser)** - Outside React lifecycle (e.g., clientLoaders):
+   - `getClientManager().getOrCreateClient(tenantId)` - Tenant client with `X-PublyApp-TenantId`
+   - `getClientManager().getOrCreateStaffClient()` - Staff client (no tenant-id header)
+   - `getClientManager().getOrCreateAnonymousClient()` - Anonymous client (no auth, no tenant)
+   - `getClientManager().createClient({ tenantId?, skipAuth?, context? })` - Create ad-hoc client
+
+3. **Server-side (SSR)** - In React Router loaders/actions:
+   - `getClientManager({ staffToken?, tenantToken? }).createClient({ tenantId?, context? })` - per-request instance
+   - Tokens are parsed by `getServerLoader` / `getServerAction` and passed to your loader/action
+   ```typescript
+   import { getClientManager } from '@/front/lib/js-client/client-manager';
+   const apiClient = getClientManager({ staffToken, tenantToken }).createClient();
+   ```
 
 **Data Fetching Pattern (Route-Type Specific):**
 
@@ -207,22 +229,17 @@ export const loader = async ({ apiClient }) => {
   return { data };
 };
 
-// ✅ CORRECT - react-query-kit hooks for authenticated pages
+// ✅ CORRECT - Use hook factories for authenticated pages
 // Step 1: Define hook in app/lib/react-query/features/staff/staff-member.hooks.ts
-import { createQuery } from 'react-query-kit';
-import { getQueryKey } from '../../query-utils';
+import { createStaffQuery } from '../../create-hooks';
 
-const findStaffMemberQueryKey = getQueryKey<ApiClient>(
-  (client) => client.staff.staffMembers.get,
-);
-
-export const useFindStaffMember = createQuery({
-  queryKey: [findStaffMemberQueryKey] as const,
-  fetcher: async (params: { page?: number }) => {
-    const result = await clientManager.apiClient.staff.staffMembers.get({
+export const useFindStaffMember = createStaffQuery({
+  queryKeyFn: (client) => client.staff.staffMembers.get,
+  fetcher: async (client, params: { page?: number }) => {
+    const result = await client.staff.staffMembers.get({
       queryParameters: { page: params.page?.toString() },
     });
-    if (_.isNil(result)) throw new Error(`[${findStaffMemberQueryKey}]: result is nil`);
+    if (_.isNil(result)) throw new Error('useFindStaffMember: result is nil');
     return result;
   },
 });
@@ -245,17 +262,17 @@ export const loader = getServerLoader({
   }
 });
 
-// ✅ CORRECT - Mutations in authed pages use react-query-kit
+// ✅ CORRECT - Mutations in authed pages use hook factories
 // Step 1: Define mutation hook
-import { createMutation } from 'react-query-kit';
+import { createStaffMutation } from '../../create-hooks';
 
-export const useCreateMember = createMutation({
-  mutationKey: [createMemberMutationKey] as const,
-  mutationFn: async (data: { email: string }) => {
-    const result = await clientManager.apiClient.staff.members.post({
+export const useCreateMember = createStaffMutation({
+  mutationKeyFn: (client) => client.staff.members.post,
+  mutationFn: async (client, data: { email: string }) => {
+    const result = await client.staff.members.post({
       email: { getValue() { return data.email; } },
     });
-    if (_.isNil(result)) throw new Error('result is nil');
+    if (_.isNil(result)) throw new Error('useCreateMember: result is nil');
     return result;
   },
 });
@@ -397,6 +414,31 @@ var users = db.Users
 - Operations without query syntax equivalents
 - In-memory collections
 
+### Collection Checking
+
+**Prefer comparing `Count` to 0 rather than using `.Any()` for clarity and performance:**
+
+```csharp
+// ❌ WRONG - Using .Any() to check if collection has items
+if (invitations.Any())
+if (!users.Any())
+
+// ✅ CORRECT - Compare Count to 0
+if (invitations.Count > 0)
+if (users.Count == 0)
+```
+
+**Why prefer `Count > 0`:**
+- More explicit and clearer intent
+- Better performance for collections that already have a Count property (List<T>, array, etc.)
+- Avoids unnecessary enumeration overhead
+- More consistent with common C# idioms
+
+**Exception:** Use `.Any()` when:
+- Working with IEnumerable<T> that doesn't have an efficient Count implementation
+- Using `.Any(predicate)` with a condition: `users.Any(u => u.IsActive)`
+- The collection is a LINQ query that hasn't been materialized yet
+
 ### Async/Await Patterns
 
 **Critical anti-patterns to NEVER use:**
@@ -485,7 +527,7 @@ public class CreateStaffInvitationBodyValidator : AbstractValidator<CreateStaffI
 
 // Handler class (descriptive HandleX method name)
 public static class CreateStaffInvitation {
-    public static async Task<Results<Ok<InvitationCreated>, BadRequest<ApiResponse>, Forbidden<ApiResponse>>>
+    public static async Task<Results<Ok<InvitationCreated>, AppBadRequestHttpResult, AppForbiddenHttpResult>>
     HandleCreateStaffInvitation(  // ✅ Descriptive name, NOT just "Handle"
         [FromServices] IAuthContext authContext,
         [FromServices] IInvitationService invitationService,  // ✅ Use service, NOT DbContext
@@ -669,77 +711,85 @@ public static async Task<...> HandleFindStaffInvitations(...) { }
 
 ### API Response Pattern
 
-**CRITICAL:** All responses MUST follow the `ApiResponse` pattern.
+**CRITICAL:** All error responses MUST use RFC 7807 ProblemDetails via `TypedProblems`.
 
 **Rules:**
 1. **Success WITH data**: Return data directly using `TypedResults.Ok(data)`
-2. **Success WITHOUT data**: Return `ApiResponse` using `TypedResults.Ok(new ApiResponse { ... })`
-3. **All error responses**: MUST return `ApiResponse` with appropriate status code
+2. **Success WITHOUT data**: Return a message using `TypedResults.Ok(new { Message = "..." })`
+3. **All error responses**: MUST use `TypedProblems.*` methods for RFC 7807 compliance and automatic OpenAPI documentation
 
 ```csharp
 // ✅ Success WITH data - return data directly
 public static async Task<Results<
     Ok<User>,
-    NotFound<ApiResponse>
+    AppNotFoundHttpResult
 >> HandleGetUser(...) {
     var user = await userService.GetUserAsync(id);
 
     if (user is null) {
-        return TypedResults.NotFound(
-            ApiResponse.Create("User not found", ResponseKeys.NotFound)
-        );
+        return TypedProblems.NotFound("User not found", ResponseKeys.NotFound);
     }
 
     return TypedResults.Ok(user);  // Data returned directly
 }
 
-// ✅ Success WITHOUT data - return ApiResponse
-public static async Task<Results<
-    Ok<ApiResponse>,
-    NotFound<ApiResponse>
->> HandleDeleteUser(...) {
-    var success = await userService.DeleteUserAsync(id);
-
-    if (!success) {
-        return TypedResults.NotFound(
-            ApiResponse.Create("User not found", ResponseKeys.NotFound)
-        );
-    }
-
-    // No data to return, so return ApiResponse
-    return TypedResults.Ok(
-        ApiResponse.Create("User deleted successfully", ResponseKeys.UserDeleted)
-    );
-}
-
-// ✅ For responses that don't support custom payload - use JsonHttpResult
+// ✅ All error responses use TypedProblems for automatic OpenAPI documentation
 public static async Task<Results<
     Ok<User>,
-    BadRequest<ApiResponse>,
-    JsonHttpResult  // For 403 since Forbid() doesn't support payload
+    AppBadRequestHttpResult,
+    AppForbiddenHttpResult
 >> HandleUpdateUser(...) {
     if (!hasPermission) {
-        return TypedResults.Json(
-            ApiResponse.Create(
-                "User does not have the necessary permissions",
-                ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
-            ),
-            statusCode: StatusCodes.Status403Forbidden
+        return TypedProblems.Forbidden(
+            "User does not have the necessary permissions",
+            ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
         );
     }
 
     var updatedUser = await userService.UpdateUserAsync(user);
     return TypedResults.Ok(updatedUser);
 }
+
+// ✅ Available TypedProblems methods (all auto-document in OpenAPI):
+// TypedProblems.BadRequest(detail, translationKey)        -> 400 (generic bad request)
+// TypedProblems.Unauthorized(detail, translationKey)      -> 401
+// TypedProblems.Forbidden(detail, translationKey)         -> 403
+// TypedProblems.NotFound(detail, translationKey)          -> 404
+// TypedProblems.InternalServerError(detail, translationKey) -> 500
+// TypedProblems.ValidationProblem(detail, translationKey, errors) -> 422 (validation errors)
 ```
 
-**When TypedResults doesn't support custom payloads** (like `.Forbid()`, `.Unauthorized()`):
-Use `TypedResults.Json()` with explicit status code and `ApiResponse` payload.
+**HTTP Status Code Distinction (400 vs 422):**
+- **400 Bad Request** — Generic bad requests (invalid credentials, user already exists, invalid token, etc.)
+  - Uses `AppProblemDetails` schema
+  - Created via `TypedProblems.BadRequest(...)`
+- **422 Unprocessable Entity** — Field-level validation errors from FluentValidation
+  - Uses `ValidationProblemDetails` schema (includes `errors` dictionary)
+  - Created via `TypedProblems.ValidationProblem(...)` or automatically by validation filters
+
+**Note on framework/binding errors:**
+- Missing required query/body parameters can still produce a **400** (e.g., request body missing / required query parameter missing).
+- These are normalized by `UseCustomExceptionHandler()` to `AppProblemDetails` (`application/problem+json`), so endpoints may legitimately document both `400` (generic/binding) and `422` (validation).
+- `builder.Services.AddProblemDetails()` is registered (see `apps/api/Src/Lib/AppServices.cs`) for framework integration, but endpoints still return ProblemDetails explicitly via `TypedProblems.*`.
+
+```csharp
+// 400 - Generic bad request (e.g., invalid credentials)
+return TypedProblems.BadRequest("Invalid email or password", ResponseKeys.InvalidCredentials);
+
+// 422 - Validation errors (automatically returned by .WithReqBodyValidation<T>())
+// Response includes field-level errors: { "errors": { "email": ["Email is required"] } }
+```
+
+**Why TypedProblems?**
+- Returns RFC 7807 `application/problem+json` responses
+- Includes `translationKey` for frontend i18n
+- Typed result classes implement `IEndpointMetadataProvider` for automatic OpenAPI documentation
+- No manual `.ProducesApiResponses()` needed - status codes are inferred from return type
 
 **❌ NEVER use:**
-- `TypedResults.Ok()` without payload
-- `TypedResults.Forbid()` (use `TypedResults.Json(..., statusCode: 403)` instead)
-- `TypedResults.Unauthorized()` (use `TypedResults.Json(..., statusCode: 401)` instead)
+- `TypedResults.Forbid()` (empty body, no translation key)
+- `TypedResults.Unauthorized()` (empty body, no translation key)
+- `TypedResults.Json(..., statusCode: 4xx)` for errors (breaks OpenAPI inference)
 
 ### String Comparison
 
@@ -771,38 +821,79 @@ var user = await (
 
 ### OpenAPI Documentation
 
-**CRITICAL:** Document ALL status codes the handler can return.
+**CRITICAL:** Use `TypedProblems.*` methods for automatic OpenAPI documentation.
 
 ```csharp
-// Handler returns these status codes
+// Handler return type includes typed results - OpenAPI is auto-documented!
 public static async Task<Results<
     Ok<Response>,
-    BadRequest<ApiResponse>,
-    Forbidden<ApiResponse>,       // Must document this!
-    JsonHttpResult<ApiResponse>   // Must document custom status codes!
+    AppBadRequestHttpResult,     // Auto-documented as 400 with AppProblemDetails
+    AppForbiddenHttpResult       // Auto-documented as 403 with AppProblemDetails
 >> HandleAction(...) {
     if (!authorized) {
-        return TypedResults.Json(
-            ApiResponse.Create("Forbidden", ResponseKeys.Forbidden),
-            statusCode: StatusCodes.Status403Forbidden  // Custom status code
-        );
+        return TypedProblems.Forbidden("Forbidden", ResponseKeys.Forbidden);
     }
+    // ...
 }
 
-// Endpoint MUST document ALL possible responses
+// Endpoint registration - no manual status code documentation needed!
 group.MapPost("/", Handler.HandleAction)
-    .WithReqBodyValidation<CreateBody>()
-    .ProducesApiResponses(
-        StatusCodes.Status500InternalServerError,  // Always include
-        StatusCodes.Status403Forbidden             // From JsonHttpResult!
-        // 400 auto-documented by WithReqBodyValidation
-        // 200 auto-documented by Ok<Response>
-    );
+    .WithReqBodyValidation<CreateBody>();
+    // ✅ 200 auto-documented by Ok<Response>
+    // ✅ 400 auto-documented by AppBadRequestHttpResult (generic bad request)
+    // ✅ 403 auto-documented by AppForbiddenHttpResult
+    // ✅ 422 auto-documented by WithReqBodyValidation (validation errors)
 ```
 
-**Rule:** If handler uses `JsonHttpResult` → Must add status code to `ProducesApiResponses`.
+**How automatic documentation works:**
+- Typed result classes (`AppForbiddenHttpResult`, `AppUnauthorizedHttpResult`, etc.) implement `IEndpointMetadataProvider`
+- Filter extension methods (`.WithSessionAuthentication()`, `.WithStaffAuthorization()`, etc.) add their possible error responses automatically
+- No manual `.ProducesApiResponses()` calls needed
 
-**Why:** TypeScript API client is auto-generated from OpenAPI spec. Missing status codes = broken error handling in frontend.
+**Why:** TypeScript API client is auto-generated from OpenAPI spec. Typed results ensure accurate documentation without manual maintenance.
+
+### 500 Internal Server Error Documentation
+
+**CRITICAL:** The global exception handler can return 500 for ANY endpoint. How 500 is documented depends on the endpoint type.
+
+**Authenticated endpoints (auto-documented):**
+Auth filter extension methods automatically add 500 to OpenAPI documentation:
+- `.WithSessionAuthentication()` → adds 401, 500
+- `.WithStaffAuthorization()` → adds 403, 500
+- `.WithTenantAuthorization()` → adds 401, 403, 404, 500
+
+```csharp
+// ✅ 500 is auto-documented via auth filter
+group.MapGet("/user", GetUser.HandleGetUser)
+    .WithSessionAuthentication();  // Adds 401, 500 automatically
+```
+
+**Anonymous endpoints (manual documentation required):**
+Endpoints without auth filters do NOT automatically document 500, even though the global exception handler can still return it. You MUST add `.ProducesAppProblem(StatusCodes.Status500InternalServerError)` manually.
+
+```csharp
+// ❌ WRONG - Anonymous endpoint missing 500 documentation
+group.MapPost("/login", Login.HandleLogin)
+    .WithReqBodyValidation<LoginBody>();
+    // Global exception handler can return 500, but it's not documented!
+
+// ✅ CORRECT - Manually document 500 for anonymous endpoints
+group.MapPost("/login", Login.HandleLogin)
+    .WithReqBodyValidation<LoginBody>()
+    .ProducesAppProblem(StatusCodes.Status500InternalServerError);
+```
+
+**Rule:** When creating anonymous endpoints (no auth filter), always add:
+```csharp
+.ProducesAppProblem(StatusCodes.Status500InternalServerError)
+```
+
+**Anonymous endpoints requiring manual 500 documentation:**
+- Login/Register endpoints (`/auth/login`, `/auth/register`)
+- Password reset flow (`/auth/reset-password`, `/auth/check-reset-password-token`)
+- Email verification (`/auth/verify-email-request`, `/auth/verification-link`, `/auth/check-email-verification-token`)
+- Public invitation endpoints (`/invitations/{token}/details`, `/invitations/{token}/accept`, `/invitations/check`)
+- Any future public/anonymous endpoints
 
 ### Code Formatting
 
@@ -810,13 +901,13 @@ group.MapPost("/", Handler.HandleAction)
 
 ```csharp
 // ❌ WRONG - Line too long
-public static async Task<Results<Ok<Response>, BadRequest<ApiResponse>, Forbidden<ApiResponse>>> HandleAction([FromServices] IAuthContext authContext, [FromServices] IService service, [FromBody] CreateBody request, CancellationToken cancellationToken = default) {
+public static async Task<Results<Ok<Response>, AppBadRequestHttpResult, AppForbiddenHttpResult>> HandleAction([FromServices] IAuthContext authContext, [FromServices] IService service, [FromBody] CreateBody request, CancellationToken cancellationToken = default) {
 
 // ✅ CORRECT - Break into multiple lines
 public static async Task<Results<
     Ok<Response>,
-    BadRequest<ApiResponse>,
-    Forbidden<ApiResponse>
+    AppBadRequestHttpResult,
+    AppForbiddenHttpResult
 >> HandleAction(
     [FromServices] IAuthContext authContext,
     [FromServices] IService service,
@@ -851,6 +942,69 @@ public static async Task<Results<
 - Frontend/Node: use `logger` from `@/shared/lib/logger/iso-logger` (not `console.*`)
 - Frontend API errors: centralized via `ApiFailure` discriminated union — see [`docs/guides/frontend-error-handling.md`](docs/guides/frontend-error-handling.md)
 - Frontend local mutation handlers must derive user-facing error text through `getFailureMessage(toApiFailure(error), ...)`; never translate `response-message` keys manually at the call site
+
+### Frontend API Error Handling
+
+**CRITICAL:** The frontend uses a centralized error handling system. Understanding this is essential for writing correct mutation/query code.
+
+**Architecture:**
+- All API errors are normalized into `ApiFailure` discriminated union via `toApiFailure()`
+- Global handlers in `MutationCache`/`QueryCache` handle toasts and auth errors
+- Forms use `withFormValidation()` helper for field-level error mapping
+
+**Default behavior (no code needed):**
+```typescript
+// ✅ Errors auto-toast - no onError handler required
+const { mutate } = useCreateStaffMember();
+mutate(data);
+```
+
+**Form validation pattern:**
+```typescript
+import { withFormValidation } from '@/front/lib/api-failure';
+
+// ✅ Field errors mapped to form, other errors still toast
+const { mutate } = useCreateStaffMember(
+  withFormValidation(form.setError, {
+    meta: { showSuccessToast: true },
+    onSuccess: () => navigate('/staff'),
+  })
+);
+```
+
+**Opt-out for custom handling:**
+```typescript
+// ✅ Full control - global handler skipped
+const { mutate } = useMyMutation({
+  meta: { skipGlobalErrorHandler: true },
+  onError: (error) => {
+    const failure = toApiFailure(error);
+    // Custom handling
+  },
+});
+```
+
+**ApiFailure kinds:**
+| Kind | HTTP Status | Default Behavior |
+|------|-------------|------------------|
+| `validation` | 422 | Toast (unless form handles) |
+| `problem` | 400/401/403/404/500 | Toast (401 → logout) |
+| `network` | - | Toast "Network error" |
+| `abort` | - | Silent |
+| `unknown` | - | Toast + log |
+
+**Auth error handling:**
+- **401**: Global hook triggers `logout()` immediately
+- **403**: Error boundary shows `View403` (no logout - user is authenticated but forbidden)
+
+**Mutation meta options:**
+- `showSuccessToast: true` - Toast success message from API response
+- `successMessage: "key"` - Override with explicit message
+- `validationHandledByForm: true` - Suppress validation toast
+- `skipGlobalErrorHandler: true` - Handle all errors locally
+- `skipAuthErrorHandler: true` - Don't logout on 401 (rare)
+
+**Reference:** See `docs/guides/frontend-error-handling.md` for complete guide.
 
 ## Development Environment
 
@@ -890,6 +1044,161 @@ client regeneration workflow, and TypeScript patterns), see:
 - Never add XML comments to generic types (`<T>`) — triggers .NET 10 OpenAPI bug
 - After DTO/endpoint changes: `just build-api && just generate-client && just tsc-front`
 - Use `createUntypedString()` / `createUntypedArray()` for request body fields in TypeScript
+
+## OpenAPI & Kiota Client Generation Safeguards
+
+**CRITICAL:** The TypeScript API client is auto-generated from the .NET OpenAPI spec using Microsoft Kiota. Several .NET patterns directly affect TypeScript type generation.
+
+### JsonElement Nullability and Kiota Types
+
+**The nullability of `JsonElement` properties directly affects generated TypeScript types:**
+
+```csharp
+// NON-nullable JsonElement → generates UntypedNode in TypeScript
+public class PasswordLoginBody {
+    public JsonElement Email { get; set; }     // → email?: UntypedNode | null
+    public JsonElement Password { get; set; }  // → password?: UntypedNode | null
+}
+
+// NULLABLE JsonElement? → generates complex union type requiring type casts
+public record CreateStaffProfileBody {
+    public JsonElement? Name { get; init; }    // → name?: CreateStaffProfileBody_nameMember1 | JsonElement | null
+}
+```
+
+**Rule:** For REQUIRED fields, use non-nullable `JsonElement` (not `JsonElement?`). This generates cleaner `UntypedNode` types in TypeScript without requiring type assertions.
+
+```csharp
+// ✅ CORRECT - Required field uses non-nullable JsonElement
+public record CreateUserBody {
+    public JsonElement Email { get; init; }     // Required - use non-nullable
+    public JsonElement Password { get; init; }  // Required - use non-nullable
+    public JsonElement? Bio { get; init; }      // Optional - nullable is fine
+}
+
+// ❌ WRONG - Required field uses nullable JsonElement?
+public record CreateUserBody {
+    public JsonElement? Email { get; init; }    // Generates complex union type!
+}
+```
+
+### Generic Types and XML Comments (.NET 10 Bug)
+
+**CRITICAL:** .NET 10's OpenAPI source generator has a bug that causes duplicate key errors when processing XML comments on generic types.
+
+```csharp
+// ❌ WRONG - XML comments on generic type cause OpenAPI generation failure
+/// <summary>
+/// Paginated result wrapper.
+/// </summary>
+public class CursorPaginatedResult<T> {
+    /// <summary>
+    /// The data items.
+    /// </summary>
+    public List<T> Data { get; set; } = [];
+}
+
+// ✅ CORRECT - Remove XML comments from generic types
+// Note: XML comments removed to work around .NET 10 OpenAPI source generator bug
+// See: https://github.com/dotnet/aspnetcore/issues/63233
+#pragma warning disable CS1591
+public class CursorPaginatedResult<T> {
+    public List<T> Data { get; set; } = [];
+    public string? NextCursor { get; set; } = null;
+}
+#pragma warning restore CS1591
+```
+
+**Rule:** Never add XML documentation comments to generic types (`<T>`) in the API project. The .NET 10 OpenAPI source generator will fail with "duplicate key" errors.
+
+### Integer Type Schema Transformer
+
+**Problem:** .NET 10 OpenAPI generation can produce `["integer", "string"]` union types instead of just `"integer"` for `int` properties. This causes Kiota to generate `UntypedNode` types instead of proper `number` types.
+
+**Solution:** A schema transformer in `AppServices.cs` fixes this at OpenAPI generation time:
+
+```csharp
+// apps/api/Src/Lib/AppServices.cs
+builder.Services.AddOpenApi(options => {
+    options.AddSchemaTransformer((schema, context, cancellationToken) => {
+        if (schema.Type.HasValue) {
+            var schemaType = schema.Type.Value;
+            // Fix integer+string unions → just integer
+            if (schemaType.HasFlag(JsonSchemaType.Integer) && schemaType.HasFlag(JsonSchemaType.String)) {
+                schema.Type = JsonSchemaType.Integer;
+            }
+            // Fix number+string unions → just number
+            else if (schemaType.HasFlag(JsonSchemaType.Number) && schemaType.HasFlag(JsonSchemaType.String)) {
+                schema.Type = JsonSchemaType.Number;
+            }
+        }
+        return Task.CompletedTask;
+    });
+});
+```
+
+**Rule:** If you see TypeScript types like `count?: number | UntypedNode` in response DTOs, check that the schema transformer is present and that `OpenApiGenerateDocuments` is `true` in `MainApi.csproj`.
+
+### Client Regeneration Workflow
+
+**After ANY changes to .NET DTOs or endpoints:**
+
+```bash
+# 1. Build API to regenerate OpenAPI spec (apps/api/openapi/MainApi.json)
+make build-api
+
+# 2. Update TypeScript client from new OpenAPI spec
+make update-client
+
+# 3. Run TypeScript check to verify no type errors
+make tsc-front
+```
+
+**Common issues after regeneration:**
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `UntypedNode` in response types | Integer schema is `["integer", "string"]` | Verify schema transformer is present |
+| Complex union types in request bodies | Using `JsonElement?` (nullable) | Use `JsonElement` (non-nullable) for required fields |
+| Build fails with "duplicate key" | XML comments on generic type | Remove XML comments from generic types |
+| Type casts needed (`as typeof body.name`) | Nullable `JsonElement?` property | Use non-nullable `JsonElement` or accept the cast |
+
+### TypeScript Patterns for Kiota Client
+
+**For request bodies with UntypedNode fields:**
+
+```typescript
+import { createUntypedString, createUntypedArray } from '@microsoft/kiota-abstractions';
+
+// ✅ CORRECT - Use Kiota factory functions
+const body: CreateUserBody = {
+    email: createUntypedString(data.email),
+    password: createUntypedString(data.password),
+};
+
+// ❌ WRONG - Old pattern that no longer works
+const body: CreateUserBody = {
+    email: { getValue() { return data.email; } },  // May not match expected type
+};
+```
+
+**For response data with potential UntypedNode unions:**
+
+```typescript
+import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
+
+// ✅ CORRECT - Use utility to safely extract number
+const count = getUntypedNumber(response.count, 0);
+
+// ❌ WRONG - Assumes response.count is always number
+const count = response.count;  // Could be number | UntypedNode
+```
+
+**Utility functions in `apps/front/app/lib/js-client/kiota-utils.ts`:**
+- `getUntypedNumber(value, defaultValue)` - Safely extract number from `number | UntypedNode`
+- `getUntypedString(value, defaultValue)` - Safely extract string from `string | UntypedNode`
+- `getUntypedArray(value)` - Safely extract array from `T[] | UntypedNode`
+- `getUntypedValue(value)` - Generic extraction for any type
 
 ## Documentation Organization
 
