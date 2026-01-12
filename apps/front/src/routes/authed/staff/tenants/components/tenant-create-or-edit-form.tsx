@@ -79,10 +79,11 @@ const defaultValues = {
 } satisfies NewTenantSchemaType;
 
 type ITenantItem = {
-	id: string;
-	name: string;
-	maxUsers: number;
-	logo: string;
+	id?: string | null;
+	tenantId?: string | null;
+	name?: string | null;
+	maxUsers?: number | null;
+	logo?: string | null;
 };
 
 type TenantCreateOrEditFormProps = {
@@ -100,7 +101,7 @@ export const TenantCreateOrEditForm = ({
 	const router = useRouter();
 	const openDialog = useBoolean();
 
-	let NewTenantSchema = getNewTenantSchemaClientSide(defaultZodClient, {
+	let NewTenantSchema = getNewTenantSchemaClientSide(interZodClient, {
 		maxUsers: DEFAULT_MAX_USER_PER_TENANT,
 	});
 
@@ -120,7 +121,9 @@ export const TenantCreateOrEditForm = ({
 		defaultValues,
 		values: currentTenant
 			? {
-					...currentTenant,
+					name: currentTenant.name ?? '',
+					maxUsers: currentTenant.maxUsers ?? DEFAULT_MAX_USER_PER_TENANT,
+					logo: currentTenant.logo ?? undefined,
 					initialUsers: [],
 				}
 			: undefined,

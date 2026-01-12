@@ -242,7 +242,7 @@ const ResetPasswordForm = () => {
 	const showConfirmPassword = useBoolean();
 	const loaderData = useLoaderData<typeof loader>();
 
-	const schema = getResetPasswordSchema(defaultZodClient);
+	const schema = getResetPasswordSchema(interZodClient);
 
 	const form = useForm({
 		resolver: zodResolver(schema),

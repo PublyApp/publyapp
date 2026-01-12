@@ -457,7 +457,7 @@ const AcceptInvitationForm = ({
 	const token = searchParams.get(queryParamKey.token);
 	const { t, i18n } = useTranslate();
 
-	const schema = getAcceptInvitationSchema(defaultZodClient);
+	const schema = getAcceptInvitationSchema(interZodClient);
 
 	const form = useForm<AcceptInvitationForm>({
 		resolver: zodResolver(schema),

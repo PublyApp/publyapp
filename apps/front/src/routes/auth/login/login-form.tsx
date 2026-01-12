@@ -40,7 +40,7 @@ const LoginForm = ({ prefilledEmail = '' }: { prefilledEmail?: string }) => {
 		}
 	}
 
-	const loginSchema = getLoginSchema(defaultZodClient);
+	const loginSchema = getLoginSchema(interZodClient);
 	const loginResolver = zodResolver(loginSchema);
 
 	const methods = useForm({
