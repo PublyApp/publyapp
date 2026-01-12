@@ -8,6 +8,7 @@ import Link from '@mui/material/Link';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
+
 import { FormHead } from '@/front/components/auth/form-head';
 import { SignUpTerms } from '@/front/components/auth/sign-up-terms';
 import { Field, Form } from '@/front/components/hook-form';
@@ -15,7 +16,7 @@ import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { getRegisterSchema } from '@/shared/validations/auth.validations';
 
@@ -31,7 +32,7 @@ const SignupForm = () => {
 
 	const methods = useForm({
 		disabled: true,
-		resolver: zodResolver(getRegisterSchema(defaultZodClient)),
+		resolver: zodResolver(getRegisterSchema(interZodClient)),
 		defaultValues: {
 			firstName: '',
 			lastName: '',
