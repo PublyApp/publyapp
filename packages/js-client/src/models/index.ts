@@ -537,15 +537,6 @@ export function createPasswordRegisterResultFromDiscriminatorValue(parseNode: Pa
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {Product}
- */
-// @ts-ignore
-export function createProductFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoProduct;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {ProfileAsStaffItem}
  */
 // @ts-ignore
@@ -1499,25 +1490,6 @@ export function deserializeIntoPasswordRegisterResult(passwordRegisterResult: Pa
 }
 /**
  * The deserialization information for the current model
- * @param Product The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoProduct(product: Partial<Product> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        "createdAt": n => { product.createdAt = n.getDateValue(); },
-        "deletedAt": n => { product.deletedAt = n.getDateValue(); },
-        "description": n => { product.description = n.getStringValue(); },
-        "id": n => { product.id = n.getGuidValue(); },
-        "isDeleted": n => { product.isDeleted = n.getBooleanValue(); },
-        "name": n => { product.name = n.getStringValue(); },
-        "price": n => { product.price = n.getNumberValue(); },
-        "tenantId": n => { product.tenantId = n.getGuidValue(); },
-        "updatedAt": n => { product.updatedAt = n.getDateValue(); },
-    }
-}
-/**
- * The deserialization information for the current model
  * @param ProfileAsStaffItem The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -2124,44 +2096,6 @@ export interface PasswordRegisterResult extends AdditionalDataHolder, Parsable {
      * The id property
      */
     id?: Guid | null;
-    /**
-     * The updatedAt property
-     */
-    updatedAt?: Date | null;
-}
-export interface Product extends AdditionalDataHolder, Parsable {
-    /**
-     * The createdAt property
-     */
-    createdAt?: Date | null;
-    /**
-     * The deletedAt property
-     */
-    deletedAt?: Date | null;
-    /**
-     * The description property
-     */
-    description?: string | null;
-    /**
-     * The id property
-     */
-    id?: Guid | null;
-    /**
-     * The isDeleted property
-     */
-    isDeleted?: boolean | null;
-    /**
-     * The name property
-     */
-    name?: string | null;
-    /**
-     * The price property
-     */
-    price?: number | null;
-    /**
-     * The tenantId property
-     */
-    tenantId?: Guid | null;
     /**
      * The updatedAt property
      */
@@ -2836,26 +2770,6 @@ export function serializePasswordRegisterResult(writer: SerializationWriter, pas
     writer.writeGuidValue("id", passwordRegisterResult.id);
     writer.writeDateValue("updatedAt", passwordRegisterResult.updatedAt);
     writer.writeAdditionalData(passwordRegisterResult.additionalData);
-}
-/**
- * Serializes information the current object
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param Product The instance to serialize from.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeProduct(writer: SerializationWriter, product: Partial<Product> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!product || isSerializingDerivedType) { return; }
-    writer.writeDateValue("createdAt", product.createdAt);
-    writer.writeDateValue("deletedAt", product.deletedAt);
-    writer.writeStringValue("description", product.description);
-    writer.writeGuidValue("id", product.id);
-    writer.writeBooleanValue("isDeleted", product.isDeleted);
-    writer.writeStringValue("name", product.name);
-    writer.writeNumberValue("price", product.price);
-    writer.writeGuidValue("tenantId", product.tenantId);
-    writer.writeDateValue("updatedAt", product.updatedAt);
-    writer.writeAdditionalData(product.additionalData);
 }
 /**
  * Serializes information the current object
