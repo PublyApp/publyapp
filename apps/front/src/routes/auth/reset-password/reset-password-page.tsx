@@ -15,6 +15,7 @@ import {
 	useLoaderData,
 	useSearchParams,
 } from 'react-router';
+import { serializeError } from 'serialize-error';
 
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
@@ -42,7 +43,7 @@ import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/reset-password-page';
 
 export const action = getServerAction({
-	action: async ({ request, z }) => {
+	action: async ({ request, z, context }) => {
 		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const searchParams = new URL(request.url).searchParams;
 		const token = searchParams.get(queryParamKey.token);
@@ -115,6 +116,10 @@ export const action = getServerAction({
 		});
 
 		if (result.status === 'error') {
+			context.logger.error('Failed to reset password', {
+				error: serializeError(result.error),
+			});
+
 			return {
 				status: 'error',
 				error: result.error.message,
@@ -137,7 +142,7 @@ export const action = getServerAction({
 });
 
 export const loader = getServerLoader({
-	loader: async ({ request }) => {
+	loader: async ({ request, context }) => {
 		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const searchParams = new URL(request.url).searchParams;
 		const token = searchParams.get(queryParamKey.token);
@@ -169,6 +174,10 @@ export const loader = getServerLoader({
 		});
 
 		if (result.status === 'error') {
+			context.logger.error('Failed to check reset password token', {
+				error: serializeError(result.error),
+			});
+
 			if (result.error.message === 'Invalid or expired password reset token') {
 				return {
 					code: 'INVALID_LINK',
