@@ -30,7 +30,7 @@
 		".react-router/types/**/*",
 		// ====
 		"@types",
-		"app",
+		"src",
 		"server"
 		// ====
 		// "../server/@types"

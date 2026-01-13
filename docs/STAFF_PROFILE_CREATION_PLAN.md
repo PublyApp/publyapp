@@ -205,7 +205,7 @@ const NewStaffProfileForm = () => {
 ```tsx
 const form = useForm({
   mode: 'onSubmit',
-  resolver: zodResolver(getNewStaffProfileSchema(defaultZodClient)),
+  resolver: zodResolver(getNewStaffProfileSchema(interZodClient)),
   defaultValues: {
     name: '',
     description: '',
