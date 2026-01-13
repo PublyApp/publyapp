@@ -92,7 +92,7 @@ Use these existing components as patterns:
 ```typescript
 import _ from 'lodash';
 import { createQuery } from 'react-query-kit';
-import { clientManager } from '@/front/lib/js-client/client-manager';
+import { getClientManager } from '@/front/lib/js-client/client-manager';
 import type { ApiClient } from '@/js-client/src/apiClient';
 import { getQueryKey } from '../../query-utils';
 ```

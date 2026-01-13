@@ -244,17 +244,17 @@ Form State       → React Hook Form (local form state)
    - `createPublicQuery/Mutation` - Anonymous/public endpoints (no auth)
 
 2. **Client-side (browser)** - Outside React lifecycle (e.g., clientLoaders):
-   - `ClientManager.create().getOrCreateClient(tenantId)` - Tenant client with `X-PublyApp-TenantId`
-   - `ClientManager.create().getOrCreateStaffClient()` - Staff client (no tenant-id header)
-   - `ClientManager.create().getOrCreateAnonymousClient()` - Anonymous client (no auth, no tenant)
-   - `ClientManager.create().createClient({ tenantId?, skipAuth?, context? })` - Create ad-hoc client
+   - `getClientManager().getOrCreateClient(tenantId)` - Tenant client with `X-PublyApp-TenantId`
+   - `getClientManager().getOrCreateStaffClient()` - Staff client (no tenant-id header)
+   - `getClientManager().getOrCreateAnonymousClient()` - Anonymous client (no auth, no tenant)
+   - `getClientManager().createClient({ tenantId?, skipAuth?, context? })` - Create ad-hoc client
 
 3. **Server-side (SSR)** - In React Router loaders/actions:
-   - `ClientManager.create({ staffToken?, tenantToken? }).createClient({ tenantId?, context? })` - per-request instance
+   - `getClientManager({ staffToken?, tenantToken? }).createClient({ tenantId?, context? })` - per-request instance
    - Tokens are parsed by `getServerLoader` / `getServerAction` and passed to your loader/action
    ```typescript
-   import { ClientManager } from '@/front/lib/js-client/client-manager';
-   const apiClient = ClientManager.create({ staffToken, tenantToken }).createClient();
+   import { getClientManager } from '@/front/lib/js-client/client-manager';
+   const apiClient = getClientManager({ staffToken, tenantToken }).createClient();
    ```
 
 **Data Fetching Pattern (Route-Type Specific):**
@@ -514,42 +514,86 @@ import { Card } from '~/components/ui/card';  // Wrong library!
 
 **Reference:** See the "Styling: sx Prop and Theme System" section above for complete Tailwind-to-sx conversion guide.
 
-### Date Handling: Day.js
+### Date Handling: Day.js + Format Utilities
 
 **CRITICAL:** This project uses Day.js for all date operations. Never use date-fns, Moment.js, or native Date methods for formatting.
 
+**CRITICAL:** Always use the centralized date formatting utilities from `apps/front/app/utils/format-time.ts` instead of importing dayjs directly in components. These utilities already configure dayjs plugins (relativeTime, duration) and provide consistent formatting across the app.
+
 **Pattern:**
 ```tsx
-// ❌ WRONG - Using date-fns
-import { formatDistanceToNow } from 'date-fns';
-const timeAgo = formatDistanceToNow(new Date(date), { addSuffix: true });
-
-// ✅ CORRECT - Using dayjs
+// ❌ WRONG - Importing dayjs directly and extending plugins in components
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 dayjs.extend(relativeTime);
 const timeAgo = dayjs(date).fromNow();
+
+// ❌ WRONG - Using date-fns
+import { formatDistanceToNow } from 'date-fns';
+const timeAgo = formatDistanceToNow(new Date(date), { addSuffix: true });
+
+// ✅ CORRECT - Using format-time utilities
+import { fDateTime, fDate, fTime, fToNow, fTimestamp } from '@/front/utils/format-time';
+const timeAgo = fToNow(date);              // "2 hours ago"
+const formatted = fDate(date);             // "17 Apr 2022"
+const dateTime = fDateTime(date);          // "17 Apr 2022 12:00 am"
 ```
 
-**Common operations:**
+**Available utilities from `apps/front/app/utils/format-time.ts`:**
 ```tsx
-// Formatting
-dayjs(date).format('MMM DD, YYYY');         // Nov 08, 2024
-dayjs(date).format('YYYY-MM-DD HH:mm:ss');  // 2024-11-08 15:30:00
+// Basic formatting
+fDateTime(date)                    // "17 Apr 2022 12:00 am"
+fDate(date)                        // "17 Apr 2022"
+fTime(date)                        // "12:00 am"
+fTimestamp(date)                   // 1713250100 (Unix timestamp)
 
 // Relative time
-dayjs(date).fromNow();                      // "2 hours ago"
+fToNow(date)                       // "2 hours" (time from now)
 
-// Manipulation
-dayjs(date).add(7, 'day');                  // Add 7 days
-dayjs(date).subtract(1, 'month');           // Subtract 1 month
+// Comparisons
+fIsBetween(date, start, end)       // Boolean
+fIsAfter(start, end)               // Boolean
+fIsSame(start, end, unit?)         // Boolean
 
-// Comparison
-dayjs(date1).isAfter(date2);                // Boolean
-dayjs(date1).isBefore(date2);               // Boolean
+// Date ranges
+fDateRangeShortLabel(start, end)   // "25 - 26 Apr 2024" (smart range formatting)
+
+// Helpers
+today(template?)                   // Today's date formatted
+fAdd({ days: 7 })                  // Add duration to today
+fSub({ months: 1 })                // Subtract duration from today
+
+// Custom formatting (when needed)
+fDate(date, 'DD/MM/YYYY')          // "17/04/2022" (custom template)
+fDateTime(date, 'YYYY-MM-DD')      // "2022-04-17" (custom template)
 ```
 
-**Reference:** See the "Date Handling: Day.js" section above for complete Day.js guide and migration from date-fns.
+**Format patterns available:**
+```tsx
+import { formatPatterns } from '@/front/utils/format-time';
+
+formatPatterns.dateTime            // 'DD MMM YYYY h:mm a'
+formatPatterns.date                // 'DD MMM YYYY'
+formatPatterns.time                // 'h:mm a'
+formatPatterns.split.dateTime      // 'DD/MM/YYYY h:mm a'
+formatPatterns.split.date          // 'DD/MM/YYYY'
+formatPatterns.paramCase.dateTime  // 'DD-MM-YYYY h:mm a'
+formatPatterns.paramCase.date      // 'DD-MM-YYYY'
+```
+
+**When direct dayjs is acceptable:**
+- Complex date manipulation not covered by utilities (rare)
+- MUI DatePicker/TimePicker integration (uses dayjs adapter)
+- Custom hooks that need full dayjs API
+
+**Never do this in components:**
+```tsx
+// ❌ WRONG - Extending dayjs plugins in component files
+dayjs.extend(relativeTime);
+dayjs.extend(duration);
+```
+
+**Reference:** The `format-time.ts` utilities already configure all necessary dayjs plugins. If you need additional plugins, add them to `format-time.ts`, not to individual components.
 
 ### Array Methods: Avoid reduce()
 
