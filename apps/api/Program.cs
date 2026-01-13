@@ -8,7 +8,6 @@ using MainApi.Src.Modules.Staff.PermissionsAsStaff;
 using MainApi.Src.Modules.Staff.ProfilesAsStaff;
 using MainApi.Src.Modules.Staff.StaffMember;
 using MainApi.Src.Modules.Staff.TenantsAsStaff;
-using MainApi.Src.Modules.Tenant.Products;
 
 AppEnvironment.LoadEnv(); // ! must be called before anything else
 
@@ -32,16 +31,16 @@ app.MapAuthEndpoints();
 app.MapInvitationAnonymousEndpoints();
 
 // Apply filters to route groups (in order of execution)
+var staffGroup = app.MapGroup(RoutePath.Staff.Root)
+	.WithCheckSessionHeader()         // 1. Check session header
+	.WithSessionAuthentication()      // 2. Authenticate session
+	.WithStaffAuthorization();        // 3. Verify staff account
+
 var tenantGroup = app.MapGroup(RoutePath.Tenant.Root)
 	.WithCheckSessionHeader()         // 1. Check session header
 	.WithCheckTenantHeader()          // 2. Check tenant header
 	.WithSessionAuthentication()      // 3. Authenticate session
 	.WithTenantAuthorization();       // 4. Verify tenant access (placeholder)
-
-var staffGroup = app.MapGroup(RoutePath.Staff.Root)
-	.WithCheckSessionHeader()         // 1. Check session header
-	.WithSessionAuthentication()      // 2. Authenticate session
-	.WithStaffAuthorization();        // 3. Verify staff account
 
 // Staff endpoints
 staffGroup.MapPermissionAsStaffEndpoints();
@@ -50,8 +49,8 @@ staffGroup.MapTenantAsStaffEndpoints();
 staffGroup.MapStaffMemberEndpoints();
 staffGroup.MapInvitationAsStaffEndpoints();
 
-// Tenant endpoints
-tenantGroup.MapProductEndpoints();
+// TODO: once we have a tenant endpoint, we can remove this
+tenantGroup.MapGet("/test", () => "Hello, World!");
 
 app.MapHealthChecks("/health");
 app.MapNotFoundRoute();
