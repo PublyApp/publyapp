@@ -1,14 +1,15 @@
-import { useTheme } from '@mui/material/styles';
+import { useEffect, useCallback } from 'react';
 import { usePopoverHover } from 'minimal-shared/hooks';
 import { isActiveLink, isExternalLink } from 'minimal-shared/utils';
 import { useCallback, useEffect, useRef } from 'react';
 
 import { usePathname } from '#app/hooks/use-pathname.ts';
 
-import { NavDropdown, NavDropdownPaper, NavLi, NavUl } from '../components';
-import { navSectionClasses } from '../styles';
-import type { NavListProps, NavSubListProps } from '../types';
 import { NavItem } from './nav-item';
+import { navSectionClasses } from '../styles';
+import { NavUl, NavLi, NavDropdown, NavDropdownPaper } from '../components';
+
+import type { NavListProps, NavSubListProps } from '../types';
 
 // ----------------------------------------------------------------------
 
@@ -48,6 +49,7 @@ export function NavList({
 		if (openRef.current) {
 			onCloseRef.current();
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [pathname]);
 
 	const handleOpenMenu = useCallback(() => {

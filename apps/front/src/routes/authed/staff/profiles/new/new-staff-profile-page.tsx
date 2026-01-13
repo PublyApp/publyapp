@@ -18,9 +18,7 @@ import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/new-staff-profile-page';
-import NewStaffProfileForm, {
-	NewStaffProfileSidebar,
-} from './parts/new-staff-profile-form';
+import NewStaffProfileForm from './parts/new-staff-profile-form';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = _.capitalize(
@@ -64,7 +62,6 @@ export const loader = getServerLoader({
 
 const NewStaffProfilePage = () => {
 	const { t } = useTranslate();
-	const isMobile = useIsMobile();
 
 	return (
 		<DashboardContent
@@ -77,42 +74,39 @@ const NewStaffProfilePage = () => {
 			compact
 			maxWidth="lg"
 		>
-			<CustomBreadcrumbs
-				heading={getPageTitle(t as never)}
-				links={[
-					{
-						name: _.capitalize(t('staff-profiles')),
-						href: FRONT_PATH_NAMES.staff.profiles.root,
-					},
-					{
-						name: _.capitalize(
-							t('new-item', { item: _.toLower(t('staff-profile')) }),
-						),
-					},
-				]}
-				sx={{ mb: { xs: 3, md: 5 } }}
-			/>
-			<Grid container spacing={3}>
-				{!isMobile && (
-					<Grid size={{ md: 3 }}>
-						<Box
-							sx={(theme) => {
-								return {
-									position: 'sticky',
-									top: `calc(var(--layout-header-desktop-height, ${theme.spacing(9)}) + ${theme.spacing(1)})`,
-									zIndex: theme.zIndex.appBar - 1,
-									alignSelf: 'flex-start',
-								};
-							}}
-						>
-							<NewStaffProfileSidebar />
-						</Box>
+			<Box
+				sx={{
+					width: '100%',
+					flex: 1,
+					display: 'flex',
+					flexDirection: 'column',
+				}}
+			>
+				<CustomBreadcrumbs
+					heading={getPageTitle(t as never)}
+					links={[
+						{
+							name: _.capitalize(t('staff-profiles')),
+							href: FRONT_PATH_NAMES.staff.profiles.root,
+						},
+						{
+							name: _.capitalize(
+								t('new-item', { item: _.toLower(t('staff-profile')) }),
+							),
+						},
+					]}
+					sx={{ mb: { xs: 3, md: 5 } }}
+				/>
+				<Grid container spacing={3}>
+					<Grid size={{ md: 3 }} display={{ xs: 'none', md: 'block' }}>
+						<StaffProfileSidebar />
 					</Grid>
-				)}
-				<Grid size={{ xs: 12, md: 9 }}>
-					<NewStaffProfileForm />
+
+					<Grid size={{ xs: 12, md: 8 }}>
+						<NewStaffProfileForm />
+					</Grid>
 				</Grid>
-			</Grid>
+			</Box>
 		</DashboardContent>
 	);
 };

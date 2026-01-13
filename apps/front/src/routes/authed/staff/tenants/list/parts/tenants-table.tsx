@@ -9,7 +9,6 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
-import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
 import ListItemText from '@mui/material/ListItemText';
 import Menu from '@mui/material/Menu';
@@ -98,7 +97,7 @@ export type TenantRowData = {
 	code?: string;
 };
 
-const TenantRowDataMapper = (tenant: TenantAsStaffListItem): TenantRowData => {
+const TenantRowDataMapper = (tenant: TenantAsStaffItem): TenantRowData => {
 	return {
 		id: tenant.id || nanoid(),
 		name: tenant.name || '-',
@@ -111,10 +110,9 @@ const TenantRowDataMapper = (tenant: TenantAsStaffListItem): TenantRowData => {
 
 const columnHelper = createMRTColumnHelper<TenantRowData>();
 
-// Use snake_case sort IDs to match backend API
 const defaultSorting: MRT_SortingState[number] = {
 	desc: true,
-	id: 'created_at',
+	id: 'createdAt',
 };
 const parseStatusFilter = (value: string) => {
 	if (!value) {
@@ -223,17 +221,6 @@ const useTenantsTableController = () => {
 
 	const columns = useMemo(() => {
 		return [
-			// Hidden columns for sorting by created_at/updated_at (snake_case to match backend)
-			columnHelper.accessor('createdAt', {
-				id: 'created_at',
-				header: t('created-at'),
-				enableSorting: true,
-			}),
-			columnHelper.accessor('updatedAt', {
-				id: 'updated_at',
-				header: t('updated-at', { defaultValue: 'Updated at' }),
-				enableSorting: true,
-			}),
 			columnHelper.accessor('name', {
 				header: t('name'),
 				Cell: TenantCell,
@@ -242,9 +229,15 @@ const useTenantsTableController = () => {
 			columnHelper.accessor('usersCount', {
 				header: t('users'),
 				Cell: UsersCountCell,
-				enableSorting: false,
 				size: 70,
 			}),
+			// columnHelper.accessor('pricingPlan', {
+			// 	header: t('pricing-plan'),
+			// 	Cell: (props) => {
+			// 		return props.cell.getValue();
+			// 	},
+			// 	size: 70,
+			// }),
 			columnHelper.accessor('status', {
 				header: t('status'),
 				Cell: StatusCell,
@@ -253,20 +246,20 @@ const useTenantsTableController = () => {
 			columnHelper.display({
 				header: 'Actions',
 				Cell: TenantActionsCell,
-				enableSorting: false,
 				size: 70,
 			}),
 		];
 	}, [t]);
 
-	const tenantsQuery = useFindTenants({
-		variables: {
-			cursor: apiVariables.cursor || undefined,
-			limit: apiVariables.limit,
-			sort: apiVariables.sort,
-			q: filterStates.q || undefined,
-			status: filterStates.status || undefined,
-		},
+	// Use the custom table state hook
+	const {
+		handlePaginationChange,
+		handleSortingChange,
+		apiVariables,
+		tableState,
+	} = useTableState({
+		defaultSorting,
+		defaultPageSize: DEFAULT_PAGE_SIZE,
 	});
 
 	const handleCursorPaginationChange: typeof handlePaginationChange =
@@ -442,7 +435,6 @@ const useTenantsTableController = () => {
 		},
 		state: {
 			...tableState,
-			...queryState,
 			density: 'compact',
 			rowSelection,
 		},
@@ -1304,6 +1296,7 @@ const TenantsBulkActionDialogs = ({
 };
 
 const TenantCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
+	// const logoUrl = props.row.original.logoUrl;
 	const name = props.row.original.name;
 	const logoUrl = props.row.original.logoUrl;
 	const normalizedLogoUrl = trim(logoUrl);

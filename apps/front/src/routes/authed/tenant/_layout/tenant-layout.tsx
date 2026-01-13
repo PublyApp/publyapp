@@ -1,3 +1,4 @@
+import * as cookie from 'cookie';
 import { Suspense, useEffect } from 'react';
 import { Outlet, useParams } from 'react-router';
 
@@ -20,22 +21,23 @@ const TenantLayout = () => {
 	const { data: userAuthData } = useGetUserAuthData();
 	const userId = userAuthData?.id;
 
-	// Update tenant hint cookie whenever tenantId changes or tab gains focus
-	// Uses identity-scoped mapping: {userId: tenantId}
+	// Update last used tenant cookie whenever tenantId changes or tab gains focus
 	useEffect(() => {
 		const updateCookie = () => {
-			if (tenantId && userId) {
-				updateTenantHintInBrowser(userId, tenantId);
-
-				// One-time migration: clear legacy cookie if it exists
-				// (Browser can only clear accessible paths - root path is enough client-side)
-				if (readLegacyTenantFromBrowser()) {
-					clearLegacyTenantFromBrowser();
-				}
+			if (tenantId) {
+				const lastUsedTenantCookie = cookie.serialize(
+					LAST_USED_TENANT_ID_COOKIE_KEY,
+					tenantId,
+					{
+						path: '/',
+						maxAge: duration.toSeconds('3d'),
+					},
+				);
+				document.cookie = lastUsedTenantCookie;
 			}
 		};
 
-		// Update on mount and when tenantId/userId changes
+		// Update on mount and when tenantId changes
 		updateCookie();
 
 		// Update when tab becomes visible (user switches back to this tab)
@@ -50,14 +52,12 @@ const TenantLayout = () => {
 		return () => {
 			document.removeEventListener('visibilitychange', handleVisibilityChange);
 		};
-	}, [tenantId, userId]);
+	}, [tenantId]);
 
 	const tenantPaths = FRONT_PATH_NAMES.tenant(tenantId);
 
 	const tenantNavData: NavDataType = [
 		{
-			subheader: t('posts'),
-			collapsible: false,
 			items: [
 				{
 					title: t('calendar'),
@@ -86,7 +86,7 @@ const TenantLayout = () => {
 			],
 		},
 		{
-			subheader: t('others'),
+			subheader: t('settings'),
 			collapsible: false,
 			items: [
 				{

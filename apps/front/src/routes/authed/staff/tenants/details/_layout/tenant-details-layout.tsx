@@ -82,6 +82,7 @@ export const loader = getServerLoader({
 
 const TenantDetailsLayout = () => {
 	const { t } = useTranslate();
+	const pathname = usePathname();
 	const { tenantId } = useParams();
 
 	const getTenantQuery = useGetTenant({
@@ -98,8 +99,9 @@ const TenantDetailsLayout = () => {
 			{ label: t('invitations'), href: paths.tabs.invitations, deep: true },
 			{
 				label: t('profiles'),
-				href: paths.tabs.profiles,
-				deep: true,
+				icon: <Iconify width={24} icon="solar:settings-bold" />,
+				href: tenantDetailPaths.tabs.profiles,
+				action: <CreateProfileButton />,
 			},
 			{
 				label: t('activity'),
@@ -129,17 +131,28 @@ const TenantDetailsLayout = () => {
 				) : undefined,
 			},
 		];
+
+		const ACTIONS = {} as Record<string, React.ReactNode>;
+
+		_.forEach(NAV_ITEMS, (item) => {
+			if (item.action) {
+				ACTIONS[item.href] = item.action;
+			}
+		});
+
+		return { NAV_ITEMS, ACTIONS };
 	}, [t, tenantId]);
 
-	if (!tenantId) {
-		return <View400 title="Bad Request" description="Tenant ID is required" />;
-	}
+	const tabValue = useMemo(() => {
+		const value = removeLastSlash(pathname);
+		return value;
+	}, [pathname]);
 
 	return (
-		<QueryDisplay
-			query={getTenantQuery}
-			LoadingSlot={<TenantDetailsLayoutSkeleton />}
-			ErrorSlot={LayoutErrorView}
+		<DashboardContent
+			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
+			compact
+			maxWidth="lg"
 		>
 			{() => (
 				<SidebarSettingsLayout

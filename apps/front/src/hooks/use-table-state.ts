@@ -7,7 +7,7 @@ import type {
 import { parseAsString, parseAsStringLiteral, useQueryStates } from 'nuqs';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { DEFAULT_PAGE_SIZE } from '@org/shared-ts/lib/constants';
+import { DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
 
 export type TableQueryKeys = {
 	pagination: {
@@ -70,7 +70,6 @@ export type UseTableStateReturn = {
 	setNextCursor?: (cursor: string | null | undefined) => void;
 	hasNextPage?: boolean;
 	hasPreviousPage?: boolean;
-	resetCursorPagination?: () => void;
 };
 
 // Default query keys
@@ -360,7 +359,5 @@ export const useTableState = (
 		setNextCursor: paginationMode === 'cursor' ? setNextCursor : undefined,
 		hasNextPage,
 		hasPreviousPage,
-		resetCursorPagination:
-			paginationMode === 'cursor' ? resetCursorPagination : undefined,
 	};
 };

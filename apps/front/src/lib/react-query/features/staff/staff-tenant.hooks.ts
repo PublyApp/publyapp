@@ -82,7 +82,7 @@ export const useGetTenant = createStaffQuery({
 });
 
 type FindTenantsParams = {
-	cursor?: string;
+	page?: number;
 	limit?: number;
 	sort?: { id: string; order: 'asc' | 'desc' };
 	q?: string;
@@ -94,12 +94,10 @@ export const useFindTenants = createStaffQuery({
 	fetcher: async (client, params: FindTenantsParams) => {
 		const result = await client.staff.tenants.get({
 			queryParameters: {
-				cursor: params.cursor,
+				page: params.page ? params.page.toString() : undefined,
 				limit: params.limit ? params.limit.toString() : undefined,
 				sortId: params.sort?.id,
 				sortOrder: params.sort?.order,
-				q: params.q,
-				status: params.status,
 			},
 		});
 
@@ -120,11 +118,11 @@ type FindTenantProfilesParams = {
 };
 
 export const useFindTenantProfiles = createStaffQuery({
-	queryKeyFn: (client) => client.staff.tenants.byTenantId('').profiles.get,
+	queryKeyFn: (client) => client.staff.profiles.tenant.byTenantId('').get,
 	fetcher: async (client, params: FindTenantProfilesParams) => {
-		const result = await client.staff.tenants
+		const result = await client.staff.profiles.tenant
 			.byTenantId(params.tenantId)
-			.profiles.get({
+			.get({
 				queryParameters: {
 					cursor: params.cursor,
 					limit: params.limit ? params.limit.toString() : undefined,

@@ -9,6 +9,7 @@ import type { SettingsState } from '#app/components/settings/index.ts';
 
 import { createShadowColor } from '../core/custom-shadows';
 import type { ThemeColorScheme, ThemeOptions } from '../types';
+
 import { primaryColorPresets } from './color-presets';
 
 // ----------------------------------------------------------------------
@@ -19,26 +20,15 @@ import { primaryColorPresets } from './color-presets';
  * @primaryColor
  */
 
-export const updateCoreWithSettings = (
-	theme: ThemeOptions,
-	settingsState?: SettingsState,
-): ThemeOptions => {
-	const {
-		direction,
-		fontFamily,
-		contrast = 'default',
-		primaryColor = 'default',
-	} = settingsState ?? {};
+export function updateCoreWithSettings(theme: ThemeOptions, settingsState?: SettingsState): ThemeOptions {
+	const { direction, fontFamily, contrast = 'default', primaryColor = 'default' } = settingsState ?? {};
 
 	const isDefaultContrast = contrast === 'default';
 	const isDefaultPrimaryColor = primaryColor === 'default';
 
-	const lightPalette = theme.colorSchemes?.light
-		.palette as ColorSystem['palette'];
+	const lightPalette = theme.colorSchemes?.light.palette as ColorSystem['palette'];
 
-	const updatedPrimaryColor = createPaletteChannel(
-		primaryColorPresets[primaryColor],
-	);
+	const updatedPrimaryColor = createPaletteChannel(primaryColorPresets[primaryColor]);
 	// const updatedSecondaryColor = createPaletteChannel(SECONDARY_COLORS[primaryColor!]);
 
 	const updateColorScheme = (scheme: ThemeColorScheme) => {
@@ -88,4 +78,4 @@ export const updateCoreWithSettings = (
 			fontFamily: setFont(fontFamily),
 		},
 	};
-};
+}

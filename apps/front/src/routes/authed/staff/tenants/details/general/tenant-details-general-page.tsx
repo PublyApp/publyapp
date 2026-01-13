@@ -82,7 +82,6 @@ const readOnlyFieldInputSx = {
 };
 
 const TenantDetailsGeneralPage = () => {
-	const { t } = useTranslate();
 	const { tenantId } = useParams();
 	const { tenantName } = useOutletContext<TenantDetailsOutletContext>();
 
@@ -744,7 +743,16 @@ const ErrorView: FC<{
 }> = ({ error, query }) => {
 	const { t } = useTranslate();
 
-	const failure = toApiFailure(error);
+	// if (error instanceof ParseRestError) {
+	// 	if (error.code === X_CODE.USER_NOT_FOUND) {
+	// 		return (
+	// 			<NotFoundView
+	// 				withLayout={false}
+	// 				title={t('item-not-found', { item: t('user') })}
+	// 				description={t('user-not-found-description')}
+	// 			/>
+	// 		);
+	// 	}
 
 	if (
 		isProblemFailure(failure) &&

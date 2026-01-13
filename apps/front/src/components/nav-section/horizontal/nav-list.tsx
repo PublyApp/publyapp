@@ -1,15 +1,14 @@
-import { useEffect, useCallback } from 'react';
+import { useTheme } from '@mui/material/styles';
 import { usePopoverHover } from 'minimal-shared/hooks';
 import { isActiveLink, isExternalLink } from 'minimal-shared/utils';
 import { useCallback, useEffect, useRef } from 'react';
 
 import { usePathname } from '#app/hooks/use-pathname.ts';
 
-import { NavItem } from './nav-item';
+import { NavDropdown, NavDropdownPaper, NavLi, NavUl } from '../components';
 import { navSectionClasses } from '../styles';
-import { NavUl, NavLi, NavDropdown, NavDropdownPaper } from '../components';
-
 import type { NavListProps, NavSubListProps } from '../types';
+import { NavItem } from './nav-item';
 
 // ----------------------------------------------------------------------
 
@@ -44,12 +43,12 @@ export function NavList({
 	openRef.current = open;
 	onCloseRef.current = onClose;
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	useEffect(() => {
 		// If the pathname changes, close the menu
 		if (openRef.current) {
 			onCloseRef.current();
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [pathname]);
 
 	const handleOpenMenu = useCallback(() => {
