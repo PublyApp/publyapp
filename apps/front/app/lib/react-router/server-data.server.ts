@@ -154,8 +154,8 @@ export const getServerLoader: GetServerLoader = <
 			sessionToken: sessionToken as never,
 			staffToken: tokens.staffToken,
 			tenantToken: tokens.tenantToken,
-			z,
 			locale,
+			z,
 		});
 	};
 
@@ -265,8 +265,8 @@ export const getServerAction: GetServerAction = <
 			sessionToken: sessionToken as never,
 			staffToken: tokens.staffToken,
 			tenantToken: tokens.tenantToken,
-			z,
 			locale,
+			z,
 		});
 	};
 
