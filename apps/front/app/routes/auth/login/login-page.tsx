@@ -89,6 +89,10 @@ export const action = getServerAction({
 		const loginResult = await passwordLogin({ email, password } as never);
 
 		if (loginResult.status === 'error') {
+			context.logger.error('Failed to login', {
+				error: serializeError(loginResult.error),
+			});
+
 			return data({
 				error: serializeError(loginResult.error),
 			});
