@@ -15,7 +15,6 @@ using MainApi.Src.Modules.Staff.PermissionsAsStaff;
 using MainApi.Src.Modules.Staff.ProfilesAsStaff;
 using MainApi.Src.Modules.Staff.StaffMember;
 using MainApi.Src.Modules.Staff.TenantsAsStaff;
-using MainApi.Src.Modules.Tenant.Products;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -122,7 +121,6 @@ public static class AppServices {
 		builder.Services.AddScoped<IUserService, UserService>();
 		builder.Services.AddScoped<ISessionService, SessionService>();
 		builder.Services.AddScoped<ITenantAsStaffService, TenantAsStaffService>();
-		builder.Services.AddScoped<IProductService, ProductService>();
 		builder.Services.AddScoped<ITenantService, TenantService>();
 		builder.Services.AddScoped<IAccountService, AccountService>();
 		builder.Services.AddScoped<IProfileService, ProfileService>();

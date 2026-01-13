@@ -10,7 +10,6 @@ using MainApi.Src.Modules.Shared.Tenants;
 using MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Modules.Staff.AuditLogs;
 using MainApi.Src.Modules.Staff.SystemNotices;
-using MainApi.Src.Modules.Tenant.Products;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -24,7 +23,6 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	private static readonly Lazy<List<Type>> SeederTypeCache = new(DiscoverSeedersInternal, LazyThreadSafetyMode.ExecutionAndPublication);
 
 	public DbSet<Session> Session { get; init; } = null!;
-	public DbSet<Product> Product { get; init; } = null!;
 	public DbSet<User> User { get; init; } = null!;
 	public DbSet<Tenant> Tenant { get; init; } = null!;
 
