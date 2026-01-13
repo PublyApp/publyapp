@@ -1,40 +1,38 @@
+import * as cookie from 'cookie';
 import { Suspense, useEffect } from 'react';
 import { Outlet, useParams } from 'react-router';
 
-import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+import duration from '@org/shared/utils/duration.utils';
 import { LoadingScreen } from '@/front/components/loading-screen';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardLayout } from '@/front/layouts/dashboard/layout';
 import { ICONS, type NavDataType } from '@/front/layouts/nav-config-dashboard';
 import {
-	clearLegacyTenantFromBrowser,
-	readLegacyTenantFromBrowser,
-	updateTenantHintInBrowser,
-} from '@/front/lib/cookies/tenant-hint-cookie.utils';
-import { useGetUserAuthData } from '@/front/lib/react-query/features/common/auth.hooks';
+	FRONT_PATH_NAMES,
+	LAST_USED_TENANT_ID_COOKIE_KEY,
+} from '@/shared/lib/constants';
 
 const TenantLayout = () => {
 	const { t } = useTranslate();
 	const { tenantId } = useParams();
-	const { data: userAuthData } = useGetUserAuthData();
-	const userId = userAuthData?.id;
 
-	// Update tenant hint cookie whenever tenantId changes or tab gains focus
-	// Uses identity-scoped mapping: {userId: tenantId}
+	// Update last used tenant cookie whenever tenantId changes or tab gains focus
 	useEffect(() => {
 		const updateCookie = () => {
-			if (tenantId && userId) {
-				updateTenantHintInBrowser(userId, tenantId);
-
-				// One-time migration: clear legacy cookie if it exists
-				// (Browser can only clear accessible paths - root path is enough client-side)
-				if (readLegacyTenantFromBrowser()) {
-					clearLegacyTenantFromBrowser();
-				}
+			if (tenantId) {
+				const lastUsedTenantCookie = cookie.serialize(
+					LAST_USED_TENANT_ID_COOKIE_KEY,
+					tenantId,
+					{
+						path: '/',
+						maxAge: duration.toSeconds('3d'),
+					},
+				);
+				document.cookie = lastUsedTenantCookie;
 			}
 		};
 
-		// Update on mount and when tenantId/userId changes
+		// Update on mount and when tenantId changes
 		updateCookie();
 
 		// Update when tab becomes visible (user switches back to this tab)
@@ -49,46 +47,32 @@ const TenantLayout = () => {
 		return () => {
 			document.removeEventListener('visibilitychange', handleVisibilityChange);
 		};
-	}, [tenantId, userId]);
+	}, [tenantId]);
 
 	const tenantNavData: NavDataType = [
 		{
-			subheader: t('posts'),
-			collapsible: false,
 			items: [
 				{
-					title: t('calendar'),
+					title: t('dashboard'),
 					path: FRONT_PATH_NAMES.tenant(tenantId).root,
-					icon: ICONS.calendar,
-					deepActiveMatch: false,
-				},
-				{
-					title: t('queue'),
-					path: FRONT_PATH_NAMES.tenant(tenantId).posts.root,
-					icon: ICONS.queue,
+					icon: ICONS.dashboard,
 					deepActiveMatch: false,
 				},
 				{
 					title: t('drafts'),
-					path: FRONT_PATH_NAMES.tenant(tenantId).posts.drafts,
-					icon: ICONS.drafts,
+					path: FRONT_PATH_NAMES.tenant(tenantId).drafts.root,
+					icon: ICONS.file,
 					deepActiveMatch: true,
-				},
-				{
-					title: t('history'),
-					path: FRONT_PATH_NAMES.tenant(tenantId).posts.history,
-					icon: ICONS.history,
-					deepActiveMatch: false,
 				},
 			],
 		},
 		{
-			subheader: t('others'),
+			subheader: t('settings'),
 			collapsible: false,
 			items: [
 				{
-					title: t('settings'),
-					path: FRONT_PATH_NAMES.tenant(tenantId).settings.root,
+					title: t('general'),
+					path: FRONT_PATH_NAMES.tenant(tenantId).settings.general,
 					icon: ICONS.settings,
 					deepActiveMatch: true,
 				},

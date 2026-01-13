@@ -1,25 +1,15 @@
+import * as cookie from 'cookie';
+import _ from 'lodash';
 import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 
-import {
-	FRONT_PATH_NAMES,
-	queryParamKey,
-	queryParamValue,
-	REDIRECT_CODE,
-} from '@org/shared-ts/lib/constants';
 import { SplashScreen } from '@/front/components/loading-screen/splash-screen';
 import QueryDisplay from '@/front/components/query-display';
+import { useGetRedirectCode } from '@/front/lib/react-query/features/common/auth.hooks';
 import {
-	getTenantHintForUser,
-	readLegacyTenantFromBrowser,
-	readTenantHintsFromBrowser,
-} from '@/front/lib/cookies/tenant-hint-cookie.utils';
-import {
-	useGetRedirectCode,
-	useGetUserAuthData,
-} from '@/front/lib/react-query/features/common/auth.hooks';
-
-import { TenantPickerView } from '../_shared/tenant-picker-view';
+	FRONT_PATH_NAMES,
+	LAST_USED_TENANT_ID_COOKIE_KEY,
+} from '@/shared/lib/constants';
 
 const RedirectToUnauthorized = () => {
 	const navigate = useNavigate();
@@ -34,65 +24,39 @@ const RedirectToUnauthorized = () => {
 const RedirectHandler = ({
 	data,
 }: {
-	data: {
-		redirectCode?: string | null;
-		hasSuspendedTenants?: boolean | null;
-	};
+	data: { redirectCode?: string | null };
 }) => {
 	const navigate = useNavigate();
-	const redirectCode = data.redirectCode;
-	const hasSuspendedTenants = data.hasSuspendedTenants ?? false;
-
-	// Handle tenant-picker case - render picker UI instead of redirecting
-	const showTenantPicker = redirectCode === REDIRECT_CODE.TENANT_PICKER;
 
 	useEffect(() => {
-		// Don't redirect if showing tenant picker
-		if (showTenantPicker) return;
+		const redirectCode = data.redirectCode;
 
-		if (!redirectCode || redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
+		if (!redirectCode || redirectCode === 'unauthorized') {
 			navigate(FRONT_PATH_NAMES.unauthorized, { replace: true });
-		} else if (redirectCode === REDIRECT_CODE.STAFF) {
+		} else if (redirectCode === 'staff') {
 			navigate(FRONT_PATH_NAMES.staff.root, { replace: true });
 		} else {
 			// redirectCode is a tenant ID
-			let path = FRONT_PATH_NAMES.tenant(redirectCode).root;
-			if (hasSuspendedTenants) {
-				path += `?${queryParamKey.notice}=${queryParamValue.notice.org_suspended}`;
-			}
-			navigate(path, { replace: true });
+			navigate(FRONT_PATH_NAMES.tenant(redirectCode).root, { replace: true });
 		}
-	}, [redirectCode, navigate, showTenantPicker, hasSuspendedTenants]);
-
-	if (showTenantPicker) {
-		return <TenantPickerView />;
-	}
+	}, [data, navigate]);
 
 	return <SplashScreen />;
 };
 
 const TenantPortalPage = () => {
-	// Get current user ID for identity-scoped cookie lookup
-	const { data: userAuthData } = useGetUserAuthData();
-	const userId = userAuthData?.id;
+	// Check for last used tenant cookie
+	const lastUsedTenantId = useMemo(() => {
+		const browserCookies = cookie.parse(document.cookie);
+		return _.get(browserCookies, LAST_USED_TENANT_ID_COOKIE_KEY) as
+			| string
+			| undefined;
+	}, []);
 
-	// Check for last used tenant from identity-scoped cookie (with legacy fallback)
-	const tenantHint = useMemo(() => {
-		if (!userId) return undefined;
-
-		// Try new identity-scoped mapping first
-		const hintsMap = readTenantHintsFromBrowser();
-		const hint = getTenantHintForUser(hintsMap, userId);
-		if (hint) return hint;
-
-		// Fall back to legacy cookie for migration period
-		return readLegacyTenantFromBrowser();
-	}, [userId]);
-
-	// Pass hint to API - it will validate access and return it if valid,
+	// Pass last used tenant to API - it will validate access and return it if valid,
 	// or fallback to another tenant if the user no longer has access
 	const query = useGetRedirectCode({
-		variables: { tenantId: tenantHint },
+		variables: { tenantId: lastUsedTenantId },
 	});
 
 	return (

@@ -1,12 +1,9 @@
-import {
-	createUntypedArray,
-	createUntypedString,
-} from '@microsoft/kiota-abstractions';
 import _ from 'lodash';
-
-import type { CreateStaffProfileBody } from '@org/client-ts/src/models';
-
-import { createStaffMutation, createStaffQuery } from '../../create-hooks';
+import { createMutation, createQuery } from 'react-query-kit';
+import { clientManager } from '@/front/lib/js-client/client-manager';
+import type { ApiClient } from '@/js-client/src/apiClient';
+import type { CreateStaffProfileBody } from '@/js-client/src/models';
+import { getQueryKey } from '../../query-utils';
 
 type FindStaffProfilesParams = {
 	cursor?: string;
@@ -14,10 +11,14 @@ type FindStaffProfilesParams = {
 	sort?: { id: string; order: 'desc' | 'asc' };
 };
 
-export const useFindStaffProfiles = createStaffQuery({
-	queryKeyFn: (client) => client.staff.profiles.get,
-	fetcher: async (client, params: FindStaffProfilesParams) => {
-		const result = await client.staff.profiles.get({
+const findStaffProfilesQueryKey = getQueryKey<ApiClient>(
+	(client) => client.staff.profiles.get,
+);
+
+export const useFindStaffProfiles = createQuery({
+	queryKey: [findStaffProfilesQueryKey] as const,
+	fetcher: async (params: FindStaffProfilesParams) => {
+		const result = await clientManager.apiClient.staff.profiles.get({
 			queryParameters: {
 				cursor: params.cursor,
 				limit: params.limit ? params.limit.toString() : undefined,
@@ -27,7 +28,7 @@ export const useFindStaffProfiles = createStaffQuery({
 		});
 
 		if (_.isNil(result)) {
-			throw new Error('useFindStaffProfiles: result is nil');
+			throw new Error(`[${findStaffProfilesQueryKey}] result is nil`);
 		}
 
 		return result;
@@ -35,26 +36,34 @@ export const useFindStaffProfiles = createStaffQuery({
 });
 
 // Query: Fetch available staff permissions from API
+const findStaffPermissionsQueryKey = getQueryKey<ApiClient>(
+	(client) => client.staff.permissions.get,
+);
+
 type FindStaffPermissionsParams = {
 	language?: string;
 };
 
-export const useFindStaffPermissions = createStaffQuery({
-	queryKeyFn: (client) => client.staff.permissions.get,
-	fetcher: async (client, params: FindStaffPermissionsParams) => {
-		const result = await client.staff.permissions.get({
+export const useFindStaffPermissions = createQuery({
+	queryKey: [findStaffPermissionsQueryKey] as const,
+	fetcher: async (params: FindStaffPermissionsParams) => {
+		const result = await clientManager.apiClient.staff.permissions.get({
 			queryParameters: {
 				language: params.language,
 			},
 		});
 		if (_.isNil(result)) {
-			throw new Error('useFindStaffPermissions: result is nil');
+			throw new Error(`[${findStaffPermissionsQueryKey}]: result is nil`);
 		}
 		return result;
 	},
 });
 
 // Mutation: Create staff profile
+const createStaffProfileMutationKey = getQueryKey<ApiClient>(
+	(client) => client.staff.profiles.post,
+);
+
 type CreateStaffProfilePayload = {
 	name: string;
 	description?: string;
@@ -62,39 +71,50 @@ type CreateStaffProfilePayload = {
 	emails?: string[];
 };
 
-export const useCreateStaffProfile = createStaffMutation({
-	mutationKeyFn: (client) => client.staff.profiles.post,
-	mutationFn: async (client, data: CreateStaffProfilePayload) => {
+export const useCreateStaffProfile = createMutation({
+	mutationKey: [createStaffProfileMutationKey] as const,
+	mutationFn: async (data: CreateStaffProfilePayload) => {
 		const body: CreateStaffProfileBody = {};
 
-		// Map payload to API body format using Kiota's UntypedNode factories
-		// Type assertions are needed because the generated types don't include UntypedNode in the union
+		// Map payload to API body format
 		if (data.name) {
-			body.name = createUntypedString(data.name) as typeof body.name;
+			body.name = {
+				getValue() {
+					return data.name;
+				},
+			};
 		}
 
 		if (data.description) {
-			body.description = createUntypedString(
-				data.description,
-			) as typeof body.description;
+			body.description = {
+				getValue() {
+					return data.description;
+				},
+			};
 		}
 
-		if (data.permissions && !_.isEmpty(data.permissions)) {
-			body.permissions = createUntypedArray(
-				data.permissions.map((p) => createUntypedString(p)),
-			) as typeof body.permissions;
-		}
+		// TODO: Add permissions and emails when backend API supports them
+		// For now, only name and description are sent
+		// if (data.permissions && !_.isEmpty(data.permissions)) {
+		// 	body.permissions = {
+		// 		getValue() {
+		// 			return data.permissions;
+		// 		},
+		// 	};
+		// }
 
-		if (data.emails && !_.isEmpty(data.emails)) {
-			body.emails = createUntypedArray(
-				data.emails.map((e) => createUntypedString(e)),
-			) as typeof body.emails;
-		}
+		// if (data.emails && !_.isEmpty(data.emails)) {
+		// 	body.emails = {
+		// 		getValue() {
+		// 			return data.emails;
+		// 		},
+		// 	};
+		// }
 
-		const result = await client.staff.profiles.post(body);
+		const result = await clientManager.apiClient.staff.profiles.post(body);
 
 		if (_.isNil(result)) {
-			throw new Error('useCreateStaffProfile: result is nil');
+			throw new Error(`[${createStaffProfileMutationKey}]: result is nil`);
 		}
 
 		return result;

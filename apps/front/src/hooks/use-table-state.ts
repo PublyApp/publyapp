@@ -7,7 +7,7 @@ import type {
 import { parseAsString, parseAsStringLiteral, useQueryStates } from 'nuqs';
 import { useCallback, useEffect, useState } from 'react';
 
-import { DEFAULT_PAGE_SIZE } from '@org/shared-ts/lib/constants';
+import { DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
 
 export type TableQueryKeys = {
 	pagination: {
@@ -70,7 +70,6 @@ export type UseTableStateReturn = {
 	setNextCursor?: (cursor: string | null | undefined) => void;
 	hasNextPage?: boolean;
 	hasPreviousPage?: boolean;
-	resetCursorPagination?: () => void;
 };
 
 // Default query keys
@@ -112,22 +111,10 @@ export const useTableState = (
 	// Cursor-specific state (only used in cursor mode)
 	const [_cursorHistory, setCursorHistory] = useState<string[]>([]);
 	const [currentCursor, setCurrentCursor] = useState<string | null>(null);
-	const [virtualPageIndex, setVirtualPageIndex] = useState(0);
-	// Track the next cursor in state so pagination updates stay explicit.
 	const [nextCursor, setNextCursor] = useState<string | null | undefined>(
 		undefined,
 	);
-
-	// Explicit reset for cursor pagination when external filters change.
-	const resetCursorPagination = useCallback(() => {
-		if (paginationMode !== 'cursor') {
-			return;
-		}
-		setCursorHistory([]);
-		setCurrentCursor(null);
-		setNextCursor(undefined);
-		setVirtualPageIndex(0);
-	}, [paginationMode]);
+	const [virtualPageIndex, setVirtualPageIndex] = useState(0);
 
 	// Pagination state (conditional based on mode)
 	const [paginationState, setPaginationState] = useQueryStates(
@@ -218,6 +205,7 @@ export const useTableState = (
 
 				const newPageIndex = newPagination.pageIndex;
 				const currentPageIndex = virtualPageIndex;
+
 				if (newPageIndex > currentPageIndex) {
 					// Going forward
 					if (nextCursor) {
@@ -356,7 +344,5 @@ export const useTableState = (
 		setNextCursor: paginationMode === 'cursor' ? setNextCursor : undefined,
 		hasNextPage,
 		hasPreviousPage,
-		resetCursorPagination:
-			paginationMode === 'cursor' ? resetCursorPagination : undefined,
 	};
 };

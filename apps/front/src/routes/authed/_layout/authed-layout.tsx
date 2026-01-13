@@ -3,51 +3,37 @@ import * as cookie from 'cookie';
 import i18next from 'i18next';
 import _ from 'lodash';
 import { type ReactNode, Suspense, useEffect } from 'react';
-import { Outlet, redirect } from 'react-router';
+import { Outlet } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
 
-import {
-	FRONT_PATH_NAMES,
-	I18N_NAMESPACES,
-	queryParamKey,
-	queryParamValue,
-	REDIRECT_CODE,
-} from '@org/shared-ts/lib/constants';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import {
-	NotFoundView,
-	View403,
-	View500,
-	ViewTenantSuspended,
-} from '@/front/components/error';
+import { NotFoundView, View403, View500 } from '@/front/components/error';
 import { SplashScreen } from '@/front/components/loading-screen';
 import type { SettingsState } from '@/front/components/settings';
-import { toast } from '@/front/components/snackbar';
 import { useTenantParam } from '@/front/hooks/use-tenant-param';
 import { toApiFailure } from '@/front/lib/api-failure';
 import {
 	SIDEBAR_COOKIE_MAX_AGE,
 	SIDEBAR_COOKIE_NAME,
 } from '@/front/lib/constants';
-import { logout, resetLogoutFlag } from '@/front/lib/cookies/logout.utils';
-import {
-	getSessionCookieFromClient,
-	getSessionTokensFromClient,
-} from '@/front/lib/cookies/session-cookie.utils';
-import { getClientManager } from '@/front/lib/js-client/client-manager';
+import { getSessionCookieFromClient, logout } from '@/front/lib/cookies';
 import {
 	useGetTenantAuthData,
 	useGetUserAuthData,
 } from '@/front/lib/react-query/features/common/auth.hooks';
-import {
-	resetAuthLogoutFlag,
-	resetTenantSuspendedFlag,
-	setCurrentUserIdForTenantHint,
-} from '@/front/lib/react-query/query-client';
+import { resetAuthLogoutFlag } from '@/front/lib/react-query/query-client';
 import { getClientLoader } from '@/front/lib/react-router/client-data';
+// import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { useMainStore } from '@/front/lib/zustand/store';
+import { I18N_NAMESPACES } from '@/shared/lib/constants';
+import { logger } from '@/shared/lib/logger/iso-logger';
 
 import type { Route } from './+types/authed-layout';
+
+// export const loader = getServerLoader({
+// 	loader: async () => {
+// 		return null;
+// 	},
+// });
 
 export const clientLoader = getClientLoader({
 	loader: async (_args: Route.ClientLoaderArgs) => {
@@ -60,71 +46,11 @@ export const clientLoader = getClientLoader({
 		const sessionToken = getSessionCookieFromClient();
 
 		if (!sessionToken) {
-			// Full cleanup: clear JS cookies, query cache, API clients,
-			// and start the httpOnly cookie clearing fetch in the background.
-			logout({
-				redirectCause:
-					queryParamValue.login_page.redirect_cause.invalid_session,
-			});
-			// Redirect synchronously so the authed layout never renders.
-			// Without this, the component shows SplashScreen while
-			// logout's async navigation (fetch → finally → globalNavigate)
-			// races with React Router's transition — which can hang
-			// the splash screen indefinitely. The background fetch from
-			// logout() still completes and clears any httpOnly cookies.
-			const loginUrl = new URL(
-				FRONT_PATH_NAMES.auth.login,
-				window.location.origin,
-			);
-			loginUrl.searchParams.set(
-				queryParamKey.login_page.redirect_cause,
-				queryParamValue.login_page.redirect_cause.invalid_session,
-			);
-			return redirect(loginUrl.pathname + loginUrl.search);
-		}
-
-		// Guard against cross-scope navigation (tenant user on /staff, staff user on /app).
-		// Prefer cookie prefixes when available (s:/t:), but fall back to GetRedirectCode for
-		// legacy cookies (raw token) to avoid redirect loops.
-		const { staffToken, tenantToken } = getSessionTokensFromClient();
-		const pathname = new URL(_args.request.url).pathname;
-		const isStaffPath = pathname.startsWith(FRONT_PATH_NAMES.staff.root);
-		const isTenantPath = pathname.startsWith(FRONT_PATH_NAMES.tenant().root);
-
-		if (isStaffPath && !staffToken && tenantToken) {
-			try {
-				const result = await getClientManager()
-					.createClient()
-					.auth.redirectCode.get();
-				const redirectCode = result?.redirectCode;
-
-				// Only redirect away from /staff if we can positively identify the user as NOT staff.
-				if (redirectCode && redirectCode !== REDIRECT_CODE.STAFF) {
-					return redirect(FRONT_PATH_NAMES.tenant().root);
-				}
-			} catch {
-				// No redirect on error (avoid locking users into a loop)
-			}
-		}
-
-		// Fast-path when cookie clearly indicates staff context (s:... present).
-		if (isTenantPath && !tenantToken && staffToken) {
-			return redirect(FRONT_PATH_NAMES.staff.root);
-		}
-
-		// Legacy staff cookies are stored as tenantToken only; detect staff via redirectCode.
-		if (isTenantPath && tenantToken && !staffToken) {
-			try {
-				const result = await getClientManager()
-					.createClient()
-					.auth.redirectCode.get();
-				const redirectCode = result?.redirectCode;
-				if (redirectCode === REDIRECT_CODE.STAFF) {
-					return redirect(FRONT_PATH_NAMES.staff.root);
-				}
-			} catch {
-				// No redirect on error (fall back to normal page behavior, possibly 403)
-			}
+			// No session token readable by JavaScript
+			// Submit form to clear any httpOnly cookie and redirect to login
+			logout({ redirectCause: 'invalid_session' });
+			// Return null while form is submitting (navigation will take over)
+			return null;
 		}
 
 		const browserCookies = cookie.parse(document.cookie);
@@ -167,44 +93,13 @@ const AuthQueriesLoader = ({ children }: { children: ReactNode }) => {
 	}
 
 	// trigger the queries in parallel
-	const results = useSuspenseQueries({ queries });
+	useSuspenseQueries({ queries });
 
-	// Extract user ID from auth data for tenant-suspended handling
-	const userAuthData = results[0]?.data as { id?: string } | undefined;
-	const userId = userAuthData?.id;
-
-	// Session is valid - reset all logout/auth flags on mount
-	// This ensures flags don't stay stuck after SPA navigation (no page reload)
+	// Session is valid - reset the auth logout flag on mount
+	// This ensures the flag doesn't stay stuck after SPA navigation (no page reload)
 	// Using useEffect to avoid side-effects during render (React StrictMode safe)
 	useEffect(() => {
 		resetAuthLogoutFlag();
-		resetTenantSuspendedFlag();
-		resetLogoutFlag();
-	}, []);
-
-	// Set current user ID for tenant hint management (tenant-suspended handling)
-	// This needs to run after auth data is loaded so the global handler can clear the hint
-	useEffect(() => {
-		if (userId) {
-			setCurrentUserIdForTenantHint(userId);
-		}
-	}, [userId]);
-
-	// Show toast when redirected with org-suspended notice
-	useEffect(() => {
-		const params = new URLSearchParams(window.location.search);
-		if (
-			params.get(queryParamKey.notice) === queryParamValue.notice.org_suspended
-		) {
-			toast.warning(i18next.t('suspended-tenants-notice', { ns: 'common' }));
-			// Clean up the query param from URL
-			params.delete(queryParamKey.notice);
-			const newUrl =
-				params.size > 0
-					? `${window.location.pathname}?${params}`
-					: window.location.pathname;
-			window.history.replaceState({}, '', newUrl);
-		}
 	}, []);
 
 	return <>{children}</>;
@@ -219,9 +114,7 @@ const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 	if (!sessionToken) {
 		// No session token - this is a safety check
 		// Submit form to clear any httpOnly cookie and redirect to login
-		logout({
-			redirectCause: queryParamValue.login_page.redirect_cause.invalid_session,
-		});
+		logout({ redirectCause: 'invalid_session' });
 
 		return <SplashScreen />;
 	}
@@ -261,19 +154,8 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 		// for clean UX during redirect
 		if (failure.status === 401) {
 			// Trigger logout (may be redundant if global handler already fired, but safe)
-			logout({
-				redirectCause:
-					queryParamValue.login_page.redirect_cause.invalid_session,
-			});
+			logout({ redirectCause: 'invalid_session' });
 			return <SplashScreen />;
-		}
-
-		// Handle 403 tenant-suspended - show dedicated page
-		if (
-			failure.status === 403 &&
-			failure.translationKey === 'tenant-suspended'
-		) {
-			return <ViewTenantSuspended />;
 		}
 
 		// Handle 403 Forbidden - user doesn't have access (no logout!)
