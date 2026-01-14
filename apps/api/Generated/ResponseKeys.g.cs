@@ -62,9 +62,9 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey FailedToRegisterUser = new("failed-to-register-user");
 
 	/// <summary>
-	/// Failed to update staff member
+	/// Failed to update staff user
 	/// </summary>
-	public static readonly TranslationKey FailedToUpdateStaffMember = new("failed-to-update-staff-member");
+	public static readonly TranslationKey FailedToUpdateStaffUser = new("failed-to-update-staff-user");
 
 	/// <summary>
 	/// Forbidden
@@ -122,9 +122,9 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey NoItemsFound = new("no-items-found");
 
 	/// <summary>
-	/// Not a staff member
+	/// Not a staff user
 	/// </summary>
-	public static readonly TranslationKey NotAStaffMember = new("not-a-staff-member");
+	public static readonly TranslationKey NotAStaffUser = new("not-a-staff-user");
 
 	/// <summary>
 	/// Not found
@@ -182,11 +182,6 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey ServiceUnavailable = new("service-unavailable");
 
 	/// <summary>
-	/// Staff member updated successfully
-	/// </summary>
-	public static readonly TranslationKey StaffMemberUpdatedSuccessfully = new("staff-member-updated-successfully");
-
-	/// <summary>
 	/// Staff profile created successfully
 	/// </summary>
 	public static readonly TranslationKey StaffProfileCreatedSuccessfully = new("staff-profile-created-successfully");
@@ -195,6 +190,11 @@ public static partial class ResponseKeys {
 	/// staff profiles
 	/// </summary>
 	public static readonly TranslationKey StaffProfiles = new("staff-profiles");
+
+	/// <summary>
+	/// Staff user updated successfully
+	/// </summary>
+	public static readonly TranslationKey StaffUserUpdatedSuccessfully = new("staff-user-updated-successfully");
 
 	/// <summary>
 	/// Tenant ID required
