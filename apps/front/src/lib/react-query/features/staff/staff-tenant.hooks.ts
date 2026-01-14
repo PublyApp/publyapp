@@ -62,11 +62,11 @@ type FindTenantProfilesParams = {
 };
 
 export const useFindTenantProfiles = createStaffQuery({
-	queryKeyFn: (client) => client.staff.profiles.tenant.byTenantId('').get,
+	queryKeyFn: (client) => client.staff.tenants.byTenantId('').profiles.get,
 	fetcher: async (client, params: FindTenantProfilesParams) => {
-		const result = await client.staff.profiles.tenant
+		const result = await client.staff.tenants
 			.byTenantId(params.tenantId)
-			.get({
+			.profiles.get({
 				queryParameters: {
 					page: params.page ? params.page.toString() : undefined,
 					limit: params.limit ? params.limit.toString() : undefined,

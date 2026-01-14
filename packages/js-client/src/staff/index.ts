@@ -6,11 +6,11 @@ import { InvitationsRequestBuilderNavigationMetadata, InvitationsRequestBuilderR
 // @ts-ignore
 import { PermissionsRequestBuilderRequestsMetadata, type PermissionsRequestBuilder } from './permissions/index.js';
 // @ts-ignore
-import { ProfilesRequestBuilderNavigationMetadata, ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
-// @ts-ignore
-import { StaffMembersRequestBuilderNavigationMetadata, StaffMembersRequestBuilderRequestsMetadata, type StaffMembersRequestBuilder } from './staffMembers/index.js';
+import { ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
 // @ts-ignore
 import { TenantsRequestBuilderNavigationMetadata, TenantsRequestBuilderRequestsMetadata, type TenantsRequestBuilder } from './tenants/index.js';
+// @ts-ignore
+import { type UsersRequestBuilder, UsersRequestBuilderNavigationMetadata, UsersRequestBuilderRequestsMetadata } from './users/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata } from '@microsoft/kiota-abstractions';
 
@@ -31,13 +31,13 @@ export interface StaffRequestBuilder extends BaseRequestBuilder<StaffRequestBuil
      */
     get profiles(): ProfilesRequestBuilder;
     /**
-     * The staffMembers property
-     */
-    get staffMembers(): StaffMembersRequestBuilder;
-    /**
      * The tenants property
      */
     get tenants(): TenantsRequestBuilder;
+    /**
+     * The users property
+     */
+    get users(): UsersRequestBuilder;
 }
 /**
  * Uri template for the request builder.
@@ -56,15 +56,14 @@ export const StaffRequestBuilderNavigationMetadata: Record<Exclude<keyof StaffRe
     },
     profiles: {
         requestsMetadata: ProfilesRequestBuilderRequestsMetadata,
-        navigationMetadata: ProfilesRequestBuilderNavigationMetadata,
-    },
-    staffMembers: {
-        requestsMetadata: StaffMembersRequestBuilderRequestsMetadata,
-        navigationMetadata: StaffMembersRequestBuilderNavigationMetadata,
     },
     tenants: {
         requestsMetadata: TenantsRequestBuilderRequestsMetadata,
         navigationMetadata: TenantsRequestBuilderNavigationMetadata,
+    },
+    users: {
+        requestsMetadata: UsersRequestBuilderRequestsMetadata,
+        navigationMetadata: UsersRequestBuilderNavigationMetadata,
     },
 };
 /* tslint:enable */

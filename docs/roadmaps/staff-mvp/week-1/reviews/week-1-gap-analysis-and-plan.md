@@ -47,7 +47,7 @@ From the Staff MVP Implementation Guide, Week 1 focuses on:
   - Auto-discovery via reflection in `MainApiDbContext.OnConfiguring()`
 
 - **Staff Features**
-  - `Features/Staff/StaffMember/` - Staff member management
+  - `Features/Staff/StaffUser/` - Staff member management
   - `Features/Staff/TenantAsStaff/` - Tenant administration APIs
   - `Features/Staff/ProfileAsStaff/` - Profile viewing for staff
 
@@ -264,7 +264,7 @@ public class StaffAuditEntry : BaseAttributesNoKey, INoTenantEntity {
     public required StaffActionType ActionType { get; set; }
     
     [Column("target_type")]
-    public required string TargetType { get; set; }  // "Tenant", "User", "StaffMember", etc.
+    public required string TargetType { get; set; }  // "Tenant", "User", "StaffUser", etc.
     
     [Column("target_id")]
     public Guid? TargetId { get; set; }
@@ -1034,7 +1034,7 @@ apps/api/Src/
 │       │   └── OwnerAccountSeeder.cs       ← NEW
 │       ├── Auth/
 │       │   └── StaffAuthService.cs         ← NEW
-│       ├── StaffMember/
+│       ├── StaffUser/
 │       ├── TenantAsStaff/
 │       └── ProfileAsStaff/
 ├── Data/
