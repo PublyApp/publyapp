@@ -7,9 +7,6 @@ public static partial class Routes {
 	/// Invitation routes
 	/// </summary>
 	public static class Invitations {
-		/// <summary>Base path for invitations under staff scope - used for MapGroup</summary>
-		public const string Base = "/staff/invitations";
-
 		/// <summary>Anonymous invitation routes (public)</summary>
 		public static class Anonymous {
 			public const string Root = "/invitations";
@@ -20,29 +17,37 @@ public static partial class Routes {
 			public const string Check = $"{Root}/check";
 		}
 
-		/// <summary>Staff invitation routes (managed by staff)</summary>
+		/// <summary>Staff invitation routes (staff managing staff invitations)</summary>
 		public static class ForStaff {
-			public const string Root = $"{Base}/staff";
-			public const string Create = $"{Root}/";
-			public const string BulkCreate = $"{Root}/bulk";
-			public const string Find = $"{Root}/";
-			public const string RevokeById = $"{Root}/{{invitationId}}";
-			public static string RevokeByIdFn(string invitationId) => $"{Root}/{invitationId}";
+			public const string Root = "/invitations";
+			public const string Create = "/";
+			public const string BulkCreate = "/bulk";
+			public const string Find = "/";
+			public const string RevokeById = "/{invitationId}";
+			public static string RevokeByIdFn(string invitationId) => $"/{invitationId}";
 		}
 
-		/// <summary>Tenant invitation routes (managed by staff)</summary>
-		public static class ForTenant {
-			public const string Root = $"{Base}/tenant/{{tenantId}}";
-			public static string RootFn(string tenantId) => $"{Base}/tenant/{tenantId}";
-			public const string Create = $"{Root}/";
+		/// <summary>Tenant invitation routes (staff managing tenant invitations)</summary>
+		public static class ForTenantAsStaff {
+			public const string Root = "/tenants/{tenantId}/invitations";
+			public static string RootFn(string tenantId) => $"/tenants/{tenantId}/invitations";
+			public const string Create = "/";
 			public static string CreateFn(string tenantId) => $"{RootFn(tenantId)}/";
-			public const string BulkCreate = $"{Root}/bulk";
+			public const string BulkCreate = "/bulk";
 			public static string BulkCreateFn(string tenantId) => $"{RootFn(tenantId)}/bulk";
-			public const string Find = $"{Root}/";
+			public const string Find = "/";
 			public static string FindFn(string tenantId) => $"{RootFn(tenantId)}/";
-			public const string RevokeById = $"{Root}/{{invitationId}}";
+			public const string RevokeById = "/{invitationId}";
 			public static string RevokeByIdFn(string tenantId, string invitationId) =>
-				$"{RootFn(tenantId)}/{invitationId}/";
+				$"{RootFn(tenantId)}/{invitationId}";
+		}
+
+		/// <summary>Tenant API routes (tenant self-service)</summary>
+		public static class ForTenant {
+			public const string Root = "/invitations";
+			public const string Create = "/";
+			public const string Find = "/";
+			public const string RevokeById = "/{invitationId}";
 		}
 	}
 }

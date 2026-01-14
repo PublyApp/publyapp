@@ -1,7 +1,6 @@
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Routes;
-using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Tenants.Handlers.Staff;
 
 namespace MainApi.Src.Modules.Tenants.Endpoints;
@@ -10,11 +9,11 @@ public static class TenantEndpointsForStaff {
 	public static IEndpointRouteBuilder MapTenantEndpointsForStaff(
 		this IEndpointRouteBuilder routes
 	) {
-		var group = routes.MapGroup(PathUtils.GetLastSegment(Routes.Tenants.ForStaff.Root))
+		var group = routes.MapGroup(Routes.Tenants.ForStaff.Root)
 			.WithTags("Tenants");
 
 		group.MapPost(
-			PathUtils.GetLastSegment(Routes.Tenants.ForStaff.Create),
+			Routes.Tenants.ForStaff.Create,
 			CreateTenantAsStaff.HandleCreateTenantAsStaff
 		)
 			.WithName("CreateTenant")
@@ -23,7 +22,7 @@ public static class TenantEndpointsForStaff {
 			.WithPermission([AppPermissions.Staff.Tenants.CREATE]);
 
 		group.MapGet(
-			PathUtils.GetLastSegment(Routes.Tenants.ForStaff.GetById),
+			Routes.Tenants.ForStaff.GetById,
 			GetTenantAsStaff.HandleGetTenantAsStaff
 		)
 			.WithName("GetTenantById")
@@ -31,7 +30,7 @@ public static class TenantEndpointsForStaff {
 			.WithPermission([AppPermissions.Staff.Tenants.GET]);
 
 		group.MapGet(
-			PathUtils.GetLastSegment(Routes.Tenants.ForStaff.Find),
+			Routes.Tenants.ForStaff.Find,
 			FindTenantsAsStaff.HandleFindTenantsAsStaff
 		)
 			.WithName("FindTenants")
@@ -39,6 +38,6 @@ public static class TenantEndpointsForStaff {
 			.WithReqQueryValidation<FindTenantsAsStaffQuery>()
 			.WithPermission([AppPermissions.Staff.Tenants.LIST]);
 
-		return group;
+		return routes;
 	}
 }

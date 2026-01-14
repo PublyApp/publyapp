@@ -7,13 +7,13 @@ public static partial class Routes {
 	/// Tenant routes
 	/// </summary>
 	public static class Tenants {
-		/// <summary>Staff tenant routes</summary>
+		/// <summary>Staff tenant management routes</summary>
 		public static class ForStaff {
-			public const string Root = "/staff/tenants";
-			public const string Create = $"{Root}/";
-			public const string Find = $"{Root}/";
-			public const string GetById = $"{Root}/{{tenantId}}";
-			public static string GetByIdFn(string tenantId) => $"{Root}/{tenantId}";
+			public const string Root = "/tenants";
+			public const string Create = "/";
+			public const string Find = "/";
+			public const string GetById = "/{tenantId}";
+			public static string GetByIdFn(string tenantId) => $"/{tenantId}";
 		}
 	}
 }

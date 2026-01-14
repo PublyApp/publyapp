@@ -4,18 +4,12 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createFindStaffProfilesResultFromDiscriminatorValue, createStaffProfileCreatedFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializeCreateStaffProfileBody, serializeStaffProfileCreated, type AppProblemDetails, type CreateStaffProfileBody, type FindStaffProfilesResult, type StaffProfileCreated, type ValidationProblemDetails } from '../../models/index.js';
 // @ts-ignore
-import { TenantRequestBuilderNavigationMetadata, type TenantRequestBuilder } from './tenant/index.js';
-// @ts-ignore
-import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
+import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /staff/profiles
  */
 export interface ProfilesRequestBuilder extends BaseRequestBuilder<ProfilesRequestBuilder> {
-    /**
-     * The tenant property
-     */
-    get tenant(): TenantRequestBuilder;
     /**
      * Find profiles for a staff member
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -74,14 +68,6 @@ const ProfilesRequestBuilderGetQueryParametersMapper: Record<string, string> = {
     "limit": "Limit",
     "sortId": "SortId",
     "sortOrder": "SortOrder",
-};
-/**
- * Metadata for all the navigation properties in the request builder.
- */
-export const ProfilesRequestBuilderNavigationMetadata: Record<Exclude<keyof ProfilesRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
-    tenant: {
-        navigationMetadata: TenantRequestBuilderNavigationMetadata,
-    },
 };
 /**
  * Metadata for all the requests in the request builder.

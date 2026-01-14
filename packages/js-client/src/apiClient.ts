@@ -8,7 +8,7 @@ import { InvitationsRequestBuilderNavigationMetadata, type InvitationsRequestBui
 // @ts-ignore
 import { StaffRequestBuilderNavigationMetadata, type StaffRequestBuilder } from './staff/index.js';
 // @ts-ignore
-import { TenantRequestBuilderNavigationMetadata, type TenantRequestBuilder } from './tenant/index.js';
+import { TestRequestBuilderRequestsMetadata, type TestRequestBuilder } from './test/index.js';
 // @ts-ignore
 import { apiClientProxifier, ParseNodeFactoryRegistry, SerializationWriterFactoryRegistry, type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type RequestAdapter } from '@microsoft/kiota-abstractions';
 // @ts-ignore
@@ -37,9 +37,9 @@ export interface ApiClient extends BaseRequestBuilder<ApiClient> {
      */
     get staff(): StaffRequestBuilder;
     /**
-     * The tenant property
+     * The test property
      */
-    get tenant(): TenantRequestBuilder;
+    get test(): TestRequestBuilder;
 }
 /**
  * Instantiates a new {@link ApiClient} and sets the default values.
@@ -89,8 +89,8 @@ export const ApiClientNavigationMetadata: Record<Exclude<keyof ApiClient, KeysTo
     staff: {
         navigationMetadata: StaffRequestBuilderNavigationMetadata,
     },
-    tenant: {
-        navigationMetadata: TenantRequestBuilderNavigationMetadata,
+    test: {
+        requestsMetadata: TestRequestBuilderRequestsMetadata,
     },
 };
 /* tslint:enable */
