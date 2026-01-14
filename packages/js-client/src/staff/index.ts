@@ -6,7 +6,7 @@ import { InvitationsRequestBuilderNavigationMetadata, InvitationsRequestBuilderR
 // @ts-ignore
 import { PermissionsRequestBuilderRequestsMetadata, type PermissionsRequestBuilder } from './permissions/index.js';
 // @ts-ignore
-import { ProfilesRequestBuilderNavigationMetadata, ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
+import { ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
 // @ts-ignore
 import { TenantsRequestBuilderNavigationMetadata, TenantsRequestBuilderRequestsMetadata, type TenantsRequestBuilder } from './tenants/index.js';
 // @ts-ignore
@@ -56,7 +56,6 @@ export const StaffRequestBuilderNavigationMetadata: Record<Exclude<keyof StaffRe
     },
     profiles: {
         requestsMetadata: ProfilesRequestBuilderRequestsMetadata,
-        navigationMetadata: ProfilesRequestBuilderNavigationMetadata,
     },
     tenants: {
         requestsMetadata: TenantsRequestBuilderRequestsMetadata,

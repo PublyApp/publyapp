@@ -1,7 +1,6 @@
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Routes;
-using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Invitations.Handlers.Staff;
 
 namespace MainApi.Src.Modules.Invitations.Endpoints;
@@ -10,11 +9,11 @@ public static class InvitationEndpointsForStaff {
 	public static IEndpointRouteBuilder MapInvitationEndpointsForStaff(
 		this IEndpointRouteBuilder routes
 	) {
-		var group = routes.MapGroup(PathUtils.GetLastSegment(Routes.Invitations.Base))
+		var group = routes.MapGroup(Routes.Invitations.ForStaff.Root)
 			.WithTags("Staff Invitations");
 
 		group.MapPost(
-				PathUtils.GetLastSegment(Routes.Invitations.ForStaff.Create),
+				Routes.Invitations.ForStaff.Create,
 				CreateStaffInvitation.HandleCreateStaffInvitation
 			)
 			.WithName("CreateStaffInvitation")
@@ -23,7 +22,7 @@ public static class InvitationEndpointsForStaff {
 			.WithPermission([AppPermissions.Staff.Invitations.CREATE_FOR_STAFF]);
 
 		group.MapPost(
-				PathUtils.GetLastSegment(Routes.Invitations.ForStaff.BulkCreate),
+				Routes.Invitations.ForStaff.BulkCreate,
 				BulkCreateStaffInvitations.HandleBulkCreateStaffInvitations
 			)
 			.WithName("BulkCreateStaffInvitations")
@@ -32,7 +31,7 @@ public static class InvitationEndpointsForStaff {
 			.WithPermission([AppPermissions.Staff.Invitations.CREATE_FOR_STAFF]);
 
 		group.MapGet(
-				PathUtils.GetLastSegment(Routes.Invitations.ForStaff.Find),
+				Routes.Invitations.ForStaff.Find,
 				FindStaffInvitations.HandleFindStaffInvitations
 			)
 			.WithName("FindStaffInvitations")
@@ -40,7 +39,7 @@ public static class InvitationEndpointsForStaff {
 			.WithPermission([AppPermissions.Staff.Invitations.LIST_FOR_STAFF]);
 
 		group.MapDelete(
-				PathUtils.GetLastSegment(Routes.Invitations.ForStaff.RevokeById),
+				Routes.Invitations.ForStaff.RevokeById,
 				RevokeStaffInvitation.HandleRevokeStaffInvitation
 			)
 			.WithName("RevokeStaffInvitation")

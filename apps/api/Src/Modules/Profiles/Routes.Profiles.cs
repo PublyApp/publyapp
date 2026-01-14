@@ -7,20 +7,19 @@ public static partial class Routes {
 	/// Profile routes
 	/// </summary>
 	public static class Profiles {
-		/// <summary>Base path for profiles under staff scope - used for MapGroup</summary>
-		public const string Base = "/staff/profiles";
-
-		/// <summary>Staff profile routes</summary>
+		/// <summary>Staff profile routes (staff managing staff profiles)</summary>
 		public static class ForStaff {
-			public const string Root = Base;
-			public const string Create = $"{Root}/";
-			public const string Find = $"{Root}/";
+			public const string Root = "/profiles";
+			public const string Create = "/";
+			public const string Find = "/";
 		}
 
-		/// <summary>Tenant profile routes (managed by staff)</summary>
-		public static class ForTenant {
-			public const string Find = $"{Base}/tenant/{{tenantId}}";
-			public static string FindFn(string tenantId) => $"{Base}/tenant/{tenantId}";
+		/// <summary>Tenant profile routes (staff viewing tenant profiles)</summary>
+		public static class ForTenantAsStaff {
+			public const string Root = "/tenants/{tenantId}/profiles";
+			public static string RootFn(string tenantId) => $"/tenants/{tenantId}/profiles";
+			public const string Find = "/";
+			public static string FindFn(string tenantId) => $"{RootFn(tenantId)}/";
 		}
 	}
 }

@@ -1,7 +1,6 @@
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Routes;
-using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Permissions.Handlers.Staff;
 
 namespace MainApi.Src.Modules.Permissions.Endpoints;
@@ -10,11 +9,11 @@ public static class PermissionEndpointsForStaff {
 	public static IEndpointRouteBuilder MapPermissionEndpointsForStaff(
 		this IEndpointRouteBuilder routes
 	) {
-		var group = routes.MapGroup(PathUtils.GetLastSegment(Routes.Permissions.ForStaff.Root))
+		var group = routes.MapGroup(Routes.Permissions.ForStaff.Root)
 			.WithTags("Permissions");
 
 		group.MapGet(
-			PathUtils.GetLastSegment(Routes.Permissions.ForStaff.Find),
+			Routes.Permissions.ForStaff.Find,
 			FindStaffPermissions.HandleFindStaffPermissions
 		)
 			.WithName("FindStaffPermissions")

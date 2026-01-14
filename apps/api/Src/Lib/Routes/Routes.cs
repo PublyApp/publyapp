@@ -11,6 +11,6 @@ public static partial class Routes {
 
 	/// <summary>Tenant scope root (/tenant/*)</summary>
 	public static class Tenant {
-		public const string Root = "/tenant";
+		public const string Root = "/";
 	}
 }

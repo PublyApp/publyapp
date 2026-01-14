@@ -7,9 +7,9 @@ import { createAppProblemDetailsFromDiscriminatorValue, createFindTenantProfiles
 import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
- * Builds and executes requests for operations under /staff/profiles/tenant/{tenantId}
+ * Builds and executes requests for operations under /staff/tenants/{tenantId}/profiles
  */
-export interface WithTenantItemRequestBuilder extends BaseRequestBuilder<WithTenantItemRequestBuilder> {
+export interface ProfilesRequestBuilder extends BaseRequestBuilder<ProfilesRequestBuilder> {
     /**
      * Find profiles for a tenant
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -20,18 +20,18 @@ export interface WithTenantItemRequestBuilder extends BaseRequestBuilder<WithTen
      * @throws {ValidationProblemDetails} error when the service returns a 422 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
-     get(requestConfiguration?: RequestConfiguration<WithTenantItemRequestBuilderGetQueryParameters> | undefined) : Promise<FindTenantProfilesAsStaffResult | undefined>;
+     get(requestConfiguration?: RequestConfiguration<ProfilesRequestBuilderGetQueryParameters> | undefined) : Promise<FindTenantProfilesAsStaffResult | undefined>;
     /**
      * Find profiles for a tenant
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */
-     toGetRequestInformation(requestConfiguration?: RequestConfiguration<WithTenantItemRequestBuilderGetQueryParameters> | undefined) : RequestInformation;
+     toGetRequestInformation(requestConfiguration?: RequestConfiguration<ProfilesRequestBuilderGetQueryParameters> | undefined) : RequestInformation;
 }
 /**
  * Find profiles for a tenant
  */
-export interface WithTenantItemRequestBuilderGetQueryParameters {
+export interface ProfilesRequestBuilderGetQueryParameters {
     limit?: string;
     page?: string;
     sortId?: string;
@@ -40,11 +40,11 @@ export interface WithTenantItemRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const WithTenantItemRequestBuilderUriTemplate = "{+baseurl}/staff/profiles/tenant/{tenantId}{?Limit*,Page*,SortId*,SortOrder*}";
+export const ProfilesRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}/profiles{?Limit*,Page*,SortId*,SortOrder*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
-const WithTenantItemRequestBuilderGetQueryParametersMapper: Record<string, string> = {
+const ProfilesRequestBuilderGetQueryParametersMapper: Record<string, string> = {
     "limit": "Limit",
     "page": "Page",
     "sortId": "SortId",
@@ -53,9 +53,9 @@ const WithTenantItemRequestBuilderGetQueryParametersMapper: Record<string, strin
 /**
  * Metadata for all the requests in the request builder.
  */
-export const WithTenantItemRequestBuilderRequestsMetadata: RequestsMetadata = {
+export const ProfilesRequestBuilderRequestsMetadata: RequestsMetadata = {
     get: {
-        uriTemplate: WithTenantItemRequestBuilderUriTemplate,
+        uriTemplate: ProfilesRequestBuilderUriTemplate,
         responseBodyContentType: "application/json",
         errorMappings: {
             400: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
@@ -66,7 +66,7 @@ export const WithTenantItemRequestBuilderRequestsMetadata: RequestsMetadata = {
         },
         adapterMethodName: "send",
         responseBodyFactory:  createFindTenantProfilesAsStaffResultFromDiscriminatorValue,
-        queryParametersMapper: WithTenantItemRequestBuilderGetQueryParametersMapper,
+        queryParametersMapper: ProfilesRequestBuilderGetQueryParametersMapper,
     },
 };
 /* tslint:enable */

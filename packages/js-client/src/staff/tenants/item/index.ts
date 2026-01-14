@@ -4,12 +4,18 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createGetTenantAsStaffResultFromDiscriminatorValue, type AppProblemDetails, type GetTenantAsStaffResult } from '../../../models/index.js';
 // @ts-ignore
-import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
+import { ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
+// @ts-ignore
+import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /staff/tenants/{tenantId}
  */
 export interface WithTenantItemRequestBuilder extends BaseRequestBuilder<WithTenantItemRequestBuilder> {
+    /**
+     * The profiles property
+     */
+    get profiles(): ProfilesRequestBuilder;
     /**
      * Get a tenant by id
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -31,6 +37,14 @@ export interface WithTenantItemRequestBuilder extends BaseRequestBuilder<WithTen
  * Uri template for the request builder.
  */
 export const WithTenantItemRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}";
+/**
+ * Metadata for all the navigation properties in the request builder.
+ */
+export const WithTenantItemRequestBuilderNavigationMetadata: Record<Exclude<keyof WithTenantItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    profiles: {
+        requestsMetadata: ProfilesRequestBuilderRequestsMetadata,
+    },
+};
 /**
  * Metadata for all the requests in the request builder.
  */

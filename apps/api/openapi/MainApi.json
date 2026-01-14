@@ -1577,7 +1577,7 @@
     "/staff/profiles": {
       "get": {
         "tags": [
-          "Profiles"
+          "Staff Profiles"
         ],
         "summary": "Find profiles for a staff member",
         "operationId": "FindStaffProfiles",
@@ -1676,7 +1676,7 @@
       },
       "post": {
         "tags": [
-          "Profiles"
+          "Staff Profiles"
         ],
         "summary": "Create a new staff profile",
         "operationId": "CreateStaffProfile",
@@ -1754,10 +1754,10 @@
         }
       }
     },
-    "/staff/profiles/tenant/{tenantId}": {
+    "/staff/tenants/{tenantId}/profiles": {
       "get": {
         "tags": [
-          "Profiles"
+          "Tenant Profiles (Staff View)"
         ],
         "summary": "Find profiles for a tenant",
         "operationId": "FindTenantProfiles",
@@ -2114,7 +2114,7 @@
         }
       }
     },
-    "/tenant/test": {
+    "/test": {
       "get": {
         "tags": [
           "MainApi"
@@ -3252,7 +3252,10 @@
       "name": "Permissions"
     },
     {
-      "name": "Profiles"
+      "name": "Staff Profiles"
+    },
+    {
+      "name": "Tenant Profiles (Staff View)"
     },
     {
       "name": "Tenants"

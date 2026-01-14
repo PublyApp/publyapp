@@ -1,18 +1,17 @@
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Routes;
-using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Users.Handlers.Staff;
 
 namespace MainApi.Src.Modules.Users.Endpoints;
 
-public static class StaffUseEndpoints {
+public static class UserEndpointsForStaff {
 	public static IEndpointRouteBuilder MapUserEndpointsForStaff(this IEndpointRouteBuilder routes) {
-		var group = routes.MapGroup(PathUtils.GetLastSegment(Routes.Users.Base))
+		var group = routes.MapGroup(Routes.Users.ForStaff.Root)
 			.WithTags("Staff Users");
 
 		group.MapPost(
-				PathUtils.GetLastSegment(Routes.Users.ForStaff.Create),
+				Routes.Users.ForStaff.Create,
 				CreateStaffUser.HandleCreateStaffUser
 			)
 			.WithName("CreateStaffUser")
@@ -21,7 +20,7 @@ public static class StaffUseEndpoints {
 			.WithPermission([AppPermissions.Staff.Users.CREATE_FOR_STAFF]);
 
 		group.MapGet(
-				PathUtils.GetLastSegment(Routes.Users.ForStaff.GetById),
+				Routes.Users.ForStaff.GetById,
 				GetStaffUserById.HandleGetStaffUserById
 			)
 			.WithName("GetStaffUserById")
@@ -29,7 +28,7 @@ public static class StaffUseEndpoints {
 			.WithPermission([AppPermissions.Staff.Users.GET_FOR_STAFF]);
 
 		group.MapGet(
-				PathUtils.GetLastSegment(Routes.Users.ForStaff.Find),
+				Routes.Users.ForStaff.Find,
 				FindStaffUsers.HandleFindStaffUsers
 			)
 			.WithName("FindStaffUsers")
@@ -38,7 +37,7 @@ public static class StaffUseEndpoints {
 			.WithPermission([AppPermissions.Staff.Users.LIST_FOR_STAFF]);
 
 		group.MapPatch(
-				PathUtils.GetLastSegment(Routes.Users.ForStaff.Update),
+				Routes.Users.ForStaff.Update,
 				UpdateStaffUser.HandleUpdateStaffUser
 			)
 			.WithName("UpdateStaffUser")
