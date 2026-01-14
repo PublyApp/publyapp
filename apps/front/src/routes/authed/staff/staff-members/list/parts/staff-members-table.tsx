@@ -31,7 +31,7 @@ import {
 	useSendEmailVerificationReminder,
 } from '@/front/lib/react-query/features/common/auth.hooks';
 import { useFindStaffMember } from '@/front/lib/react-query/features/staff/staff-member.hooks';
-import type { StaffMemberItem } from '@/js-client/src/models';
+import type { StaffUserItem } from '@/js-client/src/models';
 import {
 	ACCOUNT_LEVEL_ENUM,
 	DEFAULT_PAGE_SIZE,
@@ -53,7 +53,7 @@ export type StaffMemberRowData = {
 };
 
 const StaffMemberRowDataMapper = (
-	staffMember: StaffMemberItem,
+	staffMember: StaffUserItem,
 ): StaffMemberRowData => {
 	return {
 		id: staffMember.id || '',
@@ -124,7 +124,7 @@ const StaffMembersTable = () => {
 	});
 
 	const dataTable = useMemo(() => {
-		return _.map(data?.staffMembers, StaffMemberRowDataMapper);
+		return _.map(data?.staffUsers, StaffMemberRowDataMapper);
 	}, [data]);
 
 	const table = useMRTTable('minimal', {

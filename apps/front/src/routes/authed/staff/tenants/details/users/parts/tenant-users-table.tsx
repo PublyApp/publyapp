@@ -113,9 +113,9 @@ const TenantUsersTable = () => {
 	});
 
 	const rows: TenantUserRowData[] = useMemo(() => {
-		if (!data?.staffMembers) return [];
+		if (!data?.staffUsers) return [];
 
-		return _.map(data.staffMembers, (staffMember) => {
+		return _.map(data.staffUsers, (staffMember) => {
 			return {
 				id: staffMember.id || '',
 				avatarUrl: staffMember.avatarUrl || '',
