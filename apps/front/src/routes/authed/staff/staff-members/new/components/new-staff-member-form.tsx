@@ -9,7 +9,7 @@ import { useRouter } from '@/front/hooks/use-router';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
 import {
-	useCreateStaffMember,
+	useCreateStaffUser,
 	useFindStaffMember,
 } from '@/front/lib/react-query/features/staff/staff-member.hooks';
 import { interZodClient } from '@/front/lib/zod/zod.client';
@@ -46,8 +46,8 @@ const NewStaffMemberForm = () => {
 
 	useSyncFormToLang(i18n.language, form);
 
-	const { mutate: createStaffMember, isPending: isCreating } =
-		useCreateStaffMember({
+	const { mutate: CreateStaffUser, isPending: isCreating } = useCreateStaffUser(
+		{
 			onSuccess: () => {
 				toast.success(
 					_.capitalize(
@@ -61,12 +61,13 @@ const NewStaffMemberForm = () => {
 				router.push(FRONT_PATH_NAMES.staff.staffMembers.root);
 			},
 			// Error toasts handled by global handler automatically
-		});
+		},
+	);
 
 	return (
 		<UserNewEditForm
 			form={form}
-			onMutate={createStaffMember}
+			onMutate={CreateStaffUser}
 			isMutating={isCreating}
 		/>
 	);

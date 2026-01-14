@@ -1,0 +1,109 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
+
+using MainApi.Src.Data;
+
+using Microsoft.EntityFrameworkCore;
+
+namespace MainApi.Src.Modules.Users.Entities;
+
+[Table("users")]
+[Index(nameof(Email), IsUnique = true)]
+public class User : BaseAttributes, INoTenantEntity {
+	[Column("last_name")]
+	public string? LastName { get; set; }
+
+	[Column("first_name")]
+	public string? FirstName { get; set; }
+
+	private string _email = string.Empty;
+
+	[Column("email")]
+	[EmailAddress]
+	public required string Email {
+		get { return _email; }
+		set { _email = value.ToLower(); }
+	}
+
+	[Column("password")]
+	public required string Password { get; set; } = string.Empty;
+
+	[Column("avatar_url")]
+	public string? AvatarUrl { get; set; }
+
+	[Column("status")]
+	public UserStatus Status { get; set; } = UserStatus.Inactive;
+
+	[Column("is_suspended")]
+	public bool IsSuspended { get; set; } = false;
+
+	[Column("is_verified")]
+	public bool IsVerified { get; set; } = false;
+
+	[Column("email_verify_token")]
+	public string? EmailVerifyToken { get; set; }
+
+	[Column("email_verify_token_expires_at")]
+	public DateTime? EmailVerifyTokenExpiresAt { get; set; }
+
+	[Column("password_reset_token")]
+	public string? PasswordResetToken { get; set; }
+
+	[Column("password_reset_token_expires_at")]
+	public DateTime? PasswordResetTokenExpiresAt { get; set; }
+
+	// Navigation properties
+	[JsonIgnore]
+	public ICollection<UserAccount> UserAccounts { get; set; } = [];
+	[JsonIgnore]
+	public ICollection<MainApi.Src.Modules.Auth.Entities.Session> Sessions { get; set; } = [];
+
+	public static string GetStatusDescription(UserStatus status) {
+		return status switch {
+			UserStatus.Inactive => "Inactive",
+			UserStatus.Pending => "Pending",
+			UserStatus.Suspended => "Suspended",
+			UserStatus.Active => "Active",
+			UserStatus.Deleted => "Deleted",
+			_ => "Unknown",
+		};
+	}
+
+	public static UserStatus? ParseStatus(string statusString) {
+		var isInactive = string.Compare(statusString, "inactive", StringComparison.OrdinalIgnoreCase) == 0;
+		if (isInactive) {
+			return UserStatus.Inactive;
+		}
+		var isPending = string.Compare(statusString, "pending", StringComparison.OrdinalIgnoreCase) == 0;
+		if (isPending) {
+			return UserStatus.Pending;
+		}
+		var isSuspended = string.Compare(statusString, "suspended", StringComparison.OrdinalIgnoreCase) == 0;
+		if (isSuspended) {
+			return UserStatus.Suspended;
+		}
+		var isActive = string.Compare(statusString, "active", StringComparison.OrdinalIgnoreCase) == 0;
+		if (isActive) {
+			return UserStatus.Active;
+		}
+		var isDeleted = string.Compare(statusString, "deleted", StringComparison.OrdinalIgnoreCase) == 0;
+		if (isDeleted) {
+			return UserStatus.Deleted;
+		}
+		var isBanned = string.Compare(statusString, "banned", StringComparison.OrdinalIgnoreCase) == 0;
+		if (isBanned) {
+			return UserStatus.Banned;
+		}
+		return null;
+	}
+}
+
+public enum UserStatus {
+	Inactive = 10,
+	Pending = 20,
+	Suspended = 30,
+	Active = 40,
+	Deleted = 50,
+	Banned = 60,
+}
