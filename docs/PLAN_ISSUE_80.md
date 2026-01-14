@@ -156,7 +156,7 @@ public static class Users {
 4. `UpdateUserForTenant.cs` - Update a tenant user
 5. `DeleteUserForTenant.cs` - Delete a tenant user
 
-Each handler should follow the existing pattern from `StaffMember/Handlers/`:
+Each handler should follow the existing pattern from `StaffUser/Handlers/`:
 - Request body/query validators using FluentValidation
 - Discriminated union result types
 - Service layer calls

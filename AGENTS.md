@@ -427,23 +427,23 @@ export const loader = async ({ apiClient }) => {
 // Step 1: Define hook in app/lib/react-query/features/staff/staff-member.hooks.ts
 import { createStaffQuery } from '../../create-hooks';
 
-export const useFindStaffMember = createStaffQuery({
+export const useFindStaffUser = createStaffQuery({
   queryKeyFn: (client) => client.staff.staffMembers.get,
   fetcher: async (client, params: { page?: number }) => {
     const result = await client.staff.staffMembers.get({
       queryParameters: { page: params.page?.toString() },
     });
-    if (_.isNil(result)) throw new Error('useFindStaffMember: result is nil');
+    if (_.isNil(result)) throw new Error('useFindStaffUser: result is nil');
     return result;
   },
 });
 
 // Step 2: Use hook in component
 // File: app/routes/authed/staff/members-page.tsx
-import { useFindStaffMember } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import { useFindStaffUser } from '@/front/lib/react-query/features/staff/staff-member.hooks';
 
-function StaffMembersPage() {
-  const { data, isLoading } = useFindStaffMember({ variables: { page: 1 } });
+function StaffUsersPage() {
+  const { data, isLoading } = useFindStaffUser({ variables: { page: 1 } });
   return <div>{/* render */}</div>;
 }
 
@@ -499,8 +499,8 @@ export const clientLoader = getClientLoader({
 
     // Prefetch using react-query-kit hooks
     await queryClient.prefetchQuery({
-      queryKey: useFindStaffMember.getKey({ page: 1 }),
-      queryFn: () => useFindStaffMember.fetcher({ page: 1 }),
+      queryKey: useFindStaffUser.getKey({ page: 1 }),
+      queryFn: () => useFindStaffUser.fetcher({ page: 1 }),
     });
 
     return null;
@@ -969,10 +969,10 @@ const form = useForm<FormData>({
 **Pattern:**
 ```tsx
 // ❌ WRONG - Manual conditional rendering
-import { useFindStaffMembers } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import { useFindStaffUsers } from '@/front/lib/react-query/features/staff/staff-member.hooks';
 
-function StaffMembersPage() {
-  const { data, isLoading, isError, error } = useFindStaffMembers();
+function StaffUsersPage() {
+  const { data, isLoading, isError, error } = useFindStaffUsers();
 
   if (isLoading) {
     return <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -989,10 +989,10 @@ function StaffMembersPage() {
 
 // ✅ CORRECT - Using QueryDisplay component
 import QueryDisplay from '@/front/components/query-display';
-import { useFindStaffMembers } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import { useFindStaffUsers } from '@/front/lib/react-query/features/staff/staff-member.hooks';
 
-function StaffMembersPage() {
-  const query = useFindStaffMembers();
+function StaffUsersPage() {
+  const query = useFindStaffUsers();
 
   return (
     <QueryDisplay
@@ -1784,7 +1784,7 @@ Error responses:
 **Default behavior (no code needed):**
 ```typescript
 // ✅ Errors auto-toast - no onError handler required
-const { mutate } = useCreateStaffMember();
+const { mutate } = useCreateStaffUser();
 mutate(data);
 ```
 
@@ -1793,7 +1793,7 @@ mutate(data);
 import { withFormValidation } from '@/front/lib/api-failure';
 
 // ✅ Field errors mapped to form, other errors still toast
-const { mutate } = useCreateStaffMember(
+const { mutate } = useCreateStaffUser(
   withFormValidation(form.setError, {
     meta: { showSuccessToast: true },
     onSuccess: () => navigate('/staff'),

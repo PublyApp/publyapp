@@ -1,4 +1,4 @@
-using MainApi.Src.Modules.Shared.Users;
+using MainApi.Src.Modules.Users.Entities;
 
 namespace MainApi.Src.Lib;
 

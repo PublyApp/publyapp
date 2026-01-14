@@ -846,7 +846,7 @@ import { mapValidationErrors, type MapValidationErrorsOptions } from './map-vali
  * @example
  * const form = useForm<MyFormData>();
  *
- * const { mutate } = useCreateStaffMember(
+ * const { mutate } = useCreateStaffUser(
  *   withFormValidation(form.setError, {
  *     meta: { showSuccessToast: true },
  *     onSuccess: () => navigate('/staff-members'),
@@ -909,7 +909,7 @@ export function withFormValidation<
 
 ```typescript
 // Simple - just pass setError
-const { mutate } = useCreateStaffMember(
+const { mutate } = useCreateStaffUser(
   withFormValidation(form.setError, {
     meta: { showSuccessToast: true },
     onSuccess: () => navigate('/staff-members'),
@@ -917,7 +917,7 @@ const { mutate } = useCreateStaffMember(
 );
 
 // With field mapping (when server uses different naming)
-const { mutate } = useCreateStaffMember(
+const { mutate } = useCreateStaffUser(
   withFormValidation(form.setError, {
     fieldMapping: { 'Email': 'email', 'FirstName': 'firstName' },
     meta: { showSuccessToast: true },
@@ -1344,7 +1344,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from '@tanstack/react-router'; // or your router
 import { toApiFailure, mapValidationErrors } from '@/front/lib/api-failure';
-import { useCreateStaffMember } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import { useCreateStaffUser } from '@/front/lib/react-query/features/staff/staff-member.hooks';
 
 const formSchema = z.object({
   email: z.string().email(),
@@ -1354,7 +1354,7 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-export function NewStaffMemberForm() {
+export function NewStaffUserForm() {
   const navigate = useNavigate();
 
   const form = useForm<FormData>({
@@ -1366,7 +1366,7 @@ export function NewStaffMemberForm() {
     },
   });
 
-  const { mutate, isPending } = useCreateStaffMember({
+  const { mutate, isPending } = useCreateStaffUser({
     // Tell global handler: "I handle validation myself via form fields"
     meta: {
       validationHandledByForm: true,
@@ -1576,7 +1576,7 @@ via React Query's MutationCache and QueryCache.
 Most mutations "just work" - errors are automatically toasted:
 
 \`\`\`typescript
-const { mutate } = useCreateStaffMember();
+const { mutate } = useCreateStaffUser();
 mutate(data); // Errors auto-toast, no onError needed
 \`\`\`
 
@@ -1587,7 +1587,7 @@ For forms that need field-level validation errors:
 \`\`\`typescript
 import { withFormValidation } from '@/front/lib/api-failure';
 
-const { mutate } = useCreateStaffMember(
+const { mutate } = useCreateStaffUser(
   withFormValidation(form.setError, {
     meta: { showSuccessToast: true },
     onSuccess: () => navigate('/staff'),
@@ -1675,7 +1675,7 @@ Add a new section under "### Error Handling" in `AGENTS.md`:
 **Default behavior (no code needed):**
 ```typescript
 // ✅ Errors auto-toast - no onError handler required
-const { mutate } = useCreateStaffMember();
+const { mutate } = useCreateStaffUser();
 mutate(data);
 ```
 
@@ -1684,7 +1684,7 @@ mutate(data);
 import { withFormValidation } from '@/front/lib/api-failure';
 
 // ✅ Field errors mapped to form, other errors still toast
-const { mutate } = useCreateStaffMember(
+const { mutate } = useCreateStaffUser(
   withFormValidation(form.setError, {
     meta: { showSuccessToast: true },
     onSuccess: () => navigate('/staff'),

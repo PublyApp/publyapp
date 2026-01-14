@@ -6,7 +6,7 @@ import {
 import _ from 'lodash';
 
 import type {
-	CreateStaffMemberBody,
+	CreateStaffUserBody,
 	UpdateStaffMemberBody,
 } from '@/js-client/src/models';
 import type { AccountLevel, UserStatus } from '@/shared/lib/constants';
@@ -28,7 +28,7 @@ const createUntypedValue = (value: unknown): UntypedNode => {
 	} as UntypedNode;
 };
 
-type CreateStaffMemberPayload = {
+type CreateStaffUserPayload = {
 	email: string;
 	firstName?: string;
 	lastName?: string;
@@ -37,10 +37,10 @@ type CreateStaffMemberPayload = {
 	accountLevel?: AccountLevel;
 };
 
-export const useCreateStaffMember = createStaffMutation({
+export const useCreateStaffUser = createStaffMutation({
 	mutationKeyFn: (client) => client.staff.staffMembers.post,
-	mutationFn: async (client, data: CreateStaffMemberPayload) => {
-		const body: CreateStaffMemberBody = {};
+	mutationFn: async (client, data: CreateStaffUserPayload) => {
+		const body: CreateStaffUserBody = {};
 		_.forEach(data, (value, key) => {
 			if (value !== undefined) {
 				// Use type assertion since generated types don't include UntypedNode in unions
@@ -49,7 +49,7 @@ export const useCreateStaffMember = createStaffMutation({
 		});
 		const result = await client.staff.staffMembers.post(body);
 		if (_.isNil(result)) {
-			throw new Error('useCreateStaffMember: result is nil');
+			throw new Error('useCreateStaffUser: result is nil');
 		}
 		return result;
 	},

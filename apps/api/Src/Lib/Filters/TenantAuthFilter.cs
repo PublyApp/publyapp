@@ -1,8 +1,8 @@
 using MainApi.Localization;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
-using MainApi.Src.Modules.Shared.Tenants;
-using MainApi.Src.Modules.Shared.Users;
+using MainApi.Src.Modules.Tenants.Services;
+using MainApi.Src.Modules.Users.Services;
 
 namespace MainApi.Src.Lib.Filters;
 

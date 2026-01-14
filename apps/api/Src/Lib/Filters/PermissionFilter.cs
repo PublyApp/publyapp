@@ -1,8 +1,9 @@
 using MainApi.Localization;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
-using MainApi.Src.Modules.Shared.Permissions;
-using MainApi.Src.Modules.Shared.Users;
+using MainApi.Src.Modules.Permissions.Entities;
+using MainApi.Src.Modules.Permissions.Services;
+using MainApi.Src.Modules.Users.Entities;
 
 namespace MainApi.Src.Lib.Filters;
 

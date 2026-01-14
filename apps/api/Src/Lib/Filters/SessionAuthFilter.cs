@@ -1,7 +1,7 @@
 using MainApi.Localization;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
-using MainApi.Src.Modules.Shared.Auth;
+using MainApi.Src.Modules.Auth.Services;
 
 using Microsoft.Extensions.Options;
 

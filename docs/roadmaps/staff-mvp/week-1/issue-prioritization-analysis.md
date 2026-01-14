@@ -78,7 +78,7 @@ Important but not blocking current work:
 **Effort:** Medium (3-4 hours)
 **Timing:** Can be done during Week 2 or 3
 
-### #118 - Move StaffMember slice under the UserAsStaff slice
+### #118 - Move StaffUser slice under the UserAsStaff slice
 **Priority:** 🟡 **MEDIUM**
 **Impact:** Better code organization
 **Effort:** Low (1-2 hours)
