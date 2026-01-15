@@ -1,7 +1,7 @@
 using MainApi.Localization;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
-using MainApi.Src.Modules.Shared.Users;
+using MainApi.Src.Modules.Users.Services;
 
 namespace MainApi.Src.Lib.Filters;
 
@@ -49,7 +49,7 @@ public class StaffAuthFilter : IEndpointFilter {
 			if (_logger.IsEnabled(LogLevel.Debug)) {
 				_logger.LogDebug("User is not a staff member: {UserId}", authContext.UserId);
 			}
-			return TypedProblems.Forbidden("User is not a staff member", ResponseKeys.NotAStaffMember);
+			return TypedProblems.Forbidden("User is not a staff member", ResponseKeys.NotAStaffUser);
 		}
 
 		authContext.AccountStaff = accountStaff;

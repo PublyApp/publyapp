@@ -4,7 +4,7 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createCreateTenantAsStaffResultFromDiscriminatorValue, createTenantAsStaffResultFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializeCreateTenantAsStaffBody, serializeCreateTenantAsStaffResult, type AppProblemDetails, type CreateTenantAsStaffBody, type CreateTenantAsStaffResult, type TenantAsStaffResult, type ValidationProblemDetails } from '../../models/index.js';
 // @ts-ignore
-import { type WithTenantItemRequestBuilder, WithTenantItemRequestBuilderRequestsMetadata } from './item/index.js';
+import { type WithTenantItemRequestBuilder, WithTenantItemRequestBuilderNavigationMetadata, WithTenantItemRequestBuilderRequestsMetadata } from './item/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
@@ -83,6 +83,7 @@ const TenantsRequestBuilderGetQueryParametersMapper: Record<string, string> = {
 export const TenantsRequestBuilderNavigationMetadata: Record<Exclude<keyof TenantsRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     byTenantId: {
         requestsMetadata: WithTenantItemRequestBuilderRequestsMetadata,
+        navigationMetadata: WithTenantItemRequestBuilderNavigationMetadata,
         pathParametersMappings: ["tenantId"],
     },
 };

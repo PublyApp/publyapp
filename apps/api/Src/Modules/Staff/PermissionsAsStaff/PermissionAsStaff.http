@@ -1,9 +1,0 @@
-### @name FindStaffPermissions
-GET {{rootUrl}}/staff/permissions
-# Accept: application/json
-Content-Type: application/json
-X-Session-Token: {{sessionToken}}
-
-{
-	"language": "en"
-}
