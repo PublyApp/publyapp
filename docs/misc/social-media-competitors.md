@@ -41,5 +41,3 @@
 <https://postplanify.com>
 
 <https://www.sendible.com>
-
-<https://contentstudio.io>
