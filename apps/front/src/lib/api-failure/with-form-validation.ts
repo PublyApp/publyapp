@@ -24,7 +24,7 @@ import { toApiFailure } from './to-api-failure';
  * @example
  * const form = useForm<MyFormData>();
  *
- * const { mutate } = useCreateStaffMember(
+ * const { mutate } = useCreateStaffUser(
  *   withFormValidation(form.setError, {
  *     meta: { showSuccessToast: true },
  *     onSuccess: () => navigate('/staff-members'),

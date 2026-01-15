@@ -6,8 +6,8 @@ import {
 import _ from 'lodash';
 
 import type {
-	CreateStaffMemberBody,
-	UpdateStaffMemberBody,
+	CreateStaffUserBody,
+	UpdateStaffUserBody,
 } from '@/js-client/src/models';
 import type { AccountLevel, UserStatus } from '@/shared/lib/constants';
 
@@ -28,7 +28,7 @@ const createUntypedValue = (value: unknown): UntypedNode => {
 	} as UntypedNode;
 };
 
-type CreateStaffMemberPayload = {
+type CreateStaffUserPayload = {
 	email: string;
 	firstName?: string;
 	lastName?: string;
@@ -37,19 +37,19 @@ type CreateStaffMemberPayload = {
 	accountLevel?: AccountLevel;
 };
 
-export const useCreateStaffMember = createStaffMutation({
-	mutationKeyFn: (client) => client.staff.staffMembers.post,
-	mutationFn: async (client, data: CreateStaffMemberPayload) => {
-		const body: CreateStaffMemberBody = {};
+export const useCreateStaffUser = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.users.post,
+	mutationFn: async (client, data: CreateStaffUserPayload) => {
+		const body: CreateStaffUserBody = {};
 		_.forEach(data, (value, key) => {
 			if (value !== undefined) {
 				// Use type assertion since generated types don't include UntypedNode in unions
 				(body as Record<string, unknown>)[key] = createUntypedValue(value);
 			}
 		});
-		const result = await client.staff.staffMembers.post(body);
+		const result = await client.staff.users.post(body);
 		if (_.isNil(result)) {
-			throw new Error('useCreateStaffMember: result is nil');
+			throw new Error('useCreateStaffUser: result is nil');
 		}
 		return result;
 	},
@@ -62,9 +62,9 @@ type FindStaffMembersQuery = {
 };
 
 export const useFindStaffMember = createStaffQuery({
-	queryKeyFn: (client) => client.staff.staffMembers.get,
+	queryKeyFn: (client) => client.staff.users.get,
 	fetcher: async (client, params: FindStaffMembersQuery) => {
-		const result = await client.staff.staffMembers.get({
+		const result = await client.staff.users.get({
 			queryParameters: {
 				page: params.page ? params.page.toString() : undefined,
 				limit: params.limit ? params.limit.toString() : undefined,
@@ -80,11 +80,9 @@ export const useFindStaffMember = createStaffQuery({
 });
 
 export const useGetStaffMemberById = createStaffQuery({
-	queryKeyFn: (client) => client.staff.staffMembers.byUserId('').get,
+	queryKeyFn: (client) => client.staff.users.byUserId('').get,
 	fetcher: async (client, params: { userId: string }) => {
-		const result = await client.staff.staffMembers
-			.byUserId(params.userId)
-			.get();
+		const result = await client.staff.users.byUserId(params.userId).get();
 		if (_.isNil(result)) {
 			throw new Error('useGetStaffMemberById: result is nil');
 		}
@@ -103,9 +101,9 @@ type UpdateStaffMemberPayload = {
 };
 
 export const useUpdateStaffMember = createStaffMutation({
-	mutationKeyFn: (client) => client.staff.staffMembers.byUserId('').patch,
+	mutationKeyFn: (client) => client.staff.users.byUserId('').patch,
 	mutationFn: async (client, data: UpdateStaffMemberPayload) => {
-		const body: UpdateStaffMemberBody = {};
+		const body: UpdateStaffUserBody = {};
 		_.forEach(data, (value, key) => {
 			if (key === 'id' || value === undefined) {
 				return;
@@ -113,9 +111,7 @@ export const useUpdateStaffMember = createStaffMutation({
 			// Use type assertion since generated types don't include UntypedNode in unions
 			(body as Record<string, unknown>)[key] = createUntypedValue(value);
 		});
-		const result = await client.staff.staffMembers
-			.byUserId(data.id)
-			.patch(body);
+		const result = await client.staff.users.byUserId(data.id).patch(body);
 		if (_.isNil(result)) {
 			throw new Error('useUpdateStaffMember: result is nil');
 		}
