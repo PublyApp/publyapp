@@ -17,7 +17,7 @@ This document describes the centralized error handling system for the PublyApp f
 Most mutations "just work" - errors are automatically toasted:
 
 ```typescript
-const { mutate } = useCreateStaffMember();
+const { mutate } = useCreateStaffUser();
 mutate(data); // Errors auto-toast, no onError needed
 ```
 
@@ -28,7 +28,7 @@ For forms that need field-level validation errors, use `withFormValidation`:
 ```typescript
 import { withFormValidation } from '@/front/lib/api-failure';
 
-const { mutate } = useCreateStaffMember(
+const { mutate } = useCreateStaffUser(
   withFormValidation(form.setError, {
     meta: { showSuccessToast: true },
     onSuccess: () => navigate('/staff'),
@@ -41,7 +41,7 @@ Or handle validation manually:
 ```typescript
 import { toApiFailure, mapValidationErrors } from '@/front/lib/api-failure';
 
-const { mutate } = useCreateStaffMember({
+const { mutate } = useCreateStaffUser({
   meta: { validationHandledByForm: true },
   onError: (error) => {
     const failure = toApiFailure(error);

@@ -8,15 +8,17 @@ const config: KnipConfig = {
 		},
 		'apps/front': {
 			entry: [
+				'react-router.config.ts',
+				'vite.config.ts',
 				'server.js',
 				'server/app.ts',
-				'app/entry.server.tsx',
-				'app/entry.client.tsx',
-				'app/root.tsx',
-				'app/routes.ts',
+				'src/entry.server.tsx',
+				'src/entry.client.tsx',
+				'src/root.tsx',
+				'src/routes.ts',
 			],
 			project: [
-				'app/**/*.{tsx,ts,mjs,js,cjs,json}',
+				'src/**/*.{tsx,ts,mjs,js,cjs,json}',
 				'server/**/*.{ts,mjs,js,cjs,json}',
 			],
 		},
