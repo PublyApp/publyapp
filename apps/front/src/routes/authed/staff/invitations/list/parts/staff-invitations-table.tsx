@@ -1,6 +1,5 @@
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
 import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import InputLabel from '@mui/material/InputLabel';
@@ -27,6 +26,7 @@ import { Label } from '@/front/components/label/label';
 import { RouterLink } from '@/front/components/router-link';
 import { toast } from '@/front/components/snackbar';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
+import { useTableQueryOptions } from '@/front/hooks/use-table-query-options';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
 import {
@@ -111,7 +111,7 @@ const StaffInvitationsTable = () => {
 		paginationMode: 'cursor',
 	});
 
-	const { data, isPending, error } = useFindStaffInvitations({
+	const invitationsQuery = useFindStaffInvitations({
 		variables: {
 			cursor: apiVariables.cursor || undefined,
 			limit: apiVariables.limit,
@@ -120,16 +120,50 @@ const StaffInvitationsTable = () => {
 		},
 	});
 
+	// Hook that provides query-aware table options (empty/error fallback, loading state)
+	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
+		query: invitationsQuery,
+		emptyContent: {
+			title: _.capitalize(
+				t('no-items-found', {
+					item: t('invitations'),
+					ns: 'response-message',
+				}),
+			),
+			renderAction: () => (
+				<Button
+					variant="contained"
+					startIcon={
+						<Iconify icon="mingcute:add-line" sx={{ width: 16, height: 16 }} />
+					}
+					component={RouterLink}
+					href={FRONT_PATH_NAMES.staff.invitations.new}
+					sx={{ mt: 2 }}
+				>
+					{t('new-invitation')}
+				</Button>
+			),
+		},
+		errorContent: {
+			title: _.capitalize(
+				t('error-loading-items', {
+					item: t('invitations'),
+					ns: 'response-message',
+				}),
+			),
+		},
+	});
+
 	// Sync latest cursor into the table state outside render.
 	useEffect(() => {
 		if (setNextCursor) {
-			setNextCursor(data?.nextCursor);
+			setNextCursor(invitationsQuery.data?.nextCursor);
 		}
-	}, [data?.nextCursor, setNextCursor]);
+	}, [invitationsQuery.data?.nextCursor, setNextCursor]);
 
 	const dataTable = useMemo(() => {
-		return _.map(data?.data, StaffInvitationRowDataMapper);
-	}, [data]);
+		return _.map(invitationsQuery.data?.data, StaffInvitationRowDataMapper);
+	}, [invitationsQuery.data]);
 
 	const columns = useMemo(() => {
 		return [
@@ -189,66 +223,22 @@ const StaffInvitationsTable = () => {
 		onSortingChange: handleSortingChange,
 		state: {
 			...tableState,
+			...queryState,
 			density: 'compact',
-			isLoading: isPending,
 		},
 		muiTablePaperProps: {
 			sx: {
 				flexGrow: 1,
 			},
 		},
+		renderEmptyRowsFallback,
 		meta: {
 			handlePaginationChange,
 			hasNextPage,
 			hasPreviousPage,
-			isPending,
+			isPending: invitationsQuery.isPending,
 		},
 	});
-
-	if (error) {
-		return (
-			<Card
-				sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 3 }}
-			>
-				<Box sx={{ color: 'error.main', textAlign: 'center' }}>
-					{t('error-loading-items', { item: t('invitations') })}
-				</Box>
-			</Card>
-		);
-	}
-
-	if (!isPending && (!data?.data || data.data.length === 0)) {
-		return (
-			<Card
-				sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 3 }}
-			>
-				<Box
-					sx={{
-						display: 'flex',
-						flexDirection: 'column',
-						alignItems: 'center',
-						justifyContent: 'center',
-						minHeight: 400,
-						gap: 2,
-					}}
-				>
-					<Iconify
-						icon={'solar:inbox-line-bold' as never}
-						width={64}
-						sx={{ color: 'text.disabled' }}
-					/>
-					<Box sx={{ textAlign: 'center' }}>
-						<Box sx={{ typography: 'h6', color: 'text.secondary' }}>
-							{t('no-items-found', { item: t('invitations') })}
-						</Box>
-						<Box sx={{ typography: 'body2', color: 'text.disabled', mt: 0.5 }}>
-							{t('create-first-item', { item: t('invitation') })}
-						</Box>
-					</Box>
-				</Box>
-			</Card>
-		);
-	}
 
 	return (
 		<Box
