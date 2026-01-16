@@ -4,12 +4,24 @@
 // @ts-ignore
 import { createApiResponseFromDiscriminatorValue, createAppProblemDetailsFromDiscriminatorValue, type ApiResponse, type AppProblemDetails } from '../../../models/index.js';
 // @ts-ignore
-import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
+import { LinkRequestBuilderRequestsMetadata, type LinkRequestBuilder } from './link/index.js';
+// @ts-ignore
+import { ResendRequestBuilderRequestsMetadata, type ResendRequestBuilder } from './resend/index.js';
+// @ts-ignore
+import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /staff/invitations/{invitationId}
  */
 export interface WithInvitationItemRequestBuilder extends BaseRequestBuilder<WithInvitationItemRequestBuilder> {
+    /**
+     * The link property
+     */
+    get link(): LinkRequestBuilder;
+    /**
+     * The resend property
+     */
+    get resend(): ResendRequestBuilder;
     /**
      * Revoke a staff invitation (Admin only)
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -31,6 +43,17 @@ export interface WithInvitationItemRequestBuilder extends BaseRequestBuilder<Wit
  * Uri template for the request builder.
  */
 export const WithInvitationItemRequestBuilderUriTemplate = "{+baseurl}/staff/invitations/{invitationId}";
+/**
+ * Metadata for all the navigation properties in the request builder.
+ */
+export const WithInvitationItemRequestBuilderNavigationMetadata: Record<Exclude<keyof WithInvitationItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    link: {
+        requestsMetadata: LinkRequestBuilderRequestsMetadata,
+    },
+    resend: {
+        requestsMetadata: ResendRequestBuilderRequestsMetadata,
+    },
+};
 /**
  * Metadata for all the requests in the request builder.
  */

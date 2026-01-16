@@ -12,10 +12,26 @@ import { SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 import { createStaffMutation, createStaffQuery } from '../../create-hooks';
 
 // Query: Find Staff Invitations
+type FindStaffInvitationsParams = {
+	cursor?: string;
+	limit?: number;
+	sort?: { id: string; order: 'desc' | 'asc' };
+	status?: string;
+};
+
+// Cursor-based listing with optional status filter.
 export const useFindStaffInvitations = createStaffQuery({
 	queryKeyFn: (client) => client.staff.invitations.get,
-	fetcher: async (client) => {
-		const result = await client.staff.invitations.get();
+	fetcher: async (client, params: FindStaffInvitationsParams) => {
+		const result = await client.staff.invitations.get({
+			queryParameters: {
+				cursor: params.cursor,
+				limit: params.limit ? params.limit.toString() : undefined,
+				sortId: params.sort?.id,
+				sortOrder: params.sort?.order,
+				status: params.status,
+			},
+		});
 		if (_.isNil(result)) {
 			throw new Error('useFindStaffInvitations: result is nil');
 		}
@@ -108,6 +124,44 @@ export const useRevokeInvitation = createStaffMutation({
 			.delete();
 		if (_.isNil(result)) {
 			throw new Error('useRevokeInvitation: result is nil');
+		}
+		return result;
+	},
+});
+
+type GetInvitationLinkPayload = {
+	invitationId: string;
+};
+
+// Use mutation to avoid caching tokenized invitation links.
+export const useGetInvitationLink = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.invitations.byInvitationId('').link.get,
+	mutationFn: async (client, data: GetInvitationLinkPayload) => {
+		const result = await client.staff.invitations
+			.byInvitationId(data.invitationId)
+			.link.get();
+		if (_.isNil(result)) {
+			throw new Error('useGetInvitationLink: result is nil');
+		}
+		return result;
+	},
+});
+
+type ResendInvitationPayload = {
+	invitationId: string;
+};
+
+// Resend is modeled as a mutation to keep query cache clean.
+export const useResendInvitation = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.invitations.byInvitationId('').resend.post,
+	mutationFn: async (client, data: ResendInvitationPayload) => {
+		const result = await client.staff.invitations
+			.byInvitationId(data.invitationId)
+			.resend.post();
+		if (_.isNil(result)) {
+			throw new Error('useResendInvitation: result is nil');
 		}
 		return result;
 	},

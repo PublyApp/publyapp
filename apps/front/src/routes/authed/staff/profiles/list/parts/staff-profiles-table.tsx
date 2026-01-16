@@ -118,7 +118,7 @@ const StaffProfilesTable = () => {
 	});
 	const { data, isPending, error } = findStaffProfilesQuery;
 
-	// Feed nextCursor back to the hook
+	// Sync latest cursor into the table state outside render.
 	useEffect(() => {
 		if (setNextCursor) {
 			setNextCursor(data?.nextCursor);
