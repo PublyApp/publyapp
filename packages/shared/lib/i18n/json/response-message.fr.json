@@ -48,5 +48,9 @@
 	"view-details": "voir les détails",
 	"delete-item": "supprimer {{item}}",
 	"confirm-delete-dialog-text": "êtes-vous sûr de vouloir supprimer cet élément ?",
-	"invalid-invitation-token": "Jeton d'invitation invalide ou expiré"
+	"invalid-invitation-token": "Jeton d'invitation invalide ou expiré",
+	"system-notice-created-successfully": "Avis système créé avec succès",
+	"system-notice-updated-successfully": "Avis système mis à jour avec succès",
+	"system-notice-deleted-successfully": "Avis système supprimé avec succès",
+	"system-notice-not-found": "Avis système non trouvé"
 }
