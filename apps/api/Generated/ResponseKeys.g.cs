@@ -107,6 +107,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey InvalidSession = new("invalid-session");
 
 	/// <summary>
+	/// Invitation email resent successfully
+	/// </summary>
+	public static readonly TranslationKey InvitationResent = new("invitation-resent");
+
+	/// <summary>
 	/// Invitation revoked successfully
 	/// </summary>
 	public static readonly TranslationKey InvitationRevoked = new("invitation-revoked");

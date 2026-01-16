@@ -36,7 +36,25 @@ public static class InvitationEndpointsForStaff {
 			)
 			.WithName("FindStaffInvitations")
 			.WithSummary("Find staff invitations")
-			.WithPermission([AppPermissions.Staff.Invitations.LIST_FOR_STAFF]);
+			.WithPermission([AppPermissions.Staff.Invitations.LIST_FOR_STAFF])
+			// Validate cursor/sort/status query params before hitting the service.
+			.WithReqQueryValidation<FindStaffInvitationsQuery>();
+
+		group.MapGet(
+				Routes.Invitations.ForStaff.GetLinkById,
+				GetStaffInvitationLink.HandleGetStaffInvitationLink
+			)
+			.WithName("GetStaffInvitationLink")
+			.WithSummary("Get staff invitation link")
+			.WithPermission([AppPermissions.Staff.Invitations.GET_LINK_FOR_STAFF]);
+
+		group.MapPost(
+				Routes.Invitations.ForStaff.ResendById,
+				ResendStaffInvitation.HandleResendStaffInvitation
+			)
+			.WithName("ResendStaffInvitation")
+			.WithSummary("Resend staff invitation email")
+			.WithPermission([AppPermissions.Staff.Invitations.RESEND_FOR_STAFF]);
 
 		group.MapDelete(
 				Routes.Invitations.ForStaff.RevokeById,

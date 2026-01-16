@@ -375,6 +375,15 @@ export function createCreateTenantAsStaffResultFromDiscriminatorValue(parseNode:
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindStaffInvitationsResult}
+ */
+// @ts-ignore
+export function createFindStaffInvitationsResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindStaffInvitationsResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {FindStaffProfilesResult}
  */
 // @ts-ignore
@@ -407,6 +416,15 @@ export function createFindTenantProfilesAsStaffResultFromDiscriminatorValue(pars
 // @ts-ignore
 export function createGetRedirectCodeResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoGetRedirectCodeResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {GetStaffInvitationLinkResult}
+ */
+// @ts-ignore
+export function createGetStaffInvitationLinkResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetStaffInvitationLinkResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1254,6 +1272,18 @@ export function deserializeIntoCreateTenantAsStaffResult(createTenantAsStaffResu
 }
 /**
  * The deserialization information for the current model
+ * @param FindStaffInvitationsResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindStaffInvitationsResult(findStaffInvitationsResult: Partial<FindStaffInvitationsResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "data": n => { findStaffInvitationsResult.data = n.getCollectionOfObjectValues<InvitationListItem>(createInvitationListItemFromDiscriminatorValue); },
+        "nextCursor": n => { findStaffInvitationsResult.nextCursor = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param FindStaffProfilesResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -1297,6 +1327,17 @@ export function deserializeIntoFindTenantProfilesAsStaffResult(findTenantProfile
 export function deserializeIntoGetRedirectCodeResult(getRedirectCodeResult: Partial<GetRedirectCodeResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "redirectCode": n => { getRedirectCodeResult.redirectCode = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param GetStaffInvitationLinkResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoGetStaffInvitationLinkResult(getStaffInvitationLinkResult: Partial<GetStaffInvitationLinkResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "link": n => { getStaffInvitationLinkResult.link = n.getStringValue(); },
     }
 }
 /**
@@ -1415,6 +1456,7 @@ export function deserializeIntoInvitationDetails(invitationDetails: Partial<Invi
 // @ts-ignore
 export function deserializeIntoInvitationListItem(invitationListItem: Partial<InvitationListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "acceptedAt": n => { invitationListItem.acceptedAt = n.getDateValue(); },
         "createdAt": n => { invitationListItem.createdAt = n.getDateValue(); },
         "email": n => { invitationListItem.email = n.getStringValue(); },
         "expiresAt": n => { invitationListItem.expiresAt = n.getDateValue(); },
@@ -1841,6 +1883,16 @@ export function deserializeIntoVerifyEmailRequestResult(verifyEmailRequestResult
         "status": n => { verifyEmailRequestResult.status = n.getStringValue(); },
     }
 }
+export interface FindStaffInvitationsResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The data property
+     */
+    data?: InvitationListItem[] | null;
+    /**
+     * The nextCursor property
+     */
+    nextCursor?: string | null;
+}
 export interface FindStaffProfilesResult extends AdditionalDataHolder, Parsable {
     /**
      * The data property
@@ -1876,6 +1928,12 @@ export interface GetRedirectCodeResult extends AdditionalDataHolder, Parsable {
      * The redirectCode property
      */
     redirectCode?: string | null;
+}
+export interface GetStaffInvitationLinkResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The link property
+     */
+    link?: string | null;
 }
 export interface GetStaffUserByIdResult extends AdditionalDataHolder, Parsable {
     /**
@@ -2006,6 +2064,10 @@ export interface InvitationDetails extends AdditionalDataHolder, Parsable {
     profileName?: string | null;
 }
 export interface InvitationListItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The acceptedAt property
+     */
+    acceptedAt?: Date | null;
     /**
      * The createdAt property
      */
@@ -2519,6 +2581,19 @@ export function serializeCreateTenantAsStaffResult(writer: SerializationWriter, 
 }
 /**
  * Serializes information the current object
+ * @param FindStaffInvitationsResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindStaffInvitationsResult(writer: SerializationWriter, findStaffInvitationsResult: Partial<FindStaffInvitationsResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findStaffInvitationsResult || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<InvitationListItem>("data", findStaffInvitationsResult.data, serializeInvitationListItem);
+    writer.writeStringValue("nextCursor", findStaffInvitationsResult.nextCursor);
+    writer.writeAdditionalData(findStaffInvitationsResult.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param FindStaffProfilesResult The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -2567,6 +2642,18 @@ export function serializeGetRedirectCodeResult(writer: SerializationWriter, getR
     if (!getRedirectCodeResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("redirectCode", getRedirectCodeResult.redirectCode);
     writer.writeAdditionalData(getRedirectCodeResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param GetStaffInvitationLinkResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeGetStaffInvitationLinkResult(writer: SerializationWriter, getStaffInvitationLinkResult: Partial<GetStaffInvitationLinkResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getStaffInvitationLinkResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("link", getStaffInvitationLinkResult.link);
+    writer.writeAdditionalData(getStaffInvitationLinkResult.additionalData);
 }
 /**
  * Serializes information the current object
@@ -2693,6 +2780,7 @@ export function serializeInvitationDetails(writer: SerializationWriter, invitati
 // @ts-ignore
 export function serializeInvitationListItem(writer: SerializationWriter, invitationListItem: Partial<InvitationListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!invitationListItem || isSerializingDerivedType) { return; }
+    writer.writeDateValue("acceptedAt", invitationListItem.acceptedAt);
     writer.writeDateValue("createdAt", invitationListItem.createdAt);
     writer.writeStringValue("email", invitationListItem.email);
     writer.writeDateValue("expiresAt", invitationListItem.expiresAt);

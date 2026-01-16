@@ -201,6 +201,7 @@
 	"staff-invitation-created-success": "Invitation has been created. Share this link with the invitee:",
 	"staff-invitation-link-copied": "Invitation link copied to clipboard",
 	"staff-invitation-revoked": "Invitation revoked successfully",
+	"staff-invitation-resent": "Invitation email resent successfully",
 	"staff-invitation-history": "Invitation History",
 	"staff-invitation-history-description": "View all sent invitations and their status",
 	"staff-select-profile": "Select a profile",

@@ -35,6 +35,7 @@
 	"failed-to-update-staff-user": "Failed to update staff user",
 	"staff-user-updated-successfully": "Staff user updated successfully",
 	"invitation-revoked": "Invitation revoked successfully",
+	"invitation-resent": "Invitation email resent successfully",
 	"pending-invitation-exists": "A pending invitation already exists",
 	"staff-profile-created-successfully": "Staff profile created successfully",
 	"profile-name-already-exists": "Profile name already exists",
