@@ -9,6 +9,7 @@ using MainApi.Src.Modules.Impersonations.Services;
 using MainApi.Src.Modules.Invitations.Services;
 using MainApi.Src.Modules.Permissions.Services;
 using MainApi.Src.Modules.Profiles.Services;
+using MainApi.Src.Modules.SystemNotices.Services;
 using MainApi.Src.Modules.Tenants.Services;
 using MainApi.Src.Modules.Users.Services;
 
@@ -127,6 +128,7 @@ public static class AppServices {
 		builder.Services.AddScoped<IPermissionService, PermissionService>();
 		builder.Services.AddScoped<IProfileAsStaffService, ProfileAsStaffService>();
 		builder.Services.AddScoped<IPermissionAsStaffService, PermissionAsStaffService>();
+		builder.Services.AddScoped<ISystemNoticeService, SystemNoticeService>();
 
 		// Register RequestAuthContext (unified auth + tenant context)
 		builder.Services.AddScoped<IRequestAuthContext, RequestAuthContext>();

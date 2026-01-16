@@ -2,6 +2,7 @@ using MainApi.Src.Modules.Invitations.Permissions;
 using MainApi.Src.Modules.Permissions.Entities;
 using MainApi.Src.Modules.Permissions.Permissions;
 using MainApi.Src.Modules.Profiles.Permissions;
+using MainApi.Src.Modules.SystemNotices.Permissions;
 using MainApi.Src.Modules.Tenants.Permissions;
 using MainApi.Src.Modules.Users.Permissions;
 
@@ -22,6 +23,7 @@ public class StaffScopePermissions : IScopePermissions {
 	public TenantPermissionsForStaff Tenants { get; } = new TenantPermissionsForStaff();
 	public ProfilePermissionsForStaff Profiles { get; } = new ProfilePermissionsForStaff();
 	public PermissionPermissionsForStaff Permissions { get; } = new PermissionPermissionsForStaff();
+	public SystemNoticePermissionsForStaff SystemNotices { get; } = new SystemNoticePermissionsForStaff();
 }
 
 public class TenantScopePermissions : IScopePermissions {
