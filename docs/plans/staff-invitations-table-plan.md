@@ -1,277 +1,339 @@
 # Staff Invitations Table Implementation Plan
 
 ## Overview
+
 Implement a full-featured staff invitations table with extended columns, status filtering, cursor-based pagination, and row actions (View Details, Copy Link, Resend Email, Revoke).
 
-## Scope Summary
+---
 
-| Area | Changes Required |
-|------|-----------------|
-| Backend | Add `AcceptedAt` to response, pagination/filtering, resend endpoint, get-link endpoint |
-| Frontend | Build table component, update hooks, implement actions |
+## Current State (Verified 2026-01-15)
 
-## Current State (Verified 2026-01-10)
+### Backend (Implemented)
 
-**Existing `InvitationListItem` fields:**
-- `Id`, `Email`, `Scope`, `ProfileName`, `ExpiresAt`, `IsAccepted`, `IsRevoked`, `CreatedAt`, `InvitedByName`
+| Component | Location | Status |
+|-----------|----------|--------|
+| Invitation Entity | `apps/api/Src/Modules/Invitations/Entities/Invitation.cs` | Has `AcceptedAt` (line 47-48) |
+| InvitationListItem DTO | `apps/api/Src/Modules/Invitations/Services/InvitationService.cs:92-102` | **Missing `AcceptedAt`** |
+| FindStaffInvitations handler | `apps/api/Src/Modules/Invitations/Handlers/Staff/FindStaffInvitations.cs` | Returns `List<InvitationListItem>` (no pagination/filtering) |
+| InvitationService | `apps/api/Src/Modules/Invitations/Services/InvitationService.cs` | `FindStaffInvitationsAsync()` returns full list |
+| Endpoints | `apps/api/Src/Modules/Invitations/Endpoints/InvitationEndpointsForStaff.cs` | Has: Create, BulkCreate, Find, Revoke |
+| Routes | `apps/api/Src/Modules/Invitations/Routes.Invitations.cs` | ForStaff: Root, Create, BulkCreate, Find, RevokeById |
+| Permissions | `apps/api/Src/Modules/Invitations/Permissions/InvitationPermissionsForStaff.cs` | LIST_FOR_STAFF, CREATE_FOR_STAFF, REVOKE_FOR_STAFF |
 
-**What's already available:**
-- `InvitedByName` - already populated in `FindStaffInvitationsAsync` (no changes needed)
+### Frontend (Implemented)
 
-**What's missing:**
-- `AcceptedAt` - needs to be added to DTO and mapping
+| Component | Location | Status |
+|-----------|----------|--------|
+| Hooks | `apps/front/src/lib/react-query/features/staff/staff-invitation.hooks.ts` | useFindStaffInvitations (no pagination), useCreateInvitation, useBulkCreateInvitations, useRevokeInvitation |
+| Table | `apps/front/src/routes/authed/staff/invitations/list/parts/staff-invitations-table.tsx` | **Stub only** (`<div>staff-invitations-page</div>`) |
+| List Page | `apps/front/src/routes/authed/staff/invitations/list/staff-invitations-list-page.tsx` | Scaffolded, not wired |
+| Details Page | `apps/front/src/routes/authed/staff/invitations/details/staff-invitation-details-page.tsx` | Scaffolded with mock data |
+| New Form | `apps/front/src/routes/authed/staff/invitations/new/parts/new-staff-invitations-form.tsx` | **Functional** (bulk creation) |
 
-**Security note:**
-- `Token` is intentionally NOT included in list responses (good practice)
-- Copy Link feature requires a dedicated endpoint to fetch token on-demand
+### Reference Implementations
+
+| Pattern | Location |
+|---------|----------|
+| Cursor pagination table | `apps/front/src/routes/authed/staff/profiles/list/parts/staff-profiles-table.tsx` |
+| Table state hook | `apps/front/src/hooks/use-table-state.ts` |
+| Profile hooks (pagination) | `apps/front/src/lib/react-query/features/staff/staff-profile.hooks.ts` |
+| Cursor pagination guide | `docs/guides/CURSOR_KEYSET_PAGINATION_GUIDE.md` |
 
 ---
 
-## Phase 1: Backend Changes
+## Remaining Work
 
-### 1.1 Add `AcceptedAt` to InvitationListItem Response
+### Backend
 
-**File:** `apps/api/Src/Modules/Shared/Invitations/InvitationService.cs:91-101`
+- [ ] **Add `AcceptedAt` to `InvitationListItem` DTO**
+  - File: `apps/api/Src/Modules/Invitations/Services/InvitationService.cs:92-102`
+  - Add: `public DateTime? AcceptedAt { get; init; }`
+  - Update mapping in `FindStaffInvitationsAsync()` (line ~346)
 
-The `AcceptedAt` field already exists on the `Invitation` entity (line 47-48) but is not included in `InvitationListItem`. Add it:
+- [ ] **Add cursor pagination + status filtering to FindStaffInvitations**
+  - Create: `apps/api/Src/Modules/Invitations/Handlers/Staff/FindStaffInvitations.cs` (rewrite)
+    - Add `FindStaffInvitationsQuery : CursorPaginatedQuery` with `Status` filter
+    - Add `FindStaffInvitationsResult : CursorPaginatedResult<InvitationListItem>`
+    - Add `FindStaffInvitationsQueryValidator`
+    - Implement discriminated union result type (Success, CursorNotFound, InvalidSortId)
+  - Update: `apps/api/Src/Modules/Invitations/Services/InvitationService.cs`
+    - Change `FindStaffInvitationsAsync()` signature to accept pagination params
+    - Implement keyset pagination with sort field handlers
+    - Implement status filter logic (see Status Filter Logic section)
+  - Supported sortId values (snake_case): `created_at` (default), `expires_at`, `email`, `accepted_at`
+  - Return 400 for invalid sortId (not silent fallback)
 
-```csharp
-public record InvitationListItem {
-    // ... existing fields
-    public DateTime? AcceptedAt { get; init; }  // ADD THIS
-}
-```
+- [ ] **Add GetStaffInvitationLink endpoint**
+  - Create: `apps/api/Src/Modules/Invitations/Handlers/Staff/GetStaffInvitationLink.cs`
+    - Returns `InvitationLinkResult { Link: string }`
+    - Validate invitation is pending (not accepted/revoked/expired)
+    - Build link using `AuthUtils.CreateAcceptInvitationUrl(token, email)`
+  - Update routes: `apps/api/Src/Modules/Invitations/Routes.Invitations.cs`
+    - Add `GetLinkById = "/{invitationId}/link"`
+  - Update endpoints: `apps/api/Src/Modules/Invitations/Endpoints/InvitationEndpointsForStaff.cs`
+  - Add permission: `GET_LINK_FOR_STAFF` in `InvitationPermissionsForStaff.cs`
 
-Update the mapping in `FindStaffInvitationsAsync` to include `AcceptedAt`.
+- [ ] **Add ResendStaffInvitation endpoint**
+  - Create: `apps/api/Src/Modules/Invitations/Handlers/Staff/ResendStaffInvitation.cs`
+    - Validate invitation is pending (not accepted/revoked/expired)
+    - Call `emailService.SendInvitationToJoinStaffEmailAsync(email, token)`
+    - Return success response
+  - Update routes: `apps/api/Src/Modules/Invitations/Routes.Invitations.cs`
+    - Add `ResendById = "/{invitationId}/resend"`
+  - Update endpoints: `apps/api/Src/Modules/Invitations/Endpoints/InvitationEndpointsForStaff.cs`
+  - Add permission: `RESEND_FOR_STAFF` in `InvitationPermissionsForStaff.cs`
+
+### Client Regeneration
+
+- [ ] **Regenerate TypeScript client**
+  - Run `make generate-client` after backend contract changes
+  - Verify new types in `packages/js-client/src/models/`
+
+### Frontend
+
+- [ ] **Update `useFindStaffInvitations` hook**
+  - File: `apps/front/src/lib/react-query/features/staff/staff-invitation.hooks.ts`
+  - Add params: `cursor`, `limit`, `sort`, `status`
+  - Update query to pass queryParameters
+
+- [ ] **Add `useGetInvitationLink` hook**
+  - File: `apps/front/src/lib/react-query/features/staff/staff-invitation.hooks.ts`
+  - Use `createStaffMutation` (avoid caching tokenized URLs)
+
+- [ ] **Add `useResendInvitation` hook**
+  - File: `apps/front/src/lib/react-query/features/staff/staff-invitation.hooks.ts`
+  - Use `createStaffMutation`
+
+- [ ] **Implement `StaffInvitationsTable`**
+  - File: `apps/front/src/routes/authed/staff/invitations/list/parts/staff-invitations-table.tsx`
+  - Follow pattern from `staff-profiles-table.tsx`
+  - Use `useMRTTable('minimal-cursor', ...)` preset
+  - Use `useTableState({ paginationMode: 'cursor' })`
+  - Columns: Email, Profile(s), Status, Invited By, Expires At, Accepted At, Created At, Actions
+  - Add status filter dropdown above table
+  - Implement cursor reset on status filter change (see implementation strategy below)
+
+- [ ] **Implement row actions**
+  - View Details: Navigate to details page
+  - Copy Link: Call GetLink endpoint, copy to clipboard, success toast
+  - Resend Email: Call Resend endpoint, success toast
+  - Revoke: Confirm dialog, call existing revoke mutation
+
+- [ ] **Wire up details page (optional)**
+  - File: `apps/front/src/routes/authed/staff/invitations/details/staff-invitation-details-page.tsx`
+  - Add `useGetStaffInvitation` hook (requires new backend endpoint)
+  - Or: Pass data via route state from table row
 
 ---
 
-### 1.2 Add Cursor Pagination & Filtering to FindStaffInvitations
+## Decisions
 
-**Files to modify:**
-- `apps/api/Src/Modules/Staff/InvitationsAsStaff/Handlers/FindStaffInvitations.cs`
-- `apps/api/Src/Modules/Shared/Invitations/InvitationService.cs`
+### Status Filter Logic
 
-**Create Query Class:**
-```csharp
-public class FindStaffInvitationsQuery : CursorPaginatedQuery {
-    [FromQuery] public string? Status { get; set; }  // pending, accepted, expired, revoked
-}
+Status is computed at query time (not persisted). The backend computes status as follows:
+
+| Status | Condition |
+|--------|-----------|
+| `pending` | `!IsAccepted && !IsRevoked && ExpiresAt > DateTime.UtcNow` |
+| `accepted` | `IsAccepted == true` |
+| `expired` | `!IsAccepted && !IsRevoked && ExpiresAt <= DateTime.UtcNow` |
+| `revoked` | `IsRevoked == true` |
+
+**Status precedence** (for edge cases):
+1. `accepted` takes priority (if `IsAccepted == true`, status is always "accepted")
+2. `revoked` takes priority over `expired` (if `IsRevoked == true`, status is "revoked")
+3. `expired` checked last (if not accepted/revoked and past expiry)
+
+**Known limitation**: Invitations may change status (pending → expired) between page loads. This is acceptable; a background job to update status would be over-engineering.
+
+### Resend Endpoint Semantics
+
+| Question | Decision |
+|----------|----------|
+| Can resend expired invitations? | **No** - resend is only allowed for `pending` status |
+| Does resend extend expiry? | **No** - resend only re-sends the email with same token/expiry |
+| Does resend rotate the token? | **No** - same token is used |
+
+Rationale: Keeping the token stable allows the invitee to use the original link if they find it. If expiry extension is needed, consider a separate "extend" endpoint or require a new invitation.
+
+### Copy Link Endpoint Semantics
+
+| Question | Decision |
+|----------|----------|
+| Can copy link for non-pending? | **No** - returns error for accepted/revoked/expired |
+| Token exposure in response? | Token is intentionally NOT in list responses; dedicated endpoint is required |
+
+### sortId Naming Convention
+
+Use **snake_case** for sortId values to match existing API conventions (profiles use `created_at`, `user_account_count`).
+
+| sortId | Column |
+|--------|--------|
+| `created_at` | CreatedAt (default, descending) |
+| `expires_at` | ExpiresAt |
+| `email` | Email |
+| `accepted_at` | AcceptedAt |
+
+### Cursor Reset on Status Filter Change
+
+**Problem**: `useTableState` only resets cursor history on sorting/page-size changes. Status filter changes also invalidate the current cursor position.
+
+**Implementation strategy**: The table component should reset pagination when status changes. Two options:
+
+**Option A (Recommended)**: Effect-based reset in table component
+```typescript
+// In StaffInvitationsTable
+const [statusFilter, setStatusFilter] = useState<string>('');
+const {
+  handlePaginationChange,
+  handleSortingChange,
+  apiVariables,
+  tableState,
+  setNextCursor,
+  ...
+} = useTableState({ paginationMode: 'cursor', ... });
+
+// Reset cursor when status filter changes
+useEffect(() => {
+  // Trigger a pagination change to page 0 to reset cursor state
+  handlePaginationChange((prev) => ({ ...prev, pageIndex: 0 }));
+}, [statusFilter, handlePaginationChange]);
 ```
 
-**Status Filter Logic:**
-- `pending`: `!IsAccepted && !IsRevoked && ExpiresAt > DateTime.UtcNow`
-- `accepted`: `IsAccepted`
-- `expired`: `!IsAccepted && !IsRevoked && ExpiresAt <= DateTime.UtcNow`
-- `revoked`: `IsRevoked`
+**Option B**: Extend `useTableState` to accept filter dependencies
+- Pass `resetDependencies: [statusFilter]` to `useTableState`
+- Hook resets cursor history when any dependency changes
+- More reusable but requires modifying the shared hook
 
-**Note:** Status is computed at query time (not persisted). This means invitations may change status (pending -> expired) between page loads. This is a known acceptable limitation - the alternative of a background job to update status is over-engineering for this use case.
+**Chosen**: Option A (minimal scope, localized to this table)
 
-**Response Structure:**
-```csharp
-public class FindStaffInvitationsResult : CursorPaginatedResult<InvitationListItem> { }
-```
+### Error Handling for Actions
 
-**No Total Count (Cursor Pagination):**
-- Do not add a `Count` / total-count query for cursor pagination (see `docs/guides/CURSOR_KEYSET_PAGINATION_GUIDE.md`).
-- Return `NextCursor` (null means there are no more pages).
+Use centralized error handling (global handler toasts errors). Only show custom success toasts.
 
-**Sorting (Allowlist Only):**
-- Implement an explicit safe mapping (like `StaffMemberService`) so `sortId` cannot become "anything".
-- Implement keyset pagination per `docs/guides/CURSOR_KEYSET_PAGINATION_GUIDE.md` (stable sort + tie-breaker by `Id`).
-- Suggested supported `sortId` values (pick only what you implement correctly):
-  - `createdAt` (default)
-  - `expiresAt`
-  - `email`
-  - `acceptedAt`
-- If `sortId` is not supported: return a validation error (recommended, like `FindStaffProfiles`) or fall back to `createdAt desc`.
+| Action | Success Toast | Error Handling |
+|--------|--------------|----------------|
+| Copy Link | "Invitation link copied to clipboard" | Global handler |
+| Resend Email | "Invitation email resent successfully" | Global handler |
+| Revoke | "Invitation revoked successfully" | Global handler |
 
-**Cursor Parsing (Handler Pattern):**
-- Follow the same approach as `apps/api/Src/Modules/Staff/ProfilesAsStaff/Handlers/FindStaffProfiles.cs`:
-  - `cursor` is optional (first page).
-  - If cursor is provided, validate/parse it (bad cursor -> 400).
-  - If the cursor record no longer exists -> 400 with a clear message.
+Do **not** add per-action error toasts unless there's a specific reason to override global behavior.
+
+### Permission Naming
+
+Follow existing pattern in `InvitationPermissionsForStaff`:
+
+| Permission Key | Description |
+|----------------|-------------|
+| `invitations:get_link_for_staff` | Get invitation link for staff |
+| `invitations:resend_for_staff` | Resend invitation email for staff |
 
 ---
 
-### 1.3 Add Resend Invitation Email Endpoint
+## Endpoint Shapes
 
-**File:** `apps/api/Src/Modules/Staff/InvitationsAsStaff/InvitationEndpoints.cs`
+### GET /staff/invitations (updated)
 
-Add new endpoint:
+**Query Parameters:**
 ```
-POST /staff/invitations/{invitationId}/resend
-```
-
-**Handler Implementation:**
-- Validate invitation exists and is still pending (not accepted, not revoked, not expired)
-- Call existing `emailService.SendInvitationToJoinStaffEmailAsync(email, token)`
-- Return success/error response
-
-**File to create:** `apps/api/Src/Modules/Staff/InvitationsAsStaff/Handlers/ResendStaffInvitation.cs`
-
----
-
-### 1.4 Add Get Invitation Link Endpoint
-
-**File:** `apps/api/Src/Modules/Staff/InvitationsAsStaff/InvitationEndpoints.cs`
-
-Add new endpoint:
-```
-GET /staff/invitations/{invitationId}/link
+cursor?: string       // Pagination cursor (Guid)
+limit?: number        // Page size (default from AppSettings)
+sort_id?: string      // Sort field: created_at, expires_at, email, accepted_at
+sort_order?: string   // Sort direction: asc, desc
+status?: string       // Filter: pending, accepted, expired, revoked
 ```
 
 **Response:**
-```csharp
-public record InvitationLinkResult {
-    public required string Link { get; init; }
+```json
+{
+  "data": [
+    {
+      "id": "guid",
+      "email": "string",
+      "scope": "Staff",
+      "profileName": "string",
+      "expiresAt": "datetime",
+      "isAccepted": true,
+      "isRevoked": false,
+      "createdAt": "datetime",
+      "invitedByName": "string",
+      "acceptedAt": "datetime | null"
+    }
+  ],
+  "nextCursor": "guid | null"
 }
 ```
 
-**Handler Implementation:**
-- Validate invitation exists and is pending (Admin only)
-- Fetch the invitation's token and email from DB
-- Use `AuthUtils.CreateAcceptInvitationUrl(token, email)` to build the link
-  - URL format: `{FRONT_URL}/accept-invitation?token={token}&id={encryptedEmail}`
-- Return the full URL
+### GET /staff/invitations/{invitationId}/link (new)
 
-**File to create:** `apps/api/Src/Modules/Staff/InvitationsAsStaff/Handlers/GetStaffInvitationLink.cs`
-
----
-
-## Phase 2: Frontend Changes
-
-### 2.1 Update React Query Hooks
-
-**File:** `apps/front/app/lib/react-query/features/staff/staff-invitation.hooks.ts`
-
-Update `useFindStaffInvitations` to accept pagination and filter params:
-```typescript
-type FindStaffInvitationsParams = {
-    cursor?: string;
-    limit: number;
-    sort: { id: string; order: 'asc' | 'desc' };
-    status?: 'pending' | 'accepted' | 'expired' | 'revoked';
-};
+**Response:**
+```json
+{
+  "link": "https://app.example.com/accept-invitation?token=xxx&id=yyy"
+}
 ```
 
-Add new hooks:
-```typescript
-export const useResendInvitation = createMutation({...});
-export const useGetInvitationLink = createMutation({...});  // click action; avoid caching tokenized URLs
+**Errors:**
+- 400: Invitation is not pending (accepted/revoked/expired)
+- 404: Invitation not found
+
+### POST /staff/invitations/{invitationId}/resend (new)
+
+**Response:**
+```json
+{
+  "message": "Invitation email resent successfully",
+  "key": "invitation-resent"
+}
 ```
 
----
-
-### 2.2 Implement Staff Invitations Table
-
-**File:** `apps/front/app/routes/authed/staff/invitations/list/parts/staff-invitations-table.tsx`
-
-**Columns (Extended Set):**
-1. Email (with avatar placeholder)
-2. Profile(s)
-3. Status (Label with color: Pending/Accepted/Expired/Revoked)
-4. Invited By
-5. Expires At (relative time)
-6. Accepted At (if accepted, else "-")
-7. Created At
-8. Actions
-
-**Table Features:**
-- Use `useMRTTable('minimal-cursor', {...})` pattern from `apps/front/app/routes/authed/staff/profiles/list/parts/staff-profiles-table.tsx`
-- Use `useTableState({ paginationMode: 'cursor' })` for pagination/sorting state
-- Feed `data?.nextCursor` back into `setNextCursor` to enable Next/Previous
-- Status filter dropdown above table
-
-**Cursor Reset on Filter Change:**
-- When `status` changes, reset cursor pagination back to first page (cursor history + current cursor + virtual page index).
-- `useTableState` already resets cursor state when sorting/page size changes; do the same for `status` changes in this table.
-
-**Status Filter Component:**
-```typescript
-<Select value={statusFilter} onChange={setStatusFilter}>
-    <MenuItem value="">All</MenuItem>
-    <MenuItem value="pending">Pending</MenuItem>
-    <MenuItem value="accepted">Accepted</MenuItem>
-    <MenuItem value="expired">Expired</MenuItem>
-    <MenuItem value="revoked">Revoked</MenuItem>
-</Select>
-```
-
----
-
-### 2.3 Implement Row Actions
-
-**Actions Cell Component:**
-
-| Action | Icon | Behavior | Visibility |
-|--------|------|----------|------------|
-| View Details | `solar:eye-bold` | Navigate to details page | Always |
-| Copy Invite Link | `solar:copy-bold-duotone` | Copy invitation URL to clipboard (via API) | Pending only |
-| Resend Email | `custom:send-fill` | Call resend mutation, show toast | Pending only |
-| Revoke | `solar:trash-bin-trash-bold` | Confirm dialog, call revoke mutation | Pending only |
-
-**Copy Link Implementation:**
-- Call `GET /staff/invitations/{id}/link` endpoint
-- Copy returned URL to clipboard
-- Show success toast
-
-**Error Handling:**
-All actions should show toast notifications:
-
-| Action | Success Toast | Error Toast |
-|--------|--------------|-------------|
-| Copy Link | "Invitation link copied to clipboard" | "Failed to copy invitation link" |
-| Resend Email | "Invitation email resent successfully" | "Failed to resend invitation email" |
-| Revoke | "Invitation revoked successfully" | "Failed to revoke invitation" |
+**Errors:**
+- 400: Invitation is not pending (accepted/revoked/expired)
+- 404: Invitation not found
 
 ---
 
 ## Files to Create/Modify
 
-### Backend (apps/api)
+### Backend
+
 | File | Action |
 |------|--------|
-| `Src/Modules/Shared/Invitations/InvitationService.cs` | Modify - add AcceptedAt to DTO, add pagination params |
-| `Src/Modules/Staff/InvitationsAsStaff/Handlers/FindStaffInvitations.cs` | Modify - add query params |
-| `Src/Modules/Staff/InvitationsAsStaff/Handlers/ResendStaffInvitation.cs` | Create - resend email handler |
-| `Src/Modules/Staff/InvitationsAsStaff/Handlers/GetStaffInvitationLink.cs` | Create - get invite link handler |
-| `Src/Modules/Staff/InvitationsAsStaff/InvitationEndpoints.cs` | Modify - add resend + link routes |
+| `Src/Modules/Invitations/Services/InvitationService.cs` | Modify: add `AcceptedAt` to DTO, update `FindStaffInvitationsAsync` with pagination |
+| `Src/Modules/Invitations/Handlers/Staff/FindStaffInvitations.cs` | Rewrite: add query params, validator, cursor pagination logic |
+| `Src/Modules/Invitations/Handlers/Staff/GetStaffInvitationLink.cs` | Create: new handler |
+| `Src/Modules/Invitations/Handlers/Staff/ResendStaffInvitation.cs` | Create: new handler |
+| `Src/Modules/Invitations/Routes.Invitations.cs` | Modify: add GetLinkById, ResendById |
+| `Src/Modules/Invitations/Endpoints/InvitationEndpointsForStaff.cs` | Modify: add GetLink, Resend routes |
+| `Src/Modules/Invitations/Permissions/InvitationPermissionsForStaff.cs` | Modify: add GET_LINK_FOR_STAFF, RESEND_FOR_STAFF |
 
-### Frontend (apps/front)
+### Frontend
+
 | File | Action |
 |------|--------|
-| `app/lib/react-query/features/staff/staff-invitation.hooks.ts` | Modify - add pagination, resend hook |
-| `app/routes/authed/staff/invitations/list/parts/staff-invitations-table.tsx` | Rewrite - full implementation |
-
-### Regenerate JS Client
-After backend changes, run the Kiota generator to update TypeScript types.
+| `src/lib/react-query/features/staff/staff-invitation.hooks.ts` | Modify: update useFindStaffInvitations, add useGetInvitationLink, useResendInvitation |
+| `src/routes/authed/staff/invitations/list/parts/staff-invitations-table.tsx` | Rewrite: full implementation |
 
 ---
 
 ## Implementation Order
 
-1. Backend: Add `AcceptedAt` to `InvitationListItem`
+1. Backend: Add `AcceptedAt` to `InvitationListItem` DTO + mapping
 2. Backend: Add pagination + filtering to `FindStaffInvitations`
-3. Backend: Create `ResendStaffInvitation` endpoint
-4. Backend: Create `GetStaffInvitationLink` endpoint
-5. Regenerate JS client types
-6. Frontend: Update React Query hooks
-7. Frontend: Build table component with filtering
-8. Frontend: Implement all row actions
-9. Test end-to-end
+3. Backend: Create `GetStaffInvitationLink` endpoint
+4. Backend: Create `ResendStaffInvitation` endpoint
+5. **Run `make generate-client`**
+6. Frontend: Update `useFindStaffInvitations` hook with pagination params
+7. Frontend: Add `useGetInvitationLink` and `useResendInvitation` hooks
+8. Frontend: Implement `StaffInvitationsTable` with filtering
+9. Frontend: Implement row actions (View, Copy, Resend, Revoke)
+10. Test end-to-end
 
 ---
 
-## Questions Resolved
+## Out of Scope
 
-| Question | Decision |
-|----------|----------|
-| Columns | Extended: Email, Profile, Status, Invited By, Expires At, Accepted At, Created At, Actions |
-| Actions | Full: View Details, Copy Link, Resend Email, Revoke |
-| Filtering | Status dropdown (All, Pending, Accepted, Expired, Revoked) |
-| Pagination | Cursor-based (keyset) like staff profiles table |
-| Missing fields | Add AcceptedAt to API response (already in DB) |
-| Backend filtering | Implement server-side pagination + status filter |
-| Resend action | Create new backend endpoint first |
-| Copy Link | Create GET `/staff/invitations/{id}/link` endpoint (secure) |
+- Details page API integration (requires new GetById endpoint)
+- Invitation expiry extension endpoint
+- Token rotation on resend
+- Background job for status updates
