@@ -459,7 +459,7 @@ const InvitationActionsCell: MRT_ColumnDef<StaffInvitationRowData>['Cell'] = (
 			open={confirmDialog.value}
 			onClose={confirmDialog.onFalse}
 			title={t('revoke-invitation')}
-			content={t('confirm-delete-dialog-text')}
+			content={t('confirm-revoke-invitation')}
 			action={
 				<Button variant="contained" color="error" onClick={handleConfirmRevoke}>
 					{t('staff-revoke')}

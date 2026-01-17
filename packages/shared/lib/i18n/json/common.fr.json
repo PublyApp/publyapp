@@ -295,6 +295,7 @@
 	"expiry-date": "Date d'expiration",
 	"resend-invitation": "Renvoyer l'invitation",
 	"revoke-invitation": "Révoquer l'invitation",
+	"confirm-revoke-invitation": "Êtes-vous sûr de vouloir révoquer cette invitation?",
 	"invitation-id": "ID de l'invitation",
 	"accepted": "Acceptée",
 	"accepted-at": "Acceptée le",
