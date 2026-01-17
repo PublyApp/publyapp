@@ -106,6 +106,10 @@ export const loader = getServerLoader({
 		const checkResult = await checkInvitationToken();
 
 		if (checkResult.status === 'error') {
+			context.logger.error('checkInvitationToken error', {
+				error: serializeError(checkResult.error),
+			});
+
 			return {
 				code: 'INVALID_LINK',
 				meta,

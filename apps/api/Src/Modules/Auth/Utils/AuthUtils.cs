@@ -13,7 +13,8 @@ public static class AuthUtils {
 
 		var queryParams = new Dictionary<string, string?> {
 			["token"] = token,
-			["id"] = CryptoUtils.EncryptString(email).ToLowerInvariant()
+			// Note: Don't lowercase - base64 is case-sensitive
+			["id"] = CryptoUtils.EncryptString(email)
 		};
 
 		var url = QueryHelpers.AddQueryString(builder.Uri.ToString(), queryParams);
@@ -28,7 +29,8 @@ public static class AuthUtils {
 
 		var queryParams = new Dictionary<string, string?> {
 			["token"] = token,
-			["id"] = CryptoUtils.EncryptString(email).ToLowerInvariant()
+			// Note: Don't lowercase - base64 is case-sensitive
+			["id"] = CryptoUtils.EncryptString(email)
 		};
 
 		var url = QueryHelpers.AddQueryString(builder.Uri.ToString(), queryParams);
@@ -51,7 +53,8 @@ public static class AuthUtils {
 
 		var queryParams = new Dictionary<string, string?> {
 			["token"] = token,
-			["id"] = CryptoUtils.EncryptString(email).ToLowerInvariant()
+			// Note: Don't lowercase - base64 is case-sensitive
+			["id"] = CryptoUtils.EncryptString(email)
 		};
 
 		var url = QueryHelpers.AddQueryString(builder.Uri.ToString(), queryParams);
