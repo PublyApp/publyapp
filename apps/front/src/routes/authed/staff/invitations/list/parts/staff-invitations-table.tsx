@@ -40,6 +40,8 @@ import type { InvitationListItem } from '@/js-client/src/models';
 import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 
+import { NewInvitationButton } from './new-invitation-button';
+
 type StaffInvitationStatus = 'pending' | 'accepted' | 'expired' | 'revoked';
 
 type StaffInvitationRowData = {
@@ -131,17 +133,9 @@ const StaffInvitationsTable = () => {
 				}),
 			),
 			renderAction: () => (
-				<Button
-					variant="contained"
-					startIcon={
-						<Iconify icon="mingcute:add-line" sx={{ width: 16, height: 16 }} />
-					}
-					component={RouterLink}
-					href={FRONT_PATH_NAMES.staff.invitations.new}
-					sx={{ mt: 2 }}
-				>
-					{t('new-invitation')}
-				</Button>
+				<Box sx={{ mt: 2 }}>
+					<NewInvitationButton />
+				</Box>
 			),
 		},
 		errorContent: {
