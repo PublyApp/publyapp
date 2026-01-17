@@ -1,6 +1,6 @@
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
+import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import ListItemText from '@mui/material/ListItemText';
@@ -19,11 +19,11 @@ import { Iconify } from '@/front/components/iconify/iconify';
 import { Label } from '@/front/components/label/label';
 import { RouterLink } from '@/front/components/router-link';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
+import { useTableQueryOptions } from '@/front/hooks/use-table-query-options';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
 import { useFindStaffProfiles } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { checkIfEmptyQueryData } from '@/front/lib/react-query/query-utils';
 import type { StaffProfileItem } from '@/js-client/src/models';
 import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
@@ -109,26 +109,54 @@ const StaffProfilesTable = () => {
 	});
 
 	// Data fetching with cursor from apiVariables
-	const findStaffProfilesQuery = useFindStaffProfiles({
+	const profilesQuery = useFindStaffProfiles({
 		variables: {
 			cursor: apiVariables.cursor || undefined,
 			limit: apiVariables.limit,
 			sort: apiVariables.sort,
 		},
 	});
-	const { data, isPending, error } = findStaffProfilesQuery;
 
-	// Feed nextCursor back to the hook
+	// Hook that provides query-aware table options (empty/error fallback, loading state)
+	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
+		query: profilesQuery,
+		emptyContent: {
+			title: _.capitalize(
+				t('no-items-found', { item: t('profiles'), ns: 'response-message' }),
+			),
+			renderAction: () => (
+				<Button
+					variant="contained"
+					startIcon={<Iconify icon="mingcute:add-line" />}
+					component={RouterLink}
+					href={FRONT_PATH_NAMES.staff.profiles.new}
+					sx={{ mt: 2 }}
+				>
+					{t('new-item', { item: t('profile') })}
+				</Button>
+			),
+		},
+		errorContent: {
+			title: _.capitalize(
+				t('error-loading-items', {
+					item: t('profiles'),
+					ns: 'response-message',
+				}),
+			),
+		},
+	});
+
+	// Sync latest cursor into the table state outside render.
 	useEffect(() => {
 		if (setNextCursor) {
-			setNextCursor(data?.nextCursor);
+			setNextCursor(profilesQuery.data?.nextCursor);
 		}
-	}, [data?.nextCursor, setNextCursor]);
+	}, [profilesQuery.data?.nextCursor, setNextCursor]);
 
 	// Transform data
 	const dataTable = useMemo(() => {
-		return _.map(data?.data, StaffProfileRowDataMapper);
-	}, [data]);
+		return _.map(profilesQuery.data?.data, StaffProfileRowDataMapper);
+	}, [profilesQuery.data]);
 
 	// Table configuration with cursor pagination preset
 	const table = useMRTTable('minimal-cursor', {
@@ -138,8 +166,8 @@ const StaffProfilesTable = () => {
 		onSortingChange: handleSortingChange,
 		state: {
 			...tableState,
+			...queryState,
 			density: 'compact',
-			isLoading: isPending,
 		},
 		muiTablePaperProps: {
 			sx: {
@@ -150,59 +178,10 @@ const StaffProfilesTable = () => {
 			handlePaginationChange,
 			hasNextPage,
 			hasPreviousPage,
-			isPending,
+			isPending: profilesQuery.isPending,
 		},
+		renderEmptyRowsFallback,
 	});
-
-	// Error State
-	if (error) {
-		return (
-			<Card
-				sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 3 }}
-			>
-				<Box sx={{ color: 'error.main', textAlign: 'center' }}>
-					{t('error-loading-items', { item: t('profiles') })}
-				</Box>
-			</Card>
-		);
-	}
-
-	// Empty State
-	if (
-		// !isPending && (!data?.data || data.data.length === 0)
-		checkIfEmptyQueryData(findStaffProfilesQuery)
-	) {
-		return (
-			<Card
-				sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 3 }}
-			>
-				<Box
-					sx={{
-						display: 'flex',
-						flexDirection: 'column',
-						alignItems: 'center',
-						justifyContent: 'center',
-						minHeight: 400,
-						gap: 2,
-					}}
-				>
-					<Iconify
-						icon={'solar:inbox-line-bold' as never}
-						width={64}
-						sx={{ color: 'text.disabled' }}
-					/>
-					<Box sx={{ textAlign: 'center' }}>
-						<Box sx={{ typography: 'h6', color: 'text.secondary' }}>
-							{t('no-items-found', { item: t('profiles') })}
-						</Box>
-						<Box sx={{ typography: 'body2', color: 'text.disabled', mt: 0.5 }}>
-							{t('create-first-item', { item: t('profile') })}
-						</Box>
-					</Box>
-				</Box>
-			</Card>
-		);
-	}
 
 	return (
 		<Box

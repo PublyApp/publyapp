@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using System;
+
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -68,29 +70,6 @@ namespace MainApi.Migrations {
 					constraints: table => {
 						table.PrimaryKey("PK_users", x => x.id);
 						table.CheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)");
-					});
-
-			migrationBuilder.CreateTable(
-					name: "products",
-					columns: table => new {
-						id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "uuidv7()"),
-						name = table.Column<string>(type: "text", nullable: true),
-						description = table.Column<string>(type: "text", nullable: true),
-						price = table.Column<decimal>(type: "numeric", nullable: false),
-						tenant_id = table.Column<Guid>(type: "uuid", nullable: false),
-						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
-						deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
-					},
-					constraints: table => {
-						table.PrimaryKey("PK_products", x => x.id);
-						table.ForeignKey(
-											name: "FK_products_tenants_tenant_id",
-											column: x => x.tenant_id,
-											principalTable: "tenants",
-											principalColumn: "id",
-											onDelete: ReferentialAction.Cascade);
 					});
 
 			migrationBuilder.CreateTable(
@@ -442,11 +421,6 @@ namespace MainApi.Migrations {
 					unique: true);
 
 			migrationBuilder.CreateIndex(
-					name: "IX_products_tenant_id",
-					table: "products",
-					column: "tenant_id");
-
-			migrationBuilder.CreateIndex(
 					name: "IX_profile_permissions_permission_key",
 					table: "profile_permissions",
 					column: "permission_key");
@@ -580,9 +554,6 @@ namespace MainApi.Migrations {
 
 			migrationBuilder.DropTable(
 					name: "invitation_profiles");
-
-			migrationBuilder.DropTable(
-					name: "products");
 
 			migrationBuilder.DropTable(
 					name: "profile_permissions");

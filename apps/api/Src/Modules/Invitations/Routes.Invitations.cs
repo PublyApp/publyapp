@@ -25,6 +25,14 @@ public static partial class Routes {
 			public const string Find = "/";
 			public const string RevokeById = "/{invitationId}";
 			public static string RevokeByIdFn(string invitationId) => $"/{invitationId}";
+			// Get single invitation details.
+			public const string GetById = "/{invitationId}";
+			public static string GetByIdFn(string invitationId) => $"/{invitationId}";
+			// Pending-only actions.
+			public const string GetLinkById = "/{invitationId}/link";
+			public static string GetLinkByIdFn(string invitationId) => $"/{invitationId}/link";
+			public const string ResendById = "/{invitationId}/resend";
+			public static string ResendByIdFn(string invitationId) => $"/{invitationId}/resend";
 		}
 
 		/// <summary>Tenant invitation routes (staff managing tenant invitations)</summary>

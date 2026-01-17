@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MainApi.Migrations
 {
     [DbContext(typeof(MainApiDbContext))]
-    [Migration("20251212175218_Init")]
+    [Migration("20260117052838_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -20,12 +20,72 @@ namespace MainApi.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.8")
+                .HasAnnotation("ProductVersion", "10.0.1")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Auth.Session", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.AuditLogs.Entities.AuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("action");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("Details")
+                        .HasColumnType("text")
+                        .HasColumnName("details");
+
+                    b.Property<string>("IpAddress")
+                        .HasColumnType("text")
+                        .HasColumnName("ip_address");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<Guid?>("TargetId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UserAgent")
+                        .HasColumnType("text")
+                        .HasColumnName("user_agent");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TargetId");
+
+                    b.HasIndex("Action", "CreatedAt");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("audit_logs");
+                });
+
+            modelBuilder.Entity("MainApi.Src.Modules.Auth.Entities.Session", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -92,7 +152,7 @@ namespace MainApi.Migrations
                     b.ToTable("sessions");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Invitations.Invitation", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Invitations.Entities.Invitation", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -191,7 +251,7 @@ namespace MainApi.Migrations
                         });
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Invitations.InvitationProfile", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Invitations.Entities.InvitationProfile", b =>
                 {
                     b.Property<Guid>("InvitationId")
                         .HasColumnType("uuid")
@@ -216,7 +276,7 @@ namespace MainApi.Migrations
                     b.ToTable("invitation_profiles");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Permissions.Permission", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Permissions.Entities.Permission", b =>
                 {
                     b.Property<string>("Key")
                         .HasColumnType("text")
@@ -254,7 +314,7 @@ namespace MainApi.Migrations
                         });
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Profiles.Profile", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Profiles.Entities.Profile", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -323,7 +383,7 @@ namespace MainApi.Migrations
                         });
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Profiles.ProfilePermission", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Profiles.Entities.ProfilePermission", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -365,7 +425,7 @@ namespace MainApi.Migrations
                     b.ToTable("profile_permissions");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Projects.Project", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Projects.Entities.Project", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -418,7 +478,68 @@ namespace MainApi.Migrations
                     b.ToTable("projects");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Tenants.Tenant", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.SystemNotices.Entities.SystemNotice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByStaffId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_staff_id");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("message");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("integer")
+                        .HasColumnName("severity");
+
+                    b.Property<DateTime>("StartsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("starts_at");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByStaffId");
+
+                    b.HasIndex("Severity");
+
+                    b.HasIndex("StartsAt", "ExpiresAt");
+
+                    b.ToTable("system_notices");
+                });
+
+            modelBuilder.Entity("MainApi.Src.Modules.Tenants.Entities.Tenant", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -483,7 +604,7 @@ namespace MainApi.Migrations
                         });
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Users.User", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Users.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -570,7 +691,7 @@ namespace MainApi.Migrations
                         });
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Users.UserAccount", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Users.Entities.UserAccount", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -643,7 +764,7 @@ namespace MainApi.Migrations
                         });
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Users.UserAccountProfile", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Users.Entities.UserAccountProfile", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -684,182 +805,25 @@ namespace MainApi.Migrations
                     b.ToTable("user_account_profiles");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Staff.AuditLogs.AuditLog", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.AuditLogs.Entities.AuditLog", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuidv7()");
+                    b.HasOne("MainApi.Src.Modules.Users.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("action");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<string>("Details")
-                        .HasColumnType("text")
-                        .HasColumnName("details");
-
-                    b.Property<string>("IpAddress")
-                        .HasColumnType("text")
-                        .HasColumnName("ip_address");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
-
-                    b.Property<Guid?>("TargetId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("target_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<string>("UserAgent")
-                        .HasColumnType("text")
-                        .HasColumnName("user_agent");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TargetId");
-
-                    b.HasIndex("Action", "CreatedAt");
-
-                    b.HasIndex("UserId", "CreatedAt");
-
-                    b.ToTable("audit_logs");
+                    b.Navigation("User");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Staff.SystemNotice.SystemNotice", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Auth.Entities.Session", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuidv7()");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid>("CreatedByStaffId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by_staff_id");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<DateTime?>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("expires_at");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("message");
-
-                    b.Property<int>("Severity")
-                        .HasColumnType("integer")
-                        .HasColumnName("severity");
-
-                    b.Property<DateTime>("StartsAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("starts_at");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("title");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedByStaffId");
-
-                    b.HasIndex("Severity");
-
-                    b.HasIndex("StartsAt", "ExpiresAt");
-
-                    b.ToTable("system_notices");
-                });
-
-            modelBuilder.Entity("MainApi.Src.Modules.Tenant.Products.Product", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuidv7()");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
-
-                    b.Property<string>("Name")
-                        .HasColumnType("text")
-                        .HasColumnName("name");
-
-                    b.Property<decimal>("Price")
-                        .HasColumnType("numeric")
-                        .HasColumnName("price");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId");
-
-                    b.ToTable("products");
-                });
-
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Auth.Session", b =>
-                {
-                    b.HasOne("MainApi.Src.Modules.Shared.Users.User", "ImpersonatingStaffUser")
+                    b.HasOne("MainApi.Src.Modules.Users.Entities.User", "ImpersonatingStaffUser")
                         .WithMany()
                         .HasForeignKey("ImpersonatingStaffUserId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("MainApi.Src.Modules.Shared.Users.User", "User")
+                    b.HasOne("MainApi.Src.Modules.Users.Entities.User", "User")
                         .WithMany("Sessions")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -870,19 +834,19 @@ namespace MainApi.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Invitations.Invitation", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Invitations.Entities.Invitation", b =>
                 {
-                    b.HasOne("MainApi.Src.Modules.Shared.Users.User", "InvitedByUser")
+                    b.HasOne("MainApi.Src.Modules.Users.Entities.User", "InvitedByUser")
                         .WithMany()
                         .HasForeignKey("InvitedByUserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MainApi.Src.Modules.Shared.Projects.Project", "Project")
+                    b.HasOne("MainApi.Src.Modules.Projects.Entities.Project", "Project")
                         .WithMany()
                         .HasForeignKey("ProjectId");
 
-                    b.HasOne("MainApi.Src.Modules.Shared.Tenants.Tenant", "Tenant")
+                    b.HasOne("MainApi.Src.Modules.Tenants.Entities.Tenant", "Tenant")
                         .WithMany()
                         .HasForeignKey("TenantId");
 
@@ -893,15 +857,15 @@ namespace MainApi.Migrations
                     b.Navigation("Tenant");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Invitations.InvitationProfile", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Invitations.Entities.InvitationProfile", b =>
                 {
-                    b.HasOne("MainApi.Src.Modules.Shared.Invitations.Invitation", "Invitation")
+                    b.HasOne("MainApi.Src.Modules.Invitations.Entities.Invitation", "Invitation")
                         .WithMany("InvitationProfiles")
                         .HasForeignKey("InvitationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MainApi.Src.Modules.Shared.Profiles.Profile", "Profile")
+                    b.HasOne("MainApi.Src.Modules.Profiles.Entities.Profile", "Profile")
                         .WithMany()
                         .HasForeignKey("ProfileId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -912,13 +876,13 @@ namespace MainApi.Migrations
                     b.Navigation("Profile");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Profiles.Profile", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Profiles.Entities.Profile", b =>
                 {
-                    b.HasOne("MainApi.Src.Modules.Shared.Projects.Project", "Project")
+                    b.HasOne("MainApi.Src.Modules.Projects.Entities.Project", "Project")
                         .WithMany("Profiles")
                         .HasForeignKey("ProjectId");
 
-                    b.HasOne("MainApi.Src.Modules.Shared.Tenants.Tenant", "Tenant")
+                    b.HasOne("MainApi.Src.Modules.Tenants.Entities.Tenant", "Tenant")
                         .WithMany()
                         .HasForeignKey("TenantId");
 
@@ -927,15 +891,15 @@ namespace MainApi.Migrations
                     b.Navigation("Tenant");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Profiles.ProfilePermission", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Profiles.Entities.ProfilePermission", b =>
                 {
-                    b.HasOne("MainApi.Src.Modules.Shared.Permissions.Permission", "Permission")
+                    b.HasOne("MainApi.Src.Modules.Permissions.Entities.Permission", "Permission")
                         .WithMany("ProfilePermissions")
                         .HasForeignKey("PermissionKey")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MainApi.Src.Modules.Shared.Profiles.Profile", null)
+                    b.HasOne("MainApi.Src.Modules.Profiles.Entities.Profile", null)
                         .WithMany("ProfilePermissions")
                         .HasForeignKey("ProfileId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -944,9 +908,9 @@ namespace MainApi.Migrations
                     b.Navigation("Permission");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Projects.Project", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Projects.Entities.Project", b =>
                 {
-                    b.HasOne("MainApi.Src.Modules.Shared.Tenants.Tenant", "Tenant")
+                    b.HasOne("MainApi.Src.Modules.Tenants.Entities.Tenant", "Tenant")
                         .WithMany("Projects")
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -955,17 +919,28 @@ namespace MainApi.Migrations
                     b.Navigation("Tenant");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Users.UserAccount", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.SystemNotices.Entities.SystemNotice", b =>
                 {
-                    b.HasOne("MainApi.Src.Modules.Shared.Projects.Project", "Project")
+                    b.HasOne("MainApi.Src.Modules.Users.Entities.User", "CreatedByStaff")
+                        .WithMany()
+                        .HasForeignKey("CreatedByStaffId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByStaff");
+                });
+
+            modelBuilder.Entity("MainApi.Src.Modules.Users.Entities.UserAccount", b =>
+                {
+                    b.HasOne("MainApi.Src.Modules.Projects.Entities.Project", "Project")
                         .WithMany("UserAccounts")
                         .HasForeignKey("ProjectId");
 
-                    b.HasOne("MainApi.Src.Modules.Shared.Tenants.Tenant", "Tenant")
+                    b.HasOne("MainApi.Src.Modules.Tenants.Entities.Tenant", "Tenant")
                         .WithMany("UserAccounts")
                         .HasForeignKey("TenantId");
 
-                    b.HasOne("MainApi.Src.Modules.Shared.Users.User", "User")
+                    b.HasOne("MainApi.Src.Modules.Users.Entities.User", "User")
                         .WithMany("UserAccounts")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -978,15 +953,15 @@ namespace MainApi.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Users.UserAccountProfile", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Users.Entities.UserAccountProfile", b =>
                 {
-                    b.HasOne("MainApi.Src.Modules.Shared.Profiles.Profile", "Profile")
+                    b.HasOne("MainApi.Src.Modules.Profiles.Entities.Profile", "Profile")
                         .WithMany("UserAccountProfiles")
                         .HasForeignKey("ProfileId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MainApi.Src.Modules.Shared.Users.UserAccount", "UserAccount")
+                    b.HasOne("MainApi.Src.Modules.Users.Entities.UserAccount", "UserAccount")
                         .WithMany("UserAccountProfiles")
                         .HasForeignKey("UserAccountId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -997,78 +972,45 @@ namespace MainApi.Migrations
                     b.Navigation("UserAccount");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Staff.AuditLogs.AuditLog", b =>
-                {
-                    b.HasOne("MainApi.Src.Modules.Shared.Users.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("MainApi.Src.Modules.Staff.SystemNotice.SystemNotice", b =>
-                {
-                    b.HasOne("MainApi.Src.Modules.Shared.Users.User", "CreatedByStaff")
-                        .WithMany()
-                        .HasForeignKey("CreatedByStaffId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CreatedByStaff");
-                });
-
-            modelBuilder.Entity("MainApi.Src.Modules.Tenant.Products.Product", b =>
-                {
-                    b.HasOne("MainApi.Src.Modules.Shared.Tenants.Tenant", "Tenant")
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Tenant");
-                });
-
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Invitations.Invitation", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Invitations.Entities.Invitation", b =>
                 {
                     b.Navigation("InvitationProfiles");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Permissions.Permission", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Permissions.Entities.Permission", b =>
                 {
                     b.Navigation("ProfilePermissions");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Profiles.Profile", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Profiles.Entities.Profile", b =>
                 {
                     b.Navigation("ProfilePermissions");
 
                     b.Navigation("UserAccountProfiles");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Projects.Project", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Projects.Entities.Project", b =>
                 {
                     b.Navigation("Profiles");
 
                     b.Navigation("UserAccounts");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Tenants.Tenant", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Tenants.Entities.Tenant", b =>
                 {
                     b.Navigation("Projects");
 
                     b.Navigation("UserAccounts");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Users.User", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Users.Entities.User", b =>
                 {
                     b.Navigation("Sessions");
 
                     b.Navigation("UserAccounts");
                 });
 
-            modelBuilder.Entity("MainApi.Src.Modules.Shared.Users.UserAccount", b =>
+            modelBuilder.Entity("MainApi.Src.Modules.Users.Entities.UserAccount", b =>
                 {
                     b.Navigation("UserAccountProfiles");
                 });
