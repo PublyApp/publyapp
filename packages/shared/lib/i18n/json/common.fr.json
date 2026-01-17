@@ -437,5 +437,7 @@
 	"reach": "Portée",
 	"date": "Date",
 	"workers": "Workers",
-	"please-try-again-or-contact-support": "Veuillez réessayer ou contacter le support si le problème persiste."
+	"please-try-again-or-contact-support": "Veuillez réessayer ou contacter le support si le problème persiste.",
+	"duplicate-email": "Email en double",
+	"duplicate-profile": "Profil en double selectionné"
 }
