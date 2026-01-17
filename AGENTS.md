@@ -85,55 +85,56 @@ packages/
 └── _tx-key-gen/      # Translation key generator (.NET tool)
 ```
 
-### Backend Architecture (Vertical Slice)
+### Backend Architecture (Vertical Slice, Domain-First)
 
-The backend follows **Vertical Slice Architecture** where each feature is self-contained:
+The backend follows **Vertical Slice Architecture** using a **domain-first** module layout:
 
 ```
-Modules/[Scope]/[Module]/
-├── [Module]Service.cs           # Business logic (if needed)
-├── [Module]Endpoints.cs         # API endpoint mappings (if needed)
-├── [Entity].cs                   # Entity definitions
-├── [Entity]Seeder.cs            # Seeder (if needed)
-└── Handlers/
-    ├── Create[Feature].cs        # POST handler
-    ├── Get[Feature]ById.cs       # GET by ID handler
-    ├── Find[Feature]s.cs         # GET list handler
-    └── Update[Feature].cs        # PUT handler
+apps/api/Src/Modules/<Domain>/
+├── Entities/                     # EF Core entities for the domain
+├── Services/                     # Domain services (business logic)
+├── Seeders/                      # Seeders for the domain
+├── Permissions/                  # Permission definitions (used by seeder)
+├── Endpoints/                    # Minimal API mappings (by route scope)
+└── Handlers/                     # Request handlers (CQRS-lite)
+    ├── Anonymous/                # Public/auth-free handlers
+    ├── Staff/                    # Staff-only handlers
+    └── Tenant/                   # Tenant-scoped handlers
 ```
 
 **Key Patterns:**
-- **CQRS-lite**: Request handlers pattern
-- **Minimal APIs**: ASP.NET Core minimal API endpoints
-- **FluentValidation**: Automatic validation via filters
-- **Response Format**: Success returns `Ok<T>` / `Ok<ApiResponse>`; errors return RFC 7807 `application/problem+json` (`AppProblemDetails` / `ValidationProblemDetails`) with `translationKey`
+- **CQRS-lite**: handlers per operation (create/find/get/update/delete)
+- **Minimal APIs**: endpoints map routes and attach filters/permissions
+- **FluentValidation**: automatic body/query validation via endpoint extensions
+- **Response Format**: success returns `Ok<T>` / `Ok<ApiResponse>`; errors return RFC 7807 `application/problem+json` via `TypedProblems.*` with `translationKey`
+- **Namespace discipline**: `IDE0130` is treated as error — file namespace must match its folder path
 
 **Finding Backend Code:**
-- Shared modules (auth, users, profiles, etc.): `apps/api/Src/Modules/Shared/`
-- Staff-specific modules: `apps/api/Src/Modules/Staff/`
-- Tenant-specific modules: `apps/api/Src/Modules/Tenant/`
-- Shared utilities/middleware: `apps/api/Src/Lib/`
+- Domain modules (preferred): `apps/api/Src/Modules/<Domain>/` (e.g. `Auth`, `Users`, `Invitations`)
+- Legacy (migration in progress): `apps/api/Src/Modules/{Shared,Staff,Tenant}/` (do not add new code here unless you’re migrating existing slices)
+- Cross-cutting utilities/middleware: `apps/api/Src/Lib/`
+- Infrastructure services (email, storage, etc.): `apps/api/Src/Infrastructure/`
 
-### API Module Structure Rules
+### API Module Structure Rules (Repo-Wide Consensus)
 
-**CRITICAL:** The API follows Vertical Slice Architecture with domain-based module organization.
+**CRITICAL:** The API is domain-first. Route scope is expressed via endpoint groups and handler folders — not via alternate module naming schemes like `UsersAsStaff`.
 
 #### Module Organization
 
-Each module in `Modules/Shared/` is a complete vertical slice containing:
-- **Entities** (`*.cs` files defining database models)
-- **Junction entities** (many-to-many relationships live with their primary entity)
-- **Seeders** (`*Seeder.cs` files)
-- **Services** (business logic services)
-- **Handlers** (request/response handlers in `Handlers/` subdirectory)
+Each `apps/api/Src/Modules/<Domain>/` module is a complete vertical slice containing:
+- **Entities** (`Entities/*.cs`) — database models for the domain
+- **Junction entities** — live with their primary entity’s domain
+- **Services** (`Services/*.cs`) — domain business logic and orchestration
+- **Handlers** (`Handlers/<Scope>/*.cs`) — HTTP request handlers
+- **Endpoints** (`Endpoints/*.cs`) — route mappings per scope (anonymous/staff/tenant)
+- **Permissions** (`Permissions/*.cs`) — permission constants/objects for seeding + route enforcement
 
 #### Module Examples
 
-- `Modules/Shared/Users/` - User and UserAccount entities, seeders, handlers
-- `Modules/Shared/Profiles/` - Profile entity, ProfilePermission junction, seeders
-- `Modules/Shared/Auth/` - Authentication entities (Session), services (PasswordService, AuthService), handlers
-- `Modules/Shared/Invitations/` - Invitation entity, InvitationProfile junction
-- `Infrastructure/` - Architectural services (EmailService, future: SmsService, FileStorageService)
+- `Modules/Auth/` — session + auth flows
+- `Modules/Users/` — users + accounts (including staff-member management)
+- `Modules/Invitations/` — invitations and their profiles
+- `Infrastructure/Messaging/Email/` — technical capability used by multiple domains
 
 #### Junction Entity Placement Rule
 
@@ -158,22 +159,171 @@ Examples:
 
 **Pure utilities**: Stateless helpers without dependencies → `Lib/`
 
-#### Scopes
+#### Route Scopes (Staff/Tenant/Anonymous)
 
-- `Modules/Shared/` - Cross-scope functionality (used by both Staff and Tenant)
-- `Modules/Staff/` - Staff-only operations
-- `Modules/Tenant/` - Tenant-only operations
+- Scope is determined by the route group in `apps/api/Program.cs` (e.g. `/staff/*`, `/tenant/*`, `/auth/*`).
+- Keep scope-specific code in `Handlers/<Scope>/` and `Endpoints/*For<Scope>.cs`.
+- Prefer scope-specific handler names when it prevents confusion (e.g. `FindStaffProfiles` vs `FindTenantProfiles`). If a handler is truly shared across scopes, put it in a neutral location and keep the name generic.
 
 #### Where to Put New Code
 
-- **New shared entity?** → Create module in `Modules/Shared/`
-- **Staff operation?** → Add to `Modules/Staff/`
-- **Tenant operation?** → Add to `Modules/Tenant/`
+- **Any new domain work** → `apps/api/Src/Modules/<Domain>/...` (domain-first)
+- **Scope-specific endpoints/handlers** → `Endpoints/*ForStaff.cs` / `Handlers/Staff/*` (same domain)
 - **New infrastructure service?** → Add to `Infrastructure/`
   - Email/SMS → `Infrastructure/Messaging/`
   - File storage → `Infrastructure/Storage/`
   - Caching → `Infrastructure/Caching/`
-- **New domain business logic?** → Add to appropriate domain module
+- **Pure stateless helper** → `apps/api/Src/Lib/`
+
+#### Architecture Docs Policy (Single Source of Truth)
+
+**CRITICAL:** `AGENTS.md` is the single source of truth for **Vertical Slice Architecture** and **API folder/module structure** rules.
+
+- Other docs may describe feature-specific plans, but must not introduce competing folder structure rules.
+- If another doc needs to mention architecture, it should link to the relevant `AGENTS.md` section instead of redefining conventions.
+
+#### Module Naming (Repo-Wide)
+
+**Goal:** A single, obvious location for a domain, without suffixes.
+
+- **Domain module:** `apps/api/Src/Modules/<Domain>/` (preferred)
+  - Example: `Modules/Users/`, `Modules/Invitations/`, `Modules/Auth/`
+- **Inside the domain**, scope/actor is expressed by folder + endpoint group:
+  - `Handlers/Anonymous|Staff|Tenant/`
+  - `...EndpointsAnonymous` / `...EndpointsForStaff` / `...EndpointsForTenant`
+
+**Naming rules:**
+- Prefer **plural** domain folder names (`Users`, `Invitations`, `Permissions`, `Tenants`).
+- File namespaces must match folders (analyzers enforce `IDE0130`).
+- Remove unused `using`s (`IDE0005` is treated as error).
+- Avoid `*AsStaff/*AsTenant` naming in new code. Those legacy modules exist only during migration and should shrink over time.
+
+#### Slice Boundaries (When to Split vs Share)
+
+Split by **domain** first, then by **route scope** inside the domain (staff/tenant/anonymous).
+
+Create **separate scope handlers/endpoints** when any of these change:
+- Route scope / actor (Staff vs Tenant vs Project user)
+- Authorization middleware / security boundary
+- Route prefix (`/staff/*` vs `/tenant/*`)
+- Business rules/workflows diverge meaningfully
+
+Keep one implementation (and parameterize) when differences are only:
+- Data attributes or filter parameters (e.g., `ProfileScope`, status/type/category enums)
+- Same auth middleware, same route group, same business context
+
+#### Permission Enforcement Patterns
+
+Prefer enforcing permissions at the **route level** (before database access).
+
+- **Pattern 1 (Recommended): Scope in route + `.WithPermission()`**
+  - Use when the scope can be derived from the route (e.g., `/staff/profiles/staff/{id}` vs `/staff/profiles/tenants/{tenantId}`).
+  - Benefits: permission checked before DB query, clearer API design, avoids wasted queries.
+- **Pattern 2 (Fallback): Dynamic permission check after loading entity**
+  - Avoid if possible. Use only when scope cannot be determined from the route and you cannot change the route shape.
+  - Cost: requires loading the entity first; wastes a DB query if unauthorized; permission is no longer encoded by the route.
+
+#### Vertical Slice Design Principles (Detailed)
+
+This section replaces the old `docs/vertical-slice-design-principles.md` and is the canonical reference.
+
+##### Separate actors, same domain (default)
+
+When Staff and Tenant both touch the same domain, keep **one domain module** and split by actor inside it:
+
+```
+apps/api/Src/Modules/Profiles/
+├── Entities/
+├── Services/
+├── Endpoints/
+│   ├── ProfileEndpointsForStaff.cs
+│   └── ProfileEndpointsForTenant.cs
+└── Handlers/
+    ├── Staff/
+    └── Tenant/
+```
+
+Split by actor when:
+- Different auth middleware / pipeline (staff vs tenant)
+- Different security boundary (cross-tenant admin vs single-tenant access)
+- Different permission namespaces (e.g., `staff.profile.*` vs `tenant.profile.*`)
+
+##### Share handlers when business rules match
+
+Prefer a **single handler** when the operation is the same and only the permission differs.
+
+Example: one handler, mapped twice:
+
+```
+apps/api/Src/Modules/Profiles/
+├── Handlers/
+│   └── Common/
+│       └── UpdateProfile.cs
+└── Endpoints/
+    ├── ProfileEndpointsForStaff.cs   # PUT /staff/profiles/{id} + WithPermission(A)
+    └── ProfileEndpointsForTenant.cs  # PUT /tenant/profiles/{id} + WithPermission(B)
+```
+
+If *scope/target* differs (staff profile vs tenant profile vs project profile), prefer explicit handler names (e.g., `UpdateTenantProfile`) to avoid hidden branching and to make intent obvious in search results.
+
+Indicators you should keep one handler:
+- Same actor (all operations performed by Staff, or all by Tenant)
+- Same middleware + same route group
+- Operations are identical except for filtering (e.g., `ProfileScope`, `Status`)
+- Service logic can be parameterized by an enum/discriminator
+
+##### Permission Enforcement (More Detail)
+
+**Default rule:** enforce permissions **before** doing database work.
+
+**Pattern 1 (Preferred): scope in route + `.WithPermission()`**
+- Use when scope can be derived from the route shape.
+- Benefits: permission checked before DB query; API intent is explicit; avoids wasted queries.
+
+Example route shapes (entity-centric, symmetric):
+
+```
+GET    /staff/profiles/staff                     # list staff profiles
+GET    /staff/profiles/staff/{profileId}         # get staff profile
+POST   /staff/profiles/staff                     # create staff profile
+PUT    /staff/profiles/staff/{profileId}         # update staff profile
+DELETE /staff/profiles/staff/{profileId}         # delete staff profile
+
+GET    /staff/profiles/tenants                   # list tenant profiles
+GET    /staff/profiles/tenants/{tenantId}        # get tenant profiles for tenant
+POST   /staff/profiles/tenants/{tenantId}        # create tenant profile for tenant
+PUT    /staff/profiles/tenants/{tenantId}        # update tenant profile for tenant
+DELETE /staff/profiles/tenants/{tenantId}        # delete tenant profile for tenant
+```
+
+Permission naming guidance (stable + predictable):
+
+```
+staff.profile.list_for_staff
+staff.profile.get_for_tenant
+staff.profile.update_for_project
+```
+
+**Pattern 2 (Fallback): dynamic permission check after loading entity**
+- Avoid if possible. Use only when scope cannot be determined from the route and you cannot change the route shape.
+- Cost: requires loading the entity first; wastes a DB query if unauthorized; permission is no longer encoded by the route.
+
+##### Decision Tree (Quick)
+
+```
+Is the operation performed by different actors (Staff vs Tenant)?
+|
+|-- YES -> Keep same domain module, split by actor folders + endpoints
+|
+`-- NO  -> Is the difference just a data attribute/scope filter?
+          |
+          |-- YES -> Keep one handler/service; parameterize by enum/discriminator
+          |         |
+          |         `-- Prefer Pattern 1: scope in route + .WithPermission()
+          |             (Only use Pattern 2 if scope cannot be in the route)
+          |
+          `-- NO  -> If business rules diverge, split handlers/services inside the domain
+```
 
 ### Multi-Tenant Architecture
 
@@ -318,23 +468,23 @@ export const loader = async ({ apiClient }) => {
 // Step 1: Define hook in app/lib/react-query/features/staff/staff-member.hooks.ts
 import { createStaffQuery } from '../../create-hooks';
 
-export const useFindStaffMember = createStaffQuery({
+export const useFindStaffUser = createStaffQuery({
   queryKeyFn: (client) => client.staff.staffMembers.get,
   fetcher: async (client, params: { page?: number }) => {
     const result = await client.staff.staffMembers.get({
       queryParameters: { page: params.page?.toString() },
     });
-    if (_.isNil(result)) throw new Error('useFindStaffMember: result is nil');
+    if (_.isNil(result)) throw new Error('useFindStaffUser: result is nil');
     return result;
   },
 });
 
 // Step 2: Use hook in component
 // File: app/routes/authed/staff/members-page.tsx
-import { useFindStaffMember } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import { useFindStaffUser } from '@/front/lib/react-query/features/staff/staff-member.hooks';
 
-function StaffMembersPage() {
-  const { data, isLoading } = useFindStaffMember({ variables: { page: 1 } });
+function StaffUsersPage() {
+  const { data, isLoading } = useFindStaffUser({ variables: { page: 1 } });
   return <div>{/* render */}</div>;
 }
 
@@ -390,8 +540,8 @@ export const clientLoader = getClientLoader({
 
     // Prefetch using react-query-kit hooks
     await queryClient.prefetchQuery({
-      queryKey: useFindStaffMember.getKey({ page: 1 }),
-      queryFn: () => useFindStaffMember.fetcher({ page: 1 }),
+      queryKey: useFindStaffUser.getKey({ page: 1 }),
+      queryFn: () => useFindStaffUser.fetcher({ page: 1 }),
     });
 
     return null;
@@ -464,16 +614,170 @@ using static PublyApp.Api.Generated.ResponseKeys;
 return TypedProblems.BadRequest("Validation failed", ValidationError);
 ```
 
-### API Routes
+### API Routes & Endpoint Path Design
 
-**Backend route patterns:**
+This section defines the canonical endpoint path structure for the PublyApp API.
+
+#### Two API Scopes
+
+| Scope | Prefix | Auth | Tenant Context |
+|-------|--------|------|----------------|
+| **Staff API** | `/staff/...` | Staff session + authorization | Explicit via `{tenantId}` in path |
+| **Tenant API** | `/...` (root) | Tenant session + authorization | Implicit from `X-Tenant-Id` header |
+| **Anonymous** | `/auth/...`, `/invitations/...` | None | None |
+
+#### Staff API Structure (`/staff/*`)
+
+Staff (platform administrators) access resources with explicit tenant context:
+
 ```
-/auth/*           # Authentication (login, register, password reset)
-/staff/*          # Staff-specific endpoints
-/tenant/*         # Tenant-specific endpoints
+/staff/
+├── tenants/                         # Tenant management
+│   ├── GET    /                     # List all tenants
+│   ├── POST   /                     # Create tenant
+│   ├── GET    /{tenantId}           # Get tenant
+│   └── {tenantId}/                  # Tenant-scoped resources
+│       ├── users/                   # Users in this tenant
+│       │   ├── GET    /             # List tenant users
+│       │   ├── POST   /             # Create tenant user
+│       │   ├── GET    /{userId}     # Get tenant user
+│       │   └── ...
+│       ├── invitations/             # Invitations for this tenant
+│       │   ├── GET    /             # List tenant invitations
+│       │   ├── POST   /             # Create tenant invitation
+│       │   └── ...
+│       ├── posts/                   # Posts in this tenant (future)
+│       └── [other-slices]/          # Other tenant resources
+│
+├── users/                           # Staff member management
+│   ├── GET    /                     # List staff members
+│   ├── POST   /                     # Create staff member
+│   ├── GET    /{userId}             # Get staff member
+│   └── ...
+│
+├── invitations/                     # Staff invitations
+│   ├── GET    /                     # List staff invitations
+│   ├── POST   /                     # Create staff invitation
+│   └── ...
+│
+├── profiles/                        # Staff profiles/roles
+├── permissions/                     # Permission management
+└── [other-staff-slices]/            # Other staff-only resources
 ```
 
-Routes defined in `apps/api/Src/Lib/RoutePath.cs` and frontend in `packages/shared/lib/constants.ts`.
+#### Tenant API Structure (`/` root)
+
+Tenant users access their own resources with implicit tenant context from header:
+
+```
+/                                    # Tenant API (tenantId from X-Tenant-Id header)
+├── me                               # Current user profile
+├── users/                           # Users in my tenant
+│   ├── GET    /                     # List users
+│   ├── POST   /invite               # Invite user
+│   └── ...
+├── posts/                           # Posts in my tenant (future)
+│   ├── GET    /                     # List my posts
+│   ├── POST   /                     # Create post
+│   ├── GET    /{postId}             # Get post
+│   └── ...
+├── workspaces/                      # Workspaces (future)
+└── [other-tenant-slices]/           # Other tenant resources
+```
+
+#### Anonymous Routes
+
+```
+/auth/                               # Authentication
+├── POST   /login                    # Login
+├── POST   /register                 # Register
+├── GET    /user-auth-data           # Get auth data (requires session)
+├── POST   /reset-password           # Reset password
+└── ...
+
+/invitations/                        # Public invitation acceptance
+├── GET    /{token}/details          # Get invitation details
+├── POST   /{token}/accept           # Accept invitation
+└── GET    /check                    # Check token validity
+```
+
+#### Design Principles
+
+1. **Symmetry**: Same resource names (`users`, `invitations`, `posts`) appear in both APIs
+   - `/staff/tenants/{tenantId}/users` — Staff managing tenant's users
+   - `/staff/users` — Staff managing staff members
+   - `/users` — Tenant managing their own users
+
+2. **Explicit vs Implicit Tenant**:
+   - Staff API: Tenant is **explicit** in path (`/staff/tenants/{tenantId}/...`)
+   - Tenant API: Tenant is **implicit** from header (just `/users`, `/posts`)
+
+3. **Predictable Nesting**:
+   - Staff managing tenant X? Always `/staff/tenants/{x}/...`
+   - Staff-only resources? Always `/staff/[resource]/...`
+   - Tenant self-service? Always `/[resource]/...`
+
+4. **Flat Resource Access**:
+   - When ID is known, allow direct access: `/staff/users/{userId}` (shortcut)
+   - Listing requires context: `/staff/tenants/{tenantId}/users` (scoped)
+
+#### Route Constants Location
+
+Routes are defined as C# constants in partial classes:
+- Base routes: `apps/api/Src/Lib/Routes/Routes.cs`
+- Domain routes: `apps/api/Src/Modules/<Domain>/Routes.<Domain>.cs`
+
+```csharp
+// Example: Routes.Users.cs
+public static partial class Routes {
+    public static class Users {
+        // Staff managing staff members
+        public static class ForStaff {
+            public const string Root = "/staff/users";
+            public const string Create = $"{Root}/";
+            public const string Find = $"{Root}/";
+        }
+
+        // Staff managing tenant users
+        public static class ForTenantAsStaff {
+            public const string Root = "/staff/tenants/{tenantId}/users";
+            public static string RootFn(string tenantId) => $"/staff/tenants/{tenantId}/users";
+        }
+
+        // Tenant API (self-service)
+        public static class ForTenant {
+            public const string Root = "/users";
+            public const string Find = $"{Root}/";
+        }
+    }
+}
+```
+
+#### Handler & Endpoint Naming Convention
+
+| Context | Handler Suffix | Endpoint File |
+|---------|---------------|---------------|
+| Staff managing staff resources | `*ForStaff` | `*EndpointsForStaff.cs` |
+| Staff managing tenant resources | `*ForTenantAsStaff` | `*EndpointsForTenantAsStaff.cs` |
+| Tenant self-service | `*ForTenant` | `*EndpointsForTenant.cs` |
+| Anonymous/public | `*Anonymous` | `*EndpointsAnonymous.cs` |
+
+#### Adding a New Domain Slice
+
+When adding a new domain (e.g., `Posts`):
+
+1. Create route constants: `Modules/Posts/Routes.Posts.cs`
+2. Create endpoints for each scope needed:
+   - `PostsEndpointsForStaff.cs` — Staff managing their own posts (if applicable)
+   - `PostsEndpointsForTenantAsStaff.cs` — Staff managing tenant posts
+   - `PostsEndpointsForTenant.cs` — Tenant self-service
+3. Create handlers in corresponding folders:
+   - `Handlers/Staff/` — Staff handlers
+   - `Handlers/Tenant/` — Tenant handlers
+4. Register in `Program.cs`:
+   - `staffGroup.MapPostsEndpointsForStaff();`
+   - `staffGroup.MapPostsEndpointsForTenantAsStaff();`
+   - `tenantGroup.MapPostsEndpointsForTenant();`
 
 ## Frontend Coding Standards
 
@@ -860,10 +1164,10 @@ const form = useForm<FormData>({
 **Pattern:**
 ```tsx
 // ❌ WRONG - Manual conditional rendering
-import { useFindStaffMembers } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import { useFindStaffUsers } from '@/front/lib/react-query/features/staff/staff-member.hooks';
 
-function StaffMembersPage() {
-  const { data, isLoading, isError, error } = useFindStaffMembers();
+function StaffUsersPage() {
+  const { data, isLoading, isError, error } = useFindStaffUsers();
 
   if (isLoading) {
     return <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -880,10 +1184,10 @@ function StaffMembersPage() {
 
 // ✅ CORRECT - Using QueryDisplay component
 import QueryDisplay from '@/front/components/query-display';
-import { useFindStaffMembers } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import { useFindStaffUsers } from '@/front/lib/react-query/features/staff/staff-member.hooks';
 
-function StaffMembersPage() {
-  const query = useFindStaffMembers();
+function StaffUsersPage() {
+  const query = useFindStaffUsers();
 
   return (
     <QueryDisplay
@@ -1116,12 +1420,12 @@ var results = await Task.WhenAll(tasks);
 
 ```csharp
 // ✅ CORRECT - Everything in one file: Handler + DTOs + Validators
-// File: apps/api/Src/Modules/Staff/Invitations/Handlers/CreateStaffInvitation.cs
+// File: apps/api/Src/Modules/Invitations/Handlers/Staff/CreateStaffInvitation.cs
 
 using FluentValidation;
 using System.Text.Json;
 
-namespace MainApi.Src.Features.Staff.Invitations.Handlers;
+namespace MainApi.Src.Modules.Invitations.Handlers.Staff;
 
 // Request DTO (Body suffix for request body, Query suffix for query params)
 public record CreateStaffInvitationBody {
@@ -1675,7 +1979,7 @@ Error responses:
 **Default behavior (no code needed):**
 ```typescript
 // ✅ Errors auto-toast - no onError handler required
-const { mutate } = useCreateStaffMember();
+const { mutate } = useCreateStaffUser();
 mutate(data);
 ```
 
@@ -1684,7 +1988,7 @@ mutate(data);
 import { withFormValidation } from '@/front/lib/api-failure';
 
 // ✅ Field errors mapped to form, other errors still toast
-const { mutate } = useCreateStaffMember(
+const { mutate } = useCreateStaffUser(
   withFormValidation(form.setError, {
     meta: { showSuccessToast: true },
     onSuccess: () => navigate('/staff'),
