@@ -375,6 +375,15 @@ export function createCreateTenantAsStaffResultFromDiscriminatorValue(parseNode:
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindStaffInvitationsResult}
+ */
+// @ts-ignore
+export function createFindStaffInvitationsResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindStaffInvitationsResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {FindStaffProfilesResult}
  */
 // @ts-ignore
@@ -407,6 +416,15 @@ export function createFindTenantProfilesAsStaffResultFromDiscriminatorValue(pars
 // @ts-ignore
 export function createGetRedirectCodeResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoGetRedirectCodeResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {GetStaffInvitationLinkResult}
+ */
+// @ts-ignore
+export function createGetStaffInvitationLinkResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetStaffInvitationLinkResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -579,6 +597,24 @@ export interface CreateStaffInvitationBody extends AdditionalDataHolder, Parsabl
      * The profileId property
      */
     profileId?: UntypedNode | null;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {StaffInvitationDetails}
+ */
+// @ts-ignore
+export function createStaffInvitationDetailsFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoStaffInvitationDetails;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {StaffInvitationProfile}
+ */
+// @ts-ignore
+export function createStaffInvitationProfileFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoStaffInvitationProfile;
 }
 export interface CreateStaffProfileBody extends AdditionalDataHolder, Parsable {
     /**
@@ -1254,6 +1290,18 @@ export function deserializeIntoCreateTenantAsStaffResult(createTenantAsStaffResu
 }
 /**
  * The deserialization information for the current model
+ * @param FindStaffInvitationsResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindStaffInvitationsResult(findStaffInvitationsResult: Partial<FindStaffInvitationsResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "data": n => { findStaffInvitationsResult.data = n.getCollectionOfObjectValues<InvitationListItem>(createInvitationListItemFromDiscriminatorValue); },
+        "nextCursor": n => { findStaffInvitationsResult.nextCursor = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param FindStaffProfilesResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -1297,6 +1345,17 @@ export function deserializeIntoFindTenantProfilesAsStaffResult(findTenantProfile
 export function deserializeIntoGetRedirectCodeResult(getRedirectCodeResult: Partial<GetRedirectCodeResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "redirectCode": n => { getRedirectCodeResult.redirectCode = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param GetStaffInvitationLinkResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoGetStaffInvitationLinkResult(getStaffInvitationLinkResult: Partial<GetStaffInvitationLinkResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "link": n => { getStaffInvitationLinkResult.link = n.getStringValue(); },
     }
 }
 /**
@@ -1415,6 +1474,7 @@ export function deserializeIntoInvitationDetails(invitationDetails: Partial<Invi
 // @ts-ignore
 export function deserializeIntoInvitationListItem(invitationListItem: Partial<InvitationListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "acceptedAt": n => { invitationListItem.acceptedAt = n.getDateValue(); },
         "createdAt": n => { invitationListItem.createdAt = n.getDateValue(); },
         "email": n => { invitationListItem.email = n.getStringValue(); },
         "expiresAt": n => { invitationListItem.expiresAt = n.getDateValue(); },
@@ -1536,6 +1596,38 @@ export function deserializeIntoResetPasswordBody(resetPasswordBody: Partial<Rese
 export function deserializeIntoResetPasswordResult(resetPasswordResult: Partial<ResetPasswordResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "status": n => { resetPasswordResult.status = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param StaffInvitationDetails The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoStaffInvitationDetails(staffInvitationDetails: Partial<StaffInvitationDetails> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "acceptedAt": n => { staffInvitationDetails.acceptedAt = n.getDateValue(); },
+        "createdAt": n => { staffInvitationDetails.createdAt = n.getDateValue(); },
+        "email": n => { staffInvitationDetails.email = n.getStringValue(); },
+        "expiresAt": n => { staffInvitationDetails.expiresAt = n.getDateValue(); },
+        "id": n => { staffInvitationDetails.id = n.getGuidValue(); },
+        "invitedByName": n => { staffInvitationDetails.invitedByName = n.getStringValue(); },
+        "invitedByUserId": n => { staffInvitationDetails.invitedByUserId = n.getGuidValue(); },
+        "profiles": n => { staffInvitationDetails.profiles = n.getCollectionOfObjectValues<StaffInvitationProfile>(createStaffInvitationProfileFromDiscriminatorValue); },
+        "revokedAt": n => { staffInvitationDetails.revokedAt = n.getDateValue(); },
+        "status": n => { staffInvitationDetails.status = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param StaffInvitationProfile The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoStaffInvitationProfile(staffInvitationProfile: Partial<StaffInvitationProfile> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "id": n => { staffInvitationProfile.id = n.getGuidValue(); },
+        "name": n => { staffInvitationProfile.name = n.getStringValue(); },
     }
 }
 /**
@@ -1841,6 +1933,16 @@ export function deserializeIntoVerifyEmailRequestResult(verifyEmailRequestResult
         "status": n => { verifyEmailRequestResult.status = n.getStringValue(); },
     }
 }
+export interface FindStaffInvitationsResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The data property
+     */
+    data?: InvitationListItem[] | null;
+    /**
+     * The nextCursor property
+     */
+    nextCursor?: string | null;
+}
 export interface FindStaffProfilesResult extends AdditionalDataHolder, Parsable {
     /**
      * The data property
@@ -1876,6 +1978,12 @@ export interface GetRedirectCodeResult extends AdditionalDataHolder, Parsable {
      * The redirectCode property
      */
     redirectCode?: string | null;
+}
+export interface GetStaffInvitationLinkResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The link property
+     */
+    link?: string | null;
 }
 export interface GetStaffUserByIdResult extends AdditionalDataHolder, Parsable {
     /**
@@ -2006,6 +2114,10 @@ export interface InvitationDetails extends AdditionalDataHolder, Parsable {
     profileName?: string | null;
 }
 export interface InvitationListItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The acceptedAt property
+     */
+    acceptedAt?: Date | null;
     /**
      * The createdAt property
      */
@@ -2519,6 +2631,19 @@ export function serializeCreateTenantAsStaffResult(writer: SerializationWriter, 
 }
 /**
  * Serializes information the current object
+ * @param FindStaffInvitationsResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindStaffInvitationsResult(writer: SerializationWriter, findStaffInvitationsResult: Partial<FindStaffInvitationsResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findStaffInvitationsResult || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<InvitationListItem>("data", findStaffInvitationsResult.data, serializeInvitationListItem);
+    writer.writeStringValue("nextCursor", findStaffInvitationsResult.nextCursor);
+    writer.writeAdditionalData(findStaffInvitationsResult.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param FindStaffProfilesResult The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -2567,6 +2692,18 @@ export function serializeGetRedirectCodeResult(writer: SerializationWriter, getR
     if (!getRedirectCodeResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("redirectCode", getRedirectCodeResult.redirectCode);
     writer.writeAdditionalData(getRedirectCodeResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param GetStaffInvitationLinkResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeGetStaffInvitationLinkResult(writer: SerializationWriter, getStaffInvitationLinkResult: Partial<GetStaffInvitationLinkResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getStaffInvitationLinkResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("link", getStaffInvitationLinkResult.link);
+    writer.writeAdditionalData(getStaffInvitationLinkResult.additionalData);
 }
 /**
  * Serializes information the current object
@@ -2693,6 +2830,7 @@ export function serializeInvitationDetails(writer: SerializationWriter, invitati
 // @ts-ignore
 export function serializeInvitationListItem(writer: SerializationWriter, invitationListItem: Partial<InvitationListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!invitationListItem || isSerializingDerivedType) { return; }
+    writer.writeDateValue("acceptedAt", invitationListItem.acceptedAt);
     writer.writeDateValue("createdAt", invitationListItem.createdAt);
     writer.writeStringValue("email", invitationListItem.email);
     writer.writeDateValue("expiresAt", invitationListItem.expiresAt);
@@ -2824,6 +2962,40 @@ export function serializeResetPasswordResult(writer: SerializationWriter, resetP
     if (!resetPasswordResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("status", resetPasswordResult.status);
     writer.writeAdditionalData(resetPasswordResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param StaffInvitationDetails The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeStaffInvitationDetails(writer: SerializationWriter, staffInvitationDetails: Partial<StaffInvitationDetails> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!staffInvitationDetails || isSerializingDerivedType) { return; }
+    writer.writeDateValue("acceptedAt", staffInvitationDetails.acceptedAt);
+    writer.writeDateValue("createdAt", staffInvitationDetails.createdAt);
+    writer.writeStringValue("email", staffInvitationDetails.email);
+    writer.writeDateValue("expiresAt", staffInvitationDetails.expiresAt);
+    writer.writeGuidValue("id", staffInvitationDetails.id);
+    writer.writeStringValue("invitedByName", staffInvitationDetails.invitedByName);
+    writer.writeGuidValue("invitedByUserId", staffInvitationDetails.invitedByUserId);
+    writer.writeCollectionOfObjectValues<StaffInvitationProfile>("profiles", staffInvitationDetails.profiles, serializeStaffInvitationProfile);
+    writer.writeDateValue("revokedAt", staffInvitationDetails.revokedAt);
+    writer.writeStringValue("status", staffInvitationDetails.status);
+    writer.writeAdditionalData(staffInvitationDetails.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param StaffInvitationProfile The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeStaffInvitationProfile(writer: SerializationWriter, staffInvitationProfile: Partial<StaffInvitationProfile> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!staffInvitationProfile || isSerializingDerivedType) { return; }
+    writer.writeGuidValue("id", staffInvitationProfile.id);
+    writer.writeStringValue("name", staffInvitationProfile.name);
+    writer.writeAdditionalData(staffInvitationProfile.additionalData);
 }
 /**
  * Serializes information the current object
@@ -3139,6 +3311,58 @@ export function serializeVerifyEmailRequestResult(writer: SerializationWriter, v
     if (!verifyEmailRequestResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("status", verifyEmailRequestResult.status);
     writer.writeAdditionalData(verifyEmailRequestResult.additionalData);
+}
+export interface StaffInvitationDetails extends AdditionalDataHolder, Parsable {
+    /**
+     * The acceptedAt property
+     */
+    acceptedAt?: Date | null;
+    /**
+     * The createdAt property
+     */
+    createdAt?: Date | null;
+    /**
+     * The email property
+     */
+    email?: string | null;
+    /**
+     * The expiresAt property
+     */
+    expiresAt?: Date | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The invitedByName property
+     */
+    invitedByName?: string | null;
+    /**
+     * The invitedByUserId property
+     */
+    invitedByUserId?: Guid | null;
+    /**
+     * The profiles property
+     */
+    profiles?: StaffInvitationProfile[] | null;
+    /**
+     * The revokedAt property
+     */
+    revokedAt?: Date | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
+}
+export interface StaffInvitationProfile extends AdditionalDataHolder, Parsable {
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The name property
+     */
+    name?: string | null;
 }
 export interface StaffProfileCreated extends AdditionalDataHolder, Parsable {
     /**
