@@ -3,6 +3,7 @@ import Button from '@mui/material/Button';
 import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import InputLabel from '@mui/material/InputLabel';
+import Link from '@mui/material/Link';
 import ListItemText from '@mui/material/ListItemText';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
@@ -291,10 +292,18 @@ const EmailCell: MRT_ColumnDef<StaffInvitationRowData, string>['Cell'] = (
 	return (
 		<ListItemText
 			primary={email || '-'}
-			secondary={id}
+			secondary={
+				<Link
+					component={RouterLink}
+					href={FRONT_PATH_NAMES.staff.invitations.details(id)}
+					underline="hover"
+					sx={{ color: 'text.disabled', fontSize: '0.75rem' }}
+				>
+					{id}
+				</Link>
+			}
 			slotProps={{
 				primary: { noWrap: true },
-				secondary: { sx: { color: 'text.disabled', fontSize: '0.75rem' } },
 			}}
 		/>
 	);
