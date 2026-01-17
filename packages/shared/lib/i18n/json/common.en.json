@@ -295,6 +295,7 @@
 	"expiry-date": "Expiry date",
 	"resend-invitation": "Resend invitation",
 	"revoke-invitation": "Revoke invitation",
+	"confirm-revoke-invitation": "Are you sure you want to revoke this invitation?",
 	"invitation-id": "Invitation ID",
 	"accepted": "Accepted",
 	"expired": "Expired",
