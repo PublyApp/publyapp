@@ -41,6 +41,14 @@ public static class InvitationEndpointsForStaff {
 			.WithReqQueryValidation<FindStaffInvitationsQuery>();
 
 		group.MapGet(
+				Routes.Invitations.ForStaff.GetById,
+				GetStaffInvitation.HandleGetStaffInvitation
+			)
+			.WithName("GetStaffInvitation")
+			.WithSummary("Get staff invitation details")
+			.WithPermission([AppPermissions.Staff.Invitations.GET_FOR_STAFF]);
+
+		group.MapGet(
 				Routes.Invitations.ForStaff.GetLinkById,
 				GetStaffInvitationLink.HandleGetStaffInvitationLink
 			)
