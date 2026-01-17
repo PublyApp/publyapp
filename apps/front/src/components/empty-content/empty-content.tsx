@@ -89,7 +89,7 @@ export const EmptyContent = ({
 				</Typography>
 			)}
 
-			{action && action}
+			{action}
 		</ContentRoot>
 	);
 };
