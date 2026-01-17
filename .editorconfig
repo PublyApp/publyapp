@@ -71,3 +71,8 @@ dotnet_diagnostic.CS1591.severity = none
 dotnet_diagnostic.CA1848.severity = none
 # CA1062: Validate arguments of public methods
 dotnet_diagnostic.CA1873.severity = warning
+
+# EF Core Migrations - auto-generated code
+[**/Migrations/*.cs]
+# Disable unnecessary using directive check for generated migrations
+dotnet_diagnostic.IDE0005.severity = none
