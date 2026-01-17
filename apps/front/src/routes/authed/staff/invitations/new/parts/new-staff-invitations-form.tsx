@@ -1,15 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardHeader from '@mui/material/CardHeader';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
+import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import type { z as zod } from 'zod';
 
@@ -21,9 +23,10 @@ import { toast } from '@/front/components/snackbar';
 import { useRouter } from '@/front/hooks/use-router';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { toApiFailure } from '@/front/lib/api-failure';
 import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
 import {
-	useBulkCreateInvitations,
+	useBulkCreateStaffInvitations,
 	useFindStaffInvitations,
 } from '@/front/lib/react-query/features/staff/staff-invitation.hooks';
 import { useFindStaffProfiles } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
@@ -51,6 +54,7 @@ const NewStaffInvitationsForm = () => {
 	const queryClient = useQueryClient();
 	const actionsRef = useRef<HTMLDivElement>(null);
 	const previousFieldsCount = useRef(1);
+	const [serverErrors, setServerErrors] = useState<string[]>([]);
 
 	const BulkInvitationsSchema = getBulkCreateInvitationsSchema(interZodClient);
 
@@ -85,27 +89,44 @@ const NewStaffInvitationsForm = () => {
 		variables: {},
 	});
 
-	const { mutate: createInvitations, isPending } = useBulkCreateInvitations({
-		onSuccess: (data) => {
-			const createdCount = getUntypedNumber(data?.created, 0);
-			toast.success(
-				t('invitations-sent-successfully', {
-					count: createdCount,
-					defaultValue: `${createdCount} invitation(s) sent successfully`,
-				}),
-			);
-			queryClient.invalidateQueries({
-				queryKey: useFindStaffInvitations.getKey(),
-			});
-			form.reset();
-			router.push(FRONT_PATH_NAMES.staff.invitations.root);
-		},
-		// Error toasts handled by global handler automatically
-	});
+	const { mutate: createInvitations, isPending } =
+		useBulkCreateStaffInvitations({
+			onSuccess: (data) => {
+				setServerErrors([]);
+				const createdCount = getUntypedNumber(data?.created, 0);
+				toast.success(
+					t('invitations-sent-successfully', {
+						count: createdCount,
+						defaultValue: `${createdCount} invitation(s) sent successfully`,
+					}),
+				);
+				queryClient.invalidateQueries({
+					queryKey: useFindStaffInvitations.getKey(),
+				});
+				form.reset();
+				router.push(FRONT_PATH_NAMES.staff.invitations.root);
+			},
+			onError: (error) => {
+				const failure = toApiFailure(error);
+				if (failure.kind === 'validation') {
+					// Extract all error messages from the validation failure
+					const errors = Object.values(failure.fieldErrors).flat();
+					setServerErrors(errors);
+				} else {
+					// For non-validation errors, show the detail or a fallback message
+					setServerErrors([
+						failure.kind === 'problem'
+							? (failure.detail ?? 'An error occurred')
+							: 'An unexpected error occurred',
+					]);
+				}
+			},
+		});
 
 	const onSubmit = form.handleSubmit(
 		(data) => {
 			logger.debug('Submitting bulk invitations', { data });
+			setServerErrors([]); // Clear previous errors before submitting
 			createInvitations(data);
 		},
 		(errors) => {
@@ -165,7 +186,53 @@ const NewStaffInvitationsForm = () => {
 				spacing={{ xs: 3, md: 5 }}
 				sx={{ mx: 'auto', maxWidth: { xs: 720, xl: 880 } }}
 			>
-				<QueryDisplay query={profilesQuery}>
+				{serverErrors.length > 0 && (
+					<Alert
+						severity="error"
+						onClose={() => setServerErrors([])}
+						sx={{ lineHeight: 2 }}
+					>
+						{serverErrors.length === 1 ? (
+							serverErrors[0]
+						) : (
+							<Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+								{serverErrors.map((error) => (
+									<Box component="li" key={error}>
+										{error}
+									</Box>
+								))}
+							</Box>
+						)}
+					</Alert>
+				)}
+				<QueryDisplay
+					query={profilesQuery}
+					LoadingSlot={() => (
+						<Card>
+							<CardHeader
+								title={<Skeleton variant="text" width={150} />}
+								subheader={<Skeleton variant="text" width={220} />}
+								sx={{ mb: 3 }}
+							/>
+							<Divider />
+							<Stack spacing={3} sx={{ p: 3 }}>
+								<Skeleton variant="rounded" height={35} />
+								<Stack spacing={1.5}>
+									<Skeleton variant="rounded" height={35} />
+									<Skeleton variant="text" width={180} />
+								</Stack>
+							</Stack>
+						</Card>
+					)}
+					ErrorSlot={({ error }) => {
+						const failure = toApiFailure(error);
+						const message =
+							failure.kind === 'problem' && failure.detail
+								? failure.detail
+								: t('error', { defaultValue: 'Failed to load profiles' });
+						return <Alert severity="error">{message}</Alert>;
+					}}
+				>
 					{({ data }) => {
 						const profiles = _.get(data, 'data', []);
 						const profileOptions = _.map(profiles, (profile) => ({

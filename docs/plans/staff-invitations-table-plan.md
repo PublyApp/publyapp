@@ -24,7 +24,7 @@ Implement a full-featured staff invitations table with extended columns, status 
 
 | Component | Location | Status |
 |-----------|----------|--------|
-| Hooks | `apps/front/src/lib/react-query/features/staff/staff-invitation.hooks.ts` | useFindStaffInvitations (no pagination), useCreateInvitation, useBulkCreateInvitations, useRevokeInvitation |
+| Hooks | `apps/front/src/lib/react-query/features/staff/staff-invitation.hooks.ts` | useFindStaffInvitations (no pagination), useCreateStaffInvitation, useBulkCreateStaffInvitations, useRevokeInvitation |
 | Table | `apps/front/src/routes/authed/staff/invitations/list/parts/staff-invitations-table.tsx` | **Stub only** (`<div>staff-invitations-page</div>`) |
 | List Page | `apps/front/src/routes/authed/staff/invitations/list/staff-invitations-list-page.tsx` | Scaffolded, not wired |
 | Details Page | `apps/front/src/routes/authed/staff/invitations/details/staff-invitation-details-page.tsx` | Scaffolded with mock data |

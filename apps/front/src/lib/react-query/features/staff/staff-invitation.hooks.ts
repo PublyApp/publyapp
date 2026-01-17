@@ -58,7 +58,7 @@ type CreateInvitationPayload = {
 	profileId: string;
 };
 
-export const useCreateInvitation = createStaffMutation({
+export const useCreateStaffInvitation = createStaffMutation({
 	mutationKeyFn: (client) => client.staff.invitations.post,
 	mutationFn: async (client, data: CreateInvitationPayload) => {
 		const body: CreateStaffInvitationBody = {
@@ -67,7 +67,7 @@ export const useCreateInvitation = createStaffMutation({
 		};
 		const result = await client.staff.invitations.post(body);
 		if (_.isNil(result)) {
-			throw new Error('useCreateInvitation: result is nil');
+			throw new Error('useCreateStaffInvitation: result is nil');
 		}
 		return result;
 	},
@@ -82,7 +82,7 @@ type BulkCreateInvitationsPayload = {
 	}>;
 };
 
-export const useBulkCreateInvitations = createStaffMutation({
+export const useBulkCreateStaffInvitations = createStaffMutation({
 	mutationKeyFn: (client) => client.staff.invitations.bulk.post,
 	mutationFn: async (client, data: BulkCreateInvitationsPayload) => {
 		// Use client to get request info, but make custom fetch for bulk endpoint
@@ -101,11 +101,18 @@ export const useBulkCreateInvitations = createStaffMutation({
 				[SESSION_TOKEN_HEADER_KEY]: sessionToken || '',
 			},
 		});
+
+		if (!response.ok) {
+			const errorBody = await response.json();
+			// Add responseStatusCode for compatibility with toApiFailure schema
+			throw { ...errorBody, responseStatusCode: response.status };
+		}
+
 		const result: BulkStaffInvitationsCreated | undefined =
 			await response.json();
 
 		if (_.isNil(result)) {
-			throw new Error('useBulkCreateInvitations: result is nil');
+			throw new Error('useBulkCreateStaffInvitations: result is nil');
 		}
 		return result;
 	},
