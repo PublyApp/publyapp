@@ -293,6 +293,7 @@
 	"email": "Email",
 	"sent-date": "Date d'envoi",
 	"expiry-date": "Date d'expiration",
+	"resend": "Renvoyer",
 	"resend-invitation": "Renvoyer l'invitation",
 	"revoke-invitation": "Révoquer l'invitation",
 	"confirm-revoke-invitation": "Êtes-vous sûr de vouloir révoquer cette invitation?",
@@ -301,6 +302,10 @@
 	"accepted-at": "Acceptée le",
 	"expired": "Expirée",
 	"revoked": "Révoquée",
+	"revoked-at": "Révoquée le",
+	"invitation-already-accepted": "Cette invitation a déjà été acceptée.",
+	"invitation-already-expired": "Cette invitation a expiré.",
+	"invitation-already-revoked": "Cette invitation a été révoquée.",
 	"audit-logs": "Journaux d'audit",
 	"filters": "Filtres",
 	"start-date": "Date de debut",
@@ -440,5 +445,8 @@
 	"workers": "Workers",
 	"please-try-again-or-contact-support": "Veuillez réessayer ou contacter le support si le problème persiste.",
 	"duplicate-email": "Email en double",
-	"duplicate-profile": "Profil en double selectionné"
+	"duplicate-profile": "Profil en double selectionné",
+	"invitation-not-found-description-empty": "L'invitation que vous recherchez n'existe pas.",
+	"invitation-details-error-title": "Échec du chargement des données d'invitation",
+	"invitation-details-error-description": "Nous n'avons pas pu charger les détails de l'invitation. Veuillez réessayer ou contacter le support si le problème persiste."
 }

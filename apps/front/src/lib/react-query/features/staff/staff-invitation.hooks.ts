@@ -19,6 +19,24 @@ type FindStaffInvitationsParams = {
 	status?: string;
 };
 
+// Query: Get Single Staff Invitation
+type GetStaffInvitationParams = {
+	invitationId: string;
+};
+
+export const useGetStaffInvitation = createStaffQuery({
+	queryKeyFn: (client) => client.staff.invitations.byInvitationId('').get,
+	fetcher: async (client, params: GetStaffInvitationParams) => {
+		const result = await client.staff.invitations
+			.byInvitationId(params.invitationId)
+			.get();
+		if (_.isNil(result)) {
+			throw new Error('useGetStaffInvitation: result is nil');
+		}
+		return result;
+	},
+});
+
 // Cursor-based listing with optional status filter.
 export const useFindStaffInvitations = createStaffQuery({
 	queryKeyFn: (client) => client.staff.invitations.get,

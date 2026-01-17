@@ -25,6 +25,9 @@ public static partial class Routes {
 			public const string Find = "/";
 			public const string RevokeById = "/{invitationId}";
 			public static string RevokeByIdFn(string invitationId) => $"/{invitationId}";
+			// Get single invitation details.
+			public const string GetById = "/{invitationId}";
+			public static string GetByIdFn(string invitationId) => $"/{invitationId}";
 			// Pending-only actions.
 			public const string GetLinkById = "/{invitationId}/link";
 			public static string GetLinkByIdFn(string invitationId) => $"/{invitationId}/link";

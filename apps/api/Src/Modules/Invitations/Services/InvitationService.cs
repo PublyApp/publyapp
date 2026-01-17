@@ -34,6 +34,10 @@ public interface IInvitationService {
 		Guid invitationId,
 		CancellationToken cancellationToken = default);
 
+	Task<StaffInvitationDetailsResult?> GetStaffInvitationDetailsAsync(
+		Guid invitationId,
+		CancellationToken cancellationToken = default);
+
 	Task<bool> RevokeInvitationAsync(
 		Guid invitationId,
 		CancellationToken cancellationToken = default);
@@ -124,6 +128,25 @@ public abstract record FindStaffInvitationsResult {
 public record BulkStaffInvitationItem {
 	public required string Email { get; init; }
 	public required List<Guid> ProfileIds { get; init; }
+}
+
+public record StaffInvitationProfileInfo {
+	public required Guid Id { get; init; }
+	public required string Name { get; init; }
+}
+
+public record StaffInvitationDetailsResult {
+	public required Guid Id { get; init; }
+	public required string Email { get; init; }
+	public required DateTime ExpiresAt { get; init; }
+	public DateTime? AcceptedAt { get; init; }
+	public DateTime? RevokedAt { get; init; }
+	public required bool IsAccepted { get; init; }
+	public required bool IsRevoked { get; init; }
+	public required DateTime CreatedAt { get; init; }
+	public required string InvitedByName { get; init; }
+	public required Guid InvitedByUserId { get; init; }
+	public required List<StaffInvitationProfileInfo> Profiles { get; init; }
 }
 
 public class InvitationService : IInvitationService {
@@ -251,6 +274,57 @@ public class InvitationService : IInvitationService {
 		return await _dbContext.Invitation
 			.Where(inv => inv.Id == invitationId && inv.Scope == InvitationScope.Staff)
 			.FirstOrDefaultAsync(cancellationToken);
+	}
+
+	public async Task<StaffInvitationDetailsResult?> GetStaffInvitationDetailsAsync(
+		Guid invitationId,
+		CancellationToken cancellationToken = default
+	) {
+		// Load invitation with invited-by user
+		var invitationWithInviter = await (
+			from inv in _dbContext.Invitation
+			where inv.Id == invitationId && inv.Scope == InvitationScope.Staff
+			join inviter in _dbContext.User on inv.InvitedByUserId equals inviter.Id
+			select new {
+				Invitation = inv,
+				InviterFirstName = inviter.FirstName,
+				InviterLastName = inviter.LastName
+			}
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (invitationWithInviter is null) {
+			return null;
+		}
+
+		var invitation = invitationWithInviter.Invitation;
+
+		// Load profiles for the invitation
+		var profiles = await (
+			from ip in _dbContext.InvitationProfile
+			where ip.InvitationId == invitationId
+			join p in _dbContext.Profile on ip.ProfileId equals p.Id
+			select new StaffInvitationProfileInfo {
+				Id = p.Id!.Value,
+				Name = p.Name
+			}
+		).ToListAsync(cancellationToken);
+
+		var inviterName =
+			$"{invitationWithInviter.InviterFirstName} {invitationWithInviter.InviterLastName}";
+
+		return new StaffInvitationDetailsResult {
+			Id = invitation.GetRequiredId(),
+			Email = invitation.Email,
+			ExpiresAt = invitation.ExpiresAt,
+			AcceptedAt = invitation.AcceptedAt,
+			RevokedAt = invitation.RevokedAt,
+			IsAccepted = invitation.IsAccepted,
+			IsRevoked = invitation.IsRevoked,
+			CreatedAt = invitation.CreatedAt,
+			InvitedByName = inviterName,
+			InvitedByUserId = invitation.InvitedByUserId,
+			Profiles = profiles
+		};
 	}
 
 	public async Task<bool> RevokeInvitationAsync(
