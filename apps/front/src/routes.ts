@@ -132,6 +132,7 @@ const routes = [
 						route(
 							getLastPath(
 								FRONT_PATH_NAMES.staff.invitations.details(':invitationId'),
+								2,
 							),
 							'routes/authed/staff/invitations/details/staff-invitation-details-page.tsx',
 						),

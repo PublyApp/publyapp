@@ -42,4 +42,4 @@
 
 <https://www.sendible.com>
 
-<https://contentstudio.io>
+<https://recurpost.com>
