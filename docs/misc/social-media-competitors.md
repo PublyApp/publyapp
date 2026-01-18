@@ -2,6 +2,8 @@
 
 <https://www.ayrshare.com> => API
 
+<https://getlate.dev> => API
+
 <https://www.publer.com>
 
 <https://www.oneupapp.io>
@@ -52,8 +54,6 @@
 
 <https://sproutsocial.com>
 
-<https://later.com>
-
 <https://www.publlish.com>
 
 <https://schedulala.com>
@@ -65,3 +65,7 @@
 <https://schedpilot.com>
 
 <https://bundle.social> => API
+
+<https://quegly.com>
+
+<https://later.com>
