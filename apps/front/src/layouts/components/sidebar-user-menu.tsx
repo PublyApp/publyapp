@@ -16,7 +16,6 @@ import { CustomPopover } from '@/front/components/custom-popover';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { logout } from '@/front/lib/cookies';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { getUserFullName } from '@/shared/utils/user.utils';
 
 // ----------------------------------------------------------------------
@@ -36,17 +35,17 @@ const menuItems = [
 	{
 		label: 'Profile',
 		icon: 'solar:user-circle-bold-duotone' as string,
-		href: FRONT_PATH_NAMES.settings.profile,
+		href: 'settings/profile',
 	},
 	{
 		label: 'Security',
 		icon: 'solar:shield-keyhole-bold-duotone' as string,
-		href: FRONT_PATH_NAMES.settings.security,
+		href: 'settings/security',
 	},
 	{
 		label: 'Notifications',
 		icon: 'solar:bell-bold-duotone' as string,
-		href: FRONT_PATH_NAMES.settings.notifications,
+		href: 'settings/notifications',
 	},
 ];
 

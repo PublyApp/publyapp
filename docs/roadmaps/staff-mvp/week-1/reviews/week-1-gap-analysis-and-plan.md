@@ -1,7 +1,7 @@
 # Staff MVP Week 1: Gap Analysis & Implementation Plan
 
-**Document Date:** November 2, 2025  
-**Status:** Week 1 Objectives NOT MET  
+**Document Date:** November 2, 2025
+**Status:** Week 1 Objectives NOT MET
 **Current Branch:** develop
 
 ---
@@ -39,7 +39,7 @@ From the Staff MVP Implementation Guide, Week 1 focuses on:
   - `UserAccount` entity with `AccountScope.Staff`, `AccountScope.Tenant`, `AccountScope.Project`
   - `AccountLevel` enum with `Admin` and `User` levels
   - Factory methods: `UserAccount.CreateStaffAccount()`
-  
+
 - **Seeding Infrastructure**
   - `IEntitySeeder` interface with automatic discovery
   - Existing seeders: `UserSeeder`, `UserAccountSeeder`, `PermissionSeeder`, `TenantSeeder`
@@ -62,7 +62,7 @@ From the Staff MVP Implementation Guide, Week 1 focuses on:
 - **Staff Routes**
   - `/authed/staff/dashboard` - Dashboard page
   - `/authed/staff/tenants` - Tenant management
-  - `/authed/staff/staff-members` - Staff member management
+  - `/authed/staff/staff-users` - Staff member management
   - Staff layout component
 
 - **Auth Routes**
@@ -80,19 +80,19 @@ From the Staff MVP Implementation Guide, Week 1 focuses on:
 - **`StaffInvitation`** - Track invitation lifecycle
   - Properties: Id, Email, Role, TokenHash, ExpiresAt, AcceptedAt, InvitedBy
   - Purpose: Enable invite-based onboarding
-  
+
 - **`StaffRoleAssignment`** - Explicit role system
   - Properties: StaffUserId, Role (Owner/Admin/Support), CreatedAt, RevokedAt
   - Purpose: Replace basic AccountLevel with granular roles
-  
+
 - **`StaffAuditEntry`** - Comprehensive audit logging
   - Properties: Id, StaffUserId, ActionType, TargetType, TargetId, Metadata (JSON), CreatedAt
   - Purpose: Track all staff actions for compliance
-  
+
 - **`StaffImpersonationToken`** - Secure tenant impersonation
   - Properties: Id, TenantId, StaffUserId, ExpiresAt, Reason, TokenHash
   - Purpose: Enable support team to access tenant sessions
-  
+
 - **`SystemNotice`** - Incident/maintenance banners
   - Properties: Id, Severity, Message, StartsAt, ExpiresAt, CreatedByStaffId
   - Purpose: Display operational notices to staff
@@ -189,22 +189,22 @@ namespace MainApi.Src.Features.Staff.Entities;
 public class StaffInvitation : BaseAttributes, INoTenantEntity {
     [Column("email")]
     public required string Email { get; set; }
-    
+
     [Column("role")]
     public required StaffRole Role { get; set; }
-    
+
     [Column("token_hash")]
     public required string TokenHash { get; set; }
-    
+
     [Column("expires_at")]
     public required DateTime ExpiresAt { get; set; }
-    
+
     [Column("accepted_at")]
     public DateTime? AcceptedAt { get; set; }
-    
+
     [Column("invited_by_user_id")]
     public required Guid InvitedByUserId { get; set; }
-    
+
     [JsonIgnore]
     public User InvitedByUser { get; set; } = null!;
 }
@@ -226,19 +226,19 @@ public enum StaffRole {
 public class StaffRoleAssignment : BaseAttributes, INoTenantEntity {
     [Column("staff_user_id")]
     public required Guid StaffUserId { get; set; }
-    
+
     [JsonIgnore]
     public User StaffUser { get; set; } = null!;
-    
+
     [Column("role")]
     public required StaffRole Role { get; set; }
-    
+
     [Column("revoked_at")]
     public DateTime? RevokedAt { get; set; }
-    
+
     [Column("revoked_by_user_id")]
     public Guid? RevokedByUserId { get; set; }
-    
+
     [JsonIgnore]
     public User? RevokedByUser { get; set; }
 }
@@ -256,26 +256,26 @@ public class StaffRoleAssignment : BaseAttributes, INoTenantEntity {
 public class StaffAuditEntry : BaseAttributesNoKey, INoTenantEntity {
     [Column("staff_user_id")]
     public required Guid StaffUserId { get; set; }
-    
+
     [JsonIgnore]
     public User StaffUser { get; set; } = null!;
-    
+
     [Column("action_type")]
     public required StaffActionType ActionType { get; set; }
-    
+
     [Column("target_type")]
     public required string TargetType { get; set; }  // "Tenant", "User", "StaffUser", etc.
-    
+
     [Column("target_id")]
     public Guid? TargetId { get; set; }
-    
+
     [Column("metadata")]
     [JsonPropertyName("metadata")]
     public string? Metadata { get; set; }  // JSON string
-    
+
     [Column("ip_address")]
     public string? IpAddress { get; set; }
-    
+
     [Column("user_agent")]
     public string? UserAgent { get; set; }
 }
@@ -285,24 +285,24 @@ public enum StaffActionType {
     InvitationCreated,
     InvitationAccepted,
     InvitationRevoked,
-    
+
     // Role actions
     RoleAssigned,
     RoleRevoked,
-    
+
     // Tenant actions
     TenantSuspended,
     TenantReactivated,
     TenantOnboardingReset,
-    
+
     // Impersonation actions
     ImpersonationStarted,
     ImpersonationEnded,
-    
+
     // Login actions
     LoginSucceeded,
     LoginFailed,
-    
+
     // Other
     SystemNoticeCreated,
     SystemNoticeUpdated
@@ -319,25 +319,25 @@ public enum StaffActionType {
 public class StaffImpersonationToken : BaseAttributes, INoTenantEntity {
     [Column("tenant_id")]
     public required Guid TenantId { get; set; }
-    
+
     [JsonIgnore]
     public Tenant.Tenant Tenant { get; set; } = null!;
-    
+
     [Column("staff_user_id")]
     public required Guid StaffUserId { get; set; }
-    
+
     [JsonIgnore]
     public User StaffUser { get; set; } = null!;
-    
+
     [Column("token_hash")]
     public required string TokenHash { get; set; }
-    
+
     [Column("expires_at")]
     public required DateTime ExpiresAt { get; set; }
-    
+
     [Column("reason")]
     public required string Reason { get; set; }
-    
+
     [Column("used_at")]
     public DateTime? UsedAt { get; set; }
 }
@@ -353,19 +353,19 @@ public class StaffImpersonationToken : BaseAttributes, INoTenantEntity {
 public class SystemNotice : BaseAttributes, INoTenantEntity {
     [Column("severity")]
     public required NoticeSeverity Severity { get; set; }
-    
+
     [Column("message")]
     public required string Message { get; set; }
-    
+
     [Column("starts_at")]
     public required DateTime StartsAt { get; set; }
-    
+
     [Column("expires_at")]
     public DateTime? ExpiresAt { get; set; }
-    
+
     [Column("created_by_staff_id")]
     public required Guid CreatedByStaffId { get; set; }
-    
+
     [JsonIgnore]
     public User CreatedByStaff { get; set; } = null!;
 }
@@ -438,32 +438,32 @@ namespace MainApi.Src.Features.Staff.Entities;
 
 public class OwnerSeeder : IEntitySeeder {
     private readonly ILogger<OwnerSeeder> _logger;
-    
+
     public OwnerSeeder(ILogger<OwnerSeeder>? logger = null) {
         _logger = logger ?? CreateDefaultLogger();
     }
-    
+
     private static ILogger<OwnerSeeder> CreateDefaultLogger() {
         using var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
         return loggerFactory.CreateLogger<OwnerSeeder>();
     }
-    
+
     public int Order => 35;  // After UserSeeder (30), before UserAccountSeeder (40)
-    
+
     public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
         var ownerEmail = AppEnvironment.STAFF_OWNER_EMAIL;
         var bootstrapCode = AppEnvironment.STAFF_OWNER_BOOTSTRAP_CODE;
-        
+
         // Check if owner user exists
         var existingOwner = await dbContext.User
             .Where(u => u.Email == ownerEmail)
             .FirstOrDefaultAsync(cancellationToken);
-            
+
         if (existingOwner is not null) {
             _logger.LogInformation("Owner user already exists: {Email}", ownerEmail);
             return;
         }
-        
+
         // Create owner user
         var passwordService = new PasswordService();
         var ownerUser = new User {
@@ -474,10 +474,10 @@ public class OwnerSeeder : IEntitySeeder {
             LastName = "Owner",
             IsVerified = true
         };
-        
+
         await dbContext.User.AddAsync(ownerUser, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
-        
+
         _logger.LogInformation("Created Owner user: {Email}", ownerEmail);
     }
 }
@@ -490,50 +490,50 @@ public class OwnerSeeder : IEntitySeeder {
 ```csharp
 public class OwnerAccountSeeder : IEntitySeeder {
     private readonly ILogger<OwnerAccountSeeder> _logger;
-    
+
     public OwnerAccountSeeder(ILogger<OwnerAccountSeeder>? logger = null) {
         _logger = logger ?? CreateDefaultLogger();
     }
-    
+
     private static ILogger<OwnerAccountSeeder> CreateDefaultLogger() {
         using var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
         return loggerFactory.CreateLogger<OwnerAccountSeeder>();
     }
-    
+
     public int Order => 45;  // After UserAccountSeeder (40)
-    
+
     public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
         var ownerEmail = AppEnvironment.STAFF_OWNER_EMAIL;
-        
+
         // Get owner user
         var ownerUser = await dbContext.User
             .Where(u => u.Email == ownerEmail)
             .FirstOrDefaultAsync(cancellationToken);
-            
+
         if (ownerUser is null || ownerUser.Id is null) {
             _logger.LogWarning("Owner user not found. Skipping Owner account creation.");
             return;
         }
-        
+
         var ownerId = ownerUser.Id.Value;
-        
+
         // Check if owner account exists
         var existingAccount = await dbContext.UserAccount
             .Where(ua => ua.UserId == ownerId && ua.Scope == AccountScope.Staff)
             .FirstOrDefaultAsync(cancellationToken);
-            
+
         if (existingAccount is null) {
             var ownerAccount = UserAccount.CreateStaffAccount(ownerId, AccountLevel.Admin);
             await dbContext.UserAccount.AddAsync(ownerAccount, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
             _logger.LogInformation("Created Owner staff account");
         }
-        
+
         // Check if owner role assignment exists
         var existingRole = await dbContext.StaffRoleAssignment
             .Where(sra => sra.StaffUserId == ownerId)
             .FirstOrDefaultAsync(cancellationToken);
-            
+
         if (existingRole is null) {
             var ownerRole = new StaffRoleAssignment {
                 StaffUserId = ownerId,
@@ -566,13 +566,13 @@ namespace MainApi.Src.Features.Staff.Auth;
 public interface IStaffAuthService {
     string GenerateInviteToken(string email, StaffRole role);
     (string Email, StaffRole Role)? ValidateInviteToken(string token);
-    
+
     string GenerateMagicLinkToken(string email);
     string? ValidateMagicLinkToken(string token);
-    
+
     string GenerateImpersonationToken(Guid tenantId, Guid staffUserId);
     (Guid TenantId, Guid StaffUserId)? ValidateImpersonationToken(string token);
-    
+
     string HashToken(string token);
 }
 
@@ -581,7 +581,7 @@ public class StaffAuthService : IStaffAuthService {
     private readonly IDataProtector _magicLinkProtector;
     private readonly IDataProtector _impersonationProtector;
     private readonly TimeProvider _timeProvider;
-    
+
     public StaffAuthService(
         IDataProtectionProvider dataProtection,
         TimeProvider? timeProvider = null
@@ -591,87 +591,87 @@ public class StaffAuthService : IStaffAuthService {
         _impersonationProtector = dataProtection.CreateProtector("StaffImpersonation");
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
-    
+
     // Invite tokens: email|role|expiresAt
     public string GenerateInviteToken(string email, StaffRole role) {
         var expiresAt = _timeProvider.GetUtcNow().AddDays(7).UtcDateTime;
         var payload = $"{email}|{(int)role}|{expiresAt:o}";
         return _inviteProtector.Protect(payload);
     }
-    
+
     public (string Email, StaffRole Role)? ValidateInviteToken(string token) {
         try {
             var payload = _inviteProtector.Unprotect(token);
             var parts = payload.Split('|');
             if (parts.Length != 3) return null;
-            
+
             var email = parts[0];
             var role = (StaffRole)int.Parse(parts[1]);
             var expiresAt = DateTime.Parse(parts[2]);
-            
+
             if (_timeProvider.GetUtcNow().UtcDateTime > expiresAt) {
                 return null;  // Expired
             }
-            
+
             return (email, role);
         } catch {
             return null;
         }
     }
-    
+
     // Magic link tokens: email|expiresAt
     public string GenerateMagicLinkToken(string email) {
         var expiresAt = _timeProvider.GetUtcNow().AddMinutes(15).UtcDateTime;
         var payload = $"{email}|{expiresAt:o}";
         return _magicLinkProtector.Protect(payload);
     }
-    
+
     public string? ValidateMagicLinkToken(string token) {
         try {
             var payload = _magicLinkProtector.Unprotect(token);
             var parts = payload.Split('|');
             if (parts.Length != 2) return null;
-            
+
             var email = parts[0];
             var expiresAt = DateTime.Parse(parts[1]);
-            
+
             if (_timeProvider.GetUtcNow().UtcDateTime > expiresAt) {
                 return null;  // Expired
             }
-            
+
             return email;
         } catch {
             return null;
         }
     }
-    
+
     // Impersonation tokens: tenantId|staffUserId|expiresAt
     public string GenerateImpersonationToken(Guid tenantId, Guid staffUserId) {
         var expiresAt = _timeProvider.GetUtcNow().AddHours(1).UtcDateTime;
         var payload = $"{tenantId}|{staffUserId}|{expiresAt:o}";
         return _impersonationProtector.Protect(payload);
     }
-    
+
     public (Guid TenantId, Guid StaffUserId)? ValidateImpersonationToken(string token) {
         try {
             var payload = _impersonationProtector.Unprotect(token);
             var parts = payload.Split('|');
             if (parts.Length != 3) return null;
-            
+
             var tenantId = Guid.Parse(parts[0]);
             var staffUserId = Guid.Parse(parts[1]);
             var expiresAt = DateTime.Parse(parts[2]);
-            
+
             if (_timeProvider.GetUtcNow().UtcDateTime > expiresAt) {
                 return null;  // Expired
             }
-            
+
             return (tenantId, staffUserId);
         } catch {
             return null;
         }
     }
-    
+
     // Hash token for database storage (SHA256)
     public string HashToken(string token) {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
@@ -733,185 +733,185 @@ namespace PublyApp.Api.Tests.Features.Staff.Auth;
 public class StaffAuthServiceTests {
     private readonly IStaffAuthService _service;
     private readonly FakeTimeProvider _timeProvider;
-    
+
     public StaffAuthServiceTests() {
         var services = new ServiceCollection();
         services.AddDataProtection();
         var provider = services.BuildServiceProvider();
-        
+
         _timeProvider = new FakeTimeProvider(new DateTimeOffset(2025, 11, 1, 12, 0, 0, TimeSpan.Zero));
         _service = new StaffAuthService(
             provider.GetRequiredService<IDataProtectionProvider>(),
             _timeProvider
         );
     }
-    
+
     [Fact]
     public void GenerateInviteToken_ShouldReturnNonEmptyString() {
         // Arrange
         var email = "test@example.com";
         var role = StaffRole.Admin;
-        
+
         // Act
         var token = _service.GenerateInviteToken(email, role);
-        
+
         // Assert
         token.Should().NotBeNullOrEmpty();
     }
-    
+
     [Fact]
     public void ValidateInviteToken_WithValidToken_ShouldReturnEmailAndRole() {
         // Arrange
         var email = "test@example.com";
         var role = StaffRole.Support;
         var token = _service.GenerateInviteToken(email, role);
-        
+
         // Act
         var result = _service.ValidateInviteToken(token);
-        
+
         // Assert
         result.Should().NotBeNull();
         result.Value.Email.Should().Be(email);
         result.Value.Role.Should().Be(role);
     }
-    
+
     [Fact]
     public void ValidateInviteToken_WithExpiredToken_ShouldReturnNull() {
         // Arrange
         var email = "test@example.com";
         var token = _service.GenerateInviteToken(email, StaffRole.Admin);
-        
+
         // Advance time by 8 days (invite expires after 7 days)
         _timeProvider.Advance(TimeSpan.FromDays(8));
-        
+
         // Act
         var result = _service.ValidateInviteToken(token);
-        
+
         // Assert
         result.Should().BeNull();
     }
-    
+
     [Fact]
     public void ValidateInviteToken_WithInvalidToken_ShouldReturnNull() {
         // Act
         var result = _service.ValidateInviteToken("invalid-token");
-        
+
         // Assert
         result.Should().BeNull();
     }
-    
+
     [Fact]
     public void GenerateMagicLinkToken_ShouldReturnNonEmptyString() {
         // Arrange
         var email = "test@example.com";
-        
+
         // Act
         var token = _service.GenerateMagicLinkToken(email);
-        
+
         // Assert
         token.Should().NotBeNullOrEmpty();
     }
-    
+
     [Fact]
     public void ValidateMagicLinkToken_WithValidToken_ShouldReturnEmail() {
         // Arrange
         var email = "test@example.com";
         var token = _service.GenerateMagicLinkToken(email);
-        
+
         // Act
         var result = _service.ValidateMagicLinkToken(token);
-        
+
         // Assert
         result.Should().Be(email);
     }
-    
+
     [Fact]
     public void ValidateMagicLinkToken_WithExpiredToken_ShouldReturnNull() {
         // Arrange
         var email = "test@example.com";
         var token = _service.GenerateMagicLinkToken(email);
-        
+
         // Advance time by 20 minutes (magic link expires after 15 minutes)
         _timeProvider.Advance(TimeSpan.FromMinutes(20));
-        
+
         // Act
         var result = _service.ValidateMagicLinkToken(token);
-        
+
         // Assert
         result.Should().BeNull();
     }
-    
+
     [Fact]
     public void HashToken_ShouldProduceDeterministicHash() {
         // Arrange
         var token = "test-token-12345";
-        
+
         // Act
         var hash1 = _service.HashToken(token);
         var hash2 = _service.HashToken(token);
-        
+
         // Assert
         hash1.Should().Be(hash2);
         hash1.Should().NotBeNullOrEmpty();
         hash1.Length.Should().Be(64);  // SHA256 hex string length
     }
-    
+
     [Fact]
     public void HashToken_DifferentTokens_ShouldProduceDifferentHashes() {
         // Arrange
         var token1 = "token-1";
         var token2 = "token-2";
-        
+
         // Act
         var hash1 = _service.HashToken(token1);
         var hash2 = _service.HashToken(token2);
-        
+
         // Assert
         hash1.Should().NotBe(hash2);
     }
-    
+
     [Fact]
     public void GenerateImpersonationToken_ShouldReturnNonEmptyString() {
         // Arrange
         var tenantId = Guid.NewGuid();
         var staffUserId = Guid.NewGuid();
-        
+
         // Act
         var token = _service.GenerateImpersonationToken(tenantId, staffUserId);
-        
+
         // Assert
         token.Should().NotBeNullOrEmpty();
     }
-    
+
     [Fact]
     public void ValidateImpersonationToken_WithValidToken_ShouldReturnTenantAndStaffId() {
         // Arrange
         var tenantId = Guid.NewGuid();
         var staffUserId = Guid.NewGuid();
         var token = _service.GenerateImpersonationToken(tenantId, staffUserId);
-        
+
         // Act
         var result = _service.ValidateImpersonationToken(token);
-        
+
         // Assert
         result.Should().NotBeNull();
         result.Value.TenantId.Should().Be(tenantId);
         result.Value.StaffUserId.Should().Be(staffUserId);
     }
-    
+
     [Fact]
     public void ValidateImpersonationToken_WithExpiredToken_ShouldReturnNull() {
         // Arrange
         var tenantId = Guid.NewGuid();
         var staffUserId = Guid.NewGuid();
         var token = _service.GenerateImpersonationToken(tenantId, staffUserId);
-        
+
         // Advance time by 2 hours (impersonation token expires after 1 hour)
         _timeProvider.Advance(TimeSpan.FromHours(2));
-        
+
         // Act
         var result = _service.ValidateImpersonationToken(token);
-        
+
         // Assert
         result.Should().BeNull();
     }
@@ -920,13 +920,13 @@ public class StaffAuthServiceTests {
 // Test helper for time manipulation
 public class FakeTimeProvider : TimeProvider {
     private DateTimeOffset _currentTime;
-    
+
     public FakeTimeProvider(DateTimeOffset startTime) {
         _currentTime = startTime;
     }
-    
+
     public override DateTimeOffset GetUtcNow() => _currentTime;
-    
+
     public void Advance(TimeSpan duration) {
         _currentTime = _currentTime.Add(duration);
     }
@@ -1070,5 +1070,5 @@ Before starting implementation:
 
 ---
 
-**Document Status:** READY FOR IMPLEMENTATION  
+**Document Status:** READY FOR IMPLEMENTATION
 **Next Action:** Review plan with stakeholders, then begin Phase 1

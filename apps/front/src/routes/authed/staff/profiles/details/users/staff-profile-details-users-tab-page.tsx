@@ -149,7 +149,7 @@ const UserCell: MRT_ColumnDef<ProfileUserRowData, string>['Cell'] = (props) => {
 			>
 				<Link
 					component={RouterLink}
-					href={FRONT_PATH_NAMES.staff.staffMembers.details(userId)}
+					href={FRONT_PATH_NAMES.staff.staffUsers.details(userId)}
 					color="inherit"
 					sx={{ cursor: 'pointer' }}
 				>
@@ -210,7 +210,7 @@ const UserActionsCell: MRT_ColumnDef<ProfileUserRowData>['Cell'] = (props) => {
 				<IconButton
 					color="default"
 					LinkComponent={RouterLink}
-					href={FRONT_PATH_NAMES.staff.staffMembers.details(userId)}
+					href={FRONT_PATH_NAMES.staff.staffUsers.details(userId)}
 				>
 					<Iconify icon="solar:eye-bold" />
 				</IconButton>

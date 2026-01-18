@@ -51,7 +51,7 @@ Simply use `paginationMode: 'cursor'` and the hook provides:
 
 Use these existing components as patterns:
 - **Primary Reference:** `apps/front/app/routes/authed/staff/tenants/list/parts/tenants-table.tsx`
-- **Secondary Reference:** `apps/front/app/routes/authed/staff/staff-members/list/parts/staff-members-table.tsx`
+- **Secondary Reference:** `apps/front/app/routes/authed/staff/staff-users/list/parts/staff-users-table.tsx`
 
 ## API Endpoint
 

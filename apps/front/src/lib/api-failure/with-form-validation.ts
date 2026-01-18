@@ -27,7 +27,7 @@ import { toApiFailure } from './to-api-failure';
  * const { mutate } = useCreateStaffUser(
  *   withFormValidation(form.setError, {
  *     meta: { showSuccessToast: true },
- *     onSuccess: () => navigate('/staff-members'),
+ *     onSuccess: () => navigate('/staff-users'),
  *     onError: (error) => {
  *       // This runs AFTER field errors are mapped
  *       // You can do additional handling here if needed

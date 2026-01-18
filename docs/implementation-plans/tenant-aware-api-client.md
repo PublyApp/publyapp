@@ -473,7 +473,7 @@ Update the "API Client Integration" section (around line 232) to document the ne
 | `apps/front/app/routes/auth/_layout/auth-layout.tsx` | Use `getClientManager().createClient()` |
 | `apps/front/app/routes/auth/login/login-page.tsx` | Use `getClientManager().createClient()` |
 | `apps/front/app/lib/react-query/features/staff/staff-tenant.hooks.ts` | Migrate to factories |
-| `apps/front/app/lib/react-query/features/staff/staff-member.hooks.ts` | Migrate to factories |
+| `apps/front/app/lib/react-query/features/staff/staff-user.hooks.ts` | Migrate to factories |
 | `apps/front/app/lib/react-query/features/staff/staff-invitation.hooks.ts` | Migrate to factories |
 | `apps/front/app/lib/react-query/features/staff/staff-profile.hooks.ts` | Migrate to factories |
 | `apps/front/app/lib/react-query/features/common/auth.hooks.ts` | Migrate to factories |

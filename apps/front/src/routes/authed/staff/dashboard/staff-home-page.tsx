@@ -86,7 +86,7 @@ const StatCard = ({ title, total, icon, color }: StatCardProps) => {
 // Mock data - static numbers for now
 const MOCK_STATS = {
 	totalTenants: 156,
-	totalStaffMembers: 24,
+	totalStaffUsers: 24,
 	activeInvitations: 8,
 	totalProfiles: 42,
 };
@@ -114,8 +114,8 @@ const StaffHomePage = () => {
 
 				<Grid size={{ xs: 12, sm: 6, md: 3 }}>
 					<StatCard
-						title={t('staff-members')}
-						total={MOCK_STATS.totalStaffMembers}
+						title={t('staff-users')}
+						total={MOCK_STATS.totalStaffUsers}
 						icon="solar:users-group-rounded-bold"
 						color="info"
 					/>

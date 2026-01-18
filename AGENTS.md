@@ -132,7 +132,7 @@ Each `apps/api/Src/Modules/<Domain>/` module is a complete vertical slice contai
 #### Module Examples
 
 - `Modules/Auth/` — session + auth flows
-- `Modules/Users/` — users + accounts (including staff-member management)
+- `Modules/Users/` — users + accounts (including staff-user management)
 - `Modules/Invitations/` — invitations and their profiles
 - `Infrastructure/Messaging/Email/` — technical capability used by multiple domains
 
@@ -421,18 +421,18 @@ Form State       → React Hook Form (local form state)
 // ❌ WRONG - Fetching application data in a server loader (authed routes)
 // File: app/routes/authed/staff/members-page.tsx
 export const loader = async ({ apiClient }) => {
-  const data = await apiClient.staff.staffMembers.get();
+  const data = await apiClient.staff.staffUsers.get();
   return { data };
 };
 
 // ✅ CORRECT - Use hook factories for authenticated pages
-// Step 1: Define hook in app/lib/react-query/features/staff/staff-member.hooks.ts
+// Step 1: Define hook in app/lib/react-query/features/staff/staff-user.hooks.ts
 import { createStaffQuery } from '../../create-hooks';
 
 export const useFindStaffUser = createStaffQuery({
-  queryKeyFn: (client) => client.staff.staffMembers.get,
+  queryKeyFn: (client) => client.staff.staffUsers.get,
   fetcher: async (client, params: { page?: number }) => {
-    const result = await client.staff.staffMembers.get({
+    const result = await client.staff.staffUsers.get({
       queryParameters: { page: params.page?.toString() },
     });
     if (_.isNil(result)) throw new Error('useFindStaffUser: result is nil');
@@ -442,7 +442,7 @@ export const useFindStaffUser = createStaffQuery({
 
 // Step 2: Use hook in component
 // File: app/routes/authed/staff/members-page.tsx
-import { useFindStaffUser } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import { useFindStaffUser } from '@/front/lib/react-query/features/staff/staff-user.hooks';
 
 function StaffUsersPage() {
   const { data, isLoading } = useFindStaffUser({ variables: { page: 1 } });
@@ -1125,7 +1125,7 @@ const form = useForm<FormData>({
 **Pattern:**
 ```tsx
 // ❌ WRONG - Manual conditional rendering
-import { useFindStaffUsers } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import { useFindStaffUsers } from '@/front/lib/react-query/features/staff/staff-user.hooks';
 
 function StaffUsersPage() {
   const { data, isLoading, isError, error } = useFindStaffUsers();
@@ -1145,7 +1145,7 @@ function StaffUsersPage() {
 
 // ✅ CORRECT - Using QueryDisplay component
 import QueryDisplay from '@/front/components/query-display';
-import { useFindStaffUsers } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import { useFindStaffUsers } from '@/front/lib/react-query/features/staff/staff-user.hooks';
 
 function StaffUsersPage() {
   const query = useFindStaffUsers();
@@ -1874,7 +1874,7 @@ public static async Task<Results<Ok<Response>, AppForbiddenHttpResult>> Handle(
 
 ### Route Naming
 
-- Backend routes use kebab-case: `/staff/staff-members`
+- Backend routes use kebab-case: `/staff/staff-users`
 - Route constants defined in `apps/api/Src/Lib/RoutePath.cs`
 - Frontend route constants in `packages/shared/lib/constants.ts`
 

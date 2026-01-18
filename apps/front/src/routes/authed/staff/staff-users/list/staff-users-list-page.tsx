@@ -1,0 +1,91 @@
+import Button from '@mui/material/Button';
+import i18next, { type TFunction } from 'i18next';
+import _ from 'lodash';
+import { data } from 'react-router';
+
+import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
+import { Iconify } from '@/front/components/iconify/iconify';
+import { RouterLink } from '@/front/components/router-link';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { DashboardContent } from '@/front/layouts/dashboard/content';
+import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
+
+import type { Route } from './+types/staff-users-list-page';
+import StaffUsersTable from './parts/staff-users-table';
+
+const getPageTitle = (t: TFunction, seo?: boolean) => {
+	let str: string = _.capitalize(
+		t('list-of-items', { items: _.toLower(t('staff-users')) }),
+	);
+
+	if (seo) {
+		str = `${str} | Staff Dashboard - ${APP_NAME}`;
+	}
+
+	return str;
+};
+
+export const meta = (args: Route.MetaArgs) => {
+	if (isServer) {
+		return _.get(args.loaderData, 'meta', []);
+	}
+
+	const t: TFunction = i18next.t;
+
+	return [
+		{
+			title: getPageTitle(t, true),
+		},
+	];
+};
+
+export const loader = getServerLoader({
+	loader: async ({ z }) => {
+		const t = z.t;
+
+		return data({
+			meta: [
+				{
+					title: getPageTitle(t, true),
+				},
+			],
+		});
+	},
+});
+
+const StaffUsersListPage = () => {
+	const { t } = useTranslate();
+
+	return (
+		<DashboardContent
+			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
+		>
+			<CustomBreadcrumbs
+				heading={getPageTitle(t as never)}
+				links={[
+					{
+						name: _.capitalize(t('staff-users')),
+						href: FRONT_PATH_NAMES.staff.staffUsers.root,
+					},
+					{ name: _.capitalize(t('list')) },
+				]}
+				action={
+					<Button
+						component={RouterLink}
+						href={FRONT_PATH_NAMES.staff.staffUsers.new}
+						variant="contained"
+						startIcon={<Iconify icon="mingcute:add-line" />}
+					>
+						{t('new-item', { item: _.toLower(t('staff-user')) })}
+					</Button>
+				}
+				sx={{ mb: { xs: 3, md: 5 } }}
+			/>
+
+			<StaffUsersTable />
+		</DashboardContent>
+	);
+};
+
+export default StaffUsersListPage;
