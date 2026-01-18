@@ -452,12 +452,14 @@ apps/front/app/lib/domain/
 
 **CRITICAL:** Data fetching strategy depends on route type:
 
-1. **Marketing Pages** (`app/routes/marketing/**`) → SSR with React Router loaders/actions
-2. **Auth Pages** (`app/routes/auth/**`) → SSR with React Router loaders/actions (hide API endpoints)
-3. **Authed Pages** (`app/routes/authed/**`) → Client-only with TanStack Query (NO SSR)
+1. **Marketing Pages** (`app/routes/marketing/**`) -> SSR with React Router loaders/actions
+2. **Auth Pages** (`app/routes/auth/**`) -> SSR with React Router loaders/actions (hide API endpoints)
+3. **Authed Pages** (`app/routes/authed/**`) -> Client-only for application data with TanStack Query (no SSR data fetching)
+
+**Allowed exception for authed pages:** You may use `loader` only for fast, non-sensitive metadata (e.g. page title/meta tags) to avoid client-side flicker. Never fetch real application data in an authed page `loader`.
 
 ```tsx
-// ❌ WRONG - Server loader in authenticated dashboard page
+// ❌ WRONG - Fetching application data in a server loader (authed routes)
 // File: app/routes/authed/staff/members-page.tsx
 export const loader = async ({ apiClient }) => {
   const data = await apiClient.staff.staffMembers.get();
