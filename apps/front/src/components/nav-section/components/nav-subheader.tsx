@@ -11,39 +11,52 @@ import { navSectionClasses } from '../styles';
 
 // ----------------------------------------------------------------------
 
-export type NavSubheaderProps = ListSubheaderProps & { open?: boolean };
+export type NavSubheaderProps = ListSubheaderProps & {
+	open?: boolean;
+	interactive?: boolean;
+};
 
-export const NavSubheader = styled(
-	({ open, children, className, ...other }: NavSubheaderProps) => {
-		return (
-			<ListSubheader
-				disableSticky
-				component="div"
-				{...other}
-				className={mergeClasses([navSectionClasses.subheader, className])}
-			>
+const NavSubheaderBase = ({
+	open,
+	interactive,
+	children,
+	className,
+	...other
+}: NavSubheaderProps) => {
+	return (
+		<ListSubheader
+			disableSticky
+			component="div"
+			{...other}
+			className={mergeClasses([navSectionClasses.subheader, className])}
+		>
+			{interactive !== false && (
 				<Iconify
 					width={16}
 					icon={
 						open ? 'eva:arrow-ios-downward-fill' : 'eva:arrow-ios-forward-fill'
 					}
 				/>
-				{children}
-			</ListSubheader>
-		);
-	},
-)(({ theme }) => {
-	return {
-		...theme.typography.overline,
+			)}
+			{children}
+		</ListSubheader>
+	);
+};
+
+export const NavSubheader = styled(NavSubheaderBase, {
+	shouldForwardProp: (prop) => prop !== 'open',
+})<NavSubheaderProps>(({ theme, interactive }) => ({
+	...theme.typography.overline,
+	alignItems: 'center',
+	position: 'relative',
+	gap: theme.spacing(1),
+	display: 'inline-flex',
+	alignSelf: 'flex-start',
+	color: 'var(--nav-subheader-color)',
+	padding: theme.spacing(2, 1, 1, 1.5),
+	fontSize: theme.typography.pxToRem(11),
+	...(interactive !== false && {
 		cursor: 'pointer',
-		alignItems: 'center',
-		position: 'relative',
-		gap: theme.spacing(1),
-		display: 'inline-flex',
-		alignSelf: 'flex-start',
-		color: 'var(--nav-subheader-color)',
-		padding: theme.spacing(2, 1, 1, 1.5),
-		fontSize: theme.typography.pxToRem(11),
 		transition: theme.transitions.create(['color', 'padding-left'], {
 			duration: theme.transitions.duration.standard,
 		}),
@@ -60,5 +73,5 @@ export const NavSubheader = styled(
 			color: 'var(--nav-subheader-hover-color)',
 			[`& .${iconifyClasses.root}`]: { opacity: 1 },
 		},
-	};
-});
+	}),
+}));

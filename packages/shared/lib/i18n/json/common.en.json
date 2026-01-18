@@ -449,5 +449,7 @@
 	"invitation-not-found-description-empty": "The invitation you are looking for does not exist.",
 	"invitation-details-error-title": "Failed to get invitation data",
 	"invitation-details-error-description": "We couldn't load the invitation details. Please try again or contact support if the problem persists.",
-	"posts-calendar": "Calendar"
+	"calendar": "Calendar",
+	"history": "History",
+	"queue": "Queue"
 }

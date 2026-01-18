@@ -57,6 +57,11 @@ export const FRONT_PATH_NAMES = {
 		return {
 			_root: makePath(RESOURCE.app),
 			root: makePath(RESOURCE.app, tenantId),
+			posts: {
+				root: makePath(RESOURCE.app, tenantId, 'posts'),
+				drafts: makePath(RESOURCE.app, tenantId, 'posts', 'drafts'),
+				history: makePath(RESOURCE.app, tenantId, 'posts', 'history'),
+			},
 		};
 	},
 	staff: {

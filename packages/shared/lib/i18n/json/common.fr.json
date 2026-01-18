@@ -449,5 +449,7 @@
 	"invitation-not-found-description-empty": "L'invitation que vous recherchez n'existe pas.",
 	"invitation-details-error-title": "Échec du chargement des données d'invitation",
 	"invitation-details-error-description": "Nous n'avons pas pu charger les détails de l'invitation. Veuillez réessayer ou contacter le support si le problème persiste.",
-	"posts-calendar": "Calendrier"
+	"calendar": "Calendrier",
+	"history": "Historique",
+	"queue": "Queue"
 }

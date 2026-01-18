@@ -43,3 +43,21 @@
 <https://www.sendible.com>
 
 <https://recurpost.com>
+
+<https://postcanvas.com>
+
+<https://www.agorapulse.com>
+
+<https://vistasocial.com>
+
+<https://sproutsocial.com>
+
+<https://later.com>
+
+<https://www.publlish.com>
+
+<https://schedulala.com>
+
+<https://statusbrew.com>
+
+<https://postsyncer.com>
