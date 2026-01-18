@@ -1,6 +1,8 @@
 # Social media scheduler apps (competitors)
 
-<https://www.ayrshare.com>
+<https://www.ayrshare.com> => API
+
+<https://getlate.dev> => API
 
 <https://www.publer.com>
 
@@ -43,3 +45,7 @@
 <https://www.sendible.com>
 
 <https://recurpost.com>
+
+<https://quegly.com>
+
+<https://later.com>
