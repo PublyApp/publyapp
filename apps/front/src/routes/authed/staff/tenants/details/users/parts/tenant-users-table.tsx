@@ -83,12 +83,14 @@ import {
 	useUpdateTenantUser,
 } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
 
+// Status values are now returned as strings from the API
+
 export type TenantUserRowData = {
 	id: string;
 	avatarUrl: string;
 	firstName: string;
 	lastName: string;
-	role: string;
+	// role: string;
 	status: string;
 	email: string;
 };
@@ -383,11 +385,11 @@ const useTenantUsersTableController = () => {
 					enableSorting: false,
 				},
 			),
-			columnHelper.accessor('role', {
-				header: t('role'),
-				Cell: RoleCell,
-				size: 70,
-			}),
+			// columnHelper.accessor('role', {
+			// 	header: t('role'),
+			// 	Cell: RoleCell,
+			// 	size: 70,
+			// }),
 			columnHelper.accessor('status', {
 				header: t('status'),
 				Cell: StatusCell,
@@ -465,13 +467,13 @@ const useTenantUsersTableController = () => {
 
 		return map(tenantUsersQuery.data.data, (tenantUser) => {
 			return {
-				id: staffMember.objectId,
-				avatarUrl: staffMember.avatarUrl || '',
-				firstName: staffMember.firstName || '',
-				lastName: staffMember.lastName || '',
-				role: staffMember.roleData?.role || '',
-				status: staffMember.status || '',
-				email: staffMember.email || '',
+				id: staffUser.id || '',
+				avatarUrl: staffUser.avatarUrl || '',
+				firstName: staffUser.firstName || '',
+				lastName: staffUser.lastName || '',
+				// role: staffUser.roleData?.role || '',
+				status: staffUser.status || '',
+				email: staffUser.email || '',
 			};
 		});
 	}, [data]);
@@ -900,7 +902,14 @@ const TenantUsersTable = () => {
 	} = useTenantUsersTableController();
 
 	return (
-		<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+		<Box
+			sx={{
+				flexGrow: 1,
+				display: 'flex',
+				flexDirection: 'column',
+				border: 'none',
+			}}
+		>
 			<MaterialReactTable table={table} />
 
 			<TenantUsersExportDialogController

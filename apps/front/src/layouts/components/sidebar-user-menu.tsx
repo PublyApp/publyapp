@@ -2,13 +2,15 @@ import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
 import Divider from '@mui/material/Divider';
+import Link from '@mui/material/Link';
 import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import type { SxProps, Theme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import { usePopover } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
@@ -23,10 +25,10 @@ import { logout } from '#app/lib/cookies/logout.utils.ts';
 
 export type SidebarUserMenuProps = {
 	user?: {
-		displayName: string;
+		firstName?: string | null;
+		lastName?: string | null;
 		email: string;
 		photoURL: string;
-		role?: string;
 	};
 	isCollapsed?: boolean;
 	sx?: SxProps<Theme>;
@@ -36,17 +38,17 @@ const menuItems = [
 	{
 		label: 'Profile',
 		icon: 'solar:user-circle-bold-duotone' as string,
-		href: '/profile',
+		href: 'settings/profile',
 	},
 	{
-		label: 'Settings',
-		icon: 'solar:settings-bold-duotone' as string,
-		href: '/settings',
+		label: 'Security',
+		icon: 'solar:shield-keyhole-bold-duotone' as string,
+		href: 'settings/security',
 	},
 	{
-		label: 'Billing',
-		icon: 'solar:card-bold-duotone' as string,
-		href: '/billing',
+		label: 'Notifications',
+		icon: 'solar:bell-bold-duotone' as string,
+		href: 'settings/notifications',
 	},
 ];
 
@@ -55,21 +57,18 @@ export const SidebarUserMenu = ({
 	isCollapsed = false,
 	sx,
 }: SidebarUserMenuProps) => {
+	const { t } = useTranslation();
 	const { open, anchorEl, onClose, onOpen } = usePopover();
+
+	const displayName = useMemo(() => {
+		const fullName = getUserFullName(user);
+		return fullName || t('un-named');
+	}, [user, t]);
 
 	const handleLogout = useCallback(() => {
 		onClose();
-		// Add logout logic here
+		logout();
 	}, [onClose]);
-
-	const handleMenuClick = useCallback(
-		(href: string) => {
-			onClose();
-			// Add navigation logic here
-			console.log('Navigate to:', href);
-		},
-		[onClose],
-	);
 
 	const renderButton = () => {
 		if (isCollapsed) {
@@ -92,11 +91,13 @@ export const SidebarUserMenu = ({
 						...(Array.isArray(sx) ? sx : [sx]),
 					]}
 				>
-					<Avatar
-						alt={user?.displayName}
-						src={user?.photoURL}
-						sx={{ width: 32, height: 32 }}
-					/>
+					<Avatar sx={{ width: 32, height: 32, bgcolor: 'background.neutral' }}>
+						<Iconify
+							width={24}
+							icon="solar:user-rounded-bold"
+							sx={{ color: 'text.disabled' }}
+						/>
+					</Avatar>
 				</ButtonBase>
 			);
 		}
@@ -123,11 +124,13 @@ export const SidebarUserMenu = ({
 					...(Array.isArray(sx) ? sx : [sx]),
 				]}
 			>
-				<Avatar
-					alt={user?.displayName}
-					src={user?.photoURL}
-					sx={{ width: 32, height: 32 }}
-				/>
+				<Avatar sx={{ width: 32, height: 32, bgcolor: 'background.neutral' }}>
+					<Iconify
+						width={24}
+						icon="solar:user-rounded-bold"
+						sx={{ color: 'text.disabled' }}
+					/>
+				</Avatar>
 
 				<Box sx={{ flex: 1, minWidth: 0 }}>
 					<Typography
@@ -135,7 +138,7 @@ export const SidebarUserMenu = ({
 						variant="body2"
 						sx={{ fontWeight: 600, fontSize: '0.8125rem', lineHeight: 1.2 }}
 					>
-						{user?.displayName}
+						{displayName}
 					</Typography>
 					<Typography
 						noWrap
@@ -166,7 +169,6 @@ export const SidebarUserMenu = ({
 				anchorEl={anchorEl}
 				onClose={onClose}
 				slotProps={{
-					arrow: { hide: true },
 					paper: {
 						sx: {
 							width: 200,
@@ -189,9 +191,9 @@ export const SidebarUserMenu = ({
 				{/* User info header */}
 				<Box sx={{ px: 1.5, py: 1 }}>
 					<Typography variant="subtitle2" noWrap sx={{ fontSize: '0.8125rem' }}>
-						{user?.displayName}
+						{displayName}
 					</Typography>
-					<Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
+					<Typography variant="caption" sx={{ color: 'text.disabled' }} noWrap>
 						{user?.email}
 					</Typography>
 				</Box>
@@ -200,15 +202,28 @@ export const SidebarUserMenu = ({
 
 				<MenuList sx={{ py: 0.5 }}>
 					{menuItems.map((item) => (
-						<MenuItem
-							key={item.label}
-							onClick={() => handleMenuClick(item.href)}
-							sx={{ gap: 1, py: 0.5, minHeight: 32 }}
-						>
-							<Iconify width={18} icon={item.icon as never} />
-							<Typography variant="body2" sx={{ fontSize: '0.8125rem' }}>
-								{item.label}
-							</Typography>
+						<MenuItem key={item.label} sx={{ p: 0 }}>
+							<Link
+								component={RouterLink}
+								href={item.href}
+								color="inherit"
+								underline="none"
+								onClick={onClose}
+								sx={{
+									gap: 1,
+									py: 0.5,
+									px: 1.5,
+									width: 1,
+									minHeight: 32,
+									display: 'flex',
+									alignItems: 'center',
+								}}
+							>
+								<Iconify width={18} icon={item.icon as never} />
+								<Typography variant="body2" sx={{ fontSize: '0.8125rem' }}>
+									{item.label}
+								</Typography>
+							</Link>
 						</MenuItem>
 					))}
 				</MenuList>

@@ -104,9 +104,9 @@ packages/
 └── _tx-key-gen/      # Translation key generator (.NET tool)
 ```
 
-### Backend Architecture (Vertical Slice)
+### Backend Architecture (Vertical Slice, Domain-First)
 
-The backend follows **Vertical Slice Architecture** where each feature is self-contained:
+The backend follows **Vertical Slice Architecture** using a **domain-first** module layout:
 
 ```
 Features/[Domain]/[Feature]/
@@ -120,10 +120,11 @@ Features/[Domain]/[Feature]/
 ```
 
 **Key Patterns:**
-- **CQRS-lite**: Request handlers pattern
-- **Minimal APIs**: ASP.NET Core minimal API endpoints
-- **FluentValidation**: Automatic validation via filters
-- **Response Format**: Success returns `Ok<T>` / `Ok<ApiResponse>`; errors return RFC 7807 `application/problem+json` (`AppProblemDetails` / `ValidationProblemDetails`) with `translationKey`
+- **CQRS-lite**: handlers per operation (create/find/get/update/delete)
+- **Minimal APIs**: endpoints map routes and attach filters/permissions
+- **FluentValidation**: automatic body/query validation via endpoint extensions
+- **Response Format**: success returns `Ok<T>` / `Ok<ApiResponse>`; errors return RFC 7807 `application/problem+json` via `TypedProblems.*` with `translationKey`
+- **Namespace discipline**: `IDE0130` is treated as error — file namespace must match its folder path
 
 **Finding Backend Code:**
 - Common features (auth, accounts, users): `apps/api/Src/Features/Common/`
@@ -217,39 +218,41 @@ Form State       → React Hook Form (local form state)
 
 **CRITICAL:** Data fetching strategy depends on route type:
 
-1. **Marketing Pages** (`app/routes/marketing/**`) → SSR with React Router loaders/actions
-2. **Auth Pages** (`app/routes/auth/**`) → SSR with React Router loaders/actions (hide API endpoints)
-3. **Authed Pages** (`app/routes/authed/**`) → Client-only with TanStack Query (NO SSR)
+1. **Marketing Pages** (`app/routes/marketing/**`) -> SSR with React Router loaders/actions
+2. **Auth Pages** (`app/routes/auth/**`) -> SSR with React Router loaders/actions (hide API endpoints)
+3. **Authed Pages** (`app/routes/authed/**`) -> Client-only for application data with TanStack Query (no SSR data fetching)
+
+**Allowed exception for authed pages:** You may use `loader` only for fast, non-sensitive metadata (e.g. page title/meta tags) to avoid client-side flicker. Never fetch real application data in an authed page `loader`.
 
 ```tsx
-// ❌ WRONG - Server loader in authenticated dashboard page
+// ❌ WRONG - Fetching application data in a server loader (authed routes)
 // File: app/routes/authed/staff/members-page.tsx
 export const loader = async ({ apiClient }) => {
-  const data = await apiClient.staff.staffMembers.get();
+  const data = await apiClient.staff.staffUsers.get();
   return { data };
 };
 
 // ✅ CORRECT - Use hook factories for authenticated pages
-// Step 1: Define hook in app/lib/react-query/features/staff/staff-member.hooks.ts
+// Step 1: Define hook in app/lib/react-query/features/staff/staff-user.hooks.ts
 import { createStaffQuery } from '../../create-hooks';
 
-export const useFindStaffMember = createStaffQuery({
-  queryKeyFn: (client) => client.staff.staffMembers.get,
+export const useFindStaffUser = createStaffQuery({
+  queryKeyFn: (client) => client.staff.staffUsers.get,
   fetcher: async (client, params: { page?: number }) => {
-    const result = await client.staff.staffMembers.get({
+    const result = await client.staff.staffUsers.get({
       queryParameters: { page: params.page?.toString() },
     });
-    if (_.isNil(result)) throw new Error('useFindStaffMember: result is nil');
+    if (_.isNil(result)) throw new Error('useFindStaffUser: result is nil');
     return result;
   },
 });
 
 // Step 2: Use hook in component
 // File: app/routes/authed/staff/members-page.tsx
-import { useFindStaffMember } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import { useFindStaffUser } from '@/front/lib/react-query/features/staff/staff-user.hooks';
 
-function StaffMembersPage() {
-  const { data, isLoading } = useFindStaffMember({ variables: { page: 1 } });
+function StaffUsersPage() {
+  const { data, isLoading } = useFindStaffUser({ variables: { page: 1 } });
   return <div>{/* render */}</div>;
 }
 
@@ -305,8 +308,8 @@ export const clientLoader = getClientLoader({
 
     // Prefetch using react-query-kit hooks
     await queryClient.prefetchQuery({
-      queryKey: useFindStaffMember.getKey({ page: 1 }),
-      queryFn: () => useFindStaffMember.fetcher({ page: 1 }),
+      queryKey: useFindStaffUser.getKey({ page: 1 }),
+      queryFn: () => useFindStaffUser.fetcher({ page: 1 }),
     });
 
     return null;
@@ -503,7 +506,7 @@ var results = await Task.WhenAll(tasks);
 using FluentValidation;
 using System.Text.Json;
 
-namespace MainApi.Src.Features.Staff.Invitations.Handlers;
+namespace MainApi.Src.Modules.Invitations.Handlers.Staff;
 
 // Request DTO (Body suffix for request body, Query suffix for query params)
 public record CreateStaffInvitationBody {
@@ -955,7 +958,7 @@ public static async Task<Results<
 **Default behavior (no code needed):**
 ```typescript
 // ✅ Errors auto-toast - no onError handler required
-const { mutate } = useCreateStaffMember();
+const { mutate } = useCreateStaffUser();
 mutate(data);
 ```
 
@@ -964,7 +967,7 @@ mutate(data);
 import { withFormValidation } from '@/front/lib/api-failure';
 
 // ✅ Field errors mapped to form, other errors still toast
-const { mutate } = useCreateStaffMember(
+const { mutate } = useCreateStaffUser(
   withFormValidation(form.setError, {
     meta: { showSuccessToast: true },
     onSuccess: () => navigate('/staff'),

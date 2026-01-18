@@ -17,7 +17,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = capitalize(t('calendar'));
 
 	if (seo) {
-		str = `${str} | ${APP_NAME}`;
+		str = `${str} | Staff Dashboard - ${APP_NAME}`;
 	}
 
 	return str;
@@ -44,11 +44,7 @@ export const loader = getServerLoader({
 });
 
 const PostsCalendarPage = () => {
-	return (
-		<DashboardContent>
-			<Typography variant="h1">TODO: Posts Calendar 🌴🌴🌴</Typography>
-		</DashboardContent>
-	);
+	return <Typography variant="h1">PostsCalendarPage</Typography>;
 };
 
 export default PostsCalendarPage;

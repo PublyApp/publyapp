@@ -49,6 +49,7 @@ export const CLOUDFLARE_CONNECTING_IP_HEADER_KEY = 'CF-Connecting-IP';
 
 const RESOURCE = {
 	users: 'users',
+	app: 'app',
 	client: 'client',
 	clients: 'clients',
 	tenant: 'tenant',
@@ -57,8 +58,8 @@ const RESOURCE = {
 	fileManager: 'file-manager',
 	blog: 'blog',
 	shortUrl: 'short-url',
-	staffMembers: 'staff-members',
-	tenantUSers: 'tenant-users',
+	tenantUsers: 'tenant-users',
+	staffUsers: 'staff-users',
 	profiles: 'profiles',
 	invitations: 'invitations',
 } as const;
@@ -73,13 +74,14 @@ const ROOTS = {
 
 export const FRONT_PATH_NAMES = {
 	home: '/',
-	maintenance: makePath('maintenance'),
+	unauthorized: makePath('unauthorized'),
 	auth: {
 		login: makePath('login'),
 		signup: makePath('sign-up'),
 		verifyEmail: makePath('verify-email'),
 		resetPassword: makePath('reset-password'),
 		acceptInvitation: makePath('accept-invitation'),
+		clearSession: makePath(ROOTS.AUTH, 'clear-session'),
 	},
 	tenant: (tenantId = '') => {
 		return {
@@ -124,7 +126,24 @@ export const FRONT_PATH_NAMES = {
 			root: makePath(ROOTS.STAFF, RESOURCE.profiles),
 			new: makePath(ROOTS.STAFF, RESOURCE.profiles, 'new'),
 			details: (profileId = '') => {
-				return makePath(ROOTS.STAFF, RESOURCE.profiles, 'details', profileId);
+				return {
+					root: makePath(ROOTS.STAFF, RESOURCE.profiles, 'details', profileId),
+					tabs: {
+						basicsAndPermissions: makePath(
+							ROOTS.STAFF,
+							RESOURCE.profiles,
+							'details',
+							profileId,
+						),
+						users: makePath(
+							ROOTS.STAFF,
+							RESOURCE.profiles,
+							'details',
+							profileId,
+							'users',
+						),
+					},
+				};
 			},
 		},
 		tenants: {
@@ -186,28 +205,23 @@ export const FRONT_PATH_NAMES = {
 				};
 			},
 		},
-		users: {
-			root: makePath(ROOTS.STAFF, RESOURCE.users),
-			details: (userId = '') => {
-				return makePath(ROOTS.STAFF, RESOURCE.users, 'details', userId);
-			},
-		},
 		tenantUsers: {
-			root: makePath(ROOTS.STAFF, RESOURCE.tenantUSers),
-			new: makePath(ROOTS.STAFF, RESOURCE.tenantUSers, 'new'),
+			root: makePath(ROOTS.STAFF, RESOURCE.tenantUsers),
+			new: makePath(ROOTS.STAFF, RESOURCE.tenantUsers, 'new'),
 			details: (userId = '') => {
-				return makePath(ROOTS.STAFF, RESOURCE.tenantUSers, 'details', userId);
+				return makePath(ROOTS.STAFF, RESOURCE.tenantUsers, 'details', userId);
 			},
 		},
-		staffMembers: {
-			root: makePath(ROOTS.STAFF, RESOURCE.staffMembers),
-			new: makePath(ROOTS.STAFF, RESOURCE.staffMembers, 'new'),
+		staffUsers: {
+			root: makePath(ROOTS.STAFF, RESOURCE.staffUsers),
+			new: makePath(ROOTS.STAFF, RESOURCE.staffUsers, 'new'),
 			details: (userId = '') => {
-				return makePath(ROOTS.STAFF, RESOURCE.staffMembers, 'details', userId);
+				return makePath(ROOTS.STAFF, RESOURCE.staffUsers, 'details', userId);
 			},
 		},
 		invitations: {
 			root: makePath(ROOTS.STAFF, RESOURCE.invitations),
+			new: makePath(ROOTS.STAFF, RESOURCE.invitations, 'new'),
 			details: (invitationId = '') => {
 				return makePath(
 					ROOTS.STAFF,
@@ -220,21 +234,6 @@ export const FRONT_PATH_NAMES = {
 		backgroundJobs: {
 			root: makePath(ROOTS.STAFF, 'background-jobs'),
 		},
-		settings: {
-			root: makePath(ROOTS.STAFF, 'settings'),
-		},
-		auditLogs: {
-			root: makePath(ROOTS.STAFF, 'audit-logs'),
-		},
-	},
-	settings: {
-		root: makePath('settings'),
-		profile: makePath('settings', 'profile'),
-		security: makePath('settings', 'security'),
-		notifications: makePath('settings', 'notifications'),
-	},
-	onboarding: {
-		root: makePath(ROOTS.ONBOARDING),
 	},
 } as const;
 
@@ -243,12 +242,6 @@ export const DEFAULT_PAGE_SIZE = 100;
 export const isServer = typeof window === 'undefined';
 
 export const isBun = typeof Bun !== 'undefined';
-
-export const SESSION_TOKEN_HEADER_KEY = 'X-Session-Token';
-
-export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}-session_token`;
-export const LAST_USED_TENANT_ID_COOKIE_KEY = `${APP_ID}-last_used_tenant`;
-export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detect language server-side
 
 export const SLUG_REGEX = /^[a-z0-9-]+$/;
 
@@ -269,6 +262,18 @@ export const queryParamKey = {
 		encoded_email: 'id',
 		token: 'token',
 	},
+} as const;
+
+/**
+ * Form action keys for POST-based operations.
+ * Using POST instead of GET query params prevents CSRF attacks.
+ */
+export const formActionKey = {
+	/**
+	 * Action to clear httpOnly session cookies.
+	 * Used when client-side JS detects it cannot read a cookie that the server can see.
+	 */
+	clear_httponly_session: 'clear_httponly_session',
 } as const;
 
 export const queryParamValue = {
