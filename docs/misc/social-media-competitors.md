@@ -1,6 +1,6 @@
 # Social media scheduler apps (competitors)
 
-<https://www.ayrshare.com>
+<https://www.ayrshare.com> => API
 
 <https://www.publer.com>
 
@@ -61,3 +61,7 @@
 <https://statusbrew.com>
 
 <https://postsyncer.com>
+
+<https://schedpilot.com>
+
+<https://bundle.social> => API
