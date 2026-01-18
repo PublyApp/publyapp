@@ -5,17 +5,16 @@ import i18next from 'i18next';
 import _ from 'lodash';
 import { data } from 'react-router';
 
-import { APP_NAME } from '@org/shared-ts/lib/constants';
-import { DashboardContent } from '@/front/layouts/dashboard/content';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+import { APP_NAME } from '@/shared/lib/constants';
 
 import type { Route } from './+types/posts-calendar-page';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(t('calendar'));
+	let str: string = _.capitalize(t('posts-calendar'));
 
 	if (seo) {
-		str = `${str} | ${APP_NAME}`;
+		str = `${str} | Staff Dashboard - ${APP_NAME}`;
 	}
 
 	return str;
@@ -42,11 +41,7 @@ export const loader = getServerLoader({
 });
 
 const PostsCalendarPage = () => {
-	return (
-		<DashboardContent>
-			<Typography variant="h1">TODO: Posts Calendar 🌴🌴🌴</Typography>
-		</DashboardContent>
-	);
+	return <Typography variant="h1">PostsCalendarPage</Typography>;
 };
 
 export default PostsCalendarPage;
