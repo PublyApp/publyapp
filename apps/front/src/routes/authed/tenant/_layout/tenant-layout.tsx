@@ -53,27 +53,15 @@ const TenantLayout = () => {
 		{
 			items: [
 				{
-					title: t('dashboard'),
+					title: t('posts-calendar'),
 					path: FRONT_PATH_NAMES.tenant(tenantId).root,
-					icon: ICONS.dashboard,
+					icon: ICONS.calendar,
 					deepActiveMatch: false,
 				},
 				{
 					title: t('drafts'),
-					path: FRONT_PATH_NAMES.tenant(tenantId).drafts.root,
+					path: '#',
 					icon: ICONS.file,
-					deepActiveMatch: true,
-				},
-			],
-		},
-		{
-			subheader: t('settings'),
-			collapsible: false,
-			items: [
-				{
-					title: t('general'),
-					path: FRONT_PATH_NAMES.tenant(tenantId).settings.general,
-					icon: ICONS.settings,
 					deepActiveMatch: true,
 				},
 			],

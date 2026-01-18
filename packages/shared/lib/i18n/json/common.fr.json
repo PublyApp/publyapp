@@ -45,12 +45,12 @@
 	"settings": "Paramètres",
 	"overview": "Aperçu",
 	"dashboard": "Tableau de bord",
-	"staff-member": "Membre du staff",
-	"staff-members": "Membres du staff",
+	"staff-user": "Membre du staff",
+	"staff-users": "Membres du staff",
 	"staff-invitations": "Invitations au staff",
 	"staff-invitations-description": "Gérer les invitations au staff",
 	"staff-invite-staff": "Inviter un membre du staff",
-	"staff-invite-staff-member": "Inviter un membre du staff",
+	"staff-invite-staff-user": "Inviter un membre du staff",
 	"staff-invite-staff-description": "Envoyer une invitation à un membre du staff",
 	"staff-invitation-created": "Invitation créée avec succès",
 	"staff-invitation-created-success": "Invitation envoyée avec succès. Partagez ce lien avec le destinataire:",
@@ -90,7 +90,7 @@
 	"confirm": "Confirmer",
 	"item-creation-success-message": "{{item}} créé avec succès",
 	"item-update-success-message": "{{item}} mis à jour avec succès",
-	"cannot-create-tenant-with-staff-members": "Impossible de créer un tenant avec des membres du staff",
+	"cannot-create-tenant-with-staff-users": "Impossible de créer un tenant avec des membres du staff",
 	"user-already-member-of-a-tenant": "L'utilisateur est déjà membre d'un tenant",
 	"some-users-already-member-of-a-tenant": "Certains utilisateurs sont déjà membres d'un tenant",
 	"some-users-already-members-of-the-staff": "Certains utilisateurs sont déjà membres du staff",
@@ -448,5 +448,6 @@
 	"duplicate-profile": "Profil en double selectionné",
 	"invitation-not-found-description-empty": "L'invitation que vous recherchez n'existe pas.",
 	"invitation-details-error-title": "Échec du chargement des données d'invitation",
-	"invitation-details-error-description": "Nous n'avons pas pu charger les détails de l'invitation. Veuillez réessayer ou contacter le support si le problème persiste."
+	"invitation-details-error-description": "Nous n'avons pas pu charger les détails de l'invitation. Veuillez réessayer ou contacter le support si le problème persiste.",
+	"posts-calendar": "Calendrier"
 }

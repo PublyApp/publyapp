@@ -849,7 +849,7 @@ import { mapValidationErrors, type MapValidationErrorsOptions } from './map-vali
  * const { mutate } = useCreateStaffUser(
  *   withFormValidation(form.setError, {
  *     meta: { showSuccessToast: true },
- *     onSuccess: () => navigate('/staff-members'),
+ *     onSuccess: () => navigate('/staff-users'),
  *     onError: (error) => {
  *       // This runs AFTER field errors are mapped
  *       // You can do additional handling here if needed
@@ -912,7 +912,7 @@ export function withFormValidation<
 const { mutate } = useCreateStaffUser(
   withFormValidation(form.setError, {
     meta: { showSuccessToast: true },
-    onSuccess: () => navigate('/staff-members'),
+    onSuccess: () => navigate('/staff-users'),
   })
 );
 
@@ -921,7 +921,7 @@ const { mutate } = useCreateStaffUser(
   withFormValidation(form.setError, {
     fieldMapping: { 'Email': 'email', 'FirstName': 'firstName' },
     meta: { showSuccessToast: true },
-    onSuccess: () => navigate('/staff-members'),
+    onSuccess: () => navigate('/staff-users'),
   })
 );
 ```
@@ -1337,14 +1337,14 @@ function App() {
 ### Pattern: Form Component with Validation Error Handling
 
 ```typescript
-// Example: apps/front/app/routes/authed/staff/staff-members/new/components/new-staff-member-form.tsx
+// Example: apps/front/app/routes/authed/staff/staff-users/new/components/new-staff-user-form.tsx
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from '@tanstack/react-router'; // or your router
 import { toApiFailure, mapValidationErrors } from '@/front/lib/api-failure';
-import { useCreateStaffUser } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import { useCreateStaffUser } from '@/front/lib/react-query/features/staff/staff-user.hooks';
 
 const formSchema = z.object({
   email: z.string().email(),
@@ -1374,7 +1374,7 @@ export function NewStaffUserForm() {
     },
     onSuccess: () => {
       // Navigate on success - toast handled by global handler via API's translationKey
-      navigate({ to: '/staff/staff-members' });
+      navigate({ to: '/staff/staff-users' });
     },
     onError: (error) => {
       // Only handle validation errors - global handler does the rest
@@ -1546,9 +1546,9 @@ All files currently importing `isJsClientError`:
 - `apps/front/app/lib/react-query/features/common/auth.hooks.ts`
 - `apps/front/app/routes/authed/staff/profiles/new/parts/new-staff-profile-form.tsx`
 - `apps/front/app/routes/authed/staff/invitations/new/parts/new-staff-invitations-form.tsx`
-- `apps/front/app/routes/authed/staff/staff-members/new/components/new-staff-member-form.tsx`
-- `apps/front/app/routes/authed/staff/staff-members/details/components/staff-member-update-form.tsx`
-- `apps/front/app/routes/authed/staff/staff-members/list/parts/staff-members-table.tsx`
+- `apps/front/app/routes/authed/staff/staff-users/new/components/new-staff-user-form.tsx`
+- `apps/front/app/routes/authed/staff/staff-users/details/components/staff-user-update-form.tsx`
+- `apps/front/app/routes/authed/staff/staff-users/list/parts/staff-users-table.tsx`
 
 ---
 
@@ -1771,9 +1771,9 @@ rg "isJsClientError" apps/front --type ts
 - [ ] `apps/front/app/components/error-boundary.tsx` - Update to use toApiFailure
 - [ ] `apps/front/app/routes/authed/staff/profiles/new/parts/new-staff-profile-form.tsx` - Use withFormValidation
 - [ ] `apps/front/app/routes/authed/staff/invitations/new/parts/new-staff-invitations-form.tsx` - Use withFormValidation
-- [ ] `apps/front/app/routes/authed/staff/staff-members/new/components/new-staff-member-form.tsx` - Use withFormValidation
-- [ ] `apps/front/app/routes/authed/staff/staff-members/details/components/staff-member-update-form.tsx` - Use withFormValidation
-- [ ] `apps/front/app/routes/authed/staff/staff-members/list/parts/staff-members-table.tsx` - Update error handling
+- [ ] `apps/front/app/routes/authed/staff/staff-users/new/components/new-staff-user-form.tsx` - Use withFormValidation
+- [ ] `apps/front/app/routes/authed/staff/staff-users/details/components/staff-user-update-form.tsx` - Use withFormValidation
+- [ ] `apps/front/app/routes/authed/staff/staff-users/list/parts/staff-users-table.tsx` - Update error handling
 
 ### Documentation to Create/Update
 - [ ] `docs/frontend-error-handling.md` - Create developer guide for error handling system

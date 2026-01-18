@@ -28,8 +28,8 @@ const RESOURCE = {
 	fileManager: 'file-manager',
 	blog: 'blog',
 	shortUrl: 'short-url',
-	staffMembers: 'staff-members',
-	tenantUSers: 'tenant-users',
+	tenantUsers: 'tenant-users',
+	staffUsers: 'staff-users',
 	profiles: 'profiles',
 	invitations: 'invitations',
 } as const;
@@ -44,7 +44,6 @@ const ROOTS = {
 
 export const FRONT_PATH_NAMES = {
 	home: '/',
-	maintenance: makePath('maintenance'),
 	unauthorized: makePath('unauthorized'),
 	auth: {
 		login: makePath('login'),
@@ -58,48 +57,6 @@ export const FRONT_PATH_NAMES = {
 		return {
 			_root: makePath(RESOURCE.app),
 			root: makePath(RESOURCE.app, tenantId),
-			analytics: {
-				root: makePath(RESOURCE.app, tenantId, 'analytics'),
-			},
-			drafts: {
-				root: makePath(RESOURCE.app, tenantId, 'drafts'),
-			},
-			posts: {
-				root: makePath(RESOURCE.app, tenantId, 'posts'),
-				new: makePath(RESOURCE.app, tenantId, 'posts', 'new'),
-				edit: (postId = '') =>
-					makePath(RESOURCE.app, tenantId, 'posts', postId, 'edit'),
-			},
-			schedule: {
-				root: makePath(RESOURCE.app, tenantId, 'schedule'),
-			},
-			media: {
-				root: makePath(RESOURCE.app, tenantId, 'media'),
-			},
-			accounts: {
-				root: makePath(RESOURCE.app, tenantId, 'accounts'),
-				socialAccounts: makePath(RESOURCE.app, tenantId, 'accounts', 'social'),
-			},
-			settings: {
-				root: makePath(RESOURCE.app, tenantId, 'settings'),
-				general: makePath(RESOURCE.app, tenantId, 'settings', 'general'),
-				members: makePath(RESOURCE.app, tenantId, 'settings', 'members'),
-				invitations: {
-					root: makePath(RESOURCE.app, tenantId, 'settings', 'invitations'),
-					new: makePath(
-						RESOURCE.app,
-						tenantId,
-						'settings',
-						'invitations',
-						'new',
-					),
-				},
-				profiles: {
-					root: makePath(RESOURCE.app, tenantId, 'settings', 'profiles'),
-					new: makePath(RESOURCE.app, tenantId, 'settings', 'profiles', 'new'),
-				},
-				billing: makePath(RESOURCE.app, tenantId, 'settings', 'billing'),
-			},
 		};
 	},
 	staff: {
@@ -166,24 +123,18 @@ export const FRONT_PATH_NAMES = {
 				};
 			},
 		},
-		users: {
-			root: makePath(ROOTS.STAFF, RESOURCE.users),
-			details: (userId = '') => {
-				return makePath(ROOTS.STAFF, RESOURCE.users, 'details', userId);
-			},
-		},
 		tenantUsers: {
-			root: makePath(ROOTS.STAFF, RESOURCE.tenantUSers),
-			new: makePath(ROOTS.STAFF, RESOURCE.tenantUSers, 'new'),
+			root: makePath(ROOTS.STAFF, RESOURCE.tenantUsers),
+			new: makePath(ROOTS.STAFF, RESOURCE.tenantUsers, 'new'),
 			details: (userId = '') => {
-				return makePath(ROOTS.STAFF, RESOURCE.tenantUSers, 'details', userId);
+				return makePath(ROOTS.STAFF, RESOURCE.tenantUsers, 'details', userId);
 			},
 		},
-		staffMembers: {
-			root: makePath(ROOTS.STAFF, RESOURCE.staffMembers),
-			new: makePath(ROOTS.STAFF, RESOURCE.staffMembers, 'new'),
+		staffUsers: {
+			root: makePath(ROOTS.STAFF, RESOURCE.staffUsers),
+			new: makePath(ROOTS.STAFF, RESOURCE.staffUsers, 'new'),
 			details: (userId = '') => {
-				return makePath(ROOTS.STAFF, RESOURCE.staffMembers, 'details', userId);
+				return makePath(ROOTS.STAFF, RESOURCE.staffUsers, 'details', userId);
 			},
 		},
 		invitations: {
@@ -201,21 +152,6 @@ export const FRONT_PATH_NAMES = {
 		backgroundJobs: {
 			root: makePath(ROOTS.STAFF, 'background-jobs'),
 		},
-		settings: {
-			root: makePath(ROOTS.STAFF, 'settings'),
-		},
-		auditLogs: {
-			root: makePath(ROOTS.STAFF, 'audit-logs'),
-		},
-	},
-	settings: {
-		root: makePath('settings'),
-		profile: makePath('settings', 'profile'),
-		security: makePath('settings', 'security'),
-		notifications: makePath('settings', 'notifications'),
-	},
-	onboarding: {
-		root: makePath(ROOTS.ONBOARDING),
 	},
 } as const;
 
