@@ -2,6 +2,8 @@
 
 <https://www.ayrshare.com> => API
 
+<https://getlate.dev> => API
+
 <https://www.publer.com>
 
 <https://www.oneupapp.io>
@@ -44,24 +46,6 @@
 
 <https://recurpost.com>
 
-<https://postcanvas.com>
-
-<https://www.agorapulse.com>
-
-<https://vistasocial.com>
-
-<https://sproutsocial.com>
+<https://quegly.com>
 
 <https://later.com>
-
-<https://www.publlish.com>
-
-<https://schedulala.com>
-
-<https://statusbrew.com>
-
-<https://postsyncer.com>
-
-<https://schedpilot.com>
-
-<https://bundle.social> => API
