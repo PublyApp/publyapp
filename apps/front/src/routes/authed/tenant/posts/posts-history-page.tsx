@@ -9,10 +9,10 @@ import { DashboardContent } from '@/front/layouts/dashboard/content';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { APP_NAME } from '@/shared/lib/constants';
 
-import type { Route } from './+types/posts-calendar-page';
+import type { Route } from './+types/posts-history-page';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(t('calendar'));
+	let str: string = _.capitalize(t('history'));
 
 	if (seo) {
 		str = `${str} | ${APP_NAME}`;
@@ -41,12 +41,12 @@ export const loader = getServerLoader({
 	},
 });
 
-const PostsCalendarPage = () => {
+const PostsHistoryPage = () => {
 	return (
 		<DashboardContent>
-			<Typography variant="h1">TODO: Posts Calendar 🌴🌴🌴</Typography>
+			<Typography variant="h1">TODO: Posts History 🌤️🌤️🌤️</Typography>
 		</DashboardContent>
 	);
 };
 
-export default PostsCalendarPage;
+export default PostsHistoryPage;
