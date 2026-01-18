@@ -49,23 +49,3 @@
 <https://quegly.com>
 
 <https://later.com>
-
-<https://socialbee.com>
-
-<https://eazpost.com>
-
-<https://www.plannthat.com>
-
-<https://coschedule.com>
-
-<https://postiner.com>
-
-<https://postfarming.com>
-
-<https://postfa.st>
-
-<https://magicsync.dev>
-
-<https://imposting.com>
-
-<https://www.tailwindapp.com>
