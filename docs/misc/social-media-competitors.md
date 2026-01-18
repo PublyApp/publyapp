@@ -71,3 +71,15 @@
 <https://later.com>
 
 <https://socialbee.com>
+
+<https://eazpost.com>
+
+<https://www.plannthat.com>
+
+<https://coschedule.com>
+
+<https://postiner.com>
+
+<https://postfarming.com>
+
+<https://postfa.st>
