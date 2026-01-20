@@ -1556,7 +1556,7 @@ All files currently importing `isJsClientError`:
 
 ### 7.1 Create Developer Guide
 
-**File:** `docs/frontend-error-handling.md`
+**File:** `docs/guides/frontend-error-handling.md`
 
 Create a comprehensive developer guide covering:
 
@@ -1724,7 +1724,7 @@ const { mutate } = useMyMutation({
 - `skipGlobalErrorHandler: true` - Handle all errors locally
 - `skipAuthErrorHandler: true` - Don't logout on 401 (rare)
 
-**Reference:** See `docs/frontend-error-handling.md` for complete guide.
+**Reference:** See `docs/guides/frontend-error-handling.md` for complete guide.
 ```
 
 ---
@@ -1776,7 +1776,7 @@ rg "isJsClientError" apps/front --type ts
 - [ ] `apps/front/app/routes/authed/staff/staff-users/list/parts/staff-users-table.tsx` - Update error handling
 
 ### Documentation to Create/Update
-- [ ] `docs/frontend-error-handling.md` - Create developer guide for error handling system
+- [ ] `docs/guides/frontend-error-handling.md` - Create developer guide for error handling system
 - [ ] `AGENTS.md` - Add "Frontend API Error Handling" section after existing Error Handling
 
 ### Files to Delete

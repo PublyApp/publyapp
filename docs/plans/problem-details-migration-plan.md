@@ -6,7 +6,7 @@ This document originally described the step-by-step migration from `ApiResponse`
 
 ## Current Reference
 
-Use `docs/problem-details-migration-checklist.md` for the up-to-date conventions and maintenance checklist.
+Use `docs/guides/problem-details-migration-checklist.md` for the up-to-date conventions and maintenance checklist.
 
 ## Notes on Final Decisions
 
