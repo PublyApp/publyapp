@@ -63,3 +63,5 @@
 <https://postfarming.com>
 
 <https://postfa.st>
+
+<https://magicsync.dev>
