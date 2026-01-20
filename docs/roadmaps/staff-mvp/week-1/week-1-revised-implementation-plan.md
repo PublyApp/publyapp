@@ -2907,7 +2907,7 @@ After implementing Phase 4 core services, GPT 5 and Claude conducted a code revi
 ### Implementation Plan
 
 See detailed step-by-step instructions in:
-- `docs/implementation-plans/phase4-fixes.md`
+- `docs/implementation-plans/phase4-fixes-final.md`
 
 ### Updated Task 4.1 Code (InvitationService)
 
