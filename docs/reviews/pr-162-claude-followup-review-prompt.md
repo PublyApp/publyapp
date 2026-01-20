@@ -55,7 +55,7 @@ Please verify these were implemented correctly and did not break contracts:
 ### Docs
 9) **Behavior documented**
 - Added runtime semantics section describing status code meanings, validation rules, frontend logout invariants.
-- Key files: `docs/problem-details-migration-checklist.md`, `AGENTS.md`
+- Key files: `docs/guides/problem-details-migration-checklist.md`, `AGENTS.md`
 
 ## What you should review (checklist)
 
@@ -94,7 +94,7 @@ Please verify these were implemented correctly and did not break contracts:
 - `apps/front/app/root.tsx`
 - `apps/front/app/lib/api-failure/to-api-failure.ts`
 - `apps/front/app/lib/api-failure/map-validation-errors.ts`
-- `docs/problem-details-migration-checklist.md`
+- `docs/guides/problem-details-migration-checklist.md`
 - `AGENTS.md`
 
 ## Output format (strict)

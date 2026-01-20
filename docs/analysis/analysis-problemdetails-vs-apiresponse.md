@@ -5,7 +5,7 @@
 > - OpenAPI status codes are documented at build-time via custom typed results (`App*HttpResult`) that implement `IEndpointMetadataProvider`, plus explicit metadata for filter-produced responses.
 > - `ApiResponse` remains in use for **message-only success** responses.
 >
-> Current conventions: `AGENTS.md` and `docs/problem-details-migration-checklist.md`.
+> Current conventions: `AGENTS.md` and `docs/guides/problem-details-migration-checklist.md`.
 
 ## Context
 

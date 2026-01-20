@@ -10,7 +10,7 @@
 - `apps/front/app/routes/auth/accept-invitation/accept-invitation-page.tsx`
 - `apps/front/app/routes/authed/_layout/authed-layout.tsx`
 - `packages/shared/lib/constants.ts`
-- `HTTPONLY_COOKIE_ISSUE_SUMMARY.md` (documentation, not functionally relevant)
+- `docs/changes/HTTPONLY_COOKIE_ISSUE_SUMMARY.md` (documentation, not functionally relevant)
 
 This review focuses on correctness, security, edge cases, and maintainability of the new HttpOnly-related logic, especially around session handling and redirect loops.
 

@@ -287,7 +287,7 @@ Co-authored-by: factory-droid[bot] <138933559+factory-droid[bot]@users.noreply.g
 ## Reference Documents
 
 For more context, see:
-- `docs/implementation-plans/phase4-fixes.md` - Detailed implementation plan
+- `docs/implementation-plans/phase4-fixes-final.md` - Detailed implementation plan
 - `docs/reviews/staff-mvp-week1-phase4-review.md` - Original review
 - `docs/reviews/staff-mvp-week1-phase4-counter-feedback.md` - Claude's analysis
 - `docs/reviews/staff-mvp-week1-phase4-rejoinder.md` - GPT 5's consensus response

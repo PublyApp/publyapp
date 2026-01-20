@@ -5,8 +5,8 @@
 This document describes the centralized error handling system for the PublyApp frontend. All API errors are normalized into an `ApiFailure` discriminated union and handled globally via React Query's `MutationCache` and `QueryCache`.
 
 **Related Documentation:**
-- Analysis: `docs/analysis-client-side-problem-details-error-handling.md`
-- Implementation Plan: `docs/plan-client-side-error-handling-implementation.md`
+- Analysis: `docs/analysis/analysis-client-side-problem-details-error-handling.md`
+- Implementation Plan: `docs/plans/plan-client-side-error-handling-implementation.md`
 
 ---
 
