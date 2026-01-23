@@ -1,12 +1,10 @@
+import { avatarGroupClasses } from '@mui/material/AvatarGroup';
 import type {
-	Theme,
 	Components,
 	ComponentsVariants,
+	Theme,
 } from '@mui/material/styles';
-
 import { varAlpha } from 'minimal-shared/utils';
-
-import { avatarGroupClasses } from '@mui/material/AvatarGroup';
 
 // ----------------------------------------------------------------------
 

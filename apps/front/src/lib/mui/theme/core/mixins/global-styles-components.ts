@@ -1,11 +1,9 @@
-import type { Theme, CSSObject } from '@mui/material/styles';
-
-import { varAlpha } from 'minimal-shared/utils';
-
-import { dividerClasses } from '@mui/material/Divider';
-import { checkboxClasses } from '@mui/material/Checkbox';
-import { menuItemClasses } from '@mui/material/MenuItem';
 import { autocompleteClasses } from '@mui/material/Autocomplete';
+import { checkboxClasses } from '@mui/material/Checkbox';
+import { dividerClasses } from '@mui/material/Divider';
+import { menuItemClasses } from '@mui/material/MenuItem';
+import type { CSSObject, Theme } from '@mui/material/styles';
+import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
 

@@ -222,7 +222,7 @@ public static class Invitations {
 
 **Evidence:** `apps/api/Src/Lib/RoutePath.cs` - All existing routes use `PathUtils.Join()`:
 ```csharp
-public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/staff-members");
+public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/staff-users");
 ```
 
 **Impact:** Inconsistent code style. The project uses `PathUtils.Join` for path composition everywhere.

@@ -35,7 +35,7 @@ import {
 	useGetVerificationLink,
 	useSendEmailVerificationReminder,
 } from '@/front/lib/react-query/features/common/auth.hooks';
-import { useFindStaffMember } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import { useFindStaffUser } from '@/front/lib/react-query/features/staff/staff-user.hooks';
 import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getErrorMessage } from '@/shared/utils/error.utils';
@@ -108,22 +108,22 @@ const TenantUsersTable = () => {
 		];
 	}, [t]);
 
-	const { data, isPending } = useFindStaffMember({
+	const { data, isPending } = useFindStaffUser({
 		variables: apiVariables,
 	});
 
 	const rows: TenantUserRowData[] = useMemo(() => {
 		if (!data?.staffUsers) return [];
 
-		return _.map(data.staffUsers, (staffMember) => {
+		return _.map(data.staffUsers, (staffUser) => {
 			return {
-				id: staffMember.id || '',
-				avatarUrl: staffMember.avatarUrl || '',
-				firstName: staffMember.firstName || '',
-				lastName: staffMember.lastName || '',
-				// role: staffMember.roleData?.role || '',
-				status: staffMember.status || '',
-				email: staffMember.email || '',
+				id: staffUser.id || '',
+				avatarUrl: staffUser.avatarUrl || '',
+				firstName: staffUser.firstName || '',
+				lastName: staffUser.lastName || '',
+				// role: staffUser.roleData?.role || '',
+				status: staffUser.status || '',
+				email: staffUser.email || '',
 			};
 		});
 	}, [data]);
@@ -333,7 +333,7 @@ const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
 
 				<MenuItem
 					component={RouterLink}
-					href={FRONT_PATH_NAMES.staff.staffMembers.details(userId)}
+					href={FRONT_PATH_NAMES.staff.staffUsers.details(userId)}
 					onClick={() => menuActions.onClose()}
 				>
 					<Iconify icon="solar:pen-bold" />
@@ -357,7 +357,7 @@ const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
 		<ConfirmDialog
 			open={confirmDialog.value}
 			onClose={confirmDialog.onFalse}
-			title={t('delete-item', { item: t('staff-member') })}
+			title={t('delete-item', { item: t('staff-user') })}
 			content={t('confirm-delete-dialog-text')}
 			action={
 				<Button variant="contained" color="error" onClick={onConfirmDeleteRow}>

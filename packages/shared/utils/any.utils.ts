@@ -1,4 +1,5 @@
 import _ from 'lodash';
+
 import { logger } from '@/shared/lib/logger/iso-logger';
 
 export const delay = <T = unknown>(timeout: number, value?: T) => {

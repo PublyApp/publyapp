@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box';
 import { type Breakpoint, styled } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
+
 import { Logo } from '@/front/components/logo';
 import {
 	NavSectionMini,
@@ -8,6 +9,7 @@ import {
 	NavSectionVertical,
 } from '@/front/components/nav-section';
 import { Scrollbar } from '@/front/components/scrollbar';
+
 import { layoutClasses } from '../core/classes';
 
 // ----------------------------------------------------------------------

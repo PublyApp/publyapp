@@ -1,5 +1,6 @@
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
+
 import StaffProfileBasicInfos from './parts/staff-profile-basic-infos';
 import StaffProfilePermissions from './parts/staff-profile-permissions';
 import StaffProfileSidebar from './parts/staff-profile-sidebar';

@@ -9,7 +9,6 @@ import { usePathname } from '@/front/hooks/use-pathname';
 import { NavDropdown, NavDropdownPaper, NavLi, NavUl } from '../components';
 import { navSectionClasses } from '../styles';
 import type { NavListProps, NavSubListProps } from '../types';
-
 import { NavItem } from './nav-item';
 
 // ----------------------------------------------------------------------
