@@ -1,5 +1,4 @@
 import _ from 'lodash';
-
 import { mergeClasses } from 'minimal-shared/utils';
 
 import { labelClasses } from './classes';

@@ -6,7 +6,6 @@ import { useState } from 'react';
 
 import { Iconify } from '../../iconify/iconify';
 import type { EditorToolbarProps } from '../types';
-
 import { ToolbarItem } from './toolbar-item';
 
 // ----------------------------------------------------------------------

@@ -2,6 +2,7 @@ import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import { mergeClasses } from 'minimal-shared/utils';
 import { useEffect } from 'react';
+
 import { Logo } from '@/front/components/logo';
 import {
 	type NavSectionProps,
@@ -9,6 +10,7 @@ import {
 } from '@/front/components/nav-section';
 import { Scrollbar } from '@/front/components/scrollbar';
 import { usePathname } from '@/front/hooks/use-pathname';
+
 import { layoutClasses } from '../core/classes';
 
 // ----------------------------------------------------------------------

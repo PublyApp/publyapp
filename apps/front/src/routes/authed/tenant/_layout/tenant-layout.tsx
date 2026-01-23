@@ -51,28 +51,42 @@ const TenantLayout = () => {
 
 	const tenantNavData: NavDataType = [
 		{
+			subheader: t('posts'),
+			collapsible: false,
 			items: [
 				{
-					title: t('dashboard'),
+					title: t('calendar'),
 					path: FRONT_PATH_NAMES.tenant(tenantId).root,
-					icon: ICONS.dashboard,
+					icon: ICONS.calendar,
+					deepActiveMatch: false,
+				},
+				{
+					title: t('queue'),
+					path: FRONT_PATH_NAMES.tenant(tenantId).posts.root,
+					icon: ICONS.queue,
 					deepActiveMatch: false,
 				},
 				{
 					title: t('drafts'),
-					path: FRONT_PATH_NAMES.tenant(tenantId).drafts.root,
-					icon: ICONS.file,
+					path: FRONT_PATH_NAMES.tenant(tenantId).posts.drafts,
+					icon: ICONS.drafts,
 					deepActiveMatch: true,
+				},
+				{
+					title: t('history'),
+					path: FRONT_PATH_NAMES.tenant(tenantId).posts.history,
+					icon: ICONS.history,
+					deepActiveMatch: false,
 				},
 			],
 		},
 		{
-			subheader: t('settings'),
+			subheader: t('others'),
 			collapsible: false,
 			items: [
 				{
-					title: t('general'),
-					path: FRONT_PATH_NAMES.tenant(tenantId).settings.general,
+					title: t('settings'),
+					path: FRONT_PATH_NAMES.tenant(tenantId).settings.root,
 					icon: ICONS.settings,
 					deepActiveMatch: true,
 				},

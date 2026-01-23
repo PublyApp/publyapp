@@ -8,12 +8,14 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useCallback, useState } from 'react';
+
 import {
 	PlanFreeIcon,
 	PlanPremiumIcon,
 	PlanStarterIcon,
 } from '@/front/assets/icons';
 import type { IAddressItem, IPaymentCard } from '@/front/types/common';
+
 import { AddressListDialog } from '../address';
 import { Iconify } from '../iconify/iconify';
 import { Label } from '../label/label';
