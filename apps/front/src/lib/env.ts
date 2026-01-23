@@ -1,4 +1,5 @@
 import z, { ZodError } from 'zod';
+
 import { deepFreeze } from '@/shared/utils/any.utils';
 
 const envSchema = z.object({

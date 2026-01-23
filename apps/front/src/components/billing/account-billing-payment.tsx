@@ -8,10 +8,10 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import { useBoolean } from 'minimal-shared/hooks';
+
 import type { IPaymentCard } from '@/front/types/common';
 
 import { Iconify } from '../iconify/iconify';
-
 import { PaymentCardItem } from '../payment/payment-card-item';
 import { PaymentNewCardForm } from '../payment/payment-new-card-form';
 

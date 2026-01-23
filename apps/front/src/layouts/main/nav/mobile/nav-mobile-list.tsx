@@ -11,7 +11,6 @@ import { usePathname } from '@/front/hooks/use-pathname';
 
 import { NavLi } from '../components';
 import type { NavListProps } from '../types';
-
 import { NavItem } from './nav-mobile-item';
 
 // ----------------------------------------------------------------------

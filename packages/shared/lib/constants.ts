@@ -62,6 +62,31 @@ export const FRONT_PATH_NAMES = {
 				drafts: makePath(RESOURCE.app, tenantId, 'posts', 'drafts'),
 				history: makePath(RESOURCE.app, tenantId, 'posts', 'history'),
 			},
+			settings: {
+				root: makePath(RESOURCE.app, tenantId, 'settings'),
+				general: makePath(RESOURCE.app, tenantId, 'settings', 'general'),
+				members: makePath(RESOURCE.app, tenantId, 'settings', 'members'),
+				roles: makePath(RESOURCE.app, tenantId, 'settings', 'roles'),
+				workspaces: makePath(RESOURCE.app, tenantId, 'settings', 'workspaces'),
+				integrations: makePath(
+					RESOURCE.app,
+					tenantId,
+					'settings',
+					'integrations',
+				),
+				billing: makePath(RESOURCE.app, tenantId, 'settings', 'billing'),
+				security: makePath(RESOURCE.app, tenantId, 'settings', 'security'),
+			},
+			account: {
+				root: makePath(RESOURCE.app, tenantId, 'account'),
+				security: makePath(RESOURCE.app, tenantId, 'account', 'security'),
+				notifications: makePath(
+					RESOURCE.app,
+					tenantId,
+					'account',
+					'notifications',
+				),
+			},
 		};
 	},
 	staff: {
