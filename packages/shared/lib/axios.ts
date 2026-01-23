@@ -4,6 +4,7 @@ import axios, {
 	type AxiosResponse,
 } from 'axios';
 import _ from 'lodash';
+
 import { SESSION_TOKEN_HEADER_KEY, TENANT_ID_HEADER_KEY } from './constants';
 
 export const createInstance = (baseURL?: string) => {

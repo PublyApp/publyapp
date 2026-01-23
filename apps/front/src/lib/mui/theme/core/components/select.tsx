@@ -1,7 +1,6 @@
 import type { SvgIconProps } from '@mui/material/SvgIcon';
-import type { Theme, Components } from '@mui/material/styles';
-
 import SvgIcon from '@mui/material/SvgIcon';
+import type { Components, Theme } from '@mui/material/styles';
 
 // ----------------------------------------------------------------------
 

@@ -80,6 +80,18 @@ const TenantLayout = () => {
 				},
 			],
 		},
+		{
+			subheader: t('others'),
+			collapsible: false,
+			items: [
+				{
+					title: t('settings'),
+					path: FRONT_PATH_NAMES.tenant(tenantId).settings.root,
+					icon: ICONS.settings,
+					deepActiveMatch: true,
+				},
+			],
+		},
 	];
 
 	return (

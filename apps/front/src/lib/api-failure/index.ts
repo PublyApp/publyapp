@@ -1,39 +1,35 @@
 // Types
-export type {
-	ApiFailure,
-	ValidationFailure,
-	ProblemFailure,
-	NetworkFailure,
-	AbortFailure,
-	UnknownFailure,
-} from './types';
-
-export {
-	isValidationFailure,
-	isProblemFailure,
-	isNetworkFailure,
-	isAbortFailure,
-	isUnknownFailure,
-} from './types';
-
-// Main conversion function
-export { toApiFailure, getFailureMessage } from './to-api-failure';
 
 // Form field mapping
 export {
-	mapValidationErrors,
 	formatUnmappedErrors,
 	type MapValidationErrorsOptions,
 	type MapValidationErrorsResult,
+	mapValidationErrors,
 } from './map-validation-errors';
-
-// React Query helpers
-export { withFormValidation } from './with-form-validation';
-
 // Schemas (for advanced use cases)
 export {
 	AppProblemDetailsSchema,
-	ValidationProblemDetailsSchema,
 	isAppProblemDetailsShape,
 	isValidationProblemDetailsShape,
+	ValidationProblemDetailsSchema,
 } from './schemas';
+// Main conversion function
+export { getFailureMessage, toApiFailure } from './to-api-failure';
+export type {
+	AbortFailure,
+	ApiFailure,
+	NetworkFailure,
+	ProblemFailure,
+	UnknownFailure,
+	ValidationFailure,
+} from './types';
+export {
+	isAbortFailure,
+	isNetworkFailure,
+	isProblemFailure,
+	isUnknownFailure,
+	isValidationFailure,
+} from './types';
+// React Query helpers
+export { withFormValidation } from './with-form-validation';

@@ -1,4 +1,5 @@
 import { data } from 'react-router';
+
 import type { Route } from './+types/sign-up-page';
 import SignUpForm from './sign-up-form';
 

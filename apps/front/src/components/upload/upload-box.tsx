@@ -3,7 +3,6 @@ import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 import { useDropzone } from 'react-dropzone';
 
 import { Iconify } from '../iconify/iconify';
-
 import { uploadClasses } from './classes';
 import type { UploadProps } from './types';
 

@@ -2,7 +2,9 @@ import Box from '@mui/material/Box';
 import type { PaperProps } from '@mui/material/Paper';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
+
 import type { IAddressItem } from '@/front/types/common';
+
 import { Label } from '../label/label';
 
 // ----------------------------------------------------------------------

@@ -5,7 +5,6 @@
 // import { Iconify } from '@/front/components/iconify';
 
 import { Iconify } from '../components/iconify/iconify';
-
 import type { NavMainProps } from './main/nav/types';
 
 // ----------------------------------------------------------------------

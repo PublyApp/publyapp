@@ -7,8 +7,10 @@ import MenuList from '@mui/material/MenuList';
 import Stack from '@mui/material/Stack';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 import { useCallback, useState } from 'react';
+
 import type { IAddressItem } from '@/front/types/common';
 import { logger } from '@/shared/lib/logger/iso-logger';
+
 import { AddressItem, AddressNewForm } from '../address';
 import { CustomPopover } from '../custom-popover/custom-popover';
 import { Iconify } from '../iconify/iconify';

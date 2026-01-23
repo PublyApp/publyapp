@@ -1,10 +1,8 @@
-import type { SvgIconProps } from '@mui/material/SvgIcon';
-import type { Theme, Components } from '@mui/material/styles';
-
-import { varAlpha } from 'minimal-shared/utils';
-
-import SvgIcon, { svgIconClasses } from '@mui/material/SvgIcon';
 import { autocompleteClasses } from '@mui/material/Autocomplete';
+import type { SvgIconProps } from '@mui/material/SvgIcon';
+import SvgIcon, { svgIconClasses } from '@mui/material/SvgIcon';
+import type { Components, Theme } from '@mui/material/styles';
+import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
 

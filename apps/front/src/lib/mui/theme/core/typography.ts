@@ -1,12 +1,10 @@
 import type {
-	CSSObject,
 	Breakpoint,
+	CSSObject,
 	TypographyVariantsOptions,
 } from '@mui/material/styles';
-
-import { pxToRem, setFont } from 'minimal-shared/utils';
-
 import { createTheme as getTheme } from '@mui/material/styles';
+import { pxToRem, setFont } from 'minimal-shared/utils';
 
 import { themeConfig } from '../theme-config';
 

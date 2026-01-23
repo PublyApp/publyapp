@@ -8,8 +8,8 @@ import Link from '@mui/material/Link';
 import ListItemText from '@mui/material/ListItemText';
 import Typography from '@mui/material/Typography';
 import { useBoolean } from 'minimal-shared/hooks';
-import type { IUserAccountBillingHistory } from '@/front/types/user';
 
+import type { IUserAccountBillingHistory } from '@/front/types/user';
 import { fCurrency } from '@/front/utils/format-number';
 import { fDate } from '@/front/utils/format-time';
 

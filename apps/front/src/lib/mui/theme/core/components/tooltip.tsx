@@ -1,5 +1,4 @@
-import type { Theme, Components } from '@mui/material/styles';
-
+import type { Components, Theme } from '@mui/material/styles';
 import { tooltipClasses } from '@mui/material/Tooltip';
 
 // ----------------------------------------------------------------------

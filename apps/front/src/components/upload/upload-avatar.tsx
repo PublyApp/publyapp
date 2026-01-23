@@ -6,7 +6,6 @@ import { useDropzone } from 'react-dropzone';
 
 import { Iconify } from '../iconify/iconify';
 import { Image } from '../image/image';
-
 import { uploadClasses } from './classes';
 import { RejectionFiles } from './components/rejection-files';
 import type { UploadProps } from './types';

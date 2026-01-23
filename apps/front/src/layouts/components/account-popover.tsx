@@ -12,14 +12,15 @@ import { usePopover } from 'minimal-shared/hooks';
 // import { usePathname } from '@/front/routes/hooks';
 // import { paths } from '@/front/routes/paths';
 
+import { useCallback } from 'react';
+
 import { CustomPopover } from '@/front/components/custom-popover';
 import { Label } from '@/front/components/label';
 import { RouterLink } from '@/front/components/router-link';
 import { usePathname } from '@/front/hooks/use-pathname';
+import { logout } from '@/front/lib/cookies/logout.utils';
 import { useGetUserAuthData } from '@/front/lib/react-query/features/common/auth.hooks';
 
-import { logout } from '@/front/lib/cookies/logout.utils';
-import { useCallback } from 'react';
 import { AccountButton } from './account-button';
 import { SignOutButton } from './sign-out-button';
 

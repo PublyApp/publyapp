@@ -11,6 +11,7 @@ import ListSubheader from '@mui/material/ListSubheader';
 import Switch from '@mui/material/Switch';
 import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
+
 import { Iconify } from '@/front/components/iconify/iconify';
 import { useTranslate } from '@/front/hooks/use-translate';
 

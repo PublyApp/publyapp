@@ -1,21 +1,20 @@
-import type { SettingsState } from '@/front/components/settings';
-import type { Theme, Components } from '@mui/material/styles';
-
+import type { Components, Theme } from '@mui/material/styles';
 import { createTheme as createMuiTheme } from '@mui/material/styles';
 
-import { mixins } from './core/mixins';
-import { shadows } from './core/shadows';
-import { palette } from './core/palette';
-import { themeConfig } from './theme-config';
-import { components } from './core/components';
-import { typography } from './core/typography';
-import { customShadows } from './core/custom-shadows';
-import {
-	updateCoreWithSettings,
-	updateComponentsWithSettings,
-} from './with-settings';
+import type { SettingsState } from '@/front/components/settings';
 
+import { components } from './core/components';
+import { customShadows } from './core/custom-shadows';
+import { mixins } from './core/mixins';
+import { palette } from './core/palette';
+import { shadows } from './core/shadows';
+import { typography } from './core/typography';
+import { themeConfig } from './theme-config';
 import type { ThemeOptions } from './types';
+import {
+	updateComponentsWithSettings,
+	updateCoreWithSettings,
+} from './with-settings';
 
 // ----------------------------------------------------------------------
 

@@ -1,6 +1,5 @@
 import { Nav, NavUl } from '../components';
 import type { NavMainProps } from '../types';
-
 import { NavList } from './nav-desktop-list';
 
 // ----------------------------------------------------------------------

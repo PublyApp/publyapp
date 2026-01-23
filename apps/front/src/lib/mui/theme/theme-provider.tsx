@@ -7,7 +7,6 @@ import {
 import { useSettingsContext } from '@/front/hooks/use-settings-context';
 
 import { useTranslate } from '../../../hooks/use-translate';
-
 import { createTheme } from './create-theme';
 import type { ThemeOptions } from './types';
 

@@ -7,7 +7,6 @@ import { usePathname } from '@/front/hooks/use-pathname';
 import { NavCollapse, NavLi, NavUl } from '../components';
 import { navBasicClasses } from '../styles';
 import type { NavListProps, NavSubListProps } from '../types';
-
 import { NavItem } from './nav-item';
 
 // ----------------------------------------------------------------------

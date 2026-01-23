@@ -1,5 +1,7 @@
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { redirect } from 'react-router';
+
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+
 import type { Route } from './+types/staff-profile-details-fallback-tab-page';
 
 export const clientLoader = (args: Route.ClientLoaderArgs) => {

@@ -1,5 +1,6 @@
 import Box, { type BoxProps } from '@mui/material/Box';
 import Link from '@mui/material/Link';
+
 import { useTranslate } from '@/front/hooks/use-translate';
 
 // ----------------------------------------------------------------------

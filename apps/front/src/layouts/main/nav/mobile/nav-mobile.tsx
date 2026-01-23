@@ -10,7 +10,6 @@ import { usePathname } from '@/front/hooks/use-pathname';
 import { SignInButton } from '../../../components/sign-in-button';
 import { Nav, NavUl } from '../components';
 import type { NavMainProps } from '../types';
-
 import { NavList } from './nav-mobile-list';
 
 // ----------------------------------------------------------------------

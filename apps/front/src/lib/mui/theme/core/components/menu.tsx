@@ -1,8 +1,6 @@
-import type { Theme, Components } from '@mui/material/styles';
-
-import { varAlpha } from 'minimal-shared/utils';
-
 import { menuItemClasses } from '@mui/material/MenuItem';
+import type { Components, Theme } from '@mui/material/styles';
+import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
 
