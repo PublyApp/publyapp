@@ -5,7 +5,7 @@ import {
 	LANGUAGE_DETECTION_METHOD,
 	LANGUAGE_DETECTION_METHOD_ENUM,
 	queryParamKey,
-} from '@org/shared-ts/lib/constants';
+} from '@/shared/lib/constants';
 
 import { useTranslate } from '../hooks/use-translate';
 import { env } from '../lib/env';

@@ -1,11 +1,3 @@
-import { AnimateBorder } from '@/front/components/animate';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Label } from '@/front/components/label';
-import { RouterLink } from '@/front/components/router-link';
-import { Scrollbar } from '@/front/components/scrollbar';
-import { usePathname } from '@/front/hooks/use-pathname';
-import { useGetUserAuthData } from '@/front/lib/react-query/features/auth/auth.hooks';
-import { getUserFullName } from '@/shared/utils/user.utils';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
@@ -64,7 +56,7 @@ export const AccountDrawer = ({
 				}}
 			>
 				<Avatar
-					src={userData?.avatarUrl}
+					src={userData?.avatarUrl || ''}
 					alt={getUserFullName(userData)}
 					sx={{ width: 1, height: 1 }}
 				>
@@ -134,6 +126,11 @@ export const AccountDrawer = ({
 		);
 	};
 
+	const handleLogout = useCallback(() => {
+		onClose();
+		logout();
+	}, [onClose]);
+
 	return (
 		<>
 			<AccountButton
@@ -194,7 +191,7 @@ export const AccountDrawer = ({
 				</Scrollbar>
 
 				<Box sx={{ p: 2.5 }}>
-					<SignOutButton onClose={onClose} />
+					<SignOutButton onClick={handleLogout} />
 				</Box>
 			</Drawer>
 		</>

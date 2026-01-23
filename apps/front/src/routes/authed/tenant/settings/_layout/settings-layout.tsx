@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import capitalize from 'lodash/capitalize';
@@ -16,6 +17,7 @@ import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/settings-layout';
+import { SettingsNav, type SettingsNavItem } from './settings-nav';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = capitalize(t('organization-settings'));
@@ -91,7 +93,40 @@ const SettingsLayout = () => {
 		},
 	];
 
-	return <SidebarSettingsLayout items={navItems} />;
+	return (
+		<DashboardContent maxWidth="lg" compact>
+			<Box
+				sx={{
+					display: 'flex',
+					gap: 4,
+					flexDirection: { xs: 'column', md: 'row' },
+				}}
+			>
+				{/* Left Navigation - Sticky */}
+				<Box
+					sx={{
+						display: { xs: 'none', md: 'block' },
+						flexShrink: 0,
+						width: 200,
+						position: 'sticky',
+						top: 80,
+						alignSelf: 'flex-start',
+						maxHeight: 'calc(100vh - 100px)',
+						overflowY: 'auto',
+					}}
+				>
+					<SettingsNav items={navItems} />
+				</Box>
+
+				{/* Main Content */}
+				<Box sx={{ flex: 1, minWidth: 0 }}>
+					{/* <DashboardContent> */}
+					<Outlet />
+					{/* </DashboardContent> */}
+				</Box>
+			</Box>
+		</DashboardContent>
+	);
 };
 
 export default SettingsLayout;

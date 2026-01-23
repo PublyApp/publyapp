@@ -7,18 +7,10 @@ import LinearProgress from '@mui/material/LinearProgress';
 import Stack from '@mui/material/Stack';
 import { alpha } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
-import { nanoid } from 'nanoid';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { SettingsPageHeader } from '#app/components/settings/settings-page-header.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-
-const _invoices = [
-	{ id: nanoid(), date: 'Dec 1, 2026', amount: '$49.00', status: 'Paid' },
-	{ id: nanoid(), date: 'Nov 1, 2026', amount: '$49.00', status: 'Paid' },
-	{ id: nanoid(), date: 'Oct 1, 2026', amount: '$49.00', status: 'Paid' },
-	{ id: nanoid(), date: 'Oct 1, 2026', amount: '$49.00', status: 'Paid' },
-];
 
 const SettingsBillingPage = () => {
 	const { t } = useTranslate();
@@ -165,9 +157,13 @@ const SettingsBillingPage = () => {
 				</Typography>
 
 				<Stack divider={<Divider />}>
-					{_invoices.map((invoice) => (
+					{[
+						{ date: 'Dec 1, 2026', amount: '$49.00', status: 'Paid' },
+						{ date: 'Nov 1, 2026', amount: '$49.00', status: 'Paid' },
+						{ date: 'Oct 1, 2026', amount: '$49.00', status: 'Paid' },
+					].map((invoice, index) => (
 						<Stack
-							key={invoice.id}
+							key={index}
 							direction="row"
 							alignItems="center"
 							justifyContent="space-between"

@@ -9,7 +9,6 @@ import type { SettingsState } from '#app/components/settings/index.ts';
 
 import { createShadowColor } from '../core/custom-shadows';
 import type { ThemeColorScheme, ThemeOptions } from '../types';
-
 import { primaryColorPresets } from './color-presets';
 
 // ----------------------------------------------------------------------

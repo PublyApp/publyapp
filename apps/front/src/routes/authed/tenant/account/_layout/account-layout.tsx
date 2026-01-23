@@ -1,8 +1,9 @@
+import Box from '@mui/material/Box';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import _ from 'lodash';
 import { useMemo } from 'react';
-import { data } from 'react-router';
+import { data, Outlet } from 'react-router';
 
 import {
 	APP_NAME,
@@ -16,6 +17,10 @@ import { useTenantParam } from '#app/hooks/use-tenant-param.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
+import {
+	SettingsNav,
+	type SettingsNavItem,
+} from '../../settings/_layout/settings-nav';
 import type { Route } from './+types/account-layout';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
@@ -70,7 +75,38 @@ const AccountLayout = () => {
 		];
 	}, [t, tenantId]);
 
-	return <SidebarSettingsLayout items={navItems} />;
+	return (
+		<DashboardContent maxWidth="lg" compact>
+			<Box
+				sx={{
+					display: 'flex',
+					gap: 4,
+					flexDirection: { xs: 'column', md: 'row' },
+				}}
+			>
+				{/* Left Navigation */}
+				<Box
+					sx={{
+						display: { xs: 'none', md: 'block' },
+						flexShrink: 0,
+						width: 200,
+						position: 'sticky',
+						top: 80,
+						alignSelf: 'flex-start',
+						maxHeight: 'calc(100vh - 100px)',
+						overflowY: 'auto',
+					}}
+				>
+					<SettingsNav items={navItems} />
+				</Box>
+
+				{/* Main Content */}
+				<Box sx={{ flex: 1, minWidth: 0 }}>
+					<Outlet />
+				</Box>
+			</Box>
+		</DashboardContent>
+	);
 };
 
 export default AccountLayout;
