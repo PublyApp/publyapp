@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { logger } from '@/shared/lib/logger/iso-logger';
 
 export const delay = <T = unknown>(timeout: number, value?: T) => {
 	logger.warn('delay function invoked', { timeout, value });
@@ -81,7 +81,7 @@ export const withResolvers = <T = unknown>() => {
 		reject = _reject;
 	});
 
-	// @ts-expect-error
+	// @ts-ignore
 	return { promise, resolve, reject };
 };
 

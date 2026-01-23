@@ -3,6 +3,7 @@ import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import _ from 'lodash';
 import { data } from 'react-router';
+
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
@@ -14,7 +15,8 @@ import {
 	I18N_NAMESPACES,
 	isServer,
 } from '@/shared/lib/constants';
-import { isoLogger } from '@/shared/lib/logger/iso-logger';
+import { logger } from '@/shared/lib/logger/iso-logger';
+
 import { TenantCreateOrEditForm } from '../components/tenant-create-or-edit-form';
 import type { Route } from './+types/new-tenant-page';
 
@@ -62,7 +64,7 @@ export const clientLoader = async ({
 	serverLoader,
 }: Route.ClientLoaderArgs) => {
 	i18next.loadNamespaces([I18N_NAMESPACES.ZOD]).catch((error) => {
-		isoLogger.error('Failed to load namespaces', error);
+		logger.error('Failed to load namespaces', error);
 	});
 	const serverData = await serverLoader();
 	return data(serverData);

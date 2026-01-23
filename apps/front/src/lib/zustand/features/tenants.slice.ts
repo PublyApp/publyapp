@@ -1,4 +1,5 @@
 import { logger } from '@/shared/lib/logger/iso-logger';
+
 import Slice from '../utils/Slice';
 
 export type TenantsSliceValues = {

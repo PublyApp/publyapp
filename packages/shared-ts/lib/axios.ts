@@ -1,11 +1,11 @@
-import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios';
+import axios, {
+	type AxiosInstance,
+	type AxiosRequestConfig,
+	type AxiosResponse,
+} from 'axios';
 import _ from 'lodash';
 
-import {
-	DEVIST_REST_API_HEADER_KEY,
-	PARSE_APPLICATION_ID_HEADER_KEY,
-	PARSE_SESSION_TOKEN_HEADER_KEY,
-} from './constants';
+import { SESSION_TOKEN_HEADER_KEY, TENANT_ID_HEADER_KEY } from './constants';
 
 export const createInstance = (baseURL?: string) => {
 	return axios.create({
@@ -29,7 +29,11 @@ export class AxiosHttp {
 		return this.axios.get<T>(url, config).then(responseBody);
 	}
 
-	async post<T, B = unknown>(url: string, body: B, config?: AxiosRequestConfig) {
+	async post<T, B = unknown>(
+		url: string,
+		body: B,
+		config?: AxiosRequestConfig,
+	) {
 		return this.axios.post<T>(url, body, config).then(responseBody);
 	}
 
@@ -42,28 +46,28 @@ export class AxiosHttp {
 	}
 }
 
-export const protectRequest = (options: {
+export const getProtectionHeaders = (options: {
 	sessionToken?: string;
 	applicationId?: string;
 	hasFile?: boolean;
 	restApiKey?: string;
-}): AxiosRequestConfig => {
-	const headers: Record<string, unknown> = {
-		[DEVIST_REST_API_HEADER_KEY]: options.restApiKey,
-		[PARSE_SESSION_TOKEN_HEADER_KEY]: options.sessionToken,
-		[PARSE_APPLICATION_ID_HEADER_KEY]: options.applicationId,
-		'Content-Type': options.hasFile ? 'multipart/form-data' : 'application/json',
+	tenantId?: string;
+}): AxiosRequestConfig['headers'] => {
+	const headers: AxiosRequestConfig['headers'] = {
+		[SESSION_TOKEN_HEADER_KEY]: options.sessionToken,
+		[TENANT_ID_HEADER_KEY]: options.tenantId,
+		'Content-Type': options.hasFile
+			? 'multipart/form-data'
+			: 'application/json',
 	};
 
-	_.keys(headers).forEach((key) => {
-		if (_.isNil(headers[key])) {
-			delete headers[key];
+	_.forEach(_.keys(headers), (key) => {
+		if (_.isNil((headers as never)[key])) {
+			delete (headers as never)[key];
 		}
 	});
 
-	return {
-		headers: headers as never,
-	};
+	return headers;
 };
 
 export const defaultHttp = new AxiosHttp(createInstance());

@@ -1,19 +1,17 @@
-import { useCallback } from 'react';
-import { usePopover } from 'minimal-shared/hooks';
-
-import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
-import MenuList from '@mui/material/MenuList';
-import MenuItem from '@mui/material/MenuItem';
-import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
+import MenuItem from '@mui/material/MenuItem';
+import MenuList from '@mui/material/MenuList';
+import Typography from '@mui/material/Typography';
+import { usePopover } from 'minimal-shared/hooks';
+import { useCallback } from 'react';
 
+import { CustomPopover } from '@/front/components/custom-popover';
 import { Iconify } from '@/front/components/iconify';
 import { Scrollbar } from '@/front/components/scrollbar';
-import { CustomPopover } from '@/front/components/custom-popover';
 
 import { useBrand } from './brand-context';
-
 import type { BrandItem, BrandSwitcherProps } from './types';
 
 // ----------------------------------------------------------------------

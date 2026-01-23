@@ -37,6 +37,7 @@
 html {
 	height: 100%;
 	-webkit-overflow-scrolling: touch;
+	overflow-y: scroll;
 }
 body,
 #root,
@@ -69,14 +70,14 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 /** **************************************
-* UI Foundations focus styles
-*************************************** */
+ * UI Foundations focus styles
+ *************************************** */
 .Mui-focusVisible {
-  box-shadow: 0 0 0 2px var(--mui-palette-primary-200) !important;
+	box-shadow: 0 0 0 2px var(--mui-palette-primary-200) !important;
 }
 .MuiTablePagination-select {
-  padding-bottom: 1px !important;
+	padding-bottom: 1px !important;
 }
 .MuiDataGrid-menuList {
-  padding: 4px !important;
+	padding: 4px !important;
 }

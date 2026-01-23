@@ -4,7 +4,6 @@ import type { SettingsState } from 'src/components/settings';
 
 import { createShadowColor } from '../core/custom-shadows';
 import type { ThemeColorScheme, ThemeOptions } from '../types';
-
 import { primaryColorPresets } from './color-presets';
 
 // ----------------------------------------------------------------------
