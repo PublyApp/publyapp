@@ -337,6 +337,34 @@ Is the operation performed by different actors (Staff vs Tenant)?
 - `TenantContext` provides current tenant info (scoped service)
 - Tenant ID from `X-Tenant-Id` header (injected via middleware)
 
+### Staff/Tenant Account Mutual Exclusivity
+
+**Business Rule:** A `User` can only have `UserAccount` records of ONE scope type:
+- Either **Staff** (platform administrator)
+- Or **Tenant/Project** (customer)
+- Never both
+
+**Rationale:**
+- Conflict of interest: Platform admins shouldn't also be customers with the same identity
+- Session model simplicity: User-scoped sessions would be ambiguous with mixed scopes
+- Audit clarity: Actions are clearly "as staff" or "as customer"
+
+**Enforcement Points:**
+- `AccountService.CreateStaffAccountAsync()` - Rejects if user has tenant/project accounts
+- `AccountService.CreateTenantAccountAsync()` - Rejects if user has staff account
+- `AcceptInvitation` handler - Validates scope conflicts before accepting staff/tenant invitations
+- `CreateStaffInvitation` / `BulkCreateStaffInvitations` handlers - Proactively reject invitations to users with conflicting accounts
+
+**Suspension Behavior:**
+- **Suspended accounts still count** toward mutual exclusivity
+- Rationale: Suspension is temporary; the identity conflict remains
+- Implementation: `Has*Account*` methods check `!IsDeleted` but NOT `IsSuspended`
+- This prevents using suspension as a loophole to bypass the business rule
+
+**Dogfooding Approach:**
+- Use the **impersonation feature** (staff can impersonate tenant users for support/testing)
+- Or use a **separate user account** (different email) for real customer experience
+
 ### Database Layer (EF Core)
 
 **Key Patterns:**
