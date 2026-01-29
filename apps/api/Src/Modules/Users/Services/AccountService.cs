@@ -5,6 +5,7 @@ using MainApi.Src.Modules.Tenants.Entities;
 using MainApi.Src.Modules.Users.Entities;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace MainApi.Src.Modules.Users.Services;
 
@@ -59,7 +60,6 @@ public interface IAccountService {
 	Task<UserAccount?> GetUserTenantAccountAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
 	Task<bool> IsUserStaffUserAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<bool> IsUserMemberOfTenantAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
-	Task<bool> IsUserMemberOfActiveTenantAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
 	Task<bool> HasStaffAccountAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<bool> HasTenantAccountAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
 	Task<ResolveTenantInvitationTargetByEmailResult> ResolveTenantInvitationTargetByEmailAsync(
@@ -75,11 +75,6 @@ public interface IAccountService {
 	Task<List<string>> GetEmailsWithStaffAccountsAsync(List<string> emails, CancellationToken cancellationToken = default);
 	Task<List<UserAccount>> FindUserTenantAccountsAsync(Guid userId, int? limit = null, CancellationToken cancellationToken = default);
 	Task<UserTenantsResult> GetUserTenantsAsync(Guid userId, int limit = 5, CancellationToken cancellationToken = default);
-	Task<UserTenantsForPickerResult> GetUserTenantsForPickerAsync(
-		Guid userId,
-		int limit = 50,
-		CancellationToken cancellationToken = default
-	);
 	Task<CreateTenantAccountResult> CreateTenantAccountAsync(Guid userId, Guid tenantId, AccountLevel accountLevel, CancellationToken cancellationToken = default);
 	Task AssignProfileToAccountAsync(Guid accountId, Guid profileId, CancellationToken cancellationToken = default);
 }
@@ -87,9 +82,11 @@ public interface IAccountService {
 [Service(ServiceLifetime.Scoped)]
 public class AccountService : IAccountService {
 	private readonly MainApiDbContext _dbContext;
+	private readonly IOptions<AppSettings> _appSettings;
 
-	public AccountService(MainApiDbContext dbContext) {
+	public AccountService(MainApiDbContext dbContext, IOptions<AppSettings> appSettings) {
 		_dbContext = dbContext;
+		_appSettings = appSettings;
 	}
 
 	public async Task<CreateStaffAccountResult> CreateStaffAccountAsync(
@@ -427,7 +424,7 @@ public class AccountService : IAccountService {
 		int? limit = null,
 		CancellationToken cancellationToken = default
 	) {
-		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveLimit = limit ?? _appSettings.Value.PAGINATION_DEFAULT_LIMIT;
 
 		var query =
 			from ua in _dbContext.UserAccount
@@ -527,7 +524,7 @@ public class AccountService : IAccountService {
 			.OrderBy(x => x.t.Name)
 			.Take(limit)
 			.Select(x => new UserTenantInfo {
-				Id = x.t.Id ?? Guid.Empty,
+				Id = x.t.Id!.Value,
 				Name = x.t.Name,
 				Code = x.t.Code,
 				LogoUrl = x.t.LogoUrl
