@@ -225,6 +225,13 @@ public class CreateStaffUser {
 			);
 		}
 
+		if (accountResult is CreateStaffAccountResult.UserHasTenantOrProjectAccounts) {
+			return TypedProblems.BadRequest(
+				"This user already has tenant or project accounts. Staff and tenant/project accounts are mutually exclusive.",
+				ResponseKeys.UserHasTenantOrProjectAccounts
+			);
+		}
+
 		if (accountResult is CreateStaffAccountResult.Success accountSuccess) {
 			if (body.GetSendNotification()) {
 				if (shouldVerifyEmail) {

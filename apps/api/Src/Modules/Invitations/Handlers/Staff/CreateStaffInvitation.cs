@@ -12,6 +12,7 @@ using MainApi.Src.Modules.AuditLogs.Services;
 using MainApi.Src.Modules.Invitations.Entities;
 using MainApi.Src.Modules.Invitations.Services;
 using MainApi.Src.Modules.Users.Entities;
+using MainApi.Src.Modules.Users.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -73,6 +74,7 @@ public static class CreateStaffInvitation {
 	>> HandleCreateStaffInvitation(
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IInvitationService invitationService,
+		[FromServices] IAccountService accountService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILoggerFactory loggerFactory,
@@ -104,12 +106,26 @@ public static class CreateStaffInvitation {
 			return TypedProblems.BadRequest("Profile not found", ResponseKeys.NotFound);
 		}
 
-		// Check if user exists via service
+		// Check if user exists first - this determines whether we need to check for account conflicts
 		var userExists = await invitationService.UserExistsAsync(
 			email,
 			cancellationToken
 		);
 		if (userExists) {
+			// User exists - check for scope conflicts (more specific error)
+			// Only query accounts if user exists (saves a query for new-email invites)
+			var hasTenantOrProjectAccounts = await accountService.HasTenantOrProjectAccountsByEmailAsync(
+				email,
+				cancellationToken
+			);
+			if (hasTenantOrProjectAccounts) {
+				return TypedProblems.BadRequest(
+					"This user already has tenant or project accounts. Staff and tenant/project accounts are mutually exclusive.",
+					ResponseKeys.UserHasTenantOrProjectAccounts
+				);
+			}
+
+			// User exists but no conflicts - still can't invite existing users
 			return TypedProblems.BadRequest(
 				"User already exists",
 				ResponseKeys.UserAlreadyExists

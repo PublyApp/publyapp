@@ -38,10 +38,10 @@ public class GetRedirectCode {
 	) {
 		if (!authContext.IsAuthenticated) {
 			if (logger.IsEnabled(LogLevel.Error)) {
-				logger.LogError("{@GetRedirectCode}", new {
-					UserId = authContext.UserId,
-					SessionToken = authContext.SessionToken
-				});
+				logger.LogError(
+					"GetRedirectCode called without authentication. UserId: {UserId}",
+					authContext.UserId
+				);
 			}
 			throw new Exception($"GetRedirectCode must be set behind SessionAuthFilter.");
 		}
@@ -65,16 +65,9 @@ public class GetRedirectCode {
 		}
 
 		if (isUserStaffUser) {
-			if (tenantId is not Guid guidTenantIdAsStaff) {
-				return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "staff" });
-			}
-
-			var tenantFoundAsStaff = await tenantService.GetTenantByIdAsync(guidTenantIdAsStaff, cancellationToken);
-
-			if (tenantFoundAsStaff is not null) {
-				return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = tenantFoundAsStaff.GetRequiredId().ToString() });
-			}
-
+			// Staff users always redirect to staff dashboard
+			// They can access tenants via impersonation from there
+			// This enforces the business rule: staff and tenant accounts are mutually exclusive
 			return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "staff" });
 		}
 
