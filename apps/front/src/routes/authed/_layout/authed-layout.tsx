@@ -3,7 +3,7 @@ import * as cookie from 'cookie';
 import i18next from 'i18next';
 import _ from 'lodash';
 import { type ReactNode, Suspense, useEffect } from 'react';
-import { Outlet } from 'react-router';
+import { Outlet, redirect } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
 
 import { NotFoundView, View403, View500 } from '@/front/components/error';
@@ -16,24 +16,24 @@ import {
 	SIDEBAR_COOKIE_NAME,
 } from '@/front/lib/constants';
 import { getSessionCookieFromClient, logout } from '@/front/lib/cookies';
+import { getSessionTokensFromClient } from '@/front/lib/cookies/session-cookie.utils';
+import { getClientManager } from '@/front/lib/js-client/client-manager';
 import {
 	useGetTenantAuthData,
 	useGetUserAuthData,
 } from '@/front/lib/react-query/features/common/auth.hooks';
 import { resetAuthLogoutFlag } from '@/front/lib/react-query/query-client';
 import { getClientLoader } from '@/front/lib/react-router/client-data';
-// import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { useMainStore } from '@/front/lib/zustand/store';
-import { I18N_NAMESPACES, queryParamValue } from '@/shared/lib/constants';
+import {
+	FRONT_PATH_NAMES,
+	I18N_NAMESPACES,
+	queryParamValue,
+	REDIRECT_CODE,
+} from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 
 import type { Route } from './+types/authed-layout';
-
-// export const loader = getServerLoader({
-// 	loader: async () => {
-// 		return null;
-// 	},
-// });
 
 export const clientLoader = getClientLoader({
 	loader: async (_args: Route.ClientLoaderArgs) => {
@@ -54,6 +54,50 @@ export const clientLoader = getClientLoader({
 			});
 			// Return null while form is submitting (navigation will take over)
 			return null;
+		}
+
+		// Guard against cross-scope navigation (tenant user on /staff, staff user on /app).
+		// Prefer cookie prefixes when available (s:/t:), but fall back to GetRedirectCode for
+		// legacy cookies (raw token) to avoid redirect loops.
+		const { staffToken, tenantToken } = getSessionTokensFromClient();
+		const pathname = new URL(_args.request.url).pathname;
+		const isStaffPath = pathname.startsWith(FRONT_PATH_NAMES.staff.root);
+		const isTenantPath = pathname.startsWith(FRONT_PATH_NAMES.tenant().root);
+
+		if (isStaffPath && !staffToken && tenantToken) {
+			try {
+				const result = await getClientManager()
+					.createClient()
+					.auth.redirectCode.get();
+				const redirectCode = result?.redirectCode;
+
+				// Only redirect away from /staff if we can positively identify the user as NOT staff.
+				if (redirectCode && redirectCode !== REDIRECT_CODE.STAFF) {
+					return redirect(FRONT_PATH_NAMES.tenant().root);
+				}
+			} catch {
+				// No redirect on error (avoid locking users into a loop)
+			}
+		}
+
+		// Fast-path when cookie clearly indicates staff context (s:... present).
+		if (isTenantPath && !tenantToken && staffToken) {
+			return redirect(FRONT_PATH_NAMES.staff.root);
+		}
+
+		// Legacy staff cookies are stored as tenantToken only; detect staff via redirectCode.
+		if (isTenantPath && tenantToken && !staffToken) {
+			try {
+				const result = await getClientManager()
+					.createClient()
+					.auth.redirectCode.get();
+				const redirectCode = result?.redirectCode;
+				if (redirectCode === REDIRECT_CODE.STAFF) {
+					return redirect(FRONT_PATH_NAMES.staff.root);
+				}
+			} catch {
+				// No redirect on error (fall back to normal page behavior, possibly 403)
+			}
 		}
 
 		const browserCookies = cookie.parse(document.cookie);

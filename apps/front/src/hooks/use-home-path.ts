@@ -1,18 +1,41 @@
 import { useLocation } from 'react-router';
 
+import { getSessionTokensFromClient } from '@/front/lib/cookies/session-cookie.utils';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
 export const useHomePath = () => {
 	const location = useLocation();
 
 	const staffRootPath = FRONT_PATH_NAMES.staff.root;
+	const tenantRootPath = FRONT_PATH_NAMES.tenant().root;
+
+	// Prefer auth scope from session cookie over URL (handles cross-scope 403 pages).
+	// Must be guarded for SSR (document is undefined).
+	if (typeof document !== 'undefined') {
+		const { staffToken, tenantToken } = getSessionTokensFromClient();
+
+		// Impersonation cookie can contain both tokens; use current subtree to decide.
+		if (staffToken && tenantToken) {
+			if (location.pathname.startsWith(staffRootPath)) {
+				return staffRootPath;
+			}
+
+			return tenantRootPath;
+		}
+
+		if (staffToken) {
+			return staffRootPath;
+		}
+
+		if (tenantToken) {
+			return tenantRootPath;
+		}
+	}
 
 	// if in staff dashboard
 	if (location.pathname.startsWith(staffRootPath)) {
 		return staffRootPath;
 	}
-
-	const tenantRootPath = FRONT_PATH_NAMES.tenant().root;
 
 	// if in tenant dashboard
 	if (location.pathname.startsWith(tenantRootPath)) {
