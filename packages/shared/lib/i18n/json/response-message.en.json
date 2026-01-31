@@ -49,5 +49,7 @@
 	"view-details": "view details",
 	"delete-item": "delete {{item}}",
 	"confirm-delete-dialog-text": "are you sure you want to delete this item?",
-	"invalid-invitation-token": "Invalid or expired invitation token"
+	"invalid-invitation-token": "Invalid or expired invitation token",
+	"user-has-tenant-or-project-accounts": "This user already has tenant or project accounts. Staff and tenant/project accounts are mutually exclusive.",
+	"user-has-staff-account": "This user already has a staff account. Staff and tenant/project accounts are mutually exclusive."
 }

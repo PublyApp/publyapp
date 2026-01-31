@@ -480,5 +480,9 @@
 	"danger-zone": "Zone de danger",
 	"active-sessions": "Sessions actives",
 	"login-history": "Historique de connexion",
-	"activity-digest": "Résumé d'activité"
+	"activity-digest": "Résumé d'activité",
+	"select-organization": "Sélectionner une organisation",
+	"select-organization-description": "Choisissez l'organisation à laquelle vous souhaitez accéder",
+	"failed-to-load-organizations": "Impossible de charger les organisations",
+	"no-organizations-found": "Aucune organisation trouvée"
 }
