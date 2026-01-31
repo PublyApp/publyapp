@@ -20,7 +20,7 @@ import { useChangeLanguage } from 'remix-i18next/react';
 
 import { NotFoundView, View403, View500 } from '@/front/components/error';
 import { defaultSettings, SettingsDrawer } from '@/front/components/settings';
-import { APP_NAME, isServer } from '@/shared/lib/constants';
+import { APP_NAME, isServer, queryParamValue } from '@/shared/lib/constants';
 
 import type { Route } from './+types/root';
 import { MotionLazy } from './components/animate/motion-lazy';
@@ -106,7 +106,10 @@ const getRootQueryClient = () => {
 	// On browser, use singleton with auth error handling
 	return getQueryClient({
 		onAuthError: () => {
-			logout({ redirectCause: 'invalid_session' });
+			logout({
+				redirectCause:
+					queryParamValue.login_page.redirect_cause.invalid_session,
+			});
 		},
 	});
 };
