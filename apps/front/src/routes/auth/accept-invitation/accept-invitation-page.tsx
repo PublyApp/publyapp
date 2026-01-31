@@ -22,6 +22,7 @@ import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { formatSessionCookie } from '@/front/lib/cookies/session-cookie.utils';
 import { getClientManager } from '@/front/lib/js-client/client-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import {
@@ -34,6 +35,7 @@ import {
 	FRONT_PATH_NAMES,
 	isServer,
 	queryParamKey,
+	REDIRECT_CODE,
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
 import duration from '@/shared/utils/duration.utils';
@@ -203,17 +205,41 @@ export const action = getServerAction({
 			maxAge: duration.toSeconds('7d'),
 		};
 
+		// Determine where to send the user and encode cookie in dual-token format.
+		// Note: We pass the token as tenantToken for legacy compatibility; ClientManager's
+		// staff context already falls back to tenantToken for legacy cookies.
+		const authedApiClient = getClientManager({
+			tenantToken: sessionToken,
+		}).createClient();
+
+		const getRedirectCode = safeRun(async () => {
+			return authedApiClient.auth.redirectCode.get();
+		});
+
+		const redirectCodeResult = await getRedirectCode();
+		const redirectCode =
+			redirectCodeResult.status === 'success'
+				? redirectCodeResult.data?.redirectCode
+				: undefined;
+
+		const sessionCookieValue =
+			redirectCode === REDIRECT_CODE.STAFF
+				? formatSessionCookie({ staffToken: sessionToken })
+				: formatSessionCookie({ tenantToken: sessionToken });
+
 		const sessionTokenCookie = cookie.serialize(
 			SESSION_TOKEN_COOKIE_KEY,
-			sessionToken,
+			sessionCookieValue,
 			cookieOptions,
 		);
 		responseHeaders.append('Set-Cookie', sessionTokenCookie);
 
-		// Redirect to staff dashboard
-		return redirect(FRONT_PATH_NAMES.staff.root, {
-			headers: responseHeaders,
-		}) as never;
+		const redirectPath =
+			redirectCode === REDIRECT_CODE.STAFF
+				? FRONT_PATH_NAMES.staff.root
+				: FRONT_PATH_NAMES.tenant()._root;
+
+		return redirect(redirectPath, { headers: responseHeaders }) as never;
 	},
 });
 

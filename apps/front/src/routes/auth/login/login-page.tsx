@@ -15,6 +15,7 @@ import {
 	serializeTenantHintsForResponse,
 	setTenantHintForUser,
 } from '@/front/lib/cookies';
+import { formatSessionCookie } from '@/front/lib/cookies/session-cookie.utils';
 import { getClientManager } from '@/front/lib/js-client/client-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import {
@@ -113,13 +114,6 @@ export const action = getServerAction({
 
 		const sessionToken = loginResult.data?.sessionToken || '';
 
-		const sessionTokenCookie = cookie.serialize(
-			SESSION_TOKEN_COOKIE_KEY,
-			sessionToken,
-			cookieOptions,
-		);
-		responseHeaders.append('Set-Cookie', sessionTokenCookie);
-
 		// Get userId from login response (required for identity-scoped cookie)
 		const userId = loginResult.data?.userId;
 		if (!userId) {
@@ -162,6 +156,18 @@ export const action = getServerAction({
 
 		let redirectPath: string;
 		const isSecure = isSecureCookieFromRequest(request);
+
+		const sessionCookieValue =
+			redirectCode === REDIRECT_CODE.STAFF
+				? formatSessionCookie({ staffToken: sessionToken })
+				: formatSessionCookie({ tenantToken: sessionToken });
+
+		const sessionTokenCookie = cookie.serialize(
+			SESSION_TOKEN_COOKIE_KEY,
+			sessionCookieValue,
+			cookieOptions,
+		);
+		responseHeaders.append('Set-Cookie', sessionTokenCookie);
 
 		if (redirectCode === REDIRECT_CODE.STAFF) {
 			redirectPath = FRONT_PATH_NAMES.staff.root;
