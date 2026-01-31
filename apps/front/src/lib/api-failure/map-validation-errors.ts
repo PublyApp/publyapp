@@ -141,6 +141,8 @@ export const mapValidationErrors = <TForm extends FieldValues>(
 					// Silently ignore
 					break;
 				case 'collect':
+					// Collect the error for custom handling
+					break;
 				default:
 					result.unmappedErrors.push({ field: serverField, messages });
 					break;
