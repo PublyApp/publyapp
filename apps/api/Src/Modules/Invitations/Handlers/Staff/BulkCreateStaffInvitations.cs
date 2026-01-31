@@ -10,6 +10,7 @@ using MainApi.Src.Modules.AuditLogs.Entities;
 using MainApi.Src.Modules.AuditLogs.Services;
 using MainApi.Src.Modules.Invitations.Entities;
 using MainApi.Src.Modules.Invitations.Services;
+using MainApi.Src.Modules.Users.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -211,11 +212,13 @@ public class BulkCreateStaffInvitationsBodyValidator
 public static class BulkCreateStaffInvitations {
 	public static async Task<Results<
 		Ok<BulkStaffInvitationsCreated>,
+		AppValidationProblemHttpResult,
 		AppBadRequestHttpResult,
 		AppInternalServerErrorHttpResult
 	>> HandleBulkCreateStaffInvitations(
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IInvitationService invitationService,
+		[FromServices] IAccountService accountService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILoggerFactory loggerFactory,
@@ -240,6 +243,26 @@ public static class BulkCreateStaffInvitations {
 		var uniqueEmails = invitations.Select(i => i.Email).Distinct().ToList();
 		var allProfileIds = invitations.SelectMany(i => i.ProfileIds).Distinct().ToList();
 
+		// Check for scope conflicts - staff invitations can't target users with tenant/project accounts
+		var conflictingEmails = await accountService.GetEmailsWithTenantOrProjectAccountsAsync(
+			uniqueEmails,
+			cancellationToken
+		);
+
+		if (conflictingEmails.Count > 0) {
+			// Return structured 422 with errors keyed by email for better frontend handling
+			// Include email in message so UI can display it even if it only shows values
+			var errors = conflictingEmails.ToDictionary(
+				email => email,
+				email => new[] { $"{email}: User already has tenant or project accounts" }
+			);
+			return TypedProblems.ValidationProblem(
+				"Staff and tenant/project accounts are mutually exclusive",
+				ResponseKeys.UserHasTenantOrProjectAccounts,
+				errors
+			);
+		}
+
 		// Batch validate all emails (2 queries total, not N queries)
 		var existingUserEmails = await invitationService.GetExistingUserEmailsAsync(
 			uniqueEmails,
@@ -247,9 +270,14 @@ public static class BulkCreateStaffInvitations {
 		);
 
 		if (existingUserEmails.Count > 0) {
-			return TypedProblems.BadRequest(
-				$"User(s) already exist: {string.Join(", ", existingUserEmails)}",
-				ResponseKeys.UserAlreadyExists
+			var errors = existingUserEmails.ToDictionary(
+				email => email,
+				email => new[] { $"{email}: User already exists" }
+			);
+			return TypedProblems.ValidationProblem(
+				"One or more users already exist",
+				ResponseKeys.UserAlreadyExists,
+				errors
 			);
 		}
 
@@ -260,9 +288,14 @@ public static class BulkCreateStaffInvitations {
 		);
 
 		if (existingInvitationEmails.Count > 0) {
-			return TypedProblems.BadRequest(
-				$"Pending invitation(s) exist: {string.Join(", ", existingInvitationEmails)}",
-				ResponseKeys.PendingInvitationExists
+			var errors = existingInvitationEmails.ToDictionary(
+				email => email,
+				email => new[] { $"{email}: Pending invitation already exists" }
+			);
+			return TypedProblems.ValidationProblem(
+				"One or more pending invitations exist",
+				ResponseKeys.PendingInvitationExists,
+				errors
 			);
 		}
 
@@ -275,9 +308,14 @@ public static class BulkCreateStaffInvitations {
 		var missingProfileIds = allProfileIds.Except(validProfileIds).ToList();
 
 		if (missingProfileIds.Count > 0) {
-			return TypedProblems.BadRequest(
-				$"Profile(s) not found: {string.Join(", ", missingProfileIds)}",
-				ResponseKeys.NotFound
+			var errors = missingProfileIds.ToDictionary(
+				id => id.ToString(),
+				id => new[] { $"{id}: Profile not found" }
+			);
+			return TypedProblems.ValidationProblem(
+				"One or more profiles not found",
+				ResponseKeys.NotFound,
+				errors
 			);
 		}
 

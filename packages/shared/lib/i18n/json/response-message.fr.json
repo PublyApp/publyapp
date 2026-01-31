@@ -49,5 +49,7 @@
 	"view-details": "voir les détails",
 	"delete-item": "supprimer {{item}}",
 	"confirm-delete-dialog-text": "êtes-vous sûr de vouloir supprimer cet élément ?",
-	"invalid-invitation-token": "Jeton d'invitation invalide ou expiré"
+	"invalid-invitation-token": "Jeton d'invitation invalide ou expiré",
+	"user-has-tenant-or-project-accounts": "Cet utilisateur a déjà des comptes tenant ou projet. Les comptes staff et tenant/projet sont mutuellement exclusifs.",
+	"user-has-staff-account": "Cet utilisateur a déjà un compte staff. Les comptes staff et tenant/projet sont mutuellement exclusifs."
 }
