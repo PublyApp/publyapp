@@ -81,7 +81,7 @@ export const withResolvers = <T = unknown>() => {
 		reject = _reject;
 	});
 
-	// @ts-ignore
+	// @ts-expect-error
 	return { promise, resolve, reject };
 };
 

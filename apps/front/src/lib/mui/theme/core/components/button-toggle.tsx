@@ -21,15 +21,14 @@ type PaletteColor = (typeof COLORS)[number];
 function styleColors(
 	ownerState: ToggleButtonProps,
 	styles: (val: PaletteColor) => CSSObject,
-) {
-	const outputStyle = COLORS.reduce((acc, color) => {
-		if (!ownerState.disabled && ownerState.color === color) {
-			acc = styles(color);
-		}
-		return acc;
-	}, {});
+): CSSObject {
+	if (ownerState.disabled) {
+		return {};
+	}
 
-	return outputStyle;
+	const matchedColor = COLORS.find((color) => ownerState.color === color);
+
+	return matchedColor ? styles(matchedColor) : {};
 }
 
 // ----------------------------------------------------------------------

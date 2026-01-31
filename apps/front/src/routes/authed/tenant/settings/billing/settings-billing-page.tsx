@@ -11,6 +11,14 @@ import Typography from '@mui/material/Typography';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { SettingsPageHeader } from '@/front/components/settings/settings-page-header';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { nanoid } from 'nanoid';
+
+const _invoices = [
+	{ id: nanoid(), date: 'Dec 1, 2026', amount: '$49.00', status: 'Paid' },
+	{ id: nanoid(), date: 'Nov 1, 2026', amount: '$49.00', status: 'Paid' },
+	{ id: nanoid(), date: 'Oct 1, 2026', amount: '$49.00', status: 'Paid' },
+	{ id: nanoid(), date: 'Oct 1, 2026', amount: '$49.00', status: 'Paid' },
+];
 
 const SettingsBillingPage = () => {
 	const { t } = useTranslate();
@@ -157,13 +165,9 @@ const SettingsBillingPage = () => {
 				</Typography>
 
 				<Stack divider={<Divider />}>
-					{[
-						{ date: 'Dec 1, 2026', amount: '$49.00', status: 'Paid' },
-						{ date: 'Nov 1, 2026', amount: '$49.00', status: 'Paid' },
-						{ date: 'Oct 1, 2026', amount: '$49.00', status: 'Paid' },
-					].map((invoice, index) => (
+					{_invoices.map((invoice) => (
 						<Stack
-							key={index}
+							key={invoice.id}
 							direction="row"
 							alignItems="center"
 							justifyContent="space-between"

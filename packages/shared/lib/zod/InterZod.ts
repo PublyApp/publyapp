@@ -1,5 +1,4 @@
 import type { i18n, TFunction } from 'i18next';
-import _ from 'lodash';
 import z, {
 	defaultErrorMap,
 	type Primitive,
