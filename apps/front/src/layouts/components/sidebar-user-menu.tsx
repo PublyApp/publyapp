@@ -34,7 +34,10 @@ export type SidebarUserMenuProps = {
 };
 
 const getMenuItems = (tenantId: string) => {
-	const paths = FRONT_PATH_NAMES.tenant(tenantId).account;
+	const paths =
+		tenantId === 'staff'
+			? FRONT_PATH_NAMES.staff.account
+			: FRONT_PATH_NAMES.tenant(tenantId).account;
 
 	return [
 		{
