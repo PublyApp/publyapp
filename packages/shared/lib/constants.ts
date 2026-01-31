@@ -134,6 +134,11 @@ export const FRONT_PATH_NAMES = {
 	},
 	staff: {
 		root: makePath(ROOTS.STAFF),
+		account: {
+			root: makePath(ROOTS.STAFF, 'account'),
+			security: makePath(ROOTS.STAFF, 'account', 'security'),
+			notifications: makePath(ROOTS.STAFF, 'account', 'notifications'),
+		},
 		profiles: {
 			root: makePath(ROOTS.STAFF, RESOURCE.profiles),
 			new: makePath(ROOTS.STAFF, RESOURCE.profiles, 'new'),
