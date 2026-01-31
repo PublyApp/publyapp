@@ -8,14 +8,57 @@ export const APP_NAME_PASCAl_CASE = toPascalCase(APP_NAME);
 
 export const SESSION_TOKEN_HEADER_KEY = 'X-Session-Token';
 export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}-session_token`;
+/** @deprecated Use TENANT_HINTS_COOKIE_KEY_LEGACY for new code */
 export const LAST_USED_TENANT_ID_COOKIE_KEY = `${APP_ID}-last_used_tenant`;
 export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detect language server-side
+
+// =============================================================================
+// Tenant Hints Cookie (Identity-Scoped)
+// See: docs/implementation-plans/identity-scoped-tenant-cookie.md
+// =============================================================================
+
+/** New cookie key for user→tenant mapping (v4 format) */
+export const TENANT_HINTS_COOKIE_KEY = `${APP_ID}-last_tenants`;
+
+/** Legacy cookie key (v1-v3, for migration) */
+export const TENANT_HINTS_COOKIE_KEY_LEGACY = LAST_USED_TENANT_ID_COOKIE_KEY;
+
+/** Max users to store in mapping (keeps cookie under 1KB) */
+export const TENANT_HINTS_MAX_ENTRIES = 10;
+
+/** Cookie version for future format changes */
+export const TENANT_HINTS_COOKIE_VERSION = 'v1';
+
+/** Max cookie value length before treating as invalid (DoS protection) */
+export const TENANT_HINTS_MAX_COOKIE_LENGTH = 2048;
+
+/** Paths to clear legacy cookie from (handles historical path-scoped duplicates) */
+export const TENANT_HINTS_LEGACY_CLEAR_PATHS = [
+	'/',
+	'/auth',
+	'/auth/login',
+	'/app',
+] as const;
 
 export const LOCALE_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Locale`;
 export const TENANT_ID_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-TenantId`;
 export const FORWARDED_FOR_HEADER_KEY = 'X-Forwarded-For';
 export const REMIX_CLIENT_IP_HEADER_KEY = 'X-Remix-Client-IP';
 export const CLOUDFLARE_CONNECTING_IP_HEADER_KEY = 'CF-Connecting-IP';
+
+// =============================================================================
+// Redirect Codes (GetRedirectCode API response)
+// =============================================================================
+
+export const REDIRECT_CODE = {
+	STAFF: 'staff',
+	UNAUTHORIZED: 'unauthorized',
+	TENANT_PICKER: 'tenant-picker',
+} as const;
+
+export type RedirectCode =
+	| (typeof REDIRECT_CODE)[keyof typeof REDIRECT_CODE]
+	| (string & {});
 
 const RESOURCE = {
 	users: 'users',

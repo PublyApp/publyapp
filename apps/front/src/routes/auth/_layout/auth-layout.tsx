@@ -1,4 +1,3 @@
-import * as cookie from 'cookie';
 import i18next from 'i18next';
 import _ from 'lodash';
 import { Suspense } from 'react';
@@ -11,6 +10,7 @@ import {
 	clearSessionCookie,
 	getSessionCookieFromClient,
 } from '@/front/lib/cookies/session-cookie.utils';
+import { readTenantHintsFromRequestHeaders } from '@/front/lib/cookies/tenant-hint-cookie.utils';
 import { getClientManager } from '@/front/lib/js-client/client-manager';
 import {
 	useGetTenantAuthData,
@@ -24,7 +24,7 @@ import {
 	FRONT_PATH_NAMES,
 	formActionKey,
 	I18N_NAMESPACES,
-	LAST_USED_TENANT_ID_COOKIE_KEY,
+	REDIRECT_CODE,
 } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 
@@ -44,17 +44,18 @@ export const loader = getServerLoader({
 			tenantToken,
 		}).createClient();
 
-		const reqCookies = cookie.parse(request.headers.get('cookie') || '');
-
 		const getUserAuthData = safeRun(async () => {
 			return authedApiClient.auth.userAuthData.get();
 		});
 
-		const tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
+		// Read legacy tenant hint - identity-scoped lookup would require userId
+		// which we don't have until userAuthData resolves. For auth-layout's
+		// redirect-away case, legacy fallback is acceptable during migration.
+		const { legacyTenantId } = readTenantHintsFromRequestHeaders(request);
 
 		const getRedirectCode = safeRun(async () => {
 			return authedApiClient.auth.redirectCode.get({
-				queryParameters: { tenantId },
+				queryParameters: { tenantId: legacyTenantId },
 			});
 		});
 
@@ -168,16 +169,23 @@ export const clientLoader = getClientLoader({
 
 			getQueryClient().setQueryData(useGetUserAuthData.getKey(), userAuthData);
 
-			if (redirectCode && redirectCode !== 'unauthorized') {
+			if (redirectCode && redirectCode !== REDIRECT_CODE.UNAUTHORIZED) {
+				if (redirectCode === REDIRECT_CODE.STAFF) {
+					return redirect(FRONT_PATH_NAMES.staff.root);
+				}
+
+				if (redirectCode === REDIRECT_CODE.TENANT_PICKER) {
+					// Multiple tenants, no valid hint - go to tenant portal/picker
+					// Don't prefetch tenant auth data (no specific tenant yet)
+					return redirect(FRONT_PATH_NAMES.tenant()._root);
+				}
+
+				// redirectCode is a valid tenant ID - prefetch and redirect
 				getQueryClient().prefetchQuery({
 					queryKey: useGetTenantAuthData.getKey({ tenantId: redirectCode }),
 					queryFn: () =>
 						useGetTenantAuthData.fetcher({ tenantId: redirectCode }),
 				});
-
-				if (redirectCode === 'staff') {
-					return redirect(FRONT_PATH_NAMES.staff.root);
-				}
 
 				return redirect(FRONT_PATH_NAMES.tenant(redirectCode).root);
 			}

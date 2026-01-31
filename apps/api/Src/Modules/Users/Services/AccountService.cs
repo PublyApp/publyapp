@@ -38,6 +38,7 @@ public interface IAccountService {
 	Task<UserAccount?> GetUserTenantAccountAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
 	Task<bool> IsUserStaffUserAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<bool> IsUserMemberOfTenantAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
+	Task<bool> IsUserMemberOfActiveTenantAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
 	Task<bool> HasStaffAccountAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<bool> HasTenantAccountAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
 	Task<bool> HasTenantOrProjectAccountsAsync(Guid userId, CancellationToken cancellationToken = default);
@@ -150,6 +151,27 @@ public class AccountService : IAccountService {
 			&& ua.TenantId == tenantId
 			&& ua.Scope == AccountScope.Tenant
 			&& !ua.IsDeleted && !ua.IsSuspended
+			select ua;
+
+		return await query.AnyAsync(cancellationToken);
+	}
+
+	public async Task<bool> IsUserMemberOfActiveTenantAsync(
+		Guid userId,
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		// Same filters as GetUserTenantsAsync for consistency:
+		// Checks both account status (not deleted, not suspended)
+		// AND tenant status (Active, not suspended, not deleted)
+		var query =
+			from ua in _dbContext.UserAccount
+			join t in _dbContext.Tenant on ua.TenantId equals t.Id
+			where ua.UserId == userId
+				&& ua.TenantId == tenantId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted && !ua.IsSuspended
+				&& !t.IsDeleted && t.Status == TenantStatus.Active && !t.IsSuspended
 			select ua;
 
 		return await query.AnyAsync(cancellationToken);
@@ -376,7 +398,7 @@ public class AccountService : IAccountService {
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.TenantId != null
 				&& !ua.IsDeleted && !ua.IsSuspended
-				&& t.Status == TenantStatus.Active && !t.IsSuspended
+				&& !t.IsDeleted && t.Status == TenantStatus.Active && !t.IsSuspended
 			select new { ua, t };
 
 		var totalCount = await baseQuery.CountAsync(cancellationToken);

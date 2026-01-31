@@ -200,6 +200,22 @@ export const fIsSame = (
 	return dayjs(startDate).isSame(endDate, unitToCompare ?? 'year');
 };
 
+// ----------------------------------------------------------------------
+
+/**
+ * Seconds from now until the given date. Returns 0 if date is invalid or in the past.
+ * Use for cookie maxAge, TTL, etc.
+ */
+export const fSecondsUntil = (date: DatePickerFormat): number => {
+	if (!isValidDate(date)) {
+		return 0;
+	}
+	const seconds = dayjs(date).diff(dayjs(), 'seconds');
+	return Math.max(0, seconds);
+};
+
+// ----------------------------------------------------------------------
+
 /**
  * @output
  * Same day: 26 Apr 2024

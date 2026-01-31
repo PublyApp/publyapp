@@ -4,3 +4,33 @@ export {
 	clearSessionCookie,
 	getSessionCookieFromClient,
 } from './session-cookie.utils';
+
+// =============================================================================
+// Tenant Hint Cookie - Public API
+// See: docs/implementation-plans/identity-scoped-tenant-cookie.md
+// =============================================================================
+
+export {
+	// Map operations (used by both server and client)
+	getTenantHintForUser,
+	isSecureCookieFromBrowser,
+	isSecureCookieFromRequest,
+	// Client-side helpers (browser)
+	readTenantHintsFromBrowser,
+	readTenantHintsFromRequest, // If you already have parsed cookies
+	// Server-side helpers (SSR loaders/actions)
+	readTenantHintsFromRequestHeaders, // Preferred - parses cookies internally
+	serializeClearLegacyCookie, // Deprecated - only clears at /
+	serializeClearLegacyCookieHeaders, // Preferred - clears at all likely paths
+	serializeTenantHintsForResponse,
+	setTenantHintForUser,
+	// Types
+	type TenantHintsMap,
+	updateTenantHintInBrowser, // Preferred over writeTenantHintsToBrowser
+} from './tenant-hint-cookie.utils';
+
+// NOTE: The following are intentionally NOT exported (internal implementation):
+// - parseTenantHintsCookie, serializeTenantHintsCookie (low-level parsing)
+// - writeTenantHintsToBrowser (use updateTenantHintInBrowser instead)
+// - isValidUuid, normalizeUuid (validation/normalization internals)
+// - getCookieOptions (cookie config internals)
