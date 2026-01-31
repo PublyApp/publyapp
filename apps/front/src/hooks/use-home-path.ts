@@ -5,9 +5,11 @@ import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 export const useHomePath = () => {
 	const location = useLocation();
 
+	const staffRootPath = FRONT_PATH_NAMES.staff.root;
+
 	// if in staff dashboard
-	if (location.pathname.startsWith(FRONT_PATH_NAMES.staff.root)) {
-		return FRONT_PATH_NAMES.staff.root;
+	if (location.pathname.startsWith(staffRootPath)) {
+		return staffRootPath;
 	}
 
 	const tenantRootPath = FRONT_PATH_NAMES.tenant().root;

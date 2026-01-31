@@ -24,7 +24,7 @@ import { resetAuthLogoutFlag } from '@/front/lib/react-query/query-client';
 import { getClientLoader } from '@/front/lib/react-router/client-data';
 // import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { useMainStore } from '@/front/lib/zustand/store';
-import { I18N_NAMESPACES } from '@/shared/lib/constants';
+import { I18N_NAMESPACES, queryParamValue } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 
 import type { Route } from './+types/authed-layout';
@@ -48,7 +48,10 @@ export const clientLoader = getClientLoader({
 		if (!sessionToken) {
 			// No session token readable by JavaScript
 			// Submit form to clear any httpOnly cookie and redirect to login
-			logout({ redirectCause: 'invalid_session' });
+			logout({
+				redirectCause:
+					queryParamValue.login_page.redirect_cause.invalid_session,
+			});
 			// Return null while form is submitting (navigation will take over)
 			return null;
 		}
@@ -114,7 +117,9 @@ const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 	if (!sessionToken) {
 		// No session token - this is a safety check
 		// Submit form to clear any httpOnly cookie and redirect to login
-		logout({ redirectCause: 'invalid_session' });
+		logout({
+			redirectCause: queryParamValue.login_page.redirect_cause.invalid_session,
+		});
 
 		return <SplashScreen />;
 	}
@@ -154,7 +159,10 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 		// for clean UX during redirect
 		if (failure.status === 401) {
 			// Trigger logout (may be redundant if global handler already fired, but safe)
-			logout({ redirectCause: 'invalid_session' });
+			logout({
+				redirectCause:
+					queryParamValue.login_page.redirect_cause.invalid_session,
+			});
 			return <SplashScreen />;
 		}
 
