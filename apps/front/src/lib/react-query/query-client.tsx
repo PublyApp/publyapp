@@ -340,7 +340,7 @@ export type CreateQueryClientOptions = {
 	 *
 	 * @example
 	 * onAuthError: (_status, _failure) => {
-	 *   logout({ redirectCause: 'invalid_session' });
+	 *   logout({ redirectCause: queryParamValue.login_page.redirect_cause.invalid_session });
 	 * }
 	 */
 	onAuthError?: OnAuthErrorCallback;

@@ -1445,7 +1445,7 @@ function AuthedLayoutErrorBoundary({ error }: { error: unknown }) {
     switch (failure.status) {
       case 401:
         // Session expired - redirect to login
-        logout({ redirectCause: 'invalid_session' });
+        logout({ redirectCause: queryParamValue.login_page.redirect_cause.invalid_session });
         return <SplashScreen />;
 
       case 403:
