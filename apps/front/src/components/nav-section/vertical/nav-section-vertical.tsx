@@ -6,7 +6,6 @@ import { mergeClasses } from 'minimal-shared/utils';
 import { Nav, NavLi, NavSubheader, NavUl } from '../components';
 import { navSectionClasses, navSectionCssVars } from '../styles';
 import type { NavGroupProps, NavSectionProps } from '../types';
-
 import { NavList } from './nav-list';
 
 // ----------------------------------------------------------------------
@@ -105,7 +104,11 @@ const Group = ({
 		}
 
 		return (
-			<NavSubheader data-title={subheader} sx={slotProps?.subheader}>
+			<NavSubheader
+				data-title={subheader}
+				interactive={false}
+				sx={slotProps?.subheader}
+			>
 				{subheader}
 			</NavSubheader>
 		);

@@ -132,7 +132,7 @@ Each `apps/api/Src/Modules/<Domain>/` module is a complete vertical slice contai
 #### Module Examples
 
 - `Modules/Auth/` — session + auth flows
-- `Modules/Users/` — users + accounts (including staff-member management)
+- `Modules/Users/` — users + accounts (including staff-user management)
 - `Modules/Invitations/` — invitations and their profiles
 - `Infrastructure/Messaging/Email/` — technical capability used by multiple domains
 
@@ -337,6 +337,34 @@ Is the operation performed by different actors (Staff vs Tenant)?
 - `TenantContext` provides current tenant info (scoped service)
 - Tenant ID from `X-Tenant-Id` header (injected via middleware)
 
+### Staff/Tenant Account Mutual Exclusivity
+
+**Business Rule:** A `User` can only have `UserAccount` records of ONE scope type:
+- Either **Staff** (platform administrator)
+- Or **Tenant/Project** (customer)
+- Never both
+
+**Rationale:**
+- Conflict of interest: Platform admins shouldn't also be customers with the same identity
+- Session model simplicity: User-scoped sessions would be ambiguous with mixed scopes
+- Audit clarity: Actions are clearly "as staff" or "as customer"
+
+**Enforcement Points:**
+- `AccountService.CreateStaffAccountAsync()` - Rejects if user has tenant/project accounts
+- `AccountService.CreateTenantAccountAsync()` - Rejects if user has staff account
+- `AcceptInvitation` handler - Validates scope conflicts before accepting staff/tenant invitations
+- `CreateStaffInvitation` / `BulkCreateStaffInvitations` handlers - Proactively reject invitations to users with conflicting accounts
+
+**Suspension Behavior:**
+- **Suspended accounts still count** toward mutual exclusivity
+- Rationale: Suspension is temporary; the identity conflict remains
+- Implementation: `Has*Account*` methods check `!IsDeleted` but NOT `IsSuspended`
+- This prevents using suspension as a loophole to bypass the business rule
+
+**Dogfooding Approach:**
+- Use the **impersonation feature** (staff can impersonate tenant users for support/testing)
+- Or use a **separate user account** (different email) for real customer experience
+
 ### Database Layer (EF Core)
 
 **Key Patterns:**
@@ -462,18 +490,18 @@ apps/front/app/lib/domain/
 // ❌ WRONG - Fetching application data in a server loader (authed routes)
 // File: app/routes/authed/staff/members-page.tsx
 export const loader = async ({ apiClient }) => {
-  const data = await apiClient.staff.staffMembers.get();
+  const data = await apiClient.staff.staffUsers.get();
   return { data };
 };
 
 // ✅ CORRECT - Use hook factories for authenticated pages
-// Step 1: Define hook in app/lib/react-query/features/staff/staff-member.hooks.ts
+// Step 1: Define hook in app/lib/react-query/features/staff/staff-user.hooks.ts
 import { createStaffQuery } from '../../create-hooks';
 
 export const useFindStaffUser = createStaffQuery({
-  queryKeyFn: (client) => client.staff.staffMembers.get,
+  queryKeyFn: (client) => client.staff.staffUsers.get,
   fetcher: async (client, params: { page?: number }) => {
-    const result = await client.staff.staffMembers.get({
+    const result = await client.staff.staffUsers.get({
       queryParameters: { page: params.page?.toString() },
     });
     if (_.isNil(result)) throw new Error('useFindStaffUser: result is nil');
@@ -483,7 +511,7 @@ export const useFindStaffUser = createStaffQuery({
 
 // Step 2: Use hook in component
 // File: app/routes/authed/staff/members-page.tsx
-import { useFindStaffUser } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import { useFindStaffUser } from '@/front/lib/react-query/features/staff/staff-user.hooks';
 
 function StaffUsersPage() {
   const { data, isLoading } = useFindStaffUser({ variables: { page: 1 } });
@@ -1166,7 +1194,7 @@ const form = useForm<FormData>({
 **Pattern:**
 ```tsx
 // ❌ WRONG - Manual conditional rendering
-import { useFindStaffUsers } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import { useFindStaffUsers } from '@/front/lib/react-query/features/staff/staff-user.hooks';
 
 function StaffUsersPage() {
   const { data, isLoading, isError, error } = useFindStaffUsers();
@@ -1186,7 +1214,7 @@ function StaffUsersPage() {
 
 // ✅ CORRECT - Using QueryDisplay component
 import QueryDisplay from '@/front/components/query-display';
-import { useFindStaffUsers } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import { useFindStaffUsers } from '@/front/lib/react-query/features/staff/staff-user.hooks';
 
 function StaffUsersPage() {
   const query = useFindStaffUsers();
@@ -1915,7 +1943,7 @@ public static async Task<Results<Ok<Response>, AppForbiddenHttpResult>> Handle(
 
 ### Route Naming
 
-- Backend routes use kebab-case: `/staff/staff-members`
+- Backend routes use kebab-case: `/staff/staff-users`
 - Route constants defined in `apps/api/Src/Lib/RoutePath.cs`
 - Frontend route constants in `packages/shared/lib/constants.ts`
 
@@ -1968,6 +1996,11 @@ Error responses:
 - Backend: Structured logging with Serilog, contextual error information
 - Frontend: React Router error boundaries, custom error pages (400, 403, 404, 500)
 - Always log before rethrowing exceptions
+- Frontend/Node app code: Prefer `logger` from `@/shared/lib/logger/iso-logger` over the global `console` object
+  - Rationale: consistent formatting + environment-safe (browser/SSR) behavior
+  - If a request/loader context provides a logger (e.g. React Router `args.context.logger` / `getServerLoader`), prefer `context.logger` over importing the global singleton so logs can be request-scoped
+  - Avoid committing `console.*` in React components, hooks, libs, SSR entrypoints, etc.
+  - **Exceptions:** scripts/build tooling/config where importing the iso-logger isn’t feasible (e.g. `scripts/**`, `apps/*/_vite/**`, `*.config.*`, `*.mjs`, `server.js`), or intentionally user-facing CLI output
 
 ### Frontend API Error Handling
 

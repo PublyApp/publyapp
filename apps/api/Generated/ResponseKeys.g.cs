@@ -242,6 +242,16 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey UserDoesNotHaveTheNecessaryPermissions = new("user-does-not-have-the-necessary-permissions");
 
 	/// <summary>
+	/// This user already has a staff account. Staff and tenant/project accounts are mutually exclusive.
+	/// </summary>
+	public static readonly TranslationKey UserHasStaffAccount = new("user-has-staff-account");
+
+	/// <summary>
+	/// This user already has tenant or project accounts. Staff and tenant/project accounts are mutually exclusive.
+	/// </summary>
+	public static readonly TranslationKey UserHasTenantOrProjectAccounts = new("user-has-tenant-or-project-accounts");
+
+	/// <summary>
 	/// User ID required
 	/// </summary>
 	public static readonly TranslationKey UserIdRequired = new("user-id-required");

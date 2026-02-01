@@ -6,6 +6,7 @@ import CardHeader from '@mui/material/CardHeader';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
+
 import { useTranslate } from '@/front/hooks/use-translate';
 
 const StaffProfileBasicInfos = () => {
