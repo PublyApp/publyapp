@@ -3,7 +3,6 @@ import Slider, { type SliderProps, sliderClasses } from '@mui/material/Slider';
 import { setFont } from 'minimal-shared/utils';
 
 import type { SettingsState } from '../types';
-
 import { OptionButton } from './styles';
 
 // ----------------------------------------------------------------------

@@ -2,7 +2,6 @@ import Box, { type BoxProps } from '@mui/material/Box';
 import { varAlpha } from 'minimal-shared/utils';
 
 import type { SettingsState } from '../types';
-
 import { OptionButton } from './styles';
 
 // ----------------------------------------------------------------------

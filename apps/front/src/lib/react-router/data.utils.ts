@@ -1,5 +1,6 @@
 import * as cookie from 'cookie';
 import _ from 'lodash';
+
 import {
 	LANGUAGE_DETECTION_METHOD,
 	LANGUAGE_DETECTION_METHOD_ENUM,

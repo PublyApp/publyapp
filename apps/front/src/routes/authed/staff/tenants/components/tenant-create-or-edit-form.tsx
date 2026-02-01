@@ -149,7 +149,7 @@ export const TenantCreateOrEditForm = ({
 			// if (error instanceof ParseRestError) {
 			// 	if (error.code === X_CODE.NO_STAFF_MEMBERS_ALLOWED_IN_TENANT) {
 			// 		const notAllowedEmailsStr = _.map(
-			// 			_.get(error.data, 'staff-member-emails', []) as string[],
+			// 			_.get(error.data, 'staff-user-emails', []) as string[],
 			// 			(email) => {
 			// 				return `'${email}'`;
 			// 			},

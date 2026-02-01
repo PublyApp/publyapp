@@ -5,7 +5,6 @@ import { Scrollbar } from '../../scrollbar/scrollbar';
 import { Nav, NavLi, NavUl } from '../components';
 import { navSectionClasses, navSectionCssVars } from '../styles';
 import type { NavGroupProps, NavSectionProps } from '../types';
-
 import { NavList } from './nav-list';
 
 // ----------------------------------------------------------------------

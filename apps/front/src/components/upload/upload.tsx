@@ -5,7 +5,6 @@ import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 import { useDropzone } from 'react-dropzone';
 
 import { Iconify } from '../iconify/iconify';
-
 import { uploadClasses } from './classes';
 import { UploadPlaceholder } from './components/placeholder';
 import { MultiFilePreview } from './components/preview-multi-file';

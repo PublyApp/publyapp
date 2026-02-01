@@ -33,7 +33,7 @@ const StaffLayout = () => {
 				},
 				{
 					title: t('users'),
-					path: FRONT_PATH_NAMES.staff.users.root,
+					path: FRONT_PATH_NAMES.staff.tenantUsers.root,
 					icon: ICONS.user,
 					deepActiveMatch: true,
 				},
@@ -45,7 +45,7 @@ const StaffLayout = () => {
 			items: [
 				{
 					title: t('users'),
-					path: FRONT_PATH_NAMES.staff.staffMembers.root,
+					path: FRONT_PATH_NAMES.staff.staffUsers.root,
 					icon: ICONS.user,
 					deepActiveMatch: true,
 				},
@@ -65,12 +65,6 @@ const StaffLayout = () => {
 					title: t('workers'),
 					path: FRONT_PATH_NAMES.staff.backgroundJobs.root,
 					icon: ICONS.job,
-					deepActiveMatch: true,
-				},
-				{
-					title: t('settings'),
-					path: FRONT_PATH_NAMES.staff.settings.root,
-					icon: ICONS.settings,
 					deepActiveMatch: true,
 				},
 			],

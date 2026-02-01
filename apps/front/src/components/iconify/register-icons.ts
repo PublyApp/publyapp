@@ -1,5 +1,6 @@
 import { addCollection, type IconifyJSON } from '@iconify/react';
 import _ from 'lodash';
+
 import allIcons from './icon-sets';
 
 // ----------------------------------------------------------------------

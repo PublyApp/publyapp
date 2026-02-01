@@ -1,4 +1,4 @@
-import type { Theme, CSSObject } from '@mui/material/styles';
+import type { CSSObject, Theme } from '@mui/material/styles';
 
 // ----------------------------------------------------------------------
 

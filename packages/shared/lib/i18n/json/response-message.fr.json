@@ -35,6 +35,7 @@
 	"failed-to-update-staff-user": "Échec de la mise à jour du compte staff",
 	"staff-user-updated-successfully": "Compte staff mis à jour avec succès",
 	"invitation-revoked": "Invitation révoquée avec succès",
+	"invitation-resent": "Invitation renvoyee avec succes",
 	"pending-invitation-exists": "Une invitation en attente existe déjà",
 	"staff-profile-created-successfully": "Profil staff créé avec succès",
 	"profile-name-already-exists": "Le nom du profil existe déjà",
@@ -52,5 +53,7 @@
 	"system-notice-created-successfully": "Avis système créé avec succès",
 	"system-notice-updated-successfully": "Avis système mis à jour avec succès",
 	"system-notice-deleted-successfully": "Avis système supprimé avec succès",
-	"system-notice-not-found": "Avis système non trouvé"
+	"system-notice-not-found": "Avis système non trouvé",
+	"user-has-tenant-or-project-accounts": "Cet utilisateur a déjà des comptes tenant ou projet. Les comptes staff et tenant/projet sont mutuellement exclusifs.",
+	"user-has-staff-account": "Cet utilisateur a déjà un compte staff. Les comptes staff et tenant/projet sont mutuellement exclusifs."
 }

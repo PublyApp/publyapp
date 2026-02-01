@@ -2,8 +2,10 @@ import Link, { type LinkProps } from '@mui/material/Link';
 import { styled, useTheme } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 import { useId } from 'react';
+
 import { useHomePath } from '@/front/hooks/use-home-path';
 import { APP_NAME } from '@/shared/lib/constants';
+
 import { RouterLink } from '../router-link';
 import { logoClasses } from './classes';
 

@@ -1,4 +1,5 @@
 import type { FieldPath, FieldValues, UseFormSetError } from 'react-hook-form';
+
 import type { ValidationFailure } from './types';
 
 /**
@@ -140,6 +141,8 @@ export const mapValidationErrors = <TForm extends FieldValues>(
 					// Silently ignore
 					break;
 				case 'collect':
+					// Collect the error for custom handling
+					break;
 				default:
 					result.unmappedErrors.push({ field: serverField, messages });
 					break;

@@ -35,6 +35,7 @@
 	"failed-to-update-staff-user": "Failed to update staff user",
 	"staff-user-updated-successfully": "Staff user updated successfully",
 	"invitation-revoked": "Invitation revoked successfully",
+	"invitation-resent": "Invitation email resent successfully",
 	"pending-invitation-exists": "A pending invitation already exists",
 	"staff-profile-created-successfully": "Staff profile created successfully",
 	"profile-name-already-exists": "Profile name already exists",
@@ -52,5 +53,7 @@
 	"system-notice-created-successfully": "System notice created successfully",
 	"system-notice-updated-successfully": "System notice updated successfully",
 	"system-notice-deleted-successfully": "System notice deleted successfully",
-	"system-notice-not-found": "System notice not found"
+	"system-notice-not-found": "System notice not found",
+	"user-has-tenant-or-project-accounts": "This user already has tenant or project accounts. Staff and tenant/project accounts are mutually exclusive.",
+	"user-has-staff-account": "This user already has a staff account. Staff and tenant/project accounts are mutually exclusive."
 }

@@ -12,6 +12,7 @@ using MainApi.Src.Modules.Auth.Utils;
 using MainApi.Src.Modules.Invitations.Entities;
 using MainApi.Src.Modules.Invitations.Services;
 using MainApi.Src.Modules.Users.Entities;
+using MainApi.Src.Modules.Users.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -69,6 +70,7 @@ public static class AcceptInvitation {
 		[FromServices] IInvitationService invitationService,
 		[FromServices] ISessionService sessionService,
 		[FromServices] IAuditLogService auditLogService,
+		[FromServices] IAccountService accountService,
 		CancellationToken cancellationToken = default
 	) {
 		// Validate invitation
@@ -88,6 +90,29 @@ public static class AcceptInvitation {
 		);
 
 		if (userExists) {
+			// Check for scope conflicts to provide more specific error message
+			// Business rule: staff and tenant/project accounts are mutually exclusive
+			if (invitation.Scope == InvitationScope.Staff) {
+				var hasTenantOrProjectAccounts = await accountService
+					.HasTenantOrProjectAccountsByEmailAsync(invitation.Email, cancellationToken);
+				if (hasTenantOrProjectAccounts) {
+					return TypedProblems.BadRequest(
+						"This user already has tenant or project accounts. Staff and tenant/project accounts are mutually exclusive.",
+						ResponseKeys.UserHasTenantOrProjectAccounts
+					);
+				}
+			} else if (invitation.Scope == InvitationScope.Tenant) {
+				var hasStaffAccount = await accountService
+					.HasStaffAccountByEmailAsync(invitation.Email, cancellationToken);
+				if (hasStaffAccount) {
+					return TypedProblems.BadRequest(
+						"This user already has a staff account. Staff and tenant/project accounts are mutually exclusive.",
+						ResponseKeys.UserHasStaffAccount
+					);
+				}
+			}
+
+			// User exists but no scope conflict - still can't accept (invitations are for new users)
 			return TypedProblems.BadRequest(
 				"User already exists",
 				ResponseKeys.UserAlreadyExists
