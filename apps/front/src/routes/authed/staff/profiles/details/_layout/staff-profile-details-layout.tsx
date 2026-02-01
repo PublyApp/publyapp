@@ -9,6 +9,7 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { removeLastSlash } from 'minimal-shared/utils';
 import { useMemo } from 'react';
 import { data, Outlet, useParams } from 'react-router';
+
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
@@ -17,6 +18,7 @@ import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
+
 import type { Route } from './+types/staff-profile-details-layout';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {

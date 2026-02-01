@@ -2,7 +2,6 @@ import Box, { type BoxProps } from '@mui/material/Box';
 import { alpha as hexAlpha } from '@mui/material/styles';
 
 import type { SettingsState } from '../types';
-
 import { OptionButton } from './styles';
 
 // ----------------------------------------------------------------------

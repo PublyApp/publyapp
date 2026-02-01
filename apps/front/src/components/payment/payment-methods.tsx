@@ -12,7 +12,6 @@ import { varAlpha } from 'minimal-shared/utils';
 import { useCallback, useState } from 'react';
 
 import { Iconify } from '../iconify/iconify';
-
 import { PaymentNewCardForm } from './payment-new-card-form';
 
 // ----------------------------------------------------------------------

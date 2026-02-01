@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.1.1/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.3.13/schema.json",
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -15,13 +15,13 @@
 			"!**/.turbo",
 			"!**/.husky/_",
 			"!**/.react-router",
-			"!packages/js-client/**",
-			"!apps/api/openapi/**",
-			"!apps/api/Migrations/**",
-			"!apps/api/bin/**",
+			"!packages/js-client",
+			"!apps/api/openapi",
+			"!apps/api/Migrations",
+			"!apps/api/bin",
 			"!.config/dotnet-tools.json",
-			"!apps/api/Generated/**",
-			"!.dump/**"
+			"!apps/api/Generated",
+			"!.dump"
 		]
 	},
 	"formatter": {
