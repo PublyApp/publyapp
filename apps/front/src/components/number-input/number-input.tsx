@@ -6,7 +6,6 @@ import { varAlpha } from 'minimal-shared/utils';
 import { useCallback, useId } from 'react';
 
 import { Iconify } from '../iconify/iconify';
-
 import {
 	CaptionText,
 	CenteredInput,

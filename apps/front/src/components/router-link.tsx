@@ -1,11 +1,13 @@
 import _ from 'lodash';
 import { useEffect, useState } from 'react';
 import { Link, type LinkProps, type To } from 'react-router';
+
 import {
 	LANGUAGE_DETECTION_METHOD,
 	LANGUAGE_DETECTION_METHOD_ENUM,
 	queryParamKey,
 } from '@/shared/lib/constants';
+
 import { useTranslate } from '../hooks/use-translate';
 import { env } from '../lib/env';
 

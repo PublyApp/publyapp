@@ -1,7 +1,7 @@
-import { useMemo, useCallback, createContext, useContext } from 'react';
 import { useLocalStorage } from 'minimal-shared/hooks';
+import { createContext, useCallback, useContext, useMemo } from 'react';
 
-import type { BrandItem, BrandContextValue } from './types';
+import type { BrandContextValue, BrandItem } from './types';
 
 // ----------------------------------------------------------------------
 

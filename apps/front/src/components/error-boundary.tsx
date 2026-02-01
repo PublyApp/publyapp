@@ -2,7 +2,7 @@ import GlobalStyles from '@mui/material/GlobalStyles';
 import type { CSSObject, Theme } from '@mui/material/styles';
 import { isRouteErrorResponse } from 'react-router';
 
-import { toApiFailure, isProblemFailure } from '../lib/api-failure';
+import { isProblemFailure, toApiFailure } from '../lib/api-failure';
 
 // ----------------------------------------------------------------------
 type ErrorBoundaryProps = {

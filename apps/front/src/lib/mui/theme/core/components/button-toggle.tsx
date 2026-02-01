@@ -1,9 +1,7 @@
+import type { Components, CSSObject, Theme } from '@mui/material/styles';
 import type { ToggleButtonProps } from '@mui/material/ToggleButton';
-import type { Theme, CSSObject, Components } from '@mui/material/styles';
-
-import { varAlpha } from 'minimal-shared/utils';
-
 import { toggleButtonClasses } from '@mui/material/ToggleButton';
+import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
 
@@ -23,15 +21,14 @@ type PaletteColor = (typeof COLORS)[number];
 function styleColors(
 	ownerState: ToggleButtonProps,
 	styles: (val: PaletteColor) => CSSObject,
-) {
-	const outputStyle = COLORS.reduce((acc, color) => {
-		if (!ownerState.disabled && ownerState.color === color) {
-			acc = styles(color);
-		}
-		return acc;
-	}, {});
+): CSSObject {
+	if (ownerState.disabled) {
+		return {};
+	}
 
-	return outputStyle;
+	const matchedColor = COLORS.find((color) => ownerState.color === color);
+
+	return matchedColor ? styles(matchedColor) : {};
 }
 
 // ----------------------------------------------------------------------
