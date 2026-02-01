@@ -1,4 +1,5 @@
 import _ from 'lodash';
+
 import { logger } from '@/shared/lib/logger/iso-logger';
 
 export const delay = <T = unknown>(timeout: number, value?: T) => {
@@ -80,7 +81,7 @@ export const withResolvers = <T = unknown>() => {
 		reject = _reject;
 	});
 
-	// @ts-ignore
+	// @ts-expect-error
 	return { promise, resolve, reject };
 };
 

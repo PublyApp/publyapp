@@ -40,6 +40,9 @@ export const ICONS = {
 	dashboard: icon('ic-dashboard'),
 	parameter: icon('ic-parameter'),
 	settings: <Iconify icon="solar:settings-bold-duotone" />,
+	history: <Iconify icon="solar:history-bold-duotone" />,
+	queue: <Iconify icon="solar:layers-bold-duotone" />,
+	drafts: <Iconify icon="solar:document-text-bold-duotone" />,
 };
 
 // ----------------------------------------------------------------------

@@ -5,6 +5,7 @@ import MenuList from '@mui/material/MenuList';
 import { m } from 'framer-motion';
 import _ from 'lodash';
 import { usePopover } from 'minimal-shared/hooks';
+
 import { transitionTap, varHover, varTap } from '@/front/components/animate';
 import { CustomPopover } from '@/front/components/custom-popover';
 import { Iconify } from '@/front/components/iconify/iconify';

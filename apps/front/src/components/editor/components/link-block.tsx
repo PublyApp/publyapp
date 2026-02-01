@@ -7,7 +7,6 @@ import { useCallback, useState } from 'react';
 
 import { editorClasses } from '../classes';
 import type { EditorToolbarProps } from '../types';
-
 import { ToolbarItem } from './toolbar-item';
 
 // ----------------------------------------------------------------------

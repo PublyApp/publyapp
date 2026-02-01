@@ -1,12 +1,14 @@
-import { useHomePath } from '@/front/hooks/use-home-path';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { SimpleCompactContent } from '@/front/layouts/simple/content';
-import { SimpleLayout } from '@/front/layouts/simple/layout';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
+
+import { useHomePath } from '@/front/hooks/use-home-path';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { SimpleCompactContent } from '@/front/layouts/simple/content';
+import { SimpleLayout } from '@/front/layouts/simple/layout';
+
 import { MotionContainer } from '../animate/motion-container';
 import { varBounce } from '../animate/variants';
 import { RouterLink } from '../router-link';

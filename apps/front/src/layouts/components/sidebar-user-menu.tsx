@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { CustomPopover } from '@/front/components/custom-popover';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
+import { useTenantParam } from '@/front/hooks/use-tenant-param';
 import { logout } from '@/front/lib/cookies';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { getUserFullName } from '@/shared/utils/user.utils';
@@ -32,23 +33,30 @@ export type SidebarUserMenuProps = {
 	sx?: SxProps<Theme>;
 };
 
-const menuItems = [
-	{
-		label: 'Profile',
-		icon: 'solar:user-circle-bold-duotone' as string,
-		href: FRONT_PATH_NAMES.settings.profile,
-	},
-	{
-		label: 'Security',
-		icon: 'solar:shield-keyhole-bold-duotone' as string,
-		href: FRONT_PATH_NAMES.settings.security,
-	},
-	{
-		label: 'Notifications',
-		icon: 'solar:bell-bold-duotone' as string,
-		href: FRONT_PATH_NAMES.settings.notifications,
-	},
-];
+const getMenuItems = (tenantId: string) => {
+	const paths =
+		tenantId === 'staff'
+			? FRONT_PATH_NAMES.staff.account
+			: FRONT_PATH_NAMES.tenant(tenantId).account;
+
+	return [
+		{
+			label: 'Profile',
+			icon: 'solar:user-circle-bold-duotone' as string,
+			href: paths.root,
+		},
+		{
+			label: 'Security',
+			icon: 'solar:shield-keyhole-bold-duotone' as string,
+			href: paths.security,
+		},
+		{
+			label: 'Notifications',
+			icon: 'solar:bell-bold-duotone' as string,
+			href: paths.notifications,
+		},
+	];
+};
 
 export const SidebarUserMenu = ({
 	user,
@@ -57,6 +65,7 @@ export const SidebarUserMenu = ({
 }: SidebarUserMenuProps) => {
 	const { t } = useTranslation();
 	const { open, anchorEl, onClose, onOpen } = usePopover();
+	const tenantId = useTenantParam();
 
 	const displayName = useMemo(() => {
 		const fullName = getUserFullName(user);
@@ -159,6 +168,8 @@ export const SidebarUserMenu = ({
 			</ButtonBase>
 		);
 	};
+
+	const menuItems = useMemo(() => getMenuItems(tenantId), [tenantId]);
 
 	const renderMenuList = () => {
 		return (
