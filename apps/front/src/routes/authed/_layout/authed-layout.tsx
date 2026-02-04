@@ -22,7 +22,11 @@ import {
 	useGetTenantAuthData,
 	useGetUserAuthData,
 } from '@/front/lib/react-query/features/common/auth.hooks';
-import { resetAuthLogoutFlag } from '@/front/lib/react-query/query-client';
+import {
+	resetAuthLogoutFlag,
+	resetTenantSuspendedFlag,
+	setCurrentUserIdForTenantHint,
+} from '@/front/lib/react-query/query-client';
 import { getClientLoader } from '@/front/lib/react-router/client-data';
 import { useMainStore } from '@/front/lib/zustand/store';
 import {
@@ -140,14 +144,27 @@ const AuthQueriesLoader = ({ children }: { children: ReactNode }) => {
 	}
 
 	// trigger the queries in parallel
-	useSuspenseQueries({ queries });
+	const results = useSuspenseQueries({ queries });
+
+	// Extract user ID from auth data for tenant-suspended handling
+	const userAuthData = results[0]?.data as { id?: string } | undefined;
+	const userId = userAuthData?.id;
 
 	// Session is valid - reset the auth logout flag on mount
 	// This ensures the flag doesn't stay stuck after SPA navigation (no page reload)
 	// Using useEffect to avoid side-effects during render (React StrictMode safe)
 	useEffect(() => {
 		resetAuthLogoutFlag();
+		resetTenantSuspendedFlag();
 	}, []);
+
+	// Set current user ID for tenant hint management (tenant-suspended handling)
+	// This needs to run after auth data is loaded so the global handler can clear the hint
+	useEffect(() => {
+		if (userId) {
+			setCurrentUserIdForTenantHint(userId);
+		}
+	}, [userId]);
 
 	return <>{children}</>;
 };

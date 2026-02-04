@@ -160,7 +160,15 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 
 		// Database-level lowercase constraints
 		modelBuilder.Entity<Tenant>()
-			.ToTable(t => t.HasCheckConstraint("CK_Tenant_Code_Lowercase", "code = LOWER(code)"))
+			.ToTable(t => {
+				t.HasCheckConstraint("CK_Tenant_Code_Lowercase", "code = LOWER(code)");
+				// Enforce consistency between IsSuspended flag and Status enum
+				// TenantStatus.Suspended = 30
+				t.HasCheckConstraint(
+					"chk_tenant_suspended_status",
+					"(is_suspended = true AND status = 30) OR (is_suspended = false AND status != 30)"
+				);
+			})
 			.Property(t => t.MaxUsers)
 			.HasDefaultValue(appSettings.DEFAULT_MAX_USERS_PER_TENANT);
 

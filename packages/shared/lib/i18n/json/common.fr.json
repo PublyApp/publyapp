@@ -484,5 +484,13 @@
 	"select-organization": "Sélectionner une organisation",
 	"select-organization-description": "Choisissez l'organisation à laquelle vous souhaitez accéder",
 	"failed-to-load-organizations": "Impossible de charger les organisations",
-	"no-organizations-found": "Aucune organisation trouvée"
+	"no-organizations-found": "Aucune organisation trouvée",
+	"suspended-tenants-banner": "Certaines de vos organisations ont été suspendues et sont temporairement indisponibles. Veuillez contacter le support pour obtenir de l'aide.",
+	"contact-support": "Contacter le support",
+	"suspend": "Suspendre",
+	"reactivate": "Réactiver",
+	"suspend-tenant": "Suspendre le locataire",
+	"reactivate-tenant": "Réactiver le locataire",
+	"suspend-tenant-confirm": "Êtes-vous sûr de vouloir suspendre \"{{name}}\" ? Les utilisateurs ne pourront pas accéder à ce locataire tant qu'il sera suspendu.",
+	"reactivate-tenant-confirm": "Êtes-vous sûr de vouloir réactiver \"{{name}}\" ? Les utilisateurs pourront à nouveau accéder à ce locataire."
 }

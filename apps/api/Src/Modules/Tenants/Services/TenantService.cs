@@ -9,6 +9,10 @@ namespace MainApi.Src.Modules.Tenants.Services;
 
 public interface ITenantService {
 	Task<Tenant?> GetTenantByIdAsync(Guid tenantId, CancellationToken cancellationToken = default);
+	Task<Tenant?> GetTenantByIdIncludingSuspendedAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	);
 }
 
 public class TenantService : ITenantService {
@@ -33,5 +37,17 @@ public class TenantService : ITenantService {
 		}
 
 		return foundTenant;
+	}
+
+	// Returns tenant even if suspended (but not if deleted)
+	public async Task<Tenant?> GetTenantByIdIncludingSuspendedAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		return await (
+			from tenant in _dbContext.Tenant
+			where tenant.Id == tenantId && !tenant.IsDeleted
+			select tenant
+		).FirstOrDefaultAsync(cancellationToken);
 	}
 }

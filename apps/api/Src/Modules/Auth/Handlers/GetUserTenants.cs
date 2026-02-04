@@ -30,7 +30,7 @@ public class GetUserTenants {
 			if (logger.IsEnabled(LogLevel.Error)) {
 				logger.LogError("{@GetUserTenants}", new {
 					UserId = authContext.UserId,
-					SessionToken = authContext.SessionToken
+					HasSessionToken = authContext.SessionToken is not null
 				});
 			}
 			throw new Exception($"GetUserTenants must be set behind SessionAuthFilter.");
