@@ -484,5 +484,13 @@
 	"select-organization": "Select Organization",
 	"select-organization-description": "Choose which organization you want to access",
 	"failed-to-load-organizations": "Failed to load organizations",
-	"no-organizations-found": "No organizations found"
+	"no-organizations-found": "No organizations found",
+	"suspended-tenants-banner": "Some of your organizations have been suspended and are temporarily unavailable. Please contact support for assistance.",
+	"contact-support": "Contact Support",
+	"suspend": "Suspend",
+	"reactivate": "Reactivate",
+	"suspend-tenant": "Suspend Tenant",
+	"reactivate-tenant": "Reactivate Tenant",
+	"suspend-tenant-confirm": "Are you sure you want to suspend \"{{name}}\"? Users will not be able to access this tenant while it is suspended.",
+	"reactivate-tenant-confirm": "Are you sure you want to reactivate \"{{name}}\"? Users will be able to access this tenant again."
 }

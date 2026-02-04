@@ -113,6 +113,15 @@ public static class AuthEndpoints {
 			.WithReqBodyValidation<ResetPasswordBody>()
 			.ProducesAppProblem(StatusCodes.Status500InternalServerError);
 
+		group.MapGet(
+			PathUtils.GetLastSegment(Routes.Auth.GetUserTenantsForPicker),
+			GetUserTenantsForPicker.HandleGetUserTenantsForPicker
+		)
+			.WithName("GetUserTenantsForPicker")
+			.WithSummary("Get all user tenants for picker including suspended")
+			.WithCheckSessionHeader()
+			.WithSessionAuthentication();
+
 		return group;
 	}
 }

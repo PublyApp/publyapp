@@ -1,5 +1,6 @@
-import Avatar from '@mui/material/Avatar';
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
 import CardContent from '@mui/material/CardContent';
@@ -10,8 +11,10 @@ import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 
 import { Iconify } from '@/front/components/iconify/iconify';
+import { Label } from '@/front/components/label/label';
 import { SplashScreen } from '@/front/components/loading-screen/splash-screen';
 import QueryDisplay from '@/front/components/query-display';
+import { useTranslate } from '@/front/hooks/use-translate';
 import {
 	getTenantHintForUser,
 	readLegacyTenantFromBrowser,
@@ -20,9 +23,9 @@ import {
 import {
 	useGetRedirectCode,
 	useGetUserAuthData,
-	useGetUserTenants,
+	useGetUserTenantsForPicker,
 } from '@/front/lib/react-query/features/common/auth.hooks';
-import { useTranslate } from '@/front/hooks/use-translate';
+import type { TenantForPickerItem } from '@/js-client/src/models';
 import { FRONT_PATH_NAMES, REDIRECT_CODE } from '@/shared/lib/constants';
 
 const RedirectToUnauthorized = () => {
@@ -35,13 +38,103 @@ const RedirectToUnauthorized = () => {
 	return <SplashScreen />;
 };
 
+type TenantCardProps = {
+	tenant: TenantForPickerItem;
+	onSelect: (tenantId: string) => void;
+};
+
+const TenantCard = ({ tenant, onSelect }: TenantCardProps) => {
+	const { t } = useTranslate();
+	const isSuspended = tenant.isSuspended ?? false;
+	const isDisabled = !tenant.isActive;
+
+	const cardContent = (
+		<CardContent
+			sx={{
+				display: 'flex',
+				alignItems: 'center',
+				gap: 2,
+				opacity: isDisabled ? 0.5 : 1,
+			}}
+		>
+			<Box
+				sx={{
+					width: 48,
+					height: 48,
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					borderRadius: 1,
+					bgcolor: 'background.neutral',
+				}}
+			>
+				<Iconify
+					icon="solar:buildings-bold"
+					width={28}
+					sx={{ color: 'text.disabled' }}
+				/>
+			</Box>
+			<Box sx={{ flex: 1 }}>
+				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+					<Typography
+						variant="subtitle1"
+						sx={{ color: isDisabled ? 'text.disabled' : 'text.primary' }}
+					>
+						{tenant.name}
+					</Typography>
+					{isSuspended && (
+						<Label color="error" variant="soft">
+							{t('suspended')}
+						</Label>
+					)}
+				</Box>
+				{tenant.code && (
+					<Typography variant="caption" color="text.secondary">
+						{tenant.code}
+					</Typography>
+				)}
+			</Box>
+			{!isDisabled && (
+				<Iconify
+					icon="eva:arrow-ios-forward-fill"
+					width={20}
+					sx={{ color: 'text.disabled' }}
+				/>
+			)}
+		</CardContent>
+	);
+
+	if (isDisabled) {
+		return (
+			<Card
+				variant="outlined"
+				sx={{
+					cursor: 'not-allowed',
+					bgcolor: 'action.disabledBackground',
+				}}
+			>
+				{cardContent}
+			</Card>
+		);
+	}
+
+	return (
+		<Card variant="outlined">
+			<CardActionArea onClick={() => tenant.id && onSelect(tenant.id)}>
+				{cardContent}
+			</CardActionArea>
+		</Card>
+	);
+};
+
 /**
  * Tenant picker UI shown when user has multiple tenants and no valid hint.
+ * Shows all tenants including suspended ones, with suspended tenants disabled.
  */
 const TenantPicker = () => {
 	const { t } = useTranslate();
 	const navigate = useNavigate();
-	const tenantsQuery = useGetUserTenants({});
+	const tenantsQuery = useGetUserTenantsForPicker({});
 
 	const handleSelectTenant = (tenantId: string) => {
 		navigate(FRONT_PATH_NAMES.tenant(tenantId).root, { replace: true });
@@ -79,62 +172,33 @@ const TenantPicker = () => {
 				)}
 			>
 				{({ data }) => (
-					<Grid container spacing={2}>
-						{data.tenants?.map((tenant) => (
-							<Grid size={{ xs: 12 }} key={tenant.id}>
-								<Card variant="outlined">
-									<CardActionArea
-										onClick={() => tenant.id && handleSelectTenant(tenant.id)}
+					<Box>
+						{/* TODO: Replace support@example.com with env.VITE_SUPPORT_EMAIL */}
+						{data.hasSuspendedTenants && (
+							<Alert
+								severity="warning"
+								sx={{ mb: 3 }}
+								action={
+									<Button
+										color="inherit"
+										size="small"
+										href="mailto:support@example.com"
 									>
-										<CardContent
-											sx={{ display: 'flex', alignItems: 'center', gap: 2 }}
-										>
-											{tenant.logoUrl ? (
-												<Avatar
-													src={tenant.logoUrl}
-													alt={tenant.name ?? ''}
-													sx={{ width: 48, height: 48 }}
-												/>
-											) : (
-												<Box
-													sx={{
-														width: 48,
-														height: 48,
-														display: 'flex',
-														alignItems: 'center',
-														justifyContent: 'center',
-														borderRadius: 1,
-														bgcolor: 'background.neutral',
-													}}
-												>
-													<Iconify
-														icon="solar:buildings-bold"
-														width={28}
-														sx={{ color: 'text.disabled' }}
-													/>
-												</Box>
-											)}
-											<Box sx={{ flex: 1 }}>
-												<Typography variant="subtitle1">
-													{tenant.name}
-												</Typography>
-												{tenant.code && (
-													<Typography variant="caption" color="text.secondary">
-														{tenant.code}
-													</Typography>
-												)}
-											</Box>
-											<Iconify
-												icon="eva:arrow-ios-forward-fill"
-												width={20}
-												sx={{ color: 'text.disabled' }}
-											/>
-										</CardContent>
-									</CardActionArea>
-								</Card>
-							</Grid>
-						))}
-					</Grid>
+										{t('contact-support')}
+									</Button>
+								}
+							>
+								{t('suspended-tenants-banner')}
+							</Alert>
+						)}
+						<Grid container spacing={2}>
+							{data.tenants?.map((tenant) => (
+								<Grid size={{ xs: 12 }} key={tenant.id}>
+									<TenantCard tenant={tenant} onSelect={handleSelectTenant} />
+								</Grid>
+							))}
+						</Grid>
+					</Box>
 				)}
 			</QueryDisplay>
 		</Container>

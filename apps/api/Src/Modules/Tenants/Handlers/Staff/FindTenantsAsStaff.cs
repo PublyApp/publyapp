@@ -15,6 +15,7 @@ public class TenantAsStaffItem {
 	public int UsersCount { get; set; }
 	public int MaxUsers { get; set; }
 	public string Status { get; set; } = string.Empty;
+	public bool IsSuspended { get; set; }
 }
 
 public class TenantAsStaffResult {
@@ -57,6 +58,7 @@ public class FindTenantsAsStaff {
 					UsersCount = tenant.UsersCount,
 					MaxUsers = tenant.Tenant.MaxUsers,
 					Status = Tenant.GetStatusDescription(tenant.Tenant.Status),
+					IsSuspended = tenant.Tenant.IsSuspended,
 				})
 				.ToList(),
 			Count = count,

@@ -32,7 +32,7 @@ public class GetUserAuthData {
 			if (logger.IsEnabled(LogLevel.Error)) {
 				logger.LogError("{@GetUserAuthData}", new {
 					UserId = authContext.UserId,
-					SessionToken = authContext.SessionToken
+					HasSessionToken = authContext.SessionToken is not null
 				});
 			}
 			throw new Exception($"GetUserAuthData must be set behind SessionAuthFilter.");
@@ -47,8 +47,8 @@ public class GetUserAuthData {
 		if (user is null) {
 			if (logger.IsEnabled(LogLevel.Error)) {
 				logger.LogError("User not found for session: {@Context}", new {
-					SessionToken = authContext.SessionToken,
 					UserId = authContext.UserId,
+					HasSessionToken = authContext.SessionToken is not null,
 				});
 			}
 

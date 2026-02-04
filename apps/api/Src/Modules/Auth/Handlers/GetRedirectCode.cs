@@ -98,41 +98,43 @@ public class GetRedirectCode {
 		}
 
 		// No valid hint - determine redirect based on tenant count
-		// Limit of 2 is enough: we only need to know if there's 0, 1, or ≥2 tenants
-		var tenantsResult = await accountService.GetUserTenantsAsync(
-			userId, limit: 2, cancellationToken: cancellationToken
+		// Use the picker method to include suspended tenants in decision
+		var tenantsResult = await accountService.GetUserTenantsForPickerAsync(
+			userId, limit: 50, cancellationToken: cancellationToken
 		);
 
+		// No tenants at all (not even suspended) - unauthorized
 		if (tenantsResult.TotalCount == 0) {
-			// No tenants - unauthorized
 			if (logger.IsEnabled(LogLevel.Warning)) {
 				logger.LogWarning(
-					"User {UserId} has no active tenants, returning unauthorized",
+					"User {UserId} has no tenants (including suspended), returning unauthorized",
 					userId
 				);
 			}
 			return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "unauthorized" });
 		}
 
-		if (tenantsResult.TotalCount == 1) {
-			// Exactly 1 tenant - redirect directly
-			var singleTenant = tenantsResult.Tenants[0];
+		// Exactly 1 ACTIVE tenant - redirect directly to that tenant
+		if (tenantsResult.ActiveCount == 1) {
+			// Use the pre-computed IsActive flag (same logic as ActiveCount)
+			var activeTenant = tenantsResult.Tenants.First(t => t.IsActive);
 			if (logger.IsEnabled(LogLevel.Information)) {
 				logger.LogInformation(
-					"User {UserId} has single tenant {TenantId}, redirecting directly",
-					userId, singleTenant.Id
+					"User {UserId} has single active tenant {TenantId}, redirecting directly",
+					userId, activeTenant.Id
 				);
 			}
 			return TypedResults.Ok(new GetRedirectCodeResult {
-				RedirectCode = singleTenant.Id.ToString()
+				RedirectCode = activeTenant.Id.ToString()
 			});
 		}
 
-		// Multiple tenants - show picker
+		// Multiple active tenants OR has suspended tenants - show picker
+		// This ensures users with ALL tenants suspended see the picker (not "unauthorized")
 		if (logger.IsEnabled(LogLevel.Information)) {
 			logger.LogInformation(
-				"User {UserId} has {TenantCount} tenants, returning tenant-picker",
-				userId, tenantsResult.TotalCount
+				"User {UserId} has {TotalCount} tenants ({ActiveCount} active), returning tenant-picker",
+				userId, tenantsResult.TotalCount, tenantsResult.ActiveCount
 			);
 		}
 		return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "tenant-picker" });

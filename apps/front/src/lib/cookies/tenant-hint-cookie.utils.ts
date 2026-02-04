@@ -262,6 +262,28 @@ export const updateTenantHintInBrowser = (
 };
 
 /**
+ * Removes the tenant hint for a specific user from the browser cookie.
+ * Used when a tenant is suspended to prevent redirect loops.
+ * Returns true if the entry was removed, false if user wasn't in the map.
+ */
+export const clearTenantHintForUserInBrowser = (userId: string): boolean => {
+	const currentMap = readTenantHintsFromBrowser();
+	const normalizedUserId = userId.toLowerCase();
+
+	// Check if user exists in map
+	if (!currentMap.has(normalizedUserId)) {
+		return false; // User wasn't in the map
+	}
+
+	// Create new map without this user
+	const newMap = new Map(currentMap);
+	newMap.delete(normalizedUserId);
+
+	writeTenantHintsToBrowser(newMap);
+	return true;
+};
+
+/**
  * Reads and parses tenant hints from request cookies (server-side).
  * Also reads legacy cookie as fallback for migration.
  */

@@ -80,6 +80,23 @@ public static class TypedProblems {
 	));
 
 	/// <summary>
+	/// Creates a 409 Conflict response with ProblemDetails
+	/// </summary>
+	/// <param name="detail">Detailed explanation of the error</param>
+	/// <param name="translationKey">Translation key for frontend i18n</param>
+	/// <param name="title">Short summary (defaults to "Conflict")</param>
+	public static AppConflictHttpResult Conflict(
+		string detail,
+		TranslationKey translationKey,
+		string title = "Conflict"
+	) => new(AppProblemDetails.Create(
+		StatusCodes.Status409Conflict,
+		title,
+		detail,
+		translationKey
+	));
+
+	/// <summary>
 	/// Creates a 500 Internal Server Error response with ProblemDetails
 	/// </summary>
 	/// <param name="detail">Detailed explanation of the error</param>

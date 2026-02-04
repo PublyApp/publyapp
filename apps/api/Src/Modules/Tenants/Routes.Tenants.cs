@@ -14,6 +14,10 @@ public static partial class Routes {
 			public const string Find = "/";
 			public const string GetById = "/{tenantId}";
 			public static string GetByIdFn(string tenantId) => $"/{tenantId}";
+			public const string Suspend = "/{tenantId}/suspend";
+			public static string SuspendFn(string tenantId) => $"/{tenantId}/suspend";
+			public const string Reactivate = "/{tenantId}/reactivate";
+			public static string ReactivateFn(string tenantId) => $"/{tenantId}/reactivate";
 		}
 	}
 }

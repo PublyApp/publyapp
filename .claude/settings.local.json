@@ -48,7 +48,9 @@
 			"Bash(Select-Object -First 20)",
 			"Bash(make build-front:*)",
 			"WebFetch(domain:biomejs.dev)",
-			"Bash(gh pr list:*)"
+			"Bash(gh pr list:*)",
+			"Bash(make generate-client:*)",
+			"Bash(ping:*)"
 		]
 	}
 }

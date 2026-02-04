@@ -53,6 +53,24 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 	public static bool IsTenantActive(Tenant tenant) {
 		return tenant.Status == TenantStatus.Active && !tenant.IsSuspended;
 	}
+
+	public bool Suspend() {
+		if (IsSuspended || Status != TenantStatus.Active) {
+			return false;
+		}
+		IsSuspended = true;
+		Status = TenantStatus.Suspended;
+		return true;
+	}
+
+	public bool Reactivate() {
+		if (!IsSuspended || Status != TenantStatus.Suspended) {
+			return false;
+		}
+		IsSuspended = false;
+		Status = TenantStatus.Active;
+		return true;
+	}
 }
 
 public enum TenantStatus {

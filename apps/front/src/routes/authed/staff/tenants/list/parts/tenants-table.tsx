@@ -1,9 +1,11 @@
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import ListItemText from '@mui/material/ListItemText';
 import Tooltip from '@mui/material/Tooltip';
+import { useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
 import {
 	createMRTColumnHelper,
@@ -12,8 +14,9 @@ import {
 	type MRT_SortingState,
 } from 'material-react-table';
 import { nanoid } from 'nanoid';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
+import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { Label } from '@/front/components/label/label';
 import type { LabelColor } from '@/front/components/label/types';
@@ -22,7 +25,11 @@ import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
-import { useFindTenants } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
+import {
+	useFindTenants,
+	useReactivateTenant,
+	useSuspendTenant,
+} from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
 import type { TenantAsStaffItem } from '@/js-client/src/models';
 import {
 	DEFAULT_PAGE_SIZE,
@@ -38,6 +45,7 @@ export type TenantRowData = {
 	usersCount: number;
 	maxUsers: number;
 	status: string;
+	isSuspended: boolean;
 };
 
 const TenantRowDataMapper = (tenant: TenantAsStaffItem): TenantRowData => {
@@ -48,6 +56,7 @@ const TenantRowDataMapper = (tenant: TenantAsStaffItem): TenantRowData => {
 		usersCount: getUntypedNumber(tenant.usersCount, 0),
 		maxUsers: getUntypedNumber(tenant.maxUsers, 0),
 		status: tenant.status || '-',
+		isSuspended: tenant.isSuspended ?? false,
 	};
 };
 
@@ -226,32 +235,130 @@ const UsersCountCell: MRT_ColumnDef<TenantRowData, number>['Cell'] = (
 
 const TenantActionsCell: MRT_ColumnDef<TenantRowData>['Cell'] = (props) => {
 	const tenantId = props.row.original.id;
+	const tenantName = props.row.original.name;
+	const status = props.row.original.status;
+	const isSuspended = props.row.original.isSuspended;
 	const { t } = useTranslate();
+	const queryClient = useQueryClient();
+
+	const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
+	const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
+
+	const { mutate: suspendTenant, isPending: isSuspending } = useSuspendTenant({
+		meta: { successMessage: 'tenant-suspended-success' },
+		onSuccess: () => {
+			setSuspendDialogOpen(false);
+			queryClient.invalidateQueries({
+				queryKey: useFindTenants.getKey(),
+			});
+		},
+	});
+
+	const { mutate: reactivateTenant, isPending: isReactivating } =
+		useReactivateTenant({
+			meta: { successMessage: 'tenant-reactivated-success' },
+			onSuccess: () => {
+				setReactivateDialogOpen(false);
+				queryClient.invalidateQueries({
+					queryKey: useFindTenants.getKey(),
+				});
+			},
+		});
+
+	const handleSuspend = () => {
+		suspendTenant({ tenantId });
+	};
+
+	const handleReactivate = () => {
+		reactivateTenant({ tenantId });
+	};
+
+	// Show suspend button only when tenant is Active and not already suspended
+	const canSuspend = status === TENANT_STATUS_ENUM.ACTIVE && !isSuspended;
+	// Show reactivate button only when tenant is suspended
+	const canReactivate = isSuspended;
 
 	return (
-		<Box
-			// className="is-actions-column"
-			sx={{ display: 'flex', alignItems: 'center' }}
-		>
-			<Tooltip title={t('view-details')} placement="top" arrow>
-				<IconButton
-					color={'default'}
-					LinkComponent={RouterLink}
-					href={FRONT_PATH_NAMES.staff.tenants.details(tenantId).root}
-				>
-					<Iconify icon="solar:eye-bold" />
-				</IconButton>
-			</Tooltip>
+		<>
+			<Box sx={{ display: 'flex', alignItems: 'center' }}>
+				<Tooltip title={t('view-details')} placement="top" arrow>
+					<IconButton
+						color={'default'}
+						LinkComponent={RouterLink}
+						href={FRONT_PATH_NAMES.staff.tenants.details(tenantId).root}
+					>
+						<Iconify icon="solar:eye-bold" />
+					</IconButton>
+				</Tooltip>
 
-			<Tooltip title="Delete" placement="top" arrow>
-				<IconButton
-					color={'default'}
-					onClick={voidFunction}
-					sx={{ color: 'error.main' }}
-				>
-					<Iconify icon="solar:trash-bin-trash-bold" />
-				</IconButton>
-			</Tooltip>
-		</Box>
+				{canSuspend && (
+					<Tooltip title={t('suspend')} placement="top" arrow>
+						<IconButton
+							color={'default'}
+							onClick={() => setSuspendDialogOpen(true)}
+							sx={{ color: 'warning.main' }}
+						>
+							<Iconify icon="solar:forbidden-circle-bold" />
+						</IconButton>
+					</Tooltip>
+				)}
+
+				{canReactivate && (
+					<Tooltip title={t('reactivate')} placement="top" arrow>
+						<IconButton
+							color={'default'}
+							onClick={() => setReactivateDialogOpen(true)}
+							sx={{ color: 'success.main' }}
+						>
+							<Iconify icon="solar:play-circle-bold" />
+						</IconButton>
+					</Tooltip>
+				)}
+
+				<Tooltip title="Delete" placement="top" arrow>
+					<IconButton
+						color={'default'}
+						onClick={voidFunction}
+						sx={{ color: 'error.main' }}
+					>
+						<Iconify icon="solar:trash-bin-trash-bold" />
+					</IconButton>
+				</Tooltip>
+			</Box>
+
+			<ConfirmDialog
+				open={suspendDialogOpen}
+				onClose={() => setSuspendDialogOpen(false)}
+				title={t('suspend-tenant')}
+				content={t('suspend-tenant-confirm', { name: tenantName })}
+				action={
+					<Button
+						variant="contained"
+						color="warning"
+						onClick={handleSuspend}
+						disabled={isSuspending}
+					>
+						{t('suspend')}
+					</Button>
+				}
+			/>
+
+			<ConfirmDialog
+				open={reactivateDialogOpen}
+				onClose={() => setReactivateDialogOpen(false)}
+				title={t('reactivate-tenant')}
+				content={t('reactivate-tenant-confirm', { name: tenantName })}
+				action={
+					<Button
+						variant="contained"
+						color="success"
+						onClick={handleReactivate}
+						disabled={isReactivating}
+					>
+						{t('reactivate')}
+					</Button>
+				}
+			/>
+		</>
 	);
 };

@@ -43,6 +43,7 @@ namespace MainApi.Migrations {
 					},
 					constraints: table => {
 						table.PrimaryKey("PK_tenants", x => x.id);
+						table.CheckConstraint("chk_tenant_suspended_status", "(is_suspended = true AND status = 30) OR (is_suspended = false AND status != 30)");
 						table.CheckConstraint("CK_Tenant_Code_Lowercase", "code = LOWER(code)");
 					});
 

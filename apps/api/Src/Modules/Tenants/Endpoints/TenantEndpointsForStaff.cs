@@ -38,6 +38,23 @@ public static class TenantEndpointsForStaff {
 			.WithReqQueryValidation<FindTenantsAsStaffQuery>()
 			.WithPermission([AppPermissions.Staff.Tenants.LIST]);
 
+		group.MapPost(
+			Routes.Tenants.ForStaff.Suspend,
+			SuspendTenantAsStaff.HandleSuspendTenantAsStaff
+		)
+			.WithName("SuspendTenant")
+			.WithSummary("Suspend a tenant")
+			.WithReqBodyValidation<SuspendTenantAsStaffBody>()
+			.WithPermission([AppPermissions.Staff.Tenants.SUSPEND]);
+
+		group.MapPost(
+			Routes.Tenants.ForStaff.Reactivate,
+			ReactivateTenantAsStaff.HandleReactivateTenantAsStaff
+		)
+			.WithName("ReactivateTenant")
+			.WithSummary("Reactivate a suspended tenant")
+			.WithPermission([AppPermissions.Staff.Tenants.REACTIVATE]);
+
 		return routes;
 	}
 }

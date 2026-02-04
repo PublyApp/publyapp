@@ -1,7 +1,10 @@
 import { createUntypedString } from '@microsoft/kiota-abstractions';
 import _ from 'lodash';
 
-import type { CreateTenantAsStaffBody } from '@/js-client/src/models';
+import type {
+	CreateTenantAsStaffBody,
+	SuspendTenantAsStaffBody,
+} from '@/js-client/src/models';
 
 import { createStaffMutation, createStaffQuery } from '../../create-hooks';
 
@@ -79,6 +82,41 @@ export const useFindTenantProfiles = createStaffQuery({
 			throw new Error('useFindTenantProfiles: result is nil');
 		}
 
+		return result;
+	},
+});
+
+export const useSuspendTenant = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.tenants.byTenantId('').suspend.post,
+	mutationFn: async (
+		client,
+		variables: { tenantId: string; reason?: string },
+	) => {
+		const body: SuspendTenantAsStaffBody = {
+			reason: variables.reason
+				? (createUntypedString(variables.reason) as typeof body.reason)
+				: undefined,
+		};
+		const result = await client.staff.tenants
+			.byTenantId(variables.tenantId)
+			.suspend.post(body);
+		if (_.isNil(result)) {
+			throw new Error('useSuspendTenant: result is nil');
+		}
+		return result;
+	},
+});
+
+export const useReactivateTenant = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.tenants.byTenantId('').reactivate.post,
+	mutationFn: async (client, variables: { tenantId: string }) => {
+		const result = await client.staff.tenants
+			.byTenantId(variables.tenantId)
+			.reactivate.post();
+		if (_.isNil(result)) {
+			throw new Error('useReactivateTenant: result is nil');
+		}
 		return result;
 	},
 });
