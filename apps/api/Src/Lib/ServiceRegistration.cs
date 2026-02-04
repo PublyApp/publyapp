@@ -77,9 +77,8 @@ public static class ServiceRegistration {
 					if (schemaType.HasFlag(JsonSchemaType.Integer)
 						&& schemaType.HasFlag(JsonSchemaType.String)) {
 						schema.Type = JsonSchemaType.Integer;
-					}
-					else if (schemaType.HasFlag(JsonSchemaType.Number)
-						&& schemaType.HasFlag(JsonSchemaType.String)) {
+					} else if (schemaType.HasFlag(JsonSchemaType.Number)
+							&& schemaType.HasFlag(JsonSchemaType.String)) {
 						schema.Type = JsonSchemaType.Number;
 					}
 				}
@@ -144,8 +143,9 @@ public static class ServiceRegistration {
 		}, ServiceLifetime.Scoped);
 
 		// External SDK clients and adapters
-		builder.Services.AddSingleton<IResend>(sp =>
-			ResendClient.Create(AppEnvironment.RESEND_API_KEY));
+		builder.Services.AddSingleton<IResend>((sp) => {
+			return ResendClient.Create(AppEnvironment.RESEND_API_KEY);
+		});
 		builder.Services.AddSingleton<IEmailSender, ResendEmailAdapter>();
 		builder.Services.AddSingleton<IEmailService, EmailService>();
 
@@ -272,8 +272,7 @@ public static class ServiceRegistration {
 					service.ImplementationType,
 					service.Lifetime
 				));
-			}
-			else {
+			} else {
 				services.Add(new ServiceDescriptor(
 					service.ServiceInterface!,
 					service.Key,
@@ -297,10 +296,12 @@ public static class ServiceRegistration {
 			return $"lifetime={lifetime}, keyed, key={key}, impl={impl}";
 		}
 
+#pragma warning disable IDE0031 // Null check can be simplified
 		var implUnkeyed =
 			descriptor.ImplementationType?.FullName
 			?? (descriptor.ImplementationInstance is not null ? descriptor.ImplementationInstance.GetType().FullName : null)
 			?? (descriptor.ImplementationFactory is not null ? "(factory)" : "(unknown)");
+#pragma warning restore IDE0031
 
 		return $"lifetime={lifetime}, unkeyed, impl={implUnkeyed}";
 	}
