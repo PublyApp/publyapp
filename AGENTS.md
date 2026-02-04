@@ -1530,6 +1530,87 @@ public static async Task<Ok> HandleCreateUser(
 - Transaction management
 - Domain event coordination
 
+### Dependency Injection Rules
+
+#### Adding a New Application Service
+
+- **Namespace**: Place concrete class under `MainApi.Src.Modules.<Domain>.Services`
+- **Primary interface**: Define `I{ClassName}` interface (e.g., `UserService` → `IUserService`)
+- **Explicit lifetime**: Specify `ServiceLifetime` explicitly (Scoped, Transient, or Singleton)
+- **One unkeyed default**: Exactly one unkeyed registration per service type is allowed
+- **Key governance**: If multiple implementations exist, additional ones must be keyed using constants (never inline strings)
+
+#### Adding a Keyed Implementation
+
+When adding a second (or nth) implementation of an existing service interface:
+
+- **Keys classes**: Use the appropriate keys class:
+  - `ProviderKeys` — provider/adapter implementations (email providers, auth providers)
+  - `StorageKeys` — storage backends (file storage, blob storage)
+  - `IntegrationKeys` — external integrations (payment gateways, notification services)
+- **Key naming**: Use lowercase, stable identifiers as `public const string` (e.g., `"resend"`, `"local"`)
+- **Allowed characters**: `[a-z0-9._-]` only (no whitespace/control chars)
+- **Collision avoidance**: Verify no other implementation of the same service type uses the same key
+- **Registration**: Use `.AddKeyed*<TService, TImpl>(YourKeys.YourKey)`
+- **Injection**: Use `[FromKeyedServices(YourKeys.YourKey)]` at the consumer
+
+#### DI Group Boundaries
+
+- **Web group** (`AddWebServices`): ASP.NET Core wiring (ProblemDetails, OpenAPI, CORS, compression)
+- **Infrastructure group** (`AddInfraServices`): External capabilities (DbContext, SDK clients, email, health checks)
+- **Application group** (`AddAppServices`): Business services only (`MainApi.Src.Modules.*.Services`)
+
+#### Attribute-Based Application Service Registration (`[Service]`)
+
+`[Service]` is used ONLY for application/business services and is enforced with fail-fast startup validation.
+
+Quick Do / Don't:
+
+- Do: Use `[Service]` only on concrete classes under `MainApi.Src.Modules.*.Services`
+- Do: Implement the primary interface `I{ClassName}`
+- Don't: Add multiple unkeyed implementations for the same service type (only one default allowed; additional ones must be keyed)
+
+- **Allowed location**: Only concrete classes under `MainApi.Src.Modules.*.Services`
+- **Scanning scope**: Single assembly (Main API) only
+- **Lifetime**: Must be explicit (`ServiceLifetime` is required)
+- **Interface binding**: Registers ONLY the primary interface `I{ClassName}`
+- **No register-as-self**
+- **No secondary interfaces**: If a class must be resolved via additional business interfaces, register those explicitly (manual DI wiring)
+- **Concrete only**: No abstract classes; no open generic type definitions
+- **Keyed DI**: Key type is `string` only
+- **Key format**: Non-empty, lowercase only
+- **Keys governance**: Keys must be centralized constants (no inline strings)
+- **Duplicate implementations**:
+  - Exactly ONE unkeyed default implementation per service type is allowed
+  - Additional implementations MUST be keyed
+  - Duplicate unkeyed defaults or duplicate keys are startup errors
+- **Migration guardrail**: If a service type is discovered via `[Service]`, it MUST NOT also have any explicit DI registrations (unkeyed or keyed). Startup fails fast to prevent half-migrated states.
+- **Misuse is a hard error**: Any `[Service]` attribute outside `MainApi.Src.Modules.*.Services` fails startup
+
+#### Fail-Fast Validation (Troubleshooting)
+
+Validation runs during `AddAppServices()` (before `builder.Build()`).
+On any violation, startup fails with `InvalidOperationException` and a bullet list of errors.
+
+Common failure categories and fixes:
+
+- **Abstract/open generic**: Remove `[Service]` or apply it only to a concrete, non-generic implementation.
+- **Invalid namespace**: Move the class to `MainApi.Src.Modules.<Domain>.Services` (or remove `[Service]` and wire explicitly).
+- **Missing primary interface**: Ensure the class implements `I{ClassName}`.
+- **Invalid key**: Use a non-empty, lowercase key constant; use `null` for unkeyed default.
+- **Duplicate unkeyed**: Keep exactly one default; key additional implementations.
+- **Duplicate keys**: Choose a unique key per service type.
+- **Assembly type load failure**: Fix missing/incompatible references; rebuild and review loader exception messages.
+
+#### DI Manifest Logging (Optional)
+
+If enabled, the app logs a discovered `[Service]` manifest once during startup (after `builder.Build()`),
+so the configured logging pipeline is guaranteed to be active.
+
+- **Config flag**: `AppSettings:DI_MANIFEST_ENABLED` (defaults to `false`)
+- **Logging**: Uses the configured Serilog pipeline (no temporary ServiceProvider)
+- **Noise control**: No output when no `[Service]` attributes are discovered
+
 ### Service Dependencies
 
 **CRITICAL:** Services MUST NOT depend on other services. This prevents circular dependencies.
@@ -1681,7 +1762,7 @@ public static async Task<Results<
 **Note on framework/binding errors:**
 - Missing required query/body parameters can still produce a **400** (e.g., request body missing / required query parameter missing).
 - These are normalized by `UseCustomExceptionHandler()` to `AppProblemDetails` (`application/problem+json`), so endpoints may legitimately document both `400` (generic/binding) and `422` (validation).
-- `builder.Services.AddProblemDetails()` is registered (see `apps/api/Src/Lib/AppServices.cs`) for framework integration, but endpoints still return ProblemDetails explicitly via `TypedProblems.*`.
+- `builder.Services.AddProblemDetails()` is registered (see `apps/api/Src/Lib/ServiceRegistration.cs`) for framework integration, but endpoints still return ProblemDetails explicitly via `TypedProblems.*`.
 
 ```csharp
 // 400 - Generic bad request (e.g., invalid credentials)
@@ -2121,10 +2202,10 @@ public class CursorPaginatedResult<T> {
 
 **Problem:** .NET 10 OpenAPI generation can produce `["integer", "string"]` union types instead of just `"integer"` for `int` properties. This causes Kiota to generate `UntypedNode` types instead of proper `number` types.
 
-**Solution:** A schema transformer in `AppServices.cs` fixes this at OpenAPI generation time:
+**Solution:** A schema transformer in `ServiceRegistration.cs` fixes this at OpenAPI generation time:
 
 ```csharp
-// apps/api/Src/Lib/AppServices.cs
+// apps/api/Src/Lib/ServiceRegistration.cs
 builder.Services.AddOpenApi(options => {
     options.AddSchemaTransformer((schema, context, cancellationToken) => {
         if (schema.Type.HasValue) {
