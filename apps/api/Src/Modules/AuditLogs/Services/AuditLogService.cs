@@ -1,6 +1,7 @@
 using System.Text.Json;
 
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Lib.DI;
 using MainApi.Src.Modules.AuditLogs.Entities;
 
 namespace MainApi.Src.Modules.AuditLogs.Services;
@@ -14,6 +15,7 @@ public interface IAuditLogService {
 		CancellationToken cancellationToken = default);
 }
 
+[Service(ServiceLifetime.Scoped)]
 public class AuditLogService : IAuditLogService {
 	private readonly MainApiDbContext _dbContext;
 	private readonly IHttpContextAccessor _httpContextAccessor;

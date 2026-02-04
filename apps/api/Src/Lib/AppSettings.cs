@@ -47,6 +47,8 @@ public class AppSettings {
 	[Range(25, int.MaxValue, ErrorMessage = "INVITATION_TOKEN_LENGTH must be between 25 and int.MaxValue")]
 	public int INVITATION_TOKEN_LENGTH { get; init; }
 
+	public bool DI_MANIFEST_ENABLED { get; init; }
+
 	public readonly int MAX_PROFILES_PER_USER = 5;
 
 	public readonly int PAGINATION_DEFAULT_LIMIT = 100;
