@@ -14,13 +14,16 @@ AppEnvironment.LoadEnv(); // ! must be called before anything else
 var builder = WebApplication.CreateBuilder(args);
 
 builder.ConfigureLogger();
+builder.AddWebServices();
+builder.AddInfraServices();
 builder.AddAppServices();
-builder.AddCors();
 
 var app = builder.Build();
 
+app.LogDiManifestIfPresent();
+
 // ! order matters !
-app.UseResponseCompression(); // Compress responses (should be early in the pipeline)
+app.UseResponseCompression();
 app.UseSecurityHeaders();
 app.UseCustomExceptionHandler();
 app.UseHttpsRedirection();
