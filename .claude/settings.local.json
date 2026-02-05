@@ -37,7 +37,18 @@
 			"WebFetch(domain:github.com)",
 			"WebFetch(domain:www.npmjs.com)",
 			"Bash(gh pr view:*)",
-			"Bash(gh issue view:*)"
+			"Bash(gh issue view:*)",
+			"Bash(gh issue list:*)",
+			"Bash(gh issue create:*)",
+			"Bash(done)",
+			"Bash(make build-api:*)",
+			"Bash(make update-client:*)",
+			"Bash(Get-ChildItem -Path \"C:\\\\Users\\\\radan\\\\Documents\\\\_RADAN\\\\Dev\\\\PublyApp\\\\publyapp\" -Recurse -Name \"*.json\")",
+			"Bash(Select-String -Pattern \"i18n|translation\")",
+			"Bash(Select-Object -First 20)",
+			"Bash(make build-front:*)",
+			"WebFetch(domain:biomejs.dev)",
+			"Bash(gh pr list:*)"
 		]
 	}
 }

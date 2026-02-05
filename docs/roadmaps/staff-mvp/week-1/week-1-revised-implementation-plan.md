@@ -1871,7 +1871,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router";
-import { ClientManager } from "~/lib/js-client";
+import { getClientManager } from "~/lib/js-client";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -2096,7 +2096,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ClientManager } from "~/lib/js-client";
+import { getClientManager } from "~/lib/js-client";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -2907,7 +2907,7 @@ After implementing Phase 4 core services, GPT 5 and Claude conducted a code revi
 ### Implementation Plan
 
 See detailed step-by-step instructions in:
-- `docs/implementation-plans/phase4-fixes.md`
+- `docs/implementation-plans/phase4-fixes-final.md`
 
 ### Updated Task 4.1 Code (InvitationService)
 

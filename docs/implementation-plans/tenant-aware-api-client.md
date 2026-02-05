@@ -7,14 +7,14 @@ All phases have been completed. See PR #159 for the full implementation.
 **Note:** After initial implementation, follow-up refactoring was done:
 
 1. **Request-scoped ClientManager:**
-   - Browser: `ClientManager.create()` returns a singleton (tokens read from cookie)
-   - Server: `ClientManager.create({ staffToken, tenantToken })` creates a per-request instance
+   - Browser: `getClientManager()` returns a singleton (tokens read from cookie)
+   - Server: `getClientManager({ staffToken, tenantToken })` creates a per-request instance
    - Dual-token cookie format supported for impersonation (`s:` + `t:`)
 
 2. **Server HOF refactoring (getServerLoader/getServerAction):**
    - Removed `apiClient` auto-creation from HOFs
    - Now pass `sessionToken` (+ `staffToken` / `tenantToken`) as primitives instead
-   - Callers create their own client: `ClientManager.create({ staffToken, tenantToken }).createClient({ tenantId })`
+   - Callers create their own client: `getClientManager({ staffToken, tenantToken }).createClient({ tenantId })`
 
 ---
 
@@ -38,8 +38,8 @@ API requests don't consistently include the `X-PublyApp-TenantId` header, riskin
 See `apps/front/app/lib/js-client/client-manager.ts`.
 
 Key points:
-- Browser: `ClientManager.create()` returns a singleton (tokens read from cookie)
-- Server: `ClientManager.create({ staffToken, tenantToken })` creates a per-request instance
+- Browser: `getClientManager()` returns a singleton (tokens read from cookie)
+- Server: `getClientManager({ staffToken, tenantToken })` creates a per-request instance
 - Main methods: `createClient`, `getOrCreateClient`, `getOrCreateStaffClient`, `getOrCreateAnonymousClient`, `clearClients`, `resetInstance`
 
 ### Key Insight: Read Session Token Fresh on Every Request
@@ -49,7 +49,7 @@ Instead of baking the session token into `ApiKeyAuthenticationProvider`, we inje
 ### Implementation Summary
 
 - `ClientManager` injects `X-Session-Token` (fresh) and optional `X-PublyApp-TenantId` via a custom `fetch`.
-- `ClientManager.create()` returns a browser singleton; `ClientManager.create({ staffToken, tenantToken })` creates a per-request server instance.
+- `getClientManager()` returns a browser singleton; `getClientManager({ staffToken, tenantToken })` creates a per-request server instance.
 - Cached clients:
   - `getOrCreateClient(tenantId)` (tenant-scoped)
   - `getOrCreateStaffClient()` (staff-scoped, no tenant header)
@@ -64,28 +64,28 @@ Instead of baking the session token into `ApiKeyAuthenticationProvider`, we inje
 
 ### Client Types Summary:
 
-**Unified API via `ClientManager.create()`:**
+**Unified API via `getClientManager()`:**
 ```typescript
-import { ClientManager } from '@/front/lib/js-client/client-manager';
+import { getClientManager } from '@/front/lib/js-client/client-manager';
 
  // Browser - returns singleton, session from cookie
- ClientManager.create().createClient({ tenantId });
- ClientManager.create().getOrCreateClient(tenantId);  // cached
-ClientManager.create().getOrCreateStaffClient();      // cached
-ClientManager.create().getOrCreateAnonymousClient();  // cached
+ getClientManager().createClient({ tenantId });
+ getClientManager().getOrCreateClient(tenantId);  // cached
+getClientManager().getOrCreateStaffClient();      // cached
+getClientManager().getOrCreateAnonymousClient();  // cached
 
  // Server - new instance per request
-ClientManager.create({ staffToken, tenantToken }).createClient({ tenantId });
+getClientManager({ staffToken, tenantToken }).createClient({ tenantId });
 
 // Server - anonymous/public endpoints
-ClientManager.create().createClient({ skipAuth: true });
+getClientManager().createClient({ skipAuth: true });
 ```
 
 | Context | Pattern | Session Token |
 |---------|---------|---------------|
-| Browser | `ClientManager.create().createClient()` | From cookie (singleton) |
-| Server (auth) | `ClientManager.create({ staffToken, tenantToken }).createClient()` | Explicit (new instance) |
-| Server (public) | `ClientManager.create().createClient({ skipAuth: true })` | None |
+| Browser | `getClientManager().createClient()` | From cookie (singleton) |
+| Server (auth) | `getClientManager({ staffToken, tenantToken }).createClient()` | Explicit (new instance) |
+| Server (public) | `getClientManager().createClient({ skipAuth: true })` | None |
 
 ---
 
@@ -103,7 +103,7 @@ Create factory functions that wrap the user's fetcher to:
 ```typescript
 import { createMutation, createQuery, createSuspenseQuery } from 'react-query-kit';
 
-import { ClientManager } from '@/front/lib/js-client/client-manager';
+import { getClientManager } from '@/front/lib/js-client/client-manager';
 import type { ApiClient } from '@/js-client/src/apiClient';
 import { getQueryKey } from './query-utils';
 
@@ -119,7 +119,7 @@ export function createTenantQuery<TData, TVariables extends Record<string, unkno
   return createQuery<TData, WithTenantId<TVariables>>({
     queryKey: [queryKey] as const,
     fetcher: async (variables) => {
-      const client = ClientManager.create().getOrCreateClient(variables.tenantId);
+      const client = getClientManager().getOrCreateClient(variables.tenantId);
       return config.fetcher(client, variables);
     },
   });
@@ -134,7 +134,7 @@ export function createTenantSuspenseQuery<TData, TVariables extends Record<strin
   return createSuspenseQuery<TData, WithTenantId<TVariables>>({
     queryKey: [queryKey] as const,
     fetcher: async (variables) => {
-      const client = ClientManager.create().getOrCreateClient(variables.tenantId);
+      const client = getClientManager().getOrCreateClient(variables.tenantId);
       return config.fetcher(client, variables);
     },
   });
@@ -149,7 +149,7 @@ export function createStaffQuery<TData, TVariables extends Record<string, unknow
   return createQuery<TData, TVariables>({
     queryKey: [queryKey] as const,
     fetcher: async (variables) => {
-      const client = ClientManager.create().getOrCreateStaffClient();
+      const client = getClientManager().getOrCreateStaffClient();
       return config.fetcher(client, variables);
     },
   });
@@ -165,7 +165,7 @@ export function createPublicQuery<TData, TVariables extends Record<string, unkno
     queryKey: [queryKey] as const,
     fetcher: async (variables) => {
       return config.fetcher(
-        ClientManager.create().getOrCreateAnonymousClient(),
+        getClientManager().getOrCreateAnonymousClient(),
         variables,
       );
     },
@@ -234,14 +234,14 @@ export const useFindTenants = createStaffQuery({
 Add client store cleanup to logout:
 
 ```typescript
-import { ClientManager } from '@/front/lib/js-client/client-manager';
+import { getClientManager } from '@/front/lib/js-client/client-manager';
 
 export const logout = (options?: LogoutOptions): void => {
   clearSessionCookie();
   defaultQueryClient.removeQueries();
 
   // Clear cached API clients and reset singleton (ensures clean state for next user)
-  ClientManager.create().clearClients();
+  getClientManager().clearClients();
   ClientManager.resetInstance();
 
   // ... rest of form submission
@@ -271,26 +271,26 @@ Remove `initApiClientOnClient` and `initApiClientOnServer` entirely. Update call
 |--------|---------------|-------------|
 | `entry.client.tsx` | `initApiClientOnClient()` | Remove call (not needed) |
 | `authed-layout.tsx` | `initApiClientOnClient()` | Remove call (not needed) |
-| `client-data.ts` | `initApiClientOnClient()` | Use `ClientManager.create().getOrCreateClient()` directly |
+| `client-data.ts` | `initApiClientOnClient()` | Use `getClientManager().getOrCreateClient()` directly |
 
 **New pattern for accessing client outside React hooks (e.g., in router loaders):**
 
 ```typescript
 // In getClientLoader or any non-React context
-import { ClientManager } from '@/front/lib/js-client/client-manager';
+import { getClientManager } from '@/front/lib/js-client/client-manager';
 
 export const clientLoader = getClientLoader({
   loader: async ({ params }) => {
     const tenantId = params.tenantId!;
 
     // For tenant-scoped operations:
-    const client = ClientManager.create().getOrCreateClient(tenantId);
+    const client = getClientManager().getOrCreateClient(tenantId);
 
     // For staff operations:
-    const staffClient = ClientManager.create().getOrCreateStaffClient();
+    const staffClient = getClientManager().getOrCreateStaffClient();
 
     // For anonymous operations:
-    const anonClient = ClientManager.create().getOrCreateAnonymousClient();
+    const anonClient = getClientManager().getOrCreateAnonymousClient();
 
     // Use client... (session token read fresh on every request)
     return null;
@@ -363,7 +363,7 @@ export const clientLoader = getClientLoader({
 
 1. **Old initialization:**
    - `initApiClientOnClient()` → Remove references
-   - `clientManager.apiClient` → `ClientManager.create().getOrCreateClient(tenantId)` or `ClientManager.create().getOrCreateStaffClient()`
+   - `clientManager.apiClient` → `getClientManager().getOrCreateClient(tenantId)` or `getClientManager().getOrCreateStaffClient()`
    - `clientManager.setApiClient()` → Remove references
 
 2. **Old hook patterns:**
@@ -371,7 +371,7 @@ export const clientLoader = getClientLoader({
    - Missing tenantId in tenant-scoped hooks → Add tenantId parameter
 
 3. **Old client creation:**
-   - `createApiClient(sessionToken)` → `ClientManager.create().getOrCreateClient(tenantId)` or `ClientManager.create().getOrCreateStaffClient()`
+   - `createApiClient(sessionToken)` → `getClientManager().getOrCreateClient(tenantId)` or `getClientManager().getOrCreateStaffClient()`
    - `ApiKeyAuthenticationProvider` usage → Note we now use `AnonymousAuthenticationProvider` with fresh token injection in `customFetch`
 
 4. **Outdated TODOs:**
@@ -411,16 +411,16 @@ Update the "API Client Integration" section (around line 232) to document the ne
 
 2. **Outside React lifecycle** (e.g., router loaders):
    ```typescript
-   import { ClientManager } from '@/front/lib/js-client/client-manager';
+   import { getClientManager } from '@/front/lib/js-client/client-manager';
 
    // Tenant client (with tenant-id header)
-   const client = ClientManager.create().getOrCreateClient(tenantId);
+   const client = getClientManager().getOrCreateClient(tenantId);
 
    // Staff client (no tenant-id header)
-   const staffClient = ClientManager.create().getOrCreateStaffClient();
+   const staffClient = getClientManager().getOrCreateStaffClient();
 
    // Anonymous client (no auth, no tenant)
-   const anonClient = ClientManager.create().getOrCreateAnonymousClient();
+   const anonClient = getClientManager().getOrCreateAnonymousClient();
 
    // Note: Session token is read fresh from cookies on every request
    ```
@@ -462,18 +462,18 @@ Update the "API Client Integration" section (around line 232) to document the ne
 
 | File | Changes |
 |------|---------|
-| `apps/front/app/lib/js-client/client-manager.ts` | Unified `ClientManager.create()` + `createClient()` + tenant header injection |
+| `apps/front/app/lib/js-client/client-manager.ts` | Unified `getClientManager()` + `createClient()` + tenant header injection |
 | `apps/front/app/lib/react-query/create-hooks.ts` | **NEW** - Hook factories (client injection) |
-| `apps/front/app/lib/cookies/logout.utils.ts` | Add `ClientManager.create().clearClients()` + `ClientManager.resetInstance()` |
+| `apps/front/app/lib/cookies/logout.utils.ts` | Add `getClientManager().clearClients()` + `ClientManager.resetInstance()` |
 | `apps/front/app/lib/api.ts` | **DELETED** - Logic consolidated in ClientManager |
 | `apps/front/app/entry.client.tsx` | Remove `initApiClientOnClient()` call |
 | `apps/front/app/routes/authed/_layout/authed-layout.tsx` | Remove `initApiClientOnClient()` call |
-| `apps/front/app/lib/react-router/client-data.ts` | Use `ClientManager.create().getOrCreateClient()` directly |
+| `apps/front/app/lib/react-router/client-data.ts` | Use `getClientManager().getOrCreateClient()` directly |
 | `apps/front/app/lib/react-router/server-data.server.ts` | Pass `sessionToken` to callers |
-| `apps/front/app/routes/auth/_layout/auth-layout.tsx` | Use `ClientManager.create().createClient()` |
-| `apps/front/app/routes/auth/login/login-page.tsx` | Use `ClientManager.create().createClient()` |
+| `apps/front/app/routes/auth/_layout/auth-layout.tsx` | Use `getClientManager().createClient()` |
+| `apps/front/app/routes/auth/login/login-page.tsx` | Use `getClientManager().createClient()` |
 | `apps/front/app/lib/react-query/features/staff/staff-tenant.hooks.ts` | Migrate to factories |
-| `apps/front/app/lib/react-query/features/staff/staff-member.hooks.ts` | Migrate to factories |
+| `apps/front/app/lib/react-query/features/staff/staff-user.hooks.ts` | Migrate to factories |
 | `apps/front/app/lib/react-query/features/staff/staff-invitation.hooks.ts` | Migrate to factories |
 | `apps/front/app/lib/react-query/features/staff/staff-profile.hooks.ts` | Migrate to factories |
 | `apps/front/app/lib/react-query/features/common/auth.hooks.ts` | Migrate to factories |

@@ -1,7 +1,7 @@
 {
 	"unauthorized": "Non autorisé",
 	"forbidden": "Interdit",
-	"not-a-staff-member": "N'est pas un membre du personnel",
+	"not-a-staff-user": "N'est pas un membre du personnel",
 	"internal-server-error": "Erreur interne du serveur",
 	"not-found": "Non trouvé",
 	"bad-request": "Mauvaise requête",
@@ -32,9 +32,10 @@
 	"tenant-id-required": "ID du tenant requis",
 	"request-body-validation-failed": "Validation du corps de la requête échouée",
 	"query-parameters-validation-failed": "Validation des paramètres de requête échouée",
-	"failed-to-update-staff-member": "Échec de la mise à jour du compte staff",
-	"staff-member-updated-successfully": "Compte staff mis à jour avec succès",
+	"failed-to-update-staff-user": "Échec de la mise à jour du compte staff",
+	"staff-user-updated-successfully": "Compte staff mis à jour avec succès",
 	"invitation-revoked": "Invitation révoquée avec succès",
+	"invitation-resent": "Invitation renvoyee avec succes",
 	"pending-invitation-exists": "Une invitation en attente existe déjà",
 	"staff-profile-created-successfully": "Profil staff créé avec succès",
 	"profile-name-already-exists": "Le nom du profil existe déjà",
@@ -48,5 +49,7 @@
 	"view-details": "voir les détails",
 	"delete-item": "supprimer {{item}}",
 	"confirm-delete-dialog-text": "êtes-vous sûr de vouloir supprimer cet élément ?",
-	"invalid-invitation-token": "Jeton d'invitation invalide ou expiré"
+	"invalid-invitation-token": "Jeton d'invitation invalide ou expiré",
+	"user-has-tenant-or-project-accounts": "Cet utilisateur a déjà des comptes tenant ou projet. Les comptes staff et tenant/projet sont mutuellement exclusifs.",
+	"user-has-staff-account": "Cet utilisateur a déjà un compte staff. Les comptes staff et tenant/projet sont mutuellement exclusifs."
 }

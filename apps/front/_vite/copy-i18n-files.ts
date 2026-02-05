@@ -1,5 +1,6 @@
 import fs, { watch } from 'node:fs';
 import path from 'node:path';
+
 import chalk from 'chalk';
 import { normalizePath, type Plugin } from 'vite';
 

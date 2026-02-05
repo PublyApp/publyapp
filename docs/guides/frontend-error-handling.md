@@ -5,8 +5,8 @@
 This document describes the centralized error handling system for the PublyApp frontend. All API errors are normalized into an `ApiFailure` discriminated union and handled globally via React Query's `MutationCache` and `QueryCache`.
 
 **Related Documentation:**
-- Analysis: `docs/analysis-client-side-problem-details-error-handling.md`
-- Implementation Plan: `docs/plan-client-side-error-handling-implementation.md`
+- Analysis: `docs/analysis/analysis-client-side-problem-details-error-handling.md`
+- Implementation Plan: `docs/plans/plan-client-side-error-handling-implementation.md`
 
 ---
 
@@ -17,7 +17,7 @@ This document describes the centralized error handling system for the PublyApp f
 Most mutations "just work" - errors are automatically toasted:
 
 ```typescript
-const { mutate } = useCreateStaffMember();
+const { mutate } = useCreateStaffUser();
 mutate(data); // Errors auto-toast, no onError needed
 ```
 
@@ -28,7 +28,7 @@ For forms that need field-level validation errors, use `withFormValidation`:
 ```typescript
 import { withFormValidation } from '@/front/lib/api-failure';
 
-const { mutate } = useCreateStaffMember(
+const { mutate } = useCreateStaffUser(
   withFormValidation(form.setError, {
     meta: { showSuccessToast: true },
     onSuccess: () => navigate('/staff'),
@@ -41,7 +41,7 @@ Or handle validation manually:
 ```typescript
 import { toApiFailure, mapValidationErrors } from '@/front/lib/api-failure';
 
-const { mutate } = useCreateStaffMember({
+const { mutate } = useCreateStaffUser({
   meta: { validationHandledByForm: true },
   onError: (error) => {
     const failure = toApiFailure(error);

@@ -5,7 +5,7 @@ import morgan from 'morgan';
 // Short-circuit the type-checking of the built output.
 const BUILD_PATH = './build/server/index.js';
 const DEVELOPMENT = process.env.NODE_ENV === 'development';
-const PORT = Number.parseInt('5050');
+const PORT = Number.parseInt('5050', 10);
 const MODE = process.env.MODE;
 
 const app = express();

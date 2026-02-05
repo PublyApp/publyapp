@@ -1,0 +1,47 @@
+import { isServer } from '@tanstack/react-query';
+import type { TFunction } from 'i18next';
+import i18next from 'i18next';
+import _ from 'lodash';
+import { data } from 'react-router';
+
+import { View403 } from '@/front/components/error/403-view';
+import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+import { APP_NAME } from '@/shared/lib/constants';
+
+import type { Route } from './+types/unauthorized-page';
+
+const getPageTitle = (t: TFunction, seo?: boolean) => {
+	let str: string = _.capitalize(t('unauthorized'));
+
+	if (seo) {
+		str = `${str} | Staff Dashboard - ${APP_NAME}`;
+	}
+
+	return str;
+};
+
+export const meta = (args: Route.MetaArgs) => {
+	if (isServer) {
+		return _.get(args.loaderData, 'meta', []);
+	}
+
+	const t: TFunction = i18next.t;
+
+	return [{ title: getPageTitle(t, true) }];
+};
+
+export const loader = getServerLoader({
+	loader: async ({ z }) => {
+		const t = z.t;
+
+		return data({
+			meta: [{ title: getPageTitle(t, true) }],
+		});
+	},
+});
+
+const UnauthorizedPage = () => {
+	return <View403 />;
+};
+
+export default UnauthorizedPage;
