@@ -35,13 +35,12 @@ public class UserSeeder : IEntitySeeder {
 	public int Order => 30;
 
 	public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
-		AppEnvironment.LoadEnv();
 		var seedPassword = GetSeedPassword();
 
 		// Seed all users (staff and tenant users)
 		var allUsers = new List<(string Email, UserStatus Status, string? FirstName, string? LastName)>();
 
-		var ownerEmail = AppEnvironment.STAFF_OWNER_EMAIL;
+		var ownerEmail = AppEnvironment.Instance.STAFF_OWNER_EMAIL;
 		if (!string.IsNullOrWhiteSpace(ownerEmail)) {
 			var normalizedOwnerEmail = ownerEmail.Trim().ToLowerInvariant();
 			allUsers.Add((normalizedOwnerEmail, UserStatus.Active, "Platform", "Owner"));
