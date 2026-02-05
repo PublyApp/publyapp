@@ -30,8 +30,6 @@ public class UserAccountSeeder : IEntitySeeder {
 	public int Order => 40;
 
 	public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
-		AppEnvironment.LoadEnv();
-
 		var newAccounts = new List<UserAccount>();
 
 		// Seed staff accounts
@@ -84,7 +82,7 @@ public class UserAccountSeeder : IEntitySeeder {
 	private async Task<List<UserAccount>> SeedStaffAccountsAsync(MainApiDbContext dbContext, CancellationToken cancellationToken) {
 		var staffAccountsData = new List<(string Email, AccountLevel Level)>();
 
-		var ownerEmail = AppEnvironment.STAFF_OWNER_EMAIL;
+		var ownerEmail = AppEnvironment.Instance.STAFF_OWNER_EMAIL;
 		if (!string.IsNullOrWhiteSpace(ownerEmail)) {
 			staffAccountsData.Add((ownerEmail.Trim().ToLowerInvariant(), AccountLevel.Admin));
 		}

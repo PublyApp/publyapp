@@ -155,14 +155,14 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	protected override void OnModelCreating(ModelBuilder modelBuilder) {
 		base.OnModelCreating(modelBuilder);
 
-		// Instantiate AppSettings to access default values for database schema configuration
-		var appSettings = new AppSettings();
+		// Access AppEnvironment for default values used in database schema configuration
+		var env = AppEnvironment.Instance;
 
 		// Database-level lowercase constraints
 		modelBuilder.Entity<Tenant>()
 			.ToTable(t => t.HasCheckConstraint("CK_Tenant_Code_Lowercase", "code = LOWER(code)"))
 			.Property(t => t.MaxUsers)
-			.HasDefaultValue(appSettings.DEFAULT_MAX_USERS_PER_TENANT);
+			.HasDefaultValue(env.DEFAULT_MAX_USERS_PER_TENANT);
 
 		modelBuilder.Entity<User>()
 			.ToTable(t => t.HasCheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)"));

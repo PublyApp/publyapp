@@ -7,7 +7,6 @@ using MainApi.Src.Modules.Tenants.Entities;
 using MainApi.Src.Modules.Users.Entities;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace MainApi.Src.Modules.Tenants.Services;
 
@@ -45,11 +44,9 @@ public interface ITenantAsStaffService {
 
 public class TenantAsStaffService : ITenantAsStaffService {
 	private readonly MainApiDbContext _dbContext;
-	private readonly IOptions<AppSettings> _appSettings;
 
-	public TenantAsStaffService(MainApiDbContext dbContext, IOptions<AppSettings> appSettings) {
+	public TenantAsStaffService(MainApiDbContext dbContext) {
 		_dbContext = dbContext;
-		_appSettings = appSettings;
 	}
 
 	public async Task<Tenant> CreateTenant(Tenant tenant, CancellationToken cancellationToken = default) {
@@ -80,7 +77,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		SortOrder? sortOrder = null,
 		CancellationToken cancellationToken = default
 	) {
-		var effectiveLimit = limit ?? _appSettings.Value.PAGINATION_DEFAULT_LIMIT;
+		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
 		var effectivePage = page ?? 1;
 		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
 
@@ -175,7 +172,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			var expiresAt = DateTime.UtcNow.AddDays(7);
 
 			foreach (var (email, accountLevel) in initialUsers) {
-				var token = CryptoUtils.RandomString(_appSettings.Value.INVITATION_TOKEN_LENGTH);
+				var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
 
 				// Determine profile IDs based on account level
 				List<Guid> profileIds;

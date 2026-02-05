@@ -9,7 +9,7 @@ using MainApi.Src.Modules.Profiles.Endpoints;
 using MainApi.Src.Modules.Tenants.Endpoints;
 using MainApi.Src.Modules.Users.Endpoints;
 
-AppEnvironment.LoadEnv(); // ! must be called before anything else
+AppEnvironment.Initialize(); // ! must be called before anything else
 
 var builder = WebApplication.CreateBuilder(args);
 
