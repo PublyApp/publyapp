@@ -14,7 +14,6 @@ using MainApi.Src.Modules.Users.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 using Polly;
 
@@ -63,7 +62,7 @@ public record BulkStaffInvitationsCreated {
 
 public class BulkCreateStaffInvitationsBodyValidator
 	: AbstractValidator<BulkCreateStaffInvitationsBody> {
-	public BulkCreateStaffInvitationsBodyValidator(IOptions<AppSettings> appSettings) {
+	public BulkCreateStaffInvitationsBodyValidator() {
 		RuleFor(x => x.Invitations)
 			.NotNull()
 			.WithMessage("Invitations is required")
@@ -74,7 +73,7 @@ public class BulkCreateStaffInvitationsBodyValidator
 				}
 
 				var array = element.EnumerateArray().ToList();
-				var maxSize = appSettings.Value.MAX_BULK_INVITATIONS_SIZE;
+				var maxSize = AppEnvironment.Instance.MAX_BULK_INVITATIONS_SIZE;
 
 				if (array.Count == 0) {
 					context.AddFailure("Invitations array cannot be empty");

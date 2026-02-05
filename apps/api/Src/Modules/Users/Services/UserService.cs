@@ -3,7 +3,6 @@ using MainApi.Src.Lib;
 using MainApi.Src.Modules.Users.Entities;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace MainApi.Src.Modules.Users.Services;
 
@@ -55,12 +54,10 @@ public interface IUserService {
 
 public class UserService : IUserService {
 	private readonly MainApiDbContext _dbContext;
-	private readonly IOptions<AppSettings> _appSettings;
 	private readonly ILogger<UserService> _logger;
 
-	public UserService(MainApiDbContext dbContext, IOptions<AppSettings> appSettings, ILogger<UserService> logger) {
+	public UserService(MainApiDbContext dbContext, ILogger<UserService> logger) {
 		_dbContext = dbContext;
-		_appSettings = appSettings;
 		_logger = logger;
 	}
 
@@ -163,7 +160,7 @@ public class UserService : IUserService {
 	) {
 		var effectivePage = page ?? 1;
 		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-		var effectiveLimit = limit ?? _appSettings.Value.PAGINATION_DEFAULT_LIMIT;
+		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
 
 		var query =
 			from ua in _dbContext.UserAccount

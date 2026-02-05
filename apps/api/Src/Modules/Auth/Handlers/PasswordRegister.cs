@@ -11,7 +11,6 @@ using MainApi.Src.Modules.Users.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace MainApi.Src.Modules.Auth.Handlers;
 
@@ -19,7 +18,7 @@ public class PasswordRegisterBody : PasswordLoginBody {
 }
 
 public class PasswordRegisterBodyValidator : AbstractValidator<PasswordRegisterBody> {
-	public PasswordRegisterBodyValidator(IOptions<AppSettings> appSettings) {
+	public PasswordRegisterBodyValidator() {
 		RuleFor(x => x.Email)
 			.NotEmpty().WithMessage("Email is required")
 			.DependentRules(() => {
@@ -39,7 +38,7 @@ public class PasswordRegisterBodyValidator : AbstractValidator<PasswordRegisterB
 					.WithMessage("Password must be a string")
 					.DependentRules(() => {
 						RuleFor(x => x.Password.GetString()!)
-							.MinimumLength(appSettings.Value.PASSWORD_MIN_LENGTH)
+							.MinimumLength(AppEnvironment.Instance.PASSWORD_MIN_LENGTH)
 							.WithMessage("Password must be at least 6 characters long");
 					});
 			});

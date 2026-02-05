@@ -7,7 +7,7 @@ namespace MainApi.Src.Modules.Auth.Utils;
 
 public static class AuthUtils {
 	public static string CreateVerificationUrl(string token, string email) {
-		var builder = new UriBuilder(AppEnvironment.FRONT_URL) {
+		var builder = new UriBuilder(AppEnvironment.Instance.FRONT_URL) {
 			Path = "/verify-email" // Path of the front-end app (using react router)
 		};
 
@@ -23,7 +23,7 @@ public static class AuthUtils {
 	}
 
 	public static string CreateResetPasswordUrl(string token, string email) {
-		var builder = new UriBuilder(AppEnvironment.FRONT_URL) {
+		var builder = new UriBuilder(AppEnvironment.Instance.FRONT_URL) {
 			Path = "/reset-password" // Path of the front-end app (using react router)
 		};
 
@@ -39,7 +39,7 @@ public static class AuthUtils {
 	}
 
 	public static string GetFrontendLoginPageUrl() {
-		var builder = new UriBuilder(AppEnvironment.FRONT_URL) {
+		var builder = new UriBuilder(AppEnvironment.Instance.FRONT_URL) {
 			Path = "/login" // Path of the front-end app (using react router)
 		};
 
@@ -47,7 +47,7 @@ public static class AuthUtils {
 	}
 
 	public static string CreateAcceptInvitationUrl(string token, string email) {
-		var builder = new UriBuilder(AppEnvironment.FRONT_URL) {
+		var builder = new UriBuilder(AppEnvironment.Instance.FRONT_URL) {
 			Path = "/accept-invitation" // Path of the front-end app (using react router)
 		};
 

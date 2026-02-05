@@ -3,8 +3,6 @@ using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Auth.Services;
 
-using Microsoft.Extensions.Options;
-
 namespace MainApi.Src.Lib.Filters;
 
 /// <summary>
@@ -26,11 +24,11 @@ public class SessionAuthFilter : IEndpointFilter {
 		var httpContext = context.HttpContext;
 		var authContext = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>();
 		var sessionService = httpContext.RequestServices.GetRequiredService<ISessionService>();
-		var appSettings = httpContext.RequestServices.GetRequiredService<IOptions<AppSettings>>();
+		var env = AppEnvironment.Instance;
 
 		// Get session token (should be set by CheckSessionHeaderFilter)
 		var sessionToken = authContext.SessionToken
-			?? httpContext.Request.Headers[appSettings.Value.SESSION_TOKEN_HEADER_KEY].FirstOrDefault();
+			?? httpContext.Request.Headers[env.SESSION_TOKEN_HEADER_KEY].FirstOrDefault();
 
 		if (string.IsNullOrEmpty(sessionToken)) {
 			_logger.LogDebug("Session token is missing in request");
