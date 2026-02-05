@@ -21,29 +21,29 @@ namespace MainApi.Src.Data.DbContext;
 public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	private static readonly Lazy<List<Type>> SeederTypeCache = new(DiscoverSeedersInternal, LazyThreadSafetyMode.ExecutionAndPublication);
 
-	public DbSet<Session> Session { get; init; }
-	public DbSet<Product> Product { get; init; }
-	public DbSet<User> User { get; init; }
-	public DbSet<Tenant> Tenant { get; init; }
+	public DbSet<Session> Session { get; init; } = null!;
+	public DbSet<User> User { get; init; } = null!;
+	public DbSet<Tenant> Tenant { get; init; } = null!;
 
 	// Project system entities (still needed for Project entity)
-	public DbSet<Project> Project { get; init; }
+	public DbSet<Project> Project { get; init; } = null!;
 
 	// Unified permission system entities
-	public DbSet<Permission> Permission { get; init; }
-	public DbSet<Profile> Profile { get; init; }
-	public DbSet<ProfilePermission> ProfilePermission { get; init; }
-	public DbSet<UserAccountProfile> UserAccountProfile { get; init; }
+	public DbSet<Permission> Permission { get; init; } = null!;
+	public DbSet<Profile> Profile { get; init; } = null!;
+	public DbSet<ProfilePermission> ProfilePermission { get; init; } = null!;
+	public DbSet<UserAccountProfile> UserAccountProfile { get; init; } = null!;
 
 	// Unified account system (handles Staff, Tenant, and Project accounts)
-	public DbSet<UserAccount> UserAccount { get; init; }
+	public DbSet<UserAccount> UserAccount { get; init; } = null!;
 
 	// Unified invitation system (Staff/Tenant/Project)
-	public DbSet<Invitation> Invitation { get; init; }
+	public DbSet<Invitation> Invitation { get; init; } = null!;
+	public DbSet<InvitationProfile> InvitationProfile { get; init; } = null!;
 
 	// Staff back-office entities
-	public DbSet<AuditLog> AuditLog { get; init; }
-	public DbSet<SystemNotice> SystemNotice { get; init; }
+	public DbSet<AuditLog> AuditLog { get; init; } = null!;
+	public DbSet<SystemNotice> SystemNotice { get; init; } = null!;
 
 	public Guid? TenantId { get; set; }
 
@@ -96,7 +96,9 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		var seeders = CreateSeeders(serviceProvider);
 
 		foreach (var seeder in seeders) {
-			logger?.LogInformation("Running seeder {Seeder} with order {Order}", seeder.GetType().Name, seeder.Order);
+			if (logger?.IsEnabled(LogLevel.Information) == true) {
+				logger.LogInformation("Running seeder {Seeder} with order {Order}", seeder.GetType().Name, seeder.Order);
+			}
 			await seeder.SeedAsync(dbContext, cancellationToken);
 		}
 	}
@@ -151,6 +153,9 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder) {
 		base.OnModelCreating(modelBuilder);
+
+		// Access AppEnvironment for default values used in database schema configuration
+		var env = AppEnvironment.Instance;
 
 		// Database-level lowercase constraints
 		modelBuilder.Entity<Tenant>()
@@ -338,6 +343,21 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.WithMany()
 			.HasForeignKey(s => s.ImpersonatingStaffUserId)
 			.OnDelete(DeleteBehavior.Restrict);
+
+		// Configure InvitationProfile junction table
+		modelBuilder.Entity<InvitationProfile>(entity => {
+			entity.HasKey(e => new { e.InvitationId, e.ProfileId });
+
+			entity.HasOne(e => e.Invitation)
+				.WithMany(i => i.InvitationProfiles)
+				.HasForeignKey(e => e.InvitationId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			entity.HasOne(e => e.Profile)
+				.WithMany()
+				.HasForeignKey(e => e.ProfileId)
+				.OnDelete(DeleteBehavior.Restrict);
+		});
 
 		// Partial indexes to favor active rows without enforcing global filters
 		modelBuilder.Entity<User>()
