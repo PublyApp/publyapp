@@ -1,5 +1,7 @@
 # Staff MVP Week 1: Revised Implementation Plan (Pragmatic Approach)
 
+> Note (2026-01): This plan predates the RFC 7807 ProblemDetails migration. Any error-response examples using `ApiResponse`, `JsonHttpResult<ApiResponse>`, or `.ProducesApiResponses(...)` should be updated to `TypedProblems.*` + `App*HttpResult` (validation errors are `422` `ValidationProblemDetails`).
+
 **Document Version:** 3.2 (Complete Vertical Slice with Full Frontend)
 **Date:** November 5, 2025
 **Status:** READY FOR IMPLEMENTATION (Frontend Included in Week 1)
@@ -1869,7 +1871,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router";
-import { ClientManager } from "~/lib/js-client";
+import { getClientManager } from "~/lib/js-client";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -2094,7 +2096,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ClientManager } from "~/lib/js-client";
+import { getClientManager } from "~/lib/js-client";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -2905,7 +2907,7 @@ After implementing Phase 4 core services, GPT 5 and Claude conducted a code revi
 ### Implementation Plan
 
 See detailed step-by-step instructions in:
-- `docs/implementation-plans/phase4-fixes.md`
+- `docs/implementation-plans/phase4-fixes-final.md`
 
 ### Updated Task 4.1 Code (InvitationService)
 

@@ -1,5 +1,7 @@
 {
 	"unauthorized": "Unauthorized",
+	"forbidden": "Forbidden",
+	"not-a-staff-user": "Not a staff user",
 	"internal-server-error": "Internal server error",
 	"not-found": "Not found",
 	"bad-request": "Bad request",
@@ -30,9 +32,10 @@
 	"tenant-id-required": "Tenant ID required",
 	"request-body-validation-failed": "Request body validation failed",
 	"query-parameters-validation-failed": "Query parameters validation failed",
-	"failed-to-update-staff-member": "Failed to update staff member",
-	"staff-member-updated-successfully": "Staff member updated successfully",
+	"failed-to-update-staff-user": "Failed to update staff user",
+	"staff-user-updated-successfully": "Staff user updated successfully",
 	"invitation-revoked": "Invitation revoked successfully",
+	"invitation-resent": "Invitation email resent successfully",
 	"pending-invitation-exists": "A pending invitation already exists",
 	"staff-profile-created-successfully": "Staff profile created successfully",
 	"profile-name-already-exists": "Profile name already exists",
@@ -46,5 +49,7 @@
 	"view-details": "view details",
 	"delete-item": "delete {{item}}",
 	"confirm-delete-dialog-text": "are you sure you want to delete this item?",
-	"invalid-invitation-token": "Invalid or expired invitation token"
+	"invalid-invitation-token": "Invalid or expired invitation token",
+	"user-has-tenant-or-project-accounts": "This user already has tenant or project accounts. Staff and tenant/project accounts are mutually exclusive.",
+	"user-has-staff-account": "This user already has a staff account. Staff and tenant/project accounts are mutually exclusive."
 }

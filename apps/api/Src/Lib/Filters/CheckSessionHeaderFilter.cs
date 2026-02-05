@@ -1,6 +1,6 @@
 using MainApi.Localization;
-
-using Microsoft.Extensions.Options;
+using MainApi.Src.Lib.Extensions;
+using MainApi.Src.Lib.ProblemResults;
 
 namespace MainApi.Src.Lib.Filters;
 
@@ -15,17 +15,14 @@ public class CheckSessionHeaderFilter : IEndpointFilter {
 	) {
 		var httpContext = context.HttpContext;
 		var authContext = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>();
-		var appSettings = httpContext.RequestServices.GetRequiredService<IOptions<AppSettings>>();
+		var env = AppEnvironment.Instance;
 
 		// Try to get token from AuthContext first, then from header
 		var sessionToken = authContext.SessionToken
-			?? httpContext.Request.Headers[appSettings.Value.SESSION_TOKEN_HEADER_KEY].FirstOrDefault();
+			?? httpContext.Request.Headers[env.SESSION_TOKEN_HEADER_KEY].FirstOrDefault();
 
 		if (string.IsNullOrEmpty(sessionToken)) {
-			return TypedResults.Json(
-				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),
-				statusCode: StatusCodes.Status401Unauthorized
-			);
+			return TypedProblems.Unauthorized("Session token is missing", ResponseKeys.Unauthorized);
 		}
 
 		// Set token in AuthContext for downstream filters/handlers
@@ -44,7 +41,9 @@ public static class CheckSessionHeaderFilterExtensions {
 	/// Validates that X-Session-Token header is present.
 	/// </summary>
 	public static RouteGroupBuilder WithCheckSessionHeader(this RouteGroupBuilder builder) {
-		return builder.AddEndpointFilter<CheckSessionHeaderFilter>();
+		return builder
+			.AddEndpointFilter<CheckSessionHeaderFilter>()
+			.ProducesAppProblem(StatusCodes.Status401Unauthorized);
 	}
 
 	/// <summary>
@@ -52,6 +51,8 @@ public static class CheckSessionHeaderFilterExtensions {
 	/// Validates that X-Session-Token header is present.
 	/// </summary>
 	public static RouteHandlerBuilder WithCheckSessionHeader(this RouteHandlerBuilder builder) {
-		return builder.AddEndpointFilter<CheckSessionHeaderFilter>();
+		return builder
+			.AddEndpointFilter<CheckSessionHeaderFilter>()
+			.Produces<AppProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json");
 	}
 }

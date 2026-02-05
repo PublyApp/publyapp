@@ -1,8 +1,10 @@
 # Response to Week 1 Invitation System Review
 
-**Date:** 2025-11-02  
-**Reviewer:** GPT-5  
-**Response by:** Claude  
+> Note (2026-01): This document predates the RFC 7807 ProblemDetails migration. Any error-response examples using `ApiResponse`, `JsonHttpResult<ApiResponse>`, or `.ProducesApiResponses(...)` should be updated to `TypedProblems.*` + `App*HttpResult` (validation errors are `422` `ValidationProblemDetails`).
+
+**Date:** 2025-11-02
+**Reviewer:** GPT-5
+**Response by:** Claude
 **Status:** ✅ All corrections accepted and validated
 
 ---
@@ -119,7 +121,7 @@ var passwordService = httpContext.RequestServices.GetRequiredService<IPasswordSe
 var hashedPassword = passwordService.HashPassword(request.Password);
 ```
 
-**Evidence:** `apps/api/Src/Features/Staff/StaffMember/Handlers/CreateStaffMember.cs` line 213:
+**Evidence:** `apps/api/Src/Features/Staff/StaffUser/Handlers/CreateStaffUser.cs` line 213:
 ```csharp
 password = passwordService.HashPassword(password);
 ```
@@ -220,7 +222,7 @@ public static class Invitations {
 
 **Evidence:** `apps/api/Src/Lib/RoutePath.cs` - All existing routes use `PathUtils.Join()`:
 ```csharp
-public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/staff-members");
+public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/staff-users");
 ```
 
 **Impact:** Inconsistent code style. The project uses `PathUtils.Join` for path composition everywhere.
@@ -232,14 +234,14 @@ public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/staf
 
 ```csharp
 // ❌ WRONG (from my draft)
-return TypedResults.Ok(new ApiResponse<InvitationTokenResponse> { 
+return TypedResults.Ok(new ApiResponse<InvitationTokenResponse> {
     Message = "staff.invitations.created",
-    Data = response 
+    Data = response
 });
 
 // ✅ CORRECT (actual pattern)
 // Success with data - return typed response directly
-return TypedResults.Ok(new InvitationTokenResponse { 
+return TypedResults.Ok(new InvitationTokenResponse {
     InvitationId = invitation.Id.Value,
     Token = token,
     ExpiresAt = invitation.ExpiresAt
@@ -251,9 +253,9 @@ return TypedResults.BadRequest(
 );
 ```
 
-**Evidence:** `apps/api/Src/Features/Staff/StaffMember/Handlers/CreateStaffMember.cs` line 284:
+**Evidence:** `apps/api/Src/Features/Staff/StaffUser/Handlers/CreateStaffUser.cs` line 284:
 ```csharp
-return TypedResults.Ok(new CreateStaffMemberResult {
+return TypedResults.Ok(new CreateStaffUserResult {
     Id = userIdGuid,
     AccountId = accountResult.Account.GetRequiredId(),
 });
@@ -364,7 +366,7 @@ public static class AcceptInvitation {
             where u.Email == invitation.Email
             select u;
         var existingUser = await existingUserQuery.FirstOrDefaultAsync(cancellationToken);
-        
+
         if (existingUser is not null) {
             return TypedResults.BadRequest(
                 ApiResponse.Create("User already exists", ResponseKeys.UserAlreadyExists)

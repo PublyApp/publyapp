@@ -1,4 +1,6 @@
-# Phase 5 (Staff Invitations) – Critical Code Review
+# Phase 5 (Staff Invitations) - Critical Code Review
+
+> Note (2026-01): This review predates the RFC 7807 ProblemDetails migration. Any references to `ApiResponse`-based error responses are now outdated; use `TypedProblems.*` + `AppProblemDetails` / `ValidationProblemDetails` instead.
 
 Date: 2025-11-05
 Branch: staff-mvp-week-1

@@ -51,7 +51,7 @@ Simply use `paginationMode: 'cursor'` and the hook provides:
 
 Use these existing components as patterns:
 - **Primary Reference:** `apps/front/app/routes/authed/staff/tenants/list/parts/tenants-table.tsx`
-- **Secondary Reference:** `apps/front/app/routes/authed/staff/staff-members/list/parts/staff-members-table.tsx`
+- **Secondary Reference:** `apps/front/app/routes/authed/staff/staff-users/list/parts/staff-users-table.tsx`
 
 ## API Endpoint
 
@@ -92,7 +92,7 @@ Use these existing components as patterns:
 ```typescript
 import _ from 'lodash';
 import { createQuery } from 'react-query-kit';
-import { clientManager } from '@/front/lib/js-client/client-manager';
+import { getClientManager } from '@/front/lib/js-client/client-manager';
 import type { ApiClient } from '@/js-client/src/apiClient';
 import { getQueryKey } from '../../query-utils';
 ```

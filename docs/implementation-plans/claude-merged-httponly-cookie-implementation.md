@@ -1,4 +1,6 @@
-# HttpOnly Cookie Migration – Implementation Plan (Claude Merged)
+# HttpOnly Cookie Migration - Implementation Plan (Claude Merged)
+
+> Note (2026-01): This document predates the RFC 7807 ProblemDetails migration. Any API error-response examples using `ApiResponse` should be updated to `TypedProblems.*` + `AppProblemDetails` / `ValidationProblemDetails` where applicable.
 
 > **Status:** Comprehensive merged plan combining Claude's detailed security approach with GPT's clear phase structure
 > **Goal:** Migrate PublyApp to httpOnly cookie-based auth with robust multi-layered CSRF protection
@@ -736,7 +738,7 @@ import {
   createCsrfCookie,
   generateCsrfToken
 } from '@/front/lib/cookies/server-cookie.utils';
-import { clientManager } from '@/front/lib/js-client/client-manager';
+import { getClientManager } from '@/front/lib/js-client/client-manager';
 import { redirect } from 'react-router';
 
 export const action = getServerAction({
@@ -835,7 +837,7 @@ export const action = getServerAction({
 ```typescript
 import { getServerAction } from '@/front/lib/react-router/server-data';
 import { clearSessionCookie, clearCsrfCookie } from '@/front/lib/cookies/server-cookie.utils';
-import { clientManager } from '@/front/lib/js-client/client-manager';
+import { getClientManager } from '@/front/lib/js-client/client-manager';
 import { redirect } from 'react-router';
 
 export const action = getServerAction({

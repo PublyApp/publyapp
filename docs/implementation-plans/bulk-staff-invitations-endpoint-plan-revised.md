@@ -1,4 +1,6 @@
-## Bulk Staff Invitations Endpoint – Implementation Plan (Revised for Many-to-Many Schema)
+## Bulk Staff Invitations Endpoint - Implementation Plan (Revised for Many-to-Many Schema)
+
+> Note (2026-01): This document predates the RFC 7807 ProblemDetails migration. Any error-response examples using `ApiResponse`, `JsonHttpResult<ApiResponse>`, or `.ProducesApiResponses(...)` should be updated to `TypedProblems.*` + `App*HttpResult` (validation errors are `422` `ValidationProblemDetails`).
 
 ### Goal
 
@@ -675,12 +677,12 @@ This will:
 
 ---
 
-### 6. Frontend Integration – `useBulkCreateInvitations`
+### 6. Frontend Integration – `useBulkCreateStaffInvitations`
 
 File: `apps/front/app/lib/react-query/features/staff/staff-invitation.hooks.ts`
 
 Current state:
-- `useBulkCreateInvitations` uses a mock `delay` to simulate an API response.
+- `useBulkCreateStaffInvitations` uses a mock `delay` to simulate an API response.
 
 #### 6.1 Replace mock with real API call
 
@@ -730,7 +732,7 @@ If we want to highlight failing rows in the UI with per-field errors:
      ```
 
 2. **Frontend handling:**
-   - In `useBulkCreateInvitations` error path, inspect:
+   - In `useBulkCreateStaffInvitations` error path, inspect:
      - `error.response?.data?.data?.errors`
    - If present, map to `react-hook-form` field errors:
      ```typescript

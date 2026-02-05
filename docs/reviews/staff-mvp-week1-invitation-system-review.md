@@ -1,11 +1,13 @@
 ## Review: Week 1 Revised Implementation Plan (Invitations, Endpoints, Frontend)
 
-Summary: The plan is solid and matches the repo’s vertical-slice patterns overall. Below are concrete corrections to keep it consistent with the current codebase and conventions (backend filters, DTOs, namespaces, client usage, and i18n).
+> Note (2026-01): This review predates the RFC 7807 ProblemDetails migration. Any error-response examples using `ApiResponse`, `JsonHttpResult<ApiResponse>`, or `.ProducesApiResponses(...)` should be updated to `TypedProblems.*` + `App*HttpResult` (validation errors are `422` `ValidationProblemDetails`).
+
+Summary: The plan is solid and matches the repo's vertical-slice patterns overall. Below are concrete corrections to keep it consistent with the current codebase and conventions (backend filters, DTOs, namespaces, client usage, and i18n).
 
 ### Backend — Required Corrections
 
 - ApiResponse shape: The repo uses a non-generic ApiResponse with a typed TranslationKey (ResponseKeys), not ApiResponse<T>. Return typed payloads with Ok<T> and errors with BadRequest<ApiResponse>.
-  - Example pattern (see StaffMember handlers):
+  - Example pattern (see StaffUser handlers):
     - Success: return TypedResults.Ok(new SomeDto { ... });
     - Error: return TypedResults.BadRequest(ApiResponse.Create("...", ResponseKeys.SomeKey));
 

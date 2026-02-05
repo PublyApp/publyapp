@@ -62,9 +62,14 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey FailedToRegisterUser = new("failed-to-register-user");
 
 	/// <summary>
-	/// Failed to update staff member
+	/// Failed to update staff user
 	/// </summary>
-	public static readonly TranslationKey FailedToUpdateStaffMember = new("failed-to-update-staff-member");
+	public static readonly TranslationKey FailedToUpdateStaffUser = new("failed-to-update-staff-user");
+
+	/// <summary>
+	/// Forbidden
+	/// </summary>
+	public static readonly TranslationKey Forbidden = new("forbidden");
 
 	/// <summary>
 	/// Gateway timeout
@@ -102,6 +107,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey InvalidSession = new("invalid-session");
 
 	/// <summary>
+	/// Invitation email resent successfully
+	/// </summary>
+	public static readonly TranslationKey InvitationResent = new("invitation-resent");
+
+	/// <summary>
 	/// Invitation revoked successfully
 	/// </summary>
 	public static readonly TranslationKey InvitationRevoked = new("invitation-revoked");
@@ -115,6 +125,11 @@ public static partial class ResponseKeys {
 	/// no {{item}} found
 	/// </summary>
 	public static readonly TranslationKey NoItemsFound = new("no-items-found");
+
+	/// <summary>
+	/// Not a staff user
+	/// </summary>
+	public static readonly TranslationKey NotAStaffUser = new("not-a-staff-user");
 
 	/// <summary>
 	/// Not found
@@ -172,11 +187,6 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey ServiceUnavailable = new("service-unavailable");
 
 	/// <summary>
-	/// Staff member updated successfully
-	/// </summary>
-	public static readonly TranslationKey StaffMemberUpdatedSuccessfully = new("staff-member-updated-successfully");
-
-	/// <summary>
 	/// Staff profile created successfully
 	/// </summary>
 	public static readonly TranslationKey StaffProfileCreatedSuccessfully = new("staff-profile-created-successfully");
@@ -185,6 +195,11 @@ public static partial class ResponseKeys {
 	/// staff profiles
 	/// </summary>
 	public static readonly TranslationKey StaffProfiles = new("staff-profiles");
+
+	/// <summary>
+	/// Staff user updated successfully
+	/// </summary>
+	public static readonly TranslationKey StaffUserUpdatedSuccessfully = new("staff-user-updated-successfully");
 
 	/// <summary>
 	/// Tenant ID required
@@ -225,6 +240,16 @@ public static partial class ResponseKeys {
 	/// User does not have the necessary permissions
 	/// </summary>
 	public static readonly TranslationKey UserDoesNotHaveTheNecessaryPermissions = new("user-does-not-have-the-necessary-permissions");
+
+	/// <summary>
+	/// This user already has a staff account. Staff and tenant/project accounts are mutually exclusive.
+	/// </summary>
+	public static readonly TranslationKey UserHasStaffAccount = new("user-has-staff-account");
+
+	/// <summary>
+	/// This user already has tenant or project accounts. Staff and tenant/project accounts are mutually exclusive.
+	/// </summary>
+	public static readonly TranslationKey UserHasTenantOrProjectAccounts = new("user-has-tenant-or-project-accounts");
 
 	/// <summary>
 	/// User ID required
