@@ -2,8 +2,6 @@ using MainApi.Localization;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
 
-using Microsoft.Extensions.Options;
-
 namespace MainApi.Src.Lib.Filters;
 
 /// <summary>
@@ -17,11 +15,11 @@ public class CheckSessionHeaderFilter : IEndpointFilter {
 	) {
 		var httpContext = context.HttpContext;
 		var authContext = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>();
-		var appSettings = httpContext.RequestServices.GetRequiredService<IOptions<AppSettings>>();
+		var env = AppEnvironment.Instance;
 
 		// Try to get token from AuthContext first, then from header
 		var sessionToken = authContext.SessionToken
-			?? httpContext.Request.Headers[appSettings.Value.SESSION_TOKEN_HEADER_KEY].FirstOrDefault();
+			?? httpContext.Request.Headers[env.SESSION_TOKEN_HEADER_KEY].FirstOrDefault();
 
 		if (string.IsNullOrEmpty(sessionToken)) {
 			return TypedProblems.Unauthorized("Session token is missing", ResponseKeys.Unauthorized);

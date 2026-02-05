@@ -4,7 +4,6 @@ using MainApi.Src.Modules.Tenants.Entities;
 using MainApi.Src.Modules.Users.Entities;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace MainApi.Src.Modules.Users.Services;
 
@@ -54,11 +53,9 @@ public interface IAccountService {
 
 public class AccountService : IAccountService {
 	private readonly MainApiDbContext _dbContext;
-	private readonly IOptions<AppSettings> _appSettings;
 
-	public AccountService(MainApiDbContext dbContext, IOptions<AppSettings> appSettings) {
+	public AccountService(MainApiDbContext dbContext) {
 		_dbContext = dbContext;
-		_appSettings = appSettings;
 	}
 
 	public async Task<CreateStaffAccountResult> CreateStaffAccountAsync(
@@ -309,7 +306,7 @@ public class AccountService : IAccountService {
 		int? limit = null,
 		CancellationToken cancellationToken = default
 	) {
-		var effectiveLimit = limit ?? _appSettings.Value.PAGINATION_DEFAULT_LIMIT;
+		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
 
 		var query =
 			from ua in _dbContext.UserAccount

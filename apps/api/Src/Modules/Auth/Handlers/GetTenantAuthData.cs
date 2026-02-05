@@ -8,7 +8,6 @@ using MainApi.Src.Modules.Users.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace MainApi.Src.Modules.Auth.Handlers;
 
@@ -52,7 +51,6 @@ public class GetTenantAuthData {
 		IRequestAuthContext authContext,
 		ILogger<GetTenantAuthData> logger,
 		[AsParameters] GetTenantAuthDataQuery query,
-		[FromServices] IOptions<AppSettings> appSettings,
 		[FromServices] ITenantService tenantService,
 		[FromServices] IAccountService accountService,
 		[FromServices] IProfileService profileService,
@@ -155,7 +153,7 @@ public class GetTenantAuthData {
 		var tenantProfileItems = await profileService.GetUserProfilesWithPermissionsForTenantAsync(
 			userId,
 			tenantId,
-			appSettings.Value.MAX_PROFILES_PER_USER,
+			AppEnvironment.Instance.MAX_PROFILES_PER_USER,
 			cancellationToken
 		);
 

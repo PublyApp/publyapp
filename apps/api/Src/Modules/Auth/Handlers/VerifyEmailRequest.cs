@@ -12,7 +12,6 @@ using MainApi.Src.Modules.Users.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace MainApi.Src.Modules.Auth.Handlers;
 
@@ -54,9 +53,10 @@ public class VerifyEmailRequest {
 		[FromServices] IUserService userService,
 		[FromServices] IEmailService emailService,
 		[FromServices] ILogger<VerifyEmailRequest> logger,
-		[FromServices] IOptions<AppSettings> appSettings,
 		CancellationToken cancellationToken
 	) {
+		var env = AppEnvironment.Instance;
+
 		// check if user exists
 		var user = await userService.GetUserByEmailAsync(body.GetEmail(), cancellationToken);
 
@@ -89,8 +89,8 @@ public class VerifyEmailRequest {
 			return TypedResults.Ok(new VerifyEmailRequestResult());
 		}
 
-		var emailVerifyToken = CryptoUtils.RandomString(appSettings.Value.EMAIL_VERIFY_TOKEN_LENGTH);
-		var emailVerifyTokenExpiresAt = DateTime.UtcNow.AddDays(appSettings.Value.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION);
+		var emailVerifyToken = CryptoUtils.RandomString(env.EMAIL_VERIFY_TOKEN_LENGTH);
+		var emailVerifyTokenExpiresAt = DateTime.UtcNow.AddDays(env.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION);
 
 		user.IsVerified = false;
 		user.EmailVerifyToken = emailVerifyToken;

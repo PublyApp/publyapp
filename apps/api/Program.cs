@@ -13,7 +13,7 @@ namespace MainApi;
 
 public class Program {
 	public static void Main(string[] args) {
-		AppEnvironment.LoadEnv(); // ! must be called before anything else
+		AppEnvironment.Initialize(); // ! must be called before anything else
 
 		var builder = WebApplication.CreateBuilder(args);
 
