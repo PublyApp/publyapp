@@ -13,7 +13,7 @@ namespace MainApi.Src.Lib;
 public class AppEnvironment {
 	// Static accessor for use outside DI
 	private static AppEnvironment? _instance;
-	private static readonly object InitLock = new();
+	private static readonly Lock InitLock = new();
 
 	/// <summary>
 	/// Gets the initialized instance. Throws if Initialize() hasn't been called.
