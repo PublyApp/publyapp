@@ -4,10 +4,10 @@ using FluentValidation;
 
 using MainApi.Localization;
 using MainApi.Src.Infrastructure.Messaging.Email;
+using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Utils;
-using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.Auth.Utils;
 using MainApi.Src.Modules.Users.Services;
 
@@ -39,34 +39,54 @@ public class ResetPasswordBody {
 	}
 }
 
-public class ResetPasswordBodyValidator
-	: AbstractValidator<ResetPasswordBody> {
+public class ResetPasswordBodyValidator : AbstractValidator<ResetPasswordBody> {
 	public ResetPasswordBodyValidator() {
+		var env = AppEnvironment.Instance;
+
 		RuleFor(x => x.Id)
-			.MustBeRequiredEncryptedId();
+			.NotEmpty().WithMessage("ID is required")
+			.DependentRules(() => {
+				RuleFor(x => x.Id)
+					.Must(id => id.ValueKind == JsonValueKind.String).WithMessage("ID must be a string")
+					.DependentRules(() => {
+						RuleFor(x => x.Id.GetString()!)
+							.Must(id => CryptoUtils.IsValidEncryptedString(id)).WithMessage("Invalid ID format");
+					});
+			});
 
 		RuleFor(x => x.Token)
-			.MustBeRequiredString("Token");
+			.NotEmpty().WithMessage("Token is required")
+			.DependentRules(() => {
+				RuleFor(x => x.Token)
+					.Must(token => token.ValueKind == JsonValueKind.String).WithMessage("Token must be a string");
+			});
 
 		RuleFor(x => x.NewPassword)
-			.MustBeRequiredPassword();
+			.NotEmpty().WithMessage("New password is required")
+			.DependentRules(() => {
+				RuleFor(x => x.NewPassword)
+					.Must(password => password.ValueKind == JsonValueKind.String).WithMessage("Password must be a string")
+					.DependentRules(() => {
+						RuleFor(x => x.NewPassword.GetString()!)
+							.MinimumLength(env.PASSWORD_MIN_LENGTH)
+							.WithMessage($"Password must be at least {env.PASSWORD_MIN_LENGTH} characters long");
+					});
+			});
 
 		RuleFor(x => x.ConfirmPassword)
-			.MustBeRequiredString("Confirm password");
+			.NotEmpty().WithMessage("Confirm password is required")
+			.DependentRules(() => {
+				RuleFor(x => x.ConfirmPassword)
+					.Must(password => password.ValueKind == JsonValueKind.String).WithMessage("Confirm password must be a string");
+			});
 
-		// Cross-field: passwords must match
+		// Cross-field validation: passwords must match
 		RuleFor(x => x)
 			.Must(body => {
-				if (
-					body.NewPassword.ValueKind
-						== JsonValueKind.String
-					&& body.ConfirmPassword.ValueKind
-						== JsonValueKind.String
-				) {
-					return body.GetNewPassword()
-						== body.GetConfirmPassword();
+				if (body.NewPassword.ValueKind == JsonValueKind.String && body.ConfirmPassword.ValueKind == JsonValueKind.String) {
+					return body.GetNewPassword() == body.GetConfirmPassword();
 				}
-				return true;
+				return true; // Skip if not both strings (will be caught by other validators)
 			})
 			.WithMessage("Passwords are not the same")
 			.WithName("ConfirmPassword");

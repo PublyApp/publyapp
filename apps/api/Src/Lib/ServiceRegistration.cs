@@ -15,7 +15,6 @@ using MainApi.Src.Modules.Tenants.Services;
 using MainApi.Src.Modules.Users.Services;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 
 using Resend;
@@ -24,16 +23,13 @@ namespace MainApi.Src.Lib;
 
 public static class ServiceRegistration {
 	// Helper method to get current tenant ID
-	private static Guid? GetCurrentTenantId(
-		IHttpContextAccessor httpContextAccessor,
-		AppSettings appSettings
-	) {
+	private static Guid? GetCurrentTenantId(IHttpContextAccessor httpContextAccessor) {
 		var httpContext = httpContextAccessor.HttpContext;
 		if (httpContext is null) {
 			return null;
 		}
 
-		var tenantIdHeader = httpContext.Request.Headers[appSettings.TENANT_ID_HEADER_KEY]
+		var tenantIdHeader = httpContext.Request.Headers[AppEnvironment.Instance.TENANT_ID_HEADER_KEY]
 			.FirstOrDefault();
 		if (string.IsNullOrEmpty(tenantIdHeader)) {
 			return null;
@@ -60,12 +56,6 @@ public static class ServiceRegistration {
 		// Add Response Compression
 		builder.Services.AddResponseCompressionServices();
 
-		// Configure strongly-typed settings
-		builder.Services.AddOptions<AppSettings>()
-			.Bind(builder.Configuration.GetSection("AppSettings"))
-			.ValidateDataAnnotations()
-			.ValidateOnStart();
-
 		// Add EndpointsApiExplorer and OpenApi
 		builder.Services.AddEndpointsApiExplorer();
 		builder.Services.AddOpenApi(options => {
@@ -77,9 +67,8 @@ public static class ServiceRegistration {
 					if (schemaType.HasFlag(JsonSchemaType.Integer)
 						&& schemaType.HasFlag(JsonSchemaType.String)) {
 						schema.Type = JsonSchemaType.Integer;
-					}
-					else if (schemaType.HasFlag(JsonSchemaType.Number)
-						&& schemaType.HasFlag(JsonSchemaType.String)) {
+					} else if (schemaType.HasFlag(JsonSchemaType.Number)
+							&& schemaType.HasFlag(JsonSchemaType.String)) {
 						schema.Type = JsonSchemaType.Number;
 					}
 				}
@@ -90,32 +79,20 @@ public static class ServiceRegistration {
 		// Add HttpContextAccessor for accessing HTTP context in services
 		builder.Services.AddHttpContextAccessor();
 
-		// CORS configuration (reads from IConfiguration directly, no BuildServiceProvider)
-		var appSettingsSection = builder.Configuration.GetSection("AppSettings");
-		var sessionTokenHeaderKey = appSettingsSection["SESSION_TOKEN_HEADER_KEY"];
-		var tenantIdHeaderKey = appSettingsSection["TENANT_ID_HEADER_KEY"];
-
-		if (string.IsNullOrEmpty(sessionTokenHeaderKey)) {
-			throw new InvalidOperationException(
-				"SESSION_TOKEN_HEADER_KEY is required in appsettings.json::AppSettings");
-		}
-		if (string.IsNullOrEmpty(tenantIdHeaderKey)) {
-			throw new InvalidOperationException(
-				"TENANT_ID_HEADER_KEY is required in appsettings.json::AppSettings");
-		}
-
+		// CORS configuration
+		var env = AppEnvironment.Instance;
 		builder.Services.AddCors(options => {
 			options.AddDefaultPolicy(policy => {
 				policy
-					.WithOrigins(AppEnvironment.FRONT_URL)
+					.WithOrigins(env.FRONT_URL)
 					.AllowAnyMethod()
 					.WithHeaders(
 						"Content-Type",
 						"Accept",
-						sessionTokenHeaderKey,
-						tenantIdHeaderKey
+						env.SESSION_TOKEN_HEADER_KEY,
+						env.TENANT_ID_HEADER_KEY
 					)
-					.WithExposedHeaders(sessionTokenHeaderKey)
+					.WithExposedHeaders(env.SESSION_TOKEN_HEADER_KEY)
 					.SetPreflightMaxAge(TimeSpan.FromMinutes(10));
 			});
 		});
@@ -133,10 +110,9 @@ public static class ServiceRegistration {
 		// Register scoped DbContext (for per-request instances)
 		builder.Services.AddDbContext<MainApiDbContext>((serviceProvider, options) => {
 			var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
-			var appSettings = serviceProvider.GetRequiredService<IOptions<AppSettings>>().Value;
-			var tenantId = GetCurrentTenantId(httpContextAccessor, appSettings);
+			var tenantId = GetCurrentTenantId(httpContextAccessor);
 
-			options.UseNpgsql(AppEnvironment.POSTGRES_CONNECTION_STRING);
+			options.UseNpgsql(AppEnvironment.Instance.POSTGRES_CONNECTION_STRING);
 
 			if (tenantId.HasValue) {
 				options.UseTenantId(tenantId.Value);
@@ -144,8 +120,9 @@ public static class ServiceRegistration {
 		}, ServiceLifetime.Scoped);
 
 		// External SDK clients and adapters
-		builder.Services.AddSingleton<IResend>(sp =>
-			ResendClient.Create(AppEnvironment.RESEND_API_KEY));
+		builder.Services.AddSingleton<IResend>((sp) => {
+			return ResendClient.Create(AppEnvironment.Instance.RESEND_API_KEY);
+		});
 		builder.Services.AddSingleton<IEmailSender, ResendEmailAdapter>();
 		builder.Services.AddSingleton<IEmailService, EmailService>();
 
@@ -162,8 +139,7 @@ public static class ServiceRegistration {
 		// Optional DI manifest logging (gated by config).
 		// Important: do not build a temporary ServiceProvider here. We only capture the formatted manifest into DI;
 		// the actual log write happens after builder.Build() via Program.cs so the configured logging pipeline is active.
-		var manifestEnabled = builder.Configuration.GetValue<bool>("AppSettings:DI_MANIFEST_ENABLED");
-		if (manifestEnabled) {
+		if (AppEnvironment.Instance.DI_MANIFEST_ENABLED) {
 			var manifest = ServiceValidator.FormatManifest(discoveredServices);
 			if (manifest is not null) {
 				builder.Services.AddSingleton(new DiManifest(manifest));
@@ -272,8 +248,7 @@ public static class ServiceRegistration {
 					service.ImplementationType,
 					service.Lifetime
 				));
-			}
-			else {
+			} else {
 				services.Add(new ServiceDescriptor(
 					service.ServiceInterface!,
 					service.Key,
@@ -297,10 +272,12 @@ public static class ServiceRegistration {
 			return $"lifetime={lifetime}, keyed, key={key}, impl={impl}";
 		}
 
+#pragma warning disable IDE0031 // Null check can be simplified
 		var implUnkeyed =
 			descriptor.ImplementationType?.FullName
 			?? (descriptor.ImplementationInstance is not null ? descriptor.ImplementationInstance.GetType().FullName : null)
 			?? (descriptor.ImplementationFactory is not null ? "(factory)" : "(unknown)");
+#pragma warning restore IDE0031
 
 		return $"lifetime={lifetime}, unkeyed, impl={implUnkeyed}";
 	}

@@ -14,7 +14,6 @@ using MainApi.Src.Modules.Users.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 using AccountLevelEnum = MainApi.Src.Modules.Users.Entities.AccountLevel;
 
@@ -155,11 +154,11 @@ public class CreateStaffUser {
 		[FromServices] IUserService userService,
 		[FromServices] IAccountService accountService,
 		[FromServices] IEmailService emailService,
-		[FromServices] IOptions<AppSettings> appSettings,
 		[FromServices] ILogger<CreateStaffUser> logger,
 		CancellationToken cancellationToken
 	) {
-		var password = CryptoUtils.RandomString(appSettings.Value.PASSWORD_MIN_LENGTH);
+		var env = AppEnvironment.Instance;
+		var password = CryptoUtils.RandomString(env.PASSWORD_MIN_LENGTH);
 		password = PasswordUtils.HashPassword(password);
 
 		var user = new User {
@@ -173,8 +172,8 @@ public class CreateStaffUser {
 
 		if (body.GetSendNotification()) {
 			user.IsVerified = false;
-			user.EmailVerifyToken = CryptoUtils.RandomString(appSettings.Value.EMAIL_VERIFY_TOKEN_LENGTH);
-			user.EmailVerifyTokenExpiresAt = DateTime.UtcNow.AddDays(appSettings.Value.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION);
+			user.EmailVerifyToken = CryptoUtils.RandomString(env.EMAIL_VERIFY_TOKEN_LENGTH);
+			user.EmailVerifyTokenExpiresAt = DateTime.UtcNow.AddDays(env.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION);
 		}
 
 		var userResult = await userService.CreateUserAsync(user, cancellationToken);

@@ -1,14 +1,16 @@
 using System.Linq.Expressions;
-using MainApi.Src.Modules.Shared.Users;
-using MainApi.Src.Modules.Shared.Profiles;
-using MainApi.Src.Modules.Shared.Permissions;
-using MainApi.Src.Modules.Shared.Projects;
-using MainApi.Src.Modules.Shared.Auth;
-using MainApi.Src.Modules.Shared.Tenants;
-using MainApi.Src.Modules.Shared.Invitations;
-using MainApi.Src.Modules.Staff.Audit;
-using MainApi.Src.Modules.Staff.Notice;
-using MainApi.Src.Modules.Tenant.Product;
+
+using MainApi.Src.Lib;
+using MainApi.Src.Modules.AuditLogs.Entities;
+using MainApi.Src.Modules.Auth.Entities;
+using MainApi.Src.Modules.Invitations.Entities;
+using MainApi.Src.Modules.Permissions.Entities;
+using MainApi.Src.Modules.Profiles.Entities;
+using MainApi.Src.Modules.Projects.Entities;
+using MainApi.Src.Modules.SystemNotices.Entities;
+using MainApi.Src.Modules.Tenants.Entities;
+using MainApi.Src.Modules.Users.Entities;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
@@ -20,29 +22,29 @@ namespace MainApi.Src.Data.DbContext;
 public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	private static readonly Lazy<List<Type>> SeederTypeCache = new(DiscoverSeedersInternal, LazyThreadSafetyMode.ExecutionAndPublication);
 
-	public DbSet<Session> Session { get; init; }
-	public DbSet<Product> Product { get; init; }
-	public DbSet<User> User { get; init; }
-	public DbSet<Tenant> Tenant { get; init; }
+	public DbSet<Session> Session { get; init; } = null!;
+	public DbSet<User> User { get; init; } = null!;
+	public DbSet<Tenant> Tenant { get; init; } = null!;
 
 	// Project system entities (still needed for Project entity)
-	public DbSet<Project> Project { get; init; }
+	public DbSet<Project> Project { get; init; } = null!;
 
 	// Unified permission system entities
-	public DbSet<Permission> Permission { get; init; }
-	public DbSet<Profile> Profile { get; init; }
-	public DbSet<ProfilePermission> ProfilePermission { get; init; }
-	public DbSet<UserAccountProfile> UserAccountProfile { get; init; }
+	public DbSet<Permission> Permission { get; init; } = null!;
+	public DbSet<Profile> Profile { get; init; } = null!;
+	public DbSet<ProfilePermission> ProfilePermission { get; init; } = null!;
+	public DbSet<UserAccountProfile> UserAccountProfile { get; init; } = null!;
 
 	// Unified account system (handles Staff, Tenant, and Project accounts)
-	public DbSet<UserAccount> UserAccount { get; init; }
+	public DbSet<UserAccount> UserAccount { get; init; } = null!;
 
 	// Unified invitation system (Staff/Tenant/Project)
-	public DbSet<Invitation> Invitation { get; init; }
+	public DbSet<Invitation> Invitation { get; init; } = null!;
+	public DbSet<InvitationProfile> InvitationProfile { get; init; } = null!;
 
 	// Staff back-office entities
-	public DbSet<AuditLog> AuditLog { get; init; }
-	public DbSet<SystemNotice> SystemNotice { get; init; }
+	public DbSet<AuditLog> AuditLog { get; init; } = null!;
+	public DbSet<SystemNotice> SystemNotice { get; init; } = null!;
 
 	public Guid? TenantId { get; set; }
 
@@ -95,7 +97,9 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		var seeders = CreateSeeders(serviceProvider);
 
 		foreach (var seeder in seeders) {
-			logger?.LogInformation("Running seeder {Seeder} with order {Order}", seeder.GetType().Name, seeder.Order);
+			if (logger?.IsEnabled(LogLevel.Information) == true) {
+				logger.LogInformation("Running seeder {Seeder} with order {Order}", seeder.GetType().Name, seeder.Order);
+			}
 			await seeder.SeedAsync(dbContext, cancellationToken);
 		}
 	}
@@ -151,9 +155,14 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	protected override void OnModelCreating(ModelBuilder modelBuilder) {
 		base.OnModelCreating(modelBuilder);
 
+		// Access AppEnvironment for default values used in database schema configuration
+		var env = AppEnvironment.Instance;
+
 		// Database-level lowercase constraints
 		modelBuilder.Entity<Tenant>()
-			.ToTable(t => t.HasCheckConstraint("CK_Tenant_Code_Lowercase", "code = LOWER(code)"));
+			.ToTable(t => t.HasCheckConstraint("CK_Tenant_Code_Lowercase", "code = LOWER(code)"))
+			.Property(t => t.MaxUsers)
+			.HasDefaultValue(env.DEFAULT_MAX_USERS_PER_TENANT);
 
 		modelBuilder.Entity<User>()
 			.ToTable(t => t.HasCheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)"));
@@ -226,6 +235,21 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.WithMany()
 			.HasForeignKey(s => s.ImpersonatingStaffUserId)
 			.OnDelete(DeleteBehavior.Restrict);
+
+		// Configure InvitationProfile junction table
+		modelBuilder.Entity<InvitationProfile>(entity => {
+			entity.HasKey(e => new { e.InvitationId, e.ProfileId });
+
+			entity.HasOne(e => e.Invitation)
+				.WithMany(i => i.InvitationProfiles)
+				.HasForeignKey(e => e.InvitationId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			entity.HasOne(e => e.Profile)
+				.WithMany()
+				.HasForeignKey(e => e.ProfileId)
+				.OnDelete(DeleteBehavior.Restrict);
+		});
 
 		// Partial indexes to favor active rows without enforcing global filters
 		modelBuilder.Entity<User>()
