@@ -11,7 +11,6 @@ using MainApi.Src.Modules.Users.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace MainApi.Src.Modules.Auth.Handlers;
 
@@ -47,9 +46,9 @@ public class CheckEmailVerificationToken {
 		[FromServices] IUserService userService,
 		[FromServices] IEmailService emailService,
 		[FromServices] ILogger<CheckEmailVerificationToken> logger,
-		[FromServices] IOptions<AppSettings> appSettings,
 		CancellationToken cancellationToken
 	) {
+		var env = AppEnvironment.Instance;
 		string id = query.Id;
 		string token = query.Token;
 
@@ -101,8 +100,8 @@ public class CheckEmailVerificationToken {
 		DateTime? passwordResetTokenExpiresAt = null;
 
 		if (shouldResetPassword) {
-			passwordResetToken = CryptoUtils.RandomString(appSettings.Value.PASSWORD_RESET_TOKEN_LENGTH);
-			passwordResetTokenExpiresAt = DateTime.UtcNow.AddDays(appSettings.Value.PASSWORD_RESET_TOKEN_VALIDITY_DURATION);
+			passwordResetToken = CryptoUtils.RandomString(env.PASSWORD_RESET_TOKEN_LENGTH);
+			passwordResetTokenExpiresAt = DateTime.UtcNow.AddDays(env.PASSWORD_RESET_TOKEN_VALIDITY_DURATION);
 		}
 
 		// Update user

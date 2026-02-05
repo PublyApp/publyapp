@@ -21,6 +21,14 @@ make dev-front
 make dev-db
 ```
 
+### Configuration (AppEnvironment)
+
+The API reads configuration exclusively from environment variables via `AppEnvironment` (`apps/api/Src/Lib/AppEnvironment.cs`).
+
+- Development defaults live in repo-root `.env.development` and are loaded when the host environment is `Development`.
+- `dotnet build` also runs the app during OpenAPI document generation; if `ASPNETCORE_ENVIRONMENT`/`DOTNET_ENVIRONMENT` are unset, `.env.development` is loaded to prevent build failures.
+- Prefer keeping secrets out of the repo: use an example file (e.g. `.env.development.example`) + local overrides / CI secrets.
+
 ### Building
 
 ```bash
@@ -1607,9 +1615,50 @@ Common failure categories and fixes:
 If enabled, the app logs a discovered `[Service]` manifest once during startup (after `builder.Build()`),
 so the configured logging pipeline is guaranteed to be active.
 
-- **Config flag**: `AppSettings:DI_MANIFEST_ENABLED` (defaults to `false`)
+- **Config flag**: `DI_MANIFEST_ENABLED` environment variable (defaults to `false`)
 - **Logging**: Uses the configured Serilog pipeline (no temporary ServiceProvider)
 - **Noise control**: No output when no `[Service]` attributes are discovered
+
+### AppEnvironment (Configuration)
+
+All application configuration is loaded from environment variables via `AppEnvironment`. This class is initialized once at startup and provides static access throughout the application.
+
+**Initialization (in Program.cs):**
+```csharp
+AppEnvironment.Initialize(); // Must be called before anything else
+```
+
+**Usage anywhere in the codebase:**
+```csharp
+// Direct static access - no DI required
+var env = AppEnvironment.Instance;
+var frontUrl = env.FRONT_URL;
+var tokenLength = env.INVITATION_TOKEN_LENGTH;
+
+// Or inline
+var headerKey = AppEnvironment.Instance.SESSION_TOKEN_HEADER_KEY;
+```
+
+**Available properties:**
+
+| Category | Properties |
+|----------|------------|
+| **Secrets/URLs** | `POSTGRES_CONNECTION_STRING`, `FRONT_URL`, `RESEND_API_KEY`, `STAFF_OWNER_EMAIL`, `STAFF_OWNER_BOOTSTRAP_CODE` |
+| **App Settings** | `APP_NAME`, `SESSION_TOKEN_HEADER_KEY`, `TENANT_ID_HEADER_KEY`, `DEFAULT_EMAIL_SENDER_EMAIL`, `DEFAULT_EMAIL_SENDER_NAME` |
+| **Token Config** | `SESSION_EXPIRY_DAYS`, `EMAIL_VERIFY_TOKEN_VALIDITY_DURATION`, `PASSWORD_RESET_TOKEN_VALIDITY_DURATION`, `PASSWORD_MIN_LENGTH`, `EMAIL_VERIFY_TOKEN_LENGTH`, `PASSWORD_RESET_TOKEN_LENGTH`, `INVITATION_TOKEN_LENGTH` |
+| **Feature Flags** | `DI_MANIFEST_ENABLED` |
+| **Constants** | `MAX_PROFILES_PER_USER`, `PAGINATION_DEFAULT_LIMIT`, `MAX_BULK_INVITATIONS_SIZE`, `DEFAULT_MAX_USERS_PER_TENANT` |
+| **Computed** | `IsDevelopment`, `IsProduction`, `EnvironmentName` |
+
+**Environment files:**
+- Development: `.env.development` (committed to repo)
+- Production: `.env.production` (not in repo, set via deployment)
+
+**Why static access instead of DI?**
+- Configuration is immutable after startup
+- Needed in static methods, extension methods, and places without DI
+- Avoids `IOptions<T>` boilerplate throughout the codebase
+- Validated once at startup with fail-fast behavior
 
 ### Service Dependencies
 
@@ -1675,7 +1724,7 @@ public static class AcceptInvitation {
 
 **Architecture principle:** Handlers orchestrate, Services implement.
 
-**Exception:** Infrastructure services (ILogger, IConfiguration, IOptions) are OK since they don't create circular dependencies.
+**Exception:** Infrastructure services (ILogger, IConfiguration) are OK since they don't create circular dependencies.
 
 ### Naming Conventions
 
@@ -2116,7 +2165,7 @@ const { mutate } = useMyMutation({
 **Environment variables:**
 - Development: `.env.development` (committed)
 - Production: `.env.production` (not in repo)
-- Validated at startup via `AppSettings` class
+- Validated at startup via `AppEnvironment.Initialize()`
 
 ## Deployment
 

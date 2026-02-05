@@ -3,7 +3,6 @@ using MainApi.Src.Lib;
 using MainApi.Src.Modules.Profiles.Entities;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace MainApi.Src.Modules.Profiles.Services;
 
@@ -23,10 +22,8 @@ public interface IProfileService {
 
 public class ProfileService : IProfileService {
 	private readonly MainApiDbContext _dbContext;
-	private readonly IOptions<AppSettings> _appSettings;
-	public ProfileService(MainApiDbContext dbContext, IOptions<AppSettings> appSettings) {
+	public ProfileService(MainApiDbContext dbContext) {
 		_dbContext = dbContext;
-		_appSettings = appSettings;
 	}
 
 	/// <summary>
@@ -61,7 +58,7 @@ public class ProfileService : IProfileService {
 								};
 
 		return await query
-			.Take(maxProfilesPerUser ?? _appSettings.Value.MAX_PROFILES_PER_USER)
+			.Take(maxProfilesPerUser ?? AppEnvironment.Instance.MAX_PROFILES_PER_USER)
 			.ToListAsync(cancellationToken);
 
 
@@ -96,7 +93,7 @@ public class ProfileService : IProfileService {
 			};
 
 		return await query
-			.Take(maxProfilesPerUser ?? _appSettings.Value.MAX_PROFILES_PER_USER)
+			.Take(maxProfilesPerUser ?? AppEnvironment.Instance.MAX_PROFILES_PER_USER)
 			.ToListAsync(cancellationToken);
 	}
 }
