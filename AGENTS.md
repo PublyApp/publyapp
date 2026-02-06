@@ -64,17 +64,26 @@ make generate-client    # Generate TypeScript client from OpenAPI
 
 This is critical - the frontend TypeScript client is auto-generated from the backend OpenAPI spec.
 
-### Running Single Tests
-
-Currently no automated tests are implemented. When added, use:
+### Running Tests
 
 ```bash
-# .NET tests (when implemented)
-dotnet test apps/api/Tests/
+make test-api          # Run API integration tests (requires Docker)
+```
+
+**Prerequisites:** Docker must be running (Testcontainers spins up Postgres automatically).
+
+```bash
+# Run a specific test class
+cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --filter "FullyQualifiedName~PasswordLogin"
+
+# Run a specific test method
+cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --filter "Login_WithValidCredentials_ReturnsSessionToken"
 
 # Frontend tests (when implemented)
 cd apps/front && pnpm test
 ```
+
+For the full guide on writing and debugging integration tests, see [`docs/guides/api-integration-tests.md`](docs/guides/api-integration-tests.md).
 
 ## Architecture
 

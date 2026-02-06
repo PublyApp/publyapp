@@ -7,6 +7,7 @@
   <Folder Name="/apps/" />
   <Folder Name="/apps/api/">
     <Project Path="apps/api/MainApi.csproj" />
+    <Project Path="apps/api/Tests/MainApi.IntegrationTests.csproj" />
   </Folder>
   <Folder Name="/packages/" />
   <Folder Name="/packages/_tx-key-gen/">
