@@ -50,3 +50,11 @@ packages/*/dist
 # .env.production
 
 .pnpm-store/
+
+.dump/
+
+nul
+tmpclaude*
+
+# voicetree
+voicetree*/
