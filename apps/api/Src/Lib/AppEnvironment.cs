@@ -258,7 +258,7 @@ public class AppEnvironment {
 		DotNetEnv.Env.Load(path);
 	}
 
-	private static string? FindDotEnvPath(string fileName) {
+	public static string? FindDotEnvPath(string fileName) {
 		// We intentionally search parent directories because the current working directory can vary:
 		// - `dotnet run` often uses `apps/api/`
 		// - build-time OpenAPI generation can execute from `apps/api/bin/...` or another working dir

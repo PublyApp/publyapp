@@ -2,6 +2,7 @@ using System.Data;
 
 using MainApi.Src.Data;
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib;
 using MainApi.Src.Modules.Auth.Utils;
 using MainApi.Src.Modules.Users.Entities;
@@ -15,7 +16,7 @@ namespace MainApi.Src.Modules.Users.Seeders;
 /// </summary>
 public class UserSeeder : IEntitySeeder {
 	private static readonly Lazy<string> CachedSeedPassword = new(
-		() => PasswordUtils.HashPassword("ChangeMe123!@3#lol"),
+		() => PasswordUtils.HashPassword(SeedConstants.SeedPassword),
 		LazyThreadSafetyMode.ExecutionAndPublication
 	);
 
@@ -48,19 +49,19 @@ public class UserSeeder : IEntitySeeder {
 
 		allUsers.AddRange(new List<(string Email, UserStatus Status, string? FirstName, string? LastName)> {
 			// Staff users
-			("staff-admin@example.com", UserStatus.Active, "Staff", "Admin"),
-			("staff-user@example.com", UserStatus.Active, "Staff", "User"),
+			(SeedConstants.Staff.AdminEmail, UserStatus.Active, "Staff", "Admin"),
+			(SeedConstants.Staff.UserEmail, UserStatus.Active, "Staff", "User"),
 			// Tenant users
-			("admin-acme@example.com", UserStatus.Active, "Admin", "Acme"),
-			("user-acme@example.com", UserStatus.Active, "User", "Acme"),
-			("admin-techstart@example.com", UserStatus.Active, "Admin", "TechStart"),
-			("user-techstart@example.com", UserStatus.Active, "User", "TechStart"),
-			("admin-global@example.com", UserStatus.Active, "Admin", "Global"),
-			("user-global@example.com", UserStatus.Active, "User", "Global"),
+			(SeedConstants.Tenants.AcmeAdminEmail, UserStatus.Active, "Admin", "Acme"),
+			(SeedConstants.Tenants.AcmeUserEmail, UserStatus.Active, "User", "Acme"),
+			(SeedConstants.Tenants.TechStartAdminEmail, UserStatus.Active, "Admin", "TechStart"),
+			(SeedConstants.Tenants.TechStartUserEmail, UserStatus.Active, "User", "TechStart"),
+			(SeedConstants.Tenants.GlobalAdminEmail, UserStatus.Active, "Admin", "Global"),
+			(SeedConstants.Tenants.GlobalUserEmail, UserStatus.Active, "User", "Global"),
 			// Cross-tenant users
-			("alice@example.com", UserStatus.Active, "Alice", "Example"),
-			("bob@example.com", UserStatus.Active, "Bob", "Example"),
-			("charlie@example.com", UserStatus.Active, "Charlie", "Example")
+			(SeedConstants.CrossTenant.AliceEmail, UserStatus.Active, "Alice", "Example"),
+			(SeedConstants.CrossTenant.BobEmail, UserStatus.Active, "Bob", "Example"),
+			(SeedConstants.CrossTenant.CharlieEmail, UserStatus.Active, "Charlie", "Example")
 		});
 
 		var targetEmails = allUsers.Select(au => au.Email).ToList();
