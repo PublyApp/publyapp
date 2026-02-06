@@ -2,6 +2,7 @@ using System.Data;
 
 using MainApi.Src.Data;
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib;
 using MainApi.Src.Modules.Tenants.Entities;
 
@@ -33,9 +34,9 @@ public class TenantSeeder : IEntitySeeder {
 		CancellationToken cancellationToken = default
 	) {
 		var tenantsData = new List<(string Code, string Name, TenantStatus Status)> {
-			("acme-corp", "Acme Corporation", TenantStatus.Active),
-			("techstart-inc", "TechStart Inc", TenantStatus.Active),
-			("global-solutions", "Global Solutions", TenantStatus.Active)
+			(SeedConstants.Tenants.AcmeCode, SeedConstants.Tenants.AcmeName, TenantStatus.Active),
+			(SeedConstants.Tenants.TechStartCode, SeedConstants.Tenants.TechStartName, TenantStatus.Active),
+			(SeedConstants.Tenants.GlobalCode, SeedConstants.Tenants.GlobalName, TenantStatus.Active)
 		};
 
 		var tenantCodes = tenantsData.Select(td => td.Code).ToList();
