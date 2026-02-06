@@ -2,12 +2,10 @@ using MainApi.Localization;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
 
-using Microsoft.Extensions.Options;
-
 namespace MainApi.Src.Lib.Filters;
 
 /// <summary>
-/// Validates that the tenant ID header (configured in AppSettings.TENANT_ID_HEADER_KEY) is present in the request.
+/// Validates that the tenant ID header (configured in AppEnvironment.TENANT_ID_HEADER_KEY) is present in the request.
 /// Sets the tenant ID in TenantContext if present.
 /// </summary>
 public class CheckTenantHeaderFilter : IEndpointFilter {
@@ -17,11 +15,11 @@ public class CheckTenantHeaderFilter : IEndpointFilter {
 	) {
 		var httpContext = context.HttpContext;
 		var authContext = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>();
-		var appSettings = httpContext.RequestServices.GetRequiredService<IOptions<AppSettings>>().Value;
+		var env = AppEnvironment.Instance;
 
 		// Try to get tenant ID from AuthContext first, then from header
 		var tenantId = authContext.TenantId
-			?? httpContext.Request.Headers[appSettings.TENANT_ID_HEADER_KEY].FirstOrDefault();
+			?? httpContext.Request.Headers[env.TENANT_ID_HEADER_KEY].FirstOrDefault();
 
 		if (string.IsNullOrEmpty(tenantId)) {
 			return TypedProblems.BadRequest("Tenant ID is missing", ResponseKeys.TenantIdRequired);
