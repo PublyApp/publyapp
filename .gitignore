@@ -55,3 +55,6 @@ packages/*/dist
 
 nul
 tmpclaude*
+
+# voicetree
+voicetree*/

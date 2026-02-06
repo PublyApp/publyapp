@@ -48,7 +48,16 @@
 			"Bash(Select-Object -First 20)",
 			"Bash(make build-front:*)",
 			"WebFetch(domain:biomejs.dev)",
-			"Bash(gh pr list:*)"
+			"Bash(gh pr list:*)",
+			"mcp__voicetree__list_agents",
+			"mcp__voicetree__spawn_agent",
+			"mcp__voicetree__wait_for_agents",
+			"mcp__voicetree__get_unseen_nodes_nearby",
+			"mcp__voicetree__read_terminal_output",
+			"mcp__voicetree__send_message",
+			"mcp__voicetree__close_agent"
 		]
-	}
+	},
+	"enableAllProjectMcpServers": true,
+	"enabledMcpjsonServers": ["voicetree"]
 }
