@@ -7,7 +7,6 @@ using MainApi.Src.Modules.Profiles.Entities;
 using MainApi.Src.Modules.Users.Entities;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace MainApi.Src.Modules.Profiles.Services;
 
@@ -112,15 +111,12 @@ public interface IProfileAsStaffService {
 
 public class ProfileAsStaffService : IProfileAsStaffService {
 	private readonly MainApiDbContext _dbContext;
-	private readonly IOptions<AppSettings> _appSettings;
 	private readonly ILogger<ProfileAsStaffService> _logger;
 	public ProfileAsStaffService(
 		MainApiDbContext dbContext,
-		IOptions<AppSettings> appSettings,
 		ILogger<ProfileAsStaffService> logger
 	) {
 		_dbContext = dbContext;
-		_appSettings = appSettings;
 		_logger = logger;
 	}
 
@@ -134,7 +130,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 	) {
 		var effectivePage = page ?? 1;
 		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-		var effectiveLimit = limit ?? _appSettings.Value.PAGINATION_DEFAULT_LIMIT;
+		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
 
 		var query =
 			from p in _dbContext.Profile
@@ -175,7 +171,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		SortOrder? sortOrder = null,
 		CancellationToken cancellationToken = default
 	) {
-		var effectiveLimit = limit ?? _appSettings.Value.PAGINATION_DEFAULT_LIMIT;
+		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
 		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
 		var effectiveSortId = (sortId ?? "id").ToLowerInvariant();
 
@@ -639,7 +635,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 
 			foreach (var email in emailsNeedingInvitations) {
 				// Generate token using CryptoUtils
-				var token = CryptoUtils.RandomString(_appSettings.Value.INVITATION_TOKEN_LENGTH);
+				var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
 				var expiresAt = DateTime.UtcNow.AddDays(7);
 
 				var invitation = Invitation.CreateStaffInvitationWithProfiles(

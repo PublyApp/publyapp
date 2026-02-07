@@ -39,8 +39,7 @@ public static class ServiceScanner {
 		Type[] types;
 		try {
 			types = assembly.GetTypes();
-		}
-		catch (ReflectionTypeLoadException ex) {
+		} catch (ReflectionTypeLoadException ex) {
 			// Fail fast with actionable diagnostics
 			var loaderExceptions = ex.LoaderExceptions
 				.Where(e => e is not null)

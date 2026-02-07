@@ -3,11 +3,21 @@ import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 import i18next from 'i18next';
 
 import { toApiFailure } from '@/front/lib/api-failure';
+import {
+	clearLegacyTenantFromBrowser,
+	clearTenantHintForUserInBrowser,
+} from '@/front/lib/cookies';
 import { isServer } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 
 // NOTE: Do NOT import toast at module level - some toast libs crash on SSR import
 // We use dynamic import inside safeToast() instead
+
+/**
+ * Translation key for tenant suspended error.
+ * Backend returns this key in 403 responses when tenant is suspended.
+ */
+const TENANT_SUSPENDED_TRANSLATION_KEY = 'tenant-suspended';
 
 /**
  * Auth error callback type.
@@ -50,8 +60,14 @@ let toastModulePromise: Promise<typeof import('sonner')> | null = null;
 // Idempotency flag to prevent multiple parallel 401s from triggering repeated logout/navigation/toasts
 let authLogoutInProgress = false;
 
+// Idempotency flag to prevent multiple parallel tenant-suspended errors from triggering repeated navigation
+let tenantSuspendedHandlingInProgress = false;
+
 // Browser-only: current auth error callback (set from app root)
 let onAuthErrorRef: OnAuthErrorCallback | undefined;
+
+// Browser-only: current user ID for tenant hint clearing (set from app root)
+let currentUserIdRef: string | undefined;
 
 const setOnAuthErrorCallback = (callback?: OnAuthErrorCallback): void => {
 	// Never store per-request callbacks on the server (avoid cross-request leakage)
@@ -63,6 +79,16 @@ const getOnAuthErrorCallback = (): OnAuthErrorCallback | undefined => {
 	return onAuthErrorRef;
 };
 
+const setCurrentUserId = (userId?: string): void => {
+	// Never store per-request data on the server (avoid cross-request leakage)
+	if (isServer) return;
+	currentUserIdRef = userId;
+};
+
+const getCurrentUserId = (): string | undefined => {
+	return currentUserIdRef;
+};
+
 /**
  * Reset the auth logout flag.
  * Called by AuthQueriesLoader when a valid session is established.
@@ -70,6 +96,79 @@ const getOnAuthErrorCallback = (): OnAuthErrorCallback | undefined => {
  */
 export const resetAuthLogoutFlag = (): void => {
 	authLogoutInProgress = false;
+};
+
+/**
+ * Mark auth logout as in progress.
+ * Called by logout() before clearing the query cache to prevent
+ * the 401 error handler from triggering another logout() call.
+ */
+export const markAuthLogoutInProgress = (): void => {
+	authLogoutInProgress = true;
+};
+
+/**
+ * Reset the tenant suspended handling flag.
+ * Called alongside resetAuthLogoutFlag when a valid session is established.
+ */
+export const resetTenantSuspendedFlag = (): void => {
+	tenantSuspendedHandlingInProgress = false;
+};
+
+/**
+ * Set the current user ID for tenant hint management.
+ * Called when user auth data is loaded to enable tenant-suspended handling.
+ */
+export const setCurrentUserIdForTenantHint = (userId?: string): void => {
+	setCurrentUserId(userId);
+};
+
+/**
+ * Handle tenant-suspended 403 error.
+ * Clears the tenant hint cookie to prevent redirect loops, but does NOT
+ * navigate — the error bubbles up to the ErrorBoundary which shows a
+ * dedicated "tenant suspended" page.
+ * Returns true if the error was handled, false otherwise.
+ */
+const handleTenantSuspendedError = (
+	failure: ReturnType<typeof toApiFailure>,
+): boolean => {
+	// Only handle 403 with tenant-suspended translation key
+	if (
+		failure.kind !== 'problem' ||
+		failure.status !== 403 ||
+		failure.translationKey !== TENANT_SUSPENDED_TRANSLATION_KEY
+	) {
+		return false;
+	}
+
+	// SSR guard
+	if (isServer) {
+		return false;
+	}
+
+	// Idempotent: only handle once even if multiple parallel requests fail
+	if (tenantSuspendedHandlingInProgress) {
+		return true; // Already being handled
+	}
+
+	tenantSuspendedHandlingInProgress = true;
+
+	// Clear the tenant hint for the current user to prevent redirect loops
+	const userId = getCurrentUserId();
+	if (userId) {
+		clearTenantHintForUserInBrowser(userId);
+		logger.info('[Tenant Suspended] Cleared tenant hint for user', { userId });
+	}
+
+	// Also clear legacy cookie to prevent fallback to suspended tenant
+	clearLegacyTenantFromBrowser();
+
+	// Don't navigate — let the error bubble to the ErrorBoundary
+	// which renders ViewTenantSuspended in-place
+	logger.info('[Tenant Suspended] Letting error bubble to ErrorBoundary');
+
+	return true; // Error was handled - don't show generic toast
 };
 
 /**
@@ -207,6 +306,11 @@ const createMutationErrorHandler = () => {
 			return;
 		}
 
+		// Handle tenant-suspended 403 specially - redirect to tenant picker instead of toasting
+		if (handleTenantSuspendedError(failure)) {
+			return; // Error was handled - don't show generic toast
+		}
+
 		// Validation: toast UNLESS component declared it handles validation
 		if (failure.kind === 'validation') {
 			if (mutation.meta?.validationHandledByForm) {
@@ -324,6 +428,12 @@ const createQueryErrorHandler = (onAuthError?: OnAuthErrorCallback) => {
 					failure,
 				});
 			}
+		}
+
+		// Handle tenant-suspended 403 specially - redirect to tenant picker
+		// This catches the error before it reaches error boundaries
+		if (handleTenantSuspendedError(failure)) {
+			return; // Error was handled - navigation in progress
 		}
 
 		// Don't toast query errors - let error boundaries handle display
