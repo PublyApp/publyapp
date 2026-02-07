@@ -20,6 +20,12 @@ public record CreateTenantWithInitialUsersResult {
 	public required List<(string Email, string Token, AccountLevel Level)> InvitationTokens { get; init; }
 }
 
+// Result types for suspend/reactivate operations
+public enum SuspendTenantError { NotFound, AlreadySuspended, NotActiveStatus }
+public enum ReactivateTenantError { NotFound, NotSuspended }
+public record SuspendTenantResult(Tenant? Tenant, SuspendTenantError? Error);
+public record ReactivateTenantResult(Tenant? Tenant, ReactivateTenantError? Error);
+
 public interface ITenantAsStaffService {
 	Task<Tenant> CreateTenant(Tenant tenant, CancellationToken cancellationToken = default);
 	Task<Tenant?> GetTenantByIdAsync(Guid tenantId, CancellationToken cancellationToken = default);
@@ -38,6 +44,22 @@ public interface ITenantAsStaffService {
 		int maxUsers,
 		List<(string Email, AccountLevel AccountLevel)> initialUsers,
 		Guid invitedByUserId,
+		CancellationToken cancellationToken = default
+	);
+
+	// Suspend/Reactivate operations
+	Task<SuspendTenantResult> SuspendTenantAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	);
+	Task<ReactivateTenantResult> ReactivateTenantAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	);
+
+	// Staff can see suspended tenants (unlike regular GetTenantByIdAsync)
+	Task<Tenant?> GetTenantByIdForStaffAsync(
+		Guid tenantId,
 		CancellationToken cancellationToken = default
 	);
 }
@@ -215,5 +237,114 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			await transaction.RollbackAsync(cancellationToken);
 			throw;
 		}
+	}
+
+	public async Task<SuspendTenantResult> SuspendTenantAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		// Use AsNoTracking for initial query to avoid EF tracking conflicts
+		var tenant = await (
+			from t in _dbContext.Tenant.AsNoTracking()
+			where t.Id == tenantId && !t.IsDeleted
+			select t
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (tenant is null) {
+			return new SuspendTenantResult(null, SuspendTenantError.NotFound);
+		}
+		if (tenant.IsSuspended) {
+			return new SuspendTenantResult(null, SuspendTenantError.AlreadySuspended);
+		}
+		if (tenant.Status != TenantStatus.Active) {
+			return new SuspendTenantResult(null, SuspendTenantError.NotActiveStatus);
+		}
+
+		// Atomic update with WHERE clause checking current state (race condition safe)
+		var rowsAffected = await _dbContext.Tenant
+			.Where(t =>
+				t.Id == tenantId &&
+				!t.IsDeleted &&
+				!t.IsSuspended &&
+				t.Status == TenantStatus.Active)
+			.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(t => t.IsSuspended, true)
+					.SetProperty(t => t.Status, TenantStatus.Suspended)
+					.SetProperty(t => t.UpdatedAt, DateTime.UtcNow),
+				cancellationToken);
+
+		if (rowsAffected == 0) {
+			// Race condition: someone else changed the state between our read and update
+			return new SuspendTenantResult(null, SuspendTenantError.AlreadySuspended);
+		}
+
+		// Re-fetch tenant to return current state
+		var updatedTenant = await (
+			from t in _dbContext.Tenant.AsNoTracking()
+			where t.Id == tenantId
+			select t
+		).FirstOrDefaultAsync(cancellationToken);
+
+		return new SuspendTenantResult(updatedTenant, null);
+	}
+
+	public async Task<ReactivateTenantResult> ReactivateTenantAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		// Use AsNoTracking for initial query to avoid EF tracking conflicts
+		var tenant = await (
+			from t in _dbContext.Tenant.AsNoTracking()
+			where t.Id == tenantId && !t.IsDeleted
+			select t
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (tenant is null) {
+			return new ReactivateTenantResult(null, ReactivateTenantError.NotFound);
+		}
+		if (!tenant.IsSuspended) {
+			return new ReactivateTenantResult(null, ReactivateTenantError.NotSuspended);
+		}
+
+		// Atomic update with WHERE clause checking current state (race condition safe)
+		var rowsAffected = await _dbContext.Tenant
+			.Where(t =>
+				t.Id == tenantId &&
+				!t.IsDeleted &&
+				t.IsSuspended &&
+				t.Status == TenantStatus.Suspended)
+			.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(t => t.IsSuspended, false)
+					.SetProperty(t => t.Status, TenantStatus.Active)
+					.SetProperty(t => t.UpdatedAt, DateTime.UtcNow),
+				cancellationToken);
+
+		if (rowsAffected == 0) {
+			// Race condition: someone else changed the state between our read and update
+			return new ReactivateTenantResult(null, ReactivateTenantError.NotSuspended);
+		}
+
+		// Re-fetch tenant to return current state
+		var updatedTenant = await (
+			from t in _dbContext.Tenant.AsNoTracking()
+			where t.Id == tenantId
+			select t
+		).FirstOrDefaultAsync(cancellationToken);
+
+		return new ReactivateTenantResult(updatedTenant, null);
+	}
+
+	public async Task<Tenant?> GetTenantByIdForStaffAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		// Staff can see suspended tenants (but not deleted ones)
+		return await (
+			from tenant in _dbContext.Tenant
+			where tenant.Id == tenantId && !tenant.IsDeleted
+			select tenant
+		).FirstOrDefaultAsync(cancellationToken);
 	}
 }
