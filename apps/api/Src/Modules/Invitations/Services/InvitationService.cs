@@ -6,7 +6,6 @@ using MainApi.Src.Modules.Profiles.Entities;
 using MainApi.Src.Modules.Users.Entities;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 using UserEntity = MainApi.Src.Modules.Users.Entities.User;
 
@@ -152,16 +151,13 @@ public record StaffInvitationDetailsResult {
 public class InvitationService : IInvitationService {
 	private readonly MainApiDbContext _dbContext;
 	private readonly ILogger<InvitationService> _logger;
-	private readonly IOptions<AppSettings> _appSettings;
 
 	public InvitationService(
 		MainApiDbContext dbContext,
-		IOptions<AppSettings> appSettings,
 		ILogger<InvitationService> logger
 	) {
 		_dbContext = dbContext;
 		_logger = logger;
-		_appSettings = appSettings;
 	}
 
 	public async Task<(Invitation Invitation, string Token)> CreateStaffInvitationAsync(
@@ -170,7 +166,7 @@ public class InvitationService : IInvitationService {
 		Guid invitedByUserId,
 		CancellationToken cancellationToken = default
 	) {
-		var token = CryptoUtils.RandomString(_appSettings.Value.INVITATION_TOKEN_LENGTH);
+		var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
 		var expiresAt = DateTime.UtcNow.AddDays(7);
 
 		var invitation = Invitation.CreateStaffInvitationWithProfiles(
@@ -205,7 +201,7 @@ public class InvitationService : IInvitationService {
 		Guid invitedByUserId,
 		CancellationToken cancellationToken = default
 	) {
-		var token = CryptoUtils.RandomString(_appSettings.Value.INVITATION_TOKEN_LENGTH);
+		var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
 		var expiresAt = DateTime.UtcNow.AddDays(7);
 
 		var invitation = Invitation.CreateTenantInvitationWithProfiles(
@@ -420,7 +416,7 @@ public class InvitationService : IInvitationService {
 		string? status = null,
 		CancellationToken cancellationToken = default
 	) {
-		var effectiveLimit = limit ?? _appSettings.Value.PAGINATION_DEFAULT_LIMIT;
+		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
 		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
 		var effectiveSortId = (sortId ?? "created_at").ToLowerInvariant();
 
@@ -830,7 +826,7 @@ public class InvitationService : IInvitationService {
 
 			foreach (var item in invitations) {
 				// Generate unique token per invitation (one per email)
-				var token = CryptoUtils.RandomString(_appSettings.Value.INVITATION_TOKEN_LENGTH);
+				var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
 
 				// Use factory to create invitation with multiple profiles
 				var invitation = Invitation.CreateStaffInvitationWithProfiles(

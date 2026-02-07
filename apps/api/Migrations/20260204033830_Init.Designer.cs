@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MainApi.Migrations
 {
     [DbContext(typeof(MainApiDbContext))]
-    [Migration("20260117052838_Init")]
+    [Migration("20260204033830_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -601,6 +601,8 @@ namespace MainApi.Migrations
                     b.ToTable("tenants", t =>
                         {
                             t.HasCheckConstraint("CK_Tenant_Code_Lowercase", "code = LOWER(code)");
+
+                            t.HasCheckConstraint("chk_tenant_suspended_status", "(is_suspended = true AND status = 30) OR (is_suspended = false AND status != 30)");
                         });
                 });
 

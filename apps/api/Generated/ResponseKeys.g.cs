@@ -202,9 +202,64 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey StaffUserUpdatedSuccessfully = new("staff-user-updated-successfully");
 
 	/// <summary>
+	/// System notice created successfully
+	/// </summary>
+	public static readonly TranslationKey SystemNoticeCreatedSuccessfully = new("system-notice-created-successfully");
+
+	/// <summary>
+	/// System notice deleted successfully
+	/// </summary>
+	public static readonly TranslationKey SystemNoticeDeletedSuccessfully = new("system-notice-deleted-successfully");
+
+	/// <summary>
+	/// System notice not found
+	/// </summary>
+	public static readonly TranslationKey SystemNoticeNotFound = new("system-notice-not-found");
+
+	/// <summary>
+	/// System notice updated successfully
+	/// </summary>
+	public static readonly TranslationKey SystemNoticeUpdatedSuccessfully = new("system-notice-updated-successfully");
+
+	/// <summary>
+	/// Tenant is already suspended
+	/// </summary>
+	public static readonly TranslationKey TenantAlreadySuspended = new("tenant-already-suspended");
+
+	/// <summary>
 	/// Tenant ID required
 	/// </summary>
 	public static readonly TranslationKey TenantIdRequired = new("tenant-id-required");
+
+	/// <summary>
+	/// Only active tenants can be suspended
+	/// </summary>
+	public static readonly TranslationKey TenantNotActiveCannotSuspend = new("tenant-not-active-cannot-suspend");
+
+	/// <summary>
+	/// Tenant not found
+	/// </summary>
+	public static readonly TranslationKey TenantNotFound = new("tenant-not-found");
+
+	/// <summary>
+	/// Tenant is not currently suspended
+	/// </summary>
+	public static readonly TranslationKey TenantNotSuspended = new("tenant-not-suspended");
+
+	/// <summary>
+	/// Tenant has been reactivated successfully
+	/// </summary>
+	public static readonly TranslationKey TenantReactivatedSuccess = new("tenant-reactivated-success");
+
+	/// <summary>
+	/// This tenant has been suspended
+	/// </summary>
+	public static readonly TranslationKey TenantSuspended = new("tenant-suspended");
+
+	/// <summary>
+	/// Tenant has been suspended successfully
+	/// </summary>
+	public static readonly TranslationKey TenantSuspendedSuccess = new("tenant-suspended-success");
 
 	/// <summary>
 	/// Too many requests

@@ -12,7 +12,6 @@ using MainApi.Src.Modules.Users.Entities;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 using Polly;
 
@@ -51,7 +50,7 @@ public class CreateTenantAsStaffBody {
 }
 
 public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAsStaffBody> {
-	public CreateTenantAsStaffBodyValidator(IOptions<AppSettings> appSettings) {
+	public CreateTenantAsStaffBodyValidator() {
 		RuleFor(x => x.Name)
 			.NotEmpty().WithMessage("Name is required")
 			.DependentRules(() => {
@@ -98,7 +97,7 @@ public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAs
 				var body = context.InstanceToValidate as CreateTenantAsStaffBody;
 				var maxUsers = body?.MaxUsers.ValueKind == JsonValueKind.Number
 					? body.MaxUsers.GetInt32()
-					: appSettings.Value.DEFAULT_MAX_USERS_PER_TENANT;
+					: AppEnvironment.Instance.DEFAULT_MAX_USERS_PER_TENANT;
 
 				if (array.Count > maxUsers) {
 					context.AddFailure(
@@ -205,7 +204,6 @@ public static class CreateTenantAsStaff {
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] IOptions<AppSettings> appSettings,
 		[FromServices] ILoggerFactory loggerFactory,
 		CancellationToken cancellationToken
 	) {
@@ -220,7 +218,7 @@ public static class CreateTenantAsStaff {
 		var maxUsers = body.GetMaxUsers();
 		var initialUsersItems = body.GetInitialUsers();
 
-		var effectiveMaxUsers = maxUsers ?? appSettings.Value.DEFAULT_MAX_USERS_PER_TENANT;
+		var effectiveMaxUsers = maxUsers ?? AppEnvironment.Instance.DEFAULT_MAX_USERS_PER_TENANT;
 
 		var initialUsers = initialUsersItems
 			.Select(u => {

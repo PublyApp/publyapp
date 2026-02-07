@@ -18,6 +18,28 @@ export interface AcceptInvitationBody extends AdditionalDataHolder, Parsable {
      */
     password?: UntypedNode | null;
 }
+export interface ActiveSystemNotice extends AdditionalDataHolder, Parsable {
+    /**
+     * The expiresAt property
+     */
+    expiresAt?: Date | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The message property
+     */
+    message?: string | null;
+    /**
+     * The severity property
+     */
+    severity?: string | null;
+    /**
+     * The title property
+     */
+    title?: string | null;
+}
 /**
  * Represents an API response with a message and a type-safe translation key
  */
@@ -110,6 +132,15 @@ export interface CheckResetPasswordTokenResult extends AdditionalDataHolder, Par
 // @ts-ignore
 export function createAcceptInvitationBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoAcceptInvitationBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ActiveSystemNotice}
+ */
+// @ts-ignore
+export function createActiveSystemNoticeFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoActiveSystemNotice;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -456,6 +487,15 @@ export function createGetUserAuthDataResultFromDiscriminatorValue(parseNode: Par
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {GetUserTenantsForPickerResponse}
+ */
+// @ts-ignore
+export function createGetUserTenantsForPickerResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetUserTenantsForPickerResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {GetUserTenantsResult}
  */
 // @ts-ignore
@@ -721,6 +761,33 @@ export interface CreateStaffUserResult extends AdditionalDataHolder, Parsable {
      */
     id?: Guid | null;
 }
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {JsonElement | SuspendTenantAsStaffBody_reasonMember1}
+ */
+// @ts-ignore
+export function createSuspendTenantAsStaffBody_reasonFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSuspendTenantAsStaffBody_reason;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SuspendTenantAsStaffBody_reasonMember1}
+ */
+// @ts-ignore
+export function createSuspendTenantAsStaffBody_reasonMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSuspendTenantAsStaffBody_reasonMember1;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SuspendTenantAsStaffBody}
+ */
+// @ts-ignore
+export function createSuspendTenantAsStaffBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSuspendTenantAsStaffBody;
+}
 export interface CreateTenantAsStaffBody extends AdditionalDataHolder, Parsable {
     /**
      * The initialUsers property
@@ -766,6 +833,15 @@ export function createTenantAsStaffResultFromDiscriminatorValue(parseNode: Parse
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {TenantForPickerItem}
+ */
+// @ts-ignore
+export function createTenantForPickerItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoTenantForPickerItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {Tenant}
  */
 // @ts-ignore
@@ -780,6 +856,24 @@ export function createTenantFromDiscriminatorValue(parseNode: ParseNode | undefi
 // @ts-ignore
 export function createTenantListItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoTenantListItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {TenantReactivatedResult}
+ */
+// @ts-ignore
+export function createTenantReactivatedResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoTenantReactivatedResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {TenantSuspendedResult}
+ */
+// @ts-ignore
+export function createTenantSuspendedResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoTenantSuspendedResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -945,6 +1039,21 @@ export function deserializeIntoAcceptInvitationBody(acceptInvitationBody: Partia
         "firstName": n => { acceptInvitationBody.firstName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "lastName": n => { acceptInvitationBody.lastName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "password": n => { acceptInvitationBody.password = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param ActiveSystemNotice The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoActiveSystemNotice(activeSystemNotice: Partial<ActiveSystemNotice> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "expiresAt": n => { activeSystemNotice.expiresAt = n.getDateValue(); },
+        "id": n => { activeSystemNotice.id = n.getGuidValue(); },
+        "message": n => { activeSystemNotice.message = n.getStringValue(); },
+        "severity": n => { activeSystemNotice.severity = n.getStringValue(); },
+        "title": n => { activeSystemNotice.title = n.getStringValue(); },
     }
 }
 /**
@@ -1344,6 +1453,7 @@ export function deserializeIntoFindTenantProfilesAsStaffResult(findTenantProfile
 // @ts-ignore
 export function deserializeIntoGetRedirectCodeResult(getRedirectCodeResult: Partial<GetRedirectCodeResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "hasSuspendedTenants": n => { getRedirectCodeResult.hasSuspendedTenants = n.getBooleanValue(); },
         "redirectCode": n => { getRedirectCodeResult.redirectCode = n.getStringValue(); },
     }
 }
@@ -1400,6 +1510,20 @@ export function deserializeIntoGetUserAuthDataResult(getUserAuthDataResult: Part
         "firstName": n => { getUserAuthDataResult.firstName = n.getStringValue(); },
         "id": n => { getUserAuthDataResult.id = n.getGuidValue(); },
         "lastName": n => { getUserAuthDataResult.lastName = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param GetUserTenantsForPickerResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoGetUserTenantsForPickerResponse(getUserTenantsForPickerResponse: Partial<GetUserTenantsForPickerResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "activeCount": n => { getUserTenantsForPickerResponse.activeCount = n.getNumberValue(); },
+        "hasSuspendedTenants": n => { getUserTenantsForPickerResponse.hasSuspendedTenants = n.getBooleanValue(); },
+        "tenants": n => { getUserTenantsForPickerResponse.tenants = n.getCollectionOfObjectValues<TenantForPickerItem>(createTenantForPickerItemFromDiscriminatorValue); },
+        "totalCount": n => { getUserTenantsForPickerResponse.totalCount = n.getNumberValue(); },
     }
 }
 /**
@@ -1679,6 +1803,39 @@ export function deserializeIntoStaffUserItem(staffUserItem: Partial<StaffUserIte
 }
 /**
  * The deserialization information for the current model
+ * @param SuspendTenantAsStaffBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSuspendTenantAsStaffBody(suspendTenantAsStaffBody: Partial<SuspendTenantAsStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "reason": n => { suspendTenantAsStaffBody.reason = n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue) ?? n.getObjectValue<SuspendTenantAsStaffBody_reasonMember1>(createSuspendTenantAsStaffBody_reasonMember1FromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param SuspendTenantAsStaffBody_reason The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSuspendTenantAsStaffBody_reason(suspendTenantAsStaffBody_reason: Partial<JsonElement | SuspendTenantAsStaffBody_reasonMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoJsonElement(suspendTenantAsStaffBody_reason as JsonElement),
+        ...deserializeIntoSuspendTenantAsStaffBody_reasonMember1(suspendTenantAsStaffBody_reason as SuspendTenantAsStaffBody_reasonMember1),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param SuspendTenantAsStaffBody_reasonMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSuspendTenantAsStaffBody_reasonMember1(suspendTenantAsStaffBody_reasonMember1: Partial<SuspendTenantAsStaffBody_reasonMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param Tenant The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -1703,6 +1860,7 @@ export function deserializeIntoTenant(tenant: Partial<Tenant> | undefined = {}) 
 export function deserializeIntoTenantAsStaffItem(tenantAsStaffItem: Partial<TenantAsStaffItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "id": n => { tenantAsStaffItem.id = n.getGuidValue(); },
+        "isSuspended": n => { tenantAsStaffItem.isSuspended = n.getBooleanValue(); },
         "logoUrl": n => { tenantAsStaffItem.logoUrl = n.getStringValue(); },
         "maxUsers": n => { tenantAsStaffItem.maxUsers = n.getNumberValue(); },
         "name": n => { tenantAsStaffItem.name = n.getStringValue(); },
@@ -1724,6 +1882,22 @@ export function deserializeIntoTenantAsStaffResult(tenantAsStaffResult: Partial<
 }
 /**
  * The deserialization information for the current model
+ * @param TenantForPickerItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoTenantForPickerItem(tenantForPickerItem: Partial<TenantForPickerItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "code": n => { tenantForPickerItem.code = n.getStringValue(); },
+        "id": n => { tenantForPickerItem.id = n.getGuidValue(); },
+        "isActive": n => { tenantForPickerItem.isActive = n.getBooleanValue(); },
+        "isSuspended": n => { tenantForPickerItem.isSuspended = n.getBooleanValue(); },
+        "name": n => { tenantForPickerItem.name = n.getStringValue(); },
+        "status": n => { tenantForPickerItem.status = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param TenantListItem The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -1734,6 +1908,34 @@ export function deserializeIntoTenantListItem(tenantListItem: Partial<TenantList
         "id": n => { tenantListItem.id = n.getGuidValue(); },
         "logoUrl": n => { tenantListItem.logoUrl = n.getStringValue(); },
         "name": n => { tenantListItem.name = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param TenantReactivatedResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoTenantReactivatedResult(tenantReactivatedResult: Partial<TenantReactivatedResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "isSuspended": n => { tenantReactivatedResult.isSuspended = n.getBooleanValue(); },
+        "name": n => { tenantReactivatedResult.name = n.getStringValue(); },
+        "status": n => { tenantReactivatedResult.status = n.getStringValue(); },
+        "tenantId": n => { tenantReactivatedResult.tenantId = n.getGuidValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param TenantSuspendedResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoTenantSuspendedResult(tenantSuspendedResult: Partial<TenantSuspendedResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "isSuspended": n => { tenantSuspendedResult.isSuspended = n.getBooleanValue(); },
+        "name": n => { tenantSuspendedResult.name = n.getStringValue(); },
+        "status": n => { tenantSuspendedResult.status = n.getStringValue(); },
+        "tenantId": n => { tenantSuspendedResult.tenantId = n.getGuidValue(); },
     }
 }
 /**
@@ -1975,6 +2177,10 @@ export interface FindTenantProfilesAsStaffResult extends AdditionalDataHolder, P
 }
 export interface GetRedirectCodeResult extends AdditionalDataHolder, Parsable {
     /**
+     * The hasSuspendedTenants property
+     */
+    hasSuspendedTenants?: boolean | null;
+    /**
      * The redirectCode property
      */
     redirectCode?: string | null;
@@ -2046,6 +2252,24 @@ export interface GetUserAuthDataResult extends AdditionalDataHolder, Parsable {
      * The lastName property
      */
     lastName?: string | null;
+}
+export interface GetUserTenantsForPickerResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The activeCount property
+     */
+    activeCount?: number | null;
+    /**
+     * The hasSuspendedTenants property
+     */
+    hasSuspendedTenants?: boolean | null;
+    /**
+     * The tenants property
+     */
+    tenants?: TenantForPickerItem[] | null;
+    /**
+     * The totalCount property
+     */
+    totalCount?: number | null;
 }
 export interface GetUserTenantsResult extends AdditionalDataHolder, Parsable {
     /**
@@ -2274,6 +2498,22 @@ export function serializeAcceptInvitationBody(writer: SerializationWriter, accep
     writer.writeObjectValue("lastName", acceptInvitationBody.lastName);
     writer.writeObjectValue("password", acceptInvitationBody.password);
     writer.writeAdditionalData(acceptInvitationBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param ActiveSystemNotice The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeActiveSystemNotice(writer: SerializationWriter, activeSystemNotice: Partial<ActiveSystemNotice> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!activeSystemNotice || isSerializingDerivedType) { return; }
+    writer.writeDateValue("expiresAt", activeSystemNotice.expiresAt);
+    writer.writeGuidValue("id", activeSystemNotice.id);
+    writer.writeStringValue("message", activeSystemNotice.message);
+    writer.writeStringValue("severity", activeSystemNotice.severity);
+    writer.writeStringValue("title", activeSystemNotice.title);
+    writer.writeAdditionalData(activeSystemNotice.additionalData);
 }
 /**
  * Serializes information the current object
@@ -2690,6 +2930,7 @@ export function serializeFindTenantProfilesAsStaffResult(writer: SerializationWr
 // @ts-ignore
 export function serializeGetRedirectCodeResult(writer: SerializationWriter, getRedirectCodeResult: Partial<GetRedirectCodeResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!getRedirectCodeResult || isSerializingDerivedType) { return; }
+    writer.writeBooleanValue("hasSuspendedTenants", getRedirectCodeResult.hasSuspendedTenants);
     writer.writeStringValue("redirectCode", getRedirectCodeResult.redirectCode);
     writer.writeAdditionalData(getRedirectCodeResult.additionalData);
 }
@@ -2751,6 +2992,21 @@ export function serializeGetUserAuthDataResult(writer: SerializationWriter, getU
     writer.writeGuidValue("id", getUserAuthDataResult.id);
     writer.writeStringValue("lastName", getUserAuthDataResult.lastName);
     writer.writeAdditionalData(getUserAuthDataResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param GetUserTenantsForPickerResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeGetUserTenantsForPickerResponse(writer: SerializationWriter, getUserTenantsForPickerResponse: Partial<GetUserTenantsForPickerResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getUserTenantsForPickerResponse || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("activeCount", getUserTenantsForPickerResponse.activeCount);
+    writer.writeBooleanValue("hasSuspendedTenants", getUserTenantsForPickerResponse.hasSuspendedTenants);
+    writer.writeCollectionOfObjectValues<TenantForPickerItem>("tenants", getUserTenantsForPickerResponse.tenants, serializeTenantForPickerItem);
+    writer.writeNumberValue("totalCount", getUserTenantsForPickerResponse.totalCount);
+    writer.writeAdditionalData(getUserTenantsForPickerResponse.additionalData);
 }
 /**
  * Serializes information the current object
@@ -3050,6 +3306,40 @@ export function serializeStaffUserItem(writer: SerializationWriter, staffUserIte
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SuspendTenantAsStaffBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSuspendTenantAsStaffBody(writer: SerializationWriter, suspendTenantAsStaffBody: Partial<SuspendTenantAsStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!suspendTenantAsStaffBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue<JsonElement | SuspendTenantAsStaffBody_reasonMember1>("reason", suspendTenantAsStaffBody.reason, serializeSuspendTenantAsStaffBody_reason);
+    writer.writeAdditionalData(suspendTenantAsStaffBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SuspendTenantAsStaffBody_reason The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSuspendTenantAsStaffBody_reason(writer: SerializationWriter, suspendTenantAsStaffBody_reason: Partial<JsonElement | SuspendTenantAsStaffBody_reasonMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeJsonElement(writer, suspendTenantAsStaffBody_reason as JsonElement);
+    serializeSuspendTenantAsStaffBody_reasonMember1(writer, suspendTenantAsStaffBody_reason as SuspendTenantAsStaffBody_reasonMember1);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SuspendTenantAsStaffBody_reasonMember1 The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSuspendTenantAsStaffBody_reasonMember1(writer: SerializationWriter, suspendTenantAsStaffBody_reasonMember1: Partial<SuspendTenantAsStaffBody_reasonMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!suspendTenantAsStaffBody_reasonMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(suspendTenantAsStaffBody_reasonMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param Tenant The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -3075,6 +3365,7 @@ export function serializeTenant(writer: SerializationWriter, tenant: Partial<Ten
 export function serializeTenantAsStaffItem(writer: SerializationWriter, tenantAsStaffItem: Partial<TenantAsStaffItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!tenantAsStaffItem || isSerializingDerivedType) { return; }
     writer.writeGuidValue("id", tenantAsStaffItem.id);
+    writer.writeBooleanValue("isSuspended", tenantAsStaffItem.isSuspended);
     writer.writeStringValue("logoUrl", tenantAsStaffItem.logoUrl);
     writer.writeNumberValue("maxUsers", tenantAsStaffItem.maxUsers);
     writer.writeStringValue("name", tenantAsStaffItem.name);
@@ -3098,6 +3389,23 @@ export function serializeTenantAsStaffResult(writer: SerializationWriter, tenant
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param TenantForPickerItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeTenantForPickerItem(writer: SerializationWriter, tenantForPickerItem: Partial<TenantForPickerItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!tenantForPickerItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("code", tenantForPickerItem.code);
+    writer.writeGuidValue("id", tenantForPickerItem.id);
+    writer.writeBooleanValue("isActive", tenantForPickerItem.isActive);
+    writer.writeBooleanValue("isSuspended", tenantForPickerItem.isSuspended);
+    writer.writeStringValue("name", tenantForPickerItem.name);
+    writer.writeStringValue("status", tenantForPickerItem.status);
+    writer.writeAdditionalData(tenantForPickerItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param TenantListItem The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -3109,6 +3417,36 @@ export function serializeTenantListItem(writer: SerializationWriter, tenantListI
     writer.writeStringValue("logoUrl", tenantListItem.logoUrl);
     writer.writeStringValue("name", tenantListItem.name);
     writer.writeAdditionalData(tenantListItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param TenantReactivatedResult The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeTenantReactivatedResult(writer: SerializationWriter, tenantReactivatedResult: Partial<TenantReactivatedResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!tenantReactivatedResult || isSerializingDerivedType) { return; }
+    writer.writeBooleanValue("isSuspended", tenantReactivatedResult.isSuspended);
+    writer.writeStringValue("name", tenantReactivatedResult.name);
+    writer.writeStringValue("status", tenantReactivatedResult.status);
+    writer.writeGuidValue("tenantId", tenantReactivatedResult.tenantId);
+    writer.writeAdditionalData(tenantReactivatedResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param TenantSuspendedResult The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeTenantSuspendedResult(writer: SerializationWriter, tenantSuspendedResult: Partial<TenantSuspendedResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!tenantSuspendedResult || isSerializingDerivedType) { return; }
+    writer.writeBooleanValue("isSuspended", tenantSuspendedResult.isSuspended);
+    writer.writeStringValue("name", tenantSuspendedResult.name);
+    writer.writeStringValue("status", tenantSuspendedResult.status);
+    writer.writeGuidValue("tenantId", tenantSuspendedResult.tenantId);
+    writer.writeAdditionalData(tenantSuspendedResult.additionalData);
 }
 /**
  * Serializes information the current object
@@ -3438,6 +3776,15 @@ export interface StaffUserItem extends AdditionalDataHolder, Parsable {
      */
     status?: string | null;
 }
+export interface SuspendTenantAsStaffBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The reason property
+     */
+    reason?: JsonElement | SuspendTenantAsStaffBody_reasonMember1 | null;
+}
+export type SuspendTenantAsStaffBody_reason = JsonElement | SuspendTenantAsStaffBody_reasonMember1;
+export interface SuspendTenantAsStaffBody_reasonMember1 extends AdditionalDataHolder, Parsable {
+}
 export interface Tenant extends AdditionalDataHolder, Parsable {
     /**
      * The accountLevel property
@@ -3474,6 +3821,10 @@ export interface TenantAsStaffItem extends AdditionalDataHolder, Parsable {
      */
     id?: Guid | null;
     /**
+     * The isSuspended property
+     */
+    isSuspended?: boolean | null;
+    /**
      * The logoUrl property
      */
     logoUrl?: string | null;
@@ -3504,6 +3855,32 @@ export interface TenantAsStaffResult extends AdditionalDataHolder, Parsable {
      */
     tenants?: TenantAsStaffItem[] | null;
 }
+export interface TenantForPickerItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The code property
+     */
+    code?: string | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The isActive property
+     */
+    isActive?: boolean | null;
+    /**
+     * The isSuspended property
+     */
+    isSuspended?: boolean | null;
+    /**
+     * The name property
+     */
+    name?: string | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
+}
 export interface TenantListItem extends AdditionalDataHolder, Parsable {
     /**
      * The code property
@@ -3521,6 +3898,42 @@ export interface TenantListItem extends AdditionalDataHolder, Parsable {
      * The name property
      */
     name?: string | null;
+}
+export interface TenantReactivatedResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The isSuspended property
+     */
+    isSuspended?: boolean | null;
+    /**
+     * The name property
+     */
+    name?: string | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
+    /**
+     * The tenantId property
+     */
+    tenantId?: Guid | null;
+}
+export interface TenantSuspendedResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The isSuspended property
+     */
+    isSuspended?: boolean | null;
+    /**
+     * The name property
+     */
+    name?: string | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
+    /**
+     * The tenantId property
+     */
+    tenantId?: Guid | null;
 }
 export interface UpdateStaffUserBody extends AdditionalDataHolder, Parsable {
     /**

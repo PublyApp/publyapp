@@ -4,7 +4,6 @@ using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Auth.Entities;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 using UserNs = MainApi.Src.Modules.Users.Entities;
 
@@ -22,11 +21,9 @@ public interface ISessionService {
 
 public class SessionService : ISessionService {
 	private readonly MainApiDbContext _dbContext;
-	private readonly IOptions<AppSettings> _appSettings;
 
-	public SessionService(MainApiDbContext dbContext, IOptions<AppSettings> appSettings) {
+	public SessionService(MainApiDbContext dbContext) {
 		_dbContext = dbContext;
-		_appSettings = appSettings;
 	}
 
 	public async Task<Session> CreateSessionForUser(UserNs.User user, CancellationToken cancellationToken = default) {
@@ -37,7 +34,7 @@ public class SessionService : ISessionService {
 		var session = new Session {
 			UserId = user.Id.Value,
 			Token = CryptoUtils.RandomString(32),
-			ExpiresAt = DateTime.UtcNow.AddDays(_appSettings.Value.SESSION_EXPIRY_DAYS),
+			ExpiresAt = DateTime.UtcNow.AddDays(AppEnvironment.Instance.SESSION_EXPIRY_DAYS),
 		};
 
 		var result = await _dbContext.Session.AddAsync(session, cancellationToken);

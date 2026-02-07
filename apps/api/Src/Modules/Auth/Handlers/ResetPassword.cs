@@ -13,7 +13,6 @@ using MainApi.Src.Modules.Users.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace MainApi.Src.Modules.Auth.Handlers;
 
@@ -41,7 +40,9 @@ public class ResetPasswordBody {
 }
 
 public class ResetPasswordBodyValidator : AbstractValidator<ResetPasswordBody> {
-	public ResetPasswordBodyValidator(IOptions<AppSettings> appSettings) {
+	public ResetPasswordBodyValidator() {
+		var env = AppEnvironment.Instance;
+
 		RuleFor(x => x.Id)
 			.NotEmpty().WithMessage("ID is required")
 			.DependentRules(() => {
@@ -67,8 +68,8 @@ public class ResetPasswordBodyValidator : AbstractValidator<ResetPasswordBody> {
 					.Must(password => password.ValueKind == JsonValueKind.String).WithMessage("Password must be a string")
 					.DependentRules(() => {
 						RuleFor(x => x.NewPassword.GetString()!)
-							.MinimumLength(appSettings.Value.PASSWORD_MIN_LENGTH)
-							.WithMessage($"Password must be at least {appSettings.Value.PASSWORD_MIN_LENGTH} characters long");
+							.MinimumLength(env.PASSWORD_MIN_LENGTH)
+							.WithMessage($"Password must be at least {env.PASSWORD_MIN_LENGTH} characters long");
 					});
 			});
 

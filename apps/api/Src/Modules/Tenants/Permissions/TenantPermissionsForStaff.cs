@@ -11,6 +11,8 @@ public class TenantPermissionsForStaff : ISlicePermissions {
 	public Permission CREATE { get; }
 	public Permission UPDATE { get; }
 	public Permission DELETE { get; }
+	public Permission SUSPEND { get; }
+	public Permission REACTIVATE { get; }
 
 	public TenantPermissionsForStaff() {
 		LIST = Permission.CreateStaffPermission(
@@ -71,6 +73,36 @@ public class TenantPermissionsForStaff : ISlicePermissions {
 		DELETE = DELETE.SetTranslation(
 			SupportedLanguage.French,
 			new PermissionTranslation { Name = "Supprimer un tenant", Description = "Supprimer un tenant" }
+		);
+
+		SUSPEND = Permission.CreateStaffPermission(
+			string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "suspend" })
+		);
+		SUSPEND = SUSPEND.SetTranslation(
+			SupportedLanguage.English,
+			new PermissionTranslation { Name = "Suspend a tenant", Description = "Suspend a tenant" }
+		);
+		SUSPEND = SUSPEND.SetTranslation(
+			SupportedLanguage.French,
+			new PermissionTranslation { Name = "Suspendre un tenant", Description = "Suspendre un tenant" }
+		);
+
+		REACTIVATE = Permission.CreateStaffPermission(
+			string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "reactivate" })
+		);
+		REACTIVATE = REACTIVATE.SetTranslation(
+			SupportedLanguage.English,
+			new PermissionTranslation {
+				Name = "Reactivate a tenant",
+				Description = "Reactivate a tenant"
+			}
+		);
+		REACTIVATE = REACTIVATE.SetTranslation(
+			SupportedLanguage.French,
+			new PermissionTranslation {
+				Name = "Réactiver un tenant",
+				Description = "Réactiver un tenant"
+			}
 		);
 	}
 }

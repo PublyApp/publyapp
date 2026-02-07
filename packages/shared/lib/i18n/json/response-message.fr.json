@@ -55,5 +55,12 @@
 	"system-notice-deleted-successfully": "Avis système supprimé avec succès",
 	"system-notice-not-found": "Avis système non trouvé",
 	"user-has-tenant-or-project-accounts": "Cet utilisateur a déjà des comptes tenant ou projet. Les comptes staff et tenant/projet sont mutuellement exclusifs.",
-	"user-has-staff-account": "Cet utilisateur a déjà un compte staff. Les comptes staff et tenant/projet sont mutuellement exclusifs."
+	"user-has-staff-account": "Cet utilisateur a déjà un compte staff. Les comptes staff et tenant/projet sont mutuellement exclusifs.",
+	"tenant-not-found": "Locataire introuvable",
+	"tenant-already-suspended": "Le locataire est déjà suspendu",
+	"tenant-not-active-cannot-suspend": "Seuls les locataires actifs peuvent être suspendus",
+	"tenant-not-suspended": "Le locataire n'est pas actuellement suspendu",
+	"tenant-suspended": "Ce locataire a été suspendu",
+	"tenant-suspended-success": "Le locataire a été suspendu avec succès",
+	"tenant-reactivated-success": "Le locataire a été réactivé avec succès"
 }

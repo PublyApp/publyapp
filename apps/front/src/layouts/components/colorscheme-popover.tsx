@@ -34,7 +34,8 @@ export const ColorSchemePopover = ({
 	const { t } = useTranslate();
 	const { open, anchorEl, onClose, onOpen } = usePopover();
 	const settings = useSettingsContext();
-	const { mode, setMode, allColorSchemes } = useColorScheme();
+	const { mode, systemMode, setMode, allColorSchemes } = useColorScheme();
+	const resolvedMode = mode === 'system' ? (systemMode ?? 'dark') : mode;
 
 	const handleChangeColorScheme = (colorScheme: SupportedColorScheme) => {
 		setMode(colorScheme);
@@ -51,7 +52,7 @@ export const ColorSchemePopover = ({
 						return (
 							<MenuItem
 								key={option}
-								selected={option === mode}
+								selected={option === resolvedMode}
 								onClick={() => {
 									handleChangeColorScheme(option);
 									onClose();
@@ -60,7 +61,7 @@ export const ColorSchemePopover = ({
 								{_.get(
 									colorSchemeConfigs,
 									`${option}.icon`,
-									<Iconify icon="mingcute:close-line" />,
+									<Iconify icon="solar:moon-bold-duotone" />,
 								)}
 								{t(
 									_.get(colorSchemeConfigs, `${option}.t_key`, option) as never,
@@ -97,8 +98,8 @@ export const ColorSchemePopover = ({
 			>
 				{_.get(
 					colorSchemeConfigs,
-					`${mode}.icon`,
-					<Iconify icon="mingcute:close-line" />,
+					`${resolvedMode}.icon`,
+					<Iconify icon="solar:moon-bold-duotone" />,
 				)}
 			</IconButton>
 

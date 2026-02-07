@@ -55,5 +55,12 @@
 	"system-notice-deleted-successfully": "System notice deleted successfully",
 	"system-notice-not-found": "System notice not found",
 	"user-has-tenant-or-project-accounts": "This user already has tenant or project accounts. Staff and tenant/project accounts are mutually exclusive.",
-	"user-has-staff-account": "This user already has a staff account. Staff and tenant/project accounts are mutually exclusive."
+	"user-has-staff-account": "This user already has a staff account. Staff and tenant/project accounts are mutually exclusive.",
+	"tenant-not-found": "Tenant not found",
+	"tenant-already-suspended": "Tenant is already suspended",
+	"tenant-not-active-cannot-suspend": "Only active tenants can be suspended",
+	"tenant-not-suspended": "Tenant is not currently suspended",
+	"tenant-suspended": "This tenant has been suspended",
+	"tenant-suspended-success": "Tenant has been suspended successfully",
+	"tenant-reactivated-success": "Tenant has been reactivated successfully"
 }

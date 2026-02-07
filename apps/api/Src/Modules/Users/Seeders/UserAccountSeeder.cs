@@ -2,6 +2,7 @@ using System.Data;
 
 using MainApi.Src.Data;
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib;
 using MainApi.Src.Modules.Users.Entities;
 
@@ -30,8 +31,6 @@ public class UserAccountSeeder : IEntitySeeder {
 	public int Order => 40;
 
 	public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
-		AppEnvironment.LoadEnv();
-
 		var newAccounts = new List<UserAccount>();
 
 		// Seed staff accounts
@@ -84,14 +83,14 @@ public class UserAccountSeeder : IEntitySeeder {
 	private async Task<List<UserAccount>> SeedStaffAccountsAsync(MainApiDbContext dbContext, CancellationToken cancellationToken) {
 		var staffAccountsData = new List<(string Email, AccountLevel Level)>();
 
-		var ownerEmail = AppEnvironment.STAFF_OWNER_EMAIL;
+		var ownerEmail = AppEnvironment.Instance.STAFF_OWNER_EMAIL;
 		if (!string.IsNullOrWhiteSpace(ownerEmail)) {
 			staffAccountsData.Add((ownerEmail.Trim().ToLowerInvariant(), AccountLevel.Admin));
 		}
 
 		staffAccountsData.AddRange(new[] {
-			("staff-admin@example.com", AccountLevel.Admin),
-			("staff-user@example.com", AccountLevel.User)
+			(SeedConstants.Staff.AdminEmail, AccountLevel.Admin),
+			(SeedConstants.Staff.UserEmail, AccountLevel.User)
 		});
 
 		var staffEmails = staffAccountsData.Select(sa => sa.Email).ToList();
@@ -134,21 +133,21 @@ public class UserAccountSeeder : IEntitySeeder {
 		// Define tenant accounts: (UserEmail, TenantCode, Level)
 		var tenantAccountsData = new List<(string Email, string TenantCode, AccountLevel Level)> {
 			// Acme Corporation users
-			("admin-acme@example.com", "acme-corp", AccountLevel.Admin),
-			("user-acme@example.com", "acme-corp", AccountLevel.User),
+			(SeedConstants.Tenants.AcmeAdminEmail, SeedConstants.Tenants.AcmeCode, AccountLevel.Admin),
+			(SeedConstants.Tenants.AcmeUserEmail, SeedConstants.Tenants.AcmeCode, AccountLevel.User),
 			// TechStart Inc users
-			("admin-techstart@example.com", "techstart-inc", AccountLevel.Admin),
-			("user-techstart@example.com", "techstart-inc", AccountLevel.User),
+			(SeedConstants.Tenants.TechStartAdminEmail, SeedConstants.Tenants.TechStartCode, AccountLevel.Admin),
+			(SeedConstants.Tenants.TechStartUserEmail, SeedConstants.Tenants.TechStartCode, AccountLevel.User),
 			// Global Solutions users
-			("admin-global@example.com", "global-solutions", AccountLevel.Admin),
-			("user-global@example.com", "global-solutions", AccountLevel.User),
+			(SeedConstants.Tenants.GlobalAdminEmail, SeedConstants.Tenants.GlobalCode, AccountLevel.Admin),
+			(SeedConstants.Tenants.GlobalUserEmail, SeedConstants.Tenants.GlobalCode, AccountLevel.User),
 			// Cross-tenant users (member of multiple tenants)
-			("alice@example.com", "acme-corp", AccountLevel.User),
-			("alice@example.com", "techstart-inc", AccountLevel.User),
-			("bob@example.com", "techstart-inc", AccountLevel.User),
-			("bob@example.com", "global-solutions", AccountLevel.User),
-			("charlie@example.com", "acme-corp", AccountLevel.Admin),
-			("charlie@example.com", "global-solutions", AccountLevel.User),
+			(SeedConstants.CrossTenant.AliceEmail, SeedConstants.Tenants.AcmeCode, AccountLevel.User),
+			(SeedConstants.CrossTenant.AliceEmail, SeedConstants.Tenants.TechStartCode, AccountLevel.User),
+			(SeedConstants.CrossTenant.BobEmail, SeedConstants.Tenants.TechStartCode, AccountLevel.User),
+			(SeedConstants.CrossTenant.BobEmail, SeedConstants.Tenants.GlobalCode, AccountLevel.User),
+			(SeedConstants.CrossTenant.CharlieEmail, SeedConstants.Tenants.AcmeCode, AccountLevel.Admin),
+			(SeedConstants.CrossTenant.CharlieEmail, SeedConstants.Tenants.GlobalCode, AccountLevel.User),
 		};
 
 		// Get all relevant users

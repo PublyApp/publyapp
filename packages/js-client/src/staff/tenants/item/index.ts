@@ -6,6 +6,10 @@ import { createAppProblemDetailsFromDiscriminatorValue, createGetTenantAsStaffRe
 // @ts-ignore
 import { ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
 // @ts-ignore
+import { ReactivateRequestBuilderRequestsMetadata, type ReactivateRequestBuilder } from './reactivate/index.js';
+// @ts-ignore
+import { SuspendRequestBuilderRequestsMetadata, type SuspendRequestBuilder } from './suspend/index.js';
+// @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
@@ -16,6 +20,14 @@ export interface WithTenantItemRequestBuilder extends BaseRequestBuilder<WithTen
      * The profiles property
      */
     get profiles(): ProfilesRequestBuilder;
+    /**
+     * The reactivate property
+     */
+    get reactivate(): ReactivateRequestBuilder;
+    /**
+     * The suspend property
+     */
+    get suspend(): SuspendRequestBuilder;
     /**
      * Get a tenant by id
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -43,6 +55,12 @@ export const WithTenantItemRequestBuilderUriTemplate = "{+baseurl}/staff/tenants
 export const WithTenantItemRequestBuilderNavigationMetadata: Record<Exclude<keyof WithTenantItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     profiles: {
         requestsMetadata: ProfilesRequestBuilderRequestsMetadata,
+    },
+    reactivate: {
+        requestsMetadata: ReactivateRequestBuilderRequestsMetadata,
+    },
+    suspend: {
+        requestsMetadata: SuspendRequestBuilderRequestsMetadata,
     },
 };
 /**

@@ -21,6 +21,14 @@ make dev-front
 make dev-db
 ```
 
+### Configuration (AppEnvironment)
+
+The API reads configuration exclusively from environment variables via `AppEnvironment` (`apps/api/Src/Lib/AppEnvironment.cs`).
+
+- Development defaults live in repo-root `.env.development` and are loaded when the host environment is `Development`.
+- `dotnet build` also runs the app during OpenAPI document generation; if `ASPNETCORE_ENVIRONMENT`/`DOTNET_ENVIRONMENT` are unset, `.env.development` is loaded to prevent build failures.
+- Prefer keeping secrets out of the repo: use an example file (e.g. `.env.development.example`) + local overrides / CI secrets.
+
 ### Building
 
 ```bash
@@ -56,17 +64,26 @@ make generate-client    # Generate TypeScript client from OpenAPI
 
 This is critical - the frontend TypeScript client is auto-generated from the backend OpenAPI spec.
 
-### Running Single Tests
-
-Currently no automated tests are implemented. When added, use:
+### Running Tests
 
 ```bash
-# .NET tests (when implemented)
-dotnet test apps/api/Tests/
+make test-api          # Run API integration tests (requires Docker)
+```
+
+**Prerequisites:** Docker must be running (Testcontainers spins up Postgres automatically).
+
+```bash
+# Run a specific test class
+cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --filter "FullyQualifiedName~PasswordLogin"
+
+# Run a specific test method
+cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --filter "Login_WithValidCredentials_ReturnsSessionToken"
 
 # Frontend tests (when implemented)
 cd apps/front && pnpm test
 ```
+
+For the full guide on writing and debugging integration tests, see [`docs/guides/api-integration-tests.md`](docs/guides/api-integration-tests.md).
 
 ## Architecture
 
@@ -1530,6 +1547,128 @@ public static async Task<Ok> HandleCreateUser(
 - Transaction management
 - Domain event coordination
 
+### Dependency Injection Rules
+
+#### Adding a New Application Service
+
+- **Namespace**: Place concrete class under `MainApi.Src.Modules.<Domain>.Services`
+- **Primary interface**: Define `I{ClassName}` interface (e.g., `UserService` → `IUserService`)
+- **Explicit lifetime**: Specify `ServiceLifetime` explicitly (Scoped, Transient, or Singleton)
+- **One unkeyed default**: Exactly one unkeyed registration per service type is allowed
+- **Key governance**: If multiple implementations exist, additional ones must be keyed using constants (never inline strings)
+
+#### Adding a Keyed Implementation
+
+When adding a second (or nth) implementation of an existing service interface:
+
+- **Keys classes**: Use the appropriate keys class:
+  - `ProviderKeys` — provider/adapter implementations (email providers, auth providers)
+  - `StorageKeys` — storage backends (file storage, blob storage)
+  - `IntegrationKeys` — external integrations (payment gateways, notification services)
+- **Key naming**: Use lowercase, stable identifiers as `public const string` (e.g., `"resend"`, `"local"`)
+- **Allowed characters**: `[a-z0-9._-]` only (no whitespace/control chars)
+- **Collision avoidance**: Verify no other implementation of the same service type uses the same key
+- **Registration**: Use `.AddKeyed*<TService, TImpl>(YourKeys.YourKey)`
+- **Injection**: Use `[FromKeyedServices(YourKeys.YourKey)]` at the consumer
+
+#### DI Group Boundaries
+
+- **Web group** (`AddWebServices`): ASP.NET Core wiring (ProblemDetails, OpenAPI, CORS, compression)
+- **Infrastructure group** (`AddInfraServices`): External capabilities (DbContext, SDK clients, email, health checks)
+- **Application group** (`AddAppServices`): Business services only (`MainApi.Src.Modules.*.Services`)
+
+#### Attribute-Based Application Service Registration (`[Service]`)
+
+`[Service]` is used ONLY for application/business services and is enforced with fail-fast startup validation.
+
+Quick Do / Don't:
+
+- Do: Use `[Service]` only on concrete classes under `MainApi.Src.Modules.*.Services`
+- Do: Implement the primary interface `I{ClassName}`
+- Don't: Add multiple unkeyed implementations for the same service type (only one default allowed; additional ones must be keyed)
+
+- **Allowed location**: Only concrete classes under `MainApi.Src.Modules.*.Services`
+- **Scanning scope**: Single assembly (Main API) only
+- **Lifetime**: Must be explicit (`ServiceLifetime` is required)
+- **Interface binding**: Registers ONLY the primary interface `I{ClassName}`
+- **No register-as-self**
+- **No secondary interfaces**: If a class must be resolved via additional business interfaces, register those explicitly (manual DI wiring)
+- **Concrete only**: No abstract classes; no open generic type definitions
+- **Keyed DI**: Key type is `string` only
+- **Key format**: Non-empty, lowercase only
+- **Keys governance**: Keys must be centralized constants (no inline strings)
+- **Duplicate implementations**:
+  - Exactly ONE unkeyed default implementation per service type is allowed
+  - Additional implementations MUST be keyed
+  - Duplicate unkeyed defaults or duplicate keys are startup errors
+- **Migration guardrail**: If a service type is discovered via `[Service]`, it MUST NOT also have any explicit DI registrations (unkeyed or keyed). Startup fails fast to prevent half-migrated states.
+- **Misuse is a hard error**: Any `[Service]` attribute outside `MainApi.Src.Modules.*.Services` fails startup
+
+#### Fail-Fast Validation (Troubleshooting)
+
+Validation runs during `AddAppServices()` (before `builder.Build()`).
+On any violation, startup fails with `InvalidOperationException` and a bullet list of errors.
+
+Common failure categories and fixes:
+
+- **Abstract/open generic**: Remove `[Service]` or apply it only to a concrete, non-generic implementation.
+- **Invalid namespace**: Move the class to `MainApi.Src.Modules.<Domain>.Services` (or remove `[Service]` and wire explicitly).
+- **Missing primary interface**: Ensure the class implements `I{ClassName}`.
+- **Invalid key**: Use a non-empty, lowercase key constant; use `null` for unkeyed default.
+- **Duplicate unkeyed**: Keep exactly one default; key additional implementations.
+- **Duplicate keys**: Choose a unique key per service type.
+- **Assembly type load failure**: Fix missing/incompatible references; rebuild and review loader exception messages.
+
+#### DI Manifest Logging (Optional)
+
+If enabled, the app logs a discovered `[Service]` manifest once during startup (after `builder.Build()`),
+so the configured logging pipeline is guaranteed to be active.
+
+- **Config flag**: `DI_MANIFEST_ENABLED` environment variable (defaults to `false`)
+- **Logging**: Uses the configured Serilog pipeline (no temporary ServiceProvider)
+- **Noise control**: No output when no `[Service]` attributes are discovered
+
+### AppEnvironment (Configuration)
+
+All application configuration is loaded from environment variables via `AppEnvironment`. This class is initialized once at startup and provides static access throughout the application.
+
+**Initialization (in Program.cs):**
+```csharp
+AppEnvironment.Initialize(); // Must be called before anything else
+```
+
+**Usage anywhere in the codebase:**
+```csharp
+// Direct static access - no DI required
+var env = AppEnvironment.Instance;
+var frontUrl = env.FRONT_URL;
+var tokenLength = env.INVITATION_TOKEN_LENGTH;
+
+// Or inline
+var headerKey = AppEnvironment.Instance.SESSION_TOKEN_HEADER_KEY;
+```
+
+**Available properties:**
+
+| Category | Properties |
+|----------|------------|
+| **Secrets/URLs** | `POSTGRES_CONNECTION_STRING`, `FRONT_URL`, `RESEND_API_KEY`, `STAFF_OWNER_EMAIL`, `STAFF_OWNER_BOOTSTRAP_CODE` |
+| **App Settings** | `APP_NAME`, `SESSION_TOKEN_HEADER_KEY`, `TENANT_ID_HEADER_KEY`, `DEFAULT_EMAIL_SENDER_EMAIL`, `DEFAULT_EMAIL_SENDER_NAME` |
+| **Token Config** | `SESSION_EXPIRY_DAYS`, `EMAIL_VERIFY_TOKEN_VALIDITY_DURATION`, `PASSWORD_RESET_TOKEN_VALIDITY_DURATION`, `PASSWORD_MIN_LENGTH`, `EMAIL_VERIFY_TOKEN_LENGTH`, `PASSWORD_RESET_TOKEN_LENGTH`, `INVITATION_TOKEN_LENGTH` |
+| **Feature Flags** | `DI_MANIFEST_ENABLED` |
+| **Constants** | `MAX_PROFILES_PER_USER`, `PAGINATION_DEFAULT_LIMIT`, `MAX_BULK_INVITATIONS_SIZE`, `DEFAULT_MAX_USERS_PER_TENANT` |
+| **Computed** | `IsDevelopment`, `IsProduction`, `EnvironmentName` |
+
+**Environment files:**
+- Development: `.env.development` (committed to repo)
+- Production: `.env.production` (not in repo, set via deployment)
+
+**Why static access instead of DI?**
+- Configuration is immutable after startup
+- Needed in static methods, extension methods, and places without DI
+- Avoids `IOptions<T>` boilerplate throughout the codebase
+- Validated once at startup with fail-fast behavior
+
 ### Service Dependencies
 
 **CRITICAL:** Services MUST NOT depend on other services. This prevents circular dependencies.
@@ -1594,7 +1733,7 @@ public static class AcceptInvitation {
 
 **Architecture principle:** Handlers orchestrate, Services implement.
 
-**Exception:** Infrastructure services (ILogger, IConfiguration, IOptions) are OK since they don't create circular dependencies.
+**Exception:** Infrastructure services (ILogger, IConfiguration) are OK since they don't create circular dependencies.
 
 ### Naming Conventions
 
@@ -1681,7 +1820,7 @@ public static async Task<Results<
 **Note on framework/binding errors:**
 - Missing required query/body parameters can still produce a **400** (e.g., request body missing / required query parameter missing).
 - These are normalized by `UseCustomExceptionHandler()` to `AppProblemDetails` (`application/problem+json`), so endpoints may legitimately document both `400` (generic/binding) and `422` (validation).
-- `builder.Services.AddProblemDetails()` is registered (see `apps/api/Src/Lib/AppServices.cs`) for framework integration, but endpoints still return ProblemDetails explicitly via `TypedProblems.*`.
+- `builder.Services.AddProblemDetails()` is registered (see `apps/api/Src/Lib/ServiceRegistration.cs`) for framework integration, but endpoints still return ProblemDetails explicitly via `TypedProblems.*`.
 
 ```csharp
 // 400 - Generic bad request (e.g., invalid credentials)
@@ -2035,7 +2174,7 @@ const { mutate } = useMyMutation({
 **Environment variables:**
 - Development: `.env.development` (committed)
 - Production: `.env.production` (not in repo)
-- Validated at startup via `AppSettings` class
+- Validated at startup via `AppEnvironment.Initialize()`
 
 ## Deployment
 
@@ -2121,10 +2260,10 @@ public class CursorPaginatedResult<T> {
 
 **Problem:** .NET 10 OpenAPI generation can produce `["integer", "string"]` union types instead of just `"integer"` for `int` properties. This causes Kiota to generate `UntypedNode` types instead of proper `number` types.
 
-**Solution:** A schema transformer in `AppServices.cs` fixes this at OpenAPI generation time:
+**Solution:** A schema transformer in `ServiceRegistration.cs` fixes this at OpenAPI generation time:
 
 ```csharp
-// apps/api/Src/Lib/AppServices.cs
+// apps/api/Src/Lib/ServiceRegistration.cs
 builder.Services.AddOpenApi(options => {
     options.AddSchemaTransformer((schema, context, cancellationToken) => {
         if (schema.Type.HasValue) {

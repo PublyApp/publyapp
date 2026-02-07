@@ -6,6 +6,12 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<Compile Remove="**/*.IntegrationTests.cs" />
+		<Compile Remove="Src/Lib/Testing/**/*.cs" />
+		<Compile Remove="Tests/**/*.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="DotNetEnv" />
 		<PackageReference Include="FluentValidation.AspNetCore" />
 		<PackageReference Include="Microsoft.AspNetCore.OpenApi" />
@@ -30,12 +36,16 @@
 	</ItemGroup>
 
 	<!-- for exporting openapi documents to json file at build time -->
-	<PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)' != 'Test'">
 		<OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
 		<OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)\openapi</OpenApiDocumentsDirectory>
 		<!-- Prevent duplicate assembly attributes when OpenAPI doc generation runs -->
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)' == 'Test'">
+		<OpenApiGenerateDocuments>false</OpenApiGenerateDocuments>
 	</PropertyGroup>
 
 	<!-- Generate translation keys before build -->
@@ -48,12 +58,12 @@
 		<TranslationKeyGenDll>$(TranslationKeyGenOutputDir)\TranslationKeyGenerator.dll</TranslationKeyGenDll>
 	</PropertyGroup>
 
-	<Target Name="BuildTranslationKeyGenerator" BeforeTargets="GenerateTranslationKeys">
+	<Target Name="BuildTranslationKeyGenerator" BeforeTargets="GenerateTranslationKeys" Condition="'$(Configuration)' != 'Test'">
 		<Message Text="Building TranslationKeyGenerator..." Importance="normal" />
 		<Exec Command="dotnet build &quot;$(TranslationKeyGenProject)&quot; -c $(Configuration)" ContinueOnError="false" />
 	</Target>
 
-	<Target Name="GenerateTranslationKeys" BeforeTargets="BeforeBuild" DependsOnTargets="BuildTranslationKeyGenerator">
+	<Target Name="GenerateTranslationKeys" BeforeTargets="BeforeBuild" DependsOnTargets="BuildTranslationKeyGenerator" Condition="'$(Configuration)' != 'Test'">
 		<Message Text="Generating translation keys from response-message.en.json..." Importance="high" />
 		<Exec Command="dotnet &quot;$(TranslationKeyGenDll)&quot; &quot;$(TranslationJsonFile)&quot; &quot;$(GeneratedKeysFile)&quot;" ContinueOnError="false" />
 	</Target>

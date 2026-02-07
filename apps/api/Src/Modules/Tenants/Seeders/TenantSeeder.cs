@@ -2,11 +2,11 @@ using System.Data;
 
 using MainApi.Src.Data;
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib;
 using MainApi.Src.Modules.Tenants.Entities;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace MainApi.Src.Modules.Tenants.Seeders;
 
@@ -15,11 +15,9 @@ namespace MainApi.Src.Modules.Tenants.Seeders;
 /// </summary>
 public class TenantSeeder : IEntitySeeder {
 	private readonly ILogger<TenantSeeder> _logger;
-	private readonly IOptions<AppSettings> _appSettings;
 
-	public TenantSeeder(ILogger<TenantSeeder>? logger = null, IOptions<AppSettings>? appSettings = null) {
+	public TenantSeeder(ILogger<TenantSeeder>? logger = null) {
 		_logger = logger ?? CreateDefaultLogger();
-		_appSettings = appSettings ?? Options.Create(new AppSettings());
 	}
 
 	private static ILogger<TenantSeeder> CreateDefaultLogger() {
@@ -36,9 +34,9 @@ public class TenantSeeder : IEntitySeeder {
 		CancellationToken cancellationToken = default
 	) {
 		var tenantsData = new List<(string Code, string Name, TenantStatus Status)> {
-			("acme-corp", "Acme Corporation", TenantStatus.Active),
-			("techstart-inc", "TechStart Inc", TenantStatus.Active),
-			("global-solutions", "Global Solutions", TenantStatus.Active)
+			(SeedConstants.Tenants.AcmeCode, SeedConstants.Tenants.AcmeName, TenantStatus.Active),
+			(SeedConstants.Tenants.TechStartCode, SeedConstants.Tenants.TechStartName, TenantStatus.Active),
+			(SeedConstants.Tenants.GlobalCode, SeedConstants.Tenants.GlobalName, TenantStatus.Active)
 		};
 
 		var tenantCodes = tenantsData.Select(td => td.Code).ToList();
@@ -54,7 +52,7 @@ public class TenantSeeder : IEntitySeeder {
 				Code = td.Code,
 				Name = td.Name,
 				Status = td.Status,
-				MaxUsers = _appSettings.Value.DEFAULT_MAX_USERS_PER_TENANT
+				MaxUsers = AppEnvironment.Instance.DEFAULT_MAX_USERS_PER_TENANT
 			})
 			.ToList();
 
