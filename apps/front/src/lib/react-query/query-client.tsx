@@ -100,6 +100,15 @@ export const resetAuthLogoutFlag = (): void => {
 };
 
 /**
+ * Mark auth logout as in progress.
+ * Called by logout() before clearing the query cache to prevent
+ * the 401 error handler from triggering another logout() call.
+ */
+export const markAuthLogoutInProgress = (): void => {
+	authLogoutInProgress = true;
+};
+
+/**
  * Reset the tenant suspended handling flag.
  * Called alongside resetAuthLogoutFlag when a valid session is established.
  */

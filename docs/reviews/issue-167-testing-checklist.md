@@ -12,14 +12,14 @@
 ## 1. Staff Admin Panel - Tenants List
 
 ### 1.1 View Suspended Status
-- [ ] Navigate to Staff > Tenants list
-- [ ] Verify `isSuspended` column/badge shows correctly for active tenants
-- [ ] Verify suspended tenants show "Suspended" status label (red)
+- [x] Navigate to Staff > Tenants list
+- [x] Verify `isSuspended` column/badge shows correctly for active tenants
+- [x] Verify suspended tenants show "Suspended" status label (red)
 
 ### 1.2 Suspend Tenant Action
-- [ ] Find an **Active** tenant in the list
-- [ ] Click the suspend button (warning/orange icon)
-- [ ] Verify confirmation dialog appears with tenant name
+- [x] Find an **Active** tenant in the list
+- [x] Click the suspend button (warning/orange icon)
+- [x] Verify confirmation dialog appears with tenant name
 - [ ] Cancel - verify nothing changes
 - [ ] Click suspend again and confirm
 - [ ] Verify success toast: "Tenant has been suspended successfully"

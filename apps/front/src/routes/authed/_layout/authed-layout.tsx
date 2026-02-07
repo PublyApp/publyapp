@@ -16,6 +16,7 @@ import {
 	SIDEBAR_COOKIE_NAME,
 } from '@/front/lib/constants';
 import { getSessionCookieFromClient, logout } from '@/front/lib/cookies';
+import { resetLogoutFlag } from '@/front/lib/cookies/logout.utils';
 import { getSessionTokensFromClient } from '@/front/lib/cookies/session-cookie.utils';
 import { getClientManager } from '@/front/lib/js-client/client-manager';
 import {
@@ -150,12 +151,13 @@ const AuthQueriesLoader = ({ children }: { children: ReactNode }) => {
 	const userAuthData = results[0]?.data as { id?: string } | undefined;
 	const userId = userAuthData?.id;
 
-	// Session is valid - reset the auth logout flag on mount
-	// This ensures the flag doesn't stay stuck after SPA navigation (no page reload)
+	// Session is valid - reset all logout/auth flags on mount
+	// This ensures flags don't stay stuck after SPA navigation (no page reload)
 	// Using useEffect to avoid side-effects during render (React StrictMode safe)
 	useEffect(() => {
 		resetAuthLogoutFlag();
 		resetTenantSuspendedFlag();
+		resetLogoutFlag();
 	}, []);
 
 	// Set current user ID for tenant hint management (tenant-suspended handling)

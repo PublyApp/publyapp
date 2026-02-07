@@ -91,11 +91,16 @@ export const AuthSplitLayout = ({
 				slots={{ ...headerSlots, ...slotProps?.header?.slots }}
 				slotProps={_.merge(headerSlotProps, slotProps?.header?.slotProps ?? {})}
 				sx={[
-					{
-						position: { [layoutQuery]: 'fixed' },
+					(theme) => ({
+						position: 'sticky',
+						top: 0,
 						backgroundColor: 'transparent !important',
 						borderBottom: 'none !important',
-					},
+						marginBottom: {
+							[layoutQuery]: 'calc(-1 * var(--layout-header-desktop-height))',
+						},
+						zIndex: theme.zIndex.appBar,
+					}),
 					...(Array.isArray(slotProps?.header?.sx)
 						? (slotProps?.header?.sx ?? [])
 						: [slotProps?.header?.sx]),
@@ -123,38 +128,7 @@ export const AuthSplitLayout = ({
 						: [slotProps?.main?.sx]),
 				]}
 			>
-				<AuthSplitSection
-					layoutQuery={layoutQuery}
-					// method={'jwt'}
-					{...slotProps?.section}
-					// methods={[
-					// 	{
-					// 		label: 'Jwt',
-					// 		path: '#',
-					// 		icon: '/assets/icons/platforms/ic-jwt.svg',
-					// 	},
-					// 	{
-					// 		label: 'Firebase',
-					// 		path: '#',
-					// 		icon: '/assets/icons/platforms/ic-firebase.svg',
-					// 	},
-					// 	{
-					// 		label: 'Amplify',
-					// 		path: '#',
-					// 		icon: '/assets/icons/platforms/ic-amplify.svg',
-					// 	},
-					// 	{
-					// 		label: 'Auth0',
-					// 		path: '#',
-					// 		icon: '/assets/icons/platforms/ic-auth0.svg',
-					// 	},
-					// 	{
-					// 		label: 'Supabase',
-					// 		path: '#',
-					// 		icon: '/assets/icons/platforms/ic-supabase.svg',
-					// 	},
-					// ]}
-				/>
+				<AuthSplitSection layoutQuery={layoutQuery} {...slotProps?.section} />
 				<AuthSplitContent layoutQuery={layoutQuery} {...slotProps?.content}>
 					{children}
 				</AuthSplitContent>
