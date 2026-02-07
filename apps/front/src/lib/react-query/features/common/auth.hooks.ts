@@ -119,3 +119,14 @@ export const useGetUserTenants = createAuthQuery({
 		return result;
 	},
 });
+
+export const useGetUserTenantsForPicker = createAuthQuery({
+	queryKeyFn: (client) => client.auth.tenantsForPicker.get,
+	fetcher: async (client) => {
+		const result = await client.auth.tenantsForPicker.get();
+		if (_.isNil(result)) {
+			throw new Error('useGetUserTenantsForPicker: result is nil');
+		}
+		return result;
+	},
+});

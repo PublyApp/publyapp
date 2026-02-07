@@ -1,5 +1,5 @@
 # Makefile for PublyApp - Complete Script Migration
-.PHONY: help install dev build clean lint format test docker db-migrate db-reset
+.PHONY: help install dev build clean lint format test test-api docker db-migrate db-reset
 
 # Project paths
 API_DIR = apps/api
@@ -30,6 +30,9 @@ help:
 	@echo "  dev-api-alt - Start API with Node.js script"
 	@echo "  dev-front   - Start frontend development server"
 	@echo "  dev-db      - Start database with Docker"
+	@echo ""
+	@echo "=== TESTING ==="
+	@echo "  test-api    - Run API integration tests"
 	@echo ""
 	@echo "=== BUILDING ==="
 	@echo "  build-api   - Build API only (dotnet build)"
@@ -207,6 +210,14 @@ db-remove:
 # Catch-all target to prevent Make from trying to build non-existent targets
 %:
 	@:
+
+# =============================================================================
+# TESTING
+# =============================================================================
+
+test-api:
+	@echo "Running API integration tests..."
+	cd $(API_DIR) && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test
 
 # =============================================================================
 # DOCKER OPERATIONS
