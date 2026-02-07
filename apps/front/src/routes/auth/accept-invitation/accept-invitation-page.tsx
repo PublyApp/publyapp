@@ -276,7 +276,10 @@ const InvalidInvitationView = () => {
 };
 
 const AcceptInvitationPage = ({ loaderData }: Route.ComponentProps) => {
-	if (loaderData.code === 'INVALID_LINK') {
+	if (
+		loaderData.code === 'INVALID_LINK' ||
+		loaderData.code === 'NO_TOKEN_AND_ID'
+	) {
 		return (
 			<Box sx={boxStyles}>
 				<InvalidInvitationView />

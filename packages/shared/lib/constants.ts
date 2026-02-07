@@ -99,6 +99,7 @@ export const FRONT_PATH_NAMES = {
 	tenant: (tenantId = '') => {
 		return {
 			_root: makePath(RESOURCE.app),
+			organizations: makePath(RESOURCE.app, 'organizations'),
 			root: makePath(RESOURCE.app, tenantId),
 			posts: {
 				root: makePath(RESOURCE.app, tenantId, 'posts'),
@@ -244,6 +245,7 @@ export const SLUG_REGEX = /^[a-z0-9-]+$/;
 export const queryParamKey = {
 	language: 'lng',
 	token: 'token',
+	notice: 'notice',
 	login_page: {
 		redirect_cause: 'rc',
 	},
@@ -271,6 +273,9 @@ export const formActionKey = {
 } as const;
 
 export const queryParamValue = {
+	notice: {
+		org_suspended: 'org-suspended',
+	},
 	login_page: {
 		redirect_cause: {
 			invalid_session: 'invalid_session',
