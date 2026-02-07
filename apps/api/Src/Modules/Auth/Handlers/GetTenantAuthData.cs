@@ -2,6 +2,7 @@ using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Profiles.Services;
+using MainApi.Src.Modules.Tenants.Entities;
 using MainApi.Src.Modules.Tenants.Services;
 using MainApi.Src.Modules.Users.Entities;
 using MainApi.Src.Modules.Users.Services;
@@ -44,8 +45,7 @@ public class GetTenantAuthData {
 		Results<
 			Ok<GetTenantAuthDataResult.Staff>,
 			Ok<GetTenantAuthDataResult.Tenant>,
-			AppForbiddenHttpResult,
-			AppNotFoundHttpResult
+			AppForbiddenHttpResult
 		>
 	> HandleGetTenantAuthData(
 		IRequestAuthContext authContext,
@@ -60,7 +60,7 @@ public class GetTenantAuthData {
 			if (logger.IsEnabled(LogLevel.Error)) {
 				logger.LogError("{@GetUserAuthData}", new {
 					UserId = authContext.UserId,
-					SessionToken = authContext.SessionToken
+					HasSessionToken = authContext.SessionToken is not null
 				});
 			}
 			throw new Exception($"GetTenantAuthData must be set behind SessionAuthFilter.");
@@ -84,7 +84,6 @@ public class GetTenantAuthData {
 						new {
 							UserId = userId,
 							TenantId = query.TenantId,
-							SessionToken = authContext.SessionToken,
 						}
 					);
 				}
@@ -121,34 +120,69 @@ public class GetTenantAuthData {
 		var tenantId = query.GetTenantId();
 
 		if (tenantId == Guid.Empty) {
-			return TypedProblems.NotFound("Tenant not found", ResponseKeys.NotFound);
+			// Invalid tenant ID format - give generic 403 (don't reveal if tenant exists)
+			return TypedProblems.Forbidden(
+				"User does not have access to this tenant",
+				ResponseKeys.Forbidden
+			);
 		}
 
-		var tenant = await tenantService.GetTenantByIdAsync(tenantId, cancellationToken);
+		// SECURITY (D9): Check membership FIRST - before revealing any tenant info
+		// This prevents attackers from probing tenant IDs (they always get 403, never 404)
+		var tenantAccount = await accountService.GetUserTenantAccountAsync(
+			userId,
+			tenantId,
+			cancellationToken
+		);
 
-		if (tenant is null) {
-			return TypedProblems.NotFound("Tenant not found", ResponseKeys.NotFound);
-		}
-
-		var isUserMemberOfTenant = await accountService.IsUserMemberOfTenantAsync(userId, tenantId, cancellationToken);
-
-		if (!isUserMemberOfTenant) {
+		if (tenantAccount is null) {
+			// User is not a member - give generic 403 (don't reveal if tenant exists)
 			if (logger.IsEnabled(LogLevel.Warning)) {
 				logger.LogWarning(
-					"Attempt to access tenant auth data by user who is not a member of the tenant, {@LogData}",
+					"Attempt to access tenant auth data by user who is not a member, {@LogData}",
 					new {
 						UserId = userId,
 						TenantId = tenantId,
-						SessionToken = authContext.SessionToken,
 					}
 				);
 			}
 
-			return TypedProblems.Forbidden("User is not a member of this tenant", ResponseKeys.Forbidden);
+			return TypedProblems.Forbidden(
+				"User does not have access to this tenant",
+				ResponseKeys.Forbidden
+			);
 		}
 
-		// Get user's tenant account for level info
-		var tenantAccount = await accountService.GetUserTenantAccountAsync(userId, tenantId, cancellationToken);
+		// User IS a member - now safe to load tenant details
+		var tenant = await tenantService.GetTenantByIdIncludingSuspendedAsync(
+			tenantId,
+			cancellationToken
+		);
+
+		if (tenant is null) {
+			// Tenant was deleted - member loses access
+			return TypedProblems.Forbidden(
+				"User does not have access to this tenant",
+				ResponseKeys.Forbidden
+			);
+		}
+
+		// Check if tenant is suspended - only members see this specific message
+		if (tenant.IsSuspended) {
+			return TypedProblems.Forbidden(
+				"This tenant has been suspended",
+				ResponseKeys.TenantSuspended
+			);
+		}
+
+		// Check tenant is in a valid state (Active only at this point)
+		if (tenant.Status != TenantStatus.Active) {
+			// Pending/Archived - treat as inaccessible
+			return TypedProblems.Forbidden(
+				"User does not have access to this tenant",
+				ResponseKeys.Forbidden
+			);
+		}
 
 		var tenantProfileItems = await profileService.GetUserProfilesWithPermissionsForTenantAsync(
 			userId,

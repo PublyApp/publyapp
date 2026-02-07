@@ -6,9 +6,15 @@ import { type ReactNode, Suspense, useEffect } from 'react';
 import { Outlet, redirect } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
 
-import { NotFoundView, View403, View500 } from '@/front/components/error';
+import {
+	NotFoundView,
+	View403,
+	View500,
+	ViewTenantSuspended,
+} from '@/front/components/error';
 import { SplashScreen } from '@/front/components/loading-screen';
 import type { SettingsState } from '@/front/components/settings';
+import { toast } from '@/front/components/snackbar';
 import { useTenantParam } from '@/front/hooks/use-tenant-param';
 import { toApiFailure } from '@/front/lib/api-failure';
 import {
@@ -16,18 +22,24 @@ import {
 	SIDEBAR_COOKIE_NAME,
 } from '@/front/lib/constants';
 import { getSessionCookieFromClient, logout } from '@/front/lib/cookies';
+import { resetLogoutFlag } from '@/front/lib/cookies/logout.utils';
 import { getSessionTokensFromClient } from '@/front/lib/cookies/session-cookie.utils';
 import { getClientManager } from '@/front/lib/js-client/client-manager';
 import {
 	useGetTenantAuthData,
 	useGetUserAuthData,
 } from '@/front/lib/react-query/features/common/auth.hooks';
-import { resetAuthLogoutFlag } from '@/front/lib/react-query/query-client';
+import {
+	resetAuthLogoutFlag,
+	resetTenantSuspendedFlag,
+	setCurrentUserIdForTenantHint,
+} from '@/front/lib/react-query/query-client';
 import { getClientLoader } from '@/front/lib/react-router/client-data';
 import { useMainStore } from '@/front/lib/zustand/store';
 import {
 	FRONT_PATH_NAMES,
 	I18N_NAMESPACES,
+	queryParamKey,
 	queryParamValue,
 	REDIRECT_CODE,
 } from '@/shared/lib/constants';
@@ -140,13 +152,44 @@ const AuthQueriesLoader = ({ children }: { children: ReactNode }) => {
 	}
 
 	// trigger the queries in parallel
-	useSuspenseQueries({ queries });
+	const results = useSuspenseQueries({ queries });
 
-	// Session is valid - reset the auth logout flag on mount
-	// This ensures the flag doesn't stay stuck after SPA navigation (no page reload)
+	// Extract user ID from auth data for tenant-suspended handling
+	const userAuthData = results[0]?.data as { id?: string } | undefined;
+	const userId = userAuthData?.id;
+
+	// Session is valid - reset all logout/auth flags on mount
+	// This ensures flags don't stay stuck after SPA navigation (no page reload)
 	// Using useEffect to avoid side-effects during render (React StrictMode safe)
 	useEffect(() => {
 		resetAuthLogoutFlag();
+		resetTenantSuspendedFlag();
+		resetLogoutFlag();
+	}, []);
+
+	// Set current user ID for tenant hint management (tenant-suspended handling)
+	// This needs to run after auth data is loaded so the global handler can clear the hint
+	useEffect(() => {
+		if (userId) {
+			setCurrentUserIdForTenantHint(userId);
+		}
+	}, [userId]);
+
+	// Show toast when redirected with org-suspended notice
+	useEffect(() => {
+		const params = new URLSearchParams(window.location.search);
+		if (
+			params.get(queryParamKey.notice) === queryParamValue.notice.org_suspended
+		) {
+			toast.warning(i18next.t('suspended-tenants-notice', { ns: 'common' }));
+			// Clean up the query param from URL
+			params.delete(queryParamKey.notice);
+			const newUrl =
+				params.size > 0
+					? `${window.location.pathname}?${params}`
+					: window.location.pathname;
+			window.history.replaceState({}, '', newUrl);
+		}
 	}, []);
 
 	return <>{children}</>;
@@ -208,6 +251,14 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 					queryParamValue.login_page.redirect_cause.invalid_session,
 			});
 			return <SplashScreen />;
+		}
+
+		// Handle 403 tenant-suspended - show dedicated page
+		if (
+			failure.status === 403 &&
+			failure.translationKey === 'tenant-suspended'
+		) {
+			return <ViewTenantSuspended />;
 		}
 
 		// Handle 403 Forbidden - user doesn't have access (no logout!)
