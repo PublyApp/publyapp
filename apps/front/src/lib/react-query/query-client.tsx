@@ -7,8 +7,7 @@ import {
 	clearLegacyTenantFromBrowser,
 	clearTenantHintForUserInBrowser,
 } from '@/front/lib/cookies';
-import { globalNavigate } from '@/front/lib/react-router/navigation-helper';
-import { FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
+import { isServer } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 
 // NOTE: Do NOT import toast at module level - some toast libs crash on SSR import
@@ -126,7 +125,9 @@ export const setCurrentUserIdForTenantHint = (userId?: string): void => {
 
 /**
  * Handle tenant-suspended 403 error.
- * Clears the tenant hint for the current user and navigates to tenant picker.
+ * Clears the tenant hint cookie to prevent redirect loops, but does NOT
+ * navigate — the error bubbles up to the ErrorBoundary which shows a
+ * dedicated "tenant suspended" page.
  * Returns true if the error was handled, false otherwise.
  */
 const handleTenantSuspendedError = (
@@ -163,11 +164,9 @@ const handleTenantSuspendedError = (
 	// Also clear legacy cookie to prevent fallback to suspended tenant
 	clearLegacyTenantFromBrowser();
 
-	// Navigate to tenant picker page (which shows all tenants including suspended)
-	// Use replace to prevent back-button returning to suspended tenant page
-	globalNavigate(FRONT_PATH_NAMES.tenant()._root, { replace: true });
-
-	logger.info('[Tenant Suspended] Redirecting to tenant picker');
+	// Don't navigate — let the error bubble to the ErrorBoundary
+	// which renders ViewTenantSuspended in-place
+	logger.info('[Tenant Suspended] Letting error bubble to ErrorBoundary');
 
 	return true; // Error was handled - don't show generic toast
 };

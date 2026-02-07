@@ -493,5 +493,9 @@
 	"suspend-tenant": "Suspend Tenant",
 	"reactivate-tenant": "Reactivate Tenant",
 	"suspend-tenant-confirm": "Are you sure you want to suspend \"{{name}}\"? Users will not be able to access this tenant while it is suspended.",
-	"reactivate-tenant-confirm": "Are you sure you want to reactivate \"{{name}}\"? Users will be able to access this tenant again."
+	"reactivate-tenant-confirm": "Are you sure you want to reactivate \"{{name}}\"? Users will be able to access this tenant again.",
+	"tenant-suspended-title": "Organization Suspended",
+	"tenant-suspended-description": "This organization has been temporarily suspended and is currently unavailable. If you believe this is an error, please contact support.",
+	"go-to-my-organizations": "Go to my organizations",
+	"suspended-tenants-notice": "One or more of your organizations have been suspended."
 }
