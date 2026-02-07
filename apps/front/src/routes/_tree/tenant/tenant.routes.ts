@@ -6,6 +6,7 @@ import { getLastPath } from '@org/shared/utils/string.utils';
 const PATHS = FRONT_PATH_NAMES.tenant(':tenantId');
 const TENANT_ROUTE_SEGMENTS = {
 	portal: getLastPath(PATHS._root),
+	organizations: getLastPath(PATHS.organizations, 2),
 	root: getLastPath(PATHS.root, 2),
 	postsRoot: getLastPath(PATHS.posts.root),
 	postsDrafts: getLastPath(PATHS.posts.drafts, 2),
@@ -18,6 +19,10 @@ export const tenantRoutes = [
 	route(
 		TENANT_ROUTE_SEGMENTS.portal,
 		'routes/authed/tenant/_portal/tenant-portal-page.tsx',
+	),
+	route(
+		TENANT_ROUTE_SEGMENTS.organizations,
+		'routes/authed/tenant/organizations/organizations-page.tsx',
 	),
 	route(
 		TENANT_ROUTE_SEGMENTS.root,

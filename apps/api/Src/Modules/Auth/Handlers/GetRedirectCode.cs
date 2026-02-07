@@ -24,6 +24,7 @@ public class GetRedirectCodeQueryValidator : AbstractValidator<GetRedirectCodeQu
 
 public class GetRedirectCodeResult {
 	public string RedirectCode { get; set; } = string.Empty;
+	public bool HasSuspendedTenants { get; set; }
 }
 
 public class GetRedirectCode {
@@ -65,17 +66,22 @@ public class GetRedirectCode {
 			return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "staff" });
 		}
 
+		// Load tenants once — used by both hint validation and fallback
+		var tenantsResult = await accountService.GetUserTenantsForPickerAsync(
+			userId, limit: 50, cancellationToken: cancellationToken
+		);
+
 		var tenantIdHint = query.GetTenantId();
 
 		// If tenant hint provided, validate access (including tenant status)
 		if (tenantIdHint is Guid hintTenantId) {
-			// Use method that checks BOTH account AND tenant status
-			var isMemberOfActiveTenant = await accountService.IsUserMemberOfActiveTenantAsync(
-				userId, hintTenantId, cancellationToken
-			);
+			var isMemberOfActiveTenant =
+				await accountService.IsUserMemberOfActiveTenantAsync(
+					userId, hintTenantId, cancellationToken
+				);
 
 			if (isMemberOfActiveTenant) {
-				// Hint is valid - use it
+				// Hint is valid — auto-redirect to it
 				if (logger.IsEnabled(LogLevel.Information)) {
 					logger.LogInformation(
 						"Using valid tenant hint {TenantId} for user {UserId}",
@@ -83,25 +89,20 @@ public class GetRedirectCode {
 					);
 				}
 				return TypedResults.Ok(new GetRedirectCodeResult {
-					RedirectCode = hintTenantId.ToString()
+					RedirectCode = hintTenantId.ToString(),
+					HasSuspendedTenants = tenantsResult.HasSuspendedTenants,
 				});
 			}
 
-			// Hint is stale/invalid (user not member, or tenant suspended/inactive/deleted)
-			// Fall through to tenant selection instead of hard "unauthorized"
+			// Hint is stale/invalid — fall through to tenant selection
 			if (logger.IsEnabled(LogLevel.Information)) {
 				logger.LogInformation(
-					"Stale tenant hint {TenantId} for user {UserId}, falling through to selection",
+					"Stale tenant hint {TenantId} for user {UserId}, "
+						+ "falling through to selection",
 					hintTenantId, userId
 				);
 			}
 		}
-
-		// No valid hint - determine redirect based on tenant count
-		// Use the picker method to include suspended tenants in decision
-		var tenantsResult = await accountService.GetUserTenantsForPickerAsync(
-			userId, limit: 50, cancellationToken: cancellationToken
-		);
 
 		// No tenants at all (not even suspended) - unauthorized
 		if (tenantsResult.TotalCount == 0) {
@@ -111,12 +112,13 @@ public class GetRedirectCode {
 					userId
 				);
 			}
-			return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "unauthorized" });
+			return TypedResults.Ok(new GetRedirectCodeResult {
+				RedirectCode = "unauthorized",
+			});
 		}
 
-		// Exactly 1 ACTIVE tenant - redirect directly to that tenant
+		// Exactly 1 ACTIVE tenant - redirect directly
 		if (tenantsResult.ActiveCount == 1) {
-			// Use the pre-computed IsActive flag (same logic as ActiveCount)
 			var activeTenant = tenantsResult.Tenants.First(t => t.IsActive);
 			if (logger.IsEnabled(LogLevel.Information)) {
 				logger.LogInformation(
@@ -125,18 +127,21 @@ public class GetRedirectCode {
 				);
 			}
 			return TypedResults.Ok(new GetRedirectCodeResult {
-				RedirectCode = activeTenant.Id.ToString()
+				RedirectCode = activeTenant.Id.ToString(),
+				HasSuspendedTenants = tenantsResult.HasSuspendedTenants,
 			});
 		}
 
-		// Multiple active tenants OR has suspended tenants - show picker
-		// This ensures users with ALL tenants suspended see the picker (not "unauthorized")
+		// Multiple active tenants OR all suspended - show picker
 		if (logger.IsEnabled(LogLevel.Information)) {
 			logger.LogInformation(
 				"User {UserId} has {TotalCount} tenants ({ActiveCount} active), returning tenant-picker",
 				userId, tenantsResult.TotalCount, tenantsResult.ActiveCount
 			);
 		}
-		return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "tenant-picker" });
+		return TypedResults.Ok(new GetRedirectCodeResult {
+			RedirectCode = "tenant-picker",
+			HasSuspendedTenants = tenantsResult.HasSuspendedTenants,
+		});
 	}
 }

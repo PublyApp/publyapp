@@ -151,8 +151,12 @@ export const action = getServerAction({
 			throw new Error('Failed to login');
 		}
 
+		const redirectCodeData = getRedirectCodeResult.data;
 		const redirectCode =
-			getRedirectCodeResult.data?.redirectCode || REDIRECT_CODE.UNAUTHORIZED;
+			redirectCodeData?.redirectCode || REDIRECT_CODE.UNAUTHORIZED;
+		const hasSuspendedTenants =
+			(redirectCodeData as { hasSuspendedTenants?: boolean })
+				?.hasSuspendedTenants ?? false;
 
 		let redirectPath: string;
 		const isSecure = isSecureCookieFromRequest(request);
@@ -186,6 +190,11 @@ export const action = getServerAction({
 			responseHeaders.append('Set-Cookie', mappingCookie);
 
 			redirectPath = FRONT_PATH_NAMES.tenant(redirectCode).root;
+
+			// Notify user about suspended orgs via query param
+			if (hasSuspendedTenants) {
+				redirectPath += `?${queryParamKey.notice}=${queryParamValue.notice.org_suspended}`;
+			}
 		}
 
 		// Clear legacy cookie if it existed (one-time migration)

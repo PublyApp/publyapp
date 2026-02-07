@@ -1407,6 +1407,7 @@ export function deserializeIntoFindTenantProfilesAsStaffResult(findTenantProfile
 // @ts-ignore
 export function deserializeIntoGetRedirectCodeResult(getRedirectCodeResult: Partial<GetRedirectCodeResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "hasSuspendedTenants": n => { getRedirectCodeResult.hasSuspendedTenants = n.getBooleanValue(); },
         "redirectCode": n => { getRedirectCodeResult.redirectCode = n.getStringValue(); },
     }
 }
@@ -2129,6 +2130,10 @@ export interface FindTenantProfilesAsStaffResult extends AdditionalDataHolder, P
     profiles?: ProfileAsStaffItem[] | null;
 }
 export interface GetRedirectCodeResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The hasSuspendedTenants property
+     */
+    hasSuspendedTenants?: boolean | null;
     /**
      * The redirectCode property
      */
@@ -2863,6 +2868,7 @@ export function serializeFindTenantProfilesAsStaffResult(writer: SerializationWr
 // @ts-ignore
 export function serializeGetRedirectCodeResult(writer: SerializationWriter, getRedirectCodeResult: Partial<GetRedirectCodeResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!getRedirectCodeResult || isSerializingDerivedType) { return; }
+    writer.writeBooleanValue("hasSuspendedTenants", getRedirectCodeResult.hasSuspendedTenants);
     writer.writeStringValue("redirectCode", getRedirectCodeResult.redirectCode);
     writer.writeAdditionalData(getRedirectCodeResult.additionalData);
 }
