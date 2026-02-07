@@ -6,8 +6,9 @@ import CardActionArea from '@mui/material/CardActionArea';
 import CardContent from '@mui/material/CardContent';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid';
+import Link from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 
 import { Iconify } from '@/front/components/iconify/iconify';
@@ -15,11 +16,16 @@ import { Label } from '@/front/components/label/label';
 import { SplashScreen } from '@/front/components/loading-screen/splash-screen';
 import QueryDisplay from '@/front/components/query-display';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { ColorSchemePopover } from '@/front/layouts/components/colorscheme-popover';
+import { LanguagePopover } from '@/front/layouts/components/language-popover';
+import { SimpleLayout } from '@/front/layouts/simple/layout';
+import { logout } from '@/front/lib/cookies';
 import {
 	getTenantHintForUser,
 	readLegacyTenantFromBrowser,
 	readTenantHintsFromBrowser,
 } from '@/front/lib/cookies/tenant-hint-cookie.utils';
+import { allLangs } from '@/front/lib/locales/all-langs';
 import {
 	useGetRedirectCode,
 	useGetUserAuthData,
@@ -54,7 +60,6 @@ const TenantCard = ({ tenant, onSelect }: TenantCardProps) => {
 				display: 'flex',
 				alignItems: 'center',
 				gap: 2,
-				opacity: isDisabled ? 0.5 : 1,
 			}}
 		>
 			<Box
@@ -66,6 +71,7 @@ const TenantCard = ({ tenant, onSelect }: TenantCardProps) => {
 					justifyContent: 'center',
 					borderRadius: 1,
 					bgcolor: 'background.neutral',
+					opacity: isDisabled ? 0.5 : 1,
 				}}
 			>
 				<Iconify
@@ -78,7 +84,9 @@ const TenantCard = ({ tenant, onSelect }: TenantCardProps) => {
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
 					<Typography
 						variant="subtitle1"
-						sx={{ color: isDisabled ? 'text.disabled' : 'text.primary' }}
+						sx={{
+							color: isDisabled ? 'text.disabled' : 'text.primary',
+						}}
 					>
 						{tenant.name}
 					</Typography>
@@ -89,7 +97,11 @@ const TenantCard = ({ tenant, onSelect }: TenantCardProps) => {
 					)}
 				</Box>
 				{tenant.code && (
-					<Typography variant="caption" color="text.secondary">
+					<Typography
+						variant="caption"
+						color="text.secondary"
+						sx={{ opacity: isDisabled ? 0.5 : 1 }}
+					>
 						{tenant.code}
 					</Typography>
 				)}
@@ -109,8 +121,8 @@ const TenantCard = ({ tenant, onSelect }: TenantCardProps) => {
 			<Card
 				variant="outlined"
 				sx={{
-					cursor: 'not-allowed',
-					bgcolor: 'action.disabledBackground',
+					cursor: 'default',
+					bgcolor: 'transparent',
 				}}
 			>
 				{cardContent}
@@ -140,68 +152,114 @@ const TenantPicker = () => {
 		navigate(FRONT_PATH_NAMES.tenant(tenantId).root, { replace: true });
 	};
 
-	return (
-		<Container maxWidth="sm" sx={{ py: 8 }}>
-			<Typography variant="h4" sx={{ mb: 1, textAlign: 'center' }}>
-				{t('select-organization')}
-			</Typography>
-			<Typography
-				variant="body2"
-				color="text.secondary"
-				sx={{ mb: 4, textAlign: 'center' }}
-			>
-				{t('select-organization-description')}
-			</Typography>
+	const handleLogout = useCallback(() => {
+		logout();
+	}, []);
 
-			<QueryDisplay
-				query={tenantsQuery}
-				LoadingSlot={() => (
-					<Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-						<SplashScreen />
-					</Box>
-				)}
-				ErrorSlot={() => (
-					<Typography color="error" sx={{ textAlign: 'center' }}>
-						{t('failed-to-load-organizations')}
-					</Typography>
-				)}
-				EmptySlot={() => (
-					<Typography color="text.secondary" sx={{ textAlign: 'center' }}>
-						{t('no-organizations-found')}
-					</Typography>
-				)}
-			>
-				{({ data }) => (
-					<Box>
-						{/* TODO: Replace support@example.com with env.VITE_SUPPORT_EMAIL */}
-						{data.hasSuspendedTenants && (
-							<Alert
-								severity="warning"
-								sx={{ mb: 3 }}
-								action={
-									<Button
-										color="inherit"
-										size="small"
+	return (
+		<SimpleLayout
+			slotProps={{
+				header: {
+					slots: {
+						rightArea: (
+							<Box
+								sx={{
+									display: 'flex',
+									alignItems: 'center',
+									gap: { xs: 1, sm: 1.5 },
+								}}
+							>
+								<ColorSchemePopover />
+								<LanguagePopover data={allLangs} />
+							</Box>
+						),
+					},
+				},
+			}}
+		>
+			<Container maxWidth="sm" sx={{ py: 8 }}>
+				<Typography variant="h4" sx={{ mb: 1, textAlign: 'center' }}>
+					{t('select-organization')}
+				</Typography>
+				<Typography
+					variant="body2"
+					color="text.secondary"
+					sx={{ mb: 4, textAlign: 'center' }}
+				>
+					{t('select-organization-description')}
+				</Typography>
+
+				<QueryDisplay
+					query={tenantsQuery}
+					LoadingSlot={() => (
+						<Box
+							sx={{
+								display: 'flex',
+								justifyContent: 'center',
+								py: 4,
+							}}
+						>
+							<SplashScreen />
+						</Box>
+					)}
+					ErrorSlot={() => (
+						<Typography color="error" sx={{ textAlign: 'center' }}>
+							{t('failed-to-load-organizations')}
+						</Typography>
+					)}
+					EmptySlot={() => (
+						<Typography color="text.secondary" sx={{ textAlign: 'center' }}>
+							{t('no-organizations-found')}
+						</Typography>
+					)}
+				>
+					{({ data }) => (
+						<Box>
+							{data.hasSuspendedTenants && (
+								<Alert severity="warning" sx={{ mb: 3 }}>
+									{t('suspended-tenants-banner')}{' '}
+									<Link
 										href="mailto:support@example.com"
+										color="inherit"
+										sx={{ fontWeight: 'bold' }}
 									>
 										{t('contact-support')}
-									</Button>
-								}
-							>
-								{t('suspended-tenants-banner')}
-							</Alert>
-						)}
-						<Grid container spacing={2}>
-							{data.tenants?.map((tenant) => (
-								<Grid size={{ xs: 12 }} key={tenant.id}>
-									<TenantCard tenant={tenant} onSelect={handleSelectTenant} />
-								</Grid>
-							))}
-						</Grid>
-					</Box>
-				)}
-			</QueryDisplay>
-		</Container>
+									</Link>
+								</Alert>
+							)}
+							<Grid container spacing={2}>
+								{data.tenants?.map((tenant) => (
+									<Grid size={{ xs: 12 }} key={tenant.id}>
+										<TenantCard tenant={tenant} onSelect={handleSelectTenant} />
+									</Grid>
+								))}
+							</Grid>
+						</Box>
+					)}
+				</QueryDisplay>
+
+				<Box
+					sx={{
+						mt: 4,
+						display: 'flex',
+						justifyContent: 'flex-start',
+					}}
+				>
+					<Button
+						variant="text"
+						startIcon={
+							<Iconify icon="solar:logout-2-bold-duotone" width={18} />
+						}
+						onClick={handleLogout}
+						sx={{
+							color: 'text.secondary',
+						}}
+					>
+						{t('log-out')}
+					</Button>
+				</Box>
+			</Container>
+		</SimpleLayout>
 	);
 };
 
