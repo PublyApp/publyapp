@@ -4,7 +4,7 @@ import i18next from 'i18next';
 import get from 'lodash/get';
 import toStr from 'lodash/toString';
 import { type ReactNode, Suspense, useEffect } from 'react';
-import { Outlet } from 'react-router';
+import { Outlet, redirect } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
 
 import {
@@ -46,12 +46,6 @@ import { useMainStore } from '#app/lib/zustand/store.ts';
 
 import type { Route } from './+types/authed-layout';
 
-// export const loader = getServerLoader({
-// 	loader: async () => {
-// 		return null;
-// 	},
-// });
-
 export const clientLoader = getClientLoader({
 	loader: async (_args: Route.ClientLoaderArgs) => {
 		i18next
@@ -65,9 +59,56 @@ export const clientLoader = getClientLoader({
 		if (!sessionToken) {
 			// No session token readable by JavaScript
 			// Submit form to clear any httpOnly cookie and redirect to login
-			logout({ redirectCause: 'invalid_session' });
+			logout({
+				redirectCause:
+					queryParamValue.login_page.redirect_cause.invalid_session,
+			});
 			// Return null while form is submitting (navigation will take over)
 			return null;
+		}
+
+		// Guard against cross-scope navigation (tenant user on /staff, staff user on /app).
+		// Prefer cookie prefixes when available (s:/t:), but fall back to GetRedirectCode for
+		// legacy cookies (raw token) to avoid redirect loops.
+		const { staffToken, tenantToken } = getSessionTokensFromClient();
+		const pathname = new URL(_args.request.url).pathname;
+		const isStaffPath = pathname.startsWith(FRONT_PATH_NAMES.staff.root);
+		const isTenantPath = pathname.startsWith(FRONT_PATH_NAMES.tenant().root);
+
+		if (isStaffPath && !staffToken && tenantToken) {
+			try {
+				const result = await getClientManager()
+					.createClient()
+					.auth.redirectCode.get();
+				const redirectCode = result?.redirectCode;
+
+				// Only redirect away from /staff if we can positively identify the user as NOT staff.
+				if (redirectCode && redirectCode !== REDIRECT_CODE.STAFF) {
+					return redirect(FRONT_PATH_NAMES.tenant().root);
+				}
+			} catch {
+				// No redirect on error (avoid locking users into a loop)
+			}
+		}
+
+		// Fast-path when cookie clearly indicates staff context (s:... present).
+		if (isTenantPath && !tenantToken && staffToken) {
+			return redirect(FRONT_PATH_NAMES.staff.root);
+		}
+
+		// Legacy staff cookies are stored as tenantToken only; detect staff via redirectCode.
+		if (isTenantPath && tenantToken && !staffToken) {
+			try {
+				const result = await getClientManager()
+					.createClient()
+					.auth.redirectCode.get();
+				const redirectCode = result?.redirectCode;
+				if (redirectCode === REDIRECT_CODE.STAFF) {
+					return redirect(FRONT_PATH_NAMES.staff.root);
+				}
+			} catch {
+				// No redirect on error (fall back to normal page behavior, possibly 403)
+			}
 		}
 
 		const browserCookies = cookie.parse(document.cookie);
@@ -103,7 +144,7 @@ const AuthQueriesLoader = ({ children }: { children: ReactNode }) => {
 	const queries = [useGetUserAuthData.getOptions({})];
 
 	// trigger the queries in parallel
-	useSuspenseQueries({ queries });
+	const results = useSuspenseQueries({ queries });
 
 	// Session is valid - reset all logout/auth flags on mount
 	// This ensures flags don't stay stuck after SPA navigation (no page reload)
@@ -131,6 +172,14 @@ const AuthQueriesLoader = ({ children }: { children: ReactNode }) => {
 		}
 	}, []);
 
+	// Set current user ID for tenant hint management (tenant-suspended handling)
+	// This needs to run after auth data is loaded so the global handler can clear the hint
+	useEffect(() => {
+		if (userId) {
+			setCurrentUserIdForTenantHint(userId);
+		}
+	}, [userId]);
+
 	return <>{children}</>;
 };
 
@@ -143,7 +192,9 @@ const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 	if (!sessionToken) {
 		// No session token - this is a safety check
 		// Submit form to clear any httpOnly cookie and redirect to login
-		logout({ redirectCause: 'invalid_session' });
+		logout({
+			redirectCause: queryParamValue.login_page.redirect_cause.invalid_session,
+		});
 
 		return <SplashScreen />;
 	}
@@ -183,7 +234,10 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 		// for clean UX during redirect
 		if (failure.status === 401) {
 			// Trigger logout (may be redundant if global handler already fired, but safe)
-			logout({ redirectCause: 'invalid_session' });
+			logout({
+				redirectCause:
+					queryParamValue.login_page.redirect_cause.invalid_session,
+			});
 			return <SplashScreen />;
 		}
 

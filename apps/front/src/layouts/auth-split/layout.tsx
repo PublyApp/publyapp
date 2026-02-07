@@ -6,8 +6,8 @@ import _ from 'lodash';
 import { Logo } from '#app/components/logo/logo.tsx';
 import { allLangs } from '#app/lib/locales/all-langs.ts';
 
+import { ColorSchemePopover } from '../components/colorscheme-popover';
 import { LanguagePopover } from '../components/language-popover';
-import { SettingsButton } from '../components/settings-button';
 import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
 import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
 import { MainSection, type MainSectionProps } from '../core/main-section';
@@ -71,7 +71,10 @@ export const AuthSplitLayout = ({
 					</Link> */}
 
 					{/** @slot Settings button */}
-					<SettingsButton />
+					{/* <SettingsButton /> */}
+
+					{/** @slot Color scheme popover */}
+					<ColorSchemePopover />
 
 					{/** @slot Language popover */}
 					<LanguagePopover data={allLangs} />
@@ -82,12 +85,22 @@ export const AuthSplitLayout = ({
 		return (
 			<HeaderSection
 				disableElevation
+				disableOffset
 				layoutQuery={layoutQuery}
 				{...slotProps?.header}
 				slots={{ ...headerSlots, ...slotProps?.header?.slots }}
 				slotProps={_.merge(headerSlotProps, slotProps?.header?.slotProps ?? {})}
 				sx={[
-					{ position: { [layoutQuery]: 'fixed' } },
+					(theme) => ({
+						position: 'sticky',
+						top: 0,
+						backgroundColor: 'transparent !important',
+						borderBottom: 'none !important',
+						marginBottom: {
+							[layoutQuery]: 'calc(-1 * var(--layout-header-desktop-height))',
+						},
+						zIndex: theme.zIndex.appBar,
+					}),
 					...(Array.isArray(slotProps?.header?.sx)
 						? (slotProps?.header?.sx ?? [])
 						: [slotProps?.header?.sx]),
@@ -115,38 +128,7 @@ export const AuthSplitLayout = ({
 						: [slotProps?.main?.sx]),
 				]}
 			>
-				<AuthSplitSection
-					layoutQuery={layoutQuery}
-					// method={'jwt'}
-					{...slotProps?.section}
-					// methods={[
-					// 	{
-					// 		label: 'Jwt',
-					// 		path: '#',
-					// 		icon: '/assets/icons/platforms/ic-jwt.svg',
-					// 	},
-					// 	{
-					// 		label: 'Firebase',
-					// 		path: '#',
-					// 		icon: '/assets/icons/platforms/ic-firebase.svg',
-					// 	},
-					// 	{
-					// 		label: 'Amplify',
-					// 		path: '#',
-					// 		icon: '/assets/icons/platforms/ic-amplify.svg',
-					// 	},
-					// 	{
-					// 		label: 'Auth0',
-					// 		path: '#',
-					// 		icon: '/assets/icons/platforms/ic-auth0.svg',
-					// 	},
-					// 	{
-					// 		label: 'Supabase',
-					// 		path: '#',
-					// 		icon: '/assets/icons/platforms/ic-supabase.svg',
-					// 	},
-					// ]}
-				/>
+				<AuthSplitSection layoutQuery={layoutQuery} {...slotProps?.section} />
 				<AuthSplitContent layoutQuery={layoutQuery} {...slotProps?.content}>
 					{children}
 				</AuthSplitContent>
