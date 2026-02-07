@@ -11,11 +11,14 @@ export {
 // =============================================================================
 
 export {
+	// Client-side helpers (browser)
+	clearLegacyTenantFromBrowser, // Clear legacy cookie (tenant-suspended handling)
+	clearTenantHintForUserInBrowser, // Clear hint for specific user (tenant-suspended handling)
 	// Map operations (used by both server and client)
 	getTenantHintForUser,
 	isSecureCookieFromBrowser,
 	isSecureCookieFromRequest,
-	// Client-side helpers (browser)
+	readLegacyTenantFromBrowser, // Read legacy cookie for migration fallback
 	readTenantHintsFromBrowser,
 	readTenantHintsFromRequest, // If you already have parsed cookies
 	// Server-side helpers (SSR loaders/actions)
