@@ -1,6 +1,7 @@
 {
 	"cSpell.language": "en,fr",
 	"editor.defaultFormatter": "biomejs.biome",
+	"biome.lspBin": "node_modules/@biomejs/biome/bin/biome",
 	"editor.codeActionsOnSave": {
 		"source.sortImports": "explicit",
 		"source.fixAll.biome": "explicit",
@@ -26,6 +27,9 @@
 	},
 	"typescript.tsdk": "node_modules\\typescript\\lib",
 	"files.eol": "\n",
+	"files.associations": {
+		"*.slnx": "xml"
+	},
 	"[jsonc]": {
 		"editor.defaultFormatter": "vscode.json-language-features"
 	},
@@ -42,7 +46,7 @@
 			"sessionToken": "f3d6202a8565dcff45532b526534bec0"
 		}
 	},
-	"dotnet.defaultSolution": "PublyApp.sln",
+	"dotnet.defaultSolution": "PublyApp.slnx",
 	"dotnet.formatting.organizeImportsOnFormat": true,
 	"cSpell.words": [
 		"airbnb",
