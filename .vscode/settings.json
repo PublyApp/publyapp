@@ -1,6 +1,7 @@
 {
 	"cSpell.language": "en,fr",
 	"editor.defaultFormatter": "biomejs.biome",
+	"biome.lspBin": "node_modules/@biomejs/biome/bin/biome",
 	"editor.codeActionsOnSave": {
 		"source.sortImports": "explicit",
 		"source.fixAll.biome": "explicit",
