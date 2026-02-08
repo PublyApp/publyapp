@@ -31,8 +31,7 @@ pre {
 			color: #f99157;
 		}
 		.hljs-class .hljs-title,
-		/* biome-ignore lint/style/noDescendingSpecificity: i don't know why this is needed */
-			.hljs-title,
+		.hljs-title,
 		.hljs-title.class_ {
 			color: #fc6;
 		}
@@ -70,7 +69,6 @@ pre {
 			color: #c9c;
 			font-style: italic;
 		}
-		/* biome-ignore lint/style/noDescendingSpecificity: i don't know why this is needed */
 		.hljs-meta,
 		.hljs-meta .hljs-keyword,
 		.hljs-meta .hljs-string {
