@@ -7,11 +7,11 @@ import LinearProgress from '@mui/material/LinearProgress';
 import Stack from '@mui/material/Stack';
 import { alpha } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
+import { nanoid } from 'nanoid';
 
 import { Iconify } from '@/front/components/iconify/iconify';
 import { SettingsPageHeader } from '@/front/components/settings/settings-page-header';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { nanoid } from 'nanoid';
 
 const _invoices = [
 	{ id: nanoid(), date: 'Dec 1, 2026', amount: '$49.00', status: 'Paid' },
