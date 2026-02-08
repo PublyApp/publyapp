@@ -1,8 +1,0 @@
-vars:pre-request {
-  BASE_URL: http://localhost:5000
-  SESSION_HEADER_KEY: X-Session-Token
-}
-
-vars:post-response {
-  SESSION_TOKEN: bru.getVar("SESSION_TOKEN")
-}
