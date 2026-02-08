@@ -160,27 +160,27 @@ tsc-front:
 
 lint:
 	@echo "Running linting..."
-	biome lint .
+	pnpm biome lint .
 
 lint-write:
 	@echo "Running linting with auto-fix..."
-	biome lint --write .
+	pnpm biome lint --write .
 
 format:
 	@echo "Formatting code..."
-	biome format .
+	pnpm biome format .
 
 format-write:
 	@echo "Formatting code with auto-fix..."
-	biome format --write .
+	pnpm biome format --write .
 
 check:
 	@echo "Running all checks..."
-	biome check .
+	pnpm biome check .
 
 check-write:
 	@echo "Running all checks with auto-fix..."
-	biome check --write .
+	pnpm biome check --write .
 
 knip:
 	@echo "Checking for unused dependencies..."
