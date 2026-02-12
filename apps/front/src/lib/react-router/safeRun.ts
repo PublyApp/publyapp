@@ -25,6 +25,36 @@ type SafeRunFunction<F extends GenericFunction> = (
 					error: Error;
 			  };
 
+/**
+ * Properties safe to copy from Kiota API errors onto the Error object.
+ * Excludes response headers and other sensitive internal details.
+ */
+const SAFE_ERROR_PROPERTIES = new Set([
+	'translationKey',
+	'detail',
+	'title',
+	'status',
+	'responseStatusCode',
+	'type',
+	'instance',
+	'errors',
+	'key',
+]);
+
+/**
+ * Extract a user-friendly message from an unknown error object.
+ * Avoids JSON.stringify which leaks internal details.
+ */
+const extractErrorMessage = (err: Record<string, unknown>): string => {
+	if (typeof err.detail === 'string' && err.detail.length > 0) {
+		return err.detail;
+	}
+	if (typeof err.title === 'string' && err.title.length > 0) {
+		return err.title;
+	}
+	return 'An unexpected error occurred';
+};
+
 export const safeRun = <F extends GenericFunction>(
 	func: F,
 ): SafeRunFunction<F> => {
@@ -45,10 +75,16 @@ export const safeRun = <F extends GenericFunction>(
 				} else if (_.has(err, 'message')) {
 					error = new Error(err.message);
 				} else {
-					error = new Error(JSON.stringify(err));
+					error = new Error(
+						extractErrorMessage(err as Record<string, unknown>),
+					);
 				}
+				// Only copy safe properties to avoid leaking
+				// headers, traceId, and other internal details
 				_.entries(err).forEach(([key, value]) => {
-					_.set(error, key, value);
+					if (SAFE_ERROR_PROPERTIES.has(key)) {
+						_.set(error, key, value);
+					}
 				});
 			} else {
 				error = new Error(String(err));

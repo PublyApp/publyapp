@@ -21,7 +21,7 @@ import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { toast } from '@/front/components/snackbar';
-import { useSyncFormToLang } from '@/front/hooks/use-language-trigger-validation';
+import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { getClientManager } from '@/front/lib/js-client/client-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
@@ -36,7 +36,7 @@ import {
 	queryParamValue,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import { getErrorMessage } from '@/shared/utils/error-message';
+import { getSerializedErrorMessage } from '@/shared/utils/error.utils';
 import { getResetPasswordSchema } from '@/shared/validations/auth.validations';
 
 import InvalidLinkView from '../components/invalid-link-view';
@@ -122,7 +122,7 @@ export const action = getServerAction({
 
 			return {
 				status: 'error',
-				error: result.error.message,
+				error: serializeError(result.error),
 			} as const;
 		}
 
@@ -266,8 +266,7 @@ const ResetPasswordForm = () => {
 
 	const fetcher = useFetcher<typeof action>();
 
-	const errorFetcher = fetcher.data?.error;
-	const errorMessage = errorFetcher ? getErrorMessage(errorFetcher) : null;
+	const errorMessage = getSerializedErrorMessage(fetcher.data?.error, t);
 
 	const handleSubmit = form.handleSubmit(async (data) => {
 		await fetcher.submit(data, {
