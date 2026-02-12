@@ -36,7 +36,7 @@ import {
 	queryParamValue,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import { getErrorMessage } from '@/shared/utils/error.utils';
+import { getSerializedErrorMessage } from '@/shared/utils/error.utils';
 import { getResetPasswordSchema } from '@/shared/validations/auth.validations';
 
 import InvalidLinkView from '../components/invalid-link-view';
@@ -122,7 +122,7 @@ export const action = getServerAction({
 
 			return {
 				status: 'error',
-				error: result.error.message,
+				error: serializeError(result.error),
 			} as const;
 		}
 
@@ -266,8 +266,7 @@ const ResetPasswordForm = () => {
 
 	const fetcher = useFetcher<typeof action>();
 
-	const errorFetcher = fetcher.data?.error;
-	const errorMessage = errorFetcher ? getErrorMessage(errorFetcher) : null;
+	const errorMessage = getSerializedErrorMessage(fetcher.data?.error, t);
 
 	const handleSubmit = form.handleSubmit(async (data) => {
 		await fetcher.submit(data, {
