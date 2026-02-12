@@ -58,14 +58,27 @@ export const clientLoader = getClientLoader({
 		const sessionToken = getSessionCookieFromClient();
 
 		if (!sessionToken) {
-			// No session token readable by JavaScript
-			// Submit form to clear any httpOnly cookie and redirect to login
+			// Full cleanup: clear JS cookies, query cache, API clients,
+			// and start the httpOnly cookie clearing fetch in the background.
 			logout({
 				redirectCause:
 					queryParamValue.login_page.redirect_cause.invalid_session,
 			});
-			// Return null while form is submitting (navigation will take over)
-			return null;
+			// Redirect synchronously so the authed layout never renders.
+			// Without this, the component shows SplashScreen while
+			// logout's async navigation (fetch → finally → globalNavigate)
+			// races with React Router's transition — which can hang
+			// the splash screen indefinitely. The background fetch from
+			// logout() still completes and clears any httpOnly cookies.
+			const loginUrl = new URL(
+				FRONT_PATH_NAMES.auth.login,
+				window.location.origin,
+			);
+			loginUrl.searchParams.set(
+				queryParamKey.login_page.redirect_cause,
+				queryParamValue.login_page.redirect_cause.invalid_session,
+			);
+			return redirect(loginUrl.pathname + loginUrl.search);
 		}
 
 		// Guard against cross-scope navigation (tenant user on /staff, staff user on /app).
