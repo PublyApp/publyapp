@@ -480,8 +480,7 @@ const AcceptInvitationForm = ({
 
 	const fetcher = useFetcher<typeof action>();
 
-	const errorFetcher = fetcher.data?.error;
-	const errorMessage = errorFetcher ? getErrorMessage(errorFetcher) : null;
+	const errorMessage = getSerializedErrorMessage(fetcher.data?.error, t);
 
 	const handleSubmit = form.handleSubmit(async (data) => {
 		// Guard against multiple submissions while fetcher is already processing

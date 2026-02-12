@@ -120,7 +120,7 @@ export const action = getServerAction({
 		if (result.status === 'error') {
 			return {
 				status: 'error',
-				error: result.error.message,
+				error: serializeError(result.error),
 			} as const;
 		}
 
@@ -260,8 +260,7 @@ const ResetPasswordForm = () => {
 
 	const fetcher = useFetcher<typeof action>();
 
-	const errorFetcher = fetcher.data?.error;
-	const errorMessage = errorFetcher ? getErrorMessage(errorFetcher) : null;
+	const errorMessage = getSerializedErrorMessage(fetcher.data?.error, t);
 
 	const handleSubmit = form.handleSubmit(async (data) => {
 		await fetcher.submit(data, {
