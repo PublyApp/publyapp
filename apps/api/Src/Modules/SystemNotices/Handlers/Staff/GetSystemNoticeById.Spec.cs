@@ -6,16 +6,17 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using MainApi.Src.Lib.ProblemResults;
-using MainApi.Src.Lib.Testing;
+using MainApi.Src.Lib.Testing.Fixtures;
+using MainApi.Src.Lib.Testing.Helpers;
 
 using Xunit;
 
-public sealed class GetSystemNoticeByIdIntegrationTests
+public sealed class GetSystemNoticeByIdSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
-	public GetSystemNoticeByIdIntegrationTests(
+	public GetSystemNoticeByIdSpec(
 		ApiFixture fixture
 	) {
 		_http = fixture.HttpClient;
@@ -24,7 +25,7 @@ public sealed class GetSystemNoticeByIdIntegrationTests
 
 	[Fact]
 	public async Task
-	GetById_ExistingNotice_ReturnsOk() {
+	ItShouldReturnOkForExistingNotice() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var noticeId =
@@ -75,7 +76,7 @@ public sealed class GetSystemNoticeByIdIntegrationTests
 
 	[Fact]
 	public async Task
-	GetById_WithoutAuth_ReturnsUnauthorized() {
+	ItShouldReturnUnauthorizedWithoutAuth() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var noticeId =
@@ -109,7 +110,7 @@ public sealed class GetSystemNoticeByIdIntegrationTests
 
 	[Fact]
 	public async Task
-	GetById_Nonexistent_ReturnsNotFound() {
+	ItShouldReturnNotFoundForNonexistent() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var url = SystemNoticeTestHelper

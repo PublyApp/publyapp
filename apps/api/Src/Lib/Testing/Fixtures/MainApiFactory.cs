@@ -1,8 +1,9 @@
-namespace MainApi.Src.Lib.Testing;
+namespace MainApi.Src.Lib.Testing.Fixtures;
 
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.Testing.Fakes;
 
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;

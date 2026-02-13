@@ -7,17 +7,17 @@ using FluentAssertions;
 
 using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib.Routes;
-using MainApi.Src.Lib.Testing;
+using MainApi.Src.Lib.Testing.Fixtures;
+using MainApi.Src.Lib.Testing.Helpers;
 
 using Xunit;
 
-public sealed class
-GetUserTenantsForPickerIntegrationTests
+public sealed class GetUserTenantsForPickerSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
-	public GetUserTenantsForPickerIntegrationTests(
+	public GetUserTenantsForPickerSpec(
 		ApiFixture fixture
 	) {
 		_http = fixture.HttpClient;
@@ -26,7 +26,7 @@ GetUserTenantsForPickerIntegrationTests
 
 	[Fact]
 	public async Task
-	Picker_AllActive_ReturnsCorrectTenants() {
+	ItShouldReturnCorrectTenantsWhenAllActive() {
 		var aliceToken = await _authClient.LoginAsync(
 			TestConstants.AliceEmail,
 			TestConstants.SeedPassword
@@ -57,7 +57,7 @@ GetUserTenantsForPickerIntegrationTests
 
 	[Fact]
 	public async Task
-	Picker_OneSuspended_FlagAndTenantState() {
+	ItShouldFlagSuspendedStateWhenOneSuspended() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var acmeId =
@@ -123,7 +123,7 @@ GetUserTenantsForPickerIntegrationTests
 
 	[Fact]
 	public async Task
-	Picker_AfterReactivation_AllActiveAgain() {
+	ItShouldShowAllActiveAfterReactivation() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var acmeId =
@@ -194,7 +194,7 @@ GetUserTenantsForPickerIntegrationTests
 
 	[Fact]
 	public async Task
-	Picker_SingleTenantUser_ReturnsOneActive() {
+	ItShouldReturnOneActiveForSingleTenantUser() {
 		// Acme admin has only 1 tenant
 		var acmeAdminToken = await _authClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,

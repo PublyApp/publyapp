@@ -1,4 +1,6 @@
-namespace MainApi.Src.Lib.Testing;
+namespace MainApi.Src.Lib.Testing.Fixtures;
+
+using MainApi.Src.Lib.Testing.Fakes;
 
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;

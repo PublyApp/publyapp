@@ -8,16 +8,17 @@ using FluentAssertions;
 using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Routes;
-using MainApi.Src.Lib.Testing;
+using MainApi.Src.Lib.Testing.Fixtures;
+using MainApi.Src.Lib.Testing.Helpers;
 
 using Xunit;
 
-public sealed class GetTenantAuthDataIntegrationTests
+public sealed class GetTenantAuthDataSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
-	public GetTenantAuthDataIntegrationTests(
+	public GetTenantAuthDataSpec(
 		ApiFixture fixture
 	) {
 		_http = fixture.HttpClient;
@@ -26,7 +27,7 @@ public sealed class GetTenantAuthDataIntegrationTests
 
 	[Fact]
 	public async Task
-	TenantAuthData_ActiveTenant_ReturnsOk() {
+	ItShouldReturnOkForActiveTenant() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var acmeId =
@@ -68,7 +69,7 @@ public sealed class GetTenantAuthDataIntegrationTests
 
 	[Fact]
 	public async Task
-	TenantAuthData_StaffScope_ReturnsStaffData() {
+	ItShouldReturnStaffDataForStaffScope() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 
@@ -93,7 +94,7 @@ public sealed class GetTenantAuthDataIntegrationTests
 
 	[Fact]
 	public async Task
-	TenantAuthData_StaffScope_NonStaff_ReturnsForbidden() {
+	ItShouldReturnForbiddenWhenNonStaffAccessesStaffScope() {
 		var acmeAdminToken = await _authClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
@@ -121,7 +122,7 @@ public sealed class GetTenantAuthDataIntegrationTests
 
 	[Fact]
 	public async Task
-	TenantAuthData_InvalidGuidTenantId_ReturnsForbidden() {
+	ItShouldReturnForbiddenForInvalidTenantGuid() {
 		var acmeAdminToken = await _authClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
@@ -148,7 +149,7 @@ public sealed class GetTenantAuthDataIntegrationTests
 
 	[Fact]
 	public async Task
-	TenantAuthData_SuspendedTenant_Returns403WithKey() {
+	ItShouldReturn403WithKeyForSuspendedTenant() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var acmeId =
@@ -201,7 +202,7 @@ public sealed class GetTenantAuthDataIntegrationTests
 
 	[Fact]
 	public async Task
-	TenantAuthData_NonMember_ReturnsGeneric403() {
+	ItShouldReturn403ForNonMember() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var techStartId =
@@ -240,7 +241,7 @@ public sealed class GetTenantAuthDataIntegrationTests
 
 	[Fact]
 	public async Task
-	TenantAuthData_AfterReactivation_ReturnsOk() {
+	ItShouldReturnOkAfterReactivation() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var acmeId =

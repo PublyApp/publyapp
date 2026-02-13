@@ -1,4 +1,4 @@
-namespace MainApi.Src.Lib.Testing;
+namespace MainApi.Src.Lib.Testing.Fixtures;
 
 /// <summary>
 /// Sets process-wide environment variables for the test run.

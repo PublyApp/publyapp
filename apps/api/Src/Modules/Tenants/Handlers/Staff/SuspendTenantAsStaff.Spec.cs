@@ -7,16 +7,17 @@ using FluentAssertions;
 
 using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib.ProblemResults;
-using MainApi.Src.Lib.Testing;
+using MainApi.Src.Lib.Testing.Fixtures;
+using MainApi.Src.Lib.Testing.Helpers;
 
 using Xunit;
 
-public sealed class SuspendTenantAsStaffIntegrationTests
+public sealed class SuspendTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
-	public SuspendTenantAsStaffIntegrationTests(
+	public SuspendTenantAsStaffSpec(
 		ApiFixture fixture
 	) {
 		_http = fixture.HttpClient;
@@ -25,7 +26,7 @@ public sealed class SuspendTenantAsStaffIntegrationTests
 
 	[Fact]
 	public async Task
-	Suspend_ActiveTenant_ReturnsOkWithSuspendedStatus() {
+	ItShouldReturnOkWithSuspendedStatusForActiveTenant() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -67,7 +68,7 @@ public sealed class SuspendTenantAsStaffIntegrationTests
 
 	[Fact]
 	public async Task
-	Suspend_WithReason_ReturnsOk() {
+	ItShouldReturnOkWhenReasonProvided() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -112,7 +113,7 @@ public sealed class SuspendTenantAsStaffIntegrationTests
 
 	[Fact]
 	public async Task
-	Suspend_ReasonOver500Chars_ReturnsValidationError() {
+	ItShouldReturnValidationErrorWhenReasonExceeds500Chars() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -139,7 +140,7 @@ public sealed class SuspendTenantAsStaffIntegrationTests
 
 	[Fact]
 	public async Task
-	Suspend_NonexistentTenant_ReturnsNotFound() {
+	ItShouldReturnNotFoundForNonexistentTenant() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var randomId = Guid.NewGuid();
@@ -161,7 +162,7 @@ public sealed class SuspendTenantAsStaffIntegrationTests
 
 	[Fact]
 	public async Task
-	Suspend_AlreadySuspendedTenant_ReturnsConflict() {
+	ItShouldReturnConflictForAlreadySuspendedTenant() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -205,7 +206,7 @@ public sealed class SuspendTenantAsStaffIntegrationTests
 
 	[Fact]
 	public async Task
-	Suspend_WithoutAuth_ReturnsUnauthorized() {
+	ItShouldReturnUnauthorizedWithoutAuth() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -230,7 +231,7 @@ public sealed class SuspendTenantAsStaffIntegrationTests
 
 	[Fact]
 	public async Task
-	Suspend_AsTenantUser_ReturnsForbidden() {
+	ItShouldReturnForbiddenForTenantUser() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var tenantId =

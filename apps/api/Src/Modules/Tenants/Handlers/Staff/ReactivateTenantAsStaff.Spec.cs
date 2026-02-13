@@ -7,17 +7,18 @@ using FluentAssertions;
 
 using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib.ProblemResults;
-using MainApi.Src.Lib.Testing;
+using MainApi.Src.Lib.Testing.Fixtures;
+using MainApi.Src.Lib.Testing.Helpers;
 
 using Xunit;
 
 public sealed class
-ReactivateTenantAsStaffIntegrationTests
+ReactivateTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
-	public ReactivateTenantAsStaffIntegrationTests(
+	public ReactivateTenantAsStaffSpec(
 		ApiFixture fixture
 	) {
 		_http = fixture.HttpClient;
@@ -26,7 +27,7 @@ ReactivateTenantAsStaffIntegrationTests
 
 	[Fact]
 	public async Task
-	Reactivate_SuspendedTenant_ReturnsOkWithActiveStatus() {
+	ItShouldReturnOkWithActiveStatusForSuspendedTenant() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -81,7 +82,7 @@ ReactivateTenantAsStaffIntegrationTests
 
 	[Fact]
 	public async Task
-	Reactivate_ActiveTenant_ReturnsConflict() {
+	ItShouldReturnConflictForActiveTenant() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -109,7 +110,7 @@ ReactivateTenantAsStaffIntegrationTests
 
 	[Fact]
 	public async Task
-	Reactivate_NonexistentTenant_ReturnsNotFound() {
+	ItShouldReturnNotFoundForNonexistentTenant() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var randomId = Guid.NewGuid();
@@ -131,7 +132,7 @@ ReactivateTenantAsStaffIntegrationTests
 
 	[Fact]
 	public async Task
-	Reactivate_WithoutAuth_ReturnsUnauthorized() {
+	ItShouldReturnUnauthorizedWithoutAuth() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -155,7 +156,7 @@ ReactivateTenantAsStaffIntegrationTests
 
 	[Fact]
 	public async Task
-	Reactivate_AsTenantUser_ReturnsForbidden() {
+	ItShouldReturnForbiddenForTenantUser() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -204,7 +205,7 @@ ReactivateTenantAsStaffIntegrationTests
 
 	[Fact]
 	public async Task
-	FullCycle_SuspendThenReactivate_BothSucceed() {
+	ItShouldSucceedFullSuspendReactivateCycle() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var tenantId =

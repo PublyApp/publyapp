@@ -6,15 +6,15 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using MainApi.Src.Lib.Routes;
-using MainApi.Src.Lib.Testing;
+using MainApi.Src.Lib.Testing.Fixtures;
 
 using Xunit;
 
-public sealed class PasswordLoginIntegrationTests
+public sealed class PasswordLoginSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
 
-	public PasswordLoginIntegrationTests(
+	public PasswordLoginSpec(
 		ApiFixture fixture
 	) {
 		_http = fixture.HttpClient;
@@ -22,7 +22,7 @@ public sealed class PasswordLoginIntegrationTests
 
 	[Fact]
 	public async Task
-	Login_WithValidCredentials_ReturnsSessionToken() {
+	ItShouldReturnSessionTokenWithValidCredentials() {
 		var loginRequest = new {
 			email = TestConstants.StaffAdminEmail,
 			password = TestConstants.SeedPassword
@@ -44,7 +44,7 @@ public sealed class PasswordLoginIntegrationTests
 
 	[Fact]
 	public async Task
-	Login_WithInvalidPassword_ReturnsBadRequest() {
+	ItShouldReturnBadRequestWithInvalidPassword() {
 		var loginRequest = new {
 			email = TestConstants.StaffAdminEmail,
 			password = "wrong-password-at-least-6-chars"
@@ -61,7 +61,7 @@ public sealed class PasswordLoginIntegrationTests
 
 	[Fact]
 	public async Task
-	Login_WithNonexistentUser_ReturnsBadRequest() {
+	ItShouldReturnBadRequestForNonexistentUser() {
 		var loginRequest = new {
 			email = "nonexistent@example.com",
 			password = "any-password-at-least-6"

@@ -74,10 +74,10 @@ make test-api          # Run API integration tests (requires Docker)
 
 ```bash
 # Run a specific test class
-cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --filter "FullyQualifiedName~PasswordLogin"
+cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --filter "FullyQualifiedName~PasswordLoginSpec"
 
 # Run a specific test method
-cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --filter "Login_WithValidCredentials_ReturnsSessionToken"
+cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --filter "ItShouldReturnSessionTokenWithValidCredentials"
 
 # Frontend tests (when implemented)
 cd apps/front && pnpm test
@@ -2258,6 +2258,41 @@ public PatchField<DateTime?> GetExpiresAt() =>
         JsonValueKind.String => PatchField<DateTime?>.Set(ExpiresAt.GetValueAsDateTime()),
         _ => throw new InvalidOperationException("ExpiresAt must be string, null, or omitted"),
     };
+```
+
+## Test Conventions
+
+### Test File Naming
+
+- Spec files use `*.Spec.cs` suffix (not `*.IntegrationTests.cs`)
+- Class name = `{Feature}Spec` (e.g., `CreateSystemNoticeSpec`, `PasswordLoginSpec`)
+- Co-located next to the handler/source they test
+- Unit test specs co-locate next to their source file (e.g., `DateUtils.Spec.cs` next to `DateUtils.cs`)
+
+### Test Method Naming (BDD)
+
+- Use `ItShould{Expected}When{Scenario}` format
+- Always start with `ItShould`
+- No underscores in method names
+- Examples: `ItShouldReturnOkWithValidData`, `ItShouldReturnUnauthorizedWithoutAuth`, `ItShouldReturn403ForNonMember`
+
+### Testing/ Folder Structure
+
+Test infrastructure lives in `Src/Lib/Testing/` organized by purpose:
+
+- `Testing/Fixtures/` — test environment setup (`ApiFixture`, `MainApiFactory`, `PostgresContainerFixture`, `DatabaseTemplateManager`, `TestEnvironment`, `TestConstants`)
+- `Testing/Helpers/` — test utility methods (`TestAuthClient`, `TenantTestHelper`, `SystemNoticeTestHelper`, `HttpRequestMessageExtensions`)
+- `Testing/Fakes/` — test doubles (`FakeEmailSender`)
+- NO test cases in Testing/ — specs live co-located with source
+
+### Test Using Statements
+
+Spec files reference test infrastructure via sub-namespaces:
+
+```csharp
+using MainApi.Src.Lib.Testing.Fixtures;  // ApiFixture, TestConstants
+using MainApi.Src.Lib.Testing.Helpers;    // TestAuthClient, TenantTestHelper
+using MainApi.Src.Lib.Testing.Fakes;      // FakeEmailSender (rare)
 ```
 
 ## Common Workflows

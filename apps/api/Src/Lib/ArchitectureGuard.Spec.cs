@@ -1,4 +1,4 @@
-namespace MainApi.Src.Lib.Testing;
+namespace MainApi.Src.Lib;
 
 using System.Reflection;
 
@@ -6,10 +6,10 @@ using FluentAssertions;
 
 using Xunit;
 
-public sealed class ArchitectureGuardTests {
+public sealed class ArchitectureGuardSpec {
 	[Fact]
 	public void
-	HttpDtos_MustNotUsePatchField() {
+	ItShouldRejectPatchFieldInHttpDtos() {
 		var apiAssembly = typeof(Program).Assembly;
 
 		var dtoTypes = apiAssembly
