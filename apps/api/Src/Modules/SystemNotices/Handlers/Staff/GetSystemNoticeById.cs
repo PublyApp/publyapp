@@ -35,7 +35,7 @@ public static class GetSystemNoticeById {
 		if (notice is null) {
 			return TypedProblems.NotFound(
 				"System notice not found",
-				ResponseKeys.NotFound
+				ResponseKeys.SystemNoticeNotFound
 			);
 		}
 

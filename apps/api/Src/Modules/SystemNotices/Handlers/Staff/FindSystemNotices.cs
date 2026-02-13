@@ -1,5 +1,5 @@
-using FluentValidation;
-
+using MainApi.Localization;
+using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.SystemNotices.Services;
 
@@ -8,59 +8,79 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Src.Modules.SystemNotices.Handlers.Staff;
 
-public record FindSystemNoticesQuery {
-	public int? Page { get; init; }
-	public int? PageSize { get; init; }
-}
+public class FindSystemNoticesResponse
+	: CursorPaginatedResult<SystemNoticeListItem> { }
 
-public record FindSystemNoticesResponse {
-	public required List<SystemNoticeListItem> Items { get; init; }
-	public required int TotalCount { get; init; }
-	public required int Page { get; init; }
-	public required int PageSize { get; init; }
-	public required int TotalPages { get; init; }
-}
+public class FindSystemNoticesQuery : CursorPaginatedQuery { }
 
-public class FindSystemNoticesQueryValidator : AbstractValidator<FindSystemNoticesQuery> {
-	public FindSystemNoticesQueryValidator() {
-		RuleFor(x => x.Page)
-			.GreaterThanOrEqualTo(1)
-			.When(x => x.Page.HasValue)
-			.WithMessage("Page must be at least 1");
-
-		RuleFor(x => x.PageSize)
-			.InclusiveBetween(1, 100)
-			.When(x => x.PageSize.HasValue)
-			.WithMessage("PageSize must be between 1 and 100");
-	}
-}
+public class FindSystemNoticesQueryValidator
+	: CursorPaginatedQueryValidator<FindSystemNoticesQuery> { }
 
 public static class FindSystemNotices {
 	public static async Task<Results<
 		Ok<FindSystemNoticesResponse>,
-		AppForbiddenHttpResult
+		AppBadRequestHttpResult
 	>> HandleFindSystemNotices(
-		[FromServices] ISystemNoticeService systemNoticeService,
 		[AsParameters] FindSystemNoticesQuery query,
+		[FromServices] ISystemNoticeService systemNoticeService,
 		CancellationToken cancellationToken = default
 	) {
-		var page = query.Page ?? 1;
-		var pageSize = query.PageSize ?? 20;
+		var cursor = query.GetCursor();
+		var cursorGuid = Guid.Empty;
 
-		var (items, totalCount) = await systemNoticeService.FindAsync(
-			page,
-			pageSize,
-			cancellationToken
+		if (!string.IsNullOrEmpty(cursor)) {
+			if (!Guid.TryParse(cursor, out cursorGuid)) {
+				return TypedProblems.BadRequest(
+					"Invalid cursor",
+					ResponseKeys.BadRequest
+				);
+			}
+		}
+
+		var limit = query.GetLimit();
+		var sortId = query.GetSortId();
+		var sortOrder = query.GetSortOrder();
+
+		var serviceResult = await systemNoticeService.FindAsync(
+			cursor: cursorGuid,
+			limit: limit,
+			sortId: sortId,
+			sortOrder: sortOrder,
+			cancellationToken: cancellationToken
 		);
 
-		var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+		if (serviceResult
+			is FindSystemNoticesResult.CursorNotFound cursorError
+		) {
+			return TypedProblems.BadRequest(
+				$"Cursor record not found: {cursorError.Cursor}. "
+				+ "The record may have been deleted "
+				+ "or the cursor is invalid.",
+				ResponseKeys.BadRequest
+			);
+		}
 
-		return TypedResults.Ok(new FindSystemNoticesResponse {
-			Items = items,
-			TotalCount = totalCount,
-			Page = page,
-			PageSize = pageSize,
-			TotalPages = totalPages
-		});
+		if (serviceResult
+			is FindSystemNoticesResult.InvalidSortId sortIdError
+		) {
+			return TypedProblems.BadRequest(
+				$"Invalid sortId: {sortIdError.SortId}. "
+				+ "Allowed values: created_at, starts_at, severity",
+				ResponseKeys.BadRequest
+			);
+		}
+
+		if (serviceResult
+			is FindSystemNoticesResult.Success success
+		) {
+			return TypedResults.Ok(new FindSystemNoticesResponse {
+				Data = success.Data.Data,
+				NextCursor = success.Data.NextCursor,
+			});
+		}
+
+		throw new InvalidOperationException(
+			"Unhandled result type"
+		);
 	}
 }
