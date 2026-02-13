@@ -198,15 +198,12 @@ public static class UpdateSystemNotice {
 		var severityStr = body.GetSeverity();
 		NoticeSeverity? severity = null;
 		if (severityStr is not null) {
-			var parsedSeverity =
-				SystemNotice.ParseSeverity(severityStr);
-			if (parsedSeverity is null) {
-				throw new InvalidOperationException(
+			severity =
+				SystemNotice.ParseSeverity(severityStr)
+				?? throw new InvalidOperationException(
 					"Severity parser rejected validated "
 					+ $"value '{severityStr}'."
 				);
-			}
-			severity = parsedSeverity.Value;
 		}
 
 		var args = new UpdateSystemNoticeArgs(
@@ -245,7 +242,7 @@ public static class UpdateSystemNotice {
 		);
 
 		return TypedResults.Ok(new SystemNoticeUpdated {
-			Id = notice.GetRequiredId(),
+			Id = notice.Id!.Value,
 			Title = notice.Title,
 			Severity = notice.Severity.ToString()
 				.ToLowerInvariant(),
