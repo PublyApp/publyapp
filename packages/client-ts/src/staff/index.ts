@@ -23,6 +23,10 @@ export interface StaffRequestBuilder extends BaseRequestBuilder<StaffRequestBuil
      */
     get invitations(): InvitationsRequestBuilder;
     /**
+     * The notices property
+     */
+    get notices(): NoticesRequestBuilder;
+    /**
      * The permissions property
      */
     get permissions(): PermissionsRequestBuilder;
@@ -50,6 +54,10 @@ export const StaffRequestBuilderNavigationMetadata: Record<Exclude<keyof StaffRe
     invitations: {
         requestsMetadata: InvitationsRequestBuilderRequestsMetadata,
         navigationMetadata: InvitationsRequestBuilderNavigationMetadata,
+    },
+    notices: {
+        requestsMetadata: NoticesRequestBuilderRequestsMetadata,
+        navigationMetadata: NoticesRequestBuilderNavigationMetadata,
     },
     permissions: {
         navigationMetadata: PermissionsRequestBuilderNavigationMetadata,

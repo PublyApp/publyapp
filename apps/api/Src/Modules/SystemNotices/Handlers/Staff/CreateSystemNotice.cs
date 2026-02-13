@@ -135,7 +135,7 @@ public class CreateSystemNoticeBodyValidator
 
 public class CreateSystemNotice {
 	public static async Task<Results<
-		Created<SystemNoticeCreated>,
+		Ok<SystemNoticeCreated>,
 		AppBadRequestHttpResult
 	>> HandleCreateSystemNotice(
 		[FromServices] IRequestAuthContext authContext,
@@ -154,15 +154,11 @@ public class CreateSystemNotice {
 		}
 
 		var severityStr = body.GetSeverity();
-		var parsedSeverity =
-			SystemNotice.ParseSeverity(severityStr);
-		if (parsedSeverity is null) {
-			throw new InvalidOperationException(
-				"Severity parser rejected validated "
-				+ $"value '{severityStr}'."
+		var severity = SystemNotice.ParseSeverity(severityStr)
+			?? throw new InvalidOperationException(
+				$"Severity parser rejected validated value "
+				+ $"'{severityStr}'."
 			);
-		}
-		var severity = parsedSeverity.Value;
 
 		var args = new CreateSystemNoticeArgs(
 			Severity: severity,
@@ -192,16 +188,13 @@ public class CreateSystemNotice {
 			cancellationToken
 		);
 
-		return TypedResults.Created(
-			(string?)null,
-			new SystemNoticeCreated {
-				Id = notice.GetRequiredId(),
-				Title = notice.Title,
-				Severity = severity.ToString()
-					.ToLowerInvariant(),
-				StartsAt = notice.StartsAt,
-				ExpiresAt = notice.ExpiresAt
-			}
-		);
+		return TypedResults.Ok(new SystemNoticeCreated {
+			Id = notice.Id!.Value,
+			Title = notice.Title,
+			Severity = severity.ToString()
+				.ToLowerInvariant(),
+			StartsAt = notice.StartsAt,
+			ExpiresAt = notice.ExpiresAt
+		});
 	}
 }
