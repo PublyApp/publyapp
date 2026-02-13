@@ -24,7 +24,7 @@
 	     but compile them into this dedicated test project. -->
 	<ItemGroup>
 		<Compile Include="..\Src\Lib\Testing\**\*.cs" Link="Src\Lib\Testing\%(RecursiveDir)%(Filename)%(Extension)" />
-		<Compile Include="..\Src\**\*.IntegrationTests.cs" Link="Src\%(RecursiveDir)%(Filename)%(Extension)" />
+		<Compile Include="..\Src\**\*.Spec.cs" Link="Src\%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
 
 </Project>

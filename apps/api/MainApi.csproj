@@ -6,7 +6,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<Compile Remove="**/*.IntegrationTests.cs" />
+		<Compile Remove="**/*.Spec.cs" />
 		<Compile Remove="Src/Lib/Testing/**/*.cs" />
 		<Compile Remove="Tests/**/*.cs" />
 	</ItemGroup>

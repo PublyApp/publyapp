@@ -58,7 +58,8 @@
 			"mcp__voicetree__get_unseen_nodes_nearby",
 			"mcp__voicetree__read_terminal_output",
 			"mcp__voicetree__send_message",
-			"mcp__voicetree__close_agent"
+			"mcp__voicetree__close_agent",
+			"Bash(dotnet test:*)"
 		]
 	},
 	"enableAllProjectMcpServers": true,
