@@ -6,6 +6,8 @@ import { AuthRequestBuilderNavigationMetadata, type AuthRequestBuilder } from '.
 // @ts-ignore
 import { InvitationsRequestBuilderNavigationMetadata, type InvitationsRequestBuilder } from './invitations/index.js';
 // @ts-ignore
+import { NoticesRequestBuilderNavigationMetadata, type NoticesRequestBuilder } from './notices/index.js';
+// @ts-ignore
 import { StaffRequestBuilderNavigationMetadata, type StaffRequestBuilder } from './staff/index.js';
 // @ts-ignore
 import { TestRequestBuilderRequestsMetadata, type TestRequestBuilder } from './test/index.js';
@@ -32,6 +34,10 @@ export interface ApiClient extends BaseRequestBuilder<ApiClient> {
      * The invitations property
      */
     get invitations(): InvitationsRequestBuilder;
+    /**
+     * The notices property
+     */
+    get notices(): NoticesRequestBuilder;
     /**
      * The staff property
      */
@@ -85,6 +91,9 @@ export const ApiClientNavigationMetadata: Record<Exclude<keyof ApiClient, KeysTo
     },
     invitations: {
         navigationMetadata: InvitationsRequestBuilderNavigationMetadata,
+    },
+    notices: {
+        navigationMetadata: NoticesRequestBuilderNavigationMetadata,
     },
     staff: {
         navigationMetadata: StaffRequestBuilderNavigationMetadata,

@@ -1500,6 +1500,32 @@ public record CreateUserBody {
 
 **Why JsonElement?** ASP.NET Core parameter binding runs BEFORE FluentValidation. Using `JsonElement` defers type conversion to validation, allowing friendly error messages instead of ugly 400 errors.
 
+**Update/PATCH body DTOs with clearable nullable fields:** Use non-nullable `JsonElement` (NOT `JsonElement?`) for clearable fields, and `PatchField<T>` in the getter method to distinguish "not sent" from "explicitly null". See the **PatchField\<T\> for Nullable PATCH Fields** section and [`docs/guides/patchfield-pattern.md`](docs/guides/patchfield-pattern.md) for the full pattern.
+
+```csharp
+// ✅ CORRECT - Update body with clearable nullable field
+// CRITICAL: clearable field MUST be non-nullable JsonElement
+public record UpdateNoticeBody {
+    public JsonElement ExpiresAt { get; init; }
+
+    // Returns PatchField via ValueKind switch
+    public PatchField<DateTime?> GetExpiresAt() =>
+        ExpiresAt.ValueKind switch {
+            JsonValueKind.Undefined =>
+                PatchField<DateTime?>.Absent(),
+            JsonValueKind.Null =>
+                PatchField<DateTime?>.Set(null),
+            JsonValueKind.String =>
+                PatchField<DateTime?>.Set(
+                    ExpiresAt.GetValueAsDateTime()
+                ),
+            _ => throw new InvalidOperationException(
+                "ExpiresAt must be string, null, or omitted"
+            ),
+        };
+}
+```
+
 **Query Parameters use typed properties:**
 
 ```csharp
@@ -1546,6 +1572,80 @@ public static async Task<Ok> HandleCreateUser(
 - Business logic
 - Transaction management
 - Domain event coordination
+
+**Service parameter conventions for update methods:**
+- Non-nullable required fields: use the typed value directly (`string title`)
+- Optional fields (update if present, skip if null): use `T?` (`string? title`, `DateTime? startsAt`)
+- Clearable nullable fields (need to distinguish "not sent" from "set to null"): use `PatchField<T?>` — see **PatchField\<T\> for Nullable PATCH Fields** section and [`docs/guides/patchfield-pattern.md`](docs/guides/patchfield-pattern.md)
+
+### Service Method Args Records
+
+**CRITICAL:** When a service method has **3 or more domain parameters** (excluding `id`, `CancellationToken`, and infrastructure concerns), bundle them into a single args record. This keeps service signatures stable when fields are added/removed and makes handler code cleaner.
+
+**Rules:**
+1. **Naming:** `{Action}{Domain}Args` — e.g., `CreateSystemNoticeArgs`, `UpdateSystemNoticeArgs`
+2. **Placement:** Define the args record in the **service file** (it's the service's input contract, not an HTTP DTO)
+3. **Construction:** Handlers construct the args record inline — no separate mapper class needed
+4. **Keep `id` separate:** Entity identifiers remain as separate parameters (they're routing concerns, not domain input)
+
+```csharp
+// ✅ CORRECT - Args record in the service file
+public record CreateSystemNoticeArgs(
+    NoticeSeverity Severity,
+    string Title,
+    string Message,
+    DateTime StartsAt,
+    DateTime? ExpiresAt,
+    Guid CreatedByStaffId
+);
+
+// ✅ CORRECT - Service interface uses args record
+Task<SystemNotice> CreateAsync(
+    CreateSystemNoticeArgs args,
+    CancellationToken cancellationToken = default);
+
+Task<SystemNotice?> UpdateAsync(
+    Guid id,                    // id stays separate
+    UpdateSystemNoticeArgs args,
+    CancellationToken cancellationToken = default);
+
+// ✅ CORRECT - Handler constructs args inline
+var args = new CreateSystemNoticeArgs(
+    Severity: severity,
+    Title: body.GetTitle(),
+    Message: body.GetMessage(),
+    StartsAt: body.GetStartsAt(),
+    ExpiresAt: body.GetExpiresAt(),
+    CreatedByStaffId: account.UserId
+);
+var notice = await service.CreateAsync(
+    args, cancellationToken
+);
+```
+
+**When NOT to use args records:**
+- Methods with 1–2 domain parameters (e.g., `DeleteAsync(Guid id)`, `GetByIdAsync(Guid id)`)
+- Query/find methods where parameters are optional filters — use explicit parameters or a dedicated query record
+
+```csharp
+// ❌ WRONG - Too many loose parameters
+Task<SystemNotice> CreateAsync(
+    NoticeSeverity severity,
+    string title,
+    string message,
+    DateTime startsAt,
+    DateTime? expiresAt,
+    Guid createdByStaffId,
+    CancellationToken ct = default);
+
+// ❌ WRONG - Args record for a trivial method
+public record DeleteArgs(Guid Id);  // Overkill
+Task<bool> DeleteAsync(DeleteArgs args, CancellationToken ct);
+
+// ✅ CORRECT - Simple methods keep plain parameters
+Task<bool> DeleteAsync(
+    Guid id, CancellationToken ct = default);
+```
 
 ### Dependency Injection Rules
 
@@ -1947,6 +2047,25 @@ group.MapPost("/login", Login.HandleLogin)
 
 ### Code Formatting
 
+**Always use braces on `if`/`else`/`for`/`foreach`/`while` blocks:**
+
+```csharp
+// ❌ WRONG - Bracketless if body
+if (element is null)
+    return true;
+if (!ok) return false;
+
+// ✅ CORRECT - Always wrap in braces
+if (element is null) {
+    return true;
+}
+if (!ok) {
+    return false;
+}
+```
+
+Single-statement bodies are not exempt. This prevents subtle bugs when adding lines later, and makes control flow unambiguous during code review.
+
 **Maximum line length: 100 characters**
 
 ```csharp
@@ -1966,6 +2085,179 @@ public static async Task<Results<
 ) {
     // Implementation
 }
+```
+
+### Enum Parsing on Entities
+
+When an entity has an associated enum (e.g., `NoticeSeverity`, `UserStatus`, `AccountLevel`), add a `Parse{EnumName}(string)` static method on the entity class. Handlers must use these methods instead of inline switch expressions or `Enum.Parse`.
+
+```csharp
+// ❌ WRONG - Inline switch expression in handler
+var severity = severityStr switch {
+    "info" => NoticeSeverity.Info,
+    "warning" => NoticeSeverity.Warning,
+    "critical" => NoticeSeverity.Critical,
+    _ => NoticeSeverity.Info
+};
+
+// ✅ CORRECT - Static parse method on entity
+// In entity file:
+public static NoticeSeverity? ParseSeverity(
+    string severity
+) {
+    var isInfo = string.Compare(
+        severity, "info",
+        StringComparison.OrdinalIgnoreCase
+    ) == 0;
+    if (isInfo) {
+        return NoticeSeverity.Info;
+    }
+    // ... other cases
+    return null;
+}
+
+// In handler:
+var severity = SystemNotice.ParseSeverity(severityStr)
+    ?? throw new InvalidOperationException(
+        $"Severity parser rejected validated value '{severityStr}'."
+    );
+```
+
+**Why:** Centralizes parsing logic, ensures case-insensitive comparison using `string.Compare` (no `.ToLowerInvariant()` allocation), and keeps entity-related logic on the entity.
+
+### Prefer `if` Blocks Over `??` Throw for Guard Clauses
+
+For multi-line guard checks (e.g., auth context guards with descriptive messages), prefer explicit `if` blocks. Both patterns are idiomatic C#; use whichever is more readable for the specific case.
+
+```csharp
+// ✅ PREFERRED for multi-line guards - Clear guard clause
+var account = authContext.AccountStaff;
+if (account is null) {
+    throw new InvalidOperationException(
+        "Staff account not found in auth context. "
+        + "Ensure the endpoint has "
+        + ".WithPermission() middleware."
+    );
+}
+
+// ✅ ACCEPTABLE for short, single-line guards
+var account = authContext.AccountStaff
+    ?? throw new InvalidOperationException(
+        "Staff account not found"
+    );
+```
+
+### Body DTO Getter Methods
+
+Request body DTOs must expose `Get{PropertyName}()` methods that use `JsonElementExtensions` to extract typed values. Never extract values from `JsonElement` directly in handler methods.
+
+```csharp
+// ✅ CORRECT - Getter methods on body DTO
+public record CreateSystemNoticeBody {
+    public required JsonElement Severity { get; init; }
+    public required JsonElement Title { get; init; }
+    public JsonElement? ExpiresAt { get; init; }
+
+    public string GetSeverity() =>
+        Severity.GetValueAsString();
+
+    public string GetTitle() =>
+        Title.GetValueAsString();
+
+    public DateTime? GetExpiresAt() =>
+        ExpiresAt.GetValueAsDateTimeOrNull();
+}
+
+// In handler - clean extraction:
+var severityStr = body.GetSeverity();
+var title = body.GetTitle();
+var expiresAt = body.GetExpiresAt();
+
+// ❌ WRONG - Inline extraction in handler
+var severityStr = body.Severity
+    .GetValueAsString().ToLowerInvariant();
+var title = body.Title.GetValueAsString();
+DateTime? expiresAt = null;
+if (body.ExpiresAt is not null
+    && body.ExpiresAt.Value.ValueKind
+        == JsonValueKind.String) {
+    expiresAt = DateTime.Parse(
+        body.ExpiresAt.Value.GetString()!
+    ).ToUniversalTime();
+}
+```
+
+**Why:** Keeps handlers focused on orchestration. Extraction logic is testable, reusable, and consistent across handlers that share the same body DTO.
+
+### Guard Clause in Staff Handlers
+
+When a handler behind `.WithPermission()` needs `authContext.AccountStaff`, use a guard `if` block that throws `InvalidOperationException` (not `TypedProblems.Forbidden()`). This is a developer safety net — the middleware guarantees the account exists.
+
+```csharp
+// ✅ CORRECT - Developer safety net
+var account = authContext.AccountStaff;
+if (account is null) {
+    throw new InvalidOperationException(
+        "Staff account not found in auth context. "
+        + "Ensure the endpoint has "
+        + ".WithPermission() middleware."
+    );
+}
+
+// ❌ WRONG - Returns HTTP error for a developer mistake
+if (authContext.AccountStaff is null) {
+    return TypedProblems.Forbidden(
+        "Not authorized",
+        ResponseKeys.Forbidden
+    );
+}
+```
+
+### DTO Placement: Service vs Handler
+
+Service input/output DTOs (return types, result discriminated unions) belong in the service file. HTTP request/response DTOs and validators belong in the handler file. When a type is used as both service output and HTTP response, prefer keeping one definition in the service file over duplicating.
+
+```
+Service file:
+  - FindSystemNoticesResult (discriminated union)
+  - SystemNoticeListItem (used by service and handler)
+  - ActiveSystemNotice (used by service and handler)
+
+Handler file:
+  - CreateSystemNoticeBody (request DTO)
+  - SystemNoticeCreated (response DTO unique to this handler)
+  - CreateSystemNoticeBodyValidator
+```
+
+### PatchField\<T\> for Nullable PATCH Fields
+
+> Full guide with examples, decision tree, anti-patterns, and validator patterns: [`docs/guides/patchfield-pattern.md`](docs/guides/patchfield-pattern.md)
+
+**CRITICAL:** `PatchField<T>` (`apps/api/Src/Lib/PatchField.cs`) is the **mandatory** way to represent three-state nullable fields in PATCH/update endpoints.
+
+**Checklist:**
+
+1. **Use when:** Update/PATCH endpoint + nullable entity field + client can clear it
+2. **DTO property:** Non-nullable `JsonElement` (NOT `JsonElement?` — nullable cannot distinguish omitted from explicit null)
+3. **Getter method:** `ValueKind` switch → `Undefined` = `Absent()`, `Null` = `Set(null)`, `String` = `Set(parsed)`, `_` = throw
+4. **Args record:** `PatchField<T?>` field in the service args record (NOT `DateTime?` + `bool clearX`)
+5. **Service impl:** `if (args.Field.IsPresent) { entity.Field = args.Field.Value; }`
+6. **Safety:** `.Value` throws when absent — always check `IsPresent`, use `TryGetValue`, or use `Match`
+7. **Never:** Use `JsonElement?` for clearable fields, use `PatchField` for required fields, access `.Value` without `IsPresent` check
+
+**Quick reference:**
+
+```csharp
+// DTO (handler file) — clearable field uses non-nullable JsonElement
+public JsonElement ExpiresAt { get; init; }
+
+public PatchField<DateTime?> GetExpiresAt() =>
+    ExpiresAt.ValueKind switch {
+        JsonValueKind.Undefined => PatchField<DateTime?>.Absent(),
+        JsonValueKind.Null => PatchField<DateTime?>.Set(null),
+        JsonValueKind.String => PatchField<DateTime?>.Set(ExpiresAt.GetValueAsDateTime()),
+        _ => throw new InvalidOperationException("ExpiresAt must be string, null, or omitted"),
+    };
 ```
 
 ## Common Workflows

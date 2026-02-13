@@ -47,6 +47,7 @@ public static class AuditActions {
 	public const string LoginFailed = "auth.login.failed";
 	public const string SystemNoticeCreated = "system.notice.created";
 	public const string SystemNoticeUpdated = "system.notice.updated";
+	public const string SystemNoticeDeleted = "system.notice.deleted";
 	public const string StaffProfileCreated = "staff.profile.created";
 	public const string StaffProfilePermissionsAssigned = "staff.profile.permissions.assigned";
 	public const string StaffProfileUserAssigned = "staff.profile.user.assigned";
