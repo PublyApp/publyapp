@@ -7,16 +7,17 @@ using FluentAssertions;
 
 using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib.Routes;
-using MainApi.Src.Lib.Testing;
+using MainApi.Src.Lib.Testing.Fixtures;
+using MainApi.Src.Lib.Testing.Helpers;
 
 using Xunit;
 
-public sealed class GetRedirectCodeIntegrationTests
+public sealed class GetRedirectCodeSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
-	public GetRedirectCodeIntegrationTests(
+	public GetRedirectCodeSpec(
 		ApiFixture fixture
 	) {
 		_http = fixture.HttpClient;
@@ -25,7 +26,7 @@ public sealed class GetRedirectCodeIntegrationTests
 
 	[Fact]
 	public async Task
-	RedirectCode_NoSuspended_ReturnsTenantPicker() {
+	ItShouldReturnTenantPickerWhenNoSuspended() {
 		// Alice has 2 active tenants -> tenant-picker
 		var aliceToken = await _authClient.LoginAsync(
 			TestConstants.AliceEmail,
@@ -51,7 +52,7 @@ public sealed class GetRedirectCodeIntegrationTests
 
 	[Fact]
 	public async Task
-	RedirectCode_WithActiveHint_RedirectsToTenant() {
+	ItShouldRedirectToTenantWithActiveHint() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var acmeId =
@@ -88,7 +89,7 @@ public sealed class GetRedirectCodeIntegrationTests
 
 	[Fact]
 	public async Task
-	RedirectCode_InvalidGuidHint_FallsThrough() {
+	ItShouldFallThroughOnInvalidGuidHint() {
 		var aliceToken = await _authClient.LoginAsync(
 			TestConstants.AliceEmail,
 			TestConstants.SeedPassword
@@ -115,7 +116,7 @@ public sealed class GetRedirectCodeIntegrationTests
 
 	[Fact]
 	public async Task
-	RedirectCode_OneSuspended_HasSuspendedIsTrue() {
+	ItShouldSetHasSuspendedTrueWhenOneSuspended() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var acmeId =
@@ -174,7 +175,7 @@ public sealed class GetRedirectCodeIntegrationTests
 
 	[Fact]
 	public async Task
-	RedirectCode_HintToSuspended_FallsThrough() {
+	ItShouldFallThroughWhenHintPointsToSuspended() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var acmeId =
@@ -236,7 +237,7 @@ public sealed class GetRedirectCodeIntegrationTests
 
 	[Fact]
 	public async Task
-	RedirectCode_HintToActiveWithSuspended_Redirects() {
+	ItShouldRedirectWhenHintIsActiveWithOtherSuspended() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var acmeId =
@@ -297,7 +298,7 @@ public sealed class GetRedirectCodeIntegrationTests
 
 	[Fact]
 	public async Task
-	RedirectCode_AllSuspended_ReturnsTenantPicker() {
+	ItShouldReturnTenantPickerWhenAllSuspended() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var acmeId =
@@ -365,7 +366,7 @@ public sealed class GetRedirectCodeIntegrationTests
 
 	[Fact]
 	public async Task
-	RedirectCode_StaffUser_ReturnsStaff() {
+	ItShouldReturnStaffForStaffUser() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 
@@ -387,7 +388,7 @@ public sealed class GetRedirectCodeIntegrationTests
 
 	[Fact]
 	public async Task
-	RedirectCode_SingleActiveTenant_DirectRedirect() {
+	ItShouldDirectRedirectForSingleActiveTenant() {
 		// Acme admin has 1 tenant -> direct redirect
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();

@@ -1,4 +1,4 @@
-namespace MainApi.Src.Lib.Testing;
+namespace MainApi.Src.Lib.Testing.Fixtures;
 
 using MainApi.Src.Data.Seeding;
 

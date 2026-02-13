@@ -1,4 +1,6 @@
-namespace MainApi.Src.Lib.Testing;
+namespace MainApi.Src.Lib.Testing.Helpers;
+
+using MainApi.Src.Lib.Testing.Fixtures;
 
 /// <summary>
 /// Extension methods for building test HTTP requests

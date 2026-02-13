@@ -6,12 +6,13 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using MainApi.Src.Lib.Routes;
-using MainApi.Src.Lib.Testing;
+using MainApi.Src.Lib.Testing.Fixtures;
+using MainApi.Src.Lib.Testing.Helpers;
 using MainApi.Src.Lib.Utils;
 
 using Xunit;
 
-public sealed class CreateSystemNoticeIntegrationTests
+public sealed class CreateSystemNoticeSpec
 	: IClassFixture<ApiFixture> {
 	private static readonly string CreateUrl = PathUtils.Join(
 		Routes.Staff.Root,
@@ -22,7 +23,7 @@ public sealed class CreateSystemNoticeIntegrationTests
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
-	public CreateSystemNoticeIntegrationTests(
+	public CreateSystemNoticeSpec(
 		ApiFixture fixture
 	) {
 		_http = fixture.HttpClient;
@@ -31,7 +32,7 @@ public sealed class CreateSystemNoticeIntegrationTests
 
 	[Fact]
 	public async Task
-	Create_WithValidData_ReturnsOk() {
+	ItShouldReturnOkWithValidData() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var startsAt = DateTime.UtcNow
@@ -83,7 +84,7 @@ public sealed class CreateSystemNoticeIntegrationTests
 
 	[Fact]
 	public async Task
-	Create_WithoutExpiresAt_ReturnsOk() {
+	ItShouldReturnOkWithoutExpiresAt() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var startsAt = DateTime.UtcNow
@@ -128,7 +129,7 @@ public sealed class CreateSystemNoticeIntegrationTests
 
 	[Fact]
 	public async Task
-	Create_WithoutAuth_ReturnsUnauthorized() {
+	ItShouldReturnUnauthorizedWithoutAuth() {
 		var request = new HttpRequestMessage(
 			HttpMethod.Post, CreateUrl
 		);
@@ -148,7 +149,7 @@ public sealed class CreateSystemNoticeIntegrationTests
 
 	[Fact]
 	public async Task
-	Create_WithInvalidSeverity_ReturnsValidationError() {
+	ItShouldReturnValidationErrorForInvalidSeverity() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 
@@ -171,7 +172,7 @@ public sealed class CreateSystemNoticeIntegrationTests
 
 	[Fact]
 	public async Task
-	Create_WithEmptyTitle_ReturnsValidationError() {
+	ItShouldReturnValidationErrorForEmptyTitle() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 

@@ -6,12 +6,13 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using MainApi.Src.Lib.Routes;
-using MainApi.Src.Lib.Testing;
+using MainApi.Src.Lib.Testing.Fixtures;
+using MainApi.Src.Lib.Testing.Helpers;
 using MainApi.Src.Lib.Utils;
 
 using Xunit;
 
-public sealed class FindSystemNoticesIntegrationTests
+public sealed class FindSystemNoticesSpec
 	: IClassFixture<ApiFixture> {
 	private static readonly string FindUrl = PathUtils.Join(
 		Routes.Staff.Root,
@@ -22,7 +23,7 @@ public sealed class FindSystemNoticesIntegrationTests
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
-	public FindSystemNoticesIntegrationTests(
+	public FindSystemNoticesSpec(
 		ApiFixture fixture
 	) {
 		_http = fixture.HttpClient;
@@ -31,7 +32,7 @@ public sealed class FindSystemNoticesIntegrationTests
 
 	[Fact]
 	public async Task
-	Find_WithDefaults_ReturnsOk() {
+	ItShouldReturnOkWithDefaults() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var noticeId =
@@ -72,7 +73,7 @@ public sealed class FindSystemNoticesIntegrationTests
 
 	[Fact]
 	public async Task
-	Find_WithoutAuth_ReturnsUnauthorized() {
+	ItShouldReturnUnauthorizedWithoutAuth() {
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, FindUrl
 		);
@@ -86,7 +87,7 @@ public sealed class FindSystemNoticesIntegrationTests
 
 	[Fact]
 	public async Task
-	Find_WithInvalidSortId_ReturnsBadRequest() {
+	ItShouldReturnBadRequestForInvalidSortId() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 
@@ -104,7 +105,7 @@ public sealed class FindSystemNoticesIntegrationTests
 
 	[Fact]
 	public async Task
-	Find_WithPagination_ReturnsNextCursor() {
+	ItShouldReturnNextCursorWithPagination() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var ids = new List<Guid>();
@@ -155,7 +156,7 @@ public sealed class FindSystemNoticesIntegrationTests
 
 	[Fact]
 	public async Task
-	Find_SortedByStartsAtAsc_ReturnsInOrder() {
+	ItShouldReturnInOrderWhenSortedByStartsAtAsc() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var ids = new List<Guid>();
