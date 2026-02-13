@@ -1,23 +1,39 @@
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Lib;
+using MainApi.Src.Lib.DI;
 using MainApi.Src.Modules.SystemNotices.Entities;
 
 using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Modules.SystemNotices.Services;
 
+public record CreateSystemNoticeArgs(
+	NoticeSeverity Severity,
+	string Title,
+	string Message,
+	DateTime StartsAt,
+	DateTime? ExpiresAt,
+	Guid CreatedByStaffId
+);
+
+public record UpdateSystemNoticeArgs(
+	NoticeSeverity? Severity,
+	string? Title,
+	string? Message,
+	DateTime? StartsAt,
+	PatchField<DateTime?> ExpiresAt
+);
+
 public interface ISystemNoticeService {
 	Task<SystemNotice> CreateAsync(
-		NoticeSeverity severity,
-		string title,
-		string message,
-		DateTime startsAt,
-		DateTime? expiresAt,
-		Guid createdByStaffId,
+		CreateSystemNoticeArgs args,
 		CancellationToken cancellationToken = default);
 
-	Task<(List<SystemNoticeListItem> Items, int TotalCount)> FindAsync(
-		int page,
-		int pageSize,
+	Task<FindSystemNoticesResult> FindAsync(
+		Guid cursor,
+		int? limit = null,
+		string? sortId = null,
+		SortOrder? sortOrder = null,
 		CancellationToken cancellationToken = default);
 
 	Task<SystemNotice?> GetByIdAsync(
@@ -26,11 +42,7 @@ public interface ISystemNoticeService {
 
 	Task<SystemNotice?> UpdateAsync(
 		Guid id,
-		NoticeSeverity? severity,
-		string? title,
-		string? message,
-		DateTime? startsAt,
-		DateTime? expiresAt,
+		UpdateSystemNoticeArgs args,
 		CancellationToken cancellationToken = default);
 
 	Task<bool> DeleteAsync(
@@ -39,6 +51,20 @@ public interface ISystemNoticeService {
 
 	Task<List<ActiveSystemNotice>> GetActiveAsync(
 		CancellationToken cancellationToken = default);
+}
+
+public abstract record FindSystemNoticesResult {
+	public sealed record Success(
+		CursorPaginatedResult<SystemNoticeListItem> Data
+	) : FindSystemNoticesResult;
+
+	public sealed record CursorNotFound(
+		string Cursor
+	) : FindSystemNoticesResult;
+
+	public sealed record InvalidSortId(
+		string SortId
+	) : FindSystemNoticesResult;
 }
 
 public record SystemNoticeListItem {
@@ -59,6 +85,7 @@ public record ActiveSystemNotice {
 	public DateTime? ExpiresAt { get; init; }
 }
 
+[Service(ServiceLifetime.Scoped)]
 public class SystemNoticeService : ISystemNoticeService {
 	private readonly MainApiDbContext _dbContext;
 	private readonly ILogger<SystemNoticeService> _logger;
@@ -72,56 +99,196 @@ public class SystemNoticeService : ISystemNoticeService {
 	}
 
 	public async Task<SystemNotice> CreateAsync(
-		NoticeSeverity severity,
-		string title,
-		string message,
-		DateTime startsAt,
-		DateTime? expiresAt,
-		Guid createdByStaffId,
+		CreateSystemNoticeArgs args,
 		CancellationToken cancellationToken = default
 	) {
 		var notice = new SystemNotice {
-			Severity = severity,
-			Title = title,
-			Message = message,
-			StartsAt = startsAt,
-			ExpiresAt = expiresAt,
-			CreatedByStaffId = createdByStaffId
+			Severity = args.Severity,
+			Title = args.Title,
+			Message = args.Message,
+			StartsAt = args.StartsAt,
+			ExpiresAt = args.ExpiresAt,
+			CreatedByStaffId = args.CreatedByStaffId
 		};
 
-		await _dbContext.SystemNotice.AddAsync(notice, cancellationToken);
+		await _dbContext.SystemNotice.AddAsync(
+			notice, cancellationToken
+		);
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
 		if (_logger.IsEnabled(LogLevel.Information)) {
 			_logger.LogInformation(
-				"Created system notice {NoticeId} with severity {Severity} by staff {StaffId}",
+				"Created system notice {NoticeId} "
+				+ "with severity {Severity} "
+				+ "by staff {StaffId}",
 				notice.Id,
-				severity,
-				createdByStaffId
+				args.Severity,
+				args.CreatedByStaffId
 			);
 		}
 
 		return notice;
 	}
 
-	public async Task<(List<SystemNoticeListItem> Items, int TotalCount)> FindAsync(
-		int page,
-		int pageSize,
+	public async Task<FindSystemNoticesResult> FindAsync(
+		Guid cursor,
+		int? limit = null,
+		string? sortId = null,
+		SortOrder? sortOrder = null,
 		CancellationToken cancellationToken = default
 	) {
-		var baseQuery =
-			from n in _dbContext.SystemNotice
-			orderby n.CreatedAt descending
-			select n;
+		var effectiveLimit = limit
+			?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
+		var effectiveSortId = (sortId ?? "created_at")
+			.ToLowerInvariant();
 
-		var totalCount = await baseQuery.CountAsync(cancellationToken);
+		var sortFieldHandlers =
+			new Dictionary<string, SortFieldHandler> {
+				["created_at"] = new SortFieldHandler(
+				getCursorValue: async (guid) => {
+					var notice = await _dbContext.SystemNotice
+						.Where(n => n.Id == guid
+							&& n.IsDeleted == false)
+						.Select(n => new { n.CreatedAt, n.Id })
+						.FirstOrDefaultAsync(cancellationToken);
+					return notice is not null
+						? (notice.CreatedAt, notice.Id)
+						: null;
+				},
+				applyFilter: (q, cursorValue, isAsc) => {
+					if (cursorValue is null) {
+						return q;
+					}
+					var (cursorCreatedAt, cursorId) =
+						((DateTime, Guid?))cursorValue;
+					return isAsc
+						? q.Where(n =>
+							n.CreatedAt > cursorCreatedAt
+							|| (n.CreatedAt == cursorCreatedAt
+								&& n.Id > cursorId))
+						: q.Where(n =>
+							n.CreatedAt < cursorCreatedAt
+							|| (n.CreatedAt == cursorCreatedAt
+								&& n.Id < cursorId));
+				},
+				applyOrdering: (q, isAsc) => isAsc
+					? q.OrderBy(n => n.CreatedAt)
+						.ThenBy(n => n.Id)
+					: q.OrderByDescending(n => n.CreatedAt)
+						.ThenByDescending(n => n.Id)
+			),
+				["starts_at"] = new SortFieldHandler(
+				getCursorValue: async (guid) => {
+					var notice = await _dbContext.SystemNotice
+						.Where(n => n.Id == guid
+							&& n.IsDeleted == false)
+						.Select(n => new { n.StartsAt, n.Id })
+						.FirstOrDefaultAsync(cancellationToken);
+					return notice is not null
+						? (notice.StartsAt, notice.Id)
+						: null;
+				},
+				applyFilter: (q, cursorValue, isAsc) => {
+					if (cursorValue is null) {
+						return q;
+					}
+					var (cursorStartsAt, cursorId) =
+						((DateTime, Guid?))cursorValue;
+					return isAsc
+						? q.Where(n =>
+							n.StartsAt > cursorStartsAt
+							|| (n.StartsAt == cursorStartsAt
+								&& n.Id > cursorId))
+						: q.Where(n =>
+							n.StartsAt < cursorStartsAt
+							|| (n.StartsAt == cursorStartsAt
+								&& n.Id < cursorId));
+				},
+				applyOrdering: (q, isAsc) => isAsc
+					? q.OrderBy(n => n.StartsAt)
+						.ThenBy(n => n.Id)
+					: q.OrderByDescending(n => n.StartsAt)
+						.ThenByDescending(n => n.Id)
+			),
+				["severity"] = new SortFieldHandler(
+				getCursorValue: async (guid) => {
+					var notice = await _dbContext.SystemNotice
+						.Where(n => n.Id == guid
+							&& n.IsDeleted == false)
+						.Select(n => new { n.Severity, n.Id })
+						.FirstOrDefaultAsync(cancellationToken);
+					return notice is not null
+						? ((int)notice.Severity, notice.Id)
+						: null;
+				},
+				applyFilter: (q, cursorValue, isAsc) => {
+					if (cursorValue is null) {
+						return q;
+					}
+					var (cursorSeverity, cursorId) =
+						((int, Guid?))cursorValue;
+					return isAsc
+						? q.Where(n =>
+							(int)n.Severity > cursorSeverity
+							|| ((int)n.Severity == cursorSeverity
+								&& n.Id > cursorId))
+						: q.Where(n =>
+							(int)n.Severity < cursorSeverity
+							|| ((int)n.Severity == cursorSeverity
+								&& n.Id < cursorId));
+				},
+				applyOrdering: (q, isAsc) => isAsc
+					? q.OrderBy(n => n.Severity)
+						.ThenBy(n => n.Id)
+					: q.OrderByDescending(n => n.Severity)
+						.ThenByDescending(n => n.Id)
+			),
+			};
 
-		var notices = await baseQuery
-			.Skip((page - 1) * pageSize)
-			.Take(pageSize)
+		if (!sortFieldHandlers.TryGetValue(
+			effectiveSortId, out SortFieldHandler? handler
+		)) {
+			return new FindSystemNoticesResult.InvalidSortId(
+				effectiveSortId
+			);
+		}
+
+		var query = _dbContext.SystemNotice
+			.Where(n => n.IsDeleted == false && n.Id != null);
+
+		if (cursor != Guid.Empty) {
+			var cursorValue = await handler.GetCursorValue(cursor);
+			if (cursorValue is null) {
+				return new FindSystemNoticesResult.CursorNotFound(
+					cursor.ToString()
+				);
+			}
+
+			query = handler.ApplyFilter(
+				query,
+				cursorValue,
+				effectiveSortOrder == SortOrder.Asc
+			);
+		}
+
+		var orderedQuery = handler.ApplyOrdering(
+			query,
+			effectiveSortOrder == SortOrder.Asc
+		);
+
+		var results = await orderedQuery
+			.Take(effectiveLimit + 1)
 			.ToListAsync(cancellationToken);
 
-		var items = notices.Select(n => new SystemNoticeListItem {
+		string? nextCursor = null;
+		if (results.Count > effectiveLimit) {
+			results.RemoveAt(results.Count - 1);
+			nextCursor = results.Last().GetRequiredId().ToString();
+		}
+
+		var now = DateTime.UtcNow;
+		var items = results.Select(n => new SystemNoticeListItem {
 			Id = n.Id!.Value,
 			Severity = n.Severity.ToString().ToLowerInvariant(),
 			Title = n.Title,
@@ -131,7 +298,12 @@ public class SystemNoticeService : ISystemNoticeService {
 			CreatedAt = n.CreatedAt
 		}).ToList();
 
-		return (items, totalCount);
+		return new FindSystemNoticesResult.Success(
+			new CursorPaginatedResult<SystemNoticeListItem> {
+				Data = items,
+				NextCursor = nextCursor,
+			}
+		);
 	}
 
 	public async Task<SystemNotice?> GetByIdAsync(
@@ -140,42 +312,43 @@ public class SystemNoticeService : ISystemNoticeService {
 	) {
 		var noticeQuery =
 			from n in _dbContext.SystemNotice
-			where n.Id == id
+			where n.Id == id && n.IsDeleted == false
 			select n;
 
-		return await noticeQuery.FirstOrDefaultAsync(cancellationToken);
+		return await noticeQuery
+			.FirstOrDefaultAsync(cancellationToken);
 	}
 
 	public async Task<SystemNotice?> UpdateAsync(
 		Guid id,
-		NoticeSeverity? severity,
-		string? title,
-		string? message,
-		DateTime? startsAt,
-		DateTime? expiresAt,
+		UpdateSystemNoticeArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var notice = await _dbContext.SystemNotice
-			.FindAsync(new object[] { id }, cancellationToken);
+		var notice = await (
+			from n in _dbContext.SystemNotice
+			where n.Id == id && n.IsDeleted == false
+			select n
+		).FirstOrDefaultAsync(cancellationToken);
 
 		if (notice is null) {
 			return null;
 		}
 
-		if (severity.HasValue) {
-			notice.Severity = severity.Value;
+		if (args.Severity.HasValue) {
+			notice.Severity = args.Severity.Value;
 		}
-		if (title is not null) {
-			notice.Title = title;
+		if (args.Title is not null) {
+			notice.Title = args.Title;
 		}
-		if (message is not null) {
-			notice.Message = message;
+		if (args.Message is not null) {
+			notice.Message = args.Message;
 		}
-		if (startsAt.HasValue) {
-			notice.StartsAt = startsAt.Value;
+		if (args.StartsAt.HasValue) {
+			notice.StartsAt = args.StartsAt.Value;
 		}
-		// ExpiresAt can be explicitly set to null, so we check differently
-		notice.ExpiresAt = expiresAt;
+		if (args.ExpiresAt.IsPresent) {
+			notice.ExpiresAt = args.ExpiresAt.Value;
+		}
 
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -193,17 +366,17 @@ public class SystemNoticeService : ISystemNoticeService {
 		Guid id,
 		CancellationToken cancellationToken = default
 	) {
-		var notice = await _dbContext.SystemNotice
-			.FindAsync(new object[] { id }, cancellationToken);
+		var notice = await (
+			from n in _dbContext.SystemNotice
+			where n.Id == id && n.IsDeleted == false
+			select n
+		).FirstOrDefaultAsync(cancellationToken);
 
 		if (notice is null) {
 			return false;
 		}
 
-		// Soft delete via BaseAttributes
-		notice.IsDeleted = true;
-		notice.DeletedAt = DateTime.UtcNow;
-
+		_dbContext.SystemNotice.Remove(notice);
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
 		if (_logger.IsEnabled(LogLevel.Information)) {
@@ -229,12 +402,48 @@ public class SystemNoticeService : ISystemNoticeService {
 			orderby n.Severity descending, n.StartsAt descending
 			select new ActiveSystemNotice {
 				Id = n.Id!.Value,
-				Severity = n.Severity.ToString().ToLowerInvariant(),
+				Severity = n.Severity.ToString()
+					.ToLowerInvariant(),
 				Title = n.Title,
 				Message = n.Message,
 				ExpiresAt = n.ExpiresAt
 			};
 
-		return await activeNoticesQuery.ToListAsync(cancellationToken);
+		return await activeNoticesQuery
+			.ToListAsync(cancellationToken);
+	}
+
+	private class SortFieldHandler {
+		public Func<Guid, Task<object?>> GetCursorValue { get; }
+		public Func<
+			IQueryable<SystemNotice>,
+			object?,
+			bool,
+			IQueryable<SystemNotice>
+		> ApplyFilter { get; }
+		public Func<
+			IQueryable<SystemNotice>,
+			bool,
+			IQueryable<SystemNotice>
+		> ApplyOrdering { get; }
+
+		public SortFieldHandler(
+			Func<Guid, Task<object?>> getCursorValue,
+			Func<
+				IQueryable<SystemNotice>,
+				object?,
+				bool,
+				IQueryable<SystemNotice>
+			> applyFilter,
+			Func<
+				IQueryable<SystemNotice>,
+				bool,
+				IQueryable<SystemNotice>
+			> applyOrdering
+		) {
+			GetCursorValue = getCursorValue;
+			ApplyFilter = applyFilter;
+			ApplyOrdering = applyOrdering;
+		}
 	}
 }

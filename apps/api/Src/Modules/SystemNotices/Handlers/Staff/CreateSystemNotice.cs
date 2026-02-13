@@ -2,10 +2,10 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.AuditLogs.Entities;
 using MainApi.Src.Modules.AuditLogs.Services;
 using MainApi.Src.Modules.SystemNotices.Entities;
@@ -22,6 +22,21 @@ public record CreateSystemNoticeBody {
 	public required JsonElement Message { get; init; }
 	public required JsonElement StartsAt { get; init; }
 	public JsonElement? ExpiresAt { get; init; }
+
+	public string GetSeverity() =>
+		Severity.GetValueAsString();
+
+	public string GetTitle() =>
+		Title.GetValueAsString();
+
+	public string GetMessage() =>
+		Message.GetValueAsString();
+
+	public DateTime GetStartsAt() =>
+		StartsAt.GetValueAsDateTime();
+
+	public DateTime? GetExpiresAt() =>
+		ExpiresAt.GetValueAsDateTimeOrNull();
 }
 
 public record SystemNoticeCreated {
@@ -32,20 +47,25 @@ public record SystemNoticeCreated {
 	public DateTime? ExpiresAt { get; init; }
 }
 
-public class CreateSystemNoticeBodyValidator : AbstractValidator<CreateSystemNoticeBody> {
-	private static readonly string[] ValidSeverities = ["info", "warning", "critical"];
+public class CreateSystemNoticeBodyValidator
+	: AbstractValidator<CreateSystemNoticeBody> {
+	private static readonly string[] ValidSeverities =
+		["info", "warning", "critical"];
 
 	public CreateSystemNoticeBodyValidator() {
 		RuleFor(x => x.Severity)
 			.Must(e => e.ValueKind == JsonValueKind.String)
 			.WithMessage("Severity must be a string")
 			.Must(BeValidSeverity)
-			.WithMessage("Severity must be one of: info, warning, critical");
+			.WithMessage(
+				"Severity must be one of: info, warning, critical"
+			);
 
 		RuleFor(x => x.Title)
 			.Must(e => e.ValueKind == JsonValueKind.String)
 			.WithMessage("Title must be a string")
-			.Must(e => !string.IsNullOrWhiteSpace(e.GetString()))
+			.Must(e =>
+				!string.IsNullOrWhiteSpace(e.GetString()))
 			.WithMessage("Title is required")
 			.Must(e => e.GetString()?.Length <= 200)
 			.WithMessage("Title must be 200 characters or less");
@@ -53,16 +73,21 @@ public class CreateSystemNoticeBodyValidator : AbstractValidator<CreateSystemNot
 		RuleFor(x => x.Message)
 			.Must(e => e.ValueKind == JsonValueKind.String)
 			.WithMessage("Message must be a string")
-			.Must(e => !string.IsNullOrWhiteSpace(e.GetString()))
+			.Must(e =>
+				!string.IsNullOrWhiteSpace(e.GetString()))
 			.WithMessage("Message is required")
 			.Must(e => e.GetString()?.Length <= 2000)
-			.WithMessage("Message must be 2000 characters or less");
+			.WithMessage(
+				"Message must be 2000 characters or less"
+			);
 
 		RuleFor(x => x.StartsAt)
 			.Must(e => e.ValueKind == JsonValueKind.String)
 			.WithMessage("StartsAt must be a string")
 			.Must(BeValidDateTime)
-			.WithMessage("StartsAt must be a valid ISO 8601 date");
+			.WithMessage(
+				"StartsAt must be a valid ISO 8601 date"
+			);
 
 		RuleFor(x => x.ExpiresAt)
 			.Must(e => e is null
@@ -70,32 +95,48 @@ public class CreateSystemNoticeBodyValidator : AbstractValidator<CreateSystemNot
 				|| e.Value.ValueKind == JsonValueKind.String)
 			.WithMessage("ExpiresAt must be a string or null")
 			.Must(BeValidDateTimeOrNull)
-			.WithMessage("ExpiresAt must be a valid ISO 8601 date");
+			.WithMessage(
+				"ExpiresAt must be a valid ISO 8601 date"
+			);
 	}
 
 	private bool BeValidSeverity(JsonElement element) {
-		if (element.ValueKind != JsonValueKind.String) return false;
+		if (element.ValueKind != JsonValueKind.String) {
+			return false;
+		}
 		var value = element.GetString()?.ToLowerInvariant();
 		return ValidSeverities.Contains(value);
 	}
 
 	private bool BeValidDateTime(JsonElement element) {
-		if (element.ValueKind != JsonValueKind.String) return false;
-		return DateTime.TryParse(element.GetString(), out _);
+		if (element.ValueKind != JsonValueKind.String) {
+			return false;
+		}
+		return DateUtils.TryParseIsoUtc(
+			element.GetString(), out _
+		);
 	}
 
 	private bool BeValidDateTimeOrNull(JsonElement? element) {
-		if (element is null || element.Value.ValueKind == JsonValueKind.Null) return true;
-		if (element.Value.ValueKind != JsonValueKind.String) return false;
-		return DateTime.TryParse(element.Value.GetString(), out _);
+		if (element is null
+			|| element.Value.ValueKind
+				== JsonValueKind.Null) {
+			return true;
+		}
+		if (element.Value.ValueKind
+			!= JsonValueKind.String) {
+			return false;
+		}
+		return DateUtils.TryParseIsoUtc(
+			element.Value.GetString(), out _
+		);
 	}
 }
 
 public static class CreateSystemNotice {
 	public static async Task<Results<
 		Ok<SystemNoticeCreated>,
-		AppBadRequestHttpResult,
-		AppForbiddenHttpResult
+		AppBadRequestHttpResult
 	>> HandleCreateSystemNotice(
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] ISystemNoticeService systemNoticeService,
@@ -105,51 +146,51 @@ public static class CreateSystemNotice {
 	) {
 		var account = authContext.AccountStaff;
 		if (account is null) {
-			return TypedProblems.Forbidden(
-				"User does not have the necessary permissions",
-				ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
+			throw new InvalidOperationException(
+				"Staff account not found in auth context. "
+				+ "Ensure the endpoint has "
+				+ ".WithPermission() middleware."
 			);
 		}
 
-		var severityStr = body.Severity.GetValueAsString().ToLowerInvariant();
-		var severity = severityStr switch {
-			"info" => NoticeSeverity.Info,
-			"warning" => NoticeSeverity.Warning,
-			"critical" => NoticeSeverity.Critical,
-			_ => NoticeSeverity.Info
-		};
+		var severityStr = body.GetSeverity();
+		var severity = SystemNotice.ParseSeverity(severityStr)
+			?? throw new InvalidOperationException(
+				$"Severity parser rejected validated value "
+				+ $"'{severityStr}'."
+			);
 
-		var title = body.Title.GetValueAsString();
-		var message = body.Message.GetValueAsString();
-		var startsAt = DateTime.Parse(body.StartsAt.GetValueAsString()).ToUniversalTime();
-
-		DateTime? expiresAt = null;
-		if (body.ExpiresAt is not null && body.ExpiresAt.Value.ValueKind == JsonValueKind.String) {
-			expiresAt = DateTime.Parse(body.ExpiresAt.Value.GetString()!).ToUniversalTime();
-		}
+		var args = new CreateSystemNoticeArgs(
+			Severity: severity,
+			Title: body.GetTitle(),
+			Message: body.GetMessage(),
+			StartsAt: body.GetStartsAt(),
+			ExpiresAt: body.GetExpiresAt(),
+			CreatedByStaffId: account.UserId
+		);
 
 		var notice = await systemNoticeService.CreateAsync(
-			severity,
-			title,
-			message,
-			startsAt,
-			expiresAt,
-			account.UserId,
-			cancellationToken
+			args, cancellationToken
 		);
 
 		await auditLogService.LogAsync(
 			account.UserId,
 			AuditActions.SystemNoticeCreated,
 			notice.Id,
-			new { Severity = severityStr, Title = title, StartsAt = startsAt, ExpiresAt = expiresAt },
+			new {
+				Severity = severityStr,
+				Title = args.Title,
+				StartsAt = args.StartsAt,
+				ExpiresAt = args.ExpiresAt
+			},
 			cancellationToken
 		);
 
 		return TypedResults.Ok(new SystemNoticeCreated {
 			Id = notice.Id!.Value,
 			Title = notice.Title,
-			Severity = severityStr,
+			Severity = severity.ToString()
+				.ToLowerInvariant(),
 			StartsAt = notice.StartsAt,
 			ExpiresAt = notice.ExpiresAt
 		});
