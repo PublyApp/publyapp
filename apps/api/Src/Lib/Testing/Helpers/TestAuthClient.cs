@@ -1,8 +1,9 @@
-namespace MainApi.Src.Lib.Testing;
+namespace MainApi.Src.Lib.Testing.Helpers;
 
 using System.Net.Http.Json;
 
 using MainApi.Src.Lib.Routes;
+using MainApi.Src.Lib.Testing.Fixtures;
 
 /// <summary>
 /// Helper for authenticating test requests.
