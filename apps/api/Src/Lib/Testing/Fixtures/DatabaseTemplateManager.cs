@@ -15,14 +15,16 @@ using Npgsql;
 internal sealed partial class DatabaseTemplateManager {
 	private readonly string _adminConnectionString;
 	private readonly string _templateDbName;
+	private static readonly Regex SafeDbNameRegex = new(
+		"^[a-z0-9_]+$",
+		RegexOptions.Compiled | RegexOptions.CultureInvariant,
+		TimeSpan.FromMilliseconds(100)
+	);
 
 	// Only allow safe DB names:
 	// lowercase alphanumeric + underscores
-	[GeneratedRegex(@"^[a-z0-9_]+$")]
-	private static partial Regex SafeDbNameRegex();
-
 	private static string ValidateDbName(string name) {
-		if (!SafeDbNameRegex().IsMatch(name)) {
+		if (!SafeDbNameRegex.IsMatch(name)) {
 			throw new ArgumentException(
 				$"Invalid database name: '{name}'. "
 				+ "Only lowercase alphanumeric and "
