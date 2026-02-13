@@ -6,11 +6,12 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using MainApi.Src.Lib.Routes;
-using MainApi.Src.Lib.Testing;
+using MainApi.Src.Lib.Testing.Fixtures;
+using MainApi.Src.Lib.Testing.Helpers;
 
 using Xunit;
 
-public sealed class GetActiveSystemNoticesIntegrationTests
+public sealed class GetActiveSystemNoticesSpec
 	: IClassFixture<ApiFixture> {
 	private static readonly string ActiveUrl =
 		Routes.SystemNotices.Anonymous.GetActive;
@@ -18,7 +19,7 @@ public sealed class GetActiveSystemNoticesIntegrationTests
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
-	public GetActiveSystemNoticesIntegrationTests(
+	public GetActiveSystemNoticesSpec(
 		ApiFixture fixture
 	) {
 		_http = fixture.HttpClient;
@@ -27,7 +28,7 @@ public sealed class GetActiveSystemNoticesIntegrationTests
 
 	[Fact]
 	public async Task
-	GetActive_ReturnsActiveNotices() {
+	ItShouldReturnActiveNotices() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 
@@ -81,7 +82,7 @@ public sealed class GetActiveSystemNoticesIntegrationTests
 
 	[Fact]
 	public async Task
-	GetActive_DoesNotReturnExpired() {
+	ItShouldNotReturnExpiredNotices() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 
@@ -127,7 +128,7 @@ public sealed class GetActiveSystemNoticesIntegrationTests
 
 	[Fact]
 	public async Task
-	GetActive_DoesNotReturnFuture() {
+	ItShouldNotReturnFutureNotices() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 

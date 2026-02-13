@@ -7,11 +7,12 @@ using FluentAssertions;
 
 using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib.ProblemResults;
-using MainApi.Src.Lib.Testing;
+using MainApi.Src.Lib.Testing.Fixtures;
+using MainApi.Src.Lib.Testing.Helpers;
 
 using Xunit;
 
-public sealed class TenantAuthFilterIntegrationTests
+public sealed class TenantAuthFilterSpec
 	: IClassFixture<ApiFixture> {
 	// The /test endpoint is behind tenantGroup
 	// which applies session + tenant header + tenant auth
@@ -20,7 +21,7 @@ public sealed class TenantAuthFilterIntegrationTests
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
-	public TenantAuthFilterIntegrationTests(
+	public TenantAuthFilterSpec(
 		ApiFixture fixture
 	) {
 		_http = fixture.HttpClient;
@@ -29,7 +30,7 @@ public sealed class TenantAuthFilterIntegrationTests
 
 	[Fact]
 	public async Task
-	TenantAuth_ActiveTenant_ReturnsOk() {
+	ItShouldReturnOkForActiveTenant() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var acmeId =
@@ -59,7 +60,7 @@ public sealed class TenantAuthFilterIntegrationTests
 
 	[Fact]
 	public async Task
-	TenantAuth_SuspendedTenant_Returns403Suspended() {
+	ItShouldReturn403ForSuspendedTenant() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var acmeId =
@@ -112,7 +113,7 @@ public sealed class TenantAuthFilterIntegrationTests
 
 	[Fact]
 	public async Task
-	TenantAuth_NonMember_ReturnsGeneric403() {
+	ItShouldReturn403ForNonMember() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var acmeId =
@@ -152,7 +153,7 @@ public sealed class TenantAuthFilterIntegrationTests
 
 	[Fact]
 	public async Task
-	TenantAuth_StaffOnTenantEndpoint_Returns403() {
+	ItShouldReturn403WhenStaffAccessesTenantEndpoint() {
 		// Staff user has no tenant membership (mutual
 		// exclusivity), so accessing a tenant endpoint
 		// should return generic 403
@@ -186,7 +187,7 @@ public sealed class TenantAuthFilterIntegrationTests
 
 	[Fact]
 	public async Task
-	TenantAuth_MissingTenantHeader_Returns400() {
+	ItShouldReturn400WhenTenantHeaderMissing() {
 		var acmeAdminToken = await _authClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
@@ -213,7 +214,7 @@ public sealed class TenantAuthFilterIntegrationTests
 
 	[Fact]
 	public async Task
-	TenantAuth_InvalidTenantHeaderGuid_Returns400() {
+	ItShouldReturn400WhenTenantHeaderIsInvalidGuid() {
 		var acmeAdminToken = await _authClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
@@ -244,7 +245,7 @@ public sealed class TenantAuthFilterIntegrationTests
 
 	[Fact]
 	public async Task
-	TenantAuth_MissingSessionToken_Returns401() {
+	ItShouldReturn401WhenSessionTokenMissing() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var acmeId =
@@ -269,7 +270,7 @@ public sealed class TenantAuthFilterIntegrationTests
 
 	[Fact]
 	public async Task
-	TenantAuth_InvalidSessionToken_Returns401() {
+	ItShouldReturn401WhenSessionTokenInvalid() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var acmeId =
@@ -295,7 +296,7 @@ public sealed class TenantAuthFilterIntegrationTests
 
 	[Fact]
 	public async Task
-	TenantAuth_AfterReactivation_AccessRestored() {
+	ItShouldRestoreAccessAfterReactivation() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var acmeId =

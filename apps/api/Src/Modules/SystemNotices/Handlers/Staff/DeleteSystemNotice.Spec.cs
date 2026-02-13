@@ -7,17 +7,18 @@ using FluentAssertions;
 
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Routes;
-using MainApi.Src.Lib.Testing;
+using MainApi.Src.Lib.Testing.Fixtures;
+using MainApi.Src.Lib.Testing.Helpers;
 using MainApi.Src.Lib.Utils;
 
 using Xunit;
 
-public sealed class DeleteSystemNoticeIntegrationTests
+public sealed class DeleteSystemNoticeSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
-	public DeleteSystemNoticeIntegrationTests(
+	public DeleteSystemNoticeSpec(
 		ApiFixture fixture
 	) {
 		_http = fixture.HttpClient;
@@ -26,7 +27,7 @@ public sealed class DeleteSystemNoticeIntegrationTests
 
 	[Fact]
 	public async Task
-	Delete_ExistingNotice_ReturnsNoContent() {
+	ItShouldReturnNoContentForExistingNotice() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var noticeId =
@@ -49,7 +50,7 @@ public sealed class DeleteSystemNoticeIntegrationTests
 
 	[Fact]
 	public async Task
-	Delete_WithoutAuth_ReturnsUnauthorized() {
+	ItShouldReturnUnauthorizedWithoutAuth() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var noticeId =
@@ -82,7 +83,7 @@ public sealed class DeleteSystemNoticeIntegrationTests
 
 	[Fact]
 	public async Task
-	Delete_Nonexistent_ReturnsNotFound() {
+	ItShouldReturnNotFoundForNonexistent() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var url = GetDeleteUrl(Guid.NewGuid());
@@ -106,7 +107,7 @@ public sealed class DeleteSystemNoticeIntegrationTests
 
 	[Fact]
 	public async Task
-	Delete_AlreadyDeleted_ReturnsNotFound() {
+	ItShouldReturnNotFoundForAlreadyDeleted() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var noticeId =

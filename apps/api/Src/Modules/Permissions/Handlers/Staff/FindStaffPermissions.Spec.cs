@@ -5,12 +5,13 @@ using System.Net;
 using FluentAssertions;
 
 using MainApi.Src.Lib.Routes;
-using MainApi.Src.Lib.Testing;
+using MainApi.Src.Lib.Testing.Fixtures;
+using MainApi.Src.Lib.Testing.Helpers;
 using MainApi.Src.Lib.Utils;
 
 using Xunit;
 
-public sealed class FindStaffPermissionsIntegrationTests
+public sealed class FindStaffPermissionsSpec
 	: IClassFixture<ApiFixture> {
 	private static readonly string FindUrl = PathUtils.Join(
 		Routes.Staff.Root,
@@ -21,7 +22,7 @@ public sealed class FindStaffPermissionsIntegrationTests
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
-	public FindStaffPermissionsIntegrationTests(
+	public FindStaffPermissionsSpec(
 		ApiFixture fixture
 	) {
 		_http = fixture.HttpClient;
@@ -30,7 +31,7 @@ public sealed class FindStaffPermissionsIntegrationTests
 
 	[Fact]
 	public async Task
-	GetPermissions_WithoutToken_ReturnsUnauthorized() {
+	ItShouldReturnUnauthorizedWithoutToken() {
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
 			FindUrl
@@ -44,7 +45,7 @@ public sealed class FindStaffPermissionsIntegrationTests
 
 	[Fact]
 	public async Task
-	GetPermissions_WithValidToken_ReturnsOk() {
+	ItShouldReturnOkWithValidToken() {
 		var sessionToken =
 			await _authClient.LoginAsStaffAdminAsync();
 
@@ -61,7 +62,7 @@ public sealed class FindStaffPermissionsIntegrationTests
 
 	[Fact]
 	public async Task
-	GetPermissions_WithInvalidToken_ReturnsUnauthorized() {
+	ItShouldReturnUnauthorizedWithInvalidToken() {
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
 			FindUrl

@@ -7,17 +7,18 @@ using FluentAssertions;
 
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Routes;
-using MainApi.Src.Lib.Testing;
+using MainApi.Src.Lib.Testing.Fixtures;
+using MainApi.Src.Lib.Testing.Helpers;
 using MainApi.Src.Lib.Utils;
 
 using Xunit;
 
-public sealed class UpdateSystemNoticeIntegrationTests
+public sealed class UpdateSystemNoticeSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
-	public UpdateSystemNoticeIntegrationTests(
+	public UpdateSystemNoticeSpec(
 		ApiFixture fixture
 	) {
 		_http = fixture.HttpClient;
@@ -26,7 +27,7 @@ public sealed class UpdateSystemNoticeIntegrationTests
 
 	[Fact]
 	public async Task
-	Update_WithValidData_ReturnsOk() {
+	ItShouldReturnOkWithValidData() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var noticeId =
@@ -74,7 +75,7 @@ public sealed class UpdateSystemNoticeIntegrationTests
 
 	[Fact]
 	public async Task
-	Update_WithoutAuth_ReturnsUnauthorized() {
+	ItShouldReturnUnauthorizedWithoutAuth() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var noticeId =
@@ -110,7 +111,7 @@ public sealed class UpdateSystemNoticeIntegrationTests
 
 	[Fact]
 	public async Task
-	Update_Nonexistent_ReturnsNotFound() {
+	ItShouldReturnNotFoundForNonexistent() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var url = GetUpdateUrl(Guid.NewGuid());
@@ -137,7 +138,7 @@ public sealed class UpdateSystemNoticeIntegrationTests
 
 	[Fact]
 	public async Task
-	Update_ClearExpiresAt_SetsToNull() {
+	ItShouldSetExpiresAtToNullWhenCleared() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var expiresAt = DateTime.UtcNow
@@ -203,7 +204,7 @@ public sealed class UpdateSystemNoticeIntegrationTests
 
 	[Fact]
 	public async Task
-	Update_PartialFields_KeepsOtherFields() {
+	ItShouldKeepOtherFieldsOnPartialUpdate() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var noticeId =
@@ -261,7 +262,7 @@ public sealed class UpdateSystemNoticeIntegrationTests
 
 	[Fact]
 	public async Task
-	Update_OmittedExpiresAt_PreservesExistingValue() {
+	ItShouldPreserveExpiresAtWhenOmitted() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var expiresAt = DateTime.UtcNow
@@ -330,7 +331,7 @@ public sealed class UpdateSystemNoticeIntegrationTests
 
 	[Fact]
 	public async Task
-	Update_SetExpiresAt_UpdatesValue() {
+	ItShouldUpdateExpiresAtWhenSet() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var noticeId =
