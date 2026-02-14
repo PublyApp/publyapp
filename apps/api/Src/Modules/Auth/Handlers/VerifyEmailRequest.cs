@@ -46,7 +46,8 @@ public class VerifyEmailRequest {
 	public static async Task<
 		Results<
 			Ok<VerifyEmailRequestResult>,
-			AppBadRequestHttpResult
+			AppBadRequestHttpResult,
+			AppNotFoundHttpResult
 		>
 	> HandleVerifyEmailRequest(
 		[FromBody] VerifyEmailRequestBody body,
@@ -58,10 +59,15 @@ public class VerifyEmailRequest {
 		var env = AppEnvironment.Instance;
 
 		// check if user exists
-		var user = await userService.GetUserByEmailAsync(body.GetEmail(), cancellationToken);
+		var user = await userService.GetUserByEmailAsync(
+			body.GetEmail(), cancellationToken
+		);
 
-		if (user == null) {
-			return TypedProblems.BadRequest("User not found", ResponseKeys.UserNotFound);
+		if (user is null) {
+			return TypedProblems.NotFound(
+				"User not found",
+				ResponseKeys.NotFound
+			);
 		}
 
 		if (user.IsVerified == true) {

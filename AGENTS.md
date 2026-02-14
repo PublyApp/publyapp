@@ -200,12 +200,16 @@ For the complete route design guide (staff/tenant/anonymous route structures, de
 route constants, handler naming conventions, and adding new domain slices), see:
 [`docs/guides/api-route-design.md`](docs/guides/api-route-design.md)
 
+For route parameter conventions (no route constraints, ID validation pattern), see:
+[`docs/guides/api-route-parameters.md`](docs/guides/api-route-parameters.md)
+
 **Key principles (always apply):**
 - Staff API: `/staff/...` with explicit `{tenantId}` in path
 - Tenant API: `/...` (root) with implicit tenant from `X-Tenant-Id` header
 - Anonymous: `/auth/...`, `/invitations/...`
 - Symmetry: same resource names in both APIs (`users`, `invitations`, `posts`)
 - Handler suffixes: `*ForStaff`, `*ForTenantAsStaff`, `*ForTenant`, `*Anonymous`
+- **Never** use route constraints (`:guid`, `:int`) on ID parameters — validate with `Guid.TryParse` in handlers; malformed ID → `BadRequest` (400), entity not found → `NotFound` (404)
 
 ## Frontend Coding Standards
 
