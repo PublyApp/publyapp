@@ -1,3 +1,4 @@
+using MainApi.Src.Modules.AuditLogs.Permissions;
 using MainApi.Src.Modules.Invitations.Permissions;
 using MainApi.Src.Modules.Permissions.Entities;
 using MainApi.Src.Modules.Permissions.Permissions;
@@ -24,6 +25,7 @@ public class StaffScopePermissions : IScopePermissions {
 	public ProfilePermissionsForStaff Profiles { get; } = new ProfilePermissionsForStaff();
 	public PermissionPermissionsForStaff Permissions { get; } = new PermissionPermissionsForStaff();
 	public SystemNoticePermissionsForStaff SystemNotices { get; } = new SystemNoticePermissionsForStaff();
+	public AuditLogPermissionsForStaff AuditLogs { get; } = new AuditLogPermissionsForStaff();
 }
 
 public class TenantScopePermissions : IScopePermissions {
