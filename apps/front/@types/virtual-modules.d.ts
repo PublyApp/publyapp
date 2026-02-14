@@ -4,5 +4,5 @@
  * vite-tsconfig-paths resolving it; the React Router Vite plugin provides the module).
  */
 declare module 'virtual:react-router/server-build' {
-	export * from './.react-router/types/+server-build';
+	export * from '../.react-router/types/+server-build';
 }
