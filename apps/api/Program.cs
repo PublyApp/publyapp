@@ -2,6 +2,7 @@ using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Routes;
+using MainApi.Src.Modules.AuditLogs.Endpoints;
 using MainApi.Src.Modules.Auth.Endpoints;
 using MainApi.Src.Modules.Invitations.Endpoints;
 using MainApi.Src.Modules.Permissions.Endpoints;
@@ -58,6 +59,7 @@ public class Program {
 		staffGroup.MapProfileEndpointsForStaff();
 		staffGroup.MapTenantEndpointsForStaff();
 		staffGroup.MapSystemNoticeEndpointsForStaff();
+		staffGroup.MapAuditLogEndpointsForStaff();
 
 		// TODO: once we have a tenant endpoint, we can remove this
 		tenantGroup.MapGet("/test", () => "Hello, World!");
