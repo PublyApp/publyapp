@@ -82,6 +82,82 @@ export interface AppProblemDetails extends AdditionalDataHolder, ApiError, Parsa
      */
     type?: string | null;
 }
+export interface AuditLogDetail extends AdditionalDataHolder, Parsable {
+    /**
+     * The action property
+     */
+    action?: string | null;
+    /**
+     * The createdAt property
+     */
+    createdAt?: Date | null;
+    /**
+     * The details property
+     */
+    details?: string | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The ipAddress property
+     */
+    ipAddress?: string | null;
+    /**
+     * The targetId property
+     */
+    targetId?: Guid | null;
+    /**
+     * The userAgent property
+     */
+    userAgent?: string | null;
+    /**
+     * The userEmail property
+     */
+    userEmail?: string | null;
+    /**
+     * The userId property
+     */
+    userId?: Guid | null;
+    /**
+     * The userName property
+     */
+    userName?: string | null;
+}
+export interface AuditLogListItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The action property
+     */
+    action?: string | null;
+    /**
+     * The createdAt property
+     */
+    createdAt?: Date | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The ipAddress property
+     */
+    ipAddress?: string | null;
+    /**
+     * The targetId property
+     */
+    targetId?: Guid | null;
+    /**
+     * The userEmail property
+     */
+    userEmail?: string | null;
+    /**
+     * The userId property
+     */
+    userId?: Guid | null;
+    /**
+     * The userName property
+     */
+    userName?: string | null;
+}
 export interface BulkCreateStaffInvitationsBody extends AdditionalDataHolder, Parsable {
     /**
      * The invitations property
@@ -159,6 +235,24 @@ export function createApiResponseFromDiscriminatorValue(parseNode: ParseNode | u
 // @ts-ignore
 export function createAppProblemDetailsFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoAppProblemDetails;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {AuditLogDetail}
+ */
+// @ts-ignore
+export function createAuditLogDetailFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoAuditLogDetail;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {AuditLogListItem}
+ */
+// @ts-ignore
+export function createAuditLogListItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoAuditLogListItem;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -433,6 +527,15 @@ export function createCreateTenantAsStaffResultFromDiscriminatorValue(parseNode:
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindAuditLogsResponse}
+ */
+// @ts-ignore
+export function createFindAuditLogsResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindAuditLogsResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {FindStaffInvitationsResult}
  */
 // @ts-ignore
@@ -474,6 +577,15 @@ export function createFindSystemNoticesResponseFromDiscriminatorValue(parseNode:
 // @ts-ignore
 export function createFindTenantProfilesAsStaffResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoFindTenantProfilesAsStaffResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {GetAuditLogActionsResponse}
+ */
+// @ts-ignore
+export function createGetAuditLogActionsResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetAuditLogActionsResponse;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1092,24 +1204,6 @@ export function createUpdateStaffUserBodyFromDiscriminatorValue(parseNode: Parse
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {JsonElement | UpdateSystemNoticeBody_expiresAtMember1}
- */
-// @ts-ignore
-export function createUpdateSystemNoticeBody_expiresAtFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoUpdateSystemNoticeBody_expiresAt;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {UpdateSystemNoticeBody_expiresAtMember1}
- */
-// @ts-ignore
-export function createUpdateSystemNoticeBody_expiresAtMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoUpdateSystemNoticeBody_expiresAtMember1;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {JsonElement | UpdateSystemNoticeBody_messageMember1}
  */
 // @ts-ignore
@@ -1278,6 +1372,44 @@ export function deserializeIntoAppProblemDetails(appProblemDetails: Partial<AppP
         "title": n => { appProblemDetails.title = n.getStringValue(); },
         "translationKey": n => { appProblemDetails.translationKey = n.getStringValue(); },
         "type": n => { appProblemDetails.type = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param AuditLogDetail The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoAuditLogDetail(auditLogDetail: Partial<AuditLogDetail> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "action": n => { auditLogDetail.action = n.getStringValue(); },
+        "createdAt": n => { auditLogDetail.createdAt = n.getDateValue(); },
+        "details": n => { auditLogDetail.details = n.getStringValue(); },
+        "id": n => { auditLogDetail.id = n.getGuidValue(); },
+        "ipAddress": n => { auditLogDetail.ipAddress = n.getStringValue(); },
+        "targetId": n => { auditLogDetail.targetId = n.getGuidValue(); },
+        "userAgent": n => { auditLogDetail.userAgent = n.getStringValue(); },
+        "userEmail": n => { auditLogDetail.userEmail = n.getStringValue(); },
+        "userId": n => { auditLogDetail.userId = n.getGuidValue(); },
+        "userName": n => { auditLogDetail.userName = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param AuditLogListItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoAuditLogListItem(auditLogListItem: Partial<AuditLogListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "action": n => { auditLogListItem.action = n.getStringValue(); },
+        "createdAt": n => { auditLogListItem.createdAt = n.getDateValue(); },
+        "id": n => { auditLogListItem.id = n.getGuidValue(); },
+        "ipAddress": n => { auditLogListItem.ipAddress = n.getStringValue(); },
+        "targetId": n => { auditLogListItem.targetId = n.getGuidValue(); },
+        "userEmail": n => { auditLogListItem.userEmail = n.getStringValue(); },
+        "userId": n => { auditLogListItem.userId = n.getGuidValue(); },
+        "userName": n => { auditLogListItem.userName = n.getStringValue(); },
     }
 }
 /**
@@ -1632,6 +1764,18 @@ export function deserializeIntoCreateTenantAsStaffResult(createTenantAsStaffResu
 }
 /**
  * The deserialization information for the current model
+ * @param FindAuditLogsResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindAuditLogsResponse(findAuditLogsResponse: Partial<FindAuditLogsResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "data": n => { findAuditLogsResponse.data = n.getCollectionOfObjectValues<AuditLogListItem>(createAuditLogListItemFromDiscriminatorValue); },
+        "nextCursor": n => { findAuditLogsResponse.nextCursor = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param FindStaffInvitationsResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -1688,6 +1832,17 @@ export function deserializeIntoFindTenantProfilesAsStaffResult(findTenantProfile
     return {
         "count": n => { findTenantProfilesAsStaffResult.count = n.getNumberValue(); },
         "profiles": n => { findTenantProfilesAsStaffResult.profiles = n.getCollectionOfObjectValues<ProfileAsStaffItem>(createProfileAsStaffItemFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param GetAuditLogActionsResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoGetAuditLogActionsResponse(getAuditLogActionsResponse: Partial<GetAuditLogActionsResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "actions": n => { getAuditLogActionsResponse.actions = n.getCollectionOfPrimitiveValues<string>(); },
     }
 }
 /**
@@ -2407,33 +2562,11 @@ export function deserializeIntoUpdateStaffUserBody_statusMember1(updateStaffUser
 // @ts-ignore
 export function deserializeIntoUpdateSystemNoticeBody(updateSystemNoticeBody: Partial<UpdateSystemNoticeBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "expiresAt": n => { updateSystemNoticeBody.expiresAt = n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue) ?? n.getObjectValue<UpdateSystemNoticeBody_expiresAtMember1>(createUpdateSystemNoticeBody_expiresAtMember1FromDiscriminatorValue); },
+        "expiresAt": n => { updateSystemNoticeBody.expiresAt = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "message": n => { updateSystemNoticeBody.message = n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue) ?? n.getObjectValue<UpdateSystemNoticeBody_messageMember1>(createUpdateSystemNoticeBody_messageMember1FromDiscriminatorValue); },
         "severity": n => { updateSystemNoticeBody.severity = n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue) ?? n.getObjectValue<UpdateSystemNoticeBody_severityMember1>(createUpdateSystemNoticeBody_severityMember1FromDiscriminatorValue); },
         "startsAt": n => { updateSystemNoticeBody.startsAt = n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue) ?? n.getObjectValue<UpdateSystemNoticeBody_startsAtMember1>(createUpdateSystemNoticeBody_startsAtMember1FromDiscriminatorValue); },
         "title": n => { updateSystemNoticeBody.title = n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue) ?? n.getObjectValue<UpdateSystemNoticeBody_titleMember1>(createUpdateSystemNoticeBody_titleMember1FromDiscriminatorValue); },
-    }
-}
-/**
- * The deserialization information for the current model
- * @param UpdateSystemNoticeBody_expiresAt The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoUpdateSystemNoticeBody_expiresAt(updateSystemNoticeBody_expiresAt: Partial<JsonElement | UpdateSystemNoticeBody_expiresAtMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        ...deserializeIntoJsonElement(updateSystemNoticeBody_expiresAt as JsonElement),
-        ...deserializeIntoUpdateSystemNoticeBody_expiresAtMember1(updateSystemNoticeBody_expiresAt as UpdateSystemNoticeBody_expiresAtMember1),
-    }
-}
-/**
- * The deserialization information for the current model
- * @param UpdateSystemNoticeBody_expiresAtMember1 The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoUpdateSystemNoticeBody_expiresAtMember1(updateSystemNoticeBody_expiresAtMember1: Partial<UpdateSystemNoticeBody_expiresAtMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
     }
 }
 /**
@@ -2573,6 +2706,16 @@ export function deserializeIntoVerifyEmailRequestResult(verifyEmailRequestResult
         "status": n => { verifyEmailRequestResult.status = n.getStringValue(); },
     }
 }
+export interface FindAuditLogsResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The data property
+     */
+    data?: AuditLogListItem[] | null;
+    /**
+     * The nextCursor property
+     */
+    nextCursor?: string | null;
+}
 export interface FindStaffInvitationsResult extends AdditionalDataHolder, Parsable {
     /**
      * The data property
@@ -2622,6 +2765,12 @@ export interface FindTenantProfilesAsStaffResult extends AdditionalDataHolder, P
      * The profiles property
      */
     profiles?: ProfileAsStaffItem[] | null;
+}
+export interface GetAuditLogActionsResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The actions property
+     */
+    actions?: string[] | null;
 }
 export interface GetRedirectCodeResult extends AdditionalDataHolder, Parsable {
     /**
@@ -2995,6 +3144,46 @@ export function serializeAppProblemDetails(writer: SerializationWriter, appProbl
 }
 /**
  * Serializes information the current object
+ * @param AuditLogDetail The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeAuditLogDetail(writer: SerializationWriter, auditLogDetail: Partial<AuditLogDetail> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!auditLogDetail || isSerializingDerivedType) { return; }
+    writer.writeStringValue("action", auditLogDetail.action);
+    writer.writeDateValue("createdAt", auditLogDetail.createdAt);
+    writer.writeStringValue("details", auditLogDetail.details);
+    writer.writeGuidValue("id", auditLogDetail.id);
+    writer.writeStringValue("ipAddress", auditLogDetail.ipAddress);
+    writer.writeGuidValue("targetId", auditLogDetail.targetId);
+    writer.writeStringValue("userAgent", auditLogDetail.userAgent);
+    writer.writeStringValue("userEmail", auditLogDetail.userEmail);
+    writer.writeGuidValue("userId", auditLogDetail.userId);
+    writer.writeStringValue("userName", auditLogDetail.userName);
+    writer.writeAdditionalData(auditLogDetail.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param AuditLogListItem The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeAuditLogListItem(writer: SerializationWriter, auditLogListItem: Partial<AuditLogListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!auditLogListItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("action", auditLogListItem.action);
+    writer.writeDateValue("createdAt", auditLogListItem.createdAt);
+    writer.writeGuidValue("id", auditLogListItem.id);
+    writer.writeStringValue("ipAddress", auditLogListItem.ipAddress);
+    writer.writeGuidValue("targetId", auditLogListItem.targetId);
+    writer.writeStringValue("userEmail", auditLogListItem.userEmail);
+    writer.writeGuidValue("userId", auditLogListItem.userId);
+    writer.writeStringValue("userName", auditLogListItem.userName);
+    writer.writeAdditionalData(auditLogListItem.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param BulkCreateStaffInvitationsBody The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -3357,6 +3546,19 @@ export function serializeCreateTenantAsStaffResult(writer: SerializationWriter, 
 }
 /**
  * Serializes information the current object
+ * @param FindAuditLogsResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindAuditLogsResponse(writer: SerializationWriter, findAuditLogsResponse: Partial<FindAuditLogsResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findAuditLogsResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<AuditLogListItem>("data", findAuditLogsResponse.data, serializeAuditLogListItem);
+    writer.writeStringValue("nextCursor", findAuditLogsResponse.nextCursor);
+    writer.writeAdditionalData(findAuditLogsResponse.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param FindStaffInvitationsResult The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -3419,6 +3621,18 @@ export function serializeFindTenantProfilesAsStaffResult(writer: SerializationWr
     writer.writeNumberValue("count", findTenantProfilesAsStaffResult.count);
     writer.writeCollectionOfObjectValues<ProfileAsStaffItem>("profiles", findTenantProfilesAsStaffResult.profiles, serializeProfileAsStaffItem);
     writer.writeAdditionalData(findTenantProfilesAsStaffResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param GetAuditLogActionsResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeGetAuditLogActionsResponse(writer: SerializationWriter, getAuditLogActionsResponse: Partial<GetAuditLogActionsResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getAuditLogActionsResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfPrimitiveValues<string>("actions", getAuditLogActionsResponse.actions);
+    writer.writeAdditionalData(getAuditLogActionsResponse.additionalData);
 }
 /**
  * Serializes information the current object
@@ -4177,34 +4391,12 @@ export function serializeUpdateStaffUserBody_statusMember1(writer: Serialization
 // @ts-ignore
 export function serializeUpdateSystemNoticeBody(writer: SerializationWriter, updateSystemNoticeBody: Partial<UpdateSystemNoticeBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!updateSystemNoticeBody || isSerializingDerivedType) { return; }
-    writer.writeObjectValue<JsonElement | UpdateSystemNoticeBody_expiresAtMember1>("expiresAt", updateSystemNoticeBody.expiresAt, serializeUpdateSystemNoticeBody_expiresAt);
+    writer.writeObjectValue("expiresAt", updateSystemNoticeBody.expiresAt);
     writer.writeObjectValue<JsonElement | UpdateSystemNoticeBody_messageMember1>("message", updateSystemNoticeBody.message, serializeUpdateSystemNoticeBody_message);
     writer.writeObjectValue<JsonElement | UpdateSystemNoticeBody_severityMember1>("severity", updateSystemNoticeBody.severity, serializeUpdateSystemNoticeBody_severity);
     writer.writeObjectValue<JsonElement | UpdateSystemNoticeBody_startsAtMember1>("startsAt", updateSystemNoticeBody.startsAt, serializeUpdateSystemNoticeBody_startsAt);
     writer.writeObjectValue<JsonElement | UpdateSystemNoticeBody_titleMember1>("title", updateSystemNoticeBody.title, serializeUpdateSystemNoticeBody_title);
     writer.writeAdditionalData(updateSystemNoticeBody.additionalData);
-}
-/**
- * Serializes information the current object
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param UpdateSystemNoticeBody_expiresAt The instance to serialize from.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeUpdateSystemNoticeBody_expiresAt(writer: SerializationWriter, updateSystemNoticeBody_expiresAt: Partial<JsonElement | UpdateSystemNoticeBody_expiresAtMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    serializeJsonElement(writer, updateSystemNoticeBody_expiresAt as JsonElement);
-    serializeUpdateSystemNoticeBody_expiresAtMember1(writer, updateSystemNoticeBody_expiresAt as UpdateSystemNoticeBody_expiresAtMember1);
-}
-/**
- * Serializes information the current object
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param UpdateSystemNoticeBody_expiresAtMember1 The instance to serialize from.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeUpdateSystemNoticeBody_expiresAtMember1(writer: SerializationWriter, updateSystemNoticeBody_expiresAtMember1: Partial<UpdateSystemNoticeBody_expiresAtMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!updateSystemNoticeBody_expiresAtMember1 || isSerializingDerivedType) { return; }
-    writer.writeAdditionalData(updateSystemNoticeBody_expiresAtMember1.additionalData);
 }
 /**
  * Serializes information the current object
@@ -4800,7 +4992,7 @@ export interface UpdateSystemNoticeBody extends AdditionalDataHolder, Parsable {
     /**
      * The expiresAt property
      */
-    expiresAt?: JsonElement | UpdateSystemNoticeBody_expiresAtMember1 | null;
+    expiresAt?: UntypedNode | null;
     /**
      * The message property
      */
@@ -4817,9 +5009,6 @@ export interface UpdateSystemNoticeBody extends AdditionalDataHolder, Parsable {
      * The title property
      */
     title?: JsonElement | UpdateSystemNoticeBody_titleMember1 | null;
-}
-export type UpdateSystemNoticeBody_expiresAt = JsonElement | UpdateSystemNoticeBody_expiresAtMember1;
-export interface UpdateSystemNoticeBody_expiresAtMember1 extends AdditionalDataHolder, Parsable {
 }
 export type UpdateSystemNoticeBody_message = JsonElement | UpdateSystemNoticeBody_messageMember1;
 export interface UpdateSystemNoticeBody_messageMember1 extends AdditionalDataHolder, Parsable {

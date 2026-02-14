@@ -15,6 +15,7 @@ export interface VerificationLinkRequestBuilder extends BaseRequestBuilder<Verif
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<GetVerificationLinkResult>}
      * @throws {AppProblemDetails} error when the service returns a 400 status code
+     * @throws {AppProblemDetails} error when the service returns a 404 status code
      * @throws {ValidationProblemDetails} error when the service returns a 422 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
@@ -51,6 +52,7 @@ export const VerificationLinkRequestBuilderRequestsMetadata: RequestsMetadata = 
         responseBodyContentType: "application/json",
         errorMappings: {
             400: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            404: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             422: createValidationProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
