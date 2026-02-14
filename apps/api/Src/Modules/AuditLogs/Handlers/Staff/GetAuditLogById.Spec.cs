@@ -6,8 +6,10 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Lib.Routes;
 using MainApi.Src.Lib.Testing.Fixtures;
 using MainApi.Src.Lib.Testing.Helpers;
+using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.AuditLogs.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -146,7 +148,7 @@ public sealed class GetAuditLogByIdSpec
 
 	[Fact]
 	public async Task
-	ItShouldReturnNotFoundForInvalidId() {
+	ItShouldReturnNotFoundForNonExistentId() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var url = AuditLogTestHelper.GetDetailUrl(
@@ -162,6 +164,32 @@ public sealed class GetAuditLogByIdSpec
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
+
+		var problem = await response.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnBadRequestForMalformedId() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+		var url = PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.AuditLogs.ForStaff.Root,
+			"/not-a-guid"
+		);
+
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(token);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();

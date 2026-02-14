@@ -10,16 +10,24 @@ namespace MainApi.Src.Modules.AuditLogs.Handlers.Staff;
 public static class GetAuditLogById {
 	public static async Task<Results<
 		Ok<AuditLogDetail>,
+		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
 	>> HandleGetAuditLogById(
 		[FromServices]
 		IAuditLogQueryService auditLogQueryService,
-		[FromRoute] Guid logId,
+		[FromRoute] string logId,
 		CancellationToken cancellationToken = default
 	) {
+		if (!Guid.TryParse(logId, out var logIdGuid)) {
+			return TypedProblems.BadRequest(
+				"Invalid audit log ID",
+				ResponseKeys.BadRequest
+			);
+		}
+
 		var detail =
 			await auditLogQueryService.GetByIdAsync(
-				logId, cancellationToken
+				logIdGuid, cancellationToken
 			);
 
 		if (detail is null) {

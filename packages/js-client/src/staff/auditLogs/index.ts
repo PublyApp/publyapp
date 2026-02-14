@@ -10,7 +10,7 @@ import { ExportRequestBuilderRequestsMetadata, type ExportRequestBuilder } from 
 // @ts-ignore
 import { type WithLogItemRequestBuilder, WithLogItemRequestBuilderRequestsMetadata } from './item/index.js';
 // @ts-ignore
-import { type BaseRequestBuilder, type Guid, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
+import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /staff/audit-logs
@@ -29,7 +29,7 @@ export interface AuditLogsRequestBuilder extends BaseRequestBuilder<AuditLogsReq
      * @param logId Unique identifier of the item
      * @returns {WithLogItemRequestBuilder}
      */
-     byLogId(logId: Guid) : WithLogItemRequestBuilder;
+     byLogId(logId: string) : WithLogItemRequestBuilder;
     /**
      * List audit logs with pagination and filters
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
