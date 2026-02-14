@@ -42,6 +42,7 @@ public class AppEnvironment {
 	public int PASSWORD_RESET_TOKEN_LENGTH { get; }
 	public int INVITATION_TOKEN_LENGTH { get; }
 	public bool DI_MANIFEST_ENABLED { get; }
+	public int AUDIT_LOG_EXPORT_MAX_ROWS { get; }
 
 	// ========== Constants (hardcoded, not from environment) ==========
 #pragma warning disable CA1822
@@ -86,7 +87,8 @@ public class AppEnvironment {
 		int emailVerifyTokenLength,
 		int passwordResetTokenLength,
 		int invitationTokenLength,
-		bool diManifestEnabled
+		bool diManifestEnabled,
+		int auditLogExportMaxRows
 	) {
 		POSTGRES_CONNECTION_STRING = postgresConnectionString;
 		FRONT_URL = frontUrl;
@@ -106,6 +108,7 @@ public class AppEnvironment {
 		PASSWORD_RESET_TOKEN_LENGTH = passwordResetTokenLength;
 		INVITATION_TOKEN_LENGTH = invitationTokenLength;
 		DI_MANIFEST_ENABLED = diManifestEnabled;
+		AUDIT_LOG_EXPORT_MAX_ROWS = auditLogExportMaxRows;
 	}
 
 	/// <summary>
@@ -147,7 +150,8 @@ public class AppEnvironment {
 				emailVerifyTokenLength: GetRequiredInt(nameof(EMAIL_VERIFY_TOKEN_LENGTH)),
 				passwordResetTokenLength: GetRequiredInt(nameof(PASSWORD_RESET_TOKEN_LENGTH)),
 				invitationTokenLength: GetRequiredInt(nameof(INVITATION_TOKEN_LENGTH)),
-				diManifestEnabled: GetOptionalBool(nameof(DI_MANIFEST_ENABLED), false)
+				diManifestEnabled: GetOptionalBool(nameof(DI_MANIFEST_ENABLED), false),
+				auditLogExportMaxRows: GetOptionalInt(nameof(AUDIT_LOG_EXPORT_MAX_ROWS), 10000)
 			);
 
 			var validator = new AppEnvironmentValidator();
@@ -201,6 +205,23 @@ public class AppEnvironment {
 
 		throw new InvalidOperationException(
 			$"Environment variable '{name}' must be a valid boolean (true/false/1/0), got '{trimmed}'");
+	}
+
+	private static int GetOptionalInt(string name, int defaultValue) {
+		var value = Environment.GetEnvironmentVariable(name);
+		if (string.IsNullOrWhiteSpace(value)) return defaultValue;
+
+		if (!int.TryParse(
+			value.Trim(),
+			NumberStyles.Integer,
+			CultureInfo.InvariantCulture,
+			out var result
+		)) {
+			throw new InvalidOperationException(
+				$"Environment variable '{name}' must be a valid integer, got '{value.Trim()}'");
+		}
+
+		return result;
 	}
 
 	private static string GetHostEnvironmentName() =>
@@ -336,6 +357,10 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 
 		RuleFor(x => x.INVITATION_TOKEN_LENGTH)
 			.GreaterThanOrEqualTo(25).WithMessage("INVITATION_TOKEN_LENGTH must be at least 25");
+
+		RuleFor(x => x.AUDIT_LOG_EXPORT_MAX_ROWS)
+			.InclusiveBetween(1, 1_000_000)
+			.WithMessage("AUDIT_LOG_EXPORT_MAX_ROWS must be between 1 and 1000000");
 
 		RuleFor(x => x.SESSION_TOKEN_HEADER_KEY)
 			.Must(BeValidHeaderName)

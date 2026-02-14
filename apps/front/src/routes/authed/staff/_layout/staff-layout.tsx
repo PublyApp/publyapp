@@ -62,6 +62,12 @@ const StaffLayout = () => {
 					deepActiveMatch: true,
 				},
 				{
+					title: t('audit-logs'),
+					path: FRONT_PATH_NAMES.staff.auditLogs.root,
+					icon: ICONS.history,
+					deepActiveMatch: true,
+				},
+				{
 					title: t('workers'),
 					path: FRONT_PATH_NAMES.staff.backgroundJobs.root,
 					icon: ICONS.job,

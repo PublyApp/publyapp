@@ -75,6 +75,7 @@ const RESOURCE = {
 	staffUsers: 'staff-users',
 	profiles: 'profiles',
 	invitations: 'invitations',
+	auditLogs: 'audit-logs',
 } as const;
 
 const ROOTS = {
@@ -226,6 +227,12 @@ export const FRONT_PATH_NAMES = {
 					'details',
 					invitationId,
 				);
+			},
+		},
+		auditLogs: {
+			root: makePath(ROOTS.STAFF, RESOURCE.auditLogs),
+			details: (logId = '') => {
+				return makePath(ROOTS.STAFF, RESOURCE.auditLogs, 'details', logId);
 			},
 		},
 		backgroundJobs: {

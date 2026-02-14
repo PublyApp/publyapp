@@ -11,7 +11,11 @@
 			"@/shared/*": ["./packages/shared/*"],
 			"@/js-client/*": ["./packages/js-client/*"],
 			// for remix aka react-router app
-			"~/front/*": ["./apps/front/src/*"]
+			"~/front/*": ["./apps/front/src/*"],
+			// Explicitly map React Router's virtual server-build module for tsc CLI.
+			"virtual:react-router/server-build": [
+				"./apps/front/.react-router/types/+server-build.d.ts"
+			]
 		}
 	}
 }
