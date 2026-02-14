@@ -29,6 +29,7 @@ import { ProgressBar } from './components/progress-bar';
 import { Snackbar } from './components/snackbar/snackbar';
 import { useNonce } from './hooks/use-nonce-context';
 import { logout } from './lib/cookies/logout.utils';
+import { LocalizationProvider } from './lib/locales/localization-provider';
 import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
 import { getQueryClient } from './lib/react-query/query-client';
 import { setGlobalNavigate } from './lib/react-router/navigation-helper';
@@ -135,14 +136,16 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 					nonce={nonce}
 				/>
 				<QueryClientProvider client={queryClient}>
-					<MuiThemeProvider>
-						<MotionLazy>
-							<Snackbar />
-							<ProgressBar />
-							<SettingsDrawer defaultSettings={defaultSettings} />
-							{children}
-						</MotionLazy>
-					</MuiThemeProvider>
+					<LocalizationProvider>
+						<MuiThemeProvider>
+							<MotionLazy>
+								<Snackbar />
+								<ProgressBar />
+								<SettingsDrawer defaultSettings={defaultSettings} />
+								{children}
+							</MotionLazy>
+						</MuiThemeProvider>
+					</LocalizationProvider>
 				</QueryClientProvider>
 				<ScrollRestoration nonce={nonce} />
 				<Scripts nonce={nonce} />
