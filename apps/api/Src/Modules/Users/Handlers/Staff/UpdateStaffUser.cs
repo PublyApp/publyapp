@@ -151,6 +151,7 @@ public class UpdateStaffUser {
 		Results<
 			Ok<ApiResponse>,
 			AppBadRequestHttpResult,
+			AppNotFoundHttpResult,
 			AppInternalServerErrorHttpResult
 		>
 	> HandleUpdateStaffUser(
@@ -160,16 +161,17 @@ public class UpdateStaffUser {
 		ILogger<UpdateStaffUser> logger,
 		CancellationToken cancellationToken
 	) {
-		var parseResult = Guid.TryParse(userId, out var userIdGuid);
-
-		if (!parseResult) {
+		if (!Guid.TryParse(userId, out var userIdGuid)) {
 			if (logger.IsEnabled(LogLevel.Debug)) {
-				logger.LogDebug("Invalid user id: {@LogData}", new { UserId = userId });
+				logger.LogDebug(
+					"Invalid user id: {@LogData}",
+					new { UserId = userId }
+				);
 			}
 
 			return TypedProblems.BadRequest(
-				"User does not exist or is not a staff member",
-				ResponseKeys.UserNotFound
+				"Invalid user ID",
+				ResponseKeys.BadRequest
 			);
 		}
 
@@ -181,27 +183,38 @@ public class UpdateStaffUser {
 			AccountLevel = body.GetAccountLevel(),
 		};
 
-		var result = await UserService.UpdateStaffUserByIdAsync(userIdGuid, updateUserDocument, cancellationToken);
+		var result =
+			await UserService.UpdateStaffUserByIdAsync(
+				userIdGuid,
+				updateUserDocument,
+				cancellationToken
+			);
 
 		if (result is UpdateUserByIdResult.UserNotFound) {
 			if (logger.IsEnabled(LogLevel.Debug)) {
-				logger.LogDebug("User not found: {@LogData}", new { UserId = userIdGuid });
+				logger.LogDebug(
+					"User not found: {@LogData}",
+					new { UserId = userIdGuid }
+				);
 			}
 
-			return TypedProblems.BadRequest(
-				"User does not exist or is not a staff member",
-				ResponseKeys.UserNotFound
+			return TypedProblems.NotFound(
+				"User not found",
+				ResponseKeys.NotFound
 			);
 		}
 
 		if (result is UpdateUserByIdResult.UserAccountNotFound) {
 			if (logger.IsEnabled(LogLevel.Debug)) {
-				logger.LogDebug("User account not found: {@LogData}", new { UserId = userIdGuid });
+				logger.LogDebug(
+					"User account not found: {@LogData}",
+					new { UserId = userIdGuid }
+				);
 			}
 
-			return TypedProblems.BadRequest(
-				"User account does not exist or is not a staff member",
-				ResponseKeys.UserNotFound
+			return TypedProblems.NotFound(
+				"User account not found",
+				ResponseKeys.NotFound
 			);
 		}
 
