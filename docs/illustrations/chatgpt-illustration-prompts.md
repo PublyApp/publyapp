@@ -50,14 +50,14 @@
   - [Onboarding Welcome — Prompts (1–5)](#onboarding-welcome)
   - [Maintenance Mode — Prompts (1–5)](#maintenance-mode)
   - [Coming Soon — Prompts (1–5)](#coming-soon)
-- [Quick Reference — All 155 Prompts](#quick-reference--all-155-prompts)
+- [Quick Reference — All 170 Prompts](#quick-reference--all-170-prompts)
 - [Tips for Best Results in ChatGPT](#tips-for-best-results-in-chatgpt)
 
 ---
 
 ## Style Reference Guide
 
-Use this block as a **prefix/context** when generating illustrations. All 155 prompts use this same style:
+Use this block as a **prefix/context** when generating illustrations. All 170 prompts use this same style:
 
 ```
 STYLE: Icons8 "Taxi" illustration style.
@@ -184,6 +184,156 @@ SCENE: A road sign on a post, but the sign panel is mounted upside down. The arr
 STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
 
 SCENE: A large three-prong plug approaching a two-slot wall outlet. The prongs and slots clearly don't match. Small spark lines at the failed connection point.
+```
+
+---
+
+### 400-Taxi-6 — Broken Puzzle Piece
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A single puzzle piece with a chipped corner sitting next to an almost-complete puzzle board. The gap in the board clearly doesn't match the broken piece.
+```
+
+---
+
+### 400-Taxi-7 — Wrong Stamp on Envelope
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A sealed envelope with a large X stamped over it. The envelope sits at a slight angle with a "rejected" rubber stamp lying beside it.
+```
+
+---
+
+### 400-Taxi-8 — Cracked Magnifying Glass
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A magnifying glass with a large crack running diagonally across its lens. The distorted view through the glass shows a warped question mark.
+```
+
+---
+
+### 400-Taxi-9 — Misaligned Gears
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: Two gears positioned close together but with their teeth misaligned so they can't interlock. Small friction sparks appear between them.
+```
+
+---
+
+### 400-Taxi-10 — Bent Wrench on Bolt
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A wrench with a bent jaw trying to grip a bolt. The wrench is clearly the wrong size, with a visible gap between the jaw and the bolt head.
+```
+
+---
+
+### 400-Taxi-11 — Clipboard with X Mark
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A clipboard with a sheet of paper on it. A large bold X mark covers the page. A pencil lies broken in two beside the clipboard.
+```
+
+---
+
+### 400-Taxi-12 — Backwards Binoculars
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A pair of binoculars pointing the wrong way around, with the wide objective lenses facing forward toward the viewer. Small confused swirl lines float above.
+```
+
+---
+
+### 400-Taxi-13 — Jar with Wrong Lid
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A jar with a lid sitting crooked on top because it's too small for the opening. The lid tilts at an angle, clearly not sealing.
+```
+
+---
+
+### 400-Taxi-14 — Crossed-Out Barcode
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A large barcode tag with a bold diagonal line crossing it out. A small scanner beam bounces off at an angle, failing to read it.
+```
+
+---
+
+### 400-Taxi-15 — Map Folded Wrong
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A paper map crumpled and folded the wrong way, with corners sticking out at odd angles. A small compass beside it spins with no clear direction.
+```
+
+---
+
+### 400-Taxi-16 — Light Bulb in Wrong Socket
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A large light bulb dangling from a socket that's too small for its base. The bulb hangs at an angle, unlit. A small spark fizzles at the connection.
+```
+
+---
+
+### 400-Taxi-17 — Scissors Cutting a Circle
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A pair of scissors attempting to cut along a dotted circle line on paper but the cut path is jagged and off-track. Small paper scraps scatter around.
+```
+
+---
+
+### 400-Taxi-18 — Flipped Hourglass Stuck
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: An hourglass on its side with sand stuck in the middle, unable to flow in either direction. The narrow neck is visibly clogged.
+```
+
+---
+
+### 400-Taxi-19 — Calculator Showing Error
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A desktop calculator with its screen showing a zigzag error line instead of numbers. One of the buttons has popped off and sits beside the calculator.
+```
+
+---
+
+### 400-Taxi-20 — Anchor on Dry Land
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A large ship anchor sitting on a flat dry surface with a coiled rope beside it. No water in sight — the anchor is completely out of place.
 ```
 
 ---
@@ -1812,7 +1962,7 @@ SCENE: A telescope on a tripod aimed at a glowing horizon line. Small radiating 
 
 ---
 
-## Quick Reference — All 155 Prompts
+## Quick Reference — All 170 Prompts
 
 | Category | # | Short Description |
 |----------|---|-------------------|
@@ -1826,6 +1976,21 @@ SCENE: A telescope on a tripod aimed at a glowing horizon line. Small radiating 
 | **400** | 3 | Mismatched key and lock |
 | **400** | 4 | Upside-down road sign |
 | **400** | 5 | Plug that doesn't fit |
+| **400** | 6 | Broken puzzle piece |
+| **400** | 7 | Wrong stamp on envelope |
+| **400** | 8 | Cracked magnifying glass |
+| **400** | 9 | Misaligned gears |
+| **400** | 10 | Bent wrench on bolt |
+| **400** | 11 | Clipboard with X mark |
+| **400** | 12 | Backwards binoculars |
+| **400** | 13 | Jar with wrong lid |
+| **400** | 14 | Crossed-out barcode |
+| **400** | 15 | Map folded wrong |
+| **400** | 16 | Light bulb wrong socket |
+| **400** | 17 | Scissors cutting off-track |
+| **400** | 18 | Flipped hourglass stuck |
+| **400** | 19 | Calculator showing error |
+| **400** | 20 | Anchor on dry land |
 | **401** | 1 | Padlock on gate |
 | **401** | 2 | Shield blocking entry |
 | **401** | 3 | Closed vault door |
