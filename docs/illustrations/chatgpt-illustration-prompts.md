@@ -50,14 +50,14 @@
   - [Onboarding Welcome — Prompts (1–5)](#onboarding-welcome)
   - [Maintenance Mode — Prompts (1–5)](#maintenance-mode)
   - [Coming Soon — Prompts (1–5)](#coming-soon)
-- [Quick Reference — All 170 Prompts](#quick-reference--all-170-prompts)
+- [Quick Reference — All 185 Prompts](#quick-reference--all-185-prompts)
 - [Tips for Best Results in ChatGPT](#tips-for-best-results-in-chatgpt)
 
 ---
 
 ## Style Reference Guide
 
-Use this block as a **prefix/context** when generating illustrations. All 170 prompts use this same style:
+Use this block as a **prefix/context** when generating illustrations. All 185 prompts use this same style:
 
 ```
 STYLE: Icons8 "Taxi" illustration style.
@@ -390,6 +390,156 @@ SCENE: A single large ornate keyhole centered in a door. The keyhole is empty �
 STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
 
 SCENE: A sturdy treasure chest with a prominent lock on its front clasp. The lock is closed and there is no key. The chest sits alone on a clean surface.
+```
+
+---
+
+### 401-Taxi-6 — Chained Door Handle
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A door handle wrapped tightly in a chain with a small padlock dangling from it. The chain loops several times around the lever, making it impossible to pull.
+```
+
+---
+
+### 401-Taxi-7 — Safe with Spinning Dial
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A heavy safe box with a round combination dial on the front. Motion lines show the dial spinning freely with no correct combination entered. The safe door is firmly shut.
+```
+
+---
+
+### 401-Taxi-8 — Key Snapped in Half
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A large key broken cleanly into two pieces lying on a flat surface. The gap between the halves shows they once formed a single key. A keyhole looms in the background.
+```
+
+---
+
+### 401-Taxi-9 — Sealed Mailbox
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A classic mailbox with its door welded shut. A small lock seals the mail slot closed. No way to open or retrieve anything inside.
+```
+
+---
+
+### 401-Taxi-10 — Turnstile Locked
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A metal turnstile gate with its arms locked in place. A small red indicator dot glows on the reader panel. The bars are completely rigid and won't rotate.
+```
+
+---
+
+### 401-Taxi-11 — Padlocked Book
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A thick closed book with a padlock clasped through its covers, keeping it sealed shut. The lock hangs from the book's spine edge.
+```
+
+---
+
+### 401-Taxi-12 — Locked Suitcase
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A vintage suitcase standing upright with two combination locks on its front clasps. Both locks display mismatched numbers and won't open.
+```
+
+---
+
+### 401-Taxi-13 — Drawbridge Raised
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A castle drawbridge fully raised in the upright position, blocking passage across a gap. Heavy chains hold the bridge up on both sides.
+```
+
+---
+
+### 401-Taxi-14 — Sealed Jar with Cork
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A glass jar sealed tightly with a cork and wax dripping over the top. A small keyhole is embedded in the wax seal. No key in sight.
+```
+
+---
+
+### 401-Taxi-15 — Laptop with Lock Screen
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: An open laptop with a large padlock icon displayed on its screen. The screen glows faintly but shows nothing else beyond the lock symbol.
+```
+
+---
+
+### 401-Taxi-16 — Key Card Denied
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A key card hovering near a wall-mounted card reader. A bold X mark glows on the reader's indicator light. The nearby door remains shut.
+```
+
+---
+
+### 401-Taxi-17 — Locked Piggy Bank
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A piggy bank with a small padlock over its coin slot, preventing anything from going in or coming out. The lock dangles from the slot.
+```
+
+---
+
+### 401-Taxi-18 — Sealed Envelope with Wax
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A large envelope sealed with a bold wax stamp on its flap. The wax is unbroken and intact. The envelope sits upright, guarding its contents.
+```
+
+---
+
+### 401-Taxi-19 — Bolted Window Shutters
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A window with both shutters closed and a heavy bolt latch across the middle holding them together. No light passes through the sealed gap.
+```
+
+---
+
+### 401-Taxi-20 — Locked Toolbox
+
+```
+STYLE: Icons8 "Taxi" illustration style. Strict 3-color flat palette: golden yellow (#F5C518), black, and white only. No gradients. Bold, uniform-thickness black outlines. Organic blob-shaped yellow background on white canvas. White highlights on yellow surfaces. Clean, bold, graphic objects. No text. No human figures. Square 1:1 ratio.
+
+SCENE: A metal toolbox with its latch secured by a combination lock. The lid is pressed down tight and won't budge. A small X mark hovers above the latch.
 ```
 
 ---
@@ -1962,7 +2112,7 @@ SCENE: A telescope on a tripod aimed at a glowing horizon line. Small radiating 
 
 ---
 
-## Quick Reference — All 170 Prompts
+## Quick Reference — All 185 Prompts
 
 | Category | # | Short Description |
 |----------|---|-------------------|
@@ -1996,6 +2146,21 @@ SCENE: A telescope on a tripod aimed at a glowing horizon line. Small radiating 
 | **401** | 3 | Closed vault door |
 | **401** | 4 | Keyhole with no key |
 | **401** | 5 | Locked treasure chest |
+| **401** | 6 | Chained door handle |
+| **401** | 7 | Safe with spinning dial |
+| **401** | 8 | Key snapped in half |
+| **401** | 9 | Sealed mailbox |
+| **401** | 10 | Turnstile locked |
+| **401** | 11 | Padlocked book |
+| **401** | 12 | Locked suitcase |
+| **401** | 13 | Drawbridge raised |
+| **401** | 14 | Sealed jar with cork |
+| **401** | 15 | Laptop lock screen |
+| **401** | 16 | Key card denied |
+| **401** | 17 | Locked piggy bank |
+| **401** | 18 | Sealed envelope with wax |
+| **401** | 19 | Bolted window shutters |
+| **401** | 20 | Locked toolbox |
 | **403** | 1 | Stop sign barrier |
 | **403** | 2 | Brick wall blocking path |
 | **403** | 3 | Crossed-out doorway |
