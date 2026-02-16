@@ -1,6 +1,8 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 
+using MainApi.Src.Lib.Utils;
+
 namespace MainApi.Src.Lib.Extensions;
 
 public static class JsonElementExtensions {
@@ -99,5 +101,59 @@ public static class JsonElementExtensions {
 			JsonValueKind.Number => element.GetInt32(),
 			_ => throw new InvalidOperationException($"{propertyName} must be a number or null")
 		};
+	}
+
+	public static DateTime GetValueAsDateTime(this JsonElement element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
+		if (element.ValueKind != JsonValueKind.String) {
+			throw new InvalidOperationException(
+				$"{propertyName} is not a valid date"
+			);
+		}
+		if (!DateUtils.TryParseIsoUtc(
+			element.GetString(), out var utc
+		)) {
+			throw new InvalidOperationException(
+				$"{propertyName} is not a valid ISO 8601 date"
+			);
+		}
+		return utc;
+	}
+
+	public static DateTime? GetValueAsDateTimeOrNull(this JsonElement? element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
+		return element?.ValueKind switch {
+			null => null,
+			JsonValueKind.Null => null,
+			JsonValueKind.Undefined => null,
+			JsonValueKind.String => ParseDateTimeUtcOrThrow(
+				element?.GetString(), propertyName
+			),
+			_ => throw new InvalidOperationException(
+				$"{propertyName} must be a valid date or null"
+			)
+		};
+	}
+
+	public static DateTime? GetValueAsDateTimeOrNull(this JsonElement element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
+		return element.ValueKind switch {
+			JsonValueKind.Null => null,
+			JsonValueKind.Undefined => null,
+			JsonValueKind.String => ParseDateTimeUtcOrThrow(
+				element.GetString(), propertyName
+			),
+			_ => throw new InvalidOperationException(
+				$"{propertyName} must be a valid date or null"
+			)
+		};
+	}
+
+	private static DateTime ParseDateTimeUtcOrThrow(
+		string? raw, string? propertyName
+	) {
+		if (!DateUtils.TryParseIsoUtc(raw, out var utc)) {
+			throw new InvalidOperationException(
+				$"{propertyName} is not a valid ISO 8601 date"
+			);
+		}
+		return utc;
 	}
 }

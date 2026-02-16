@@ -39,7 +39,7 @@ import {
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
 import duration from '@/shared/utils/duration.utils';
-import { getErrorMessage } from '@/shared/utils/error.utils';
+import { getSerializedErrorMessage } from '@/shared/utils/error.utils';
 import { getAcceptInvitationSchema } from '@/shared/validations/invitation.validations';
 
 import type { Route } from './+types/accept-invitation-page';
@@ -326,8 +326,7 @@ const AcceptInvitationForm = ({
 
 	const fetcher = useFetcher<typeof action>();
 
-	const errorFetcher = fetcher.data?.error;
-	const errorMessage = errorFetcher ? getErrorMessage(errorFetcher) : null;
+	const errorMessage = getSerializedErrorMessage(fetcher.data?.error, t);
 
 	const handleSubmit = form.handleSubmit(async (data) => {
 		// Guard against multiple submissions while fetcher is already processing

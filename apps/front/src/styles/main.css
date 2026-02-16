@@ -73,11 +73,14 @@ input[type="number"]::-webkit-inner-spin-button {
  * UI Foundations focus styles
  *************************************** */
 .Mui-focusVisible {
+	/* biome-ignore lint/complexity/noImportantStyles: I don't know why !important is needed here, need to investigate */
 	box-shadow: 0 0 0 2px var(--mui-palette-primary-200) !important;
 }
 .MuiTablePagination-select {
+	/* biome-ignore lint/complexity/noImportantStyles: I don't know why !important is needed here, need to investigate */
 	padding-bottom: 1px !important;
 }
 .MuiDataGrid-menuList {
+	/* biome-ignore lint/complexity/noImportantStyles: I don't know why !important is needed here, need to investigate */
 	padding: 4px !important;
 }

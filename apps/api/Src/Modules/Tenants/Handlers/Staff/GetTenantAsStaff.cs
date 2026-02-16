@@ -16,7 +16,8 @@ public class GetTenantAsStaff {
 	public static async Task<
 		Results<
 			Ok<GetTenantAsStaffResult>,
-			AppBadRequestHttpResult
+			AppBadRequestHttpResult,
+			AppNotFoundHttpResult
 		>
 	> HandleGetTenantAsStaff(
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
@@ -24,13 +25,22 @@ public class GetTenantAsStaff {
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
-			return TypedProblems.BadRequest("Tenant not found", ResponseKeys.NotFound);
+			return TypedProblems.BadRequest(
+				"Invalid tenant ID",
+				ResponseKeys.BadRequest
+			);
 		}
 
-		var tenant = await tenantAsStaffService.GetTenantByIdAsync(tenantIdGuid, cancellationToken);
+		var tenant =
+			await tenantAsStaffService.GetTenantByIdAsync(
+				tenantIdGuid, cancellationToken
+			);
 
 		if (tenant is null) {
-			return TypedProblems.BadRequest("Tenant not found", ResponseKeys.NotFound);
+			return TypedProblems.NotFound(
+				"Tenant not found",
+				ResponseKeys.NotFound
+			);
 		}
 
 		return TypedResults.Ok(new GetTenantAsStaffResult {

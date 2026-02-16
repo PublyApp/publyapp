@@ -202,6 +202,26 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey StaffUserUpdatedSuccessfully = new("staff-user-updated-successfully");
 
 	/// <summary>
+	/// System notice created successfully
+	/// </summary>
+	public static readonly TranslationKey SystemNoticeCreatedSuccessfully = new("system-notice-created-successfully");
+
+	/// <summary>
+	/// System notice deleted successfully
+	/// </summary>
+	public static readonly TranslationKey SystemNoticeDeletedSuccessfully = new("system-notice-deleted-successfully");
+
+	/// <summary>
+	/// System notice not found
+	/// </summary>
+	public static readonly TranslationKey SystemNoticeNotFound = new("system-notice-not-found");
+
+	/// <summary>
+	/// System notice updated successfully
+	/// </summary>
+	public static readonly TranslationKey SystemNoticeUpdatedSuccessfully = new("system-notice-updated-successfully");
+
+	/// <summary>
 	/// Tenant is already suspended
 	/// </summary>
 	public static readonly TranslationKey TenantAlreadySuspended = new("tenant-already-suspended");

@@ -22,7 +22,8 @@ public class GetStaffUserById {
 	public static async Task<
 		Results<
 			Ok<GetStaffUserByIdResult>,
-			AppBadRequestHttpResult
+			AppBadRequestHttpResult,
+			AppNotFoundHttpResult
 		>
 	> HandleGetStaffUserById(
 		[FromRoute] string userId,
@@ -30,29 +31,36 @@ public class GetStaffUserById {
 		ILogger<GetStaffUserById> logger,
 		CancellationToken cancellationToken
 	) {
-		var isUserIdGuid = Guid.TryParse(userId, out var userIdGuid);
-
-		if (!isUserIdGuid) {
+		if (!Guid.TryParse(userId, out var userIdGuid)) {
 			if (logger.IsEnabled(LogLevel.Debug)) {
-				logger.LogDebug("Invalid user id: {@LogData}", new { UserId = userId });
+				logger.LogDebug(
+					"Invalid user id: {@LogData}",
+					new { UserId = userId }
+				);
 			}
 
 			return TypedProblems.BadRequest(
-				"User does not exist or is not a staff member",
-				ResponseKeys.UserNotFound
+				"Invalid user ID",
+				ResponseKeys.BadRequest
 			);
 		}
 
-		var user = await UserService.GetStaffUserUserByIdAsync(userIdGuid, cancellationToken);
+		var user =
+			await UserService.GetStaffUserUserByIdAsync(
+				userIdGuid, cancellationToken
+			);
 
 		if (user is null) {
 			if (logger.IsEnabled(LogLevel.Debug)) {
-				logger.LogDebug("User does not exist or is not a staff member: {@LogData}", new { UserId = userIdGuid });
+				logger.LogDebug(
+					"User does not exist or is not a staff member: {@LogData}",
+					new { UserId = userIdGuid }
+				);
 			}
 
-			return TypedProblems.BadRequest(
-				"User does not exist or is not a staff member",
-				ResponseKeys.UserNotFound
+			return TypedProblems.NotFound(
+				"User not found",
+				ResponseKeys.NotFound
 			);
 		}
 
