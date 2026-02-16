@@ -39,6 +39,33 @@ public class SystemNotice : BaseAttributes, INoTenantEntity {
 			&& StartsAt <= now
 			&& (ExpiresAt is null || ExpiresAt > now);
 	}
+
+	public static NoticeSeverity? ParseSeverity(
+		string severity
+	) {
+		var isInfo = string.Compare(
+			severity, "info",
+			StringComparison.OrdinalIgnoreCase
+		) == 0;
+		if (isInfo) {
+			return NoticeSeverity.Info;
+		}
+		var isWarning = string.Compare(
+			severity, "warning",
+			StringComparison.OrdinalIgnoreCase
+		) == 0;
+		if (isWarning) {
+			return NoticeSeverity.Warning;
+		}
+		var isCritical = string.Compare(
+			severity, "critical",
+			StringComparison.OrdinalIgnoreCase
+		) == 0;
+		if (isCritical) {
+			return NoticeSeverity.Critical;
+		}
+		return null;
+	}
 }
 
 public enum NoticeSeverity {

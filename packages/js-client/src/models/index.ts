@@ -18,6 +18,28 @@ export interface AcceptInvitationBody extends AdditionalDataHolder, Parsable {
      */
     password?: UntypedNode | null;
 }
+export interface ActiveSystemNotice extends AdditionalDataHolder, Parsable {
+    /**
+     * The expiresAt property
+     */
+    expiresAt?: Date | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The message property
+     */
+    message?: string | null;
+    /**
+     * The severity property
+     */
+    severity?: string | null;
+    /**
+     * The title property
+     */
+    title?: string | null;
+}
 /**
  * Represents an API response with a message and a type-safe translation key
  */
@@ -59,6 +81,82 @@ export interface AppProblemDetails extends AdditionalDataHolder, ApiError, Parsa
      * The type property
      */
     type?: string | null;
+}
+export interface AuditLogDetail extends AdditionalDataHolder, Parsable {
+    /**
+     * The action property
+     */
+    action?: string | null;
+    /**
+     * The createdAt property
+     */
+    createdAt?: Date | null;
+    /**
+     * The details property
+     */
+    details?: string | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The ipAddress property
+     */
+    ipAddress?: string | null;
+    /**
+     * The targetId property
+     */
+    targetId?: Guid | null;
+    /**
+     * The userAgent property
+     */
+    userAgent?: string | null;
+    /**
+     * The userEmail property
+     */
+    userEmail?: string | null;
+    /**
+     * The userId property
+     */
+    userId?: Guid | null;
+    /**
+     * The userName property
+     */
+    userName?: string | null;
+}
+export interface AuditLogListItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The action property
+     */
+    action?: string | null;
+    /**
+     * The createdAt property
+     */
+    createdAt?: Date | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The ipAddress property
+     */
+    ipAddress?: string | null;
+    /**
+     * The targetId property
+     */
+    targetId?: Guid | null;
+    /**
+     * The userEmail property
+     */
+    userEmail?: string | null;
+    /**
+     * The userId property
+     */
+    userId?: Guid | null;
+    /**
+     * The userName property
+     */
+    userName?: string | null;
 }
 export interface BulkCreateStaffInvitationsBody extends AdditionalDataHolder, Parsable {
     /**
@@ -114,6 +212,15 @@ export function createAcceptInvitationBodyFromDiscriminatorValue(parseNode: Pars
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ActiveSystemNotice}
+ */
+// @ts-ignore
+export function createActiveSystemNoticeFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoActiveSystemNotice;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {ApiResponse}
  */
 // @ts-ignore
@@ -128,6 +235,24 @@ export function createApiResponseFromDiscriminatorValue(parseNode: ParseNode | u
 // @ts-ignore
 export function createAppProblemDetailsFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoAppProblemDetails;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {AuditLogDetail}
+ */
+// @ts-ignore
+export function createAuditLogDetailFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoAuditLogDetail;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {AuditLogListItem}
+ */
+// @ts-ignore
+export function createAuditLogListItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoAuditLogListItem;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -357,6 +482,33 @@ export function createCreateStaffUserResultFromDiscriminatorValue(parseNode: Par
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateSystemNoticeBody_expiresAtMember1 | JsonElement}
+ */
+// @ts-ignore
+export function createCreateSystemNoticeBody_expiresAtFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateSystemNoticeBody_expiresAt;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateSystemNoticeBody_expiresAtMember1}
+ */
+// @ts-ignore
+export function createCreateSystemNoticeBody_expiresAtMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateSystemNoticeBody_expiresAtMember1;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateSystemNoticeBody}
+ */
+// @ts-ignore
+export function createCreateSystemNoticeBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateSystemNoticeBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {CreateTenantAsStaffBody}
  */
 // @ts-ignore
@@ -371,6 +523,15 @@ export function createCreateTenantAsStaffBodyFromDiscriminatorValue(parseNode: P
 // @ts-ignore
 export function createCreateTenantAsStaffResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoCreateTenantAsStaffResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindAuditLogsResponse}
+ */
+// @ts-ignore
+export function createFindAuditLogsResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindAuditLogsResponse;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -402,11 +563,29 @@ export function createFindStaffUsersResultFromDiscriminatorValue(parseNode: Pars
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindSystemNoticesResponse}
+ */
+// @ts-ignore
+export function createFindSystemNoticesResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindSystemNoticesResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {FindTenantProfilesAsStaffResult}
  */
 // @ts-ignore
 export function createFindTenantProfilesAsStaffResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoFindTenantProfilesAsStaffResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {GetAuditLogActionsResponse}
+ */
+// @ts-ignore
+export function createGetAuditLogActionsResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetAuditLogActionsResponse;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -757,6 +936,67 @@ export function createSuspendTenantAsStaffBody_reasonMember1FromDiscriminatorVal
 export function createSuspendTenantAsStaffBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoSuspendTenantAsStaffBody;
 }
+export interface CreateSystemNoticeBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The expiresAt property
+     */
+    expiresAt?: CreateSystemNoticeBody_expiresAtMember1 | JsonElement | null;
+    /**
+     * The message property
+     */
+    message?: UntypedNode | null;
+    /**
+     * The severity property
+     */
+    severity?: UntypedNode | null;
+    /**
+     * The startsAt property
+     */
+    startsAt?: UntypedNode | null;
+    /**
+     * The title property
+     */
+    title?: UntypedNode | null;
+}
+export type CreateSystemNoticeBody_expiresAt = CreateSystemNoticeBody_expiresAtMember1 | JsonElement;
+export interface CreateSystemNoticeBody_expiresAtMember1 extends AdditionalDataHolder, Parsable {
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SystemNoticeCreated}
+ */
+// @ts-ignore
+export function createSystemNoticeCreatedFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSystemNoticeCreated;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SystemNoticeDetail}
+ */
+// @ts-ignore
+export function createSystemNoticeDetailFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSystemNoticeDetail;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SystemNoticeListItem}
+ */
+// @ts-ignore
+export function createSystemNoticeListItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSystemNoticeListItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SystemNoticeUpdated}
+ */
+// @ts-ignore
+export function createSystemNoticeUpdatedFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSystemNoticeUpdated;
+}
 export interface CreateTenantAsStaffBody extends AdditionalDataHolder, Parsable {
     /**
      * The initialUsers property
@@ -964,6 +1204,87 @@ export function createUpdateStaffUserBodyFromDiscriminatorValue(parseNode: Parse
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {JsonElement | UpdateSystemNoticeBody_messageMember1}
+ */
+// @ts-ignore
+export function createUpdateSystemNoticeBody_messageFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUpdateSystemNoticeBody_message;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {UpdateSystemNoticeBody_messageMember1}
+ */
+// @ts-ignore
+export function createUpdateSystemNoticeBody_messageMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUpdateSystemNoticeBody_messageMember1;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {JsonElement | UpdateSystemNoticeBody_severityMember1}
+ */
+// @ts-ignore
+export function createUpdateSystemNoticeBody_severityFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUpdateSystemNoticeBody_severity;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {UpdateSystemNoticeBody_severityMember1}
+ */
+// @ts-ignore
+export function createUpdateSystemNoticeBody_severityMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUpdateSystemNoticeBody_severityMember1;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {JsonElement | UpdateSystemNoticeBody_startsAtMember1}
+ */
+// @ts-ignore
+export function createUpdateSystemNoticeBody_startsAtFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUpdateSystemNoticeBody_startsAt;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {UpdateSystemNoticeBody_startsAtMember1}
+ */
+// @ts-ignore
+export function createUpdateSystemNoticeBody_startsAtMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUpdateSystemNoticeBody_startsAtMember1;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {JsonElement | UpdateSystemNoticeBody_titleMember1}
+ */
+// @ts-ignore
+export function createUpdateSystemNoticeBody_titleFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUpdateSystemNoticeBody_title;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {UpdateSystemNoticeBody_titleMember1}
+ */
+// @ts-ignore
+export function createUpdateSystemNoticeBody_titleMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUpdateSystemNoticeBody_titleMember1;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {UpdateSystemNoticeBody}
+ */
+// @ts-ignore
+export function createUpdateSystemNoticeBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUpdateSystemNoticeBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {ValidationProblemDetails_errors}
  */
 // @ts-ignore
@@ -1012,6 +1333,21 @@ export function deserializeIntoAcceptInvitationBody(acceptInvitationBody: Partia
 }
 /**
  * The deserialization information for the current model
+ * @param ActiveSystemNotice The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoActiveSystemNotice(activeSystemNotice: Partial<ActiveSystemNotice> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "expiresAt": n => { activeSystemNotice.expiresAt = n.getDateValue(); },
+        "id": n => { activeSystemNotice.id = n.getGuidValue(); },
+        "message": n => { activeSystemNotice.message = n.getStringValue(); },
+        "severity": n => { activeSystemNotice.severity = n.getStringValue(); },
+        "title": n => { activeSystemNotice.title = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param ApiResponse The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -1036,6 +1372,44 @@ export function deserializeIntoAppProblemDetails(appProblemDetails: Partial<AppP
         "title": n => { appProblemDetails.title = n.getStringValue(); },
         "translationKey": n => { appProblemDetails.translationKey = n.getStringValue(); },
         "type": n => { appProblemDetails.type = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param AuditLogDetail The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoAuditLogDetail(auditLogDetail: Partial<AuditLogDetail> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "action": n => { auditLogDetail.action = n.getStringValue(); },
+        "createdAt": n => { auditLogDetail.createdAt = n.getDateValue(); },
+        "details": n => { auditLogDetail.details = n.getStringValue(); },
+        "id": n => { auditLogDetail.id = n.getGuidValue(); },
+        "ipAddress": n => { auditLogDetail.ipAddress = n.getStringValue(); },
+        "targetId": n => { auditLogDetail.targetId = n.getGuidValue(); },
+        "userAgent": n => { auditLogDetail.userAgent = n.getStringValue(); },
+        "userEmail": n => { auditLogDetail.userEmail = n.getStringValue(); },
+        "userId": n => { auditLogDetail.userId = n.getGuidValue(); },
+        "userName": n => { auditLogDetail.userName = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param AuditLogListItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoAuditLogListItem(auditLogListItem: Partial<AuditLogListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "action": n => { auditLogListItem.action = n.getStringValue(); },
+        "createdAt": n => { auditLogListItem.createdAt = n.getDateValue(); },
+        "id": n => { auditLogListItem.id = n.getGuidValue(); },
+        "ipAddress": n => { auditLogListItem.ipAddress = n.getStringValue(); },
+        "targetId": n => { auditLogListItem.targetId = n.getGuidValue(); },
+        "userEmail": n => { auditLogListItem.userEmail = n.getStringValue(); },
+        "userId": n => { auditLogListItem.userId = n.getGuidValue(); },
+        "userName": n => { auditLogListItem.userName = n.getStringValue(); },
     }
 }
 /**
@@ -1328,6 +1702,43 @@ export function deserializeIntoCreateStaffUserResult(createStaffUserResult: Part
 }
 /**
  * The deserialization information for the current model
+ * @param CreateSystemNoticeBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateSystemNoticeBody(createSystemNoticeBody: Partial<CreateSystemNoticeBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "expiresAt": n => { createSystemNoticeBody.expiresAt = n.getObjectValue<CreateSystemNoticeBody_expiresAtMember1>(createCreateSystemNoticeBody_expiresAtMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
+        "message": n => { createSystemNoticeBody.message = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "severity": n => { createSystemNoticeBody.severity = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "startsAt": n => { createSystemNoticeBody.startsAt = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "title": n => { createSystemNoticeBody.title = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateSystemNoticeBody_expiresAt The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateSystemNoticeBody_expiresAt(createSystemNoticeBody_expiresAt: Partial<CreateSystemNoticeBody_expiresAtMember1 | JsonElement> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoCreateSystemNoticeBody_expiresAtMember1(createSystemNoticeBody_expiresAt as CreateSystemNoticeBody_expiresAtMember1),
+        ...deserializeIntoJsonElement(createSystemNoticeBody_expiresAt as JsonElement),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CreateSystemNoticeBody_expiresAtMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateSystemNoticeBody_expiresAtMember1(createSystemNoticeBody_expiresAtMember1: Partial<CreateSystemNoticeBody_expiresAtMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param CreateTenantAsStaffBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -1349,6 +1760,18 @@ export function deserializeIntoCreateTenantAsStaffResult(createTenantAsStaffResu
     return {
         "id": n => { createTenantAsStaffResult.id = n.getGuidValue(); },
         "name": n => { createTenantAsStaffResult.name = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param FindAuditLogsResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindAuditLogsResponse(findAuditLogsResponse: Partial<FindAuditLogsResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "data": n => { findAuditLogsResponse.data = n.getCollectionOfObjectValues<AuditLogListItem>(createAuditLogListItemFromDiscriminatorValue); },
+        "nextCursor": n => { findAuditLogsResponse.nextCursor = n.getStringValue(); },
     }
 }
 /**
@@ -1389,6 +1812,18 @@ export function deserializeIntoFindStaffUsersResult(findStaffUsersResult: Partia
 }
 /**
  * The deserialization information for the current model
+ * @param FindSystemNoticesResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindSystemNoticesResponse(findSystemNoticesResponse: Partial<FindSystemNoticesResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "data": n => { findSystemNoticesResponse.data = n.getCollectionOfObjectValues<SystemNoticeListItem>(createSystemNoticeListItemFromDiscriminatorValue); },
+        "nextCursor": n => { findSystemNoticesResponse.nextCursor = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param FindTenantProfilesAsStaffResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -1397,6 +1832,17 @@ export function deserializeIntoFindTenantProfilesAsStaffResult(findTenantProfile
     return {
         "count": n => { findTenantProfilesAsStaffResult.count = n.getNumberValue(); },
         "profiles": n => { findTenantProfilesAsStaffResult.profiles = n.getCollectionOfObjectValues<ProfileAsStaffItem>(createProfileAsStaffItemFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param GetAuditLogActionsResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoGetAuditLogActionsResponse(getAuditLogActionsResponse: Partial<GetAuditLogActionsResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "actions": n => { getAuditLogActionsResponse.actions = n.getCollectionOfPrimitiveValues<string>(); },
     }
 }
 /**
@@ -1790,6 +2236,74 @@ export function deserializeIntoSuspendTenantAsStaffBody_reasonMember1(suspendTen
 }
 /**
  * The deserialization information for the current model
+ * @param SystemNoticeCreated The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSystemNoticeCreated(systemNoticeCreated: Partial<SystemNoticeCreated> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "expiresAt": n => { systemNoticeCreated.expiresAt = n.getDateValue(); },
+        "id": n => { systemNoticeCreated.id = n.getGuidValue(); },
+        "severity": n => { systemNoticeCreated.severity = n.getStringValue(); },
+        "startsAt": n => { systemNoticeCreated.startsAt = n.getDateValue(); },
+        "title": n => { systemNoticeCreated.title = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param SystemNoticeDetail The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSystemNoticeDetail(systemNoticeDetail: Partial<SystemNoticeDetail> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "createdAt": n => { systemNoticeDetail.createdAt = n.getDateValue(); },
+        "createdByStaffId": n => { systemNoticeDetail.createdByStaffId = n.getGuidValue(); },
+        "expiresAt": n => { systemNoticeDetail.expiresAt = n.getDateValue(); },
+        "id": n => { systemNoticeDetail.id = n.getGuidValue(); },
+        "isActive": n => { systemNoticeDetail.isActive = n.getBooleanValue(); },
+        "message": n => { systemNoticeDetail.message = n.getStringValue(); },
+        "severity": n => { systemNoticeDetail.severity = n.getStringValue(); },
+        "startsAt": n => { systemNoticeDetail.startsAt = n.getDateValue(); },
+        "title": n => { systemNoticeDetail.title = n.getStringValue(); },
+        "updatedAt": n => { systemNoticeDetail.updatedAt = n.getDateValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param SystemNoticeListItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSystemNoticeListItem(systemNoticeListItem: Partial<SystemNoticeListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "createdAt": n => { systemNoticeListItem.createdAt = n.getDateValue(); },
+        "expiresAt": n => { systemNoticeListItem.expiresAt = n.getDateValue(); },
+        "id": n => { systemNoticeListItem.id = n.getGuidValue(); },
+        "isActive": n => { systemNoticeListItem.isActive = n.getBooleanValue(); },
+        "severity": n => { systemNoticeListItem.severity = n.getStringValue(); },
+        "startsAt": n => { systemNoticeListItem.startsAt = n.getDateValue(); },
+        "title": n => { systemNoticeListItem.title = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param SystemNoticeUpdated The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSystemNoticeUpdated(systemNoticeUpdated: Partial<SystemNoticeUpdated> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "expiresAt": n => { systemNoticeUpdated.expiresAt = n.getDateValue(); },
+        "id": n => { systemNoticeUpdated.id = n.getGuidValue(); },
+        "severity": n => { systemNoticeUpdated.severity = n.getStringValue(); },
+        "startsAt": n => { systemNoticeUpdated.startsAt = n.getDateValue(); },
+        "title": n => { systemNoticeUpdated.title = n.getStringValue(); },
+        "updatedAt": n => { systemNoticeUpdated.updatedAt = n.getDateValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param Tenant The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -2042,6 +2556,109 @@ export function deserializeIntoUpdateStaffUserBody_statusMember1(updateStaffUser
 }
 /**
  * The deserialization information for the current model
+ * @param UpdateSystemNoticeBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUpdateSystemNoticeBody(updateSystemNoticeBody: Partial<UpdateSystemNoticeBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "expiresAt": n => { updateSystemNoticeBody.expiresAt = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "message": n => { updateSystemNoticeBody.message = n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue) ?? n.getObjectValue<UpdateSystemNoticeBody_messageMember1>(createUpdateSystemNoticeBody_messageMember1FromDiscriminatorValue); },
+        "severity": n => { updateSystemNoticeBody.severity = n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue) ?? n.getObjectValue<UpdateSystemNoticeBody_severityMember1>(createUpdateSystemNoticeBody_severityMember1FromDiscriminatorValue); },
+        "startsAt": n => { updateSystemNoticeBody.startsAt = n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue) ?? n.getObjectValue<UpdateSystemNoticeBody_startsAtMember1>(createUpdateSystemNoticeBody_startsAtMember1FromDiscriminatorValue); },
+        "title": n => { updateSystemNoticeBody.title = n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue) ?? n.getObjectValue<UpdateSystemNoticeBody_titleMember1>(createUpdateSystemNoticeBody_titleMember1FromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param UpdateSystemNoticeBody_message The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUpdateSystemNoticeBody_message(updateSystemNoticeBody_message: Partial<JsonElement | UpdateSystemNoticeBody_messageMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoJsonElement(updateSystemNoticeBody_message as JsonElement),
+        ...deserializeIntoUpdateSystemNoticeBody_messageMember1(updateSystemNoticeBody_message as UpdateSystemNoticeBody_messageMember1),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param UpdateSystemNoticeBody_messageMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUpdateSystemNoticeBody_messageMember1(updateSystemNoticeBody_messageMember1: Partial<UpdateSystemNoticeBody_messageMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param UpdateSystemNoticeBody_severity The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUpdateSystemNoticeBody_severity(updateSystemNoticeBody_severity: Partial<JsonElement | UpdateSystemNoticeBody_severityMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoJsonElement(updateSystemNoticeBody_severity as JsonElement),
+        ...deserializeIntoUpdateSystemNoticeBody_severityMember1(updateSystemNoticeBody_severity as UpdateSystemNoticeBody_severityMember1),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param UpdateSystemNoticeBody_severityMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUpdateSystemNoticeBody_severityMember1(updateSystemNoticeBody_severityMember1: Partial<UpdateSystemNoticeBody_severityMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param UpdateSystemNoticeBody_startsAt The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUpdateSystemNoticeBody_startsAt(updateSystemNoticeBody_startsAt: Partial<JsonElement | UpdateSystemNoticeBody_startsAtMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoJsonElement(updateSystemNoticeBody_startsAt as JsonElement),
+        ...deserializeIntoUpdateSystemNoticeBody_startsAtMember1(updateSystemNoticeBody_startsAt as UpdateSystemNoticeBody_startsAtMember1),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param UpdateSystemNoticeBody_startsAtMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUpdateSystemNoticeBody_startsAtMember1(updateSystemNoticeBody_startsAtMember1: Partial<UpdateSystemNoticeBody_startsAtMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param UpdateSystemNoticeBody_title The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUpdateSystemNoticeBody_title(updateSystemNoticeBody_title: Partial<JsonElement | UpdateSystemNoticeBody_titleMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoJsonElement(updateSystemNoticeBody_title as JsonElement),
+        ...deserializeIntoUpdateSystemNoticeBody_titleMember1(updateSystemNoticeBody_title as UpdateSystemNoticeBody_titleMember1),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param UpdateSystemNoticeBody_titleMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUpdateSystemNoticeBody_titleMember1(updateSystemNoticeBody_titleMember1: Partial<UpdateSystemNoticeBody_titleMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param ValidationProblemDetails The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -2089,6 +2706,16 @@ export function deserializeIntoVerifyEmailRequestResult(verifyEmailRequestResult
         "status": n => { verifyEmailRequestResult.status = n.getStringValue(); },
     }
 }
+export interface FindAuditLogsResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The data property
+     */
+    data?: AuditLogListItem[] | null;
+    /**
+     * The nextCursor property
+     */
+    nextCursor?: string | null;
+}
 export interface FindStaffInvitationsResult extends AdditionalDataHolder, Parsable {
     /**
      * The data property
@@ -2119,6 +2746,16 @@ export interface FindStaffUsersResult extends AdditionalDataHolder, Parsable {
      */
     staffUsers?: StaffUserItem[] | null;
 }
+export interface FindSystemNoticesResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The data property
+     */
+    data?: SystemNoticeListItem[] | null;
+    /**
+     * The nextCursor property
+     */
+    nextCursor?: string | null;
+}
 export interface FindTenantProfilesAsStaffResult extends AdditionalDataHolder, Parsable {
     /**
      * The count property
@@ -2128,6 +2765,12 @@ export interface FindTenantProfilesAsStaffResult extends AdditionalDataHolder, P
      * The profiles property
      */
     profiles?: ProfileAsStaffItem[] | null;
+}
+export interface GetAuditLogActionsResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The actions property
+     */
+    actions?: string[] | null;
 }
 export interface GetRedirectCodeResult extends AdditionalDataHolder, Parsable {
     /**
@@ -2455,6 +3098,22 @@ export function serializeAcceptInvitationBody(writer: SerializationWriter, accep
 }
 /**
  * Serializes information the current object
+ * @param ActiveSystemNotice The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeActiveSystemNotice(writer: SerializationWriter, activeSystemNotice: Partial<ActiveSystemNotice> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!activeSystemNotice || isSerializingDerivedType) { return; }
+    writer.writeDateValue("expiresAt", activeSystemNotice.expiresAt);
+    writer.writeGuidValue("id", activeSystemNotice.id);
+    writer.writeStringValue("message", activeSystemNotice.message);
+    writer.writeStringValue("severity", activeSystemNotice.severity);
+    writer.writeStringValue("title", activeSystemNotice.title);
+    writer.writeAdditionalData(activeSystemNotice.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param ApiResponse The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -2482,6 +3141,46 @@ export function serializeAppProblemDetails(writer: SerializationWriter, appProbl
     writer.writeStringValue("translationKey", appProblemDetails.translationKey);
     writer.writeStringValue("type", appProblemDetails.type);
     writer.writeAdditionalData(appProblemDetails.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param AuditLogDetail The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeAuditLogDetail(writer: SerializationWriter, auditLogDetail: Partial<AuditLogDetail> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!auditLogDetail || isSerializingDerivedType) { return; }
+    writer.writeStringValue("action", auditLogDetail.action);
+    writer.writeDateValue("createdAt", auditLogDetail.createdAt);
+    writer.writeStringValue("details", auditLogDetail.details);
+    writer.writeGuidValue("id", auditLogDetail.id);
+    writer.writeStringValue("ipAddress", auditLogDetail.ipAddress);
+    writer.writeGuidValue("targetId", auditLogDetail.targetId);
+    writer.writeStringValue("userAgent", auditLogDetail.userAgent);
+    writer.writeStringValue("userEmail", auditLogDetail.userEmail);
+    writer.writeGuidValue("userId", auditLogDetail.userId);
+    writer.writeStringValue("userName", auditLogDetail.userName);
+    writer.writeAdditionalData(auditLogDetail.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param AuditLogListItem The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeAuditLogListItem(writer: SerializationWriter, auditLogListItem: Partial<AuditLogListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!auditLogListItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("action", auditLogListItem.action);
+    writer.writeDateValue("createdAt", auditLogListItem.createdAt);
+    writer.writeGuidValue("id", auditLogListItem.id);
+    writer.writeStringValue("ipAddress", auditLogListItem.ipAddress);
+    writer.writeGuidValue("targetId", auditLogListItem.targetId);
+    writer.writeStringValue("userEmail", auditLogListItem.userEmail);
+    writer.writeGuidValue("userId", auditLogListItem.userId);
+    writer.writeStringValue("userName", auditLogListItem.userName);
+    writer.writeAdditionalData(auditLogListItem.additionalData);
 }
 /**
  * Serializes information the current object
@@ -2782,6 +3481,44 @@ export function serializeCreateStaffUserResult(writer: SerializationWriter, crea
 }
 /**
  * Serializes information the current object
+ * @param CreateSystemNoticeBody The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateSystemNoticeBody(writer: SerializationWriter, createSystemNoticeBody: Partial<CreateSystemNoticeBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!createSystemNoticeBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue<CreateSystemNoticeBody_expiresAtMember1 | JsonElement>("expiresAt", createSystemNoticeBody.expiresAt, serializeCreateSystemNoticeBody_expiresAt);
+    writer.writeObjectValue("message", createSystemNoticeBody.message);
+    writer.writeObjectValue("severity", createSystemNoticeBody.severity);
+    writer.writeObjectValue("startsAt", createSystemNoticeBody.startsAt);
+    writer.writeObjectValue("title", createSystemNoticeBody.title);
+    writer.writeAdditionalData(createSystemNoticeBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param CreateSystemNoticeBody_expiresAt The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateSystemNoticeBody_expiresAt(writer: SerializationWriter, createSystemNoticeBody_expiresAt: Partial<CreateSystemNoticeBody_expiresAtMember1 | JsonElement> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeCreateSystemNoticeBody_expiresAtMember1(writer, createSystemNoticeBody_expiresAt as CreateSystemNoticeBody_expiresAtMember1);
+    serializeJsonElement(writer, createSystemNoticeBody_expiresAt as JsonElement);
+}
+/**
+ * Serializes information the current object
+ * @param CreateSystemNoticeBody_expiresAtMember1 The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateSystemNoticeBody_expiresAtMember1(writer: SerializationWriter, createSystemNoticeBody_expiresAtMember1: Partial<CreateSystemNoticeBody_expiresAtMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!createSystemNoticeBody_expiresAtMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(createSystemNoticeBody_expiresAtMember1.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param CreateTenantAsStaffBody The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -2806,6 +3543,19 @@ export function serializeCreateTenantAsStaffResult(writer: SerializationWriter, 
     writer.writeGuidValue("id", createTenantAsStaffResult.id);
     writer.writeStringValue("name", createTenantAsStaffResult.name);
     writer.writeAdditionalData(createTenantAsStaffResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param FindAuditLogsResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindAuditLogsResponse(writer: SerializationWriter, findAuditLogsResponse: Partial<FindAuditLogsResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findAuditLogsResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<AuditLogListItem>("data", findAuditLogsResponse.data, serializeAuditLogListItem);
+    writer.writeStringValue("nextCursor", findAuditLogsResponse.nextCursor);
+    writer.writeAdditionalData(findAuditLogsResponse.additionalData);
 }
 /**
  * Serializes information the current object
@@ -2848,6 +3598,19 @@ export function serializeFindStaffUsersResult(writer: SerializationWriter, findS
 }
 /**
  * Serializes information the current object
+ * @param FindSystemNoticesResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindSystemNoticesResponse(writer: SerializationWriter, findSystemNoticesResponse: Partial<FindSystemNoticesResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findSystemNoticesResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<SystemNoticeListItem>("data", findSystemNoticesResponse.data, serializeSystemNoticeListItem);
+    writer.writeStringValue("nextCursor", findSystemNoticesResponse.nextCursor);
+    writer.writeAdditionalData(findSystemNoticesResponse.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param FindTenantProfilesAsStaffResult The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -2858,6 +3621,18 @@ export function serializeFindTenantProfilesAsStaffResult(writer: SerializationWr
     writer.writeNumberValue("count", findTenantProfilesAsStaffResult.count);
     writer.writeCollectionOfObjectValues<ProfileAsStaffItem>("profiles", findTenantProfilesAsStaffResult.profiles, serializeProfileAsStaffItem);
     writer.writeAdditionalData(findTenantProfilesAsStaffResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param GetAuditLogActionsResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeGetAuditLogActionsResponse(writer: SerializationWriter, getAuditLogActionsResponse: Partial<GetAuditLogActionsResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getAuditLogActionsResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfPrimitiveValues<string>("actions", getAuditLogActionsResponse.actions);
+    writer.writeAdditionalData(getAuditLogActionsResponse.additionalData);
 }
 /**
  * Serializes information the current object
@@ -3278,6 +4053,78 @@ export function serializeSuspendTenantAsStaffBody_reasonMember1(writer: Serializ
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SystemNoticeCreated The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSystemNoticeCreated(writer: SerializationWriter, systemNoticeCreated: Partial<SystemNoticeCreated> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!systemNoticeCreated || isSerializingDerivedType) { return; }
+    writer.writeDateValue("expiresAt", systemNoticeCreated.expiresAt);
+    writer.writeGuidValue("id", systemNoticeCreated.id);
+    writer.writeStringValue("severity", systemNoticeCreated.severity);
+    writer.writeDateValue("startsAt", systemNoticeCreated.startsAt);
+    writer.writeStringValue("title", systemNoticeCreated.title);
+    writer.writeAdditionalData(systemNoticeCreated.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SystemNoticeDetail The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSystemNoticeDetail(writer: SerializationWriter, systemNoticeDetail: Partial<SystemNoticeDetail> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!systemNoticeDetail || isSerializingDerivedType) { return; }
+    writer.writeDateValue("createdAt", systemNoticeDetail.createdAt);
+    writer.writeGuidValue("createdByStaffId", systemNoticeDetail.createdByStaffId);
+    writer.writeDateValue("expiresAt", systemNoticeDetail.expiresAt);
+    writer.writeGuidValue("id", systemNoticeDetail.id);
+    writer.writeBooleanValue("isActive", systemNoticeDetail.isActive);
+    writer.writeStringValue("message", systemNoticeDetail.message);
+    writer.writeStringValue("severity", systemNoticeDetail.severity);
+    writer.writeDateValue("startsAt", systemNoticeDetail.startsAt);
+    writer.writeStringValue("title", systemNoticeDetail.title);
+    writer.writeDateValue("updatedAt", systemNoticeDetail.updatedAt);
+    writer.writeAdditionalData(systemNoticeDetail.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SystemNoticeListItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSystemNoticeListItem(writer: SerializationWriter, systemNoticeListItem: Partial<SystemNoticeListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!systemNoticeListItem || isSerializingDerivedType) { return; }
+    writer.writeDateValue("createdAt", systemNoticeListItem.createdAt);
+    writer.writeDateValue("expiresAt", systemNoticeListItem.expiresAt);
+    writer.writeGuidValue("id", systemNoticeListItem.id);
+    writer.writeBooleanValue("isActive", systemNoticeListItem.isActive);
+    writer.writeStringValue("severity", systemNoticeListItem.severity);
+    writer.writeDateValue("startsAt", systemNoticeListItem.startsAt);
+    writer.writeStringValue("title", systemNoticeListItem.title);
+    writer.writeAdditionalData(systemNoticeListItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SystemNoticeUpdated The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSystemNoticeUpdated(writer: SerializationWriter, systemNoticeUpdated: Partial<SystemNoticeUpdated> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!systemNoticeUpdated || isSerializingDerivedType) { return; }
+    writer.writeDateValue("expiresAt", systemNoticeUpdated.expiresAt);
+    writer.writeGuidValue("id", systemNoticeUpdated.id);
+    writer.writeStringValue("severity", systemNoticeUpdated.severity);
+    writer.writeDateValue("startsAt", systemNoticeUpdated.startsAt);
+    writer.writeStringValue("title", systemNoticeUpdated.title);
+    writer.writeDateValue("updatedAt", systemNoticeUpdated.updatedAt);
+    writer.writeAdditionalData(systemNoticeUpdated.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param Tenant The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -3538,6 +4385,110 @@ export function serializeUpdateStaffUserBody_statusMember1(writer: Serialization
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UpdateSystemNoticeBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUpdateSystemNoticeBody(writer: SerializationWriter, updateSystemNoticeBody: Partial<UpdateSystemNoticeBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!updateSystemNoticeBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("expiresAt", updateSystemNoticeBody.expiresAt);
+    writer.writeObjectValue<JsonElement | UpdateSystemNoticeBody_messageMember1>("message", updateSystemNoticeBody.message, serializeUpdateSystemNoticeBody_message);
+    writer.writeObjectValue<JsonElement | UpdateSystemNoticeBody_severityMember1>("severity", updateSystemNoticeBody.severity, serializeUpdateSystemNoticeBody_severity);
+    writer.writeObjectValue<JsonElement | UpdateSystemNoticeBody_startsAtMember1>("startsAt", updateSystemNoticeBody.startsAt, serializeUpdateSystemNoticeBody_startsAt);
+    writer.writeObjectValue<JsonElement | UpdateSystemNoticeBody_titleMember1>("title", updateSystemNoticeBody.title, serializeUpdateSystemNoticeBody_title);
+    writer.writeAdditionalData(updateSystemNoticeBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UpdateSystemNoticeBody_message The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUpdateSystemNoticeBody_message(writer: SerializationWriter, updateSystemNoticeBody_message: Partial<JsonElement | UpdateSystemNoticeBody_messageMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeJsonElement(writer, updateSystemNoticeBody_message as JsonElement);
+    serializeUpdateSystemNoticeBody_messageMember1(writer, updateSystemNoticeBody_message as UpdateSystemNoticeBody_messageMember1);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UpdateSystemNoticeBody_messageMember1 The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUpdateSystemNoticeBody_messageMember1(writer: SerializationWriter, updateSystemNoticeBody_messageMember1: Partial<UpdateSystemNoticeBody_messageMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!updateSystemNoticeBody_messageMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(updateSystemNoticeBody_messageMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UpdateSystemNoticeBody_severity The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUpdateSystemNoticeBody_severity(writer: SerializationWriter, updateSystemNoticeBody_severity: Partial<JsonElement | UpdateSystemNoticeBody_severityMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeJsonElement(writer, updateSystemNoticeBody_severity as JsonElement);
+    serializeUpdateSystemNoticeBody_severityMember1(writer, updateSystemNoticeBody_severity as UpdateSystemNoticeBody_severityMember1);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UpdateSystemNoticeBody_severityMember1 The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUpdateSystemNoticeBody_severityMember1(writer: SerializationWriter, updateSystemNoticeBody_severityMember1: Partial<UpdateSystemNoticeBody_severityMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!updateSystemNoticeBody_severityMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(updateSystemNoticeBody_severityMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UpdateSystemNoticeBody_startsAt The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUpdateSystemNoticeBody_startsAt(writer: SerializationWriter, updateSystemNoticeBody_startsAt: Partial<JsonElement | UpdateSystemNoticeBody_startsAtMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeJsonElement(writer, updateSystemNoticeBody_startsAt as JsonElement);
+    serializeUpdateSystemNoticeBody_startsAtMember1(writer, updateSystemNoticeBody_startsAt as UpdateSystemNoticeBody_startsAtMember1);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UpdateSystemNoticeBody_startsAtMember1 The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUpdateSystemNoticeBody_startsAtMember1(writer: SerializationWriter, updateSystemNoticeBody_startsAtMember1: Partial<UpdateSystemNoticeBody_startsAtMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!updateSystemNoticeBody_startsAtMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(updateSystemNoticeBody_startsAtMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UpdateSystemNoticeBody_title The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUpdateSystemNoticeBody_title(writer: SerializationWriter, updateSystemNoticeBody_title: Partial<JsonElement | UpdateSystemNoticeBody_titleMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeJsonElement(writer, updateSystemNoticeBody_title as JsonElement);
+    serializeUpdateSystemNoticeBody_titleMember1(writer, updateSystemNoticeBody_title as UpdateSystemNoticeBody_titleMember1);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UpdateSystemNoticeBody_titleMember1 The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUpdateSystemNoticeBody_titleMember1(writer: SerializationWriter, updateSystemNoticeBody_titleMember1: Partial<UpdateSystemNoticeBody_titleMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!updateSystemNoticeBody_titleMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(updateSystemNoticeBody_titleMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param ValidationProblemDetails The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -3722,6 +4673,126 @@ export interface SuspendTenantAsStaffBody extends AdditionalDataHolder, Parsable
 }
 export type SuspendTenantAsStaffBody_reason = JsonElement | SuspendTenantAsStaffBody_reasonMember1;
 export interface SuspendTenantAsStaffBody_reasonMember1 extends AdditionalDataHolder, Parsable {
+}
+export interface SystemNoticeCreated extends AdditionalDataHolder, Parsable {
+    /**
+     * The expiresAt property
+     */
+    expiresAt?: Date | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The severity property
+     */
+    severity?: string | null;
+    /**
+     * The startsAt property
+     */
+    startsAt?: Date | null;
+    /**
+     * The title property
+     */
+    title?: string | null;
+}
+export interface SystemNoticeDetail extends AdditionalDataHolder, Parsable {
+    /**
+     * The createdAt property
+     */
+    createdAt?: Date | null;
+    /**
+     * The createdByStaffId property
+     */
+    createdByStaffId?: Guid | null;
+    /**
+     * The expiresAt property
+     */
+    expiresAt?: Date | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The isActive property
+     */
+    isActive?: boolean | null;
+    /**
+     * The message property
+     */
+    message?: string | null;
+    /**
+     * The severity property
+     */
+    severity?: string | null;
+    /**
+     * The startsAt property
+     */
+    startsAt?: Date | null;
+    /**
+     * The title property
+     */
+    title?: string | null;
+    /**
+     * The updatedAt property
+     */
+    updatedAt?: Date | null;
+}
+export interface SystemNoticeListItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The createdAt property
+     */
+    createdAt?: Date | null;
+    /**
+     * The expiresAt property
+     */
+    expiresAt?: Date | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The isActive property
+     */
+    isActive?: boolean | null;
+    /**
+     * The severity property
+     */
+    severity?: string | null;
+    /**
+     * The startsAt property
+     */
+    startsAt?: Date | null;
+    /**
+     * The title property
+     */
+    title?: string | null;
+}
+export interface SystemNoticeUpdated extends AdditionalDataHolder, Parsable {
+    /**
+     * The expiresAt property
+     */
+    expiresAt?: Date | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The severity property
+     */
+    severity?: string | null;
+    /**
+     * The startsAt property
+     */
+    startsAt?: Date | null;
+    /**
+     * The title property
+     */
+    title?: string | null;
+    /**
+     * The updatedAt property
+     */
+    updatedAt?: Date | null;
 }
 export interface Tenant extends AdditionalDataHolder, Parsable {
     /**
@@ -3916,6 +4987,40 @@ export interface UpdateStaffUserBody_lastNameMember1 extends AdditionalDataHolde
 }
 export type UpdateStaffUserBody_status = JsonElement | UpdateStaffUserBody_statusMember1;
 export interface UpdateStaffUserBody_statusMember1 extends AdditionalDataHolder, Parsable {
+}
+export interface UpdateSystemNoticeBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The expiresAt property
+     */
+    expiresAt?: UntypedNode | null;
+    /**
+     * The message property
+     */
+    message?: JsonElement | UpdateSystemNoticeBody_messageMember1 | null;
+    /**
+     * The severity property
+     */
+    severity?: JsonElement | UpdateSystemNoticeBody_severityMember1 | null;
+    /**
+     * The startsAt property
+     */
+    startsAt?: JsonElement | UpdateSystemNoticeBody_startsAtMember1 | null;
+    /**
+     * The title property
+     */
+    title?: JsonElement | UpdateSystemNoticeBody_titleMember1 | null;
+}
+export type UpdateSystemNoticeBody_message = JsonElement | UpdateSystemNoticeBody_messageMember1;
+export interface UpdateSystemNoticeBody_messageMember1 extends AdditionalDataHolder, Parsable {
+}
+export type UpdateSystemNoticeBody_severity = JsonElement | UpdateSystemNoticeBody_severityMember1;
+export interface UpdateSystemNoticeBody_severityMember1 extends AdditionalDataHolder, Parsable {
+}
+export type UpdateSystemNoticeBody_startsAt = JsonElement | UpdateSystemNoticeBody_startsAtMember1;
+export interface UpdateSystemNoticeBody_startsAtMember1 extends AdditionalDataHolder, Parsable {
+}
+export type UpdateSystemNoticeBody_title = JsonElement | UpdateSystemNoticeBody_titleMember1;
+export interface UpdateSystemNoticeBody_titleMember1 extends AdditionalDataHolder, Parsable {
 }
 /**
  * A ProblemDetails extension for validation errors.Includes field-level errors in addition to the translation key.Complies with RFC 7807 while supporting validation error details.

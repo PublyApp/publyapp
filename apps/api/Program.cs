@@ -2,10 +2,12 @@ using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Routes;
+using MainApi.Src.Modules.AuditLogs.Endpoints;
 using MainApi.Src.Modules.Auth.Endpoints;
 using MainApi.Src.Modules.Invitations.Endpoints;
 using MainApi.Src.Modules.Permissions.Endpoints;
 using MainApi.Src.Modules.Profiles.Endpoints;
+using MainApi.Src.Modules.SystemNotices.Endpoints;
 using MainApi.Src.Modules.Tenants.Endpoints;
 using MainApi.Src.Modules.Users.Endpoints;
 
@@ -36,6 +38,7 @@ public class Program {
 
 		app.MapAuthEndpoints();
 		app.MapInvitationEndpointsAnonymous();
+		app.MapSystemNoticeEndpointsAnonymous();
 
 		// Apply filters to route groups (in order of execution)
 		var staffGroup = app.MapGroup(Routes.Staff.Root)
@@ -55,6 +58,8 @@ public class Program {
 		staffGroup.MapPermissionEndpointsForStaff();
 		staffGroup.MapProfileEndpointsForStaff();
 		staffGroup.MapTenantEndpointsForStaff();
+		staffGroup.MapSystemNoticeEndpointsForStaff();
+		staffGroup.MapAuditLogEndpointsForStaff();
 
 		// TODO: once we have a tenant endpoint, we can remove this
 		tenantGroup.MapGet("/test", () => "Hello, World!");
