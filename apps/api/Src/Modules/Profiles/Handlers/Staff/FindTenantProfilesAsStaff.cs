@@ -35,7 +35,7 @@ public class FindTenantProfilesAsStaff {
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
-			return TypedProblems.BadRequest("Tenant not found", ResponseKeys.NotFound);
+			return TypedProblems.BadRequest("Invalid tenant ID", ResponseKeys.BadRequest);
 		}
 
 		var page = findTenantProfilesAsStaffQuery.GetPage();

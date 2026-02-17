@@ -120,3 +120,32 @@ export const useReactivateTenant = createStaffMutation({
 		return result;
 	},
 });
+
+type FindTenantUsersParams = {
+	tenantId: string;
+	cursor?: string;
+	limit?: number;
+	sort?: { id: string; order: 'desc' | 'asc' };
+};
+
+export const useFindTenantUsers = createStaffQuery({
+	queryKeyFn: (client) => client.staff.tenants.byTenantId('').users.get,
+	fetcher: async (client, params: FindTenantUsersParams) => {
+		const result = await client.staff.tenants
+			.byTenantId(params.tenantId)
+			.users.get({
+				queryParameters: {
+					cursor: params.cursor,
+					limit: params.limit ? params.limit.toString() : undefined,
+					sortId: params.sort?.id,
+					sortOrder: params.sort?.order,
+				},
+			});
+
+		if (_.isNil(result)) {
+			throw new Error('useFindTenantUsers: result is nil');
+		}
+
+		return result;
+	},
+});

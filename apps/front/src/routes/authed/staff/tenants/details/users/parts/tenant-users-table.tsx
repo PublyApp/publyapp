@@ -17,7 +17,8 @@ import {
 	type MRT_SortingState,
 } from 'material-react-table';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useParams } from 'react-router';
 
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { CustomPopover } from '@/front/components/custom-popover/custom-popover';
@@ -28,14 +29,14 @@ import { Label } from '@/front/components/label/label';
 import { RouterLink } from '@/front/components/router-link';
 import { toast } from '@/front/components/snackbar';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
+import { useTableQueryOptions } from '@/front/hooks/use-table-query-options';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
 import {
 	useGetVerificationLink,
 	useSendEmailVerificationReminder,
 } from '@/front/lib/react-query/features/common/auth.hooks';
-import { useFindStaffUser } from '@/front/lib/react-query/features/staff/staff-user.hooks';
+import { useFindTenantUsers } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
 import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getErrorMessage } from '@/shared/utils/error.utils';
@@ -63,16 +64,22 @@ const defaultSorting: MRT_SortingState[number] = {
 const TenantUsersTable = () => {
 	const { t } = useTranslate();
 
-	// Use the custom table state hook
+	// Use the custom table state hook with cursor pagination
 	const {
 		handlePaginationChange,
 		handleSortingChange,
 		apiVariables,
 		tableState,
+		setNextCursor,
+		hasNextPage,
+		hasPreviousPage,
 	} = useTableState({
 		defaultSorting,
 		defaultPageSize: DEFAULT_PAGE_SIZE,
+		paginationMode: 'cursor',
 	});
+
+	const { tenantId } = useParams();
 
 	const columns = useMemo(() => {
 		return [
@@ -108,55 +115,77 @@ const TenantUsersTable = () => {
 		];
 	}, [t]);
 
-	const { data, isPending } = useFindStaffUser({
-		variables: apiVariables,
+	const tenantUsersQuery = useFindTenantUsers({
+		variables: {
+			tenantId: _.toString(tenantId),
+			cursor: apiVariables.cursor || undefined,
+			limit: apiVariables.limit,
+			sort: apiVariables.sort,
+		},
+		enabled: !!tenantId,
+	});
+
+	// Sync latest cursor into the table state outside render
+	useEffect(() => {
+		if (setNextCursor) {
+			setNextCursor(tenantUsersQuery.data?.nextCursor);
+		}
+	}, [tenantUsersQuery.data?.nextCursor, setNextCursor]);
+
+	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
+		query: tenantUsersQuery,
+		emptyContent: {
+			title: _.capitalize(
+				t('no-items-found', { item: t('users'), ns: 'response-message' }),
+			),
+		},
+		errorContent: {
+			title: _.capitalize(
+				t('error-loading-items', {
+					item: t('users'),
+					ns: 'response-message',
+				}),
+			),
+		},
 	});
 
 	const rows: TenantUserRowData[] = useMemo(() => {
-		if (!data?.staffUsers) return [];
+		if (!tenantUsersQuery.data?.data) return [];
 
-		return _.map(data.staffUsers, (staffUser) => {
+		return _.map(tenantUsersQuery.data.data, (tenantUser) => {
 			return {
-				id: staffUser.id || '',
-				avatarUrl: staffUser.avatarUrl || '',
-				firstName: staffUser.firstName || '',
-				lastName: staffUser.lastName || '',
-				// role: staffUser.roleData?.role || '',
-				status: staffUser.status || '',
-				email: staffUser.email || '',
+				id: tenantUser.id || '',
+				avatarUrl: tenantUser.avatarUrl || '',
+				firstName: tenantUser.firstName || '',
+				lastName: tenantUser.lastName || '',
+				// role: tenantUser.roleData?.role || '',
+				status: tenantUser.status || '',
+				email: tenantUser.email || '',
 			};
 		});
-	}, [data]);
+	}, [tenantUsersQuery.data]);
 
-	const table = useMRTTable('minimal', {
+	const table = useMRTTable('minimal-cursor', {
 		columns,
 		data: rows,
-		rowCount: getUntypedNumber(data?.count, 0),
-		manualPagination: true,
-		onPaginationChange: handlePaginationChange,
 		manualSorting: true,
 		onSortingChange: handleSortingChange,
 		state: {
 			...tableState,
-			density: 'comfortable',
-			isLoading: isPending,
+			...queryState,
+			density: 'compact',
 		},
-		muiTablePaperProps: {
-			sx: {
-				flexGrow: 1,
-			},
+		meta: {
+			handlePaginationChange,
+			hasNextPage,
+			hasPreviousPage,
+			isPending: tenantUsersQuery.isPending,
 		},
+		renderEmptyRowsFallback,
 	});
 
 	return (
-		<Box
-			sx={{
-				flexGrow: 1,
-				display: 'flex',
-				flexDirection: 'column',
-				border: 'none',
-			}}
-		>
+		<Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
 			<MaterialReactTable table={table} />
 		</Box>
 	);
@@ -333,7 +362,7 @@ const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
 
 				<MenuItem
 					component={RouterLink}
-					href={FRONT_PATH_NAMES.staff.staffUsers.details(userId)}
+					href={FRONT_PATH_NAMES.staff.tenantUsers.details(userId)}
 					onClick={() => menuActions.onClose()}
 				>
 					<Iconify icon="solar:pen-bold" />
