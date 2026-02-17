@@ -507,5 +507,6 @@
 	"tenant-suspended-title": "Organisation suspendue",
 	"tenant-suspended-description": "Cette organisation a été temporairement suspendue et est actuellement indisponible. Si vous pensez qu'il s'agit d'une erreur, veuillez contacter le support.",
 	"go-to-my-organizations": "Aller à mes organisations",
-	"suspended-tenants-notice": "Une ou plusieurs de vos organisations ont été suspendues."
+	"suspended-tenants-notice": "Une ou plusieurs de vos organisations ont été suspendues.",
+	"danger-zone-tenant-description": "Suspendre ou supprimer un locataire affectera tous ses utilisateurs. Ces actions doivent être utilisées avec précaution."
 }
