@@ -2,8 +2,8 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 
 type FormRowProps = {
-	label: string;
-	description?: string;
+	label: React.ReactNode;
+	description?: React.ReactNode;
 	children: React.ReactNode;
 };
 
