@@ -32,7 +32,11 @@ public class Program {
 		app.UseResponseCompression();
 		app.UseSecurityHeaders();
 		app.UseCustomExceptionHandler();
-		app.UseHttpsRedirection();
+		// Use host environment here (not AppEnvironment) because
+		// WebApplicationFactory/UseEnvironment can override it per host instance.
+		if (!app.Environment.IsEnvironment(EnvironmentNames.Testing)) {
+			app.UseHttpsRedirection();
+		}
 		app.UseCors();
 		app.UseOpenApi();
 
