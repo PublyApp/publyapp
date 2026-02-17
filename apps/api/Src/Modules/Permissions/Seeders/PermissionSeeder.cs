@@ -4,6 +4,7 @@ using System.Reflection;
 using MainApi.Src.Data;
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Permissions.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -17,14 +18,8 @@ public class PermissionSeeder : IEntitySeeder {
 	private readonly ILogger<PermissionSeeder> _logger;
 
 	public PermissionSeeder(ILogger<PermissionSeeder>? logger = null) {
-		_logger = logger ?? CreateDefaultLogger();
-	}
-
-	private static ILogger<PermissionSeeder> CreateDefaultLogger() {
-		using var loggerFactory = LoggerFactory.Create(builder => {
-			builder.AddConsole();
-		});
-		return loggerFactory.CreateLogger<PermissionSeeder>();
+		_logger = logger
+			?? SeederLoggerUtils.CreateDefault<PermissionSeeder>();
 	}
 
 	public int Order => 10;

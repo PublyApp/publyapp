@@ -7,7 +7,7 @@ namespace MainApi.Src.Lib.Extensions;
 public static class LoggerConfigExtensions {
 	public static WebApplicationBuilder ConfigureLogger(this WebApplicationBuilder builder) {
 		builder.Host.UseSerilog((context, loggerConfig) => {
-			var environment = context.HostingEnvironment.EnvironmentName;
+			var hostEnvironment = context.HostingEnvironment;
 
 			loggerConfig
 				.MinimumLevel.Information()
@@ -42,7 +42,7 @@ public static class LoggerConfigExtensions {
 					)));
 
 			// Development: Show everything in console + debug file
-			if (environment == "Development") {
+			if (hostEnvironment.IsDevelopment()) {
 				loggerConfig
 					.MinimumLevel.Debug()
 					.WriteTo.Console(
@@ -58,6 +58,30 @@ public static class LoggerConfigExtensions {
 							fileSizeLimitBytes: 10 * 1024 * 1024, // 10MB
 							retainedFileCountLimit: 7
 						)));
+			}
+			// Testing: Keep console output concise. Surface only warnings/errors.
+			else if (hostEnvironment.IsEnvironment(EnvironmentNames.Testing)) {
+				if (AppEnvironment.IsTestVerboseLoggingEnabled) {
+					loggerConfig
+						.MinimumLevel.Information()
+						.MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+						.WriteTo.Console(
+							theme: AnsiConsoleTheme.Code,
+							restrictedToMinimumLevel: LogEventLevel.Information,
+							applyThemeToRedirectedOutput: false
+						);
+				} else {
+					loggerConfig
+						.MinimumLevel.Warning()
+						.MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+						.MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Warning)
+						.MinimumLevel.Override("Microsoft.EntityFrameworkCore.Query", LogEventLevel.Error)
+						.WriteTo.Console(
+							theme: AnsiConsoleTheme.Literate,
+							restrictedToMinimumLevel: LogEventLevel.Warning,
+							applyThemeToRedirectedOutput: false
+						);
+				}
 			}
 			// Production: Show only startup info in console
 			else {

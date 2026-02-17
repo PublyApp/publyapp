@@ -34,7 +34,7 @@ public sealed class MainApiFactory
 	protected override void ConfigureWebHost(
 		IWebHostBuilder builder
 	) {
-		builder.UseEnvironment("Testing");
+		builder.UseEnvironment(EnvironmentNames.Testing);
 
 		builder.ConfigureServices(services => {
 			// 1) Replace DbContext to use test DB

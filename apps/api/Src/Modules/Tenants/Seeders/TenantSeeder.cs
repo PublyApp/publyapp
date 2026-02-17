@@ -4,6 +4,7 @@ using MainApi.Src.Data;
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Tenants.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -17,14 +18,8 @@ public class TenantSeeder : IEntitySeeder {
 	private readonly ILogger<TenantSeeder> _logger;
 
 	public TenantSeeder(ILogger<TenantSeeder>? logger = null) {
-		_logger = logger ?? CreateDefaultLogger();
-	}
-
-	private static ILogger<TenantSeeder> CreateDefaultLogger() {
-		using var loggerFactory = LoggerFactory.Create(builder => {
-			builder.AddConsole();
-		});
-		return loggerFactory.CreateLogger<TenantSeeder>();
+		_logger = logger
+			?? SeederLoggerUtils.CreateDefault<TenantSeeder>();
 	}
 
 	public int Order => 20;

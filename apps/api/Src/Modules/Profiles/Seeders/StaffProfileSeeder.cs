@@ -2,6 +2,7 @@ using System.Data;
 
 using MainApi.Src.Data;
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Profiles.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -15,12 +16,8 @@ public class StaffProfileSeeder : IEntitySeeder {
 	private readonly ILogger<StaffProfileSeeder> _logger;
 
 	public StaffProfileSeeder(ILogger<StaffProfileSeeder>? logger = null) {
-		_logger = logger ?? CreateDefaultLogger();
-	}
-
-	private static ILogger<StaffProfileSeeder> CreateDefaultLogger() {
-		using var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-		return loggerFactory.CreateLogger<StaffProfileSeeder>();
+		_logger = logger
+			?? SeederLoggerUtils.CreateDefault<StaffProfileSeeder>();
 	}
 
 	public int Order => 35;

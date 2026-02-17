@@ -9,6 +9,12 @@
 		<Compile Remove="**/*.Spec.cs" />
 		<Compile Remove="Src/Lib/Testing/**/*.cs" />
 		<Compile Remove="Tests/**/*.cs" />
+		<None Remove="Src/Lib/Testing/**" />
+		<None Remove="Tests/**" />
+		<Content Remove="Src/Lib/Testing/**" />
+		<Content Remove="Tests/**" />
+		<EmbeddedResource Remove="Src/Lib/Testing/**" />
+		<EmbeddedResource Remove="Tests/**" />
 	</ItemGroup>
 
 	<ItemGroup>
