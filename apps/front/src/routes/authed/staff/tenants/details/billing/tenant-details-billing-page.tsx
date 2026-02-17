@@ -1,3 +1,4 @@
+import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 
 import {
@@ -16,6 +17,7 @@ const TenantDetailsBillingPage = () => {
 	return (
 		<Stack spacing={3}>
 			<SettingsPageHeader subtitle={t('tenant-details')} title={t('billing')} />
+			<Alert severity="info">{t('billing-coming-soon')}</Alert>
 			<AccountBilling
 				plans={_userPlans}
 				cards={_userPayment}

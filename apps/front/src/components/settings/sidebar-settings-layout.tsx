@@ -5,17 +5,27 @@ import { Outlet } from 'react-router';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
 
 import { SettingsNav, type SettingsNavItem } from './settings-nav';
+import { SettingsNavMobile } from './settings-nav-mobile';
 
 type SidebarSettingsLayoutProps = {
 	items: SettingsNavItem[];
 	maxWidth?: Breakpoint;
+	breadcrumbs?: React.ReactNode;
 };
 
 export const SidebarSettingsLayout = ({
 	items,
 	maxWidth = 'lg',
+	breadcrumbs,
 }: SidebarSettingsLayoutProps) => (
 	<DashboardContent maxWidth={maxWidth} compact>
+		{breadcrumbs}
+
+		{/* Mobile Navigation — visible below md */}
+		<Box sx={{ display: { xs: 'block', md: 'none' }, mb: 2 }}>
+			<SettingsNavMobile items={items} />
+		</Box>
+
 		<Box
 			sx={{
 				display: 'flex',
@@ -23,7 +33,7 @@ export const SidebarSettingsLayout = ({
 				flexDirection: { xs: 'column', md: 'row' },
 			}}
 		>
-			{/* Left Navigation - Sticky */}
+			{/* Left Navigation - Sticky (desktop) */}
 			<Box
 				sx={{
 					display: { xs: 'none', md: 'block' },

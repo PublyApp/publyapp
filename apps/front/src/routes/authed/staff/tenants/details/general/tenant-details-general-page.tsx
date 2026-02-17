@@ -3,6 +3,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Divider from '@mui/material/Divider';
+import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import { alpha } from '@mui/material/styles';
 import TextField from '@mui/material/TextField';
@@ -21,8 +22,6 @@ import { useGetTenant } from '@/front/lib/react-query/features/staff/staff-tenan
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getErrorMessage } from '@/shared/utils/error.utils';
 
-import { TenantCreateOrEditFormSkeleton } from '../../components/tenant-create-form-skeleton';
-
 const TenantDetailsGeneralPage = () => {
 	const { t } = useTranslate();
 	const { tenantId } = useParams();
@@ -38,7 +37,7 @@ const TenantDetailsGeneralPage = () => {
 
 			<QueryDisplay
 				query={getTenantQuery}
-				LoadingSlot={<TenantCreateOrEditFormSkeleton />}
+				LoadingSlot={<TenantGeneralSkeleton />}
 				ErrorSlot={ErrorView}
 			>
 				{({ data }) => (
@@ -105,7 +104,7 @@ const TenantGeneralContent = ({
 						/>
 					</FormRow>
 
-					<FormRow label={`${t('tenant')} ID`}>
+					<FormRow label={t('tenant-id')}>
 						<TextField
 							fullWidth
 							size="small"
@@ -167,6 +166,86 @@ const TenantGeneralContent = ({
 		</>
 	);
 };
+
+const FormRowSkeleton = () => (
+	<Box
+		sx={{
+			display: 'grid',
+			gridTemplateColumns: { xs: '1fr', md: '240px 1fr' },
+			gap: { xs: 1.5, md: 3 },
+			alignItems: 'center',
+			py: 2,
+		}}
+	>
+		<Skeleton variant="text" width={100} height={24} />
+		<Skeleton
+			variant="rectangular"
+			height={40}
+			sx={{ borderRadius: 1, maxWidth: 400 }}
+		/>
+	</Box>
+);
+
+const TenantGeneralSkeleton = () => (
+	<>
+		<Card sx={{ p: 3 }}>
+			<Skeleton variant="text" width={200} height={32} sx={{ mb: 3 }} />
+			<Stack divider={<Divider />}>
+				{/* Logo row */}
+				<Box
+					sx={{
+						display: 'grid',
+						gridTemplateColumns: { xs: '1fr', md: '240px 1fr' },
+						gap: { xs: 1.5, md: 3 },
+						alignItems: 'center',
+						py: 2,
+					}}
+				>
+					<Skeleton variant="text" width={60} height={24} />
+					<Stack direction="row" alignItems="center" spacing={2}>
+						<Skeleton variant="circular" width={64} height={64} />
+						<Skeleton
+							variant="rectangular"
+							width={60}
+							height={32}
+							sx={{ borderRadius: 1 }}
+						/>
+					</Stack>
+				</Box>
+				<FormRowSkeleton />
+				<FormRowSkeleton />
+				<FormRowSkeleton />
+			</Stack>
+			<Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
+				<Skeleton
+					variant="rectangular"
+					width={130}
+					height={36}
+					sx={{ borderRadius: 1 }}
+				/>
+			</Box>
+		</Card>
+
+		<Card sx={{ p: 3 }}>
+			<Skeleton variant="text" width={120} height={28} sx={{ mb: 1 }} />
+			<Skeleton variant="text" width={350} height={20} sx={{ mb: 3 }} />
+			<Stack direction="row" spacing={2}>
+				<Skeleton
+					variant="rectangular"
+					width={90}
+					height={36}
+					sx={{ borderRadius: 1 }}
+				/>
+				<Skeleton
+					variant="rectangular"
+					width={80}
+					height={36}
+					sx={{ borderRadius: 1 }}
+				/>
+			</Stack>
+		</Card>
+	</>
+);
 
 const ErrorView: FC<{ error: unknown }> = ({ error }) => {
 	logger.error(getErrorMessage(error), { error });

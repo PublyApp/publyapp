@@ -508,5 +508,15 @@
 	"tenant-suspended-description": "This organization has been temporarily suspended and is currently unavailable. If you believe this is an error, please contact support.",
 	"go-to-my-organizations": "Go to my organizations",
 	"suspended-tenants-notice": "One or more of your organizations have been suspended.",
-	"danger-zone-tenant-description": "Suspending or deleting a tenant will affect all its users. These actions should be used with caution."
+	"danger-zone-tenant-description": "Suspending or deleting a tenant will affect all its users. These actions should be used with caution.",
+	"tenant-id": "Tenant ID",
+	"logo-description": "150x150px JPEG, PNG image",
+	"change": "Change",
+	"subdomain": "Subdomain",
+	"subdomain-description": "Your organization's unique URL",
+	"industry": "Industry",
+	"website": "Website",
+	"danger-zone-org-description": "Once you delete your organization, there is no going back. Please be certain.",
+	"delete-organization": "Delete organization",
+	"billing-coming-soon": "Billing features are under development. The data shown below is placeholder content."
 }
