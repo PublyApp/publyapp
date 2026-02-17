@@ -33,6 +33,7 @@ help:
 	@echo ""
 	@echo "=== TESTING ==="
 	@echo "  test-api    - Run API integration tests"
+	@echo "  test-api-debug - Run API integration tests with verbose diagnostics"
 	@echo ""
 	@echo "=== BUILDING ==="
 	@echo "  build-api   - Build API only (dotnet build)"
@@ -217,7 +218,11 @@ db-remove:
 
 test-api:
 	@echo "Running API integration tests..."
-	cd $(API_DIR) && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test
+	cd $(API_DIR) && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --nologo --verbosity minimal --logger "console;verbosity=normal"
+
+test-api-debug:
+	@echo "Running API integration tests (verbose diagnostics)..."
+	cd $(API_DIR) && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --nologo --verbosity minimal --logger "console;verbosity=detailed" --environment TEST_VERBOSE_LOGS=1 --diag Tests/bin/Test/test-api-debug.log
 
 # =============================================================================
 # DOCKER OPERATIONS

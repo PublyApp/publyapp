@@ -4,6 +4,7 @@ using MainApi.Src.Data;
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Users.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -18,14 +19,8 @@ public class UserAccountSeeder : IEntitySeeder {
 	private readonly ILogger<UserAccountSeeder> _logger;
 
 	public UserAccountSeeder(ILogger<UserAccountSeeder>? logger = null) {
-		_logger = logger ?? CreateDefaultLogger();
-	}
-
-	private static ILogger<UserAccountSeeder> CreateDefaultLogger() {
-		using var loggerFactory = LoggerFactory.Create(builder => {
-			builder.AddConsole();
-		});
-		return loggerFactory.CreateLogger<UserAccountSeeder>();
+		_logger = logger
+			?? SeederLoggerUtils.CreateDefault<UserAccountSeeder>();
 	}
 
 	public int Order => 40;
