@@ -29,7 +29,23 @@ public abstract record UpdateUserByIdResult {
 	public sealed record Success() : UpdateUserByIdResult;
 	public sealed record UserNotFound() : UpdateUserByIdResult;
 	public sealed record UserAccountNotFound() : UpdateUserByIdResult;
-	public sealed record UpdateFailed(string ErrorMessage) : UpdateUserByIdResult;
+	public sealed record UpdateFailed(
+		string ErrorMessage
+	) : UpdateUserByIdResult;
+}
+
+public abstract record FindTenantUsersResult {
+	public sealed record Success(
+		CursorPaginatedResult<StaffUserData> Data
+	) : FindTenantUsersResult;
+
+	public sealed record CursorNotFound(
+		string Cursor
+	) : FindTenantUsersResult;
+
+	public sealed record InvalidSortId(
+		string SortId
+	) : FindTenantUsersResult;
 }
 
 
@@ -50,6 +66,14 @@ public interface IUserService {
 		CancellationToken cancellationToken = default
 	);
 	Task<UpdateUserByIdResult> UpdateStaffUserByIdAsync(Guid userId, UpdateUserDocument document, CancellationToken cancellationToken = default);
+	Task<FindTenantUsersResult> FindTenantUsersAsync(
+		Guid tenantId,
+		Guid cursor,
+		int? limit = null,
+		string? sortId = null,
+		SortOrder? sortOrder = null,
+		CancellationToken cancellationToken = default
+	);
 }
 
 public class UserService : IUserService {
@@ -208,6 +232,316 @@ public class UserService : IUserService {
 		}).ToList();
 	}
 
+	public async Task<FindTenantUsersResult>
+	FindTenantUsersAsync(
+		Guid tenantId,
+		Guid cursor,
+		int? limit = null,
+		string? sortId = null,
+		SortOrder? sortOrder = null,
+		CancellationToken cancellationToken = default
+	) {
+		var effectiveLimit = limit
+			?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
+		var effectiveSortId =
+			(sortId ?? "id").ToLowerInvariant();
+
+		var sortFieldHandlers =
+			new Dictionary<string, SortFieldHandler> {
+				["id"] = new SortFieldHandler(
+					getCursorValue: async (guid) => {
+						var ua = await (
+							from x in _dbContext.UserAccount
+							where x.UserId == guid
+								&& x.TenantId == tenantId
+								&& x.Scope
+									== AccountScope.Tenant
+							select (Guid?)x.UserId
+						).FirstOrDefaultAsync(
+							cancellationToken
+						);
+						return ua;
+					},
+					applyFilter: (q, val, isAsc) => {
+						var id = (Guid?)val;
+						if (id is null) {
+							return q;
+						}
+						return isAsc
+							? q.Where(x => x.UserId > id)
+							: q.Where(x => x.UserId < id);
+					},
+					applyOrdering: (q, isAsc) => isAsc
+						? q.OrderBy(x => x.UserId)
+						: q.OrderByDescending(
+							x => x.UserId
+						)
+				),
+
+				["email"] = new SortFieldHandler(
+					getCursorValue: async (guid) => {
+						var item = await (
+							from x in _dbContext.UserAccount
+							where x.UserId == guid
+								&& x.TenantId == tenantId
+								&& x.Scope
+									== AccountScope.Tenant
+							select new {
+								x.User.Email,
+								x.UserId,
+							}
+						).FirstOrDefaultAsync(
+							cancellationToken
+						);
+						return item is not null
+							? (item.Email, item.UserId)
+							: null;
+					},
+					applyFilter: (q, val, isAsc) => {
+						if (val is null) {
+							return q;
+						}
+						var (email, id) =
+							((string, Guid))val;
+						return isAsc
+							? q.Where(x =>
+								x.User.Email
+									.CompareTo(
+										email
+									) > 0
+								|| (x.User.Email == email
+									&& x.UserId > id))
+							: q.Where(x =>
+								x.User.Email
+									.CompareTo(
+										email
+									) < 0
+								|| (x.User.Email == email
+									&& x.UserId < id));
+					},
+					applyOrdering: (q, isAsc) => isAsc
+						? q.OrderBy(x => x.User.Email)
+							.ThenBy(x => x.UserId)
+						: q.OrderByDescending(
+							x => x.User.Email
+						).ThenByDescending(
+							x => x.UserId
+						)
+				),
+
+				["status"] = new SortFieldHandler(
+					getCursorValue: async (guid) => {
+						var item = await (
+							from x in _dbContext.UserAccount
+							where x.UserId == guid
+								&& x.TenantId == tenantId
+								&& x.Scope
+									== AccountScope.Tenant
+							select new {
+								x.User.Status,
+								x.UserId,
+							}
+						).FirstOrDefaultAsync(
+							cancellationToken
+						);
+						return item is not null
+							? (item.Status, item.UserId)
+							: null;
+					},
+					applyFilter: (q, val, isAsc) => {
+						if (val is null) {
+							return q;
+						}
+						var (status, id) =
+							((UserStatus, Guid))val;
+						return isAsc
+							? q.Where(x =>
+								x.User.Status > status
+								|| (x.User.Status
+										== status
+									&& x.UserId > id))
+							: q.Where(x =>
+								x.User.Status < status
+								|| (x.User.Status
+										== status
+									&& x.UserId < id));
+					},
+					applyOrdering: (q, isAsc) => isAsc
+						? q.OrderBy(
+							x => x.User.Status
+						).ThenBy(x => x.UserId)
+						: q.OrderByDescending(
+							x => x.User.Status
+						).ThenByDescending(
+							x => x.UserId
+						)
+				),
+
+				["level"] = new SortFieldHandler(
+					getCursorValue: async (guid) => {
+						var item = await (
+							from x in _dbContext.UserAccount
+							where x.UserId == guid
+								&& x.TenantId == tenantId
+								&& x.Scope
+									== AccountScope.Tenant
+							select new {
+								x.Level,
+								x.UserId,
+							}
+						).FirstOrDefaultAsync(
+							cancellationToken
+						);
+						return item is not null
+							? (item.Level, item.UserId)
+							: null;
+					},
+					applyFilter: (q, val, isAsc) => {
+						if (val is null) {
+							return q;
+						}
+						var (level, id) =
+							((AccountLevel, Guid))val;
+						return isAsc
+							? q.Where(x =>
+								x.Level > level
+								|| (x.Level == level
+									&& x.UserId > id))
+							: q.Where(x =>
+								x.Level < level
+								|| (x.Level == level
+									&& x.UserId < id));
+					},
+					applyOrdering: (q, isAsc) => isAsc
+						? q.OrderBy(
+							x => x.Level
+						).ThenBy(x => x.UserId)
+						: q.OrderByDescending(
+							x => x.Level
+						).ThenByDescending(
+							x => x.UserId
+						)
+				),
+
+				["createdat"] = new SortFieldHandler(
+					getCursorValue: async (guid) => {
+						var item = await (
+							from x in _dbContext.UserAccount
+							where x.UserId == guid
+								&& x.TenantId == tenantId
+								&& x.Scope
+									== AccountScope.Tenant
+							select new {
+								x.User.CreatedAt,
+								x.UserId,
+							}
+						).FirstOrDefaultAsync(
+							cancellationToken
+						);
+						return item is not null
+							? (item.CreatedAt, item.UserId)
+							: null;
+					},
+					applyFilter: (q, val, isAsc) => {
+						if (val is null) {
+							return q;
+						}
+						var (createdAt, id) =
+							((DateTime, Guid))val;
+						return isAsc
+							? q.Where(x =>
+								x.User.CreatedAt
+									> createdAt
+								|| (x.User.CreatedAt
+										== createdAt
+									&& x.UserId > id))
+							: q.Where(x =>
+								x.User.CreatedAt
+									< createdAt
+								|| (x.User.CreatedAt
+										== createdAt
+									&& x.UserId < id));
+					},
+					applyOrdering: (q, isAsc) => isAsc
+						? q.OrderBy(
+							x => x.User.CreatedAt
+						).ThenBy(x => x.UserId)
+						: q.OrderByDescending(
+							x => x.User.CreatedAt
+						).ThenByDescending(
+							x => x.UserId
+						)
+				),
+			};
+
+		if (
+			!sortFieldHandlers.TryGetValue(
+				effectiveSortId,
+				out SortFieldHandler? handler
+			)
+		) {
+			return new FindTenantUsersResult.InvalidSortId(
+				effectiveSortId
+			);
+		}
+
+		var baseQuery =
+			from ua in _dbContext.UserAccount
+			where ua.TenantId == tenantId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !ua.IsSuspended
+				&& !ua.User.IsDeleted
+				&& !ua.User.IsSuspended
+			select ua;
+
+		IQueryable<UserAccount> query = baseQuery;
+
+		if (cursor != Guid.Empty) {
+			var cursorValue =
+				await handler.GetCursorValue(cursor);
+
+			if (cursorValue is null) {
+				return new FindTenantUsersResult
+					.CursorNotFound(cursor.ToString());
+			}
+
+			query = handler.ApplyFilter(
+				query,
+				cursorValue,
+				effectiveSortOrder == SortOrder.Asc
+			);
+		}
+
+		var orderedQuery = handler.ApplyOrdering(
+			query,
+			effectiveSortOrder == SortOrder.Asc
+		);
+
+		var results = await orderedQuery
+			.Select(ua => new StaffUserData {
+				User = ua.User,
+				AccountLevel = ua.Level,
+			})
+			.Take(effectiveLimit + 1)
+			.ToListAsync(cancellationToken);
+
+		string? nextCursor = null;
+		if (results.Count > effectiveLimit) {
+			results.RemoveAt(results.Count - 1);
+			nextCursor = results.Last()
+				.User.GetRequiredId().ToString();
+		}
+
+		return new FindTenantUsersResult.Success(
+			new CursorPaginatedResult<StaffUserData> {
+				Data = results,
+				NextCursor = nextCursor,
+			}
+		);
+	}
+
 	public async Task<UpdateUserByIdResult> UpdateStaffUserByIdAsync(
 		Guid userId,
 		UpdateUserDocument document,
@@ -267,7 +601,40 @@ public class UserService : IUserService {
 			if (_logger.IsEnabled(LogLevel.Error)) {
 				_logger.LogError(exception, "Failed to update staff member {UserId}", userId);
 			}
-			return new UpdateUserByIdResult.UpdateFailed(exception.Message);
+			return new UpdateUserByIdResult.UpdateFailed(
+				exception.Message
+			);
 		}
+	}
+
+	private class SortFieldHandler(
+		Func<Guid, Task<object?>> getCursorValue,
+		Func<
+			IQueryable<UserAccount>,
+			object?,
+			bool,
+			IQueryable<UserAccount>
+		> applyFilter,
+		Func<
+			IQueryable<UserAccount>,
+			bool,
+			IQueryable<UserAccount>
+		> applyOrdering
+	) {
+		public Func<Guid, Task<object?>>
+			GetCursorValue { get; } = getCursorValue;
+
+		public Func<
+			IQueryable<UserAccount>,
+			object?,
+			bool,
+			IQueryable<UserAccount>
+		> ApplyFilter { get; } = applyFilter;
+
+		public Func<
+			IQueryable<UserAccount>,
+			bool,
+			IQueryable<UserAccount>
+		> ApplyOrdering { get; } = applyOrdering;
 	}
 }
