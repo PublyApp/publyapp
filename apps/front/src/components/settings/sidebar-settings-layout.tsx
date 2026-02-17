@@ -9,17 +9,13 @@ import { SettingsNav, type SettingsNavItem } from './settings-nav';
 type SidebarSettingsLayoutProps = {
 	items: SettingsNavItem[];
 	maxWidth?: Breakpoint;
-	breadcrumbs?: React.ReactNode;
 };
 
 export const SidebarSettingsLayout = ({
 	items,
 	maxWidth = 'lg',
-	breadcrumbs,
 }: SidebarSettingsLayoutProps) => (
 	<DashboardContent maxWidth={maxWidth} compact>
-		{breadcrumbs}
-
 		<Box
 			sx={{
 				display: 'flex',

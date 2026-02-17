@@ -4,7 +4,6 @@ import _ from 'lodash';
 import { useMemo } from 'react';
 import { data, useParams } from 'react-router';
 
-import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
 import type { SettingsNavItem } from '@/front/components/settings/settings-nav';
 import { SidebarSettingsLayout } from '@/front/components/settings/sidebar-settings-layout';
 import { useTranslate } from '@/front/hooks/use-translate';
@@ -70,21 +69,7 @@ const TenantDetailsLayout = () => {
 		];
 	}, [t, tenantId]);
 
-	const breadcrumbs = (
-		<CustomBreadcrumbs
-			heading={t('tenant-details')}
-			links={[
-				{
-					name: _.capitalize(t('tenants')),
-					href: FRONT_PATH_NAMES.staff.tenants.root,
-				},
-				{ name: t('details') },
-			]}
-			sx={{ mb: 3 }}
-		/>
-	);
-
-	return <SidebarSettingsLayout items={navItems} breadcrumbs={breadcrumbs} />;
+	return <SidebarSettingsLayout items={navItems} />;
 };
 
 export default TenantDetailsLayout;
