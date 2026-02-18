@@ -4,8 +4,6 @@ import Button from '@mui/material/Button';
 import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
-import MenuItem from '@mui/material/MenuItem';
-import MenuList from '@mui/material/MenuList';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
@@ -16,12 +14,11 @@ import {
 	type MRT_ColumnDef,
 	type MRT_SortingState,
 } from 'material-react-table';
-import { useBoolean, usePopover } from 'minimal-shared/hooks';
+import { useBoolean } from 'minimal-shared/hooks';
 import { useEffect, useMemo } from 'react';
 import { useParams } from 'react-router';
 
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
-import { CustomPopover } from '@/front/components/custom-popover/custom-popover';
 import DrawerAnchor from '@/front/components/drawer-anchor';
 import { Iconify } from '@/front/components/iconify/iconify';
 import type { LabelColor } from '@/front/components/label';
@@ -37,19 +34,23 @@ import {
 	useSendEmailVerificationReminder,
 } from '@/front/lib/react-query/features/common/auth.hooks';
 import { useFindTenantUsers } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
-import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import {
+	ACCOUNT_LEVEL_ENUM,
+	DEFAULT_PAGE_SIZE,
+	FRONT_PATH_NAMES,
+	USER_STATUS_ENUM,
+	voidFunction,
+} from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { getErrorMessage } from '@/shared/utils/error.utils';
 import { getUserFullName } from '@/shared/utils/user.utils';
-
-// Status values are now returned as strings from the API
 
 export type TenantUserRowData = {
 	id: string;
 	avatarUrl: string;
 	firstName: string;
 	lastName: string;
-	// role: string;
+	level: string;
 	status: string;
 	email: string;
 };
@@ -91,26 +92,23 @@ const TenantUsersTable = () => {
 					id: 'fullName',
 					header: t('name'),
 					Cell: UserCell,
-					// grow: 1,
-					size: 300,
 					enableSorting: false,
 				},
 			),
-			// columnHelper.accessor('role', {
-			// 	header: t('role'),
-			// 	Cell: RoleCell,
-			// 	size: 70,
-			// }),
+			columnHelper.accessor('level', {
+				header: t('level'),
+				Cell: LevelCell,
+				size: 150,
+			}),
 			columnHelper.accessor('status', {
 				header: t('status'),
 				Cell: StatusCell,
-				size: 70,
-				enableSorting: false,
+				size: 150,
 			}),
 			columnHelper.display({
 				header: 'Actions',
 				Cell: UserActionsCell,
-				size: 5,
+				size: 150,
 			}),
 		];
 	}, [t]);
@@ -136,7 +134,10 @@ const TenantUsersTable = () => {
 		query: tenantUsersQuery,
 		emptyContent: {
 			title: _.capitalize(
-				t('no-items-found', { item: t('users'), ns: 'response-message' }),
+				t('no-items-found', {
+					item: t('users'),
+					ns: 'response-message',
+				}),
 			),
 		},
 		errorContent: {
@@ -158,7 +159,7 @@ const TenantUsersTable = () => {
 				avatarUrl: tenantUser.avatarUrl || '',
 				firstName: tenantUser.firstName || '',
 				lastName: tenantUser.lastName || '',
-				// role: tenantUser.roleData?.role || '',
+				level: tenantUser.level || '',
 				status: tenantUser.status || '',
 				email: tenantUser.email || '',
 			};
@@ -182,6 +183,16 @@ const TenantUsersTable = () => {
 			isPending: tenantUsersQuery.isPending,
 		},
 		renderEmptyRowsFallback,
+		muiTableProps: {
+			sx: {
+				'& .MuiTableBody-root > tr > td:not(:nth-of-type(2)), & .MuiTableHead-root > tr > th:not(:nth-of-type(2))':
+					{
+						// backgroundColor: 'red !important',
+						flex: '1 1 auto !important',
+						// flexGrow: 1,
+					},
+			},
+		},
 	});
 
 	return (
@@ -209,7 +220,11 @@ const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 			<Avatar alt={fullName} src={avatarUrl} />
 
 			<Stack
-				sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}
+				sx={{
+					typography: 'body2',
+					flex: '1 1 auto',
+					alignItems: 'flex-start',
+				}}
 			>
 				<Stack direction="row" gap={0.7}>
 					<Link
@@ -276,15 +291,24 @@ const StatusCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (
 	let t_message: string = t('unknown-item', { item: 'status' });
 	let color: LabelColor = 'default';
 
-	if (status === 'active') {
+	if (status === USER_STATUS_ENUM.ACTIVE) {
 		t_message = t('active');
 		color = 'success';
-	} else if (status === 'pending') {
+	} else if (status === USER_STATUS_ENUM.PENDING) {
 		t_message = t('pending');
 		color = 'warning';
-	} else if (status === 'banned') {
+	} else if (status === USER_STATUS_ENUM.BANNED) {
 		t_message = t('banned');
 		color = 'error';
+	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
+		t_message = t('suspended');
+		color = 'warning';
+	} else if (status === USER_STATUS_ENUM.DELETED) {
+		t_message = t('deleted');
+		color = 'error';
+	} else if (status === USER_STATUS_ENUM.INACTIVE) {
+		t_message = t('inactive');
+		color = 'default';
 	}
 
 	return (
@@ -294,93 +318,42 @@ const StatusCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (
 	);
 };
 
-// const RoleCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
-// 	const { t } = useTranslate();
+const LevelCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
+	const { t } = useTranslate();
 
-// 	const role = props.cell.getValue();
+	const level = props.cell.getValue();
 
-// 	const t_message: string = t('unknown-item', { item: 'role' });
-// 	const color: LabelColor = 'default';
+	let t_message: string = t('unknown-item', { item: 'role' });
+	let color: LabelColor = 'default';
 
-// 	// if (role === /* roleEnum.STAFF_ADMIN.name */ '') {
-// 	// 	t_message = t('admin');
-// 	// 	color = 'success';
-// 	// } else if (role === /* roleEnum.STAFF_EDITOR.name */ '') {
-// 	// 	t_message = t('editor');
-// 	// 	color = 'info';
-// 	// } else if (role === /* roleEnum.STAFF_USER.name */ '') {
-// 	// 	t_message = t('user');
-// 	// 	color = 'warning';
-// 	// } else if (role === /* roleEnum.STAFF_CONTRIBUTOR.name */ '') {
-// 	// 	t_message = t('contributor');
-// 	// 	color = 'error';
-// 	// }
+	if (level === ACCOUNT_LEVEL_ENUM.ADMIN) {
+		t_message = t('admin');
+		color = 'success';
+	} else if (level === ACCOUNT_LEVEL_ENUM.USER) {
+		t_message = t('user');
+		color = 'warning';
+	}
 
-// 	return (
-// 		<Label variant="soft" color={color}>
-// 			{t_message}
-// 		</Label>
-// 	);
-// };
+	return (
+		<Label variant="soft" color={color}>
+			{t_message}
+		</Label>
+	);
+};
 
 const ALLOW_COPY_LINK = false;
 
 const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
 	const userId = props.row.original.id;
-	const isUserPending = props.row.original.status === 'pending';
+	const isUserPending = props.row.original.status === USER_STATUS_ENUM.PENDING;
 
-	const menuActions = usePopover();
 	const confirmDialog = useBoolean();
 	const { t } = useTranslate();
 
 	const onConfirmDeleteRow = () => {
-		menuActions.onClose();
-		toast.warning(`onDelete: ${userId}`);
+		logger.info('onConfirmDeleteRow', { userId });
+		toast.warning('TODO: implement delete');
 	};
-
-	const renderMenuActions = () => (
-		<CustomPopover
-			open={menuActions.open}
-			anchorEl={menuActions.anchorEl}
-			onClose={
-				/* isLoadingGetVerificationLink ? undefined :  */ menuActions.onClose
-			}
-			slotProps={{ arrow: { placement: 'right-top' } }}
-		>
-			<MenuList>
-				<CopyLinkButton
-					isUserPending={isUserPending}
-					userId={userId}
-					onClose={menuActions.onClose}
-				/>
-
-				<FollowUpButton
-					isUserPending={isUserPending}
-					email={props.row.original.email}
-					onClose={menuActions.onClose}
-				/>
-
-				<MenuItem
-					component={RouterLink}
-					href={FRONT_PATH_NAMES.staff.tenantUsers.details(userId)}
-					onClick={() => menuActions.onClose()}
-				>
-					<Iconify icon="solar:pen-bold" />
-					{t('edit')}
-				</MenuItem>
-				<MenuItem
-					onClick={() => {
-						confirmDialog.onTrue();
-						menuActions.onClose();
-					}}
-					sx={{ color: 'error.main' }}
-				>
-					<Iconify icon="solar:trash-bin-trash-bold" />
-					{t('delete')}
-				</MenuItem>
-			</MenuList>
-		</CustomPopover>
-	);
 
 	const renderConfirmDialog = () => (
 		<ConfirmDialog
@@ -397,20 +370,42 @@ const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
 	);
 
 	return (
-		<Box
-			className="is-actions-column"
-			sx={{ display: 'flex', alignItems: 'center' }}
-		>
-			<IconButton
-				color={menuActions.open ? 'inherit' : 'default'}
-				onClick={menuActions.onOpen}
-			>
-				<Iconify icon="eva:more-vertical-fill" />
-			</IconButton>
+		<>
+			<Box sx={{ display: 'flex', alignItems: 'center' }}>
+				<FollowUpButton
+					isUserPending={isUserPending}
+					email={props.row.original.email}
+				/>
 
-			{renderMenuActions()}
+				<CopyLinkButton
+					isUserPending={isUserPending}
+					userId={userId}
+					onClose={voidFunction}
+				/>
+
+				<Tooltip title={t('view-details')} placement="top" arrow>
+					<IconButton
+						color={'default'}
+						LinkComponent={RouterLink}
+						href={FRONT_PATH_NAMES.staff.tenantUsers.details(userId)}
+					>
+						<Iconify icon="solar:eye-bold" />
+					</IconButton>
+				</Tooltip>
+
+				<Tooltip title="Delete" placement="top" arrow>
+					<IconButton
+						color={'default'}
+						onClick={confirmDialog.onTrue}
+						sx={{ color: 'error.main' }}
+					>
+						<Iconify icon="solar:trash-bin-trash-bold" />
+					</IconButton>
+				</Tooltip>
+			</Box>
+
 			{renderConfirmDialog()}
-		</Box>
+		</>
 	);
 };
 
@@ -418,10 +413,12 @@ const CopyLinkButton = ({
 	isUserPending,
 	userId,
 	onClose,
+	forceShow = false,
 }: {
 	isUserPending: boolean;
 	userId: string;
 	onClose?: () => void;
+	forceShow?: boolean;
 }) => {
 	const { t } = useTranslate();
 
@@ -434,15 +431,18 @@ const CopyLinkButton = ({
 		enabled: false,
 	});
 
-	return isUserPending && ALLOW_COPY_LINK ? (
+	if ((!isUserPending || !ALLOW_COPY_LINK) && !forceShow) {
+		return null;
+	}
+
+	return (
 		<Tooltip
 			title={_.capitalize(t('copy-item', { item: t('verification-link') }))}
 			placement="top"
 		>
-			<MenuItem
-				component={Button}
+			<IconButton
+				color={'default'}
 				loading={isLoadingGetVerificationLink}
-				fullWidth
 				onClick={async () => {
 					let link = linkData?.link || 'unable to get verification link';
 					if (!linkData) {
@@ -464,20 +464,19 @@ const CopyLinkButton = ({
 				}}
 			>
 				<Iconify icon="solar:copy-bold-duotone" />
-				{t('copy-link')}
-			</MenuItem>
+			</IconButton>
 		</Tooltip>
-	) : null;
+	);
 };
 
 const FollowUpButton = ({
 	isUserPending,
 	email,
-	onClose,
+	forceShow = false,
 }: {
 	isUserPending: boolean;
 	email: string;
-	onClose?: () => void;
+	forceShow?: boolean;
 }) => {
 	const { t } = useTranslate();
 
@@ -487,36 +486,25 @@ const FollowUpButton = ({
 	} = useSendEmailVerificationReminder({
 		onSuccess: () => {
 			toast.success(t('email-verification-follow-up-success'));
-			onClose?.();
-		},
-		onError: (error) => {
-			logger.error(getErrorMessage(error), { error });
-			// if (error instanceof ParseRestError) {
-			// 	toast.error(error.message);
-			// 	return;
-			// }
-			toast.error(t('email-verification-follow-up-error'));
-			onClose?.();
 		},
 	});
 
-	return isUserPending ? (
+	if (!isUserPending && !forceShow) return null;
+
+	return (
 		<Tooltip
 			title={_.capitalize(t('send-email-verification-follow-up'))}
 			placement="top"
 		>
-			<MenuItem
-				component={Button}
+			<IconButton
+				color={'default'}
 				loading={isPendingSendEmailVerificationReminder}
-				fullWidth
 				onClick={async () => {
 					await sendEmailVerificationReminder({ email });
-					onClose?.();
 				}}
 			>
 				<Iconify icon="custom:send-fill" />
-				{t('follow-up')}
-			</MenuItem>
+			</IconButton>
 		</Tooltip>
-	) : null;
+	);
 };
