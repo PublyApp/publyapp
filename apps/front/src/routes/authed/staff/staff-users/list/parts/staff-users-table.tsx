@@ -96,7 +96,7 @@ const StaffUsersTable = () => {
 					header: t('name'),
 					Cell: UserCell,
 					enableSorting: false,
-					size: 900,
+					// size: 900,
 				},
 			),
 			columnHelper.accessor('level', {
@@ -141,6 +141,16 @@ const StaffUsersTable = () => {
 		muiTablePaperProps: {
 			sx: {
 				flexGrow: 1,
+			},
+		},
+		muiTableProps: {
+			sx: {
+				'& .MuiTableBody-root > tr > td:not(:nth-of-type(2)), & .MuiTableHead-root > tr > th:not(:nth-of-type(2))':
+					{
+						// backgroundColor: 'red !important',
+						flex: '1 1 auto !important',
+						// flexGrow: 1,
+					},
 			},
 		},
 	});
