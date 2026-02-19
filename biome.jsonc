@@ -22,7 +22,8 @@
 			"!.config/dotnet-tools.json",
 			"!apps/api/Generated",
 			"!.dump",
-			"!.mcp.json"
+			"!.mcp.json",
+			"!.claude/settings.local.json"
 		]
 	},
 	"formatter": {
