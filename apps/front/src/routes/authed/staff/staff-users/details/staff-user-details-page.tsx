@@ -6,9 +6,9 @@ import type { FC } from 'react';
 import { data, useParams } from 'react-router';
 
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
-import { EmptyContent } from '@/front/components/empty-content/empty-content';
 import { ErrorContent } from '@/front/components/empty-content/error-content';
 import View400 from '@/front/components/error/400-view';
+import { NotFoundView } from '@/front/components/error/not-found-view';
 import QueryDisplay from '@/front/components/query-display';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
@@ -134,32 +134,16 @@ const StaffUserDetailsPage = () => {
 
 export default StaffUserDetailsPage;
 
-const StaffUserDetailsEmpty = () => {
-	const { t } = useTranslate();
-
-	return (
-		<Box sx={{ py: 10 }}>
-			<EmptyContent
-				title={_.capitalize(
-					t('no-items-found', {
-						item: t('staff-user'),
-						ns: 'response-message',
-					}),
-				)}
-				description={_.capitalize(t('staff-user-not-found-description-empty'))}
-				imgUrl="/assets/icons/empty/ic-content.svg"
-			/>
-		</Box>
-	);
-};
-
 const ErrorView: FC<{ error: unknown }> = ({ error }) => {
 	const { t } = useTranslate();
 
 	const failure = toApiFailure(error);
 
-	if (isProblemFailure(failure) && failure.status === 404) {
-		return <StaffUserDetailsEmpty />;
+	if (
+		isProblemFailure(failure) &&
+		(failure.status === 404 || failure.status === 400)
+	) {
+		return <NotFoundView withLayout={false} />;
 	}
 
 	return (
