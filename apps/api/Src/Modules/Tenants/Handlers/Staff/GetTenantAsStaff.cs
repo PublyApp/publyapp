@@ -22,12 +22,20 @@ public class GetTenantAsStaff {
 	> HandleGetTenantAsStaff(
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		[FromRoute] string tenantId,
+		ILogger<GetTenantAsStaff> logger,
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
+			if (logger.IsEnabled(LogLevel.Debug)) {
+				logger.LogDebug(
+					"Invalid tenant id: {@LogData}",
+					new { TenantId = tenantId }
+				);
+			}
+
 			return TypedProblems.BadRequest(
 				"Invalid tenant ID",
-				ResponseKeys.BadRequest
+				ResponseKeys.MalformedId
 			);
 		}
 

@@ -62,5 +62,6 @@
 	"tenant-not-suspended": "Tenant is not currently suspended",
 	"tenant-suspended": "This tenant has been suspended",
 	"tenant-suspended-success": "Tenant has been suspended successfully",
-	"tenant-reactivated-success": "Tenant has been reactivated successfully"
+	"tenant-reactivated-success": "Tenant has been reactivated successfully",
+	"malformed-id": "Malformed ID"
 }

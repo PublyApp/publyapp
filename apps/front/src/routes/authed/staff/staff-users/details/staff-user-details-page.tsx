@@ -150,7 +150,8 @@ const ErrorView: FC<{ error: unknown }> = ({ error }) => {
 
 	if (
 		isProblemFailure(failure) &&
-		(failure.status === 404 || failure.status === 400)
+		(failure.status === 404 ||
+			(failure.status === 400 && failure.translationKey === 'malformed-id'))
 	) {
 		return (
 			<NotFoundView

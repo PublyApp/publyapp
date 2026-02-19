@@ -117,6 +117,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey InvitationRevoked = new("invitation-revoked");
 
 	/// <summary>
+	/// Malformed ID
+	/// </summary>
+	public static readonly TranslationKey MalformedId = new("malformed-id");
+
+	/// <summary>
 	/// Method not allowed
 	/// </summary>
 	public static readonly TranslationKey MethodNotAllowed = new("method-not-allowed");
