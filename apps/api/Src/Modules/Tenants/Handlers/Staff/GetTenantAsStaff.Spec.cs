@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
+using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Routes;
 using MainApi.Src.Lib.Testing.Fixtures;
@@ -130,5 +131,56 @@ public sealed class GetTenantAsStaffSpec
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnTenantWhenSuspended() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper.GetTenantIdByNameAsync(
+				_http,
+				staffToken,
+				SeedConstants.Tenants.AcmeName
+			);
+
+		// Suspend the tenant
+		using var suspendResponse =
+			await TenantTestHelper.SuspendTenantAsync(
+				_http, staffToken, tenantId
+			);
+		suspendResponse.EnsureSuccessStatusCode();
+
+		try {
+			// GET the suspended tenant as staff
+			var url = GetUrl(tenantId.ToString());
+			var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(staffToken);
+
+			using var response =
+				await _http.SendAsync(request);
+
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var result = await response.Content
+				.ReadFromJsonAsync<
+					GetTenantAsStaffResult
+				>();
+			result.Should().NotBeNull();
+			result!.TenantId.Should().Be(tenantId);
+		} finally {
+			try {
+				using var cleanup =
+					await TenantTestHelper
+						.ReactivateTenantAsync(
+							_http, staffToken, tenantId
+						);
+			} catch {
+				// Ignore — cleanup best-effort
+			}
+		}
 	}
 }

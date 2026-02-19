@@ -32,7 +32,7 @@ public class GetTenantAsStaff {
 		}
 
 		var tenant =
-			await tenantAsStaffService.GetTenantByIdAsync(
+			await tenantAsStaffService.GetTenantByIdForStaffAsync(
 				tenantIdGuid, cancellationToken
 			);
 
