@@ -911,6 +911,29 @@ if (authContext.AccountStaff is null) {
 }
 ```
 
+## Staff Service Method Selection (Suspended Tenant Visibility)
+
+**CRITICAL:** Staff handlers that retrieve tenant data MUST use the `*ForStaff*` service method variant — never the base method that filters suspended tenants.
+
+```csharp
+// ❌ WRONG - Filters out suspended tenants (staff can't see them)
+var tenant = await tenantAsStaffService.GetTenantByIdAsync(
+    tenantIdGuid, cancellationToken
+);
+
+// ✅ CORRECT - Only filters deleted tenants (staff can see suspended)
+var tenant = await tenantAsStaffService.GetTenantByIdForStaffAsync(
+    tenantIdGuid, cancellationToken
+);
+```
+
+**Why this matters:**
+- `GetTenantByIdAsync` calls `Tenant.IsTenantActive()` which returns `false` for suspended tenants, causing the method to return `null` → handler returns 404
+- `GetTenantByIdForStaffAsync` only filters `IsDeleted`, allowing staff to view and manage suspended tenants
+- Staff users need to see suspended tenants to reactivate them or inspect their state
+
+**General rule:** When a service exposes both a base method and a `*ForStaff*` variant, staff handlers should always prefer the `*ForStaff*` variant. The base methods enforce tenant-scoped visibility rules (e.g., hiding suspended tenants) that don't apply to staff administrators.
+
 ## DTO Placement: Service vs Handler
 
 Service input/output DTOs (return types, result discriminated unions) belong in the service file. HTTP request/response DTOs and validators belong in the handler file. When a type is used as both service output and HTTP response, prefer keeping one definition in the service file over duplicating.
