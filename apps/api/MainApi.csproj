@@ -7,6 +7,8 @@
 
 	<ItemGroup>
 		<Compile Remove="**/*.Spec.cs" />
+		<Compile Remove="scripts/**" />
+		<None Remove="scripts/**" />
 		<Compile Remove="Src/Lib/Testing/**/*.cs" />
 		<Compile Remove="Tests/**/*.cs" />
 		<None Remove="Src/Lib/Testing/**" />
@@ -54,23 +56,22 @@
 		<OpenApiGenerateDocuments>false</OpenApiGenerateDocuments>
 	</PropertyGroup>
 
-	<!-- Generate translation keys before build -->
+	<!-- Generate translation keys before build (.NET 10 file-based app) -->
 	<PropertyGroup>
 		<GeneratedDir>Generated</GeneratedDir>
 		<TranslationJsonFile>$(MSBuildProjectDirectory)\..\..\packages\shared\lib\i18n\json\response-message.en.json</TranslationJsonFile>
 		<GeneratedKeysFile>$(MSBuildProjectDirectory)\$(GeneratedDir)\ResponseKeys.g.cs</GeneratedKeysFile>
-		<TranslationKeyGenProject>$(MSBuildProjectDirectory)\..\..\packages\_tx-key-gen\TranslationKeyGenerator.csproj</TranslationKeyGenProject>
-		<TranslationKeyGenOutputDir>$(MSBuildProjectDirectory)\..\..\packages\_tx-key-gen\bin\$(Configuration)\net10.0</TranslationKeyGenOutputDir>
-		<TranslationKeyGenDll>$(TranslationKeyGenOutputDir)\TranslationKeyGenerator.dll</TranslationKeyGenDll>
+		<TranslationKeyGenScript>$(MSBuildProjectDirectory)\scripts\generate-translation-keys.cs</TranslationKeyGenScript>
 	</PropertyGroup>
 
-	<Target Name="BuildTranslationKeyGenerator" BeforeTargets="GenerateTranslationKeys" Condition="'$(Configuration)' != 'Test'">
-		<Message Text="Building TranslationKeyGenerator..." Importance="normal" />
-		<Exec Command="dotnet build &quot;$(TranslationKeyGenProject)&quot; -c $(Configuration)" ContinueOnError="false" />
-	</Target>
-
-	<Target Name="GenerateTranslationKeys" BeforeTargets="BeforeBuild" DependsOnTargets="BuildTranslationKeyGenerator" Condition="'$(Configuration)' != 'Test'">
-		<Message Text="Generating translation keys from response-message.en.json..." Importance="high" />
-		<Exec Command="dotnet &quot;$(TranslationKeyGenDll)&quot; &quot;$(TranslationJsonFile)&quot; &quot;$(GeneratedKeysFile)&quot;" ContinueOnError="false" />
+	<Target Name="GenerateTranslationKeys"
+			BeforeTargets="BeforeBuild"
+			Condition="'$(Configuration)' != 'Test'"
+			Inputs="$(TranslationJsonFile);$(TranslationKeyGenScript)"
+			Outputs="$(GeneratedKeysFile)">
+		<Message Text="Generating translation keys from response-message.en.json..."
+				 Importance="high" />
+		<Exec Command="dotnet run --file &quot;$(TranslationKeyGenScript)&quot; -- &quot;$(TranslationJsonFile)&quot; &quot;$(GeneratedKeysFile)&quot;"
+			  ContinueOnError="false" />
 	</Target>
 </Project>

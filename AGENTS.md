@@ -98,8 +98,7 @@ apps/
 packages/
 ├── shared/           # Shared utilities, validations, i18n
 ├── js-client/        # Auto-generated TypeScript API client
-├── _tsconfig/        # Shared TypeScript configurations
-└── _tx-key-gen/      # Translation key generator (.NET tool)
+└── _tsconfig/        # Shared TypeScript configurations
 ```
 
 ### Backend Architecture (Vertical Slice, Domain-First)

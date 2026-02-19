@@ -1,9 +1,14 @@
+#:property EnforceCodeStyleInBuild=false
+#:property GenerateDocumentationFile=false
+#:property TreatWarningsAsErrors=false
+#:property WarningsAsErrors=
+
 using System.Text;
 using System.Text.Json;
 
 if (args.Length != 2) {
-	Console.WriteLine("Usage: TranslationKeyGenerator <input-json-file> <output-cs-file>");
-	Console.WriteLine("Example: TranslationKeyGenerator response-message.en.json Keys.g.cs");
+	Console.WriteLine("Usage: generate-translation-keys <input-json-file> <output-cs-file>");
+	Console.WriteLine("Example: generate-translation-keys response-message.en.json Keys.g.cs");
 	Environment.Exit(1);
 }
 
@@ -11,14 +16,18 @@ var inputFile = args[0];
 var outputFile = args[1];
 
 try {
-	GenerateKeysClass(inputFile, outputFile);
-	Console.WriteLine($"✅ Generated translation keys: {outputFile}");
+	var didWrite = GenerateKeysClass(inputFile, outputFile);
+	if (didWrite) {
+		Console.WriteLine($"✅ Generated translation keys: {outputFile}");
+	} else {
+		Console.WriteLine($"ℹ️ Translation keys unchanged: {outputFile}");
+	}
 } catch (Exception ex) {
 	Console.WriteLine($"❌ Error generating translation keys: {ex.Message}");
 	Environment.Exit(1);
 }
 
-static void GenerateKeysClass(string inputFile, string outputFile) {
+static bool GenerateKeysClass(string inputFile, string outputFile) {
 	if (!File.Exists(inputFile)) {
 		throw new FileNotFoundException($"Input file not found: {inputFile}");
 	}
@@ -43,7 +52,6 @@ static void GenerateKeysClass(string inputFile, string outputFile) {
 	sb.AppendLine("/// Type-safe translation keys generated from response message JSON");
 	sb.AppendLine("/// </summary>");
 	sb.AppendLine("public static partial class ResponseKeys {");
-	// sb.AppendLine("{");
 
 	// Generate properties for each key in the JSON
 	var sortedKeys = new List<(string key, string value)>();
@@ -74,8 +82,19 @@ static void GenerateKeysClass(string inputFile, string outputFile) {
 		Directory.CreateDirectory(outputDir);
 	}
 
-	// Write the generated file
-	File.WriteAllText(outputFile, sb.ToString());
+	var generatedContent = sb.ToString();
+
+	// Avoid touching the file when content is unchanged.
+	// This keeps incremental builds fast by preventing unnecessary recompilation.
+	if (File.Exists(outputFile)) {
+		var existingContent = File.ReadAllText(outputFile);
+		if (string.Equals(existingContent, generatedContent, StringComparison.Ordinal)) {
+			return false;
+		}
+	}
+
+	File.WriteAllText(outputFile, generatedContent);
+	return true;
 }
 
 /// <summary>
