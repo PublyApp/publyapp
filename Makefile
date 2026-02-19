@@ -36,12 +36,13 @@ help:
 	@echo "  test-api-debug - Run API integration tests with verbose diagnostics"
 	@echo ""
 	@echo "=== BUILDING ==="
-	@echo "  build-api   - Build API only (dotnet build)"
+	@echo "  build-api   - Build API only (skip restore, faster)"
+	@echo "  build-api-full - Build API with full NuGet restore"
 	@echo "  build-front - Build frontend only"
 	@echo "  build-deploy - Build for deployment"
 	@echo ""
 	@echo "=== RUNNING ==="
-	@echo "  run-api     - Run API (dotnet run)"
+	@echo "  run-api     - Run API (skip restore; run 'make install' first)"
 	@echo "  start-front - Start frontend production server"
 	@echo ""
 	@echo "=== TYPE CHECKING ==="
@@ -69,7 +70,7 @@ help:
 	@echo "  docker-down  - Stop Docker services"
 	@echo ""
 	@echo "=== CLIENT GENERATION ==="
-	@echo "  generate-client - Generate API client (kiota)"
+	@echo "  generate-client - Build API + generate TS client (skip restore)"
 	@echo "  update-client  - Update API client (kiota)"
 	@echo "  client-info    - Show client info (kiota)"
 	@echo ""
@@ -77,7 +78,6 @@ help:
 	@echo "  clean       - Clean all build artifacts"
 	@echo "  clean-api   - Clean API build artifacts"
 	@echo "  clean-front - Clean frontend build artifacts"
-	@echo "  clean-tx-gen - Clean TranslationKeyGenerator artifacts (fix file lock issues)"
 
 # =============================================================================
 # INSTALLATION
@@ -101,7 +101,7 @@ update-deps:
 
 dev-api:
 	@echo "Starting API development server with hot reload..."
-	cd $(API_DIR) && dotnet watch run
+	cd $(API_DIR) && dotnet watch run --no-restore -property:OpenApiGenerateDocuments=false
 
 dev-api-alt:
 	@echo "Starting API with Node.js script..."
@@ -121,6 +121,10 @@ dev-services:
 
 build-api:
 	@echo "Building API..."
+	cd $(API_DIR) && dotnet build --no-restore
+
+build-api-full:
+	@echo "Building API (with restore)..."
 	cd $(API_DIR) && dotnet build
 
 publish-api:
@@ -141,7 +145,7 @@ build-deploy:
 
 run-api:
 	@echo "Running API..."
-	cd $(API_DIR) && dotnet run
+	cd $(API_DIR) && dotnet run --no-restore
 
 start-front:
 	@echo "Starting frontend production server..."
@@ -218,11 +222,11 @@ db-remove:
 
 test-api:
 	@echo "Running API integration tests..."
-	cd $(API_DIR) && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --nologo --verbosity minimal --logger "console;verbosity=normal"
+	cd $(API_DIR) && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=normal"
 
 test-api-debug:
 	@echo "Running API integration tests (verbose diagnostics)..."
-	cd $(API_DIR) && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --nologo --verbosity minimal --logger "console;verbosity=detailed" --environment TEST_VERBOSE_LOGS=1 --diag Tests/bin/Test/test-api-debug.log
+	cd $(API_DIR) && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=detailed" --environment TEST_VERBOSE_LOGS=1 --diag Tests/bin/Test/test-api-debug.log
 
 # =============================================================================
 # DOCKER OPERATIONS
@@ -249,6 +253,8 @@ docker-down:
 # =============================================================================
 
 generate-client:
+	@echo "Building API and generating OpenAPI spec..."
+	cd $(API_DIR) && dotnet build --no-restore
 	@echo "Generating API client with Kiota..."
 	cd $(JS_CLIENT_DIR) && dotnet kiota generate -d ../../$(API_DIR)/openapi/MainApi.json -o src -l typescript -n MainApi.Client -c ApiClient
 
@@ -284,12 +290,6 @@ clean-api:
 	@$(RM) $(API_DIR)/bin
 	@$(RM) $(API_DIR)/obj
 	@$(RM) $(API_DIR)/publish
-
-clean-tx-gen:
-	@echo "Cleaning TranslationKeyGenerator build artifacts..."
-	cd packages/_tx-key-gen && dotnet clean
-	@$(RM) packages/_tx-key-gen/bin
-	@$(RM) packages/_tx-key-gen/obj
 
 clean-front:
 	@echo "Cleaning frontend build artifacts..."
