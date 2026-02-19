@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import _ from 'lodash';
@@ -5,11 +6,13 @@ import type { FC } from 'react';
 import { data, useParams } from 'react-router';
 
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
+import { EmptyContent } from '@/front/components/empty-content/empty-content';
+import { ErrorContent } from '@/front/components/empty-content/error-content';
 import View400 from '@/front/components/error/400-view';
-import { View500 } from '@/front/components/error/500-view';
 import QueryDisplay from '@/front/components/query-display';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
+import { isProblemFailure, toApiFailure } from '@/front/lib/api-failure';
 import { useGetStaffUserById } from '@/front/lib/react-query/features/staff/staff-user.hooks';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import {
@@ -25,10 +28,6 @@ import type { Route } from './+types/staff-user-details-page';
 import StaffUserUpdateForm, {
 	type StaffUserUpdateData,
 } from './components/staff-user-update-form';
-
-// import { UserNewEditForm } from '../components/user-new-edit-form';
-// import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-// import { NotFoundView } from '@/front/components/error/not-found-view';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = _.capitalize(
@@ -135,25 +134,40 @@ const StaffUserDetailsPage = () => {
 
 export default StaffUserDetailsPage;
 
+const StaffUserDetailsEmpty = () => {
+	const { t } = useTranslate();
+
+	return (
+		<Box sx={{ py: 10 }}>
+			<EmptyContent
+				title={_.capitalize(
+					t('no-items-found', {
+						item: t('staff-user'),
+						ns: 'response-message',
+					}),
+				)}
+				description={_.capitalize(t('staff-user-not-found-description-empty'))}
+				imgUrl="/assets/icons/empty/ic-content.svg"
+			/>
+		</Box>
+	);
+};
+
 const ErrorView: FC<{ error: unknown }> = ({ error }) => {
-	logger.debug('ErrorView', { error });
-	// const { t } = useTranslate();
+	const { t } = useTranslate();
 
-	// if (error instanceof ParseRestError) {
-	// 	if (error.code === X_CODE.USER_NOT_FOUND) {
-	// 		return (
-	// 			<NotFoundView
-	// 				withLayout={false}
-	// 				title={t('item-not-found', { item: t('user') })}
-	// 				description={t('user-not-found-description')}
-	// 			/>
-	// 		);
-	// 	}
+	const failure = toApiFailure(error);
 
-	// 	if (_.toString(error.httpStatusCode).startsWith('4')) {
-	// 		return <View400 withLayout={false} />;
-	// 	}
-	// }
+	if (isProblemFailure(failure) && failure.status === 404) {
+		return <StaffUserDetailsEmpty />;
+	}
 
-	return <View500 withLayout={false} />;
+	return (
+		<Box sx={{ py: 10 }}>
+			<ErrorContent
+				title={t('staff-user-details-error-title')}
+				description={t('staff-user-details-error-description')}
+			/>
+		</Box>
+	);
 };
