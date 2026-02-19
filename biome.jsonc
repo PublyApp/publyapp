@@ -21,7 +21,8 @@
 			"!apps/api/bin",
 			"!.config/dotnet-tools.json",
 			"!apps/api/Generated",
-			"!.dump"
+			"!.dump",
+			"!.mcp.json"
 		]
 	},
 	"formatter": {
