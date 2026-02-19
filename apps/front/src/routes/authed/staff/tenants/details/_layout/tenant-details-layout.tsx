@@ -8,9 +8,9 @@ import type { FC } from 'react';
 import { useMemo } from 'react';
 import { data, useParams } from 'react-router';
 
-import { EmptyContent } from '@/front/components/empty-content/empty-content';
 import { ErrorContent } from '@/front/components/empty-content/error-content';
 import View400 from '@/front/components/error/400-view';
+import { NotFoundView } from '@/front/components/error/not-found-view';
 import QueryDisplay from '@/front/components/query-display';
 import type { SettingsNavItem } from '@/front/components/settings/settings-nav';
 import { SidebarSettingsLayout } from '@/front/components/settings/sidebar-settings-layout';
@@ -102,34 +102,16 @@ const TenantDetailsLayout = () => {
 
 export default TenantDetailsLayout;
 
-const TenantDetailsLayoutEmpty = () => {
-	const { t } = useTranslate();
-
-	return (
-		<DashboardContent maxWidth="lg" compact>
-			<Box sx={{ py: 10 }}>
-				<EmptyContent
-					title={_.capitalize(
-						t('no-items-found', {
-							item: t('tenant'),
-							ns: 'response-message',
-						}),
-					)}
-					description={_.capitalize(t('tenant-not-found-description-empty'))}
-					imgUrl="/assets/icons/empty/ic-content.svg"
-				/>
-			</Box>
-		</DashboardContent>
-	);
-};
-
 const LayoutErrorView: FC<{ error: unknown }> = ({ error }) => {
 	const { t } = useTranslate();
 
 	const failure = toApiFailure(error);
 
-	if (isProblemFailure(failure) && failure.status === 404) {
-		return <TenantDetailsLayoutEmpty />;
+	if (
+		isProblemFailure(failure) &&
+		(failure.status === 404 || failure.status === 400)
+	) {
+		return <NotFoundView withLayout={false} />;
 	}
 
 	return (
