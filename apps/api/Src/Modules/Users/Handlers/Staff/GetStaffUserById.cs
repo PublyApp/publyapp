@@ -41,7 +41,7 @@ public class GetStaffUserById {
 
 			return TypedProblems.BadRequest(
 				"Invalid user ID",
-				ResponseKeys.BadRequest
+				ResponseKeys.MalformedId
 			);
 		}
 
