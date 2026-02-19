@@ -58,7 +58,8 @@
 			"mcp__voicetree__read_terminal_output",
 			"mcp__voicetree__send_message",
 			"mcp__voicetree__close_agent",
-			"Bash(dotnet test:*)"
+			"Bash(dotnet test:*)",
+			"Bash(dotnet msbuild:*)"
 		]
 	},
 	"enableAllProjectMcpServers": true,
