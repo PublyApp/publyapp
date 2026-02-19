@@ -6,9 +6,9 @@ import type { FC } from 'react';
 import { data, useParams } from 'react-router';
 
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
-import { EmptyContent } from '@/front/components/empty-content/empty-content';
 import { ErrorContent } from '@/front/components/empty-content/error-content';
 import View400 from '@/front/components/error/400-view';
+import { NotFoundView } from '@/front/components/error/not-found-view';
 import QueryDisplay from '@/front/components/query-display';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
@@ -93,73 +93,73 @@ const StaffUserDetailsPage = () => {
 	}
 
 	return (
-		<DashboardContent
-			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
-			compact
-			maxWidth="lg"
+		<QueryDisplay
+			query={getByIdQuery}
+			LoadingSlot={
+				<DashboardContent
+					sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
+					compact
+					maxWidth="lg"
+				>
+					<UserNewEditFormSkeleton />
+				</DashboardContent>
+			}
+			ErrorSlot={ErrorView}
 		>
-			<CustomBreadcrumbs
-				heading={getPageTitle(t as never)}
-				links={[
-					{
-						name: _.capitalize(t('staff-users')),
-						href: FRONT_PATH_NAMES.staff.staffUsers.root,
-					},
-					{ name: _.capitalize(t('details')) },
-				]}
-				sx={{ mb: { xs: 3, md: 5 } }}
-			/>
-
-			<QueryDisplay
-				query={getByIdQuery}
-				LoadingSlot={<UserNewEditFormSkeleton />}
-				ErrorSlot={ErrorView}
-			>
-				{({ data }) => {
-					const currentUser: StaffUserUpdateData = {
-						id: _.toString(data?.id),
-						firstName: data?.firstName ?? undefined,
-						lastName: data?.lastName ?? undefined,
-						email: data?.email ?? undefined,
-						avatar: data?.avatarUrl ?? undefined,
-						accountLevel: data?.accountLevel ?? undefined,
-						status: data?.status ?? undefined,
-					};
-					return <StaffUserUpdateForm currentUser={currentUser} />;
-				}}
-			</QueryDisplay>
-		</DashboardContent>
+			{({ data }) => {
+				const currentUser: StaffUserUpdateData = {
+					id: _.toString(data?.id),
+					firstName: data?.firstName ?? undefined,
+					lastName: data?.lastName ?? undefined,
+					email: data?.email ?? undefined,
+					avatar: data?.avatarUrl ?? undefined,
+					accountLevel: data?.accountLevel ?? undefined,
+					status: data?.status ?? undefined,
+				};
+				return (
+					<DashboardContent
+						sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
+						compact
+						maxWidth="lg"
+					>
+						<CustomBreadcrumbs
+							heading={getPageTitle(t as never)}
+							links={[
+								{
+									name: _.capitalize(t('staff-users')),
+									href: FRONT_PATH_NAMES.staff.staffUsers.root,
+								},
+								{ name: _.capitalize(t('details')) },
+							]}
+							sx={{ mb: { xs: 3, md: 5 } }}
+						/>
+						<StaffUserUpdateForm currentUser={currentUser} />
+					</DashboardContent>
+				);
+			}}
+		</QueryDisplay>
 	);
 };
 
 export default StaffUserDetailsPage;
-
-const StaffUserDetailsEmpty = () => {
-	const { t } = useTranslate();
-
-	return (
-		<Box sx={{ py: 10 }}>
-			<EmptyContent
-				title={_.capitalize(
-					t('no-items-found', {
-						item: t('staff-user'),
-						ns: 'response-message',
-					}),
-				)}
-				description={_.capitalize(t('staff-user-not-found-description-empty'))}
-				imgUrl="/assets/icons/empty/ic-content.svg"
-			/>
-		</Box>
-	);
-};
 
 const ErrorView: FC<{ error: unknown }> = ({ error }) => {
 	const { t } = useTranslate();
 
 	const failure = toApiFailure(error);
 
-	if (isProblemFailure(failure) && failure.status === 404) {
-		return <StaffUserDetailsEmpty />;
+	if (
+		isProblemFailure(failure) &&
+		(failure.status === 404 ||
+			(failure.status === 400 && failure.translationKey === 'malformed-id'))
+	) {
+		return (
+			<NotFoundView
+				withLayout={false}
+				title={_.capitalize(t('staff-user-not-found-title'))}
+				description={t('staff-user-not-found-description')}
+			/>
+		);
 	}
 
 	return (
