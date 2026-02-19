@@ -12,8 +12,8 @@ import _ from 'lodash';
 import type { FC } from 'react';
 import { useParams } from 'react-router';
 
-import { EmptyContent } from '@/front/components/empty-content/empty-content';
 import { ErrorContent } from '@/front/components/empty-content/error-content';
+import { NotFoundView } from '@/front/components/error/not-found-view';
 import { Iconify } from '@/front/components/iconify/iconify';
 import QueryDisplay from '@/front/components/query-display';
 import { FormRow } from '@/front/components/settings/form-row';
@@ -247,32 +247,23 @@ const TenantGeneralSkeleton = () => (
 	</>
 );
 
-const TenantDetailsEmpty = () => {
-	const { t } = useTranslate();
-
-	return (
-		<Box sx={{ py: 10 }}>
-			<EmptyContent
-				title={_.capitalize(
-					t('no-items-found', {
-						item: t('tenant'),
-						ns: 'response-message',
-					}),
-				)}
-				description={_.capitalize(t('tenant-not-found-description-empty'))}
-				imgUrl="/assets/icons/empty/ic-content.svg"
-			/>
-		</Box>
-	);
-};
-
 const ErrorView: FC<{ error: unknown }> = ({ error }) => {
 	const { t } = useTranslate();
 
 	const failure = toApiFailure(error);
 
-	if (isProblemFailure(failure) && failure.status === 404) {
-		return <TenantDetailsEmpty />;
+	if (
+		isProblemFailure(failure) &&
+		(failure.status === 404 ||
+			(failure.status === 400 && failure.translationKey === 'malformed-id'))
+	) {
+		return (
+			<NotFoundView
+				withLayout={false}
+				title={_.capitalize(t('tenant-not-found-title'))}
+				description={t('tenant-not-found-description')}
+			/>
+		);
 	}
 
 	return (

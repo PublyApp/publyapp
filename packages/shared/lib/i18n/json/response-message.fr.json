@@ -62,5 +62,6 @@
 	"tenant-not-suspended": "Le locataire n'est pas actuellement suspendu",
 	"tenant-suspended": "Ce locataire a été suspendu",
 	"tenant-suspended-success": "Le locataire a été suspendu avec succès",
-	"tenant-reactivated-success": "Le locataire a été réactivé avec succès"
+	"tenant-reactivated-success": "Le locataire a été réactivé avec succès",
+	"malformed-id": "Identifiant mal formé"
 }

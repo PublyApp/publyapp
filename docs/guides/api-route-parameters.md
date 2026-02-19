@@ -28,8 +28,10 @@ Use the semantically correct status code for each failure scenario:
 
 | Scenario | Status | Method | ResponseKey |
 |---|---|---|---|
-| Malformed ID (not a valid GUID) | **400** | `TypedProblems.BadRequest` | `ResponseKeys.BadRequest` |
+| Malformed ID (not a valid GUID) | **400** | `TypedProblems.BadRequest` | `ResponseKeys.MalformedId` |
 | Valid GUID but entity not found | **404** | `TypedProblems.NotFound` | `ResponseKeys.NotFound` |
+
+> **Why 400 and not 422?** 422 is reserved for request body/query validation with structured field-level errors (`errors: Dictionary<string, string[]>`). A malformed route parameter is a fundamentally malformed request (400), not a field-level validation error.
 
 **Never** use `BadRequest` for a missing entity — a valid GUID that doesn't match an existing record is not a bad request, it's a missing resource.
 
@@ -58,7 +60,7 @@ public static async Task<Results<
     if (!Guid.TryParse(entityId, out var entityIdGuid)) {
         return TypedProblems.BadRequest(
             "Invalid entity ID",
-            ResponseKeys.BadRequest
+            ResponseKeys.MalformedId
         );
     }
 
@@ -81,7 +83,7 @@ public static async Task<Results<
 ### Key points
 
 1. **`[FromRoute] string`** — never `Guid`; ASP.NET model binding failure on `Guid` produces a generic 400, not our RFC 7807 format
-2. **`Guid.TryParse` guard → `BadRequest`** — malformed input is a 400 with `ResponseKeys.BadRequest`
+2. **`Guid.TryParse` guard → `BadRequest`** — malformed input is a 400 with `ResponseKeys.MalformedId`
 3. **Entity not found → `NotFound`** — missing resource is a 404 with `ResponseKeys.NotFound`
 4. **Return type union includes both** — `AppBadRequestHttpResult` and `AppNotFoundHttpResult`
 
