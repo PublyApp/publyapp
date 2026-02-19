@@ -256,7 +256,13 @@ const ErrorView: FC<{ error: unknown }> = ({ error }) => {
 		isProblemFailure(failure) &&
 		(failure.status === 404 || failure.status === 400)
 	) {
-		return <NotFoundView withLayout={false} />;
+		return (
+			<NotFoundView
+				withLayout={false}
+				title={_.capitalize(t('tenant-not-found-title'))}
+				description={t('tenant-not-found-description')}
+			/>
+		);
 	}
 
 	return (

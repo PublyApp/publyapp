@@ -93,42 +93,51 @@ const StaffUserDetailsPage = () => {
 	}
 
 	return (
-		<DashboardContent
-			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
-			compact
-			maxWidth="lg"
+		<QueryDisplay
+			query={getByIdQuery}
+			LoadingSlot={
+				<DashboardContent
+					sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
+					compact
+					maxWidth="lg"
+				>
+					<UserNewEditFormSkeleton />
+				</DashboardContent>
+			}
+			ErrorSlot={ErrorView}
 		>
-			<CustomBreadcrumbs
-				heading={getPageTitle(t as never)}
-				links={[
-					{
-						name: _.capitalize(t('staff-users')),
-						href: FRONT_PATH_NAMES.staff.staffUsers.root,
-					},
-					{ name: _.capitalize(t('details')) },
-				]}
-				sx={{ mb: { xs: 3, md: 5 } }}
-			/>
-
-			<QueryDisplay
-				query={getByIdQuery}
-				LoadingSlot={<UserNewEditFormSkeleton />}
-				ErrorSlot={ErrorView}
-			>
-				{({ data }) => {
-					const currentUser: StaffUserUpdateData = {
-						id: _.toString(data?.id),
-						firstName: data?.firstName ?? undefined,
-						lastName: data?.lastName ?? undefined,
-						email: data?.email ?? undefined,
-						avatar: data?.avatarUrl ?? undefined,
-						accountLevel: data?.accountLevel ?? undefined,
-						status: data?.status ?? undefined,
-					};
-					return <StaffUserUpdateForm currentUser={currentUser} />;
-				}}
-			</QueryDisplay>
-		</DashboardContent>
+			{({ data }) => {
+				const currentUser: StaffUserUpdateData = {
+					id: _.toString(data?.id),
+					firstName: data?.firstName ?? undefined,
+					lastName: data?.lastName ?? undefined,
+					email: data?.email ?? undefined,
+					avatar: data?.avatarUrl ?? undefined,
+					accountLevel: data?.accountLevel ?? undefined,
+					status: data?.status ?? undefined,
+				};
+				return (
+					<DashboardContent
+						sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
+						compact
+						maxWidth="lg"
+					>
+						<CustomBreadcrumbs
+							heading={getPageTitle(t as never)}
+							links={[
+								{
+									name: _.capitalize(t('staff-users')),
+									href: FRONT_PATH_NAMES.staff.staffUsers.root,
+								},
+								{ name: _.capitalize(t('details')) },
+							]}
+							sx={{ mb: { xs: 3, md: 5 } }}
+						/>
+						<StaffUserUpdateForm currentUser={currentUser} />
+					</DashboardContent>
+				);
+			}}
+		</QueryDisplay>
 	);
 };
 
@@ -143,7 +152,13 @@ const ErrorView: FC<{ error: unknown }> = ({ error }) => {
 		isProblemFailure(failure) &&
 		(failure.status === 404 || failure.status === 400)
 	) {
-		return <NotFoundView withLayout={false} />;
+		return (
+			<NotFoundView
+				withLayout={false}
+				title={_.capitalize(t('staff-user-not-found-title'))}
+				description={t('staff-user-not-found-description')}
+			/>
+		);
 	}
 
 	return (
