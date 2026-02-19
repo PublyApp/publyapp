@@ -12,15 +12,15 @@ import _ from 'lodash';
 import type { FC } from 'react';
 import { useParams } from 'react-router';
 
-import { View500 } from '@/front/components/error/500-view';
+import { EmptyContent } from '@/front/components/empty-content/empty-content';
+import { ErrorContent } from '@/front/components/empty-content/error-content';
 import { Iconify } from '@/front/components/iconify/iconify';
 import QueryDisplay from '@/front/components/query-display';
 import { FormRow } from '@/front/components/settings/form-row';
 import { SettingsPageHeader } from '@/front/components/settings/settings-page-header';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { isProblemFailure, toApiFailure } from '@/front/lib/api-failure';
 import { useGetTenant } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
-import { logger } from '@/shared/lib/logger/iso-logger';
-import { getErrorMessage } from '@/shared/utils/error.utils';
 
 const TenantDetailsGeneralPage = () => {
 	const { t } = useTranslate();
@@ -247,8 +247,40 @@ const TenantGeneralSkeleton = () => (
 	</>
 );
 
-const ErrorView: FC<{ error: unknown }> = ({ error }) => {
-	logger.error(getErrorMessage(error), { error });
+const TenantDetailsEmpty = () => {
+	const { t } = useTranslate();
 
-	return <View500 withLayout={false} />;
+	return (
+		<Box sx={{ py: 10 }}>
+			<EmptyContent
+				title={_.capitalize(
+					t('no-items-found', {
+						item: t('tenant'),
+						ns: 'response-message',
+					}),
+				)}
+				description={_.capitalize(t('tenant-not-found-description-empty'))}
+				imgUrl="/assets/icons/empty/ic-content.svg"
+			/>
+		</Box>
+	);
+};
+
+const ErrorView: FC<{ error: unknown }> = ({ error }) => {
+	const { t } = useTranslate();
+
+	const failure = toApiFailure(error);
+
+	if (isProblemFailure(failure) && failure.status === 404) {
+		return <TenantDetailsEmpty />;
+	}
+
+	return (
+		<Box sx={{ py: 10 }}>
+			<ErrorContent
+				title={t('tenant-details-error-title')}
+				description={t('tenant-details-error-description')}
+			/>
+		</Box>
+	);
 };
