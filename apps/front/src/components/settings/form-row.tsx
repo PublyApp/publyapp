@@ -27,6 +27,6 @@ export const FormRow = ({ label, description, children }: FormRowProps) => (
 				</Typography>
 			)}
 		</Box>
-		<Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>{children}</Box>
+		<Box>{children}</Box>
 	</Box>
 );
