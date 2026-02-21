@@ -25,8 +25,8 @@ import { ErrorContent } from '@/front/components/empty-content/error-content';
 import { NotFoundView } from '@/front/components/error/not-found-view';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
+import type { IconifyName } from '@/front/components/iconify/register-icons';
 import QueryDisplay from '@/front/components/query-display';
-import { FormRow } from '@/front/components/settings/form-row';
 import { SettingsPageHeader } from '@/front/components/settings/settings-page-header';
 import { UploadAvatar } from '@/front/components/upload';
 import { useTranslate } from '@/front/hooks/use-translate';
@@ -118,7 +118,7 @@ const TenantGeneralContent = ({
 	const navigate = useNavigate();
 	const [copied, setCopied] = useState(false);
 
-	const form = useForm<UpdateTenantFormValues>({
+	const methods = useForm<UpdateTenantFormValues>({
 		resolver: zodResolver(updateTenantSchema),
 		values: {
 			name: name ?? '',
@@ -127,7 +127,7 @@ const TenantGeneralContent = ({
 	});
 
 	const { mutate: updateTenant, isPending: isUpdating } = useUpdateTenant(
-		withFormValidation(form.setError, {
+		withFormValidation(methods.setError, {
 			meta: { showSuccessToast: true },
 			onSuccess: () => {
 				queryClient.invalidateQueries({
@@ -140,7 +140,7 @@ const TenantGeneralContent = ({
 		}),
 	);
 
-	const handleSubmit = form.handleSubmit((data) => {
+	const handleSubmit = methods.handleSubmit((data) => {
 		updateTenant({ tenantId, ...data });
 	});
 
@@ -151,119 +151,153 @@ const TenantGeneralContent = ({
 	};
 
 	return (
-		<>
-			{/* Organization Details Card */}
-			<Card sx={{ p: 3 }}>
-				<Typography variant="h4" sx={{ mb: 3 }}>
-					{t('organization-details')}
-				</Typography>
+		<Box sx={{ containerType: 'inline-size' }}>
+			<Box
+				sx={{
+					display: 'grid',
+					gap: 3,
+					gridTemplateColumns: '1fr',
+					'@container (min-width: 837px)': {
+						gridTemplateColumns: '1fr 2fr',
+					},
+				}}
+			>
+				{/* Left Sidebar */}
+				<Card sx={{ pt: 8, pb: 5, px: 3 }}>
+					<Box sx={{ textAlign: 'center' }}>
+						<UploadAvatar value={logoUrl ?? null} disabled />
 
-				<Form methods={form} onSubmit={handleSubmit}>
-					<Stack divider={<Divider />}>
-						<FormRow label={t('logo')}>
-							<UploadAvatar value={logoUrl ?? null} disabled />
-						</FormRow>
-
-						<FormRow label={t('name')}>
-							<Field.Text name="name" size="small" sx={{ maxWidth: 400 }} />
-						</FormRow>
-
-						<FormRow label={t('code')}>
-							<TextField
-								fullWidth
-								size="small"
-								value={code ?? ''}
-								slotProps={{ input: { readOnly: true } }}
-								sx={{ maxWidth: 400 }}
-							/>
-						</FormRow>
-
-						<FormRow label={t('tenant-id')}>
-							<TextField
-								fullWidth
-								size="small"
-								value={tenantId}
-								slotProps={{
-									input: {
-										readOnly: true,
-										endAdornment: (
-											<InputAdornment position="end">
-												<Tooltip title={copied ? t('copied') : t('copy')}>
-													<IconButton size="small" onClick={handleCopyId}>
-														<Iconify
-															icon={
-																copied
-																	? 'solar:check-circle-bold'
-																	: 'solar:copy-bold'
-															}
-															width={18}
-														/>
-													</IconButton>
-												</Tooltip>
-											</InputAdornment>
-										),
-									},
-								}}
-								sx={{ maxWidth: 400 }}
-							/>
-						</FormRow>
-
-						<FormRow label={t('max-users')}>
-							<Field.NumberInput name="maxUsers" min={1} />
-						</FormRow>
-
-						<FormRow label={t('status')}>
-							<StatusChip status={status} />
-						</FormRow>
-
-						<FormRow label={t('users-count')}>
-							<Typography variant="body2">
-								{usersCount ?? 0} / {maxUsers ?? 0}
-							</Typography>
-						</FormRow>
-
-						<FormRow label={t('created-at')}>
-							<Typography variant="body2">
-								{createdAt ? fDateTime(createdAt) : '—'}
-							</Typography>
-						</FormRow>
-
-						<FormRow label={t('updated-at')}>
-							<Typography variant="body2">
-								{updatedAt ? fDateTime(updatedAt) : '—'}
-							</Typography>
-						</FormRow>
-					</Stack>
-
-					<Box
-						sx={{
-							display: 'flex',
-							justifyContent: 'flex-end',
-							mt: 3,
-						}}
-					>
-						<Button
-							type="submit"
-							variant="contained"
-							disabled={!form.formState.isDirty || isUpdating}
-						>
-							{isUpdating ? t('saving') : t('save-changes')}
-						</Button>
+						<StatusChip status={status} sx={{ mt: 3 }} />
 					</Box>
-				</Form>
-			</Card>
 
-			{/* Danger Zone */}
-			<DangerZoneCard
-				tenantId={tenantId}
-				tenantName={name ?? ''}
-				isSuspended={isSuspended ?? false}
-				queryClient={queryClient}
-				navigate={navigate}
-			/>
-		</>
+					<Divider sx={{ my: 3, borderStyle: 'dashed' }} />
+
+					<Stack spacing={2} sx={{ px: 2 }}>
+						<InfoRow
+							icon="solar:users-group-rounded-bold"
+							label={t('users-count')}
+							value={`${usersCount ?? 0} / ${maxUsers ?? 0}`}
+						/>
+						<InfoRow
+							icon="solar:calendar-date-bold"
+							label={t('created-at')}
+							value={createdAt ? fDateTime(createdAt) : '—'}
+						/>
+						<InfoRow
+							icon="solar:pen-bold"
+							label={t('updated-at')}
+							value={updatedAt ? fDateTime(updatedAt) : '—'}
+						/>
+					</Stack>
+				</Card>
+
+				{/* Right Content */}
+				<Stack spacing={3}>
+					{/* Organization Details Form */}
+					<Card sx={{ p: 3 }}>
+						<Typography variant="h4" sx={{ mb: 3 }}>
+							{t('organization-details')}
+						</Typography>
+
+						<Form methods={methods} onSubmit={handleSubmit}>
+							<Stack spacing={3}>
+								<Field.Text name="name" label={t('name')} />
+
+								<TextField
+									label={t('code')}
+									value={code ?? ''}
+									slotProps={{ input: { readOnly: true } }}
+								/>
+
+								<TextField
+									label={t('tenant-id')}
+									value={tenantId}
+									slotProps={{
+										input: {
+											readOnly: true,
+											endAdornment: (
+												<InputAdornment position="end">
+													<Tooltip title={copied ? t('copied') : t('copy')}>
+														<IconButton size="small" onClick={handleCopyId}>
+															<Iconify
+																icon={
+																	copied
+																		? 'solar:check-circle-bold'
+																		: 'solar:copy-bold'
+																}
+																width={18}
+															/>
+														</IconButton>
+													</Tooltip>
+												</InputAdornment>
+											),
+										},
+									}}
+								/>
+
+								<Stack spacing={1}>
+									<Typography variant="subtitle2">{t('max-users')}</Typography>
+									<Box sx={{ maxWidth: 200 }}>
+										<Field.NumberInput name="maxUsers" min={1} />
+									</Box>
+								</Stack>
+							</Stack>
+
+							<Box
+								sx={{
+									display: 'flex',
+									justifyContent: 'flex-end',
+									mt: 3,
+								}}
+							>
+								<Button
+									type="submit"
+									variant="contained"
+									disabled={!methods.formState.isDirty || isUpdating}
+								>
+									{isUpdating ? t('saving') : t('save-changes')}
+								</Button>
+							</Box>
+						</Form>
+					</Card>
+
+					{/* Danger Zone */}
+					<DangerZoneCard
+						tenantId={tenantId}
+						tenantName={name ?? ''}
+						isSuspended={isSuspended ?? false}
+						queryClient={queryClient}
+						navigate={navigate}
+					/>
+				</Stack>
+			</Box>
+		</Box>
 	);
 };
+
+type InfoRowProps = {
+	icon: IconifyName;
+	label: string;
+	value: string;
+};
+
+const InfoRow = ({ icon, label, value }: InfoRowProps) => (
+	<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+		<Iconify
+			icon={icon}
+			width={20}
+			sx={{ color: 'text.secondary', flexShrink: 0 }}
+		/>
+		<Box sx={{ minWidth: 0 }}>
+			<Typography variant="caption" sx={{ color: 'text.secondary' }}>
+				{label}
+			</Typography>
+			<Typography variant="body2" sx={{ fontWeight: 500 }}>
+				{value}
+			</Typography>
+		</Box>
+	</Box>
+);
 
 type DangerZoneCardProps = {
 	tenantId: string;
@@ -427,94 +461,107 @@ const statusColorMap: Record<
 	Pending: 'default',
 };
 
-const StatusChip = ({ status }: { status?: string | null }) => {
-	const label = status ?? 'Unknown';
-	const color = statusColorMap[label] ?? 'default';
-	return <Chip label={label} color={color} size="small" />;
+type StatusChipProps = {
+	status?: string | null;
+	sx?: object;
 };
 
-const FormRowSkeleton = () => (
-	<Box
-		sx={{
-			display: 'grid',
-			gridTemplateColumns: { xs: '1fr', md: '240px 1fr' },
-			gap: { xs: 1.5, md: 3 },
-			alignItems: 'center',
-			py: 2,
-		}}
-	>
-		<Skeleton variant="text" width={100} height={24} />
-		<Skeleton
-			variant="rectangular"
-			height={40}
-			sx={{ borderRadius: 1, maxWidth: 400 }}
-		/>
-	</Box>
-);
+const StatusChip = ({ status, sx }: StatusChipProps) => {
+	const label = status ?? 'Unknown';
+	const color = statusColorMap[label] ?? 'default';
+	return <Chip label={label} color={color} size="small" sx={sx} />;
+};
 
 const TenantGeneralSkeleton = () => (
-	<>
-		<Card sx={{ p: 3 }}>
-			<Skeleton variant="text" width={200} height={32} sx={{ mb: 3 }} />
-			<Stack divider={<Divider />}>
-				{/* Logo row */}
-				<Box
-					sx={{
-						display: 'grid',
-						gridTemplateColumns: { xs: '1fr', md: '240px 1fr' },
-						gap: { xs: 1.5, md: 3 },
-						alignItems: 'center',
-						py: 2,
-					}}
-				>
-					<Skeleton variant="text" width={60} height={24} />
-					<Stack direction="row" alignItems="center" spacing={2}>
-						<Skeleton variant="circular" width={64} height={64} />
+	<Box sx={{ containerType: 'inline-size' }}>
+		<Box
+			sx={{
+				display: 'grid',
+				gap: 3,
+				gridTemplateColumns: '1fr',
+				'@container (min-width: 800px)': {
+					gridTemplateColumns: '1fr 2fr',
+				},
+			}}
+		>
+			{/* Left sidebar skeleton */}
+			<Card sx={{ pt: 8, pb: 5, px: 3, textAlign: 'center' }}>
+				<Skeleton
+					variant="circular"
+					width={144}
+					height={144}
+					sx={{ mx: 'auto' }}
+				/>
+				<Skeleton
+					variant="rectangular"
+					width={60}
+					height={24}
+					sx={{ mx: 'auto', mt: 3, borderRadius: 1 }}
+				/>
+				<Divider sx={{ my: 3, borderStyle: 'dashed' }} />
+				<Stack spacing={2} sx={{ px: 2 }}>
+					<Skeleton variant="text" width="80%" height={40} />
+					<Skeleton variant="text" width="80%" height={40} />
+					<Skeleton variant="text" width="80%" height={40} />
+				</Stack>
+			</Card>
+
+			{/* Right content skeleton */}
+			<Stack spacing={3}>
+				<Card sx={{ p: 3 }}>
+					<Skeleton variant="text" width={200} height={32} sx={{ mb: 3 }} />
+					<Stack spacing={3}>
 						<Skeleton
 							variant="rectangular"
-							width={60}
-							height={32}
+							height={56}
+							sx={{ borderRadius: 1 }}
+						/>
+						<Skeleton
+							variant="rectangular"
+							height={56}
+							sx={{ borderRadius: 1 }}
+						/>
+						<Skeleton
+							variant="rectangular"
+							height={56}
+							sx={{ borderRadius: 1 }}
+						/>
+						<Skeleton
+							variant="rectangular"
+							height={48}
+							width={160}
 							sx={{ borderRadius: 1 }}
 						/>
 					</Stack>
-				</Box>
-				<FormRowSkeleton />
-				<FormRowSkeleton />
-				<FormRowSkeleton />
-				<FormRowSkeleton />
-				<FormRowSkeleton />
-				<FormRowSkeleton />
-				<FormRowSkeleton />
-			</Stack>
-			<Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-				<Skeleton
-					variant="rectangular"
-					width={130}
-					height={36}
-					sx={{ borderRadius: 1 }}
-				/>
-			</Box>
-		</Card>
+					<Box
+						sx={{
+							display: 'flex',
+							justifyContent: 'flex-end',
+							mt: 3,
+						}}
+					>
+						<Skeleton
+							variant="rectangular"
+							width={130}
+							height={36}
+							sx={{ borderRadius: 1 }}
+						/>
+					</Box>
+				</Card>
 
-		<Card sx={{ p: 3 }}>
-			<Skeleton variant="text" width={120} height={28} sx={{ mb: 1 }} />
-			<Skeleton variant="text" width={350} height={20} sx={{ mb: 3 }} />
-			<Stack direction="row" spacing={2}>
-				<Skeleton
-					variant="rectangular"
-					width={90}
-					height={36}
-					sx={{ borderRadius: 1 }}
-				/>
-				<Skeleton
-					variant="rectangular"
-					width={80}
-					height={36}
-					sx={{ borderRadius: 1 }}
-				/>
+				<Card sx={{ p: 3 }}>
+					<Skeleton variant="text" width={120} height={28} sx={{ mb: 1 }} />
+					<Skeleton variant="text" width={350} height={20} sx={{ mb: 3 }} />
+					<Skeleton
+						variant="rectangular"
+						width={90}
+						height={36}
+						sx={{ borderRadius: 1 }}
+					/>
+				</Card>
 			</Stack>
-		</Card>
-	</>
+		</Box>
+	</Box>
 );
 
 const ErrorView: FC<{ error: unknown }> = ({ error }) => {
