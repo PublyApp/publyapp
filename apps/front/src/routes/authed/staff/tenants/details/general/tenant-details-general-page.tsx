@@ -1,14 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import { alpha } from '@mui/material/styles';
 import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
@@ -21,10 +23,12 @@ import { FRONT_PATH_NAMES } from '@org/shared/lib/constants';
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { ErrorContent } from '@/front/components/empty-content/error-content';
 import { NotFoundView } from '@/front/components/error/not-found-view';
+import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import QueryDisplay from '@/front/components/query-display';
 import { FormRow } from '@/front/components/settings/form-row';
 import { SettingsPageHeader } from '@/front/components/settings/settings-page-header';
+import { UploadAvatar } from '@/front/components/upload';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { isProblemFailure, toApiFailure } from '@/front/lib/api-failure';
 import { withFormValidation } from '@/front/lib/api-failure/with-form-validation';
@@ -101,6 +105,7 @@ const TenantGeneralContent = ({
 	tenantId,
 	name,
 	code,
+	logoUrl,
 	maxUsers,
 	status,
 	isSuspended,
@@ -111,6 +116,7 @@ const TenantGeneralContent = ({
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
+	const [copied, setCopied] = useState(false);
 
 	const form = useForm<UpdateTenantFormValues>({
 		resolver: zodResolver(updateTenantSchema),
@@ -138,6 +144,12 @@ const TenantGeneralContent = ({
 		updateTenant({ tenantId, ...data });
 	});
 
+	const handleCopyId = () => {
+		navigator.clipboard.writeText(tenantId);
+		setCopied(true);
+		setTimeout(() => setCopied(false), 2000);
+	};
+
 	return (
 		<>
 			{/* Organization Details Card */}
@@ -146,38 +158,14 @@ const TenantGeneralContent = ({
 					{t('organization-details')}
 				</Typography>
 
-				<Box component="form" onSubmit={handleSubmit}>
+				<Form methods={form} onSubmit={handleSubmit}>
 					<Stack divider={<Divider />}>
 						<FormRow label={t('logo')}>
-							<Stack direction="row" alignItems="center" spacing={2}>
-								<Avatar
-									sx={{
-										width: 64,
-										height: 64,
-										bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
-									}}
-								>
-									<Iconify
-										icon="solar:buildings-bold-duotone"
-										width={32}
-										sx={{ color: 'primary.main' }}
-									/>
-								</Avatar>
-								<Button variant="outlined" size="small" disabled>
-									{t('edit')}
-								</Button>
-							</Stack>
+							<UploadAvatar value={logoUrl ?? null} disabled />
 						</FormRow>
 
 						<FormRow label={t('name')}>
-							<TextField
-								fullWidth
-								size="small"
-								{...form.register('name')}
-								error={!!form.formState.errors.name}
-								helperText={form.formState.errors.name?.message}
-								sx={{ maxWidth: 400 }}
-							/>
+							<Field.Text name="name" size="small" sx={{ maxWidth: 400 }} />
 						</FormRow>
 
 						<FormRow label={t('code')}>
@@ -185,7 +173,7 @@ const TenantGeneralContent = ({
 								fullWidth
 								size="small"
 								value={code ?? ''}
-								InputProps={{ readOnly: true }}
+								slotProps={{ input: { readOnly: true } }}
 								sx={{ maxWidth: 400 }}
 							/>
 						</FormRow>
@@ -195,21 +183,33 @@ const TenantGeneralContent = ({
 								fullWidth
 								size="small"
 								value={tenantId}
-								InputProps={{ readOnly: true }}
+								slotProps={{
+									input: {
+										readOnly: true,
+										endAdornment: (
+											<InputAdornment position="end">
+												<Tooltip title={copied ? t('copied') : t('copy')}>
+													<IconButton size="small" onClick={handleCopyId}>
+														<Iconify
+															icon={
+																copied
+																	? 'solar:check-circle-bold'
+																	: 'solar:copy-bold'
+															}
+															width={18}
+														/>
+													</IconButton>
+												</Tooltip>
+											</InputAdornment>
+										),
+									},
+								}}
 								sx={{ maxWidth: 400 }}
 							/>
 						</FormRow>
 
 						<FormRow label={t('max-users')}>
-							<TextField
-								fullWidth
-								size="small"
-								type="number"
-								{...form.register('maxUsers', { valueAsNumber: true })}
-								error={!!form.formState.errors.maxUsers}
-								helperText={form.formState.errors.maxUsers?.message}
-								sx={{ maxWidth: 400 }}
-							/>
+							<Field.NumberInput name="maxUsers" min={1} />
 						</FormRow>
 
 						<FormRow label={t('status')}>
@@ -250,7 +250,7 @@ const TenantGeneralContent = ({
 							{isUpdating ? t('saving') : t('save-changes')}
 						</Button>
 					</Box>
-				</Box>
+				</Form>
 			</Card>
 
 			{/* Danger Zone */}
