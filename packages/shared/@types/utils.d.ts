@@ -1,3 +1,5 @@
+/** biome-ignore-all lint/correctness/noUnusedVariables: this file contains global type definitions */
+
 type DeepPartial<T> = {
 	[K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
 };

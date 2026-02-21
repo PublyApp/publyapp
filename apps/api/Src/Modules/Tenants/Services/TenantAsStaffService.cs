@@ -26,6 +26,19 @@ public enum ReactivateTenantError { NotFound, NotSuspended }
 public record SuspendTenantResult(Tenant? Tenant, SuspendTenantError? Error);
 public record ReactivateTenantResult(Tenant? Tenant, ReactivateTenantError? Error);
 
+// Result types for update/delete operations
+public enum UpdateTenantError { NotFound, MaxUsersBelowCurrentCount }
+public record UpdateTenantResult(Tenant? Tenant, UpdateTenantError? Error);
+
+public enum DeleteTenantError { NotFound, NotSuspended }
+public record DeleteTenantResult(Tenant? Tenant, DeleteTenantError? Error);
+
+public record UpdateTenantAsStaffArgs(
+	string? Name,
+	PatchField<string?> LogoUrl,
+	int? MaxUsers
+);
+
 public interface ITenantAsStaffService {
 	Task<Tenant> CreateTenant(Tenant tenant, CancellationToken cancellationToken = default);
 	Task<Tenant?> GetTenantByIdAsync(Guid tenantId, CancellationToken cancellationToken = default);
@@ -59,6 +72,25 @@ public interface ITenantAsStaffService {
 
 	// Staff can see suspended tenants (unlike regular GetTenantByIdAsync)
 	Task<Tenant?> GetTenantByIdForStaffAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	);
+
+	// Count tenant-scoped users (excludes deleted and staff-scoped)
+	Task<int> CountTenantUsersAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	);
+
+	// Update tenant fields (name, logoUrl, maxUsers)
+	Task<UpdateTenantResult> UpdateTenantAsync(
+		Guid tenantId,
+		UpdateTenantAsStaffArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	// Soft-delete a suspended tenant
+	Task<DeleteTenantResult> DeleteTenantAsync(
 		Guid tenantId,
 		CancellationToken cancellationToken = default
 	);
@@ -346,5 +378,121 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			where tenant.Id == tenantId && !tenant.IsDeleted
 			select tenant
 		).FirstOrDefaultAsync(cancellationToken);
+	}
+
+	public async Task<int> CountTenantUsersAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		var count =
+			from ua in _dbContext.UserAccount
+			where ua.TenantId == tenantId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+			select ua;
+
+		return await count.CountAsync(cancellationToken);
+	}
+
+	public async Task<UpdateTenantResult> UpdateTenantAsync(
+		Guid tenantId,
+		UpdateTenantAsStaffArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var tenant = await (
+			from t in _dbContext.Tenant
+			where t.Id == tenantId && !t.IsDeleted
+			select t
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (tenant is null) {
+			return new UpdateTenantResult(
+				null, UpdateTenantError.NotFound
+			);
+		}
+
+		// Validate MaxUsers against current user count
+		if (args.MaxUsers is not null) {
+			var currentUserCount = await CountTenantUsersAsync(
+				tenantId, cancellationToken
+			);
+			if (args.MaxUsers.Value < currentUserCount) {
+				return new UpdateTenantResult(
+					null,
+					UpdateTenantError.MaxUsersBelowCurrentCount
+				);
+			}
+		}
+
+		// Mutate tracked entity
+		if (args.Name is not null) {
+			tenant.Name = args.Name;
+		}
+		if (args.LogoUrl.IsPresent) {
+			tenant.LogoUrl = args.LogoUrl.Value;
+		}
+		if (args.MaxUsers is not null) {
+			tenant.MaxUsers = args.MaxUsers.Value;
+		}
+		tenant.UpdatedAt = DateTime.UtcNow;
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		return new UpdateTenantResult(tenant, null);
+	}
+
+	public async Task<DeleteTenantResult> DeleteTenantAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		var tenant = await (
+			from t in _dbContext.Tenant.AsNoTracking()
+			where t.Id == tenantId && !t.IsDeleted
+			select t
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (tenant is null) {
+			return new DeleteTenantResult(
+				null, DeleteTenantError.NotFound
+			);
+		}
+
+		if (!tenant.IsSuspended) {
+			return new DeleteTenantResult(
+				null, DeleteTenantError.NotSuspended
+			);
+		}
+
+		// Atomic soft-delete with WHERE clause (race-condition safe)
+		var rowsAffected = await _dbContext.Tenant
+			.Where(t =>
+				t.Id == tenantId
+				&& !t.IsDeleted
+				&& t.IsSuspended)
+			.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(t => t.IsDeleted, true)
+					.SetProperty(
+						t => t.DeletedAt, DateTime.UtcNow
+					)
+					.SetProperty(
+						t => t.IsSuspended, false
+					)
+					.SetProperty(
+						t => t.Status, TenantStatus.Archived
+					)
+					.SetProperty(
+						t => t.UpdatedAt, DateTime.UtcNow
+					),
+				cancellationToken
+			);
+
+		if (rowsAffected == 0) {
+			// Race condition: state changed between read and update
+			return new DeleteTenantResult(
+				null, DeleteTenantError.NotSuspended
+			);
+		}
+
+		return new DeleteTenantResult(tenant, null);
 	}
 }

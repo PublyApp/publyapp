@@ -12,7 +12,7 @@ namespace MainApi.Src.Modules.SystemNotices.Handlers.Staff;
 
 public static class DeleteSystemNotice {
 	public static async Task<Results<
-		NoContent,
+		Ok<ApiResponse>,
 		AppNotFoundHttpResult
 	>> HandleDeleteSystemNotice(
 		[FromServices] IRequestAuthContext authContext,
@@ -21,12 +21,14 @@ public static class DeleteSystemNotice {
 		[FromRoute] Guid noticeId,
 		CancellationToken cancellationToken = default
 	) {
-		var account = authContext.AccountStaff
-			?? throw new InvalidOperationException(
-				"Staff account not found in auth context. "
-				+ "Ensure the endpoint has "
+		var account = authContext.AccountStaff;
+		if (account is null) {
+			throw new InvalidOperationException(
+				"Staff account not found in auth "
+				+ "context. Ensure the endpoint has "
 				+ ".WithPermission() middleware."
 			);
+		}
 
 		var deleted = await systemNoticeService.DeleteAsync(
 			noticeId, cancellationToken
@@ -47,6 +49,12 @@ public static class DeleteSystemNotice {
 			cancellationToken
 		);
 
-		return TypedResults.NoContent();
+		return TypedResults.Ok(
+			ApiResponse.Create(
+				"System notice deleted successfully",
+				ResponseKeys
+					.SystemNoticeDeletedSuccessfully
+			)
+		);
 	}
 }

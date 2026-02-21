@@ -52,4 +52,6 @@ public static class AuditActions {
 	public const string StaffProfilePermissionsAssigned = "staff.profile.permissions.assigned";
 	public const string StaffProfileUserAssigned = "staff.profile.user.assigned";
 	public const string TenantInvitationAccepted = "tenant.invitation.accepted";
+	public const string TenantUpdated = "tenant.updated";
+	public const string TenantDeleted = "tenant.deleted";
 }

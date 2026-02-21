@@ -63,5 +63,9 @@
 	"tenant-suspended": "Ce locataire a été suspendu",
 	"tenant-suspended-success": "Le locataire a été suspendu avec succès",
 	"tenant-reactivated-success": "Le locataire a été réactivé avec succès",
-	"malformed-id": "Identifiant mal formé"
+	"malformed-id": "Identifiant mal formé",
+	"tenant-updated-success": "Le locataire a été mis à jour avec succès",
+	"tenant-max-users-below-count": "Le nombre maximum d'utilisateurs ne peut pas être inférieur au nombre actuel d'utilisateurs",
+	"tenant-deleted-success": "Le locataire a été supprimé avec succès",
+	"tenant-not-suspended-cannot-delete": "Seuls les locataires suspendus peuvent être supprimés"
 }
