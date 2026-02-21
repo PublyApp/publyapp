@@ -18,6 +18,10 @@ public static partial class Routes {
 			public static string SuspendFn(string tenantId) => $"/{tenantId}/suspend";
 			public const string Reactivate = "/{tenantId}/reactivate";
 			public static string ReactivateFn(string tenantId) => $"/{tenantId}/reactivate";
+			public const string Update = "/{tenantId}";
+			public static string UpdateFn(string tenantId) => $"/{tenantId}";
+			public const string Delete = "/{tenantId}";
+			public static string DeleteFn(string tenantId) => $"/{tenantId}";
 		}
 	}
 }

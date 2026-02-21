@@ -18,7 +18,8 @@ public readonly struct TranslationKey : IEquatable<TranslationKey> {
 	/// </summary>
 	/// <param name="value">The translation key value</param>
 	public TranslationKey(string value) {
-		Value = value ?? throw new ArgumentNullException(nameof(value));
+		ArgumentNullException.ThrowIfNull(value);
+		Value = value;
 	}
 
 	/// <summary>

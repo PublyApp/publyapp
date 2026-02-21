@@ -39,11 +39,13 @@ internal static class TenantTestHelper {
 		response.EnsureSuccessStatusCode();
 
 		var result = await response.Content
-			.ReadFromJsonAsync<TenantListResponse>(ct)
-			?? throw new InvalidOperationException(
+			.ReadFromJsonAsync<TenantListResponse>(ct);
+		if (result is null) {
+			throw new InvalidOperationException(
 				"GET /staff/tenants returned null "
 				+ "or unexpected JSON shape"
 			);
+		}
 
 		var tenant = result.Tenants.FirstOrDefault(
 			t => string.Equals(
@@ -179,6 +181,89 @@ internal static class TenantTestHelper {
 			Routes.Staff.Root,
 			Routes.Tenants.ForStaff.Root,
 			Routes.Tenants.ForStaff.ReactivateFn(
+				tenantId.ToString()
+			)
+		);
+	}
+
+	/// <summary>
+	/// Updates a tenant via
+	/// PATCH /staff/tenants/{id}.
+	/// </summary>
+	public static async Task<HttpResponseMessage>
+	UpdateTenantAsync(
+		HttpClient http,
+		string staffToken,
+		Guid tenantId,
+		object body,
+		CancellationToken ct = default
+	) {
+		var url = PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Tenants.ForStaff.Root,
+			Routes.Tenants.ForStaff.UpdateFn(
+				tenantId.ToString()
+			)
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			url
+		).WithSessionToken(staffToken);
+
+		request.Content = JsonContent.Create(body);
+
+		return await http.SendAsync(request, ct);
+	}
+
+	/// <summary>
+	/// Deletes a tenant via
+	/// DELETE /staff/tenants/{id}.
+	/// </summary>
+	public static async Task<HttpResponseMessage>
+	DeleteTenantAsync(
+		HttpClient http,
+		string staffToken,
+		Guid tenantId,
+		CancellationToken ct = default
+	) {
+		var url = PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Tenants.ForStaff.Root,
+			Routes.Tenants.ForStaff.DeleteFn(
+				tenantId.ToString()
+			)
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Delete,
+			url
+		).WithSessionToken(staffToken);
+
+		return await http.SendAsync(request, ct);
+	}
+
+	/// <summary>
+	/// Builds the update URL for a given tenant ID.
+	/// </summary>
+	public static string GetUpdateUrl(Guid tenantId) {
+		return PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Tenants.ForStaff.Root,
+			Routes.Tenants.ForStaff.UpdateFn(
+				tenantId.ToString()
+			)
+		);
+	}
+
+	/// <summary>
+	/// Builds the delete URL for a given tenant ID.
+	/// </summary>
+	public static string GetDeleteUrl(Guid tenantId) {
+		return PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Tenants.ForStaff.Root,
+			Routes.Tenants.ForStaff.DeleteFn(
 				tenantId.ToString()
 			)
 		);

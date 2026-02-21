@@ -196,7 +196,7 @@ public class CreateTenantAsStaffResult {
 public static class CreateTenantAsStaff {
 	public static async Task<
 	Results<
-	Ok<CreateTenantAsStaffResult>,
+	Created<CreateTenantAsStaffResult>,
 	AppBadRequestHttpResult
 	>>
 	HandleCreateTenantAsStaff(
@@ -257,10 +257,13 @@ public static class CreateTenantAsStaff {
 				);
 			}
 
-			return TypedResults.Ok(new CreateTenantAsStaffResult {
-				Id = result.Tenant.GetRequiredId(),
-				Name = result.Tenant.Name
-			});
+			return TypedResults.Created(
+				(string?)null,
+				new CreateTenantAsStaffResult {
+					Id = result.Tenant.GetRequiredId(),
+					Name = result.Tenant.Name
+				}
+			);
 
 		} catch (InvalidOperationException ex) {
 			logger.LogWarning(ex, "Tenant creation validation failed");

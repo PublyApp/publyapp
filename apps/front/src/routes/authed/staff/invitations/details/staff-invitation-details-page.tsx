@@ -187,8 +187,12 @@ const InvitationDetailsError = ({ error }: { error: unknown }) => {
 
 	const failure = toApiFailure(error);
 
-	// Show empty state for 404 errors (invitation not found)
-	if (isProblemFailure(failure) && failure.status === 404) {
+	// Show empty state for 404 or malformed-id 400 errors
+	if (
+		isProblemFailure(failure) &&
+		(failure.status === 404 ||
+			(failure.status === 400 && failure.translationKey === 'malformed-id'))
+	) {
 		return <InvitationDetailsEmpty />;
 	}
 

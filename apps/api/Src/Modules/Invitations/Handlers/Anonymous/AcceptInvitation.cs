@@ -54,8 +54,15 @@ public class AcceptInvitationBodyValidator : AbstractValidator<AcceptInvitationB
 			.WithMessage("Password must be a string")
 			.Must(e => !string.IsNullOrWhiteSpace(e.GetString()))
 			.WithMessage("Password is required")
-			.Must(e => e.GetString()!.Length >= 8)
-			.WithMessage("Password must be at least 8 characters");
+			.Must(e => {
+				var str = e.GetString();
+				return str is not null
+					&& str.Length >= 8;
+			})
+			.WithMessage(
+				"Password must be at least "
+				+ "8 characters"
+			);
 	}
 }
 

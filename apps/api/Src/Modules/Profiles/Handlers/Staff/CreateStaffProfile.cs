@@ -70,14 +70,44 @@ public class CreateStaffProfileBodyValidator
 			.WithMessage("Name is required")
 			.DependentRules(() => {
 				RuleFor(x => x.Name)
-					.Must(e => e!.Value.ValueKind == JsonValueKind.String)
+					.Must(e =>
+						e is not null
+						&& e.Value.ValueKind
+							== JsonValueKind.String)
 					.WithMessage("Name must be a string")
-					.Must(e => !string.IsNullOrWhiteSpace(e!.Value.GetString()))
+					.Must(e => {
+						if (!e.HasValue) {
+							return false;
+						}
+						var str = e.Value.GetString();
+						return !string
+							.IsNullOrWhiteSpace(str);
+					})
 					.WithMessage("Name cannot be empty")
-					.Must(e => e!.Value.GetString()!.Trim().Length >= 2)
-					.WithMessage("Name must be at least 2 characters long")
-					.Must(e => e!.Value.GetString()!.Trim().Length <= 100)
-					.WithMessage("Name must be at most 100 characters long");
+					.Must(e => {
+						if (!e.HasValue) {
+							return false;
+						}
+						var str = e.Value.GetString();
+						return str is not null
+							&& str.Trim().Length >= 2;
+					})
+					.WithMessage(
+						"Name must be at least "
+						+ "2 characters long"
+					)
+					.Must(e => {
+						if (!e.HasValue) {
+							return false;
+						}
+						var str = e.Value.GetString();
+						return str is not null
+							&& str.Trim().Length <= 100;
+					})
+					.WithMessage(
+						"Name must be at most "
+						+ "100 characters long"
+					);
 			});
 
 		RuleFor(x => x.Description)
@@ -94,7 +124,10 @@ public class CreateStaffProfileBodyValidator
 			.WithMessage("Permissions is required")
 			.DependentRules(() => {
 				RuleFor(x => x.Permissions)
-					.Must(e => e!.Value.ValueKind == JsonValueKind.Array)
+					.Must(e =>
+						e is not null
+						&& e.Value.ValueKind
+							== JsonValueKind.Array)
 					.WithMessage("Permissions must be an array")
 					.DependentRules(() => {
 						RuleFor(x => x.Permissions)
@@ -169,7 +202,7 @@ public class CreateStaffProfileBodyValidator
 
 public static class CreateStaffProfile {
 	public static async Task<Results<
-		Ok<StaffProfileCreated>,
+		Created<StaffProfileCreated>,
 		AppBadRequestHttpResult
 	>> HandleCreateStaffProfile(
 		[FromServices] IRequestAuthContext authContext,
@@ -189,8 +222,12 @@ public static class CreateStaffProfile {
 		List<string> emails = body.GetEmails();
 
 		// Get current user ID for audit logging and invitations
-		var currentUserId = authContext.AccountStaff?.UserId
-			?? throw new InvalidOperationException("User ID not found in auth context");
+		if (authContext.AccountStaff is null) {
+			throw new InvalidOperationException(
+				"User ID not found in auth context"
+			);
+		}
+		var currentUserId = authContext.AccountStaff.UserId;
 
 		// Create staff profile via service
 		var result = await profileAsStaffService.CreateStaffProfileAsync(
@@ -255,7 +292,7 @@ public static class CreateStaffProfile {
 		);
 	}
 
-	private static async Task<Ok<StaffProfileCreated>> HandleSuccessAsync(
+	private static async Task<Created<StaffProfileCreated>> HandleSuccessAsync(
 		CreateStaffProfileResult.Success success,
 		IEmailService emailService,
 		IAuditLogService auditLogService,
@@ -299,14 +336,21 @@ public static class CreateStaffProfile {
 			cancellationToken
 		);
 
-		return TypedResults.Ok(new StaffProfileCreated {
-			ProfileId = profileId,
-			Name = success.Profile.Name,
-			Description = success.Profile.Description,
-			PermissionsAssigned = success.PermissionsAssigned,
-			UsersAssigned = success.UsersAssigned,
-			InvitationsSent = success.InvitationsSent
-		});
+		return TypedResults.Created(
+			(string?)null,
+			new StaffProfileCreated {
+				ProfileId = profileId,
+				Name = success.Profile.Name,
+				Description = success.Profile
+					.Description,
+				PermissionsAssigned = success
+					.PermissionsAssigned,
+				UsersAssigned = success
+					.UsersAssigned,
+				InvitationsSent = success
+					.InvitationsSent
+			}
+		);
 	}
 
 	/// <summary>

@@ -36,6 +36,7 @@ export interface WithInvitationItemRequestBuilder extends BaseRequestBuilder<Wit
      * Get staff invitation details
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<StaffInvitationDetails>}
+     * @throws {AppProblemDetails} error when the service returns a 400 status code
      * @throws {AppProblemDetails} error when the service returns a 401 status code
      * @throws {AppProblemDetails} error when the service returns a 403 status code
      * @throws {AppProblemDetails} error when the service returns a 404 status code
@@ -90,6 +91,7 @@ export const WithInvitationItemRequestBuilderRequestsMetadata: RequestsMetadata 
         uriTemplate: WithInvitationItemRequestBuilderUriTemplate,
         responseBodyContentType: "application/json",
         errorMappings: {
+            400: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             403: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             404: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,

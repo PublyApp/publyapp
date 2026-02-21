@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
+using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Routes;
 using MainApi.Src.Lib.Testing.Fixtures;
@@ -27,7 +28,7 @@ public sealed class DeleteSystemNoticeSpec
 
 	[Fact]
 	public async Task
-	ItShouldReturnNoContentForExistingNotice() {
+	ItShouldReturnOkWithApiResponseForExistingNotice() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var noticeId =
@@ -45,7 +46,13 @@ public sealed class DeleteSystemNoticeSpec
 			await _http.SendAsync(request);
 
 		response.StatusCode.Should()
-			.Be(HttpStatusCode.NoContent);
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<ApiResponse>();
+		result.Should().NotBeNull();
+		result!.Key.Should()
+			.Be("system-notice-deleted-successfully");
 	}
 
 	[Fact]
@@ -125,7 +132,7 @@ public sealed class DeleteSystemNoticeSpec
 		using var firstResponse =
 			await _http.SendAsync(firstRequest);
 		firstResponse.StatusCode.Should()
-			.Be(HttpStatusCode.NoContent);
+			.Be(HttpStatusCode.OK);
 
 		// Delete second time
 		var secondRequest = new HttpRequestMessage(

@@ -122,7 +122,7 @@ apps/api/Src/Modules/<Domain>/
 - **CQRS-lite**: handlers per operation (create/find/get/update/delete)
 - **Minimal APIs**: endpoints map routes and attach filters/permissions
 - **FluentValidation**: automatic body/query validation via endpoint extensions
-- **Response Format**: success returns `Ok<T>` / `Ok<ApiResponse>`; errors return RFC 7807 `application/problem+json` via `TypedProblems.*` with `translationKey`
+- **Response Format**: errors return RFC 7807 via `TypedProblems.*`; Create success → 201 `Created<T>` with entity DTO; Update success → 200 `Ok<T>` with entity DTO; Delete/action-only success → 200 `Ok<ApiResponse>` with message + translationKey
 - **Namespace discipline**: `IDE0130` is treated as error — file namespace must match its folder path
 
 **Finding Backend Code:**
@@ -233,6 +233,9 @@ DTOs, service layer, DI rules, API responses, formatting, and more), see:
 
 **Key principles (always apply):**
 - Pattern matching for null checks (`is null` / `is not null`, never `== null`)
+- **Never** use `?? throw` — use traditional `if` guard clauses for null-then-throw patterns
+- **Never** use the null-forgiving operator (`!`) in production code — always handle null explicitly with guard clauses or safe accessors like `GetRequiredId()`
+- Guard clauses (flat `if`/early return) over `switch` expressions when handling discriminated union error results from services
 - Query syntax for database LINQ queries; method syntax only for terminal ops
 - Handlers orchestrate, services implement (no DbContext in handlers)
 - Request body DTOs use `JsonElement` with `Get*()` methods for FluentValidation compatibility

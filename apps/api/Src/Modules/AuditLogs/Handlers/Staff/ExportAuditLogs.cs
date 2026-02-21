@@ -161,7 +161,13 @@ public static class ExportAuditLogs {
 			);
 		}
 
-		var format = query.Format!.ToLowerInvariant();
+		if (query.Format is null) {
+			return TypedProblems.BadRequest(
+				"Format is required",
+				ResponseKeys.BadRequest
+			);
+		}
+		var format = query.Format.ToLowerInvariant();
 		var timestamp = DateTime.UtcNow
 			.ToString("yyyyMMdd-HHmmss");
 		var ext = format == "csv" ? "csv" : "json";

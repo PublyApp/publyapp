@@ -526,5 +526,11 @@
 	"website": "Site web",
 	"danger-zone-org-description": "Une fois votre organisation supprimée, il n'y a pas de retour en arrière. Soyez certain de votre choix.",
 	"delete-organization": "Supprimer l'organisation",
-	"billing-coming-soon": "Les fonctionnalités de facturation sont en cours de développement. Les données affichées ci-dessous sont des données fictives."
+	"billing-coming-soon": "Les fonctionnalités de facturation sont en cours de développement. Les données affichées ci-dessous sont des données fictives.",
+	"confirm-delete-tenant-title": "Supprimer le locataire",
+	"confirm-delete-tenant-message": "Êtes-vous sûr de vouloir supprimer ce locataire ? Cette action ne peut pas être facilement annulée.",
+	"users-count": "Nombre d'utilisateurs",
+	"updated-at": "Mis à jour le",
+	"saving": "Enregistrement...",
+	"code": "Code"
 }

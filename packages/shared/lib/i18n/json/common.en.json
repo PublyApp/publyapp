@@ -526,5 +526,11 @@
 	"website": "Website",
 	"danger-zone-org-description": "Once you delete your organization, there is no going back. Please be certain.",
 	"delete-organization": "Delete organization",
-	"billing-coming-soon": "Billing features are under development. The data shown below is placeholder content."
+	"billing-coming-soon": "Billing features are under development. The data shown below is placeholder content.",
+	"confirm-delete-tenant-title": "Delete tenant",
+	"confirm-delete-tenant-message": "Are you sure you want to delete this tenant? This action cannot be easily undone.",
+	"users-count": "Users count",
+	"updated-at": "Updated at",
+	"saving": "Saving...",
+	"code": "Code"
 }

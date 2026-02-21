@@ -1,9 +1,14 @@
-import { createUntypedString } from '@microsoft/kiota-abstractions';
+import {
+	createUntypedNull,
+	createUntypedNumber,
+	createUntypedString,
+} from '@microsoft/kiota-abstractions';
 import _ from 'lodash';
 
 import type {
 	CreateTenantAsStaffBody,
 	SuspendTenantAsStaffBody,
+	UpdateTenantAsStaffBody,
 } from '@/js-client/src/models';
 
 import { createStaffMutation, createStaffQuery } from '../../create-hooks';
@@ -146,6 +151,58 @@ export const useFindTenantUsers = createStaffQuery({
 			throw new Error('useFindTenantUsers: result is nil');
 		}
 
+		return result;
+	},
+});
+
+export const useUpdateTenant = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.tenants.byTenantId('').patch,
+	mutationFn: async (
+		client,
+		variables: {
+			tenantId: string;
+			name?: string;
+			logoUrl?: string | null;
+			maxUsers?: number;
+		},
+	) => {
+		const body: UpdateTenantAsStaffBody = {};
+		if (variables.name !== undefined) {
+			body.name = createUntypedString(variables.name) as typeof body.name;
+		}
+		if (variables.maxUsers !== undefined) {
+			body.maxUsers = createUntypedNumber(
+				variables.maxUsers,
+			) as typeof body.maxUsers;
+		}
+		// logoUrl three-state: undefined → omit, string → set, null → clear
+		if (variables.logoUrl !== undefined) {
+			body.logoUrl = (
+				variables.logoUrl === null
+					? createUntypedNull()
+					: createUntypedString(variables.logoUrl)
+			) as typeof body.logoUrl;
+		}
+
+		const result = await client.staff.tenants
+			.byTenantId(variables.tenantId)
+			.patch(body);
+		if (_.isNil(result)) {
+			throw new Error('useUpdateTenant: result is nil');
+		}
+		return result;
+	},
+});
+
+export const useDeleteTenant = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.tenants.byTenantId('').delete,
+	mutationFn: async (client, variables: { tenantId: string }) => {
+		const result = await client.staff.tenants
+			.byTenantId(variables.tenantId)
+			.delete();
+		if (_.isNil(result)) {
+			throw new Error('useDeleteTenant: result is nil');
+		}
 		return result;
 	},
 });

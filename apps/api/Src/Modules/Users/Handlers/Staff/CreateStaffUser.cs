@@ -146,7 +146,7 @@ public class CreateStaffUserBodyValidator : AbstractValidator<CreateStaffUserBod
 public class CreateStaffUser {
 	public static async Task<
 		Results<
-			Ok<CreateStaffUserResult>,
+			Created<CreateStaffUserResult>,
 			AppBadRequestHttpResult
 		>
 	> HandleCreateStaffUser(
@@ -242,10 +242,14 @@ public class CreateStaffUser {
 					await emailService.SendJoinedStaffNotificationEmailAsync(user.Email);
 				}
 			}
-			return TypedResults.Ok(new CreateStaffUserResult {
-				Id = userIdGuid,
-				AccountId = accountSuccess.Account.GetRequiredId(),
-			});
+			return TypedResults.Created(
+				(string?)null,
+				new CreateStaffUserResult {
+					Id = userIdGuid,
+					AccountId = accountSuccess
+						.Account.GetRequiredId(),
+				}
+			);
 		}
 
 		return TypedProblems.BadRequest(
