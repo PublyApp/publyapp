@@ -234,7 +234,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 				into userJoin
 			from u in userJoin.DefaultIfEmpty()
 			select new AuditLogListItem {
-				Id = a.Id!.Value,
+				Id = a.Id ?? Guid.Empty,
 				UserId = a.UserId,
 				UserName = u == null
 					? "(deleted user)"
@@ -286,7 +286,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 				into userJoin
 			from u in userJoin.DefaultIfEmpty()
 			select new AuditLogDetail {
-				Id = a.Id!.Value,
+				Id = a.Id ?? Guid.Empty,
 				UserId = a.UserId,
 				UserName = u == null
 					? "(deleted user)"
@@ -384,7 +384,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 				into userJoin
 			from u in userJoin.DefaultIfEmpty()
 			select new AuditLogExportItem {
-				Id = a.Id!.Value,
+				Id = a.Id ?? Guid.Empty,
 				UserName = u == null
 					? "(deleted user)"
 					: u.FirstName != null

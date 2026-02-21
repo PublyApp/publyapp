@@ -63,5 +63,9 @@
 	"tenant-suspended": "This tenant has been suspended",
 	"tenant-suspended-success": "Tenant has been suspended successfully",
 	"tenant-reactivated-success": "Tenant has been reactivated successfully",
-	"malformed-id": "Malformed ID"
+	"malformed-id": "Malformed ID",
+	"tenant-updated-success": "Tenant has been updated successfully",
+	"tenant-max-users-below-count": "Max users cannot be less than the current number of users",
+	"tenant-deleted-success": "Tenant has been deleted successfully",
+	"tenant-not-suspended-cannot-delete": "Only suspended tenants can be deleted"
 }

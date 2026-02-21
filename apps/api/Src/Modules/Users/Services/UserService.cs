@@ -26,7 +26,9 @@ public class UpdateUserDocument {
 }
 
 public abstract record UpdateUserByIdResult {
-	public sealed record Success() : UpdateUserByIdResult;
+	public sealed record Success(
+		StaffUserData UserData
+	) : UpdateUserByIdResult;
 	public sealed record UserNotFound() : UpdateUserByIdResult;
 	public sealed record UserAccountNotFound() : UpdateUserByIdResult;
 	public sealed record UpdateFailed(
@@ -595,7 +597,31 @@ public class UserService : IUserService {
 			}
 
 			await transaction.CommitAsync(cancellationToken);
-			return new UpdateUserByIdResult.Success();
+
+			// Re-fetch updated user data to return
+			var updatedUser = await (
+				from ua in _dbContext.UserAccount
+					.AsNoTracking()
+				where ua.UserId == userId
+					&& ua.Scope == AccountScope.Staff
+					&& !ua.IsDeleted
+				select new StaffUserData {
+					User = ua.User,
+					AccountLevel = ua.Level
+				}
+			).FirstOrDefaultAsync(cancellationToken);
+
+			if (updatedUser is null) {
+				throw new InvalidOperationException(
+					"User not found after successful "
+					+ "update. This indicates a data "
+					+ "integrity issue."
+				);
+			}
+
+			return new UpdateUserByIdResult.Success(
+				updatedUser
+			);
 		} catch (Exception exception) {
 			await transaction.RollbackAsync(cancellationToken);
 			if (_logger.IsEnabled(LogLevel.Error)) {

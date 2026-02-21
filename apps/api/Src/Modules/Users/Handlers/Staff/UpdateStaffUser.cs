@@ -3,7 +3,6 @@ using System.Text.Json;
 using FluentValidation;
 
 using MainApi.Localization;
-using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Users.Entities;
@@ -149,7 +148,7 @@ public class UpdateStaffUserBodyValidator : AbstractValidator<UpdateStaffUserBod
 public class UpdateStaffUser {
 	public static async Task<
 		Results<
-			Ok<ApiResponse>,
+			Ok<GetStaffUserByIdResult>,
 			AppBadRequestHttpResult,
 			AppNotFoundHttpResult,
 			AppInternalServerErrorHttpResult
@@ -229,6 +228,32 @@ public class UpdateStaffUser {
 			);
 		}
 
-		return TypedResults.Ok(ApiResponse.Create("Staff member updated successfully", ResponseKeys.StaffUserUpdatedSuccessfully));
+		if (result is not UpdateUserByIdResult.Success
+			success
+		) {
+			throw new InvalidOperationException(
+				"Unhandled UpdateUserByIdResult type: "
+				+ $"{result.GetType().Name}"
+			);
+		}
+
+		var userData = success.UserData;
+		return TypedResults.Ok(
+			new GetStaffUserByIdResult {
+				Id = userData.User.GetRequiredId(),
+				Email = userData.User.Email,
+				LastName = userData.User.LastName,
+				FirstName = userData.User.FirstName,
+				AvatarUrl = userData.User.AvatarUrl,
+				AccountLevel =
+					UserAccount
+						.GetAccountLevelDescription(
+							userData.AccountLevel
+						),
+				Status = User.GetStatusDescription(
+					userData.User.Status
+				),
+			}
+		);
 	}
 }
