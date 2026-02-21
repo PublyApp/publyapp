@@ -151,7 +151,11 @@ const AuditLogDetailsError = ({ error }: { error: unknown }) => {
 
 	const failure = toApiFailure(error);
 
-	if (isProblemFailure(failure) && failure.status === 404) {
+	if (
+		isProblemFailure(failure) &&
+		(failure.status === 404 ||
+			(failure.status === 400 && failure.translationKey === 'malformed-id'))
+	) {
 		return <AuditLogDetailsEmpty />;
 	}
 

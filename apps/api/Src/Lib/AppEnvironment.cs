@@ -18,8 +18,19 @@ public class AppEnvironment {
 	/// <summary>
 	/// Gets the initialized instance. Throws if Initialize() hasn't been called.
 	/// </summary>
-	public static AppEnvironment Instance => Volatile.Read(ref _instance)
-		?? throw new InvalidOperationException("AppEnvironment not initialized. Call AppEnvironment.Initialize() first.");
+	public static AppEnvironment Instance {
+		get {
+			var instance = Volatile.Read(ref _instance);
+			if (instance is null) {
+				throw new InvalidOperationException(
+					"AppEnvironment not initialized. "
+					+ "Call AppEnvironment.Initialize() "
+					+ "first."
+				);
+			}
+			return instance;
+		}
+	}
 
 	// ========== Environment Variables (secrets, URLs) ==========
 	public string POSTGRES_CONNECTION_STRING { get; }

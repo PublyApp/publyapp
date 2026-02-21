@@ -29,11 +29,29 @@ public record BulkCreateStaffInvitationsBody {
 		var invitations = new List<BulkStaffInvitationItem>();
 
 		foreach (var item in Invitations.EnumerateArray()) {
-			var email = item.GetProperty("email").GetString()!;
-			var profileIds = item.GetProperty("profileIds")
-				.EnumerateArray()
-				.Select(e => Guid.Parse(e.GetString()!))
-				.ToList();
+			var email = item.GetProperty("email")
+				.GetString();
+			if (email is null) {
+				throw new InvalidOperationException(
+					"Email is null after validation"
+				);
+			}
+
+			var profileIds = new List<Guid>();
+			foreach (
+				var e in item
+					.GetProperty("profileIds")
+					.EnumerateArray()
+			) {
+				var profileIdStr = e.GetString();
+				if (profileIdStr is null) {
+					throw new InvalidOperationException(
+						"ProfileId is null after "
+						+ "validation"
+					);
+				}
+				profileIds.Add(Guid.Parse(profileIdStr));
+			}
 
 			invitations.Add(new BulkStaffInvitationItem {
 				Email = email,
@@ -210,7 +228,7 @@ public class BulkCreateStaffInvitationsBodyValidator
 
 public static class BulkCreateStaffInvitations {
 	public static async Task<Results<
-		Ok<BulkStaffInvitationsCreated>,
+		Created<BulkStaffInvitationsCreated>,
 		AppValidationProblemHttpResult,
 		AppBadRequestHttpResult,
 		AppInternalServerErrorHttpResult
@@ -345,9 +363,12 @@ public static class BulkCreateStaffInvitations {
 		);
 
 		// Return success response
-		return TypedResults.Ok(new BulkStaffInvitationsCreated {
-			Created = invitationTokens.Count
-		});
+		return TypedResults.Created(
+			(string?)null,
+			new BulkStaffInvitationsCreated {
+				Created = invitationTokens.Count
+			}
+		);
 	}
 
 	/// <summary>

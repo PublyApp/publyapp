@@ -70,28 +70,56 @@ public static class SuspendTenantAsStaff {
 
 		var result = await tenantService.SuspendTenantAsync(tenantId, cancellationToken);
 
+		if (result.Error
+			is SuspendTenantError.NotFound
+		) {
+			return TypedProblems.NotFound(
+				"Tenant not found",
+				ResponseKeys.TenantNotFound
+			);
+		}
+		if (result.Error
+			is SuspendTenantError.AlreadySuspended
+		) {
+			return TypedProblems.Conflict(
+				"Tenant is already suspended",
+				ResponseKeys.TenantAlreadySuspended
+			);
+		}
+		if (result.Error
+			is SuspendTenantError.NotActiveStatus
+		) {
+			return TypedProblems.BadRequest(
+				"Only active tenants can be suspended",
+				ResponseKeys
+					.TenantNotActiveCannotSuspend
+			);
+		}
 		if (result.Error is not null) {
-			return result.Error switch {
-				SuspendTenantError.NotFound => TypedProblems.NotFound(
-					"Tenant not found",
-					ResponseKeys.TenantNotFound
-				),
-				SuspendTenantError.AlreadySuspended => TypedProblems.Conflict(
-					"Tenant is already suspended",
-					ResponseKeys.TenantAlreadySuspended
-				),
-				SuspendTenantError.NotActiveStatus => TypedProblems.BadRequest(
-					"Only active tenants can be suspended",
-					ResponseKeys.TenantNotActiveCannotSuspend
-				),
-				_ => throw new InvalidOperationException($"Unknown error: {result.Error}")
-			};
+			throw new InvalidOperationException(
+				$"Unknown error: {result.Error}"
+			);
 		}
 
-		var tenant = result.Tenant!;
+		var account = authContext.AccountStaff;
+		if (account is null) {
+			throw new InvalidOperationException(
+				"Staff account not found in "
+				+ "auth context. Ensure the endpoint "
+				+ "has .WithPermission() middleware."
+			);
+		}
+
+		if (result.Tenant is null) {
+			throw new InvalidOperationException(
+				"Service returned success "
+				+ "but Tenant was null."
+			);
+		}
+		var tenant = result.Tenant;
 
 		await auditLogService.LogAsync(
-			authContext.UserId!.Value,
+			account.UserId,
 			AuditActions.TenantSuspended,
 			tenantId,
 			new { TenantName = tenant.Name, Reason = reason },

@@ -21,7 +21,7 @@ public static class GetAuditLogById {
 		if (!Guid.TryParse(logId, out var logIdGuid)) {
 			return TypedProblems.BadRequest(
 				"Invalid audit log ID",
-				ResponseKeys.BadRequest
+				ResponseKeys.MalformedId
 			);
 		}
 

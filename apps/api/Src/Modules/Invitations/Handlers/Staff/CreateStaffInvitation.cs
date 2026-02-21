@@ -68,7 +68,7 @@ public class CreateStaffInvitationBodyValidator : AbstractValidator<CreateStaffI
 
 public static class CreateStaffInvitation {
 	public static async Task<Results<
-		Ok<InvitationCreated>,
+		Created<InvitationCreated>,
 		AppBadRequestHttpResult,
 		AppForbiddenHttpResult
 	>> HandleCreateStaffInvitation(
@@ -173,11 +173,15 @@ public static class CreateStaffInvitation {
 			cancellationToken
 		);
 
-		return TypedResults.Ok(new InvitationCreated {
-			InvitationId = invitation.GetRequiredId(),
-			Token = token,
-			ExpiresAt = invitation.ExpiresAt
-		});
+		return TypedResults.Created(
+			(string?)null,
+			new InvitationCreated {
+				InvitationId = invitation
+					.GetRequiredId(),
+				Token = token,
+				ExpiresAt = invitation.ExpiresAt
+			}
+		);
 	}
 
 	/// <summary>

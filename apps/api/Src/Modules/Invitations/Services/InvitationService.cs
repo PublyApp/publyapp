@@ -300,7 +300,7 @@ public class InvitationService : IInvitationService {
 			where ip.InvitationId == invitationId
 			join p in _dbContext.Profile on ip.ProfileId equals p.Id
 			select new StaffInvitationProfileInfo {
-				Id = p.Id!.Value,
+				Id = p.Id ?? Guid.Empty,
 				Name = p.Name
 			}
 		).ToListAsync(cancellationToken);
@@ -807,7 +807,7 @@ public class InvitationService : IInvitationService {
 			where p.Id != null
 				&& profileIds.Contains(p.Id.Value)
 				&& p.Scope == ProfileScope.Staff
-			select p.Id!.Value
+			select p.Id ?? Guid.Empty
 		).ToListAsync(cancellationToken);
 
 		return validProfileIds;

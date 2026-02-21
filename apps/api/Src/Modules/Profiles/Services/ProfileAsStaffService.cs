@@ -347,7 +347,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		// Project to StaffProfileItem at DB level for efficiency
 		var results = await orderedQuery
 			.Select(p => new StaffProfileItem {
-				Id = p.Id!.Value,
+				Id = p.Id ?? Guid.Empty,
 				Name = p.Name,
 				Description = p.Description,
 				UserAccountCount = p.UserAccountProfiles.Count

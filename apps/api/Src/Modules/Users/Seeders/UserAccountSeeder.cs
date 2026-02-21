@@ -102,7 +102,10 @@ public class UserAccountSeeder : IEntitySeeder {
 
 		var emailToUserId = users
 			.Where(u => u.Id.HasValue)
-			.ToDictionary(u => u.Email, u => u.Id!.Value);
+			.ToDictionary(
+				u => u.Email,
+				u => u.GetRequiredId()
+			);
 
 		var userIds = emailToUserId.Values.ToList();
 		var existingStaffUserIds = await (
@@ -160,7 +163,10 @@ public class UserAccountSeeder : IEntitySeeder {
 
 		var emailToUserId = users
 			.Where(u => u.Id.HasValue)
-			.ToDictionary(u => u.Email, u => u.Id!.Value);
+			.ToDictionary(
+				u => u.Email,
+				u => u.GetRequiredId()
+			);
 
 		// Get all relevant tenants
 		var tenantCodes = tenantAccountsData.Select(ta => ta.TenantCode).Distinct().ToList();
@@ -177,7 +183,10 @@ public class UserAccountSeeder : IEntitySeeder {
 
 		var codeToTenantId = tenants
 			.Where(t => t.Id.HasValue)
-			.ToDictionary(t => t.Code, t => t.Id!.Value);
+			.ToDictionary(
+				t => t.Code,
+				t => t.GetRequiredId()
+			);
 
 		// Get existing tenant accounts
 		var userIds = emailToUserId.Values.ToList();
@@ -188,7 +197,11 @@ public class UserAccountSeeder : IEntitySeeder {
 		).ToListAsync(cancellationToken);
 		var existingSet = existingTenantAccounts
 			.Where(e => e.TenantId.HasValue)
-			.Select(e => (e.UserId, e.TenantId!.Value))
+			.Select(e => (
+				e.UserId,
+				TenantId: e.TenantId
+					?? Guid.Empty
+			))
 			.ToHashSet();
 
 		var newTenantAccounts = new List<UserAccount>();
