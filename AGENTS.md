@@ -223,7 +223,7 @@ array methods, arrow functions, arrow components, forms, QueryDisplay, and compo
 - Arrow function components only — never `function` declarations for components
 - `QueryDisplay` component for TanStack Query states — never manual conditional rendering
 - No `Array.reduce()` — use `find`, `filter+map`, `for...of`, or `Object.groupBy`
-- React Hook Form + Zod for form validation
+- React Hook Form + Zod for form validation — always use `Form`/`Field.*` wrappers from `@/front/components/hook-form`, never raw MUI `TextField` with `register()`
 
 ## C# Coding Standards
 

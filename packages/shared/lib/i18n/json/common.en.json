@@ -532,5 +532,7 @@
 	"users-count": "Users count",
 	"updated-at": "Updated at",
 	"saving": "Saving...",
-	"code": "Code"
+	"code": "Code",
+	"copy": "Copy",
+	"copied": "Copied!"
 }
