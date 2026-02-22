@@ -1,8 +1,7 @@
-using FluentValidation;
-
 using MainApi.Localization;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.Invitations.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -10,20 +9,13 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Src.Modules.Invitations.Handlers.Anonymous;
 
-public class CheckInvitationTokenQuery {
-	public required string Id { get; set; }
-	public required string Token { get; set; }
+public class CheckInvitationTokenQuery
+	: EncryptedIdTokenQuery {
 }
 
-public class CheckInvitationTokenQueryValidator : AbstractValidator<CheckInvitationTokenQuery> {
-	public CheckInvitationTokenQueryValidator() {
-		RuleFor(x => x.Id)
-			.NotEmpty().WithMessage("ID is required")
-			.Must(id => CryptoUtils.IsValidEncryptedString(id)).WithMessage("Invalid ID format");
-
-		RuleFor(x => x.Token)
-			.NotEmpty().WithMessage("Token is required");
-	}
+public class CheckInvitationTokenQueryValidator
+	: EncryptedIdTokenQueryValidator<
+		CheckInvitationTokenQuery> {
 }
 
 public class CheckInvitationTokenResult {

@@ -5,8 +5,10 @@ using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.Users.Entities;
 using MainApi.Src.Modules.Users.Services;
+using MainApi.Src.Modules.Users.Validation;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -29,119 +31,26 @@ public class UpdateStaffUserBody {
 	public string? GetStatus() => Status?.GetValueAsStringOrNull();
 }
 
-public class UpdateStaffUserBodyValidator : AbstractValidator<UpdateStaffUserBody> {
+public class UpdateStaffUserBodyValidator
+	: AbstractValidator<UpdateStaffUserBody> {
 	public UpdateStaffUserBodyValidator() {
 		RuleFor(x => x.Email)
-			.Must(BeStringOrNull)
-			.WithMessage("Email must be a string or null")
-			.DependentRules(() => {
-				RuleFor(x => x.Email)
-					.Must(BeValidEmail)
-					.WithMessage("Email must be a valid email address")
-					.When(x => x.Email.HasValue && x.Email.Value.ValueKind == JsonValueKind.String);
-			});
+			.MustBeNullableEmail();
 
 		RuleFor(x => x.LastName)
-			.Must(BeStringOrNull)
-			.WithMessage("LastName must be a string or null")
-			.DependentRules(() => {
-				RuleFor(x => x.LastName)
-					.Must(BeNotEmpty)
-					.WithMessage("LastName must not be empty")
-					.When(x => x.LastName.HasValue && x.LastName.Value.ValueKind == JsonValueKind.String);
-			});
+			.MustBeNullableNonEmptyString("LastName");
 
 		RuleFor(x => x.FirstName)
-			.Must(BeStringOrNull)
-			.WithMessage("FirstName must be a string or null")
-			.DependentRules(() => {
-				RuleFor(x => x.FirstName)
-					.Must(BeNotEmpty)
-					.WithMessage("FirstName must not be empty")
-					.When(x => x.FirstName.HasValue && x.FirstName.Value.ValueKind == JsonValueKind.String);
-			});
+			.MustBeNullableNonEmptyString("FirstName");
 
 		RuleFor(x => x.AvatarUrl)
-			.Must(BeStringOrNull)
-			.WithMessage("AvatarUrl must be a string or null")
-			.DependentRules(() => {
-				RuleFor(x => x.AvatarUrl)
-					.Must(BeValidUrl)
-					.WithMessage("AvatarUrl must be a valid URL")
-					.When(x => x.AvatarUrl.HasValue && x.AvatarUrl.Value.ValueKind == JsonValueKind.String);
-			});
+			.MustBeNullableUrl("AvatarUrl");
 
 		RuleFor(x => x.AccountLevel)
-			.Must(BeStringOrNull)
-			.WithMessage("AccountLevel must be a string or null")
-			.DependentRules(() => {
-				RuleFor(x => x.AccountLevel)
-					.Must(BeValidAccountLevel)
-					.WithMessage("AccountLevel must be a valid account level")
-					.When(x => x.AccountLevel.HasValue && x.AccountLevel.Value.ValueKind == JsonValueKind.String);
-			});
+			.MustBeNullableAccountLevel();
 
 		RuleFor(x => x.Status)
-			.Must(BeStringOrNull)
-			.WithMessage("Status must be a string or null")
-			.DependentRules(() => {
-				RuleFor(x => x.Status)
-					.Must(BeValidStatus)
-					.WithMessage("Status must be a valid status")
-					.When(x => x.Status.HasValue && x.Status.Value.ValueKind == JsonValueKind.String);
-			});
-	}
-
-	private static bool BeValidStatus(JsonElement? element) {
-		if (element is null) return true;
-		if (element.Value.ValueKind is JsonValueKind.Null) return true;
-		var statusString = element?.GetString() ?? string.Empty;
-		return User.ParseStatus(statusString) is not null;
-	}
-
-	private static bool BeStringOrNull(JsonElement? element) {
-		if (element is null) return true;
-		var valueKind = element.Value.ValueKind;
-		return valueKind is JsonValueKind.String or JsonValueKind.Null;
-	}
-
-	private static bool BeValidEmail(JsonElement? element) {
-		if (element is null) return true;
-		if (element.Value.ValueKind is JsonValueKind.Null) return true;
-		var email = element?.GetString();
-		if (string.IsNullOrWhiteSpace(email)) return false;
-		try {
-			var addr = new System.Net.Mail.MailAddress(email);
-			return addr.Address == email;
-		} catch {
-			return false;
-		}
-	}
-
-	private static bool BeValidUrl(JsonElement? element) {
-		if (element is null) return true;
-		if (element.Value.ValueKind is JsonValueKind.Null) return true;
-
-		var url = element?.GetString();
-		if (string.IsNullOrWhiteSpace(url)) return false;
-
-		var isValidUri = Uri.TryCreate(url, UriKind.Absolute, out Uri? result);
-		if (!isValidUri) return false;
-		return result?.Scheme == Uri.UriSchemeHttp || result?.Scheme == Uri.UriSchemeHttps;
-	}
-
-	private static bool BeNotEmpty(JsonElement? element) {
-		if (element is null) return true;
-		if (element.Value.ValueKind is JsonValueKind.Null) return true;
-		var value = element?.GetString();
-		return !string.IsNullOrWhiteSpace(value);
-	}
-
-	private static bool BeValidAccountLevel(JsonElement? element) {
-		if (element is null) return true;
-		if (element.Value.ValueKind is JsonValueKind.Null) return true;
-		var accountLevelString = element?.GetString() ?? string.Empty;
-		return UserAccount.ParseAccountLevel(accountLevelString) is not null;
+			.MustBeNullableUserStatus();
 	}
 }
 

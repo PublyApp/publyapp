@@ -8,6 +8,7 @@ using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.Users.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -23,18 +24,11 @@ public class VerifyEmailRequestBody {
 	}
 }
 
-public class VerifyEmailRequestBodyValidator : AbstractValidator<VerifyEmailRequestBody> {
+public class VerifyEmailRequestBodyValidator
+	: AbstractValidator<VerifyEmailRequestBody> {
 	public VerifyEmailRequestBodyValidator() {
 		RuleFor(x => x.Email)
-			.NotEmpty().WithMessage("Email is required")
-			.DependentRules(() => {
-				RuleFor(x => x.Email)
-					.Must(email => email.ValueKind == JsonValueKind.String).WithMessage("Email must be a string")
-					.DependentRules(() => {
-						RuleFor(x => x.Email.GetString()!)
-							.EmailAddress().WithMessage("Invalid email address");
-					});
-			});
+			.MustBeRequiredEmail();
 	}
 }
 

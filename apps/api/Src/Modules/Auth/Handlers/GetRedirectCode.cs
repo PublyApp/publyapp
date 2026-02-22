@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Modules.Auth.Handlers;
 
 public class GetRedirectCodeQuery {
+	[FromQuery]
 	public string? TenantId { get; set; }
 
 	public Guid? GetTenantId() {

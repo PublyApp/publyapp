@@ -1,10 +1,9 @@
-using FluentValidation;
-
 using MainApi.Localization;
 using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.Auth.Utils;
 using MainApi.Src.Modules.Users.Entities;
 using MainApi.Src.Modules.Users.Services;
@@ -14,20 +13,13 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Src.Modules.Auth.Handlers;
 
-public class CheckEmailVerificationTokenQuery {
-	public required string Id { get; set; }
-	public required string Token { get; set; }
+public class CheckEmailVerificationTokenQuery
+	: EncryptedIdTokenQuery {
 }
 
-public class CheckEmailVerificationTokenQueryValidator : AbstractValidator<CheckEmailVerificationTokenQuery> {
-	public CheckEmailVerificationTokenQueryValidator() {
-		RuleFor(x => x.Id)
-			.NotEmpty().WithMessage("ID is required")
-			.Must(id => CryptoUtils.IsValidEncryptedString(id)).WithMessage("Invalid ID format");
-
-		RuleFor(x => x.Token)
-			.NotEmpty().WithMessage("Token is required");
-	}
+public class CheckEmailVerificationTokenQueryValidator
+	: EncryptedIdTokenQueryValidator<
+		CheckEmailVerificationTokenQuery> {
 }
 
 public class CheckEmailVerificationTokenResult {
@@ -88,7 +80,9 @@ public class CheckEmailVerificationToken {
 		}
 
 		// Check if token is expired
-		if (user.EmailVerifyTokenExpiresAt.HasValue && DateTime.UtcNow > user.EmailVerifyTokenExpiresAt.Value) {
+		if (user.EmailVerifyTokenExpiresAt.HasValue
+			&& DateTime.UtcNow > user.EmailVerifyTokenExpiresAt.Value
+		) {
 			return TypedProblems.BadRequest(
 				"Invalid or expired email verification token",
 				ResponseKeys.InvalidEmailVerificationToken
@@ -101,7 +95,9 @@ public class CheckEmailVerificationToken {
 
 		if (shouldResetPassword) {
 			passwordResetToken = CryptoUtils.RandomString(env.PASSWORD_RESET_TOKEN_LENGTH);
-			passwordResetTokenExpiresAt = DateTime.UtcNow.AddDays(env.PASSWORD_RESET_TOKEN_VALIDITY_DURATION);
+			passwordResetTokenExpiresAt = DateTime.UtcNow.AddDays(
+				env.PASSWORD_RESET_TOKEN_VALIDITY_DURATION
+			);
 		}
 
 		// Update user
@@ -131,7 +127,11 @@ public class CheckEmailVerificationToken {
 		.ContinueWith(t => {
 			if (t.Exception != null) {
 				if (logger.IsEnabled(LogLevel.Error)) {
-					logger.LogError(t.Exception, "Error sending email verification success email to {Email}", user.Email);
+					logger.LogError(
+						t.Exception,
+						"Error sending email verification success email to {Email}",
+						user.Email
+					);
 				}
 			}
 		}, cancellationToken);

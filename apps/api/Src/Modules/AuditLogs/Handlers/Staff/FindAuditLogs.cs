@@ -1,10 +1,9 @@
-using System.Globalization;
-
 using FluentValidation;
 
 using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.AuditLogs.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -21,37 +20,63 @@ public class FindAuditLogsQuery : CursorPaginatedQuery {
 	[FromQuery] public string? TargetId { get; set; }
 	[FromQuery] public string? StartDate { get; set; }
 	[FromQuery] public string? EndDate { get; set; }
+
+	public Guid? GetUserId() {
+		return QueryPredicates.ParseNullableGuid(
+			UserId
+		);
+	}
+
+	public Guid? GetTargetId() {
+		return QueryPredicates.ParseNullableGuid(
+			TargetId
+		);
+	}
+
+	public DateTime? GetStartDate() {
+		return QueryPredicates.ParseNullableDate(
+			StartDate
+		);
+	}
+
+	public DateTime? GetEndDate() {
+		return QueryPredicates.ParseNullableDate(
+			EndDate
+		);
+	}
 }
 
 public class FindAuditLogsQueryValidator
 	: CursorPaginatedQueryValidator<FindAuditLogsQuery> {
 	public FindAuditLogsQueryValidator() {
 		RuleFor(x => x.UserId)
-			.Must(BeValidNullableGuid)
+			.Must(QueryPredicates.BeValidNullableGuid)
 			.WithMessage(
 				"UserId must be a valid GUID"
 			);
 
 		RuleFor(x => x.TargetId)
-			.Must(BeValidNullableGuid)
+			.Must(QueryPredicates.BeValidNullableGuid)
 			.WithMessage(
 				"TargetId must be a valid GUID"
 			);
 
 		RuleFor(x => x.StartDate)
-			.Must(BeValidNullableDate)
+			.Must(QueryPredicates.BeValidNullableDate)
 			.WithMessage(
 				"StartDate must be a valid ISO 8601 date"
 			);
 
 		RuleFor(x => x.EndDate)
-			.Must(BeValidNullableDate)
+			.Must(QueryPredicates.BeValidNullableDate)
 			.WithMessage(
 				"EndDate must be a valid ISO 8601 date"
 			);
 
 		RuleFor(x => x)
-			.Must(HaveValidDateRange)
+			.Must(q => QueryPredicates.BeValidDateRange(
+				q.StartDate, q.EndDate
+			))
 			.WithMessage(
 				"StartDate must be before or equal"
 				+ " to EndDate"
@@ -59,61 +84,13 @@ public class FindAuditLogsQueryValidator
 			.When(x =>
 				x.StartDate is not null
 				&& x.EndDate is not null
-				&& BeValidNullableDate(x.StartDate)
-				&& BeValidNullableDate(x.EndDate)
+				&& QueryPredicates.BeValidNullableDate(
+					x.StartDate
+				)
+				&& QueryPredicates.BeValidNullableDate(
+					x.EndDate
+				)
 			);
-	}
-
-	private static bool BeValidNullableGuid(
-		string? value
-	) {
-		if (value is null) {
-			return true;
-		}
-		return Guid.TryParse(value, out _);
-	}
-
-	private static bool BeValidNullableDate(
-		string? value
-	) {
-		if (value is null) {
-			return true;
-		}
-		return DateTime.TryParse(
-			value,
-			CultureInfo.InvariantCulture,
-			DateTimeStyles.RoundtripKind,
-			out _
-		);
-	}
-
-	private static bool HaveValidDateRange(
-		FindAuditLogsQuery query
-	) {
-		if (query.StartDate is null
-			|| query.EndDate is null
-		) {
-			return true;
-		}
-
-		var startParsed = DateTime.TryParse(
-			query.StartDate,
-			CultureInfo.InvariantCulture,
-			DateTimeStyles.RoundtripKind,
-			out var start
-		);
-		var endParsed = DateTime.TryParse(
-			query.EndDate,
-			CultureInfo.InvariantCulture,
-			DateTimeStyles.RoundtripKind,
-			out var end
-		);
-
-		if (!startParsed || !endParsed) {
-			return true;
-		}
-
-		return start <= end;
 	}
 }
 
@@ -143,48 +120,6 @@ public static class FindAuditLogs {
 		var sortId = query.GetSortId();
 		var sortOrder = query.GetSortOrder();
 
-		Guid? userId = null;
-		if (query.UserId is not null) {
-			if (Guid.TryParse(
-				query.UserId, out var parsed
-			)) {
-				userId = parsed;
-			}
-		}
-
-		Guid? targetId = null;
-		if (query.TargetId is not null) {
-			if (Guid.TryParse(
-				query.TargetId, out var parsed
-			)) {
-				targetId = parsed;
-			}
-		}
-
-		DateTime? startDate = null;
-		if (query.StartDate is not null) {
-			if (DateTime.TryParse(
-				query.StartDate,
-				CultureInfo.InvariantCulture,
-				DateTimeStyles.RoundtripKind,
-				out var parsed
-			)) {
-				startDate = parsed;
-			}
-		}
-
-		DateTime? endDate = null;
-		if (query.EndDate is not null) {
-			if (DateTime.TryParse(
-				query.EndDate,
-				CultureInfo.InvariantCulture,
-				DateTimeStyles.RoundtripKind,
-				out var parsed
-			)) {
-				endDate = parsed;
-			}
-		}
-
 		var serviceResult =
 			await auditLogQueryService.FindAsync(
 			new FindAuditLogsArgs(
@@ -192,11 +127,11 @@ public static class FindAuditLogs {
 				Limit: limit,
 				SortId: sortId,
 				SortOrder: sortOrder,
-				UserId: userId,
+				UserId: query.GetUserId(),
 				Action: query.Action,
-				TargetId: targetId,
-				StartDate: startDate,
-				EndDate: endDate
+				TargetId: query.GetTargetId(),
+				StartDate: query.GetStartDate(),
+				EndDate: query.GetEndDate()
 			),
 			cancellationToken
 		);

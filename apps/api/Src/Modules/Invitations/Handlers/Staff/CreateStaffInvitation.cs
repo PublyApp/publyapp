@@ -7,6 +7,7 @@ using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.AuditLogs.Entities;
 using MainApi.Src.Modules.AuditLogs.Services;
 using MainApi.Src.Modules.Invitations.Entities;
@@ -32,37 +33,25 @@ public record InvitationCreated {
 	public required DateTime ExpiresAt { get; init; }
 }
 
-public class CreateStaffInvitationBodyValidator : AbstractValidator<CreateStaffInvitationBody> {
+public class CreateStaffInvitationBodyValidator
+	: AbstractValidator<CreateStaffInvitationBody> {
 	public CreateStaffInvitationBodyValidator() {
 		RuleFor(x => x.Email)
-			.Must(e => e.ValueKind == JsonValueKind.String)
-			.WithMessage("Email must be a string")
-			.Must(e => !string.IsNullOrWhiteSpace(e.GetString()))
-			.WithMessage("Email is required")
-			.Must(BeValidEmail)
-			.WithMessage("Invalid email format");
+			.MustBeRequiredEmail();
 
 		RuleFor(x => x.ProfileId)
-			.Must(e => e.ValueKind == JsonValueKind.String)
-			.WithMessage("ProfileId must be a string")
-			.Must(BeValidGuid)
-			.WithMessage("ProfileId must be a valid GUID");
-	}
-
-	private bool BeValidEmail(JsonElement element) {
-		if (element.ValueKind != JsonValueKind.String) return false;
-		var email = element.GetString();
-		if (string.IsNullOrWhiteSpace(email)) return false;
-		try {
-			return System.Net.Mail.MailAddress.TryCreate(email, out _);
-		} catch {
-			return false;
-		}
-	}
-
-	private bool BeValidGuid(JsonElement element) {
-		if (element.ValueKind != JsonValueKind.String) return false;
-		return Guid.TryParse(element.GetString(), out _);
+			.MustBeRequiredString("ProfileId")
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String) {
+					return false;
+				}
+				return Guid.TryParse(
+					e.GetString(), out _
+				);
+			})
+			.WithMessage(
+				"ProfileId must be a valid GUID"
+			);
 	}
 }
 

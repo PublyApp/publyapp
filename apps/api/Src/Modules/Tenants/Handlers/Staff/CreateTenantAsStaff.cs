@@ -7,6 +7,7 @@ using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.Tenants.Services;
 using MainApi.Src.Modules.Users.Entities;
 
@@ -52,17 +53,19 @@ public class CreateTenantAsStaffBody {
 public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAsStaffBody> {
 	public CreateTenantAsStaffBodyValidator() {
 		RuleFor(x => x.Name)
-			.NotEmpty().WithMessage("Name is required")
-			.DependentRules(() => {
-				RuleFor(x => x.Name)
-					.Must(name => name.ValueKind == JsonValueKind.String)
-					.WithMessage("Name must be a string")
-					.DependentRules(() => {
-						RuleFor(x => x.Name.GetString()!)
-							.MinimumLength(5)
-							.WithMessage("Name must be at least 5 characters long");
-					});
-			});
+			.MustBeRequiredString("Name")
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+				var str = e.GetString();
+				return str is not null
+					&& str.Length >= 5;
+			})
+			.WithMessage(
+				"Name must be at least"
+				+ " 5 characters long"
+			);
 
 		RuleFor(x => x.MaxUsers)
 			.Must(m => m.ValueKind == JsonValueKind.Number ||
