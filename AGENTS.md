@@ -231,6 +231,9 @@ For the complete C# coding standards (null checking, LINQ, async/await, handler 
 DTOs, service layer, DI rules, API responses, formatting, and more), see:
 [`docs/guides/csharp-coding-standards.md`](docs/guides/csharp-coding-standards.md)
 
+For FluentValidation conventions (shared extension methods, pagination validators, encrypted-ID queries), see:
+[`docs/guides/validator-conventions.md`](docs/guides/validator-conventions.md)
+
 **Key principles (always apply):**
 - Pattern matching for null checks (`is null` / `is not null`, never `== null`)
 - **Never** use `?? throw` — use traditional `if` guard clauses for null-then-throw patterns
@@ -247,6 +250,7 @@ DTOs, service layer, DI rules, API responses, formatting, and more), see:
 - "Find" prefix for list/collection retrieval (not "List")
 - Staff handlers MUST use `*ForStaff*` service method variants (e.g., `GetTenantByIdForStaffAsync`) — base methods filter suspended entities
 - For cursor/keyset pagination, see [`docs/guides/cursor-keyset-pagination-guide.md`](docs/guides/cursor-keyset-pagination-guide.md)
+- **Validators**: use `JsonElementRules.*` extension methods (never inline validation chains); inherit `PaginatedQueryValidator<T>`/`CursorPaginatedQueryValidator<T>` for pagination; inherit `EncryptedIdTokenQueryValidator<T>` for encrypted-ID + token queries
 
 ## Test Conventions
 

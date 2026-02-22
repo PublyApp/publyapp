@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Modules.Auth.Handlers;
 
 public class GetVerificationLinkQuery {
+	[FromQuery]
 	public string UserId { get; set; } = string.Empty;
 
 	public Guid GetUserId() {

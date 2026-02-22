@@ -1,6 +1,7 @@
 using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.Profiles.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
