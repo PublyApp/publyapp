@@ -222,11 +222,11 @@ db-remove:
 
 test-api:
 	@echo "Running API integration tests..."
-	cd $(API_DIR) && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=normal"
+	cd $(API_DIR) && dotnet test Tests/MainApi.Tests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=normal"
 
 test-api-debug:
 	@echo "Running API integration tests (verbose diagnostics)..."
-	cd $(API_DIR) && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=detailed" --environment TEST_VERBOSE_LOGS=1 --diag Tests/bin/Test/test-api-debug.log
+	cd $(API_DIR) && dotnet test Tests/MainApi.Tests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=detailed" --environment TEST_VERBOSE_LOGS=1 --diag Tests/bin/Test/test-api-debug.log
 
 # =============================================================================
 # DOCKER OPERATIONS

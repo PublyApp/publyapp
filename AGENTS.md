@@ -74,10 +74,10 @@ make test-api          # Run API integration tests (requires Docker)
 
 ```bash
 # Run a specific test class
-cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --filter "FullyQualifiedName~PasswordLoginSpec"
+cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test --filter "FullyQualifiedName~PasswordLoginSpec"
 
 # Run a specific test method
-cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --filter "ItShouldReturnSessionTokenWithValidCredentials"
+cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test --filter "ItShouldReturnSessionTokenWithValidCredentials"
 
 # Frontend tests (when implemented)
 cd apps/front && pnpm test

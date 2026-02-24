@@ -54,7 +54,7 @@ make test-api
 This runs:
 
 ```bash
-cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test
+cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test
 ```
 
 ### First Run
@@ -78,19 +78,19 @@ Passed!  - Failed:     0, Passed:     7, Skipped:     0, Total:     7
 ### Verbose Output
 
 ```bash
-cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test -v normal
+cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test -v normal
 ```
 
 ### Running a Single Test Class
 
 ```bash
-cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --filter "FullyQualifiedName~PasswordLoginSpec"
+cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test --filter "FullyQualifiedName~PasswordLoginSpec"
 ```
 
 ### Running a Single Test Method
 
 ```bash
-cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --filter "ItShouldReturnSessionTokenWithValidCredentials"
+cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test --filter "ItShouldReturnSessionTokenWithValidCredentials"
 ```
 
 ---
@@ -369,7 +369,7 @@ Check that `SeedConstants.cs` matches the actual seeded data. Both seeders and `
 
 ### No autocompletion for `[Fact]`, `.Should()`, `FluentAssertions`, etc.
 
-This is expected when editing `*.Spec.cs` files. The test files live physically under `apps/api/Src/` (colocated with handlers), but they are **compiled by the test project** (`Tests/MainApi.IntegrationTests.csproj`), not the main API project. The main project explicitly excludes them:
+This is expected when editing `*.Spec.cs` files. The test files live physically under `apps/api/Src/` (colocated with handlers), but they are **compiled by the test project** (`Tests/MainApi.Tests.csproj`), not the main API project. The main project explicitly excludes them:
 
 ```xml
 <!-- MainApi.csproj -->
@@ -381,7 +381,7 @@ Your editor sees the file under `MainApi.csproj`'s directory and resolves it aga
 
 **Workarounds by editor:**
 
-- **Visual Studio / Rider:** Navigate to test files through the `MainApi.IntegrationTests` project node in Solution Explorer (the files appear there via `Link`). Opening from the file system tree will use the wrong project context.
+- **Visual Studio / Rider:** Navigate to test files through the `MainApi.Tests` project node in Solution Explorer (the files appear there via `Link`). Opening from the file system tree will use the wrong project context.
 - **VS Code (C# Dev Kit):** Open the `.slnx` solution file so both projects are loaded. If the language server still picks the wrong project, check the status bar for a "Select Project" option.
 
 ---
@@ -420,7 +420,7 @@ apps/api/
 │       └── Health/
 │           └── Health.Spec.cs
 └── Tests/
-    ├── MainApi.IntegrationTests.csproj       ← Test project
+    ├── MainApi.Tests.csproj       ← Test project
     └── AssemblyInfo.cs                       ← Parallel config
 ```
 
@@ -433,5 +433,5 @@ apps/api/
 | Run all tests | `make test-api` |
 | Run specific class | `dotnet test ... --filter "FullyQualifiedName~ClassName"` |
 | Run specific method | `dotnet test ... --filter "MethodName"` |
-| Build test project only | `cd apps/api && dotnet build Tests/MainApi.IntegrationTests.csproj -c Test` |
+| Build test project only | `cd apps/api && dotnet build Tests/MainApi.Tests.csproj -c Test` |
 | Pull Postgres image | `docker pull postgres:18-alpine` |
