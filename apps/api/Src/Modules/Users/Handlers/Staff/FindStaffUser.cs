@@ -26,7 +26,7 @@ public class FindStaffUsersResult {
 
 public class FindStaffUsersQuery : PaginatedQuery { }
 
-public class FindStaffUsersQueryValidator : PaginatedQueryValidator<FindStaffUsersQuery> { }
+public class FindStaffUsersQueryValidator : OffsetPaginatedQueryValidator<FindStaffUsersQuery> { }
 
 public class FindStaffUsers {
 	public static async Task<

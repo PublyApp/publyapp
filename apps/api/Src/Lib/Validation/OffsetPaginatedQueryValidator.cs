@@ -2,9 +2,9 @@ using FluentValidation;
 
 namespace MainApi.Src.Lib.Validation;
 
-public class PaginatedQueryValidator<T>
+public class OffsetPaginatedQueryValidator<T>
 	: AbstractValidator<T> where T : PaginatedQuery {
-	public PaginatedQueryValidator() {
+	public OffsetPaginatedQueryValidator() {
 		RuleFor(x => x.Page)
 			.Must(PaginationPredicates
 				.BeValidNullableNumber)

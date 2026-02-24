@@ -21,7 +21,7 @@ public class FindTenantProfilesAsStaffResult {
 
 public class FindTenantProfilesAsStaffQuery : PaginatedQuery { }
 
-public class FindTenantProfilesAsStaffQueryValidator : PaginatedQueryValidator<FindTenantProfilesAsStaffQuery> { }
+public class FindTenantProfilesAsStaffQueryValidator : OffsetPaginatedQueryValidator<FindTenantProfilesAsStaffQuery> { }
 
 public class FindTenantProfilesAsStaff {
 	public static async Task<
