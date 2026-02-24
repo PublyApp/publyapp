@@ -1,5 +1,6 @@
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.Users.Entities;
 using MainApi.Src.Modules.Users.Services;
 
@@ -25,7 +26,7 @@ public class FindStaffUsersResult {
 
 public class FindStaffUsersQuery : PaginatedQuery { }
 
-public class FindStaffUsersQueryValidator : PaginatedQueryValidator<FindStaffUsersQuery> { }
+public class FindStaffUsersQueryValidator : OffsetPaginatedQueryValidator<FindStaffUsersQuery> { }
 
 public class FindStaffUsers {
 	public static async Task<

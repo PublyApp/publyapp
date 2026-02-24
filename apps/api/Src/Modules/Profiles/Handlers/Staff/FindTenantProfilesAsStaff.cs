@@ -1,6 +1,7 @@
 using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.Profiles.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -20,7 +21,7 @@ public class FindTenantProfilesAsStaffResult {
 
 public class FindTenantProfilesAsStaffQuery : PaginatedQuery { }
 
-public class FindTenantProfilesAsStaffQueryValidator : PaginatedQueryValidator<FindTenantProfilesAsStaffQuery> { }
+public class FindTenantProfilesAsStaffQueryValidator : OffsetPaginatedQueryValidator<FindTenantProfilesAsStaffQuery> { }
 
 public class FindTenantProfilesAsStaff {
 	public static async Task<

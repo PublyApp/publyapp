@@ -1,3 +1,5 @@
+using FluentValidation;
+
 using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
@@ -13,10 +15,25 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Modules.Auth.Handlers;
 
 public class GetTenantAuthDataQuery {
+	[FromQuery]
 	public string TenantId { get; set; } = string.Empty;
 
 	public Guid GetTenantId() {
-		return Guid.TryParse(TenantId, out var tenantId) ? tenantId : Guid.Empty;
+		return Guid.TryParse(
+			TenantId, out var tenantId
+		)
+			? tenantId
+			: Guid.Empty;
+	}
+}
+
+public class GetTenantAuthDataQueryValidator
+	: AbstractValidator<GetTenantAuthDataQuery> {
+	public GetTenantAuthDataQueryValidator() {
+		// TenantId validation is handled in the handler at line ~138-144.
+		// We allow empty string here so handler can return security-appropriate 403
+		// instead of 422 (which would leak whether tenant ID format is valid).
+		// This preserves the security pattern: don't tell clients which tenant IDs exist.
 	}
 }
 
