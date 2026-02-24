@@ -1,5 +1,6 @@
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.Tenants.Entities;
 using MainApi.Src.Modules.Tenants.Services;
 
@@ -25,7 +26,7 @@ public class TenantAsStaffResult {
 
 public class FindTenantsAsStaffQuery : PaginatedQuery { }
 
-public class FindTenantsAsStaffQueryValidator : PaginatedQueryValidator<FindTenantsAsStaffQuery> { }
+public class FindTenantsAsStaffQueryValidator : OffsetPaginatedQueryValidator<FindTenantsAsStaffQuery> { }
 
 public class FindTenantsAsStaff {
 	public static async Task<Results<Ok<TenantAsStaffResult>, AppBadRequestHttpResult>>
