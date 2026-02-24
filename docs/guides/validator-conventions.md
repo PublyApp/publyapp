@@ -11,7 +11,7 @@ All reusable validation code lives in `apps/api/Src/Lib/Validation/`. This direc
 | `JsonElementRules.cs` | Extension methods for validating `JsonElement` body DTO fields |
 | `PaginationPredicates.cs` | Shared predicate methods used by pagination validators |
 | `QueryPredicates.cs` | Shared predicate + parse methods for query parameter validation (GUIDs, dates, date ranges) |
-| `PaginatedQueryValidator.cs` | Generic validator for offset-paginated query DTOs |
+| `OffsetPaginatedQueryValidator.cs` | Generic validator for offset-paginated query DTOs |
 | `CursorPaginatedQueryValidator.cs` | Generic validator for cursor-paginated query DTOs |
 | `EncryptedIdTokenQuery.cs` | Base class + generic validator for encrypted-ID + token query pairs |
 
@@ -100,7 +100,7 @@ Follow the same naming and signature conventions as `JsonElementRules` — the o
 // ✅ CORRECT - Inherit base pagination validator
 public class FindUsersQuery : PaginatedQuery { }
 public class FindUsersQueryValidator
-    : PaginatedQueryValidator<FindUsersQuery> { }
+    : OffsetPaginatedQueryValidator<FindUsersQuery> { }
 
 // ✅ CORRECT - Cursor pagination with extra rules
 public class FindAuditLogsQuery : CursorPaginatedQuery {
@@ -123,7 +123,7 @@ public class FindUsersQueryValidator
     public FindUsersQueryValidator() {
         RuleFor(x => x.Page).Must(...);
         RuleFor(x => x.Limit).Must(...);
-        // Duplicates PaginatedQueryValidator logic
+        // Duplicates OffsetPaginatedQueryValidator logic
     }
 }
 ```
