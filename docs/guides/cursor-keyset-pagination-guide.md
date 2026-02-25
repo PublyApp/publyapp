@@ -613,6 +613,20 @@ return results;  // Correctly returns 10 records
 
 ## Best Practices
 
+### 0. Keep `sortId` Stable Across Frontend and Backend
+
+Cursor pagination requires deterministic ordering. In this codebase, list pages use **snake_case** `sortId` values (e.g., `created_at`, `updated_at`, `name`).
+
+**Frontend note (Material React Table):** MRT emits sorting IDs from column `id`. If the backend expects snake_case sort IDs, the table columns must explicitly set snake_case IDs:
+
+```ts
+columnHelper.accessor('createdAt', { id: 'created_at', header: 'Created at' });
+columnHelper.accessor('updatedAt', { id: 'updated_at', header: 'Updated at' });
+columnHelper.accessor('name', { id: 'name', header: 'Name' });
+```
+
+If a visible column is not supported by backend sorting, set `enableSorting: false` to prevent sending invalid `sortId` values.
+
 ### 1. Always Use Discriminated Unions for Results
 
 Instead of throwing exceptions or returning null, use discriminated unions to represent all possible outcomes:
