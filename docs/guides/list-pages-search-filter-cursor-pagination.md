@@ -103,23 +103,31 @@ Use comma-separated lowercase tokens:
 Rules:
 - Filter state lives in URL via nuqs.
 - Any change to `q` or `status` must call `resetCursorPagination?.()` **before** updating URL state.
-- Debounce search input (300ms default) and always cancel on unmount.
+- Debounce search URL updates (300ms default) using `useDebounce` from `minimal-shared/hooks`.
 
 Example:
 
 ```ts
+import { useDebounce } from 'minimal-shared/hooks';
+
 const [filters, setFilters] = useQueryStates({
   q: parseAsString.withDefault(''),
   status: parseAsString.withDefault(''),
 });
 
-const debouncedSearch = useMemo(
-  () => _.debounce((value: string) => {
-    resetCursorPagination?.();
-    setFilters({ q: value, status: filters.status });
-  }, 300),
-  [resetCursorPagination, setFilters, filters.status],
-);
+const [searchDraft, setSearchDraft] = useState(filters.q);
+const debouncedQ = useDebounce(searchDraft, 300);
+
+useEffect(() => {
+  if (debouncedQ === filters.q) return;
+  resetCursorPagination?.();
+  setFilters({ q: debouncedQ, status: filters.status });
+}, [debouncedQ, filters.q, filters.status, resetCursorPagination, setFilters]);
+
+const handleStatusChange = (statusCsv: string) => {
+  resetCursorPagination?.();
+  setFilters({ q: searchDraft, status: statusCsv });
+};
 ```
 
 ## 7) Bulk Actions (List Tables)
@@ -142,4 +150,3 @@ Backend:
 Frontend:
 - Sorting sends correct snake_case `sortId`.
 - Filter change resets cursor pagination.
-

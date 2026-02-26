@@ -14,7 +14,7 @@
 
 | Decision | Value |
 |----------|-------|
-| SortId format | snake_case (`created_at`, `updated_at`, `name`) sent from frontend |
+| SortId format | snake_case (`created_at`, `updated_at`, `name`, `status`) sent from frontend |
 | URL keys | `sort_id`, `sort_order`, `size` (via nuqs) |
 | API params | `sortId`, `sortOrder`, `limit`, `cursor` |
 | Cursor parsing | `Guid cursorGuid = Guid.Empty`, pass non-nullable `Guid` to service |
@@ -35,7 +35,7 @@ GET /staff/tenants?cursor={guid?}&limit={n}&sortId={field}&sortOrder={asc|desc}&
 |-------|-------------|-------|
 | `cursor` | `cursor` | Parsed as Guid, empty = first page |
 | `limit` | `limit` | Page size |
-| `sortId` | `sortId` | snake_case: `created_at`, `updated_at`, `name` |
+| `sortId` | `sortId` | snake_case: `created_at`, `updated_at`, `name`, `status` |
 | `sortOrder` | `sortOrder` | `asc` or `desc` |
 | `q` | `[FromQuery(Name="q")] string? Search` | Search term |
 | `status` | `status` | Comma-separated |
@@ -59,8 +59,9 @@ public class FindTenantsAsStaffResponse : CursorPaginatedResult<TenantAsStaffLis
 - `created_at` (default)
 - `updated_at`
 - `name`
+- `status`
 
-Invalid sortId → 400 BadRequest (lists: created_at, updated_at, name)
+Invalid sortId → 400 BadRequest (lists: created_at, updated_at, name, status)
 
 ---
 
@@ -489,7 +490,7 @@ public static async Task<Results<Ok<FindTenantsAsStaffResponse>, AppBadRequestHt
 
     if (result is FindTenantsAsStaffServiceResult.InvalidSortId sortIdError) {
         return TypedProblems.BadRequest(
-            $"Invalid sortId: {sortIdError.SortId}. Allowed: created_at, updated_at, name",
+            $"Invalid sortId: {sortIdError.SortId}. Allowed: created_at, updated_at, name, status",
             ResponseKeys.BadRequest
         );
     }

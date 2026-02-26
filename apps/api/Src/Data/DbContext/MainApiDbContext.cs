@@ -260,6 +260,8 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		});
 
 		// Partial indexes to favor active rows without enforcing global filters
+		modelBuilder.HasPostgresExtension("pg_trgm");
+
 		modelBuilder.Entity<User>()
 			.HasIndex(u => u.Email)
 			.HasDatabaseName("ix_users_email_active")
@@ -268,6 +270,46 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		modelBuilder.Entity<Tenant>()
 			.HasIndex(t => t.Code)
 			.HasDatabaseName("ix_tenants_code_active")
+			.HasFilter("\"is_deleted\" = false");
+
+		// Keyset pagination indexes for staff tenants
+		// Supports efficient sorting by Name with Id as tie-breaker
+		modelBuilder.Entity<Tenant>()
+			.HasIndex(t => new { t.Name, t.Id })
+			.HasDatabaseName("ix_tenants_staff_name_id")
+			.HasFilter("\"is_deleted\" = false");
+
+		// Supports efficient sorting by CreatedAt with Id as tie-breaker
+		modelBuilder.Entity<Tenant>()
+			.HasIndex(t => new { t.CreatedAt, t.Id })
+			.HasDatabaseName("ix_tenants_staff_created_at_id")
+			.HasFilter("\"is_deleted\" = false");
+
+		// Supports efficient sorting by UpdatedAt with Id as tie-breaker
+		modelBuilder.Entity<Tenant>()
+			.HasIndex(t => new { t.UpdatedAt, t.Id })
+			.HasDatabaseName("ix_tenants_staff_updated_at_id")
+			.HasFilter("\"is_deleted\" = false");
+
+		// Supports efficient sorting by Status with Id as tie-breaker
+		modelBuilder.Entity<Tenant>()
+			.HasIndex(t => new { t.Status, t.Id })
+			.HasDatabaseName("ix_tenants_staff_status_id")
+			.HasFilter("\"is_deleted\" = false");
+
+		// Trigram indexes to accelerate ILIKE-based search on Name/Code
+		modelBuilder.Entity<Tenant>()
+			.HasIndex(t => t.Name)
+			.HasDatabaseName("ix_tenants_name_trgm")
+			.HasMethod("gin")
+			.HasOperators("gin_trgm_ops")
+			.HasFilter("\"is_deleted\" = false");
+
+		modelBuilder.Entity<Tenant>()
+			.HasIndex(t => t.Code)
+			.HasDatabaseName("ix_tenants_code_trgm")
+			.HasMethod("gin")
+			.HasOperators("gin_trgm_ops")
 			.HasFilter("\"is_deleted\" = false");
 
 		modelBuilder.Entity<UserAccount>()

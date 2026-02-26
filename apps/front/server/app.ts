@@ -55,7 +55,7 @@ app.use((req, res, next) => {
 });
 
 const reactRouterHandler = createRequestHandler({
-	build: () => {
+	build: async () => {
 		return import('virtual:react-router/server-build');
 	},
 	getLoadContext: (req, _res) => {
