@@ -391,25 +391,22 @@ private class SortFieldHandler {
 private sealed record TenantWithUsersCountRow(Tenant Tenant, int UsersCount);
 ```
 
-**Step 6: Add pg_trgm migration (raw SQL, partial indexes)**
+**Step 6: Add pg_trgm + trigram index for Name (Fluent API, partial index)**
 
-> **Justification:** pg_trgm provides efficient "contains" substring search for the `q` filter. This is Postgres-specific functionality (not supported by EF/Fluent), requiring raw SQL. Partial indexes (`WHERE is_deleted = false`) keep the index small and performant. Using `suppressTransaction: true` is required because `CREATE INDEX CONCURRENTLY` cannot run inside a transaction.
+> **Justification:** We want fast substring search for tenant **name** via `q`. For **code**, we intentionally avoid substring search and only support prefix match (`StartsWith`) which makes a trigram index unnecessary (and avoids conflicting with the existing unique b-tree index on `code`).
+
+Add to `apps/api/Src/Data/DbContext/MainApiDbContext.cs`:
 
 ```csharp
-// In migration file
-migrationBuilder.Sql("CREATE EXTENSION IF NOT EXISTS pg_trgm;", suppressTransaction: true);
-migrationBuilder.Sql("CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_tenants_name_trgm ON tenants USING gin (name gin_trgm_ops) WHERE is_deleted = false;", suppressTransaction: true);
-migrationBuilder.Sql("CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_tenants_code_trgm ON tenants USING gin (code gin_trgm_ops) WHERE is_deleted = false;", suppressTransaction: true);
-```
+modelBuilder.HasPostgresExtension("pg_trgm");
 
-> **Down migration note:** If your project expects reversible migrations, drop the concurrent indexes with `suppressTransaction: true` as well. Consider **not** dropping the `pg_trgm` extension in `Down()` if it may be shared by other features.
->
-> ```csharp
-> // In Down()
-> migrationBuilder.Sql("DROP INDEX CONCURRENTLY IF EXISTS idx_tenants_name_trgm;", suppressTransaction: true);
-> migrationBuilder.Sql("DROP INDEX CONCURRENTLY IF EXISTS idx_tenants_code_trgm;", suppressTransaction: true);
-> // Intentionally omit: DROP EXTENSION pg_trgm;
-> ```
+modelBuilder.Entity<Tenant>()
+    .HasIndex(t => t.Name)
+    .HasDatabaseName("ix_tenants_name_trgm")
+    .HasMethod("gin")
+    .HasOperators("gin_trgm_ops")
+    .HasFilter("\"is_deleted\" = false");
+```
 
 **Step 7: Add keyset b-tree indexes via Fluent API**
 
@@ -429,6 +426,11 @@ modelBuilder.Entity<Tenant>()
 modelBuilder.Entity<Tenant>()
     .HasIndex(t => new { t.Name, t.Id })
     .HasDatabaseName("ix_tenants_staff_name_id")
+    .HasFilter("\"is_deleted\" = false");
+
+modelBuilder.Entity<Tenant>()
+    .HasIndex(t => new { t.Status, t.Id })
+    .HasDatabaseName("ix_tenants_staff_status_id")
     .HasFilter("\"is_deleted\" = false");
 ```
 
