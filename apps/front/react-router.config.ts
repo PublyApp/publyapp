@@ -1,5 +1,7 @@
 import type { Config } from '@react-router/dev/config';
 
+import { PRE_RENDER_PATHS } from '@org/shared/lib/constants';
+
 export default {
 	// override the default app directory
 	appDirectory: 'src',
@@ -8,5 +10,5 @@ export default {
 	ssr: true,
 
 	// specific paths
-	prerender: ['/', '/login'],
+	prerender: PRE_RENDER_PATHS as unknown as string[],
 } satisfies Config;
