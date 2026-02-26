@@ -15,6 +15,17 @@ public class TenantAsStaffItem {
 	public int UsersCount { get; set; }
 }
 
+// Flattened API-safe DTO (no EF entities)
+public class TenantAsStaffListItem {
+	public required Guid Id { get; init; }
+	public required string Name { get; init; }
+	public string? LogoUrl { get; init; }
+	public required int UsersCount { get; init; }
+	public required int MaxUsers { get; init; }
+	public required string Status { get; init; }
+	public required bool IsSuspended { get; init; }
+}
+
 public record CreateTenantWithInitialUsersResult {
 	public required Tenant Tenant { get; init; }
 	public required List<(string Email, string Token, AccountLevel Level)> InvitationTokens { get; init; }
@@ -39,6 +50,22 @@ public record UpdateTenantAsStaffArgs(
 	int? MaxUsers
 );
 
+public record FindTenantsAsStaffFilters(
+	string? Search,
+	IReadOnlySet<TenantStatus>? Status
+);
+
+public abstract record FindTenantsAsStaffServiceResult {
+	public sealed record Success(CursorPaginatedResult<TenantAsStaffListItem> Data)
+		: FindTenantsAsStaffServiceResult;
+
+	public sealed record CursorNotFound(string Cursor)
+		: FindTenantsAsStaffServiceResult;
+
+	public sealed record InvalidSortId(string SortId)
+		: FindTenantsAsStaffServiceResult;
+}
+
 public interface ITenantAsStaffService {
 	Task<Tenant> CreateTenant(Tenant tenant, CancellationToken cancellationToken = default);
 	Task<Tenant?> GetTenantByIdAsync(Guid tenantId, CancellationToken cancellationToken = default);
@@ -47,6 +74,14 @@ public interface ITenantAsStaffService {
 		int? limit = null,
 		string? sortId = null,
 		SortOrder? sortOrder = null,
+		CancellationToken cancellationToken = default
+	);
+	Task<FindTenantsAsStaffServiceResult> FindTenantsAsStaffAsync(
+		Guid cursor,
+		int? limit = null,
+		string? sortId = null,
+		SortOrder? sortOrder = null,
+		FindTenantsAsStaffFilters? filters = null,
 		CancellationToken cancellationToken = default
 	);
 	Task<int> CountTenantsAsync(CancellationToken cancellationToken = default);
@@ -185,6 +220,205 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			select tenant;
 
 		return await query.CountAsync(cancellationToken);
+	}
+
+	public async Task<FindTenantsAsStaffServiceResult> FindTenantsAsStaffAsync(
+		Guid cursor,
+		int? limit = null,
+		string? sortId = null,
+		SortOrder? sortOrder = null,
+		FindTenantsAsStaffFilters? filters = null,
+		CancellationToken cancellationToken = default
+	) {
+		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
+		var effectiveSortId = (sortId ?? "created_at").ToLowerInvariant();
+		var isAsc = effectiveSortOrder == SortOrder.Asc;
+
+		// SortFieldHandler dictionary - works on Tenant entity only
+		var sortFieldHandlers = new Dictionary<string, TenantSortFieldHandler> {
+			["created_at"] = new TenantSortFieldHandler(
+				getCursorValue: async (guid) => {
+					var tenant = await _dbContext.Tenant
+						.Where(t => t.Id == guid && t.IsDeleted != true)
+						.Select(t => new { t.CreatedAt, t.Id })
+						.FirstOrDefaultAsync(cancellationToken);
+					return tenant is not null ? (tenant.CreatedAt, tenant.Id) : null;
+				},
+				applyFilter: (q, cursorValue, isAsc) => {
+					if (cursorValue is null) return q;
+					var (cursorCreatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
+					return isAsc
+						? q.Where(t => t.CreatedAt > cursorCreatedAt || (t.CreatedAt == cursorCreatedAt && t.Id > cursorId))
+						: q.Where(t => t.CreatedAt < cursorCreatedAt || (t.CreatedAt == cursorCreatedAt && t.Id < cursorId));
+				},
+				applyOrdering: (q, isAsc) => isAsc
+					? q.OrderBy(t => t.CreatedAt).ThenBy(t => t.Id)
+					: q.OrderByDescending(t => t.CreatedAt).ThenByDescending(t => t.Id)
+			),
+			["updated_at"] = new TenantSortFieldHandler(
+				getCursorValue: async (guid) => {
+					var tenant = await _dbContext.Tenant
+						.Where(t => t.Id == guid && t.IsDeleted != true)
+						.Select(t => new { t.UpdatedAt, t.Id })
+						.FirstOrDefaultAsync(cancellationToken);
+					return tenant is not null ? (tenant.UpdatedAt, tenant.Id) : null;
+				},
+				applyFilter: (q, cursorValue, isAsc) => {
+					if (cursorValue is null) return q;
+					var (cursorUpdatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
+					return isAsc
+						? q.Where(t => t.UpdatedAt > cursorUpdatedAt || (t.UpdatedAt == cursorUpdatedAt && t.Id > cursorId))
+						: q.Where(t => t.UpdatedAt < cursorUpdatedAt || (t.UpdatedAt == cursorUpdatedAt && t.Id < cursorId));
+				},
+				applyOrdering: (q, isAsc) => isAsc
+					? q.OrderBy(t => t.UpdatedAt).ThenBy(t => t.Id)
+					: q.OrderByDescending(t => t.UpdatedAt).ThenByDescending(t => t.Id)
+			),
+			["name"] = new TenantSortFieldHandler(
+				getCursorValue: async (guid) => {
+					var tenant = await _dbContext.Tenant
+						.Where(t => t.Id == guid && t.IsDeleted != true)
+						.Select(t => new { t.Name, t.Id })
+						.FirstOrDefaultAsync(cancellationToken);
+					return tenant is not null ? (tenant.Name, tenant.Id) : null;
+				},
+				applyFilter: (q, cursorValue, isAsc) => {
+					if (cursorValue is null) return q;
+					var (cursorName, cursorId) = ((string, Guid?))cursorValue;
+					return isAsc
+						? q.Where(t => t.Name.CompareTo(cursorName) > 0 || (t.Name == cursorName && t.Id > cursorId))
+						: q.Where(t => t.Name.CompareTo(cursorName) < 0 || (t.Name == cursorName && t.Id < cursorId));
+				},
+				applyOrdering: (q, isAsc) => isAsc
+					? q.OrderBy(t => t.Name).ThenBy(t => t.Id)
+					: q.OrderByDescending(t => t.Name).ThenByDescending(t => t.Id)
+			),
+			["status"] = new TenantSortFieldHandler(
+				getCursorValue: async (guid) => {
+					var tenant = await _dbContext.Tenant
+						.Where(t => t.Id == guid && t.IsDeleted != true)
+						.Select(t => new { t.Status, t.Id })
+						.FirstOrDefaultAsync(cancellationToken);
+					return tenant is not null ? (tenant.Status, tenant.Id) : null;
+				},
+				applyFilter: (q, cursorValue, isAsc) => {
+					if (cursorValue is null) return q;
+					var (cursorStatus, cursorId) = ((TenantStatus, Guid?))cursorValue;
+					return isAsc
+						? q.Where(t => t.Status > cursorStatus || (t.Status == cursorStatus && t.Id > cursorId))
+						: q.Where(t => t.Status < cursorStatus || (t.Status == cursorStatus && t.Id < cursorId));
+				},
+				applyOrdering: (q, isAsc) => isAsc
+					? q.OrderBy(t => t.Status).ThenBy(t => t.Id)
+					: q.OrderByDescending(t => t.Status).ThenByDescending(t => t.Id)
+			),
+		};
+
+		// Validate sortId via TryGetValue
+		if (!sortFieldHandlers.TryGetValue(effectiveSortId, out TenantSortFieldHandler? handler)) {
+			return new FindTenantsAsStaffServiceResult.InvalidSortId(effectiveSortId);
+		}
+
+		// Build base query on Tenant entity only (no joins for pagination)
+		IQueryable<Tenant> baseQuery = _dbContext.Tenant.Where(t => t.IsDeleted != true && t.Id.HasValue);
+
+		// Apply search filter
+		if (filters?.Search is { } search) {
+			var pattern = $"%{search}%";
+			baseQuery = baseQuery.Where(t =>
+				EF.Functions.ILike(t.Name, pattern) ||
+				EF.Functions.ILike(t.Code, pattern)
+			);
+		}
+
+		// Apply status filter
+		if (filters?.Status is { } statuses && statuses.Count > 0) {
+			baseQuery = baseQuery.Where(t => statuses.Contains(t.Status));
+		}
+
+		// Apply cursor filter
+		if (cursor != Guid.Empty) {
+			var cursorValue = await handler.GetCursorValue(cursor);
+			if (cursorValue is null) {
+				return new FindTenantsAsStaffServiceResult.CursorNotFound(cursor.ToString());
+			}
+			baseQuery = handler.ApplyFilter(baseQuery, cursorValue, isAsc);
+		}
+
+		// Apply ordering
+		var orderedQuery = handler.ApplyOrdering(baseQuery, isAsc);
+
+		// Fetch limit + 1 to detect more pages
+		var tenants = await orderedQuery
+			.Take(effectiveLimit + 1)
+			.ToListAsync(cancellationToken);
+
+		// Determine pagination state
+		string? nextCursor = null;
+		if (tenants.Count > effectiveLimit) {
+			tenants.RemoveAt(tenants.Count - 1);
+			nextCursor = tenants.Last().GetRequiredId().ToString();
+		}
+
+		var tenantIds = tenants.Select(t => t.GetRequiredId()).ToList();
+
+		// Fetch users count for all tenant IDs
+		var usersCounts = await (
+			from ua in _dbContext.UserAccount
+			where ua.Scope == AccountScope.Tenant
+				&& ua.IsDeleted != true
+				&& ua.TenantId != null
+				&& tenantIds.Contains(ua.TenantId.Value)
+			group ua by ua.TenantId into g
+			select new { TenantId = g.Key, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+
+		var usersCountDict = new Dictionary<Guid, int>();
+		foreach (var row in usersCounts) {
+			if (row.TenantId is null) {
+				continue;
+			}
+			usersCountDict[row.TenantId.Value] = row.Count;
+		}
+
+		// Map to flattened API DTO
+		var items = tenants.Select(t => {
+			var tenantId = t.GetRequiredId();
+			return new TenantAsStaffListItem {
+				Id = tenantId,
+				Name = t.Name,
+				LogoUrl = t.LogoUrl,
+				UsersCount = usersCountDict.GetValueOrDefault(tenantId, 0),
+				MaxUsers = t.MaxUsers,
+				Status = Tenant.GetStatusDescription(t.Status),
+				IsSuspended = t.IsSuspended
+			};
+		}).ToList();
+
+		return new FindTenantsAsStaffServiceResult.Success(
+			new CursorPaginatedResult<TenantAsStaffListItem> {
+				Data = items,
+				NextCursor = nextCursor
+			}
+		);
+	}
+
+	// SortFieldHandler for Tenant entity only
+	private class TenantSortFieldHandler {
+		public Func<Guid, Task<object?>> GetCursorValue { get; }
+		public Func<IQueryable<Tenant>, object?, bool, IQueryable<Tenant>> ApplyFilter { get; }
+		public Func<IQueryable<Tenant>, bool, IOrderedQueryable<Tenant>> ApplyOrdering { get; }
+
+		public TenantSortFieldHandler(
+			Func<Guid, Task<object?>> getCursorValue,
+			Func<IQueryable<Tenant>, object?, bool, IQueryable<Tenant>> applyFilter,
+			Func<IQueryable<Tenant>, bool, IOrderedQueryable<Tenant>> applyOrdering
+		) {
+			GetCursorValue = getCursorValue;
+			ApplyFilter = applyFilter;
+			ApplyOrdering = applyOrdering;
+		}
 	}
 
 	public async Task<CreateTenantWithInitialUsersResult> CreateTenantWithInitialUsersAsync(

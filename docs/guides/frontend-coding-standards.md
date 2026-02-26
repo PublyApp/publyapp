@@ -530,7 +530,7 @@ When building list pages with search/filter + cursor pagination:
 - Use `useTableState({ paginationMode: 'cursor' })` for cursor pagination.
 - **Always** call `resetCursorPagination?.()` before updating URL filters (filters invalidate cursor history).
 - For Material React Table sorting, explicitly set snake_case column `id`s to match backend `sortId` allowlists.
-- Debounce free-text search updates (300ms default) and cancel on unmount.
+- Debounce free-text search URL updates (300ms default) using `useDebounce` from `minimal-shared/hooks`.
 
 Reference: `docs/guides/list-pages-search-filter-cursor-pagination.md`
 
