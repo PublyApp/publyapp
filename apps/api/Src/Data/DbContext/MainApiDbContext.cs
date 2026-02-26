@@ -298,16 +298,11 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.HasFilter("\"is_deleted\" = false");
 
 		// Trigram indexes to accelerate ILIKE-based search on Name/Code
+		// Note: we intentionally only index Name (substring match). Code uses prefix match and
+		// keeps its unique btree index (avoid multiple EF indexes on the same column set).
 		modelBuilder.Entity<Tenant>()
 			.HasIndex(t => t.Name)
 			.HasDatabaseName("ix_tenants_name_trgm")
-			.HasMethod("gin")
-			.HasOperators("gin_trgm_ops")
-			.HasFilter("\"is_deleted\" = false");
-
-		modelBuilder.Entity<Tenant>()
-			.HasIndex(t => t.Code)
-			.HasDatabaseName("ix_tenants_code_trgm")
 			.HasMethod("gin")
 			.HasOperators("gin_trgm_ops")
 			.HasFilter("\"is_deleted\" = false");

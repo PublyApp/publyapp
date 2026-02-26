@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MainApi.Migrations
 {
     [DbContext(typeof(MainApiDbContext))]
-    [Migration("20260204033830_Init")]
+    [Migration("20260226112316_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -23,6 +23,7 @@ namespace MainApi.Migrations
                 .HasAnnotation("ProductVersion", "10.0.1")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("MainApi.Src.Modules.AuditLogs.Entities.AuditLog", b =>
@@ -596,6 +597,29 @@ namespace MainApi.Migrations
                     b.HasIndex("Code")
                         .IsUnique()
                         .HasDatabaseName("ix_tenants_code_active")
+                        .HasFilter("\"is_deleted\" = false");
+
+                    b.HasIndex("Name")
+                        .HasDatabaseName("ix_tenants_name_trgm")
+                        .HasFilter("\"is_deleted\" = false");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Name"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Name"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("CreatedAt", "Id")
+                        .HasDatabaseName("ix_tenants_staff_created_at_id")
+                        .HasFilter("\"is_deleted\" = false");
+
+                    b.HasIndex("Name", "Id")
+                        .HasDatabaseName("ix_tenants_staff_name_id")
+                        .HasFilter("\"is_deleted\" = false");
+
+                    b.HasIndex("Status", "Id")
+                        .HasDatabaseName("ix_tenants_staff_status_id")
+                        .HasFilter("\"is_deleted\" = false");
+
+                    b.HasIndex("UpdatedAt", "Id")
+                        .HasDatabaseName("ix_tenants_staff_updated_at_id")
                         .HasFilter("\"is_deleted\" = false");
 
                     b.ToTable("tenants", t =>

@@ -593,11 +593,8 @@ namespace MainApi.Migrations
 
                     b.HasIndex("Code")
                         .IsUnique()
-                        .HasDatabaseName("ix_tenants_code_trgm")
+                        .HasDatabaseName("ix_tenants_code_active")
                         .HasFilter("\"is_deleted\" = false");
-
-                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Code"), "gin");
-                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Code"), new[] { "gin_trgm_ops" });
 
                     b.HasIndex("Name")
                         .HasDatabaseName("ix_tenants_name_trgm")
