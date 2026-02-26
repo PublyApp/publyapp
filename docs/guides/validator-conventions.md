@@ -280,6 +280,69 @@ private static bool BeValidNullableGuid(string? value) {
 }
 ```
 
+## Rule 8: CSV Enum List Filters (Multi-Select Query Params)
+
+For list pages, multi-select enum-like filters should be passed as a **comma-separated string** of **lowercase tokens** (e.g., `status=active,pending`).
+
+Conventions:
+- Empty/whitespace means “no filter”.
+- Validate the raw string (and every token) in the query validator.
+- Parse into a set (`IReadOnlySet<TEnum>`) in a query DTO getter.
+- Prefer lowercase tokens end-to-end for URL/API consistency.
+
+Example shape (handler-local):
+
+```csharp
+public class FindTenantsQuery : CursorPaginatedQuery {
+	[FromQuery] public string? Status { get; set; }
+
+	public IReadOnlySet<TenantStatus>? GetStatusesOrNull() {
+		if (string.IsNullOrWhiteSpace(Status)) {
+			return null;
+		}
+
+		var parts = Status.Split(',',
+			StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+		if (parts.Length == 0) {
+			return null;
+		}
+
+		var statuses = new HashSet<TenantStatus>();
+		foreach (var part in parts) {
+			var parsed = part.ToLowerInvariant() switch {
+				"active" => (TenantStatus?)TenantStatus.Active,
+				"pending" => (TenantStatus?)TenantStatus.Pending,
+				"suspended" => (TenantStatus?)TenantStatus.Suspended,
+				"archived" => (TenantStatus?)TenantStatus.Archived,
+				_ => null,
+			};
+
+			if (parsed is { } status) {
+				statuses.Add(status);
+			}
+		}
+
+		return statuses.Count > 0 ? statuses : null;
+	}
+}
+
+public class FindTenantsQueryValidator : CursorPaginatedQueryValidator<FindTenantsQuery> {
+	private static readonly string[] Allowed = ["active", "pending", "suspended", "archived"];
+
+	public FindTenantsQueryValidator() {
+		RuleFor(x => x.Status)
+			.Must(raw => {
+				if (string.IsNullOrEmpty(raw)) return true;
+				var parts = raw.Split(',',
+					StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+				return parts.All(p => Allowed.Contains(p.ToLowerInvariant()));
+			})
+			.WithMessage("Status must be comma-separated: active,pending,suspended,archived")
+			.When(x => !string.IsNullOrEmpty(x.Status));
+	}
+}
+```
+
 ## Namespace & Import Conventions
 
 - Shared validation classes live in `namespace MainApi.Src.Lib.Validation;`

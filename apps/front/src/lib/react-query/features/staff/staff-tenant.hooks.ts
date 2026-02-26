@@ -37,9 +37,11 @@ export const useGetTenant = createStaffQuery({
 });
 
 type FindTenantsParams = {
-	page?: number;
+	cursor?: string;
 	limit?: number;
-	sort?: { id: string; order: 'desc' | 'asc' };
+	sort?: { id: string; order: 'asc' | 'desc' };
+	q?: string;
+	status?: string; // csv: active,pending,suspended,archived
 };
 
 export const useFindTenants = createStaffQuery({
@@ -47,10 +49,12 @@ export const useFindTenants = createStaffQuery({
 	fetcher: async (client, params: FindTenantsParams) => {
 		const result = await client.staff.tenants.get({
 			queryParameters: {
-				page: params.page ? params.page.toString() : undefined,
+				cursor: params.cursor,
 				limit: params.limit ? params.limit.toString() : undefined,
 				sortId: params.sort?.id,
 				sortOrder: params.sort?.order,
+				q: params.q,
+				status: params.status,
 			},
 		});
 

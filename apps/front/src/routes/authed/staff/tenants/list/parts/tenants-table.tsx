@@ -2,8 +2,12 @@ import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
 import ListItemText from '@mui/material/ListItemText';
+import MenuItem from '@mui/material/MenuItem';
+import Select, { type SelectChangeEvent } from '@mui/material/Select';
+import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import { useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
@@ -13,8 +17,10 @@ import {
 	type MRT_ColumnDef,
 	type MRT_SortingState,
 } from 'material-react-table';
+import { useDebounce } from 'minimal-shared/hooks';
 import { nanoid } from 'nanoid';
-import { useMemo, useState } from 'react';
+import { parseAsString, useQueryStates } from 'nuqs';
+import { useEffect, useMemo, useState } from 'react';
 
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { Iconify } from '@/front/components/iconify/iconify';
@@ -22,6 +28,7 @@ import { Label } from '@/front/components/label/label';
 import type { LabelColor } from '@/front/components/label/types';
 import { RouterLink } from '@/front/components/router-link';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
+import { useTableQueryOptions } from '@/front/hooks/use-table-query-options';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
@@ -30,7 +37,7 @@ import {
 	useReactivateTenant,
 	useSuspendTenant,
 } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
-import type { TenantAsStaffItem } from '@/js-client/src/models';
+import type { TenantAsStaffListItem } from '@/js-client/src/models';
 import {
 	DEFAULT_PAGE_SIZE,
 	FRONT_PATH_NAMES,
@@ -46,9 +53,12 @@ export type TenantRowData = {
 	maxUsers: number;
 	status: string;
 	isSuspended: boolean;
+	createdAt?: Date;
+	updatedAt?: Date;
+	code?: string;
 };
 
-const TenantRowDataMapper = (tenant: TenantAsStaffItem): TenantRowData => {
+const TenantRowDataMapper = (tenant: TenantAsStaffListItem): TenantRowData => {
 	return {
 		id: tenant.id || nanoid(),
 		name: tenant.name || '-',
@@ -62,16 +72,87 @@ const TenantRowDataMapper = (tenant: TenantAsStaffItem): TenantRowData => {
 
 const columnHelper = createMRTColumnHelper<TenantRowData>();
 
+// Use snake_case sort IDs to match backend API
 const defaultSorting: MRT_SortingState[number] = {
 	desc: true,
-	id: 'createdAt',
+	id: 'created_at',
 };
 
 const TenantsTable = () => {
 	const { t } = useTranslate();
 
+	// Filter state with nuqs (URL-persisted)
+	const [filterStates, setFilterStates] = useQueryStates({
+		q: parseAsString.withDefault(''),
+		status: parseAsString.withDefault(''),
+	});
+
+	const [globalFilter, setGlobalFilter] = useState(filterStates.q);
+	const [statusFilter, setStatusFilter] = useState(filterStates.status);
+
+	// Use the custom table state hook for cursor pagination
+	const {
+		handlePaginationChange,
+		handleSortingChange,
+		apiVariables,
+		tableState,
+		setNextCursor,
+		hasNextPage,
+		hasPreviousPage,
+		resetCursorPagination,
+	} = useTableState({
+		defaultSorting,
+		defaultPageSize: DEFAULT_PAGE_SIZE,
+		paginationMode: 'cursor',
+	});
+
+	// Debounce URL updates (NOT UI typing).
+	const debouncedQ = useDebounce(globalFilter, 300);
+
+	useEffect(() => {
+		if (debouncedQ === filterStates.q) {
+			return;
+		}
+
+		resetCursorPagination?.();
+		setFilterStates({ q: debouncedQ, status: statusFilter });
+	}, [
+		debouncedQ,
+		filterStates.q,
+		resetCursorPagination,
+		setFilterStates,
+		statusFilter,
+	]);
+
+	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const value = e.target.value;
+		setGlobalFilter(value);
+	};
+
+	// Status filter handler - reset cursor before updating
+	const handleStatusChange = (event: SelectChangeEvent) => {
+		const value = event.target.value;
+		resetCursorPagination?.();
+		setStatusFilter(value);
+		setFilterStates({ q: globalFilter, status: value });
+	};
+
+	// Row selection state for bulk actions (placeholder for future)
+	const [rowSelection] = useState<Record<string, boolean>>({});
+
 	const columns = useMemo(() => {
 		return [
+			// Hidden columns for sorting by created_at/updated_at (snake_case to match backend)
+			columnHelper.accessor('createdAt', {
+				id: 'created_at',
+				header: t('created-at'),
+				enableSorting: true,
+			}),
+			columnHelper.accessor('updatedAt', {
+				id: 'updated_at',
+				header: t('updated-at', { defaultValue: 'Updated at' }),
+				enableSorting: true,
+			}),
 			columnHelper.accessor('name', {
 				header: t('name'),
 				Cell: TenantCell,
@@ -80,15 +161,9 @@ const TenantsTable = () => {
 			columnHelper.accessor('usersCount', {
 				header: t('users'),
 				Cell: UsersCountCell,
+				enableSorting: false,
 				size: 70,
 			}),
-			// columnHelper.accessor('pricingPlan', {
-			// 	header: t('pricing-plan'),
-			// 	Cell: (props) => {
-			// 		return props.cell.getValue();
-			// 	},
-			// 	size: 70,
-			// }),
 			columnHelper.accessor('status', {
 				header: t('status'),
 				Cell: StatusCell,
@@ -97,49 +172,141 @@ const TenantsTable = () => {
 			columnHelper.display({
 				header: 'Actions',
 				Cell: TenantActionsCell,
+				enableSorting: false,
 				size: 70,
 			}),
 		];
 	}, [t]);
 
-	// Use the custom table state hook
-	const {
-		handlePaginationChange,
-		handleSortingChange,
-		apiVariables,
-		tableState,
-	} = useTableState({
-		defaultSorting,
-		defaultPageSize: DEFAULT_PAGE_SIZE,
+	const tenantsQuery = useFindTenants({
+		variables: {
+			cursor: apiVariables.cursor || undefined,
+			limit: apiVariables.limit,
+			sort: apiVariables.sort,
+			q: filterStates.q || undefined,
+			status: filterStates.status || undefined,
+		},
 	});
 
-	const { data, isPending } = useFindTenants({
-		variables: apiVariables,
+	// Sync latest cursor into the table state outside render
+	useEffect(() => {
+		if (setNextCursor) {
+			setNextCursor(tenantsQuery.data?.nextCursor ?? null);
+		}
+	}, [tenantsQuery.data?.nextCursor, setNextCursor]);
+
+	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
+		query: tenantsQuery,
+		emptyContent: {
+			title: _.capitalize(
+				t('no-items-found', {
+					item: t('tenants'),
+					ns: 'response-message',
+				}),
+			),
+		},
+		errorContent: {
+			title: _.capitalize(
+				t('error-loading-items', {
+					item: t('tenants'),
+					ns: 'response-message',
+				}),
+			),
+		},
 	});
 
 	const dataTable = useMemo(() => {
-		return _.map(data?.tenants, (tenant) => TenantRowDataMapper(tenant));
-	}, [data]);
+		if (!tenantsQuery.data?.data) return [];
+		return _.map(tenantsQuery.data.data, (tenant) =>
+			TenantRowDataMapper(tenant),
+		);
+	}, [tenantsQuery.data]);
 
-	const table = useMRTTable('minimal', {
+	const table = useMRTTable('minimal-cursor', {
 		columns,
 		data: dataTable,
-		rowCount: getUntypedNumber(data?.count, 0),
-		manualPagination: true,
-		onPaginationChange: handlePaginationChange,
+		getRowId: (row) => row.id,
+		initialState: {
+			columnVisibility: {
+				created_at: false,
+				updated_at: false,
+			},
+		},
 		manualSorting: true,
 		onSortingChange: handleSortingChange,
 		state: {
 			...tableState,
+			...queryState,
 			density: 'compact',
-			isLoading: isPending,
 		},
+		meta: {
+			handlePaginationChange,
+			hasNextPage,
+			hasPreviousPage,
+			isPending: tenantsQuery.isPending,
+		},
+		renderEmptyRowsFallback,
 		muiTablePaperProps: {
 			sx: {
 				flexGrow: 1,
 			},
 		},
 	});
+
+	// Bulk actions (UI placeholder - bulk mutations not implemented yet)
+	const selectedCount = Object.keys(rowSelection).length;
+
+	// Toolbar with search and filters
+	const renderTopToolbar = () => {
+		return (
+			<Box
+				sx={{
+					p: 2,
+					display: 'flex',
+					gap: 2,
+					alignItems: 'center',
+					flexWrap: 'wrap',
+				}}
+			>
+				<TextField
+					size="small"
+					placeholder={t('search-tenants')}
+					value={globalFilter}
+					onChange={handleSearchChange}
+					slotProps={{
+						input: {
+							startAdornment: (
+								<InputAdornment position="start">
+									<Iconify icon="eva:search-fill" />
+								</InputAdornment>
+							),
+						},
+					}}
+					sx={{ minWidth: 250 }}
+				/>
+
+				<Select
+					size="small"
+					value={statusFilter}
+					onChange={handleStatusChange}
+					displayEmpty
+					sx={{ minWidth: 150 }}
+				>
+					<MenuItem value="">{t('all-statuses')}</MenuItem>
+					<MenuItem value="active">{t('active')}</MenuItem>
+					<MenuItem value="pending">{t('pending')}</MenuItem>
+					<MenuItem value="suspended">{t('suspended')}</MenuItem>
+					<MenuItem value="archived">{t('archived')}</MenuItem>
+				</Select>
+
+				{selectedCount > 0 && (
+					<Box sx={{ ml: 'auto' }}>
+						{t('selected-count', { count: selectedCount })}
+					</Box>
+				)}
+			</Box>
+		);
+	};
 
 	return (
 		<Box
@@ -150,6 +317,7 @@ const TenantsTable = () => {
 				border: 'none',
 			}}
 		>
+			{renderTopToolbar()}
 			<MaterialReactTable table={table} />
 		</Box>
 	);
@@ -160,7 +328,6 @@ export default TenantsTable;
 // ----------------------------------------------------------------------
 
 const TenantCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
-	// const logoUrl = props.row.original.logoUrl;
 	const name = props.row.original.name;
 	const href = FRONT_PATH_NAMES.staff.tenants.details(
 		props.row.original.id,
@@ -176,12 +343,7 @@ const TenantCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 				alignItems: 'center',
 			}}
 		>
-			<Avatar
-				alt={name}
-				// src={logoUrl}
-				variant="rounded"
-				sx={{ width: 46, height: 46 }}
-			/>
+			<Avatar alt={name} variant="rounded" sx={{ width: 46, height: 46 }} />
 
 			<ListItemText
 				primary={

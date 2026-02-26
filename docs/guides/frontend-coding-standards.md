@@ -522,6 +522,18 @@ function StaffUsersPage() {
 - When you need very custom loading logic
 - Background refetches where you want to show stale data
 
+## List Pages: Filters + Cursor Pagination (nuqs + useTableState)
+
+When building list pages with search/filter + cursor pagination:
+
+- Persist filter state in the URL via **nuqs** (e.g., `q`, `status`).
+- Use `useTableState({ paginationMode: 'cursor' })` for cursor pagination.
+- **Always** call `resetCursorPagination?.()` before updating URL filters (filters invalidate cursor history).
+- For Material React Table sorting, explicitly set snake_case column `id`s to match backend `sortId` allowlists.
+- Debounce free-text search URL updates (300ms default) using `useDebounce` from `minimal-shared/hooks`.
+
+Reference: `docs/guides/list-pages-search-filter-cursor-pagination.md`
+
 ## Component Structure Best Practices
 
 1. **Import order:**

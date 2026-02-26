@@ -2462,7 +2462,21 @@
         "operationId": "FindTenants",
         "parameters": [
           {
-            "name": "Page",
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Cursor",
             "in": "query",
             "schema": {
               "type": "string"
@@ -2526,7 +2540,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TenantAsStaffResult"
+                  "$ref": "#/components/schemas/FindTenantsAsStaffResponse"
                 }
               }
             }
@@ -4409,6 +4423,23 @@
           }
         }
       },
+      "FindTenantsAsStaffResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantAsStaffListItem"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "FindTenantUsersAsStaffResult": {
         "type": "object",
         "properties": {
@@ -5282,7 +5313,15 @@
           }
         }
       },
-      "TenantAsStaffItem": {
+      "TenantAsStaffListItem": {
+        "required": [
+          "id",
+          "name",
+          "usersCount",
+          "maxUsers",
+          "status",
+          "isSuspended"
+        ],
         "type": "object",
         "properties": {
           "id": {
@@ -5313,26 +5352,6 @@
           },
           "isSuspended": {
             "type": "boolean"
-          }
-        }
-      },
-      "TenantAsStaffResult": {
-        "required": [
-          "tenants",
-          "count"
-        ],
-        "type": "object",
-        "properties": {
-          "tenants": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TenantAsStaffItem"
-            }
-          },
-          "count": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": "integer",
-            "format": "int32"
           }
         }
       },
