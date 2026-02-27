@@ -9,7 +9,7 @@ import { transitionTap, varHover, varTap } from '@/front/components/animate';
 import { CustomPopover } from '@/front/components/custom-popover';
 import { FlagIcon } from '@/front/components/flag-icon';
 import { useTranslate } from '@/front/hooks/use-translate';
-import type { AppLocale } from '@/shared/lib/i18n/resources';
+import type { AppLocale } from '@org/shared-ts/lib/i18n/resources';
 
 // ----------------------------------------------------------------------
 

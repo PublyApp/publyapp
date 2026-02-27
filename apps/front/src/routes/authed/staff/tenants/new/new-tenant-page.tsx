@@ -14,8 +14,8 @@ import {
 	FRONT_PATH_NAMES,
 	I18N_NAMESPACES,
 	isServer,
-} from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/logger/iso-logger';
+} from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { TenantCreateOrEditForm } from '../components/tenant-create-or-edit-form';
 import type { Route } from './+types/new-tenant-page';

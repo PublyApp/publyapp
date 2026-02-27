@@ -11,8 +11,6 @@ import Typography from '@mui/material/Typography';
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router';
 
-import type { TenantForPickerItem } from '@org/client-ts/src/models';
-import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { Label } from '@/front/components/label/label';
 import { SplashScreen } from '@/front/components/loading-screen/splash-screen';
@@ -21,9 +19,11 @@ import { useTranslate } from '@/front/hooks/use-translate';
 import { ColorSchemePopover } from '@/front/layouts/components/colorscheme-popover';
 import { LanguagePopover } from '@/front/layouts/components/language-popover';
 import { SimpleLayout } from '@/front/layouts/simple/layout';
-import { logout } from '@/front/lib/cookies/logout.utils';
+import { logout } from '@/front/lib/cookies';
 import { allLangs } from '@/front/lib/locales/all-langs';
 import { useGetUserTenantsForPicker } from '@/front/lib/react-query/features/common/auth.hooks';
+import type { TenantForPickerItem } from '@org/client-ts/src/models';
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 // ----------------------------------------------------------------------
 

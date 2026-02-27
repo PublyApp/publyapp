@@ -6,7 +6,7 @@ import _ from 'lodash';
 import { data } from 'react-router';
 
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { APP_NAME } from '@/shared/lib/constants';
+import { APP_NAME } from '@org/shared-ts/lib/constants';
 
 import type { Route } from './+types/posts-calendar-page';
 

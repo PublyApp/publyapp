@@ -16,7 +16,7 @@ import { CustomPopover } from '@/front/components/custom-popover';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { Scrollbar } from '@/front/components/scrollbar';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 // ----------------------------------------------------------------------
 

@@ -1,5 +1,6 @@
 import * as cookie from 'cookie';
 
+import duration from '@org/shared-ts/utils/duration.utils';
 import {
 	TENANT_HINTS_COOKIE_KEY,
 	TENANT_HINTS_COOKIE_KEY_LEGACY,
@@ -8,7 +9,6 @@ import {
 	TENANT_HINTS_MAX_COOKIE_LENGTH,
 	TENANT_HINTS_MAX_ENTRIES,
 } from '@org/shared-ts/lib/constants';
-import duration from '@org/shared-ts/utils/duration.utils';
 
 // UUID regex for validation (case-insensitive for parsing, but we normalize to lowercase)
 const UUID_REGEX =

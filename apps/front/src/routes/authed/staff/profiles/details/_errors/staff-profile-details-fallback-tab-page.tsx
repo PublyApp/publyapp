@@ -1,6 +1,6 @@
 import { redirect } from 'react-router';
 
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import type { Route } from './+types/staff-profile-details-fallback-tab-page';
 

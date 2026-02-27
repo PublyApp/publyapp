@@ -6,14 +6,15 @@ import express from 'express';
 import helmet from 'helmet';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
+
 import { analytics } from '@/front/lib/analytics/analytics';
 import {
 	isPreRenderPath,
 	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
-} from '@/shared/lib/constants';
-import { getUnifiedCSPConfig } from '@/shared/lib/csp';
-import { isoLogger } from '@/shared/lib/logger/iso-logger';
-import { LogLevelEnum } from '@/shared/lib/logger/logger.utils';
+} from '@org/shared-ts/lib/constants';
+import { getUnifiedCSPConfig } from '@org/shared-ts/lib/csp';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { LogLevelEnum } from '@org/shared-ts/lib/logger/logger.utils';
 
 declare global {
 	namespace Express {
@@ -26,9 +27,9 @@ declare global {
 const isDevelopment = import.meta.env.DEV;
 
 if (isDevelopment) {
-	isoLogger.logLevel = LogLevelEnum.DEBUG;
+	logger.logLevel = LogLevelEnum.DEBUG;
 } else {
-	isoLogger.logLevel = LogLevelEnum.WARN;
+	logger.logLevel = LogLevelEnum.WARN;
 }
 
 export const app = express();
@@ -54,7 +55,7 @@ app.use((req, res, next) => {
 });
 
 const reactRouterHandler = createRequestHandler({
-	build: () => {
+	build: async () => {
 		return import('virtual:react-router/server-build');
 	},
 	getLoadContext: (req, _res) => {
@@ -65,7 +66,7 @@ const reactRouterHandler = createRequestHandler({
 		}
 
 		return {
-			logger: isoLogger,
+			logger: logger,
 			analytics: analytics,
 			nonce,
 		};

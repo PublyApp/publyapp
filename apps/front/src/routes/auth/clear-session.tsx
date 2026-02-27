@@ -1,13 +1,13 @@
 import { redirect } from 'react-router';
 
+import { createClearSessionCookieHeaders } from '@/front/lib/cookies/server-cookie.utils';
+import { getServerAction } from '@/front/lib/react-router/server-data.server';
 import {
 	FRONT_PATH_NAMES,
 	formActionKey,
 	queryParamKey,
 } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { createClearSessionCookieHeaders } from '@/front/lib/cookies/server-cookie.utils';
-import { getServerAction } from '@/front/lib/react-router/server-data.server';
 
 /**
  * Dedicated route for clearing httpOnly session cookies.
@@ -100,11 +100,3 @@ export const action = getServerAction({
 		return redirect(buildLoginUrl());
 	},
 });
-
-// This route intentionally renders nothing; it exists for its action only.
-// Having a default export avoids generating an empty client chunk during builds.
-const ClearSessionRoute = () => {
-	return null;
-};
-
-export default ClearSessionRoute;

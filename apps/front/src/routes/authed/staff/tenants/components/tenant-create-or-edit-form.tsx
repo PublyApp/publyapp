@@ -39,8 +39,8 @@ import {
 	type AccountLevel,
 	DEFAULT_MAX_USER_PER_TENANT,
 	FRONT_PATH_NAMES,
-} from '@/shared/lib/constants';
-import { mbToBytes } from '@/shared/utils/any.utils';
+} from '@org/shared-ts/lib/constants';
+import { mbToBytes } from '@org/shared-ts/utils/any.utils';
 
 // ----------------------------------------------------------------------
 

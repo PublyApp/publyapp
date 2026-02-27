@@ -12,10 +12,10 @@ import {
 	LANGUAGE_DETECTION_METHOD_ENUM,
 	LOCALE_COOKIE_KEY,
 	queryParamKey,
-} from '@/shared/lib/constants';
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import { isoLogger } from '@/shared/lib/logger/iso-logger';
-import duration from '@/shared/utils/duration.utils';
+} from '@org/shared-ts/lib/constants';
+import { getCorrectLocale } from '@org/shared-ts/lib/i18n/i18n.utils';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import duration from '@org/shared-ts/utils/duration.utils';
 
 import { interZodClient } from '../zod/zod.client';
 import { config } from './i18n.config';
@@ -60,7 +60,7 @@ export const initI18nOnClient = async () => {
 	if (import.meta.hot) {
 		import.meta.hot.on('i18n:updated', async (data) => {
 			try {
-				isoLogger.debug('[i18n-hmr] Reloading translations...', data);
+				logger.debug('[i18n-hmr] Reloading translations...', data);
 
 				// Force reload all resources with cache busting
 				const lng = i18next.language;
@@ -75,9 +75,9 @@ export const initI18nOnClient = async () => {
 				// Force a re-render by triggering a language change event
 				i18next.emit('languageChanged', lng);
 
-				isoLogger.debug('[i18n-hmr] Translations reloaded successfully');
+				logger.debug('[i18n-hmr] Translations reloaded successfully');
 			} catch (err) {
-				isoLogger.error('[i18n-hmr] reload failed', err);
+				logger.error('[i18n-hmr] reload failed', err);
 			}
 		});
 	}

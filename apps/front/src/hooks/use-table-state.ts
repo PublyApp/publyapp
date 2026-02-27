@@ -7,7 +7,7 @@ import type {
 import { parseAsString, parseAsStringLiteral, useQueryStates } from 'nuqs';
 import { useCallback, useEffect, useState } from 'react';
 
-import { DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
+import { DEFAULT_PAGE_SIZE } from '@org/shared-ts/lib/constants';
 
 export type TableQueryKeys = {
 	pagination: {

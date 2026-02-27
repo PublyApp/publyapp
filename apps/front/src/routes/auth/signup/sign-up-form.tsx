@@ -17,8 +17,8 @@ import { RouterLink } from '@/front/components/router-link';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { interZodClient } from '@/front/lib/zod/zod.client';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { getRegisterSchema } from '@/shared/validations/auth.validations';
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+import { getRegisterSchema } from '@org/shared-ts/validations/auth.validations';
 
 // ----------------------------------------------------------------------
 

@@ -25,7 +25,8 @@ import { toast } from '@/front/components/snackbar';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { useFindTenantProfiles } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
-import { TENANT_PROFILES_PERMISSIONS_ENUM } from '@/shared/lib/constants';
+import type { ProfileAsStaffItem } from '@org/client-ts/src/models';
+import { TENANT_PROFILES_PERMISSIONS_ENUM } from '@org/shared-ts/lib/constants';
 
 type TenantProfileRowData = Record<string, unknown> & { permission: string };
 
@@ -78,7 +79,7 @@ const TenantProfilesTable = () => {
 	});
 
 	const profilesMap = useMemo(() => {
-		const map = new Map<string, unknown>();
+		const map = new Map<string, ProfileAsStaffItem>();
 
 		_.forEach(profiles?.profiles, (profile) => {
 			if (!profile || !profile.id) return;
@@ -94,14 +95,16 @@ const TenantProfilesTable = () => {
 		const columnsDefinition = [...commonColumns];
 
 		profilesMap.forEach((profile) => {
+			const profileId = profile.id ?? '';
 			columnsDefinition.push(
-				columnHelper.accessor(`${profile.objectId}-${nanoid()}`, {
-					header: profile.name,
+				columnHelper.accessor(`${profileId}-${nanoid()}`, {
+					header: profile.name ?? '',
 					Header: ProfileHeader,
 					size: 190,
 					Cell: ({ row }) => {
+						const currentProfile = profilesMap.get(profileId);
 						const isActive = _.get(
-							profilesMap.get(profile.objectId),
+							currentProfile,
 							`permissions.${row.original.permission}`,
 							false,
 						);
@@ -114,7 +117,7 @@ const TenantProfilesTable = () => {
 		return columnsDefinition;
 	}, [profilesMap]);
 
-	const table = useMRTTable('default', {
+	const table = useMRTTable('minimal', {
 		columns: isPending ? placeholderColumns : columns,
 		data: rows,
 		state: {
@@ -154,7 +157,12 @@ const TenantProfilesTable = () => {
 
 	return (
 		<Card
-			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
+			sx={{
+				flexGrow: 1,
+				display: 'flex',
+				flexDirection: 'column',
+				border: 'none',
+			}}
 			style={{
 				['--permission-column-bg' as string]:
 					mode === 'dark'

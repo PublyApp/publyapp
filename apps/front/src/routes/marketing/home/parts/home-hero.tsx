@@ -21,7 +21,7 @@ import { MotionContainer, varFade } from '@/front/components/animate';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { HeroBackground } from '../components/hero-background';
 

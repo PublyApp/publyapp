@@ -2,7 +2,7 @@ import { createInstance } from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import type { EntryContext } from 'react-router';
 
-import { type AppLocale, resources } from '@/shared/lib/i18n/resources';
+import { type AppLocale, resources } from '@org/shared-ts/lib/i18n/resources';
 
 import { config } from './i18n.config';
 import { remixI18NextServer } from './i18n.server';
