@@ -2,6 +2,7 @@ using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Routes;
+using MainApi.Src.Lib.Seeding;
 using MainApi.Src.Modules.AuditLogs.Endpoints;
 using MainApi.Src.Modules.Auth.Endpoints;
 using MainApi.Src.Modules.Invitations.Endpoints;
@@ -16,6 +17,11 @@ namespace MainApi;
 public class Program {
 	public static void Main(string[] args) {
 		AppEnvironment.Initialize(); // ! must be called before anything else
+
+		// CLI commands (e.g., seed-bulk, seed-bulk-reset)
+		if (BulkSeedCli.TryRun(args)) {
+			return;
+		}
 
 		var builder = WebApplication.CreateBuilder(args);
 
@@ -32,7 +38,11 @@ public class Program {
 		app.UseResponseCompression();
 		app.UseSecurityHeaders();
 		app.UseCustomExceptionHandler();
-		app.UseHttpsRedirection();
+		// Use host environment here (not AppEnvironment) because
+		// WebApplicationFactory/UseEnvironment can override it per host instance.
+		if (!app.Environment.IsEnvironment(EnvironmentNames.Testing)) {
+			app.UseHttpsRedirection();
+		}
 		app.UseCors();
 		app.UseOpenApi();
 
@@ -54,6 +64,7 @@ public class Program {
 
 		// Staff endpoints
 		staffGroup.MapUserEndpointsForStaff();
+		staffGroup.MapUserEndpointsForTenantAsStaff();
 		staffGroup.MapInvitationEndpointsForStaff();
 		staffGroup.MapPermissionEndpointsForStaff();
 		staffGroup.MapProfileEndpointsForStaff();

@@ -11,12 +11,50 @@ using MainApi.Src.Lib.Utils;
 /// suspend/reactivate operations via the staff API.
 /// </summary>
 internal static class TenantTestHelper {
-	private static readonly string FindTenantsUrl =
+	private static readonly string FindUrl =
 		PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Tenants.ForStaff.Root,
 			Routes.Tenants.ForStaff.Find
-		) + "?limit=50&sortId=name&sortOrder=asc";
+		);
+
+	public static string GetFindUrl(
+		string? cursor = null,
+		int? limit = null,
+		string? sortId = null,
+		string? sortOrder = null,
+		string? q = null,
+		string? status = null
+	) {
+		var queryParams = new List<string>();
+
+		if (cursor is not null) {
+			queryParams.Add($"cursor={cursor}");
+		}
+		if (limit.HasValue) {
+			queryParams.Add($"limit={limit.Value}");
+		}
+		if (sortId is not null) {
+			queryParams.Add($"sortId={sortId}");
+		}
+		if (sortOrder is not null) {
+			queryParams.Add($"sortOrder={sortOrder}");
+		}
+		if (q is not null) {
+			queryParams.Add($"q={q}");
+		}
+		if (status is not null) {
+			queryParams.Add($"status={status}");
+		}
+
+		if (queryParams.Count == 0) {
+			return FindUrl;
+		}
+
+		return FindUrl
+			+ "?"
+			+ string.Join("&", queryParams);
+	}
 
 	/// <summary>
 	/// Finds a tenant ID by its name via GET /staff/tenants.
@@ -29,9 +67,15 @@ internal static class TenantTestHelper {
 		string tenantName,
 		CancellationToken ct = default
 	) {
+		var url = GetFindUrl(
+			limit: 50,
+			sortId: "name",
+			sortOrder: "asc"
+		);
+
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			FindTenantsUrl
+			url
 		).WithSessionToken(staffToken);
 
 		using var response =
@@ -39,13 +83,15 @@ internal static class TenantTestHelper {
 		response.EnsureSuccessStatusCode();
 
 		var result = await response.Content
-			.ReadFromJsonAsync<TenantListResponse>(ct)
-			?? throw new InvalidOperationException(
+			.ReadFromJsonAsync<TenantListResponse>(ct);
+		if (result is null) {
+			throw new InvalidOperationException(
 				"GET /staff/tenants returned null "
 				+ "or unexpected JSON shape"
 			);
+		}
 
-		var tenant = result.Tenants.FirstOrDefault(
+		var tenant = result.Data.FirstOrDefault(
 			t => string.Equals(
 				t.Name,
 				tenantName,
@@ -56,7 +102,7 @@ internal static class TenantTestHelper {
 		if (tenant is null) {
 			var available = string.Join(
 				", ",
-				result.Tenants.Select(t => t.Name)
+				result.Data.Select(t => t.Name)
 			);
 			throw new InvalidOperationException(
 				$"Tenant '{tenantName}' not found. "
@@ -184,11 +230,94 @@ internal static class TenantTestHelper {
 		);
 	}
 
+	/// <summary>
+	/// Updates a tenant via
+	/// PATCH /staff/tenants/{id}.
+	/// </summary>
+	public static async Task<HttpResponseMessage>
+	UpdateTenantAsync(
+		HttpClient http,
+		string staffToken,
+		Guid tenantId,
+		object body,
+		CancellationToken ct = default
+	) {
+		var url = PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Tenants.ForStaff.Root,
+			Routes.Tenants.ForStaff.UpdateFn(
+				tenantId.ToString()
+			)
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			url
+		).WithSessionToken(staffToken);
+
+		request.Content = JsonContent.Create(body);
+
+		return await http.SendAsync(request, ct);
+	}
+
+	/// <summary>
+	/// Deletes a tenant via
+	/// DELETE /staff/tenants/{id}.
+	/// </summary>
+	public static async Task<HttpResponseMessage>
+	DeleteTenantAsync(
+		HttpClient http,
+		string staffToken,
+		Guid tenantId,
+		CancellationToken ct = default
+	) {
+		var url = PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Tenants.ForStaff.Root,
+			Routes.Tenants.ForStaff.DeleteFn(
+				tenantId.ToString()
+			)
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Delete,
+			url
+		).WithSessionToken(staffToken);
+
+		return await http.SendAsync(request, ct);
+	}
+
+	/// <summary>
+	/// Builds the update URL for a given tenant ID.
+	/// </summary>
+	public static string GetUpdateUrl(Guid tenantId) {
+		return PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Tenants.ForStaff.Root,
+			Routes.Tenants.ForStaff.UpdateFn(
+				tenantId.ToString()
+			)
+		);
+	}
+
+	/// <summary>
+	/// Builds the delete URL for a given tenant ID.
+	/// </summary>
+	public static string GetDeleteUrl(Guid tenantId) {
+		return PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Tenants.ForStaff.Root,
+			Routes.Tenants.ForStaff.DeleteFn(
+				tenantId.ToString()
+			)
+		);
+	}
+
 	// Response DTOs for tenant list deserialization
 	private record TenantListResponse {
-		public List<TenantListItem> Tenants { get; init; }
+		public List<TenantListItem> Data { get; init; }
 			= [];
-		public int Count { get; init; }
+		public string? NextCursor { get; init; }
 	}
 
 	private record TenantListItem {

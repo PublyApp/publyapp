@@ -389,6 +389,52 @@ const { data } = useGetUserDetails({
 });
 ```
 
+### Detail Page Error Views (Not Found vs Generic Error)
+
+For detail pages that load a resource by ID (e.g. tenant details, staff user details), use `QueryDisplay` with an `ErrorSlot` that differentiates malformed IDs and missing resources from other errors:
+
+```typescript
+import { isProblemFailure, toApiFailure } from '@/front/lib/api-failure';
+import { NotFoundView } from '@/front/components/error/not-found-view';
+import { ErrorContent } from '@/front/components/empty-content/error-content';
+
+const ErrorView: FC<{ error: unknown }> = ({ error }) => {
+  const { t } = useTranslate();
+  const failure = toApiFailure(error);
+
+  if (
+    isProblemFailure(failure) &&
+    (failure.status === 404 ||
+      (failure.status === 400 &&
+        failure.translationKey === 'malformed-id'))
+  ) {
+    return (
+      <NotFoundView
+        withLayout={false}
+        title={_.capitalize(t('my-entity-not-found-title'))}
+        description={t('my-entity-not-found-description')}
+      />
+    );
+  }
+
+  return (
+    <Box sx={{ py: 10 }}>
+      <ErrorContent
+        title={t('my-entity-details-error-title')}
+        description={t('my-entity-details-error-description')}
+      />
+    </Box>
+  );
+};
+```
+
+**Key rules:**
+- **404** (entity not found) and **400 with `malformed-id` translationKey** (invalid GUID) both show `NotFoundView`
+- **Other 400 errors** (missing headers, other bad requests) fall through to the generic `ErrorContent`
+- Use `withLayout={false}` for inline rendering inside a dashboard layout
+- Provide custom `title` and `description` per entity context (e.g. "Tenant not found" vs "Staff user not found")
+- The `malformed-id` translation key is set by the backend when `Guid.TryParse` fails (see `api-route-parameters.md`)
+
 ---
 
 ## Migration Guide

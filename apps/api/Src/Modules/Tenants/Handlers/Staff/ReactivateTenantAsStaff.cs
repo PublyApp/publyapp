@@ -32,24 +32,47 @@ public static class ReactivateTenantAsStaff {
 	) {
 		var result = await tenantService.ReactivateTenantAsync(tenantId, cancellationToken);
 
+		if (result.Error
+			is ReactivateTenantError.NotFound
+		) {
+			return TypedProblems.NotFound(
+				"Tenant not found",
+				ResponseKeys.TenantNotFound
+			);
+		}
+		if (result.Error
+			is ReactivateTenantError.NotSuspended
+		) {
+			return TypedProblems.Conflict(
+				"Tenant is not currently suspended",
+				ResponseKeys.TenantNotSuspended
+			);
+		}
 		if (result.Error is not null) {
-			return result.Error switch {
-				ReactivateTenantError.NotFound => TypedProblems.NotFound(
-					"Tenant not found",
-					ResponseKeys.TenantNotFound
-				),
-				ReactivateTenantError.NotSuspended => TypedProblems.Conflict(
-					"Tenant is not currently suspended",
-					ResponseKeys.TenantNotSuspended
-				),
-				_ => throw new InvalidOperationException($"Unknown error: {result.Error}")
-			};
+			throw new InvalidOperationException(
+				$"Unknown error: {result.Error}"
+			);
 		}
 
-		var tenant = result.Tenant!;
+		var account = authContext.AccountStaff;
+		if (account is null) {
+			throw new InvalidOperationException(
+				"Staff account not found in "
+				+ "auth context. Ensure the endpoint "
+				+ "has .WithPermission() middleware."
+			);
+		}
+
+		if (result.Tenant is null) {
+			throw new InvalidOperationException(
+				"Service returned success "
+				+ "but Tenant was null."
+			);
+		}
+		var tenant = result.Tenant;
 
 		await auditLogService.LogAsync(
-			authContext.UserId!.Value,
+			account.UserId,
 			AuditActions.TenantReactivated,
 			tenantId,
 			new { TenantName = tenant.Name },

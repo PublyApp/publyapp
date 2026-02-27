@@ -1,5 +1,5 @@
-import { APP_ID } from '@/shared/lib/constants';
-import duration from '@/shared/utils/duration.utils';
+import { APP_ID } from '@org/shared-ts/lib/constants';
+import duration from '@org/shared-ts/utils/duration.utils';
 
 export const SIDEBAR_COOKIE_NAME = `${APP_ID}-sidebar_state`;
 export const SIDEBAR_COOKIE_MAX_AGE = duration.toSeconds('7d');

@@ -15,6 +15,11 @@ import {
 import { useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 
+import type { StaffProfileItem } from '@org/client-ts/src/models';
+import {
+	DEFAULT_PAGE_SIZE,
+	FRONT_PATH_NAMES,
+} from '@org/shared-ts/lib/constants';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { Label } from '@/front/components/label/label';
 import { RouterLink } from '@/front/components/router-link';
@@ -24,8 +29,6 @@ import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
 import { useFindStaffProfiles } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import type { StaffProfileItem } from '@/js-client/src/models';
-import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
 // Row Data Type
 export type StaffProfileRowData = {

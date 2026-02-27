@@ -352,11 +352,14 @@ export default UserCard;
 
 ## Form Handling
 
-**Use React Hook Form with Zod validation:**
+**CRITICAL:** Always use the custom hook-form component library from `@/front/components/hook-form` for all form fields. Never use raw MUI `TextField` with `register()` or manual `error`/`helperText` wiring. The custom components (`Field.Text`, `Field.NumberInput`, `Field.Select`, etc.) use `Controller` internally and handle error display automatically.
+
+**Use React Hook Form with Zod validation and the `Form`/`Field` wrappers:**
 ```tsx
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { Field, Form } from '@/front/components/hook-form';
 
 const schema = z.object({
   email: z.string().email(),
@@ -365,10 +368,39 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-const form = useForm<FormData>({
+const methods = useForm<FormData>({
   resolver: zodResolver(schema),
 });
+
+// ❌ WRONG - Raw MUI TextField with register()
+<Box component="form" onSubmit={handleSubmit}>
+  <TextField
+    {...form.register('email')}
+    error={!!form.formState.errors.email}
+    helperText={form.formState.errors.email?.message}
+  />
+</Box>
+
+// ✅ CORRECT - Custom Form + Field wrappers
+<Form methods={methods} onSubmit={handleSubmit}>
+  <Field.Text name="email" label="Email" />
+  <Field.Text name="password" type="password" label="Password" />
+</Form>
 ```
+
+**Convention:** Name the `useForm` return value `methods` (not `form`) for consistency across the codebase.
+
+**Available `Field` components** (see `@/front/components/hook-form/fields.tsx`):
+- `Field.Text` — text input (supports `type="number"`, `type="password"`, etc.)
+- `Field.NumberInput` — dedicated number input with increment/decrement
+- `Field.Select` — dropdown select
+- `Field.Checkbox` — checkbox
+- `Field.Switch` — toggle switch
+- `Field.Autocomplete` — autocomplete/combobox
+- `Field.DatePicker` — date picker
+- `Field.Editor` — rich text editor
+
+**Note:** Read-only display fields (not managed by the form) may still use raw `TextField` with `slotProps={{ input: { readOnly: true } }}` since they are not form-controlled.
 
 ## Query State Display: QueryDisplay Component
 
@@ -489,6 +521,18 @@ function StaffUsersPage() {
 - Mutations (use mutation states directly)
 - When you need very custom loading logic
 - Background refetches where you want to show stale data
+
+## List Pages: Filters + Cursor Pagination (nuqs + useTableState)
+
+When building list pages with search/filter + cursor pagination:
+
+- Persist filter state in the URL via **nuqs** (e.g., `q`, `status`).
+- Use `useTableState({ paginationMode: 'cursor' })` for cursor pagination.
+- **Always** call `resetCursorPagination?.()` before updating URL filters (filters invalidate cursor history).
+- For Material React Table sorting, explicitly set snake_case column `id`s to match backend `sortId` allowlists.
+- Debounce free-text search URL updates (300ms default) using `useDebounce` from `minimal-shared/hooks`.
+
+Reference: `docs/guides/list-pages-search-filter-cursor-pagination.md`
 
 ## Component Structure Best Practices
 

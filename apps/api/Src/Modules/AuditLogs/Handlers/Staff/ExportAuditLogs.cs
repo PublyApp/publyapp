@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
@@ -6,6 +5,7 @@ using FluentValidation;
 
 using MainApi.Localization;
 using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.AuditLogs.Services;
 
 using Microsoft.AspNetCore.Mvc;
@@ -19,6 +19,34 @@ public class ExportAuditLogsQuery {
 	[FromQuery] public string? TargetId { get; set; }
 	[FromQuery] public string? StartDate { get; set; }
 	[FromQuery] public string? EndDate { get; set; }
+
+	public string? GetFormat() {
+		return Format?.ToLowerInvariant();
+	}
+
+	public Guid? GetUserId() {
+		return QueryPredicates.ParseNullableGuid(
+			UserId
+		);
+	}
+
+	public Guid? GetTargetId() {
+		return QueryPredicates.ParseNullableGuid(
+			TargetId
+		);
+	}
+
+	public DateTime? GetStartDate() {
+		return QueryPredicates.ParseNullableDate(
+			StartDate
+		);
+	}
+
+	public DateTime? GetEndDate() {
+		return QueryPredicates.ParseNullableDate(
+			EndDate
+		);
+	}
 }
 
 public class ExportAuditLogsQueryValidator
@@ -33,33 +61,35 @@ public class ExportAuditLogsQueryValidator
 			);
 
 		RuleFor(x => x.UserId)
-			.Must(BeValidNullableGuid)
+			.Must(QueryPredicates.BeValidNullableGuid)
 			.WithMessage(
 				"UserId must be a valid GUID"
 			);
 
 		RuleFor(x => x.TargetId)
-			.Must(BeValidNullableGuid)
+			.Must(QueryPredicates.BeValidNullableGuid)
 			.WithMessage(
 				"TargetId must be a valid GUID"
 			);
 
 		RuleFor(x => x.StartDate)
-			.Must(BeValidNullableDate)
+			.Must(QueryPredicates.BeValidNullableDate)
 			.WithMessage(
 				"StartDate must be a valid"
 				+ " ISO 8601 date"
 			);
 
 		RuleFor(x => x.EndDate)
-			.Must(BeValidNullableDate)
+			.Must(QueryPredicates.BeValidNullableDate)
 			.WithMessage(
 				"EndDate must be a valid"
 				+ " ISO 8601 date"
 			);
 
 		RuleFor(x => x)
-			.Must(HaveValidDateRange)
+			.Must(q => QueryPredicates.BeValidDateRange(
+				q.StartDate, q.EndDate
+			))
 			.WithMessage(
 				"StartDate must be before or equal"
 				+ " to EndDate"
@@ -67,8 +97,12 @@ public class ExportAuditLogsQueryValidator
 			.When(x =>
 				x.StartDate is not null
 				&& x.EndDate is not null
-				&& BeValidNullableDate(x.StartDate)
-				&& BeValidNullableDate(x.EndDate)
+				&& QueryPredicates.BeValidNullableDate(
+					x.StartDate
+				)
+				&& QueryPredicates.BeValidNullableDate(
+					x.EndDate
+				)
 			);
 	}
 
@@ -82,58 +116,6 @@ public class ExportAuditLogsQueryValidator
 			"json", StringComparison.OrdinalIgnoreCase
 		);
 	}
-
-	private static bool BeValidNullableGuid(
-		string? value
-	) {
-		if (value is null) {
-			return true;
-		}
-		return Guid.TryParse(value, out _);
-	}
-
-	private static bool BeValidNullableDate(
-		string? value
-	) {
-		if (value is null) {
-			return true;
-		}
-		return DateTime.TryParse(
-			value,
-			CultureInfo.InvariantCulture,
-			DateTimeStyles.RoundtripKind,
-			out _
-		);
-	}
-
-	private static bool HaveValidDateRange(
-		ExportAuditLogsQuery query
-	) {
-		if (query.StartDate is null
-			|| query.EndDate is null
-		) {
-			return true;
-		}
-
-		var startParsed = DateTime.TryParse(
-			query.StartDate,
-			CultureInfo.InvariantCulture,
-			DateTimeStyles.RoundtripKind,
-			out var start
-		);
-		var endParsed = DateTime.TryParse(
-			query.EndDate,
-			CultureInfo.InvariantCulture,
-			DateTimeStyles.RoundtripKind,
-			out var end
-		);
-
-		if (!startParsed || !endParsed) {
-			return true;
-		}
-
-		return start <= end;
-	}
 }
 
 public static class ExportAuditLogs {
@@ -145,7 +127,13 @@ public static class ExportAuditLogs {
 		HttpContext httpContext,
 		CancellationToken cancellationToken = default
 	) {
-		var exportArgs = ParseExportArgs(query);
+		var exportArgs = new ExportAuditLogsArgs(
+			UserId: query.GetUserId(),
+			Action: query.Action,
+			TargetId: query.GetTargetId(),
+			StartDate: query.GetStartDate(),
+			EndDate: query.GetEndDate()
+		);
 
 		var exceedsLimit =
 			await auditLogQueryService
@@ -161,7 +149,13 @@ public static class ExportAuditLogs {
 			);
 		}
 
-		var format = query.Format!.ToLowerInvariant();
+		var format = query.GetFormat();
+		if (format is null) {
+			return TypedProblems.BadRequest(
+				"Format is required",
+				ResponseKeys.BadRequest
+			);
+		}
 		var timestamp = DateTime.UtcNow
 			.ToString("yyyyMMdd-HHmmss");
 		var ext = format == "csv" ? "csv" : "json";
@@ -194,60 +188,6 @@ public static class ExportAuditLogs {
 		}
 
 		return Results.Empty;
-	}
-
-	private static ExportAuditLogsArgs ParseExportArgs(
-		ExportAuditLogsQuery query
-	) {
-		Guid? userId = null;
-		if (query.UserId is not null) {
-			if (Guid.TryParse(
-				query.UserId, out var parsed
-			)) {
-				userId = parsed;
-			}
-		}
-
-		Guid? targetId = null;
-		if (query.TargetId is not null) {
-			if (Guid.TryParse(
-				query.TargetId, out var parsed
-			)) {
-				targetId = parsed;
-			}
-		}
-
-		DateTime? startDate = null;
-		if (query.StartDate is not null) {
-			if (DateTime.TryParse(
-				query.StartDate,
-				CultureInfo.InvariantCulture,
-				DateTimeStyles.RoundtripKind,
-				out var parsed
-			)) {
-				startDate = parsed;
-			}
-		}
-
-		DateTime? endDate = null;
-		if (query.EndDate is not null) {
-			if (DateTime.TryParse(
-				query.EndDate,
-				CultureInfo.InvariantCulture,
-				DateTimeStyles.RoundtripKind,
-				out var parsed
-			)) {
-				endDate = parsed;
-			}
-		}
-
-		return new ExportAuditLogsArgs(
-			UserId: userId,
-			Action: query.Action,
-			TargetId: targetId,
-			StartDate: startDate,
-			EndDate: endDate
-		);
 	}
 
 	private static async Task WriteCsvAsync(

@@ -1,7 +1,7 @@
 import { useLocation } from 'react-router';
 
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { getSessionTokensFromClient } from '@/front/lib/cookies/session-cookie.utils';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
 export const useHomePath = () => {
 	const location = useLocation();

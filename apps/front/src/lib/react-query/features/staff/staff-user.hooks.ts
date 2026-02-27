@@ -8,8 +8,8 @@ import _ from 'lodash';
 import type {
 	CreateStaffUserBody,
 	UpdateStaffUserBody,
-} from '@/js-client/src/models';
-import type { AccountLevel, UserStatus } from '@/shared/lib/constants';
+} from '@org/client-ts/src/models';
+import type { AccountLevel, UserStatus } from '@org/shared-ts/lib/constants';
 
 import { createStaffMutation, createStaffQuery } from '../../create-hooks';
 

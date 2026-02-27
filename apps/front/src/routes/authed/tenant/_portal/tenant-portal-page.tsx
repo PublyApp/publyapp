@@ -1,6 +1,12 @@
 import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 
+import {
+	FRONT_PATH_NAMES,
+	queryParamKey,
+	queryParamValue,
+	REDIRECT_CODE,
+} from '@org/shared-ts/lib/constants';
 import { SplashScreen } from '@/front/components/loading-screen/splash-screen';
 import QueryDisplay from '@/front/components/query-display';
 import {
@@ -12,12 +18,6 @@ import {
 	useGetRedirectCode,
 	useGetUserAuthData,
 } from '@/front/lib/react-query/features/common/auth.hooks';
-import {
-	FRONT_PATH_NAMES,
-	queryParamKey,
-	queryParamValue,
-	REDIRECT_CODE,
-} from '@/shared/lib/constants';
 
 import { TenantPickerView } from '../_shared/tenant-picker-view';
 
