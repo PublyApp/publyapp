@@ -57,14 +57,27 @@ export const clientLoader = getClientLoader({
 		const sessionToken = getSessionCookieFromClient();
 
 		if (!sessionToken) {
-			// No session token readable by JavaScript
-			// Submit form to clear any httpOnly cookie and redirect to login
+			// Full cleanup: clear JS cookies, query cache, API clients,
+			// and start the httpOnly cookie clearing fetch in the background.
 			logout({
 				redirectCause:
 					queryParamValue.login_page.redirect_cause.invalid_session,
 			});
-			// Return null while form is submitting (navigation will take over)
-			return null;
+			// Redirect synchronously so the authed layout never renders.
+			// Without this, the component shows SplashScreen while
+			// logout's async navigation (fetch → finally → globalNavigate)
+			// races with React Router's transition — which can hang
+			// the splash screen indefinitely. The background fetch from
+			// logout() still completes and clears any httpOnly cookies.
+			const loginUrl = new URL(
+				FRONT_PATH_NAMES.auth.login,
+				window.location.origin,
+			);
+			loginUrl.searchParams.set(
+				queryParamKey.login_page.redirect_cause,
+				queryParamValue.login_page.redirect_cause.invalid_session,
+			);
+			return redirect(loginUrl.pathname + loginUrl.search);
 		}
 
 		// Guard against cross-scope navigation (tenant user on /staff, staff user on /app).
@@ -180,6 +193,23 @@ const AuthQueriesLoader = ({ children }: { children: ReactNode }) => {
 		}
 	}, [userId]);
 
+	// Show toast when redirected with org-suspended notice
+	useEffect(() => {
+		const params = new URLSearchParams(window.location.search);
+		if (
+			params.get(queryParamKey.notice) === queryParamValue.notice.org_suspended
+		) {
+			toast.warning(i18next.t('suspended-tenants-notice', { ns: 'common' }));
+			// Clean up the query param from URL
+			params.delete(queryParamKey.notice);
+			const newUrl =
+				params.size > 0
+					? `${window.location.pathname}?${params}`
+					: window.location.pathname;
+			window.history.replaceState({}, '', newUrl);
+		}
+	}, []);
+
 	return <>{children}</>;
 };
 
@@ -239,6 +269,14 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 					queryParamValue.login_page.redirect_cause.invalid_session,
 			});
 			return <SplashScreen />;
+		}
+
+		// Handle 403 tenant-suspended - show dedicated page
+		if (
+			failure.status === 403 &&
+			failure.translationKey === 'tenant-suspended'
+		) {
+			return <ViewTenantSuspended />;
 		}
 
 		// Handle 403 Forbidden - user doesn't have access (no logout!)

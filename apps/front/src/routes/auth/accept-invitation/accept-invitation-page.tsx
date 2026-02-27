@@ -124,6 +124,10 @@ export const loader = getServerLoader({
 		const checkResult = await checkInvitationToken();
 
 		if (checkResult.status === 'error') {
+			context.logger.error('checkInvitationToken error', {
+				error: serializeError(checkResult.error),
+			});
+
 			return {
 				code: 'INVALID_LINK',
 				meta,
@@ -141,6 +145,10 @@ export const loader = getServerLoader({
 		const result = await getInvitationDetails();
 
 		if (result.status === 'error') {
+			context.logger.error('getInvitationDetails error', {
+				error: serializeError(result.error),
+			});
+
 			return {
 				code: 'INVALID_LINK',
 				meta,
@@ -343,6 +351,10 @@ export const action = getServerAction({
 		const result = await acceptInvitation();
 
 		if (result.status === 'error') {
+			context.logger.error('acceptInvitation error', {
+				error: serializeError(result.error),
+			});
+
 			return {
 				status: 'error',
 				error: serializeError(result.error),
@@ -384,15 +396,17 @@ export const action = getServerAction({
 
 		const sessionTokenCookie = cookie.serialize(
 			SESSION_TOKEN_COOKIE_KEY,
-			sessionToken,
+			sessionCookieValue,
 			cookieOptions,
 		);
 		responseHeaders.append('Set-Cookie', sessionTokenCookie);
 
-		// Redirect to staff dashboard
-		return redirect(FRONT_PATH_NAMES.staff.root, {
-			headers: responseHeaders,
-		}) as never;
+		const redirectPath =
+			redirectCode === REDIRECT_CODE.STAFF
+				? FRONT_PATH_NAMES.staff.root
+				: FRONT_PATH_NAMES.tenant()._root;
+
+		return redirect(redirectPath, { headers: responseHeaders }) as never;
 	},
 });
 

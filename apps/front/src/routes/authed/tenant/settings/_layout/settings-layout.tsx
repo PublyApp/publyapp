@@ -1,4 +1,3 @@
-import Box from '@mui/material/Box';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import capitalize from 'lodash/capitalize';
@@ -10,6 +9,10 @@ import {
 	FRONT_PATH_NAMES,
 	isServer,
 } from '@org/shared-ts/lib/constants';
+import type { SettingsNavItem } from '@/front/components/settings/settings-nav';
+import { SidebarSettingsLayout } from '@/front/components/settings/sidebar-settings-layout';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 
 import type { SettingsNavItem } from '#app/components/settings/settings-nav.tsx';
 import { SidebarSettingsLayout } from '#app/components/settings/sidebar-settings-layout.tsx';
@@ -17,7 +20,6 @@ import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/settings-layout';
-import { SettingsNav, type SettingsNavItem } from './settings-nav';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = capitalize(t('organization-settings'));
@@ -93,40 +95,7 @@ const SettingsLayout = () => {
 		},
 	];
 
-	return (
-		<DashboardContent maxWidth="lg" compact>
-			<Box
-				sx={{
-					display: 'flex',
-					gap: 4,
-					flexDirection: { xs: 'column', md: 'row' },
-				}}
-			>
-				{/* Left Navigation - Sticky */}
-				<Box
-					sx={{
-						display: { xs: 'none', md: 'block' },
-						flexShrink: 0,
-						width: 200,
-						position: 'sticky',
-						top: 80,
-						alignSelf: 'flex-start',
-						maxHeight: 'calc(100vh - 100px)',
-						overflowY: 'auto',
-					}}
-				>
-					<SettingsNav items={navItems} />
-				</Box>
-
-				{/* Main Content */}
-				<Box sx={{ flex: 1, minWidth: 0 }}>
-					{/* <DashboardContent> */}
-					<Outlet />
-					{/* </DashboardContent> */}
-				</Box>
-			</Box>
-		</DashboardContent>
-	);
+	return <SidebarSettingsLayout items={navItems} />;
 };
 
 export default SettingsLayout;

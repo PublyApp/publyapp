@@ -17,6 +17,17 @@ import {
 	FRONT_PATH_NAMES,
 	isServer,
 } from '@org/shared-ts/lib/constants';
+import { ErrorContent } from '@/front/components/empty-content/error-content';
+import View400 from '@/front/components/error/400-view';
+import { NotFoundView } from '@/front/components/error/not-found-view';
+import QueryDisplay from '@/front/components/query-display';
+import type { SettingsNavItem } from '@/front/components/settings/settings-nav';
+import { SidebarSettingsLayout } from '@/front/components/settings/sidebar-settings-layout';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { DashboardContent } from '@/front/layouts/dashboard/content';
+import { isProblemFailure, toApiFailure } from '@/front/lib/api-failure';
+import { useGetTenant } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
+import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
 import View400 from '#app/components/error/400-view.tsx';
@@ -82,7 +93,6 @@ export const loader = getServerLoader({
 
 const TenantDetailsLayout = () => {
 	const { t } = useTranslate();
-	const pathname = usePathname();
 	const { tenantId } = useParams();
 
 	const getTenantQuery = useGetTenant({
@@ -99,9 +109,8 @@ const TenantDetailsLayout = () => {
 			{ label: t('invitations'), href: paths.tabs.invitations, deep: true },
 			{
 				label: t('profiles'),
-				icon: <Iconify width={24} icon="solar:settings-bold" />,
-				href: tenantDetailPaths.tabs.profiles,
-				action: <CreateProfileButton />,
+				href: paths.tabs.profiles,
+				deep: true,
 			},
 			{
 				label: t('activity'),
@@ -131,28 +140,17 @@ const TenantDetailsLayout = () => {
 				) : undefined,
 			},
 		];
-
-		const ACTIONS = {} as Record<string, React.ReactNode>;
-
-		_.forEach(NAV_ITEMS, (item) => {
-			if (item.action) {
-				ACTIONS[item.href] = item.action;
-			}
-		});
-
-		return { NAV_ITEMS, ACTIONS };
 	}, [t, tenantId]);
 
-	const tabValue = useMemo(() => {
-		const value = removeLastSlash(pathname);
-		return value;
-	}, [pathname]);
+	if (!tenantId) {
+		return <View400 title="Bad Request" description="Tenant ID is required" />;
+	}
 
 	return (
-		<DashboardContent
-			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
-			compact
-			maxWidth="lg"
+		<QueryDisplay
+			query={getTenantQuery}
+			LoadingSlot={<TenantDetailsLayoutSkeleton />}
+			ErrorSlot={LayoutErrorView}
 		>
 			{() => (
 				<SidebarSettingsLayout

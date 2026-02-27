@@ -7,6 +7,8 @@ import get from 'lodash/get';
 import { data } from 'react-router';
 
 import { APP_NAME } from '@org/shared-ts/lib/constants';
+import { DashboardContent } from '@/front/layouts/dashboard/content';
+import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 
 import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
@@ -17,7 +19,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = capitalize(t('calendar'));
 
 	if (seo) {
-		str = `${str} | Staff Dashboard - ${APP_NAME}`;
+		str = `${str} | ${APP_NAME}`;
 	}
 
 	return str;
@@ -44,7 +46,11 @@ export const loader = getServerLoader({
 });
 
 const PostsCalendarPage = () => {
-	return <Typography variant="h1">PostsCalendarPage</Typography>;
+	return (
+		<DashboardContent>
+			<Typography variant="h1">TODO: Posts Calendar 🌴🌴🌴</Typography>
+		</DashboardContent>
+	);
 };
 
 export default PostsCalendarPage;

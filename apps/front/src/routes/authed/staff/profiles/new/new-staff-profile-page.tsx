@@ -10,6 +10,11 @@ import {
 	FRONT_PATH_NAMES,
 	isServer,
 } from '@org/shared-ts/lib/constants';
+import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
+import { useIsMobile } from '@/front/hooks/use-is-mobile';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { DashboardContent } from '@/front/layouts/dashboard/content';
+import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 
 import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import { useIsMobile } from '#app/hooks/use-is-mobile.ts';

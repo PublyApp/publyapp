@@ -7,6 +7,13 @@ import toStr from 'lodash/toString';
 import type { FC } from 'react';
 import { data, useParams } from 'react-router';
 
+import {
+	APP_NAME,
+	FRONT_PATH_NAMES,
+	I18N_NAMESPACES,
+	isServer,
+} from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
 import View400 from '@/front/components/error/400-view';
 import { View500 } from '@/front/components/error/500-view';
