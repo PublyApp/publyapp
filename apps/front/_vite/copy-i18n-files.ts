@@ -11,7 +11,7 @@ type PluginCopyOptions = {
 const targets: PluginCopyOptions['targets'] = [
 	{
 		src: normalizePath(
-			path.resolve(process.cwd(), '../../packages/shared/lib/i18n/json'),
+			path.resolve(process.cwd(), '../../packages/shared-ts/lib/i18n/json'),
 		),
 		dest: normalizePath(path.resolve(process.cwd(), 'public/tx')),
 	},
@@ -78,7 +78,7 @@ const copyI18nFiles = (): Plugin => {
 
 			// Use Node.js fs.watch for independent file watching
 			const sourceDir = normalizePath(
-				path.resolve(process.cwd(), '../../packages/shared/lib/i18n/json'),
+				path.resolve(process.cwd(), '../../packages/shared-ts/lib/i18n/json'),
 			);
 
 			let t: NodeJS.Timeout | null = null;
