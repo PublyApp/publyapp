@@ -3,8 +3,8 @@ import { hydrateRoot } from 'react-dom/client';
 import { I18nextProvider } from 'react-i18next';
 import { HydratedRouter } from 'react-router/dom';
 
-import { logger } from '@/shared/lib/logger/iso-logger';
-import { LogLevelEnum } from '@/shared/lib/logger/logger.utils';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { LogLevelEnum } from '@org/shared-ts/lib/logger/logger.utils';
 
 import { NonceProvider } from './hooks/use-nonce-context';
 import { initI18nOnClient } from './lib/i18n/init-i18n.client';

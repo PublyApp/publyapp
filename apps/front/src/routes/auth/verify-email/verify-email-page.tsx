@@ -10,7 +10,7 @@ import { serializeError } from 'serialize-error';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
-import { useSyncFormToLang } from '@/front/hooks/use-language-trigger-validation';
+import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { getClientManager } from '@/front/lib/js-client/client-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
@@ -23,14 +23,14 @@ import {
 	FRONT_PATH_NAMES,
 	queryParamKey,
 	queryParamValue,
-} from '@/shared/lib/constants';
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import { getErrorMessage } from '@/shared/utils/error-message';
+} from '@org/shared-ts/lib/constants';
+import { getCorrectLocale } from '@org/shared-ts/lib/i18n/i18n.utils';
+import { getErrorMessage } from '@org/shared-ts/utils/error.utils';
 import {
 	getCheckEmailVerificationTokenSchema,
 	getEmailFormSchema,
 	getRequestEmailVerificationSchema,
-} from '@/shared/validations/auth.validations';
+} from '@org/shared-ts/validations/auth.validations';
 
 import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/verify-email-page';

@@ -22,8 +22,8 @@ import { SimpleLayout } from '@/front/layouts/simple/layout';
 import { logout } from '@/front/lib/cookies';
 import { allLangs } from '@/front/lib/locales/all-langs';
 import { useGetUserTenantsForPicker } from '@/front/lib/react-query/features/common/auth.hooks';
-import type { TenantForPickerItem } from '@/js-client/src/models';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import type { TenantForPickerItem } from '@org/client-ts/src/models';
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 // ----------------------------------------------------------------------
 

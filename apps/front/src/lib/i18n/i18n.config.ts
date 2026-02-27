@@ -2,7 +2,7 @@ import type {
 	DefaultLocale,
 	DefaultNS,
 	SupportedLanguages,
-} from '@/shared/lib/i18n/resources';
+} from '@org/shared-ts/lib/i18n/resources';
 
 type Config = {
 	debug: boolean;

@@ -8,7 +8,7 @@ import {
 } from 'react-query-kit';
 
 import { getClientManager } from '@/front/lib/js-client/client-manager';
-import type { ApiClient } from '@/js-client/src/apiClient';
+import type { ApiClient } from '@org/client-ts/src/apiClient';
 
 import { getQueryKey } from './query-utils';
 

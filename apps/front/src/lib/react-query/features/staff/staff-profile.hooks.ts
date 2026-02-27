@@ -4,7 +4,7 @@ import {
 } from '@microsoft/kiota-abstractions';
 import _ from 'lodash';
 
-import type { CreateStaffProfileBody } from '@/js-client/src/models';
+import type { CreateStaffProfileBody } from '@org/client-ts/src/models';
 
 import { createStaffMutation, createStaffQuery } from '../../create-hooks';
 

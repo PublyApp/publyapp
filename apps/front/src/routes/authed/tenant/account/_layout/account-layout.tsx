@@ -9,7 +9,11 @@ import { SidebarSettingsLayout } from '@/front/components/settings/sidebar-setti
 import { useTenantParam } from '@/front/hooks/use-tenant-param';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
+import {
+	APP_NAME,
+	FRONT_PATH_NAMES,
+	isServer,
+} from '@org/shared-ts/lib/constants';
 
 import type { Route } from './+types/account-layout';
 

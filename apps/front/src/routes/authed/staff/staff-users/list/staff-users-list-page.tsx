@@ -9,7 +9,11 @@ import { RouterLink } from '@/front/components/router-link';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
+import {
+	APP_NAME,
+	FRONT_PATH_NAMES,
+	isServer,
+} from '@org/shared-ts/lib/constants';
 
 import type { Route } from './+types/staff-users-list-page';
 import StaffUsersTable from './parts/staff-users-table';

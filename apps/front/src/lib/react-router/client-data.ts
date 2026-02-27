@@ -1,7 +1,7 @@
 import type { ClientLoaderFunctionArgs } from 'react-router';
 
-import type { AppLocale } from '@/shared/lib/i18n/resources';
-import type InterZod from '@/shared/lib/zod/InterZod';
+import type { AppLocale } from '@org/shared-ts/lib/i18n/resources';
+import type InterZod from '@org/shared-ts/lib/zod/InterZod';
 
 import { initI18nOnClient } from '../i18n/init-i18n.client';
 import { initZodOnClient } from '../zod/zod.client';

@@ -12,8 +12,8 @@ import {
 	FRONT_PATH_NAMES,
 	I18N_NAMESPACES,
 	isServer,
-} from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/logger/iso-logger';
+} from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import type { Route } from './+types/new-staff-user-page';
 import NewStaffUserForm from './components/new-staff-user-form';

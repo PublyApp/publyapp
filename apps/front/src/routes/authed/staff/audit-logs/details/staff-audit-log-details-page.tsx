@@ -25,8 +25,8 @@ import { isProblemFailure, toApiFailure } from '@/front/lib/api-failure';
 import { useGetStaffAuditLog } from '@/front/lib/react-query/features/staff/staff-audit-log.hooks';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { fDateTime, fToNow } from '@/front/utils/format-time';
-import type { AuditLogDetail } from '@/js-client/src/models';
-import { APP_NAME, FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import type { AuditLogDetail } from '@org/client-ts/src/models';
+import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import type { Route } from './+types/staff-audit-log-details-page';
 

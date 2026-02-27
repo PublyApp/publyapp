@@ -1,5 +1,8 @@
-import { ACCOUNT_LEVEL_ENUM, USER_STATUS_ENUM } from '@/shared/lib/constants';
-import type InterZod from '@/shared/lib/zod/InterZod';
+import {
+	ACCOUNT_LEVEL_ENUM,
+	USER_STATUS_ENUM,
+} from '@org/shared-ts/lib/constants';
+import type InterZod from '@org/shared-ts/lib/zod/InterZod';
 
 import { getFileSchemaClientSide } from './file/file-client.validations';
 

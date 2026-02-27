@@ -40,10 +40,10 @@ import {
 	FRONT_PATH_NAMES,
 	USER_STATUS_ENUM,
 	voidFunction,
-} from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/logger/iso-logger';
-import { getErrorMessage } from '@/shared/utils/error.utils';
-import { getUserFullName } from '@/shared/utils/user.utils';
+} from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { getErrorMessage } from '@org/shared-ts/utils/error.utils';
+import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 export type TenantUserRowData = {
 	id: string;

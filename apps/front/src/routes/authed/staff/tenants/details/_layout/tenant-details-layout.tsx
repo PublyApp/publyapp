@@ -19,7 +19,11 @@ import { DashboardContent } from '@/front/layouts/dashboard/content';
 import { isProblemFailure, toApiFailure } from '@/front/lib/api-failure';
 import { useGetTenant } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
+import {
+	APP_NAME,
+	FRONT_PATH_NAMES,
+	isServer,
+} from '@org/shared-ts/lib/constants';
 
 import type { Route } from './+types/tenant-details-layout';
 

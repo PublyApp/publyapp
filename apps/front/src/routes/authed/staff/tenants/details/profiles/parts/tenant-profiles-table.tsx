@@ -25,8 +25,8 @@ import { toast } from '@/front/components/snackbar';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { useFindTenantProfiles } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
-import type { ProfileAsStaffItem } from '@/js-client/src/models';
-import { TENANT_PROFILES_PERMISSIONS_ENUM } from '@/shared/lib/constants';
+import type { ProfileAsStaffItem } from '@org/client-ts/src/models';
+import { TENANT_PROFILES_PERMISSIONS_ENUM } from '@org/shared-ts/lib/constants';
 
 type TenantProfileRowData = Record<string, unknown> & { permission: string };
 

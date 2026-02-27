@@ -7,8 +7,8 @@ import {
 	clearLegacyTenantFromBrowser,
 	clearTenantHintForUserInBrowser,
 } from '@/front/lib/cookies';
-import { isServer } from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/logger/iso-logger';
+import { isServer } from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 // NOTE: Do NOT import toast at module level - some toast libs crash on SSR import
 // We use dynamic import inside safeToast() instead

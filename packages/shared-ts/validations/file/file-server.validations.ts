@@ -2,7 +2,7 @@ import type { Readable } from 'node:stream';
 
 import type zod from 'zod';
 
-import type InterZod from '@/shared/lib/zod/InterZod';
+import type InterZod from '@org/shared-ts/lib/zod/InterZod';
 
 import { getFolderNameSchema } from './file.validations';
 

@@ -6,8 +6,8 @@ import {
 	FRONT_PATH_NAMES,
 	formActionKey,
 	queryParamKey,
-} from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/logger/iso-logger';
+} from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 /**
  * Dedicated route for clearing httpOnly session cookies.

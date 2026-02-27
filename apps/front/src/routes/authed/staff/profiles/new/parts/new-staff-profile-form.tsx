@@ -63,9 +63,9 @@ import {
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
 import { interZodClient } from '@/front/lib/zod/zod.client';
-import { FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/logger/iso-logger';
-import { getNewStaffProfileSchema } from '@/shared/validations/staff-profile.validations';
+import { FRONT_PATH_NAMES, isServer } from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { getNewStaffProfileSchema } from '@org/shared-ts/validations/staff-profile.validations';
 
 // ============================================================
 // CONSTANTS & TYPES

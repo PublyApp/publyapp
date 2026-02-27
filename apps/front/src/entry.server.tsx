@@ -23,11 +23,11 @@ import {
 	LOCALE_COOKIE_KEY,
 	queryParamKey,
 	REMIX_CLIENT_IP_HEADER_KEY,
-} from '@/shared/lib/constants';
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import type { AppLocale } from '@/shared/lib/i18n/resources';
-import { logger } from '@/shared/lib/logger/iso-logger';
-import { getErrorMessage } from '@/shared/utils/error.utils';
+} from '@org/shared-ts/lib/constants';
+import { getCorrectLocale } from '@org/shared-ts/lib/i18n/i18n.utils';
+import type { AppLocale } from '@org/shared-ts/lib/i18n/resources';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { getErrorMessage } from '@org/shared-ts/utils/error.utils';
 
 import { NonceProvider } from './hooks/use-nonce-context';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';

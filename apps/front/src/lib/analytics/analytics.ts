@@ -1,5 +1,5 @@
-import type { IAnalytics } from '@/shared/lib/analytics/analytics.types';
-import { IsoAnalytics } from '@/shared/lib/analytics/iso-analytics';
+import type { IAnalytics } from '@org/shared-ts/lib/analytics/analytics.types';
+import { IsoAnalytics } from '@org/shared-ts/lib/analytics/iso-analytics';
 
 import { env } from '../env';
 

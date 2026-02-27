@@ -9,7 +9,7 @@ import {
 	isServer,
 	SESSION_TOKEN_HEADER_KEY,
 	TENANT_ID_HEADER_KEY,
-} from '@/shared/lib/constants';
+} from '@org/shared-ts/lib/constants';
 
 import { getSessionTokensFromClient } from '../cookies/session-cookie.utils';
 import { env } from '../env';

@@ -11,7 +11,7 @@ import {
 	updateTenantHintInBrowser,
 } from '@/front/lib/cookies/tenant-hint-cookie.utils';
 import { useGetUserAuthData } from '@/front/lib/react-query/features/common/auth.hooks';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 const TenantLayout = () => {
 	const { t } = useTranslate();

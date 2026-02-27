@@ -20,8 +20,8 @@ import {
 	FRONT_PATH_NAMES,
 	I18N_NAMESPACES,
 	isServer,
-} from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/logger/iso-logger';
+} from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { UserNewEditFormSkeleton } from '../components/user-new-edit-form-skeleton';
 import type { Route } from './+types/staff-user-details-page';

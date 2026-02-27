@@ -10,10 +10,10 @@ import {
 import {
 	FRONT_PATH_NAMES,
 	SESSION_TOKEN_COOKIE_KEY,
-} from '@/shared/lib/constants';
-import type { AppLocale } from '@/shared/lib/i18n/resources';
-import InterZod from '@/shared/lib/zod/InterZod';
-import { isPromise } from '@/shared/utils/any.utils';
+} from '@org/shared-ts/lib/constants';
+import type { AppLocale } from '@org/shared-ts/lib/i18n/resources';
+import InterZod from '@org/shared-ts/lib/zod/InterZod';
+import { isPromise } from '@org/shared-ts/utils/any.utils';
 
 import { parseSessionCookie } from '../cookies/session-cookie.utils';
 import { remixI18NextServer } from '../i18n/i18n.server';
