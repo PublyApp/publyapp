@@ -2,6 +2,7 @@ using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Routes;
+using MainApi.Src.Lib.Seeding;
 using MainApi.Src.Modules.AuditLogs.Endpoints;
 using MainApi.Src.Modules.Auth.Endpoints;
 using MainApi.Src.Modules.Invitations.Endpoints;
@@ -16,6 +17,11 @@ namespace MainApi;
 public class Program {
 	public static void Main(string[] args) {
 		AppEnvironment.Initialize(); // ! must be called before anything else
+
+		// CLI commands (e.g., seed-bulk, seed-bulk-reset)
+		if (BulkSeedCli.TryRun(args)) {
+			return;
+		}
 
 		var builder = WebApplication.CreateBuilder(args);
 
