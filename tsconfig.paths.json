@@ -8,8 +8,8 @@
 		"baseUrl": ".",
 		"paths": {
 			"@/front/*": ["./apps/front/src/*"],
-			"@/shared/*": ["./packages/shared/*"],
-			"@/js-client/*": ["./packages/js-client/*"],
+			"@/shared/*": ["./packages/shared-ts/*"],
+			"@/js-client/*": ["./packages/client-ts/*"],
 			// for remix aka react-router app
 			"~/front/*": ["./apps/front/src/*"]
 		}
