@@ -5,11 +5,13 @@ import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
-import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useForm } from 'react-hook-form';
 import { useFetcher } from 'react-router';
 
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+import { getSerializedErrorMessage } from '@org/shared-ts/utils/error.utils';
+import { getLoginSchema } from '@org/shared-ts/validations/auth.validations';
 import { FormHead } from '@/front/components/auth/form-head';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
@@ -17,9 +19,6 @@ import { RouterLink } from '@/front/components/router-link';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { interZodClient } from '@/front/lib/zod/zod.client';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { getErrorMessage } from '@/shared/utils/error.utils';
-import { getLoginSchema } from '@/shared/validations/auth.validations';
 
 import type { LoginActionResult } from './login-page';
 
@@ -28,16 +27,7 @@ const LoginForm = () => {
 	const showPassword = useBoolean();
 	const fetcher = useFetcher<LoginActionResult>();
 
-	const errorFetcher = fetcher.data?.error;
-	let errorMessage: string | null = null;
-	if (errorFetcher) {
-		const translationKey = _.get(errorFetcher, 'key');
-		if (translationKey) {
-			errorMessage = t(translationKey as never, { ns: 'response-message' });
-		} else {
-			errorMessage = getErrorMessage(errorFetcher);
-		}
-	}
+	const errorMessage = getSerializedErrorMessage(fetcher.data?.error, t);
 
 	const loginSchema = getLoginSchema(interZodClient);
 	const loginResolver = zodResolver(loginSchema);

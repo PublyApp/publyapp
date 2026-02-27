@@ -5,6 +5,7 @@ using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.AuditLogs.Entities;
 using MainApi.Src.Modules.AuditLogs.Services;
 using MainApi.Src.Modules.Auth.Services;
@@ -35,27 +36,17 @@ public record InvitationAccepted {
 	public required double SessionExpiresInMs { get; init; }
 }
 
-public class AcceptInvitationBodyValidator : AbstractValidator<AcceptInvitationBody> {
+public class AcceptInvitationBodyValidator
+	: AbstractValidator<AcceptInvitationBody> {
 	public AcceptInvitationBodyValidator() {
 		RuleFor(x => x.FirstName)
-			.Must(e => e.ValueKind == JsonValueKind.String)
-			.WithMessage("FirstName must be a string")
-			.Must(e => !string.IsNullOrWhiteSpace(e.GetString()))
-			.WithMessage("FirstName is required");
+			.MustBeRequiredString("FirstName");
 
 		RuleFor(x => x.LastName)
-			.Must(e => e.ValueKind == JsonValueKind.String)
-			.WithMessage("LastName must be a string")
-			.Must(e => !string.IsNullOrWhiteSpace(e.GetString()))
-			.WithMessage("LastName is required");
+			.MustBeRequiredString("LastName");
 
 		RuleFor(x => x.Password)
-			.Must(e => e.ValueKind == JsonValueKind.String)
-			.WithMessage("Password must be a string")
-			.Must(e => !string.IsNullOrWhiteSpace(e.GetString()))
-			.WithMessage("Password is required")
-			.Must(e => e.GetString()!.Length >= 8)
-			.WithMessage("Password must be at least 8 characters");
+			.MustBeRequiredPassword();
 	}
 }
 

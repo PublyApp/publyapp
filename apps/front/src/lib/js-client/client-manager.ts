@@ -4,12 +4,12 @@ import {
 	KiotaClientFactory,
 } from '@microsoft/kiota-http-fetchlibrary';
 
-import { type ApiClient, createApiClient } from '@org/js-client/src/apiClient';
+import { type ApiClient, createApiClient } from '@org/client-ts/src/apiClient';
 import {
 	isServer,
 	SESSION_TOKEN_HEADER_KEY,
 	TENANT_ID_HEADER_KEY,
-} from '@/shared/lib/constants';
+} from '@org/shared-ts/lib/constants';
 
 import { getSessionTokensFromClient } from '../cookies/session-cookie.utils';
 import { env } from '../env';

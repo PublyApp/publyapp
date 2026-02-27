@@ -17,6 +17,14 @@ import {
 } from 'react-router';
 import { serializeError } from 'serialize-error';
 
+import {
+	FRONT_PATH_NAMES,
+	queryParamKey,
+	queryParamValue,
+} from '@org/shared-ts/lib/constants';
+import { getCorrectLocale } from '@org/shared-ts/lib/i18n/i18n.utils';
+import { getSerializedErrorMessage } from '@org/shared-ts/utils/error.utils';
+import { getResetPasswordSchema } from '@org/shared-ts/validations/auth.validations';
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { Iconify } from '@/front/components/iconify/iconify';
@@ -30,14 +38,6 @@ import {
 	getServerLoader,
 } from '@/front/lib/react-router/server-data.server';
 import { interZodClient } from '@/front/lib/zod/zod.client';
-import {
-	FRONT_PATH_NAMES,
-	queryParamKey,
-	queryParamValue,
-} from '@/shared/lib/constants';
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import { getErrorMessage } from '@/shared/utils/error.utils';
-import { getResetPasswordSchema } from '@/shared/validations/auth.validations';
 
 import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/reset-password-page';
@@ -122,7 +122,7 @@ export const action = getServerAction({
 
 			return {
 				status: 'error',
-				error: result.error.message,
+				error: serializeError(result.error),
 			} as const;
 		}
 
@@ -266,8 +266,7 @@ const ResetPasswordForm = () => {
 
 	const fetcher = useFetcher<typeof action>();
 
-	const errorFetcher = fetcher.data?.error;
-	const errorMessage = errorFetcher ? getErrorMessage(errorFetcher) : null;
+	const errorMessage = getSerializedErrorMessage(fetcher.data?.error, t);
 
 	const handleSubmit = form.handleSubmit(async (data) => {
 		await fetcher.submit(data, {

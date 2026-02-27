@@ -6,10 +6,10 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { SimpleCompactContent } from '@/front/layouts/simple/content';
 import { SimpleLayout } from '@/front/layouts/simple/layout';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
 import { MotionContainer } from '../animate/motion-container';
 import { varBounce } from '../animate/variants';

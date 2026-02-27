@@ -7,6 +7,18 @@ import { useForm } from 'react-hook-form';
 import { redirect, useFetcher } from 'react-router';
 import { serializeError } from 'serialize-error';
 
+import {
+	FRONT_PATH_NAMES,
+	queryParamKey,
+	queryParamValue,
+} from '@org/shared-ts/lib/constants';
+import { getCorrectLocale } from '@org/shared-ts/lib/i18n/i18n.utils';
+import { getErrorMessage } from '@org/shared-ts/utils/error.utils';
+import {
+	getCheckEmailVerificationTokenSchema,
+	getEmailFormSchema,
+	getRequestEmailVerificationSchema,
+} from '@org/shared-ts/validations/auth.validations';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
@@ -19,18 +31,6 @@ import {
 	getServerLoader,
 } from '@/front/lib/react-router/server-data.server';
 import { interZodClient } from '@/front/lib/zod/zod.client';
-import {
-	FRONT_PATH_NAMES,
-	queryParamKey,
-	queryParamValue,
-} from '@/shared/lib/constants';
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import { getErrorMessage } from '@/shared/utils/error.utils';
-import {
-	getCheckEmailVerificationTokenSchema,
-	getEmailFormSchema,
-	getRequestEmailVerificationSchema,
-} from '@/shared/validations/auth.validations';
 
 import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/verify-email-page';

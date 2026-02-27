@@ -4,6 +4,7 @@ using MainApi.Src.Data;
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Auth.Utils;
 using MainApi.Src.Modules.Users.Entities;
 
@@ -23,14 +24,8 @@ public class UserSeeder : IEntitySeeder {
 	private readonly ILogger<UserSeeder> _logger;
 
 	public UserSeeder(ILogger<UserSeeder>? logger = null) {
-		_logger = logger ?? CreateDefaultLogger();
-	}
-
-	private static ILogger<UserSeeder> CreateDefaultLogger() {
-		using var loggerFactory = LoggerFactory.Create(builder => {
-			builder.AddConsole();
-		});
-		return loggerFactory.CreateLogger<UserSeeder>();
+		_logger = logger
+			?? SeederLoggerUtils.CreateDefault<UserSeeder>();
 	}
 
 	public int Order => 30;

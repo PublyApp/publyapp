@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Modules.Auth.Handlers;
 
 public class GetVerificationLinkQuery {
+	[FromQuery]
 	public string UserId { get; set; } = string.Empty;
 
 	public Guid GetUserId() {
@@ -33,7 +34,8 @@ public class GetVerificationLink {
 	public async static Task<
 		Results<
 			Ok<GetVerificationLinkResult>,
-			AppBadRequestHttpResult
+			AppBadRequestHttpResult,
+			AppNotFoundHttpResult
 		>
 	> HandleGetVerificationLink(
 		[AsParameters] GetVerificationLinkQuery query,
@@ -44,18 +46,28 @@ public class GetVerificationLink {
 		var userId = query.GetUserId();
 
 		if (userId == Guid.Empty) {
-			// user id is invalid but for security reasons we do not disclose that
-			// This also save unnecessary database queries
 			if (logger.IsEnabled(LogLevel.Debug)) {
-				logger.LogDebug("Invalid user ID: {@UserId}", userId);
+				logger.LogDebug(
+					"Invalid user ID: {@UserId}",
+					userId
+				);
 			}
-			return TypedProblems.BadRequest("User not found", ResponseKeys.UserNotFound);
+
+			return TypedProblems.BadRequest(
+				"Invalid user ID",
+				ResponseKeys.BadRequest
+			);
 		}
 
-		var user = await UserService.GetUserByIdAsync(userId, cancellationToken);
+		var user = await UserService.GetUserByIdAsync(
+			userId, cancellationToken
+		);
 
 		if (user is null) {
-			return TypedProblems.BadRequest("User not found", ResponseKeys.UserNotFound);
+			return TypedProblems.NotFound(
+				"User not found",
+				ResponseKeys.NotFound
+			);
 		}
 
 		var link = AuthUtils.CreateVerificationUrl(user.GetRequiredId().ToString(), user.Email);

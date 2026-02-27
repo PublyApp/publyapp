@@ -1,5 +1,6 @@
 using MainApi.Localization;
 using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Modules.Tenants.Entities;
 using MainApi.Src.Modules.Tenants.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -10,13 +11,22 @@ namespace MainApi.Src.Modules.Tenants.Handlers.Staff;
 public class GetTenantAsStaffResult {
 	public Guid TenantId { get; set; }
 	public string Name { get; set; } = string.Empty;
+	public string Code { get; set; } = string.Empty;
+	public string? LogoUrl { get; set; }
+	public int MaxUsers { get; set; }
+	public string Status { get; set; } = string.Empty;
+	public bool IsSuspended { get; set; }
+	public int UsersCount { get; set; }
+	public DateTime CreatedAt { get; set; }
+	public DateTime UpdatedAt { get; set; }
 }
 
 public class GetTenantAsStaff {
 	public static async Task<
 		Results<
 			Ok<GetTenantAsStaffResult>,
-			AppBadRequestHttpResult
+			AppBadRequestHttpResult,
+			AppNotFoundHttpResult
 		>
 	> HandleGetTenantAsStaff(
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
@@ -24,18 +34,42 @@ public class GetTenantAsStaff {
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
-			return TypedProblems.BadRequest("Tenant not found", ResponseKeys.NotFound);
+			return TypedProblems.BadRequest(
+				"Invalid tenant ID",
+				ResponseKeys.MalformedId
+			);
 		}
 
-		var tenant = await tenantAsStaffService.GetTenantByIdAsync(tenantIdGuid, cancellationToken);
+		var tenant =
+			await tenantAsStaffService.GetTenantByIdForStaffAsync(
+				tenantIdGuid, cancellationToken
+			);
 
 		if (tenant is null) {
-			return TypedProblems.BadRequest("Tenant not found", ResponseKeys.NotFound);
+			return TypedProblems.NotFound(
+				"Tenant not found",
+				ResponseKeys.NotFound
+			);
 		}
+
+		var usersCount = await tenantAsStaffService
+			.CountTenantUsersAsync(
+				tenantIdGuid, cancellationToken
+			);
 
 		return TypedResults.Ok(new GetTenantAsStaffResult {
 			TenantId = tenant.GetRequiredId(),
 			Name = tenant.Name,
+			Code = tenant.Code,
+			LogoUrl = tenant.LogoUrl,
+			MaxUsers = tenant.MaxUsers,
+			Status = Tenant.GetStatusDescription(
+				tenant.Status
+			),
+			IsSuspended = tenant.IsSuspended,
+			UsersCount = usersCount,
+			CreatedAt = tenant.CreatedAt,
+			UpdatedAt = tenant.UpdatedAt,
 		});
 	}
 }

@@ -4,6 +4,11 @@ import _ from 'lodash';
 import { useForm } from 'react-hook-form';
 import type zod from 'zod';
 
+import {
+	ACCOUNT_LEVEL_ENUM,
+	FRONT_PATH_NAMES,
+} from '@org/shared-ts/lib/constants';
+import { getNewStaffUserSchema } from '@org/shared-ts/validations/staff-user.validations';
 import { toast } from '@/front/components/snackbar';
 import { useRouter } from '@/front/hooks/use-router';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
@@ -13,8 +18,6 @@ import {
 	useFindStaffUser,
 } from '@/front/lib/react-query/features/staff/staff-user.hooks';
 import { interZodClient } from '@/front/lib/zod/zod.client';
-import { ACCOUNT_LEVEL_ENUM, FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { getNewStaffUserSchema } from '@/shared/validations/staff-user.validations';
 
 import { UserNewEditForm } from '../../components/user-new-edit-form';
 

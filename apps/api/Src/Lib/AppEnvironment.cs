@@ -18,8 +18,19 @@ public class AppEnvironment {
 	/// <summary>
 	/// Gets the initialized instance. Throws if Initialize() hasn't been called.
 	/// </summary>
-	public static AppEnvironment Instance => Volatile.Read(ref _instance)
-		?? throw new InvalidOperationException("AppEnvironment not initialized. Call AppEnvironment.Initialize() first.");
+	public static AppEnvironment Instance {
+		get {
+			var instance = Volatile.Read(ref _instance);
+			if (instance is null) {
+				throw new InvalidOperationException(
+					"AppEnvironment not initialized. "
+					+ "Call AppEnvironment.Initialize() "
+					+ "first."
+				);
+			}
+			return instance;
+		}
+	}
 
 	// ========== Environment Variables (secrets, URLs) ==========
 	public string POSTGRES_CONNECTION_STRING { get; }
@@ -42,6 +53,7 @@ public class AppEnvironment {
 	public int PASSWORD_RESET_TOKEN_LENGTH { get; }
 	public int INVITATION_TOKEN_LENGTH { get; }
 	public bool DI_MANIFEST_ENABLED { get; }
+	public int AUDIT_LOG_EXPORT_MAX_ROWS { get; }
 
 	// ========== Constants (hardcoded, not from environment) ==========
 #pragma warning disable CA1822
@@ -51,18 +63,45 @@ public class AppEnvironment {
 	public int DEFAULT_MAX_USERS_PER_TENANT => 5;
 
 	// ========== Computed properties ==========
-	public bool IsDevelopment => string.Equals(
+	public static bool IsDevelopment => string.Equals(
 		GetHostEnvironmentName(),
-		"Development",
+		EnvironmentNames.Development,
 		StringComparison.OrdinalIgnoreCase
 	);
 
-	public bool IsProduction => string.Equals(
+	public static bool IsProduction => string.Equals(
 		GetHostEnvironmentName(),
-		"Production",
+		EnvironmentNames.Production,
 		StringComparison.OrdinalIgnoreCase
 	);
-	public string EnvironmentName => GetHostEnvironmentName();
+
+	public static bool IsTesting => string.Equals(
+		GetHostEnvironmentName(),
+		EnvironmentNames.Testing,
+		StringComparison.OrdinalIgnoreCase
+	);
+
+	public static bool IsTestVerboseLoggingEnabled {
+		get {
+			var value = Environment.GetEnvironmentVariable(
+				"TEST_VERBOSE_LOGS"
+			);
+
+			if (string.IsNullOrWhiteSpace(value)) {
+				return false;
+			}
+
+			var trimmed = value.Trim();
+			return trimmed == "1"
+				|| trimmed.Equals(
+					"true",
+					StringComparison.OrdinalIgnoreCase
+				);
+		}
+	}
+
+	public static string EnvironmentName =>
+		GetHostEnvironmentName();
 #pragma warning restore CA1822
 
 	// Private constructor - use Initialize()
@@ -86,7 +125,8 @@ public class AppEnvironment {
 		int emailVerifyTokenLength,
 		int passwordResetTokenLength,
 		int invitationTokenLength,
-		bool diManifestEnabled
+		bool diManifestEnabled,
+		int auditLogExportMaxRows
 	) {
 		POSTGRES_CONNECTION_STRING = postgresConnectionString;
 		FRONT_URL = frontUrl;
@@ -106,6 +146,7 @@ public class AppEnvironment {
 		PASSWORD_RESET_TOKEN_LENGTH = passwordResetTokenLength;
 		INVITATION_TOKEN_LENGTH = invitationTokenLength;
 		DI_MANIFEST_ENABLED = diManifestEnabled;
+		AUDIT_LOG_EXPORT_MAX_ROWS = auditLogExportMaxRows;
 	}
 
 	/// <summary>
@@ -147,7 +188,8 @@ public class AppEnvironment {
 				emailVerifyTokenLength: GetRequiredInt(nameof(EMAIL_VERIFY_TOKEN_LENGTH)),
 				passwordResetTokenLength: GetRequiredInt(nameof(PASSWORD_RESET_TOKEN_LENGTH)),
 				invitationTokenLength: GetRequiredInt(nameof(INVITATION_TOKEN_LENGTH)),
-				diManifestEnabled: GetOptionalBool(nameof(DI_MANIFEST_ENABLED), false)
+				diManifestEnabled: GetOptionalBool(nameof(DI_MANIFEST_ENABLED), false),
+				auditLogExportMaxRows: GetOptionalInt(nameof(AUDIT_LOG_EXPORT_MAX_ROWS), 10000)
 			);
 
 			var validator = new AppEnvironmentValidator();
@@ -203,10 +245,27 @@ public class AppEnvironment {
 			$"Environment variable '{name}' must be a valid boolean (true/false/1/0), got '{trimmed}'");
 	}
 
+	private static int GetOptionalInt(string name, int defaultValue) {
+		var value = Environment.GetEnvironmentVariable(name);
+		if (string.IsNullOrWhiteSpace(value)) return defaultValue;
+
+		if (!int.TryParse(
+			value.Trim(),
+			NumberStyles.Integer,
+			CultureInfo.InvariantCulture,
+			out var result
+		)) {
+			throw new InvalidOperationException(
+				$"Environment variable '{name}' must be a valid integer, got '{value.Trim()}'");
+		}
+
+		return result;
+	}
+
 	private static string GetHostEnvironmentName() =>
 		Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
 		?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
-		?? "Production";
+		?? EnvironmentNames.Production;
 
 	private static void LoadDotEnvIfDevelopment() {
 		// Why this exists (important, non-obvious):
@@ -241,7 +300,11 @@ public class AppEnvironment {
 			string.IsNullOrWhiteSpace(aspNetEnvironment)
 			&& string.IsNullOrWhiteSpace(dotNetEnvironment);
 
-		var isDevelopment = string.Equals(GetHostEnvironmentName(), "Development", StringComparison.OrdinalIgnoreCase);
+		var isDevelopment = string.Equals(
+			GetHostEnvironmentName(),
+			EnvironmentNames.Development,
+			StringComparison.OrdinalIgnoreCase
+		);
 		if (!isDevelopment && !isEnvironmentUnset) return;
 
 		var path = FindDotEnvPath(".env.development");
@@ -336,6 +399,10 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 
 		RuleFor(x => x.INVITATION_TOKEN_LENGTH)
 			.GreaterThanOrEqualTo(25).WithMessage("INVITATION_TOKEN_LENGTH must be at least 25");
+
+		RuleFor(x => x.AUDIT_LOG_EXPORT_MAX_ROWS)
+			.InclusiveBetween(1, 1_000_000)
+			.WithMessage("AUDIT_LOG_EXPORT_MAX_ROWS must be between 1 and 1000000");
 
 		RuleFor(x => x.SESSION_TOKEN_HEADER_KEY)
 			.Must(BeValidHeaderName)

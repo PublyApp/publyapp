@@ -1,6 +1,6 @@
 import * as cookie from 'cookie';
 
-import { SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
+import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 
 // ============================================================================
 // DUAL TOKEN COOKIE FORMAT

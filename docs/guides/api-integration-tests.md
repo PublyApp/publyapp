@@ -54,7 +54,7 @@ make test-api
 This runs:
 
 ```bash
-cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test
+cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test
 ```
 
 ### First Run
@@ -78,19 +78,19 @@ Passed!  - Failed:     0, Passed:     7, Skipped:     0, Total:     7
 ### Verbose Output
 
 ```bash
-cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test -v normal
+cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test -v normal
 ```
 
 ### Running a Single Test Class
 
 ```bash
-cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --filter "FullyQualifiedName~PasswordLogin"
+cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test --filter "FullyQualifiedName~PasswordLoginSpec"
 ```
 
 ### Running a Single Test Method
 
 ```bash
-cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --filter "Login_WithValidCredentials_ReturnsSessionToken"
+cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test --filter "ItShouldReturnSessionTokenWithValidCredentials"
 ```
 
 ---
@@ -115,9 +115,9 @@ xUnit Test Runner
 │   └── Drops test DB on dispose
 │
 └── Test Classes (run in parallel)
-    ├── HealthIntegrationTests          → own DB clone
-    ├── PasswordLoginIntegrationTests   → own DB clone
-    └── FindStaffPermissionsTests       → own DB clone
+    ├── HealthSpec                → own DB clone
+    ├── PasswordLoginSpec         → own DB clone
+    └── FindStaffPermissionsSpec  → own DB clone
 ```
 
 ### Key Design Decisions
@@ -163,7 +163,7 @@ SeedConstants (Src/Data/Seeding/SeedConstants.cs)
 │  Single source of truth for ALL seed data
 │  Used by production seeders at runtime
 │
-└─► TestConstants (Src/Lib/Testing/TestConstants.cs)
+└─► TestConstants (Src/Lib/Testing/Fixtures/TestConstants.cs)
     Convenience facade for test code
     Delegates to SeedConstants (const = compile-time resolution)
     Also defines test-only headers (X-Session-Token, X-PublyApp-TenantId)
@@ -189,15 +189,15 @@ If you need to change seed data, update `SeedConstants.cs` — seeders and `Test
 
 Everything else (middleware, auth, routing, services) runs exactly as in production.
 
-### Why FakeEmailSender Lives in Testing/
+### Why FakeEmailSender Lives in Testing/Fakes/
 
-`FakeEmailSender` is in `Src/Lib/Testing/` rather than alongside `ResendEmailAdapter` in `Infrastructure/Messaging/Email/` because of how the build system works:
+`FakeEmailSender` is in `Src/Lib/Testing/Fakes/` rather than alongside `ResendEmailAdapter` in `Infrastructure/Messaging/Email/` because of how the build system works:
 
 - `MainApi.csproj` **excludes** `Src/Lib/Testing/**/*.cs` from production builds
 - The test project **includes** them via `<Compile Include>`
 - If `FakeEmailSender` lived in `Infrastructure/`, it would compile into the **production binary**
 
-All test doubles follow this pattern: they live in `Src/Lib/Testing/` so they're only compiled into the test assembly.
+All test doubles follow this pattern: they live in `Src/Lib/Testing/Fakes/` so they're only compiled into the test assembly.
 
 ---
 
@@ -210,7 +210,7 @@ All test doubles follow this pattern: they live in `Src/Lib/Testing/` so they're
 ```
 apps/api/Src/Modules/<Domain>/Handlers/<Scope>/
 ├── MyHandler.cs
-└── MyHandler.IntegrationTests.cs   ← new file
+└── MyHandler.Spec.cs   ← new file
 ```
 
 2. **Use the correct namespace** (must match folder path — `IDE0130`):
@@ -226,21 +226,23 @@ namespace MainApi.Src.Modules.MyDomain.Handlers.Staff;
 
 using System.Net;
 using FluentAssertions;
-using MainApi.Src.Lib.Testing;
+using MainApi.Src.Lib.Testing.Fixtures;
+using MainApi.Src.Lib.Testing.Helpers;
 using Xunit;
 
-public sealed class MyHandlerIntegrationTests
+public sealed class MyHandlerSpec
   : IClassFixture<ApiFixture> {
   private readonly HttpClient _http;
   private readonly TestAuthClient _authClient;
 
-  public MyHandlerIntegrationTests(ApiFixture fixture) {
+  public MyHandlerSpec(ApiFixture fixture) {
     _http = fixture.HttpClient;
     _authClient = new TestAuthClient(_http);
   }
 
   [Fact]
-  public async Task MyEndpoint_ReturnsExpectedResult() {
+  public async Task
+  ItShouldReturnExpectedResultWhenValid() {
     // 1. Login (if endpoint requires auth)
     var token =
       await _authClient.LoginAsStaffAdminAsync();
@@ -266,9 +268,17 @@ public sealed class MyHandlerIntegrationTests
 
 ### File Naming Convention
 
-- **Integration tests:** `*.IntegrationTests.cs`
-- The `MainApi.csproj` excludes `**/*.IntegrationTests.cs` from production builds
+- **Spec files:** `*.Spec.cs`
+- The `MainApi.csproj` excludes `**/*.Spec.cs` from production builds
 - The test project includes them via `Compile Include`
+
+### Test Method Naming (BDD)
+
+Use the `ItShould{Expected}When{Scenario}` format:
+
+- Always start with `ItShould`
+- No underscores in method names
+- Examples: `ItShouldReturnOkWithValidData`, `ItShouldReturnUnauthorizedWithoutAuth`
 
 ### Setting Auth Headers (Per-Request)
 
@@ -289,7 +299,7 @@ var request = new HttpRequestMessage(HttpMethod.Get, "/users/")
 
 ```csharp
 [Fact]
-public async Task InviteUser_SendsEmail() {
+public async Task ItShouldSendEmailOnInvite() {
   var emailSender = fixture.GetFakeEmailSender();
   emailSender.Clear(); // Reset captured emails
 
@@ -305,7 +315,7 @@ public async Task InviteUser_SendsEmail() {
 
 ```csharp
 [Fact]
-public async Task TenantEndpoint_ReturnsData() {
+public async Task ItShouldReturnDataForTenantEndpoint() {
   // Login as a tenant user
   var token = await _authClient.LoginAsync(
     TestConstants.AcmeAdminEmail,
@@ -349,7 +359,7 @@ This usually means pooled connections are lingering. The `DatabaseTemplateManage
 Ensure `MainApi.csproj` has these exclusions:
 
 ```xml
-<Compile Remove="**/*.IntegrationTests.cs" />
+<Compile Remove="**/*.Spec.cs" />
 <Compile Remove="Src/Lib/Testing/**/*.cs" />
 ```
 
@@ -359,11 +369,11 @@ Check that `SeedConstants.cs` matches the actual seeded data. Both seeders and `
 
 ### No autocompletion for `[Fact]`, `.Should()`, `FluentAssertions`, etc.
 
-This is expected when editing `*.IntegrationTests.cs` files. The test files live physically under `apps/api/Src/` (colocated with handlers), but they are **compiled by the test project** (`Tests/MainApi.IntegrationTests.csproj`), not the main API project. The main project explicitly excludes them:
+This is expected when editing `*.Spec.cs` files. The test files live physically under `apps/api/Src/` (colocated with handlers), but they are **compiled by the test project** (`Tests/MainApi.Tests.csproj`), not the main API project. The main project explicitly excludes them:
 
 ```xml
 <!-- MainApi.csproj -->
-<Compile Remove="**/*.IntegrationTests.cs" />
+<Compile Remove="**/*.Spec.cs" />
 <Compile Remove="Src/Lib/Testing/**/*.cs" />
 ```
 
@@ -371,7 +381,7 @@ Your editor sees the file under `MainApi.csproj`'s directory and resolves it aga
 
 **Workarounds by editor:**
 
-- **Visual Studio / Rider:** Navigate to test files through the `MainApi.IntegrationTests` project node in Solution Explorer (the files appear there via `Link`). Opening from the file system tree will use the wrong project context.
+- **Visual Studio / Rider:** Navigate to test files through the `MainApi.Tests` project node in Solution Explorer (the files appear there via `Link`). Opening from the file system tree will use the wrong project context.
 - **VS Code (C# Dev Kit):** Open the `.slnx` solution file so both projects are loaded. If the language server still picks the wrong project, check the status bar for a "Select Project" option.
 
 ---
@@ -385,27 +395,32 @@ apps/api/
 │   │   └── Seeding/
 │   │       └── SeedConstants.cs              ← Single source of truth for seed data
 │   ├── Lib/
-│   │   └── Testing/                          ← Test infrastructure
-│   │       ├── TestEnvironment.cs            ← Loads .env.development + overrides
-│   │       ├── TestConstants.cs              ← Facade over SeedConstants + headers
-│   │       ├── PostgresContainerFixture.cs   ← Starts Postgres container (singleton)
-│   │       ├── DatabaseTemplateManager.cs    ← Template DB create/clone/drop
-│   │       ├── ApiFixture.cs                 ← Per-class fixture
-│   │       ├── MainApiFactory.cs             ← WebApplicationFactory override
-│   │       ├── FakeEmailSender.cs            ← Captures sent emails (test double)
-│   │       ├── TestAuthClient.cs             ← Login helper
-│   │       └── HttpRequestMessageExtensions.cs ← Header helpers
+│   │   └── Testing/                          ← Test infrastructure (NO test cases here)
+│   │       ├── Fixtures/                     ← Test environment setup
+│   │       │   ├── ApiFixture.cs             ← Per-class fixture
+│   │       │   ├── PostgresContainerFixture.cs ← Starts Postgres container (singleton)
+│   │       │   ├── MainApiFactory.cs         ← WebApplicationFactory override
+│   │       │   ├── DatabaseTemplateManager.cs ← Template DB create/clone/drop
+│   │       │   ├── TestEnvironment.cs        ← Loads .env.development + overrides
+│   │       │   └── TestConstants.cs          ← Facade over SeedConstants + headers
+│   │       ├── Helpers/                      ← Test utility methods
+│   │       │   ├── TestAuthClient.cs         ← Login helper
+│   │       │   ├── TenantTestHelper.cs       ← Tenant suspend/reactivate helpers
+│   │       │   ├── SystemNoticeTestHelper.cs ← SystemNotice CRUD helpers
+│   │       │   └── HttpRequestMessageExtensions.cs ← Header helpers
+│   │       └── Fakes/                        ← Test doubles
+│   │           └── FakeEmailSender.cs        ← Captures sent emails
 │   └── Modules/
 │       ├── Auth/Handlers/
 │       │   ├── PassWordLogin.cs
-│       │   └── PassWordLogin.IntegrationTests.cs     ← Colocated test
+│       │   └── PassWordLogin.Spec.cs         ← Colocated spec
 │       ├── Permissions/Handlers/Staff/
 │       │   ├── FindStaffPermissions.cs
-│       │   └── FindStaffPermissions.IntegrationTests.cs
+│       │   └── FindStaffPermissions.Spec.cs
 │       └── Health/
-│           └── Health.IntegrationTests.cs
+│           └── Health.Spec.cs
 └── Tests/
-    ├── MainApi.IntegrationTests.csproj       ← Test project
+    ├── MainApi.Tests.csproj       ← Test project
     └── AssemblyInfo.cs                       ← Parallel config
 ```
 
@@ -418,5 +433,5 @@ apps/api/
 | Run all tests | `make test-api` |
 | Run specific class | `dotnet test ... --filter "FullyQualifiedName~ClassName"` |
 | Run specific method | `dotnet test ... --filter "MethodName"` |
-| Build test project only | `cd apps/api && dotnet build Tests/MainApi.IntegrationTests.csproj -c Test` |
+| Build test project only | `cd apps/api && dotnet build Tests/MainApi.Tests.csproj -c Test` |
 | Pull Postgres image | `docker pull postgres:18-alpine` |
