@@ -13,6 +13,12 @@ import {
 } from 'material-react-table';
 import { useMemo } from 'react';
 
+import {
+	DEFAULT_PAGE_SIZE,
+	FRONT_PATH_NAMES,
+	USER_STATUS_ENUM,
+} from '@org/shared-ts/lib/constants';
+import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 import { EmptyContent } from '@/front/components/empty-content';
 import { Iconify } from '@/front/components/iconify/iconify';
 import type { LabelColor } from '@/front/components/label';
@@ -21,12 +27,6 @@ import { RouterLink } from '@/front/components/router-link';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
-import {
-	DEFAULT_PAGE_SIZE,
-	FRONT_PATH_NAMES,
-	USER_STATUS_ENUM,
-} from '@org/shared-ts/lib/constants';
-import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 // Type definition for users assigned to this profile
 export type ProfileUserRowData = {

@@ -28,6 +28,9 @@ import { type RefObject, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import type zod from 'zod';
 
+import { FRONT_PATH_NAMES, isServer } from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { getNewStaffProfileSchema } from '@org/shared-ts/validations/staff-profile.validations';
 import { FloatingCard } from '@/front/components/floating-card';
 import { Form } from '@/front/components/hook-form';
 import { Field } from '@/front/components/hook-form/fields';
@@ -63,9 +66,6 @@ import {
 	useFindStaffProfiles,
 } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
 import { interZodClient } from '@/front/lib/zod/zod.client';
-import { FRONT_PATH_NAMES, isServer } from '@org/shared-ts/lib/constants';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { getNewStaffProfileSchema } from '@org/shared-ts/validations/staff-profile.validations';
 
 // ============================================================
 // CONSTANTS & TYPES

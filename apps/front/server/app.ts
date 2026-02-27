@@ -7,7 +7,6 @@ import helmet from 'helmet';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
 
-import { analytics } from '@/front/lib/analytics/analytics';
 import {
 	isPreRenderPath,
 	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
@@ -15,6 +14,7 @@ import {
 import { getUnifiedCSPConfig } from '@org/shared-ts/lib/csp';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { LogLevelEnum } from '@org/shared-ts/lib/logger/logger.utils';
+import { analytics } from '@/front/lib/analytics/analytics';
 
 declare global {
 	namespace Express {

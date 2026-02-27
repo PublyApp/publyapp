@@ -18,13 +18,13 @@ import {
 } from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
 
-import { NotFoundView, View403, View500 } from '@/front/components/error';
-import { defaultSettings, SettingsDrawer } from '@/front/components/settings';
 import {
 	APP_NAME,
 	isServer,
 	queryParamValue,
 } from '@org/shared-ts/lib/constants';
+import { NotFoundView, View403, View500 } from '@/front/components/error';
+import { defaultSettings, SettingsDrawer } from '@/front/components/settings';
 
 import type { Route } from './+types/root';
 import { MotionLazy } from './components/animate/motion-lazy';

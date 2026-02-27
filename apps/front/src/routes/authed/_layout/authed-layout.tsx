@@ -6,9 +6,23 @@ import { type ReactNode, Suspense, useEffect } from 'react';
 import { Outlet, redirect } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
 
-import { NotFoundView, View403, View500 } from '@/front/components/error';
+import {
+	FRONT_PATH_NAMES,
+	I18N_NAMESPACES,
+	queryParamKey,
+	queryParamValue,
+	REDIRECT_CODE,
+} from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import {
+	NotFoundView,
+	View403,
+	View500,
+	ViewTenantSuspended,
+} from '@/front/components/error';
 import { SplashScreen } from '@/front/components/loading-screen';
 import type { SettingsState } from '@/front/components/settings';
+import { toast } from '@/front/components/snackbar';
 import { useTenantParam } from '@/front/hooks/use-tenant-param';
 import { toApiFailure } from '@/front/lib/api-failure';
 import {
@@ -30,13 +44,6 @@ import {
 } from '@/front/lib/react-query/query-client';
 import { getClientLoader } from '@/front/lib/react-router/client-data';
 import { useMainStore } from '@/front/lib/zustand/store';
-import {
-	FRONT_PATH_NAMES,
-	I18N_NAMESPACES,
-	queryParamValue,
-	REDIRECT_CODE,
-} from '@org/shared-ts/lib/constants';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import type { Route } from './+types/authed-layout';
 
@@ -51,14 +58,27 @@ export const clientLoader = getClientLoader({
 		const sessionToken = getSessionCookieFromClient();
 
 		if (!sessionToken) {
-			// No session token readable by JavaScript
-			// Submit form to clear any httpOnly cookie and redirect to login
+			// Full cleanup: clear JS cookies, query cache, API clients,
+			// and start the httpOnly cookie clearing fetch in the background.
 			logout({
 				redirectCause:
 					queryParamValue.login_page.redirect_cause.invalid_session,
 			});
-			// Return null while form is submitting (navigation will take over)
-			return null;
+			// Redirect synchronously so the authed layout never renders.
+			// Without this, the component shows SplashScreen while
+			// logout's async navigation (fetch → finally → globalNavigate)
+			// races with React Router's transition — which can hang
+			// the splash screen indefinitely. The background fetch from
+			// logout() still completes and clears any httpOnly cookies.
+			const loginUrl = new URL(
+				FRONT_PATH_NAMES.auth.login,
+				window.location.origin,
+			);
+			loginUrl.searchParams.set(
+				queryParamKey.login_page.redirect_cause,
+				queryParamValue.login_page.redirect_cause.invalid_session,
+			);
+			return redirect(loginUrl.pathname + loginUrl.search);
 		}
 
 		// Guard against cross-scope navigation (tenant user on /staff, staff user on /app).
@@ -168,6 +188,23 @@ const AuthQueriesLoader = ({ children }: { children: ReactNode }) => {
 		}
 	}, [userId]);
 
+	// Show toast when redirected with org-suspended notice
+	useEffect(() => {
+		const params = new URLSearchParams(window.location.search);
+		if (
+			params.get(queryParamKey.notice) === queryParamValue.notice.org_suspended
+		) {
+			toast.warning(i18next.t('suspended-tenants-notice', { ns: 'common' }));
+			// Clean up the query param from URL
+			params.delete(queryParamKey.notice);
+			const newUrl =
+				params.size > 0
+					? `${window.location.pathname}?${params}`
+					: window.location.pathname;
+			window.history.replaceState({}, '', newUrl);
+		}
+	}, []);
+
 	return <>{children}</>;
 };
 
@@ -227,6 +264,14 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 					queryParamValue.login_page.redirect_cause.invalid_session,
 			});
 			return <SplashScreen />;
+		}
+
+		// Handle 403 tenant-suspended - show dedicated page
+		if (
+			failure.status === 403 &&
+			failure.translationKey === 'tenant-suspended'
+		) {
+			return <ViewTenantSuspended />;
 		}
 
 		// Handle 403 Forbidden - user doesn't have access (no logout!)

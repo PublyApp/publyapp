@@ -17,11 +17,23 @@ import { redirect, useFetcher, useSearchParams } from 'react-router';
 import { serializeError } from 'serialize-error';
 import type { z } from 'zod';
 
+import {
+	APP_NAME,
+	FRONT_PATH_NAMES,
+	isServer,
+	queryParamKey,
+	REDIRECT_CODE,
+	SESSION_TOKEN_COOKIE_KEY,
+} from '@org/shared-ts/lib/constants';
+import duration from '@org/shared-ts/utils/duration.utils';
+import { getSerializedErrorMessage } from '@org/shared-ts/utils/error.utils';
+import { getAcceptInvitationSchema } from '@org/shared-ts/validations/invitation.validations';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { formatSessionCookie } from '@/front/lib/cookies/session-cookie.utils';
 import { getClientManager } from '@/front/lib/js-client/client-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import {
@@ -29,16 +41,6 @@ import {
 	getServerLoader,
 } from '@/front/lib/react-router/server-data.server';
 import { interZodClient } from '@/front/lib/zod/zod.client';
-import {
-	APP_NAME,
-	FRONT_PATH_NAMES,
-	isServer,
-	queryParamKey,
-	SESSION_TOKEN_COOKIE_KEY,
-} from '@org/shared-ts/lib/constants';
-import duration from '@org/shared-ts/utils/duration.utils';
-import { getSerializedErrorMessage } from '@org/shared-ts/utils/error.utils';
-import { getAcceptInvitationSchema } from '@org/shared-ts/validations/invitation.validations';
 
 import type { Route } from './+types/accept-invitation-page';
 
@@ -69,7 +71,7 @@ type AcceptInvitationForm = z.infer<
 export type InvitationLoaderResult = Awaited<ReturnType<typeof loader>>;
 
 export const loader = getServerLoader({
-	loader: async ({ request, z }) => {
+	loader: async ({ request, z, context }) => {
 		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const searchParams = new URL(request.url).searchParams;
 		const encodedEmail = searchParams.get(
@@ -106,6 +108,10 @@ export const loader = getServerLoader({
 		const checkResult = await checkInvitationToken();
 
 		if (checkResult.status === 'error') {
+			context.logger.error('checkInvitationToken error', {
+				error: serializeError(checkResult.error),
+			});
+
 			return {
 				code: 'INVALID_LINK',
 				meta,
@@ -119,6 +125,10 @@ export const loader = getServerLoader({
 		const result = await getInvitationDetails();
 
 		if (result.status === 'error') {
+			context.logger.error('getInvitationDetails error', {
+				error: serializeError(result.error),
+			});
+
 			return {
 				code: 'INVALID_LINK',
 				meta,
@@ -135,7 +145,7 @@ export const loader = getServerLoader({
 export type AcceptInvitationActionResult = Awaited<ReturnType<typeof action>>;
 
 export const action = getServerAction({
-	action: async ({ request }) => {
+	action: async ({ request, context }) => {
 		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const formData = await request.formData();
 
@@ -174,6 +184,10 @@ export const action = getServerAction({
 		const result = await acceptInvitation();
 
 		if (result.status === 'error') {
+			context.logger.error('acceptInvitation error', {
+				error: serializeError(result.error),
+			});
+
 			return {
 				status: 'error',
 				error: serializeError(result.error),
@@ -191,17 +205,41 @@ export const action = getServerAction({
 			maxAge: duration.toSeconds('7d'),
 		};
 
+		// Determine where to send the user and encode cookie in dual-token format.
+		// Note: We pass the token as tenantToken for legacy compatibility; ClientManager's
+		// staff context already falls back to tenantToken for legacy cookies.
+		const authedApiClient = getClientManager({
+			tenantToken: sessionToken,
+		}).createClient();
+
+		const getRedirectCode = safeRun(async () => {
+			return authedApiClient.auth.redirectCode.get();
+		});
+
+		const redirectCodeResult = await getRedirectCode();
+		const redirectCode =
+			redirectCodeResult.status === 'success'
+				? redirectCodeResult.data?.redirectCode
+				: undefined;
+
+		const sessionCookieValue =
+			redirectCode === REDIRECT_CODE.STAFF
+				? formatSessionCookie({ staffToken: sessionToken })
+				: formatSessionCookie({ tenantToken: sessionToken });
+
 		const sessionTokenCookie = cookie.serialize(
 			SESSION_TOKEN_COOKIE_KEY,
-			sessionToken,
+			sessionCookieValue,
 			cookieOptions,
 		);
 		responseHeaders.append('Set-Cookie', sessionTokenCookie);
 
-		// Redirect to staff dashboard
-		return redirect(FRONT_PATH_NAMES.staff.root, {
-			headers: responseHeaders,
-		}) as never;
+		const redirectPath =
+			redirectCode === REDIRECT_CODE.STAFF
+				? FRONT_PATH_NAMES.staff.root
+				: FRONT_PATH_NAMES.tenant()._root;
+
+		return redirect(redirectPath, { headers: responseHeaders }) as never;
 	},
 });
 
