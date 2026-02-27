@@ -60,7 +60,7 @@
 	<!-- Generate translation keys before build (.NET 10 file-based app) -->
 	<PropertyGroup>
 		<GeneratedDir>Generated</GeneratedDir>
-		<TranslationJsonFile>$(MSBuildProjectDirectory)\..\..\packages\shared\lib\i18n\json\response-message.en.json</TranslationJsonFile>
+		<TranslationJsonFile>$(MSBuildProjectDirectory)\..\..\packages\shared-ts\lib\i18n\json\response-message.en.json</TranslationJsonFile>
 		<GeneratedKeysFile>$(MSBuildProjectDirectory)\$(GeneratedDir)\ResponseKeys.g.cs</GeneratedKeysFile>
 		<TranslationKeyGenScript>$(MSBuildProjectDirectory)\scripts\generate-translation-keys.cs</TranslationKeyGenScript>
 	</PropertyGroup>
