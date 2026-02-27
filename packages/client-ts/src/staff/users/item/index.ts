@@ -15,7 +15,7 @@ import { SuspendRequestBuilderRequestsMetadata, type SuspendRequestBuilder } fro
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
- * Builds and executes requests for operations under /staff/staff-users/{userId}
+ * Builds and executes requests for operations under /staff/users/{userId}
  */
 export interface WithUserItemRequestBuilder extends BaseRequestBuilder<WithUserItemRequestBuilder> {
     /**
@@ -90,7 +90,8 @@ export interface WithUserItemRequestBuilder extends BaseRequestBuilder<WithUserI
 /**
  * Uri template for the request builder.
  */
-export const WithUserItemRequestBuilderUriTemplate = "{+baseurl}/staff/staff-users/{userId}";
+export const WithUserItemRequestBuilderUriTemplate =
+	'{+baseurl}/staff/users/{userId}';
 /**
  * Metadata for all the navigation properties in the request builder.
  */
