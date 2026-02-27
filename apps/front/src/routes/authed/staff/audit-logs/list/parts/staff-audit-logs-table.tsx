@@ -17,6 +17,11 @@ import {
 } from 'material-react-table';
 import { useEffect, useMemo, useState } from 'react';
 
+import type { AuditLogListItem } from '@org/client-ts/src/models';
+import {
+	DEFAULT_PAGE_SIZE,
+	FRONT_PATH_NAMES,
+} from '@org/shared-ts/lib/constants';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
@@ -33,8 +38,6 @@ import {
 	formatPatterns,
 	fToNow,
 } from '@/front/utils/format-time';
-import type { AuditLogListItem } from '@/js-client/src/models';
-import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
 import { AuditLogsExportButton } from './audit-logs-export-button';
 

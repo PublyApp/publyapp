@@ -5,6 +5,15 @@ import { useEffect, useRef } from 'react';
 import { data, redirect, useSearchParams } from 'react-router';
 import { serializeError } from 'serialize-error';
 
+import {
+	APP_NAME,
+	FRONT_PATH_NAMES,
+	isServer,
+	queryParamKey,
+	queryParamValue,
+	REDIRECT_CODE,
+	SESSION_TOKEN_COOKIE_KEY,
+} from '@org/shared-ts/lib/constants';
 import { toast } from '@/front/components/snackbar';
 import { useTranslate } from '@/front/hooks/use-translate';
 import {
@@ -23,15 +32,6 @@ import {
 	getServerLoader,
 } from '@/front/lib/react-router/server-data.server';
 import { fSecondsUntil } from '@/front/utils/format-time';
-import {
-	APP_NAME,
-	FRONT_PATH_NAMES,
-	isServer,
-	queryParamKey,
-	queryParamValue,
-	REDIRECT_CODE,
-	SESSION_TOKEN_COOKIE_KEY,
-} from '@/shared/lib/constants';
 
 import type { Route } from './+types/login-page';
 import LoginForm from './login-form';

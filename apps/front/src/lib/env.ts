@@ -1,6 +1,6 @@
 import z, { ZodError } from 'zod';
 
-import { deepFreeze } from '@/shared/utils/any.utils';
+import { deepFreeze } from '@org/shared-ts/utils/any.utils';
 
 const envSchema = z.object({
 	VITE_ASP_SERVER_URL: z.string(),

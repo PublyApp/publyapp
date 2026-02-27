@@ -20,7 +20,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import type zod from 'zod';
 
-import { getNewTenantSchemaClientSide } from '@org/shared/validations/tenant/tenant-client.validations';
+import {
+	ACCOUNT_LEVEL_ENUM,
+	type AccountLevel,
+	DEFAULT_MAX_USER_PER_TENANT,
+	FRONT_PATH_NAMES,
+} from '@org/shared-ts/lib/constants';
+import { mbToBytes } from '@org/shared-ts/utils/any.utils';
+import { getNewTenantSchemaClientSide } from '@org/shared-ts/validations/tenant/tenant-client.validations';
 import { FieldContainer } from '@/front/components/form-extras';
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
@@ -34,13 +41,6 @@ import { useCreateTenant } from '@/front/lib/react-query/features/staff/staff-te
 import { interZodClient } from '@/front/lib/zod/zod.client';
 import { useMainStore } from '@/front/lib/zustand/store';
 import { fData } from '@/front/utils/format-number';
-import {
-	ACCOUNT_LEVEL_ENUM,
-	type AccountLevel,
-	DEFAULT_MAX_USER_PER_TENANT,
-	FRONT_PATH_NAMES,
-} from '@/shared/lib/constants';
-import { mbToBytes } from '@/shared/utils/any.utils';
 
 // ----------------------------------------------------------------------
 

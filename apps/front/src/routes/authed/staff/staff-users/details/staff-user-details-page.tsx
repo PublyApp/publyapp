@@ -5,6 +5,13 @@ import _ from 'lodash';
 import type { FC } from 'react';
 import { data, useParams } from 'react-router';
 
+import {
+	APP_NAME,
+	FRONT_PATH_NAMES,
+	I18N_NAMESPACES,
+	isServer,
+} from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
 import { ErrorContent } from '@/front/components/empty-content/error-content';
 import View400 from '@/front/components/error/400-view';
@@ -15,13 +22,6 @@ import { DashboardContent } from '@/front/layouts/dashboard/content';
 import { isProblemFailure, toApiFailure } from '@/front/lib/api-failure';
 import { useGetStaffUserById } from '@/front/lib/react-query/features/staff/staff-user.hooks';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import {
-	APP_NAME,
-	FRONT_PATH_NAMES,
-	I18N_NAMESPACES,
-	isServer,
-} from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/logger/iso-logger';
 
 import { UserNewEditFormSkeleton } from '../components/user-new-edit-form-skeleton';
 import type { Route } from './+types/staff-user-details-page';

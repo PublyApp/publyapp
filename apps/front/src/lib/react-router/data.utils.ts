@@ -6,8 +6,8 @@ import {
 	LANGUAGE_DETECTION_METHOD_ENUM,
 	LOCALE_COOKIE_KEY,
 	queryParamKey,
-} from '@/shared/lib/constants';
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
+} from '@org/shared-ts/lib/constants';
+import { getCorrectLocale } from '@org/shared-ts/lib/i18n/i18n.utils';
 
 export const getRequestLocale = (request: Request) => {
 	if (

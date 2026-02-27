@@ -9,7 +9,7 @@ import type {
 	CreateTenantAsStaffBody,
 	SuspendTenantAsStaffBody,
 	UpdateTenantAsStaffBody,
-} from '@/js-client/src/models';
+} from '@org/client-ts/src/models';
 
 import { createStaffMutation, createStaffQuery } from '../../create-hooks';
 

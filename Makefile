@@ -4,8 +4,8 @@
 # Project paths
 API_DIR = apps/api
 FRONTEND_DIR = apps/front
-SHARED_DIR = packages/shared
-JS_CLIENT_DIR = packages/js-client
+SHARED_DIR = packages/shared-ts
+JS_CLIENT_DIR = packages/client-ts
 ROOT_DIR = .
 
 # Cross-platform commands
@@ -289,8 +289,8 @@ clean:
 	@$(RM) node_modules
 	@$(RM) apps/api/node_modules
 	@$(RM) apps/front/node_modules
-	@$(RM) packages/shared/node_modules
-	@$(RM) packages/js-client/node_modules
+	@$(RM) packages/shared-ts/node_modules
+	@$(RM) packages/client-ts/node_modules
 	@$(RM) apps/api/bin
 	@$(RM) apps/api/obj
 	@$(RM) apps/api/publish

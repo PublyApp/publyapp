@@ -17,6 +17,12 @@ import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
 import { data, useParams } from 'react-router';
 
+import type { StaffInvitationDetails } from '@org/client-ts/src/models';
+import {
+	APP_NAME,
+	FRONT_PATH_NAMES,
+	isServer,
+} from '@org/shared-ts/lib/constants';
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { EmptyContent } from '@/front/components/empty-content/empty-content';
@@ -40,8 +46,6 @@ import {
 } from '@/front/lib/react-query/features/staff/staff-invitation.hooks';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { fDate, fIsAfter, fToNow } from '@/front/utils/format-time';
-import type { StaffInvitationDetails } from '@/js-client/src/models';
-import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
 
 import type { Route } from './+types/staff-invitation-details-page';
 
