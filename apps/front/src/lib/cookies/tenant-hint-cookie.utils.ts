@@ -1,6 +1,6 @@
 import * as cookie from 'cookie';
 
-import duration from '@org/shared/utils/duration.utils';
+import duration from '@org/shared-ts/utils/duration.utils';
 import {
 	TENANT_HINTS_COOKIE_KEY,
 	TENANT_HINTS_COOKIE_KEY_LEGACY,
