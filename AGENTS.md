@@ -268,7 +268,7 @@ For step-by-step checklists (adding features, updating API contract, adding enti
 [`docs/guides/common-workflows.md`](docs/guides/common-workflows.md)
 
 **Quick reference:**
-- After API contract changes: `make build-api && make generate-client` (never modify `packages/js-client/` manually)
+- After API contract changes: `make build-api && make generate-client` (never modify `packages/client-ts/` manually)
 - New entity: inherit `BaseAttributes`, implement tenant interface, add `DbSet`, `make db-add && make db-migrate`
 - New permission: add to `Seeder.cs`, use `PermissionFilter` on endpoint, check via `AuthContext.HasPermission()`
 
