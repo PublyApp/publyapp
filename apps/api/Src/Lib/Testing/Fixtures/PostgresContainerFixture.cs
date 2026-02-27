@@ -1,5 +1,7 @@
 namespace MainApi.Src.Lib.Testing.Fixtures;
 
+using Microsoft.Extensions.Logging.Abstractions;
+
 using Npgsql;
 
 using Testcontainers.PostgreSql;
@@ -59,12 +61,18 @@ public sealed class PostgresContainerFixture {
 		// Use Testcontainers default wait strategy (more
 		// robust than UntilPortIsAvailable — waits for
 		// pg_isready or equivalent health check)
-		_container = new PostgreSqlBuilder()
+		var containerBuilder = new PostgreSqlBuilder()
 			.WithImage("postgres:18-alpine")
 			.WithDatabase("postgres")
 			.WithUsername("postgres")
-			.WithPassword("postgres")
-			.Build();
+			.WithPassword("postgres");
+
+		if (!AppEnvironment.IsTestVerboseLoggingEnabled) {
+			containerBuilder = containerBuilder
+				.WithLogger(NullLogger.Instance);
+		}
+
+		_container = containerBuilder.Build();
 
 		try {
 			await _container.StartAsync();

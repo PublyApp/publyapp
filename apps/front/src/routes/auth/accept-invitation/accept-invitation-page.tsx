@@ -17,6 +17,17 @@ import { redirect, useFetcher, useSearchParams } from 'react-router';
 import { serializeError } from 'serialize-error';
 import type { z } from 'zod';
 
+import {
+	APP_NAME,
+	FRONT_PATH_NAMES,
+	isServer,
+	queryParamKey,
+	REDIRECT_CODE,
+	SESSION_TOKEN_COOKIE_KEY,
+} from '@org/shared-ts/lib/constants';
+import duration from '@org/shared-ts/utils/duration.utils';
+import { getSerializedErrorMessage } from '@org/shared-ts/utils/error.utils';
+import { getAcceptInvitationSchema } from '@org/shared-ts/validations/invitation.validations';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
@@ -30,17 +41,6 @@ import {
 	getServerLoader,
 } from '@/front/lib/react-router/server-data.server';
 import { interZodClient } from '@/front/lib/zod/zod.client';
-import {
-	APP_NAME,
-	FRONT_PATH_NAMES,
-	isServer,
-	queryParamKey,
-	REDIRECT_CODE,
-	SESSION_TOKEN_COOKIE_KEY,
-} from '@/shared/lib/constants';
-import duration from '@/shared/utils/duration.utils';
-import { getSerializedErrorMessage } from '@/shared/utils/error.utils';
-import { getAcceptInvitationSchema } from '@/shared/validations/invitation.validations';
 
 import type { Route } from './+types/accept-invitation-page';
 

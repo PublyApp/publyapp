@@ -1,5 +1,9 @@
+using FluentValidation;
+
+using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.Tenants.Entities;
 using MainApi.Src.Modules.Tenants.Services;
 
@@ -23,45 +27,121 @@ public class TenantAsStaffResult {
 	public required int Count { get; set; }
 }
 
-public class FindTenantsAsStaffQuery : PaginatedQuery { }
+public class FindTenantsAsStaffQuery : CursorPaginatedQuery {
+	[FromQuery(Name = "q")] public string? Search { get; set; }
+	[FromQuery] public string? Status { get; set; }
 
-public class FindTenantsAsStaffQueryValidator : PaginatedQueryValidator<FindTenantsAsStaffQuery> { }
+	public string? GetSearchNormalized() {
+		if (Search is null) return null;
+		var trimmed = Search.Trim();
+		return trimmed.Length == 0 ? null : trimmed;
+	}
+
+	public IReadOnlySet<TenantStatus>? GetStatusesOrNull() {
+		if (Status is null) return null;
+
+		var trimmed = Status.Trim();
+		if (trimmed.Length == 0) return null;
+
+		var parts = trimmed
+			.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+		if (parts.Length == 0) return null;
+
+		var statuses = new HashSet<TenantStatus>();
+		foreach (var part in parts) {
+			var parsed = part.ToLowerInvariant() switch {
+				"pending" => (TenantStatus?)TenantStatus.Pending,
+				"active" => (TenantStatus?)TenantStatus.Active,
+				"suspended" => (TenantStatus?)TenantStatus.Suspended,
+				"archived" => (TenantStatus?)TenantStatus.Archived,
+				_ => null,
+			};
+			if (parsed is { } status) {
+				statuses.Add(status);
+			}
+		}
+		return statuses.Count > 0 ? statuses : null;
+	}
+}
+
+public class FindTenantsAsStaffQueryValidator
+	: CursorPaginatedQueryValidator<FindTenantsAsStaffQuery> {
+
+	private static readonly string[] AllowedStatuses = ["pending", "active", "suspended", "archived"];
+
+	public FindTenantsAsStaffQueryValidator() {
+		RuleFor(x => x.Search).MaximumLength(200);
+
+		RuleFor(x => x.Status)
+			.Must(raw => {
+				if (string.IsNullOrEmpty(raw)) return true;
+				var parts = raw.Split(',',
+					StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+				return parts.All(p => AllowedStatuses.Contains(p.ToLowerInvariant()));
+			})
+			.WithMessage("Invalid status value. Must be comma-separated: pending,active,suspended,archived");
+	}
+}
+
+public class FindTenantsAsStaffResponse : CursorPaginatedResult<TenantAsStaffListItem> { }
 
 public class FindTenantsAsStaff {
-	public static async Task<Results<Ok<TenantAsStaffResult>, AppBadRequestHttpResult>>
+	public static async Task<Results<Ok<FindTenantsAsStaffResponse>, AppBadRequestHttpResult>>
 	HandleFindTenantsAsStaff(
 		[AsParameters] FindTenantsAsStaffQuery findTenantsAsStaffQuery,
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		CancellationToken cancellationToken
 	) {
-		var page = findTenantsAsStaffQuery.GetPage();
+		// Parse cursor - Guid.Empty means first page
+		var cursorStr = findTenantsAsStaffQuery.GetCursor();
+		var cursorGuid = Guid.Empty;
+
+		if (!string.IsNullOrEmpty(cursorStr)) {
+			if (!Guid.TryParse(cursorStr, out cursorGuid)) {
+				return TypedProblems.BadRequest("Invalid cursor format", ResponseKeys.BadRequest);
+			}
+		}
+
 		var limit = findTenantsAsStaffQuery.GetLimit();
 		var sortId = findTenantsAsStaffQuery.GetSortId();
 		var sortOrder = findTenantsAsStaffQuery.GetSortOrder();
 
-		var count = await tenantAsStaffService.CountTenantsAsync(cancellationToken);
+		var filters = new FindTenantsAsStaffFilters(
+			Search: findTenantsAsStaffQuery.GetSearchNormalized(),
+			Status: findTenantsAsStaffQuery.GetStatusesOrNull()
+		);
 
-		var tenants = await tenantAsStaffService.FindTenantsAsync(
-			page: page,
+		var result = await tenantAsStaffService.FindTenantsAsStaffAsync(
+			cursor: cursorGuid,
 			limit: limit,
 			sortId: sortId,
 			sortOrder: sortOrder,
+			filters: filters,
 			cancellationToken: cancellationToken
 		);
 
-		return TypedResults.Ok(new TenantAsStaffResult {
-			Tenants = tenants
-				.Select(tenant => new TenantAsStaffItem {
-					Id = tenant.Tenant.GetRequiredId(),
-					Name = tenant.Tenant.Name,
-					LogoUrl = tenant.Tenant.LogoUrl,
-					UsersCount = tenant.UsersCount,
-					MaxUsers = tenant.Tenant.MaxUsers,
-					Status = Tenant.GetStatusDescription(tenant.Tenant.Status),
-					IsSuspended = tenant.Tenant.IsSuspended,
-				})
-				.ToList(),
-			Count = count,
-		});
+		// Pattern matching for discriminated union
+		if (result is FindTenantsAsStaffServiceResult.CursorNotFound cursorError) {
+			return TypedProblems.BadRequest(
+				$"Cursor record not found: {cursorError.Cursor}",
+				ResponseKeys.BadRequest
+			);
+		}
+
+		if (result is FindTenantsAsStaffServiceResult.InvalidSortId sortIdError) {
+			return TypedProblems.BadRequest(
+				$"Invalid sortId: {sortIdError.SortId}. Allowed: created_at, updated_at, name, status",
+				ResponseKeys.BadRequest
+			);
+		}
+
+		if (result is FindTenantsAsStaffServiceResult.Success success) {
+			return TypedResults.Ok(new FindTenantsAsStaffResponse {
+				Data = success.Data.Data,
+				NextCursor = success.Data.NextCursor,
+			});
+		}
+
+		throw new InvalidOperationException("Unhandled result type");
 	}
 }

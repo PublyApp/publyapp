@@ -1,23 +1,29 @@
-import Button from '@mui/material/Button';
-import Drawer from '@mui/material/Drawer';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
+import Box from '@mui/material/Box';
+import Skeleton from '@mui/material/Skeleton';
+import Stack from '@mui/material/Stack';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import _ from 'lodash';
-import { useBoolean } from 'minimal-shared/hooks';
-import { removeLastSlash } from 'minimal-shared/utils';
+import type { FC } from 'react';
 import { useMemo } from 'react';
-import { data, Outlet, useParams } from 'react-router';
+import { data, useParams } from 'react-router';
 
-import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { usePathname } from '@/front/hooks/use-pathname';
+import {
+	APP_NAME,
+	FRONT_PATH_NAMES,
+	isServer,
+} from '@org/shared-ts/lib/constants';
+import { ErrorContent } from '@/front/components/empty-content/error-content';
+import View400 from '@/front/components/error/400-view';
+import { NotFoundView } from '@/front/components/error/not-found-view';
+import QueryDisplay from '@/front/components/query-display';
+import type { SettingsNavItem } from '@/front/components/settings/settings-nav';
+import { SidebarSettingsLayout } from '@/front/components/settings/sidebar-settings-layout';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
+import { isProblemFailure, toApiFailure } from '@/front/lib/api-failure';
+import { useGetTenant } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
 
 import type { Route } from './+types/tenant-details-layout';
 
@@ -61,164 +67,110 @@ export const loader = getServerLoader({
 
 const TenantDetailsLayout = () => {
 	const { t } = useTranslate();
-	const pathname = usePathname();
 	const { tenantId } = useParams();
 
-	const { NAV_ITEMS, ACTIONS } = useMemo(() => {
-		const tenantDetailPaths = FRONT_PATH_NAMES.staff.tenants.details(tenantId);
+	const getTenantQuery = useGetTenant({
+		variables: { tenantId: _.toString(tenantId) },
+		enabled: !!tenantId,
+	});
 
-		const NAV_ITEMS = [
-			{
-				label: t('general'),
-				icon: <Iconify width={24} icon="solar:buildings-bold" />,
-				href: tenantDetailPaths.tabs.general,
-			},
-			// {
-			// 	label: t('billing'),
-			// 	icon: <Iconify width={24} icon="solar:bill-list-bold" />,
-			// 	href: tenantDetailPaths.tabs.billing,
-			// },
-			{
-				label: t('users'),
-				icon: <Iconify width={24} icon="solar:users-group-rounded-bold" />,
-				href: tenantDetailPaths.tabs.users,
-				action: <CreateUserButton />,
-			},
+	const navItems: SettingsNavItem[] = useMemo(() => {
+		const paths = FRONT_PATH_NAMES.staff.tenants.details(tenantId);
+
+		return [
+			{ label: t('general'), href: paths.tabs.general },
+			{ label: t('users'), href: paths.tabs.users, deep: true },
 			{
 				label: t('profiles'),
-				icon: <Iconify width={24} icon="solar:settings-bold" />,
-				href: tenantDetailPaths.tabs.profiles,
-				action: <CreateProfileButton />,
+				href: paths.tabs.profiles,
+				deep: true,
 			},
+			{ label: t('billing'), href: paths.tabs.billing, deep: true },
 		];
-
-		const ACTIONS = {} as Record<string, React.ReactNode>;
-
-		_.forEach(NAV_ITEMS, (item) => {
-			if (item.action) {
-				ACTIONS[item.href] = item.action;
-			}
-		});
-
-		return { NAV_ITEMS, ACTIONS };
 	}, [t, tenantId]);
 
-	const tabValue = useMemo(() => {
-		const value = removeLastSlash(pathname);
-		return value;
-	}, [pathname]);
+	if (!tenantId) {
+		return <View400 title="Bad Request" description="Tenant ID is required" />;
+	}
 
 	return (
-		<DashboardContent
-			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
-			compact
-			maxWidth="lg"
+		<QueryDisplay
+			query={getTenantQuery}
+			LoadingSlot={<TenantDetailsLayoutSkeleton />}
+			ErrorSlot={LayoutErrorView}
 		>
-			<CustomBreadcrumbs
-				heading={t('tenant-details')}
-				links={[
-					{
-						name: _.capitalize(t('tenants')),
-						href: FRONT_PATH_NAMES.staff.tenants.root,
-					},
-					{ name: t('details') },
-				]}
-				sx={{ mb: 3 }}
-				action={ACTIONS[tabValue] || null}
-			/>
-
-			<Tabs value={tabValue} sx={{ mb: { xs: 3, md: 5 } }}>
-				{NAV_ITEMS.map((tab) => (
-					<Tab
-						component={RouterLink}
-						key={tab.href}
-						label={tab.label}
-						icon={tab.icon}
-						value={tab.href}
-						href={tab.href}
-					/>
-				))}
-			</Tabs>
-
-			<Outlet />
-		</DashboardContent>
+			{() => <SidebarSettingsLayout items={navItems} />}
+		</QueryDisplay>
 	);
 };
 
 export default TenantDetailsLayout;
 
-const CreateUserButton = () => {
+const LayoutErrorView: FC<{ error: unknown }> = ({ error }) => {
 	const { t } = useTranslate();
-	const openDrawer = useBoolean();
+
+	const failure = toApiFailure(error);
+
+	if (
+		isProblemFailure(failure) &&
+		(failure.status === 404 ||
+			(failure.status === 400 && failure.translationKey === 'malformed-id'))
+	) {
+		return (
+			<NotFoundView
+				withLayout={false}
+				title={_.capitalize(t('tenant-not-found-title'))}
+				description={t('tenant-not-found-description')}
+			/>
+		);
+	}
 
 	return (
-		<>
-			<Button
-				type="submit"
-				variant="contained"
-				// loading={isSubmitting}
-				onClick={openDrawer.onTrue}
-				startIcon={<Iconify icon="mingcute:add-line" />}
-			>
-				{_.capitalize(t('new-item', { item: t('user') }))}
-			</Button>
-			<Drawer
-				open={openDrawer.value}
-				onClose={openDrawer.onFalse}
-				anchor="right"
-				sx={(theme) => {
-					return {
-						zIndex: theme.zIndex.modal + 1,
-					};
-				}}
-				slotProps={{
-					paper: {
-						sx: {
-							width: 720,
-						},
-					},
-				}}
-			>
-				ADD USER FORM HERE
-			</Drawer>
-		</>
+		<DashboardContent maxWidth="lg" compact>
+			<Box sx={{ py: 10 }}>
+				<ErrorContent
+					title={t('tenant-details-error-title')}
+					description={t('tenant-details-error-description')}
+				/>
+			</Box>
+		</DashboardContent>
 	);
 };
 
-const CreateProfileButton = () => {
-	const { t } = useTranslate();
-	const openDrawer = useBoolean();
+const NavItemSkeleton = () => (
+	<Skeleton variant="rectangular" height={36} sx={{ borderRadius: 1 }} />
+);
 
-	return (
-		<>
-			<Button
-				type="submit"
-				variant="contained"
-				// loading={isSubmitting}
-				onClick={openDrawer.onTrue}
-				startIcon={<Iconify icon="mingcute:add-line" />}
-			>
-				{_.capitalize(t('new-item', { item: t('profile') }))}
-			</Button>
-			<Drawer
-				open={openDrawer.value}
-				onClose={openDrawer.onFalse}
-				anchor="right"
-				sx={(theme) => {
-					return {
-						zIndex: theme.zIndex.modal + 1,
-					};
-				}}
-				slotProps={{
-					paper: {
-						sx: {
-							width: 400,
-						},
-					},
+const TenantDetailsLayoutSkeleton = () => (
+	<DashboardContent maxWidth="lg" compact>
+		<Box
+			sx={{
+				display: 'flex',
+				gap: 4,
+				flexDirection: { xs: 'column', md: 'row' },
+			}}
+		>
+			{/* Sidebar skeleton */}
+			<Box
+				sx={{
+					display: { xs: 'none', md: 'block' },
+					flexShrink: 0,
+					width: 200,
 				}}
 			>
-				ADD PROFILE FORM HERE
-			</Drawer>
-		</>
-	);
-};
+				<Stack spacing={0.5}>
+					<NavItemSkeleton />
+					<NavItemSkeleton />
+					<NavItemSkeleton />
+					<NavItemSkeleton />
+				</Stack>
+			</Box>
+
+			{/* Content area skeleton */}
+			<Box sx={{ flex: 1, minWidth: 0 }}>
+				<Skeleton variant="text" width={200} height={32} sx={{ mb: 2 }} />
+				<Skeleton variant="rectangular" height={300} sx={{ borderRadius: 2 }} />
+			</Box>
+		</Box>
+	</DashboardContent>
+);

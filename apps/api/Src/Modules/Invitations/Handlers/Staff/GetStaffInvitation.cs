@@ -28,16 +28,28 @@ public record StaffInvitationDetails {
 public static class GetStaffInvitation {
 	public static async Task<Results<
 		Ok<StaffInvitationDetails>,
+		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
 	>> HandleGetStaffInvitation(
-		[FromRoute] Guid invitationId,
+		[FromRoute] string invitationId,
 		[FromServices] IInvitationService invitationService,
 		CancellationToken cancellationToken = default
 	) {
-		var result = await invitationService.GetStaffInvitationDetailsAsync(
+		if (!Guid.TryParse(
 			invitationId,
-			cancellationToken
-		);
+			out var invitationIdGuid
+		)) {
+			return TypedProblems.BadRequest(
+				"Invalid invitation ID",
+				ResponseKeys.MalformedId
+			);
+		}
+
+		var result = await invitationService
+			.GetStaffInvitationDetailsAsync(
+				invitationIdGuid,
+				cancellationToken
+			);
 
 		if (result is null) {
 			return TypedProblems.NotFound("Invitation not found", ResponseKeys.NotFound);

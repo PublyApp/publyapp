@@ -20,6 +20,12 @@ import {
 import { useBoolean } from 'minimal-shared/hooks';
 import { useEffect, useMemo, useState } from 'react';
 
+import type { InvitationListItem } from '@org/client-ts/src/models';
+import {
+	DEFAULT_PAGE_SIZE,
+	FRONT_PATH_NAMES,
+} from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { Iconify } from '@/front/components/iconify/iconify';
 import type { LabelColor } from '@/front/components/label';
@@ -37,9 +43,6 @@ import {
 	useRevokeInvitation,
 } from '@/front/lib/react-query/features/staff/staff-invitation.hooks';
 import { fDate, fIsAfter, fToNow } from '@/front/utils/format-time';
-import type { InvitationListItem } from '@/js-client/src/models';
-import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/logger/iso-logger';
 
 import { NewInvitationButton } from './new-invitation-button';
 

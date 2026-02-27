@@ -1,6 +1,6 @@
 import Button from '@mui/material/Button';
 
-import { FRONT_PATH_NAMES } from '@org/shared/lib/constants';
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useTranslate } from '@/front/hooks/use-translate';

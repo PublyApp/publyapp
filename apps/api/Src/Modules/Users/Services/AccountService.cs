@@ -425,7 +425,7 @@ public class AccountService : IAccountService {
 			.OrderBy(x => x.t.Name)
 			.Take(limit)
 			.Select(x => new UserTenantInfo {
-				Id = x.t.Id!.Value,
+				Id = x.t.Id ?? Guid.Empty,
 				Name = x.t.Name,
 				Code = x.t.Code,
 				LogoUrl = x.t.LogoUrl
@@ -463,7 +463,7 @@ public class AccountService : IAccountService {
 			.OrderBy(q => q.t.Name)
 			.Take(limit)
 			.Select(q => new TenantForPicker {
-				Id = q.t.Id!.Value,
+				Id = q.t.Id ?? Guid.Empty,
 				Name = q.t.Name,
 				Code = q.t.Code,
 				Status = Tenant.GetStatusDescription(q.t.Status),

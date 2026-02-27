@@ -40,7 +40,7 @@ public static class GetSystemNoticeById {
 		}
 
 		return TypedResults.Ok(new SystemNoticeDetail {
-			Id = notice.Id!.Value,
+			Id = notice.GetRequiredId(),
 			Severity = notice.Severity.ToString().ToLowerInvariant(),
 			Title = notice.Title,
 			Message = notice.Message,

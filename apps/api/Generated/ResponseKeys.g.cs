@@ -117,6 +117,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey InvitationRevoked = new("invitation-revoked");
 
 	/// <summary>
+	/// Malformed ID
+	/// </summary>
+	public static readonly TranslationKey MalformedId = new("malformed-id");
+
+	/// <summary>
 	/// Method not allowed
 	/// </summary>
 	public static readonly TranslationKey MethodNotAllowed = new("method-not-allowed");
@@ -227,9 +232,19 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey TenantAlreadySuspended = new("tenant-already-suspended");
 
 	/// <summary>
+	/// Tenant has been deleted successfully
+	/// </summary>
+	public static readonly TranslationKey TenantDeletedSuccess = new("tenant-deleted-success");
+
+	/// <summary>
 	/// Tenant ID required
 	/// </summary>
 	public static readonly TranslationKey TenantIdRequired = new("tenant-id-required");
+
+	/// <summary>
+	/// Max users cannot be less than the current number of users
+	/// </summary>
+	public static readonly TranslationKey TenantMaxUsersBelowCount = new("tenant-max-users-below-count");
 
 	/// <summary>
 	/// Only active tenants can be suspended
@@ -247,6 +262,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey TenantNotSuspended = new("tenant-not-suspended");
 
 	/// <summary>
+	/// Only suspended tenants can be deleted
+	/// </summary>
+	public static readonly TranslationKey TenantNotSuspendedCannotDelete = new("tenant-not-suspended-cannot-delete");
+
+	/// <summary>
 	/// Tenant has been reactivated successfully
 	/// </summary>
 	public static readonly TranslationKey TenantReactivatedSuccess = new("tenant-reactivated-success");
@@ -260,6 +280,11 @@ public static partial class ResponseKeys {
 	/// Tenant has been suspended successfully
 	/// </summary>
 	public static readonly TranslationKey TenantSuspendedSuccess = new("tenant-suspended-success");
+
+	/// <summary>
+	/// Tenant has been updated successfully
+	/// </summary>
+	public static readonly TranslationKey TenantUpdatedSuccess = new("tenant-updated-success");
 
 	/// <summary>
 	/// Too many requests

@@ -1,8 +1,8 @@
 import _ from 'lodash';
 import { useLocation, useParams } from 'react-router';
 
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { getLastPath, makePath } from '@/shared/utils/string.utils';
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+import { getLastPath, makePath } from '@org/shared-ts/utils/string.utils';
 
 export const useTenantParam = () => {
 	const location = useLocation();

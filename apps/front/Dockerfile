@@ -12,8 +12,8 @@ COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml tsconfig.paths.json ./
 
 # Copy package.json files for all workspaces
 COPY apps/front/package.json ./apps/front/
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/js-client/package.json ./packages/js-client/
+COPY packages/shared-ts/package.json ./packages/shared-ts/
+COPY packages/client-ts/package.json ./packages/client-ts/
 COPY packages/_tsconfig/package.json ./packages/_tsconfig/
 
 # Install dependencies (including dev dependencies for build)
@@ -28,7 +28,7 @@ COPY packages/ ./packages/
 COPY .env.production ./
 
 # Run postinstall scripts now that source code is available
-RUN cd packages/shared && pnpm run postinstall
+RUN cd packages/shared-ts && pnpm run postinstall
 
 # Build the application using react-router build
 RUN cd apps/front && pnpm run build
@@ -50,8 +50,8 @@ COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml tsconfig.paths.json ./
 
 # Copy package.json files for all workspaces
 COPY apps/front/package.json ./apps/front/
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/js-client/package.json ./packages/js-client/
+COPY packages/shared-ts/package.json ./packages/shared-ts/
+COPY packages/client-ts/package.json ./packages/client-ts/
 COPY packages/_tsconfig/package.json ./packages/_tsconfig/
 
 # Install only production dependencies as root

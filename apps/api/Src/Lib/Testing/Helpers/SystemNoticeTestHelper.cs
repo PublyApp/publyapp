@@ -64,10 +64,12 @@ internal static class SystemNoticeTestHelper {
 		var result = await response.Content
 			.ReadFromJsonAsync<NoticeCreatedResponse>(ct);
 
-		return result?.Id
-			?? throw new InvalidOperationException(
+		if (result is null) {
+			throw new InvalidOperationException(
 				"Create notice returned null or no ID"
 			);
+		}
+		return result.Id;
 	}
 
 	public static async Task DeleteNoticeAsync(
