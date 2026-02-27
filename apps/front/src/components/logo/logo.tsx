@@ -3,8 +3,8 @@ import { styled, useTheme } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 import { useId } from 'react';
 
-import { useHomePath } from '@/front/hooks/use-home-path';
 import { APP_NAME } from '@org/shared-ts/lib/constants';
+import { useHomePath } from '@/front/hooks/use-home-path';
 
 import { RouterLink } from '../router-link';
 import { logoClasses } from './classes';
