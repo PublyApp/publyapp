@@ -33,8 +33,11 @@ import {
 	formatPatterns,
 	fToNow,
 } from '@/front/utils/format-time';
-import type { AuditLogListItem } from '@/js-client/src/models';
-import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import type { AuditLogListItem } from '@org/client-ts/src/models';
+import {
+	DEFAULT_PAGE_SIZE,
+	FRONT_PATH_NAMES,
+} from '@org/shared-ts/lib/constants';
 
 import { AuditLogsExportButton } from './audit-logs-export-button';
 

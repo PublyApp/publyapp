@@ -42,8 +42,8 @@ import {
 	queryParamKey,
 	queryParamValue,
 	REDIRECT_CODE,
-} from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/logger/iso-logger';
+} from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import type { Route } from './+types/authed-layout';
 

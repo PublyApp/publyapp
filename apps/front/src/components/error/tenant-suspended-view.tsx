@@ -9,7 +9,7 @@ import { m } from 'framer-motion';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { SimpleCompactContent } from '@/front/layouts/simple/content';
 import { SimpleLayout } from '@/front/layouts/simple/layout';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { MotionContainer } from '../animate/motion-container';
 import { varBounce } from '../animate/variants';

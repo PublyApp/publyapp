@@ -5,7 +5,7 @@ import { LoadingScreen } from '@/front/components/loading-screen';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardLayout } from '@/front/layouts/dashboard/layout';
 import { ICONS, type NavDataType } from '@/front/layouts/nav-config-dashboard';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 const StaffLayout = () => {
 	const { t } = useTranslate();

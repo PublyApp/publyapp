@@ -6,7 +6,7 @@ import Select from '@mui/material/Select';
 
 import { Iconify } from '@/front/components/iconify/iconify';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { logger } from '@/shared/lib/logger/iso-logger';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { DEFAULT_PAGE_SIZE_OPTIONS } from '../../constants';
 import type { TablePreset } from '../table-presets';

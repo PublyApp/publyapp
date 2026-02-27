@@ -1,7 +1,7 @@
 import Button, { type ButtonProps } from '@mui/material/Button';
 
 import { RouterLink } from '@/front/components/router-link';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 // ----------------------------------------------------------------------
 

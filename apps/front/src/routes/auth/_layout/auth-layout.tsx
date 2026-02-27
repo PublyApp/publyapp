@@ -25,8 +25,8 @@ import {
 	formActionKey,
 	I18N_NAMESPACES,
 	REDIRECT_CODE,
-} from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/logger/iso-logger';
+} from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 export const loader = getServerLoader({
 	loader: async ({ request, sessionToken, staffToken, tenantToken }) => {

@@ -19,8 +19,8 @@ import {
 	FRONT_PATH_NAMES,
 	USER_STATUS_ENUM,
 	type UserStatus,
-} from '@/shared/lib/constants';
-import { getUpdateStaffUserSchema } from '@/shared/validations/staff-user.validations';
+} from '@org/shared-ts/lib/constants';
+import { getUpdateStaffUserSchema } from '@org/shared-ts/validations/staff-user.validations';
 
 import { UserNewEditForm } from '../../components/user-new-edit-form';
 

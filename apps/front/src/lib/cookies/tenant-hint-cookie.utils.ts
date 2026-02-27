@@ -8,7 +8,7 @@ import {
 	TENANT_HINTS_LEGACY_CLEAR_PATHS,
 	TENANT_HINTS_MAX_COOKIE_LENGTH,
 	TENANT_HINTS_MAX_ENTRIES,
-} from '@/shared/lib/constants';
+} from '@org/shared-ts/lib/constants';
 
 // UUID regex for validation (case-insensitive for parsing, but we normalize to lowercase)
 const UUID_REGEX =

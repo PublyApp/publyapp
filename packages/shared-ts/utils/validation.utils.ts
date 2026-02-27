@@ -1,6 +1,6 @@
 // import { z } from 'zod';
 
-import type InterZod from '@/shared/lib/zod/InterZod';
+import type InterZod from '@org/shared-ts/lib/zod/InterZod';
 
 export const getListParamsSchema = (z: InterZod) => {
 	return z.object({

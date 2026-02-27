@@ -31,9 +31,9 @@ import {
 } from '@/front/lib/react-query/features/staff/staff-invitation.hooks';
 import { useFindStaffProfiles } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
 import { interZodClient } from '@/front/lib/zod/zod.client';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/logger/iso-logger';
-import { getBulkCreateInvitationsSchema } from '@/shared/validations/invitation.validations';
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { getBulkCreateInvitationsSchema } from '@org/shared-ts/validations/invitation.validations';
 
 type BulkInvitationsFormType = zod.infer<
 	ReturnType<typeof getBulkCreateInvitationsSchema>

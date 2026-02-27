@@ -25,8 +25,8 @@ import {
 	DEFAULT_PAGE_SIZE,
 	FRONT_PATH_NAMES,
 	USER_STATUS_ENUM,
-} from '@/shared/lib/constants';
-import { getUserFullName } from '@/shared/utils/user.utils';
+} from '@org/shared-ts/lib/constants';
+import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 // Type definition for users assigned to this profile
 export type ProfileUserRowData = {

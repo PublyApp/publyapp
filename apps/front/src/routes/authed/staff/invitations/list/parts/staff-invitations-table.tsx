@@ -37,9 +37,12 @@ import {
 	useRevokeInvitation,
 } from '@/front/lib/react-query/features/staff/staff-invitation.hooks';
 import { fDate, fIsAfter, fToNow } from '@/front/utils/format-time';
-import type { InvitationListItem } from '@/js-client/src/models';
-import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/logger/iso-logger';
+import type { InvitationListItem } from '@org/client-ts/src/models';
+import {
+	DEFAULT_PAGE_SIZE,
+	FRONT_PATH_NAMES,
+} from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { NewInvitationButton } from './new-invitation-button';
 

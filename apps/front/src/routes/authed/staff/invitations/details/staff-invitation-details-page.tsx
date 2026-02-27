@@ -40,8 +40,12 @@ import {
 } from '@/front/lib/react-query/features/staff/staff-invitation.hooks';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { fDate, fIsAfter, fToNow } from '@/front/utils/format-time';
-import type { StaffInvitationDetails } from '@/js-client/src/models';
-import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
+import type { StaffInvitationDetails } from '@org/client-ts/src/models';
+import {
+	APP_NAME,
+	FRONT_PATH_NAMES,
+	isServer,
+} from '@org/shared-ts/lib/constants';
 
 import type { Route } from './+types/staff-invitation-details-page';
 

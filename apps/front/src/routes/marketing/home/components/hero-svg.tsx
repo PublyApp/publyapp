@@ -5,7 +5,7 @@ import { nanoid } from 'nanoid';
 
 import { varFade } from '@/front/components/animate';
 import type { PaletteColorKey } from '@/front/lib/mui/theme/core';
-import { APP_NAME } from '@/shared/lib/constants';
+import { APP_NAME } from '@org/shared-ts/lib/constants';
 
 // ----------------------------------------------------------------------
 

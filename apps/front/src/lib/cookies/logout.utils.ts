@@ -12,7 +12,7 @@ import {
 	formActionKey,
 	queryParamKey,
 	queryParamValue,
-} from '@/shared/lib/constants';
+} from '@org/shared-ts/lib/constants';
 
 import { clearSessionCookie } from './session-cookie.utils';
 

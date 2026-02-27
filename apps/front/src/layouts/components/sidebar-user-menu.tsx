@@ -17,8 +17,8 @@ import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useTenantParam } from '@/front/hooks/use-tenant-param';
 import { logout } from '@/front/lib/cookies';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { getUserFullName } from '@/shared/utils/user.utils';
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 // ----------------------------------------------------------------------
 

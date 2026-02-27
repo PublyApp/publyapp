@@ -34,10 +34,10 @@ import {
 	FRONT_PATH_NAMES,
 	queryParamKey,
 	queryParamValue,
-} from '@/shared/lib/constants';
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import { getSerializedErrorMessage } from '@/shared/utils/error.utils';
-import { getResetPasswordSchema } from '@/shared/validations/auth.validations';
+} from '@org/shared-ts/lib/constants';
+import { getCorrectLocale } from '@org/shared-ts/lib/i18n/i18n.utils';
+import { getSerializedErrorMessage } from '@org/shared-ts/utils/error.utils';
+import { getResetPasswordSchema } from '@org/shared-ts/validations/auth.validations';
 
 import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/reset-password-page';

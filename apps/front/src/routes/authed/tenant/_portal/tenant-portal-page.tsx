@@ -17,7 +17,7 @@ import {
 	queryParamKey,
 	queryParamValue,
 	REDIRECT_CODE,
-} from '@/shared/lib/constants';
+} from '@org/shared-ts/lib/constants';
 
 import { TenantPickerView } from '../_shared/tenant-picker-view';
 

@@ -7,8 +7,8 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { Logo } from '@/front/components/logo/logo';
 import { RouterLink } from '@/front/components/router-link';
 import { usePathname } from '@/front/hooks/use-pathname';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { makePath } from '@/shared/utils/string.utils';
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+import { makePath } from '@org/shared-ts/utils/string.utils';
 
 import { MenuButton } from '../components/menu-button';
 import { SignInButton } from '../components/sign-in-button';

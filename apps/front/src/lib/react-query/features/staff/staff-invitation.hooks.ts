@@ -6,8 +6,8 @@ import { getSessionTokensFromClient } from '@/front/lib/cookies/session-cookie.u
 import type {
 	BulkStaffInvitationsCreated,
 	CreateStaffInvitationBody,
-} from '@/js-client/src/models';
-import { SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
+} from '@org/client-ts/src/models';
+import { SESSION_TOKEN_HEADER_KEY } from '@org/shared-ts/lib/constants';
 
 import { createStaffMutation, createStaffQuery } from '../../create-hooks';
 

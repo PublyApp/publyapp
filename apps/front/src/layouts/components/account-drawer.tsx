@@ -17,7 +17,7 @@ import { Scrollbar } from '@/front/components/scrollbar';
 import { usePathname } from '@/front/hooks/use-pathname';
 import { logout } from '@/front/lib/cookies';
 import { useGetUserAuthData } from '@/front/lib/react-query/features/common/auth.hooks';
-import { getUserFullName } from '@/shared/utils/user.utils';
+import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 import { AccountButton } from './account-button';
 import { SignOutButton } from './sign-out-button';

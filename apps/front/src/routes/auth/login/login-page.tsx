@@ -31,7 +31,7 @@ import {
 	queryParamValue,
 	REDIRECT_CODE,
 	SESSION_TOKEN_COOKIE_KEY,
-} from '@/shared/lib/constants';
+} from '@org/shared-ts/lib/constants';
 
 import type { Route } from './+types/login-page';
 import LoginForm from './login-form';

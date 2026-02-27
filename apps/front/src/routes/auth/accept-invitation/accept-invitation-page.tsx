@@ -37,10 +37,10 @@ import {
 	queryParamKey,
 	REDIRECT_CODE,
 	SESSION_TOKEN_COOKIE_KEY,
-} from '@/shared/lib/constants';
-import duration from '@/shared/utils/duration.utils';
-import { getSerializedErrorMessage } from '@/shared/utils/error.utils';
-import { getAcceptInvitationSchema } from '@/shared/validations/invitation.validations';
+} from '@org/shared-ts/lib/constants';
+import duration from '@org/shared-ts/utils/duration.utils';
+import { getSerializedErrorMessage } from '@org/shared-ts/utils/error.utils';
+import { getAcceptInvitationSchema } from '@org/shared-ts/validations/invitation.validations';
 
 import type { Route } from './+types/accept-invitation-page';
 
