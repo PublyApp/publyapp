@@ -12,7 +12,7 @@ import {
 	frFR as frFRDate,
 } from '@mui/x-date-pickers/locales';
 
-import type { AppLocale } from '@/shared/lib/i18n/resources';
+import type { AppLocale } from '@org/shared-ts/lib/i18n/resources';
 
 // ----------------------------------------------------------------------
 

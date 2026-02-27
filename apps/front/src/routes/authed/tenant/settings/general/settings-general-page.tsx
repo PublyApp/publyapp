@@ -9,41 +9,9 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { Iconify } from '@/front/components/iconify/iconify';
+import { FormRow } from '@/front/components/settings/form-row';
 import { SettingsPageHeader } from '@/front/components/settings/settings-page-header';
 import { useTranslate } from '@/front/hooks/use-translate';
-
-// Horizontal form row component for consistent layout
-const FormRow = ({
-	label,
-	description,
-	children,
-}: {
-	label: string;
-	description?: string;
-	children: React.ReactNode;
-}) => (
-	<Box
-		sx={{
-			display: 'grid',
-			gridTemplateColumns: { xs: '1fr', md: '240px 1fr' },
-			gap: { xs: 1.5, md: 3 },
-			alignItems: 'flex-start',
-			py: 2,
-		}}
-	>
-		<Box>
-			<Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
-				{label}
-			</Typography>
-			{description && (
-				<Typography variant="caption" sx={{ color: 'text.secondary' }}>
-					{description}
-				</Typography>
-			)}
-		</Box>
-		<Box>{children}</Box>
-	</Box>
-);
 
 const SettingsGeneralPage = () => {
 	const { t } = useTranslate();
@@ -62,7 +30,7 @@ const SettingsGeneralPage = () => {
 				</Typography>
 
 				<Stack divider={<Divider />}>
-					<FormRow label="Logo" description="150x150px JPEG, PNG image">
+					<FormRow label={t('logo')} description={t('logo-description')}>
 						<Stack direction="row" alignItems="center" spacing={2}>
 							<Avatar
 								sx={{
@@ -78,7 +46,7 @@ const SettingsGeneralPage = () => {
 								/>
 							</Avatar>
 							<Button variant="outlined" size="small" disabled>
-								Change
+								{t('change')}
 							</Button>
 						</Stack>
 					</FormRow>
@@ -94,8 +62,8 @@ const SettingsGeneralPage = () => {
 					</FormRow>
 
 					<FormRow
-						label="Subdomain"
-						description="Your organization's unique URL"
+						label={t('subdomain')}
+						description={t('subdomain-description')}
 					>
 						<TextField
 							fullWidth
@@ -130,7 +98,7 @@ const SettingsGeneralPage = () => {
 						/>
 					</FormRow>
 
-					<FormRow label="Industry">
+					<FormRow label={t('industry')}>
 						<TextField
 							fullWidth
 							size="small"
@@ -140,7 +108,7 @@ const SettingsGeneralPage = () => {
 						/>
 					</FormRow>
 
-					<FormRow label="Website">
+					<FormRow label={t('website')}>
 						<TextField
 							fullWidth
 							size="small"
@@ -168,15 +136,14 @@ const SettingsGeneralPage = () => {
 				}}
 			>
 				<Typography variant="h5" sx={{ color: 'error.main', mb: 1 }}>
-					Danger zone
+					{t('danger-zone')}
 				</Typography>
 				<Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
-					Once you delete your organization, there is no going back. Please be
-					certain.
+					{t('danger-zone-org-description')}
 				</Typography>
 
 				<Button variant="outlined" color="error" disabled>
-					Delete organization
+					{t('delete-organization')}
 				</Button>
 			</Card>
 		</Stack>

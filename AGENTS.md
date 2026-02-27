@@ -74,10 +74,10 @@ make test-api          # Run API integration tests (requires Docker)
 
 ```bash
 # Run a specific test class
-cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --filter "FullyQualifiedName~PasswordLoginSpec"
+cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test --filter "FullyQualifiedName~PasswordLoginSpec"
 
 # Run a specific test method
-cd apps/api && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test --filter "ItShouldReturnSessionTokenWithValidCredentials"
+cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test --filter "ItShouldReturnSessionTokenWithValidCredentials"
 
 # Frontend tests (when implemented)
 cd apps/front && pnpm test
@@ -98,8 +98,7 @@ apps/
 packages/
 ├── shared/           # Shared utilities, validations, i18n
 ├── js-client/        # Auto-generated TypeScript API client
-├── _tsconfig/        # Shared TypeScript configurations
-└── _tx-key-gen/      # Translation key generator (.NET tool)
+└── _tsconfig/        # Shared TypeScript configurations
 ```
 
 ### Backend Architecture (Vertical Slice, Domain-First)
@@ -123,7 +122,7 @@ apps/api/Src/Modules/<Domain>/
 - **CQRS-lite**: handlers per operation (create/find/get/update/delete)
 - **Minimal APIs**: endpoints map routes and attach filters/permissions
 - **FluentValidation**: automatic body/query validation via endpoint extensions
-- **Response Format**: success returns `Ok<T>` / `Ok<ApiResponse>`; errors return RFC 7807 `application/problem+json` via `TypedProblems.*` with `translationKey`
+- **Response Format**: errors return RFC 7807 via `TypedProblems.*`; Create success → 201 `Created<T>` with entity DTO; Update success → 200 `Ok<T>` with entity DTO; Delete/action-only success → 200 `Ok<ApiResponse>` with message + translationKey
 - **Namespace discipline**: `IDE0130` is treated as error — file namespace must match its folder path
 
 **Finding Backend Code:**
@@ -224,7 +223,7 @@ array methods, arrow functions, arrow components, forms, QueryDisplay, and compo
 - Arrow function components only — never `function` declarations for components
 - `QueryDisplay` component for TanStack Query states — never manual conditional rendering
 - No `Array.reduce()` — use `find`, `filter+map`, `for...of`, or `Object.groupBy`
-- React Hook Form + Zod for form validation
+- React Hook Form + Zod for form validation — always use `Form`/`Field.*` wrappers from `@/front/components/hook-form`, never raw MUI `TextField` with `register()`
 
 ## C# Coding Standards
 
@@ -232,8 +231,14 @@ For the complete C# coding standards (null checking, LINQ, async/await, handler 
 DTOs, service layer, DI rules, API responses, formatting, and more), see:
 [`docs/guides/csharp-coding-standards.md`](docs/guides/csharp-coding-standards.md)
 
+For FluentValidation conventions (shared extension methods, pagination validators, encrypted-ID queries), see:
+[`docs/guides/validator-conventions.md`](docs/guides/validator-conventions.md)
+
 **Key principles (always apply):**
 - Pattern matching for null checks (`is null` / `is not null`, never `== null`)
+- **Never** use `?? throw` — use traditional `if` guard clauses for null-then-throw patterns
+- **Never** use the null-forgiving operator (`!`) in production code — always handle null explicitly with guard clauses or safe accessors like `GetRequiredId()`
+- Guard clauses (flat `if`/early return) over `switch` expressions when handling discriminated union error results from services
 - Query syntax for database LINQ queries; method syntax only for terminal ops
 - Handlers orchestrate, services implement (no DbContext in handlers)
 - Request body DTOs use `JsonElement` with `Get*()` methods for FluentValidation compatibility
@@ -243,7 +248,10 @@ DTOs, service layer, DI rules, API responses, formatting, and more), see:
 - `PatchField<T>` for clearable nullable PATCH fields (see [`docs/guides/patchfield-pattern.md`](docs/guides/patchfield-pattern.md))
 - Max 100 char line length; always use braces on control flow blocks
 - "Find" prefix for list/collection retrieval (not "List")
+- Staff handlers MUST use `*ForStaff*` service method variants (e.g., `GetTenantByIdForStaffAsync`) — base methods filter suspended entities
 - For cursor/keyset pagination, see [`docs/guides/cursor-keyset-pagination-guide.md`](docs/guides/cursor-keyset-pagination-guide.md)
+- For list pages with search/filter + cursor pagination + bulk actions, see [`docs/guides/list-pages-search-filter-cursor-pagination.md`](docs/guides/list-pages-search-filter-cursor-pagination.md)
+- **Validators**: use `JsonElementRules.*` extension methods (never inline validation chains); inherit `OffsetPaginatedQueryValidator<T>`/`CursorPaginatedQueryValidator<T>` for pagination; inherit `EncryptedIdTokenQueryValidator<T>` for encrypted-ID + token queries
 
 ## Test Conventions
 
@@ -260,7 +268,7 @@ For step-by-step checklists (adding features, updating API contract, adding enti
 [`docs/guides/common-workflows.md`](docs/guides/common-workflows.md)
 
 **Quick reference:**
-- After API contract changes: `make build-api && make generate-client` (never modify `packages/js-client/` manually)
+- After API contract changes: `make build-api && make generate-client` (never modify `packages/client-ts/` manually)
 - New entity: inherit `BaseAttributes`, implement tenant interface, add `DbSet`, `make db-add && make db-migrate`
 - New permission: add to `Seeder.cs`, use `PermissionFilter` on endpoint, check via `AuthContext.HasPermission()`
 

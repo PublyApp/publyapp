@@ -32,7 +32,7 @@ public sealed class CreateSystemNoticeSpec
 
 	[Fact]
 	public async Task
-	ItShouldReturnOkWithValidData() {
+	ItShouldReturnCreatedWithValidData() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var startsAt = DateTime.UtcNow
@@ -57,7 +57,7 @@ public sealed class CreateSystemNoticeSpec
 
 		try {
 			response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
+				.Be(HttpStatusCode.Created);
 
 			var result = await response.Content
 				.ReadFromJsonAsync<NoticeCreatedResponse>();
@@ -84,7 +84,7 @@ public sealed class CreateSystemNoticeSpec
 
 	[Fact]
 	public async Task
-	ItShouldReturnOkWithoutExpiresAt() {
+	ItShouldReturnCreatedWithoutExpiresAt() {
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 		var startsAt = DateTime.UtcNow
@@ -106,7 +106,7 @@ public sealed class CreateSystemNoticeSpec
 
 		try {
 			response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
+				.Be(HttpStatusCode.Created);
 
 			var result = await response.Content
 				.ReadFromJsonAsync<NoticeCreatedResponse>();

@@ -1,4 +1,4 @@
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { Iconify } from '../components/iconify/iconify';
 import { Label } from '../components/label/label';

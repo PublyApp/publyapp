@@ -12,10 +12,10 @@ import {
 	LANGUAGE_DETECTION_METHOD_ENUM,
 	LOCALE_COOKIE_KEY,
 	queryParamKey,
-} from '@/shared/lib/constants';
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import { logger } from '@/shared/lib/logger/iso-logger';
-import duration from '@/shared/utils/duration.utils';
+} from '@org/shared-ts/lib/constants';
+import { getCorrectLocale } from '@org/shared-ts/lib/i18n/i18n.utils';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import duration from '@org/shared-ts/utils/duration.utils';
 
 import { interZodClient } from '../zod/zod.client';
 import { config } from './i18n.config';

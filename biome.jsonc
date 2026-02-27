@@ -15,13 +15,15 @@
 			"!**/.turbo",
 			"!**/.husky/_",
 			"!**/.react-router",
-			"!packages/js-client",
+			"!packages/client-ts",
 			"!apps/api/openapi",
 			"!apps/api/Migrations",
 			"!apps/api/bin",
 			"!.config/dotnet-tools.json",
 			"!apps/api/Generated",
-			"!.dump"
+			"!.dump",
+			"!.mcp.json",
+			"!.claude/settings.local.json"
 		]
 	},
 	"formatter": {

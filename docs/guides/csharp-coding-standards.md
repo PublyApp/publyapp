@@ -18,6 +18,33 @@ if (tenant == null)
 
 Pattern matching is safer because it cannot be overridden by custom equality operators.
 
+## No Null-Coalescing Throw (`?? throw`)
+
+**Never use `?? throw` for null checks. Use traditional `if` guard clauses instead:**
+
+```csharp
+// ❌ WRONG - Null-coalescing throw
+var account = authContext.AccountStaff
+    ?? throw new InvalidOperationException("Not found");
+
+var email = element.GetString()
+    ?? throw new InvalidOperationException("Null email");
+
+// ✅ CORRECT - Traditional guard clause
+var account = authContext.AccountStaff;
+if (account is null) {
+    throw new InvalidOperationException("Not found");
+}
+
+var email = element.GetString();
+if (email is null) {
+    throw new InvalidOperationException("Null email");
+}
+```
+
+This applies everywhere: handlers, services, utilities, constructors, property getters, and test helpers.
+When the `?? throw` is inside a LINQ `.Select()` or switch expression, refactor to use guard clauses with early returns or loops.
+
 ## LINQ Queries
 
 **Prefer query syntax over method syntax for database queries:**
@@ -639,6 +666,73 @@ return TypedProblems.BadRequest("Invalid email or password", ResponseKeys.Invali
 - `TypedResults.Unauthorized()` (empty body, no translation key)
 - `TypedResults.Json(..., statusCode: 4xx)` for errors (breaks OpenAPI inference)
 
+## Write Operation Response Standard (Create / Update / Delete)
+
+**CRITICAL:** All write operation handlers must follow a consistent response pattern based on the operation type.
+
+| Operation | Response | Why |
+|---|---|---|
+| **Create** | Return created entity DTO via `Created<TResult>` (201) | Industry standard; client needs server-generated ID, timestamps, computed fields |
+| **Update** | Return updated entity DTO via `Ok<TResult>` (200) | Client needs to sync local state without a separate GET |
+| **Delete / Destructive** | Return `Ok<ApiResponse>` with message + translationKey | Entity is gone; `ApiResponse` provides i18n support for frontend toast |
+| **Action-only** (resend email, trigger) | Return `Ok<ApiResponse>` with message + translationKey | No entity state change to report |
+
+```csharp
+// ✅ CORRECT - Create returns 201 with entity DTO
+return TypedResults.Created(
+    (string?)null,
+    new SystemNoticeCreated {
+        Id = notice.GetRequiredId(),
+        Title = notice.Title,
+        // ... all relevant fields
+    }
+);
+
+// ✅ CORRECT - Update returns updated entity DTO
+return TypedResults.Ok(new GetTenantAsStaffResult {
+    TenantId = tenant.GetRequiredId(),
+    Name = tenant.Name,
+    // ... all relevant fields
+});
+
+// ✅ CORRECT - Delete returns ApiResponse
+return TypedResults.Ok(
+    ApiResponse.Create(
+        "Tenant deleted successfully",
+        ResponseKeys.TenantDeletedSuccess
+    )
+);
+
+// ✅ CORRECT - Action-only returns ApiResponse
+return TypedResults.Ok(
+    ApiResponse.Create(
+        "Invitation email resent successfully",
+        ResponseKeys.InvitationResent
+    )
+);
+
+// ❌ WRONG - Update returns only a message
+return TypedResults.Ok(
+    ApiResponse.Create(
+        "Updated successfully",
+        ResponseKeys.Updated
+    )
+);
+
+// ❌ WRONG - Delete returns NoContent (no i18n key)
+return TypedResults.NoContent();
+```
+
+**Why return entity data on Create/Update?**
+- Eliminates the need for a follow-up GET request
+- Server-generated values (ID, timestamps, computed fields) are immediately available
+- Frontend cache invalidation can be replaced with optimistic update using returned data
+
+**Why `ApiResponse` instead of `NoContent()` for Delete?**
+- Provides `translationKey` for frontend i18n toast messages
+- Consistent structured JSON response body
+- `NoContent` (204) returns an empty body with no i18n support
+
 ## String Comparison
 
 **NEVER use `.ToLowerInvariant()` with `==` for case-insensitive comparison:**
@@ -910,6 +1004,142 @@ if (authContext.AccountStaff is null) {
     );
 }
 ```
+
+## Never Use the Null-Forgiving Operator (`!`) in Production Code
+
+**CRITICAL:** Never use the null-forgiving operator (`!`) in production handler or service code. Always handle null cases explicitly, even when you "know" the value is non-null due to prior checks. Prefer verbose but correct null handling over bold assumptions.
+
+```csharp
+// ❌ WRONG - Null-forgiving operator hides potential bugs
+var tenant = result.Tenant!;
+var id = notice.Id!.Value;
+var userId = authContext.UserId!.Value;
+var format = query.Format!.ToLowerInvariant();
+
+// ✅ CORRECT - Explicit null guard for service results
+if (result.Tenant is null) {
+    throw new InvalidOperationException(
+        "Service returned success "
+        + "but Tenant was null."
+    );
+}
+var tenant = result.Tenant;
+
+// ✅ CORRECT - Use existing safe accessor
+var id = notice.GetRequiredId();  // Already throws with message
+
+// ✅ CORRECT - Guard clause for auth context
+var account = authContext.AccountStaff;
+if (account is null) {
+    throw new InvalidOperationException(
+        "Staff account not found in auth context. "
+        + "Ensure the endpoint has "
+        + ".WithPermission() middleware."
+    );
+}
+// Then use account.UserId (non-null on the typed object)
+
+// ✅ CORRECT - Guard for validated query params
+if (query.Format is null) {
+    return TypedProblems.BadRequest(
+        "Format is required",
+        ResponseKeys.BadRequest
+    );
+}
+var format = query.Format.ToLowerInvariant();
+```
+
+**In FluentValidation DependentRules:** Even inside `DependentRules` where the parent rule guarantees non-null, use explicit null checks instead of `!`:
+
+```csharp
+// ❌ WRONG - Relies on DependentRules guarantee
+.Must(e => e!.Value.ValueKind == JsonValueKind.String)
+.Must(e => e!.Value.GetString()!.Trim().Length >= 2)
+
+// ✅ CORRECT - Explicit null handling
+.Must(e =>
+    e is not null
+    && e.Value.ValueKind == JsonValueKind.String)
+.Must(e => {
+    if (!e.HasValue) {
+        return false;
+    }
+    var str = e.Value.GetString();
+    return str is not null
+        && str.Trim().Length >= 2;
+})
+```
+
+**Exception:** The `!` operator is acceptable in test spec files (`*.Spec.cs`) where assertion patterns like `result!.Id.Should()` are standard FluentAssertions usage.
+
+**Why:** The `!` operator suppresses the compiler's null safety analysis. If the assumption is ever wrong (bug in service layer, race condition, refactoring), the result is a `NullReferenceException` with no helpful context. Explicit guards produce `InvalidOperationException` with a descriptive message that points to the root cause.
+
+## Prefer Guard Clauses Over Switch on Error Enums
+
+When handling discriminated union error results from services (e.g., `result.Error`), use flat `if` guard clauses with early returns instead of `switch` expressions. This style is called "guard clauses" (or "early return pattern").
+
+```csharp
+// ❌ WRONG - Switch expression on error enum
+if (result.Error is not null) {
+    return result.Error switch {
+        DeleteTenantError.NotFound =>
+            TypedProblems.NotFound(...),
+        DeleteTenantError.NotSuspended =>
+            TypedProblems.BadRequest(...),
+        _ => throw new InvalidOperationException(
+            $"Unknown error: {result.Error}"
+        )
+    };
+}
+
+// ✅ CORRECT - Guard clauses with early returns
+if (result.Error is DeleteTenantError.NotFound) {
+    return TypedProblems.NotFound(
+        "Tenant not found",
+        ResponseKeys.TenantNotFound
+    );
+}
+if (result.Error is DeleteTenantError.NotSuspended) {
+    return TypedProblems.BadRequest(
+        "Only suspended tenants can be deleted",
+        ResponseKeys.TenantNotSuspendedCannotDelete
+    );
+}
+if (result.Error is not null) {
+    throw new InvalidOperationException(
+        $"Unknown error: {result.Error}"
+    );
+}
+```
+
+**Why:** Guard clauses are:
+- Easier to read — each error case is self-contained with its own `if` block
+- Easier to debug — breakpoints can target individual error paths
+- More consistent with the project's existing early-return pattern for null checks and validation
+- Less indentation nesting than a switch inside an `if`
+
+## Staff Service Method Selection (Suspended Tenant Visibility)
+
+**CRITICAL:** Staff handlers that retrieve tenant data MUST use the `*ForStaff*` service method variant — never the base method that filters suspended tenants.
+
+```csharp
+// ❌ WRONG - Filters out suspended tenants (staff can't see them)
+var tenant = await tenantAsStaffService.GetTenantByIdAsync(
+    tenantIdGuid, cancellationToken
+);
+
+// ✅ CORRECT - Only filters deleted tenants (staff can see suspended)
+var tenant = await tenantAsStaffService.GetTenantByIdForStaffAsync(
+    tenantIdGuid, cancellationToken
+);
+```
+
+**Why this matters:**
+- `GetTenantByIdAsync` calls `Tenant.IsTenantActive()` which returns `false` for suspended tenants, causing the method to return `null` → handler returns 404
+- `GetTenantByIdForStaffAsync` only filters `IsDeleted`, allowing staff to view and manage suspended tenants
+- Staff users need to see suspended tenants to reactivate them or inspect their state
+
+**General rule:** When a service exposes both a base method and a `*ForStaff*` variant, staff handlers should always prefer the `*ForStaff*` variant. The base methods enforce tenant-scoped visibility rules (e.g., hiding suspended tenants) that don't apply to staff administrators.
 
 ## DTO Placement: Service vs Handler
 

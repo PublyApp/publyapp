@@ -38,6 +38,17 @@ public static class TenantEndpointsForStaff {
 			.WithReqQueryValidation<FindTenantsAsStaffQuery>()
 			.WithPermission([AppPermissions.Staff.Tenants.LIST]);
 
+		group.MapPatch(
+			Routes.Tenants.ForStaff.Update,
+			UpdateTenantAsStaff.HandleUpdateTenantAsStaff
+		)
+			.WithName("UpdateTenant")
+			.WithSummary("Update a tenant")
+			.WithReqBodyValidation<UpdateTenantAsStaffBody>()
+			.WithPermission(
+				[AppPermissions.Staff.Tenants.UPDATE]
+			);
+
 		group.MapPost(
 			Routes.Tenants.ForStaff.Suspend,
 			SuspendTenantAsStaff.HandleSuspendTenantAsStaff
@@ -54,6 +65,16 @@ public static class TenantEndpointsForStaff {
 			.WithName("ReactivateTenant")
 			.WithSummary("Reactivate a suspended tenant")
 			.WithPermission([AppPermissions.Staff.Tenants.REACTIVATE]);
+
+		group.MapDelete(
+			Routes.Tenants.ForStaff.Delete,
+			DeleteTenantAsStaff.HandleDeleteTenantAsStaff
+		)
+			.WithName("DeleteTenant")
+			.WithSummary("Soft-delete a suspended tenant")
+			.WithPermission(
+				[AppPermissions.Staff.Tenants.DELETE]
+			);
 
 		return routes;
 	}

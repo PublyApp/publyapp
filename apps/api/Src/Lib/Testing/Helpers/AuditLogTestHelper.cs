@@ -75,13 +75,17 @@ internal static class AuditLogTestHelper {
 		var user = await dbContext.User
 			.Where(u => u.Email == email.ToLower()
 				&& u.IsDeleted == false)
-			.Select(u => new { u.Id })
+			.Select(u => new {
+				Id = u.Id ?? Guid.Empty
+			})
 			.FirstOrDefaultAsync(ct);
 
-		return user?.Id
-			?? throw new InvalidOperationException(
+		if (user is null) {
+			throw new InvalidOperationException(
 				$"User not found: {email}"
 			);
+		}
+		return user.Id;
 	}
 
 	public static string GetFindUrl(

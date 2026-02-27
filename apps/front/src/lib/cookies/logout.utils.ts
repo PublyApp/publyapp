@@ -1,4 +1,10 @@
 import {
+	FRONT_PATH_NAMES,
+	formActionKey,
+	queryParamKey,
+	queryParamValue,
+} from '@org/shared-ts/lib/constants';
+import {
 	ClientManager,
 	getClientManager,
 } from '@/front/lib/js-client/client-manager';
@@ -7,12 +13,6 @@ import {
 	markAuthLogoutInProgress,
 } from '@/front/lib/react-query/query-client';
 import { globalNavigate } from '@/front/lib/react-router/navigation-helper';
-import {
-	FRONT_PATH_NAMES,
-	formActionKey,
-	queryParamKey,
-	queryParamValue,
-} from '@/shared/lib/constants';
 
 import { clearSessionCookie } from './session-cookie.utils';
 

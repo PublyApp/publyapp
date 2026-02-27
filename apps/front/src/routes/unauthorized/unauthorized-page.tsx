@@ -4,9 +4,9 @@ import i18next from 'i18next';
 import _ from 'lodash';
 import { data } from 'react-router';
 
+import { APP_NAME } from '@org/shared-ts/lib/constants';
 import { View403 } from '@/front/components/error/403-view';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { APP_NAME } from '@/shared/lib/constants';
 
 import type { Route } from './+types/unauthorized-page';
 

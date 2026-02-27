@@ -8,9 +8,11 @@ using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.Auth.Utils;
 using MainApi.Src.Modules.Users.Entities;
 using MainApi.Src.Modules.Users.Services;
+using MainApi.Src.Modules.Users.Validation;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -58,95 +60,35 @@ public class CreateStaffUserBody {
 	}
 }
 
-public class CreateStaffUserBodyValidator : AbstractValidator<CreateStaffUserBody> {
+public class CreateStaffUserBodyValidator
+	: AbstractValidator<CreateStaffUserBody> {
 	public CreateStaffUserBodyValidator() {
 		RuleFor(x => x.Email)
-			.NotEmpty().WithMessage("Email is required")
-			.DependentRules(() => {
-				RuleFor(x => x.Email)
-					.Must(email => email.ValueKind == JsonValueKind.String)
-					.WithMessage("mail must be a string")
-					.DependentRules(() => {
-						RuleFor(x => x.Email.GetString()!)
-							.EmailAddress().WithMessage("Invalid email address");
-					});
-			});
+			.MustBeRequiredEmail();
 
 		RuleFor(x => x.LastName)
-			.NotEmpty().WithMessage("LastName is required")
-			.DependentRules(() => {
-				RuleFor(x => x.LastName)
-					.Must(lastName => lastName.ValueKind == JsonValueKind.String)
-					.WithMessage("LastName must be a string")
-					.DependentRules(() => {
-						RuleFor(x => x.LastName.GetString()!)
-							.NotEmpty().WithMessage("LastName is required");
-					});
-			});
+			.MustBeRequiredString("LastName");
 
 		RuleFor(x => x.FirstName)
-			.Must(BeNullableString)
-			.WithMessage("FirstName must be a string or null")
-			.DependentRules(() => {
-				RuleFor(x => x.FirstName)
-					.NotEmpty().WithMessage("FirstName must not be empty");
-			});
+			.MustBeNullableNonEmptyString("FirstName");
 
 		RuleFor(x => x.AvatarUrl)
-			.Must(BeNullableString)
-			.WithMessage("AvatarUrl must be a string or null")
-			.DependentRules(() => {
-				RuleFor(x => x.AvatarUrl)
-					.Must(BeNullableValidUrl)
-					.WithMessage("AvatarUrl must be a valid URL");
-			});
+			.MustBeNullableUrl("AvatarUrl");
 
 		RuleFor(x => x.AccountLevel)
-			.Must(BeNullableString)
-			.WithMessage("AvatarUrl must be a string or null")
-			.DependentRules(() => {
-				RuleFor(x => x.AccountLevel)
-					.Must(BeValidAccountLevelNullable)
-					.WithMessage("AccountLevel must be a valid account level");
-			});
+			.MustBeNullableAccountLevel();
 
 		RuleFor(x => x.SendNotification)
-			.Must(BeNullableBoolean)
-			.WithMessage("SendNotification must be a boolean or null");
-	}
-
-	private static bool BeNullableBoolean(JsonElement? element) {
-		if (element is null) return true;
-		if (element?.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined) return false;
-		return element?.ValueKind is JsonValueKind.True or JsonValueKind.False;
-	}
-
-	private static bool BeValidAccountLevelNullable(JsonElement? element) {
-		if (element is null) return true;
-		if (element?.ValueKind != JsonValueKind.String) return false;
-		return UserAccount.ParseAccountLevel(element?.GetString() ?? "") is not null;
-	}
-
-	private static bool BeNullableString(JsonElement? element) {
-		if (element is null) return true;
-		return element?.ValueKind == JsonValueKind.String;
-	}
-
-	private static bool BeNullableValidUrl(JsonElement? element) {
-		if (element is null) return true;
-		if (element?.ValueKind != JsonValueKind.String) return false;
-
-		var url = element?.GetString();
-		if (string.IsNullOrWhiteSpace(url)) return false;
-		if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? result)) return false;
-		return result.Scheme == Uri.UriSchemeHttp || result.Scheme == Uri.UriSchemeHttps;
+			.MustBeNullableBoolean(
+				"SendNotification"
+			);
 	}
 }
 
 public class CreateStaffUser {
 	public static async Task<
 		Results<
-			Ok<CreateStaffUserResult>,
+			Created<CreateStaffUserResult>,
 			AppBadRequestHttpResult
 		>
 	> HandleCreateStaffUser(
@@ -173,7 +115,9 @@ public class CreateStaffUser {
 		if (body.GetSendNotification()) {
 			user.IsVerified = false;
 			user.EmailVerifyToken = CryptoUtils.RandomString(env.EMAIL_VERIFY_TOKEN_LENGTH);
-			user.EmailVerifyTokenExpiresAt = DateTime.UtcNow.AddDays(env.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION);
+			user.EmailVerifyTokenExpiresAt = DateTime.UtcNow.AddDays(
+				env.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION
+			);
 		}
 
 		var userResult = await userService.CreateUserAsync(user, cancellationToken);
@@ -226,7 +170,8 @@ public class CreateStaffUser {
 
 		if (accountResult is CreateStaffAccountResult.UserHasTenantOrProjectAccounts) {
 			return TypedProblems.BadRequest(
-				"This user already has tenant or project accounts. Staff and tenant/project accounts are mutually exclusive.",
+				"This user already has tenant or project accounts. "
+				+ "Staff and tenant/project accounts are mutually exclusive.",
 				ResponseKeys.UserHasTenantOrProjectAccounts
 			);
 		}
@@ -242,10 +187,14 @@ public class CreateStaffUser {
 					await emailService.SendJoinedStaffNotificationEmailAsync(user.Email);
 				}
 			}
-			return TypedResults.Ok(new CreateStaffUserResult {
-				Id = userIdGuid,
-				AccountId = accountSuccess.Account.GetRequiredId(),
-			});
+			return TypedResults.Created(
+				(string?)null,
+				new CreateStaffUserResult {
+					Id = userIdGuid,
+					AccountId = accountSuccess
+						.Account.GetRequiredId(),
+				}
+			);
 		}
 
 		return TypedProblems.BadRequest(

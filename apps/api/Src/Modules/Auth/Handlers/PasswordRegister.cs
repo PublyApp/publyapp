@@ -1,10 +1,8 @@
-using System.Text.Json;
-
 using FluentValidation;
 
 using MainApi.Localization;
-using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.Auth.Utils;
 using MainApi.Src.Modules.Users.Entities;
 using MainApi.Src.Modules.Users.Services;
@@ -17,31 +15,14 @@ namespace MainApi.Src.Modules.Auth.Handlers;
 public class PasswordRegisterBody : PasswordLoginBody {
 }
 
-public class PasswordRegisterBodyValidator : AbstractValidator<PasswordRegisterBody> {
+public class PasswordRegisterBodyValidator
+	: AbstractValidator<PasswordRegisterBody> {
 	public PasswordRegisterBodyValidator() {
 		RuleFor(x => x.Email)
-			.NotEmpty().WithMessage("Email is required")
-			.DependentRules(() => {
-				RuleFor(x => x.Email)
-					.Must(email => email.ValueKind == JsonValueKind.String).WithMessage("mail must be a string")
-					.DependentRules(() => {
-						RuleFor(x => x.Email.GetString()!)
-							.EmailAddress().WithMessage("Invalid email address");
-					});
-			});
+			.MustBeRequiredEmail();
 
 		RuleFor(x => x.Password)
-			.NotEmpty().WithMessage("Password is required")
-			.DependentRules(() => {
-				RuleFor(x => x.Password)
-					.Must(password => password.ValueKind == JsonValueKind.String)
-					.WithMessage("Password must be a string")
-					.DependentRules(() => {
-						RuleFor(x => x.Password.GetString()!)
-							.MinimumLength(AppEnvironment.Instance.PASSWORD_MIN_LENGTH)
-							.WithMessage("Password must be at least 6 characters long");
-					});
-			});
+			.MustBeRequiredPassword();
 	}
 }
 

@@ -1,11 +1,11 @@
 # Makefile for PublyApp - Complete Script Migration
-.PHONY: help install dev build clean lint format test test-api docker db-migrate db-reset
+.PHONY: help install dev build clean lint format test test-api docker db-migrate db-reset seed-bulk seed-bulk-reset
 
 # Project paths
 API_DIR = apps/api
 FRONTEND_DIR = apps/front
-SHARED_DIR = packages/shared
-JS_CLIENT_DIR = packages/js-client
+SHARED_DIR = packages/shared-ts
+JS_CLIENT_DIR = packages/client-ts
 ROOT_DIR = .
 
 # Cross-platform commands
@@ -33,14 +33,16 @@ help:
 	@echo ""
 	@echo "=== TESTING ==="
 	@echo "  test-api    - Run API integration tests"
+	@echo "  test-api-debug - Run API integration tests with verbose diagnostics"
 	@echo ""
 	@echo "=== BUILDING ==="
-	@echo "  build-api   - Build API only (dotnet build)"
+	@echo "  build-api   - Build API only (skip restore, faster)"
+	@echo "  build-api-full - Build API with full NuGet restore"
 	@echo "  build-front - Build frontend only"
 	@echo "  build-deploy - Build for deployment"
 	@echo ""
 	@echo "=== RUNNING ==="
-	@echo "  run-api     - Run API (dotnet run)"
+	@echo "  run-api     - Run API (skip restore; run 'make install' first)"
 	@echo "  start-front - Start frontend production server"
 	@echo ""
 	@echo "=== TYPE CHECKING ==="
@@ -60,6 +62,8 @@ help:
 	@echo "  db-reset    - Reset database (drop + migrate)"
 	@echo "  db-add      - Add new migration (usage: make db-add NAME=migration_name)"
 	@echo "  db-remove   - Remove last migration"
+	@echo "  seed-bulk       - Run bulk seed for testing (500 tenants, ~8K users, ~5K projects)"
+	@echo "  seed-bulk-reset - Clear bulk seed data"
 	@echo ""
 	@echo "=== DOCKER ==="
 	@echo "  docker-build - Build Docker images"
@@ -68,7 +72,7 @@ help:
 	@echo "  docker-down  - Stop Docker services"
 	@echo ""
 	@echo "=== CLIENT GENERATION ==="
-	@echo "  generate-client - Generate API client (kiota)"
+	@echo "  generate-client - Build API + generate TS client (skip restore)"
 	@echo "  update-client  - Update API client (kiota)"
 	@echo "  client-info    - Show client info (kiota)"
 	@echo ""
@@ -76,7 +80,6 @@ help:
 	@echo "  clean       - Clean all build artifacts"
 	@echo "  clean-api   - Clean API build artifacts"
 	@echo "  clean-front - Clean frontend build artifacts"
-	@echo "  clean-tx-gen - Clean TranslationKeyGenerator artifacts (fix file lock issues)"
 
 # =============================================================================
 # INSTALLATION
@@ -86,7 +89,7 @@ install:
 	@echo "Installing pnpm dependencies..."
 	pnpm install
 	@echo "Restoring .NET packages..."
-	cd $(API_DIR) && dotnet restore
+	dotnet restore
 	@echo "Running shared package postinstall..."
 	cd $(SHARED_DIR) && pnpm run postinstall
 
@@ -100,7 +103,7 @@ update-deps:
 
 dev-api:
 	@echo "Starting API development server with hot reload..."
-	cd $(API_DIR) && dotnet watch run
+	cd $(API_DIR) && dotnet watch run --no-restore -property:OpenApiGenerateDocuments=false
 
 dev-api-alt:
 	@echo "Starting API with Node.js script..."
@@ -120,6 +123,10 @@ dev-services:
 
 build-api:
 	@echo "Building API..."
+	cd $(API_DIR) && dotnet build --no-restore
+
+build-api-full:
+	@echo "Building API (with restore)..."
 	cd $(API_DIR) && dotnet build
 
 publish-api:
@@ -140,7 +147,7 @@ build-deploy:
 
 run-api:
 	@echo "Running API..."
-	cd $(API_DIR) && dotnet run
+	cd $(API_DIR) && dotnet run --no-restore
 
 start-front:
 	@echo "Starting frontend production server..."
@@ -207,6 +214,18 @@ db-remove:
 	@echo "Removing last migration..."
 	cd $(API_DIR) && dotnet tool run dotnet-ef migrations remove
 
+# =============================================================================
+# BULK SEEDING FOR TESTING
+# =============================================================================
+
+seed-bulk:
+	@echo "Running bulk seed (500 tenants, ~8K users, ~5K projects)..."
+	cd $(API_DIR) && dotnet run -- seed-bulk
+
+seed-bulk-reset:
+	@echo "Resetting bulk seed data..."
+	cd $(API_DIR) && dotnet run -- seed-bulk-reset
+
 # Catch-all target to prevent Make from trying to build non-existent targets
 %:
 	@:
@@ -217,7 +236,11 @@ db-remove:
 
 test-api:
 	@echo "Running API integration tests..."
-	cd $(API_DIR) && dotnet test Tests/MainApi.IntegrationTests.csproj -c Test
+	cd $(API_DIR) && dotnet test Tests/MainApi.Tests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=normal"
+
+test-api-debug:
+	@echo "Running API integration tests (verbose diagnostics)..."
+	cd $(API_DIR) && dotnet test Tests/MainApi.Tests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=detailed" --environment TEST_VERBOSE_LOGS=1 --diag Tests/bin/Test/test-api-debug.log
 
 # =============================================================================
 # DOCKER OPERATIONS
@@ -244,6 +267,8 @@ docker-down:
 # =============================================================================
 
 generate-client:
+	@echo "Building API and generating OpenAPI spec..."
+	cd $(API_DIR) && dotnet build --no-restore
 	@echo "Generating API client with Kiota..."
 	cd $(JS_CLIENT_DIR) && dotnet kiota generate -d ../../$(API_DIR)/openapi/MainApi.json -o src -l typescript -n MainApi.Client -c ApiClient
 
@@ -264,8 +289,8 @@ clean:
 	@$(RM) node_modules
 	@$(RM) apps/api/node_modules
 	@$(RM) apps/front/node_modules
-	@$(RM) packages/shared/node_modules
-	@$(RM) packages/js-client/node_modules
+	@$(RM) packages/shared-ts/node_modules
+	@$(RM) packages/client-ts/node_modules
 	@$(RM) apps/api/bin
 	@$(RM) apps/api/obj
 	@$(RM) apps/api/publish
@@ -279,12 +304,6 @@ clean-api:
 	@$(RM) $(API_DIR)/bin
 	@$(RM) $(API_DIR)/obj
 	@$(RM) $(API_DIR)/publish
-
-clean-tx-gen:
-	@echo "Cleaning TranslationKeyGenerator build artifacts..."
-	cd packages/_tx-key-gen && dotnet clean
-	@$(RM) packages/_tx-key-gen/bin
-	@$(RM) packages/_tx-key-gen/obj
 
 clean-front:
 	@echo "Cleaning frontend build artifacts..."

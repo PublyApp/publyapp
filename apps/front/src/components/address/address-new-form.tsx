@@ -10,9 +10,9 @@ import { useForm } from 'react-hook-form';
 import { isValidPhoneNumber } from 'react-phone-number-input/input';
 import { z as zod } from 'zod';
 
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { getErrorMessage } from '@org/shared-ts/utils/error.utils';
 import type { IAddressItem } from '@/front/types/common';
-import { logger } from '@/shared/lib/logger/iso-logger';
-import { getErrorMessage } from '@/shared/utils/error.utils';
 
 import { Field } from '../hook-form/fields';
 import { Form } from '../hook-form/form-provider';
