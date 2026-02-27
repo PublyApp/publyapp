@@ -125,12 +125,12 @@ importers:
       '@mui/x-tree-view':
         specifier: ^8.5.1
         version: 8.7.0(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0))(@mui/material@7.2.0(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@mui/system@7.2.0(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react@19.1.0))(@types/react@19.1.8)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      '@org/js-client':
+      '@org/client-ts':
         specifier: workspace:*
-        version: link:../../packages/js-client
-      '@org/shared':
+        version: link:../../packages/client-ts
+      '@org/shared-ts':
         specifier: workspace:*
-        version: link:../../packages/shared
+        version: link:../../packages/shared-ts
       '@react-router/express':
         specifier: 7.9.1
         version: 7.9.1(express@5.1.0)(react-router@7.9.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(typescript@5.9.3)
@@ -378,7 +378,7 @@ importers:
 
   packages/_tsconfig: {}
 
-  packages/js-client:
+  packages/client-ts:
     dependencies:
       '@microsoft/kiota-abstractions':
         specifier: 1.0.0-preview.97
@@ -402,7 +402,7 @@ importers:
         specifier: 1.0.0-preview.97
         version: 1.0.0-preview.97
 
-  packages/shared:
+  packages/shared-ts:
     dependencies:
       axios:
         specifier: ^1.6.5
@@ -6810,7 +6810,7 @@ snapshots:
 
   '@types/connect@3.4.38':
     dependencies:
-      '@types/node': 24.0.13
+      '@types/node': 20.19.7
 
   '@types/d3-hierarchy@1.1.11': {}
 
@@ -6887,7 +6887,7 @@ snapshots:
 
   '@types/parse@3.0.9':
     dependencies:
-      '@types/node': 24.0.13
+      '@types/node': 20.19.7
 
   '@types/prop-types@15.7.15': {}
 
@@ -6938,7 +6938,7 @@ snapshots:
 
   '@types/whatwg-url@8.2.2':
     dependencies:
-      '@types/node': 24.0.13
+      '@types/node': 20.19.7
       '@types/webidl-conversions': 7.0.3
 
   '@typespec/ts-http-runtime@0.3.0':
