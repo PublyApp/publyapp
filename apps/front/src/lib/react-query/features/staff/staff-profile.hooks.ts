@@ -20,14 +20,10 @@ type FindStaffProfilesParams = {
 	q?: string;
 };
 
-const findStaffProfilesQueryKey = getQueryKey<ApiClient>(
-	(client) => client.staff.profiles.get,
-);
-
-export const useFindStaffProfiles = createQuery({
-	queryKey: [findStaffProfilesQueryKey] as const,
-	fetcher: async (params: FindStaffProfilesParams) => {
-		const result = await clientManager.apiClient.staff.profiles.get({
+export const useFindStaffProfiles = createStaffQuery({
+	queryKeyFn: (client) => client.staff.profiles.get,
+	fetcher: async (client, params: FindStaffProfilesParams) => {
+		const result = await client.staff.profiles.get({
 			queryParameters: {
 				cursor: params.cursor,
 				limit: params.limit ? params.limit.toString() : undefined,
@@ -46,10 +42,6 @@ export const useFindStaffProfiles = createQuery({
 });
 
 // Query: Fetch available staff permissions from API
-const findStaffPermissionsQueryKey = getQueryKey<ApiClient>(
-	(client) => client.staff.permissions.get,
-);
-
 type FindStaffPermissionsParams = {
 	language?: string;
 };
@@ -176,10 +168,6 @@ export const useResolveStaffProfileUserAssignments = createStaffMutation({
 });
 
 // Mutation: Create staff profile
-const createStaffProfileMutationKey = getQueryKey<ApiClient>(
-	(client) => client.staff.profiles.post,
-);
-
 type CreateStaffProfilePayload = {
 	name: string;
 	description?: string;
@@ -187,26 +175,21 @@ type CreateStaffProfilePayload = {
 	emails?: string[];
 };
 
-export const useCreateStaffProfile = createMutation({
-	mutationKey: [createStaffProfileMutationKey] as const,
-	mutationFn: async (data: CreateStaffProfilePayload) => {
+export const useCreateStaffProfile = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.profiles.post,
+	mutationFn: async (client, data: CreateStaffProfilePayload) => {
 		const body: CreateStaffProfileBody = {};
 
-		// Map payload to API body format
+		// Map payload to API body format using Kiota's UntypedNode factories
+		// Type assertions are needed because the generated types don't include UntypedNode in the union
 		if (data.name) {
-			body.name = {
-				getValue() {
-					return data.name;
-				},
-			};
+			body.name = createUntypedString(data.name) as typeof body.name;
 		}
 
 		if (data.description) {
-			body.description = {
-				getValue() {
-					return data.description;
-				},
-			};
+			body.description = createUntypedString(
+				data.description,
+			) as typeof body.description;
 		}
 
 		if (data.permissions && data.permissions.length > 0) {
@@ -221,7 +204,7 @@ export const useCreateStaffProfile = createMutation({
 			) as typeof body.emails;
 		}
 
-		const result = await clientManager.apiClient.staff.profiles.post(body);
+		const result = await client.staff.profiles.post(body);
 
 		if (result == null) {
 			throw new Error('useCreateStaffProfile: result is nil');

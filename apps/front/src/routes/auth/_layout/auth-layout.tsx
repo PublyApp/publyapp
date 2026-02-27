@@ -1,4 +1,3 @@
-import * as cookie from 'cookie';
 import i18next from 'i18next';
 import first from 'lodash/first';
 import some from 'lodash/some';
@@ -45,17 +44,18 @@ export const loader = getServerLoader({
 			tenantToken,
 		}).createClient();
 
-		const reqCookies = cookie.parse(request.headers.get('cookie') || '');
-
 		const getUserAuthData = safeRun(async () => {
 			return authedApiClient.auth.userAuthData.get();
 		});
 
-		const tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
+		// Read legacy tenant hint - identity-scoped lookup would require userId
+		// which we don't have until userAuthData resolves. For auth-layout's
+		// redirect-away case, legacy fallback is acceptable during migration.
+		const { legacyTenantId } = readTenantHintsFromRequestHeaders(request);
 
 		const getRedirectCode = safeRun(async () => {
 			return authedApiClient.auth.redirectCode.get({
-				queryParameters: { tenantId },
+				queryParameters: { tenantId: legacyTenantId },
 			});
 		});
 

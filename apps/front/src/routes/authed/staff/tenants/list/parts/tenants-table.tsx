@@ -9,6 +9,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
 import ListItemText from '@mui/material/ListItemText';
 import Menu from '@mui/material/Menu';
@@ -97,7 +98,7 @@ export type TenantRowData = {
 	code?: string;
 };
 
-const TenantRowDataMapper = (tenant: TenantAsStaffItem): TenantRowData => {
+const TenantRowDataMapper = (tenant: TenantAsStaffListItem): TenantRowData => {
 	return {
 		id: tenant.id || nanoid(),
 		name: tenant.name || '-',
@@ -105,14 +106,16 @@ const TenantRowDataMapper = (tenant: TenantAsStaffItem): TenantRowData => {
 		usersCount: getUntypedNumber(tenant.usersCount, 0),
 		maxUsers: getUntypedNumber(tenant.maxUsers, 0),
 		status: tenant.status || '-',
+		isSuspended: tenant.isSuspended ?? false,
 	};
 };
 
 const columnHelper = createMRTColumnHelper<TenantRowData>();
 
+// Use snake_case sort IDs to match backend API
 const defaultSorting: MRT_SortingState[number] = {
 	desc: true,
-	id: 'createdAt',
+	id: 'created_at',
 };
 const parseStatusFilter = (value: string) => {
 	if (!value) {
@@ -219,8 +222,78 @@ const useTenantsTableController = () => {
 			open: false,
 		});
 
+	// Filter state with nuqs (URL-persisted)
+	const [filterStates, setFilterStates] = useQueryStates({
+		q: parseAsString.withDefault(''),
+		status: parseAsString.withDefault(''),
+	});
+
+	const [globalFilter, setGlobalFilter] = useState(filterStates.q);
+	const [statusFilter, setStatusFilter] = useState(filterStates.status);
+
+	// Use the custom table state hook for cursor pagination
+	const {
+		handlePaginationChange,
+		handleSortingChange,
+		apiVariables,
+		tableState,
+		setNextCursor,
+		hasNextPage,
+		hasPreviousPage,
+		resetCursorPagination,
+	} = useTableState({
+		defaultSorting,
+		defaultPageSize: DEFAULT_PAGE_SIZE,
+		paginationMode: 'cursor',
+	});
+
+	// Debounce URL updates (NOT UI typing).
+	const debouncedQ = useDebounce(globalFilter, 300);
+
+	useEffect(() => {
+		if (debouncedQ === filterStates.q) {
+			return;
+		}
+
+		resetCursorPagination?.();
+		setFilterStates({ q: debouncedQ, status: statusFilter });
+	}, [
+		debouncedQ,
+		filterStates.q,
+		resetCursorPagination,
+		setFilterStates,
+		statusFilter,
+	]);
+
+	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const value = e.target.value;
+		setGlobalFilter(value);
+	};
+
+	// Status filter handler - reset cursor before updating
+	const handleStatusChange = (event: SelectChangeEvent) => {
+		const value = event.target.value;
+		resetCursorPagination?.();
+		setStatusFilter(value);
+		setFilterStates({ q: globalFilter, status: value });
+	};
+
+	// Row selection state for bulk actions (placeholder for future)
+	const [rowSelection] = useState<Record<string, boolean>>({});
+
 	const columns = useMemo(() => {
 		return [
+			// Hidden columns for sorting by created_at/updated_at (snake_case to match backend)
+			columnHelper.accessor('createdAt', {
+				id: 'created_at',
+				header: t('created-at'),
+				enableSorting: true,
+			}),
+			columnHelper.accessor('updatedAt', {
+				id: 'updated_at',
+				header: t('updated-at', { defaultValue: 'Updated at' }),
+				enableSorting: true,
+			}),
 			columnHelper.accessor('name', {
 				header: t('name'),
 				Cell: TenantCell,
@@ -229,15 +302,9 @@ const useTenantsTableController = () => {
 			columnHelper.accessor('usersCount', {
 				header: t('users'),
 				Cell: UsersCountCell,
+				enableSorting: false,
 				size: 70,
 			}),
-			// columnHelper.accessor('pricingPlan', {
-			// 	header: t('pricing-plan'),
-			// 	Cell: (props) => {
-			// 		return props.cell.getValue();
-			// 	},
-			// 	size: 70,
-			// }),
 			columnHelper.accessor('status', {
 				header: t('status'),
 				Cell: StatusCell,
@@ -246,20 +313,20 @@ const useTenantsTableController = () => {
 			columnHelper.display({
 				header: 'Actions',
 				Cell: TenantActionsCell,
+				enableSorting: false,
 				size: 70,
 			}),
 		];
 	}, [t]);
 
-	// Use the custom table state hook
-	const {
-		handlePaginationChange,
-		handleSortingChange,
-		apiVariables,
-		tableState,
-	} = useTableState({
-		defaultSorting,
-		defaultPageSize: DEFAULT_PAGE_SIZE,
+	const tenantsQuery = useFindTenants({
+		variables: {
+			cursor: apiVariables.cursor || undefined,
+			limit: apiVariables.limit,
+			sort: apiVariables.sort,
+			q: filterStates.q || undefined,
+			status: filterStates.status || undefined,
+		},
 	});
 
 	const handleCursorPaginationChange: typeof handlePaginationChange =
@@ -435,6 +502,7 @@ const useTenantsTableController = () => {
 		},
 		state: {
 			...tableState,
+			...queryState,
 			density: 'compact',
 			rowSelection,
 		},
@@ -526,6 +594,7 @@ const TenantsTable = () => {
 				border: 'none',
 			}}
 		>
+			{renderTopToolbar()}
 			<MaterialReactTable table={table} />
 
 			<TenantsExportDialogController
@@ -1296,7 +1365,6 @@ const TenantsBulkActionDialogs = ({
 };
 
 const TenantCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
-	// const logoUrl = props.row.original.logoUrl;
 	const name = props.row.original.name;
 	const logoUrl = props.row.original.logoUrl;
 	const normalizedLogoUrl = trim(logoUrl);

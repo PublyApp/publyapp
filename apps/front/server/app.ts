@@ -5,6 +5,7 @@ import express from 'express';
 import helmet from 'helmet';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
+
 import { analytics } from '@/front/lib/analytics/analytics';
 import {
 	isPreRenderPath,
@@ -35,9 +36,9 @@ declare global {
 const isDevelopment = import.meta.env.DEV;
 
 if (isDevelopment) {
-	isoLogger.logLevel = LogLevelEnum.DEBUG;
+	logger.logLevel = LogLevelEnum.DEBUG;
 } else {
-	isoLogger.logLevel = LogLevelEnum.WARN;
+	logger.logLevel = LogLevelEnum.WARN;
 }
 
 export const app = express();
@@ -63,7 +64,7 @@ app.use((req, res, next) => {
 });
 
 const reactRouterHandler = createRequestHandler({
-	build: () => {
+	build: async () => {
 		return import('virtual:react-router/server-build');
 	},
 	getLoadContext: (req, _res) => {
@@ -74,7 +75,7 @@ const reactRouterHandler = createRequestHandler({
 		}
 
 		return {
-			logger: isoLogger,
+			logger: logger,
 			analytics: analytics,
 			nonce,
 		};

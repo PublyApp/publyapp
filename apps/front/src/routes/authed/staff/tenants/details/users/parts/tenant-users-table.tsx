@@ -90,7 +90,7 @@ export type TenantUserRowData = {
 	avatarUrl: string;
 	firstName: string;
 	lastName: string;
-	// role: string;
+	level: string;
 	status: string;
 	email: string;
 };
@@ -326,6 +326,7 @@ const useTenantUsersTableController = () => {
 	} = useTableState({
 		defaultSorting,
 		defaultPageSize: DEFAULT_PAGE_SIZE,
+		paginationMode: 'cursor',
 	});
 
 	const handleDebouncedSearchChange = useCallback(
@@ -380,26 +381,23 @@ const useTenantUsersTableController = () => {
 					id: 'fullName',
 					header: t('name'),
 					Cell: UserCell,
-					// grow: 1,
-					size: 300,
 					enableSorting: false,
 				},
 			),
-			// columnHelper.accessor('role', {
-			// 	header: t('role'),
-			// 	Cell: RoleCell,
-			// 	size: 70,
-			// }),
+			columnHelper.accessor('level', {
+				header: t('level'),
+				Cell: LevelCell,
+				size: 150,
+			}),
 			columnHelper.accessor('status', {
 				header: t('status'),
 				Cell: StatusCell,
-				size: 70,
-				enableSorting: false,
+				size: 150,
 			}),
 			columnHelper.display({
 				header: 'Actions',
 				Cell: UserActionsCell,
-				size: 5,
+				size: 150,
 			}),
 		];
 	}, [t]);
@@ -467,16 +465,16 @@ const useTenantUsersTableController = () => {
 
 		return map(tenantUsersQuery.data.data, (tenantUser) => {
 			return {
-				id: staffUser.id || '',
-				avatarUrl: staffUser.avatarUrl || '',
-				firstName: staffUser.firstName || '',
-				lastName: staffUser.lastName || '',
-				// role: staffUser.roleData?.role || '',
-				status: staffUser.status || '',
-				email: staffUser.email || '',
+				id: tenantUser.id || '',
+				avatarUrl: tenantUser.avatarUrl || '',
+				firstName: tenantUser.firstName || '',
+				lastName: tenantUser.lastName || '',
+				level: tenantUser.level || '',
+				status: tenantUser.status || '',
+				email: tenantUser.email || '',
 			};
 		});
-	}, [data]);
+	}, [tenantUsersQuery.data]);
 
 	const {
 		rowSelection,
@@ -834,7 +832,12 @@ const useTenantUsersTableController = () => {
 		renderEmptyRowsFallback,
 		muiTablePaperProps: {
 			sx: {
-				flexGrow: 1,
+				'& .MuiTableBody-root > tr > td:not(:nth-of-type(2)), & .MuiTableHead-root > tr > th:not(:nth-of-type(2))':
+					{
+						// backgroundColor: 'red !important',
+						flex: '1 1 auto !important',
+						// flexGrow: 1,
+					},
 			},
 		},
 		muiTableProps: {
@@ -902,14 +905,7 @@ const TenantUsersTable = () => {
 	} = useTenantUsersTableController();
 
 	return (
-		<Box
-			sx={{
-				flexGrow: 1,
-				display: 'flex',
-				flexDirection: 'column',
-				border: 'none',
-			}}
-		>
+		<Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
 			<MaterialReactTable table={table} />
 
 			<TenantUsersExportDialogController
@@ -976,7 +972,11 @@ const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 			</Avatar>
 
 			<Stack
-				sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}
+				sx={{
+					typography: 'body2',
+					flex: '1 1 auto',
+					alignItems: 'flex-start',
+				}}
 			>
 				<Link color="inherit" component={RouterLink} href={userDetailsLink}>
 					{fullName}

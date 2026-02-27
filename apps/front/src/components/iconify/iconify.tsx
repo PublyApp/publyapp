@@ -3,7 +3,7 @@ import { styled } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 import { useId } from 'react';
 
-import { logger } from '@/shared/lib/logger/iso-logger';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { iconifyClasses } from './classes';
 import {

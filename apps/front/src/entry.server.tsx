@@ -1,4 +1,5 @@
 import { PassThrough } from 'node:stream';
+
 import { createReadableStreamFromReadable } from '@react-router/node';
 import * as cookie from 'cookie';
 import { isbot } from 'isbot';
@@ -17,6 +18,7 @@ import {
 	type EntryContext,
 	ServerRouter,
 } from 'react-router';
+
 import {
 	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
 	LANGUAGE_DETECTION_METHOD,
@@ -24,12 +26,13 @@ import {
 	LOCALE_COOKIE_KEY,
 	queryParamKey,
 	REMIX_CLIENT_IP_HEADER_KEY,
-} from '@/shared/lib/constants';
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import type { AppLocale } from '@/shared/lib/i18n/resources';
-import { logger } from '@/shared/lib/logger/iso-logger';
-import { getErrorMessage } from '@/shared/utils/error.utils';
-import { NonceProvider } from './hooks/use-nonce';
+} from '@org/shared-ts/lib/constants';
+import { getCorrectLocale } from '@org/shared-ts/lib/i18n/i18n.utils';
+import type { AppLocale } from '@org/shared-ts/lib/i18n/resources';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { getErrorMessage } from '@org/shared-ts/utils/error.utils';
+
+import { NonceProvider } from './hooks/use-nonce-context';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
 
 export const streamTimeout = import.meta.env.DEV ? 50_000 : 5_000;
@@ -66,7 +69,7 @@ const handleRequest = async (
 				},
 			);
 
-			analytics.node.capture({
+			analytics.capture({
 				distinctId:
 					get(ipAddresses, toLower(REMIX_CLIENT_IP_HEADER_KEY)) ||
 					get(ipAddresses, toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY)) ||
@@ -113,23 +116,23 @@ const handleRequest = async (
 		// regardless of the environment, we want to set the nonce
 		// to the static pre render path nonce if the path is a pre render path
 		// if (isPreRenderPath(new URL(request.url).pathname)) {
-		// 	finalLoadContext.___NONCE___ = STATIC_PRE_RENDER_PATHS_MAP_NONCE;
+		// 	finalLoadContext.nonce = STATIC_PRE_RENDER_PATHS_MAP_NONCE;
 		// }
 
-		const ___NONCE___ = finalLoadContext.___NONCE___;
+		const nonce = finalLoadContext.nonce;
 
 		const { pipe, abort } = renderToPipeableStream(
 			<I18nextProvider i18n={i18nInstance}>
-				<NonceProvider value={___NONCE___}>
+				<NonceProvider value={nonce}>
 					<ServerRouter
 						context={routerContext}
 						url={request.url}
-						nonce={___NONCE___}
+						nonce={nonce}
 					/>
 				</NonceProvider>
 			</I18nextProvider>,
 			{
-				nonce: ___NONCE___,
+				nonce: nonce,
 				[readyOption]: () => {
 					shellRendered = true;
 					const body = new PassThrough();
