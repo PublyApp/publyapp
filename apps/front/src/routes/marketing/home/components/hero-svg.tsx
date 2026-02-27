@@ -3,9 +3,9 @@ import type { SxProps, Theme } from '@mui/material/styles';
 import { type MotionProps, m } from 'framer-motion';
 import { nanoid } from 'nanoid';
 
+import { APP_NAME } from '@org/shared-ts/lib/constants';
 import { varFade } from '@/front/components/animate';
 import type { PaletteColorKey } from '@/front/lib/mui/theme/core';
-import { APP_NAME } from '@org/shared-ts/lib/constants';
 
 // ----------------------------------------------------------------------
 

@@ -7,18 +7,6 @@ import { useForm } from 'react-hook-form';
 import { redirect, useFetcher } from 'react-router';
 import { serializeError } from 'serialize-error';
 
-import { Field, Form } from '@/front/components/hook-form';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { getClientManager } from '@/front/lib/js-client/client-manager';
-import { safeRun } from '@/front/lib/react-router/safeRun';
-import {
-	getServerAction,
-	getServerLoader,
-} from '@/front/lib/react-router/server-data.server';
-import { interZodClient } from '@/front/lib/zod/zod.client';
 import {
 	FRONT_PATH_NAMES,
 	queryParamKey,
@@ -31,6 +19,18 @@ import {
 	getEmailFormSchema,
 	getRequestEmailVerificationSchema,
 } from '@org/shared-ts/validations/auth.validations';
+import { Field, Form } from '@/front/components/hook-form';
+import { Iconify } from '@/front/components/iconify/iconify';
+import { RouterLink } from '@/front/components/router-link';
+import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { getClientManager } from '@/front/lib/js-client/client-manager';
+import { safeRun } from '@/front/lib/react-router/safeRun';
+import {
+	getServerAction,
+	getServerLoader,
+} from '@/front/lib/react-router/server-data.server';
+import { interZodClient } from '@/front/lib/zod/zod.client';
 
 import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/verify-email-page';

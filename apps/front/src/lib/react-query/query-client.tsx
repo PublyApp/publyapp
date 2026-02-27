@@ -2,13 +2,13 @@ import type { Mutation, Query } from '@tanstack/react-query';
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 import i18next from 'i18next';
 
+import { isServer } from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { toApiFailure } from '@/front/lib/api-failure';
 import {
 	clearLegacyTenantFromBrowser,
 	clearTenantHintForUserInBrowser,
 } from '@/front/lib/cookies';
-import { isServer } from '@org/shared-ts/lib/constants';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 // NOTE: Do NOT import toast at module level - some toast libs crash on SSR import
 // We use dynamic import inside safeToast() instead

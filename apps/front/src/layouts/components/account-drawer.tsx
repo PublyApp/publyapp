@@ -9,6 +9,7 @@ import Typography from '@mui/material/Typography';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useCallback } from 'react';
 
+import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 import { AnimateBorder } from '@/front/components/animate';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { Label } from '@/front/components/label';
@@ -17,7 +18,6 @@ import { Scrollbar } from '@/front/components/scrollbar';
 import { usePathname } from '@/front/hooks/use-pathname';
 import { logout } from '@/front/lib/cookies';
 import { useGetUserAuthData } from '@/front/lib/react-query/features/common/auth.hooks';
-import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 import { AccountButton } from './account-button';
 import { SignOutButton } from './sign-out-button';

@@ -15,6 +15,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import type { z as zod } from 'zod';
 
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { getBulkCreateInvitationsSchema } from '@org/shared-ts/validations/invitation.validations';
 import { Form } from '@/front/components/hook-form';
 import { Field } from '@/front/components/hook-form/fields';
 import { Iconify } from '@/front/components/iconify/iconify';
@@ -31,9 +34,6 @@ import {
 } from '@/front/lib/react-query/features/staff/staff-invitation.hooks';
 import { useFindStaffProfiles } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
 import { interZodClient } from '@/front/lib/zod/zod.client';
-import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { getBulkCreateInvitationsSchema } from '@org/shared-ts/validations/invitation.validations';
 
 type BulkInvitationsFormType = zod.infer<
 	ReturnType<typeof getBulkCreateInvitationsSchema>

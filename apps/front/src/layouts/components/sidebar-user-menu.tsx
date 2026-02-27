@@ -12,13 +12,13 @@ import { varAlpha } from 'minimal-shared/utils';
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 import { CustomPopover } from '@/front/components/custom-popover';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useTenantParam } from '@/front/hooks/use-tenant-param';
 import { logout } from '@/front/lib/cookies';
-import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
-import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 // ----------------------------------------------------------------------
 

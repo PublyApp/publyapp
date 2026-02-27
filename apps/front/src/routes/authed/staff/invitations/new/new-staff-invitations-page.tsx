@@ -3,15 +3,15 @@ import i18next from 'i18next';
 import _ from 'lodash';
 import { data } from 'react-router';
 
-import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import {
 	APP_NAME,
 	FRONT_PATH_NAMES,
 	isServer,
 } from '@org/shared-ts/lib/constants';
+import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { DashboardContent } from '@/front/layouts/dashboard/content';
+import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 
 import type { Route } from './+types/new-staff-invitations-page';
 import NewStaffInvitationsForm from './parts/new-staff-invitations-form';

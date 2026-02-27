@@ -2,8 +2,8 @@ import { createUntypedString } from '@microsoft/kiota-abstractions';
 import _ from 'lodash';
 import type { CreateQueryOptions } from 'react-query-kit';
 
-import { toApiFailure } from '@/front/lib/api-failure';
 import type { VerifyEmailRequestBody } from '@org/client-ts/src/models';
+import { toApiFailure } from '@/front/lib/api-failure';
 
 import {
 	createAuthMutation,
