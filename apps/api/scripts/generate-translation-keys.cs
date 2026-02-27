@@ -1,8 +1,3 @@
-#:property EnforceCodeStyleInBuild=false
-#:property GenerateDocumentationFile=false
-#:property TreatWarningsAsErrors=false
-#:property WarningsAsErrors=
-
 using System.Text;
 using System.Text.Json;
 
@@ -97,9 +92,7 @@ static bool GenerateKeysClass(string inputFile, string outputFile) {
 	return true;
 }
 
-/// <summary>
-/// Converts a kebab-case or snake-case string to PascalCase for C# property names
-/// </summary>
+// Converts a kebab-case or snake-case string to PascalCase for C# property names
 static string ToPascalCase(string input) {
 	if (string.IsNullOrEmpty(input))
 		return input;
@@ -119,9 +112,7 @@ static string ToPascalCase(string input) {
 	return result.ToString();
 }
 
-/// <summary>
-/// Escapes a string for use in C# XML documentation comments
-/// </summary>
+// Escapes a string for use in C# XML documentation comments
 static string EscapeXmlComment(string text) {
 	if (string.IsNullOrEmpty(text))
 		return string.Empty;

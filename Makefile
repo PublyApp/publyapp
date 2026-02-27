@@ -1,5 +1,5 @@
 # Makefile for PublyApp - Complete Script Migration
-.PHONY: help install dev build clean lint format test test-api docker db-migrate db-reset
+.PHONY: help install dev build clean lint format test test-api docker db-migrate db-reset seed-bulk seed-bulk-reset
 
 # Project paths
 API_DIR = apps/api
@@ -62,6 +62,8 @@ help:
 	@echo "  db-reset    - Reset database (drop + migrate)"
 	@echo "  db-add      - Add new migration (usage: make db-add NAME=migration_name)"
 	@echo "  db-remove   - Remove last migration"
+	@echo "  seed-bulk       - Run bulk seed for testing (500 tenants, ~8K users, ~5K projects)"
+	@echo "  seed-bulk-reset - Clear bulk seed data"
 	@echo ""
 	@echo "=== DOCKER ==="
 	@echo "  docker-build - Build Docker images"
@@ -87,7 +89,7 @@ install:
 	@echo "Installing pnpm dependencies..."
 	pnpm install
 	@echo "Restoring .NET packages..."
-	cd $(API_DIR) && dotnet restore
+	dotnet restore
 	@echo "Running shared package postinstall..."
 	cd $(SHARED_DIR) && pnpm run postinstall
 
@@ -211,6 +213,18 @@ db-add:
 db-remove:
 	@echo "Removing last migration..."
 	cd $(API_DIR) && dotnet tool run dotnet-ef migrations remove
+
+# =============================================================================
+# BULK SEEDING FOR TESTING
+# =============================================================================
+
+seed-bulk:
+	@echo "Running bulk seed (500 tenants, ~8K users, ~5K projects)..."
+	cd $(API_DIR) && dotnet run -- seed-bulk
+
+seed-bulk-reset:
+	@echo "Resetting bulk seed data..."
+	cd $(API_DIR) && dotnet run -- seed-bulk-reset
 
 # Catch-all target to prevent Make from trying to build non-existent targets
 %:
