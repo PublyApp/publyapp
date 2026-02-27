@@ -5,7 +5,7 @@ import i18next from 'i18next';
 import _ from 'lodash';
 import { data } from 'react-router';
 
-import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared/lib/constants';
+import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';

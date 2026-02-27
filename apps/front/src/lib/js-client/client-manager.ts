@@ -4,7 +4,7 @@ import {
 	KiotaClientFactory,
 } from '@microsoft/kiota-http-fetchlibrary';
 
-import { type ApiClient, createApiClient } from '@org/js-client/src/apiClient';
+import { type ApiClient, createApiClient } from '@org/client-ts/src/apiClient';
 import {
 	isServer,
 	SESSION_TOKEN_HEADER_KEY,

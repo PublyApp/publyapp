@@ -20,7 +20,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import type zod from 'zod';
 
-import { getNewTenantSchemaClientSide } from '@org/shared/validations/tenant/tenant-client.validations';
+import { getNewTenantSchemaClientSide } from '@org/shared-ts/validations/tenant/tenant-client.validations';
 import { FieldContainer } from '@/front/components/form-extras';
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';

@@ -1,7 +1,7 @@
 import { layout, route } from '@react-router/dev/routes';
 
-import { FRONT_PATH_NAMES } from '@org/shared/lib/constants';
-import { getLastPath } from '@org/shared/utils/string.utils';
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+import { getLastPath } from '@org/shared-ts/utils/string.utils';
 
 // Auth routes
 export const authRoutes = [
