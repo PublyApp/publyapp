@@ -1,6 +1,6 @@
 import type { Config } from '@react-router/dev/config';
 
-import { PRE_RENDER_PATHS } from '@org/shared/lib/constants';
+import { PRE_RENDER_PATHS } from '@org/shared-ts/lib/constants';
 
 export default {
 	// override the default app directory

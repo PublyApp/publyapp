@@ -18,6 +18,16 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { useEffect, useMemo } from 'react';
 import { useParams } from 'react-router';
 
+import {
+	ACCOUNT_LEVEL_ENUM,
+	DEFAULT_PAGE_SIZE,
+	FRONT_PATH_NAMES,
+	USER_STATUS_ENUM,
+	voidFunction,
+} from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { getErrorMessage } from '@org/shared-ts/utils/error.utils';
+import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import DrawerAnchor from '@/front/components/drawer-anchor';
 import { Iconify } from '@/front/components/iconify/iconify';
@@ -34,16 +44,6 @@ import {
 	useSendEmailVerificationReminder,
 } from '@/front/lib/react-query/features/common/auth.hooks';
 import { useFindTenantUsers } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
-import {
-	ACCOUNT_LEVEL_ENUM,
-	DEFAULT_PAGE_SIZE,
-	FRONT_PATH_NAMES,
-	USER_STATUS_ENUM,
-	voidFunction,
-} from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/logger/iso-logger';
-import { getErrorMessage } from '@/shared/utils/error.utils';
-import { getUserFullName } from '@/shared/utils/user.utils';
 
 export type TenantUserRowData = {
 	id: string;

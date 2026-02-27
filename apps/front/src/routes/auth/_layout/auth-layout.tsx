@@ -3,6 +3,13 @@ import _ from 'lodash';
 import { Suspense } from 'react';
 import { Outlet, redirect } from 'react-router';
 
+import {
+	FRONT_PATH_NAMES,
+	formActionKey,
+	I18N_NAMESPACES,
+	REDIRECT_CODE,
+} from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { SplashScreen } from '@/front/components/loading-screen/splash-screen';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { AuthSplitLayout } from '@/front/layouts/auth-split/layout';
@@ -20,13 +27,6 @@ import { getQueryClient } from '@/front/lib/react-query/query-client';
 import { getClientLoader } from '@/front/lib/react-router/client-data';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import {
-	FRONT_PATH_NAMES,
-	formActionKey,
-	I18N_NAMESPACES,
-	REDIRECT_CODE,
-} from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/logger/iso-logger';
 
 export const loader = getServerLoader({
 	loader: async ({ request, sessionToken, staffToken, tenantToken }) => {

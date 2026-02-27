@@ -7,8 +7,8 @@ import {
 	createSuspenseQuery,
 } from 'react-query-kit';
 
+import type { ApiClient } from '@org/client-ts/src/apiClient';
 import { getClientManager } from '@/front/lib/js-client/client-manager';
-import type { ApiClient } from '@/js-client/src/apiClient';
 
 import { getQueryKey } from './query-utils';
 

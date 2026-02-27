@@ -4,9 +4,9 @@ import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { logger } from '@/shared/lib/logger/iso-logger';
 
 import { DEFAULT_PAGE_SIZE_OPTIONS } from '../../constants';
 import type { TablePreset } from '../table-presets';

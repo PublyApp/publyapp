@@ -19,7 +19,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
 
-import { FRONT_PATH_NAMES } from '@org/shared/lib/constants';
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { ErrorContent } from '@/front/components/empty-content/error-content';
 import { NotFoundView } from '@/front/components/error/not-found-view';

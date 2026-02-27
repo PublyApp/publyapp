@@ -3,11 +3,11 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import { useState } from 'react';
 
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { toast } from '@/front/components/snackbar';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { getClientManager } from '@/front/lib/js-client/client-manager';
-import { logger } from '@/shared/lib/logger/iso-logger';
 
 type AuditLogsExportButtonProps = {
 	actionFilter?: string;

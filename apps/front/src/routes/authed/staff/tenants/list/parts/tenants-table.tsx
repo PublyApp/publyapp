@@ -22,6 +22,13 @@ import { nanoid } from 'nanoid';
 import { parseAsString, useQueryStates } from 'nuqs';
 import { useEffect, useMemo, useState } from 'react';
 
+import type { TenantAsStaffListItem } from '@org/client-ts/src/models';
+import {
+	DEFAULT_PAGE_SIZE,
+	FRONT_PATH_NAMES,
+	TENANT_STATUS_ENUM,
+	voidFunction,
+} from '@org/shared-ts/lib/constants';
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { Label } from '@/front/components/label/label';
@@ -37,13 +44,6 @@ import {
 	useReactivateTenant,
 	useSuspendTenant,
 } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
-import type { TenantAsStaffListItem } from '@/js-client/src/models';
-import {
-	DEFAULT_PAGE_SIZE,
-	FRONT_PATH_NAMES,
-	TENANT_STATUS_ENUM,
-	voidFunction,
-} from '@/shared/lib/constants';
 
 export type TenantRowData = {
 	id: string;

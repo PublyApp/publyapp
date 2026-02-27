@@ -15,6 +15,16 @@ import {
 import { useBoolean } from 'minimal-shared/hooks';
 import { useMemo } from 'react';
 
+import type { StaffUserItem } from '@org/client-ts/src/models';
+import {
+	ACCOUNT_LEVEL_ENUM,
+	DEFAULT_PAGE_SIZE,
+	FRONT_PATH_NAMES,
+	USER_STATUS_ENUM,
+	voidFunction,
+} from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { Iconify } from '@/front/components/iconify/iconify';
 import type { LabelColor } from '@/front/components/label';
@@ -31,16 +41,6 @@ import {
 	useSendEmailVerificationReminder,
 } from '@/front/lib/react-query/features/common/auth.hooks';
 import { useFindStaffUser } from '@/front/lib/react-query/features/staff/staff-user.hooks';
-import type { StaffUserItem } from '@/js-client/src/models';
-import {
-	ACCOUNT_LEVEL_ENUM,
-	DEFAULT_PAGE_SIZE,
-	FRONT_PATH_NAMES,
-	USER_STATUS_ENUM,
-	voidFunction,
-} from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/logger/iso-logger';
-import { getUserFullName } from '@/shared/utils/user.utils';
 
 export type StaffUserRowData = {
 	id: string;

@@ -4,13 +4,17 @@ import i18next from 'i18next';
 import _ from 'lodash';
 import { data } from 'react-router';
 
+import {
+	APP_NAME,
+	FRONT_PATH_NAMES,
+	isServer,
+} from '@org/shared-ts/lib/constants';
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
 
 import type { Route } from './+types/tenants-list-page';
 import TenantsTable from './parts/tenants-table';

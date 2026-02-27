@@ -2,9 +2,9 @@ const path = require('node:path');
 
 module.exports = {
 	'*.{js,ts,jsx,tsx,html,svelte}': (filenames) => {
-		// Filter out files in packages/js-client since they are auto-generated
+		// Filter out files in packages/client-ts since they are auto-generated
 		const filteredFiles = filenames.filter(
-			(file) => !file.includes('packages/js-client/'),
+			(file) => !file.includes('packages/client-ts/'),
 		);
 		return filteredFiles.length > 0
 			? `biome format --write ${filteredFiles.join(' ')}`

@@ -8,6 +8,11 @@ import type { FC } from 'react';
 import { useMemo } from 'react';
 import { data, useParams } from 'react-router';
 
+import {
+	APP_NAME,
+	FRONT_PATH_NAMES,
+	isServer,
+} from '@org/shared-ts/lib/constants';
 import { ErrorContent } from '@/front/components/empty-content/error-content';
 import View400 from '@/front/components/error/400-view';
 import { NotFoundView } from '@/front/components/error/not-found-view';
@@ -19,7 +24,6 @@ import { DashboardContent } from '@/front/layouts/dashboard/content';
 import { isProblemFailure, toApiFailure } from '@/front/lib/api-failure';
 import { useGetTenant } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
 
 import type { Route } from './+types/tenant-details-layout';
 

@@ -13,12 +13,12 @@ import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
 import type { UseFormReturn } from 'react-hook-form';
 
+import { ACCOUNT_LEVEL_ENUM } from '@org/shared-ts/lib/constants';
+import { mbToBytes } from '@org/shared-ts/utils/any.utils';
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { fData } from '@/front/utils/format-number';
-import { ACCOUNT_LEVEL_ENUM } from '@/shared/lib/constants';
-import { mbToBytes } from '@/shared/utils/any.utils';
 
 // ----------------------------------------------------------------------
 
