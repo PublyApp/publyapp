@@ -1,5 +1,5 @@
 {
-	"name": "@org/shared",
+	"name": "@org/shared-ts",
 	"version": "0.0.0",
 	"exports": {
 		"./*": {
