@@ -43,7 +43,6 @@
       "Bash(done)",
       "Bash(make build-api:*)",
       "Bash(make update-client:*)",
-      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\radan\\\\Documents\\\\_RADAN\\\\Dev\\\\PublyApp\\\\publyapp\" -Recurse -Name \"*.json\")",
       "Bash(Select-String -Pattern \"i18n|translation\")",
       "Bash(Select-Object -First 20)",
       "Bash(make build-front:*)",
@@ -59,7 +58,12 @@
       "mcp__voicetree__send_message",
       "mcp__voicetree__close_agent",
       "Bash(dotnet test:*)",
-      "Bash(dotnet msbuild:*)"
+      "Bash(dotnet msbuild:*)",
+      "Bash(cd:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(python3:*)",
+      "Bash(node:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
