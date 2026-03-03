@@ -356,6 +356,11 @@ COPY packages/shared-ts/package.json packages/shared-ts/package.json
 COPY packages/client-ts/package.json packages/client-ts/package.json
 COPY packages/_tsconfig/package.json packages/_tsconfig/package.json
 
+COPY packages/shared-ts/scripts packages/shared-ts/scripts
+COPY packages/shared-ts/lib/i18n/json packages/shared-ts/lib/i18n/json
+COPY packages/client-ts/scripts packages/client-ts/scripts
+COPY packages/_tsconfig/scripts packages/_tsconfig/scripts
+
 ENV HUSKY=0
 RUN corepack enable \\
   && ${preparePnpm} \\
@@ -398,6 +403,9 @@ async function copyWorkspaceSkeleton({ fromRel, artifactDir }) {
 	await fse.copy(pkgJsonFrom, path.join(toAbs, 'package.json'), {
 		overwrite: true,
 	});
+
+	// Ensure `scripts/` exists so Dockerfile COPY directives can be unconditional.
+	await fse.ensureDir(path.join(toAbs, 'scripts'));
 
 	const scriptsFrom = path.join(fromAbs, 'scripts');
 	if (await fse.pathExists(scriptsFrom)) {
