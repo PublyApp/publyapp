@@ -1,5 +1,5 @@
 # Makefile for PublyApp - Complete Script Migration
-.PHONY: help install dev build clean lint format test test-api docker db-migrate db-reset seed-bulk seed-bulk-reset
+.PHONY: help install dev build clean lint format test test-api docker db-migrate db-reset seed-bulk seed-bulk-reset build-deploy deploy deploy-front deploy-api dev-db dev-services
 
 # Project paths
 API_DIR = apps/api
@@ -41,6 +41,11 @@ help:
 	@echo "  build-front - Build frontend only"
 	@echo "  build-deploy - Build for deployment"
 	@echo ""
+	@echo "=== DEPLOY (DOKPLOY) ==="
+	@echo "  deploy-front - Build+upload front artifact"
+	@echo "  deploy-api   - Build+upload api artifact"
+	@echo "  deploy       - Build+upload both artifacts"
+	@echo ""
 	@echo "=== RUNNING ==="
 	@echo "  run-api     - Run API (skip restore; run 'make install' first)"
 	@echo "  start-front - Start frontend production server"
@@ -67,7 +72,6 @@ help:
 	@echo ""
 	@echo "=== DOCKER ==="
 	@echo "  docker-build - Build Docker images"
-	@echo "  docker-push  - Push Docker images"
 	@echo "  docker-up    - Start services with Docker Compose"
 	@echo "  docker-down  - Stop Docker services"
 	@echo ""
@@ -117,6 +121,8 @@ dev-services:
 	@echo "Starting services with Docker..."
 	docker-compose -f docker-compose.services.yml up -d
 
+dev-db: dev-services
+
 # =============================================================================
 # BUILDING
 # =============================================================================
@@ -140,6 +146,18 @@ build-front:
 build-deploy:
 	@echo "Building for deployment..."
 	node ./scripts/deploy.mjs
+
+deploy-front:
+	@echo "Deploying front to Dokploy (artifact upload)..."
+	node ./scripts/deploy.mjs --target front --upload
+
+deploy-api:
+	@echo "Deploying api to Dokploy (artifact upload)..."
+	node ./scripts/deploy.mjs --target api --upload
+
+deploy:
+	@echo "Deploying front+api to Dokploy (artifact upload)..."
+	node ./scripts/deploy.mjs --target all --upload
 
 # =============================================================================
 # RUNNING
@@ -248,11 +266,7 @@ test-api-debug:
 
 docker-build:
 	@echo "Building Docker images..."
-	docker-compose build
-
-docker-push:
-	@echo "Pushing Docker images..."
-	node scripts/build-and-push.mjs
+	docker-compose -f docker-compose.services.yml build
 
 docker-up:
 	@echo "Starting services with Docker Compose..."
@@ -260,7 +274,7 @@ docker-up:
 
 docker-down:
 	@echo "Stopping Docker services..."
-	docker-compose down
+	docker-compose -f docker-compose.services.yml down
 
 # =============================================================================
 # CLIENT GENERATION
