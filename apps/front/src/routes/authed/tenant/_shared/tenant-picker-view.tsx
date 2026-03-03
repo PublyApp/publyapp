@@ -21,7 +21,7 @@ import { useTranslate } from '@/front/hooks/use-translate';
 import { ColorSchemePopover } from '@/front/layouts/components/colorscheme-popover';
 import { LanguagePopover } from '@/front/layouts/components/language-popover';
 import { SimpleLayout } from '@/front/layouts/simple/layout';
-import { logout } from '@/front/lib/cookies';
+import { logout } from '@/front/lib/cookies/logout.utils';
 import { allLangs } from '@/front/lib/locales/all-langs';
 import { useGetUserTenantsForPicker } from '@/front/lib/react-query/features/common/auth.hooks';
 
