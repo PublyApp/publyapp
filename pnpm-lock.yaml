@@ -31,8 +31,8 @@ importers:
         specifier: ^4.0.3
         version: 4.0.3
       dokploy-from-source:
-        specifier: ^1.0.1
-        version: 1.0.1
+        specifier: 1.1.0
+        version: 1.1.0
       dotenv:
         specifier: ^17.2.0
         version: 17.2.0
@@ -2810,8 +2810,8 @@ packages:
     resolution: {integrity: sha512-uIFDxqpRZGZ6ThOk84hEfqWoHx2devRFvpTZcTHur85vImfaxUbTW9Ryh4CpCuDnToOP1CEtXKIgytHBPVff5A==}
     engines: {node: '>=0.3.1'}
 
-  dokploy-from-source@1.0.1:
-    resolution: {integrity: sha512-6vAh5RLP1Qek2Ot/uHV24Kz4DU3ZjVuh6UUVaQygYxnYcNrDXJQHaKbeQ7XR3eDr+9FRr1+XpTXuhoYOd+ehHQ==}
+  dokploy-from-source@1.1.0:
+    resolution: {integrity: sha512-Bw+jfLf4Q9Cp4XPXC7a/xQQN8CelAw/FbmdZCewIeEBuVf4w2R6YYfcEWzjgMQA4zfe00B1FMRfvGvllFh2jww==}
     engines: {node: '>=20.0.0'}
     hasBin: true
 
@@ -7418,7 +7418,7 @@ snapshots:
   cliui@9.0.1:
     dependencies:
       string-width: 7.2.0
-      strip-ansi: 7.1.0
+      strip-ansi: 7.2.0
       wrap-ansi: 9.0.0
 
   clone@2.1.2: {}
@@ -7673,7 +7673,7 @@ snapshots:
 
   diff@5.2.0: {}
 
-  dokploy-from-source@1.0.1:
+  dokploy-from-source@1.1.0:
     dependencies:
       archiver: 7.0.1
       yargs: 18.0.0
