@@ -18,7 +18,7 @@ import { CustomPopover } from '@/front/components/custom-popover';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useTenantParam } from '@/front/hooks/use-tenant-param';
-import { logout } from '@/front/lib/cookies';
+import { logout } from '@/front/lib/cookies/logout.utils';
 
 // ----------------------------------------------------------------------
 

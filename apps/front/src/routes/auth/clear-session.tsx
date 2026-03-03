@@ -100,3 +100,11 @@ export const action = getServerAction({
 		return redirect(buildLoginUrl());
 	},
 });
+
+// This route intentionally renders nothing; it exists for its action only.
+// Having a default export avoids generating an empty client chunk during builds.
+const ClearSessionRoute = () => {
+	return null;
+};
+
+export default ClearSessionRoute;

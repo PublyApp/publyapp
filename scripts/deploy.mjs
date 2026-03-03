@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // @ts-check
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -28,7 +28,8 @@ async function main() {
 		);
 	}
 
-	const release = args.release || tryGetGitSha() || getTimestampRelease();
+	const release =
+		args.release || (await tryGetGitSha()) || getTimestampRelease();
 	const releaseRoot = path.join(repoRoot, '.dump', 'deploy-artifacts', release);
 
 	const frontPort = process.env.DEPLOY_FRONT_PORT
@@ -70,8 +71,8 @@ async function main() {
 								enabled: () => {
 									return !args.skipBuild;
 								},
-								task: () => {
-									run('pnpm', ['-C', 'apps/front', 'run', 'build'], {
+								task: async () => {
+									await run('pnpm', ['-C', 'apps/front', 'run', 'build'], {
 										cwd: repoRoot,
 									});
 								},
@@ -98,10 +99,13 @@ async function main() {
 									return args.upload;
 								},
 								task: async (ctx) => {
-									await dokployUpload({
-										appName: args.frontAppName,
-										localPath: ctx.frontArtifactDir,
-									});
+									await dokployUploadWithRetry(
+										{
+											appName: args.frontAppName,
+											localPath: ctx.frontArtifactDir,
+										},
+										{ title: 'front upload' },
+									);
 								},
 							},
 						],
@@ -131,13 +135,13 @@ async function main() {
 							},
 							{
 								title: 'Publish (local)',
-								task: (ctx) => {
+								task: async (ctx) => {
 									if (!ctx.apiArtifactDir) {
 										throw new Error(
 											'API artifact dir is missing (internal error).',
 										);
 									}
-									run('dotnet', [
+									await run('dotnet', [
 										'publish',
 										'apps/api/MainApi.csproj',
 										'-c',
@@ -158,10 +162,13 @@ async function main() {
 									return args.upload;
 								},
 								task: async (ctx) => {
-									await dokployUpload({
-										appName: args.apiAppName,
-										localPath: ctx.apiArtifactDir,
-									});
+									await dokployUploadWithRetry(
+										{
+											appName: args.apiAppName,
+											localPath: ctx.apiArtifactDir,
+										},
+										{ title: 'api upload' },
+									);
 								},
 							},
 						],
@@ -287,38 +294,102 @@ Config:
 	process.exit(exitCode);
 }
 
-function run(command, args, options = {}) {
-	// On Windows, package managers are usually exposed as *.cmd shims.
-	const resolvedCommand =
-		isWindows && command === 'pnpm' ? 'pnpm.cmd' : command;
-	const shouldUseShell =
-		isWindows &&
-		(resolvedCommand.toLowerCase().endsWith('.cmd') ||
-			resolvedCommand.toLowerCase().endsWith('.bat'));
-	const res = spawnSync(resolvedCommand, args, {
-		stdio: 'inherit',
-		cwd: options.cwd ?? repoRoot,
-		env: options.env ?? process.env,
-		shell: shouldUseShell,
+function sleep(ms) {
+	return new Promise((resolve) => {
+		setTimeout(resolve, ms);
 	});
-	if (res.error) {
-		throw res.error;
-	}
-	if (res.status !== 0) {
-		throw new Error(`Command failed: ${command} ${args.join(' ')}`);
-	}
 }
 
-function tryGetGitSha() {
-	const res = spawnSync('git', ['rev-parse', '--short=12', 'HEAD'], {
-		stdio: 'pipe',
-		cwd: repoRoot,
-		shell: false,
-	});
-	if (res.status !== 0) {
-		return '';
+function spawnChild(command, args, options) {
+	const cwd = options.cwd ?? repoRoot;
+	const env = options.env ?? process.env;
+	const stdio = options.stdio ?? 'inherit';
+
+	// Avoid `shell: true` (DEP0190). On Windows, `pnpm` is typically a `.cmd` shim,
+	// which can't be spawned directly without involving `cmd.exe`.
+	if (isWindows) {
+		const lower = command.toLowerCase();
+		const shouldUseCmd =
+			lower === 'pnpm' || lower.endsWith('.cmd') || lower.endsWith('.bat');
+
+		if (shouldUseCmd) {
+			const comspec = process.env.ComSpec ?? 'cmd.exe';
+			return spawn(comspec, ['/d', '/s', '/c', command, ...args], {
+				stdio,
+				cwd,
+				env,
+				shell: false,
+				windowsHide: true,
+			});
+		}
 	}
-	return String(res.stdout).trim();
+
+	return spawn(command, args, {
+		stdio,
+		cwd,
+		env,
+		shell: false,
+		windowsHide: true,
+	});
+}
+
+function run(command, args, options = {}) {
+	const cwd = options.cwd ?? repoRoot;
+	const env = options.env ?? process.env;
+
+	return new Promise((resolve, reject) => {
+		const child = spawnChild(command, args, { cwd, env, stdio: 'inherit' });
+
+		child.on('error', (err) => {
+			reject(err);
+		});
+
+		child.on('close', (code) => {
+			if (code === 0) {
+				resolve(void 0);
+				return;
+			}
+
+			reject(new Error(`Command failed: ${command} ${args.join(' ')}`));
+		});
+	});
+}
+
+async function runCapture(command, args, options = {}) {
+	const cwd = options.cwd ?? repoRoot;
+	const env = options.env ?? process.env;
+
+	return new Promise((resolve, reject) => {
+		const child = spawnChild(command, args, { cwd, env, stdio: 'pipe' });
+
+		/** @type {Buffer[]} */
+		const stdoutChunks = [];
+
+		if (child.stdout) {
+			child.stdout.on('data', (chunk) => {
+				stdoutChunks.push(Buffer.from(chunk));
+			});
+		}
+
+		child.on('error', (err) => {
+			reject(err);
+		});
+
+		child.on('close', (code) => {
+			if (code !== 0) {
+				resolve('');
+				return;
+			}
+
+			resolve(Buffer.concat(stdoutChunks).toString('utf8').trim());
+		});
+	});
+}
+
+async function tryGetGitSha() {
+	return await runCapture('git', ['rev-parse', '--short=12', 'HEAD'], {
+		cwd: repoRoot,
+	});
 }
 
 function getTimestampRelease() {
@@ -328,9 +399,9 @@ function getTimestampRelease() {
 	return `${yyyymmdd}-${hhmmss}`;
 }
 
-function getPnpmVersionFromPackageManagerField() {
+async function getPnpmVersionFromPackageManagerField() {
 	try {
-		const pkg = fse.readJsonSync(path.join(repoRoot, 'package.json'));
+		const pkg = await fse.readJson(path.join(repoRoot, 'package.json'));
 		const pkgManager =
 			typeof pkg.packageManager === 'string' ? pkg.packageManager : '';
 		const match = pkgManager.match(/^pnpm@(.+)$/);
@@ -340,8 +411,44 @@ function getPnpmVersionFromPackageManagerField() {
 	}
 }
 
-function getFrontDockerfile({ port }) {
-	const pnpmVersion = getPnpmVersionFromPackageManagerField();
+async function dokployUploadWithRetry(options, retryOptions = {}) {
+	const title = retryOptions.title ?? 'upload';
+	const maxAttempts = retryOptions.maxAttempts ?? 3;
+
+	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+		try {
+			return await dokployUpload(options);
+		} catch (err) {
+			const statusCode =
+				/** @type {any} */ (err)?.statusCode ??
+				/** @type {any} */ (err)?.status ??
+				/** @type {any} */ (err)?.response?.status ??
+				0;
+
+			const errorCode = String(/** @type {any} */(err)?.code ?? '');
+			const message = String(/** @type {any} */(err)?.message ?? '');
+			const isRetryable =
+				statusCode === 499 ||
+				errorCode === 'TIMEOUT' ||
+				/Request timed out/i.test(message);
+
+			if (!isRetryable || attempt === maxAttempts) {
+				throw err;
+			}
+
+			const waitMs = 2000 * attempt;
+			console.warn(
+				`Retrying ${title} after error (attempt ${attempt}/${maxAttempts}, waiting ${waitMs}ms)...`,
+			);
+			await sleep(waitMs);
+		}
+	}
+
+	throw new Error('Unreachable: upload retry loop exhausted.');
+}
+
+async function getFrontDockerfile({ port }) {
+	const pnpmVersion = await getPnpmVersionFromPackageManagerField();
 	const preparePnpm = pnpmVersion
 		? `corepack prepare pnpm@${pnpmVersion} --activate`
 		: 'corepack prepare pnpm@latest --activate';
@@ -576,7 +683,7 @@ function createFrontAssembleArtifactTasks({ artifactDir, frontPort }) {
 			task: async () => {
 				await fse.writeFile(
 					path.join(artifactDir, 'Dockerfile'),
-					getFrontDockerfile({ port: frontPort }),
+					await getFrontDockerfile({ port: frontPort }),
 					'utf8',
 				);
 			},

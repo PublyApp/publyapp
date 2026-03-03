@@ -29,9 +29,11 @@ import {
 	SIDEBAR_COOKIE_MAX_AGE,
 	SIDEBAR_COOKIE_NAME,
 } from '@/front/lib/constants';
-import { getSessionCookieFromClient, logout } from '@/front/lib/cookies';
-import { resetLogoutFlag } from '@/front/lib/cookies/logout.utils';
-import { getSessionTokensFromClient } from '@/front/lib/cookies/session-cookie.utils';
+import { logout, resetLogoutFlag } from '@/front/lib/cookies/logout.utils';
+import {
+	getSessionCookieFromClient,
+	getSessionTokensFromClient,
+} from '@/front/lib/cookies/session-cookie.utils';
 import { getClientManager } from '@/front/lib/js-client/client-manager';
 import {
 	useGetTenantAuthData,
