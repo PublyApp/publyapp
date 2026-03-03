@@ -52,6 +52,7 @@
 		"Aktiv",
 		"appsettings",
 		"appspecific",
+		"aspnet",
 		"ASPNETCORE",
 		"authed",
 		"Authed",
@@ -72,6 +73,7 @@
 		"cutover",
 		"datauri",
 		"dayjs",
+		"dokploy",
 		"Dokploy",
 		"dotnet",
 		"ecommerce",
@@ -154,6 +156,7 @@
 		"valueof",
 		"vercel",
 		"voicetree",
+		"WORKDIR",
 		"Xunit",
 		"yoopta",
 		"zustand"

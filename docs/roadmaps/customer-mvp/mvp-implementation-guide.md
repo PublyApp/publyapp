@@ -33,7 +33,7 @@ Targets:
 Use the provided compose file.
 
 ```bash
-docker compose -f docker-compose.data.yml up -d
+docker compose -f docker-compose.services.yml up -d
 ```
 
 Local connection string example (mapped 5454 → 5432):
