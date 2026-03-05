@@ -3,19 +3,21 @@
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {
+		"deploy:artifacts": "node ./scripts/deploy.mjs",
 		"prepare": "husky"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.3.13",
 		"@types/node": "^20.19.7",
-		"archiver": "^6.0.2",
 		"chokidar": "^4.0.3",
+		"dokploy-from-source": "1.1.0",
 		"dotenv": "^17.2.0",
 		"fs-extra": "^11.2.0",
 		"husky": "^9.0.11",
 		"json": "^11.0.0",
 		"knip": "5.66.0",
 		"lint-staged": "^15.5.2",
+		"listr2": "^10.2.1",
 		"lodash": "^4.17.21",
 		"markdownlint-cli": "^0.45.0",
 		"tsconfig": "workspace:*",

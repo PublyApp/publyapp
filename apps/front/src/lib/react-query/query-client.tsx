@@ -8,7 +8,7 @@ import { toApiFailure } from '@/front/lib/api-failure';
 import {
 	clearLegacyTenantFromBrowser,
 	clearTenantHintForUserInBrowser,
-} from '@/front/lib/cookies';
+} from '@/front/lib/cookies/tenant-hint-cookie.utils';
 
 // NOTE: Do NOT import toast at module level - some toast libs crash on SSR import
 // We use dynamic import inside safeToast() instead
