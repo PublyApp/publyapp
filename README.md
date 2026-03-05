@@ -336,7 +336,7 @@ Husky automatically runs quality checks on commit. Ensure all checks pass:
 - **Platform**: Dokploy on Hostinger VPS
 - **Configuration**: `dokploy.yml`
 - **Process**: Automated deployment from git repository
-- **Alternative**: Local build → upload artifacts pipeline (see `docs/misc/dokploy-artifact-pipeline.md`)
+- **Alternative**: Local build → upload artifacts pipeline (see `docs/misc/deployment-guide.md`)
 
 ### Future Hosting Options
 

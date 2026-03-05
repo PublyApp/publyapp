@@ -3,6 +3,7 @@
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {
+		"deploy:artifacts": "node ./scripts/deploy.mjs",
 		"prepare": "husky"
 	},
 	"devDependencies": {

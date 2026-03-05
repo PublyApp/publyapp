@@ -7,7 +7,10 @@ import { fileURLToPath } from 'node:url';
 
 import { upload as dokployUpload } from 'dokploy-from-source';
 import fse from 'fs-extra';
-import { Listr } from 'listr2';
+import { color, Listr } from 'listr2';
+
+/** @typedef {import('listr2').ListrRendererValue} ListrRendererValue */
+/** @typedef {import('listr2').ListrTaskWrapper<any, any, any>} ListrTaskWrapper */
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,11 +21,9 @@ async function main() {
 	process.chdir(repoRoot);
 
 	const args = parseArgs(process.argv.slice(2));
+	const listrOptions = createListrOptions(args);
 
-	const shouldBuildFront = args.target === 'front' || args.target === 'all';
-	const shouldBuildApi = args.target === 'api' || args.target === 'all';
-
-	if (args.skipBuild && shouldBuildApi) {
+	if (args.skipBuild && args.target !== 'front') {
 		throw new Error(
 			'--skip-build is supported for front only (API publish is required).',
 		);
@@ -48,136 +49,17 @@ async function main() {
 		apiArtifactDir: '',
 	};
 
+	const topLevelTasks = createTopLevelTasks({
+		args,
+		release,
+		releaseRoot,
+		frontPort,
+		listrOptions,
+	});
+
 	const tasks = new Listr(
-		[
-			{
-				title: `Release: ${release}`,
-				task: () => {
-					return undefined;
-				},
-			},
-			{
-				title: 'Front (Node SSR)',
-				enabled: () => {
-					return shouldBuildFront;
-				},
-				task: () => {
-					// Listr2 nesting pattern #1:
-					// Returning a `new Listr([...])` directly is the simplest when the subtask list is static.
-					return new Listr(
-						[
-							{
-								title: 'Build (local)',
-								enabled: () => {
-									return !args.skipBuild;
-								},
-								task: async () => {
-									await run('pnpm', ['-C', 'apps/front', 'run', 'build'], {
-										cwd: repoRoot,
-									});
-								},
-							},
-							{
-								title: 'Assemble artifact',
-								task: (ctx, task) => {
-									// Listr2 nesting pattern #2:
-									// Use `(ctx, task) => task.newListr([...])` when you want to do some work first
-									// (like computing/storing paths in ctx) and then create/run subtasks.
-									ctx.frontArtifactDir = path.join(releaseRoot, 'front');
-									return task.newListr(
-										createFrontAssembleArtifactTasks({
-											artifactDir: ctx.frontArtifactDir,
-											frontPort,
-										}),
-										{ concurrent: false },
-									);
-								},
-							},
-							{
-								title: 'Upload (dokploy-from-source)',
-								enabled: () => {
-									return args.upload;
-								},
-								task: async (ctx) => {
-									await dokployUploadWithRetry(
-										{
-											appName: args.frontAppName,
-											localPath: ctx.frontArtifactDir,
-										},
-										{ title: 'front upload' },
-									);
-								},
-							},
-						],
-						{ concurrent: false },
-					);
-				},
-			},
-			{
-				title: 'API (.NET)',
-				enabled: () => {
-					return shouldBuildApi;
-				},
-				task: () => {
-					return new Listr(
-						[
-							{
-								title: 'Assemble artifact',
-								task: (ctx, task) => {
-									ctx.apiArtifactDir = path.join(releaseRoot, 'api');
-									return task.newListr(
-										createApiAssembleArtifactTasks({
-											artifactDir: ctx.apiArtifactDir,
-										}),
-										{ concurrent: false },
-									);
-								},
-							},
-							{
-								title: 'Publish (local)',
-								task: async (ctx) => {
-									if (!ctx.apiArtifactDir) {
-										throw new Error(
-											'API artifact dir is missing (internal error).',
-										);
-									}
-									await run('dotnet', [
-										'publish',
-										'apps/api/MainApi.csproj',
-										'-c',
-										'Release',
-										'-o',
-										path.join(ctx.apiArtifactDir, 'publish'),
-										'-p:OpenApiGenerateDocuments=false',
-										'-r',
-										args.runtime,
-										'--self-contained',
-										'false',
-									]);
-								},
-							},
-							{
-								title: 'Upload (dokploy-from-source)',
-								enabled: () => {
-									return args.upload;
-								},
-								task: async (ctx) => {
-									await dokployUploadWithRetry(
-										{
-											appName: args.apiAppName,
-											localPath: ctx.apiArtifactDir,
-										},
-										{ title: 'api upload' },
-									);
-								},
-							},
-						],
-						{ concurrent: false },
-					);
-				},
-			},
-		],
-		{ concurrent: false },
+		withStepTitles(topLevelTasks, { level: 0 }),
+		listrOptions,
 	);
 
 	await tasks.run(ctx);
@@ -198,6 +80,218 @@ main().catch((err) => {
 	process.exit(1);
 });
 
+function styleTaskTitle(title, level) {
+	const styled = color.cyan(title);
+	return level === 0 ? color.bold(styled) : styled;
+}
+
+function withStepTitles(tasks, options = {}) {
+	const level = options.level ?? 0;
+	const total = tasks.length;
+	return tasks.map((task, index) => {
+		const prefix = `${color.dim(`[${index + 1}/${total}]`)} `;
+		if (typeof task.title === 'string') {
+			return {
+				...task,
+				title: `${prefix}${styleTaskTitle(task.title, level)}`,
+			};
+		}
+		if (typeof task.title === 'function') {
+			const originalTitle = task.title;
+			return {
+				...task,
+				title: (ctx, taskWrapper) => {
+					return `${prefix}${styleTaskTitle(
+						String(originalTitle(ctx, taskWrapper)),
+						level,
+					)}`;
+				},
+			};
+		}
+		return task;
+	});
+}
+
+function createListrOptions(args) {
+	/** @type {import('listr2').ListrBaseClassOptions<any, ListrRendererValue, ListrRendererValue>} */
+	const listrOptions = {
+		concurrent: false,
+		renderer: /** @type {ListrRendererValue} */ (args.renderer),
+	};
+
+	// Keep subtasks visible after completion so the final output is still informative
+	// (e.g. you can still see whether "Upload" ran).
+	if (args.renderer === 'default') {
+		listrOptions.rendererOptions = /** @type {any} */ ({
+			showSubtasks: true,
+			collapseSubtasks: false,
+		});
+	}
+
+	return listrOptions;
+}
+
+function createReleaseTask(release) {
+	return {
+		title: `Release: ${release}`,
+		task: () => {
+			return undefined;
+		},
+	};
+}
+
+function createFrontTasks({ args, releaseRoot, frontPort, listrOptions }) {
+	/** @type {any[]} */
+	const tasks = [];
+
+	if (!args.skipBuild) {
+		tasks.push({
+			title: 'Build (local)',
+			task: async (_ctx, task) => {
+				await run('pnpm', ['-C', 'apps/front', 'run', 'build'], {
+					cwd: repoRoot,
+					task,
+				});
+			},
+		});
+	}
+
+	tasks.push({
+		title: 'Assemble artifact',
+		task: (ctx, task) => {
+			ctx.frontArtifactDir = path.join(releaseRoot, 'front');
+			return task.newListr(
+				createFrontAssembleArtifactTasks({
+					artifactDir: ctx.frontArtifactDir,
+					frontPort,
+				}),
+				listrOptions,
+			);
+		},
+	});
+
+	if (args.upload) {
+		tasks.push({
+			title: 'Upload (dokploy-from-source)',
+			task: async (ctx) => {
+				await dokployUploadWithRetry(
+					{
+						appName: args.frontAppName,
+						localPath: ctx.frontArtifactDir,
+					},
+					{ title: 'front upload' },
+				);
+			},
+		});
+	}
+
+	return tasks;
+}
+
+function createApiTasks({ args, releaseRoot, listrOptions }) {
+	/** @type {any[]} */
+	const tasks = [
+		{
+			title: 'Assemble artifact',
+			task: (ctx, task) => {
+				ctx.apiArtifactDir = path.join(releaseRoot, 'api');
+				return task.newListr(
+					createApiAssembleArtifactTasks({
+						artifactDir: ctx.apiArtifactDir,
+					}),
+					listrOptions,
+				);
+			},
+		},
+		{
+			title: 'Publish (local)',
+			task: async (ctx, task) => {
+				if (!ctx.apiArtifactDir) {
+					throw new Error('API artifact dir is missing (internal error).');
+				}
+				await run(
+					'dotnet',
+					[
+						'publish',
+						'apps/api/MainApi.csproj',
+						'-c',
+						'Release',
+						'-o',
+						path.join(ctx.apiArtifactDir, 'publish'),
+						'-p:OpenApiGenerateDocuments=false',
+						'-r',
+						args.runtime,
+						'--self-contained',
+						'false',
+					],
+					{ task },
+				);
+			},
+		},
+	];
+
+	if (args.upload) {
+		tasks.push({
+			title: 'Upload (dokploy-from-source)',
+			task: async (ctx) => {
+				await dokployUploadWithRetry(
+					{
+						appName: args.apiAppName,
+						localPath: ctx.apiArtifactDir,
+					},
+					{ title: 'api upload' },
+				);
+			},
+		});
+	}
+
+	return tasks;
+}
+
+function createTopLevelTasks({
+	args,
+	release,
+	releaseRoot,
+	frontPort,
+	listrOptions,
+}) {
+	const shouldBuildFront = args.target === 'front' || args.target === 'all';
+	const shouldBuildApi = args.target === 'api' || args.target === 'all';
+
+	/** @type {any[]} */
+	const tasks = [createReleaseTask(release)];
+
+	if (shouldBuildFront) {
+		const frontTasks = createFrontTasks({
+			args,
+			releaseRoot,
+			frontPort,
+			listrOptions,
+		});
+		tasks.push({
+			title: 'Front (Node SSR)',
+			task: () => {
+				return new Listr(
+					withStepTitles(frontTasks, { level: 1 }),
+					listrOptions,
+				);
+			},
+		});
+	}
+
+	if (shouldBuildApi) {
+		const apiTasks = createApiTasks({ args, releaseRoot, listrOptions });
+		tasks.push({
+			title: 'API (.NET)',
+			task: () => {
+				return new Listr(withStepTitles(apiTasks, { level: 1 }), listrOptions);
+			},
+		});
+	}
+
+	return tasks;
+}
+
 function parseArgs(argv) {
 	const args = {
 		target: 'all',
@@ -207,6 +301,7 @@ function parseArgs(argv) {
 		upload: false,
 		frontAppName: 'front',
 		apiAppName: 'api',
+		renderer: 'default',
 	};
 
 	for (let i = 0; i < argv.length; i++) {
@@ -244,6 +339,11 @@ function parseArgs(argv) {
 			args.upload = true;
 			continue;
 		}
+		if (arg === '--renderer') {
+			args.renderer = argv[i + 1] ?? '';
+			i++;
+			continue;
+		}
 		if (arg === '--help' || arg === '-h') {
 			printHelpAndExit(0);
 		}
@@ -253,6 +353,12 @@ function parseArgs(argv) {
 	if (!['front', 'api', 'all'].includes(args.target)) {
 		throw new Error(
 			`--target must be one of: front, api, all (received: ${args.target})`,
+		);
+	}
+
+	if (!['default', 'verbose', 'silent', 'simple'].includes(args.renderer)) {
+		throw new Error(
+			`--renderer must be one of: default, verbose, silent, simple (received: ${args.renderer})`,
 		);
 	}
 
@@ -279,6 +385,7 @@ Options:
   --api-app-name <name>      App key in dfs.config.cjs for api (default: api)
   --skip-build               Skip local builds (front only; API publish is required)
   --upload                   Upload via dokploy-from-source (programmatic API)
+  --renderer <name>          Console renderer: default|verbose|silent|simple (default: default)
   -h, --help                 Show help
 
 Environment:
@@ -336,15 +443,40 @@ function spawnChild(command, args, options) {
 function run(command, args, options = {}) {
 	const cwd = options.cwd ?? repoRoot;
 	const env = options.env ?? process.env;
+	/** @type {ListrTaskWrapper | undefined} */
+	const task = options.task;
 
 	return new Promise((resolve, reject) => {
-		const child = spawnChild(command, args, { cwd, env, stdio: 'inherit' });
+		const child = spawnChild(command, args, {
+			cwd,
+			env,
+			stdio: task ? ['inherit', 'pipe', 'pipe'] : 'inherit',
+		});
+
+		/** @type {import('node:stream').Writable | undefined} */
+		let stdoutWriter;
+		/** @type {import('node:stream').Writable | undefined} */
+		let stderrWriter;
+		if (task) {
+			stdoutWriter = task.stdout();
+			stderrWriter = task.stdout();
+
+			if (child.stdout) {
+				child.stdout.pipe(stdoutWriter, { end: false });
+			}
+			if (child.stderr) {
+				child.stderr.pipe(stderrWriter, { end: false });
+			}
+		}
 
 		child.on('error', (err) => {
 			reject(err);
 		});
 
 		child.on('close', (code) => {
+			stdoutWriter?.end();
+			stderrWriter?.end();
+
 			if (code === 0) {
 				resolve(void 0);
 				return;
@@ -533,215 +665,224 @@ function createFrontAssembleArtifactTasks({ artifactDir, frontPort }) {
 		'tsconfig.paths.json',
 	];
 
-	return [
-		{
-			title: 'Clean artifact dir',
-			task: async () => {
-				await fse.remove(artifactDir);
-				await fse.ensureDir(artifactDir);
+	return withStepTitles(
+		[
+			{
+				title: 'Clean artifact dir',
+				task: async () => {
+					await fse.remove(artifactDir);
+					await fse.ensureDir(artifactDir);
+				},
 			},
-		},
-		{
-			title: 'Copy root files',
-			task: async () => {
-				for (const fileName of requiredRootFiles) {
-					const src = path.join(repoRoot, fileName);
-					if (!(await fse.pathExists(src))) {
-						throw new Error(`Missing required file: ${fileName}`);
+			{
+				title: 'Copy root files',
+				task: async () => {
+					for (const fileName of requiredRootFiles) {
+						const src = path.join(repoRoot, fileName);
+						if (!(await fse.pathExists(src))) {
+							throw new Error(`Missing required file: ${fileName}`);
+						}
+						await fse.copy(src, path.join(artifactDir, fileName), {
+							overwrite: true,
+						});
 					}
-					await fse.copy(src, path.join(artifactDir, fileName), {
+				},
+			},
+			{
+				title: 'Patch artifact root package.json (remove husky prepare)',
+				task: async () => {
+					const artifactRootPkgPath = path.join(artifactDir, 'package.json');
+					const artifactRootPkg = await fse.readJson(artifactRootPkgPath);
+					if (
+						artifactRootPkg &&
+						typeof artifactRootPkg === 'object' &&
+						artifactRootPkg.scripts &&
+						typeof artifactRootPkg.scripts === 'object'
+					) {
+						delete artifactRootPkg.scripts.prepare;
+						await fse.writeJson(artifactRootPkgPath, artifactRootPkg, {
+							spaces: 2,
+						});
+					}
+				},
+			},
+			{
+				title: 'Copy front package.json',
+				task: async () => {
+					const fromRel = 'apps/front/package.json';
+					const fromAbs = path.join(repoRoot, fromRel);
+					if (!(await fse.pathExists(fromAbs))) {
+						throw new Error(`Missing required path: ${fromRel}`);
+					}
+					await fse.copy(fromAbs, path.join(artifactDir, fromRel), {
 						overwrite: true,
 					});
-				}
+				},
 			},
-		},
-		{
-			title: 'Patch artifact root package.json (remove husky prepare)',
-			task: async () => {
-				const artifactRootPkgPath = path.join(artifactDir, 'package.json');
-				const artifactRootPkg = await fse.readJson(artifactRootPkgPath);
-				if (
-					artifactRootPkg &&
-					typeof artifactRootPkg === 'object' &&
-					artifactRootPkg.scripts &&
-					typeof artifactRootPkg.scripts === 'object'
-				) {
-					delete artifactRootPkg.scripts.prepare;
-					await fse.writeJson(artifactRootPkgPath, artifactRootPkg, {
-						spaces: 2,
+			{
+				title: 'Copy front server.js',
+				task: async () => {
+					const fromRel = 'apps/front/server.js';
+					const fromAbs = path.join(repoRoot, fromRel);
+					if (!(await fse.pathExists(fromAbs))) {
+						throw new Error(`Missing required path: ${fromRel}`);
+					}
+					await fse.copy(fromAbs, path.join(artifactDir, fromRel), {
+						overwrite: true,
 					});
-				}
+				},
 			},
-		},
-		{
-			title: 'Copy front package.json',
-			task: async () => {
-				const fromRel = 'apps/front/package.json';
-				const fromAbs = path.join(repoRoot, fromRel);
-				if (!(await fse.pathExists(fromAbs))) {
-					throw new Error(`Missing required path: ${fromRel}`);
-				}
-				await fse.copy(fromAbs, path.join(artifactDir, fromRel), {
-					overwrite: true,
-				});
-			},
-		},
-		{
-			title: 'Copy front server.js',
-			task: async () => {
-				const fromRel = 'apps/front/server.js';
-				const fromAbs = path.join(repoRoot, fromRel);
-				if (!(await fse.pathExists(fromAbs))) {
-					throw new Error(`Missing required path: ${fromRel}`);
-				}
-				await fse.copy(fromAbs, path.join(artifactDir, fromRel), {
-					overwrite: true,
-				});
-			},
-		},
-		{
-			title: 'Copy front scripts (if any)',
-			task: async (_ctx, task) => {
-				const fromRel = 'apps/front/scripts';
-				const fromAbs = path.join(repoRoot, fromRel);
-				if (!(await fse.pathExists(fromAbs))) {
-					task.skip('No apps/front/scripts');
-					return;
-				}
+			{
+				title: 'Copy front scripts (if any)',
+				task: async (_ctx, task) => {
+					const fromRel = 'apps/front/scripts';
+					const fromAbs = path.join(repoRoot, fromRel);
+					if (!(await fse.pathExists(fromAbs))) {
+						task.skip('No apps/front/scripts');
+						return;
+					}
 
-				await fse.copy(fromAbs, path.join(artifactDir, fromRel), {
-					overwrite: true,
-					filter: (src) => {
-						return !src.replaceAll('\\', '/').includes('/node_modules/');
-					},
-				});
-			},
-		},
-		{
-			title: 'Copy front build output',
-			task: async () => {
-				const fromRel = 'apps/front/build';
-				const fromAbs = path.join(repoRoot, fromRel);
-				if (!(await fse.pathExists(fromAbs))) {
-					throw new Error(`Missing required path: ${fromRel}`);
-				}
-				await fse.copy(fromAbs, path.join(artifactDir, fromRel), {
-					overwrite: true,
-					filter: (src) => {
-						return !src.replaceAll('\\', '/').includes('/node_modules/');
-					},
-				});
-			},
-		},
-		{
-			title: 'Copy workspace skeletons',
-			task: (_ctx, task) => {
-				return task.newListr(
-					[
-						{
-							title: 'packages/shared-ts',
-							task: async () => {
-								await copyWorkspaceSkeleton({
-									fromRel: 'packages/shared-ts',
-									artifactDir,
-								});
-							},
+					await fse.copy(fromAbs, path.join(artifactDir, fromRel), {
+						overwrite: true,
+						filter: (src) => {
+							return !src.replaceAll('\\', '/').includes('/node_modules/');
 						},
-						{
-							title: 'packages/client-ts',
-							task: async () => {
-								await copyWorkspaceSkeleton({
-									fromRel: 'packages/client-ts',
-									artifactDir,
-								});
-							},
+					});
+				},
+			},
+			{
+				title: 'Copy front build output',
+				task: async () => {
+					const fromRel = 'apps/front/build';
+					const fromAbs = path.join(repoRoot, fromRel);
+					if (!(await fse.pathExists(fromAbs))) {
+						throw new Error(`Missing required path: ${fromRel}`);
+					}
+					await fse.copy(fromAbs, path.join(artifactDir, fromRel), {
+						overwrite: true,
+						filter: (src) => {
+							return !src.replaceAll('\\', '/').includes('/node_modules/');
 						},
-						{
-							title: 'packages/_tsconfig',
-							task: async () => {
-								await copyWorkspaceSkeleton({
-									fromRel: 'packages/_tsconfig',
-									artifactDir,
-								});
-							},
-						},
-					],
-					{ concurrent: false },
-				);
+					});
+				},
 			},
-		},
-		{
-			title: 'Ensure shared-ts postinstall output dir',
-			task: async () => {
-				await fse.ensureDir(
-					path.join(artifactDir, 'packages/shared-ts/lib/i18n/json'),
-				);
+			{
+				title: 'Copy workspace skeletons',
+				task: (_ctx, task) => {
+					return task.newListr(
+						withStepTitles(
+							[
+								{
+									title: 'packages/shared-ts',
+									task: async () => {
+										await copyWorkspaceSkeleton({
+											fromRel: 'packages/shared-ts',
+											artifactDir,
+										});
+									},
+								},
+								{
+									title: 'packages/client-ts',
+									task: async () => {
+										await copyWorkspaceSkeleton({
+											fromRel: 'packages/client-ts',
+											artifactDir,
+										});
+									},
+								},
+								{
+									title: 'packages/_tsconfig',
+									task: async () => {
+										await copyWorkspaceSkeleton({
+											fromRel: 'packages/_tsconfig',
+											artifactDir,
+										});
+									},
+								},
+							],
+							{ level: 3 },
+						),
+						{ concurrent: false },
+					);
+				},
 			},
-		},
-		{
-			title: 'Write Dockerfile',
-			task: async () => {
-				await fse.writeFile(
-					path.join(artifactDir, 'Dockerfile'),
-					await getFrontDockerfile({ port: frontPort }),
-					'utf8',
-				);
+			{
+				title: 'Ensure shared-ts postinstall output dir',
+				task: async () => {
+					await fse.ensureDir(
+						path.join(artifactDir, 'packages/shared-ts/lib/i18n/json'),
+					);
+				},
 			},
-		},
-		{
-			title: 'Write .dockerignore',
-			task: async () => {
-				await fse.writeFile(
-					path.join(artifactDir, '.dockerignore'),
-					`${[
-						'node_modules',
-						'.git',
-						'.turbo',
-						'**/node_modules',
-						'**/.turbo',
-						'**/logs',
-					].join('\n')}\n`,
-					'utf8',
-				);
+			{
+				title: 'Write Dockerfile',
+				task: async () => {
+					await fse.writeFile(
+						path.join(artifactDir, 'Dockerfile'),
+						await getFrontDockerfile({ port: frontPort }),
+						'utf8',
+					);
+				},
 			},
-		},
-	];
+			{
+				title: 'Write .dockerignore',
+				task: async () => {
+					await fse.writeFile(
+						path.join(artifactDir, '.dockerignore'),
+						`${[
+							'node_modules',
+							'.git',
+							'.turbo',
+							'**/node_modules',
+							'**/.turbo',
+							'**/logs',
+						].join('\n')}\n`,
+						'utf8',
+					);
+				},
+			},
+		],
+		{ level: 2 },
+	);
 }
 
 function createApiAssembleArtifactTasks({ artifactDir }) {
-	return [
-		{
-			title: 'Clean artifact dir',
-			task: async () => {
-				await fse.remove(artifactDir);
-				await fse.ensureDir(artifactDir);
+	return withStepTitles(
+		[
+			{
+				title: 'Clean artifact dir',
+				task: async () => {
+					await fse.remove(artifactDir);
+					await fse.ensureDir(artifactDir);
+				},
 			},
-		},
-		{
-			title: 'Ensure publish output dir',
-			task: async () => {
-				await fse.ensureDir(path.join(artifactDir, 'publish'));
+			{
+				title: 'Ensure publish output dir',
+				task: async () => {
+					await fse.ensureDir(path.join(artifactDir, 'publish'));
+				},
 			},
-		},
-		{
-			title: 'Write Dockerfile',
-			task: async () => {
-				await fse.writeFile(
-					path.join(artifactDir, 'Dockerfile'),
-					getApiDockerfile(),
-					'utf8',
-				);
+			{
+				title: 'Write Dockerfile',
+				task: async () => {
+					await fse.writeFile(
+						path.join(artifactDir, 'Dockerfile'),
+						getApiDockerfile(),
+						'utf8',
+					);
+				},
 			},
-		},
-		{
-			title: 'Write .dockerignore',
-			task: async () => {
-				await fse.writeFile(
-					path.join(artifactDir, '.dockerignore'),
-					`${['.git', '.turbo', 'node_modules', '**/node_modules'].join('\n')}\n`,
-					'utf8',
-				);
+			{
+				title: 'Write .dockerignore',
+				task: async () => {
+					await fse.writeFile(
+						path.join(artifactDir, '.dockerignore'),
+						`${['.git', '.turbo', 'node_modules', '**/node_modules'].join('\n')}\n`,
+						'utf8',
+					);
+				},
 			},
-		},
-	];
+		],
+		{ level: 2 },
+	);
 }
