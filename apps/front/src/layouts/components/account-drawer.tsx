@@ -16,7 +16,7 @@ import { Label } from '@/front/components/label';
 import { RouterLink } from '@/front/components/router-link';
 import { Scrollbar } from '@/front/components/scrollbar';
 import { usePathname } from '@/front/hooks/use-pathname';
-import { logout } from '@/front/lib/cookies';
+import { logout } from '@/front/lib/cookies/logout.utils';
 import { useGetUserAuthData } from '@/front/lib/react-query/features/common/auth.hooks';
 
 import { AccountButton } from './account-button';

@@ -98,7 +98,7 @@ cd ../../packages/shared && pnpm run postinstall
 
 ```bash
 make dev-db
-# Or: docker-compose -f docker-compose.data.yml up -d
+# Or: docker-compose -f docker-compose.services.yml up -d
 ```
 
 **Using Local PostgreSQL:**
@@ -253,24 +253,10 @@ make clean-front      # Clean frontend artifacts only
 
 ### Using Docker Compose
 
-**Start Database Only:**
+**Start services (PostgreSQL, etc.):**
 
 ```bash
-docker-compose -f docker-compose.data.yml up -d
-```
-
-**Start All Services (DB + API + Frontend):**
-
-```bash
-docker-compose -f docker-compose.data.yml up -d
-docker-compose -f docker-compose.apps.yml up -d
-```
-
-**Stop Services:**
-
-```bash
-docker-compose -f docker-compose.apps.yml down
-docker-compose -f docker-compose.data.yml down
+docker-compose -f docker-compose.services.yml up -d
 ```
 
 ## Building for Production
@@ -350,6 +336,7 @@ Husky automatically runs quality checks on commit. Ensure all checks pass:
 - **Platform**: Dokploy on Hostinger VPS
 - **Configuration**: `dokploy.yml`
 - **Process**: Automated deployment from git repository
+- **Alternative**: Local build → upload artifacts pipeline (see `docs/misc/deployment-guide.md`)
 
 ### Future Hosting Options
 
