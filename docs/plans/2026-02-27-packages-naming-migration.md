@@ -6,7 +6,7 @@
 
 **Architecture:** Move content to new folders, update package.json names, update all import references, update configuration files, then delete old folders.
 
-**Tech Stack:** pnpm workspaces, TypeScript, .NET 9
+**Tech Stack:** pnpm workspaces, TypeScript, .NET 10
 
 ---
 

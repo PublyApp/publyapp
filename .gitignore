@@ -58,3 +58,8 @@ tmpclaude*
 
 # voicetree
 voicetree*/
+
+.tmp-audit-*
+.tmp-watch-*
+
+.voicetree/

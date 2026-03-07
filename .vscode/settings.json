@@ -26,24 +26,33 @@
 	},
 	"typescript.tsdk": "node_modules\\typescript\\lib",
 	"files.eol": "\n",
+	"files.associations": {
+		"*.slnx": "xml"
+	},
 	"[jsonc]": {
 		"editor.defaultFormatter": "vscode.json-language-features"
 	},
 	"[csharp]": {
-		"editor.defaultFormatter": "anysphere.csharp"
+		"editor.defaultFormatter": "ms-dotnettools.csharp",
+		"editor.formatOnSave": true
 	},
+	"dotnet.server.useOmnisharp": true,
+	"omnisharp.enableEditorConfigSupport": true,
+	"omnisharp.enableRoslynAnalyzers": true,
 	"rest-client.environmentVariables": {
 		"$shared": {
 			"rootUrl": "http://localhost:5000",
 			"sessionToken": "f3d6202a8565dcff45532b526534bec0"
 		}
 	},
-	"dotnet.defaultSolution": "PublyApp.sln",
+	"dotnet.defaultSolution": "PublyApp.slnx",
+	"dotnet.formatting.organizeImportsOnFormat": true,
 	"cSpell.words": [
 		"airbnb",
 		"Aktiv",
 		"appsettings",
 		"appspecific",
+		"aspnet",
 		"ASPNETCORE",
 		"authed",
 		"Authed",
@@ -61,8 +70,10 @@
 		"contentfiles",
 		"corepack",
 		"customizer",
+		"cutover",
 		"datauri",
 		"dayjs",
+		"dokploy",
 		"Dokploy",
 		"dotnet",
 		"ecommerce",
@@ -70,8 +81,10 @@
 		"fetchlibrary",
 		"fieldname",
 		"firstname",
+		"fontsource",
 		"goplan",
 		"hookform",
+		"httponly",
 		"ianvs",
 		"iconify",
 		"immer",
@@ -86,6 +99,7 @@
 		"Lngs",
 		"lowlight",
 		"Lowlight",
+		"mainapi",
 		"mantine",
 		"mdxeditor",
 		"middlewares",
@@ -136,9 +150,15 @@
 		"toastify",
 		"Togglable",
 		"TOGGLABLE",
+		"Turborepo",
+		"unkeyed",
+		"Unkeyed",
 		"uuidv",
 		"valueof",
 		"vercel",
+		"voicetree",
+		"WORKDIR",
+		"Xunit",
 		"yoopta",
 		"zustand"
 	]
