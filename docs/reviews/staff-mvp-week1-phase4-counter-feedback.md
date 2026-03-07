@@ -132,7 +132,7 @@ await invitationService.CreateStaffInvitationAsync(...);
 - **EXTREMELY MINOR NITPICK**
 - Both approaches work identically in ASP.NET Core 9.0
 - `HttpContext.Request.Headers.UserAgent` is the *recommended* approach per Microsoft docs
-- No version compatibility issues in this project (uses .NET 9.0 only)
+- No version compatibility issues in this project (uses .NET 10.0 only)
 
 **Evidence from ASP.NET Core source:**
 The `UserAgent` property is a convenience accessor for the `User-Agent` header. Both internally call `StringValues.ToString()`.

@@ -4,7 +4,7 @@ This file provides guidance to AI coding assistants when working with code in th
 
 ## Project Overview
 
-PublyApp is a modern full-stack multi-tenant SaaS application built with .NET 9.0 and React 19. The monorepo architecture uses Turborepo and pnpm workspaces with three user scopes: Staff (platform administrators), Tenant (organization-level users), and Project (project-level users).
+PublyApp is a modern full-stack multi-tenant SaaS application built with .NET 10.0 and React 19. The monorepo architecture uses Turborepo and pnpm workspaces with three user scopes: Staff (platform administrators), Tenant (organization-level users), and Project (project-level users).
 
 ## Development Commands
 
@@ -91,7 +91,7 @@ For the full guide on writing and debugging integration tests, see [`docs/guides
 
 ```
 apps/
-├── api/              # .NET 9.0 Web API backend
+├── api/              # .NET 10.0 Web API backend
 ├── front/            # React Router v7 frontend (SSR-enabled)
 └── jobs/             # Background jobs (future)
 

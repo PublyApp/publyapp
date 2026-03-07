@@ -61,3 +61,5 @@ voicetree*/
 
 .tmp-audit-*
 .tmp-watch-*
+
+.voicetree/
