@@ -11,7 +11,7 @@ Refs: staff-mvp-week1-phase4-review.md, staff-mvp-week1-phase4-counter-feedback.
 
 - Profile scope validation: We accept deferring deep validation to endpoints. Minimal guard (scope check) in service is still a cheap, high-signal safety net against programmer error and aids diagnostics when services are invoked outside HTTP (e.g., jobs). If timeline is tight, keep in Phase 5; otherwise, we can add a lightweight check now.
 
-- AuditLog User-Agent: Acknowledged—current property works on .NET 9. The suggested header key form is purely a future-proof nit; fine to keep as-is.
+- AuditLog User-Agent: Acknowledged—current property works on .NET 10. The suggested header key form is purely a future-proof nit; fine to keep as-is.
 
 - Audit details serialization: We agree fail-fast is generally good. Our suggestion to TrySerialize was to avoid losing the entire audit write due to a non-critical metadata object; a compromise is to log a warning and drop details on failure while still persisting the audit record. This preserves audit trails without hiding problems.
 
