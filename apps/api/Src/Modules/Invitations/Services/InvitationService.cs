@@ -516,6 +516,25 @@ public class InvitationService : IInvitationService {
 		return await invitationQuery.AnyAsync(cancellationToken);
 	}
 
+	public async Task<bool> PendingTenantInvitationExistsAsync(
+		string email,
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		var normalizedEmail = email.ToLowerInvariant();
+		var invitationQuery =
+			from inv in _dbContext.Invitation
+			where inv.Email == normalizedEmail
+				&& inv.Scope == InvitationScope.Tenant
+				&& inv.TenantId == tenantId
+				&& inv.IsAccepted == false
+				&& inv.IsRevoked == false
+				&& inv.ExpiresAt > DateTime.UtcNow
+			select inv;
+
+		return await invitationQuery.AnyAsync(cancellationToken);
+	}
+
 	public async Task<FindStaffInvitationsResult> FindStaffInvitationsAsync(
 		FindStaffInvitationsArgs args,
 		CancellationToken cancellationToken = default

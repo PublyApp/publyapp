@@ -22,8 +22,6 @@
 	"status": "Statut",
 	"logo": "Logo",
 	"verification-link": "Lien de vérification",
-	"active": "Actif",
-	"pending": "En attente",
 	"banned": "Banni",
 	"admin": "Administrateur",
 	"editor": "Éditeur",

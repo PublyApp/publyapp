@@ -66,9 +66,7 @@ just generate-client    # Generate TypeScript client from OpenAPI
 
 This is critical - the frontend TypeScript client is auto-generated from the backend OpenAPI spec.
 
-### Running Single Tests
-
-Currently no automated tests are implemented. When added, use:
+### Running Tests
 
 ```bash
 just test-api          # Run API integration tests (requires Docker)
@@ -87,6 +85,8 @@ cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test --filter "ItShould
 cd apps/front && pnpm test
 ```
 
+For the full guide on writing and debugging integration tests, see [`docs/guides/api-integration-tests.md`](docs/guides/api-integration-tests.md).
+
 ## Architecture
 
 ### Monorepo Structure
@@ -100,8 +100,7 @@ apps/
 packages/
 ├── shared/           # Shared utilities, validations, i18n
 ├── js-client/        # Auto-generated TypeScript API client
-├── _tsconfig/        # Shared TypeScript configurations
-└── _tx-key-gen/      # Translation key generator (.NET tool)
+└── _tsconfig/        # Shared TypeScript configurations
 ```
 
 ### Backend Architecture (Vertical Slice, Domain-First)
@@ -123,7 +122,7 @@ Features/[Domain]/[Feature]/
 - **CQRS-lite**: handlers per operation (create/find/get/update/delete)
 - **Minimal APIs**: endpoints map routes and attach filters/permissions
 - **FluentValidation**: automatic body/query validation via endpoint extensions
-- **Response Format**: success returns `Ok<T>` / `Ok<ApiResponse>`; errors return RFC 7807 `application/problem+json` via `TypedProblems.*` with `translationKey`
+- **Response Format**: errors return RFC 7807 via `TypedProblems.*`; Create success → 201 `Created<T>` with entity DTO; Update success → 200 `Ok<T>` with entity DTO; Delete/action-only success → 200 `Ok<ApiResponse>` with message + translationKey
 - **Namespace discipline**: `IDE0130` is treated as error — file namespace must match its folder path
 
 **Finding Backend Code:**
@@ -214,111 +213,14 @@ URL State        → nuqs (filters, pagination, search)
 Form State       → React Hook Form (local form state)
 ```
 
-**API Client Integration:**
-- Microsoft Kiota auto-generated client from OpenAPI
-- Singleton `ClientManager` in `app/lib/js-client/`
-- Session token from `X-Session-Token` header (read fresh from cookies on every request)
-- Tenant ID from `X-PublyApp-TenantId` header (for multi-tenant data isolation)
+For detailed frontend architecture patterns (API client integration, getting clients in hooks/browser/SSR,
+data fetching patterns by route type, and optimized prefetching), see:
+[`docs/guides/frontend-architecture.md`](docs/guides/frontend-architecture.md)
 
-**Getting API Clients:**
-
-1. **In React hooks** - Use hook factories from `app/lib/react-query/create-hooks.ts`:
-   - `createTenantQuery/Mutation` - Tenant-scoped (tenantId required in variables)
-   - `createStaffQuery/Mutation` - Staff-only endpoints (no tenantId)
-   - `createAuthQuery/Mutation` - Auth endpoints (session token, no tenantId)
-   - `createPublicQuery/Mutation` - Anonymous/public endpoints (no auth)
-
-2. **Client-side (browser)** - Outside React lifecycle (e.g., clientLoaders):
-   - `getClientManager().getOrCreateClient(tenantId)` - Tenant client with `X-PublyApp-TenantId`
-   - `getClientManager().getOrCreateStaffClient()` - Staff client (no tenant-id header)
-   - `getClientManager().getOrCreateAnonymousClient()` - Anonymous client (no auth, no tenant)
-   - `getClientManager().createClient({ tenantId?, skipAuth?, context? })` - Create ad-hoc client
-
-3. **Server-side (SSR)** - In React Router loaders/actions:
-   - `getClientManager({ staffToken?, tenantToken? }).createClient({ tenantId?, context? })` - per-request instance
-   - Tokens are parsed by `getServerLoader` / `getServerAction` and passed to your loader/action
-   ```typescript
-   import { getClientManager } from '@/front/lib/js-client/client-manager';
-   const apiClient = getClientManager({ staffToken, tenantToken }).createClient();
-   ```
-
-**Data Fetching Pattern (Route-Type Specific):**
-
-**CRITICAL:** Data fetching strategy depends on route type:
-
-1. **Marketing Pages** (`app/routes/marketing/**`) -> SSR with React Router loaders/actions
-2. **Auth Pages** (`app/routes/auth/**`) -> SSR with React Router loaders/actions (hide API endpoints)
-3. **Authed Pages** (`app/routes/authed/**`) -> Client-only for application data with TanStack Query (no SSR data fetching)
-
-**Allowed exception for authed pages:** You may use `loader` only for fast, non-sensitive metadata (e.g. page title/meta tags) to avoid client-side flicker. Never fetch real application data in an authed page `loader`.
-
-```tsx
-// ❌ WRONG - Fetching application data in a server loader (authed routes)
-// File: app/routes/authed/staff/members-page.tsx
-export const loader = async ({ apiClient }) => {
-  const data = await apiClient.staff.staffUsers.get();
-  return { data };
-};
-
-// ✅ CORRECT - Use hook factories for authenticated pages
-// Step 1: Define hook in app/lib/react-query/features/staff/staff-user.hooks.ts
-import { createStaffQuery } from '../../create-hooks';
-
-export const useFindStaffUser = createStaffQuery({
-  queryKeyFn: (client) => client.staff.staffUsers.get,
-  fetcher: async (client, params: { page?: number }) => {
-    const result = await client.staff.staffUsers.get({
-      queryParameters: { page: params.page?.toString() },
-    });
-    if (_.isNil(result)) throw new Error('useFindStaffUser: result is nil');
-    return result;
-  },
-});
-
-// Step 2: Use hook in component
-// File: app/routes/authed/staff/members-page.tsx
-import { useFindStaffUser } from '@/front/lib/react-query/features/staff/staff-user.hooks';
-
-function StaffUsersPage() {
-  const { data, isLoading } = useFindStaffUser({ variables: { page: 1 } });
-  return <div>{/* render */}</div>;
-}
-
-// ✅ CORRECT - Server loader for auth pages (hide endpoints)
-// File: app/routes/auth/login/login-page.tsx
-export const loader = getServerLoader({
-  loader: async ({ apiClient }) => {
-    // Pre-fetch data server-side
-    return data({ ... });
-  }
-});
-
-// ✅ CORRECT - Mutations in authed pages use hook factories
-// Step 1: Define mutation hook
-import { createStaffMutation } from '../../create-hooks';
-
-export const useCreateMember = createStaffMutation({
-  mutationKeyFn: (client) => client.staff.members.post,
-  mutationFn: async (client, data: { email: string }) => {
-    const result = await client.staff.members.post({
-      email: { getValue() { return data.email; } },
-    });
-    if (_.isNil(result)) throw new Error('useCreateMember: result is nil');
-    return result;
-  },
-});
-
-// Step 2: Use in component
-function CreateMemberDialog() {
-  const { mutate } = useCreateMember({
-    onSuccess: () => queryClient.invalidateQueries(['staff.members.get'])
-  });
-}
-```
-
-**Why different strategies:**
-- **Marketing/Auth pages:** SSR for SEO and security (hide API endpoints)
-- **Authed pages:** Client-only for better UX, real-time updates, no SEO needed
+**Key rules (always apply):**
+- Marketing/Auth pages use SSR loaders; Authed pages use TanStack Query (client-only)
+- Never fetch application data in authed page `loader` — use hook factories (`createStaffQuery`, etc.)
+- Use `getClientLoader` wrapper (not raw `clientLoader`) for client-side prefetching
 - Authed layout wrapped in `<ClientOnly>` component
 
 **Optimized Data Fetching (Optional):**
@@ -1365,21 +1267,18 @@ public PatchField<DateTime?> GetExpiresAt() =>
 
 ## Common Workflows
 
-### Adding a New Feature
+For step-by-step checklists (adding features, updating API contract, adding entities, handling permissions), see:
+[`docs/guides/common-workflows.md`](docs/guides/common-workflows.md)
 
 **Quick reference:**
 - After API contract changes: `just build-api && just generate-client` (never modify `packages/client-ts/` manually)
 - New entity: inherit `BaseAttributes`, implement tenant interface, add `DbSet`, `just db-add <MigrationName> && just db-migrate`
 - New permission: add to `Seeder.cs`, use `PermissionFilter` on endpoint, check via `AuthContext.HasPermission()`
 
-**Frontend:**
-1. Create route file in `app/routes/[section]/[page]/`
-2. Add route to `app/routes.ts`
-3. Create query/mutation hooks using `react-query-kit`
-4. Use auto-generated API client from `packages/js-client`
-5. Add translations to `packages/shared/lib/i18n/json/en/common.json`
+## Project Conventions
 
-### Updating API Contract
+For detailed conventions (route naming, API response format with JSON examples, validation, error handling, logger rules), see:
+[`docs/guides/project-conventions.md`](docs/guides/project-conventions.md)
 
 **Key rules (always apply):**
 - Backend routes use kebab-case; constants in `RoutePath.cs` (backend) and `constants.ts` (frontend)
@@ -1453,26 +1352,12 @@ const { mutate } = useMyMutation({
 
 ## Development Environment
 
-**Access points when running locally:**
-- Frontend: http://localhost:5050
-- API: http://localhost:5000
-- API Documentation (Scalar): http://localhost:5000/scalar/v1
-- PostgreSQL: localhost:5454
-
-**Environment variables:**
-- Development: `.env.development` (committed)
-- Production: `.env.production` (not in repo)
-- Validated at startup via `AppEnvironment.Initialize()`
+**Local access:** Frontend `localhost:5050` | API `localhost:5000` | Scalar docs `localhost:5000/scalar/v1` | Postgres `localhost:5454`
+**Env vars:** `.env.development` (committed), `.env.production` (not in repo), validated at startup via `AppEnvironment.Initialize()`
 
 ## Deployment
 
-The project uses Dokploy on Hostinger VPS:
-1. Code pushed to GitHub
-2. Docker images built and pushed to GitHub Container Registry
-3. Dokploy pulls images and deploys
-4. Traefik reverse proxy handles SSL and routing
-
-Configuration in `dokploy.yml`.
+Dokploy on Hostinger VPS: GitHub → GHCR Docker images → Dokploy → Traefik SSL. Config in `dokploy.yml`.
 
 ## OpenAPI Documentation
 
@@ -1492,176 +1377,19 @@ client regeneration workflow, and TypeScript patterns), see:
 
 ## OpenAPI & Kiota Client Generation Safeguards
 
-**CRITICAL:** The TypeScript API client is auto-generated from the .NET OpenAPI spec using Microsoft Kiota. Several .NET patterns directly affect TypeScript type generation.
+For the complete Kiota safeguards guide (JsonElement nullability, generic types bug, schema transformer,
+client regeneration workflow, and TypeScript patterns), see:
+[`docs/guides/openapi-kiota-safeguards.md`](docs/guides/openapi-kiota-safeguards.md)
 
-### JsonElement Nullability and Kiota Types
-
-**The nullability of `JsonElement` properties directly affects generated TypeScript types:**
-
-```csharp
-// NON-nullable JsonElement → generates UntypedNode in TypeScript
-public class PasswordLoginBody {
-    public JsonElement Email { get; set; }     // → email?: UntypedNode | null
-    public JsonElement Password { get; set; }  // → password?: UntypedNode | null
-}
-
-// NULLABLE JsonElement? → generates complex union type requiring type casts
-public record CreateStaffProfileBody {
-    public JsonElement? Name { get; init; }    // → name?: CreateStaffProfileBody_nameMember1 | JsonElement | null
-}
-```
-
-**Rule:** For REQUIRED fields, use non-nullable `JsonElement` (not `JsonElement?`). This generates cleaner `UntypedNode` types in TypeScript without requiring type assertions.
-
-```csharp
-// ✅ CORRECT - Required field uses non-nullable JsonElement
-public record CreateUserBody {
-    public JsonElement Email { get; init; }     // Required - use non-nullable
-    public JsonElement Password { get; init; }  // Required - use non-nullable
-    public JsonElement? Bio { get; init; }      // Optional - nullable is fine
-}
-
-// ❌ WRONG - Required field uses nullable JsonElement?
-public record CreateUserBody {
-    public JsonElement? Email { get; init; }    // Generates complex union type!
-}
-```
-
-### Generic Types and XML Comments (.NET 10 Bug)
-
-**CRITICAL:** .NET 10's OpenAPI source generator has a bug that causes duplicate key errors when processing XML comments on generic types.
-
-```csharp
-// ❌ WRONG - XML comments on generic type cause OpenAPI generation failure
-/// <summary>
-/// Paginated result wrapper.
-/// </summary>
-public class CursorPaginatedResult<T> {
-    /// <summary>
-    /// The data items.
-    /// </summary>
-    public List<T> Data { get; set; } = [];
-}
-
-// ✅ CORRECT - Remove XML comments from generic types
-// Note: XML comments removed to work around .NET 10 OpenAPI source generator bug
-// See: https://github.com/dotnet/aspnetcore/issues/63233
-#pragma warning disable CS1591
-public class CursorPaginatedResult<T> {
-    public List<T> Data { get; set; } = [];
-    public string? NextCursor { get; set; } = null;
-}
-#pragma warning restore CS1591
-```
-
-**Rule:** Never add XML documentation comments to generic types (`<T>`) in the API project. The .NET 10 OpenAPI source generator will fail with "duplicate key" errors.
-
-### Integer Type Schema Transformer
-
-**Problem:** .NET 10 OpenAPI generation can produce `["integer", "string"]` union types instead of just `"integer"` for `int` properties. This causes Kiota to generate `UntypedNode` types instead of proper `number` types.
-
-**Solution:** A schema transformer in `ServiceRegistration.cs` fixes this at OpenAPI generation time:
-
-```csharp
-// apps/api/Src/Lib/ServiceRegistration.cs
-builder.Services.AddOpenApi(options => {
-    options.AddSchemaTransformer((schema, context, cancellationToken) => {
-        if (schema.Type.HasValue) {
-            var schemaType = schema.Type.Value;
-            // Fix integer+string unions → just integer
-            if (schemaType.HasFlag(JsonSchemaType.Integer) && schemaType.HasFlag(JsonSchemaType.String)) {
-                schema.Type = JsonSchemaType.Integer;
-            }
-            // Fix number+string unions → just number
-            else if (schemaType.HasFlag(JsonSchemaType.Number) && schemaType.HasFlag(JsonSchemaType.String)) {
-                schema.Type = JsonSchemaType.Number;
-            }
-        }
-        return Task.CompletedTask;
-    });
-});
-```
-
-**Rule:** If you see TypeScript types like `count?: number | UntypedNode` in response DTOs, check that the schema transformer is present and that `OpenApiGenerateDocuments` is `true` in `MainApi.csproj`.
-
-### Client Regeneration Workflow
-
-**After ANY changes to .NET DTOs or endpoints:**
-
-```bash
-# 1. Build API to regenerate OpenAPI spec (apps/api/openapi/MainApi.json)
-make build-api
-
-# 2. Update TypeScript client from new OpenAPI spec
-make update-client
-
-# 3. Run TypeScript check to verify no type errors
-make tsc-front
-```
-
-**Common issues after regeneration:**
-
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| `UntypedNode` in response types | Integer schema is `["integer", "string"]` | Verify schema transformer is present |
-| Complex union types in request bodies | Using `JsonElement?` (nullable) | Use `JsonElement` (non-nullable) for required fields |
-| Build fails with "duplicate key" | XML comments on generic type | Remove XML comments from generic types |
-| Type casts needed (`as typeof body.name`) | Nullable `JsonElement?` property | Use non-nullable `JsonElement` or accept the cast |
-
-### TypeScript Patterns for Kiota Client
-
-**For request bodies with UntypedNode fields:**
-
-```typescript
-import { createUntypedString, createUntypedArray } from '@microsoft/kiota-abstractions';
-
-// ✅ CORRECT - Use Kiota factory functions
-const body: CreateUserBody = {
-    email: createUntypedString(data.email),
-    password: createUntypedString(data.password),
-};
-
-// ❌ WRONG - Old pattern that no longer works
-const body: CreateUserBody = {
-    email: { getValue() { return data.email; } },  // May not match expected type
-};
-```
-
-**For response data with potential UntypedNode unions:**
-
-```typescript
-import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
-
-// ✅ CORRECT - Use utility to safely extract number
-const count = getUntypedNumber(response.count, 0);
-
-// ❌ WRONG - Assumes response.count is always number
-const count = response.count;  // Could be number | UntypedNode
-```
-
-**Utility functions in `apps/front/app/lib/js-client/kiota-utils.ts`:**
-- `getUntypedNumber(value, defaultValue)` - Safely extract number from `number | UntypedNode`
-- `getUntypedString(value, defaultValue)` - Safely extract string from `string | UntypedNode`
-- `getUntypedArray(value)` - Safely extract array from `T[] | UntypedNode`
-- `getUntypedValue(value)` - Generic extraction for any type
+**Key rules (always apply):**
+- Required body fields: non-nullable `JsonElement` (not `JsonElement?`) for cleaner TypeScript types
+- Never add XML comments to generic types (`<T>`) — triggers .NET 10 OpenAPI bug
+- After DTO/endpoint changes: `make build-api && make generate-client && make tsc-front`
+- Use `createUntypedString()` / `createUntypedArray()` for request body fields in TypeScript
 
 ## Documentation Organization
 
-**CRITICAL:** When generating documentation files during chat sessions (implementation plans, refactoring guides, roadmaps, reviews, etc.), you MUST organize them intelligently in the `docs/` directory to make them easy to find later.
-
-**Guidelines:**
-
-- **NEVER place generated documentation files at the repository root**
-- **Organize by relevance and type** - Create or use subdirectories that make logical sense for the document type
-- **Use existing subdirectories when appropriate** - Check `docs/` for existing folders before creating new ones
-- **Create new subdirectories as needed** - You have full freedom to create new organizational structures that improve searchability
-- **Use descriptive folder names** - Use kebab-case names that clearly indicate the content type (e.g., `implementation-plans`, `architecture-decisions`, `api-designs`, `database-schemas`, `performance-analysis`)
-
-**Existing subdirectories** (as examples, not prescriptive):
-- `docs/implementation-plans/` - Detailed plans for implementing features
-- `docs/refactoring-guides/` - Guides for refactoring existing code
-- `docs/roadmaps/` - Project roadmaps and milestone planning
-- `docs/reviews/` - Code reviews, architecture reviews, design reviews
-- `docs/misc/` - Miscellaneous documentation
-
-**Principle:** Organize intelligently so that developers can easily find relevant documentation by browsing the `docs/` folder structure. Think about how someone would search for this document later.
+- **Never** place generated docs at the repo root — always under `docs/`
+- Use existing subdirectories when appropriate; create new ones with kebab-case names
+- Existing dirs: `docs/implementation-plans/`, `docs/refactoring-guides/`, `docs/roadmaps/`, `docs/reviews/`, `docs/misc/`
+- Only `docs/guides/` files should be referenced from AGENTS.md; unreferenced guides belong elsewhere

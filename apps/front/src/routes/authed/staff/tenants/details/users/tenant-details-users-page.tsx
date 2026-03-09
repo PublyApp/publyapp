@@ -9,6 +9,7 @@ import { useTranslate } from '#app/hooks/use-translate.ts';
 import type { TenantDetailsOutletContext } from '../_layout/tenant-details-layout';
 import { InviteUserForm } from './parts/invite-user-form';
 import TenantUsersTable from './parts/tenant-users-table';
+import { InviteUserForm } from './parts/invite-user-form';
 
 const TenantDetailsUsersPage = () => {
 	const { t } = useTranslate();

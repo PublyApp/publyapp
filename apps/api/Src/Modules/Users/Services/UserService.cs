@@ -2376,4 +2376,167 @@ public class UserService : IUserService {
 			}
 		);
 	}
+
+	public async Task<RemoveUserFromTenantResult> RemoveUserFromTenantAsync(
+		Guid tenantId,
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		// Find the user account for this tenant
+		var userAccount = await (
+			from ua in _dbContext.UserAccount
+			where ua.TenantId == tenantId
+				&& ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+			select ua
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (userAccount is null) {
+			return new RemoveUserFromTenantResult.NotFound();
+		}
+
+		// Wrap admin check and soft delete in a transaction to prevent race conditions
+		await using var transaction =
+			await _dbContext.Database.BeginTransactionAsync(
+				IsolationLevel.Serializable,
+				cancellationToken
+			);
+
+		try {
+			// Check if this user is the last admin
+			if (userAccount.Level == AccountLevel.Admin) {
+				var adminCount = await (
+					from ua in _dbContext.UserAccount
+					where ua.TenantId == tenantId
+						&& ua.Scope == AccountScope.Tenant
+						&& ua.Level == AccountLevel.Admin
+						&& !ua.IsSuspended
+						&& !ua.IsDeleted
+					select ua
+				).CountAsync(cancellationToken);
+
+				if (adminCount <= 1) {
+					return new RemoveUserFromTenantResult.CannotRemoveLastAdmin();
+				}
+			}
+
+			// Soft delete the user account
+			userAccount.IsDeleted = true;
+			userAccount.DeletedAt = DateTime.UtcNow;
+			await _dbContext.SaveChangesAsync(cancellationToken);
+
+			await transaction.CommitAsync(cancellationToken);
+		} catch {
+			await transaction.RollbackAsync(cancellationToken);
+			throw;
+		}
+
+		return new RemoveUserFromTenantResult.Success();
+	}
+
+	public async Task<UpdateTenantUserResult> UpdateTenantUserAsync(
+		Guid tenantId,
+		Guid userId,
+		UpdateTenantUserDocument document,
+		CancellationToken cancellationToken = default
+	) {
+		// Find the user and their account for this tenant
+		var userAccount = await (
+			from ua in _dbContext.UserAccount
+			join u in _dbContext.User on ua.UserId equals u.Id
+			where ua.TenantId == tenantId
+				&& ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !u.IsDeleted
+			select new { User = u, Account = ua }
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (userAccount is null) {
+			return new UpdateTenantUserResult.NotFound();
+		}
+
+		var user = userAccount.User;
+		var account = userAccount.Account;
+
+		// Determine new level if provided
+		AccountLevel? newLevel = null;
+		if (document.Level is not null) {
+			newLevel = UserAccount.ParseAccountLevel(document.Level);
+			if (newLevel is null) {
+				return new UpdateTenantUserResult.NotFound();
+			}
+		}
+
+		// Determine if we need a transaction for the last-admin invariant check
+		var needsAdminInvariantTransaction =
+			document.Level is not null
+			&& account.Level == AccountLevel.Admin
+			&& newLevel != AccountLevel.Admin;
+
+		await using var transaction =
+			needsAdminInvariantTransaction
+				? await _dbContext.Database.BeginTransactionAsync(
+					IsolationLevel.Serializable,
+					cancellationToken
+				)
+				: null;
+
+		try {
+			// Check last-admin invariant if demoting from admin
+			if (needsAdminInvariantTransaction) {
+				var adminCount = await (
+					from ua in _dbContext.UserAccount
+					where ua.TenantId == tenantId
+						&& ua.Scope == AccountScope.Tenant
+						&& ua.Level == AccountLevel.Admin
+						&& ua.UserId != userId
+						&& !ua.IsSuspended
+						&& !ua.IsDeleted
+					select ua
+				).CountAsync(cancellationToken);
+
+				if (adminCount == 0) {
+					return new UpdateTenantUserResult.CannotDemoteLastAdmin();
+				}
+			}
+
+			// Apply all changes: account level + user profile fields
+			if (newLevel is not null) {
+				account.Level = newLevel.Value;
+			}
+			if (document.FirstName.IsPresent) {
+				user.FirstName = document.FirstName.Value;
+			}
+			if (document.LastName.IsPresent) {
+				user.LastName = document.LastName.Value;
+			}
+			if (document.AvatarUrl.IsPresent) {
+				user.AvatarUrl = document.AvatarUrl.Value;
+			}
+
+			account.UpdatedAt = DateTime.UtcNow;
+			user.UpdatedAt = DateTime.UtcNow;
+
+			await _dbContext.SaveChangesAsync(cancellationToken);
+
+			if (transaction is not null) {
+				await transaction.CommitAsync(cancellationToken);
+			}
+		} catch {
+			if (transaction is not null) {
+				await transaction.RollbackAsync(cancellationToken);
+			}
+			throw;
+		}
+
+		return new UpdateTenantUserResult.Success(
+			new TenantUserData {
+				User = user,
+				Account = account,
+				AccountLevel = account.Level
+			}
+		);
+	}
 }

@@ -22,12 +22,21 @@ public class DeleteSystemNotice {
 		[FromRoute] string noticeId,
 		CancellationToken cancellationToken = default
 	) {
-		var account = authContext.AccountStaff
-			?? throw new InvalidOperationException(
-				"Staff account not found in auth context. "
-				+ "Ensure the endpoint has "
+		var account = authContext.AccountStaff;
+		if (account is null) {
+			throw new InvalidOperationException(
+				"Staff account not found in auth "
+				+ "context. Ensure the endpoint has "
 				+ ".WithPermission() middleware."
 			);
+		}
+
+		if (!Guid.TryParse(noticeId, out var noticeIdGuid)) {
+			return TypedProblems.BadRequest(
+				"Invalid noticeId",
+				ResponseKeys.MalformedId
+			);
+		}
 
 		if (!Guid.TryParse(noticeId, out var noticeIdGuid)) {
 			return TypedProblems.BadRequest(
@@ -56,6 +65,12 @@ public class DeleteSystemNotice {
 			cancellationToken
 		);
 
-		return TypedResults.NoContent();
+		return TypedResults.Ok(
+			ApiResponse.Create(
+				"System notice deleted successfully",
+				ResponseKeys
+					.SystemNoticeDeletedSuccessfully
+			)
+		);
 	}
 }

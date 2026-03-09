@@ -278,8 +278,117 @@ const useTenantsTableController = () => {
 		setFilterStates({ q: globalFilter, status: value });
 	};
 
-	// Row selection state for bulk actions (placeholder for future)
-	const [rowSelection] = useState<Record<string, boolean>>({});
+	// Row selection state for bulk actions
+	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+
+	// Bulk action mutations
+	const queryClient = useQueryClient();
+	const [bulkActionDialog, setBulkActionDialog] = useState<{
+		type: 'suspend' | 'reactivate' | 'delete';
+		open: boolean;
+	}>({ type: 'suspend', open: false });
+
+	const { mutate: bulkSuspend, isPending: isBulkSuspending } =
+		useBulkSuspendTenants({
+			onSuccess: (result) => {
+				const succeeded = result.succeededCount ?? 0;
+				const failed = result.failedCount ?? 0;
+				if (failed > 0) {
+					toast.warning(
+						t('bulk-action-partial-success', {
+							action: t('suspended') ?? 'suspended',
+							succeeded,
+							failed,
+						}),
+					);
+				} else {
+					toast.success(
+						t('bulk-action-success', {
+							action: t('suspended') ?? 'suspended',
+							count: succeeded,
+						}),
+					);
+				}
+				setBulkActionDialog({ type: 'suspend', open: false });
+				setRowSelection({});
+				queryClient.invalidateQueries({
+					queryKey: useFindTenants.getKey(),
+				});
+			},
+		});
+
+	const { mutate: bulkReactivate, isPending: isBulkReactivating } =
+		useBulkReactivateTenants({
+			onSuccess: (result) => {
+				const succeeded = result.succeededCount ?? 0;
+				const failed = result.failedCount ?? 0;
+				if (failed > 0) {
+					toast.warning(
+						t('bulk-action-partial-success', {
+							action: t('reactivate') ?? 'reactivated',
+							succeeded,
+							failed,
+						}),
+					);
+				} else {
+					toast.success(
+						t('bulk-action-success', {
+							action: t('reactivate') ?? 'reactivated',
+							count: succeeded,
+						}),
+					);
+				}
+				setBulkActionDialog({ type: 'reactivate', open: false });
+				setRowSelection({});
+				queryClient.invalidateQueries({
+					queryKey: useFindTenants.getKey(),
+				});
+			},
+		});
+
+	const { mutate: bulkDelete, isPending: isBulkDeleting } =
+		useBulkDeleteTenants({
+			onSuccess: (result) => {
+				const succeeded = result.succeededCount ?? 0;
+				const failed = result.failedCount ?? 0;
+				if (failed > 0) {
+					toast.warning(
+						t('bulk-action-partial-success', {
+							action: t('deleted') ?? 'deleted',
+							succeeded,
+							failed,
+						}),
+					);
+				} else {
+					toast.success(
+						t('bulk-action-success', {
+							action: t('deleted') ?? 'deleted',
+							count: succeeded,
+						}),
+					);
+				}
+				setBulkActionDialog({ type: 'delete', open: false });
+				setRowSelection({});
+				queryClient.invalidateQueries({
+					queryKey: useFindTenants.getKey(),
+				});
+			},
+		});
+
+	const handleBulkSuspend = () => {
+		const selectedIds = Object.keys(rowSelection);
+		bulkSuspend({ tenantIds: selectedIds });
+	};
+
+	const handleBulkReactivate = () => {
+		const selectedIds = Object.keys(rowSelection);
+		bulkReactivate({ tenantIds: selectedIds });
+	};
+
+	const handleBulkDelete = () => {
+		const selectedIds = Object.keys(rowSelection);
+		bulkDelete({ tenantIds: selectedIds });
+	};
 
 	const columns = useMemo(() => {
 		return [

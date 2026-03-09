@@ -12,16 +12,7 @@ import { BulkSuspendRequestBuilderRequestsMetadata, type BulkSuspendRequestBuild
 // @ts-ignore
 import { type WithUserItemRequestBuilder, WithUserItemRequestBuilderNavigationMetadata, WithUserItemRequestBuilderRequestsMetadata } from './item/index.js';
 // @ts-ignore
-import {
-	type BaseRequestBuilder,
-	type KeysToExcludeForNavigationMetadata,
-	type NavigationMetadata,
-	type Parsable,
-	type ParsableFactory,
-	type RequestConfiguration,
-	type RequestInformation,
-	type RequestsMetadata,
-} from '@microsoft/kiota-abstractions';
+import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /staff/users
