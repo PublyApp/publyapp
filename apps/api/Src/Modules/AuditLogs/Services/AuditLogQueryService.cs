@@ -135,11 +135,12 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
 		var effectiveSortOrder =
 			args.SortOrder ?? SortOrder.Desc;
-		var effectiveSortId = (args.SortId ?? "created_at")
-			.ToLowerInvariant();
+		var effectiveSortId = args.SortId ?? "created_at";
 
 		var sortFieldHandlers =
-			new Dictionary<string, SortFieldHandler> {
+			new Dictionary<string, SortFieldHandler>(
+				StringComparer.OrdinalIgnoreCase
+			) {
 				["created_at"] = new SortFieldHandler(
 				getCursorValue: async (guid) => {
 					var log = await _dbContext.AuditLog

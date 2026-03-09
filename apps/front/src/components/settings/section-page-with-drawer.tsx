@@ -14,6 +14,9 @@ type SectionPageWithDrawerProps = {
 	drawerWidth?: number;
 	drawerContent: React.ReactNode;
 	children: React.ReactNode;
+	open?: boolean;
+	onOpen?: () => void;
+	onClose?: () => void;
 };
 
 export const SectionPageWithDrawer = ({
@@ -23,8 +26,17 @@ export const SectionPageWithDrawer = ({
 	drawerWidth = 400,
 	drawerContent,
 	children,
+	open,
+	onOpen,
+	onClose,
 }: SectionPageWithDrawerProps) => {
-	const openDrawer = useBoolean();
+	// Internal state for controlled/uncontrolled scenarios
+	const internalOpen = useBoolean();
+	// Determine effective state: controlled takes priority, then internal
+	const isControlled = open !== undefined;
+	const effectiveOpen = isControlled ? open : internalOpen.value;
+	const effectiveOnOpen = onOpen ?? internalOpen.onTrue;
+	const effectiveOnClose = onClose ?? internalOpen.onFalse;
 
 	return (
 		<Stack spacing={3}>
@@ -32,7 +44,7 @@ export const SectionPageWithDrawer = ({
 				<SettingsPageHeader subtitle={subtitle} title={title} />
 				<Button
 					variant="contained"
-					onClick={openDrawer.onTrue}
+					onClick={effectiveOnOpen}
 					startIcon={<Iconify icon="mingcute:add-line" />}
 				>
 					{ctaLabel}
@@ -42,8 +54,8 @@ export const SectionPageWithDrawer = ({
 			{children}
 
 			<Drawer
-				open={openDrawer.value}
-				onClose={openDrawer.onFalse}
+				open={effectiveOpen}
+				onClose={effectiveOnClose}
 				anchor="right"
 				sx={(theme) => ({
 					zIndex: theme.zIndex.modal + 1,

@@ -1,3 +1,5 @@
+using FluentValidation;
+
 using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
@@ -24,12 +26,33 @@ public class FindTenantUsersAsStaffResult
 	: CursorPaginatedResult<TenantUserItem> { }
 
 public class FindTenantUsersAsStaffQuery
-	: CursorPaginatedQuery { }
+	: CursorPaginatedQuery {
+	[FromQuery(Name = "q")]
+	public string? Search { get; set; }
+
+	[FromQuery]
+	public string? Status { get; set; }
+
+	public string? GetSearchNormalized() => string.IsNullOrWhiteSpace(Search)
+		? null
+		: Search.Trim();
+}
 
 public class FindTenantUsersAsStaffQueryValidator
 	: CursorPaginatedQueryValidator<
 		FindTenantUsersAsStaffQuery
-	> { }
+	> {
+	private static readonly HashSet<string> AllowedStatuses =
+		new(["active", "pending", "suspended"], StringComparer.OrdinalIgnoreCase);
+
+	public FindTenantUsersAsStaffQueryValidator() {
+		RuleFor(x => x.Search).MaximumLength(200);
+		RuleFor(x => x.Status)
+			.Must(raw => string.IsNullOrEmpty(raw)
+				|| AllowedStatuses.Contains(raw))
+			.WithMessage("Status must be one of: active, pending, suspended");
+	}
+}
 
 public class FindTenantUsersAsStaff {
 	public static async Task<
@@ -52,7 +75,7 @@ public class FindTenantUsersAsStaff {
 		) {
 			return TypedProblems.BadRequest(
 				"Invalid tenantId",
-				ResponseKeys.BadRequest
+				ResponseKeys.MalformedId
 			);
 		}
 
@@ -84,6 +107,8 @@ public class FindTenantUsersAsStaff {
 				limit: limit,
 				sortId: sortId,
 				sortOrder: sortOrder,
+				q: query.GetSearchNormalized(),
+				status: query.Status,
 				cancellationToken: cancellationToken
 			);
 

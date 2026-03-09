@@ -12,24 +12,34 @@ namespace MainApi.Src.Modules.SystemNotices.Handlers.Staff;
 
 public static class DeleteSystemNotice {
 	public static async Task<Results<
-		NoContent,
-		AppNotFoundHttpResult
+		Ok<ApiResponse>,
+		AppNotFoundHttpResult,
+		AppBadRequestHttpResult
 	>> HandleDeleteSystemNotice(
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] ISystemNoticeService systemNoticeService,
 		[FromServices] IAuditLogService auditLogService,
-		[FromRoute] Guid noticeId,
+		[FromRoute] string noticeId,
 		CancellationToken cancellationToken = default
 	) {
-		var account = authContext.AccountStaff
-			?? throw new InvalidOperationException(
-				"Staff account not found in auth context. "
-				+ "Ensure the endpoint has "
+		var account = authContext.AccountStaff;
+		if (account is null) {
+			throw new InvalidOperationException(
+				"Staff account not found in auth "
+				+ "context. Ensure the endpoint has "
 				+ ".WithPermission() middleware."
 			);
+		}
+
+		if (!Guid.TryParse(noticeId, out var noticeIdGuid)) {
+			return TypedProblems.BadRequest(
+				"Invalid noticeId",
+				ResponseKeys.MalformedId
+			);
+		}
 
 		var deleted = await systemNoticeService.DeleteAsync(
-			noticeId, cancellationToken
+			noticeIdGuid, cancellationToken
 		);
 
 		if (!deleted) {
@@ -42,11 +52,17 @@ public static class DeleteSystemNotice {
 		await auditLogService.LogAsync(
 			account.UserId,
 			AuditActions.SystemNoticeDeleted,
-			noticeId,
+			noticeIdGuid,
 			null,
 			cancellationToken
 		);
 
-		return TypedResults.NoContent();
+		return TypedResults.Ok(
+			ApiResponse.Create(
+				"System notice deleted successfully",
+				ResponseKeys
+					.SystemNoticeDeletedSuccessfully
+			)
+		);
 	}
 }

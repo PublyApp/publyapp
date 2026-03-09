@@ -98,7 +98,7 @@ Follow the same naming and signature conventions as `JsonElementRules` — the o
 
 ```csharp
 // ✅ CORRECT - Inherit base pagination validator
-public class FindUsersQuery : PaginatedQuery { }
+public class FindUsersQuery : OffsetPaginatedQuery { }
 public class FindUsersQueryValidator
     : OffsetPaginatedQueryValidator<FindUsersQuery> { }
 
@@ -217,7 +217,7 @@ Password validation uses `AppEnvironment.Instance.PASSWORD_MIN_LENGTH`. **Never 
 
 ### `[FromQuery]` on Every Property
 
-All query parameter DTO properties must have the `[FromQuery]` attribute. This makes binding explicit and consistent across standalone queries and base-class-inherited queries (`PaginatedQuery`, `CursorPaginatedQuery`).
+All query parameter DTO properties must have the `[FromQuery]` attribute. This makes binding explicit and consistent across standalone queries and base-class-inherited queries (`OffsetPaginatedQuery`, `CursorPaginatedQuery`).
 
 ```csharp
 // ✅ CORRECT
@@ -309,13 +309,7 @@ public class FindTenantsQuery : CursorPaginatedQuery {
 
 		var statuses = new HashSet<TenantStatus>();
 		foreach (var part in parts) {
-			var parsed = part.ToLowerInvariant() switch {
-				"active" => (TenantStatus?)TenantStatus.Active,
-				"pending" => (TenantStatus?)TenantStatus.Pending,
-				"suspended" => (TenantStatus?)TenantStatus.Suspended,
-				"archived" => (TenantStatus?)TenantStatus.Archived,
-				_ => null,
-			};
+			var parsed = Tenant.ParseStatus(part);
 
 			if (parsed is { } status) {
 				statuses.Add(status);
@@ -327,7 +321,8 @@ public class FindTenantsQuery : CursorPaginatedQuery {
 }
 
 public class FindTenantsQueryValidator : CursorPaginatedQueryValidator<FindTenantsQuery> {
-	private static readonly string[] Allowed = ["active", "pending", "suspended", "archived"];
+	private static readonly HashSet<string> Allowed =
+		new(["active", "pending", "suspended", "archived"], StringComparer.OrdinalIgnoreCase);
 
 	public FindTenantsQueryValidator() {
 		RuleFor(x => x.Status)
@@ -335,7 +330,7 @@ public class FindTenantsQueryValidator : CursorPaginatedQueryValidator<FindTenan
 				if (string.IsNullOrEmpty(raw)) return true;
 				var parts = raw.Split(',',
 					StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-				return parts.All(p => Allowed.Contains(p.ToLowerInvariant()));
+				return parts.All(p => Allowed.Contains(p));
 			})
 			.WithMessage("Status must be comma-separated: active,pending,suspended,archived")
 			.When(x => !string.IsNullOrEmpty(x.Status));
@@ -347,4 +342,4 @@ public class FindTenantsQueryValidator : CursorPaginatedQueryValidator<FindTenan
 
 - Shared validation classes live in `namespace MainApi.Src.Lib.Validation;`
 - Handlers using shared validators must add: `using MainApi.Src.Lib.Validation;`
-- Base query types (`PaginatedQuery`, `CursorPaginatedQuery`) remain in `namespace MainApi.Src.Lib;`
+- Base query types (`OffsetPaginatedQuery`, `CursorPaginatedQuery`) remain in `namespace MainApi.Src.Lib;`

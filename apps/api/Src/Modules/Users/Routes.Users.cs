@@ -37,6 +37,8 @@ public static partial class Routes {
 			public const string Delete = "/{userId}";
 			public static string DeleteFn(string tenantId, string userId) =>
 				$"{RootFn(tenantId)}/{userId}";
+			public const string Invite = "/invitations";
+			public static string InviteFn(string tenantId) => $"{RootFn(tenantId)}/invitations";
 		}
 
 		/// <summary>Tenant API routes (tenant self-service)</summary>

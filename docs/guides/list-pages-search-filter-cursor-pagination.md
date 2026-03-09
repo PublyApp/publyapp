@@ -4,7 +4,7 @@ This guide defines the **default conventions** for list pages that support:
 - Search (`q`)
 - Filters (including **multi-select enum filters** like `status`)
 - Cursor/keyset pagination (no total count)
-- Sorting via stable `sortId` values
+- Sorting via stable `sort_id` values on the wire
 - Bulk actions from a list table
 
 If an existing guide/rule already covers a topic, follow it. Only diverge from this guide when you have an explicit product/engineering decision to do so.
@@ -21,13 +21,25 @@ For list filters, use short, stable keys:
 - `status`: comma-separated multi-select tokens (string)
 
 ### API query params (backend)
-Prefer camelCase params for API query binding:
+Expose query params on the wire in **snake_case**:
 - `cursor`: Guid (string in transport; handler parses to `Guid`, `Guid.Empty` = first page)
 - `limit`: page size
-- `sortId`: stable sort field id (snake_case)
-- `sortOrder`: `asc` or `desc`
+- `sort_id`: stable sort field id (snake_case)
+- `sort_order`: `asc` or `desc`
 - `q`: search string (trimmed)
 - `status`: comma-separated multi-select tokens (lowercase)
+
+Keep the C# DTO property names idiomatic and map the wire names explicitly:
+
+```csharp
+public class FindTenantsQuery : CursorPaginatedQuery {
+    [FromQuery(Name = "sort_id")]
+    public string? SortId { get; init; }
+
+    [FromQuery(Name = "sort_order")]
+    public string? SortOrder { get; init; }
+}
+```
 
 ### Stable rules
 - **No boolean filter params** when an enum already exists for the same concept (e.g., do not add `isSuspended`; use `status=suspended`).
@@ -42,9 +54,12 @@ See `docs/guides/cursor-keyset-pagination-guide.md` for the canonical backend pa
 - Cursor remains the **entity ID** (`Guid`) even when sorting by other fields.
 - For non-unique sort fields, always add `Id` as a tie-breaker **with the same direction** as the primary sort.
 
-### Sorting contract (`sortId`)
-- `sortId` values must be **snake_case**.
-- Backend must validate `sortId` against an explicit allowlist and return `400` on invalid values.
+### Sorting contract (`sort_id`)
+- The query parameter name is `sort_id` on the wire.
+- The `sort_id` values must be **snake_case**.
+- Backend should bind to a C# `SortId` property via `[FromQuery(Name = "sort_id")]`.
+- Backend must validate `sort_id` against an explicit allowlist and return `400`
+  on invalid values.
 
 ### EF Core shape safety
 - Do not use `dynamic` in query composition for cursor pagination.
@@ -52,8 +67,9 @@ See `docs/guides/cursor-keyset-pagination-guide.md` for the canonical backend pa
 
 ## 3) Sorting Rules (Frontend + Material React Table)
 
-### MRT column IDs must match backend `sortId`
-Material React Table emits sort IDs based on column `id`. When backend expects snake_case IDs, you must explicitly set them:
+### MRT column IDs must match backend `sort_id`
+Material React Table emits sorting IDs based on column `id`. When backend
+expects snake_case wire IDs, you must explicitly set them:
 
 ```ts
 columnHelper.accessor('createdAt', { id: 'created_at', header: t('created-at') });
@@ -143,10 +159,10 @@ If bulk operations become common/heavy, consider adding a batch API later (expli
 ## 8) Testing Checklist (Minimum)
 
 Backend:
-- Integration test: valid `sortId` allowlist; invalid returns `400`.
+- Integration test: valid `sort_id` allowlist; invalid returns `400`.
 - Integration test: cursor not found returns `400`.
 - Integration test: status CSV parsing + validation.
 
 Frontend:
-- Sorting sends correct snake_case `sortId`.
+- Sorting sends correct snake_case `sort_id`.
 - Filter change resets cursor pagination.

@@ -8,6 +8,40 @@
 - Route constants defined in `apps/api/Src/Lib/RoutePath.cs`
 - Frontend route constants in `packages/shared/lib/constants.ts`
 
+## API Contract Naming
+
+Use different naming conventions for different layers instead of forcing one style
+everywhere:
+
+- Internal .NET symbols stay **PascalCase**: `UpdatedAt`, `SortId`, `UserId`
+- Database column names stay **snake_case** via EF mappings: `updated_at`
+- JSON body/response fields stay **camelCase** unless there is a deliberate
+  contract migration
+- URL/query parameter names use **snake_case**: `sort_id`, `sort_order`,
+  `updated_at`, `user_id`
+- Multi-word wire-format option values also use **snake_case**:
+  `created_at`, `updated_at`, `user_account_count`
+- Never use collapsed lowercase wire names or option values like `updatedat`
+
+### Why this split exists
+
+- PascalCase is idiomatic for C# code and EF entities
+- snake_case is easier to read in URLs than smashed lowercase
+- camelCase remains the current JSON contract style used by generated clients
+- This avoids accidental partial migrations where query params, JSON fields, and
+  C# property names all drift independently
+
+### Agent rule
+
+When adding or changing API contracts:
+
+1. Keep handler/query/body DTO property names idiomatic in C#
+2. Use `[FromQuery(Name = "...")]` to expose **snake_case** query params on the
+   wire
+3. Keep query value allowlists in **snake_case** when the value has multiple
+   words
+4. Regenerate OpenAPI and the TypeScript client after wire-contract changes
+
 ## API Response Format
 
 **Success responses:**

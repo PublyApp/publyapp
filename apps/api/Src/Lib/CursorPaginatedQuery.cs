@@ -3,10 +3,10 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Lib;
 
 public class CursorPaginatedQuery {
-	[FromQuery] public string? Cursor { get; set; }
-	[FromQuery] public string? Limit { get; set; }
-	[FromQuery] public string? SortId { get; set; }
-	[FromQuery] public string? SortOrder { get; set; }
+	[FromQuery(Name = "cursor")] public string? Cursor { get; set; }
+	[FromQuery(Name = "limit")] public string? Limit { get; set; }
+	[FromQuery(Name = "sort_id")] public string? SortId { get; set; }
+	[FromQuery(Name = "sort_order")] public string? SortOrder { get; set; }
 
 	public string? GetCursor() {
 		if (Cursor is null) {

@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// Custom WebApplicationFactory for integration testing.
@@ -73,6 +74,13 @@ public sealed class MainApiFactory
 				sp => sp
 					.GetRequiredService<FakeEmailSender>()
 			);
+
+			// 3) Register ILogger for handlers that use non-generic ILogger
+			//    (needed because Serilog doesn't register ILogger by default)
+			services.AddSingleton<ILoggerFactory>(new LoggerFactory());
+			services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
+			services.AddSingleton<ILogger>(sp =>
+				sp.GetRequiredService<ILoggerFactory>().CreateLogger("Default"));
 		});
 	}
 

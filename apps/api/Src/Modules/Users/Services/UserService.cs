@@ -1,3 +1,5 @@
+using System.Data;
+
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
 using MainApi.Src.Modules.Users.Entities;
@@ -19,10 +21,11 @@ public class StaffUserData {
 
 public class UpdateUserDocument {
 	public string? Email { get; set; }
-	public string? LastName { get; set; }
-	public string? FirstName { get; set; }
-	public string? AvatarUrl { get; set; }
+	public PatchField<string?> LastName { get; set; } = PatchField<string?>.Absent();
+	public PatchField<string?> FirstName { get; set; } = PatchField<string?>.Absent();
+	public PatchField<string?> AvatarUrl { get; set; } = PatchField<string?>.Absent();
 	public string? AccountLevel { get; set; }
+	public PatchField<string?> Status { get; set; } = PatchField<string?>.Absent();
 }
 
 public abstract record UpdateUserByIdResult {
@@ -50,6 +53,32 @@ public abstract record FindTenantUsersResult {
 	) : FindTenantUsersResult;
 }
 
+public abstract record RemoveUserFromTenantResult {
+	public sealed record Success() : RemoveUserFromTenantResult;
+	public sealed record NotFound() : RemoveUserFromTenantResult;
+	public sealed record CannotRemoveLastAdmin() : RemoveUserFromTenantResult;
+}
+
+public class TenantUserData {
+	public required User User { get; set; }
+	public required UserAccount Account { get; set; }
+	public required AccountLevel AccountLevel { get; set; }
+}
+
+public class UpdateTenantUserDocument {
+	public PatchField<string?> FirstName { get; set; } = PatchField<string?>.Absent();
+	public PatchField<string?> LastName { get; set; } = PatchField<string?>.Absent();
+	public PatchField<string?> AvatarUrl { get; set; } = PatchField<string?>.Absent();
+	public string? Level { get; set; }
+}
+
+public abstract record UpdateTenantUserResult {
+	public sealed record Success(
+		TenantUserData UserData
+	) : UpdateTenantUserResult;
+	public sealed record NotFound() : UpdateTenantUserResult;
+	public sealed record CannotDemoteLastAdmin() : UpdateTenantUserResult;
+}
 
 public interface IUserService {
 	Task<CreateUserResult> CreateUserAsync(User user, CancellationToken cancellationToken = default);
@@ -74,6 +103,19 @@ public interface IUserService {
 		int? limit = null,
 		string? sortId = null,
 		SortOrder? sortOrder = null,
+		string? q = null,
+		string? status = null,
+		CancellationToken cancellationToken = default
+	);
+	Task<RemoveUserFromTenantResult> RemoveUserFromTenantAsync(
+		Guid tenantId,
+		Guid userId,
+		CancellationToken cancellationToken = default
+	);
+	Task<UpdateTenantUserResult> UpdateTenantUserAsync(
+		Guid tenantId,
+		Guid userId,
+		UpdateTenantUserDocument document,
 		CancellationToken cancellationToken = default
 	);
 }
@@ -198,30 +240,28 @@ public class UserService : IUserService {
 			select new { User = ua.User, Level = ua.Level };
 
 		if (sortId is not null) {
-			query = sortId.ToLowerInvariant() switch {
-				"createdat" => effectiveSortOrder == SortOrder.Asc
-					? query.OrderBy(x => x.User.CreatedAt)
-					: query.OrderByDescending(x => x.User.CreatedAt),
-				"updatedat" => effectiveSortOrder == SortOrder.Asc
-					? query.OrderBy(x => x.User.UpdatedAt)
-					: query.OrderByDescending(x => x.User.UpdatedAt),
-				"email" => effectiveSortOrder == SortOrder.Asc
-					? query.OrderBy(x => x.User.Email)
-					: query.OrderByDescending(x => x.User.Email),
-				"firstname" => effectiveSortOrder == SortOrder.Asc
-					? query.OrderBy(x => x.User.FirstName)
-					: query.OrderByDescending(x => x.User.FirstName),
-				"lastname" => effectiveSortOrder == SortOrder.Asc
-					? query.OrderBy(x => x.User.LastName)
-					: query.OrderByDescending(x => x.User.LastName),
-				"status" => effectiveSortOrder == SortOrder.Asc
-					? query.OrderBy(x => x.User.Status)
-					: query.OrderByDescending(x => x.User.Status),
-				"level" => effectiveSortOrder == SortOrder.Asc
-					? query.OrderBy(x => x.Level)
-					: query.OrderByDescending(x => x.Level),
-				_ => query
-			};
+			var isAsc = effectiveSortOrder == SortOrder.Asc;
+			if (string.Equals(sortId, "created_at", StringComparison.OrdinalIgnoreCase)) {
+				query = isAsc ? query.OrderBy(x => x.User.CreatedAt) : query.OrderByDescending(x => x.User.CreatedAt);
+			}
+			if (string.Equals(sortId, "updated_at", StringComparison.OrdinalIgnoreCase)) {
+				query = isAsc ? query.OrderBy(x => x.User.UpdatedAt) : query.OrderByDescending(x => x.User.UpdatedAt);
+			}
+			if (string.Equals(sortId, "email", StringComparison.OrdinalIgnoreCase)) {
+				query = isAsc ? query.OrderBy(x => x.User.Email) : query.OrderByDescending(x => x.User.Email);
+			}
+			if (string.Equals(sortId, "first_name", StringComparison.OrdinalIgnoreCase)) {
+				query = isAsc ? query.OrderBy(x => x.User.FirstName) : query.OrderByDescending(x => x.User.FirstName);
+			}
+			if (string.Equals(sortId, "last_name", StringComparison.OrdinalIgnoreCase)) {
+				query = isAsc ? query.OrderBy(x => x.User.LastName) : query.OrderByDescending(x => x.User.LastName);
+			}
+			if (string.Equals(sortId, "status", StringComparison.OrdinalIgnoreCase)) {
+				query = isAsc ? query.OrderBy(x => x.User.Status) : query.OrderByDescending(x => x.User.Status);
+			}
+			if (string.Equals(sortId, "level", StringComparison.OrdinalIgnoreCase)) {
+				query = isAsc ? query.OrderBy(x => x.Level) : query.OrderByDescending(x => x.Level);
+			}
 		}
 
 		var results = await query
@@ -241,16 +281,21 @@ public class UserService : IUserService {
 		int? limit = null,
 		string? sortId = null,
 		SortOrder? sortOrder = null,
+		string? q = null,
+		string? status = null,
 		CancellationToken cancellationToken = default
 	) {
 		var effectiveLimit = limit
 			?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
 		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-		var effectiveSortId =
-			(sortId ?? "id").ToLowerInvariant();
+		var effectiveSortId = sortId ?? "id";
+		var effectiveQ = q?.Trim();
+		var effectiveStatus = status?.Trim();
 
 		var sortFieldHandlers =
-			new Dictionary<string, SortFieldHandler> {
+			new Dictionary<string, SortFieldHandler>(
+				StringComparer.OrdinalIgnoreCase
+			) {
 				["id"] = new SortFieldHandler(
 					getCursorValue: async (guid) => {
 						var ua = await (
@@ -426,7 +471,7 @@ public class UserService : IUserService {
 						)
 				),
 
-				["createdat"] = new SortFieldHandler(
+				["created_at"] = new SortFieldHandler(
 					getCursorValue: async (guid) => {
 						var item = await (
 							from x in _dbContext.UserAccount
@@ -500,6 +545,25 @@ public class UserService : IUserService {
 
 		IQueryable<UserAccount> query = baseQuery;
 
+		// Apply search filter (by name or email)
+		// Search semantics: substring match (ILIKE %q%) for case-insensitive search
+		if (!string.IsNullOrEmpty(effectiveQ)) {
+			var pattern = $"%{effectiveQ}%";
+			query = query.Where(ua =>
+				(ua.User.FirstName != null && EF.Functions.ILike(ua.User.FirstName, pattern)) ||
+				(ua.User.LastName != null && EF.Functions.ILike(ua.User.LastName, pattern)) ||
+				EF.Functions.ILike(ua.User.Email, pattern)
+			);
+		}
+
+		// Apply status filter
+		if (!string.IsNullOrEmpty(effectiveStatus)) {
+			var statusEnum = User.ParseStatus(effectiveStatus);
+			if (statusEnum is not null) {
+				query = query.Where(ua => ua.User.Status == statusEnum.Value);
+			}
+		}
+
 		if (cursor != Guid.Empty) {
 			var cursorValue =
 				await handler.GetCursorValue(cursor);
@@ -556,9 +620,10 @@ public class UserService : IUserService {
 				.Where(u => u.Id == userId)
 				.ExecuteUpdateAsync(setters => setters
 					.SetProperty(u => u.Email, u => document.Email ?? u.Email)
-					.SetProperty(u => u.LastName, u => document.LastName ?? u.LastName)
-					.SetProperty(u => u.FirstName, u => document.FirstName ?? u.FirstName)
-					.SetProperty(u => u.AvatarUrl, u => document.AvatarUrl ?? u.AvatarUrl)
+					.SetProperty(u => u.LastName, u => document.LastName.IsPresent ? document.LastName.Value : u.LastName)
+					.SetProperty(u => u.FirstName, u => document.FirstName.IsPresent ? document.FirstName.Value : u.FirstName)
+					.SetProperty(u => u.AvatarUrl, u => document.AvatarUrl.IsPresent ? document.AvatarUrl.Value : u.AvatarUrl)
+					.SetProperty(u => u.Status, u => document.Status.IsPresent && document.Status.Value != null ? (UserStatus)(User.ParseStatus(document.Status.Value) ?? u.Status) : u.Status)
 					.SetProperty(u => u.UpdatedAt, DateTime.UtcNow), cancellationToken);
 
 			if (updatedCount == 0) {
@@ -662,5 +727,168 @@ public class UserService : IUserService {
 			bool,
 			IQueryable<UserAccount>
 		> ApplyOrdering { get; } = applyOrdering;
+	}
+
+	public async Task<RemoveUserFromTenantResult> RemoveUserFromTenantAsync(
+		Guid tenantId,
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		// Find the user account for this tenant
+		var userAccount = await (
+			from ua in _dbContext.UserAccount
+			where ua.TenantId == tenantId
+				&& ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+			select ua
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (userAccount is null) {
+			return new RemoveUserFromTenantResult.NotFound();
+		}
+
+		// Wrap admin check and soft delete in a transaction to prevent race conditions
+		await using var transaction =
+			await _dbContext.Database.BeginTransactionAsync(
+				IsolationLevel.Serializable,
+				cancellationToken
+			);
+
+		try {
+			// Check if this user is the last admin
+			if (userAccount.Level == AccountLevel.Admin) {
+				var adminCount = await (
+					from ua in _dbContext.UserAccount
+					where ua.TenantId == tenantId
+						&& ua.Scope == AccountScope.Tenant
+						&& ua.Level == AccountLevel.Admin
+						&& !ua.IsSuspended
+						&& !ua.IsDeleted
+					select ua
+				).CountAsync(cancellationToken);
+
+				if (adminCount <= 1) {
+					return new RemoveUserFromTenantResult.CannotRemoveLastAdmin();
+				}
+			}
+
+			// Soft delete the user account
+			userAccount.IsDeleted = true;
+			userAccount.DeletedAt = DateTime.UtcNow;
+			await _dbContext.SaveChangesAsync(cancellationToken);
+
+			await transaction.CommitAsync(cancellationToken);
+		} catch {
+			await transaction.RollbackAsync(cancellationToken);
+			throw;
+		}
+
+		return new RemoveUserFromTenantResult.Success();
+	}
+
+	public async Task<UpdateTenantUserResult> UpdateTenantUserAsync(
+		Guid tenantId,
+		Guid userId,
+		UpdateTenantUserDocument document,
+		CancellationToken cancellationToken = default
+	) {
+		// Find the user and their account for this tenant
+		var userAccount = await (
+			from ua in _dbContext.UserAccount
+			join u in _dbContext.User on ua.UserId equals u.Id
+			where ua.TenantId == tenantId
+				&& ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !u.IsDeleted
+			select new { User = u, Account = ua }
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (userAccount is null) {
+			return new UpdateTenantUserResult.NotFound();
+		}
+
+		var user = userAccount.User;
+		var account = userAccount.Account;
+
+		// Determine new level if provided
+		AccountLevel? newLevel = null;
+		if (document.Level is not null) {
+			newLevel = UserAccount.ParseAccountLevel(document.Level);
+			if (newLevel is null) {
+				return new UpdateTenantUserResult.NotFound();
+			}
+		}
+
+		// Determine if we need a transaction for the last-admin invariant check
+		var needsAdminInvariantTransaction =
+			document.Level is not null
+			&& account.Level == AccountLevel.Admin
+			&& newLevel != AccountLevel.Admin;
+
+		await using var transaction =
+			needsAdminInvariantTransaction
+				? await _dbContext.Database.BeginTransactionAsync(
+					IsolationLevel.Serializable,
+					cancellationToken
+				)
+				: null;
+
+		try {
+			// Check last-admin invariant if demoting from admin
+			if (needsAdminInvariantTransaction) {
+				var adminCount = await (
+					from ua in _dbContext.UserAccount
+					where ua.TenantId == tenantId
+						&& ua.Scope == AccountScope.Tenant
+						&& ua.Level == AccountLevel.Admin
+						&& ua.UserId != userId
+						&& !ua.IsSuspended
+						&& !ua.IsDeleted
+					select ua
+				).CountAsync(cancellationToken);
+
+				if (adminCount == 0) {
+					return new UpdateTenantUserResult.CannotDemoteLastAdmin();
+				}
+			}
+
+			// Apply all changes: account level + user profile fields
+			if (newLevel is not null) {
+				account.Level = newLevel.Value;
+			}
+			if (document.FirstName.IsPresent) {
+				user.FirstName = document.FirstName.Value;
+			}
+			if (document.LastName.IsPresent) {
+				user.LastName = document.LastName.Value;
+			}
+			if (document.AvatarUrl.IsPresent) {
+				user.AvatarUrl = document.AvatarUrl.Value;
+			}
+
+			account.UpdatedAt = DateTime.UtcNow;
+			user.UpdatedAt = DateTime.UtcNow;
+
+			await _dbContext.SaveChangesAsync(cancellationToken);
+
+			if (transaction is not null) {
+				await transaction.CommitAsync(cancellationToken);
+			}
+		} catch {
+			if (transaction is not null) {
+				await transaction.RollbackAsync(cancellationToken);
+			}
+			throw;
+		}
+
+		return new UpdateTenantUserResult.Success(
+			new TenantUserData {
+				User = user,
+				Account = account,
+				AccountLevel = account.Level
+			}
+		);
 	}
 }

@@ -314,10 +314,10 @@ public sealed class FindTenantUsersAsStaffSpec
 			queryParams.Add($"limit={limit}");
 		}
 		if (sortId is not null) {
-			queryParams.Add($"sortId={sortId}");
+			queryParams.Add($"sort_id={sortId}");
 		}
 		if (sortOrder is not null) {
-			queryParams.Add($"sortOrder={sortOrder}");
+			queryParams.Add($"sort_order={sortOrder}");
 		}
 
 		if (queryParams.Count > 0) {

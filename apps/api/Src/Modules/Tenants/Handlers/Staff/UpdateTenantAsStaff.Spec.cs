@@ -141,7 +141,7 @@ public sealed class UpdateTenantAsStaffSpec
 
 	[Fact]
 	public async Task
-	ItShouldReturn200ForEmptyPatchBody() {
+	ItShouldReturn400ForEmptyPatchBody() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -160,12 +160,7 @@ public sealed class UpdateTenantAsStaffSpec
 			);
 
 		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<GetTenantAsStaffResult>();
-		result.Should().NotBeNull();
-		result!.TenantId.Should().Be(tenantId);
+			.Be(HttpStatusCode.BadRequest);
 	}
 
 	[Fact]

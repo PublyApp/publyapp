@@ -24,13 +24,24 @@ public static class GetSystemNoticeById {
 	public static async Task<Results<
 		Ok<SystemNoticeDetail>,
 		AppNotFoundHttpResult,
+		AppBadRequestHttpResult,
 		AppForbiddenHttpResult
 	>> HandleGetSystemNoticeById(
 		[FromServices] ISystemNoticeService systemNoticeService,
-		[FromRoute] Guid noticeId,
+		[FromRoute] string noticeId,
 		CancellationToken cancellationToken = default
 	) {
-		var notice = await systemNoticeService.GetByIdAsync(noticeId, cancellationToken);
+		if (!Guid.TryParse(noticeId, out var noticeIdGuid)) {
+			return TypedProblems.BadRequest(
+				"Invalid noticeId",
+				ResponseKeys.MalformedId
+			);
+		}
+
+		var notice = await systemNoticeService.GetByIdAsync(
+			noticeIdGuid,
+			cancellationToken
+		);
 
 		if (notice is null) {
 			return TypedProblems.NotFound(

@@ -49,13 +49,7 @@ public class FindTenantsAsStaffQuery : CursorPaginatedQuery {
 
 		var statuses = new HashSet<TenantStatus>();
 		foreach (var part in parts) {
-			var parsed = part.ToLowerInvariant() switch {
-				"pending" => (TenantStatus?)TenantStatus.Pending,
-				"active" => (TenantStatus?)TenantStatus.Active,
-				"suspended" => (TenantStatus?)TenantStatus.Suspended,
-				"archived" => (TenantStatus?)TenantStatus.Archived,
-				_ => null,
-			};
+			TenantStatus? parsed = Tenant.ParseStatus(part);
 			if (parsed is { } status) {
 				statuses.Add(status);
 			}
@@ -67,7 +61,8 @@ public class FindTenantsAsStaffQuery : CursorPaginatedQuery {
 public class FindTenantsAsStaffQueryValidator
 	: CursorPaginatedQueryValidator<FindTenantsAsStaffQuery> {
 
-	private static readonly string[] AllowedStatuses = ["pending", "active", "suspended", "archived"];
+	private static readonly HashSet<string> AllowedStatuses =
+		new(["pending", "active", "suspended", "archived"], StringComparer.OrdinalIgnoreCase);
 
 	public FindTenantsAsStaffQueryValidator() {
 		RuleFor(x => x.Search).MaximumLength(200);
@@ -77,7 +72,7 @@ public class FindTenantsAsStaffQueryValidator
 				if (string.IsNullOrEmpty(raw)) return true;
 				var parts = raw.Split(',',
 					StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-				return parts.All(p => AllowedStatuses.Contains(p.ToLowerInvariant()));
+				return parts.All(p => AllowedStatuses.Contains(p));
 			})
 			.WithMessage("Invalid status value. Must be comma-separated: pending,active,suspended,archived");
 	}

@@ -57,18 +57,28 @@ public static class SuspendTenantAsStaff {
 		AppNotFoundHttpResult,
 		AppConflictHttpResult
 	>> HandleSuspendTenantAsStaff(
-		[FromRoute] Guid tenantId,
+		[FromRoute] string tenantId,
 		[FromServices] ITenantAsStaffService tenantService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
 		[FromBody] SuspendTenantAsStaffBody request,
 		CancellationToken cancellationToken = default
 	) {
+		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
+			return TypedProblems.BadRequest(
+				"Invalid tenantId",
+				ResponseKeys.MalformedId
+			);
+		}
+
 		var reason = request.Reason?.ValueKind == JsonValueKind.String
 			? request.Reason.Value.GetString()
 			: null;
 
-		var result = await tenantService.SuspendTenantAsync(tenantId, cancellationToken);
+		var result = await tenantService.SuspendTenantAsync(
+			tenantIdGuid,
+			cancellationToken
+		);
 
 		if (result.Error
 			is SuspendTenantError.NotFound
@@ -121,7 +131,7 @@ public static class SuspendTenantAsStaff {
 		await auditLogService.LogAsync(
 			account.UserId,
 			AuditActions.TenantSuspended,
-			tenantId,
+			tenantIdGuid,
 			new { TenantName = tenant.Name, Reason = reason },
 			cancellationToken
 		);

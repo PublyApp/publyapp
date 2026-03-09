@@ -3,8 +3,13 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import _ from 'lodash';
@@ -14,9 +19,11 @@ import {
 	type MRT_ColumnDef,
 	type MRT_SortingState,
 } from 'material-react-table';
+import { parseAsString, useQueryStates } from 'nuqs';
 import { useBoolean } from 'minimal-shared/hooks';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 
 import {
 	ACCOUNT_LEVEL_ENUM,
@@ -43,7 +50,11 @@ import {
 	useGetVerificationLink,
 	useSendEmailVerificationReminder,
 } from '@/front/lib/react-query/features/common/auth.hooks';
-import { useFindTenantUsers } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
+import {
+	useFindTenantUsers,
+	useRemoveTenantUser,
+	useUpdateTenantUser,
+} from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
 
 export type TenantUserRowData = {
 	id: string;
@@ -59,11 +70,35 @@ const columnHelper = createMRTColumnHelper<TenantUserRowData>();
 
 const defaultSorting: MRT_SortingState[number] = {
 	desc: true,
-	id: 'createdAt',
+	id: 'createdat',
 };
 
 const TenantUsersTable = () => {
 	const { t } = useTranslate();
+
+	// Search and filter state
+	const [filterStates, setFilterStates] = useQueryStates({
+		q: parseAsString.withDefault(''),
+		status: parseAsString.withDefault(''),
+	});
+
+	const [searchValue, setSearchValue] = useState(filterStates.q);
+	const [statusFilter, setStatusFilter] = useState(filterStates.status);
+
+	// Debounce search
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setFilterStates({ q: searchValue });
+		}, 300);
+		return () => clearTimeout(timer);
+	}, [searchValue, setFilterStates]);
+
+	// Reset cursor when filters change
+	useEffect(() => {
+		if (handlePaginationChange) {
+			handlePaginationChange({ pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE });
+		}
+	}, [filterStates.q, filterStates.status]);
 
 	// Use the custom table state hook with cursor pagination
 	const {
@@ -119,6 +154,8 @@ const TenantUsersTable = () => {
 			cursor: apiVariables.cursor || undefined,
 			limit: apiVariables.limit,
 			sort: apiVariables.sort,
+			q: filterStates.q || undefined,
+			status: filterStates.status || undefined,
 		},
 		enabled: !!tenantId,
 	});
@@ -197,6 +234,41 @@ const TenantUsersTable = () => {
 
 	return (
 		<Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+			<Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+				<TextField
+					size="small"
+					placeholder={t('search')}
+					value={searchValue}
+					onChange={(e) => setSearchValue(e.target.value)}
+					sx={{ minWidth: 250 }}
+					InputProps={{
+						startAdornment: (
+							<InputAdornment position="start">
+								<Iconify icon="eva:search-fill" />
+							</InputAdornment>
+						),
+					}}
+				/>
+				<Select
+					size="small"
+					value={statusFilter}
+					onChange={(e) => {
+						setStatusFilter(e.target.value);
+						setFilterStates({ status: e.target.value });
+					}}
+					sx={{ minWidth: 150 }}
+					displayEmpty
+				>
+					<MenuItem value="">
+						<Typography variant="body2">{t('all-statuses')}</Typography>
+					</MenuItem>
+					<MenuItem value={USER_STATUS_ENUM.ACTIVE}>{t('active')}</MenuItem>
+					<MenuItem value={USER_STATUS_ENUM.PENDING}>{t('pending')}</MenuItem>
+					<MenuItem value={USER_STATUS_ENUM.SUSPENDED}>
+						{t('suspended')}
+					</MenuItem>
+				</Select>
+			</Stack>
 			<MaterialReactTable table={table} />
 		</Box>
 	);
@@ -346,14 +418,60 @@ const ALLOW_COPY_LINK = false;
 const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
 	const userId = props.row.original.id;
 	const isUserPending = props.row.original.status === USER_STATUS_ENUM.PENDING;
+	const currentLevel = props.row.original.level;
 
 	const confirmDialog = useBoolean();
+	const levelMenuAnchor = useBoolean();
 	const { t } = useTranslate();
+	const { tenantId } = useParams();
+	const queryClient = useQueryClient();
+
+	const { mutate: removeUser, isPending: isRemoving } = useRemoveTenantUser({
+		onSuccess: () => {
+			toast.success(t('user-removed-success'));
+			confirmDialog.onFalse();
+			if (tenantId) {
+				queryClient.invalidateQueries({
+					queryKey: useFindTenantUsers.getKey({ tenantId }),
+				});
+			}
+		},
+		onError: (error: unknown) => {
+			const message =
+				(error as { message?: string })?.message || t('user-removed-error');
+			toast.error(message);
+		},
+	});
+
+	const { mutate: updateUser, isPending: isUpdating } = useUpdateTenantUser({
+		onSuccess: () => {
+			toast.success(t('user-level-updated-success'));
+			levelMenuAnchor.onFalse();
+			if (tenantId) {
+				queryClient.invalidateQueries({
+					queryKey: useFindTenantUsers.getKey({ tenantId }),
+				});
+			}
+		},
+		onError: (error: unknown) => {
+			const message =
+				(error as { message?: string })?.message ||
+				t('user-level-updated-error');
+			toast.error(message);
+		},
+	});
 
 	const onConfirmDeleteRow = () => {
-		logger.info('onConfirmDeleteRow', { userId });
-		toast.warning('TODO: implement delete');
+		if (!tenantId) return;
+		removeUser({ tenantId, userId });
 	};
+
+	const handleChangeLevel = (newLevel: 'Admin' | 'User') => {
+		if (!tenantId) return;
+		updateUser({ tenantId, userId, level: newLevel });
+	};
+
+	const isLoading = isRemoving || isUpdating;
 
 	const renderConfirmDialog = () => (
 		<ConfirmDialog
@@ -362,7 +480,12 @@ const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
 			title={t('delete-item', { item: t('staff-user') })}
 			content={t('confirm-delete-dialog-text')}
 			action={
-				<Button variant="contained" color="error" onClick={onConfirmDeleteRow}>
+				<Button
+					variant="contained"
+					color="error"
+					onClick={onConfirmDeleteRow}
+					disabled={isLoading}
+				>
 					{t('delete')}
 				</Button>
 			}
@@ -371,7 +494,50 @@ const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
 
 	return (
 		<>
-			<Box sx={{ display: 'flex', alignItems: 'center' }}>
+			<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+				<Tooltip title={t('change-role')} placement="top" arrow>
+					<IconButton
+						color={'default'}
+						onClick={levelMenuAnchor.onTrue}
+						disabled={isLoading}
+					>
+						<Iconify icon="solar:shield-check-bold" />
+					</IconButton>
+				</Tooltip>
+
+				<Menu
+					open={levelMenuAnchor.value}
+					onClose={levelMenuAnchor.onFalse}
+					anchorEl={levelMenuAnchor.value ? document.activeElement : null}
+					anchorOrigin={{
+						vertical: 'top',
+						horizontal: 'left',
+					}}
+					transformOrigin={{
+						vertical: 'top',
+						horizontal: 'right',
+					}}
+				>
+					<MenuItem
+						disabled={currentLevel === 'Admin'}
+						onClick={() => handleChangeLevel('Admin')}
+					>
+						<Stack direction="row" alignItems="center" gap={1}>
+							<Iconify icon="solar:shield-check-bold" />
+							{t('admin')}
+						</Stack>
+					</MenuItem>
+					<MenuItem
+						disabled={currentLevel === 'User'}
+						onClick={() => handleChangeLevel('User')}
+					>
+						<Stack direction="row" alignItems="center" gap={1}>
+							<Iconify icon="solar:user-id-bold" />
+							{t('user')}
+						</Stack>
+					</MenuItem>
+				</Menu>
+
 				<FollowUpButton
 					isUserPending={isUserPending}
 					email={props.row.original.email}
@@ -393,10 +559,11 @@ const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
 					</IconButton>
 				</Tooltip>
 
-				<Tooltip title="Delete" placement="top" arrow>
+				<Tooltip title={t('delete')} placement="top" arrow>
 					<IconButton
 						color={'default'}
 						onClick={confirmDialog.onTrue}
+						disabled={isLoading}
 						sx={{ color: 'error.main' }}
 					>
 						<Iconify icon="solar:trash-bin-trash-bold" />

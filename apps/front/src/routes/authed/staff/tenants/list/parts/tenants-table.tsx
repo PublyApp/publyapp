@@ -9,6 +9,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Select, { type SelectChangeEvent } from '@mui/material/Select';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
 import {
@@ -31,6 +32,7 @@ import {
 } from '@org/shared-ts/lib/constants';
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { Iconify } from '@/front/components/iconify/iconify';
+import { toast } from '@/front/components/snackbar';
 import { Label } from '@/front/components/label/label';
 import type { LabelColor } from '@/front/components/label/types';
 import { RouterLink } from '@/front/components/router-link';
@@ -40,6 +42,9 @@ import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
 import {
+	useBulkDeleteTenants,
+	useBulkReactivateTenants,
+	useBulkSuspendTenants,
 	useFindTenants,
 	useReactivateTenant,
 	useSuspendTenant,
@@ -137,8 +142,117 @@ const TenantsTable = () => {
 		setFilterStates({ q: globalFilter, status: value });
 	};
 
-	// Row selection state for bulk actions (placeholder for future)
-	const [rowSelection] = useState<Record<string, boolean>>({});
+	// Row selection state for bulk actions
+	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+
+	// Bulk action mutations
+	const queryClient = useQueryClient();
+	const [bulkActionDialog, setBulkActionDialog] = useState<{
+		type: 'suspend' | 'reactivate' | 'delete';
+		open: boolean;
+	}>({ type: 'suspend', open: false });
+
+	const { mutate: bulkSuspend, isPending: isBulkSuspending } =
+		useBulkSuspendTenants({
+			onSuccess: (result) => {
+				const succeeded = result.succeededCount ?? 0;
+				const failed = result.failedCount ?? 0;
+				if (failed > 0) {
+					toast.warning(
+						t('bulk-action-partial-success', {
+							action: t('suspended') ?? 'suspended',
+							succeeded,
+							failed,
+						}),
+					);
+				} else {
+					toast.success(
+						t('bulk-action-success', {
+							action: t('suspended') ?? 'suspended',
+							count: succeeded,
+						}),
+					);
+				}
+				setBulkActionDialog({ type: 'suspend', open: false });
+				setRowSelection({});
+				queryClient.invalidateQueries({
+					queryKey: useFindTenants.getKey(),
+				});
+			},
+		});
+
+	const { mutate: bulkReactivate, isPending: isBulkReactivating } =
+		useBulkReactivateTenants({
+			onSuccess: (result) => {
+				const succeeded = result.succeededCount ?? 0;
+				const failed = result.failedCount ?? 0;
+				if (failed > 0) {
+					toast.warning(
+						t('bulk-action-partial-success', {
+							action: t('reactivate') ?? 'reactivated',
+							succeeded,
+							failed,
+						}),
+					);
+				} else {
+					toast.success(
+						t('bulk-action-success', {
+							action: t('reactivate') ?? 'reactivated',
+							count: succeeded,
+						}),
+					);
+				}
+				setBulkActionDialog({ type: 'reactivate', open: false });
+				setRowSelection({});
+				queryClient.invalidateQueries({
+					queryKey: useFindTenants.getKey(),
+				});
+			},
+		});
+
+	const { mutate: bulkDelete, isPending: isBulkDeleting } =
+		useBulkDeleteTenants({
+			onSuccess: (result) => {
+				const succeeded = result.succeededCount ?? 0;
+				const failed = result.failedCount ?? 0;
+				if (failed > 0) {
+					toast.warning(
+						t('bulk-action-partial-success', {
+							action: t('deleted') ?? 'deleted',
+							succeeded,
+							failed,
+						}),
+					);
+				} else {
+					toast.success(
+						t('bulk-action-success', {
+							action: t('deleted') ?? 'deleted',
+							count: succeeded,
+						}),
+					);
+				}
+				setBulkActionDialog({ type: 'delete', open: false });
+				setRowSelection({});
+				queryClient.invalidateQueries({
+					queryKey: useFindTenants.getKey(),
+				});
+			},
+		});
+
+	const handleBulkSuspend = () => {
+		const selectedIds = Object.keys(rowSelection);
+		bulkSuspend({ tenantIds: selectedIds });
+	};
+
+	const handleBulkReactivate = () => {
+		const selectedIds = Object.keys(rowSelection);
+		bulkReactivate({ tenantIds: selectedIds });
+	};
+
+	const handleBulkDelete = () => {
+		const selectedIds = Object.keys(rowSelection);
+		bulkDelete({ tenantIds: selectedIds });
+	};
 
 	const columns = useMemo(() => {
 		return [
@@ -225,6 +339,7 @@ const TenantsTable = () => {
 	const table = useMRTTable('minimal-cursor', {
 		columns,
 		data: dataTable,
+		enableRowSelection: true,
 		getRowId: (row) => row.id,
 		initialState: {
 			columnVisibility: {
@@ -233,11 +348,19 @@ const TenantsTable = () => {
 			},
 		},
 		manualSorting: true,
+		onRowSelectionChange: (updater) => {
+			if (typeof updater === 'function') {
+				setRowSelection(updater(rowSelection));
+			} else {
+				setRowSelection(updater);
+			}
+		},
 		onSortingChange: handleSortingChange,
 		state: {
 			...tableState,
 			...queryState,
 			density: 'compact',
+			rowSelection,
 		},
 		meta: {
 			handlePaginationChange,
@@ -253,7 +376,7 @@ const TenantsTable = () => {
 		},
 	});
 
-	// Bulk actions (UI placeholder - bulk mutations not implemented yet)
+	// Bulk actions
 	const selectedCount = Object.keys(rowSelection).length;
 
 	// Toolbar with search and filters
@@ -299,9 +422,102 @@ const TenantsTable = () => {
 					<MenuItem value="archived">{t('archived')}</MenuItem>
 				</Select>
 
+				<Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
+					<Button
+						size="small"
+						variant="outlined"
+						onClick={() => {
+							// Client-side export of current page only
+							// Note: Full filtered export requires backend endpoint
+							const dataToExport = dataTable;
+							const headers = [
+								'Name',
+								'Status',
+								'Users',
+								'Max Users',
+								'Suspended',
+							];
+							const rows = dataToExport.map((t) => [
+								`"${t.name}"`,
+								t.status,
+								t.usersCount.toString(),
+								t.maxUsers.toString(),
+								t.isSuspended ? 'Yes' : 'No',
+							]);
+							const csv = [headers, ...rows].map((r) => r.join(',')).join('\n');
+							const blob = new Blob([csv], { type: 'text/csv' });
+							const url = URL.createObjectURL(blob);
+							const a = document.createElement('a');
+							a.href = url;
+							a.download = 'tenants.csv';
+							a.click();
+							URL.revokeObjectURL(url);
+						}}
+						startIcon={<Iconify icon="solar:download-bold" />}
+					>
+						{t('export-csv')}
+					</Button>
+					<Button
+						size="small"
+						variant="outlined"
+						onClick={() => {
+							// Client-side export of current page only
+							const blob = new Blob([JSON.stringify(dataTable, null, 2)], {
+								type: 'application/json',
+							});
+							const url = URL.createObjectURL(blob);
+							const a = document.createElement('a');
+							a.href = url;
+							a.download = 'tenants.json';
+							a.click();
+							URL.revokeObjectURL(url);
+						}}
+						startIcon={<Iconify icon="solar:copy-bold" />}
+					>
+						{t('export-json')}
+					</Button>
+				</Box>
+
 				{selectedCount > 0 && (
-					<Box sx={{ ml: 'auto' }}>
-						{t('selected-count', { count: selectedCount })}
+					<Box
+						sx={{ ml: 'auto', display: 'flex', gap: 1, alignItems: 'center' }}
+					>
+						<Typography variant="body2">
+							{t('selected-count', { count: selectedCount })}
+						</Typography>
+						<Button
+							size="small"
+							color="warning"
+							variant="outlined"
+							onClick={() =>
+								setBulkActionDialog({ type: 'suspend', open: true })
+							}
+							startIcon={<Iconify icon="solar:forbidden-circle-bold" />}
+						>
+							{t('bulk-suspend')}
+						</Button>
+						<Button
+							size="small"
+							color="success"
+							variant="outlined"
+							onClick={() =>
+								setBulkActionDialog({ type: 'reactivate', open: true })
+							}
+							startIcon={<Iconify icon="solar:play-circle-bold" />}
+						>
+							{t('bulk-reactivate')}
+						</Button>
+						<Button
+							size="small"
+							color="error"
+							variant="outlined"
+							onClick={() =>
+								setBulkActionDialog({ type: 'delete', open: true })
+							}
+							startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+						>
+							{t('bulk-delete')}
+						</Button>
 					</Box>
 				)}
 			</Box>
@@ -319,6 +535,60 @@ const TenantsTable = () => {
 		>
 			{renderTopToolbar()}
 			<MaterialReactTable table={table} />
+
+			{/* Bulk Suspend Confirmation Dialog */}
+			<ConfirmDialog
+				open={bulkActionDialog.type === 'suspend' && bulkActionDialog.open}
+				onClose={() => setBulkActionDialog({ type: 'suspend', open: false })}
+				title={t('bulk-suspend')}
+				content={t('bulk-suspend-confirm', { count: selectedCount })}
+				action={
+					<Button
+						variant="contained"
+						color="warning"
+						onClick={handleBulkSuspend}
+						disabled={isBulkSuspending}
+					>
+						{t('suspend')}
+					</Button>
+				}
+			/>
+
+			{/* Bulk Reactivate Confirmation Dialog */}
+			<ConfirmDialog
+				open={bulkActionDialog.type === 'reactivate' && bulkActionDialog.open}
+				onClose={() => setBulkActionDialog({ type: 'reactivate', open: false })}
+				title={t('bulk-reactivate')}
+				content={t('bulk-reactivate-confirm', { count: selectedCount })}
+				action={
+					<Button
+						variant="contained"
+						color="success"
+						onClick={handleBulkReactivate}
+						disabled={isBulkReactivating}
+					>
+						{t('reactivate')}
+					</Button>
+				}
+			/>
+
+			{/* Bulk Delete Confirmation Dialog */}
+			<ConfirmDialog
+				open={bulkActionDialog.type === 'delete' && bulkActionDialog.open}
+				onClose={() => setBulkActionDialog({ type: 'delete', open: false })}
+				title={t('bulk-delete')}
+				content={t('bulk-delete-confirm', { count: selectedCount })}
+				action={
+					<Button
+						variant="contained"
+						color="error"
+						onClick={handleBulkDelete}
+						disabled={isBulkDeleting}
+					>
+						{t('delete')}
+					</Button>
+				}
+			/>
 		</Box>
 	);
 };
