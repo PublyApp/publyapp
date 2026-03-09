@@ -24,7 +24,7 @@ public class FindStaffUsersResult {
 	public required int Count { get; set; }
 }
 
-public class FindStaffUsersQuery : PaginatedQuery { }
+public class FindStaffUsersQuery : OffsetPaginatedQuery { }
 
 public class FindStaffUsersQueryValidator : OffsetPaginatedQueryValidator<FindStaffUsersQuery> { }
 

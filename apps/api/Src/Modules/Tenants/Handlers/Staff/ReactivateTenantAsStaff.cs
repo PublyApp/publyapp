@@ -22,15 +22,26 @@ public static class ReactivateTenantAsStaff {
 	public static async Task<Results<
 		Ok<TenantReactivatedResult>,
 		AppNotFoundHttpResult,
+		AppBadRequestHttpResult,
 		AppConflictHttpResult
 	>> HandleReactivateTenantAsStaff(
-		[FromRoute] Guid tenantId,
+		[FromRoute] string tenantId,
 		[FromServices] ITenantAsStaffService tenantService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
 		CancellationToken cancellationToken = default
 	) {
-		var result = await tenantService.ReactivateTenantAsync(tenantId, cancellationToken);
+		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
+			return TypedProblems.BadRequest(
+				"Invalid tenantId",
+				ResponseKeys.MalformedId
+			);
+		}
+
+		var result = await tenantService.ReactivateTenantAsync(
+			tenantIdGuid,
+			cancellationToken
+		);
 
 		if (result.Error
 			is ReactivateTenantError.NotFound
@@ -74,7 +85,7 @@ public static class ReactivateTenantAsStaff {
 		await auditLogService.LogAsync(
 			account.UserId,
 			AuditActions.TenantReactivated,
-			tenantId,
+			tenantIdGuid,
 			new { TenantName = tenant.Name },
 			cancellationToken
 		);

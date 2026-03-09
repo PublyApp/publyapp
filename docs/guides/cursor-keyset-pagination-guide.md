@@ -186,7 +186,9 @@ public class StaffProfileItem {
 
 ### Step 2: Define Service Interface
 
-Create a discriminated union for the result type to handle errors:
+Create a discriminated union for the result type to handle errors. Keep C#
+property names idiomatic, but expose multi-word query params on the wire in
+snake_case via `[FromQuery(Name = "...")]`.
 
 ```csharp
 /// <summary>
@@ -204,7 +206,7 @@ public abstract record FindEntitiesResult {
     public sealed record CursorNotFound(string Cursor) : FindEntitiesResult;
 
     /// <summary>
-    /// Error result when the sortId is not supported.
+    /// Error result when the sort_id value is not supported.
     /// </summary>
     public sealed record InvalidSortId(string SortId) : FindEntitiesResult;
 }
@@ -234,7 +236,7 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
 ) {
     var effectiveLimit = limit ?? _appSettings.Value.PAGINATION_DEFAULT_LIMIT;
     var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-    var effectiveSortId = (sortId ?? "id").ToLowerInvariant();
+    var effectiveSortId = sortId ?? "id";
 
     // ═══════════════════════════════════════════════════════════════════════
     // STEP 3.1: Define Sort Field Handlers
@@ -352,7 +354,7 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
     };
 
     // ═══════════════════════════════════════════════════════════════════════
-    // STEP 3.2: Validate sortId Parameter
+    // STEP 3.2: Validate sort_id Parameter
     // ═══════════════════════════════════════════════════════════════════════
     if (!sortFieldHandlers.ContainsKey(effectiveSortId)) {
         return new FindEntitiesResult.InvalidSortId(effectiveSortId);
@@ -448,7 +450,13 @@ namespace MainApi.Src.Features.YourFeature.Handlers;
 
 public class FindEntitiesResult : CursorPaginatedResult<EntityItem> { }
 
-public class FindEntitiesQuery : CursorPaginatedQuery { }
+public class FindEntitiesQuery : CursorPaginatedQuery {
+    [FromQuery(Name = "sort_id")]
+    public string? SortId { get; init; }
+
+    [FromQuery(Name = "sort_order")]
+    public string? SortOrder { get; init; }
+}
 
 public class FindEntitiesQueryValidator : CursorPaginatedQueryValidator<FindEntitiesQuery> { }
 
@@ -501,7 +509,7 @@ public class FindEntities {
 
         if (serviceResult is YourFeature.FindEntitiesResult.InvalidSortId sortIdError) {
             return TypedProblems.BadRequest(
-                $"Invalid sortId: {sortIdError.SortId}. Allowed values: id, name, created_at, related_count",
+                $"Invalid sort_id: {sortIdError.SortId}. Allowed values: id, name, created_at, related_count",
                 ResponseKeys.BadRequest
             );
         }
@@ -613,11 +621,15 @@ return results;  // Correctly returns 10 records
 
 ## Best Practices
 
-### 0. Keep `sortId` Stable Across Frontend and Backend
+### 0. Keep `sort_id` Stable Across Frontend and Backend
 
-Cursor pagination requires deterministic ordering. In this codebase, list pages use **snake_case** `sortId` values (e.g., `created_at`, `updated_at`, `name`).
+Cursor pagination requires deterministic ordering. In this codebase, list pages
+use **snake_case** `sort_id` values on the wire (e.g., `created_at`,
+`updated_at`, `name`).
 
-**Frontend note (Material React Table):** MRT emits sorting IDs from column `id`. If the backend expects snake_case sort IDs, the table columns must explicitly set snake_case IDs:
+**Frontend note (Material React Table):** MRT emits sorting IDs from column `id`.
+If the backend expects snake_case sort IDs, the table columns must explicitly set
+snake_case IDs:
 
 ```ts
 columnHelper.accessor('createdAt', { id: 'created_at', header: 'Created at' });
@@ -625,7 +637,8 @@ columnHelper.accessor('updatedAt', { id: 'updated_at', header: 'Updated at' });
 columnHelper.accessor('name', { id: 'name', header: 'Name' });
 ```
 
-If a visible column is not supported by backend sorting, set `enableSorting: false` to prevent sending invalid `sortId` values.
+If a visible column is not supported by backend sorting, set `enableSorting: false`
+to prevent sending invalid `sort_id` values.
 
 ### 1. Always Use Discriminated Unions for Results
 
@@ -663,7 +676,7 @@ In error messages and documentation, clearly state which sort fields are support
 
 ```csharp
 return TypedProblems.BadRequest(
-    $"Invalid sortId: {sortIdError.SortId}. Allowed values: id, name, created_at, user_account_count",
+    $"Invalid sort_id: {sortIdError.SortId}. Allowed values: id, name, created_at, user_account_count",
     ResponseKeys.BadRequest
 );
 ```
@@ -673,8 +686,12 @@ return TypedProblems.BadRequest(
 Choose a default sort that makes sense for your domain:
 
 ```csharp
-var effectiveSortId = (sortId ?? "created_at").ToLowerInvariant();  // Most recent first
+var effectiveSortId = sortId ?? "created_at";  // Most recent first
 ```
+
+Validate the value against a case-sensitive snake_case allowlist, or normalize it
+through an explicit parser/dictionary built with
+`StringComparer.OrdinalIgnoreCase`. Do not use `ToLowerInvariant()` for dispatch.
 
 ### 5. Consider Database Indexes
 
@@ -688,9 +705,9 @@ CREATE INDEX idx_profiles_name_id ON profiles(name, id);
 CREATE INDEX idx_profiles_created_at_id ON profiles(created_at, id);
 ```
 
-### 6. Validate sortId Early
+### 6. Validate `sort_id` Early
 
-Validate the sortId parameter before doing any database work:
+Validate the wire `sort_id` parameter before doing any database work:
 
 ```csharp
 if (!sortFieldHandlers.ContainsKey(effectiveSortId)) {
@@ -724,7 +741,7 @@ When implementing cursor pagination:
 - [ ] For non-Id sorts: included tie-breaker in `applyFilter` (OR clause with Id comparison)
 - [ ] For non-Id sorts: included tie-breaker in `applyOrdering` (ThenBy/ThenByDescending)
 - [ ] Tie-breaker direction matches primary sort direction
-- [ ] Validated `sortId` parameter against allowed values
+- [ ] Validated `sort_id` parameter against allowed values
 - [ ] Handled `cursor == Guid.Empty` for first page
 - [ ] Validated cursor exists before applying filter
 - [ ] Fetched `limit + 1` records to detect more pages

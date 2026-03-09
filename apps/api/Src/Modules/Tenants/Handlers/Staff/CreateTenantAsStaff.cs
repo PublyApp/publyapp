@@ -151,13 +151,13 @@ public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAs
 								"AccountLevel is required"
 							);
 						} else {
-							var normalizedLevel = level.ToLowerInvariant();
-							if (normalizedLevel != "admin" && normalizedLevel != "user") {
+							var parsedLevel = UserAccount.ParseAccountLevel(level);
+							if (parsedLevel is null) {
 								context.AddFailure(
 									$"initialUsers[{i}].accountLevel",
 									"AccountLevel must be 'admin' or 'user'"
 								);
-							} else if (normalizedLevel == "admin") {
+							} else if (parsedLevel is AccountLevel.Admin) {
 								hasAdmin = true;
 							}
 						}
@@ -214,7 +214,10 @@ public static class CreateTenantAsStaff {
 
 		var staffAccount = authContext.AccountStaff;
 		if (staffAccount is null) {
-			return TypedProblems.BadRequest("Unauthorized", ResponseKeys.Unauthorized);
+			throw new InvalidOperationException(
+				"Staff account not found in auth context. "
+				+ "Ensure the endpoint has .WithPermission() middleware."
+			);
 		}
 
 		var tenantName = body.GetName();

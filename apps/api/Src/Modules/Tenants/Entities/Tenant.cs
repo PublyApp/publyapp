@@ -50,6 +50,22 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 		};
 	}
 
+	public static TenantStatus? ParseStatus(string statusString) {
+		if (string.Equals(statusString, "pending", StringComparison.OrdinalIgnoreCase)) {
+			return TenantStatus.Pending;
+		}
+		if (string.Equals(statusString, "active", StringComparison.OrdinalIgnoreCase)) {
+			return TenantStatus.Active;
+		}
+		if (string.Equals(statusString, "suspended", StringComparison.OrdinalIgnoreCase)) {
+			return TenantStatus.Suspended;
+		}
+		if (string.Equals(statusString, "archived", StringComparison.OrdinalIgnoreCase)) {
+			return TenantStatus.Archived;
+		}
+		return null;
+	}
+
 	public static bool IsTenantActive(Tenant tenant) {
 		return tenant.Status == TenantStatus.Active && !tenant.IsSuspended;
 	}

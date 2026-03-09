@@ -1,6 +1,7 @@
 namespace MainApi.Src.Lib.Testing.Helpers;
 
 using System.Net.Http.Json;
+using System.Text.Json;
 
 using MainApi.Src.Lib.Routes;
 using MainApi.Src.Lib.Utils;
@@ -35,10 +36,10 @@ internal static class TenantTestHelper {
 			queryParams.Add($"limit={limit.Value}");
 		}
 		if (sortId is not null) {
-			queryParams.Add($"sortId={sortId}");
+			queryParams.Add($"sort_id={sortId}");
 		}
 		if (sortOrder is not null) {
-			queryParams.Add($"sortOrder={sortOrder}");
+			queryParams.Add($"sort_order={sortOrder}");
 		}
 		if (q is not null) {
 			queryParams.Add($"q={q}");
@@ -311,6 +312,32 @@ internal static class TenantTestHelper {
 				tenantId.ToString()
 			)
 		);
+	}
+
+	/// <summary>
+	/// Creates a tenant via POST /staff/tenants.
+	/// </summary>
+	public static async Task<HttpResponseMessage>
+	CreateTenantAsync(
+		HttpClient http,
+		string staffToken,
+		JsonElement body,
+		CancellationToken ct = default
+	) {
+		var url = PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Tenants.ForStaff.Root,
+			Routes.Tenants.ForStaff.Create
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			url
+		).WithSessionToken(staffToken);
+
+		request.Content = JsonContent.Create(body);
+
+		return await http.SendAsync(request, ct);
 	}
 
 	// Response DTOs for tenant list deserialization

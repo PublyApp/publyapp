@@ -91,7 +91,7 @@ public sealed class FindSystemNoticesSpec
 		var token =
 			await _authClient.LoginAsStaffAdminAsync();
 
-		var url = FindUrl + "?sortId=invalid_field";
+		var url = FindUrl + "?sort_id=invalid_field";
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
 		).WithSessionToken(token);
@@ -186,7 +186,7 @@ public sealed class FindSystemNoticesSpec
 			ids.Add(lateId);
 
 			var url = FindUrl
-				+ "?sortId=starts_at&sortOrder=asc";
+				+ "?sort_id=starts_at&sort_order=asc";
 			var request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(token);

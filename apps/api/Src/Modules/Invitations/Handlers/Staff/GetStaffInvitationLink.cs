@@ -18,12 +18,19 @@ public static class GetStaffInvitationLink {
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
 	>> HandleGetStaffInvitationLink(
-		[FromRoute] Guid invitationId,
+		[FromRoute] string invitationId,
 		[FromServices] IInvitationService invitationService,
 		CancellationToken cancellationToken = default
 	) {
+		if (!Guid.TryParse(invitationId, out var invitationIdGuid)) {
+			return TypedProblems.BadRequest(
+				"Invalid invitationId",
+				ResponseKeys.MalformedId
+			);
+		}
+
 		var invitation = await invitationService.GetStaffInvitationByIdAsync(
-			invitationId,
+			invitationIdGuid,
 			cancellationToken
 		);
 

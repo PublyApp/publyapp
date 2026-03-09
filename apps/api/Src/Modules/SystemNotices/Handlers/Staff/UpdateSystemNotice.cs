@@ -64,9 +64,6 @@ public record SystemNoticeUpdated {
 
 public class UpdateSystemNoticeBodyValidator
 	: AbstractValidator<UpdateSystemNoticeBody> {
-	private static readonly string[] ValidSeverities =
-		["info", "warning", "critical"];
-
 	public UpdateSystemNoticeBodyValidator() {
 		RuleFor(x => x.Severity)
 			.Must(e => e is null
@@ -136,9 +133,11 @@ public class UpdateSystemNoticeBodyValidator
 			!= JsonValueKind.String) {
 			return false;
 		}
-		var value = element.Value.GetString()
-			?.ToLowerInvariant();
-		return ValidSeverities.Contains(value);
+		var value = element.Value.GetString();
+		if (value is null) {
+			return false;
+		}
+		return SystemNotice.ParseSeverity(value) is not null;
 	}
 
 	private bool BeValidDateTimeOrNull(JsonElement? element) {
@@ -182,20 +181,46 @@ public static class UpdateSystemNotice {
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] ISystemNoticeService systemNoticeService,
 		[FromServices] IAuditLogService auditLogService,
-		[FromRoute] Guid noticeId,
+		[FromRoute] string noticeId,
 		[FromBody] UpdateSystemNoticeBody body,
 		CancellationToken cancellationToken = default
 	) {
+		// IMPOSSIBLE STATE: Staff endpoint without staff account
 		var account = authContext.AccountStaff;
 		if (account is null) {
 			throw new InvalidOperationException(
 				"Staff account not found in auth context. "
-				+ "Ensure the endpoint has "
-				+ ".WithPermission() middleware."
+				+ "Ensure the endpoint has .WithPermission() middleware."
 			);
 		}
 
+		// Validate noticeId format
+		if (!Guid.TryParse(noticeId, out var noticeIdGuid)) {
+			return TypedProblems.BadRequest(
+				"Invalid noticeId",
+				ResponseKeys.MalformedId
+			);
+		}
+
+		// Cache body getters to avoid repeated calls
 		var severityStr = body.GetSeverity();
+		var title = body.GetTitle();
+		var message = body.GetMessage();
+		var startsAt = body.GetStartsAt();
+		var expiresAt = body.GetExpiresAt();
+
+		// Guard against empty PATCH body
+		if (severityStr is null
+			&& title is null
+			&& message is null
+			&& startsAt is null
+			&& !expiresAt.IsPresent) {
+			return TypedProblems.BadRequest(
+				"No fields to update",
+				ResponseKeys.BadRequest
+			);
+		}
+
 		NoticeSeverity? severity = null;
 		if (severityStr is not null) {
 			var parsedSeverity =
@@ -211,14 +236,14 @@ public static class UpdateSystemNotice {
 
 		var args = new UpdateSystemNoticeArgs(
 			Severity: severity,
-			Title: body.GetTitle(),
-			Message: body.GetMessage(),
-			StartsAt: body.GetStartsAt(),
-			ExpiresAt: body.GetExpiresAt()
+			Title: title,
+			Message: message,
+			StartsAt: startsAt,
+			ExpiresAt: expiresAt
 		);
 
 		var notice = await systemNoticeService.UpdateAsync(
-			noticeId, args, cancellationToken
+			noticeIdGuid, args, cancellationToken
 		);
 
 		if (notice is null) {
@@ -231,7 +256,7 @@ public static class UpdateSystemNotice {
 		await auditLogService.LogAsync(
 			account.UserId,
 			AuditActions.SystemNoticeUpdated,
-			noticeId,
+			noticeIdGuid,
 			new {
 				Severity = severity?.ToString()
 					.ToLowerInvariant(),

@@ -74,15 +74,13 @@ export interface InvitationsRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const InvitationsRequestBuilderUriTemplate = "{+baseurl}/staff/invitations{?Cursor*,Limit*,SortId*,SortOrder*,Status*}";
+export const InvitationsRequestBuilderUriTemplate = "{+baseurl}/staff/invitations{?Status*,cursor*,limit*,sort_id*,sort_order*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
 const InvitationsRequestBuilderGetQueryParametersMapper: Record<string, string> = {
-    "cursor": "Cursor",
-    "limit": "Limit",
-    "sortId": "SortId",
-    "sortOrder": "SortOrder",
+    "sortId": "sort_id",
+    "sortOrder": "sort_order",
     "status": "Status",
 };
 /**

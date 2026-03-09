@@ -22,6 +22,9 @@ public static partial class Routes {
 			public static string UpdateFn(string tenantId) => $"/{tenantId}";
 			public const string Delete = "/{tenantId}";
 			public static string DeleteFn(string tenantId) => $"/{tenantId}";
+			public const string BulkSuspend = "/bulk-suspend";
+			public const string BulkReactivate = "/bulk-reactivate";
+			public const string BulkDelete = "/bulk-delete";
 		}
 	}
 }

@@ -103,3 +103,56 @@ The same no-constraint rule applies to `{tenantId}` in nested resource root path
 // Unconstrained — tenantId validated by middleware or handler
 public const string Root = "/tenants/{tenantId}/users";
 ```
+
+## Query Parameter Naming
+
+Route parameter rules and query parameter rules must stay aligned. For the public
+wire contract:
+
+- Use **snake_case** for multi-word query parameter names:
+  - `sort_id`
+  - `sort_order`
+  - `updated_at`
+  - `user_id`
+- Keep short single-word params as-is when they are already established:
+  - `q`
+  - `status`
+  - `cursor`
+  - `limit`
+- Never use collapsed lowercase names like `updatedat`
+- Do not rename internal C# properties to snake_case; keep them idiomatic and map
+  the wire name explicitly
+
+### Handler/query DTO pattern
+
+```csharp
+public class FindUsersQuery : CursorPaginatedQuery {
+    [FromQuery(Name = "sort_id")]
+    public string? SortId { get; init; }
+
+    [FromQuery(Name = "sort_order")]
+    public string? SortOrder { get; init; }
+
+    [FromQuery(Name = "updated_at")]
+    public string? UpdatedAt { get; init; }
+}
+```
+
+### Query option values
+
+When a query parameter value contains multiple words, expose it in
+**snake_case** too:
+
+```text
+sort_id=created_at
+sort_id=user_account_count
+status=awaiting_review
+```
+
+Do not use:
+
+```text
+sortId=createdAt
+sortId=updatedat
+status=awaitingReview
+```

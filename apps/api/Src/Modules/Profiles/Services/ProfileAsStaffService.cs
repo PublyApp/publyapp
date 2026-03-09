@@ -155,11 +155,11 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 	/// - This ensures no gaps or duplicates in paginated results
 	///
 	/// EXAMPLE:
-	/// Page 1: GET /profiles?sortId=name&amp;sortOrder=asc&amp;limit=3
+	/// Page 1: GET /profiles?sort_id=name&sort_order=asc&limit=3
 	///   - Returns: Alice(id:100), Bob(id:050), Charlie(id:200)
 	///   - NextCursor: "200" (Charlie's id)
 	///
-	/// Page 2: GET /profiles?sortId=name&amp;sortOrder=asc&amp;limit=3&amp;cursor=200
+	/// Page 2: GET /profiles?sort_id=name&sort_order=asc&limit=3&cursor=200
 	///   - Lookup: cursor=200 → Name="Charlie"
 	///   - Query: WHERE (name > 'Charlie') OR (name = 'Charlie' AND id > 200)
 	///   - Returns records after Charlie in alphabetical order
@@ -173,14 +173,16 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 	) {
 		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
 		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-		var effectiveSortId = (sortId ?? "id").ToLowerInvariant();
+		var effectiveSortId = sortId ?? "id";
 
 		// Define handlers for each sortable field
 		// Each handler has 3 responsibilities:
 		// 1. GetCursorValue: Fetch the sort field value at the cursor position
 		// 2. ApplyFilter: Apply the keyset WHERE clause based on cursor value
 		// 3. ApplyOrdering: Apply the ORDER BY clause
-		var sortFieldHandlers = new Dictionary<string, SortFieldHandler> {
+		var sortFieldHandlers = new Dictionary<string, SortFieldHandler>(
+			StringComparer.OrdinalIgnoreCase
+		) {
 			// ═══════════════════════════════════════════════════════════════════════
 			// HANDLER 1: Sort by Id
 			// ═══════════════════════════════════════════════════════════════════════

@@ -151,4 +151,135 @@ public sealed class UpdateStaffUserSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
 	}
+
+	[Fact]
+	public async Task
+	ItShouldUpdateStatusToActive() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		// Get a staff user ID
+		var userId = await GetStaffUserIdByEmailAsync(
+			_http,
+			token,
+			TestConstants.StaffUserEmail
+		);
+
+		var url = GetUrl(userId);
+		var request = new HttpRequestMessage(
+			HttpMethod.Patch, url
+		).WithSessionToken(token);
+
+		request.Content = JsonContent.Create(
+			new { status = "Active" }
+		);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<GetStaffUserByIdResult>();
+		result.Should().NotBeNull();
+		result!.Status.Should().Be("Active");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldUpdateStatusToSuspended() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		// Get a staff user ID
+		var userId = await GetStaffUserIdByEmailAsync(
+			_http,
+			token,
+			TestConstants.StaffUserEmail
+		);
+
+		var url = GetUrl(userId);
+		var request = new HttpRequestMessage(
+			HttpMethod.Patch, url
+		).WithSessionToken(token);
+
+		request.Content = JsonContent.Create(
+			new { status = "Suspended" }
+		);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<GetStaffUserByIdResult>();
+		result.Should().NotBeNull();
+		result!.Status.Should().Be("Suspended");
+	}
+
+	// -- Helper methods --
+
+	private static async Task<string> GetStaffUserIdByEmailAsync(
+		HttpClient http,
+		string staffToken,
+		string email
+	) {
+		var url = PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Users.ForStaff.Root,
+			Routes.Users.ForStaff.Find
+		) + "?limit=50";
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(staffToken);
+
+		using var response = await http.SendAsync(request);
+		response.EnsureSuccessStatusCode();
+
+		var result = await response.Content
+			.ReadFromJsonAsync<FindStaffUsersResponse>();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"Failed to deserialize staff user list response"
+			);
+		}
+
+		var user = result.StaffUsers.FirstOrDefault(
+			u => string.Equals(
+				u.Email,
+				email,
+				StringComparison.OrdinalIgnoreCase
+			)
+		);
+
+		if (user is null) {
+			throw new InvalidOperationException(
+				$"Staff user with email '{email}' not found"
+			);
+		}
+
+		return user.Id.ToString();
+	}
+
+	// -- Response DTOs --
+
+	private record FindStaffUsersResponse {
+		public List<StaffUserItem> StaffUsers { get; init; }
+			= [];
+		public int Count { get; init; }
+	}
+
+	private record StaffUserItem {
+		public Guid Id { get; init; }
+		public string Email { get; init; } = string.Empty;
+		public string? LastName { get; init; }
+		public string? FirstName { get; init; }
+		public string? AvatarUrl { get; init; }
+		public string Status { get; init; } = string.Empty;
+		public string Level { get; init; } = string.Empty;
+	}
 }

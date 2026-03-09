@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
+using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Routes;
@@ -144,6 +145,36 @@ public sealed class DeleteSystemNoticeSpec
 
 		secondResponse.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnBadRequestForMalformedId() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tempId = Guid.NewGuid();
+		var url = GetDeleteUrl(tempId).Replace(
+			tempId.ToString(),
+			"not-a-guid",
+			StringComparison.Ordinal
+		);
+
+		var request = new HttpRequestMessage(
+			HttpMethod.Delete,
+			url
+		).WithSessionToken(token);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.BadRequest);
+
+		var problem = await response.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.TranslationKey.Should()
+			.Be(ResponseKeys.MalformedId);
 	}
 
 	private static string GetDeleteUrl(Guid noticeId) {

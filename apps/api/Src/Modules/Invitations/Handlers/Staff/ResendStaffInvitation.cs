@@ -15,13 +15,20 @@ public static class ResendStaffInvitation {
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
 	>> HandleResendStaffInvitation(
-		[FromRoute] Guid invitationId,
+		[FromRoute] string invitationId,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IEmailService emailService,
 		CancellationToken cancellationToken = default
 	) {
+		if (!Guid.TryParse(invitationId, out var invitationIdGuid)) {
+			return TypedProblems.BadRequest(
+				"Invalid invitationId",
+				ResponseKeys.MalformedId
+			);
+		}
+
 		var invitation = await invitationService.GetStaffInvitationByIdAsync(
-			invitationId,
+			invitationIdGuid,
 			cancellationToken
 		);
 

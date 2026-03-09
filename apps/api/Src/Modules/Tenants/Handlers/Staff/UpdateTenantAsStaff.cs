@@ -105,6 +105,16 @@ public static class UpdateTenantAsStaff {
 			);
 		}
 
+		// Guard against empty PATCH body
+		if (body.GetName() is null
+			&& !body.GetLogoUrl().IsPresent
+			&& body.GetMaxUsers() is null) {
+			return TypedProblems.BadRequest(
+				"No fields to update",
+				ResponseKeys.BadRequest
+			);
+		}
+
 		var args = new UpdateTenantAsStaffArgs(
 			Name: body.GetName(),
 			LogoUrl: body.GetLogoUrl(),

@@ -67,5 +67,12 @@
 	"tenant-updated-success": "Le locataire a été mis à jour avec succès",
 	"tenant-max-users-below-count": "Le nombre maximum d'utilisateurs ne peut pas être inférieur au nombre actuel d'utilisateurs",
 	"tenant-deleted-success": "Le locataire a été supprimé avec succès",
-	"tenant-not-suspended-cannot-delete": "Seuls les locataires suspendus peuvent être supprimés"
+	"tenant-not-suspended-cannot-delete": "Seuls les locataires suspendus peuvent être supprimés",
+	"user-removed-success": "L'utilisateur a été supprimé du locataire avec succès",
+	"user-level-updated-success": "Le niveau de l'utilisateur a été mis à jour avec succès",
+	"cannot-remove-last-admin": "Impossible de supprimer le dernier administrateur du locataire",
+	"cannot-demote-last-admin": "Impossible de rétrograder le dernier administrateur du locataire",
+	"cannot-suspend-last-admin": "Impossible de suspendre le dernier administrateur du locataire",
+	"bulk-action-success": "{{count}} {{action}} avec succès",
+	"bulk-action-partial-success": "{{succeeded}} {{action}}, {{failed}} échoué(s)"
 }

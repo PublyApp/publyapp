@@ -134,14 +134,14 @@ public sealed class UserValidationRulesSpec {
 	}
 
 	[Fact]
-	public void ItShouldPassUserStatusWhenJsonNull() {
+	public void ItShouldFailUserStatusWhenJsonNull() {
 		var model = new UserStatusModel {
 			Status = JsonDocument
 				.Parse("null").RootElement,
 		};
 		var result = new UserStatusValidator()
 			.Validate(model);
-		_ = result.IsValid.Should().BeTrue();
+		_ = result.IsValid.Should().BeFalse();
 	}
 
 	[Fact]

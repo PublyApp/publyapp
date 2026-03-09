@@ -54,6 +54,11 @@ public interface IInvitationService {
 		InvitationScope scope,
 		CancellationToken cancellationToken = default);
 
+	Task<bool> PendingTenantInvitationExistsAsync(
+		string email,
+		Guid tenantId,
+		CancellationToken cancellationToken = default);
+
 	Task<FindStaffInvitationsResult> FindStaffInvitationsAsync(
 		Guid cursor,
 		int? limit = null,
@@ -408,6 +413,25 @@ public class InvitationService : IInvitationService {
 		return await invitationQuery.AnyAsync(cancellationToken);
 	}
 
+	public async Task<bool> PendingTenantInvitationExistsAsync(
+		string email,
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		var normalizedEmail = email.ToLowerInvariant();
+		var invitationQuery =
+			from inv in _dbContext.Invitation
+			where inv.Email == normalizedEmail
+				&& inv.Scope == InvitationScope.Tenant
+				&& inv.TenantId == tenantId
+				&& inv.IsAccepted == false
+				&& inv.IsRevoked == false
+				&& inv.ExpiresAt > DateTime.UtcNow
+			select inv;
+
+		return await invitationQuery.AnyAsync(cancellationToken);
+	}
+
 	public async Task<FindStaffInvitationsResult> FindStaffInvitationsAsync(
 		Guid cursor,
 		int? limit = null,
@@ -418,10 +442,12 @@ public class InvitationService : IInvitationService {
 	) {
 		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
 		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-		var effectiveSortId = (sortId ?? "created_at").ToLowerInvariant();
+		var effectiveSortId = sortId ?? "created_at";
 
 		// Keyset pagination handlers per sortId (cursor stays a Guid).
-		var sortFieldHandlers = new Dictionary<string, SortFieldHandler> {
+		var sortFieldHandlers = new Dictionary<string, SortFieldHandler>(
+			StringComparer.OrdinalIgnoreCase
+		) {
 			["created_at"] = new SortFieldHandler(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
@@ -517,22 +543,20 @@ public class InvitationService : IInvitationService {
 
 		if (!string.IsNullOrWhiteSpace(status)) {
 			// Apply backend status semantics so UI filters match persisted state.
-			var normalizedStatus = status.Trim().ToLowerInvariant();
+			var normalizedStatus = status.Trim();
 			var now = DateTime.UtcNow;
 
-			switch (normalizedStatus) {
-				case "pending":
-					query = query.Where(inv => !inv.IsAccepted && !inv.IsRevoked && inv.ExpiresAt > now);
-					break;
-				case "accepted":
-					query = query.Where(inv => inv.IsAccepted);
-					break;
-				case "revoked":
-					query = query.Where(inv => inv.IsRevoked);
-					break;
-				case "expired":
-					query = query.Where(inv => !inv.IsAccepted && !inv.IsRevoked && inv.ExpiresAt <= now);
-					break;
+			if (string.Equals(normalizedStatus, "pending", StringComparison.OrdinalIgnoreCase)) {
+				query = query.Where(inv => !inv.IsAccepted && !inv.IsRevoked && inv.ExpiresAt > now);
+			}
+			if (string.Equals(normalizedStatus, "accepted", StringComparison.OrdinalIgnoreCase)) {
+				query = query.Where(inv => inv.IsAccepted);
+			}
+			if (string.Equals(normalizedStatus, "revoked", StringComparison.OrdinalIgnoreCase)) {
+				query = query.Where(inv => inv.IsRevoked);
+			}
+			if (string.Equals(normalizedStatus, "expired", StringComparison.OrdinalIgnoreCase)) {
+				query = query.Where(inv => !inv.IsAccepted && !inv.IsRevoked && inv.ExpiresAt <= now);
 			}
 		}
 

@@ -2,11 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Src.Lib;
 
-public class PaginatedQuery {
-	[FromQuery] public string? Page { get; set; }
-	[FromQuery] public string? Limit { get; set; }
-	[FromQuery] public string? SortId { get; set; }
-	[FromQuery] public string? SortOrder { get; set; }
+public class OffsetPaginatedQuery {
+	[FromQuery(Name = "page")] public string? Page { get; set; }
+	[FromQuery(Name = "limit")] public string? Limit { get; set; }
+	[FromQuery(Name = "sort_id")] public string? SortId { get; set; }
+	[FromQuery(Name = "sort_order")] public string? SortOrder { get; set; }
 
 	public int? GetPage() {
 		if (Page is null) {
@@ -58,4 +58,3 @@ public class PaginatedQuery {
 		}
 	}
 }
-

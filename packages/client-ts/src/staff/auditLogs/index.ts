@@ -65,17 +65,15 @@ export interface AuditLogsRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const AuditLogsRequestBuilderUriTemplate = "{+baseurl}/staff/audit-logs{?Action*,Cursor*,EndDate*,Limit*,SortId*,SortOrder*,StartDate*,TargetId*,UserId*}";
+export const AuditLogsRequestBuilderUriTemplate = "{+baseurl}/staff/audit-logs{?Action*,EndDate*,StartDate*,TargetId*,UserId*,cursor*,limit*,sort_id*,sort_order*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
 const AuditLogsRequestBuilderGetQueryParametersMapper: Record<string, string> = {
     "action": "Action",
-    "cursor": "Cursor",
     "endDate": "EndDate",
-    "limit": "Limit",
-    "sortId": "SortId",
-    "sortOrder": "SortOrder",
+    "sortId": "sort_id",
+    "sortOrder": "sort_order",
     "startDate": "StartDate",
     "targetId": "TargetId",
     "userId": "UserId",

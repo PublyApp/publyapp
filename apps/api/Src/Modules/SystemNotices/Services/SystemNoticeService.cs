@@ -140,11 +140,12 @@ public class SystemNoticeService : ISystemNoticeService {
 		var effectiveLimit = limit
 			?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
 		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-		var effectiveSortId = (sortId ?? "created_at")
-			.ToLowerInvariant();
+		var effectiveSortId = sortId ?? "created_at";
 
 		var sortFieldHandlers =
-			new Dictionary<string, SortFieldHandler> {
+			new Dictionary<string, SortFieldHandler>(
+				StringComparer.OrdinalIgnoreCase
+			) {
 				["created_at"] = new SortFieldHandler(
 				getCursorValue: async (guid) => {
 					var notice = await _dbContext.SystemNotice

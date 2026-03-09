@@ -209,6 +209,13 @@ For route parameter conventions (no route constraints, ID validation pattern), s
 - Symmetry: same resource names in both APIs (`users`, `invitations`, `posts`)
 - Handler suffixes: `*ForStaff`, `*ForTenantAsStaff`, `*ForTenant`, `*Anonymous`
 - **Never** use route constraints (`:guid`, `:int`) on ID parameters — validate with `Guid.TryParse` in handlers; malformed ID → `BadRequest` (400), entity not found → `NotFound` (404)
+- **API contract naming split**:
+  - Internal .NET symbols stay **PascalCase** (`UpdatedAt`, `SortId`, `UserId`)
+  - Database column names stay **snake_case** via EF mappings (`updated_at`)
+  - JSON body/response fields stay **camelCase** unless a deliberate contract migration says otherwise
+  - URL/query parameter names use **snake_case** (`sort_id`, `sort_order`, `updated_at`)
+  - Multi-word wire-format option values also use **snake_case** (`created_at`, `user_account_count`)
+  - Never use collapsed lowercase wire values like `updatedat`
 
 ## Frontend Coding Standards
 
@@ -242,6 +249,7 @@ For FluentValidation conventions (shared extension methods, pagination validator
 - Query syntax for database LINQ queries; method syntax only for terminal ops
 - Handlers orchestrate, services implement (no DbContext in handlers)
 - Request body DTOs use `JsonElement` with `Get*()` methods for FluentValidation compatibility
+- In handlers, cache body DTO getter results in locals when they are used 2+ times or return parsing-sensitive values like `PatchField<T>`, trimmed strings, parsed timestamps, or parsed enums
 - All errors use `TypedProblems.*` (RFC 7807), never `TypedResults.Forbid()`
 - Services MUST NOT depend on other services (only DbContext + infrastructure)
 - Use `[Service]` attribute for DI registration; `{Action}{Domain}Args` records for 3+ params
@@ -252,6 +260,9 @@ For FluentValidation conventions (shared extension methods, pagination validator
 - For cursor/keyset pagination, see [`docs/guides/cursor-keyset-pagination-guide.md`](docs/guides/cursor-keyset-pagination-guide.md)
 - For list pages with search/filter + cursor pagination + bulk actions, see [`docs/guides/list-pages-search-filter-cursor-pagination.md`](docs/guides/list-pages-search-filter-cursor-pagination.md)
 - **Validators**: use `JsonElementRules.*` extension methods (never inline validation chains); inherit `OffsetPaginatedQueryValidator<T>`/`CursorPaginatedQueryValidator<T>` for pagination; inherit `EncryptedIdTokenQueryValidator<T>` for encrypted-ID + token queries
+- **Never** use `ToLower()` / `ToLowerInvariant()` as a comparison or dispatch strategy; use
+  `StringComparison.OrdinalIgnoreCase`, `StringComparer.OrdinalIgnoreCase`, or explicit
+  case-insensitive parsers/dictionaries instead
 
 ## Test Conventions
 
