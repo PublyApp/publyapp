@@ -41,6 +41,9 @@ public static class AuditActions {
 	public const string InvitationRevoked = "invitation.revoked";
 	public const string TenantSuspended = "tenant.suspended";
 	public const string TenantReactivated = "tenant.reactivated";
+	public const string TenantBulkSuspended = "tenant.bulk.suspended";
+	public const string TenantBulkReactivated = "tenant.bulk.reactivated";
+	public const string TenantBulkDeleted = "tenant.bulk.deleted";
 	public const string ImpersonationStarted = "impersonation.started";
 	public const string ImpersonationEnded = "impersonation.ended";
 	public const string LoginSucceeded = "auth.login.succeeded";
@@ -54,4 +57,7 @@ public static class AuditActions {
 	public const string TenantInvitationAccepted = "tenant.invitation.accepted";
 	public const string TenantUpdated = "tenant.updated";
 	public const string TenantDeleted = "tenant.deleted";
+	public const string TenantUserRemoved = "tenant.user.removed";
+	public const string TenantUserUpdated = "tenant.user.updated";
+	public const string TenantUserLevelUpdated = "tenant.user.level.updated";
 }

@@ -186,6 +186,73 @@ public static class JsonElementRules {
 			);
 	}
 
+	/// <summary>
+	/// Validates a non-nullable JsonElement URL field for PatchField pattern:
+	/// Undefined OK (omit), null OK (clear), otherwise must be valid http(s) URL.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBePatchFieldUrl<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName
+	) {
+		return ruleBuilder
+			.Must(e => {
+				var kind = e.ValueKind;
+				if (kind is JsonValueKind.Undefined) {
+					return true;
+				}
+				if (kind is JsonValueKind.Null) {
+					return true;
+				}
+				if (kind is not JsonValueKind.String) {
+					return false;
+				}
+				var url = e.GetString();
+				if (string.IsNullOrWhiteSpace(url)) {
+					return false;
+				}
+				if (!Uri.TryCreate(
+					url, UriKind.Absolute, out var result
+				)) {
+					return false;
+				}
+				return result.Scheme == Uri.UriSchemeHttp
+					|| result.Scheme == Uri.UriSchemeHttps;
+			})
+			.WithMessage(
+				$"{fieldName} must be a string, null, or omitted"
+			);
+	}
+
+	/// <summary>
+	/// Validates a non-nullable JsonElement string field for PatchField pattern:
+	/// Undefined OK (omit), null OK (clear), otherwise must be a non-empty string.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBePatchFieldString<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName
+	) {
+		return ruleBuilder
+			.Must(e => {
+				var kind = e.ValueKind;
+				if (kind is JsonValueKind.Undefined) {
+					return true;
+				}
+				if (kind is JsonValueKind.Null) {
+					return true;
+				}
+				if (kind is not JsonValueKind.String) {
+					return false;
+				}
+				var str = e.GetString();
+				return !string.IsNullOrWhiteSpace(str);
+			})
+			.WithMessage(
+				$"{fieldName} must be a non-empty string, null, or omitted"
+			);
+	}
+
 
 	/// <summary>
 	/// Validates a nullable JsonElement? boolean field:

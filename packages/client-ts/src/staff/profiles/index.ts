@@ -59,15 +59,13 @@ export interface ProfilesRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const ProfilesRequestBuilderUriTemplate = "{+baseurl}/staff/profiles{?Cursor*,Limit*,SortId*,SortOrder*}";
+export const ProfilesRequestBuilderUriTemplate = "{+baseurl}/staff/profiles{?cursor*,limit*,sort_id*,sort_order*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
 const ProfilesRequestBuilderGetQueryParametersMapper: Record<string, string> = {
-    "cursor": "Cursor",
-    "limit": "Limit",
-    "sortId": "SortId",
-    "sortOrder": "SortOrder",
+    "sortId": "sort_id",
+    "sortOrder": "sort_order",
 };
 /**
  * Metadata for all the requests in the request builder.

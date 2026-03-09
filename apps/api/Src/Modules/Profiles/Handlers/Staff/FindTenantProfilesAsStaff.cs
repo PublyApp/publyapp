@@ -19,7 +19,7 @@ public class FindTenantProfilesAsStaffResult {
 	public required int Count { get; set; }
 }
 
-public class FindTenantProfilesAsStaffQuery : PaginatedQuery { }
+public class FindTenantProfilesAsStaffQuery : OffsetPaginatedQuery { }
 
 public class FindTenantProfilesAsStaffQueryValidator : OffsetPaginatedQueryValidator<FindTenantProfilesAsStaffQuery> { }
 
@@ -36,7 +36,7 @@ public class FindTenantProfilesAsStaff {
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
-			return TypedProblems.BadRequest("Invalid tenant ID", ResponseKeys.BadRequest);
+			return TypedProblems.BadRequest("Invalid tenant ID", ResponseKeys.MalformedId);
 		}
 
 		var page = findTenantProfilesAsStaffQuery.GetPage();

@@ -735,7 +735,8 @@ return TypedResults.NoContent();
 
 ## String Comparison
 
-**NEVER use `.ToLowerInvariant()` with `==` for case-insensitive comparison:**
+**NEVER use `.ToLower()` / `.ToLowerInvariant()` as a comparison, membership, or
+dispatch strategy.**
 
 ```csharp
 // ❌ WRONG - Creates temporary strings
@@ -747,6 +748,35 @@ if (email.Equals(other, StringComparison.OrdinalIgnoreCase))
 // ✅ CORRECT - For Contains, StartsWith, EndsWith
 if (email.Contains("@example.com", StringComparison.OrdinalIgnoreCase))
 if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
+
+// ❌ WRONG - Dispatch via lowered string
+return sortId.ToLowerInvariant() switch {
+    "created_at" => query.OrderBy(x => x.CreatedAt),
+    "updated_at" => query.OrderBy(x => x.UpdatedAt),
+    _ => query.OrderBy(x => x.Id),
+};
+
+// ✅ CORRECT - Case-insensitive switch alternative via comparer
+if (string.Equals(
+    sortId, "created_at", StringComparison.OrdinalIgnoreCase
+)) {
+    return query.OrderBy(x => x.CreatedAt);
+}
+if (string.Equals(
+    sortId, "updated_at", StringComparison.OrdinalIgnoreCase
+)) {
+    return query.OrderBy(x => x.UpdatedAt);
+}
+return query.OrderBy(x => x.Id);
+
+// ✅ CORRECT - Case-insensitive membership
+var allowedStatuses = new HashSet<string>(
+    ["active", "suspended"],
+    StringComparer.OrdinalIgnoreCase
+);
+if (!allowedStatuses.Contains(status)) {
+    return false;
+}
 ```
 
 **For database queries:** Store emails in lowercase, compare directly:
@@ -756,10 +786,15 @@ if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
 var normalizedEmail = email.ToLowerInvariant();
 var user = await (
     from u in _dbContext.User
-    where u.Email == normalizedEmail  // Direct comparison
+where u.Email == normalizedEmail  // Direct comparison
     select u
 ).FirstOrDefaultAsync(cancellationToken);
 ```
+
+**Normalization is still allowed when it is the stored canonical value**, such as
+email normalization before persistence or lookup. The rule above is specifically
+about using `ToLower*()` as the mechanism for comparison, dispatch, filtering, or
+allowlist membership in application logic.
 
 ## OpenAPI Documentation
 
@@ -980,6 +1015,110 @@ if (body.ExpiresAt is not null
 ```
 
 **Why:** Keeps handlers focused on orchestration. Extraction logic is testable, reusable, and consistent across handlers that share the same body DTO.
+
+## Cache Reused Body Getter Results
+
+When a handler uses the same body DTO getter more than once, cache the result in
+local variables instead of calling the getter repeatedly.
+
+This rule is especially important when the getter returns:
+
+- `PatchField<T>` values
+- trimmed/normalized strings
+- parsed timestamps
+- parsed enums or other semantic wrapper values
+
+### Use cached locals when
+
+1. a getter is used **2 or more times**, or
+2. the getter returns a parsing-sensitive value that is then reused across:
+   - empty-body guards
+   - parser calls
+   - args-record construction
+   - audit payloads
+   - response mapping
+
+### Why
+
+- Prevents repeated parsing/normalization work
+- Makes the handler operate on one clear semantic snapshot of the request
+- Reduces the chance that guard logic and service args drift apart because they
+  were built from repeated inline getter calls
+- Makes debugging easier because the parsed values are visible in locals
+
+### Correct pattern
+
+```csharp
+var severityStr = body.GetSeverity();
+var title = body.GetTitle();
+var message = body.GetMessage();
+var startsAt = body.GetStartsAt();
+var expiresAt = body.GetExpiresAt();
+
+if (severityStr is null
+    && title is null
+    && message is null
+    && startsAt is null
+    && !expiresAt.IsPresent) {
+    return TypedProblems.BadRequest(
+        "No fields to update",
+        ResponseKeys.BadRequest
+    );
+}
+
+NoticeSeverity? severity = null;
+if (severityStr is not null) {
+    var parsedSeverity =
+        SystemNotice.ParseSeverity(severityStr);
+    if (parsedSeverity is null) {
+        throw new InvalidOperationException(
+            "Severity parser rejected validated "
+            + $"value '{severityStr}'."
+        );
+    }
+    severity = parsedSeverity.Value;
+}
+
+var args = new UpdateSystemNoticeArgs(
+    Severity: severity,
+    Title: title,
+    Message: message,
+    StartsAt: startsAt,
+    ExpiresAt: expiresAt
+);
+```
+
+### Avoid repeated inline getter calls
+
+```csharp
+// ❌ WRONG - Repeats getters across multiple semantic steps
+if (body.GetSeverity() is null
+    && body.GetTitle() is null
+    && body.GetMessage() is null
+    && body.GetStartsAt() is null
+    && !body.GetExpiresAt().IsPresent) {
+    ...
+}
+
+var severityStr = body.GetSeverity();
+var args = new UpdateSystemNoticeArgs(
+    Severity: severity,
+    Title: body.GetTitle(),
+    Message: body.GetMessage(),
+    StartsAt: body.GetStartsAt(),
+    ExpiresAt: body.GetExpiresAt()
+);
+```
+
+### Do not over-apply this rule
+
+Do **not** create noisy locals for trivial single-use getters. If a getter is
+used once and the inline call is clear, keep it inline.
+
+The rule is:
+
+- cache reused or parsing-sensitive getter results
+- do not mechanically cache every getter in every handler
 
 ## Guard Clause in Staff Handlers
 

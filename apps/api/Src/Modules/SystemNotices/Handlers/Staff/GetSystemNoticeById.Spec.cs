@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
+using MainApi.Localization;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Testing.Fixtures;
 using MainApi.Src.Lib.Testing.Helpers;
@@ -131,6 +132,38 @@ public sealed class GetSystemNoticeByIdSpec
 		problem.Should().NotBeNull();
 		problem!.TranslationKey.Should()
 			.Be("system-notice-not-found");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnBadRequestForMalformedId() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tempId = Guid.NewGuid();
+		var url = SystemNoticeTestHelper
+			.GetNoticeUrl(tempId)
+			.Replace(
+				tempId.ToString(),
+				"not-a-guid",
+				StringComparison.Ordinal
+			);
+
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			url
+		).WithSessionToken(token);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.BadRequest);
+
+		var problem = await response.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.TranslationKey.Should()
+			.Be(ResponseKeys.MalformedId);
 	}
 
 	private record NoticeDetailResponse {

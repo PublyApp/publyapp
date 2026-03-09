@@ -14,6 +14,7 @@ export interface WithNoticeItemRequestBuilder extends BaseRequestBuilder<WithNot
      * Delete a system notice (soft delete)
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<ApiResponse>}
+     * @throws {AppProblemDetails} error when the service returns a 400 status code
      * @throws {AppProblemDetails} error when the service returns a 401 status code
      * @throws {AppProblemDetails} error when the service returns a 403 status code
      * @throws {AppProblemDetails} error when the service returns a 404 status code
@@ -24,6 +25,7 @@ export interface WithNoticeItemRequestBuilder extends BaseRequestBuilder<WithNot
      * Get a system notice by ID
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<SystemNoticeDetail>}
+     * @throws {AppProblemDetails} error when the service returns a 400 status code
      * @throws {AppProblemDetails} error when the service returns a 401 status code
      * @throws {AppProblemDetails} error when the service returns a 403 status code
      * @throws {AppProblemDetails} error when the service returns a 404 status code
@@ -75,6 +77,7 @@ export const WithNoticeItemRequestBuilderRequestsMetadata: RequestsMetadata = {
         uriTemplate: WithNoticeItemRequestBuilderUriTemplate,
         responseBodyContentType: "application/json",
         errorMappings: {
+            400: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             403: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             404: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
@@ -87,6 +90,7 @@ export const WithNoticeItemRequestBuilderRequestsMetadata: RequestsMetadata = {
         uriTemplate: WithNoticeItemRequestBuilderUriTemplate,
         responseBodyContentType: "application/json",
         errorMappings: {
+            400: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             403: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             404: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,

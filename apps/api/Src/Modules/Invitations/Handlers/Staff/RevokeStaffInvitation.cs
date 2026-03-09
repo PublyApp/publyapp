@@ -15,18 +15,34 @@ public static class RevokeStaffInvitation {
 	public static async Task<Results<
 		Ok<ApiResponse>,
 		AppNotFoundHttpResult,
+		AppBadRequestHttpResult,
 		AppForbiddenHttpResult
 	>> HandleRevokeStaffInvitation(
-		[FromRoute] Guid invitationId,
+		[FromRoute] string invitationId,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
 	) {
-		// Authorization check
+		// IMPOSSIBLE STATE: Staff endpoint without staff account
 		var account = authContext.AccountStaff;
-		if (account is null
-			|| account.Scope != AccountScope.Staff
+		if (account is null) {
+			throw new InvalidOperationException(
+				"Staff account not found in auth context. "
+				+ "Ensure the endpoint has .WithPermission() middleware."
+			);
+		}
+
+		// Validate invitationId format
+		if (!Guid.TryParse(invitationId, out var invitationIdGuid)) {
+			return TypedProblems.BadRequest(
+				"Invalid invitationId",
+				ResponseKeys.MalformedId
+			);
+		}
+
+		// REAL AUTHORIZATION: Check permissions
+		if (account.Scope != AccountScope.Staff
 			|| account.Level != AccountLevel.Admin) {
 			return TypedProblems.Forbidden(
 				"User does not have the necessary permissions",
@@ -35,7 +51,7 @@ public static class RevokeStaffInvitation {
 		}
 
 		var success = await invitationService.RevokeInvitationAsync(
-			invitationId,
+			invitationIdGuid,
 			cancellationToken
 		);
 
@@ -46,7 +62,7 @@ public static class RevokeStaffInvitation {
 		await auditLogService.LogAsync(
 			account.UserId,
 			AuditActions.InvitationRevoked,
-			invitationId,
+			invitationIdGuid,
 			null,
 			cancellationToken
 		);

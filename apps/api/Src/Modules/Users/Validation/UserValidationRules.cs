@@ -58,7 +58,7 @@ public static class UserValidationRules {
 				}
 				var kind = e.Value.ValueKind;
 				if (kind is JsonValueKind.Null) {
-					return true;
+					return false;
 				}
 				if (kind != JsonValueKind.String) {
 					return false;

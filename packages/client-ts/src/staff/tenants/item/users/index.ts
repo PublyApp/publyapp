@@ -4,12 +4,26 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createFindTenantUsersAsStaffResultFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, type AppProblemDetails, type FindTenantUsersAsStaffResult, type ValidationProblemDetails } from '../../../../models/index.js';
 // @ts-ignore
-import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
+import { InvitationsRequestBuilderRequestsMetadata, type InvitationsRequestBuilder } from './invitations/index.js';
+// @ts-ignore
+import { type WithUserItemRequestBuilder, WithUserItemRequestBuilderRequestsMetadata } from './item/index.js';
+// @ts-ignore
+import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /staff/tenants/{tenantId}/users
  */
 export interface UsersRequestBuilder extends BaseRequestBuilder<UsersRequestBuilder> {
+    /**
+     * The invitations property
+     */
+    get invitations(): InvitationsRequestBuilder;
+    /**
+     * Gets an item from the MainApi.Client.staff.tenants.item.users.item collection
+     * @param userId Unique identifier of the item
+     * @returns {WithUserItemRequestBuilder}
+     */
+     byUserId(userId: string) : WithUserItemRequestBuilder;
     /**
      * Find users for a tenant
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -34,21 +48,34 @@ export interface UsersRequestBuilder extends BaseRequestBuilder<UsersRequestBuil
 export interface UsersRequestBuilderGetQueryParameters {
     cursor?: string;
     limit?: string;
+    q?: string;
     sortId?: string;
     sortOrder?: string;
+    status?: string;
 }
 /**
  * Uri template for the request builder.
  */
-export const UsersRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}/users{?Cursor*,Limit*,SortId*,SortOrder*}";
+export const UsersRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}/users{?Status*,cursor*,limit*,q*,sort_id*,sort_order*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
 const UsersRequestBuilderGetQueryParametersMapper: Record<string, string> = {
-    "cursor": "Cursor",
-    "limit": "Limit",
-    "sortId": "SortId",
-    "sortOrder": "SortOrder",
+    "sortId": "sort_id",
+    "sortOrder": "sort_order",
+    "status": "Status",
+};
+/**
+ * Metadata for all the navigation properties in the request builder.
+ */
+export const UsersRequestBuilderNavigationMetadata: Record<Exclude<keyof UsersRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    byUserId: {
+        requestsMetadata: WithUserItemRequestBuilderRequestsMetadata,
+        pathParametersMappings: ["userId"],
+    },
+    invitations: {
+        requestsMetadata: InvitationsRequestBuilderRequestsMetadata,
+    },
 };
 /**
  * Metadata for all the requests in the request builder.

@@ -67,5 +67,12 @@
 	"tenant-updated-success": "Tenant has been updated successfully",
 	"tenant-max-users-below-count": "Max users cannot be less than the current number of users",
 	"tenant-deleted-success": "Tenant has been deleted successfully",
-	"tenant-not-suspended-cannot-delete": "Only suspended tenants can be deleted"
+	"tenant-not-suspended-cannot-delete": "Only suspended tenants can be deleted",
+	"user-removed-success": "User has been removed from tenant successfully",
+	"user-level-updated-success": "User level has been updated successfully",
+	"cannot-remove-last-admin": "Cannot remove the last admin from the tenant",
+	"cannot-demote-last-admin": "Cannot demote the last admin from the tenant",
+	"cannot-suspend-last-admin": "Cannot suspend the last admin from the tenant",
+	"bulk-action-success": "{{count}} {{action}} successfully",
+	"bulk-action-partial-success": "{{succeeded}} {{action}}, {{failed}} failed"
 }

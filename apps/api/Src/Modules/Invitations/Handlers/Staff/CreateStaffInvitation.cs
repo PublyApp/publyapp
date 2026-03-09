@@ -71,10 +71,17 @@ public static class CreateStaffInvitation {
 		CancellationToken cancellationToken = default
 	) {
 		var logger = loggerFactory.CreateLogger(nameof(CreateStaffInvitation));
-		// Authorization check
+		// IMPOSSIBLE STATE: Staff endpoint without staff account
 		var account = authContext.AccountStaff;
-		if (account is null
-			|| account.Scope != AccountScope.Staff
+		if (account is null) {
+			throw new InvalidOperationException(
+				"Staff account not found in auth context. "
+				+ "Ensure the endpoint has .WithPermission() middleware."
+			);
+		}
+
+		// REAL AUTHORIZATION: Check permissions
+		if (account.Scope != AccountScope.Staff
 			|| account.Level != AccountLevel.Admin) {
 			return TypedProblems.Forbidden(
 				"User does not have the necessary permissions",

@@ -49,9 +49,6 @@ public record SystemNoticeCreated {
 
 public class CreateSystemNoticeBodyValidator
 	: AbstractValidator<CreateSystemNoticeBody> {
-	private static readonly string[] ValidSeverities =
-		["info", "warning", "critical"];
-
 	public CreateSystemNoticeBodyValidator() {
 		RuleFor(x => x.Severity)
 			.Must(e => e.ValueKind == JsonValueKind.String)
@@ -104,8 +101,11 @@ public class CreateSystemNoticeBodyValidator
 		if (element.ValueKind != JsonValueKind.String) {
 			return false;
 		}
-		var value = element.GetString()?.ToLowerInvariant();
-		return ValidSeverities.Contains(value);
+		var value = element.GetString();
+		if (value is null) {
+			return false;
+		}
+		return SystemNotice.ParseSeverity(value) is not null;
 	}
 
 	private bool BeValidDateTime(JsonElement element) {

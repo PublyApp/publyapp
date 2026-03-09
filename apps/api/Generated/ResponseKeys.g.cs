@@ -17,6 +17,31 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey BadRequest = new("bad-request");
 
 	/// <summary>
+	/// {{succeeded}} {{action}}, {{failed}} failed
+	/// </summary>
+	public static readonly TranslationKey BulkActionPartialSuccess = new("bulk-action-partial-success");
+
+	/// <summary>
+	/// {{count}} {{action}} successfully
+	/// </summary>
+	public static readonly TranslationKey BulkActionSuccess = new("bulk-action-success");
+
+	/// <summary>
+	/// Cannot demote the last admin from the tenant
+	/// </summary>
+	public static readonly TranslationKey CannotDemoteLastAdmin = new("cannot-demote-last-admin");
+
+	/// <summary>
+	/// Cannot remove the last admin from the tenant
+	/// </summary>
+	public static readonly TranslationKey CannotRemoveLastAdmin = new("cannot-remove-last-admin");
+
+	/// <summary>
+	/// Cannot suspend the last admin from the tenant
+	/// </summary>
+	public static readonly TranslationKey CannotSuspendLastAdmin = new("cannot-suspend-last-admin");
+
+	/// <summary>
 	/// are you sure you want to delete this item?
 	/// </summary>
 	public static readonly TranslationKey ConfirmDeleteDialogText = new("confirm-delete-dialog-text");
@@ -337,6 +362,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey UserIdRequired = new("user-id-required");
 
 	/// <summary>
+	/// User level has been updated successfully
+	/// </summary>
+	public static readonly TranslationKey UserLevelUpdatedSuccess = new("user-level-updated-success");
+
+	/// <summary>
 	/// User not found
 	/// </summary>
 	public static readonly TranslationKey UserNotFound = new("user-not-found");
@@ -345,6 +375,11 @@ public static partial class ResponseKeys {
 	/// User not verified
 	/// </summary>
 	public static readonly TranslationKey UserNotVerified = new("user-not-verified");
+
+	/// <summary>
+	/// User has been removed from tenant successfully
+	/// </summary>
+	public static readonly TranslationKey UserRemovedSuccess = new("user-removed-success");
 
 	/// <summary>
 	/// User suspended

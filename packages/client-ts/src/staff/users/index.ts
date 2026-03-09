@@ -67,15 +67,13 @@ export interface UsersRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const UsersRequestBuilderUriTemplate = "{+baseurl}/staff/users{?Limit*,Page*,SortId*,SortOrder*}";
+export const UsersRequestBuilderUriTemplate = "{+baseurl}/staff/users{?limit*,page*,sort_id*,sort_order*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
 const UsersRequestBuilderGetQueryParametersMapper: Record<string, string> = {
-    "limit": "Limit",
-    "page": "Page",
-    "sortId": "SortId",
-    "sortOrder": "SortOrder",
+    "sortId": "sort_id",
+    "sortOrder": "sort_order",
 };
 /**
  * Metadata for all the navigation properties in the request builder.

@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
+using MainApi.Localization;
 using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Testing.Fixtures;
@@ -201,6 +202,38 @@ ReactivateTenantAsStaffSpec
 						_http, staffToken, tenantId
 					);
 		}
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnBadRequestForMalformedId() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tempId = Guid.NewGuid();
+		var url = TenantTestHelper
+			.GetReactivateUrl(tempId)
+			.Replace(
+				tempId.ToString(),
+				"not-a-guid",
+				StringComparison.Ordinal
+			);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			url
+		).WithSessionToken(staffToken);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.BadRequest);
+
+		var problem = await response.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.TranslationKey.Should()
+			.Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
