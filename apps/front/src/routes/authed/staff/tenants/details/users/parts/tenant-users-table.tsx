@@ -70,7 +70,7 @@ const columnHelper = createMRTColumnHelper<TenantUserRowData>();
 
 const defaultSorting: MRT_SortingState[number] = {
 	desc: true,
-	id: 'createdat',
+	id: 'created_at',
 };
 
 const TenantUsersTable = () => {

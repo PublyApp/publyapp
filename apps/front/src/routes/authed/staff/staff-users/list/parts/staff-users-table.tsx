@@ -68,7 +68,7 @@ const columnHelper = createMRTColumnHelper<StaffUserRowData>();
 
 const defaultSorting: MRT_SortingState[number] = {
 	desc: true,
-	id: 'createdAt',
+	id: 'created_at',
 };
 
 const StaffUsersTable = () => {
