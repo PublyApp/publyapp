@@ -12,6 +12,7 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import { useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
 import {
 	createMRTColumnHelper,
@@ -19,11 +20,10 @@ import {
 	type MRT_ColumnDef,
 	type MRT_SortingState,
 } from 'material-react-table';
+import { useBoolean, useDebounce } from 'minimal-shared/hooks';
 import { parseAsString, useQueryStates } from 'nuqs';
-import { useBoolean } from 'minimal-shared/hooks';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
-import { useQueryClient } from '@tanstack/react-query';
 
 import {
 	ACCOUNT_LEVEL_ENUM,
@@ -85,22 +85,8 @@ const TenantUsersTable = () => {
 	const [searchValue, setSearchValue] = useState(filterStates.q);
 	const [statusFilter, setStatusFilter] = useState(filterStates.status);
 
-	// Debounce search
-	useEffect(() => {
-		const timer = setTimeout(() => {
-			setFilterStates({ q: searchValue });
-		}, 300);
-		return () => clearTimeout(timer);
-	}, [searchValue, setFilterStates]);
+	const debouncedSearchValue = useDebounce(searchValue, 300);
 
-	// Reset cursor when filters change
-	useEffect(() => {
-		if (handlePaginationChange) {
-			handlePaginationChange({ pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE });
-		}
-	}, [filterStates.q, filterStates.status]);
-
-	// Use the custom table state hook with cursor pagination
 	const {
 		handlePaginationChange,
 		handleSortingChange,
@@ -109,11 +95,30 @@ const TenantUsersTable = () => {
 		setNextCursor,
 		hasNextPage,
 		hasPreviousPage,
+		resetCursorPagination,
 	} = useTableState({
 		defaultSorting,
 		defaultPageSize: DEFAULT_PAGE_SIZE,
 		paginationMode: 'cursor',
 	});
+
+	useEffect(() => {
+		if (debouncedSearchValue === filterStates.q) {
+			return;
+		}
+
+		resetCursorPagination?.();
+		setFilterStates({
+			q: debouncedSearchValue,
+			status: statusFilter,
+		});
+	}, [
+		debouncedSearchValue,
+		filterStates.q,
+		resetCursorPagination,
+		setFilterStates,
+		statusFilter,
+	]);
 
 	const { tenantId } = useParams();
 
@@ -253,8 +258,12 @@ const TenantUsersTable = () => {
 					size="small"
 					value={statusFilter}
 					onChange={(e) => {
+						resetCursorPagination?.();
 						setStatusFilter(e.target.value);
-						setFilterStates({ status: e.target.value });
+						setFilterStates({
+							q: searchValue,
+							status: e.target.value,
+						});
 					}}
 					sx={{ minWidth: 150 }}
 					displayEmpty
