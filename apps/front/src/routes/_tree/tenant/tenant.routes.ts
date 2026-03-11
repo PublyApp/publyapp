@@ -59,7 +59,7 @@ export const tenantRoutes = [
 					),
 					route(
 						'*',
-						'routes/authed/tenant/settings/_errors/settings-not-found-page.tsx',
+						'routes/authed/tenant/settings/_errors/settings-fallback-tab-page.tsx',
 					),
 				],
 			),
@@ -81,7 +81,7 @@ export const tenantRoutes = [
 					),
 					route(
 						'*',
-						'routes/authed/tenant/account/_errors/account-not-found-page.tsx',
+						'routes/authed/tenant/account/_errors/account-fallback-tab-page.tsx',
 					),
 				],
 			),
