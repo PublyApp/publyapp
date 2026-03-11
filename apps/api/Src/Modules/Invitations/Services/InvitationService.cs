@@ -3,6 +3,7 @@ using MainApi.Src.Lib;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Invitations.Entities;
 using MainApi.Src.Modules.Profiles.Entities;
+using MainApi.Src.Modules.Tenants.Entities;
 using MainApi.Src.Modules.Users.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -760,6 +761,23 @@ public class InvitationService : IInvitationService {
 					},
 					cancellationToken
 				);
+			}
+
+			var tenant = await (
+				from t in _dbContext.Tenant
+				where t.Id == tenantId && !t.IsDeleted
+				select t
+			).FirstOrDefaultAsync(cancellationToken);
+
+			if (tenant is null) {
+				throw new InvalidOperationException(
+					$"Tenant {tenantId} not found for invitation {invitation.GetRequiredId()}"
+				);
+			}
+
+			if (tenant.Status == TenantStatus.Pending && !tenant.IsSuspended) {
+				tenant.Status = TenantStatus.Active;
+				tenant.UpdatedAt = DateTime.UtcNow;
 			}
 
 			// Mark invitation as accepted
