@@ -8,20 +8,59 @@ import _ from 'lodash';
 
 import type {
 	CreateTenantAsStaffBody,
+	CreateTenantAsStaffResult,
 	SuspendTenantAsStaffBody,
 	UpdateTenantAsStaffBody,
 	UpdateTenantUserAsStaffBody,
 } from '@org/client-ts/src/models';
+import { SESSION_TOKEN_HEADER_KEY } from '@org/shared-ts/lib/constants';
+import { getSessionTokensFromClient } from '@/front/lib/cookies/session-cookie.utils';
 
 import { createStaffMutation, createStaffQuery } from '../../create-hooks';
 
 export const useCreateTenant = createStaffMutation({
 	mutationKeyFn: (client) => client.staff.tenants.post,
-	mutationFn: async (client, params: { name: string }) => {
-		const body: CreateTenantAsStaffBody = {
-			name: createUntypedString(params.name) as typeof body.name,
-		};
-		return client.staff.tenants.post(body);
+	mutationFn: async (
+		client,
+		params: {
+			name: string;
+			maxUsers: number;
+			initialUsers: Array<{
+				email: string;
+				accountLevel: 'Admin' | 'User';
+			}>;
+		},
+	) => {
+		const reqInfo = client.staff.tenants.toPostRequestInformation(
+			{} as CreateTenantAsStaffBody,
+		);
+		const tokens = getSessionTokensFromClient();
+		const sessionToken = tokens.staffToken ?? tokens.tenantToken;
+
+		const response = await fetch(reqInfo.URL, {
+			method: reqInfo.httpMethod,
+			body: JSON.stringify({
+				name: params.name,
+				maxUsers: params.maxUsers,
+				initialUsers: params.initialUsers,
+			}),
+			headers: {
+				'Content-Type': 'application/json',
+				[SESSION_TOKEN_HEADER_KEY]: sessionToken || '',
+			},
+		});
+
+		if (!response.ok) {
+			const errorBody = await response.json();
+			throw { ...errorBody, responseStatusCode: response.status };
+		}
+
+		const result: CreateTenantAsStaffResult | undefined = await response.json();
+
+		if (_.isNil(result)) {
+			throw new Error('useCreateTenant: result is nil');
+		}
+		return result;
 	},
 });
 
