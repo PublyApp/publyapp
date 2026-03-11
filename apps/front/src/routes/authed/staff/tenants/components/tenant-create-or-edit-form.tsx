@@ -37,6 +37,7 @@ import { toast } from '@/front/components/snackbar';
 import { useRouter } from '@/front/hooks/use-router';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { getFailureMessage, toApiFailure } from '@/front/lib/api-failure';
 import { useCreateTenant } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
 import { interZodClient } from '@/front/lib/zod/zod.client';
 import { useMainStore } from '@/front/lib/zustand/store';
@@ -121,16 +122,19 @@ export const TenantCreateOrEditForm = ({
 	const {
 		reset,
 		handleSubmit,
+		setValue,
+		watch,
 		formState: { isSubmitting, errors },
 		control,
 	} = methods;
 
 	useSyncFormToLang(i18n.language, methods);
 
-	const { fields, append, remove, update } = useFieldArray({
+	const { fields, append, remove } = useFieldArray({
 		control,
 		name: 'initialUsers',
 	});
+	const initialUsers = watch('initialUsers');
 
 	const [alertMessage, setAlertMessage] = useState<
 		string | { key: string; params: Record<string, string> | undefined }
@@ -146,29 +150,9 @@ export const TenantCreateOrEditForm = ({
 			router.push(FRONT_PATH_NAMES.staff.tenants.root);
 		},
 		onError: (error) => {
-			// if (error instanceof ParseRestError) {
-			// 	if (error.code === X_CODE.NO_STAFF_MEMBERS_ALLOWED_IN_TENANT) {
-			// 		const notAllowedEmailsStr = _.map(
-			// 			_.get(error.data, 'staff-user-emails', []) as string[],
-			// 			(email) => {
-			// 				return `'${email}'`;
-			// 			},
-			// 		).join(', ');
-			// 		setAlertMessage({
-			// 			key: X_CODE.NO_STAFF_MEMBERS_ALLOWED_IN_TENANT,
-			// 			params: {
-			// 				emails: notAllowedEmailsStr,
-			// 			},
-			// 		});
-			// 	} else {
-			// 		setAlertMessage(error.message);
-			// 	}
-			// } else {
-			// 	setAlertMessage(error.message);
-			// }
-			setAlertMessage(error.message);
+			const failure = toApiFailure(error);
+			setAlertMessage(getFailureMessage(failure));
 			handleCloseDialog();
-			toast.error(error.message);
 		},
 	});
 
@@ -308,7 +292,7 @@ export const TenantCreateOrEditForm = ({
 	const handleAddUserToForm = () => {
 		append({
 			email: '',
-			accountLevel: ACCOUNT_LEVEL_ENUM.ADMIN,
+			accountLevel: ACCOUNT_LEVEL_ENUM.USER,
 			// role: _.isEmpty(fields)
 			// 	? tenantSubRoleEnum.ADMIN
 			// 	: tenantSubRoleEnum.CONTRIBUTOR,
@@ -445,9 +429,9 @@ export const TenantCreateOrEditForm = ({
 												<UserRow
 													key={field.id}
 													remove={remove}
-													update={update}
+													setValue={setValue}
 													index={index}
-													fields={fields}
+													initialUsers={initialUsers}
 													hasError={!!errors.initialUsers?.[index]}
 												/>
 											);
@@ -531,12 +515,26 @@ type UserRowType = { email: string; accountLevel: AccountLevel };
 type UserRowProps = {
 	index: number;
 	remove: (index: number) => void;
-	update: (index: number, value: UserRowType) => void;
-	fields: UserRowType[];
+	setValue: (
+		name: `initialUsers.${number}.accountLevel`,
+		value: AccountLevel,
+		options?: {
+			shouldDirty?: boolean;
+			shouldTouch?: boolean;
+			shouldValidate?: boolean;
+		},
+	) => void;
+	initialUsers: UserRowType[];
 	hasError: boolean;
 };
 
-const UserRow = ({ index, remove, fields, hasError, update }: UserRowProps) => {
+const UserRow = ({
+	index,
+	remove,
+	initialUsers,
+	hasError,
+	setValue,
+}: UserRowProps) => {
 	const { t } = useTranslate();
 
 	const handleRemoveUserRow = () => {
@@ -546,17 +544,18 @@ const UserRow = ({ index, remove, fields, hasError, update }: UserRowProps) => {
 	const handleChangeRole = useCallback(
 		(e: React.ChangeEvent<HTMLInputElement>) => {
 			const value = e.target.value as AccountLevel;
-			update(index, {
-				...fields[index],
-				accountLevel: value,
+			setValue(`initialUsers.${index}.accountLevel`, value, {
+				shouldDirty: true,
+				shouldTouch: true,
+				shouldValidate: true,
 			});
 		},
-		[fields, index, update],
+		[index, setValue],
 	);
 
 	const isAdmin =
-		_.get(fields, `${index}.accountLevel`) === ACCOUNT_LEVEL_ENUM.ADMIN;
-	const adminsList = _.filter(fields, (field) => {
+		_.get(initialUsers, `${index}.accountLevel`) === ACCOUNT_LEVEL_ENUM.ADMIN;
+	const adminsList = _.filter(initialUsers, (field) => {
 		return field.accountLevel === ACCOUNT_LEVEL_ENUM.ADMIN;
 	});
 	const isTheOnlyAdmin = isAdmin && adminsList.length === 1;
