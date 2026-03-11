@@ -32,10 +32,10 @@ import {
 } from '@org/shared-ts/lib/constants';
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { Iconify } from '@/front/components/iconify/iconify';
-import { toast } from '@/front/components/snackbar';
 import { Label } from '@/front/components/label/label';
 import type { LabelColor } from '@/front/components/label/types';
 import { RouterLink } from '@/front/components/router-link';
+import { toast } from '@/front/components/snackbar';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableQueryOptions } from '@/front/hooks/use-table-query-options';
 import { useTableState } from '@/front/hooks/use-table-state';
