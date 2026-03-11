@@ -35,6 +35,7 @@ import {
 	type MRT_SortingState,
 	type MRT_TableOptions,
 } from 'material-react-table';
+import { useBoolean, useDebounce } from 'minimal-shared/hooks';
 import { parseAsString, useQueryStates } from 'nuqs';
 import { useBoolean } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
@@ -50,7 +51,6 @@ import {
 	useState,
 } from 'react';
 import { useParams } from 'react-router';
-import { useQueryClient } from '@tanstack/react-query';
 
 import {
 	ACCOUNT_LEVEL_ENUM,
@@ -927,8 +927,12 @@ const TenantUsersTable = () => {
 					size="small"
 					value={statusFilter}
 					onChange={(e) => {
+						resetCursorPagination?.();
 						setStatusFilter(e.target.value);
-						setFilterStates({ status: e.target.value });
+						setFilterStates({
+							q: searchValue,
+							status: e.target.value,
+						});
 					}}
 					sx={{ minWidth: 150 }}
 					displayEmpty
