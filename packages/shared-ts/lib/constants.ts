@@ -256,6 +256,7 @@ export const queryParamKey = {
 	login_page: {
 		redirect_cause: 'rc',
 		redirect_to: 'rto',
+		email: 'email',
 	},
 	reset_password_page: {
 		redirect_cause: 'rc',

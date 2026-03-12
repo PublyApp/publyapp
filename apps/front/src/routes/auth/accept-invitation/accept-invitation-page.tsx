@@ -13,6 +13,7 @@ import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import _ from 'lodash';
 import { useForm } from 'react-hook-form';
+import { Trans } from 'react-i18next';
 import {
 	redirect,
 	useFetcher,
@@ -45,6 +46,7 @@ import {
 	serializeTenantHintsForResponse,
 	setTenantHintForUser,
 } from '@/front/lib/cookies';
+import { logout } from '@/front/lib/cookies/logout.utils';
 import { formatSessionCookie } from '@/front/lib/cookies/session-cookie.utils';
 import { env } from '@/front/lib/env';
 import { getClientManager } from '@/front/lib/js-client/client-manager';
@@ -152,11 +154,35 @@ export const loader = getServerLoader({
 			} as const;
 		}
 
+		let currentUserEmail: string | undefined;
+		if (sessionToken) {
+			const authedApiClient = getClientManager({
+				tenantToken: sessionToken,
+			}).createClient();
+			const getUserAuthData = safeRun(async () => {
+				return authedApiClient.auth.userAuthData.get();
+			});
+			const userAuthDataResult = await getUserAuthData();
+
+			if (userAuthDataResult.status === 'success') {
+				currentUserEmail = userAuthDataResult.data?.email ?? undefined;
+			}
+		}
+
+		const isSessionMismatch =
+			Boolean(currentUserEmail) &&
+			!_.isEqual(
+				_.toLower(currentUserEmail),
+				_.toLower(result.data?.email ?? ''),
+			);
+
 		return {
 			code: 'VALID',
 			invitationData: result.data,
 			userExists: invitationCheckData?.userExists ?? false,
 			isAuthenticated: Boolean(sessionToken),
+			currentUserEmail,
+			isSessionMismatch,
 			meta,
 		} as const;
 	},
@@ -180,6 +206,51 @@ export const action = getServerAction({
 				status: 'error',
 				error: serializeError(new Error('No invitation token provided')),
 			} as const;
+		}
+
+		const getInvitationDetails = safeRun(async () => {
+			return apiClient.invitations.byToken(token).details.get();
+		});
+		const invitationDetailsResult = await getInvitationDetails();
+
+		if (invitationDetailsResult.status === 'error') {
+			return {
+				status: 'error',
+				error: serializeError(new Error('Invalid invitation link')),
+			} as const;
+		}
+
+		if (sessionToken) {
+			const authedApiClient = getClientManager({
+				tenantToken: sessionToken,
+			}).createClient();
+			const getUserAuthData = safeRun(async () => {
+				return authedApiClient.auth.userAuthData.get();
+			});
+			const userAuthDataResult = await getUserAuthData();
+
+			if (userAuthDataResult.status === 'success') {
+				const currentUserEmail = userAuthDataResult.data?.email ?? undefined;
+				const invitationEmail =
+					invitationDetailsResult.data?.email ?? undefined;
+				const isSessionMismatch =
+					Boolean(currentUserEmail) &&
+					!_.isEqual(
+						_.toLower(currentUserEmail),
+						_.toLower(invitationEmail ?? ''),
+					);
+
+				if (isSessionMismatch) {
+					return {
+						status: 'error',
+						error: serializeError(
+							new Error(
+								`This invitation is for ${invitationEmail}, but you are signed in as ${currentUserEmail}. Log out or switch accounts to continue.`,
+							),
+						),
+					} as const;
+				}
+			}
 		}
 
 		if (acceptMode === 'existing-user') {
@@ -466,10 +537,19 @@ const AcceptInvitationForm = ({
 	}
 
 	const invitationData = loaderData.invitationData;
+	const invitationEmail = invitationData.email ?? '';
 	const loginHref = `${FRONT_PATH_NAMES.auth.login}?${new URLSearchParams({
 		[queryParamKey.login_page.redirect_to]:
 			`${location.pathname}${location.search}`,
+		[queryParamKey.login_page.email]: invitationEmail,
 	}).toString()}`;
+	const logoutToLoginHref = `${FRONT_PATH_NAMES.auth.login}?${new URLSearchParams(
+		{
+			[queryParamKey.login_page.redirect_to]:
+				`${location.pathname}${location.search}`,
+			[queryParamKey.login_page.email]: invitationEmail,
+		},
+	).toString()}`;
 
 	return (
 		<>
@@ -519,15 +599,67 @@ const AcceptInvitationForm = ({
 				</CardContent>
 			</Card>
 
-			{loaderData.userExists ? (
+			{loaderData.isSessionMismatch ? (
+				<Box>
+					<Typography variant="h5" color="text.primary" sx={{ mb: 1 }}>
+						{t('auth-invitation-wrong-account-title')}
+					</Typography>
+					<Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+						<Trans
+							i18nKey={
+								loaderData.userExists
+									? 'auth-invitation-existing-user-mismatch-description'
+									: 'auth-invitation-new-user-mismatch-description'
+							}
+							values={{
+								invitationEmail: invitationData.email,
+								currentUserEmail: loaderData.currentUserEmail,
+							}}
+							components={{
+								strong: (
+									<Box
+										component="strong"
+										sx={{
+											fontWeight: 600,
+											overflowWrap: 'anywhere',
+										}}
+									/>
+								),
+							}}
+						/>
+					</Typography>
+					<Button
+						fullWidth
+						size="large"
+						variant="contained"
+						sx={{
+							whiteSpace: 'normal',
+							textAlign: 'center',
+							overflowWrap: 'anywhere',
+							py: 1.5,
+						}}
+						onClick={() => {
+							logout({
+								redirectTo: loaderData.userExists
+									? logoutToLoginHref
+									: `${location.pathname}${location.search}`,
+							});
+						}}
+					>
+						{loaderData.userExists
+							? t('auth-invitation-log-out-and-sign-in')
+							: t('auth-invitation-log-out-and-continue')}
+					</Button>
+				</Box>
+			) : loaderData.userExists ? (
 				<Box>
 					<Typography variant="h5" color="text.primary" sx={{ mb: 1 }}>
 						{t('auth-accept-invitation')}
 					</Typography>
 					<Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
 						{loaderData.isAuthenticated
-							? 'This email already has an account. Join this organization with your current account.'
-							: 'This email already has an account. Sign in first, then continue with this invitation.'}
+							? t('auth-invitation-existing-user-authenticated-description')
+							: t('auth-invitation-existing-user-login-description')}
 					</Typography>
 					{loaderData.isAuthenticated ? (
 						<Button
@@ -539,7 +671,7 @@ const AcceptInvitationForm = ({
 								fetcher.state === 'submitting' || fetcher.state === 'loading'
 							}
 						>
-							Join organization
+							{t('join-organization')}
 						</Button>
 					) : (
 						<Button
