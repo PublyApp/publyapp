@@ -60,10 +60,10 @@ It covers category `0` through `10`.
 
 ### 2.1 Create tenant
 - Status: `DONE`
-- [ ] Staff can create a tenant from `/staff/tenants/new`.
-- [ ] Required validation errors render correctly for invalid create payloads.
-- [ ] Successful create returns the expected tenant details and lands in the expected UI state.
-- [ ] Initial users are created/invited as expected during tenant creation.
+- [x] Staff can create a tenant from `/staff/tenants/new`.
+- [x] Required validation errors render correctly for invalid create payloads.
+- [x] Successful create returns the expected tenant details and lands in the expected UI state.
+- [x] Initial users are created/invited as expected during tenant creation.
 - [x] Initial invited admins can accept their invitation and activate the pending tenant.
 - [x] Existing tenant/project users can return to the invitation after login and join the new organization with the `Join organization` CTA.
 

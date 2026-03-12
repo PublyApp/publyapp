@@ -23,6 +23,7 @@ type LogoutOptions = {
 	 * - undefined: No message (used for user-initiated logout)
 	 */
 	redirectCause?: 'invalid_session';
+	redirectTo?: string;
 };
 
 // Re-entrance guard: prevents cascading logout calls.
@@ -64,13 +65,21 @@ export const logout = (options?: LogoutOptions): void => {
 	getClientManager().clearClients();
 	ClientManager.resetInstance();
 
-	// Build login URL with optional redirect_cause
+	// Build default login URL with optional redirect_cause
 	const loginUrl = new URL(FRONT_PATH_NAMES.auth.login, window.location.origin);
 	if (options?.redirectCause === 'invalid_session') {
 		loginUrl.searchParams.set(
 			queryParamKey.login_page.redirect_cause,
 			queryParamValue.login_page.redirect_cause.invalid_session,
 		);
+	}
+
+	let finalRedirectPath = loginUrl.pathname + loginUrl.search;
+	if (
+		options?.redirectTo?.startsWith('/') &&
+		!options.redirectTo.startsWith('//')
+	) {
+		finalRedirectPath = options.redirectTo;
 	}
 
 	// Build form data for the clear-session request
@@ -99,6 +108,6 @@ export const logout = (options?: LogoutOptions): void => {
 		.finally(() => {
 			// Navigate to login page using React Router (no page reload)
 			// Use replace to prevent back-button returning to protected page
-			globalNavigate(loginUrl.pathname + loginUrl.search, { replace: true });
+			globalNavigate(finalRedirectPath, { replace: true });
 		});
 };

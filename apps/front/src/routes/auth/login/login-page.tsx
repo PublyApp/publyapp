@@ -242,6 +242,7 @@ const LoginPage = ({ actionData: _ }: Route.ComponentProps) => {
 	const redirect_cause = searchParams.get(
 		queryParamKey.login_page.redirect_cause,
 	);
+	const prefilledEmail = searchParams.get(queryParamKey.login_page.email) ?? '';
 	const hasShownToast = useRef(false);
 
 	useEffect(() => {
@@ -264,7 +265,7 @@ const LoginPage = ({ actionData: _ }: Route.ComponentProps) => {
 		}
 	}, [redirect_cause, t]);
 
-	return <LoginForm />;
+	return <LoginForm prefilledEmail={prefilledEmail} />;
 };
 
 export default LoginPage;
