@@ -145,9 +145,10 @@ public class UserService : IUserService {
 	}
 
 	public async Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken = default) {
+		var normalizedEmail = email.ToLowerInvariant();
 		var query =
 			from u in _dbContext.User
-			where u.Email == email
+			where u.Email == normalizedEmail
 			&& !u.IsDeleted
 			// * check these fields directly in the login handler
 			// * for customized error responses
