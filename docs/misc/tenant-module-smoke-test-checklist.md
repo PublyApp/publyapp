@@ -64,6 +64,8 @@ It covers category `0` through `10`.
 - [ ] Required validation errors render correctly for invalid create payloads.
 - [ ] Successful create returns the expected tenant details and lands in the expected UI state.
 - [ ] Initial users are created/invited as expected during tenant creation.
+- [x] Initial invited admins can accept their invitation and activate the pending tenant.
+- [x] Existing tenant/project users can return to the invitation after login and join the new organization with the `Join organization` CTA.
 
 ### 2.2 Update tenant
 - Status: `DONE`
@@ -282,6 +284,7 @@ It covers category `0` through `10`.
 - [ ] Tenant user update endpoint works end to end.
 - [ ] Tenant user delete endpoint works end to end.
 - [ ] Add explicit automated coverage if invite endpoint still lacks specs.
+- [x] Tenant invitation accept flow now covers both new-account acceptance and existing-account join on the same accept endpoint.
 
 ### 9.4 Tenant archival/data-retention logic
 - Status: `PENDING`
@@ -333,9 +336,10 @@ It covers category `0` through `10`.
 - [ ] Confirm role/profile editing is still placeholder and not falsely treated as complete.
 
 ### 10.4 Invitation acceptance flow
-- Status: `PENDING/DEFERRED`
-- [ ] Confirm whether invitation acceptance is implemented elsewhere under issue `#144`.
-- [ ] If still deferred, keep it out of module-complete acceptance criteria.
+- Status: `DONE/PARTIAL`
+- [x] New users can accept a valid invitation by creating their account from the invitation page.
+- [x] Existing users are prompted to sign in first, return to the invitation page, and complete acceptance with the `Join organization` CTA.
+- [ ] Decide whether existing-user acceptance should remain an explicit post-login confirmation step or be auto-completed after login. Tracked by `#269`.
 
 ## Practical Completion Gate
 

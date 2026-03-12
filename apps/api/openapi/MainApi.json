@@ -768,7 +768,7 @@
         "tags": [
           "Invitations (Anonymous)"
         ],
-        "summary": "Accept invitation and create account + session",
+        "summary": "Accept invitation with a new or existing account",
         "operationId": "AcceptInvitation",
         "parameters": [
           {
@@ -4445,11 +4445,6 @@
   "components": {
     "schemas": {
       "AcceptInvitationBody": {
-        "required": [
-          "firstName",
-          "lastName",
-          "password"
-        ],
         "type": "object",
         "properties": {
           "firstName": {
@@ -4460,6 +4455,16 @@
           },
           "password": {
             "$ref": "#/components/schemas/JsonElement"
+          },
+          "useExistingAccount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           }
         }
       },
@@ -4863,6 +4868,9 @@
           },
           "email": {
             "type": "string"
+          },
+          "userExists": {
+            "type": "boolean"
           }
         }
       },

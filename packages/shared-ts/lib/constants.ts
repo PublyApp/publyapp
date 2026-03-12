@@ -198,6 +198,7 @@ export const queryParamKey = {
 	token: 'token',
 	login_page: {
 		redirect_cause: 'rc',
+		redirect_to: 'rto',
 	},
 	reset_password_page: {
 		redirect_cause: 'rc',

@@ -73,12 +73,16 @@ export const loader = getServerLoader({
 });
 
 export const clientLoader = getClientLoader({
-	loader: async ({ serverLoader }) => {
+	loader: async ({ serverLoader, request }) => {
 		i18next
 			.loadNamespaces([I18N_NAMESPACES.ZOD, I18N_NAMESPACES.RESPONSE_MESSAGE])
 			.catch((error) => {
 				logger.error('Failed to load namespaces', error);
 			});
+
+		const pathname = new URL(request.url).pathname;
+		const isInvitationRoute =
+			pathname === FRONT_PATH_NAMES.auth.acceptInvitation;
 
 		const serverData = await serverLoader<typeof loader>();
 
@@ -168,6 +172,10 @@ export const clientLoader = getClientLoader({
 					: undefined;
 
 			getQueryClient().setQueryData(useGetUserAuthData.getKey(), userAuthData);
+
+			if (isInvitationRoute) {
+				return null;
+			}
 
 			if (redirectCode && redirectCode !== REDIRECT_CODE.UNAUTHORIZED) {
 				if (redirectCode === REDIRECT_CODE.STAFF) {

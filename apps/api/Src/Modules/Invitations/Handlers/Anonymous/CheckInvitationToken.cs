@@ -21,9 +21,10 @@ public class CheckInvitationTokenQueryValidator
 public class CheckInvitationTokenResult {
 	public string Status { get; set; } = "success";
 	public string Email { get; set; } = string.Empty;
+	public bool UserExists { get; set; }
 }
 
-public static class CheckInvitationToken {
+public class CheckInvitationToken {
 	public static async Task<
 		Results<
 			Ok<CheckInvitationTokenResult>,
@@ -32,11 +33,9 @@ public static class CheckInvitationToken {
 	> HandleCheckInvitationToken(
 		[AsParameters] CheckInvitationTokenQuery query,
 		[FromServices] IInvitationService invitationService,
-		[FromServices] ILoggerFactory loggerFactory,
+		[FromServices] ILogger<CheckInvitationToken> logger,
 		CancellationToken cancellationToken
 	) {
-		var logger = loggerFactory.CreateLogger(nameof(CheckInvitationToken));
-
 		string id = query.Id;
 		string token = query.Token;
 
@@ -75,9 +74,15 @@ public static class CheckInvitationToken {
 			);
 		}
 
+		var userExists = await invitationService.UserExistsAsync(
+			email,
+			cancellationToken
+		);
+
 		return TypedResults.Ok(new CheckInvitationTokenResult {
 			Status = "success",
-			Email = email
+			Email = email,
+			UserExists = userExists
 		});
 	}
 }
