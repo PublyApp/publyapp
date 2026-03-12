@@ -22,7 +22,7 @@ import { interZodClient } from '@/front/lib/zod/zod.client';
 
 import type { LoginActionResult } from './login-page';
 
-const LoginForm = () => {
+const LoginForm = ({ prefilledEmail = '' }: { prefilledEmail?: string }) => {
 	const { t, i18n } = useTranslate();
 	const showPassword = useBoolean();
 	const fetcher = useFetcher<LoginActionResult>();
@@ -35,7 +35,7 @@ const LoginForm = () => {
 	const methods = useForm({
 		resolver: loginResolver,
 		defaultValues: {
-			email: '',
+			email: prefilledEmail,
 			password: '',
 		},
 	});
