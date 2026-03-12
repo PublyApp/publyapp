@@ -17,6 +17,13 @@ export interface AcceptInvitationBody extends AdditionalDataHolder, Parsable {
      * The password property
      */
     password?: UntypedNode | null;
+    /**
+     * The useExistingAccount property
+     */
+    useExistingAccount?: AcceptInvitationBody_useExistingAccountMember1 | JsonElement | null;
+}
+export type AcceptInvitationBody_useExistingAccount = AcceptInvitationBody_useExistingAccountMember1 | JsonElement;
+export interface AcceptInvitationBody_useExistingAccountMember1 extends AdditionalDataHolder, Parsable {
 }
 export interface ActiveSystemNotice extends AdditionalDataHolder, Parsable {
     /**
@@ -286,6 +293,10 @@ export interface CheckInvitationTokenResult extends AdditionalDataHolder, Parsab
      * The status property
      */
     status?: string | null;
+    /**
+     * The userExists property
+     */
+    userExists?: boolean | null;
 }
 export interface CheckResetPasswordTokenResult extends AdditionalDataHolder, Parsable {
     /**
@@ -296,6 +307,24 @@ export interface CheckResetPasswordTokenResult extends AdditionalDataHolder, Par
      * The status property
      */
     status?: string | null;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {AcceptInvitationBody_useExistingAccountMember1 | JsonElement}
+ */
+// @ts-ignore
+export function createAcceptInvitationBody_useExistingAccountFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoAcceptInvitationBody_useExistingAccount;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {AcceptInvitationBody_useExistingAccountMember1}
+ */
+// @ts-ignore
+export function createAcceptInvitationBody_useExistingAccountMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoAcceptInvitationBody_useExistingAccountMember1;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1598,6 +1627,29 @@ export function deserializeIntoAcceptInvitationBody(acceptInvitationBody: Partia
         "firstName": n => { acceptInvitationBody.firstName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "lastName": n => { acceptInvitationBody.lastName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "password": n => { acceptInvitationBody.password = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "useExistingAccount": n => { acceptInvitationBody.useExistingAccount = n.getObjectValue<AcceptInvitationBody_useExistingAccountMember1>(createAcceptInvitationBody_useExistingAccountMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param AcceptInvitationBody_useExistingAccount The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoAcceptInvitationBody_useExistingAccount(acceptInvitationBody_useExistingAccount: Partial<AcceptInvitationBody_useExistingAccountMember1 | JsonElement> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoAcceptInvitationBody_useExistingAccountMember1(acceptInvitationBody_useExistingAccount as AcceptInvitationBody_useExistingAccountMember1),
+        ...deserializeIntoJsonElement(acceptInvitationBody_useExistingAccount as JsonElement),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param AcceptInvitationBody_useExistingAccountMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoAcceptInvitationBody_useExistingAccountMember1(acceptInvitationBody_useExistingAccountMember1: Partial<AcceptInvitationBody_useExistingAccountMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
     }
 }
 /**
@@ -1856,6 +1908,7 @@ export function deserializeIntoCheckInvitationTokenResult(checkInvitationTokenRe
     return {
         "email": n => { checkInvitationTokenResult.email = n.getStringValue(); },
         "status": n => { checkInvitationTokenResult.status = n.getStringValue(); },
+        "userExists": n => { checkInvitationTokenResult.userExists = n.getBooleanValue(); },
     }
 }
 /**
@@ -3663,7 +3716,30 @@ export function serializeAcceptInvitationBody(writer: SerializationWriter, accep
     writer.writeObjectValue("firstName", acceptInvitationBody.firstName);
     writer.writeObjectValue("lastName", acceptInvitationBody.lastName);
     writer.writeObjectValue("password", acceptInvitationBody.password);
+    writer.writeObjectValue<AcceptInvitationBody_useExistingAccountMember1 | JsonElement>("useExistingAccount", acceptInvitationBody.useExistingAccount, serializeAcceptInvitationBody_useExistingAccount);
     writer.writeAdditionalData(acceptInvitationBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param AcceptInvitationBody_useExistingAccount The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeAcceptInvitationBody_useExistingAccount(writer: SerializationWriter, acceptInvitationBody_useExistingAccount: Partial<AcceptInvitationBody_useExistingAccountMember1 | JsonElement> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeAcceptInvitationBody_useExistingAccountMember1(writer, acceptInvitationBody_useExistingAccount as AcceptInvitationBody_useExistingAccountMember1);
+    serializeJsonElement(writer, acceptInvitationBody_useExistingAccount as JsonElement);
+}
+/**
+ * Serializes information the current object
+ * @param AcceptInvitationBody_useExistingAccountMember1 The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeAcceptInvitationBody_useExistingAccountMember1(writer: SerializationWriter, acceptInvitationBody_useExistingAccountMember1: Partial<AcceptInvitationBody_useExistingAccountMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!acceptInvitationBody_useExistingAccountMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(acceptInvitationBody_useExistingAccountMember1.additionalData);
 }
 /**
  * Serializes information the current object
@@ -3939,6 +4015,7 @@ export function serializeCheckInvitationTokenResult(writer: SerializationWriter,
     if (!checkInvitationTokenResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("email", checkInvitationTokenResult.email);
     writer.writeStringValue("status", checkInvitationTokenResult.status);
+    writer.writeBooleanValue("userExists", checkInvitationTokenResult.userExists);
     writer.writeAdditionalData(checkInvitationTokenResult.additionalData);
 }
 /**
