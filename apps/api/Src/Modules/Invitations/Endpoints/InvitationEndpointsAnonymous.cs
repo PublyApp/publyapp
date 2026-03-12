@@ -26,7 +26,7 @@ public static class InvitationEndpointsAnonymous {
 				AcceptInvitation.HandleAcceptInvitation
 			)
 			.WithName("AcceptInvitation")
-			.WithSummary("Accept invitation and create account + session")
+			.WithSummary("Accept invitation with a new or existing account")
 			.WithReqBodyValidation<AcceptInvitationBody>()
 			.ProducesAppProblem(StatusCodes.Status500InternalServerError);
 

@@ -82,6 +82,11 @@ public interface IInvitationService {
 		string passwordHash,
 		CancellationToken cancellationToken = default);
 
+	Task<UserEntity> AcceptTenantInvitationForExistingUserAsync(
+		Invitation invitation,
+		Guid userId,
+		CancellationToken cancellationToken = default);
+
 	// Batch validation methods for bulk operations
 	Task<List<string>> GetExistingUserEmailsAsync(
 		List<string> emails,
@@ -791,6 +796,129 @@ public class InvitationService : IInvitationService {
 				_logger.LogInformation(
 					"Tenant invitation accepted: User {UserId} created in tenant {TenantId} with AccountLevel {AccountLevel} and {ProfileCount} profiles from invitation {InvitationId}",
 					user.GetRequiredId(),
+					tenantId,
+					accountLevel,
+					invitationProfiles.Count,
+					invitation.GetRequiredId()
+				);
+			}
+
+			return user;
+		} catch {
+			await tx.RollbackAsync(cancellationToken);
+			throw;
+		}
+	}
+
+	public async Task<UserEntity> AcceptTenantInvitationForExistingUserAsync(
+		Invitation invitation,
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		await using var tx = await _dbContext.Database
+			.BeginTransactionAsync(cancellationToken);
+		try {
+			if (invitation.TenantId is null) {
+				throw new InvalidOperationException(
+					$"Tenant invitation {invitation.GetRequiredId()} has no TenantId"
+				);
+			}
+
+			var tenantId = invitation.TenantId.Value;
+			var accountLevel = invitation.AccountLevel ?? AccountLevel.User;
+
+			var user = await (
+				from u in _dbContext.User
+				where u.Id == userId && !u.IsDeleted
+				select u
+			).FirstOrDefaultAsync(cancellationToken);
+
+			if (user is null) {
+				throw new InvalidOperationException(
+					$"User {userId} not found for invitation acceptance"
+				);
+			}
+
+			var hasStaffAccount = await (
+				from ua in _dbContext.UserAccount
+				where ua.UserId == userId
+					&& ua.Scope == AccountScope.Staff
+					&& !ua.IsDeleted
+				select ua
+			).AnyAsync(cancellationToken);
+
+			if (hasStaffAccount) {
+				throw new InvalidOperationException(
+					"Staff and tenant/project accounts are mutually exclusive"
+				);
+			}
+
+			var existingTenantAccount = await (
+				from ua in _dbContext.UserAccount
+				where ua.UserId == userId
+					&& ua.TenantId == tenantId
+					&& ua.Scope == AccountScope.Tenant
+					&& !ua.IsDeleted
+				select ua
+			).FirstOrDefaultAsync(cancellationToken);
+
+			if (existingTenantAccount is not null) {
+				throw new InvalidOperationException(
+					"User is already member of tenant"
+				);
+			}
+
+			var account = UserAccount.CreateTenantAccount(
+				userId,
+				tenantId,
+				accountLevel
+			);
+			await _dbContext.UserAccount.AddAsync(account, cancellationToken);
+			await _dbContext.SaveChangesAsync(cancellationToken);
+
+			var invitationProfiles = await (
+				from ip in _dbContext.InvitationProfile
+				where ip.InvitationId == invitation.GetRequiredId()
+				select ip
+			).ToListAsync(cancellationToken);
+
+			foreach (var invitationProfile in invitationProfiles) {
+				await _dbContext.UserAccountProfile.AddAsync(
+					new UserAccountProfile {
+						UserAccountId = account.GetRequiredId(),
+						ProfileId = invitationProfile.ProfileId
+					},
+					cancellationToken
+				);
+			}
+
+			var tenant = await (
+				from t in _dbContext.Tenant
+				where t.Id == tenantId && !t.IsDeleted
+				select t
+			).FirstOrDefaultAsync(cancellationToken);
+
+			if (tenant is null) {
+				throw new InvalidOperationException(
+					$"Tenant {tenantId} not found for invitation {invitation.GetRequiredId()}"
+				);
+			}
+
+			if (tenant.Status == TenantStatus.Pending && !tenant.IsSuspended) {
+				tenant.Status = TenantStatus.Active;
+				tenant.UpdatedAt = DateTime.UtcNow;
+			}
+
+			invitation.IsAccepted = true;
+			invitation.AcceptedAt = DateTime.UtcNow;
+			await _dbContext.SaveChangesAsync(cancellationToken);
+
+			await tx.CommitAsync(cancellationToken);
+
+			if (_logger.IsEnabled(LogLevel.Information)) {
+				_logger.LogInformation(
+					"Tenant invitation accepted by existing user {UserId} in tenant {TenantId} with AccountLevel {AccountLevel} and {ProfileCount} profiles from invitation {InvitationId}",
+					userId,
 					tenantId,
 					accountLevel,
 					invitationProfiles.Count,

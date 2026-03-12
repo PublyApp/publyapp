@@ -123,6 +123,99 @@ public sealed class AcceptInvitationSpec
 		tenant.IsSuspended.Should().BeFalse();
 	}
 
+	[Fact]
+	public async Task
+	ItShouldAllowExistingTenantUserToAcceptTenantInvitationWithCurrentSession() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var existingUserToken = await _authClient.LoginAsync(
+			TestConstants.AliceEmail,
+			TestConstants.SeedPassword
+		);
+		var inviteEmail = TestConstants.AliceEmail;
+
+		using var createBody = JsonDocument.Parse(
+			$$"""
+			{
+				"name": "Existing User Tenant Test",
+				"maxUsers": 1,
+				"initialUsers": [
+					{
+						"email": "{{inviteEmail}}",
+						"accountLevel": "Admin"
+					}
+				]
+			}
+			"""
+		);
+
+		var createResponse = await TenantTestHelper.CreateTenantAsync(
+			_http,
+			staffToken,
+			createBody.RootElement
+		);
+
+		createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+		await using var setupScope = _fixture.Factory.Services.CreateAsyncScope();
+		var setupDbContext =
+			setupScope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var invitation = await setupDbContext.Invitation
+			.Where(inv =>
+				inv.Email == inviteEmail &&
+				inv.Scope == InvitationScope.Tenant &&
+				inv.IsAccepted == false
+			)
+			.OrderByDescending(inv => inv.CreatedAt)
+			.FirstAsync();
+
+		using var acceptRequest = new HttpRequestMessage(
+			HttpMethod.Post,
+			Routes.Invitations.Anonymous.AcceptByTokenFn(invitation.Token)
+		).WithSessionToken(existingUserToken);
+		acceptRequest.Content = JsonContent.Create(new {
+			useExistingAccount = true
+		});
+
+		using var acceptResponse = await _http.SendAsync(acceptRequest);
+
+		acceptResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var accepted = await acceptResponse.Content
+			.ReadFromJsonAsync<InvitationAcceptedResponse>();
+		accepted.Should().NotBeNull();
+		accepted!.TenantId.Should().Be(invitation.TenantId);
+		accepted.UserId.Should().NotBeEmpty();
+		accepted.SessionToken.Should().Be(existingUserToken);
+
+		using var pickerRequest = new HttpRequestMessage(
+			HttpMethod.Get,
+			Routes.Auth.GetUserTenantsForPicker
+		).WithSessionToken(existingUserToken);
+
+		using var pickerResponse = await _http.SendAsync(pickerRequest);
+
+		pickerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var picker = await pickerResponse.Content
+			.ReadFromJsonAsync<PickerResponse>();
+		picker.Should().NotBeNull();
+		picker!.Tenants.Should().Contain(t =>
+			t.Id == invitation.TenantId &&
+			t.Status == "Active" &&
+			t.IsActive
+		);
+
+		await using var assertScope = _fixture.Factory.Services.CreateAsyncScope();
+		var assertDbContext =
+			assertScope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var tenant = await assertDbContext.Tenant
+			.Where(t => t.Id == invitation.TenantId)
+			.SingleAsync();
+
+		tenant.Status.Should().Be(TenantStatus.Active);
+		tenant.IsSuspended.Should().BeFalse();
+	}
+
 	private sealed record InvitationAcceptedResponse {
 		public Guid UserId { get; init; }
 		public Guid? TenantId { get; init; }

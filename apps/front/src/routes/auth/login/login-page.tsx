@@ -36,6 +36,18 @@ import { fSecondsUntil } from '@/front/utils/format-time';
 import type { Route } from './+types/login-page';
 import LoginForm from './login-form';
 
+const getSafeRedirectTo = (value: string | null): string | undefined => {
+	if (!value) {
+		return undefined;
+	}
+
+	if (!value.startsWith('/') || value.startsWith('//')) {
+		return undefined;
+	}
+
+	return value;
+};
+
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = _.capitalize(t('login'));
 
@@ -72,6 +84,11 @@ export const action = getServerAction({
 	action: async ({ request, context }) => {
 		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const formData = await request.formData();
+		const redirectTo = getSafeRedirectTo(
+			new URL(request.url).searchParams.get(
+				queryParamKey.login_page.redirect_to,
+			),
+		);
 
 		const email = _.toString(formData.get('email'));
 		const password = _.toString(formData.get('password'));
@@ -205,6 +222,12 @@ export const action = getServerAction({
 			for (const clearHeader of serializeClearLegacyCookieHeaders()) {
 				responseHeaders.append('Set-Cookie', clearHeader);
 			}
+		}
+
+		if (redirectTo) {
+			return redirect(redirectTo, {
+				headers: responseHeaders,
+			}) as never;
 		}
 
 		return redirect(redirectPath, {
