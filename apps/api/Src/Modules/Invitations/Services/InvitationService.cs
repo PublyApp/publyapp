@@ -135,6 +135,11 @@ public interface IInvitationService {
 		Guid userId,
 		CancellationToken cancellationToken = default);
 
+	Task<UserEntity> AcceptTenantInvitationForExistingUserAsync(
+		Invitation invitation,
+		Guid userId,
+		CancellationToken cancellationToken = default);
+
 	// Batch validation methods for bulk operations
 	Task<List<string>> GetExistingUserEmailsAsync(
 		List<string> emails,

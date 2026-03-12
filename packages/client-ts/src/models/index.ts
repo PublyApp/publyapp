@@ -412,6 +412,10 @@ export interface CheckInvitationTokenResult extends AdditionalDataHolder, Parsab
      * The status property
      */
     status?: string | null;
+    /**
+     * The userExists property
+     */
+    userExists?: boolean | null;
 }
 export interface CheckResetPasswordTokenResult extends AdditionalDataHolder, Parsable {
     /**
