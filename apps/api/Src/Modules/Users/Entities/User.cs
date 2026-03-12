@@ -23,7 +23,7 @@ public class User : BaseAttributes, INoTenantEntity {
 	[EmailAddress]
 	public required string Email {
 		get { return _email; }
-		set { _email = value.ToLower(); }
+		set { _email = value.ToLowerInvariant(); }
 	}
 
 	[Column("password")]
