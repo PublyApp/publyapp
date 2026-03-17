@@ -49,6 +49,22 @@ const updateTenantSchema = z.object({
 
 type UpdateTenantFormValues = z.infer<typeof updateTenantSchema>;
 
+const readOnlyFieldInputSx = {
+	bgcolor: 'action.hover',
+	color: 'text.secondary',
+	cursor: 'default',
+	'& .MuiOutlinedInput-notchedOutline': {
+		borderColor: 'divider',
+	},
+	'&:hover .MuiOutlinedInput-notchedOutline': {
+		borderColor: 'divider',
+	},
+	'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+		borderColor: 'divider',
+		borderWidth: 1,
+	},
+};
+
 const TenantDetailsGeneralPage = () => {
 	const { t } = useTranslate();
 	const { tenantId } = useParams();
@@ -116,7 +132,9 @@ const TenantGeneralContent = ({
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
-	const [copied, setCopied] = useState(false);
+	const [copiedField, setCopiedField] = useState<'code' | 'tenantId' | null>(
+		null,
+	);
 
 	const methods = useForm<UpdateTenantFormValues>({
 		resolver: zodResolver(updateTenantSchema),
@@ -128,7 +146,7 @@ const TenantGeneralContent = ({
 
 	const { mutate: updateTenant, isPending: isUpdating } = useUpdateTenant(
 		withFormValidation(methods.setError, {
-			meta: { showSuccessToast: true },
+			meta: { successMessage: 'tenant-updated-success' },
 			onSuccess: () => {
 				queryClient.invalidateQueries({
 					queryKey: useGetTenant.getKey({ tenantId }),
@@ -144,10 +162,10 @@ const TenantGeneralContent = ({
 		updateTenant({ tenantId, ...data });
 	});
 
-	const handleCopyId = () => {
-		navigator.clipboard.writeText(tenantId);
-		setCopied(true);
-		setTimeout(() => setCopied(false), 2000);
+	const handleCopyValue = (field: 'code' | 'tenantId', value: string) => {
+		navigator.clipboard.writeText(value);
+		setCopiedField(field);
+		setTimeout(() => setCopiedField(null), 2000);
 	};
 
 	return (
@@ -206,7 +224,37 @@ const TenantGeneralContent = ({
 								<TextField
 									label={t('code')}
 									value={code ?? ''}
-									slotProps={{ input: { readOnly: true } }}
+									slotProps={{
+										input: {
+											readOnly: true,
+											sx: readOnlyFieldInputSx,
+											endAdornment: (
+												<InputAdornment position="end">
+													<Tooltip
+														title={
+															copiedField === 'code' ? t('copied') : t('copy')
+														}
+													>
+														<IconButton
+															size="small"
+															onClick={() =>
+																handleCopyValue('code', code ?? '')
+															}
+														>
+															<Iconify
+																icon={
+																	copiedField === 'code'
+																		? 'solar:check-circle-bold'
+																		: 'solar:copy-bold'
+																}
+																width={18}
+															/>
+														</IconButton>
+													</Tooltip>
+												</InputAdornment>
+											),
+										},
+									}}
 								/>
 
 								<TextField
@@ -215,13 +263,25 @@ const TenantGeneralContent = ({
 									slotProps={{
 										input: {
 											readOnly: true,
+											sx: readOnlyFieldInputSx,
 											endAdornment: (
 												<InputAdornment position="end">
-													<Tooltip title={copied ? t('copied') : t('copy')}>
-														<IconButton size="small" onClick={handleCopyId}>
+													<Tooltip
+														title={
+															copiedField === 'tenantId'
+																? t('copied')
+																: t('copy')
+														}
+													>
+														<IconButton
+															size="small"
+															onClick={() =>
+																handleCopyValue('tenantId', tenantId)
+															}
+														>
 															<Iconify
 																icon={
-																	copied
+																	copiedField === 'tenantId'
 																		? 'solar:check-circle-bold'
 																		: 'solar:copy-bold'
 																}
@@ -253,9 +313,10 @@ const TenantGeneralContent = ({
 								<Button
 									type="submit"
 									variant="contained"
-									disabled={!methods.formState.isDirty || isUpdating}
+									loading={isUpdating}
+									disabled={!methods.formState.isDirty}
 								>
-									{isUpdating ? t('saving') : t('save-changes')}
+									{t('save-changes')}
 								</Button>
 							</Box>
 						</Form>
@@ -320,7 +381,7 @@ const DangerZoneCard = ({
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
 	const { mutate: suspendTenant, isPending: isSuspending } = useSuspendTenant({
-		meta: { showSuccessToast: true },
+		meta: { successMessage: 'tenant-suspended-success' },
 		onSuccess: () => {
 			setSuspendDialogOpen(false);
 			queryClient.invalidateQueries({
@@ -331,7 +392,7 @@ const DangerZoneCard = ({
 
 	const { mutate: reactivateTenant, isPending: isReactivating } =
 		useReactivateTenant({
-			meta: { showSuccessToast: true },
+			meta: { successMessage: 'tenant-reactivated-success' },
 			onSuccess: () => {
 				setReactivateDialogOpen(false);
 				queryClient.invalidateQueries({
@@ -341,7 +402,7 @@ const DangerZoneCard = ({
 		});
 
 	const { mutate: deleteTenant, isPending: isDeleting } = useDeleteTenant({
-		meta: { showSuccessToast: true },
+		meta: { successMessage: 'tenant-deleted-success' },
 		onSuccess: () => {
 			setDeleteDialogOpen(false);
 			queryClient.invalidateQueries({
