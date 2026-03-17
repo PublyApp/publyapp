@@ -82,6 +82,7 @@ const readOnlyFieldInputSx = {
 };
 
 const TenantDetailsGeneralPage = () => {
+	const { t } = useTranslate();
 	const { tenantId } = useParams();
 	const { tenantName } = useOutletContext<TenantDetailsOutletContext>();
 
