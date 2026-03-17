@@ -69,10 +69,10 @@ It covers category `0` through `10`.
 
 ### 2.2 Update tenant
 - Status: `DONE`
-- [ ] Staff can edit tenant `name`.
-- [ ] Staff can edit tenant `maxUsers`.
-- [ ] Saving the general form refreshes both detail and list data.
-- [ ] Validation failures surface correctly in the form.
+- [x] Staff can edit tenant `name`.
+- [x] Staff can edit tenant `maxUsers`.
+- [x] Saving the general form refreshes both detail and list data.
+- [x] Validation failures surface correctly in the form.
 
 ### 2.3 Delete tenant
 - Status: `DONE`
