@@ -76,9 +76,9 @@ It covers category `0` through `10`.
 
 ### 2.3 Delete tenant
 - Status: `DONE`
-- [ ] Delete is only available when tenant state allows deletion.
-- [ ] Delete confirmation dialog opens and closes correctly.
-- [ ] Successful delete removes the tenant from the list and redirects away from the detail page.
+- [x] Delete is only available when tenant state allows deletion.
+- [x] Delete confirmation dialog opens and closes correctly.
+- [x] Successful delete removes the tenant from the list and redirects away from the detail page.
 - [ ] Invalid delete attempts produce the expected API/UI error behavior.
 
 ### 2.4 Suspend tenant
