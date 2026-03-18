@@ -79,32 +79,32 @@ It covers category `0` through `10`.
 - [x] The delete action is visible only when the tenant is in a deletable state.
 - [x] The delete confirmation dialog opens when requested and closes cleanly on cancel.
 - [x] A successful delete removes the tenant from the list and redirects away from the deleted tenant detail page.
-- [ ] A disallowed delete attempt returns the expected API problem response, keeps the tenant intact, and shows a single clear UI error.
+- [x] A disallowed delete attempt returns the expected API problem response, keeps the tenant intact, and shows a single clear UI error.
 
 ### 2.4 Suspend tenant
 - Status: `DONE`
-- [ ] Suspending an active tenant from the list row action succeeds and updates the row state after refresh or invalidation.
-- [ ] Suspending an active tenant from the general-tab danger zone succeeds and updates the detail page state immediately.
-- [ ] Once suspended, the tenant is shown as suspended in both the list and detail views.
+- [x] Suspending an active tenant from the list row action succeeds and updates the row state after refresh or invalidation.
+- [x] Suspending an active tenant from the general-tab danger zone succeeds and updates the detail page state immediately.
+- [x] Once suspended, the tenant is shown as suspended in both the list and detail views.
 
 ### 2.5 Reactivate tenant
 - Status: `DONE`
-- [ ] Reactivating a suspended tenant from the list row action succeeds and updates the row state after refresh or invalidation.
-- [ ] Reactivating a suspended tenant from the general-tab danger zone succeeds and updates the detail page state immediately.
-- [ ] Once reactivated, the tenant is shown as active again in both the list and detail views.
+- [x] Reactivating a suspended tenant from the list row action succeeds and updates the row state after refresh or invalidation.
+- [x] Reactivating a suspended tenant from the general-tab danger zone succeeds and updates the detail page state immediately.
+- [x] Once reactivated, the tenant is shown as active again in both the list and detail views.
 
 ### 2.6 Enriched GET tenant response
 - Status: `DONE`
-- [ ] The staff detail page renders the tenant ID value returned by the enriched GET response.
-- [ ] The staff detail page renders the tenant name returned by the enriched GET response.
-- [ ] The staff detail page renders the tenant code returned by the enriched GET response.
-- [ ] The staff detail page renders either `logoUrl` or the intended avatar fallback when no logo exists.
-- [ ] The staff detail page renders the configured `maxUsers` value.
-- [ ] The staff detail page renders the current `usersCount` value.
-- [ ] The staff detail page renders the current tenant `status`.
-- [ ] The staff detail page changes available actions based on the `isSuspended` state from the response.
-- [ ] The staff detail page renders `createdAt`.
-- [ ] The staff detail page renders `updatedAt`.
+- [x] The staff detail page renders the tenant ID value returned by the enriched GET response.
+- [x] The staff detail page renders the tenant name returned by the enriched GET response.
+- [x] The staff detail page renders the tenant code returned by the enriched GET response.
+- [x] The staff detail page renders either `logoUrl` or the intended avatar fallback when no logo exists.
+- [x] The staff detail page renders the configured `maxUsers` value.
+- [x] The staff detail page renders the current `usersCount` value.
+- [x] The staff detail page renders the current tenant `status`.
+- [x] The staff detail page changes available actions based on the `isSuspended` state from the response.
+- [x] The staff detail page renders `createdAt`.
+- [x] The staff detail page renders `updatedAt`.
 
 ## Category 3: Tenant List Improvements
 
