@@ -229,7 +229,9 @@ const useTenantsTableController = () => {
 	});
 
 	const [globalFilter, setGlobalFilter] = useState(filterStates.q);
-	const [statusFilter, setStatusFilter] = useState(filterStates.status);
+	const [statusFilter, setStatusFilter] = useState<string[]>(() =>
+		parseStatusFilter(filterStates.status),
+	);
 
 	// Use the custom table state hook for cursor pagination
 	const {
@@ -256,7 +258,7 @@ const useTenantsTableController = () => {
 		}
 
 		resetCursorPagination?.();
-		setFilterStates({ q: debouncedQ, status: statusFilter });
+		setFilterStates({ q: debouncedQ, status: statusFilter.join(',') });
 	}, [
 		debouncedQ,
 		filterStates.q,
@@ -265,21 +267,41 @@ const useTenantsTableController = () => {
 		statusFilter,
 	]);
 
+	useEffect(() => {
+		setGlobalFilter(filterStates.q);
+	}, [filterStates.q]);
+
+	useEffect(() => {
+		const nextStatusFilter = parseStatusFilter(filterStates.status);
+		if (!_.isEqual(nextStatusFilter, statusFilter)) {
+			setStatusFilter(nextStatusFilter);
+		}
+	}, [filterStates.status, statusFilter]);
+
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const value = e.target.value;
 		setGlobalFilter(value);
 	};
 
 	// Status filter handler - reset cursor before updating
-	const handleStatusChange = (event: SelectChangeEvent) => {
-		const value = event.target.value;
+	const handleStatusChange = (
+		_value: React.SyntheticEvent,
+		selectedOptions: typeof tenantStatusOptions,
+	) => {
+		const nextStatusFilter = selectedOptions.map((option) => option.value);
 		resetCursorPagination?.();
-		setStatusFilter(value);
-		setFilterStates({ q: globalFilter, status: value });
+		setStatusFilter(nextStatusFilter);
+		setFilterStates({ q: globalFilter, status: nextStatusFilter.join(',') });
 	};
 
 	// Row selection state for bulk actions
 	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+	const [selectionActionAnchorEl, setSelectionActionAnchorEl] =
+		useState<null | HTMLElement>(null);
+	const [exportDialogOpen, setExportDialogOpen] = useState(false);
+	const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'xlsx'>(
+		'csv',
+	);
 
 	// Bulk action mutations
 	const queryClient = useQueryClient();
@@ -703,7 +725,6 @@ const TenantsTable = () => {
 				border: 'none',
 			}}
 		>
-			{renderTopToolbar()}
 			<MaterialReactTable table={table} />
 
 			<TenantsExportDialogController
