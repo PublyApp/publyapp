@@ -3,6 +3,8 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
+import Tooltip from '@mui/material/Tooltip';
+import type { MRT_TableInstance } from 'material-react-table';
 
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { Iconify } from '@/front/components/iconify/iconify';
@@ -42,40 +44,55 @@ export const minimalCursorPreset = (theme: Theme): TablePreset => {
 	return {
 		...basePreset,
 		// Override the bottom toolbar pagination with cursor-based navigation
-		renderBottomToolbarCustomActions: ({ table }) => {
-			const { t } = useTranslate();
-			const meta = table.options.meta as CursorPaginationMeta | undefined;
+		renderBottomToolbarCustomActions: ({ table }) => (
+			<MinimalCursorBottomToolbarActions table={table} />
+		),
+	};
+};
 
-			if (!meta) {
-				logger.warn(
-					'CursorPaginationMeta not found in table.options.meta. Please pass handlePaginationChange, hasNextPage, hasPreviousPage, and isPending via the meta prop.',
-				);
-			}
+type MinimalCursorBottomToolbarActionsProps = {
+	table: MRT_TableInstance<Record<string, unknown>>;
+};
 
-			const {
-				handlePaginationChange,
-				hasNextPage,
-				hasPreviousPage,
-				isPending,
-			} = meta || {};
-			const { pagination } = table.getState();
+const MinimalCursorBottomToolbarActions = ({
+	table,
+}: MinimalCursorBottomToolbarActionsProps) => {
+	const { t } = useTranslate();
+	const meta = table.options.meta as CursorPaginationMeta | undefined;
 
-			return (
-				<Box
-					sx={{
-						display: 'flex',
-						gap: 2,
-						alignItems: 'center',
-						width: '100%',
-					}}
+	if (!meta) {
+		logger.warn(
+			'CursorPaginationMeta not found in table.options.meta. Please pass handlePaginationChange, hasNextPage, hasPreviousPage, and isPending via the meta prop.',
+		);
+	}
+
+	const { handlePaginationChange, hasNextPage, hasPreviousPage, isPending } =
+		meta || {};
+	const { pagination } = table.getState();
+	const disablePaginationControls = meta?.disablePaginationControls ?? false;
+	const disabledControlsReason = t('selection-mode-disable-pagination', {
+		defaultValue: 'Clear the current selection to change pagination.',
+	});
+
+	return (
+		<Box
+			sx={{
+				display: 'flex',
+				gap: 2,
+				alignItems: 'center',
+				width: '100%',
+			}}
+		>
+			<Box sx={{ display: 'flex', gap: 1, alignItems: 'center', ml: 'auto' }}>
+				<Box sx={{ typography: 'body2', color: 'text.secondary' }}>
+					{t('rows-per-page')}:
+				</Box>
+				<Tooltip
+					title={disablePaginationControls ? disabledControlsReason : ''}
+					arrow
+					disableHoverListener={!disablePaginationControls}
 				>
-					{/* Page Size Selector */}
-					<Box
-						sx={{ display: 'flex', gap: 1, alignItems: 'center', ml: 'auto' }}
-					>
-						<Box sx={{ typography: 'body2', color: 'text.secondary' }}>
-							{t('rows-per-page')}:
-						</Box>
+					<Box component="span">
 						<Select
 							size="small"
 							value={pagination.pageSize}
@@ -83,10 +100,10 @@ export const minimalCursorPreset = (theme: Theme): TablePreset => {
 								handlePaginationChange?.((prev) => ({
 									...prev,
 									pageSize: Number(e.target.value),
-									pageIndex: 0, // Reset to first page when changing page size
+									pageIndex: 0,
 								}));
 							}}
-							disabled={isPending}
+							disabled={isPending || disablePaginationControls}
 							sx={{ minWidth: 70 }}
 						>
 							{DEFAULT_PAGE_SIZE_OPTIONS.map((size) => (
@@ -96,21 +113,28 @@ export const minimalCursorPreset = (theme: Theme): TablePreset => {
 							))}
 						</Select>
 					</Box>
+				</Tooltip>
+			</Box>
 
-					{/* Page Navigation */}
-					<Box
-						sx={{
-							display: 'flex',
-							gap: 1,
-							justifyContent: 'center',
-							alignItems: 'center',
-						}}
+			<Box
+				sx={{
+					display: 'flex',
+					gap: 1,
+					justifyContent: 'center',
+					alignItems: 'center',
+				}}
+			>
+				<Box sx={{ typography: 'body2', color: 'text.secondary' }}>
+					{t('page')} {pagination.pageIndex + 1}
+				</Box>
+
+				<Box sx={{ display: 'flex', gap: 1 }}>
+					<Tooltip
+						title={disablePaginationControls ? disabledControlsReason : ''}
+						arrow
+						disableHoverListener={!disablePaginationControls}
 					>
-						<Box sx={{ typography: 'body2', color: 'text.secondary' }}>
-							{t('page')} {pagination.pageIndex + 1}
-						</Box>
-
-						<Box sx={{ display: 'flex', gap: 1 }}>
+						<Box component="span">
 							<Button
 								variant="outlined"
 								size="small"
@@ -120,11 +144,21 @@ export const minimalCursorPreset = (theme: Theme): TablePreset => {
 										pageIndex: prev.pageIndex - 1,
 									}));
 								}}
-								disabled={!hasPreviousPage || isPending}
+								disabled={
+									disablePaginationControls || !hasPreviousPage || isPending
+								}
 								sx={{ height: 32, minWidth: 32, width: 32, px: 1 }}
 							>
 								<Iconify icon="eva:arrow-ios-back-fill" />
 							</Button>
+						</Box>
+					</Tooltip>
+					<Tooltip
+						title={disablePaginationControls ? disabledControlsReason : ''}
+						arrow
+						disableHoverListener={!disablePaginationControls}
+					>
+						<Box component="span">
 							<Button
 								variant="outlined"
 								size="small"
@@ -134,15 +168,17 @@ export const minimalCursorPreset = (theme: Theme): TablePreset => {
 										pageIndex: prev.pageIndex + 1,
 									}));
 								}}
-								disabled={!hasNextPage || isPending}
+								disabled={
+									disablePaginationControls || !hasNextPage || isPending
+								}
 								sx={{ height: 32, minWidth: 32, width: 32, px: 1 }}
 							>
 								<Iconify icon="eva:arrow-ios-forward-fill" />
 							</Button>
 						</Box>
-					</Box>
+					</Tooltip>
 				</Box>
-			);
-		},
-	};
+			</Box>
+		</Box>
+	);
 };
