@@ -1,22 +1,18 @@
 import type { Theme } from '@mui/material';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import { inputBaseClasses } from '@mui/material/InputBase';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
-import { textFieldClasses } from '@mui/material/TextField';
-import {
-	MRT_GlobalFilterTextField,
-	type MRT_RowData,
-	type MRT_TableInstance,
-} from 'material-react-table';
+import type { MRT_TableInstance } from 'material-react-table';
 
 import { EmptyContent } from '@/front/components/empty-content/empty-content';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { useTranslate } from '@/front/hooks/use-translate';
 
 import { DEFAULT_PAGE_SIZE_OPTIONS } from '../../constants';
+import { SharedTopToolbar } from '../components/shared-top-toolbar';
 import type { TablePreset } from '../table-presets';
+import type { CursorPaginationMeta } from '../types';
 
 export const defaultTablePreset = (theme: Theme): TablePreset => {
 	return {
@@ -43,14 +39,7 @@ export const defaultTablePreset = (theme: Theme): TablePreset => {
 			/>
 		),
 		renderTopToolbar: (props) => {
-			return (
-				<CustomToolbar
-					table={props.table}
-					onOpenConfirmDeleteRows={(): void => {
-						throw new Error('Function not implemented.');
-					}}
-				/>
-			);
+			return <SharedTopToolbar table={props.table} />;
 		},
 		state: {
 			showLoadingOverlay: false,
@@ -102,87 +91,9 @@ export const defaultTablePreset = (theme: Theme): TablePreset => {
 			},
 		},
 		// Custom pagination UI matching cursor preset design
-		renderBottomToolbarCustomActions: ({ table }) => {
-			const { t } = useTranslate();
-			const { pagination } = table.getState();
-			const totalPages = table.getPageCount();
-			const currentPage = pagination.pageIndex + 1;
-
-			return (
-				<Box
-					sx={{
-						display: 'flex',
-						gap: 2,
-						alignItems: 'center',
-						width: '100%',
-					}}
-				>
-					{/* Page Size Selector */}
-					<Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-						<Box sx={{ typography: 'body2', color: 'text.secondary' }}>
-							{t('rows-per-page')}:
-						</Box>
-						<Select
-							size="small"
-							value={pagination.pageSize}
-							onChange={(e) => {
-								table.setPageSize(Number(e.target.value));
-							}}
-							sx={{ minWidth: 70 }}
-							slotProps={{
-								input: {
-									sx: {
-										padding: '4px 10px',
-									},
-								},
-							}}
-						>
-							{DEFAULT_PAGE_SIZE_OPTIONS.map((size) => (
-								<MenuItem key={size} value={size}>
-									{size}
-								</MenuItem>
-							))}
-						</Select>
-					</Box>
-
-					{/* Page Navigation */}
-					<Box
-						sx={{
-							ml: 'auto',
-							display: 'flex',
-							gap: 1,
-							justifyContent: 'center',
-							alignItems: 'center',
-						}}
-					>
-						<Box sx={{ typography: 'body2', color: 'text.secondary' }}>
-							{t('page-x-of-y', { page: currentPage, total: totalPages })}
-						</Box>
-
-						<Box sx={{ display: 'flex', gap: 1 }}>
-							<Button
-								variant="outlined"
-								size="small"
-								onClick={() => table.previousPage()}
-								disabled={!table.getCanPreviousPage()}
-								startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
-							>
-								{t('previous')}
-							</Button>
-							<Button
-								variant="outlined"
-								size="small"
-								onClick={() => table.nextPage()}
-								disabled={!table.getCanNextPage()}
-								endIcon={<Iconify icon="eva:arrow-ios-forward-fill" />}
-							>
-								{t('next')}
-							</Button>
-						</Box>
-					</Box>
-				</Box>
-			);
-		},
+		renderBottomToolbarCustomActions: ({ table }) => (
+			<DefaultBottomToolbarActions table={table} />
+		),
 		muiTableProps: {
 			sx: {
 				'& tr > th:last-of-type > .Mui-TableHeadCell-Content:has(.is-actions-column), & tr > td:last-of-type:not(:has(.empty-content)):has(.is-actions-column)':
@@ -194,79 +105,91 @@ export const defaultTablePreset = (theme: Theme): TablePreset => {
 	};
 };
 
-// ----------------------------------------------------------------------
-
-type CustomToolbarProps<TData extends MRT_RowData> = {
-	onOpenConfirmDeleteRows: () => void;
-	table: MRT_TableInstance<TData>;
+type DefaultBottomToolbarActionsProps = {
+	table: MRT_TableInstance<Record<string, unknown>>;
 };
 
-const CustomToolbar = <TData extends MRT_RowData>({
-	onOpenConfirmDeleteRows,
+const DefaultBottomToolbarActions = ({
 	table,
-}: CustomToolbarProps<TData>) => {
-	const selectedRowsCount = table.getSelectedRowModel().rows.length;
+}: DefaultBottomToolbarActionsProps) => {
+	const { t } = useTranslate();
+	const meta = (table.options.meta ?? {}) as CursorPaginationMeta | undefined;
+	const { pagination } = table.getState();
+	const totalPages = table.getPageCount();
+	const currentPage = pagination.pageIndex + 1;
+	const disablePaginationControls = meta?.disablePaginationControls ?? false;
 
 	return (
 		<Box
-			sx={(theme) => {
-				return {
-					display: 'flex',
-					gap: theme.spacing(2),
-					padding: theme.spacing(2),
-					[`& .${textFieldClasses.root}`]: {
-						padding: 0,
-						width: '100%',
-						[`& .${inputBaseClasses.input}`]: {
-							paddingTop: theme.spacing(2),
-							paddingBottom: theme.spacing(2),
-						},
-						[theme.breakpoints.up('md')]: { width: 'unset' },
-					},
-				};
+			sx={{
+				display: 'flex',
+				gap: 2,
+				alignItems: 'center',
+				width: '100%',
 			}}
 		>
-			{/* <GridToolbarContainer> */}
-			{/* <ProductTableToolbar
-          filters={filters}
-          options={{ stocks: PRODUCT_STOCK_OPTIONS, publish: PUBLISH_OPTIONS }}
-        /> */}
-
-			{/* <GridToolbarQuickFilter /> */}
-			<MRT_GlobalFilterTextField table={table} />
+			<Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+				<Box sx={{ typography: 'body2', color: 'text.secondary' }}>
+					{t('rows-per-page')}:
+				</Box>
+				<Select
+					size="small"
+					value={pagination.pageSize}
+					onChange={(e) => {
+						table.setPageSize(Number(e.target.value));
+					}}
+					disabled={disablePaginationControls}
+					sx={{ minWidth: 70 }}
+					slotProps={{
+						input: {
+							sx: {
+								padding: '4px 10px',
+							},
+						},
+					}}
+				>
+					{DEFAULT_PAGE_SIZE_OPTIONS.map((size) => (
+						<MenuItem key={size} value={size}>
+							{size}
+						</MenuItem>
+					))}
+				</Select>
+			</Box>
 
 			<Box
 				sx={{
-					gap: 1,
-					flexGrow: 1,
+					ml: 'auto',
 					display: 'flex',
+					gap: 1,
+					justifyContent: 'center',
 					alignItems: 'center',
-					justifyContent: 'flex-end',
 				}}
 			>
-				{!!selectedRowsCount && (
-					<Button
-						size="small"
-						color="error"
-						startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-						onClick={onOpenConfirmDeleteRows}
-					>
-						Delete ({selectedRowsCount})
-					</Button>
-				)}
+				<Box sx={{ typography: 'body2', color: 'text.secondary' }}>
+					{t('page-x-of-y', { page: currentPage, total: totalPages })}
+				</Box>
 
-				{/* <GridToolbarColumnsButton /> */}
-				{/* <GridToolbarFilterButton ref={setFilterButtonEl} /> */}
-				{/* <GridToolbarExport /> */}
+				<Box sx={{ display: 'flex', gap: 1 }}>
+					<Button
+						variant="outlined"
+						size="small"
+						onClick={() => table.previousPage()}
+						disabled={disablePaginationControls || !table.getCanPreviousPage()}
+						startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+					>
+						{t('previous')}
+					</Button>
+					<Button
+						variant="outlined"
+						size="small"
+						onClick={() => table.nextPage()}
+						disabled={disablePaginationControls || !table.getCanNextPage()}
+						endIcon={<Iconify icon="eva:arrow-ios-forward-fill" />}
+					>
+						{t('next')}
+					</Button>
+				</Box>
 			</Box>
-			{/* </GridToolbarContainer> */}
-			{/* {canReset && (
-				<ProductTableFiltersResult
-					filters={filters}
-					totalResults={filteredResults}
-					sx={{ p: 2.5, pt: 0 }}
-				/>
-			)} */}
 		</Box>
 	);
 };
