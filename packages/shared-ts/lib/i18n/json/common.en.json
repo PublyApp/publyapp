@@ -565,6 +565,7 @@
 	"choose-export-format": "Choose export format",
 	"export-current-results": "Export the current result set ({{count}} item(s)).",
 	"export-selected-items": "Export {{count}} selected item(s)",
+	"export-selected": "Export selected",
 	"invite-user": "Invite user",
 	"invitation-sent-success": "Invitation sent successfully",
 	"invitation-sent-error": "Failed to send invitation",
