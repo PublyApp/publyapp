@@ -110,21 +110,21 @@ It covers category `0` through `10`.
 
 ### 3.1 Search by tenant name/code
 - Status: `DONE`
-- [ ] Typing in the tenant search input updates the URL state.
-- [ ] Searching by tenant name filters the list to matching tenants.
-- [ ] Searching by code prefix returns the expected tenant rows where that behavior is supported.
-- [ ] Changing the search term resets cursor pagination to the first page correctly.
+- [x] Typing in the tenant search input updates the URL state.
+- [x] Searching by tenant name filters the list to matching tenants.
+- [x] Searching by code prefix returns the expected tenant rows where that behavior is supported.
+- [x] Changing the search term resets cursor pagination to the first page correctly.
 
 ### 3.2 Filter by status
 - Status: `DONE`
-- [ ] Changing the status filter updates the URL state.
-- [ ] The status filter allows selecting multiple statuses at the same time and keeps the selected set visible in the input.
-- [ ] Filtering by `active` returns only active tenants.
-- [ ] Filtering by `pending` returns only pending tenants.
-- [ ] Filtering by `suspended` returns only suspended tenants.
+- [x] Changing the status filter updates the URL state.
+- [x] The status filter allows selecting multiple statuses at the same time and keeps the selected set visible in the input.
+- [x] Filtering by `active` returns only active tenants.
+- [x] Filtering by `pending` returns only pending tenants.
+- [x] Filtering by `suspended` returns only suspended tenants.
 - [ ] Filtering by `archived` returns only archived tenants.
-- [ ] Selecting multiple statuses returns tenants that match any of the selected statuses.
-- [ ] Combining search and status filters returns the expected intersection of both filters.
+- [x] Selecting multiple statuses returns tenants that match any of the selected statuses.
+- [x] Combining search and status filters returns the expected intersection of both filters.
 
 ### 3.3 Filter by suspension state
 - Status: `PENDING`
