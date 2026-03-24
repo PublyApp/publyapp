@@ -1,6 +1,6 @@
 # Tenants Module Smoke Test Checklist
 
-Last updated: 2026-03-18
+Last updated: 2026-03-24
 
 ## Purpose
 
@@ -118,10 +118,12 @@ It covers category `0` through `10`.
 ### 3.2 Filter by status
 - Status: `DONE`
 - [ ] Changing the status filter updates the URL state.
+- [ ] The status filter allows selecting multiple statuses at the same time and keeps the selected set visible in the input.
 - [ ] Filtering by `active` returns only active tenants.
 - [ ] Filtering by `pending` returns only pending tenants.
 - [ ] Filtering by `suspended` returns only suspended tenants.
 - [ ] Filtering by `archived` returns only archived tenants.
+- [ ] Selecting multiple statuses returns tenants that match any of the selected statuses.
 - [ ] Combining search and status filters returns the expected intersection of both filters.
 
 ### 3.3 Filter by suspension state
@@ -131,6 +133,8 @@ It covers category `0` through `10`.
 ### 3.4 Bulk actions
 - Status: `DONE`
 - [ ] Selecting tenant rows enables bulk actions for the selected tenants.
+- [ ] When rows are selected, the table enters selection mode and keeps search, filters, sorting, and pagination visible but disabled with explanatory tooltips.
+- [ ] In selection mode, bulk actions are exposed through the overflow menu rather than a long inline button row.
 - [ ] Running bulk suspend opens confirmation, completes successfully, and suspends the intended tenants.
 - [ ] Running bulk reactivate opens confirmation, completes successfully, and reactivates the intended tenants.
 - [ ] Running bulk delete opens confirmation, completes successfully, and deletes only the tenants allowed by the backend rules.
@@ -141,6 +145,9 @@ It covers category `0` through `10`.
 - Status: `PARTIAL`
 - [ ] CSV export downloads successfully for the current filtered page.
 - [ ] JSON export downloads successfully for the current filtered page.
+- [ ] Opening export shows the unified export dialog with a single `Export` action and a format chooser.
+- [ ] When tenant rows are selected, export targets the selected rows instead of the full current page.
+- [ ] The export dialog exposes `CSV`, `JSON`, and `XLSX`, and `XLSX` is clearly shown as not yet available rather than failing silently.
 - [ ] Exported fields and column meanings match the visible tenant data and stay stable across runs.
 - [ ] There is an explicit product decision on whether export is intentionally page-only or still expected to cover the full filtered result set.
 
