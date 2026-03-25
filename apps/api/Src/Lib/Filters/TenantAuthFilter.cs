@@ -144,7 +144,7 @@ public class TenantAuthFilter : IEndpointFilter {
 
 		// 7. Check tenant is in a valid state (Active only at this point)
 		if (tenant.Status != TenantStatus.Active) {
-			// Pending/Archived - treat as inaccessible (generic 403)
+			// Pending/non-active tenants - treat as inaccessible (generic 403)
 			if (_logger.IsEnabled(LogLevel.Warning)) {
 				_logger.LogWarning(
 					"Tenant {TenantId} is not active (status: {Status}) for user {UserId}",

@@ -230,9 +230,6 @@ const StatusCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
 		t_message = t('suspended');
 		color = 'warning';
-	} else if (status === USER_STATUS_ENUM.DELETED) {
-		t_message = t('deleted');
-		color = 'error';
 	} else if (status === USER_STATUS_ENUM.INACTIVE) {
 		t_message = t('inactive');
 		color = 'default';

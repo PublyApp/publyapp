@@ -194,7 +194,7 @@ public class GetTenantAuthData {
 
 		// Check tenant is in a valid state (Active only at this point)
 		if (tenant.Status != TenantStatus.Active) {
-			// Pending/Archived - treat as inaccessible
+			// Pending/non-active tenants - treat as inaccessible
 			return TypedProblems.Forbidden(
 				"User does not have access to this tenant",
 				ResponseKeys.Forbidden

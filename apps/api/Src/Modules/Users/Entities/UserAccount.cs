@@ -109,11 +109,11 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	public ICollection<UserAccountProfile> UserAccountProfiles { get; set; } = [];
 
 	public static AccountLevel? ParseAccountLevel(string accountLevel) {
-		var isAdmin = string.Compare(accountLevel, "admin", StringComparison.OrdinalIgnoreCase) == 0;
+		var isAdmin = string.Compare(accountLevel, nameof(AccountLevel.Admin), StringComparison.OrdinalIgnoreCase) == 0;
 		if (isAdmin) {
 			return AccountLevel.Admin;
 		}
-		var isUser = string.Compare(accountLevel, "user", StringComparison.OrdinalIgnoreCase) == 0;
+		var isUser = string.Compare(accountLevel, nameof(AccountLevel.User), StringComparison.OrdinalIgnoreCase) == 0;
 		if (isUser) {
 			return AccountLevel.User;
 		}
@@ -122,8 +122,8 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 
 	public static string GetAccountLevelDescription(AccountLevel accountLevel) {
 		return accountLevel switch {
-			AccountLevel.Admin => "Admin",
-			AccountLevel.User => "User",
+			AccountLevel.Admin => nameof(AccountLevel.Admin),
+			AccountLevel.User => nameof(AccountLevel.User),
 			_ => "Unknown"
 		};
 	}
