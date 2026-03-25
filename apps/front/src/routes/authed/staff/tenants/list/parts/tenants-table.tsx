@@ -312,22 +312,23 @@ const useTenantsTableController = () => {
 
 	const { mutate: bulkSuspend, isPending: isBulkSuspending } =
 		useBulkSuspendTenants({
+			meta: { skipGlobalErrorHandler: true },
 			onSuccess: (result) => {
 				const succeeded = result.succeededCount ?? 0;
 				const failed = result.failedCount ?? 0;
 				if (failed > 0) {
 					toast.warning(
-						t('bulk-action-partial-success', {
-							action: t('suspended') ?? 'suspended',
+						t('tenant-bulk-suspend-partial-success', {
 							succeeded,
 							failed,
+							ns: 'response-message',
 						}),
 					);
 				} else {
 					toast.success(
-						t('bulk-action-success', {
-							action: t('suspended') ?? 'suspended',
+						t('tenant-bulk-suspend-success', {
 							count: succeeded,
+							ns: 'response-message',
 						}),
 					);
 				}
@@ -337,26 +338,34 @@ const useTenantsTableController = () => {
 					queryKey: useFindTenants.getKey(),
 				});
 			},
+			onError: () => {
+				toast.error(
+					t('tenant-bulk-suspend-failure', {
+						ns: 'response-message',
+					}),
+				);
+			},
 		});
 
 	const { mutate: bulkReactivate, isPending: isBulkReactivating } =
 		useBulkReactivateTenants({
+			meta: { skipGlobalErrorHandler: true },
 			onSuccess: (result) => {
 				const succeeded = result.succeededCount ?? 0;
 				const failed = result.failedCount ?? 0;
 				if (failed > 0) {
 					toast.warning(
-						t('bulk-action-partial-success', {
-							action: t('reactivate') ?? 'reactivated',
+						t('tenant-bulk-reactivate-partial-success', {
 							succeeded,
 							failed,
+							ns: 'response-message',
 						}),
 					);
 				} else {
 					toast.success(
-						t('bulk-action-success', {
-							action: t('reactivate') ?? 'reactivated',
+						t('tenant-bulk-reactivate-success', {
 							count: succeeded,
+							ns: 'response-message',
 						}),
 					);
 				}
@@ -366,26 +375,34 @@ const useTenantsTableController = () => {
 					queryKey: useFindTenants.getKey(),
 				});
 			},
+			onError: () => {
+				toast.error(
+					t('tenant-bulk-reactivate-failure', {
+						ns: 'response-message',
+					}),
+				);
+			},
 		});
 
 	const { mutate: bulkDelete, isPending: isBulkDeleting } =
 		useBulkDeleteTenants({
+			meta: { skipGlobalErrorHandler: true },
 			onSuccess: (result) => {
 				const succeeded = result.succeededCount ?? 0;
 				const failed = result.failedCount ?? 0;
 				if (failed > 0) {
 					toast.warning(
-						t('bulk-action-partial-success', {
-							action: t('deleted') ?? 'deleted',
+						t('tenant-bulk-delete-partial-success', {
 							succeeded,
 							failed,
+							ns: 'response-message',
 						}),
 					);
 				} else {
 					toast.success(
-						t('bulk-action-success', {
-							action: t('deleted') ?? 'deleted',
+						t('tenant-bulk-delete-success', {
 							count: succeeded,
+							ns: 'response-message',
 						}),
 					);
 				}
@@ -394,6 +411,13 @@ const useTenantsTableController = () => {
 				queryClient.invalidateQueries({
 					queryKey: useFindTenants.getKey(),
 				});
+			},
+			onError: () => {
+				toast.error(
+					t('tenant-bulk-delete-failure', {
+						ns: 'response-message',
+					}),
+				);
 			},
 		});
 
