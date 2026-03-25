@@ -546,7 +546,6 @@
 	"active": "Active",
 	"pending": "Pending",
 	"suspended": "Suspended",
-	"archived": "Archived",
 	"bulk-actions": "Bulk actions",
 	"bulk-suspend": "Suspend selected",
 	"bulk-reactivate": "Reactivate selected",

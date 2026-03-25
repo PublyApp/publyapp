@@ -43,7 +43,7 @@ public class FindTenantsQuery : CursorPaginatedQuery {
 
 ### Stable rules
 - **No boolean filter params** when an enum already exists for the same concept (e.g., do not add `isSuspended`; use `status=suspended`).
-- **Lowercase tokens end-to-end** for enum-like query values (e.g., `active,pending,suspended,archived`).
+- **Lowercase tokens end-to-end** for enum-like query values (e.g., `active,pending,suspended`).
 - **All filters reset cursor pagination** (cursor history becomes invalid when the query changes).
 
 ## 2) Cursor/Keyset Pagination Rules (Backend)
@@ -103,7 +103,7 @@ When using `CREATE INDEX CONCURRENTLY`, use `suppressTransaction: true` (it cann
 
 ### Transport format
 Use comma-separated lowercase tokens:
-`status=active,pending,suspended,archived`
+`status=active,pending,suspended`
 
 ### Backend validation + parsing
 - Validate the full raw string and each token in the query validator.

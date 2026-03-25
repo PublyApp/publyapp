@@ -124,6 +124,16 @@ public sealed class UserValidationRulesSpec {
 	}
 
 	[Fact]
+	public void ItShouldFailUserStatusWhenDeletedString() {
+		var el = JsonSerializer
+			.SerializeToElement("deleted");
+		var model = new UserStatusModel { Status = el };
+		var result = new UserStatusValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
 	public void ItShouldPassUserStatusWhenNull() {
 		var model = new UserStatusModel {
 			Status = null,

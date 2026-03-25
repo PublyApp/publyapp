@@ -518,7 +518,6 @@ const statusColorMap: Record<
 > = {
 	Active: 'success',
 	Suspended: 'warning',
-	Archived: 'error',
 	Pending: 'default',
 };
 

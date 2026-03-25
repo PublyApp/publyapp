@@ -62,7 +62,7 @@ public class FindTenantsAsStaffQueryValidator
 	: CursorPaginatedQueryValidator<FindTenantsAsStaffQuery> {
 
 	private static readonly HashSet<string> AllowedStatuses =
-		new(["pending", "active", "suspended", "archived"], StringComparer.OrdinalIgnoreCase);
+		new([nameof(TenantStatus.Pending), nameof(TenantStatus.Active), nameof(TenantStatus.Suspended)], StringComparer.OrdinalIgnoreCase);
 
 	public FindTenantsAsStaffQueryValidator() {
 		RuleFor(x => x.Search).MaximumLength(200);
@@ -74,7 +74,7 @@ public class FindTenantsAsStaffQueryValidator
 					StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 				return parts.All(p => AllowedStatuses.Contains(p));
 			})
-			.WithMessage("Invalid status value. Must be comma-separated: pending,active,suspended,archived");
+			.WithMessage("Invalid status value. Must be comma-separated: " + string.Join(",", AllowedStatuses));
 	}
 }
 
