@@ -85,7 +85,7 @@ public class UpdateTenantAsStaffBodyValidator
 	}
 }
 
-public static class UpdateTenantAsStaff {
+public class UpdateTenantAsStaff {
 	public static async Task<Results<
 		Ok<GetTenantAsStaffResult>,
 		AppBadRequestHttpResult,

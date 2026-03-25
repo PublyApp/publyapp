@@ -57,7 +57,7 @@ public class AcceptInvitationBodyValidator
 	}
 }
 
-public static class AcceptInvitation {
+public class AcceptInvitation {
 	public static async Task<Results<
 		Ok<InvitationAccepted>,
 		AppNotFoundHttpResult,

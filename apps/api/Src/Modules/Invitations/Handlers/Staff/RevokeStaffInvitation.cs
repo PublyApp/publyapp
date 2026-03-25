@@ -21,7 +21,7 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff;
 namespace MainApi.Src.Modules.Staff.Invitations.Handlers;
 >>>>>>>> e130a4f49 (refactor: Restructure API modules to enhance clarity and maintainability):apps/api/Src/Modules/Staff/Invitations/Handlers/RevokeInvitation.cs
 
-public static class RevokeStaffInvitation {
+public class RevokeStaffInvitation {
 	public static async Task<Results<
 		Ok<ApiResponse>,
 		AppNotFoundHttpResult,

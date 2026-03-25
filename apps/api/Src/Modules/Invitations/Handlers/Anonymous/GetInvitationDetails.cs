@@ -15,7 +15,7 @@ public record InvitationDetails {
 	public required DateTime ExpiresAt { get; init; }
 }
 
-public static class GetInvitationDetails {
+public class GetInvitationDetails {
 	public static async Task<Results<
 		Ok<InvitationDetails>,
 		AppNotFoundHttpResult

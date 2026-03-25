@@ -15,8 +15,6 @@ using MainApi.Src.Modules.Users.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-using ILogger = Microsoft.Extensions.Logging.ILogger;
-
 namespace MainApi.Src.Modules.Users.Handlers.Staff;
 
 /// <summary>
@@ -100,7 +98,7 @@ public class UpdateTenantUserAsStaffBodyValidator
 	}
 }
 
-public static class UpdateTenantUserAsStaff {
+public class UpdateTenantUserAsStaff {
 	public static async Task<Results<
 		Ok<TenantUserDetailsResult>,
 		AppBadRequestHttpResult,
@@ -112,7 +110,7 @@ public static class UpdateTenantUserAsStaff {
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IUserService userService,
 		[FromServices] IAuditLogService auditLogService,
-		[FromServices] ILogger logger,
+		[FromServices] ILogger<UpdateTenantUserAsStaff> logger,
 		CancellationToken cancellationToken = default
 	) {
 		// Validate tenantId

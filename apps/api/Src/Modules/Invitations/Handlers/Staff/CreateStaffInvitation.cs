@@ -66,7 +66,7 @@ public class CreateStaffInvitationBodyValidator : AbstractValidator<CreateStaffI
 	}
 }
 
-public static class CreateStaffInvitation {
+public class CreateStaffInvitation {
 	public static async Task<Results<
 		Ok<InvitationCreated>,
 		AppBadRequestHttpResult,
@@ -77,11 +77,10 @@ public static class CreateStaffInvitation {
 		[FromServices] IAccountService accountService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
-		[FromServices] ILoggerFactory loggerFactory,
+		[FromServices] ILogger<CreateStaffInvitation> logger,
 		[FromBody] CreateStaffInvitationBody body,
 		CancellationToken cancellationToken = default
 	) {
-		var logger = loggerFactory.CreateLogger(nameof(CreateStaffInvitation));
 		// IMPOSSIBLE STATE: Staff endpoint without staff account
 		var account = authContext.AccountStaff;
 		if (account is null) {

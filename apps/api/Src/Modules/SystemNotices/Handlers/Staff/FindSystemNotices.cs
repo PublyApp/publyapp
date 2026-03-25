@@ -17,7 +17,7 @@ public class FindSystemNoticesQuery : CursorPaginatedQuery { }
 public class FindSystemNoticesQueryValidator
 	: CursorPaginatedQueryValidator<FindSystemNoticesQuery> { }
 
-public static class FindSystemNotices {
+public class FindSystemNotices {
 	public static async Task<Results<
 		Ok<FindSystemNoticesResponse>,
 		AppBadRequestHttpResult

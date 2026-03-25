@@ -172,7 +172,7 @@ public class UpdateSystemNoticeBodyValidator
 	}
 }
 
-public static class UpdateSystemNotice {
+public class UpdateSystemNotice {
 	public static async Task<Results<
 		Ok<SystemNoticeUpdated>,
 		AppNotFoundHttpResult,

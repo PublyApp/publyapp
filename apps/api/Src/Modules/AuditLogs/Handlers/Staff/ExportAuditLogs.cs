@@ -129,7 +129,7 @@ public class ExportAuditLogsQueryValidator
 	}
 }
 
-public static class ExportAuditLogs {
+public class ExportAuditLogs {
 	public static async Task<IResult>
 		HandleExportAuditLogs(
 		[AsParameters] ExportAuditLogsQuery query,

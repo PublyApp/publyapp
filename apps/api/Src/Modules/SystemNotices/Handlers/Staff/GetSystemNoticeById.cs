@@ -20,7 +20,7 @@ public record SystemNoticeDetail {
 	public required DateTime UpdatedAt { get; init; }
 }
 
-public static class GetSystemNoticeById {
+public class GetSystemNoticeById {
 	public static async Task<Results<
 		Ok<SystemNoticeDetail>,
 		AppNotFoundHttpResult,

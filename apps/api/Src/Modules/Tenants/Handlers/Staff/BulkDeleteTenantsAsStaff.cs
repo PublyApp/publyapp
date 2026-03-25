@@ -11,8 +11,6 @@ using MainApi.Src.Modules.Tenants.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-using ILogger = Microsoft.Extensions.Logging.ILogger;
-
 namespace MainApi.Src.Modules.Tenants.Handlers.Staff;
 
 public record BulkDeleteTenantsAsStaffBody {
@@ -44,7 +42,7 @@ public class BulkDeleteTenantsAsStaffBodyValidator : AbstractValidator<BulkDelet
 	}
 }
 
-public static class BulkDeleteTenantsAsStaff {
+public class BulkDeleteTenantsAsStaff {
 	public static async Task<Results<
 		Ok<BulkDeleteTenantsResult>,
 		AppBadRequestHttpResult
@@ -53,7 +51,7 @@ public static class BulkDeleteTenantsAsStaff {
 		[FromServices] ITenantAsStaffService tenantService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] ILogger logger,
+		[FromServices] ILogger<BulkDeleteTenantsAsStaff> logger,
 		CancellationToken cancellationToken = default
 	) {
 #pragma warning disable CA1873 // Logging arguments are evaluated before checking if logging is enabled

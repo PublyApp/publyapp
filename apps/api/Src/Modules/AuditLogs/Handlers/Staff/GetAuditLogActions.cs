@@ -11,7 +11,7 @@ public record GetAuditLogActionsResponse {
 	}
 }
 
-public static class GetAuditLogActions {
+public class GetAuditLogActions {
 	public static async Task<Ok<GetAuditLogActionsResponse>>
 		HandleGetAuditLogActions(
 		[FromServices]

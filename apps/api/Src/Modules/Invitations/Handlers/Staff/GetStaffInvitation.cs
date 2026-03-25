@@ -25,7 +25,7 @@ public record StaffInvitationDetails {
 	public required List<StaffInvitationProfile> Profiles { get; init; }
 }
 
-public static class GetStaffInvitation {
+public class GetStaffInvitation {
 	public static async Task<Results<
 		Ok<StaffInvitationDetails>,
 		AppBadRequestHttpResult,

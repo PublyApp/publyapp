@@ -208,7 +208,7 @@ public class BulkCreateStaffInvitationsBodyValidator
 	}
 }
 
-public static class BulkCreateStaffInvitations {
+public class BulkCreateStaffInvitations {
 	public static async Task<Results<
 		Ok<BulkStaffInvitationsCreated>,
 		AppValidationProblemHttpResult,
@@ -220,11 +220,10 @@ public static class BulkCreateStaffInvitations {
 		[FromServices] IAccountService accountService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
-		[FromServices] ILoggerFactory loggerFactory,
+		[FromServices] ILogger<BulkCreateStaffInvitations> logger,
 		[FromBody] BulkCreateStaffInvitationsBody body,
 		CancellationToken cancellationToken = default
 	) {
-		var logger = loggerFactory.CreateLogger(nameof(BulkCreateStaffInvitations));
 		var account = authContext.AccountStaff;
 
 		// should never happen because handler must be set behind StaffAuthFilter

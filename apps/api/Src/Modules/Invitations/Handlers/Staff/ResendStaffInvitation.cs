@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Src.Modules.Invitations.Handlers.Staff;
 
-public static class ResendStaffInvitation {
+public class ResendStaffInvitation {
 	public static async Task<Results<
 		Ok<ApiResponse>,
 		AppBadRequestHttpResult,

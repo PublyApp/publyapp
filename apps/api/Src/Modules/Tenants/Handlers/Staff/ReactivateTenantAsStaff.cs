@@ -18,7 +18,7 @@ public record TenantReactivatedResult {
 	public required string Status { get; init; }
 }
 
-public static class ReactivateTenantAsStaff {
+public class ReactivateTenantAsStaff {
 	public static async Task<Results<
 		Ok<TenantReactivatedResult>,
 		AppNotFoundHttpResult,

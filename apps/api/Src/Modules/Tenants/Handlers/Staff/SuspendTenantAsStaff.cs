@@ -50,7 +50,7 @@ public class SuspendTenantAsStaffBodyValidator : AbstractValidator<SuspendTenant
 	}
 }
 
-public static class SuspendTenantAsStaff {
+public class SuspendTenantAsStaff {
 	public static async Task<Results<
 		Ok<TenantSuspendedResult>,
 		AppBadRequestHttpResult,

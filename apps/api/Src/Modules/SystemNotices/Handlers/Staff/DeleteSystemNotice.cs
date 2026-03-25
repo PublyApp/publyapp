@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Src.Modules.SystemNotices.Handlers.Staff;
 
-public static class DeleteSystemNotice {
+public class DeleteSystemNotice {
 	public static async Task<Results<
 		Ok<ApiResponse>,
 		AppNotFoundHttpResult,
