@@ -126,14 +126,14 @@ It covers category `0` through `10`.
 - [x] Combining search and status filters returns the expected intersection of both filters.
 
 ### 3.3 Filter by suspension state
-- Status: `PENDING`
-- [ ] An explicit suspended-only control either exists and works end to end, or this requirement is intentionally closed with a product decision.
+- Status: `DONE`
+- [x] There is an explicit product decision that no separate suspended-only control is needed because the status filter already supports `suspended`.
 
 ### 3.4 Bulk actions
 - Status: `DONE`
-- [ ] Selecting tenant rows enables bulk actions for the selected tenants.
-- [ ] When rows are selected, the table enters selection mode and keeps search, filters, sorting, and pagination visible but disabled with explanatory tooltips.
-- [ ] In selection mode, bulk actions are exposed through the overflow menu rather than a long inline button row.
+- [x] Selecting tenant rows enables bulk actions for the selected tenants.
+- [x] When rows are selected, the table enters selection mode and keeps search, filters, sorting, and pagination visible but disabled with explanatory tooltips.
+- [x] In selection mode, bulk actions are exposed through the overflow menu rather than a long inline button row.
 - [ ] Running bulk suspend opens confirmation, completes successfully, and suspends the intended tenants.
 - [ ] Running bulk reactivate opens confirmation, completes successfully, and reactivates the intended tenants.
 - [ ] Running bulk delete opens confirmation, completes successfully, and deletes only the tenants allowed by the backend rules.

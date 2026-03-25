@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Src.Modules.Tenants.Handlers.Staff;
 
-public static class DeleteTenantAsStaff {
+public class DeleteTenantAsStaff {
 	public static async Task<Results<
 		Ok<ApiResponse>,
 		AppBadRequestHttpResult,

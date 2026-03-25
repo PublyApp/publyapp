@@ -37,7 +37,7 @@ public class FindStaffInvitationsQueryValidator : CursorPaginatedQueryValidator<
 	}
 }
 
-public static class FindStaffInvitations {
+public class FindStaffInvitations {
 	public static async Task<Results<Ok<FindStaffInvitationsResult>, AppBadRequestHttpResult>> HandleFindStaffInvitations(
 		[AsParameters] FindStaffInvitationsQuery findStaffInvitationsQuery,
 		[FromServices] IInvitationService invitationService,

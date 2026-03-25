@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Src.Modules.Invitations.Handlers.Staff;
 
-public static class RevokeStaffInvitation {
+public class RevokeStaffInvitation {
 	public static async Task<Results<
 		Ok<ApiResponse>,
 		AppNotFoundHttpResult,

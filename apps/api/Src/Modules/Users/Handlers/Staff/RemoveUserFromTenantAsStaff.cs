@@ -8,11 +8,9 @@ using MainApi.Src.Modules.Users.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-using ILogger = Microsoft.Extensions.Logging.ILogger;
-
 namespace MainApi.Src.Modules.Users.Handlers.Staff;
 
-public static class RemoveUserFromTenantAsStaff {
+public class RemoveUserFromTenantAsStaff {
 	public static async Task<Results<
 		Ok<ApiResponse>,
 		AppBadRequestHttpResult,
@@ -23,7 +21,7 @@ public static class RemoveUserFromTenantAsStaff {
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IUserService userService,
 		[FromServices] IAuditLogService auditLogService,
-		[FromServices] ILogger logger,
+		[FromServices] ILogger<RemoveUserFromTenantAsStaff> logger,
 		CancellationToken cancellationToken = default
 	) {
 		// Validate tenantId
