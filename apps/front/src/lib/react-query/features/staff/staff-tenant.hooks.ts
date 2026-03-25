@@ -82,7 +82,7 @@ type FindTenantsParams = {
 	limit?: number;
 	sort?: { id: string; order: 'asc' | 'desc' };
 	q?: string;
-	status?: string; // csv: active,pending,suspended,archived
+	status?: string; // csv: active,pending,suspended
 };
 
 export const useFindTenants = createStaffQuery({

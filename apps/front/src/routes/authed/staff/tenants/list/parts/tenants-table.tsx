@@ -111,7 +111,6 @@ const TenantsTable = () => {
 			{ label: t('active'), value: TENANT_STATUS_ENUM.ACTIVE },
 			{ label: t('pending'), value: TENANT_STATUS_ENUM.PENDING },
 			{ label: t('suspended'), value: TENANT_STATUS_ENUM.SUSPENDED },
-			{ label: t('archived'), value: TENANT_STATUS_ENUM.ARCHIVED },
 		];
 	}, [t]);
 
@@ -1020,8 +1019,6 @@ const StatusCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 		color = 'warning';
 	} else if (status === TENANT_STATUS_ENUM.SUSPENDED) {
 		color = 'error';
-	} else if (status === TENANT_STATUS_ENUM.ARCHIVED) {
-		color = 'warning';
 	}
 
 	return (

@@ -26,7 +26,7 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 	public string? LogoUrl { get; set; }
 
 	[Column("status")]
-	public TenantStatus Status { get; set; } = TenantStatus.Archived;
+	public TenantStatus Status { get; set; } = TenantStatus.Pending;
 
 	[Column("is_suspended")]
 	public bool IsSuspended { get; set; } = false;
@@ -42,26 +42,22 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 
 	public static string GetStatusDescription(TenantStatus status) {
 		return status switch {
-			TenantStatus.Pending => "Pending",
-			TenantStatus.Active => "Active",
-			TenantStatus.Suspended => "Suspended",
-			TenantStatus.Archived => "Archived",
-			_ => throw new ArgumentException("Unknown"),
+			TenantStatus.Pending => nameof(TenantStatus.Pending),
+			TenantStatus.Active => nameof(TenantStatus.Active),
+			TenantStatus.Suspended => nameof(TenantStatus.Suspended),
+			_ => "Unknown",
 		};
 	}
 
 	public static TenantStatus? ParseStatus(string statusString) {
-		if (string.Equals(statusString, "pending", StringComparison.OrdinalIgnoreCase)) {
+		if (string.Equals(statusString, nameof(TenantStatus.Pending), StringComparison.OrdinalIgnoreCase)) {
 			return TenantStatus.Pending;
 		}
-		if (string.Equals(statusString, "active", StringComparison.OrdinalIgnoreCase)) {
+		if (string.Equals(statusString, nameof(TenantStatus.Active), StringComparison.OrdinalIgnoreCase)) {
 			return TenantStatus.Active;
 		}
-		if (string.Equals(statusString, "suspended", StringComparison.OrdinalIgnoreCase)) {
+		if (string.Equals(statusString, nameof(TenantStatus.Suspended), StringComparison.OrdinalIgnoreCase)) {
 			return TenantStatus.Suspended;
-		}
-		if (string.Equals(statusString, "archived", StringComparison.OrdinalIgnoreCase)) {
-			return TenantStatus.Archived;
 		}
 		return null;
 	}
@@ -93,5 +89,4 @@ public enum TenantStatus {
 	Pending = 10,
 	Active = 20,
 	Suspended = 30,
-	Archived = 40,
 }

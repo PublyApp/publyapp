@@ -322,7 +322,7 @@ public class FindTenantsQuery : CursorPaginatedQuery {
 
 public class FindTenantsQueryValidator : CursorPaginatedQueryValidator<FindTenantsQuery> {
 	private static readonly HashSet<string> Allowed =
-		new(["active", "pending", "suspended", "archived"], StringComparer.OrdinalIgnoreCase);
+		new(["active", "pending", "suspended"], StringComparer.OrdinalIgnoreCase);
 
 	public FindTenantsQueryValidator() {
 		RuleFor(x => x.Status)
@@ -332,7 +332,7 @@ public class FindTenantsQueryValidator : CursorPaginatedQueryValidator<FindTenan
 					StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 				return parts.All(p => Allowed.Contains(p));
 			})
-			.WithMessage("Status must be comma-separated: active,pending,suspended,archived")
+			.WithMessage("Status must be comma-separated: active,pending,suspended")
 			.When(x => !string.IsNullOrEmpty(x.Status));
 	}
 }

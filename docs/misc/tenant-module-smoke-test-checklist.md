@@ -1,6 +1,6 @@
 # Tenants Module Smoke Test Checklist
 
-Last updated: 2026-03-24
+Last updated: 2026-03-25
 
 ## Purpose
 
@@ -122,7 +122,6 @@ It covers category `0` through `10`.
 - [x] Filtering by `active` returns only active tenants.
 - [x] Filtering by `pending` returns only pending tenants.
 - [x] Filtering by `suspended` returns only suspended tenants.
-- [ ] Filtering by `archived` returns only archived tenants.
 - [x] Selecting multiple statuses returns tenants that match any of the selected statuses.
 - [x] Combining search and status filters returns the expected intersection of both filters.
 

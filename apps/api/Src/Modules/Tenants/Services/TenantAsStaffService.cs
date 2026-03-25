@@ -141,7 +141,7 @@ public interface ITenantAsStaffService {
 		CancellationToken cancellationToken = default
 	);
 
-	// Soft-delete a suspended tenant
+	// Soft-delete a suspended tenant without changing its last live status
 	Task<DeleteTenantResult> DeleteTenantAsync(
 		Guid tenantId,
 		CancellationToken cancellationToken = default
@@ -743,12 +743,6 @@ public class TenantAsStaffService : ITenantAsStaffService {
 					.SetProperty(t => t.IsDeleted, true)
 					.SetProperty(
 						t => t.DeletedAt, DateTime.UtcNow
-					)
-					.SetProperty(
-						t => t.IsSuspended, false
-					)
-					.SetProperty(
-						t => t.Status, TenantStatus.Archived
 					)
 					.SetProperty(
 						t => t.UpdatedAt, DateTime.UtcNow

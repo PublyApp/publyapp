@@ -61,37 +61,33 @@ public class User : BaseAttributes, INoTenantEntity {
 
 	public static string GetStatusDescription(UserStatus status) {
 		return status switch {
-			UserStatus.Inactive => "Inactive",
-			UserStatus.Pending => "Pending",
-			UserStatus.Suspended => "Suspended",
-			UserStatus.Active => "Active",
-			UserStatus.Deleted => "Deleted",
+			UserStatus.Inactive => nameof(UserStatus.Inactive),
+			UserStatus.Pending => nameof(UserStatus.Pending),
+			UserStatus.Suspended => nameof(UserStatus.Suspended),
+			UserStatus.Active => nameof(UserStatus.Active),
+			UserStatus.Banned => nameof(UserStatus.Banned),
 			_ => "Unknown",
 		};
 	}
 
 	public static UserStatus? ParseStatus(string statusString) {
-		var isInactive = string.Compare(statusString, "inactive", StringComparison.OrdinalIgnoreCase) == 0;
+		var isInactive = string.Compare(statusString, nameof(UserStatus.Inactive), StringComparison.OrdinalIgnoreCase) == 0;
 		if (isInactive) {
 			return UserStatus.Inactive;
 		}
-		var isPending = string.Compare(statusString, "pending", StringComparison.OrdinalIgnoreCase) == 0;
+		var isPending = string.Compare(statusString, nameof(UserStatus.Pending), StringComparison.OrdinalIgnoreCase) == 0;
 		if (isPending) {
 			return UserStatus.Pending;
 		}
-		var isSuspended = string.Compare(statusString, "suspended", StringComparison.OrdinalIgnoreCase) == 0;
+		var isSuspended = string.Compare(statusString, nameof(UserStatus.Suspended), StringComparison.OrdinalIgnoreCase) == 0;
 		if (isSuspended) {
 			return UserStatus.Suspended;
 		}
-		var isActive = string.Compare(statusString, "active", StringComparison.OrdinalIgnoreCase) == 0;
+		var isActive = string.Compare(statusString, nameof(UserStatus.Active), StringComparison.OrdinalIgnoreCase) == 0;
 		if (isActive) {
 			return UserStatus.Active;
 		}
-		var isDeleted = string.Compare(statusString, "deleted", StringComparison.OrdinalIgnoreCase) == 0;
-		if (isDeleted) {
-			return UserStatus.Deleted;
-		}
-		var isBanned = string.Compare(statusString, "banned", StringComparison.OrdinalIgnoreCase) == 0;
+		var isBanned = string.Compare(statusString, nameof(UserStatus.Banned), StringComparison.OrdinalIgnoreCase) == 0;
 		if (isBanned) {
 			return UserStatus.Banned;
 		}
@@ -104,6 +100,5 @@ public enum UserStatus {
 	Pending = 20,
 	Suspended = 30,
 	Active = 40,
-	Deleted = 50,
-	Banned = 60,
+	Banned = 50,
 }

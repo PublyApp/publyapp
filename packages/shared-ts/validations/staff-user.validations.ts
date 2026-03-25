@@ -32,7 +32,6 @@ export const getUpdateStaffUserSchema = (z: InterZod) => {
 					USER_STATUS_ENUM.INACTIVE,
 					USER_STATUS_ENUM.PENDING,
 					USER_STATUS_ENUM.SUSPENDED,
-					USER_STATUS_ENUM.DELETED,
 					USER_STATUS_ENUM.BANNED,
 				] as const)
 				.optional(),

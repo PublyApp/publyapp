@@ -315,7 +315,6 @@ export const USER_STATUS_ENUM = {
 	PENDING: 'Pending',
 	SUSPENDED: 'Suspended',
 	ACTIVE: 'Active',
-	DELETED: 'Deleted',
 	BANNED: 'Banned',
 } as const;
 
@@ -325,7 +324,6 @@ export const TENANT_STATUS_ENUM = {
 	PENDING: 'Pending',
 	ACTIVE: 'Active',
 	SUSPENDED: 'Suspended',
-	ARCHIVED: 'Archived',
 } as const;
 
 export type TenantStatus = ValueOf<typeof TENANT_STATUS_ENUM>;

@@ -546,7 +546,6 @@
 	"active": "Actif",
 	"pending": "En attente",
 	"suspended": "Suspendu",
-	"archived": "Archivé",
 	"bulk-actions": "Actions groupées",
 	"bulk-suspend": "Suspendre la sélection",
 	"bulk-reactivate": "Réactiver la sélection",
