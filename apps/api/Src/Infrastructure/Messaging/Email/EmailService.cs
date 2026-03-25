@@ -18,7 +18,6 @@ public interface IEmailService {
 
 public class EmailService : IEmailService {
 	private readonly IEmailSender _emailSender;
-	// private readonly ILogger<EmailService> _logger;
 
 	private static string CreateHtmlLink(string url, string text) {
 		string linkStyle = "text-decoration: underline; color: #007bff;";
@@ -27,10 +26,8 @@ public class EmailService : IEmailService {
 
 	public EmailService(
 		IEmailSender emailSender
-	// ILogger<EmailService> logger
 	) {
 		_emailSender = emailSender;
-		// _logger = logger;
 	}
 
 	// used when a staff member is created and user is new, hence needs to verify email

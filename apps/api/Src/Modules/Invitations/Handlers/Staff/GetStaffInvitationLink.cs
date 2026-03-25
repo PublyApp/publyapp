@@ -12,7 +12,7 @@ public class GetStaffInvitationLinkResult {
 	public required string Link { get; init; }
 }
 
-public static class GetStaffInvitationLink {
+public class GetStaffInvitationLink {
 	public static async Task<Results<
 		Ok<GetStaffInvitationLinkResult>,
 		AppBadRequestHttpResult,

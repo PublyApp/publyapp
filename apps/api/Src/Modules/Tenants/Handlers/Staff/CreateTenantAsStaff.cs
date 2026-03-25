@@ -196,7 +196,7 @@ public class CreateTenantAsStaffResult {
 	public string Name { get; set; } = string.Empty;
 }
 
-public static class CreateTenantAsStaff {
+public class CreateTenantAsStaff {
 	public static async Task<
 	Results<
 	Created<CreateTenantAsStaffResult>,
@@ -207,11 +207,9 @@ public static class CreateTenantAsStaff {
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] ILoggerFactory loggerFactory,
+		[FromServices] ILogger<CreateTenantAsStaff> logger,
 		CancellationToken cancellationToken
 	) {
-		var logger = loggerFactory.CreateLogger(nameof(CreateTenantAsStaff));
-
 		var staffAccount = authContext.AccountStaff;
 		if (staffAccount is null) {
 			throw new InvalidOperationException(

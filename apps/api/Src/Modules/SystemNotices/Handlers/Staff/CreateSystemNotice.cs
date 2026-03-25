@@ -133,7 +133,7 @@ public class CreateSystemNoticeBodyValidator
 	}
 }
 
-public static class CreateSystemNotice {
+public class CreateSystemNotice {
 	public static async Task<Results<
 		Created<SystemNoticeCreated>,
 		AppBadRequestHttpResult

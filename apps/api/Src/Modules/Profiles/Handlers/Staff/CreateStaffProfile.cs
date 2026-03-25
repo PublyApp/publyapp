@@ -200,7 +200,7 @@ public class CreateStaffProfileBodyValidator
 	}
 }
 
-public static class CreateStaffProfile {
+public class CreateStaffProfile {
 	public static async Task<Results<
 		Created<StaffProfileCreated>,
 		AppBadRequestHttpResult
@@ -209,12 +209,10 @@ public static class CreateStaffProfile {
 		[FromServices] IProfileAsStaffService profileAsStaffService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
-		[FromServices] ILoggerFactory loggerFactory,
+		[FromServices] ILogger<CreateStaffProfile> logger,
 		[FromBody] CreateStaffProfileBody body,
 		CancellationToken cancellationToken = default
 	) {
-		var logger = loggerFactory.CreateLogger(nameof(CreateStaffProfile));
-
 		// Extract values after validation
 		string name = body.GetName();
 		string? description = body.GetDescription();

@@ -33,7 +33,7 @@ public class PasswordRegisterResult {
 	public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
-public static class PasswordRegister {
+public class PasswordRegister {
 	public static async Task<Results<
 		Ok<PasswordRegisterResult>,
 		AppBadRequestHttpResult

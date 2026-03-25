@@ -48,7 +48,7 @@ public class CreateInvitationForTenantAsStaffBodyValidator
 	}
 }
 
-public static class CreateInvitationForTenantAsStaff {
+public class CreateInvitationForTenantAsStaff {
 	public static async Task<Results<
 		Created<InvitationCreatedForTenant>,
 		AppBadRequestHttpResult
