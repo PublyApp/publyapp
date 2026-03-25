@@ -134,11 +134,14 @@ It covers category `0` through `10`.
 - [x] Selecting tenant rows enables bulk actions for the selected tenants.
 - [x] When rows are selected, the table enters selection mode and keeps search, filters, sorting, and pagination visible but disabled with explanatory tooltips.
 - [x] In selection mode, bulk actions are exposed through the overflow menu rather than a long inline button row.
-- [ ] Running bulk suspend opens confirmation, completes successfully, and suspends the intended tenants.
-- [ ] Running bulk reactivate opens confirmation, completes successfully, and reactivates the intended tenants.
-- [ ] Running bulk delete opens confirmation, completes successfully, and deletes only the tenants allowed by the backend rules.
-- [ ] Partial-success bulk results are communicated clearly in toast or result messaging.
-- [ ] After each bulk mutation, the tenant list invalidates and refreshes to reflect the new state.
+- [x] Bulk suspend success, partial-success, and failure paths show action-specific toast feedback instead of generic `bulk action` wording.
+- [x] Bulk reactivate success, partial-success, and failure paths show action-specific toast feedback instead of generic `bulk action` wording.
+- [x] Bulk delete success, partial-success, and failure paths show action-specific toast feedback instead of generic `bulk action` wording.
+- [x] Running bulk suspend opens confirmation, completes successfully, and suspends the intended tenants.
+- [x] Running bulk reactivate opens confirmation, completes successfully, and reactivates the intended tenants.
+- [x] Running bulk delete opens confirmation, completes successfully, and deletes only the tenants allowed by the backend rules.
+- [x] Partial-success bulk results are communicated clearly in toast or result messaging.
+- [x] After each bulk mutation, the tenant list invalidates and refreshes to reflect the new state.
 
 ### 3.5 Export tenant list
 - Status: `PARTIAL`
