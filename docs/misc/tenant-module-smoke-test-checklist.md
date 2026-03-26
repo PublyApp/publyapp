@@ -145,20 +145,20 @@ It covers category `0` through `10`.
 
 ### 3.5 Export tenant list
 - Status: `PARTIAL`
-- [ ] CSV export downloads successfully for the current filtered page.
-- [ ] JSON export downloads successfully for the current filtered page.
-- [ ] Opening export shows the unified export dialog with a single `Export` action and a format chooser.
-- [ ] When tenant rows are selected, export targets the selected rows instead of the full current page.
-- [ ] The export dialog exposes `CSV`, `JSON`, and `XLSX`, and `XLSX` is clearly shown as not yet available rather than failing silently.
-- [ ] Exported fields and column meanings match the visible tenant data and stay stable across runs.
-- [ ] There is an explicit product decision on whether export is intentionally page-only or still expected to cover the full filtered result set.
+- [x] CSV export downloads successfully for the current filtered page.
+- [x] JSON export downloads successfully for the current filtered page.
+- [x] Opening export shows the unified export dialog with a single `Export` action and a format chooser.
+- [x] When tenant rows are selected, export targets the selected rows instead of the full current page.
+- [x] The export dialog exposes `CSV`, `JSON`, and `XLSX`, and `XLSX` is clearly shown as not yet available rather than failing silently.
+- [x] Exported fields and column meanings match the visible tenant data and stay stable across runs.
+- [x] There is an explicit product decision that full export should eventually cover the entire filtered result set across all pages, but this is deferred until asynchronous worker-service export jobs exist; current page-only export is a temporary limitation, not the final product behavior.
 
 ### List-specific regression checks
 - Status: `PARTIAL`
-- [ ] Sorting by `created_at` changes list ordering correctly.
-- [ ] Sorting by `updated_at` changes list ordering correctly.
-- [ ] Cursor pagination still works after changing sort order.
-- [ ] The row-level `Delete` action is either fully functional or intentionally removed; it is not left as a visible stub.
+- [x] Sorting by `created_at` changes list ordering correctly.
+- [x] Sorting by `updated_at` changes list ordering correctly.
+- [x] Cursor pagination still works after changing sort order.
+- [x] The row-level `Delete` action is fully functional for suspended tenants, stays visible but disabled for non-suspended tenants, and explains the constraint with a clear tooltip instead of behaving like a stub.
 
 ## Category 4: Staff Tenant Detail, General Tab
 
