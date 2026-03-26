@@ -72,16 +72,5 @@
 	"user-level-updated-success": "User level has been updated successfully",
 	"cannot-remove-last-admin": "Cannot remove the last admin from the tenant",
 	"cannot-demote-last-admin": "Cannot demote the last admin from the tenant",
-	"cannot-suspend-last-admin": "Cannot suspend the last admin from the tenant",
-	"tenant-bulk-suspend-success": "Successfully suspended {{count}} tenant(s).",
-	"tenant-bulk-suspend-partial-success": "Suspended {{succeeded}} tenant(s), {{failed}} failed.",
-	"tenant-bulk-suspend-failure": "Failed to suspend selected tenants.",
-	"tenant-bulk-reactivate-success": "Successfully reactivated {{count}} tenant(s).",
-	"tenant-bulk-reactivate-partial-success": "Reactivated {{succeeded}} tenant(s), {{failed}} failed.",
-	"tenant-bulk-reactivate-failure": "Failed to reactivate selected tenants.",
-	"tenant-bulk-delete-success": "Successfully deleted {{count}} tenant(s).",
-	"tenant-bulk-delete-partial-success": "Deleted {{succeeded}} tenant(s), {{failed}} failed.",
-	"tenant-bulk-delete-failure": "Failed to delete selected tenants.",
-	"bulk-action-success": "{{count}} {{action}} successfully",
-	"bulk-action-partial-success": "{{succeeded}} {{action}}, {{failed}} failed"
+	"cannot-suspend-last-admin": "Cannot suspend the last admin from the tenant"
 }
