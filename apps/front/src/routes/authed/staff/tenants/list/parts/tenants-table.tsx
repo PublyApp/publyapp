@@ -321,14 +321,12 @@ const useTenantsTableController = () => {
 						t('tenant-bulk-suspend-partial-success', {
 							succeeded,
 							failed,
-							ns: 'response-message',
 						}),
 					);
 				} else {
 					toast.success(
 						t('tenant-bulk-suspend-success', {
 							count: succeeded,
-							ns: 'response-message',
 						}),
 					);
 				}
@@ -339,11 +337,7 @@ const useTenantsTableController = () => {
 				});
 			},
 			onError: () => {
-				toast.error(
-					t('tenant-bulk-suspend-failure', {
-						ns: 'response-message',
-					}),
-				);
+				toast.error(t('tenant-bulk-suspend-failure'));
 			},
 		});
 
@@ -358,14 +352,12 @@ const useTenantsTableController = () => {
 						t('tenant-bulk-reactivate-partial-success', {
 							succeeded,
 							failed,
-							ns: 'response-message',
 						}),
 					);
 				} else {
 					toast.success(
 						t('tenant-bulk-reactivate-success', {
 							count: succeeded,
-							ns: 'response-message',
 						}),
 					);
 				}
@@ -376,11 +368,7 @@ const useTenantsTableController = () => {
 				});
 			},
 			onError: () => {
-				toast.error(
-					t('tenant-bulk-reactivate-failure', {
-						ns: 'response-message',
-					}),
-				);
+				toast.error(t('tenant-bulk-reactivate-failure'));
 			},
 		});
 
@@ -395,14 +383,12 @@ const useTenantsTableController = () => {
 						t('tenant-bulk-delete-partial-success', {
 							succeeded,
 							failed,
-							ns: 'response-message',
 						}),
 					);
 				} else {
 					toast.success(
 						t('tenant-bulk-delete-success', {
 							count: succeeded,
-							ns: 'response-message',
 						}),
 					);
 				}
@@ -413,11 +399,7 @@ const useTenantsTableController = () => {
 				});
 			},
 			onError: () => {
-				toast.error(
-					t('tenant-bulk-delete-failure', {
-						ns: 'response-message',
-					}),
-				);
+				toast.error(t('tenant-bulk-delete-failure'));
 			},
 		});
 
