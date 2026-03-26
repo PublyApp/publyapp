@@ -17,16 +17,6 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey BadRequest = new("bad-request");
 
 	/// <summary>
-	/// {{succeeded}} {{action}}, {{failed}} failed
-	/// </summary>
-	public static readonly TranslationKey BulkActionPartialSuccess = new("bulk-action-partial-success");
-
-	/// <summary>
-	/// {{count}} {{action}} successfully
-	/// </summary>
-	public static readonly TranslationKey BulkActionSuccess = new("bulk-action-success");
-
-	/// <summary>
 	/// Cannot demote the last admin from the tenant
 	/// </summary>
 	public static readonly TranslationKey CannotDemoteLastAdmin = new("cannot-demote-last-admin");
