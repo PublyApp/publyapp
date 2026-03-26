@@ -72,16 +72,5 @@
 	"user-level-updated-success": "Le niveau de l'utilisateur a été mis à jour avec succès",
 	"cannot-remove-last-admin": "Impossible de supprimer le dernier administrateur du locataire",
 	"cannot-demote-last-admin": "Impossible de rétrograder le dernier administrateur du locataire",
-	"cannot-suspend-last-admin": "Impossible de suspendre le dernier administrateur du locataire",
-	"tenant-bulk-suspend-success": "{{count}} locataire(s) suspendu(s) avec succès.",
-	"tenant-bulk-suspend-partial-success": "{{succeeded}} locataire(s) suspendu(s), {{failed}} échec(s).",
-	"tenant-bulk-suspend-failure": "Échec de la suspension des locataires sélectionnés.",
-	"tenant-bulk-reactivate-success": "{{count}} locataire(s) réactivé(s) avec succès.",
-	"tenant-bulk-reactivate-partial-success": "{{succeeded}} locataire(s) réactivé(s), {{failed}} échec(s).",
-	"tenant-bulk-reactivate-failure": "Échec de la réactivation des locataires sélectionnés.",
-	"tenant-bulk-delete-success": "{{count}} locataire(s) supprimé(s) avec succès.",
-	"tenant-bulk-delete-partial-success": "{{succeeded}} locataire(s) supprimé(s), {{failed}} échec(s).",
-	"tenant-bulk-delete-failure": "Échec de la suppression des locataires sélectionnés.",
-	"bulk-action-success": "{{count}} {{action}} avec succès",
-	"bulk-action-partial-success": "{{succeeded}} {{action}}, {{failed}} échoué(s)"
+	"cannot-suspend-last-admin": "Impossible de suspendre le dernier administrateur du locataire"
 }
