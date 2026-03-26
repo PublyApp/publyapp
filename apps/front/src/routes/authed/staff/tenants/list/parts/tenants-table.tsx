@@ -1848,6 +1848,23 @@ const DeleteTenantAction = ({ tenant }: TenantActionProps) => {
 					</Button>
 				}
 			/>
+
+			<ConfirmDialog
+				open={deleteDialogOpen}
+				onClose={() => setDeleteDialogOpen(false)}
+				title={t('confirm-delete-tenant-title')}
+				content={t('confirm-delete-tenant-message')}
+				action={
+					<Button
+						variant="contained"
+						color="error"
+						onClick={handleDelete}
+						disabled={isDeleting}
+					>
+						{t('delete')}
+					</Button>
+				}
+			/>
 		</>
 	);
 };
