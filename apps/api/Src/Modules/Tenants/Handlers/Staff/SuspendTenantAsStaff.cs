@@ -80,34 +80,23 @@ public class SuspendTenantAsStaff {
 			cancellationToken
 		);
 
-		if (result.Error
-			is SuspendTenantError.NotFound
-		) {
+		if (result is SuspendTenantResult.NotFound) {
 			return TypedProblems.NotFound(
 				"Tenant not found",
 				ResponseKeys.TenantNotFound
 			);
 		}
-		if (result.Error
-			is SuspendTenantError.AlreadySuspended
-		) {
+		if (result is SuspendTenantResult.AlreadySuspended) {
 			return TypedProblems.Conflict(
 				"Tenant is already suspended",
 				ResponseKeys.TenantAlreadySuspended
 			);
 		}
-		if (result.Error
-			is SuspendTenantError.NotActiveStatus
-		) {
+		if (result is SuspendTenantResult.NotActiveStatus) {
 			return TypedProblems.BadRequest(
 				"Only active tenants can be suspended",
 				ResponseKeys
 					.TenantNotActiveCannotSuspend
-			);
-		}
-		if (result.Error is not null) {
-			throw new InvalidOperationException(
-				$"Unknown error: {result.Error}"
 			);
 		}
 
@@ -120,13 +109,12 @@ public class SuspendTenantAsStaff {
 			);
 		}
 
-		if (result.Tenant is null) {
+		if (result is not SuspendTenantResult.Success success) {
 			throw new InvalidOperationException(
-				"Service returned success "
-				+ "but Tenant was null."
+				$"Unknown suspend tenant result: {result.GetType().Name}"
 			);
 		}
-		var tenant = result.Tenant;
+		var tenant = success.Tenant;
 
 		await auditLogService.LogAsync(
 			account.UserId,

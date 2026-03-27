@@ -33,13 +33,13 @@ public class DeleteTenantAsStaff {
 			tenantIdGuid, cancellationToken
 		);
 
-		if (result.Error is DeleteTenantError.NotFound) {
+		if (result is DeleteTenantResult.NotFound) {
 			return TypedProblems.NotFound(
 				"Tenant not found",
 				ResponseKeys.TenantNotFound
 			);
 		}
-		if (result.Error is DeleteTenantError.NotSuspended) {
+		if (result is DeleteTenantResult.NotSuspended) {
 			return TypedProblems.BadRequest(
 				"Only suspended tenants "
 				+ "can be deleted",
@@ -47,12 +47,6 @@ public class DeleteTenantAsStaff {
 					.TenantNotSuspendedCannotDelete
 			);
 		}
-		if (result.Error is not null) {
-			throw new InvalidOperationException(
-				$"Unknown error: {result.Error}"
-			);
-		}
-
 		var account = authContext.AccountStaff;
 		if (account is null) {
 			throw new InvalidOperationException(
@@ -62,13 +56,12 @@ public class DeleteTenantAsStaff {
 			);
 		}
 
-		if (result.Tenant is null) {
+		if (result is not DeleteTenantResult.Success success) {
 			throw new InvalidOperationException(
-				"Service returned success "
-				+ "but Tenant was null."
+				$"Unknown delete tenant result: {result.GetType().Name}"
 			);
 		}
-		var tenant = result.Tenant;
+		var tenant = success.Tenant;
 
 		await auditLogService.LogAsync(
 			account.UserId,

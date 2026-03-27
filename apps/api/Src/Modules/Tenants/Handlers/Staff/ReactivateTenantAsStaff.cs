@@ -43,25 +43,16 @@ public class ReactivateTenantAsStaff {
 			cancellationToken
 		);
 
-		if (result.Error
-			is ReactivateTenantError.NotFound
-		) {
+		if (result is ReactivateTenantResult.NotFound) {
 			return TypedProblems.NotFound(
 				"Tenant not found",
 				ResponseKeys.TenantNotFound
 			);
 		}
-		if (result.Error
-			is ReactivateTenantError.NotSuspended
-		) {
+		if (result is ReactivateTenantResult.NotSuspended) {
 			return TypedProblems.Conflict(
 				"Tenant is not currently suspended",
 				ResponseKeys.TenantNotSuspended
-			);
-		}
-		if (result.Error is not null) {
-			throw new InvalidOperationException(
-				$"Unknown error: {result.Error}"
 			);
 		}
 
@@ -74,13 +65,12 @@ public class ReactivateTenantAsStaff {
 			);
 		}
 
-		if (result.Tenant is null) {
+		if (result is not ReactivateTenantResult.Success success) {
 			throw new InvalidOperationException(
-				"Service returned success "
-				+ "but Tenant was null."
+				$"Unknown reactivate tenant result: {result.GetType().Name}"
 			);
 		}
-		var tenant = result.Tenant;
+		var tenant = success.Tenant;
 
 		await auditLogService.LogAsync(
 			account.UserId,
