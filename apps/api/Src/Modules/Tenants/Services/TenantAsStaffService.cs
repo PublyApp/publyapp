@@ -899,17 +899,20 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		foreach (var tenantId in tenantIds) {
 			var result = await SuspendTenantAsync(tenantId, cancellationToken);
 
-			if (result.Error is not null) {
-				var errorMessage = result.Error switch {
-					SuspendTenantError.NotFound => "Tenant not found",
-					SuspendTenantError.AlreadySuspended => "Already suspended",
-					SuspendTenantError.NotActiveStatus => "Tenant is not active",
-					_ => "Unknown error"
-				};
-				failedItems.Add((tenantId, errorMessage));
-			} else {
+			if (result is SuspendTenantResult.Success) {
 				succeededCount++;
+				continue;
 			}
+
+			var errorMessage = result switch {
+				SuspendTenantResult.NotFound => "Tenant not found",
+				SuspendTenantResult.AlreadySuspended => "Already suspended",
+				SuspendTenantResult.NotActiveStatus => "Tenant is not active",
+				_ => throw new InvalidOperationException(
+					$"Unknown suspend tenant result: {result.GetType().Name}"
+				)
+			};
+			failedItems.Add((tenantId, errorMessage));
 		}
 
 		return new BulkSuspendResult(
@@ -929,16 +932,19 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		foreach (var tenantId in tenantIds) {
 			var result = await ReactivateTenantAsync(tenantId, cancellationToken);
 
-			if (result.Error is not null) {
-				var errorMessage = result.Error switch {
-					ReactivateTenantError.NotFound => "Tenant not found",
-					ReactivateTenantError.NotSuspended => "Tenant is not suspended",
-					_ => "Unknown error"
-				};
-				failedItems.Add((tenantId, errorMessage));
-			} else {
+			if (result is ReactivateTenantResult.Success) {
 				succeededCount++;
+				continue;
 			}
+
+			var errorMessage = result switch {
+				ReactivateTenantResult.NotFound => "Tenant not found",
+				ReactivateTenantResult.NotSuspended => "Tenant is not suspended",
+				_ => throw new InvalidOperationException(
+					$"Unknown reactivate tenant result: {result.GetType().Name}"
+				)
+			};
+			failedItems.Add((tenantId, errorMessage));
 		}
 
 		return new BulkReactivateResult(
@@ -958,16 +964,19 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		foreach (var tenantId in tenantIds) {
 			var result = await DeleteTenantAsync(tenantId, cancellationToken);
 
-			if (result.Error is not null) {
-				var errorMessage = result.Error switch {
-					DeleteTenantError.NotFound => "Tenant not found",
-					DeleteTenantError.NotSuspended => "Tenant is not suspended",
-					_ => "Unknown error"
-				};
-				failedItems.Add((tenantId, errorMessage));
-			} else {
+			if (result is DeleteTenantResult.Success) {
 				succeededCount++;
+				continue;
 			}
+
+			var errorMessage = result switch {
+				DeleteTenantResult.NotFound => "Tenant not found",
+				DeleteTenantResult.NotSuspended => "Tenant is not suspended",
+				_ => throw new InvalidOperationException(
+					$"Unknown delete tenant result: {result.GetType().Name}"
+				)
+			};
+			failedItems.Add((tenantId, errorMessage));
 		}
 
 		return new BulkDeleteResult(
