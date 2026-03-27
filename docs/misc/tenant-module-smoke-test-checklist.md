@@ -180,19 +180,19 @@ It covers category `0` through `10`.
 - [x] Both timestamps render and use the shared time-formatting utilities rather than ad hoc formatting.
 
 ### 4.5 Logo upload integration
-- Status: `PENDING`
-- [ ] The logo area is either intentionally read-only in the current scope or there is a tracked gap for real upload/edit support.
-- [ ] If tenant module completion is expected to include logo editing, that missing flow is explicitly tracked as outstanding.
+- Status: `DEFERRED`
+- [x] The logo area is intentionally read-only in the current scope.
+- [x] Real tenant logo upload/edit support is deferred to the broader file-upload work tracked in `#95`.
 
 ### 4.6 Suspend/reactivate from detail page
 - Status: `DONE`
-- [ ] The general-tab danger zone exposes the correct action for the tenant's current state.
-- [ ] After suspending or reactivating from the detail page, the page state updates immediately to reflect the new status.
+- [x] The general-tab danger zone exposes the correct action for the tenant's current state.
+- [x] After suspending or reactivating from the detail page, the page state updates immediately to reflect the new status.
 
 ### 4.7 Delete from detail page
 - Status: `DONE`
-- [ ] The detail-page delete action is visible only when deletion is allowed.
-- [ ] After a successful delete from the detail page, the app redirects away and the list data is invalidated.
+- [x] The detail-page delete action is visible only when deletion is allowed.
+- [x] After a successful delete from the detail page, the app redirects away and the list data is invalidated.
 
 ## Category 5: Staff Tenant Detail, Users Tab
 
