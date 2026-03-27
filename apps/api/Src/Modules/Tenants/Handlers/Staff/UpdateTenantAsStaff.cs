@@ -125,25 +125,18 @@ public class UpdateTenantAsStaff {
 			tenantIdGuid, args, cancellationToken
 		);
 
-		if (result.Error is UpdateTenantError.NotFound) {
+		if (result is UpdateTenantResult.NotFound) {
 			return TypedProblems.NotFound(
 				"Tenant not found",
 				ResponseKeys.TenantNotFound
 			);
 		}
-		if (result.Error
-			is UpdateTenantError.MaxUsersBelowCurrentCount
-		) {
+		if (result is UpdateTenantResult.MaxUsersBelowCurrentCount) {
 			return TypedProblems.BadRequest(
 				"Max users cannot be less than "
 				+ "the current number of users",
 				ResponseKeys
 					.TenantMaxUsersBelowCount
-			);
-		}
-		if (result.Error is not null) {
-			throw new InvalidOperationException(
-				$"Unknown error: {result.Error}"
 			);
 		}
 
@@ -156,13 +149,12 @@ public class UpdateTenantAsStaff {
 			);
 		}
 
-		if (result.Tenant is null) {
+		if (result is not UpdateTenantResult.Success success) {
 			throw new InvalidOperationException(
-				"Service returned success "
-				+ "but Tenant was null."
+				$"Unknown update tenant result: {result.GetType().Name}"
 			);
 		}
-		var tenant = result.Tenant;
+		var tenant = success.Tenant;
 		var usersCount = await tenantService
 			.CountTenantUsersAsync(
 				tenantIdGuid, cancellationToken
