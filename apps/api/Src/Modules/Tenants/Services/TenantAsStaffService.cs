@@ -32,10 +32,18 @@ public record CreateTenantWithInitialUsersResult {
 }
 
 // Result types for suspend/reactivate operations
-public enum SuspendTenantError { NotFound, AlreadySuspended, NotActiveStatus }
-public enum ReactivateTenantError { NotFound, NotSuspended }
-public record SuspendTenantResult(Tenant? Tenant, SuspendTenantError? Error);
-public record ReactivateTenantResult(Tenant? Tenant, ReactivateTenantError? Error);
+public abstract record SuspendTenantResult {
+	public sealed record Success(Tenant Tenant) : SuspendTenantResult;
+	public sealed record NotFound : SuspendTenantResult;
+	public sealed record AlreadySuspended : SuspendTenantResult;
+	public sealed record NotActiveStatus : SuspendTenantResult;
+}
+
+public abstract record ReactivateTenantResult {
+	public sealed record Success(Tenant Tenant) : ReactivateTenantResult;
+	public sealed record NotFound : ReactivateTenantResult;
+	public sealed record NotSuspended : ReactivateTenantResult;
+}
 
 // Result types for bulk operations
 public record BulkSuspendResult(
@@ -55,11 +63,17 @@ public record BulkDeleteResult(
 );
 
 // Result types for update/delete operations
-public enum UpdateTenantError { NotFound, MaxUsersBelowCurrentCount }
-public record UpdateTenantResult(Tenant? Tenant, UpdateTenantError? Error);
+public abstract record UpdateTenantResult {
+	public sealed record Success(Tenant Tenant) : UpdateTenantResult;
+	public sealed record NotFound : UpdateTenantResult;
+	public sealed record MaxUsersBelowCurrentCount : UpdateTenantResult;
+}
 
-public enum DeleteTenantError { NotFound, NotSuspended }
-public record DeleteTenantResult(Tenant? Tenant, DeleteTenantError? Error);
+public abstract record DeleteTenantResult {
+	public sealed record Success(Tenant Tenant) : DeleteTenantResult;
+	public sealed record NotFound : DeleteTenantResult;
+	public sealed record NotSuspended : DeleteTenantResult;
+}
 
 public record UpdateTenantAsStaffArgs(
 	string? Name,
@@ -553,13 +567,13 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		).FirstOrDefaultAsync(cancellationToken);
 
 		if (tenant is null) {
-			return new SuspendTenantResult(null, SuspendTenantError.NotFound);
+			return new SuspendTenantResult.NotFound();
 		}
 		if (tenant.IsSuspended) {
-			return new SuspendTenantResult(null, SuspendTenantError.AlreadySuspended);
+			return new SuspendTenantResult.AlreadySuspended();
 		}
 		if (tenant.Status != TenantStatus.Active) {
-			return new SuspendTenantResult(null, SuspendTenantError.NotActiveStatus);
+			return new SuspendTenantResult.NotActiveStatus();
 		}
 
 		// Atomic update with WHERE clause checking current state (race condition safe)
@@ -578,7 +592,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 
 		if (rowsAffected == 0) {
 			// Race condition: someone else changed the state between our read and update
-			return new SuspendTenantResult(null, SuspendTenantError.AlreadySuspended);
+			return new SuspendTenantResult.AlreadySuspended();
 		}
 
 		// Re-fetch tenant to return current state
@@ -588,7 +602,13 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			select t
 		).FirstOrDefaultAsync(cancellationToken);
 
-		return new SuspendTenantResult(updatedTenant, null);
+		if (updatedTenant is null) {
+			throw new InvalidOperationException(
+				"Tenant disappeared after successful suspend update."
+			);
+		}
+
+		return new SuspendTenantResult.Success(updatedTenant);
 	}
 
 	public async Task<ReactivateTenantResult> ReactivateTenantAsync(
@@ -603,10 +623,10 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		).FirstOrDefaultAsync(cancellationToken);
 
 		if (tenant is null) {
-			return new ReactivateTenantResult(null, ReactivateTenantError.NotFound);
+			return new ReactivateTenantResult.NotFound();
 		}
 		if (!tenant.IsSuspended) {
-			return new ReactivateTenantResult(null, ReactivateTenantError.NotSuspended);
+			return new ReactivateTenantResult.NotSuspended();
 		}
 
 		// Atomic update with WHERE clause checking current state (race condition safe)
@@ -625,7 +645,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 
 		if (rowsAffected == 0) {
 			// Race condition: someone else changed the state between our read and update
-			return new ReactivateTenantResult(null, ReactivateTenantError.NotSuspended);
+			return new ReactivateTenantResult.NotSuspended();
 		}
 
 		// Re-fetch tenant to return current state
@@ -635,7 +655,13 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			select t
 		).FirstOrDefaultAsync(cancellationToken);
 
-		return new ReactivateTenantResult(updatedTenant, null);
+		if (updatedTenant is null) {
+			throw new InvalidOperationException(
+				"Tenant disappeared after successful reactivate update."
+			);
+		}
+
+		return new ReactivateTenantResult.Success(updatedTenant);
 	}
 
 	public async Task<Tenant?> GetTenantByIdForStaffAsync(
@@ -676,9 +702,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		).FirstOrDefaultAsync(cancellationToken);
 
 		if (tenant is null) {
-			return new UpdateTenantResult(
-				null, UpdateTenantError.NotFound
-			);
+			return new UpdateTenantResult.NotFound();
 		}
 
 		// Validate MaxUsers against current user count
@@ -687,10 +711,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				tenantId, cancellationToken
 			);
 			if (args.MaxUsers.Value < currentUserCount) {
-				return new UpdateTenantResult(
-					null,
-					UpdateTenantError.MaxUsersBelowCurrentCount
-				);
+				return new UpdateTenantResult.MaxUsersBelowCurrentCount();
 			}
 		}
 
@@ -707,7 +728,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		tenant.UpdatedAt = DateTime.UtcNow;
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
-		return new UpdateTenantResult(tenant, null);
+		return new UpdateTenantResult.Success(tenant);
 	}
 
 	public async Task<DeleteTenantResult> DeleteTenantAsync(
@@ -721,15 +742,11 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		).FirstOrDefaultAsync(cancellationToken);
 
 		if (tenant is null) {
-			return new DeleteTenantResult(
-				null, DeleteTenantError.NotFound
-			);
+			return new DeleteTenantResult.NotFound();
 		}
 
 		if (!tenant.IsSuspended) {
-			return new DeleteTenantResult(
-				null, DeleteTenantError.NotSuspended
-			);
+			return new DeleteTenantResult.NotSuspended();
 		}
 
 		// Atomic soft-delete with WHERE clause (race-condition safe)
@@ -752,12 +769,10 @@ public class TenantAsStaffService : ITenantAsStaffService {
 
 		if (rowsAffected == 0) {
 			// Race condition: state changed between read and update
-			return new DeleteTenantResult(
-				null, DeleteTenantError.NotSuspended
-			);
+			return new DeleteTenantResult.NotSuspended();
 		}
 
-		return new DeleteTenantResult(tenant, null);
+		return new DeleteTenantResult.Success(tenant);
 	}
 
 	public async Task<BulkSuspendResult> BulkSuspendAsync(
@@ -770,17 +785,20 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		foreach (var tenantId in tenantIds) {
 			var result = await SuspendTenantAsync(tenantId, cancellationToken);
 
-			if (result.Error is not null) {
-				var errorMessage = result.Error switch {
-					SuspendTenantError.NotFound => "Tenant not found",
-					SuspendTenantError.AlreadySuspended => "Already suspended",
-					SuspendTenantError.NotActiveStatus => "Tenant is not active",
-					_ => "Unknown error"
-				};
-				failedItems.Add((tenantId, errorMessage));
-			} else {
+			if (result is SuspendTenantResult.Success) {
 				succeededCount++;
+				continue;
 			}
+
+			var errorMessage = result switch {
+				SuspendTenantResult.NotFound => "Tenant not found",
+				SuspendTenantResult.AlreadySuspended => "Already suspended",
+				SuspendTenantResult.NotActiveStatus => "Tenant is not active",
+				_ => throw new InvalidOperationException(
+					$"Unknown suspend tenant result: {result.GetType().Name}"
+				)
+			};
+			failedItems.Add((tenantId, errorMessage));
 		}
 
 		return new BulkSuspendResult(
@@ -800,16 +818,19 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		foreach (var tenantId in tenantIds) {
 			var result = await ReactivateTenantAsync(tenantId, cancellationToken);
 
-			if (result.Error is not null) {
-				var errorMessage = result.Error switch {
-					ReactivateTenantError.NotFound => "Tenant not found",
-					ReactivateTenantError.NotSuspended => "Tenant is not suspended",
-					_ => "Unknown error"
-				};
-				failedItems.Add((tenantId, errorMessage));
-			} else {
+			if (result is ReactivateTenantResult.Success) {
 				succeededCount++;
+				continue;
 			}
+
+			var errorMessage = result switch {
+				ReactivateTenantResult.NotFound => "Tenant not found",
+				ReactivateTenantResult.NotSuspended => "Tenant is not suspended",
+				_ => throw new InvalidOperationException(
+					$"Unknown reactivate tenant result: {result.GetType().Name}"
+				)
+			};
+			failedItems.Add((tenantId, errorMessage));
 		}
 
 		return new BulkReactivateResult(
@@ -829,16 +850,19 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		foreach (var tenantId in tenantIds) {
 			var result = await DeleteTenantAsync(tenantId, cancellationToken);
 
-			if (result.Error is not null) {
-				var errorMessage = result.Error switch {
-					DeleteTenantError.NotFound => "Tenant not found",
-					DeleteTenantError.NotSuspended => "Tenant is not suspended",
-					_ => "Unknown error"
-				};
-				failedItems.Add((tenantId, errorMessage));
-			} else {
+			if (result is DeleteTenantResult.Success) {
 				succeededCount++;
+				continue;
 			}
+
+			var errorMessage = result switch {
+				DeleteTenantResult.NotFound => "Tenant not found",
+				DeleteTenantResult.NotSuspended => "Tenant is not suspended",
+				_ => throw new InvalidOperationException(
+					$"Unknown delete tenant result: {result.GetType().Name}"
+				)
+			};
+			failedItems.Add((tenantId, errorMessage));
 		}
 
 		return new BulkDeleteResult(
