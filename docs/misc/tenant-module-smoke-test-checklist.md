@@ -164,20 +164,20 @@ It covers category `0` through `10`.
 
 ### 4.1 Wire edit form to PATCH
 - Status: `DONE`
-- [ ] Saving changes from the general tab performs a real PATCH mutation and persists data instead of triggering a stub action.
+- [x] Saving changes from the general tab performs a real PATCH mutation and persists data instead of triggering a stub action.
 
 ### 4.2 Display tenant code
 - Status: `DONE`
-- [ ] The code field is visible, read-only, and styled as non-editable.
+- [x] The code field is visible, read-only, and styled as non-editable.
 
 ### 4.3 Display status and suspension badge/state
 - Status: `DONE`
-- [ ] The status badge or chip reflects the actual tenant state from the backend.
-- [ ] The danger-zone actions change correctly when the tenant moves between active and suspended states.
+- [x] The status badge or chip reflects the actual tenant state from the backend.
+- [x] The danger-zone actions change correctly when the tenant moves between active and suspended states.
 
 ### 4.4 Display created/updated timestamps
 - Status: `DONE`
-- [ ] Both timestamps render and use the shared time-formatting utilities rather than ad hoc formatting.
+- [x] Both timestamps render and use the shared time-formatting utilities rather than ad hoc formatting.
 
 ### 4.5 Logo upload integration
 - Status: `PENDING`
