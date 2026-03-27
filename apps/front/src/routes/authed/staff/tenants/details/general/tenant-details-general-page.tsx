@@ -159,7 +159,23 @@ const TenantGeneralContent = ({
 	);
 
 	const handleSubmit = methods.handleSubmit((data) => {
-		updateTenant({ tenantId, ...data });
+		const payload: {
+			tenantId: string;
+			name?: string;
+			maxUsers?: number;
+		} = {
+			tenantId,
+		};
+
+		if (methods.formState.dirtyFields.name) {
+			payload.name = data.name;
+		}
+
+		if (methods.formState.dirtyFields.maxUsers) {
+			payload.maxUsers = data.maxUsers;
+		}
+
+		updateTenant(payload);
 	});
 
 	const handleCopyValue = (field: 'code' | 'tenantId', value: string) => {
