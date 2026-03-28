@@ -18,17 +18,29 @@ export const SidebarSettingsLayout = ({
 	maxWidth = 'lg',
 	breadcrumbs,
 }: SidebarSettingsLayoutProps) => (
-	<DashboardContent maxWidth={maxWidth} compact>
+	<DashboardContent
+		maxWidth={maxWidth}
+		compact
+		sx={{ flexGrow: 1, minHeight: 0 }}
+	>
 		{breadcrumbs}
 
 		{/* Mobile Navigation — visible below md */}
-		<Box sx={{ display: { xs: 'block', md: 'none' }, mb: 2 }}>
+		<Box
+			sx={{
+				display: { xs: 'block', md: 'none' },
+				mb: 2,
+				flexShrink: 0,
+			}}
+		>
 			<SettingsNavMobile items={items} />
 		</Box>
 
 		<Box
 			sx={{
 				display: 'flex',
+				flexGrow: 1,
+				minHeight: 0,
 				gap: 4,
 				flexDirection: { xs: 'column', md: 'row' },
 			}}
@@ -50,7 +62,15 @@ export const SidebarSettingsLayout = ({
 			</Box>
 
 			{/* Main Content */}
-			<Box sx={{ flex: 1, minWidth: 0 }}>
+			<Box
+				sx={{
+					flex: 1,
+					minWidth: 0,
+					minHeight: 0,
+					display: 'flex',
+					flexDirection: 'column',
+				}}
+			>
 				<Outlet />
 			</Box>
 		</Box>
