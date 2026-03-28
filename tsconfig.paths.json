@@ -1,15 +1,6 @@
 {
-	// extend your base config to share compilerOptions, etc
 	"extends": "tsconfig/tsconfig.base.json",
 	"compilerOptions": {
-		// ensure that nobody can accidentally use this config for a build
-		"noEmit": true,
-		// making tsconfig paths work when type checking with tsc
-		"baseUrl": ".",
-		"paths": {
-			"@/front/*": ["./apps/front/src/*"],
-			"@org/shared-ts/*": ["./packages/shared-ts/*"],
-			"@org/client-ts/*": ["./packages/client-ts/*"]
-		}
+		"noEmit": true
 	}
 }

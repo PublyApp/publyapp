@@ -1,5 +1,5 @@
 {
-	"extends": ["../../tsconfig.paths.json"],
+	"extends": "../../packages/_tsconfig/tsconfig.base.json",
 	"compilerOptions": {
 		"verbatimModuleSyntax": true,
 		"rootDirs": [".", "./.react-router/types"],
