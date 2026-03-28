@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Drawer from '@mui/material/Drawer';
 import Stack from '@mui/material/Stack';
@@ -39,8 +40,13 @@ export const SectionPageWithDrawer = ({
 	const effectiveOnClose = onClose ?? internalOpen.onFalse;
 
 	return (
-		<Stack spacing={3}>
-			<Stack direction="row" alignItems="center" justifyContent="space-between">
+		<Stack spacing={3} sx={{ flexGrow: 1, minHeight: 0 }}>
+			<Stack
+				direction="row"
+				alignItems="center"
+				justifyContent="space-between"
+				sx={{ flexShrink: 0 }}
+			>
 				<SettingsPageHeader subtitle={subtitle} title={title} />
 				<Button
 					variant="contained"
@@ -51,7 +57,16 @@ export const SectionPageWithDrawer = ({
 				</Button>
 			</Stack>
 
-			{children}
+			<Box
+				sx={{
+					flexGrow: 1,
+					minHeight: 0,
+					display: 'flex',
+					flexDirection: 'column',
+				}}
+			>
+				{children}
+			</Box>
 
 			<Drawer
 				open={effectiveOpen}
