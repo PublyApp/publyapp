@@ -6,8 +6,8 @@ import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 
-import { SettingsPageHeader } from '@/front/components/settings/settings-page-header';
-import { useTranslate } from '@/front/hooks/use-translate';
+import { SettingsPageHeader } from '#app/components/settings/settings-page-header.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 
 // Horizontal form row component for consistent layout
 const FormRow = ({

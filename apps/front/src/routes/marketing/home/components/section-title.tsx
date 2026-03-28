@@ -4,7 +4,7 @@ import Typography from '@mui/material/Typography';
 import { type MotionProps, m } from 'framer-motion';
 import { varAlpha } from 'minimal-shared/utils';
 
-import { varFade } from '@/front/components/animate/variants/fade';
+import { varFade } from '#app/components/animate/variants/fade.ts';
 
 // ----------------------------------------------------------------------
 

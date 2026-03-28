@@ -2,7 +2,7 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import { useNavigate } from 'react-router';
 
-import useMatchPath from '@/front/hooks/use-match-path';
+import useMatchPath from '#app/hooks/use-match-path.ts';
 
 import type { SettingsNavItem } from './settings-nav';
 

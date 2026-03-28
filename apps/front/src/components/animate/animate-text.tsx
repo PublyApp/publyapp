@@ -11,7 +11,7 @@ import { mergeClasses } from 'minimal-shared/utils';
 import { nanoid } from 'nanoid';
 import { useEffect, useMemo, useRef } from 'react';
 
-import { createClasses } from '@/front/lib/mui/theme/create-classes';
+import { createClasses } from '#app/lib/mui/theme/create-classes.ts';
 
 import { varContainer, varFade } from './variants';
 

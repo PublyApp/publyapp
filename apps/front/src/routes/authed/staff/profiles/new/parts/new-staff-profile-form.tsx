@@ -31,41 +31,41 @@ import type zod from 'zod';
 import { FRONT_PATH_NAMES, isServer } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@org/shared-ts/validations/staff-profile.validations';
-import { FloatingCard } from '@/front/components/floating-card';
-import { Form } from '@/front/components/hook-form';
-import { Field } from '@/front/components/hook-form/fields';
-import { HelperText } from '@/front/components/hook-form/help-text';
-import { Iconify } from '@/front/components/iconify/iconify';
+import { FloatingCard } from '#app/components/floating-card.tsx';
+import { Form } from '#app/components/hook-form/index.ts';
+import { Field } from '#app/components/hook-form/fields.tsx';
+import { HelperText } from '#app/components/hook-form/help-text.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
 import {
 	Nav,
 	NavCollapse,
 	NavLi,
 	NavSubheader,
 	NavUl,
-} from '@/front/components/nav-section/components';
+} from '#app/components/nav-section/components/index.ts';
 import {
 	navSectionClasses,
 	navSectionCssVars,
-} from '@/front/components/nav-section/styles';
+} from '#app/components/nav-section/styles/index.ts';
 import type {
 	NavGroupProps,
 	NavListProps,
 	NavSectionProps,
 	NavSubListProps,
-} from '@/front/components/nav-section/types';
-import { NavItem } from '@/front/components/nav-section/vertical/nav-item';
-import QueryDisplay from '@/front/components/query-display';
-import { toast } from '@/front/components/snackbar';
-import { useRouter } from '@/front/hooks/use-router';
-import { useScrollspy } from '@/front/hooks/use-scrollspy';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
+} from '#app/components/nav-section/types.ts';
+import { NavItem } from '#app/components/nav-section/vertical/nav-item.tsx';
+import QueryDisplay from '#app/components/query-display.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
+import { useRouter } from '#app/hooks/use-router.ts';
+import { useScrollspy } from '#app/hooks/use-scrollspy.ts';
+import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
 	useCreateStaffProfile,
 	useFindStaffPermissions,
 	useFindStaffProfiles,
-} from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { interZodClient } from '@/front/lib/zod/zod.client';
+} from '#app/lib/react-query/features/staff/staff-profile.hooks.ts';
+import { interZodClient } from '#app/lib/zod/zod.client.ts';
 
 // ============================================================
 // CONSTANTS & TYPES

@@ -1,4 +1,4 @@
-import { NotFoundView } from '@/front/components/error/not-found-view';
+import { NotFoundView } from '#app/components/error/not-found-view.tsx';
 
 const TenantNotFoundPage = () => {
 	return <NotFoundView withLayout={false} />;

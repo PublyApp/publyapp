@@ -7,7 +7,7 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 
-import { useTranslate } from '@/front/hooks/use-translate';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 
 const StaffProfileBasicInfos = () => {
 	const { t } = useTranslate();

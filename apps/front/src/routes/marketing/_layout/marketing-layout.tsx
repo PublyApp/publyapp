@@ -1,6 +1,6 @@
 import { Outlet } from 'react-router';
 
-import { MainLayout } from '@/front/layouts/main/layout';
+import { MainLayout } from '#app/layouts/main/layout.tsx';
 
 const MarketingLayout = () => {
 	return (

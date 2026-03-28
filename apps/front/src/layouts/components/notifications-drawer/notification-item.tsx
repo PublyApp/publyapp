@@ -6,9 +6,9 @@ import ListItemAvatar from '@mui/material/ListItemAvatar';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 
-import { FileThumbnail } from '@/front/components/file-thumbnail';
-import { Label } from '@/front/components/label';
-import { fToNow } from '@/front/utils/format-time';
+import { FileThumbnail } from '#app/components/file-thumbnail/index.ts';
+import { Label } from '#app/components/label/index.ts';
+import { fToNow } from '#app/utils/format-time.ts';
 
 import { notificationIcons } from './icons';
 

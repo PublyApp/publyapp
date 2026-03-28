@@ -9,9 +9,9 @@ import ListItemText from '@mui/material/ListItemText';
 import Typography from '@mui/material/Typography';
 import { useBoolean } from 'minimal-shared/hooks';
 
-import type { IUserAccountBillingHistory } from '@/front/types/user';
-import { fCurrency } from '@/front/utils/format-number';
-import { fDate } from '@/front/utils/format-time';
+import type { IUserAccountBillingHistory } from '#app/types/user.ts';
+import { fCurrency } from '#app/utils/format-number.ts';
+import { fDate } from '#app/utils/format-time.ts';
 
 import { Iconify } from '../iconify/iconify';
 

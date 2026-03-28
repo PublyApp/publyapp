@@ -5,7 +5,7 @@ import { varAlpha } from 'minimal-shared/utils';
 
 //
 
-import { MotionContainer } from '@/front/components/animate';
+import { MotionContainer } from '#app/components/animate/index.ts';
 
 import { Circles, Dots, Lines, PlusIcon, Texts } from './hero-svg';
 

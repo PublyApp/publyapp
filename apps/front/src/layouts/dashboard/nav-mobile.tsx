@@ -3,13 +3,13 @@ import Drawer from '@mui/material/Drawer';
 import { mergeClasses } from 'minimal-shared/utils';
 import { useEffect } from 'react';
 
-import { Logo } from '@/front/components/logo';
+import { Logo } from '#app/components/logo/index.ts';
 import {
 	type NavSectionProps,
 	NavSectionVertical,
-} from '@/front/components/nav-section';
-import { Scrollbar } from '@/front/components/scrollbar';
-import { usePathname } from '@/front/hooks/use-pathname';
+} from '#app/components/nav-section/index.ts';
+import { Scrollbar } from '#app/components/scrollbar/index.ts';
+import { usePathname } from '#app/hooks/use-pathname.ts';
 
 import { layoutClasses } from '../core/classes';
 

@@ -19,18 +19,18 @@ import {
 	getEmailFormSchema,
 	getRequestEmailVerificationSchema,
 } from '@org/shared-ts/validations/auth.validations';
-import { Field, Form } from '@/front/components/hook-form';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { getClientManager } from '@/front/lib/js-client/client-manager';
-import { safeRun } from '@/front/lib/react-router/safeRun';
+import { Field, Form } from '#app/components/hook-form/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { getClientManager } from '#app/lib/js-client/client-manager.ts';
+import { safeRun } from '#app/lib/react-router/safeRun.ts';
 import {
 	getServerAction,
 	getServerLoader,
-} from '@/front/lib/react-router/server-data.server';
-import { interZodClient } from '@/front/lib/zod/zod.client';
+} from '#app/lib/react-router/server-data.server.ts';
+import { interZodClient } from '#app/lib/zod/zod.client.ts';
 
 import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/verify-email-page';

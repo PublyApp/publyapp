@@ -10,23 +10,23 @@ import {
 	REDIRECT_CODE,
 } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { SplashScreen } from '@/front/components/loading-screen/splash-screen';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { AuthSplitLayout } from '@/front/layouts/auth-split/layout';
+import { SplashScreen } from '#app/components/loading-screen/splash-screen.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { AuthSplitLayout } from '#app/layouts/auth-split/layout.tsx';
 import {
 	clearSessionCookie,
 	getSessionCookieFromClient,
-} from '@/front/lib/cookies/session-cookie.utils';
-import { readTenantHintsFromRequestHeaders } from '@/front/lib/cookies/tenant-hint-cookie.utils';
-import { getClientManager } from '@/front/lib/js-client/client-manager';
+} from '#app/lib/cookies/session-cookie.utils.ts';
+import { readTenantHintsFromRequestHeaders } from '#app/lib/cookies/tenant-hint-cookie.utils.ts';
+import { getClientManager } from '#app/lib/js-client/client-manager.ts';
 import {
 	useGetTenantAuthData,
 	useGetUserAuthData,
-} from '@/front/lib/react-query/features/common/auth.hooks';
-import { getQueryClient } from '@/front/lib/react-query/query-client';
-import { getClientLoader } from '@/front/lib/react-router/client-data';
-import { safeRun } from '@/front/lib/react-router/safeRun';
-import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+} from '#app/lib/react-query/features/common/auth.hooks.ts';
+import { getQueryClient } from '#app/lib/react-query/query-client.tsx';
+import { getClientLoader } from '#app/lib/react-router/client-data.ts';
+import { safeRun } from '#app/lib/react-router/safeRun.ts';
+import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 export const loader = getServerLoader({
 	loader: async ({ request, sessionToken, staffToken, tenantToken }) => {

@@ -7,14 +7,14 @@ import Link from '@mui/material/Link';
 import { type Breakpoint, styled } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
-// import { Iconify } from '@/front/components/iconify';
-// import { Logo } from '@/front/components/logo';
-// import { RouterLink } from '@/front/routes/components';
-// import { paths } from '@/front/routes/paths';
+// import { Iconify } from '#app/components/iconify/index.ts';
+// import { Logo } from '#app/components/logo/index.ts';
+// import { RouterLink } from '#app/routes/components';
+// import { paths } from '#app/routes/paths';
 
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Logo } from '@/front/components/logo/logo';
-import { RouterLink } from '@/front/components/router-link';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { Logo } from '#app/components/logo/logo.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
 
 // ----------------------------------------------------------------------
 

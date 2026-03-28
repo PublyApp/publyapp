@@ -10,14 +10,14 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { useCallback } from 'react';
 
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
-import { AnimateBorder } from '@/front/components/animate';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Label } from '@/front/components/label';
-import { RouterLink } from '@/front/components/router-link';
-import { Scrollbar } from '@/front/components/scrollbar';
-import { usePathname } from '@/front/hooks/use-pathname';
-import { logout } from '@/front/lib/cookies/logout.utils';
-import { useGetUserAuthData } from '@/front/lib/react-query/features/common/auth.hooks';
+import { AnimateBorder } from '#app/components/animate/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { Label } from '#app/components/label/index.ts';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { Scrollbar } from '#app/components/scrollbar/index.ts';
+import { usePathname } from '#app/hooks/use-pathname.ts';
+import { logout } from '#app/lib/cookies/logout.utils.ts';
+import { useGetUserAuthData } from '#app/lib/react-query/features/common/auth.hooks.ts';
 
 import { AccountButton } from './account-button';
 import { SignOutButton } from './sign-out-button';

@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import type { Breakpoint } from '@mui/material/styles';
 import { Outlet } from 'react-router';
 
-import { DashboardContent } from '@/front/layouts/dashboard/content';
+import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
 
 import { SettingsNav, type SettingsNavItem } from './settings-nav';
 import { SettingsNavMobile } from './settings-nav-mobile';

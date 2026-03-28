@@ -25,19 +25,19 @@ import {
 import { getCorrectLocale } from '@org/shared-ts/lib/i18n/i18n.utils';
 import { getSerializedErrorMessage } from '@org/shared-ts/utils/error.utils';
 import { getResetPasswordSchema } from '@org/shared-ts/validations/auth.validations';
-import { Field } from '@/front/components/hook-form/fields';
-import { Form } from '@/front/components/hook-form/form-provider';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { toast } from '@/front/components/snackbar';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { getClientManager } from '@/front/lib/js-client/client-manager';
-import { safeRun } from '@/front/lib/react-router/safeRun';
+import { Field } from '#app/components/hook-form/fields.tsx';
+import { Form } from '#app/components/hook-form/form-provider.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
+import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { getClientManager } from '#app/lib/js-client/client-manager.ts';
+import { safeRun } from '#app/lib/react-router/safeRun.ts';
 import {
 	getServerAction,
 	getServerLoader,
-} from '@/front/lib/react-router/server-data.server';
-import { interZodClient } from '@/front/lib/zod/zod.client';
+} from '#app/lib/react-router/server-data.server.ts';
+import { interZodClient } from '#app/lib/zod/zod.client.ts';
 
 import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/reset-password-page';
