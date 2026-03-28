@@ -239,7 +239,7 @@ export function AccountBillingPlan({ cardList, addressBook, plans }: Props) {
 				action={
 					<Button
 						size="small"
-						startIcon={<Iconify icon="mingcute:add-line" />}
+						startIcon={<Iconify width={16} icon="mingcute:add-line" />}
 						sx={{ alignSelf: 'flex-end' }}
 					>
 						New

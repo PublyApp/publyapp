@@ -2,6 +2,7 @@ import Autocomplete from '@mui/material/Autocomplete';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import ButtonBase from '@mui/material/ButtonBase';
 import Checkbox from '@mui/material/Checkbox';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -41,10 +42,7 @@ import {
 	DEFAULT_PAGE_SIZE,
 	FRONT_PATH_NAMES,
 	USER_STATUS_ENUM,
-	voidFunction,
 } from '@org/shared-ts/lib/constants';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { getErrorMessage } from '@org/shared-ts/utils/error.utils';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import DrawerAnchor from '@/front/components/drawer-anchor';
@@ -52,15 +50,13 @@ import { Iconify } from '@/front/components/iconify/iconify';
 import type { LabelColor } from '@/front/components/label';
 import { Label } from '@/front/components/label/label';
 import { RouterLink } from '@/front/components/router-link';
+import { useSectionPageWithDrawer } from '@/front/components/settings/section-page-with-drawer';
 import { toast } from '@/front/components/snackbar';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableQueryOptions } from '@/front/hooks/use-table-query-options';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
-import {
-	useGetVerificationLink,
-	useSendEmailVerificationReminder,
-} from '@/front/lib/react-query/features/common/auth.hooks';
+import { useSendEmailVerificationReminder } from '@/front/lib/react-query/features/common/auth.hooks';
 import {
 	useFindTenantUsers,
 	useRemoveTenantUser,
@@ -97,6 +93,7 @@ const TenantUsersTable = () => {
 	const { t } = useTranslate();
 	const { tenantId } = useParams();
 	const queryClient = useQueryClient();
+	const { openDrawer } = useSectionPageWithDrawer();
 	const searchTooltipId = useId();
 	const statusTooltipId = useId();
 	const statusOptions = useMemo(() => {
@@ -247,6 +244,16 @@ const TenantUsersTable = () => {
 					item: t('users'),
 					ns: 'response-message',
 				}),
+			),
+			renderAction: () => (
+				<Button
+					variant="contained"
+					startIcon={<Iconify width={16} icon="mingcute:add-line" />}
+					onClick={openDrawer}
+					sx={{ mt: 2 }}
+				>
+					{t('invite-first-user')}
+				</Button>
 			),
 		},
 		errorContent: {
@@ -830,7 +837,11 @@ const TenantUsersTable = () => {
 					>
 						{t('export')}
 					</Button>
-					<Button variant="outlined" onClick={() => setExportDialogOpen(false)}>
+					<Button
+						variant="outlined"
+						color="inherit"
+						onClick={() => setExportDialogOpen(false)}
+					>
 						{t('cancel')}
 					</Button>
 				</DialogActions>
@@ -854,7 +865,7 @@ const TenantUsersTable = () => {
 						onClick={handleBulkRemove}
 						disabled={isBulkRemoving}
 					>
-						{t('remove', { defaultValue: 'Remove' })}
+						{t('remove')}
 					</Button>
 				}
 			/>
@@ -867,13 +878,9 @@ export default TenantUsersTable;
 // ----------------------------------------------------------------------
 
 const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
-	const userId = props.row.original.id;
 	const fullName = props.cell.getValue();
-	const avatarUrl = props.row.original.avatarUrl;
-	const email = props.row.original.email;
-	const openDrawer = useBoolean();
-
-	const userDetailsLink = FRONT_PATH_NAMES.staff.tenantUsers.details(userId);
+	const { id, avatarUrl, email } = props.row.original;
+	const userDetailsLink = FRONT_PATH_NAMES.staff.tenantUsers.details(id);
 
 	return (
 		<Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
@@ -886,57 +893,13 @@ const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 					alignItems: 'flex-start',
 				}}
 			>
-				<Stack direction="row" gap={0.7}>
-					<Link
-						color="inherit"
-						sx={{ cursor: 'pointer' }}
-						onClick={openDrawer.onTrue}
-					>
-						{fullName}
-					</Link>
-					<Link
-						component={RouterLink}
-						href={userDetailsLink}
-						color="text.secondary"
-						sx={{ position: 'relative', top: -3 }}
-					>
-						<Iconify
-							icon="eva:external-link-outline"
-							width={16}
-							height={16}
-							fontWeight={900}
-						/>
-					</Link>
-				</Stack>
+				<Link color="inherit" component={RouterLink} href={userDetailsLink}>
+					{fullName}
+				</Link>
 				<Box component="span" sx={{ color: 'text.disabled' }}>
 					{email}
 				</Box>
 			</Stack>
-			<Drawer
-				open={openDrawer.value}
-				onClose={openDrawer.onFalse}
-				anchor="right"
-				sx={(theme) => {
-					return {
-						zIndex: theme.zIndex.modal + 1,
-					};
-				}}
-				slotProps={{
-					paper: {
-						sx: {
-							width: 720,
-							overflow: 'unset',
-						},
-					},
-				}}
-			>
-				<DrawerAnchor component={RouterLink} href={userDetailsLink}>
-					<Iconify icon="eva:expand-outline" />
-				</DrawerAnchor>
-				<Box sx={{ width: 300, p: 2 }}>
-					<Typography>{fullName}</Typography>
-				</Box>
-			</Drawer>
 		</Box>
 	);
 };
@@ -977,39 +940,304 @@ const StatusCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (
 
 const LevelCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 	const { t } = useTranslate();
-
+	const { tenantId } = useParams();
+	const queryClient = useQueryClient();
+	const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+	const userId = props.row.original.id;
 	const level = props.cell.getValue();
 
-	let t_message: string = t('unknown-item', { item: 'role' });
+	const { mutate: updateUser, isPending } = useUpdateTenantUser({
+		onSuccess: () => {
+			toast.success(t('user-level-updated-success'));
+			setMenuAnchorEl(null);
+			if (tenantId) {
+				queryClient.invalidateQueries({
+					queryKey: useFindTenantUsers.getKey({ tenantId }),
+				});
+			}
+		},
+		onError: (error: unknown) => {
+			const message =
+				(error as { message?: string })?.message ||
+				t('user-level-updated-error');
+			toast.error(message);
+		},
+	});
+
+	let label: string = t('unknown-item', { item: 'role' });
 	let color: LabelColor = 'default';
 
 	if (level === ACCOUNT_LEVEL_ENUM.ADMIN) {
-		t_message = t('admin');
+		label = t('admin');
 		color = 'success';
 	} else if (level === ACCOUNT_LEVEL_ENUM.USER) {
-		t_message = t('user');
+		label = t('user');
 		color = 'warning';
 	}
 
+	const handleChangeLevel = (
+		newLevel: typeof ACCOUNT_LEVEL_ENUM.ADMIN | typeof ACCOUNT_LEVEL_ENUM.USER,
+	) => {
+		if (newLevel === level) {
+			setMenuAnchorEl(null);
+			return;
+		}
+
+		if (!tenantId) {
+			return;
+		}
+
+		updateUser({ tenantId, userId, level: newLevel });
+	};
+
 	return (
-		<Label variant="soft" color={color}>
-			{t_message}
-		</Label>
+		<Box sx={{ display: 'flex', alignItems: 'center' }}>
+			<Tooltip title={t('change-role')} placement="top" arrow>
+				<ButtonBase
+					onClick={(event) => {
+						setMenuAnchorEl(event.currentTarget);
+					}}
+					disabled={isPending}
+					sx={(theme) => ({
+						gap: 0.5,
+						px: 0.5,
+						py: 0.25,
+						borderRadius: 1,
+						display: 'inline-flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						transition: theme.transitions.create('background-color', {
+							duration: theme.transitions.duration.shorter,
+						}),
+						'&:hover': {
+							backgroundColor: varAlpha(
+								theme.vars.palette.grey['500Channel'],
+								0.08,
+							),
+						},
+						'&:disabled': {
+							opacity: 0.48,
+						},
+					})}
+				>
+					<Label variant="soft" color={color}>
+						{label}
+					</Label>
+					<Iconify icon="eva:arrow-ios-downward-fill" width={16} />
+				</ButtonBase>
+			</Tooltip>
+
+			<Menu
+				open={menuAnchorEl !== null}
+				disableAutoFocusItem
+				onClose={() => {
+					setMenuAnchorEl(null);
+				}}
+				anchorEl={menuAnchorEl}
+				anchorOrigin={{
+					vertical: 'bottom',
+					horizontal: 'left',
+				}}
+				transformOrigin={{
+					vertical: 'top',
+					horizontal: 'left',
+				}}
+			>
+				<MenuItem
+					selected={level === ACCOUNT_LEVEL_ENUM.ADMIN}
+					onClick={() => handleChangeLevel(ACCOUNT_LEVEL_ENUM.ADMIN)}
+				>
+					<Stack direction="row" alignItems="center" gap={1}>
+						{level === ACCOUNT_LEVEL_ENUM.ADMIN ? (
+							<Iconify icon="solar:check-circle-bold" width={18} />
+						) : (
+							<Iconify icon="solar:shield-check-bold" width={18} />
+						)}
+						{t('admin')}
+					</Stack>
+				</MenuItem>
+
+				<MenuItem
+					selected={level === ACCOUNT_LEVEL_ENUM.USER}
+					onClick={() => handleChangeLevel(ACCOUNT_LEVEL_ENUM.USER)}
+				>
+					<Stack direction="row" alignItems="center" gap={1}>
+						{level === ACCOUNT_LEVEL_ENUM.USER ? (
+							<Iconify icon="solar:check-circle-bold" width={18} />
+						) : (
+							<Iconify icon="solar:users-group-rounded-bold" width={18} />
+						)}
+						{t('user')}
+					</Stack>
+				</MenuItem>
+			</Menu>
+		</Box>
 	);
 };
 
-const ALLOW_COPY_LINK = false;
-
 const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
-	const userId = props.row.original.id;
-	const isUserPending = props.row.original.status === USER_STATUS_ENUM.PENDING;
-	const currentLevel = props.row.original.level;
+	const user = props.row.original;
 
+	return (
+		<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+			<FollowUpAction user={user} />
+
+			<UserDetailsDrawerAction user={user} />
+
+			<RemoveUserAction user={user} />
+		</Box>
+	);
+};
+
+type FollowUpActionProps = {
+	user: TenantUserRowData;
+};
+
+const FollowUpAction = ({ user }: FollowUpActionProps) => {
+	const { t } = useTranslate();
+	const isUserPending = user.status === USER_STATUS_ENUM.PENDING;
+
+	const {
+		mutateAsync: sendEmailVerificationReminder,
+		isPending: isPendingSendEmailVerificationReminder,
+	} = useSendEmailVerificationReminder({
+		onSuccess: () => {
+			toast.success(t('email-verification-follow-up-success'));
+		},
+	});
+
+	if (!isUserPending) {
+		return null;
+	}
+
+	return (
+		<Tooltip
+			title={_.capitalize(t('send-email-verification-follow-up'))}
+			placement="top"
+		>
+			<IconButton
+				color="default"
+				loading={isPendingSendEmailVerificationReminder}
+				onClick={async () => {
+					await sendEmailVerificationReminder({ email: user.email });
+				}}
+			>
+				<Iconify icon="custom:send-fill" width={18} />
+			</IconButton>
+		</Tooltip>
+	);
+};
+
+type UserDetailsDrawerActionProps = {
+	user: TenantUserRowData;
+};
+
+const UserDetailsDrawerAction = ({ user }: UserDetailsDrawerActionProps) => {
+	const { t } = useTranslate();
+	const detailsDrawer = useBoolean();
+	const userDetailsLink = FRONT_PATH_NAMES.staff.tenantUsers.details(user.id);
+	const fullName = getUserFullName({
+		firstName: user.firstName,
+		lastName: user.lastName,
+	});
+
+	let levelLabel = t('unknown-item', { item: 'role' });
+	if (user.level === ACCOUNT_LEVEL_ENUM.ADMIN) {
+		levelLabel = t('admin');
+	} else if (user.level === ACCOUNT_LEVEL_ENUM.USER) {
+		levelLabel = t('user');
+	}
+
+	let statusLabel = t('unknown-item', { item: 'status' });
+	if (user.status === USER_STATUS_ENUM.ACTIVE) {
+		statusLabel = t('active');
+	} else if (user.status === USER_STATUS_ENUM.PENDING) {
+		statusLabel = t('pending');
+	} else if (user.status === USER_STATUS_ENUM.BANNED) {
+		statusLabel = t('banned');
+	} else if (user.status === USER_STATUS_ENUM.SUSPENDED) {
+		statusLabel = t('suspended');
+	} else if (user.status === USER_STATUS_ENUM.INACTIVE) {
+		statusLabel = t('inactive');
+	}
+
+	return (
+		<>
+			<Tooltip title={t('view-details')} placement="top" arrow>
+				<IconButton color="default" onClick={detailsDrawer.onTrue}>
+					<Iconify icon="solar:list-bold" width={18} />
+				</IconButton>
+			</Tooltip>
+
+			<Drawer
+				open={detailsDrawer.value}
+				onClose={detailsDrawer.onFalse}
+				anchor="right"
+				sx={(theme) => ({
+					zIndex: theme.zIndex.modal + 1,
+				})}
+				slotProps={{
+					paper: {
+						sx: {
+							width: 720,
+							overflow: 'unset',
+						},
+					},
+				}}
+			>
+				<Tooltip title={t('view-details')} placement="left" arrow>
+					<DrawerAnchor
+						component={RouterLink}
+						href={userDetailsLink}
+						sx={{ left: 0 }}
+					>
+						<Iconify icon="eva:expand-outline" width={18} />
+					</DrawerAnchor>
+				</Tooltip>
+
+				<Box sx={{ p: 3 }}>
+					<Stack spacing={2}>
+						<Box>
+							<Typography variant="h5">{fullName}</Typography>
+							<Typography variant="body2" color="text.secondary">
+								{user.email}
+							</Typography>
+						</Box>
+
+						<Stack direction="row" spacing={4}>
+							<Box>
+								<Typography variant="overline" color="text.disabled">
+									{t('level')}
+								</Typography>
+								<Typography variant="body2">{levelLabel}</Typography>
+							</Box>
+							<Box>
+								<Typography variant="overline" color="text.disabled">
+									{t('status')}
+								</Typography>
+								<Typography variant="body2">{statusLabel}</Typography>
+							</Box>
+						</Stack>
+					</Stack>
+				</Box>
+			</Drawer>
+		</>
+	);
+};
+
+type RemoveUserActionProps = {
+	user: TenantUserRowData;
+};
+
+const RemoveUserAction = ({ user }: RemoveUserActionProps) => {
 	const confirmDialog = useBoolean();
-	const levelMenuAnchor = useBoolean();
 	const { t } = useTranslate();
 	const { tenantId } = useParams();
 	const queryClient = useQueryClient();
+	const fullName = getUserFullName({
+		firstName: user.firstName,
+		lastName: user.lastName,
+	});
 
 	const { mutate: removeUser, isPending: isRemoving } = useRemoveTenantUser({
 		onSuccess: () => {
@@ -1028,235 +1256,55 @@ const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
 		},
 	});
 
-	const { mutate: updateUser, isPending: isUpdating } = useUpdateTenantUser({
-		onSuccess: () => {
-			toast.success(t('user-level-updated-success'));
-			levelMenuAnchor.onFalse();
-			if (tenantId) {
-				queryClient.invalidateQueries({
-					queryKey: useFindTenantUsers.getKey({ tenantId }),
-				});
-			}
-		},
-		onError: (error: unknown) => {
-			const message =
-				(error as { message?: string })?.message ||
-				t('user-level-updated-error');
-			toast.error(message);
-		},
-	});
+	const onConfirmRemove = () => {
+		if (!tenantId) {
+			return;
+		}
 
-	const onConfirmDeleteRow = () => {
-		if (!tenantId) return;
-		removeUser({ tenantId, userId });
+		removeUser({ tenantId, userId: user.id });
 	};
-
-	const handleChangeLevel = (newLevel: 'Admin' | 'User') => {
-		if (!tenantId) return;
-		updateUser({ tenantId, userId, level: newLevel });
-	};
-
-	const isLoading = isRemoving || isUpdating;
-
-	const renderConfirmDialog = () => (
-		<ConfirmDialog
-			open={confirmDialog.value}
-			onClose={confirmDialog.onFalse}
-			title={t('delete-item', { item: t('staff-user') })}
-			content={t('confirm-delete-dialog-text')}
-			action={
-				<Button
-					variant="contained"
-					color="error"
-					onClick={onConfirmDeleteRow}
-					disabled={isLoading}
-				>
-					{t('delete')}
-				</Button>
-			}
-		/>
-	);
 
 	return (
 		<>
-			<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-				<Tooltip title={t('change-role')} placement="top" arrow>
-					<IconButton
-						color={'default'}
-						onClick={levelMenuAnchor.onTrue}
-						disabled={isLoading}
-					>
-						<Iconify icon="solar:shield-check-bold" />
-					</IconButton>
-				</Tooltip>
-
-				<Menu
-					open={levelMenuAnchor.value}
-					onClose={levelMenuAnchor.onFalse}
-					anchorEl={levelMenuAnchor.value ? document.activeElement : null}
-					anchorOrigin={{
-						vertical: 'top',
-						horizontal: 'left',
-					}}
-					transformOrigin={{
-						vertical: 'top',
-						horizontal: 'right',
-					}}
+			<Tooltip
+				title={t('remove-user-from-tenant', {
+					defaultValue: 'Remove from tenant',
+				})}
+				placement="top"
+				arrow
+			>
+				<IconButton
+					color="default"
+					onClick={confirmDialog.onTrue}
+					disabled={isRemoving}
+					sx={{ color: 'error.main' }}
 				>
-					<MenuItem
-						disabled={currentLevel === 'Admin'}
-						onClick={() => handleChangeLevel('Admin')}
+					<Iconify icon="solar:trash-bin-trash-bold" width={18} />
+				</IconButton>
+			</Tooltip>
+
+			<ConfirmDialog
+				open={confirmDialog.value}
+				onClose={confirmDialog.onFalse}
+				title={t('remove-user-from-tenant', {
+					defaultValue: 'Remove from tenant',
+				})}
+				content={t('confirm-remove-user-from-tenant', {
+					name: fullName,
+					defaultValue:
+						'Are you sure you want to remove {{name}} from this tenant?',
+				})}
+				action={
+					<Button
+						variant="contained"
+						color="error"
+						onClick={onConfirmRemove}
+						disabled={isRemoving}
 					>
-						<Stack direction="row" alignItems="center" gap={1}>
-							<Iconify icon="solar:shield-check-bold" />
-							{t('admin')}
-						</Stack>
-					</MenuItem>
-					<MenuItem
-						disabled={currentLevel === 'User'}
-						onClick={() => handleChangeLevel('User')}
-					>
-						<Stack direction="row" alignItems="center" gap={1}>
-							<Iconify icon="solar:user-id-bold" />
-							{t('user')}
-						</Stack>
-					</MenuItem>
-				</Menu>
-
-				<FollowUpButton
-					isUserPending={isUserPending}
-					email={props.row.original.email}
-				/>
-
-				<CopyLinkButton
-					isUserPending={isUserPending}
-					userId={userId}
-					onClose={voidFunction}
-				/>
-
-				<Tooltip title={t('view-details')} placement="top" arrow>
-					<IconButton
-						color={'default'}
-						LinkComponent={RouterLink}
-						href={FRONT_PATH_NAMES.staff.tenantUsers.details(userId)}
-					>
-						<Iconify icon="solar:eye-bold" />
-					</IconButton>
-				</Tooltip>
-
-				<Tooltip title={t('delete')} placement="top" arrow>
-					<IconButton
-						color={'default'}
-						onClick={confirmDialog.onTrue}
-						disabled={isLoading}
-						sx={{ color: 'error.main' }}
-					>
-						<Iconify icon="solar:trash-bin-trash-bold" />
-					</IconButton>
-				</Tooltip>
-			</Box>
-
-			{renderConfirmDialog()}
+						{t('remove')}
+					</Button>
+				}
+			/>
 		</>
-	);
-};
-
-const CopyLinkButton = ({
-	isUserPending,
-	userId,
-	onClose,
-	forceShow = false,
-}: {
-	isUserPending: boolean;
-	userId: string;
-	onClose?: () => void;
-	forceShow?: boolean;
-}) => {
-	const { t } = useTranslate();
-
-	const {
-		data: linkData,
-		refetch: fetchVerificationLink,
-		isLoading: isLoadingGetVerificationLink,
-	} = useGetVerificationLink({
-		variables: { userId },
-		enabled: false,
-	});
-
-	if ((!isUserPending || !ALLOW_COPY_LINK) && !forceShow) {
-		return null;
-	}
-
-	return (
-		<Tooltip
-			title={_.capitalize(t('copy-item', { item: t('verification-link') }))}
-			placement="top"
-		>
-			<IconButton
-				color={'default'}
-				loading={isLoadingGetVerificationLink}
-				onClick={async () => {
-					let link = linkData?.link || 'unable to get verification link';
-					if (!linkData) {
-						const result = await fetchVerificationLink();
-						if (result.error) {
-							logger.error(getErrorMessage(result.error), {
-								error: result.error,
-							});
-							toast.error(t('copy-to-clipboard-error'));
-							return;
-						}
-						if (result.data) {
-							link = result.data.link || link;
-						}
-					}
-					navigator.clipboard.writeText(link);
-					toast.success(t('copy-to-clipboard-success'));
-					onClose?.();
-				}}
-			>
-				<Iconify icon="solar:copy-bold-duotone" />
-			</IconButton>
-		</Tooltip>
-	);
-};
-
-const FollowUpButton = ({
-	isUserPending,
-	email,
-	forceShow = false,
-}: {
-	isUserPending: boolean;
-	email: string;
-	forceShow?: boolean;
-}) => {
-	const { t } = useTranslate();
-
-	const {
-		mutateAsync: sendEmailVerificationReminder,
-		isPending: isPendingSendEmailVerificationReminder,
-	} = useSendEmailVerificationReminder({
-		onSuccess: () => {
-			toast.success(t('email-verification-follow-up-success'));
-		},
-	});
-
-	if (!isUserPending && !forceShow) return null;
-
-	return (
-		<Tooltip
-			title={_.capitalize(t('send-email-verification-follow-up'))}
-			placement="top"
-		>
-			<IconButton
-				color={'default'}
-				loading={isPendingSendEmailVerificationReminder}
-				onClick={async () => {
-					await sendEmailVerificationReminder({ email });
-				}}
-			>
-				<Iconify icon="custom:send-fill" />
-			</IconButton>
-		</Tooltip>
 	);
 };

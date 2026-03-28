@@ -151,7 +151,7 @@ const AddUserButton = () => {
 				type="submit"
 				variant="contained"
 				onClick={openDrawer.onTrue}
-				startIcon={<Iconify icon="mingcute:add-line" />}
+				startIcon={<Iconify width={16} icon="mingcute:add-line" />}
 			>
 				{_.capitalize(t('assign-user'))}
 			</Button>

@@ -183,7 +183,9 @@ function OptionItem({
 					<Button
 						size="small"
 						color="primary"
-						startIcon={<Iconify icon="mingcute:add-line" sx={{ mr: -0.5 }} />}
+						startIcon={
+							<Iconify width={16} icon="mingcute:add-line" sx={{ mr: -0.5 }} />
+						}
 						onClick={onOpen}
 						sx={{ my: 3 }}
 					>

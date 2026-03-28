@@ -72,7 +72,7 @@ const TenantsListPage = () => {
 						component={RouterLink}
 						href={FRONT_PATH_NAMES.staff.tenants.new}
 						variant="contained"
-						startIcon={<Iconify icon="mingcute:add-line" />}
+						startIcon={<Iconify width={16} icon="mingcute:add-line" />}
 					>
 						{_.capitalize(t('new-item', { item: t('tenant') }))}
 					</Button>
