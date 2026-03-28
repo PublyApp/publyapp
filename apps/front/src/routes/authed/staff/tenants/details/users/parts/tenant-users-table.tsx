@@ -56,12 +56,6 @@ import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableQueryOptions } from '@/front/hooks/use-table-query-options';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
-import {
-	getFailureMessage,
-	isAbortFailure,
-	isProblemFailure,
-	toApiFailure,
-} from '@/front/lib/api-failure';
 import { useSendEmailVerificationReminder } from '@/front/lib/react-query/features/common/auth.hooks';
 import {
 	useFindTenantUsers,
@@ -953,35 +947,18 @@ const LevelCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 	const level = props.cell.getValue();
 
 	const { mutate: updateUser, isPending } = useUpdateTenantUser({
+		// Row-level tenant-user actions rely on the centralized mutation error
+		// handler to translate RFC7807/translationKey failures consistently.
 		onSuccess: () => {
 			toast.success(t('user-level-updated-success'));
 			setMenuAnchorEl(null);
 			if (tenantId) {
 				queryClient.invalidateQueries({
-					queryKey: useFindTenantUsers.getKey({ tenantId }),
+					queryKey: useFindTenantUsers.getKey({
+						tenantId,
+					}),
 				});
 			}
-		},
-		onError: (error: unknown) => {
-			const failure = toApiFailure(error);
-
-			if (isAbortFailure(failure)) {
-				return;
-			}
-
-			if (isProblemFailure(failure)) {
-				if (failure.translationKey) {
-					toast.error(t(failure.translationKey as never));
-					return;
-				}
-
-				toast.error(
-					getFailureMessage(failure) || t('user-level-updated-error'),
-				);
-				return;
-			}
-
-			toast.error(t('user-level-updated-error'));
 		},
 	});
 
@@ -1261,33 +1238,18 @@ const RemoveUserAction = ({ user }: RemoveUserActionProps) => {
 	});
 
 	const { mutate: removeUser, isPending: isRemoving } = useRemoveTenantUser({
+		// Row-level tenant-user actions rely on the centralized mutation error
+		// handler to translate RFC7807/translationKey failures consistently.
 		onSuccess: () => {
 			toast.success(t('user-removed-success'));
 			confirmDialog.onFalse();
 			if (tenantId) {
 				queryClient.invalidateQueries({
-					queryKey: useFindTenantUsers.getKey({ tenantId }),
+					queryKey: useFindTenantUsers.getKey({
+						tenantId,
+					}),
 				});
 			}
-		},
-		onError: (error: unknown) => {
-			const failure = toApiFailure(error);
-
-			if (isAbortFailure(failure)) {
-				return;
-			}
-
-			if (isProblemFailure(failure)) {
-				if (failure.translationKey) {
-					toast.error(t(failure.translationKey as never));
-					return;
-				}
-
-				toast.error(getFailureMessage(failure) || t('user-removed-error'));
-				return;
-			}
-
-			toast.error(t('user-removed-error'));
 		},
 	});
 
