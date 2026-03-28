@@ -12,13 +12,14 @@ import { alpha } from '@mui/material/styles';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { useQueryClient } from '@tanstack/react-query';
+import { type UseQueryResult, useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
 import { type FC, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
 
+import type { GetTenantAsStaffResult } from '@org/client-ts/src/models';
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { ErrorContent } from '@/front/components/empty-content/error-content';
@@ -81,7 +82,9 @@ const TenantDetailsGeneralPage = () => {
 			<QueryDisplay
 				query={getTenantQuery}
 				LoadingSlot={<TenantGeneralSkeleton />}
-				ErrorSlot={ErrorView}
+				ErrorSlot={({ error }) => (
+					<ErrorView error={error} getTenantQuery={getTenantQuery} />
+				)}
 			>
 				{({ data }) => (
 					<TenantGeneralContent
@@ -640,7 +643,10 @@ const TenantGeneralSkeleton = () => (
 	</Box>
 );
 
-const ErrorView: FC<{ error: unknown }> = ({ error }) => {
+const ErrorView: FC<{
+	error: unknown;
+	getTenantQuery: UseQueryResult<GetTenantAsStaffResult, Error>;
+}> = ({ error, getTenantQuery }) => {
 	const { t } = useTranslate();
 
 	const failure = toApiFailure(error);
@@ -664,6 +670,7 @@ const ErrorView: FC<{ error: unknown }> = ({ error }) => {
 			<ErrorContent
 				title={t('tenant-details-error-title')}
 				description={t('tenant-details-error-description')}
+				onRetry={() => getTenantQuery.refetch()}
 			/>
 		</Box>
 	);

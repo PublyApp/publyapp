@@ -235,11 +235,15 @@ public class CreateTenantAsStaff {
 			.ToList();
 
 		try {
+			var args = new CreateTenantWithInitialUsersArgs(
+				Name: tenantName,
+				MaxUsers: effectiveMaxUsers,
+				InitialUsers: initialUsers,
+				InvitedByUserId: staffAccount.UserId
+			);
+
 			var result = await tenantAsStaffService.CreateTenantWithInitialUsersAsync(
-				tenantName,
-				effectiveMaxUsers,
-				initialUsers,
-				staffAccount.UserId,
+				args,
 				cancellationToken
 			);
 

@@ -33,9 +33,41 @@ public class FindTenantUsersAsStaffQuery
 	[FromQuery]
 	public string? Status { get; set; }
 
-	public string? GetSearchNormalized() => string.IsNullOrWhiteSpace(Search)
-		? null
-		: Search.Trim();
+	public string? GetSearchNormalized() {
+		if (Search is null) {
+			return null;
+		}
+
+		var trimmed = Search.Trim();
+		return trimmed.Length == 0 ? null : trimmed;
+	}
+
+	public IReadOnlySet<UserStatus>? GetStatusesOrNull() {
+		if (Status is null) {
+			return null;
+		}
+
+		var trimmed = Status.Trim();
+		if (trimmed.Length == 0) {
+			return null;
+		}
+
+		var parts = trimmed
+			.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+		if (parts.Length == 0) {
+			return null;
+		}
+
+		var statuses = new HashSet<UserStatus>();
+		foreach (var part in parts) {
+			UserStatus? parsed = User.ParseStatus(part);
+			if (parsed is { } status) {
+				statuses.Add(status);
+			}
+		}
+
+		return statuses.Count > 0 ? statuses : null;
+	}
 }
 
 public class FindTenantUsersAsStaffQueryValidator
@@ -43,14 +75,21 @@ public class FindTenantUsersAsStaffQueryValidator
 		FindTenantUsersAsStaffQuery
 	> {
 	private static readonly HashSet<string> AllowedStatuses =
-		new(["active", "pending", "suspended"], StringComparer.OrdinalIgnoreCase);
+		new([nameof(UserStatus.Active), nameof(UserStatus.Pending), nameof(UserStatus.Suspended)], StringComparer.OrdinalIgnoreCase);
 
 	public FindTenantUsersAsStaffQueryValidator() {
 		RuleFor(x => x.Search).MaximumLength(200);
 		RuleFor(x => x.Status)
-			.Must(raw => string.IsNullOrEmpty(raw)
-				|| AllowedStatuses.Contains(raw))
-			.WithMessage("Status must be one of: active, pending, suspended");
+			.Must(raw => {
+				if (string.IsNullOrEmpty(raw)) {
+					return true;
+				}
+
+				var parts = raw
+					.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+				return parts.All(AllowedStatuses.Contains);
+			})
+			.WithMessage("Invalid status value. Must be comma-separated: " + string.Join(",", AllowedStatuses));
 	}
 }
 
@@ -99,16 +138,21 @@ public class FindTenantUsersAsStaff {
 		var limit = query.GetLimit();
 		var sortId = query.GetSortId();
 		var sortOrder = query.GetSortOrder();
+		var args = new FindTenantUsersAsStaffArgs(
+			Cursor: cursorGuid,
+			Limit: limit,
+			SortId: sortId,
+			SortOrder: sortOrder,
+			Filters: new FindTenantUsersAsStaffFilters(
+				Search: query.GetSearchNormalized(),
+				Status: query.GetStatusesOrNull()
+			)
+		);
 
 		var serviceResult =
 			await userService.FindTenantUsersAsync(
 				tenantId: tenantIdGuid,
-				cursor: cursorGuid,
-				limit: limit,
-				sortId: sortId,
-				sortOrder: sortOrder,
-				q: query.GetSearchNormalized(),
-				status: query.Status,
+				args: args,
 				cancellationToken: cancellationToken
 			);
 
