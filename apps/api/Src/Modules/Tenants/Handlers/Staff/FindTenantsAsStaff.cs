@@ -28,24 +28,36 @@ public class TenantAsStaffResult {
 }
 
 public class FindTenantsAsStaffQuery : CursorPaginatedQuery {
-	[FromQuery(Name = "q")] public string? Search { get; set; }
-	[FromQuery] public string? Status { get; set; }
+	[FromQuery(Name = "q")]
+	public string? Search { get; set; }
+
+	[FromQuery]
+	public string? Status { get; set; }
 
 	public string? GetSearchNormalized() {
-		if (Search is null) return null;
+		if (Search is null) {
+			return null;
+		}
+
 		var trimmed = Search.Trim();
 		return trimmed.Length == 0 ? null : trimmed;
 	}
 
 	public IReadOnlySet<TenantStatus>? GetStatusesOrNull() {
-		if (Status is null) return null;
+		if (Status is null) {
+			return null;
+		}
 
 		var trimmed = Status.Trim();
-		if (trimmed.Length == 0) return null;
+		if (trimmed.Length == 0) {
+			return null;
+		}
 
 		var parts = trimmed
 			.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-		if (parts.Length == 0) return null;
+		if (parts.Length == 0) {
+			return null;
+		}
 
 		var statuses = new HashSet<TenantStatus>();
 		foreach (var part in parts) {
@@ -69,9 +81,12 @@ public class FindTenantsAsStaffQueryValidator
 
 		RuleFor(x => x.Status)
 			.Must(raw => {
-				if (string.IsNullOrEmpty(raw)) return true;
-				var parts = raw.Split(',',
-					StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+				if (string.IsNullOrEmpty(raw)) {
+					return true;
+				}
+
+				var parts = raw
+					.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 				return parts.All(p => AllowedStatuses.Contains(p));
 			})
 			.WithMessage("Invalid status value. Must be comma-separated: " + string.Join(",", AllowedStatuses));
@@ -101,17 +116,19 @@ public class FindTenantsAsStaff {
 		var sortId = findTenantsAsStaffQuery.GetSortId();
 		var sortOrder = findTenantsAsStaffQuery.GetSortOrder();
 
-		var filters = new FindTenantsAsStaffFilters(
-			Search: findTenantsAsStaffQuery.GetSearchNormalized(),
-			Status: findTenantsAsStaffQuery.GetStatusesOrNull()
+		var args = new FindTenantsAsStaffArgs(
+			Cursor: cursorGuid,
+			Limit: limit,
+			SortId: sortId,
+			SortOrder: sortOrder,
+			Filters: new FindTenantsAsStaffFilters(
+				Search: findTenantsAsStaffQuery.GetSearchNormalized(),
+				Status: findTenantsAsStaffQuery.GetStatusesOrNull()
+			)
 		);
 
 		var result = await tenantAsStaffService.FindTenantsAsStaffAsync(
-			cursor: cursorGuid,
-			limit: limit,
-			sortId: sortId,
-			sortOrder: sortOrder,
-			filters: filters,
+			args: args,
 			cancellationToken: cancellationToken
 		);
 
