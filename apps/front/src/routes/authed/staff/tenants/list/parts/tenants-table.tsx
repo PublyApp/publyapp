@@ -336,7 +336,25 @@ const useTenantsTableController = () => {
 					queryKey: useFindTenants.getKey(),
 				});
 			},
-			onError: () => {
+			onError: (error: unknown) => {
+				const failure = toApiFailure(error);
+
+				if (isAbortFailure(failure)) {
+					return;
+				}
+
+				if (isProblemFailure(failure)) {
+					if (failure.translationKey) {
+						toast.error(t(failure.translationKey as never));
+						return;
+					}
+
+					toast.error(
+						getFailureMessage(failure) || t('tenant-bulk-suspend-failure'),
+					);
+					return;
+				}
+
 				toast.error(t('tenant-bulk-suspend-failure'));
 			},
 		});
@@ -367,7 +385,25 @@ const useTenantsTableController = () => {
 					queryKey: useFindTenants.getKey(),
 				});
 			},
-			onError: () => {
+			onError: (error: unknown) => {
+				const failure = toApiFailure(error);
+
+				if (isAbortFailure(failure)) {
+					return;
+				}
+
+				if (isProblemFailure(failure)) {
+					if (failure.translationKey) {
+						toast.error(t(failure.translationKey as never));
+						return;
+					}
+
+					toast.error(
+						getFailureMessage(failure) || t('tenant-bulk-reactivate-failure'),
+					);
+					return;
+				}
+
 				toast.error(t('tenant-bulk-reactivate-failure'));
 			},
 		});
@@ -398,7 +434,25 @@ const useTenantsTableController = () => {
 					queryKey: useFindTenants.getKey(),
 				});
 			},
-			onError: () => {
+			onError: (error: unknown) => {
+				const failure = toApiFailure(error);
+
+				if (isAbortFailure(failure)) {
+					return;
+				}
+
+				if (isProblemFailure(failure)) {
+					if (failure.translationKey) {
+						toast.error(t(failure.translationKey as never));
+						return;
+					}
+
+					toast.error(
+						getFailureMessage(failure) || t('tenant-bulk-delete-failure'),
+					);
+					return;
+				}
+
 				toast.error(t('tenant-bulk-delete-failure'));
 			},
 		});
