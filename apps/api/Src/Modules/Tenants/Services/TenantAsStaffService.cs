@@ -86,6 +86,21 @@ public record FindTenantsAsStaffFilters(
 	IReadOnlySet<TenantStatus>? Status
 );
 
+public record FindTenantsAsStaffArgs(
+	Guid Cursor,
+	int? Limit,
+	string? SortId,
+	SortOrder? SortOrder,
+	FindTenantsAsStaffFilters? Filters
+);
+
+public record CreateTenantWithInitialUsersArgs(
+	string Name,
+	int MaxUsers,
+	List<(string Email, AccountLevel AccountLevel)> InitialUsers,
+	Guid InvitedByUserId
+);
+
 public abstract record FindTenantsAsStaffServiceResult {
 	public sealed record Success(CursorPaginatedResult<TenantAsStaffListItem> Data)
 		: FindTenantsAsStaffServiceResult;
@@ -99,7 +114,9 @@ public abstract record FindTenantsAsStaffServiceResult {
 
 public interface ITenantAsStaffService {
 	Task<Tenant> CreateTenant(Tenant tenant, CancellationToken cancellationToken = default);
+
 	Task<Tenant?> GetTenantByIdAsync(Guid tenantId, CancellationToken cancellationToken = default);
+
 	Task<List<TenantAsStaffItem>> FindTenantsAsync(
 		int? page = null,
 		int? limit = null,
@@ -107,22 +124,17 @@ public interface ITenantAsStaffService {
 		SortOrder? sortOrder = null,
 		CancellationToken cancellationToken = default
 	);
+
 	Task<FindTenantsAsStaffServiceResult> FindTenantsAsStaffAsync(
-		Guid cursor,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
-		FindTenantsAsStaffFilters? filters = null,
+		FindTenantsAsStaffArgs args,
 		CancellationToken cancellationToken = default
 	);
+
 	Task<int> CountTenantsAsync(CancellationToken cancellationToken = default);
 
 	// NEW: Create tenant with initial users via invitations
 	Task<CreateTenantWithInitialUsersResult> CreateTenantWithInitialUsersAsync(
-		string name,
-		int maxUsers,
-		List<(string Email, AccountLevel AccountLevel)> initialUsers,
-		Guid invitedByUserId,
+		CreateTenantWithInitialUsersArgs args,
 		CancellationToken cancellationToken = default
 	);
 
@@ -131,6 +143,7 @@ public interface ITenantAsStaffService {
 		Guid tenantId,
 		CancellationToken cancellationToken = default
 	);
+
 	Task<ReactivateTenantResult> ReactivateTenantAsync(
 		Guid tenantId,
 		CancellationToken cancellationToken = default
@@ -166,10 +179,12 @@ public interface ITenantAsStaffService {
 		IReadOnlyList<Guid> tenantIds,
 		CancellationToken cancellationToken = default
 	);
+
 	Task<BulkReactivateResult> BulkReactivateAsync(
 		IReadOnlyList<Guid> tenantIds,
 		CancellationToken cancellationToken = default
 	);
+
 	Task<BulkDeleteResult> BulkDeleteAsync(
 		IReadOnlyList<Guid> tenantIds,
 		CancellationToken cancellationToken = default
@@ -266,16 +281,12 @@ public class TenantAsStaffService : ITenantAsStaffService {
 	}
 
 	public async Task<FindTenantsAsStaffServiceResult> FindTenantsAsStaffAsync(
-		Guid cursor,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
-		FindTenantsAsStaffFilters? filters = null,
+		FindTenantsAsStaffArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
-		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-		var effectiveSortId = sortId ?? "created_at";
+		var effectiveLimit = args.Limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
+		var effectiveSortId = args.SortId ?? "created_at";
 		var isAsc = effectiveSortOrder == SortOrder.Asc;
 
 		// SortFieldHandler dictionary - works on Tenant entity only
@@ -369,7 +380,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		IQueryable<Tenant> baseQuery = _dbContext.Tenant.Where(t => t.IsDeleted != true && t.Id.HasValue);
 
 		// Apply search filter
-		if (filters?.Search is { } search) {
+		if (args.Filters?.Search is { } search) {
 			// Search semantics:
 			// - Name: substring match (ILIKE %q%) backed by pg_trgm index on tenants.name.
 			// - Code: prefix match only (StartsWith) so we can rely on the existing btree index
@@ -383,15 +394,15 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		}
 
 		// Apply status filter
-		if (filters?.Status is { } statuses && statuses.Count > 0) {
+		if (args.Filters?.Status is { } statuses && statuses.Count > 0) {
 			baseQuery = baseQuery.Where(t => statuses.Contains(t.Status));
 		}
 
 		// Apply cursor filter
-		if (cursor != Guid.Empty) {
-			var cursorValue = await handler.GetCursorValue(cursor);
+		if (args.Cursor != Guid.Empty) {
+			var cursorValue = await handler.GetCursorValue(args.Cursor);
 			if (cursorValue is null) {
-				return new FindTenantsAsStaffServiceResult.CursorNotFound(cursor.ToString());
+				return new FindTenantsAsStaffServiceResult.CursorNotFound(args.Cursor.ToString());
 			}
 			baseQuery = handler.ApplyFilter(baseQuery, cursorValue, isAsc);
 		}
@@ -472,10 +483,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 	}
 
 	public async Task<CreateTenantWithInitialUsersResult> CreateTenantWithInitialUsersAsync(
-		string name,
-		int maxUsers,
-		List<(string Email, AccountLevel AccountLevel)> initialUsers,
-		Guid invitedByUserId,
+		CreateTenantWithInitialUsersArgs args,
 		CancellationToken cancellationToken = default
 	) {
 		await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
@@ -483,10 +491,10 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		try {
 			// 1. Create tenant
 			var tenant = new Tenant {
-				Name = name,
+				Name = args.Name,
 				Code = CryptoUtils.RandomString(10).ToLower(),
 				Status = TenantStatus.Pending,
-				MaxUsers = maxUsers
+				MaxUsers = args.MaxUsers
 			};
 
 			var savedTenant = await _dbContext.Tenant.AddAsync(tenant, cancellationToken);
@@ -509,7 +517,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			var invitationTokens = new List<(string Email, string Token, AccountLevel Level)>();
 			var expiresAt = DateTime.UtcNow.AddDays(7);
 
-			foreach (var (email, accountLevel) in initialUsers) {
+			foreach (var (email, accountLevel) in args.InitialUsers) {
 				var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
 
 				// Determine profile IDs based on account level
@@ -527,7 +535,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 					email,
 					tenantId,
 					profileIds,
-					invitedByUserId,
+					args.InvitedByUserId,
 					expiresAt,
 					token
 				);

@@ -5,22 +5,29 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
+using MainApi.Src.Data.DbContext;
 using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib.Routes;
 using MainApi.Src.Lib.Testing.Fixtures;
 using MainApi.Src.Lib.Testing.Helpers;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Modules.Users.Entities;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
 public sealed class FindTenantUsersAsStaffSpec
 	: IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
 	public FindTenantUsersAsStaffSpec(
 		ApiFixture fixture
 	) {
+		_fixture = fixture;
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);
 	}
@@ -273,6 +280,68 @@ public sealed class FindTenantUsersAsStaffSpec
 			.Be(HttpStatusCode.Forbidden);
 	}
 
+	[Fact]
+	public async Task
+	ItShouldFilterTenantUsersByMultipleStatusesWhenCommaSeparated() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		using (
+			var scope =
+				_fixture.Factory.Services.CreateScope()
+		) {
+			var dbContext = scope.ServiceProvider
+				.GetRequiredService<MainApiDbContext>();
+
+			var acmeUser = await dbContext.User
+				.FirstAsync(
+					u => u.Email
+						== SeedConstants.Tenants.AcmeUserEmail
+				);
+			acmeUser.Status = UserStatus.Suspended;
+			await dbContext.SaveChangesAsync();
+		}
+
+		var url = GetFindUrl(
+			tenantId,
+			status: "active,suspended"
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			url
+		).WithSessionToken(staffToken);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		result!.Data.Should().NotBeEmpty();
+		result.Data.Select(user => user.Status)
+			.Should()
+			.OnlyContain(status =>
+				status == "Active"
+				|| status == "Suspended"
+			);
+		result.Data.Select(user => user.Status)
+			.Should()
+			.Contain("Active");
+		result.Data.Select(user => user.Status)
+			.Should()
+			.Contain("Suspended");
+	}
+
 	// -- URL builder --
 
 	private static string GetFindUrl(
@@ -280,14 +349,16 @@ public sealed class FindTenantUsersAsStaffSpec
 		string? cursor = null,
 		int? limit = null,
 		string? sortId = null,
-		string? sortOrder = null
+		string? sortOrder = null,
+		string? status = null
 	) {
 		return GetFindUrl(
 			tenantId.ToString(),
 			cursor,
 			limit,
 			sortId,
-			sortOrder
+			sortOrder,
+			status
 		);
 	}
 
@@ -296,7 +367,8 @@ public sealed class FindTenantUsersAsStaffSpec
 		string? cursor = null,
 		int? limit = null,
 		string? sortId = null,
-		string? sortOrder = null
+		string? sortOrder = null,
+		string? status = null
 	) {
 		var basePath = PathUtils.Join(
 			Routes.Staff.Root,
@@ -318,6 +390,9 @@ public sealed class FindTenantUsersAsStaffSpec
 		}
 		if (sortOrder is not null) {
 			queryParams.Add($"sort_order={sortOrder}");
+		}
+		if (status is not null) {
+			queryParams.Add($"status={status}");
 		}
 
 		if (queryParams.Count > 0) {

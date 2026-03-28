@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
+import type { UseQueryResult } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import _ from 'lodash';
@@ -8,6 +9,7 @@ import type { FC } from 'react';
 import { useMemo } from 'react';
 import { data, useParams } from 'react-router';
 
+import type { GetTenantAsStaffResult } from '@org/client-ts/src/models';
 import {
 	APP_NAME,
 	FRONT_PATH_NAMES,
@@ -97,7 +99,9 @@ const TenantDetailsLayout = () => {
 		<QueryDisplay
 			query={getTenantQuery}
 			LoadingSlot={<TenantDetailsLayoutSkeleton />}
-			ErrorSlot={LayoutErrorView}
+			ErrorSlot={({ error }) => (
+				<LayoutErrorView error={error} getTenantQuery={getTenantQuery} />
+			)}
 		>
 			{() => <SidebarSettingsLayout items={navItems} />}
 		</QueryDisplay>
@@ -106,7 +110,10 @@ const TenantDetailsLayout = () => {
 
 export default TenantDetailsLayout;
 
-const LayoutErrorView: FC<{ error: unknown }> = ({ error }) => {
+const LayoutErrorView: FC<{
+	error: unknown;
+	getTenantQuery: UseQueryResult<GetTenantAsStaffResult, Error>;
+}> = ({ error, getTenantQuery }) => {
 	const { t } = useTranslate();
 
 	const failure = toApiFailure(error);
@@ -131,6 +138,7 @@ const LayoutErrorView: FC<{ error: unknown }> = ({ error }) => {
 				<ErrorContent
 					title={t('tenant-details-error-title')}
 					description={t('tenant-details-error-description')}
+					onRetry={() => getTenantQuery.refetch()}
 				/>
 			</Box>
 		</DashboardContent>

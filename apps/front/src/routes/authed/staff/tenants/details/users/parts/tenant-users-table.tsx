@@ -1,14 +1,22 @@
+import Autocomplete from '@mui/material/Autocomplete';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
+import ListItemText from '@mui/material/ListItemText';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
@@ -18,11 +26,14 @@ import {
 	createMRTColumnHelper,
 	MaterialReactTable,
 	type MRT_ColumnDef,
+	type MRT_Localization,
 	type MRT_SortingState,
+	type MRT_TableOptions,
 } from 'material-react-table';
 import { useBoolean, useDebounce } from 'minimal-shared/hooks';
+import { varAlpha } from 'minimal-shared/utils';
 import { parseAsString, useQueryStates } from 'nuqs';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 
 import {
@@ -72,9 +83,29 @@ const defaultSorting: MRT_SortingState[number] = {
 	desc: true,
 	id: 'created_at',
 };
+const SELECTION_MODE_MENU_MIN_WIDTH = 220;
+
+const parseStatusFilter = (value: string) => {
+	if (!value) {
+		return [];
+	}
+
+	return value.split(',').filter(Boolean);
+};
 
 const TenantUsersTable = () => {
 	const { t } = useTranslate();
+	const { tenantId } = useParams();
+	const queryClient = useQueryClient();
+	const searchTooltipId = useId();
+	const statusTooltipId = useId();
+	const statusOptions = useMemo(() => {
+		return [
+			{ label: t('active'), value: USER_STATUS_ENUM.ACTIVE },
+			{ label: t('pending'), value: USER_STATUS_ENUM.PENDING },
+			{ label: t('suspended'), value: USER_STATUS_ENUM.SUSPENDED },
+		];
+	}, [t]);
 
 	// Search and filter state
 	const [filterStates, setFilterStates] = useQueryStates({
@@ -83,7 +114,17 @@ const TenantUsersTable = () => {
 	});
 
 	const [searchValue, setSearchValue] = useState(filterStates.q);
-	const [statusFilter, setStatusFilter] = useState(filterStates.status);
+	const [statusFilter, setStatusFilter] = useState<string[]>(() =>
+		parseStatusFilter(filterStates.status),
+	);
+	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+	const [selectionActionAnchorEl, setSelectionActionAnchorEl] =
+		useState<null | HTMLElement>(null);
+	const [exportDialogOpen, setExportDialogOpen] = useState(false);
+	const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'xlsx'>(
+		'csv',
+	);
+	const [bulkRemoveDialogOpen, setBulkRemoveDialogOpen] = useState(false);
 
 	const debouncedSearchValue = useDebounce(searchValue, 300);
 
@@ -110,7 +151,7 @@ const TenantUsersTable = () => {
 		resetCursorPagination?.();
 		setFilterStates({
 			q: debouncedSearchValue,
-			status: statusFilter,
+			status: statusFilter.join(','),
 		});
 	}, [
 		debouncedSearchValue,
@@ -120,7 +161,33 @@ const TenantUsersTable = () => {
 		statusFilter,
 	]);
 
-	const { tenantId } = useParams();
+	useEffect(() => {
+		setSearchValue(filterStates.q);
+	}, [filterStates.q]);
+
+	useEffect(() => {
+		const nextStatusFilter = parseStatusFilter(filterStates.status);
+		if (!_.isEqual(nextStatusFilter, statusFilter)) {
+			setStatusFilter(nextStatusFilter);
+		}
+	}, [filterStates.status, statusFilter]);
+
+	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		setSearchValue(e.target.value);
+	};
+
+	const handleStatusChange = (
+		_value: React.SyntheticEvent,
+		selectedOptions: typeof statusOptions,
+	) => {
+		const nextStatusFilter = selectedOptions.map((option) => option.value);
+		resetCursorPagination?.();
+		setStatusFilter(nextStatusFilter);
+		setFilterStates({
+			q: searchValue,
+			status: nextStatusFilter.join(','),
+		});
+	};
 
 	const columns = useMemo(() => {
 		return [
@@ -193,7 +260,9 @@ const TenantUsersTable = () => {
 	});
 
 	const rows: TenantUserRowData[] = useMemo(() => {
-		if (!tenantUsersQuery.data?.data) return [];
+		if (!tenantUsersQuery.data?.data) {
+			return [];
+		}
 
 		return _.map(tenantUsersQuery.data.data, (tenantUser) => {
 			return {
@@ -208,77 +277,571 @@ const TenantUsersTable = () => {
 		});
 	}, [tenantUsersQuery.data]);
 
+	const selectedCount = Object.keys(rowSelection).length;
+	const isSelectionMode = selectedCount > 0;
+	const selectionModeDisabledReason = t('selection-mode-disable-controls');
+	const sortingDisabledReason = t('selection-mode-disable-sorting');
+	const selectedRows = useMemo(() => {
+		return rows.filter((row) => rowSelection[row.id]);
+	}, [rowSelection, rows]);
+	const isSelectionActionMenuOpen = Boolean(selectionActionAnchorEl);
+	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
+		if (!isSelectionMode) {
+			return {};
+		}
+
+		return {
+			sortByColumnAsc: sortingDisabledReason,
+			sortByColumnDesc: sortingDisabledReason,
+			sortedByColumnAsc: sortingDisabledReason,
+			sortedByColumnDesc: sortingDisabledReason,
+		};
+	}, [isSelectionMode, sortingDisabledReason]);
+
+	const closeSelectionActionMenu = () => {
+		setSelectionActionAnchorEl(null);
+	};
+
+	const openExportDialog = () => {
+		closeSelectionActionMenu();
+		setExportFormat('csv');
+		setExportDialogOpen(true);
+	};
+
+	const exportRows = (format: 'csv' | 'json') => {
+		const rowsToExport = isSelectionMode ? selectedRows : rows;
+
+		if (format === 'csv') {
+			const headers = ['Name', 'Email', 'Level', 'Status'];
+			const csvRows = rowsToExport.map((row) => [
+				`"${getUserFullName(_.pick(row, ['firstName', 'lastName']))}"`,
+				`"${row.email}"`,
+				row.level,
+				row.status,
+			]);
+			const csv = [headers, ...csvRows].map((row) => row.join(',')).join('\n');
+			const blob = new Blob([csv], { type: 'text/csv' });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = isSelectionMode
+				? 'selected-tenant-users.csv'
+				: 'tenant-users.csv';
+			a.click();
+			URL.revokeObjectURL(url);
+			return;
+		}
+
+		const blob = new Blob([JSON.stringify(rowsToExport, null, 2)], {
+			type: 'application/json',
+		});
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = isSelectionMode
+			? 'selected-tenant-users.json'
+			: 'tenant-users.json';
+		a.click();
+		URL.revokeObjectURL(url);
+	};
+
+	const handleExport = (format: 'csv' | 'json') => {
+		exportRows(format);
+		setExportDialogOpen(false);
+	};
+
+	const { mutateAsync: removeTenantUserAsync, isPending: isBulkRemoving } =
+		useRemoveTenantUser({
+			meta: { skipGlobalErrorHandler: true },
+		});
+
+	const handleBulkRemove = async () => {
+		if (!tenantId) {
+			return;
+		}
+
+		let succeeded = 0;
+		let failed = 0;
+
+		for (const userId of Object.keys(rowSelection)) {
+			try {
+				await removeTenantUserAsync({
+					tenantId,
+					userId,
+				});
+				succeeded += 1;
+			} catch {
+				failed += 1;
+			}
+		}
+
+		setBulkRemoveDialogOpen(false);
+		setRowSelection({});
+		await queryClient.invalidateQueries({
+			queryKey: useFindTenantUsers.getKey({ tenantId }),
+		});
+
+		if (succeeded === 0 && failed > 0) {
+			toast.error(
+				t('tenant-user-bulk-remove-failure', {
+					defaultValue: 'Failed to remove selected users from this tenant.',
+				}),
+			);
+			return;
+		}
+
+		if (failed > 0) {
+			toast.warning(
+				t('tenant-user-bulk-remove-partial-success', {
+					succeeded,
+					failed,
+					defaultValue: 'Removed {{succeeded}} user(s), {{failed}} failed.',
+				}),
+			);
+			return;
+		}
+
+		toast.success(
+			t('tenant-user-bulk-remove-success', {
+				count: succeeded,
+				defaultValue: 'Successfully removed {{count}} user(s).',
+			}),
+		);
+	};
+
+	const renderToolbarFilters = () => {
+		return (
+			<>
+				<Tooltip
+					title={isSelectionMode ? selectionModeDisabledReason : ''}
+					arrow
+					disableHoverListener={!isSelectionMode}
+					describeChild
+					slotProps={{ tooltip: { id: searchTooltipId } }}
+				>
+					<Box component="span">
+						<TextField
+							size="small"
+							placeholder={t('search-users', {
+								defaultValue: 'Search users',
+							})}
+							value={searchValue}
+							onChange={handleSearchChange}
+							disabled={isSelectionMode}
+							slotProps={{
+								input: {
+									startAdornment: (
+										<InputAdornment position="start">
+											<Iconify icon="eva:search-fill" />
+										</InputAdornment>
+									),
+								},
+							}}
+							sx={{ minWidth: 260 }}
+						/>
+					</Box>
+				</Tooltip>
+
+				<Tooltip
+					title={isSelectionMode ? selectionModeDisabledReason : ''}
+					arrow
+					disableHoverListener={!isSelectionMode}
+					describeChild
+					slotProps={{ tooltip: { id: statusTooltipId } }}
+				>
+					<Box component="span">
+						<Autocomplete
+							multiple
+							disableCloseOnSelect
+							size="small"
+							options={statusOptions}
+							value={statusOptions.filter((option) =>
+								statusFilter.includes(option.value),
+							)}
+							onChange={handleStatusChange}
+							disabled={isSelectionMode}
+							isOptionEqualToValue={(option, value) =>
+								option.value === value.value
+							}
+							getOptionLabel={(option) => option.label}
+							renderInput={(params) => (
+								<TextField
+									{...params}
+									placeholder={
+										statusFilter.length === 0 ? t('all-statuses') : undefined
+									}
+									InputProps={{
+										...params.InputProps,
+										startAdornment: (
+											<>
+												<Box
+													component="span"
+													sx={{
+														color: 'text.secondary',
+														typography: 'body2',
+														whiteSpace: 'nowrap',
+														mr: 1,
+														display: 'inline-flex',
+														alignItems: 'center',
+														alignSelf: 'center',
+														minHeight: 24,
+													}}
+												>
+													{t('status')}:
+												</Box>
+												{params.InputProps.startAdornment}
+											</>
+										),
+									}}
+								/>
+							)}
+							renderOption={(props, option, { selected }) => {
+								const { key, ...optionProps } = props;
+
+								return (
+									<Box
+										component="li"
+										key={key}
+										{...optionProps}
+										sx={(theme) => ({
+											'&.Mui-focused': {
+												backgroundColor: varAlpha(
+													theme.vars.palette.grey['500Channel'],
+													0.08,
+												),
+											},
+											'&[aria-selected="true"]': {
+												backgroundColor: varAlpha(
+													theme.vars.palette.primary.mainChannel,
+													0.08,
+												),
+											},
+											'&[aria-selected="true"].Mui-focused': {
+												backgroundColor: varAlpha(
+													theme.vars.palette.primary.mainChannel,
+													0.12,
+												),
+											},
+										})}
+									>
+										<Checkbox checked={selected} sx={{ mr: 1 }} />
+										{option.label}
+									</Box>
+								);
+							}}
+							slotProps={{
+								paper: {
+									sx: {
+										width: 280,
+									},
+								},
+								chip: {
+									sx: (theme) => ({
+										backgroundColor: varAlpha(
+											theme.vars.palette.grey['500Channel'],
+											0.16,
+										),
+										color: 'text.secondary',
+										'&:hover': {
+											backgroundColor: varAlpha(
+												theme.vars.palette.grey['500Channel'],
+												0.24,
+											),
+										},
+									}),
+								},
+							}}
+							sx={{
+								'& .MuiAutocomplete-tag': {
+									maxWidth: 120,
+								},
+							}}
+						/>
+					</Box>
+				</Tooltip>
+			</>
+		);
+	};
+
+	const renderExportActions = () => {
+		return (
+			<Button
+				size="small"
+				variant="outlined"
+				onClick={openExportDialog}
+				startIcon={<Iconify icon="solar:download-bold" />}
+			>
+				{t('export')}
+			</Button>
+		);
+	};
+
+	const renderSelectionActions = () => {
+		return (
+			<>
+				<IconButton
+					size="small"
+					onClick={(event) => {
+						setSelectionActionAnchorEl(event.currentTarget);
+					}}
+					sx={{ width: 32, height: 32 }}
+				>
+					<Iconify icon="eva:more-vertical-fill" width={18} />
+				</IconButton>
+				<Menu
+					anchorEl={selectionActionAnchorEl}
+					open={isSelectionActionMenuOpen}
+					onClose={closeSelectionActionMenu}
+					anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+					transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+					slotProps={{
+						paper: {
+							sx: {
+								minWidth: SELECTION_MODE_MENU_MIN_WIDTH,
+							},
+						},
+					}}
+				>
+					<MenuItem onClick={openExportDialog}>
+						<Iconify icon="solar:download-bold" width={18} />
+						<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
+					</MenuItem>
+					<MenuItem
+						onClick={() => {
+							closeSelectionActionMenu();
+							setBulkRemoveDialogOpen(true);
+						}}
+						sx={{ color: 'error.main' }}
+					>
+						<Iconify icon="solar:trash-bin-trash-bold" width={18} />
+						<ListItemText
+							primary={t('remove-selected-from-tenant', {
+								defaultValue: 'Remove selected from tenant',
+							})}
+							sx={{ ml: 1 }}
+						/>
+					</MenuItem>
+				</Menu>
+			</>
+		);
+	};
+
 	const table = useMRTTable('minimal-cursor', {
 		columns,
 		data: rows,
+		enableRowSelection: true,
+		getRowId: (row) => row.id,
 		manualSorting: true,
-		onSortingChange: handleSortingChange,
+		localization: sortTooltipLocalization,
+		onRowSelectionChange: (updater) => {
+			setRowSelection((prev) => {
+				if (typeof updater === 'function') {
+					return updater(prev);
+				}
+
+				return updater;
+			});
+		},
+		onSortingChange: (updater) => {
+			if (isSelectionMode) {
+				return;
+			}
+
+			handleSortingChange(updater);
+		},
 		state: {
 			...tableState,
 			...queryState,
 			density: 'compact',
+			rowSelection,
 		},
 		meta: {
 			handlePaginationChange,
 			hasNextPage,
 			hasPreviousPage,
 			isPending: tenantUsersQuery.isPending,
+			disablePaginationControls: isSelectionMode,
+			renderToolbarFilters,
+			renderSelectionActions,
+			renderExportActions,
 		},
 		renderEmptyRowsFallback,
+		muiTablePaperProps: {
+			sx: {
+				flexGrow: 1,
+			},
+		},
 		muiTableProps: {
 			sx: {
 				'& .MuiTableBody-root > tr > td:not(:nth-of-type(2)), & .MuiTableHead-root > tr > th:not(:nth-of-type(2))':
 					{
-						// backgroundColor: 'red !important',
 						flex: '1 1 auto !important',
-						// flexGrow: 1,
 					},
 			},
+		},
+		muiTableHeadCellProps: ({ column }) => {
+			if (!column.getCanSort()) {
+				return {};
+			}
+
+			if (!isSelectionMode) {
+				return {
+					title: undefined,
+				};
+			}
+
+			return {
+				title: sortingDisabledReason,
+				sx: {
+					'& .MuiTableSortLabel-root': {
+						cursor: 'not-allowed',
+						pointerEvents: 'none',
+						opacity: 0.56,
+					},
+					'& .MuiTableSortLabel-icon': {
+						opacity: '1 !important',
+					},
+				},
+			} satisfies MRT_TableOptions<TenantUserRowData>['muiTableHeadCellProps'];
 		},
 	});
 
 	return (
 		<Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-			<Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-				<TextField
-					size="small"
-					placeholder={t('search')}
-					value={searchValue}
-					onChange={(e) => setSearchValue(e.target.value)}
-					sx={{ minWidth: 250 }}
-					InputProps={{
-						startAdornment: (
-							<InputAdornment position="start">
-								<Iconify icon="eva:search-fill" />
-							</InputAdornment>
-						),
-					}}
-				/>
-				<Select
-					size="small"
-					value={statusFilter}
-					onChange={(e) => {
-						resetCursorPagination?.();
-						setStatusFilter(e.target.value);
-						setFilterStates({
-							q: searchValue,
-							status: e.target.value,
-						});
-					}}
-					sx={{ minWidth: 150 }}
-					displayEmpty
-				>
-					<MenuItem value="">
-						<Typography variant="body2">{t('all-statuses')}</Typography>
-					</MenuItem>
-					<MenuItem value={USER_STATUS_ENUM.ACTIVE}>{t('active')}</MenuItem>
-					<MenuItem value={USER_STATUS_ENUM.PENDING}>{t('pending')}</MenuItem>
-					<MenuItem value={USER_STATUS_ENUM.SUSPENDED}>
-						{t('suspended')}
-					</MenuItem>
-				</Select>
-			</Stack>
 			<MaterialReactTable table={table} />
+
+			<Dialog
+				open={exportDialogOpen}
+				onClose={() => setExportDialogOpen(false)}
+				fullWidth
+				maxWidth="xs"
+			>
+				<DialogTitle sx={{ pb: 1 }}>
+					{isSelectionMode
+						? t('export-selected-users', {
+								defaultValue: 'Export selected users',
+							})
+						: t('export-users', {
+								defaultValue: 'Export users',
+							})}
+				</DialogTitle>
+				<DialogContent sx={{ pt: '8px !important', pb: 2.5 }}>
+					<Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+						<Typography variant="body2">
+							{isSelectionMode
+								? t('export-selected-items', {
+										count: selectedCount,
+									})
+								: t('export-current-results', {
+										count: rows.length,
+										defaultValue:
+											'Export the current result set ({{count}} item(s)).',
+									})}
+						</Typography>
+						<Tabs
+							value={exportFormat}
+							onChange={(_event, value: 'csv' | 'json' | 'xlsx') => {
+								setExportFormat(value);
+							}}
+							variant="fullWidth"
+							slotProps={{
+								list: {
+									sx: {
+										gap: '2px',
+									},
+								},
+								indicator: {
+									sx: {
+										display: 'none',
+									},
+								},
+							}}
+							sx={(theme) => ({
+								mt: 1.5,
+								minHeight: 34,
+								p: 0.5,
+								borderRadius: 1.5,
+								border: `1px solid ${theme.vars.palette.divider}`,
+								backgroundColor: theme.vars.palette.background.neutral,
+								'& .MuiTab-root': {
+									minHeight: 30,
+									minWidth: 0,
+									px: 1.25,
+									py: 0.5,
+									borderRadius: 1,
+									border: '1px solid transparent',
+									fontSize: theme.typography.pxToRem(13),
+									fontWeight: theme.typography.fontWeightMedium,
+									textTransform: 'none',
+									color: theme.vars.palette.text.secondary,
+								},
+								'& .Mui-selected': {
+									color: `${theme.vars.palette.text.primary} !important`,
+									backgroundColor: theme.vars.palette.grey[100],
+									borderColor: theme.vars.palette.divider,
+								},
+							})}
+						>
+							<Tab label="CSV" value="csv" />
+							<Tab label="JSON" value="json" />
+							<Tab label="XLSX" value="xlsx" />
+						</Tabs>
+						<Box
+							sx={{
+								minHeight: 20,
+								pt: 0.5,
+							}}
+						>
+							<Typography variant="caption" color="text.secondary">
+								{exportFormat === 'xlsx'
+									? t('xlsx-export-coming-soon', {
+											defaultValue: 'XLSX export is coming soon.',
+										})
+									: ' '}
+							</Typography>
+						</Box>
+					</Box>
+				</DialogContent>
+				<DialogActions sx={{ px: 3, pb: 3, pt: 0, gap: 1 }}>
+					<Button
+						variant="contained"
+						onClick={() => {
+							if (exportFormat === 'csv' || exportFormat === 'json') {
+								handleExport(exportFormat);
+							}
+						}}
+						disabled={exportFormat === 'xlsx'}
+					>
+						{t('export')}
+					</Button>
+					<Button variant="outlined" onClick={() => setExportDialogOpen(false)}>
+						{t('cancel')}
+					</Button>
+				</DialogActions>
+			</Dialog>
+
+			<ConfirmDialog
+				open={bulkRemoveDialogOpen}
+				onClose={() => setBulkRemoveDialogOpen(false)}
+				title={t('remove-selected-from-tenant', {
+					defaultValue: 'Remove selected from tenant',
+				})}
+				content={t('confirm-bulk-remove-tenant-users', {
+					count: selectedCount,
+					defaultValue:
+						'Are you sure you want to remove {{count}} selected user(s) from this tenant?',
+				})}
+				action={
+					<Button
+						variant="contained"
+						color="error"
+						onClick={handleBulkRemove}
+						disabled={isBulkRemoving}
+					>
+						{t('remove', { defaultValue: 'Remove' })}
+					</Button>
+				}
+			/>
 		</Box>
 	);
 };

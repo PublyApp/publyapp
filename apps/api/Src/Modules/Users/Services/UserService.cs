@@ -53,6 +53,19 @@ public abstract record FindTenantUsersResult {
 	) : FindTenantUsersResult;
 }
 
+public record FindTenantUsersAsStaffFilters(
+	string? Search,
+	IReadOnlySet<UserStatus>? Status
+);
+
+public record FindTenantUsersAsStaffArgs(
+	Guid Cursor,
+	int? Limit,
+	string? SortId,
+	SortOrder? SortOrder,
+	FindTenantUsersAsStaffFilters? Filters
+);
+
 public abstract record RemoveUserFromTenantResult {
 	public sealed record Success() : RemoveUserFromTenantResult;
 	public sealed record NotFound() : RemoveUserFromTenantResult;
@@ -99,12 +112,7 @@ public interface IUserService {
 	Task<UpdateUserByIdResult> UpdateStaffUserByIdAsync(Guid userId, UpdateUserDocument document, CancellationToken cancellationToken = default);
 	Task<FindTenantUsersResult> FindTenantUsersAsync(
 		Guid tenantId,
-		Guid cursor,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
-		string? q = null,
-		string? status = null,
+		FindTenantUsersAsStaffArgs args,
 		CancellationToken cancellationToken = default
 	);
 	Task<RemoveUserFromTenantResult> RemoveUserFromTenantAsync(
@@ -278,20 +286,13 @@ public class UserService : IUserService {
 	public async Task<FindTenantUsersResult>
 	FindTenantUsersAsync(
 		Guid tenantId,
-		Guid cursor,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
-		string? q = null,
-		string? status = null,
+		FindTenantUsersAsStaffArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var effectiveLimit = limit
+		var effectiveLimit = args.Limit
 			?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
-		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-		var effectiveSortId = sortId ?? "id";
-		var effectiveQ = q?.Trim();
-		var effectiveStatus = status?.Trim();
+		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
+		var effectiveSortId = args.SortId ?? "id";
 
 		var sortFieldHandlers =
 			new Dictionary<string, SortFieldHandler>(
@@ -548,7 +549,8 @@ public class UserService : IUserService {
 
 		// Apply search filter (by name or email)
 		// Search semantics: substring match (ILIKE %q%) for case-insensitive search
-		if (!string.IsNullOrEmpty(effectiveQ)) {
+		if (args.Filters?.Search is { } search) {
+			var effectiveQ = search.Trim();
 			var pattern = $"%{effectiveQ}%";
 			query = query.Where(ua =>
 				(ua.User.FirstName != null && EF.Functions.ILike(ua.User.FirstName, pattern)) ||
@@ -558,20 +560,19 @@ public class UserService : IUserService {
 		}
 
 		// Apply status filter
-		if (!string.IsNullOrEmpty(effectiveStatus)) {
-			var statusEnum = User.ParseStatus(effectiveStatus);
-			if (statusEnum is not null) {
-				query = query.Where(ua => ua.User.Status == statusEnum.Value);
-			}
+		if (args.Filters?.Status is { } statuses && statuses.Count > 0) {
+			query = query.Where(ua =>
+				statuses.Contains(ua.User.Status)
+			);
 		}
 
-		if (cursor != Guid.Empty) {
+		if (args.Cursor != Guid.Empty) {
 			var cursorValue =
-				await handler.GetCursorValue(cursor);
+				await handler.GetCursorValue(args.Cursor);
 
 			if (cursorValue is null) {
 				return new FindTenantUsersResult
-					.CursorNotFound(cursor.ToString());
+					.CursorNotFound(args.Cursor.ToString());
 			}
 
 			query = handler.ApplyFilter(
