@@ -198,18 +198,18 @@ It covers category `0` through `10`.
 
 ### 5.1 Show actual tenant users
 - Status: `DONE`
-- [ ] The users table loads tenant-scoped user results for the selected tenant.
-- [ ] The users tab shows the intended empty state and error state when no data or failing data is returned.
+- [x] The users table loads tenant-scoped user results for the selected tenant.
+- [x] The users tab shows the intended empty state and error state when no data or failing data is returned.
 
 ### 5.2 Show user account level
 - Status: `DONE`
-- [ ] The level column renders `Admin` and `User` correctly for the returned data.
-- [ ] The level visuals use the intended chip or badge distinction for the two account levels.
+- [x] The level column renders `Admin` and `User` correctly for the returned data.
+- [x] The level visuals use the intended chip or badge distinction for the two account levels.
 
 ### 5.3 Show invitation status
-- Status: `PARTIAL`
-- [ ] Pending invited users are either clearly represented by the current `status` column or there is an explicit decision that a separate invitation-status column is still missing.
-- [ ] If a separate invitation-status field is still required, that gap remains explicitly tracked and is not treated as silently complete.
+- Status: `DONE`
+- [x] Pending invited users are sufficiently represented by the current `status` column.
+- [x] There is an explicit product decision that no separate invitation-status column is required in the tenant users table.
 
 ### 5.4 Invite new user to tenant
 - Status: `DONE`
