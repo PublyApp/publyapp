@@ -47,7 +47,7 @@ importers:
         version: 11.0.0
       knip:
         specifier: 5.66.0
-        version: 5.66.0(@types/node@20.19.7)(typescript@5.9.3)
+        version: 5.66.0(@types/node@20.19.7)(typescript@6.0.2)
       lint-staged:
         specifier: ^15.5.2
         version: 15.5.2
@@ -67,8 +67,8 @@ importers:
         specifier: ^2.0.3
         version: 2.5.4
       typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
+        specifier: ^6.0.2
+        version: 6.0.2
 
   apps/api: {}
 
@@ -4988,6 +4988,11 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
+  typescript@6.0.2:
+    resolution: {integrity: sha512-bGdAIrZ0wiGDo5l8c++HWtbaNCWTS4UTv7RaTH/ThVIgjkveJt83m74bBHMJkuCbslY8ixgLBVZJIOiQlQTjfQ==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
   uc.micro@2.1.0:
     resolution: {integrity: sha512-ARDJmphmdvUk6Glw7y9DQ2bFkKBHwQHLi2lsaH6PPmz/Ka9sFOBsBluozhDltWmnv9u/cF6Rt87znRTPV+yp/A==}
 
@@ -8434,7 +8439,7 @@ snapshots:
       json-buffer: 3.0.1
     optional: true
 
-  knip@5.66.0(@types/node@20.19.7)(typescript@5.9.3):
+  knip@5.66.0(@types/node@20.19.7)(typescript@6.0.2):
     dependencies:
       '@nodelib/fs.walk': 1.2.8
       '@types/node': 20.19.7
@@ -8448,7 +8453,7 @@ snapshots:
       picomatch: 4.0.3
       smol-toml: 1.4.1
       strip-json-comments: 5.0.2
-      typescript: 5.9.3
+      typescript: 6.0.2
       zod: 4.1.12
 
   kuler@2.0.0: {}
@@ -10106,7 +10111,10 @@ snapshots:
 
   typedarray@0.0.6: {}
 
-  typescript@5.9.3: {}
+  typescript@5.9.3:
+    optional: true
+
+  typescript@6.0.2: {}
 
   uc.micro@2.1.0: {}
 
