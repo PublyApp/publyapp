@@ -170,7 +170,7 @@ export const WorkspacesPopover = ({
 
 				<Button
 					fullWidth
-					startIcon={<Iconify width={18} icon="mingcute:add-line" />}
+					startIcon={<Iconify width={16} icon="mingcute:add-line" />}
 					onClick={() => {
 						onClose();
 					}}

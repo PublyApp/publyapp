@@ -33,7 +33,7 @@ export function AccountBillingPayment({ cards, sx, ...other }: Props) {
 						<Button
 							size="small"
 							color="primary"
-							startIcon={<Iconify icon="mingcute:add-line" />}
+							startIcon={<Iconify width={16} icon="mingcute:add-line" />}
 							onClick={openForm.onTrue}
 						>
 							New card

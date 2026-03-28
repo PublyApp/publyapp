@@ -90,7 +90,7 @@ const SettingsRolesPage = () => {
 						/>
 						<Button
 							variant="contained"
-							startIcon={<Iconify icon="mingcute:add-line" width={20} />}
+							startIcon={<Iconify icon="mingcute:add-line" width={16} />}
 							disabled
 						>
 							Create role

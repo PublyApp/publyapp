@@ -222,7 +222,7 @@ export const AccountDrawer = ({
 									},
 								]}
 							>
-								<Iconify icon="mingcute:add-line" />
+								<Iconify width={16} icon="mingcute:add-line" />
 							</IconButton>
 						</Tooltip>
 					</Box> */}

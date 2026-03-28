@@ -11,12 +11,14 @@ type SidebarSettingsLayoutProps = {
 	items: SettingsNavItem[];
 	maxWidth?: Breakpoint;
 	breadcrumbs?: React.ReactNode;
+	outletContext?: unknown;
 };
 
 export const SidebarSettingsLayout = ({
 	items,
 	maxWidth = 'lg',
 	breadcrumbs,
+	outletContext,
 }: SidebarSettingsLayoutProps) => (
 	<DashboardContent
 		maxWidth={maxWidth}
@@ -71,7 +73,7 @@ export const SidebarSettingsLayout = ({
 					flexDirection: 'column',
 				}}
 			>
-				<Outlet />
+				<Outlet context={outletContext} />
 			</Box>
 		</Box>
 	</DashboardContent>

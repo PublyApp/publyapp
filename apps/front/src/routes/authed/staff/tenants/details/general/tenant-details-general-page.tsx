@@ -16,7 +16,7 @@ import { type UseQueryResult, useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
 import { type FC, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useOutletContext, useParams } from 'react-router';
 import { z } from 'zod';
 
 import type { GetTenantAsStaffResult } from '@org/client-ts/src/models';
@@ -42,6 +42,8 @@ import {
 	useUpdateTenant,
 } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
 import { fDateTime } from '@/front/utils/format-time';
+
+import type { TenantDetailsOutletContext } from '../_layout/tenant-details-layout';
 
 const updateTenantSchema = z.object({
 	name: z.string().min(5),
@@ -69,6 +71,7 @@ const readOnlyFieldInputSx = {
 const TenantDetailsGeneralPage = () => {
 	const { t } = useTranslate();
 	const { tenantId } = useParams();
+	const { tenantName } = useOutletContext<TenantDetailsOutletContext>();
 
 	const getTenantQuery = useGetTenant({
 		variables: { tenantId: _.toString(tenantId) },
@@ -77,7 +80,10 @@ const TenantDetailsGeneralPage = () => {
 
 	return (
 		<Stack spacing={3}>
-			<SettingsPageHeader subtitle={t('tenant-details')} title={t('general')} />
+			<SettingsPageHeader
+				subtitle={tenantName || t('tenant-details')}
+				title={t('general')}
+			/>
 
 			<QueryDisplay
 				query={getTenantQuery}

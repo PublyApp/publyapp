@@ -578,10 +578,13 @@
 	"export-selected-items": "Export {{count}} selected item(s)",
 	"export-selected": "Export selected",
 	"remove-selected-from-tenant": "Remove selected from tenant",
+	"remove-user-from-tenant": "Remove from tenant",
+	"confirm-remove-user-from-tenant": "Are you sure you want to remove {{name}} from this tenant?",
 	"confirm-bulk-remove-tenant-users": "Are you sure you want to remove {{count}} selected user(s) from this tenant?",
 	"tenant-user-bulk-remove-success": "Successfully removed {{count}} user(s) from this tenant.",
 	"tenant-user-bulk-remove-partial-success": "Removed {{succeeded}} user(s), {{failed}} failed.",
 	"tenant-user-bulk-remove-failure": "Failed to remove selected users from this tenant.",
+	"invite-first-user": "Invite first user",
 	"invite-user": "Invite user",
 	"invitation-sent-success": "Invitation sent successfully",
 	"invitation-sent-error": "Failed to send invitation",
@@ -589,9 +592,11 @@
 	"invitation-created-error": "Failed to create invitation",
 	"close": "Close",
 	"change-role": "Change role",
+	"change-status": "Change status",
 	"user-removed-success": "User removed successfully",
 	"user-removed-error": "Failed to remove user",
 	"user-level-updated-success": "User level updated successfully",
 	"user-level-updated-error": "Failed to update user level",
-	"search": "Search..."
+	"search": "Search...",
+	"remove": "Remove"
 }

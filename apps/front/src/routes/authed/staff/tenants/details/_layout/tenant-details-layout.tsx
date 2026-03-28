@@ -29,6 +29,10 @@ import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 
 import type { Route } from './+types/tenant-details-layout';
 
+export type TenantDetailsOutletContext = {
+	tenantName: string;
+};
+
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = _.capitalize(t('tenant-details'));
 
@@ -103,7 +107,14 @@ const TenantDetailsLayout = () => {
 				<LayoutErrorView error={error} getTenantQuery={getTenantQuery} />
 			)}
 		>
-			{() => <SidebarSettingsLayout items={navItems} />}
+			{() => (
+				<SidebarSettingsLayout
+					items={navItems}
+					outletContext={{
+						tenantName: getTenantQuery.data?.name ?? '',
+					}}
+				/>
+			)}
 		</QueryDisplay>
 	);
 };

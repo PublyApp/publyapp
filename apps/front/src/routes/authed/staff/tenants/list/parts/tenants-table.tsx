@@ -2,6 +2,7 @@ import Autocomplete from '@mui/material/Autocomplete';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import ButtonBase from '@mui/material/ButtonBase';
 import Checkbox from '@mui/material/Checkbox';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -1014,47 +1015,34 @@ const TenantCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 
 const StatusCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 	const { t } = useTranslate();
-
-	const status = props.cell.getValue();
-
-	let color: LabelColor = 'default';
-
-	if (status === TENANT_STATUS_ENUM.ACTIVE) {
-		color = 'success';
-	} else if (status === TENANT_STATUS_ENUM.PENDING) {
-		color = 'warning';
-	} else if (status === TENANT_STATUS_ENUM.SUSPENDED) {
-		color = 'error';
-	}
-
-	return (
-		<Label variant="soft" color={color}>
-			{status || _.toLower(t('unknown-item', { item: 'status' }))}
-		</Label>
-	);
-};
-
-const UsersCountCell: MRT_ColumnDef<TenantRowData, number>['Cell'] = (
-	props,
-) => {
-	return (
-		<>
-			{props.cell.getValue()} / {props.row.original.maxUsers}
-		</>
-	);
-};
-
-const TenantActionsCell: MRT_ColumnDef<TenantRowData>['Cell'] = (props) => {
-	const tenantId = props.row.original.id;
-	const tenantName = props.row.original.name;
-	const status = props.row.original.status;
-	const isSuspended = props.row.original.isSuspended;
-	const { t } = useTranslate();
 	const queryClient = useQueryClient();
-
+	const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | null>(null);
 	const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
 	const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
-	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const tenant = props.row.original;
+
+	const status = props.cell.getValue();
+	const effectiveStatus = tenant.isSuspended
+		? TENANT_STATUS_ENUM.SUSPENDED
+		: status;
+
+	let color: LabelColor = 'default';
+	let label = status || _.toLower(t('unknown-item', { item: 'status' }));
+
+	if (effectiveStatus === TENANT_STATUS_ENUM.ACTIVE) {
+		color = 'success';
+		label = t('active');
+	} else if (effectiveStatus === TENANT_STATUS_ENUM.PENDING) {
+		color = 'warning';
+		label = t('pending');
+	} else if (effectiveStatus === TENANT_STATUS_ENUM.SUSPENDED) {
+		color = 'error';
+		label = t('suspended');
+	}
+
+	const canChangeStatus =
+		effectiveStatus === TENANT_STATUS_ENUM.ACTIVE ||
+		effectiveStatus === TENANT_STATUS_ENUM.SUSPENDED;
 
 	const { mutate: suspendTenant, isPending: isSuspending } = useSuspendTenant({
 		meta: { successMessage: 'tenant-suspended-success' },
@@ -1077,105 +1065,122 @@ const TenantActionsCell: MRT_ColumnDef<TenantRowData>['Cell'] = (props) => {
 			},
 		});
 
-	const { mutate: deleteTenant, isPending: isDeleting } = useDeleteTenant({
-		meta: { successMessage: 'tenant-deleted-success' },
-		onSuccess: () => {
-			setDeleteDialogOpen(false);
-			queryClient.invalidateQueries({
-				queryKey: useFindTenants.getKey(),
-			});
-		},
-	});
+	const handleChangeStatus = (
+		nextStatus:
+			| typeof TENANT_STATUS_ENUM.ACTIVE
+			| typeof TENANT_STATUS_ENUM.SUSPENDED,
+	) => {
+		if (nextStatus === effectiveStatus) {
+			setMenuAnchorEl(null);
+			return;
+		}
 
-	const handleSuspend = () => {
-		suspendTenant({ tenantId });
+		setMenuAnchorEl(null);
+
+		if (nextStatus === TENANT_STATUS_ENUM.SUSPENDED) {
+			setSuspendDialogOpen(true);
+			return;
+		}
+
+		setReactivateDialogOpen(true);
 	};
 
-	const handleReactivate = () => {
-		reactivateTenant({ tenantId });
-	};
-
-	const handleDelete = () => {
-		deleteTenant({ tenantId });
-	};
-
-	// Show suspend button only when tenant is Active and not already suspended
-	const canSuspend = status === TENANT_STATUS_ENUM.ACTIVE && !isSuspended;
-	// Show reactivate button only when tenant is suspended
-	const canReactivate = isSuspended;
-	const canDelete = isSuspended;
+	if (!canChangeStatus) {
+		return (
+			<Label variant="soft" color={color}>
+				{label}
+			</Label>
+		);
+	}
 
 	return (
 		<>
-			<Box sx={{ display: 'flex', alignItems: 'center' }}>
-				<Tooltip title={t('view-details')} placement="top" arrow>
-					<IconButton
-						color={'default'}
-						LinkComponent={RouterLink}
-						href={FRONT_PATH_NAMES.staff.tenants.details(tenantId).root}
-					>
-						<Iconify icon="solar:eye-bold" />
-					</IconButton>
-				</Tooltip>
-
-				{canSuspend && (
-					<Tooltip title={t('suspend')} placement="top" arrow>
-						<IconButton
-							color={'default'}
-							onClick={() => setSuspendDialogOpen(true)}
-							sx={{ color: 'warning.main' }}
-						>
-							<Iconify icon="solar:forbidden-circle-bold" />
-						</IconButton>
-					</Tooltip>
-				)}
-
-				{canReactivate && (
-					<Tooltip title={t('reactivate')} placement="top" arrow>
-						<IconButton
-							color={'default'}
-							onClick={() => setReactivateDialogOpen(true)}
-							sx={{ color: 'success.main' }}
-						>
-							<Iconify icon="solar:play-circle-bold" />
-						</IconButton>
-					</Tooltip>
-				)}
-
-				<Tooltip
-					title={
-						canDelete
-							? t('delete')
-							: t('delete-tenant-disabled-until-suspended')
-					}
-					placement="top"
-					arrow
+			<Tooltip title={t('change-status')} placement="top" arrow>
+				<ButtonBase
+					onClick={(event) => {
+						setMenuAnchorEl(event.currentTarget);
+					}}
+					sx={(theme) => ({
+						gap: 0.5,
+						px: 0.5,
+						py: 0.25,
+						borderRadius: 1,
+						display: 'inline-flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						transition: theme.transitions.create('background-color', {
+							duration: theme.transitions.duration.shorter,
+						}),
+						'&:hover': {
+							backgroundColor: varAlpha(
+								theme.vars.palette.grey['500Channel'],
+								0.08,
+							),
+						},
+					})}
 				>
-					<Box component="span">
-						<IconButton
-							color={'default'}
-							onClick={() => setDeleteDialogOpen(true)}
-							disabled={!canDelete}
-							sx={{
-								color: canDelete ? 'error.main' : 'text.disabled',
-							}}
-						>
-							<Iconify icon="solar:trash-bin-trash-bold" />
-						</IconButton>
+					<Label variant="soft" color={color}>
+						{label}
+					</Label>
+					<Iconify icon="eva:arrow-ios-downward-fill" width={16} />
+				</ButtonBase>
+			</Tooltip>
+
+			<Menu
+				open={menuAnchorEl !== null}
+				disableAutoFocusItem
+				onClose={() => {
+					setMenuAnchorEl(null);
+				}}
+				anchorEl={menuAnchorEl}
+				anchorOrigin={{
+					vertical: 'bottom',
+					horizontal: 'left',
+				}}
+				transformOrigin={{
+					vertical: 'top',
+					horizontal: 'left',
+				}}
+			>
+				<MenuItem
+					selected={effectiveStatus === TENANT_STATUS_ENUM.ACTIVE}
+					onClick={() => handleChangeStatus(TENANT_STATUS_ENUM.ACTIVE)}
+				>
+					<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+						{effectiveStatus === TENANT_STATUS_ENUM.ACTIVE ? (
+							<Iconify icon="solar:check-circle-bold" width={18} />
+						) : (
+							<Iconify icon="solar:play-circle-bold" width={18} />
+						)}
+						{t('active')}
 					</Box>
-				</Tooltip>
-			</Box>
+				</MenuItem>
+
+				<MenuItem
+					selected={effectiveStatus === TENANT_STATUS_ENUM.SUSPENDED}
+					onClick={() => handleChangeStatus(TENANT_STATUS_ENUM.SUSPENDED)}
+				>
+					<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+						{effectiveStatus === TENANT_STATUS_ENUM.SUSPENDED ? (
+							<Iconify icon="solar:check-circle-bold" width={18} />
+						) : (
+							<Iconify icon="solar:forbidden-circle-bold" width={18} />
+						)}
+						{t('suspended')}
+					</Box>
+				</MenuItem>
+			</Menu>
 
 			<ConfirmDialog
 				open={suspendDialogOpen}
 				onClose={() => setSuspendDialogOpen(false)}
 				title={t('suspend-tenant')}
-				content={t('suspend-tenant-confirm', { name: tenantName })}
+				content={t('suspend-tenant-confirm', { name: tenant.name })}
 				action={
 					<Button
 						variant="contained"
 						color="warning"
-						onClick={handleSuspend}
+						onClick={() => suspendTenant({ tenantId: tenant.id })}
 						disabled={isSuspending}
 					>
 						{t('suspend')}
@@ -1187,18 +1192,84 @@ const TenantActionsCell: MRT_ColumnDef<TenantRowData>['Cell'] = (props) => {
 				open={reactivateDialogOpen}
 				onClose={() => setReactivateDialogOpen(false)}
 				title={t('reactivate-tenant')}
-				content={t('reactivate-tenant-confirm', { name: tenantName })}
+				content={t('reactivate-tenant-confirm', { name: tenant.name })}
 				action={
 					<Button
 						variant="contained"
 						color="success"
-						onClick={handleReactivate}
+						onClick={() => reactivateTenant({ tenantId: tenant.id })}
 						disabled={isReactivating}
 					>
 						{t('reactivate')}
 					</Button>
 				}
 			/>
+		</>
+	);
+};
+
+const UsersCountCell: MRT_ColumnDef<TenantRowData, number>['Cell'] = (
+	props,
+) => {
+	return (
+		<>
+			{props.cell.getValue()} / {props.row.original.maxUsers}
+		</>
+	);
+};
+
+const TenantActionsCell: MRT_ColumnDef<TenantRowData>['Cell'] = (props) => {
+	const tenant = props.row.original;
+
+	return (
+		<Box sx={{ display: 'flex', alignItems: 'center' }}>
+			<DeleteTenantAction tenant={tenant} />
+		</Box>
+	);
+};
+
+type TenantActionProps = {
+	tenant: TenantRowData;
+};
+
+const DeleteTenantAction = ({ tenant }: TenantActionProps) => {
+	const { t } = useTranslate();
+	const queryClient = useQueryClient();
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const canDelete = tenant.isSuspended;
+
+	const { mutate: deleteTenant, isPending: isDeleting } = useDeleteTenant({
+		meta: { successMessage: 'tenant-deleted-success' },
+		onSuccess: () => {
+			setDeleteDialogOpen(false);
+			queryClient.invalidateQueries({
+				queryKey: useFindTenants.getKey(),
+			});
+		},
+	});
+
+	return (
+		<>
+			<Tooltip
+				title={
+					canDelete ? t('delete') : t('delete-tenant-disabled-until-suspended')
+				}
+				placement="top"
+				arrow
+			>
+				<Box component="span">
+					<IconButton
+						color="default"
+						onClick={() => setDeleteDialogOpen(true)}
+						disabled={!canDelete}
+						sx={{
+							color: canDelete ? 'error.main' : 'text.disabled',
+						}}
+					>
+						<Iconify icon="solar:trash-bin-trash-bold" />
+					</IconButton>
+				</Box>
+			</Tooltip>
 
 			<ConfirmDialog
 				open={deleteDialogOpen}
@@ -1209,7 +1280,7 @@ const TenantActionsCell: MRT_ColumnDef<TenantRowData>['Cell'] = (props) => {
 					<Button
 						variant="contained"
 						color="error"
-						onClick={handleDelete}
+						onClick={() => deleteTenant({ tenantId: tenant.id })}
 						disabled={isDeleting}
 					>
 						{t('delete')}
