@@ -1,4 +1,4 @@
-import { fSub } from '@/front/utils/format-time';
+import { fSub } from '#app/utils/format-time.ts';
 
 import {
 	_ages,

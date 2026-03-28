@@ -4,7 +4,7 @@ import { mergeClasses } from 'minimal-shared/utils';
 import { useId } from 'react';
 
 import { APP_NAME } from '@org/shared-ts/lib/constants';
-import { useHomePath } from '@/front/hooks/use-home-path';
+import { useHomePath } from '#app/hooks/use-home-path.ts';
 
 import { RouterLink } from '../router-link';
 import { logoClasses } from './classes';

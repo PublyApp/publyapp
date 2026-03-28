@@ -9,10 +9,10 @@ import {
 	FRONT_PATH_NAMES,
 	isServer,
 } from '@org/shared-ts/lib/constants';
-import type { SettingsNavItem } from '@/front/components/settings/settings-nav';
-import { SidebarSettingsLayout } from '@/front/components/settings/sidebar-settings-layout';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+import type { SettingsNavItem } from '#app/components/settings/settings-nav.tsx';
+import { SidebarSettingsLayout } from '#app/components/settings/sidebar-settings-layout.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/settings-layout';
 

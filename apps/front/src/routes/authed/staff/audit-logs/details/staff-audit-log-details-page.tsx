@@ -14,19 +14,19 @@ import { data, useParams } from 'react-router';
 
 import type { AuditLogDetail } from '@org/client-ts/src/models';
 import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
-import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
-import { EmptyContent } from '@/front/components/empty-content/empty-content';
-import { ErrorContent } from '@/front/components/empty-content/error-content';
-import View400 from '@/front/components/error/400-view';
-import { Iconify } from '@/front/components/iconify/iconify';
-import type { IconifyName } from '@/front/components/iconify/register-icons';
-import QueryDisplay from '@/front/components/query-display';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { isProblemFailure, toApiFailure } from '@/front/lib/api-failure';
-import { useGetStaffAuditLog } from '@/front/lib/react-query/features/staff/staff-audit-log.hooks';
-import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { fDateTime, fToNow } from '@/front/utils/format-time';
+import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
+import { EmptyContent } from '#app/components/empty-content/empty-content.tsx';
+import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
+import View400 from '#app/components/error/400-view.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import type { IconifyName } from '#app/components/iconify/register-icons.ts';
+import QueryDisplay from '#app/components/query-display.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
+import { isProblemFailure, toApiFailure } from '#app/lib/api-failure/index.ts';
+import { useGetStaffAuditLog } from '#app/lib/react-query/features/staff/staff-audit-log.hooks.ts';
+import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
+import { fDateTime, fToNow } from '#app/utils/format-time.ts';
 
 import type { Route } from './+types/staff-audit-log-details-page';
 

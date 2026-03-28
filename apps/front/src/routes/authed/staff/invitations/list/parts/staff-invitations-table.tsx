@@ -26,23 +26,23 @@ import {
 	FRONT_PATH_NAMES,
 } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
-import { Iconify } from '@/front/components/iconify/iconify';
-import type { LabelColor } from '@/front/components/label';
-import { Label } from '@/front/components/label/label';
-import { RouterLink } from '@/front/components/router-link';
-import { toast } from '@/front/components/snackbar';
-import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { useTableQueryOptions } from '@/front/hooks/use-table-query-options';
-import { useTableState } from '@/front/hooks/use-table-state';
-import { useTranslate } from '@/front/hooks/use-translate';
+import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import type { LabelColor } from '#app/components/label/index.ts';
+import { Label } from '#app/components/label/label.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
+import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
+import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
+import { useTableState } from '#app/hooks/use-table-state.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
 	useFindStaffInvitations,
 	useGetInvitationLink,
 	useResendInvitation,
 	useRevokeInvitation,
-} from '@/front/lib/react-query/features/staff/staff-invitation.hooks';
-import { fDate, fIsAfter, fToNow } from '@/front/utils/format-time';
+} from '#app/lib/react-query/features/staff/staff-invitation.hooks.ts';
+import { fDate, fIsAfter, fToNow } from '#app/utils/format-time.ts';
 
 import { NewInvitationButton } from './new-invitation-button';
 

@@ -7,12 +7,12 @@ import {
 import {
 	ClientManager,
 	getClientManager,
-} from '@/front/lib/js-client/client-manager';
+} from '#app/lib/js-client/client-manager.ts';
 import {
 	getQueryClient,
 	markAuthLogoutInProgress,
-} from '@/front/lib/react-query/query-client';
-import { globalNavigate } from '@/front/lib/react-router/navigation-helper';
+} from '#app/lib/react-query/query-client.tsx';
+import { globalNavigate } from '#app/lib/react-router/navigation-helper.ts';
 
 import { clearSessionCookie } from './session-cookie.utils';
 

@@ -1,12 +1,12 @@
 import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
 
-import { Label } from '@/front/components/label/label';
-import { navSectionCssVars } from '@/front/components/nav-section/styles/css-vars';
-import type { NavSectionProps } from '@/front/components/nav-section/types';
-import { NavSectionVerticalItem } from '@/front/components/nav-section/vertical';
-import { NavSectionVertical } from '@/front/components/nav-section/vertical/nav-section-vertical';
-import { SvgColor } from '@/front/components/svg-color';
+import { Label } from '#app/components/label/label.tsx';
+import { navSectionCssVars } from '#app/components/nav-section/styles/css-vars.ts';
+import type { NavSectionProps } from '#app/components/nav-section/types.ts';
+import { NavSectionVerticalItem } from '#app/components/nav-section/vertical/index.ts';
+import { NavSectionVertical } from '#app/components/nav-section/vertical/nav-section-vertical.tsx';
+import { SvgColor } from '#app/components/svg-color/index.ts';
 
 /**
  * Permissions can be set for each item by using the `allowedRoles` property.

@@ -28,20 +28,20 @@ import {
 } from '@org/shared-ts/lib/constants';
 import { mbToBytes } from '@org/shared-ts/utils/any.utils';
 import { getNewTenantSchemaClientSide } from '@org/shared-ts/validations/tenant/tenant-client.validations';
-import { FieldContainer } from '@/front/components/form-extras';
-import { Field } from '@/front/components/hook-form/fields';
-import { Form } from '@/front/components/hook-form/form-provider';
-import { HelperText } from '@/front/components/hook-form/help-text';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { toast } from '@/front/components/snackbar';
-import { useRouter } from '@/front/hooks/use-router';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { getFailureMessage, toApiFailure } from '@/front/lib/api-failure';
-import { useCreateTenant } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
-import { interZodClient } from '@/front/lib/zod/zod.client';
-import { useMainStore } from '@/front/lib/zustand/store';
-import { fData } from '@/front/utils/format-number';
+import { FieldContainer } from '#app/components/form-extras.tsx';
+import { Field } from '#app/components/hook-form/fields.tsx';
+import { Form } from '#app/components/hook-form/form-provider.tsx';
+import { HelperText } from '#app/components/hook-form/help-text.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
+import { useRouter } from '#app/hooks/use-router.ts';
+import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
+import { useCreateTenant } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
+import { interZodClient } from '#app/lib/zod/zod.client.ts';
+import { useMainStore } from '#app/lib/zustand/store.ts';
+import { fData } from '#app/utils/format-number.ts';
 
 // ----------------------------------------------------------------------
 

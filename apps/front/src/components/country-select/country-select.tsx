@@ -10,7 +10,7 @@ import { outlinedInputClasses } from '@mui/material/OutlinedInput';
 import TextField, { type TextFieldProps } from '@mui/material/TextField';
 import { useCallback, useMemo } from 'react';
 
-import { countries } from '@/front/assets/data/countries';
+import { countries } from '#app/assets/data/countries.ts';
 
 import { FlagIcon, flagIconClasses } from '../flag-icon';
 

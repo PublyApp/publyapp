@@ -1,6 +1,6 @@
 import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
 
-import { Iconify } from '@/front/components/iconify/iconify';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
 
 // ----------------------------------------------------------------------
 

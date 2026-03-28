@@ -11,11 +11,15 @@ import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 import { useBoolean } from 'minimal-shared/hooks';
 
-import { transitionTap, varHover, varTap } from '@/front/components/animate';
-import { CustomTabs } from '@/front/components/custom-tabs';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Label } from '@/front/components/label';
-import { Scrollbar } from '@/front/components/scrollbar';
+import {
+	transitionTap,
+	varHover,
+	varTap,
+} from '#app/components/animate/index.ts';
+import { CustomTabs } from '#app/components/custom-tabs/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { Label } from '#app/components/label/index.ts';
+import { Scrollbar } from '#app/components/scrollbar/index.ts';
 
 import {
 	NotificationItem,

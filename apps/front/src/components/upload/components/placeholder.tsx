@@ -1,8 +1,8 @@
 import { type SxProps, styled, type Theme } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 
-import UploadIllustration from '@/front/assets/illustrations/upload-illustration';
-import { createClasses } from '@/front/lib/mui/theme/create-classes';
+import UploadIllustration from '#app/assets/illustrations/upload-illustration.tsx';
+import { createClasses } from '#app/lib/mui/theme/create-classes.ts';
 
 // ----------------------------------------------------------------------
 

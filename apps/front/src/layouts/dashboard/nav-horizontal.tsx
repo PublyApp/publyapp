@@ -6,7 +6,7 @@ import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 import {
 	NavSectionHorizontal,
 	type NavSectionProps,
-} from '@/front/components/nav-section';
+} from '#app/components/nav-section/index.ts';
 
 import { layoutClasses } from '../core/classes';
 

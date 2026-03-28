@@ -4,7 +4,7 @@ import {
 	ThemeProvider as ThemeVarsProvider,
 } from '@mui/material/styles';
 
-import { useSettingsContext } from '@/front/hooks/use-settings-context';
+import { useSettingsContext } from '#app/hooks/use-settings-context.ts';
 
 import { useTranslate } from '../../../hooks/use-translate';
 import { createTheme } from './create-theme';

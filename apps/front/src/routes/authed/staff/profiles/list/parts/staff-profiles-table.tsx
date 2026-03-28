@@ -20,15 +20,15 @@ import {
 	DEFAULT_PAGE_SIZE,
 	FRONT_PATH_NAMES,
 } from '@org/shared-ts/lib/constants';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Label } from '@/front/components/label/label';
-import { RouterLink } from '@/front/components/router-link';
-import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { useTableQueryOptions } from '@/front/hooks/use-table-query-options';
-import { useTableState } from '@/front/hooks/use-table-state';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
-import { useFindStaffProfiles } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { Label } from '#app/components/label/label.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
+import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
+import { useTableState } from '#app/hooks/use-table-state.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { getUntypedNumber } from '#app/lib/js-client/kiota-utils.ts';
+import { useFindStaffProfiles } from '#app/lib/react-query/features/staff/staff-profile.hooks.ts';
 
 // Row Data Type
 export type StaffProfileRowData = {

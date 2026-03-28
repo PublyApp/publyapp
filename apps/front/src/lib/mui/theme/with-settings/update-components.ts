@@ -6,7 +6,7 @@ import type {
 	Theme,
 } from '@mui/material/styles';
 
-import type { SettingsState } from '@/front/components/settings';
+import type { SettingsState } from '#app/components/settings/index.ts';
 
 import type { ThemeOptions } from '../types';
 

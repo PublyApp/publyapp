@@ -15,17 +15,17 @@ import {
 	FRONT_PATH_NAMES,
 	isServer,
 } from '@org/shared-ts/lib/constants';
-import { ErrorContent } from '@/front/components/empty-content/error-content';
-import View400 from '@/front/components/error/400-view';
-import { NotFoundView } from '@/front/components/error/not-found-view';
-import QueryDisplay from '@/front/components/query-display';
-import type { SettingsNavItem } from '@/front/components/settings/settings-nav';
-import { SidebarSettingsLayout } from '@/front/components/settings/sidebar-settings-layout';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { isProblemFailure, toApiFailure } from '@/front/lib/api-failure';
-import { useGetTenant } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
-import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
+import View400 from '#app/components/error/400-view.tsx';
+import { NotFoundView } from '#app/components/error/not-found-view.tsx';
+import QueryDisplay from '#app/components/query-display.tsx';
+import type { SettingsNavItem } from '#app/components/settings/settings-nav.tsx';
+import { SidebarSettingsLayout } from '#app/components/settings/sidebar-settings-layout.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
+import { isProblemFailure, toApiFailure } from '#app/lib/api-failure/index.ts';
+import { useGetTenant } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
+import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/tenant-details-layout';
 

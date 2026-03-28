@@ -19,14 +19,14 @@ import {
 	USER_STATUS_ENUM,
 } from '@org/shared-ts/lib/constants';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
-import { EmptyContent } from '@/front/components/empty-content';
-import { Iconify } from '@/front/components/iconify/iconify';
-import type { LabelColor } from '@/front/components/label';
-import { Label } from '@/front/components/label/label';
-import { RouterLink } from '@/front/components/router-link';
-import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { useTableState } from '@/front/hooks/use-table-state';
-import { useTranslate } from '@/front/hooks/use-translate';
+import { EmptyContent } from '#app/components/empty-content/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import type { LabelColor } from '#app/components/label/index.ts';
+import { Label } from '#app/components/label/label.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
+import { useTableState } from '#app/hooks/use-table-state.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 
 // Type definition for users assigned to this profile
 export type ProfileUserRowData = {

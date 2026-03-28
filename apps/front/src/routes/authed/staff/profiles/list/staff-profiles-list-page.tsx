@@ -1,23 +1,20 @@
 import Button from '@mui/material/Button';
-import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared/lib/constants';
 import { isServer } from '@tanstack/react-query';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import _ from 'lodash';
 import { data } from 'react-router';
-import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+
+import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
+import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
+
 import type { Route } from './+types/staff-profiles-list-page';
 import StaffProfilesTable from './parts/staff-profiles-table';
-
-// Enable dayjs relative time plugin
-dayjs.extend(relativeTime);
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = _.capitalize(t('staff-profiles'));
@@ -80,7 +77,7 @@ const StaffInvitationsListPage = () => {
 						variant="contained"
 						startIcon={<Iconify width={16} icon="mingcute:add-line" />}
 					>
-						{t('new-invitation')}
+						{t('new-item', { item: _.toLower(t('profile')) })}
 					</Button>
 				}
 				sx={{ mb: { xs: 3, md: 5 } }}

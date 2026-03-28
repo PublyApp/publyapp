@@ -7,17 +7,17 @@ import {
 	queryParamValue,
 	REDIRECT_CODE,
 } from '@org/shared-ts/lib/constants';
-import { SplashScreen } from '@/front/components/loading-screen/splash-screen';
-import QueryDisplay from '@/front/components/query-display';
+import { SplashScreen } from '#app/components/loading-screen/splash-screen.tsx';
+import QueryDisplay from '#app/components/query-display.tsx';
 import {
 	getTenantHintForUser,
 	readLegacyTenantFromBrowser,
 	readTenantHintsFromBrowser,
-} from '@/front/lib/cookies/tenant-hint-cookie.utils';
+} from '#app/lib/cookies/tenant-hint-cookie.utils.ts';
 import {
 	useGetRedirectCode,
 	useGetUserAuthData,
-} from '@/front/lib/react-query/features/common/auth.hooks';
+} from '#app/lib/react-query/features/common/auth.hooks.ts';
 
 import { TenantPickerView } from '../_shared/tenant-picker-view';
 

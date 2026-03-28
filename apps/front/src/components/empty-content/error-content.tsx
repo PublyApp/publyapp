@@ -6,8 +6,8 @@ import Typography from '@mui/material/Typography';
 import _ from 'lodash';
 import { varAlpha } from 'minimal-shared/utils';
 
-import { Iconify } from '@/front/components/iconify/iconify';
-import { useTranslate } from '@/front/hooks/use-translate';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 
 // ----------------------------------------------------------------------
 

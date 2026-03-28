@@ -44,24 +44,24 @@ import {
 	USER_STATUS_ENUM,
 } from '@org/shared-ts/lib/constants';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
-import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
-import DrawerAnchor from '@/front/components/drawer-anchor';
-import { Iconify } from '@/front/components/iconify/iconify';
-import type { LabelColor } from '@/front/components/label';
-import { Label } from '@/front/components/label/label';
-import { RouterLink } from '@/front/components/router-link';
-import { useSectionPageWithDrawer } from '@/front/components/settings/section-page-with-drawer';
-import { toast } from '@/front/components/snackbar';
-import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { useTableQueryOptions } from '@/front/hooks/use-table-query-options';
-import { useTableState } from '@/front/hooks/use-table-state';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { useSendEmailVerificationReminder } from '@/front/lib/react-query/features/common/auth.hooks';
+import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
+import DrawerAnchor from '#app/components/drawer-anchor.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import type { LabelColor } from '#app/components/label/index.ts';
+import { Label } from '#app/components/label/label.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { useSectionPageWithDrawer } from '#app/components/settings/section-page-with-drawer.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
+import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
+import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
+import { useTableState } from '#app/hooks/use-table-state.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { useSendEmailVerificationReminder } from '#app/lib/react-query/features/common/auth.hooks.ts';
 import {
 	useFindTenantUsers,
 	useRemoveTenantUser,
 	useUpdateTenantUser,
-} from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
+} from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
 
 export type TenantUserRowData = {
 	id: string;

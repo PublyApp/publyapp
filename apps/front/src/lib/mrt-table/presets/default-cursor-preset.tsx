@@ -7,8 +7,8 @@ import Tooltip from '@mui/material/Tooltip';
 import type { MRT_TableInstance } from 'material-react-table';
 
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { useTranslate } from '@/front/hooks/use-translate';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 
 import { DEFAULT_PAGE_SIZE_OPTIONS } from '../../constants';
 import type { TablePreset } from '../table-presets';

@@ -14,7 +14,7 @@ import type {
 	UpdateTenantUserAsStaffBody,
 } from '@org/client-ts/src/models';
 import { SESSION_TOKEN_HEADER_KEY } from '@org/shared-ts/lib/constants';
-import { getSessionTokensFromClient } from '@/front/lib/cookies/session-cookie.utils';
+import { getSessionTokensFromClient } from '#app/lib/cookies/session-cookie.utils.ts';
 
 import { createStaffMutation, createStaffQuery } from '../../create-hooks';
 

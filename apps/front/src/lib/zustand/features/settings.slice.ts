@@ -1,8 +1,8 @@
 import * as cookie from 'cookie';
 import _ from 'lodash';
 
-import { defaultSettings } from '@/front/components/settings/settings-config';
-import type { SettingsState } from '@/front/components/settings/types';
+import { defaultSettings } from '#app/components/settings/settings-config.ts';
+import type { SettingsState } from '#app/components/settings/types.ts';
 
 import { SIDEBAR_COOKIE_MAX_AGE, SIDEBAR_COOKIE_NAME } from '../../constants';
 import type { useMainStore } from '../store';

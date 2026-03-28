@@ -1,26 +1,26 @@
-import Button from '@mui/material/Button';
+import { isServer } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import _ from 'lodash';
 import { data } from 'react-router';
 
-import {
-	APP_NAME,
-	FRONT_PATH_NAMES,
-	isServer,
-} from '@org/shared-ts/lib/constants';
+import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
-import { Iconify } from '#app/components/iconify/iconify.tsx';
-import { RouterLink } from '#app/components/router-link.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
-import type { Route } from './+types/tenants-list-page';
-import TenantsTable from './parts/tenants-table';
+import type { Route } from './+types/staff-audit-logs-list-page';
+import StaffAuditLogsTable from './parts/staff-audit-logs-table';
 
-const getPageTitle = (t: TFunction) => {
-	return _.capitalize(t('list-of-items', { items: t('tenants') }));
+const getPageTitle = (t: TFunction, seo?: boolean) => {
+	let str: string = _.capitalize(t('audit-logs'));
+
+	if (seo) {
+		str = `${str} | Staff Dashboard - ${APP_NAME}`;
+	}
+
+	return str;
 };
 
 export const meta = (args: Route.MetaArgs) => {
@@ -32,7 +32,7 @@ export const meta = (args: Route.MetaArgs) => {
 
 	return [
 		{
-			title: `${getPageTitle(t)} | Staff Dashboard - ${APP_NAME}`,
+			title: getPageTitle(t, true),
 		},
 	];
 };
@@ -44,14 +44,14 @@ export const loader = getServerLoader({
 		return data({
 			meta: [
 				{
-					title: `${getPageTitle(t)} | Staff Dashboard - ${APP_NAME}`,
+					title: getPageTitle(t, true),
 				},
 			],
 		});
 	},
 });
 
-const TenantsListPage = () => {
+const StaffAuditLogsListPage = () => {
 	const { t } = useTranslate();
 
 	return (
@@ -62,27 +62,16 @@ const TenantsListPage = () => {
 				heading={getPageTitle(t as never)}
 				links={[
 					{
-						name: _.capitalize(t('tenants')),
-						href: FRONT_PATH_NAMES.staff.tenants.root,
+						name: _.capitalize(t('audit-logs')),
+						href: FRONT_PATH_NAMES.staff.auditLogs.root,
 					},
 					{ name: _.capitalize(t('list')) },
 				]}
-				action={
-					<Button
-						component={RouterLink}
-						href={FRONT_PATH_NAMES.staff.tenants.new}
-						variant="contained"
-						startIcon={<Iconify width={16} icon="mingcute:add-line" />}
-					>
-						{_.capitalize(t('new-item', { item: t('tenant') }))}
-					</Button>
-				}
 				sx={{ mb: { xs: 3, md: 5 } }}
 			/>
-
-			<TenantsTable />
+			<StaffAuditLogsTable />
 		</DashboardContent>
 	);
 };
 
-export default TenantsListPage;
+export default StaffAuditLogsListPage;

@@ -13,11 +13,11 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
 import { useCallback, useEffect, useState } from 'react';
 
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Label } from '@/front/components/label';
-import type { NavSectionProps } from '@/front/components/nav-section';
-import { Scrollbar } from '@/front/components/scrollbar';
-import { SearchNotFound } from '@/front/components/search-not-found';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { Label } from '#app/components/label/index.ts';
+import type { NavSectionProps } from '#app/components/nav-section/index.ts';
+import { Scrollbar } from '#app/components/scrollbar/index.ts';
+import { SearchNotFound } from '#app/components/search-not-found/index.ts';
 
 import { ResultItem } from './result-item';
 import { applyFilter, flattenNavSections } from './utils';

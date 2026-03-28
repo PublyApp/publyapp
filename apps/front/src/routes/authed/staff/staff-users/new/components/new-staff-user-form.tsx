@@ -9,15 +9,15 @@ import {
 	FRONT_PATH_NAMES,
 } from '@org/shared-ts/lib/constants';
 import { getNewStaffUserSchema } from '@org/shared-ts/validations/staff-user.validations';
-import { toast } from '@/front/components/snackbar';
-import { useRouter } from '@/front/hooks/use-router';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
+import { toast } from '#app/components/snackbar/index.ts';
+import { useRouter } from '#app/hooks/use-router.ts';
+import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
 	useCreateStaffUser,
 	useFindStaffUser,
-} from '@/front/lib/react-query/features/staff/staff-user.hooks';
-import { interZodClient } from '@/front/lib/zod/zod.client';
+} from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
+import { interZodClient } from '#app/lib/zod/zod.client.ts';
 
 import { UserNewEditForm } from '../../components/user-new-edit-form';
 

@@ -7,7 +7,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useCallback, useState } from 'react';
 
-import type { IPaymentCard } from '@/front/types/common';
+import type { IPaymentCard } from '#app/types/common.ts';
 
 import { Iconify } from '../iconify/iconify';
 import { SearchNotFound } from '../search-not-found/search-not-found';

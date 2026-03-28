@@ -1,7 +1,7 @@
 import { styled } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 
-import { navSectionClasses } from '@/front/components/nav-section';
+import { navSectionClasses } from '#app/components/nav-section/index.ts';
 
 // ----------------------------------------------------------------------
 

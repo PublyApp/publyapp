@@ -1,7 +1,7 @@
 import Box from '@mui/material/Box';
 
-import { RouterLink } from '@/front/components/router-link';
-import useMatchPath from '@/front/hooks/use-match-path';
+import { RouterLink } from '#app/components/router-link.tsx';
+import useMatchPath from '#app/hooks/use-match-path.ts';
 
 export type SettingsNavItem = {
 	label: string;

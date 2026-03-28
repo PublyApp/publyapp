@@ -12,15 +12,15 @@ import {
 	type UserStatus,
 } from '@org/shared-ts/lib/constants';
 import { getUpdateStaffUserSchema } from '@org/shared-ts/validations/staff-user.validations';
-import { toast } from '@/front/components/snackbar';
-import { useRouter } from '@/front/hooks/use-router';
-import { useTranslate } from '@/front/hooks/use-translate';
+import { toast } from '#app/components/snackbar/index.ts';
+import { useRouter } from '#app/hooks/use-router.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
 	useFindStaffUser,
 	useGetStaffUserById,
 	useUpdateStaffUser,
-} from '@/front/lib/react-query/features/staff/staff-user.hooks';
-import { interZodClient } from '@/front/lib/zod/zod.client';
+} from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
+import { interZodClient } from '#app/lib/zod/zod.client.ts';
 
 import { UserNewEditForm } from '../../components/user-new-edit-form';
 

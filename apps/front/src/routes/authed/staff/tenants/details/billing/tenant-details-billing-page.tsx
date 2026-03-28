@@ -7,10 +7,10 @@ import {
 	_userInvoices,
 	_userPayment,
 	_userPlans,
-} from '@/front/_mock';
-import { AccountBilling } from '@/front/components/billing/account-billing';
-import { SettingsPageHeader } from '@/front/components/settings/settings-page-header';
-import { useTranslate } from '@/front/hooks/use-translate';
+} from '#app/_mock/index.ts';
+import { AccountBilling } from '#app/components/billing/account-billing.tsx';
+import { SettingsPageHeader } from '#app/components/settings/settings-page-header.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 
 import type { TenantDetailsOutletContext } from '../_layout/tenant-details-layout';
 

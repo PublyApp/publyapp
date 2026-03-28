@@ -6,8 +6,8 @@ import {
 	type EmptyContentProps,
 	ErrorContent,
 	type ErrorContentProps,
-} from '@/front/components/empty-content';
-import { useTranslate } from '@/front/hooks/use-translate';
+} from '#app/components/empty-content/index.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 
 // ----------------------------------------------------------------------
 

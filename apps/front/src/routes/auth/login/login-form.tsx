@@ -12,13 +12,13 @@ import { useFetcher } from 'react-router';
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { getSerializedErrorMessage } from '@org/shared-ts/utils/error.utils';
 import { getLoginSchema } from '@org/shared-ts/validations/auth.validations';
-import { FormHead } from '@/front/components/auth/form-head';
-import { Field, Form } from '@/front/components/hook-form';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { interZodClient } from '@/front/lib/zod/zod.client';
+import { FormHead } from '#app/components/auth/form-head.tsx';
+import { Field, Form } from '#app/components/hook-form/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { interZodClient } from '#app/lib/zod/zod.client.ts';
 
 import type { LoginActionResult } from './login-page';
 

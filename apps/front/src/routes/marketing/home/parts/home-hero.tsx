@@ -18,10 +18,10 @@ import {
 import { useRef, useState } from 'react';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
-import { MotionContainer, varFade } from '@/front/components/animate';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { useTranslate } from '@/front/hooks/use-translate';
+import { MotionContainer, varFade } from '#app/components/animate/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 
 import { HeroBackground } from '../components/hero-background';
 

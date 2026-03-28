@@ -6,10 +6,14 @@ import { usePopover } from 'minimal-shared/hooks';
 import { useCallback } from 'react';
 
 import type { AppLocale } from '@org/shared-ts/lib/i18n/resources';
-import { transitionTap, varHover, varTap } from '@/front/components/animate';
-import { CustomPopover } from '@/front/components/custom-popover';
-import { FlagIcon } from '@/front/components/flag-icon';
-import { useTranslate } from '@/front/hooks/use-translate';
+import {
+	transitionTap,
+	varHover,
+	varTap,
+} from '#app/components/animate/index.ts';
+import { CustomPopover } from '#app/components/custom-popover/index.ts';
+import { FlagIcon } from '#app/components/flag-icon/index.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 
 // ----------------------------------------------------------------------
 

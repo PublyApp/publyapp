@@ -5,7 +5,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { varAlpha } from 'minimal-shared/utils';
 
-import { RouterLink } from '@/front/components/router-link';
+import { RouterLink } from '#app/components/router-link.tsx';
 
 // ----------------------------------------------------------------------
 

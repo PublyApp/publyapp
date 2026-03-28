@@ -4,7 +4,7 @@ import { isActiveLink, isExternalLink } from 'minimal-shared/utils';
 
 import { useTheme } from '@mui/material/styles';
 
-import { usePathname } from '@/front/hooks/use-pathname';
+import { usePathname } from '#app/hooks/use-pathname.ts';
 
 import { NavItem } from './nav-item';
 import { navSectionClasses } from '../styles';

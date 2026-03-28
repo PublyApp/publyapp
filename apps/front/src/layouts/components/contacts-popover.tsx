@@ -8,11 +8,15 @@ import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 import { usePopover } from 'minimal-shared/hooks';
 
-import { transitionTap, varHover, varTap } from '@/front/components/animate';
-import { CustomPopover } from '@/front/components/custom-popover';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Scrollbar } from '@/front/components/scrollbar';
-import { fToNow } from '@/front/utils/format-time';
+import {
+	transitionTap,
+	varHover,
+	varTap,
+} from '#app/components/animate/index.ts';
+import { CustomPopover } from '#app/components/custom-popover/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { Scrollbar } from '#app/components/scrollbar/index.ts';
+import { fToNow } from '#app/utils/format-time.ts';
 
 // ----------------------------------------------------------------------
 

@@ -2,16 +2,16 @@ import { Suspense, useEffect } from 'react';
 import { Outlet, useParams } from 'react-router';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
-import { LoadingScreen } from '@/front/components/loading-screen';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { DashboardLayout } from '@/front/layouts/dashboard/layout';
-import { ICONS, type NavDataType } from '@/front/layouts/nav-config-dashboard';
+import { LoadingScreen } from '#app/components/loading-screen/index.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { DashboardLayout } from '#app/layouts/dashboard/layout.tsx';
+import { ICONS, type NavDataType } from '#app/layouts/nav-config-dashboard.tsx';
 import {
 	clearLegacyTenantFromBrowser,
 	readLegacyTenantFromBrowser,
 	updateTenantHintInBrowser,
-} from '@/front/lib/cookies/tenant-hint-cookie.utils';
-import { useGetUserAuthData } from '@/front/lib/react-query/features/common/auth.hooks';
+} from '#app/lib/cookies/tenant-hint-cookie.utils.ts';
+import { useGetUserAuthData } from '#app/lib/react-query/features/common/auth.hooks.ts';
 
 const TenantLayout = () => {
 	const { t } = useTranslate();

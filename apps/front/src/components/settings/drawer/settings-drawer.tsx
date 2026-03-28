@@ -9,9 +9,9 @@ import Typography from '@mui/material/Typography';
 import { hasKeys, varAlpha } from 'minimal-shared/utils';
 import { useCallback, useEffect } from 'react';
 
-import { themeConfig } from '@/front/lib/mui/theme/theme-config';
-import type { ThemeColorScheme } from '@/front/lib/mui/theme/types';
-import { primaryColorPresets } from '@/front/lib/mui/theme/with-settings';
+import { themeConfig } from '#app/lib/mui/theme/theme-config.ts';
+import type { ThemeColorScheme } from '#app/lib/mui/theme/types.ts';
+import { primaryColorPresets } from '#app/lib/mui/theme/with-settings/index.ts';
 
 import { useSettingsContext } from '../../../hooks/use-settings-context';
 import { Iconify } from '../../iconify/iconify';

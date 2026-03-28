@@ -41,7 +41,9 @@
 							":BLANK_LINE:",
 							[":PACKAGE:", "!@org/**"],
 							":BLANK_LINE:",
-							[":ALIAS:", "@org/**"],
+							[":ALIAS:", "@org/**", "!#*/**"],
+							":BLANK_LINE:",
+							["#*/**"],
 							":BLANK_LINE:",
 							":PATH:"
 						]

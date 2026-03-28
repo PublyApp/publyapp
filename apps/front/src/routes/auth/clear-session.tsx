@@ -6,8 +6,8 @@ import {
 	queryParamKey,
 } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { createClearSessionCookieHeaders } from '@/front/lib/cookies/server-cookie.utils';
-import { getServerAction } from '@/front/lib/react-router/server-data.server';
+import { createClearSessionCookieHeaders } from '#app/lib/cookies/server-cookie.utils.ts';
+import { getServerAction } from '#app/lib/react-router/server-data.server.ts';
 
 /**
  * Dedicated route for clearing httpOnly session cookies.

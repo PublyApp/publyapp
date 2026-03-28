@@ -1,4 +1,4 @@
-import { themeConfig } from '@/front/lib/mui/theme/theme-config';
+import { themeConfig } from '#app/lib/mui/theme/theme-config.ts';
 
 import type { SettingsState } from './types';
 

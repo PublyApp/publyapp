@@ -6,8 +6,8 @@ import { useCallback, useRef } from 'react';
 import {
 	NavSectionVertical,
 	navSectionClasses,
-} from '@/front/components/nav-section';
-import { usePathname } from '@/front/hooks/use-pathname';
+} from '#app/components/nav-section/index.ts';
+import { usePathname } from '#app/hooks/use-pathname.ts';
 
 import { NavLi } from '../components';
 import type { NavListProps } from '../types';

@@ -9,13 +9,13 @@ import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router';
 import { z } from 'zod';
 
-import { Field } from '@/front/components/hook-form/fields';
-import { Form } from '@/front/components/hook-form/form-provider';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { useSectionPageWithDrawer } from '@/front/components/settings/section-page-with-drawer';
-import { toast } from '@/front/components/snackbar';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { useInviteTenantUser } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
+import { Field } from '#app/components/hook-form/fields.tsx';
+import { Form } from '#app/components/hook-form/form-provider.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { useSectionPageWithDrawer } from '#app/components/settings/section-page-with-drawer.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { useInviteTenantUser } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
 
 // ----------------------------------------------------------------------
 
