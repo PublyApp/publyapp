@@ -588,8 +588,6 @@ async function getFrontDockerfile({ port }) {
 	return `FROM node:24-alpine
 WORKDIR /repo
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.paths.json ./
-
 COPY apps/front/package.json apps/front/package.json
 COPY packages/shared-ts/package.json packages/shared-ts/package.json
 COPY packages/client-ts/package.json packages/client-ts/package.json
@@ -662,7 +660,6 @@ function createFrontAssembleArtifactTasks({ artifactDir, frontPort }) {
 		'package.json',
 		'pnpm-lock.yaml',
 		'pnpm-workspace.yaml',
-		'tsconfig.paths.json',
 	];
 
 	return withStepTitles(
