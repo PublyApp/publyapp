@@ -741,44 +741,52 @@ const TenantUsersTable = () => {
 						<Tabs
 							value={exportFormat}
 							onChange={(_event, value: 'csv' | 'json' | 'xlsx') => {
-								setExportFormat(value);
-							}}
-							variant="fullWidth"
-							slotProps={{
-								list: {
-									sx: {
-										gap: '2px',
-									},
-								},
-								indicator: {
-									sx: {
-										display: 'none',
-									},
-								},
+								if (value) {
+									setExportFormat(value);
+								}
 							}}
 							sx={(theme) => ({
 								mt: 1.5,
-								minHeight: 34,
-								p: 0.5,
-								borderRadius: 1.5,
+								alignSelf: 'flex-start',
+								minHeight: 32,
+								p: '2px 2px 1px',
 								border: `1px solid ${theme.vars.palette.divider}`,
-								backgroundColor: theme.vars.palette.background.neutral,
+								borderRadius: 1,
+								bgcolor: 'background.paper',
+								'& .MuiTabs-indicator': {
+									display: 'none',
+								},
+								'& .MuiTabs-list': {
+									gap: '2px',
+								},
 								'& .MuiTab-root': {
-									minHeight: 30,
-									minWidth: 0,
-									px: 1.25,
-									py: 0.5,
-									borderRadius: 1,
-									border: '1px solid transparent',
-									fontSize: theme.typography.pxToRem(13),
+									minHeight: 26,
+									minWidth: 64,
+									px: 1,
+									py: 0.375,
+									borderRadius: 0.75,
+									fontSize: theme.typography.caption.fontSize,
 									fontWeight: theme.typography.fontWeightMedium,
 									textTransform: 'none',
-									color: theme.vars.palette.text.secondary,
+									color: 'text.secondary',
+									m: 0,
+									transition: theme.transitions.create(
+										['background-color', 'color', 'box-shadow'],
+										{
+											duration: theme.transitions.duration.shorter,
+										},
+									),
 								},
-								'& .Mui-selected': {
-									color: `${theme.vars.palette.text.primary} !important`,
-									backgroundColor: theme.vars.palette.grey[100],
-									borderColor: theme.vars.palette.divider,
+								'& .MuiTab-root.Mui-selected': {
+									color: 'text.primary',
+									bgcolor: varAlpha(
+										theme.vars.palette.grey['500Channel'],
+										0.16,
+									),
+									boxShadow: 'none',
+								},
+								'& .MuiTab-root.Mui-disabled': {
+									opacity: 0.48,
 								},
 							})}
 						>
@@ -786,30 +794,38 @@ const TenantUsersTable = () => {
 							<Tab label="JSON" value="json" />
 							<Tab label="XLSX" value="xlsx" />
 						</Tabs>
-						<Box
-							sx={{
-								minHeight: 20,
-								pt: 0.5,
-							}}
+						<Typography
+							variant="body2"
+							color="text.secondary"
+							sx={{ minHeight: 20 }}
 						>
-							<Typography variant="caption" color="text.secondary">
-								{exportFormat === 'xlsx'
-									? t('xlsx-export-coming-soon', {
-											defaultValue: 'XLSX export is coming soon.',
-										})
-									: ' '}
-							</Typography>
-						</Box>
+							{exportFormat === 'xlsx'
+								? t('xlsx-export-coming-soon', {
+										defaultValue: 'XLSX export is coming soon.',
+									})
+								: ' '}
+						</Typography>
 					</Box>
 				</DialogContent>
-				<DialogActions sx={{ px: 3, pb: 3, pt: 0, gap: 1 }}>
+				<DialogActions
+					sx={{
+						px: 3,
+						pb: 3,
+						pt: 0,
+						gap: 0.75,
+						justifyContent: 'flex-end',
+					}}
+				>
 					<Button
 						variant="contained"
 						onClick={() => {
-							if (exportFormat === 'csv' || exportFormat === 'json') {
-								handleExport(exportFormat);
+							if (exportFormat === 'xlsx') {
+								return;
 							}
+
+							handleExport(exportFormat);
 						}}
+						startIcon={<Iconify icon="solar:download-bold" />}
 						disabled={exportFormat === 'xlsx'}
 					>
 						{t('export')}
