@@ -51,6 +51,12 @@ import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableQueryOptions } from '@/front/hooks/use-table-query-options';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
+import {
+	getFailureMessage,
+	isAbortFailure,
+	isProblemFailure,
+	toApiFailure,
+} from '@/front/lib/api-failure';
 import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
 import {
 	useBulkDeleteTenants,
@@ -229,7 +235,25 @@ const TenantsTable = () => {
 					queryKey: useFindTenants.getKey(),
 				});
 			},
-			onError: () => {
+			onError: (error: unknown) => {
+				const failure = toApiFailure(error);
+
+				if (isAbortFailure(failure)) {
+					return;
+				}
+
+				if (isProblemFailure(failure)) {
+					if (failure.translationKey) {
+						toast.error(t(failure.translationKey as never));
+						return;
+					}
+
+					toast.error(
+						getFailureMessage(failure) || t('tenant-bulk-suspend-failure'),
+					);
+					return;
+				}
+
 				toast.error(t('tenant-bulk-suspend-failure'));
 			},
 		});
@@ -260,7 +284,25 @@ const TenantsTable = () => {
 					queryKey: useFindTenants.getKey(),
 				});
 			},
-			onError: () => {
+			onError: (error: unknown) => {
+				const failure = toApiFailure(error);
+
+				if (isAbortFailure(failure)) {
+					return;
+				}
+
+				if (isProblemFailure(failure)) {
+					if (failure.translationKey) {
+						toast.error(t(failure.translationKey as never));
+						return;
+					}
+
+					toast.error(
+						getFailureMessage(failure) || t('tenant-bulk-reactivate-failure'),
+					);
+					return;
+				}
+
 				toast.error(t('tenant-bulk-reactivate-failure'));
 			},
 		});
@@ -291,7 +333,25 @@ const TenantsTable = () => {
 					queryKey: useFindTenants.getKey(),
 				});
 			},
-			onError: () => {
+			onError: (error: unknown) => {
+				const failure = toApiFailure(error);
+
+				if (isAbortFailure(failure)) {
+					return;
+				}
+
+				if (isProblemFailure(failure)) {
+					if (failure.translationKey) {
+						toast.error(t(failure.translationKey as never));
+						return;
+					}
+
+					toast.error(
+						getFailureMessage(failure) || t('tenant-bulk-delete-failure'),
+					);
+					return;
+				}
+
 				toast.error(t('tenant-bulk-delete-failure'));
 			},
 		});
