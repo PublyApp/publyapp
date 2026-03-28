@@ -21,18 +21,18 @@ import { z } from 'zod';
 
 import type { GetTenantAsStaffResult } from '@org/client-ts/src/models';
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
-import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
-import { ErrorContent } from '@/front/components/empty-content/error-content';
-import { NotFoundView } from '@/front/components/error/not-found-view';
-import { Field, Form } from '@/front/components/hook-form';
-import { Iconify } from '@/front/components/iconify/iconify';
-import type { IconifyName } from '@/front/components/iconify/register-icons';
-import QueryDisplay from '@/front/components/query-display';
-import { SettingsPageHeader } from '@/front/components/settings/settings-page-header';
-import { UploadAvatar } from '@/front/components/upload';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { isProblemFailure, toApiFailure } from '@/front/lib/api-failure';
-import { withFormValidation } from '@/front/lib/api-failure/with-form-validation';
+import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
+import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
+import { NotFoundView } from '#app/components/error/not-found-view.tsx';
+import { Field, Form } from '#app/components/hook-form/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import type { IconifyName } from '#app/components/iconify/register-icons.ts';
+import QueryDisplay from '#app/components/query-display.tsx';
+import { SettingsPageHeader } from '#app/components/settings/settings-page-header.tsx';
+import { UploadAvatar } from '#app/components/upload/index.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { isProblemFailure, toApiFailure } from '#app/lib/api-failure/index.ts';
+import { withFormValidation } from '#app/lib/api-failure/with-form-validation.ts';
 import {
 	useDeleteTenant,
 	useFindTenants,
@@ -40,8 +40,8 @@ import {
 	useReactivateTenant,
 	useSuspendTenant,
 	useUpdateTenant,
-} from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
-import { fDateTime } from '@/front/utils/format-time';
+} from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
+import { fDateTime } from '#app/utils/format-time.ts';
 
 import type { TenantDetailsOutletContext } from '../_layout/tenant-details-layout';
 

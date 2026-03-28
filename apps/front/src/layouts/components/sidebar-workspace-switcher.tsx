@@ -13,10 +13,10 @@ import { useMemo } from 'react';
 import { useParams } from 'react-router';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
-import { CustomPopover } from '@/front/components/custom-popover';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { Scrollbar } from '@/front/components/scrollbar';
+import { CustomPopover } from '#app/components/custom-popover/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { Scrollbar } from '#app/components/scrollbar/index.ts';
 
 // ----------------------------------------------------------------------
 

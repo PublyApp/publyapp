@@ -25,22 +25,22 @@ import {
 } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
-import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
-import { Iconify } from '@/front/components/iconify/iconify';
-import type { LabelColor } from '@/front/components/label';
-import { Label } from '@/front/components/label/label';
-import { RouterLink } from '@/front/components/router-link';
-import { toast } from '@/front/components/snackbar';
-import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { useTableState } from '@/front/hooks/use-table-state';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
+import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import type { LabelColor } from '#app/components/label/index.ts';
+import { Label } from '#app/components/label/label.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
+import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
+import { useTableState } from '#app/hooks/use-table-state.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { getUntypedNumber } from '#app/lib/js-client/kiota-utils.ts';
 import {
 	useGetUserAuthData,
 	useGetVerificationLink,
 	useSendEmailVerificationReminder,
-} from '@/front/lib/react-query/features/common/auth.hooks';
-import { useFindStaffUser } from '@/front/lib/react-query/features/staff/staff-user.hooks';
+} from '#app/lib/react-query/features/common/auth.hooks.ts';
+import { useFindStaffUser } from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
 
 export type StaffUserRowData = {
 	id: string;

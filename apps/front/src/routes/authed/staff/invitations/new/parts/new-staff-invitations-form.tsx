@@ -18,22 +18,22 @@ import type { z as zod } from 'zod';
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { getBulkCreateInvitationsSchema } from '@org/shared-ts/validations/invitation.validations';
-import { Form } from '@/front/components/hook-form';
-import { Field } from '@/front/components/hook-form/fields';
-import { Iconify } from '@/front/components/iconify/iconify';
-import QueryDisplay from '@/front/components/query-display';
-import { toast } from '@/front/components/snackbar';
-import { useRouter } from '@/front/hooks/use-router';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { toApiFailure } from '@/front/lib/api-failure';
-import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
+import { Form } from '#app/components/hook-form/index.ts';
+import { Field } from '#app/components/hook-form/fields.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import QueryDisplay from '#app/components/query-display.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
+import { useRouter } from '#app/hooks/use-router.ts';
+import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { toApiFailure } from '#app/lib/api-failure/index.ts';
+import { getUntypedNumber } from '#app/lib/js-client/kiota-utils.ts';
 import {
 	useBulkCreateStaffInvitations,
 	useFindStaffInvitations,
-} from '@/front/lib/react-query/features/staff/staff-invitation.hooks';
-import { useFindStaffProfiles } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { interZodClient } from '@/front/lib/zod/zod.client';
+} from '#app/lib/react-query/features/staff/staff-invitation.hooks.ts';
+import { useFindStaffProfiles } from '#app/lib/react-query/features/staff/staff-profile.hooks.ts';
+import { interZodClient } from '#app/lib/zod/zod.client.ts';
 
 type BulkInvitationsFormType = zod.infer<
 	ReturnType<typeof getBulkCreateInvitationsSchema>

@@ -1,4 +1,4 @@
-import { fAdd, fSub } from '@/front/utils/format-time';
+import { fAdd, fSub } from '#app/utils/format-time.ts';
 
 import { _mock } from './_mock';
 import { _addressBooks } from './_others';

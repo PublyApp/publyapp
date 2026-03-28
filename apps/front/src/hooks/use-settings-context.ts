@@ -1,4 +1,4 @@
-import { useMainStore } from '@/front/lib/zustand/store';
+import { useMainStore } from '#app/lib/zustand/store.ts';
 
 export const useSettingsContext = () => {
 	const slice = useMainStore((root) => {

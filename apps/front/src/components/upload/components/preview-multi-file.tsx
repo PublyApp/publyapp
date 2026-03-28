@@ -3,7 +3,7 @@ import ListItemText from '@mui/material/ListItemText';
 import { styled } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 
-import { fData } from '@/front/utils/format-number';
+import { fData } from '#app/utils/format-number.ts';
 
 import { FileThumbnail, fileData } from '../../file-thumbnail';
 import { Iconify } from '../../iconify/iconify';

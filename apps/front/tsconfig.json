@@ -1,5 +1,5 @@
 {
-	"extends": ["../../tsconfig.paths.json"],
+	"extends": "../../packages/_tsconfig/tsconfig.base.json",
 	"compilerOptions": {
 		"verbatimModuleSyntax": true,
 		"rootDirs": [".", "./.react-router/types"],
@@ -13,6 +13,7 @@
 		"target": "ES2022",
 		"strict": true,
 		"allowJs": true,
+		"allowImportingTsExtensions": true,
 		"forceConsistentCasingInFileNames": true,
 		// Remix takes care of building everything in `remix build`.
 		"noEmit": true,

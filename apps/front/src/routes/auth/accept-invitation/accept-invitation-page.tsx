@@ -35,27 +35,27 @@ import {
 import duration from '@org/shared-ts/utils/duration.utils';
 import { getSerializedErrorMessage } from '@org/shared-ts/utils/error.utils';
 import { getAcceptInvitationSchema } from '@org/shared-ts/validations/invitation.validations';
-import { Field, Form } from '@/front/components/hook-form';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
+import { Field, Form } from '#app/components/hook-form/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
 	isSecureCookieFromRequest,
 	readTenantHintsFromRequestHeaders,
 	serializeTenantHintsForResponse,
 	setTenantHintForUser,
-} from '@/front/lib/cookies';
-import { logout } from '@/front/lib/cookies/logout.utils';
-import { formatSessionCookie } from '@/front/lib/cookies/session-cookie.utils';
-import { env } from '@/front/lib/env';
-import { getClientManager } from '@/front/lib/js-client/client-manager';
-import { safeRun } from '@/front/lib/react-router/safeRun';
+} from '#app/lib/cookies/index.ts';
+import { logout } from '#app/lib/cookies/logout.utils.ts';
+import { formatSessionCookie } from '#app/lib/cookies/session-cookie.utils.ts';
+import { env } from '#app/lib/env.ts';
+import { getClientManager } from '#app/lib/js-client/client-manager.ts';
+import { safeRun } from '#app/lib/react-router/safeRun.ts';
 import {
 	getServerAction,
 	getServerLoader,
-} from '@/front/lib/react-router/server-data.server';
-import { interZodClient } from '@/front/lib/zod/zod.client';
+} from '#app/lib/react-router/server-data.server.ts';
+import { interZodClient } from '#app/lib/zod/zod.client.ts';
 
 import type { Route } from './+types/accept-invitation-page';
 

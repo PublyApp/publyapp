@@ -3,7 +3,7 @@ import { type SxProps, styled, type Theme } from '@mui/material/styles';
 import { type MotionProps, m, type Transition } from 'framer-motion';
 import { useId } from 'react';
 
-import { varFade } from '@/front/components/animate/variants/fade';
+import { varFade } from '#app/components/animate/variants/fade.ts';
 
 // ----------------------------------------------------------------------
 

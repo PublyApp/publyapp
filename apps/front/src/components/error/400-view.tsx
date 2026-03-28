@@ -4,10 +4,10 @@ import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 
-import { useHomePath } from '@/front/hooks/use-home-path';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { SimpleCompactContent } from '@/front/layouts/simple/content';
-import { SimpleLayout } from '@/front/layouts/simple/layout';
+import { useHomePath } from '#app/hooks/use-home-path.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { SimpleCompactContent } from '#app/layouts/simple/content.tsx';
+import { SimpleLayout } from '#app/layouts/simple/layout.tsx';
 
 import { MotionContainer } from '../animate/motion-container';
 import { varBounce } from '../animate/variants';

@@ -21,12 +21,12 @@ import { useParams } from 'react-router';
 
 import type { ProfileAsStaffItem } from '@org/client-ts/src/models';
 import { TENANT_PROFILES_PERMISSIONS_ENUM } from '@org/shared-ts/lib/constants';
-import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { toast } from '@/front/components/snackbar';
-import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { useFindTenantProfiles } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
+import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
+import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { useFindTenantProfiles } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
 
 type TenantProfileRowData = Record<string, unknown> & { permission: string };
 

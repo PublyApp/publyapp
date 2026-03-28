@@ -5,9 +5,9 @@ import Stack from '@mui/material/Stack';
 import { useBoolean } from 'minimal-shared/hooks';
 import { createContext, type ReactNode, useContext, useMemo } from 'react';
 
-import DrawerAnchor from '@/front/components/drawer-anchor';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { useTranslate } from '@/front/hooks/use-translate';
+import DrawerAnchor from '#app/components/drawer-anchor.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 
 import { SettingsPageHeader } from './settings-page-header';
 

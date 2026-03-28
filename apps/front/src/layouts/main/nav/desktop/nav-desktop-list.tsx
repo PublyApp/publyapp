@@ -6,7 +6,7 @@ import {
 } from 'minimal-shared/utils';
 import { useCallback, useEffect, useRef } from 'react';
 
-import { usePathname } from '@/front/hooks/use-pathname';
+import { usePathname } from '#app/hooks/use-pathname.ts';
 
 import { Nav, NavDropdown, NavLi, NavUl } from '../components';
 import type { NavListProps, NavSubListProps } from '../types';

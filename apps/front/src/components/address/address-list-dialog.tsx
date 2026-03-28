@@ -7,7 +7,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useCallback, useState } from 'react';
 
-import type { IAddressItem } from '@/front/types/common';
+import type { IAddressItem } from '#app/types/common.ts';
 
 import { Iconify } from '../iconify/iconify';
 import { Label } from '../label/label';

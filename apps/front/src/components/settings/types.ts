@@ -3,7 +3,7 @@ import type { SxProps, Theme } from '@mui/material/styles';
 import type {
 	ThemeColorScheme,
 	ThemeDirection,
-} from '@/front/lib/mui/theme/types';
+} from '#app/lib/mui/theme/types.ts';
 
 // ----------------------------------------------------------------------
 

@@ -14,11 +14,11 @@ import { useTranslation } from 'react-i18next';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
-import { CustomPopover } from '@/front/components/custom-popover';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { useTenantParam } from '@/front/hooks/use-tenant-param';
-import { logout } from '@/front/lib/cookies/logout.utils';
+import { CustomPopover } from '#app/components/custom-popover/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { useTenantParam } from '#app/hooks/use-tenant-param.ts';
+import { logout } from '#app/lib/cookies/logout.utils.ts';
 
 // ----------------------------------------------------------------------
 

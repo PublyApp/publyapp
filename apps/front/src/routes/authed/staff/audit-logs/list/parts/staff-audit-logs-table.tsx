@@ -22,22 +22,22 @@ import {
 	DEFAULT_PAGE_SIZE,
 	FRONT_PATH_NAMES,
 } from '@org/shared-ts/lib/constants';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { useTableQueryOptions } from '@/front/hooks/use-table-query-options';
-import { useTableState } from '@/front/hooks/use-table-state';
-import { useTranslate } from '@/front/hooks/use-translate';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
+import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
+import { useTableState } from '#app/hooks/use-table-state.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
 	useFindStaffAuditLogs,
 	useGetStaffAuditLogActions,
-} from '@/front/lib/react-query/features/staff/staff-audit-log.hooks';
+} from '#app/lib/react-query/features/staff/staff-audit-log.hooks.ts';
 import {
 	type Dayjs,
 	fDateTime,
 	formatPatterns,
 	fToNow,
-} from '@/front/utils/format-time';
+} from '#app/utils/format-time.ts';
 
 import { AuditLogsExportButton } from './audit-logs-export-button';
 

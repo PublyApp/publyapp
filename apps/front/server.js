@@ -51,6 +51,7 @@ if (IS_DEVELOPMENT) {
 
 	app.use(morgan('tiny'));
 	app.use(express.static('build/client', { maxAge: '1h' }));
+	// @ts-expect-error Built by the production frontend build before runtime startup.
 	app.use(await import('./build/server/index.js').then((mod) => mod.app));
 }
 

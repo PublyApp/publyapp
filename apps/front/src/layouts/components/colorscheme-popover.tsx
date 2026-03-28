@@ -6,11 +6,15 @@ import { m } from 'framer-motion';
 import _ from 'lodash';
 import { usePopover } from 'minimal-shared/hooks';
 
-import { transitionTap, varHover, varTap } from '@/front/components/animate';
-import { CustomPopover } from '@/front/components/custom-popover';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { useSettingsContext } from '@/front/hooks/use-settings-context';
-import { useTranslate } from '@/front/hooks/use-translate';
+import {
+	transitionTap,
+	varHover,
+	varTap,
+} from '#app/components/animate/index.ts';
+import { CustomPopover } from '#app/components/custom-popover/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { useSettingsContext } from '#app/hooks/use-settings-context.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 
 // ----------------------------------------------------------------------
 

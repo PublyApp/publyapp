@@ -2,12 +2,12 @@ import ButtonBase from '@mui/material/ButtonBase';
 import { type CSSObject, styled } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 
-import { Iconify } from '@/front/components/iconify/iconify';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
 import {
 	createNavItem,
 	navItemStyles,
 	navSectionClasses,
-} from '@/front/components/nav-section';
+} from '#app/components/nav-section/index.ts';
 
 import type { NavItemProps } from '../types';
 

@@ -41,23 +41,23 @@ import {
 	FRONT_PATH_NAMES,
 	TENANT_STATUS_ENUM,
 } from '@org/shared-ts/lib/constants';
-import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Label } from '@/front/components/label/label';
-import type { LabelColor } from '@/front/components/label/types';
-import { RouterLink } from '@/front/components/router-link';
-import { toast } from '@/front/components/snackbar';
-import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { useTableQueryOptions } from '@/front/hooks/use-table-query-options';
-import { useTableState } from '@/front/hooks/use-table-state';
-import { useTranslate } from '@/front/hooks/use-translate';
+import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { Label } from '#app/components/label/label.tsx';
+import type { LabelColor } from '#app/components/label/types.ts';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
+import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
+import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
+import { useTableState } from '#app/hooks/use-table-state.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
 	getFailureMessage,
 	isAbortFailure,
 	isProblemFailure,
 	toApiFailure,
-} from '@/front/lib/api-failure';
-import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
+} from '#app/lib/api-failure/index.ts';
+import { getUntypedNumber } from '#app/lib/js-client/kiota-utils.ts';
 import {
 	useBulkDeleteTenants,
 	useBulkReactivateTenants,
@@ -66,7 +66,7 @@ import {
 	useFindTenants,
 	useReactivateTenant,
 	useSuspendTenant,
-} from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
+} from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
 
 export type TenantRowData = {
 	id: string;

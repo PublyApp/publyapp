@@ -2,7 +2,7 @@ import Container, { type ContainerProps } from '@mui/material/Container';
 import { type Breakpoint, styled } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 
-import { useSettingsContext } from '@/front/hooks/use-settings-context';
+import { useSettingsContext } from '#app/hooks/use-settings-context.ts';
 
 import { layoutClasses } from '../core/classes';
 

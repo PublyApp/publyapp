@@ -14,8 +14,8 @@ import {
 	REDIRECT_CODE,
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@org/shared-ts/lib/constants';
-import { toast } from '@/front/components/snackbar';
-import { useTranslate } from '@/front/hooks/use-translate';
+import { toast } from '#app/components/snackbar/index.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
 	getTenantHintForUser,
 	isSecureCookieFromRequest,
@@ -23,15 +23,15 @@ import {
 	serializeClearLegacyCookieHeaders,
 	serializeTenantHintsForResponse,
 	setTenantHintForUser,
-} from '@/front/lib/cookies';
-import { formatSessionCookie } from '@/front/lib/cookies/session-cookie.utils';
-import { getClientManager } from '@/front/lib/js-client/client-manager';
-import { safeRun } from '@/front/lib/react-router/safeRun';
+} from '#app/lib/cookies/index.ts';
+import { formatSessionCookie } from '#app/lib/cookies/session-cookie.utils.ts';
+import { getClientManager } from '#app/lib/js-client/client-manager.ts';
+import { safeRun } from '#app/lib/react-router/safeRun.ts';
 import {
 	getServerAction,
 	getServerLoader,
-} from '@/front/lib/react-router/server-data.server';
-import { fSecondsUntil } from '@/front/utils/format-time';
+} from '#app/lib/react-router/server-data.server.ts';
+import { fSecondsUntil } from '#app/utils/format-time.ts';
 
 import type { Route } from './+types/login-page';
 import LoginForm from './login-form';

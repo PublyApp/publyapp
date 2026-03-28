@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { reactRouter } from '@react-router/dev/vite';
 import dotenv from 'dotenv';
@@ -7,10 +8,11 @@ import { reactRouterDevTools } from 'react-router-devtools';
 import { defineConfig } from 'vite';
 import checker from 'vite-plugin-checker';
 import devtoolsJson from 'vite-plugin-devtools-json';
-import tsconfigPaths from 'vite-tsconfig-paths';
 
 import copyI18nFiles from './_vite/copy-i18n-files';
 import generateClient from './_vite/generate-client';
+
+const frontSrcDir = fileURLToPath(new URL('./src', import.meta.url));
 
 export default defineConfig(({ mode, isSsrBuild }) => {
 	const envFileName = `.env.${mode}`;
@@ -25,7 +27,6 @@ export default defineConfig(({ mode, isSsrBuild }) => {
 			copyI18nFiles(),
 			generateClient(),
 			devtoolsJson(),
-			tsconfigPaths(),
 			...(mode === 'production'
 				? []
 				: [
@@ -37,6 +38,11 @@ export default defineConfig(({ mode, isSsrBuild }) => {
 			reactRouterDevTools(),
 			reactRouter(),
 		],
+		resolve: {
+			alias: {
+				'#app': frontSrcDir,
+			},
+		},
 		server: {
 			port: 5050,
 			watch: {

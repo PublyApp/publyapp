@@ -10,11 +10,11 @@ import {
 	FRONT_PATH_NAMES,
 	isServer,
 } from '@org/shared-ts/lib/constants';
-import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
-import { useIsMobile } from '@/front/hooks/use-is-mobile';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
+import { useIsMobile } from '#app/hooks/use-is-mobile.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
+import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/new-staff-profile-page';
 import NewStaffProfileForm, {
