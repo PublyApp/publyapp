@@ -3,18 +3,41 @@ import Button from '@mui/material/Button';
 import Drawer from '@mui/material/Drawer';
 import Stack from '@mui/material/Stack';
 import { useBoolean } from 'minimal-shared/hooks';
+import { createContext, type ReactNode, useContext, useMemo } from 'react';
 
+import DrawerAnchor from '@/front/components/drawer-anchor';
 import { Iconify } from '@/front/components/iconify/iconify';
+import { useTranslate } from '@/front/hooks/use-translate';
 
 import { SettingsPageHeader } from './settings-page-header';
+
+type SectionPageWithDrawerContextValue = {
+	openDrawer: () => void;
+	closeDrawer: () => void;
+};
+
+const SectionPageWithDrawerContext =
+	createContext<SectionPageWithDrawerContextValue | null>(null);
+
+export const useSectionPageWithDrawer = () => {
+	const context = useContext(SectionPageWithDrawerContext);
+
+	if (context === null) {
+		throw new Error(
+			'useSectionPageWithDrawer must be used within SectionPageWithDrawer',
+		);
+	}
+
+	return context;
+};
 
 type SectionPageWithDrawerProps = {
 	subtitle: string;
 	title: string;
 	ctaLabel: string;
 	drawerWidth?: number;
-	drawerContent: React.ReactNode;
-	children: React.ReactNode;
+	drawerContent: ReactNode;
+	children: ReactNode;
 	open?: boolean;
 	onOpen?: () => void;
 	onClose?: () => void;
@@ -31,6 +54,7 @@ export const SectionPageWithDrawer = ({
 	onOpen,
 	onClose,
 }: SectionPageWithDrawerProps) => {
+	const { t } = useTranslate();
 	// Internal state for controlled/uncontrolled scenarios
 	const internalOpen = useBoolean();
 	// Determine effective state: controlled takes priority, then internal
@@ -38,49 +62,69 @@ export const SectionPageWithDrawer = ({
 	const effectiveOpen = isControlled ? open : internalOpen.value;
 	const effectiveOnOpen = onOpen ?? internalOpen.onTrue;
 	const effectiveOnClose = onClose ?? internalOpen.onFalse;
+	const contextValue = useMemo(() => {
+		return {
+			openDrawer: effectiveOnOpen,
+			closeDrawer: effectiveOnClose,
+		};
+	}, [effectiveOnClose, effectiveOnOpen]);
 
 	return (
-		<Stack spacing={3} sx={{ flexGrow: 1, minHeight: 0 }}>
-			<Stack
-				direction="row"
-				alignItems="center"
-				justifyContent="space-between"
-				sx={{ flexShrink: 0 }}
-			>
-				<SettingsPageHeader subtitle={subtitle} title={title} />
-				<Button
-					variant="contained"
-					onClick={effectiveOnOpen}
-					startIcon={<Iconify icon="mingcute:add-line" />}
+		<SectionPageWithDrawerContext.Provider value={contextValue}>
+			<Stack spacing={3} sx={{ flexGrow: 1, minHeight: 0 }}>
+				<Stack
+					direction="row"
+					alignItems="center"
+					justifyContent="space-between"
+					sx={{ flexShrink: 0 }}
 				>
-					{ctaLabel}
-				</Button>
+					<SettingsPageHeader subtitle={subtitle} title={title} />
+					<Button
+						variant="contained"
+						onClick={effectiveOnOpen}
+						startIcon={<Iconify width={16} icon="mingcute:add-line" />}
+					>
+						{ctaLabel}
+					</Button>
+				</Stack>
+
+				<Box
+					sx={{
+						flexGrow: 1,
+						minHeight: 0,
+						display: 'flex',
+						flexDirection: 'column',
+					}}
+				>
+					{children}
+				</Box>
+
+				<Drawer
+					open={effectiveOpen}
+					onClose={effectiveOnClose}
+					anchor="right"
+					sx={(theme) => ({
+						zIndex: theme.zIndex.modal + 1,
+					})}
+					slotProps={{
+						paper: {
+							sx: {
+								width: drawerWidth,
+								overflow: 'unset',
+							},
+						},
+					}}
+				>
+					<DrawerAnchor
+						onClick={effectiveOnClose}
+						aria-label={t('close')}
+						sx={{ left: 0 }}
+					>
+						<Iconify icon="mingcute:close-line" width={18} />
+					</DrawerAnchor>
+					{drawerContent}
+				</Drawer>
 			</Stack>
-
-			<Box
-				sx={{
-					flexGrow: 1,
-					minHeight: 0,
-					display: 'flex',
-					flexDirection: 'column',
-				}}
-			>
-				{children}
-			</Box>
-
-			<Drawer
-				open={effectiveOpen}
-				onClose={effectiveOnClose}
-				anchor="right"
-				sx={(theme) => ({
-					zIndex: theme.zIndex.modal + 1,
-				})}
-				slotProps={{
-					paper: { sx: { width: drawerWidth } },
-				}}
-			>
-				{drawerContent}
-			</Drawer>
-		</Stack>
+		</SectionPageWithDrawerContext.Provider>
 	);
 };

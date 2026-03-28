@@ -162,7 +162,7 @@ const NewStaffInvitationsForm = () => {
 		>
 			<Button
 				variant="outlined"
-				startIcon={<Iconify icon="mingcute:add-line" />}
+				startIcon={<Iconify width={16} icon="mingcute:add-line" />}
 				onClick={handleAddInvitation}
 				disabled={isPending}
 			>

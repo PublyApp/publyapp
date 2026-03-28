@@ -130,7 +130,7 @@ const StaffProfilesTable = () => {
 			renderAction: () => (
 				<Button
 					variant="contained"
-					startIcon={<Iconify icon="mingcute:add-line" />}
+					startIcon={<Iconify width={16} icon="mingcute:add-line" />}
 					component={RouterLink}
 					href={FRONT_PATH_NAMES.staff.profiles.new}
 					sx={{ mt: 2 }}

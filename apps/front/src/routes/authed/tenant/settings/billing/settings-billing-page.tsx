@@ -150,7 +150,7 @@ const SettingsBillingPage = () => {
 				</Box>
 
 				<Button
-					startIcon={<Iconify icon="mingcute:add-line" width={20} />}
+					startIcon={<Iconify icon="mingcute:add-line" width={16} />}
 					sx={{ mt: 2 }}
 					disabled
 				>

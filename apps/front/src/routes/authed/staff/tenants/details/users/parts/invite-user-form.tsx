@@ -4,18 +4,18 @@ import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import _ from 'lodash';
 import { useForm } from 'react-hook-form';
+import { useParams } from 'react-router';
 import { z } from 'zod';
 
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { Iconify } from '@/front/components/iconify/iconify';
+import { useSectionPageWithDrawer } from '@/front/components/settings/section-page-with-drawer';
 import { toast } from '@/front/components/snackbar';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { useInviteTenantUser } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
-
-import { useParams } from 'react-router';
-import _ from 'lodash';
 
 // ----------------------------------------------------------------------
 
@@ -35,9 +35,11 @@ const ACCOUNT_LEVEL_OPTIONS = [
 
 // ----------------------------------------------------------------------
 
-export const InviteUserForm = ({ onClose }: { onClose: () => void }) => {
+export const InviteUserForm = ({ onClose }: { onClose?: () => void }) => {
 	const { t } = useTranslate();
 	const { tenantId } = useParams();
+	const { closeDrawer } = useSectionPageWithDrawer();
+	const handleClose = onClose ?? closeDrawer;
 
 	const methods = useForm<InviteUserFormValues>({
 		resolver: zodResolver(inviteUserSchema),
@@ -53,7 +55,7 @@ export const InviteUserForm = ({ onClose }: { onClose: () => void }) => {
 		onSuccess: () => {
 			toast.success(t('invitation-created-success'));
 			reset();
-			onClose();
+			handleClose();
 		},
 		onError: (error) => {
 			const message =
@@ -88,14 +90,7 @@ export const InviteUserForm = ({ onClose }: { onClose: () => void }) => {
 				justifyContent="space-between"
 				sx={{ mb: 3 }}
 			>
-				<Typography variant="h6">{_.capitalize(t('invite-user'))}</Typography>
-				<Button
-					variant="text"
-					onClick={onClose}
-					startIcon={<Iconify icon="solar:close-circle-bold" />}
-				>
-					{t('close')}
-				</Button>
+				<Typography variant="h3">{_.capitalize(t('invite-user'))}</Typography>
 			</Stack>
 
 			<Form methods={methods} onSubmit={onSubmit}>
@@ -136,9 +131,6 @@ export const InviteUserForm = ({ onClose }: { onClose: () => void }) => {
 					<Box sx={{ flex: 1 }} />
 
 					<Stack direction="row" gap={2} justifyContent="flex-end">
-						<Button variant="outlined" onClick={onClose}>
-							{t('cancel')}
-						</Button>
 						<Button
 							type="submit"
 							variant="contained"

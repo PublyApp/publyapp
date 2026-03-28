@@ -578,10 +578,13 @@
 	"export-selected-items": "Exporter {{count}} élément(s) sélectionné(s)",
 	"export-selected": "Exporter la sélection",
 	"remove-selected-from-tenant": "Retirer la sélection du locataire",
+	"remove-user-from-tenant": "Retirer du locataire",
+	"confirm-remove-user-from-tenant": "Êtes-vous sûr de vouloir retirer {{name}} de ce locataire ?",
 	"confirm-bulk-remove-tenant-users": "Êtes-vous sûr de vouloir retirer {{count}} utilisateur(s) sélectionné(s) de ce locataire ?",
 	"tenant-user-bulk-remove-success": "{{count}} utilisateur(s) retiré(s) de ce locataire avec succès.",
 	"tenant-user-bulk-remove-partial-success": "{{succeeded}} utilisateur(s) retiré(s), {{failed}} échec(s).",
 	"tenant-user-bulk-remove-failure": "Échec du retrait des utilisateurs sélectionnés de ce locataire.",
+	"invite-first-user": "Inviter le premier utilisateur",
 	"invite-user": "Inviter un utilisateur",
 	"invitation-sent-success": "Invitation envoyée avec succès",
 	"invitation-sent-error": "Échec de l'envoi de l'invitation",
@@ -589,9 +592,11 @@
 	"invitation-created-error": "Échec de la création de l'invitation",
 	"close": "Fermer",
 	"change-role": "Changer le rôle",
+	"change-status": "Changer le statut",
 	"user-removed-success": "Utilisateur supprimé avec succès",
 	"user-removed-error": "Échec de la suppression de l'utilisateur",
 	"user-level-updated-success": "Niveau d'utilisateur mis à jour avec succès",
 	"user-level-updated-error": "Échec de la mise à jour du niveau d'utilisateur",
-	"search": "Rechercher..."
+	"search": "Rechercher...",
+	"remove": "Supprimer"
 }

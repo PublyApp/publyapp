@@ -1,27 +1,24 @@
 import _ from 'lodash';
-
-import { useBoolean } from 'minimal-shared/hooks';
+import { useOutletContext } from 'react-router';
 
 import { SectionPageWithDrawer } from '@/front/components/settings/section-page-with-drawer';
 import { useTranslate } from '@/front/hooks/use-translate';
 
-import TenantUsersTable from './parts/tenant-users-table';
+import type { TenantDetailsOutletContext } from '../_layout/tenant-details-layout';
 import { InviteUserForm } from './parts/invite-user-form';
+import TenantUsersTable from './parts/tenant-users-table';
 
 const TenantDetailsUsersPage = () => {
 	const { t } = useTranslate();
-	const drawerOpen = useBoolean();
+	const { tenantName } = useOutletContext<TenantDetailsOutletContext>();
 
 	return (
 		<SectionPageWithDrawer
-			subtitle={t('tenant-details')}
+			subtitle={tenantName || t('tenant-details')}
 			title={t('users')}
 			ctaLabel={_.capitalize(t('invite-user'))}
-			open={drawerOpen.value}
-			onOpen={drawerOpen.onTrue}
-			onClose={drawerOpen.onFalse}
 			drawerWidth={480}
-			drawerContent={<InviteUserForm onClose={drawerOpen.onFalse} />}
+			drawerContent={<InviteUserForm />}
 		>
 			<TenantUsersTable />
 		</SectionPageWithDrawer>
