@@ -36,6 +36,7 @@ import {
 	type MRT_TableOptions,
 } from 'material-react-table';
 import { useBoolean, useDebounce } from 'minimal-shared/hooks';
+import { varAlpha } from 'minimal-shared/utils';
 import { parseAsString, useQueryStates } from 'nuqs';
 import { useBoolean } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
@@ -836,9 +837,7 @@ const useTenantUsersTableController = () => {
 			sx: {
 				'& .MuiTableBody-root > tr > td:not(:nth-of-type(2)), & .MuiTableHead-root > tr > th:not(:nth-of-type(2))':
 					{
-						// backgroundColor: 'red !important',
 						flex: '1 1 auto !important',
-						// flexGrow: 1,
 					},
 			},
 		},
@@ -908,45 +907,6 @@ const TenantUsersTable = () => {
 
 	return (
 		<Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-			<Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-				<TextField
-					size="small"
-					placeholder={t('search')}
-					value={searchValue}
-					onChange={(e) => setSearchValue(e.target.value)}
-					sx={{ minWidth: 250 }}
-					InputProps={{
-						startAdornment: (
-							<InputAdornment position="start">
-								<Iconify icon="eva:search-fill" />
-							</InputAdornment>
-						),
-					}}
-				/>
-				<Select
-					size="small"
-					value={statusFilter}
-					onChange={(e) => {
-						resetCursorPagination?.();
-						setStatusFilter(e.target.value);
-						setFilterStates({
-							q: searchValue,
-							status: e.target.value,
-						});
-					}}
-					sx={{ minWidth: 150 }}
-					displayEmpty
-				>
-					<MenuItem value="">
-						<Typography variant="body2">{t('all-statuses')}</Typography>
-					</MenuItem>
-					<MenuItem value={USER_STATUS_ENUM.ACTIVE}>{t('active')}</MenuItem>
-					<MenuItem value={USER_STATUS_ENUM.PENDING}>{t('pending')}</MenuItem>
-					<MenuItem value={USER_STATUS_ENUM.SUSPENDED}>
-						{t('suspended')}
-					</MenuItem>
-				</Select>
-			</Stack>
 			<MaterialReactTable table={table} />
 
 			<TenantUsersExportDialogController

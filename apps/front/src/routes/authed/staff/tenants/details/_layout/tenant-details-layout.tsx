@@ -150,7 +150,9 @@ const TenantDetailsLayout = () => {
 		<QueryDisplay
 			query={getTenantQuery}
 			LoadingSlot={<TenantDetailsLayoutSkeleton />}
-			ErrorSlot={LayoutErrorView}
+			ErrorSlot={({ error }) => (
+				<LayoutErrorView error={error} getTenantQuery={getTenantQuery} />
+			)}
 		>
 			{() => (
 				<SidebarSettingsLayout
