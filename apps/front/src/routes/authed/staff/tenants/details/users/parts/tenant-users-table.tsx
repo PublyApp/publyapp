@@ -56,6 +56,12 @@ import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableQueryOptions } from '@/front/hooks/use-table-query-options';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
+import {
+	getFailureMessage,
+	isAbortFailure,
+	isProblemFailure,
+	toApiFailure,
+} from '@/front/lib/api-failure';
 import { useSendEmailVerificationReminder } from '@/front/lib/react-query/features/common/auth.hooks';
 import {
 	useFindTenantUsers,
@@ -957,10 +963,25 @@ const LevelCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 			}
 		},
 		onError: (error: unknown) => {
-			const message =
-				(error as { message?: string })?.message ||
-				t('user-level-updated-error');
-			toast.error(message);
+			const failure = toApiFailure(error);
+
+			if (isAbortFailure(failure)) {
+				return;
+			}
+
+			if (isProblemFailure(failure)) {
+				if (failure.translationKey) {
+					toast.error(t(failure.translationKey as never));
+					return;
+				}
+
+				toast.error(
+					getFailureMessage(failure) || t('user-level-updated-error'),
+				);
+				return;
+			}
+
+			toast.error(t('user-level-updated-error'));
 		},
 	});
 
@@ -1250,9 +1271,23 @@ const RemoveUserAction = ({ user }: RemoveUserActionProps) => {
 			}
 		},
 		onError: (error: unknown) => {
-			const message =
-				(error as { message?: string })?.message || t('user-removed-error');
-			toast.error(message);
+			const failure = toApiFailure(error);
+
+			if (isAbortFailure(failure)) {
+				return;
+			}
+
+			if (isProblemFailure(failure)) {
+				if (failure.translationKey) {
+					toast.error(t(failure.translationKey as never));
+					return;
+				}
+
+				toast.error(getFailureMessage(failure) || t('user-removed-error'));
+				return;
+			}
+
+			toast.error(t('user-removed-error'));
 		},
 	});
 
