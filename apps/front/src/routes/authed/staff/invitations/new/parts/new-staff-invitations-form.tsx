@@ -1,10 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardHeader from '@mui/material/CardHeader';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
+import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
@@ -32,7 +34,7 @@ import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
 import { getUntypedNumber } from '#app/lib/js-client/kiota-utils.ts';
 import {
-	useBulkCreateInvitations,
+	useBulkCreateStaffInvitations,
 	useFindStaffInvitations,
 } from '#app/lib/react-query/features/staff/staff-invitation.hooks.ts';
 import { useFindStaffProfiles } from '#app/lib/react-query/features/staff/staff-profile.hooks.ts';
@@ -57,6 +59,7 @@ const NewStaffInvitationsForm = () => {
 	const queryClient = useQueryClient();
 	const actionsRef = useRef<HTMLDivElement>(null);
 	const previousFieldsCount = useRef(1);
+	const [serverErrors, setServerErrors] = useState<string[]>([]);
 
 	const BulkInvitationsSchema = getBulkCreateInvitationsSchema(interZodClient);
 
@@ -125,6 +128,7 @@ const NewStaffInvitationsForm = () => {
 	const onSubmit = form.handleSubmit(
 		(data) => {
 			logger.debug('Submitting bulk invitations', { data });
+			setServerErrors([]); // Clear previous errors before submitting
 			createInvitations(data);
 		},
 		(errors) => {

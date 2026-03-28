@@ -3,7 +3,7 @@ import isNil from 'lodash/isNil';
 import type { CreateQueryOptions } from 'react-query-kit';
 
 import type { VerifyEmailRequestBody } from '@org/client-ts/src/models';
-import { toApiFailure } from '@/front/lib/api-failure';
+import { toApiFailure } from '#app/lib/api-failure/index.ts';
 
 import { toApiFailure } from '#app/lib/api-failure/index.ts';
 import { setCurrentUserIdForTenantHint } from '#app/lib/react-query/query-client.tsx';

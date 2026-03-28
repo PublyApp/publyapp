@@ -63,7 +63,7 @@ const SettingsGeneralPage = () => {
 				</Typography>
 
 				<Stack divider={<Divider />}>
-					<FormRow label="Logo" description="150x150px JPEG, PNG image">
+					<FormRow label={t('logo')} description={t('logo-description')}>
 						<Stack direction="row" alignItems="center" spacing={2}>
 							<Avatar
 								sx={{
@@ -79,7 +79,7 @@ const SettingsGeneralPage = () => {
 								/>
 							</Avatar>
 							<Button variant="outlined" size="small" disabled>
-								Change
+								{t('change')}
 							</Button>
 						</Stack>
 					</FormRow>
@@ -95,8 +95,8 @@ const SettingsGeneralPage = () => {
 					</FormRow>
 
 					<FormRow
-						label="Subdomain"
-						description="Your organization's unique URL"
+						label={t('subdomain')}
+						description={t('subdomain-description')}
 					>
 						<TextField
 							fullWidth
@@ -131,7 +131,7 @@ const SettingsGeneralPage = () => {
 						/>
 					</FormRow>
 
-					<FormRow label="Industry">
+					<FormRow label={t('industry')}>
 						<TextField
 							fullWidth
 							size="small"
@@ -141,7 +141,7 @@ const SettingsGeneralPage = () => {
 						/>
 					</FormRow>
 
-					<FormRow label="Website">
+					<FormRow label={t('website')}>
 						<TextField
 							fullWidth
 							size="small"
@@ -169,15 +169,14 @@ const SettingsGeneralPage = () => {
 				}}
 			>
 				<Typography variant="h5" sx={{ color: 'error.main', mb: 1 }}>
-					Danger zone
+					{t('danger-zone')}
 				</Typography>
 				<Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
-					Once you delete your organization, there is no going back. Please be
-					certain.
+					{t('danger-zone-org-description')}
 				</Typography>
 
 				<Button variant="outlined" color="error" disabled>
-					Delete organization
+					{t('delete-organization')}
 				</Button>
 			</Card>
 		</Stack>

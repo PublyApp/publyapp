@@ -13,7 +13,8 @@ import {
 import { getUnifiedCSPConfig } from '@org/shared-ts/lib/csp';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { LogLevelEnum } from '@org/shared-ts/lib/logger/logger.utils';
-import { analytics } from '@/front/lib/analytics/analytics';
+
+import { analytics } from '#app/lib/analytics/analytics.ts';
 
 import { analytics } from '#app/lib/analytics/analytics.ts';
 

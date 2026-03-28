@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import capitalize from 'lodash/capitalize';
@@ -48,10 +49,6 @@ import StaffUserProfilesSection from './components/staff-user-profiles-section';
 import StaffUserUpdateForm, {
 	type StaffUserUpdateData,
 } from './components/staff-user-update-form';
-
-// import { UserNewEditForm } from '../components/user-new-edit-form';
-// import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-// import { NotFoundView } from '@/front/components/error/not-found-view';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = capitalize(
@@ -170,19 +167,9 @@ const StaffUserDetailsPage = () => {
 export default StaffUserDetailsPage;
 
 const ErrorView: FC<{ error: unknown }> = ({ error }) => {
-	logger.debug('ErrorView', { error });
-	// const { t } = useTranslate();
+	const { t } = useTranslate();
 
-	// if (error instanceof ParseRestError) {
-	// 	if (error.code === X_CODE.USER_NOT_FOUND) {
-	// 		return (
-	// 			<NotFoundView
-	// 				withLayout={false}
-	// 				title={t('item-not-found', { item: t('user') })}
-	// 				description={t('user-not-found-description')}
-	// 			/>
-	// 		);
-	// 	}
+	const failure = toApiFailure(error);
 
 	if (
 		isProblemFailure(failure) &&
@@ -198,5 +185,12 @@ const ErrorView: FC<{ error: unknown }> = ({ error }) => {
 		);
 	}
 
-	return <View500 withLayout={false} />;
+	return (
+		<Box sx={{ py: 10 }}>
+			<ErrorContent
+				title={t('staff-user-details-error-title')}
+				description={t('staff-user-details-error-description')}
+			/>
+		</Box>
+	);
 };

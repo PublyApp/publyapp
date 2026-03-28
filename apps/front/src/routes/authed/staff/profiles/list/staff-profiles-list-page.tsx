@@ -1,8 +1,5 @@
 import Button from '@mui/material/Button';
-import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared/lib/constants';
 import { isServer } from '@tanstack/react-query';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import _ from 'lodash';
@@ -19,9 +16,6 @@ import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/staff-profiles-list-page';
 import StaffProfilesTable from './parts/staff-profiles-table';
-
-// Enable dayjs relative time plugin
-dayjs.extend(relativeTime);
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = _.capitalize(t('staff-profiles'));
@@ -84,7 +78,7 @@ const StaffInvitationsListPage = () => {
 						variant="contained"
 						startIcon={<Iconify width={16} icon="mingcute:add-line" />}
 					>
-						{t('new-invitation')}
+						{t('new-item', { item: _.toLower(t('profile')) })}
 					</Button>
 				}
 				sx={{ mb: { xs: 3, md: 5 } }}

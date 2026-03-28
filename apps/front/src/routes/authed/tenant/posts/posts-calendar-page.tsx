@@ -7,8 +7,8 @@ import get from 'lodash/get';
 import { data } from 'react-router';
 
 import { APP_NAME } from '@org/shared-ts/lib/constants';
-import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
+import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';

@@ -1,14 +1,14 @@
+import ButtonBase from '@mui/material/ButtonBase';
 import type { CSSObject } from '@mui/material/styles';
-
+import { styled } from '@mui/material/styles';
+import Tooltip from '@mui/material/Tooltip';
 import { mergeClasses } from 'minimal-shared/utils';
 
 import { Iconify } from '#app/components/iconify/index.ts';
 
-import { Iconify } from '@/front/components/iconify';
-import { createNavItem } from '../utils';
 import { navItemStyles, navSectionClasses } from '../styles';
-
 import type { NavItemProps } from '../types';
+import { createNavItem } from '../utils';
 
 // ----------------------------------------------------------------------
 
@@ -238,11 +238,9 @@ const ItemCaptionText = styled('span', { shouldForwardProp })<StyledState>(
 /**
  * @slot info
  */
-const ItemInfo = styled('span', { shouldForwardProp })<StyledState>(
-	({ theme }) => ({
-		...navItemStyles.info,
-	}),
-);
+const ItemInfo = styled('span', { shouldForwardProp })<StyledState>(() => ({
+	...navItemStyles.info,
+}));
 
 /**
  * @slot arrow

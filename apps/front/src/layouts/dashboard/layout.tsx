@@ -22,7 +22,6 @@ import {
 import { ColorSchemePopover } from '../components/colorscheme-popover';
 import { LanguagePopover } from '../components/language-popover';
 import { MenuButton } from '../components/menu-button';
-import { SettingsButton } from '../components/settings-button';
 import { SidebarToggleButton } from '../components/sidebar-toggle-button';
 import { SidebarUserMenu } from '../components/sidebar-user-menu';
 import { SidebarWorkspaceSwitcher } from '../components/sidebar-workspace-switcher';
@@ -31,7 +30,6 @@ import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
 import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
 import { MainSection, type MainSectionProps } from '../core/main-section';
 import { navData as dashboardNavData } from '../nav-config-dashboard';
-import { _workspaces } from '../nav-config-workspace';
 import { VerticalDivider } from './content';
 import { dashboardLayoutVars, dashboardNavColorVars } from './css-vars';
 import { NavHorizontal } from './nav-horizontal';
@@ -44,6 +42,7 @@ type LayoutBaseProps = Pick<LayoutSectionProps, 'sx' | 'children' | 'cssVars'>;
 
 export type DashboardLayoutProps = LayoutBaseProps & {
 	layoutQuery?: Breakpoint;
+	checkPermissions?: (allowedRoles?: NavItemProps['allowedRoles']) => boolean;
 	slotProps?: {
 		header?: HeaderSectionProps;
 		nav?: {
@@ -58,11 +57,13 @@ export const DashboardLayout = ({
 	cssVars,
 	children,
 	slotProps,
+	checkPermissions: customCheckPermissions,
 	layoutQuery = 'lg',
 }: DashboardLayoutProps) => {
 	const theme = useTheme();
 
-	const { user } = useMockedUser();
+	const { data: userData } = useGetUserAuthData();
+	const { data: tenantsData } = useGetUserTenants();
 
 	const settings = useSettingsContext();
 
@@ -83,7 +84,12 @@ export const DashboardLayout = ({
 	const canDisplayItemByRole = (
 		allowedRoles: NavItemProps['allowedRoles'],
 	): boolean => {
-		return !allowedRoles?.includes(user?.role);
+		// Use custom permission check if provided, otherwise use default role-based check
+		if (customCheckPermissions) {
+			return customCheckPermissions(allowedRoles);
+		}
+		// Default: show all items if no custom check provided
+		return false;
 	};
 
 	const renderHeader = () => {
@@ -91,7 +97,7 @@ export const DashboardLayout = ({
 			container: {
 				maxWidth: false,
 				sx: {
-					...(isNavVertical && { px: { [layoutQuery]: 5 } }),
+					...(isNavVertical && { px: { [layoutQuery]: 2 } }),
 					...(isNavHorizontal && {
 						bgcolor: 'var(--layout-nav-bg)',
 						height: { [layoutQuery]: 'var(--layout-nav-horizontal-height)' },
@@ -124,7 +130,7 @@ export const DashboardLayout = ({
 						onClick={onOpen}
 						sx={{
 							mr: 1,
-							ml: -1,
+							// ml: -1,
 							[theme.breakpoints.up(layoutQuery)]: { display: 'none' },
 						}}
 					/>
@@ -150,7 +156,6 @@ export const DashboardLayout = ({
 								display: 'none',
 								[theme.breakpoints.up(layoutQuery)]: {
 									display: 'inline-flex',
-									ml: -3,
 								},
 							}}
 						/>
@@ -189,7 +194,7 @@ export const DashboardLayout = ({
 					<LanguagePopover data={allLangs} />
 
 					{/** @slot Settings button */}
-					<SettingsButton />
+					{/* <SettingsButton /> */}
 				</Box>
 			),
 		};
@@ -219,7 +224,18 @@ export const DashboardLayout = ({
 		);
 	};
 
+	const tenants = useMemo(() => {
+		return (tenantsData?.tenants ?? []).map((t) => ({
+			id: t.id?.toString() ?? '',
+			name: t.name ?? '',
+			code: t.code ?? '',
+			logoUrl: t.logoUrl,
+		}));
+	}, [tenantsData?.tenants]);
+
 	const renderSidebar = () => {
+		const hasTenants = tenants.length > 0;
+
 		return (
 			<NavVertical
 				data={navData}
@@ -228,19 +244,22 @@ export const DashboardLayout = ({
 				cssVars={navVars.section}
 				checkPermissions={canDisplayItemByRole}
 				slots={{
-					topArea: (
+					topArea: hasTenants ? (
 						<SidebarWorkspaceSwitcher
-							data={_workspaces}
+							tenants={tenants}
+							totalCount={tenantsData?.totalCount ?? 0}
 							isCollapsed={isNavMini}
 						/>
+					) : (
+						<Logo sx={isNavMini ? { width: 28, height: 28 } : undefined} />
 					),
 					bottomArea: (
 						<SidebarUserMenu
 							user={{
-								displayName: user?.displayName || 'User',
-								email: user?.email || 'user@example.com',
-								photoURL:
-									user?.photoURL || '/assets/images/avatar/avatar-1.webp',
+								firstName: userData?.firstName,
+								lastName: userData?.lastName,
+								email: userData?.email ?? '',
+								photoURL: userData?.avatarUrl ?? '',
 							}}
 							isCollapsed={isNavMini}
 						/>
