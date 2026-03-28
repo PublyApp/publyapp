@@ -1848,6 +1848,72 @@ const DeleteTenantAction = ({ tenant }: TenantActionProps) => {
 					</Button>
 				}
 			/>
+		</>
+	);
+};
+
+const UsersCountCell: MRT_ColumnDef<TenantRowData, number>['Cell'] = (
+	props,
+) => {
+	return (
+		<>
+			{props.cell.getValue()} / {props.row.original.maxUsers}
+		</>
+	);
+};
+
+const TenantActionsCell: MRT_ColumnDef<TenantRowData>['Cell'] = (props) => {
+	const tenant = props.row.original;
+
+	return (
+		<Box sx={{ display: 'flex', alignItems: 'center' }}>
+			<DeleteTenantAction tenant={tenant} />
+		</Box>
+	);
+};
+
+type TenantActionProps = {
+	tenant: TenantRowData;
+};
+
+const DeleteTenantAction = ({ tenant }: TenantActionProps) => {
+	const { t } = useTranslate();
+	const queryClient = useQueryClient();
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const canDelete = tenant.isSuspended;
+
+	const { mutate: deleteTenant, isPending: isDeleting } = useDeleteTenant({
+		meta: { successMessage: 'tenant-deleted-success' },
+		onSuccess: () => {
+			setDeleteDialogOpen(false);
+			queryClient.invalidateQueries({
+				queryKey: useFindTenants.getKey(),
+			});
+		},
+	});
+
+	return (
+		<>
+			<Tooltip
+				title={
+					canDelete ? t('delete') : t('delete-tenant-disabled-until-suspended')
+				}
+				placement="top"
+				arrow
+			>
+				<Box component="span">
+					<IconButton
+						color="default"
+						onClick={() => setDeleteDialogOpen(true)}
+						disabled={!canDelete}
+						sx={{
+							color: canDelete ? 'error.main' : 'text.disabled',
+						}}
+					>
+						<Iconify icon="solar:trash-bin-trash-bold" />
+					</IconButton>
+				</Box>
+			</Tooltip>
 
 			<ConfirmDialog
 				open={deleteDialogOpen}
@@ -1858,7 +1924,7 @@ const DeleteTenantAction = ({ tenant }: TenantActionProps) => {
 					<Button
 						variant="contained"
 						color="error"
-						onClick={handleDelete}
+						onClick={() => deleteTenant({ tenantId: tenant.id })}
 						disabled={isDeleting}
 					>
 						{t('delete')}

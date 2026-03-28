@@ -35,6 +35,26 @@ export const useSectionPageWithDrawer = () => {
 	return context;
 };
 
+type SectionPageWithDrawerContextValue = {
+	openDrawer: () => void;
+	closeDrawer: () => void;
+};
+
+const SectionPageWithDrawerContext =
+	createContext<SectionPageWithDrawerContextValue | null>(null);
+
+export const useSectionPageWithDrawer = () => {
+	const context = useContext(SectionPageWithDrawerContext);
+
+	if (context === null) {
+		throw new Error(
+			'useSectionPageWithDrawer must be used within SectionPageWithDrawer',
+		);
+	}
+
+	return context;
+};
+
 type SectionPageWithDrawerProps = {
 	title: string;
 	links: { name: string; href?: string }[];

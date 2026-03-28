@@ -53,6 +53,10 @@ export type TenantDetailsOutletContext = {
 	tenantName: string;
 };
 
+export type TenantDetailsOutletContext = {
+	tenantName: string;
+};
+
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = capitalize(t('tenant-details'));
 

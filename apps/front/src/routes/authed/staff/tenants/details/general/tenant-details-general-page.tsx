@@ -58,6 +58,8 @@ const TENANT_STATUS_COLOR_MAP = {
 	Pending: 'default',
 } as const;
 
+import type { TenantDetailsOutletContext } from '../_layout/tenant-details-layout';
+
 const updateTenantSchema = z.object({
 	name: z.string().min(5),
 	maxUsers: z.coerce.number().int().positive(),

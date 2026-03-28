@@ -10,6 +10,7 @@ import type { TenantDetailsOutletContext } from '../_layout/tenant-details-layou
 import { InviteUserForm } from './parts/invite-user-form';
 import TenantUsersTable from './parts/tenant-users-table';
 import { InviteUserForm } from './parts/invite-user-form';
+import TenantUsersTable from './parts/tenant-users-table';
 
 const TenantDetailsUsersPage = () => {
 	const { t } = useTranslate();
