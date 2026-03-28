@@ -312,6 +312,8 @@ const useTenantsTableController = () => {
 
 	const { mutate: bulkSuspend, isPending: isBulkSuspending } =
 		useBulkSuspendTenants({
+			// Bulk actions own specialized success/partial/failure feedback, so they
+			// intentionally bypass the shared global mutation error toast.
 			meta: { skipGlobalErrorHandler: true },
 			onSuccess: (result) => {
 				const succeeded = result.succeededCount ?? 0;
@@ -361,6 +363,8 @@ const useTenantsTableController = () => {
 
 	const { mutate: bulkReactivate, isPending: isBulkReactivating } =
 		useBulkReactivateTenants({
+			// Bulk actions own specialized success/partial/failure feedback, so they
+			// intentionally bypass the shared global mutation error toast.
 			meta: { skipGlobalErrorHandler: true },
 			onSuccess: (result) => {
 				const succeeded = result.succeededCount ?? 0;
@@ -410,6 +414,8 @@ const useTenantsTableController = () => {
 
 	const { mutate: bulkDelete, isPending: isBulkDeleting } =
 		useBulkDeleteTenants({
+			// Bulk actions own specialized success/partial/failure feedback, so they
+			// intentionally bypass the shared global mutation error toast.
 			meta: { skipGlobalErrorHandler: true },
 			onSuccess: (result) => {
 				const succeeded = result.succeededCount ?? 0;
