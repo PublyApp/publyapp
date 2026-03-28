@@ -11,7 +11,7 @@ import { usePopover } from 'minimal-shared/hooks';
 import { useMemo } from 'react';
 import type { Country } from 'react-phone-number-input/input';
 
-import { Iconify } from '@/front/components/iconify';
+import { Iconify } from '#app/components/iconify/index.ts';
 
 import { FlagIcon } from '../flag-icon';
 import { SearchNotFound } from '../search-not-found';

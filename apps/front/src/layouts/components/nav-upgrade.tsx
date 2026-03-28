@@ -5,8 +5,8 @@ import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 import { varAlpha } from 'minimal-shared/utils';
 
-import { Label } from '@/front/components/label';
-import { useGetUserAuthData } from '@/front/lib/react-query/features/common/auth.hooks';
+import { Label } from '#app/components/label/index.ts';
+import { useGetUserAuthData } from '#app/lib/react-query/features/common/auth.hooks.ts';
 
 // ----------------------------------------------------------------------
 

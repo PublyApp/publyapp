@@ -4,7 +4,7 @@ import ListSubheader, {
 import { styled } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 
-import { Iconify } from '@/front/components/iconify/iconify';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
 
 import { iconifyClasses } from '../../iconify/classes';
 import { navSectionClasses } from '../styles';

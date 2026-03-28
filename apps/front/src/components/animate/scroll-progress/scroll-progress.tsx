@@ -16,7 +16,7 @@ import {
 import { mergeClasses } from 'minimal-shared/utils';
 import { Fragment } from 'react';
 
-import { createClasses } from '@/front/lib/mui/theme/create-classes';
+import { createClasses } from '#app/lib/mui/theme/create-classes.ts';
 
 // ----------------------------------------------------------------------
 

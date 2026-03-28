@@ -3,7 +3,7 @@ import _ from 'lodash';
 import type { CreateQueryOptions } from 'react-query-kit';
 
 import type { VerifyEmailRequestBody } from '@org/client-ts/src/models';
-import { toApiFailure } from '@/front/lib/api-failure';
+import { toApiFailure } from '#app/lib/api-failure/index.ts';
 
 import {
 	createAuthMutation,

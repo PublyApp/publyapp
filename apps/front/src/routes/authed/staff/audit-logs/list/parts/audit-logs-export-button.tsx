@@ -4,10 +4,10 @@ import MenuItem from '@mui/material/MenuItem';
 import { useState } from 'react';
 
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { toast } from '@/front/components/snackbar';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { getClientManager } from '@/front/lib/js-client/client-manager';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { getClientManager } from '#app/lib/js-client/client-manager.ts';
 
 type AuditLogsExportButtonProps = {
 	actionFilter?: string;

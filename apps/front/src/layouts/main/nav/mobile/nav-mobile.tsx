@@ -3,9 +3,9 @@ import Button from '@mui/material/Button';
 import Drawer from '@mui/material/Drawer';
 import { useEffect } from 'react';
 
-import { Logo } from '@/front/components/logo/logo';
-import { Scrollbar } from '@/front/components/scrollbar/scrollbar';
-import { usePathname } from '@/front/hooks/use-pathname';
+import { Logo } from '#app/components/logo/logo.tsx';
+import { Scrollbar } from '#app/components/scrollbar/scrollbar.tsx';
+import { usePathname } from '#app/hooks/use-pathname.ts';
 
 import { SignInButton } from '../../../components/sign-in-button';
 import { Nav, NavUl } from '../components';

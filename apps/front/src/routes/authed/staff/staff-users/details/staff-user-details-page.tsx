@@ -12,16 +12,16 @@ import {
 	isServer,
 } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
-import { ErrorContent } from '@/front/components/empty-content/error-content';
-import View400 from '@/front/components/error/400-view';
-import { NotFoundView } from '@/front/components/error/not-found-view';
-import QueryDisplay from '@/front/components/query-display';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { isProblemFailure, toApiFailure } from '@/front/lib/api-failure';
-import { useGetStaffUserById } from '@/front/lib/react-query/features/staff/staff-user.hooks';
-import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
+import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
+import View400 from '#app/components/error/400-view.tsx';
+import { NotFoundView } from '#app/components/error/not-found-view.tsx';
+import QueryDisplay from '#app/components/query-display.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
+import { isProblemFailure, toApiFailure } from '#app/lib/api-failure/index.ts';
+import { useGetStaffUserById } from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
+import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import { UserNewEditFormSkeleton } from '../components/user-new-edit-form-skeleton';
 import type { Route } from './+types/staff-user-details-page';

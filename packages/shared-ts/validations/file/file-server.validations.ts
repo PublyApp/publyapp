@@ -6,14 +6,21 @@ import type InterZod from '@org/shared-ts/lib/zod/InterZod';
 
 import { getFolderNameSchema } from './file.validations';
 
-export type MulterMemoryFile = Pick<
-	Express.Multer.File,
-	'fieldname' | 'originalname' | 'encoding' | 'mimetype' | 'buffer' | 'size'
->;
-export type MulterDiskFile = Pick<
-	Express.Multer.File,
-	'fieldname' | 'originalname' | 'encoding' | 'mimetype' | 'buffer' | 'size'
->;
+type BaseMulterFile = {
+	fieldname: string;
+	originalname: string;
+	encoding: string;
+	mimetype: string;
+	buffer: Buffer;
+	size: number;
+	stream?: Readable;
+	destination?: string;
+	filename?: string;
+	path?: string;
+};
+
+export type MulterMemoryFile = BaseMulterFile;
+export type MulterDiskFile = BaseMulterFile;
 
 export const getMulterMemoryFileSchema = (
 	z: InterZod,

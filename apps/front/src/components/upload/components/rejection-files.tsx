@@ -2,7 +2,7 @@ import { styled } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 import type { FileRejection } from 'react-dropzone';
 
-import { fData } from '@/front/utils/format-number';
+import { fData } from '#app/utils/format-number.ts';
 
 import { fileData } from '../../file-thumbnail';
 import { uploadClasses } from '../classes';

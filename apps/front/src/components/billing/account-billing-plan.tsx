@@ -13,8 +13,8 @@ import {
 	PlanFreeIcon,
 	PlanPremiumIcon,
 	PlanStarterIcon,
-} from '@/front/assets/icons';
-import type { IAddressItem, IPaymentCard } from '@/front/types/common';
+} from '#app/assets/icons/index.ts';
+import type { IAddressItem, IPaymentCard } from '#app/types/common.ts';
 
 import { AddressListDialog } from '../address';
 import { Iconify } from '../iconify/iconify';

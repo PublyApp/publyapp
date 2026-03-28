@@ -3,8 +3,12 @@ import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
 import SvgIcon from '@mui/material/SvgIcon';
 import { m } from 'framer-motion';
 
-import { transitionTap, varHover, varTap } from '@/front/components/animate';
-import { useSettingsContext } from '@/front/hooks/use-settings-context';
+import {
+	transitionTap,
+	varHover,
+	varTap,
+} from '#app/components/animate/index.ts';
+import { useSettingsContext } from '#app/hooks/use-settings-context.ts';
 
 // ----------------------------------------------------------------------
 

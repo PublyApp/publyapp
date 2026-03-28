@@ -13,17 +13,17 @@ import { useNavigate } from 'react-router';
 
 import type { TenantForPickerItem } from '@org/client-ts/src/models';
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Label } from '@/front/components/label/label';
-import { SplashScreen } from '@/front/components/loading-screen/splash-screen';
-import QueryDisplay from '@/front/components/query-display';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { ColorSchemePopover } from '@/front/layouts/components/colorscheme-popover';
-import { LanguagePopover } from '@/front/layouts/components/language-popover';
-import { SimpleLayout } from '@/front/layouts/simple/layout';
-import { logout } from '@/front/lib/cookies/logout.utils';
-import { allLangs } from '@/front/lib/locales/all-langs';
-import { useGetUserTenantsForPicker } from '@/front/lib/react-query/features/common/auth.hooks';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { Label } from '#app/components/label/label.tsx';
+import { SplashScreen } from '#app/components/loading-screen/splash-screen.tsx';
+import QueryDisplay from '#app/components/query-display.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { ColorSchemePopover } from '#app/layouts/components/colorscheme-popover.tsx';
+import { LanguagePopover } from '#app/layouts/components/language-popover.tsx';
+import { SimpleLayout } from '#app/layouts/simple/layout.tsx';
+import { logout } from '#app/lib/cookies/logout.utils.ts';
+import { allLangs } from '#app/lib/locales/all-langs.ts';
+import { useGetUserTenantsForPicker } from '#app/lib/react-query/features/common/auth.hooks.ts';
 
 // ----------------------------------------------------------------------
 

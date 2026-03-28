@@ -6,17 +6,17 @@ import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useMemo } from 'react';
 
-import { Logo } from '@/front/components/logo';
+import { Logo } from '#app/components/logo/index.ts';
 import type {
 	NavItemProps,
 	NavSectionProps,
-} from '@/front/components/nav-section';
-import { useSettingsContext } from '@/front/hooks/use-settings-context';
-import { allLangs } from '@/front/lib/locales/all-langs';
+} from '#app/components/nav-section/index.ts';
+import { useSettingsContext } from '#app/hooks/use-settings-context.ts';
+import { allLangs } from '#app/lib/locales/all-langs.ts';
 import {
 	useGetUserAuthData,
 	useGetUserTenants,
-} from '@/front/lib/react-query/features/common/auth.hooks';
+} from '#app/lib/react-query/features/common/auth.hooks.ts';
 
 import { ColorSchemePopover } from '../components/colorscheme-popover';
 import { LanguagePopover } from '../components/language-popover';

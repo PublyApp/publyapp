@@ -1,4 +1,4 @@
-import { today } from '@/front/utils/format-time';
+import { today } from '#app/utils/format-time.ts';
 
 import { _mock } from './_mock';
 
