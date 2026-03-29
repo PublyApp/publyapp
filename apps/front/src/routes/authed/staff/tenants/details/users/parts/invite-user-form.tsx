@@ -112,6 +112,28 @@ export const InviteUserForm = ({ onClose }: { onClose?: () => void }) => {
 					<Field.Select
 						name="accountLevel"
 						label={t('role')}
+						slotProps={{
+							select: {
+								MenuProps: {
+									slotProps: {
+										root: {
+											sx: (theme) => {
+												return {
+													zIndex: theme.zIndex.modal + 2,
+												};
+											},
+										},
+										paper: {
+											sx: (theme) => {
+												return {
+													zIndex: theme.zIndex.modal + 2,
+												};
+											},
+										},
+									},
+								},
+							},
+						}}
 						InputProps={{
 							startAdornment: (
 								<Iconify

@@ -325,6 +325,14 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.HasDatabaseName("ix_profiles_staff_created_at_id")
 			.HasFilter("\"scope\" = 0");
 
+		modelBuilder.Entity<Profile>()
+			.HasIndex(p => new { p.TenantId, p.Scope, p.IsDefault })
+			.IsUnique()
+			.HasDatabaseName("ux_profiles_tenant_default_profile")
+			// At most one active default tenant profile can exist per tenant.
+			// Soft-deleted defaults are excluded so a replacement default can be created safely.
+			.HasFilter("\"scope\" = 1 AND \"project_id\" IS NULL AND \"is_default\" = true AND \"is_deleted\" = false");
+
 		// Apply matching query filters to ensure consistent filtering
 		if (TenantId != null) {
 			// UserAccountProfile gets a filter that matches the Profile's tenant

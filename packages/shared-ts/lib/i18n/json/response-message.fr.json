@@ -19,6 +19,7 @@
 	"email-already-verified": "Email déjà vérifié",
 	"failed-to-register-user": "Échec de l'inscription",
 	"user-already-exists": "Utilisateur déjà existant",
+	"user-already-member-of-tenant": "L'utilisateur est déjà membre de ce locataire",
 	"user-does-not-have-the-necessary-permissions": "Utilisateur n'a pas les permissions nécessaires",
 	"invalid-session": "Session invalide",
 	"failed-to-authenticate-user": "Échec de l'authentification",

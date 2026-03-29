@@ -16,7 +16,6 @@ export type TenantsSliceActions = {
 export type DummySliceState = TenantsSliceValues & TenantsSliceActions;
 
 const defaultValues: TenantsSliceValues = {
-	// bear: 0,
 	createTenantForm: {
 		submit: () => {
 			logger.warn('==== submit create new tenant ====');
