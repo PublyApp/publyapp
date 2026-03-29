@@ -213,7 +213,7 @@ It covers category `0` through `10`.
 
 ### 5.4 Invite new user to tenant
 - Status: `DONE`
-- [ ] Clicking the invite CTA opens the invite drawer from the users tab.
+- [x] Clicking the invite CTA opens the invite drawer from the users tab.
 - [ ] The invite form validates email correctly.
 - [ ] The invite form lets staff choose the intended account level.
 - [ ] A successful invite closes the drawer and shows clear success feedback.
