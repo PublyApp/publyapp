@@ -214,8 +214,15 @@ It covers category `0` through `10`.
 ### 5.4 Invite new user to tenant
 - Status: `DONE`
 - [x] Clicking the invite CTA opens the invite drawer from the users tab.
-- [ ] The invite form validates email correctly.
-- [ ] The invite form lets staff choose the intended account level.
+- [x] The invite form validates email correctly.
+- [x] The invite form lets staff choose the intended account level.
+- [] Inviting an existing non-staff user from another tenant succeeds and creates a tenant invitation for the target tenant.
+- [] Inviting a user who already belongs to the target tenant is rejected with the specific "already member of tenant" error.
+- [] Inviting a user with a staff account is rejected with the mutual-exclusivity error.
+- [ ] Re-inviting the same email while a pending invitation already exists for the same tenant is rejected with the expected pending-invitation error.
+- [ ] A successful invite actually sends the tenant invitation email, not just the database record.
+- [ ] Inviting with account level `User` assigns the tenant's default profile to the invitation.
+- [ ] Inviting with account level `Admin` does not assign the tenant's default profile to the invitation.
 - [ ] A successful invite closes the drawer and shows clear success feedback.
 - [ ] After refresh or query invalidation, the newly invited user appears in the tenant users list.
 

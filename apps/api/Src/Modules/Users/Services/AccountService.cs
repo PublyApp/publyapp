@@ -19,6 +19,13 @@ public abstract record CreateTenantAccountResult {
 	public sealed record UserHasStaffAccount : CreateTenantAccountResult;
 }
 
+public abstract record ResolveTenantInvitationTargetByEmailResult {
+	public sealed record UserNotFound : ResolveTenantInvitationTargetByEmailResult;
+	public sealed record EligibleExistingUser(User User) : ResolveTenantInvitationTargetByEmailResult;
+	public sealed record UserHasStaffAccount : ResolveTenantInvitationTargetByEmailResult;
+	public sealed record UserAlreadyMemberOfTenant : ResolveTenantInvitationTargetByEmailResult;
+}
+
 public record UserTenantInfo {
 	public Guid Id { get; init; }
 	public string Name { get; init; } = string.Empty;
@@ -56,6 +63,12 @@ public interface IAccountService {
 	Task<bool> IsUserMemberOfActiveTenantAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
 	Task<bool> HasStaffAccountAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<bool> HasTenantAccountAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
+	Task<ResolveTenantInvitationTargetByEmailResult> ResolveTenantInvitationTargetByEmailAsync(
+		string email,
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	);
+	Task<bool> HasTenantAccountByEmailAsync(string email, Guid tenantId, CancellationToken cancellationToken = default);
 	Task<bool> HasTenantOrProjectAccountsAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<bool> HasStaffAccountByEmailAsync(string email, CancellationToken cancellationToken = default);
 	Task<bool> HasTenantOrProjectAccountsByEmailAsync(string email, CancellationToken cancellationToken = default);
@@ -222,6 +235,87 @@ public class AccountService : IAccountService {
 			where ua.UserId == userId
 				&& ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+			select ua
+		).AnyAsync(cancellationToken);
+	}
+
+	public async Task<ResolveTenantInvitationTargetByEmailResult>
+	ResolveTenantInvitationTargetByEmailAsync(
+		string email,
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		var normalizedEmail = email.ToLowerInvariant();
+
+		// Resolve the invitation target in one database roundtrip.
+		// We first locate the existing user by normalized email, then project the two
+		// business-rule checks the handler cares about:
+		// 1. does this identity already have a staff account?
+		// 2. is this identity already a member of the target tenant?
+		//
+		// Keeping this in one query makes the handler branch on one explicit result
+		// instead of orchestrating several separate existence checks.
+		var result = await (
+			from u in _dbContext.User
+			where u.Email == normalizedEmail
+				&& !u.IsDeleted
+			select new {
+				User = u,
+				HasStaffAccount = (
+					from ua in _dbContext.UserAccount
+					where ua.UserId == u.Id
+						&& ua.Scope == AccountScope.Staff
+						&& !ua.IsDeleted
+					select ua
+				).Any(),
+				IsAlreadyMemberOfTenant = (
+					from ua in _dbContext.UserAccount
+					where ua.UserId == u.Id
+						&& ua.TenantId == tenantId
+						&& ua.Scope == AccountScope.Tenant
+						&& !ua.IsDeleted
+					select ua
+				).Any(),
+			}
+		).FirstOrDefaultAsync(cancellationToken);
+
+		// No user with that email exists yet, so the invitation can proceed as a
+		// brand-new tenant invitation target.
+		if (result is null) {
+			return new ResolveTenantInvitationTargetByEmailResult.UserNotFound();
+		}
+
+		// Staff and tenant/project identities are mutually exclusive.
+		if (result.HasStaffAccount) {
+			return new ResolveTenantInvitationTargetByEmailResult.UserHasStaffAccount();
+		}
+
+		// Prevent creating a duplicate membership invitation for the same tenant.
+		if (result.IsAlreadyMemberOfTenant) {
+			return new ResolveTenantInvitationTargetByEmailResult.UserAlreadyMemberOfTenant();
+		}
+
+		// Existing non-staff users from another tenant are valid invitation targets.
+		return new ResolveTenantInvitationTargetByEmailResult.EligibleExistingUser(result.User);
+	}
+
+	public async Task<bool> HasTenantAccountByEmailAsync(
+		string email,
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		// Note: IsSuspended is intentionally NOT checked here.
+		// This is existence-based to align with unique constraint and prevent duplicate insert attempts.
+		var normalizedEmail = email.ToLowerInvariant();
+
+		return await (
+			from u in _dbContext.User
+			join ua in _dbContext.UserAccount on u.Id equals ua.UserId
+			where u.Email == normalizedEmail
+				&& ua.TenantId == tenantId
+				&& ua.Scope == AccountScope.Tenant
+				&& !u.IsDeleted
 				&& !ua.IsDeleted
 			select ua
 		).AnyAsync(cancellationToken);

@@ -17,7 +17,7 @@ namespace MainApi.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.1")
+                .HasAnnotation("ProductVersion", "10.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
@@ -332,6 +332,10 @@ namespace MainApi.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description");
 
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_default");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
@@ -361,8 +365,6 @@ namespace MainApi.Migrations
 
                     b.HasIndex("ProjectId");
 
-                    b.HasIndex("TenantId");
-
                     b.HasIndex("Scope", "CreatedAt", "Id")
                         .HasDatabaseName("ix_profiles_staff_created_at_id")
                         .HasFilter("\"scope\" = 0");
@@ -370,6 +372,11 @@ namespace MainApi.Migrations
                     b.HasIndex("Scope", "Name", "Id")
                         .HasDatabaseName("ix_profiles_staff_name_id")
                         .HasFilter("\"scope\" = 0");
+
+                    b.HasIndex("TenantId", "Scope", "IsDefault")
+                        .IsUnique()
+                        .HasDatabaseName("ux_profiles_tenant_default_profile")
+                        .HasFilter("\"scope\" = 1 AND \"project_id\" IS NULL AND \"is_default\" = true AND \"is_deleted\" = false");
 
                     b.ToTable("profiles", t =>
                         {

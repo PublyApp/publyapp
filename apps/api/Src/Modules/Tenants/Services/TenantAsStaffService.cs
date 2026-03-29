@@ -505,7 +505,8 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			var defaultProfile = Profile.CreateTenantProfile(
 				tenantId,
 				name: "Default profile",
-				description: "Default profile with no permissions"
+				description: "Default profile with no permissions",
+				isDefault: true
 			);
 			var savedDefaultProfile = await _dbContext.Profile.AddAsync(defaultProfile, cancellationToken);
 			await _dbContext.SaveChangesAsync(cancellationToken);

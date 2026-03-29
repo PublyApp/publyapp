@@ -235,6 +235,7 @@ namespace MainApi.Migrations {
 						name = table.Column<string>(type: "text", nullable: false),
 						description = table.Column<string>(type: "text", nullable: true),
 						scope = table.Column<int>(type: "integer", nullable: false),
+						is_default = table.Column<bool>(type: "boolean", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
@@ -450,6 +451,13 @@ namespace MainApi.Migrations {
 					table: "profiles",
 					columns: new[] { "scope", "name", "id" },
 					filter: "\"scope\" = 0");
+
+			migrationBuilder.CreateIndex(
+					name: "ux_profiles_tenant_default_profile",
+					table: "profiles",
+					columns: new[] { "tenant_id", "scope", "is_default" },
+					unique: true,
+					filter: "\"scope\" = 1 AND \"project_id\" IS NULL AND \"is_default\" = true AND \"is_deleted\" = false");
 
 			migrationBuilder.CreateIndex(
 					name: "IX_profiles_tenant_id",
