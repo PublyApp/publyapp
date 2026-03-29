@@ -82,6 +82,11 @@ public abstract record CreateStaffProfileResult {
 }
 
 public interface IProfileAsStaffService {
+	Task<Profile> GetOrCreateDefaultTenantProfileAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	);
+
 	Task<List<Profile>> FindTenantProfilesAsync(
 		Guid tenantId,
 		int? page = null,
@@ -118,6 +123,46 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 	) {
 		_dbContext = dbContext;
 		_logger = logger;
+	}
+
+	public async Task<Profile> GetOrCreateDefaultTenantProfileAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		var query =
+			from p in _dbContext.Profile
+			where p.Scope == ProfileScope.Tenant
+				&& p.TenantId == tenantId
+				&& p.IsDefault
+				&& !p.IsDeleted
+			select p;
+
+		var defaultProfile = await query.FirstOrDefaultAsync(cancellationToken);
+		if (defaultProfile is not null) {
+			return defaultProfile;
+		}
+
+		defaultProfile = Profile.CreateTenantProfile(
+			tenantId,
+			name: "Default profile",
+			description: "Default profile with no permissions",
+			isDefault: true
+		);
+
+		var savedDefaultProfile = await _dbContext.Profile.AddAsync(
+			defaultProfile,
+			cancellationToken
+		);
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		if (_logger.IsEnabled(LogLevel.Information)) {
+			_logger.LogInformation(
+				"Created missing default tenant profile for tenant {TenantId}",
+				tenantId
+			);
+		}
+
+		return savedDefaultProfile.Entity;
 	}
 
 	public async Task<List<Profile>> FindTenantProfilesAsync(

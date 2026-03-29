@@ -27,14 +27,11 @@ export default defineConfig(({ mode, isSsrBuild }) => {
 			copyI18nFiles(),
 			generateClient(),
 			devtoolsJson(),
-			...(mode === 'production'
-				? []
-				: [
-						checker({
-							typescript: true,
-							biome: true,
-						}),
-					]),
+			checker({
+				enableBuild: true,
+				typescript: true,
+				biome: true,
+			}),
 			reactRouterDevTools(),
 			reactRouter(),
 		],

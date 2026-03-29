@@ -156,7 +156,7 @@ public class AcceptInvitation {
 					if (hasTenantAccount) {
 						return TypedProblems.BadRequest(
 							"User is already member of tenant",
-							ResponseKeys.BadRequest
+							ResponseKeys.UserAlreadyMemberOfTenant
 						);
 					}
 				}
