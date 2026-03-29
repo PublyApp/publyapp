@@ -8,6 +8,7 @@ import {
 	FRONT_PATH_NAMES,
 	isServer,
 } from '@org/shared-ts/lib/constants';
+
 import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
@@ -52,8 +53,12 @@ const NewStaffInvitationPage = () => {
 
 	return (
 		<DashboardContent
-			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
-			compact
+			sx={{
+				flexGrow: 1,
+				display: 'flex',
+				flexDirection: 'column',
+				maxWidth: '800px',
+			}}
 		>
 			<CustomBreadcrumbs
 				heading={getPageTitle(t as never)}

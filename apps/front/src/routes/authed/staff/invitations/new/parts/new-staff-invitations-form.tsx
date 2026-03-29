@@ -18,8 +18,9 @@ import type { z as zod } from 'zod';
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { getBulkCreateInvitationsSchema } from '@org/shared-ts/validations/invitation.validations';
-import { Form } from '#app/components/hook-form/index.ts';
+
 import { Field } from '#app/components/hook-form/fields.tsx';
+import { Form } from '#app/components/hook-form/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import QueryDisplay from '#app/components/query-display.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
@@ -182,10 +183,7 @@ const NewStaffInvitationsForm = () => {
 
 	return (
 		<Form methods={form} onSubmit={onSubmit}>
-			<Stack
-				spacing={{ xs: 3, md: 5 }}
-				sx={{ mx: 'auto', maxWidth: { xs: 720, xl: 880 } }}
-			>
+			<Stack spacing={{ xs: 3, md: 5 }}>
 				{serverErrors.length > 0 && (
 					<Alert
 						severity="error"
