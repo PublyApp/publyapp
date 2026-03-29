@@ -8,6 +8,7 @@ import {
 	FRONT_PATH_NAMES,
 	isServer,
 } from '@org/shared-ts/lib/constants';
+
 import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
