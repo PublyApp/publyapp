@@ -460,11 +460,6 @@ namespace MainApi.Migrations {
 					filter: "\"scope\" = 1 AND \"project_id\" IS NULL AND \"is_default\" = true AND \"is_deleted\" = false");
 
 			migrationBuilder.CreateIndex(
-					name: "IX_profiles_tenant_id",
-					table: "profiles",
-					column: "tenant_id");
-
-			migrationBuilder.CreateIndex(
 					name: "IX_projects_tenant_id_name",
 					table: "projects",
 					columns: new[] { "tenant_id", "name" },
