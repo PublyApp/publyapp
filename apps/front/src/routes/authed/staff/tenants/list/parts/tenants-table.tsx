@@ -346,13 +346,10 @@ const useTenantsTableController = () => {
 				}
 
 				if (isProblemFailure(failure)) {
-					if (failure.translationKey) {
-						toast.error(t(failure.translationKey as never));
-						return;
-					}
-
 					toast.error(
-						getFailureMessage(failure) || t('tenant-bulk-suspend-failure'),
+						getFailureMessage(failure, {
+							fallback: t('tenant-bulk-suspend-failure'),
+						}),
 					);
 					return;
 				}
@@ -397,13 +394,10 @@ const useTenantsTableController = () => {
 				}
 
 				if (isProblemFailure(failure)) {
-					if (failure.translationKey) {
-						toast.error(t(failure.translationKey as never));
-						return;
-					}
-
 					toast.error(
-						getFailureMessage(failure) || t('tenant-bulk-reactivate-failure'),
+						getFailureMessage(failure, {
+							fallback: t('tenant-bulk-reactivate-failure'),
+						}),
 					);
 					return;
 				}
@@ -448,13 +442,10 @@ const useTenantsTableController = () => {
 				}
 
 				if (isProblemFailure(failure)) {
-					if (failure.translationKey) {
-						toast.error(t(failure.translationKey as never));
-						return;
-					}
-
 					toast.error(
-						getFailureMessage(failure) || t('tenant-bulk-delete-failure'),
+						getFailureMessage(failure, {
+							fallback: t('tenant-bulk-delete-failure'),
+						}),
 					);
 					return;
 				}
