@@ -4,7 +4,8 @@ import i18next from 'i18next';
 
 import { isServer } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { toApiFailure } from '#app/lib/api-failure/index.ts';
+
+import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
 import {
 	clearLegacyTenantFromBrowser,
 	clearTenantHintForUserInBrowser,
@@ -226,36 +227,6 @@ const safeTranslate = (
 };
 
 /**
- * Get user-friendly error message from failure.
- */
-const getErrorMessage = (failure: ReturnType<typeof toApiFailure>): string => {
-	switch (failure.kind) {
-		case 'validation':
-			// Generic validation message - specific errors are on form fields
-			return failure.translationKey
-				? safeTranslate(failure.translationKey, 'Validation failed')
-				: (failure.detail ?? 'Please check your input and try again');
-
-		case 'problem':
-			return failure.translationKey
-				? safeTranslate(
-						failure.translationKey,
-						failure.detail ?? 'An error occurred',
-					)
-				: (failure.detail ?? failure.title ?? 'An error occurred');
-
-		case 'network':
-			return safeTranslate('network-error', failure.message);
-
-		case 'abort':
-			return ''; // Never displayed
-
-		case 'unknown':
-			return safeTranslate('unknown-error', 'Something went wrong');
-	}
-};
-
-/**
  * Create a mutation error handler with auth callback.
  */
 const createMutationErrorHandler = () => {
@@ -317,12 +288,17 @@ const createMutationErrorHandler = () => {
 				return; // Component handles via mapValidationErrors()
 			}
 			// Default: toast validation error (component forgot to handle it)
-			showToast('error', getErrorMessage(failure));
+			showToast(
+				'error',
+				getFailureMessage(failure, {
+					fallback: 'Please check your input and try again',
+				}),
+			);
 			return;
 		}
 
 		// problem/network/unknown: always toast
-		showToast('error', getErrorMessage(failure));
+		showToast('error', getFailureMessage(failure));
 	};
 };
 
