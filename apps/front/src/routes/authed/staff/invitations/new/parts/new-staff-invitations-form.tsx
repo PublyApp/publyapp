@@ -27,7 +27,7 @@ import { toast } from '#app/components/snackbar/index.ts';
 import { useRouter } from '#app/hooks/use-router.ts';
 import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { toApiFailure } from '#app/lib/api-failure/index.ts';
+import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
 import { getUntypedNumber } from '#app/lib/js-client/kiota-utils.ts';
 import {
 	useBulkCreateStaffInvitations,
@@ -110,17 +110,21 @@ const NewStaffInvitationsForm = () => {
 			onError: (error) => {
 				const failure = toApiFailure(error);
 				if (failure.kind === 'validation') {
-					// Extract all error messages from the validation failure
 					const errors = Object.values(failure.fieldErrors).flat();
-					setServerErrors(errors);
-				} else {
-					// For non-validation errors, show the detail or a fallback message
+					if (errors.length > 0) {
+						setServerErrors(errors);
+						return;
+					}
+
 					setServerErrors([
-						failure.kind === 'problem'
-							? (failure.detail ?? 'An error occurred')
-							: 'An unexpected error occurred',
+						getFailureMessage(failure, {
+							fallback: 'Validation failed',
+						}),
 					]);
+					return;
 				}
+
+				setServerErrors([getFailureMessage(failure)]);
 			},
 		});
 

@@ -1,6 +1,29 @@
 # Tenants Module Smoke Test Checklist
 
-Last updated: 2026-03-25
+Last updated: 2026-03-28
+
+## Changes Since 2026-03-25
+
+### 03-25
+- Fixed bulk tenant handlers to request typed `ILogger<THandler>` instead of plain `ILogger` (closes local dev 500 on `/staff/tenants/bulk-suspend` and sibling bulk endpoints).
+- Standardized all remaining API handler entrypoints to non-static classes with typed `ILogger<THandler>` injection.
+- Replaced generic tenant bulk toasts with action-specific success/partial/failure messages for bulk suspend, bulk reactivate, and bulk delete.
+- Updated bulk-actions section to reflect action-specific toast copy on success, partial-success, and failure paths.
+
+### 03-26
+- Clarified export-scope: full export across all pages deferred to async worker-service jobs (`#286`); current page-only export is a temporary limitation.
+- Made tenants-list row-level `Delete` action real for suspended tenants (mirrors suspend/reactivate pattern).
+- Refined row delete UX: delete icon always visible, disabled + muted for non-suspended tenants, tooltip explains constraint instead of disappearing.
+
+### 03-27
+- Converted `SuspendTenantResult`, `ReactivateTenantResult`, `UpdateTenantResult`, and `DeleteTenantResult` from nullable payload-plus-error pairs into proper discriminated unions.
+- Staff tenant general form now submits only dirty editable fields (`name`, `maxUsers`) to match backend PATCH contract.
+- Item 4.5 (logo upload) confirmed deferred to `#95` (file-upload work).
+
+### 03-28
+- Aligned staff tenant details > users table with shared MRT actionable-table UX: toolbar, selection, export behavior.
+- Extended tenant-users API/status filter contract to accept comma-separated multi-status filtering (e.g., `?status=active,pending`).
+- New passing integration spec covers multi-status tenant-user filtering.
 
 ## Purpose
 
@@ -216,11 +239,11 @@ It covers category `0` through `10`.
 - [x] Clicking the invite CTA opens the invite drawer from the users tab.
 - [x] The invite form validates email correctly.
 - [x] The invite form lets staff choose the intended account level.
-- [] Inviting an existing non-staff user from another tenant succeeds and creates a tenant invitation for the target tenant.
-- [] Inviting a user who already belongs to the target tenant is rejected with the specific "already member of tenant" error.
-- [] Inviting a user with a staff account is rejected with the mutual-exclusivity error.
-- [ ] Re-inviting the same email while a pending invitation already exists for the same tenant is rejected with the expected pending-invitation error.
-- [ ] A successful invite actually sends the tenant invitation email, not just the database record.
+- [x] Inviting an existing non-staff user from another tenant succeeds and creates a tenant invitation for the target tenant.
+- [x] Inviting a user who already belongs to the target tenant is rejected with the specific "already member of tenant" error.
+- [x] Inviting a user with a staff account is rejected with the mutual-exclusivity error.
+- [x] Re-inviting the same email while a pending invitation already exists for the same tenant is rejected with the expected pending-invitation error.
+- [x] A successful invite actually sends the tenant invitation email, not just the database record.
 - [ ] Inviting with account level `User` assigns the tenant's default profile to the invitation.
 - [ ] Inviting with account level `Admin` does not assign the tenant's default profile to the invitation.
 - [ ] A successful invite closes the drawer and shows clear success feedback.
@@ -245,6 +268,7 @@ It covers category `0` through `10`.
 - [ ] Filtering by `active` returns only active tenant users.
 - [ ] Filtering by `pending` returns only pending tenant users.
 - [ ] Filtering by `suspended` returns only suspended tenant users.
+- [ ] Filtering by multiple comma-separated statuses (e.g., `active,pending`) returns users matching any of the specified statuses.
 - [ ] Changing search or filter values resets pagination correctly.
 - [ ] The users table uses valid backend sort IDs and does not send invalid sort parameters.
 

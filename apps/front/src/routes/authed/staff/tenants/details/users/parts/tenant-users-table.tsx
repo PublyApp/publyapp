@@ -44,6 +44,7 @@ import {
 	USER_STATUS_ENUM,
 } from '@org/shared-ts/lib/constants';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
+
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import DrawerAnchor from '#app/components/drawer-anchor.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
@@ -56,6 +57,7 @@ import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
 import { useSendEmailVerificationReminder } from '#app/lib/react-query/features/common/auth.hooks.ts';
 import {
 	useFindTenantUsers,
@@ -369,6 +371,7 @@ const TenantUsersTable = () => {
 
 		let succeeded = 0;
 		let failed = 0;
+		let firstFailureMessage: string | undefined;
 
 		for (const userId of Object.keys(rowSelection)) {
 			try {
@@ -377,8 +380,13 @@ const TenantUsersTable = () => {
 					userId,
 				});
 				succeeded += 1;
-			} catch {
+			} catch (error) {
 				failed += 1;
+
+				const failure = toApiFailure(error);
+				if (firstFailureMessage == null) {
+					firstFailureMessage = getFailureMessage(failure);
+				}
 			}
 		}
 
@@ -390,9 +398,10 @@ const TenantUsersTable = () => {
 
 		if (succeeded === 0 && failed > 0) {
 			toast.error(
-				t('tenant-user-bulk-remove-failure', {
-					defaultValue: 'Failed to remove selected users from this tenant.',
-				}),
+				firstFailureMessage ||
+					t('tenant-user-bulk-remove-failure', {
+						defaultValue: 'Failed to remove selected users from this tenant.',
+					}),
 			);
 			return;
 		}

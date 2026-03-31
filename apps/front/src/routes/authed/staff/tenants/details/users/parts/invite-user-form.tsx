@@ -15,6 +15,7 @@ import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useSectionPageWithDrawer } from '#app/components/settings/section-page-with-drawer.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
 import { useInviteTenantUser } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
 
 // ----------------------------------------------------------------------
@@ -52,15 +53,18 @@ export const InviteUserForm = ({ onClose }: { onClose?: () => void }) => {
 	const { handleSubmit, reset } = methods;
 
 	const { mutate: inviteUser, isPending } = useInviteTenantUser({
+		// Component handles error display; skip global handler to avoid duplicate toast.
+		meta: { skipGlobalErrorHandler: true },
 		onSuccess: () => {
 			toast.success(t('invitation-created-success'));
 			reset();
 			handleClose();
 		},
 		onError: (error) => {
-			const message =
-				(error as { message?: string })?.message ||
-				t('invitation-created-error');
+			const failure = toApiFailure(error);
+			const message = getFailureMessage(failure, {
+				fallback: t('invitation-created-error'),
+			});
 			toast.error(message);
 		},
 	});

@@ -37,7 +37,7 @@
 	"staff-user-updated-successfully": "Compte staff mis à jour avec succès",
 	"invitation-revoked": "Invitation révoquée avec succès",
 	"invitation-resent": "Invitation renvoyee avec succes",
-	"pending-invitation-exists": "Une invitation en attente existe déjà",
+	"pending-invitation-exists": "Une invitation en attente existe déjà pour cet email",
 	"staff-profile-created-successfully": "Profil staff créé avec succès",
 	"profile-name-already-exists": "Le nom du profil existe déjà",
 	"profiles": "profils",
