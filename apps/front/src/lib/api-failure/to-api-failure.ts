@@ -1,3 +1,5 @@
+import i18next from 'i18next';
+
 import {
 	parseAppProblemDetails,
 	parseValidationProblemDetails,
@@ -129,32 +131,64 @@ export const toApiFailure = (error: unknown): ApiFailure => {
  * Helper to get a user-friendly message from any ApiFailure.
  * Useful for simple toast notifications.
  */
+type GetFailureMessageOptions = {
+	fallback?: string;
+};
+
+const translateResponseMessage = (key?: string): string | undefined => {
+	if (!key) {
+		return undefined;
+	}
+
+	if (!i18next.exists(key, { ns: 'response-message' })) {
+		return undefined;
+	}
+
+	return i18next.t(key as never, {
+		ns: 'response-message',
+	}) as string;
+};
+
 export const getFailureMessage = (
 	failure: ApiFailure,
-	t?: (key: string) => string,
+	options?: GetFailureMessageOptions,
 ): string => {
 	switch (failure.kind) {
 		case 'validation':
-			// For validation, prefer translationKey, then generic message
-			if (failure.translationKey && t) {
-				return t(failure.translationKey);
-			}
-			return failure.detail ?? failure.title ?? 'Validation failed';
+			return (
+				translateResponseMessage(failure.translationKey) ??
+				failure.detail ??
+				failure.title ??
+				options?.fallback ??
+				'Validation failed'
+			);
 
 		case 'problem':
-			// For problem, prefer translationKey, then detail, then title
-			if (failure.translationKey && t) {
-				return t(failure.translationKey);
-			}
-			return failure.detail ?? failure.title ?? 'An error occurred';
+			return (
+				translateResponseMessage(failure.translationKey) ??
+				failure.detail ??
+				failure.title ??
+				options?.fallback ??
+				'An error occurred'
+			);
 
 		case 'network':
-			return failure.message;
+			return (
+				translateResponseMessage('network-error') ??
+				failure.message ??
+				options?.fallback ??
+				'Network error - please check your connection'
+			);
 
 		case 'abort':
 			return ''; // Never displayed
 
 		case 'unknown':
-			return failure.message;
+			return (
+				translateResponseMessage('unknown-error') ??
+				failure.message ??
+				options?.fallback ??
+				'Something went wrong'
+			);
 	}
 };

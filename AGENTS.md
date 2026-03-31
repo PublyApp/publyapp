@@ -293,6 +293,7 @@ For detailed conventions (route naming, API response format with JSON examples, 
 - Errors: `AppProblemDetails` (400/401/403/404/500) + `ValidationProblemDetails` (422) — both RFC 7807
 - Frontend/Node: use `logger` from `@/shared/lib/logger/iso-logger` (not `console.*`)
 - Frontend API errors: centralized via `ApiFailure` discriminated union — see [`docs/guides/frontend-error-handling.md`](docs/guides/frontend-error-handling.md)
+- Frontend local mutation handlers must derive user-facing error text through `getFailureMessage(toApiFailure(error), ...)`; never translate `response-message` keys manually at the call site
 
 ## Development Environment
 

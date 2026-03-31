@@ -65,6 +65,63 @@ const { mutate } = useMyMutation({
 });
 ```
 
+### Local Error Message Rule
+
+When a mutation opts out of the global error handler, the local handler must still
+follow the shared `ApiFailure` message path.
+
+**Rule:**
+- Always normalize unknown errors with `toApiFailure(error)`
+- Always derive user-facing text with `getFailureMessage(failure, { fallback })`
+- Never translate backend `translationKey` values manually at the call site
+- Never add per-component helpers like `getTranslatedProblemMessage`
+
+`getFailureMessage(...)` is the single abstraction for:
+- `response-message` namespace lookup when the backend returns `translationKey`
+- fallback to `detail` / `title`
+- generic network / unknown fallback text
+- silent abort failures
+
+Use local `onError` only when the component owns custom UX such as:
+- a specialized bulk-action toast
+- an inline alert or dialog
+- navigation or modal flow
+
+It should not re-implement backend error translation.
+
+**Preferred local pattern:**
+
+```typescript
+import { getFailureMessage, toApiFailure } from '@/front/lib/api-failure';
+
+const { mutate } = useMyMutation({
+  meta: { skipGlobalErrorHandler: true },
+  onError: (error) => {
+    const failure = toApiFailure(error);
+    const message = getFailureMessage(failure, {
+      fallback: t('my-fallback-error'),
+    });
+
+    if (!message) {
+      return;
+    }
+
+    toast.error(message);
+  },
+});
+```
+
+**Do not do this:**
+
+```typescript
+if (
+  failure.translationKey &&
+  i18n.exists(failure.translationKey, { ns: 'response-message' })
+) {
+  return i18n.t(failure.translationKey as never, { ns: 'response-message' });
+}
+```
+
 ---
 
 ## ApiFailure Discriminated Union
@@ -236,6 +293,28 @@ switch (failure.kind) {
   case 'unknown':
     // Unexpected error
     break;
+}
+```
+
+### `getFailureMessage(failure, options?): string`
+
+Resolves the user-facing message for any `ApiFailure`.
+
+This helper is responsible for:
+- translating backend `translationKey` values from the `response-message` namespace
+- falling back to `detail`, `title`, or a caller-provided fallback
+- returning `''` for abort failures so callers can stay flat and silent
+
+```typescript
+import { getFailureMessage, toApiFailure } from '@/front/lib/api-failure';
+
+const failure = toApiFailure(error);
+const message = getFailureMessage(failure, {
+  fallback: t('tenant-bulk-delete-failure'),
+});
+
+if (message) {
+  toast.error(message);
 }
 ```
 
