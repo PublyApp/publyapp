@@ -51,7 +51,11 @@ if (IS_DEVELOPMENT) {
 
 	app.use(morgan('tiny'));
 	app.use(express.static('build/client', { maxAge: '1h' }));
-	app.use(await import('./build/server/index.js').then((mod) => mod.app));
+
+	// intentionally assign to a variable to avoid typescript error
+	const buildServerPath = './build/server/index.js';
+	const { app: ssrApp } = await import(buildServerPath);
+	app.use(ssrApp);
 }
 
 const SEPARATOR = '='.repeat(60);

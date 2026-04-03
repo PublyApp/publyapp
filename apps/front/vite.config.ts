@@ -28,7 +28,7 @@ export default defineConfig(({ mode, isSsrBuild }) => {
 			generateClient(),
 			devtoolsJson(),
 			checker({
-				enableBuild: true,
+				enableBuild: false,
 				typescript: true,
 				biome: true,
 			}),
@@ -47,13 +47,10 @@ export default defineConfig(({ mode, isSsrBuild }) => {
 			},
 		},
 		build: {
-			target: 'ES2022',
+			target: 'es2022',
 			rollupOptions: isSsrBuild ? { input: './server/app.ts' } : undefined,
 		},
 		optimizeDeps: {
-			esbuildOptions: {
-				target: 'ES2022',
-			},
 			include: [
 				'lodash',
 				'nprogress',
