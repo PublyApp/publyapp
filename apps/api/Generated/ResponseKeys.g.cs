@@ -162,7 +162,7 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PasswordResetSuccess = new("password-reset-success");
 
 	/// <summary>
-	/// A pending invitation already exists
+	/// A pending invitation already exists for this email
 	/// </summary>
 	public static readonly TranslationKey PendingInvitationExists = new("pending-invitation-exists");
 
@@ -327,14 +327,14 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey UserAlreadyExists = new("user-already-exists");
 
 	/// <summary>
-	/// User is already a member of this tenant
-	/// </summary>
-	public static readonly TranslationKey UserAlreadyMemberOfTenant = new("user-already-member-of-tenant");
-
-	/// <summary>
 	/// User already member of staff
 	/// </summary>
 	public static readonly TranslationKey UserAlreadyMemberOfStaff = new("user-already-member-of-staff");
+
+	/// <summary>
+	/// User is already a member of this tenant
+	/// </summary>
+	public static readonly TranslationKey UserAlreadyMemberOfTenant = new("user-already-member-of-tenant");
 
 	/// <summary>
 	/// User does not have the necessary permissions
