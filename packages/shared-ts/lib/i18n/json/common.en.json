@@ -598,5 +598,11 @@
 	"user-level-updated-success": "User level updated successfully",
 	"user-level-updated-error": "Failed to update user level",
 	"search": "Search...",
-	"remove": "Remove"
+	"remove": "Remove",
+	"invited-by": "Invited by",
+	"invitation-revoked-success": "Invitation revoked successfully",
+	"revoke": "Revoke",
+	"invitation-sent": "Invitation sent",
+	"invitation-success-description": "The invitation has been sent successfully. The user will receive an email with the invitation details.",
+	"view-invitations": "View invitations"
 }

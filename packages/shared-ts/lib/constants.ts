@@ -135,6 +135,13 @@ export const FRONT_PATH_NAMES = {
 							tenantId,
 							'users',
 						),
+						invitations: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenants,
+							'details',
+							tenantId,
+							'invitations',
+						),
 						billing: makePath(
 							ROOTS.STAFF,
 							RESOURCE.tenants,

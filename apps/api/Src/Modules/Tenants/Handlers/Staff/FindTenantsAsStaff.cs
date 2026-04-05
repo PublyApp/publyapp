@@ -127,27 +127,27 @@ public class FindTenantsAsStaff {
 			)
 		);
 
-		var result = await tenantAsStaffService.FindTenantsAsStaffAsync(
+		var serviceResult = await tenantAsStaffService.FindTenantsAsStaffAsync(
 			args: args,
 			cancellationToken: cancellationToken
 		);
 
 		// Pattern matching for discriminated union
-		if (result is FindTenantsAsStaffServiceResult.CursorNotFound cursorError) {
+		if (serviceResult is FindTenantsAsStaffServiceResult.CursorNotFound cursorError) {
 			return TypedProblems.BadRequest(
 				$"Cursor record not found: {cursorError.Cursor}",
 				ResponseKeys.BadRequest
 			);
 		}
 
-		if (result is FindTenantsAsStaffServiceResult.InvalidSortId sortIdError) {
+		if (serviceResult is FindTenantsAsStaffServiceResult.InvalidSortId sortIdError) {
 			return TypedProblems.BadRequest(
 				$"Invalid sortId: {sortIdError.SortId}. Allowed: created_at, updated_at, name, status",
 				ResponseKeys.BadRequest
 			);
 		}
 
-		if (result is FindTenantsAsStaffServiceResult.Success success) {
+		if (serviceResult is FindTenantsAsStaffServiceResult.Success success) {
 			return TypedResults.Ok(new FindTenantsAsStaffResponse {
 				Data = success.Data.Data,
 				NextCursor = success.Data.NextCursor,

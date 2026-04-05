@@ -54,6 +54,7 @@ public class Program {
 		// Staff endpoints
 		staffGroup.MapUserEndpointsForStaff();
 		staffGroup.MapInvitationEndpointsForStaff();
+		staffGroup.MapInvitationEndpointsForTenantAsStaff();
 		staffGroup.MapPermissionEndpointsForStaff();
 		staffGroup.MapProfileEndpointsForStaff();
 		staffGroup.MapTenantEndpointsForStaff();

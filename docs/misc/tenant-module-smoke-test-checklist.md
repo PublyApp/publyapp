@@ -244,25 +244,39 @@ It covers category `0` through `10`.
 - [x] Inviting a user with a staff account is rejected with the mutual-exclusivity error.
 - [x] Re-inviting the same email while a pending invitation already exists for the same tenant is rejected with the expected pending-invitation error.
 - [x] A successful invite actually sends the tenant invitation email, not just the database record.
-- [ ] Inviting with account level `User` assigns the tenant's default profile to the invitation.
-- [ ] Inviting with account level `Admin` does not assign the tenant's default profile to the invitation.
-- [ ] A successful invite closes the drawer and shows clear success feedback.
-- [ ] After refresh or query invalidation, the newly invited user appears in the tenant users list.
+- [x] Inviting with account level `User` assigns the tenant's default profile to the invitation.
+- [x] Inviting with account level `Admin` does not assign the tenant's default profile to the invitation.
+- [x] A successful invite shows clear success feedback and a clear next step to view tenant invitations.
+- [x] After refresh or query invalidation, the newly created invitation appears in the tenant details `Invitations` tab.
+- [x] The invited person appears in the tenant users list only after completing the invitation acceptance flow.
+- [x] A successful invite from the `Users` tab provides a clear path to the tenant details `Invitations` tab without forcing an automatic redirect away from `Users`.
 
-### 5.5 Remove user from tenant
+### 5.5 Tenant invitations tab
 - Status: `DONE`
-- [ ] Clicking remove opens a confirmation step before mutation.
-- [ ] A successful remove invalidates the tenant users query and removes the user from the refreshed list.
-- [ ] A failing remove attempt keeps the user in place and shows the expected error feedback.
+- [x] The tenant details navigation includes an `Invitations` tab.
+- [x] Opening the `Invitations` tab shows the current tenant name in the standard tenant-details page header pattern.
+- [x] The page exposes an `Invite user` CTA in the header, using the same drawer pattern as the `Users` tab.
+- [x] Invitations created for the current tenant appear in this tab after refresh or query invalidation.
+- [x] The tab lists invitation-specific records, not pre-acceptance tenant users.
+- [x] Sorting is available only on meaningful backend-supported fields and does not allow unsupported fields such as `Profiles` or `Invited by`.
+- [x] Filtering by invitation status returns the expected subsets (`pending`, `accepted`, `expired`, `revoked`).
+- [x] Revoking a pending invitation succeeds, refreshes the list, and removes or updates the row state as expected.
+- [x] Accepted, revoked, and expired invitations do not expose the revoke action.
 
-### 5.6 Change user account level
+### 5.6 Remove user from tenant
 - Status: `DONE`
-- [ ] Opening the change-role action exposes the role update menu.
-- [ ] Promoting a tenant user to `Admin` succeeds and the new level appears after invalidation or refresh.
-- [ ] Demoting a tenant user to `User` succeeds and the new level appears after invalidation or refresh.
-- [ ] The query invalidates after a successful role change and the visible table state matches the backend result.
+- [x] Clicking remove opens a confirmation step before mutation.
+- [x] A successful remove invalidates the tenant users query and removes the user from the refreshed list.
+- [x] A failing remove attempt keeps the user in place and shows the expected error feedback.
 
-### 5.7 Search/filter tenant users
+### 5.7 Change user account level
+- Status: `DONE`
+- [x] Opening the change-role action exposes the role update menu.
+- [x] Promoting a tenant user to `Admin` succeeds and the new level appears after invalidation or refresh.
+- [x] Demoting a tenant user to `User` succeeds and the new level appears after invalidation or refresh.
+- [x] The query invalidates after a successful role change and the visible table state matches the backend result.
+
+### 5.8 Search/filter tenant users
 - Status: `DONE/PARTIAL`
 - [ ] Typing in the users search input filters the tenant users list.
 - [ ] Filtering by `active` returns only active tenant users.

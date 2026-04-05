@@ -14,6 +14,7 @@ import type {
 	UpdateTenantUserAsStaffBody,
 } from '@org/client-ts/src/models';
 import { SESSION_TOKEN_HEADER_KEY } from '@org/shared-ts/lib/constants';
+
 import { getSessionTokensFromClient } from '#app/lib/cookies/session-cookie.utils.ts';
 
 import { createStaffMutation, createStaffQuery } from '../../create-hooks';
@@ -198,6 +199,39 @@ export const useFindTenantUsers = createStaffQuery({
 
 		if (_.isNil(result)) {
 			throw new Error('useFindTenantUsers: result is nil');
+		}
+
+		return result;
+	},
+});
+
+type FindTenantInvitationsParams = {
+	tenantId: string;
+	cursor?: string;
+	limit?: number;
+	sort?: { id: string; order: 'desc' | 'asc' };
+	status?: string;
+	q?: string;
+};
+
+export const useFindTenantInvitations = createStaffQuery({
+	queryKeyFn: (client) => client.staff.tenants.byTenantId('').invitations.get,
+	fetcher: async (client, params: FindTenantInvitationsParams) => {
+		const result = await client.staff.tenants
+			.byTenantId(params.tenantId)
+			.invitations.get({
+				queryParameters: {
+					cursor: params.cursor,
+					limit: params.limit ? params.limit.toString() : undefined,
+					sortId: params.sort?.id,
+					sortOrder: params.sort?.order,
+					status: params.status,
+					q: params.q,
+				},
+			});
+
+		if (_.isNil(result)) {
+			throw new Error('useFindTenantInvitations: result is nil');
 		}
 
 		return result;
