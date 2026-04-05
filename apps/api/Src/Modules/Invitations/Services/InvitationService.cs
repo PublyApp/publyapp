@@ -122,6 +122,11 @@ public interface IInvitationService {
 		FindTenantInvitationsArgs args,
 		CancellationToken cancellationToken = default);
 
+	Task<FindTenantInvitationsResult> FindTenantInvitationsAsync(
+		Guid tenantId,
+		FindTenantInvitationsArgs args,
+		CancellationToken cancellationToken = default);
+
 	Task<UserEntity> AcceptStaffInvitationAsync(
 		AcceptStaffInvitationArgs args,
 		CancellationToken cancellationToken = default);
