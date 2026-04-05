@@ -196,6 +196,35 @@ public sealed class FindTenantUsersAsStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldReturnUnprocessableEntityWhenStatusIsPending() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		var url = GetFindUrl(
+			tenantId,
+			status: "pending"
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			url
+		).WithSessionToken(staffToken);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnUnauthorizedWithoutSession() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
