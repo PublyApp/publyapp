@@ -48,7 +48,7 @@ public class FindInvitationsForTenantAsStaffQuery : CursorPaginatedQuery {
 
 		var statuses = new HashSet<InvitationStatus>();
 		foreach (var part in parts) {
-			var parsed = Invitation.ParseInvitationStatus(part);
+			var parsed = Invitation.ParseStatus(part);
 			if (parsed is { } status) {
 				statuses.Add(status);
 			}

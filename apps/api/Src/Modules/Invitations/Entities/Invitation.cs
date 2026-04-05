@@ -189,24 +189,34 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 			&& IsDeleted is false
 			&& ExpiresAt > DateTime.UtcNow;
 	}
-	public static InvitationStatus? ParseInvitationStatus(string status) {
-		if (string.Equals(status, "pending", StringComparison.OrdinalIgnoreCase)) {
+	public static InvitationStatus? ParseStatus(string status) {
+		if (string.Equals(status, nameof(InvitationStatus.Pending), StringComparison.OrdinalIgnoreCase)) {
 			return InvitationStatus.Pending;
 		}
 
-		if (string.Equals(status, "accepted", StringComparison.OrdinalIgnoreCase)) {
+		if (string.Equals(status, nameof(InvitationStatus.Accepted), StringComparison.OrdinalIgnoreCase)) {
 			return InvitationStatus.Accepted;
 		}
 
-		if (string.Equals(status, "expired", StringComparison.OrdinalIgnoreCase)) {
+		if (string.Equals(status, nameof(InvitationStatus.Expired), StringComparison.OrdinalIgnoreCase)) {
 			return InvitationStatus.Expired;
 		}
 
-		if (string.Equals(status, "revoked", StringComparison.OrdinalIgnoreCase)) {
+		if (string.Equals(status, nameof(InvitationStatus.Revoked), StringComparison.OrdinalIgnoreCase)) {
 			return InvitationStatus.Revoked;
 		}
 
 		return null;
+	}
+
+	public static string GetStatusDescription(InvitationStatus status) {
+		return status switch {
+			InvitationStatus.Pending => nameof(InvitationStatus.Pending),
+			InvitationStatus.Accepted => nameof(InvitationStatus.Accepted),
+			InvitationStatus.Expired => nameof(InvitationStatus.Expired),
+			InvitationStatus.Revoked => nameof(InvitationStatus.Revoked),
+			_ => "Unknown",
+		};
 	}
 }
 
