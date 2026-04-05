@@ -189,10 +189,36 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 			&& IsDeleted is false
 			&& ExpiresAt > DateTime.UtcNow;
 	}
+	public static InvitationStatus? ParseInvitationStatus(string status) {
+		if (string.Equals(status, "pending", StringComparison.OrdinalIgnoreCase)) {
+			return InvitationStatus.Pending;
+		}
+
+		if (string.Equals(status, "accepted", StringComparison.OrdinalIgnoreCase)) {
+			return InvitationStatus.Accepted;
+		}
+
+		if (string.Equals(status, "expired", StringComparison.OrdinalIgnoreCase)) {
+			return InvitationStatus.Expired;
+		}
+
+		if (string.Equals(status, "revoked", StringComparison.OrdinalIgnoreCase)) {
+			return InvitationStatus.Revoked;
+		}
+
+		return null;
+	}
 }
 
 public enum InvitationScope {
 	Staff = 0,
 	Tenant = 1,
 	Project = 2,
+}
+
+public enum InvitationStatus {
+	Pending,
+	Accepted,
+	Expired,
+	Revoked
 }
