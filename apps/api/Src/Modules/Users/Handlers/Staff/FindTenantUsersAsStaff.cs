@@ -75,7 +75,7 @@ public class FindTenantUsersAsStaffQueryValidator
 		FindTenantUsersAsStaffQuery
 	> {
 	private static readonly HashSet<string> AllowedStatuses =
-		new([nameof(UserStatus.Active), nameof(UserStatus.Pending), nameof(UserStatus.Suspended)], StringComparer.OrdinalIgnoreCase);
+		new([nameof(UserStatus.Active), nameof(UserStatus.Suspended)], StringComparer.OrdinalIgnoreCase);
 
 	public FindTenantUsersAsStaffQueryValidator() {
 		RuleFor(x => x.Search).MaximumLength(200);

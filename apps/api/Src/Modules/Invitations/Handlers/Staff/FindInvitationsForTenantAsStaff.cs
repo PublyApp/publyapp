@@ -59,7 +59,7 @@ public class FindInvitationsForTenantAsStaffQuery : CursorPaginatedQuery {
 
 public class FindInvitationsForTenantAsStaffQueryValidator : CursorPaginatedQueryValidator<FindInvitationsForTenantAsStaffQuery> {
 	private static readonly HashSet<string> AllowedStatuses =
-		new(["pending", "accepted", "expired", "revoked"], StringComparer.OrdinalIgnoreCase);
+		new([nameof(InvitationStatus.Pending), nameof(InvitationStatus.Accepted), nameof(InvitationStatus.Expired), nameof(InvitationStatus.Revoked)], StringComparer.OrdinalIgnoreCase);
 
 	public FindInvitationsForTenantAsStaffQueryValidator() {
 		RuleFor(x => x.Search).MaximumLength(200);

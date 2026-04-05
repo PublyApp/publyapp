@@ -101,7 +101,6 @@ const TenantUsersTable = () => {
 	const statusOptions = useMemo(() => {
 		return [
 			{ label: t('active'), value: USER_STATUS_ENUM.ACTIVE },
-			{ label: t('pending'), value: USER_STATUS_ENUM.PENDING },
 			{ label: t('suspended'), value: USER_STATUS_ENUM.SUSPENDED },
 		];
 	}, [t]);
