@@ -21,6 +21,7 @@ import { useParams } from 'react-router';
 
 import type { ProfileAsStaffItem } from '@org/client-ts/src/models';
 import { TENANT_PROFILES_PERMISSIONS_ENUM } from '@org/shared-ts/lib/constants';
+
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { toast } from '#app/components/snackbar/index.ts';

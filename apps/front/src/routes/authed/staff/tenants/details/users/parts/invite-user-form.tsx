@@ -1,13 +1,18 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Link from '@mui/material/Link';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
+
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { Field } from '#app/components/hook-form/fields.tsx';
 import { Form } from '#app/components/hook-form/form-provider.tsx';
@@ -16,7 +21,10 @@ import { useSectionPageWithDrawer } from '#app/components/settings/section-page-
 import { toast } from '#app/components/snackbar/index.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
-import { useInviteTenantUser } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
+import {
+	useFindTenantInvitations,
+	useInviteTenantUser,
+} from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
 
 // ----------------------------------------------------------------------
 
@@ -39,8 +47,11 @@ const ACCOUNT_LEVEL_OPTIONS = [
 export const InviteUserForm = ({ onClose }: { onClose?: () => void }) => {
 	const { t } = useTranslate();
 	const { tenantId } = useParams();
+	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const { closeDrawer } = useSectionPageWithDrawer();
 	const handleClose = onClose ?? closeDrawer;
+	const [showSuccess, setShowSuccess] = useState(false);
 
 	const methods = useForm<InviteUserFormValues>({
 		resolver: zodResolver(inviteUserSchema),
@@ -52,13 +63,21 @@ export const InviteUserForm = ({ onClose }: { onClose?: () => void }) => {
 
 	const { handleSubmit, reset } = methods;
 
+	const invitationsPath = tenantId
+		? FRONT_PATH_NAMES.staff.tenants.details(tenantId).tabs.invitations
+		: '';
+
 	const { mutate: inviteUser, isPending } = useInviteTenantUser({
-		// Component handles error display; skip global handler to avoid duplicate toast.
 		meta: { skipGlobalErrorHandler: true },
-		onSuccess: () => {
+		onSuccess: async () => {
+			if (tenantId) {
+				await queryClient.invalidateQueries({
+					queryKey: useFindTenantInvitations.getKey({ tenantId }),
+				});
+			}
 			toast.success(t('invitation-created-success'));
+			setShowSuccess(true);
 			reset();
-			handleClose();
 		},
 		onError: (error) => {
 			const failure = toApiFailure(error);
@@ -78,6 +97,77 @@ export const InviteUserForm = ({ onClose }: { onClose?: () => void }) => {
 			accountLevel: data.accountLevel,
 		});
 	});
+
+	const handleViewInvitations = () => {
+		handleClose();
+		if (invitationsPath) {
+			navigate(invitationsPath);
+		}
+	};
+
+	const handleCloseAndReset = () => {
+		setShowSuccess(false);
+		handleClose();
+	};
+
+	// Show success state with CTA
+	if (showSuccess) {
+		return (
+			<Box
+				sx={{
+					p: 3,
+					height: '100%',
+					display: 'flex',
+					flexDirection: 'column',
+					alignItems: 'center',
+					textAlign: 'center',
+					paddingTop: 30,
+				}}
+			>
+				<Box
+					sx={{
+						width: 80,
+						height: 80,
+						borderRadius: '50%',
+						bgcolor: 'success.lighter',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						mb: 3,
+					}}
+				>
+					<Iconify
+						icon="solar:check-circle-bold"
+						width={40}
+						sx={{ color: 'success.main' }}
+					/>
+				</Box>
+				<Typography variant="h5" sx={{ mb: 1 }}>
+					{t('invitation-sent')}
+				</Typography>
+				<Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+					{t('invitation-success-description')}
+				</Typography>
+				<Stack direction="column" spacing={2} sx={{ width: '100%' }}>
+					<Button
+						variant="contained"
+						onClick={handleViewInvitations}
+						startIcon={<Iconify icon="solar:letter-bold" />}
+					>
+						{t('view-invitations')}
+					</Button>
+					<Link
+						component="button"
+						type="button"
+						onClick={handleCloseAndReset}
+						sx={{ typography: 'body2', color: 'text.secondary' }}
+					>
+						{t('close')}
+					</Link>
+				</Stack>
+			</Box>
+		);
+	}
 
 	return (
 		<Box

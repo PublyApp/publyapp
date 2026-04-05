@@ -770,6 +770,15 @@ export function createFindAuditLogsResponseFromDiscriminatorValue(parseNode: Par
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindInvitationsForTenantAsStaffResult}
+ */
+// @ts-ignore
+export function createFindInvitationsForTenantAsStaffResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindInvitationsForTenantAsStaffResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {FindStaffInvitationsResult}
  */
 // @ts-ignore
@@ -2241,6 +2250,18 @@ export function deserializeIntoFindAuditLogsResponse(findAuditLogsResponse: Part
 }
 /**
  * The deserialization information for the current model
+ * @param FindInvitationsForTenantAsStaffResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindInvitationsForTenantAsStaffResult(findInvitationsForTenantAsStaffResult: Partial<FindInvitationsForTenantAsStaffResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "data": n => { findInvitationsForTenantAsStaffResult.data = n.getCollectionOfObjectValues<InvitationListItem>(createInvitationListItemFromDiscriminatorValue); },
+        "nextCursor": n => { findInvitationsForTenantAsStaffResult.nextCursor = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param FindStaffInvitationsResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -3271,6 +3292,16 @@ export interface FindAuditLogsResponse extends AdditionalDataHolder, Parsable {
      * The data property
      */
     data?: AuditLogListItem[] | null;
+    /**
+     * The nextCursor property
+     */
+    nextCursor?: string | null;
+}
+export interface FindInvitationsForTenantAsStaffResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The data property
+     */
+    data?: InvitationListItem[] | null;
     /**
      * The nextCursor property
      */
@@ -4355,6 +4386,19 @@ export function serializeFindAuditLogsResponse(writer: SerializationWriter, find
     writer.writeCollectionOfObjectValues<AuditLogListItem>("data", findAuditLogsResponse.data, serializeAuditLogListItem);
     writer.writeStringValue("nextCursor", findAuditLogsResponse.nextCursor);
     writer.writeAdditionalData(findAuditLogsResponse.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param FindInvitationsForTenantAsStaffResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindInvitationsForTenantAsStaffResult(writer: SerializationWriter, findInvitationsForTenantAsStaffResult: Partial<FindInvitationsForTenantAsStaffResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findInvitationsForTenantAsStaffResult || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<InvitationListItem>("data", findInvitationsForTenantAsStaffResult.data, serializeInvitationListItem);
+    writer.writeStringValue("nextCursor", findInvitationsForTenantAsStaffResult.nextCursor);
+    writer.writeAdditionalData(findInvitationsForTenantAsStaffResult.additionalData);
 }
 /**
  * Serializes information the current object

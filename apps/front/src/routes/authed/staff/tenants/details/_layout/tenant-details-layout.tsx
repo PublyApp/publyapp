@@ -15,6 +15,7 @@ import {
 	FRONT_PATH_NAMES,
 	isServer,
 } from '@org/shared-ts/lib/constants';
+
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
 import View400 from '#app/components/error/400-view.tsx';
 import { NotFoundView } from '#app/components/error/not-found-view.tsx';
@@ -86,6 +87,7 @@ const TenantDetailsLayout = () => {
 		return [
 			{ label: t('general'), href: paths.tabs.general },
 			{ label: t('users'), href: paths.tabs.users, deep: true },
+			{ label: t('invitations'), href: paths.tabs.invitations, deep: true },
 			{
 				label: t('profiles'),
 				href: paths.tabs.profiles,

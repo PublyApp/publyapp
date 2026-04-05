@@ -7,6 +7,7 @@ public class InvitationPermissionsForStaff : ISlicePermissions {
 	public string KeyPrefix { get; } = "invitations";
 
 	public Permission LIST_FOR_STAFF { get; }
+	public Permission LIST_FOR_TENANT { get; }
 	public Permission GET_FOR_STAFF { get; }
 	public Permission CREATE_FOR_STAFF { get; }
 	public Permission REVOKE_FOR_STAFF { get; }
@@ -18,6 +19,11 @@ public class InvitationPermissionsForStaff : ISlicePermissions {
 			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "list_for_staff" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "List invitations for staff", Description = "List invitations for staff" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Lister les invitations pour le staff", Description = "Lister les invitations pour le staff" });
+
+		LIST_FOR_TENANT = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "list_for_tenant" }))
+			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "List invitations for tenant", Description = "List invitations for a specific tenant" })
+			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Lister les invitations pour le tenant", Description = "Lister les invitations pour un tenant spécifique" });
 
 		GET_FOR_STAFF = Permission
 			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "get_for_staff" }))
