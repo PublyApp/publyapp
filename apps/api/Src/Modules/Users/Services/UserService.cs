@@ -2444,6 +2444,7 @@ public class UserService : IUserService {
 		// Find the user and their account for this tenant
 		var userAccount = await (
 			from ua in _dbContext.UserAccount
+				.AsNoTracking()
 			join u in _dbContext.User on ua.UserId equals u.Id
 			where ua.TenantId == tenantId
 				&& ua.UserId == userId
@@ -2536,6 +2537,168 @@ public class UserService : IUserService {
 				User = user,
 				Account = account,
 				AccountLevel = account.Level
+			}
+		);
+	}
+
+	public async Task<SuspendTenantUserResult> SuspendTenantUserAsync(
+		Guid tenantId,
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		// Find the user account for this tenant
+		var userAccount = await (
+			from ua in _dbContext.UserAccount
+			join u in _dbContext.User on ua.UserId equals u.Id
+			where ua.TenantId == tenantId
+				&& ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !u.IsDeleted
+			select new { User = u, Account = ua }
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (userAccount is null) {
+			return new SuspendTenantUserResult.NotFound();
+		}
+
+		var account = userAccount.Account;
+
+		if (account.IsSuspended) {
+			return new SuspendTenantUserResult.AlreadySuspended();
+		}
+
+		// Check last-admin invariant: cannot suspend the last active admin
+		if (account.Level == AccountLevel.Admin) {
+			var activeAdminCount = await (
+				from ua in _dbContext.UserAccount
+				where ua.TenantId == tenantId
+					&& ua.Scope == AccountScope.Tenant
+					&& ua.Level == AccountLevel.Admin
+					&& !ua.IsSuspended
+					&& !ua.IsDeleted
+				select ua
+			).CountAsync(cancellationToken);
+
+			if (activeAdminCount <= 1) {
+				return new SuspendTenantUserResult.CannotSuspendLastAdmin();
+			}
+		}
+
+		// Use atomic update for race-condition safety
+		var rowsAffected = await _dbContext.UserAccount
+			.Where(ua =>
+				ua.TenantId == tenantId
+				&& ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !ua.IsSuspended
+			)
+			.ExecuteUpdateAsync(setters => setters
+				.SetProperty(ua => ua.IsSuspended, true)
+				.SetProperty(ua => ua.UpdatedAt, DateTime.UtcNow),
+				cancellationToken);
+
+		if (rowsAffected == 0) {
+			return new SuspendTenantUserResult.AlreadySuspended();
+		}
+
+		// Re-fetch to return current state
+		var updatedAccount = await (
+			from ua in _dbContext.UserAccount
+				.AsNoTracking()
+			join u in _dbContext.User on ua.UserId equals u.Id
+			where ua.TenantId == tenantId
+				&& ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+			select new { User = u, Account = ua }
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (updatedAccount is null) {
+			throw new InvalidOperationException(
+				"User account not found after successful suspend. "
+				+ "This indicates a data integrity issue."
+			);
+		}
+
+		return new SuspendTenantUserResult.Success(
+			new TenantUserData {
+				User = updatedAccount.User,
+				Account = updatedAccount.Account,
+				AccountLevel = updatedAccount.Account.Level
+			}
+		);
+	}
+
+	public async Task<ReactivateTenantUserResult> ReactivateTenantUserAsync(
+		Guid tenantId,
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		// Find the user account for this tenant
+		var userAccount = await (
+			from ua in _dbContext.UserAccount
+				.AsNoTracking()
+			join u in _dbContext.User on ua.UserId equals u.Id
+			where ua.TenantId == tenantId
+				&& ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !u.IsDeleted
+			select new { User = u, Account = ua }
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (userAccount is null) {
+			return new ReactivateTenantUserResult.NotFound();
+		}
+
+		var account = userAccount.Account;
+
+		if (!account.IsSuspended) {
+			return new ReactivateTenantUserResult.NotSuspended();
+		}
+
+		// Use atomic update for race-condition safety
+		var rowsAffected = await _dbContext.UserAccount
+			.Where(ua =>
+				ua.TenantId == tenantId
+				&& ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& ua.IsSuspended
+			)
+			.ExecuteUpdateAsync(setters => setters
+				.SetProperty(ua => ua.IsSuspended, false)
+				.SetProperty(ua => ua.UpdatedAt, DateTime.UtcNow),
+				cancellationToken);
+
+		if (rowsAffected == 0) {
+			return new ReactivateTenantUserResult.NotSuspended();
+		}
+
+		// Re-fetch to return current state
+		var updatedAccount = await (
+			from ua in _dbContext.UserAccount
+				.AsNoTracking()
+			join u in _dbContext.User on ua.UserId equals u.Id
+			where ua.TenantId == tenantId
+				&& ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+			select new { User = u, Account = ua }
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (updatedAccount is null) {
+			throw new InvalidOperationException(
+				"User account not found after successful reactivate. "
+				+ "This indicates a data integrity issue."
+			);
+		}
+
+		return new ReactivateTenantUserResult.Success(
+			new TenantUserData {
+				User = updatedAccount.User,
+				Account = updatedAccount.Account,
+				AccountLevel = updatedAccount.Account.Level
 			}
 		);
 	}
