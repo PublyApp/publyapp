@@ -41,8 +41,8 @@ import { isProblemFailure, toApiFailure } from '#app/lib/api-failure/index.ts';
 import {
 	useFindStaffInvitations,
 	useGetStaffInvitation,
-	useResendInvitation,
-	useRevokeInvitation,
+	useResendStaffInvitation,
+	useRevokeStaffInvitation,
 } from '#app/lib/react-query/features/staff/staff-invitation.hooks.ts';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 import { fDate, fIsAfter, fToNow } from '#app/utils/format-time.ts';
@@ -230,14 +230,14 @@ const InvitationDetailsContent = ({
 	const canManage = status === 'pending';
 
 	const { mutateAsync: resendInvitation, isPending: isResending } =
-		useResendInvitation({
+		useResendStaffInvitation({
 			onSuccess: () => {
 				toast.success(t('staff-invitation-resent'));
 			},
 		});
 
 	const { mutateAsync: revokeInvitation, isPending: isRevoking } =
-		useRevokeInvitation({
+		useRevokeStaffInvitation({
 			onSuccess: () => {
 				toast.success(t('staff-invitation-revoked'));
 				queryClient.invalidateQueries({

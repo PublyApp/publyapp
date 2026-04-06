@@ -12,7 +12,6 @@ using MainApi.Src.Modules.AuditLogs.Entities;
 using MainApi.Src.Modules.AuditLogs.Services;
 using MainApi.Src.Modules.Invitations.Entities;
 using MainApi.Src.Modules.Invitations.Services;
-using MainApi.Src.Modules.Users.Entities;
 using MainApi.Src.Modules.Users.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -76,15 +75,6 @@ public class CreateStaffInvitation {
 			throw new InvalidOperationException(
 				"Staff account not found in auth context. "
 				+ "Ensure the endpoint has .WithPermission() middleware."
-			);
-		}
-
-		// REAL AUTHORIZATION: Check permissions
-		if (account.Scope != AccountScope.Staff
-			|| account.Level != AccountLevel.Admin) {
-			return TypedProblems.Forbidden(
-				"User does not have the necessary permissions",
-				ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
 			);
 		}
 
