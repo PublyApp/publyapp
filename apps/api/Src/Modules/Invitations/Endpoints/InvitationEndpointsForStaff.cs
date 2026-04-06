@@ -66,9 +66,9 @@ public static class InvitationEndpointsForStaff {
 
 		group.MapDelete(
 				Routes.Invitations.ForStaff.RevokeById,
-				RevokeStaffInvitation.HandleRevokeStaffInvitation
+				RevokeInvitationForStaff.HandleRevokeInvitationForStaff
 			)
-			.WithName("RevokeStaffInvitation")
+			.WithName("RevokeInvitationForStaff")
 			.WithSummary("Revoke a staff invitation (Admin only)")
 			.WithPermission([AppPermissions.Staff.Invitations.REVOKE_FOR_STAFF]);
 

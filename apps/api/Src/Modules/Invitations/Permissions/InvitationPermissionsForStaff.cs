@@ -11,6 +11,7 @@ public class InvitationPermissionsForStaff : ISlicePermissions {
 	public Permission GET_FOR_STAFF { get; }
 	public Permission CREATE_FOR_STAFF { get; }
 	public Permission REVOKE_FOR_STAFF { get; }
+	public Permission REVOKE_FOR_TENANT { get; }
 	public Permission GET_LINK_FOR_STAFF { get; }
 	public Permission RESEND_FOR_STAFF { get; }
 
@@ -39,6 +40,11 @@ public class InvitationPermissionsForStaff : ISlicePermissions {
 			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "revoke_for_staff" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Revoke an invitation for staff", Description = "Revoke an invitation for staff" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Révoquer une invitation pour le staff", Description = "Révoquer une invitation pour le staff" });
+
+		REVOKE_FOR_TENANT = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "revoke_for_tenant" }))
+			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Revoke an invitation for tenant", Description = "Revoke an invitation for a specific tenant" })
+			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Révoquer une invitation pour le tenant", Description = "Révoquer une invitation pour un tenant spécifique" });
 
 		// Extra actions for managing pending invitations.
 		GET_LINK_FOR_STAFF = Permission

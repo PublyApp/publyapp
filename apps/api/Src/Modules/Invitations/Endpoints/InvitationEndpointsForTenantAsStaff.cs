@@ -21,6 +21,14 @@ public static class InvitationEndpointsForTenantAsStaff {
 			.WithPermission([AppPermissions.Staff.Invitations.LIST_FOR_TENANT])
 			.WithReqQueryValidation<FindInvitationsForTenantAsStaffQuery>();
 
+		group.MapDelete(
+				Routes.Invitations.ForTenantAsStaff.RevokeById,
+				RevokeInvitationForTenantAsStaff.HandleRevokeInvitationForTenantAsStaff
+			)
+			.WithName("RevokeInvitationForTenantAsStaff")
+			.WithSummary("Revoke a tenant invitation")
+			.WithPermission([AppPermissions.Staff.Invitations.REVOKE_FOR_TENANT]);
+
 		return routes;
 	}
 }

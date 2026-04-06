@@ -141,14 +141,14 @@ type RevokeInvitationPayload = {
 	invitationId: string;
 };
 
-export const useRevokeInvitation = createStaffMutation({
+export const useRevokeStaffInvitation = createStaffMutation({
 	mutationKeyFn: (client) => client.staff.invitations.byInvitationId('').delete,
 	mutationFn: async (client, data: RevokeInvitationPayload) => {
 		const result = await client.staff.invitations
 			.byInvitationId(data.invitationId)
 			.delete();
 		if (_.isNil(result)) {
-			throw new Error('useRevokeInvitation: result is nil');
+			throw new Error('useRevokeStaffInvitation: result is nil');
 		}
 		return result;
 	},
@@ -159,7 +159,7 @@ type GetInvitationLinkPayload = {
 };
 
 // Use mutation to avoid caching tokenized invitation links.
-export const useGetInvitationLink = createStaffMutation({
+export const useGetStaffInvitationLink = createStaffMutation({
 	mutationKeyFn: (client) =>
 		client.staff.invitations.byInvitationId('').link.get,
 	mutationFn: async (client, data: GetInvitationLinkPayload) => {
@@ -167,7 +167,7 @@ export const useGetInvitationLink = createStaffMutation({
 			.byInvitationId(data.invitationId)
 			.link.get();
 		if (_.isNil(result)) {
-			throw new Error('useGetInvitationLink: result is nil');
+			throw new Error('useGetStaffInvitationLink: result is nil');
 		}
 		return result;
 	},
@@ -178,7 +178,7 @@ type ResendInvitationPayload = {
 };
 
 // Resend is modeled as a mutation to keep query cache clean.
-export const useResendInvitation = createStaffMutation({
+export const useResendStaffInvitation = createStaffMutation({
 	mutationKeyFn: (client) =>
 		client.staff.invitations.byInvitationId('').resend.post,
 	mutationFn: async (client, data: ResendInvitationPayload) => {
@@ -186,7 +186,7 @@ export const useResendInvitation = createStaffMutation({
 			.byInvitationId(data.invitationId)
 			.resend.post();
 		if (_.isNil(result)) {
-			throw new Error('useResendInvitation: result is nil');
+			throw new Error('useResendStaffInvitation: result is nil');
 		}
 		return result;
 	},
