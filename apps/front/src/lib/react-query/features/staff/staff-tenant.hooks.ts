@@ -306,6 +306,44 @@ export const useRemoveTenantUser = createStaffMutation({
 	},
 });
 
+export const useSuspendTenantUser = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.tenants.byTenantId('').users.byUserId('').suspend.post,
+	mutationFn: async (
+		client,
+		variables: { tenantId: string; userId: string },
+	) => {
+		const result = await client.staff.tenants
+			.byTenantId(variables.tenantId)
+			.users.byUserId(variables.userId)
+			.suspend.post();
+
+		if (_.isNil(result)) {
+			throw new Error('useSuspendTenantUser: result is nil');
+		}
+		return result;
+	},
+});
+
+export const useReactivateTenantUser = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.tenants.byTenantId('').users.byUserId('').reactivate.post,
+	mutationFn: async (
+		client,
+		variables: { tenantId: string; userId: string },
+	) => {
+		const result = await client.staff.tenants
+			.byTenantId(variables.tenantId)
+			.users.byUserId(variables.userId)
+			.reactivate.post();
+
+		if (_.isNil(result)) {
+			throw new Error('useReactivateTenantUser: result is nil');
+		}
+		return result;
+	},
+});
+
 export const useUpdateTenantUser = createStaffMutation({
 	mutationKeyFn: (client) =>
 		client.staff.tenants.byTenantId('').users.byUserId('').patch,

@@ -60,7 +60,7 @@ public class FindTenantUsersAsStaffQuery
 
 		var statuses = new HashSet<UserStatus>();
 		foreach (var part in parts) {
-			UserStatus? parsed = User.ParseStatus(part);
+			UserStatus? parsed = UserAccount.ParseStatus(part);
 			if (parsed is { } status) {
 				statuses.Add(status);
 			}
@@ -200,10 +200,9 @@ public class FindTenantUsersAsStaff {
 									tu.User.FirstName,
 								AvatarUrl =
 									tu.User.AvatarUrl,
-								Status = User
-									.GetStatusDescription(
-										tu.User.Status
-									),
+								Status = UserAccount.GetStatusDescription(
+									tu.Account.IsSuspended
+								),
 								Level = UserAccount
 									.GetAccountLevelDescription(
 										tu.AccountLevel

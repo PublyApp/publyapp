@@ -199,7 +199,9 @@ public class UpdateTenantUserAsStaff {
 					LastName = userData.User.LastName,
 					AvatarUrl = userData.User.AvatarUrl,
 					Level = UserAccount.GetAccountLevelDescription(userData.AccountLevel),
-					Status = User.GetStatusDescription(userData.User.Status),
+					Status = UserAccount.GetStatusDescription(
+						userData.Account.IsSuspended
+					),
 					IsSuspended = userData.Account.IsSuspended,
 					TenantId = userData.Account.TenantId,
 				}

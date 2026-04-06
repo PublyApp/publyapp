@@ -47,6 +47,22 @@ public static class UserEndpointsForTenantAsStaff {
 			.WithPermission([AppPermissions.Staff.Users.UPDATE_FOR_TENANT])
 			.WithReqBodyValidation<UpdateTenantUserAsStaffBody>();
 
+		group.MapPost(
+			Routes.Users.ForTenantAsStaff.Suspend,
+			SuspendTenantUserAsStaff.HandleSuspendTenantUserAsStaff
+		)
+			.WithName("SuspendTenantUserAsStaff")
+			.WithSummary("Suspend a tenant user")
+			.WithPermission([AppPermissions.Staff.Users.UPDATE_FOR_TENANT]);
+
+		group.MapPost(
+			Routes.Users.ForTenantAsStaff.Reactivate,
+			ReactivateTenantUserAsStaff.HandleReactivateTenantUserAsStaff
+		)
+			.WithName("ReactivateTenantUserAsStaff")
+			.WithSummary("Reactivate a suspended tenant user")
+			.WithPermission([AppPermissions.Staff.Users.UPDATE_FOR_TENANT]);
+
 		return routes;
 	}
 }
