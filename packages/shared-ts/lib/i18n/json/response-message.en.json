@@ -61,6 +61,7 @@
 	"tenant-already-suspended": "Tenant is already suspended",
 	"tenant-not-active-cannot-suspend": "Only active tenants can be suspended",
 	"tenant-not-suspended": "Tenant is not currently suspended",
+	"user-not-suspended": "User is not currently suspended",
 	"tenant-suspended": "This tenant has been suspended",
 	"tenant-suspended-success": "Tenant has been suspended successfully",
 	"tenant-reactivated-success": "Tenant has been reactivated successfully",

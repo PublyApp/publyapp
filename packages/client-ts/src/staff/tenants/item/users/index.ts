@@ -6,7 +6,7 @@ import { createAppProblemDetailsFromDiscriminatorValue, createFindTenantUsersAsS
 // @ts-ignore
 import { InvitationsRequestBuilderRequestsMetadata, type InvitationsRequestBuilder } from './invitations/index.js';
 // @ts-ignore
-import { type WithUserItemRequestBuilder, WithUserItemRequestBuilderRequestsMetadata } from './item/index.js';
+import { type WithUserItemRequestBuilder, WithUserItemRequestBuilderNavigationMetadata, WithUserItemRequestBuilderRequestsMetadata } from './item/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
@@ -71,6 +71,7 @@ const UsersRequestBuilderGetQueryParametersMapper: Record<string, string> = {
 export const UsersRequestBuilderNavigationMetadata: Record<Exclude<keyof UsersRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     byUserId: {
         requestsMetadata: WithUserItemRequestBuilderRequestsMetadata,
+        navigationMetadata: WithUserItemRequestBuilderNavigationMetadata,
         pathParametersMappings: ["userId"],
     },
     invitations: {

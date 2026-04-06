@@ -41,7 +41,7 @@ public abstract record UpdateUserByIdResult {
 
 public abstract record FindTenantUsersResult {
 	public sealed record Success(
-		CursorPaginatedResult<StaffUserData> Data
+		CursorPaginatedResult<TenantUserData> Data
 	) : FindTenantUsersResult;
 
 	public sealed record CursorNotFound(
@@ -93,6 +93,19 @@ public abstract record UpdateTenantUserResult {
 	public sealed record CannotDemoteLastAdmin() : UpdateTenantUserResult;
 }
 
+public abstract record SuspendTenantUserResult {
+	public sealed record Success(TenantUserData UserData) : SuspendTenantUserResult;
+	public sealed record NotFound() : SuspendTenantUserResult;
+	public sealed record AlreadySuspended() : SuspendTenantUserResult;
+	public sealed record CannotSuspendLastAdmin() : SuspendTenantUserResult;
+}
+
+public abstract record ReactivateTenantUserResult {
+	public sealed record Success(TenantUserData UserData) : ReactivateTenantUserResult;
+	public sealed record NotFound() : ReactivateTenantUserResult;
+	public sealed record NotSuspended() : ReactivateTenantUserResult;
+}
+
 public interface IUserService {
 	Task<CreateUserResult> CreateUserAsync(User user, CancellationToken cancellationToken = default);
 	Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken = default);
@@ -124,6 +137,16 @@ public interface IUserService {
 		Guid tenantId,
 		Guid userId,
 		UpdateTenantUserDocument document,
+		CancellationToken cancellationToken = default
+	);
+	Task<SuspendTenantUserResult> SuspendTenantUserAsync(
+		Guid tenantId,
+		Guid userId,
+		CancellationToken cancellationToken = default
+	);
+	Task<ReactivateTenantUserResult> ReactivateTenantUserAsync(
+		Guid tenantId,
+		Guid userId,
 		CancellationToken cancellationToken = default
 	);
 }
@@ -388,40 +411,40 @@ public class UserService : IUserService {
 								&& x.Scope
 									== AccountScope.Tenant
 							select new {
-								x.User.Status,
+								x.IsSuspended,
 								x.UserId,
 							}
 						).FirstOrDefaultAsync(
 							cancellationToken
 						);
 						return item is not null
-							? (item.Status, item.UserId)
+							? (item.IsSuspended ? 1 : 0, item.UserId)
 							: null;
 					},
 					applyFilter: (q, val, isAsc) => {
 						if (val is null) {
 							return q;
 						}
-						var (status, id) =
-							((UserStatus, Guid))val;
+						var (statusRank, id) =
+							((int, Guid))val;
 						return isAsc
 							? q.Where(x =>
-								x.User.Status > status
-								|| (x.User.Status
-										== status
+								(x.IsSuspended ? 1 : 0) > statusRank
+								|| ((x.IsSuspended ? 1 : 0)
+										== statusRank
 									&& x.UserId > id))
 							: q.Where(x =>
-								x.User.Status < status
-								|| (x.User.Status
-										== status
+								(x.IsSuspended ? 1 : 0) < statusRank
+								|| ((x.IsSuspended ? 1 : 0)
+										== statusRank
 									&& x.UserId < id));
 					},
 					applyOrdering: (q, isAsc) => isAsc
 						? q.OrderBy(
-							x => x.User.Status
+							x => x.IsSuspended ? 1 : 0
 						).ThenBy(x => x.UserId)
 						: q.OrderByDescending(
-							x => x.User.Status
+							x => x.IsSuspended ? 1 : 0
 						).ThenByDescending(
 							x => x.UserId
 						)
@@ -540,7 +563,6 @@ public class UserService : IUserService {
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted
-				&& !ua.IsSuspended
 				&& !ua.User.IsDeleted
 				&& !ua.User.IsSuspended
 			select ua;
@@ -561,9 +583,14 @@ public class UserService : IUserService {
 
 		// Apply status filter
 		if (args.Filters?.Status is { } statuses && statuses.Count > 0) {
-			query = query.Where(ua =>
-				statuses.Contains(ua.User.Status)
-			);
+			var includesActive = statuses.Contains(UserStatus.Active);
+			var includesSuspended = statuses.Contains(UserStatus.Suspended);
+
+			if (includesActive && !includesSuspended) {
+				query = query.Where(ua => !ua.IsSuspended);
+			} else if (!includesActive && includesSuspended) {
+				query = query.Where(ua => ua.IsSuspended);
+			}
 		}
 
 		if (args.Cursor != Guid.Empty) {
@@ -588,8 +615,9 @@ public class UserService : IUserService {
 		);
 
 		var results = await orderedQuery
-			.Select(ua => new StaffUserData {
+			.Select(ua => new TenantUserData {
 				User = ua.User,
+				Account = ua,
 				AccountLevel = ua.Level,
 			})
 			.Take(effectiveLimit + 1)
@@ -603,7 +631,7 @@ public class UserService : IUserService {
 		}
 
 		return new FindTenantUsersResult.Success(
-			new CursorPaginatedResult<StaffUserData> {
+			new CursorPaginatedResult<TenantUserData> {
 				Data = results,
 				NextCursor = nextCursor,
 			}
@@ -798,6 +826,7 @@ public class UserService : IUserService {
 		// Find the user and their account for this tenant
 		var userAccount = await (
 			from ua in _dbContext.UserAccount
+				.AsNoTracking()
 			join u in _dbContext.User on ua.UserId equals u.Id
 			where ua.TenantId == tenantId
 				&& ua.UserId == userId
@@ -890,6 +919,168 @@ public class UserService : IUserService {
 				User = user,
 				Account = account,
 				AccountLevel = account.Level
+			}
+		);
+	}
+
+	public async Task<SuspendTenantUserResult> SuspendTenantUserAsync(
+		Guid tenantId,
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		// Find the user account for this tenant
+		var userAccount = await (
+			from ua in _dbContext.UserAccount
+			join u in _dbContext.User on ua.UserId equals u.Id
+			where ua.TenantId == tenantId
+				&& ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !u.IsDeleted
+			select new { User = u, Account = ua }
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (userAccount is null) {
+			return new SuspendTenantUserResult.NotFound();
+		}
+
+		var account = userAccount.Account;
+
+		if (account.IsSuspended) {
+			return new SuspendTenantUserResult.AlreadySuspended();
+		}
+
+		// Check last-admin invariant: cannot suspend the last active admin
+		if (account.Level == AccountLevel.Admin) {
+			var activeAdminCount = await (
+				from ua in _dbContext.UserAccount
+				where ua.TenantId == tenantId
+					&& ua.Scope == AccountScope.Tenant
+					&& ua.Level == AccountLevel.Admin
+					&& !ua.IsSuspended
+					&& !ua.IsDeleted
+				select ua
+			).CountAsync(cancellationToken);
+
+			if (activeAdminCount <= 1) {
+				return new SuspendTenantUserResult.CannotSuspendLastAdmin();
+			}
+		}
+
+		// Use atomic update for race-condition safety
+		var rowsAffected = await _dbContext.UserAccount
+			.Where(ua =>
+				ua.TenantId == tenantId
+				&& ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !ua.IsSuspended
+			)
+			.ExecuteUpdateAsync(setters => setters
+				.SetProperty(ua => ua.IsSuspended, true)
+				.SetProperty(ua => ua.UpdatedAt, DateTime.UtcNow),
+				cancellationToken);
+
+		if (rowsAffected == 0) {
+			return new SuspendTenantUserResult.AlreadySuspended();
+		}
+
+		// Re-fetch to return current state
+		var updatedAccount = await (
+			from ua in _dbContext.UserAccount
+				.AsNoTracking()
+			join u in _dbContext.User on ua.UserId equals u.Id
+			where ua.TenantId == tenantId
+				&& ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+			select new { User = u, Account = ua }
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (updatedAccount is null) {
+			throw new InvalidOperationException(
+				"User account not found after successful suspend. "
+				+ "This indicates a data integrity issue."
+			);
+		}
+
+		return new SuspendTenantUserResult.Success(
+			new TenantUserData {
+				User = updatedAccount.User,
+				Account = updatedAccount.Account,
+				AccountLevel = updatedAccount.Account.Level
+			}
+		);
+	}
+
+	public async Task<ReactivateTenantUserResult> ReactivateTenantUserAsync(
+		Guid tenantId,
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		// Find the user account for this tenant
+		var userAccount = await (
+			from ua in _dbContext.UserAccount
+				.AsNoTracking()
+			join u in _dbContext.User on ua.UserId equals u.Id
+			where ua.TenantId == tenantId
+				&& ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !u.IsDeleted
+			select new { User = u, Account = ua }
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (userAccount is null) {
+			return new ReactivateTenantUserResult.NotFound();
+		}
+
+		var account = userAccount.Account;
+
+		if (!account.IsSuspended) {
+			return new ReactivateTenantUserResult.NotSuspended();
+		}
+
+		// Use atomic update for race-condition safety
+		var rowsAffected = await _dbContext.UserAccount
+			.Where(ua =>
+				ua.TenantId == tenantId
+				&& ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& ua.IsSuspended
+			)
+			.ExecuteUpdateAsync(setters => setters
+				.SetProperty(ua => ua.IsSuspended, false)
+				.SetProperty(ua => ua.UpdatedAt, DateTime.UtcNow),
+				cancellationToken);
+
+		if (rowsAffected == 0) {
+			return new ReactivateTenantUserResult.NotSuspended();
+		}
+
+		// Re-fetch to return current state
+		var updatedAccount = await (
+			from ua in _dbContext.UserAccount
+				.AsNoTracking()
+			join u in _dbContext.User on ua.UserId equals u.Id
+			where ua.TenantId == tenantId
+				&& ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+			select new { User = u, Account = ua }
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (updatedAccount is null) {
+			throw new InvalidOperationException(
+				"User account not found after successful reactivate. "
+				+ "This indicates a data integrity issue."
+			);
+		}
+
+		return new ReactivateTenantUserResult.Success(
+			new TenantUserData {
+				User = updatedAccount.User,
+				Account = updatedAccount.Account,
+				AccountLevel = updatedAccount.Account.Level
 			}
 		);
 	}

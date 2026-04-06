@@ -277,6 +277,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey TenantNotSuspended = new("tenant-not-suspended");
 
 	/// <summary>
+	/// User is not currently suspended
+	/// </summary>
+	public static readonly TranslationKey UserNotSuspended = new("user-not-suspended");
+
+	/// <summary>
 	/// Only suspended tenants can be deleted
 	/// </summary>
 	public static readonly TranslationKey TenantNotSuspendedCannotDelete = new("tenant-not-suspended-cannot-delete");

@@ -62,6 +62,8 @@ import { useSendEmailVerificationReminder } from '#app/lib/react-query/features/
 import {
 	useFindTenantUsers,
 	useRemoveTenantUser,
+	useSuspendTenantUser,
+	useReactivateTenantUser,
 	useUpdateTenantUser,
 } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
 
@@ -916,33 +918,206 @@ const StatusCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (
 	props,
 ) => {
 	const { t } = useTranslate();
-
+	const { tenantId } = useParams();
+	const queryClient = useQueryClient();
+	const user = props.row.original;
 	const status = props.cell.getValue();
+	const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+	const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+	const [pendingStatus, setPendingStatus] = useState<string | null>(null);
 
-	let t_message: string = t('unknown-item', { item: 'status' });
+	const { mutate: suspendUser, isPending: isSuspending } = useSuspendTenantUser(
+		{
+			onSuccess: () => {
+				toast.success(t('tenant-user-suspended-success'));
+				setConfirmDialogOpen(false);
+				setMenuAnchorEl(null);
+				if (tenantId) {
+					queryClient.invalidateQueries({
+						queryKey: useFindTenantUsers.getKey({ tenantId }),
+					});
+				}
+			},
+		},
+	);
+
+	const { mutate: reactivateUser, isPending: isReactivating } =
+		useReactivateTenantUser({
+			onSuccess: () => {
+				toast.success(t('tenant-user-reactivated-success'));
+				setConfirmDialogOpen(false);
+				setMenuAnchorEl(null);
+				if (tenantId) {
+					queryClient.invalidateQueries({
+						queryKey: useFindTenantUsers.getKey({ tenantId }),
+					});
+				}
+			},
+		});
+
+	let label: string = t('unknown-item', { item: 'status' });
 	let color: LabelColor = 'default';
 
 	if (status === USER_STATUS_ENUM.ACTIVE) {
-		t_message = t('active');
+		label = t('active');
 		color = 'success';
-	} else if (status === USER_STATUS_ENUM.PENDING) {
-		t_message = t('pending');
-		color = 'warning';
-	} else if (status === USER_STATUS_ENUM.BANNED) {
-		t_message = t('banned');
-		color = 'error';
 	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
-		t_message = t('suspended');
+		label = t('suspended');
 		color = 'warning';
-	} else if (status === USER_STATUS_ENUM.INACTIVE) {
-		t_message = t('inactive');
-		color = 'default';
+	}
+
+	const isPending = isSuspending || isReactivating;
+
+	const handleStatusClick = (newStatus: string) => {
+		if (newStatus === status) {
+			setMenuAnchorEl(null);
+			return;
+		}
+		setPendingStatus(newStatus);
+		setConfirmDialogOpen(true);
+	};
+
+	const handleConfirm = () => {
+		if (!tenantId || !pendingStatus) return;
+
+		if (pendingStatus === USER_STATUS_ENUM.SUSPENDED) {
+			suspendUser({ tenantId, userId: user.id });
+		} else if (pendingStatus === USER_STATUS_ENUM.ACTIVE) {
+			reactivateUser({ tenantId, userId: user.id });
+		}
+	};
+
+	const isActive = status === USER_STATUS_ENUM.ACTIVE;
+	const isSuspended = status === USER_STATUS_ENUM.SUSPENDED;
+	const canChangeStatus = isActive || isSuspended;
+
+	if (!canChangeStatus) {
+		return (
+			<Label variant="soft" color={color}>
+				{label}
+			</Label>
+		);
 	}
 
 	return (
-		<Label variant="soft" color={color}>
-			{t_message}
-		</Label>
+		<>
+			<Box sx={{ display: 'flex', alignItems: 'center' }}>
+				<Tooltip title={t('change-status')} placement="top" arrow>
+					<ButtonBase
+						onClick={(event) => {
+							setMenuAnchorEl(event.currentTarget);
+						}}
+						disabled={isPending}
+						sx={(theme) => ({
+							gap: 0.5,
+							px: 0.5,
+							py: 0.25,
+							borderRadius: 1,
+							display: 'inline-flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							transition: theme.transitions.create('background-color', {
+								duration: theme.transitions.duration.shorter,
+							}),
+							'&:hover': {
+								backgroundColor: varAlpha(
+									theme.vars.palette.grey['500Channel'],
+									0.08,
+								),
+							},
+							'&:disabled': {
+								opacity: 0.48,
+							},
+						})}
+					>
+						<Label variant="soft" color={color}>
+							{label}
+						</Label>
+						<Iconify icon="eva:arrow-ios-downward-fill" width={16} />
+					</ButtonBase>
+				</Tooltip>
+
+				<Menu
+					open={menuAnchorEl !== null}
+					disableAutoFocusItem
+					onClose={() => {
+						setMenuAnchorEl(null);
+					}}
+					anchorEl={menuAnchorEl}
+					anchorOrigin={{
+						vertical: 'bottom',
+						horizontal: 'left',
+					}}
+					transformOrigin={{
+						vertical: 'top',
+						horizontal: 'left',
+					}}
+				>
+					<MenuItem
+						selected={isActive}
+						onClick={() => handleStatusClick(USER_STATUS_ENUM.ACTIVE)}
+					>
+						<Stack direction="row" alignItems="center" gap={1}>
+							{isActive ? (
+								<Iconify icon="solar:check-circle-bold" width={18} />
+							) : (
+								<Iconify icon="solar:shield-check-bold" width={18} />
+							)}
+							{t('active')}
+						</Stack>
+					</MenuItem>
+
+					<MenuItem
+						selected={isSuspended}
+						onClick={() => handleStatusClick(USER_STATUS_ENUM.SUSPENDED)}
+					>
+						<Stack direction="row" alignItems="center" gap={1}>
+							{isSuspended ? (
+								<Iconify icon="solar:check-circle-bold" width={18} />
+							) : (
+								<Iconify icon="solar:stop-circle-bold" width={18} />
+							)}
+							{t('suspended')}
+						</Stack>
+					</MenuItem>
+				</Menu>
+			</Box>
+
+			<ConfirmDialog
+				open={confirmDialogOpen}
+				onClose={() => setConfirmDialogOpen(false)}
+				title={
+					pendingStatus === USER_STATUS_ENUM.SUSPENDED
+						? t('confirm-suspend-tenant-user')
+						: t('confirm-reactivate-tenant-user')
+				}
+				content={
+					pendingStatus === USER_STATUS_ENUM.SUSPENDED
+						? t('suspend-tenant-user-description', {
+								defaultValue:
+									'This user will lose access to this tenant. Are you sure you want to proceed?',
+							})
+						: t('reactivate-tenant-user-description', {
+								defaultValue:
+									'Access to this tenant will be restored. Are you sure you want to proceed?',
+							})
+				}
+				action={
+					<Button
+						variant="contained"
+						color={
+							pendingStatus === USER_STATUS_ENUM.SUSPENDED ? 'error' : 'primary'
+						}
+						onClick={handleConfirm}
+						disabled={isPending}
+					>
+						{pendingStatus === USER_STATUS_ENUM.SUSPENDED
+							? t('suspend')
+							: t('reactivate')}
+					</Button>
+				}
+			/>
+		</>
 	);
 };
 

@@ -61,6 +61,7 @@
 	"tenant-already-suspended": "Le locataire est déjà suspendu",
 	"tenant-not-active-cannot-suspend": "Seuls les locataires actifs peuvent être suspendus",
 	"tenant-not-suspended": "Le locataire n'est pas actuellement suspendu",
+	"user-not-suspended": "L'utilisateur n'est pas actuellement suspendu",
 	"tenant-suspended": "Ce locataire a été suspendu",
 	"tenant-suspended-success": "Le locataire a été suspendu avec succès",
 	"tenant-reactivated-success": "Le locataire a été réactivé avec succès",

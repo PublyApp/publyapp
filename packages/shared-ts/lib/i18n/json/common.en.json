@@ -604,5 +604,11 @@
 	"revoke": "Revoke",
 	"invitation-sent": "Invitation sent",
 	"invitation-success-description": "The invitation has been sent successfully. The user will receive an email with the invitation details.",
-	"view-invitations": "View invitations"
+	"view-invitations": "View invitations",
+	"tenant-user-suspended-success": "User suspended successfully",
+	"tenant-user-reactivated-success": "User reactivated successfully",
+	"confirm-suspend-tenant-user": "Confirm suspend user",
+	"confirm-reactivate-tenant-user": "Confirm reactivate user",
+	"suspend-tenant-user-description": "This user will lose access to this tenant. Are you sure you want to proceed?",
+	"reactivate-tenant-user-description": "Access to this tenant will be restored. Are you sure you want to proceed?"
 }
