@@ -49,7 +49,7 @@ public class GetInvitationDetails {
 			roleDisplayName is null
 			&& invitation.Scope == InvitationScope.Tenant
 		) {
-			roleDisplayName = UserAccount.GetAccountLevelDescription(
+			roleDisplayName = UserAccount.GetLevelDescription(
 				invitation.AccountLevel ?? AccountLevel.User
 			);
 		}

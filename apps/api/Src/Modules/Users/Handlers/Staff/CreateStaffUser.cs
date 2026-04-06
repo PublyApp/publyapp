@@ -48,7 +48,7 @@ public class CreateStaffUserBody {
 				return AccountLevelEnum.User;
 			case JsonValueKind.String: {
 					var accountLevelString = AccountLevel.GetValueAsString();
-					var accountLevel = UserAccount.ParseAccountLevel(accountLevelString);
+					var accountLevel = UserAccount.ParseLevel(accountLevelString);
 					if (accountLevel is null) {
 						throw new InvalidOperationException("Invalid account level: " + accountLevelString);
 					}

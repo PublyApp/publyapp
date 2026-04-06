@@ -131,11 +131,13 @@ public class AccountService : IAccountService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
+		// Active-account lookups must exclude globally suspended identities too.
 		var query =
 			from ua in _dbContext.UserAccount
 			where ua.UserId == userId
 			&& ua.Scope == AccountScope.Staff
 			&& !ua.IsDeleted && !ua.IsSuspended
+			&& !ua.User.IsDeleted && !ua.User.IsSuspended
 			select ua;
 
 		return await query.FirstOrDefaultAsync(cancellationToken);
@@ -152,6 +154,7 @@ public class AccountService : IAccountService {
 			&& ua.TenantId == tenantId
 			&& ua.Scope == AccountScope.Tenant
 			&& !ua.IsDeleted && !ua.IsSuspended
+			&& !ua.User.IsDeleted && !ua.User.IsSuspended
 			select ua;
 
 		return await query.FirstOrDefaultAsync(cancellationToken);
@@ -166,6 +169,7 @@ public class AccountService : IAccountService {
 			where ua.UserId == userId
 			&& ua.Scope == AccountScope.Staff
 			&& !ua.IsDeleted && !ua.IsSuspended
+			&& !ua.User.IsDeleted && !ua.User.IsSuspended
 			select ua;
 
 		return await query.AnyAsync(cancellationToken);
@@ -182,6 +186,7 @@ public class AccountService : IAccountService {
 			&& ua.TenantId == tenantId
 			&& ua.Scope == AccountScope.Tenant
 			&& !ua.IsDeleted && !ua.IsSuspended
+			&& !ua.User.IsDeleted && !ua.User.IsSuspended
 			select ua;
 
 		return await query.AnyAsync(cancellationToken);
@@ -202,6 +207,7 @@ public class AccountService : IAccountService {
 				&& ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted && !ua.IsSuspended
+				&& !ua.User.IsDeleted && !ua.User.IsSuspended
 				&& !t.IsDeleted && t.Status == TenantStatus.Active && !t.IsSuspended
 			select ua;
 
@@ -429,6 +435,7 @@ public class AccountService : IAccountService {
 			&& ua.Scope == AccountScope.Tenant
 			&& ua.TenantId != null
 			&& !ua.IsDeleted && !ua.IsSuspended
+			&& !ua.User.IsDeleted && !ua.User.IsSuspended
 			select ua;
 
 		return await query.Take(effectiveLimit).ToListAsync(cancellationToken);
@@ -510,6 +517,7 @@ public class AccountService : IAccountService {
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.TenantId != null
 				&& !ua.IsDeleted && !ua.IsSuspended
+				&& !ua.User.IsDeleted && !ua.User.IsSuspended
 				&& !t.IsDeleted && t.Status == TenantStatus.Active && !t.IsSuspended
 			select new { ua, t };
 
@@ -545,6 +553,7 @@ public class AccountService : IAccountService {
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.TenantId != null
 				&& !ua.IsDeleted && !ua.IsSuspended  // Account must be active
+				&& !ua.User.IsDeleted && !ua.User.IsSuspended
 				&& !t.IsDeleted                       // Tenant must not be deleted
 			select new { ua, t };
 

@@ -61,9 +61,9 @@ import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
 import { useSendEmailVerificationReminder } from '#app/lib/react-query/features/common/auth.hooks.ts';
 import {
 	useFindTenantUsers,
+	useReactivateTenantUser,
 	useRemoveTenantUser,
 	useSuspendTenantUser,
-	useReactivateTenantUser,
 	useUpdateTenantUser,
 } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
 
@@ -84,6 +84,15 @@ const defaultSorting: MRT_SortingState[number] = {
 	id: 'created_at',
 };
 const SELECTION_MODE_MENU_MIN_WIDTH = 220;
+const GLOBALLY_SUSPENDED_STATUS_VALUE = 'globally_suspended';
+const GLOBALLY_SUSPENDED_STATUS_DESCRIPTION = 'GloballySuspended';
+
+const isGloballySuspendedStatus = (status: string) => {
+	return (
+		status === GLOBALLY_SUSPENDED_STATUS_VALUE ||
+		status === GLOBALLY_SUSPENDED_STATUS_DESCRIPTION
+	);
+};
 
 const parseStatusFilter = (value: string) => {
 	if (!value) {
@@ -104,6 +113,12 @@ const TenantUsersTable = () => {
 		return [
 			{ label: t('active'), value: USER_STATUS_ENUM.ACTIVE },
 			{ label: t('suspended'), value: USER_STATUS_ENUM.SUSPENDED },
+			{
+				label: t('globally-suspended', {
+					defaultValue: 'Globally suspended',
+				}),
+				value: GLOBALLY_SUSPENDED_STATUS_VALUE,
+			},
 		];
 	}, [t]);
 
@@ -922,9 +937,14 @@ const StatusCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (
 	const queryClient = useQueryClient();
 	const user = props.row.original;
 	const status = props.cell.getValue();
+	const isGloballySuspended = isGloballySuspendedStatus(status);
 	const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
 	const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 	const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+	const globallySuspendedReason = t('globally-suspended-row-disabled', {
+		defaultValue:
+			'This user is globally suspended. Reactivate the user globally before managing tenant membership.',
+	});
 
 	const { mutate: suspendUser, isPending: isSuspending } = useSuspendTenantUser(
 		{
@@ -958,7 +978,12 @@ const StatusCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (
 	let label: string = t('unknown-item', { item: 'status' });
 	let color: LabelColor = 'default';
 
-	if (status === USER_STATUS_ENUM.ACTIVE) {
+	if (isGloballySuspended) {
+		label = t('globally-suspended', {
+			defaultValue: 'Globally suspended',
+		});
+		color = 'error';
+	} else if (status === USER_STATUS_ENUM.ACTIVE) {
 		label = t('active');
 		color = 'success';
 	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
@@ -989,13 +1014,22 @@ const StatusCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (
 
 	const isActive = status === USER_STATUS_ENUM.ACTIVE;
 	const isSuspended = status === USER_STATUS_ENUM.SUSPENDED;
-	const canChangeStatus = isActive || isSuspended;
+	const canChangeStatus = !isGloballySuspended && (isActive || isSuspended);
 
 	if (!canChangeStatus) {
 		return (
-			<Label variant="soft" color={color}>
-				{label}
-			</Label>
+			<Tooltip
+				title={isGloballySuspended ? globallySuspendedReason : ''}
+				placement="top"
+				arrow
+				disableHoverListener={!isGloballySuspended}
+			>
+				<Box component="span">
+					<Label variant="soft" color={color}>
+						{label}
+					</Label>
+				</Box>
+			</Tooltip>
 		);
 	}
 
@@ -1125,9 +1159,15 @@ const LevelCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 	const { t } = useTranslate();
 	const { tenantId } = useParams();
 	const queryClient = useQueryClient();
+	const user = props.row.original;
 	const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
-	const userId = props.row.original.id;
+	const userId = user.id;
 	const level = props.cell.getValue();
+	const isGloballySuspended = isGloballySuspendedStatus(user.status);
+	const globallySuspendedReason = t('globally-suspended-row-disabled', {
+		defaultValue:
+			'This user is globally suspended. Reactivate the user globally before managing tenant membership.',
+	});
 
 	const { mutate: updateUser, isPending } = useUpdateTenantUser({
 		// Row-level tenant-user actions rely on the centralized mutation error
@@ -1173,39 +1213,45 @@ const LevelCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 
 	return (
 		<Box sx={{ display: 'flex', alignItems: 'center' }}>
-			<Tooltip title={t('change-role')} placement="top" arrow>
-				<ButtonBase
-					onClick={(event) => {
-						setMenuAnchorEl(event.currentTarget);
-					}}
-					disabled={isPending}
-					sx={(theme) => ({
-						gap: 0.5,
-						px: 0.5,
-						py: 0.25,
-						borderRadius: 1,
-						display: 'inline-flex',
-						alignItems: 'center',
-						justifyContent: 'center',
-						transition: theme.transitions.create('background-color', {
-							duration: theme.transitions.duration.shorter,
-						}),
-						'&:hover': {
-							backgroundColor: varAlpha(
-								theme.vars.palette.grey['500Channel'],
-								0.08,
-							),
-						},
-						'&:disabled': {
-							opacity: 0.48,
-						},
-					})}
-				>
-					<Label variant="soft" color={color}>
-						{label}
-					</Label>
-					<Iconify icon="eva:arrow-ios-downward-fill" width={16} />
-				</ButtonBase>
+			<Tooltip
+				title={isGloballySuspended ? globallySuspendedReason : t('change-role')}
+				placement="top"
+				arrow
+			>
+				<Box component="span">
+					<ButtonBase
+						onClick={(event) => {
+							setMenuAnchorEl(event.currentTarget);
+						}}
+						disabled={isPending || isGloballySuspended}
+						sx={(theme) => ({
+							gap: 0.5,
+							px: 0.5,
+							py: 0.25,
+							borderRadius: 1,
+							display: 'inline-flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							transition: theme.transitions.create('background-color', {
+								duration: theme.transitions.duration.shorter,
+							}),
+							'&:hover': {
+								backgroundColor: varAlpha(
+									theme.vars.palette.grey['500Channel'],
+									0.08,
+								),
+							},
+							'&:disabled': {
+								opacity: 0.48,
+							},
+						})}
+					>
+						<Label variant="soft" color={color}>
+							{label}
+						</Label>
+						<Iconify icon="eva:arrow-ios-downward-fill" width={16} />
+					</ButtonBase>
+				</Box>
 			</Tooltip>
 
 			<Menu
@@ -1258,23 +1304,44 @@ const LevelCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 
 const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
 	const user = props.row.original;
+	const { t } = useTranslate();
+	const isGloballySuspended = isGloballySuspendedStatus(user.status);
+	const disabledReason = t('globally-suspended-row-disabled');
 
 	return (
 		<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-			<FollowUpAction user={user} />
+			<FollowUpAction
+				user={user}
+				disabled={isGloballySuspended}
+				disabledReason={disabledReason}
+			/>
 
-			<UserDetailsDrawerAction user={user} />
+			<UserDetailsDrawerAction
+				user={user}
+				disabled={isGloballySuspended}
+				disabledReason={disabledReason}
+			/>
 
-			<RemoveUserAction user={user} />
+			<RemoveUserAction
+				user={user}
+				disabled={isGloballySuspended}
+				disabledReason={disabledReason}
+			/>
 		</Box>
 	);
 };
 
 type FollowUpActionProps = {
 	user: TenantUserRowData;
+	disabled: boolean;
+	disabledReason: string;
 };
 
-const FollowUpAction = ({ user }: FollowUpActionProps) => {
+const FollowUpAction = ({
+	user,
+	disabled,
+	disabledReason,
+}: FollowUpActionProps) => {
 	const { t } = useTranslate();
 	const isUserPending = user.status === USER_STATUS_ENUM.PENDING;
 
@@ -1293,27 +1360,40 @@ const FollowUpAction = ({ user }: FollowUpActionProps) => {
 
 	return (
 		<Tooltip
-			title={_.capitalize(t('send-email-verification-follow-up'))}
+			title={
+				disabled
+					? disabledReason
+					: _.capitalize(t('send-email-verification-follow-up'))
+			}
 			placement="top"
 		>
-			<IconButton
-				color="default"
-				loading={isPendingSendEmailVerificationReminder}
-				onClick={async () => {
-					await sendEmailVerificationReminder({ email: user.email });
-				}}
-			>
-				<Iconify icon="custom:send-fill" width={18} />
-			</IconButton>
+			<Box component="span">
+				<IconButton
+					color="default"
+					loading={isPendingSendEmailVerificationReminder}
+					disabled={disabled}
+					onClick={async () => {
+						await sendEmailVerificationReminder({ email: user.email });
+					}}
+				>
+					<Iconify icon="custom:send-fill" width={18} />
+				</IconButton>
+			</Box>
 		</Tooltip>
 	);
 };
 
 type UserDetailsDrawerActionProps = {
 	user: TenantUserRowData;
+	disabled: boolean;
+	disabledReason: string;
 };
 
-const UserDetailsDrawerAction = ({ user }: UserDetailsDrawerActionProps) => {
+const UserDetailsDrawerAction = ({
+	user,
+	disabled,
+	disabledReason,
+}: UserDetailsDrawerActionProps) => {
 	const { t } = useTranslate();
 	const detailsDrawer = useBoolean();
 	const userDetailsLink = FRONT_PATH_NAMES.staff.tenantUsers.details(user.id);
@@ -1332,6 +1412,8 @@ const UserDetailsDrawerAction = ({ user }: UserDetailsDrawerActionProps) => {
 	let statusLabel = t('unknown-item', { item: 'status' });
 	if (user.status === USER_STATUS_ENUM.ACTIVE) {
 		statusLabel = t('active');
+	} else if (isGloballySuspendedStatus(user.status)) {
+		statusLabel = t('globally-suspended');
 	} else if (user.status === USER_STATUS_ENUM.PENDING) {
 		statusLabel = t('pending');
 	} else if (user.status === USER_STATUS_ENUM.BANNED) {
@@ -1344,10 +1426,20 @@ const UserDetailsDrawerAction = ({ user }: UserDetailsDrawerActionProps) => {
 
 	return (
 		<>
-			<Tooltip title={t('view-details')} placement="top" arrow>
-				<IconButton color="default" onClick={detailsDrawer.onTrue}>
-					<Iconify icon="solar:list-bold" width={18} />
-				</IconButton>
+			<Tooltip
+				title={disabled ? disabledReason : t('view-details')}
+				placement="top"
+				arrow
+			>
+				<Box component="span">
+					<IconButton
+						color="default"
+						disabled={disabled}
+						onClick={detailsDrawer.onTrue}
+					>
+						<Iconify icon="solar:list-bold" width={18} />
+					</IconButton>
+				</Box>
 			</Tooltip>
 
 			<Drawer
@@ -1408,9 +1500,15 @@ const UserDetailsDrawerAction = ({ user }: UserDetailsDrawerActionProps) => {
 
 type RemoveUserActionProps = {
 	user: TenantUserRowData;
+	disabled: boolean;
+	disabledReason: string;
 };
 
-const RemoveUserAction = ({ user }: RemoveUserActionProps) => {
+const RemoveUserAction = ({
+	user,
+	disabled,
+	disabledReason,
+}: RemoveUserActionProps) => {
 	const confirmDialog = useBoolean();
 	const { t } = useTranslate();
 	const { tenantId } = useParams();
@@ -1447,20 +1545,28 @@ const RemoveUserAction = ({ user }: RemoveUserActionProps) => {
 	return (
 		<>
 			<Tooltip
-				title={t('remove-user-from-tenant', {
-					defaultValue: 'Remove from tenant',
-				})}
+				title={
+					disabled
+						? disabledReason
+						: t('remove-user-from-tenant', {
+								defaultValue: 'Remove from tenant',
+							})
+				}
 				placement="top"
 				arrow
 			>
-				<IconButton
-					color="default"
-					onClick={confirmDialog.onTrue}
-					disabled={isRemoving}
-					sx={{ color: 'error.main' }}
-				>
-					<Iconify icon="solar:trash-bin-trash-bold" width={18} />
-				</IconButton>
+				<Box component="span">
+					<IconButton
+						color="default"
+						onClick={confirmDialog.onTrue}
+						disabled={isRemoving || disabled}
+						sx={{
+							color: disabled ? 'action.disabled' : 'error.main',
+						}}
+					>
+						<Iconify icon="solar:trash-bin-trash-bold" width={18} />
+					</IconButton>
+				</Box>
 			</Tooltip>
 
 			<ConfirmDialog

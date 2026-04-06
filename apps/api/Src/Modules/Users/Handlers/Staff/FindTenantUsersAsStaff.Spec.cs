@@ -435,6 +435,290 @@ public sealed class FindTenantUsersAsStaffSpec
 		);
 	}
 
+	[Fact]
+	public async Task
+	ItShouldReturnGloballySuspendedStatusWhenUserIsGloballySuspendedAndMembershipIsActive() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		await SetTenantUserStatesAsync(
+			tenantId,
+			SeedConstants.Tenants.AcmeUserEmail,
+			isMembershipSuspended: false,
+			isUserSuspended: true,
+			userStatus: UserStatus.Suspended
+		);
+
+		try {
+			var url = GetFindUrl(tenantId);
+			var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				url
+			).WithSessionToken(staffToken);
+
+			using var response =
+				await _http.SendAsync(request);
+
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var result = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			result.Should().NotBeNull();
+			result!.Data.Should().Contain(user =>
+				string.Equals(
+					user.Email,
+					SeedConstants.Tenants.AcmeUserEmail,
+					StringComparison.OrdinalIgnoreCase
+				)
+				&& user.Status == "GloballySuspended"
+			);
+		} finally {
+			await SetTenantUserStatesAsync(
+				tenantId,
+				SeedConstants.Tenants.AcmeUserEmail,
+				isMembershipSuspended: false,
+				isUserSuspended: false,
+				userStatus: UserStatus.Active
+			);
+		}
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnGloballySuspendedStatusWhenUserIsGloballySuspendedAndMembershipIsSuspended() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		await SetTenantUserStatesAsync(
+			tenantId,
+			SeedConstants.Tenants.AcmeUserEmail,
+			isMembershipSuspended: true,
+			isUserSuspended: true,
+			userStatus: UserStatus.Suspended
+		);
+
+		try {
+			var url = GetFindUrl(tenantId);
+			var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				url
+			).WithSessionToken(staffToken);
+
+			using var response =
+				await _http.SendAsync(request);
+
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var result = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			result.Should().NotBeNull();
+			result!.Data.Should().Contain(user =>
+				string.Equals(
+					user.Email,
+					SeedConstants.Tenants.AcmeUserEmail,
+					StringComparison.OrdinalIgnoreCase
+				)
+				&& user.Status == "GloballySuspended"
+			);
+		} finally {
+			await SetTenantUserStatesAsync(
+				tenantId,
+				SeedConstants.Tenants.AcmeUserEmail,
+				isMembershipSuspended: false,
+				isUserSuspended: false,
+				userStatus: UserStatus.Active
+			);
+		}
+	}
+
+	[Fact]
+	public async Task
+	ItShouldExcludeGloballySuspendedUsersFromActiveAndSuspendedFilters() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		await SetTenantUserStatesAsync(
+			tenantId,
+			SeedConstants.Tenants.AcmeUserEmail,
+			isMembershipSuspended: false,
+			isUserSuspended: true,
+			userStatus: UserStatus.Suspended
+		);
+
+		try {
+			var activeRequest = new HttpRequestMessage(
+				HttpMethod.Get,
+				GetFindUrl(tenantId, status: "active")
+			).WithSessionToken(staffToken);
+
+			using var activeResponse =
+				await _http.SendAsync(activeRequest);
+
+			activeResponse.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var activeResult = await activeResponse.Content
+				.ReadFromJsonAsync<FindResponse>();
+			activeResult.Should().NotBeNull();
+			activeResult!.Data.Should().NotContain(user =>
+				string.Equals(
+					user.Email,
+					SeedConstants.Tenants.AcmeUserEmail,
+					StringComparison.OrdinalIgnoreCase
+				)
+			);
+
+			var suspendedRequest = new HttpRequestMessage(
+				HttpMethod.Get,
+				GetFindUrl(tenantId, status: "suspended")
+			).WithSessionToken(staffToken);
+
+			using var suspendedResponse =
+				await _http.SendAsync(suspendedRequest);
+
+			suspendedResponse.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var suspendedResult = await suspendedResponse.Content
+				.ReadFromJsonAsync<FindResponse>();
+			suspendedResult.Should().NotBeNull();
+			suspendedResult!.Data.Should().NotContain(user =>
+				string.Equals(
+					user.Email,
+					SeedConstants.Tenants.AcmeUserEmail,
+					StringComparison.OrdinalIgnoreCase
+				)
+			);
+		} finally {
+			await SetTenantUserStatesAsync(
+				tenantId,
+				SeedConstants.Tenants.AcmeUserEmail,
+				isMembershipSuspended: false,
+				isUserSuspended: false,
+				userStatus: UserStatus.Active
+			);
+		}
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnOnlyGloballySuspendedUsersWhenStatusFilterIsGloballySuspended() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		await SetTenantUserStatesAsync(
+			tenantId,
+			SeedConstants.Tenants.AcmeUserEmail,
+			isMembershipSuspended: false,
+			isUserSuspended: true,
+			userStatus: UserStatus.Suspended
+		);
+
+		try {
+			var url = GetFindUrl(
+				tenantId,
+				status: "globally_suspended"
+			);
+			var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				url
+			).WithSessionToken(staffToken);
+
+			using var response =
+				await _http.SendAsync(request);
+
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var result = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			result.Should().NotBeNull();
+			result!.Data.Should().NotBeEmpty();
+			result.Data.Should().OnlyContain(user =>
+				user.Status == "GloballySuspended"
+			);
+			result.Data.Should().Contain(user =>
+				string.Equals(
+					user.Email,
+					SeedConstants.Tenants.AcmeUserEmail,
+					StringComparison.OrdinalIgnoreCase
+				)
+			);
+		} finally {
+			await SetTenantUserStatesAsync(
+				tenantId,
+				SeedConstants.Tenants.AcmeUserEmail,
+				isMembershipSuspended: false,
+				isUserSuspended: false,
+				userStatus: UserStatus.Active
+			);
+		}
+	}
+
+	[Fact]
+	public async Task
+	ItShouldSortByStatusWithoutServerError() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(
+				tenantId,
+				sortId: "status",
+				sortOrder: "desc"
+			)
+		).WithSessionToken(staffToken);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		result!.Data.Should().NotBeEmpty();
+	}
+
 	// -- URL builder --
 
 	private static string GetFindUrl(
@@ -493,6 +777,34 @@ public sealed class FindTenantUsersAsStaffSpec
 		}
 
 		return basePath;
+	}
+
+	private async Task SetTenantUserStatesAsync(
+		Guid tenantId,
+		string email,
+		bool isMembershipSuspended,
+		bool isUserSuspended,
+		UserStatus userStatus
+	) {
+		using var scope =
+			_fixture.Factory.Services.CreateScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<MainApiDbContext>();
+
+		var membership = await dbContext.UserAccount
+			.FirstAsync(ua =>
+				ua.TenantId == tenantId
+				&& ua.Scope == AccountScope.Tenant
+				&& ua.User.Email == email
+			);
+		var user = await dbContext.User
+			.FirstAsync(u => u.Email == email);
+
+		membership.IsSuspended = isMembershipSuspended;
+		user.IsSuspended = isUserSuspended;
+		user.Status = userStatus;
+
+		await dbContext.SaveChangesAsync();
 	}
 
 	// -- Response DTOs --

@@ -70,7 +70,7 @@ public class GetStaffUserById {
 			LastName = user.User.LastName,
 			FirstName = user.User.FirstName,
 			AvatarUrl = user.User.AvatarUrl,
-			AccountLevel = UserAccount.GetAccountLevelDescription(user.AccountLevel),
+			AccountLevel = UserAccount.GetLevelDescription(user.AccountLevel),
 			Status = User.GetStatusDescription(user.User.Status),
 		});
 	}
