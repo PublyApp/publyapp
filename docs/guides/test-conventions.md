@@ -25,6 +25,15 @@ Test infrastructure lives in `Src/Lib/Testing/` organized by purpose:
 - `Testing/Fakes/` — test doubles (`FakeEmailSender`)
 - NO test cases in Testing/ — specs live co-located with source
 
+## Architecture Tests
+
+Architecture tests enforce cross-cutting rules across the entire assembly (not testing a specific class). They follow the same conventions but live in `Src/Lib/Architecture/`:
+
+- Use `*.Spec.cs` suffix (e.g., `ArchitectureGuard.Spec.cs`)
+- Namespace: `MainApi.Src.Lib.Architecture`
+- Tests scan the assembly to verify architectural compliance
+- Example: `ArchitectureGuard.Spec.cs` ensures `PatchField<T>` doesn't appear in HTTP DTOs
+
 ## Test Using Statements
 
 Spec files reference test infrastructure via sub-namespaces:
