@@ -37,6 +37,7 @@
 	"staff-user-updated-successfully": "Staff user updated successfully",
 	"invitation-revoked": "Invitation revoked successfully",
 	"invitation-resent": "Invitation email resent successfully",
+	"invitation-already-accepted": "Accepted invitations cannot be revoked",
 	"pending-invitation-exists": "A pending invitation already exists for this email",
 	"staff-profile-created-successfully": "Staff profile created successfully",
 	"profile-name-already-exists": "Profile name already exists",
