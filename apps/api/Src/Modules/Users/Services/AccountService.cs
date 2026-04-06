@@ -59,6 +59,7 @@ public interface IAccountService {
 	Task<UserAccount?> GetUserTenantAccountAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
 	Task<bool> IsUserStaffUserAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<bool> IsUserMemberOfTenantAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
+	Task<bool> IsUserMemberOfActiveTenantAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
 	Task<bool> HasStaffAccountAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<bool> HasTenantAccountAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
 	Task<ResolveTenantInvitationTargetByEmailResult> ResolveTenantInvitationTargetByEmailAsync(
@@ -74,6 +75,11 @@ public interface IAccountService {
 	Task<List<string>> GetEmailsWithStaffAccountsAsync(List<string> emails, CancellationToken cancellationToken = default);
 	Task<List<UserAccount>> FindUserTenantAccountsAsync(Guid userId, int? limit = null, CancellationToken cancellationToken = default);
 	Task<UserTenantsResult> GetUserTenantsAsync(Guid userId, int limit = 5, CancellationToken cancellationToken = default);
+	Task<UserTenantsForPickerResult> GetUserTenantsForPickerAsync(
+		Guid userId,
+		int limit = 50,
+		CancellationToken cancellationToken = default
+	);
 	Task<CreateTenantAccountResult> CreateTenantAccountAsync(Guid userId, Guid tenantId, AccountLevel accountLevel, CancellationToken cancellationToken = default);
 	Task AssignProfileToAccountAsync(Guid accountId, Guid profileId, CancellationToken cancellationToken = default);
 }
@@ -521,7 +527,7 @@ public class AccountService : IAccountService {
 			.OrderBy(x => x.t.Name)
 			.Take(limit)
 			.Select(x => new UserTenantInfo {
-				Id = x.t.Id!.Value,
+				Id = x.t.Id ?? Guid.Empty,
 				Name = x.t.Name,
 				Code = x.t.Code,
 				LogoUrl = x.t.LogoUrl

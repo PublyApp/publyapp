@@ -2444,7 +2444,6 @@ public class UserService : IUserService {
 		// Find the user and their account for this tenant
 		var userAccount = await (
 			from ua in _dbContext.UserAccount
-				.AsNoTracking()
 			join u in _dbContext.User on ua.UserId equals u.Id
 			where ua.TenantId == tenantId
 				&& ua.UserId == userId
@@ -2464,7 +2463,7 @@ public class UserService : IUserService {
 		// Determine new level if provided
 		AccountLevel? newLevel = null;
 		if (document.Level is not null) {
-			newLevel = UserAccount.ParseAccountLevel(document.Level);
+			newLevel = UserAccount.ParseLevel(document.Level);
 			if (newLevel is null) {
 				return new UpdateTenantUserResult.NotFound();
 			}
