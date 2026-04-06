@@ -74,7 +74,7 @@ public class CreateInvitationForTenantAsStaff {
 		// Extract values after validation
 		var email = body.Email.GetValueAsString();
 		var accountLevelStr = body.AccountLevel.GetValueAsString();
-		var parsedAccountLevel = UserAccount.ParseAccountLevel(accountLevelStr);
+		var parsedAccountLevel = UserAccount.ParseLevel(accountLevelStr);
 		if (parsedAccountLevel is null) {
 			throw new InvalidOperationException(
 				$"AccountLevel '{accountLevelStr}' is invalid after validation"

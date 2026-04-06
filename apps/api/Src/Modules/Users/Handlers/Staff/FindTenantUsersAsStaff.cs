@@ -42,7 +42,7 @@ public class FindTenantUsersAsStaffQuery
 		return trimmed.Length == 0 ? null : trimmed;
 	}
 
-	public IReadOnlySet<UserStatus>? GetStatusesOrNull() {
+	public IReadOnlySet<AccountStatus>? GetStatusesOrNull() {
 		if (Status is null) {
 			return null;
 		}
@@ -58,9 +58,9 @@ public class FindTenantUsersAsStaffQuery
 			return null;
 		}
 
-		var statuses = new HashSet<UserStatus>();
+		var statuses = new HashSet<AccountStatus>();
 		foreach (var part in parts) {
-			UserStatus? parsed = UserAccount.ParseStatus(part);
+			AccountStatus? parsed = UserAccount.ParseStatus(part);
 			if (parsed is { } status) {
 				statuses.Add(status);
 			}
@@ -75,7 +75,10 @@ public class FindTenantUsersAsStaffQueryValidator
 		FindTenantUsersAsStaffQuery
 	> {
 	private static readonly HashSet<string> AllowedStatuses =
-		new([nameof(UserStatus.Active), nameof(UserStatus.Suspended)], StringComparer.OrdinalIgnoreCase);
+		new(
+			["active", "suspended", "globally_suspended"],
+			StringComparer.OrdinalIgnoreCase
+		);
 
 	public FindTenantUsersAsStaffQueryValidator() {
 		RuleFor(x => x.Search).MaximumLength(200);
@@ -201,10 +204,13 @@ public class FindTenantUsersAsStaff {
 								AvatarUrl =
 									tu.User.AvatarUrl,
 								Status = UserAccount.GetStatusDescription(
-									tu.Account.IsSuspended
+									UserAccount.GetTenantStatus(
+										tu.User.IsSuspended,
+										tu.Account.IsSuspended
+									)
 								),
 								Level = UserAccount
-									.GetAccountLevelDescription(
+									.GetLevelDescription(
 										tu.AccountLevel
 									),
 							}

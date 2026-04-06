@@ -610,5 +610,7 @@
 	"confirm-suspend-tenant-user": "Confirm suspend user",
 	"confirm-reactivate-tenant-user": "Confirm reactivate user",
 	"suspend-tenant-user-description": "This user will lose access to this tenant. Are you sure you want to proceed?",
-	"reactivate-tenant-user-description": "Access to this tenant will be restored. Are you sure you want to proceed?"
+	"reactivate-tenant-user-description": "Access to this tenant will be restored. Are you sure you want to proceed?",
+	"globally-suspended-row-disabled": "This user is globally suspended. Reactivate the user globally before managing tenant membership.",
+	"globally-suspended": "Globally suspended"
 }

@@ -122,9 +122,12 @@ public class SuspendTenantUserAsStaff {
 			FirstName = userData.User.FirstName,
 			LastName = userData.User.LastName,
 			AvatarUrl = userData.User.AvatarUrl,
-			Level = UserAccount.GetAccountLevelDescription(userData.AccountLevel),
+			Level = UserAccount.GetLevelDescription(userData.AccountLevel),
 			Status = UserAccount.GetStatusDescription(
-				userData.Account.IsSuspended
+				UserAccount.GetTenantStatus(
+					userData.User.IsSuspended,
+					userData.Account.IsSuspended
+				)
 			),
 			IsSuspended = userData.Account.IsSuspended,
 			TenantId = userData.Account.TenantId,

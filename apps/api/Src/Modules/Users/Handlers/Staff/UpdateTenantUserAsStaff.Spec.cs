@@ -77,6 +77,14 @@ public sealed class UpdateTenantUserAsStaffSpec
 		result.Should().NotBeNull();
 		result!.Level.Should().Be("Admin");
 
+		var persistedLevel = await GetUserLevelByEmailAsync(
+			_http,
+			staffToken,
+			tenantId,
+			TestConstants.AcmeUserEmail
+		);
+		persistedLevel.Should().Be("Admin");
+
 		// Reset back to User for other tests
 		var resetRequest = new HttpRequestMessage(
 			HttpMethod.Patch, url
@@ -538,6 +546,52 @@ public sealed class UpdateTenantUserAsStaffSpec
 		}
 
 		return user.Id;
+	}
+
+	private static async Task<string> GetUserLevelByEmailAsync(
+		HttpClient http,
+		string staffToken,
+		Guid tenantId,
+		string email
+	) {
+		var url = PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Users.ForTenantAsStaff.RootFn(
+				tenantId.ToString()
+			),
+			Routes.Users.ForTenantAsStaff.Find
+		) + "?limit=50";
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(staffToken);
+
+		using var response = await http.SendAsync(request);
+		response.EnsureSuccessStatusCode();
+
+		var result = await response.Content
+			.ReadFromJsonAsync<FindUsersResponse>();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"Failed to deserialize user list response"
+			);
+		}
+
+		var user = result.Data.FirstOrDefault(
+			u => string.Equals(
+				u.Email,
+				email,
+				StringComparison.OrdinalIgnoreCase
+			)
+		);
+
+		if (user is null) {
+			throw new InvalidOperationException(
+				$"User with email '{email}' not found in tenant"
+			);
+		}
+
+		return user.Level;
 	}
 
 	// -- Response DTOs --
