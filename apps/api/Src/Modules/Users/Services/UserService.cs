@@ -560,6 +560,9 @@ public class UserService : IUserService {
 
 		var baseQuery =
 			from ua in _dbContext.UserAccount
+				// Tenant-user status is derived from membership suspension, but globally
+				// suspended identities are excluded entirely because they cannot have active
+				// memberships under the domain invariant.
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted
@@ -646,6 +649,11 @@ public class UserService : IUserService {
 		await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
 		try {
+			UserStatus? parsedStatus = null;
+			if (document.Status.IsPresent && document.Status.Value is not null) {
+				parsedStatus = User.ParseStatus(document.Status.Value);
+			}
+
 			var updatedCount = await _dbContext.User
 				.Where(u => u.Id == userId)
 				.ExecuteUpdateAsync(setters => setters
@@ -653,7 +661,20 @@ public class UserService : IUserService {
 					.SetProperty(u => u.LastName, u => document.LastName.IsPresent ? document.LastName.Value : u.LastName)
 					.SetProperty(u => u.FirstName, u => document.FirstName.IsPresent ? document.FirstName.Value : u.FirstName)
 					.SetProperty(u => u.AvatarUrl, u => document.AvatarUrl.IsPresent ? document.AvatarUrl.Value : u.AvatarUrl)
-					.SetProperty(u => u.Status, u => document.Status.IsPresent && document.Status.Value != null ? (UserStatus)(User.ParseStatus(document.Status.Value) ?? u.Status) : u.Status)
+					.SetProperty(
+						u => u.Status,
+						u => parsedStatus.HasValue
+							? parsedStatus.Value
+							: u.Status
+					)
+					.SetProperty(
+						u => u.IsSuspended,
+						u => parsedStatus == UserStatus.Suspended
+							? true
+							: parsedStatus == UserStatus.Active
+								? false
+								: u.IsSuspended
+					)
 					.SetProperty(u => u.UpdatedAt, DateTime.UtcNow), cancellationToken);
 
 			if (updatedCount == 0) {

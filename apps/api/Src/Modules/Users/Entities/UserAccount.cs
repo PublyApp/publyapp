@@ -38,6 +38,8 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	[Column("level")]
 	public AccountLevel Level { get; set; } = AccountLevel.User;
 
+	// Membership-local suspension is valid only for users whose global identity
+	// is not suspended. Global user suspension must cascade to all memberships.
 	[Column("is_suspended")]
 	public bool IsSuspended { get; set; } = false;
 
