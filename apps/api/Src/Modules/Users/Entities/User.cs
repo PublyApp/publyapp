@@ -35,6 +35,8 @@ public class User : BaseAttributes, INoTenantEntity {
 	[Column("status")]
 	public UserStatus Status { get; set; } = UserStatus.Inactive;
 
+	// Global identity suspension dominates membership activity:
+	// a suspended user must not retain active staff/tenant/project accounts.
 	[Column("is_suspended")]
 	public bool IsSuspended { get; set; } = false;
 
