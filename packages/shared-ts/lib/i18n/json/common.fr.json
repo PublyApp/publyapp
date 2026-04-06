@@ -604,5 +604,11 @@
 	"revoke": "Révoquer",
 	"invitation-sent": "Invitation envoyée",
 	"invitation-success-description": "L'invitation a été envoyée avec succès. L'utilisateur recevra un email avec les détails de l'invitation.",
-	"view-invitations": "Voir les invitations"
+	"view-invitations": "Voir les invitations",
+	"tenant-user-suspended-success": "Utilisateur suspendu avec succès",
+	"tenant-user-reactivated-success": "Utilisateur réactivé avec succès",
+	"confirm-suspend-tenant-user": "Confirmer la suspension de l'utilisateur",
+	"confirm-reactivate-tenant-user": "Confirmer la réactivation de l'utilisateur",
+	"suspend-tenant-user-description": "Cet utilisateur perdra l'accès à ce locataire. Êtes-vous sûr de vouloir continuer ?",
+	"reactivate-tenant-user-description": "L'accès à ce locataire sera restauré. Êtes-vous sûr de vouloir continuer ?"
 }

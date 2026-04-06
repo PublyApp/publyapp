@@ -39,6 +39,12 @@ public static partial class Routes {
 				$"{RootFn(tenantId)}/{userId}";
 			public const string Invite = "/invitations";
 			public static string InviteFn(string tenantId) => $"{RootFn(tenantId)}/invitations";
+			public const string Suspend = "/{userId}/suspend";
+			public static string SuspendFn(string tenantId, string userId) =>
+				$"{RootFn(tenantId)}/{userId}/suspend";
+			public const string Reactivate = "/{userId}/reactivate";
+			public static string ReactivateFn(string tenantId, string userId) =>
+				$"{RootFn(tenantId)}/{userId}/reactivate";
 		}
 
 		/// <summary>Tenant API routes (tenant self-service)</summary>

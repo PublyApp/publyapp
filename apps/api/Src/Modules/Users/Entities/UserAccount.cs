@@ -127,6 +127,34 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 			_ => "Unknown"
 		};
 	}
+
+	public static UserStatus? ParseStatus(string statusString) {
+		var isSuspended = string.Equals(
+			statusString,
+			nameof(UserStatus.Suspended),
+			StringComparison.OrdinalIgnoreCase
+		);
+		if (isSuspended) {
+			return UserStatus.Suspended;
+		}
+
+		var isActive = string.Equals(
+			statusString,
+			nameof(UserStatus.Active),
+			StringComparison.OrdinalIgnoreCase
+		);
+		if (isActive) {
+			return UserStatus.Active;
+		}
+
+		return null;
+	}
+
+	public static string GetStatusDescription(bool isSuspended) {
+		return isSuspended
+			? nameof(UserStatus.Suspended)
+			: nameof(UserStatus.Active);
+	}
 }
 
 public enum AccountScope {

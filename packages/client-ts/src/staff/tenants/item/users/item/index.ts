@@ -4,12 +4,24 @@
 // @ts-ignore
 import { createApiResponseFromDiscriminatorValue, createAppProblemDetailsFromDiscriminatorValue, createTenantUserDetailsResultFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializeTenantUserDetailsResult, serializeUpdateTenantUserAsStaffBody, type ApiResponse, type AppProblemDetails, type TenantUserDetailsResult, type UpdateTenantUserAsStaffBody, type ValidationProblemDetails } from '../../../../../models/index.js';
 // @ts-ignore
-import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
+import { ReactivateRequestBuilderRequestsMetadata, type ReactivateRequestBuilder } from './reactivate/index.js';
+// @ts-ignore
+import { SuspendRequestBuilderRequestsMetadata, type SuspendRequestBuilder } from './suspend/index.js';
+// @ts-ignore
+import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /staff/tenants/{tenantId}/users/{userId}
  */
 export interface WithUserItemRequestBuilder extends BaseRequestBuilder<WithUserItemRequestBuilder> {
+    /**
+     * The reactivate property
+     */
+    get reactivate(): ReactivateRequestBuilder;
+    /**
+     * The suspend property
+     */
+    get suspend(): SuspendRequestBuilder;
     /**
      * Remove a user from a tenant
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -52,6 +64,17 @@ export interface WithUserItemRequestBuilder extends BaseRequestBuilder<WithUserI
  * Uri template for the request builder.
  */
 export const WithUserItemRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}/users/{userId}";
+/**
+ * Metadata for all the navigation properties in the request builder.
+ */
+export const WithUserItemRequestBuilderNavigationMetadata: Record<Exclude<keyof WithUserItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    reactivate: {
+        requestsMetadata: ReactivateRequestBuilderRequestsMetadata,
+    },
+    suspend: {
+        requestsMetadata: SuspendRequestBuilderRequestsMetadata,
+    },
+};
 /**
  * Metadata for all the requests in the request builder.
  */

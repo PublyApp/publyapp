@@ -329,12 +329,17 @@ public sealed class FindTenantUsersAsStaffSpec
 			var dbContext = scope.ServiceProvider
 				.GetRequiredService<MainApiDbContext>();
 
-			var acmeUser = await dbContext.User
-				.FirstAsync(
-					u => u.Email
-						== SeedConstants.Tenants.AcmeUserEmail
+			var tenantIdGuid = await dbContext.Tenant
+				.Where(t => t.Name == SeedConstants.Tenants.AcmeName)
+				.Select(t => t.Id)
+				.FirstAsync();
+			var acmeMembership = await dbContext.UserAccount
+				.FirstAsync(ua =>
+					ua.TenantId == tenantIdGuid
+					&& ua.Scope == AccountScope.Tenant
+					&& ua.User.Email == SeedConstants.Tenants.AcmeUserEmail
 				);
-			acmeUser.Status = UserStatus.Suspended;
+			acmeMembership.IsSuspended = true;
 			await dbContext.SaveChangesAsync();
 		}
 
@@ -369,6 +374,65 @@ public sealed class FindTenantUsersAsStaffSpec
 		result.Data.Select(user => user.Status)
 			.Should()
 			.Contain("Suspended");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldKeepSuspendedTenantUsersVisibleInDefaultList() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		using (
+			var scope =
+				_fixture.Factory.Services.CreateScope()
+		) {
+			var dbContext = scope.ServiceProvider
+				.GetRequiredService<MainApiDbContext>();
+
+			var tenantIdGuid = await dbContext.Tenant
+				.Where(t => t.Name == SeedConstants.Tenants.AcmeName)
+				.Select(t => t.Id)
+				.FirstAsync();
+			var acmeMembership = await dbContext.UserAccount
+				.FirstAsync(ua =>
+					ua.TenantId == tenantIdGuid
+					&& ua.Scope == AccountScope.Tenant
+					&& ua.User.Email == SeedConstants.Tenants.AcmeUserEmail
+				);
+			acmeMembership.IsSuspended = true;
+			await dbContext.SaveChangesAsync();
+		}
+
+		var url = GetFindUrl(tenantId);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			url
+		).WithSessionToken(staffToken);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		result!.Data.Should().Contain(user =>
+			string.Equals(
+				user.Email,
+				SeedConstants.Tenants.AcmeUserEmail,
+				StringComparison.OrdinalIgnoreCase
+			)
+			&& user.Status == "Suspended"
+		);
 	}
 
 	// -- URL builder --

@@ -291,8 +291,7 @@ It covers category `0` through `10`.
 - [x] Typing in the users search input filters the tenant users list.
 - [ ] Filtering by `active` returns only active tenant users.
 - [ ] Filtering by `suspended` returns only suspended tenant users.
-- [ ] Filtering by `pending` in the tenant users list is either unsupported or returns no steady-state results, because pending invitees belong to the tenant `Invitations` tab until acceptance.
-- [ ] If the users API still accepts `pending` as a status token, the UI behavior and product intent are explicit and do not imply that pre-acceptance invitees are real tenant users yet.
+- [x] Filtering by `pending` in the tenant users list is either unsupported or returns no steady-state results, because pending invitees belong to the tenant `Invitations` tab until acceptance.
 - [ ] Filtering by multiple comma-separated statuses (e.g., `active,suspended`) returns users matching any of the specified statuses.
 - [ ] Changing search or filter values resets pagination correctly.
 - [ ] The users table uses valid backend sort IDs and does not send invalid sort parameters.
