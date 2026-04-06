@@ -491,6 +491,12 @@ It covers category `0` through `10`.
 - [x] `RevokeInvitationForTenantAsStaff.Spec.cs` passes for success, malformed ids, not-found cases, accepted-invitation rejection, auth/permission gating, and permissioned non-admin staff access.
 - [x] Global staff invitation revoke coverage proves tenant invitations are no longer revocable through the staff invitation revoke route.
 
+### 9.8.1 Tenant-invitation tests
+- Status: `DONE`
+- [ ] `FindInvitationsForTenantAsStaff.Spec.cs` passes, including revoked-status coverage.
+- [ ] `RevokeInvitationForTenantAsStaff.Spec.cs` passes for success, malformed ids, not-found cases, and auth/permission gating.
+- [ ] Global staff invitation revoke coverage proves tenant invitations are no longer revocable through the staff invitation revoke route.
+
 ### 9.9 Bulk action tests
 
 - Status: `DONE`

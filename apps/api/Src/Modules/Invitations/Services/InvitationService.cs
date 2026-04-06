@@ -1446,4 +1446,45 @@ public class InvitationService : IInvitationService {
 
 		return new RevokeInvitationForStaffResult.Success();
 	}
+
+	private async Task<RevokeInvitationForStaffResult> RevokeInvitationInternalAsync(
+		Invitation? invitation,
+		Guid invitationId,
+		CancellationToken cancellationToken
+	) {
+		if (invitation is null) {
+			return new RevokeInvitationForStaffResult.NotFound();
+		}
+
+		if (invitation.IsRevoked) {
+			if (_logger.IsEnabled(LogLevel.Information)) {
+				_logger.LogInformation(
+					"Invitation {InvitationId} is already revoked; no-op",
+					invitationId
+				);
+			}
+			return new RevokeInvitationForStaffResult.Success();
+		}
+
+		if (invitation.IsAccepted) {
+			if (_logger.IsEnabled(LogLevel.Warning)) {
+				_logger.LogWarning(
+					"Attempt to revoke accepted invitation {InvitationId} blocked",
+					invitationId
+				);
+			}
+			return new RevokeInvitationForStaffResult.AlreadyAccepted();
+		}
+
+		invitation.IsRevoked = true;
+		invitation.RevokedAt = DateTime.UtcNow;
+
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		if (_logger.IsEnabled(LogLevel.Information)) {
+			_logger.LogInformation("Revoked invitation {InvitationId}", invitationId);
+		}
+
+		return new RevokeInvitationForStaffResult.Success();
+	}
 }
