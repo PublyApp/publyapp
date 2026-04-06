@@ -53,7 +53,7 @@ public class RevokeInvitationForStaff {
 		if (result is RevokeInvitationForStaffResult.AlreadyAccepted) {
 			return TypedProblems.BadRequest(
 				"Accepted invitations cannot be revoked",
-				ResponseKeys.BadRequest
+				ResponseKeys.InvitationAlreadyAccepted
 			);
 		}
 
