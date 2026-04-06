@@ -30,6 +30,7 @@ Last updated: 2026-04-06
 - Tenant details `Invitations` tab revoke actions now use `DELETE /staff/tenants/{tenantId}/invitations/{invitationId}` instead of the global staff invitation revoke route.
 - Invitation management handlers now follow the intended permission-driven model instead of hardcoding admin-level checks on top of route permissions.
 - New passing integration coverage protects tenant invitation listing, tenant invitation revoke, and permission-driven non-admin staff access for invitation create/revoke flows.
+- Finalized the global-vs-membership suspension invariant: global user suspension blocks auth/picker/tenant-auth flows, while tenant-user lists still show those memberships with a dominant `Globally suspended` state.
 
 ## Purpose
 
@@ -268,7 +269,7 @@ It covers category `0` through `10`.
 - [x] Sorting is available only on meaningful backend-supported fields and does not allow unsupported fields such as `Profiles` or `Invited by`.
 - [x] Filtering by invitation status returns the expected subsets (`pending`, `accepted`, `expired`, `revoked`).
 - [x] Revoking a pending invitation from the tenant details `Invitations` tab succeeds through the tenant-scoped revoke route, refreshes the list, and removes or updates the row state as expected.
-- [ ] Attempting to revoke a tenant invitation does not depend on the global staff invitations revoke route.
+- [x] Attempting to revoke a tenant invitation does not depend on the global staff invitations revoke route.
 - [x] Accepted, revoked, and expired invitations do not expose the revoke action.
 - [ ] A non-admin staff user with the specific tenant invitation revoke permission can revoke a pending tenant invitation successfully.
 - [ ] A non-admin staff user without the tenant invitation revoke permission receives `403` and does not see a false-success UI outcome.
@@ -286,17 +287,41 @@ It covers category `0` through `10`.
 - [x] Demoting a tenant user to `User` succeeds and the new level appears after invalidation or refresh.
 - [x] The query invalidates after a successful role change and the visible table state matches the backend result.
 
-### 5.8 Search/filter tenant users
+### 5.8 Suspend/reactivate tenant user membership
+- Status: `DONE`
+- [ ] The `Status` cell exposes the membership status control for tenant users.
+- [ ] A globally active tenant user with an unsuspended membership is shown as `Active` in the tenant users list.
+- [ ] Suspending a globally active tenant user succeeds and keeps the row visible in the tenant users list as `Suspended`.
+- [ ] Reactivating a suspended tenant user succeeds and returns the row to `Active`.
+- [ ] Suspending a tenant user changes only the tenant membership state and does not globally suspend the underlying user identity.
+- [ ] Reactivating a tenant user changes only the tenant membership state and does not implicitly change unrelated memberships in other tenants.
+- [ ] The status control follows the single-choice selected-item pattern used elsewhere: current status selected, not disabled, no misleading pre-focus on the alternative option.
+- [ ] The status control shows `Active` and `Suspended` only; it does not offer `Pending`.
+- [ ] The last-active-admin invariant is enforced: suspending the last active tenant admin is rejected with clear error feedback.
+- [ ] Suspending a non-last tenant admin succeeds when at least one other active admin remains in the tenant.
+- [ ] A globally suspended user with a locally active membership remains visible in the tenant users list as `Globally suspended`.
+- [ ] A globally suspended user with a locally suspended membership also remains visible as `Globally suspended`.
+- [ ] If a user is globally suspended outside the tenant-users flow, any existing tenant-users row remains visible after refresh or query invalidation, but its effective status changes to `Globally suspended`.
+- [ ] The status chip for globally suspended rows is visually distinct from membership-only `Suspended`.
+- [ ] The status control is disabled for globally suspended rows and explains that global reactivation is required first.
+- [ ] The level control is disabled for globally suspended rows and explains that global reactivation is required first.
+- [ ] All row actions remain visible but disabled for globally suspended rows.
+- [ ] A previously issued session for a now-globally-suspended tenant user can no longer access tenant-auth or picker flows.
+- [ ] Re-activating the user globally restores auth eligibility, and tenant membership state then determines whether the user is shown as `Active` or `Suspended` in the tenant users list.
+
+### 5.9 Search/filter tenant users
 - Status: `DONE/PARTIAL`
 - [x] Typing in the users search input filters the tenant users list.
 - [ ] Filtering by `active` returns only active tenant users.
 - [ ] Filtering by `suspended` returns only suspended tenant users.
-- [x] Filtering by `pending` in the tenant users list is either unsupported or returns no steady-state results, because pending invitees belong to the tenant `Invitations` tab until acceptance.
+- [ ] Filtering by `globally_suspended` returns only globally suspended tenant users.
+- [x] Filtering by `pending` is not offered in the tenant users UI and the backend does not accept `pending` as a valid tenant-user status filter value.
 - [ ] Filtering by multiple comma-separated statuses (e.g., `active,suspended`) returns users matching any of the specified statuses.
+- [ ] Globally suspended users are excluded from `active`, `suspended`, and `active,suspended` filter results.
 - [ ] Changing search or filter values resets pagination correctly.
 - [ ] The users table uses valid backend sort IDs and does not send invalid sort parameters.
 
-### Users-tab regression checks
+### 5.10 Users-tab regression checks
 - Status: `PARTIAL`
 - [ ] Pending users can still receive the intended verification follow-up email flow.
 - [ ] Copy-verification-link behavior is either intentionally unavailable or fully supported end to end.

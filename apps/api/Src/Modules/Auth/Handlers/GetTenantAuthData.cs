@@ -127,7 +127,7 @@ public class GetTenantAuthData {
 				new GetTenantAuthDataResult.Staff {
 					Code = "staff",
 					Profiles = staffProfileItems,
-					AccountLevel = UserAccount.GetAccountLevelDescription(staffAccount?.Level ?? AccountLevel.User),
+					AccountLevel = UserAccount.GetLevelDescription(staffAccount?.Level ?? AccountLevel.User),
 					IsAdmin = staffAccount?.Level == AccountLevel.Admin,
 					Permissions = staffPermissions
 				}
@@ -220,7 +220,7 @@ public class GetTenantAuthData {
 				Name = tenant.Name,
 				Code = tenant.Code,
 				Profiles = tenantProfileItems,
-				AccountLevel = UserAccount.GetAccountLevelDescription(tenantAccount?.Level ?? AccountLevel.User),
+				AccountLevel = UserAccount.GetLevelDescription(tenantAccount?.Level ?? AccountLevel.User),
 				IsAdmin = tenantAccount?.Level == AccountLevel.Admin,
 				Permissions = tenantPermissions
 			}

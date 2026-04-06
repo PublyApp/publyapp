@@ -151,7 +151,7 @@ public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAs
 								"AccountLevel is required"
 							);
 						} else {
-							var parsedLevel = UserAccount.ParseAccountLevel(level);
+							var parsedLevel = UserAccount.ParseLevel(level);
 							if (parsedLevel is null) {
 								context.AddFailure(
 									$"initialUsers[{i}].accountLevel",
@@ -226,7 +226,7 @@ public class CreateTenantAsStaff {
 
 		var initialUsers = initialUsersItems
 			.Select(u => {
-				var level = UserAccount.ParseAccountLevel(u.AccountLevel);
+				var level = UserAccount.ParseLevel(u.AccountLevel);
 				if (level is null) {
 					throw new InvalidOperationException($"Invalid account level: {u.AccountLevel}");
 				}

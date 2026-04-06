@@ -200,7 +200,7 @@ public class UpdateStaffUser {
 				AvatarUrl = userData.User.AvatarUrl,
 				AccountLevel =
 					UserAccount
-						.GetAccountLevelDescription(
+						.GetLevelDescription(
 							userData.AccountLevel
 						),
 				Status = User.GetStatusDescription(

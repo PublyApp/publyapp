@@ -55,7 +55,7 @@ public abstract record FindTenantUsersResult {
 
 public record FindTenantUsersAsStaffFilters(
 	string? Search,
-	IReadOnlySet<UserStatus>? Status
+	IReadOnlySet<AccountStatus>? Status
 );
 
 public record FindTenantUsersAsStaffArgs(
@@ -158,6 +158,21 @@ public class UserService : IUserService {
 	public UserService(MainApiDbContext dbContext, ILogger<UserService> logger) {
 		_dbContext = dbContext;
 		_logger = logger;
+	}
+
+	private static int GetTenantUserStatusRank(
+		bool isUserGloballySuspended,
+		bool isMembershipSuspended
+	) {
+		if (isUserGloballySuspended) {
+			return 2;
+		}
+
+		if (isMembershipSuspended) {
+			return 1;
+		}
+
+		return 0;
 	}
 
 	public async Task<CreateUserResult> CreateUserAsync(User user, CancellationToken cancellationToken = default) {
@@ -411,14 +426,21 @@ public class UserService : IUserService {
 								&& x.Scope
 									== AccountScope.Tenant
 							select new {
-								x.IsSuspended,
+								IsUserGloballySuspended = x.User.IsSuspended,
+								IsMembershipSuspended = x.IsSuspended,
 								x.UserId,
 							}
 						).FirstOrDefaultAsync(
 							cancellationToken
 						);
 						return item is not null
-							? (item.IsSuspended ? 1 : 0, item.UserId)
+							? (
+								GetTenantUserStatusRank(
+									item.IsUserGloballySuspended,
+									item.IsMembershipSuspended
+								),
+								item.UserId
+							)
 							: null;
 					},
 					applyFilter: (q, val, isAsc) => {
@@ -429,22 +451,46 @@ public class UserService : IUserService {
 							((int, Guid))val;
 						return isAsc
 							? q.Where(x =>
-								(x.IsSuspended ? 1 : 0) > statusRank
-								|| ((x.IsSuspended ? 1 : 0)
-										== statusRank
+								(x.User.IsSuspended
+									? 2
+									: x.IsSuspended
+										? 1
+										: 0) > statusRank
+								|| (((x.User.IsSuspended
+										? 2
+										: x.IsSuspended
+											? 1
+											: 0)
+										== statusRank)
 									&& x.UserId > id))
 							: q.Where(x =>
-								(x.IsSuspended ? 1 : 0) < statusRank
-								|| ((x.IsSuspended ? 1 : 0)
-										== statusRank
+								(x.User.IsSuspended
+									? 2
+									: x.IsSuspended
+										? 1
+										: 0) < statusRank
+								|| (((x.User.IsSuspended
+										? 2
+										: x.IsSuspended
+											? 1
+											: 0)
+										== statusRank)
 									&& x.UserId < id));
 					},
 					applyOrdering: (q, isAsc) => isAsc
 						? q.OrderBy(
-							x => x.IsSuspended ? 1 : 0
+							x => x.User.IsSuspended
+								? 2
+								: x.IsSuspended
+									? 1
+									: 0
 						).ThenBy(x => x.UserId)
 						: q.OrderByDescending(
-							x => x.IsSuspended ? 1 : 0
+							x => x.User.IsSuspended
+								? 2
+								: x.IsSuspended
+									? 1
+									: 0
 						).ThenByDescending(
 							x => x.UserId
 						)
@@ -560,14 +606,10 @@ public class UserService : IUserService {
 
 		var baseQuery =
 			from ua in _dbContext.UserAccount
-				// Tenant-user status is derived from membership suspension, but globally
-				// suspended identities are excluded entirely because they cannot have active
-				// memberships under the domain invariant.
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted
 				&& !ua.User.IsDeleted
-				&& !ua.User.IsSuspended
 			select ua;
 
 		IQueryable<UserAccount> query = baseQuery;
@@ -586,14 +628,22 @@ public class UserService : IUserService {
 
 		// Apply status filter
 		if (args.Filters?.Status is { } statuses && statuses.Count > 0) {
-			var includesActive = statuses.Contains(UserStatus.Active);
-			var includesSuspended = statuses.Contains(UserStatus.Suspended);
+			var includesActive = statuses.Contains(AccountStatus.Active);
+			var includesSuspended = statuses.Contains(AccountStatus.Suspended);
+			var includesGloballySuspended = statuses.Contains(
+				AccountStatus.GloballySuspended
+			);
 
-			if (includesActive && !includesSuspended) {
-				query = query.Where(ua => !ua.IsSuspended);
-			} else if (!includesActive && includesSuspended) {
-				query = query.Where(ua => ua.IsSuspended);
-			}
+			query = query.Where(ua =>
+				(includesGloballySuspended
+					&& ua.User.IsSuspended)
+				|| (includesSuspended
+					&& !ua.User.IsSuspended
+					&& ua.IsSuspended)
+				|| (includesActive
+					&& !ua.User.IsSuspended
+					&& !ua.IsSuspended)
+			);
 		}
 
 		if (args.Cursor != Guid.Empty) {
@@ -683,7 +733,7 @@ public class UserService : IUserService {
 			}
 
 			if (document.AccountLevel is not null) {
-				var accountLevel = UserAccount.ParseAccountLevel(document.AccountLevel);
+				var accountLevel = UserAccount.ParseLevel(document.AccountLevel);
 
 				if (accountLevel is null) {
 					await transaction.RollbackAsync(cancellationToken);
@@ -847,7 +897,6 @@ public class UserService : IUserService {
 		// Find the user and their account for this tenant
 		var userAccount = await (
 			from ua in _dbContext.UserAccount
-				.AsNoTracking()
 			join u in _dbContext.User on ua.UserId equals u.Id
 			where ua.TenantId == tenantId
 				&& ua.UserId == userId
@@ -867,7 +916,7 @@ public class UserService : IUserService {
 		// Determine new level if provided
 		AccountLevel? newLevel = null;
 		if (document.Level is not null) {
-			newLevel = UserAccount.ParseAccountLevel(document.Level);
+			newLevel = UserAccount.ParseLevel(document.Level);
 			if (newLevel is null) {
 				return new UpdateTenantUserResult.NotFound();
 			}

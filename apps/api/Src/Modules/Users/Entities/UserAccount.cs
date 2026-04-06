@@ -110,7 +110,7 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	[JsonIgnore]
 	public ICollection<UserAccountProfile> UserAccountProfiles { get; set; } = [];
 
-	public static AccountLevel? ParseAccountLevel(string accountLevel) {
+	public static AccountLevel? ParseLevel(string accountLevel) {
 		var isAdmin = string.Compare(accountLevel, nameof(AccountLevel.Admin), StringComparison.OrdinalIgnoreCase) == 0;
 		if (isAdmin) {
 			return AccountLevel.Admin;
@@ -122,7 +122,7 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 		return null;
 	}
 
-	public static string GetAccountLevelDescription(AccountLevel accountLevel) {
+	public static string GetLevelDescription(AccountLevel accountLevel) {
 		return accountLevel switch {
 			AccountLevel.Admin => nameof(AccountLevel.Admin),
 			AccountLevel.User => nameof(AccountLevel.User),
@@ -130,32 +130,63 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 		};
 	}
 
-	public static UserStatus? ParseStatus(string statusString) {
+	public static AccountStatus? ParseStatus(string statusString) {
+		var isGloballySuspended = string.Equals(
+			statusString,
+			"globally_suspended",
+			StringComparison.OrdinalIgnoreCase
+		) || string.Equals(
+			statusString,
+			nameof(AccountStatus.GloballySuspended),
+			StringComparison.OrdinalIgnoreCase
+		);
+		if (isGloballySuspended) {
+			return AccountStatus.GloballySuspended;
+		}
+
 		var isSuspended = string.Equals(
 			statusString,
-			nameof(UserStatus.Suspended),
+			nameof(AccountStatus.Suspended),
 			StringComparison.OrdinalIgnoreCase
 		);
 		if (isSuspended) {
-			return UserStatus.Suspended;
+			return AccountStatus.Suspended;
 		}
 
 		var isActive = string.Equals(
 			statusString,
-			nameof(UserStatus.Active),
+			nameof(AccountStatus.Active),
 			StringComparison.OrdinalIgnoreCase
 		);
 		if (isActive) {
-			return UserStatus.Active;
+			return AccountStatus.Active;
 		}
 
 		return null;
 	}
 
-	public static string GetStatusDescription(bool isSuspended) {
-		return isSuspended
-			? nameof(UserStatus.Suspended)
-			: nameof(UserStatus.Active);
+	public static AccountStatus GetTenantStatus(
+		bool isUserGloballySuspended,
+		bool isMembershipSuspended
+	) {
+		if (isUserGloballySuspended) {
+			return AccountStatus.GloballySuspended;
+		}
+
+		if (isMembershipSuspended) {
+			return AccountStatus.Suspended;
+		}
+
+		return AccountStatus.Active;
+	}
+
+	public static string GetStatusDescription(AccountStatus status) {
+		return status switch {
+			AccountStatus.Active => nameof(AccountStatus.Active),
+			AccountStatus.Suspended => nameof(AccountStatus.Suspended),
+			AccountStatus.GloballySuspended => nameof(AccountStatus.GloballySuspended),
+			_ => "Unknown"
+		};
 	}
 }
 
@@ -169,4 +200,10 @@ public enum AccountLevel {
 	// maybe owner too?
 	Admin = 50,
 	User = 10,
+}
+
+public enum AccountStatus {
+	Active = 0,
+	Suspended = 1,
+	GloballySuspended = 2,
 }

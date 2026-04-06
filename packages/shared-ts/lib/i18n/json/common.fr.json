@@ -610,5 +610,7 @@
 	"confirm-suspend-tenant-user": "Confirmer la suspension de l'utilisateur",
 	"confirm-reactivate-tenant-user": "Confirmer la réactivation de l'utilisateur",
 	"suspend-tenant-user-description": "Cet utilisateur perdra l'accès à ce locataire. Êtes-vous sûr de vouloir continuer ?",
-	"reactivate-tenant-user-description": "L'accès à ce locataire sera restauré. Êtes-vous sûr de vouloir continuer ?"
+	"reactivate-tenant-user-description": "L'accès à ce locataire sera restauré. Êtes-vous sûr de vouloir continuer ?",
+	"globally-suspended-row-disabled": "Cet utilisateur est suspendu globalement. Réactivez l'utilisateur globalement avant de gérer la membership du locataire.",
+	"globally-suspended": "Suspendu globalement"
 }
