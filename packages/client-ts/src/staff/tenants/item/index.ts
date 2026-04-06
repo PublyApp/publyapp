@@ -4,7 +4,7 @@
 // @ts-ignore
 import { createApiResponseFromDiscriminatorValue, createAppProblemDetailsFromDiscriminatorValue, createGetTenantAsStaffResultFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializeGetTenantAsStaffResult, serializeUpdateTenantAsStaffBody, type ApiResponse, type AppProblemDetails, type GetTenantAsStaffResult, type UpdateTenantAsStaffBody, type ValidationProblemDetails } from '../../../models/index.js';
 // @ts-ignore
-import { InvitationsRequestBuilderRequestsMetadata, type InvitationsRequestBuilder } from './invitations/index.js';
+import { InvitationsRequestBuilderNavigationMetadata, InvitationsRequestBuilderRequestsMetadata, type InvitationsRequestBuilder } from './invitations/index.js';
 // @ts-ignore
 import { ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
 // @ts-ignore
@@ -105,6 +105,7 @@ export const WithTenantItemRequestBuilderUriTemplate = "{+baseurl}/staff/tenants
 export const WithTenantItemRequestBuilderNavigationMetadata: Record<Exclude<keyof WithTenantItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     invitations: {
         requestsMetadata: InvitationsRequestBuilderRequestsMetadata,
+        navigationMetadata: InvitationsRequestBuilderNavigationMetadata,
     },
     profiles: {
         requestsMetadata: ProfilesRequestBuilderRequestsMetadata,

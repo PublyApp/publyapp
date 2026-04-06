@@ -4,12 +4,20 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createFindInvitationsForTenantAsStaffResultFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, type AppProblemDetails, type FindInvitationsForTenantAsStaffResult, type ValidationProblemDetails } from '../../../../models/index.js';
 // @ts-ignore
-import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
+import { type WithInvitationItemRequestBuilder, WithInvitationItemRequestBuilderRequestsMetadata } from './item/index.js';
+// @ts-ignore
+import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /staff/tenants/{tenantId}/invitations
  */
 export interface InvitationsRequestBuilder extends BaseRequestBuilder<InvitationsRequestBuilder> {
+    /**
+     * Gets an item from the MainApi.Client.staff.tenants.item.invitations.item collection
+     * @param invitationId Unique identifier of the item
+     * @returns {WithInvitationItemRequestBuilder}
+     */
+     byInvitationId(invitationId: string) : WithInvitationItemRequestBuilder;
     /**
      * Find invitations for a tenant
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -49,6 +57,15 @@ export const InvitationsRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{t
 const InvitationsRequestBuilderGetQueryParametersMapper: Record<string, string> = {
     "sortId": "sort_id",
     "sortOrder": "sort_order",
+};
+/**
+ * Metadata for all the navigation properties in the request builder.
+ */
+export const InvitationsRequestBuilderNavigationMetadata: Record<Exclude<keyof InvitationsRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    byInvitationId: {
+        requestsMetadata: WithInvitationItemRequestBuilderRequestsMetadata,
+        pathParametersMappings: ["invitationId"],
+    },
 };
 /**
  * Metadata for all the requests in the request builder.

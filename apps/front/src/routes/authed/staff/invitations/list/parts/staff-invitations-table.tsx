@@ -38,9 +38,9 @@ import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
 	useFindStaffInvitations,
-	useGetInvitationLink,
-	useResendInvitation,
-	useRevokeInvitation,
+	useGetStaffInvitationLink,
+	useResendStaffInvitation,
+	useRevokeStaffInvitation,
 } from '#app/lib/react-query/features/staff/staff-invitation.hooks.ts';
 import { fDate, fIsAfter, fToNow } from '#app/utils/format-time.ts';
 
@@ -430,15 +430,15 @@ const InvitationActionsCell: MRT_ColumnDef<StaffInvitationRowData>['Cell'] = (
 	const canManage = status === 'pending';
 
 	const { mutateAsync: getInvitationLink, isPending: isGettingLink } =
-		useGetInvitationLink();
+		useGetStaffInvitationLink();
 	const { mutateAsync: resendInvitation, isPending: isResending } =
-		useResendInvitation({
+		useResendStaffInvitation({
 			onSuccess: () => {
 				toast.success(t('staff-invitation-resent'));
 			},
 		});
 	const { mutateAsync: revokeInvitation, isPending: isRevoking } =
-		useRevokeInvitation({
+		useRevokeStaffInvitation({
 			onSuccess: () => {
 				toast.success(t('staff-invitation-revoked'));
 				queryClient.invalidateQueries({

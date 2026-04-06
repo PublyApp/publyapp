@@ -10,7 +10,6 @@ using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.AuditLogs.Entities;
 using MainApi.Src.Modules.AuditLogs.Services;
 using MainApi.Src.Modules.Invitations.Services;
-using MainApi.Src.Modules.Users.Entities;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -21,13 +20,13 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff;
 namespace MainApi.Src.Modules.Staff.Invitations.Handlers;
 >>>>>>>> e130a4f49 (refactor: Restructure API modules to enhance clarity and maintainability):apps/api/Src/Modules/Staff/Invitations/Handlers/RevokeInvitation.cs
 
-public class RevokeStaffInvitation {
+public class RevokeInvitationForStaff {
 	public static async Task<Results<
 		Ok<ApiResponse>,
 		AppNotFoundHttpResult,
 		AppBadRequestHttpResult,
 		AppForbiddenHttpResult
-	>> HandleRevokeStaffInvitation(
+	>> HandleRevokeInvitationForStaff(
 		[FromRoute] string invitationId,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IInvitationService invitationService,
@@ -51,22 +50,21 @@ public class RevokeStaffInvitation {
 			);
 		}
 
-		// REAL AUTHORIZATION: Check permissions
-		if (account.Scope != AccountScope.Staff
-			|| account.Level != AccountLevel.Admin) {
-			return TypedProblems.Forbidden(
-				"User does not have the necessary permissions",
-				ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
-			);
-		}
-
-		var success = await invitationService.RevokeInvitationAsync(
+		RevokeInvitationForStaffResult result =
+			await invitationService.RevokeInvitationForStaffAsync(
 			invitationIdGuid,
 			cancellationToken
 		);
 
-		if (!success) {
+		if (result is RevokeInvitationForStaffResult.NotFound) {
 			return TypedProblems.NotFound("Invitation not found", ResponseKeys.NotFound);
+		}
+
+		if (result is RevokeInvitationForStaffResult.AlreadyAccepted) {
+			return TypedProblems.BadRequest(
+				"Accepted invitations cannot be revoked",
+				ResponseKeys.BadRequest
+			);
 		}
 
 		await auditLogService.LogAsync(
