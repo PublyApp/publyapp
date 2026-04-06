@@ -1,6 +1,6 @@
 # Tenants Module Smoke Test Checklist
 
-Last updated: 2026-03-28
+Last updated: 2026-04-06
 
 ## Changes Since 2026-03-25
 
@@ -25,6 +25,12 @@ Last updated: 2026-03-28
 - Extended tenant-users API/status filter contract to accept comma-separated multi-status filtering (e.g., `?status=active,pending`).
 - New passing integration spec covers multi-status tenant-user filtering.
 
+### 04-06
+- Corrected invitation revoke route shape: staff invitation revoke remains global staff-scoped, tenant invitation revoke is now explicitly tenant-scoped.
+- Tenant details `Invitations` tab revoke actions now use `DELETE /staff/tenants/{tenantId}/invitations/{invitationId}` instead of the global staff invitation revoke route.
+- Invitation management handlers now follow the intended permission-driven model instead of hardcoding admin-level checks on top of route permissions.
+- New passing integration coverage protects tenant invitation listing, tenant invitation revoke, and permission-driven non-admin staff access for invitation create/revoke flows.
+
 ## Purpose
 
 This checklist is the working smoke-test tracker for the Tenants module umbrella scope discussed in `voicetree-17-2/feature-audit-overview_3.md`.
@@ -45,9 +51,10 @@ It covers category `0` through `10`.
 ## Suggested Test Preconditions
 
 - Staff admin account with tenant permissions.
-- Staff limited-permission account for permission gating checks.
+- Staff non-admin account that can be granted specific invitation permissions for permission-driven gating checks.
 - At least one active tenant, one suspended tenant, and one deletable suspended tenant.
 - At least one tenant with multiple users, including a pending invitation.
+- At least one tenant with a pending tenant invitation that can be revoked from the tenant details `Invitations` tab.
 - Frontend and API both running locally.
 
 ## Category 0: Cross-Cutting Shell, Routing, Auth, and Layout
@@ -55,7 +62,7 @@ It covers category `0` through `10`.
 - Status: `DONE/PARTIAL`
 - [x] Opening `/staff/tenants` as an authorized staff user loads the tenants list without auth loops, loader crashes, or blank states.
 - [x] Opening `/staff/tenants/:tenantId` lands on the current sidebar-based tenant detail shell, not the retired horizontal-tabs layout.
-- [x] The tenant detail sidebar lets staff switch between `General`, `Users`, `Profiles`, and `Billing`, and each link resolves to the expected page.
+- [x] The tenant detail sidebar lets staff switch between `General`, `Users`, `Invitations`, `Profiles`, and `Billing`, and each link resolves to the expected page.
 - [x] Opening a malformed or unknown `tenantId` shows the intended invalid-id or not-found fallback instead of rendering broken detail content.
 - [x] Opening an unknown staff detail tab route resolves to the staff fallback-tab page instead of crashing or showing an unrelated page.
 - [x] Tenant-side pages still render correctly after the shared sidebar/layout refactor and do not regress because of the staff-side navigation changes.
@@ -260,8 +267,11 @@ It covers category `0` through `10`.
 - [x] The tab lists invitation-specific records, not pre-acceptance tenant users.
 - [x] Sorting is available only on meaningful backend-supported fields and does not allow unsupported fields such as `Profiles` or `Invited by`.
 - [x] Filtering by invitation status returns the expected subsets (`pending`, `accepted`, `expired`, `revoked`).
-- [x] Revoking a pending invitation succeeds, refreshes the list, and removes or updates the row state as expected.
+- [x] Revoking a pending invitation from the tenant details `Invitations` tab succeeds through the tenant-scoped revoke route, refreshes the list, and removes or updates the row state as expected.
+- [ ] Attempting to revoke a tenant invitation does not depend on the global staff invitations revoke route.
 - [x] Accepted, revoked, and expired invitations do not expose the revoke action.
+- [ ] A non-admin staff user with the specific tenant invitation revoke permission can revoke a pending tenant invitation successfully.
+- [ ] A non-admin staff user without the tenant invitation revoke permission receives `403` and does not see a false-success UI outcome.
 
 ### 5.6 Remove user from tenant
 - Status: `DONE`
@@ -341,6 +351,14 @@ It covers category `0` through `10`.
 - [ ] If the invite endpoint still lacks automated coverage, that gap is explicitly tracked.
 - [x] The shared tenant invitation accept endpoint is covered for both new-account acceptance and existing-account join.
 
+### 9.3.1 Staff-side invitation management permissions
+- Status: `DONE`
+- [ ] Staff invitation create/revoke handlers rely on route permissions rather than hardcoded admin-only checks.
+- [ ] Tenant invitation revoke handler relies on route permissions rather than a hardcoded admin-only check.
+- [ ] A permissioned non-admin staff user can create staff invitations.
+- [ ] A permissioned non-admin staff user can revoke staff invitations.
+- [ ] A permissioned non-admin staff user can revoke tenant invitations.
+
 ### 9.4 Tenant archival/data-retention logic
 - Status: `PENDING`
 - [ ] There is a clear answer on whether archival or data-retention semantics exist beyond suspended and deleted tenant flows.
@@ -368,6 +386,12 @@ It covers category `0` through `10`.
 - [ ] `UpdateTenantUserAsStaff.Spec.cs` passes.
 - [ ] If tenant-user search and filter coverage is missing, that gap is explicitly tracked.
 - [ ] If the staff-side invite endpoint still lacks a spec, that gap is explicitly tracked.
+
+### 9.8.1 Tenant-invitation tests
+- Status: `DONE`
+- [ ] `FindInvitationsForTenantAsStaff.Spec.cs` passes, including revoked-status coverage.
+- [ ] `RevokeInvitationForTenantAsStaff.Spec.cs` passes for success, malformed ids, not-found cases, and auth/permission gating.
+- [ ] Global staff invitation revoke coverage proves tenant invitations are no longer revocable through the staff invitation revoke route.
 
 ### 9.9 Bulk action tests
 - Status: `PENDING`

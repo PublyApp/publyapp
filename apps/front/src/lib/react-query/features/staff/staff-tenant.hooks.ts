@@ -238,6 +238,28 @@ export const useFindTenantInvitations = createStaffQuery({
 	},
 });
 
+type RevokeTenantInvitationPayload = {
+	tenantId: string;
+	invitationId: string;
+};
+
+export const useRevokeTenantInvitation = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.tenants.byTenantId('').invitations.byInvitationId('').delete,
+	mutationFn: async (client, variables: RevokeTenantInvitationPayload) => {
+		const result = await client.staff.tenants
+			.byTenantId(variables.tenantId)
+			.invitations.byInvitationId(variables.invitationId)
+			.delete();
+
+		if (_.isNil(result)) {
+			throw new Error('useRevokeTenantInvitation: result is nil');
+		}
+
+		return result;
+	},
+});
+
 export const useInviteTenantUser = createStaffMutation({
 	mutationKeyFn: (client) =>
 		client.staff.tenants.byTenantId('').users.invitations.post,

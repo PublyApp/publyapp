@@ -42,8 +42,10 @@ import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
-import { useRevokeInvitation } from '#app/lib/react-query/features/staff/staff-invitation.hooks.ts';
-import { useFindTenantInvitations } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
+import {
+	useFindTenantInvitations,
+	useRevokeTenantInvitation,
+} from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
 import {
 	type DatePickerFormat,
 	fDate,
@@ -358,7 +360,7 @@ const TenantInvitationsTable = () => {
 	};
 
 	const { mutateAsync: revokeInvitationAsync, isPending: isBulkRevoking } =
-		useRevokeInvitation({
+		useRevokeTenantInvitation({
 			meta: { skipGlobalErrorHandler: true },
 		});
 
@@ -370,6 +372,7 @@ const TenantInvitationsTable = () => {
 		for (const invitationId of Object.keys(rowSelection)) {
 			try {
 				await revokeInvitationAsync({
+					tenantId: _.toString(tenantId),
 					invitationId,
 				});
 				succeeded += 1;
@@ -978,7 +981,7 @@ const RevokeInvitationAction = ({
 		defaultValue: 'Only pending invitations can be revoked.',
 	});
 
-	const { mutate: revokeInvitation, isPending } = useRevokeInvitation({
+	const { mutate: revokeInvitation, isPending } = useRevokeTenantInvitation({
 		meta: { skipGlobalErrorHandler: true },
 		onSuccess: () => {
 			toast.success(t('invitation-revoked-success'));
@@ -1001,7 +1004,14 @@ const RevokeInvitationAction = ({
 	});
 
 	const onConfirmRevoke = () => {
-		revokeInvitation({ invitationId: invitation.id });
+		if (!tenantId) {
+			return;
+		}
+
+		revokeInvitation({
+			tenantId,
+			invitationId: invitation.id,
+		});
 	};
 
 	return (
