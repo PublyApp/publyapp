@@ -5,7 +5,6 @@ import Button from '@mui/material/Button';
 import ListItemAvatar from '@mui/material/ListItemAvatar';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
-import DOMPurify from 'dompurify';
 
 import { FileThumbnail } from '#app/components/file-thumbnail/index.ts';
 import { Label } from '#app/components/label/index.ts';
