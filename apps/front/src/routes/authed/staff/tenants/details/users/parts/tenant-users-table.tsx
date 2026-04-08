@@ -539,6 +539,15 @@ const useTenantUsersTableController = () => {
 	const closeBulkRemoveDialog = () => {
 		setBulkRemoveDialogOpen(false);
 	};
+	const closeExportDialog = () => {
+		setTableUiState({ exportDialogOpen: false });
+	};
+	const closeBulkRemoveDialog = () => {
+		setTableUiState({ bulkRemoveDialogOpen: false });
+	};
+	const handleExportFormatChange = (format: ExportFormat) => {
+		setTableUiState({ exportFormat: format });
+	};
 
 	const exportRows = (format: 'csv' | 'json') => {
 		const rowsToExport = isSelectionMode ? selectedRows : rows;
