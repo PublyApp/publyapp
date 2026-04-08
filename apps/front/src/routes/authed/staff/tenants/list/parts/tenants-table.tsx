@@ -33,7 +33,14 @@ import { useDebounce } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
 import { nanoid } from 'nanoid';
 import { parseAsString, useQueryStates } from 'nuqs';
-import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import {
+	useCallback,
+	useEffect,
+	useId,
+	useMemo,
+	useReducer,
+	useState,
+} from 'react';
 
 import type { TenantAsStaffListItem } from '@org/client-ts/src/models';
 import {
@@ -107,6 +114,38 @@ const parseStatusFilter = (value: string) => {
 	return value.split(',').filter(Boolean);
 };
 const SELECTION_MODE_MENU_MIN_WIDTH = 220;
+
+type BulkActionDialogState = {
+	type: 'suspend' | 'reactivate' | 'delete';
+	open: boolean;
+};
+
+type TableUiState = {
+	rowSelection: Record<string, boolean>;
+	selectionActionAnchorEl: HTMLElement | null;
+	exportDialogOpen: boolean;
+	exportFormat: 'csv' | 'json' | 'xlsx';
+	bulkActionDialog: BulkActionDialogState;
+};
+
+const initialTableUiState: TableUiState = {
+	rowSelection: {},
+	selectionActionAnchorEl: null,
+	exportDialogOpen: false,
+	exportFormat: 'csv',
+	bulkActionDialog: { type: 'suspend', open: false },
+};
+
+const tableUiReducer = (
+	state: TableUiState,
+	update:
+		| Partial<TableUiState>
+		| ((state: TableUiState) => Partial<TableUiState>),
+) => {
+	const nextState = typeof update === 'function' ? update(state) : update;
+
+	return { ...state, ...nextState };
+};
 
 const TenantsTable = () => {
 	const { t } = useTranslate();
@@ -192,20 +231,20 @@ const TenantsTable = () => {
 	};
 
 	// Row selection state for bulk actions
-	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
-	const [selectionActionAnchorEl, setSelectionActionAnchorEl] =
-		useState<null | HTMLElement>(null);
-	const [exportDialogOpen, setExportDialogOpen] = useState(false);
-	const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'xlsx'>(
-		'csv',
+	const [tableUiState, setTableUiState] = useReducer(
+		tableUiReducer,
+		initialTableUiState,
 	);
+	const {
+		rowSelection,
+		selectionActionAnchorEl,
+		exportDialogOpen,
+		exportFormat,
+		bulkActionDialog,
+	} = tableUiState;
 
 	// Bulk action mutations
 	const queryClient = useQueryClient();
-	const [bulkActionDialog, setBulkActionDialog] = useState<{
-		type: 'suspend' | 'reactivate' | 'delete';
-		open: boolean;
-	}>({ type: 'suspend', open: false });
 
 	const { mutate: bulkSuspend, isPending: isBulkSuspending } =
 		useBulkSuspendTenants({
@@ -229,8 +268,10 @@ const TenantsTable = () => {
 						}),
 					);
 				}
-				setBulkActionDialog({ type: 'suspend', open: false });
-				setRowSelection({});
+				setTableUiState({
+					bulkActionDialog: { type: 'suspend', open: false },
+					rowSelection: {},
+				});
 				queryClient.invalidateQueries({
 					queryKey: useFindTenants.getKey(),
 				});
@@ -277,8 +318,10 @@ const TenantsTable = () => {
 						}),
 					);
 				}
-				setBulkActionDialog({ type: 'reactivate', open: false });
-				setRowSelection({});
+				setTableUiState({
+					bulkActionDialog: { type: 'reactivate', open: false },
+					rowSelection: {},
+				});
 				queryClient.invalidateQueries({
 					queryKey: useFindTenants.getKey(),
 				});
@@ -325,8 +368,10 @@ const TenantsTable = () => {
 						}),
 					);
 				}
-				setBulkActionDialog({ type: 'delete', open: false });
-				setRowSelection({});
+				setTableUiState({
+					bulkActionDialog: { type: 'delete', open: false },
+					rowSelection: {},
+				});
 				queryClient.invalidateQueries({
 					queryKey: useFindTenants.getKey(),
 				});
@@ -478,13 +523,12 @@ const TenantsTable = () => {
 	const isSelectionActionMenuOpen = Boolean(selectionActionAnchorEl);
 
 	const closeSelectionActionMenu = () => {
-		setSelectionActionAnchorEl(null);
+		setTableUiState({ selectionActionAnchorEl: null });
 	};
 
 	const openExportDialog = () => {
 		closeSelectionActionMenu();
-		setExportFormat('csv');
-		setExportDialogOpen(true);
+		setTableUiState({ exportDialogOpen: true, exportFormat: 'csv' });
 	};
 	const exportRows = (format: 'csv' | 'json') => {
 		const rowsToExport = isSelectionMode ? selectedRows : dataTable;
@@ -521,7 +565,7 @@ const TenantsTable = () => {
 
 	const handleExport = (format: 'csv' | 'json') => {
 		exportRows(format);
-		setExportDialogOpen(false);
+		setTableUiState({ exportDialogOpen: false });
 	};
 
 	const renderToolbarFilters = () => {
@@ -693,7 +737,9 @@ const TenantsTable = () => {
 				<IconButton
 					size="small"
 					onClick={(event) => {
-						setSelectionActionAnchorEl(event.currentTarget);
+						setTableUiState({
+							selectionActionAnchorEl: event.currentTarget,
+						});
 					}}
 					sx={{ width: 32, height: 32 }}
 				>
@@ -725,7 +771,9 @@ const TenantsTable = () => {
 					<MenuItem
 						onClick={() => {
 							closeSelectionActionMenu();
-							setBulkActionDialog({ type: 'suspend', open: true });
+							setTableUiState({
+								bulkActionDialog: { type: 'suspend', open: true },
+							});
 						}}
 					>
 						<Iconify icon="solar:forbidden-circle-bold" width={18} />
@@ -734,7 +782,9 @@ const TenantsTable = () => {
 					<MenuItem
 						onClick={() => {
 							closeSelectionActionMenu();
-							setBulkActionDialog({ type: 'reactivate', open: true });
+							setTableUiState({
+								bulkActionDialog: { type: 'reactivate', open: true },
+							});
 						}}
 					>
 						<Iconify icon="solar:play-circle-bold" width={18} />
@@ -743,7 +793,9 @@ const TenantsTable = () => {
 					<MenuItem
 						onClick={() => {
 							closeSelectionActionMenu();
-							setBulkActionDialog({ type: 'delete', open: true });
+							setTableUiState({
+								bulkActionDialog: { type: 'delete', open: true },
+							});
 						}}
 						sx={{ color: 'error.main' }}
 					>
@@ -769,12 +821,11 @@ const TenantsTable = () => {
 		manualSorting: true,
 		localization: sortTooltipLocalization,
 		onRowSelectionChange: (updater) => {
-			setRowSelection((prev) => {
-				if (typeof updater === 'function') {
-					return updater(prev);
-				}
+			setTableUiState((state) => {
+				const rowSelection =
+					typeof updater === 'function' ? updater(state.rowSelection) : updater;
 
-				return updater;
+				return { rowSelection };
 			});
 		},
 		onSortingChange: (updater) => {
@@ -846,7 +897,9 @@ const TenantsTable = () => {
 
 			<Dialog
 				open={exportDialogOpen}
-				onClose={() => setExportDialogOpen(false)}
+				onClose={() => {
+					setTableUiState({ exportDialogOpen: false });
+				}}
 				fullWidth
 				maxWidth="xs"
 			>
@@ -877,7 +930,7 @@ const TenantsTable = () => {
 							value={exportFormat}
 							onChange={(_event, value: 'csv' | 'json' | 'xlsx') => {
 								if (value) {
-									setExportFormat(value);
+									setTableUiState({ exportFormat: value });
 								}
 							}}
 							sx={(theme) => ({
@@ -968,7 +1021,9 @@ const TenantsTable = () => {
 					<Button
 						variant="outlined"
 						color="inherit"
-						onClick={() => setExportDialogOpen(false)}
+						onClick={() => {
+							setTableUiState({ exportDialogOpen: false });
+						}}
 					>
 						{t('cancel')}
 					</Button>
@@ -978,7 +1033,11 @@ const TenantsTable = () => {
 			{/* Bulk Suspend Confirmation Dialog */}
 			<ConfirmDialog
 				open={bulkActionDialog.type === 'suspend' && bulkActionDialog.open}
-				onClose={() => setBulkActionDialog({ type: 'suspend', open: false })}
+				onClose={() => {
+					setTableUiState({
+						bulkActionDialog: { type: 'suspend', open: false },
+					});
+				}}
 				title={t('bulk-suspend')}
 				content={t('bulk-suspend-confirm', { count: selectedCount })}
 				action={
@@ -996,7 +1055,11 @@ const TenantsTable = () => {
 			{/* Bulk Reactivate Confirmation Dialog */}
 			<ConfirmDialog
 				open={bulkActionDialog.type === 'reactivate' && bulkActionDialog.open}
-				onClose={() => setBulkActionDialog({ type: 'reactivate', open: false })}
+				onClose={() => {
+					setTableUiState({
+						bulkActionDialog: { type: 'reactivate', open: false },
+					});
+				}}
 				title={t('bulk-reactivate')}
 				content={t('bulk-reactivate-confirm', { count: selectedCount })}
 				action={
@@ -1014,7 +1077,11 @@ const TenantsTable = () => {
 			{/* Bulk Delete Confirmation Dialog */}
 			<ConfirmDialog
 				open={bulkActionDialog.type === 'delete' && bulkActionDialog.open}
-				onClose={() => setBulkActionDialog({ type: 'delete', open: false })}
+				onClose={() => {
+					setTableUiState({
+						bulkActionDialog: { type: 'delete', open: false },
+					});
+				}}
 				title={t('bulk-delete')}
 				content={t('bulk-delete-confirm', { count: selectedCount })}
 				action={
