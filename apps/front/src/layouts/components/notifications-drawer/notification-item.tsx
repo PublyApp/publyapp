@@ -5,7 +5,6 @@ import Button from '@mui/material/Button';
 import ListItemAvatar from '@mui/material/ListItemAvatar';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
-import DOMPurify from 'dompurify';
 
 import { FileThumbnail } from '#app/components/file-thumbnail/index.ts';
 import { Label } from '#app/components/label/index.ts';
@@ -25,20 +24,6 @@ export type NotificationItemProps = {
 		avatarUrl: string | null;
 		createdAt: string | number | null;
 	};
-};
-
-const readerContent = (data: string) => {
-	return (
-		<Box
-			// biome-ignore lint/security/noDangerouslySetInnerHtml: Content is sanitized with DOMPurify to remove dangerous tags/scripts before rendering
-			dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(data) }}
-			sx={{
-				'& p': { m: 0, typography: 'body2' },
-				'& a': { color: 'inherit', textDecoration: 'none' },
-				'& strong': { typography: 'subtitle2' },
-			}}
-		/>
-	);
 };
 
 const renderIcon = (type: string) => {
@@ -83,7 +68,7 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 	const renderText = () => {
 		return (
 			<ListItemText
-				primary={readerContent(notification.title)}
+				primary={<Box sx={{ typography: 'body2' }}>{notification.title}</Box>}
 				secondary={
 					<>
 						{fToNow(notification.createdAt)}
