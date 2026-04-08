@@ -120,11 +120,18 @@ type BulkActionDialogState = {
 	open: boolean;
 };
 
+type BulkActionType = BulkActionDialogState['type'];
+type ExportFormat = 'csv' | 'json' | 'xlsx';
+type TenantStatusFilterOption = {
+	label: string;
+	value: string;
+};
+
 type TableUiState = {
 	rowSelection: Record<string, boolean>;
 	selectionActionAnchorEl: HTMLElement | null;
 	exportDialogOpen: boolean;
-	exportFormat: 'csv' | 'json' | 'xlsx';
+	exportFormat: ExportFormat;
 	bulkActionDialog: BulkActionDialogState;
 };
 
@@ -147,11 +154,11 @@ const tableUiReducer = (
 	return { ...state, ...nextState };
 };
 
-const TenantsTable = () => {
+const useTenantsTableController = () => {
 	const { t } = useTranslate();
 	const searchTooltipId = useId();
 	const statusTooltipId = useId();
-	const tenantStatusOptions = useMemo(() => {
+	const tenantStatusOptions = useMemo<TenantStatusFilterOption[]>(() => {
 		return [
 			{ label: t('active'), value: TENANT_STATUS_ENUM.ACTIVE },
 			{ label: t('pending'), value: TENANT_STATUS_ENUM.PENDING },
@@ -222,7 +229,7 @@ const TenantsTable = () => {
 	// Status filter handler - reset cursor before updating
 	const handleStatusChange = (
 		_value: React.SyntheticEvent,
-		selectedOptions: typeof tenantStatusOptions,
+		selectedOptions: TenantStatusFilterOption[],
 	) => {
 		const nextStatusFilter = selectedOptions.map((option) => option.value);
 		resetCursorPagination?.();
@@ -243,173 +250,24 @@ const TenantsTable = () => {
 		bulkActionDialog,
 	} = tableUiState;
 
-	// Bulk action mutations
-	const queryClient = useQueryClient();
-
-	const { mutate: bulkSuspend, isPending: isBulkSuspending } =
-		useBulkSuspendTenants({
-			// Bulk actions own specialized success/partial/failure feedback, so they
-			// intentionally bypass the shared global mutation error toast.
-			meta: { skipGlobalErrorHandler: true },
-			onSuccess: (result) => {
-				const succeeded = result.succeededCount ?? 0;
-				const failed = result.failedCount ?? 0;
-				if (failed > 0) {
-					toast.warning(
-						t('tenant-bulk-suspend-partial-success', {
-							succeeded,
-							failed,
-						}),
-					);
-				} else {
-					toast.success(
-						t('tenant-bulk-suspend-success', {
-							count: succeeded,
-						}),
-					);
-				}
-				setTableUiState({
-					bulkActionDialog: { type: 'suspend', open: false },
-					rowSelection: {},
-				});
-				queryClient.invalidateQueries({
-					queryKey: useFindTenants.getKey(),
-				});
-			},
-			onError: (error: unknown) => {
-				const failure = toApiFailure(error);
-
-				if (isAbortFailure(failure)) {
-					return;
-				}
-
-				if (isProblemFailure(failure)) {
-					toast.error(
-						getFailureMessage(failure, {
-							fallback: t('tenant-bulk-suspend-failure'),
-						}),
-					);
-					return;
-				}
-
-				toast.error(t('tenant-bulk-suspend-failure'));
-			},
+	const handleBulkActionSuccess = useCallback((type: BulkActionType) => {
+		setTableUiState({
+			bulkActionDialog: { type, open: false },
+			rowSelection: {},
 		});
+	}, []);
 
-	const { mutate: bulkReactivate, isPending: isBulkReactivating } =
-		useBulkReactivateTenants({
-			// Bulk actions own specialized success/partial/failure feedback, so they
-			// intentionally bypass the shared global mutation error toast.
-			meta: { skipGlobalErrorHandler: true },
-			onSuccess: (result) => {
-				const succeeded = result.succeededCount ?? 0;
-				const failed = result.failedCount ?? 0;
-				if (failed > 0) {
-					toast.warning(
-						t('tenant-bulk-reactivate-partial-success', {
-							succeeded,
-							failed,
-						}),
-					);
-				} else {
-					toast.success(
-						t('tenant-bulk-reactivate-success', {
-							count: succeeded,
-						}),
-					);
-				}
-				setTableUiState({
-					bulkActionDialog: { type: 'reactivate', open: false },
-					rowSelection: {},
-				});
-				queryClient.invalidateQueries({
-					queryKey: useFindTenants.getKey(),
-				});
-			},
-			onError: (error: unknown) => {
-				const failure = toApiFailure(error);
-
-				if (isAbortFailure(failure)) {
-					return;
-				}
-
-				if (isProblemFailure(failure)) {
-					toast.error(
-						getFailureMessage(failure, {
-							fallback: t('tenant-bulk-reactivate-failure'),
-						}),
-					);
-					return;
-				}
-
-				toast.error(t('tenant-bulk-reactivate-failure'));
-			},
-		});
-
-	const { mutate: bulkDelete, isPending: isBulkDeleting } =
-		useBulkDeleteTenants({
-			// Bulk actions own specialized success/partial/failure feedback, so they
-			// intentionally bypass the shared global mutation error toast.
-			meta: { skipGlobalErrorHandler: true },
-			onSuccess: (result) => {
-				const succeeded = result.succeededCount ?? 0;
-				const failed = result.failedCount ?? 0;
-				if (failed > 0) {
-					toast.warning(
-						t('tenant-bulk-delete-partial-success', {
-							succeeded,
-							failed,
-						}),
-					);
-				} else {
-					toast.success(
-						t('tenant-bulk-delete-success', {
-							count: succeeded,
-						}),
-					);
-				}
-				setTableUiState({
-					bulkActionDialog: { type: 'delete', open: false },
-					rowSelection: {},
-				});
-				queryClient.invalidateQueries({
-					queryKey: useFindTenants.getKey(),
-				});
-			},
-			onError: (error: unknown) => {
-				const failure = toApiFailure(error);
-
-				if (isAbortFailure(failure)) {
-					return;
-				}
-
-				if (isProblemFailure(failure)) {
-					toast.error(
-						getFailureMessage(failure, {
-							fallback: t('tenant-bulk-delete-failure'),
-						}),
-					);
-					return;
-				}
-
-				toast.error(t('tenant-bulk-delete-failure'));
-			},
-		});
-
-	const handleBulkSuspend = () => {
-		const selectedIds = Object.keys(rowSelection);
-		bulkSuspend({ tenantIds: selectedIds });
-	};
-
-	const handleBulkReactivate = () => {
-		const selectedIds = Object.keys(rowSelection);
-		bulkReactivate({ tenantIds: selectedIds });
-	};
-
-	const handleBulkDelete = () => {
-		const selectedIds = Object.keys(rowSelection);
-		bulkDelete({ tenantIds: selectedIds });
-	};
+	const {
+		handleBulkSuspend,
+		handleBulkReactivate,
+		handleBulkDelete,
+		isBulkSuspending,
+		isBulkReactivating,
+		isBulkDeleting,
+	} = useTenantsBulkActions({
+		rowSelection,
+		onSuccess: handleBulkActionSuccess,
+	});
 
 	const columns = useMemo(() => {
 		return [
@@ -530,6 +388,23 @@ const TenantsTable = () => {
 		closeSelectionActionMenu();
 		setTableUiState({ exportDialogOpen: true, exportFormat: 'csv' });
 	};
+	const openBulkActionDialog = (type: BulkActionType) => {
+		closeSelectionActionMenu();
+		setTableUiState({
+			bulkActionDialog: { type, open: true },
+		});
+	};
+	const closeExportDialog = () => {
+		setTableUiState({ exportDialogOpen: false });
+	};
+	const closeBulkActionDialog = (type: BulkActionType) => {
+		setTableUiState({
+			bulkActionDialog: { type, open: false },
+		});
+	};
+	const handleExportFormatChange = (format: ExportFormat) => {
+		setTableUiState({ exportFormat: format });
+	};
 	const exportRows = (format: 'csv' | 'json') => {
 		const rowsToExport = isSelectionMode ? selectedRows : dataTable;
 
@@ -570,240 +445,36 @@ const TenantsTable = () => {
 
 	const renderToolbarFilters = () => {
 		return (
-			<>
-				<Tooltip
-					title={isSelectionMode ? selectionModeDisabledReason : ''}
-					arrow
-					disableHoverListener={!isSelectionMode}
-					describeChild
-					slotProps={{ tooltip: { id: searchTooltipId } }}
-				>
-					<Box component="span">
-						<TextField
-							size="small"
-							placeholder={t('search-tenants')}
-							value={globalFilter}
-							onChange={handleSearchChange}
-							disabled={isSelectionMode}
-							slotProps={{
-								input: {
-									startAdornment: (
-										<InputAdornment position="start">
-											<Iconify icon="eva:search-fill" />
-										</InputAdornment>
-									),
-								},
-							}}
-							sx={{ minWidth: 260 }}
-						/>
-					</Box>
-				</Tooltip>
-
-				<Tooltip
-					title={isSelectionMode ? selectionModeDisabledReason : ''}
-					arrow
-					disableHoverListener={!isSelectionMode}
-					describeChild
-					slotProps={{ tooltip: { id: statusTooltipId } }}
-				>
-					<Box component="span">
-						<Autocomplete
-							multiple
-							disableCloseOnSelect
-							size="small"
-							options={tenantStatusOptions}
-							value={tenantStatusOptions.filter((option) =>
-								statusFilter.includes(option.value),
-							)}
-							onChange={handleStatusChange}
-							disabled={isSelectionMode}
-							isOptionEqualToValue={(option, value) =>
-								option.value === value.value
-							}
-							getOptionLabel={(option) => option.label}
-							renderInput={(params) => (
-								<TextField
-									{...params}
-									placeholder={
-										statusFilter.length === 0 ? t('all-statuses') : undefined
-									}
-									InputProps={{
-										...params.InputProps,
-										startAdornment: (
-											<>
-												<Box
-													component="span"
-													sx={{
-														color: 'text.secondary',
-														typography: 'body2',
-														whiteSpace: 'nowrap',
-														mr: 1,
-														display: 'inline-flex',
-														alignItems: 'center',
-														alignSelf: 'center',
-														minHeight: 24,
-													}}
-												>
-													{t('status')}:
-												</Box>
-												{params.InputProps.startAdornment}
-											</>
-										),
-									}}
-								/>
-							)}
-							renderOption={(props, option, { selected }) => {
-								const { key, ...optionProps } = props;
-
-								return (
-									<Box
-										component="li"
-										key={key}
-										{...optionProps}
-										sx={(theme) => ({
-											'&.Mui-focused': {
-												backgroundColor: varAlpha(
-													theme.vars.palette.grey['500Channel'],
-													0.08,
-												),
-											},
-											'&[aria-selected="true"]': {
-												backgroundColor: varAlpha(
-													theme.vars.palette.primary.mainChannel,
-													0.08,
-												),
-											},
-											'&[aria-selected="true"].Mui-focused': {
-												backgroundColor: varAlpha(
-													theme.vars.palette.primary.mainChannel,
-													0.12,
-												),
-											},
-										})}
-									>
-										<Checkbox checked={selected} sx={{ mr: 1 }} />
-										{option.label}
-									</Box>
-								);
-							}}
-							slotProps={{
-								paper: {
-									sx: {
-										width: 280,
-									},
-								},
-								chip: {
-									sx: (theme) => ({
-										backgroundColor: varAlpha(
-											theme.vars.palette.grey['500Channel'],
-											0.16,
-										),
-										color: 'text.secondary',
-										'&:hover': {
-											backgroundColor: varAlpha(
-												theme.vars.palette.grey['500Channel'],
-												0.24,
-											),
-										},
-									}),
-								},
-							}}
-							sx={{
-								'& .MuiAutocomplete-tag': {
-									maxWidth: 120,
-								},
-							}}
-						/>
-					</Box>
-				</Tooltip>
-			</>
+			<TenantsToolbarFilters
+				searchTooltipId={searchTooltipId}
+				statusTooltipId={statusTooltipId}
+				isSelectionMode={isSelectionMode}
+				disabledReason={selectionModeDisabledReason}
+				globalFilter={globalFilter}
+				statusFilter={statusFilter}
+				statusOptions={tenantStatusOptions}
+				onSearchChange={handleSearchChange}
+				onStatusChange={handleStatusChange}
+			/>
 		);
 	};
 	const renderExportActions = () => {
-		return (
-			<Button
-				size="small"
-				variant="outlined"
-				onClick={openExportDialog}
-				startIcon={<Iconify icon="solar:download-bold" />}
-			>
-				{t('export')}
-			</Button>
-		);
+		return <TenantsExportActions onOpenExportDialog={openExportDialog} />;
 	};
 	const renderSelectionActions = () => {
 		return (
-			<>
-				<IconButton
-					size="small"
-					onClick={(event) => {
-						setTableUiState({
-							selectionActionAnchorEl: event.currentTarget,
-						});
-					}}
-					sx={{ width: 32, height: 32 }}
-				>
-					<Iconify icon="eva:more-vertical-fill" width={18} />
-				</IconButton>
-				<Menu
-					anchorEl={selectionActionAnchorEl}
-					open={isSelectionActionMenuOpen}
-					onClose={closeSelectionActionMenu}
-					anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-					transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-					slotProps={{
-						paper: {
-							sx: {
-								minWidth: SELECTION_MODE_MENU_MIN_WIDTH,
-							},
-						},
-					}}
-				>
-					<MenuItem onClick={openExportDialog}>
-						<Iconify icon="solar:download-bold" width={18} />
-						<ListItemText
-							primary={t('export-selected', {
-								defaultValue: 'Export selected',
-							})}
-							sx={{ ml: 1 }}
-						/>
-					</MenuItem>
-					<MenuItem
-						onClick={() => {
-							closeSelectionActionMenu();
-							setTableUiState({
-								bulkActionDialog: { type: 'suspend', open: true },
-							});
-						}}
-					>
-						<Iconify icon="solar:forbidden-circle-bold" width={18} />
-						<ListItemText primary={t('bulk-suspend')} sx={{ ml: 1 }} />
-					</MenuItem>
-					<MenuItem
-						onClick={() => {
-							closeSelectionActionMenu();
-							setTableUiState({
-								bulkActionDialog: { type: 'reactivate', open: true },
-							});
-						}}
-					>
-						<Iconify icon="solar:play-circle-bold" width={18} />
-						<ListItemText primary={t('bulk-reactivate')} sx={{ ml: 1 }} />
-					</MenuItem>
-					<MenuItem
-						onClick={() => {
-							closeSelectionActionMenu();
-							setTableUiState({
-								bulkActionDialog: { type: 'delete', open: true },
-							});
-						}}
-						sx={{ color: 'error.main' }}
-					>
-						<Iconify icon="solar:trash-bin-trash-bold" width={18} />
-						<ListItemText primary={t('bulk-delete')} sx={{ ml: 1 }} />
-					</MenuItem>
-				</Menu>
-			</>
+			<TenantsSelectionActions
+				anchorEl={selectionActionAnchorEl}
+				open={isSelectionActionMenuOpen}
+				onClose={closeSelectionActionMenu}
+				onOpen={(event) => {
+					setTableUiState({
+						selectionActionAnchorEl: event.currentTarget,
+					});
+				}}
+				onOpenExportDialog={openExportDialog}
+				onOpenBulkActionDialog={openBulkActionDialog}
+			/>
 		);
 	};
 
@@ -884,6 +555,48 @@ const TenantsTable = () => {
 		},
 	});
 
+	return {
+		table,
+		exportDialogOpen,
+		isSelectionMode,
+		selectedCount,
+		rowsCount: dataTable.length,
+		exportFormat,
+		closeExportDialog,
+		handleExportFormatChange,
+		handleExport,
+		bulkActionDialog,
+		isBulkSuspending,
+		isBulkReactivating,
+		isBulkDeleting,
+		closeBulkActionDialog,
+		handleBulkSuspend,
+		handleBulkReactivate,
+		handleBulkDelete,
+	};
+};
+
+const TenantsTable = () => {
+	const {
+		table,
+		exportDialogOpen,
+		isSelectionMode,
+		selectedCount,
+		rowsCount,
+		exportFormat,
+		closeExportDialog,
+		handleExportFormatChange,
+		handleExport,
+		bulkActionDialog,
+		isBulkSuspending,
+		isBulkReactivating,
+		isBulkDeleting,
+		closeBulkActionDialog,
+		handleBulkSuspend,
+		handleBulkReactivate,
+		handleBulkDelete,
+	} = useTenantsTableController();
+
 	return (
 		<Box
 			sx={{
@@ -895,205 +608,27 @@ const TenantsTable = () => {
 		>
 			<MaterialReactTable table={table} />
 
-			<Dialog
+			<TenantsExportDialog
 				open={exportDialogOpen}
-				onClose={() => {
-					setTableUiState({ exportDialogOpen: false });
-				}}
-				fullWidth
-				maxWidth="xs"
-			>
-				<DialogTitle sx={{ pb: 1 }}>
-					{isSelectionMode
-						? t('export-selected-tenants', {
-								defaultValue: 'Export selected tenants',
-							})
-						: t('export-tenants', {
-								defaultValue: 'Export tenants',
-							})}
-				</DialogTitle>
-				<DialogContent sx={{ pt: '8px !important', pb: 2.5 }}>
-					<Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-						<Typography variant="body2">
-							{isSelectionMode
-								? t('export-selected-items', {
-										count: selectedCount,
-										defaultValue: 'Export {{count}} selected item(s)',
-									})
-								: t('export-current-results', {
-										count: dataTable.length,
-										defaultValue:
-											'Export the current result set ({{count}} item(s)).',
-									})}
-						</Typography>
-						<Tabs
-							value={exportFormat}
-							onChange={(_event, value: 'csv' | 'json' | 'xlsx') => {
-								if (value) {
-									setTableUiState({ exportFormat: value });
-								}
-							}}
-							sx={(theme) => ({
-								mt: 1.5,
-								alignSelf: 'flex-start',
-								minHeight: 32,
-								p: '2px 2px 1px',
-								border: `1px solid ${theme.vars.palette.divider}`,
-								borderRadius: 1,
-								bgcolor: 'background.paper',
-								'& .MuiTabs-indicator': {
-									display: 'none',
-								},
-								'& .MuiTabs-list': {
-									gap: '2px',
-								},
-								'& .MuiTab-root': {
-									minHeight: 26,
-									minWidth: 64,
-									px: 1,
-									py: 0.375,
-									borderRadius: 0.75,
-									fontSize: theme.typography.caption.fontSize,
-									fontWeight: theme.typography.fontWeightMedium,
-									textTransform: 'none',
-									color: 'text.secondary',
-									m: 0,
-									transition: theme.transitions.create(
-										['background-color', 'color', 'box-shadow'],
-										{
-											duration: theme.transitions.duration.shorter,
-										},
-									),
-								},
-								'& .MuiTab-root.Mui-selected': {
-									color: 'text.primary',
-									bgcolor: varAlpha(
-										theme.vars.palette.grey['500Channel'],
-										0.16,
-									),
-									boxShadow: 'none',
-								},
-								'& .MuiTab-root.Mui-disabled': {
-									opacity: 0.48,
-								},
-							})}
-						>
-							<Tab label="CSV" value="csv" />
-							<Tab label="JSON" value="json" />
-							<Tab label="XLSX" value="xlsx" />
-						</Tabs>
-						<Typography
-							variant="body2"
-							color="text.secondary"
-							sx={{ minHeight: 20 }}
-						>
-							{exportFormat === 'xlsx'
-								? t('xlsx-export-coming-soon', {
-										defaultValue: 'XLSX export is coming soon.',
-									})
-								: ' '}
-						</Typography>
-					</Box>
-				</DialogContent>
-				<DialogActions
-					sx={{
-						px: 3,
-						pb: 3,
-						pt: 0,
-						gap: 0.75,
-						justifyContent: 'flex-end',
-					}}
-				>
-					<Button
-						variant="contained"
-						onClick={() => {
-							if (exportFormat === 'xlsx') {
-								return;
-							}
-
-							handleExport(exportFormat);
-						}}
-						startIcon={<Iconify icon="solar:download-bold" />}
-						disabled={exportFormat === 'xlsx'}
-					>
-						{t('export')}
-					</Button>
-					<Button
-						variant="outlined"
-						color="inherit"
-						onClick={() => {
-							setTableUiState({ exportDialogOpen: false });
-						}}
-					>
-						{t('cancel')}
-					</Button>
-				</DialogActions>
-			</Dialog>
-
-			{/* Bulk Suspend Confirmation Dialog */}
-			<ConfirmDialog
-				open={bulkActionDialog.type === 'suspend' && bulkActionDialog.open}
-				onClose={() => {
-					setTableUiState({
-						bulkActionDialog: { type: 'suspend', open: false },
-					});
-				}}
-				title={t('bulk-suspend')}
-				content={t('bulk-suspend-confirm', { count: selectedCount })}
-				action={
-					<Button
-						variant="contained"
-						color="warning"
-						onClick={handleBulkSuspend}
-						disabled={isBulkSuspending}
-					>
-						{t('suspend')}
-					</Button>
-				}
+				isSelectionMode={isSelectionMode}
+				selectedCount={selectedCount}
+				rowsCount={rowsCount}
+				exportFormat={exportFormat}
+				onClose={closeExportDialog}
+				onFormatChange={handleExportFormatChange}
+				onExport={handleExport}
 			/>
 
-			{/* Bulk Reactivate Confirmation Dialog */}
-			<ConfirmDialog
-				open={bulkActionDialog.type === 'reactivate' && bulkActionDialog.open}
-				onClose={() => {
-					setTableUiState({
-						bulkActionDialog: { type: 'reactivate', open: false },
-					});
-				}}
-				title={t('bulk-reactivate')}
-				content={t('bulk-reactivate-confirm', { count: selectedCount })}
-				action={
-					<Button
-						variant="contained"
-						color="success"
-						onClick={handleBulkReactivate}
-						disabled={isBulkReactivating}
-					>
-						{t('reactivate')}
-					</Button>
-				}
-			/>
-
-			{/* Bulk Delete Confirmation Dialog */}
-			<ConfirmDialog
-				open={bulkActionDialog.type === 'delete' && bulkActionDialog.open}
-				onClose={() => {
-					setTableUiState({
-						bulkActionDialog: { type: 'delete', open: false },
-					});
-				}}
-				title={t('bulk-delete')}
-				content={t('bulk-delete-confirm', { count: selectedCount })}
-				action={
-					<Button
-						variant="contained"
-						color="error"
-						onClick={handleBulkDelete}
-						disabled={isBulkDeleting}
-					>
-						{t('delete')}
-					</Button>
-				}
+			<TenantsBulkActionDialogs
+				dialogState={bulkActionDialog}
+				selectedCount={selectedCount}
+				isBulkSuspending={isBulkSuspending}
+				isBulkReactivating={isBulkReactivating}
+				isBulkDeleting={isBulkDeleting}
+				onClose={closeBulkActionDialog}
+				onBulkSuspend={handleBulkSuspend}
+				onBulkReactivate={handleBulkReactivate}
+				onBulkDelete={handleBulkDelete}
 			/>
 		</Box>
 	);
@@ -1102,6 +637,672 @@ const TenantsTable = () => {
 export default TenantsTable;
 
 // ----------------------------------------------------------------------
+
+type UseTenantsBulkActionsProps = {
+	rowSelection: Record<string, boolean>;
+	onSuccess: (type: BulkActionType) => void;
+};
+
+const useTenantsBulkActions = ({
+	rowSelection,
+	onSuccess,
+}: UseTenantsBulkActionsProps) => {
+	const { t } = useTranslate();
+	const queryClient = useQueryClient();
+
+	const invalidateTenants = () => {
+		queryClient.invalidateQueries({
+			queryKey: useFindTenants.getKey(),
+		});
+	};
+
+	const { mutate: bulkSuspend, isPending: isBulkSuspending } =
+		useBulkSuspendTenants({
+			// Bulk actions own specialized success/partial/failure feedback, so they
+			// intentionally bypass the shared global mutation error toast.
+			meta: { skipGlobalErrorHandler: true },
+			onSuccess: (result) => {
+				const succeeded = result.succeededCount ?? 0;
+				const failed = result.failedCount ?? 0;
+				if (failed > 0) {
+					toast.warning(
+						t('tenant-bulk-suspend-partial-success', {
+							succeeded,
+							failed,
+						}),
+					);
+				} else {
+					toast.success(
+						t('tenant-bulk-suspend-success', {
+							count: succeeded,
+						}),
+					);
+				}
+				onSuccess('suspend');
+				invalidateTenants();
+			},
+			onError: (error: unknown) => {
+				const failure = toApiFailure(error);
+
+				if (isAbortFailure(failure)) {
+					return;
+				}
+
+				if (isProblemFailure(failure)) {
+					toast.error(
+						getFailureMessage(failure, {
+							fallback: t('tenant-bulk-suspend-failure'),
+						}),
+					);
+					return;
+				}
+
+				toast.error(t('tenant-bulk-suspend-failure'));
+			},
+		});
+
+	const { mutate: bulkReactivate, isPending: isBulkReactivating } =
+		useBulkReactivateTenants({
+			// Bulk actions own specialized success/partial/failure feedback, so they
+			// intentionally bypass the shared global mutation error toast.
+			meta: { skipGlobalErrorHandler: true },
+			onSuccess: (result) => {
+				const succeeded = result.succeededCount ?? 0;
+				const failed = result.failedCount ?? 0;
+				if (failed > 0) {
+					toast.warning(
+						t('tenant-bulk-reactivate-partial-success', {
+							succeeded,
+							failed,
+						}),
+					);
+				} else {
+					toast.success(
+						t('tenant-bulk-reactivate-success', {
+							count: succeeded,
+						}),
+					);
+				}
+				onSuccess('reactivate');
+				invalidateTenants();
+			},
+			onError: (error: unknown) => {
+				const failure = toApiFailure(error);
+
+				if (isAbortFailure(failure)) {
+					return;
+				}
+
+				if (isProblemFailure(failure)) {
+					toast.error(
+						getFailureMessage(failure, {
+							fallback: t('tenant-bulk-reactivate-failure'),
+						}),
+					);
+					return;
+				}
+
+				toast.error(t('tenant-bulk-reactivate-failure'));
+			},
+		});
+
+	const { mutate: bulkDelete, isPending: isBulkDeleting } =
+		useBulkDeleteTenants({
+			// Bulk actions own specialized success/partial/failure feedback, so they
+			// intentionally bypass the shared global mutation error toast.
+			meta: { skipGlobalErrorHandler: true },
+			onSuccess: (result) => {
+				const succeeded = result.succeededCount ?? 0;
+				const failed = result.failedCount ?? 0;
+				if (failed > 0) {
+					toast.warning(
+						t('tenant-bulk-delete-partial-success', {
+							succeeded,
+							failed,
+						}),
+					);
+				} else {
+					toast.success(
+						t('tenant-bulk-delete-success', {
+							count: succeeded,
+						}),
+					);
+				}
+				onSuccess('delete');
+				invalidateTenants();
+			},
+			onError: (error: unknown) => {
+				const failure = toApiFailure(error);
+
+				if (isAbortFailure(failure)) {
+					return;
+				}
+
+				if (isProblemFailure(failure)) {
+					toast.error(
+						getFailureMessage(failure, {
+							fallback: t('tenant-bulk-delete-failure'),
+						}),
+					);
+					return;
+				}
+
+				toast.error(t('tenant-bulk-delete-failure'));
+			},
+		});
+
+	const selectedIds = Object.keys(rowSelection);
+
+	return {
+		handleBulkSuspend: () => {
+			bulkSuspend({ tenantIds: selectedIds });
+		},
+		handleBulkReactivate: () => {
+			bulkReactivate({ tenantIds: selectedIds });
+		},
+		handleBulkDelete: () => {
+			bulkDelete({ tenantIds: selectedIds });
+		},
+		isBulkSuspending,
+		isBulkReactivating,
+		isBulkDeleting,
+	};
+};
+
+type TenantsToolbarFiltersProps = {
+	searchTooltipId: string;
+	statusTooltipId: string;
+	isSelectionMode: boolean;
+	disabledReason: string;
+	globalFilter: string;
+	statusFilter: string[];
+	statusOptions: TenantStatusFilterOption[];
+	onSearchChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+	onStatusChange: (
+		event: React.SyntheticEvent,
+		selectedOptions: TenantStatusFilterOption[],
+	) => void;
+};
+
+const TenantsToolbarFilters = ({
+	searchTooltipId,
+	statusTooltipId,
+	isSelectionMode,
+	disabledReason,
+	globalFilter,
+	statusFilter,
+	statusOptions,
+	onSearchChange,
+	onStatusChange,
+}: TenantsToolbarFiltersProps) => {
+	const { t } = useTranslate();
+
+	return (
+		<>
+			<Tooltip
+				title={isSelectionMode ? disabledReason : ''}
+				arrow
+				disableHoverListener={!isSelectionMode}
+				describeChild
+				slotProps={{ tooltip: { id: searchTooltipId } }}
+			>
+				<Box component="span">
+					<TextField
+						size="small"
+						placeholder={t('search-tenants')}
+						value={globalFilter}
+						onChange={onSearchChange}
+						disabled={isSelectionMode}
+						slotProps={{
+							input: {
+								startAdornment: (
+									<InputAdornment position="start">
+										<Iconify icon="eva:search-fill" />
+									</InputAdornment>
+								),
+							},
+						}}
+						sx={{ minWidth: 260 }}
+					/>
+				</Box>
+			</Tooltip>
+
+			<Tooltip
+				title={isSelectionMode ? disabledReason : ''}
+				arrow
+				disableHoverListener={!isSelectionMode}
+				describeChild
+				slotProps={{ tooltip: { id: statusTooltipId } }}
+			>
+				<Box component="span">
+					<Autocomplete
+						multiple
+						disableCloseOnSelect
+						size="small"
+						options={statusOptions}
+						value={statusOptions.filter((option) =>
+							statusFilter.includes(option.value),
+						)}
+						onChange={onStatusChange}
+						disabled={isSelectionMode}
+						isOptionEqualToValue={(option, value) =>
+							option.value === value.value
+						}
+						getOptionLabel={(option) => option.label}
+						renderInput={(params) => (
+							<TextField
+								{...params}
+								placeholder={
+									statusFilter.length === 0 ? t('all-statuses') : undefined
+								}
+								InputProps={{
+									...params.InputProps,
+									startAdornment: (
+										<>
+											<Box
+												component="span"
+												sx={{
+													color: 'text.secondary',
+													typography: 'body2',
+													whiteSpace: 'nowrap',
+													mr: 1,
+													display: 'inline-flex',
+													alignItems: 'center',
+													alignSelf: 'center',
+													minHeight: 24,
+												}}
+											>
+												{t('status')}:
+											</Box>
+											{params.InputProps.startAdornment}
+										</>
+									),
+								}}
+							/>
+						)}
+						renderOption={(props, option, { selected }) => {
+							const { key, ...optionProps } = props;
+
+							return (
+								<Box
+									component="li"
+									key={key}
+									{...optionProps}
+									sx={(theme) => ({
+										'&.Mui-focused': {
+											backgroundColor: varAlpha(
+												theme.vars.palette.grey['500Channel'],
+												0.08,
+											),
+										},
+										'&[aria-selected="true"]': {
+											backgroundColor: varAlpha(
+												theme.vars.palette.primary.mainChannel,
+												0.08,
+											),
+										},
+										'&[aria-selected="true"].Mui-focused': {
+											backgroundColor: varAlpha(
+												theme.vars.palette.primary.mainChannel,
+												0.12,
+											),
+										},
+									})}
+								>
+									<Checkbox checked={selected} sx={{ mr: 1 }} />
+									{option.label}
+								</Box>
+							);
+						}}
+						slotProps={{
+							paper: {
+								sx: {
+									width: 280,
+								},
+							},
+							chip: {
+								sx: (theme) => ({
+									backgroundColor: varAlpha(
+										theme.vars.palette.grey['500Channel'],
+										0.16,
+									),
+									color: 'text.secondary',
+									'&:hover': {
+										backgroundColor: varAlpha(
+											theme.vars.palette.grey['500Channel'],
+											0.24,
+										),
+									},
+								}),
+							},
+						}}
+						sx={{
+							'& .MuiAutocomplete-tag': {
+								maxWidth: 120,
+							},
+						}}
+					/>
+				</Box>
+			</Tooltip>
+		</>
+	);
+};
+
+type TenantsExportActionsProps = {
+	onOpenExportDialog: () => void;
+};
+
+const TenantsExportActions = ({
+	onOpenExportDialog,
+}: TenantsExportActionsProps) => {
+	const { t } = useTranslate();
+
+	return (
+		<Button
+			size="small"
+			variant="outlined"
+			onClick={onOpenExportDialog}
+			startIcon={<Iconify icon="solar:download-bold" />}
+		>
+			{t('export')}
+		</Button>
+	);
+};
+
+type TenantsSelectionActionsProps = {
+	anchorEl: HTMLElement | null;
+	open: boolean;
+	onOpen: (event: React.MouseEvent<HTMLButtonElement>) => void;
+	onClose: () => void;
+	onOpenExportDialog: () => void;
+	onOpenBulkActionDialog: (type: BulkActionType) => void;
+};
+
+const TenantsSelectionActions = ({
+	anchorEl,
+	open,
+	onOpen,
+	onClose,
+	onOpenExportDialog,
+	onOpenBulkActionDialog,
+}: TenantsSelectionActionsProps) => {
+	const { t } = useTranslate();
+
+	return (
+		<>
+			<IconButton size="small" onClick={onOpen} sx={{ width: 32, height: 32 }}>
+				<Iconify icon="eva:more-vertical-fill" width={18} />
+			</IconButton>
+			<Menu
+				anchorEl={anchorEl}
+				open={open}
+				onClose={onClose}
+				anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+				transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+				slotProps={{
+					paper: {
+						sx: {
+							minWidth: SELECTION_MODE_MENU_MIN_WIDTH,
+						},
+					},
+				}}
+			>
+				<MenuItem onClick={onOpenExportDialog}>
+					<Iconify icon="solar:download-bold" width={18} />
+					<ListItemText
+						primary={t('export-selected', {
+							defaultValue: 'Export selected',
+						})}
+						sx={{ ml: 1 }}
+					/>
+				</MenuItem>
+				<MenuItem onClick={() => onOpenBulkActionDialog('suspend')}>
+					<Iconify icon="solar:forbidden-circle-bold" width={18} />
+					<ListItemText primary={t('bulk-suspend')} sx={{ ml: 1 }} />
+				</MenuItem>
+				<MenuItem onClick={() => onOpenBulkActionDialog('reactivate')}>
+					<Iconify icon="solar:play-circle-bold" width={18} />
+					<ListItemText primary={t('bulk-reactivate')} sx={{ ml: 1 }} />
+				</MenuItem>
+				<MenuItem
+					onClick={() => onOpenBulkActionDialog('delete')}
+					sx={{ color: 'error.main' }}
+				>
+					<Iconify icon="solar:trash-bin-trash-bold" width={18} />
+					<ListItemText primary={t('bulk-delete')} sx={{ ml: 1 }} />
+				</MenuItem>
+			</Menu>
+		</>
+	);
+};
+
+type TenantsExportDialogProps = {
+	open: boolean;
+	isSelectionMode: boolean;
+	selectedCount: number;
+	rowsCount: number;
+	exportFormat: ExportFormat;
+	onClose: () => void;
+	onFormatChange: (format: ExportFormat) => void;
+	onExport: (format: 'csv' | 'json') => void;
+};
+
+const TenantsExportDialog = ({
+	open,
+	isSelectionMode,
+	selectedCount,
+	rowsCount,
+	exportFormat,
+	onClose,
+	onFormatChange,
+	onExport,
+}: TenantsExportDialogProps) => {
+	const { t } = useTranslate();
+
+	const handleExport = () => {
+		if (exportFormat === 'xlsx') {
+			return;
+		}
+
+		onExport(exportFormat);
+	};
+
+	return (
+		<Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+			<DialogTitle sx={{ pb: 1 }}>
+				{isSelectionMode
+					? t('export-selected-tenants', {
+							defaultValue: 'Export selected tenants',
+						})
+					: t('export-tenants', {
+							defaultValue: 'Export tenants',
+						})}
+			</DialogTitle>
+			<DialogContent sx={{ pt: '8px !important', pb: 2.5 }}>
+				<Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+					<Typography variant="body2">
+						{isSelectionMode
+							? t('export-selected-items', {
+									count: selectedCount,
+									defaultValue: 'Export {{count}} selected item(s)',
+								})
+							: t('export-current-results', {
+									count: rowsCount,
+									defaultValue:
+										'Export the current result set ({{count}} item(s)).',
+								})}
+					</Typography>
+					<Tabs
+						value={exportFormat}
+						onChange={(_event, value: ExportFormat) => {
+							if (value) {
+								onFormatChange(value);
+							}
+						}}
+						sx={(theme) => ({
+							mt: 1.5,
+							alignSelf: 'flex-start',
+							minHeight: 32,
+							p: '2px 2px 1px',
+							border: `1px solid ${theme.vars.palette.divider}`,
+							borderRadius: 1,
+							bgcolor: 'background.paper',
+							'& .MuiTabs-indicator': {
+								display: 'none',
+							},
+							'& .MuiTabs-list': {
+								gap: '2px',
+							},
+							'& .MuiTab-root': {
+								minHeight: 26,
+								minWidth: 64,
+								px: 1,
+								py: 0.375,
+								borderRadius: 0.75,
+								fontSize: theme.typography.caption.fontSize,
+								fontWeight: theme.typography.fontWeightMedium,
+								textTransform: 'none',
+								color: 'text.secondary',
+								m: 0,
+								transition: theme.transitions.create(
+									['background-color', 'color', 'box-shadow'],
+									{
+										duration: theme.transitions.duration.shorter,
+									},
+								),
+							},
+							'& .MuiTab-root.Mui-selected': {
+								color: 'text.primary',
+								bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
+								boxShadow: 'none',
+							},
+							'& .MuiTab-root.Mui-disabled': {
+								opacity: 0.48,
+							},
+						})}
+					>
+						<Tab label="CSV" value="csv" />
+						<Tab label="JSON" value="json" />
+						<Tab label="XLSX" value="xlsx" />
+					</Tabs>
+					<Typography
+						variant="body2"
+						color="text.secondary"
+						sx={{ minHeight: 20 }}
+					>
+						{exportFormat === 'xlsx'
+							? t('xlsx-export-coming-soon', {
+									defaultValue: 'XLSX export is coming soon.',
+								})
+							: ' '}
+					</Typography>
+				</Box>
+			</DialogContent>
+			<DialogActions
+				sx={{
+					px: 3,
+					pb: 3,
+					pt: 0,
+					gap: 0.75,
+					justifyContent: 'flex-end',
+				}}
+			>
+				<Button
+					variant="contained"
+					onClick={handleExport}
+					startIcon={<Iconify icon="solar:download-bold" />}
+					disabled={exportFormat === 'xlsx'}
+				>
+					{t('export')}
+				</Button>
+				<Button variant="outlined" color="inherit" onClick={onClose}>
+					{t('cancel')}
+				</Button>
+			</DialogActions>
+		</Dialog>
+	);
+};
+
+type TenantsBulkActionDialogsProps = {
+	dialogState: BulkActionDialogState;
+	selectedCount: number;
+	isBulkSuspending: boolean;
+	isBulkReactivating: boolean;
+	isBulkDeleting: boolean;
+	onClose: (type: BulkActionType) => void;
+	onBulkSuspend: () => void;
+	onBulkReactivate: () => void;
+	onBulkDelete: () => void;
+};
+
+const TenantsBulkActionDialogs = ({
+	dialogState,
+	selectedCount,
+	isBulkSuspending,
+	isBulkReactivating,
+	isBulkDeleting,
+	onClose,
+	onBulkSuspend,
+	onBulkReactivate,
+	onBulkDelete,
+}: TenantsBulkActionDialogsProps) => {
+	const { t } = useTranslate();
+
+	return (
+		<>
+			<ConfirmDialog
+				open={dialogState.type === 'suspend' && dialogState.open}
+				onClose={() => onClose('suspend')}
+				title={t('bulk-suspend')}
+				content={t('bulk-suspend-confirm', { count: selectedCount })}
+				action={
+					<Button
+						variant="contained"
+						color="warning"
+						onClick={onBulkSuspend}
+						disabled={isBulkSuspending}
+					>
+						{t('suspend')}
+					</Button>
+				}
+			/>
+
+			<ConfirmDialog
+				open={dialogState.type === 'reactivate' && dialogState.open}
+				onClose={() => onClose('reactivate')}
+				title={t('bulk-reactivate')}
+				content={t('bulk-reactivate-confirm', { count: selectedCount })}
+				action={
+					<Button
+						variant="contained"
+						color="success"
+						onClick={onBulkReactivate}
+						disabled={isBulkReactivating}
+					>
+						{t('reactivate')}
+					</Button>
+				}
+			/>
+
+			<ConfirmDialog
+				open={dialogState.type === 'delete' && dialogState.open}
+				onClose={() => onClose('delete')}
+				title={t('bulk-delete')}
+				content={t('bulk-delete-confirm', { count: selectedCount })}
+				action={
+					<Button
+						variant="contained"
+						color="error"
+						onClick={onBulkDelete}
+						disabled={isBulkDeleting}
+					>
+						{t('delete')}
+					</Button>
+				}
+			/>
+		</>
+	);
+};
 
 const TenantCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 	const name = props.row.original.name;
