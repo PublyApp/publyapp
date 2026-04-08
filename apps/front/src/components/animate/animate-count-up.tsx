@@ -3,11 +3,10 @@ import {
 	animate,
 	m,
 	type UseInViewOptions,
-	useInView,
 	useMotionValue,
 	useTransform,
 } from 'framer-motion';
-import { useEffect, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 
 // ----------------------------------------------------------------------
 
@@ -34,6 +33,7 @@ export const AnimateCountUp = ({
 	...other
 }: AnimateCountUpProps) => {
 	const countRef = useRef(null);
+	const hasAnimatedRef = useRef(false);
 
 	const shortNumber = shortenNumber(to);
 
@@ -42,17 +42,18 @@ export const AnimateCountUp = ({
 
 	const unit = unitProp ?? shortNumber?.unit;
 
-	const inView = useInView(countRef, { once, amount });
-
 	const rounded = useTransform(startCount, (latest) => {
 		return latest.toFixed(isFloat(latest) ? toFixed : 0);
 	});
 
-	useEffect(() => {
-		if (inView) {
-			animate(startCount, endCount, { duration });
+	const handleViewportEnter = useCallback(() => {
+		if (once && hasAnimatedRef.current) {
+			return;
 		}
-	}, [duration, endCount, inView, startCount]);
+
+		hasAnimatedRef.current = true;
+		animate(startCount, endCount, { duration });
+	}, [duration, endCount, once, startCount]);
 
 	return (
 		<Typography
@@ -67,7 +68,13 @@ export const AnimateCountUp = ({
 			]}
 			{...other}
 		>
-			<m.span ref={countRef}>{rounded}</m.span>
+			<m.span
+				ref={countRef}
+				viewport={{ once, amount }}
+				onViewportEnter={handleViewportEnter}
+			>
+				{rounded}
+			</m.span>
 			{unit}
 		</Typography>
 	);
