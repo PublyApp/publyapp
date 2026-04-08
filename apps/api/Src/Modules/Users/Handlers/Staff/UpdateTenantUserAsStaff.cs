@@ -28,7 +28,6 @@ public class TenantUserDetailsResult {
 	public string? AvatarUrl { get; set; }
 	public string Level { get; set; } = string.Empty;
 	public string Status { get; set; } = string.Empty;
-	public bool IsSuspended { get; set; }
 	public Guid? TenantId { get; set; }
 }
 
@@ -201,11 +200,10 @@ public class UpdateTenantUserAsStaff {
 					Level = UserAccount.GetLevelDescription(userData.AccountLevel),
 					Status = UserAccount.GetStatusDescription(
 						UserAccount.GetTenantStatus(
-							userData.User.IsSuspended,
-							userData.Account.IsSuspended
+							userData.User.Status,
+							userData.Account.Status
 						)
 					),
-					IsSuspended = userData.Account.IsSuspended,
 					TenantId = userData.Account.TenantId,
 				}
 			);

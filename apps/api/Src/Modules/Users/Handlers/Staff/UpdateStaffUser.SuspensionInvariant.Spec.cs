@@ -11,6 +11,7 @@ using MainApi.Src.Lib.Routes;
 using MainApi.Src.Lib.Testing.Fixtures;
 using MainApi.Src.Lib.Testing.Helpers;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Modules.Users.Entities;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -79,7 +80,7 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 				);
 
 			user.Should().NotBeNull();
-			user!.IsSuspended.Should().BeTrue();
+			user!.Status.Should().Be(UserStatus.Suspended);
 		}
 
 		using var loginResponse =
@@ -154,7 +155,7 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 				);
 
 			user.Should().NotBeNull();
-			user!.IsSuspended.Should().BeFalse();
+			user!.Status.Should().Be(UserStatus.Active);
 		}
 
 		var userToken = await _authClient.LoginAsync(

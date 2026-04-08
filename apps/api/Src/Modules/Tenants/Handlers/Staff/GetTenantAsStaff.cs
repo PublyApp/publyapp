@@ -15,7 +15,6 @@ public class GetTenantAsStaffResult {
 	public string? LogoUrl { get; set; }
 	public int MaxUsers { get; set; }
 	public string Status { get; set; } = string.Empty;
-	public bool IsSuspended { get; set; }
 	public int UsersCount { get; set; }
 	public DateTime CreatedAt { get; set; }
 	public DateTime UpdatedAt { get; set; }
@@ -66,7 +65,6 @@ public class GetTenantAsStaff {
 			Status = Tenant.GetStatusDescription(
 				tenant.Status
 			),
-			IsSuspended = tenant.IsSuspended,
 			UsersCount = usersCount,
 			CreatedAt = tenant.CreatedAt,
 			UpdatedAt = tenant.UpdatedAt,

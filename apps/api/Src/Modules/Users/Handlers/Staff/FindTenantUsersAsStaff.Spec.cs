@@ -339,7 +339,7 @@ public sealed class FindTenantUsersAsStaffSpec
 					&& ua.Scope == AccountScope.Tenant
 					&& ua.User.Email == SeedConstants.Tenants.AcmeUserEmail
 				);
-			acmeMembership.IsSuspended = true;
+			acmeMembership.Status = AccountStatus.Suspended;
 			await dbContext.SaveChangesAsync();
 		}
 
@@ -406,7 +406,7 @@ public sealed class FindTenantUsersAsStaffSpec
 					&& ua.Scope == AccountScope.Tenant
 					&& ua.User.Email == SeedConstants.Tenants.AcmeUserEmail
 				);
-			acmeMembership.IsSuspended = true;
+			acmeMembership.Status = AccountStatus.Suspended;
 			await dbContext.SaveChangesAsync();
 		}
 
@@ -452,7 +452,7 @@ public sealed class FindTenantUsersAsStaffSpec
 			tenantId,
 			SeedConstants.Tenants.AcmeUserEmail,
 			isMembershipSuspended: false,
-			isUserSuspended: true,
+
 			userStatus: UserStatus.Suspended
 		);
 
@@ -485,7 +485,7 @@ public sealed class FindTenantUsersAsStaffSpec
 				tenantId,
 				SeedConstants.Tenants.AcmeUserEmail,
 				isMembershipSuspended: false,
-				isUserSuspended: false,
+
 				userStatus: UserStatus.Active
 			);
 		}
@@ -508,7 +508,6 @@ public sealed class FindTenantUsersAsStaffSpec
 			tenantId,
 			SeedConstants.Tenants.AcmeUserEmail,
 			isMembershipSuspended: true,
-			isUserSuspended: true,
 			userStatus: UserStatus.Suspended
 		);
 
@@ -541,7 +540,7 @@ public sealed class FindTenantUsersAsStaffSpec
 				tenantId,
 				SeedConstants.Tenants.AcmeUserEmail,
 				isMembershipSuspended: false,
-				isUserSuspended: false,
+
 				userStatus: UserStatus.Active
 			);
 		}
@@ -564,7 +563,7 @@ public sealed class FindTenantUsersAsStaffSpec
 			tenantId,
 			SeedConstants.Tenants.AcmeUserEmail,
 			isMembershipSuspended: false,
-			isUserSuspended: true,
+
 			userStatus: UserStatus.Suspended
 		);
 
@@ -617,7 +616,7 @@ public sealed class FindTenantUsersAsStaffSpec
 				tenantId,
 				SeedConstants.Tenants.AcmeUserEmail,
 				isMembershipSuspended: false,
-				isUserSuspended: false,
+
 				userStatus: UserStatus.Active
 			);
 		}
@@ -640,7 +639,7 @@ public sealed class FindTenantUsersAsStaffSpec
 			tenantId,
 			SeedConstants.Tenants.AcmeUserEmail,
 			isMembershipSuspended: false,
-			isUserSuspended: true,
+
 			userStatus: UserStatus.Suspended
 		);
 
@@ -679,7 +678,7 @@ public sealed class FindTenantUsersAsStaffSpec
 				tenantId,
 				SeedConstants.Tenants.AcmeUserEmail,
 				isMembershipSuspended: false,
-				isUserSuspended: false,
+
 				userStatus: UserStatus.Active
 			);
 		}
@@ -783,7 +782,6 @@ public sealed class FindTenantUsersAsStaffSpec
 		Guid tenantId,
 		string email,
 		bool isMembershipSuspended,
-		bool isUserSuspended,
 		UserStatus userStatus
 	) {
 		using var scope =
@@ -800,8 +798,7 @@ public sealed class FindTenantUsersAsStaffSpec
 		var user = await dbContext.User
 			.FirstAsync(u => u.Email == email);
 
-		membership.IsSuspended = isMembershipSuspended;
-		user.IsSuspended = isUserSuspended;
+		membership.Status = isMembershipSuspended ? AccountStatus.Suspended : AccountStatus.Active;
 		user.Status = userStatus;
 
 		await dbContext.SaveChangesAsync();

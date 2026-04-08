@@ -37,7 +37,6 @@ namespace MainApi.Migrations {
 						name = table.Column<string>(type: "text", nullable: false),
 						logo_url = table.Column<string>(type: "text", nullable: true),
 						status = table.Column<int>(type: "integer", nullable: false),
-						is_suspended = table.Column<bool>(type: "boolean", nullable: false),
 						max_users = table.Column<int>(type: "integer", nullable: false, defaultValue: 5),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -46,8 +45,8 @@ namespace MainApi.Migrations {
 					},
 					constraints: table => {
 						table.PrimaryKey("PK_tenants", x => x.id);
-						table.CheckConstraint("chk_tenant_suspended_status", "(is_suspended = true AND status = 30) OR (is_suspended = false AND status != 30)");
 						table.CheckConstraint("CK_Tenant_Code_Lowercase", "code = LOWER(code)");
+						table.CheckConstraint("CK_Tenant_Status", "status IN (10, 20, 30)");
 					});
 
 			migrationBuilder.CreateTable(
@@ -60,7 +59,6 @@ namespace MainApi.Migrations {
 						password = table.Column<string>(type: "text", nullable: false),
 						avatar_url = table.Column<string>(type: "text", nullable: true),
 						status = table.Column<int>(type: "integer", nullable: false),
-						is_suspended = table.Column<bool>(type: "boolean", nullable: false),
 						is_verified = table.Column<bool>(type: "boolean", nullable: false),
 						email_verify_token = table.Column<string>(type: "text", nullable: true),
 						email_verify_token_expires_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -74,6 +72,7 @@ namespace MainApi.Migrations {
 					constraints: table => {
 						table.PrimaryKey("PK_users", x => x.id);
 						table.CheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)");
+						table.CheckConstraint("CK_User_Status", "status IN (10, 20, 30, 40)");
 					});
 
 			migrationBuilder.CreateTable(
@@ -84,7 +83,7 @@ namespace MainApi.Migrations {
 						name = table.Column<string>(type: "text", nullable: false),
 						description = table.Column<string>(type: "text", nullable: true),
 						brand_identity = table.Column<string>(type: "text", nullable: true),
-						is_active = table.Column<bool>(type: "boolean", nullable: false),
+						status = table.Column<int>(type: "integer", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
@@ -92,6 +91,7 @@ namespace MainApi.Migrations {
 					},
 					constraints: table => {
 						table.PrimaryKey("PK_projects", x => x.id);
+						table.CheckConstraint("CK_Project_Status", "status IN (10, 20)");
 						table.ForeignKey(
 											name: "FK_projects_tenants_tenant_id",
 											column: x => x.tenant_id,
@@ -192,9 +192,8 @@ namespace MainApi.Migrations {
 						project_id = table.Column<Guid>(type: "uuid", nullable: true),
 						token = table.Column<string>(type: "text", nullable: false),
 						expires_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						is_accepted = table.Column<bool>(type: "boolean", nullable: false),
+						status = table.Column<int>(type: "integer", nullable: false),
 						accepted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-						is_revoked = table.Column<bool>(type: "boolean", nullable: false),
 						revoked_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
 						invited_by_user_id = table.Column<Guid>(type: "uuid", nullable: false),
 						account_level = table.Column<int>(type: "integer", nullable: true),
@@ -207,6 +206,7 @@ namespace MainApi.Migrations {
 						table.PrimaryKey("PK_invitations", x => x.id);
 						table.CheckConstraint("CK_Invitation_Project_Constraints", "(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2");
 						table.CheckConstraint("CK_Invitation_Staff_Constraints", "(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0");
+						table.CheckConstraint("CK_Invitation_Status", "status IN (0, 1, 2)");
 						table.CheckConstraint("CK_Invitation_Tenant_Constraints", "(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1");
 						table.ForeignKey(
 											name: "FK_invitations_projects_project_id",
@@ -267,7 +267,7 @@ namespace MainApi.Migrations {
 						project_id = table.Column<Guid>(type: "uuid", nullable: true),
 						scope = table.Column<int>(type: "integer", nullable: false),
 						level = table.Column<int>(type: "integer", nullable: false),
-						is_suspended = table.Column<bool>(type: "boolean", nullable: false),
+						status = table.Column<int>(type: "integer", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
@@ -277,6 +277,7 @@ namespace MainApi.Migrations {
 						table.PrimaryKey("PK_user_accounts", x => x.id);
 						table.CheckConstraint("CK_UserAccount_Project_Constraints", "(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2");
 						table.CheckConstraint("CK_UserAccount_Staff_Constraints", "(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0");
+						table.CheckConstraint("CK_UserAccount_Status", "status IN (0, 1)");
 						table.CheckConstraint("CK_UserAccount_Tenant_Constraints", "(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1");
 						table.ForeignKey(
 											name: "FK_user_accounts_projects_project_id",
@@ -395,9 +396,9 @@ namespace MainApi.Migrations {
 					column: "profile_id");
 
 			migrationBuilder.CreateIndex(
-					name: "IX_invitations_email_scope_is_accepted",
+					name: "IX_invitations_email_scope_status",
 					table: "invitations",
-					columns: new[] { "email", "scope", "is_accepted" });
+					columns: new[] { "email", "scope", "status" });
 
 			migrationBuilder.CreateIndex(
 					name: "IX_invitations_expires_at",
@@ -565,7 +566,7 @@ namespace MainApi.Migrations {
 					name: "ix_user_accounts_user_id_account_type_active",
 					table: "user_accounts",
 					columns: new[] { "user_id", "scope" },
-					filter: "\"is_deleted\" = false AND \"is_suspended\" = false");
+					filter: "\"is_deleted\" = false AND \"status\" != 1");
 
 			migrationBuilder.CreateIndex(
 					name: "IX_user_accounts_user_id_tenant_id",

@@ -61,7 +61,7 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff {
 
 			Invitation? invitation = await dbContext.Invitation.FindAsync(invitationId);
 			_ = invitation.Should().NotBeNull();
-			_ = invitation!.IsRevoked.Should().BeTrue();
+			_ = invitation!.Status.Should().Be(InvitationStatus.Revoked);
 			_ = invitation.RevokedAt.Should().NotBeNull();
 		}
 
@@ -169,7 +169,7 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff {
 
 			Invitation? invitation = await dbContext.Invitation.FindAsync(invitationId);
 			_ = invitation.Should().NotBeNull();
-			_ = invitation!.IsRevoked.Should().BeFalse();
+			_ = invitation!.Status.Should().NotBe(InvitationStatus.Revoked);
 		}
 
 		[Fact]
@@ -312,7 +312,7 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff {
 			Invitation? invitation = await dbContext.Invitation.FindAsync(invitationId);
 			_ = invitation.Should().NotBeNull();
 			_ = invitation!.Scope.Should().Be(InvitationScope.Staff);
-			_ = invitation.IsRevoked.Should().BeTrue();
+			_ = invitation.Status.Should().Be(InvitationStatus.Revoked);
 		}
 
 		[Fact]

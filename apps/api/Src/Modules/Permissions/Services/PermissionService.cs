@@ -39,7 +39,7 @@ public class PermissionService : IPermissionService {
 				uap => uap.ProfileId,
 				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId })
 			.Join(_context.Set<UserAccount>()
-				.Where(ua => !ua.IsDeleted && !ua.IsSuspended),
+				.Where(ua => !ua.IsDeleted && ua.Status != AccountStatus.Suspended),
 				joined => joined.UserAccountId,
 				ua => ua.Id,
 				(joined, ua) => new {

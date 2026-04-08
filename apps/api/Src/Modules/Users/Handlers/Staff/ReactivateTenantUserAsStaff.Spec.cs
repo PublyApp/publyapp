@@ -63,7 +63,7 @@ namespace MainApi.Src.Modules.Users.Handlers.Staff {
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 			ReactivateTenantUserResultDto? result = await response.Content.ReadFromJsonAsync<ReactivateTenantUserResultDto>();
 			_ = result.Should().NotBeNull();
-			_ = result!.IsSuspended.Should().BeFalse();
+			_ = result!.Status.Should().Be("Active");
 		}
 
 		[Fact]
