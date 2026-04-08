@@ -70,6 +70,7 @@ export type UseTableStateReturn = {
 	setNextCursor?: (cursor: string | null | undefined) => void;
 	hasNextPage?: boolean;
 	hasPreviousPage?: boolean;
+	resetCursorPagination?: () => void;
 };
 
 // Default query keys
@@ -359,5 +360,7 @@ export const useTableState = (
 		setNextCursor: paginationMode === 'cursor' ? setNextCursor : undefined,
 		hasNextPage,
 		hasPreviousPage,
+		resetCursorPagination:
+			paginationMode === 'cursor' ? resetCursorPagination : undefined,
 	};
 };
