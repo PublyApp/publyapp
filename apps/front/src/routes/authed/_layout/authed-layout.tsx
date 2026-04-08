@@ -42,7 +42,6 @@ import {
 import {
 	resetAuthLogoutFlag,
 	resetTenantSuspendedFlag,
-	setCurrentUserIdForTenantHint,
 } from '#app/lib/react-query/query-client.tsx';
 import { getClientLoader } from '#app/lib/react-router/client-data.ts';
 import { useMainStore } from '#app/lib/zustand/store.ts';
@@ -167,11 +166,7 @@ const AuthQueriesLoader = ({ children }: { children: ReactNode }) => {
 	}
 
 	// trigger the queries in parallel
-	const results = useSuspenseQueries({ queries });
-
-	// Extract user ID from auth data for tenant-suspended handling
-	const userAuthData = results[0]?.data as { id?: string } | undefined;
-	const userId = userAuthData?.id;
+	useSuspenseQueries({ queries });
 
 	// Session is valid - reset all logout/auth flags on mount
 	// This ensures flags don't stay stuck after SPA navigation (no page reload)
@@ -181,14 +176,6 @@ const AuthQueriesLoader = ({ children }: { children: ReactNode }) => {
 		resetTenantSuspendedFlag();
 		resetLogoutFlag();
 	}, []);
-
-	// Set current user ID for tenant hint management (tenant-suspended handling)
-	// This needs to run after auth data is loaded so the global handler can clear the hint
-	useEffect(() => {
-		if (userId) {
-			setCurrentUserIdForTenantHint(userId);
-		}
-	}, [userId]);
 
 	// Show toast when redirected with org-suspended notice
 	useEffect(() => {
