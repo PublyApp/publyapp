@@ -629,81 +629,6 @@ export function NewStaffProfileSidebar() {
 	const theme = useTheme();
 	const cssVars = navSectionCssVars.vertical(theme);
 
-	// Custom Group component that uses CustomNavList
-	const Group = ({
-		items,
-		render,
-		subheader,
-		collapsible,
-		slotProps,
-		checkPermissions,
-		enabledRootRedirect,
-	}: NavGroupProps) => {
-		const groupOpen = useBoolean(true);
-		const isCollapsible = collapsible !== false;
-
-		const renderContent = () => {
-			return (
-				<NavUl sx={{ gap: 'var(--nav-item-gap)' }}>
-					{items.map((list) => {
-						return (
-							<CustomNavList
-								key={list.title}
-								data={list}
-								render={render}
-								depth={1}
-								slotProps={slotProps}
-								checkPermissions={checkPermissions}
-								enabledRootRedirect={enabledRootRedirect}
-								activeSection={activeSection}
-								onSectionClick={handleClick}
-							/>
-						);
-					})}
-				</NavUl>
-			);
-		};
-
-		const renderSubheader = () => {
-			if (!subheader) {
-				return null;
-			}
-
-			if (isCollapsible) {
-				return (
-					<NavSubheader
-						data-title={subheader}
-						open={groupOpen.value}
-						onClick={groupOpen.onToggle}
-						sx={slotProps?.subheader}
-					>
-						{subheader}
-					</NavSubheader>
-				);
-			}
-
-			return (
-				<NavSubheader data-title={subheader} sx={slotProps?.subheader}>
-					{subheader}
-				</NavSubheader>
-			);
-		};
-
-		const renderGroupContent = () => {
-			if (subheader && isCollapsible) {
-				return <Collapse in={groupOpen.value}>{renderContent()}</Collapse>;
-			}
-			return renderContent();
-		};
-
-		return (
-			<NavLi>
-				{renderSubheader()}
-				{renderGroupContent()}
-			</NavLi>
-		);
-	};
-
 	// Get section title for screen reader announcements
 	const getSectionTitle = (sectionId: string | null): string => {
 		if (!sectionId) {
@@ -769,12 +694,14 @@ export function NewStaffProfileSidebar() {
 							<NavUl sx={{ flex: '1 1 auto', gap: 'var(--nav-item-gap)' }}>
 								{navData.map((group) => {
 									return (
-										<Group
+										<SidebarGroup
 											key={group.subheader ?? group.items[0].title}
 											subheader={group.subheader}
 											collapsible={group.collapsible}
 											items={group.items}
 											render={{}}
+											activeSection={activeSection}
+											onSectionClick={handleClick}
 											slotProps={{
 												rootItem: {
 													sx: {
@@ -969,6 +896,90 @@ function CustomNavSubList({
 // ============================================================
 // HELPER COMPONENTS
 // ============================================================
+
+/**
+ * Sidebar group component with scrollspy navigation
+ */
+type SidebarGroupProps = NavGroupProps & {
+	activeSection?: string | null;
+	onSectionClick?: (sectionId: string) => void;
+};
+
+function SidebarGroup({
+	items,
+	render,
+	subheader,
+	collapsible,
+	slotProps,
+	checkPermissions,
+	enabledRootRedirect,
+	activeSection,
+	onSectionClick,
+}: SidebarGroupProps) {
+	const groupOpen = useBoolean(true);
+	const isCollapsible = collapsible !== false;
+
+	const renderContent = () => {
+		return (
+			<NavUl sx={{ gap: 'var(--nav-item-gap)' }}>
+				{items.map((list) => {
+					return (
+						<CustomNavList
+							key={list.title}
+							data={list}
+							render={render}
+							depth={1}
+							slotProps={slotProps}
+							checkPermissions={checkPermissions}
+							enabledRootRedirect={enabledRootRedirect}
+							activeSection={activeSection}
+							onSectionClick={onSectionClick}
+						/>
+					);
+				})}
+			</NavUl>
+		);
+	};
+
+	const renderSubheader = () => {
+		if (!subheader) {
+			return null;
+		}
+
+		if (isCollapsible) {
+			return (
+				<NavSubheader
+					data-title={subheader}
+					open={groupOpen.value}
+					onClick={groupOpen.onToggle}
+					sx={slotProps?.subheader}
+				>
+					{subheader}
+				</NavSubheader>
+			);
+		}
+
+		return (
+			<NavSubheader data-title={subheader} sx={slotProps?.subheader}>
+				{subheader}
+			</NavSubheader>
+		);
+	};
+
+	const renderGroupContent = () => {
+		if (subheader && isCollapsible) {
+			return <Collapse in={groupOpen.value}>{renderContent()}</Collapse>;
+		}
+		return renderContent();
+	};
+
+	return (
+		<NavLi>
+			{renderSubheader()}
+			{renderGroupContent()}
+		</NavLi>
+	);
+}
 
 /**
  * Sidebar skeleton loading component
