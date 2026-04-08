@@ -293,20 +293,20 @@ const useTenantsTableController = () => {
 	};
 
 	// Row selection state for bulk actions
-	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
-	const [selectionActionAnchorEl, setSelectionActionAnchorEl] =
-		useState<null | HTMLElement>(null);
-	const [exportDialogOpen, setExportDialogOpen] = useState(false);
-	const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'xlsx'>(
-		'csv',
+	const [tableUiState, setTableUiState] = useReducer(
+		tableUiReducer,
+		initialTableUiState,
 	);
+	const {
+		rowSelection,
+		selectionActionAnchorEl,
+		exportDialogOpen,
+		exportFormat,
+		bulkActionDialog,
+	} = tableUiState;
 
 	// Bulk action mutations
 	const queryClient = useQueryClient();
-	const [bulkActionDialog, setBulkActionDialog] = useState<{
-		type: 'suspend' | 'reactivate' | 'delete';
-		open: boolean;
-	}>({ type: 'suspend', open: false });
 
 	const { mutate: bulkSuspend, isPending: isBulkSuspending } =
 		useBulkSuspendTenants({
@@ -330,8 +330,10 @@ const useTenantsTableController = () => {
 						}),
 					);
 				}
-				setBulkActionDialog({ type: 'suspend', open: false });
-				setRowSelection({});
+				setTableUiState({
+					bulkActionDialog: { type: 'suspend', open: false },
+					rowSelection: {},
+				});
 				queryClient.invalidateQueries({
 					queryKey: useFindTenants.getKey(),
 				});
@@ -378,8 +380,10 @@ const useTenantsTableController = () => {
 						}),
 					);
 				}
-				setBulkActionDialog({ type: 'reactivate', open: false });
-				setRowSelection({});
+				setTableUiState({
+					bulkActionDialog: { type: 'reactivate', open: false },
+					rowSelection: {},
+				});
 				queryClient.invalidateQueries({
 					queryKey: useFindTenants.getKey(),
 				});
@@ -426,8 +430,10 @@ const useTenantsTableController = () => {
 						}),
 					);
 				}
-				setBulkActionDialog({ type: 'delete', open: false });
-				setRowSelection({});
+				setTableUiState({
+					bulkActionDialog: { type: 'delete', open: false },
+					rowSelection: {},
+				});
 				queryClient.invalidateQueries({
 					queryKey: useFindTenants.getKey(),
 				});

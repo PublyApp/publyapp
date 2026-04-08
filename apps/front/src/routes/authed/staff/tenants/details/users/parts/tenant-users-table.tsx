@@ -108,6 +108,33 @@ const SELECTION_MODE_MENU_MIN_WIDTH = 220;
 const GLOBALLY_SUSPENDED_STATUS_VALUE = 'globally_suspended';
 const GLOBALLY_SUSPENDED_STATUS_DESCRIPTION = 'GloballySuspended';
 
+type TableUiState = {
+	rowSelection: Record<string, boolean>;
+	selectionActionAnchorEl: HTMLElement | null;
+	exportDialogOpen: boolean;
+	exportFormat: 'csv' | 'json' | 'xlsx';
+	bulkRemoveDialogOpen: boolean;
+};
+
+const initialTableUiState: TableUiState = {
+	rowSelection: {},
+	selectionActionAnchorEl: null,
+	exportDialogOpen: false,
+	exportFormat: 'csv',
+	bulkRemoveDialogOpen: false,
+};
+
+const tableUiReducer = (
+	state: TableUiState,
+	update:
+		| Partial<TableUiState>
+		| ((state: TableUiState) => Partial<TableUiState>),
+) => {
+	const nextState = typeof update === 'function' ? update(state) : update;
+
+	return { ...state, ...nextState };
+};
+
 const isGloballySuspendedStatus = (status: string) => {
 	return (
 		status === GLOBALLY_SUSPENDED_STATUS_VALUE ||
