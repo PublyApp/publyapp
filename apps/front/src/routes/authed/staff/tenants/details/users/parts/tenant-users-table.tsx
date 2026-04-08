@@ -34,7 +34,14 @@ import {
 import { useBoolean, useDebounce } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
 import { parseAsString, useQueryStates } from 'nuqs';
-import { useEffect, useId, useMemo, useState } from 'react';
+import {
+	useCallback,
+	useEffect,
+	useId,
+	useMemo,
+	useReducer,
+	useState,
+} from 'react';
 import { useParams } from 'react-router';
 
 import {
@@ -87,6 +94,33 @@ const SELECTION_MODE_MENU_MIN_WIDTH = 220;
 const GLOBALLY_SUSPENDED_STATUS_VALUE = 'globally_suspended';
 const GLOBALLY_SUSPENDED_STATUS_DESCRIPTION = 'GloballySuspended';
 
+type TableUiState = {
+	rowSelection: Record<string, boolean>;
+	selectionActionAnchorEl: HTMLElement | null;
+	exportDialogOpen: boolean;
+	exportFormat: 'csv' | 'json' | 'xlsx';
+	bulkRemoveDialogOpen: boolean;
+};
+
+const initialTableUiState: TableUiState = {
+	rowSelection: {},
+	selectionActionAnchorEl: null,
+	exportDialogOpen: false,
+	exportFormat: 'csv',
+	bulkRemoveDialogOpen: false,
+};
+
+const tableUiReducer = (
+	state: TableUiState,
+	update:
+		| Partial<TableUiState>
+		| ((state: TableUiState) => Partial<TableUiState>),
+) => {
+	const nextState = typeof update === 'function' ? update(state) : update;
+
+	return { ...state, ...nextState };
+};
+
 const isGloballySuspendedStatus = (status: string) => {
 	return (
 		status === GLOBALLY_SUSPENDED_STATUS_VALUE ||
@@ -102,7 +136,9 @@ const parseStatusFilter = (value: string) => {
 	return value.split(',').filter(Boolean);
 };
 
-const TenantUsersTable = () => {
+type ExportFormat = 'csv' | 'json' | 'xlsx';
+
+const useTenantUsersTableController = () => {
 	const { t } = useTranslate();
 	const { tenantId } = useParams();
 	const queryClient = useQueryClient();
@@ -132,14 +168,17 @@ const TenantUsersTable = () => {
 	const [statusFilter, setStatusFilter] = useState<string[]>(() =>
 		parseStatusFilter(filterStates.status),
 	);
-	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
-	const [selectionActionAnchorEl, setSelectionActionAnchorEl] =
-		useState<null | HTMLElement>(null);
-	const [exportDialogOpen, setExportDialogOpen] = useState(false);
-	const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'xlsx'>(
-		'csv',
+	const [tableUiState, setTableUiState] = useReducer(
+		tableUiReducer,
+		initialTableUiState,
 	);
-	const [bulkRemoveDialogOpen, setBulkRemoveDialogOpen] = useState(false);
+	const {
+		rowSelection,
+		selectionActionAnchorEl,
+		exportDialogOpen,
+		exportFormat,
+		bulkRemoveDialogOpen,
+	} = tableUiState;
 
 	const debouncedSearchValue = useDebounce(searchValue, 300);
 
@@ -149,7 +188,6 @@ const TenantUsersTable = () => {
 		apiVariables,
 		tableState,
 		setNextCursor,
-		hasNextPage,
 		hasPreviousPage,
 		resetCursorPagination,
 	} = useTableState({
@@ -247,12 +285,19 @@ const TenantUsersTable = () => {
 		enabled: !!tenantId,
 	});
 
-	// Sync latest cursor into the table state outside render
-	useEffect(() => {
-		if (setNextCursor) {
-			setNextCursor(tenantUsersQuery.data?.nextCursor);
-		}
-	}, [tenantUsersQuery.data?.nextCursor, setNextCursor]);
+	const handleCursorPaginationChange: typeof handlePaginationChange =
+		useCallback(
+			(updater) => {
+				setNextCursor?.(tenantUsersQuery.data?.nextCursor);
+				handlePaginationChange(updater);
+			},
+			[
+				handlePaginationChange,
+				tenantUsersQuery.data?.nextCursor,
+				setNextCursor,
+			],
+		);
+	const hasNextPage = tenantUsersQuery.data?.nextCursor != null;
 
 	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
 		query: tenantUsersQuery,
@@ -324,13 +369,21 @@ const TenantUsersTable = () => {
 	}, [isSelectionMode, sortingDisabledReason]);
 
 	const closeSelectionActionMenu = () => {
-		setSelectionActionAnchorEl(null);
+		setTableUiState({ selectionActionAnchorEl: null });
 	};
 
 	const openExportDialog = () => {
 		closeSelectionActionMenu();
-		setExportFormat('csv');
-		setExportDialogOpen(true);
+		setTableUiState({ exportDialogOpen: true, exportFormat: 'csv' });
+	};
+	const closeExportDialog = () => {
+		setTableUiState({ exportDialogOpen: false });
+	};
+	const closeBulkRemoveDialog = () => {
+		setTableUiState({ bulkRemoveDialogOpen: false });
+	};
+	const handleExportFormatChange = (format: ExportFormat) => {
+		setTableUiState({ exportFormat: format });
 	};
 
 	const exportRows = (format: 'csv' | 'json') => {
@@ -372,7 +425,7 @@ const TenantUsersTable = () => {
 
 	const handleExport = (format: 'csv' | 'json') => {
 		exportRows(format);
-		setExportDialogOpen(false);
+		setTableUiState({ exportDialogOpen: false });
 	};
 
 	const { mutateAsync: removeTenantUserAsync, isPending: isBulkRemoving } =
@@ -406,8 +459,7 @@ const TenantUsersTable = () => {
 			}
 		}
 
-		setBulkRemoveDialogOpen(false);
-		setRowSelection({});
+		setTableUiState({ bulkRemoveDialogOpen: false, rowSelection: {} });
 		await queryClient.invalidateQueries({
 			queryKey: useFindTenantUsers.getKey({ tenantId }),
 		});
@@ -614,7 +666,9 @@ const TenantUsersTable = () => {
 				<IconButton
 					size="small"
 					onClick={(event) => {
-						setSelectionActionAnchorEl(event.currentTarget);
+						setTableUiState({
+							selectionActionAnchorEl: event.currentTarget,
+						});
 					}}
 					sx={{ width: 32, height: 32 }}
 				>
@@ -641,7 +695,7 @@ const TenantUsersTable = () => {
 					<MenuItem
 						onClick={() => {
 							closeSelectionActionMenu();
-							setBulkRemoveDialogOpen(true);
+							setTableUiState({ bulkRemoveDialogOpen: true });
 						}}
 						sx={{ color: 'error.main' }}
 					>
@@ -666,12 +720,11 @@ const TenantUsersTable = () => {
 		manualSorting: true,
 		localization: sortTooltipLocalization,
 		onRowSelectionChange: (updater) => {
-			setRowSelection((prev) => {
-				if (typeof updater === 'function') {
-					return updater(prev);
-				}
+			setTableUiState((state) => {
+				const rowSelection =
+					typeof updater === 'function' ? updater(state.rowSelection) : updater;
 
-				return updater;
+				return { rowSelection };
 			});
 		},
 		onSortingChange: (updater) => {
@@ -688,7 +741,7 @@ const TenantUsersTable = () => {
 			rowSelection,
 		},
 		meta: {
-			handlePaginationChange,
+			handlePaginationChange: handleCursorPaginationChange,
 			hasNextPage,
 			hasPreviousPage,
 			isPending: tenantUsersQuery.isPending,
@@ -738,13 +791,48 @@ const TenantUsersTable = () => {
 		},
 	});
 
+	return {
+		table,
+		exportDialogOpen,
+		isSelectionMode,
+		selectedCount,
+		rowsCount: rows.length,
+		exportFormat,
+		closeExportDialog,
+		handleExportFormatChange,
+		handleExport,
+		bulkRemoveDialogOpen,
+		closeBulkRemoveDialog,
+		handleBulkRemove,
+		isBulkRemoving,
+	};
+};
+
+const TenantUsersTable = () => {
+	const { t } = useTranslate();
+	const {
+		table,
+		exportDialogOpen,
+		isSelectionMode,
+		selectedCount,
+		rowsCount,
+		exportFormat,
+		closeExportDialog,
+		handleExportFormatChange,
+		handleExport,
+		bulkRemoveDialogOpen,
+		closeBulkRemoveDialog,
+		handleBulkRemove,
+		isBulkRemoving,
+	} = useTenantUsersTableController();
+
 	return (
 		<Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
 			<MaterialReactTable table={table} />
 
 			<Dialog
 				open={exportDialogOpen}
-				onClose={() => setExportDialogOpen(false)}
+				onClose={closeExportDialog}
 				fullWidth
 				maxWidth="xs"
 			>
@@ -765,7 +853,7 @@ const TenantUsersTable = () => {
 										count: selectedCount,
 									})
 								: t('export-current-results', {
-										count: rows.length,
+										count: rowsCount,
 										defaultValue:
 											'Export the current result set ({{count}} item(s)).',
 									})}
@@ -774,7 +862,7 @@ const TenantUsersTable = () => {
 							value={exportFormat}
 							onChange={(_event, value: 'csv' | 'json' | 'xlsx') => {
 								if (value) {
-									setExportFormat(value);
+									handleExportFormatChange(value);
 								}
 							}}
 							sx={(theme) => ({
@@ -865,7 +953,7 @@ const TenantUsersTable = () => {
 					<Button
 						variant="outlined"
 						color="inherit"
-						onClick={() => setExportDialogOpen(false)}
+						onClick={closeExportDialog}
 					>
 						{t('cancel')}
 					</Button>
@@ -874,7 +962,7 @@ const TenantUsersTable = () => {
 
 			<ConfirmDialog
 				open={bulkRemoveDialogOpen}
-				onClose={() => setBulkRemoveDialogOpen(false)}
+				onClose={closeBulkRemoveDialog}
 				title={t('remove-selected-from-tenant', {
 					defaultValue: 'Remove selected from tenant',
 				})}

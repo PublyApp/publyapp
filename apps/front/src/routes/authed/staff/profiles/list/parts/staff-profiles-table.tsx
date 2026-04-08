@@ -12,7 +12,7 @@ import {
 	type MRT_ColumnDef,
 	type MRT_SortingState,
 } from 'material-react-table';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 
 import type { StaffProfileItem } from '@org/client-ts/src/models';
@@ -103,7 +103,6 @@ const StaffProfilesTable = () => {
 		apiVariables,
 		tableState,
 		setNextCursor,
-		hasNextPage,
 		hasPreviousPage,
 	} = useTableState({
 		defaultSorting,
@@ -149,12 +148,15 @@ const StaffProfilesTable = () => {
 		},
 	});
 
-	// Sync latest cursor into the table state outside render.
-	useEffect(() => {
-		if (setNextCursor) {
-			setNextCursor(profilesQuery.data?.nextCursor);
-		}
-	}, [profilesQuery.data?.nextCursor, setNextCursor]);
+	const handleCursorPaginationChange: typeof handlePaginationChange =
+		useCallback(
+			(updater) => {
+				setNextCursor?.(profilesQuery.data?.nextCursor);
+				handlePaginationChange(updater);
+			},
+			[handlePaginationChange, profilesQuery.data?.nextCursor, setNextCursor],
+		);
+	const hasNextPage = profilesQuery.data?.nextCursor != null;
 
 	// Transform data
 	const dataTable = useMemo(() => {
@@ -178,7 +180,7 @@ const StaffProfilesTable = () => {
 			},
 		},
 		meta: {
-			handlePaginationChange,
+			handlePaginationChange: handleCursorPaginationChange,
 			hasNextPage,
 			hasPreviousPage,
 			isPending: profilesQuery.isPending,

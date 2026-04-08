@@ -3,7 +3,9 @@ import _ from 'lodash';
 import type { CreateQueryOptions } from 'react-query-kit';
 
 import type { VerifyEmailRequestBody } from '@org/client-ts/src/models';
+
 import { toApiFailure } from '#app/lib/api-failure/index.ts';
+import { setCurrentUserIdForTenantHint } from '#app/lib/react-query/query-client.tsx';
 
 import {
 	createAuthMutation,
@@ -43,6 +45,7 @@ export const useGetUserAuthData = createAuthSuspenseQuery({
 		if (_.isNil(result)) {
 			throw new Error('useGetUserAuthData: result is nil');
 		}
+		setCurrentUserIdForTenantHint(result.id ?? undefined);
 		return result;
 	},
 	retry: authRetry,

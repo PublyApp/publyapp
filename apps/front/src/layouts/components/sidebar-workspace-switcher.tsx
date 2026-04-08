@@ -13,6 +13,7 @@ import { useMemo } from 'react';
 import { useParams } from 'react-router';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+
 import { CustomPopover } from '#app/components/custom-popover/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
@@ -35,8 +36,10 @@ export type SidebarWorkspaceSwitcherProps = {
 	sx?: SxProps<Theme>;
 };
 
+const EMPTY_TENANTS: TenantItem[] = [];
+
 export const SidebarWorkspaceSwitcher = ({
-	tenants = [],
+	tenants = EMPTY_TENANTS,
 	totalCount = 0,
 	isCollapsed = false,
 	onViewAll,
