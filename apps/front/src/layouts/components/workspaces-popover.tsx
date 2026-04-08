@@ -26,8 +26,10 @@ export type WorkspacesPopoverProps = ButtonBaseProps & {
 	}[];
 };
 
+const EMPTY_WORKSPACES: NonNullable<WorkspacesPopoverProps['data']> = [];
+
 export const WorkspacesPopover = ({
-	data = [],
+	data = EMPTY_WORKSPACES,
 	sx,
 	...other
 }: WorkspacesPopoverProps) => {

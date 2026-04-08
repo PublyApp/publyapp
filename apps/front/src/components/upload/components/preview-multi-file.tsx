@@ -12,6 +12,8 @@ import type { MultiFilePreviewProps } from '../types';
 
 // ----------------------------------------------------------------------
 
+const EMPTY_FILES: NonNullable<MultiFilePreviewProps['files']> = [];
+
 export const MultiFilePreview = ({
 	sx,
 	onRemove,
@@ -19,7 +21,7 @@ export const MultiFilePreview = ({
 	thumbnail,
 	slotProps,
 	firstNode,
-	files = [],
+	files = EMPTY_FILES,
 	className,
 	...other
 }: MultiFilePreviewProps) => {

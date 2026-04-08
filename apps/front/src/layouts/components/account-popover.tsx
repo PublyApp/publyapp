@@ -6,12 +6,6 @@ import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import Typography from '@mui/material/Typography';
 import { usePopover } from 'minimal-shared/hooks';
-
-// import { useMockedUser } from '#app/auth/hooks';
-// import { RouterLink } from '#app/routes/components';
-// import { usePathname } from '#app/routes/hooks';
-// import { paths } from '#app/routes/paths';
-
 import { useCallback } from 'react';
 
 import { CustomPopover } from '#app/components/custom-popover/index.ts';
@@ -35,8 +29,10 @@ export type AccountPopoverProps = IconButtonProps & {
 	}[];
 };
 
+const EMPTY_ACCOUNT_POPOVER_DATA: NonNullable<AccountPopoverProps['data']> = [];
+
 export const AccountPopover = ({
-	data = [],
+	data = EMPTY_ACCOUNT_POPOVER_DATA,
 	sx,
 	...other
 }: AccountPopoverProps) => {

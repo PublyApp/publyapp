@@ -29,9 +29,10 @@ export type SearchbarProps = BoxProps & {
 };
 
 const breakpoint: Breakpoint = 'sm';
+const EMPTY_NAV_ITEMS: NonNullable<SearchbarProps['data']> = [];
 
 export const Searchbar = ({
-	data: navItems = [],
+	data: navItems = EMPTY_NAV_ITEMS,
 	sx,
 	...other
 }: SearchbarProps) => {
