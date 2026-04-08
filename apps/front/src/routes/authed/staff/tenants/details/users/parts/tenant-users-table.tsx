@@ -136,7 +136,9 @@ const parseStatusFilter = (value: string) => {
 	return value.split(',').filter(Boolean);
 };
 
-const TenantUsersTable = () => {
+type ExportFormat = 'csv' | 'json' | 'xlsx';
+
+const useTenantUsersTableController = () => {
 	const { t } = useTranslate();
 	const { tenantId } = useParams();
 	const queryClient = useQueryClient();
@@ -373,6 +375,15 @@ const TenantUsersTable = () => {
 	const openExportDialog = () => {
 		closeSelectionActionMenu();
 		setTableUiState({ exportDialogOpen: true, exportFormat: 'csv' });
+	};
+	const closeExportDialog = () => {
+		setTableUiState({ exportDialogOpen: false });
+	};
+	const closeBulkRemoveDialog = () => {
+		setTableUiState({ bulkRemoveDialogOpen: false });
+	};
+	const handleExportFormatChange = (format: ExportFormat) => {
+		setTableUiState({ exportFormat: format });
 	};
 
 	const exportRows = (format: 'csv' | 'json') => {
@@ -780,15 +791,48 @@ const TenantUsersTable = () => {
 		},
 	});
 
+	return {
+		table,
+		exportDialogOpen,
+		isSelectionMode,
+		selectedCount,
+		rowsCount: rows.length,
+		exportFormat,
+		closeExportDialog,
+		handleExportFormatChange,
+		handleExport,
+		bulkRemoveDialogOpen,
+		closeBulkRemoveDialog,
+		handleBulkRemove,
+		isBulkRemoving,
+	};
+};
+
+const TenantUsersTable = () => {
+	const { t } = useTranslate();
+	const {
+		table,
+		exportDialogOpen,
+		isSelectionMode,
+		selectedCount,
+		rowsCount,
+		exportFormat,
+		closeExportDialog,
+		handleExportFormatChange,
+		handleExport,
+		bulkRemoveDialogOpen,
+		closeBulkRemoveDialog,
+		handleBulkRemove,
+		isBulkRemoving,
+	} = useTenantUsersTableController();
+
 	return (
 		<Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
 			<MaterialReactTable table={table} />
 
 			<Dialog
 				open={exportDialogOpen}
-				onClose={() => {
-					setTableUiState({ exportDialogOpen: false });
-				}}
+				onClose={closeExportDialog}
 				fullWidth
 				maxWidth="xs"
 			>
@@ -809,7 +853,7 @@ const TenantUsersTable = () => {
 										count: selectedCount,
 									})
 								: t('export-current-results', {
-										count: rows.length,
+										count: rowsCount,
 										defaultValue:
 											'Export the current result set ({{count}} item(s)).',
 									})}
@@ -818,7 +862,7 @@ const TenantUsersTable = () => {
 							value={exportFormat}
 							onChange={(_event, value: 'csv' | 'json' | 'xlsx') => {
 								if (value) {
-									setTableUiState({ exportFormat: value });
+									handleExportFormatChange(value);
 								}
 							}}
 							sx={(theme) => ({
@@ -909,9 +953,7 @@ const TenantUsersTable = () => {
 					<Button
 						variant="outlined"
 						color="inherit"
-						onClick={() => {
-							setTableUiState({ exportDialogOpen: false });
-						}}
+						onClick={closeExportDialog}
 					>
 						{t('cancel')}
 					</Button>
@@ -920,9 +962,7 @@ const TenantUsersTable = () => {
 
 			<ConfirmDialog
 				open={bulkRemoveDialogOpen}
-				onClose={() => {
-					setTableUiState({ bulkRemoveDialogOpen: false });
-				}}
+				onClose={closeBulkRemoveDialog}
 				title={t('remove-selected-from-tenant', {
 					defaultValue: 'Remove selected from tenant',
 				})}
