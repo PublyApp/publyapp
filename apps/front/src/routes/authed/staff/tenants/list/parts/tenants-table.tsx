@@ -106,7 +106,6 @@ const TenantRowDataMapper = (tenant: TenantAsStaffListItem): TenantRowData => {
 		usersCount: getUntypedNumber(tenant.usersCount, 0),
 		maxUsers: getUntypedNumber(tenant.maxUsers, 0),
 		status: tenant.status || '-',
-		isSuspended: tenant.isSuspended ?? false,
 	};
 };
 

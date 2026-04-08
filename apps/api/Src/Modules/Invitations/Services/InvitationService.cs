@@ -537,8 +537,7 @@ public class InvitationService : IInvitationService {
 			where inv.Email == normalizedEmail
 				&& inv.Scope == InvitationScope.Tenant
 				&& inv.TenantId == tenantId
-				&& inv.IsAccepted == false
-				&& inv.IsRevoked == false
+				&& inv.Status == InvitationStatus.Pending
 				&& inv.ExpiresAt > DateTime.UtcNow
 			select inv;
 
@@ -1456,7 +1455,7 @@ public class InvitationService : IInvitationService {
 			return new RevokeInvitationForStaffResult.NotFound();
 		}
 
-		if (invitation.IsRevoked) {
+		if (invitation.IsRevoked()) {
 			if (_logger.IsEnabled(LogLevel.Information)) {
 				_logger.LogInformation(
 					"Invitation {InvitationId} is already revoked; no-op",
@@ -1466,7 +1465,7 @@ public class InvitationService : IInvitationService {
 			return new RevokeInvitationForStaffResult.Success();
 		}
 
-		if (invitation.IsAccepted) {
+		if (invitation.IsAccepted()) {
 			if (_logger.IsEnabled(LogLevel.Warning)) {
 				_logger.LogWarning(
 					"Attempt to revoke accepted invitation {InvitationId} blocked",
@@ -1476,7 +1475,7 @@ public class InvitationService : IInvitationService {
 			return new RevokeInvitationForStaffResult.AlreadyAccepted();
 		}
 
-		invitation.IsRevoked = true;
+		invitation.Status = InvitationStatus.Revoked;
 		invitation.RevokedAt = DateTime.UtcNow;
 
 		await _dbContext.SaveChangesAsync(cancellationToken);

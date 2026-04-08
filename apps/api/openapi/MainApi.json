@@ -10412,8 +10412,6 @@
           "scope",
           "profileName",
           "expiresAt",
-          "isAccepted",
-          "isRevoked",
           "createdAt"
         ],
         "type": "object",
@@ -10431,6 +10429,9 @@
           "profileName": {
             "type": "string"
           },
+          "status": {
+            "type": "string"
+          },
           "expiresAt": {
             "type": "string",
             "format": "date-time"
@@ -10441,12 +10442,6 @@
               "string"
             ],
             "format": "date-time"
-          },
-          "isAccepted": {
-            "type": "boolean"
-          },
-          "isRevoked": {
-            "type": "boolean"
           },
           "createdAt": {
             "type": "string",
@@ -11170,9 +11165,6 @@
           },
           "status": {
             "type": "string"
-          },
-          "isSuspended": {
-            "type": "boolean"
           },
           "tenantId": {
             "type": [

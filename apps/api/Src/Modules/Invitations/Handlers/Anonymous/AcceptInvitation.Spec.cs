@@ -252,7 +252,7 @@ public sealed class AcceptInvitationSpec
 			.Where(inv =>
 				inv.Email == inviteEmail &&
 				inv.Scope == InvitationScope.Tenant &&
-				inv.IsAccepted == false
+				inv.Status == InvitationStatus.Pending
 			)
 			.OrderByDescending(inv => inv.CreatedAt)
 			.FirstAsync();
@@ -290,8 +290,7 @@ public sealed class AcceptInvitationSpec
 		picker.Should().NotBeNull();
 		picker!.Tenants.Should().Contain(t =>
 			t.Id == invitation.TenantId &&
-			t.Status == "Active" &&
-			t.IsActive
+			t.Status == "Active"
 		);
 
 		await using var assertScope = _fixture.Factory.Services.CreateAsyncScope();
@@ -302,7 +301,6 @@ public sealed class AcceptInvitationSpec
 			.SingleAsync();
 
 		tenant.Status.Should().Be(TenantStatus.Active);
-		tenant.IsSuspended.Should().BeFalse();
 	}
 
 	private sealed record InvitationAcceptedResponse {

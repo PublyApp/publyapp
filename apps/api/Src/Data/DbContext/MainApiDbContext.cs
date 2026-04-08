@@ -288,6 +288,15 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Project_Constraints",
 				"(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2"));
 
+		modelBuilder.Entity<UserAccount>()
+			// AccountStatus is membership-local only. GloballySuspended is a derived read-model
+			// status and must never be stored in user_accounts.status.
+			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Status", "status IN (0, 1)"));
+
+		modelBuilder.Entity<Project>()
+			// Project status is lifecycle state, not soft-delete state. Deleted rows use BaseAttributes.
+			.ToTable(t => t.HasCheckConstraint("CK_Project_Status", "status IN (10, 20)"));
+
 		// Database-level profile type constraints
 		modelBuilder.Entity<Profile>()
 			.ToTable(t => t.HasCheckConstraint("CK_Profile_Staff_Constraints",
@@ -313,6 +322,10 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		modelBuilder.Entity<Invitation>()
 			.ToTable(t => t.HasCheckConstraint("CK_Invitation_Project_Constraints",
 				"(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2"));
+
+		modelBuilder.Entity<Invitation>()
+			// Expired is derived from Pending + ExpiresAt, so only persisted lifecycle states are allowed.
+			.ToTable(t => t.HasCheckConstraint("CK_Invitation_Status", "status IN (0, 1, 2)"));
 
 		// Database-level permission key prefix constraints
 		modelBuilder.Entity<Permission>()
@@ -360,6 +373,8 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		});
 
 		// Partial indexes to favor active rows without enforcing global filters
+		modelBuilder.HasPostgresExtension("pg_trgm");
+
 		modelBuilder.Entity<User>()
 			.HasIndex(u => u.Email)
 			.HasDatabaseName("ix_users_email_active")
@@ -368,6 +383,41 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		modelBuilder.Entity<Tenant>()
 			.HasIndex(t => t.Code)
 			.HasDatabaseName("ix_tenants_code_active")
+			.HasFilter("\"is_deleted\" = false");
+
+		// Keyset pagination indexes for staff tenants
+		// Supports efficient sorting by Name with Id as tie-breaker
+		modelBuilder.Entity<Tenant>()
+			.HasIndex(t => new { t.Name, t.Id })
+			.HasDatabaseName("ix_tenants_staff_name_id")
+			.HasFilter("\"is_deleted\" = false");
+
+		// Supports efficient sorting by CreatedAt with Id as tie-breaker
+		modelBuilder.Entity<Tenant>()
+			.HasIndex(t => new { t.CreatedAt, t.Id })
+			.HasDatabaseName("ix_tenants_staff_created_at_id")
+			.HasFilter("\"is_deleted\" = false");
+
+		// Supports efficient sorting by UpdatedAt with Id as tie-breaker
+		modelBuilder.Entity<Tenant>()
+			.HasIndex(t => new { t.UpdatedAt, t.Id })
+			.HasDatabaseName("ix_tenants_staff_updated_at_id")
+			.HasFilter("\"is_deleted\" = false");
+
+		// Supports efficient sorting by Status with Id as tie-breaker
+		modelBuilder.Entity<Tenant>()
+			.HasIndex(t => new { t.Status, t.Id })
+			.HasDatabaseName("ix_tenants_staff_status_id")
+			.HasFilter("\"is_deleted\" = false");
+
+		// Trigram indexes to accelerate ILIKE-based search on Name/Code
+		// Note: we intentionally only index Name (substring match). Code uses prefix match and
+		// keeps its unique btree index (avoid multiple EF indexes on the same column set).
+		modelBuilder.Entity<Tenant>()
+			.HasIndex(t => t.Name)
+			.HasDatabaseName("ix_tenants_name_trgm")
+			.HasMethod("gin")
+			.HasOperators("gin_trgm_ops")
 			.HasFilter("\"is_deleted\" = false");
 
 		modelBuilder.Entity<UserAccount>()

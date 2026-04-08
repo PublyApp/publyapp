@@ -2411,7 +2411,7 @@ public class UserService : IUserService {
 					where ua.TenantId == tenantId
 						&& ua.Scope == AccountScope.Tenant
 						&& ua.Level == AccountLevel.Admin
-						&& !ua.IsSuspended
+						&& ua.Status != AccountStatus.Suspended
 						&& !ua.IsDeleted
 					select ua
 				).CountAsync(cancellationToken);
@@ -2492,7 +2492,7 @@ public class UserService : IUserService {
 						&& ua.Scope == AccountScope.Tenant
 						&& ua.Level == AccountLevel.Admin
 						&& ua.UserId != userId
-						&& !ua.IsSuspended
+						&& ua.Status != AccountStatus.Suspended
 						&& !ua.IsDeleted
 					select ua
 				).CountAsync(cancellationToken);
@@ -2563,7 +2563,7 @@ public class UserService : IUserService {
 
 		var account = userAccount.Account;
 
-		if (account.IsSuspended) {
+		if (account.IsSuspended()) {
 			return new SuspendTenantUserResult.AlreadySuspended();
 		}
 
@@ -2574,8 +2574,8 @@ public class UserService : IUserService {
 				where ua.TenantId == tenantId
 					&& ua.Scope == AccountScope.Tenant
 					&& ua.Level == AccountLevel.Admin
-					&& !ua.IsSuspended
 					&& !ua.IsDeleted
+					&& ua.Status != AccountStatus.Suspended
 				select ua
 			).CountAsync(cancellationToken);
 
@@ -2591,10 +2591,10 @@ public class UserService : IUserService {
 				&& ua.UserId == userId
 				&& ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted
-				&& !ua.IsSuspended
+				&& ua.Status != AccountStatus.Suspended
 			)
 			.ExecuteUpdateAsync(setters => setters
-				.SetProperty(ua => ua.IsSuspended, true)
+				.SetProperty(ua => ua.Status, AccountStatus.Suspended)
 				.SetProperty(ua => ua.UpdatedAt, DateTime.UtcNow),
 				cancellationToken);
 
@@ -2653,7 +2653,7 @@ public class UserService : IUserService {
 
 		var account = userAccount.Account;
 
-		if (!account.IsSuspended) {
+		if (!account.IsSuspended()) {
 			return new ReactivateTenantUserResult.NotSuspended();
 		}
 
@@ -2664,10 +2664,10 @@ public class UserService : IUserService {
 				&& ua.UserId == userId
 				&& ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted
-				&& ua.IsSuspended
+				&& ua.Status == AccountStatus.Suspended
 			)
 			.ExecuteUpdateAsync(setters => setters
-				.SetProperty(ua => ua.IsSuspended, false)
+				.SetProperty(ua => ua.Status, AccountStatus.Active)
 				.SetProperty(ua => ua.UpdatedAt, DateTime.UtcNow),
 				cancellationToken);
 
