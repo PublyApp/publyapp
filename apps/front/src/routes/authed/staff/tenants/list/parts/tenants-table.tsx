@@ -284,7 +284,7 @@ const useTenantsTableController = () => {
 	// Status filter handler - reset cursor before updating
 	const handleStatusChange = (
 		_value: React.SyntheticEvent,
-		selectedOptions: typeof tenantStatusOptions,
+		selectedOptions: TenantStatusFilterOption[],
 	) => {
 		const nextStatusFilter = selectedOptions.map((option) => option.value);
 		resetCursorPagination?.();
@@ -305,173 +305,24 @@ const useTenantsTableController = () => {
 		bulkActionDialog,
 	} = tableUiState;
 
-	// Bulk action mutations
-	const queryClient = useQueryClient();
-
-	const { mutate: bulkSuspend, isPending: isBulkSuspending } =
-		useBulkSuspendTenants({
-			// Bulk actions own specialized success/partial/failure feedback, so they
-			// intentionally bypass the shared global mutation error toast.
-			meta: { skipGlobalErrorHandler: true },
-			onSuccess: (result) => {
-				const succeeded = result.succeededCount ?? 0;
-				const failed = result.failedCount ?? 0;
-				if (failed > 0) {
-					toast.warning(
-						t('tenant-bulk-suspend-partial-success', {
-							succeeded,
-							failed,
-						}),
-					);
-				} else {
-					toast.success(
-						t('tenant-bulk-suspend-success', {
-							count: succeeded,
-						}),
-					);
-				}
-				setTableUiState({
-					bulkActionDialog: { type: 'suspend', open: false },
-					rowSelection: {},
-				});
-				queryClient.invalidateQueries({
-					queryKey: useFindTenants.getKey(),
-				});
-			},
-			onError: (error: unknown) => {
-				const failure = toApiFailure(error);
-
-				if (isAbortFailure(failure)) {
-					return;
-				}
-
-				if (isProblemFailure(failure)) {
-					toast.error(
-						getFailureMessage(failure, {
-							fallback: t('tenant-bulk-suspend-failure'),
-						}),
-					);
-					return;
-				}
-
-				toast.error(t('tenant-bulk-suspend-failure'));
-			},
+	const handleBulkActionSuccess = useCallback((type: BulkActionType) => {
+		setTableUiState({
+			bulkActionDialog: { type, open: false },
+			rowSelection: {},
 		});
+	}, []);
 
-	const { mutate: bulkReactivate, isPending: isBulkReactivating } =
-		useBulkReactivateTenants({
-			// Bulk actions own specialized success/partial/failure feedback, so they
-			// intentionally bypass the shared global mutation error toast.
-			meta: { skipGlobalErrorHandler: true },
-			onSuccess: (result) => {
-				const succeeded = result.succeededCount ?? 0;
-				const failed = result.failedCount ?? 0;
-				if (failed > 0) {
-					toast.warning(
-						t('tenant-bulk-reactivate-partial-success', {
-							succeeded,
-							failed,
-						}),
-					);
-				} else {
-					toast.success(
-						t('tenant-bulk-reactivate-success', {
-							count: succeeded,
-						}),
-					);
-				}
-				setTableUiState({
-					bulkActionDialog: { type: 'reactivate', open: false },
-					rowSelection: {},
-				});
-				queryClient.invalidateQueries({
-					queryKey: useFindTenants.getKey(),
-				});
-			},
-			onError: (error: unknown) => {
-				const failure = toApiFailure(error);
-
-				if (isAbortFailure(failure)) {
-					return;
-				}
-
-				if (isProblemFailure(failure)) {
-					toast.error(
-						getFailureMessage(failure, {
-							fallback: t('tenant-bulk-reactivate-failure'),
-						}),
-					);
-					return;
-				}
-
-				toast.error(t('tenant-bulk-reactivate-failure'));
-			},
-		});
-
-	const { mutate: bulkDelete, isPending: isBulkDeleting } =
-		useBulkDeleteTenants({
-			// Bulk actions own specialized success/partial/failure feedback, so they
-			// intentionally bypass the shared global mutation error toast.
-			meta: { skipGlobalErrorHandler: true },
-			onSuccess: (result) => {
-				const succeeded = result.succeededCount ?? 0;
-				const failed = result.failedCount ?? 0;
-				if (failed > 0) {
-					toast.warning(
-						t('tenant-bulk-delete-partial-success', {
-							succeeded,
-							failed,
-						}),
-					);
-				} else {
-					toast.success(
-						t('tenant-bulk-delete-success', {
-							count: succeeded,
-						}),
-					);
-				}
-				setTableUiState({
-					bulkActionDialog: { type: 'delete', open: false },
-					rowSelection: {},
-				});
-				queryClient.invalidateQueries({
-					queryKey: useFindTenants.getKey(),
-				});
-			},
-			onError: (error: unknown) => {
-				const failure = toApiFailure(error);
-
-				if (isAbortFailure(failure)) {
-					return;
-				}
-
-				if (isProblemFailure(failure)) {
-					toast.error(
-						getFailureMessage(failure, {
-							fallback: t('tenant-bulk-delete-failure'),
-						}),
-					);
-					return;
-				}
-
-				toast.error(t('tenant-bulk-delete-failure'));
-			},
-		});
-
-	const handleBulkSuspend = () => {
-		const selectedIds = Object.keys(rowSelection);
-		bulkSuspend({ tenantIds: selectedIds });
-	};
-
-	const handleBulkReactivate = () => {
-		const selectedIds = Object.keys(rowSelection);
-		bulkReactivate({ tenantIds: selectedIds });
-	};
-
-	const handleBulkDelete = () => {
-		const selectedIds = Object.keys(rowSelection);
-		bulkDelete({ tenantIds: selectedIds });
-	};
+	const {
+		handleBulkSuspend,
+		handleBulkReactivate,
+		handleBulkDelete,
+		isBulkSuspending,
+		isBulkReactivating,
+		isBulkDeleting,
+	} = useTenantsBulkActions({
+		rowSelection,
+		onSuccess: handleBulkActionSuccess,
+	});
 
 	const columns = useMemo(() => {
 		return [
@@ -613,6 +464,23 @@ const useTenantsTableController = () => {
 	};
 	const closeBulkActionDialog = (type: BulkActionType) => {
 		setBulkActionDialog({ type, open: false });
+	};
+	const openBulkActionDialog = (type: BulkActionType) => {
+		closeSelectionActionMenu();
+		setTableUiState({
+			bulkActionDialog: { type, open: true },
+		});
+	};
+	const closeExportDialog = () => {
+		setTableUiState({ exportDialogOpen: false });
+	};
+	const closeBulkActionDialog = (type: BulkActionType) => {
+		setTableUiState({
+			bulkActionDialog: { type, open: false },
+		});
+	};
+	const handleExportFormatChange = (format: ExportFormat) => {
+		setTableUiState({ exportFormat: format });
 	};
 	const exportRows = (format: 'csv' | 'json') => {
 		const rowsToExport = isSelectionMode ? selectedRows : dataTable;
