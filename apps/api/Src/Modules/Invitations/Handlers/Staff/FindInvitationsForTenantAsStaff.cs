@@ -30,7 +30,7 @@ public class FindInvitationsForTenantAsStaffQuery : CursorPaginatedQuery {
 		return trimmed.Length == 0 ? null : trimmed;
 	}
 
-	public IReadOnlySet<InvitationStatus>? GetStatusesOrNull() {
+	public IReadOnlySet<InvitationEffectiveStatus>? GetStatusesOrNull() {
 		if (Status is null) {
 			return null;
 		}
@@ -46,9 +46,9 @@ public class FindInvitationsForTenantAsStaffQuery : CursorPaginatedQuery {
 			return null;
 		}
 
-		var statuses = new HashSet<InvitationStatus>();
+		var statuses = new HashSet<InvitationEffectiveStatus>();
 		foreach (var part in parts) {
-			var parsed = Invitation.ParseStatus(part);
+			var parsed = Invitation.ParseEffectiveStatus(part);
 			if (parsed is { } status) {
 				statuses.Add(status);
 			}
@@ -59,7 +59,15 @@ public class FindInvitationsForTenantAsStaffQuery : CursorPaginatedQuery {
 
 public class FindInvitationsForTenantAsStaffQueryValidator : CursorPaginatedQueryValidator<FindInvitationsForTenantAsStaffQuery> {
 	private static readonly HashSet<string> AllowedStatuses =
-		new([nameof(InvitationStatus.Pending), nameof(InvitationStatus.Accepted), nameof(InvitationStatus.Expired), nameof(InvitationStatus.Revoked)], StringComparer.OrdinalIgnoreCase);
+		new(
+			[
+				nameof(InvitationEffectiveStatus.Pending),
+				nameof(InvitationEffectiveStatus.Accepted),
+				nameof(InvitationEffectiveStatus.Expired),
+				nameof(InvitationEffectiveStatus.Revoked)
+			],
+			StringComparer.OrdinalIgnoreCase
+		);
 
 	public FindInvitationsForTenantAsStaffQueryValidator() {
 		RuleFor(x => x.Search).MaximumLength(200);

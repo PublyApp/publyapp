@@ -354,6 +354,5 @@ internal static class TenantTestHelper {
 		public int UsersCount { get; init; }
 		public int MaxUsers { get; init; }
 		public string Status { get; init; } = string.Empty;
-		public bool IsSuspended { get; init; }
 	}
 }

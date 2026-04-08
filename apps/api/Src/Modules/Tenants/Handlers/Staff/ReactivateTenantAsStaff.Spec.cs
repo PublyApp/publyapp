@@ -63,7 +63,6 @@ ReactivateTenantAsStaffSpec
 				>();
 			result.Should().NotBeNull();
 			result!.TenantId.Should().Be(tenantId);
-			result.IsSuspended.Should().BeFalse();
 			result.Status.Should().Be("Active");
 		} finally {
 			// Safety net: reactivate if assertions
@@ -259,8 +258,7 @@ ReactivateTenantAsStaffSpec
 		var suspended = await suspendResponse.Content
 			.ReadFromJsonAsync<TenantSuspendedResponse>();
 		suspended.Should().NotBeNull();
-		suspended!.IsSuspended.Should().BeTrue();
-		suspended.Status.Should().Be("Suspended");
+		suspended!.Status.Should().Be("Suspended");
 
 		// Reactivate
 		using var reactivateResponse =
@@ -273,21 +271,18 @@ ReactivateTenantAsStaffSpec
 		var reactivated = await reactivateResponse.Content
 			.ReadFromJsonAsync<TenantReactivatedResponse>();
 		reactivated.Should().NotBeNull();
-		reactivated!.IsSuspended.Should().BeFalse();
-		reactivated.Status.Should().Be("Active");
+		reactivated!.Status.Should().Be("Active");
 	}
 
 	private record TenantSuspendedResponse {
 		public Guid TenantId { get; init; }
 		public string Name { get; init; } = string.Empty;
-		public bool IsSuspended { get; init; }
 		public string Status { get; init; } = string.Empty;
 	}
 
 	private record TenantReactivatedResponse {
 		public Guid TenantId { get; init; }
 		public string Name { get; init; } = string.Empty;
-		public bool IsSuspended { get; init; }
 		public string Status { get; init; } = string.Empty;
 	}
 }

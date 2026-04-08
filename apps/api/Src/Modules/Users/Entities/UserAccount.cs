@@ -38,10 +38,9 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	[Column("level")]
 	public AccountLevel Level { get; set; } = AccountLevel.User;
 
-	// Membership-local suspension is valid only for users whose global identity
-	// is not suspended. Global user suspension must cascade to all memberships.
-	[Column("is_suspended")]
-	public bool IsSuspended { get; set; } = false;
+	// Membership-local lifecycle only. Global user suspension is derived from User.Status.
+	[Column("status")]
+	public AccountStatus Status { get; set; } = AccountStatus.Active;
 
 	// Computed properties for easy identification
 	public bool IsStaffAccount => Scope == AccountScope.Staff && TenantId == null && ProjectId == null;
@@ -131,19 +130,6 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	}
 
 	public static AccountStatus? ParseStatus(string statusString) {
-		var isGloballySuspended = string.Equals(
-			statusString,
-			"globally_suspended",
-			StringComparison.OrdinalIgnoreCase
-		) || string.Equals(
-			statusString,
-			nameof(AccountStatus.GloballySuspended),
-			StringComparison.OrdinalIgnoreCase
-		);
-		if (isGloballySuspended) {
-			return AccountStatus.GloballySuspended;
-		}
-
 		var isSuspended = string.Equals(
 			statusString,
 			nameof(AccountStatus.Suspended),
@@ -165,26 +151,90 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 		return null;
 	}
 
-	public static AccountStatus GetTenantStatus(
-		bool isUserGloballySuspended,
-		bool isMembershipSuspended
+	public static TenantUserStatus? ParseTenantStatus(string statusString) {
+		// Tenant-user filtering accepts the derived read-model status, not just persisted account states.
+		var isGloballySuspended = string.Equals(
+			statusString,
+			"globally_suspended",
+			StringComparison.OrdinalIgnoreCase
+		) || string.Equals(
+			statusString,
+			nameof(TenantUserStatus.GloballySuspended),
+			StringComparison.OrdinalIgnoreCase
+		);
+		if (isGloballySuspended) {
+			return TenantUserStatus.GloballySuspended;
+		}
+
+		var isSuspended = string.Equals(
+			statusString,
+			nameof(TenantUserStatus.Suspended),
+			StringComparison.OrdinalIgnoreCase
+		);
+		if (isSuspended) {
+			return TenantUserStatus.Suspended;
+		}
+
+		var isActive = string.Equals(
+			statusString,
+			nameof(TenantUserStatus.Active),
+			StringComparison.OrdinalIgnoreCase
+		);
+		if (isActive) {
+			return TenantUserStatus.Active;
+		}
+
+		return null;
+	}
+
+	public static TenantUserStatus GetTenantStatus(
+		UserStatus userStatus,
+		AccountStatus accountStatus
 	) {
+		// Global identity suspension has precedence over the membership-local status in tenant UIs.
+		bool isUserGloballySuspended = User.IsSuspended(userStatus);
+		bool isMembershipSuspended = IsSuspended(accountStatus);
+
 		if (isUserGloballySuspended) {
-			return AccountStatus.GloballySuspended;
+			return TenantUserStatus.GloballySuspended;
 		}
 
 		if (isMembershipSuspended) {
-			return AccountStatus.Suspended;
+			return TenantUserStatus.Suspended;
 		}
 
-		return AccountStatus.Active;
+		return TenantUserStatus.Active;
+	}
+
+	public bool IsActive() {
+		return IsActive(Status);
+	}
+
+	public bool IsSuspended() {
+		return IsSuspended(Status);
+	}
+
+	public static bool IsActive(AccountStatus status) {
+		return status == AccountStatus.Active;
+	}
+
+	public static bool IsSuspended(AccountStatus status) {
+		return status == AccountStatus.Suspended;
 	}
 
 	public static string GetStatusDescription(AccountStatus status) {
 		return status switch {
 			AccountStatus.Active => nameof(AccountStatus.Active),
 			AccountStatus.Suspended => nameof(AccountStatus.Suspended),
-			AccountStatus.GloballySuspended => nameof(AccountStatus.GloballySuspended),
+			_ => "Unknown"
+		};
+	}
+
+	public static string GetStatusDescription(TenantUserStatus status) {
+		return status switch {
+			TenantUserStatus.Active => nameof(TenantUserStatus.Active),
+			TenantUserStatus.Suspended => nameof(TenantUserStatus.Suspended),
+			TenantUserStatus.GloballySuspended => nameof(TenantUserStatus.GloballySuspended),
 			_ => "Unknown"
 		};
 	}
@@ -203,6 +253,11 @@ public enum AccountLevel {
 }
 
 public enum AccountStatus {
+	Active = 0,
+	Suspended = 1,
+}
+
+public enum TenantUserStatus {
 	Active = 0,
 	Suspended = 1,
 	GloballySuspended = 2,

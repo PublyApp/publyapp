@@ -57,10 +57,9 @@ export type TenantInvitationRowData = {
 	email: string;
 	scope: string;
 	profileName: string;
+	status: string;
 	expiresAt: DatePickerFormat;
 	acceptedAt?: DatePickerFormat;
-	isAccepted: boolean;
-	isRevoked: boolean;
 	createdAt: DatePickerFormat;
 	invitedByName: string;
 };
@@ -275,10 +274,9 @@ const TenantInvitationsTable = () => {
 				email: invitation.email || '',
 				scope: invitation.scope || '',
 				profileName: invitation.profileName || '',
+				status: invitation.status || '',
 				expiresAt: invitation.expiresAt || '',
 				acceptedAt: invitation.acceptedAt,
-				isAccepted: invitation.isAccepted || false,
-				isRevoked: invitation.isRevoked || false,
 				createdAt: invitation.createdAt || '',
 				invitedByName: invitation.invitedByName || '',
 			};
@@ -886,8 +884,8 @@ export default TenantInvitationsTable;
 // ----------------------------------------------------------------------
 
 const getInvitationStatus = (invitation: TenantInvitationRowData): string => {
-	if (invitation.isAccepted) return 'accepted';
-	if (invitation.isRevoked) return 'revoked';
+	const status = _.snakeCase(invitation.status);
+	if (status) return status;
 	if (fIsAfter(new Date(), invitation.expiresAt)) return 'expired';
 	return 'pending';
 };

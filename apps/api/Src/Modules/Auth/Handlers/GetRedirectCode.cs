@@ -1,6 +1,7 @@
 using FluentValidation;
 
 using MainApi.Src.Lib;
+using MainApi.Src.Modules.Tenants.Entities;
 using MainApi.Src.Modules.Users.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -120,7 +121,9 @@ public class GetRedirectCode {
 
 		// Exactly 1 ACTIVE tenant - redirect directly
 		if (tenantsResult.ActiveCount == 1) {
-			var activeTenant = tenantsResult.Tenants.First(t => t.IsActive);
+			var activeTenant = tenantsResult.Tenants.First(t =>
+				t.Status == Tenant.GetStatusDescription(TenantStatus.Active)
+			);
 			if (logger.IsEnabled(LogLevel.Information)) {
 				logger.LogInformation(
 					"User {UserId} has single active tenant {TenantId}, redirecting directly",

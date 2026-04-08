@@ -87,7 +87,6 @@ public class BulkSeedDataGenerator {
 				Code = $"{BulkSeedConstants.TenantCodePrefix}{i:D3}",
 				Name = _faker.Company.CompanyName(),
 				Status = !isSuspended ? TenantStatus.Active : TenantStatus.Suspended,
-				IsSuspended = isSuspended,
 				MaxUsers = 100
 			};
 
@@ -134,7 +133,6 @@ public class BulkSeedDataGenerator {
 			Email = $"bulk.user{index:D5}@{BulkSeedConstants.UserEmailDomain}",
 			Password = CachedSeedPassword.Value,
 			Status = isActive ? UserStatus.Active : UserStatus.Suspended,
-			IsSuspended = !isActive,
 			IsVerified = true,
 			FirstName = _faker.Name.FirstName(),
 			LastName = _faker.Name.LastName()

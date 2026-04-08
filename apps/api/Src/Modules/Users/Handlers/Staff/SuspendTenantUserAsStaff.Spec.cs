@@ -52,7 +52,7 @@ namespace MainApi.Src.Modules.Users.Handlers.Staff {
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 			SuspendTenantUserResultDto? result = await response.Content.ReadFromJsonAsync<SuspendTenantUserResultDto>();
 			_ = result.Should().NotBeNull();
-			_ = result!.IsSuspended.Should().BeTrue();
+			_ = result!.Status.Should().Be("Suspended");
 		}
 
 		[Fact]

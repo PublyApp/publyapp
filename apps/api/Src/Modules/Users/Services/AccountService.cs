@@ -50,8 +50,6 @@ public record TenantForPicker {
 	public required string Name { get; init; }
 	public required string Code { get; init; }
 	public required string Status { get; init; }
-	public required bool IsSuspended { get; init; }
-	public required bool IsActive { get; init; }
 }
 
 public interface IAccountService {
@@ -136,8 +134,8 @@ public class AccountService : IAccountService {
 			from ua in _dbContext.UserAccount
 			where ua.UserId == userId
 			&& ua.Scope == AccountScope.Staff
-			&& !ua.IsDeleted && !ua.IsSuspended
-			&& !ua.User.IsDeleted && !ua.User.IsSuspended
+			&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
+			&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
 			select ua;
 
 		return await query.FirstOrDefaultAsync(cancellationToken);
@@ -153,8 +151,8 @@ public class AccountService : IAccountService {
 			where ua.UserId == userId
 			&& ua.TenantId == tenantId
 			&& ua.Scope == AccountScope.Tenant
-			&& !ua.IsDeleted && !ua.IsSuspended
-			&& !ua.User.IsDeleted && !ua.User.IsSuspended
+			&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
+			&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
 			select ua;
 
 		return await query.FirstOrDefaultAsync(cancellationToken);
@@ -168,8 +166,8 @@ public class AccountService : IAccountService {
 			from ua in _dbContext.UserAccount
 			where ua.UserId == userId
 			&& ua.Scope == AccountScope.Staff
-			&& !ua.IsDeleted && !ua.IsSuspended
-			&& !ua.User.IsDeleted && !ua.User.IsSuspended
+			&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
+			&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
 			select ua;
 
 		return await query.AnyAsync(cancellationToken);
@@ -185,8 +183,8 @@ public class AccountService : IAccountService {
 			where ua.UserId == userId
 			&& ua.TenantId == tenantId
 			&& ua.Scope == AccountScope.Tenant
-			&& !ua.IsDeleted && !ua.IsSuspended
-			&& !ua.User.IsDeleted && !ua.User.IsSuspended
+			&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
+			&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
 			select ua;
 
 		return await query.AnyAsync(cancellationToken);
@@ -206,9 +204,9 @@ public class AccountService : IAccountService {
 			where ua.UserId == userId
 				&& ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
-				&& !ua.IsDeleted && !ua.IsSuspended
-				&& !ua.User.IsDeleted && !ua.User.IsSuspended
-				&& !t.IsDeleted && t.Status == TenantStatus.Active && !t.IsSuspended
+				&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
+				&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
+				&& !t.IsDeleted && t.Status == TenantStatus.Active
 			select ua;
 
 		return await query.AnyAsync(cancellationToken);
@@ -218,7 +216,7 @@ public class AccountService : IAccountService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
-		// Note: IsSuspended is intentionally NOT checked here.
+		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// Suspended accounts still count for mutual exclusivity (identity conflict).
 		return await (
 			from ua in _dbContext.UserAccount
@@ -234,7 +232,7 @@ public class AccountService : IAccountService {
 		Guid tenantId,
 		CancellationToken cancellationToken = default
 	) {
-		// Note: IsSuspended is intentionally NOT checked here.
+		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// This is existence-based to align with unique constraint and prevent duplicate insert attempts.
 		return await (
 			from ua in _dbContext.UserAccount
@@ -311,7 +309,7 @@ public class AccountService : IAccountService {
 		Guid tenantId,
 		CancellationToken cancellationToken = default
 	) {
-		// Note: IsSuspended is intentionally NOT checked here.
+		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// This is existence-based to align with unique constraint and prevent duplicate insert attempts.
 		var normalizedEmail = email.ToLowerInvariant();
 
@@ -331,7 +329,7 @@ public class AccountService : IAccountService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
-		// Note: IsSuspended is intentionally NOT checked here.
+		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// Suspended accounts still count for mutual exclusivity (identity conflict).
 		return await (
 			from ua in _dbContext.UserAccount
@@ -346,7 +344,7 @@ public class AccountService : IAccountService {
 		string email,
 		CancellationToken cancellationToken = default
 	) {
-		// Note: IsSuspended is intentionally NOT checked here.
+		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// Suspended accounts still count for mutual exclusivity (identity conflict).
 		var normalizedEmail = email.ToLowerInvariant();
 
@@ -365,7 +363,7 @@ public class AccountService : IAccountService {
 		string email,
 		CancellationToken cancellationToken = default
 	) {
-		// Note: IsSuspended is intentionally NOT checked here.
+		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// Suspended accounts still count for mutual exclusivity (identity conflict).
 		var normalizedEmail = email.ToLowerInvariant();
 
@@ -384,7 +382,7 @@ public class AccountService : IAccountService {
 		List<string> emails,
 		CancellationToken cancellationToken = default
 	) {
-		// Note: IsSuspended is intentionally NOT checked here.
+		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// Suspended accounts still count for mutual exclusivity (identity conflict).
 		if (emails.Count == 0) return [];
 
@@ -405,7 +403,7 @@ public class AccountService : IAccountService {
 		List<string> emails,
 		CancellationToken cancellationToken = default
 	) {
-		// Note: IsSuspended is intentionally NOT checked here.
+		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// Suspended accounts still count for mutual exclusivity (identity conflict).
 		if (emails.Count == 0) return [];
 
@@ -434,8 +432,8 @@ public class AccountService : IAccountService {
 			where ua.UserId == userId
 			&& ua.Scope == AccountScope.Tenant
 			&& ua.TenantId != null
-			&& !ua.IsDeleted && !ua.IsSuspended
-			&& !ua.User.IsDeleted && !ua.User.IsSuspended
+			&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
+			&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
 			select ua;
 
 		return await query.Take(effectiveLimit).ToListAsync(cancellationToken);
@@ -516,9 +514,9 @@ public class AccountService : IAccountService {
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.TenantId != null
-				&& !ua.IsDeleted && !ua.IsSuspended
-				&& !ua.User.IsDeleted && !ua.User.IsSuspended
-				&& !t.IsDeleted && t.Status == TenantStatus.Active && !t.IsSuspended
+				&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
+				&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
+				&& !t.IsDeleted && t.Status == TenantStatus.Active
 			select new { ua, t };
 
 		var totalCount = await baseQuery.CountAsync(cancellationToken);
@@ -552,14 +550,14 @@ public class AccountService : IAccountService {
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.TenantId != null
-				&& !ua.IsDeleted && !ua.IsSuspended  // Account must be active
-				&& !ua.User.IsDeleted && !ua.User.IsSuspended
+				&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended  // Account must be active
+				&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
 				&& !t.IsDeleted                       // Tenant must not be deleted
 			select new { ua, t };
 
 		var totalCount = await baseQuery.CountAsync(cancellationToken);
 		var activeCount = await baseQuery
-			.Where(q => q.t.Status == TenantStatus.Active && !q.t.IsSuspended)
+			.Where(q => q.t.Status == TenantStatus.Active && q.t.Status != TenantStatus.Suspended)
 			.CountAsync(cancellationToken);
 
 		var tenants = await baseQuery
@@ -570,9 +568,6 @@ public class AccountService : IAccountService {
 				Name = q.t.Name,
 				Code = q.t.Code,
 				Status = Tenant.GetStatusDescription(q.t.Status),
-				IsSuspended = q.t.IsSuspended,
-				// Computed from enum - same logic as ActiveCount predicate
-				IsActive = q.t.Status == TenantStatus.Active && !q.t.IsSuspended
 			})
 			.ToListAsync(cancellationToken);
 

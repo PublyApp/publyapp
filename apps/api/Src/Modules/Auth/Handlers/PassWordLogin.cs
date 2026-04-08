@@ -76,7 +76,7 @@ public class PasswordLogin {
 			);
 		}
 
-		if (user.IsSuspended == true) {
+		if (user.IsSuspended()) {
 			return TypedProblems.BadRequest(
 				"User is suspended",
 				ResponseKeys.UserSuspended

@@ -20,7 +20,10 @@ import { useNavigate, useOutletContext, useParams } from 'react-router';
 import { z } from 'zod';
 
 import type { GetTenantAsStaffResult } from '@org/client-ts/src/models';
-import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+import {
+	FRONT_PATH_NAMES,
+	TENANT_STATUS_ENUM,
+} from '@org/shared-ts/lib/constants';
 
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
@@ -101,7 +104,6 @@ const TenantDetailsGeneralPage = () => {
 						logoUrl={data.logoUrl}
 						maxUsers={data.maxUsers}
 						status={data.status}
-						isSuspended={data.isSuspended}
 						usersCount={data.usersCount}
 						createdAt={data.createdAt}
 						updatedAt={data.updatedAt}
@@ -121,7 +123,6 @@ type TenantGeneralContentProps = {
 	logoUrl?: string | null;
 	maxUsers?: number | null;
 	status?: string | null;
-	isSuspended?: boolean | null;
 	usersCount?: number | null;
 	createdAt?: Date | null;
 	updatedAt?: Date | null;
@@ -134,7 +135,6 @@ const TenantGeneralContent = ({
 	logoUrl,
 	maxUsers,
 	status,
-	isSuspended,
 	usersCount,
 	createdAt,
 	updatedAt,
@@ -352,7 +352,7 @@ const TenantGeneralContent = ({
 					<DangerZoneCard
 						tenantId={tenantId}
 						tenantName={name ?? ''}
-						isSuspended={isSuspended ?? false}
+						status={status ?? null}
 						queryClient={queryClient}
 						navigate={navigate}
 					/>
@@ -389,7 +389,7 @@ const InfoRow = ({ icon, label, value }: InfoRowProps) => (
 type DangerZoneCardProps = {
 	tenantId: string;
 	tenantName: string;
-	isSuspended: boolean;
+	status?: string | null;
 	queryClient: ReturnType<typeof useQueryClient>;
 	navigate: ReturnType<typeof useNavigate>;
 };
@@ -397,7 +397,7 @@ type DangerZoneCardProps = {
 const DangerZoneCard = ({
 	tenantId,
 	tenantName,
-	isSuspended,
+	status,
 	queryClient,
 	navigate,
 }: DangerZoneCardProps) => {
@@ -405,6 +405,7 @@ const DangerZoneCard = ({
 	const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
 	const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const isSuspended = status === TENANT_STATUS_ENUM.SUSPENDED;
 
 	const { mutate: suspendTenant, isPending: isSuspending } = useSuspendTenant({
 		meta: { successMessage: 'tenant-suspended-success' },
