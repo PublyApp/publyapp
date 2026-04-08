@@ -10,8 +10,6 @@ public class TenantForPickerItem {
 	public string Name { get; set; } = string.Empty;
 	public string Code { get; set; } = string.Empty;
 	public string Status { get; set; } = string.Empty;
-	public bool IsSuspended { get; set; }
-	public bool IsActive { get; set; }
 }
 
 public class GetUserTenantsForPickerResponse {
@@ -54,8 +52,6 @@ public class GetUserTenantsForPicker {
 				Name = t.Name,
 				Code = t.Code,
 				Status = t.Status,
-				IsSuspended = t.IsSuspended,
-				IsActive = t.IsActive
 			}).ToList(),
 			TotalCount = result.TotalCount,
 			ActiveCount = result.ActiveCount,

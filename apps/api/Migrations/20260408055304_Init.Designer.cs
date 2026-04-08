@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MainApi.Migrations
 {
     [DbContext(typeof(MainApiDbContext))]
-    [Migration("20260331031550_Init")]
+    [Migration("20260408055304_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -190,17 +190,9 @@ namespace MainApi.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("invited_by_user_id");
 
-                    b.Property<bool>("IsAccepted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_accepted");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
-
-                    b.Property<bool>("IsRevoked")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_revoked");
 
                     b.Property<Guid?>("ProjectId")
                         .HasColumnType("uuid")
@@ -213,6 +205,10 @@ namespace MainApi.Migrations
                     b.Property<int>("Scope")
                         .HasColumnType("integer")
                         .HasColumnName("scope");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
 
                     b.Property<Guid?>("TenantId")
                         .HasColumnType("uuid")
@@ -240,13 +236,15 @@ namespace MainApi.Migrations
 
                     b.HasIndex("TenantId", "Scope");
 
-                    b.HasIndex("Email", "Scope", "IsAccepted");
+                    b.HasIndex("Email", "Scope", "Status");
 
                     b.ToTable("invitations", t =>
                         {
                             t.HasCheckConstraint("CK_Invitation_Project_Constraints", "(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2");
 
                             t.HasCheckConstraint("CK_Invitation_Staff_Constraints", "(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0");
+
+                            t.HasCheckConstraint("CK_Invitation_Status", "status IN (0, 1, 2)");
 
                             t.HasCheckConstraint("CK_Invitation_Tenant_Constraints", "(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1");
                         });
@@ -457,10 +455,6 @@ namespace MainApi.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description");
 
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
@@ -469,6 +463,10 @@ namespace MainApi.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("name");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
@@ -483,7 +481,10 @@ namespace MainApi.Migrations
                     b.HasIndex("TenantId", "Name")
                         .IsUnique();
 
-                    b.ToTable("projects");
+                    b.ToTable("projects", t =>
+                        {
+                            t.HasCheckConstraint("CK_Project_Status", "status IN (10, 20)");
+                        });
                 });
 
             modelBuilder.Entity("MainApi.Src.Modules.SystemNotices.Entities.SystemNotice", b =>
@@ -572,10 +573,6 @@ namespace MainApi.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
-                    b.Property<bool>("IsSuspended")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_suspended");
-
                     b.Property<string>("LogoUrl")
                         .HasColumnType("text")
                         .HasColumnName("logo_url");
@@ -633,7 +630,7 @@ namespace MainApi.Migrations
                         {
                             t.HasCheckConstraint("CK_Tenant_Code_Lowercase", "code = LOWER(code)");
 
-                            t.HasCheckConstraint("chk_tenant_suspended_status", "(is_suspended = true AND status = 30) OR (is_suspended = false AND status != 30)");
+                            t.HasCheckConstraint("CK_Tenant_Status", "status IN (10, 20, 30)");
                         });
                 });
 
@@ -678,10 +675,6 @@ namespace MainApi.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
-                    b.Property<bool>("IsSuspended")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_suspended");
-
                     b.Property<bool>("IsVerified")
                         .HasColumnType("boolean")
                         .HasColumnName("is_verified");
@@ -721,6 +714,8 @@ namespace MainApi.Migrations
                     b.ToTable("users", t =>
                         {
                             t.HasCheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)");
+
+                            t.HasCheckConstraint("CK_User_Status", "status IN (10, 20, 30, 40)");
                         });
                 });
 
@@ -744,10 +739,6 @@ namespace MainApi.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
-                    b.Property<bool>("IsSuspended")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_suspended");
-
                     b.Property<int>("Level")
                         .HasColumnType("integer")
                         .HasColumnName("level");
@@ -759,6 +750,10 @@ namespace MainApi.Migrations
                     b.Property<int>("Scope")
                         .HasColumnType("integer")
                         .HasColumnName("scope");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
 
                     b.Property<Guid?>("TenantId")
                         .HasColumnType("uuid")
@@ -780,7 +775,7 @@ namespace MainApi.Migrations
 
                     b.HasIndex("UserId", "Scope")
                         .HasDatabaseName("ix_user_accounts_user_id_account_type_active")
-                        .HasFilter("\"is_deleted\" = false AND \"is_suspended\" = false");
+                        .HasFilter("\"is_deleted\" = false AND \"status\" != 1");
 
                     b.HasIndex("UserId", "TenantId");
 
@@ -792,6 +787,8 @@ namespace MainApi.Migrations
                             t.HasCheckConstraint("CK_UserAccount_Project_Constraints", "(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2");
 
                             t.HasCheckConstraint("CK_UserAccount_Staff_Constraints", "(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0");
+
+                            t.HasCheckConstraint("CK_UserAccount_Status", "status IN (0, 1)");
 
                             t.HasCheckConstraint("CK_UserAccount_Tenant_Constraints", "(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1");
                         });

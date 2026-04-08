@@ -348,7 +348,6 @@ public sealed class GetTenantAuthDataSpec
 		var updatedCount = await dbContext.User
 			.Where(u => u.Email == normalizedEmail)
 			.ExecuteUpdateAsync(setters => setters
-				.SetProperty(u => u.IsSuspended, isSuspended)
 				.SetProperty(
 					u => u.Status,
 					isSuspended

@@ -13,7 +13,7 @@ using UserEntity = MainApi.Src.Modules.Users.Entities.User;
 namespace MainApi.Src.Modules.Invitations.Entities;
 
 [Table("invitations")]
-[Index(nameof(Email), nameof(Scope), nameof(IsAccepted))]
+[Index(nameof(Email), nameof(Scope), nameof(Status))]
 [Index(nameof(InvitedByUserId))]
 [Index(nameof(ExpiresAt))]
 [Index(nameof(TenantId), nameof(Scope))]
@@ -41,14 +41,12 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 	[Column("expires_at")]
 	public required DateTime ExpiresAt { get; set; }
 
-	[Column("is_accepted")]
-	public bool IsAccepted { get; set; } = false;
+	[Column("status")]
+	// Persisted invitation lifecycle. Expiration is derived from Pending + ExpiresAt.
+	public InvitationStatus Status { get; set; } = InvitationStatus.Pending;
 
 	[Column("accepted_at")]
 	public DateTime? AcceptedAt { get; set; }
-
-	[Column("is_revoked")]
-	public bool IsRevoked { get; set; } = false;
 
 	[Column("revoked_at")]
 	public DateTime? RevokedAt { get; set; }
@@ -184,37 +182,94 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 	}
 
 	public bool CanBeAccepted() {
-		return IsAccepted is false
-			&& IsRevoked is false
+		return IsPending()
 			&& IsDeleted is false
 			&& ExpiresAt > DateTime.UtcNow;
 	}
-	public static InvitationStatus? ParseStatus(string status) {
-		if (string.Equals(status, nameof(InvitationStatus.Pending), StringComparison.OrdinalIgnoreCase)) {
-			return InvitationStatus.Pending;
+
+	public bool IsPending() {
+		return IsPending(Status);
+	}
+
+	public bool IsAccepted() {
+		return IsAccepted(Status);
+	}
+
+	public bool IsRevoked() {
+		return IsRevoked(Status);
+	}
+
+	public bool IsExpired(DateTime utcNow) {
+		// Expiration is time-derived so rows do not need background writes when time passes.
+		return IsPending()
+			&& ExpiresAt <= utcNow;
+	}
+
+	public static bool IsPending(InvitationStatus status) {
+		return status == InvitationStatus.Pending;
+	}
+
+	public static bool IsAccepted(InvitationStatus status) {
+		return status == InvitationStatus.Accepted;
+	}
+
+	public static bool IsRevoked(InvitationStatus status) {
+		return status == InvitationStatus.Revoked;
+	}
+
+	public static InvitationEffectiveStatus GetEffectiveStatus(
+		InvitationStatus status,
+		DateTime expiresAt,
+		DateTime utcNow
+	) {
+		// Effective status is what list/filter APIs expose; it can include derived Expired.
+		if (status == InvitationStatus.Pending && expiresAt <= utcNow) {
+			return InvitationEffectiveStatus.Expired;
 		}
 
-		if (string.Equals(status, nameof(InvitationStatus.Accepted), StringComparison.OrdinalIgnoreCase)) {
-			return InvitationStatus.Accepted;
+		return status switch {
+			InvitationStatus.Pending => InvitationEffectiveStatus.Pending,
+			InvitationStatus.Accepted => InvitationEffectiveStatus.Accepted,
+			InvitationStatus.Revoked => InvitationEffectiveStatus.Revoked,
+			_ => InvitationEffectiveStatus.Pending,
+		};
+	}
+
+	public static InvitationEffectiveStatus? ParseEffectiveStatus(string status) {
+		if (string.Equals(status, nameof(InvitationEffectiveStatus.Pending), StringComparison.OrdinalIgnoreCase)) {
+			return InvitationEffectiveStatus.Pending;
 		}
 
-		if (string.Equals(status, nameof(InvitationStatus.Expired), StringComparison.OrdinalIgnoreCase)) {
-			return InvitationStatus.Expired;
+		if (string.Equals(status, nameof(InvitationEffectiveStatus.Accepted), StringComparison.OrdinalIgnoreCase)) {
+			return InvitationEffectiveStatus.Accepted;
 		}
 
-		if (string.Equals(status, nameof(InvitationStatus.Revoked), StringComparison.OrdinalIgnoreCase)) {
-			return InvitationStatus.Revoked;
+		if (string.Equals(status, nameof(InvitationEffectiveStatus.Expired), StringComparison.OrdinalIgnoreCase)) {
+			return InvitationEffectiveStatus.Expired;
+		}
+
+		if (string.Equals(status, nameof(InvitationEffectiveStatus.Revoked), StringComparison.OrdinalIgnoreCase)) {
+			return InvitationEffectiveStatus.Revoked;
 		}
 
 		return null;
 	}
 
-	public static string GetStatusDescription(InvitationStatus status) {
+	public static string GetPersistedStatusDescription(InvitationStatus status) {
 		return status switch {
 			InvitationStatus.Pending => nameof(InvitationStatus.Pending),
 			InvitationStatus.Accepted => nameof(InvitationStatus.Accepted),
-			InvitationStatus.Expired => nameof(InvitationStatus.Expired),
 			InvitationStatus.Revoked => nameof(InvitationStatus.Revoked),
+			_ => "Unknown",
+		};
+	}
+
+	public static string GetEffectiveStatusDescription(InvitationEffectiveStatus status) {
+		return status switch {
+			InvitationEffectiveStatus.Pending => nameof(InvitationEffectiveStatus.Pending),
+			InvitationEffectiveStatus.Accepted => nameof(InvitationEffectiveStatus.Accepted),
+			InvitationEffectiveStatus.Expired => nameof(InvitationEffectiveStatus.Expired),
+			InvitationEffectiveStatus.Revoked => nameof(InvitationEffectiveStatus.Revoked),
 			_ => "Unknown",
 		};
 	}
@@ -227,6 +282,12 @@ public enum InvitationScope {
 }
 
 public enum InvitationStatus {
+	Pending,
+	Accepted,
+	Revoked
+}
+
+public enum InvitationEffectiveStatus {
 	Pending,
 	Accepted,
 	Expired,

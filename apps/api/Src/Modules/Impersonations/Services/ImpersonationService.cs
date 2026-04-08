@@ -48,7 +48,7 @@ public class ImpersonationService : IImpersonationService {
 			from ua in _dbContext.UserAccount
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
-				&& ua.IsSuspended == false
+				&& ua.Status != AccountStatus.Suspended
 			orderby ua.Level descending, ua.CreatedAt ascending
 			select ua;
 

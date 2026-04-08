@@ -108,8 +108,7 @@ public sealed class AcceptInvitationSpec
 		picker.ActiveCount.Should().Be(1);
 		picker.Tenants.Should().ContainSingle(t =>
 			t.Id == invitation.TenantId &&
-			t.Status == "Active" &&
-			t.IsActive
+			t.Status == "Active"
 		);
 
 		await using var assertScope = _fixture.Factory.Services.CreateAsyncScope();
@@ -120,7 +119,6 @@ public sealed class AcceptInvitationSpec
 			.SingleAsync();
 
 		tenant.Status.Should().Be(TenantStatus.Active);
-		tenant.IsSuspended.Should().BeFalse();
 	}
 
 	[Fact]
@@ -163,7 +161,7 @@ public sealed class AcceptInvitationSpec
 			.Where(inv =>
 				inv.Email == inviteEmail &&
 				inv.Scope == InvitationScope.Tenant &&
-				inv.IsAccepted == false
+				inv.Status == InvitationStatus.Pending
 			)
 			.OrderByDescending(inv => inv.CreatedAt)
 			.FirstAsync();
@@ -201,8 +199,7 @@ public sealed class AcceptInvitationSpec
 		picker.Should().NotBeNull();
 		picker!.Tenants.Should().Contain(t =>
 			t.Id == invitation.TenantId &&
-			t.Status == "Active" &&
-			t.IsActive
+			t.Status == "Active"
 		);
 
 		await using var assertScope = _fixture.Factory.Services.CreateAsyncScope();
@@ -213,7 +210,6 @@ public sealed class AcceptInvitationSpec
 			.SingleAsync();
 
 		tenant.Status.Should().Be(TenantStatus.Active);
-		tenant.IsSuspended.Should().BeFalse();
 	}
 
 	private sealed record InvitationAcceptedResponse {
@@ -225,7 +221,6 @@ public sealed class AcceptInvitationSpec
 	private sealed record PickerTenantItem {
 		public Guid Id { get; init; }
 		public string Status { get; init; } = string.Empty;
-		public bool IsActive { get; init; }
 	}
 
 	private sealed record PickerResponse {

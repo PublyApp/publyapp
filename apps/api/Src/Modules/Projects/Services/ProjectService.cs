@@ -28,7 +28,7 @@ public class ProjectService : IProjectService {
 		CancellationToken cancellationToken = default
 	) {
 		return await _dbContext.Project
-			.Where(x => x.Id == projectId)
+			.Where(x => x.Id == projectId && !x.IsDeleted)
 			.FirstOrDefaultAsync(cancellationToken);
 	}
 
@@ -37,7 +37,11 @@ public class ProjectService : IProjectService {
 		CancellationToken cancellationToken = default
 	) {
 		return await _dbContext.Project
-			.Where(x => x.TenantId == tenantId && x.IsActive)
+			.Where(x =>
+				x.TenantId == tenantId
+				&& !x.IsDeleted
+				&& x.Status == ProjectStatus.Active
+			)
 			.OrderBy(x => x.Name)
 			.ToListAsync(cancellationToken);
 	}
@@ -63,7 +67,9 @@ public class ProjectService : IProjectService {
 	public async Task DeleteProjectAsync(Guid projectId, CancellationToken cancellationToken = default) {
 		var project = await GetProjectAsync(projectId, cancellationToken);
 		if (project is not null) {
-			project.IsActive = false; // Soft delete
+			// Deletion is audit state. ProjectStatus.Inactive remains available for non-deleted projects.
+			project.IsDeleted = true;
+			project.DeletedAt = DateTime.UtcNow;
 			await _dbContext.SaveChangesAsync(cancellationToken);
 		}
 	}

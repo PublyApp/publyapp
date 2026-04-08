@@ -76,7 +76,6 @@ export type TenantRowData = {
 	usersCount: number;
 	maxUsers: number;
 	status: string;
-	isSuspended: boolean;
 	createdAt?: Date;
 	updatedAt?: Date;
 	code?: string;
@@ -90,7 +89,6 @@ const TenantRowDataMapper = (tenant: TenantAsStaffListItem): TenantRowData => {
 		usersCount: getUntypedNumber(tenant.usersCount, 0),
 		maxUsers: getUntypedNumber(tenant.maxUsers, 0),
 		status: tenant.status || '-',
-		isSuspended: tenant.isSuspended ?? false,
 	};
 };
 
@@ -490,13 +488,12 @@ const TenantsTable = () => {
 		const rowsToExport = isSelectionMode ? selectedRows : dataTable;
 
 		if (format === 'csv') {
-			const headers = ['Name', 'Status', 'Users', 'Max Users', 'Suspended'];
+			const headers = ['Name', 'Status', 'Users', 'Max Users'];
 			const rows = rowsToExport.map((row) => [
 				`"${row.name}"`,
 				row.status,
 				row.usersCount.toString(),
 				row.maxUsers.toString(),
-				row.isSuspended ? 'Yes' : 'No',
 			]);
 			const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
 			const blob = new Blob([csv], { type: 'text/csv' });
@@ -1080,9 +1077,7 @@ const StatusCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 	const tenant = props.row.original;
 
 	const status = props.cell.getValue();
-	const effectiveStatus = tenant.isSuspended
-		? TENANT_STATUS_ENUM.SUSPENDED
-		: status;
+	const effectiveStatus = status;
 
 	let color: LabelColor = 'default';
 	let label = status || _.toLower(t('unknown-item', { item: 'status' }));
@@ -1294,7 +1289,7 @@ const DeleteTenantAction = ({ tenant }: TenantActionProps) => {
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-	const canDelete = tenant.isSuspended;
+	const canDelete = tenant.status === TENANT_STATUS_ENUM.SUSPENDED;
 
 	const { mutate: deleteTenant, isPending: isDeleting } = useDeleteTenant({
 		meta: { successMessage: 'tenant-deleted-success' },

@@ -23,7 +23,6 @@ public class TenantAsStaffListItem {
 	public required int UsersCount { get; init; }
 	public required int MaxUsers { get; init; }
 	public required string Status { get; init; }
-	public required bool IsSuspended { get; init; }
 }
 
 public record CreateTenantWithInitialUsersResult {
@@ -453,7 +452,6 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				UsersCount = usersCountDict.GetValueOrDefault(tenantId, 0),
 				MaxUsers = t.MaxUsers,
 				Status = Tenant.GetStatusDescription(t.Status),
-				IsSuspended = t.IsSuspended
 			};
 		}).ToList();
 
@@ -578,10 +576,10 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		if (tenant is null) {
 			return new SuspendTenantResult.NotFound();
 		}
-		if (tenant.IsSuspended) {
+		if (tenant.IsSuspended()) {
 			return new SuspendTenantResult.AlreadySuspended();
 		}
-		if (tenant.Status != TenantStatus.Active) {
+		if (!tenant.IsActive()) {
 			return new SuspendTenantResult.NotActiveStatus();
 		}
 
@@ -590,11 +588,10 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			.Where(t =>
 				t.Id == tenantId &&
 				!t.IsDeleted &&
-				!t.IsSuspended &&
+				t.Status != TenantStatus.Suspended &&
 				t.Status == TenantStatus.Active)
 			.ExecuteUpdateAsync(
 				setters => setters
-					.SetProperty(t => t.IsSuspended, true)
 					.SetProperty(t => t.Status, TenantStatus.Suspended)
 					.SetProperty(t => t.UpdatedAt, DateTime.UtcNow),
 				cancellationToken);
@@ -634,7 +631,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		if (tenant is null) {
 			return new ReactivateTenantResult.NotFound();
 		}
-		if (!tenant.IsSuspended) {
+		if (!tenant.IsSuspended()) {
 			return new ReactivateTenantResult.NotSuspended();
 		}
 
@@ -643,11 +640,9 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			.Where(t =>
 				t.Id == tenantId &&
 				!t.IsDeleted &&
-				t.IsSuspended &&
 				t.Status == TenantStatus.Suspended)
 			.ExecuteUpdateAsync(
 				setters => setters
-					.SetProperty(t => t.IsSuspended, false)
 					.SetProperty(t => t.Status, TenantStatus.Active)
 					.SetProperty(t => t.UpdatedAt, DateTime.UtcNow),
 				cancellationToken);
@@ -754,7 +749,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			return new DeleteTenantResult.NotFound();
 		}
 
-		if (!tenant.IsSuspended) {
+		if (!tenant.IsSuspended()) {
 			return new DeleteTenantResult.NotSuspended();
 		}
 
@@ -763,7 +758,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			.Where(t =>
 				t.Id == tenantId
 				&& !t.IsDeleted
-				&& t.IsSuspended)
+				&& t.Status == TenantStatus.Suspended)
 			.ExecuteUpdateAsync(
 				setters => setters
 					.SetProperty(t => t.IsDeleted, true)
