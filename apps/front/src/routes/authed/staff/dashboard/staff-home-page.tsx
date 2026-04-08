@@ -203,7 +203,7 @@ const SparkBars = ({
 		>
 			{values.map((v, i) => (
 				<Box
-					key={`bar-${i}-${v}`}
+					key={`bar-${i}`}
 					sx={{
 						flex: 1,
 						minWidth: thin ? 2 : 4,
@@ -277,9 +277,9 @@ const SegmentedBar = ({
 			backgroundColor: (theme) => varAlpha(theme.vars.palette.grey[500], 0.12),
 		}}
 	>
-		{segments.map((s, i) => (
+		{segments.map((s) => (
 			<Box
-				key={`${s.color}-${i}`}
+				key={s.color}
 				sx={{
 					width: `${s.pct}%`,
 					backgroundColor: s.color,
