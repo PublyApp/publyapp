@@ -35,6 +35,11 @@ type CompetitorMock = {
 	color: string;
 };
 
+type SparkBarPoint = {
+	id: string;
+	value: number;
+};
+
 const DASHBOARD_INSPIRATION = {
 	dateRangeLabel: '1 Oct – 30 Oct, 2025',
 	kpis: [
@@ -77,9 +82,37 @@ const DASHBOARD_INSPIRATION = {
 		deltaPct: 12.5,
 		positive: true,
 		bars: [
-			12, 18, 14, 22, 30, 26, 34, 28, 36, 40, 38, 44, 42, 48, 52, 49, 55, 58,
-			54, 60, 62, 58, 64, 68, 70, 66, 72, 76, 74, 78,
-		],
+			{ id: 'day-01', value: 12 },
+			{ id: 'day-02', value: 18 },
+			{ id: 'day-03', value: 14 },
+			{ id: 'day-04', value: 22 },
+			{ id: 'day-05', value: 30 },
+			{ id: 'day-06', value: 26 },
+			{ id: 'day-07', value: 34 },
+			{ id: 'day-08', value: 28 },
+			{ id: 'day-09', value: 36 },
+			{ id: 'day-10', value: 40 },
+			{ id: 'day-11', value: 38 },
+			{ id: 'day-12', value: 44 },
+			{ id: 'day-13', value: 42 },
+			{ id: 'day-14', value: 48 },
+			{ id: 'day-15', value: 52 },
+			{ id: 'day-16', value: 49 },
+			{ id: 'day-17', value: 55 },
+			{ id: 'day-18', value: 58 },
+			{ id: 'day-19', value: 54 },
+			{ id: 'day-20', value: 60 },
+			{ id: 'day-21', value: 62 },
+			{ id: 'day-22', value: 58 },
+			{ id: 'day-23', value: 64 },
+			{ id: 'day-24', value: 68 },
+			{ id: 'day-25', value: 70 },
+			{ id: 'day-26', value: 66 },
+			{ id: 'day-27', value: 72 },
+			{ id: 'day-28', value: 76 },
+			{ id: 'day-29', value: 74 },
+			{ id: 'day-30', value: 78 },
+		] satisfies SparkBarPoint[],
 	},
 	citationRank: {
 		title: 'Platform share',
@@ -115,9 +148,27 @@ const DASHBOARD_INSPIRATION = {
 		deltaPct: 8.1,
 		positive: true,
 		bars: [
-			28, 32, 30, 36, 34, 40, 38, 44, 42, 48, 46, 52, 50, 56, 54, 60, 58, 62,
-			60, 64,
-		],
+			{ id: 'event-01', value: 28 },
+			{ id: 'event-02', value: 32 },
+			{ id: 'event-03', value: 30 },
+			{ id: 'event-04', value: 36 },
+			{ id: 'event-05', value: 34 },
+			{ id: 'event-06', value: 40 },
+			{ id: 'event-07', value: 38 },
+			{ id: 'event-08', value: 44 },
+			{ id: 'event-09', value: 42 },
+			{ id: 'event-10', value: 48 },
+			{ id: 'event-11', value: 46 },
+			{ id: 'event-12', value: 52 },
+			{ id: 'event-13', value: 50 },
+			{ id: 'event-14', value: 56 },
+			{ id: 'event-15', value: 54 },
+			{ id: 'event-16', value: 60 },
+			{ id: 'event-17', value: 58 },
+			{ id: 'event-18', value: 62 },
+			{ id: 'event-19', value: 60 },
+			{ id: 'event-20', value: 64 },
+		] satisfies SparkBarPoint[],
 	},
 	activity: [
 		{
@@ -184,13 +235,17 @@ const SparkBars = ({
 	height = 120,
 	thin = false,
 }: {
-	values: number[];
+	values: SparkBarPoint[];
 	barColor: string;
 	gap?: number;
 	height?: number;
 	thin?: boolean;
 }) => {
-	const max = maxOf(values);
+	const max = maxOf(
+		values.map((bar) => {
+			return bar.value;
+		}),
+	);
 	return (
 		<Box
 			sx={{
@@ -201,14 +256,14 @@ const SparkBars = ({
 				width: '100%',
 			}}
 		>
-			{values.map((v, i) => (
+			{values.map((bar) => (
 				<Box
-					key={`bar-${i}`}
+					key={bar.id}
 					sx={{
 						flex: 1,
 						minWidth: thin ? 2 : 4,
 						borderRadius: 0.5,
-						height: `${(v / max) * 100}%`,
+						height: `${(bar.value / max) * 100}%`,
 						backgroundColor: barColor,
 					}}
 				/>
