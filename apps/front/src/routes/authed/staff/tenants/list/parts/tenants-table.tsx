@@ -33,7 +33,7 @@ import { useDebounce } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
 import { nanoid } from 'nanoid';
 import { parseAsString, useQueryStates } from 'nuqs';
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 
 import type { TenantAsStaffListItem } from '@org/client-ts/src/models';
 import {
@@ -138,7 +138,6 @@ const TenantsTable = () => {
 		apiVariables,
 		tableState,
 		setNextCursor,
-		hasNextPage,
 		hasPreviousPage,
 		resetCursorPagination,
 	} = useTableState({
@@ -415,12 +414,15 @@ const TenantsTable = () => {
 		},
 	});
 
-	// Sync latest cursor into the table state outside render
-	useEffect(() => {
-		if (setNextCursor) {
-			setNextCursor(tenantsQuery.data?.nextCursor ?? null);
-		}
-	}, [tenantsQuery.data?.nextCursor, setNextCursor]);
+	const handleCursorPaginationChange: typeof handlePaginationChange =
+		useCallback(
+			(updater) => {
+				setNextCursor?.(tenantsQuery.data?.nextCursor ?? null);
+				handlePaginationChange(updater);
+			},
+			[handlePaginationChange, tenantsQuery.data?.nextCursor, setNextCursor],
+		);
+	const hasNextPage = tenantsQuery.data?.nextCursor != null;
 
 	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
 		query: tenantsQuery,
@@ -789,7 +791,7 @@ const TenantsTable = () => {
 			rowSelection,
 		},
 		meta: {
-			handlePaginationChange,
+			handlePaginationChange: handleCursorPaginationChange,
 			hasNextPage,
 			hasPreviousPage,
 			isPending: tenantsQuery.isPending,

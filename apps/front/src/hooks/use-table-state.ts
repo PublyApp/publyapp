@@ -5,7 +5,7 @@ import type {
 	MRT_SortingState,
 } from 'material-react-table';
 import { parseAsString, parseAsStringLiteral, useQueryStates } from 'nuqs';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { DEFAULT_PAGE_SIZE } from '@org/shared-ts/lib/constants';
 
@@ -70,6 +70,7 @@ export type UseTableStateReturn = {
 	setNextCursor?: (cursor: string | null | undefined) => void;
 	hasNextPage?: boolean;
 	hasPreviousPage?: boolean;
+	resetCursorPagination?: () => void;
 };
 
 // Default query keys
@@ -111,10 +112,28 @@ export const useTableState = (
 	// Cursor-specific state (only used in cursor mode)
 	const [_cursorHistory, setCursorHistory] = useState<string[]>([]);
 	const [currentCursor, setCurrentCursor] = useState<string | null>(null);
-	const [nextCursor, setNextCursor] = useState<string | null | undefined>(
+	const [virtualPageIndex, setVirtualPageIndex] = useState(0);
+	// Track the next cursor in state so pagination updates stay explicit.
+	const [nextCursor, setNextCursorState] = useState<string | null | undefined>(
 		undefined,
 	);
-	const [virtualPageIndex, setVirtualPageIndex] = useState(0);
+	const nextCursorRef = useRef<string | null | undefined>(undefined);
+
+	const setNextCursor = useCallback((cursor: string | null | undefined) => {
+		nextCursorRef.current = cursor;
+		setNextCursorState(cursor);
+	}, []);
+
+	// Explicit reset for cursor pagination when external filters change.
+	const resetCursorPagination = useCallback(() => {
+		if (paginationMode !== 'cursor') {
+			return;
+		}
+		setCursorHistory([]);
+		setCurrentCursor(null);
+		setNextCursor(undefined);
+		setVirtualPageIndex(0);
+	}, [paginationMode]);
 
 	// Pagination state (conditional based on mode)
 	const [paginationState, setPaginationState] = useQueryStates(
@@ -205,10 +224,10 @@ export const useTableState = (
 
 				const newPageIndex = newPagination.pageIndex;
 				const currentPageIndex = virtualPageIndex;
-
+				const currentNextCursor = nextCursorRef.current;
 				if (newPageIndex > currentPageIndex) {
 					// Going forward
-					if (nextCursor) {
+					if (currentNextCursor) {
 						// Push current cursor to history (limit to MAX_CURSOR_HISTORY)
 						setCursorHistory((prev) => {
 							const newHistory = currentCursor
@@ -217,7 +236,7 @@ export const useTableState = (
 							// Keep only the last MAX_CURSOR_HISTORY items
 							return newHistory.slice(-MAX_CURSOR_HISTORY);
 						});
-						setCurrentCursor(nextCursor);
+						setCurrentCursor(currentNextCursor);
 						setVirtualPageIndex(newPageIndex);
 					}
 				} else if (newPageIndex < currentPageIndex) {
@@ -279,7 +298,6 @@ export const useTableState = (
 			setPaginationState,
 			virtualPageIndex,
 			currentCursor,
-			nextCursor,
 		],
 	);
 
@@ -344,5 +362,7 @@ export const useTableState = (
 		setNextCursor: paginationMode === 'cursor' ? setNextCursor : undefined,
 		hasNextPage,
 		hasPreviousPage,
+		resetCursorPagination:
+			paginationMode === 'cursor' ? resetCursorPagination : undefined,
 	};
 };

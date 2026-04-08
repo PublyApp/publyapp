@@ -15,7 +15,7 @@ import {
 	type MRT_ColumnDef,
 	type MRT_SortingState,
 } from 'material-react-table';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import type { AuditLogListItem } from '@org/client-ts/src/models';
 import {
@@ -82,7 +82,6 @@ const StaffAuditLogsTable = () => {
 		apiVariables,
 		tableState,
 		setNextCursor,
-		hasNextPage,
 		hasPreviousPage,
 		resetCursorPagination,
 	} = useTableState({
@@ -127,11 +126,15 @@ const StaffAuditLogsTable = () => {
 		},
 	});
 
-	useEffect(() => {
-		if (setNextCursor) {
-			setNextCursor(auditLogsQuery.data?.nextCursor);
-		}
-	}, [auditLogsQuery.data?.nextCursor, setNextCursor]);
+	const handleCursorPaginationChange: typeof handlePaginationChange =
+		useCallback(
+			(updater) => {
+				setNextCursor?.(auditLogsQuery.data?.nextCursor);
+				handlePaginationChange(updater);
+			},
+			[handlePaginationChange, auditLogsQuery.data?.nextCursor, setNextCursor],
+		);
+	const hasNextPage = auditLogsQuery.data?.nextCursor != null;
 
 	const dataTable = useMemo(() => {
 		return _.map(auditLogsQuery.data?.data, AuditLogRowDataMapper);
@@ -194,7 +197,7 @@ const StaffAuditLogsTable = () => {
 		},
 		renderEmptyRowsFallback,
 		meta: {
-			handlePaginationChange,
+			handlePaginationChange: handleCursorPaginationChange,
 			hasNextPage,
 			hasPreviousPage,
 			isPending: auditLogsQuery.isPending,

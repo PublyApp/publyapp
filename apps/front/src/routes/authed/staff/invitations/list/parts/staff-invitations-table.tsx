@@ -18,7 +18,7 @@ import {
 	type MRT_SortingState,
 } from 'material-react-table';
 import { useBoolean } from 'minimal-shared/hooks';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import type { InvitationListItem } from '@org/client-ts/src/models';
 import {
@@ -110,7 +110,6 @@ const StaffInvitationsTable = () => {
 		apiVariables,
 		tableState,
 		setNextCursor,
-		hasNextPage,
 		hasPreviousPage,
 		resetCursorPagination,
 	} = useTableState({
@@ -154,12 +153,19 @@ const StaffInvitationsTable = () => {
 		},
 	});
 
-	// Sync latest cursor into the table state outside render.
-	useEffect(() => {
-		if (setNextCursor) {
-			setNextCursor(invitationsQuery.data?.nextCursor);
-		}
-	}, [invitationsQuery.data?.nextCursor, setNextCursor]);
+	const handleCursorPaginationChange: typeof handlePaginationChange =
+		useCallback(
+			(updater) => {
+				setNextCursor?.(invitationsQuery.data?.nextCursor);
+				handlePaginationChange(updater);
+			},
+			[
+				handlePaginationChange,
+				invitationsQuery.data?.nextCursor,
+				setNextCursor,
+			],
+		);
+	const hasNextPage = invitationsQuery.data?.nextCursor != null;
 
 	const dataTable = useMemo(() => {
 		return _.map(invitationsQuery.data?.data, StaffInvitationRowDataMapper);
@@ -233,7 +239,7 @@ const StaffInvitationsTable = () => {
 		},
 		renderEmptyRowsFallback,
 		meta: {
-			handlePaginationChange,
+			handlePaginationChange: handleCursorPaginationChange,
 			hasNextPage,
 			hasPreviousPage,
 			isPending: invitationsQuery.isPending,
