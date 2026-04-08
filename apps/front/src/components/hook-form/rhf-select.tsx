@@ -19,11 +19,14 @@ type RHFSelectProps = TextFieldProps & {
 	children: React.ReactNode;
 };
 
+const EMPTY_TEXT_FIELD_SLOT_PROPS: NonNullable<TextFieldProps['slotProps']> =
+	{};
+
 export const RHFSelect = ({
 	name,
 	children,
 	helperText,
-	slotProps = {},
+	slotProps = EMPTY_TEXT_FIELD_SLOT_PROPS,
 	...other
 }: RHFSelectProps) => {
 	const { control } = useFormContext();
