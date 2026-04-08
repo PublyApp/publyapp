@@ -34,8 +34,10 @@ export type ContactsPopoverProps = IconButtonProps & {
 	}[];
 };
 
+const EMPTY_CONTACTS: NonNullable<ContactsPopoverProps['data']> = [];
+
 export const ContactsPopover = ({
-	data = [],
+	data = EMPTY_CONTACTS,
 	sx,
 	...other
 }: ContactsPopoverProps) => {

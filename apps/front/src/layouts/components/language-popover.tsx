@@ -6,6 +6,7 @@ import { usePopover } from 'minimal-shared/hooks';
 import { useCallback } from 'react';
 
 import type { AppLocale } from '@org/shared-ts/lib/i18n/resources';
+
 import {
 	transitionTap,
 	varHover,
@@ -25,8 +26,10 @@ export type LanguagePopoverProps = IconButtonProps & {
 	}[];
 };
 
+const EMPTY_LANGUAGE_OPTIONS: NonNullable<LanguagePopoverProps['data']> = [];
+
 export const LanguagePopover = ({
-	data = [],
+	data = EMPTY_LANGUAGE_OPTIONS,
 	sx,
 	...other
 }: LanguagePopoverProps) => {

@@ -16,7 +16,11 @@ import { primaryColorPresets } from '#app/lib/mui/theme/with-settings/index.ts';
 import { useSettingsContext } from '../../../hooks/use-settings-context';
 import { Iconify } from '../../iconify/iconify';
 import { Scrollbar } from '../../scrollbar';
-import type { SettingsDrawerProps, SettingsState } from '../types';
+import type {
+	SettingsContextValue,
+	SettingsDrawerProps,
+	SettingsState,
+} from '../types';
 import { BaseOption } from './base-option';
 import { FontFamilyOptions, FontSizeOptions } from './font-options';
 import { FullScreenButton } from './fullscreen-button';
@@ -27,21 +31,65 @@ import { LargeBlock, SmallBlock } from './styles';
 
 // ----------------------------------------------------------------------
 
-export const SettingsDrawer = ({
-	sx,
+type ColorSchemeControls = ReturnType<typeof useColorScheme>;
+
+type SettingsDrawerHeaderProps = {
+	canReset: boolean;
+	onCloseDrawer: () => void;
+	onReset: () => void;
+};
+
+const SettingsDrawerHeader = ({
+	canReset,
+	onCloseDrawer,
+	onReset,
+}: SettingsDrawerHeaderProps) => {
+	return (
+		<Box
+			sx={{
+				py: 2,
+				pr: 1,
+				pl: 2.5,
+				display: 'flex',
+				alignItems: 'center',
+			}}
+		>
+			<Typography variant="h6" sx={{ flexGrow: 1 }}>
+				Settings
+			</Typography>
+
+			<FullScreenButton />
+
+			<Tooltip title="Reset all">
+				<IconButton onClick={onReset}>
+					<Badge color="error" variant="dot" invisible={!canReset}>
+						<Iconify icon="solar:restart-bold" />
+					</Badge>
+				</IconButton>
+			</Tooltip>
+
+			<Tooltip title="Close">
+				<IconButton onClick={onCloseDrawer}>
+					<Iconify icon="mingcute:close-line" />
+				</IconButton>
+			</Tooltip>
+		</Box>
+	);
+};
+
+type SettingsOptionsPanelProps = {
+	defaultSettings: SettingsState;
+	mode: ColorSchemeControls['mode'];
+	setMode: ColorSchemeControls['setMode'];
+	settings: SettingsContextValue;
+};
+
+const SettingsOptionsPanel = ({
 	defaultSettings,
-}: SettingsDrawerProps) => {
-	const settings = useSettingsContext();
-
-	const { mode, setMode, systemMode } = useColorScheme();
-
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
-	useEffect(() => {
-		if (mode === 'system' && systemMode) {
-			settings.setState({ colorScheme: systemMode });
-		}
-	}, [mode, systemMode]);
-
+	mode,
+	setMode,
+	settings,
+}: SettingsOptionsPanelProps) => {
 	// Visible options by default settings
 	const isFontFamilyVisible = hasKeys(defaultSettings, ['fontFamily']);
 	const isCompactLayoutVisible = hasKeys(defaultSettings, ['compactLayout']);
@@ -52,45 +100,6 @@ export const SettingsDrawer = ({
 	const isNavLayoutVisible = hasKeys(defaultSettings, ['navLayout']);
 	const isPrimaryColorVisible = hasKeys(defaultSettings, ['primaryColor']);
 	const isFontSizeVisible = hasKeys(defaultSettings, ['fontSize']);
-
-	const handleReset = useCallback(() => {
-		settings.onReset();
-		setMode(defaultSettings.colorScheme as ThemeColorScheme);
-	}, [defaultSettings.colorScheme, setMode, settings]);
-
-	const renderHead = () => {
-		return (
-			<Box
-				sx={{
-					py: 2,
-					pr: 1,
-					pl: 2.5,
-					display: 'flex',
-					alignItems: 'center',
-				}}
-			>
-				<Typography variant="h6" sx={{ flexGrow: 1 }}>
-					Settings
-				</Typography>
-
-				<FullScreenButton />
-
-				<Tooltip title="Reset all">
-					<IconButton onClick={handleReset}>
-						<Badge color="error" variant="dot" invisible={!settings.canReset}>
-							<Iconify icon="solar:restart-bold" />
-						</Badge>
-					</IconButton>
-				</Tooltip>
-
-				<Tooltip title="Close">
-					<IconButton onClick={settings.onCloseDrawer}>
-						<Iconify icon="mingcute:close-line" />
-					</IconButton>
-				</Tooltip>
-			</Box>
-		);
-	};
 
 	const renderMode = () => {
 		return (
@@ -322,6 +331,56 @@ export const SettingsDrawer = ({
 	};
 
 	return (
+		<Box
+			sx={{
+				pb: 5,
+				gap: 6,
+				px: 2.5,
+				display: 'flex',
+				flexDirection: 'column',
+			}}
+		>
+			<Box
+				sx={{
+					gap: 2,
+					display: 'grid',
+					gridTemplateColumns: 'repeat(2, 1fr)',
+				}}
+			>
+				{isColorSchemeVisible && renderMode()}
+				{isContrastVisible && renderContrast()}
+				{isDirectionVisible && renderRtl()}
+				{isCompactLayoutVisible && renderCompact()}
+			</Box>
+
+			{(isNavColorVisible || isNavLayoutVisible) && renderNav()}
+			{isPrimaryColorVisible && renderPresets()}
+			{(isFontFamilyVisible || isFontSizeVisible) && renderFont()}
+		</Box>
+	);
+};
+
+export const SettingsDrawer = ({
+	sx,
+	defaultSettings,
+}: SettingsDrawerProps) => {
+	const settings = useSettingsContext();
+
+	const { mode, setMode, systemMode } = useColorScheme();
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
+	useEffect(() => {
+		if (mode === 'system' && systemMode) {
+			settings.setState({ colorScheme: systemMode });
+		}
+	}, [mode, systemMode]);
+
+	const handleReset = useCallback(() => {
+		settings.onReset();
+		setMode(defaultSettings.colorScheme as ThemeColorScheme);
+	}, [defaultSettings.colorScheme, setMode, settings]);
+
+	return (
 		<Drawer
 			anchor="right"
 			open={settings.openDrawer}
@@ -346,35 +405,19 @@ export const SettingsDrawer = ({
 				},
 			}}
 		>
-			{renderHead()}
+			<SettingsDrawerHeader
+				canReset={settings.canReset}
+				onCloseDrawer={settings.onCloseDrawer}
+				onReset={handleReset}
+			/>
 
 			<Scrollbar>
-				<Box
-					sx={{
-						pb: 5,
-						gap: 6,
-						px: 2.5,
-						display: 'flex',
-						flexDirection: 'column',
-					}}
-				>
-					<Box
-						sx={{
-							gap: 2,
-							display: 'grid',
-							gridTemplateColumns: 'repeat(2, 1fr)',
-						}}
-					>
-						{isColorSchemeVisible && renderMode()}
-						{isContrastVisible && renderContrast()}
-						{isDirectionVisible && renderRtl()}
-						{isCompactLayoutVisible && renderCompact()}
-					</Box>
-
-					{(isNavColorVisible || isNavLayoutVisible) && renderNav()}
-					{isPrimaryColorVisible && renderPresets()}
-					{(isFontFamilyVisible || isFontSizeVisible) && renderFont()}
-				</Box>
+				<SettingsOptionsPanel
+					defaultSettings={defaultSettings}
+					mode={mode}
+					setMode={setMode}
+					settings={settings}
+				/>
 			</Scrollbar>
 		</Drawer>
 	);

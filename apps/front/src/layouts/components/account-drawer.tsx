@@ -10,6 +10,7 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { useCallback } from 'react';
 
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
+
 import { AnimateBorder } from '#app/components/animate/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { Label } from '#app/components/label/index.ts';
@@ -33,8 +34,10 @@ export type AccountDrawerProps = IconButtonProps & {
 	}[];
 };
 
+const EMPTY_ACCOUNT_DRAWER_DATA: NonNullable<AccountDrawerProps['data']> = [];
+
 export const AccountDrawer = ({
-	data = [],
+	data = EMPTY_ACCOUNT_DRAWER_DATA,
 	sx,
 	...other
 }: AccountDrawerProps) => {

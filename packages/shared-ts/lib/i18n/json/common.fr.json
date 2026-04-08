@@ -187,7 +187,7 @@
 	"email-verification-follow-up-success": "Suivi de vérification email envoyé avec succès",
 	"email-verification-follow-up-error": "Échec de l'envoi du suivi de vérification email",
 	"email-x-already-verified": "L'email {{email}} est déjà vérifié",
-	"reset-password-description": "Entrez votre nouveau mot de passe pour <span style=\"font-weight: bold;\">{{email}}</span>",
+	"reset-password-description": "Entrez votre nouveau mot de passe pour <strong>{{email}}</strong>",
 	"password-reset-success": "Mot de passe réinitialisé avec succès",
 	"light-mode": "Mode clair",
 	"dark-mode": "Mode sombre",

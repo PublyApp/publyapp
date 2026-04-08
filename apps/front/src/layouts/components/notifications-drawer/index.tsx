@@ -27,6 +27,10 @@ import {
 
 // ----------------------------------------------------------------------
 
+type Notification = NotificationItemProps['notification'];
+
+const EMPTY_NOTIFICATIONS: Notification[] = [];
+
 const TABS = [
 	{ value: 'all', label: 'All', count: 22 },
 	{ value: 'unread', label: 'Unread', count: 12 },
@@ -40,7 +44,7 @@ export type NotificationsDrawerProps = IconButtonProps & {
 };
 
 export const NotificationsDrawer = ({
-	data = [],
+	data = EMPTY_NOTIFICATIONS,
 	sx,
 	...other
 }: NotificationsDrawerProps) => {
@@ -55,17 +59,31 @@ export const NotificationsDrawer = ({
 		[],
 	);
 
-	const [notifications, setNotifications] = useState(data);
+	const [readNotificationIds, setReadNotificationIds] = useState<Set<string>>(
+		() => {
+			return new Set();
+		},
+	);
+
+	const notifications = data.map((notification) => {
+		if (!notification.isUnRead || !readNotificationIds.has(notification.id)) {
+			return notification;
+		}
+
+		return { ...notification, isUnRead: false };
+	});
 
 	const totalUnRead = notifications.filter((item) => {
 		return item.isUnRead === true;
 	}).length;
 
 	const handleMarkAllAsRead = () => {
-		setNotifications(
-			notifications.map((notification) => {
-				return { ...notification, isUnRead: false };
-			}),
+		setReadNotificationIds(
+			new Set(
+				data.map((notification) => {
+					return notification.id;
+				}),
+			),
 		);
 	};
 

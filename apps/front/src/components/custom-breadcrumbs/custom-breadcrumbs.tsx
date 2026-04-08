@@ -43,15 +43,20 @@ export type CustomBreadcrumbsProps = React.ComponentProps<'div'> & {
 	slotProps?: Partial<CustomBreadcrumbsSlotProps>;
 };
 
+const EMPTY_BREADCRUMB_SLOTS: CustomBreadcrumbsSlots = {};
+const EMPTY_BREADCRUMB_LINKS: BreadcrumbsLinkProps[] = [];
+const EMPTY_MORE_LINKS: MoreLinksProps['links'] = [];
+const EMPTY_BREADCRUMB_SLOT_PROPS: Partial<CustomBreadcrumbsSlotProps> = {};
+
 export function CustomBreadcrumbs({
 	sx,
 	action,
 	backHref,
 	heading,
-	slots = {},
-	links = [],
-	moreLinks = [],
-	slotProps = {},
+	slots = EMPTY_BREADCRUMB_SLOTS,
+	links = EMPTY_BREADCRUMB_LINKS,
+	moreLinks = EMPTY_MORE_LINKS,
+	slotProps = EMPTY_BREADCRUMB_SLOT_PROPS,
 	activeLast = false,
 	...other
 }: CustomBreadcrumbsProps) {

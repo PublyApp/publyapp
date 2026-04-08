@@ -41,7 +41,10 @@ export const Editor = ({
 
 	const handleToggleFullScreen = useCallback(() => {
 		setFullScreen((prev) => {
-			return !prev;
+			const nextFullScreen = !prev;
+			document.body.style.overflow = nextFullScreen ? 'hidden' : '';
+
+			return nextFullScreen;
 		});
 	}, []);
 
@@ -119,12 +122,10 @@ export const Editor = ({
 	}, [content]);
 
 	useEffect(() => {
-		if (fullScreen) {
-			document.body.style.overflow = 'hidden';
-		} else {
+		return () => {
 			document.body.style.overflow = '';
-		}
-	}, [fullScreen]);
+		};
+	}, []);
 
 	return (
 		<Portal disablePortal={!fullScreen}>

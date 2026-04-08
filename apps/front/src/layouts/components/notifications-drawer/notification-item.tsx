@@ -26,20 +26,6 @@ export type NotificationItemProps = {
 	};
 };
 
-const readerContent = (data: string) => {
-	return (
-		<Box
-			// biome-ignore lint/security/noDangerouslySetInnerHtml: code from template, leave as is for now
-			dangerouslySetInnerHTML={{ __html: data }}
-			sx={{
-				'& p': { m: 0, typography: 'body2' },
-				'& a': { color: 'inherit', textDecoration: 'none' },
-				'& strong': { typography: 'subtitle2' },
-			}}
-		/>
-	);
-};
-
 const renderIcon = (type: string) => {
 	return {
 		order: notificationIcons.order,
@@ -82,7 +68,7 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 	const renderText = () => {
 		return (
 			<ListItemText
-				primary={readerContent(notification.title)}
+				primary={<Box sx={{ typography: 'body2' }}>{notification.title}</Box>}
 				secondary={
 					<>
 						{fToNow(notification.createdAt)}
@@ -157,11 +143,13 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 						borderRadius: 1.5,
 						color: 'text.secondary',
 						bgcolor: 'background.neutral',
+						m: 0,
+						typography: 'body2',
+						'& strong': { typography: 'subtitle2' },
 					}}
 				>
-					{readerContent(
-						'<p><strong>@Jaydon Frankie</strong> feedback by asking questions or just leave a note of appreciation.</p>',
-					)}
+					<strong>@Jaydon Frankie</strong> feedback by asking questions or just
+					leave a note of appreciation.
 				</Box>
 
 				<Button
