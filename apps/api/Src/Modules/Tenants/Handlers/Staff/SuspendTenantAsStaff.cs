@@ -22,7 +22,6 @@ public record SuspendTenantAsStaffBody {
 public record TenantSuspendedResult {
 	public required Guid TenantId { get; init; }
 	public required string Name { get; init; }
-	public required bool IsSuspended { get; init; }
 	public required string Status { get; init; }
 }
 
@@ -127,7 +126,6 @@ public class SuspendTenantAsStaff {
 		return TypedResults.Ok(new TenantSuspendedResult {
 			TenantId = tenant.GetRequiredId(),
 			Name = tenant.Name,
-			IsSuspended = tenant.IsSuspended,
 			Status = Tenant.GetStatusDescription(tenant.Status)
 		});
 	}

@@ -26,10 +26,8 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 	public string? LogoUrl { get; set; }
 
 	[Column("status")]
+	// Tenant lifecycle. Soft deletion still uses BaseAttributes.IsDeleted.
 	public TenantStatus Status { get; set; } = TenantStatus.Pending;
-
-	[Column("is_suspended")]
-	public bool IsSuspended { get; set; } = false;
 
 	[Column("max_users")]
 	public required int MaxUsers { get; set; }
@@ -63,23 +61,45 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 	}
 
 	public static bool IsTenantActive(Tenant tenant) {
-		return tenant.Status == TenantStatus.Active && !tenant.IsSuspended;
+		return tenant.IsActive();
+	}
+
+	public bool IsPending() {
+		return IsPending(Status);
+	}
+
+	public bool IsActive() {
+		return IsActive(Status);
+	}
+
+	public bool IsSuspended() {
+		return IsSuspended(Status);
+	}
+
+	public static bool IsPending(TenantStatus status) {
+		return status == TenantStatus.Pending;
+	}
+
+	public static bool IsActive(TenantStatus status) {
+		return status == TenantStatus.Active;
+	}
+
+	public static bool IsSuspended(TenantStatus status) {
+		return status == TenantStatus.Suspended;
 	}
 
 	public bool Suspend() {
-		if (IsSuspended || Status != TenantStatus.Active) {
+		if (IsSuspended() || !IsActive()) {
 			return false;
 		}
-		IsSuspended = true;
 		Status = TenantStatus.Suspended;
 		return true;
 	}
 
 	public bool Reactivate() {
-		if (!IsSuspended || Status != TenantStatus.Suspended) {
+		if (!IsSuspended()) {
 			return false;
 		}
-		IsSuspended = false;
 		Status = TenantStatus.Active;
 		return true;
 	}

@@ -33,12 +33,8 @@ public class User : BaseAttributes, INoTenantEntity {
 	public string? AvatarUrl { get; set; }
 
 	[Column("status")]
+	// Global identity lifecycle. Suspended here dominates all staff/tenant/project memberships.
 	public UserStatus Status { get; set; } = UserStatus.Inactive;
-
-	// Global identity suspension dominates membership activity:
-	// a suspended user must not retain active staff/tenant/project accounts.
-	[Column("is_suspended")]
-	public bool IsSuspended { get; set; } = false;
 
 	[Column("is_verified")]
 	public bool IsVerified { get; set; } = false;
@@ -67,7 +63,6 @@ public class User : BaseAttributes, INoTenantEntity {
 			UserStatus.Pending => nameof(UserStatus.Pending),
 			UserStatus.Suspended => nameof(UserStatus.Suspended),
 			UserStatus.Active => nameof(UserStatus.Active),
-			UserStatus.Banned => nameof(UserStatus.Banned),
 			_ => "Unknown",
 		};
 	}
@@ -89,11 +84,39 @@ public class User : BaseAttributes, INoTenantEntity {
 		if (isActive) {
 			return UserStatus.Active;
 		}
-		var isBanned = string.Compare(statusString, nameof(UserStatus.Banned), StringComparison.OrdinalIgnoreCase) == 0;
-		if (isBanned) {
-			return UserStatus.Banned;
-		}
 		return null;
+	}
+
+	public bool IsInactive() {
+		return IsInactive(Status);
+	}
+
+	public bool IsPending() {
+		return IsPending(Status);
+	}
+
+	public bool IsSuspended() {
+		return IsSuspended(Status);
+	}
+
+	public bool IsActive() {
+		return IsActive(Status);
+	}
+
+	public static bool IsInactive(UserStatus status) {
+		return status == UserStatus.Inactive;
+	}
+
+	public static bool IsPending(UserStatus status) {
+		return status == UserStatus.Pending;
+	}
+
+	public static bool IsSuspended(UserStatus status) {
+		return status == UserStatus.Suspended;
+	}
+
+	public static bool IsActive(UserStatus status) {
+		return status == UserStatus.Active;
 	}
 }
 
@@ -102,5 +125,4 @@ public enum UserStatus {
 	Pending = 20,
 	Suspended = 30,
 	Active = 40,
-	Banned = 50,
 }

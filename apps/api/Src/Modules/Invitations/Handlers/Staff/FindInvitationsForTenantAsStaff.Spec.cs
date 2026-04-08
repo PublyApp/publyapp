@@ -110,6 +110,7 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff {
 			_ = invitation.Email.Should().NotBeNullOrEmpty();
 			_ = invitation.Scope.Should().Be("Tenant");
 			_ = invitation.ProfileName.Should().NotBeNull();
+			_ = invitation.Status.Should().Be("Pending");
 			_ = invitation.ExpiresAt.Should().BeAfter(DateTime.UtcNow);
 			_ = invitation.CreatedAt.Should().BeBefore(DateTime.UtcNow.AddMinutes(1));
 			_ = invitation.InvitedByName.Should().NotBeNullOrEmpty();
@@ -597,8 +598,7 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff {
 			_ = result!.Data.Should().Contain(
 				i =>
 					i.Email.Equals(pendingEmail, StringComparison.OrdinalIgnoreCase) &&
-					!i.IsAccepted &&
-					!i.IsRevoked
+					i.Status == "Pending"
 			);
 		}
 
@@ -631,7 +631,7 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff {
 					.GetRequiredService<MainApiDbContext>();
 				Invitation? invitation = await dbContext.Invitation
 					.FindAsync(invitationId);
-				invitation!.IsAccepted = true;
+				invitation!.Status = InvitationStatus.Accepted;
 				invitation.AcceptedAt = DateTime.UtcNow;
 				_ = await dbContext.SaveChangesAsync();
 			}
@@ -653,7 +653,7 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff {
 			_ = result!.Data.Should().Contain(
 				i =>
 					i.Email.Equals(acceptedEmail, StringComparison.OrdinalIgnoreCase) &&
-					i.IsAccepted
+					i.Status == "Accepted"
 			);
 		}
 
@@ -702,9 +702,9 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff {
 			_ = result!.Data.Should().Contain(
 				i =>
 					i.Email.Equals(revokedEmail, StringComparison.OrdinalIgnoreCase) &&
-					i.IsRevoked
+					i.Status == "Revoked"
 			);
-			_ = result.Data.Should().OnlyContain(i => i.IsRevoked);
+			_ = result.Data.Should().OnlyContain(i => i.Status == "Revoked");
 		}
 
 		[Fact]
@@ -773,8 +773,7 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff {
 			_ = result!.Data.Should().Contain(
 				i =>
 					i.Email.Equals(expiredEmail, StringComparison.OrdinalIgnoreCase) &&
-					!i.IsAccepted &&
-					!i.IsRevoked
+					i.Status == "Expired"
 			);
 		}
 
@@ -836,15 +835,16 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff {
 			_ = result!.Data.Should().Contain(
 				i =>
 					i.Email.Equals(pendingEmail, StringComparison.OrdinalIgnoreCase) &&
-					!i.IsRevoked &&
-					!i.IsAccepted
+					i.Status == "Pending"
 			);
 			_ = result.Data.Should().Contain(
 				i =>
 					i.Email.Equals(revokedEmail, StringComparison.OrdinalIgnoreCase) &&
-					i.IsRevoked
+					i.Status == "Revoked"
 			);
-			_ = result.Data.Should().OnlyContain(i => !i.IsAccepted);
+			_ = result.Data.Should().OnlyContain(i =>
+				i.Status == "Pending" || i.Status == "Revoked"
+			);
 		}
 
 		[Fact]
@@ -1191,9 +1191,7 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff {
 					TenantId = tenantId,
 					Token = Guid.NewGuid().ToString("N")[..32],
 					ExpiresAt = DateTime.UtcNow.AddDays(7),
-					InvitedByUserId = staffUser.GetRequiredId(),
-					IsAccepted = false,
-					IsRevoked = false
+					InvitedByUserId = staffUser.GetRequiredId()
 				};
 
 				_ = await dbContext.Invitation.AddAsync(invitation);
@@ -1430,10 +1428,9 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff {
 			public string Email { get; init; } = string.Empty;
 			public string Scope { get; init; } = string.Empty;
 			public string ProfileName { get; init; } = string.Empty;
+			public string Status { get; init; } = string.Empty;
 			public DateTime ExpiresAt { get; init; }
 			public DateTime? AcceptedAt { get; init; }
-			public bool IsAccepted { get; init; }
-			public bool IsRevoked { get; init; }
 			public DateTime CreatedAt { get; init; }
 			public string? InvitedByName { get; init; }
 		}

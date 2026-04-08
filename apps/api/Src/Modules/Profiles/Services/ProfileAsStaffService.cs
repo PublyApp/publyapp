@@ -542,7 +542,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				from ua in _dbContext.UserAccount
 				where existingUserIds.Contains(ua.UserId)
 					&& (ua.Scope == AccountScope.Tenant || ua.Scope == AccountScope.Project)
-					&& !ua.IsDeleted && !ua.IsSuspended
+					&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
 				select ua.UserId
 			).ToListAsync(cancellationToken);
 
@@ -556,13 +556,12 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 
 				return new CreateStaffProfileResult.UsersWithConflictingAccounts(conflictingEmails);
 			}
-
 			// Batch fetch existing staff accounts for these users
 			var existingStaffAccounts = await (
 				from ua in _dbContext.UserAccount
 				where existingUserIds.Contains(ua.UserId)
 					&& ua.Scope == AccountScope.Staff
-					&& !ua.IsDeleted && !ua.IsSuspended
+					&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
 				select ua
 			).ToListAsync(cancellationToken);
 
@@ -667,7 +666,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				from i in _dbContext.Invitation
 				where missingEmails.Contains(i.Email)
 					&& i.Scope == InvitationScope.Staff
-					&& !i.IsAccepted && !i.IsRevoked
+					&& i.Status == InvitationStatus.Pending
 				select i.Email.ToLowerInvariant()
 			).ToListAsync(cancellationToken);
 

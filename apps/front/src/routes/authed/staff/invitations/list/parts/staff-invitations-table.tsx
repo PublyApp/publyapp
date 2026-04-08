@@ -59,15 +59,17 @@ type StaffInvitationRowData = {
 	createdAt: Date | null;
 };
 
-// Derive a stable status from API fields for UI and filtering.
 const getInvitationStatus = (
 	invitation: InvitationListItem,
 ): StaffInvitationStatus => {
-	if (invitation.isAccepted) {
-		return 'accepted';
-	}
-	if (invitation.isRevoked) {
-		return 'revoked';
+	const status = invitation.status ? _.snakeCase(invitation.status) : undefined;
+	if (
+		status === 'pending' ||
+		status === 'accepted' ||
+		status === 'expired' ||
+		status === 'revoked'
+	) {
+		return status;
 	}
 	if (invitation.expiresAt && fIsAfter(new Date(), invitation.expiresAt)) {
 		return 'expired';

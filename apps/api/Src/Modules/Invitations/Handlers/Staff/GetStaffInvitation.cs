@@ -55,13 +55,10 @@ public class GetStaffInvitation {
 			return TypedProblems.NotFound("Invitation not found", ResponseKeys.NotFound);
 		}
 
-		// Derive status from invitation state
-		var status = GetInvitationStatus(result);
-
 		return TypedResults.Ok(new StaffInvitationDetails {
 			Id = result.Id,
 			Email = result.Email,
-			Status = status,
+			Status = result.Status,
 			ExpiresAt = result.ExpiresAt,
 			AcceptedAt = result.AcceptedAt,
 			RevokedAt = result.RevokedAt,
@@ -73,18 +70,5 @@ public class GetStaffInvitation {
 				Name = p.Name
 			}).ToList()
 		});
-	}
-
-	private static string GetInvitationStatus(StaffInvitationDetailsResult result) {
-		if (result.IsAccepted) {
-			return "accepted";
-		}
-		if (result.IsRevoked) {
-			return "revoked";
-		}
-		if (result.ExpiresAt <= DateTime.UtcNow) {
-			return "expired";
-		}
-		return "pending";
 	}
 }

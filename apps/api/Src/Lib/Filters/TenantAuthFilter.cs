@@ -1,7 +1,6 @@
 using MainApi.Localization;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
-using MainApi.Src.Modules.Tenants.Entities;
 using MainApi.Src.Modules.Tenants.Services;
 using MainApi.Src.Modules.Users.Services;
 
@@ -128,7 +127,7 @@ public class TenantAuthFilter : IEndpointFilter {
 		}
 
 		// 6. Check if tenant is suspended - only members see this specific message
-		if (tenant.IsSuspended) {
+		if (tenant.IsSuspended()) {
 			if (_logger.IsEnabled(LogLevel.Debug)) {
 				_logger.LogDebug(
 					"User {UserId} attempted to access suspended tenant {TenantId}",
@@ -143,7 +142,7 @@ public class TenantAuthFilter : IEndpointFilter {
 		}
 
 		// 7. Check tenant is in a valid state (Active only at this point)
-		if (tenant.Status != TenantStatus.Active) {
+		if (!tenant.IsActive()) {
 			// Pending/non-active tenants - treat as inaccessible (generic 403)
 			if (_logger.IsEnabled(LogLevel.Warning)) {
 				_logger.LogWarning(

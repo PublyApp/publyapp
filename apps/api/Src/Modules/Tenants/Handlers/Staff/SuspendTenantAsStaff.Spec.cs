@@ -50,7 +50,6 @@ public sealed class SuspendTenantAsStaffSpec
 				.ReadFromJsonAsync<TenantSuspendedResponse>();
 			result.Should().NotBeNull();
 			result!.TenantId.Should().Be(tenantId);
-			result.IsSuspended.Should().BeTrue();
 			result.Status.Should().Be("Suspended");
 		} finally {
 			// Safety net: don't let cleanup failures
@@ -95,8 +94,7 @@ public sealed class SuspendTenantAsStaffSpec
 			var result = await response.Content
 				.ReadFromJsonAsync<TenantSuspendedResponse>();
 			result.Should().NotBeNull();
-			result!.IsSuspended.Should().BeTrue();
-			result.Status.Should().Be("Suspended");
+			result!.Status.Should().Be("Suspended");
 		} finally {
 			// Safety net: don't let cleanup failures
 			// hide the real assertion failure.
@@ -298,7 +296,6 @@ public sealed class SuspendTenantAsStaffSpec
 	private record TenantSuspendedResponse {
 		public Guid TenantId { get; init; }
 		public string Name { get; init; } = string.Empty;
-		public bool IsSuspended { get; init; }
 		public string Status { get; init; } = string.Empty;
 	}
 }

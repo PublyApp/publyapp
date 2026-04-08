@@ -173,7 +173,6 @@ public sealed class GetTenantAsStaffSpec
 			result!.TenantId.Should().Be(tenantId);
 			result.Code.Should().NotBeNullOrEmpty();
 			result.Status.Should().Be("Suspended");
-			result.IsSuspended.Should().BeTrue();
 			result.MaxUsers.Should().BeGreaterThan(0);
 		} finally {
 			try {

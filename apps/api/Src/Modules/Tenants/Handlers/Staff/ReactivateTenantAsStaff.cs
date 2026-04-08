@@ -14,7 +14,6 @@ namespace MainApi.Src.Modules.Tenants.Handlers.Staff;
 public record TenantReactivatedResult {
 	public required Guid TenantId { get; init; }
 	public required string Name { get; init; }
-	public required bool IsSuspended { get; init; }
 	public required string Status { get; init; }
 }
 
@@ -83,7 +82,6 @@ public class ReactivateTenantAsStaff {
 		return TypedResults.Ok(new TenantReactivatedResult {
 			TenantId = tenant.GetRequiredId(),
 			Name = tenant.Name,
-			IsSuspended = tenant.IsSuspended,
 			Status = Tenant.GetStatusDescription(tenant.Status)
 		});
 	}

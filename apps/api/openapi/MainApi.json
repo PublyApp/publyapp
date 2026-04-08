@@ -5751,9 +5751,6 @@
           "status": {
             "type": "string"
           },
-          "isSuspended": {
-            "type": "boolean"
-          },
           "usersCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
@@ -5947,9 +5944,8 @@
           "email",
           "scope",
           "profileName",
+          "status",
           "expiresAt",
-          "isAccepted",
-          "isRevoked",
           "createdAt"
         ],
         "type": "object",
@@ -5967,6 +5963,9 @@
           "profileName": {
             "type": "string"
           },
+          "status": {
+            "type": "string"
+          },
           "expiresAt": {
             "type": "string",
             "format": "date-time"
@@ -5977,12 +5976,6 @@
               "string"
             ],
             "format": "date-time"
-          },
-          "isAccepted": {
-            "type": "boolean"
-          },
-          "isRevoked": {
-            "type": "boolean"
           },
           "createdAt": {
             "type": "string",
@@ -6137,9 +6130,6 @@
           },
           "status": {
             "type": "string"
-          },
-          "isSuspended": {
-            "type": "boolean"
           },
           "tenantId": {
             "type": [
@@ -6407,9 +6397,6 @@
           "status": {
             "type": "string"
           },
-          "isSuspended": {
-            "type": "boolean"
-          },
           "tenantId": {
             "type": [
               "null",
@@ -6624,8 +6611,7 @@
           "name",
           "usersCount",
           "maxUsers",
-          "status",
-          "isSuspended"
+          "status"
         ],
         "type": "object",
         "properties": {
@@ -6654,9 +6640,6 @@
           },
           "status": {
             "type": "string"
-          },
-          "isSuspended": {
-            "type": "boolean"
           }
         }
       },
@@ -6675,12 +6658,6 @@
           },
           "status": {
             "type": "string"
-          },
-          "isSuspended": {
-            "type": "boolean"
-          },
-          "isActive": {
-            "type": "boolean"
           }
         }
       },
@@ -6709,7 +6686,6 @@
         "required": [
           "tenantId",
           "name",
-          "isSuspended",
           "status"
         ],
         "type": "object",
@@ -6720,9 +6696,6 @@
           },
           "name": {
             "type": "string"
-          },
-          "isSuspended": {
-            "type": "boolean"
           },
           "status": {
             "type": "string"
@@ -6733,7 +6706,6 @@
         "required": [
           "tenantId",
           "name",
-          "isSuspended",
           "status"
         ],
         "type": "object",
@@ -6744,9 +6716,6 @@
           },
           "name": {
             "type": "string"
-          },
-          "isSuspended": {
-            "type": "boolean"
           },
           "status": {
             "type": "string"
@@ -6786,9 +6755,6 @@
           },
           "status": {
             "type": "string"
-          },
-          "isSuspended": {
-            "type": "boolean"
           },
           "tenantId": {
             "type": [

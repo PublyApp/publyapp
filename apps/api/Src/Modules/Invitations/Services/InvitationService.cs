@@ -14,7 +14,7 @@ namespace MainApi.Src.Modules.Invitations.Services;
 
 public record FindTenantInvitationsFilters {
 	public string? Search { get; init; }
-	public IReadOnlySet<InvitationStatus>? Status { get; init; }
+	public IReadOnlySet<InvitationEffectiveStatus>? Status { get; init; }
 }
 public record FindTenantInvitationsArgs {
 	public Guid Cursor { get; init; }
@@ -139,10 +139,9 @@ public record InvitationListItem {
 	public required string Email { get; init; }
 	public required string Scope { get; init; }
 	public required string ProfileName { get; init; }
+	public required string Status { get; init; }
 	public required DateTime ExpiresAt { get; init; }
 	public DateTime? AcceptedAt { get; init; }
-	public required bool IsAccepted { get; init; }
-	public required bool IsRevoked { get; init; }
 	public required DateTime CreatedAt { get; init; }
 	public string? InvitedByName { get; init; }
 }
@@ -183,8 +182,7 @@ public record StaffInvitationDetailsResult {
 	public required DateTime ExpiresAt { get; init; }
 	public DateTime? AcceptedAt { get; init; }
 	public DateTime? RevokedAt { get; init; }
-	public required bool IsAccepted { get; init; }
-	public required bool IsRevoked { get; init; }
+	public required string Status { get; init; }
 	public required DateTime CreatedAt { get; init; }
 	public required string InvitedByName { get; init; }
 	public required Guid InvitedByUserId { get; init; }
@@ -370,11 +368,16 @@ public class InvitationService : IInvitationService {
 		return new StaffInvitationDetailsResult {
 			Id = invitation.GetRequiredId(),
 			Email = invitation.Email,
+			Status = Invitation.GetEffectiveStatusDescription(
+				Invitation.GetEffectiveStatus(
+					invitation.Status,
+					invitation.ExpiresAt,
+					DateTime.UtcNow
+				)
+			),
 			ExpiresAt = invitation.ExpiresAt,
 			AcceptedAt = invitation.AcceptedAt,
 			RevokedAt = invitation.RevokedAt,
-			IsAccepted = invitation.IsAccepted,
-			IsRevoked = invitation.IsRevoked,
 			CreatedAt = invitation.CreatedAt,
 			InvitedByName = inviterName,
 			InvitedByUserId = invitation.InvitedByUserId,
@@ -460,8 +463,7 @@ public class InvitationService : IInvitationService {
 			from inv in _dbContext.Invitation
 			where inv.Email == normalizedEmail
 				&& inv.Scope == scope
-				&& inv.IsAccepted == false
-				&& inv.IsRevoked == false
+				&& inv.Status == InvitationStatus.Pending
 				&& inv.ExpiresAt > DateTime.UtcNow
 			select inv;
 
@@ -479,8 +481,7 @@ public class InvitationService : IInvitationService {
 			where inv.Email == normalizedEmail
 				&& inv.Scope == InvitationScope.Tenant
 				&& inv.TenantId == tenantId
-				&& inv.IsAccepted == false
-				&& inv.IsRevoked == false
+				&& inv.Status == InvitationStatus.Pending
 				&& inv.ExpiresAt > DateTime.UtcNow
 			select inv;
 
@@ -602,16 +603,16 @@ public class InvitationService : IInvitationService {
 			var now = DateTime.UtcNow;
 
 			if (string.Equals(normalizedStatus, "pending", StringComparison.OrdinalIgnoreCase)) {
-				query = query.Where(inv => !inv.IsAccepted && !inv.IsRevoked && inv.ExpiresAt > now);
+				query = query.Where(inv => inv.Status == InvitationStatus.Pending && inv.ExpiresAt > now);
 			}
 			if (string.Equals(normalizedStatus, "accepted", StringComparison.OrdinalIgnoreCase)) {
-				query = query.Where(inv => inv.IsAccepted);
+				query = query.Where(inv => inv.Status == InvitationStatus.Accepted);
 			}
 			if (string.Equals(normalizedStatus, "revoked", StringComparison.OrdinalIgnoreCase)) {
-				query = query.Where(inv => inv.IsRevoked);
+				query = query.Where(inv => inv.Status == InvitationStatus.Revoked);
 			}
 			if (string.Equals(normalizedStatus, "expired", StringComparison.OrdinalIgnoreCase)) {
-				query = query.Where(inv => !inv.IsAccepted && !inv.IsRevoked && inv.ExpiresAt <= now);
+				query = query.Where(inv => inv.Status == InvitationStatus.Pending && inv.ExpiresAt <= now);
 			}
 		}
 
@@ -670,10 +671,15 @@ public class InvitationService : IInvitationService {
 				Email = r.Invitation.Email,
 				Scope = "Staff",
 				ProfileName = profileName,
+				Status = Invitation.GetEffectiveStatusDescription(
+					Invitation.GetEffectiveStatus(
+						r.Invitation.Status,
+						r.Invitation.ExpiresAt,
+						DateTime.UtcNow
+					)
+				),
 				ExpiresAt = r.Invitation.ExpiresAt,
 				AcceptedAt = r.Invitation.AcceptedAt,
-				IsAccepted = r.Invitation.IsAccepted,
-				IsRevoked = r.Invitation.IsRevoked,
 				CreatedAt = r.Invitation.CreatedAt,
 				InvitedByName = r.InviterName
 			};
@@ -803,10 +809,11 @@ public class InvitationService : IInvitationService {
 		if (filters.Status is { Count: > 0 } statuses) {
 			var now = DateTime.UtcNow;
 			query = query.Where(inv =>
-				(statuses.Contains(InvitationStatus.Pending) && !inv.IsAccepted && !inv.IsRevoked && inv.ExpiresAt > now) ||
-				(statuses.Contains(InvitationStatus.Accepted) && inv.IsAccepted) ||
-				(statuses.Contains(InvitationStatus.Revoked) && inv.IsRevoked) ||
-				(statuses.Contains(InvitationStatus.Expired) && !inv.IsAccepted && !inv.IsRevoked && inv.ExpiresAt <= now)
+				// Filters are effective statuses: Expired is derived from Pending + ExpiresAt.
+				(statuses.Contains(InvitationEffectiveStatus.Pending) && inv.Status == InvitationStatus.Pending && inv.ExpiresAt > now) ||
+				(statuses.Contains(InvitationEffectiveStatus.Accepted) && inv.Status == InvitationStatus.Accepted) ||
+				(statuses.Contains(InvitationEffectiveStatus.Revoked) && inv.Status == InvitationStatus.Revoked) ||
+				(statuses.Contains(InvitationEffectiveStatus.Expired) && inv.Status == InvitationStatus.Pending && inv.ExpiresAt <= now)
 			);
 		}
 
@@ -863,10 +870,15 @@ public class InvitationService : IInvitationService {
 				Email = r.Invitation.Email,
 				Scope = "Tenant",
 				ProfileName = profileName,
+				Status = Invitation.GetEffectiveStatusDescription(
+					Invitation.GetEffectiveStatus(
+						r.Invitation.Status,
+						r.Invitation.ExpiresAt,
+						DateTime.UtcNow
+					)
+				),
 				ExpiresAt = r.Invitation.ExpiresAt,
 				AcceptedAt = r.Invitation.AcceptedAt,
-				IsAccepted = r.Invitation.IsAccepted,
-				IsRevoked = r.Invitation.IsRevoked,
 				CreatedAt = r.Invitation.CreatedAt,
 				InvitedByName = r.InviterName
 			};
@@ -929,7 +941,7 @@ public class InvitationService : IInvitationService {
 			}
 
 			// Mark invitation as accepted
-			invitation.IsAccepted = true;
+			invitation.Status = InvitationStatus.Accepted;
 			invitation.AcceptedAt = DateTime.UtcNow;
 			await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -1022,13 +1034,13 @@ public class InvitationService : IInvitationService {
 				);
 			}
 
-			if (tenant.Status == TenantStatus.Pending && !tenant.IsSuspended) {
+			if (tenant.IsPending() && !tenant.IsSuspended()) {
 				tenant.Status = TenantStatus.Active;
 				tenant.UpdatedAt = DateTime.UtcNow;
 			}
 
 			// Mark invitation as accepted
-			invitation.IsAccepted = true;
+			invitation.Status = InvitationStatus.Accepted;
 			invitation.AcceptedAt = DateTime.UtcNow;
 			await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -1146,12 +1158,12 @@ public class InvitationService : IInvitationService {
 				);
 			}
 
-			if (tenant.Status == TenantStatus.Pending && !tenant.IsSuspended) {
+			if (tenant.IsPending() && !tenant.IsSuspended()) {
 				tenant.Status = TenantStatus.Active;
 				tenant.UpdatedAt = DateTime.UtcNow;
 			}
 
-			invitation.IsAccepted = true;
+			invitation.Status = InvitationStatus.Accepted;
 			invitation.AcceptedAt = DateTime.UtcNow;
 			await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -1201,8 +1213,7 @@ public class InvitationService : IInvitationService {
 			from inv in _dbContext.Invitation.AsNoTracking()
 			where normalizedEmails.Contains(inv.Email)
 				&& inv.Scope == scope
-				&& inv.IsAccepted == false
-				&& inv.IsRevoked == false
+				&& inv.Status == InvitationStatus.Pending
 				&& inv.ExpiresAt > DateTime.UtcNow
 			select inv.Email
 		).ToListAsync(cancellationToken);
@@ -1297,7 +1308,7 @@ public class InvitationService : IInvitationService {
 			return;
 		}
 
-		if (invitation.IsAccepted) {
+		if (invitation.IsAccepted()) {
 			if (_logger.IsEnabled(LogLevel.Information)) {
 				_logger.LogInformation(
 					"Invitation {InvitationId} is already accepted; no-op",
@@ -1307,7 +1318,7 @@ public class InvitationService : IInvitationService {
 			return;
 		}
 
-		invitation.IsAccepted = true;
+		invitation.Status = InvitationStatus.Accepted;
 		invitation.AcceptedAt = DateTime.UtcNow;
 
 		await _dbContext.SaveChangesAsync(cancellationToken);
@@ -1342,7 +1353,7 @@ public class InvitationService : IInvitationService {
 			return new RevokeInvitationForStaffResult.NotFound();
 		}
 
-		if (invitation.IsRevoked) {
+		if (invitation.IsRevoked()) {
 			if (_logger.IsEnabled(LogLevel.Information)) {
 				_logger.LogInformation(
 					"Invitation {InvitationId} is already revoked; no-op",
@@ -1352,7 +1363,7 @@ public class InvitationService : IInvitationService {
 			return new RevokeInvitationForStaffResult.Success();
 		}
 
-		if (invitation.IsAccepted) {
+		if (invitation.IsAccepted()) {
 			if (_logger.IsEnabled(LogLevel.Warning)) {
 				_logger.LogWarning(
 					"Attempt to revoke accepted invitation {InvitationId} blocked",
@@ -1362,7 +1373,7 @@ public class InvitationService : IInvitationService {
 			return new RevokeInvitationForStaffResult.AlreadyAccepted();
 		}
 
-		invitation.IsRevoked = true;
+		invitation.Status = InvitationStatus.Revoked;
 		invitation.RevokedAt = DateTime.UtcNow;
 
 		await _dbContext.SaveChangesAsync(cancellationToken);

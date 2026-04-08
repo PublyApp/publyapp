@@ -55,7 +55,7 @@ public class SessionService : ISessionService {
 		if (result is null) return null;
 
 		// Runtime filtering
-		if (result.User.IsDeleted || result.User.IsSuspended || !result.User.IsVerified) {
+		if (result.User.IsDeleted || result.User.IsSuspended() || !result.User.IsVerified) {
 			return null;
 		}
 

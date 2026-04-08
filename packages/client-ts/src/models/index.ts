@@ -2423,7 +2423,6 @@ export function deserializeIntoGetTenantAsStaffResult(getTenantAsStaffResult: Pa
     return {
         "code": n => { getTenantAsStaffResult.code = n.getStringValue(); },
         "createdAt": n => { getTenantAsStaffResult.createdAt = n.getDateValue(); },
-        "isSuspended": n => { getTenantAsStaffResult.isSuspended = n.getBooleanValue(); },
         "logoUrl": n => { getTenantAsStaffResult.logoUrl = n.getStringValue(); },
         "maxUsers": n => { getTenantAsStaffResult.maxUsers = n.getNumberValue(); },
         "name": n => { getTenantAsStaffResult.name = n.getStringValue(); },
@@ -2552,10 +2551,9 @@ export function deserializeIntoInvitationListItem(invitationListItem: Partial<In
         "expiresAt": n => { invitationListItem.expiresAt = n.getDateValue(); },
         "id": n => { invitationListItem.id = n.getGuidValue(); },
         "invitedByName": n => { invitationListItem.invitedByName = n.getStringValue(); },
-        "isAccepted": n => { invitationListItem.isAccepted = n.getBooleanValue(); },
-        "isRevoked": n => { invitationListItem.isRevoked = n.getBooleanValue(); },
         "profileName": n => { invitationListItem.profileName = n.getStringValue(); },
         "scope": n => { invitationListItem.scope = n.getStringValue(); },
+        "status": n => { invitationListItem.status = n.getStringValue(); },
     }
 }
 /**
@@ -2657,7 +2655,6 @@ export function deserializeIntoReactivateTenantUserResultDto(reactivateTenantUse
         "email": n => { reactivateTenantUserResultDto.email = n.getStringValue(); },
         "firstName": n => { reactivateTenantUserResultDto.firstName = n.getStringValue(); },
         "id": n => { reactivateTenantUserResultDto.id = n.getGuidValue(); },
-        "isSuspended": n => { reactivateTenantUserResultDto.isSuspended = n.getBooleanValue(); },
         "lastName": n => { reactivateTenantUserResultDto.lastName = n.getStringValue(); },
         "level": n => { reactivateTenantUserResultDto.level = n.getStringValue(); },
         "status": n => { reactivateTenantUserResultDto.status = n.getStringValue(); },
@@ -2813,7 +2810,6 @@ export function deserializeIntoSuspendTenantUserResultDto(suspendTenantUserResul
         "email": n => { suspendTenantUserResultDto.email = n.getStringValue(); },
         "firstName": n => { suspendTenantUserResultDto.firstName = n.getStringValue(); },
         "id": n => { suspendTenantUserResultDto.id = n.getGuidValue(); },
-        "isSuspended": n => { suspendTenantUserResultDto.isSuspended = n.getBooleanValue(); },
         "lastName": n => { suspendTenantUserResultDto.lastName = n.getStringValue(); },
         "level": n => { suspendTenantUserResultDto.level = n.getStringValue(); },
         "status": n => { suspendTenantUserResultDto.status = n.getStringValue(); },
@@ -2914,7 +2910,6 @@ export function deserializeIntoTenant(tenant: Partial<Tenant> | undefined = {}) 
 export function deserializeIntoTenantAsStaffListItem(tenantAsStaffListItem: Partial<TenantAsStaffListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "id": n => { tenantAsStaffListItem.id = n.getGuidValue(); },
-        "isSuspended": n => { tenantAsStaffListItem.isSuspended = n.getBooleanValue(); },
         "logoUrl": n => { tenantAsStaffListItem.logoUrl = n.getStringValue(); },
         "maxUsers": n => { tenantAsStaffListItem.maxUsers = n.getNumberValue(); },
         "name": n => { tenantAsStaffListItem.name = n.getStringValue(); },
@@ -2932,8 +2927,6 @@ export function deserializeIntoTenantForPickerItem(tenantForPickerItem: Partial<
     return {
         "code": n => { tenantForPickerItem.code = n.getStringValue(); },
         "id": n => { tenantForPickerItem.id = n.getGuidValue(); },
-        "isActive": n => { tenantForPickerItem.isActive = n.getBooleanValue(); },
-        "isSuspended": n => { tenantForPickerItem.isSuspended = n.getBooleanValue(); },
         "name": n => { tenantForPickerItem.name = n.getStringValue(); },
         "status": n => { tenantForPickerItem.status = n.getStringValue(); },
     }
@@ -2960,7 +2953,6 @@ export function deserializeIntoTenantListItem(tenantListItem: Partial<TenantList
 // @ts-ignore
 export function deserializeIntoTenantReactivatedResult(tenantReactivatedResult: Partial<TenantReactivatedResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "isSuspended": n => { tenantReactivatedResult.isSuspended = n.getBooleanValue(); },
         "name": n => { tenantReactivatedResult.name = n.getStringValue(); },
         "status": n => { tenantReactivatedResult.status = n.getStringValue(); },
         "tenantId": n => { tenantReactivatedResult.tenantId = n.getGuidValue(); },
@@ -2974,7 +2966,6 @@ export function deserializeIntoTenantReactivatedResult(tenantReactivatedResult: 
 // @ts-ignore
 export function deserializeIntoTenantSuspendedResult(tenantSuspendedResult: Partial<TenantSuspendedResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "isSuspended": n => { tenantSuspendedResult.isSuspended = n.getBooleanValue(); },
         "name": n => { tenantSuspendedResult.name = n.getStringValue(); },
         "status": n => { tenantSuspendedResult.status = n.getStringValue(); },
         "tenantId": n => { tenantSuspendedResult.tenantId = n.getGuidValue(); },
@@ -2992,7 +2983,6 @@ export function deserializeIntoTenantUserDetailsResult(tenantUserDetailsResult: 
         "email": n => { tenantUserDetailsResult.email = n.getStringValue(); },
         "firstName": n => { tenantUserDetailsResult.firstName = n.getStringValue(); },
         "id": n => { tenantUserDetailsResult.id = n.getGuidValue(); },
-        "isSuspended": n => { tenantUserDetailsResult.isSuspended = n.getBooleanValue(); },
         "lastName": n => { tenantUserDetailsResult.lastName = n.getStringValue(); },
         "level": n => { tenantUserDetailsResult.level = n.getStringValue(); },
         "status": n => { tenantUserDetailsResult.status = n.getStringValue(); },
@@ -3495,10 +3485,6 @@ export interface GetTenantAsStaffResult extends AdditionalDataHolder, Parsable {
      */
     createdAt?: Date | null;
     /**
-     * The isSuspended property
-     */
-    isSuspended?: boolean | null;
-    /**
      * The logoUrl property
      */
     logoUrl?: string | null;
@@ -3669,14 +3655,6 @@ export interface InvitationListItem extends AdditionalDataHolder, Parsable {
      */
     invitedByName?: string | null;
     /**
-     * The isAccepted property
-     */
-    isAccepted?: boolean | null;
-    /**
-     * The isRevoked property
-     */
-    isRevoked?: boolean | null;
-    /**
      * The profileName property
      */
     profileName?: string | null;
@@ -3684,6 +3662,10 @@ export interface InvitationListItem extends AdditionalDataHolder, Parsable {
      * The scope property
      */
     scope?: string | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
 }
 export interface JsonElement extends AdditionalDataHolder, Parsable {
 }
@@ -3787,10 +3769,6 @@ export interface ReactivateTenantUserResultDto extends AdditionalDataHolder, Par
      * The id property
      */
     id?: Guid | null;
-    /**
-     * The isSuspended property
-     */
-    isSuspended?: boolean | null;
     /**
      * The lastName property
      */
@@ -4654,7 +4632,6 @@ export function serializeGetTenantAsStaffResult(writer: SerializationWriter, get
     if (!getTenantAsStaffResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("code", getTenantAsStaffResult.code);
     writer.writeDateValue("createdAt", getTenantAsStaffResult.createdAt);
-    writer.writeBooleanValue("isSuspended", getTenantAsStaffResult.isSuspended);
     writer.writeStringValue("logoUrl", getTenantAsStaffResult.logoUrl);
     writer.writeNumberValue("maxUsers", getTenantAsStaffResult.maxUsers);
     writer.writeStringValue("name", getTenantAsStaffResult.name);
@@ -4792,10 +4769,9 @@ export function serializeInvitationListItem(writer: SerializationWriter, invitat
     writer.writeDateValue("expiresAt", invitationListItem.expiresAt);
     writer.writeGuidValue("id", invitationListItem.id);
     writer.writeStringValue("invitedByName", invitationListItem.invitedByName);
-    writer.writeBooleanValue("isAccepted", invitationListItem.isAccepted);
-    writer.writeBooleanValue("isRevoked", invitationListItem.isRevoked);
     writer.writeStringValue("profileName", invitationListItem.profileName);
     writer.writeStringValue("scope", invitationListItem.scope);
+    writer.writeStringValue("status", invitationListItem.status);
     writer.writeAdditionalData(invitationListItem.additionalData);
 }
 /**
@@ -4905,7 +4881,6 @@ export function serializeReactivateTenantUserResultDto(writer: SerializationWrit
     writer.writeStringValue("email", reactivateTenantUserResultDto.email);
     writer.writeStringValue("firstName", reactivateTenantUserResultDto.firstName);
     writer.writeGuidValue("id", reactivateTenantUserResultDto.id);
-    writer.writeBooleanValue("isSuspended", reactivateTenantUserResultDto.isSuspended);
     writer.writeStringValue("lastName", reactivateTenantUserResultDto.lastName);
     writer.writeStringValue("level", reactivateTenantUserResultDto.level);
     writer.writeStringValue("status", reactivateTenantUserResultDto.status);
@@ -5070,7 +5045,6 @@ export function serializeSuspendTenantUserResultDto(writer: SerializationWriter,
     writer.writeStringValue("email", suspendTenantUserResultDto.email);
     writer.writeStringValue("firstName", suspendTenantUserResultDto.firstName);
     writer.writeGuidValue("id", suspendTenantUserResultDto.id);
-    writer.writeBooleanValue("isSuspended", suspendTenantUserResultDto.isSuspended);
     writer.writeStringValue("lastName", suspendTenantUserResultDto.lastName);
     writer.writeStringValue("level", suspendTenantUserResultDto.level);
     writer.writeStringValue("status", suspendTenantUserResultDto.status);
@@ -5177,7 +5151,6 @@ export function serializeTenant(writer: SerializationWriter, tenant: Partial<Ten
 export function serializeTenantAsStaffListItem(writer: SerializationWriter, tenantAsStaffListItem: Partial<TenantAsStaffListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!tenantAsStaffListItem || isSerializingDerivedType) { return; }
     writer.writeGuidValue("id", tenantAsStaffListItem.id);
-    writer.writeBooleanValue("isSuspended", tenantAsStaffListItem.isSuspended);
     writer.writeStringValue("logoUrl", tenantAsStaffListItem.logoUrl);
     writer.writeNumberValue("maxUsers", tenantAsStaffListItem.maxUsers);
     writer.writeStringValue("name", tenantAsStaffListItem.name);
@@ -5196,8 +5169,6 @@ export function serializeTenantForPickerItem(writer: SerializationWriter, tenant
     if (!tenantForPickerItem || isSerializingDerivedType) { return; }
     writer.writeStringValue("code", tenantForPickerItem.code);
     writer.writeGuidValue("id", tenantForPickerItem.id);
-    writer.writeBooleanValue("isActive", tenantForPickerItem.isActive);
-    writer.writeBooleanValue("isSuspended", tenantForPickerItem.isSuspended);
     writer.writeStringValue("name", tenantForPickerItem.name);
     writer.writeStringValue("status", tenantForPickerItem.status);
     writer.writeAdditionalData(tenantForPickerItem.additionalData);
@@ -5226,7 +5197,6 @@ export function serializeTenantListItem(writer: SerializationWriter, tenantListI
 // @ts-ignore
 export function serializeTenantReactivatedResult(writer: SerializationWriter, tenantReactivatedResult: Partial<TenantReactivatedResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!tenantReactivatedResult || isSerializingDerivedType) { return; }
-    writer.writeBooleanValue("isSuspended", tenantReactivatedResult.isSuspended);
     writer.writeStringValue("name", tenantReactivatedResult.name);
     writer.writeStringValue("status", tenantReactivatedResult.status);
     writer.writeGuidValue("tenantId", tenantReactivatedResult.tenantId);
@@ -5241,7 +5211,6 @@ export function serializeTenantReactivatedResult(writer: SerializationWriter, te
 // @ts-ignore
 export function serializeTenantSuspendedResult(writer: SerializationWriter, tenantSuspendedResult: Partial<TenantSuspendedResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!tenantSuspendedResult || isSerializingDerivedType) { return; }
-    writer.writeBooleanValue("isSuspended", tenantSuspendedResult.isSuspended);
     writer.writeStringValue("name", tenantSuspendedResult.name);
     writer.writeStringValue("status", tenantSuspendedResult.status);
     writer.writeGuidValue("tenantId", tenantSuspendedResult.tenantId);
@@ -5260,7 +5229,6 @@ export function serializeTenantUserDetailsResult(writer: SerializationWriter, te
     writer.writeStringValue("email", tenantUserDetailsResult.email);
     writer.writeStringValue("firstName", tenantUserDetailsResult.firstName);
     writer.writeGuidValue("id", tenantUserDetailsResult.id);
-    writer.writeBooleanValue("isSuspended", tenantUserDetailsResult.isSuspended);
     writer.writeStringValue("lastName", tenantUserDetailsResult.lastName);
     writer.writeStringValue("level", tenantUserDetailsResult.level);
     writer.writeStringValue("status", tenantUserDetailsResult.status);
@@ -5776,10 +5744,6 @@ export interface SuspendTenantUserResultDto extends AdditionalDataHolder, Parsab
      */
     id?: Guid | null;
     /**
-     * The isSuspended property
-     */
-    isSuspended?: boolean | null;
-    /**
      * The lastName property
      */
     lastName?: string | null;
@@ -5952,10 +5916,6 @@ export interface TenantAsStaffListItem extends AdditionalDataHolder, Parsable {
      */
     id?: Guid | null;
     /**
-     * The isSuspended property
-     */
-    isSuspended?: boolean | null;
-    /**
      * The logoUrl property
      */
     logoUrl?: string | null;
@@ -5986,14 +5946,6 @@ export interface TenantForPickerItem extends AdditionalDataHolder, Parsable {
      */
     id?: Guid | null;
     /**
-     * The isActive property
-     */
-    isActive?: boolean | null;
-    /**
-     * The isSuspended property
-     */
-    isSuspended?: boolean | null;
-    /**
      * The name property
      */
     name?: string | null;
@@ -6022,10 +5974,6 @@ export interface TenantListItem extends AdditionalDataHolder, Parsable {
 }
 export interface TenantReactivatedResult extends AdditionalDataHolder, Parsable {
     /**
-     * The isSuspended property
-     */
-    isSuspended?: boolean | null;
-    /**
      * The name property
      */
     name?: string | null;
@@ -6039,10 +5987,6 @@ export interface TenantReactivatedResult extends AdditionalDataHolder, Parsable 
     tenantId?: Guid | null;
 }
 export interface TenantSuspendedResult extends AdditionalDataHolder, Parsable {
-    /**
-     * The isSuspended property
-     */
-    isSuspended?: boolean | null;
     /**
      * The name property
      */
@@ -6076,10 +6020,6 @@ export interface TenantUserDetailsResult extends AdditionalDataHolder, Parsable 
      * The id property
      */
     id?: Guid | null;
-    /**
-     * The isSuspended property
-     */
-    isSuspended?: boolean | null;
     /**
      * The lastName property
      */

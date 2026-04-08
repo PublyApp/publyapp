@@ -182,7 +182,6 @@ public class UpdateTenantAsStaff {
 			Status = Tenant.GetStatusDescription(
 				tenant.Status
 			),
-			IsSuspended = tenant.IsSuspended,
 			UsersCount = usersCount,
 			CreatedAt = tenant.CreatedAt,
 			UpdatedAt = tenant.UpdatedAt,

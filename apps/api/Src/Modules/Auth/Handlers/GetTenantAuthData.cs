@@ -4,7 +4,6 @@ using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.Profiles.Services;
-using MainApi.Src.Modules.Tenants.Entities;
 using MainApi.Src.Modules.Tenants.Services;
 using MainApi.Src.Modules.Users.Entities;
 using MainApi.Src.Modules.Users.Services;
@@ -185,7 +184,7 @@ public class GetTenantAuthData {
 		}
 
 		// Check if tenant is suspended - only members see this specific message
-		if (tenant.IsSuspended) {
+		if (tenant.IsSuspended()) {
 			return TypedProblems.Forbidden(
 				"This tenant has been suspended",
 				ResponseKeys.TenantSuspended
@@ -193,7 +192,7 @@ public class GetTenantAuthData {
 		}
 
 		// Check tenant is in a valid state (Active only at this point)
-		if (tenant.Status != TenantStatus.Active) {
+		if (!tenant.IsActive()) {
 			// Pending/non-active tenants - treat as inaccessible
 			return TypedProblems.Forbidden(
 				"User does not have access to this tenant",

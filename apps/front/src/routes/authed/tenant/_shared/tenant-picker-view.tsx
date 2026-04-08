@@ -12,7 +12,11 @@ import { useCallback } from 'react';
 import { useNavigate } from 'react-router';
 
 import type { TenantForPickerItem } from '@org/client-ts/src/models';
-import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+import {
+	FRONT_PATH_NAMES,
+	TENANT_STATUS_ENUM,
+} from '@org/shared-ts/lib/constants';
+
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { Label } from '#app/components/label/label.tsx';
 import { SplashScreen } from '#app/components/loading-screen/splash-screen.tsx';
@@ -34,8 +38,8 @@ type TenantCardProps = {
 
 const TenantCard = ({ tenant, onSelect }: TenantCardProps) => {
 	const { t } = useTranslate();
-	const isSuspended = tenant.isSuspended ?? false;
-	const isDisabled = !tenant.isActive;
+	const isSuspended = tenant.status === TENANT_STATUS_ENUM.SUSPENDED;
+	const isDisabled = tenant.status !== TENANT_STATUS_ENUM.ACTIVE;
 
 	const cardContent = (
 		<CardContent

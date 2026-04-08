@@ -1,7 +1,7 @@
 using FluentValidation;
 
 using MainApi.Src.Lib;
-using MainApi.Src.Modules.Tenants.Services;
+using MainApi.Src.Modules.Tenants.Entities;
 using MainApi.Src.Modules.Users.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Modules.Auth.Handlers;
 
 public class GetRedirectCodeQuery {
+	[FromQuery]
 	public string? TenantId { get; set; }
 
 	public Guid? GetTenantId() {
@@ -25,6 +26,7 @@ public class GetRedirectCodeQueryValidator : AbstractValidator<GetRedirectCodeQu
 
 public class GetRedirectCodeResult {
 	public string RedirectCode { get; set; } = string.Empty;
+	public bool HasSuspendedTenants { get; set; }
 }
 
 public class GetRedirectCode {
@@ -33,7 +35,6 @@ public class GetRedirectCode {
 		IRequestAuthContext authContext,
 		ILogger<GetRedirectCode> logger,
 		[FromServices] IAccountService accountService,
-		[FromServices] ITenantService tenantService,
 		CancellationToken cancellationToken
 	) {
 		if (!authContext.IsAuthenticated) {
@@ -50,8 +51,6 @@ public class GetRedirectCode {
 			throw new Exception($"{nameof(authContext.UserId)} is not a GUID");
 		}
 
-		var tenantId = query.GetTenantId();
-
 		// Check if user is a staff member
 		var isUserStaffUser = await accountService.IsUserStaffUserAsync(userId, cancellationToken);
 
@@ -60,125 +59,93 @@ public class GetRedirectCode {
 				"User {UserId} isStaffUser: {IsStaffUser}, tenantId from query: {TenantId}",
 				userId,
 				isUserStaffUser,
-				tenantId
+				query.TenantId
 			);
 		}
 
+		// Staff users always redirect to staff dashboard
 		if (isUserStaffUser) {
-			// Staff users always redirect to staff dashboard
-			// They can access tenants via impersonation from there
-			// This enforces the business rule: staff and tenant accounts are mutually exclusive
 			return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "staff" });
 		}
 
-		// User is not a staff member, check tenant access
-		if (tenantId is not Guid guidTenantIdAsMember) {
-			// No tenantId provided, find user's first tenant account
-			var userFirstTenantAccount = await accountService.FindUserTenantAccountsAsync(
-				userId, limit: 1, cancellationToken: cancellationToken
-			);
-
-			if (logger.IsEnabled(LogLevel.Information)) {
-				logger.LogInformation(
-					"FindUserTenantAccountsAsync for user {UserId} returned {Count} accounts",
-					userId,
-					userFirstTenantAccount.Count
-				);
-			}
-
-			var firstTenant = userFirstTenantAccount.FirstOrDefault();
-
-			if (firstTenant?.TenantId is not null) {
-				if (logger.IsEnabled(LogLevel.Information)) {
-					logger.LogInformation(
-						"Redirecting user {UserId} to tenant {TenantId}",
-						userId,
-						firstTenant.TenantId.Value
-					);
-				}
-				return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = firstTenant.TenantId.Value.ToString() });
-			}
-
-			if (logger.IsEnabled(LogLevel.Warning)) {
-				logger.LogWarning(
-					"User {UserId} has no tenant accounts, returning unauthorized",
-					userId
-				);
-			}
-			return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "unauthorized" });
-		}
-
-		if (logger.IsEnabled(LogLevel.Information)) {
-			logger.LogInformation(
-				"User {UserId} provided tenantId {TenantId}, checking access",
-				userId,
-				guidTenantIdAsMember
-			);
-		}
-
-		var tenantFound = await tenantService.GetTenantByIdAsync(guidTenantIdAsMember, cancellationToken);
-
-		if (tenantFound is not null) {
-			var isMember = await accountService.IsUserMemberOfTenantAsync(userId, guidTenantIdAsMember, cancellationToken);
-
-			if (logger.IsEnabled(LogLevel.Information)) {
-				logger.LogInformation(
-					"User {UserId} isMember of tenant {TenantId}: {IsMember}",
-					userId,
-					guidTenantIdAsMember,
-					isMember
-				);
-			}
-
-			if (isMember) {
-				return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = tenantFound.GetRequiredId().ToString() });
-			}
-
-			if (logger.IsEnabled(LogLevel.Warning)) {
-				logger.LogWarning(
-					"Attempt to access tenant {TenantId} by user {UserId} who is not a member of said tenant",
-					tenantId,
-					userId
-				);
-			}
-
-			return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "unauthorized" });
-		}
-
-		if (logger.IsEnabled(LogLevel.Information)) {
-			logger.LogInformation(
-				"Tenant {TenantId} not found or inactive, looking for fallback",
-				guidTenantIdAsMember
-			);
-		}
-
-		// Get fallback tenant (first tenant the user is a member of)
-		var userTenantAccounts = await accountService.FindUserTenantAccountsAsync(
-			userId, limit: 1, cancellationToken: cancellationToken
+		// Load tenants once — used by both hint validation and fallback
+		var tenantsResult = await accountService.GetUserTenantsForPickerAsync(
+			userId, limit: 50, cancellationToken: cancellationToken
 		);
 
+		var tenantIdHint = query.GetTenantId();
+
+		// If tenant hint provided, validate access (including tenant status)
+		if (tenantIdHint is Guid hintTenantId) {
+			var isMemberOfActiveTenant =
+				await accountService.IsUserMemberOfActiveTenantAsync(
+					userId, hintTenantId, cancellationToken
+				);
+
+			if (isMemberOfActiveTenant) {
+				// Hint is valid — auto-redirect to it
+				if (logger.IsEnabled(LogLevel.Information)) {
+					logger.LogInformation(
+						"Using valid tenant hint {TenantId} for user {UserId}",
+						hintTenantId, userId
+					);
+				}
+				return TypedResults.Ok(new GetRedirectCodeResult {
+					RedirectCode = hintTenantId.ToString(),
+					HasSuspendedTenants = tenantsResult.HasSuspendedTenants,
+				});
+			}
+
+			// Hint is stale/invalid — fall through to tenant selection
+			if (logger.IsEnabled(LogLevel.Information)) {
+				logger.LogInformation(
+					"Stale tenant hint {TenantId} for user {UserId}, "
+						+ "falling through to selection",
+					hintTenantId, userId
+				);
+			}
+		}
+
+		// No tenants at all (not even suspended) - unauthorized
+		if (tenantsResult.TotalCount == 0) {
+			if (logger.IsEnabled(LogLevel.Warning)) {
+				logger.LogWarning(
+					"User {UserId} has no tenants (including suspended), returning unauthorized",
+					userId
+				);
+			}
+			return TypedResults.Ok(new GetRedirectCodeResult {
+				RedirectCode = "unauthorized",
+			});
+		}
+
+		// Exactly 1 ACTIVE tenant - redirect directly
+		if (tenantsResult.ActiveCount == 1) {
+			var activeTenant = tenantsResult.Tenants.First(t =>
+				t.Status == Tenant.GetStatusDescription(TenantStatus.Active)
+			);
+			if (logger.IsEnabled(LogLevel.Information)) {
+				logger.LogInformation(
+					"User {UserId} has single active tenant {TenantId}, redirecting directly",
+					userId, activeTenant.Id
+				);
+			}
+			return TypedResults.Ok(new GetRedirectCodeResult {
+				RedirectCode = activeTenant.Id.ToString(),
+				HasSuspendedTenants = tenantsResult.HasSuspendedTenants,
+			});
+		}
+
+		// Multiple active tenants OR all suspended - show picker
 		if (logger.IsEnabled(LogLevel.Information)) {
 			logger.LogInformation(
-				"Fallback search for user {UserId} returned {Count} accounts",
-				userId,
-				userTenantAccounts.Count
+				"User {UserId} has {TotalCount} tenants ({ActiveCount} active), returning tenant-picker",
+				userId, tenantsResult.TotalCount, tenantsResult.ActiveCount
 			);
 		}
-
-		var fallbackTenant = userTenantAccounts.FirstOrDefault();
-
-		if (fallbackTenant?.TenantId is not null) {
-			return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = fallbackTenant.TenantId.Value.ToString() });
-		}
-
-		if (logger.IsEnabled(LogLevel.Warning)) {
-			logger.LogWarning(
-				"Attempt to access nonexisting tenant {TenantId} by user {UserId} but user had no fallback tenant",
-				query.TenantId,
-				userId
-			);
-		}
-
-		return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "unauthorized" });
+		return TypedResults.Ok(new GetRedirectCodeResult {
+			RedirectCode = "tenant-picker",
+			HasSuspendedTenants = tenantsResult.HasSuspendedTenants,
+		});
 	}
 }

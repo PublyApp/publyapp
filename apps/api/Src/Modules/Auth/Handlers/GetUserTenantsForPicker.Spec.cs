@@ -57,8 +57,7 @@ public sealed class GetUserTenantsForPickerSpec
 		result.ActiveCount.Should().Be(2);
 		result.Tenants.Should().HaveCount(2);
 		result.Tenants.Should().AllSatisfy(t => {
-			t.IsActive.Should().BeTrue();
-			t.IsSuspended.Should().BeFalse();
+			t.Status.Should().Be("Active");
 		});
 	}
 
@@ -109,15 +108,13 @@ public sealed class GetUserTenantsForPickerSpec
 			var acmeTenant = result.Tenants
 				.FirstOrDefault(t => t.Id == acmeId);
 			acmeTenant.Should().NotBeNull();
-			acmeTenant!.IsSuspended.Should().BeTrue();
-			acmeTenant.IsActive.Should().BeFalse();
+			acmeTenant!.Status.Should().Be("Suspended");
 
 			// Other tenant should still be active
 			var otherTenants = result.Tenants
 				.Where(t => t.Id != acmeId);
 			otherTenants.Should().AllSatisfy(t => {
-				t.IsSuspended.Should().BeFalse();
-				t.IsActive.Should().BeTrue();
+				t.Status.Should().Be("Active");
 			});
 		} finally {
 			using var cleanup =
@@ -182,8 +179,7 @@ public sealed class GetUserTenantsForPickerSpec
 			result.TotalCount.Should().Be(2);
 			result.ActiveCount.Should().Be(2);
 			result.Tenants.Should().AllSatisfy(t => {
-				t.IsActive.Should().BeTrue();
-				t.IsSuspended.Should().BeFalse();
+				t.Status.Should().Be("Active");
 			});
 		} finally {
 			// Safety net if reactivate didn't run
@@ -272,7 +268,6 @@ public sealed class GetUserTenantsForPickerSpec
 		var updatedCount = await dbContext.User
 			.Where(u => u.Email == normalizedEmail)
 			.ExecuteUpdateAsync(setters => setters
-				.SetProperty(u => u.IsSuspended, isSuspended)
 				.SetProperty(
 					u => u.Status,
 					isSuspended
@@ -289,8 +284,6 @@ public sealed class GetUserTenantsForPickerSpec
 		public string Name { get; init; } = string.Empty;
 		public string Code { get; init; } = string.Empty;
 		public string Status { get; init; } = string.Empty;
-		public bool IsSuspended { get; init; }
-		public bool IsActive { get; init; }
 	}
 
 	private record PickerResponse {
