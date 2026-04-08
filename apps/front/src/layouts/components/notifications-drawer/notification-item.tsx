@@ -5,6 +5,7 @@ import Button from '@mui/material/Button';
 import ListItemAvatar from '@mui/material/ListItemAvatar';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
+import DOMPurify from 'dompurify';
 
 import { FileThumbnail } from '#app/components/file-thumbnail/index.ts';
 import { Label } from '#app/components/label/index.ts';
@@ -29,8 +30,8 @@ export type NotificationItemProps = {
 const readerContent = (data: string) => {
 	return (
 		<Box
-			// biome-ignore lint/security/noDangerouslySetInnerHtml: code from template, leave as is for now
-			dangerouslySetInnerHTML={{ __html: data }}
+			// biome-ignore lint/security/noDangerouslySetInnerHtml: Content is sanitized with DOMPurify to remove dangerous tags/scripts before rendering
+			dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(data) }}
 			sx={{
 				'& p': { m: 0, typography: 'body2' },
 				'& a': { color: 'inherit', textDecoration: 'none' },
@@ -157,11 +158,13 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 						borderRadius: 1.5,
 						color: 'text.secondary',
 						bgcolor: 'background.neutral',
+						m: 0,
+						typography: 'body2',
+						'& strong': { typography: 'subtitle2' },
 					}}
 				>
-					{readerContent(
-						'<p><strong>@Jaydon Frankie</strong> feedback by asking questions or just leave a note of appreciation.</p>',
-					)}
+					<strong>@Jaydon Frankie</strong> feedback by asking questions or just
+					leave a note of appreciation.
 				</Box>
 
 				<Button
