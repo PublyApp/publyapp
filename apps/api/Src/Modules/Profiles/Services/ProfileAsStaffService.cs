@@ -37,6 +37,14 @@ public abstract record FindStaffProfilesResult {
 	public sealed record InvalidSortId(string SortId) : FindStaffProfilesResult;
 }
 
+public sealed record FindStaffProfilesArgs(
+	Guid Cursor,
+	int? Limit,
+	string? SortId,
+	SortOrder? SortOrder,
+	string? Search
+);
+
 /// <summary>
 /// Discriminated union representing the result of creating a staff profile.
 /// </summary>
@@ -97,10 +105,7 @@ public interface IProfileAsStaffService {
 	);
 
 	Task<FindStaffProfilesResult> FindStaffProfilesAsync(
-		Guid cursor,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
+		FindStaffProfilesArgs args,
 		CancellationToken cancellationToken = default
 	);
 
@@ -210,15 +215,14 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 	///   - Returns records after Charlie in alphabetical order
 	/// </summary>
 	public async Task<FindStaffProfilesResult> FindStaffProfilesAsync(
-		Guid cursor,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
+		FindStaffProfilesArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
-		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-		var effectiveSortId = sortId ?? "id";
+		var effectiveLimit =
+			args.Limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
+		var effectiveSortId = args.SortId ?? "id";
+		var search = args.Search;
 
 		// Define handlers for each sortable field
 		// Each handler has 3 responsibilities:
@@ -235,8 +239,13 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			["id"] = new SortFieldHandler(
 				// GetCursorValue: Just fetch the Id value
 				getCursorValue: async (guid) => {
-					var profile = await _dbContext.Profile.FindAsync(guid);
-					return profile?.Id;
+					var profileId = await _dbContext.Profile
+						.Where(p => p.Id == guid
+							&& p.Scope == ProfileScope.Staff
+							&& !p.IsDeleted)
+						.Select(p => p.Id)
+						.FirstOrDefaultAsync(cancellationToken);
+					return profileId;
 				},
 				// ApplyFilter: Simple comparison - WHERE Id > cursor (or < for descending)
 				applyFilter: (q, cursorValue, isAsc) => {
@@ -262,9 +271,11 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				// We need both values to construct the keyset filter correctly
 				getCursorValue: async (guid) => {
 					var profile = await _dbContext.Profile
-						.Where(p => p.Id == guid)
+						.Where(p => p.Id == guid
+							&& p.Scope == ProfileScope.Staff
+							&& !p.IsDeleted)
 						.Select(p => new { p.Name, p.Id })
-						.FirstOrDefaultAsync();
+						.FirstOrDefaultAsync(cancellationToken);
 					// Return as tuple: (Name, Id)
 					return profile is not null ? (profile.Name, profile.Id) : null;
 				},
@@ -295,9 +306,11 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				// GetCursorValue: Fetch BOTH CreatedAt and Id
 				getCursorValue: async (guid) => {
 					var profile = await _dbContext.Profile
-						.Where(p => p.Id == guid)
+						.Where(p => p.Id == guid
+							&& p.Scope == ProfileScope.Staff
+							&& !p.IsDeleted)
 						.Select(p => new { p.CreatedAt, p.Id })
-						.FirstOrDefaultAsync();
+						.FirstOrDefaultAsync(cancellationToken);
 					return profile is not null ? (profile.CreatedAt, profile.Id) : null;
 				},
 				// ApplyFilter: Keyset filter with tie-breaker in same direction
@@ -325,9 +338,11 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				// GetCursorValue: Calculate the count for the cursor record
 				getCursorValue: async (guid) => {
 					var profile = await _dbContext.Profile
-						.Where(p => p.Id == guid)
+						.Where(p => p.Id == guid
+							&& p.Scope == ProfileScope.Staff
+							&& !p.IsDeleted)
 						.Select(p => new { Count = p.UserAccountProfiles.Count, p.Id })
-						.FirstOrDefaultAsync();
+						.FirstOrDefaultAsync(cancellationToken);
 					return profile is not null ? (profile.Count, profile.Id) : null;
 				},
 				// ApplyFilter: Keyset filter with tie-breaker in same direction
@@ -358,20 +373,38 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		// STEP 2: Build base query
 		// ───────────────────────────────────────────────────────────────────────
 		// Start with staff profiles only, excluding soft-deleted records
-		var query = _dbContext.Profile
-			.Where(p => p.Scope == ProfileScope.Staff && p.Id != null);
+		var baseQuery =
+			from p in _dbContext.Profile
+			where p.Scope == ProfileScope.Staff
+				&& !p.IsDeleted
+				&& p.Id != null
+			select p;
+
+		IQueryable<Profile> query = baseQuery;
+
+		// Apply search filter (by name/description)
+		// Search semantics: substring match (ILIKE %q%) for case-insensitive search
+		if (search is { } q) {
+			var pattern = $"%{q}%";
+			query = query.Where(p =>
+				EF.Functions.ILike(p.Name, pattern)
+				|| (p.Description != null && EF.Functions.ILike(p.Description, pattern))
+			);
+		}
 
 		// ───────────────────────────────────────────────────────────────────────
 		// STEP 3: Apply cursor-based filter (if paginating)
 		// ───────────────────────────────────────────────────────────────────────
 		// Apply keyset filter to get records AFTER the cursor
-		if (cursor != Guid.Empty) {
+		if (args.Cursor != Guid.Empty) {
 			// Fetch the sort field value at the cursor position
-			var cursorValue = await handler.GetCursorValue(cursor);
+			var cursorValue = await handler.GetCursorValue(args.Cursor);
 
 			// Validate that cursor exists
 			if (cursorValue is null) {
-				return new FindStaffProfilesResult.CursorNotFound(cursor.ToString());
+				return new FindStaffProfilesResult.CursorNotFound(
+					args.Cursor.ToString()
+				);
 			}
 
 			// Apply the keyset filter based on the sort field

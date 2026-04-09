@@ -142,6 +142,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey MalformedId = new("malformed-id");
 
 	/// <summary>
+	/// Max profiles per user exceeded
+	/// </summary>
+	public static readonly TranslationKey MaxProfilesPerUserExceeded = new("max-profiles-per-user-exceeded");
+
+	/// <summary>
 	/// Method not allowed
 	/// </summary>
 	public static readonly TranslationKey MethodNotAllowed = new("method-not-allowed");
@@ -180,6 +185,11 @@ public static partial class ResponseKeys {
 	/// Profile name already exists
 	/// </summary>
 	public static readonly TranslationKey ProfileNameAlreadyExists = new("profile-name-already-exists");
+
+	/// <summary>
+	/// Profile must be a staff profile
+	/// </summary>
+	public static readonly TranslationKey ProfileNotStaffScope = new("profile-not-staff-scope");
 
 	/// <summary>
 	/// profiles

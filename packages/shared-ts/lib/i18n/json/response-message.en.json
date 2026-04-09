@@ -75,5 +75,7 @@
 	"user-level-updated-success": "User level has been updated successfully",
 	"cannot-remove-last-admin": "Cannot remove the last admin from the tenant",
 	"cannot-demote-last-admin": "Cannot demote the last admin from the tenant",
-	"cannot-suspend-last-admin": "Cannot suspend the last admin from the tenant"
+	"cannot-suspend-last-admin": "Cannot suspend the last admin from the tenant",
+	"max-profiles-per-user-exceeded": "Max profiles per user exceeded",
+	"profile-not-staff-scope": "Profile must be a staff profile"
 }
