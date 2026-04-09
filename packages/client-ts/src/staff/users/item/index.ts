@@ -90,8 +90,15 @@ export interface WithUserItemRequestBuilder extends BaseRequestBuilder<WithUserI
 /**
  * Uri template for the request builder.
  */
-export const WithUserItemRequestBuilderUriTemplate =
-	'{+baseurl}/staff/users/{userId}';
+export const WithUserItemRequestBuilderUriTemplate = "{+baseurl}/staff/users/{userId}";
+/**
+ * Metadata for all the navigation properties in the request builder.
+ */
+export const WithUserItemRequestBuilderNavigationMetadata: Record<Exclude<keyof WithUserItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    profiles: {
+        requestsMetadata: ProfilesRequestBuilderRequestsMetadata,
+    },
+};
 /**
  * Metadata for all the navigation properties in the request builder.
  */

@@ -2048,6 +2048,186 @@
         }
       }
     },
+    "/staff/users/{userId}/profiles": {
+      "get": {
+        "tags": [
+          "Staff Users"
+        ],
+        "summary": "Get profiles assigned to a staff user",
+        "operationId": "GetStaffUserProfiles",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetStaffUserProfilesResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Staff Users"
+        ],
+        "summary": "Update profiles assigned to a staff user",
+        "operationId": "UpdateStaffUserProfiles",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStaffUserProfilesBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStaffUserProfilesResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/staff/tenants/{tenantId}/users": {
       "get": {
         "tags": [
@@ -10050,6 +10230,26 @@
           }
         }
       },
+      "GetStaffUserProfilesResult": {
+        "required": [
+          "maxProfilesPerUser",
+          "assignedProfiles"
+        ],
+        "type": "object",
+        "properties": {
+          "maxProfilesPerUser": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "assignedProfiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffUserProfileItem"
+            }
+          }
+        }
+      },
       "GetTenantAsStaffResult": {
         "type": "object",
         "properties": {
@@ -11849,6 +12049,28 @@
         "properties": {
           "email": {
             "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "UpdateStaffUserProfilesBody": {
+        "type": "object",
+        "properties": {
+          "profileIds": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "UpdateStaffUserProfilesResult": {
+        "required": [
+          "assignedProfiles"
+        ],
+        "type": "object",
+        "properties": {
+          "assignedProfiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffUserProfileItem"
+            }
           }
         }
       },
