@@ -2,6 +2,7 @@ using System.Data;
 
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
+using MainApi.Src.Modules.Profiles.Entities;
 using MainApi.Src.Modules.Users.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -106,6 +107,32 @@ public abstract record ReactivateTenantUserResult {
 	public sealed record NotSuspended() : ReactivateTenantUserResult;
 }
 
+public sealed record StaffUserProfileSummary(
+	Guid Id,
+	string Name,
+	string? Description
+);
+
+public sealed record StaffUserProfilesSummary(
+	List<StaffUserProfileSummary> AssignedProfiles
+);
+
+public abstract record UpdateStaffUserProfilesServiceResult {
+	public sealed record Success(
+		List<StaffUserProfileSummary> AssignedProfiles
+	) : UpdateStaffUserProfilesServiceResult;
+
+	public sealed record UserNotFound() : UpdateStaffUserProfilesServiceResult;
+
+	public sealed record ProfilesNotFound(
+		List<Guid> ProfileIds
+	) : UpdateStaffUserProfilesServiceResult;
+
+	public sealed record ProfilesNotStaffScope(
+		List<Guid> ProfileIds
+	) : UpdateStaffUserProfilesServiceResult;
+}
+
 public interface IUserService {
 	Task<CreateUserResult> CreateUserAsync(User user, CancellationToken cancellationToken = default);
 	Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken = default);
@@ -123,6 +150,15 @@ public interface IUserService {
 		CancellationToken cancellationToken = default
 	);
 	Task<UpdateUserByIdResult> UpdateStaffUserByIdAsync(Guid userId, UpdateUserDocument document, CancellationToken cancellationToken = default);
+	Task<StaffUserProfilesSummary?> GetStaffUserProfilesAsync(
+		Guid userId,
+		CancellationToken cancellationToken = default
+	);
+	Task<UpdateStaffUserProfilesServiceResult> UpdateStaffUserProfilesAsync(
+		Guid userId,
+		List<Guid> profileIds,
+		CancellationToken cancellationToken = default
+	);
 	Task<FindTenantUsersResult> FindTenantUsersAsync(
 		Guid tenantId,
 		FindTenantUsersAsStaffArgs args,
@@ -318,6 +354,189 @@ public class UserService : IUserService {
 			User = x.User,
 			AccountLevel = x.Level
 		}).ToList();
+	}
+
+	public async Task<StaffUserProfilesSummary?> GetStaffUserProfilesAsync(
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		// Resolve the staff UserAccount ID for the given User ID.
+		// We intentionally treat "not staff", "deleted", and "suspended" as not-found for staff
+		// management endpoints: those cases should not be editable/assignable via staff tooling.
+		var staffAccountId = await (
+			from ua in _dbContext.UserAccount
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& ua.Status != AccountStatus.Suspended
+				&& !ua.User.IsDeleted
+				&& ua.User.Status != UserStatus.Suspended
+			select ua.Id
+		).FirstOrDefaultAsync(cancellationToken);
+
+		// NOTE: ua.Id is nullable in the model (Guid?) so FirstOrDefault can yield null/empty.
+		if (staffAccountId is null || staffAccountId.Value == Guid.Empty) {
+			return null;
+		}
+
+		// Load currently assigned staff profiles (via the junction table).
+		// We filter out deleted links and deleted profiles and enforce staff-scope profiles only.
+		var assignedProfilesRaw = await (
+			from uap in _dbContext.UserAccountProfile
+			join p in _dbContext.Profile on uap.ProfileId equals p.Id
+			where uap.UserAccountId == staffAccountId.Value
+				&& !uap.IsDeleted
+				&& !p.IsDeleted
+				&& p.Scope == ProfileScope.Staff
+			select new { p.Id, p.Name, p.Description }
+		).ToListAsync(cancellationToken);
+
+		var assignedProfiles = assignedProfilesRaw
+			.Select(p => new StaffUserProfileSummary(
+				p.Id ?? throw new InvalidOperationException("Profile id is null"),
+				p.Name,
+				p.Description
+			))
+			.ToList();
+
+		// We intentionally do NOT return "available profiles" here.
+		// Returning the full universe can grow unbounded and becomes a performance smell.
+		// The UI should fetch candidates via `FindStaffProfiles` with `search=...`.
+		return new StaffUserProfilesSummary(AssignedProfiles: assignedProfiles);
+	}
+
+	public async Task<UpdateStaffUserProfilesServiceResult> UpdateStaffUserProfilesAsync(
+		Guid userId,
+		List<Guid> profileIds,
+		CancellationToken cancellationToken = default
+	) {
+		// Resolve the staff UserAccount ID for the given User ID.
+		// Same filtering semantics as GetStaffUserProfilesAsync: if the user is not an active
+		// staff user (deleted/suspended/not-staff), treat as not found.
+		var staffAccountId = await (
+			from ua in _dbContext.UserAccount
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& ua.Status != AccountStatus.Suspended
+				&& !ua.User.IsDeleted
+				&& ua.User.Status != UserStatus.Suspended
+			select ua.Id
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (staffAccountId is null || staffAccountId.Value == Guid.Empty) {
+			return new UpdateStaffUserProfilesServiceResult.UserNotFound();
+		}
+
+		// Profile.Id is nullable (Guid?) in the EF model, so we convert our requested IDs to
+		// nullable IDs to keep the LINQ query fully translatable by EF.
+		var profileIdsNullable = profileIds.Select(id => (Guid?)id).ToList();
+
+		// Load all requested profiles in a single query.
+		// We only select the fields we need to validate and to return the updated assignment.
+		var requestedProfiles = await (
+			from p in _dbContext.Profile
+			where profileIdsNullable.Contains(p.Id)
+				&& !p.IsDeleted
+			select new {
+				p.Id,
+				p.Scope,
+				p.Name,
+				p.Description,
+			}
+		).ToListAsync(cancellationToken);
+
+		// Validate: every requested ID must exist.
+		var existingIds = new List<Guid>();
+		foreach (var profile in requestedProfiles) {
+			var id = profile.Id;
+			if (id is not null) {
+				existingIds.Add(id.Value);
+			}
+		}
+		var missingIds = profileIds.Except(existingIds).ToList();
+		if (missingIds.Count > 0) {
+			return new UpdateStaffUserProfilesServiceResult.ProfilesNotFound(missingIds);
+		}
+
+		// Validate: all requested profiles must be staff-scope (we never attach tenant profiles to staff accounts).
+		var nonStaffIds = new List<Guid>();
+		foreach (var profile in requestedProfiles) {
+			var id = profile.Id;
+			if (id is not null && profile.Scope != ProfileScope.Staff) {
+				nonStaffIds.Add(id.Value);
+			}
+		}
+		if (nonStaffIds.Count > 0) {
+			return new UpdateStaffUserProfilesServiceResult.ProfilesNotStaffScope(nonStaffIds);
+		}
+
+		// "Replace set" semantics:
+		// - remove links that are currently assigned but not in the new set
+		// - add links that are in the new set but not currently assigned
+		var currentProfileIds = await (
+			from uap in _dbContext.UserAccountProfile
+			where uap.UserAccountId == staffAccountId.Value
+				&& !uap.IsDeleted
+			select uap.ProfileId
+		).ToListAsync(cancellationToken);
+
+		var toRemoveIds = currentProfileIds.Except(profileIds).ToList();
+		if (toRemoveIds.Count > 0) {
+			// IMPORTANT: We hard-delete the junction rows.
+			// Reason: this table typically has a uniqueness constraint on (UserAccountId, ProfileId),
+			// so a soft-deleted row would prevent re-assigning the same profile later.
+			var linksToRemove = await (
+				from uap in _dbContext.UserAccountProfile
+				where uap.UserAccountId == staffAccountId.Value
+					&& toRemoveIds.Contains(uap.ProfileId)
+				select uap
+			).ToListAsync(cancellationToken);
+
+			_dbContext.UserAccountProfile.RemoveRange(linksToRemove);
+		}
+
+		var toAddIds = profileIds.Except(currentProfileIds).ToList();
+		if (toAddIds.Count > 0) {
+			var newLinks = toAddIds
+				.Select(profileId => new UserAccountProfile {
+					UserAccountId = staffAccountId.Value,
+					ProfileId = profileId
+				})
+				.ToList();
+
+			await _dbContext.UserAccountProfile.AddRangeAsync(
+				newLinks,
+				cancellationToken
+			);
+		}
+
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		// Build the result from requestedProfiles in-memory to avoid re-query-ing.
+		// We also preserve the request order (profileIds) for a stable client experience.
+		var assignedMap = new Dictionary<Guid, StaffUserProfileSummary>();
+		foreach (var profile in requestedProfiles) {
+			var id = profile.Id;
+			if (id is null) {
+				throw new InvalidOperationException(
+					"Profile id is null after query filter"
+				);
+			}
+
+			assignedMap[id.Value] = new StaffUserProfileSummary(
+				id.Value,
+				profile.Name,
+				profile.Description
+			);
+		}
+
+		var assigned = profileIds
+			.Where(assignedMap.ContainsKey)
+			.Select(id => assignedMap[id])
+			.ToList();
+
+		return new UpdateStaffUserProfilesServiceResult.Success(assigned);
 	}
 
 	public async Task<FindTenantUsersResult>

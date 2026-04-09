@@ -878,6 +878,15 @@ export function createGetStaffUserByIdResultFromDiscriminatorValue(parseNode: Pa
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {GetStaffUserProfilesResult}
+ */
+// @ts-ignore
+export function createGetStaffUserProfilesResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetStaffUserProfilesResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {GetTenantAsStaffResult}
  */
 // @ts-ignore
@@ -1188,6 +1197,15 @@ export interface CreateStaffUserBody_sendNotificationMember1 extends AdditionalD
 export function createStaffUserItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoStaffUserItem;
 }
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {StaffUserProfileItem}
+ */
+// @ts-ignore
+export function createStaffUserProfileItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoStaffUserProfileItem;
+}
 export interface CreateStaffUserResult extends AdditionalDataHolder, Parsable {
     /**
      * The accountId property
@@ -1453,6 +1471,24 @@ export function createUpdateStaffUserBody_statusMember1FromDiscriminatorValue(pa
 // @ts-ignore
 export function createUpdateStaffUserBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoUpdateStaffUserBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {UpdateStaffUserProfilesBody}
+ */
+// @ts-ignore
+export function createUpdateStaffUserProfilesBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUpdateStaffUserProfilesBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {UpdateStaffUserProfilesResult}
+ */
+// @ts-ignore
+export function createUpdateStaffUserProfilesResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUpdateStaffUserProfilesResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -2415,6 +2451,18 @@ export function deserializeIntoGetStaffUserByIdResult(getStaffUserByIdResult: Pa
 }
 /**
  * The deserialization information for the current model
+ * @param GetStaffUserProfilesResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoGetStaffUserProfilesResult(getStaffUserProfilesResult: Partial<GetStaffUserProfilesResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "assignedProfiles": n => { getStaffUserProfilesResult.assignedProfiles = n.getCollectionOfObjectValues<StaffUserProfileItem>(createStaffUserProfileItemFromDiscriminatorValue); },
+        "maxProfilesPerUser": n => { getStaffUserProfilesResult.maxProfilesPerUser = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param GetTenantAsStaffResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -2767,6 +2815,19 @@ export function deserializeIntoStaffUserItem(staffUserItem: Partial<StaffUserIte
 }
 /**
  * The deserialization information for the current model
+ * @param StaffUserProfileItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoStaffUserProfileItem(staffUserProfileItem: Partial<StaffUserProfileItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "description": n => { staffUserProfileItem.description = n.getStringValue(); },
+        "id": n => { staffUserProfileItem.id = n.getGuidValue(); },
+        "name": n => { staffUserProfileItem.name = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param SuspendTenantAsStaffBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -3086,6 +3147,28 @@ export function deserializeIntoUpdateStaffUserBody_status(updateStaffUserBody_st
 // @ts-ignore
 export function deserializeIntoUpdateStaffUserBody_statusMember1(updateStaffUserBody_statusMember1: Partial<UpdateStaffUserBody_statusMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param UpdateStaffUserProfilesBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUpdateStaffUserProfilesBody(updateStaffUserProfilesBody: Partial<UpdateStaffUserProfilesBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "profileIds": n => { updateStaffUserProfilesBody.profileIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param UpdateStaffUserProfilesResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUpdateStaffUserProfilesResult(updateStaffUserProfilesResult: Partial<UpdateStaffUserProfilesResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "assignedProfiles": n => { updateStaffUserProfilesResult.assignedProfiles = n.getCollectionOfObjectValues<StaffUserProfileItem>(createStaffUserProfileItemFromDiscriminatorValue); },
     }
 }
 /**
@@ -3474,6 +3557,16 @@ export interface GetStaffUserByIdResult extends AdditionalDataHolder, Parsable {
      * The status property
      */
     status?: string | null;
+}
+export interface GetStaffUserProfilesResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The assignedProfiles property
+     */
+    assignedProfiles?: StaffUserProfileItem[] | null;
+    /**
+     * The maxProfilesPerUser property
+     */
+    maxProfilesPerUser?: number | null;
 }
 export interface GetTenantAsStaffResult extends AdditionalDataHolder, Parsable {
     /**
@@ -4623,6 +4716,19 @@ export function serializeGetStaffUserByIdResult(writer: SerializationWriter, get
 }
 /**
  * Serializes information the current object
+ * @param GetStaffUserProfilesResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeGetStaffUserProfilesResult(writer: SerializationWriter, getStaffUserProfilesResult: Partial<GetStaffUserProfilesResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getStaffUserProfilesResult || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<StaffUserProfileItem>("assignedProfiles", getStaffUserProfilesResult.assignedProfiles, serializeStaffUserProfileItem);
+    writer.writeNumberValue("maxProfilesPerUser", getStaffUserProfilesResult.maxProfilesPerUser);
+    writer.writeAdditionalData(getStaffUserProfilesResult.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param GetTenantAsStaffResult The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -5001,6 +5107,20 @@ export function serializeStaffUserItem(writer: SerializationWriter, staffUserIte
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param StaffUserProfileItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeStaffUserProfileItem(writer: SerializationWriter, staffUserProfileItem: Partial<StaffUserProfileItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!staffUserProfileItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("description", staffUserProfileItem.description);
+    writer.writeGuidValue("id", staffUserProfileItem.id);
+    writer.writeStringValue("name", staffUserProfileItem.name);
+    writer.writeAdditionalData(staffUserProfileItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param SuspendTenantAsStaffBody The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -5335,6 +5455,30 @@ export function serializeUpdateStaffUserBody_status(writer: SerializationWriter,
 export function serializeUpdateStaffUserBody_statusMember1(writer: SerializationWriter, updateStaffUserBody_statusMember1: Partial<UpdateStaffUserBody_statusMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!updateStaffUserBody_statusMember1 || isSerializingDerivedType) { return; }
     writer.writeAdditionalData(updateStaffUserBody_statusMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UpdateStaffUserProfilesBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUpdateStaffUserProfilesBody(writer: SerializationWriter, updateStaffUserProfilesBody: Partial<UpdateStaffUserProfilesBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!updateStaffUserProfilesBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("profileIds", updateStaffUserProfilesBody.profileIds);
+    writer.writeAdditionalData(updateStaffUserProfilesBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UpdateStaffUserProfilesResult The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUpdateStaffUserProfilesResult(writer: SerializationWriter, updateStaffUserProfilesResult: Partial<UpdateStaffUserProfilesResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!updateStaffUserProfilesResult || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<StaffUserProfileItem>("assignedProfiles", updateStaffUserProfilesResult.assignedProfiles, serializeStaffUserProfileItem);
+    writer.writeAdditionalData(updateStaffUserProfilesResult.additionalData);
 }
 /**
  * Serializes information the current object
@@ -5713,6 +5857,20 @@ export interface StaffUserItem extends AdditionalDataHolder, Parsable {
      * The status property
      */
     status?: string | null;
+}
+export interface StaffUserProfileItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The description property
+     */
+    description?: string | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The name property
+     */
+    name?: string | null;
 }
 export interface SuspendTenantAsStaffBody extends AdditionalDataHolder, Parsable {
     /**
@@ -6101,6 +6259,18 @@ export interface UpdateStaffUserBody_emailMember1 extends AdditionalDataHolder, 
 }
 export type UpdateStaffUserBody_status = JsonElement | UpdateStaffUserBody_statusMember1;
 export interface UpdateStaffUserBody_statusMember1 extends AdditionalDataHolder, Parsable {
+}
+export interface UpdateStaffUserProfilesBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The profileIds property
+     */
+    profileIds?: UntypedNode | null;
+}
+export interface UpdateStaffUserProfilesResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The assignedProfiles property
+     */
+    assignedProfiles?: StaffUserProfileItem[] | null;
 }
 export interface UpdateSystemNoticeBody extends AdditionalDataHolder, Parsable {
     /**

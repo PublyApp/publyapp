@@ -45,6 +45,23 @@ public static class UserEndpointsForStaff {
 			.WithReqBodyValidation<UpdateStaffUserBody>()
 			.WithPermission([AppPermissions.Staff.Users.UPDATE_FOR_STAFF]);
 
+		group.MapGet(
+				Routes.Users.ForStaff.Profiles.Get,
+				GetStaffUserProfiles.HandleGetStaffUserProfiles
+			)
+			.WithName("GetStaffUserProfiles")
+			.WithSummary("Get profiles assigned to a staff user")
+			.WithPermission([AppPermissions.Staff.Users.GET_PROFILES_FOR_STAFF]);
+
+		group.MapPut(
+				Routes.Users.ForStaff.Profiles.Update,
+				UpdateStaffUserProfiles.HandleUpdateStaffUserProfiles
+			)
+			.WithName("UpdateStaffUserProfiles")
+			.WithSummary("Update profiles assigned to a staff user")
+			.WithReqBodyValidation<UpdateStaffUserProfilesBody>()
+			.WithPermission([AppPermissions.Staff.Users.UPDATE_PROFILES_FOR_STAFF]);
+
 		return routes;
 	}
 }

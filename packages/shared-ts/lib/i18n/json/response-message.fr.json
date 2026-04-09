@@ -75,5 +75,7 @@
 	"user-level-updated-success": "Le niveau de l'utilisateur a été mis à jour avec succès",
 	"cannot-remove-last-admin": "Impossible de supprimer le dernier administrateur du locataire",
 	"cannot-demote-last-admin": "Impossible de rétrograder le dernier administrateur du locataire",
-	"cannot-suspend-last-admin": "Impossible de suspendre le dernier administrateur du locataire"
+	"cannot-suspend-last-admin": "Impossible de suspendre le dernier administrateur du locataire",
+	"max-profiles-per-user-exceeded": "Nombre maximal de profils par utilisateur dépassé",
+	"profile-not-staff-scope": "Le profil doit être un profil du staff"
 }

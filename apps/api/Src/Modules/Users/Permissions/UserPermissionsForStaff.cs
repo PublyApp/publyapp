@@ -12,6 +12,8 @@ public class UserPermissionsForStaff : ISlicePermissions {
 	public Permission CREATE_FOR_STAFF { get; }
 	public Permission UPDATE_FOR_STAFF { get; }
 	public Permission DELETE_FOR_STAFF { get; }
+	public Permission GET_PROFILES_FOR_STAFF { get; }
+	public Permission UPDATE_PROFILES_FOR_STAFF { get; }
 
 	// ==== FOR TENANT ====
 	public Permission LIST_FOR_TENANT { get; }
@@ -46,6 +48,16 @@ public class UserPermissionsForStaff : ISlicePermissions {
 			.CreateStaffPermission(string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "delete_for_staff" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Delete a user for staff", Description = "Delete a user for staff" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Supprimer un utilisateur du staff", Description = "Supprimer un utilisateur du staff" });
+
+		GET_PROFILES_FOR_STAFF = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "get_profiles_for_staff" }))
+			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "View staff user profiles", Description = "View profiles assigned to a staff user" })
+			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Voir les profils d'un utilisateur du staff", Description = "Voir les profils assignés à un utilisateur du staff" });
+
+		UPDATE_PROFILES_FOR_STAFF = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "update_profiles_for_staff" }))
+			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Update staff user profiles", Description = "Assign or remove profiles for a staff user" })
+			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Mettre à jour les profils d'un utilisateur du staff", Description = "Assigner ou retirer des profils à un utilisateur du staff" });
 
 		// ==== FOR TENANT ====
 		LIST_FOR_TENANT = Permission

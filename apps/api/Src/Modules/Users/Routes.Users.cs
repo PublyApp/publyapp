@@ -18,6 +18,19 @@ public static partial class Routes {
 			public static string UpdateFn(string userId) => $"/{userId}";
 			public const string Delete = "/{userId}";
 			public static string DeleteFn(string userId) => $"/{userId}";
+
+			/// <summary>Staff user profile assignment routes</summary>
+			public static class Profiles {
+				public const string Root = "/{userId}/profiles";
+				public static string RootFn(string userId) => $"/{userId}/profiles";
+
+				public const string Get = Root;
+				public static string GetFn(string userId) => RootFn(userId);
+
+				/// <summary>Replace the full assigned profile set for the staff user</summary>
+				public const string Update = Root;
+				public static string UpdateFn(string userId) => RootFn(userId);
+			}
 		}
 
 		/// <summary>Tenant user routes (staff managing tenant users)</summary>
