@@ -133,7 +133,7 @@ export const useTableState = (
 		setCurrentCursor(null);
 		setNextCursor(undefined);
 		setVirtualPageIndex(0);
-	}, [paginationMode]);
+	}, [paginationMode, setNextCursor]);
 
 	// Pagination state (conditional based on mode)
 	const [paginationState, setPaginationState] = useQueryStates(
