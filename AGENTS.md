@@ -12,14 +12,16 @@ PublyApp is a modern full-stack multi-tenant SaaS application built with .NET 10
 
 ```bash
 # Terminal 1 - Start API with hot reload
-make dev-api
+just dev-api
 
 # Terminal 2 - Start React frontend with Vite
-make dev-front
+just dev-front
 
 # Start PostgreSQL in Docker
-make dev-db
+just dev-db
 ```
+
+**Windows note:** the repo `justfile` uses PowerShell 7 (`pwsh`) on Windows (not Windows PowerShell 5.1).
 
 ### Configuration (AppEnvironment)
 
@@ -32,26 +34,26 @@ The API reads configuration exclusively from environment variables via `AppEnvir
 ### Building
 
 ```bash
-make build-api          # Build .NET API
-make build-front        # Build React frontend for production
-make build-deploy       # Build everything for deployment
+just build-api          # Build .NET API
+just build-front        # Build React frontend for production
+just build-deploy       # Build everything for deployment
 ```
 
 ### Code Quality
 
 ```bash
-make check-write        # Run Biome linting + formatting (auto-fix)
-make tsc-front          # TypeScript type checking
-make knip               # Check for unused dependencies
+just check-write        # Run Biome linting + formatting (auto-fix)
+just tsc-front          # TypeScript type checking
+just knip               # Check for unused dependencies
 ```
 
 ### Database Operations
 
 ```bash
-make db-migrate                # Run EF Core migrations
-make db-add NAME=MigrationName # Add new migration
-make db-reset                  # Drop and recreate database
-make db-remove                 # Remove last migration
+just db-migrate                # Run EF Core migrations
+just db-add MigrationName      # Add new migration
+just db-reset                  # Drop and recreate database
+just db-remove                 # Remove last migration
 ```
 
 ### API Client Generation
@@ -59,7 +61,7 @@ make db-remove                 # Remove last migration
 After backend changes that modify the API contract:
 
 ```bash
-make generate-client    # Generate TypeScript client from OpenAPI
+just generate-client    # Generate TypeScript client from OpenAPI
 ```
 
 This is critical - the frontend TypeScript client is auto-generated from the backend OpenAPI spec.
@@ -67,7 +69,7 @@ This is critical - the frontend TypeScript client is auto-generated from the bac
 ### Running Tests
 
 ```bash
-make test-api          # Run API integration tests (requires Docker)
+just test-api          # Run API integration tests (requires Docker)
 ```
 
 **Prerequisites:** Docker must be running (Testcontainers spins up Postgres automatically).
@@ -279,8 +281,8 @@ For step-by-step checklists (adding features, updating API contract, adding enti
 [`docs/guides/common-workflows.md`](docs/guides/common-workflows.md)
 
 **Quick reference:**
-- After API contract changes: `make build-api && make generate-client` (never modify `packages/client-ts/` manually)
-- New entity: inherit `BaseAttributes`, implement tenant interface, add `DbSet`, `make db-add && make db-migrate`
+- After API contract changes: `just build-api && just generate-client` (never modify `packages/client-ts/` manually)
+- New entity: inherit `BaseAttributes`, implement tenant interface, add `DbSet`, `just db-add <MigrationName> && just db-migrate`
 - New permission: add to `Seeder.cs`, use `PermissionFilter` on endpoint, check via `AuthContext.HasPermission()`
 
 ## Project Conventions
@@ -317,7 +319,7 @@ client regeneration workflow, and TypeScript patterns), see:
 **Key rules (always apply):**
 - Required body fields: non-nullable `JsonElement` (not `JsonElement?`) for cleaner TypeScript types
 - Never add XML comments to generic types (`<T>`) — triggers .NET 10 OpenAPI bug
-- After DTO/endpoint changes: `make build-api && make generate-client && make tsc-front`
+- After DTO/endpoint changes: `just build-api && just generate-client && just tsc-front`
 - Use `createUntypedString()` / `createUntypedArray()` for request body fields in TypeScript
 
 ## Documentation Organization

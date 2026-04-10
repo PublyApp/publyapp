@@ -27,7 +27,8 @@
 	"typescript.tsdk": "node_modules\\typescript\\lib",
 	"files.eol": "\n",
 	"files.associations": {
-		"*.slnx": "xml"
+		"*.slnx": "xml",
+		"justfile": "makefile"
 	},
 	"[jsonc]": {
 		"editor.defaultFormatter": "vscode.json-language-features"
@@ -92,6 +93,7 @@
 		"immer",
 		"Immer",
 		"isbot",
+		"justfile",
 		"kiota",
 		"knip",
 		"languagedetector",
