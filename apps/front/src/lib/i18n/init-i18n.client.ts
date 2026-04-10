@@ -18,6 +18,7 @@ import { getCorrectLocale } from '@org/shared-ts/lib/i18n/i18n.utils';
 import type { AppLocale } from '@org/shared-ts/lib/i18n/resources';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import duration from '@org/shared-ts/utils/duration.utils';
+import { getErrorMessage } from '@org/shared-ts/utils/error.utils';
 
 import { interZodClient } from '../zod/zod.client';
 import { config } from './i18n.config';
