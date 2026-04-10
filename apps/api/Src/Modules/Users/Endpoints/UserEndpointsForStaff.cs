@@ -45,6 +45,34 @@ public static class UserEndpointsForStaff {
 			.WithReqBodyValidation<UpdateStaffUserBody>()
 			.WithPermission([AppPermissions.Staff.Users.UPDATE_FOR_STAFF]);
 
+		// High-risk identity operation:
+		// keep it behind a dedicated route + permission so it cannot be updated accidentally
+		// via the generic "update staff user" PATCH.
+		group.MapPatch(
+				Routes.Users.ForStaff.UpdateEmail,
+				UpdateStaffUserEmail.HandleUpdateStaffUserEmail
+			)
+			.WithName("UpdateStaffUserEmail")
+			.WithSummary("Update a staff user's email")
+			.WithReqBodyValidation<UpdateStaffUserEmailBody>()
+			.WithPermission([AppPermissions.Staff.Users.UPDATE_EMAIL_FOR_STAFF]);
+
+		group.MapPost(
+				Routes.Users.ForStaff.Suspend,
+				SuspendStaffUser.HandleSuspendStaffUser
+			)
+			.WithName("SuspendStaffUser")
+			.WithSummary("Suspend a staff user")
+			.WithPermission([AppPermissions.Staff.Users.SUSPEND_FOR_STAFF]);
+
+		group.MapPost(
+				Routes.Users.ForStaff.Reactivate,
+				ReactivateStaffUser.HandleReactivateStaffUser
+			)
+			.WithName("ReactivateStaffUser")
+			.WithSummary("Reactivate a staff user")
+			.WithPermission([AppPermissions.Staff.Users.REACTIVATE_FOR_STAFF]);
+
 		group.MapGet(
 				Routes.Users.ForStaff.Profiles.Get,
 				GetStaffUserProfiles.HandleGetStaffUserProfiles

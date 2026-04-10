@@ -133,6 +133,24 @@ public abstract record UpdateStaffUserProfilesServiceResult {
 	) : UpdateStaffUserProfilesServiceResult;
 }
 
+public abstract record SuspendStaffUserResult {
+	public sealed record Success(StaffUserData UserData) : SuspendStaffUserResult;
+	public sealed record NotFound() : SuspendStaffUserResult;
+	public sealed record AlreadySuspended() : SuspendStaffUserResult;
+}
+
+public abstract record ReactivateStaffUserResult {
+	public sealed record Success(StaffUserData UserData) : ReactivateStaffUserResult;
+	public sealed record NotFound() : ReactivateStaffUserResult;
+	public sealed record NotSuspended() : ReactivateStaffUserResult;
+}
+
+public abstract record UpdateStaffUserEmailResult {
+	public sealed record Success(StaffUserData UserData) : UpdateStaffUserEmailResult;
+	public sealed record NotFound() : UpdateStaffUserEmailResult;
+	public sealed record EmailAlreadyInUse() : UpdateStaffUserEmailResult;
+}
+
 public interface IUserService {
 	Task<CreateUserResult> CreateUserAsync(User user, CancellationToken cancellationToken = default);
 	Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken = default);
@@ -141,6 +159,9 @@ public interface IUserService {
 	Task<User?> UpdateUserAsync(User user, CancellationToken cancellationToken = default);
 	Task<User?> GetUserByIdAsync(Guid? id, CancellationToken cancellationToken = default);
 	Task<StaffUserData?> GetStaffUserUserByIdAsync(Guid userId, CancellationToken cancellationToken = default);
+	Task<SuspendStaffUserResult> SuspendStaffUserAsync(Guid userId, CancellationToken cancellationToken = default);
+	Task<ReactivateStaffUserResult> ReactivateStaffUserAsync(Guid userId, CancellationToken cancellationToken = default);
+	Task<UpdateStaffUserEmailResult> UpdateStaffUserEmailAsync(Guid userId, string email, CancellationToken cancellationToken = default);
 	Task<int> CountStaffUsersAsync(CancellationToken cancellationToken = default);
 	Task<List<StaffUserData>> FindStaffUsersAsync(
 		int? page,
@@ -276,27 +297,124 @@ public class UserService : IUserService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
+		// NOTE: We intentionally do NOT filter out suspended staff users here.
+		// Staff must be able to view a suspended user to be able to reactivate them
+		// (and to audit "who is suspended and why"). Soft-deleted records remain hidden.
 		var query =
 			from ua in _dbContext.UserAccount
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
-				&& ua.Status != AccountStatus.Suspended
 				&& !ua.User.IsDeleted
-				&& ua.User.Status != UserStatus.Suspended
 			select new StaffUserData { User = ua.User, AccountLevel = ua.Level };
 
 		return await query.FirstOrDefaultAsync(cancellationToken);
 	}
 
+	public async Task<SuspendStaffUserResult> SuspendStaffUserAsync(
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		// Suspension for staff users is a global identity suspension (User.Status).
+		// This mirrors the tenant suspend/reactivate semantics: the staff UserAccount
+		// is still present, but the user can no longer authenticate/use staff routes.
+		var query =
+			from ua in _dbContext.UserAccount
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select new StaffUserData { User = ua.User, AccountLevel = ua.Level };
+
+		var userData = await query.FirstOrDefaultAsync(cancellationToken);
+		if (userData is null) {
+			return new SuspendStaffUserResult.NotFound();
+		}
+
+		if (userData.User.IsSuspended()) {
+			return new SuspendStaffUserResult.AlreadySuspended();
+		}
+
+		userData.User.Status = UserStatus.Suspended;
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		return new SuspendStaffUserResult.Success(userData);
+	}
+
+	public async Task<ReactivateStaffUserResult> ReactivateStaffUserAsync(
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		// Reactivation clears the global identity suspension and restores access.
+		// We keep this explicit (not part of the general PATCH) to make the operation
+		// harder to trigger accidentally and easier to permission-gate.
+		var query =
+			from ua in _dbContext.UserAccount
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select new StaffUserData { User = ua.User, AccountLevel = ua.Level };
+
+		var userData = await query.FirstOrDefaultAsync(cancellationToken);
+		if (userData is null) {
+			return new ReactivateStaffUserResult.NotFound();
+		}
+
+		if (!userData.User.IsSuspended()) {
+			return new ReactivateStaffUserResult.NotSuspended();
+		}
+
+		userData.User.Status = UserStatus.Active;
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		return new ReactivateStaffUserResult.Success(userData);
+	}
+
+	public async Task<UpdateStaffUserEmailResult> UpdateStaffUserEmailAsync(
+		Guid userId,
+		string email,
+		CancellationToken cancellationToken = default
+	) {
+		// Email change is a high-risk identity operation (affects sign-in).
+		// We keep it on a dedicated service method (and endpoint) so the API can enforce
+		// stricter validation/permission and clients cannot "accidentally" update email via PATCH.
+		var normalizedEmail = email.Trim().ToLowerInvariant();
+
+		var query =
+			from ua in _dbContext.UserAccount
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select new StaffUserData { User = ua.User, AccountLevel = ua.Level };
+
+		var userData = await query.FirstOrDefaultAsync(cancellationToken);
+		if (userData is null) {
+			return new UpdateStaffUserEmailResult.NotFound();
+		}
+
+		if (!string.Equals(userData.User.Email, normalizedEmail, StringComparison.Ordinal)) {
+			var existing = await GetUserByEmailAsync(normalizedEmail, cancellationToken);
+			if (existing is not null && existing.GetRequiredId() != userId) {
+				return new UpdateStaffUserEmailResult.EmailAlreadyInUse();
+			}
+
+			userData.User.Email = normalizedEmail;
+			await _dbContext.SaveChangesAsync(cancellationToken);
+		}
+
+		return new UpdateStaffUserEmailResult.Success(userData);
+	}
+
 	public async Task<int> CountStaffUsersAsync(CancellationToken cancellationToken = default) {
+		// For staff admin screens, we count all staff users (including suspended) so staff can
+		// see who exists even if they are currently suspended. Soft-deleted records stay hidden.
 		var query =
 			from ua in _dbContext.UserAccount
 			where ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
-				&& ua.Status != AccountStatus.Suspended
 				&& !ua.User.IsDeleted
-				&& ua.User.Status != UserStatus.Suspended
 			select ua.User;
 		return await query.CountAsync(cancellationToken);
 	}
@@ -308,6 +426,9 @@ public class UserService : IUserService {
 		SortOrder? sortOrder = null,
 		CancellationToken cancellationToken = default
 	) {
+		// IMPORTANT: The list includes suspended staff users so staff can discover/reactivate them.
+		// If the UI wants a "hide suspended" toggle, it should be implemented as an explicit
+		// filter rather than being a silent default in the service.
 		var effectivePage = page ?? 1;
 		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
 		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
@@ -316,9 +437,7 @@ public class UserService : IUserService {
 			from ua in _dbContext.UserAccount
 			where ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
-				&& ua.Status != AccountStatus.Suspended
 				&& !ua.User.IsDeleted
-				&& ua.User.Status != UserStatus.Suspended
 			select new { User = ua.User, Level = ua.Level };
 
 		if (sortId is not null) {
@@ -471,44 +590,64 @@ public class UserService : IUserService {
 			return new UpdateStaffUserProfilesServiceResult.ProfilesNotStaffScope(nonStaffIds);
 		}
 
-		// "Replace set" semantics:
+		// "Replace set" semantics for a junction table that uses soft-delete:
 		// - remove links that are currently assigned but not in the new set
 		// - add links that are in the new set but not currently assigned
-		var currentProfileIds = await (
+		//
+		// IMPORTANT:
+		// `user_account_profiles` has a unique constraint on (UserAccountId, ProfileId).
+		// If we soft-delete a link, inserting the same pair later will violate the constraint.
+		// So we:
+		// - hard-delete links we remove (ForceHardDeleteRange), and
+		// - when re-adding a previously soft-deleted link, we "undelete" it instead of inserting.
+		var existingLinks = await (
 			from uap in _dbContext.UserAccountProfile
 			where uap.UserAccountId == staffAccountId.Value
-				&& !uap.IsDeleted
-			select uap.ProfileId
+			select uap
 		).ToListAsync(cancellationToken);
 
-		var toRemoveIds = currentProfileIds.Except(profileIds).ToList();
-		if (toRemoveIds.Count > 0) {
-			// IMPORTANT: We hard-delete the junction rows.
-			// Reason: this table typically has a uniqueness constraint on (UserAccountId, ProfileId),
-			// so a soft-deleted row would prevent re-assigning the same profile later.
-			var linksToRemove = await (
-				from uap in _dbContext.UserAccountProfile
-				where uap.UserAccountId == staffAccountId.Value
-					&& toRemoveIds.Contains(uap.ProfileId)
-				select uap
-			).ToListAsync(cancellationToken);
+		var existingLinksByProfileId = existingLinks
+			.ToDictionary(x => x.ProfileId, x => x);
 
-			_dbContext.UserAccountProfile.RemoveRange(linksToRemove);
+		var activeProfileIds = existingLinks
+			.Where(x => !x.IsDeleted)
+			.Select(x => x.ProfileId)
+			.ToHashSet();
+
+		var desiredProfileIds = profileIds.Distinct().ToList();
+
+		var linksToRemove = existingLinks
+			.Where(x => !x.IsDeleted && !desiredProfileIds.Contains(x.ProfileId))
+			.ToList();
+
+		if (linksToRemove.Count > 0) {
+			// Force hard delete to avoid leaving rows that would block future re-adds due to the unique constraint.
+			_dbContext.ForceHardDeleteRange(linksToRemove);
 		}
 
-		var toAddIds = profileIds.Except(currentProfileIds).ToList();
-		if (toAddIds.Count > 0) {
-			var newLinks = toAddIds
-				.Select(profileId => new UserAccountProfile {
-					UserAccountId = staffAccountId.Value,
-					ProfileId = profileId
-				})
-				.ToList();
+		var toAddIds = desiredProfileIds
+			.Where(id => !activeProfileIds.Contains(id))
+			.ToList();
 
-			await _dbContext.UserAccountProfile.AddRangeAsync(
-				newLinks,
-				cancellationToken
-			);
+		var linksToInsert = new List<UserAccountProfile>();
+		foreach (var profileId in toAddIds) {
+			if (existingLinksByProfileId.TryGetValue(profileId, out var existingLink)) {
+				if (existingLink.IsDeleted) {
+					// "Undelete" to satisfy the uniqueness constraint on (UserAccountId, ProfileId).
+					existingLink.IsDeleted = false;
+					existingLink.DeletedAt = null;
+				}
+				continue;
+			}
+
+			linksToInsert.Add(new UserAccountProfile {
+				UserAccountId = staffAccountId.Value,
+				ProfileId = profileId
+			});
+		}
+
+		if (linksToInsert.Count > 0) {
+			await _dbContext.UserAccountProfile.AddRangeAsync(linksToInsert, cancellationToken);
 		}
 
 		await _dbContext.SaveChangesAsync(cancellationToken);
@@ -531,7 +670,7 @@ public class UserService : IUserService {
 			);
 		}
 
-		var assigned = profileIds
+		var assigned = desiredProfileIds
 			.Where(assignedMap.ContainsKey)
 			.Select(id => assignedMap[id])
 			.ToList();

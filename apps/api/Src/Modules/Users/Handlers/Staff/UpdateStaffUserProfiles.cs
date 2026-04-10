@@ -126,7 +126,10 @@ public class UpdateStaffUserProfiles {
 		}
 
 		var env = AppEnvironment.Instance;
-		var profileIds = body.GetProfileIds();
+		// Treat the payload as a set (replace-set semantics).
+		// Duplicate IDs should not count toward MAX_PROFILES_PER_USER and should not cause
+		// duplicate junction inserts.
+		var profileIds = body.GetProfileIds().Distinct().ToList();
 
 		if (profileIds.Count > env.MAX_PROFILES_PER_USER) {
 			var errors = new Dictionary<string, string[]> {

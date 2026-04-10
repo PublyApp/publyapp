@@ -17,14 +17,14 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Modules.Users.Handlers.Staff;
 
 public class UpdateStaffUserBody {
-	public JsonElement? Email { get; set; }
+	// NOTE: This is the "general details" PATCH endpoint for a staff user.
+	// High-risk identity operations (email changes) and lifecycle operations (suspend/reactivate)
+	// are intentionally handled by dedicated endpoints so they can be permission-gated and audited
+	// more explicitly than a generic patch.
 	public JsonElement LastName { get; init; }
 	public JsonElement FirstName { get; init; }
 	public JsonElement AvatarUrl { get; init; }
 	public JsonElement? AccountLevel { get; set; }
-	public JsonElement? Status { get; set; }
-
-	public string? GetEmail() => Email?.GetValueAsStringOrNull();
 
 	public PatchField<string?> GetFirstName() =>
 		FirstName.ValueKind switch {
@@ -51,23 +51,11 @@ public class UpdateStaffUserBody {
 		};
 
 	public string? GetAccountLevel() => AccountLevel?.GetValueAsStringOrNull();
-
-	public PatchField<string?> GetStatus() =>
-		Status?.ValueKind switch {
-			null => PatchField<string?>.Absent(),
-			JsonValueKind.Undefined => PatchField<string?>.Absent(),
-			JsonValueKind.Null => PatchField<string?>.Set(null),
-			JsonValueKind.String => PatchField<string?>.Set(Status.GetValueAsString()),
-			_ => throw new InvalidOperationException("Status must be a string, null, or omitted"),
-		};
 }
 
 public class UpdateStaffUserBodyValidator
 	: AbstractValidator<UpdateStaffUserBody> {
 	public UpdateStaffUserBodyValidator() {
-		RuleFor(x => x.Email)
-			.MustBeNullableEmail();
-
 		RuleFor(x => x.LastName)
 			.MustBePatchFieldString("LastName");
 
@@ -79,9 +67,6 @@ public class UpdateStaffUserBodyValidator
 
 		RuleFor(x => x.AccountLevel)
 			.MustBeNullableAccountLevel();
-
-		RuleFor(x => x.Status)
-			.MustBeNullableUserStatus();
 	}
 }
 
@@ -114,12 +99,11 @@ public class UpdateStaffUser {
 			);
 		}
 
-		if (body.GetEmail() is null
-			&& !body.GetFirstName().IsPresent
+		if (!body.GetFirstName().IsPresent
 			&& !body.GetLastName().IsPresent
 			&& !body.GetAvatarUrl().IsPresent
-			&& body.GetAccountLevel() is null
-			&& !body.GetStatus().IsPresent) {
+			&& body.GetAccountLevel() is null) {
+			// PATCH-like endpoint: an empty request means the client sent no work.
 			return TypedProblems.BadRequest(
 				"No fields to update",
 				ResponseKeys.BadRequest
@@ -127,12 +111,10 @@ public class UpdateStaffUser {
 		}
 
 		var updateUserDocument = new UpdateUserDocument {
-			Email = body.GetEmail(),
 			LastName = body.GetLastName(),
 			FirstName = body.GetFirstName(),
 			AvatarUrl = body.GetAvatarUrl(),
 			AccountLevel = body.GetAccountLevel(),
-			Status = body.GetStatus(),
 		};
 
 		var result =

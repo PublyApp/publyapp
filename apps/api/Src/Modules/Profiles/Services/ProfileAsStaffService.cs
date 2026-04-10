@@ -45,6 +45,37 @@ public sealed record FindStaffProfilesArgs(
 	string? Search
 );
 
+public sealed record StaffProfileUserListItem(
+	Guid UserId,
+	string Email,
+	string? FirstName,
+	string? LastName,
+	string? AvatarUrl,
+	UserStatus Status
+);
+
+public abstract record FindStaffProfileUsersServiceResult {
+	// "Success" here is a plain list response (offset pagination).
+	public sealed record Success(
+		List<StaffProfileUserListItem> Users,
+		int Count
+	) : FindStaffProfileUsersServiceResult;
+
+	// We intentionally treat missing/non-staff profiles as "not found" for this endpoint.
+	public sealed record ProfileNotFound : FindStaffProfileUsersServiceResult;
+
+	public sealed record InvalidSortId(string SortId) : FindStaffProfileUsersServiceResult;
+}
+
+public sealed record FindStaffProfileUsersArgs(
+	Guid ProfileId,
+	int? Page,
+	int? Limit,
+	string? SortId,
+	SortOrder? SortOrder,
+	string? Search
+);
+
 /// <summary>
 /// Discriminated union representing the result of creating a staff profile.
 /// </summary>
@@ -106,6 +137,11 @@ public interface IProfileAsStaffService {
 
 	Task<FindStaffProfilesResult> FindStaffProfilesAsync(
 		FindStaffProfilesArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<FindStaffProfileUsersServiceResult> FindStaffProfileUsersAsync(
+		FindStaffProfileUsersArgs args,
 		CancellationToken cancellationToken = default
 	);
 
@@ -453,6 +489,118 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				Data = results,
 				NextCursor = nextCursor,  // null = last page, otherwise = Id to continue from
 			}
+		);
+	}
+
+	public async Task<FindStaffProfileUsersServiceResult> FindStaffProfileUsersAsync(
+		FindStaffProfileUsersArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var effectivePage = args.Page ?? 1;
+		var effectiveLimit =
+			args.Limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
+		var effectiveSortId = args.SortId ?? "created_at";
+		var search = args.Search;
+
+		// Guard early to avoid running a large join query when the profileId is invalid.
+		// This endpoint is specifically "staff profile -> users", so tenant/project profiles
+		// are not addressable here either (also treated as not-found).
+		var profileExists = await (
+			from p in _dbContext.Profile
+			where p.Id == args.ProfileId
+				&& p.Scope == ProfileScope.Staff
+				&& !p.IsDeleted
+			select p.Id
+		).AnyAsync(cancellationToken);
+
+		if (!profileExists) {
+			return new FindStaffProfileUsersServiceResult.ProfileNotFound();
+		}
+
+		// Query "users assigned to this staff profile" via the junction table.
+		// We intentionally filter out deleted/suspended users and staff accounts so the UI
+		// does not show subjects that are not actionable in staff tooling.
+		var query =
+			from uap in _dbContext.UserAccountProfile
+			join ua in _dbContext.UserAccount on uap.UserAccountId equals ua.Id
+			join u in _dbContext.User on ua.UserId equals u.Id
+			where uap.ProfileId == args.ProfileId
+				&& !uap.IsDeleted
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& ua.Status != AccountStatus.Suspended
+				&& !u.IsDeleted
+				&& u.Status != UserStatus.Suspended
+			select new {
+				UserId = u.Id,
+				u.Email,
+				u.FirstName,
+				u.LastName,
+				u.AvatarUrl,
+				u.Status,
+				// Use the junction CreatedAt as "assigned at" for default sorting.
+				AssignedAt = uap.CreatedAt,
+			};
+
+		if (search is not null) {
+			// Search is intentionally simple (ILIKE wildcard) for UX. If this becomes hot,
+			// we can add trigram indexes or an external search later.
+			var wildcard = $"%{search}%";
+			query = query.Where(x =>
+				EF.Functions.ILike(x.Email, wildcard)
+				|| EF.Functions.ILike(x.FirstName ?? "", wildcard)
+				|| EF.Functions.ILike(x.LastName ?? "", wildcard)
+			);
+		}
+
+		// Keep this list's supported sort_id values explicit and small.
+		var isAsc = effectiveSortOrder == SortOrder.Asc;
+		if (string.Equals(effectiveSortId, "created_at", StringComparison.OrdinalIgnoreCase)) {
+			query = isAsc
+				? query.OrderBy(x => x.AssignedAt)
+				: query.OrderByDescending(x => x.AssignedAt);
+		} else if (string.Equals(effectiveSortId, "email", StringComparison.OrdinalIgnoreCase)) {
+			query = isAsc
+				? query.OrderBy(x => x.Email)
+				: query.OrderByDescending(x => x.Email);
+		} else if (string.Equals(effectiveSortId, "first_name", StringComparison.OrdinalIgnoreCase)) {
+			query = isAsc
+				? query.OrderBy(x => x.FirstName)
+				: query.OrderByDescending(x => x.FirstName);
+		} else if (string.Equals(effectiveSortId, "last_name", StringComparison.OrdinalIgnoreCase)) {
+			query = isAsc
+				? query.OrderBy(x => x.LastName)
+				: query.OrderByDescending(x => x.LastName);
+		} else if (string.Equals(effectiveSortId, "status", StringComparison.OrdinalIgnoreCase)) {
+			query = isAsc
+				? query.OrderBy(x => x.Status)
+				: query.OrderByDescending(x => x.Status);
+		} else {
+			return new FindStaffProfileUsersServiceResult.InvalidSortId(effectiveSortId);
+		}
+
+		// Count is used by the UI to render pagination controls.
+		var count = await query.CountAsync(cancellationToken);
+
+		var users = await query
+			.Skip((effectivePage - 1) * effectiveLimit)
+			.Take(effectiveLimit)
+			// NOTE: This projection runs inside an EF Core expression tree.
+			// Do not use named arguments here; C# forbids named args in expression trees.
+			.Select(x => new StaffProfileUserListItem(
+				x.UserId ?? Guid.Empty,
+				x.Email,
+				x.FirstName,
+				x.LastName,
+				x.AvatarUrl,
+				x.Status
+			))
+			.ToListAsync(cancellationToken);
+
+		return new FindStaffProfileUsersServiceResult.Success(
+			Users: users,
+			Count: count
 		);
 	}
 

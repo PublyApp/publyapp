@@ -47,6 +47,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey DeleteItem = new("delete-item");
 
 	/// <summary>
+	/// Email is already in use
+	/// </summary>
+	public static readonly TranslationKey EmailAlreadyInUse = new("email-already-in-use");
+
+	/// <summary>
 	/// Email already verified
 	/// </summary>
 	public static readonly TranslationKey EmailAlreadyVerified = new("email-already-verified");
@@ -230,6 +235,16 @@ public static partial class ResponseKeys {
 	/// staff profiles
 	/// </summary>
 	public static readonly TranslationKey StaffProfiles = new("staff-profiles");
+
+	/// <summary>
+	/// Staff user is already suspended
+	/// </summary>
+	public static readonly TranslationKey StaffUserAlreadySuspended = new("staff-user-already-suspended");
+
+	/// <summary>
+	/// Staff user is not currently suspended
+	/// </summary>
+	public static readonly TranslationKey StaffUserNotSuspended = new("staff-user-not-suspended");
 
 	/// <summary>
 	/// Staff user updated successfully

@@ -12,6 +12,7 @@ type FindStaffProfilesParams = {
 	cursor?: string;
 	limit?: number;
 	sort?: { id: string; order: 'desc' | 'asc' };
+	q?: string;
 };
 
 export const useFindStaffProfiles = createStaffQuery({
@@ -23,6 +24,7 @@ export const useFindStaffProfiles = createStaffQuery({
 				limit: params.limit ? params.limit.toString() : undefined,
 				sortId: params.sort?.id,
 				sortOrder: params.sort?.order,
+				q: params.q,
 			},
 		});
 

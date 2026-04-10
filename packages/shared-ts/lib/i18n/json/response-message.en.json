@@ -77,5 +77,10 @@
 	"cannot-demote-last-admin": "Cannot demote the last admin from the tenant",
 	"cannot-suspend-last-admin": "Cannot suspend the last admin from the tenant",
 	"max-profiles-per-user-exceeded": "Max profiles per user exceeded",
-	"profile-not-staff-scope": "Profile must be a staff profile"
+	"profile-not-staff-scope": "Profile must be a staff profile",
+	"staff-user-already-suspended": "Staff user is already suspended",
+	"staff-user-not-suspended": "Staff user is not currently suspended",
+	"staff-user-suspended-success": "Staff member suspended successfully",
+	"staff-user-reactivated-success": "Staff member reactivated successfully",
+	"email-already-in-use": "Email is already in use"
 }

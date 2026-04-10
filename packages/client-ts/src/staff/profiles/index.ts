@@ -4,12 +4,20 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createFindStaffProfilesResultFromDiscriminatorValue, createStaffProfileCreatedFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializeCreateStaffProfileBody, serializeStaffProfileCreated, type AppProblemDetails, type CreateStaffProfileBody, type FindStaffProfilesResult, type StaffProfileCreated, type ValidationProblemDetails } from '../../models/index.js';
 // @ts-ignore
-import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
+import { type WithProfileItemRequestBuilder, WithProfileItemRequestBuilderNavigationMetadata } from './item/index.js';
+// @ts-ignore
+import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /staff/profiles
  */
 export interface ProfilesRequestBuilder extends BaseRequestBuilder<ProfilesRequestBuilder> {
+    /**
+     * Gets an item from the MainApi.Client.staff.profiles.item collection
+     * @param profileId Unique identifier of the item
+     * @returns {WithProfileItemRequestBuilder}
+     */
+     byProfileId(profileId: string) : WithProfileItemRequestBuilder;
     /**
      * Find profiles for a staff member
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -67,6 +75,15 @@ export const ProfilesRequestBuilderUriTemplate = "{+baseurl}/staff/profiles{?cur
 const ProfilesRequestBuilderGetQueryParametersMapper: Record<string, string> = {
     "sortId": "sort_id",
     "sortOrder": "sort_order",
+};
+/**
+ * Metadata for all the navigation properties in the request builder.
+ */
+export const ProfilesRequestBuilderNavigationMetadata: Record<Exclude<keyof ProfilesRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    byProfileId: {
+        navigationMetadata: WithProfileItemRequestBuilderNavigationMetadata,
+        pathParametersMappings: ["profileId"],
+    },
 };
 /**
  * Metadata for all the requests in the request builder.
