@@ -52,7 +52,7 @@ publyapp/
 │   ├── js-client/        # Auto-generated TypeScript API client
 │   └── _tsconfig/        # Shared TypeScript configurations
 ├── scripts/              # Build and deployment scripts
-├── Makefile              # Development commands
+├── justfile              # Development commands
 ├── turbo.json            # Turborepo configuration
 ├── biome.jsonc           # Biome linter/formatter config
 └── docker-compose.*.yml  # Docker configurations
@@ -71,12 +71,16 @@ Before you begin, ensure you have the following installed:
 - **pnpm** - Install after Node.js: `npm install -g pnpm`
 - **.NET SDK** >= 9.0 - [Download](https://dotnet.microsoft.com/download)
 - **PostgreSQL** 18+ - Install locally or use Docker (see below)
+- **Just** - Task runner for this repo (`just --list`)
 
 ### Optional
 
 - **Docker** - For containerized development
-- **Make** - For using Makefile commands (included on macOS/Linux, install on
-  Windows)
+
+### Windows Notes
+
+- The repo `justfile` uses PowerShell 7 (`pwsh`) on Windows (not Windows PowerShell 5.1).
+- Code quality commands use Biome via `pnpm exec biome` (not a globally-installed `biome` binary).
 
 ## Installation
 
@@ -84,7 +88,7 @@ Before you begin, ensure you have the following installed:
 
 ```bash
 # Install all dependencies (Node.js and .NET)
-make install
+just install
 
 # Or manually:
 pnpm install
@@ -97,7 +101,7 @@ cd ../../packages/shared && pnpm run postinstall
 **Using Docker (Recommended):**
 
 ```bash
-make dev-db
+just dev-db
 # Or: docker-compose -f docker-compose.services.yml up -d
 ```
 
@@ -109,7 +113,7 @@ make dev-db
 ### 3. Run Database Migrations
 
 ```bash
-make db-migrate
+just db-migrate
 # Or: cd apps/api && dotnet ef database update
 ```
 
@@ -135,14 +139,14 @@ accordingly.
 
 ### Quick Start
 
-### Option 1: Using Makefile (Recommended)
+### Option 1: Using Just (Recommended)
 
 ```bash
 # Terminal 1 - Start API
-make dev-api
+just dev-api
 
 # Terminal 2 - Start Frontend
-make dev-front
+just dev-front
 ```
 
 ### Option 2: Direct Commands
@@ -170,83 +174,79 @@ Once both servers are running:
 **API Debugging:**
 
 ```bash
-# Start API with debugger
-make dev-api --inspect
-
-# Or: cd apps/api && dotnet watch run --inspect
+# Start API
+just dev-api
 ```
 
-Then use VS Code's **"Attach by WebSocket URL"** configuration to set
-breakpoints.
+Then attach your debugger to the running `dotnet` process (VS Code / Rider).
 
 **Frontend Debugging:**
 Use Chrome DevTools and React DevTools browser extension.
 
 ## Available Commands
 
-The project includes a comprehensive Makefile with organized commands. Run
-`make help` for the full list.
+The project’s task runner is `just`. Run `just --list` for the full list.
 
 ### Development Commands
 
 ```bash
-make dev-api          # Start API development server
-make dev-front        # Start frontend development server
-make dev-db           # Start PostgreSQL with Docker
+just dev-api          # Start API development server
+just dev-front        # Start frontend development server
+just dev-db           # Start PostgreSQL with Docker
 ```
 
 ### Building
 
 ```bash
-make build-api        # Build .NET API
-make build-front      # Build React frontend
-make build-deploy     # Build for deployment
+just build-api        # Build .NET API
+just build-front      # Build React frontend
+just build-deploy     # Build for deployment
 ```
 
 ### Code Quality
 
 ```bash
-make lint             # Run Biome linting
-make lint-write       # Fix linting issues
-make format           # Check code formatting
-make format-write     # Fix formatting issues
-make check            # Run all checks (lint + format)
-make check-write      # Fix all issues
-make knip             # Check for unused dependencies
-make tsc-front        # TypeScript type checking
+just lint             # Run Biome linting
+just lint-write       # Fix linting issues
+just format           # Check code formatting
+just format-write     # Fix formatting issues
+just check            # Run all checks (lint + format)
+just check-write      # Fix all issues
+just knip             # Check for unused dependencies
+just tsc-front        # TypeScript type checking
 ```
 
 ### Database Operations
 
 ```bash
-make db-migrate       # Run migrations
-make db-reset         # Drop and recreate database
-make db-add NAME=CreateUsers  # Add new migration
-make db-remove        # Remove last migration
+just db-migrate       # Run migrations
+just db-reset         # Drop and recreate database
+just db-add CreateUsers  # Add new migration
+just db-remove        # Remove last migration
 ```
 
 ### API Client Generation
 
 ```bash
-make generate-client  # Generate TypeScript client from OpenAPI
-make update-client    # Update existing client
-make client-info      # Show client information
+just generate-client  # Generate TypeScript client from OpenAPI
+just update-client    # Update existing client
+just client-info      # Show client information
 ```
 
 ### Docker
 
 ```bash
-make docker-build     # Build Docker images
-make docker-up        # Start all services
-make docker-down      # Stop all services
+just docker-build     # Build Docker images
+just docker-up        # Start all services
+just docker-down      # Stop all services
 ```
 
 ### Cleaning
 
 ```bash
-make clean            # Clean all build artifacts
-make clean-api        # Clean API artifacts only
-make clean-front      # Clean frontend artifacts only
+just clean            # Clean all build artifacts
+just clean-api        # Clean API artifacts only
+just clean-front      # Clean frontend artifacts only
 ```
 
 ## Docker Development
@@ -263,12 +263,12 @@ docker-compose -f docker-compose.services.yml up -d
 
 ```bash
 # Build both API and frontend
-make build-deploy
+just build-deploy
 
 # Or individually:
-make build-api        # Outputs to apps/api/bin/Release
-make publish-api      # Outputs to apps/api/publish
-make build-front      # Outputs to apps/front/build
+just build-api        # Outputs to apps/api/bin/Release
+just publish-api      # Outputs to apps/api/publish
+just build-front      # Outputs to apps/front/build
 ```
 
 ## Key Features
@@ -303,13 +303,13 @@ All code must pass quality checks before committing:
 
 ```bash
 # Format code
-make format-write
+just format-write
 
 # Fix linting issues
-make lint-write
+just lint-write
 
 # Type check
-make tsc-front
+just tsc-front
 ```
 
 ### Pre-commit Hooks
@@ -324,9 +324,9 @@ Husky automatically runs quality checks on commit. Ensure all checks pass:
 
 1. Create a feature branch
 2. Make your changes
-3. Run quality checks: `make check-write`
-4. Test locally: `make dev-api` + `make dev-front`
-5. Build: `make build-api` + `make build-front`
+3. Run quality checks: `just check-write`
+4. Test locally: `just dev-api` + `just dev-front`
+5. Build: `just build-api` + `just build-front`
 6. Commit and push
 
 ## Deployment
@@ -368,8 +368,8 @@ docker logs publyapp-postgres
 
 ```bash
 # Clean and reinstall
-make clean
-make install
+just clean
+just install
 
 # Clear .NET cache
 cd apps/api
@@ -379,7 +379,7 @@ dotnet restore --force
 
 ## Additional Resources
 
-- **Makefile Commands**: Run `make help` for complete command reference
+- **Just Recipes**: Run `just --list` for complete command reference
 - **API Documentation**: Available at <http://localhost:5000/scalar/v1> when
   running
 - **Turborepo Docs**: <https://turbo.build/repo/docs>
