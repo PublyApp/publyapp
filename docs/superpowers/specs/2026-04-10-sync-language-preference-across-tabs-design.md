@@ -49,7 +49,7 @@ JSON message (v1):
   for that change (prevents ping-pong loops).
 
 ## Implementation Notes
-- Client-only implementation: `apps/front/src/lib/i18n/init-i18n.client.ts` (private helper)
+- Client-only implementation: `apps/front/src/lib/i18n/locale-tab-sync.client.ts` (helper) + `apps/front/src/lib/i18n/init-i18n.client.ts` (wiring)
 - Initialization point: called once from `initI18nOnClient()` after i18next init.
 - Validation/normalization: incoming values are normalized via `getCorrectLocale`.
 - Resilience: all `BroadcastChannel` and `localStorage` operations are guarded
