@@ -247,6 +247,16 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey StaffUserNotSuspended = new("staff-user-not-suspended");
 
 	/// <summary>
+	/// Staff member reactivated successfully
+	/// </summary>
+	public static readonly TranslationKey StaffUserReactivatedSuccess = new("staff-user-reactivated-success");
+
+	/// <summary>
+	/// Staff member suspended successfully
+	/// </summary>
+	public static readonly TranslationKey StaffUserSuspendedSuccess = new("staff-user-suspended-success");
+
+	/// <summary>
 	/// Staff user updated successfully
 	/// </summary>
 	public static readonly TranslationKey StaffUserUpdatedSuccessfully = new("staff-user-updated-successfully");
