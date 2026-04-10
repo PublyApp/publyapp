@@ -1,8 +1,9 @@
-# PFV Vite App
+# PublyApp
 
-An API for converting HTML to PDF.
+A modern full-stack web application built with .NET and React, featuring a monorepo
+architecture with shared packages and type-safe API communication.
 
-## Requirements
+## Tech Stack
 
 ### Backend
 
@@ -84,32 +85,40 @@ Before you begin, ensure you have the following installed:
 
 ## Installation
 
+### 1. Clone and Install Dependencies
+
 ```bash
 # Install all dependencies (Node.js and .NET)
 just install
 
 # Or manually:
 pnpm install
+cd apps/api && dotnet restore
+cd ../../packages/shared && pnpm run postinstall
 ```
 
-## Usage
+### 2. Set Up Database
 
-open two terminals, and run each command in a separate terminal:
+**Using Docker (Recommended):**
 
 ```bash
 just dev-db
 # Or: docker-compose -f docker-compose.services.yml up -d
 ```
 
-### Debugging while developing (server only)
+**Using Local PostgreSQL:**
 
-run `pnpm dev:server --inspect` then use the VS Code debugger: **Attach by WebSocket URL** configuration and you are good to set breakpoints in the code
+- Install PostgreSQL 18+
+- Update `.env.development` with your connection string
 
-Now open your browser and go to `http://localhost:5050` to see the app.
+### 3. Run Database Migrations
 
-## Hosting
+```bash
+just db-migrate
+# Or: cd apps/api && dotnet ef database update
+```
 
-At the time of writing, we host on Hostinger VPS with a dokploy installation.
+### 4. Environment Variables
 
 ```bash
 just db-migrate
