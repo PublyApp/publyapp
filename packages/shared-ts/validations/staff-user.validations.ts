@@ -1,7 +1,4 @@
-import {
-	ACCOUNT_LEVEL_ENUM,
-	USER_STATUS_ENUM,
-} from '@org/shared-ts/lib/constants';
+import { ACCOUNT_LEVEL_ENUM } from '@org/shared-ts/lib/constants';
 import type InterZod from '@org/shared-ts/lib/zod/InterZod';
 
 import { getFileSchemaClientSide } from './file/file-client.validations';
@@ -21,19 +18,14 @@ export const getNewStaffUserSchema = (z: InterZod) => {
 };
 
 export const getUpdateStaffUserSchema = (z: InterZod) => {
-	return getNewStaffUserSchema(z)
-		.omit({ sendNotification: true })
-		.partial()
-		.extend({
-			id: z.string(),
-			status: z
-				.enum([
-					USER_STATUS_ENUM.ACTIVE,
-					USER_STATUS_ENUM.INACTIVE,
-					USER_STATUS_ENUM.PENDING,
-					USER_STATUS_ENUM.SUSPENDED,
-					USER_STATUS_ENUM.BANNED,
-				] as const)
-				.optional(),
-		});
+	return (
+		getNewStaffUserSchema(z)
+			// Email updates are a high-risk identity operation and are handled by a dedicated endpoint/flow.
+			// Status updates are handled by explicit "suspend/reactivate" actions.
+			.omit({ sendNotification: true, email: true })
+			.partial()
+			.extend({
+				id: z.string(),
+			})
+	);
 };

@@ -4,7 +4,13 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createGetStaffUserByIdResultFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializeGetStaffUserByIdResult, serializeUpdateStaffUserBody, type AppProblemDetails, type GetStaffUserByIdResult, type UpdateStaffUserBody, type ValidationProblemDetails } from '../../../models/index.js';
 // @ts-ignore
+import { EmailRequestBuilderRequestsMetadata, type EmailRequestBuilder } from './email/index.js';
+// @ts-ignore
 import { ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
+// @ts-ignore
+import { ReactivateRequestBuilderRequestsMetadata, type ReactivateRequestBuilder } from './reactivate/index.js';
+// @ts-ignore
+import { SuspendRequestBuilderRequestsMetadata, type SuspendRequestBuilder } from './suspend/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
@@ -13,9 +19,21 @@ import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type 
  */
 export interface WithUserItemRequestBuilder extends BaseRequestBuilder<WithUserItemRequestBuilder> {
     /**
+     * The email property
+     */
+    get email(): EmailRequestBuilder;
+    /**
      * The profiles property
      */
     get profiles(): ProfilesRequestBuilder;
+    /**
+     * The reactivate property
+     */
+    get reactivate(): ReactivateRequestBuilder;
+    /**
+     * The suspend property
+     */
+    get suspend(): SuspendRequestBuilder;
     /**
      * Get a staff user by id
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -62,8 +80,17 @@ export const WithUserItemRequestBuilderUriTemplate = "{+baseurl}/staff/users/{us
  * Metadata for all the navigation properties in the request builder.
  */
 export const WithUserItemRequestBuilderNavigationMetadata: Record<Exclude<keyof WithUserItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    email: {
+        requestsMetadata: EmailRequestBuilderRequestsMetadata,
+    },
     profiles: {
         requestsMetadata: ProfilesRequestBuilderRequestsMetadata,
+    },
+    reactivate: {
+        requestsMetadata: ReactivateRequestBuilderRequestsMetadata,
+    },
+    suspend: {
+        requestsMetadata: SuspendRequestBuilderRequestsMetadata,
     },
 };
 /**

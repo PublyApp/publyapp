@@ -31,6 +31,17 @@ public static class ProfileEndpointsForStaff {
 			.WithPermission([AppPermissions.Staff.Profiles.CREATE_FOR_STAFF])
 			.WithReqBodyValidation<CreateStaffProfileBody>();
 
+		staffGroup.MapGet(
+			Routes.Profiles.ForStaff.Users.Find,
+			FindStaffProfileUsers.HandleFindStaffProfileUsers
+		)
+			.WithName("FindStaffProfileUsers")
+			.WithSummary("Find users assigned to a staff profile")
+			// This permission is intentionally separate from profile read/write permissions:
+			// listing assigned users is a distinct capability from editing the profile itself.
+			.WithPermission([AppPermissions.Staff.Profiles.LIST_USERS_FOR_STAFF_PROFILE])
+			.WithReqQueryValidation<FindStaffProfileUsersQuery>();
+
 		// Tenant profile routes (viewed by staff): /staff/tenants/{tenantId}/profiles
 		var tenantGroup = routes.MapGroup(Routes.Profiles.ForTenantAsStaff.Root)
 			.WithTags("Tenant Profiles (Staff View)");

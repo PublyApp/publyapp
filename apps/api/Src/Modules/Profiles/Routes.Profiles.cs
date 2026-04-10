@@ -12,6 +12,17 @@ public static partial class Routes {
 			public const string Root = "/profiles";
 			public const string Create = "/";
 			public const string Find = "/";
+
+			/// <summary>Staff profile users routes (staff viewing users assigned to a staff profile)</summary>
+			public static class Users {
+				// NOTE: This is relative to "/staff" and "/profiles" route grouping.
+				public const string Root = "/{profileId}/users";
+				public static string RootFn(string profileId) => $"/{profileId}/users";
+
+				/// <summary>Find users assigned to a staff profile</summary>
+				public const string Find = Root;
+				public static string FindFn(string profileId) => RootFn(profileId);
+			}
 		}
 
 		/// <summary>Tenant profile routes (staff viewing tenant profiles)</summary>

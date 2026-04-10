@@ -11,6 +11,9 @@ public class UserPermissionsForStaff : ISlicePermissions {
 	public Permission GET_FOR_STAFF { get; }
 	public Permission CREATE_FOR_STAFF { get; }
 	public Permission UPDATE_FOR_STAFF { get; }
+	public Permission UPDATE_EMAIL_FOR_STAFF { get; }
+	public Permission SUSPEND_FOR_STAFF { get; }
+	public Permission REACTIVATE_FOR_STAFF { get; }
 	public Permission DELETE_FOR_STAFF { get; }
 	public Permission GET_PROFILES_FOR_STAFF { get; }
 	public Permission UPDATE_PROFILES_FOR_STAFF { get; }
@@ -43,6 +46,23 @@ public class UserPermissionsForStaff : ISlicePermissions {
 			.CreateStaffPermission(string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "update_for_staff" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Update a user for staff", Description = "Update a user for staff" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Mettre à jour un utilisateur du staff", Description = "Mettre à jour un utilisateur du staff" });
+
+		UPDATE_EMAIL_FOR_STAFF = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "update_email_for_staff" }))
+			// Keep email change separate from the general update permission. This operation is
+			// security-sensitive and should be granted intentionally.
+			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Update staff user email", Description = "Update a staff user's email (high risk)" })
+			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Mettre à jour l'email d'un utilisateur du staff", Description = "Mettre à jour l'email d'un utilisateur du staff (risque élevé)" });
+
+		SUSPEND_FOR_STAFF = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "suspend_for_staff" }))
+			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Suspend a staff user", Description = "Suspend a staff user" })
+			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Suspendre un utilisateur du staff", Description = "Suspendre un utilisateur du staff" });
+
+		REACTIVATE_FOR_STAFF = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "reactivate_for_staff" }))
+			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Reactivate a staff user", Description = "Reactivate a suspended staff user" })
+			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Réactiver un utilisateur du staff", Description = "Réactiver un utilisateur du staff suspendu" });
 
 		DELETE_FOR_STAFF = Permission
 			.CreateStaffPermission(string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "delete_for_staff" }))
