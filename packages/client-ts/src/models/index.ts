@@ -1480,6 +1480,15 @@ export function createStaffUserSuspendedResultFromDiscriminatorValue(parseNode: 
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {StaffUserSuspendedResult}
+ */
+// @ts-ignore
+export function createStaffUserSuspendedResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoStaffUserSuspendedResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {JsonElement | SuspendTenantAsStaffBody_reasonMember1}
  */
 // @ts-ignore

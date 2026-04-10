@@ -115,7 +115,6 @@ public class UpdateStaffUser {
 			FirstName = body.GetFirstName(),
 			AvatarUrl = body.GetAvatarUrl(),
 			AccountLevel = body.GetAccountLevel(),
-			Status = body.GetStatus(),
 		};
 
 		var result =

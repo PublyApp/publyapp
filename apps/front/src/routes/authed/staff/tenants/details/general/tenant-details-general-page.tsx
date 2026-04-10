@@ -50,6 +50,7 @@ import {
 import { fData } from '#app/utils/format-number.ts';
 import { fDateTime } from '#app/utils/format-time.ts';
 
+import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import type { TenantDetailsOutletContext } from '../_layout/tenant-details-layout';
 
 const TENANT_STATUS_COLOR_MAP = {

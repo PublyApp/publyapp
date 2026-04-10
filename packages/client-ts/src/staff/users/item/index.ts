@@ -6,6 +6,8 @@ import { createApiResponseFromDiscriminatorValue, createAppProblemDetailsFromDis
 // @ts-ignore
 import { EmailRequestBuilderRequestsMetadata, type EmailRequestBuilder } from './email/index.js';
 // @ts-ignore
+import { EmailRequestBuilderRequestsMetadata, type EmailRequestBuilder } from './email/index.js';
+// @ts-ignore
 import { ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
 // @ts-ignore
 import { ReactivateRequestBuilderRequestsMetadata, type ReactivateRequestBuilder } from './reactivate/index.js';
@@ -95,8 +97,17 @@ export const WithUserItemRequestBuilderUriTemplate = "{+baseurl}/staff/users/{us
  * Metadata for all the navigation properties in the request builder.
  */
 export const WithUserItemRequestBuilderNavigationMetadata: Record<Exclude<keyof WithUserItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    email: {
+        requestsMetadata: EmailRequestBuilderRequestsMetadata,
+    },
     profiles: {
         requestsMetadata: ProfilesRequestBuilderRequestsMetadata,
+    },
+    reactivate: {
+        requestsMetadata: ReactivateRequestBuilderRequestsMetadata,
+    },
+    suspend: {
+        requestsMetadata: SuspendRequestBuilderRequestsMetadata,
     },
 };
 /**
