@@ -5,6 +5,7 @@ import i18next from 'i18next';
 import capitalize from 'lodash/capitalize';
 import get from 'lodash/get';
 import toStr from 'lodash/toString';
+import { removeLastSlash } from 'minimal-shared/utils';
 import { useMemo } from 'react';
 import { data, useParams } from 'react-router';
 
@@ -20,6 +21,7 @@ import { NotFoundView } from '#app/components/error/not-found-view.tsx';
 import QueryDisplay from '#app/components/query-display.tsx';
 import type { SettingsNavItem } from '#app/components/settings/settings-nav.tsx';
 import { SidebarSettingsLayout } from '#app/components/settings/sidebar-settings-layout.tsx';
+import { usePathname } from '#app/hooks/use-pathname.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
 import { isProblemFailure, toApiFailure } from '#app/lib/api-failure/index.ts';
@@ -73,6 +75,7 @@ export const loader = getServerLoader({
 
 const StaffProfileDetailsLayout = () => {
 	const { t } = useTranslate();
+	const pathname = usePathname();
 	const { profileId } = useParams();
 
 	const getProfileQuery = useGetStaffProfileById({
@@ -97,6 +100,13 @@ const StaffProfileDetailsLayout = () => {
 		];
 	}, [t, profileId]);
 
+	const activeTab = useMemo(() => {
+		const value = removeLastSlash(pathname);
+		const profileDetailPaths =
+			FRONT_PATH_NAMES.staff.profiles.details(profileId);
+		return value === profileDetailPaths.tabs.users ? 'users' : 'basics';
+	}, [pathname, profileId]);
+
 	if (!profileId) {
 		return <View400 title="Bad Request" description="Profile ID is required" />;
 	}
@@ -104,8 +114,8 @@ const StaffProfileDetailsLayout = () => {
 	return (
 		<QueryDisplay
 			query={getProfileQuery}
-			LoadingSlot={<StaffProfileDetailsLayoutSkeleton />}
-			ErrorSlot={({ error }) => <LayoutErrorView error={error} />}
+			LoadingSlot={<StaffProfileDetailsLayoutSkeleton tab={activeTab} />}
+			ErrorSlot={LayoutErrorView}
 		>
 			{({ data }) => {
 				// Defensive: the generated client marks nested payloads as optional.
@@ -140,7 +150,11 @@ const StaffProfileDetailsLayout = () => {
 
 export default StaffProfileDetailsLayout;
 
-const StaffProfileDetailsLayoutSkeleton = () => (
+const StaffProfileDetailsLayoutSkeleton = ({
+	tab,
+}: {
+	tab: 'basics' | 'users';
+}) => (
 	<DashboardContent maxWidth="lg" compact>
 		<Box
 			sx={{
@@ -163,11 +177,105 @@ const StaffProfileDetailsLayoutSkeleton = () => (
 			</Box>
 
 			<Box sx={{ flex: 1, minWidth: 0 }}>
-				<Skeleton variant="text" width={220} height={32} sx={{ mb: 2 }} />
-				<Skeleton variant="rounded" height={260} sx={{ borderRadius: 2 }} />
+				{/* Breadcrumbs are rendered inside the tab pages; still show a representative header skeleton here. */}
+				<Box sx={{ mb: { xs: 3, md: 5 } }}>
+					<Skeleton variant="text" width="44%" height={38} />
+					<Skeleton variant="text" width="58%" height={18} />
+				</Box>
+
+				{tab === 'basics' ? <BasicsTabSkeleton /> : <UsersTabSkeleton />}
 			</Box>
 		</Box>
 	</DashboardContent>
+);
+
+const BasicsTabSkeleton = () => (
+	<Box
+		sx={{
+			display: 'grid',
+			gap: 3,
+			alignItems: 'start',
+			gridTemplateColumns: {
+				xs: '1fr',
+				lg: 'minmax(0, 1fr) 280px',
+			},
+		}}
+	>
+		{/* Main content (basic infos + permissions) */}
+		<Box sx={{ display: 'grid', gap: 3 }}>
+			<Skeleton variant="rounded" height={220} sx={{ borderRadius: 2 }} />
+			<Skeleton variant="rounded" height={440} sx={{ borderRadius: 2 }} />
+		</Box>
+
+		{/* Right ToC rail hint (no card aesthetic on lg+) */}
+		<Box sx={{ display: { xs: 'none', lg: 'block' } }}>
+			<Skeleton variant="text" width={120} height={18} sx={{ mb: 1 }} />
+			<Box
+				sx={{
+					borderLeft: 1,
+					borderColor: 'divider',
+					pl: 1.5,
+					display: 'grid',
+					gap: 1,
+				}}
+			>
+				<Skeleton variant="text" width="82%" height={18} />
+				<Skeleton variant="text" width="92%" height={18} />
+				<Skeleton variant="text" width="74%" height={18} />
+				<Skeleton variant="text" width="88%" height={18} />
+				<Skeleton variant="text" width="70%" height={18} />
+			</Box>
+		</Box>
+	</Box>
+);
+
+const UsersTabSkeleton = () => (
+	<Box>
+		{/* CTA placeholder (Assign user) */}
+		<Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+			<Skeleton variant="rounded" width={148} height={36} />
+		</Box>
+
+		{/* Table header */}
+		<Skeleton variant="rounded" height={52} sx={{ borderRadius: 2, mb: 1 }} />
+
+		{/* Table rows */}
+		{Array.from({ length: 6 }).map((_, idx) => (
+			<Box
+				// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
+				key={idx}
+				sx={{
+					display: 'grid',
+					gridTemplateColumns: '1fr 120px 88px',
+					gap: 2,
+					alignItems: 'center',
+					py: 1.25,
+					borderBottom: 1,
+					borderColor: 'divider',
+				}}
+			>
+				<Box
+					sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0 }}
+				>
+					<Skeleton variant="circular" width={40} height={40} />
+					<Box sx={{ minWidth: 0, flex: 1 }}>
+						<Skeleton variant="text" width="38%" height={18} />
+						<Skeleton variant="text" width="54%" height={16} />
+					</Box>
+				</Box>
+				<Skeleton
+					variant="rounded"
+					width={86}
+					height={28}
+					sx={{ borderRadius: 999 }}
+				/>
+				<Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+					<Skeleton variant="circular" width={32} height={32} />
+					<Skeleton variant="circular" width={32} height={32} />
+				</Box>
+			</Box>
+		))}
+	</Box>
 );
 
 const LayoutErrorView = ({ error }: { error: unknown }) => {
