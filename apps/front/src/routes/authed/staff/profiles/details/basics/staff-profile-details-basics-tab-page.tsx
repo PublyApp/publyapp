@@ -11,33 +11,50 @@ import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import StaffProfileBasicInfos from './parts/staff-profile-basic-infos';
 import StaffProfilePermissions, {
+	getStaffPermissionGroups,
 	getPermissionModuleId,
-	STAFF_PROFILE_PERMISSION_MODULES,
 } from './parts/staff-profile-permissions';
 import {
 	StaffProfilePermissionsToc,
 	type TocSection,
 } from './components/staff-profile-permissions-toc';
 import type { StaffProfileDetailsOutletContext } from '../_layout/staff-profile-details-layout';
+import { useFindStaffPermissions } from '#app/lib/react-query/features/staff/staff-profile.hooks.ts';
 
 const StaffProfileDetailsBasicsTabPage = () => {
-	const { t } = useTranslate();
+	const { t, currentLang } = useTranslate();
 	const { profileId } = useParams();
 	const { profileName } = useOutletContext<StaffProfileDetailsOutletContext>();
+
+	const permissionsQuery = useFindStaffPermissions({
+		variables: {
+			language: currentLang.value,
+		},
+	});
+
+	const permissionGroups = useMemo(() => {
+		// We derive ToC sections from the permissions catalog so the ToC matches the rendered modules.
+		// This stays stable thanks to deterministic sorting in getStaffPermissionGroups().
+		const apiData = (permissionsQuery.data?.additionalData ?? {}) as Record<
+			string,
+			Record<string, unknown>
+		>;
+		return getStaffPermissionGroups(apiData as never);
+	}, [permissionsQuery.data]);
 
 	const tocSections: TocSection[] = useMemo(() => {
 		return [
 			{ id: 'basic-infos', label: t('basic-infos'), level: 1 },
 			{ id: 'permissions', label: t('permissions'), level: 1 },
-			...STAFF_PROFILE_PERMISSION_MODULES.map((moduleName) => {
+			...permissionGroups.map((group) => {
 				return {
-					id: getPermissionModuleId(moduleName),
-					label: moduleName,
+					id: getPermissionModuleId(group.moduleKey),
+					label: group.module,
 					level: 2,
 				};
 			}),
 		];
-	}, [t]);
+	}, [t, permissionGroups]);
 
 	const activeSection = useScrollspy({
 		sectionIds: tocSections.map((s) => s.id),
@@ -126,31 +143,30 @@ const TocBottomSpacer = ({
 
 	useEffect(() => {
 		const calculateSpacer = () => {
-			if (!lastSectionId) {
-				setSpacerHeight(0);
-				return;
+			let nextSpacerHeight = 0;
+
+			if (lastSectionId) {
+				const lastHeading = document.getElementById(lastSectionId);
+				const spacerEl = spacerRef.current;
+
+				if (lastHeading && spacerEl) {
+					const viewportHeight = window.innerHeight;
+					const lastHeadingTop =
+						lastHeading.getBoundingClientRect().top + window.scrollY;
+					const articleEnd =
+						spacerEl.getBoundingClientRect().top + window.scrollY;
+
+					const contentBelowLastHeading = articleEnd - lastHeadingTop;
+					const minSpaceNeeded = viewportHeight - offset;
+
+					nextSpacerHeight = Math.max(
+						0,
+						minSpaceNeeded - contentBelowLastHeading,
+					);
+				}
 			}
 
-			const lastHeading = document.getElementById(lastSectionId);
-			if (!lastHeading || !spacerRef.current) {
-				setSpacerHeight(0);
-				return;
-			}
-
-			const viewportHeight = window.innerHeight;
-			const lastHeadingTop =
-				lastHeading.getBoundingClientRect().top + window.scrollY;
-			const articleEnd =
-				spacerRef.current.getBoundingClientRect().top + window.scrollY;
-
-			const contentBelowLastHeading = articleEnd - lastHeadingTop;
-			const minSpaceNeeded = viewportHeight - offset;
-			const neededHeight = Math.max(
-				0,
-				minSpaceNeeded - contentBelowLastHeading,
-			);
-
-			setSpacerHeight(neededHeight);
+			setSpacerHeight(nextSpacerHeight);
 		};
 
 		const timer = window.setTimeout(calculateSpacer, 100);

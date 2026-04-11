@@ -39,6 +39,42 @@ public static class ProfileEndpointsForStaff {
 			.WithSummary("Get a staff profile by id")
 			.WithPermission([AppPermissions.Staff.Profiles.GET_FOR_STAFF]);
 
+		staffGroup.MapPatch(
+			Routes.Profiles.ForStaff.Update,
+			UpdateStaffProfile.HandleUpdateStaffProfile
+		)
+			.WithName("UpdateStaffProfile")
+			.WithSummary("Update a staff profile (name/description)")
+			// Reuse the same update permission for both profile detail edits and permission assignment:
+			// if you can change what a profile *means*, you can change its attached permissions.
+			.WithPermission([AppPermissions.Staff.Profiles.UPDATE_FOR_STAFF])
+			.WithReqBodyValidation<UpdateStaffProfileBody>();
+
+		staffGroup.MapGet(
+			Routes.Profiles.ForStaff.Permissions.Find,
+			FindStaffProfilePermissions.HandleFindStaffProfilePermissions
+		)
+			.WithName("FindStaffProfilePermissions")
+			.WithSummary("List permission keys assigned to a staff profile")
+			// Treat "read permissions for profile" as part of profile read access.
+			.WithPermission([AppPermissions.Staff.Profiles.GET_FOR_STAFF]);
+
+		staffGroup.MapPost(
+			Routes.Profiles.ForStaff.Permissions.Upsert,
+			AssignStaffProfilePermission.HandleAssignStaffProfilePermission
+		)
+			.WithName("AssignStaffProfilePermission")
+			.WithSummary("Assign a permission key to a staff profile")
+			.WithPermission([AppPermissions.Staff.Profiles.UPDATE_FOR_STAFF]);
+
+		staffGroup.MapDelete(
+			Routes.Profiles.ForStaff.Permissions.Upsert,
+			UnassignStaffProfilePermission.HandleUnassignStaffProfilePermission
+		)
+			.WithName("UnassignStaffProfilePermission")
+			.WithSummary("Unassign a permission key from a staff profile")
+			.WithPermission([AppPermissions.Staff.Profiles.UPDATE_FOR_STAFF]);
+
 		staffGroup.MapGet(
 			Routes.Profiles.ForStaff.Users.Find,
 			FindStaffProfileUsers.HandleFindStaffProfileUsers

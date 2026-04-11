@@ -40,6 +40,7 @@
 	"invitation-already-accepted": "Accepted invitations cannot be revoked",
 	"pending-invitation-exists": "A pending invitation already exists for this email",
 	"staff-profile-created-successfully": "Staff profile created successfully",
+	"staff-profile-updated-successfully": "Staff profile updated successfully",
 	"profile-name-already-exists": "Profile name already exists",
 	"profiles": "profiles",
 	"profile": "profile",
