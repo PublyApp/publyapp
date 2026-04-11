@@ -142,5 +142,23 @@ export const WithProfileItemRequestBuilderRequestsMetadata: RequestsMetadata = {
         requestInformationContentSetMethod: "setContentFromParsable",
     },
 };
+/**
+ * Metadata for all the requests in the request builder.
+ */
+export const WithProfileItemRequestBuilderRequestsMetadata: RequestsMetadata = {
+    get: {
+        uriTemplate: WithProfileItemRequestBuilderUriTemplate,
+        responseBodyContentType: "application/json",
+        errorMappings: {
+            400: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            403: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            404: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+        },
+        adapterMethodName: "send",
+        responseBodyFactory:  createGetStaffProfileByIdResultFromDiscriminatorValue,
+    },
+};
 /* tslint:enable */
 /* eslint-enable */

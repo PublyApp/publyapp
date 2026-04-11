@@ -7,6 +7,7 @@ import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import type { StaffProfileDetailsOutletContext } from '../_layout/staff-profile-details-layout';
 
 import type { StaffProfileDetailsOutletContext } from '../_layout/staff-profile-details-layout';
 import { StaffProfileUsersTable } from './parts/staff-profile-users-table.tsx';
