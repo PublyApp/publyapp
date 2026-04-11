@@ -81,6 +81,35 @@ public abstract record GetStaffProfileByIdServiceResult {
 	public sealed record ProfileNotFound : GetStaffProfileByIdServiceResult;
 }
 
+public abstract record FindStaffProfilePermissionKeysResult {
+	public sealed record Success(List<string> PermissionKeys) : FindStaffProfilePermissionKeysResult;
+	public sealed record ProfileNotFound : FindStaffProfilePermissionKeysResult;
+}
+
+public sealed record UpdateStaffProfileArgs(
+	Guid ProfileId,
+	PatchField<string?> Name,
+	PatchField<string?> Description
+);
+
+public abstract record UpdateStaffProfileResult {
+	public sealed record Success(StaffProfileItem Profile) : UpdateStaffProfileResult;
+	public sealed record ProfileNotFound : UpdateStaffProfileResult;
+	public sealed record ProfileNameExists(string Name) : UpdateStaffProfileResult;
+}
+
+public sealed record SetStaffProfilePermissionArgs(
+	Guid ProfileId,
+	string PermissionKey,
+	bool IsAssigned
+);
+
+public abstract record SetStaffProfilePermissionResult {
+	public sealed record Success : SetStaffProfilePermissionResult;
+	public sealed record ProfileNotFound : SetStaffProfilePermissionResult;
+	public sealed record PermissionNotFound : SetStaffProfilePermissionResult;
+}
+
 /// <summary>
 /// Discriminated union representing the result of creating a staff profile.
 /// </summary>
@@ -152,6 +181,21 @@ public interface IProfileAsStaffService {
 
 	Task<GetStaffProfileByIdServiceResult> GetStaffProfileByIdAsync(
 		Guid profileId,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<FindStaffProfilePermissionKeysResult> FindStaffProfilePermissionKeysAsync(
+		Guid profileId,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<UpdateStaffProfileResult> UpdateStaffProfileAsync(
+		UpdateStaffProfileArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<SetStaffProfilePermissionResult> SetStaffProfilePermissionAsync(
+		SetStaffProfilePermissionArgs args,
 		CancellationToken cancellationToken = default
 	);
 
@@ -638,6 +682,184 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		}
 
 		return new GetStaffProfileByIdServiceResult.Success(profile);
+	}
+
+	public async Task<FindStaffProfilePermissionKeysResult> FindStaffProfilePermissionKeysAsync(
+		Guid profileId,
+		CancellationToken cancellationToken = default
+	) {
+		var profileExists = await (
+			from p in _dbContext.Profile
+			where p.Id == profileId
+				&& p.Scope == ProfileScope.Staff
+				&& !p.IsDeleted
+			select p.Id
+		).AnyAsync(cancellationToken);
+
+		if (!profileExists) {
+			return new FindStaffProfilePermissionKeysResult.ProfileNotFound();
+		}
+
+		// Return only permission keys that still exist and are staff-scoped.
+		// This keeps the UI consistent if a permission is removed from the DB later,
+		// and prevents mixing staff profiles with tenant/project permissions.
+		var permissionKeys = await (
+			from pp in _dbContext.ProfilePermission
+			join p in _dbContext.Permission on pp.PermissionKey equals p.Key
+			where pp.ProfileId == profileId
+				&& !pp.IsDeleted
+				&& !p.IsDeleted
+				&& p.Scope == PermissionScope.Staff
+			select pp.PermissionKey
+		)
+			// Deterministic ordering: keeps UI stable and makes integration tests non-flaky.
+			.OrderBy(k => k)
+			.ToListAsync(cancellationToken);
+
+		return new FindStaffProfilePermissionKeysResult.Success(permissionKeys);
+	}
+
+	public async Task<UpdateStaffProfileResult> UpdateStaffProfileAsync(
+		UpdateStaffProfileArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var profile = await (
+			from p in _dbContext.Profile
+			where p.Id == args.ProfileId
+				&& p.Scope == ProfileScope.Staff
+				&& !p.IsDeleted
+			select p
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (profile is null) {
+			return new UpdateStaffProfileResult.ProfileNotFound();
+		}
+
+		if (args.Name.IsPresent) {
+			var candidateName = args.Name.Value?.Trim();
+
+			// Validation should prevent null/empty names. This is a post-validation guard.
+			if (string.IsNullOrWhiteSpace(candidateName)) {
+				throw new InvalidOperationException(
+					"UpdateStaffProfileAsync received an invalid name. " +
+					"Ensure endpoint validation ran before calling the service."
+				);
+			}
+
+			var exists = await (
+				from p in _dbContext.Profile
+				where p.Scope == ProfileScope.Staff
+					&& !p.IsDeleted
+					&& p.Id != args.ProfileId
+					&& p.Name == candidateName
+				select p.Id
+			).AnyAsync(cancellationToken);
+
+			if (exists) {
+				return new UpdateStaffProfileResult.ProfileNameExists(candidateName);
+			}
+
+			profile.Name = candidateName;
+		}
+
+		if (args.Description.IsPresent) {
+			profile.Description = args.Description.Value?.Trim();
+		}
+
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		var userAccountCount = await (
+			from uap in _dbContext.UserAccountProfile
+			where uap.ProfileId == args.ProfileId
+				&& !uap.IsDeleted
+			select uap.Id
+		).CountAsync(cancellationToken);
+
+		var updated = new StaffProfileItem {
+			Id = profile.GetRequiredId(),
+			Name = profile.Name,
+			Description = profile.Description,
+			UserAccountCount = userAccountCount,
+		};
+
+		return new UpdateStaffProfileResult.Success(updated);
+	}
+
+	public async Task<SetStaffProfilePermissionResult> SetStaffProfilePermissionAsync(
+		SetStaffProfilePermissionArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var profileExists = await (
+			from p in _dbContext.Profile
+			where p.Id == args.ProfileId
+				&& p.Scope == ProfileScope.Staff
+				&& !p.IsDeleted
+			select p.Id
+		).AnyAsync(cancellationToken);
+
+		if (!profileExists) {
+			return new SetStaffProfilePermissionResult.ProfileNotFound();
+		}
+
+		var permissionExists = await (
+			from p in _dbContext.Permission
+			where p.Key == args.PermissionKey
+				&& !p.IsDeleted
+				&& p.Scope == PermissionScope.Staff
+			select p.Key
+		).AnyAsync(cancellationToken);
+
+		if (!permissionExists) {
+			return new SetStaffProfilePermissionResult.PermissionNotFound();
+		}
+
+		var existing = await (
+			from pp in _dbContext.ProfilePermission
+			where pp.ProfileId == args.ProfileId
+				&& pp.PermissionKey == args.PermissionKey
+			select pp
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (existing is null) {
+			if (args.IsAssigned) {
+				// First-time assignment: create the junction row.
+				await _dbContext.ProfilePermission.AddAsync(
+					new ProfilePermission {
+						ProfileId = args.ProfileId,
+						PermissionKey = args.PermissionKey,
+					},
+					cancellationToken
+				);
+
+				await _dbContext.SaveChangesAsync(cancellationToken);
+			}
+
+			// Unassigning a non-existent row is a no-op (idempotent).
+			return new SetStaffProfilePermissionResult.Success();
+		}
+
+		if (args.IsAssigned) {
+			if (existing.IsDeleted) {
+				// Re-assigning after a previous unassign: revive the soft-deleted junction row.
+				existing.IsDeleted = false;
+				existing.DeletedAt = null;
+				existing.UpdatedAt = DateTime.UtcNow;
+				await _dbContext.SaveChangesAsync(cancellationToken);
+			}
+
+			return new SetStaffProfilePermissionResult.Success();
+		}
+
+		// Unassign
+		if (!existing.IsDeleted) {
+			// Soft-delete the junction row to preserve assignment history for future audit needs.
+			existing.IsDeleted = true;
+			existing.DeletedAt = DateTime.UtcNow;
+			existing.UpdatedAt = DateTime.UtcNow;
+			await _dbContext.SaveChangesAsync(cancellationToken);
+		}
+
+		return new SetStaffProfilePermissionResult.Success();
 	}
 
 	/// <summary>

@@ -15,6 +15,28 @@ public static partial class Routes {
 			public const string Get = "/{profileId}";
 			public static string GetFn(string profileId) => $"/{profileId}";
 
+			// PATCH semantics: profile details are updated via a partial update (name/description).
+			public const string Update = "/{profileId}";
+			public static string UpdateFn(string profileId) => $"/{profileId}";
+
+			/// <summary>Staff profile permissions routes</summary>
+			public static class Permissions {
+				// NOTE: This is relative to "/staff" and "/profiles" route grouping.
+				// We expose permission assignment as an idempotent "upsert" endpoint per key:
+				// POST assigns, DELETE unassigns.
+				public const string Root = "/{profileId}/permissions";
+				public static string RootFn(string profileId) => $"/{profileId}/permissions";
+
+				/// <summary>List permission keys assigned to a staff profile</summary>
+				public const string Find = Root;
+				public static string FindFn(string profileId) => RootFn(profileId);
+
+				/// <summary>Assign or unassign a permission key on a staff profile</summary>
+				public const string Upsert = Root + "/{permissionKey}";
+				public static string UpsertFn(string profileId, string permissionKey) =>
+					$"{RootFn(profileId)}/{permissionKey}";
+			}
+
 			/// <summary>Staff profile users routes (staff viewing users assigned to a staff profile)</summary>
 			public static class Users {
 				// NOTE: This is relative to "/staff" and "/profiles" route grouping.

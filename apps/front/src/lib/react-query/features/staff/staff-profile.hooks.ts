@@ -1,10 +1,13 @@
 import {
 	createUntypedArray,
+	createUntypedNull,
 	createUntypedString,
 } from '@microsoft/kiota-abstractions';
-import _ from 'lodash';
 
-import type { CreateStaffProfileBody } from '@org/client-ts/src/models';
+import type {
+	CreateStaffProfileBody,
+	UpdateStaffProfileBody,
+} from '@org/client-ts/src/models';
 
 import { createStaffMutation, createStaffQuery } from '../../create-hooks';
 
@@ -28,7 +31,7 @@ export const useFindStaffProfiles = createStaffQuery({
 			},
 		});
 
-		if (_.isNil(result)) {
+		if (result == null) {
 			throw new Error('useFindStaffProfiles: result is nil');
 		}
 
@@ -49,7 +52,7 @@ export const useFindStaffPermissions = createStaffQuery({
 				language: params.language,
 			},
 		});
-		if (_.isNil(result)) {
+		if (result == null) {
 			throw new Error('useFindStaffPermissions: result is nil');
 		}
 		return result;
@@ -67,8 +70,29 @@ export const useGetStaffProfileById = createStaffQuery({
 			.byProfileId(params.profileId)
 			.get();
 
-		if (_.isNil(result)) {
+		if (result == null) {
 			throw new Error('useGetStaffProfileById: result is nil');
+		}
+
+		return result;
+	},
+});
+
+type FindStaffProfilePermissionsParams = {
+	profileId: string;
+};
+
+export const useFindStaffProfilePermissions = createStaffQuery({
+	queryKeyFn: (client) => client.staff.profiles.byProfileId('').permissions.get,
+	fetcher: async (client, params: FindStaffProfilePermissionsParams) => {
+		// This returns only raw permission keys; the permission catalog (localized labels)
+		// is fetched separately via /staff/permissions.
+		const result = await client.staff.profiles
+			.byProfileId(params.profileId)
+			.permissions.get();
+
+		if (result == null) {
+			throw new Error('useFindStaffProfilePermissions: result is nil');
 		}
 
 		return result;
@@ -100,13 +124,13 @@ export const useCreateStaffProfile = createStaffMutation({
 			) as typeof body.description;
 		}
 
-		if (data.permissions && !_.isEmpty(data.permissions)) {
+		if (data.permissions && data.permissions.length > 0) {
 			body.permissions = createUntypedArray(
 				data.permissions.map((p) => createUntypedString(p)),
 			) as typeof body.permissions;
 		}
 
-		if (data.emails && !_.isEmpty(data.emails)) {
+		if (data.emails && data.emails.length > 0) {
 			body.emails = createUntypedArray(
 				data.emails.map((e) => createUntypedString(e)),
 			) as typeof body.emails;
@@ -114,10 +138,75 @@ export const useCreateStaffProfile = createStaffMutation({
 
 		const result = await client.staff.profiles.post(body);
 
-		if (_.isNil(result)) {
+		if (result == null) {
 			throw new Error('useCreateStaffProfile: result is nil');
 		}
 
 		return result;
+	},
+});
+
+type UpdateStaffProfilePayload = {
+	profileId: string;
+	name?: string;
+	description?: string | null;
+};
+
+export const useUpdateStaffProfile = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.profiles.byProfileId('').patch,
+	mutationFn: async (client, payload: UpdateStaffProfilePayload) => {
+		// PATCH semantics:
+		// - undefined => omit field (no change)
+		// - null => clear (only supported for description)
+		const body: UpdateStaffProfileBody = {};
+
+		if (payload.name !== undefined) {
+			body.name = createUntypedString(payload.name) as typeof body.name;
+		}
+
+		if (payload.description !== undefined) {
+			body.description =
+				payload.description === null
+					? (createUntypedNull() as typeof body.description)
+					: (createUntypedString(
+							payload.description,
+						) as typeof body.description);
+		}
+
+		const result = await client.staff.profiles
+			.byProfileId(payload.profileId)
+			.patch(body);
+
+		if (result == null) {
+			throw new Error('useUpdateStaffProfile: result is nil');
+		}
+
+		return result;
+	},
+});
+
+type SetStaffProfilePermissionPayload = {
+	profileId: string;
+	permissionKey: string;
+	isAssigned: boolean;
+};
+
+export const useSetStaffProfilePermission = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.profiles.byProfileId('').permissions.byPermissionKey('').post,
+	mutationFn: async (client, payload: SetStaffProfilePermissionPayload) => {
+		// Idempotent endpoints:
+		// - POST assigns (safe to call multiple times)
+		// - DELETE unassigns (safe to call multiple times)
+		const request = client.staff.profiles
+			.byProfileId(payload.profileId)
+			.permissions.byPermissionKey(payload.permissionKey);
+
+		if (payload.isAssigned) {
+			await request.post();
+			return;
+		}
+
+		await request.delete();
 	},
 });

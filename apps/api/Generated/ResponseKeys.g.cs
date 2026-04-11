@@ -232,6 +232,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey StaffProfileCreatedSuccessfully = new("staff-profile-created-successfully");
 
 	/// <summary>
+	/// Staff profile updated successfully
+	/// </summary>
+	public static readonly TranslationKey StaffProfileUpdatedSuccessfully = new("staff-profile-updated-successfully");
+
+	/// <summary>
 	/// staff profiles
 	/// </summary>
 	public static readonly TranslationKey StaffProfiles = new("staff-profiles");
