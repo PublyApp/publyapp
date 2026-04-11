@@ -4,7 +4,7 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createFindStaffProfilesResultFromDiscriminatorValue, createStaffProfileCreatedFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializeCreateStaffProfileBody, serializeStaffProfileCreated, type AppProblemDetails, type CreateStaffProfileBody, type FindStaffProfilesResult, type StaffProfileCreated, type ValidationProblemDetails } from '../../models/index.js';
 // @ts-ignore
-import { type WithProfileItemRequestBuilder, WithProfileItemRequestBuilderNavigationMetadata } from './item/index.js';
+import { type WithProfileItemRequestBuilder, WithProfileItemRequestBuilderNavigationMetadata, WithProfileItemRequestBuilderRequestsMetadata } from './item/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
@@ -81,6 +81,7 @@ const ProfilesRequestBuilderGetQueryParametersMapper: Record<string, string> = {
  */
 export const ProfilesRequestBuilderNavigationMetadata: Record<Exclude<keyof ProfilesRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     byProfileId: {
+        requestsMetadata: WithProfileItemRequestBuilderRequestsMetadata,
         navigationMetadata: WithProfileItemRequestBuilderNavigationMetadata,
         pathParametersMappings: ["profileId"],
     },

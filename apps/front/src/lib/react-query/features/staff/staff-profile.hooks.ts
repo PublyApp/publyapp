@@ -56,6 +56,25 @@ export const useFindStaffPermissions = createStaffQuery({
 	},
 });
 
+type GetStaffProfileByIdParams = {
+	profileId: string;
+};
+
+export const useGetStaffProfileById = createStaffQuery({
+	queryKeyFn: (client) => client.staff.profiles.byProfileId('').get,
+	fetcher: async (client, params: GetStaffProfileByIdParams) => {
+		const result = await client.staff.profiles
+			.byProfileId(params.profileId)
+			.get();
+
+		if (_.isNil(result)) {
+			throw new Error('useGetStaffProfileById: result is nil');
+		}
+
+		return result;
+	},
+});
+
 // Mutation: Create staff profile
 type CreateStaffProfilePayload = {
 	name: string;

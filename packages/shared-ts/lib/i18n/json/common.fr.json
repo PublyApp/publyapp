@@ -344,6 +344,8 @@
 	"security-settings": "Paramètres de sécurité",
 	"app-name": "Nom de l'application",
 	"coming-soon": "Bientôt disponible",
+	"toc": "Sommaire",
+	"on-this-page": "Sur cette page",
 	"smtp-configuration": "Configuration SMTP",
 	"session-timeout": "Expiration de session",
 	"two-factor-authentication": "Authentification à deux facteurs",

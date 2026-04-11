@@ -1,17 +1,22 @@
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
 import {
 	createMRTColumnHelper,
 	MaterialReactTable,
 	type MRT_ColumnDef,
 	type MRT_SortingState,
 } from 'material-react-table';
+import { useBoolean } from 'minimal-shared/hooks';
 import { useMemo } from 'react';
+import { useOutletContext, useParams } from 'react-router';
 
 import {
 	DEFAULT_PAGE_SIZE,
@@ -19,6 +24,7 @@ import {
 	USER_STATUS_ENUM,
 } from '@org/shared-ts/lib/constants';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
+import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import { EmptyContent } from '#app/components/empty-content/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import type { LabelColor } from '#app/components/label/index.ts';
@@ -27,6 +33,7 @@ import { RouterLink } from '#app/components/router-link.tsx';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import type { StaffProfileDetailsOutletContext } from '../_layout/staff-profile-details-layout';
 
 // Type definition for users assigned to this profile
 export type ProfileUserRowData = {
@@ -47,6 +54,9 @@ const defaultSorting: MRT_SortingState[number] = {
 
 const StaffProfileDetailsUsersTabPage = () => {
 	const { t } = useTranslate();
+	const { profileId } = useParams();
+	const { profileName } = useOutletContext<StaffProfileDetailsOutletContext>();
+	const openDrawer = useBoolean();
 
 	const { handlePaginationChange, handleSortingChange, tableState } =
 		useTableState({
@@ -123,7 +133,52 @@ const StaffProfileDetailsUsersTabPage = () => {
 				border: 'none',
 			}}
 		>
+			<CustomBreadcrumbs
+				heading={profileName}
+				links={[
+					{
+						name: capitalize(t('profiles')),
+						href: FRONT_PATH_NAMES.staff.profiles.root,
+					},
+					{
+						name: profileName,
+						href: FRONT_PATH_NAMES.staff.profiles.details(profileId).root,
+					},
+					{
+						name: t('users'),
+					},
+				]}
+				sx={{ mb: { xs: 3, md: 5 } }}
+				action={
+					<Button
+						variant="contained"
+						onClick={openDrawer.onTrue}
+						startIcon={<Iconify width={16} icon="mingcute:add-line" />}
+					>
+						{capitalize(t('assign-user'))}
+					</Button>
+				}
+			/>
+
 			<MaterialReactTable table={table} />
+
+			<Drawer
+				open={openDrawer.value}
+				onClose={openDrawer.onFalse}
+				anchor="right"
+				sx={(theme) => ({
+					zIndex: theme.zIndex.modal + 1,
+				})}
+				slotProps={{
+					paper: {
+						sx: {
+							width: 720,
+						},
+					},
+				}}
+			>
+				<Box sx={{ p: 3 }}>{t('coming-soon')}</Box>
+			</Drawer>
 		</Box>
 	);
 };

@@ -76,6 +76,11 @@ public sealed record FindStaffProfileUsersArgs(
 	string? Search
 );
 
+public abstract record GetStaffProfileByIdServiceResult {
+	public sealed record Success(StaffProfileItem Profile) : GetStaffProfileByIdServiceResult;
+	public sealed record ProfileNotFound : GetStaffProfileByIdServiceResult;
+}
+
 /// <summary>
 /// Discriminated union representing the result of creating a staff profile.
 /// </summary>
@@ -142,6 +147,11 @@ public interface IProfileAsStaffService {
 
 	Task<FindStaffProfileUsersServiceResult> FindStaffProfileUsersAsync(
 		FindStaffProfileUsersArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<GetStaffProfileByIdServiceResult> GetStaffProfileByIdAsync(
+		Guid profileId,
 		CancellationToken cancellationToken = default
 	);
 
@@ -602,6 +612,32 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			Users: users,
 			Count: count
 		);
+	}
+
+	public async Task<GetStaffProfileByIdServiceResult> GetStaffProfileByIdAsync(
+		Guid profileId,
+		CancellationToken cancellationToken = default
+	) {
+		// This is a staff-only route, so we only allow staff-scoped profiles here.
+		// Missing/non-staff profiles are treated as not-found for consistency with other staff endpoints.
+		var profile = await (
+			from p in _dbContext.Profile
+			where p.Id == profileId
+				&& p.Scope == ProfileScope.Staff
+				&& !p.IsDeleted
+			select new StaffProfileItem {
+				Id = p.Id ?? Guid.Empty,
+				Name = p.Name,
+				Description = p.Description,
+				UserAccountCount = p.UserAccountProfiles.Count,
+			}
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (profile is null) {
+			return new GetStaffProfileByIdServiceResult.ProfileNotFound();
+		}
+
+		return new GetStaffProfileByIdServiceResult.Success(profile);
 	}
 
 	/// <summary>

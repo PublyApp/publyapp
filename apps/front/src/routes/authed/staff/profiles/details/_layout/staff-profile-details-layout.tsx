@@ -1,32 +1,40 @@
-import Button from '@mui/material/Button';
-import Drawer from '@mui/material/Drawer';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
+import Box from '@mui/material/Box';
+import Skeleton from '@mui/material/Skeleton';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
-import _ from 'lodash';
-import { useBoolean } from 'minimal-shared/hooks';
-import { removeLastSlash } from 'minimal-shared/utils';
+import capitalize from 'lodash/capitalize';
+import get from 'lodash/get';
+import toStr from 'lodash/toString';
 import { useMemo } from 'react';
-import { data, Outlet, useParams } from 'react-router';
+import { data, useParams } from 'react-router';
 
 import {
 	APP_NAME,
 	FRONT_PATH_NAMES,
 	isServer,
 } from '@org/shared-ts/lib/constants';
-import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
-import { Iconify } from '#app/components/iconify/iconify.tsx';
-import { RouterLink } from '#app/components/router-link.tsx';
-import { usePathname } from '#app/hooks/use-pathname.ts';
+
+import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
+import View400 from '#app/components/error/400-view.tsx';
+import { NotFoundView } from '#app/components/error/not-found-view.tsx';
+import QueryDisplay from '#app/components/query-display.tsx';
+import type { SettingsNavItem } from '#app/components/settings/settings-nav.tsx';
+import { SidebarSettingsLayout } from '#app/components/settings/sidebar-settings-layout.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
+import { isProblemFailure, toApiFailure } from '#app/lib/api-failure/index.ts';
+import { useGetStaffProfileById } from '#app/lib/react-query/features/staff/staff-profile.hooks.ts';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/staff-profile-details-layout';
 
+export type StaffProfileDetailsOutletContext = {
+	profileId: string;
+	profileName: string;
+};
+
 const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(t('profile-details'));
+	let str: string = capitalize(t('profile-details'));
 
 	if (seo) {
 		str = `${str} | Staff Dashboard - ${APP_NAME}`;
@@ -37,7 +45,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
+		return get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;
@@ -63,117 +71,132 @@ export const loader = getServerLoader({
 	},
 });
 
-const TenantDetailsLayout = () => {
+const StaffProfileDetailsLayout = () => {
 	const { t } = useTranslate();
-	const pathname = usePathname();
 	const { profileId } = useParams();
 
-	const { NAV_ITEMS, ACTIONS } = useMemo(() => {
+	const getProfileQuery = useGetStaffProfileById({
+		variables: { profileId: toStr(profileId) },
+		enabled: !!profileId,
+	});
+
+	const navItems: SettingsNavItem[] = useMemo(() => {
 		const profileDetailPaths =
 			FRONT_PATH_NAMES.staff.profiles.details(profileId);
 
-		const NAV_ITEMS = [
+		return [
 			{
 				label: t('basics-and-permissions'),
-				icon: <Iconify width={24} icon="solar:settings-bold" />,
 				href: profileDetailPaths.tabs.basicsAndPermissions,
 			},
 			{
 				label: t('users'),
-				icon: <Iconify width={24} icon="solar:users-group-rounded-bold" />,
 				href: profileDetailPaths.tabs.users,
-				action: <AddUserButton />,
+				deep: true,
 			},
 		];
-
-		const ACTIONS = {} as Record<string, React.ReactNode>;
-
-		_.forEach(NAV_ITEMS, (item) => {
-			if (item.action) {
-				ACTIONS[item.href] = item.action;
-			}
-		});
-
-		return { NAV_ITEMS, ACTIONS };
 	}, [t, profileId]);
 
-	const tabValue = useMemo(() => {
-		const value = removeLastSlash(pathname);
-		return value;
-	}, [pathname]);
+	if (!profileId) {
+		return <View400 title="Bad Request" description="Profile ID is required" />;
+	}
 
 	return (
-		<DashboardContent
-			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
-			compact
-			maxWidth="lg"
+		<QueryDisplay
+			query={getProfileQuery}
+			LoadingSlot={<StaffProfileDetailsLayoutSkeleton />}
+			ErrorSlot={({ error }) => <LayoutErrorView error={error} />}
 		>
-			<CustomBreadcrumbs
-				heading={t('profile-details')}
-				links={[
-					{
-						name: _.capitalize(t('profiles')),
-						href: FRONT_PATH_NAMES.staff.profiles.root,
-					},
-					{ name: t('details') },
-				]}
-				sx={{ mb: 3 }}
-				action={ACTIONS[tabValue] || null}
-			/>
+			{({ data }) => {
+				// Defensive: the generated client marks nested payloads as optional.
+				// Treat a missing profile payload as not-found at the UI level.
+				if (!data.profile) {
+					return (
+						<NotFoundView
+							withLayout={false}
+							title={capitalize(t('not-found'))}
+							description={t('please-try-again-or-contact-support')}
+						/>
+					);
+				}
 
-			<Tabs value={tabValue} sx={{ mb: { xs: 3, md: 5 } }}>
-				{NAV_ITEMS.map((tab) => (
-					<Tab
-						component={RouterLink}
-						key={tab.href}
-						label={tab.label}
-						icon={tab.icon}
-						value={tab.href}
-						href={tab.href}
+				return (
+					<SidebarSettingsLayout
+						items={navItems}
+						maxWidth="lg"
+						breadcrumbs={null}
+						outletContext={
+							{
+								profileId: toStr(profileId),
+								profileName: data.profile.name ?? t('un-named'),
+							} satisfies StaffProfileDetailsOutletContext
+						}
 					/>
-				))}
-			</Tabs>
-
-			<Outlet />
-		</DashboardContent>
+				);
+			}}
+		</QueryDisplay>
 	);
 };
 
-export default TenantDetailsLayout;
+export default StaffProfileDetailsLayout;
 
-const AddUserButton = () => {
+const StaffProfileDetailsLayoutSkeleton = () => (
+	<DashboardContent maxWidth="lg" compact>
+		<Box
+			sx={{
+				display: 'flex',
+				gap: 4,
+				flexDirection: { xs: 'column', md: 'row' },
+			}}
+		>
+			<Box
+				sx={{
+					display: { xs: 'none', md: 'block' },
+					flexShrink: 0,
+					width: 200,
+				}}
+			>
+				<Box sx={{ display: 'grid', gap: 0.75 }}>
+					<Skeleton variant="rounded" height={36} />
+					<Skeleton variant="rounded" height={36} />
+				</Box>
+			</Box>
+
+			<Box sx={{ flex: 1, minWidth: 0 }}>
+				<Skeleton variant="text" width={220} height={32} sx={{ mb: 2 }} />
+				<Skeleton variant="rounded" height={260} sx={{ borderRadius: 2 }} />
+			</Box>
+		</Box>
+	</DashboardContent>
+);
+
+const LayoutErrorView = ({ error }: { error: unknown }) => {
 	const { t } = useTranslate();
-	const openDrawer = useBoolean();
+
+	const failure = toApiFailure(error);
+
+	if (
+		isProblemFailure(failure) &&
+		(failure.status === 404 ||
+			(failure.status === 400 && failure.translationKey === 'malformed-id'))
+	) {
+		return (
+			<NotFoundView
+				withLayout={false}
+				title={capitalize(t('not-found'))}
+				description={t('please-try-again-or-contact-support')}
+			/>
+		);
+	}
 
 	return (
-		<>
-			<Button
-				type="submit"
-				variant="contained"
-				onClick={openDrawer.onTrue}
-				startIcon={<Iconify width={16} icon="mingcute:add-line" />}
-			>
-				{_.capitalize(t('assign-user'))}
-			</Button>
-			<Drawer
-				open={openDrawer.value}
-				onClose={openDrawer.onFalse}
-				anchor="right"
-				sx={(theme) => {
-					return {
-						zIndex: theme.zIndex.modal + 1,
-					};
-				}}
-				slotProps={{
-					paper: {
-						sx: {
-							width: 720,
-						},
-					},
-				}}
-			>
-				ADD USER FORM HERE
-			</Drawer>
-		</>
+		<DashboardContent maxWidth="lg" compact>
+			<Box sx={{ py: 10 }}>
+				<ErrorContent
+					title={t('something-went-wrong')}
+					description={t('error-500-description')}
+				/>
+			</Box>
+		</DashboardContent>
 	);
 };

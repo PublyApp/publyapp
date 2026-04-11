@@ -878,6 +878,15 @@ export function createGetStaffInvitationLinkResultFromDiscriminatorValue(parseNo
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {GetStaffProfileByIdResult}
+ */
+// @ts-ignore
+export function createGetStaffProfileByIdResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetStaffProfileByIdResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {GetStaffUserByIdResult}
  */
 // @ts-ignore
@@ -2455,6 +2464,17 @@ export function deserializeIntoGetStaffInvitationLinkResult(getStaffInvitationLi
 }
 /**
  * The deserialization information for the current model
+ * @param GetStaffProfileByIdResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoGetStaffProfileByIdResult(getStaffProfileByIdResult: Partial<GetStaffProfileByIdResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "profile": n => { getStaffProfileByIdResult.profile = n.getObjectValue<StaffProfileItem>(createStaffProfileItemFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param GetStaffUserByIdResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -3565,6 +3585,12 @@ export interface GetStaffInvitationLinkResult extends AdditionalDataHolder, Pars
      * The link property
      */
     link?: string | null;
+}
+export interface GetStaffProfileByIdResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The profile property
+     */
+    profile?: StaffProfileItem | null;
 }
 export interface GetStaffUserByIdResult extends AdditionalDataHolder, Parsable {
     /**
@@ -4754,6 +4780,18 @@ export function serializeGetStaffInvitationLinkResult(writer: SerializationWrite
     if (!getStaffInvitationLinkResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("link", getStaffInvitationLinkResult.link);
     writer.writeAdditionalData(getStaffInvitationLinkResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param GetStaffProfileByIdResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeGetStaffProfileByIdResult(writer: SerializationWriter, getStaffProfileByIdResult: Partial<GetStaffProfileByIdResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getStaffProfileByIdResult || isSerializingDerivedType) { return; }
+    writer.writeObjectValue<StaffProfileItem>("profile", getStaffProfileByIdResult.profile, serializeStaffProfileItem);
+    writer.writeAdditionalData(getStaffProfileByIdResult.additionalData);
 }
 /**
  * Serializes information the current object
