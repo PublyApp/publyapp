@@ -1,5 +1,6 @@
 import * as cookie from 'cookie';
 import dayjs from 'dayjs';
+import type { i18n as I18nInstance } from 'i18next';
 import i18next from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import Fetch from 'i18next-fetch-backend';
@@ -14,11 +15,13 @@ import {
 	queryParamKey,
 } from '@org/shared-ts/lib/constants';
 import { getCorrectLocale } from '@org/shared-ts/lib/i18n/i18n.utils';
+import type { AppLocale } from '@org/shared-ts/lib/i18n/resources';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import duration from '@org/shared-ts/utils/duration.utils';
 
 import { interZodClient } from '../zod/zod.client';
 import { config } from './i18n.config';
+import { localeTabSync } from './locale-tab-sync.client';
 
 const backendUrl = new URL(window.location.origin);
 backendUrl.pathname = '/tx/{{ns}}.{{lng}}.json';
@@ -32,6 +35,18 @@ export const initI18nOnClient = async () => {
 
 	const initialNamespaces = getInitialNamespaces();
 
+	await initI18nextInstance(initialNamespaces);
+
+	INITIALIZED = true;
+
+	initI18nHmr();
+	initLocaleSideEffects(i18next);
+	localeTabSync.initLocaleTabListener(i18next);
+
+	return i18next;
+};
+
+const initI18nextInstance = async (initialNamespaces: string[]) => {
 	await i18next
 		.use(initReactI18next) // Tell i18next to use the react-i18next plugin
 		.use(LanguageDetector) // Setup a client-side language detector
@@ -53,62 +68,76 @@ export const initI18nOnClient = async () => {
 				caches: [],
 			},
 		});
+};
 
-	INITIALIZED = true;
-
+const initI18nHmr = () => {
 	// HMR: reload translations when the copy plugin broadcasts updates
-	if (import.meta.hot) {
-		import.meta.hot.on('i18n:updated', async (data) => {
-			try {
-				logger.debug('[i18n-hmr] Reloading translations...', data);
-
-				// Force reload all resources with cache busting
-				const lng = i18next.language;
-				const loadedNamespaces = _.keys(i18next.store.data[lng] || {});
-
-				// Clear the cache first
-				i18next.store.data = {};
-
-				// Reload resources with cache busting
-				await i18next.reloadResources(lng, loadedNamespaces);
-
-				// Force a re-render by triggering a language change event
-				i18next.emit('languageChanged', lng);
-
-				logger.debug('[i18n-hmr] Translations reloaded successfully');
-			} catch (err) {
-				logger.error('[i18n-hmr] reload failed', err);
-			}
-		});
+	if (!import.meta.hot) {
+		return;
 	}
 
-	i18next.on('languageChanged', (language) => {
-		const correctLocale = getCorrectLocale(language);
+	import.meta.hot.on('i18n:updated', async (data) => {
+		try {
+			logger.debug('[i18n-hmr] Reloading translations...', data);
 
-		// set locale of dayjs (date formatting)
-		dayjs.locale(correctLocale);
-		// set locale for our InterZod instance
-		interZodClient.setLocale(correctLocale);
+			// Force reload all resources with cache busting
+			const lng = i18next.language;
+			const loadedNamespaces = _.keys(i18next.store.data[lng] || {});
 
-		// TODO: set locale for other libraries
-		// ???
+			// Clear the cache first
+			i18next.store.data = {};
 
-		if (
-			LANGUAGE_DETECTION_METHOD === LANGUAGE_DETECTION_METHOD_ENUM.QUERY_PARAM
-		) {
-			// set the locale search param in the url
-			const url = new URL(window.location.href);
-			url.searchParams.set(queryParamKey.language, correctLocale);
-			window.history.pushState({}, '', url);
-		} else {
-			// set the locale cookie
-			const localeCookie = cookie.serialize(LOCALE_COOKIE_KEY, correctLocale, {
-				maxAge: duration.toSeconds('30d'), // 30 days
-				path: '/',
-			});
-			document.cookie = localeCookie;
+			// Reload resources with cache busting
+			await i18next.reloadResources(lng, loadedNamespaces);
+
+			// Force a re-render by triggering a language change event
+			i18next.emit('languageChanged', lng);
+
+			logger.debug('[i18n-hmr] Translations reloaded successfully');
+		} catch (err) {
+			logger.error('[i18n-hmr] reload failed', err);
 		}
 	});
+};
 
-	return i18next;
+const applyDayjsLocale = (locale: AppLocale) => {
+	// date formatting
+	dayjs.locale(locale);
+};
+
+const applyInterZodLocale = (locale: AppLocale) => {
+	interZodClient.setLocale(locale);
+};
+
+const persistLocalePreference = (locale: AppLocale) => {
+	if (
+		LANGUAGE_DETECTION_METHOD === LANGUAGE_DETECTION_METHOD_ENUM.QUERY_PARAM
+	) {
+		// set the locale search param in the url
+		const url = new URL(window.location.href);
+		url.searchParams.set(queryParamKey.language, locale);
+		window.history.pushState({}, '', url);
+		return;
+	}
+
+	// set the locale cookie
+	const localeCookie = cookie.serialize(LOCALE_COOKIE_KEY, locale, {
+		maxAge: duration.toSeconds('30d'), // 30 days
+		path: '/',
+	});
+	document.cookie = localeCookie;
+};
+
+const initLocaleSideEffects = (i18n: I18nInstance) => {
+	i18n.on('languageChanged', (language) => {
+		const correctLocale = getCorrectLocale(language);
+		applyDayjsLocale(correctLocale);
+		applyInterZodLocale(correctLocale);
+		persistLocalePreference(correctLocale);
+
+		// Only broadcast if this tab initiated the change; remote tab changes should not echo back.
+		if (localeTabSync.shouldBroadcast()) {
+			localeTabSync.broadcastLocaleToTabs(correctLocale);
+		}
+	});
 };
