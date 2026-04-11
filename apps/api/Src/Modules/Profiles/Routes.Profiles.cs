@@ -12,6 +12,8 @@ public static partial class Routes {
 			public const string Root = "/profiles";
 			public const string Create = "/";
 			public const string Find = "/";
+			public const string Get = "/{profileId}";
+			public static string GetFn(string profileId) => $"/{profileId}";
 
 			/// <summary>Staff profile users routes (staff viewing users assigned to a staff profile)</summary>
 			public static class Users {

@@ -36,6 +36,8 @@ const StaffProfilePermissions = () => {
 				{_.map(PERMISSIONS_DATA, (group) => (
 					<List
 						key={group.module}
+						id={getPermissionModuleId(group.module)}
+						sx={{ scrollMarginTop: 120 }}
 						subheader={
 							<ListSubheader sx={{ px: 0 }}>{group.module}</ListSubheader>
 						}
@@ -56,6 +58,16 @@ const StaffProfilePermissions = () => {
 };
 
 export default StaffProfilePermissions;
+
+export const getPermissionModuleId = (moduleName: string): string => {
+	const slug = moduleName
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/(^-|-$)/g, '');
+
+	return `permissions-${slug || 'module'}`;
+};
 
 const PermissionListItem = ({ permission }: { permission: Permission }) => {
 	const checked = useBoolean(Math.random() > 0.5);
@@ -244,3 +256,7 @@ const PERMISSIONS_DATA: Module[] = [
 		],
 	},
 ];
+
+export const STAFF_PROFILE_PERMISSION_MODULES = PERMISSIONS_DATA.map((g) => {
+	return g.module;
+});

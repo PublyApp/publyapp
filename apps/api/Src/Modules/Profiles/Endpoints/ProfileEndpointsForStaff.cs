@@ -32,6 +32,14 @@ public static class ProfileEndpointsForStaff {
 			.WithReqBodyValidation<CreateStaffProfileBody>();
 
 		staffGroup.MapGet(
+			Routes.Profiles.ForStaff.Get,
+			GetStaffProfileById.HandleGetStaffProfileById
+		)
+			.WithName("GetStaffProfileById")
+			.WithSummary("Get a staff profile by id")
+			.WithPermission([AppPermissions.Staff.Profiles.GET_FOR_STAFF]);
+
+		staffGroup.MapGet(
 			Routes.Profiles.ForStaff.Users.Find,
 			FindStaffProfileUsers.HandleFindStaffProfileUsers
 		)
