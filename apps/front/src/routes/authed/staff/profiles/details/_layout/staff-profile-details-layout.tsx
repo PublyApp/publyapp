@@ -75,6 +75,7 @@ export const loader = getServerLoader({
 
 const StaffProfileDetailsLayout = () => {
 	const { t } = useTranslate();
+	const pathname = usePathname();
 	const { profileId } = useParams();
 
 	const getProfileQuery = useGetStaffProfileById({
