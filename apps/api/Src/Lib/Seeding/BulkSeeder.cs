@@ -26,7 +26,8 @@ public class BulkSeeder {
 		var generator = new BulkSeedDataGenerator();
 		generator.GenerateAll();
 
-		Console.WriteLine($"Seeding {generator.Tenants.Count} tenants, {generator.Users.Count} users, {generator.Projects.Count} projects...");
+		Console.WriteLine(
+			$"Seeding {generator.Tenants.Count} tenants, {generator.TenantUsers.Count} tenant users, {generator.StaffUsers.Count} staff users, {generator.Projects.Count} projects...");
 
 		// Seed in batches with transaction per batch
 		await SeedTenantsInBatchesAsync(dbContext, generator.Tenants, cancellationToken);

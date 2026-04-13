@@ -171,7 +171,7 @@ db-remove:
 # Bulk seeding (testing)
 # =============================================================================
 
-# Run bulk seed (500 tenants, ~8K users, ~5K projects)
+# Run bulk seed (500 tenants, ~8K tenant users, 500 staff users, ~5K projects)
 seed-bulk:
   cd {{api_dir}} && dotnet run -- seed-bulk
 
