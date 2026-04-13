@@ -10,8 +10,8 @@ This checklist covers the work done so far:
 
 ## Setup
 
-- [x] Run API: `make dev-api`
-- [x] Run Frontend: `make dev-front`
+- [x] Run API: `just dev-api`
+- [x] Run Frontend: `just dev-front`
 - [x] Open API docs: `http://localhost:5000/scalar/v1`
 - [x] Open frontend: `http://localhost:5050`
 - [x] Confirm you can login as a staff admin (seeded admin is fine).
@@ -91,11 +91,52 @@ These are high-impact operations and are intentionally *not* part of the general
 - [x] Call `GET /staff/profiles?q=<part_of_name>&limit=20&sort_id=name&sort_order=asc`.
 - [x] Confirm results are filtered by `q` (name/description).
 
+## Staff Profile Details: Basics + Permissions (Frontend + API)
+
+This covers the new staff profile details UI:
+- Basics form (PATCH name/description)
+- Permissions matrix (GET assigned permission keys + per-key toggle POST/DELETE)
+
+### Basics: Update Staff Profile
+
+- [x] Login as staff admin.
+- [x] Go to Staff Profiles list.
+- [x] Open a specific staff profile details page.
+- [x] In the Basics tab, change the profile name.
+- [x] Confirm the “Save changes” button is disabled until the form is dirty.
+- [x] Click “Save changes” and confirm a success toast appears (translated).
+- [x] Refresh the page and confirm the updated name persists.
+- [x] Clear the description (empty it) and save.
+- [x] Refresh and confirm the description is cleared (null/empty).
+- [x] Try setting the name to 1 character and confirm validation returns `422` (RFC7807 validation problem).
+- [x] Try changing the name to an existing staff profile name and confirm `400` with translationKey `profile-name-already-exists`.
+
+### Permissions: Assigned Keys + Toggle
+
+- [x] In the same profile details Basics tab, scroll to the Permissions section.
+- [x] Toggle a permission ON.
+- [x] Confirm the switch flips immediately (optimistic UI) and only that row is temporarily disabled during the request.
+- [x] Refresh and confirm the permission remains ON.
+- [x] Toggle the same permission OFF, refresh, confirm it remains OFF.
+- [x] Toggle the same permission ON twice quickly.
+- [x] Confirm there is no duplicate behavior and no errors (POST is idempotent).
+
+### API Validation / Idempotency
+
+- [ ] In Scalar: call `GET /staff/profiles/{profileId}/permissions`.
+- [ ] Confirm the response is `permissionKeys[]` (raw keys) and is sorted.
+- [ ] In Scalar: call `POST /staff/profiles/{profileId}/permissions/{permissionKey}` twice.
+- [ ] Confirm both return `204` and the permission is present in `GET .../permissions`.
+- [ ] In Scalar: call `DELETE /staff/profiles/{profileId}/permissions/{permissionKey}` twice.
+- [ ] Confirm both return `204` and the permission is absent from `GET .../permissions`.
+- [ ] Confirm a malformed `profileId` returns `400` (translationKey `malformed-id`).
+- [ ] Confirm an unknown `profileId` returns `404`.
+
 ## Staff Profile Details: Users Tab Backend Endpoint (API)
 
 This is the new endpoint that Phase 4 (frontend) will consume.
 
-- [ ] Ensure you have a staff profile (create one in UI or via Scalar `POST /staff/profiles`).
+- [x] Ensure you have a staff profile (create one in UI or via Scalar `POST /staff/profiles`).
 - [ ] Ensure at least one staff user has that profile assigned (use the staff user details Profiles UI).
 - [ ] In Scalar: call `GET /staff/profiles/{profileId}/users?limit=50&sort_id=created_at&sort_order=desc`.
 - [ ] Confirm response includes `users[]` and `count`.
@@ -116,6 +157,14 @@ This is the new endpoint that Phase 4 (frontend) will consume.
 - [ ] Try `PUT /staff/users/{userId}/profiles` similarly.
 - [ ] Confirm `403`.
 - [ ] Try `GET /staff/profiles/{profileId}/users` similarly.
+- [ ] Confirm `403`.
+- [ ] Try `PATCH /staff/profiles/{profileId}` similarly.
+- [ ] Confirm `403`.
+- [ ] Try `GET /staff/profiles/{profileId}/permissions` similarly.
+- [ ] Confirm `403`.
+- [ ] Try `POST /staff/profiles/{profileId}/permissions/{permissionKey}` similarly.
+- [ ] Confirm `403`.
+- [ ] Try `DELETE /staff/profiles/{profileId}/permissions/{permissionKey}` similarly.
 - [ ] Confirm `403`.
 
 ### Danger Zone Permissions

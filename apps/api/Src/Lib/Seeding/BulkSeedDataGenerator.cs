@@ -19,6 +19,7 @@ public class BulkSeedDataGenerator {
 	);
 
 	private readonly int _tenantCount;
+	private readonly int _staffUserCount;
 	private readonly int _powerUserCount;
 	private readonly int _crossTenantUserCount;
 	private readonly int _singleTenantUserCount;
@@ -28,19 +29,25 @@ public class BulkSeedDataGenerator {
 	private readonly Random _random;
 
 	private List<Tenant> _tenants = [];
-	private List<User> _users = [];
-	private List<UserAccount> _userAccounts = [];
+	private List<User> _tenantUsers = [];
+	private List<UserAccount> _tenantUserAccounts = [];
+	private List<User> _staffUsers = [];
+	private List<UserAccount> _staffUserAccounts = [];
+	private List<User> _allUsers = [];
+	private List<UserAccount> _allUserAccounts = [];
 	private List<Project> _projects = [];
 	private List<Invitation> _invitations = [];
 
 	public BulkSeedDataGenerator(
 		int? tenantCount = null,
+		int? staffUserCount = null,
 		int? powerUserCount = null,
 		int? crossTenantUserCount = null,
 		int? singleTenantUserCount = null,
 		int? projectsPerTenant = null
 	) {
 		_tenantCount = tenantCount ?? BulkSeedConstants.DefaultTenantCount;
+		_staffUserCount = staffUserCount ?? BulkSeedConstants.DefaultStaffUserCount;
 		_powerUserCount = powerUserCount ?? BulkSeedConstants.DefaultPowerUserCount;
 		_crossTenantUserCount = crossTenantUserCount ?? BulkSeedConstants.DefaultCrossTenantUserCount;
 		_singleTenantUserCount = singleTenantUserCount ?? BulkSeedConstants.DefaultSingleTenantUserCount;
@@ -51,20 +58,36 @@ public class BulkSeedDataGenerator {
 	}
 
 	public IReadOnlyList<Tenant> Tenants => _tenants;
-	public IReadOnlyList<User> Users => _users;
-	public IReadOnlyList<UserAccount> UserAccounts => _userAccounts;
+	public IReadOnlyList<User> Users => _allUsers;
+	public IReadOnlyList<UserAccount> UserAccounts => _allUserAccounts;
 	public IReadOnlyList<Project> Projects => _projects;
 	public IReadOnlyList<Invitation> Invitations => _invitations;
+
+	public IReadOnlyList<User> TenantUsers => _tenantUsers;
+	public IReadOnlyList<UserAccount> TenantUserAccounts => _tenantUserAccounts;
+	public IReadOnlyList<User> StaffUsers => _staffUsers;
+	public IReadOnlyList<UserAccount> StaffUserAccounts => _staffUserAccounts;
 
 	/// <summary>
 	/// Generates all bulk seed data in the correct order (dependencies first).
 	/// </summary>
 	public void GenerateAll() {
 		GenerateTenants();
-		GenerateUsers();
-		GenerateUserAccounts();
+		GenerateTenantUsers();
+		GenerateStaffUsers();
+		GenerateTenantUserAccounts();
+		GenerateStaffUserAccounts();
+		FinalizeCombinedLists();
 		GenerateProjects();
 		GenerateInvitations();
+	}
+
+	private void FinalizeCombinedLists() {
+		// BulkSeeder expects a single Users/UserAccounts list to insert. We keep tenant and staff
+		// generation separate to avoid accidental cross-scope accounts (staff users must never
+		// have tenant memberships).
+		_allUsers = [.. _tenantUsers, .. _staffUsers];
+		_allUserAccounts = [.. _tenantUserAccounts, .. _staffUserAccounts];
 	}
 
 	/// <summary>
@@ -100,29 +123,38 @@ public class BulkSeedDataGenerator {
 	}
 
 	/// <summary>
-	/// Generates bulk users.
+	/// Generates bulk tenant users.
 	/// </summary>
-	private void GenerateUsers() {
+	private void GenerateTenantUsers() {
 		var totalUsers = _powerUserCount + _crossTenantUserCount + _singleTenantUserCount;
-		_users = new List<User>(totalUsers);
+		_tenantUsers = new List<User>(totalUsers);
 
 		// Generate power users (will have many tenant memberships)
 		for (int i = 1; i <= _powerUserCount; i++) {
-			_users.Add(GenerateUser(i));
+			_tenantUsers.Add(GenerateUser(emailPrefix: "bulk.user", index: i));
 		}
 
 		// Generate cross-tenant users
 		for (int i = 1; i <= _crossTenantUserCount; i++) {
-			_users.Add(GenerateUser(i + _powerUserCount));
+			_tenantUsers.Add(GenerateUser(emailPrefix: "bulk.user", index: i + _powerUserCount));
 		}
 
 		// Generate single-tenant users
 		for (int i = 1; i <= _singleTenantUserCount; i++) {
-			_users.Add(GenerateUser(i + _powerUserCount + _crossTenantUserCount));
+			_tenantUsers.Add(GenerateUser(emailPrefix: "bulk.user", index: i + _powerUserCount + _crossTenantUserCount));
 		}
 	}
 
-	private User GenerateUser(int index) {
+	private void GenerateStaffUsers() {
+		_staffUsers = new List<User>(_staffUserCount);
+
+		// For staff UI testing, it's useful to have a decent population for pagination and search.
+		for (int i = 1; i <= _staffUserCount; i++) {
+			_staffUsers.Add(GenerateUser(emailPrefix: BulkSeedConstants.StaffUserEmailPrefix, index: i));
+		}
+	}
+
+	private User GenerateUser(string emailPrefix, int index) {
 		var roll = _faker.Random.Double();
 		var isDeleted = roll < BulkSeedConstants.DeletedUserRatio;
 		var isActive = !isDeleted && roll < (BulkSeedConstants.DeletedUserRatio + BulkSeedConstants.ActiveUserRatio);
@@ -130,7 +162,7 @@ public class BulkSeedDataGenerator {
 		var user = new User {
 			// Use UUIDv7 for time-ordered IDs (realistic cursor pagination behavior)
 			Id = Guid.CreateVersion7(),
-			Email = $"bulk.user{index:D5}@{BulkSeedConstants.UserEmailDomain}",
+			Email = $"{emailPrefix}{index:D5}@{BulkSeedConstants.UserEmailDomain}",
 			Password = CachedSeedPassword.Value,
 			Status = isActive ? UserStatus.Active : UserStatus.Suspended,
 			IsVerified = true,
@@ -149,14 +181,14 @@ public class BulkSeedDataGenerator {
 	/// <summary>
 	/// Generates user accounts linking users to tenants.
 	/// </summary>
-	private void GenerateUserAccounts() {
-		_userAccounts = [];
+	private void GenerateTenantUserAccounts() {
+		_tenantUserAccounts = [];
 
 		var activeTenants = _tenants.Where(t => !t.IsDeleted && t.Status == TenantStatus.Active).ToList();
 		var tenantIds = activeTenants.Select(t => t.GetRequiredId()).ToList();
 
 		// Power users: 10-50 tenant memberships each
-		var powerUsers = _users.Take(_powerUserCount).ToList();
+		var powerUsers = _tenantUsers.Take(_powerUserCount).ToList();
 		var powerUserTenantAssignments = GenerateTenantMemberships(powerUsers.Count, tenantIds,
 			BulkSeedConstants.MinTenantMembershipsForPowerUser,
 			BulkSeedConstants.MaxTenantMembershipsForPowerUser);
@@ -169,13 +201,13 @@ public class BulkSeedDataGenerator {
 				var tenantId = tenantIds[tenantIndex];
 				var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId, AccountLevel.User);
 				account.ValidateAccountType();
-				_userAccounts.Add(account);
+				_tenantUserAccounts.Add(account);
 			}
 		}
 
 		// Cross-tenant users: 2-5 tenant memberships each
 		// Note: Cross-tenant users can share tenants with power users - that's realistic
-		var crossTenantUsers = _users.Skip(_powerUserCount).Take(_crossTenantUserCount).ToList();
+		var crossTenantUsers = _tenantUsers.Skip(_powerUserCount).Take(_crossTenantUserCount).ToList();
 		var crossTenantAssignments = GenerateTenantMemberships(crossTenantUsers.Count, tenantIds,
 			BulkSeedConstants.MinTenantMembershipsForCrossTenant,
 			BulkSeedConstants.MaxTenantMembershipsForCrossTenant);
@@ -188,12 +220,12 @@ public class BulkSeedDataGenerator {
 				var tenantId = tenantIds[tenantIdx];
 				var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId, AccountLevel.User);
 				account.ValidateAccountType();
-				_userAccounts.Add(account);
+				_tenantUserAccounts.Add(account);
 			}
 		}
 
 		// Single-tenant users: 1 tenant each
-		var singleTenantUsers = _users.Skip(_powerUserCount + _crossTenantUserCount).ToList();
+		var singleTenantUsers = _tenantUsers.Skip(_powerUserCount + _crossTenantUserCount).ToList();
 
 		// Just use all active tenants for single-tenant users (no need to avoid overlaps)
 		for (int i = 0; i < singleTenantUsers.Count; i++) {
@@ -201,7 +233,20 @@ public class BulkSeedDataGenerator {
 			var tenantId = tenantIds[_random.Next(tenantIds.Count)];
 			var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId, AccountLevel.User);
 			account.ValidateAccountType();
-			_userAccounts.Add(account);
+			_tenantUserAccounts.Add(account);
+		}
+	}
+
+	private void GenerateStaffUserAccounts() {
+		_staffUserAccounts = new List<UserAccount>(_staffUsers.Count);
+
+		foreach (var user in _staffUsers) {
+			var roll = _faker.Random.Double();
+			var level = roll < BulkSeedConstants.StaffAdminRatio ? AccountLevel.Admin : AccountLevel.User;
+
+			var account = UserAccount.CreateStaffAccount(userId: user.GetRequiredId(), accountLevel: level);
+			account.ValidateAccountType();
+			_staffUserAccounts.Add(account);
 		}
 	}
 

@@ -78,6 +78,37 @@ export const useGetStaffProfileById = createStaffQuery({
 	},
 });
 
+type FindStaffProfileUsersParams = {
+	profileId: string;
+	page?: number;
+	limit: number;
+	sort?: { id: string; order: 'desc' | 'asc' };
+	q?: string;
+};
+
+export const useFindStaffProfileUsers = createStaffQuery({
+	queryKeyFn: (client) => client.staff.profiles.byProfileId('').users.get,
+	fetcher: async (client, params: FindStaffProfileUsersParams) => {
+		const result = await client.staff.profiles
+			.byProfileId(params.profileId)
+			.users.get({
+				queryParameters: {
+					page: params.page?.toString(),
+					limit: params.limit.toString(),
+					sortId: params.sort?.id,
+					sortOrder: params.sort?.order,
+					q: params.q,
+				},
+			});
+
+		if (result == null) {
+			throw new Error('useFindStaffProfileUsers: result is nil');
+		}
+
+		return result;
+	},
+});
+
 type FindStaffProfilePermissionsParams = {
 	profileId: string;
 };
