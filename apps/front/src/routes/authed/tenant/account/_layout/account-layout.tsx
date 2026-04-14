@@ -9,6 +9,7 @@ import {
 	FRONT_PATH_NAMES,
 	isServer,
 } from '@org/shared-ts/lib/constants';
+
 import type { SettingsNavItem } from '#app/components/settings/settings-nav.tsx';
 import { SidebarSettingsLayout } from '#app/components/settings/sidebar-settings-layout.tsx';
 import { useTenantParam } from '#app/hooks/use-tenant-param.ts';

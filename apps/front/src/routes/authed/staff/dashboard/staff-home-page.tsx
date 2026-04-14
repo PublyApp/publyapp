@@ -1,5 +1,3 @@
-import type { ReactNode } from 'react';
-
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';

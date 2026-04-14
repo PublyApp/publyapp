@@ -10,6 +10,7 @@ import {
 	FRONT_PATH_NAMES,
 	isServer,
 } from '@org/shared-ts/lib/constants';
+
 import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import { useIsMobile } from '#app/hooks/use-is-mobile.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
