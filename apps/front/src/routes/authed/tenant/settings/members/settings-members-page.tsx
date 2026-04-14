@@ -117,8 +117,15 @@ const SettingsMembersPage = () => {
 								<TableRow key={member.id}>
 									<TableCell>
 										<Stack direction="row" alignItems="center" spacing={2}>
-											<Avatar sx={{ width: 36, height: 36 }}>
-												{member.name.charAt(0)}
+											<Avatar
+												sx={{
+													width: 36,
+													height: 36,
+													bgcolor: 'background.neutral',
+													color: 'text.disabled',
+												}}
+											>
+												<Iconify icon="solar:user-rounded-bold" width={20} />
 											</Avatar>
 											<Box>
 												<Typography variant="subtitle2">

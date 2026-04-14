@@ -20,7 +20,12 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import isEqual from 'lodash/isEqual';
+import map from 'lodash/map';
+import toLower from 'lodash/toLower';
+import lodashToString from 'lodash/toString';
+import trim from 'lodash/trim';
 import {
 	createMRTColumnHelper,
 	MaterialReactTable,
@@ -92,7 +97,7 @@ const TenantRowDataMapper = (tenant: TenantAsStaffListItem): TenantRowData => {
 	return {
 		id: tenant.id || nanoid(),
 		name: tenant.name || '-',
-		logoUrl: tenant.logoUrl || '-',
+		logoUrl: tenant.logoUrl || '',
 		usersCount: getUntypedNumber(tenant.usersCount, 0),
 		maxUsers: getUntypedNumber(tenant.maxUsers, 0),
 		status: tenant.status || '-',
@@ -216,7 +221,7 @@ const useTenantsTableController = () => {
 
 	useEffect(() => {
 		const nextStatusFilter = parseStatusFilter(filterStates.status);
-		if (!_.isEqual(nextStatusFilter, statusFilter)) {
+		if (!isEqual(nextStatusFilter, statusFilter)) {
 			setStatusFilter(nextStatusFilter);
 		}
 	}, [filterStates.status, statusFilter]);
@@ -231,7 +236,7 @@ const useTenantsTableController = () => {
 		_value: React.SyntheticEvent,
 		selectedOptions: TenantStatusFilterOption[],
 	) => {
-		const nextStatusFilter = selectedOptions.map((option) => option.value);
+		const nextStatusFilter = map(selectedOptions, (option) => option.value);
 		resetCursorPagination?.();
 		setStatusFilter(nextStatusFilter);
 		setFilterStates({ q: globalFilter, status: nextStatusFilter.join(',') });
@@ -330,7 +335,7 @@ const useTenantsTableController = () => {
 	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
 		query: tenantsQuery,
 		emptyContent: {
-			title: _.capitalize(
+			title: capitalize(
 				t('no-items-found', {
 					item: t('tenants'),
 					ns: 'response-message',
@@ -338,7 +343,7 @@ const useTenantsTableController = () => {
 			),
 		},
 		errorContent: {
-			title: _.capitalize(
+			title: capitalize(
 				t('error-loading-items', {
 					item: t('tenants'),
 					ns: 'response-message',
@@ -349,9 +354,7 @@ const useTenantsTableController = () => {
 
 	const dataTable = useMemo(() => {
 		if (!tenantsQuery.data?.data) return [];
-		return _.map(tenantsQuery.data.data, (tenant) =>
-			TenantRowDataMapper(tenant),
-		);
+		return map(tenantsQuery.data.data, (tenant) => TenantRowDataMapper(tenant));
 	}, [tenantsQuery.data]);
 
 	const selectedCount = Object.keys(rowSelection).length;
@@ -410,11 +413,11 @@ const useTenantsTableController = () => {
 
 		if (format === 'csv') {
 			const headers = ['Name', 'Status', 'Users', 'Max Users'];
-			const rows = rowsToExport.map((row) => [
+			const rows = map(rowsToExport, (row) => [
 				`"${row.name}"`,
 				row.status,
-				row.usersCount.toString(),
-				row.maxUsers.toString(),
+				lodashToString(row.usersCount),
+				lodashToString(row.maxUsers),
 			]);
 			const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
 			const blob = new Blob([csv], { type: 'text/csv' });
@@ -1306,6 +1309,8 @@ const TenantsBulkActionDialogs = ({
 
 const TenantCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 	const name = props.row.original.name;
+	const logoUrl = props.row.original.logoUrl;
+	const normalizedLogoUrl = trim(logoUrl);
 	const href = FRONT_PATH_NAMES.staff.tenants.details(
 		props.row.original.id,
 	).root;
@@ -1320,7 +1325,25 @@ const TenantCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 				alignItems: 'center',
 			}}
 		>
-			<Avatar alt={name} variant="rounded" sx={{ width: 46, height: 46 }} />
+			<Avatar
+				alt={name}
+				src={normalizedLogoUrl || undefined}
+				variant="rounded"
+				sx={{
+					width: 46,
+					height: 46,
+					...(normalizedLogoUrl
+						? {}
+						: {
+								bgcolor: 'background.neutral',
+								color: 'text.disabled',
+							}),
+				}}
+			>
+				{!normalizedLogoUrl ? (
+					<Iconify icon="solar:buildings-bold" width={24} />
+				) : null}
+			</Avatar>
 
 			<ListItemText
 				primary={
@@ -1350,7 +1373,7 @@ const StatusCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 	const effectiveStatus = status;
 
 	let color: LabelColor = 'default';
-	let label = status || _.toLower(t('unknown-item', { item: 'status' }));
+	let label = status || toLower(t('unknown-item', { item: 'status' }));
 
 	if (effectiveStatus === TENANT_STATUS_ENUM.ACTIVE) {
 		color = 'success';
