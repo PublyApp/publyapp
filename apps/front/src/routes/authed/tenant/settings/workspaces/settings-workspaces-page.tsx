@@ -5,7 +5,6 @@ import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
-import { alpha } from '@mui/material/styles';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
@@ -20,7 +19,6 @@ const MOCK_WORKSPACES = [
 		description: 'Marketing team workspace',
 		members: 5,
 		socialAccounts: 3,
-		color: '#FF6B6B',
 	},
 	{
 		id: '2',
@@ -28,7 +26,6 @@ const MOCK_WORKSPACES = [
 		description: 'Product announcements and updates',
 		members: 3,
 		socialAccounts: 2,
-		color: '#4ECDC4',
 	},
 	{
 		id: '3',
@@ -36,7 +33,6 @@ const MOCK_WORKSPACES = [
 		description: 'Customer support communications',
 		members: 4,
 		socialAccounts: 2,
-		color: '#45B7D1',
 	},
 ];
 
@@ -121,12 +117,11 @@ const SettingsWorkspacesPage = () => {
 											sx={{
 												width: 48,
 												height: 48,
-												bgcolor: alpha(workspace.color, 0.12),
-												color: workspace.color,
-												fontWeight: 600,
+												bgcolor: 'background.neutral',
+												color: 'text.disabled',
 											}}
 										>
-											{workspace.name.charAt(0)}
+											<Iconify icon="solar:buildings-bold" width={24} />
 										</Avatar>
 										<Box>
 											<Typography variant="subtitle1">

@@ -5,7 +5,6 @@ import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
-import { alpha } from '@mui/material/styles';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -25,28 +24,24 @@ const MOCK_ROLES = [
 		name: 'Owner',
 		description: 'Full access to all organization settings and data',
 		members: 1,
-		color: 'primary',
 	},
 	{
 		id: '2',
 		name: 'Admin',
 		description: 'Can manage members, workspaces, and most settings',
 		members: 2,
-		color: 'info',
 	},
 	{
 		id: '3',
 		name: 'Editor',
 		description: 'Can create and edit content across workspaces',
 		members: 5,
-		color: 'success',
 	},
 	{
 		id: '4',
 		name: 'Viewer',
 		description: 'Can view content but cannot make changes',
 		members: 8,
-		color: 'default',
 	},
 ];
 
@@ -117,14 +112,8 @@ const SettingsRolesPage = () => {
 												sx={{
 													width: 36,
 													height: 36,
-													bgcolor: (theme) =>
-														alpha(
-															theme.palette[
-																role.color as 'primary' | 'info' | 'success'
-															]?.main || theme.palette.grey[500],
-															0.12,
-														),
-													color: `${role.color}.main`,
+													bgcolor: 'background.neutral',
+													color: 'text.disabled',
 												}}
 											>
 												<Iconify icon="solar:shield-check-bold" width={20} />

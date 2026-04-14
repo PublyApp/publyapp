@@ -76,6 +76,48 @@ import { Card } from '~/components/ui/card';  // Wrong library!
 }}>
 ```
 
+## Table Entity Icons: Neutral Fallbacks
+
+**CRITICAL:** First-column table entity avatars/icons must use a neutral, muted, subtle fallback treatment.
+
+**Required behavior:**
+- Preserve real images when an entity provides an `src`, `avatarUrl`, `logoUrl`, or equivalent image field
+- When no image exists, render an explicit entity-specific icon fallback inside the avatar or icon shell
+- Use neutral surfaces and subdued foreground color tokens such as `background.neutral`, `text.secondary`, or `text.disabled`
+- Avoid bright semantic or generated avatar fallback fills in these table entity cells (`primary`, `success`, `warning`, `error`, name-derived color hashing, or similar vibrant treatments)
+- Keep the entity-specific glyph when possible; meaning should come from the icon, not from bright color
+
+**Pattern:**
+```tsx
+import trim from 'lodash/trim';
+
+const normalizedLogoUrl = trim(row.logoUrl);
+
+<Avatar
+  alt={row.name}
+  src={normalizedLogoUrl || undefined}
+  variant="rounded"
+  sx={{
+    width: 40,
+    height: 40,
+    ...(normalizedLogoUrl
+      ? {}
+      : {
+          bgcolor: 'background.neutral',
+          color: 'text.disabled',
+        }),
+  }}
+>
+  {!normalizedLogoUrl ? (
+    <Iconify icon="solar:buildings-bold" width={20} />
+  ) : null}
+</Avatar>
+```
+
+**Scope:**
+- Applies to entity cells in the first column of tables and list tables
+- Does not require changing non-table avatar usage unless the feature explicitly calls for it
+
 ## Date Handling: Day.js + Format Utilities
 
 **CRITICAL:** This project uses Day.js for all date operations. Never use date-fns, Moment.js, or native Date methods for formatting.
@@ -214,6 +256,33 @@ for (const item of items) {
 ```
 
 **Note:** Biome does not yet have a `noArrayReduce` rule (like ESLint's `unicorn/no-array-reduce`). This is a manual code review guideline until Biome adds support.
+
+## JavaScript/TypeScript Helpers: Prefer Targeted Lodash When Safer
+
+**CRITICAL:** In JavaScript and TypeScript code, prefer targeted `lodash/*` helpers over built-in JavaScript methods when the lodash helper provides safer runtime handling for nullish or invalid inputs.
+
+**Why:**
+- Built-in methods such as `.trim()`, `.map()`, `.toString()`, and similar calls assume a valid receiver
+- Targeted lodash helpers tolerate nullish and invalid inputs more safely, which reduces runtime edge-case risk in UI and shared code
+- Importing from `lodash/functionName` preserves this safety preference without pulling in the whole lodash package
+
+**Pattern:**
+```ts
+import map from 'lodash/map';
+import trim from 'lodash/trim';
+import toLower from 'lodash/toLower';
+import lodashToString from 'lodash/toString';
+
+const fullName = trim(value);
+const rows = map(data, mapper);
+const statusKey = toLower(status);
+const tenantId = lodashToString(id);
+```
+
+**Guidance:**
+- Prefer targeted imports such as `lodash/map`, `lodash/trim`, `lodash/isEqual`, and `lodash/capitalize`
+- Do not shadow restricted global names; alias helpers like `lodashToString` when needed
+- If a built-in method is clearly safe in context and lodash provides no meaningful safety or clarity benefit, use judgment, but default to the lodash helper preference in this repo
 
 ## Function Definitions: Arrow Functions
 
