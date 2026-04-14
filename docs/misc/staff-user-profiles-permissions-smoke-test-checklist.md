@@ -123,14 +123,14 @@ This covers the new staff profile details UI:
 
 ### API Validation / Idempotency
 
-- [ ] In Scalar: call `GET /staff/profiles/{profileId}/permissions`.
-- [ ] Confirm the response is `permissionKeys[]` (raw keys) and is sorted.
-- [ ] In Scalar: call `POST /staff/profiles/{profileId}/permissions/{permissionKey}` twice.
-- [ ] Confirm both return `204` and the permission is present in `GET .../permissions`.
-- [ ] In Scalar: call `DELETE /staff/profiles/{profileId}/permissions/{permissionKey}` twice.
-- [ ] Confirm both return `204` and the permission is absent from `GET .../permissions`.
-- [ ] Confirm a malformed `profileId` returns `400` (translationKey `malformed-id`).
-- [ ] Confirm an unknown `profileId` returns `404`.
+- [x] In Scalar: call `GET /staff/profiles/{profileId}/permissions`.
+- [x] Confirm the response is `permissionKeys[]` (raw keys) and is sorted.
+- [x] In Scalar: call `POST /staff/profiles/{profileId}/permissions/{permissionKey}` twice.
+- [x] Confirm both return `204` and the permission is present in `GET .../permissions`.
+- [x] In Scalar: call `DELETE /staff/profiles/{profileId}/permissions/{permissionKey}` twice.
+- [x] Confirm both return `204` and the permission is absent from `GET .../permissions`.
+- [x] Confirm a malformed `profileId` returns `400` (translationKey `malformed-id`).
+- [x] Confirm an unknown `profileId` returns `404`.
 
 ## Staff Profile Details: Users Tab (Frontend + API)
 
@@ -141,72 +141,72 @@ cursor-paginated `GET /staff/users` contract plus the existing
 ### Users List + Assignment Drawer
 
 - [x] Ensure you have a staff profile (create one in UI or via Scalar `POST /staff/profiles`).
-- [ ] Ensure at least one staff user has that profile assigned (use the staff user details Profiles UI).
-- [ ] Open that profile details page and go to the `Users` tab.
-- [ ] Confirm the existing assigned users table loads without errors.
-- [ ] Click `Assign user` and confirm the right drawer opens.
-- [ ] Confirm the drawer header stays fixed while only the results list scrolls.
-- [ ] In the drawer search box, type a partial user name or email.
-- [ ] Confirm results are filtered server-side (not client-side) and update after debounce.
-- [ ] Clear the search and confirm the list resets correctly.
-- [ ] Scroll near the bottom of the drawer list.
-- [ ] Confirm the next page loads automatically (infinite loading) without losing the current results.
-- [ ] On an unassigned user row, click the assign icon button.
-- [ ] Confirm the row updates immediately, the main users table refreshes, and the user appears in the profile users list after settle.
-- [ ] On an assigned user row in the drawer, click the unassign icon button.
-- [ ] Confirm the row updates immediately, the main users table refreshes, and the user disappears from the profile users list after settle.
-- [ ] Click assign/unassign repeatedly on different rows in quick succession.
-- [ ] Confirm only the affected rows show pending state, no duplicate action occurs, and the final server state matches the last successful clicks.
+- [x] Ensure at least one staff user has that profile assigned (use the staff user details Profiles UI).
+- [x] Open that profile details page and go to the `Users` tab.
+- [x] Confirm the existing assigned users table loads without errors.
+- [x] Click `Assign user` and confirm the right drawer opens.
+- [x] Confirm the drawer header stays fixed while only the results list scrolls.
+- [x] In the drawer search box, type a partial user name or email.
+- [x] Confirm results are filtered server-side (not client-side) and update after debounce.
+- [x] Clear the search and confirm the list resets correctly.
+- [x] Scroll near the bottom of the drawer list.
+- [x] Confirm the next page loads automatically (infinite loading) without losing the current results.
+- [x] On an unassigned user row, click the assign icon button.
+- [x] Confirm the row updates immediately, the main users table refreshes, and the user appears in the profile users list after settle.
+- [x] On an assigned user row in the drawer, click the unassign icon button.
+- [x] Confirm the row updates immediately, the main users table refreshes, and the user disappears from the profile users list after settle.
+- [x] Click assign/unassign repeatedly on different rows in quick succession.
+- [x] Confirm only the affected rows show pending state, no duplicate action occurs, and the final server state matches the last successful clicks.
 
 ### Users Tab Backend Endpoint
 
-- [ ] In Scalar: call `GET /staff/profiles/{profileId}/users?limit=50&sort_id=created_at&sort_order=desc`.
-- [ ] Confirm response includes `users[]` and `count`.
-- [ ] Confirm at least one expected user appears (by email).
-- [ ] Confirm searching works: `GET /staff/profiles/{profileId}/users?q=<email_part>&limit=50`.
-- [ ] Confirm sorting works for supported sort_id values: `created_at`, `email`, `first_name`, `last_name`, `status`.
-- [ ] Confirm invalid `sort_id` returns `400` (BadRequest problem).
-- [ ] Confirm malformed `profileId` returns `400` (translationKey `malformed-id`).
-- [ ] Confirm unknown `profileId` returns `404`.
+- [x] In Scalar: call `GET /staff/profiles/{profileId}/users?limit=50&sort_id=created_at&sort_order=desc`.
+- [x] Confirm response includes `users[]` and `count`.
+- [x] Confirm at least one expected user appears (by email).
+- [x] Confirm searching works: `GET /staff/profiles/{profileId}/users?q=<email_part>&limit=50`.
+- [x] Confirm sorting works for supported sort_id values: `created_at`, `email`, `first_name`, `last_name`, `status`.
+- [x] Confirm invalid `sort_id` returns `400` (BadRequest problem).
+- [x] Confirm malformed `profileId` returns `400` (translationKey `malformed-id`).
+- [x] Confirm unknown `profileId` returns `404`.
 
 ### Canonical Staff Users Endpoint Used By The Drawer
 
-- [ ] In Scalar: call `GET /staff/users?limit=20&sort_id=created_at&sort_order=desc`.
-- [ ] Confirm the response uses the canonical cursor contract: `data[]` + `nextCursor`.
-- [ ] Call `GET /staff/users?q=<email_part>&limit=20&sort_id=created_at&sort_order=desc`.
-- [ ] Confirm `q` filters by name/email on the server.
-- [ ] Call the next page using the returned `nextCursor`.
-- [ ] Confirm the next page continues correctly without duplicates from the previous page.
+- [x] In Scalar: call `GET /staff/users?limit=20&sort_id=created_at&sort_order=desc`.
+- [x] Confirm the response uses the canonical cursor contract: `data[]` + `nextCursor`.
+- [x] Call `GET /staff/users?q=<email_part>&limit=20&sort_id=created_at&sort_order=desc`.
+- [x] Confirm `q` filters by name/email on the server.
+- [x] Call the next page using the returned `nextCursor`.
+- [x] Confirm the next page continues correctly without duplicates from the previous page.
 
 ## Permission Enforcement (Backend)
 
 ### Endpoint Access Controls
 
-- [ ] Login as non-admin staff user (a user that does not have the new permissions).
-- [ ] Try `GET /staff/users/{userId}/profiles` in Scalar using that user’s session.
-- [ ] Confirm `403` (must not be `401`).
-- [ ] Try `PUT /staff/users/{userId}/profiles` similarly.
-- [ ] Confirm `403`.
-- [ ] Try `GET /staff/profiles/{profileId}/users` similarly.
-- [ ] Confirm `403`.
-- [ ] Try `PATCH /staff/profiles/{profileId}` similarly.
-- [ ] Confirm `403`.
-- [ ] Try `GET /staff/profiles/{profileId}/permissions` similarly.
-- [ ] Confirm `403`.
-- [ ] Try `POST /staff/profiles/{profileId}/permissions/{permissionKey}` similarly.
-- [ ] Confirm `403`.
-- [ ] Try `DELETE /staff/profiles/{profileId}/permissions/{permissionKey}` similarly.
-- [ ] Confirm `403`.
+- [x] Login as non-admin staff user (a user that does not have the new permissions).
+- [x] Try `GET /staff/users/{userId}/profiles` in Scalar using that user’s session.
+- [x] Confirm `403` (must not be `401`).
+- [x] Try `PUT /staff/users/{userId}/profiles` similarly.
+- [x] Confirm `403`.
+- [x] Try `GET /staff/profiles/{profileId}/users` similarly.
+- [x] Confirm `403`.
+- [x] Try `PATCH /staff/profiles/{profileId}` similarly.
+- [x] Confirm `403`.
+- [x] Try `GET /staff/profiles/{profileId}/permissions` similarly.
+- [x] Confirm `403`.
+- [x] Try `POST /staff/profiles/{profileId}/permissions/{permissionKey}` similarly.
+- [x] Confirm `403`.
+- [x] Try `DELETE /staff/profiles/{profileId}/permissions/{permissionKey}` similarly.
+- [x] Confirm `403`.
 
 ### Danger Zone Permissions
 
-- [ ] Login as non-admin staff user (no explicit user danger-zone permissions).
-- [ ] In Scalar, try `POST /staff/users/{userId}/suspend`.
-- [ ] Confirm `403` (must not be `401`).
-- [ ] In Scalar, try `POST /staff/users/{userId}/reactivate`.
-- [ ] Confirm `403`.
-- [ ] In Scalar, try `PATCH /staff/users/{userId}/email`.
-- [ ] Confirm `403`.
+- [x] Login as non-admin staff user (no explicit user danger-zone permissions).
+- [x] In Scalar, try `POST /staff/users/{userId}/suspend`.
+- [x] Confirm `403` (must not be `401`).
+- [x] In Scalar, try `POST /staff/users/{userId}/reactivate`.
+- [x] Confirm `403`.
+- [x] In Scalar, try `PATCH /staff/users/{userId}/email`.
+- [x] Confirm `403`.
 
 ### Smoke Scenario for Tenant Invitation Revoke (End-to-End Permission)
 
