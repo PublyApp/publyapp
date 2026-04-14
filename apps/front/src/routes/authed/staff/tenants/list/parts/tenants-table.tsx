@@ -271,7 +271,7 @@ const useTenantsTableController = () => {
 
 	useEffect(() => {
 		const nextStatusFilter = parseStatusFilter(filterStates.status);
-		if (!_.isEqual(nextStatusFilter, statusFilter)) {
+		if (!isEqual(nextStatusFilter, statusFilter)) {
 			setStatusFilter(nextStatusFilter);
 		}
 	}, [filterStates.status, statusFilter]);
@@ -286,7 +286,7 @@ const useTenantsTableController = () => {
 		_value: React.SyntheticEvent,
 		selectedOptions: TenantStatusFilterOption[],
 	) => {
-		const nextStatusFilter = selectedOptions.map((option) => option.value);
+		const nextStatusFilter = map(selectedOptions, (option) => option.value);
 		resetCursorPagination?.();
 		setStatusFilter(nextStatusFilter);
 		setFilterStates({ q: globalFilter, status: nextStatusFilter.join(',') });

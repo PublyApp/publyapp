@@ -308,6 +308,33 @@ const tenantId = lodashToString(id);
 - Do not shadow restricted global names; alias helpers like `lodashToString` when needed
 - If a built-in method is clearly safe in context and lodash provides no meaningful safety or clarity benefit, use judgment, but default to the lodash helper preference in this repo
 
+## JavaScript/TypeScript Helpers: Prefer Targeted Lodash When Safer
+
+**CRITICAL:** In JavaScript and TypeScript code, prefer targeted `lodash/*` helpers over built-in JavaScript methods when the lodash helper provides safer runtime handling for nullish or invalid inputs.
+
+**Why:**
+- Built-in methods such as `.trim()`, `.map()`, `.toString()`, and similar calls assume a valid receiver
+- Targeted lodash helpers tolerate nullish and invalid inputs more safely, which reduces runtime edge-case risk in UI and shared code
+- Importing from `lodash/functionName` preserves this safety preference without pulling in the whole lodash package
+
+**Pattern:**
+```ts
+import map from 'lodash/map';
+import trim from 'lodash/trim';
+import toLower from 'lodash/toLower';
+import lodashToString from 'lodash/toString';
+
+const fullName = trim(value);
+const rows = map(data, mapper);
+const statusKey = toLower(status);
+const tenantId = lodashToString(id);
+```
+
+**Guidance:**
+- Prefer targeted imports such as `lodash/map`, `lodash/trim`, `lodash/isEqual`, and `lodash/capitalize`
+- Do not shadow restricted global names; alias helpers like `lodashToString` when needed
+- If a built-in method is clearly safe in context and lodash provides no meaningful safety or clarity benefit, use judgment, but default to the lodash helper preference in this repo
+
 ## Function Definitions: Arrow Functions
 
 **CRITICAL:** Always prefer arrow function expressions over traditional function declarations/expressions in TypeScript and JavaScript. Only use `function` keyword when absolutely necessary (e.g., when you need to access `this` as the first parameter, or for generator functions).
