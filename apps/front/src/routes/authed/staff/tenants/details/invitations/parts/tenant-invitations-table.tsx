@@ -921,28 +921,30 @@ const StatusCell: MRT_ColumnDef<TenantInvitationRowData, string>['Cell'] = (
 	return (
 		<Box
 			component="span"
-			sx={{
-				px: 1,
-				py: 0.5,
-				borderRadius: 1,
-				typography: 'caption',
-				fontWeight: 600,
-				bgcolor: (theme) =>
-					color === 'success'
-						? varAlpha(theme.vars.palette.success.mainChannel, 0.16)
-						: color === 'error'
-							? varAlpha(theme.vars.palette.error.mainChannel, 0.16)
-							: color === 'warning'
-								? varAlpha(theme.vars.palette.warning.mainChannel, 0.16)
-								: varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
-				color: (theme) =>
-					color === 'success'
-						? theme.vars.palette.success.main
-						: color === 'error'
-							? theme.vars.palette.error.main
-							: color === 'warning'
-								? theme.vars.palette.warning.main
-								: theme.vars.palette.text.secondary,
+			sx={(theme) => {
+				const backgroundByColor = {
+					success: varAlpha(theme.vars.palette.success.mainChannel, 0.16),
+					error: varAlpha(theme.vars.palette.error.mainChannel, 0.16),
+					warning: varAlpha(theme.vars.palette.warning.mainChannel, 0.16),
+					default: varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
+				} as const;
+
+				const textByColor = {
+					success: theme.vars.palette.success.main,
+					error: theme.vars.palette.error.main,
+					warning: theme.vars.palette.warning.main,
+					default: theme.vars.palette.text.secondary,
+				} as const;
+
+				return {
+					px: 1,
+					py: 0.5,
+					borderRadius: 1,
+					typography: 'caption',
+					fontWeight: 600,
+					bgcolor: backgroundByColor[color],
+					color: textByColor[color],
+				};
 			}}
 		>
 			{label}

@@ -35,6 +35,7 @@ import {
 import duration from '@org/shared-ts/utils/duration.utils';
 import { getSerializedErrorMessage } from '@org/shared-ts/utils/error.utils';
 import { getAcceptInvitationSchema } from '@org/shared-ts/validations/invitation.validations';
+
 import { Field, Form } from '#app/components/hook-form/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
@@ -651,93 +652,108 @@ const AcceptInvitationForm = ({
 							: t('auth-invitation-log-out-and-continue')}
 					</Button>
 				</Box>
-			) : loaderData.userExists ? (
-				<Box>
-					<Typography variant="h5" color="text.primary" sx={{ mb: 1 }}>
-						{t('auth-accept-invitation')}
-					</Typography>
-					<Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-						{loaderData.isAuthenticated
-							? t('auth-invitation-existing-user-authenticated-description')
-							: t('auth-invitation-existing-user-login-description')}
-					</Typography>
-					{loaderData.isAuthenticated ? (
-						<Button
-							fullWidth
-							size="large"
-							variant="contained"
-							onClick={handleAcceptWithExistingAccount}
-							loading={
-								fetcher.state === 'submitting' || fetcher.state === 'loading'
-							}
-						>
-							{t('join-organization')}
-						</Button>
-					) : (
-						<Button
-							fullWidth
-							size="large"
-							variant="contained"
-							component={RouterLink}
-							href={loginHref}
-						>
-							{t('sign-in')}
-						</Button>
-					)}
-				</Box>
 			) : (
-				<Form methods={form} onSubmit={handleSubmit}>
-					<Typography variant="h5" color="text.primary" sx={{ mb: 1 }}>
-						{t('auth-accept-invitation')}
-					</Typography>
-					<Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-						{t('auth-accept-invitation-description', {
-							email: invitationData.email,
-							role: invitationData.profileName,
-						})}
-					</Typography>
-					<Stack spacing={2.5}>
-						<Field.Text
-							name="firstName"
-							label={t('firstname')}
-							slotProps={{ inputLabel: { shrink: true } }}
-						/>
-						<Field.Text
-							name="lastName"
-							label={t('lastname')}
-							slotProps={{ inputLabel: { shrink: true } }}
-							required
-						/>
-						<Field.Text
-							name="password"
-							label={t('password')}
-							type="password"
-							slotProps={{ inputLabel: { shrink: true } }}
-							required
-						/>
-						<Field.Text
-							name="confirmPassword"
-							label={t('confirm-password')}
-							type="password"
-							slotProps={{ inputLabel: { shrink: true } }}
-							required
-						/>
-					</Stack>
-					<Button
-						fullWidth
-						size="large"
-						type="submit"
-						variant="contained"
-						sx={{ mt: 3 }}
-						loading={
-							isSubmitting ||
-							fetcher.state === 'submitting' ||
-							fetcher.state === 'loading'
-						}
-					>
-						{t('create-account')}
-					</Button>
-				</Form>
+				(() => {
+					if (loaderData.userExists) {
+						const description = loaderData.isAuthenticated
+							? t('auth-invitation-existing-user-authenticated-description')
+							: t('auth-invitation-existing-user-login-description');
+
+						return (
+							<Box>
+								<Typography variant="h5" color="text.primary" sx={{ mb: 1 }}>
+									{t('auth-accept-invitation')}
+								</Typography>
+								<Typography
+									variant="body2"
+									color="text.secondary"
+									sx={{ mb: 3 }}
+								>
+									{description}
+								</Typography>
+								{loaderData.isAuthenticated ? (
+									<Button
+										fullWidth
+										size="large"
+										variant="contained"
+										onClick={handleAcceptWithExistingAccount}
+										loading={
+											fetcher.state === 'submitting' ||
+											fetcher.state === 'loading'
+										}
+									>
+										{t('join-organization')}
+									</Button>
+								) : (
+									<Button
+										fullWidth
+										size="large"
+										variant="contained"
+										component={RouterLink}
+										href={loginHref}
+									>
+										{t('sign-in')}
+									</Button>
+								)}
+							</Box>
+						);
+					}
+
+					return (
+						<Form methods={form} onSubmit={handleSubmit}>
+							<Typography variant="h5" color="text.primary" sx={{ mb: 1 }}>
+								{t('auth-accept-invitation')}
+							</Typography>
+							<Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+								{t('auth-accept-invitation-description', {
+									email: invitationData.email,
+									role: invitationData.profileName,
+								})}
+							</Typography>
+							<Stack spacing={2.5}>
+								<Field.Text
+									name="firstName"
+									label={t('firstname')}
+									slotProps={{ inputLabel: { shrink: true } }}
+								/>
+								<Field.Text
+									name="lastName"
+									label={t('lastname')}
+									slotProps={{ inputLabel: { shrink: true } }}
+									required
+								/>
+								<Field.Text
+									name="password"
+									label={t('password')}
+									type="password"
+									slotProps={{ inputLabel: { shrink: true } }}
+									required
+								/>
+								<Field.Text
+									name="confirmPassword"
+									label={t('confirm-password')}
+									type="password"
+									slotProps={{ inputLabel: { shrink: true } }}
+									required
+								/>
+							</Stack>
+							<Button
+								fullWidth
+								size="large"
+								type="submit"
+								variant="contained"
+								sx={{ mt: 3 }}
+								loading={
+									isSubmitting ||
+									fetcher.state === 'submitting' ||
+									fetcher.state === 'loading'
+								}
+							>
+								{t('create-account')}
+							</Button>
+						</Form>
+					);
+				})()
 			)}
 		</>
 	);

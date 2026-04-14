@@ -10,8 +10,8 @@ import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useBoolean } from 'minimal-shared/hooks';
 
-import { Iconify } from '#app/components/iconify/iconify.tsx';
 import DrawerAnchor from '#app/components/drawer-anchor.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
 export type TocSection = {

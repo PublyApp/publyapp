@@ -1,25 +1,26 @@
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
+import capitalize from 'lodash/capitalize';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useOutletContext, useParams } from 'react-router';
-import capitalize from 'lodash/capitalize';
 
-import { useScrollspy } from '#app/hooks/use-scrollspy.ts';
-import { useTranslate } from '#app/hooks/use-translate.ts';
-import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
-import StaffProfileBasicInfos from './parts/staff-profile-basic-infos';
-import StaffProfilePermissions, {
-	getStaffPermissionGroups,
-	getPermissionModuleId,
-} from './parts/staff-profile-permissions';
+import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
+import { useScrollspy } from '#app/hooks/use-scrollspy.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { useFindStaffPermissions } from '#app/lib/react-query/features/staff/staff-profile.hooks.ts';
+
+import type { StaffProfileDetailsOutletContext } from '../_layout/staff-profile-details-layout';
 import {
 	StaffProfilePermissionsToc,
 	type TocSection,
 } from './components/staff-profile-permissions-toc';
-import type { StaffProfileDetailsOutletContext } from '../_layout/staff-profile-details-layout';
-import { useFindStaffPermissions } from '#app/lib/react-query/features/staff/staff-profile.hooks.ts';
+import StaffProfileBasicInfos from './parts/staff-profile-basic-infos';
+import StaffProfilePermissions, {
+	getPermissionModuleId,
+	getStaffPermissionGroups,
+} from './parts/staff-profile-permissions';
 
 const StaffProfileDetailsBasicsTabPage = () => {
 	const { t, currentLang } = useTranslate();

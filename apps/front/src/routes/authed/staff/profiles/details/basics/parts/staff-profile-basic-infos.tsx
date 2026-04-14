@@ -1,24 +1,25 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import CardHeader from '@mui/material/CardHeader';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
-import Box from '@mui/material/Box';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router';
 
-import { useTranslate } from '#app/hooks/use-translate.ts';
+import { getUpdateStaffProfileSchema } from '@org/shared-ts/validations/staff-profile.validations';
+
 import { Field, Form } from '#app/components/hook-form/index.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 import { withFormValidation } from '#app/lib/api-failure/with-form-validation.ts';
 import {
 	useGetStaffProfileById,
 	useUpdateStaffProfile,
 } from '#app/lib/react-query/features/staff/staff-profile.hooks.ts';
 import { interZodClient } from '#app/lib/zod/zod.client.ts';
-import { getUpdateStaffProfileSchema } from '@org/shared-ts/validations/staff-profile.validations';
 
 const StaffProfileBasicInfos = () => {
 	const { t } = useTranslate();
