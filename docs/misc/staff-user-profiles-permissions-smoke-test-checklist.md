@@ -132,12 +132,34 @@ This covers the new staff profile details UI:
 - [ ] Confirm a malformed `profileId` returns `400` (translationKey `malformed-id`).
 - [ ] Confirm an unknown `profileId` returns `404`.
 
-## Staff Profile Details: Users Tab Backend Endpoint (API)
+## Staff Profile Details: Users Tab (Frontend + API)
 
-This is the new endpoint that Phase 4 (frontend) will consume.
+This covers the profile-centric assignment drawer built on the canonical
+cursor-paginated `GET /staff/users` contract plus the existing
+`GET /staff/profiles/{profileId}/users` list.
+
+### Users List + Assignment Drawer
 
 - [x] Ensure you have a staff profile (create one in UI or via Scalar `POST /staff/profiles`).
 - [ ] Ensure at least one staff user has that profile assigned (use the staff user details Profiles UI).
+- [ ] Open that profile details page and go to the `Users` tab.
+- [ ] Confirm the existing assigned users table loads without errors.
+- [ ] Click `Assign user` and confirm the right drawer opens.
+- [ ] Confirm the drawer header stays fixed while only the results list scrolls.
+- [ ] In the drawer search box, type a partial user name or email.
+- [ ] Confirm results are filtered server-side (not client-side) and update after debounce.
+- [ ] Clear the search and confirm the list resets correctly.
+- [ ] Scroll near the bottom of the drawer list.
+- [ ] Confirm the next page loads automatically (infinite loading) without losing the current results.
+- [ ] On an unassigned user row, click the assign icon button.
+- [ ] Confirm the row updates immediately, the main users table refreshes, and the user appears in the profile users list after settle.
+- [ ] On an assigned user row in the drawer, click the unassign icon button.
+- [ ] Confirm the row updates immediately, the main users table refreshes, and the user disappears from the profile users list after settle.
+- [ ] Click assign/unassign repeatedly on different rows in quick succession.
+- [ ] Confirm only the affected rows show pending state, no duplicate action occurs, and the final server state matches the last successful clicks.
+
+### Users Tab Backend Endpoint
+
 - [ ] In Scalar: call `GET /staff/profiles/{profileId}/users?limit=50&sort_id=created_at&sort_order=desc`.
 - [ ] Confirm response includes `users[]` and `count`.
 - [ ] Confirm at least one expected user appears (by email).
@@ -146,6 +168,15 @@ This is the new endpoint that Phase 4 (frontend) will consume.
 - [ ] Confirm invalid `sort_id` returns `400` (BadRequest problem).
 - [ ] Confirm malformed `profileId` returns `400` (translationKey `malformed-id`).
 - [ ] Confirm unknown `profileId` returns `404`.
+
+### Canonical Staff Users Endpoint Used By The Drawer
+
+- [ ] In Scalar: call `GET /staff/users?limit=20&sort_id=created_at&sort_order=desc`.
+- [ ] Confirm the response uses the canonical cursor contract: `data[]` + `nextCursor`.
+- [ ] Call `GET /staff/users?q=<email_part>&limit=20&sort_id=created_at&sort_order=desc`.
+- [ ] Confirm `q` filters by name/email on the server.
+- [ ] Call the next page using the returned `nextCursor`.
+- [ ] Confirm the next page continues correctly without duplicates from the previous page.
 
 ## Permission Enforcement (Backend)
 

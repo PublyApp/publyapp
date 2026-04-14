@@ -86,6 +86,15 @@ public static class ProfileEndpointsForStaff {
 			.WithPermission([AppPermissions.Staff.Profiles.LIST_USERS_FOR_STAFF_PROFILE])
 			.WithReqQueryValidation<FindStaffProfileUsersQuery>();
 
+		staffGroup.MapPost(
+			Routes.Profiles.ForStaff.Users.ResolveAssignment,
+			ResolveStaffProfileUserAssignments.HandleResolveStaffProfileUserAssignments
+		)
+			.WithName("ResolveStaffProfileUserAssignments")
+			.WithSummary("Resolve whether staff users are assigned to a staff profile (batch)")
+			.WithPermission([AppPermissions.Staff.Profiles.LIST_USERS_FOR_STAFF_PROFILE])
+			.WithReqBodyValidation<ResolveStaffProfileUserAssignmentsBody>();
+
 		// Tenant profile routes (viewed by staff): /staff/tenants/{tenantId}/profiles
 		var tenantGroup = routes.MapGroup(Routes.Profiles.ForTenantAsStaff.Root)
 			.WithTags("Tenant Profiles (Staff View)");

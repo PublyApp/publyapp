@@ -194,7 +194,7 @@ public sealed class FindStaffProfileUsersSpec
 			);
 		}
 
-		var user = result.StaffUsers.FirstOrDefault(
+		var user = result.Data.FirstOrDefault(
 			u => string.Equals(
 				u.Email,
 				email,
@@ -257,10 +257,7 @@ public sealed class FindStaffProfileUsersSpec
 		public string Status { get; init; } = string.Empty;
 	}
 
-	private record FindStaffUsersResponse {
-		public List<StaffUserItem> StaffUsers { get; init; } = [];
-		public int Count { get; init; }
-	}
+	private class FindStaffUsersResponse : CursorPaginatedResult<StaffUserItem> { }
 
 	private record StaffUserItem {
 		public Guid Id { get; init; }

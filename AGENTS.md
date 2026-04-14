@@ -225,6 +225,9 @@ For the complete frontend coding standards (MUI components, sx prop styling, Day
 array methods, arrow functions, arrow components, forms, QueryDisplay, and component structure), see:
 [`docs/guides/frontend-coding-standards.md`](docs/guides/frontend-coding-standards.md)
 
+Additional repo-specific preferences for AI assistants (to reduce review churn):
+[`docs/guides/ai-agent-preferences.md`](docs/guides/ai-agent-preferences.md)
+
 **Key principles (always apply):**
 - MUI v6 only — never native HTML elements (`<div>` → `<Box>`, `<h1>` → `<Typography variant="h1">`)
 - `sx` prop for all styling — never Tailwind CSS or className

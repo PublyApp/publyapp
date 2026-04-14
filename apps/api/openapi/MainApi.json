@@ -1035,7 +1035,14 @@
         "operationId": "FindStaffUsers",
         "parameters": [
           {
-            "name": "page",
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
             "in": "query",
             "schema": {
               "type": "string"
@@ -1099,7 +1106,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FindStaffUsersResult"
+                  "$ref": "#/components/schemas/FindStaffUsersResponse"
                 }
               }
             }
@@ -4002,6 +4009,107 @@
         }
       }
     },
+    "/staff/profiles/{profileId}/users/assignment-resolution": {
+      "post": {
+        "tags": [
+          "Staff Profiles"
+        ],
+        "summary": "Resolve whether staff users are assigned to a staff profile (batch)",
+        "operationId": "ResolveStaffProfileUserAssignments",
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveStaffProfileUserAssignmentsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolveStaffProfileUserAssignmentsResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/staff/tenants/{tenantId}/profiles": {
       "get": {
         "tags": [
@@ -6614,23 +6722,20 @@
           }
         }
       },
-      "FindStaffUsersResult": {
-        "required": [
-          "staffUsers",
-          "count"
-        ],
+      "FindStaffUsersResponse": {
         "type": "object",
         "properties": {
-          "staffUsers": {
+          "data": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/StaffUserItem"
             }
           },
-          "count": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": "integer",
-            "format": "int32"
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -7261,6 +7366,44 @@
         "properties": {
           "status": {
             "type": "string"
+          }
+        }
+      },
+      "ResolveStaffProfileUserAssignmentsBody": {
+        "type": "object",
+        "properties": {
+          "userIds": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "ResolveStaffProfileUserAssignmentsItem": {
+        "required": [
+          "userId",
+          "isAssigned"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "isAssigned": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ResolveStaffProfileUserAssignmentsResult": {
+        "required": [
+          "assignments"
+        ],
+        "type": "object",
+        "properties": {
+          "assignments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResolveStaffProfileUserAssignmentsItem"
+            }
           }
         }
       },

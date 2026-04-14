@@ -815,11 +815,11 @@ export function createFindStaffProfileUsersResultFromDiscriminatorValue(parseNod
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {FindStaffUsersResult}
+ * @returns {FindStaffUsersResponse}
  */
 // @ts-ignore
-export function createFindStaffUsersResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoFindStaffUsersResult;
+export function createFindStaffUsersResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindStaffUsersResponse;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1100,6 +1100,33 @@ export function createResetPasswordBodyFromDiscriminatorValue(parseNode: ParseNo
 // @ts-ignore
 export function createResetPasswordResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoResetPasswordResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ResolveStaffProfileUserAssignmentsBody}
+ */
+// @ts-ignore
+export function createResolveStaffProfileUserAssignmentsBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoResolveStaffProfileUserAssignmentsBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ResolveStaffProfileUserAssignmentsItem}
+ */
+// @ts-ignore
+export function createResolveStaffProfileUserAssignmentsItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoResolveStaffProfileUserAssignmentsItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ResolveStaffProfileUserAssignmentsResult}
+ */
+// @ts-ignore
+export function createResolveStaffProfileUserAssignmentsResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoResolveStaffProfileUserAssignmentsResult;
 }
 export interface CreateStaffInvitationBody extends AdditionalDataHolder, Parsable {
     /**
@@ -2399,14 +2426,14 @@ export function deserializeIntoFindStaffProfileUsersResult(findStaffProfileUsers
 }
 /**
  * The deserialization information for the current model
- * @param FindStaffUsersResult The instance to deserialize into.
+ * @param FindStaffUsersResponse The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoFindStaffUsersResult(findStaffUsersResult: Partial<FindStaffUsersResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+export function deserializeIntoFindStaffUsersResponse(findStaffUsersResponse: Partial<FindStaffUsersResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "count": n => { findStaffUsersResult.count = n.getNumberValue(); },
-        "staffUsers": n => { findStaffUsersResult.staffUsers = n.getCollectionOfObjectValues<StaffUserItem>(createStaffUserItemFromDiscriminatorValue); },
+        "data": n => { findStaffUsersResponse.data = n.getCollectionOfObjectValues<StaffUserItem>(createStaffUserItemFromDiscriminatorValue); },
+        "nextCursor": n => { findStaffUsersResponse.nextCursor = n.getStringValue(); },
     }
 }
 /**
@@ -2804,6 +2831,40 @@ export function deserializeIntoResetPasswordBody(resetPasswordBody: Partial<Rese
 export function deserializeIntoResetPasswordResult(resetPasswordResult: Partial<ResetPasswordResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "status": n => { resetPasswordResult.status = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param ResolveStaffProfileUserAssignmentsBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoResolveStaffProfileUserAssignmentsBody(resolveStaffProfileUserAssignmentsBody: Partial<ResolveStaffProfileUserAssignmentsBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "userIds": n => { resolveStaffProfileUserAssignmentsBody.userIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param ResolveStaffProfileUserAssignmentsItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoResolveStaffProfileUserAssignmentsItem(resolveStaffProfileUserAssignmentsItem: Partial<ResolveStaffProfileUserAssignmentsItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "isAssigned": n => { resolveStaffProfileUserAssignmentsItem.isAssigned = n.getBooleanValue(); },
+        "userId": n => { resolveStaffProfileUserAssignmentsItem.userId = n.getGuidValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param ResolveStaffProfileUserAssignmentsResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoResolveStaffProfileUserAssignmentsResult(resolveStaffProfileUserAssignmentsResult: Partial<ResolveStaffProfileUserAssignmentsResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "assignments": n => { resolveStaffProfileUserAssignmentsResult.assignments = n.getCollectionOfObjectValues<ResolveStaffProfileUserAssignmentsItem>(createResolveStaffProfileUserAssignmentsItemFromDiscriminatorValue); },
     }
 }
 /**
@@ -3561,15 +3622,15 @@ export interface FindStaffProfileUsersResult extends AdditionalDataHolder, Parsa
      */
     users?: StaffProfileUserItem[] | null;
 }
-export interface FindStaffUsersResult extends AdditionalDataHolder, Parsable {
+export interface FindStaffUsersResponse extends AdditionalDataHolder, Parsable {
     /**
-     * The count property
+     * The data property
      */
-    count?: number | null;
+    data?: StaffUserItem[] | null;
     /**
-     * The staffUsers property
+     * The nextCursor property
      */
-    staffUsers?: StaffUserItem[] | null;
+    nextCursor?: string | null;
 }
 export interface FindSystemNoticesResponse extends AdditionalDataHolder, Parsable {
     /**
@@ -4021,6 +4082,28 @@ export interface ResetPasswordResult extends AdditionalDataHolder, Parsable {
      * The status property
      */
     status?: string | null;
+}
+export interface ResolveStaffProfileUserAssignmentsBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The userIds property
+     */
+    userIds?: UntypedNode | null;
+}
+export interface ResolveStaffProfileUserAssignmentsItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The isAssigned property
+     */
+    isAssigned?: boolean | null;
+    /**
+     * The userId property
+     */
+    userId?: Guid | null;
+}
+export interface ResolveStaffProfileUserAssignmentsResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The assignments property
+     */
+    assignments?: ResolveStaffProfileUserAssignmentsItem[] | null;
 }
 /**
  * Serializes information the current object
@@ -4740,16 +4823,16 @@ export function serializeFindStaffProfileUsersResult(writer: SerializationWriter
 }
 /**
  * Serializes information the current object
- * @param FindStaffUsersResult The instance to serialize from.
+ * @param FindStaffUsersResponse The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeFindStaffUsersResult(writer: SerializationWriter, findStaffUsersResult: Partial<FindStaffUsersResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!findStaffUsersResult || isSerializingDerivedType) { return; }
-    writer.writeNumberValue("count", findStaffUsersResult.count);
-    writer.writeCollectionOfObjectValues<StaffUserItem>("staffUsers", findStaffUsersResult.staffUsers, serializeStaffUserItem);
-    writer.writeAdditionalData(findStaffUsersResult.additionalData);
+export function serializeFindStaffUsersResponse(writer: SerializationWriter, findStaffUsersResponse: Partial<FindStaffUsersResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findStaffUsersResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<StaffUserItem>("data", findStaffUsersResponse.data, serializeStaffUserItem);
+    writer.writeStringValue("nextCursor", findStaffUsersResponse.nextCursor);
+    writer.writeAdditionalData(findStaffUsersResponse.additionalData);
 }
 /**
  * Serializes information the current object
@@ -5177,6 +5260,43 @@ export function serializeResetPasswordResult(writer: SerializationWriter, resetP
     if (!resetPasswordResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("status", resetPasswordResult.status);
     writer.writeAdditionalData(resetPasswordResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ResolveStaffProfileUserAssignmentsBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeResolveStaffProfileUserAssignmentsBody(writer: SerializationWriter, resolveStaffProfileUserAssignmentsBody: Partial<ResolveStaffProfileUserAssignmentsBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!resolveStaffProfileUserAssignmentsBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("userIds", resolveStaffProfileUserAssignmentsBody.userIds);
+    writer.writeAdditionalData(resolveStaffProfileUserAssignmentsBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ResolveStaffProfileUserAssignmentsItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeResolveStaffProfileUserAssignmentsItem(writer: SerializationWriter, resolveStaffProfileUserAssignmentsItem: Partial<ResolveStaffProfileUserAssignmentsItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!resolveStaffProfileUserAssignmentsItem || isSerializingDerivedType) { return; }
+    writer.writeBooleanValue("isAssigned", resolveStaffProfileUserAssignmentsItem.isAssigned);
+    writer.writeGuidValue("userId", resolveStaffProfileUserAssignmentsItem.userId);
+    writer.writeAdditionalData(resolveStaffProfileUserAssignmentsItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ResolveStaffProfileUserAssignmentsResult The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeResolveStaffProfileUserAssignmentsResult(writer: SerializationWriter, resolveStaffProfileUserAssignmentsResult: Partial<ResolveStaffProfileUserAssignmentsResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!resolveStaffProfileUserAssignmentsResult || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<ResolveStaffProfileUserAssignmentsItem>("assignments", resolveStaffProfileUserAssignmentsResult.assignments, serializeResolveStaffProfileUserAssignmentsItem);
+    writer.writeAdditionalData(resolveStaffProfileUserAssignmentsResult.additionalData);
 }
 /**
  * Serializes information the current object

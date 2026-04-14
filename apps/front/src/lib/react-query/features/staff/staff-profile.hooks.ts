@@ -6,6 +6,7 @@ import {
 
 import type {
 	CreateStaffProfileBody,
+	ResolveStaffProfileUserAssignmentsBody,
 	UpdateStaffProfileBody,
 } from '@org/client-ts/src/models';
 
@@ -127,6 +128,41 @@ export const useFindStaffProfilePermissions = createStaffQuery({
 		}
 
 		return result;
+	},
+});
+
+type ResolveStaffProfileUserAssignmentsPayload = {
+	profileId: string;
+	userIds: string[];
+};
+
+export const useResolveStaffProfileUserAssignments = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.profiles.byProfileId('').users.assignmentResolution.post,
+	mutationFn: async (
+		client,
+		payload: ResolveStaffProfileUserAssignmentsPayload,
+	) => {
+		const body: ResolveStaffProfileUserAssignmentsBody = {};
+
+		body.userIds = createUntypedArray(
+			payload.userIds.map((id) => createUntypedString(id)),
+		) as typeof body.userIds;
+
+		const result = await client.staff.profiles
+			.byProfileId(payload.profileId)
+			.users.assignmentResolution.post(body);
+
+		if (result == null) {
+			throw new Error('useResolveStaffProfileUserAssignments: result is nil');
+		}
+
+		return result;
+	},
+	meta: {
+		// This runs as a background "resolution" request for list UIs.
+		// A failed resolution should not spam global error toasts; the UI exposes per-row retry.
+		skipGlobalErrorHandler: true,
 	},
 });
 
