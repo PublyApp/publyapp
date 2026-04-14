@@ -4,7 +4,7 @@ import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
-import _ from 'lodash';
+import trim from 'lodash/trim';
 import {
 	createMRTColumnHelper,
 	MaterialReactTable,
@@ -19,6 +19,7 @@ import {
 	USER_STATUS_ENUM,
 } from '@org/shared-ts/lib/constants';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
+
 import { EmptyContent } from '#app/components/empty-content/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import type { LabelColor } from '#app/components/label/index.ts';
@@ -58,7 +59,10 @@ const StaffProfileDetailsUsersTabPage = () => {
 		return [
 			columnHelper.accessor(
 				(row) => {
-					return getUserFullName(_.pick(row, ['firstName', 'lastName']));
+					return getUserFullName({
+						firstName: row.firstName,
+						lastName: row.lastName,
+					});
 				},
 				{
 					id: 'fullName',
@@ -136,13 +140,29 @@ const UserCell: MRT_ColumnDef<ProfileUserRowData, string>['Cell'] = (props) => {
 	const { t } = useTranslate();
 
 	const userId = props.row.original.id;
-	const fullName = _.trim(props.cell.getValue()) || t('un-named');
+	const fullName = trim(props.cell.getValue()) || t('un-named');
 	const avatarUrl = props.row.original.avatarUrl;
+	const normalizedAvatarUrl = trim(avatarUrl);
 	const email = props.row.original.email;
 
 	return (
 		<Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-			<Avatar alt={fullName} src={avatarUrl} />
+			<Avatar
+				alt={fullName}
+				src={normalizedAvatarUrl || undefined}
+				sx={{
+					...(normalizedAvatarUrl
+						? {}
+						: {
+								bgcolor: 'background.neutral',
+								color: 'text.disabled',
+							}),
+				}}
+			>
+				{!normalizedAvatarUrl ? (
+					<Iconify icon="solar:user-rounded-bold" width={20} />
+				) : null}
+			</Avatar>
 
 			<Stack
 				sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}
