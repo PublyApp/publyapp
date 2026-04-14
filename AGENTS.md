@@ -236,6 +236,13 @@ Additional repo-specific preferences for AI assistants (to reduce review churn):
 - `QueryDisplay` component for TanStack Query states — never manual conditional rendering
 - No `Array.reduce()` — use `find`, `filter+map`, `for...of`, or `Object.groupBy`
 - React Hook Form + Zod for form validation — always use `Form`/`Field.*` wrappers from `@/front/components/hook-form`, never raw MUI `TextField` with `register()`
+- First-column table entity avatars/icons must use a neutral, muted, subtle fallback treatment; preserve real images when present, but avoid bright semantic or generated avatar colors for fallback icons
+
+## JavaScript/TypeScript Conventions
+
+**Key principles (always apply):**
+- Prefer targeted `lodash/*` helpers over built-in JavaScript methods when the lodash helper provides safer runtime handling for nullish or invalid inputs
+- Import specific helpers such as `lodash/map`, `lodash/trim`, `lodash/isEqual`, and `lodash/capitalize` instead of the full `lodash` package
 
 ## C# Coding Standards
 

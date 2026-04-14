@@ -5,7 +5,8 @@ import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import ListItemText from '@mui/material/ListItemText';
 import Tooltip from '@mui/material/Tooltip';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import map from 'lodash/map';
 import {
 	createMRTColumnHelper,
 	MaterialReactTable,
@@ -124,7 +125,7 @@ const StaffProfilesTable = () => {
 	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
 		query: profilesQuery,
 		emptyContent: {
-			title: _.capitalize(
+			title: capitalize(
 				t('no-items-found', { item: t('profiles'), ns: 'response-message' }),
 			),
 			renderAction: () => (
@@ -140,7 +141,7 @@ const StaffProfilesTable = () => {
 			),
 		},
 		errorContent: {
-			title: _.capitalize(
+			title: capitalize(
 				t('error-loading-items', {
 					item: t('profiles'),
 					ns: 'response-message',
@@ -161,7 +162,7 @@ const StaffProfilesTable = () => {
 
 	// Transform data
 	const dataTable = useMemo(() => {
-		return _.map(profilesQuery.data?.data, StaffProfileRowDataMapper);
+		return map(profilesQuery.data?.data, StaffProfileRowDataMapper);
 	}, [profilesQuery.data]);
 
 	// Table configuration with cursor pagination preset
@@ -224,7 +225,16 @@ const ProfileNameCell: MRT_ColumnDef<StaffProfileRowData, string>['Cell'] = (
 				alignItems: 'center',
 			}}
 		>
-			<Avatar alt={name} variant="rounded" sx={{ width: 40, height: 40 }}>
+			<Avatar
+				alt={name}
+				variant="rounded"
+				sx={{
+					width: 40,
+					height: 40,
+					bgcolor: 'background.neutral',
+					color: 'text.disabled',
+				}}
+			>
 				<Iconify icon="solar:user-id-bold" width={24} />
 			</Avatar>
 

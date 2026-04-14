@@ -22,7 +22,11 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import isEqual from 'lodash/isEqual';
+import map from 'lodash/map';
+import lodashToString from 'lodash/toString';
+import trim from 'lodash/trim';
 import {
 	createMRTColumnHelper,
 	MaterialReactTable,
@@ -220,7 +224,7 @@ const useTenantUsersTableController = () => {
 
 	useEffect(() => {
 		const nextStatusFilter = parseStatusFilter(filterStates.status);
-		if (!_.isEqual(nextStatusFilter, statusFilter)) {
+		if (!isEqual(nextStatusFilter, statusFilter)) {
 			setStatusFilter(nextStatusFilter);
 		}
 	}, [filterStates.status, statusFilter]);
@@ -233,7 +237,7 @@ const useTenantUsersTableController = () => {
 		_value: React.SyntheticEvent,
 		selectedOptions: typeof statusOptions,
 	) => {
-		const nextStatusFilter = selectedOptions.map((option) => option.value);
+		const nextStatusFilter = map(selectedOptions, (option) => option.value);
 		resetCursorPagination?.();
 		setStatusFilter(nextStatusFilter);
 		setFilterStates({
@@ -246,7 +250,10 @@ const useTenantUsersTableController = () => {
 		return [
 			columnHelper.accessor(
 				(row) => {
-					return getUserFullName(_.pick(row, ['firstName', 'lastName']));
+					return getUserFullName({
+						firstName: row.firstName,
+						lastName: row.lastName,
+					});
 				},
 				{
 					id: 'fullName',
@@ -275,7 +282,7 @@ const useTenantUsersTableController = () => {
 
 	const tenantUsersQuery = useFindTenantUsers({
 		variables: {
-			tenantId: _.toString(tenantId),
+			tenantId: lodashToString(tenantId),
 			cursor: apiVariables.cursor || undefined,
 			limit: apiVariables.limit,
 			sort: apiVariables.sort,
@@ -302,7 +309,7 @@ const useTenantUsersTableController = () => {
 	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
 		query: tenantUsersQuery,
 		emptyContent: {
-			title: _.capitalize(
+			title: capitalize(
 				t('no-items-found', {
 					item: t('users'),
 					ns: 'response-message',
@@ -320,7 +327,7 @@ const useTenantUsersTableController = () => {
 			),
 		},
 		errorContent: {
-			title: _.capitalize(
+			title: capitalize(
 				t('error-loading-items', {
 					item: t('users'),
 					ns: 'response-message',
@@ -334,7 +341,7 @@ const useTenantUsersTableController = () => {
 			return [];
 		}
 
-		return _.map(tenantUsersQuery.data.data, (tenantUser) => {
+		return map(tenantUsersQuery.data.data, (tenantUser) => {
 			return {
 				id: tenantUser.id || '',
 				avatarUrl: tenantUser.avatarUrl || '',
@@ -391,8 +398,11 @@ const useTenantUsersTableController = () => {
 
 		if (format === 'csv') {
 			const headers = ['Name', 'Email', 'Level', 'Status'];
-			const csvRows = rowsToExport.map((row) => [
-				`"${getUserFullName(_.pick(row, ['firstName', 'lastName']))}"`,
+			const csvRows = map(rowsToExport, (row) => [
+				`"${getUserFullName({
+					firstName: row.firstName,
+					lastName: row.lastName,
+				})}"`,
 				`"${row.email}"`,
 				row.level,
 				row.status,
@@ -993,11 +1003,27 @@ export default TenantUsersTable;
 const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 	const fullName = props.cell.getValue();
 	const { id, avatarUrl, email } = props.row.original;
+	const normalizedAvatarUrl = trim(avatarUrl);
 	const userDetailsLink = FRONT_PATH_NAMES.staff.tenantUsers.details(id);
 
 	return (
 		<Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-			<Avatar alt={fullName} src={avatarUrl} />
+			<Avatar
+				alt={fullName}
+				src={normalizedAvatarUrl || undefined}
+				sx={{
+					...(normalizedAvatarUrl
+						? {}
+						: {
+								bgcolor: 'background.neutral',
+								color: 'text.disabled',
+							}),
+				}}
+			>
+				{!normalizedAvatarUrl ? (
+					<Iconify icon="solar:user-rounded-bold" width={20} />
+				) : null}
+			</Avatar>
 
 			<Stack
 				sx={{
@@ -1451,7 +1477,7 @@ const FollowUpAction = ({
 			title={
 				disabled
 					? disabledReason
-					: _.capitalize(t('send-email-verification-follow-up'))
+					: capitalize(t('send-email-verification-follow-up'))
 			}
 			placement="top"
 		>
