@@ -10,6 +10,7 @@ import {
 	REDIRECT_CODE,
 } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+
 import { SplashScreen } from '#app/components/loading-screen/splash-screen.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { AuthSplitLayout } from '#app/layouts/auth-split/layout.tsx';

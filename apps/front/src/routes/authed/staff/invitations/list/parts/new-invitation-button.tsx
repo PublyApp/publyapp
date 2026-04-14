@@ -1,6 +1,7 @@
 import Button from '@mui/material/Button';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';

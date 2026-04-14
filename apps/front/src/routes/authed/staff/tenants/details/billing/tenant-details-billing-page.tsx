@@ -1,6 +1,9 @@
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
+import _ from 'lodash';
 import { useOutletContext } from 'react-router';
+
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import {
 	_userAddressBook,
@@ -9,11 +12,9 @@ import {
 	_userPlans,
 } from '#app/_mock/index.ts';
 import { AccountBilling } from '#app/components/billing/account-billing.tsx';
+import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
-import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
-import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
-import _ from 'lodash';
 import type { TenantDetailsOutletContext } from '../_layout/tenant-details-layout';
 
 const TenantDetailsBillingPage = () => {

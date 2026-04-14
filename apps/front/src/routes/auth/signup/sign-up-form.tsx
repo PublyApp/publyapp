@@ -11,6 +11,7 @@ import type { z } from 'zod';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { getRegisterSchema } from '@org/shared-ts/validations/auth.validations';
+
 import { FormHead } from '#app/components/auth/form-head.tsx';
 import { SignUpTerms } from '#app/components/auth/sign-up-terms.tsx';
 import { Field, Form } from '#app/components/hook-form/index.ts';

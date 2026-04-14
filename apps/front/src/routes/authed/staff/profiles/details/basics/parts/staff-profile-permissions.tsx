@@ -14,10 +14,11 @@ import Skeleton from '@mui/material/Skeleton';
 import Switch from '@mui/material/Switch';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import { useQueryClient } from '@tanstack/react-query';
 import startCase from 'lodash/startCase';
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router';
-import { useQueryClient } from '@tanstack/react-query';
+
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';

@@ -25,6 +25,7 @@ import {
 } from '@org/shared-ts/lib/constants';
 import { mbToBytes } from '@org/shared-ts/utils/any.utils';
 
+import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
 import { NotFoundView } from '#app/components/error/not-found-view.tsx';
@@ -48,7 +49,6 @@ import {
 import { fData } from '#app/utils/format-number.ts';
 import { fDateTime } from '#app/utils/format-time.ts';
 
-import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import type { TenantDetailsOutletContext } from '../_layout/tenant-details-layout';
 
 const TENANT_STATUS_COLOR_MAP = {

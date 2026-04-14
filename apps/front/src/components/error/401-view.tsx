@@ -5,6 +5,7 @@ import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { SimpleCompactContent } from '#app/layouts/simple/content.tsx';
 import { SimpleLayout } from '#app/layouts/simple/layout.tsx';

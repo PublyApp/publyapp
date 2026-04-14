@@ -5,6 +5,7 @@ import _ from 'lodash';
 import { data } from 'react-router';
 
 import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+
 import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { DashboardContent } from '#app/layouts/dashboard/content.tsx';

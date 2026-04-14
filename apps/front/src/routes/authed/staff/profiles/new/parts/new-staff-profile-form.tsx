@@ -31,10 +31,11 @@ import type zod from 'zod';
 import { FRONT_PATH_NAMES, isServer } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@org/shared-ts/validations/staff-profile.validations';
+
 import { FloatingCard } from '#app/components/floating-card.tsx';
-import { Form } from '#app/components/hook-form/index.ts';
 import { Field } from '#app/components/hook-form/fields.tsx';
 import { HelperText } from '#app/components/hook-form/help-text.tsx';
+import { Form } from '#app/components/hook-form/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import {
 	Nav,
