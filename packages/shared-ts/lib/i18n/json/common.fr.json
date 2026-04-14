@@ -448,6 +448,8 @@
 	"reload-page": "Recharger la page",
 	"generic-error-title": "Oups ! Une erreur s'est produite",
 	"generic-error-description": "Nous avons rencontré une erreur inattendue. Veuillez réessayer ou retourner à la page d'accueil.",
+	"staff-profile-permissions-error-title": "Impossible de charger les permissions",
+	"staff-profile-permissions-error-description": "Veuillez réessayer. Si le problème persiste, actualisez la page.",
 	"try-again": "Réessayer",
 	"maintenance-title": "En cours de maintenance",
 	"maintenance-description": "Nous effectuons actuellement une maintenance programmée pour améliorer votre expérience. Veuillez revenir bientôt.",
