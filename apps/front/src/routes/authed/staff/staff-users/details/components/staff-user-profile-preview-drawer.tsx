@@ -39,6 +39,11 @@ const StaffUserProfilePreviewDrawer = ({
 			open={open}
 			onClose={onClose}
 			anchor="right"
+			sx={(theme) => ({
+				// Keep the drawer (and its backdrop) above the app sidebar layer.
+				// This matches the other right-side drawers in the staff area.
+				zIndex: theme.zIndex.modal + 1,
+			})}
 			slotProps={{
 				paper: {
 					sx: {
