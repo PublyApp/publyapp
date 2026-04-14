@@ -271,6 +271,9 @@ Additional repo-specific preferences for AI assistants (to reduce review churn):
 For the marketing-vs-product surface split (what brand DNA must match vs what's allowed to diverge on radii/sizing/motion, approved hardcoded-color exceptions, where marketing code lives), see:
 [`docs/guides/marketing-surface-conventions.md`](docs/guides/marketing-surface-conventions.md)
 
+Additional repo-specific preferences for AI assistants (to reduce review churn):
+[`docs/guides/ai-agent-preferences.md`](docs/guides/ai-agent-preferences.md)
+
 **Key principles (always apply):**
 - MUI v6 only — never native HTML elements (`<div>` → `<Box>`, `<h1>` → `<Typography variant="h1">`)
 - `sx` prop for all styling — never Tailwind CSS or className
