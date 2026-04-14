@@ -448,6 +448,8 @@
 	"reload-page": "Reload page",
 	"generic-error-title": "Oops! Something went wrong",
 	"generic-error-description": "We encountered an unexpected error. Please try again or return to the home page.",
+	"staff-profile-permissions-error-title": "Unable to load permissions",
+	"staff-profile-permissions-error-description": "Try again. If the issue persists, refresh the page.",
 	"try-again": "Try Again",
 	"maintenance-title": "We're Under Maintenance",
 	"maintenance-description": "We're currently performing scheduled maintenance to improve your experience. Please check back soon.",

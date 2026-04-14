@@ -14,13 +14,16 @@ import Skeleton from '@mui/material/Skeleton';
 import Switch from '@mui/material/Switch';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { useQueryClient } from '@tanstack/react-query';
+import { type UseQueryResult, useQueryClient } from '@tanstack/react-query';
 import startCase from 'lodash/startCase';
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 
+import type { FindStaffProfilePermissionsResult } from '@org/client-ts/src/models';
+import type { PermissionsGetResponse } from '@org/client-ts/src/staff/permissions';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
+import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import QueryDisplay from '#app/components/query-display.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
@@ -211,11 +214,13 @@ const StaffProfilePermissions = () => {
 				<QueryDisplay
 					query={permissionsQuery}
 					LoadingSlot={<PermissionsSkeleton />}
+					ErrorSlot={PermissionsError}
 				>
 					{() => (
 						<QueryDisplay
 							query={assignedKeysQuery}
 							LoadingSlot={<PermissionsSkeleton />}
+							ErrorSlot={PermissionsError}
 						>
 							{() => (
 								<Box sx={{ display: 'grid', gap: 2 }}>
@@ -257,6 +262,26 @@ const StaffProfilePermissions = () => {
 };
 
 export default StaffProfilePermissions;
+
+const PermissionsError = ({
+	query,
+}: {
+	query: UseQueryResult<
+		PermissionsGetResponse | FindStaffProfilePermissionsResult,
+		Error
+	>;
+}) => {
+	const { t } = useTranslate();
+
+	return (
+		<ErrorContent
+			title={t('staff-profile-permissions-error-title')}
+			description={t('staff-profile-permissions-error-description')}
+			onRetry={() => query.refetch()}
+			retryLabel={t('try-again')}
+		/>
+	);
+};
 
 const PermissionListItem = ({
 	permission,
