@@ -76,6 +76,25 @@ public sealed record FindStaffProfileUsersArgs(
 	string? Search
 );
 
+public sealed record StaffProfileUserAssignmentResolutionItem(
+	Guid UserId,
+	bool IsAssigned
+);
+
+public abstract record ResolveStaffProfileUserAssignmentsServiceResult {
+	public sealed record Success(
+		List<StaffProfileUserAssignmentResolutionItem> Assignments
+	) : ResolveStaffProfileUserAssignmentsServiceResult;
+
+	// We intentionally treat missing/non-staff profiles as "not found" for this endpoint.
+	public sealed record ProfileNotFound : ResolveStaffProfileUserAssignmentsServiceResult;
+}
+
+public sealed record ResolveStaffProfileUserAssignmentsArgs(
+	Guid ProfileId,
+	List<Guid> UserIds
+);
+
 public abstract record GetStaffProfileByIdServiceResult {
 	public sealed record Success(StaffProfileItem Profile) : GetStaffProfileByIdServiceResult;
 	public sealed record ProfileNotFound : GetStaffProfileByIdServiceResult;
@@ -176,6 +195,11 @@ public interface IProfileAsStaffService {
 
 	Task<FindStaffProfileUsersServiceResult> FindStaffProfileUsersAsync(
 		FindStaffProfileUsersArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<ResolveStaffProfileUserAssignmentsServiceResult> ResolveStaffProfileUserAssignmentsAsync(
+		ResolveStaffProfileUserAssignmentsArgs args,
 		CancellationToken cancellationToken = default
 	);
 
@@ -656,6 +680,69 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			Users: users,
 			Count: count
 		);
+	}
+
+	public async Task<ResolveStaffProfileUserAssignmentsServiceResult> ResolveStaffProfileUserAssignmentsAsync(
+		ResolveStaffProfileUserAssignmentsArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		// Guard early: this endpoint is strictly "staff profile -> users" so tenant/project
+		// profiles are treated as not found.
+		var profileExists = await (
+			from p in _dbContext.Profile
+			where p.Id == args.ProfileId
+				&& p.Scope == ProfileScope.Staff
+				&& !p.IsDeleted
+			select p.Id
+		).AnyAsync(cancellationToken);
+
+		if (!profileExists) {
+			return new ResolveStaffProfileUserAssignmentsServiceResult.ProfileNotFound();
+		}
+
+		if (args.UserIds.Count == 0) {
+			return new ResolveStaffProfileUserAssignmentsServiceResult.Success([]);
+		}
+
+		// User.Id is nullable (Guid?) in the EF model, so convert the incoming Guid list to
+		// nullable IDs to keep the query fully translatable by EF.
+		var userIdsNullable = args.UserIds.Select(id => (Guid?)id).ToList();
+
+		// Resolve assignment in one query:
+		// - Only staff accounts are relevant for staff profiles
+		// - Deleted/suspended users/accounts are treated as not assignable via staff tooling
+		// - Deleted junction links are ignored
+		var assignedUserIds = await (
+			from ua in _dbContext.UserAccount
+			join uap in _dbContext.UserAccountProfile on ua.Id equals uap.UserAccountId
+			join u in _dbContext.User on ua.UserId equals u.Id
+			where userIdsNullable.Contains(u.Id)
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& ua.Status != AccountStatus.Suspended
+				&& !u.IsDeleted
+				&& u.Status != UserStatus.Suspended
+				&& uap.ProfileId == args.ProfileId
+				&& !uap.IsDeleted
+			select u.Id
+		)
+			.Distinct()
+			.ToListAsync(cancellationToken);
+
+		var assignedLookup = assignedUserIds
+			.Where(id => id is not null)
+			.Select(id => id!.Value)
+			.ToHashSet();
+
+		var assignments = args.UserIds
+			.Distinct()
+			.Select(userId => new StaffProfileUserAssignmentResolutionItem(
+				UserId: userId,
+				IsAssigned: assignedLookup.Contains(userId)
+			))
+			.ToList();
+
+		return new ResolveStaffProfileUserAssignmentsServiceResult.Success(assignments);
 	}
 
 	public async Task<GetStaffProfileByIdServiceResult> GetStaffProfileByIdAsync(

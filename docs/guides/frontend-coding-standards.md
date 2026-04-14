@@ -240,6 +240,50 @@ const processData = (data: Data) => {
 };
 ```
 
+## Expressions: Avoid Nested Ternaries
+
+Do not use nested ternary expressions (especially in JSX). They are hard to scan, hard to diff, and easy to get wrong.
+
+- Prefer `if/else` blocks that return JSX, or compute an intermediate `const` and render it.
+- If the rendering branches grow, extract a small component.
+
+**Enforced by Biome:** `style/noNestedTernary`.
+
+## React Composition and Rerender Isolation
+
+Goal: keep **volatile UI state** from re-rendering unrelated siblings.
+
+Volatile UI state includes: drawer open/close, search text, menu anchor, popover open, pending row ids,
+optimistic maps/sets, pagination cursors for an overlay, etc. These states often change rapidly
+(keypresses, hover, toggles). If lifted into a shared parent, they will re-render everything under that parent.
+
+### Rules
+
+- Put volatile UI state in the **smallest component that owns the UI**.
+  - Example: an action component owns the trigger button + `<Drawer>` + drawer search/list state.
+  - The page shell (route) should not own drawer state unless other siblings truly need it.
+- Prefer “composition + query invalidation” over “coordination via parent props”.
+  - If a drawer mutation affects a table, invalidate the table’s query key family instead of passing
+    derived state (like `Set<string>` of assigned ids) through the parent.
+- Only lift state if multiple siblings truly need the same state *and* you can keep it stable/minimal.
+
+### Smells (Avoid)
+
+- Controlled input state (`search`, `anchorEl`, etc.) in a parent that also renders heavy siblings (tables, lists).
+- Passing `Set`/`Map` props or other frequently re-created derived objects to siblings.
+- Parents computing “fallback” or “derived” state for a child that can query/derive it locally.
+- A parent renders `Table` + `Drawer`, and drawer keystrokes re-render the table.
+
+### Preferred Patterns
+
+- “Action owns overlay”
+  - Render a single component that encapsulates the button and the overlay/drawer.
+- “Self-contained table”
+  - Table component reads `useParams()` and owns `useTableState()` + its own query.
+- “Invalidate, don’t plumb”
+  - Mutations invalidate query families (via `queryClient.invalidateQueries`) instead of using `onSuccess`
+    callbacks to push derived state up into a parent.
+
 **Why arrow functions:**
 - Consistent with modern JavaScript/TypeScript conventions
 - Lexical `this` binding prevents common bugs
@@ -329,7 +373,16 @@ const UserCard = ({ userId, onEdit }: UserCardProps) => {
   };
 
   if (isLoading) {
-    return <CircularProgress />;
+    return (
+      <Card>
+        <CardContent>
+          <Stack spacing={1}>
+            <Skeleton variant="text" width="55%" />
+            <Skeleton variant="rounded" height={36} width={120} />
+          </Stack>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -406,6 +459,13 @@ const methods = useForm<FormData>({
 
 **CRITICAL:** Always prefer the `QueryDisplay` component over manual conditional rendering for TanStack Query states.
 
+### Loading UI Rule (Skeletons Over Spinners)
+
+- Prefer **Skeletons** for query/page/section loading states (anything that represents content being loaded).
+- Avoid `CircularProgress` for content loading because it is less informative and makes layouts jump.
+- `CircularProgress` is acceptable for **small action-level loading** only (button/icon-button spinners during a mutation).
+- Skeletons should be **representative of the final UI** (match rough layout: title, rows, cards, etc.).
+
 **Why use QueryDisplay:**
 - Consistent loading/error/empty state handling across the app
 - Reduces boilerplate code
@@ -421,9 +481,15 @@ function StaffUsersPage() {
   const { data, isLoading, isError, error } = useFindStaffUsers();
 
   if (isLoading) {
-    return <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-      <CircularProgress />
-    </Box>;
+    return (
+      <Box sx={{ py: 3 }}>
+        <Stack spacing={2}>
+          <Skeleton variant="rounded" height={44} />
+          <Skeleton variant="rounded" height={44} />
+          <Skeleton variant="rounded" height={44} />
+        </Stack>
+      </Box>
+    );
   }
 
   if (isError) {
@@ -444,8 +510,12 @@ function StaffUsersPage() {
     <QueryDisplay
       query={query}
       LoadingSlot={() => (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress />
+        <Box sx={{ py: 3 }}>
+          <Stack spacing={2}>
+            <Skeleton variant="rounded" height={44} />
+            <Skeleton variant="rounded" height={44} />
+            <Skeleton variant="rounded" height={44} />
+          </Stack>
         </Box>
       )}
       ErrorSlot={({ error }) => (
@@ -484,8 +554,13 @@ function StaffUsersPage() {
   query={permissionsQuery}
   loadingStrategy="pending"
   LoadingSlot={() => (
-    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-      <CircularProgress />
+    <Box sx={{ py: 3 }}>
+      <Stack spacing={1.5}>
+        <Skeleton variant="text" width="40%" />
+        <Skeleton variant="rounded" height={48} />
+        <Skeleton variant="rounded" height={48} />
+        <Skeleton variant="rounded" height={48} />
+      </Stack>
     </Box>
   )}
   ErrorSlot={({ error }) => (

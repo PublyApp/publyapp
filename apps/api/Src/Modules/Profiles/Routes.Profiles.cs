@@ -46,6 +46,14 @@ public static partial class Routes {
 				/// <summary>Find users assigned to a staff profile</summary>
 				public const string Find = Root;
 				public static string FindFn(string profileId) => RootFn(profileId);
+
+				/// <summary>
+				/// Batch-resolve whether a set of staff users is assigned to a staff profile.
+				/// This exists to avoid N+1 per-row profile requests in list UIs (assignment drawers).
+				/// </summary>
+				public const string ResolveAssignment = Root + "/assignment-resolution";
+				public static string ResolveAssignmentFn(string profileId) =>
+					$"{RootFn(profileId)}/assignment-resolution";
 			}
 		}
 

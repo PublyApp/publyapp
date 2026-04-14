@@ -38,6 +38,22 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 		);
 	}
 
+	private static string GetSuspendUrl(string userId) {
+		return PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Users.ForStaff.Root,
+			Routes.Users.ForStaff.SuspendFn(userId)
+		);
+	}
+
+	private static string GetReactivateUrl(string userId) {
+		return PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Users.ForStaff.Root,
+			Routes.Users.ForStaff.ReactivateFn(userId)
+		);
+	}
+
 	[Fact]
 	public async Task
 	ItShouldSetIsSuspendedAndBlockLoginWhenStatusSetToSuspended() {
@@ -48,12 +64,9 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 		);
 
 		var request = new HttpRequestMessage(
-			HttpMethod.Patch,
-			GetUrl(userId)
+			HttpMethod.Post,
+			GetSuspendUrl(userId)
 		).WithSessionToken(adminToken);
-		request.Content = JsonContent.Create(
-			new { status = "Suspended" }
-		);
 
 		using var response =
 			await _http.SendAsync(request);
@@ -62,7 +75,7 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 			.Be(HttpStatusCode.OK);
 
 		var result = await response.Content
-			.ReadFromJsonAsync<GetStaffUserByIdResult>();
+			.ReadFromJsonAsync<StaffUserSuspendedResult>();
 		result.Should().NotBeNull();
 		result!.Status.Should().Be("Suspended");
 
@@ -98,6 +111,14 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 		var problem = await loginResponse.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
+
+		// Cleanup: keep the seed staff user active so other specs can reuse it safely.
+		using var reactivateRequest = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetReactivateUrl(userId)
+		).WithSessionToken(adminToken);
+		using var reactivateResponse = await _http.SendAsync(reactivateRequest);
+		reactivateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
 	[Fact]
@@ -110,12 +131,9 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 		var userId = await GetUserIdByEmailAsync(targetEmail);
 
 		var suspendRequest = new HttpRequestMessage(
-			HttpMethod.Patch,
-			GetUrl(userId)
+			HttpMethod.Post,
+			GetSuspendUrl(userId)
 		).WithSessionToken(adminToken);
-		suspendRequest.Content = JsonContent.Create(
-			new { status = "Suspended" }
-		);
 
 		using var suspendResponse =
 			await _http.SendAsync(suspendRequest);
@@ -123,12 +141,9 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 			.Be(HttpStatusCode.OK);
 
 		var reactivateRequest = new HttpRequestMessage(
-			HttpMethod.Patch,
-			GetUrl(userId)
+			HttpMethod.Post,
+			GetReactivateUrl(userId)
 		).WithSessionToken(adminToken);
-		reactivateRequest.Content = JsonContent.Create(
-			new { status = "Active" }
-		);
 
 		using var reactivateResponse =
 			await _http.SendAsync(reactivateRequest);
@@ -137,7 +152,7 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 			.Be(HttpStatusCode.OK);
 
 		var result = await reactivateResponse.Content
-			.ReadFromJsonAsync<GetStaffUserByIdResult>();
+			.ReadFromJsonAsync<StaffUserReactivatedResult>();
 		result.Should().NotBeNull();
 		result!.Status.Should().Be("Active");
 

@@ -4,7 +4,6 @@ import {
 	createUntypedString,
 	type UntypedNode,
 } from '@microsoft/kiota-abstractions';
-
 // Prefer per-method lodash imports to avoid pulling the full lodash bundle.
 import forEach from 'lodash/forEach';
 import isNil from 'lodash/isNil';
@@ -64,9 +63,10 @@ export const useCreateStaffUser = createStaffMutation({
 });
 
 type FindStaffUsersQuery = {
+	cursor?: string | null;
 	limit?: number;
-	page?: number;
 	sort?: { id: string; order: 'desc' | 'asc' };
+	q?: string;
 };
 
 export const useFindStaffUser = createStaffQuery({
@@ -74,8 +74,9 @@ export const useFindStaffUser = createStaffQuery({
 	fetcher: async (client, params: FindStaffUsersQuery) => {
 		const result = await client.staff.users.get({
 			queryParameters: {
-				page: params.page ? params.page.toString() : undefined,
+				cursor: params.cursor ?? undefined,
 				limit: params.limit ? params.limit.toString() : undefined,
+				q: params.q,
 				sortId: params.sort?.id,
 				sortOrder: params.sort?.order,
 			},

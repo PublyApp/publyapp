@@ -60,6 +60,7 @@
 				"noForEach": "off"
 			},
 			"style": {
+				"noNestedTernary": "error",
 				"noParameterAssign": "error",
 				"useAsConstAssertion": "error",
 				"useDefaultParameterLast": "error",

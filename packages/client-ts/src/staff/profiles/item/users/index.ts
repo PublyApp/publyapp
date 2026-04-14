@@ -4,12 +4,18 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createFindStaffProfileUsersResultFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, type AppProblemDetails, type FindStaffProfileUsersResult, type ValidationProblemDetails } from '../../../../models/index.js';
 // @ts-ignore
-import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
+import { AssignmentResolutionRequestBuilderRequestsMetadata, type AssignmentResolutionRequestBuilder } from './assignmentResolution/index.js';
+// @ts-ignore
+import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /staff/profiles/{profileId}/users
  */
 export interface UsersRequestBuilder extends BaseRequestBuilder<UsersRequestBuilder> {
+    /**
+     * The assignmentResolution property
+     */
+    get assignmentResolution(): AssignmentResolutionRequestBuilder;
     /**
      * Find users assigned to a staff profile
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -49,6 +55,14 @@ export const UsersRequestBuilderUriTemplate = "{+baseurl}/staff/profiles/{profil
 const UsersRequestBuilderGetQueryParametersMapper: Record<string, string> = {
     "sortId": "sort_id",
     "sortOrder": "sort_order",
+};
+/**
+ * Metadata for all the navigation properties in the request builder.
+ */
+export const UsersRequestBuilderNavigationMetadata: Record<Exclude<keyof UsersRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    assignmentResolution: {
+        requestsMetadata: AssignmentResolutionRequestBuilderRequestsMetadata,
+    },
 };
 /**
  * Metadata for all the requests in the request builder.
