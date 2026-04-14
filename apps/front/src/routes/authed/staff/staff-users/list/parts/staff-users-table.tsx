@@ -5,7 +5,9 @@ import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import map from 'lodash/map';
+import trim from 'lodash/trim';
 import {
 	createMRTColumnHelper,
 	MaterialReactTable,
@@ -25,6 +27,7 @@ import {
 } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
+
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import type { LabelColor } from '#app/components/label/index.ts';
@@ -89,7 +92,10 @@ const StaffUsersTable = () => {
 		return [
 			columnHelper.accessor(
 				(row) => {
-					return getUserFullName(_.pick(row, ['firstName', 'lastName']));
+					return getUserFullName({
+						firstName: row.firstName,
+						lastName: row.lastName,
+					});
 				},
 				{
 					id: 'fullName',
@@ -122,7 +128,7 @@ const StaffUsersTable = () => {
 	});
 
 	const dataTable = useMemo(() => {
-		return _.map(data?.staffUsers, StaffUserRowDataMapper);
+		return map(data?.staffUsers, StaffUserRowDataMapper);
 	}, [data]);
 
 	const table = useMRTTable('minimal', {
@@ -177,8 +183,9 @@ const UserCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 	const { t } = useTranslate();
 
 	const userId = props.row.original.id;
-	const fullName = _.trim(props.cell.getValue()) || t('un-named');
+	const fullName = trim(props.cell.getValue()) || t('un-named');
 	const avatarUrl = props.row.original.avatarUrl;
+	const normalizedAvatarUrl = trim(avatarUrl);
 	const email = props.row.original.email;
 
 	const { data: userAuthData } = useGetUserAuthData();
@@ -186,7 +193,22 @@ const UserCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 
 	return (
 		<Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-			<Avatar alt={fullName} src={avatarUrl} />
+			<Avatar
+				alt={fullName}
+				src={normalizedAvatarUrl || undefined}
+				sx={{
+					...(normalizedAvatarUrl
+						? {}
+						: {
+								bgcolor: 'background.neutral',
+								color: 'text.disabled',
+							}),
+				}}
+			>
+				{!normalizedAvatarUrl ? (
+					<Iconify icon="solar:user-rounded-bold" width={20} />
+				) : null}
+			</Avatar>
 
 			<Stack
 				sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}
@@ -279,20 +301,6 @@ const UserActionsCell: MRT_ColumnDef<StaffUserRowData>['Cell'] = (props) => {
 		toast.warning('TODO: implement delete');
 	};
 
-	const renderConfirmDialog = () => (
-		<ConfirmDialog
-			open={confirmDialog.value}
-			onClose={confirmDialog.onFalse}
-			title={t('delete-item', { item: t('staff-user') })}
-			content={t('confirm-delete-dialog-text')}
-			action={
-				<Button variant="contained" color="error" onClick={onConfirmDeleteRow}>
-					{t('delete')}
-				</Button>
-			}
-		/>
-	);
-
 	return (
 		<>
 			<Box
@@ -333,8 +341,40 @@ const UserActionsCell: MRT_ColumnDef<StaffUserRowData>['Cell'] = (props) => {
 				</Tooltip>
 			</Box>
 
-			{renderConfirmDialog()}
+			<UserDeleteConfirmDialog
+				open={confirmDialog.value}
+				onClose={confirmDialog.onFalse}
+				onConfirm={onConfirmDeleteRow}
+			/>
 		</>
+	);
+};
+
+type UserDeleteConfirmDialogProps = {
+	open: boolean;
+	onClose: () => void;
+	onConfirm: () => void;
+};
+
+const UserDeleteConfirmDialog = ({
+	open,
+	onClose,
+	onConfirm,
+}: UserDeleteConfirmDialogProps) => {
+	const { t } = useTranslate();
+
+	return (
+		<ConfirmDialog
+			open={open}
+			onClose={onClose}
+			title={t('delete-item', { item: t('staff-user') })}
+			content={t('confirm-delete-dialog-text')}
+			action={
+				<Button variant="contained" color="error" onClick={onConfirm}>
+					{t('delete')}
+				</Button>
+			}
+		/>
 	);
 };
 
@@ -364,7 +404,7 @@ const CopyLinkButton = ({
 
 	return (
 		<Tooltip
-			title={_.capitalize(t('copy-item', { item: t('verification-link') }))}
+			title={capitalize(t('copy-item', { item: t('verification-link') }))}
 			placement="top"
 		>
 			<IconButton
@@ -422,7 +462,7 @@ const FollowUpButton = ({
 
 	return (
 		<Tooltip
-			title={_.capitalize(t('send-email-verification-follow-up'))}
+			title={capitalize(t('send-email-verification-follow-up'))}
 			placement="top"
 		>
 			<IconButton
