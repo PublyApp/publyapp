@@ -11,6 +11,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import { alpha } from '@mui/material/styles';
 import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
 import capitalize from 'lodash/capitalize';
@@ -164,7 +165,7 @@ const StaffUserUpdateForm = ({
 					}}
 				>
 					{/* Left sidebar: avatar + status (mirrors tenant details general layout). */}
-					<Card sx={{ pt: 8, pb: 5, px: 3 }}>
+					<Card sx={{ pt: 8, pb: 5, px: 3, minWidth: 0, overflow: 'hidden' }}>
 						<Box sx={{ textAlign: 'center' }}>
 							<Box sx={{ mb: 3 }}>
 								<Field.UploadAvatar
@@ -229,8 +230,8 @@ const StaffUserUpdateForm = ({
 					</Card>
 
 					{/* Right content: editable form (safe fields only) + optional extra sections (profiles, etc). */}
-					<Stack spacing={3}>
-						<Card sx={{ p: 3 }}>
+					<Stack spacing={3} sx={{ minWidth: 0 }}>
+						<Card sx={{ p: 3, minWidth: 0, overflow: 'hidden' }}>
 							<Typography variant="h4" sx={{ mb: 3 }}>
 								{t('staff-user-details')}
 							</Typography>
@@ -294,19 +295,38 @@ const InfoRow = ({
 	value: string;
 }) => (
 	// Small "label + value" row used in the details sidebar (icon + 2 text lines).
-	<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+	<Box
+		sx={{
+			display: 'flex',
+			alignItems: 'center',
+			gap: 1.5,
+			minWidth: 0,
+			width: '100%',
+		}}
+	>
 		<Iconify
 			icon={icon}
 			width={20}
 			sx={{ color: 'text.secondary', flexShrink: 0 }}
 		/>
-		<Box sx={{ minWidth: 0 }}>
+		<Box sx={{ minWidth: 0, flex: '1 1 auto' }}>
 			<Typography variant="caption" sx={{ color: 'text.secondary' }}>
 				{label}
 			</Typography>
-			<Typography variant="body2" sx={{ fontWeight: 500 }}>
-				{value}
-			</Typography>
+			<Tooltip title={value} placement="top-start">
+				<Typography
+					variant="body2"
+					sx={{
+						fontWeight: 500,
+						minWidth: 0,
+						overflow: 'hidden',
+						textOverflow: 'ellipsis',
+						whiteSpace: 'nowrap',
+					}}
+				>
+					{value}
+				</Typography>
+			</Tooltip>
 		</Box>
 	</Box>
 );
@@ -387,6 +407,8 @@ const DangerZoneCard = ({
 		<Card
 			sx={{
 				p: 3,
+				minWidth: 0,
+				overflow: 'hidden',
 				border: '1px solid',
 				borderColor: 'error.main',
 				bgcolor: (theme) => alpha(theme.palette.error.main, 0.02),
