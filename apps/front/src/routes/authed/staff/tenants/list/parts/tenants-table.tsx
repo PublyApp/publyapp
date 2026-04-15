@@ -46,6 +46,7 @@ import {
 	useMemo,
 	useRef,
 	useState,
+	type Ref,
 } from 'react';
 
 import type { TenantAsStaffListItem } from '@org/client-ts/src/models';
@@ -297,13 +298,7 @@ const useTenantsTableController = () => {
 		tableUiReducer,
 		initialTableUiState,
 	);
-	const {
-		rowSelection,
-		selectionActionAnchorEl,
-		exportDialogOpen,
-		exportFormat,
-		bulkActionDialog,
-	} = tableUiState;
+	const { rowSelection, bulkActionDialog } = tableUiState;
 
 	const handleBulkActionSuccess = useCallback((type: BulkActionType) => {
 		setTableUiState({
@@ -466,21 +461,14 @@ const useTenantsTableController = () => {
 		setBulkActionDialog({ type, open: false });
 	};
 	const openBulkActionDialog = (type: BulkActionType) => {
-		closeSelectionActionMenu();
 		setTableUiState({
 			bulkActionDialog: { type, open: true },
 		});
-	};
-	const closeExportDialog = () => {
-		setTableUiState({ exportDialogOpen: false });
 	};
 	const closeBulkActionDialog = (type: BulkActionType) => {
 		setTableUiState({
 			bulkActionDialog: { type, open: false },
 		});
-	};
-	const handleExportFormatChange = (format: ExportFormat) => {
-		setTableUiState({ exportFormat: format });
 	};
 	const exportRows = (format: 'csv' | 'json') => {
 		const rowsToExport = isSelectionMode ? selectedRows : dataTable;

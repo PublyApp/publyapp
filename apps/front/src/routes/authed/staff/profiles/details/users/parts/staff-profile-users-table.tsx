@@ -108,6 +108,32 @@ export const StaffProfileUsersTable = () => {
 		defaultPageSize: DEFAULT_PAGE_SIZE,
 	});
 
+	const selectedCount = Object.values(rowSelection).filter(Boolean).length;
+	const isSelectionMode = selectedCount > 0;
+
+	useEffect(() => {
+		if (debouncedQ === filterStates.q) {
+			return;
+		}
+
+		// Offset pagination: reset to page 1 when the query changes.
+		setPaginationState({
+			...paginationState,
+			page: '1',
+		});
+		setFilterStates({ q: debouncedQ });
+	}, [
+		debouncedQ,
+		filterStates.q,
+		paginationState,
+		setFilterStates,
+		setPaginationState,
+	]);
+
+	useEffect(() => {
+		setSearch(filterStates.q);
+	}, [filterStates.q]);
+
 	const columns = useMemo(() => {
 		return [
 			columnHelper.accessor(
@@ -174,6 +200,27 @@ export const StaffProfileUsersTable = () => {
 		isSelectionMode,
 		onDebouncedValueChange: handleDebouncedSearchChange,
 	});
+	const selectionModeDisabledReason = t('selection-mode-disable-controls');
+	const sortingDisabledReason = t('selection-mode-disable-sorting');
+	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
+		if (!isSelectionMode) {
+			return {};
+		}
+
+		return {
+			sortByColumnAsc: sortingDisabledReason,
+			sortByColumnDesc: sortingDisabledReason,
+			sortedByColumnAsc: sortingDisabledReason,
+			sortedByColumnDesc: sortingDisabledReason,
+		};
+	}, [isSelectionMode, sortingDisabledReason]);
+
+	// Derive selected rows from the currently loaded page.
+	// Selection mode locks query controls (sorting/filter/pagination) so users don't
+	// lose selected rows mid-operation.
+	const selectedRowsFromData = useMemo(() => {
+		return data.filter((row) => rowSelection[row.id]);
+	}, [data, rowSelection]);
 	const selectionModeDisabledReason = t('selection-mode-disable-controls');
 	const sortingDisabledReason = t('selection-mode-disable-sorting');
 	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
@@ -551,6 +598,71 @@ const StatusCell: MRT_ColumnDef<ProfileUserRowData, string>['Cell'] = (
 				await invalidateStaffUserLifecycleQueries({
 					queryClient,
 					userIds: [user.id],
+				});
+				setConfirmDialogOpen(false);
+				setMenuAnchorEl(null);
+			},
+		});
+
+	const isMutating = isSuspending || isReactivating;
+
+	const handleStatusClick = (newStatus: string) => {
+		if (newStatus === status) {
+			setMenuAnchorEl(null);
+			return;
+		}
+
+		setPendingStatus(newStatus);
+		setConfirmDialogOpen(true);
+	};
+
+	const handleConfirm = () => {
+		if (!pendingStatus) {
+			return;
+		}
+
+		if (pendingStatus === USER_STATUS_ENUM.SUSPENDED) {
+			suspendUser({ userId: user.id });
+			return;
+		}
+
+		if (pendingStatus === USER_STATUS_ENUM.ACTIVE) {
+			reactivateUser({ userId: user.id });
+		}
+	};
+
+	if (!canChangeStatus) {
+		return (
+			<Label variant="soft" color={color}>
+				{tMessage}
+			</Label>
+		);
+	}
+
+	const isActive = status === USER_STATUS_ENUM.ACTIVE;
+	const isSuspended = status === USER_STATUS_ENUM.SUSPENDED;
+	const canChangeStatus = isActive || isSuspended;
+
+	const { mutate: suspendUser, isPending: isSuspending } = useSuspendStaffUser({
+		meta: { successMessage: 'staff-user-suspended-success' },
+		onSuccess: () => {
+			// This status control mutates the user-level status, not a profile-local flag.
+			// Refresh the current projection so suspended users stay visible with updated status.
+			// Refresh any "staff profile -> users" lists after a staff user status change.
+			queryClient.invalidateQueries({
+				queryKey: useFindStaffProfileUsers.getKey(),
+			});
+			setConfirmDialogOpen(false);
+			setMenuAnchorEl(null);
+		},
+	});
+
+	const { mutate: reactivateUser, isPending: isReactivating } =
+		useReactivateStaffUser({
+			meta: { successMessage: 'staff-user-reactivated-success' },
+			onSuccess: () => {
+				queryClient.invalidateQueries({
+					queryKey: useFindStaffProfileUsers.getKey(),
 				});
 				setConfirmDialogOpen(false);
 				setMenuAnchorEl(null);

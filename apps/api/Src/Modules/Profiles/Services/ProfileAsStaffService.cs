@@ -427,6 +427,16 @@ public interface IProfileAsStaffService {
 		UnassignStaffProfileUsersArgs args,
 		CancellationToken cancellationToken = default
 	);
+
+	Task<DeleteStaffProfileServiceResult> DeleteStaffProfileAsync(
+		Guid profileId,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<UnassignStaffProfileUsersServiceResult> UnassignStaffProfileUsersAsync(
+		UnassignStaffProfileUsersArgs args,
+		CancellationToken cancellationToken = default
+	);
 }
 
 [Service(ServiceLifetime.Scoped)]

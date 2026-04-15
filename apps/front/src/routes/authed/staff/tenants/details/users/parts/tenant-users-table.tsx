@@ -50,6 +50,7 @@ import {
 	useMemo,
 	useRef,
 	useState,
+	type Ref,
 } from 'react';
 import { useParams } from 'react-router';
 
@@ -110,17 +111,11 @@ const GLOBALLY_SUSPENDED_STATUS_DESCRIPTION = 'GloballySuspended';
 
 type TableUiState = {
 	rowSelection: Record<string, boolean>;
-	selectionActionAnchorEl: HTMLElement | null;
-	exportDialogOpen: boolean;
-	exportFormat: 'csv' | 'json' | 'xlsx';
 	bulkRemoveDialogOpen: boolean;
 };
 
 const initialTableUiState: TableUiState = {
 	rowSelection: {},
-	selectionActionAnchorEl: null,
-	exportDialogOpen: false,
-	exportFormat: 'csv',
 	bulkRemoveDialogOpen: false,
 };
 
@@ -544,9 +539,6 @@ const useTenantUsersTableController = () => {
 	};
 	const closeBulkRemoveDialog = () => {
 		setTableUiState({ bulkRemoveDialogOpen: false });
-	};
-	const handleExportFormatChange = (format: ExportFormat) => {
-		setTableUiState({ exportFormat: format });
 	};
 
 	const exportRows = (format: 'csv' | 'json') => {
