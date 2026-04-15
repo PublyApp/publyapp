@@ -841,16 +841,16 @@ public class UserService : IUserService {
 		CancellationToken cancellationToken = default
 	) {
 		// Resolve the staff UserAccount ID for the given User ID.
-		// We intentionally treat "not staff", "deleted", and "suspended" as not-found for staff
-		// management endpoints: those cases should not be editable/assignable via staff tooling.
+		// IMPORTANT:
+		// This endpoint backs the staff-user details UI. We still want the page to render for
+		// suspended users (view-only), so we DO NOT filter on suspension here. Suspension affects
+		// authentication and action availability, not whether the record exists.
 		var staffAccountId = await (
 			from ua in _dbContext.UserAccount
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
-				&& ua.Status != AccountStatus.Suspended
 				&& !ua.User.IsDeleted
-				&& ua.User.Status != UserStatus.Suspended
 			select ua.Id
 		).FirstOrDefaultAsync(cancellationToken);
 
@@ -891,16 +891,16 @@ public class UserService : IUserService {
 		CancellationToken cancellationToken = default
 	) {
 		// Resolve the staff UserAccount ID for the given User ID.
-		// Same filtering semantics as GetStaffUserProfilesAsync: if the user is not an active
-		// staff user (deleted/suspended/not-staff), treat as not found.
+		// NOTE:
+		// We intentionally allow profile maintenance even if the target staff user is suspended.
+		// Suspending a user should block login and disable UI actions for that user, but staff
+		// administrators may still need to update profile assignment for cleanup or future reactivation.
 		var staffAccountId = await (
 			from ua in _dbContext.UserAccount
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
-				&& ua.Status != AccountStatus.Suspended
 				&& !ua.User.IsDeleted
-				&& ua.User.Status != UserStatus.Suspended
 			select ua.Id
 		).FirstOrDefaultAsync(cancellationToken);
 

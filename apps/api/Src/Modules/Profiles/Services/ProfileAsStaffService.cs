@@ -129,6 +129,21 @@ public abstract record SetStaffProfilePermissionResult {
 	public sealed record PermissionNotFound : SetStaffProfilePermissionResult;
 }
 
+public abstract record DeleteStaffProfileServiceResult {
+	public sealed record Success(int DeletedProfileCount) : DeleteStaffProfileServiceResult;
+	public sealed record ProfileNotFound : DeleteStaffProfileServiceResult;
+}
+
+public sealed record UnassignStaffProfileUsersArgs(
+	Guid ProfileId,
+	List<Guid> UserIds
+);
+
+public abstract record UnassignStaffProfileUsersServiceResult {
+	public sealed record Success(int UnassignedCount) : UnassignStaffProfileUsersServiceResult;
+	public sealed record ProfileNotFound : UnassignStaffProfileUsersServiceResult;
+}
+
 /// <summary>
 /// Discriminated union representing the result of creating a staff profile.
 /// </summary>
@@ -229,6 +244,16 @@ public interface IProfileAsStaffService {
 		List<string> permissions,
 		List<string> emails,
 		Guid invitedByUserId,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<DeleteStaffProfileServiceResult> DeleteStaffProfileAsync(
+		Guid profileId,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<UnassignStaffProfileUsersServiceResult> UnassignStaffProfileUsersAsync(
+		UnassignStaffProfileUsersArgs args,
 		CancellationToken cancellationToken = default
 	);
 }
@@ -597,8 +622,11 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		}
 
 		// Query "users assigned to this staff profile" via the junction table.
-		// We intentionally filter out deleted/suspended users and staff accounts so the UI
-		// does not show subjects that are not actionable in staff tooling.
+		//
+		// IMPORTANT: Do NOT filter out suspended users here.
+		// - Staff tooling still needs to *see* suspended users (for auditing and reactivation).
+		// - The UI can disable actions for non-actionable statuses, but hiding rows causes
+		//   confusing "disappearing" behavior right after a status mutation.
 		var query =
 			from uap in _dbContext.UserAccountProfile
 			join ua in _dbContext.UserAccount on uap.UserAccountId equals ua.Id
@@ -607,9 +635,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				&& !uap.IsDeleted
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
-				&& ua.Status != AccountStatus.Suspended
 				&& !u.IsDeleted
-				&& u.Status != UserStatus.Suspended
 			select new {
 				UserId = u.Id,
 				u.Email,
@@ -1260,6 +1286,116 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			}
 			throw;
 		}
+	}
+
+	public async Task<DeleteStaffProfileServiceResult> DeleteStaffProfileAsync(
+		Guid profileId,
+		CancellationToken cancellationToken = default
+	) {
+		// This is a staff-only route: treat missing/non-staff profiles as not found.
+		var profile = await (
+			from p in _dbContext.Profile
+			where p.Id == profileId
+				&& p.Scope == ProfileScope.Staff
+				&& !p.IsDeleted
+			select p
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (profile is null) {
+			return new DeleteStaffProfileServiceResult.ProfileNotFound();
+		}
+
+		// Soft-delete the profile (repo convention).
+		// We also hard-delete the junction rows so that:
+		// - the profile stops contributing to UserAccountCount immediately, and
+		// - re-creating links later can't conflict with unique constraints.
+		var profileIdValue = profile.GetRequiredId();
+
+		var links = await (
+			from uap in _dbContext.UserAccountProfile
+			where uap.ProfileId == profileIdValue
+			select uap
+		).ToListAsync(cancellationToken);
+
+		if (links.Count > 0) {
+			_dbContext.ForceHardDeleteRange(links);
+		}
+
+		var permissions = await (
+			from pp in _dbContext.ProfilePermission
+			where pp.ProfileId == profileIdValue
+			select pp
+		).ToListAsync(cancellationToken);
+
+		if (permissions.Count > 0) {
+			_dbContext.ForceHardDeleteRange(permissions);
+		}
+
+		profile.IsDeleted = true;
+		profile.DeletedAt = DateTime.UtcNow;
+		profile.UpdatedAt = DateTime.UtcNow;
+
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		return new DeleteStaffProfileServiceResult.Success(DeletedProfileCount: 1);
+	}
+
+	public async Task<UnassignStaffProfileUsersServiceResult> UnassignStaffProfileUsersAsync(
+		UnassignStaffProfileUsersArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		// Guard early to avoid running a join query when profileId is invalid.
+		// This endpoint is strictly "staff profile -> users", so tenant/project profiles
+		// are treated as not found.
+		var profileExists = await (
+			from p in _dbContext.Profile
+			where p.Id == args.ProfileId
+				&& p.Scope == ProfileScope.Staff
+				&& !p.IsDeleted
+			select p.Id
+		).AnyAsync(cancellationToken);
+
+		if (!profileExists) {
+			return new UnassignStaffProfileUsersServiceResult.ProfileNotFound();
+		}
+
+		if (args.UserIds.Count == 0) {
+			return new UnassignStaffProfileUsersServiceResult.Success(UnassignedCount: 0);
+		}
+
+		// Resolve staff UserAccount IDs for the given User IDs.
+		// We intentionally allow suspended users/accounts here: unassigning a profile is safe,
+		// and admin tooling often needs to clean up assignments on non-active users.
+		var userIdsNullable = args.UserIds.Select(id => (Guid?)id).ToList();
+		var staffAccountIds = await (
+			from ua in _dbContext.UserAccount
+			where userIdsNullable.Contains(ua.UserId)
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select ua.Id
+		).ToListAsync(cancellationToken);
+
+		if (staffAccountIds.Count == 0) {
+			return new UnassignStaffProfileUsersServiceResult.Success(UnassignedCount: 0);
+		}
+
+		// Hard-delete junction links to avoid unique constraint conflicts when links are re-added later.
+		var linksToRemove = await (
+			from uap in _dbContext.UserAccountProfile
+			where uap.ProfileId == args.ProfileId
+				&& staffAccountIds.Contains(uap.UserAccountId)
+			select uap
+		).ToListAsync(cancellationToken);
+
+		if (linksToRemove.Count > 0) {
+			_dbContext.ForceHardDeleteRange(linksToRemove);
+			await _dbContext.SaveChangesAsync(cancellationToken);
+		}
+
+		return new UnassignStaffProfileUsersServiceResult.Success(
+			UnassignedCount: linksToRemove.Count
+		);
 	}
 
 	/// <summary>

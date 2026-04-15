@@ -1493,6 +1493,15 @@ export function createTenantUserItemFromDiscriminatorValue(parseNode: ParseNode 
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {UnassignStaffProfileUsersBody}
+ */
+// @ts-ignore
+export function createUnassignStaffProfileUsersBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUnassignStaffProfileUsersBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {UpdateStaffProfileBody}
  */
 // @ts-ignore
@@ -3238,6 +3247,17 @@ export function deserializeIntoTenantUserItem(tenantUserItem: Partial<TenantUser
         "lastName": n => { tenantUserItem.lastName = n.getStringValue(); },
         "level": n => { tenantUserItem.level = n.getStringValue(); },
         "status": n => { tenantUserItem.status = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param UnassignStaffProfileUsersBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUnassignStaffProfileUsersBody(unassignStaffProfileUsersBody: Partial<UnassignStaffProfileUsersBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "userIds": n => { unassignStaffProfileUsersBody.userIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -5697,6 +5717,18 @@ export function serializeTenantUserItem(writer: SerializationWriter, tenantUserI
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UnassignStaffProfileUsersBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUnassignStaffProfileUsersBody(writer: SerializationWriter, unassignStaffProfileUsersBody: Partial<UnassignStaffProfileUsersBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!unassignStaffProfileUsersBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("userIds", unassignStaffProfileUsersBody.userIds);
+    writer.writeAdditionalData(unassignStaffProfileUsersBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param UpdateStaffProfileBody The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -6570,6 +6602,12 @@ export interface TenantUserItem extends AdditionalDataHolder, Parsable {
      * The status property
      */
     status?: string | null;
+}
+export interface UnassignStaffProfileUsersBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The userIds property
+     */
+    userIds?: UntypedNode | null;
 }
 export interface UpdateStaffProfileBody extends AdditionalDataHolder, Parsable {
     /**

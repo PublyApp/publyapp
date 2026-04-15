@@ -12,23 +12,23 @@ import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
-export type StaffUserProfileOption = {
+export type StaffProfilePreviewOption = {
 	id: string;
 	name: string;
 	description?: string | null;
 };
 
-type StaffUserProfilePreviewDrawerProps = {
+type StaffProfilePreviewDrawerProps = {
 	open: boolean;
 	onClose: () => void;
-	profile: StaffUserProfileOption | null;
+	profile: StaffProfilePreviewOption | null;
 };
 
-const StaffUserProfilePreviewDrawer = ({
+const StaffProfilePreviewDrawer = ({
 	open,
 	onClose,
 	profile,
-}: StaffUserProfilePreviewDrawerProps) => {
+}: StaffProfilePreviewDrawerProps) => {
 	const { t } = useTranslate();
 	const profileHref = profile?.id
 		? FRONT_PATH_NAMES.staff.profiles.details(profile.id).root
@@ -98,4 +98,4 @@ const StaffUserProfilePreviewDrawer = ({
 	);
 };
 
-export default StaffUserProfilePreviewDrawer;
+export default StaffProfilePreviewDrawer;

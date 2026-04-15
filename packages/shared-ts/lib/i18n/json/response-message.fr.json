@@ -41,6 +41,8 @@
 	"pending-invitation-exists": "Une invitation en attente existe déjà pour cet email",
 	"staff-profile-created-successfully": "Profil staff créé avec succès",
 	"staff-profile-updated-successfully": "Profil staff mis à jour avec succès",
+	"staff-profile-deleted-success": "Profil staff supprimé avec succès",
+	"staff-profile-users-unassigned-success": "Utilisateurs retirés du profil avec succès",
 	"profile-name-already-exists": "Le nom du profil existe déjà",
 	"profiles": "profils",
 	"profile": "profil",

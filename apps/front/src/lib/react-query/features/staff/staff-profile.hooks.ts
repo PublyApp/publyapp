@@ -7,6 +7,7 @@ import {
 import type {
 	CreateStaffProfileBody,
 	ResolveStaffProfileUserAssignmentsBody,
+	UnassignStaffProfileUsersBody,
 	UpdateStaffProfileBody,
 } from '@org/client-ts/src/models';
 
@@ -246,6 +247,56 @@ export const useUpdateStaffProfile = createStaffMutation({
 
 		if (result == null) {
 			throw new Error('useUpdateStaffProfile: result is nil');
+		}
+
+		return result;
+	},
+});
+
+type DeleteStaffProfilePayload = {
+	profileId: string;
+};
+
+export const useDeleteStaffProfile = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.profiles.byProfileId('').delete,
+	mutationFn: async (client, payload: DeleteStaffProfilePayload) => {
+		// Keep this as a focused mutation so row actions and bulk-delete fallbacks can
+		// share the same endpoint while each caller decides its own cache strategy.
+		const result = await client.staff.profiles
+			.byProfileId(payload.profileId)
+			.delete();
+
+		if (result == null) {
+			throw new Error('useDeleteStaffProfile: result is nil');
+		}
+
+		return result;
+	},
+});
+
+type UnassignStaffProfileUsersPayload = {
+	profileId: string;
+	userIds: string[];
+};
+
+export const useUnassignStaffProfileUsers = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.profiles.byProfileId('').users.unassign.post,
+	mutationFn: async (client, payload: UnassignStaffProfileUsersPayload) => {
+		const body: UnassignStaffProfileUsersBody = {};
+
+		// The backend accepts raw UUID strings via JsonElement, so we mirror the bulk
+		// request body shape instead of inventing a client-side DTO layer here.
+		body.userIds = createUntypedArray(
+			payload.userIds.map((id) => createUntypedString(id)),
+		) as typeof body.userIds;
+
+		const result = await client.staff.profiles
+			.byProfileId(payload.profileId)
+			.users.unassign.post(body);
+
+		if (result == null) {
+			throw new Error('useUnassignStaffProfileUsers: result is nil');
 		}
 
 		return result;

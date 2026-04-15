@@ -39,6 +39,16 @@ public static class ProfileEndpointsForStaff {
 			.WithSummary("Get a staff profile by id")
 			.WithPermission([AppPermissions.Staff.Profiles.GET_FOR_STAFF]);
 
+		staffGroup.MapDelete(
+			Routes.Profiles.ForStaff.Delete,
+			DeleteStaffProfile.HandleDeleteStaffProfile
+		)
+			.WithName("DeleteStaffProfile")
+			.WithSummary("Delete a staff profile")
+			// Delete is intentionally separate from UPDATE permission so operators can
+			// manage profile contents without automatically gaining destructive access.
+			.WithPermission([AppPermissions.Staff.Profiles.DELETE_FOR_STAFF]);
+
 		staffGroup.MapPatch(
 			Routes.Profiles.ForStaff.Update,
 			UpdateStaffProfile.HandleUpdateStaffProfile
@@ -94,6 +104,17 @@ public static class ProfileEndpointsForStaff {
 			.WithSummary("Resolve whether staff users are assigned to a staff profile (batch)")
 			.WithPermission([AppPermissions.Staff.Profiles.LIST_USERS_FOR_STAFF_PROFILE])
 			.WithReqBodyValidation<ResolveStaffProfileUserAssignmentsBody>();
+
+		staffGroup.MapPost(
+			Routes.Profiles.ForStaff.Users.Unassign,
+			UnassignStaffProfileUsers.HandleUnassignStaffProfileUsers
+		)
+			.WithName("UnassignStaffProfileUsers")
+			.WithSummary("Bulk-unassign staff users from a staff profile")
+			// Reuse UPDATE permission: assignment membership is part of managing what the
+			// profile applies to, even though it is exposed as a dedicated bulk route.
+			.WithPermission([AppPermissions.Staff.Profiles.UPDATE_FOR_STAFF])
+			.WithReqBodyValidation<UnassignStaffProfileUsersBody>();
 
 		// Tenant profile routes (viewed by staff): /staff/tenants/{tenantId}/profiles
 		var tenantGroup = routes.MapGroup(Routes.Profiles.ForTenantAsStaff.Root)

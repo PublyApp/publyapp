@@ -166,6 +166,59 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 		result.AssignedProfiles.Should().Contain(p => p.Id == Guid.Parse(profileId));
 	}
 
+	[Fact]
+	public async Task ItShouldReturnAssignedProfilesForSuspendedStaffUser() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		// Use an isolated staff user to avoid mutating seeded fixtures that other integration tests rely on.
+		var userId = await CreateStaffUserIdAsync();
+
+		var profileId = await CreateStaffProfileAsync(token);
+
+		// Assign profile.
+		using (var updateRequest = new HttpRequestMessage(
+			HttpMethod.Put,
+			PathUtils.Join(
+				Routes.Staff.Root,
+				Routes.Users.ForStaff.Root,
+				Routes.Users.ForStaff.Profiles.UpdateFn(userId)
+			)
+		).WithSessionToken(token)) {
+			updateRequest.Content = JsonContent.Create(
+				new { profileIds = new[] { profileId } }
+			);
+
+			using var updateResponse = await _http.SendAsync(updateRequest);
+			updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+		}
+
+		// Suspend the user (global lifecycle). The profiles endpoint should still be able to render the page.
+		using (var suspendRequest = new HttpRequestMessage(
+			HttpMethod.Post,
+			PathUtils.Join(
+				Routes.Staff.Root,
+				Routes.Users.ForStaff.Root,
+				Routes.Users.ForStaff.SuspendFn(userId)
+			)
+		).WithSessionToken(token)) {
+			using var suspendResponse = await _http.SendAsync(suspendRequest);
+			suspendResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+		}
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(userId)
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<GetStaffUserProfilesResult>();
+		result.Should().NotBeNull();
+		result!.AssignedProfiles.Should().Contain(p => p.Id == Guid.Parse(profileId));
+	}
+
 	// -- Helpers --
 
 	private async Task<string> CreateStaffProfileAsync(string staffToken) {
@@ -242,6 +295,35 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 		}
 
 		return user.Id.ToString();
+	}
+
+	private async Task<string> CreateStaffUserIdAsync() {
+		var email = $"staff-profiles-suspended-{Guid.NewGuid():N}@example.com";
+
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<MainApiDbContext>();
+
+		var user = new User {
+			Email = email,
+			Password = PasswordUtils.HashPassword(TestConstants.SeedPassword),
+			FirstName = "Suspended",
+			LastName = "StaffUser",
+			IsVerified = true,
+			Status = UserStatus.Active,
+		};
+
+		_ = dbContext.User.Add(user);
+		_ = await dbContext.SaveChangesAsync();
+
+		var userId = user.GetRequiredId();
+		var staffAccount = UserAccount.CreateStaffAccount(userId, AccountLevel.User);
+		staffAccount.ValidateAccountType();
+		_ = dbContext.UserAccount.Add(staffAccount);
+		_ = await dbContext.SaveChangesAsync();
+
+		return userId.ToString();
 	}
 
 	private async Task<string> CreateUnprivilegedStaffUserTokenAsync() {

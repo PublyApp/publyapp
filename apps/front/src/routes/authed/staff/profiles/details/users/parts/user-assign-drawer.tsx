@@ -23,12 +23,12 @@ import {
 import capitalize from 'lodash/capitalize';
 import toStr from 'lodash/toString';
 import { useBoolean, useDebounce } from 'minimal-shared/hooks';
+import { nanoid } from 'nanoid';
 import {
 	useCallback,
 	useDeferredValue,
 	useEffect,
 	useMemo,
-	useRef,
 	useState,
 } from 'react';
 import { useParams } from 'react-router';
@@ -61,14 +61,17 @@ import {
 const PROFILE_USERS_DRAWER_PAGE_SIZE = 20;
 
 const DrawerUsersListSkeleton = ({ rows = 6 }: { rows?: number }) => {
-	const rowIndexes = Array.from({ length: rows }, (_, index) => index);
+	// Avoid using array indexes as keys (react-doctor will flag it). For skeletons,
+	// stable ids are enough; this list isn't re-ordered or mutated.
+	const skeletonKeys = useMemo(() => {
+		return Array.from({ length: rows }, () => nanoid());
+	}, [rows]);
 
 	return (
 		<Stack spacing={1.5}>
-			{rowIndexes.map((index) => (
+			{skeletonKeys.map((key) => (
 				<Box
-					// eslint-disable-next-line react/no-array-index-key -- skeleton rows are not stable data
-					key={index}
+					key={key}
 					sx={{
 						display: 'flex',
 						alignItems: 'center',
@@ -95,13 +98,88 @@ type AssignmentResolution = {
 	isPending: boolean;
 };
 
+const getAssignedProfileIds = (
+	assignedProfiles: StaffUserProfileItem[] | null | undefined,
+) => {
+	const profileIds: string[] = [];
+
+	for (const profile of assignedProfiles ?? []) {
+		const profileId = toStr(profile.id);
+
+		if (profileId) {
+			profileIds.push(profileId);
+		}
+	}
+
+	return profileIds;
+};
+
+const getUniqueTruthyIds = (userIds: string[]) => {
+	const uniqueIds: string[] = [];
+	const seenIds = new Set<string>();
+
+	for (const userId of userIds) {
+		if (!userId || seenIds.has(userId)) {
+			continue;
+		}
+
+		seenIds.add(userId);
+		uniqueIds.push(userId);
+	}
+
+	return uniqueIds;
+};
+
+const getMissingUserIds = ({
+	drawerUsers,
+	optimisticAssignments,
+	resolutionErrorUserIds,
+	resolutionPendingUserIds,
+	resolvedAssignmentsByUserId,
+}: {
+	drawerUsers: StaffUserItem[];
+	optimisticAssignments: Record<string, boolean>;
+	resolutionErrorUserIds: Set<string>;
+	resolutionPendingUserIds: Set<string>;
+	resolvedAssignmentsByUserId: Record<string, boolean>;
+}) => {
+	const missingUserIds: string[] = [];
+
+	for (const user of drawerUsers) {
+		const userId = toStr(user.id);
+
+		if (!userId) {
+			continue;
+		}
+
+		if (optimisticAssignments[userId] !== undefined) {
+			continue;
+		}
+
+		if (resolvedAssignmentsByUserId[userId] !== undefined) {
+			continue;
+		}
+
+		if (resolutionPendingUserIds.has(userId)) {
+			continue;
+		}
+
+		// If resolution already failed once for this row, let the user explicitly retry.
+		if (resolutionErrorUserIds.has(userId)) {
+			continue;
+		}
+
+		missingUserIds.push(userId);
+	}
+
+	return missingUserIds;
+};
+
 type StaffProfileUsersAssignmentDrawerContentProps = {
 	profileName: string;
 };
 
-export const UserAssignDrawer = ({
-	profileName,
-}: StaffProfileUsersAssignmentDrawerContentProps) => {
+const useUserAssignDrawerController = (profileName: string) => {
 	const { t } = useTranslate();
 	const { profileId } = useParams();
 	const resolvedProfileId = toStr(profileId);
@@ -111,8 +189,20 @@ export const UserAssignDrawer = ({
 	const [search, setSearch] = useState('');
 	const debouncedSearch = useDebounce(search, 300);
 	const deferredSearch = useDeferredValue(debouncedSearch);
-	const scrollableNodeRef = useRef<HTMLDivElement | null>(null);
-	const sentinelRef = useRef<HTMLDivElement | null>(null);
+	const [scrollableNode, setScrollableNode] = useState<HTMLDivElement | null>(
+		null,
+	);
+	const [sentinelNode, setSentinelNode] = useState<HTMLDivElement | null>(null);
+
+	// Keep the observer targets as reactive state instead of reading ref.current
+	// inside the effect. That keeps the dependency list honest and rebinds the
+	// observer when the drawer subtree mounts again.
+	const handleScrollableNodeRef = useCallback((node: HTMLDivElement | null) => {
+		setScrollableNode(node);
+	}, []);
+	const handleSentinelNodeRef = useCallback((node: HTMLDivElement | null) => {
+		setSentinelNode(node);
+	}, []);
 
 	const findUsersQuery = useInfiniteQuery<
 		FindStaffUsersResponse,
@@ -341,9 +431,9 @@ export const UserAssignDrawer = ({
 
 			previousUserProfiles = resolvedUserProfiles;
 
-			const existingIds = (resolvedUserProfiles.assignedProfiles ?? [])
-				.map((item) => item.id || '')
-				.filter(Boolean);
+			const existingIds = getAssignedProfileIds(
+				resolvedUserProfiles.assignedProfiles,
+			);
 			const nextIds = buildNextProfileIds(
 				existingIds,
 				resolvedProfileId,
@@ -422,7 +512,7 @@ export const UserAssignDrawer = ({
 				return;
 			}
 
-			const uniqueIds = Array.from(new Set(userIds)).filter(Boolean);
+			const uniqueIds = getUniqueTruthyIds(userIds);
 			if (uniqueIds.length === 0) {
 				return;
 			}
@@ -502,29 +592,13 @@ export const UserAssignDrawer = ({
 			return;
 		}
 
-		const missingUserIds = drawerUsers
-			.map((user) => toStr(user.id))
-			.filter(Boolean)
-			.filter((userId) => {
-				if (optimisticAssignments[userId] !== undefined) {
-					return false;
-				}
-
-				if (resolvedAssignmentsByUserId[userId] !== undefined) {
-					return false;
-				}
-
-				if (resolutionPendingUserIds.has(userId)) {
-					return false;
-				}
-
-				// If resolution already failed once for this row, let the user explicitly retry.
-				if (resolutionErrorUserIds.has(userId)) {
-					return false;
-				}
-
-				return true;
-			});
+		const missingUserIds = getMissingUserIds({
+			drawerUsers,
+			optimisticAssignments,
+			resolutionErrorUserIds,
+			resolutionPendingUserIds,
+			resolvedAssignmentsByUserId,
+		});
 
 		if (missingUserIds.length === 0) {
 			return;
@@ -605,14 +679,51 @@ export const UserAssignDrawer = ({
 		} as unknown as UseQueryResult<StaffUserItem[], Error>;
 	}, [drawerUsers, findUsersQuery]);
 
+	return {
+		assignmentResolutionByUserId,
+		drawerUsersQuery,
+		findUsersQuery,
+		handleToggleAssignment,
+		openDrawer,
+		pendingUserIds,
+		resolveAssignmentForUserIds,
+		scrollableNode,
+		search,
+		handleScrollableNodeRef,
+		handleSentinelNodeRef,
+		sentinelNode,
+		setSearch,
+	};
+};
+
+export const UserAssignDrawer = ({
+	profileName,
+}: StaffProfileUsersAssignmentDrawerContentProps) => {
+	const { t } = useTranslate();
+	const {
+		assignmentResolutionByUserId,
+		drawerUsersQuery,
+		findUsersQuery,
+		handleToggleAssignment,
+		openDrawer,
+		pendingUserIds,
+		resolveAssignmentForUserIds,
+		scrollableNode,
+		search,
+		handleScrollableNodeRef,
+		handleSentinelNodeRef,
+		sentinelNode,
+		setSearch,
+	} = useUserAssignDrawerController(profileName);
+
 	useEffect(() => {
 		if (!openDrawer.value) {
 			return;
 		}
 
 		if (
-			!sentinelRef.current ||
-			!scrollableNodeRef.current ||
+			!sentinelNode ||
+			!scrollableNode ||
 			!findUsersQuery.hasNextPage ||
 			findUsersQuery.isFetchingNextPage
 		) {
@@ -626,12 +737,12 @@ export const UserAssignDrawer = ({
 				}
 			},
 			{
-				root: scrollableNodeRef.current,
+				root: scrollableNode,
 				rootMargin: '0px 0px 120px 0px',
 			},
 		);
 
-		observer.observe(sentinelRef.current);
+		observer.observe(sentinelNode);
 
 		return () => observer.disconnect();
 	}, [
@@ -639,6 +750,8 @@ export const UserAssignDrawer = ({
 		findUsersQuery.fetchNextPage,
 		findUsersQuery.hasNextPage,
 		findUsersQuery.isFetchingNextPage,
+		scrollableNode,
+		sentinelNode,
 	]);
 
 	return (
@@ -701,7 +814,6 @@ export const UserAssignDrawer = ({
 
 						<TextField
 							size="small"
-							label={t('search')}
 							placeholder={t('search-by-email-or-name')}
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
@@ -715,13 +827,14 @@ export const UserAssignDrawer = ({
 									endAdornment: findUsersQuery.isFetching ? (
 										<CircularProgress size={18} />
 									) : null,
+									'aria-label': t('search'),
 								},
 							}}
 						/>
 					</Box>
 
 					<Box
-						ref={scrollableNodeRef}
+						ref={handleScrollableNodeRef}
 						sx={{
 							minHeight: 0,
 							overflowY: 'auto',
@@ -817,7 +930,7 @@ export const UserAssignDrawer = ({
 								)}
 							</QueryDisplay>
 
-							<Box ref={sentinelRef} sx={{ height: 1 }} />
+							<Box ref={handleSentinelNodeRef} sx={{ height: 1 }} />
 
 							{findUsersQuery.isFetchingNextPage ? (
 								<Box sx={{ pt: 2 }}>
