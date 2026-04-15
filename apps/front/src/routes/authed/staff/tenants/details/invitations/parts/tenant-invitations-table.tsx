@@ -2,20 +2,13 @@ import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import ListItemText from '@mui/material/ListItemText';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
 import {
@@ -29,7 +22,7 @@ import {
 import { useBoolean, useDebounce } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
 import { parseAsString, useQueryStates } from 'nuqs';
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 
 import { DEFAULT_PAGE_SIZE } from '@org/shared-ts/lib/constants';
@@ -51,6 +44,10 @@ import {
 	fDate,
 	fIsAfter,
 } from '#app/utils/format-time.ts';
+
+import TenantInvitationsExportDialogController, {
+	type TenantInvitationsExportDialogControllerRef,
+} from './tenant-invitations-export-dialog-controller';
 
 export type TenantInvitationRowData = {
 	id: string;
@@ -106,11 +103,9 @@ const TenantInvitationsTable = () => {
 	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
 	const [selectionActionAnchorEl, setSelectionActionAnchorEl] =
 		useState<null | HTMLElement>(null);
-	const [exportDialogOpen, setExportDialogOpen] = useState(false);
-	const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'xlsx'>(
-		'csv',
-	);
 	const [bulkRevokeDialogOpen, setBulkRevokeDialogOpen] = useState(false);
+	const exportDialogRef =
+		useRef<TenantInvitationsExportDialogControllerRef>(null);
 
 	const debouncedSearchValue = useDebounce(searchValue, 300);
 
@@ -310,51 +305,7 @@ const TenantInvitationsTable = () => {
 
 	const openExportDialog = () => {
 		closeSelectionActionMenu();
-		setExportFormat('csv');
-		setExportDialogOpen(true);
-	};
-
-	const exportRows = (format: 'csv' | 'json') => {
-		const rowsToExport = isSelectionMode ? selectedRows : rows;
-
-		if (format === 'csv') {
-			const headers = ['Email', 'Profiles', 'Status', 'Expires', 'Invited By'];
-			const csvRows = rowsToExport.map((row) => [
-				`"${row.email}"`,
-				`"${row.profileName || ''}"`,
-				getInvitationStatus(row),
-				row.expiresAt ? fDate(row.expiresAt) : '',
-				`"${row.invitedByName}"`,
-			]);
-			const csv = [headers, ...csvRows].map((row) => row.join(',')).join('\n');
-			const blob = new Blob([csv], { type: 'text/csv' });
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = isSelectionMode
-				? 'selected-tenant-invitations.csv'
-				: 'tenant-invitations.csv';
-			a.click();
-			URL.revokeObjectURL(url);
-			return;
-		}
-
-		const blob = new Blob([JSON.stringify(rowsToExport, null, 2)], {
-			type: 'application/json',
-		});
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = isSelectionMode
-			? 'selected-tenant-invitations.json'
-			: 'tenant-invitations.json';
-		a.click();
-		URL.revokeObjectURL(url);
-	};
-
-	const handleExport = (format: 'csv' | 'json') => {
-		exportRows(format);
-		setExportDialogOpen(false);
+		exportDialogRef.current?.open();
 	};
 
 	const { mutateAsync: revokeInvitationAsync, isPending: isBulkRevoking } =
@@ -723,135 +674,14 @@ const TenantInvitationsTable = () => {
 		<Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
 			<MaterialReactTable table={table} />
 
-			<Dialog
-				open={exportDialogOpen}
-				onClose={() => setExportDialogOpen(false)}
-				fullWidth
-				maxWidth="xs"
-			>
-				<DialogTitle sx={{ pb: 1 }}>
-					{isSelectionMode
-						? t('export-selected-invitations', {
-								defaultValue: 'Export selected invitations',
-							})
-						: t('export-invitations', {
-								defaultValue: 'Export invitations',
-							})}
-				</DialogTitle>
-				<DialogContent sx={{ pt: '8px !important', pb: 2.5 }}>
-					<Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-						<Typography variant="body2">
-							{isSelectionMode
-								? t('export-selected-items', {
-										count: selectedCount,
-									})
-								: t('export-current-results', {
-										count: rows.length,
-										defaultValue:
-											'Export the current result set ({{count}} item(s)).',
-									})}
-						</Typography>
-						<Tabs
-							value={exportFormat}
-							onChange={(_event, value: 'csv' | 'json' | 'xlsx') => {
-								if (value) {
-									setExportFormat(value);
-								}
-							}}
-							sx={(theme) => ({
-								mt: 1.5,
-								alignSelf: 'flex-start',
-								minHeight: 32,
-								p: '2px 2px 1px',
-								border: `1px solid ${theme.vars.palette.divider}`,
-								borderRadius: 1,
-								bgcolor: 'background.paper',
-								'& .MuiTabs-indicator': {
-									display: 'none',
-								},
-								'& .MuiTabs-list': {
-									gap: '2px',
-								},
-								'& .MuiTab-root': {
-									minHeight: 26,
-									minWidth: 64,
-									px: 1,
-									py: 0.375,
-									borderRadius: 0.75,
-									fontSize: theme.typography.caption.fontSize,
-									fontWeight: theme.typography.fontWeightMedium,
-									textTransform: 'none',
-									color: 'text.secondary',
-									m: 0,
-									transition: theme.transitions.create(
-										['background-color', 'color', 'box-shadow'],
-										{
-											duration: theme.transitions.duration.shorter,
-										},
-									),
-								},
-								'& .MuiTab-root.Mui-selected': {
-									color: 'text.primary',
-									bgcolor: varAlpha(
-										theme.vars.palette.grey['500Channel'],
-										0.16,
-									),
-									boxShadow: 'none',
-								},
-								'& .MuiTab-root.Mui-disabled': {
-									opacity: 0.48,
-								},
-							})}
-						>
-							<Tab label="CSV" value="csv" />
-							<Tab label="JSON" value="json" />
-							<Tab label="XLSX" value="xlsx" />
-						</Tabs>
-						<Typography
-							variant="body2"
-							color="text.secondary"
-							sx={{ minHeight: 20 }}
-						>
-							{exportFormat === 'xlsx'
-								? t('xlsx-export-coming-soon', {
-										defaultValue: 'XLSX export is coming soon.',
-									})
-								: ' '}
-						</Typography>
-					</Box>
-				</DialogContent>
-				<DialogActions
-					sx={{
-						px: 3,
-						pb: 3,
-						pt: 0,
-						gap: 0.75,
-						justifyContent: 'flex-end',
-					}}
-				>
-					<Button
-						variant="contained"
-						onClick={() => {
-							if (exportFormat === 'xlsx') {
-								return;
-							}
-
-							handleExport(exportFormat);
-						}}
-						startIcon={<Iconify icon="solar:download-bold" />}
-						disabled={exportFormat === 'xlsx'}
-					>
-						{t('export')}
-					</Button>
-					<Button
-						variant="outlined"
-						color="inherit"
-						onClick={() => setExportDialogOpen(false)}
-					>
-						{t('cancel')}
-					</Button>
-				</DialogActions>
-			</Dialog>
+			<TenantInvitationsExportDialogController
+				ref={exportDialogRef}
+				isSelectionMode={isSelectionMode}
+				selectedCount={selectedCount}
+				rows={rows}
+				selectedRows={selectedRows}
+				getInvitationStatus={getInvitationStatus}
+			/>
 
 			<ConfirmDialog
 				open={bulkRevokeDialogOpen}

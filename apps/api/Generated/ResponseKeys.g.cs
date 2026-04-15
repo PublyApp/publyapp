@@ -232,9 +232,19 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey StaffProfileCreatedSuccessfully = new("staff-profile-created-successfully");
 
 	/// <summary>
+	/// Staff profile deleted successfully
+	/// </summary>
+	public static readonly TranslationKey StaffProfileDeletedSuccess = new("staff-profile-deleted-success");
+
+	/// <summary>
 	/// Staff profile updated successfully
 	/// </summary>
 	public static readonly TranslationKey StaffProfileUpdatedSuccessfully = new("staff-profile-updated-successfully");
+
+	/// <summary>
+	/// Users unassigned from profile successfully
+	/// </summary>
+	public static readonly TranslationKey StaffProfileUsersUnassignedSuccess = new("staff-profile-users-unassigned-success");
 
 	/// <summary>
 	/// staff profiles

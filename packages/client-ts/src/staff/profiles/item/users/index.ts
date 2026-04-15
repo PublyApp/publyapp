@@ -6,6 +6,8 @@ import { createAppProblemDetailsFromDiscriminatorValue, createFindStaffProfileUs
 // @ts-ignore
 import { AssignmentResolutionRequestBuilderRequestsMetadata, type AssignmentResolutionRequestBuilder } from './assignmentResolution/index.js';
 // @ts-ignore
+import { type UnassignRequestBuilder, UnassignRequestBuilderRequestsMetadata } from './unassign/index.js';
+// @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
@@ -16,6 +18,10 @@ export interface UsersRequestBuilder extends BaseRequestBuilder<UsersRequestBuil
      * The assignmentResolution property
      */
     get assignmentResolution(): AssignmentResolutionRequestBuilder;
+    /**
+     * The unassign property
+     */
+    get unassign(): UnassignRequestBuilder;
     /**
      * Find users assigned to a staff profile
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -62,6 +68,9 @@ const UsersRequestBuilderGetQueryParametersMapper: Record<string, string> = {
 export const UsersRequestBuilderNavigationMetadata: Record<Exclude<keyof UsersRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     assignmentResolution: {
         requestsMetadata: AssignmentResolutionRequestBuilderRequestsMetadata,
+    },
+    unassign: {
+        requestsMetadata: UnassignRequestBuilderRequestsMetadata,
     },
 };
 /**

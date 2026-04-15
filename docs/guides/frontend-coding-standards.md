@@ -349,6 +349,10 @@ optimistic maps/sets, pagination cursors for an overlay, etc. These states often
   - Render a single component that encapsulates the button and the overlay/drawer.
 - “Self-contained table”
   - Table component reads `useParams()` and owns `useTableState()` + its own query.
+- “Overlay controllers” (tables)
+  - For export dialogs / preview drawers that can be opened from multiple toolbar/menu triggers, prefer a
+    small `*DialogController` component that owns `open` + local UI state and exposes an imperative `open()`
+    via `useImperativeHandle` on a `ref` prop (React 19: no `forwardRef` needed).
 - “Invalidate, don’t plumb”
   - Mutations invalidate query families (via `queryClient.invalidateQueries`) instead of using `onSuccess`
     callbacks to push derived state up into a parent.

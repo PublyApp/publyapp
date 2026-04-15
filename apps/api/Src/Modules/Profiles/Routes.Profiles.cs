@@ -18,6 +18,8 @@ public static partial class Routes {
 			// PATCH semantics: profile details are updated via a partial update (name/description).
 			public const string Update = "/{profileId}";
 			public static string UpdateFn(string profileId) => $"/{profileId}";
+			public const string Delete = "/{profileId}";
+			public static string DeleteFn(string profileId) => $"/{profileId}";
 
 			/// <summary>Staff profile permissions routes</summary>
 			public static class Permissions {
@@ -54,6 +56,12 @@ public static partial class Routes {
 				public const string ResolveAssignment = Root + "/assignment-resolution";
 				public static string ResolveAssignmentFn(string profileId) =>
 					$"{RootFn(profileId)}/assignment-resolution";
+
+				/// <summary>
+				/// Bulk-unassign staff users from a staff profile.
+				/// </summary>
+				public const string Unassign = Root + "/unassign";
+				public static string UnassignFn(string profileId) => $"{RootFn(profileId)}/unassign";
 			}
 		}
 

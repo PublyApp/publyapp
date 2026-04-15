@@ -11,25 +11,32 @@ import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import capitalize from 'lodash/capitalize';
 import toLower from 'lodash/toLower';
 import toStr from 'lodash/toString';
 import uniqBy from 'lodash/uniqBy';
-import { useCallback, useDeferredValue, useMemo, useState } from 'react';
+import {
+	useCallback,
+	useDeferredValue,
+	useMemo,
+	useState,
+	type FC,
+} from 'react';
 
+import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
 import QueryDisplay from '#app/components/query-display.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
+import StaffProfilePreviewDrawer, {
+	type StaffProfilePreviewOption,
+} from '#app/components/staff-profile-preview-drawer.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { useFindStaffProfiles } from '#app/lib/react-query/features/staff/staff-profile.hooks.ts';
 import {
 	useGetStaffUserProfiles,
 	useUpdateStaffUserProfiles,
 } from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
-
-import StaffUserProfilePreviewDrawer, {
-	type StaffUserProfileOption,
-} from './staff-user-profile-preview-drawer';
+import type { GetStaffUserProfilesResult } from '@org/client-ts/src/models';
 
 const StaffUserProfilesSection = ({ userId }: { userId: string }) => {
 	const { t } = useTranslate();
@@ -37,7 +44,7 @@ const StaffUserProfilesSection = ({ userId }: { userId: string }) => {
 
 	const [search, setSearch] = useState('');
 	const [previewedProfile, setPreviewedProfile] =
-		useState<StaffUserProfileOption | null>(null);
+		useState<StaffProfilePreviewOption | null>(null);
 	const deferredSearch = useDeferredValue(search);
 
 	const profilesQuery = useGetStaffUserProfiles({
@@ -71,7 +78,7 @@ const StaffUserProfilesSection = ({ userId }: { userId: string }) => {
 	// MUI Autocomplete is sensitive to referential churn for `value`/`options`.
 	// Without memoization, typing in a controlled `inputValue` can be "reset" on each
 	// render because `value` changes identity even when it represents the same items.
-	const assignedProfiles = useMemo<StaffUserProfileOption[]>(() => {
+	const assignedProfiles = useMemo<StaffProfilePreviewOption[]>(() => {
 		return (profilesQuery.data?.assignedProfiles ?? []).map((p) => {
 			return {
 				id: toStr(p.id),
@@ -83,7 +90,7 @@ const StaffUserProfilesSection = ({ userId }: { userId: string }) => {
 
 	const maxProfilesPerUser = profilesQuery.data?.maxProfilesPerUser ?? 0;
 
-	const searchProfiles = useMemo<StaffUserProfileOption[]>(() => {
+	const searchProfiles = useMemo<StaffProfilePreviewOption[]>(() => {
 		return (findProfilesQuery.data?.data ?? []).map((p) => {
 			return {
 				id: toStr(p.id),
@@ -93,6 +100,8 @@ const StaffUserProfilesSection = ({ userId }: { userId: string }) => {
 		});
 	}, [findProfilesQuery.data?.data]);
 
+	// Merge currently assigned profiles with the search result page so selected chips
+	// stay visible even when the current search query would not return them.
 	const options = useMemo(() => {
 		return uniqBy(
 			[...assignedProfiles, ...searchProfiles].filter((p) => !!p.id),
@@ -102,7 +111,7 @@ const StaffUserProfilesSection = ({ userId }: { userId: string }) => {
 
 	const renderTags = useCallback(
 		(
-			value: StaffUserProfileOption[],
+			value: StaffProfilePreviewOption[],
 			getTagProps: AutocompleteRenderGetTagProps,
 		) => {
 			return value.map((option, index) => {
@@ -176,6 +185,7 @@ const StaffUserProfilesSection = ({ userId }: { userId: string }) => {
 								<Skeleton variant="rounded" height={56} />
 							</Stack>
 						}
+						ErrorSlot={ProfilesErrorContent}
 					>
 						{() => {
 							return (
@@ -270,7 +280,7 @@ const StaffUserProfilesSection = ({ userId }: { userId: string }) => {
 				</CardContent>
 			</Card>
 
-			<StaffUserProfilePreviewDrawer
+			<StaffProfilePreviewDrawer
 				open={previewedProfile != null}
 				onClose={() => setPreviewedProfile(null)}
 				profile={previewedProfile}
@@ -280,3 +290,22 @@ const StaffUserProfilesSection = ({ userId }: { userId: string }) => {
 };
 
 export default StaffUserProfilesSection;
+
+type ErrorContentProps = {
+	error: unknown;
+	query: UseQueryResult<GetStaffUserProfilesResult, Error>;
+};
+
+const ProfilesErrorContent: FC<ErrorContentProps> = ({ query }) => {
+	const { t } = useTranslate();
+
+	return (
+		<ErrorContent
+			// Match the repo-standard retryable error surface instead of leaving the card blank.
+			title={t('staff-user-profiles-error-title')}
+			description={t('staff-user-profiles-error-description')}
+			onRetry={() => query.refetch()}
+			retryLabel={t('try-again')}
+		/>
+	);
+};
