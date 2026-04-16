@@ -88,6 +88,12 @@ const ROOTS = {
 
 export const FRONT_PATH_NAMES = {
 	home: '/',
+	generatedHomepages: {
+		root: makePath('homepage-gen'),
+		details: (generatedHomepageId = '') => {
+			return makePath('homepage-gen', generatedHomepageId);
+		},
+	},
 	unauthorized: makePath('unauthorized'),
 	auth: {
 		login: makePath('login'),

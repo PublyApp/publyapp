@@ -49,7 +49,9 @@ export const MainLayout = ({
 
 	const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
-	const isHomePage = pathname === '/';
+	const isHomePage =
+		pathname === FRONT_PATH_NAMES.home ||
+		pathname.startsWith(FRONT_PATH_NAMES.generatedHomepages.root);
 
 	const navData = slotProps?.nav?.data ?? mainNavData;
 

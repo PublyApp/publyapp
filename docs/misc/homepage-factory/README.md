@@ -38,3 +38,20 @@ Each generated prompt now includes:
 
 Generated outputs live in `docs/misc/homepage-factory/generated-prompts/`, and the committed
 review artifact set includes both the prompt files and `manifest.json`.
+
+## Generated Homepage Routes
+
+Generated homepage implementations should live outside the real marketing homepage. The canonical
+viewer route is:
+
+- `/homepage-gen/{generatedHomepageId}`
+
+Use the append-only scaffolding command before batch implementation work:
+
+```bash
+pnpm prepare:generated-homepages -- 5 april-16-batch
+```
+
+That command creates new route slots under `apps/front/src/generated/homepage-gen/pages/` and
+appends them to `apps/front/src/generated/homepage-gen/manifest.json` without overwriting older
+generated homepages.
