@@ -377,7 +377,7 @@ export const generateHomepagePromptBatch = async ({
   fileOps,
 }) => {
   if (typeof buildPrompt !== 'function') {
-    throw new Error('buildPrompt must be provided');
+    throw new Error('generateHomepagePromptBatch requires a buildPrompt function.');
   }
   validateHomepageFactoryConfig(config);
 

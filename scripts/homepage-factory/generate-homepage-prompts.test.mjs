@@ -43,15 +43,50 @@ const pathExists = async (targetPath) => {
 const TEST_CONFIG = {
   productCore: {
     productName: 'PublyApp',
+    productSummary: 'A social publishing workspace for multi-tenant SaaS teams.',
+    coreDifferentiators: [
+      'Plan social publishing campaigns across tenants and projects',
+      'Coordinate approvals before scheduling content',
+    ],
+    workflowStrengths: [
+      'Shared editorial workflow with per-project visibility',
+      'Fast handoff from draft to publish',
+    ],
+    trustSignals: ['Role-based access control', 'Audit-friendly publishing history'],
+    productVisualRequirements: [
+      'Queue overview',
+      'Workflow approval states',
+      'Publishing calendar',
+    ],
+    forbiddenClaims: ['Guaranteed virality', 'Automated growth without effort'],
+    forbiddenCopyPatterns: ['magic AI', 'one-click success', 'set and forget'],
   },
   audienceOverlays: [
-    { id: 'agencies', audienceLabel: 'Agencies' },
-    { id: 'in-house', audienceLabel: 'In-House Teams' },
+    {
+      id: 'agencies',
+      audienceLabel: 'Agencies',
+      primaryPains: ['Too many client approvals', 'Fragmented publishing handoffs'],
+      desiredOutcomes: ['Ship client content on time', 'Keep approvals visible'],
+      topObjections: ['Will this slow the team down?', 'Can clients stay in the loop?'],
+      decisionCriteria: ['Approval workflow', 'Multi-tenant support', 'Reporting'],
+    },
+    {
+      id: 'in-house',
+      audienceLabel: 'In-House Teams',
+      primaryPains: ['Unclear ownership', 'Manual post scheduling'],
+      desiredOutcomes: ['Centralize publishing work', 'Reduce coordination overhead'],
+      topObjections: ['Is setup complex?', 'Does it fit our workflow?'],
+      decisionCriteria: ['Ease of rollout', 'Visibility', 'Governance'],
+    },
   ],
   homepageArchetypes: [
     {
       id: 'workflow-story',
       label: 'Workflow Story',
+      heroGoal: 'Show how teams move from draft to published post',
+      narrativeOrder: ['hero', 'workflow', 'proof', 'cta'],
+      proofPlacement: 'After the workflow narrative',
+      ctaStyle: 'Action-oriented',
       compatiblePromiseAngles: ['ship-consistently', 'launch-faster'],
       compatibleProofStrategies: ['ops-metrics', 'social-proof'],
       compatibleCreativeBundles: ['product-led-clean', 'editorial-bold'],
@@ -59,6 +94,10 @@ const TEST_CONFIG = {
     {
       id: 'product-tour',
       label: 'Product Tour',
+      heroGoal: 'Demonstrate the product experience clearly',
+      narrativeOrder: ['hero', 'feature-tour', 'proof', 'cta'],
+      proofPlacement: 'Mid-page',
+      ctaStyle: 'Demonstration-led',
       compatiblePromiseAngles: ['ship-consistently', 'launch-faster'],
       compatibleProofStrategies: ['ops-metrics', 'social-proof'],
       compatibleCreativeBundles: ['product-led-clean', 'editorial-bold'],
@@ -68,12 +107,18 @@ const TEST_CONFIG = {
     {
       id: 'ship-consistently',
       label: 'Ship Consistently',
+      corePromise: 'Publish reliably without losing the thread',
+      headlineDirection: 'Confidence in the editorial cadence',
+      supportingMessageThemes: ['Clear ownership', 'Reusable planning', 'Predictable delivery'],
       bestFitAudiences: ['agencies', 'in-house'],
       bestFitArchetypes: ['workflow-story', 'product-tour'],
     },
     {
       id: 'launch-faster',
       label: 'Launch Faster',
+      corePromise: 'Move campaigns from draft to live faster',
+      headlineDirection: 'Speed with control',
+      supportingMessageThemes: ['Faster approvals', 'Fewer bottlenecks', 'Shared visibility'],
       bestFitAudiences: ['agencies', 'in-house'],
       bestFitArchetypes: ['workflow-story', 'product-tour'],
     },
@@ -82,12 +127,18 @@ const TEST_CONFIG = {
     {
       id: 'ops-metrics',
       label: 'Ops Metrics',
+      proofType: 'Process evidence',
+      recommendedProofElements: ['Approval count', 'Time-to-publish', 'Workflow status'],
+      proofPlacementGuidance: 'Pair proof with workflow sections',
       bestFitAudiences: ['agencies', 'in-house'],
       bestFitArchetypes: ['workflow-story', 'product-tour'],
     },
     {
       id: 'social-proof',
       label: 'Social Proof',
+      proofType: 'Customer evidence',
+      recommendedProofElements: ['Testimonials', 'Logos', 'Usage stats'],
+      proofPlacementGuidance: 'Place proof immediately after the hero',
       bestFitAudiences: ['agencies', 'in-house'],
       bestFitArchetypes: ['workflow-story', 'product-tour'],
     },
@@ -96,6 +147,13 @@ const TEST_CONFIG = {
     {
       id: 'product-led-clean',
       label: 'Product-Led Clean',
+      heroStyle: 'Centered product focus',
+      visualDensity: 'Balanced',
+      motionBehavior: 'Subtle, functional motion',
+      colorDirection: 'Neutral with a strong accent',
+      surfaceTreatment: 'Soft cards and clean panels',
+      screenshotTreatment: 'Crisp UI captures with clear focus',
+      copyTone: 'Direct and confident',
       compatibilityTags: ['agencies', 'in-house', 'workflow-story', 'product-tour'],
       referenceAnchors: [
         'https://example.com/stripe',
@@ -111,6 +169,13 @@ const TEST_CONFIG = {
     {
       id: 'editorial-bold',
       label: 'Editorial Bold',
+      heroStyle: 'Editorial layout with strong hierarchy',
+      visualDensity: 'Rich',
+      motionBehavior: 'Deliberate, cinematic transitions',
+      colorDirection: 'High-contrast editorial palette',
+      surfaceTreatment: 'Layered surfaces with depth',
+      screenshotTreatment: 'Large product crops with framing',
+      copyTone: 'Bold and concise',
       compatibilityTags: ['agencies', 'in-house', 'workflow-story', 'product-tour'],
       referenceAnchors: [
         'https://example.com/notion',
@@ -439,5 +504,48 @@ test('generate-homepage-prompts CLI writes prompts using repo-relative paths', a
       await mkdir(path.dirname(outputDir), { recursive: true });
       await rename(backupDir, outputDir);
     }
+  }
+});
+
+test('generated prompt uses the strategy-first contract', async () => {
+  const outputDir = await createTempOutputDir();
+
+  try {
+    const config = await loadHomepageFactoryConfig({ factoryDir: FACTORY_DIR });
+    const result = await generateHomepagePromptBatch({
+      config,
+      outputDir,
+      variants: 1,
+      seed: 'prompt-contract',
+      buildPrompt: buildHomepagePrompt,
+    });
+
+    const prompt = result.prompts[0].content;
+    const orderedSections = [
+      '## Variant Metadata',
+      '## System Prompt',
+      '## User Prompt',
+      '### Product Core',
+      '### Audience Overlay',
+      '### Archetype Brief',
+      '### Creative Direction',
+      '### Working Order',
+      '### Output Contract',
+    ];
+
+    let previousIndex = -1;
+
+    for (const heading of orderedSections) {
+      const currentIndex = prompt.indexOf(heading);
+      assert.ok(currentIndex > previousIndex, `${heading} should appear in order`);
+      previousIndex = currentIndex;
+    }
+
+    assert.match(prompt, /No vague AI-productivity filler/i);
+    assert.match(prompt, /1\. Define the homepage concept/);
+    assert.match(prompt, /5\. Implement the homepage/);
+    assert.match(prompt, /show a believable social publishing workflow/i);
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
   }
 });
