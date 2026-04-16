@@ -4,86 +4,6 @@
 		"fileName": "001-homepage-prompt.md",
 		"seed": "publyapp-check-1",
 		"audienceOverlay": "agencies",
-		"homepageArchetype": "comparison-led",
-		"promiseAngle": "publish-without-chaos",
-		"proofStrategy": "comparison-checklist",
-		"creativeDirectionBundle": "contrast-grid",
-		"selectedReferences": [
-			"https://stripe.com",
-			"https://linear.app",
-			"https://www.intercom.com",
-			"https://www.figma.com"
-		],
-		"selectedLibraries": [
-			"https://www.awwwards.com/websites/",
-			"https://www.lapa.ninja/"
-		]
-	},
-	{
-		"variant": 2,
-		"fileName": "002-homepage-prompt.md",
-		"seed": "publyapp-check-2",
-		"audienceOverlay": "agencies",
-		"homepageArchetype": "proof-first",
-		"promiseAngle": "replace-fragmented-tools",
-		"proofStrategy": "ops-metrics",
-		"creativeDirectionBundle": "contrast-grid",
-		"selectedReferences": [
-			"https://stripe.com",
-			"https://linear.app",
-			"https://www.intercom.com",
-			"https://www.figma.com"
-		],
-		"selectedLibraries": [
-			"https://www.awwwards.com/websites/",
-			"https://www.lapa.ninja/"
-		]
-	},
-	{
-		"variant": 3,
-		"fileName": "003-homepage-prompt.md",
-		"seed": "publyapp-check-3",
-		"audienceOverlay": "agencies",
-		"homepageArchetype": "proof-first",
-		"promiseAngle": "replace-fragmented-tools",
-		"proofStrategy": "ops-metrics",
-		"creativeDirectionBundle": "contrast-grid",
-		"selectedReferences": [
-			"https://stripe.com",
-			"https://linear.app",
-			"https://www.intercom.com",
-			"https://www.figma.com"
-		],
-		"selectedLibraries": [
-			"https://www.awwwards.com/websites/",
-			"https://www.lapa.ninja/"
-		]
-	},
-	{
-		"variant": 4,
-		"fileName": "004-homepage-prompt.md",
-		"seed": "publyapp-check-4",
-		"audienceOverlay": "agencies",
-		"homepageArchetype": "proof-first",
-		"promiseAngle": "approval-clarity",
-		"proofStrategy": "customer-credibility",
-		"creativeDirectionBundle": "editorial-dark",
-		"selectedReferences": [
-			"https://linear.app",
-			"https://stripe.com",
-			"https://www.figma.com",
-			"https://www.webflow.com"
-		],
-		"selectedLibraries": [
-			"https://www.awwwards.com/websites/",
-			"https://land-book.com/"
-		]
-	},
-	{
-		"variant": 5,
-		"fileName": "005-homepage-prompt.md",
-		"seed": "publyapp-check-5",
-		"audienceOverlay": "agencies",
 		"homepageArchetype": "product-demo-first",
 		"promiseAngle": "publish-without-chaos",
 		"proofStrategy": "workflow-artifacts",
@@ -98,5 +18,79 @@
 			"https://land-book.com/",
 			"https://www.awwwards.com/websites/"
 		]
+	},
+	{
+		"variant": 2,
+		"fileName": "002-homepage-prompt.md",
+		"seed": "publyapp-check-2",
+		"audienceOverlay": "agencies",
+		"homepageArchetype": "workflow-story",
+		"promiseAngle": "publish-without-chaos",
+		"proofStrategy": "workflow-artifacts",
+		"creativeDirectionBundle": "product-led-clean",
+		"selectedReferences": [
+			"https://stripe.com",
+			"https://linear.app",
+			"https://www.figma.com",
+			"https://www.intercom.com"
+		],
+		"selectedLibraries": [
+			"https://land-book.com/",
+			"https://www.awwwards.com/websites/"
+		]
+	},
+	{
+		"variant": 3,
+		"fileName": "003-homepage-prompt.md",
+		"seed": "publyapp-check-3",
+		"audienceOverlay": "in-house-social-teams",
+		"homepageArchetype": "product-demo-first",
+		"promiseAngle": "ship-consistently",
+		"proofStrategy": "workflow-artifacts",
+		"creativeDirectionBundle": "product-led-clean",
+		"selectedReferences": [
+			"https://stripe.com",
+			"https://linear.app",
+			"https://www.figma.com",
+			"https://www.intercom.com"
+		],
+		"selectedLibraries": [
+			"https://land-book.com/",
+			"https://www.awwwards.com/websites/"
+		]
+	},
+	{
+		"variant": 4,
+		"fileName": "004-homepage-prompt.md",
+		"seed": "publyapp-check-4",
+		"audienceOverlay": "agencies",
+		"homepageArchetype": "comparison-led",
+		"promiseAngle": "replace-fragmented-tools",
+		"proofStrategy": "comparison-checklist",
+		"creativeDirectionBundle": "warm-operator",
+		"selectedReferences": [
+			"https://www.notion.com",
+			"https://www.airtable.com",
+			"https://slack.com",
+			"https://www.webflow.com"
+		],
+		"selectedLibraries": ["https://www.lapa.ninja/", "https://land-book.com/"]
+	},
+	{
+		"variant": 5,
+		"fileName": "005-homepage-prompt.md",
+		"seed": "publyapp-check-5",
+		"audienceOverlay": "smb-marketing-teams",
+		"homepageArchetype": "workflow-story",
+		"promiseAngle": "ship-consistently",
+		"proofStrategy": "ops-metrics",
+		"creativeDirectionBundle": "warm-operator",
+		"selectedReferences": [
+			"https://www.notion.com",
+			"https://www.airtable.com",
+			"https://slack.com",
+			"https://www.webflow.com"
+		],
+		"selectedLibraries": ["https://www.lapa.ninja/", "https://land-book.com/"]
 	}
 ]

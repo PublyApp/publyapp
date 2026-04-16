@@ -1,11 +1,11 @@
 # Homepage Prompt Variant 5
 
 ## Variant Metadata
-- Primary audience: **Agencies**
-- Homepage archetype: **Product Demo First**
-- Promise angle: **Publish Without Chaos**
-- Proof strategy: **Workflow Artifacts**
-- Creative bundle: **Product-Led Clean**
+- Primary audience: **SMB Marketing Teams**
+- Homepage archetype: **Workflow Story**
+- Promise angle: **Ship Consistently**
+- Proof strategy: **Ops Metrics**
+- Creative bundle: **Warm Operator**
 
 ## System Prompt
 You are an award-winning SaaS design + implementation agent.
@@ -34,94 +34,95 @@ Create a homepage concept for **PublyApp**.
 ### Product Core
 - Summary: AI-first social publishing workspace for planning, drafting, reviewing, and shipping better social content faster.
 - Core differentiators:
-- Combines AI-assisted drafting with real publishing workflow structure.
-- Built for approval-heavy social teams, not just solo creators.
-- Keeps planning, editing, review, and publishing context in one place.
+  - Combines AI-assisted drafting with real publishing workflow structure.
+  - Built for approval-heavy social teams, not just solo creators.
+  - Keeps planning, editing, review, and publishing context in one place.
 - Workflow strengths:
-- campaign planning
-- draft generation
-- review and approval coordination
-- publishing readiness
+  - campaign planning
+  - draft generation
+  - review and approval coordination
+  - publishing readiness
 - Trust signals:
-- operationally serious product posture
-- clear review states and workflow visibility
-- reduced tool-switching across the content lifecycle
+  - operationally serious product posture
+  - clear review states and workflow visibility
+  - reduced tool-switching across the content lifecycle
 - Product visual requirements:
-- Show a believable social publishing workflow.
-- Show calendar, draft, review, or queue states.
-- Avoid abstract charts as the primary hero visual.
+  - Show a believable social publishing workflow.
+  - Show calendar, draft, review, or queue states.
+  - Avoid abstract charts as the primary hero visual.
 - Forbidden claims:
-- fully autonomous social media
-- guaranteed virality
-- replace your marketing team
+  - fully autonomous social media
+  - guaranteed virality
+  - replace your marketing team
 - Forbidden copy patterns:
-- unlock your social potential
-- supercharge your workflow
-- AI-powered productivity for modern teams
+  - unlock your social potential
+  - supercharge your workflow
+  - AI-powered productivity for modern teams
 
 ### Audience Overlay
-- Audience: Agencies
+- Audience: SMB Marketing Teams
 - Primary pains:
-- client approval bottlenecks
-- context switching across client accounts
-- revision churn before publishing
+  - too much time spent getting content out
+  - small teams juggling planning and publishing
+  - slow content production
 - Desired outcomes:
-- ship client content faster
-- standardize delivery workflows
-- reduce approval friction
+  - ship better content with less chaos
+  - maintain consistency with lean teams
+  - move from ideas to published posts faster
 - Top objections:
-- our process is too custom
-- switching tools will slow us down
+  - this looks too complex for a lean team
+  - AI tools often create generic content
 - Decision criteria:
-- multi-workflow visibility
-- approval clarity
-- team coordination
+  - speed to publish
+  - ease of use
+  - visible workflow value
 
 ### Archetype Brief
-- Hero goal: Anchor the page around a believable product visual and explain the workflow through it.
+- Hero goal: Show how PublyApp moves a team from idea to published content with less friction.
 - Narrative order:
-- hero
-- product-visual
-- feature-depth
-- proof
-- faq
-- final-cta
-- Proof placement: after feature depth
+  - hero
+  - workflow-overview
+  - step-by-step walkthrough
+  - feature depth
+  - proof
+  - faq
+  - final-cta
+- Proof placement: after the workflow walkthrough
 - CTA style: See the workflow
 
 ### Creative Direction
-- Hero style: product-screenshot-first
+- Hero style: soft-saas-clean
 - Visual density: medium
-- Motion behavior: micro-interactions-only
-- Color direction: frosted-blue-professional
-- Surface treatment: clean layered panels with restrained depth
-- Screenshot treatment: large anchored product frames with light annotation callouts
-- Copy tone: technical-and-trustworthy
+- Motion behavior: hover-depth-card-system
+- Color direction: warm-neutral-with-electric-accent
+- Surface treatment: soft panels with crisp callouts and warm neutrals
+- Screenshot treatment: workflow composites with card-like framing
+- Copy tone: confident-and-precise
 
 ### Strategy Inputs
-- Core promise: Turn social publishing from a messy handoff process into a clear operational workflow.
-- Headline direction: Make the workflow feel orderly, visible, and ready to ship.
+- Core promise: Help lean teams publish better social content on a dependable rhythm.
+- Headline direction: Tie better content quality directly to consistent execution.
 - Supporting message themes:
-- workflow clarity
-- publishing confidence
-- less chaos
-- Proof type: workflow
+  - consistency
+  - content cadence
+  - team momentum
+- Proof type: metrics
 - Recommended proof elements:
-- approval states
-- calendar snapshots
-- review-ready product visuals
-- Proof placement guidance: Use product visuals and annotated workflow states as proof, not just decoration.
+  - approval-cycle speed
+  - content throughput gains
+  - reduced revision churn
+- Proof placement guidance: Use a tight proof band with 2-3 outcome metrics and one supporting testimonial.
 
 ### Design Inspiration Anchors
 Use these references for style analysis only:
-- https://stripe.com
-- https://linear.app
-- https://www.figma.com
-- https://www.intercom.com
+- https://www.notion.com
+- https://www.airtable.com
+- https://slack.com
+- https://www.webflow.com
 
 Use these galleries for composition ideas:
+- https://www.lapa.ninja/
 - https://land-book.com/
-- https://www.awwwards.com/websites/
 
 ### Working Order
 Before implementation, work in this order:

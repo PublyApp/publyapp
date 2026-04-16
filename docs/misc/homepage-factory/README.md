@@ -34,3 +34,6 @@ Each generated prompt now includes:
 - archetype brief
 - creative direction block
 - concept-before-implementation working order
+
+Generated outputs live in `docs/misc/homepage-factory/generated-prompts/`, and the committed
+review artifact set includes both the prompt files and `manifest.json`.

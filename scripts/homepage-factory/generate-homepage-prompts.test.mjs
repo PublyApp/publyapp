@@ -44,6 +44,16 @@ const escapeRegExp = (value) => {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };
 
+const buildRecipeKey = (entry) => {
+  return [
+    entry.audienceOverlay,
+    entry.homepageArchetype,
+    entry.promiseAngle,
+    entry.proofStrategy,
+    entry.creativeDirectionBundle,
+  ].join('|');
+};
+
 const TEST_CONFIG = {
   productCore: {
     productName: 'PublyApp',
@@ -221,9 +231,9 @@ test('generateHomepagePromptBatch is deterministic for a fixed seed', async () =
         variant: 1,
         fileName: '001-homepage-prompt.md',
         seed: 'deterministic-seed-1',
-        audienceOverlay: 'agencies',
+        audienceOverlay: 'in-house',
         homepageArchetype: 'product-tour',
-        promiseAngle: 'ship-consistently',
+        promiseAngle: 'launch-faster',
         proofStrategy: 'social-proof',
         creativeDirectionBundle: 'editorial-bold',
         selectedReferences: [
@@ -243,18 +253,18 @@ test('generateHomepagePromptBatch is deterministic for a fixed seed', async () =
         seed: 'deterministic-seed-2',
         audienceOverlay: 'agencies',
         homepageArchetype: 'workflow-story',
-        promiseAngle: 'ship-consistently',
+        promiseAngle: 'launch-faster',
         proofStrategy: 'social-proof',
-        creativeDirectionBundle: 'product-led-clean',
+        creativeDirectionBundle: 'editorial-bold',
         selectedReferences: [
-          'https://example.com/stripe',
-          'https://example.com/linear',
-          'https://example.com/figma',
-          'https://example.com/intercom',
+          'https://example.com/notion',
+          'https://example.com/airtable',
+          'https://example.com/slack',
+          'https://example.com/webflow',
         ],
         selectedLibraries: [
+          'https://example.com/lapa',
           'https://example.com/land-book',
-          'https://example.com/awwwards',
         ],
       },
     ]);
@@ -290,6 +300,28 @@ test('generateHomepagePromptBatch rejects empty selection arrays', async () => {
         }),
       /audienceOverlays must contain at least one item/,
     );
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('generateHomepagePromptBatch avoids duplicate recipes when enough unique combinations exist', async () => {
+  const outputDir = await createTempOutputDir();
+
+  try {
+    const config = await loadHomepageFactoryConfig({ factoryDir: FACTORY_DIR });
+    const result = await generateHomepagePromptBatch({
+      config,
+      outputDir,
+      variants: 5,
+      seed: 'seed-5',
+      buildPrompt: buildHomepagePrompt,
+    });
+
+    const recipeKeys = result.manifest.map(buildRecipeKey);
+
+    assert.equal(recipeKeys.length, 5);
+    assert.equal(new Set(recipeKeys).size, recipeKeys.length);
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }
@@ -612,6 +644,8 @@ test('generated prompt uses the strategy-first contract', async () => {
     assert.match(prompt, /1\. Define the homepage concept/);
     assert.match(prompt, /5\. Implement the homepage/);
     assert.match(prompt, /show a believable social publishing workflow/i);
+    assert.match(prompt, /- Core differentiators:\n  - /);
+    assert.match(prompt, /- Primary pains:\n  - /);
     assert.match(
       prompt,
       new RegExp(

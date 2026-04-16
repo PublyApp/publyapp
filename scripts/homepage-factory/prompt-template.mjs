@@ -2,6 +2,10 @@ const renderList = (items) => {
   return items.map((item) => `- ${item}`).join('\n');
 };
 
+const renderNestedList = (items) => {
+  return items.map((item) => `  - ${item}`).join('\n');
+};
+
 export const buildHomepagePrompt = ({
   variant,
   productCore,
@@ -49,33 +53,33 @@ Create a homepage concept for **${productCore.productName}**.
 ### Product Core
 - Summary: ${productCore.productSummary}
 - Core differentiators:
-${renderList(productCore.coreDifferentiators)}
+${renderNestedList(productCore.coreDifferentiators)}
 - Workflow strengths:
-${renderList(productCore.workflowStrengths)}
+${renderNestedList(productCore.workflowStrengths)}
 - Trust signals:
-${renderList(productCore.trustSignals)}
+${renderNestedList(productCore.trustSignals)}
 - Product visual requirements:
-${renderList(productCore.productVisualRequirements)}
+${renderNestedList(productCore.productVisualRequirements)}
 - Forbidden claims:
-${renderList(productCore.forbiddenClaims)}
+${renderNestedList(productCore.forbiddenClaims)}
 - Forbidden copy patterns:
-${renderList(productCore.forbiddenCopyPatterns)}
+${renderNestedList(productCore.forbiddenCopyPatterns)}
 
 ### Audience Overlay
 - Audience: ${audienceOverlay.audienceLabel}
 - Primary pains:
-${renderList(audienceOverlay.primaryPains)}
+${renderNestedList(audienceOverlay.primaryPains)}
 - Desired outcomes:
-${renderList(audienceOverlay.desiredOutcomes)}
+${renderNestedList(audienceOverlay.desiredOutcomes)}
 - Top objections:
-${renderList(audienceOverlay.topObjections)}
+${renderNestedList(audienceOverlay.topObjections)}
 - Decision criteria:
-${renderList(audienceOverlay.decisionCriteria)}
+${renderNestedList(audienceOverlay.decisionCriteria)}
 
 ### Archetype Brief
 - Hero goal: ${homepageArchetype.heroGoal}
 - Narrative order:
-${renderList(homepageArchetype.narrativeOrder)}
+${renderNestedList(homepageArchetype.narrativeOrder)}
 - Proof placement: ${homepageArchetype.proofPlacement}
 - CTA style: ${homepageArchetype.ctaStyle}
 
@@ -92,10 +96,10 @@ ${renderList(homepageArchetype.narrativeOrder)}
 - Core promise: ${promiseAngle.corePromise}
 - Headline direction: ${promiseAngle.headlineDirection}
 - Supporting message themes:
-${renderList(promiseAngle.supportingMessageThemes)}
+${renderNestedList(promiseAngle.supportingMessageThemes)}
 - Proof type: ${proofStrategy.proofType}
 - Recommended proof elements:
-${renderList(proofStrategy.recommendedProofElements)}
+${renderNestedList(proofStrategy.recommendedProofElements)}
 - Proof placement guidance: ${proofStrategy.proofPlacementGuidance}
 
 ### Design Inspiration Anchors

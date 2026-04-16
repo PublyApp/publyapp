@@ -49,6 +49,96 @@ export const pickCompatibleOne = ({
   return pickOne(compatibleItems, random, label);
 };
 
+const getRecipeKey = ({
+  audienceOverlay,
+  homepageArchetype,
+  promiseAngle,
+  proofStrategy,
+  creativeBundle,
+}) => {
+  return [
+    audienceOverlay.id,
+    homepageArchetype.id,
+    promiseAngle.id,
+    proofStrategy.id,
+    creativeBundle.id,
+  ].join('|');
+};
+
+const isCompatibleRecipe = (
+  audienceOverlay,
+  homepageArchetype,
+  promiseAngle,
+  proofStrategy,
+  creativeBundle,
+) => {
+  return (
+    homepageArchetype.compatiblePromiseAngles.includes(promiseAngle.id) &&
+    homepageArchetype.compatibleProofStrategies.includes(proofStrategy.id) &&
+    homepageArchetype.compatibleCreativeBundles.includes(creativeBundle.id) &&
+    promiseAngle.bestFitAudiences.includes(audienceOverlay.id) &&
+    promiseAngle.bestFitArchetypes.includes(homepageArchetype.id) &&
+    proofStrategy.bestFitAudiences.includes(audienceOverlay.id) &&
+    proofStrategy.bestFitArchetypes.includes(homepageArchetype.id) &&
+    creativeBundle.compatibilityTags.includes(audienceOverlay.id) &&
+    creativeBundle.compatibilityTags.includes(homepageArchetype.id)
+  );
+};
+
+const collectCompatibleRecipes = (config) => {
+  const recipes = [];
+
+  for (const audienceOverlay of config.audienceOverlays) {
+    for (const homepageArchetype of config.homepageArchetypes) {
+      for (const promiseAngle of config.promiseAngles) {
+        for (const proofStrategy of config.proofStrategies) {
+          for (const creativeBundle of config.creativeBundles) {
+            if (
+              isCompatibleRecipe(
+                audienceOverlay,
+                homepageArchetype,
+                promiseAngle,
+                proofStrategy,
+                creativeBundle,
+              )
+            ) {
+              recipes.push({
+                audienceOverlay,
+                homepageArchetype,
+                promiseAngle,
+                proofStrategy,
+                creativeBundle,
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return recipes;
+};
+
+const sortRecipesBySeed = (recipes, seed) => {
+  return recipes
+    .map((recipe) => {
+      return {
+        recipe,
+        weight: mulberry32(hashSeed(`${seed}-${getRecipeKey(recipe)}`))(),
+      };
+    })
+    .sort((left, right) => {
+      if (left.weight !== right.weight) {
+        return left.weight - right.weight;
+      }
+
+      return getRecipeKey(left.recipe).localeCompare(getRecipeKey(right.recipe));
+    })
+    .map(({ recipe }) => {
+      return recipe;
+    });
+};
+
 export const readJson = async (filePath) => {
   const raw = await readFile(filePath, 'utf8');
 
@@ -189,6 +279,9 @@ export const validateHomepageFactoryConfig = (config) => {
   assertString(config.productCore.productName, 'productCore.productName');
 
   assertObjectArray(config.audienceOverlays, 'audienceOverlays');
+  if (config.audienceOverlays.length === 0) {
+    throw new Error('audienceOverlays must contain at least one item');
+  }
   for (const [index, item] of config.audienceOverlays.entries()) {
     assertString(item.id, `audienceOverlays[${index}].id`);
     assertString(
@@ -198,6 +291,9 @@ export const validateHomepageFactoryConfig = (config) => {
   }
 
   assertObjectArray(config.homepageArchetypes, 'homepageArchetypes');
+  if (config.homepageArchetypes.length === 0) {
+    throw new Error('homepageArchetypes must contain at least one item');
+  }
   for (const [index, item] of config.homepageArchetypes.entries()) {
     assertString(item.id, `homepageArchetypes[${index}].id`);
     assertString(item.label, `homepageArchetypes[${index}].label`);
@@ -216,6 +312,9 @@ export const validateHomepageFactoryConfig = (config) => {
   }
 
   assertObjectArray(config.promiseAngles, 'promiseAngles');
+  if (config.promiseAngles.length === 0) {
+    throw new Error('promiseAngles must contain at least one item');
+  }
   for (const [index, item] of config.promiseAngles.entries()) {
     assertString(item.id, `promiseAngles[${index}].id`);
     assertString(item.label, `promiseAngles[${index}].label`);
@@ -230,6 +329,9 @@ export const validateHomepageFactoryConfig = (config) => {
   }
 
   assertObjectArray(config.proofStrategies, 'proofStrategies');
+  if (config.proofStrategies.length === 0) {
+    throw new Error('proofStrategies must contain at least one item');
+  }
   for (const [index, item] of config.proofStrategies.entries()) {
     assertString(item.id, `proofStrategies[${index}].id`);
     assertString(item.label, `proofStrategies[${index}].label`);
@@ -244,6 +346,9 @@ export const validateHomepageFactoryConfig = (config) => {
   }
 
   assertObjectArray(config.creativeBundles, 'creativeBundles');
+  if (config.creativeBundles.length === 0) {
+    throw new Error('creativeBundles must contain at least one item');
+  }
   for (const [index, item] of config.creativeBundles.entries()) {
     assertString(item.id, `creativeBundles[${index}].id`);
     assertString(item.label, `creativeBundles[${index}].label`);
@@ -477,6 +582,15 @@ export const generateHomepagePromptBatch = async ({
   }
   validateHomepageFactoryConfig(config);
 
+  const orderedRecipes = sortRecipesBySeed(
+    collectCompatibleRecipes(config),
+    seed,
+  );
+
+  if (orderedRecipes.length === 0) {
+    throw new Error('No compatible homepage recipes available for the selected config.');
+  }
+
   const resolvedFileOps = {
     ...defaultFileOps,
     ...fileOps,
@@ -486,14 +600,13 @@ export const generateHomepagePromptBatch = async ({
   const prompts = [];
 
   for (let variant = 1; variant <= variants; variant += 1) {
-    const random = mulberry32(hashSeed(`${seed}-${variant}`));
     const {
       audienceOverlay,
       homepageArchetype,
       promiseAngle,
       proofStrategy,
       creativeBundle,
-    } = selectVariantRecipe({ config, random });
+    } = orderedRecipes[(variant - 1) % orderedRecipes.length];
     const selectedReferences = creativeBundle.referenceAnchors.slice(0, 4);
     const selectedLibraries = creativeBundle.inspirationLibraries.slice(0, 2);
     validateHomepagePromptInputs({

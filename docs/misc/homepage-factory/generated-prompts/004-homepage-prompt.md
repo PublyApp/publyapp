@@ -2,10 +2,10 @@
 
 ## Variant Metadata
 - Primary audience: **Agencies**
-- Homepage archetype: **Proof First**
-- Promise angle: **Approval Clarity**
-- Proof strategy: **Customer Credibility**
-- Creative bundle: **Editorial Dark**
+- Homepage archetype: **Comparison Led**
+- Promise angle: **Replace Fragmented Tools**
+- Proof strategy: **Comparison Checklist**
+- Creative bundle: **Warm Operator**
 
 ## System Prompt
 You are an award-winning SaaS design + implementation agent.
@@ -34,94 +34,93 @@ Create a homepage concept for **PublyApp**.
 ### Product Core
 - Summary: AI-first social publishing workspace for planning, drafting, reviewing, and shipping better social content faster.
 - Core differentiators:
-- Combines AI-assisted drafting with real publishing workflow structure.
-- Built for approval-heavy social teams, not just solo creators.
-- Keeps planning, editing, review, and publishing context in one place.
+  - Combines AI-assisted drafting with real publishing workflow structure.
+  - Built for approval-heavy social teams, not just solo creators.
+  - Keeps planning, editing, review, and publishing context in one place.
 - Workflow strengths:
-- campaign planning
-- draft generation
-- review and approval coordination
-- publishing readiness
+  - campaign planning
+  - draft generation
+  - review and approval coordination
+  - publishing readiness
 - Trust signals:
-- operationally serious product posture
-- clear review states and workflow visibility
-- reduced tool-switching across the content lifecycle
+  - operationally serious product posture
+  - clear review states and workflow visibility
+  - reduced tool-switching across the content lifecycle
 - Product visual requirements:
-- Show a believable social publishing workflow.
-- Show calendar, draft, review, or queue states.
-- Avoid abstract charts as the primary hero visual.
+  - Show a believable social publishing workflow.
+  - Show calendar, draft, review, or queue states.
+  - Avoid abstract charts as the primary hero visual.
 - Forbidden claims:
-- fully autonomous social media
-- guaranteed virality
-- replace your marketing team
+  - fully autonomous social media
+  - guaranteed virality
+  - replace your marketing team
 - Forbidden copy patterns:
-- unlock your social potential
-- supercharge your workflow
-- AI-powered productivity for modern teams
+  - unlock your social potential
+  - supercharge your workflow
+  - AI-powered productivity for modern teams
 
 ### Audience Overlay
 - Audience: Agencies
 - Primary pains:
-- client approval bottlenecks
-- context switching across client accounts
-- revision churn before publishing
+  - client approval bottlenecks
+  - context switching across client accounts
+  - revision churn before publishing
 - Desired outcomes:
-- ship client content faster
-- standardize delivery workflows
-- reduce approval friction
+  - ship client content faster
+  - standardize delivery workflows
+  - reduce approval friction
 - Top objections:
-- our process is too custom
-- switching tools will slow us down
+  - our process is too custom
+  - switching tools will slow us down
 - Decision criteria:
-- multi-workflow visibility
-- approval clarity
-- team coordination
+  - multi-workflow visibility
+  - approval clarity
+  - team coordination
 
 ### Archetype Brief
-- Hero goal: Lead with evidence that the workflow is credible and operationally serious.
+- Hero goal: Frame PublyApp against fragmented planning, drafting, and publishing workflows.
 - Narrative order:
-- hero
-- social-proof
-- proof-metrics
-- core-benefits
-- product-visual
-- faq
-- final-cta
-- Proof placement: immediately below the hero
-- CTA style: Book a walkthrough
+  - hero
+  - comparison
+  - benefits
+  - workflow-proof
+  - faq
+  - final-cta
+- Proof placement: after the comparison section
+- CTA style: See the workflow
 
 ### Creative Direction
-- Hero style: dark-editorial
-- Visual density: high
-- Motion behavior: scroll-narrative
-- Color direction: midnight-indigo-with-cyan
-- Surface treatment: editorial contrast blocks with glowing product accents
-- Screenshot treatment: dramatic framed UI crops with strong depth separation
-- Copy tone: visionary-and-future-forward
+- Hero style: soft-saas-clean
+- Visual density: medium
+- Motion behavior: hover-depth-card-system
+- Color direction: warm-neutral-with-electric-accent
+- Surface treatment: soft panels with crisp callouts and warm neutrals
+- Screenshot treatment: workflow composites with card-like framing
+- Copy tone: confident-and-precise
 
 ### Strategy Inputs
-- Core promise: Move content through review and approval with less back-and-forth and more certainty.
-- Headline direction: Lead with review-state clarity and reduced revision churn.
+- Core promise: Bring planning, drafting, review, and publishing into one more coherent workflow.
+- Headline direction: Contrast fragmented tool stacks with one clearer operating system.
 - Supporting message themes:
-- clear approvals
-- stakeholder visibility
-- faster sign-off
-- Proof type: testimonial
+  - fewer handoffs
+  - less context switching
+  - unified workflow
+- Proof type: comparison
 - Recommended proof elements:
-- testimonial quote
-- team role or context
-- specific operational win
-- Proof placement guidance: Put a concrete testimonial close to the hero or primary product explanation.
+  - side-by-side workflow comparison
+  - tool-sprawl pain points
+  - operational differences
+- Proof placement guidance: Use a grounded comparison grid that avoids naming competitors directly.
 
 ### Design Inspiration Anchors
 Use these references for style analysis only:
-- https://linear.app
-- https://stripe.com
-- https://www.figma.com
+- https://www.notion.com
+- https://www.airtable.com
+- https://slack.com
 - https://www.webflow.com
 
 Use these galleries for composition ideas:
-- https://www.awwwards.com/websites/
+- https://www.lapa.ninja/
 - https://land-book.com/
 
 ### Working Order
