@@ -3,50 +3,100 @@
 		"variant": 1,
 		"fileName": "001-homepage-prompt.md",
 		"seed": "publyapp-check-1",
-		"heroStyle": "glassmorphism-minimal",
-		"layoutAngle": "jobs-to-be-done",
-		"motionStyle": "parallax-subtle",
-		"colorMood": "frosted-blue-professional",
-		"copyTone": "founder-friendly-and-human"
+		"audienceOverlay": "agencies",
+		"homepageArchetype": "comparison-led",
+		"promiseAngle": "publish-without-chaos",
+		"proofStrategy": "comparison-checklist",
+		"creativeDirectionBundle": "contrast-grid",
+		"selectedReferences": [
+			"https://stripe.com",
+			"https://linear.app",
+			"https://www.intercom.com",
+			"https://www.figma.com"
+		],
+		"selectedLibraries": [
+			"https://www.awwwards.com/websites/",
+			"https://www.lapa.ninja/"
+		]
 	},
 	{
 		"variant": 2,
 		"fileName": "002-homepage-prompt.md",
 		"seed": "publyapp-check-2",
-		"heroStyle": "cinematic-gradient",
-		"layoutAngle": "problem-agitation-solution",
-		"motionStyle": "scroll-narrative",
-		"colorMood": "neo-brutal-primary-pops",
-		"copyTone": "founder-friendly-and-human"
+		"audienceOverlay": "agencies",
+		"homepageArchetype": "proof-first",
+		"promiseAngle": "replace-fragmented-tools",
+		"proofStrategy": "ops-metrics",
+		"creativeDirectionBundle": "contrast-grid",
+		"selectedReferences": [
+			"https://stripe.com",
+			"https://linear.app",
+			"https://www.intercom.com",
+			"https://www.figma.com"
+		],
+		"selectedLibraries": [
+			"https://www.awwwards.com/websites/",
+			"https://www.lapa.ninja/"
+		]
 	},
 	{
 		"variant": 3,
 		"fileName": "003-homepage-prompt.md",
 		"seed": "publyapp-check-3",
-		"heroStyle": "glassmorphism-minimal",
-		"layoutAngle": "problem-agitation-solution",
-		"motionStyle": "hover-depth-card-system",
-		"colorMood": "midnight-indigo-with-cyan",
-		"copyTone": "founder-friendly-and-human"
+		"audienceOverlay": "agencies",
+		"homepageArchetype": "proof-first",
+		"promiseAngle": "replace-fragmented-tools",
+		"proofStrategy": "ops-metrics",
+		"creativeDirectionBundle": "contrast-grid",
+		"selectedReferences": [
+			"https://stripe.com",
+			"https://linear.app",
+			"https://www.intercom.com",
+			"https://www.figma.com"
+		],
+		"selectedLibraries": [
+			"https://www.awwwards.com/websites/",
+			"https://www.lapa.ninja/"
+		]
 	},
 	{
 		"variant": 4,
 		"fileName": "004-homepage-prompt.md",
 		"seed": "publyapp-check-4",
-		"heroStyle": "glassmorphism-minimal",
-		"layoutAngle": "social-proof-led",
-		"motionStyle": "scroll-narrative",
-		"colorMood": "black-white-plus-single-accent",
-		"copyTone": "pragmatic-operations-first"
+		"audienceOverlay": "agencies",
+		"homepageArchetype": "proof-first",
+		"promiseAngle": "approval-clarity",
+		"proofStrategy": "customer-credibility",
+		"creativeDirectionBundle": "editorial-dark",
+		"selectedReferences": [
+			"https://linear.app",
+			"https://stripe.com",
+			"https://www.figma.com",
+			"https://www.webflow.com"
+		],
+		"selectedLibraries": [
+			"https://www.awwwards.com/websites/",
+			"https://land-book.com/"
+		]
 	},
 	{
 		"variant": 5,
 		"fileName": "005-homepage-prompt.md",
 		"seed": "publyapp-check-5",
-		"heroStyle": "glassmorphism-minimal",
-		"layoutAngle": "feature-depth-comparison",
-		"motionStyle": "micro-interactions-only",
-		"colorMood": "warm-neutral-with-electric-accent",
-		"copyTone": "confident-and-precise"
+		"audienceOverlay": "agencies",
+		"homepageArchetype": "product-demo-first",
+		"promiseAngle": "publish-without-chaos",
+		"proofStrategy": "workflow-artifacts",
+		"creativeDirectionBundle": "product-led-clean",
+		"selectedReferences": [
+			"https://stripe.com",
+			"https://linear.app",
+			"https://www.figma.com",
+			"https://www.intercom.com"
+		],
+		"selectedLibraries": [
+			"https://land-book.com/",
+			"https://www.awwwards.com/websites/"
+		]
 	}
 ]

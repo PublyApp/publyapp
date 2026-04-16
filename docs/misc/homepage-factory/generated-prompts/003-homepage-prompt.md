@@ -1,5 +1,12 @@
 # Homepage Prompt Variant 3
 
+## Variant Metadata
+- Primary audience: **Agencies**
+- Homepage archetype: **Proof First**
+- Promise angle: **Replace Fragmented Tools**
+- Proof strategy: **Ops Metrics**
+- Creative bundle: **Contrast Grid**
+
 ## System Prompt
 You are an award-winning SaaS design + implementation agent.
 
@@ -8,66 +15,126 @@ Design bar:
 - Prioritize clarity, visual hierarchy, and conversion impact over decoration.
 - Every section should feel purposeful, premium, and production-ready.
 
+Non-generic guardrails:
+- No vague AI-productivity filler.
+- No interchangeable SaaS headline language.
+- The hero must make a concrete promise to the selected audience.
+- Proof must match the selected audience and archetype.
+- Product visuals must show a believable social publishing workflow.
+- Avoid verbs like "streamline", "optimize", and "unlock" unless tied to a concrete outcome.
+
 Execution rules:
-- Build a complete homepage in React + TypeScript + MUI v6 (componentized, clean, and accessible).
+- Build a complete homepage in React + TypeScript + MUI v6.
 - Use only MUI primitives/components and sx styling.
-- Maintain AA contrast and robust responsive behavior from 320px to 1536px+.
-- Create polished micro-interactions (hover/focus/scroll reveal) without hurting performance.
-- Use semantic sectioning and production-quality copy placeholders.
-
-Skill augmentation:
-1. First, inspect "https://skills.sh/" and install/apply the strongest web design skill(s), especially:
-   - "frontend-design"
-   - "web-design-guidelines"
-2. Then inspect/apply Hue from "https://github.com/dominikmartn/hue" for elevated color direction.
-3. Explicitly mention in your reasoning which skill techniques you applied.
-
-Output requirements:
-- Provide a short design rationale (2-5 bullets).
-- Provide the full homepage implementation.
-- Provide a brief quality checklist that confirms accessibility, responsiveness, and performance posture.
+- Maintain AA contrast and responsive behavior from 320px to 1536px+.
 
 ## User Prompt
-Create homepage concept variant 3 for **PublyApp** (AI-first social publishing SaaS).
+Create a homepage concept for **PublyApp**.
+
+### Product Core
+- Summary: AI-first social publishing workspace for planning, drafting, reviewing, and shipping better social content faster.
+- Core differentiators:
+- Combines AI-assisted drafting with real publishing workflow structure.
+- Built for approval-heavy social teams, not just solo creators.
+- Keeps planning, editing, review, and publishing context in one place.
+- Workflow strengths:
+- campaign planning
+- draft generation
+- review and approval coordination
+- publishing readiness
+- Trust signals:
+- operationally serious product posture
+- clear review states and workflow visibility
+- reduced tool-switching across the content lifecycle
+- Product visual requirements:
+- Show a believable social publishing workflow.
+- Show calendar, draft, review, or queue states.
+- Avoid abstract charts as the primary hero visual.
+- Forbidden claims:
+- fully autonomous social media
+- guaranteed virality
+- replace your marketing team
+- Forbidden copy patterns:
+- unlock your social potential
+- supercharge your workflow
+- AI-powered productivity for modern teams
+
+### Audience Overlay
+- Audience: Agencies
+- Primary pains:
+- client approval bottlenecks
+- context switching across client accounts
+- revision churn before publishing
+- Desired outcomes:
+- ship client content faster
+- standardize delivery workflows
+- reduce approval friction
+- Top objections:
+- our process is too custom
+- switching tools will slow us down
+- Decision criteria:
+- multi-workflow visibility
+- approval clarity
+- team coordination
+
+### Archetype Brief
+- Hero goal: Lead with evidence that the workflow is credible and operationally serious.
+- Narrative order:
+- hero
+- social-proof
+- proof-metrics
+- core-benefits
+- product-visual
+- faq
+- final-cta
+- Proof placement: immediately below the hero
+- CTA style: Book a walkthrough
 
 ### Creative Direction
-- Hero style: **glassmorphism-minimal**
-- Layout angle: **problem-agitation-solution**
-- Motion style: **hover-depth-card-system**
-- Color mood: **midnight-indigo-with-cyan**
-- Copy tone: **founder-friendly-and-human**
+- Hero style: bold-typographic
+- Visual density: medium-high
+- Motion behavior: animated-gradient-accent
+- Color direction: black-white-plus-single-accent
+- Surface treatment: high-contrast sections with rigid grid rhythm
+- Screenshot treatment: boxed UI modules inside comparison and proof layouts
+- Copy tone: pragmatic-operations-first
 
-### Brand & Product Context
-- Product: PublyApp
-- Tagline direction: "Ship better social content, faster, with AI workflows."
-- Audience: SMB marketing teams, agencies, and in-house social managers
-- Positioning: Operationally serious, modern, trust-inspiring, AI-enabled
-
-### Must-have Sections
-1. Hero (headline, subheadline, dual CTAs, product visual)
-2. Logo/social proof strip
-3. Core benefits (3-6 cards)
-4. Product walkthrough (step-by-step or visual story)
-5. Feature depth grid
-6. Testimonials / proof metrics
-7. Pricing teaser or comparison
-8. FAQ
-9. Final CTA
-10. Premium footer
+### Strategy Inputs
+- Core promise: Bring planning, drafting, review, and publishing into one more coherent workflow.
+- Headline direction: Contrast fragmented tool stacks with one clearer operating system.
+- Supporting message themes:
+- fewer handoffs
+- less context switching
+- unified workflow
+- Proof type: metrics
+- Recommended proof elements:
+- approval-cycle speed
+- content throughput gains
+- reduced revision churn
+- Proof placement guidance: Use a tight proof band with 2-3 outcome metrics and one supporting testimonial.
 
 ### Design Inspiration Anchors
-Use these references for style analysis only (do not clone):
+Use these references for style analysis only:
+- https://stripe.com
 - https://linear.app
-- https://www.webflow.com
 - https://www.intercom.com
 - https://www.figma.com
 
-And pull extra composition ideas from:
+Use these galleries for composition ideas:
 - https://www.awwwards.com/websites/
 - https://www.lapa.ninja/
 
-### Constraints
-- Do not create generic template output; enforce a distinct visual identity.
-- Keep interactions subtle and premium, not gimmicky.
-- All text should sound like a top-tier B2B SaaS product.
-- Ensure this variant is materially different from other variants in layout and art direction.
+### Working Order
+Before implementation, work in this order:
+1. Define the homepage concept.
+2. Define the messaging strategy.
+3. Define the section-by-section narrative.
+4. Define the visual direction rationale.
+5. Implement the homepage.
+
+### Output Contract
+1. Provide a concise concept summary.
+2. Provide a messaging strategy summary.
+3. Provide a section outline.
+4. Provide the full homepage implementation.
+5. Provide a short quality self-check covering accessibility, responsiveness, and non-generic quality.
