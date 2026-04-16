@@ -557,8 +557,8 @@ async function dokployUploadWithRetry(options, retryOptions = {}) {
 				/** @type {any} */ (err)?.response?.status ??
 				0;
 
-			const errorCode = String(/** @type {any} */(err)?.code ?? '');
-			const message = String(/** @type {any} */(err)?.message ?? '');
+			const errorCode = String(/** @type {any} */ (err)?.code ?? '');
+			const message = String(/** @type {any} */ (err)?.message ?? '');
 			const isRetryable =
 				statusCode === 499 ||
 				errorCode === 'TIMEOUT' ||

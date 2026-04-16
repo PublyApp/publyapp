@@ -7,6 +7,7 @@ import {
 	queryParamValue,
 	REDIRECT_CODE,
 } from '@org/shared-ts/lib/constants';
+
 import { SplashScreen } from '#app/components/loading-screen/splash-screen.tsx';
 import QueryDisplay from '#app/components/query-display.tsx';
 import {

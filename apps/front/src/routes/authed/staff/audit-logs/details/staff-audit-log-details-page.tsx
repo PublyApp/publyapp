@@ -14,6 +14,7 @@ import { data, useParams } from 'react-router';
 
 import type { AuditLogDetail } from '@org/client-ts/src/models';
 import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+
 import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import { EmptyContent } from '#app/components/empty-content/empty-content.tsx';
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';

@@ -9,7 +9,9 @@ using Microsoft.EntityFrameworkCore;
 namespace MainApi.Src.Modules.Profiles.Entities;
 
 [Table("profile_permissions")]
-[Index(nameof(ProfileId), nameof(PermissionKey))]
+// Enforce "at most one row per (profile_id, permission_key)" so soft-delete/restore is deterministic.
+// This is critical for idempotent POST/DELETE toggle semantics.
+[Index(nameof(ProfileId), nameof(PermissionKey), IsUnique = true)]
 public class ProfilePermission : BaseAttributes, INoTenantEntity {
 	[Column("profile_id")]
 	public Guid ProfileId { get; set; }

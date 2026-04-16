@@ -23,6 +23,7 @@ import {
 	FRONT_PATH_NAMES,
 	isServer,
 } from '@org/shared-ts/lib/constants';
+
 import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { EmptyContent } from '#app/components/empty-content/empty-content.tsx';
