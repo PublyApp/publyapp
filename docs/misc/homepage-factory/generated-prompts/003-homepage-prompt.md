@@ -2,10 +2,10 @@
 
 ## Variant Metadata
 - Primary audience: **In-House Social Teams**
-- Homepage archetype: **Product Demo First**
-- Promise angle: **Ship Consistently**
-- Proof strategy: **Workflow Artifacts**
-- Creative bundle: **Product-Led Clean**
+- Homepage archetype: **Proof First**
+- Promise angle: **Approval Clarity**
+- Proof strategy: **Customer Credibility**
+- Creative bundle: **Editorial Dark**
 
 ## System Prompt
 You are an award-winning SaaS design + implementation agent.
@@ -78,50 +78,51 @@ Create a homepage concept for **PublyApp**.
   - trustworthy collaboration
 
 ### Archetype Brief
-- Hero goal: Anchor the page around a believable product visual and explain the workflow through it.
+- Hero goal: Lead with evidence that the workflow is credible and operationally serious.
 - Narrative order:
   - hero
+  - social-proof
+  - proof-metrics
+  - core-benefits
   - product-visual
-  - feature-depth
-  - proof
   - faq
   - final-cta
-- Proof placement: after feature depth
-- CTA style: See the workflow
+- Proof placement: immediately below the hero
+- CTA style: Book a walkthrough
 
 ### Creative Direction
-- Hero style: product-screenshot-first
-- Visual density: medium
-- Motion behavior: micro-interactions-only
-- Color direction: frosted-blue-professional
-- Surface treatment: clean layered panels with restrained depth
-- Screenshot treatment: large anchored product frames with light annotation callouts
-- Copy tone: technical-and-trustworthy
+- Hero style: dark-editorial
+- Visual density: high
+- Motion behavior: scroll-narrative
+- Color direction: midnight-indigo-with-cyan
+- Surface treatment: editorial contrast blocks with glowing product accents
+- Screenshot treatment: dramatic framed UI crops with strong depth separation
+- Copy tone: visionary-and-future-forward
 
 ### Strategy Inputs
-- Core promise: Help lean teams publish better social content on a dependable rhythm.
-- Headline direction: Tie better content quality directly to consistent execution.
+- Core promise: Move content through review and approval with less back-and-forth and more certainty.
+- Headline direction: Lead with review-state clarity and reduced revision churn.
 - Supporting message themes:
-  - consistency
-  - content cadence
-  - team momentum
-- Proof type: workflow
+  - clear approvals
+  - stakeholder visibility
+  - faster sign-off
+- Proof type: testimonial
 - Recommended proof elements:
-  - approval states
-  - calendar snapshots
-  - review-ready product visuals
-- Proof placement guidance: Use product visuals and annotated workflow states as proof, not just decoration.
+  - testimonial quote
+  - team role or context
+  - specific operational win
+- Proof placement guidance: Put a concrete testimonial close to the hero or primary product explanation.
 
 ### Design Inspiration Anchors
 Use these references for style analysis only:
-- https://stripe.com
 - https://linear.app
+- https://stripe.com
 - https://www.figma.com
-- https://www.intercom.com
+- https://www.webflow.com
 
 Use these galleries for composition ideas:
-- https://land-book.com/
 - https://www.awwwards.com/websites/
+- https://land-book.com/
 
 ### Working Order
 Before implementation, work in this order:

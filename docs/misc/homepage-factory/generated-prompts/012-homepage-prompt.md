@@ -1,7 +1,7 @@
-# Homepage Prompt Variant 5
+# Homepage Prompt Variant 12
 
 ## Variant Metadata
-- Primary audience: **Agencies**
+- Primary audience: **In-House Social Teams**
 - Homepage archetype: **Comparison Led**
 - Promise angle: **Publish Without Chaos**
 - Proof strategy: **Comparison Checklist**
@@ -60,22 +60,22 @@ Create a homepage concept for **PublyApp**.
   - AI-powered productivity for modern teams
 
 ### Audience Overlay
-- Audience: Agencies
+- Audience: In-House Social Teams
 - Primary pains:
-  - client approval bottlenecks
-  - context switching across client accounts
-  - revision churn before publishing
+  - fragmented planning and publishing
+  - slow review cycles
+  - unclear publishing readiness
 - Desired outcomes:
-  - ship client content faster
-  - standardize delivery workflows
-  - reduce approval friction
+  - consistent publishing cadence
+  - better cross-functional visibility
+  - cleaner review flow
 - Top objections:
-  - our process is too custom
-  - switching tools will slow us down
+  - we already use several tools
+  - AI features usually feel gimmicky
 - Decision criteria:
-  - multi-workflow visibility
-  - approval clarity
-  - team coordination
+  - workflow clarity
+  - calendar confidence
+  - trustworthy collaboration
 
 ### Archetype Brief
 - Hero goal: Frame PublyApp against fragmented planning, drafting, and publishing workflows.

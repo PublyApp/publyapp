@@ -1,11 +1,11 @@
 # Homepage Prompt Variant 4
 
 ## Variant Metadata
-- Primary audience: **Agencies**
+- Primary audience: **In-House Social Teams**
 - Homepage archetype: **Comparison Led**
 - Promise angle: **Replace Fragmented Tools**
 - Proof strategy: **Comparison Checklist**
-- Creative bundle: **Warm Operator**
+- Creative bundle: **Product-Led Clean**
 
 ## System Prompt
 You are an award-winning SaaS design + implementation agent.
@@ -60,22 +60,22 @@ Create a homepage concept for **PublyApp**.
   - AI-powered productivity for modern teams
 
 ### Audience Overlay
-- Audience: Agencies
+- Audience: In-House Social Teams
 - Primary pains:
-  - client approval bottlenecks
-  - context switching across client accounts
-  - revision churn before publishing
+  - fragmented planning and publishing
+  - slow review cycles
+  - unclear publishing readiness
 - Desired outcomes:
-  - ship client content faster
-  - standardize delivery workflows
-  - reduce approval friction
+  - consistent publishing cadence
+  - better cross-functional visibility
+  - cleaner review flow
 - Top objections:
-  - our process is too custom
-  - switching tools will slow us down
+  - we already use several tools
+  - AI features usually feel gimmicky
 - Decision criteria:
-  - multi-workflow visibility
-  - approval clarity
-  - team coordination
+  - workflow clarity
+  - calendar confidence
+  - trustworthy collaboration
 
 ### Archetype Brief
 - Hero goal: Frame PublyApp against fragmented planning, drafting, and publishing workflows.
@@ -90,13 +90,13 @@ Create a homepage concept for **PublyApp**.
 - CTA style: See the workflow
 
 ### Creative Direction
-- Hero style: soft-saas-clean
+- Hero style: product-screenshot-first
 - Visual density: medium
-- Motion behavior: hover-depth-card-system
-- Color direction: warm-neutral-with-electric-accent
-- Surface treatment: soft panels with crisp callouts and warm neutrals
-- Screenshot treatment: workflow composites with card-like framing
-- Copy tone: confident-and-precise
+- Motion behavior: micro-interactions-only
+- Color direction: frosted-blue-professional
+- Surface treatment: clean layered panels with restrained depth
+- Screenshot treatment: large anchored product frames with light annotation callouts
+- Copy tone: technical-and-trustworthy
 
 ### Strategy Inputs
 - Core promise: Bring planning, drafting, review, and publishing into one more coherent workflow.
@@ -114,14 +114,14 @@ Create a homepage concept for **PublyApp**.
 
 ### Design Inspiration Anchors
 Use these references for style analysis only:
-- https://www.notion.com
-- https://www.airtable.com
-- https://slack.com
-- https://www.webflow.com
+- https://stripe.com
+- https://linear.app
+- https://www.figma.com
+- https://www.intercom.com
 
 Use these galleries for composition ideas:
-- https://www.lapa.ninja/
 - https://land-book.com/
+- https://www.awwwards.com/websites/
 
 ### Working Order
 Before implementation, work in this order:

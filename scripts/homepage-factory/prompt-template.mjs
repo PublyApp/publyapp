@@ -1,23 +1,23 @@
 const renderList = (items) => {
-  return items.map((item) => `- ${item}`).join('\n');
+	return items.map((item) => `- ${item}`).join('\n');
 };
 
 const renderNestedList = (items) => {
-  return items.map((item) => `  - ${item}`).join('\n');
+	return items.map((item) => `  - ${item}`).join('\n');
 };
 
 export const buildHomepagePrompt = ({
-  variant,
-  productCore,
-  audienceOverlay,
-  homepageArchetype,
-  promiseAngle,
-  proofStrategy,
-  creativeBundle,
-  selectedReferences,
-  selectedLibraries,
+	variant,
+	productCore,
+	audienceOverlay,
+	homepageArchetype,
+	promiseAngle,
+	proofStrategy,
+	creativeBundle,
+	selectedReferences,
+	selectedLibraries,
 }) => {
-  return `# Homepage Prompt Variant ${variant}
+	return `# Homepage Prompt Variant ${variant}
 
 ## Variant Metadata
 - Primary audience: **${audienceOverlay.audienceLabel}**

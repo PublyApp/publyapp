@@ -1,10 +1,10 @@
-# Homepage Prompt Variant 5
+# Homepage Prompt Variant 7
 
 ## Variant Metadata
-- Primary audience: **Agencies**
-- Homepage archetype: **Comparison Led**
-- Promise angle: **Publish Without Chaos**
-- Proof strategy: **Comparison Checklist**
+- Primary audience: **SMB Marketing Teams**
+- Homepage archetype: **Proof First**
+- Promise angle: **Ship Consistently**
+- Proof strategy: **Ops Metrics**
 - Creative bundle: **Product-Led Clean**
 
 ## System Prompt
@@ -60,34 +60,35 @@ Create a homepage concept for **PublyApp**.
   - AI-powered productivity for modern teams
 
 ### Audience Overlay
-- Audience: Agencies
+- Audience: SMB Marketing Teams
 - Primary pains:
-  - client approval bottlenecks
-  - context switching across client accounts
-  - revision churn before publishing
+  - too much time spent getting content out
+  - small teams juggling planning and publishing
+  - slow content production
 - Desired outcomes:
-  - ship client content faster
-  - standardize delivery workflows
-  - reduce approval friction
+  - ship better content with less chaos
+  - maintain consistency with lean teams
+  - move from ideas to published posts faster
 - Top objections:
-  - our process is too custom
-  - switching tools will slow us down
+  - this looks too complex for a lean team
+  - AI tools often create generic content
 - Decision criteria:
-  - multi-workflow visibility
-  - approval clarity
-  - team coordination
+  - speed to publish
+  - ease of use
+  - visible workflow value
 
 ### Archetype Brief
-- Hero goal: Frame PublyApp against fragmented planning, drafting, and publishing workflows.
+- Hero goal: Lead with evidence that the workflow is credible and operationally serious.
 - Narrative order:
   - hero
-  - comparison
-  - benefits
-  - workflow-proof
+  - social-proof
+  - proof-metrics
+  - core-benefits
+  - product-visual
   - faq
   - final-cta
-- Proof placement: after the comparison section
-- CTA style: See the workflow
+- Proof placement: immediately below the hero
+- CTA style: Book a walkthrough
 
 ### Creative Direction
 - Hero style: product-screenshot-first
@@ -99,18 +100,18 @@ Create a homepage concept for **PublyApp**.
 - Copy tone: technical-and-trustworthy
 
 ### Strategy Inputs
-- Core promise: Turn social publishing from a messy handoff process into a clear operational workflow.
-- Headline direction: Make the workflow feel orderly, visible, and ready to ship.
+- Core promise: Help lean teams publish better social content on a dependable rhythm.
+- Headline direction: Tie better content quality directly to consistent execution.
 - Supporting message themes:
-  - workflow clarity
-  - publishing confidence
-  - less chaos
-- Proof type: comparison
+  - consistency
+  - content cadence
+  - team momentum
+- Proof type: metrics
 - Recommended proof elements:
-  - side-by-side workflow comparison
-  - tool-sprawl pain points
-  - operational differences
-- Proof placement guidance: Use a grounded comparison grid that avoids naming competitors directly.
+  - approval-cycle speed
+  - content throughput gains
+  - reduced revision churn
+- Proof placement guidance: Use a tight proof band with 2-3 outcome metrics and one supporting testimonial.
 
 ### Design Inspiration Anchors
 Use these references for style analysis only:
