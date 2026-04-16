@@ -153,6 +153,14 @@ const assertStringArray = (value, label) => {
 	}
 };
 
+const assertNonEmptyStringArray = (value, label) => {
+	assertStringArray(value, label);
+
+	if (value.length === 0) {
+		throw new Error(`${label} must contain at least one item`);
+	}
+};
+
 const assertObjectArray = (value, label) => {
 	if (!Array.isArray(value)) {
 		throw new Error(`${label} must be an array`);
@@ -181,6 +189,12 @@ const assertKnownReference = (value, validIds, label, targetLabel) => {
 	}
 };
 
+const assertVariantCount = (variants) => {
+	if (!Number.isInteger(variants) || variants <= 0 || variants > 200) {
+		throw new Error('Variants must be an integer between 1 and 200.');
+	}
+};
+
 const validateHomepagePromptInputs = ({
 	seed,
 	productCore,
@@ -196,54 +210,63 @@ const validateHomepagePromptInputs = ({
 	assertObject(productCore, 'productCore');
 	assertString(productCore.productName, 'productCore.productName');
 	assertString(productCore.productSummary, 'productCore.productSummary');
-	assertStringArray(
+	assertNonEmptyStringArray(
 		productCore.coreDifferentiators,
 		'productCore.coreDifferentiators',
 	);
-	assertStringArray(
+	assertNonEmptyStringArray(
 		productCore.workflowStrengths,
 		'productCore.workflowStrengths',
 	);
-	assertStringArray(productCore.trustSignals, 'productCore.trustSignals');
-	assertStringArray(
+	assertNonEmptyStringArray(
+		productCore.trustSignals,
+		'productCore.trustSignals',
+	);
+	assertNonEmptyStringArray(
 		productCore.productVisualRequirements,
 		'productCore.productVisualRequirements',
 	);
-	assertStringArray(productCore.forbiddenClaims, 'productCore.forbiddenClaims');
-	assertStringArray(
+	assertNonEmptyStringArray(
+		productCore.forbiddenClaims,
+		'productCore.forbiddenClaims',
+	);
+	assertNonEmptyStringArray(
 		productCore.forbiddenCopyPatterns,
 		'productCore.forbiddenCopyPatterns',
 	);
 
 	assertObject(audienceOverlay, 'audienceOverlay');
 	assertString(audienceOverlay.audienceLabel, 'audienceOverlay.audienceLabel');
-	assertStringArray(
+	assertNonEmptyStringArray(
 		audienceOverlay.primaryPains,
 		'audienceOverlay.primaryPains',
 	);
-	assertStringArray(
+	assertNonEmptyStringArray(
 		audienceOverlay.desiredOutcomes,
 		'audienceOverlay.desiredOutcomes',
 	);
-	assertStringArray(
+	assertNonEmptyStringArray(
 		audienceOverlay.topObjections,
 		'audienceOverlay.topObjections',
 	);
-	assertStringArray(
+	assertNonEmptyStringArray(
 		audienceOverlay.decisionCriteria,
 		'audienceOverlay.decisionCriteria',
 	);
-	assertStringArray(
+	assertNonEmptyStringArray(
 		audienceOverlay.proofExpectations,
 		'audienceOverlay.proofExpectations',
 	);
 	assertString(audienceOverlay.ctaPreference, 'audienceOverlay.ctaPreference');
-	assertStringArray(
+	assertNonEmptyStringArray(
 		audienceOverlay.productFocusAreas,
 		'audienceOverlay.productFocusAreas',
 	);
-	assertStringArray(audienceOverlay.faqConcerns, 'audienceOverlay.faqConcerns');
-	assertStringArray(
+	assertNonEmptyStringArray(
+		audienceOverlay.faqConcerns,
+		'audienceOverlay.faqConcerns',
+	);
+	assertNonEmptyStringArray(
 		audienceOverlay.preferredToneAdjustments,
 		'audienceOverlay.preferredToneAdjustments',
 	);
@@ -251,7 +274,7 @@ const validateHomepagePromptInputs = ({
 	assertObject(homepageArchetype, 'homepageArchetype');
 	assertString(homepageArchetype.label, 'homepageArchetype.label');
 	assertString(homepageArchetype.heroGoal, 'homepageArchetype.heroGoal');
-	assertStringArray(
+	assertNonEmptyStringArray(
 		homepageArchetype.narrativeOrder,
 		'homepageArchetype.narrativeOrder',
 	);
@@ -260,11 +283,11 @@ const validateHomepagePromptInputs = ({
 		'homepageArchetype.proofPlacement',
 	);
 	assertString(homepageArchetype.ctaStyle, 'homepageArchetype.ctaStyle');
-	assertStringArray(
+	assertNonEmptyStringArray(
 		homepageArchetype.requiredSections,
 		'homepageArchetype.requiredSections',
 	);
-	assertStringArray(
+	assertNonEmptyStringArray(
 		homepageArchetype.optionalSections,
 		'homepageArchetype.optionalSections',
 	);
@@ -276,7 +299,7 @@ const validateHomepagePromptInputs = ({
 		promiseAngle.headlineDirection,
 		'promiseAngle.headlineDirection',
 	);
-	assertStringArray(
+	assertNonEmptyStringArray(
 		promiseAngle.supportingMessageThemes,
 		'promiseAngle.supportingMessageThemes',
 	);
@@ -284,7 +307,7 @@ const validateHomepagePromptInputs = ({
 	assertObject(proofStrategy, 'proofStrategy');
 	assertString(proofStrategy.label, 'proofStrategy.label');
 	assertString(proofStrategy.proofType, 'proofStrategy.proofType');
-	assertStringArray(
+	assertNonEmptyStringArray(
 		proofStrategy.recommendedProofElements,
 		'proofStrategy.recommendedProofElements',
 	);
@@ -309,14 +332,39 @@ const validateHomepagePromptInputs = ({
 	);
 	assertString(creativeBundle.copyTone, 'creativeBundle.copyTone');
 
-	assertStringArray(selectedReferences, 'selectedReferences');
-	assertStringArray(selectedLibraries, 'selectedLibraries');
+	assertNonEmptyStringArray(selectedReferences, 'selectedReferences');
+	assertNonEmptyStringArray(selectedLibraries, 'selectedLibraries');
 };
 
 export const validateHomepageFactoryConfig = (config) => {
 	assertObject(config, 'config');
 	assertObject(config.productCore, 'productCore');
 	assertString(config.productCore.productName, 'productCore.productName');
+	assertString(config.productCore.productSummary, 'productCore.productSummary');
+	assertNonEmptyStringArray(
+		config.productCore.coreDifferentiators,
+		'productCore.coreDifferentiators',
+	);
+	assertNonEmptyStringArray(
+		config.productCore.workflowStrengths,
+		'productCore.workflowStrengths',
+	);
+	assertNonEmptyStringArray(
+		config.productCore.trustSignals,
+		'productCore.trustSignals',
+	);
+	assertNonEmptyStringArray(
+		config.productCore.productVisualRequirements,
+		'productCore.productVisualRequirements',
+	);
+	assertNonEmptyStringArray(
+		config.productCore.forbiddenClaims,
+		'productCore.forbiddenClaims',
+	);
+	assertNonEmptyStringArray(
+		config.productCore.forbiddenCopyPatterns,
+		'productCore.forbiddenCopyPatterns',
+	);
 
 	assertObjectArray(config.audienceOverlays, 'audienceOverlays');
 	if (config.audienceOverlays.length === 0) {
@@ -329,7 +377,23 @@ export const validateHomepageFactoryConfig = (config) => {
 			item.audienceLabel,
 			`audienceOverlays[${index}].audienceLabel`,
 		);
-		assertStringArray(
+		assertNonEmptyStringArray(
+			item.primaryPains,
+			`audienceOverlays[${index}].primaryPains`,
+		);
+		assertNonEmptyStringArray(
+			item.desiredOutcomes,
+			`audienceOverlays[${index}].desiredOutcomes`,
+		);
+		assertNonEmptyStringArray(
+			item.topObjections,
+			`audienceOverlays[${index}].topObjections`,
+		);
+		assertNonEmptyStringArray(
+			item.decisionCriteria,
+			`audienceOverlays[${index}].decisionCriteria`,
+		);
+		assertNonEmptyStringArray(
 			item.proofExpectations,
 			`audienceOverlays[${index}].proofExpectations`,
 		);
@@ -337,15 +401,15 @@ export const validateHomepageFactoryConfig = (config) => {
 			item.ctaPreference,
 			`audienceOverlays[${index}].ctaPreference`,
 		);
-		assertStringArray(
+		assertNonEmptyStringArray(
 			item.productFocusAreas,
 			`audienceOverlays[${index}].productFocusAreas`,
 		);
-		assertStringArray(
+		assertNonEmptyStringArray(
 			item.faqConcerns,
 			`audienceOverlays[${index}].faqConcerns`,
 		);
-		assertStringArray(
+		assertNonEmptyStringArray(
 			item.preferredToneAdjustments,
 			`audienceOverlays[${index}].preferredToneAdjustments`,
 		);
@@ -359,23 +423,27 @@ export const validateHomepageFactoryConfig = (config) => {
 	for (const [index, item] of config.homepageArchetypes.entries()) {
 		assertString(item.id, `homepageArchetypes[${index}].id`);
 		assertString(item.label, `homepageArchetypes[${index}].label`);
-		assertStringArray(
+		assertNonEmptyStringArray(
+			item.narrativeOrder,
+			`homepageArchetypes[${index}].narrativeOrder`,
+		);
+		assertNonEmptyStringArray(
 			item.requiredSections,
 			`homepageArchetypes[${index}].requiredSections`,
 		);
-		assertStringArray(
+		assertNonEmptyStringArray(
 			item.optionalSections,
 			`homepageArchetypes[${index}].optionalSections`,
 		);
-		assertStringArray(
+		assertNonEmptyStringArray(
 			item.compatiblePromiseAngles,
 			`homepageArchetypes[${index}].compatiblePromiseAngles`,
 		);
-		assertStringArray(
+		assertNonEmptyStringArray(
 			item.compatibleProofStrategies,
 			`homepageArchetypes[${index}].compatibleProofStrategies`,
 		);
-		assertStringArray(
+		assertNonEmptyStringArray(
 			item.compatibleCreativeBundles,
 			`homepageArchetypes[${index}].compatibleCreativeBundles`,
 		);
@@ -389,11 +457,15 @@ export const validateHomepageFactoryConfig = (config) => {
 	for (const [index, item] of config.promiseAngles.entries()) {
 		assertString(item.id, `promiseAngles[${index}].id`);
 		assertString(item.label, `promiseAngles[${index}].label`);
-		assertStringArray(
+		assertNonEmptyStringArray(
+			item.supportingMessageThemes,
+			`promiseAngles[${index}].supportingMessageThemes`,
+		);
+		assertNonEmptyStringArray(
 			item.bestFitAudiences,
 			`promiseAngles[${index}].bestFitAudiences`,
 		);
-		assertStringArray(
+		assertNonEmptyStringArray(
 			item.bestFitArchetypes,
 			`promiseAngles[${index}].bestFitArchetypes`,
 		);
@@ -407,11 +479,15 @@ export const validateHomepageFactoryConfig = (config) => {
 	for (const [index, item] of config.proofStrategies.entries()) {
 		assertString(item.id, `proofStrategies[${index}].id`);
 		assertString(item.label, `proofStrategies[${index}].label`);
-		assertStringArray(
+		assertNonEmptyStringArray(
+			item.recommendedProofElements,
+			`proofStrategies[${index}].recommendedProofElements`,
+		);
+		assertNonEmptyStringArray(
 			item.bestFitAudiences,
 			`proofStrategies[${index}].bestFitAudiences`,
 		);
-		assertStringArray(
+		assertNonEmptyStringArray(
 			item.bestFitArchetypes,
 			`proofStrategies[${index}].bestFitArchetypes`,
 		);
@@ -425,15 +501,15 @@ export const validateHomepageFactoryConfig = (config) => {
 	for (const [index, item] of config.creativeBundles.entries()) {
 		assertString(item.id, `creativeBundles[${index}].id`);
 		assertString(item.label, `creativeBundles[${index}].label`);
-		assertStringArray(
+		assertNonEmptyStringArray(
 			item.compatibilityTags,
 			`creativeBundles[${index}].compatibilityTags`,
 		);
-		assertStringArray(
+		assertNonEmptyStringArray(
 			item.referenceAnchors,
 			`creativeBundles[${index}].referenceAnchors`,
 		);
-		assertStringArray(
+		assertNonEmptyStringArray(
 			item.inspirationLibraries,
 			`creativeBundles[${index}].inspirationLibraries`,
 		);
@@ -684,6 +760,7 @@ export const generateHomepagePromptBatch = async ({
 			'generateHomepagePromptBatch requires a buildPrompt function.',
 		);
 	}
+	assertVariantCount(variants);
 	validateHomepageFactoryConfig(config);
 
 	const orderedRecipes = sortRecipesBySeed(

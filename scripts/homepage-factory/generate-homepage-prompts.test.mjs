@@ -388,6 +388,28 @@ test('generateHomepagePromptBatch rejects empty selection arrays', async () => {
 	}
 });
 
+test('generateHomepagePromptBatch validates direct-call variant counts', async () => {
+	const outputDir = await createTempOutputDir();
+
+	try {
+		for (const variants of [1.5, 0, -1, 201]) {
+			await assert.rejects(
+				() =>
+					generateHomepagePromptBatch({
+						config: TEST_CONFIG,
+						outputDir,
+						variants,
+						seed: 'invalid-variants',
+						buildPrompt: buildHomepagePrompt,
+					}),
+				/Variants must be an integer between 1 and 200\./,
+			);
+		}
+	} finally {
+		await rm(outputDir, { recursive: true, force: true });
+	}
+});
+
 test('generateHomepagePromptBatch avoids duplicate recipes when enough unique combinations exist', async () => {
 	const outputDir = await createTempOutputDir();
 
@@ -589,11 +611,23 @@ test('loadHomepageFactoryConfig reports missing required array fields clearly', 
 	try {
 		await writeJson(path.join(factoryDir, 'product-core.json'), {
 			productName: 'PublyApp',
+			productSummary:
+				'A social publishing workspace for multi-tenant SaaS teams.',
+			coreDifferentiators: ['Approval workflows'],
+			workflowStrengths: ['Fast handoff'],
+			trustSignals: ['Audit history'],
+			productVisualRequirements: ['Publishing calendar'],
+			forbiddenClaims: ['Guaranteed virality'],
+			forbiddenCopyPatterns: ['magic AI'],
 		});
 		await writeJson(path.join(factoryDir, 'audience-overlays.json'), [
 			{
 				id: 'agencies',
 				audienceLabel: 'Agencies',
+				primaryPains: ['Approval bottlenecks'],
+				desiredOutcomes: ['Ship client content on time'],
+				topObjections: ['Will this slow the team down?'],
+				decisionCriteria: ['Approval workflow'],
 				proofExpectations: ['Workflow proof'],
 				ctaPreference: 'Book a walkthrough',
 				productFocusAreas: ['Approvals'],
@@ -605,8 +639,12 @@ test('loadHomepageFactoryConfig reports missing required array fields clearly', 
 			{
 				id: 'workflow-story',
 				label: 'Workflow Story',
+				heroGoal: 'Show how teams move from draft to published post',
+				narrativeOrder: ['hero'],
 				requiredSections: ['hero'],
 				optionalSections: ['faq'],
+				proofPlacement: 'After the workflow narrative',
+				ctaStyle: 'Action-oriented',
 				compatibleProofStrategies: ['ops-metrics'],
 				compatibleCreativeBundles: ['product-led-clean'],
 			},
@@ -668,6 +706,39 @@ test('validateHomepageFactoryConfig rejects broken cross-file compatibility refe
 	assert.throws(
 		() => validateHomepageFactoryConfig(config),
 		/homepageArchetypes\[0\]\.compatibleProofStrategies\[0\] references unknown proofStrategies id "missing-proof"/,
+	);
+});
+
+test('validateHomepageFactoryConfig rejects empty prompt-critical audience arrays', () => {
+	const config = structuredClone(TEST_CONFIG);
+
+	config.audienceOverlays[0].primaryPains = [];
+
+	assert.throws(
+		() => validateHomepageFactoryConfig(config),
+		/audienceOverlays\[0\]\.primaryPains must contain at least one item/,
+	);
+});
+
+test('validateHomepageFactoryConfig rejects empty creative reference arrays', () => {
+	const config = structuredClone(TEST_CONFIG);
+
+	config.creativeBundles[0].referenceAnchors = [];
+
+	assert.throws(
+		() => validateHomepageFactoryConfig(config),
+		/creativeBundles\[0\]\.referenceAnchors must contain at least one item/,
+	);
+});
+
+test('validateHomepageFactoryConfig rejects empty creative library arrays', () => {
+	const config = structuredClone(TEST_CONFIG);
+
+	config.creativeBundles[0].inspirationLibraries = [];
+
+	assert.throws(
+		() => validateHomepageFactoryConfig(config),
+		/creativeBundles\[0\]\.inspirationLibraries must contain at least one item/,
 	);
 });
 
