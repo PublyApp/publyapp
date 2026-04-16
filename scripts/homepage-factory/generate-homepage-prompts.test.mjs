@@ -132,10 +132,10 @@ test('generateHomepagePromptBatch is deterministic for a fixed seed', async () =
         proofStrategy: 'social-proof',
         creativeDirectionBundle: 'editorial-bold',
         selectedReferences: [
-          'https://example.com/webflow',
-          'https://example.com/slack',
           'https://example.com/notion',
           'https://example.com/airtable',
+          'https://example.com/slack',
+          'https://example.com/webflow',
         ],
         selectedLibraries: [
           'https://example.com/lapa',
@@ -153,9 +153,9 @@ test('generateHomepagePromptBatch is deterministic for a fixed seed', async () =
         creativeDirectionBundle: 'product-led-clean',
         selectedReferences: [
           'https://example.com/stripe',
+          'https://example.com/linear',
           'https://example.com/figma',
           'https://example.com/intercom',
-          'https://example.com/linear',
         ],
         selectedLibraries: [
           'https://example.com/land-book',

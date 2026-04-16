@@ -49,23 +49,6 @@ export const pickCompatibleOne = ({
   return pickOne(compatibleItems, random, label);
 };
 
-const pickManyUnique = ({ items, count, random, label = 'items' }) => {
-  if (!Array.isArray(items) || items.length === 0) {
-    throw new Error(`${label} must contain at least one item`);
-  }
-
-  const availableItems = [...items];
-  const pickedItems = [];
-
-  while (availableItems.length > 0 && pickedItems.length < count) {
-    const item = pickOne(availableItems, random, label);
-    pickedItems.push(item);
-    availableItems.splice(availableItems.indexOf(item), 1);
-  }
-
-  return pickedItems;
-};
-
 export const readJson = async (filePath) => {
   const raw = await readFile(filePath, 'utf8');
 
@@ -199,18 +182,8 @@ export const generateHomepagePromptBatch = async ({
       proofStrategy,
       creativeBundle,
     } = selectVariantRecipe({ config, random });
-    const selectedReferences = pickManyUnique({
-      items: creativeBundle.referenceAnchors,
-      count: 4,
-      random,
-      label: 'referenceAnchors',
-    });
-    const selectedLibraries = pickManyUnique({
-      items: creativeBundle.inspirationLibraries,
-      count: 2,
-      random,
-      label: 'inspirationLibraries',
-    });
+    const selectedReferences = creativeBundle.referenceAnchors.slice(0, 4);
+    const selectedLibraries = creativeBundle.inspirationLibraries.slice(0, 2);
     const content = buildPrompt({
       variant,
       productCore: config.productCore,
