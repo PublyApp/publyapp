@@ -230,7 +230,7 @@ test('generateHomepagePromptBatch is deterministic for a fixed seed', async () =
       {
         variant: 1,
         fileName: '001-homepage-prompt.md',
-        seed: 'deterministic-seed-1',
+        seed: 'deterministic-seed',
         audienceOverlay: 'in-house',
         homepageArchetype: 'product-tour',
         promiseAngle: 'launch-faster',
@@ -250,7 +250,7 @@ test('generateHomepagePromptBatch is deterministic for a fixed seed', async () =
       {
         variant: 2,
         fileName: '002-homepage-prompt.md',
-        seed: 'deterministic-seed-2',
+        seed: 'deterministic-seed',
         audienceOverlay: 'agencies',
         homepageArchetype: 'workflow-story',
         promiseAngle: 'launch-faster',

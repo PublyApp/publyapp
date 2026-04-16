@@ -2,7 +2,7 @@
 	{
 		"variant": 1,
 		"fileName": "001-homepage-prompt.md",
-		"seed": "publyapp-check-1",
+		"seed": "publyapp-check",
 		"audienceOverlay": "agencies",
 		"homepageArchetype": "product-demo-first",
 		"promiseAngle": "publish-without-chaos",
@@ -22,7 +22,7 @@
 	{
 		"variant": 2,
 		"fileName": "002-homepage-prompt.md",
-		"seed": "publyapp-check-2",
+		"seed": "publyapp-check",
 		"audienceOverlay": "agencies",
 		"homepageArchetype": "workflow-story",
 		"promiseAngle": "publish-without-chaos",
@@ -42,7 +42,7 @@
 	{
 		"variant": 3,
 		"fileName": "003-homepage-prompt.md",
-		"seed": "publyapp-check-3",
+		"seed": "publyapp-check",
 		"audienceOverlay": "in-house-social-teams",
 		"homepageArchetype": "product-demo-first",
 		"promiseAngle": "ship-consistently",
@@ -62,7 +62,7 @@
 	{
 		"variant": 4,
 		"fileName": "004-homepage-prompt.md",
-		"seed": "publyapp-check-4",
+		"seed": "publyapp-check",
 		"audienceOverlay": "agencies",
 		"homepageArchetype": "comparison-led",
 		"promiseAngle": "replace-fragmented-tools",
@@ -79,7 +79,7 @@
 	{
 		"variant": 5,
 		"fileName": "005-homepage-prompt.md",
-		"seed": "publyapp-check-5",
+		"seed": "publyapp-check",
 		"audienceOverlay": "smb-marketing-teams",
 		"homepageArchetype": "workflow-story",
 		"promiseAngle": "ship-consistently",

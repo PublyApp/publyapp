@@ -22,33 +22,6 @@ export const hashSeed = (input) => {
   return hash >>> 0;
 };
 
-export const pickOne = (items, random, label = 'items') => {
-  if (!Array.isArray(items) || items.length === 0) {
-    throw new Error(`${label} must contain at least one item`);
-  }
-
-  return items[Math.floor(random() * items.length)];
-};
-
-export const pickCompatibleOne = ({
-  items,
-  predicate,
-  random,
-  label = 'items',
-}) => {
-  if (!Array.isArray(items) || items.length === 0) {
-    throw new Error(`${label} must contain at least one item`);
-  }
-
-  const compatibleItems = items.filter(predicate);
-
-  if (compatibleItems.length === 0) {
-    throw new Error(`No compatible ${label} available for the selected variant`);
-  }
-
-  return pickOne(compatibleItems, random, label);
-};
-
 const getRecipeKey = ({
   audienceOverlay,
   homepageArchetype,
@@ -487,88 +460,6 @@ const publishGeneratedBatch = async ({
   }
 };
 
-export const selectVariantRecipe = ({ config, random }) => {
-  const audienceOverlay = pickOne(
-    config.audienceOverlays,
-    random,
-    'audienceOverlays',
-  );
-  const homepageArchetype = pickCompatibleOne({
-    items: config.homepageArchetypes,
-    predicate: (item) => {
-      return (
-        config.promiseAngles.some((promiseAngle) => {
-          return (
-            item.compatiblePromiseAngles.includes(promiseAngle.id) &&
-            promiseAngle.bestFitAudiences.includes(audienceOverlay.id) &&
-            promiseAngle.bestFitArchetypes.includes(item.id)
-          );
-        }) &&
-        config.proofStrategies.some((proofStrategy) => {
-          return (
-            item.compatibleProofStrategies.includes(proofStrategy.id) &&
-            proofStrategy.bestFitAudiences.includes(audienceOverlay.id) &&
-            proofStrategy.bestFitArchetypes.includes(item.id)
-          );
-        }) &&
-        config.creativeBundles.some((creativeBundle) => {
-          return (
-            item.compatibleCreativeBundles.includes(creativeBundle.id) &&
-            creativeBundle.compatibilityTags.includes(audienceOverlay.id) &&
-            creativeBundle.compatibilityTags.includes(item.id)
-          );
-        })
-      );
-    },
-    random,
-    label: 'homepageArchetypes',
-  });
-  const promiseAngle = pickCompatibleOne({
-    items: config.promiseAngles,
-    predicate: (item) => {
-      return (
-        homepageArchetype.compatiblePromiseAngles.includes(item.id) &&
-        item.bestFitAudiences.includes(audienceOverlay.id) &&
-        item.bestFitArchetypes.includes(homepageArchetype.id)
-      );
-    },
-    random,
-    label: 'promiseAngles',
-  });
-  const proofStrategy = pickCompatibleOne({
-    items: config.proofStrategies,
-    predicate: (item) => {
-      return (
-        homepageArchetype.compatibleProofStrategies.includes(item.id) &&
-        item.bestFitAudiences.includes(audienceOverlay.id) &&
-        item.bestFitArchetypes.includes(homepageArchetype.id)
-      );
-    },
-    random,
-    label: 'proofStrategies',
-  });
-  const creativeBundle = pickCompatibleOne({
-    items: config.creativeBundles,
-    predicate: (item) => {
-      return (
-        homepageArchetype.compatibleCreativeBundles.includes(item.id) &&
-        item.compatibilityTags.includes(audienceOverlay.id) &&
-        item.compatibilityTags.includes(homepageArchetype.id)
-      );
-    },
-    random,
-    label: 'creativeBundles',
-  });
-
-  return {
-    audienceOverlay,
-    homepageArchetype,
-    promiseAngle,
-    proofStrategy,
-    creativeBundle,
-  };
-};
-
 export const generateHomepagePromptBatch = async ({
   config,
   outputDir,
@@ -635,7 +526,7 @@ export const generateHomepagePromptBatch = async ({
     const manifestEntry = {
       variant,
       fileName,
-      seed: `${seed}-${variant}`,
+      seed,
       audienceOverlay: audienceOverlay.id,
       homepageArchetype: homepageArchetype.id,
       promiseAngle: promiseAngle.id,
