@@ -1,0 +1,54 @@
+{
+	"productName": "PublyApp",
+	"productSummary": "AI-first social publishing workspace for planning, drafting, reviewing, and shipping better social content faster.",
+	"taglineDirections": [
+		"Ship better social content, faster, with AI workflows.",
+		"Plan, draft, review, and publish social content without workflow chaos."
+	],
+	"coreDifferentiators": [
+		"Combines AI-assisted drafting with real publishing workflow structure.",
+		"Built for approval-heavy social teams, not just solo creators.",
+		"Keeps planning, editing, review, and publishing context in one place."
+	],
+	"workflowStrengths": [
+		"campaign planning",
+		"draft generation",
+		"review and approval coordination",
+		"publishing readiness"
+	],
+	"trustSignals": [
+		"operationally serious product posture",
+		"clear review states and workflow visibility",
+		"reduced tool-switching across the content lifecycle"
+	],
+	"ctaThemes": [
+		"Book a walkthrough",
+		"See the workflow",
+		"Start planning content"
+	],
+	"proofAssets": [
+		"approval cycle speed",
+		"content throughput gains",
+		"reduced revision churn"
+	],
+	"productVisualRequirements": [
+		"Show a believable social publishing workflow.",
+		"Show calendar, draft, review, or queue states.",
+		"Avoid abstract charts as the primary hero visual."
+	],
+	"voiceGuardrails": [
+		"operationally serious",
+		"modern and confident",
+		"specific instead of hype-driven"
+	],
+	"forbiddenClaims": [
+		"fully autonomous social media",
+		"guaranteed virality",
+		"replace your marketing team"
+	],
+	"forbiddenCopyPatterns": [
+		"unlock your social potential",
+		"supercharge your workflow",
+		"AI-powered productivity for modern teams"
+	]
+}

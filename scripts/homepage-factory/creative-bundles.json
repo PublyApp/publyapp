@@ -1,0 +1,116 @@
+[
+	{
+		"id": "product-led-clean",
+		"label": "Product-Led Clean",
+		"heroStyle": "product-screenshot-first",
+		"visualDensity": "medium",
+		"motionBehavior": "micro-interactions-only",
+		"colorDirection": "frosted-blue-professional",
+		"surfaceTreatment": "clean layered panels with restrained depth",
+		"screenshotTreatment": "large anchored product frames with light annotation callouts",
+		"copyTone": "technical-and-trustworthy",
+		"compatibilityTags": [
+			"agencies",
+			"in-house-social-teams",
+			"smb-marketing-teams",
+			"workflow-story",
+			"proof-first",
+			"comparison-led",
+			"product-demo-first"
+		],
+		"referenceAnchors": [
+			"https://stripe.com",
+			"https://linear.app",
+			"https://www.figma.com",
+			"https://www.intercom.com"
+		],
+		"inspirationLibraries": [
+			"https://land-book.com/",
+			"https://www.awwwards.com/websites/"
+		]
+	},
+	{
+		"id": "warm-operator",
+		"label": "Warm Operator",
+		"heroStyle": "soft-saas-clean",
+		"visualDensity": "medium",
+		"motionBehavior": "hover-depth-card-system",
+		"colorDirection": "warm-neutral-with-electric-accent",
+		"surfaceTreatment": "soft panels with crisp callouts and warm neutrals",
+		"screenshotTreatment": "workflow composites with card-like framing",
+		"copyTone": "confident-and-precise",
+		"compatibilityTags": [
+			"agencies",
+			"in-house-social-teams",
+			"smb-marketing-teams",
+			"workflow-story",
+			"comparison-led",
+			"product-demo-first"
+		],
+		"referenceAnchors": [
+			"https://www.notion.com",
+			"https://www.airtable.com",
+			"https://slack.com",
+			"https://www.webflow.com"
+		],
+		"inspirationLibraries": [
+			"https://www.lapa.ninja/",
+			"https://land-book.com/"
+		]
+	},
+	{
+		"id": "editorial-dark",
+		"label": "Editorial Dark",
+		"heroStyle": "dark-editorial",
+		"visualDensity": "high",
+		"motionBehavior": "scroll-narrative",
+		"colorDirection": "midnight-indigo-with-cyan",
+		"surfaceTreatment": "editorial contrast blocks with glowing product accents",
+		"screenshotTreatment": "dramatic framed UI crops with strong depth separation",
+		"copyTone": "visionary-and-future-forward",
+		"compatibilityTags": [
+			"agencies",
+			"in-house-social-teams",
+			"workflow-story",
+			"proof-first",
+			"product-demo-first"
+		],
+		"referenceAnchors": [
+			"https://linear.app",
+			"https://stripe.com",
+			"https://www.figma.com",
+			"https://www.webflow.com"
+		],
+		"inspirationLibraries": [
+			"https://www.awwwards.com/websites/",
+			"https://land-book.com/"
+		]
+	},
+	{
+		"id": "contrast-grid",
+		"label": "Contrast Grid",
+		"heroStyle": "bold-typographic",
+		"visualDensity": "medium-high",
+		"motionBehavior": "animated-gradient-accent",
+		"colorDirection": "black-white-plus-single-accent",
+		"surfaceTreatment": "high-contrast sections with rigid grid rhythm",
+		"screenshotTreatment": "boxed UI modules inside comparison and proof layouts",
+		"copyTone": "pragmatic-operations-first",
+		"compatibilityTags": [
+			"agencies",
+			"in-house-social-teams",
+			"proof-first",
+			"comparison-led"
+		],
+		"referenceAnchors": [
+			"https://stripe.com",
+			"https://linear.app",
+			"https://www.intercom.com",
+			"https://www.figma.com"
+		],
+		"inspirationLibraries": [
+			"https://www.awwwards.com/websites/",
+			"https://www.lapa.ninja/"
+		]
+	}
+]

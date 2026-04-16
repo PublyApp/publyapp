@@ -1,0 +1,135 @@
+[
+	{
+		"id": "workflow-story",
+		"label": "Workflow Story",
+		"heroGoal": "Show how PublyApp moves a team from idea to published content with less friction.",
+		"narrativeOrder": [
+			"hero",
+			"workflow-overview",
+			"step-by-step walkthrough",
+			"feature depth",
+			"proof",
+			"faq",
+			"final-cta"
+		],
+		"requiredSections": [
+			"hero",
+			"workflow-walkthrough",
+			"feature-depth",
+			"proof",
+			"final-cta"
+		],
+		"optionalSections": ["logo-strip", "faq", "pricing-teaser"],
+		"proofPlacement": "after the workflow walkthrough",
+		"ctaStyle": "See the workflow",
+		"compatiblePromiseAngles": [
+			"publish-without-chaos",
+			"approval-clarity",
+			"ship-consistently"
+		],
+		"compatibleProofStrategies": ["workflow-artifacts", "ops-metrics"],
+		"compatibleCreativeBundles": [
+			"product-led-clean",
+			"warm-operator",
+			"editorial-dark"
+		]
+	},
+	{
+		"id": "proof-first",
+		"label": "Proof First",
+		"heroGoal": "Lead with evidence that the workflow is credible and operationally serious.",
+		"narrativeOrder": [
+			"hero",
+			"social-proof",
+			"proof-metrics",
+			"core-benefits",
+			"product-visual",
+			"faq",
+			"final-cta"
+		],
+		"requiredSections": [
+			"hero",
+			"proof",
+			"core-benefits",
+			"product-visual",
+			"final-cta"
+		],
+		"optionalSections": ["logo-strip", "pricing-teaser", "faq"],
+		"proofPlacement": "immediately below the hero",
+		"ctaStyle": "Book a walkthrough",
+		"compatiblePromiseAngles": [
+			"approval-clarity",
+			"replace-fragmented-tools",
+			"ship-consistently"
+		],
+		"compatibleProofStrategies": ["ops-metrics", "customer-credibility"],
+		"compatibleCreativeBundles": [
+			"product-led-clean",
+			"contrast-grid",
+			"editorial-dark"
+		]
+	},
+	{
+		"id": "comparison-led",
+		"label": "Comparison Led",
+		"heroGoal": "Frame PublyApp against fragmented planning, drafting, and publishing workflows.",
+		"narrativeOrder": [
+			"hero",
+			"comparison",
+			"benefits",
+			"workflow-proof",
+			"faq",
+			"final-cta"
+		],
+		"requiredSections": [
+			"hero",
+			"comparison",
+			"core-benefits",
+			"proof",
+			"final-cta"
+		],
+		"optionalSections": ["logo-strip", "pricing-teaser"],
+		"proofPlacement": "after the comparison section",
+		"ctaStyle": "See the workflow",
+		"compatiblePromiseAngles": [
+			"replace-fragmented-tools",
+			"publish-without-chaos"
+		],
+		"compatibleProofStrategies": ["comparison-checklist", "workflow-artifacts"],
+		"compatibleCreativeBundles": [
+			"contrast-grid",
+			"warm-operator",
+			"product-led-clean"
+		]
+	},
+	{
+		"id": "product-demo-first",
+		"label": "Product Demo First",
+		"heroGoal": "Anchor the page around a believable product visual and explain the workflow through it.",
+		"narrativeOrder": [
+			"hero",
+			"product-visual",
+			"feature-depth",
+			"proof",
+			"faq",
+			"final-cta"
+		],
+		"requiredSections": [
+			"hero",
+			"product-visual",
+			"feature-depth",
+			"proof",
+			"final-cta"
+		],
+		"optionalSections": ["logo-strip", "workflow-summary", "pricing-teaser"],
+		"proofPlacement": "after feature depth",
+		"ctaStyle": "See the workflow",
+		"compatiblePromiseAngles": ["publish-without-chaos", "ship-consistently"],
+		"compatibleProofStrategies": ["workflow-artifacts", "customer-credibility"],
+		"compatibleCreativeBundles": [
+			"product-led-clean",
+			"editorial-dark",
+			"warm-operator"
+		]
+	}
+]

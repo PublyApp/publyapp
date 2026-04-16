@@ -1,0 +1,66 @@
+[
+	{
+		"id": "ops-metrics",
+		"label": "Ops Metrics",
+		"proofType": "metrics",
+		"bestFitAudiences": [
+			"agencies",
+			"in-house-social-teams",
+			"smb-marketing-teams"
+		],
+		"bestFitArchetypes": ["workflow-story", "proof-first"],
+		"recommendedProofElements": [
+			"approval-cycle speed",
+			"content throughput gains",
+			"reduced revision churn"
+		],
+		"proofPlacementGuidance": "Use a tight proof band with 2-3 outcome metrics and one supporting testimonial."
+	},
+	{
+		"id": "workflow-artifacts",
+		"label": "Workflow Artifacts",
+		"proofType": "workflow",
+		"bestFitAudiences": [
+			"agencies",
+			"in-house-social-teams",
+			"smb-marketing-teams"
+		],
+		"bestFitArchetypes": [
+			"workflow-story",
+			"comparison-led",
+			"product-demo-first"
+		],
+		"recommendedProofElements": [
+			"approval states",
+			"calendar snapshots",
+			"review-ready product visuals"
+		],
+		"proofPlacementGuidance": "Use product visuals and annotated workflow states as proof, not just decoration."
+	},
+	{
+		"id": "customer-credibility",
+		"label": "Customer Credibility",
+		"proofType": "testimonial",
+		"bestFitAudiences": ["agencies", "in-house-social-teams"],
+		"bestFitArchetypes": ["proof-first", "product-demo-first"],
+		"recommendedProofElements": [
+			"testimonial quote",
+			"team role or context",
+			"specific operational win"
+		],
+		"proofPlacementGuidance": "Put a concrete testimonial close to the hero or primary product explanation."
+	},
+	{
+		"id": "comparison-checklist",
+		"label": "Comparison Checklist",
+		"proofType": "comparison",
+		"bestFitAudiences": ["agencies", "in-house-social-teams"],
+		"bestFitArchetypes": ["comparison-led"],
+		"recommendedProofElements": [
+			"side-by-side workflow comparison",
+			"tool-sprawl pain points",
+			"operational differences"
+		],
+		"proofPlacementGuidance": "Use a grounded comparison grid that avoids naming competitors directly."
+	}
+]

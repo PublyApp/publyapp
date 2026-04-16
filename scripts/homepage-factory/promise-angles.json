@@ -1,0 +1,66 @@
+[
+	{
+		"id": "publish-without-chaos",
+		"label": "Publish Without Chaos",
+		"corePromise": "Turn social publishing from a messy handoff process into a clear operational workflow.",
+		"bestFitAudiences": [
+			"in-house-social-teams",
+			"smb-marketing-teams",
+			"agencies"
+		],
+		"bestFitArchetypes": [
+			"workflow-story",
+			"comparison-led",
+			"product-demo-first"
+		],
+		"headlineDirection": "Make the workflow feel orderly, visible, and ready to ship.",
+		"supportingMessageThemes": [
+			"workflow clarity",
+			"publishing confidence",
+			"less chaos"
+		]
+	},
+	{
+		"id": "approval-clarity",
+		"label": "Approval Clarity",
+		"corePromise": "Move content through review and approval with less back-and-forth and more certainty.",
+		"bestFitAudiences": ["agencies", "in-house-social-teams"],
+		"bestFitArchetypes": ["workflow-story", "proof-first"],
+		"headlineDirection": "Lead with review-state clarity and reduced revision churn.",
+		"supportingMessageThemes": [
+			"clear approvals",
+			"stakeholder visibility",
+			"faster sign-off"
+		]
+	},
+	{
+		"id": "ship-consistently",
+		"label": "Ship Consistently",
+		"corePromise": "Help lean teams publish better social content on a dependable rhythm.",
+		"bestFitAudiences": ["smb-marketing-teams", "in-house-social-teams"],
+		"bestFitArchetypes": [
+			"workflow-story",
+			"proof-first",
+			"product-demo-first"
+		],
+		"headlineDirection": "Tie better content quality directly to consistent execution.",
+		"supportingMessageThemes": [
+			"consistency",
+			"content cadence",
+			"team momentum"
+		]
+	},
+	{
+		"id": "replace-fragmented-tools",
+		"label": "Replace Fragmented Tools",
+		"corePromise": "Bring planning, drafting, review, and publishing into one more coherent workflow.",
+		"bestFitAudiences": ["agencies", "in-house-social-teams"],
+		"bestFitArchetypes": ["comparison-led", "proof-first"],
+		"headlineDirection": "Contrast fragmented tool stacks with one clearer operating system.",
+		"supportingMessageThemes": [
+			"fewer handoffs",
+			"less context switching",
+			"unified workflow"
+		]
+	}
+]

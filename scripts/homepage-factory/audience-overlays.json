@@ -1,0 +1,106 @@
+[
+	{
+		"id": "agencies",
+		"audienceLabel": "Agencies",
+		"primaryPains": [
+			"client approval bottlenecks",
+			"context switching across client accounts",
+			"revision churn before publishing"
+		],
+		"desiredOutcomes": [
+			"ship client content faster",
+			"standardize delivery workflows",
+			"reduce approval friction"
+		],
+		"topObjections": [
+			"our process is too custom",
+			"switching tools will slow us down"
+		],
+		"decisionCriteria": [
+			"multi-workflow visibility",
+			"approval clarity",
+			"team coordination"
+		],
+		"proofExpectations": [
+			"workflow proof",
+			"delivery metrics",
+			"team coordination evidence"
+		],
+		"ctaPreference": "Book a walkthrough",
+		"productFocusAreas": [
+			"approvals",
+			"campaign visibility",
+			"publishing readiness"
+		],
+		"faqConcerns": [
+			"client collaboration",
+			"handoff speed",
+			"process standardization"
+		],
+		"preferredToneAdjustments": ["confident", "delivery-focused", "operational"]
+	},
+	{
+		"id": "in-house-social-teams",
+		"audienceLabel": "In-House Social Teams",
+		"primaryPains": [
+			"fragmented planning and publishing",
+			"slow review cycles",
+			"unclear publishing readiness"
+		],
+		"desiredOutcomes": [
+			"consistent publishing cadence",
+			"better cross-functional visibility",
+			"cleaner review flow"
+		],
+		"topObjections": [
+			"we already use several tools",
+			"AI features usually feel gimmicky"
+		],
+		"decisionCriteria": [
+			"workflow clarity",
+			"calendar confidence",
+			"trustworthy collaboration"
+		],
+		"proofExpectations": [
+			"workflow clarity",
+			"team adoption",
+			"review-state visibility"
+		],
+		"ctaPreference": "See the workflow",
+		"productFocusAreas": ["calendar", "review flow", "publishing queue"],
+		"faqConcerns": ["approvals", "handoffs", "tool consolidation"],
+		"preferredToneAdjustments": ["clear", "trustworthy", "team-oriented"]
+	},
+	{
+		"id": "smb-marketing-teams",
+		"audienceLabel": "SMB Marketing Teams",
+		"primaryPains": [
+			"too much time spent getting content out",
+			"small teams juggling planning and publishing",
+			"slow content production"
+		],
+		"desiredOutcomes": [
+			"ship better content with less chaos",
+			"maintain consistency with lean teams",
+			"move from ideas to published posts faster"
+		],
+		"topObjections": [
+			"this looks too complex for a lean team",
+			"AI tools often create generic content"
+		],
+		"decisionCriteria": [
+			"speed to publish",
+			"ease of use",
+			"visible workflow value"
+		],
+		"proofExpectations": [
+			"speed improvements",
+			"ease-of-use signals",
+			"clear workflow snapshots"
+		],
+		"ctaPreference": "Start planning content",
+		"productFocusAreas": ["drafting", "planning", "publishing speed"],
+		"faqConcerns": ["setup effort", "team adoption", "content quality"],
+		"preferredToneAdjustments": ["pragmatic", "clear", "momentum-focused"]
+	}
+]
