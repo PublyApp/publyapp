@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 export const mulberry32 = (seed) => {
@@ -189,6 +189,103 @@ export const loadHomepageFactoryConfig = async ({ factoryDir }) => {
   return config;
 };
 
+const defaultFileOps = {
+  access,
+  mkdir,
+  mkdtemp,
+  rename,
+  rm,
+  writeFile,
+};
+
+const pathExists = async (targetPath, fileOps) => {
+  try {
+    await fileOps.access(targetPath);
+
+    return true;
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      return false;
+    }
+
+    throw error;
+  }
+};
+
+const createTempSiblingPath = (targetPath, suffix) => {
+  const uniqueId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  return `${targetPath}.${suffix}-${uniqueId}`;
+};
+
+const publishGeneratedBatch = async ({
+  outputDir,
+  prompts,
+  manifest,
+  fileOps,
+}) => {
+  const outputParentDir = path.dirname(outputDir);
+
+  await fileOps.mkdir(outputParentDir, { recursive: true });
+
+  let stagingDir = await fileOps.mkdtemp(
+    path.join(outputParentDir, '.homepage-factory-stage-'),
+  );
+  let backupDir = null;
+  let existingOutputMoved = false;
+  let published = false;
+
+  try {
+    for (const prompt of prompts) {
+      await fileOps.writeFile(
+        path.join(stagingDir, prompt.fileName),
+        prompt.content,
+        'utf8',
+      );
+    }
+
+    await fileOps.writeFile(
+      path.join(stagingDir, 'manifest.json'),
+      JSON.stringify(manifest, null, 2),
+      'utf8',
+    );
+
+    if (await pathExists(outputDir, fileOps)) {
+      backupDir = createTempSiblingPath(outputDir, 'backup');
+      await fileOps.rename(outputDir, backupDir);
+      existingOutputMoved = true;
+    }
+
+    await fileOps.rename(stagingDir, outputDir);
+    stagingDir = null;
+    published = true;
+
+    if (backupDir !== null) {
+      await fileOps.rm(backupDir, { recursive: true, force: true });
+      backupDir = null;
+    }
+  } catch (error) {
+    if (!published && existingOutputMoved && backupDir !== null) {
+      if (await pathExists(outputDir, fileOps)) {
+        await fileOps.rm(outputDir, { recursive: true, force: true });
+      }
+
+      await fileOps.rename(backupDir, outputDir);
+      backupDir = null;
+    }
+
+    throw error;
+  } finally {
+    if (stagingDir !== null) {
+      await fileOps.rm(stagingDir, { recursive: true, force: true });
+    }
+
+    if (backupDir !== null) {
+      await fileOps.rm(backupDir, { recursive: true, force: true });
+    }
+  }
+};
+
 export const selectVariantRecipe = ({ config, random }) => {
   const audienceOverlay = pickOne(
     config.audienceOverlays,
@@ -277,11 +374,17 @@ export const generateHomepagePromptBatch = async ({
   variants,
   seed,
   buildPrompt,
+  fileOps,
 }) => {
   if (typeof buildPrompt !== 'function') {
     throw new Error('buildPrompt must be provided');
   }
   validateHomepageFactoryConfig(config);
+
+  const resolvedFileOps = {
+    ...defaultFileOps,
+    ...fileOps,
+  };
 
   const manifest = [];
   const prompts = [];
@@ -327,18 +430,12 @@ export const generateHomepagePromptBatch = async ({
     prompts.push({ fileName, content });
   }
 
-  await rm(outputDir, { recursive: true, force: true });
-  await mkdir(outputDir, { recursive: true });
-
-  for (const prompt of prompts) {
-    await writeFile(path.join(outputDir, prompt.fileName), prompt.content, 'utf8');
-  }
-
-  await writeFile(
-    path.join(outputDir, 'manifest.json'),
-    JSON.stringify(manifest, null, 2),
-    'utf8',
-  );
+  await publishGeneratedBatch({
+    outputDir,
+    prompts,
+    manifest,
+    fileOps: resolvedFileOps,
+  });
 
   return { manifest, prompts };
 };

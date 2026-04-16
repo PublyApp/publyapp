@@ -253,6 +253,47 @@ test('generateHomepagePromptBatch preserves existing output when buildPrompt thr
   }
 });
 
+test('generateHomepagePromptBatch preserves existing output when staged publish fails', async () => {
+  const outputDir = await createTempOutputDir();
+  const existingFile = path.join(outputDir, 'existing.txt');
+  let writeAttempts = 0;
+
+  try {
+    await writeFile(existingFile, 'keep me', 'utf8');
+
+    await assert.rejects(
+      () =>
+        generateHomepagePromptBatch({
+          config: TEST_CONFIG,
+          outputDir,
+          variants: 2,
+          seed: 'publish-failure-seed',
+          buildPrompt: buildHomepagePrompt,
+          fileOps: {
+            writeFile: async (filePath, content, encoding) => {
+              writeAttempts += 1;
+
+              if (writeAttempts === 2) {
+                throw new Error('simulated write failure');
+              }
+
+              return writeFile(filePath, content, encoding);
+            },
+          },
+        }),
+      /simulated write failure/,
+    );
+
+    assert.equal(await readFile(existingFile, 'utf8'), 'keep me');
+    assert.equal(
+      await pathExists(path.join(outputDir, '001-homepage-prompt.md')),
+      false,
+    );
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
 test('loadHomepageFactoryConfig reports missing required array fields clearly', async () => {
   const factoryDir = await mkdtemp(path.join(os.tmpdir(), 'homepage-factory-'));
 
