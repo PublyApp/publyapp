@@ -55,8 +55,119 @@ export const readJson = async (filePath) => {
   return JSON.parse(raw);
 };
 
+const assertObject = (value, label) => {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+};
+
+const assertString = (value, label) => {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`${label} must be a non-empty string`);
+  }
+};
+
+const assertStringArray = (value, label) => {
+  if (!Array.isArray(value)) {
+    throw new Error(`${label} must be an array`);
+  }
+
+  for (const [index, item] of value.entries()) {
+    assertString(item, `${label}[${index}]`);
+  }
+};
+
+const assertObjectArray = (value, label) => {
+  if (!Array.isArray(value)) {
+    throw new Error(`${label} must be an array`);
+  }
+
+  for (const [index, item] of value.entries()) {
+    assertObject(item, `${label}[${index}]`);
+  }
+};
+
+export const validateHomepageFactoryConfig = (config) => {
+  assertObject(config, 'config');
+  assertObject(config.productCore, 'productCore');
+  assertString(config.productCore.productName, 'productCore.productName');
+
+  assertObjectArray(config.audienceOverlays, 'audienceOverlays');
+  for (const [index, item] of config.audienceOverlays.entries()) {
+    assertString(item.id, `audienceOverlays[${index}].id`);
+    assertString(
+      item.audienceLabel,
+      `audienceOverlays[${index}].audienceLabel`,
+    );
+  }
+
+  assertObjectArray(config.homepageArchetypes, 'homepageArchetypes');
+  for (const [index, item] of config.homepageArchetypes.entries()) {
+    assertString(item.id, `homepageArchetypes[${index}].id`);
+    assertString(item.label, `homepageArchetypes[${index}].label`);
+    assertStringArray(
+      item.compatiblePromiseAngles,
+      `homepageArchetypes[${index}].compatiblePromiseAngles`,
+    );
+    assertStringArray(
+      item.compatibleProofStrategies,
+      `homepageArchetypes[${index}].compatibleProofStrategies`,
+    );
+    assertStringArray(
+      item.compatibleCreativeBundles,
+      `homepageArchetypes[${index}].compatibleCreativeBundles`,
+    );
+  }
+
+  assertObjectArray(config.promiseAngles, 'promiseAngles');
+  for (const [index, item] of config.promiseAngles.entries()) {
+    assertString(item.id, `promiseAngles[${index}].id`);
+    assertString(item.label, `promiseAngles[${index}].label`);
+    assertStringArray(
+      item.bestFitAudiences,
+      `promiseAngles[${index}].bestFitAudiences`,
+    );
+    assertStringArray(
+      item.bestFitArchetypes,
+      `promiseAngles[${index}].bestFitArchetypes`,
+    );
+  }
+
+  assertObjectArray(config.proofStrategies, 'proofStrategies');
+  for (const [index, item] of config.proofStrategies.entries()) {
+    assertString(item.id, `proofStrategies[${index}].id`);
+    assertString(item.label, `proofStrategies[${index}].label`);
+    assertStringArray(
+      item.bestFitAudiences,
+      `proofStrategies[${index}].bestFitAudiences`,
+    );
+    assertStringArray(
+      item.bestFitArchetypes,
+      `proofStrategies[${index}].bestFitArchetypes`,
+    );
+  }
+
+  assertObjectArray(config.creativeBundles, 'creativeBundles');
+  for (const [index, item] of config.creativeBundles.entries()) {
+    assertString(item.id, `creativeBundles[${index}].id`);
+    assertString(item.label, `creativeBundles[${index}].label`);
+    assertStringArray(
+      item.compatibilityTags,
+      `creativeBundles[${index}].compatibilityTags`,
+    );
+    assertStringArray(
+      item.referenceAnchors,
+      `creativeBundles[${index}].referenceAnchors`,
+    );
+    assertStringArray(
+      item.inspirationLibraries,
+      `creativeBundles[${index}].inspirationLibraries`,
+    );
+  }
+};
+
 export const loadHomepageFactoryConfig = async ({ factoryDir }) => {
-  return {
+  const config = {
     productCore: await readJson(path.join(factoryDir, 'product-core.json')),
     audienceOverlays: await readJson(
       path.join(factoryDir, 'audience-overlays.json'),
@@ -72,6 +183,10 @@ export const loadHomepageFactoryConfig = async ({ factoryDir }) => {
       path.join(factoryDir, 'creative-bundles.json'),
     ),
   };
+
+  validateHomepageFactoryConfig(config);
+
+  return config;
 };
 
 export const selectVariantRecipe = ({ config, random }) => {
@@ -166,9 +281,7 @@ export const generateHomepagePromptBatch = async ({
   if (typeof buildPrompt !== 'function') {
     throw new Error('buildPrompt must be provided');
   }
-
-  await rm(outputDir, { recursive: true, force: true });
-  await mkdir(outputDir, { recursive: true });
+  validateHomepageFactoryConfig(config);
 
   const manifest = [];
   const prompts = [];
@@ -197,8 +310,6 @@ export const generateHomepagePromptBatch = async ({
     });
     const fileName = `${String(variant).padStart(3, '0')}-homepage-prompt.md`;
 
-    await writeFile(path.join(outputDir, fileName), content, 'utf8');
-
     const manifestEntry = {
       variant,
       fileName,
@@ -214,6 +325,13 @@ export const generateHomepagePromptBatch = async ({
 
     manifest.push(manifestEntry);
     prompts.push({ fileName, content });
+  }
+
+  await rm(outputDir, { recursive: true, force: true });
+  await mkdir(outputDir, { recursive: true });
+
+  for (const prompt of prompts) {
+    await writeFile(path.join(outputDir, prompt.fileName), prompt.content, 'utf8');
   }
 
   await writeFile(

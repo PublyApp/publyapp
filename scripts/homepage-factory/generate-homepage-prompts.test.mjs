@@ -1,8 +1,18 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { promisify } from 'node:util';
 
 import {
   generateHomepagePromptBatch,
@@ -10,8 +20,24 @@ import {
 } from './generator.mjs';
 import { buildHomepagePrompt } from './prompt-template.mjs';
 
+const execFileAsync = promisify(execFile);
+
 const createTempOutputDir = async () => {
   return mkdtemp(path.join(os.tmpdir(), 'homepage-prompts-'));
+};
+
+const writeJson = async (filePath, value) => {
+  await writeFile(filePath, JSON.stringify(value, null, 2), 'utf8');
+};
+
+const pathExists = async (targetPath) => {
+  try {
+    await access(targetPath);
+
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 const TEST_CONFIG = {
@@ -200,6 +226,86 @@ test('generateHomepagePromptBatch rejects empty selection arrays', async () => {
   }
 });
 
+test('generateHomepagePromptBatch preserves existing output when buildPrompt throws', async () => {
+  const outputDir = await createTempOutputDir();
+  const existingFile = path.join(outputDir, 'existing.txt');
+
+  try {
+    await writeFile(existingFile, 'keep me', 'utf8');
+
+    await assert.rejects(
+      () =>
+        generateHomepagePromptBatch({
+          config: TEST_CONFIG,
+          outputDir,
+          variants: 1,
+          seed: 'throwing-seed',
+          buildPrompt: () => {
+            throw new Error('builder failed');
+          },
+        }),
+      /builder failed/,
+    );
+
+    assert.equal(await readFile(existingFile, 'utf8'), 'keep me');
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('loadHomepageFactoryConfig reports missing required array fields clearly', async () => {
+  const factoryDir = await mkdtemp(path.join(os.tmpdir(), 'homepage-factory-'));
+
+  try {
+    await writeJson(path.join(factoryDir, 'product-core.json'), {
+      productName: 'PublyApp',
+    });
+    await writeJson(path.join(factoryDir, 'audience-overlays.json'), [
+      { id: 'agencies', audienceLabel: 'Agencies' },
+    ]);
+    await writeJson(path.join(factoryDir, 'homepage-archetypes.json'), [
+      {
+        id: 'workflow-story',
+        label: 'Workflow Story',
+        compatibleProofStrategies: ['ops-metrics'],
+        compatibleCreativeBundles: ['product-led-clean'],
+      },
+    ]);
+    await writeJson(path.join(factoryDir, 'promise-angles.json'), [
+      {
+        id: 'ship-consistently',
+        label: 'Ship Consistently',
+        bestFitAudiences: ['agencies'],
+        bestFitArchetypes: ['workflow-story'],
+      },
+    ]);
+    await writeJson(path.join(factoryDir, 'proof-strategies.json'), [
+      {
+        id: 'ops-metrics',
+        label: 'Ops Metrics',
+        bestFitAudiences: ['agencies'],
+        bestFitArchetypes: ['workflow-story'],
+      },
+    ]);
+    await writeJson(path.join(factoryDir, 'creative-bundles.json'), [
+      {
+        id: 'product-led-clean',
+        label: 'Product-Led Clean',
+        compatibilityTags: ['agencies', 'workflow-story'],
+        referenceAnchors: ['https://example.com/stripe'],
+        inspirationLibraries: ['https://example.com/land-book'],
+      },
+    ]);
+
+    await assert.rejects(
+      () => loadHomepageFactoryConfig({ factoryDir }),
+      /homepageArchetypes\[0\]\.compatiblePromiseAngles must be an array/,
+    );
+  } finally {
+    await rm(factoryDir, { recursive: true, force: true });
+  }
+});
+
 const FACTORY_DIR = path.resolve('scripts/homepage-factory');
 
 test('generated variants use compatible strategy metadata', async () => {
@@ -248,5 +354,49 @@ test('generated variants use compatible strategy metadata', async () => {
     }
   } finally {
     await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('generate-homepage-prompts CLI writes prompts using repo-relative paths', async () => {
+  const repoRoot = path.resolve('.');
+  const outputDir = path.join(
+    repoRoot,
+    'docs/misc/homepage-factory/generated-prompts',
+  );
+  const backupDir = path.join(
+    os.tmpdir(),
+    `homepage-prompts-backup-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  );
+  const hadExistingOutput = await pathExists(outputDir);
+
+  try {
+    if (hadExistingOutput) {
+      await rename(outputDir, backupDir);
+    }
+
+    const { stdout } = await execFileAsync(
+      process.execPath,
+      ['scripts/generate-homepage-prompts.mjs', '2', 'cli-seed'],
+      {
+        cwd: repoRoot,
+      },
+    );
+
+    assert.match(
+      stdout,
+      /Generated 2 homepage prompts in docs[\\/]+misc[\\/]+homepage-factory[\\/]+generated-prompts/,
+    );
+    assert.equal(
+      await pathExists(path.join(outputDir, '001-homepage-prompt.md')),
+      true,
+    );
+    assert.equal(await pathExists(path.join(outputDir, 'manifest.json')), true);
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+
+    if (hadExistingOutput) {
+      await mkdir(path.dirname(outputDir), { recursive: true });
+      await rename(backupDir, outputDir);
+    }
   }
 });
