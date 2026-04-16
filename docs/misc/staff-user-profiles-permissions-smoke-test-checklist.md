@@ -212,16 +212,16 @@ cursor-paginated `GET /staff/users` contract plus the existing
 
 This validates the original motivation: profile assignment produces effective permissions.
 
-- [ ] Create a staff profile that contains the specific permission needed to revoke tenant invitations.
-- [ ] Assign that staff profile to a non-admin staff user via the staff user details Profiles UI.
-- [ ] Login as that non-admin staff user.
-- [ ] Go to a tenant details Invitations tab (or the staff invitations surface, depending on where revoke lives).
-- [ ] Revoke a pending tenant invitation.
-- [ ] Confirm it succeeds (200) and the invitation status becomes revoked.
-- [ ] Remove the profile from that user (as staff admin).
-- [ ] Login again as the same non-admin staff user.
-- [ ] Try to revoke another pending tenant invitation.
-- [ ] Confirm it fails with `403`.
+- [x] Create a staff profile that contains the specific permission needed to revoke tenant invitations.
+- [x] Assign that staff profile to a non-admin staff user via the staff user details Profiles UI.
+- [x] Login as that non-admin staff user.
+- [x] Go to a tenant details Invitations tab (or the staff invitations surface, depending on where revoke lives).
+- [x] Revoke a pending tenant invitation.
+- [x] Confirm it succeeds (200) and the invitation status becomes revoked.
+- [x] Remove the profile from that user (as staff admin).
+- [x] Login again as the same non-admin staff user.
+- [x] Try to revoke another pending tenant invitation.
+- [x] Confirm it fails with `403`.
 
 ## Data Integrity Quick Checks (Optional)
 
