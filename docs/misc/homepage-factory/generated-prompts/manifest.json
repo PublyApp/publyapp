@@ -1,0 +1,52 @@
+[
+	{
+		"variant": 1,
+		"fileName": "001-homepage-prompt.md",
+		"seed": "publyapp-check-1",
+		"heroStyle": "glassmorphism-minimal",
+		"layoutAngle": "jobs-to-be-done",
+		"motionStyle": "parallax-subtle",
+		"colorMood": "frosted-blue-professional",
+		"copyTone": "founder-friendly-and-human"
+	},
+	{
+		"variant": 2,
+		"fileName": "002-homepage-prompt.md",
+		"seed": "publyapp-check-2",
+		"heroStyle": "cinematic-gradient",
+		"layoutAngle": "problem-agitation-solution",
+		"motionStyle": "scroll-narrative",
+		"colorMood": "neo-brutal-primary-pops",
+		"copyTone": "founder-friendly-and-human"
+	},
+	{
+		"variant": 3,
+		"fileName": "003-homepage-prompt.md",
+		"seed": "publyapp-check-3",
+		"heroStyle": "glassmorphism-minimal",
+		"layoutAngle": "problem-agitation-solution",
+		"motionStyle": "hover-depth-card-system",
+		"colorMood": "midnight-indigo-with-cyan",
+		"copyTone": "founder-friendly-and-human"
+	},
+	{
+		"variant": 4,
+		"fileName": "004-homepage-prompt.md",
+		"seed": "publyapp-check-4",
+		"heroStyle": "glassmorphism-minimal",
+		"layoutAngle": "social-proof-led",
+		"motionStyle": "scroll-narrative",
+		"colorMood": "black-white-plus-single-accent",
+		"copyTone": "pragmatic-operations-first"
+	},
+	{
+		"variant": 5,
+		"fileName": "005-homepage-prompt.md",
+		"seed": "publyapp-check-5",
+		"heroStyle": "glassmorphism-minimal",
+		"layoutAngle": "feature-depth-comparison",
+		"motionStyle": "micro-interactions-only",
+		"colorMood": "warm-neutral-with-electric-accent",
+		"copyTone": "confident-and-precise"
+	}
+]

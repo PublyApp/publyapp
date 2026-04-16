@@ -4,6 +4,7 @@
 	"private": true,
 	"scripts": {
 		"deploy:artifacts": "node ./scripts/deploy.mjs",
+		"generate:homepage-prompts": "node ./scripts/generate-homepage-prompts.mjs",
 		"prepare": "husky"
 	},
 	"devDependencies": {
