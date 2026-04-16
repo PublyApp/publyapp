@@ -684,6 +684,98 @@ test('loadHomepageFactoryConfig reports missing required array fields clearly', 
 	}
 });
 
+test('loadHomepageFactoryConfig reports missing required scalar fields clearly', async () => {
+	const factoryDir = await mkdtemp(path.join(os.tmpdir(), 'homepage-factory-'));
+
+	try {
+		await writeJson(path.join(factoryDir, 'product-core.json'), {
+			productName: 'PublyApp',
+			productSummary:
+				'A social publishing workspace for multi-tenant SaaS teams.',
+			coreDifferentiators: ['Approval workflows'],
+			workflowStrengths: ['Fast handoff'],
+			trustSignals: ['Audit history'],
+			productVisualRequirements: ['Publishing calendar'],
+			forbiddenClaims: ['Guaranteed virality'],
+			forbiddenCopyPatterns: ['magic AI'],
+		});
+		await writeJson(path.join(factoryDir, 'audience-overlays.json'), [
+			{
+				id: 'agencies',
+				audienceLabel: 'Agencies',
+				primaryPains: ['Approval bottlenecks'],
+				desiredOutcomes: ['Ship client content on time'],
+				topObjections: ['Will this slow the team down?'],
+				decisionCriteria: ['Approval workflow'],
+				proofExpectations: ['Workflow proof'],
+				ctaPreference: 'Book a walkthrough',
+				productFocusAreas: ['Approvals'],
+				faqConcerns: ['Client collaboration'],
+				preferredToneAdjustments: ['Operational'],
+			},
+		]);
+		await writeJson(path.join(factoryDir, 'homepage-archetypes.json'), [
+			{
+				id: 'workflow-story',
+				label: 'Workflow Story',
+				narrativeOrder: ['hero'],
+				requiredSections: ['hero'],
+				optionalSections: ['faq'],
+				proofPlacement: 'After the workflow narrative',
+				ctaStyle: 'Action-oriented',
+				compatiblePromiseAngles: ['ship-consistently'],
+				compatibleProofStrategies: ['ops-metrics'],
+				compatibleCreativeBundles: ['product-led-clean'],
+			},
+		]);
+		await writeJson(path.join(factoryDir, 'promise-angles.json'), [
+			{
+				id: 'ship-consistently',
+				label: 'Ship Consistently',
+				corePromise: 'Publish reliably without losing the thread',
+				headlineDirection: 'Confidence in the editorial cadence',
+				supportingMessageThemes: ['Clear ownership'],
+				bestFitAudiences: ['agencies'],
+				bestFitArchetypes: ['workflow-story'],
+			},
+		]);
+		await writeJson(path.join(factoryDir, 'proof-strategies.json'), [
+			{
+				id: 'ops-metrics',
+				label: 'Ops Metrics',
+				proofType: 'Process evidence',
+				recommendedProofElements: ['Approval count'],
+				proofPlacementGuidance: 'Pair proof with workflow sections',
+				bestFitAudiences: ['agencies'],
+				bestFitArchetypes: ['workflow-story'],
+			},
+		]);
+		await writeJson(path.join(factoryDir, 'creative-bundles.json'), [
+			{
+				id: 'product-led-clean',
+				label: 'Product-Led Clean',
+				heroStyle: 'Centered product focus',
+				visualDensity: 'Balanced',
+				motionBehavior: 'Subtle, functional motion',
+				colorDirection: 'Neutral with a strong accent',
+				surfaceTreatment: 'Soft cards and clean panels',
+				screenshotTreatment: 'Crisp UI captures with clear focus',
+				copyTone: 'Direct and confident',
+				compatibilityTags: ['agencies', 'workflow-story'],
+				referenceAnchors: ['https://example.com/stripe'],
+				inspirationLibraries: ['https://example.com/land-book'],
+			},
+		]);
+
+		await assert.rejects(
+			() => loadHomepageFactoryConfig({ factoryDir }),
+			/homepageArchetypes\[0\]\.heroGoal must be a non-empty string/,
+		);
+	} finally {
+		await rm(factoryDir, { recursive: true, force: true });
+	}
+});
+
 test('validateHomepageFactoryConfig rejects duplicate IDs within a config file', () => {
 	const config = structuredClone(TEST_CONFIG);
 
@@ -696,6 +788,74 @@ test('validateHomepageFactoryConfig rejects duplicate IDs within a config file',
 		() => validateHomepageFactoryConfig(config),
 		/duplicate promiseAngles id "ship-consistently"/,
 	);
+});
+
+test('validateHomepageFactoryConfig rejects missing homepage archetype scalar fields', () => {
+	for (const fieldName of ['heroGoal', 'proofPlacement', 'ctaStyle']) {
+		const config = structuredClone(TEST_CONFIG);
+
+		delete config.homepageArchetypes[0][fieldName];
+
+		assert.throws(
+			() => validateHomepageFactoryConfig(config),
+			new RegExp(
+				`homepageArchetypes\\[0\\]\\.${escapeRegExp(fieldName)} must be a non-empty string`,
+			),
+		);
+	}
+});
+
+test('validateHomepageFactoryConfig rejects missing promise angle scalar fields', () => {
+	for (const fieldName of ['corePromise', 'headlineDirection']) {
+		const config = structuredClone(TEST_CONFIG);
+
+		delete config.promiseAngles[0][fieldName];
+
+		assert.throws(
+			() => validateHomepageFactoryConfig(config),
+			new RegExp(
+				`promiseAngles\\[0\\]\\.${escapeRegExp(fieldName)} must be a non-empty string`,
+			),
+		);
+	}
+});
+
+test('validateHomepageFactoryConfig rejects missing proof strategy scalar fields', () => {
+	for (const fieldName of ['proofType', 'proofPlacementGuidance']) {
+		const config = structuredClone(TEST_CONFIG);
+
+		delete config.proofStrategies[0][fieldName];
+
+		assert.throws(
+			() => validateHomepageFactoryConfig(config),
+			new RegExp(
+				`proofStrategies\\[0\\]\\.${escapeRegExp(fieldName)} must be a non-empty string`,
+			),
+		);
+	}
+});
+
+test('validateHomepageFactoryConfig rejects missing creative bundle scalar fields', () => {
+	for (const fieldName of [
+		'heroStyle',
+		'visualDensity',
+		'motionBehavior',
+		'colorDirection',
+		'surfaceTreatment',
+		'screenshotTreatment',
+		'copyTone',
+	]) {
+		const config = structuredClone(TEST_CONFIG);
+
+		delete config.creativeBundles[0][fieldName];
+
+		assert.throws(
+			() => validateHomepageFactoryConfig(config),
+			new RegExp(
+				`creativeBundles\\[0\\]\\.${escapeRegExp(fieldName)} must be a non-empty string`,
+			),
+		);
+	}
 });
 
 test('validateHomepageFactoryConfig rejects broken cross-file compatibility references', () => {

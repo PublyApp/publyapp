@@ -423,10 +423,16 @@ export const validateHomepageFactoryConfig = (config) => {
 	for (const [index, item] of config.homepageArchetypes.entries()) {
 		assertString(item.id, `homepageArchetypes[${index}].id`);
 		assertString(item.label, `homepageArchetypes[${index}].label`);
+		assertString(item.heroGoal, `homepageArchetypes[${index}].heroGoal`);
 		assertNonEmptyStringArray(
 			item.narrativeOrder,
 			`homepageArchetypes[${index}].narrativeOrder`,
 		);
+		assertString(
+			item.proofPlacement,
+			`homepageArchetypes[${index}].proofPlacement`,
+		);
+		assertString(item.ctaStyle, `homepageArchetypes[${index}].ctaStyle`);
 		assertNonEmptyStringArray(
 			item.requiredSections,
 			`homepageArchetypes[${index}].requiredSections`,
@@ -457,6 +463,11 @@ export const validateHomepageFactoryConfig = (config) => {
 	for (const [index, item] of config.promiseAngles.entries()) {
 		assertString(item.id, `promiseAngles[${index}].id`);
 		assertString(item.label, `promiseAngles[${index}].label`);
+		assertString(item.corePromise, `promiseAngles[${index}].corePromise`);
+		assertString(
+			item.headlineDirection,
+			`promiseAngles[${index}].headlineDirection`,
+		);
 		assertNonEmptyStringArray(
 			item.supportingMessageThemes,
 			`promiseAngles[${index}].supportingMessageThemes`,
@@ -479,6 +490,11 @@ export const validateHomepageFactoryConfig = (config) => {
 	for (const [index, item] of config.proofStrategies.entries()) {
 		assertString(item.id, `proofStrategies[${index}].id`);
 		assertString(item.label, `proofStrategies[${index}].label`);
+		assertString(item.proofType, `proofStrategies[${index}].proofType`);
+		assertString(
+			item.proofPlacementGuidance,
+			`proofStrategies[${index}].proofPlacementGuidance`,
+		);
 		assertNonEmptyStringArray(
 			item.recommendedProofElements,
 			`proofStrategies[${index}].recommendedProofElements`,
@@ -501,6 +517,25 @@ export const validateHomepageFactoryConfig = (config) => {
 	for (const [index, item] of config.creativeBundles.entries()) {
 		assertString(item.id, `creativeBundles[${index}].id`);
 		assertString(item.label, `creativeBundles[${index}].label`);
+		assertString(item.heroStyle, `creativeBundles[${index}].heroStyle`);
+		assertString(item.visualDensity, `creativeBundles[${index}].visualDensity`);
+		assertString(
+			item.motionBehavior,
+			`creativeBundles[${index}].motionBehavior`,
+		);
+		assertString(
+			item.colorDirection,
+			`creativeBundles[${index}].colorDirection`,
+		);
+		assertString(
+			item.surfaceTreatment,
+			`creativeBundles[${index}].surfaceTreatment`,
+		);
+		assertString(
+			item.screenshotTreatment,
+			`creativeBundles[${index}].screenshotTreatment`,
+		);
+		assertString(item.copyTone, `creativeBundles[${index}].copyTone`);
 		assertNonEmptyStringArray(
 			item.compatibilityTags,
 			`creativeBundles[${index}].compatibilityTags`,
