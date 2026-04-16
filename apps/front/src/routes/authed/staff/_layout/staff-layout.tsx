@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { Outlet } from 'react-router';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+
 import { LoadingScreen } from '#app/components/loading-screen/index.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { DashboardLayout } from '#app/layouts/dashboard/layout.tsx';

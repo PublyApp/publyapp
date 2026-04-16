@@ -47,6 +47,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey DeleteItem = new("delete-item");
 
 	/// <summary>
+	/// Email is already in use
+	/// </summary>
+	public static readonly TranslationKey EmailAlreadyInUse = new("email-already-in-use");
+
+	/// <summary>
 	/// Email already verified
 	/// </summary>
 	public static readonly TranslationKey EmailAlreadyVerified = new("email-already-verified");
@@ -142,6 +147,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey MalformedId = new("malformed-id");
 
 	/// <summary>
+	/// Max profiles per user exceeded
+	/// </summary>
+	public static readonly TranslationKey MaxProfilesPerUserExceeded = new("max-profiles-per-user-exceeded");
+
+	/// <summary>
 	/// Method not allowed
 	/// </summary>
 	public static readonly TranslationKey MethodNotAllowed = new("method-not-allowed");
@@ -182,6 +192,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey ProfileNameAlreadyExists = new("profile-name-already-exists");
 
 	/// <summary>
+	/// Profile must be a staff profile
+	/// </summary>
+	public static readonly TranslationKey ProfileNotStaffScope = new("profile-not-staff-scope");
+
+	/// <summary>
 	/// profiles
 	/// </summary>
 	public static readonly TranslationKey Profiles = new("profiles");
@@ -217,9 +232,44 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey StaffProfileCreatedSuccessfully = new("staff-profile-created-successfully");
 
 	/// <summary>
+	/// Staff profile deleted successfully
+	/// </summary>
+	public static readonly TranslationKey StaffProfileDeletedSuccess = new("staff-profile-deleted-success");
+
+	/// <summary>
+	/// Staff profile updated successfully
+	/// </summary>
+	public static readonly TranslationKey StaffProfileUpdatedSuccessfully = new("staff-profile-updated-successfully");
+
+	/// <summary>
+	/// Users unassigned from profile successfully
+	/// </summary>
+	public static readonly TranslationKey StaffProfileUsersUnassignedSuccess = new("staff-profile-users-unassigned-success");
+
+	/// <summary>
 	/// staff profiles
 	/// </summary>
 	public static readonly TranslationKey StaffProfiles = new("staff-profiles");
+
+	/// <summary>
+	/// Staff user is already suspended
+	/// </summary>
+	public static readonly TranslationKey StaffUserAlreadySuspended = new("staff-user-already-suspended");
+
+	/// <summary>
+	/// Staff user is not currently suspended
+	/// </summary>
+	public static readonly TranslationKey StaffUserNotSuspended = new("staff-user-not-suspended");
+
+	/// <summary>
+	/// Staff member reactivated successfully
+	/// </summary>
+	public static readonly TranslationKey StaffUserReactivatedSuccess = new("staff-user-reactivated-success");
+
+	/// <summary>
+	/// Staff member suspended successfully
+	/// </summary>
+	public static readonly TranslationKey StaffUserSuspendedSuccess = new("staff-user-suspended-success");
 
 	/// <summary>
 	/// Staff user updated successfully

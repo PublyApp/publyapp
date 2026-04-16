@@ -2,6 +2,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Drawer from '@mui/material/Drawer';
 import Stack from '@mui/material/Stack';
+import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
 import { createContext, type ReactNode, useContext, useMemo } from 'react';
 
@@ -9,7 +10,10 @@ import DrawerAnchor from '#app/components/drawer-anchor.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
-import { SettingsPageHeader } from './settings-page-header';
+import {
+	CustomBreadcrumbs,
+	type CustomBreadcrumbsProps,
+} from '../custom-breadcrumbs/custom-breadcrumbs';
 
 type SectionPageWithDrawerContextValue = {
 	openDrawer: () => void;
@@ -32,8 +36,8 @@ export const useSectionPageWithDrawer = () => {
 };
 
 type SectionPageWithDrawerProps = {
-	subtitle: string;
 	title: string;
+	links: { name: string; href?: string }[];
 	ctaLabel: string;
 	drawerWidth?: number;
 	drawerContent: ReactNode;
@@ -41,11 +45,17 @@ type SectionPageWithDrawerProps = {
 	open?: boolean;
 	onOpen?: () => void;
 	onClose?: () => void;
+	slotProps?: {
+		customBreadcrumbs?: Omit<
+			CustomBreadcrumbsProps,
+			'heading' | 'links' | 'action'
+		>;
+	};
 };
 
 export const SectionPageWithDrawer = ({
-	subtitle,
 	title,
+	links,
 	ctaLabel,
 	drawerWidth = 400,
 	drawerContent,
@@ -53,6 +63,7 @@ export const SectionPageWithDrawer = ({
 	open,
 	onOpen,
 	onClose,
+	slotProps,
 }: SectionPageWithDrawerProps) => {
 	const { t } = useTranslate();
 	// Internal state for controlled/uncontrolled scenarios
@@ -71,14 +82,10 @@ export const SectionPageWithDrawer = ({
 
 	return (
 		<SectionPageWithDrawerContext.Provider value={contextValue}>
-			<Stack spacing={3} sx={{ flexGrow: 1, minHeight: 0 }}>
-				<Stack
-					direction="row"
-					alignItems="center"
-					justifyContent="space-between"
-					sx={{ flexShrink: 0 }}
-				>
-					<SettingsPageHeader subtitle={subtitle} title={title} />
+			<CustomBreadcrumbs
+				heading={title}
+				links={links}
+				action={
 					<Button
 						variant="contained"
 						onClick={effectiveOnOpen}
@@ -86,8 +93,16 @@ export const SectionPageWithDrawer = ({
 					>
 						{ctaLabel}
 					</Button>
-				</Stack>
-
+				}
+				sx={[
+					{ mb: { xs: 3, md: 5 } },
+					...(_.isArray(slotProps?.customBreadcrumbs?.sx)
+						? (slotProps?.customBreadcrumbs?.sx ?? [])
+						: [slotProps?.customBreadcrumbs?.sx ?? {}]),
+				]}
+				{...slotProps?.customBreadcrumbs}
+			/>
+			<Stack spacing={3} sx={{ flexGrow: 1, minHeight: 0 }}>
 				<Box
 					sx={{
 						flexGrow: 1,

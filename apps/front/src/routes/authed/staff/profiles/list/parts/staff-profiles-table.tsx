@@ -2,20 +2,29 @@ import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
 import ListItemText from '@mui/material/ListItemText';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
+import { useQueryClient } from '@tanstack/react-query';
 import capitalize from 'lodash/capitalize';
 import map from 'lodash/map';
 import {
 	createMRTColumnHelper,
 	MaterialReactTable,
 	type MRT_ColumnDef,
+	type MRT_Localization,
 	type MRT_SortingState,
+	type MRT_TableOptions,
 } from 'material-react-table';
-import { useCallback, useMemo } from 'react';
-import { toast } from 'sonner';
+import { useDebounce } from 'minimal-shared/hooks';
+import { parseAsString, useQueryStates } from 'nuqs';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type { StaffProfileItem } from '@org/client-ts/src/models';
 import {
 	DEFAULT_PAGE_SIZE,
@@ -25,12 +34,26 @@ import {
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { Label } from '#app/components/label/label.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
+import StaffProfilePreviewDrawer, {
+	type StaffProfilePreviewOption,
+} from '#app/components/staff-profile-preview-drawer.tsx';
+import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
+import StaffProfilesExportDialogController, {
+	type StaffProfilesExportDialogControllerRef,
+} from './staff-profiles-export-dialog-controller.tsx';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
 import { getUntypedNumber } from '#app/lib/js-client/kiota-utils.ts';
-import { useFindStaffProfiles } from '#app/lib/react-query/features/staff/staff-profile.hooks.ts';
+import { getQueryKey } from '#app/lib/react-query/query-utils.ts';
+import {
+	useDeleteStaffProfile,
+	useFindStaffProfiles,
+	useGetStaffProfileById,
+} from '#app/lib/react-query/features/staff/staff-profile.hooks.ts';
 
 // Row Data Type
 export type StaffProfileRowData = {
@@ -61,9 +84,41 @@ const defaultSorting: MRT_SortingState[number] = {
 	id: 'created_at',
 };
 
+const staffProfileUsersQueryKeyRoot = getQueryKey<ApiClient>((client) => {
+	return client.staff.profiles.byProfileId('').users.get;
+});
+
+const staffProfilePermissionsQueryKeyRoot = getQueryKey<ApiClient>((client) => {
+	return client.staff.profiles.byProfileId('').permissions.get;
+});
+
+const staffUserProfilesQueryKeyRoot = getQueryKey<ApiClient>((client) => {
+	return client.staff.users.byUserId('').profiles.get;
+});
+
+const getQueryKeyRoot = (queryKey: unknown) => {
+	// Predicate invalidation only needs the stable root segment; query variables differ
+	// across pages/details views but should all be swept after destructive profile changes.
+	if (Array.isArray(queryKey)) {
+		return queryKey[0];
+	}
+
+	return queryKey;
+};
+
 // Main Table Component
 const StaffProfilesTable = () => {
 	const { t } = useTranslate();
+	const exportDialogRef = useRef<StaffProfilesExportDialogControllerRef | null>(
+		null,
+	);
+
+	// Search state with nuqs (URL-persisted)
+	const [filterStates, setFilterStates] = useQueryStates({
+		q: parseAsString.withDefault(''),
+	});
+	const [search, setSearch] = useState(filterStates.q);
+	const debouncedQ = useDebounce(search, 300);
 
 	// Column definitions
 	const columns = useMemo(() => {
@@ -106,11 +161,25 @@ const StaffProfilesTable = () => {
 		tableState,
 		setNextCursor,
 		hasPreviousPage,
+		resetCursorPagination,
 	} = useTableState({
 		defaultSorting,
 		defaultPageSize: DEFAULT_PAGE_SIZE,
 		paginationMode: 'cursor',
 	});
+
+	useEffect(() => {
+		if (debouncedQ === filterStates.q) {
+			return;
+		}
+
+		resetCursorPagination?.();
+		setFilterStates({ q: debouncedQ });
+	}, [debouncedQ, filterStates.q, resetCursorPagination, setFilterStates]);
+
+	useEffect(() => {
+		setSearch(filterStates.q);
+	}, [filterStates.q]);
 
 	// Data fetching with cursor from apiVariables
 	const profilesQuery = useFindStaffProfiles({
@@ -118,6 +187,7 @@ const StaffProfilesTable = () => {
 			cursor: apiVariables.cursor || undefined,
 			limit: apiVariables.limit,
 			sort: apiVariables.sort,
+			q: filterStates.q || undefined,
 		},
 	});
 
@@ -165,16 +235,81 @@ const StaffProfilesTable = () => {
 		return map(profilesQuery.data?.data, StaffProfileRowDataMapper);
 	}, [profilesQuery.data]);
 
+	// Row selection state enables selection mode (bulk/selected actions).
+	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+	const selectedRows = useMemo(() => {
+		return dataTable.filter((row) => rowSelection[row.id]);
+	}, [dataTable, rowSelection]);
+	const selectedCount = Object.keys(rowSelection).length;
+	const isSelectionMode = selectedCount > 0;
+
+	const selectionModeDisabledReason = t('selection-mode-disable-controls');
+	const sortingDisabledReason = t('selection-mode-disable-sorting');
+	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
+		if (!isSelectionMode) {
+			return {};
+		}
+
+		return {
+			sortByColumnAsc: sortingDisabledReason,
+			sortByColumnDesc: sortingDisabledReason,
+			sortedByColumnAsc: sortingDisabledReason,
+			sortedByColumnDesc: sortingDisabledReason,
+		};
+	}, [isSelectionMode, sortingDisabledReason]);
+
 	// Table configuration with cursor pagination preset
 	const table = useMRTTable('minimal-cursor', {
 		columns,
 		data: dataTable,
+		enableRowSelection: true,
+		getRowId: (row) => row.id,
 		manualSorting: true,
-		onSortingChange: handleSortingChange,
+		localization: sortTooltipLocalization,
+		onSortingChange: (updater) => {
+			// Selection mode locks query controls (sorting/filter/pagination) to prevent
+			// users from losing their selected rows mid-operation.
+			if (isSelectionMode) {
+				return;
+			}
+
+			handleSortingChange(updater);
+		},
 		state: {
 			...tableState,
 			...queryState,
 			density: 'compact',
+			rowSelection,
+		},
+		onRowSelectionChange: (updater) => {
+			setRowSelection((prev) => {
+				return typeof updater === 'function' ? updater(prev) : updater;
+			});
+		},
+		muiTableHeadCellProps: ({ column }) => {
+			if (!column.getCanSort()) {
+				return {};
+			}
+
+			if (!isSelectionMode) {
+				return {
+					title: undefined,
+				};
+			}
+
+			return {
+				title: sortingDisabledReason,
+				sx: {
+					'& .MuiTableSortLabel-root': {
+						cursor: 'not-allowed',
+						pointerEvents: 'none',
+						opacity: 0.56,
+					},
+					'& .MuiTableSortLabel-icon': {
+						opacity: '1 !important',
+					},
+				},
+			} satisfies MRT_TableOptions<StaffProfileRowData>['muiTableHeadCellProps'];
 		},
 		muiTablePaperProps: {
 			sx: {
@@ -186,6 +321,58 @@ const StaffProfilesTable = () => {
 			hasNextPage,
 			hasPreviousPage,
 			isPending: profilesQuery.isPending,
+			disablePaginationControls: isSelectionMode,
+			renderToolbarFilters: () => {
+				return (
+					<Tooltip
+						title={isSelectionMode ? selectionModeDisabledReason : ''}
+						arrow
+						disableHoverListener={!isSelectionMode}
+					>
+						<Box component="span">
+							<TextField
+								size="small"
+								placeholder={t('search')}
+								value={search}
+								onChange={(event) => setSearch(event.target.value)}
+								disabled={isSelectionMode}
+								sx={{ minWidth: 320 }}
+								slotProps={{
+									input: {
+										startAdornment: (
+											<InputAdornment position="start">
+												<Iconify icon="eva:search-fill" />
+											</InputAdornment>
+										),
+										'aria-label': t('search'),
+									},
+								}}
+							/>
+						</Box>
+					</Tooltip>
+				);
+			},
+			renderExportActions: () => {
+				return (
+					<Tooltip title={t('export')} placement="top" arrow>
+						<IconButton
+							color="default"
+							onClick={() => exportDialogRef.current?.open()}
+						>
+							<Iconify icon="solar:download-bold" width={18} />
+						</IconButton>
+					</Tooltip>
+				);
+			},
+			renderSelectionActions: () => {
+				return (
+					<StaffProfilesSelectionActions
+						onExportSelected={() => exportDialogRef.current?.open()}
+						selectedRows={selectedRows}
+						onClearSelection={() => setRowSelection({})}
+					/>
+				);
+			},
 		},
 		renderEmptyRowsFallback,
 	});
@@ -200,6 +387,14 @@ const StaffProfilesTable = () => {
 			}}
 		>
 			<MaterialReactTable table={table} />
+
+			<StaffProfilesExportDialogController
+				ref={exportDialogRef}
+				isSelectionMode={isSelectionMode}
+				selectedCount={selectedCount}
+				rows={dataTable}
+				selectedRows={selectedRows}
+			/>
 		</Box>
 	);
 };
@@ -279,40 +474,269 @@ const UserAccountCountCell: MRT_ColumnDef<StaffProfileRowData, number>['Cell'] =
 		);
 	};
 
-// ProfileActionsCell Component
 const ProfileActionsCell: MRT_ColumnDef<StaffProfileRowData>['Cell'] = (
 	props,
 ) => {
-	const profileId = props.row.original.id;
 	const { t } = useTranslate();
+	const queryClient = useQueryClient();
+	const row = props.row.original;
+	// Keep preview/confirm state local to the row action so opening one drawer/dialog
+	// does not re-render the entire table.
+	const [previewedProfile, setPreviewedProfile] =
+		useState<StaffProfilePreviewOption | null>(null);
+	const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
-	const handleDelete = () => {
-		toast.warning('TODO: implement delete');
+	const { mutate: deleteProfile, isPending: isDeleting } =
+		useDeleteStaffProfile({
+			onSuccess: () => {
+				toast.success(
+					t('staff-profile-deleted-success', { ns: 'response-message' }),
+				);
+				setConfirmDeleteOpen(false);
+
+				// A deleted profile can affect list views, detail pages, and any cached
+				// "user -> assigned profiles" chips shown elsewhere in staff screens.
+				void Promise.all([
+					queryClient.invalidateQueries({
+						queryKey: useFindStaffProfiles.getKey(),
+					}),
+					queryClient.invalidateQueries({
+						queryKey: useGetStaffProfileById.getKey({ profileId: row.id }),
+					}),
+					queryClient.invalidateQueries({
+						predicate: (query) => {
+							return (
+								getQueryKeyRoot(query.queryKey) ===
+								staffProfileUsersQueryKeyRoot
+							);
+						},
+					}),
+					queryClient.invalidateQueries({
+						predicate: (query) => {
+							return (
+								getQueryKeyRoot(query.queryKey) ===
+								staffProfilePermissionsQueryKeyRoot
+							);
+						},
+					}),
+					queryClient.invalidateQueries({
+						predicate: (query) => {
+							return (
+								getQueryKeyRoot(query.queryKey) ===
+								staffUserProfilesQueryKeyRoot
+							);
+						},
+					}),
+				]);
+			},
+		});
+
+	return (
+		<>
+			<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+				<Tooltip title={t('preview')} placement="top" arrow>
+					<IconButton
+						color="default"
+						size="small"
+						onClick={() => {
+							setPreviewedProfile({
+								id: row.id,
+								name: row.name,
+								description: row.description,
+							});
+						}}
+					>
+						<Iconify icon="solar:list-bold" width={18} />
+					</IconButton>
+				</Tooltip>
+
+				<Tooltip title={t('delete')} placement="top" arrow>
+					<IconButton
+						color="default"
+						size="small"
+						onClick={() => setConfirmDeleteOpen(true)}
+						disabled={isDeleting}
+					>
+						<Iconify icon="solar:trash-bin-trash-bold" width={18} />
+					</IconButton>
+				</Tooltip>
+			</Box>
+
+			<StaffProfilePreviewDrawer
+				open={previewedProfile != null}
+				onClose={() => setPreviewedProfile(null)}
+				profile={previewedProfile}
+			/>
+
+			<ConfirmDialog
+				open={confirmDeleteOpen}
+				onClose={() => setConfirmDeleteOpen(false)}
+				title={t('delete-item', { item: t('profile'), ns: 'response-message' })}
+				content={t('confirm-delete-dialog-text', { ns: 'response-message' })}
+				action={
+					<Button
+						variant="contained"
+						color="error"
+						onClick={() => deleteProfile({ profileId: row.id })}
+						disabled={isDeleting}
+					>
+						{t('delete')}
+					</Button>
+				}
+			/>
+		</>
+	);
+};
+
+// ----------------------------------------------------------------------
+
+type StaffProfilesSelectionActionsProps = {
+	onExportSelected: () => void;
+	selectedRows: StaffProfileRowData[];
+	onClearSelection: () => void;
+};
+
+const StaffProfilesSelectionActions = ({
+	onExportSelected,
+	selectedRows,
+	onClearSelection,
+}: StaffProfilesSelectionActionsProps) => {
+	const { t } = useTranslate();
+	const queryClient = useQueryClient();
+	const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+	const open = Boolean(anchorEl);
+	const [confirmBulkDeleteOpen, setConfirmBulkDeleteOpen] = useState(false);
+
+	const { mutateAsync: deleteProfile, isPending: isBulkDeleting } =
+		useDeleteStaffProfile({
+			meta: { skipGlobalErrorHandler: true },
+		});
+
+	const closeMenu = () => setAnchorEl(null);
+
+	const handleConfirmBulkDelete = async () => {
+		// We still call the single-delete endpoint once per row until the API exposes
+		// a bulk delete route; the important part here is batching the cache refresh.
+		let succeeded = 0;
+		let failed = 0;
+		let firstFailureMessage: string | undefined;
+
+		for (const row of selectedRows) {
+			try {
+				// Keep the mutation sequential so a single failure doesn't mask the rest.
+				// This matches the repo's existing bulk-table fallback behavior.
+				// eslint-disable-next-line no-await-in-loop
+				await deleteProfile({ profileId: row.id });
+				succeeded += 1;
+			} catch (error) {
+				failed += 1;
+
+				if (firstFailureMessage == null) {
+					firstFailureMessage = getFailureMessage(toApiFailure(error), {
+						fallback: t('something-went-wrong'),
+					});
+				}
+			}
+		}
+
+		setConfirmBulkDeleteOpen(false);
+		if (succeeded > 0) {
+			await queryClient.invalidateQueries({
+				queryKey: useFindStaffProfiles.getKey(),
+			});
+		}
+
+		if (failed > 0 && succeeded === 0) {
+			toast.error(
+				firstFailureMessage || t('staff-profile-bulk-delete-failure'),
+			);
+			return;
+		}
+
+		if (failed > 0) {
+			toast.warning(
+				t('staff-profile-bulk-delete-partial-success', {
+					succeeded,
+					failed,
+				}),
+			);
+			return;
+		}
+
+		onClearSelection();
+		toast.success(
+			t('staff-profile-bulk-delete-success', {
+				count: succeeded,
+			}),
+		);
 	};
 
 	return (
-		<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-			<Tooltip title={t('view-details')} placement="top" arrow>
+		<>
+			<Tooltip title={t('actions')} placement="top" arrow>
 				<IconButton
-					color={'default'}
-					LinkComponent={RouterLink}
-					href={FRONT_PATH_NAMES.staff.profiles.details(profileId).root}
 					size="small"
+					onClick={(event) => setAnchorEl(event.currentTarget)}
+					sx={{ width: 32, height: 32 }}
 				>
-					<Iconify icon="solar:eye-bold" />
+					<Iconify icon="solar:menu-dots-bold-duotone" width={18} />
 				</IconButton>
 			</Tooltip>
 
-			<Tooltip title={t('delete')} placement="top" arrow>
-				<IconButton
-					color={'default'}
-					onClick={handleDelete}
-					sx={{ color: 'error.main' }}
-					size="small"
+			<Menu
+				anchorEl={anchorEl}
+				open={open}
+				onClose={closeMenu}
+				anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+				transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+				slotProps={{
+					paper: {
+						sx: {
+							minWidth: 220,
+						},
+					},
+				}}
+			>
+				<MenuItem
+					onClick={() => {
+						closeMenu();
+						onExportSelected();
+					}}
 				>
-					<Iconify icon="solar:trash-bin-trash-bold" />
-				</IconButton>
-			</Tooltip>
-		</Box>
+					<Iconify icon="solar:download-bold" width={18} />
+					<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
+				</MenuItem>
+				<MenuItem
+					onClick={() => {
+						closeMenu();
+						setConfirmBulkDeleteOpen(true);
+					}}
+					sx={{ color: 'error.main' }}
+				>
+					<Iconify icon="solar:trash-bin-trash-bold" width={18} />
+					<ListItemText primary={t('delete')} sx={{ ml: 1 }} />
+				</MenuItem>
+			</Menu>
+
+			<ConfirmDialog
+				open={confirmBulkDeleteOpen}
+				onClose={() => setConfirmBulkDeleteOpen(false)}
+				title={t('delete-item', {
+					item: t('profiles'),
+					ns: 'response-message',
+				})}
+				content={t('confirm-delete-dialog-text', { ns: 'response-message' })}
+				action={
+					<Button
+						variant="contained"
+						color="error"
+						onClick={handleConfirmBulkDelete}
+						disabled={isBulkDeleting}
+					>
+						{t('delete')}
+					</Button>
+				}
+			/>
+		</>
 	);
 };

@@ -65,6 +65,15 @@ const MuiAutocomplete: Components<Theme>['MuiAutocomplete'] = {
 				color: theme.vars.palette.text.secondary,
 				borderRadius: theme.shape.borderRadius,
 				backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
+				// Autocomplete renders tags as `Chip` components. Our global Chip styling adds a
+				// hover background for filled chips, which looks harsh for these "badge" tags.
+				// Keep the tag hover surface stable and subtle.
+				'&.MuiChip-root:hover': {
+					backgroundColor: varAlpha(
+						theme.vars.palette.grey['500Channel'],
+						0.32,
+					),
+				},
 			},
 		}),
 		paper: ({ theme }) => ({

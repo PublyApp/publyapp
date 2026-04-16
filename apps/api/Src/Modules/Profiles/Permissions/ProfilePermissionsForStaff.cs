@@ -8,6 +8,7 @@ public class ProfilePermissionsForStaff : ISlicePermissions {
 
 	// ==== FOR STAFF ====
 	public Permission LIST_FOR_STAFF { get; }
+	public Permission LIST_USERS_FOR_STAFF_PROFILE { get; }
 	public Permission GET_FOR_STAFF { get; }
 	public Permission CREATE_FOR_STAFF { get; }
 	public Permission UPDATE_FOR_STAFF { get; }
@@ -25,6 +26,10 @@ public class ProfilePermissionsForStaff : ISlicePermissions {
 		LIST_FOR_STAFF = Permission.CreateStaffPermission(string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "list_for_staff" }));
 		LIST_FOR_STAFF = LIST_FOR_STAFF.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "List staff profiles", Description = "List all staff profiles" });
 		LIST_FOR_STAFF = LIST_FOR_STAFF.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Liste les profils du staff", Description = "Liste tous les profils du staff" });
+
+		LIST_USERS_FOR_STAFF_PROFILE = Permission.CreateStaffPermission(string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "list_users_for_staff_profile" }));
+		LIST_USERS_FOR_STAFF_PROFILE = LIST_USERS_FOR_STAFF_PROFILE.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "List users assigned to a staff profile", Description = "List users assigned to a staff profile" });
+		LIST_USERS_FOR_STAFF_PROFILE = LIST_USERS_FOR_STAFF_PROFILE.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Lister les utilisateurs affectés à un profil du staff", Description = "Lister les utilisateurs affectés à un profil du staff" });
 
 		GET_FOR_STAFF = Permission.CreateStaffPermission(string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "get_for_staff" }));
 		GET_FOR_STAFF = GET_FOR_STAFF.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "View a staff profile", Description = "View a staff profile" });

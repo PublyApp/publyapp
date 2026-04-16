@@ -124,14 +124,14 @@ class BrowserConsoleFormatter {
 		const formattedMeta = this.formatMeta(meta);
 
 		// Use appropriate console method
-		const consoleMethod =
-			level === 'error'
-				? console.error
-				: level === 'warn'
-					? console.warn
-					: level === 'debug'
-						? console.debug
-						: console.info;
+		let consoleMethod: typeof console.info = console.info;
+		if (level === 'error') {
+			consoleMethod = console.error;
+		} else if (level === 'warn') {
+			consoleMethod = console.warn;
+		} else if (level === 'debug') {
+			consoleMethod = console.debug;
+		}
 
 		// If we have meta objects, use console.group for better formatting
 		if (

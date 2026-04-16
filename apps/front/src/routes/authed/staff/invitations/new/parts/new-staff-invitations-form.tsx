@@ -6,13 +6,17 @@ import Card from '@mui/material/Card';
 import CardHeader from '@mui/material/CardHeader';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
-import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
-import { useEffect, useRef, useState } from 'react';
-import { useFieldArray, useForm } from 'react-hook-form';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import {
+	useFieldArray,
+	useForm,
+	useFormContext,
+	useWatch,
+} from 'react-hook-form';
 import type { z as zod } from 'zod';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
@@ -22,7 +26,6 @@ import { getBulkCreateInvitationsSchema } from '@org/shared-ts/validations/invit
 import { Field } from '#app/components/hook-form/fields.tsx';
 import { Form } from '#app/components/hook-form/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
-import QueryDisplay from '#app/components/query-display.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
 import { useRouter } from '#app/hooks/use-router.ts';
 import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
@@ -86,20 +89,13 @@ const NewStaffInvitationsForm = () => {
 		previousFieldsCount.current = fields.length;
 	}, [fields.length]);
 
-	const profilesQuery = useFindStaffProfiles({
-		variables: {},
-	});
-
 	const { mutate: createInvitations, isPending } =
 		useBulkCreateStaffInvitations({
 			onSuccess: (data) => {
 				setServerErrors([]);
 				const createdCount = getUntypedNumber(data?.created, 0);
 				toast.success(
-					t('invitations-sent-successfully', {
-						count: createdCount,
-						defaultValue: `${createdCount} invitation(s) sent successfully`,
-					}),
+					t('invitations-sent-successfully', { count: createdCount }),
 				);
 				queryClient.invalidateQueries({
 					queryKey: useFindStaffInvitations.getKey(),
@@ -207,57 +203,15 @@ const NewStaffInvitationsForm = () => {
 						)}
 					</Alert>
 				)}
-				<QueryDisplay
-					query={profilesQuery}
-					LoadingSlot={() => (
-						<Card>
-							<CardHeader
-								title={<Skeleton variant="text" width={150} />}
-								subheader={<Skeleton variant="text" width={220} />}
-								sx={{ mb: 3 }}
-							/>
-							<Divider />
-							<Stack spacing={3} sx={{ p: 3 }}>
-								<Skeleton variant="rounded" height={35} />
-								<Stack spacing={1.5}>
-									<Skeleton variant="rounded" height={35} />
-									<Skeleton variant="text" width={180} />
-								</Stack>
-							</Stack>
-						</Card>
-					)}
-					ErrorSlot={({ error }) => {
-						const failure = toApiFailure(error);
-						const message =
-							failure.kind === 'problem' && failure.detail
-								? failure.detail
-								: t('error', { defaultValue: 'Failed to load profiles' });
-						return <Alert severity="error">{message}</Alert>;
-					}}
-				>
-					{({ data }) => {
-						const profiles = _.get(data, 'data', []);
-						const profileOptions = _.map(profiles, (profile) => ({
-							id: _.toString(profile.id),
-							name: profile.name || '',
-						}));
-
-						return (
-							<>
-								{fields.map((field, index) => (
-									<InvitationCard
-										key={field.id}
-										index={index}
-										onRemove={() => handleRemoveInvitation(index)}
-										profileOptions={profileOptions}
-										canRemove={fields.length > 1}
-										isPending={isPending}
-									/>
-								))}
-							</>
-						);
-					}}
-				</QueryDisplay>
+				{fields.map((field, index) => (
+					<InvitationCard
+						key={field.id}
+						index={index}
+						onRemove={() => handleRemoveInvitation(index)}
+						canRemove={fields.length > 1}
+						isPending={isPending}
+					/>
+				))}
 				{renderActions()}
 			</Stack>
 		</Form>
@@ -273,7 +227,6 @@ export default NewStaffInvitationsForm;
 type InvitationCardProps = {
 	index: number;
 	onRemove: () => void;
-	profileOptions: Array<{ id: string; name: string }>;
 	canRemove: boolean;
 	isPending: boolean;
 };
@@ -281,11 +234,49 @@ type InvitationCardProps = {
 const InvitationCard = ({
 	index,
 	onRemove,
-	profileOptions,
 	canRemove,
 	isPending,
 }: InvitationCardProps) => {
 	const { t } = useTranslate();
+	const { control } = useFormContext<BulkInvitationsFormType>();
+	const selectedProfileIds = useWatch({
+		control,
+		name: `invitations.${index}.profileIds`,
+	}) as string[] | undefined;
+
+	const [search, setSearch] = useState('');
+	const deferredSearch = useDeferredValue(search);
+
+	const profilesQuery = useFindStaffProfiles({
+		variables: {
+			limit: 20,
+			sort: { id: 'name', order: 'asc' },
+			q: deferredSearch || undefined,
+		},
+	});
+
+	// Keep labels stable: once we learn a profile name for an ID, keep using it even if the
+	// current search result page doesn't include that item anymore.
+	const profileNameByIdRef = useRef(new Map<string, string>());
+	const profileNameById = profileNameByIdRef.current;
+	useEffect(() => {
+		const profiles = profilesQuery.data?.data ?? [];
+		for (const profile of profiles) {
+			const id = _.toString(profile.id);
+			const name = profile.name || '';
+			if (id) {
+				profileNameById.set(id, name);
+			}
+		}
+	}, [profilesQuery.data, profileNameById]);
+
+	const options = useMemo(() => {
+		const profiles = profilesQuery.data?.data ?? [];
+		const fetchedIds = _.map(profiles, (profile) =>
+			_.toString(profile.id),
+		).filter(Boolean);
+		return _.uniq(fetchedIds.concat(selectedProfileIds ?? []));
+	}, [profilesQuery.data, selectedProfileIds]);
 
 	return (
 		<Card>
@@ -326,18 +317,24 @@ const InvitationCard = ({
 						label={t('profiles')}
 						placeholder={t('select-profiles')}
 						multiple
-						options={profileOptions.map((p) => p.id)}
+						options={options}
+						loading={profilesQuery.isFetching}
+						// Disable client-side filtering; results are already filtered by the API.
+						filterOptions={(x) => x}
 						getOptionLabel={(option) => {
-							const profile = profileOptions.find((p) => p.id === option);
-							return profile?.name || option;
+							return profileNameById.get(option) || option;
+						}}
+						// Keep search text stable when the input loses focus.
+						clearOnBlur={false}
+						inputValue={search}
+						onInputChange={(_event, value, reason) => {
+							// Only user typing (or explicit clear) should mutate the search state.
+							// Ignore "reset" (commonly emitted on blur/selection) to avoid clearing.
+							if (reason === 'input' || reason === 'clear') {
+								setSearch(value);
+							}
 						}}
 						disabled={isPending}
-						slotProps={{
-							chip: {
-								variant: 'soft',
-								color: 'primary',
-							},
-						}}
 					/>
 					<Typography variant="caption" sx={{ color: 'text.secondary' }}>
 						{t('select-at-least-one-profile')}

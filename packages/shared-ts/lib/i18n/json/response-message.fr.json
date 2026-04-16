@@ -40,6 +40,9 @@
 	"invitation-already-accepted": "Les invitations acceptées ne peuvent pas être révoquées",
 	"pending-invitation-exists": "Une invitation en attente existe déjà pour cet email",
 	"staff-profile-created-successfully": "Profil staff créé avec succès",
+	"staff-profile-updated-successfully": "Profil staff mis à jour avec succès",
+	"staff-profile-deleted-success": "Profil staff supprimé avec succès",
+	"staff-profile-users-unassigned-success": "Utilisateurs retirés du profil avec succès",
 	"profile-name-already-exists": "Le nom du profil existe déjà",
 	"profiles": "profils",
 	"profile": "profil",
@@ -75,5 +78,12 @@
 	"user-level-updated-success": "Le niveau de l'utilisateur a été mis à jour avec succès",
 	"cannot-remove-last-admin": "Impossible de supprimer le dernier administrateur du locataire",
 	"cannot-demote-last-admin": "Impossible de rétrograder le dernier administrateur du locataire",
-	"cannot-suspend-last-admin": "Impossible de suspendre le dernier administrateur du locataire"
+	"cannot-suspend-last-admin": "Impossible de suspendre le dernier administrateur du locataire",
+	"max-profiles-per-user-exceeded": "Nombre maximal de profils par utilisateur dépassé",
+	"profile-not-staff-scope": "Le profil doit être un profil du staff",
+	"staff-user-already-suspended": "Le membre du staff est déjà suspendu",
+	"staff-user-not-suspended": "Le membre du staff n'est pas actuellement suspendu",
+	"staff-user-suspended-success": "Membre du staff suspendu avec succès",
+	"staff-user-reactivated-success": "Membre du staff réactivé avec succès",
+	"email-already-in-use": "Cet email est déjà utilisé"
 }

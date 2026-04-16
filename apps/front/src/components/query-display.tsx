@@ -8,7 +8,9 @@ type Props<TData = unknown, TError = Error> = {
 	query: UseQueryResult<TData, TError>;
 	loadingStrategy?: 'loading' | 'pending' | 'fetching'; // defaults to 'pending'
 	LoadingSlot?: ReactNode | FC;
-	ErrorSlot?: ReactNode | FC<{ error: unknown }>;
+	ErrorSlot?:
+		| ReactNode
+		| FC<{ error: unknown; query: UseQueryResult<TData, TError> }>;
 	EmptySlot?: ReactNode | FC;
 	children?: ReactNode | FC<{ data: TData }>;
 	forceRender?: 'loading' | 'error' | 'empty' | 'data';
@@ -40,7 +42,12 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 	// Helper to render error slot
 	const renderError = () => {
 		if (_.isFunction(ErrorSlot)) {
-			return <ErrorSlot error={query.error ?? new Error('Forced error')} />;
+			return (
+				<ErrorSlot
+					error={query.error ?? new Error('Forced error')}
+					query={query}
+				/>
+			);
 		}
 		if (isValidElement(ErrorSlot) && !_.isNil(ErrorSlot)) {
 			return ErrorSlot;

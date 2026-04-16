@@ -42,9 +42,12 @@ import {
 	useCallback,
 	useEffect,
 	useId,
+	useImperativeHandle,
 	useMemo,
 	useReducer,
+	useRef,
 	useState,
+	type Ref,
 } from 'react';
 import { useParams } from 'react-router';
 
@@ -100,17 +103,11 @@ const GLOBALLY_SUSPENDED_STATUS_DESCRIPTION = 'GloballySuspended';
 
 type TableUiState = {
 	rowSelection: Record<string, boolean>;
-	selectionActionAnchorEl: HTMLElement | null;
-	exportDialogOpen: boolean;
-	exportFormat: 'csv' | 'json' | 'xlsx';
 	bulkRemoveDialogOpen: boolean;
 };
 
 const initialTableUiState: TableUiState = {
 	rowSelection: {},
-	selectionActionAnchorEl: null,
-	exportDialogOpen: false,
-	exportFormat: 'csv',
 	bulkRemoveDialogOpen: false,
 };
 
@@ -142,6 +139,165 @@ const parseStatusFilter = (value: string) => {
 
 type ExportFormat = 'csv' | 'json' | 'xlsx';
 
+type TenantUsersExportDialogControllerRef = {
+	open: () => void;
+};
+
+type TenantUsersExportDialogControllerProps = {
+	isSelectionMode: boolean;
+	selectedCount: number;
+	rowsCount: number;
+	onExport: (format: 'csv' | 'json') => void;
+	ref?: Ref<TenantUsersExportDialogControllerRef>;
+};
+
+const TenantUsersExportDialogController = ({
+	isSelectionMode,
+	selectedCount,
+	rowsCount,
+	onExport,
+	ref,
+}: TenantUsersExportDialogControllerProps) => {
+	const { t } = useTranslate();
+	const [open, setOpen] = useState(false);
+	const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
+
+	// React 19: `ref` is a normal prop (no `forwardRef` needed). We use an
+	// imperative handle because the export dialog can be opened from multiple
+	// toolbar/menu triggers without lifting dialog state into the heavy table.
+	useImperativeHandle(ref, () => {
+		return {
+			open: () => {
+				setExportFormat('csv');
+				setOpen(true);
+			},
+		};
+	}, []);
+
+	return (
+		<Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs">
+			<DialogTitle sx={{ pb: 1 }}>
+				{isSelectionMode
+					? t('export-selected-users', {
+							defaultValue: 'Export selected users',
+						})
+					: t('export-users', {
+							defaultValue: 'Export users',
+						})}
+			</DialogTitle>
+			<DialogContent sx={{ pt: '8px !important', pb: 2.5 }}>
+				<Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+					<Typography variant="body2">
+						{isSelectionMode
+							? t('export-selected-items', {
+									count: selectedCount,
+								})
+							: t('export-current-results', {
+									count: rowsCount,
+									defaultValue:
+										'Export the current result set ({{count}} item(s)).',
+								})}
+					</Typography>
+					<Tabs
+						value={exportFormat}
+						onChange={(_event, value: 'csv' | 'json' | 'xlsx') => {
+							setExportFormat(value);
+						}}
+						sx={(theme) => ({
+							mt: 1.5,
+							alignSelf: 'flex-start',
+							minHeight: 32,
+							p: '2px 2px 1px',
+							border: `1px solid ${theme.vars.palette.divider}`,
+							borderRadius: 1,
+							bgcolor: 'background.paper',
+							'& .MuiTabs-indicator': {
+								display: 'none',
+							},
+							'& .MuiTabs-list': {
+								gap: '2px',
+							},
+							'& .MuiTab-root': {
+								minHeight: 26,
+								minWidth: 64,
+								px: 1,
+								py: 0.375,
+								borderRadius: 0.75,
+								fontSize: theme.typography.caption.fontSize,
+								fontWeight: theme.typography.fontWeightMedium,
+								textTransform: 'none',
+								color: 'text.secondary',
+								m: 0,
+								transition: theme.transitions.create(
+									['background-color', 'color', 'box-shadow'],
+									{
+										duration: theme.transitions.duration.shorter,
+									},
+								),
+							},
+							'& .MuiTab-root.Mui-selected': {
+								color: 'text.primary',
+								bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
+								boxShadow: 'none',
+							},
+							'& .MuiTab-root.Mui-disabled': {
+								opacity: 0.48,
+							},
+						})}
+					>
+						<Tab label="CSV" value="csv" />
+						<Tab label="JSON" value="json" />
+						<Tab label="XLSX" value="xlsx" />
+					</Tabs>
+					<Typography
+						variant="body2"
+						color="text.secondary"
+						sx={{ minHeight: 20 }}
+					>
+						{exportFormat === 'xlsx'
+							? t('xlsx-export-coming-soon', {
+									defaultValue: 'XLSX export is coming soon.',
+								})
+							: ' '}
+					</Typography>
+				</Box>
+			</DialogContent>
+			<DialogActions
+				sx={{
+					px: 3,
+					pb: 3,
+					pt: 0,
+					gap: 0.75,
+					justifyContent: 'flex-end',
+				}}
+			>
+				<Button
+					variant="contained"
+					onClick={() => {
+						if (exportFormat === 'xlsx') {
+							return;
+						}
+
+						onExport(exportFormat);
+						setOpen(false);
+					}}
+					startIcon={<Iconify icon="solar:download-bold" />}
+					disabled={exportFormat === 'xlsx'}
+				>
+					{t('export')}
+				</Button>
+				<Button
+					variant="outlined"
+					color="inherit"
+					onClick={() => setOpen(false)}
+				>
+					{t('cancel')}
+				</Button>
+			</DialogActions>
+		</Dialog>
+	);
+};
+
 const useTenantUsersTableController = () => {
 	const { t } = useTranslate();
 	const { tenantId } = useParams();
@@ -149,6 +305,9 @@ const useTenantUsersTableController = () => {
 	const { openDrawer } = useSectionPageWithDrawer();
 	const searchTooltipId = useId();
 	const statusTooltipId = useId();
+	const exportDialogRef = useRef<TenantUsersExportDialogControllerRef | null>(
+		null,
+	);
 	const statusOptions = useMemo(() => {
 		return [
 			{ label: t('active'), value: USER_STATUS_ENUM.ACTIVE },
@@ -176,13 +335,7 @@ const useTenantUsersTableController = () => {
 		tableUiReducer,
 		initialTableUiState,
 	);
-	const {
-		rowSelection,
-		selectionActionAnchorEl,
-		exportDialogOpen,
-		exportFormat,
-		bulkRemoveDialogOpen,
-	} = tableUiState;
+	const { rowSelection, bulkRemoveDialogOpen } = tableUiState;
 
 	const debouncedSearchValue = useDebounce(searchValue, 300);
 
@@ -361,7 +514,6 @@ const useTenantUsersTableController = () => {
 	const selectedRows = useMemo(() => {
 		return rows.filter((row) => rowSelection[row.id]);
 	}, [rowSelection, rows]);
-	const isSelectionActionMenuOpen = Boolean(selectionActionAnchorEl);
 	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
 		if (!isSelectionMode) {
 			return {};
@@ -375,22 +527,13 @@ const useTenantUsersTableController = () => {
 		};
 	}, [isSelectionMode, sortingDisabledReason]);
 
-	const closeSelectionActionMenu = () => {
-		setTableUiState({ selectionActionAnchorEl: null });
-	};
-
 	const openExportDialog = () => {
-		closeSelectionActionMenu();
-		setTableUiState({ exportDialogOpen: true, exportFormat: 'csv' });
-	};
-	const closeExportDialog = () => {
-		setTableUiState({ exportDialogOpen: false });
+		// Keep dialog `open` state inside the dialog controller so opening the export
+		// UI doesn't cause a full table re-render (the table is the heavy sibling).
+		exportDialogRef.current?.open();
 	};
 	const closeBulkRemoveDialog = () => {
 		setTableUiState({ bulkRemoveDialogOpen: false });
-	};
-	const handleExportFormatChange = (format: ExportFormat) => {
-		setTableUiState({ exportFormat: format });
 	};
 
 	const exportRows = (format: 'csv' | 'json') => {
@@ -435,7 +578,6 @@ const useTenantUsersTableController = () => {
 
 	const handleExport = (format: 'csv' | 'json') => {
 		exportRows(format);
-		setTableUiState({ exportDialogOpen: false });
 	};
 
 	const { mutateAsync: removeTenantUserAsync, isPending: isBulkRemoving } =
@@ -672,53 +814,12 @@ const useTenantUsersTableController = () => {
 
 	const renderSelectionActions = () => {
 		return (
-			<>
-				<IconButton
-					size="small"
-					onClick={(event) => {
-						setTableUiState({
-							selectionActionAnchorEl: event.currentTarget,
-						});
-					}}
-					sx={{ width: 32, height: 32 }}
-				>
-					<Iconify icon="eva:more-vertical-fill" width={18} />
-				</IconButton>
-				<Menu
-					anchorEl={selectionActionAnchorEl}
-					open={isSelectionActionMenuOpen}
-					onClose={closeSelectionActionMenu}
-					anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-					transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-					slotProps={{
-						paper: {
-							sx: {
-								minWidth: SELECTION_MODE_MENU_MIN_WIDTH,
-							},
-						},
-					}}
-				>
-					<MenuItem onClick={openExportDialog}>
-						<Iconify icon="solar:download-bold" width={18} />
-						<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
-					</MenuItem>
-					<MenuItem
-						onClick={() => {
-							closeSelectionActionMenu();
-							setTableUiState({ bulkRemoveDialogOpen: true });
-						}}
-						sx={{ color: 'error.main' }}
-					>
-						<Iconify icon="solar:trash-bin-trash-bold" width={18} />
-						<ListItemText
-							primary={t('remove-selected-from-tenant', {
-								defaultValue: 'Remove selected from tenant',
-							})}
-							sx={{ ml: 1 }}
-						/>
-					</MenuItem>
-				</Menu>
-			</>
+			<TenantUsersSelectionActions
+				onOpenExportDialog={openExportDialog}
+				onOpenBulkRemoveDialog={() =>
+					setTableUiState({ bulkRemoveDialogOpen: true })
+				}
+			/>
 		);
 	};
 
@@ -803,13 +904,10 @@ const useTenantUsersTableController = () => {
 
 	return {
 		table,
-		exportDialogOpen,
+		exportDialogRef,
 		isSelectionMode,
 		selectedCount,
 		rowsCount: rows.length,
-		exportFormat,
-		closeExportDialog,
-		handleExportFormatChange,
 		handleExport,
 		bulkRemoveDialogOpen,
 		closeBulkRemoveDialog,
@@ -822,13 +920,10 @@ const TenantUsersTable = () => {
 	const { t } = useTranslate();
 	const {
 		table,
-		exportDialogOpen,
+		exportDialogRef,
 		isSelectionMode,
 		selectedCount,
 		rowsCount,
-		exportFormat,
-		closeExportDialog,
-		handleExportFormatChange,
 		handleExport,
 		bulkRemoveDialogOpen,
 		closeBulkRemoveDialog,
@@ -840,135 +935,13 @@ const TenantUsersTable = () => {
 		<Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
 			<MaterialReactTable table={table} />
 
-			<Dialog
-				open={exportDialogOpen}
-				onClose={closeExportDialog}
-				fullWidth
-				maxWidth="xs"
-			>
-				<DialogTitle sx={{ pb: 1 }}>
-					{isSelectionMode
-						? t('export-selected-users', {
-								defaultValue: 'Export selected users',
-							})
-						: t('export-users', {
-								defaultValue: 'Export users',
-							})}
-				</DialogTitle>
-				<DialogContent sx={{ pt: '8px !important', pb: 2.5 }}>
-					<Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-						<Typography variant="body2">
-							{isSelectionMode
-								? t('export-selected-items', {
-										count: selectedCount,
-									})
-								: t('export-current-results', {
-										count: rowsCount,
-										defaultValue:
-											'Export the current result set ({{count}} item(s)).',
-									})}
-						</Typography>
-						<Tabs
-							value={exportFormat}
-							onChange={(_event, value: 'csv' | 'json' | 'xlsx') => {
-								if (value) {
-									handleExportFormatChange(value);
-								}
-							}}
-							sx={(theme) => ({
-								mt: 1.5,
-								alignSelf: 'flex-start',
-								minHeight: 32,
-								p: '2px 2px 1px',
-								border: `1px solid ${theme.vars.palette.divider}`,
-								borderRadius: 1,
-								bgcolor: 'background.paper',
-								'& .MuiTabs-indicator': {
-									display: 'none',
-								},
-								'& .MuiTabs-list': {
-									gap: '2px',
-								},
-								'& .MuiTab-root': {
-									minHeight: 26,
-									minWidth: 64,
-									px: 1,
-									py: 0.375,
-									borderRadius: 0.75,
-									fontSize: theme.typography.caption.fontSize,
-									fontWeight: theme.typography.fontWeightMedium,
-									textTransform: 'none',
-									color: 'text.secondary',
-									m: 0,
-									transition: theme.transitions.create(
-										['background-color', 'color', 'box-shadow'],
-										{
-											duration: theme.transitions.duration.shorter,
-										},
-									),
-								},
-								'& .MuiTab-root.Mui-selected': {
-									color: 'text.primary',
-									bgcolor: varAlpha(
-										theme.vars.palette.grey['500Channel'],
-										0.16,
-									),
-									boxShadow: 'none',
-								},
-								'& .MuiTab-root.Mui-disabled': {
-									opacity: 0.48,
-								},
-							})}
-						>
-							<Tab label="CSV" value="csv" />
-							<Tab label="JSON" value="json" />
-							<Tab label="XLSX" value="xlsx" />
-						</Tabs>
-						<Typography
-							variant="body2"
-							color="text.secondary"
-							sx={{ minHeight: 20 }}
-						>
-							{exportFormat === 'xlsx'
-								? t('xlsx-export-coming-soon', {
-										defaultValue: 'XLSX export is coming soon.',
-									})
-								: ' '}
-						</Typography>
-					</Box>
-				</DialogContent>
-				<DialogActions
-					sx={{
-						px: 3,
-						pb: 3,
-						pt: 0,
-						gap: 0.75,
-						justifyContent: 'flex-end',
-					}}
-				>
-					<Button
-						variant="contained"
-						onClick={() => {
-							if (exportFormat === 'xlsx') {
-								return;
-							}
-
-							handleExport(exportFormat);
-						}}
-						startIcon={<Iconify icon="solar:download-bold" />}
-						disabled={exportFormat === 'xlsx'}
-					>
-						{t('export')}
-					</Button>
-					<Button
-						variant="outlined"
-						color="inherit"
-						onClick={closeExportDialog}
-					>
-						{t('cancel')}
-					</Button>
-				</DialogActions>
-			</Dialog>
+			<TenantUsersExportDialogController
+				ref={exportDialogRef}
+				isSelectionMode={isSelectionMode}
+				selectedCount={selectedCount}
+				rowsCount={rowsCount}
+				onExport={handleExport}
+			/>
 
 			<ConfirmDialog
 				open={bulkRemoveDialogOpen}
@@ -1040,6 +1013,74 @@ const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 				</Box>
 			</Stack>
 		</Box>
+	);
+};
+
+// ----------------------------------------------------------------------
+
+type TenantUsersSelectionActionsProps = {
+	onOpenExportDialog: () => void;
+	onOpenBulkRemoveDialog: () => void;
+};
+
+const TenantUsersSelectionActions = ({
+	onOpenExportDialog,
+	onOpenBulkRemoveDialog,
+}: TenantUsersSelectionActionsProps) => {
+	const { t } = useTranslate();
+	const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+	const open = Boolean(anchorEl);
+	const closeMenu = () => setAnchorEl(null);
+
+	return (
+		<>
+			<IconButton
+				size="small"
+				onClick={(event) => setAnchorEl(event.currentTarget)}
+				sx={{ width: 32, height: 32 }}
+			>
+				<Iconify icon="eva:more-vertical-fill" width={18} />
+			</IconButton>
+			<Menu
+				anchorEl={anchorEl}
+				open={open}
+				onClose={closeMenu}
+				anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+				transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+				slotProps={{
+					paper: {
+						sx: {
+							minWidth: SELECTION_MODE_MENU_MIN_WIDTH,
+						},
+					},
+				}}
+			>
+				<MenuItem
+					onClick={() => {
+						closeMenu();
+						onOpenExportDialog();
+					}}
+				>
+					<Iconify icon="solar:download-bold" width={18} />
+					<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
+				</MenuItem>
+				<MenuItem
+					onClick={() => {
+						closeMenu();
+						onOpenBulkRemoveDialog();
+					}}
+					sx={{ color: 'error.main' }}
+				>
+					<Iconify icon="solar:trash-bin-trash-bold" width={18} />
+					<ListItemText
+						primary={t('remove-selected-from-tenant', {
+							defaultValue: 'Remove selected from tenant',
+						})}
+						sx={{ ml: 1 }}
+					/>
+				</MenuItem>
+			</Menu>
+		</>
 	);
 };
 

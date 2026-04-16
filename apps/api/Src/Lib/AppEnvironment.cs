@@ -54,10 +54,10 @@ public class AppEnvironment {
 	public int INVITATION_TOKEN_LENGTH { get; }
 	public bool DI_MANIFEST_ENABLED { get; }
 	public int AUDIT_LOG_EXPORT_MAX_ROWS { get; }
+	public int MAX_PROFILES_PER_USER { get; }
 
 	// ========== Constants (hardcoded, not from environment) ==========
 #pragma warning disable CA1822
-	public int MAX_PROFILES_PER_USER => 5;
 	public int PAGINATION_DEFAULT_LIMIT => 100;
 	public int MAX_BULK_INVITATIONS_SIZE => 1000;
 	public int DEFAULT_MAX_USERS_PER_TENANT => 5;
@@ -126,7 +126,8 @@ public class AppEnvironment {
 		int passwordResetTokenLength,
 		int invitationTokenLength,
 		bool diManifestEnabled,
-		int auditLogExportMaxRows
+		int auditLogExportMaxRows,
+		int maxProfilesPerUser
 	) {
 		POSTGRES_CONNECTION_STRING = postgresConnectionString;
 		FRONT_URL = frontUrl;
@@ -147,6 +148,7 @@ public class AppEnvironment {
 		INVITATION_TOKEN_LENGTH = invitationTokenLength;
 		DI_MANIFEST_ENABLED = diManifestEnabled;
 		AUDIT_LOG_EXPORT_MAX_ROWS = auditLogExportMaxRows;
+		MAX_PROFILES_PER_USER = maxProfilesPerUser;
 	}
 
 	/// <summary>
@@ -189,7 +191,8 @@ public class AppEnvironment {
 				passwordResetTokenLength: GetRequiredInt(nameof(PASSWORD_RESET_TOKEN_LENGTH)),
 				invitationTokenLength: GetRequiredInt(nameof(INVITATION_TOKEN_LENGTH)),
 				diManifestEnabled: GetOptionalBool(nameof(DI_MANIFEST_ENABLED), false),
-				auditLogExportMaxRows: GetOptionalInt(nameof(AUDIT_LOG_EXPORT_MAX_ROWS), 10000)
+				auditLogExportMaxRows: GetOptionalInt(nameof(AUDIT_LOG_EXPORT_MAX_ROWS), 10000),
+				maxProfilesPerUser: GetOptionalInt(nameof(MAX_PROFILES_PER_USER), 5)
 			);
 
 			var validator = new AppEnvironmentValidator();
@@ -403,6 +406,10 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 		RuleFor(x => x.AUDIT_LOG_EXPORT_MAX_ROWS)
 			.InclusiveBetween(1, 1_000_000)
 			.WithMessage("AUDIT_LOG_EXPORT_MAX_ROWS must be between 1 and 1000000");
+
+		RuleFor(x => x.MAX_PROFILES_PER_USER)
+			.InclusiveBetween(1, 50)
+			.WithMessage("MAX_PROFILES_PER_USER must be between 1 and 50");
 
 		RuleFor(x => x.SESSION_TOKEN_HEADER_KEY)
 			.Must(BeValidHeaderName)

@@ -156,6 +156,58 @@ Default starting approach:
 
 If bulk operations become common/heavy, consider adding a batch API later (explicit product/engineering decision).
 
+## 7.1) Export/Preview UI State (Frontend)
+
+Export dialogs and preview drawers are UI-only overlays. Their `open`/`close` state and local UI state
+(format tabs, previewed row, etc.) must live in the smallest owner component, not inside the heavy table
+component/controller hook.
+
+Reason:
+- Keeping overlay state at the table level causes avoidable full table re-renders when opening dialogs,
+  switching export format, etc.
+
+Preferred pattern (React 19):
+- Create a small `*DialogController` component that owns `open` + `exportFormat` state.
+- Expose an imperative `open()` method via `useImperativeHandle` on a `ref` prop (React 19 does not require `forwardRef`).
+- Triggers in the table toolbar/selection menu call `ref.current?.open()`.
+- Keep menu/popover anchor state (`anchorEl`) inside the action component that renders the menu (not in the table/controller hook).
+
+```tsx
+export type ExportDialogControllerRef = { open: () => void };
+
+type ExportDialogControllerProps = {
+  rowsCount: number;
+  onExport: (format: 'csv' | 'json') => void;
+  ref?: React.Ref<ExportDialogControllerRef>;
+};
+
+const ExportDialogController = ({ rowsCount, onExport, ref }: ExportDialogControllerProps) => {
+  const [open, setOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv');
+
+  useImperativeHandle(ref, () => ({
+    open: () => {
+      setExportFormat('csv');
+      setOpen(true);
+    },
+  }), []);
+
+  return (
+    <Dialog open={open} onClose={() => setOpen(false)}>
+      {/* ... */}
+      <Button
+        onClick={() => {
+          onExport(exportFormat);
+          setOpen(false);
+        }}
+      >
+        Export
+      </Button>
+    </Dialog>
+  );
+};
+```
+
 ## 8) Testing Checklist (Minimum)
 
 Backend:

@@ -11,10 +11,12 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
+import type { ReactNode } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 
 import { ACCOUNT_LEVEL_ENUM } from '@org/shared-ts/lib/constants';
 import { mbToBytes } from '@org/shared-ts/utils/any.utils';
+
 import { Field } from '#app/components/hook-form/fields.tsx';
 import { Form } from '#app/components/hook-form/form-provider.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
@@ -27,6 +29,15 @@ type Props<T extends Record<string, unknown>> = {
 	onMutate: (data: T) => void;
 	isMutating: boolean;
 	isEdit?: boolean;
+	// Defaults to true to preserve existing behavior across the app.
+	// Some pages (like settings-like "General" tabs) want direct submit without a confirm dialog.
+	confirmOnSubmit?: boolean;
+	// Controls layout. Default is the original 2-column "avatar card + form card".
+	// Some pages provide their own sidebar (avatar/status/etc) and only want the fields.
+	layout?: 'default' | 'fields_only';
+	// Optional content rendered under the avatar upload on the default layout
+	// (e.g. a status badge like in tenant details pages).
+	sidebarFooter?: ReactNode;
 };
 
 const ACCOUNT_LEVEL_OPTIONS = _.values(ACCOUNT_LEVEL_ENUM);
@@ -36,13 +47,21 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 	isMutating,
 	form,
 	isEdit,
+	confirmOnSubmit = true,
+	layout = 'default',
+	sidebarFooter,
 }: Props<T>) => {
 	const { t } = useTranslate();
 	const openDialog = useBoolean();
 
 	const handleCloseDialog = openDialog.onFalse;
 
-	const handleOpenDialog = form.handleSubmit(async () => {
+	const handleOpenDialog = form.handleSubmit(async (data) => {
+		if (!confirmOnSubmit) {
+			onMutate?.(data);
+			return;
+		}
+
 		openDialog.onTrue();
 	});
 
@@ -82,234 +101,176 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 	return (
 		<>
 			<Form methods={form} onSubmit={handleOpenDialog}>
-				<Grid container spacing={3}>
-					<Grid size={{ xs: 12, md: 4 }}>
-						<Card sx={{ pt: 10, pb: 5, px: 3 }}>
-							{/* {currentUser && (
-							<Label
-								color={
-									(values.status === 'active' && 'success') ||
-									(values.status === 'banned' && 'error') ||
-									'warning'
-								}
-								sx={{ position: 'absolute', top: 24, right: 24 }}
-							>
-								{values.status}
-							</Label>
-						)} */}
-
-							<Box sx={{ mb: 5 }}>
-								<Field.UploadAvatar
-									name="avatar"
-									maxSize={3145728}
-									helperText={
-										<Typography
-											variant="caption"
-											sx={{
-												mt: 3,
-												mx: 'auto',
-												display: 'block',
-												textAlign: 'center',
-												color: 'text.disabled',
-											}}
-										>
-											Allowed *.jpeg, *.jpg, *.png, *.gif
-											<br /> max size of {fData(mbToBytes(3))}
-										</Typography>
-									}
-								/>
-							</Box>
-
-							{/* {currentUser && (
-							<FormControlLabel
-								labelPlacement="start"
-								control={
-									<Controller
-										name="status"
-										control={control}
-										render={({ field }) => (
-											<Switch
-												{...field}
-												checked={field.value !== 'active'}
-												onChange={(event) =>
-													field.onChange(
-														event.target.checked ? 'banned' : 'active',
-													)
-												}
-											/>
-										)}
+				{layout === 'fields_only' ? (
+					<>
+						<Box
+							sx={{
+								rowGap: 3,
+								columnGap: 2,
+								display: 'grid',
+							}}
+						>
+							<Field.Text name="lastName" label={t('lastname')} required />
+							<Field.Text name="firstName" label={t('firstname')} />
+							<Stack direction="row" spacing={2}>
+								<Field.Text name="email" label={t('email-address')} required />
+								{!isEdit ? (
+									<Field.Switch
+										name="sendNotification"
+										label={t('send-notification')}
+										slotProps={{
+											wrapper: { sx: { whiteSpace: 'nowrap' } },
+										}}
 									/>
-								}
-								label={
-									<>
-										<Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-											Banned
-										</Typography>
-										<Typography
-											variant="body2"
-											sx={{ color: 'text.secondary' }}
-										>
-											Apply disable account
-										</Typography>
-									</>
-								}
-								sx={{
-									mx: 0,
-									mb: 3,
-									width: 1,
-									justifyContent: 'space-between',
-								}}
-							/>
-						)} */}
-
-							{/*<Field.Switch*/}
-							{/*	name="isVerified"*/}
-							{/*	labelPlacement="start"*/}
-							{/*	label={*/}
-							{/*		<>*/}
-							{/*			<Typography variant="subtitle2" sx={{ mb: 0.5 }}>*/}
-							{/*				Email verified*/}
-							{/*			</Typography>*/}
-							{/*			<Typography variant="body2" sx={{ color: 'text.secondary' }}>*/}
-							{/*				Disabling this will automatically send the user a*/}
-							{/*				verification email*/}
-							{/*			</Typography>*/}
-							{/*		</>*/}
-							{/*	}*/}
-							{/*	sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}*/}
-							{/*/>*/}
-
-							{/* {currentUser && (
-							<Stack
-								sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}
-							>
-								<Button variant="soft" color="error">
-									Delete user
-								</Button>
+								) : null}
 							</Stack>
-						)} */}
-						</Card>
-					</Grid>
+							<Field.Select name="accountLevel" label={t('level')} required>
+								{ACCOUNT_LEVEL_OPTIONS.map((option) => (
+									<MenuItem key={option} value={option}>
+										{option}
+									</MenuItem>
+								))}
+							</Field.Select>
+						</Box>
 
-					<Grid size={{ xs: 12, md: 8 }}>
-						<Card sx={{ p: 3 }}>
-							<Box
-								sx={{
-									rowGap: 3,
-									columnGap: 2,
-									display: 'grid',
-								}}
+						<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
+							<Button
+								type="submit"
+								variant="contained"
+								loading={isSubmitting || isMutating}
 							>
-								<Field.Text name="lastName" label={t('lastname')} required />
-								<Field.Text name="firstName" label={t('firstname')} />
-								<Stack direction="row" spacing={2}>
-									<Field.Text
-										name="email"
-										label={t('email-address')}
-										required
+								{!isEdit ? t('create-user') : t('save-changes')}
+							</Button>
+						</Stack>
+					</>
+				) : (
+					<Grid container spacing={3}>
+						<Grid size={{ xs: 12, md: 4 }}>
+							<Card sx={{ pt: 10, pb: 5, px: 3 }}>
+								<Box sx={{ mb: 5 }}>
+									<Field.UploadAvatar
+										name="avatar"
+										maxSize={3145728}
+										helperText={
+											<Typography
+												variant="caption"
+												sx={{
+													mt: 3,
+													mx: 'auto',
+													display: 'block',
+													textAlign: 'center',
+													color: 'text.disabled',
+												}}
+											>
+												Allowed *.jpeg, *.jpg, *.png, *.gif
+												<br /> max size of {fData(mbToBytes(3))}
+											</Typography>
+										}
 									/>
-									{!isEdit ? (
-										<Field.Switch
-											name="sendNotification"
-											label={t('send-notification')}
-											slotProps={{
-												wrapper: { sx: { whiteSpace: 'nowrap' } },
-											}}
-										/>
-									) : null}
-								</Stack>
-								<Field.Select name="accountLevel" label={t('level')} required>
-									{ACCOUNT_LEVEL_OPTIONS.map((option) => (
-										<MenuItem key={option} value={option}>
-											{option}
-										</MenuItem>
-									))}
-								</Field.Select>
+								</Box>
 
-								{/* <Field.Select name="role" label={t('role')} required>
-									{ROLE_OPTIONS.map((option) => (
-										<MenuItem key={option.value} value={option.label}>
-											{option.label}
-										</MenuItem>
-									))}
-								</Field.Select> */}
-								{/* <Field.Phone
-								name="phoneNumber"
-								label="Phone number"
-								country={!currentUser ? 'DE' : undefined}
-							/> */}
+								{sidebarFooter ? (
+									<Box sx={{ textAlign: 'center' }}>{sidebarFooter}</Box>
+								) : null}
+							</Card>
+						</Grid>
 
-								{/* <Field.CountrySelect
-								fullWidth
-								name="country"
-								label="Country"
-								placeholder="Choose a country"
-							/> */}
-
-								{/* <Field.Text name="state" label="State/region" /> */}
-								{/* <Field.Text name="city" label="City" /> */}
-								{/* <Field.Text name="address" label="Address" /> */}
-								{/* <Field.Text name="zipCode" label="Zip/code" /> */}
-								{/* <Field.Text name="company" label="Company" /> */}
-							</Box>
-
-							<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-								<Button
-									type="submit"
-									variant="contained"
-									loading={isSubmitting || isMutating}
+						<Grid size={{ xs: 12, md: 8 }}>
+							<Card sx={{ p: 3 }}>
+								<Box
+									sx={{
+										rowGap: 3,
+										columnGap: 2,
+										display: 'grid',
+									}}
 								>
-									{!isEdit ? t('create-user') : t('save-changes')}
-								</Button>
-							</Stack>
-						</Card>
+									<Field.Text name="lastName" label={t('lastname')} required />
+									<Field.Text name="firstName" label={t('firstname')} />
+									<Stack direction="row" spacing={2}>
+										<Field.Text
+											name="email"
+											label={t('email-address')}
+											required
+										/>
+										{!isEdit ? (
+											<Field.Switch
+												name="sendNotification"
+												label={t('send-notification')}
+												slotProps={{
+													wrapper: { sx: { whiteSpace: 'nowrap' } },
+												}}
+											/>
+										) : null}
+									</Stack>
+									<Field.Select name="accountLevel" label={t('level')} required>
+										{ACCOUNT_LEVEL_OPTIONS.map((option) => (
+											<MenuItem key={option} value={option}>
+												{option}
+											</MenuItem>
+										))}
+									</Field.Select>
+								</Box>
+
+								<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
+									<Button
+										type="submit"
+										variant="contained"
+										loading={isSubmitting || isMutating}
+									>
+										{!isEdit ? t('create-user') : t('save-changes')}
+									</Button>
+								</Stack>
+							</Card>
+						</Grid>
 					</Grid>
-				</Grid>
+				)}
 			</Form>
 
-			<Dialog open={openDialog.value} onClose={handleCloseDialog}>
-				<DialogTitle>
-					{_.capitalize(
-						t('save-item-confirmation-title', { item: t('staff-user') }),
-					)}
-				</DialogTitle>
-
-				<DialogContent sx={{ color: 'text.secondary' }}>
-					<Typography sx={{ mb: 2 }}>
+			{confirmOnSubmit ? (
+				<Dialog open={openDialog.value} onClose={handleCloseDialog}>
+					<DialogTitle>
 						{_.capitalize(
-							t('save-item-confirmation-message', { item: t('staff-user') }),
+							t('save-item-confirmation-title', { item: t('staff-user') }),
 						)}
-					</Typography>
-					{confirmValues.map((value) => {
-						return (
-							<Typography key={value.name} sx={{ mb: 1 }}>
-								<Box component="span" sx={{ fontWeight: 'bold' }}>
-									{value.name}
-								</Box>
-								: {value.value}
-							</Typography>
-						);
-					})}
-				</DialogContent>
+					</DialogTitle>
 
-				<DialogActions>
-					<Button
-						variant="outlined"
-						onClick={handleCloseDialog}
-						disabled={isSubmitting || isMutating}
-					>
-						{t('cancel')}
-					</Button>
-					<Button
-						variant="contained"
-						onClick={handleConfirmDialog}
-						autoFocus
-						loading={isSubmitting || isMutating}
-					>
-						{t('confirm')}
-					</Button>
-				</DialogActions>
-			</Dialog>
+					<DialogContent sx={{ color: 'text.secondary' }}>
+						<Typography sx={{ mb: 2 }}>
+							{_.capitalize(
+								t('save-item-confirmation-message', { item: t('staff-user') }),
+							)}
+						</Typography>
+						{confirmValues.map((value) => {
+							return (
+								<Typography key={value.name} sx={{ mb: 1 }}>
+									<Box component="span" sx={{ fontWeight: 'bold' }}>
+										{value.name}
+									</Box>
+									: {value.value}
+								</Typography>
+							);
+						})}
+					</DialogContent>
+
+					<DialogActions>
+						<Button
+							variant="outlined"
+							onClick={handleCloseDialog}
+							disabled={isSubmitting || isMutating}
+						>
+							{t('cancel')}
+						</Button>
+						<Button
+							variant="contained"
+							onClick={handleConfirmDialog}
+							autoFocus
+							loading={isSubmitting || isMutating}
+						>
+							{t('confirm')}
+						</Button>
+					</DialogActions>
+				</Dialog>
+			) : null}
 		</>
 	);
 };

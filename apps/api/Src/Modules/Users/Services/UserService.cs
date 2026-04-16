@@ -2,6 +2,7 @@ using System.Data;
 
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
+using MainApi.Src.Modules.Profiles.Entities;
 using MainApi.Src.Modules.Users.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +19,32 @@ public class StaffUserData {
 	public required User User { get; set; }
 	public required AccountLevel AccountLevel { get; set; }
 }
+
+public abstract record FindStaffUsersResult {
+	public sealed record Success(
+		CursorPaginatedResult<StaffUserData> Data
+	) : FindStaffUsersResult;
+
+	public sealed record CursorNotFound(
+		string Cursor
+	) : FindStaffUsersResult;
+
+	public sealed record InvalidSortId(
+		string SortId
+	) : FindStaffUsersResult;
+}
+
+public sealed record FindStaffUsersFilters(
+	string? Search
+);
+
+public sealed record FindStaffUsersArgs(
+	Guid Cursor,
+	int? Limit,
+	string? SortId,
+	SortOrder? SortOrder,
+	FindStaffUsersFilters? Filters
+);
 
 public class UpdateUserDocument {
 	public string? Email { get; set; }
@@ -106,6 +133,50 @@ public abstract record ReactivateTenantUserResult {
 	public sealed record NotSuspended() : ReactivateTenantUserResult;
 }
 
+public sealed record StaffUserProfileSummary(
+	Guid Id,
+	string Name,
+	string? Description
+);
+
+public sealed record StaffUserProfilesSummary(
+	List<StaffUserProfileSummary> AssignedProfiles
+);
+
+public abstract record UpdateStaffUserProfilesServiceResult {
+	public sealed record Success(
+		List<StaffUserProfileSummary> AssignedProfiles
+	) : UpdateStaffUserProfilesServiceResult;
+
+	public sealed record UserNotFound() : UpdateStaffUserProfilesServiceResult;
+
+	public sealed record ProfilesNotFound(
+		List<Guid> ProfileIds
+	) : UpdateStaffUserProfilesServiceResult;
+
+	public sealed record ProfilesNotStaffScope(
+		List<Guid> ProfileIds
+	) : UpdateStaffUserProfilesServiceResult;
+}
+
+public abstract record SuspendStaffUserResult {
+	public sealed record Success(StaffUserData UserData) : SuspendStaffUserResult;
+	public sealed record NotFound() : SuspendStaffUserResult;
+	public sealed record AlreadySuspended() : SuspendStaffUserResult;
+}
+
+public abstract record ReactivateStaffUserResult {
+	public sealed record Success(StaffUserData UserData) : ReactivateStaffUserResult;
+	public sealed record NotFound() : ReactivateStaffUserResult;
+	public sealed record NotSuspended() : ReactivateStaffUserResult;
+}
+
+public abstract record UpdateStaffUserEmailResult {
+	public sealed record Success(StaffUserData UserData) : UpdateStaffUserEmailResult;
+	public sealed record NotFound() : UpdateStaffUserEmailResult;
+	public sealed record EmailAlreadyInUse() : UpdateStaffUserEmailResult;
+}
+
 public interface IUserService {
 	Task<CreateUserResult> CreateUserAsync(User user, CancellationToken cancellationToken = default);
 	Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken = default);
@@ -114,15 +185,24 @@ public interface IUserService {
 	Task<User?> UpdateUserAsync(User user, CancellationToken cancellationToken = default);
 	Task<User?> GetUserByIdAsync(Guid? id, CancellationToken cancellationToken = default);
 	Task<StaffUserData?> GetStaffUserUserByIdAsync(Guid userId, CancellationToken cancellationToken = default);
+	Task<SuspendStaffUserResult> SuspendStaffUserAsync(Guid userId, CancellationToken cancellationToken = default);
+	Task<ReactivateStaffUserResult> ReactivateStaffUserAsync(Guid userId, CancellationToken cancellationToken = default);
+	Task<UpdateStaffUserEmailResult> UpdateStaffUserEmailAsync(Guid userId, string email, CancellationToken cancellationToken = default);
 	Task<int> CountStaffUsersAsync(CancellationToken cancellationToken = default);
-	Task<List<StaffUserData>> FindStaffUsersAsync(
-		int? page,
-		int? limit,
-		string? sortId,
-		SortOrder? sortOrder,
+	Task<FindStaffUsersResult> FindStaffUsersAsync(
+		FindStaffUsersArgs args,
 		CancellationToken cancellationToken = default
 	);
 	Task<UpdateUserByIdResult> UpdateStaffUserByIdAsync(Guid userId, UpdateUserDocument document, CancellationToken cancellationToken = default);
+	Task<StaffUserProfilesSummary?> GetStaffUserProfilesAsync(
+		Guid userId,
+		CancellationToken cancellationToken = default
+	);
+	Task<UpdateStaffUserProfilesServiceResult> UpdateStaffUserProfilesAsync(
+		Guid userId,
+		List<Guid> profileIds,
+		CancellationToken cancellationToken = default
+	);
 	Task<FindTenantUsersResult> FindTenantUsersAsync(
 		Guid tenantId,
 		FindTenantUsersAsStaffArgs args,
@@ -240,84 +320,723 @@ public class UserService : IUserService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
+		// NOTE: We intentionally do NOT filter out suspended staff users here.
+		// Staff must be able to view a suspended user to be able to reactivate them
+		// (and to audit "who is suspended and why"). Soft-deleted records remain hidden.
 		var query =
 			from ua in _dbContext.UserAccount
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
-				&& ua.Status != AccountStatus.Suspended
 				&& !ua.User.IsDeleted
-				&& ua.User.Status != UserStatus.Suspended
 			select new StaffUserData { User = ua.User, AccountLevel = ua.Level };
 
 		return await query.FirstOrDefaultAsync(cancellationToken);
 	}
 
+	public async Task<SuspendStaffUserResult> SuspendStaffUserAsync(
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		// Suspension for staff users is a global identity suspension (User.Status).
+		// This mirrors the tenant suspend/reactivate semantics: the staff UserAccount
+		// is still present, but the user can no longer authenticate/use staff routes.
+		var query =
+			from ua in _dbContext.UserAccount
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select new StaffUserData { User = ua.User, AccountLevel = ua.Level };
+
+		var userData = await query.FirstOrDefaultAsync(cancellationToken);
+		if (userData is null) {
+			return new SuspendStaffUserResult.NotFound();
+		}
+
+		if (userData.User.IsSuspended()) {
+			return new SuspendStaffUserResult.AlreadySuspended();
+		}
+
+		userData.User.Status = UserStatus.Suspended;
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		return new SuspendStaffUserResult.Success(userData);
+	}
+
+	public async Task<ReactivateStaffUserResult> ReactivateStaffUserAsync(
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		// Reactivation clears the global identity suspension and restores access.
+		// We keep this explicit (not part of the general PATCH) to make the operation
+		// harder to trigger accidentally and easier to permission-gate.
+		var query =
+			from ua in _dbContext.UserAccount
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select new StaffUserData { User = ua.User, AccountLevel = ua.Level };
+
+		var userData = await query.FirstOrDefaultAsync(cancellationToken);
+		if (userData is null) {
+			return new ReactivateStaffUserResult.NotFound();
+		}
+
+		if (!userData.User.IsSuspended()) {
+			return new ReactivateStaffUserResult.NotSuspended();
+		}
+
+		userData.User.Status = UserStatus.Active;
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		return new ReactivateStaffUserResult.Success(userData);
+	}
+
+	public async Task<UpdateStaffUserEmailResult> UpdateStaffUserEmailAsync(
+		Guid userId,
+		string email,
+		CancellationToken cancellationToken = default
+	) {
+		// Email change is a high-risk identity operation (affects sign-in).
+		// We keep it on a dedicated service method (and endpoint) so the API can enforce
+		// stricter validation/permission and clients cannot "accidentally" update email via PATCH.
+		var normalizedEmail = email.Trim().ToLowerInvariant();
+
+		var query =
+			from ua in _dbContext.UserAccount
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select new StaffUserData { User = ua.User, AccountLevel = ua.Level };
+
+		var userData = await query.FirstOrDefaultAsync(cancellationToken);
+		if (userData is null) {
+			return new UpdateStaffUserEmailResult.NotFound();
+		}
+
+		if (!string.Equals(userData.User.Email, normalizedEmail, StringComparison.Ordinal)) {
+			var existing = await GetUserByEmailAsync(normalizedEmail, cancellationToken);
+			if (existing is not null && existing.GetRequiredId() != userId) {
+				return new UpdateStaffUserEmailResult.EmailAlreadyInUse();
+			}
+
+			userData.User.Email = normalizedEmail;
+			await _dbContext.SaveChangesAsync(cancellationToken);
+		}
+
+		return new UpdateStaffUserEmailResult.Success(userData);
+	}
+
 	public async Task<int> CountStaffUsersAsync(CancellationToken cancellationToken = default) {
+		// For staff admin screens, we count all staff users (including suspended) so staff can
+		// see who exists even if they are currently suspended. Soft-deleted records stay hidden.
 		var query =
 			from ua in _dbContext.UserAccount
 			where ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
-				&& ua.Status != AccountStatus.Suspended
 				&& !ua.User.IsDeleted
-				&& ua.User.Status != UserStatus.Suspended
 			select ua.User;
 		return await query.CountAsync(cancellationToken);
 	}
 
-	public async Task<List<StaffUserData>> FindStaffUsersAsync(
-		int? page = 1,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
+	public async Task<FindStaffUsersResult> FindStaffUsersAsync(
+		FindStaffUsersArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var effectivePage = page ?? 1;
-		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		// Staff discovery intentionally includes suspended users so admins can
+		// search, audit, and reactivate them from the same list.
+		var effectiveLimit = args.Limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveSortId = args.SortId ?? "created_at";
+		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
+		var isAsc = effectiveSortOrder == SortOrder.Asc;
 
-		var query =
+		var sortFieldHandlers = new Dictionary<string, SortFieldHandler>(
+			StringComparer.OrdinalIgnoreCase
+		) {
+			["created_at"] = new SortFieldHandler(
+				getCursorValue: async guid => {
+					var item =
+						await (
+							from ua in _dbContext.UserAccount
+							where ua.UserId == guid
+								&& ua.Scope == AccountScope.Staff
+								&& !ua.IsDeleted
+								&& !ua.User.IsDeleted
+							select new {
+								ua.User.CreatedAt,
+								ua.UserId,
+							}
+						).FirstOrDefaultAsync(cancellationToken);
+					return item is not null
+						? (item.CreatedAt, item.UserId)
+						: null;
+				},
+				applyFilter: (q, cursorValue, asc) => {
+					if (cursorValue is null) {
+						return q;
+					}
+
+					var (cursorCreatedAt, cursorId) = ((DateTime, Guid))cursorValue;
+					return asc
+						? from ua in q
+							where ua.User.CreatedAt > cursorCreatedAt
+								|| (ua.User.CreatedAt == cursorCreatedAt
+									&& ua.UserId > cursorId)
+							select ua
+						: from ua in q
+							where ua.User.CreatedAt < cursorCreatedAt
+								|| (ua.User.CreatedAt == cursorCreatedAt
+									&& ua.UserId < cursorId)
+							select ua;
+				},
+				applyOrdering: (q, asc) => asc
+					? from ua in q
+						orderby ua.User.CreatedAt, ua.UserId
+						select ua
+					: from ua in q
+						orderby ua.User.CreatedAt descending, ua.UserId descending
+						select ua
+			),
+			["updated_at"] = new SortFieldHandler(
+				getCursorValue: async guid => {
+					var item =
+						await (
+							from ua in _dbContext.UserAccount
+							where ua.UserId == guid
+								&& ua.Scope == AccountScope.Staff
+								&& !ua.IsDeleted
+								&& !ua.User.IsDeleted
+							select new {
+								ua.User.UpdatedAt,
+								ua.UserId,
+							}
+						).FirstOrDefaultAsync(cancellationToken);
+					return item is not null
+						? (item.UpdatedAt, item.UserId)
+						: null;
+				},
+				applyFilter: (q, cursorValue, asc) => {
+					if (cursorValue is null) {
+						return q;
+					}
+
+					var (cursorUpdatedAt, cursorId) = ((DateTime, Guid))cursorValue;
+					return asc
+						? from ua in q
+							where ua.User.UpdatedAt > cursorUpdatedAt
+								|| (ua.User.UpdatedAt == cursorUpdatedAt
+									&& ua.UserId > cursorId)
+							select ua
+						: from ua in q
+							where ua.User.UpdatedAt < cursorUpdatedAt
+								|| (ua.User.UpdatedAt == cursorUpdatedAt
+									&& ua.UserId < cursorId)
+							select ua;
+				},
+				applyOrdering: (q, asc) => asc
+					? from ua in q
+						orderby ua.User.UpdatedAt, ua.UserId
+						select ua
+					: from ua in q
+						orderby ua.User.UpdatedAt descending, ua.UserId descending
+						select ua
+			),
+			["email"] = new SortFieldHandler(
+				getCursorValue: async guid => {
+					var item =
+						await (
+							from ua in _dbContext.UserAccount
+							where ua.UserId == guid
+								&& ua.Scope == AccountScope.Staff
+								&& !ua.IsDeleted
+								&& !ua.User.IsDeleted
+							select new {
+								ua.User.Email,
+								ua.UserId,
+							}
+						).FirstOrDefaultAsync(cancellationToken);
+					return item is not null
+						? (item.Email, item.UserId)
+						: null;
+				},
+				applyFilter: (q, cursorValue, asc) => {
+					if (cursorValue is null) {
+						return q;
+					}
+
+					var (cursorEmail, cursorId) = ((string, Guid))cursorValue;
+					return asc
+						? from ua in q
+							where ua.User.Email.CompareTo(cursorEmail) > 0
+								|| (ua.User.Email == cursorEmail && ua.UserId > cursorId)
+							select ua
+						: from ua in q
+							where ua.User.Email.CompareTo(cursorEmail) < 0
+								|| (ua.User.Email == cursorEmail && ua.UserId < cursorId)
+							select ua;
+				},
+				applyOrdering: (q, asc) => asc
+					? from ua in q
+						orderby ua.User.Email, ua.UserId
+						select ua
+					: from ua in q
+						orderby ua.User.Email descending, ua.UserId descending
+						select ua
+			),
+			["first_name"] = new SortFieldHandler(
+				getCursorValue: async guid => {
+					var item =
+						await (
+							from ua in _dbContext.UserAccount
+							where ua.UserId == guid
+								&& ua.Scope == AccountScope.Staff
+								&& !ua.IsDeleted
+								&& !ua.User.IsDeleted
+							select new {
+								FirstName = ua.User.FirstName ?? string.Empty,
+								ua.UserId,
+							}
+						).FirstOrDefaultAsync(cancellationToken);
+					return item is not null
+						? (item.FirstName, item.UserId)
+						: null;
+				},
+				applyFilter: (q, cursorValue, asc) => {
+					if (cursorValue is null) {
+						return q;
+					}
+
+					var (cursorFirstName, cursorId) = ((string, Guid))cursorValue;
+					return asc
+						? from ua in q
+							let firstName = ua.User.FirstName ?? string.Empty
+							where firstName.CompareTo(cursorFirstName) > 0
+								|| (firstName == cursorFirstName && ua.UserId > cursorId)
+							select ua
+						: from ua in q
+							let firstName = ua.User.FirstName ?? string.Empty
+							where firstName.CompareTo(cursorFirstName) < 0
+								|| (firstName == cursorFirstName && ua.UserId < cursorId)
+							select ua;
+				},
+				applyOrdering: (q, asc) => asc
+					? from ua in q
+						let firstName = ua.User.FirstName ?? string.Empty
+						orderby firstName, ua.UserId
+						select ua
+					: from ua in q
+						let firstName = ua.User.FirstName ?? string.Empty
+						orderby firstName descending, ua.UserId descending
+						select ua
+			),
+			["last_name"] = new SortFieldHandler(
+				getCursorValue: async guid => {
+					var item =
+						await (
+							from ua in _dbContext.UserAccount
+							where ua.UserId == guid
+								&& ua.Scope == AccountScope.Staff
+								&& !ua.IsDeleted
+								&& !ua.User.IsDeleted
+							select new {
+								LastName = ua.User.LastName ?? string.Empty,
+								ua.UserId,
+							}
+						).FirstOrDefaultAsync(cancellationToken);
+					return item is not null
+						? (item.LastName, item.UserId)
+						: null;
+				},
+				applyFilter: (q, cursorValue, asc) => {
+					if (cursorValue is null) {
+						return q;
+					}
+
+					var (cursorLastName, cursorId) = ((string, Guid))cursorValue;
+					return asc
+						? from ua in q
+							let lastName = ua.User.LastName ?? string.Empty
+							where lastName.CompareTo(cursorLastName) > 0
+								|| (lastName == cursorLastName && ua.UserId > cursorId)
+							select ua
+						: from ua in q
+							let lastName = ua.User.LastName ?? string.Empty
+							where lastName.CompareTo(cursorLastName) < 0
+								|| (lastName == cursorLastName && ua.UserId < cursorId)
+							select ua;
+				},
+				applyOrdering: (q, asc) => asc
+					? from ua in q
+						let lastName = ua.User.LastName ?? string.Empty
+						orderby lastName, ua.UserId
+						select ua
+					: from ua in q
+						let lastName = ua.User.LastName ?? string.Empty
+						orderby lastName descending, ua.UserId descending
+						select ua
+			),
+			["status"] = new SortFieldHandler(
+				getCursorValue: async guid => {
+					var item =
+						await (
+							from ua in _dbContext.UserAccount
+							where ua.UserId == guid
+								&& ua.Scope == AccountScope.Staff
+								&& !ua.IsDeleted
+								&& !ua.User.IsDeleted
+							select new {
+								ua.User.Status,
+								ua.UserId,
+							}
+						).FirstOrDefaultAsync(cancellationToken);
+					return item is not null
+						? (item.Status, item.UserId)
+						: null;
+				},
+				applyFilter: (q, cursorValue, asc) => {
+					if (cursorValue is null) {
+						return q;
+					}
+
+					var (cursorStatus, cursorId) = ((UserStatus, Guid))cursorValue;
+					return asc
+						? from ua in q
+							where ua.User.Status > cursorStatus
+								|| (ua.User.Status == cursorStatus && ua.UserId > cursorId)
+							select ua
+						: from ua in q
+							where ua.User.Status < cursorStatus
+								|| (ua.User.Status == cursorStatus && ua.UserId < cursorId)
+							select ua;
+				},
+				applyOrdering: (q, asc) => asc
+					? from ua in q
+						orderby ua.User.Status, ua.UserId
+						select ua
+					: from ua in q
+						orderby ua.User.Status descending, ua.UserId descending
+						select ua
+			),
+			["level"] = new SortFieldHandler(
+				getCursorValue: async guid => {
+					var item =
+						await (
+							from ua in _dbContext.UserAccount
+							where ua.UserId == guid
+								&& ua.Scope == AccountScope.Staff
+								&& !ua.IsDeleted
+								&& !ua.User.IsDeleted
+							select new {
+								ua.Level,
+								ua.UserId,
+							}
+						).FirstOrDefaultAsync(cancellationToken);
+					return item is not null
+						? (item.Level, item.UserId)
+						: null;
+				},
+				applyFilter: (q, cursorValue, asc) => {
+					if (cursorValue is null) {
+						return q;
+					}
+
+					var (cursorLevel, cursorId) = ((AccountLevel, Guid))cursorValue;
+					return asc
+						? from ua in q
+							where ua.Level > cursorLevel
+								|| (ua.Level == cursorLevel && ua.UserId > cursorId)
+							select ua
+						: from ua in q
+							where ua.Level < cursorLevel
+								|| (ua.Level == cursorLevel && ua.UserId < cursorId)
+							select ua;
+				},
+				applyOrdering: (q, asc) => asc
+					? from ua in q
+						orderby ua.Level, ua.UserId
+						select ua
+					: from ua in q
+						orderby ua.Level descending, ua.UserId descending
+						select ua
+			),
+		};
+
+		if (
+			!sortFieldHandlers.TryGetValue(
+				effectiveSortId,
+				out SortFieldHandler? handler
+			)
+		) {
+			return new FindStaffUsersResult.InvalidSortId(
+				effectiveSortId
+			);
+		}
+
+		var baseQuery =
 			from ua in _dbContext.UserAccount
 			where ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
-				&& ua.Status != AccountStatus.Suspended
 				&& !ua.User.IsDeleted
-				&& ua.User.Status != UserStatus.Suspended
-			select new { User = ua.User, Level = ua.Level };
+			select ua;
 
-		if (sortId is not null) {
-			var isAsc = effectiveSortOrder == SortOrder.Asc;
-			if (string.Equals(sortId, "created_at", StringComparison.OrdinalIgnoreCase)) {
-				query = isAsc ? query.OrderBy(x => x.User.CreatedAt) : query.OrderByDescending(x => x.User.CreatedAt);
-			}
-			if (string.Equals(sortId, "updated_at", StringComparison.OrdinalIgnoreCase)) {
-				query = isAsc ? query.OrderBy(x => x.User.UpdatedAt) : query.OrderByDescending(x => x.User.UpdatedAt);
-			}
-			if (string.Equals(sortId, "email", StringComparison.OrdinalIgnoreCase)) {
-				query = isAsc ? query.OrderBy(x => x.User.Email) : query.OrderByDescending(x => x.User.Email);
-			}
-			if (string.Equals(sortId, "first_name", StringComparison.OrdinalIgnoreCase)) {
-				query = isAsc ? query.OrderBy(x => x.User.FirstName) : query.OrderByDescending(x => x.User.FirstName);
-			}
-			if (string.Equals(sortId, "last_name", StringComparison.OrdinalIgnoreCase)) {
-				query = isAsc ? query.OrderBy(x => x.User.LastName) : query.OrderByDescending(x => x.User.LastName);
-			}
-			if (string.Equals(sortId, "status", StringComparison.OrdinalIgnoreCase)) {
-				query = isAsc ? query.OrderBy(x => x.User.Status) : query.OrderByDescending(x => x.User.Status);
-			}
-			if (string.Equals(sortId, "level", StringComparison.OrdinalIgnoreCase)) {
-				query = isAsc ? query.OrderBy(x => x.Level) : query.OrderByDescending(x => x.Level);
+		IQueryable<UserAccount> query = baseQuery;
+
+		if (args.Filters?.Search is { } search) {
+			var trimmed = search.Trim();
+			if (trimmed.Length > 0) {
+				// Search is intentionally substring-based so staff can quickly find
+				// records by partial email or name fragments.
+				var pattern = $"%{trimmed}%";
+				query =
+					from ua in query
+					where (ua.User.FirstName != null && EF.Functions.ILike(ua.User.FirstName, pattern))
+						|| (ua.User.LastName != null && EF.Functions.ILike(ua.User.LastName, pattern))
+						|| EF.Functions.ILike(ua.User.Email, pattern)
+					select ua;
 			}
 		}
 
-		var results = await query
-			.Skip((effectivePage - 1) * effectiveLimit).Take(effectiveLimit)
+		if (args.Cursor != Guid.Empty) {
+			var cursorValue = await handler.GetCursorValue(args.Cursor);
+			if (cursorValue is null) {
+				return new FindStaffUsersResult.CursorNotFound(
+					args.Cursor.ToString()
+				);
+			}
+
+			query = handler.ApplyFilter(query, cursorValue, isAsc);
+		}
+
+		var orderedQuery = handler.ApplyOrdering(query, isAsc);
+		var results = await (
+			from ua in orderedQuery
+			select new StaffUserData {
+				User = ua.User,
+				AccountLevel = ua.Level
+			}
+		)
+			.Take(effectiveLimit + 1)
 			.ToListAsync(cancellationToken);
 
-		return results.Select(x => new StaffUserData {
-			User = x.User,
-			AccountLevel = x.Level
-		}).ToList();
+		string? nextCursor = null;
+		if (results.Count > effectiveLimit) {
+			// Fetch one extra row so we can emit the next cursor without a separate count query.
+			results.RemoveAt(results.Count - 1);
+			nextCursor = results.Last().User.GetRequiredId().ToString();
+		}
+
+		return new FindStaffUsersResult.Success(
+			new CursorPaginatedResult<StaffUserData> {
+				Data = results,
+				NextCursor = nextCursor,
+			}
+		);
+	}
+
+	public async Task<StaffUserProfilesSummary?> GetStaffUserProfilesAsync(
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		// Resolve the staff UserAccount ID for the given User ID.
+		// IMPORTANT:
+		// This endpoint backs the staff-user details UI. We still want the page to render for
+		// suspended users (view-only), so we DO NOT filter on suspension here. Suspension affects
+		// authentication and action availability, not whether the record exists.
+		var staffAccountId = await (
+			from ua in _dbContext.UserAccount
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select ua.Id
+		).FirstOrDefaultAsync(cancellationToken);
+
+		// NOTE: ua.Id is nullable in the model (Guid?) so FirstOrDefault can yield null/empty.
+		if (staffAccountId is null || staffAccountId.Value == Guid.Empty) {
+			return null;
+		}
+
+		// Load currently assigned staff profiles (via the junction table).
+		// We filter out deleted links and deleted profiles and enforce staff-scope profiles only.
+		var assignedProfilesRaw = await (
+			from uap in _dbContext.UserAccountProfile
+			join p in _dbContext.Profile on uap.ProfileId equals p.Id
+			where uap.UserAccountId == staffAccountId.Value
+				&& !uap.IsDeleted
+				&& !p.IsDeleted
+				&& p.Scope == ProfileScope.Staff
+			select new { p.Id, p.Name, p.Description }
+		).ToListAsync(cancellationToken);
+
+		var assignedProfiles = assignedProfilesRaw
+			.Select(p => new StaffUserProfileSummary(
+				p.Id ?? throw new InvalidOperationException("Profile id is null"),
+				p.Name,
+				p.Description
+			))
+			.ToList();
+
+		// We intentionally do NOT return "available profiles" here.
+		// Returning the full universe can grow unbounded and becomes a performance smell.
+		// The UI should fetch candidates via `FindStaffProfiles` with `search=...`.
+		return new StaffUserProfilesSummary(AssignedProfiles: assignedProfiles);
+	}
+
+	public async Task<UpdateStaffUserProfilesServiceResult> UpdateStaffUserProfilesAsync(
+		Guid userId,
+		List<Guid> profileIds,
+		CancellationToken cancellationToken = default
+	) {
+		// Resolve the staff UserAccount ID for the given User ID.
+		// NOTE:
+		// We intentionally allow profile maintenance even if the target staff user is suspended.
+		// Suspending a user should block login and disable UI actions for that user, but staff
+		// administrators may still need to update profile assignment for cleanup or future reactivation.
+		var staffAccountId = await (
+			from ua in _dbContext.UserAccount
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select ua.Id
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (staffAccountId is null || staffAccountId.Value == Guid.Empty) {
+			return new UpdateStaffUserProfilesServiceResult.UserNotFound();
+		}
+
+		// Profile.Id is nullable (Guid?) in the EF model, so we convert our requested IDs to
+		// nullable IDs to keep the LINQ query fully translatable by EF.
+		var profileIdsNullable = profileIds.Select(id => (Guid?)id).ToList();
+
+		// Load all requested profiles in a single query.
+		// We only select the fields we need to validate and to return the updated assignment.
+		var requestedProfiles = await (
+			from p in _dbContext.Profile
+			where profileIdsNullable.Contains(p.Id)
+				&& !p.IsDeleted
+			select new {
+				p.Id,
+				p.Scope,
+				p.Name,
+				p.Description,
+			}
+		).ToListAsync(cancellationToken);
+
+		// Validate: every requested ID must exist.
+		var existingIds = new List<Guid>();
+		foreach (var profile in requestedProfiles) {
+			var id = profile.Id;
+			if (id is not null) {
+				existingIds.Add(id.Value);
+			}
+		}
+		var missingIds = profileIds.Except(existingIds).ToList();
+		if (missingIds.Count > 0) {
+			return new UpdateStaffUserProfilesServiceResult.ProfilesNotFound(missingIds);
+		}
+
+		// Validate: all requested profiles must be staff-scope (we never attach tenant profiles to staff accounts).
+		var nonStaffIds = new List<Guid>();
+		foreach (var profile in requestedProfiles) {
+			var id = profile.Id;
+			if (id is not null && profile.Scope != ProfileScope.Staff) {
+				nonStaffIds.Add(id.Value);
+			}
+		}
+		if (nonStaffIds.Count > 0) {
+			return new UpdateStaffUserProfilesServiceResult.ProfilesNotStaffScope(nonStaffIds);
+		}
+
+		// "Replace set" semantics for a junction table that uses soft-delete:
+		// - remove links that are currently assigned but not in the new set
+		// - add links that are in the new set but not currently assigned
+		//
+		// IMPORTANT:
+		// `user_account_profiles` has a unique constraint on (UserAccountId, ProfileId).
+		// If we soft-delete a link, inserting the same pair later will violate the constraint.
+		// So we:
+		// - hard-delete links we remove (ForceHardDeleteRange), and
+		// - when re-adding a previously soft-deleted link, we "undelete" it instead of inserting.
+		var existingLinks = await (
+			from uap in _dbContext.UserAccountProfile
+			where uap.UserAccountId == staffAccountId.Value
+			select uap
+		).ToListAsync(cancellationToken);
+
+		var existingLinksByProfileId = existingLinks
+			.ToDictionary(x => x.ProfileId, x => x);
+
+		var activeProfileIds = existingLinks
+			.Where(x => !x.IsDeleted)
+			.Select(x => x.ProfileId)
+			.ToHashSet();
+
+		var desiredProfileIds = profileIds.Distinct().ToList();
+
+		var linksToRemove = existingLinks
+			.Where(x => !x.IsDeleted && !desiredProfileIds.Contains(x.ProfileId))
+			.ToList();
+
+		if (linksToRemove.Count > 0) {
+			// Force hard delete to avoid leaving rows that would block future re-adds due to the unique constraint.
+			_dbContext.ForceHardDeleteRange(linksToRemove);
+		}
+
+		var toAddIds = desiredProfileIds
+			.Where(id => !activeProfileIds.Contains(id))
+			.ToList();
+
+		var linksToInsert = new List<UserAccountProfile>();
+		foreach (var profileId in toAddIds) {
+			if (existingLinksByProfileId.TryGetValue(profileId, out var existingLink)) {
+				if (existingLink.IsDeleted) {
+					// "Undelete" to satisfy the uniqueness constraint on (UserAccountId, ProfileId).
+					existingLink.IsDeleted = false;
+					existingLink.DeletedAt = null;
+				}
+				continue;
+			}
+
+			linksToInsert.Add(new UserAccountProfile {
+				UserAccountId = staffAccountId.Value,
+				ProfileId = profileId
+			});
+		}
+
+		if (linksToInsert.Count > 0) {
+			await _dbContext.UserAccountProfile.AddRangeAsync(linksToInsert, cancellationToken);
+		}
+
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		// Build the result from requestedProfiles in-memory to avoid re-query-ing.
+		// We also preserve the request order (profileIds) for a stable client experience.
+		var assignedMap = new Dictionary<Guid, StaffUserProfileSummary>();
+		foreach (var profile in requestedProfiles) {
+			var id = profile.Id;
+			if (id is null) {
+				throw new InvalidOperationException(
+					"Profile id is null after query filter"
+				);
+			}
+
+			assignedMap[id.Value] = new StaffUserProfileSummary(
+				id.Value,
+				profile.Name,
+				profile.Description
+			);
+		}
+
+		var assigned = desiredProfileIds
+			.Where(assignedMap.ContainsKey)
+			.Select(id => assignedMap[id])
+			.ToList();
+
+		return new UpdateStaffUserProfilesServiceResult.Success(assigned);
 	}
 
 	public async Task<FindTenantUsersResult>
