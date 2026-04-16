@@ -22,7 +22,11 @@ export const hashSeed = (input) => {
   return hash >>> 0;
 };
 
-export const pickOne = (items, random) => {
+export const pickOne = (items, random, label = 'items') => {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error(`${label} must contain at least one item`);
+  }
+
   return items[Math.floor(random() * items.length)];
 };
 
@@ -39,11 +43,27 @@ export const generateHomepagePromptBatch = async ({
 
   for (let variant = 1; variant <= variants; variant += 1) {
     const random = mulberry32(hashSeed(`${seed}-${variant}`));
-    const audienceOverlay = pickOne(config.audienceOverlays, random);
-    const homepageArchetype = pickOne(config.homepageArchetypes, random);
-    const promiseAngle = pickOne(config.promiseAngles, random);
-    const proofStrategy = pickOne(config.proofStrategies, random);
-    const creativeDirectionBundle = pickOne(config.creativeBundles, random);
+    const audienceOverlay = pickOne(
+      config.audienceOverlays,
+      random,
+      'audienceOverlays',
+    );
+    const homepageArchetype = pickOne(
+      config.homepageArchetypes,
+      random,
+      'homepageArchetypes',
+    );
+    const promiseAngle = pickOne(config.promiseAngles, random, 'promiseAngles');
+    const proofStrategy = pickOne(
+      config.proofStrategies,
+      random,
+      'proofStrategies',
+    );
+    const creativeDirectionBundle = pickOne(
+      config.creativeBundles,
+      random,
+      'creativeBundles',
+    );
     const fileName = `${String(variant).padStart(3, '0')}-homepage-prompt.md`;
     const content = `# Homepage Prompt Variant ${variant}\n\n- Audience: ${audienceOverlay.id}\n- Archetype: ${homepageArchetype.id}\n- Promise: ${promiseAngle.id}\n- Proof: ${proofStrategy.id}\n- Creative bundle: ${creativeDirectionBundle.id}\n`;
 
