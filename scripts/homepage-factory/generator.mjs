@@ -163,7 +163,26 @@ const assertObjectArray = (value, label) => {
 	}
 };
 
+const assertUniqueIds = (items, label) => {
+	const seenIds = new Set();
+
+	for (const item of items) {
+		if (seenIds.has(item.id)) {
+			throw new Error(`duplicate ${label} id "${item.id}"`);
+		}
+
+		seenIds.add(item.id);
+	}
+};
+
+const assertKnownReference = (value, validIds, label, targetLabel) => {
+	if (!validIds.has(value)) {
+		throw new Error(`${label} references unknown ${targetLabel} id "${value}"`);
+	}
+};
+
 const validateHomepagePromptInputs = ({
+	seed,
 	productCore,
 	audienceOverlay,
 	homepageArchetype,
@@ -173,6 +192,7 @@ const validateHomepagePromptInputs = ({
 	selectedReferences,
 	selectedLibraries,
 }) => {
+	assertString(seed, 'seed');
 	assertObject(productCore, 'productCore');
 	assertString(productCore.productName, 'productCore.productName');
 	assertString(productCore.productSummary, 'productCore.productSummary');
@@ -213,6 +233,20 @@ const validateHomepagePromptInputs = ({
 		audienceOverlay.decisionCriteria,
 		'audienceOverlay.decisionCriteria',
 	);
+	assertStringArray(
+		audienceOverlay.proofExpectations,
+		'audienceOverlay.proofExpectations',
+	);
+	assertString(audienceOverlay.ctaPreference, 'audienceOverlay.ctaPreference');
+	assertStringArray(
+		audienceOverlay.productFocusAreas,
+		'audienceOverlay.productFocusAreas',
+	);
+	assertStringArray(audienceOverlay.faqConcerns, 'audienceOverlay.faqConcerns');
+	assertStringArray(
+		audienceOverlay.preferredToneAdjustments,
+		'audienceOverlay.preferredToneAdjustments',
+	);
 
 	assertObject(homepageArchetype, 'homepageArchetype');
 	assertString(homepageArchetype.label, 'homepageArchetype.label');
@@ -226,6 +260,14 @@ const validateHomepagePromptInputs = ({
 		'homepageArchetype.proofPlacement',
 	);
 	assertString(homepageArchetype.ctaStyle, 'homepageArchetype.ctaStyle');
+	assertStringArray(
+		homepageArchetype.requiredSections,
+		'homepageArchetype.requiredSections',
+	);
+	assertStringArray(
+		homepageArchetype.optionalSections,
+		'homepageArchetype.optionalSections',
+	);
 
 	assertObject(promiseAngle, 'promiseAngle');
 	assertString(promiseAngle.label, 'promiseAngle.label');
@@ -280,11 +322,32 @@ export const validateHomepageFactoryConfig = (config) => {
 	if (config.audienceOverlays.length === 0) {
 		throw new Error('audienceOverlays must contain at least one item');
 	}
+	assertUniqueIds(config.audienceOverlays, 'audienceOverlays');
 	for (const [index, item] of config.audienceOverlays.entries()) {
 		assertString(item.id, `audienceOverlays[${index}].id`);
 		assertString(
 			item.audienceLabel,
 			`audienceOverlays[${index}].audienceLabel`,
+		);
+		assertStringArray(
+			item.proofExpectations,
+			`audienceOverlays[${index}].proofExpectations`,
+		);
+		assertString(
+			item.ctaPreference,
+			`audienceOverlays[${index}].ctaPreference`,
+		);
+		assertStringArray(
+			item.productFocusAreas,
+			`audienceOverlays[${index}].productFocusAreas`,
+		);
+		assertStringArray(
+			item.faqConcerns,
+			`audienceOverlays[${index}].faqConcerns`,
+		);
+		assertStringArray(
+			item.preferredToneAdjustments,
+			`audienceOverlays[${index}].preferredToneAdjustments`,
 		);
 	}
 
@@ -292,9 +355,18 @@ export const validateHomepageFactoryConfig = (config) => {
 	if (config.homepageArchetypes.length === 0) {
 		throw new Error('homepageArchetypes must contain at least one item');
 	}
+	assertUniqueIds(config.homepageArchetypes, 'homepageArchetypes');
 	for (const [index, item] of config.homepageArchetypes.entries()) {
 		assertString(item.id, `homepageArchetypes[${index}].id`);
 		assertString(item.label, `homepageArchetypes[${index}].label`);
+		assertStringArray(
+			item.requiredSections,
+			`homepageArchetypes[${index}].requiredSections`,
+		);
+		assertStringArray(
+			item.optionalSections,
+			`homepageArchetypes[${index}].optionalSections`,
+		);
 		assertStringArray(
 			item.compatiblePromiseAngles,
 			`homepageArchetypes[${index}].compatiblePromiseAngles`,
@@ -313,6 +385,7 @@ export const validateHomepageFactoryConfig = (config) => {
 	if (config.promiseAngles.length === 0) {
 		throw new Error('promiseAngles must contain at least one item');
 	}
+	assertUniqueIds(config.promiseAngles, 'promiseAngles');
 	for (const [index, item] of config.promiseAngles.entries()) {
 		assertString(item.id, `promiseAngles[${index}].id`);
 		assertString(item.label, `promiseAngles[${index}].label`);
@@ -330,6 +403,7 @@ export const validateHomepageFactoryConfig = (config) => {
 	if (config.proofStrategies.length === 0) {
 		throw new Error('proofStrategies must contain at least one item');
 	}
+	assertUniqueIds(config.proofStrategies, 'proofStrategies');
 	for (const [index, item] of config.proofStrategies.entries()) {
 		assertString(item.id, `proofStrategies[${index}].id`);
 		assertString(item.label, `proofStrategies[${index}].label`);
@@ -347,6 +421,7 @@ export const validateHomepageFactoryConfig = (config) => {
 	if (config.creativeBundles.length === 0) {
 		throw new Error('creativeBundles must contain at least one item');
 	}
+	assertUniqueIds(config.creativeBundles, 'creativeBundles');
 	for (const [index, item] of config.creativeBundles.entries()) {
 		assertString(item.id, `creativeBundles[${index}].id`);
 		assertString(item.label, `creativeBundles[${index}].label`);
@@ -362,6 +437,112 @@ export const validateHomepageFactoryConfig = (config) => {
 			item.inspirationLibraries,
 			`creativeBundles[${index}].inspirationLibraries`,
 		);
+	}
+
+	const audienceIds = new Set(
+		config.audienceOverlays.map((audienceOverlay) => audienceOverlay.id),
+	);
+	const archetypeIds = new Set(
+		config.homepageArchetypes.map((homepageArchetype) => homepageArchetype.id),
+	);
+	const promiseAngleIds = new Set(
+		config.promiseAngles.map((promiseAngle) => promiseAngle.id),
+	);
+	const proofStrategyIds = new Set(
+		config.proofStrategies.map((proofStrategy) => proofStrategy.id),
+	);
+	const creativeBundleIds = new Set(
+		config.creativeBundles.map((creativeBundle) => creativeBundle.id),
+	);
+	const compatibilityTagIds = new Set([...audienceIds, ...archetypeIds]);
+
+	for (const [index, item] of config.homepageArchetypes.entries()) {
+		for (const [
+			referenceIndex,
+			value,
+		] of item.compatiblePromiseAngles.entries()) {
+			assertKnownReference(
+				value,
+				promiseAngleIds,
+				`homepageArchetypes[${index}].compatiblePromiseAngles[${referenceIndex}]`,
+				'promiseAngles',
+			);
+		}
+
+		for (const [
+			referenceIndex,
+			value,
+		] of item.compatibleProofStrategies.entries()) {
+			assertKnownReference(
+				value,
+				proofStrategyIds,
+				`homepageArchetypes[${index}].compatibleProofStrategies[${referenceIndex}]`,
+				'proofStrategies',
+			);
+		}
+
+		for (const [
+			referenceIndex,
+			value,
+		] of item.compatibleCreativeBundles.entries()) {
+			assertKnownReference(
+				value,
+				creativeBundleIds,
+				`homepageArchetypes[${index}].compatibleCreativeBundles[${referenceIndex}]`,
+				'creativeBundles',
+			);
+		}
+	}
+
+	for (const [index, item] of config.promiseAngles.entries()) {
+		for (const [referenceIndex, value] of item.bestFitAudiences.entries()) {
+			assertKnownReference(
+				value,
+				audienceIds,
+				`promiseAngles[${index}].bestFitAudiences[${referenceIndex}]`,
+				'audienceOverlays',
+			);
+		}
+
+		for (const [referenceIndex, value] of item.bestFitArchetypes.entries()) {
+			assertKnownReference(
+				value,
+				archetypeIds,
+				`promiseAngles[${index}].bestFitArchetypes[${referenceIndex}]`,
+				'homepageArchetypes',
+			);
+		}
+	}
+
+	for (const [index, item] of config.proofStrategies.entries()) {
+		for (const [referenceIndex, value] of item.bestFitAudiences.entries()) {
+			assertKnownReference(
+				value,
+				audienceIds,
+				`proofStrategies[${index}].bestFitAudiences[${referenceIndex}]`,
+				'audienceOverlays',
+			);
+		}
+
+		for (const [referenceIndex, value] of item.bestFitArchetypes.entries()) {
+			assertKnownReference(
+				value,
+				archetypeIds,
+				`proofStrategies[${index}].bestFitArchetypes[${referenceIndex}]`,
+				'homepageArchetypes',
+			);
+		}
+	}
+
+	for (const [index, item] of config.creativeBundles.entries()) {
+		for (const [referenceIndex, value] of item.compatibilityTags.entries()) {
+			assertKnownReference(
+				value,
+				compatibilityTagIds,
+				`creativeBundles[${index}].compatibilityTags[${referenceIndex}]`,
+				'audience or archetype',
+			);
+		}
 	}
 };
 
@@ -535,6 +716,7 @@ export const generateHomepagePromptBatch = async ({
 		const selectedReferences = creativeBundle.referenceAnchors.slice(0, 4);
 		const selectedLibraries = creativeBundle.inspirationLibraries.slice(0, 2);
 		validateHomepagePromptInputs({
+			seed,
 			productCore: config.productCore,
 			audienceOverlay,
 			homepageArchetype,
@@ -546,6 +728,7 @@ export const generateHomepagePromptBatch = async ({
 		});
 		const content = buildPrompt({
 			variant,
+			seed,
 			productCore: config.productCore,
 			audienceOverlay,
 			homepageArchetype,

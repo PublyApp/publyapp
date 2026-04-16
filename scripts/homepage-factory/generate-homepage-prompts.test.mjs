@@ -18,6 +18,7 @@ import { promisify } from 'node:util';
 import {
 	generateHomepagePromptBatch,
 	loadHomepageFactoryConfig,
+	validateHomepageFactoryConfig,
 } from './generator.mjs';
 import { buildHomepagePrompt } from './prompt-template.mjs';
 
@@ -101,6 +102,27 @@ const TEST_CONFIG = {
 				'Multi-tenant support',
 				'Reporting',
 			],
+			proofExpectations: [
+				'Workflow proof',
+				'Delivery metrics',
+				'Operational credibility',
+			],
+			ctaPreference: 'Book a walkthrough',
+			productFocusAreas: [
+				'Approvals',
+				'Campaign visibility',
+				'Publishing readiness',
+			],
+			faqConcerns: [
+				'Client collaboration',
+				'Handoff speed',
+				'Process standardization',
+			],
+			preferredToneAdjustments: [
+				'Confident',
+				'Delivery-focused',
+				'Operational',
+			],
 		},
 		{
 			id: 'in-house',
@@ -112,6 +134,15 @@ const TEST_CONFIG = {
 			],
 			topObjections: ['Is setup complex?', 'Does it fit our workflow?'],
 			decisionCriteria: ['Ease of rollout', 'Visibility', 'Governance'],
+			proofExpectations: [
+				'Workflow clarity',
+				'Adoption signals',
+				'Review-state visibility',
+			],
+			ctaPreference: 'See the workflow',
+			productFocusAreas: ['Calendar', 'Review flow', 'Publishing queue'],
+			faqConcerns: ['Approvals', 'Handoffs', 'Tool consolidation'],
+			preferredToneAdjustments: ['Clear', 'Trustworthy', 'Team-oriented'],
 		},
 	],
 	homepageArchetypes: [
@@ -120,6 +151,8 @@ const TEST_CONFIG = {
 			label: 'Workflow Story',
 			heroGoal: 'Show how teams move from draft to published post',
 			narrativeOrder: ['hero', 'workflow', 'proof', 'cta'],
+			requiredSections: ['hero', 'workflow', 'proof', 'cta'],
+			optionalSections: ['logo-strip', 'faq'],
 			proofPlacement: 'After the workflow narrative',
 			ctaStyle: 'Action-oriented',
 			compatiblePromiseAngles: ['ship-consistently', 'launch-faster'],
@@ -131,6 +164,8 @@ const TEST_CONFIG = {
 			label: 'Product Tour',
 			heroGoal: 'Demonstrate the product experience clearly',
 			narrativeOrder: ['hero', 'feature-tour', 'proof', 'cta'],
+			requiredSections: ['hero', 'feature-tour', 'proof', 'cta'],
+			optionalSections: ['logo-strip', 'faq'],
 			proofPlacement: 'Mid-page',
 			ctaStyle: 'Demonstration-led',
 			compatiblePromiseAngles: ['ship-consistently', 'launch-faster'],
@@ -317,8 +352,13 @@ test('generateHomepagePromptBatch is deterministic for a fixed seed', async () =
 		const manifestOnDisk = JSON.parse(
 			await readFile(path.join(firstDir, 'manifest.json'), 'utf8'),
 		);
+		const firstPromptOnDisk = await readFile(
+			path.join(firstDir, '001-homepage-prompt.md'),
+			'utf8',
+		);
 
 		assert.deepEqual(manifestOnDisk, first.manifest);
+		assert.match(firstPromptOnDisk, /- Seed: \*\*deterministic-seed\*\*/);
 	} finally {
 		await rm(firstDir, { recursive: true, force: true });
 		await rm(secondDir, { recursive: true, force: true });
@@ -551,12 +591,22 @@ test('loadHomepageFactoryConfig reports missing required array fields clearly', 
 			productName: 'PublyApp',
 		});
 		await writeJson(path.join(factoryDir, 'audience-overlays.json'), [
-			{ id: 'agencies', audienceLabel: 'Agencies' },
+			{
+				id: 'agencies',
+				audienceLabel: 'Agencies',
+				proofExpectations: ['Workflow proof'],
+				ctaPreference: 'Book a walkthrough',
+				productFocusAreas: ['Approvals'],
+				faqConcerns: ['Client collaboration'],
+				preferredToneAdjustments: ['Operational'],
+			},
 		]);
 		await writeJson(path.join(factoryDir, 'homepage-archetypes.json'), [
 			{
 				id: 'workflow-story',
 				label: 'Workflow Story',
+				requiredSections: ['hero'],
+				optionalSections: ['faq'],
 				compatibleProofStrategies: ['ops-metrics'],
 				compatibleCreativeBundles: ['product-led-clean'],
 			},
@@ -594,6 +644,46 @@ test('loadHomepageFactoryConfig reports missing required array fields clearly', 
 	} finally {
 		await rm(factoryDir, { recursive: true, force: true });
 	}
+});
+
+test('validateHomepageFactoryConfig rejects duplicate IDs within a config file', () => {
+	const config = structuredClone(TEST_CONFIG);
+
+	config.promiseAngles.push({
+		...config.promiseAngles[0],
+		label: 'Duplicate Promise Angle',
+	});
+
+	assert.throws(
+		() => validateHomepageFactoryConfig(config),
+		/duplicate promiseAngles id "ship-consistently"/,
+	);
+});
+
+test('validateHomepageFactoryConfig rejects broken cross-file compatibility references', () => {
+	const config = structuredClone(TEST_CONFIG);
+
+	config.homepageArchetypes[0].compatibleProofStrategies = ['missing-proof'];
+
+	assert.throws(
+		() => validateHomepageFactoryConfig(config),
+		/homepageArchetypes\[0\]\.compatibleProofStrategies\[0\] references unknown proofStrategies id "missing-proof"/,
+	);
+});
+
+test('validateHomepageFactoryConfig rejects creative bundle tags that reference unknown ids', () => {
+	const config = structuredClone(TEST_CONFIG);
+
+	config.creativeBundles[0].compatibilityTags = [
+		'agencies',
+		'workflow-story',
+		'unknown-tag',
+	];
+
+	assert.throws(
+		() => validateHomepageFactoryConfig(config),
+		/creativeBundles\[0\]\.compatibilityTags\[2\] references unknown audience or archetype id "unknown-tag"/,
+	);
 });
 
 const FACTORY_DIR = path.resolve('scripts/homepage-factory');
@@ -778,6 +868,10 @@ test('generated prompt uses the strategy-first contract', async () => {
 		);
 		assert.match(
 			prompt,
+			new RegExp(`- Seed: \\*\\*${escapeRegExp(manifestEntry.seed)}\\*\\*`),
+		);
+		assert.match(
+			prompt,
 			new RegExp(`- Hero goal: ${escapeRegExp(selectedArchetype.heroGoal)}`),
 		);
 		assert.match(
@@ -804,7 +898,49 @@ test('generated prompt uses the strategy-first contract', async () => {
 		);
 		assert.match(
 			prompt,
+			new RegExp(
+				`- Proof expectations:\\n {2}- ${escapeRegExp(selectedAudience.proofExpectations[0])}`,
+			),
+		);
+		assert.match(
+			prompt,
+			new RegExp(
+				`- CTA preference: ${escapeRegExp(selectedAudience.ctaPreference)}`,
+			),
+		);
+		assert.match(
+			prompt,
+			new RegExp(
+				`- Product focus areas:\\n {2}- ${escapeRegExp(selectedAudience.productFocusAreas[0])}`,
+			),
+		);
+		assert.match(
+			prompt,
+			new RegExp(
+				`- FAQ concerns:\\n {2}- ${escapeRegExp(selectedAudience.faqConcerns[0])}`,
+			),
+		);
+		assert.match(
+			prompt,
+			new RegExp(
+				`- Preferred tone adjustments:\\n {2}- ${escapeRegExp(selectedAudience.preferredToneAdjustments[0])}`,
+			),
+		);
+		assert.match(
+			prompt,
 			new RegExp(`- ${escapeRegExp(selectedArchetype.narrativeOrder[0])}`),
+		);
+		assert.match(
+			prompt,
+			new RegExp(
+				`- Required sections:\\n {2}- ${escapeRegExp(selectedArchetype.requiredSections[0])}`,
+			),
+		);
+		assert.match(
+			prompt,
+			new RegExp(
+				`- Optional sections:\\n {2}- ${escapeRegExp(selectedArchetype.optionalSections[0])}`,
+			),
 		);
 		assert.match(
 			prompt,

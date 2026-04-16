@@ -27,12 +27,13 @@ Each variant now combines:
 
 Each generated prompt now includes:
 
-- variant metadata
+- variant metadata, including the variant seed
 - strategy-first system prompt guardrails
 - product core block
-- audience overlay block
-- archetype brief
+- audience overlay block with proof expectations, CTA preference, product focus, FAQ concerns, and tone adjustments
+- archetype brief with required and optional section guidance
 - creative direction block
+- messaging and section emphasis rules that apply overlay + archetype strategy to the output
 - concept-before-implementation working order
 
 Generated outputs live in `docs/misc/homepage-factory/generated-prompts/`, and the committed

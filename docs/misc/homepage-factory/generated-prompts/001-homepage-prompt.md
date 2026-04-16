@@ -1,6 +1,7 @@
 # Homepage Prompt Variant 1
 
 ## Variant Metadata
+- Seed: **publyapp-review-batch**
 - Primary audience: **In-House Social Teams**
 - Homepage archetype: **Product Demo First**
 - Promise angle: **Publish Without Chaos**
@@ -19,7 +20,7 @@ Non-generic guardrails:
 - No vague AI-productivity filler.
 - No interchangeable SaaS headline language.
 - The hero must make a concrete promise to the selected audience.
-- Proof must match the selected audience and archetype.
+- Proof, CTA language, and section emphasis must follow the audience overlay and archetype inputs.
 - Product visuals must show a believable social publishing workflow.
 - Avoid verbs like "streamline", "optimize", and "unlock" unless tied to a concrete outcome.
 
@@ -76,6 +77,23 @@ Create a homepage concept for **PublyApp**.
   - workflow clarity
   - calendar confidence
   - trustworthy collaboration
+- Proof expectations:
+  - workflow clarity
+  - team adoption
+  - review-state visibility
+- CTA preference: See the workflow
+- Product focus areas:
+  - calendar
+  - review flow
+  - publishing queue
+- FAQ concerns:
+  - approvals
+  - handoffs
+  - tool consolidation
+- Preferred tone adjustments:
+  - clear
+  - trustworthy
+  - team-oriented
 
 ### Archetype Brief
 - Hero goal: Anchor the page around a believable product visual and explain the workflow through it.
@@ -86,6 +104,16 @@ Create a homepage concept for **PublyApp**.
   - proof
   - faq
   - final-cta
+- Required sections:
+  - hero
+  - product-visual
+  - feature-depth
+  - proof
+  - final-cta
+- Optional sections:
+  - logo-strip
+  - workflow-summary
+  - pricing-teaser
 - Proof placement: after feature depth
 - CTA style: See the workflow
 
@@ -111,6 +139,37 @@ Create a homepage concept for **PublyApp**.
   - calendar snapshots
   - review-ready product visuals
 - Proof placement guidance: Use product visuals and annotated workflow states as proof, not just decoration.
+
+### Messaging And Section Emphasis Rules
+- Let the audience overlay shape the proof style, CTA phrasing, FAQ emphasis, tone, and which product surfaces get the most space.
+- Match proof execution to these audience proof expectations:
+  - workflow clarity
+  - team adoption
+  - review-state visibility
+- Favor this CTA language family unless the archetype demands a tighter variant: See the workflow
+- Spend the most product-detail real estate on these focus areas:
+  - calendar
+  - review flow
+  - publishing queue
+- Cover these FAQ concerns directly if an FAQ section appears, or answer them in nearby copy if it does not:
+  - approvals
+  - handoffs
+  - tool consolidation
+- Adjust the copy tone with these modifiers while staying inside the creative bundle direction:
+  - clear
+  - trustworthy
+  - team-oriented
+- Treat these archetype sections as mandatory, even if you rename them for better copy fit:
+  - hero
+  - product-visual
+  - feature-depth
+  - proof
+  - final-cta
+- These sections are optional emphasis levers, not filler. Use them only when they strengthen this variant:
+  - logo-strip
+  - workflow-summary
+  - pricing-teaser
+- The section order should respect the archetype narrative order, but the proof weight and CTA phrasing should still reflect the selected audience overlay.
 
 ### Design Inspiration Anchors
 Use these references for style analysis only:
