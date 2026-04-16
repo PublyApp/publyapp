@@ -87,6 +87,102 @@ const assertObjectArray = (value, label) => {
   }
 };
 
+const validateHomepagePromptInputs = ({
+  productCore,
+  audienceOverlay,
+  homepageArchetype,
+  promiseAngle,
+  proofStrategy,
+  creativeBundle,
+  selectedReferences,
+  selectedLibraries,
+}) => {
+  assertObject(productCore, 'productCore');
+  assertString(productCore.productName, 'productCore.productName');
+  assertString(productCore.productSummary, 'productCore.productSummary');
+  assertStringArray(
+    productCore.coreDifferentiators,
+    'productCore.coreDifferentiators',
+  );
+  assertStringArray(
+    productCore.workflowStrengths,
+    'productCore.workflowStrengths',
+  );
+  assertStringArray(productCore.trustSignals, 'productCore.trustSignals');
+  assertStringArray(
+    productCore.productVisualRequirements,
+    'productCore.productVisualRequirements',
+  );
+  assertStringArray(productCore.forbiddenClaims, 'productCore.forbiddenClaims');
+  assertStringArray(
+    productCore.forbiddenCopyPatterns,
+    'productCore.forbiddenCopyPatterns',
+  );
+
+  assertObject(audienceOverlay, 'audienceOverlay');
+  assertString(audienceOverlay.audienceLabel, 'audienceOverlay.audienceLabel');
+  assertStringArray(audienceOverlay.primaryPains, 'audienceOverlay.primaryPains');
+  assertStringArray(
+    audienceOverlay.desiredOutcomes,
+    'audienceOverlay.desiredOutcomes',
+  );
+  assertStringArray(audienceOverlay.topObjections, 'audienceOverlay.topObjections');
+  assertStringArray(
+    audienceOverlay.decisionCriteria,
+    'audienceOverlay.decisionCriteria',
+  );
+
+  assertObject(homepageArchetype, 'homepageArchetype');
+  assertString(homepageArchetype.label, 'homepageArchetype.label');
+  assertString(homepageArchetype.heroGoal, 'homepageArchetype.heroGoal');
+  assertStringArray(
+    homepageArchetype.narrativeOrder,
+    'homepageArchetype.narrativeOrder',
+  );
+  assertString(homepageArchetype.proofPlacement, 'homepageArchetype.proofPlacement');
+  assertString(homepageArchetype.ctaStyle, 'homepageArchetype.ctaStyle');
+
+  assertObject(promiseAngle, 'promiseAngle');
+  assertString(promiseAngle.label, 'promiseAngle.label');
+  assertString(promiseAngle.corePromise, 'promiseAngle.corePromise');
+  assertString(
+    promiseAngle.headlineDirection,
+    'promiseAngle.headlineDirection',
+  );
+  assertStringArray(
+    promiseAngle.supportingMessageThemes,
+    'promiseAngle.supportingMessageThemes',
+  );
+
+  assertObject(proofStrategy, 'proofStrategy');
+  assertString(proofStrategy.label, 'proofStrategy.label');
+  assertString(proofStrategy.proofType, 'proofStrategy.proofType');
+  assertStringArray(
+    proofStrategy.recommendedProofElements,
+    'proofStrategy.recommendedProofElements',
+  );
+  assertString(
+    proofStrategy.proofPlacementGuidance,
+    'proofStrategy.proofPlacementGuidance',
+  );
+
+  assertObject(creativeBundle, 'creativeBundle');
+  assertString(creativeBundle.label, 'creativeBundle.label');
+  assertString(creativeBundle.heroStyle, 'creativeBundle.heroStyle');
+  assertString(creativeBundle.visualDensity, 'creativeBundle.visualDensity');
+  assertString(creativeBundle.motionBehavior, 'creativeBundle.motionBehavior');
+  assertString(creativeBundle.colorDirection, 'creativeBundle.colorDirection');
+  assertString(creativeBundle.surfaceTreatment, 'creativeBundle.surfaceTreatment');
+  assertString(
+    creativeBundle.screenshotTreatment,
+    'creativeBundle.screenshotTreatment',
+  );
+  assertString(creativeBundle.copyTone, 'creativeBundle.copyTone');
+
+  assertStringArray(selectedReferences, 'selectedReferences');
+  assertStringArray(selectedLibraries, 'selectedLibraries');
+};
+
 export const validateHomepageFactoryConfig = (config) => {
   assertObject(config, 'config');
   assertObject(config.productCore, 'productCore');
@@ -400,6 +496,16 @@ export const generateHomepagePromptBatch = async ({
     } = selectVariantRecipe({ config, random });
     const selectedReferences = creativeBundle.referenceAnchors.slice(0, 4);
     const selectedLibraries = creativeBundle.inspirationLibraries.slice(0, 2);
+    validateHomepagePromptInputs({
+      productCore: config.productCore,
+      audienceOverlay,
+      homepageArchetype,
+      promiseAngle,
+      proofStrategy,
+      creativeBundle,
+      selectedReferences,
+      selectedLibraries,
+    });
     const content = buildPrompt({
       variant,
       productCore: config.productCore,

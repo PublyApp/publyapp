@@ -40,6 +40,10 @@ const pathExists = async (targetPath) => {
   }
 };
 
+const escapeRegExp = (value) => {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
 const TEST_CONFIG = {
   productCore: {
     productName: 'PublyApp',
@@ -318,6 +322,48 @@ test('generateHomepagePromptBatch preserves existing output when buildPrompt thr
   }
 });
 
+test('generateHomepagePromptBatch requires a buildPrompt function', async () => {
+  const outputDir = await createTempOutputDir();
+
+  try {
+    await assert.rejects(
+      () =>
+        generateHomepagePromptBatch({
+          config: TEST_CONFIG,
+          outputDir,
+          variants: 1,
+          seed: 'missing-builder',
+        }),
+      /generateHomepagePromptBatch requires a buildPrompt function\./,
+    );
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('generateHomepagePromptBatch validates prompt input fields before rendering', async () => {
+  const outputDir = await createTempOutputDir();
+
+  try {
+    const config = JSON.parse(JSON.stringify(TEST_CONFIG));
+    delete config.productCore.productSummary;
+
+    await assert.rejects(
+      () =>
+        generateHomepagePromptBatch({
+          config,
+          outputDir,
+          variants: 1,
+          seed: 'prompt-input-validation',
+          buildPrompt: buildHomepagePrompt,
+        }),
+      /productCore\.productSummary must be a non-empty string/,
+    );
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
 test('generateHomepagePromptBatch preserves existing output when staged publish fails', async () => {
   const outputDir = await createTempOutputDir();
   const existingFile = path.join(outputDir, 'existing.txt');
@@ -521,6 +567,22 @@ test('generated prompt uses the strategy-first contract', async () => {
     });
 
     const prompt = result.prompts[0].content;
+    const manifestEntry = result.manifest[0];
+    const selectedAudience = config.audienceOverlays.find(
+      (item) => item.id === manifestEntry.audienceOverlay,
+    );
+    const selectedArchetype = config.homepageArchetypes.find(
+      (item) => item.id === manifestEntry.homepageArchetype,
+    );
+    const selectedPromiseAngle = config.promiseAngles.find(
+      (item) => item.id === manifestEntry.promiseAngle,
+    );
+    const selectedProofStrategy = config.proofStrategies.find(
+      (item) => item.id === manifestEntry.proofStrategy,
+    );
+    const selectedCreativeBundle = config.creativeBundles.find(
+      (item) => item.id === manifestEntry.creativeDirectionBundle,
+    );
     const orderedSections = [
       '## Variant Metadata',
       '## System Prompt',
@@ -529,6 +591,8 @@ test('generated prompt uses the strategy-first contract', async () => {
       '### Audience Overlay',
       '### Archetype Brief',
       '### Creative Direction',
+      '### Strategy Inputs',
+      '### Design Inspiration Anchors',
       '### Working Order',
       '### Output Contract',
     ];
@@ -542,9 +606,74 @@ test('generated prompt uses the strategy-first contract', async () => {
     }
 
     assert.match(prompt, /No vague AI-productivity filler/i);
+    assert.match(prompt, /Build a complete homepage in React \+ TypeScript \+ MUI v6\./i);
+    assert.match(prompt, /### Strategy Inputs/);
+    assert.match(prompt, /### Design Inspiration Anchors/);
     assert.match(prompt, /1\. Define the homepage concept/);
     assert.match(prompt, /5\. Implement the homepage/);
     assert.match(prompt, /show a believable social publishing workflow/i);
+    assert.match(
+      prompt,
+      new RegExp(
+        `- Summary: ${escapeRegExp(config.productCore.productSummary)}`,
+      ),
+    );
+    assert.match(
+      prompt,
+      new RegExp(`- Audience: ${escapeRegExp(selectedAudience.audienceLabel)}`),
+    );
+    assert.match(
+      prompt,
+      new RegExp(`- Hero goal: ${escapeRegExp(selectedArchetype.heroGoal)}`),
+    );
+    assert.match(
+      prompt,
+      new RegExp(`- Core promise: ${escapeRegExp(selectedPromiseAngle.corePromise)}`),
+    );
+    assert.match(
+      prompt,
+      new RegExp(`- Proof type: ${escapeRegExp(selectedProofStrategy.proofType)}`),
+    );
+    assert.match(
+      prompt,
+      new RegExp(`- Hero style: ${escapeRegExp(selectedCreativeBundle.heroStyle)}`),
+    );
+    assert.match(
+      prompt,
+      new RegExp(
+        `- ${escapeRegExp(selectedAudience.primaryPains[0])}`,
+      ),
+    );
+    assert.match(
+      prompt,
+      new RegExp(
+        `- ${escapeRegExp(selectedArchetype.narrativeOrder[0])}`,
+      ),
+    );
+    assert.match(
+      prompt,
+      new RegExp(
+        `- ${escapeRegExp(selectedPromiseAngle.supportingMessageThemes[0])}`,
+      ),
+    );
+    assert.match(
+      prompt,
+      new RegExp(
+        `- ${escapeRegExp(selectedProofStrategy.recommendedProofElements[0])}`,
+      ),
+    );
+    assert.match(
+      prompt,
+      new RegExp(
+        `- ${escapeRegExp(manifestEntry.selectedReferences[0])}`,
+      ),
+    );
+    assert.match(
+      prompt,
+      new RegExp(
+        `- ${escapeRegExp(manifestEntry.selectedLibraries[0])}`,
+      ),
+    );
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }
