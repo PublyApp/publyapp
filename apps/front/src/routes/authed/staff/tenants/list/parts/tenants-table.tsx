@@ -42,9 +42,12 @@ import {
 	useCallback,
 	useEffect,
 	useId,
+	useImperativeHandle,
 	useMemo,
 	useReducer,
+	useRef,
 	useState,
+	type Ref,
 } from 'react';
 
 import type { TenantAsStaffListItem } from '@org/client-ts/src/models';
@@ -134,17 +137,11 @@ type TenantStatusFilterOption = {
 
 type TableUiState = {
 	rowSelection: Record<string, boolean>;
-	selectionActionAnchorEl: HTMLElement | null;
-	exportDialogOpen: boolean;
-	exportFormat: ExportFormat;
 	bulkActionDialog: BulkActionDialogState;
 };
 
 const initialTableUiState: TableUiState = {
 	rowSelection: {},
-	selectionActionAnchorEl: null,
-	exportDialogOpen: false,
-	exportFormat: 'csv',
 	bulkActionDialog: { type: 'suspend', open: false },
 };
 
@@ -163,6 +160,7 @@ const useTenantsTableController = () => {
 	const { t } = useTranslate();
 	const searchTooltipId = useId();
 	const statusTooltipId = useId();
+	const exportDialogRef = useRef<TenantsExportDialogControllerRef | null>(null);
 	const tenantStatusOptions = useMemo<TenantStatusFilterOption[]>(() => {
 		return [
 			{ label: t('active'), value: TENANT_STATUS_ENUM.ACTIVE },
@@ -247,13 +245,7 @@ const useTenantsTableController = () => {
 		tableUiReducer,
 		initialTableUiState,
 	);
-	const {
-		rowSelection,
-		selectionActionAnchorEl,
-		exportDialogOpen,
-		exportFormat,
-		bulkActionDialog,
-	} = tableUiState;
+	const { rowSelection, bulkActionDialog } = tableUiState;
 
 	const handleBulkActionSuccess = useCallback((type: BulkActionType) => {
 		setTableUiState({
@@ -381,32 +373,21 @@ const useTenantsTableController = () => {
 	const selectedRows = useMemo(() => {
 		return dataTable.filter((row) => rowSelection[row.id]);
 	}, [dataTable, rowSelection]);
-	const isSelectionActionMenuOpen = Boolean(selectionActionAnchorEl);
-
-	const closeSelectionActionMenu = () => {
-		setTableUiState({ selectionActionAnchorEl: null });
-	};
 
 	const openExportDialog = () => {
-		closeSelectionActionMenu();
-		setTableUiState({ exportDialogOpen: true, exportFormat: 'csv' });
+		// Keep dialog `open` state inside the dialog controller so opening the export
+		// UI doesn't cause a full table re-render (the table is the heavy sibling).
+		exportDialogRef.current?.open();
 	};
 	const openBulkActionDialog = (type: BulkActionType) => {
-		closeSelectionActionMenu();
 		setTableUiState({
 			bulkActionDialog: { type, open: true },
 		});
-	};
-	const closeExportDialog = () => {
-		setTableUiState({ exportDialogOpen: false });
 	};
 	const closeBulkActionDialog = (type: BulkActionType) => {
 		setTableUiState({
 			bulkActionDialog: { type, open: false },
 		});
-	};
-	const handleExportFormatChange = (format: ExportFormat) => {
-		setTableUiState({ exportFormat: format });
 	};
 	const exportRows = (format: 'csv' | 'json') => {
 		const rowsToExport = isSelectionMode ? selectedRows : dataTable;
@@ -441,11 +422,6 @@ const useTenantsTableController = () => {
 		URL.revokeObjectURL(url);
 	};
 
-	const handleExport = (format: 'csv' | 'json') => {
-		exportRows(format);
-		setTableUiState({ exportDialogOpen: false });
-	};
-
 	const renderToolbarFilters = () => {
 		return (
 			<TenantsToolbarFilters
@@ -467,14 +443,6 @@ const useTenantsTableController = () => {
 	const renderSelectionActions = () => {
 		return (
 			<TenantsSelectionActions
-				anchorEl={selectionActionAnchorEl}
-				open={isSelectionActionMenuOpen}
-				onClose={closeSelectionActionMenu}
-				onOpen={(event) => {
-					setTableUiState({
-						selectionActionAnchorEl: event.currentTarget,
-					});
-				}}
 				onOpenExportDialog={openExportDialog}
 				onOpenBulkActionDialog={openBulkActionDialog}
 			/>
@@ -560,14 +528,11 @@ const useTenantsTableController = () => {
 
 	return {
 		table,
-		exportDialogOpen,
+		exportDialogRef,
 		isSelectionMode,
 		selectedCount,
 		rowsCount: dataTable.length,
-		exportFormat,
-		closeExportDialog,
-		handleExportFormatChange,
-		handleExport,
+		exportRows,
 		bulkActionDialog,
 		isBulkSuspending,
 		isBulkReactivating,
@@ -582,14 +547,11 @@ const useTenantsTableController = () => {
 const TenantsTable = () => {
 	const {
 		table,
-		exportDialogOpen,
+		exportDialogRef,
 		isSelectionMode,
 		selectedCount,
 		rowsCount,
-		exportFormat,
-		closeExportDialog,
-		handleExportFormatChange,
-		handleExport,
+		exportRows,
 		bulkActionDialog,
 		isBulkSuspending,
 		isBulkReactivating,
@@ -611,15 +573,12 @@ const TenantsTable = () => {
 		>
 			<MaterialReactTable table={table} />
 
-			<TenantsExportDialog
-				open={exportDialogOpen}
+			<TenantsExportDialogController
+				ref={exportDialogRef}
 				isSelectionMode={isSelectionMode}
 				selectedCount={selectedCount}
 				rowsCount={rowsCount}
-				exportFormat={exportFormat}
-				onClose={closeExportDialog}
-				onFormatChange={handleExportFormatChange}
-				onExport={handleExport}
+				onExport={exportRows}
 			/>
 
 			<TenantsBulkActionDialogs
@@ -1013,33 +972,33 @@ const TenantsExportActions = ({
 };
 
 type TenantsSelectionActionsProps = {
-	anchorEl: HTMLElement | null;
-	open: boolean;
-	onOpen: (event: React.MouseEvent<HTMLButtonElement>) => void;
-	onClose: () => void;
 	onOpenExportDialog: () => void;
 	onOpenBulkActionDialog: (type: BulkActionType) => void;
 };
 
 const TenantsSelectionActions = ({
-	anchorEl,
-	open,
-	onOpen,
-	onClose,
 	onOpenExportDialog,
 	onOpenBulkActionDialog,
 }: TenantsSelectionActionsProps) => {
 	const { t } = useTranslate();
+	const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+	const open = Boolean(anchorEl);
+
+	const closeMenu = () => setAnchorEl(null);
 
 	return (
 		<>
-			<IconButton size="small" onClick={onOpen} sx={{ width: 32, height: 32 }}>
+			<IconButton
+				size="small"
+				onClick={(event) => setAnchorEl(event.currentTarget)}
+				sx={{ width: 32, height: 32 }}
+			>
 				<Iconify icon="eva:more-vertical-fill" width={18} />
 			</IconButton>
 			<Menu
 				anchorEl={anchorEl}
 				open={open}
-				onClose={onClose}
+				onClose={closeMenu}
 				anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
 				transformOrigin={{ vertical: 'top', horizontal: 'right' }}
 				slotProps={{
@@ -1050,7 +1009,12 @@ const TenantsSelectionActions = ({
 					},
 				}}
 			>
-				<MenuItem onClick={onOpenExportDialog}>
+				<MenuItem
+					onClick={() => {
+						closeMenu();
+						onOpenExportDialog();
+					}}
+				>
 					<Iconify icon="solar:download-bold" width={18} />
 					<ListItemText
 						primary={t('export-selected', {
@@ -1059,16 +1023,29 @@ const TenantsSelectionActions = ({
 						sx={{ ml: 1 }}
 					/>
 				</MenuItem>
-				<MenuItem onClick={() => onOpenBulkActionDialog('suspend')}>
+				<MenuItem
+					onClick={() => {
+						closeMenu();
+						onOpenBulkActionDialog('suspend');
+					}}
+				>
 					<Iconify icon="solar:forbidden-circle-bold" width={18} />
 					<ListItemText primary={t('bulk-suspend')} sx={{ ml: 1 }} />
 				</MenuItem>
-				<MenuItem onClick={() => onOpenBulkActionDialog('reactivate')}>
+				<MenuItem
+					onClick={() => {
+						closeMenu();
+						onOpenBulkActionDialog('reactivate');
+					}}
+				>
 					<Iconify icon="solar:play-circle-bold" width={18} />
 					<ListItemText primary={t('bulk-reactivate')} sx={{ ml: 1 }} />
 				</MenuItem>
 				<MenuItem
-					onClick={() => onOpenBulkActionDialog('delete')}
+					onClick={() => {
+						closeMenu();
+						onOpenBulkActionDialog('delete');
+					}}
 					sx={{ color: 'error.main' }}
 				>
 					<Iconify icon="solar:trash-bin-trash-bold" width={18} />
@@ -1088,6 +1065,57 @@ type TenantsExportDialogProps = {
 	onClose: () => void;
 	onFormatChange: (format: ExportFormat) => void;
 	onExport: (format: 'csv' | 'json') => void;
+};
+
+export type TenantsExportDialogControllerRef = {
+	open: () => void;
+};
+
+type TenantsExportDialogControllerProps = {
+	isSelectionMode: boolean;
+	selectedCount: number;
+	rowsCount: number;
+	onExport: (format: 'csv' | 'json') => void;
+	ref?: Ref<TenantsExportDialogControllerRef>;
+};
+
+const TenantsExportDialogController = ({
+	isSelectionMode,
+	selectedCount,
+	rowsCount,
+	onExport,
+	ref,
+}: TenantsExportDialogControllerProps) => {
+	const [open, setOpen] = useState(false);
+	const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
+
+	// React 19: `ref` is a normal prop (no `forwardRef` needed). We use an
+	// imperative handle because the export dialog can be opened from multiple
+	// toolbar/menu triggers without lifting dialog state into the heavy table.
+	useImperativeHandle(ref, () => {
+		return {
+			open: () => {
+				setExportFormat('csv');
+				setOpen(true);
+			},
+		};
+	}, []);
+
+	return (
+		<TenantsExportDialog
+			open={open}
+			isSelectionMode={isSelectionMode}
+			selectedCount={selectedCount}
+			rowsCount={rowsCount}
+			exportFormat={exportFormat}
+			onClose={() => setOpen(false)}
+			onFormatChange={setExportFormat}
+			onExport={(format) => {
+				onExport(format);
+				setOpen(false);
+			}}
+		/>
+	);
 };
 
 const TenantsExportDialog = ({

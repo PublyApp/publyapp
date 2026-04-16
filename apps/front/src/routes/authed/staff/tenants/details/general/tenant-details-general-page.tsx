@@ -2,7 +2,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
-import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -24,7 +23,9 @@ import {
 	FRONT_PATH_NAMES,
 	TENANT_STATUS_ENUM,
 } from '@org/shared-ts/lib/constants';
+import { mbToBytes } from '@org/shared-ts/utils/any.utils';
 
+import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
 import { NotFoundView } from '#app/components/error/not-found-view.tsx';
@@ -32,7 +33,7 @@ import { Field, Form } from '#app/components/hook-form/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import type { IconifyName } from '#app/components/iconify/register-icons.ts';
 import QueryDisplay from '#app/components/query-display.tsx';
-import { SettingsPageHeader } from '#app/components/settings/settings-page-header.tsx';
+import { StatusChip } from '#app/components/status-chip/status-chip.tsx';
 import { UploadAvatar } from '#app/components/upload/index.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { isProblemFailure, toApiFailure } from '#app/lib/api-failure/index.ts';
@@ -45,9 +46,16 @@ import {
 	useSuspendTenant,
 	useUpdateTenant,
 } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
+import { fData } from '#app/utils/format-number.ts';
 import { fDateTime } from '#app/utils/format-time.ts';
 
 import type { TenantDetailsOutletContext } from '../_layout/tenant-details-layout';
+
+const TENANT_STATUS_COLOR_MAP = {
+	Active: 'success',
+	Suspended: 'warning',
+	Pending: 'default',
+} as const;
 
 const updateTenantSchema = z.object({
 	name: z.string().min(5),
@@ -83,34 +91,42 @@ const TenantDetailsGeneralPage = () => {
 	});
 
 	return (
-		<Stack spacing={3}>
-			<SettingsPageHeader
-				subtitle={tenantName || t('tenant-details')}
-				title={t('general')}
+		<>
+			<CustomBreadcrumbs
+				heading={tenantName || t('tenant-details')}
+				links={[
+					{
+						name: _.capitalize(t('tenants')),
+						href: FRONT_PATH_NAMES.staff.tenants.root,
+					},
+					{ name: _.capitalize(t('details')) },
+				]}
+				sx={{ mb: { xs: 3, md: 5 } }}
 			/>
-
-			<QueryDisplay
-				query={getTenantQuery}
-				LoadingSlot={<TenantGeneralSkeleton />}
-				ErrorSlot={({ error }) => (
-					<ErrorView error={error} getTenantQuery={getTenantQuery} />
-				)}
-			>
-				{({ data }) => (
-					<TenantGeneralContent
-						tenantId={_.toString(data.tenantId)}
-						name={data.name}
-						code={data.code}
-						logoUrl={data.logoUrl}
-						maxUsers={data.maxUsers}
-						status={data.status}
-						usersCount={data.usersCount}
-						createdAt={data.createdAt}
-						updatedAt={data.updatedAt}
-					/>
-				)}
-			</QueryDisplay>
-		</Stack>
+			<Stack spacing={3}>
+				<QueryDisplay
+					query={getTenantQuery}
+					LoadingSlot={<TenantGeneralSkeleton />}
+					ErrorSlot={({ error }) => (
+						<ErrorView error={error} getTenantQuery={getTenantQuery} />
+					)}
+				>
+					{({ data }) => (
+						<TenantGeneralContent
+							tenantId={_.toString(data.tenantId)}
+							name={data.name}
+							code={data.code}
+							logoUrl={data.logoUrl}
+							maxUsers={data.maxUsers}
+							status={data.status}
+							usersCount={data.usersCount}
+							createdAt={data.createdAt}
+							updatedAt={data.updatedAt}
+						/>
+					)}
+				</QueryDisplay>
+			</Stack>
+		</>
 	);
 };
 
@@ -209,9 +225,32 @@ const TenantGeneralContent = ({
 				{/* Left Sidebar */}
 				<Card sx={{ pt: 8, pb: 5, px: 3 }}>
 					<Box sx={{ textAlign: 'center' }}>
-						<UploadAvatar value={logoUrl ?? null} disabled />
+						<UploadAvatar
+							value={logoUrl ?? null}
+							disabled
+							maxSize={mbToBytes(3)}
+							helperText={
+								<Typography
+									variant="caption"
+									sx={{
+										mt: 3,
+										mx: 'auto',
+										display: 'block',
+										textAlign: 'center',
+										color: 'text.disabled',
+									}}
+								>
+									{t('uploads-not-supported-yet')}
+									<br /> {t('max-size', { size: fData(mbToBytes(3)) })}
+								</Typography>
+							}
+						/>
 
-						<StatusChip status={status} sx={{ mt: 3 }} />
+						<StatusChip
+							status={status}
+							sx={{ mt: 3 }}
+							colorMap={TENANT_STATUS_COLOR_MAP}
+						/>
 					</Box>
 
 					<Divider sx={{ my: 3, borderStyle: 'dashed' }} />
@@ -537,26 +576,6 @@ const DangerZoneCard = ({
 			/>
 		</Card>
 	);
-};
-
-const statusColorMap: Record<
-	string,
-	'success' | 'warning' | 'error' | 'default'
-> = {
-	Active: 'success',
-	Suspended: 'warning',
-	Pending: 'default',
-};
-
-type StatusChipProps = {
-	status?: string | null;
-	sx?: object;
-};
-
-const StatusChip = ({ status, sx }: StatusChipProps) => {
-	const label = status ?? 'Unknown';
-	const color = statusColorMap[label] ?? 'default';
-	return <Chip label={label} color={color} size="small" sx={sx} />;
 };
 
 const TenantGeneralSkeleton = () => (

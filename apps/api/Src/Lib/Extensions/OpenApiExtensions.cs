@@ -17,17 +17,17 @@ public static class OpenApiExtensions {
 			app.MapScalarApiReference(options => {
 				options.EnabledTargets = [
 					ScalarTarget.Shell,
-					ScalarTarget.Node,
 					ScalarTarget.JavaScript,
 					ScalarTarget.CSharp,
 				];
 				options.EnabledClients = [
+					// shell
 					ScalarClient.Curl,
-					ScalarClient.Wget,
+					// javascript
 					ScalarClient.Axios,
+					ScalarClient.Fetch,
+					// csharp
 					ScalarClient.HttpClient,
-					ScalarClient.Request,
-					ScalarClient.RestSharp,
 				];
 			});
 		}

@@ -423,7 +423,8 @@ namespace MainApi.Migrations
 
                     b.HasIndex("PermissionKey");
 
-                    b.HasIndex("ProfileId", "PermissionKey");
+                    b.HasIndex("ProfileId", "PermissionKey")
+                        .IsUnique();
 
                     b.ToTable("profile_permissions");
                 });

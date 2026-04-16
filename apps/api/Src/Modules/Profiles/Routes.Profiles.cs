@@ -12,6 +12,57 @@ public static partial class Routes {
 			public const string Root = "/profiles";
 			public const string Create = "/";
 			public const string Find = "/";
+			public const string Get = "/{profileId}";
+			public static string GetFn(string profileId) => $"/{profileId}";
+
+			// PATCH semantics: profile details are updated via a partial update (name/description).
+			public const string Update = "/{profileId}";
+			public static string UpdateFn(string profileId) => $"/{profileId}";
+			public const string Delete = "/{profileId}";
+			public static string DeleteFn(string profileId) => $"/{profileId}";
+
+			/// <summary>Staff profile permissions routes</summary>
+			public static class Permissions {
+				// NOTE: This is relative to "/staff" and "/profiles" route grouping.
+				// We expose permission assignment as an idempotent "upsert" endpoint per key:
+				// POST assigns, DELETE unassigns.
+				public const string Root = "/{profileId}/permissions";
+				public static string RootFn(string profileId) => $"/{profileId}/permissions";
+
+				/// <summary>List permission keys assigned to a staff profile</summary>
+				public const string Find = Root;
+				public static string FindFn(string profileId) => RootFn(profileId);
+
+				/// <summary>Assign or unassign a permission key on a staff profile</summary>
+				public const string Upsert = Root + "/{permissionKey}";
+				public static string UpsertFn(string profileId, string permissionKey) =>
+					$"{RootFn(profileId)}/{permissionKey}";
+			}
+
+			/// <summary>Staff profile users routes (staff viewing users assigned to a staff profile)</summary>
+			public static class Users {
+				// NOTE: This is relative to "/staff" and "/profiles" route grouping.
+				public const string Root = "/{profileId}/users";
+				public static string RootFn(string profileId) => $"/{profileId}/users";
+
+				/// <summary>Find users assigned to a staff profile</summary>
+				public const string Find = Root;
+				public static string FindFn(string profileId) => RootFn(profileId);
+
+				/// <summary>
+				/// Batch-resolve whether a set of staff users is assigned to a staff profile.
+				/// This exists to avoid N+1 per-row profile requests in list UIs (assignment drawers).
+				/// </summary>
+				public const string ResolveAssignment = Root + "/assignment-resolution";
+				public static string ResolveAssignmentFn(string profileId) =>
+					$"{RootFn(profileId)}/assignment-resolution";
+
+				/// <summary>
+				/// Bulk-unassign staff users from a staff profile.
+				/// </summary>
+				public const string Unassign = Root + "/unassign";
+				public static string UnassignFn(string profileId) => $"{RootFn(profileId)}/unassign";
+			}
 		}
 
 		/// <summary>Tenant profile routes (staff viewing tenant profiles)</summary>

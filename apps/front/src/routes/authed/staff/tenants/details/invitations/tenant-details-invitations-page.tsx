@@ -1,6 +1,8 @@
 import _ from 'lodash';
 import { useOutletContext } from 'react-router';
 
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+
 import { SectionPageWithDrawer } from '#app/components/settings/section-page-with-drawer.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
@@ -14,8 +16,14 @@ const TenantDetailsInvitationsPage = () => {
 
 	return (
 		<SectionPageWithDrawer
-			subtitle={tenantName || t('tenant-details')}
-			title={t('invitations')}
+			title={tenantName || t('tenant-details')}
+			links={[
+				{
+					name: _.capitalize(t('tenants')),
+					href: FRONT_PATH_NAMES.staff.tenants.root,
+				},
+				{ name: _.capitalize(t('details')) },
+			]}
 			ctaLabel={_.capitalize(t('invite-user'))}
 			drawerWidth={480}
 			drawerContent={<InviteUserForm />}

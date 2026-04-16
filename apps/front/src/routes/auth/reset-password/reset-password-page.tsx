@@ -9,6 +9,7 @@ import Typography from '@mui/material/Typography';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
+import { Trans } from 'react-i18next';
 import {
 	redirect,
 	useFetcher,
@@ -25,12 +26,12 @@ import {
 import { getCorrectLocale } from '@org/shared-ts/lib/i18n/i18n.utils';
 import { getSerializedErrorMessage } from '@org/shared-ts/utils/error.utils';
 import { getResetPasswordSchema } from '@org/shared-ts/validations/auth.validations';
+
 import { Field } from '#app/components/hook-form/fields.tsx';
 import { Form } from '#app/components/hook-form/form-provider.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
 import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
-import { Trans } from 'react-i18next';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getClientManager } from '#app/lib/js-client/client-manager.ts';
 import { safeRun } from '#app/lib/react-router/safeRun.ts';

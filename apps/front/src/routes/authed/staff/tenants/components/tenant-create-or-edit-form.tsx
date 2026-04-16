@@ -18,11 +18,11 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { nanoid } from 'nanoid';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-	useFieldArray,
-	useForm,
 	type FieldArrayWithId,
 	type UseFieldArrayRemove,
 	type UseFormSetValue,
+	useFieldArray,
+	useForm,
 } from 'react-hook-form';
 import type zod from 'zod';
 

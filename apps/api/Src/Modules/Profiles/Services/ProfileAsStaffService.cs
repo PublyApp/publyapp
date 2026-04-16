@@ -37,6 +37,113 @@ public abstract record FindStaffProfilesResult {
 	public sealed record InvalidSortId(string SortId) : FindStaffProfilesResult;
 }
 
+public sealed record FindStaffProfilesArgs(
+	Guid Cursor,
+	int? Limit,
+	string? SortId,
+	SortOrder? SortOrder,
+	string? Search
+);
+
+public sealed record StaffProfileUserListItem(
+	Guid UserId,
+	string Email,
+	string? FirstName,
+	string? LastName,
+	string? AvatarUrl,
+	UserStatus Status
+);
+
+public abstract record FindStaffProfileUsersServiceResult {
+	// "Success" here is a plain list response (offset pagination).
+	public sealed record Success(
+		List<StaffProfileUserListItem> Users,
+		int Count
+	) : FindStaffProfileUsersServiceResult;
+
+	// We intentionally treat missing/non-staff profiles as "not found" for this endpoint.
+	public sealed record ProfileNotFound : FindStaffProfileUsersServiceResult;
+
+	public sealed record InvalidSortId(string SortId) : FindStaffProfileUsersServiceResult;
+}
+
+public sealed record FindStaffProfileUsersArgs(
+	Guid ProfileId,
+	int? Page,
+	int? Limit,
+	string? SortId,
+	SortOrder? SortOrder,
+	string? Search
+);
+
+public sealed record StaffProfileUserAssignmentResolutionItem(
+	Guid UserId,
+	bool IsAssigned
+);
+
+public abstract record ResolveStaffProfileUserAssignmentsServiceResult {
+	public sealed record Success(
+		List<StaffProfileUserAssignmentResolutionItem> Assignments
+	) : ResolveStaffProfileUserAssignmentsServiceResult;
+
+	// We intentionally treat missing/non-staff profiles as "not found" for this endpoint.
+	public sealed record ProfileNotFound : ResolveStaffProfileUserAssignmentsServiceResult;
+}
+
+public sealed record ResolveStaffProfileUserAssignmentsArgs(
+	Guid ProfileId,
+	List<Guid> UserIds
+);
+
+public abstract record GetStaffProfileByIdServiceResult {
+	public sealed record Success(StaffProfileItem Profile) : GetStaffProfileByIdServiceResult;
+	public sealed record ProfileNotFound : GetStaffProfileByIdServiceResult;
+}
+
+public abstract record FindStaffProfilePermissionKeysResult {
+	public sealed record Success(List<string> PermissionKeys) : FindStaffProfilePermissionKeysResult;
+	public sealed record ProfileNotFound : FindStaffProfilePermissionKeysResult;
+}
+
+public sealed record UpdateStaffProfileArgs(
+	Guid ProfileId,
+	PatchField<string?> Name,
+	PatchField<string?> Description
+);
+
+public abstract record UpdateStaffProfileResult {
+	public sealed record Success(StaffProfileItem Profile) : UpdateStaffProfileResult;
+	public sealed record ProfileNotFound : UpdateStaffProfileResult;
+	public sealed record ProfileNameExists(string Name) : UpdateStaffProfileResult;
+}
+
+public sealed record SetStaffProfilePermissionArgs(
+	Guid ProfileId,
+	string PermissionKey,
+	bool IsAssigned
+);
+
+public abstract record SetStaffProfilePermissionResult {
+	public sealed record Success : SetStaffProfilePermissionResult;
+	public sealed record ProfileNotFound : SetStaffProfilePermissionResult;
+	public sealed record PermissionNotFound : SetStaffProfilePermissionResult;
+}
+
+public abstract record DeleteStaffProfileServiceResult {
+	public sealed record Success(int DeletedProfileCount) : DeleteStaffProfileServiceResult;
+	public sealed record ProfileNotFound : DeleteStaffProfileServiceResult;
+}
+
+public sealed record UnassignStaffProfileUsersArgs(
+	Guid ProfileId,
+	List<Guid> UserIds
+);
+
+public abstract record UnassignStaffProfileUsersServiceResult {
+	public sealed record Success(int UnassignedCount) : UnassignStaffProfileUsersServiceResult;
+	public sealed record ProfileNotFound : UnassignStaffProfileUsersServiceResult;
+}
+
 /// <summary>
 /// Discriminated union representing the result of creating a staff profile.
 /// </summary>
@@ -97,10 +204,37 @@ public interface IProfileAsStaffService {
 	);
 
 	Task<FindStaffProfilesResult> FindStaffProfilesAsync(
-		Guid cursor,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
+		FindStaffProfilesArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<FindStaffProfileUsersServiceResult> FindStaffProfileUsersAsync(
+		FindStaffProfileUsersArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<ResolveStaffProfileUserAssignmentsServiceResult> ResolveStaffProfileUserAssignmentsAsync(
+		ResolveStaffProfileUserAssignmentsArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<GetStaffProfileByIdServiceResult> GetStaffProfileByIdAsync(
+		Guid profileId,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<FindStaffProfilePermissionKeysResult> FindStaffProfilePermissionKeysAsync(
+		Guid profileId,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<UpdateStaffProfileResult> UpdateStaffProfileAsync(
+		UpdateStaffProfileArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<SetStaffProfilePermissionResult> SetStaffProfilePermissionAsync(
+		SetStaffProfilePermissionArgs args,
 		CancellationToken cancellationToken = default
 	);
 
@@ -110,6 +244,16 @@ public interface IProfileAsStaffService {
 		List<string> permissions,
 		List<string> emails,
 		Guid invitedByUserId,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<DeleteStaffProfileServiceResult> DeleteStaffProfileAsync(
+		Guid profileId,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<UnassignStaffProfileUsersServiceResult> UnassignStaffProfileUsersAsync(
+		UnassignStaffProfileUsersArgs args,
 		CancellationToken cancellationToken = default
 	);
 }
@@ -210,15 +354,14 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 	///   - Returns records after Charlie in alphabetical order
 	/// </summary>
 	public async Task<FindStaffProfilesResult> FindStaffProfilesAsync(
-		Guid cursor,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
+		FindStaffProfilesArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
-		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-		var effectiveSortId = sortId ?? "id";
+		var effectiveLimit =
+			args.Limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
+		var effectiveSortId = args.SortId ?? "id";
+		var search = args.Search;
 
 		// Define handlers for each sortable field
 		// Each handler has 3 responsibilities:
@@ -235,8 +378,13 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			["id"] = new SortFieldHandler(
 				// GetCursorValue: Just fetch the Id value
 				getCursorValue: async (guid) => {
-					var profile = await _dbContext.Profile.FindAsync(guid);
-					return profile?.Id;
+					var profileId = await _dbContext.Profile
+						.Where(p => p.Id == guid
+							&& p.Scope == ProfileScope.Staff
+							&& !p.IsDeleted)
+						.Select(p => p.Id)
+						.FirstOrDefaultAsync(cancellationToken);
+					return profileId;
 				},
 				// ApplyFilter: Simple comparison - WHERE Id > cursor (or < for descending)
 				applyFilter: (q, cursorValue, isAsc) => {
@@ -262,9 +410,11 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				// We need both values to construct the keyset filter correctly
 				getCursorValue: async (guid) => {
 					var profile = await _dbContext.Profile
-						.Where(p => p.Id == guid)
+						.Where(p => p.Id == guid
+							&& p.Scope == ProfileScope.Staff
+							&& !p.IsDeleted)
 						.Select(p => new { p.Name, p.Id })
-						.FirstOrDefaultAsync();
+						.FirstOrDefaultAsync(cancellationToken);
 					// Return as tuple: (Name, Id)
 					return profile is not null ? (profile.Name, profile.Id) : null;
 				},
@@ -295,9 +445,11 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				// GetCursorValue: Fetch BOTH CreatedAt and Id
 				getCursorValue: async (guid) => {
 					var profile = await _dbContext.Profile
-						.Where(p => p.Id == guid)
+						.Where(p => p.Id == guid
+							&& p.Scope == ProfileScope.Staff
+							&& !p.IsDeleted)
 						.Select(p => new { p.CreatedAt, p.Id })
-						.FirstOrDefaultAsync();
+						.FirstOrDefaultAsync(cancellationToken);
 					return profile is not null ? (profile.CreatedAt, profile.Id) : null;
 				},
 				// ApplyFilter: Keyset filter with tie-breaker in same direction
@@ -325,9 +477,11 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				// GetCursorValue: Calculate the count for the cursor record
 				getCursorValue: async (guid) => {
 					var profile = await _dbContext.Profile
-						.Where(p => p.Id == guid)
+						.Where(p => p.Id == guid
+							&& p.Scope == ProfileScope.Staff
+							&& !p.IsDeleted)
 						.Select(p => new { Count = p.UserAccountProfiles.Count, p.Id })
-						.FirstOrDefaultAsync();
+						.FirstOrDefaultAsync(cancellationToken);
 					return profile is not null ? (profile.Count, profile.Id) : null;
 				},
 				// ApplyFilter: Keyset filter with tie-breaker in same direction
@@ -358,20 +512,38 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		// STEP 2: Build base query
 		// ───────────────────────────────────────────────────────────────────────
 		// Start with staff profiles only, excluding soft-deleted records
-		var query = _dbContext.Profile
-			.Where(p => p.Scope == ProfileScope.Staff && p.Id != null);
+		var baseQuery =
+			from p in _dbContext.Profile
+			where p.Scope == ProfileScope.Staff
+				&& !p.IsDeleted
+				&& p.Id != null
+			select p;
+
+		IQueryable<Profile> query = baseQuery;
+
+		// Apply search filter (by name/description)
+		// Search semantics: substring match (ILIKE %q%) for case-insensitive search
+		if (search is { } q) {
+			var pattern = $"%{q}%";
+			query = query.Where(p =>
+				EF.Functions.ILike(p.Name, pattern)
+				|| (p.Description != null && EF.Functions.ILike(p.Description, pattern))
+			);
+		}
 
 		// ───────────────────────────────────────────────────────────────────────
 		// STEP 3: Apply cursor-based filter (if paginating)
 		// ───────────────────────────────────────────────────────────────────────
 		// Apply keyset filter to get records AFTER the cursor
-		if (cursor != Guid.Empty) {
+		if (args.Cursor != Guid.Empty) {
 			// Fetch the sort field value at the cursor position
-			var cursorValue = await handler.GetCursorValue(cursor);
+			var cursorValue = await handler.GetCursorValue(args.Cursor);
 
 			// Validate that cursor exists
 			if (cursorValue is null) {
-				return new FindStaffProfilesResult.CursorNotFound(cursor.ToString());
+				return new FindStaffProfilesResult.CursorNotFound(
+					args.Cursor.ToString()
+				);
 			}
 
 			// Apply the keyset filter based on the sort field
@@ -421,6 +593,386 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				NextCursor = nextCursor,  // null = last page, otherwise = Id to continue from
 			}
 		);
+	}
+
+	public async Task<FindStaffProfileUsersServiceResult> FindStaffProfileUsersAsync(
+		FindStaffProfileUsersArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var effectivePage = args.Page ?? 1;
+		var effectiveLimit =
+			args.Limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
+		var effectiveSortId = args.SortId ?? "created_at";
+		var search = args.Search;
+
+		// Guard early to avoid running a large join query when the profileId is invalid.
+		// This endpoint is specifically "staff profile -> users", so tenant/project profiles
+		// are not addressable here either (also treated as not-found).
+		var profileExists = await (
+			from p in _dbContext.Profile
+			where p.Id == args.ProfileId
+				&& p.Scope == ProfileScope.Staff
+				&& !p.IsDeleted
+			select p.Id
+		).AnyAsync(cancellationToken);
+
+		if (!profileExists) {
+			return new FindStaffProfileUsersServiceResult.ProfileNotFound();
+		}
+
+		// Query "users assigned to this staff profile" via the junction table.
+		//
+		// IMPORTANT: Do NOT filter out suspended users here.
+		// - Staff tooling still needs to *see* suspended users (for auditing and reactivation).
+		// - The UI can disable actions for non-actionable statuses, but hiding rows causes
+		//   confusing "disappearing" behavior right after a status mutation.
+		var query =
+			from uap in _dbContext.UserAccountProfile
+			join ua in _dbContext.UserAccount on uap.UserAccountId equals ua.Id
+			join u in _dbContext.User on ua.UserId equals u.Id
+			where uap.ProfileId == args.ProfileId
+				&& !uap.IsDeleted
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !u.IsDeleted
+			select new {
+				UserId = u.Id,
+				u.Email,
+				u.FirstName,
+				u.LastName,
+				u.AvatarUrl,
+				u.Status,
+				// Use the junction CreatedAt as "assigned at" for default sorting.
+				AssignedAt = uap.CreatedAt,
+			};
+
+		if (search is not null) {
+			// Search is intentionally simple (ILIKE wildcard) for UX. If this becomes hot,
+			// we can add trigram indexes or an external search later.
+			var wildcard = $"%{search}%";
+			query = query.Where(x =>
+				EF.Functions.ILike(x.Email, wildcard)
+				|| EF.Functions.ILike(x.FirstName ?? "", wildcard)
+				|| EF.Functions.ILike(x.LastName ?? "", wildcard)
+			);
+		}
+
+		// Keep this list's supported sort_id values explicit and small.
+		var isAsc = effectiveSortOrder == SortOrder.Asc;
+		if (string.Equals(effectiveSortId, "created_at", StringComparison.OrdinalIgnoreCase)) {
+			query = isAsc
+				? query.OrderBy(x => x.AssignedAt)
+				: query.OrderByDescending(x => x.AssignedAt);
+		} else if (string.Equals(effectiveSortId, "email", StringComparison.OrdinalIgnoreCase)) {
+			query = isAsc
+				? query.OrderBy(x => x.Email)
+				: query.OrderByDescending(x => x.Email);
+		} else if (string.Equals(effectiveSortId, "first_name", StringComparison.OrdinalIgnoreCase)) {
+			query = isAsc
+				? query.OrderBy(x => x.FirstName)
+				: query.OrderByDescending(x => x.FirstName);
+		} else if (string.Equals(effectiveSortId, "last_name", StringComparison.OrdinalIgnoreCase)) {
+			query = isAsc
+				? query.OrderBy(x => x.LastName)
+				: query.OrderByDescending(x => x.LastName);
+		} else if (string.Equals(effectiveSortId, "status", StringComparison.OrdinalIgnoreCase)) {
+			query = isAsc
+				? query.OrderBy(x => x.Status)
+				: query.OrderByDescending(x => x.Status);
+		} else {
+			return new FindStaffProfileUsersServiceResult.InvalidSortId(effectiveSortId);
+		}
+
+		// Count is used by the UI to render pagination controls.
+		var count = await query.CountAsync(cancellationToken);
+
+		var users = await query
+			.Skip((effectivePage - 1) * effectiveLimit)
+			.Take(effectiveLimit)
+			// NOTE: This projection runs inside an EF Core expression tree.
+			// Do not use named arguments here; C# forbids named args in expression trees.
+			.Select(x => new StaffProfileUserListItem(
+				x.UserId ?? Guid.Empty,
+				x.Email,
+				x.FirstName,
+				x.LastName,
+				x.AvatarUrl,
+				x.Status
+			))
+			.ToListAsync(cancellationToken);
+
+		return new FindStaffProfileUsersServiceResult.Success(
+			Users: users,
+			Count: count
+		);
+	}
+
+	public async Task<ResolveStaffProfileUserAssignmentsServiceResult> ResolveStaffProfileUserAssignmentsAsync(
+		ResolveStaffProfileUserAssignmentsArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		// Guard early: this endpoint is strictly "staff profile -> users" so tenant/project
+		// profiles are treated as not found.
+		var profileExists = await (
+			from p in _dbContext.Profile
+			where p.Id == args.ProfileId
+				&& p.Scope == ProfileScope.Staff
+				&& !p.IsDeleted
+			select p.Id
+		).AnyAsync(cancellationToken);
+
+		if (!profileExists) {
+			return new ResolveStaffProfileUserAssignmentsServiceResult.ProfileNotFound();
+		}
+
+		if (args.UserIds.Count == 0) {
+			return new ResolveStaffProfileUserAssignmentsServiceResult.Success([]);
+		}
+
+		// User.Id is nullable (Guid?) in the EF model, so convert the incoming Guid list to
+		// nullable IDs to keep the query fully translatable by EF.
+		var userIdsNullable = args.UserIds.Select(id => (Guid?)id).ToList();
+
+		// Resolve assignment in one query:
+		// - Only staff accounts are relevant for staff profiles
+		// - Deleted/suspended users/accounts are treated as not assignable via staff tooling
+		// - Deleted junction links are ignored
+		var assignedUserIds = await (
+			from ua in _dbContext.UserAccount
+			join uap in _dbContext.UserAccountProfile on ua.Id equals uap.UserAccountId
+			join u in _dbContext.User on ua.UserId equals u.Id
+			where userIdsNullable.Contains(u.Id)
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& ua.Status != AccountStatus.Suspended
+				&& !u.IsDeleted
+				&& u.Status != UserStatus.Suspended
+				&& uap.ProfileId == args.ProfileId
+				&& !uap.IsDeleted
+			select u.Id
+		)
+			.Distinct()
+			.ToListAsync(cancellationToken);
+
+		var assignedLookup = assignedUserIds
+			.Where(id => id is not null)
+			.Select(id => id!.Value)
+			.ToHashSet();
+
+		var assignments = args.UserIds
+			.Distinct()
+			.Select(userId => new StaffProfileUserAssignmentResolutionItem(
+				UserId: userId,
+				IsAssigned: assignedLookup.Contains(userId)
+			))
+			.ToList();
+
+		return new ResolveStaffProfileUserAssignmentsServiceResult.Success(assignments);
+	}
+
+	public async Task<GetStaffProfileByIdServiceResult> GetStaffProfileByIdAsync(
+		Guid profileId,
+		CancellationToken cancellationToken = default
+	) {
+		// This is a staff-only route, so we only allow staff-scoped profiles here.
+		// Missing/non-staff profiles are treated as not-found for consistency with other staff endpoints.
+		var profile = await (
+			from p in _dbContext.Profile
+			where p.Id == profileId
+				&& p.Scope == ProfileScope.Staff
+				&& !p.IsDeleted
+			select new StaffProfileItem {
+				Id = p.Id ?? Guid.Empty,
+				Name = p.Name,
+				Description = p.Description,
+				UserAccountCount = p.UserAccountProfiles.Count,
+			}
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (profile is null) {
+			return new GetStaffProfileByIdServiceResult.ProfileNotFound();
+		}
+
+		return new GetStaffProfileByIdServiceResult.Success(profile);
+	}
+
+	public async Task<FindStaffProfilePermissionKeysResult> FindStaffProfilePermissionKeysAsync(
+		Guid profileId,
+		CancellationToken cancellationToken = default
+	) {
+		var profileExists = await (
+			from p in _dbContext.Profile
+			where p.Id == profileId
+				&& p.Scope == ProfileScope.Staff
+				&& !p.IsDeleted
+			select p.Id
+		).AnyAsync(cancellationToken);
+
+		if (!profileExists) {
+			return new FindStaffProfilePermissionKeysResult.ProfileNotFound();
+		}
+
+		// Return only permission keys that still exist and are staff-scoped.
+		// This keeps the UI consistent if a permission is removed from the DB later,
+		// and prevents mixing staff profiles with tenant/project permissions.
+		var permissionKeys = await (
+			from pp in _dbContext.ProfilePermission
+			join p in _dbContext.Permission on pp.PermissionKey equals p.Key
+			where pp.ProfileId == profileId
+				&& !pp.IsDeleted
+				&& !p.IsDeleted
+				&& p.Scope == PermissionScope.Staff
+			select pp.PermissionKey
+		)
+			// Deterministic ordering: keeps UI stable and makes integration tests non-flaky.
+			.OrderBy(k => k)
+			.ToListAsync(cancellationToken);
+
+		return new FindStaffProfilePermissionKeysResult.Success(permissionKeys);
+	}
+
+	public async Task<UpdateStaffProfileResult> UpdateStaffProfileAsync(
+		UpdateStaffProfileArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var profile = await (
+			from p in _dbContext.Profile
+			where p.Id == args.ProfileId
+				&& p.Scope == ProfileScope.Staff
+				&& !p.IsDeleted
+			select p
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (profile is null) {
+			return new UpdateStaffProfileResult.ProfileNotFound();
+		}
+
+		if (args.Name.IsPresent) {
+			var candidateName = args.Name.Value?.Trim();
+
+			// Validation should prevent null/empty names. This is a post-validation guard.
+			if (string.IsNullOrWhiteSpace(candidateName)) {
+				throw new InvalidOperationException(
+					"UpdateStaffProfileAsync received an invalid name. " +
+					"Ensure endpoint validation ran before calling the service."
+				);
+			}
+
+			var exists = await (
+				from p in _dbContext.Profile
+				where p.Scope == ProfileScope.Staff
+					&& !p.IsDeleted
+					&& p.Id != args.ProfileId
+					&& p.Name == candidateName
+				select p.Id
+			).AnyAsync(cancellationToken);
+
+			if (exists) {
+				return new UpdateStaffProfileResult.ProfileNameExists(candidateName);
+			}
+
+			profile.Name = candidateName;
+		}
+
+		if (args.Description.IsPresent) {
+			profile.Description = args.Description.Value?.Trim();
+		}
+
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		var userAccountCount = await (
+			from uap in _dbContext.UserAccountProfile
+			where uap.ProfileId == args.ProfileId
+				&& !uap.IsDeleted
+			select uap.Id
+		).CountAsync(cancellationToken);
+
+		var updated = new StaffProfileItem {
+			Id = profile.GetRequiredId(),
+			Name = profile.Name,
+			Description = profile.Description,
+			UserAccountCount = userAccountCount,
+		};
+
+		return new UpdateStaffProfileResult.Success(updated);
+	}
+
+	public async Task<SetStaffProfilePermissionResult> SetStaffProfilePermissionAsync(
+		SetStaffProfilePermissionArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var profileExists = await (
+			from p in _dbContext.Profile
+			where p.Id == args.ProfileId
+				&& p.Scope == ProfileScope.Staff
+				&& !p.IsDeleted
+			select p.Id
+		).AnyAsync(cancellationToken);
+
+		if (!profileExists) {
+			return new SetStaffProfilePermissionResult.ProfileNotFound();
+		}
+
+		var permissionExists = await (
+			from p in _dbContext.Permission
+			where p.Key == args.PermissionKey
+				&& !p.IsDeleted
+				&& p.Scope == PermissionScope.Staff
+			select p.Key
+		).AnyAsync(cancellationToken);
+
+		if (!permissionExists) {
+			return new SetStaffProfilePermissionResult.PermissionNotFound();
+		}
+
+		var existing = await (
+			from pp in _dbContext.ProfilePermission
+			where pp.ProfileId == args.ProfileId
+				&& pp.PermissionKey == args.PermissionKey
+			select pp
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (existing is null) {
+			if (args.IsAssigned) {
+				// First-time assignment: create the junction row.
+				await _dbContext.ProfilePermission.AddAsync(
+					new ProfilePermission {
+						ProfileId = args.ProfileId,
+						PermissionKey = args.PermissionKey,
+					},
+					cancellationToken
+				);
+
+				await _dbContext.SaveChangesAsync(cancellationToken);
+			}
+
+			// Unassigning a non-existent row is a no-op (idempotent).
+			return new SetStaffProfilePermissionResult.Success();
+		}
+
+		if (args.IsAssigned) {
+			if (existing.IsDeleted) {
+				// Re-assigning after a previous unassign: revive the soft-deleted junction row.
+				existing.IsDeleted = false;
+				existing.DeletedAt = null;
+				existing.UpdatedAt = DateTime.UtcNow;
+				await _dbContext.SaveChangesAsync(cancellationToken);
+			}
+
+			return new SetStaffProfilePermissionResult.Success();
+		}
+
+		// Unassign
+		if (!existing.IsDeleted) {
+			// Soft-delete the junction row to preserve assignment history for future audit needs.
+			existing.IsDeleted = true;
+			existing.DeletedAt = DateTime.UtcNow;
+			existing.UpdatedAt = DateTime.UtcNow;
+			await _dbContext.SaveChangesAsync(cancellationToken);
+		}
+
+		return new SetStaffProfilePermissionResult.Success();
 	}
 
 	/// <summary>
@@ -734,6 +1286,116 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			}
 			throw;
 		}
+	}
+
+	public async Task<DeleteStaffProfileServiceResult> DeleteStaffProfileAsync(
+		Guid profileId,
+		CancellationToken cancellationToken = default
+	) {
+		// This is a staff-only route: treat missing/non-staff profiles as not found.
+		var profile = await (
+			from p in _dbContext.Profile
+			where p.Id == profileId
+				&& p.Scope == ProfileScope.Staff
+				&& !p.IsDeleted
+			select p
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (profile is null) {
+			return new DeleteStaffProfileServiceResult.ProfileNotFound();
+		}
+
+		// Soft-delete the profile (repo convention).
+		// We also hard-delete the junction rows so that:
+		// - the profile stops contributing to UserAccountCount immediately, and
+		// - re-creating links later can't conflict with unique constraints.
+		var profileIdValue = profile.GetRequiredId();
+
+		var links = await (
+			from uap in _dbContext.UserAccountProfile
+			where uap.ProfileId == profileIdValue
+			select uap
+		).ToListAsync(cancellationToken);
+
+		if (links.Count > 0) {
+			_dbContext.ForceHardDeleteRange(links);
+		}
+
+		var permissions = await (
+			from pp in _dbContext.ProfilePermission
+			where pp.ProfileId == profileIdValue
+			select pp
+		).ToListAsync(cancellationToken);
+
+		if (permissions.Count > 0) {
+			_dbContext.ForceHardDeleteRange(permissions);
+		}
+
+		profile.IsDeleted = true;
+		profile.DeletedAt = DateTime.UtcNow;
+		profile.UpdatedAt = DateTime.UtcNow;
+
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		return new DeleteStaffProfileServiceResult.Success(DeletedProfileCount: 1);
+	}
+
+	public async Task<UnassignStaffProfileUsersServiceResult> UnassignStaffProfileUsersAsync(
+		UnassignStaffProfileUsersArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		// Guard early to avoid running a join query when profileId is invalid.
+		// This endpoint is strictly "staff profile -> users", so tenant/project profiles
+		// are treated as not found.
+		var profileExists = await (
+			from p in _dbContext.Profile
+			where p.Id == args.ProfileId
+				&& p.Scope == ProfileScope.Staff
+				&& !p.IsDeleted
+			select p.Id
+		).AnyAsync(cancellationToken);
+
+		if (!profileExists) {
+			return new UnassignStaffProfileUsersServiceResult.ProfileNotFound();
+		}
+
+		if (args.UserIds.Count == 0) {
+			return new UnassignStaffProfileUsersServiceResult.Success(UnassignedCount: 0);
+		}
+
+		// Resolve staff UserAccount IDs for the given User IDs.
+		// We intentionally allow suspended users/accounts here: unassigning a profile is safe,
+		// and admin tooling often needs to clean up assignments on non-active users.
+		var userIdsNullable = args.UserIds.Select(id => (Guid?)id).ToList();
+		var staffAccountIds = await (
+			from ua in _dbContext.UserAccount
+			where userIdsNullable.Contains(ua.UserId)
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select ua.Id
+		).ToListAsync(cancellationToken);
+
+		if (staffAccountIds.Count == 0) {
+			return new UnassignStaffProfileUsersServiceResult.Success(UnassignedCount: 0);
+		}
+
+		// Hard-delete junction links to avoid unique constraint conflicts when links are re-added later.
+		var linksToRemove = await (
+			from uap in _dbContext.UserAccountProfile
+			where uap.ProfileId == args.ProfileId
+				&& staffAccountIds.Contains(uap.UserAccountId)
+			select uap
+		).ToListAsync(cancellationToken);
+
+		if (linksToRemove.Count > 0) {
+			_dbContext.ForceHardDeleteRange(linksToRemove);
+			await _dbContext.SaveChangesAsync(cancellationToken);
+		}
+
+		return new UnassignStaffProfileUsersServiceResult.Success(
+			UnassignedCount: linksToRemove.Count
+		);
 	}
 
 	/// <summary>

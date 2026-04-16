@@ -2,11 +2,14 @@ import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import capitalize from 'lodash/capitalize';
 import map from 'lodash/map';
+import toStr from 'lodash/toString';
 import trim from 'lodash/trim';
 import {
 	createMRTColumnHelper,
@@ -14,8 +17,9 @@ import {
 	type MRT_ColumnDef,
 	type MRT_SortingState,
 } from 'material-react-table';
-import { useBoolean } from 'minimal-shared/hooks';
-import { useMemo } from 'react';
+import { useBoolean, useDebounce } from 'minimal-shared/hooks';
+import { parseAsString, useQueryStates } from 'nuqs';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { StaffUserItem } from '@org/client-ts/src/models';
 import {
@@ -37,7 +41,6 @@ import { toast } from '#app/components/snackbar/index.ts';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { getUntypedNumber } from '#app/lib/js-client/kiota-utils.ts';
 import {
 	useGetUserAuthData,
 	useGetVerificationLink,
@@ -57,7 +60,7 @@ export type StaffUserRowData = {
 
 const StaffUserRowDataMapper = (staffUser: StaffUserItem): StaffUserRowData => {
 	return {
-		id: staffUser.id || '',
+		id: toStr(staffUser.id),
 		avatarUrl: staffUser.avatarUrl || '',
 		firstName: staffUser.firstName || '',
 		lastName: staffUser.lastName || '',
@@ -76,6 +79,11 @@ const defaultSorting: MRT_SortingState[number] = {
 
 const StaffUsersTable = () => {
 	const { t } = useTranslate();
+	const [search, setSearch] = useState('');
+	const debouncedSearch = useDebounce(search, 300);
+	const [filterStates, setFilterStates] = useQueryStates({
+		q: parseAsString.withDefault(''),
+	});
 
 	// Use the custom table state hook
 	const {
@@ -83,9 +91,13 @@ const StaffUsersTable = () => {
 		handleSortingChange,
 		apiVariables,
 		tableState,
+		setNextCursor,
+		hasPreviousPage,
+		resetCursorPagination,
 	} = useTableState({
 		defaultSorting,
 		defaultPageSize: DEFAULT_PAGE_SIZE,
+		paginationMode: 'cursor',
 	});
 
 	const columns = useMemo(() => {
@@ -124,19 +136,45 @@ const StaffUsersTable = () => {
 	}, [t]);
 
 	const { data, isPending } = useFindStaffUser({
-		variables: apiVariables,
+		variables: {
+			cursor: apiVariables.cursor || undefined,
+			limit: apiVariables.limit,
+			sort: apiVariables.sort,
+			q: filterStates.q || undefined,
+		},
 	});
 
 	const dataTable = useMemo(() => {
-		return map(data?.staffUsers, StaffUserRowDataMapper);
+		return map(data?.data, StaffUserRowDataMapper);
 	}, [data]);
 
-	const table = useMRTTable('minimal', {
+	const handleCursorPaginationChange: typeof handlePaginationChange =
+		useCallback(
+			(updater) => {
+				setNextCursor?.(data?.nextCursor);
+				handlePaginationChange(updater);
+			},
+			[handlePaginationChange, data?.nextCursor, setNextCursor],
+		);
+
+	const hasNextPage = data?.nextCursor != null;
+
+	useEffect(() => {
+		if (debouncedSearch === filterStates.q) {
+			return;
+		}
+
+		resetCursorPagination?.();
+		setFilterStates({ q: debouncedSearch });
+	}, [debouncedSearch, filterStates.q, resetCursorPagination, setFilterStates]);
+
+	useEffect(() => {
+		setSearch(filterStates.q);
+	}, [filterStates.q]);
+
+	const table = useMRTTable('minimal-cursor', {
 		columns,
 		data: dataTable,
-		rowCount: getUntypedNumber(data?.count, 0),
-		manualPagination: true,
-		onPaginationChange: handlePaginationChange,
 		manualSorting: true,
 		onSortingChange: handleSortingChange,
 		state: {
@@ -144,19 +182,15 @@ const StaffUsersTable = () => {
 			density: 'compact',
 			isLoading: isPending,
 		},
+		meta: {
+			handlePaginationChange: handleCursorPaginationChange,
+			hasNextPage,
+			hasPreviousPage,
+			isPending,
+		},
 		muiTablePaperProps: {
 			sx: {
 				flexGrow: 1,
-			},
-		},
-		muiTableProps: {
-			sx: {
-				'& .MuiTableBody-root > tr > td:not(:nth-of-type(2)), & .MuiTableHead-root > tr > th:not(:nth-of-type(2))':
-					{
-						// backgroundColor: 'red !important',
-						flex: '1 1 auto !important',
-						// flexGrow: 1,
-					},
 			},
 		},
 	});
@@ -168,8 +202,29 @@ const StaffUsersTable = () => {
 				display: 'flex',
 				flexDirection: 'column',
 				border: 'none',
+				gap: 2,
 			}}
 		>
+			<Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+				<TextField
+					size="small"
+					value={search}
+					onChange={(event) => setSearch(event.target.value)}
+					placeholder={t('search-by-email-or-name')}
+					label={t('search')}
+					sx={{ minWidth: 320 }}
+					slotProps={{
+						input: {
+							startAdornment: (
+								<InputAdornment position="start">
+									<Iconify icon="eva:search-fill" />
+								</InputAdornment>
+							),
+						},
+					}}
+				/>
+			</Box>
+
 			<MaterialReactTable table={table} />
 		</Box>
 	);

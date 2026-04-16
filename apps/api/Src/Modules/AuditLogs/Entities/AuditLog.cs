@@ -61,4 +61,9 @@ public static class AuditActions {
 	public const string TenantUserUpdated = "tenant.user.updated";
 	public const string TenantUserSuspended = "tenant.user.suspended";
 	public const string TenantUserReactivated = "tenant.user.reactivated";
+
+	// Staff-user lifecycle/identity operations (high impact, explicitly auditable).
+	public const string StaffUserSuspended = "staff.user.suspended";
+	public const string StaffUserReactivated = "staff.user.reactivated";
+	public const string StaffUserEmailUpdated = "staff.user.email.updated";
 }

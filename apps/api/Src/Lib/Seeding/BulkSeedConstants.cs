@@ -7,6 +7,7 @@ public static class BulkSeedConstants {
 	// Bulk data identification prefixes
 	public const string TenantCodePrefix = "bulk-tenant-";
 	public const string UserEmailDomain = "bulk.example.com";
+	public const string StaffUserEmailPrefix = "bulk.staff";
 	public const string ProjectNamePrefix = "Bulk Project ";
 
 	// Default counts (can be overridden via env vars)
@@ -15,6 +16,7 @@ public static class BulkSeedConstants {
 	public const int DefaultCrossTenantUserCount = 1400;
 	public const int DefaultSingleTenantUserCount = 6400;
 	public const int DefaultProjectsPerTenant = 10;
+	public const int DefaultStaffUserCount = 500;
 	public const int DefaultBatchSize = 500;
 
 	// Status distribution
@@ -27,6 +29,11 @@ public static class BulkSeedConstants {
 	public const double DeletedTenantRatio = 0.10;
 	public const double DeletedUserRatio = 0.15;
 	public const double DeletedProjectRatio = 0.05;
+
+	// Staff distribution
+	// For staff, we want enough Admins to exercise admin-only flows and enough regular staff users
+	// to exercise permission-based access and list/table performance.
+	public const double StaffAdminRatio = 0.25;
 
 	// User distribution
 	public const int MinTenantMembershipsForPowerUser = 10;

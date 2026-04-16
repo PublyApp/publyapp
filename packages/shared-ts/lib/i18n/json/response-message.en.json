@@ -40,6 +40,9 @@
 	"invitation-already-accepted": "Accepted invitations cannot be revoked",
 	"pending-invitation-exists": "A pending invitation already exists for this email",
 	"staff-profile-created-successfully": "Staff profile created successfully",
+	"staff-profile-updated-successfully": "Staff profile updated successfully",
+	"staff-profile-deleted-success": "Staff profile deleted successfully",
+	"staff-profile-users-unassigned-success": "Users unassigned from profile successfully",
 	"profile-name-already-exists": "Profile name already exists",
 	"profiles": "profiles",
 	"profile": "profile",
@@ -75,5 +78,12 @@
 	"user-level-updated-success": "User level has been updated successfully",
 	"cannot-remove-last-admin": "Cannot remove the last admin from the tenant",
 	"cannot-demote-last-admin": "Cannot demote the last admin from the tenant",
-	"cannot-suspend-last-admin": "Cannot suspend the last admin from the tenant"
+	"cannot-suspend-last-admin": "Cannot suspend the last admin from the tenant",
+	"max-profiles-per-user-exceeded": "Max profiles per user exceeded",
+	"profile-not-staff-scope": "Profile must be a staff profile",
+	"staff-user-already-suspended": "Staff user is already suspended",
+	"staff-user-not-suspended": "Staff user is not currently suspended",
+	"staff-user-suspended-success": "Staff member suspended successfully",
+	"staff-user-reactivated-success": "Staff member reactivated successfully",
+	"email-already-in-use": "Email is already in use"
 }
