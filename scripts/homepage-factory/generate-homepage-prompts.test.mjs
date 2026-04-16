@@ -4,6 +4,7 @@ import {
 	access,
 	mkdir,
 	mkdtemp,
+	readdir,
 	readFile,
 	rename,
 	rm,
@@ -476,6 +477,69 @@ test('generateHomepagePromptBatch preserves existing output when staged publish 
 		);
 	} finally {
 		await rm(outputDir, { recursive: true, force: true });
+	}
+});
+
+test('generateHomepagePromptBatch preserves the backup when rollback rename fails', async () => {
+	const outputDir = await createTempOutputDir();
+	const existingFile = path.join(outputDir, 'existing.txt');
+	let renameAttempts = 0;
+
+	try {
+		await writeFile(existingFile, 'keep me', 'utf8');
+
+		await assert.rejects(
+			() =>
+				generateHomepagePromptBatch({
+					config: TEST_CONFIG,
+					outputDir,
+					variants: 2,
+					seed: 'rollback-restore-failure-seed',
+					buildPrompt: buildHomepagePrompt,
+					fileOps: {
+						rename: async (fromPath, toPath) => {
+							renameAttempts += 1;
+
+							if (renameAttempts === 2) {
+								throw new Error('simulated publish failure');
+							}
+
+							if (renameAttempts === 3) {
+								throw new Error('simulated restore failure');
+							}
+
+							return rename(fromPath, toPath);
+						},
+					},
+				}),
+			/simulated publish failure/,
+		);
+
+		const outputParentDir = path.dirname(outputDir);
+		const backupName = (await readdir(outputParentDir)).find((name) =>
+			name.startsWith(`${path.basename(outputDir)}.backup-`),
+		);
+
+		assert.ok(backupName);
+		assert.equal(await pathExists(outputDir), false);
+		assert.equal(
+			await readFile(
+				path.join(outputParentDir, backupName, 'existing.txt'),
+				'utf8',
+			),
+			'keep me',
+		);
+	} finally {
+		await rm(outputDir, { recursive: true, force: true });
+
+		for (const entry of await readdir(path.dirname(outputDir))) {
+			if (entry.startsWith(`${path.basename(outputDir)}.backup-`)) {
+				await rm(path.join(path.dirname(outputDir), entry), {
+					recursive: true,
+					force: true,
+				});
+			}
+		}
 	}
 });
 

@@ -433,6 +433,7 @@ const publishGeneratedBatch = async ({
 	let backupDir = null;
 	let existingOutputMoved = false;
 	let published = false;
+	let preserveBackupDir = false;
 
 	try {
 		for (const prompt of prompts) {
@@ -465,12 +466,16 @@ const publishGeneratedBatch = async ({
 		}
 	} catch (error) {
 		if (!published && existingOutputMoved && backupDir !== null) {
-			if (await pathExists(outputDir, fileOps)) {
-				await fileOps.rm(outputDir, { recursive: true, force: true });
-			}
+			try {
+				if (await pathExists(outputDir, fileOps)) {
+					await fileOps.rm(outputDir, { recursive: true, force: true });
+				}
 
-			await fileOps.rename(backupDir, outputDir);
-			backupDir = null;
+				await fileOps.rename(backupDir, outputDir);
+				backupDir = null;
+			} catch {
+				preserveBackupDir = true;
+			}
 		}
 
 		throw error;
@@ -479,7 +484,7 @@ const publishGeneratedBatch = async ({
 			await fileOps.rm(stagingDir, { recursive: true, force: true });
 		}
 
-		if (backupDir !== null) {
+		if (backupDir !== null && !preserveBackupDir) {
 			await fileOps.rm(backupDir, { recursive: true, force: true });
 		}
 	}
