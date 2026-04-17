@@ -7,5 +7,14 @@
 		"createdAt": "2026-04-17T04:32:59.175Z",
 		"manifestFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-batch/manifest.json",
 		"entryIds": [1, 2, 3, 4, 5]
+	},
+	{
+		"batchLabel": "april-17-clean-mint",
+		"archiveFolder": "april-17-clean-mint",
+		"seed": "april-17-clean-mint",
+		"variantCount": 12,
+		"createdAt": "2026-04-17T06:57:45.355Z",
+		"manifestFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-clean-mint/manifest.json",
+		"entryIds": [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
 	}
 ]

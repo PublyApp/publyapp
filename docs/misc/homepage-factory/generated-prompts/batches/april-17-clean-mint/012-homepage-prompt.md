@@ -1,0 +1,208 @@
+# Homepage Prompt Variant 12
+
+## Variant Metadata
+- Seed: **april-17-clean-mint**
+- Primary audience: **SMB Marketing Teams**
+- Homepage archetype: **Workflow Story**
+- Promise angle: **Publish Without Chaos**
+- Proof strategy: **Ops Metrics**
+- Creative bundle: **Assistantly Clean Mint**
+
+## System Prompt
+You are an award-winning SaaS design + implementation agent.
+
+Design bar:
+- The output must look and feel on par with elite multi-million-dollar SaaS websites.
+- Prioritize clarity, visual hierarchy, and conversion impact over decoration.
+- Every section should feel purposeful, premium, and production-ready.
+
+Non-generic guardrails:
+- No vague AI-productivity filler.
+- No interchangeable SaaS headline language.
+- The hero must make a concrete promise to the selected audience.
+- Proof, CTA language, and section emphasis must follow the audience overlay and archetype inputs.
+- Product visuals must show a believable social publishing workflow.
+- Avoid verbs like "streamline", "optimize", and "unlock" unless tied to a concrete outcome.
+
+Design process accelerator:
+- If you have access to the **hue** skill, run it first to generate a clean, high-end marketing design language that matches the creative direction bundle, then apply it consistently across the implementation.
+
+Execution rules:
+- Build a complete homepage in React + TypeScript + MUI v6.
+- Use only MUI primitives/components and sx styling.
+- Maintain AA contrast and responsive behavior from 320px to 1536px+.
+
+## User Prompt
+Create a homepage concept for **PublyApp**.
+
+### Product Core
+- Summary: AI-first social publishing workspace for planning, drafting, reviewing, and shipping better social content faster.
+- Core differentiators:
+  - Combines AI-assisted drafting with real publishing workflow structure.
+  - Built for approval-heavy social teams, not just solo creators.
+  - Keeps planning, editing, review, and publishing context in one place.
+- Workflow strengths:
+  - campaign planning
+  - draft generation
+  - review and approval coordination
+  - publishing readiness
+- Trust signals:
+  - operationally serious product posture
+  - clear review states and workflow visibility
+  - reduced tool-switching across the content lifecycle
+- Product visual requirements:
+  - Show a believable social publishing workflow.
+  - Show calendar, draft, review, or queue states.
+  - Avoid abstract charts as the primary hero visual.
+- Forbidden claims:
+  - fully autonomous social media
+  - guaranteed virality
+  - replace your marketing team
+- Forbidden copy patterns:
+  - unlock your social potential
+  - supercharge your workflow
+  - AI-powered productivity for modern teams
+
+### Audience Overlay
+- Audience: SMB Marketing Teams
+- Primary pains:
+  - too much time spent getting content out
+  - small teams juggling planning and publishing
+  - slow content production
+- Desired outcomes:
+  - ship better content with less chaos
+  - maintain consistency with lean teams
+  - move from ideas to published posts faster
+- Top objections:
+  - this looks too complex for a lean team
+  - AI tools often create generic content
+- Decision criteria:
+  - speed to publish
+  - ease of use
+  - visible workflow value
+- Proof expectations:
+  - speed improvements
+  - ease-of-use signals
+  - clear workflow snapshots
+- CTA preference: Start planning content
+- Product focus areas:
+  - drafting
+  - planning
+  - publishing speed
+- FAQ concerns:
+  - setup effort
+  - team adoption
+  - content quality
+- Preferred tone adjustments:
+  - pragmatic
+  - clear
+  - momentum-focused
+
+### Archetype Brief
+- Hero goal: Show how PublyApp moves a team from idea to published content with less friction.
+- Narrative order:
+  - hero
+  - workflow-overview
+  - step-by-step walkthrough
+  - feature depth
+  - proof
+  - faq
+  - final-cta
+- Required sections:
+  - hero
+  - workflow-walkthrough
+  - feature-depth
+  - proof
+  - final-cta
+- Optional sections:
+  - logo-strip
+  - faq
+  - pricing-teaser
+- Proof placement: after the workflow walkthrough
+- CTA style: See the workflow
+
+### Creative Direction
+- Hero style: clean-hero-with-mint-accent-and-product-screenshot
+- Visual density: medium-low
+- Motion behavior: subtle-stagger-on-load-and-hover-lift
+- Color direction: mint-fog-neutrals-with-crisp-ink-typography
+- Surface treatment: soft glass panels with thin borders and gentle mint glow accents
+- Screenshot treatment: large product card with inset UI panels and minimal annotation chips
+- Copy tone: clear-confident-and-specific
+
+
+Typography:
+- Marketing font stack (load from web): headings use **Space Grotesk**, body uses **DM Sans**.
+- Google Fonts stylesheet href: https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap
+- Apply the font stack via MUI theme typography overrides (preferred) or via section-level sx fontFamily. If the font is not loaded yet in the app shell, add a route-level links() for /homepage-gen/:id previews.
+
+### Strategy Inputs
+- Core promise: Turn social publishing from a messy handoff process into a clear operational workflow.
+- Headline direction: Make the workflow feel orderly, visible, and ready to ship.
+- Supporting message themes:
+  - workflow clarity
+  - publishing confidence
+  - less chaos
+- Proof type: metrics
+- Recommended proof elements:
+  - approval-cycle speed
+  - content throughput gains
+  - reduced revision churn
+- Proof placement guidance: Use a tight proof band with 2-3 outcome metrics and one supporting testimonial.
+
+### Messaging And Section Emphasis Rules
+- Let the audience overlay shape the proof style, CTA phrasing, FAQ emphasis, tone, and which product surfaces get the most space.
+- Match proof execution to these audience proof expectations:
+  - speed improvements
+  - ease-of-use signals
+  - clear workflow snapshots
+- Favor this CTA language family unless the archetype demands a tighter variant: Start planning content
+- Spend the most product-detail real estate on these focus areas:
+  - drafting
+  - planning
+  - publishing speed
+- Cover these FAQ concerns directly if an FAQ section appears, or answer them in nearby copy if it does not:
+  - setup effort
+  - team adoption
+  - content quality
+- Adjust the copy tone with these modifiers while staying inside the creative bundle direction:
+  - pragmatic
+  - clear
+  - momentum-focused
+- Treat these archetype sections as mandatory, even if you rename them for better copy fit:
+  - hero
+  - workflow-walkthrough
+  - feature-depth
+  - proof
+  - final-cta
+- These sections are optional emphasis levers, not filler. Use them only when they strengthen this variant:
+  - logo-strip
+  - faq
+  - pricing-teaser
+- The section order should respect the archetype narrative order, but the proof weight and CTA phrasing should still reflect the selected audience overlay.
+
+### Design Inspiration Anchors
+Use these references for style analysis only:
+- https://www.assistantly.com/
+- https://stripe.com
+- https://linear.app
+- https://www.figma.com
+
+Use these galleries for composition ideas:
+- https://land-book.com/
+- https://www.lapa.ninja/
+
+### Working Order
+Before implementation, work in this order:
+1. Define the homepage concept.
+2. Define the messaging strategy.
+3. Define the section-by-section narrative.
+4. Define the visual direction rationale.
+5. Implement the homepage.
+
+### Output Contract
+1. Provide a concise concept summary.
+2. Provide a messaging strategy summary.
+3. Provide a section outline.
+4. Provide the full homepage implementation.
+5. Provide a short quality self-check covering accessibility, responsiveness, and non-generic quality.

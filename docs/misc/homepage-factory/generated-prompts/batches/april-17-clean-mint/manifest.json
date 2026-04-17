@@ -1,0 +1,309 @@
+{
+	"batchLabel": "april-17-clean-mint",
+	"archiveFolder": "april-17-clean-mint",
+	"seed": "april-17-clean-mint",
+	"variantCount": 12,
+	"createdAt": "2026-04-17T06:57:45.355Z",
+	"entries": [
+		{
+			"variant": 1,
+			"fileName": "001-homepage-prompt.md",
+			"seed": "april-17-clean-mint",
+			"audienceOverlay": "agencies",
+			"homepageArchetype": "proof-first",
+			"promiseAngle": "replace-fragmented-tools",
+			"proofStrategy": "customer-credibility",
+			"creativeDirectionBundle": "assistantly-clean-mint",
+			"selectedReferences": [
+				"https://www.assistantly.com/",
+				"https://stripe.com",
+				"https://linear.app",
+				"https://www.figma.com"
+			],
+			"selectedLibraries": [
+				"https://land-book.com/",
+				"https://www.lapa.ninja/"
+			],
+			"id": 6,
+			"generatedHomepageId": 6,
+			"routePath": "/homepage-gen/6",
+			"pageFile": "apps/front/src/generated/homepage-gen/pages/generated-homepage-0006.tsx",
+			"promptFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-clean-mint/001-homepage-prompt.md"
+		},
+		{
+			"variant": 2,
+			"fileName": "002-homepage-prompt.md",
+			"seed": "april-17-clean-mint",
+			"audienceOverlay": "agencies",
+			"homepageArchetype": "product-demo-first",
+			"promiseAngle": "publish-without-chaos",
+			"proofStrategy": "customer-credibility",
+			"creativeDirectionBundle": "warm-operator",
+			"selectedReferences": [
+				"https://www.notion.com",
+				"https://www.airtable.com",
+				"https://slack.com",
+				"https://www.webflow.com"
+			],
+			"selectedLibraries": [
+				"https://www.lapa.ninja/",
+				"https://land-book.com/"
+			],
+			"id": 7,
+			"generatedHomepageId": 7,
+			"routePath": "/homepage-gen/7",
+			"pageFile": "apps/front/src/generated/homepage-gen/pages/generated-homepage-0007.tsx",
+			"promptFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-clean-mint/002-homepage-prompt.md"
+		},
+		{
+			"variant": 3,
+			"fileName": "003-homepage-prompt.md",
+			"seed": "april-17-clean-mint",
+			"audienceOverlay": "agencies",
+			"homepageArchetype": "workflow-story",
+			"promiseAngle": "approval-clarity",
+			"proofStrategy": "workflow-artifacts",
+			"creativeDirectionBundle": "warm-operator",
+			"selectedReferences": [
+				"https://www.notion.com",
+				"https://www.airtable.com",
+				"https://slack.com",
+				"https://www.webflow.com"
+			],
+			"selectedLibraries": [
+				"https://www.lapa.ninja/",
+				"https://land-book.com/"
+			],
+			"id": 8,
+			"generatedHomepageId": 8,
+			"routePath": "/homepage-gen/8",
+			"pageFile": "apps/front/src/generated/homepage-gen/pages/generated-homepage-0008.tsx",
+			"promptFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-clean-mint/003-homepage-prompt.md"
+		},
+		{
+			"variant": 4,
+			"fileName": "004-homepage-prompt.md",
+			"seed": "april-17-clean-mint",
+			"audienceOverlay": "in-house-social-teams",
+			"homepageArchetype": "comparison-led",
+			"promiseAngle": "publish-without-chaos",
+			"proofStrategy": "workflow-artifacts",
+			"creativeDirectionBundle": "assistantly-clean-mint",
+			"selectedReferences": [
+				"https://www.assistantly.com/",
+				"https://stripe.com",
+				"https://linear.app",
+				"https://www.figma.com"
+			],
+			"selectedLibraries": [
+				"https://land-book.com/",
+				"https://www.lapa.ninja/"
+			],
+			"id": 9,
+			"generatedHomepageId": 9,
+			"routePath": "/homepage-gen/9",
+			"pageFile": "apps/front/src/generated/homepage-gen/pages/generated-homepage-0009.tsx",
+			"promptFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-clean-mint/004-homepage-prompt.md"
+		},
+		{
+			"variant": 5,
+			"fileName": "005-homepage-prompt.md",
+			"seed": "april-17-clean-mint",
+			"audienceOverlay": "smb-marketing-teams",
+			"homepageArchetype": "workflow-story",
+			"promiseAngle": "ship-consistently",
+			"proofStrategy": "workflow-artifacts",
+			"creativeDirectionBundle": "product-led-clean",
+			"selectedReferences": [
+				"https://stripe.com",
+				"https://linear.app",
+				"https://www.figma.com",
+				"https://www.intercom.com"
+			],
+			"selectedLibraries": [
+				"https://land-book.com/",
+				"https://www.awwwards.com/websites/"
+			],
+			"id": 10,
+			"generatedHomepageId": 10,
+			"routePath": "/homepage-gen/10",
+			"pageFile": "apps/front/src/generated/homepage-gen/pages/generated-homepage-0010.tsx",
+			"promptFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-clean-mint/005-homepage-prompt.md"
+		},
+		{
+			"variant": 6,
+			"fileName": "006-homepage-prompt.md",
+			"seed": "april-17-clean-mint",
+			"audienceOverlay": "smb-marketing-teams",
+			"homepageArchetype": "comparison-led",
+			"promiseAngle": "publish-without-chaos",
+			"proofStrategy": "workflow-artifacts",
+			"creativeDirectionBundle": "assistantly-clean-mint",
+			"selectedReferences": [
+				"https://www.assistantly.com/",
+				"https://stripe.com",
+				"https://linear.app",
+				"https://www.figma.com"
+			],
+			"selectedLibraries": [
+				"https://land-book.com/",
+				"https://www.lapa.ninja/"
+			],
+			"id": 11,
+			"generatedHomepageId": 11,
+			"routePath": "/homepage-gen/11",
+			"pageFile": "apps/front/src/generated/homepage-gen/pages/generated-homepage-0011.tsx",
+			"promptFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-clean-mint/006-homepage-prompt.md"
+		},
+		{
+			"variant": 7,
+			"fileName": "007-homepage-prompt.md",
+			"seed": "april-17-clean-mint",
+			"audienceOverlay": "smb-marketing-teams",
+			"homepageArchetype": "product-demo-first",
+			"promiseAngle": "ship-consistently",
+			"proofStrategy": "workflow-artifacts",
+			"creativeDirectionBundle": "assistantly-clean-mint",
+			"selectedReferences": [
+				"https://www.assistantly.com/",
+				"https://stripe.com",
+				"https://linear.app",
+				"https://www.figma.com"
+			],
+			"selectedLibraries": [
+				"https://land-book.com/",
+				"https://www.lapa.ninja/"
+			],
+			"id": 12,
+			"generatedHomepageId": 12,
+			"routePath": "/homepage-gen/12",
+			"pageFile": "apps/front/src/generated/homepage-gen/pages/generated-homepage-0012.tsx",
+			"promptFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-clean-mint/007-homepage-prompt.md"
+		},
+		{
+			"variant": 8,
+			"fileName": "008-homepage-prompt.md",
+			"seed": "april-17-clean-mint",
+			"audienceOverlay": "in-house-social-teams",
+			"homepageArchetype": "proof-first",
+			"promiseAngle": "replace-fragmented-tools",
+			"proofStrategy": "customer-credibility",
+			"creativeDirectionBundle": "assistantly-clean-mint",
+			"selectedReferences": [
+				"https://www.assistantly.com/",
+				"https://stripe.com",
+				"https://linear.app",
+				"https://www.figma.com"
+			],
+			"selectedLibraries": [
+				"https://land-book.com/",
+				"https://www.lapa.ninja/"
+			],
+			"id": 13,
+			"generatedHomepageId": 13,
+			"routePath": "/homepage-gen/13",
+			"pageFile": "apps/front/src/generated/homepage-gen/pages/generated-homepage-0013.tsx",
+			"promptFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-clean-mint/008-homepage-prompt.md"
+		},
+		{
+			"variant": 9,
+			"fileName": "009-homepage-prompt.md",
+			"seed": "april-17-clean-mint",
+			"audienceOverlay": "agencies",
+			"homepageArchetype": "comparison-led",
+			"promiseAngle": "publish-without-chaos",
+			"proofStrategy": "workflow-artifacts",
+			"creativeDirectionBundle": "assistantly-clean-mint",
+			"selectedReferences": [
+				"https://www.assistantly.com/",
+				"https://stripe.com",
+				"https://linear.app",
+				"https://www.figma.com"
+			],
+			"selectedLibraries": [
+				"https://land-book.com/",
+				"https://www.lapa.ninja/"
+			],
+			"id": 14,
+			"generatedHomepageId": 14,
+			"routePath": "/homepage-gen/14",
+			"pageFile": "apps/front/src/generated/homepage-gen/pages/generated-homepage-0014.tsx",
+			"promptFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-clean-mint/009-homepage-prompt.md"
+		},
+		{
+			"variant": 10,
+			"fileName": "010-homepage-prompt.md",
+			"seed": "april-17-clean-mint",
+			"audienceOverlay": "in-house-social-teams",
+			"homepageArchetype": "product-demo-first",
+			"promiseAngle": "publish-without-chaos",
+			"proofStrategy": "workflow-artifacts",
+			"creativeDirectionBundle": "assistantly-clean-mint",
+			"selectedReferences": [
+				"https://www.assistantly.com/",
+				"https://stripe.com",
+				"https://linear.app",
+				"https://www.figma.com"
+			],
+			"selectedLibraries": [
+				"https://land-book.com/",
+				"https://www.lapa.ninja/"
+			],
+			"id": 15,
+			"generatedHomepageId": 15,
+			"routePath": "/homepage-gen/15",
+			"pageFile": "apps/front/src/generated/homepage-gen/pages/generated-homepage-0015.tsx",
+			"promptFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-clean-mint/010-homepage-prompt.md"
+		},
+		{
+			"variant": 11,
+			"fileName": "011-homepage-prompt.md",
+			"seed": "april-17-clean-mint",
+			"audienceOverlay": "in-house-social-teams",
+			"homepageArchetype": "proof-first",
+			"promiseAngle": "ship-consistently",
+			"proofStrategy": "customer-credibility",
+			"creativeDirectionBundle": "contrast-grid",
+			"selectedReferences": [
+				"https://stripe.com",
+				"https://linear.app",
+				"https://www.intercom.com",
+				"https://www.figma.com"
+			],
+			"selectedLibraries": [
+				"https://www.awwwards.com/websites/",
+				"https://www.lapa.ninja/"
+			],
+			"id": 16,
+			"generatedHomepageId": 16,
+			"routePath": "/homepage-gen/16",
+			"pageFile": "apps/front/src/generated/homepage-gen/pages/generated-homepage-0016.tsx",
+			"promptFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-clean-mint/011-homepage-prompt.md"
+		},
+		{
+			"variant": 12,
+			"fileName": "012-homepage-prompt.md",
+			"seed": "april-17-clean-mint",
+			"audienceOverlay": "smb-marketing-teams",
+			"homepageArchetype": "workflow-story",
+			"promiseAngle": "publish-without-chaos",
+			"proofStrategy": "ops-metrics",
+			"creativeDirectionBundle": "assistantly-clean-mint",
+			"selectedReferences": [
+				"https://www.assistantly.com/",
+				"https://stripe.com",
+				"https://linear.app",
+				"https://www.figma.com"
+			],
+			"selectedLibraries": [
+				"https://land-book.com/",
+				"https://www.lapa.ninja/"
+			],
+			"id": 17,
+			"generatedHomepageId": 17,
+			"routePath": "/homepage-gen/17",
+			"pageFile": "apps/front/src/generated/homepage-gen/pages/generated-homepage-0017.tsx",
+			"promptFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-clean-mint/012-homepage-prompt.md"
+		}
+	]
+}

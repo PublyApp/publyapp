@@ -1,0 +1,86 @@
+<h2>Assistantly-Style "Clean" Direction for PublyApp</h2>
+<p class="subtitle">Pick the default clean bundle flavor to bias the factory toward. This will influence spacing, surfaces, CTA style, and typography, and will be referenced in the prompt + Hue directive.</p>
+
+<div class="cards" data-multiselect>
+  <div class="card" data-choice="clean-mint" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">Clean Mint</div>
+        <div class="mockup-body">
+          <div class="section">
+            <div class="label">PublyApp</div>
+            <h3 style="font-size: 30px; line-height: 1.1; margin: 8px 0 8px;">Plan, draft, review, publish. Calmly.</h3>
+            <p style="margin: 0 0 12px; max-width: 42ch;">Neutral canvas, soft borders, mint accent, pill CTA.</p>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <button class="mock-button" style="border-radius:999px; padding:10px 14px; background:#0f766e; color:white;">See the workflow</button>
+              <button class="mock-button" style="border-radius:999px; padding:10px 14px; background:transparent; border:1px solid rgba(0,0,0,.12);">Watch demo</button>
+            </div>
+          </div>
+          <div class="placeholder" style="height:120px; border-radius:16px; background:linear-gradient(180deg, rgba(15,118,110,.08), rgba(15,118,110,.02)); border:1px solid rgba(0,0,0,.08);">Product screenshot frame</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Assistantly Clean (Mint)</h3>
+      <p>Soft borders, bright whitespace, calm accent. Closest to Assistantly vibe.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="clean-blue" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">Clean Blue</div>
+        <div class="mockup-body">
+          <div class="section">
+            <div class="label">PublyApp</div>
+            <h3 style="font-size: 30px; line-height: 1.1; margin: 8px 0 8px;">Ship social content without chaos.</h3>
+            <p style="margin: 0 0 12px; max-width: 42ch;">Neutral canvas, blue accent, slightly more corporate.</p>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <button class="mock-button" style="border-radius:999px; padding:10px 14px; background:#2563eb; color:white;">Book a walkthrough</button>
+              <button class="mock-button" style="border-radius:999px; padding:10px 14px; background:transparent; border:1px solid rgba(0,0,0,.12);">View examples</button>
+            </div>
+          </div>
+          <div class="placeholder" style="height:120px; border-radius:16px; background:linear-gradient(180deg, rgba(37,99,235,.08), rgba(37,99,235,.02)); border:1px solid rgba(0,0,0,.08);">Product screenshot frame</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Assistantly Clean (Blue)</h3>
+      <p>Same cleanliness, safer SaaS energy. Less distinctive.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="clean-amber" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">Clean Amber</div>
+        <div class="mockup-body">
+          <div class="section">
+            <div class="label">PublyApp</div>
+            <h3 style="font-size: 30px; line-height: 1.1; margin: 8px 0 8px;">Move approvals forward, fast.</h3>
+            <p style="margin: 0 0 12px; max-width: 42ch;">Neutral canvas, warm accent, more personality.</p>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <button class="mock-button" style="border-radius:999px; padding:10px 14px; background:#d97706; color:white;">See the workflow</button>
+              <button class="mock-button" style="border-radius:999px; padding:10px 14px; background:transparent; border:1px solid rgba(0,0,0,.12);">How it works</button>
+            </div>
+          </div>
+          <div class="placeholder" style="height:120px; border-radius:16px; background:linear-gradient(180deg, rgba(217,119,6,.10), rgba(217,119,6,.02)); border:1px solid rgba(0,0,0,.08);">Product screenshot frame</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Assistantly Clean (Amber)</h3>
+      <p>Clean structure but warmer. Good if PublyApp wants more human energy.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Next generator changes (once you pick)</h3>
+  <ul>
+    <li>Add a new creative bundle ID matching your selection, include <code>assistantly.com</code> as an anchor.</li>
+    <li>Bias recipe ordering so this clean bundle appears more frequently by default.</li>
+    <li>Update the prompt to explicitly call the <code>hue</code> skill for design language (colors, type scale, radii, elevation, spacing), then implement.</li>
+  </ul>
+</div>
+
