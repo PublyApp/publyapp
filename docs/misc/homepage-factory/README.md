@@ -30,19 +30,19 @@ prompt archive and new generated homepage scaffolds in one pass.
 
 ### How The Mapping Works
 
-Each batch manifest entry links the prompt file, page file, and route together:
+The per-batch `manifest.json` is the source of truth for mapping prompt file to
+page file to route:
 
 - `promptFile` points to the archived prompt markdown file.
 - `pageFile` points to the generated scaffold in
   `apps/front/src/generated/homepage-gen/pages/`.
 - `routePath` points to the runtime preview route, such as `/homepage-gen/1`.
 
-The generated homepage ID is the stable join key:
-
-- `001-homepage-prompt.md` maps to `generated-homepage-0001.tsx`.
-- That scaffold is exposed at `/homepage-gen/1`.
-- The runtime manifest uses the same generated homepage ID, so the page file
-  and route stay aligned.
+Do not infer the generated homepage ID from the prompt filename. Prompt files
+restart at `001` in each batch, while generated homepage IDs keep increasing
+globally. Use the batch manifest entry to resolve
+`001-homepage-prompt.md -> generated-homepage-0001.tsx -> /homepage-gen/1` for
+that specific batch.
 
 Batch labels are normalized to a slug, and repeated labels receive a numeric
 suffix when needed. That means older batch archives stay intact even when you
@@ -113,7 +113,7 @@ pnpm generate:homepage-prompts -- <variants> <seed>
 pnpm prepare:generated-homepages -- <variants> <batch-label>
 ```
 
-- `pnpm generate:homepage-prompts` writes only the prompt archive output under
-  `docs/misc/homepage-factory/generated-prompts/`.
+- `pnpm generate:homepage-prompts` writes and replaces the flat scratch output
+  under `docs/misc/homepage-factory/generated-prompts/`.
 - `pnpm prepare:generated-homepages` writes only the runtime scaffolding under
   `apps/front/src/generated/homepage-gen/`.
