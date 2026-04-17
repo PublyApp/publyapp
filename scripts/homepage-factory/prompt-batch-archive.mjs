@@ -54,8 +54,7 @@ export const resolvePromptBatchArchiveFolder = async ({
 	let suffix = 1;
 
 	while (true) {
-		const archiveFolder =
-			suffix === 1 ? batchLabel : `${batchLabel}-${suffix}`;
+		const archiveFolder = suffix === 1 ? batchLabel : `${batchLabel}-${suffix}`;
 		const archivePath = path.join(batchesDir, archiveFolder);
 
 		if (!(await pathExists(archivePath))) {
@@ -83,7 +82,11 @@ export const writePromptBatchArchive = async ({
 	await mkdir(batchDir, { recursive: true });
 
 	for (const prompt of prompts) {
-		await writeFile(path.join(batchDir, prompt.fileName), prompt.content, 'utf8');
+		await writeFile(
+			path.join(batchDir, prompt.fileName),
+			prompt.content,
+			'utf8',
+		);
 	}
 
 	const batchManifest = {

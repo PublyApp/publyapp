@@ -824,7 +824,9 @@ export const buildHomepagePromptBatchArtifacts = ({
 	buildPrompt,
 }) => {
 	if (typeof buildPrompt !== 'function') {
-		throw new Error('buildHomepagePromptBatchArtifacts requires a buildPrompt function.');
+		throw new Error(
+			'buildHomepagePromptBatchArtifacts requires a buildPrompt function.',
+		);
 	}
 	assertVariantCount(variants);
 	validateHomepageFactoryConfig(config);

@@ -417,10 +417,7 @@ test('buildHomepagePromptBatchArtifacts generates prompt artifacts in memory', (
 		},
 	]);
 	assert.equal(result.prompts.length, 2);
-	assert.match(
-		result.prompts[0].content,
-		/- Seed: \*\*deterministic-seed\*\*/,
-	);
+	assert.match(result.prompts[0].content, /- Seed: \*\*deterministic-seed\*\*/);
 });
 
 test('generateHomepagePromptBatch rejects empty selection arrays', async () => {

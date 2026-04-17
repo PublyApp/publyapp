@@ -36,10 +36,7 @@ test('normalizeHomepageBatchLabel slugifies user input', () => {
 
 test('resolvePromptBatchArchiveFolder appends numeric suffixes for collisions', async () => {
 	const repoRoot = await createTempRepoRoot();
-	const batchesDir = path.join(
-		repoRoot,
-		GENERATED_PROMPT_BATCHES_RELATIVE_DIR,
-	);
+	const batchesDir = path.join(repoRoot, GENERATED_PROMPT_BATCHES_RELATIVE_DIR);
 
 	try {
 		const first = await resolvePromptBatchArchiveFolder({
