@@ -4,10 +4,11 @@
 	"private": true,
 	"scripts": {
 		"deploy:artifacts": "node ./scripts/deploy.mjs",
+		"generate:homepage-batch": "node ./scripts/generate-homepage-batch.mjs",
 		"generate:homepage-prompts": "node ./scripts/generate-homepage-prompts.mjs",
 		"prepare:generated-homepages": "node ./scripts/prepare-generated-homepages.mjs",
 		"test:generated-homepages": "node --test ./scripts/homepage-factory/generated-homepage-batches.test.mjs ./scripts/homepage-factory/generated-homepage-manifest-utils.test.mjs",
-		"test:homepage-batch": "node --test ./scripts/homepage-factory/prompt-batch-archive.test.mjs",
+		"test:homepage-batch": "node --test ./scripts/homepage-factory/prompt-batch-archive.test.mjs ./scripts/homepage-factory/generated-homepage-batch-flow.test.mjs",
 		"test:homepage-prompts": "node --test ./scripts/homepage-factory/generate-homepage-prompts.test.mjs",
 		"prepare": "husky"
 	},
