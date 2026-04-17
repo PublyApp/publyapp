@@ -30,6 +30,7 @@
 		"compatibleProofStrategies": ["workflow-artifacts", "ops-metrics"],
 		"compatibleCreativeBundles": [
 			"product-led-clean",
+			"assistantly-clean-mint",
 			"warm-operator",
 			"editorial-dark"
 		]
@@ -65,6 +66,7 @@
 		"compatibleProofStrategies": ["ops-metrics", "customer-credibility"],
 		"compatibleCreativeBundles": [
 			"product-led-clean",
+			"assistantly-clean-mint",
 			"contrast-grid",
 			"editorial-dark"
 		]
@@ -99,6 +101,7 @@
 		"compatibleCreativeBundles": [
 			"contrast-grid",
 			"warm-operator",
+			"assistantly-clean-mint",
 			"product-led-clean"
 		]
 	},
@@ -128,6 +131,7 @@
 		"compatibleProofStrategies": ["workflow-artifacts", "customer-credibility"],
 		"compatibleCreativeBundles": [
 			"product-led-clean",
+			"assistantly-clean-mint",
 			"editorial-dark",
 			"warm-operator"
 		]

@@ -18,6 +18,16 @@ export const buildHomepagePrompt = ({
 	selectedReferences,
 	selectedLibraries,
 }) => {
+	const marketingFontBlock =
+		creativeBundle.marketingFontCssHref &&
+		creativeBundle.marketingFontHeading &&
+		creativeBundle.marketingFontBody
+			? `\n\nTypography:
+- Marketing font stack (load from web): headings use **${creativeBundle.marketingFontHeading}**, body uses **${creativeBundle.marketingFontBody}**.
+- Google Fonts stylesheet href: ${creativeBundle.marketingFontCssHref}
+- Apply the font stack via MUI theme typography overrides (preferred) or via section-level sx fontFamily. If the font is not loaded yet in the app shell, add a route-level links() for /homepage-gen/:id previews.`
+			: '';
+
 	return `# Homepage Prompt Variant ${variant}
 
 ## Variant Metadata
@@ -43,6 +53,9 @@ Non-generic guardrails:
 - Proof, CTA language, and section emphasis must follow the audience overlay and archetype inputs.
 - Product visuals must show a believable social publishing workflow.
 - Avoid verbs like "streamline", "optimize", and "unlock" unless tied to a concrete outcome.
+
+Design process accelerator:
+- If you have access to the **hue** skill, run it first to generate a clean, high-end marketing design language that matches the creative direction bundle, then apply it consistently across the implementation.
 
 Execution rules:
 - Build a complete homepage in React + TypeScript + MUI v6.
@@ -106,6 +119,7 @@ ${renderNestedList(homepageArchetype.optionalSections)}
 - Surface treatment: ${creativeBundle.surfaceTreatment}
 - Screenshot treatment: ${creativeBundle.screenshotTreatment}
 - Copy tone: ${creativeBundle.copyTone}
+${marketingFontBlock}
 
 ### Strategy Inputs
 - Core promise: ${promiseAngle.corePromise}

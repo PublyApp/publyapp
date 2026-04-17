@@ -14,6 +14,16 @@ pnpm generate:homepage-batch -- <variants> <batch-label>
 This command is the documented entrypoint for homepage batch work. It creates a
 prompt archive and new generated homepage scaffolds in one pass.
 
+### Previewing Generated Pages
+
+1. Start the frontend (`just dev-front`).
+2. Open a generated route on the frontend server (port `5050`), for example:
+
+```text
+http://localhost:5050/homepage-gen/1
+http://localhost:5050/homepage-gen/2
+```
+
 ### What It Writes
 
 - Prompt batch folders are written under

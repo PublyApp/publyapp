@@ -112,5 +112,38 @@
 			"https://www.awwwards.com/websites/",
 			"https://www.lapa.ninja/"
 		]
+	},
+	{
+		"id": "assistantly-clean-mint",
+		"label": "Assistantly Clean Mint",
+		"heroStyle": "clean-hero-with-mint-accent-and-product-screenshot",
+		"visualDensity": "medium-low",
+		"motionBehavior": "subtle-stagger-on-load-and-hover-lift",
+		"colorDirection": "mint-fog-neutrals-with-crisp-ink-typography",
+		"surfaceTreatment": "soft glass panels with thin borders and gentle mint glow accents",
+		"screenshotTreatment": "large product card with inset UI panels and minimal annotation chips",
+		"copyTone": "clear-confident-and-specific",
+		"marketingFontCssHref": "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap",
+		"marketingFontHeading": "Space Grotesk",
+		"marketingFontBody": "DM Sans",
+		"compatibilityTags": [
+			"agencies",
+			"in-house-social-teams",
+			"smb-marketing-teams",
+			"workflow-story",
+			"proof-first",
+			"comparison-led",
+			"product-demo-first"
+		],
+		"referenceAnchors": [
+			"https://www.assistantly.com/",
+			"https://stripe.com",
+			"https://linear.app",
+			"https://www.figma.com"
+		],
+		"inspirationLibraries": [
+			"https://land-book.com/",
+			"https://www.lapa.ninja/"
+		]
 	}
 ]

@@ -106,9 +106,19 @@ const collectCompatibleRecipes = (config) => {
 const sortRecipesBySeed = (recipes, seed) => {
 	return recipes
 		.map((recipe) => {
+			const preferredCreativeBundleId = 'assistantly-clean-mint';
+			const preferredCreativeBundleWeightMultiplier = 0.22;
+			const baseWeight = mulberry32(
+				hashSeed(`${seed}-${getRecipeKey(recipe)}`),
+			)();
+			const weight =
+				recipe.creativeBundle.id === preferredCreativeBundleId
+					? baseWeight * preferredCreativeBundleWeightMultiplier
+					: baseWeight;
+
 			return {
 				recipe,
-				weight: mulberry32(hashSeed(`${seed}-${getRecipeKey(recipe)}`))(),
+				weight,
 			};
 		})
 		.sort((left, right) => {

@@ -15,6 +15,21 @@ export const meta = (args: Route.MetaArgs) => {
 	return args.loaderData?.meta ?? [];
 };
 
+export const links: Route.LinksFunction = () => {
+	return [
+		{ rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+		{
+			rel: 'preconnect',
+			href: 'https://fonts.gstatic.com',
+			crossOrigin: 'anonymous',
+		},
+		{
+			rel: 'stylesheet',
+			href: 'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap',
+		},
+	];
+};
+
 export const loader = getServerLoader({
 	loader: async ({ params, z }) => {
 		const generatedHomepage = getGeneratedHomepageById(
