@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { access, mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -13,6 +13,16 @@ const execFileAsync = promisify(execFile);
 
 const createTempRepoRoot = async () => {
 	return mkdtemp(path.join(os.tmpdir(), 'homepage-batch-flow-'));
+};
+
+const pathExists = async (targetPath) => {
+	try {
+		await access(targetPath);
+
+		return true;
+	} catch {
+		return false;
+	}
 };
 
 const readJson = async (filePath) => {
@@ -105,6 +115,94 @@ test('generateHomepageBatch reuses the normalized label but allocates a unique a
 		assert.equal(second.batchLabel, 'april-17-batch');
 		assert.equal(second.archiveFolder, 'april-17-batch-2');
 		assert.equal(second.entries[0].generatedHomepageId, 2);
+
+		const firstPromptPath = path.join(
+			artifactRepoRoot,
+			'docs/misc/homepage-factory/generated-prompts/batches/april-17-batch/001-homepage-prompt.md',
+		);
+		const secondPromptPath = path.join(
+			artifactRepoRoot,
+			'docs/misc/homepage-factory/generated-prompts/batches/april-17-batch-2/001-homepage-prompt.md',
+		);
+		const firstPromptContent = await readFile(firstPromptPath, 'utf8');
+		const secondPromptContent = await readFile(secondPromptPath, 'utf8');
+
+		assert.notEqual(firstPromptContent, secondPromptContent);
+		assert.match(firstPromptContent, /Seed:\s+\*\*april-17-batch\*\*/i);
+		assert.match(secondPromptContent, /Seed:\s+\*\*april-17-batch-2\*\*/i);
+
+		const secondBatchManifest = await readJson(
+			path.join(
+				artifactRepoRoot,
+				'docs/misc/homepage-factory/generated-prompts/batches/april-17-batch-2/manifest.json',
+			),
+		);
+		assert.equal(secondBatchManifest.seed, 'april-17-batch-2');
+		assert.equal(secondBatchManifest.entries[0].seed, 'april-17-batch-2');
+	} finally {
+		await rm(artifactRepoRoot, { recursive: true, force: true });
+	}
+});
+
+test('generateHomepageBatch rolls back generated homepage artifacts when archive writing fails', async () => {
+	const artifactRepoRoot = await createTempRepoRoot();
+
+	try {
+		await generateHomepageBatch({
+			sourceRepoRoot: path.resolve('.'),
+			artifactRepoRoot,
+			variants: 1,
+			batchLabel: 'Stable Batch',
+			now: () => '2026-04-17T09:15:00.000Z',
+		});
+
+		const runtimeManifestPath = path.join(
+			artifactRepoRoot,
+			'apps/front/src/generated/homepage-gen/manifest.json',
+		);
+		const baselineManifest = await readFile(runtimeManifestPath, 'utf8');
+
+		await assert.rejects(() => {
+			return generateHomepageBatch({
+				sourceRepoRoot: path.resolve('.'),
+				artifactRepoRoot,
+				variants: 1,
+				batchLabel: 'Rollback Batch',
+				now: () => '2026-04-17T10:00:00.000Z',
+				writePromptBatchArchiveImpl: async () => {
+					throw new Error('archive write failed');
+				},
+			});
+		}, /archive write failed/i);
+
+		assert.equal(await readFile(runtimeManifestPath, 'utf8'), baselineManifest);
+		assert.equal(
+			await pathExists(
+				path.join(
+					artifactRepoRoot,
+					'apps/front/src/generated/homepage-gen/pages/generated-homepage-0002.tsx',
+				),
+			),
+			false,
+		);
+		assert.equal(
+			await pathExists(
+				path.join(
+					artifactRepoRoot,
+					'docs/misc/homepage-factory/generated-prompts/batches/rollback-batch',
+				),
+			),
+			false,
+		);
+
+		const batchIndex = await readJson(
+			path.join(
+				artifactRepoRoot,
+				'docs/misc/homepage-factory/generated-prompts/batches/index.json',
+			),
+		);
+		assert.equal(batchIndex.length, 1);
+		assert.equal(batchIndex[0].archiveFolder, 'stable-batch');
 	} finally {
 		await rm(artifactRepoRoot, { recursive: true, force: true });
 	}
