@@ -306,8 +306,8 @@ It covers category `0` through `10`.
 - [x] The status control is disabled for globally suspended rows and explains that global reactivation is required first.
 - [x] The level control is disabled for globally suspended rows and explains that global reactivation is required first.
 - [x] All row actions remain visible but disabled for globally suspended rows.
-- [ ] (deferred test) A previously issued session for a now-globally-suspended tenant user can no longer access tenant-auth or picker flows.
-- [ ] (deferred test) Re-activating the user globally restores auth eligibility, and tenant membership state then determines whether the user is shown as `Active` or `Suspended` in the tenant users list.
+- [ ] (deferred test: tracked in #319) A previously issued session for a now-globally-suspended tenant user can no longer access tenant-auth or picker flows.
+- [ ] (deferred test: tracked in #319) Re-activating the user globally restores auth eligibility, and tenant membership state then determines whether the user is shown as `Active` or `Suspended` in the tenant users list.
 
 ### 5.9 Search/filter tenant users
 - Status: `DONE/PARTIAL`
@@ -323,17 +323,18 @@ It covers category `0` through `10`.
 
 ### 5.10 Users-tab regression checks
 - Status: `PARTIAL`
-- [ ] (deferred test) Pending users can still receive the intended verification follow-up email flow.
-- [ ] (deferred test) Copy-verification-link behavior is either intentionally unavailable or fully supported end to end.
+- [ ] (deferred test: tracked in #320) Pending users can still receive the intended verification follow-up email flow.
+- [ ] (deferred test: tracked in #320) Copy-verification-link behavior is either intentionally unavailable or fully supported end to end.
 - [x] Opening user details or drawer interactions from a row still works after the tenant-users refactors.
 
 ## Category 6: Billing Tab
 
 - Status: `MOCK/DEFERRED`
-- [ ] The staff tenant billing tab is reachable and clearly communicates that it is mock or coming soon.
-- [ ] The billing tab does not imply that real billing workflows are complete when they are not.
-- [ ] Mock plan, payment method, invoice, and usage widgets render without blocking navigation or throwing errors.
-- [ ] If billing is out of scope for tenant module completion, this category remains explicitly marked deferred rather than silently failed.
+- [x] Billing is explicitly gated behind a feature flag: the sidebar item is disabled with a lock icon and the route renders a 403 view.
+- [x] When billing is enabled, the staff tenant billing tab is reachable and clearly communicates that it is mock or coming soon.
+- [x] When billing is enabled, the billing tab does not imply that real billing workflows are complete when they are not.
+- [x] When billing is enabled, mock plan, payment method, invoice, and usage widgets render without blocking navigation or throwing errors.
+- [x] If billing is out of scope for tenant module completion, this category remains explicitly marked deferred rather than silently failed.
 
 ## Category 7: Profiles
 

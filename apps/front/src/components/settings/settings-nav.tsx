@@ -1,4 +1,10 @@
 import Box from '@mui/material/Box';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
+import { varAlpha } from 'minimal-shared/utils';
+import type { ReactNode } from 'react';
 
 import { RouterLink } from '#app/components/router-link.tsx';
 import useMatchPath from '#app/hooks/use-match-path.ts';
@@ -8,6 +14,8 @@ export type SettingsNavItem = {
 	href: string;
 	/** If true, match sub-paths as active (default: false for exact match) */
 	deep?: boolean;
+	disabled?: boolean;
+	endIcon?: ReactNode;
 };
 
 type SettingsNavProps = {
@@ -19,34 +27,89 @@ export const SettingsNav = ({ items }: SettingsNavProps) => {
 
 	return (
 		<Box component="nav">
-			<Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
+			<List
+				disablePadding
+				dense
+				sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}
+			>
 				{items.map((item) => {
-					const { active: isActive } = matchPath(item.href, item.deep ?? false);
+					const isDisabled = item.disabled ?? false;
+					const { active: isActive } = matchPath(
+						item.href,
+						isDisabled ? false : (item.deep ?? false),
+					);
+
+					let textColor = 'text.secondary';
+					let textWeight = 400;
+
+					if (isActive) {
+						textColor = 'primary.main';
+						textWeight = 600;
+					}
+
+					if (isDisabled) {
+						textColor = 'text.disabled';
+						textWeight = 400;
+					}
+
+					const listItemButtonProps = isDisabled
+						? { component: 'div' as const }
+						: { component: RouterLink, href: item.href };
 
 					return (
-						<Box component="li" key={item.href}>
-							<Box
-								component={RouterLink}
-								href={item.href}
+						<ListItem
+							key={item.href}
+							disablePadding
+							disableGutters
+							secondaryAction={
+								item.endIcon ? (
+									<Box
+										component="span"
+										sx={{ display: 'inline-flex', color: 'text.disabled' }}
+									>
+										{item.endIcon}
+									</Box>
+								) : undefined
+							}
+						>
+							<ListItemButton
+								{...listItemButtonProps}
+								disabled={isDisabled}
+								selected={!isDisabled && isActive}
 								sx={{
-									display: 'block',
-									py: 0.75,
-									textDecoration: 'none',
-									color: isActive ? 'primary.main' : 'text.secondary',
-									fontWeight: isActive ? 600 : 400,
-									fontSize: '0.875rem',
-									transition: 'color 0.15s ease-in-out',
-									'&:hover': {
-										color: 'primary.main',
+									py: 0.5,
+									px: 1.25,
+									minHeight: 30,
+									pr: item.endIcon ? 4 : undefined,
+									borderRadius: 1,
+									'&:hover': isDisabled
+										? undefined
+										: { bgcolor: 'action.hover' },
+									'&.Mui-selected': (theme) => ({
+										bgcolor: varAlpha(
+											theme.vars.palette.primary.mainChannel,
+											0.08,
+										),
+										'&:hover': {
+											bgcolor: varAlpha(
+												theme.vars.palette.primary.mainChannel,
+												0.16,
+											),
+										},
+									}),
+									'& .MuiListItemText-primary': {
+										fontSize: '13px',
+										fontWeight: textWeight,
+										color: textColor,
 									},
 								}}
 							>
-								{item.label}
-							</Box>
-						</Box>
+								<ListItemText primary={item.label} />
+							</ListItemButton>
+						</ListItem>
 					);
 				})}
-			</Box>
+			</List>
 		</Box>
 	);
 };

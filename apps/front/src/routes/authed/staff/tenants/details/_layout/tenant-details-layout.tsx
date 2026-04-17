@@ -4,7 +4,9 @@ import Stack from '@mui/material/Stack';
 import type { UseQueryResult } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import get from 'lodash/get';
+import toStr from 'lodash/toString';
 import type { FC } from 'react';
 import { useMemo } from 'react';
 import { data, useParams } from 'react-router';
@@ -19,6 +21,7 @@ import {
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
 import View400 from '#app/components/error/400-view.tsx';
 import { NotFoundView } from '#app/components/error/not-found-view.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
 import QueryDisplay from '#app/components/query-display.tsx';
 import type { SettingsNavItem } from '#app/components/settings/settings-nav.tsx';
 import { SidebarSettingsLayout } from '#app/components/settings/sidebar-settings-layout.tsx';
@@ -29,13 +32,14 @@ import { useGetTenant } from '#app/lib/react-query/features/staff/staff-tenant.h
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/tenant-details-layout';
+import { TENANT_DETAILS_BILLING_ENABLED } from './tenant-details-feature-flags';
 
 export type TenantDetailsOutletContext = {
 	tenantName: string;
 };
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(t('tenant-details'));
+	let str: string = capitalize(t('tenant-details'));
 
 	if (seo) {
 		str = `${str} | Staff Dashboard - ${APP_NAME}`;
@@ -46,7 +50,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
+		return get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;
@@ -77,7 +81,7 @@ const TenantDetailsLayout = () => {
 	const { tenantId } = useParams();
 
 	const getTenantQuery = useGetTenant({
-		variables: { tenantId: _.toString(tenantId) },
+		variables: { tenantId: toStr(tenantId) },
 		enabled: !!tenantId,
 	});
 
@@ -93,7 +97,15 @@ const TenantDetailsLayout = () => {
 				href: paths.tabs.profiles,
 				deep: true,
 			},
-			{ label: t('billing'), href: paths.tabs.billing, deep: true },
+			{
+				label: t('billing'),
+				href: paths.tabs.billing,
+				deep: true,
+				disabled: !TENANT_DETAILS_BILLING_ENABLED,
+				endIcon: !TENANT_DETAILS_BILLING_ENABLED ? (
+					<Iconify icon="solar:lock-password-outline" width={16} />
+				) : undefined,
+			},
 		];
 	}, [t, tenantId]);
 
@@ -139,7 +151,7 @@ const LayoutErrorView: FC<{
 		return (
 			<NotFoundView
 				withLayout={false}
-				title={_.capitalize(t('tenant-not-found-title'))}
+				title={capitalize(t('tenant-not-found-title'))}
 				description={t('tenant-not-found-description')}
 			/>
 		);
