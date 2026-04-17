@@ -43,6 +43,15 @@ const toPosixRelativePath = (repoRoot, targetPath) => {
 	return path.relative(repoRoot, targetPath).split(path.sep).join('/');
 };
 
+const buildPromptArtifactsForSeed = ({ config, variants, seed }) => {
+	return buildHomepagePromptBatchArtifacts({
+		config,
+		variants,
+		seed,
+		buildPrompt: buildHomepagePrompt,
+	});
+};
+
 const readFileSnapshot = async (filePath) => {
 	if (!(await pathExists(filePath))) {
 		return {
@@ -166,6 +175,14 @@ export const generateHomepageBatch = async ({
 	const normalizedBatchLabel = normalizeHomepageBatchLabel(batchLabel);
 	const createdAt = now();
 	const factoryDir = path.join(sourceRepoRoot, 'scripts/homepage-factory');
+	const config = await loadHomepageFactoryConfig({ factoryDir });
+
+	buildPromptArtifactsForSeed({
+		config,
+		variants,
+		seed: normalizedBatchLabel,
+	});
+
 	const batchesDir = path.join(
 		artifactRepoRoot,
 		GENERATED_PROMPT_BATCHES_RELATIVE_DIR,
@@ -202,12 +219,10 @@ export const generateHomepageBatch = async ({
 	});
 	const archiveDir = path.join(batchesDir, archiveFolder);
 	const seed = archiveFolder;
-	const config = await loadHomepageFactoryConfig({ factoryDir });
-	const promptArtifacts = buildHomepagePromptBatchArtifacts({
+	const promptArtifacts = buildPromptArtifactsForSeed({
 		config,
 		variants,
 		seed,
-		buildPrompt: buildHomepagePrompt,
 	});
 
 	try {

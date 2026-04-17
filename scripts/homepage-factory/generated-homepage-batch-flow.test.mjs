@@ -460,6 +460,40 @@ test('generateHomepageBatch leaves no empty flow directories behind after a fail
 	}
 });
 
+test('generateHomepageBatch does not create flow directories when validation fails before archive resolution on a clean repo', async () => {
+	const artifactRepoRoot = await createTempRepoRoot();
+
+	try {
+		await assert.rejects(() => {
+			return generateHomepageBatch({
+				sourceRepoRoot: path.resolve('.'),
+				artifactRepoRoot,
+				variants: 0,
+				batchLabel: 'Invalid Batch',
+				now: () => '2026-04-17T10:00:00.000Z',
+			});
+		}, /variants must be an integer between 1 and 200/i);
+
+		assert.equal(
+			await pathExists(
+				path.join(
+					artifactRepoRoot,
+					'docs/misc/homepage-factory/generated-prompts/batches',
+				),
+			),
+			false,
+		);
+		assert.equal(
+			await pathExists(
+				path.join(artifactRepoRoot, 'apps/front/src/generated/homepage-gen'),
+			),
+			false,
+		);
+	} finally {
+		await rm(artifactRepoRoot, { recursive: true, force: true });
+	}
+});
+
 test('generate-homepage-batch CLI prints route to page to prompt mapping', async () => {
 	const artifactRepoRoot = await createTempRepoRoot();
 
