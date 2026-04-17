@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { access, mkdtemp, readFile, rm } from 'node:fs/promises';
+import {
+	access,
+	mkdir,
+	mkdtemp,
+	readFile,
+	rm,
+	writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -203,6 +210,182 @@ test('generateHomepageBatch rolls back generated homepage artifacts when archive
 		);
 		assert.equal(batchIndex.length, 1);
 		assert.equal(batchIndex[0].archiveFolder, 'stable-batch');
+	} finally {
+		await rm(artifactRepoRoot, { recursive: true, force: true });
+	}
+});
+
+test('generateHomepageBatch rolls back generated homepage artifacts when page preparation partially writes before failing', async () => {
+	const artifactRepoRoot = await createTempRepoRoot();
+
+	try {
+		await generateHomepageBatch({
+			sourceRepoRoot: path.resolve('.'),
+			artifactRepoRoot,
+			variants: 1,
+			batchLabel: 'Stable Batch',
+			now: () => '2026-04-17T09:15:00.000Z',
+		});
+
+		const runtimeManifestPath = path.join(
+			artifactRepoRoot,
+			'apps/front/src/generated/homepage-gen/manifest.json',
+		);
+		const pagesDir = path.join(
+			artifactRepoRoot,
+			'apps/front/src/generated/homepage-gen/pages',
+		);
+		const baselineManifest = await readFile(runtimeManifestPath, 'utf8');
+
+		await assert.rejects(() => {
+			return generateHomepageBatch({
+				sourceRepoRoot: path.resolve('.'),
+				artifactRepoRoot,
+				variants: 1,
+				batchLabel: 'Prepare Rollback Batch',
+				now: () => '2026-04-17T10:00:00.000Z',
+				prepareGeneratedHomepageBatchImpl: async () => {
+					await mkdir(pagesDir, { recursive: true });
+					await writeFile(
+						path.join(pagesDir, 'generated-homepage-0002.tsx'),
+						'// leaked page\n',
+						'utf8',
+					);
+					await writeFile(
+						runtimeManifestPath,
+						JSON.stringify(
+							[
+								...JSON.parse(baselineManifest),
+								{
+									id: 2,
+									title: 'Generated Homepage 2',
+									fileName: 'generated-homepage-0002.tsx',
+									routePath: '/homepage-gen/2',
+									batchLabel: 'prepare-rollback-batch',
+									createdAt: '2026-04-17T10:00:00.000Z',
+								},
+							],
+							null,
+							2,
+						),
+						'utf8',
+					);
+
+					throw new Error('prepare write failed');
+				},
+			});
+		}, /prepare write failed/i);
+
+		assert.equal(await readFile(runtimeManifestPath, 'utf8'), baselineManifest);
+		assert.equal(
+			await pathExists(path.join(pagesDir, 'generated-homepage-0002.tsx')),
+			false,
+		);
+		assert.equal(
+			await pathExists(
+				path.join(
+					artifactRepoRoot,
+					'docs/misc/homepage-factory/generated-prompts/batches/prepare-rollback-batch',
+				),
+			),
+			false,
+		);
+	} finally {
+		await rm(artifactRepoRoot, { recursive: true, force: true });
+	}
+});
+
+test('generateHomepageBatch removes partial archive artifacts and restores the batch index when archive writing fails mid-write', async () => {
+	const artifactRepoRoot = await createTempRepoRoot();
+
+	try {
+		await generateHomepageBatch({
+			sourceRepoRoot: path.resolve('.'),
+			artifactRepoRoot,
+			variants: 1,
+			batchLabel: 'Stable Batch',
+			now: () => '2026-04-17T09:15:00.000Z',
+		});
+
+		const runtimeManifestPath = path.join(
+			artifactRepoRoot,
+			'apps/front/src/generated/homepage-gen/manifest.json',
+		);
+		const baselineManifest = await readFile(runtimeManifestPath, 'utf8');
+		const batchIndexPath = path.join(
+			artifactRepoRoot,
+			'docs/misc/homepage-factory/generated-prompts/batches/index.json',
+		);
+		const baselineIndex = await readFile(batchIndexPath, 'utf8');
+
+		await assert.rejects(() => {
+			return generateHomepageBatch({
+				sourceRepoRoot: path.resolve('.'),
+				artifactRepoRoot,
+				variants: 1,
+				batchLabel: 'Archive Rollback Batch',
+				now: () => '2026-04-17T10:00:00.000Z',
+				writePromptBatchArchiveImpl: async ({
+					repoRoot,
+					archiveFolder,
+					entries,
+					prompts,
+				}) => {
+					const batchDir = path.join(
+						repoRoot,
+						'docs/misc/homepage-factory/generated-prompts/batches',
+						archiveFolder,
+					);
+
+					await mkdir(batchDir, { recursive: true });
+					await writeFile(
+						path.join(batchDir, prompts[0].fileName),
+						prompts[0].content,
+						'utf8',
+					);
+					await writeFile(
+						path.join(batchDir, 'manifest.json'),
+						JSON.stringify({ entries }, null, 2),
+						'utf8',
+					);
+					await writeFile(
+						batchIndexPath,
+						JSON.stringify(
+							[
+								...JSON.parse(baselineIndex),
+								{ archiveFolder, entryIds: entries.map((entry) => entry.id) },
+							],
+							null,
+							2,
+						),
+						'utf8',
+					);
+
+					throw new Error('archive mid-write failed');
+				},
+			});
+		}, /archive mid-write failed/i);
+
+		assert.equal(await readFile(runtimeManifestPath, 'utf8'), baselineManifest);
+		assert.equal(await readFile(batchIndexPath, 'utf8'), baselineIndex);
+		assert.equal(
+			await pathExists(
+				path.join(
+					artifactRepoRoot,
+					'docs/misc/homepage-factory/generated-prompts/batches/archive-rollback-batch',
+				),
+			),
+			false,
+		);
+		assert.equal(
+			await pathExists(
+				path.join(
+					artifactRepoRoot,
+					'apps/front/src/generated/homepage-gen/pages/generated-homepage-0002.tsx',
+				),
+			),
+			false,
+		);
 	} finally {
 		await rm(artifactRepoRoot, { recursive: true, force: true });
 	}
