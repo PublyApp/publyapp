@@ -1,0 +1,1 @@
+export const TENANT_DETAILS_BILLING_ENABLED = false;
