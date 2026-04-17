@@ -1,0 +1,134 @@
+{
+	"batchLabel": "april-17-batch",
+	"archiveFolder": "april-17-batch",
+	"seed": "april-17-batch",
+	"variantCount": 5,
+	"createdAt": "2026-04-17T04:32:59.175Z",
+	"entries": [
+		{
+			"variant": 1,
+			"fileName": "001-homepage-prompt.md",
+			"seed": "april-17-batch",
+			"audienceOverlay": "agencies",
+			"homepageArchetype": "comparison-led",
+			"promiseAngle": "replace-fragmented-tools",
+			"proofStrategy": "comparison-checklist",
+			"creativeDirectionBundle": "product-led-clean",
+			"selectedReferences": [
+				"https://stripe.com",
+				"https://linear.app",
+				"https://www.figma.com",
+				"https://www.intercom.com"
+			],
+			"selectedLibraries": [
+				"https://land-book.com/",
+				"https://www.awwwards.com/websites/"
+			],
+			"id": 1,
+			"generatedHomepageId": 1,
+			"routePath": "/homepage-gen/1",
+			"pageFile": "apps/front/src/generated/homepage-gen/pages/generated-homepage-0001.tsx",
+			"promptFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-batch/001-homepage-prompt.md"
+		},
+		{
+			"variant": 2,
+			"fileName": "002-homepage-prompt.md",
+			"seed": "april-17-batch",
+			"audienceOverlay": "in-house-social-teams",
+			"homepageArchetype": "product-demo-first",
+			"promiseAngle": "ship-consistently",
+			"proofStrategy": "customer-credibility",
+			"creativeDirectionBundle": "editorial-dark",
+			"selectedReferences": [
+				"https://linear.app",
+				"https://stripe.com",
+				"https://www.figma.com",
+				"https://www.webflow.com"
+			],
+			"selectedLibraries": [
+				"https://www.awwwards.com/websites/",
+				"https://land-book.com/"
+			],
+			"id": 2,
+			"generatedHomepageId": 2,
+			"routePath": "/homepage-gen/2",
+			"pageFile": "apps/front/src/generated/homepage-gen/pages/generated-homepage-0002.tsx",
+			"promptFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-batch/002-homepage-prompt.md"
+		},
+		{
+			"variant": 3,
+			"fileName": "003-homepage-prompt.md",
+			"seed": "april-17-batch",
+			"audienceOverlay": "agencies",
+			"homepageArchetype": "comparison-led",
+			"promiseAngle": "publish-without-chaos",
+			"proofStrategy": "comparison-checklist",
+			"creativeDirectionBundle": "contrast-grid",
+			"selectedReferences": [
+				"https://stripe.com",
+				"https://linear.app",
+				"https://www.intercom.com",
+				"https://www.figma.com"
+			],
+			"selectedLibraries": [
+				"https://www.awwwards.com/websites/",
+				"https://www.lapa.ninja/"
+			],
+			"id": 3,
+			"generatedHomepageId": 3,
+			"routePath": "/homepage-gen/3",
+			"pageFile": "apps/front/src/generated/homepage-gen/pages/generated-homepage-0003.tsx",
+			"promptFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-batch/003-homepage-prompt.md"
+		},
+		{
+			"variant": 4,
+			"fileName": "004-homepage-prompt.md",
+			"seed": "april-17-batch",
+			"audienceOverlay": "in-house-social-teams",
+			"homepageArchetype": "workflow-story",
+			"promiseAngle": "publish-without-chaos",
+			"proofStrategy": "workflow-artifacts",
+			"creativeDirectionBundle": "editorial-dark",
+			"selectedReferences": [
+				"https://linear.app",
+				"https://stripe.com",
+				"https://www.figma.com",
+				"https://www.webflow.com"
+			],
+			"selectedLibraries": [
+				"https://www.awwwards.com/websites/",
+				"https://land-book.com/"
+			],
+			"id": 4,
+			"generatedHomepageId": 4,
+			"routePath": "/homepage-gen/4",
+			"pageFile": "apps/front/src/generated/homepage-gen/pages/generated-homepage-0004.tsx",
+			"promptFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-batch/004-homepage-prompt.md"
+		},
+		{
+			"variant": 5,
+			"fileName": "005-homepage-prompt.md",
+			"seed": "april-17-batch",
+			"audienceOverlay": "in-house-social-teams",
+			"homepageArchetype": "product-demo-first",
+			"promiseAngle": "ship-consistently",
+			"proofStrategy": "workflow-artifacts",
+			"creativeDirectionBundle": "editorial-dark",
+			"selectedReferences": [
+				"https://linear.app",
+				"https://stripe.com",
+				"https://www.figma.com",
+				"https://www.webflow.com"
+			],
+			"selectedLibraries": [
+				"https://www.awwwards.com/websites/",
+				"https://land-book.com/"
+			],
+			"id": 5,
+			"generatedHomepageId": 5,
+			"routePath": "/homepage-gen/5",
+			"pageFile": "apps/front/src/generated/homepage-gen/pages/generated-homepage-0005.tsx",
+			"promptFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-batch/005-homepage-prompt.md"
+		}
+	]
+}

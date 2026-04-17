@@ -1,0 +1,11 @@
+[
+	{
+		"batchLabel": "april-17-batch",
+		"archiveFolder": "april-17-batch",
+		"seed": "april-17-batch",
+		"variantCount": 5,
+		"createdAt": "2026-04-17T04:32:59.175Z",
+		"manifestFile": "docs/misc/homepage-factory/generated-prompts/batches/april-17-batch/manifest.json",
+		"entryIds": [1, 2, 3, 4, 5]
+	}
+]
