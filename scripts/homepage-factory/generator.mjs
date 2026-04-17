@@ -795,6 +795,37 @@ export const generateHomepagePromptBatch = async ({
 			'generateHomepagePromptBatch requires a buildPrompt function.',
 		);
 	}
+	const resolvedFileOps = {
+		...defaultFileOps,
+		...fileOps,
+	};
+
+	const { manifest, prompts } = buildHomepagePromptBatchArtifacts({
+		config,
+		variants,
+		seed,
+		buildPrompt,
+	});
+
+	await publishGeneratedBatch({
+		outputDir,
+		prompts,
+		manifest,
+		fileOps: resolvedFileOps,
+	});
+
+	return { manifest, prompts };
+};
+
+export const buildHomepagePromptBatchArtifacts = ({
+	config,
+	variants,
+	seed,
+	buildPrompt,
+}) => {
+	if (typeof buildPrompt !== 'function') {
+		throw new Error('buildHomepagePromptBatchArtifacts requires a buildPrompt function.');
+	}
 	assertVariantCount(variants);
 	validateHomepageFactoryConfig(config);
 
@@ -808,11 +839,6 @@ export const generateHomepagePromptBatch = async ({
 			'No compatible homepage recipes available for the selected config.',
 		);
 	}
-
-	const resolvedFileOps = {
-		...defaultFileOps,
-		...fileOps,
-	};
 
 	const manifest = [];
 	const prompts = [];
@@ -868,13 +894,6 @@ export const generateHomepagePromptBatch = async ({
 		manifest.push(manifestEntry);
 		prompts.push({ fileName, content });
 	}
-
-	await publishGeneratedBatch({
-		outputDir,
-		prompts,
-		manifest,
-		fileOps: resolvedFileOps,
-	});
 
 	return { manifest, prompts };
 };

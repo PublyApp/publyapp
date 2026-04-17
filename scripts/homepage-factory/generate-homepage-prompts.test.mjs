@@ -16,6 +16,7 @@ import test from 'node:test';
 import { promisify } from 'node:util';
 
 import {
+	buildHomepagePromptBatchArtifacts,
 	generateHomepagePromptBatch,
 	loadHomepageFactoryConfig,
 	validateHomepageFactoryConfig,
@@ -363,6 +364,63 @@ test('generateHomepagePromptBatch is deterministic for a fixed seed', async () =
 		await rm(firstDir, { recursive: true, force: true });
 		await rm(secondDir, { recursive: true, force: true });
 	}
+});
+
+test('buildHomepagePromptBatchArtifacts generates prompt artifacts in memory', () => {
+	const result = buildHomepagePromptBatchArtifacts({
+		config: TEST_CONFIG,
+		variants: 2,
+		seed: 'deterministic-seed',
+		buildPrompt: buildHomepagePrompt,
+	});
+
+	assert.deepEqual(result.manifest, [
+		{
+			variant: 1,
+			fileName: '001-homepage-prompt.md',
+			seed: 'deterministic-seed',
+			audienceOverlay: 'in-house',
+			homepageArchetype: 'product-tour',
+			promiseAngle: 'launch-faster',
+			proofStrategy: 'social-proof',
+			creativeDirectionBundle: 'editorial-bold',
+			selectedReferences: [
+				'https://example.com/notion',
+				'https://example.com/airtable',
+				'https://example.com/slack',
+				'https://example.com/webflow',
+			],
+			selectedLibraries: [
+				'https://example.com/lapa',
+				'https://example.com/land-book',
+			],
+		},
+		{
+			variant: 2,
+			fileName: '002-homepage-prompt.md',
+			seed: 'deterministic-seed',
+			audienceOverlay: 'agencies',
+			homepageArchetype: 'workflow-story',
+			promiseAngle: 'launch-faster',
+			proofStrategy: 'social-proof',
+			creativeDirectionBundle: 'editorial-bold',
+			selectedReferences: [
+				'https://example.com/notion',
+				'https://example.com/airtable',
+				'https://example.com/slack',
+				'https://example.com/webflow',
+			],
+			selectedLibraries: [
+				'https://example.com/lapa',
+				'https://example.com/land-book',
+			],
+		},
+	]);
+	assert.equal(result.prompts.length, 2);
+	assert.match(
+		result.prompts[0].content,
+		/- Seed: \*\*deterministic-seed\*\*/,
+	);
 });
 
 test('generateHomepagePromptBatch rejects empty selection arrays', async () => {
