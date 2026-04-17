@@ -17,6 +17,11 @@ const run = async () => {
 	const variantsArg = process.argv[2] ?? '24';
 	const batchLabelArg =
 		process.argv[3] ?? new Date().toISOString().slice(0, 10);
+
+	if (!/^\d+$/.test(variantsArg)) {
+		throw new Error('Variants must be an integer between 1 and 200.');
+	}
+
 	const variants = Number.parseInt(variantsArg, 10);
 
 	const result = await generateHomepageBatch({

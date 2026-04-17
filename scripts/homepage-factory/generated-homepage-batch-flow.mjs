@@ -4,6 +4,7 @@ import {
 	readdir,
 	readFile,
 	rm,
+	rmdir,
 	writeFile,
 } from 'node:fs/promises';
 import path from 'node:path';
@@ -25,6 +26,8 @@ const GENERATED_HOMEPAGE_RUNTIME_MANIFEST_RELATIVE_PATH =
 	'apps/front/src/generated/homepage-gen/manifest.json';
 const GENERATED_HOMEPAGE_PAGES_RELATIVE_DIR =
 	'apps/front/src/generated/homepage-gen/pages';
+const GENERATED_HOMEPAGE_ROOT_RELATIVE_DIR =
+	'apps/front/src/generated/homepage-gen';
 
 const pathExists = async (targetPath) => {
 	try {
@@ -79,16 +82,47 @@ const restoreFileSnapshot = async (filePath, snapshot) => {
 	await writeFile(filePath, snapshot.content, 'utf8');
 };
 
+const removeEmptyDirectoryChain = async ({ startDir, stopDir }) => {
+	let currentDir = startDir;
+
+	while (currentDir.startsWith(stopDir) && currentDir !== stopDir) {
+		try {
+			await rmdir(currentDir);
+		} catch (error) {
+			if (error?.code === 'ENOENT' || error?.code === 'ENOTEMPTY') {
+				return;
+			}
+
+			throw error;
+		}
+
+		currentDir = path.dirname(currentDir);
+	}
+};
+
 const rollbackPromptArchiveArtifacts = async ({
+	artifactRepoRoot,
 	archiveDir,
+	batchesDir,
+	batchesDirSnapshot,
 	batchIndexPath,
 	batchIndexSnapshot,
 }) => {
 	await rm(archiveDir, { recursive: true, force: true });
 	await restoreFileSnapshot(batchIndexPath, batchIndexSnapshot);
+
+	if (!batchesDirSnapshot.existed) {
+		await removeEmptyDirectoryChain({
+			startDir: batchesDir,
+			stopDir: artifactRepoRoot,
+		});
+	}
 };
 
 const rollbackGeneratedHomepageArtifacts = async ({
+	artifactRepoRoot,
+	generatedHomepageRootDir,
+	generatedHomepageRootSnapshot,
 	pagesDir,
 	pagesDirSnapshot,
 	runtimeManifestPath,
@@ -111,6 +145,13 @@ const rollbackGeneratedHomepageArtifacts = async ({
 	}
 
 	await restoreFileSnapshot(runtimeManifestPath, runtimeManifestSnapshot);
+
+	if (!generatedHomepageRootSnapshot.existed) {
+		await removeEmptyDirectoryChain({
+			startDir: generatedHomepageRootDir,
+			stopDir: artifactRepoRoot,
+		});
+	}
 };
 
 export const generateHomepageBatch = async ({
@@ -129,12 +170,37 @@ export const generateHomepageBatch = async ({
 		artifactRepoRoot,
 		GENERATED_PROMPT_BATCHES_RELATIVE_DIR,
 	);
+	const runtimeManifestPath = path.join(
+		artifactRepoRoot,
+		GENERATED_HOMEPAGE_RUNTIME_MANIFEST_RELATIVE_PATH,
+	);
+	const generatedHomepageRootDir = path.join(
+		artifactRepoRoot,
+		GENERATED_HOMEPAGE_ROOT_RELATIVE_DIR,
+	);
+	const pagesDir = path.join(
+		artifactRepoRoot,
+		GENERATED_HOMEPAGE_PAGES_RELATIVE_DIR,
+	);
+	const batchIndexPath = path.join(batchesDir, 'index.json');
+	const [
+		runtimeManifestSnapshot,
+		generatedHomepageRootSnapshot,
+		pagesDirSnapshot,
+		batchesDirSnapshot,
+		batchIndexSnapshot,
+	] = await Promise.all([
+		readFileSnapshot(runtimeManifestPath),
+		readDirectorySnapshot(generatedHomepageRootDir),
+		readDirectorySnapshot(pagesDir),
+		readDirectorySnapshot(batchesDir),
+		readFileSnapshot(batchIndexPath),
+	]);
 	const archiveFolder = await resolvePromptBatchArchiveFolder({
 		batchesDir,
 		batchLabel: normalizedBatchLabel,
 	});
 	const archiveDir = path.join(batchesDir, archiveFolder);
-	const batchIndexPath = path.join(batchesDir, 'index.json');
 	const seed = archiveFolder;
 	const config = await loadHomepageFactoryConfig({ factoryDir });
 	const promptArtifacts = buildHomepagePromptBatchArtifacts({
@@ -143,20 +209,6 @@ export const generateHomepageBatch = async ({
 		seed,
 		buildPrompt: buildHomepagePrompt,
 	});
-	const runtimeManifestPath = path.join(
-		artifactRepoRoot,
-		GENERATED_HOMEPAGE_RUNTIME_MANIFEST_RELATIVE_PATH,
-	);
-	const pagesDir = path.join(
-		artifactRepoRoot,
-		GENERATED_HOMEPAGE_PAGES_RELATIVE_DIR,
-	);
-	const [runtimeManifestSnapshot, pagesDirSnapshot, batchIndexSnapshot] =
-		await Promise.all([
-			readFileSnapshot(runtimeManifestPath),
-			readDirectorySnapshot(pagesDir),
-			readFileSnapshot(batchIndexPath),
-		]);
 
 	try {
 		const pageBatch = await prepareGeneratedHomepageBatchImpl({
@@ -210,11 +262,17 @@ export const generateHomepageBatch = async ({
 		};
 	} catch (error) {
 		await rollbackPromptArchiveArtifacts({
+			artifactRepoRoot,
 			archiveDir,
+			batchesDir,
+			batchesDirSnapshot,
 			batchIndexPath,
 			batchIndexSnapshot,
 		});
 		await rollbackGeneratedHomepageArtifacts({
+			artifactRepoRoot,
+			generatedHomepageRootDir,
+			generatedHomepageRootSnapshot,
 			pagesDir,
 			pagesDirSnapshot,
 			runtimeManifestPath,

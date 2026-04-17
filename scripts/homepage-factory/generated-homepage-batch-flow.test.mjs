@@ -391,6 +391,75 @@ test('generateHomepageBatch removes partial archive artifacts and restores the b
 	}
 });
 
+test('generateHomepageBatch leaves no empty flow directories behind after a failed first run', async () => {
+	const artifactRepoRoot = await createTempRepoRoot();
+
+	try {
+		const batchIndexPath = path.join(
+			artifactRepoRoot,
+			'docs/misc/homepage-factory/generated-prompts/batches/index.json',
+		);
+
+		await assert.rejects(() => {
+			return generateHomepageBatch({
+				sourceRepoRoot: path.resolve('.'),
+				artifactRepoRoot,
+				variants: 1,
+				batchLabel: 'Clean Rollback Batch',
+				now: () => '2026-04-17T10:00:00.000Z',
+				writePromptBatchArchiveImpl: async ({
+					repoRoot,
+					archiveFolder,
+					entries,
+					prompts,
+				}) => {
+					const batchDir = path.join(
+						repoRoot,
+						'docs/misc/homepage-factory/generated-prompts/batches',
+						archiveFolder,
+					);
+
+					await mkdir(batchDir, { recursive: true });
+					await writeFile(
+						path.join(batchDir, prompts[0].fileName),
+						prompts[0].content,
+						'utf8',
+					);
+					await writeFile(
+						batchIndexPath,
+						JSON.stringify(
+							[{ archiveFolder, entryIds: entries.map((entry) => entry.id) }],
+							null,
+							2,
+						),
+						'utf8',
+					);
+
+					throw new Error('clean first-run archive failure');
+				},
+			});
+		}, /clean first-run archive failure/i);
+
+		assert.equal(
+			await pathExists(
+				path.join(artifactRepoRoot, 'apps/front/src/generated/homepage-gen'),
+			),
+			false,
+		);
+		assert.equal(
+			await pathExists(
+				path.join(
+					artifactRepoRoot,
+					'docs/misc/homepage-factory/generated-prompts/batches',
+				),
+			),
+			false,
+		);
+	} finally {
+		await rm(artifactRepoRoot, { recursive: true, force: true });
+	}
+});
+
 test('generate-homepage-batch CLI prints route to page to prompt mapping', async () => {
 	const artifactRepoRoot = await createTempRepoRoot();
 
@@ -414,6 +483,36 @@ test('generate-homepage-batch CLI prints route to page to prompt mapping', async
 		assert.match(stdout, /\/homepage-gen\/1/i);
 		assert.match(stdout, /generated-homepage-0002\.tsx/i);
 		assert.match(stdout, /001-homepage-prompt\.md/i);
+	} finally {
+		await rm(artifactRepoRoot, { recursive: true, force: true });
+	}
+});
+
+test('generate-homepage-batch CLI rejects malformed variant counts', async () => {
+	const artifactRepoRoot = await createTempRepoRoot();
+
+	try {
+		await assert.rejects(
+			execFileAsync(
+				process.execPath,
+				['scripts/generate-homepage-batch.mjs', '2oops', 'April 17 Batch'],
+				{
+					cwd: path.resolve('.'),
+					env: {
+						...process.env,
+						GENERATED_HOMEPAGE_REPO_ROOT: artifactRepoRoot,
+					},
+				},
+			),
+			(error) => {
+				assert.match(
+					error.stderr,
+					/Variants must be an integer between 1 and 200\./i,
+				);
+
+				return true;
+			},
+		);
 	} finally {
 		await rm(artifactRepoRoot, { recursive: true, force: true });
 	}
