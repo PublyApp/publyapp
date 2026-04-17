@@ -110,7 +110,7 @@ export const writePromptBatchArchive = async ({
 		variantCount: entries.length,
 		createdAt,
 		manifestFile: `docs/misc/homepage-factory/generated-prompts/batches/${archiveFolder}/manifest.json`,
-		entryIds: entries.map((entry) => entry.generatedHomepageId),
+		entryIds: entries.map((entry) => entry.id),
 	});
 
 	await writeFile(indexPath, JSON.stringify(index, null, 2), 'utf8');

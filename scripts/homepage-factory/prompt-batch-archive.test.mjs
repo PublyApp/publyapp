@@ -64,7 +64,7 @@ test('resolvePromptBatchArchiveFolder appends numeric suffixes for collisions', 
 			entries: [
 				{
 					variant: 1,
-					generatedHomepageId: 1,
+					id: 1,
 					routePath: '/homepage-gen/1',
 					pageFile:
 						'apps/front/src/generated/homepage-gen/pages/generated-homepage-0001.tsx',
@@ -91,13 +91,14 @@ test('resolvePromptBatchArchiveFolder appends numeric suffixes for collisions', 
 		const index = await readJson(path.join(batchesDir, 'index.json'));
 		assert.equal(index.length, 1);
 		assert.equal(index[0].archiveFolder, 'april-17-batch');
+		assert.deepEqual(index[0].entryIds, [1]);
 
 		const batchManifest = await readJson(
 			path.join(batchesDir, 'april-17-batch', 'manifest.json'),
 		);
 
 		assert.equal(batchManifest.batchLabel, 'april-17-batch');
-		assert.equal(batchManifest.entries[0].generatedHomepageId, 1);
+		assert.equal(batchManifest.entries[0].id, 1);
 		assert.equal(
 			batchManifest.entries[0].promptFile,
 			'docs/misc/homepage-factory/generated-prompts/batches/april-17-batch/001-homepage-prompt.md',
