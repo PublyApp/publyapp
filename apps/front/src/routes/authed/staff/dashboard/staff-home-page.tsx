@@ -572,7 +572,7 @@ const StaffHomePage = () => {
 	const accent = theme.vars.palette.primary.main;
 
 	return (
-		<DashboardContent maxWidth="xl" compact>
+		<DashboardContent maxWidth="lg" compact>
 			<InspirationPageHeader
 				breadcrumb={`${t('welcome-back')} / Overview`}
 				title={t('welcome-back')}
