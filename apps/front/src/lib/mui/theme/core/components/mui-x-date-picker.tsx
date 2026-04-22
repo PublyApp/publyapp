@@ -2,7 +2,8 @@ import { buttonClasses } from '@mui/material/Button';
 import { dialogActionsClasses } from '@mui/material/DialogActions';
 import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
 import type { Components, Theme } from '@mui/material/styles';
-import _ from 'lodash';
+import { pickersOutlinedInputClasses } from '@mui/x-date-pickers/PickersTextField';
+import toNumber from 'lodash/toNumber';
 
 // ----------------------------------------------------------------------
 
@@ -172,6 +173,21 @@ const MuiDesktopTimePicker: Components<Theme>['MuiDesktopTimePicker'] = {
 	defaultProps: { slots: defaultProps.time },
 };
 
+const MuiPickersOutlinedInput: Components<Theme>['MuiPickersOutlinedInput'] = {
+	/** **************************************
+	 * STYLE
+	 *************************************** */
+	styleOverrides: {
+		root: ({ theme }) => ({
+			[`&.${pickersOutlinedInputClasses.focused} .${pickersOutlinedInputClasses.notchedOutline}`]:
+				{
+					borderColor: theme.vars.palette.primary.main,
+					borderWidth: 2,
+				},
+		}),
+	},
+};
+
 const MuiPickersLayout: Components<Theme>['MuiPickersLayout'] = {
 	/** **************************************
 	 * STYLE
@@ -203,7 +219,7 @@ const MuiPickerPopper: Components<Theme>['MuiPickerPopper'] = {
 		paper: ({ theme }) => {
 			return {
 				boxShadow: theme.vars.customShadows.dropdown,
-				borderRadius: _.toNumber(theme.shape.borderRadius) * 1.5,
+				borderRadius: toNumber(theme.shape.borderRadius) * 1.5,
 			};
 		},
 	},
@@ -213,6 +229,7 @@ const MuiPickerPopper: Components<Theme>['MuiPickerPopper'] = {
 
 export const datePicker = {
 	MuiPickerPopper,
+	MuiPickersOutlinedInput,
 	MuiPickersLayout,
 	// Date
 	MuiDatePicker,
