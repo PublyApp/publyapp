@@ -187,54 +187,7 @@ export const AccountDrawer = ({
 						</Typography>
 					</Box>
 
-					{/* <Box
-						sx={{
-							p: 3,
-							gap: 1,
-							flexWrap: 'wrap',
-							display: 'flex',
-							justifyContent: 'center',
-						}}
-					>
-						{Array.from({ length: 3 }, (_, index) => {
-							return (
-								<Tooltip
-									key={_mock.fullName(index + 1)}
-									title={`Switch to: ${_mock.fullName(index + 1)}`}
-								>
-									<Avatar
-										alt={_mock.fullName(index + 1)}
-										src={_mock.image.avatar(index + 1)}
-										onClick={() => {}}
-									/>
-								</Tooltip>
-							);
-						})}
-
-						<Tooltip title="Add account">
-							<IconButton
-								sx={[
-									(theme) => {
-										return {
-											bgcolor: varAlpha(
-												theme.vars.palette.grey['500Channel'],
-												0.08,
-											),
-											border: `dashed 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.32)}`,
-										};
-									},
-								]}
-							>
-								<Iconify width={16} icon="mingcute:add-line" />
-							</IconButton>
-						</Tooltip>
-					</Box> */}
-
 					{renderList()}
-
-					{/* <Box sx={{ px: 2.5, py: 3 }}>
-						<UpgradeBlock />
-					</Box> */}
 				</Scrollbar>
 
 				<Box sx={{ p: 2.5 }}>
