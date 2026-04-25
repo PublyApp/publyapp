@@ -4,22 +4,29 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using MainApi.Localization;
+using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Routes;
 using MainApi.Src.Lib.Testing.Fixtures;
 using MainApi.Src.Lib.Testing.Helpers;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Modules.Users.Entities;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
 namespace MainApi.Src.Modules.Users.Handlers.Staff;
 
 public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
 	public DeleteStaffUserSpec(ApiFixture fixture) {
+		_fixture = fixture;
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);
 	}
@@ -104,9 +111,35 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		(await response.Content.ReadFromJsonAsync<ApiResponse>())!.Key
 			.Should().Be(ResponseKeys.StaffUserDeletedSuccess);
 
+		await AssertSoftDeletedRowsAsync(userId);
 		await AssertFindStaffUsersDoesNotContainAsync(staffToken, userId);
 		await AssertGetStaffUserReturnsNotFoundAsync(staffToken, userId);
 		await AssertGetStaffUserProfilesReturnsNotFoundAsync(staffToken, userId);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnBadRequestWhenDeletingWithMalformedId() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+
+		using var response = await DeleteStaffUserAsync(staffToken, "not-a-guid");
+
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+		(await response.Content.ReadFromJsonAsync<AppProblemDetails>())!.TranslationKey
+			.Should().Be(ResponseKeys.MalformedId);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnNotFoundWhenDeletingMissingStaffUser() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+
+		using var response = await DeleteStaffUserAsync(
+			staffToken,
+			Guid.NewGuid().ToString()
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+		(await response.Content.ReadFromJsonAsync<AppProblemDetails>())!.TranslationKey
+			.Should().Be(ResponseKeys.UserNotFound);
 	}
 
 	[Fact]
@@ -122,6 +155,37 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		(await response.Content.ReadFromJsonAsync<AppProblemDetails>())!.TranslationKey
 			.Should().Be(ResponseKeys.StaffUserNotSuspendedCannotDelete);
+	}
+
+	private async Task AssertSoftDeletedRowsAsync(string userId) {
+		var userIdGuid = Guid.Parse(userId);
+
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+
+		var user = await dbContext.User
+			.IgnoreQueryFilters()
+			.FirstOrDefaultAsync(x => x.Id == userIdGuid);
+		user.Should().NotBeNull();
+		user!.IsDeleted.Should().BeTrue();
+		user.DeletedAt.Should().NotBeNull();
+
+		var staffAccount = await dbContext.UserAccount
+			.IgnoreQueryFilters()
+			.FirstOrDefaultAsync(x =>
+				x.UserId == userIdGuid
+				&& x.Scope == AccountScope.Staff
+			);
+		staffAccount.Should().NotBeNull();
+		staffAccount!.IsDeleted.Should().BeTrue();
+		staffAccount.DeletedAt.Should().NotBeNull();
+
+		var userAccountProfile = await dbContext.UserAccountProfile
+			.IgnoreQueryFilters()
+			.FirstOrDefaultAsync(x => x.UserAccountId == staffAccount.GetRequiredId());
+		userAccountProfile.Should().NotBeNull();
+		userAccountProfile!.IsDeleted.Should().BeTrue();
+		userAccountProfile.DeletedAt.Should().NotBeNull();
 	}
 
 	private async Task<string> CreateStaffUserAsync(string staffToken, string email) {
