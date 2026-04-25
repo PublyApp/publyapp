@@ -36,7 +36,8 @@ public abstract record FindStaffUsersResult {
 }
 
 public sealed record FindStaffUsersFilters(
-	string? Search
+	string? Search,
+	IReadOnlySet<UserStatus>? Status
 );
 
 public sealed record FindStaffUsersArgs(
@@ -799,6 +800,13 @@ public class UserService : IUserService {
 						|| EF.Functions.ILike(ua.User.Email, pattern)
 					select ua;
 			}
+		}
+
+		if (args.Filters?.Status is { Count: > 0 } statuses) {
+			query =
+				from ua in query
+				where statuses.Contains(ua.User.Status)
+				select ua;
 		}
 
 		if (args.Cursor != Guid.Empty) {

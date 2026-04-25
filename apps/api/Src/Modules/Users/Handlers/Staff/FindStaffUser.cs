@@ -28,6 +28,9 @@ public class FindStaffUsersQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "q")]
 	public string? Search { get; set; }
 
+	[FromQuery]
+	public string? Status { get; set; }
+
 	public string? GetSearchNormalized() {
 		if (Search is null) {
 			return null;
@@ -36,12 +39,56 @@ public class FindStaffUsersQuery : CursorPaginatedQuery {
 		var trimmed = Search.Trim();
 		return trimmed.Length == 0 ? null : trimmed;
 	}
+
+	public IReadOnlySet<UserStatus>? GetStatusesOrNull() {
+		if (Status is null) {
+			return null;
+		}
+
+		var trimmed = Status.Trim();
+		if (trimmed.Length == 0) {
+			return null;
+		}
+
+		var parts = trimmed
+			.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+		if (parts.Length == 0) {
+			return null;
+		}
+
+		var statuses = new HashSet<UserStatus>();
+		foreach (var part in parts) {
+			UserStatus? parsed = User.ParseStatus(part);
+			if (parsed is { } status) {
+				statuses.Add(status);
+			}
+		}
+
+		return statuses.Count > 0 ? statuses : null;
+	}
 }
 
 public class FindStaffUsersQueryValidator
 	: CursorPaginatedQueryValidator<FindStaffUsersQuery> {
+	private static readonly HashSet<string> AllowedStatuses =
+		new(
+			["active", "pending", "suspended", "inactive"],
+			StringComparer.OrdinalIgnoreCase
+		);
+
 	public FindStaffUsersQueryValidator() {
 		RuleFor(x => x.Search).MaximumLength(200);
+		RuleFor(x => x.Status)
+			.Must(raw => {
+				if (string.IsNullOrEmpty(raw)) {
+					return true;
+				}
+
+				var parts = raw
+					.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+				return parts.All(AllowedStatuses.Contains);
+			})
+			.WithMessage("Invalid status value. Must be comma-separated: " + string.Join(",", AllowedStatuses));
 	}
 }
 
@@ -80,7 +127,8 @@ public class FindStaffUsers {
 				SortId: sortId,
 				SortOrder: sortOrder,
 				Filters: new FindStaffUsersFilters(
-					Search: search
+					Search: search,
+					Status: findStaffUsersQuery.GetStatusesOrNull()
 				)
 			),
 			cancellationToken
