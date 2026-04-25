@@ -257,9 +257,19 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey StaffUserAlreadySuspended = new("staff-user-already-suspended");
 
 	/// <summary>
+	/// Staff member deleted successfully
+	/// </summary>
+	public static readonly TranslationKey StaffUserDeletedSuccess = new("staff-user-deleted-success");
+
+	/// <summary>
 	/// Staff user is not currently suspended
 	/// </summary>
 	public static readonly TranslationKey StaffUserNotSuspended = new("staff-user-not-suspended");
+
+	/// <summary>
+	/// Only suspended staff users can be deleted
+	/// </summary>
+	public static readonly TranslationKey StaffUserNotSuspendedCannotDelete = new("staff-user-not-suspended-cannot-delete");
 
 	/// <summary>
 	/// Staff member reactivated successfully

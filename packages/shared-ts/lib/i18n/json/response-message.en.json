@@ -87,5 +87,7 @@
 	"staff-user-not-suspended": "Staff user is not currently suspended",
 	"staff-user-suspended-success": "Staff member suspended successfully",
 	"staff-user-reactivated-success": "Staff member reactivated successfully",
+	"staff-user-deleted-success": "Staff member deleted successfully",
+	"staff-user-not-suspended-cannot-delete": "Only suspended staff users can be deleted",
 	"email-already-in-use": "Email is already in use"
 }

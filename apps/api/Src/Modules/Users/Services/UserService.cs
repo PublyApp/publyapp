@@ -173,6 +173,15 @@ public abstract record ReactivateStaffUserResult {
 	public sealed record NotSuspended() : ReactivateStaffUserResult;
 }
 
+public abstract record DeleteStaffUserResult {
+	public sealed record Success(
+		StaffUserData UserData,
+		Guid UserAccountId
+	) : DeleteStaffUserResult;
+	public sealed record NotFound() : DeleteStaffUserResult;
+	public sealed record NotSuspended() : DeleteStaffUserResult;
+}
+
 public abstract record UpdateStaffUserEmailResult {
 	public sealed record Success(StaffUserData UserData) : UpdateStaffUserEmailResult;
 	public sealed record NotFound() : UpdateStaffUserEmailResult;
@@ -189,6 +198,7 @@ public interface IUserService {
 	Task<StaffUserData?> GetStaffUserUserByIdAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<SuspendStaffUserResult> SuspendStaffUserAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<ReactivateStaffUserResult> ReactivateStaffUserAsync(Guid userId, CancellationToken cancellationToken = default);
+	Task<DeleteStaffUserResult> DeleteStaffUserAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<UpdateStaffUserEmailResult> UpdateStaffUserEmailAsync(Guid userId, string email, CancellationToken cancellationToken = default);
 	Task<int> CountStaffUsersAsync(CancellationToken cancellationToken = default);
 	Task<FindStaffUsersResult> FindStaffUsersAsync(
@@ -395,6 +405,77 @@ public class UserService : IUserService {
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
 		return new ReactivateStaffUserResult.Success(userData);
+	}
+
+	public async Task<DeleteStaffUserResult> DeleteStaffUserAsync(
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		var target = await (
+			from ua in _dbContext.UserAccount
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select new {
+				UserAccountId = ua.GetRequiredId(),
+				User = ua.User,
+				Level = ua.Level,
+			}
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (target is null) {
+			return new DeleteStaffUserResult.NotFound();
+		}
+
+		if (!target.User.IsSuspended()) {
+			return new DeleteStaffUserResult.NotSuspended();
+		}
+
+		var now = DateTime.UtcNow;
+		await using var transaction = await _dbContext.Database.BeginTransactionAsync(
+			cancellationToken
+		);
+
+		await _dbContext.UserAccountProfile
+			.Where(x => x.UserAccountId == target.UserAccountId && !x.IsDeleted)
+			.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(x => x.IsDeleted, true)
+					.SetProperty(x => x.DeletedAt, now)
+					.SetProperty(x => x.UpdatedAt, now),
+				cancellationToken
+			);
+
+		await _dbContext.UserAccount
+			.Where(x => x.Id == target.UserAccountId && !x.IsDeleted)
+			.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(x => x.IsDeleted, true)
+					.SetProperty(x => x.DeletedAt, now)
+					.SetProperty(x => x.UpdatedAt, now),
+				cancellationToken
+			);
+
+		await _dbContext.User
+			.Where(x => x.Id == userId && !x.IsDeleted)
+			.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(x => x.IsDeleted, true)
+					.SetProperty(x => x.DeletedAt, now)
+					.SetProperty(x => x.UpdatedAt, now),
+				cancellationToken
+			);
+
+		await transaction.CommitAsync(cancellationToken);
+
+		return new DeleteStaffUserResult.Success(
+			new StaffUserData {
+				User = target.User,
+				AccountLevel = target.Level,
+			},
+			target.UserAccountId
+		);
 	}
 
 	public async Task<UpdateStaffUserEmailResult> UpdateStaffUserEmailAsync(

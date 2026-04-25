@@ -53,6 +53,14 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 		);
 	}
 
+	private static string GetDeleteUrl(string userId) {
+		return PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Users.ForStaff.Root,
+			Routes.Users.ForStaff.DeleteFn(userId)
+		);
+	}
+
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutSuspendPermission() {
 		var token = await CreateUnprivilegedStaffUserTokenAsync();
@@ -112,6 +120,25 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 		request.Content = JsonContent.Create(
 			new { email = $"new-email-{Guid.NewGuid():N}@example.com" }
 		);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnForbiddenForStaffWithoutDeletePermission() {
+		var token = await CreateUnprivilegedStaffUserTokenAsync();
+		var adminToken = await _authClient.LoginAsStaffAdminAsync();
+		var existingUserId = await GetStaffUserIdByEmailAsync(
+			_http,
+			adminToken,
+			TestConstants.StaffAdminEmail
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Delete,
+			GetDeleteUrl(existingUserId)
+		).WithSessionToken(token);
 
 		using var response = await _http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
