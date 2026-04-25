@@ -437,28 +437,59 @@ public class UserService : IUserService {
 			cancellationToken
 		);
 
+		var deletedUserCount = await _dbContext.User
+			.Where(x =>
+				x.Id == userId
+				&& !x.IsDeleted
+				&& x.Status == UserStatus.Suspended
+			)
+			.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(x => x.IsDeleted, true)
+					.SetProperty(x => x.DeletedAt, now)
+					.SetProperty(x => x.UpdatedAt, now),
+				cancellationToken
+			);
+
+		if (deletedUserCount == 0) {
+			await transaction.RollbackAsync(cancellationToken);
+
+			var currentState = await (
+				from ua in _dbContext.UserAccount
+				where ua.UserId == userId
+					&& ua.Scope == AccountScope.Staff
+					&& !ua.IsDeleted
+					&& !ua.User.IsDeleted
+				select (UserStatus?)ua.User.Status
+			).FirstOrDefaultAsync(cancellationToken);
+
+			return currentState == UserStatus.Suspended
+				? new DeleteStaffUserResult.NotFound()
+				: new DeleteStaffUserResult.NotSuspended();
+		}
+
+		var deletedUserAccountCount = await _dbContext.UserAccount
+			.Where(x =>
+				x.Id == target.UserAccountId
+				&& x.UserId == userId
+				&& x.Scope == AccountScope.Staff
+				&& !x.IsDeleted
+			)
+			.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(x => x.IsDeleted, true)
+					.SetProperty(x => x.DeletedAt, now)
+					.SetProperty(x => x.UpdatedAt, now),
+				cancellationToken
+			);
+
+		if (deletedUserAccountCount != 1) {
+			await transaction.RollbackAsync(cancellationToken);
+			return new DeleteStaffUserResult.NotFound();
+		}
+
 		await _dbContext.UserAccountProfile
 			.Where(x => x.UserAccountId == target.UserAccountId && !x.IsDeleted)
-			.ExecuteUpdateAsync(
-				setters => setters
-					.SetProperty(x => x.IsDeleted, true)
-					.SetProperty(x => x.DeletedAt, now)
-					.SetProperty(x => x.UpdatedAt, now),
-				cancellationToken
-			);
-
-		await _dbContext.UserAccount
-			.Where(x => x.Id == target.UserAccountId && !x.IsDeleted)
-			.ExecuteUpdateAsync(
-				setters => setters
-					.SetProperty(x => x.IsDeleted, true)
-					.SetProperty(x => x.DeletedAt, now)
-					.SetProperty(x => x.UpdatedAt, now),
-				cancellationToken
-			);
-
-		await _dbContext.User
-			.Where(x => x.Id == userId && !x.IsDeleted)
 			.ExecuteUpdateAsync(
 				setters => setters
 					.SetProperty(x => x.IsDeleted, true)
