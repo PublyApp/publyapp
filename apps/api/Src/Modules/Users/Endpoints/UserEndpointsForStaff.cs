@@ -73,6 +73,14 @@ public static class UserEndpointsForStaff {
 			.WithSummary("Reactivate a staff user")
 			.WithPermission([AppPermissions.Staff.Users.REACTIVATE_FOR_STAFF]);
 
+		group.MapDelete(
+				Routes.Users.ForStaff.Delete,
+				DeleteStaffUser.HandleDeleteStaffUser
+			)
+			.WithName("DeleteStaffUser")
+			.WithSummary("Soft-delete a suspended staff user")
+			.WithPermission([AppPermissions.Staff.Users.DELETE_FOR_STAFF]);
+
 		group.MapGet(
 				Routes.Users.ForStaff.Profiles.Get,
 				GetStaffUserProfiles.HandleGetStaffUserProfiles

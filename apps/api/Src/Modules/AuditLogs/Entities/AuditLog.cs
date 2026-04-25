@@ -71,5 +71,6 @@ public static class AuditActions {
 	// Staff-user lifecycle/identity operations (high impact, explicitly auditable).
 	public const string StaffUserSuspended = "staff.user.suspended";
 	public const string StaffUserReactivated = "staff.user.reactivated";
+	public const string StaffUserDeleted = "staff.user.deleted";
 	public const string StaffUserEmailUpdated = "staff.user.email.updated";
 }
