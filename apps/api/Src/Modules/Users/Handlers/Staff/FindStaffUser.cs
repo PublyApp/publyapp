@@ -71,10 +71,7 @@ public class FindStaffUsersQuery : CursorPaginatedQuery {
 public class FindStaffUsersQueryValidator
 	: CursorPaginatedQueryValidator<FindStaffUsersQuery> {
 	private static readonly HashSet<string> AllowedStatuses =
-		new(
-			["active", "pending", "suspended", "inactive"],
-			StringComparer.OrdinalIgnoreCase
-		);
+		new(["active", "pending", "suspended", "inactive"]);
 
 	public FindStaffUsersQueryValidator() {
 		RuleFor(x => x.Search).MaximumLength(200);

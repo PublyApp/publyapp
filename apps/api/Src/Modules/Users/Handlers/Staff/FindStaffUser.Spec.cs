@@ -107,6 +107,25 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldReturnValidationProblemForMixedCaseStatusFilter() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(status: "Suspended")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem =
+			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.Errors.Should().ContainKey("Status");
+	}
+
+	[Fact]
 	public async Task ItShouldReturnNextCursorWhenMoreStaffUsersExist() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 
