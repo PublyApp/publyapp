@@ -58,6 +58,55 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldFilterStaffUsersByStatusQuery() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var activeId = await CreateStaffUserAsync(
+			token,
+			$"active-{Guid.NewGuid():N}@example.com"
+		);
+		var suspendedId = await CreateStaffUserAsync(
+			token,
+			$"suspended-{Guid.NewGuid():N}@example.com"
+		);
+
+		await SetStaffUserStatusAsync(activeId, UserStatus.Active);
+		await SetStaffUserStatusAsync(suspendedId, UserStatus.Suspended);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(limit: 50, status: "suspended")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		result!.Data.Should().ContainSingle(user => user.Id == suspendedId);
+		result.Data.Should().NotContain(user => user.Id == activeId);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnValidationProblemForUnknownStatusFilter() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(status: "banned")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem =
+			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.Errors.Should().ContainKey("Status");
+	}
+
+	[Fact]
 	public async Task ItShouldReturnNextCursorWhenMoreStaffUsersExist() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 
@@ -222,7 +271,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		int? limit = null,
 		string? sortId = null,
 		string? sortOrder = null,
-		string? q = null
+		string? q = null,
+		string? status = null
 	) {
 		var basePath = PathUtils.Join(
 			Routes.Staff.Root,
@@ -246,6 +296,9 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		}
 		if (q is not null) {
 			queryParams.Add($"q={Uri.EscapeDataString(q)}");
+		}
+		if (status is not null) {
+			queryParams.Add($"status={Uri.EscapeDataString(status)}");
 		}
 
 		return queryParams.Count > 0
