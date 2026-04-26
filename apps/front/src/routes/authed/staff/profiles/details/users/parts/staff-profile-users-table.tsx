@@ -69,7 +69,6 @@ import StaffProfileUsersExportDialogController, {
 	type StaffProfileUsersExportDialogControllerRef,
 } from './staff-profile-users-export-dialog-controller.tsx';
 import {
-	getProfileUsersDebouncedSearchAction,
 	getVisibleSelectedRows,
 	reconcileVisibleProfileUserRowSelection,
 } from './staff-profile-users-table-helpers.ts';
@@ -249,21 +248,28 @@ export const StaffProfileUsersTable = () => {
 	}, [filterStates.q, isSelectionMode, search]);
 
 	useEffect(() => {
-		const searchAction = getProfileUsersDebouncedSearchAction({
+		const searchAction = getSelectionLockedSearchAction({
 			isSelectionMode,
 			isCancellingSelectionLockedSearch:
 				isCancellingSelectionLockedSearchRef.current,
-			debouncedQuery: debouncedQ,
-			persistedQuery: filterStates.q,
+			searchValue: search,
+			debouncedValue: debouncedQ,
+			persistedValue: filterStates.q,
 		});
 
 		if (searchAction === 'wait' || searchAction === 'none') {
 			return;
 		}
 
-		if (searchAction === 'clear-cancel') {
+		if (
+			searchAction === 'clear-cancel' ||
+			searchAction === 'clear-cancel-and-apply'
+		) {
 			isCancellingSelectionLockedSearchRef.current = false;
-			return;
+
+			if (searchAction === 'clear-cancel') {
+				return;
+			}
 		}
 
 		// Offset pagination: reset to page 1 when the query changes.
@@ -273,6 +279,7 @@ export const StaffProfileUsersTable = () => {
 		});
 		setFilterStates({ q: debouncedQ });
 	}, [
+		search,
 		debouncedQ,
 		filterStates.q,
 		isSelectionMode,

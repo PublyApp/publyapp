@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	getProfileUsersDebouncedSearchAction,
 	getVisibleSelectedRows,
 	reconcileVisibleProfileUserRowSelection,
 } from './staff-profile-users-table-helpers.ts';
@@ -35,15 +34,4 @@ test('getVisibleSelectedRows only counts selected rows that are still visible', 
 	);
 
 	assert.deepEqual(selectedRows, [{ id: 'user-2', email: 'two@example.com' }]);
-});
-
-test('getProfileUsersDebouncedSearchAction blocks a queued debounced search flush until the locked input has fully settled back', () => {
-	const action = getProfileUsersDebouncedSearchAction({
-		isSelectionMode: false,
-		isCancellingSelectionLockedSearch: true,
-		debouncedQuery: 'pending change',
-		persistedQuery: '',
-	});
-
-	assert.equal(action, 'wait');
 });
