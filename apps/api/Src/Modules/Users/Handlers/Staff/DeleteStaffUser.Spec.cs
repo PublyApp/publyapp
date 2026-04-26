@@ -100,9 +100,15 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		var staffToken = await _authClient.LoginAsStaffAdminAsync();
 		var email = $"delete-{Guid.NewGuid():N}@example.com";
 		var userId = await CreateStaffUserAsync(staffToken, email);
-		var profileId = await CreateStaffProfileAsync(staffToken);
+		var firstProfileId = await CreateStaffProfileAsync(staffToken);
+		var secondProfileId = await CreateStaffProfileAsync(staffToken);
 
-		await AssignProfileAsync(staffToken, userId, profileId);
+		await AssignProfilesAsync(
+			staffToken,
+			userId,
+			firstProfileId,
+			secondProfileId
+		);
 		await SuspendStaffUserAsync(staffToken, userId);
 
 		using var response = await DeleteStaffUserAsync(staffToken, userId);
@@ -111,7 +117,7 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		(await response.Content.ReadFromJsonAsync<ApiResponse>())!.Key
 			.Should().Be(ResponseKeys.StaffUserDeletedSuccess);
 
-		await AssertSoftDeletedRowsAsync(userId);
+		await AssertSoftDeletedRowsAsync(userId, expectedProfileLinkCount: 2);
 		await AssertFindStaffUsersDoesNotContainAsync(staffToken, userId);
 		await AssertGetStaffUserReturnsNotFoundAsync(staffToken, userId);
 		await AssertGetStaffUserProfilesReturnsNotFoundAsync(staffToken, userId);
@@ -157,7 +163,10 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 			.Should().Be(ResponseKeys.StaffUserNotSuspendedCannotDelete);
 	}
 
-	private async Task AssertSoftDeletedRowsAsync(string userId) {
+	private async Task AssertSoftDeletedRowsAsync(
+		string userId,
+		int expectedProfileLinkCount
+	) {
 		var userIdGuid = Guid.Parse(userId);
 
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
@@ -180,12 +189,16 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		staffAccount!.IsDeleted.Should().BeTrue();
 		staffAccount.DeletedAt.Should().NotBeNull();
 
-		var userAccountProfile = await dbContext.UserAccountProfile
+		var userAccountProfiles = await dbContext.UserAccountProfile
 			.IgnoreQueryFilters()
-			.FirstOrDefaultAsync(x => x.UserAccountId == staffAccount.GetRequiredId());
-		userAccountProfile.Should().NotBeNull();
-		userAccountProfile!.IsDeleted.Should().BeTrue();
-		userAccountProfile.DeletedAt.Should().NotBeNull();
+			.Where(x => x.UserAccountId == staffAccount.GetRequiredId())
+			.ToListAsync();
+
+		userAccountProfiles.Should().HaveCount(expectedProfileLinkCount);
+		userAccountProfiles.Should().OnlyContain(x =>
+			x.IsDeleted
+			&& x.DeletedAt != null
+		);
 	}
 
 	private async Task<string> CreateStaffUserAsync(string staffToken, string email) {
@@ -233,13 +246,17 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		return created!.ProfileId.ToString();
 	}
 
-	private async Task AssignProfileAsync(string staffToken, string userId, string profileId) {
+	private async Task AssignProfilesAsync(
+		string staffToken,
+		string userId,
+		params string[] profileIds
+	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Put,
 			GetUpdateProfilesUrl(userId)
 		).WithSessionToken(staffToken);
 
-		request.Content = JsonContent.Create(new { profileIds = new[] { profileId } });
+		request.Content = JsonContent.Create(new { profileIds });
 
 		using var response = await _http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
