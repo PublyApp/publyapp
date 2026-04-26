@@ -607,6 +607,8 @@ public class UserService : IUserService {
 	) {
 		// Hold the staff-account row lock until commit so a concurrent delete cannot
 		// soft-delete the account while missing this transaction's uncommitted links.
+		// If delete arrives after we hold this lock, it serializes behind us and cleans
+		// up the committed links once the lock is released.
 		return await _dbContext.UserAccount
 			.FromSqlInterpolated($"""
 				SELECT ua.*
@@ -1196,6 +1198,9 @@ public class UserService : IUserService {
 		await using var transaction = await _dbContext.Database.BeginTransactionAsync(
 			cancellationToken
 		);
+		// This is intentional commit-order serialization: if profile update acquires the
+		// live staff-account lock and commits first, it returns Success. A concurrent
+		// delete blocks on the same account row and then sweeps these committed links.
 		var lockedStaffAccount =
 			await LockLiveStaffUserAccountForProfileUpdateAsync(
 				userId,
