@@ -1,5 +1,4 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useMemo } from 'react';
 
 import { toast } from '#app/components/snackbar/index.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
@@ -13,38 +12,38 @@ import {
 	useBulkDeleteStaffUsers,
 	useBulkReactivateStaffUsers,
 	useBulkSuspendStaffUsers,
-	useFindStaffUser,
 } from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
+
+import {
+	clearDeletedStaffUserRelatedQueries,
+	getSuccessfulBulkStaffUserIds,
+	invalidateStaffUsersListAndDetails,
+} from './staff-users-list-helpers.ts';
 
 export type StaffUsersBulkActionType = 'suspend' | 'reactivate' | 'delete';
 
 type UseStaffUsersBulkActionsProps = {
-	rowSelection: Record<string, boolean>;
+	selectedUserIds: string[];
 	onSuccess: (type: StaffUsersBulkActionType) => void;
 };
 
 export const useStaffUsersBulkActions = ({
-	rowSelection,
+	selectedUserIds,
 	onSuccess,
 }: UseStaffUsersBulkActionsProps) => {
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
-	const selectedUserIds = useMemo(() => {
-		return Object.keys(rowSelection).filter((id) => rowSelection[id]);
-	}, [rowSelection]);
-
-	const invalidateStaffUsers = () => {
-		void queryClient.invalidateQueries({
-			queryKey: useFindStaffUser.getKey(),
-		});
-	};
 
 	const { mutate: bulkSuspend, isPending: isBulkSuspending } =
 		useBulkSuspendStaffUsers({
 			meta: { skipGlobalErrorHandler: true },
-			onSuccess: (result) => {
+			onSuccess: async (result) => {
 				const succeeded = result.succeededCount ?? 0;
 				const failed = result.failedCount ?? 0;
+				const successfulUserIds = getSuccessfulBulkStaffUserIds({
+					requestedUserIds: selectedUserIds,
+					result,
+				});
 
 				if (failed > 0) {
 					toast.warning(
@@ -62,7 +61,10 @@ export const useStaffUsersBulkActions = ({
 				}
 
 				onSuccess('suspend');
-				invalidateStaffUsers();
+				await invalidateStaffUsersListAndDetails({
+					queryClient,
+					userIds: successfulUserIds,
+				});
 			},
 			onError: (error: unknown) => {
 				const failure = toApiFailure(error);
@@ -87,9 +89,13 @@ export const useStaffUsersBulkActions = ({
 	const { mutate: bulkReactivate, isPending: isBulkReactivating } =
 		useBulkReactivateStaffUsers({
 			meta: { skipGlobalErrorHandler: true },
-			onSuccess: (result) => {
+			onSuccess: async (result) => {
 				const succeeded = result.succeededCount ?? 0;
 				const failed = result.failedCount ?? 0;
+				const successfulUserIds = getSuccessfulBulkStaffUserIds({
+					requestedUserIds: selectedUserIds,
+					result,
+				});
 
 				if (failed > 0) {
 					toast.warning(
@@ -107,7 +113,10 @@ export const useStaffUsersBulkActions = ({
 				}
 
 				onSuccess('reactivate');
-				invalidateStaffUsers();
+				await invalidateStaffUsersListAndDetails({
+					queryClient,
+					userIds: successfulUserIds,
+				});
 			},
 			onError: (error: unknown) => {
 				const failure = toApiFailure(error);
@@ -132,9 +141,13 @@ export const useStaffUsersBulkActions = ({
 	const { mutate: bulkDelete, isPending: isBulkDeleting } =
 		useBulkDeleteStaffUsers({
 			meta: { skipGlobalErrorHandler: true },
-			onSuccess: (result) => {
+			onSuccess: async (result) => {
 				const succeeded = result.succeededCount ?? 0;
 				const failed = result.failedCount ?? 0;
+				const successfulUserIds = getSuccessfulBulkStaffUserIds({
+					requestedUserIds: selectedUserIds,
+					result,
+				});
 
 				if (failed > 0) {
 					toast.warning(
@@ -152,7 +165,14 @@ export const useStaffUsersBulkActions = ({
 				}
 
 				onSuccess('delete');
-				invalidateStaffUsers();
+				await invalidateStaffUsersListAndDetails({
+					queryClient,
+					userIds: successfulUserIds,
+				});
+				clearDeletedStaffUserRelatedQueries({
+					queryClient,
+					userIds: successfulUserIds,
+				});
 			},
 			onError: (error: unknown) => {
 				const failure = toApiFailure(error);
@@ -177,12 +197,24 @@ export const useStaffUsersBulkActions = ({
 	return {
 		selectedUserIds,
 		handleBulkSuspend: () => {
+			if (selectedUserIds.length === 0) {
+				return;
+			}
+
 			bulkSuspend({ userIds: selectedUserIds });
 		},
 		handleBulkReactivate: () => {
+			if (selectedUserIds.length === 0) {
+				return;
+			}
+
 			bulkReactivate({ userIds: selectedUserIds });
 		},
 		handleBulkDelete: () => {
+			if (selectedUserIds.length === 0) {
+				return;
+			}
+
 			bulkDelete({ userIds: selectedUserIds });
 		},
 		isBulkSuspending,

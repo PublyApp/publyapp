@@ -23,12 +23,15 @@ import {
 } from '#app/lib/react-query/features/common/auth.hooks.ts';
 import {
 	useDeleteStaffUser,
-	useFindStaffUser,
-	useReactivateStaffUser,
 	useSuspendStaffUser,
+	useReactivateStaffUser,
 } from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
 
 import type { StaffUserRowData } from './use-staff-users-table-controller.ts';
+import {
+	clearDeletedStaffUserRelatedQueries,
+	invalidateStaffUsersListAndDetails,
+} from './staff-users-list-helpers.ts';
 
 const ALLOW_COPY_LINK = false;
 
@@ -47,36 +50,43 @@ const StaffUserRowActions = ({ user }: StaffUserRowActionsProps) => {
 	const isSuspended = user.status === USER_STATUS_ENUM.SUSPENDED;
 	const canDelete = isSuspended;
 
-	const invalidateStaffUsers = () => {
-		void queryClient.invalidateQueries({
-			queryKey: useFindStaffUser.getKey(),
-		});
-	};
-
 	const { mutate: suspendStaffUser, isPending: isSuspending } =
 		useSuspendStaffUser({
 			meta: { successMessage: 'staff-user-suspended-success' },
-			onSuccess: () => {
+			onSuccess: async () => {
 				setSuspendDialogOpen(false);
-				invalidateStaffUsers();
+				await invalidateStaffUsersListAndDetails({
+					queryClient,
+					userIds: [user.id],
+				});
 			},
 		});
 
 	const { mutate: reactivateStaffUser, isPending: isReactivating } =
 		useReactivateStaffUser({
 			meta: { successMessage: 'staff-user-reactivated-success' },
-			onSuccess: () => {
+			onSuccess: async () => {
 				setReactivateDialogOpen(false);
-				invalidateStaffUsers();
+				await invalidateStaffUsersListAndDetails({
+					queryClient,
+					userIds: [user.id],
+				});
 			},
 		});
 
 	const { mutate: deleteStaffUser, isPending: isDeleting } = useDeleteStaffUser(
 		{
 			meta: { successMessage: 'staff-user-deleted-success' },
-			onSuccess: () => {
+			onSuccess: async () => {
 				setDeleteDialogOpen(false);
-				invalidateStaffUsers();
+				await invalidateStaffUsersListAndDetails({
+					queryClient,
+					userIds: [user.id],
+				});
+				clearDeletedStaffUserRelatedQueries({
+					queryClient,
+					userIds: [user.id],
+				});
 			},
 		},
 	);
