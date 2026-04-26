@@ -217,6 +217,10 @@ public interface IUserService {
 		IReadOnlyCollection<Guid> userIds,
 		CancellationToken cancellationToken = default
 	);
+	Task<BulkStaffUserActionResult> BulkDeleteStaffUsersAsync(
+		IReadOnlyCollection<Guid> userIds,
+		CancellationToken cancellationToken = default
+	);
 	Task<DeleteStaffUserResult> DeleteStaffUserAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<UpdateStaffUserEmailResult> UpdateStaffUserEmailAsync(Guid userId, string email, CancellationToken cancellationToken = default);
 	Task<int> CountStaffUsersAsync(CancellationToken cancellationToken = default);
@@ -596,6 +600,56 @@ public class UserService : IUserService {
 
 			throw new InvalidOperationException(
 				$"Unknown bulk reactivate staff user result: {resolvedResult.GetType().Name}"
+			);
+		}
+
+		return new BulkStaffUserActionResult(
+			succeededCount,
+			failedItems.Count,
+			failedItems
+		);
+	}
+
+	public async Task<BulkStaffUserActionResult> BulkDeleteStaffUsersAsync(
+		IReadOnlyCollection<Guid> userIds,
+		CancellationToken cancellationToken = default
+	) {
+		var requestedIds = userIds.Distinct().ToList();
+		if (requestedIds.Count == 0) {
+			return new BulkStaffUserActionResult(0, 0, []);
+		}
+
+		var failedItems = new List<BulkStaffUserFailedItem>();
+		var succeededCount = 0;
+
+		foreach (var userId in requestedIds) {
+			var result = await DeleteStaffUserAsync(
+				userId,
+				cancellationToken
+			);
+
+			if (result is DeleteStaffUserResult.Success) {
+				succeededCount++;
+				continue;
+			}
+
+			if (result is DeleteStaffUserResult.NotFound) {
+				failedItems.Add(new BulkStaffUserFailedItem(userId, "User not found"));
+				continue;
+			}
+
+			if (result is DeleteStaffUserResult.NotSuspended) {
+				failedItems.Add(
+					new BulkStaffUserFailedItem(
+						userId,
+						"User must be suspended before deletion"
+					)
+				);
+				continue;
+			}
+
+			throw new InvalidOperationException(
+				$"Unknown bulk delete staff user result: {result.GetType().Name}"
 			);
 		}
 

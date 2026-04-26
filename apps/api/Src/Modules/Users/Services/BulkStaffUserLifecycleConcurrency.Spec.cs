@@ -161,6 +161,75 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 		stableState.HasLiveStaffAccount.Should().BeTrue();
 	}
 
+	[Fact]
+	public async Task ItShouldReturnFailureItemWhenBulkDeleteTargetWasDeletedConcurrently() {
+		var raceUserId = await CreateStaffUserAsync(UserStatus.Suspended);
+		var stableUserId = await CreateStaffUserAsync(UserStatus.Suspended);
+
+		var result = await RunWithConcurrentUsersUpdateAsync(
+			service => service.BulkDeleteStaffUsersAsync(
+				[raceUserId, stableUserId]
+			),
+			(dbContext, cancellationToken) => SoftDeleteStaffUserAsync(
+				dbContext,
+				raceUserId,
+				cancellationToken
+			)
+		);
+
+		result.SucceededCount.Should().Be(1);
+		result.FailedCount.Should().Be(1);
+		result.FailedItems.Should().ContainSingle(item =>
+			item.UserId == raceUserId
+			&& item.Error == "User not found"
+		);
+
+		var raceState = await GetStaffUserStateAsync(raceUserId);
+		raceState.IsDeleted.Should().BeTrue();
+		raceState.Status.Should().Be(UserStatus.Suspended);
+		raceState.HasLiveStaffAccount.Should().BeFalse();
+
+		var stableState = await GetStaffUserStateAsync(stableUserId);
+		stableState.IsDeleted.Should().BeTrue();
+		stableState.Status.Should().Be(UserStatus.Suspended);
+		stableState.HasLiveStaffAccount.Should().BeFalse();
+	}
+
+	[Fact]
+	public async Task ItShouldReturnFailureItemWhenBulkDeleteTargetWasReactivatedConcurrently() {
+		var raceUserId = await CreateStaffUserAsync(UserStatus.Suspended);
+		var stableUserId = await CreateStaffUserAsync(UserStatus.Suspended);
+
+		var result = await RunWithConcurrentUsersUpdateAsync(
+			service => service.BulkDeleteStaffUsersAsync(
+				[raceUserId, stableUserId]
+			),
+			(dbContext, cancellationToken) => SetStaffUserStatusAsync(
+				dbContext,
+				raceUserId,
+				UserStatus.Active,
+				cancellationToken
+			)
+		);
+
+		result.SucceededCount.Should().Be(1);
+		result.FailedCount.Should().Be(1);
+		result.FailedItems.Should().ContainSingle(item =>
+			item.UserId == raceUserId
+			&& item.Error == "User must be suspended before deletion"
+		);
+
+		var raceState = await GetStaffUserStateAsync(raceUserId);
+		raceState.IsDeleted.Should().BeFalse();
+		raceState.Status.Should().Be(UserStatus.Active);
+		raceState.HasLiveStaffAccount.Should().BeTrue();
+
+		var stableState = await GetStaffUserStateAsync(stableUserId);
+		stableState.IsDeleted.Should().BeTrue();
+		stableState.Status.Should().Be(UserStatus.Suspended);
+		stableState.HasLiveStaffAccount.Should().BeFalse();
+	}
+
 	private async Task<Guid> CreateStaffUserAsync(UserStatus status) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();

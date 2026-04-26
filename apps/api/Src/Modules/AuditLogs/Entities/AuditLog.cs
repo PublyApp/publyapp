@@ -73,6 +73,7 @@ public static class AuditActions {
 	public const string StaffUserReactivated = "staff.user.reactivated";
 	public const string StaffUserBulkSuspended = "staff.user.bulk.suspended";
 	public const string StaffUserBulkReactivated = "staff.user.bulk.reactivated";
+	public const string StaffUserBulkDeleted = "staff.user.bulk.deleted";
 	public const string StaffUserDeleted = "staff.user.deleted";
 	public const string StaffUserEmailUpdated = "staff.user.email.updated";
 }

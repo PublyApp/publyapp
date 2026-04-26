@@ -4,6 +4,8 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createCreateStaffUserResultFromDiscriminatorValue, createFindStaffUsersResponseFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializeCreateStaffUserBody, serializeCreateStaffUserResult, type AppProblemDetails, type CreateStaffUserBody, type CreateStaffUserResult, type FindStaffUsersResponse, type ValidationProblemDetails } from '../../models/index.js';
 // @ts-ignore
+import { BulkDeleteRequestBuilderRequestsMetadata, type BulkDeleteRequestBuilder } from './bulkDelete/index.js';
+// @ts-ignore
 import { BulkReactivateRequestBuilderRequestsMetadata, type BulkReactivateRequestBuilder } from './bulkReactivate/index.js';
 // @ts-ignore
 import { BulkSuspendRequestBuilderRequestsMetadata, type BulkSuspendRequestBuilder } from './bulkSuspend/index.js';
@@ -16,6 +18,10 @@ import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type 
  * Builds and executes requests for operations under /staff/users
  */
 export interface UsersRequestBuilder extends BaseRequestBuilder<UsersRequestBuilder> {
+    /**
+     * The bulkDelete property
+     */
+    get bulkDelete(): BulkDeleteRequestBuilder;
     /**
      * The bulkReactivate property
      */
@@ -97,6 +103,9 @@ export const UsersRequestBuilderNavigationMetadata: Record<Exclude<keyof UsersRe
         requestsMetadata: WithUserItemRequestBuilderRequestsMetadata,
         navigationMetadata: WithUserItemRequestBuilderNavigationMetadata,
         pathParametersMappings: ["userId"],
+    },
+    bulkDelete: {
+        requestsMetadata: BulkDeleteRequestBuilderRequestsMetadata,
     },
     bulkReactivate: {
         requestsMetadata: BulkReactivateRequestBuilderRequestsMetadata,

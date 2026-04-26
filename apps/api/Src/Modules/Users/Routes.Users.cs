@@ -29,6 +29,7 @@ public static partial class Routes {
 			public static string ReactivateFn(string userId) => $"/{userId}/reactivate";
 			public const string BulkSuspend = "/bulk-suspend";
 			public const string BulkReactivate = "/bulk-reactivate";
+			public const string BulkDelete = "/bulk-delete";
 			public const string Delete = "/{userId}";
 			public static string DeleteFn(string userId) => $"/{userId}";
 

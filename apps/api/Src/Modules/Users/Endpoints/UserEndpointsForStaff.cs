@@ -91,6 +91,15 @@ public static class UserEndpointsForStaff {
 			.WithReqBodyValidation<BulkReactivateStaffUsersBody>()
 			.WithPermission([AppPermissions.Staff.Users.REACTIVATE_FOR_STAFF]);
 
+		group.MapPost(
+				Routes.Users.ForStaff.BulkDelete,
+				BulkDeleteStaffUsers.HandleBulkDeleteStaffUsers
+			)
+			.WithName("BulkDeleteStaffUsers")
+			.WithSummary("Bulk delete staff users")
+			.WithReqBodyValidation<BulkDeleteStaffUsersBody>()
+			.WithPermission([AppPermissions.Staff.Users.DELETE_FOR_STAFF]);
+
 		group.MapDelete(
 				Routes.Users.ForStaff.Delete,
 				DeleteStaffUser.HandleDeleteStaffUser
