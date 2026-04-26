@@ -70,6 +70,30 @@ public sealed class StaffUserLifecycleConcurrencySpec
 
 	[Fact]
 	public async Task
+	ItShouldReturnSuccessWhenSuspendingStaffUserWhoWasDeletedAfterUpdateCommitted() {
+		var userId = await CreateStaffUserAsync(UserStatus.Active);
+
+		var result = await RunAfterSuccessfulUsersUpdateAsync(
+			service => service.SuspendStaffUserAsync(userId),
+			(dbContext, cancellationToken) => SoftDeleteStaffUserAsync(
+				dbContext,
+				userId,
+				cancellationToken
+			)
+		);
+
+		result.Should().BeOfType<SuspendStaffUserResult.Success>();
+		var success = (SuspendStaffUserResult.Success)result;
+		success.UserData.User.Status.Should().Be(UserStatus.Suspended);
+
+		var state = await GetStaffUserStateAsync(userId);
+		state.IsDeleted.Should().BeTrue();
+		state.Status.Should().Be(UserStatus.Suspended);
+		state.HasLiveStaffAccount.Should().BeFalse();
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnNotFoundWhenReactivatingStaffUserWhoseAccountWasDeletedConcurrently() {
 		var userId = await CreateStaffUserAsync(UserStatus.Suspended);
 
@@ -111,6 +135,30 @@ public sealed class StaffUserLifecycleConcurrencySpec
 		state.IsDeleted.Should().BeFalse();
 		state.Status.Should().Be(UserStatus.Active);
 		state.HasLiveStaffAccount.Should().BeTrue();
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnSuccessWhenReactivatingStaffUserWhoWasDeletedAfterUpdateCommitted() {
+		var userId = await CreateStaffUserAsync(UserStatus.Suspended);
+
+		var result = await RunAfterSuccessfulUsersUpdateAsync(
+			service => service.ReactivateStaffUserAsync(userId),
+			(dbContext, cancellationToken) => SoftDeleteStaffUserAsync(
+				dbContext,
+				userId,
+				cancellationToken
+			)
+		);
+
+		result.Should().BeOfType<ReactivateStaffUserResult.Success>();
+		var success = (ReactivateStaffUserResult.Success)result;
+		success.UserData.User.Status.Should().Be(UserStatus.Active);
+
+		var state = await GetStaffUserStateAsync(userId);
+		state.IsDeleted.Should().BeTrue();
+		state.Status.Should().Be(UserStatus.Active);
+		state.HasLiveStaffAccount.Should().BeFalse();
 	}
 
 	[Fact]
@@ -189,6 +237,32 @@ public sealed class StaffUserLifecycleConcurrencySpec
 	) {
 		var connectionString = await GetConnectionStringAsync();
 		var interceptor = new BeforeUsersUpdateInterceptor(async cancellationToken => {
+			await using var mutateScope = _fixture.Factory.Services.CreateAsyncScope();
+			var mutateDbContext = mutateScope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+
+			await mutateAsync(mutateDbContext, cancellationToken);
+		});
+
+		var options = new DbContextOptionsBuilder<MainApiDbContext>()
+			.UseNpgsql(connectionString)
+			.AddInterceptors(interceptor)
+			.Options;
+
+		await using var dbContext = new MainApiDbContext(options);
+		var service = new UserService(
+			dbContext,
+			NullLogger<UserService>.Instance
+		);
+
+		return await operationAsync(service);
+	}
+
+	private async Task<TResult> RunAfterSuccessfulUsersUpdateAsync<TResult>(
+		Func<UserService, Task<TResult>> operationAsync,
+		Func<MainApiDbContext, CancellationToken, Task> mutateAsync
+	) {
+		var connectionString = await GetConnectionStringAsync();
+		var interceptor = new AfterUsersUpdateInterceptor(async cancellationToken => {
 			await using var mutateScope = _fixture.Factory.Services.CreateAsyncScope();
 			var mutateDbContext = mutateScope.ServiceProvider.GetRequiredService<MainApiDbContext>();
 
@@ -344,6 +418,48 @@ public sealed class StaffUserLifecycleConcurrencySpec
 			}
 
 			return await base.NonQueryExecutingAsync(
+				command,
+				eventData,
+				result,
+				cancellationToken
+			);
+		}
+	}
+
+	private sealed class AfterUsersUpdateInterceptor : DbCommandInterceptor {
+		private readonly Func<CancellationToken, Task> _afterUsersUpdateAsync;
+		private bool _hasRun;
+
+		public AfterUsersUpdateInterceptor(
+			Func<CancellationToken, Task> afterUsersUpdateAsync
+		) {
+			_afterUsersUpdateAsync = afterUsersUpdateAsync;
+		}
+
+		public override async ValueTask<int> NonQueryExecutedAsync(
+			DbCommand command,
+			CommandExecutedEventData eventData,
+			int result,
+			CancellationToken cancellationToken = default
+		) {
+			if (
+				!_hasRun
+				&& (
+					command.CommandText.Contains(
+						"UPDATE users",
+						StringComparison.OrdinalIgnoreCase
+					)
+					|| command.CommandText.Contains(
+						"UPDATE \"users\"",
+						StringComparison.OrdinalIgnoreCase
+					)
+				)
+			) {
+				_hasRun = true;
+				await _afterUsersUpdateAsync(cancellationToken);
+			}
+
+			return await base.NonQueryExecutedAsync(
 				command,
 				eventData,
 				result,
