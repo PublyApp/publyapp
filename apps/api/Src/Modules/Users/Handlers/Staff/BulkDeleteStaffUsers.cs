@@ -60,10 +60,17 @@ public sealed class BulkDeleteStaffUsers {
 		}
 
 		var userIds = body.GetUserIds();
+		var requestedUserIds = userIds.Distinct().ToList();
 		var result = await userService.BulkDeleteStaffUsersAsync(
 			userIds,
 			cancellationToken
 		);
+		var failedUserIds = result.FailedItems
+			.Select(item => item.UserId)
+			.ToHashSet();
+		var succeededUserIds = requestedUserIds
+			.Where(userId => !failedUserIds.Contains(userId))
+			.ToList();
 
 		if (logger.IsEnabled(LogLevel.Information)) {
 			logger.LogInformation(
@@ -78,10 +85,12 @@ public sealed class BulkDeleteStaffUsers {
 			AuditActions.StaffUserBulkDeleted,
 			null,
 			new {
-				RequestedCount = userIds.Distinct().Count(),
+				RequestedCount = requestedUserIds.Count,
 				SucceededCount = result.SucceededCount,
 				FailedCount = result.FailedCount,
-				UserIds = userIds.Distinct().ToList()
+				RequestedUserIds = requestedUserIds,
+				SucceededUserIds = succeededUserIds,
+				FailedItems = result.FailedItems
 			},
 			cancellationToken
 		);

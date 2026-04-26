@@ -6,11 +6,13 @@ using FluentAssertions;
 
 using MainApi.Localization;
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Routes;
 using MainApi.Src.Lib.Testing.Fixtures;
 using MainApi.Src.Lib.Testing.Helpers;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Modules.AuditLogs.Entities;
 using MainApi.Src.Modules.Users.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -54,6 +56,46 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
 			Routes.Users.ForStaff.SuspendFn(userId)
+		);
+	}
+
+	private static string GetFindUrl() {
+		return PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Users.ForStaff.Root,
+			Routes.Users.ForStaff.Find
+		) + "?limit=100";
+	}
+
+	private static string GetByIdUrl(string userId) {
+		return PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Users.ForStaff.Root,
+			Routes.Users.ForStaff.GetByIdFn(userId)
+		);
+	}
+
+	private static string GetProfilesUrl(string userId) {
+		return PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Users.ForStaff.Root,
+			Routes.Users.ForStaff.Profiles.GetFn(userId)
+		);
+	}
+
+	private static string GetUpdateProfilesUrl(string userId) {
+		return PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Users.ForStaff.Root,
+			Routes.Users.ForStaff.Profiles.UpdateFn(userId)
+		);
+	}
+
+	private static string GetCreateProfileUrl() {
+		return PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Profiles.ForStaff.Root,
+			Routes.Profiles.ForStaff.Create
 		);
 	}
 
@@ -193,6 +235,88 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
+	[Fact]
+	public async Task
+	ItShouldRecordPerUserAuditOutcomesWhenBulkDeleteReusesSingleDeleteLifecycle() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var actorUserId = await AuditLogTestHelper.GetUserIdByEmailAsync(
+			_fixture.Factory,
+			TestConstants.StaffAdminEmail
+		);
+		var deletedUserId = await CreateStaffUserAsync(
+			staffToken,
+			$"bulk-delete-audit-{Guid.NewGuid():N}@example.com"
+		);
+		var deletedUserIdGuid = Guid.Parse(deletedUserId);
+		var firstProfileId = await CreateStaffProfileAsync(staffToken);
+		var secondProfileId = await CreateStaffProfileAsync(staffToken);
+		var unsuspendedUserId = Guid.Parse(
+			await CreateStaffUserAsync(
+				staffToken,
+				$"bulk-delete-audit-unsuspended-{Guid.NewGuid():N}@example.com"
+			)
+		);
+		var missingUserId = Guid.NewGuid();
+
+		await AssignProfilesAsync(
+			staffToken,
+			deletedUserId,
+			firstProfileId,
+			secondProfileId
+		);
+		await SuspendStaffUserAsync(staffToken, deletedUserId);
+
+		var startedAt = DateTime.UtcNow;
+
+		using var response = await BulkDeleteAsync(
+			staffToken,
+			deletedUserIdGuid,
+			unsuspendedUserId,
+			missingUserId
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<BulkStaffUserActionResponse>();
+		result.Should().NotBeNull();
+		result!.SucceededCount.Should().Be(1);
+		result.FailedCount.Should().Be(2);
+
+		await AssertSoftDeletedRowsAsync(
+			deletedUserIdGuid,
+			expectedProfileLinkCount: 2
+		);
+		await AssertFindStaffUsersDoesNotContainAsync(
+			staffToken,
+			deletedUserId
+		);
+		await AssertGetStaffUserReturnsNotFoundAsync(
+			staffToken,
+			deletedUserId
+		);
+		await AssertGetStaffUserProfilesReturnsNotFoundAsync(
+			staffToken,
+			deletedUserId
+		);
+
+		await AssertLatestBulkDeleteAuditLogAsync(
+			actorUserId,
+			startedAt,
+			[deletedUserIdGuid, unsuspendedUserId, missingUserId],
+			[deletedUserIdGuid],
+			[
+				new BulkDeleteAuditFailedItemResponse {
+					UserId = unsuspendedUserId,
+					Error = "User must be suspended before deletion"
+				},
+				new BulkDeleteAuditFailedItemResponse {
+					UserId = missingUserId,
+					Error = "User not found"
+				}
+			]
+		);
+	}
+
 	private async Task<string> CreateStaffUserAsync(string staffToken, string email) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
@@ -225,6 +349,45 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
+	private async Task<string> CreateStaffProfileAsync(string staffToken) {
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetCreateProfileUrl()
+		).WithSessionToken(staffToken);
+
+		request.Content = JsonContent.Create(
+			new {
+				name = "Bulk Delete Staff User " + Guid.NewGuid().ToString("N")[..8],
+				description = "Profile used by BulkDeleteStaffUsersSpec",
+				permissions = new[] { AppPermissions.Staff.Users.LIST_FOR_STAFF.Key },
+				emails = Array.Empty<string>(),
+			}
+		);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+		var created = await response.Content.ReadFromJsonAsync<StaffProfileCreatedResponse>();
+		created.Should().NotBeNull();
+		return created!.ProfileId.ToString();
+	}
+
+	private async Task AssignProfilesAsync(
+		string staffToken,
+		string userId,
+		params string[] profileIds
+	) {
+		using var request = new HttpRequestMessage(
+			HttpMethod.Put,
+			GetUpdateProfilesUrl(userId)
+		).WithSessionToken(staffToken);
+
+		request.Content = JsonContent.Create(new { profileIds });
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+	}
+
 	private async Task<HttpResponseMessage> BulkDeleteAsync(
 		string staffToken,
 		params Guid[] userIds
@@ -249,7 +412,10 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 		return await _http.SendAsync(request);
 	}
 
-	private async Task AssertSoftDeletedRowsAsync(Guid userId) {
+	private async Task AssertSoftDeletedRowsAsync(
+		Guid userId,
+		int? expectedProfileLinkCount = null
+	) {
 		await AssertStaffUserStateAsync(
 			userId,
 			expectedStatus: UserStatus.Suspended,
@@ -269,6 +435,21 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 		staffAccount.Should().NotBeNull();
 		staffAccount!.IsDeleted.Should().BeTrue();
 		staffAccount.DeletedAt.Should().NotBeNull();
+
+		if (expectedProfileLinkCount is null) {
+			return;
+		}
+
+		var userAccountProfiles = await dbContext.UserAccountProfile
+			.IgnoreQueryFilters()
+			.Where(x => x.UserAccountId == staffAccount.GetRequiredId())
+			.ToListAsync();
+
+		userAccountProfiles.Should().HaveCount(expectedProfileLinkCount.Value);
+		userAccountProfiles.Should().OnlyContain(x =>
+			x.IsDeleted
+			&& x.DeletedAt != null
+		);
 	}
 
 	private async Task AssertStaffUserStateAsync(
@@ -301,6 +482,85 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 		user.Should().NotBeNull();
 		user!.IsDeleted.Should().BeFalse();
 		user.IsSuspended().Should().BeFalse();
+	}
+
+	private async Task AssertFindStaffUsersDoesNotContainAsync(
+		string staffToken,
+		string userId
+	) {
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl()
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindStaffUsersResponse>();
+		result.Should().NotBeNull();
+		result!.Data.Should().NotContain(x => x.Id == Guid.Parse(userId));
+	}
+
+	private async Task AssertGetStaffUserReturnsNotFoundAsync(
+		string staffToken,
+		string userId
+	) {
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetByIdUrl(userId)
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+	}
+
+	private async Task AssertGetStaffUserProfilesReturnsNotFoundAsync(
+		string staffToken,
+		string userId
+	) {
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetProfilesUrl(userId)
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+	}
+
+	private async Task AssertLatestBulkDeleteAuditLogAsync(
+		Guid actorUserId,
+		DateTime startedAt,
+		IReadOnlyCollection<Guid> requestedUserIds,
+		IReadOnlyCollection<Guid> succeededUserIds,
+		IReadOnlyCollection<BulkDeleteAuditFailedItemResponse> failedItems
+	) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+
+		var auditLog = await dbContext.AuditLog
+			.AsNoTracking()
+			.Where(x =>
+				x.UserId == actorUserId
+				&& x.Action == AuditActions.StaffUserBulkDeleted
+				&& x.CreatedAt >= startedAt
+			)
+			.OrderByDescending(x => x.CreatedAt)
+			.FirstOrDefaultAsync();
+
+		auditLog.Should().NotBeNull();
+		auditLog!.Details.Should().NotBeNull();
+
+		var details = JsonSerializer.Deserialize<BulkDeleteAuditDetails>(
+			auditLog.Details!
+		);
+
+		details.Should().NotBeNull();
+		details!.RequestedCount.Should().Be(requestedUserIds.Count);
+		details.SucceededCount.Should().Be(succeededUserIds.Count);
+		details.FailedCount.Should().Be(failedItems.Count);
+		details.RequestedUserIds.Should().BeEquivalentTo(requestedUserIds);
+		details.SucceededUserIds.Should().BeEquivalentTo(succeededUserIds);
+		details.FailedItems.Should().BeEquivalentTo(failedItems);
 	}
 
 	private static async Task<JsonDocument> ReadOpenApiDocumentAsync() {
@@ -341,6 +601,10 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 		public Guid Id { get; init; }
 	}
 
+	private sealed record StaffProfileCreatedResponse {
+		public Guid ProfileId { get; init; }
+	}
+
 	private sealed record BulkStaffUserActionResponse {
 		public int SucceededCount { get; init; }
 		public int FailedCount { get; init; }
@@ -348,6 +612,26 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 	}
 
 	private sealed record BulkStaffUserFailedItemResponse {
+		public Guid UserId { get; init; }
+		public string Error { get; init; } = string.Empty;
+	}
+
+	private sealed record BulkDeleteAuditDetails {
+		public int RequestedCount { get; init; }
+		public int SucceededCount { get; init; }
+		public int FailedCount { get; init; }
+		public required List<Guid> RequestedUserIds { get; init; }
+		public required List<Guid> SucceededUserIds { get; init; }
+		public required List<BulkDeleteAuditFailedItemResponse> FailedItems { get; init; }
+	}
+
+	private sealed class FindStaffUsersResponse : CursorPaginatedResult<StaffUserItem> { }
+
+	private sealed record StaffUserItem {
+		public Guid Id { get; init; }
+	}
+
+	private sealed record BulkDeleteAuditFailedItemResponse {
 		public Guid UserId { get; init; }
 		public string Error { get; init; } = string.Empty;
 	}
