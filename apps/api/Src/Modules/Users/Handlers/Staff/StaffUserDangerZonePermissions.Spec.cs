@@ -45,6 +45,22 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 		);
 	}
 
+	private static string GetBulkSuspendUrl() {
+		return PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Users.ForStaff.Root,
+			Routes.Users.ForStaff.BulkSuspend
+		);
+	}
+
+	private static string GetBulkReactivateUrl() {
+		return PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Users.ForStaff.Root,
+			Routes.Users.ForStaff.BulkReactivate
+		);
+	}
+
 	private static string GetUpdateEmailUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
@@ -96,6 +112,40 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 			HttpMethod.Post,
 			GetReactivateUrl(existingUserId)
 		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnForbiddenForStaffWithoutBulkSuspendPermission() {
+		var token = await CreateUnprivilegedStaffUserTokenAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetBulkSuspendUrl()
+		).WithSessionToken(token);
+
+		request.Content = JsonContent.Create(new {
+			userIds = new[] { Guid.NewGuid() }
+		});
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnForbiddenForStaffWithoutBulkReactivatePermission() {
+		var token = await CreateUnprivilegedStaffUserTokenAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetBulkReactivateUrl()
+		).WithSessionToken(token);
+
+		request.Content = JsonContent.Create(new {
+			userIds = new[] { Guid.NewGuid() }
+		});
 
 		using var response = await _http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -227,4 +277,3 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 		public string Email { get; init; } = string.Empty;
 	}
 }
-

@@ -182,6 +182,17 @@ public abstract record DeleteStaffUserResult {
 	public sealed record NotSuspended() : DeleteStaffUserResult;
 }
 
+public sealed record BulkStaffUserFailedItem(
+	Guid UserId,
+	string Error
+);
+
+public sealed record BulkStaffUserActionResult(
+	int SucceededCount,
+	int FailedCount,
+	List<BulkStaffUserFailedItem> FailedItems
+);
+
 public abstract record UpdateStaffUserEmailResult {
 	public sealed record Success(StaffUserData UserData) : UpdateStaffUserEmailResult;
 	public sealed record NotFound() : UpdateStaffUserEmailResult;
@@ -198,6 +209,14 @@ public interface IUserService {
 	Task<StaffUserData?> GetStaffUserUserByIdAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<SuspendStaffUserResult> SuspendStaffUserAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<ReactivateStaffUserResult> ReactivateStaffUserAsync(Guid userId, CancellationToken cancellationToken = default);
+	Task<BulkStaffUserActionResult> BulkSuspendStaffUsersAsync(
+		IReadOnlyCollection<Guid> userIds,
+		CancellationToken cancellationToken = default
+	);
+	Task<BulkStaffUserActionResult> BulkReactivateStaffUsersAsync(
+		IReadOnlyCollection<Guid> userIds,
+		CancellationToken cancellationToken = default
+	);
 	Task<DeleteStaffUserResult> DeleteStaffUserAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<UpdateStaffUserEmailResult> UpdateStaffUserEmailAsync(Guid userId, string email, CancellationToken cancellationToken = default);
 	Task<int> CountStaffUsersAsync(CancellationToken cancellationToken = default);
@@ -415,6 +434,178 @@ public class UserService : IUserService {
 		return new ReactivateStaffUserResult.Success(userData);
 	}
 
+	public async Task<BulkStaffUserActionResult> BulkSuspendStaffUsersAsync(
+		IReadOnlyCollection<Guid> userIds,
+		CancellationToken cancellationToken = default
+	) {
+		var requestedIds = userIds.Distinct().ToList();
+		if (requestedIds.Count == 0) {
+			return new BulkStaffUserActionResult(0, 0, []);
+		}
+
+		var liveUserStatuses = await FindLiveStaffUserStatusesAsync(
+			requestedIds,
+			cancellationToken
+		);
+
+		var failedItems = new List<BulkStaffUserFailedItem>();
+		var candidateUserIds = new List<Guid>();
+
+		foreach (var userId in requestedIds) {
+			if (!liveUserStatuses.TryGetValue(userId, out var status)) {
+				failedItems.Add(new BulkStaffUserFailedItem(userId, "User not found"));
+				continue;
+			}
+
+			if (status == UserStatus.Suspended) {
+				failedItems.Add(
+					new BulkStaffUserFailedItem(
+						userId,
+						"User is already suspended"
+					)
+				);
+				continue;
+			}
+
+			candidateUserIds.Add(userId);
+		}
+
+		var succeededCount = 0;
+		var now = DateTime.UtcNow;
+
+		foreach (var userId in candidateUserIds) {
+			var updatedUserCount = await BuildLiveStaffUserMutationQuery(userId)
+				.Where(x => x.Status != UserStatus.Suspended)
+				.ExecuteUpdateAsync(
+					setters => setters
+						.SetProperty(x => x.Status, UserStatus.Suspended)
+						.SetProperty(x => x.UpdatedAt, now),
+					cancellationToken
+				);
+
+			if (updatedUserCount == 1) {
+				succeededCount++;
+				continue;
+			}
+
+			var resolvedResult = await ResolveSuspendStaffUserAfterNoRowsAsync(
+				userId,
+				cancellationToken
+			);
+
+			if (resolvedResult is SuspendStaffUserResult.NotFound) {
+				failedItems.Add(new BulkStaffUserFailedItem(userId, "User not found"));
+				continue;
+			}
+
+			if (resolvedResult is SuspendStaffUserResult.AlreadySuspended) {
+				failedItems.Add(
+					new BulkStaffUserFailedItem(
+						userId,
+						"User is already suspended"
+					)
+				);
+				continue;
+			}
+
+			throw new InvalidOperationException(
+				$"Unknown bulk suspend staff user result: {resolvedResult.GetType().Name}"
+			);
+		}
+
+		return new BulkStaffUserActionResult(
+			succeededCount,
+			failedItems.Count,
+			failedItems
+		);
+	}
+
+	public async Task<BulkStaffUserActionResult> BulkReactivateStaffUsersAsync(
+		IReadOnlyCollection<Guid> userIds,
+		CancellationToken cancellationToken = default
+	) {
+		var requestedIds = userIds.Distinct().ToList();
+		if (requestedIds.Count == 0) {
+			return new BulkStaffUserActionResult(0, 0, []);
+		}
+
+		var liveUserStatuses = await FindLiveStaffUserStatusesAsync(
+			requestedIds,
+			cancellationToken
+		);
+
+		var failedItems = new List<BulkStaffUserFailedItem>();
+		var candidateUserIds = new List<Guid>();
+
+		foreach (var userId in requestedIds) {
+			if (!liveUserStatuses.TryGetValue(userId, out var status)) {
+				failedItems.Add(new BulkStaffUserFailedItem(userId, "User not found"));
+				continue;
+			}
+
+			if (status != UserStatus.Suspended) {
+				failedItems.Add(
+					new BulkStaffUserFailedItem(
+						userId,
+						"User is not currently suspended"
+					)
+				);
+				continue;
+			}
+
+			candidateUserIds.Add(userId);
+		}
+
+		var succeededCount = 0;
+		var now = DateTime.UtcNow;
+
+		foreach (var userId in candidateUserIds) {
+			var updatedUserCount = await BuildLiveStaffUserMutationQuery(userId)
+				.Where(x => x.Status == UserStatus.Suspended)
+				.ExecuteUpdateAsync(
+					setters => setters
+						.SetProperty(x => x.Status, UserStatus.Active)
+						.SetProperty(x => x.UpdatedAt, now),
+					cancellationToken
+				);
+
+			if (updatedUserCount == 1) {
+				succeededCount++;
+				continue;
+			}
+
+			var resolvedResult = await ResolveReactivateStaffUserAfterNoRowsAsync(
+				userId,
+				cancellationToken
+			);
+
+			if (resolvedResult is ReactivateStaffUserResult.NotFound) {
+				failedItems.Add(new BulkStaffUserFailedItem(userId, "User not found"));
+				continue;
+			}
+
+			if (resolvedResult is ReactivateStaffUserResult.NotSuspended) {
+				failedItems.Add(
+					new BulkStaffUserFailedItem(
+						userId,
+						"User is not currently suspended"
+					)
+				);
+				continue;
+			}
+
+			throw new InvalidOperationException(
+				$"Unknown bulk reactivate staff user result: {resolvedResult.GetType().Name}"
+			);
+		}
+
+		return new BulkStaffUserActionResult(
+			succeededCount,
+			failedItems.Count,
+			failedItems
+		);
+	}
+
 	public async Task<DeleteStaffUserResult> DeleteStaffUserAsync(
 		Guid userId,
 		CancellationToken cancellationToken = default
@@ -544,6 +735,27 @@ public class UserService : IUserService {
 				}
 			}
 		).FirstOrDefaultAsync(cancellationToken);
+	}
+
+	private async Task<Dictionary<Guid, UserStatus>> FindLiveStaffUserStatusesAsync(
+		IReadOnlyCollection<Guid> userIds,
+		CancellationToken cancellationToken
+	) {
+		return await (
+			from ua in _dbContext.UserAccount.AsNoTracking()
+			where userIds.Contains(ua.UserId)
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select new LiveStaffUserStatus {
+				UserId = ua.UserId,
+				Status = ua.User.Status
+			}
+		).ToDictionaryAsync(
+			x => x.UserId,
+			x => x.Status,
+			cancellationToken
+		);
 	}
 
 	private async Task<SuspendStaffUserResult> ResolveSuspendStaffUserAfterNoRowsAsync(
@@ -1810,6 +2022,11 @@ public class UserService : IUserService {
 			bool,
 			IQueryable<UserAccount>
 		> ApplyOrdering { get; } = applyOrdering;
+	}
+
+	private sealed record LiveStaffUserStatus {
+		public required Guid UserId { get; init; }
+		public required UserStatus Status { get; init; }
 	}
 
 	public async Task<RemoveUserFromTenantResult> RemoveUserFromTenantAsync(
