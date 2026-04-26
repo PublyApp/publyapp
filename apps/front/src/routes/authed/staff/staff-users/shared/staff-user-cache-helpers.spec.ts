@@ -41,8 +41,10 @@ test('getDeletedStaffUserQueryRemovals removes deleted-user caches once per uniq
 	});
 
 	assert.deepEqual(removedQueryKeys, [
+		{ queryKey: ['staff-user', 'user-1'] },
 		{ queryKey: ['staff-user-profiles', 'user-1'] },
 		{ queryKey: ['verification-link', 'user-1'] },
+		{ queryKey: ['staff-user', 'user-2'] },
 		{ queryKey: ['staff-user-profiles', 'user-2'] },
 		{ queryKey: ['verification-link', 'user-2'] },
 	]);
