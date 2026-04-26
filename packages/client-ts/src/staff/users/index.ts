@@ -64,17 +64,19 @@ export interface UsersRequestBuilderGetQueryParameters {
     q?: string;
     sortId?: string;
     sortOrder?: string;
+    status?: string;
 }
 /**
  * Uri template for the request builder.
  */
-export const UsersRequestBuilderUriTemplate = "{+baseurl}/staff/users{?cursor*,limit*,q*,sort_id*,sort_order*}";
+export const UsersRequestBuilderUriTemplate = "{+baseurl}/staff/users{?Status*,cursor*,limit*,q*,sort_id*,sort_order*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
 const UsersRequestBuilderGetQueryParametersMapper: Record<string, string> = {
     "sortId": "sort_id",
     "sortOrder": "sort_order",
+    "status": "Status",
 };
 /**
  * Metadata for all the navigation properties in the request builder.
