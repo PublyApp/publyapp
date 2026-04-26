@@ -306,6 +306,51 @@ export const useStaffUsersTableController = () => {
 		};
 	}, [isSelectionMode, sortingDisabledReason]);
 
+	useEffect(() => {
+		if (!isSelectionMode) {
+			return;
+		}
+
+		isCancellingSelectionLockedSearchRef.current = true;
+		if (globalFilter === filterStates.q) {
+			return;
+		}
+
+		setGlobalFilter(filterStates.q);
+	}, [filterStates.q, globalFilter, isSelectionMode]);
+
+	useEffect(() => {
+		if (isSelectionMode) {
+			return;
+		}
+
+		if (isCancellingSelectionLockedSearchRef.current) {
+			if (debouncedQ !== filterStates.q) {
+				return;
+			}
+
+			isCancellingSelectionLockedSearchRef.current = false;
+			return;
+		}
+
+		if (debouncedQ === filterStates.q) {
+			return;
+		}
+
+		resetCursorPagination?.();
+		setFilterStates({
+			q: debouncedQ,
+			status: statusFilter.join(','),
+		});
+	}, [
+		debouncedQ,
+		filterStates.q,
+		isSelectionMode,
+		resetCursorPagination,
+		setFilterStates,
+		statusFilter,
+	]);
+
 	const {
 		handleBulkSuspend,
 		handleBulkReactivate,
