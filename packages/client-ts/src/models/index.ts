@@ -556,6 +556,15 @@ export function createBulkDeleteFailedItemFromDiscriminatorValue(parseNode: Pars
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkDeleteStaffUsersBody}
+ */
+// @ts-ignore
+export function createBulkDeleteStaffUsersBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkDeleteStaffUsersBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {BulkDeleteTenantsAsStaffBody}
  */
 // @ts-ignore
@@ -2274,6 +2283,17 @@ export function deserializeIntoBulkDeleteFailedItem(bulkDeleteFailedItem: Partia
     return {
         "error": n => { bulkDeleteFailedItem.errorEscaped = n.getStringValue(); },
         "tenantId": n => { bulkDeleteFailedItem.tenantId = n.getGuidValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param BulkDeleteStaffUsersBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkDeleteStaffUsersBody(bulkDeleteStaffUsersBody: Partial<BulkDeleteStaffUsersBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "userIds": n => { bulkDeleteStaffUsersBody.userIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -4959,6 +4979,18 @@ export function serializeBulkDeleteFailedItem(writer: SerializationWriter, bulkD
     writer.writeStringValue("error", bulkDeleteFailedItem.errorEscaped);
     writer.writeGuidValue("tenantId", bulkDeleteFailedItem.tenantId);
     writer.writeAdditionalData(bulkDeleteFailedItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param BulkDeleteStaffUsersBody The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkDeleteStaffUsersBody(writer: SerializationWriter, bulkDeleteStaffUsersBody: Partial<BulkDeleteStaffUsersBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkDeleteStaffUsersBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("userIds", bulkDeleteStaffUsersBody.userIds);
+    writer.writeAdditionalData(bulkDeleteStaffUsersBody.additionalData);
 }
 /**
  * Serializes information the current object
