@@ -67,6 +67,7 @@ type FindStaffUsersQuery = {
 	limit?: number;
 	sort?: { id: string; order: 'desc' | 'asc' };
 	q?: string;
+	status?: string;
 };
 
 export const useFindStaffUser = createStaffQuery({
@@ -77,6 +78,7 @@ export const useFindStaffUser = createStaffQuery({
 				cursor: params.cursor ?? undefined,
 				limit: params.limit ? params.limit.toString() : undefined,
 				q: params.q,
+				status: params.status,
 				sortId: params.sort?.id,
 				sortOrder: params.sort?.order,
 			},
@@ -152,6 +154,68 @@ export const useReactivateStaffUser = createStaffMutation({
 			.reactivate.post();
 		if (isNil(result)) {
 			throw new Error('useReactivateStaffUser: result is nil');
+		}
+		return result;
+	},
+});
+
+export const useDeleteStaffUser = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.users.byUserId('').delete,
+	mutationFn: async (client, data: { userId: string }) => {
+		const result = await client.staff.users.byUserId(data.userId).delete();
+		if (isNil(result)) {
+			throw new Error('useDeleteStaffUser: result is nil');
+		}
+		return result;
+	},
+});
+
+export const useBulkSuspendStaffUsers = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.users.bulkSuspend.post,
+	mutationFn: async (client, data: { userIds: string[] }) => {
+		const body: Record<string, unknown> = {
+			userIds: createUntypedArray(
+				data.userIds.map((id) => createUntypedString(id)),
+			),
+		};
+
+		const result = await client.staff.users.bulkSuspend.post(body as never);
+		if (isNil(result)) {
+			throw new Error('useBulkSuspendStaffUsers: result is nil');
+		}
+		return result;
+	},
+});
+
+export const useBulkReactivateStaffUsers = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.users.bulkReactivate.post,
+	mutationFn: async (client, data: { userIds: string[] }) => {
+		const body: Record<string, unknown> = {
+			userIds: createUntypedArray(
+				data.userIds.map((id) => createUntypedString(id)),
+			),
+		};
+
+		const result = await client.staff.users.bulkReactivate.post(body as never);
+		if (isNil(result)) {
+			throw new Error('useBulkReactivateStaffUsers: result is nil');
+		}
+		return result;
+	},
+});
+
+export const useBulkDeleteStaffUsers = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.users.bulkDelete.post,
+	mutationFn: async (client, data: { userIds: string[] }) => {
+		const body: Record<string, unknown> = {
+			userIds: createUntypedArray(
+				data.userIds.map((id) => createUntypedString(id)),
+			),
+		};
+
+		const result = await client.staff.users.bulkDelete.post(body as never);
+		if (isNil(result)) {
+			throw new Error('useBulkDeleteStaffUsers: result is nil');
 		}
 		return result;
 	},
