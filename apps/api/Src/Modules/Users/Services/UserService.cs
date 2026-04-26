@@ -1214,6 +1214,8 @@ public class UserService : IUserService {
 	) {
 		// Hold the staff-account row lock until commit so a concurrent delete cannot
 		// soft-delete the account while missing this transaction's uncommitted links.
+		// If delete arrives after we hold this lock, it serializes behind us and cleans
+		// up the committed links once the lock is released.
 		return await _dbContext.UserAccount
 			.FromSqlInterpolated($"""
 				SELECT ua.*
