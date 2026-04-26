@@ -1,5 +1,6 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.DI;
 using MainApi.Src.Modules.Permissions.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +23,7 @@ public interface IPermissionAsStaffService {
 	);
 }
 
+[Service(ServiceLifetime.Scoped)]
 public class PermissionAsStaffService : IPermissionAsStaffService {
 	private readonly MainApiDbContext _dbContext;
 	public PermissionAsStaffService(MainApiDbContext dbContext) {

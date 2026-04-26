@@ -1,4 +1,5 @@
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Lib.DI;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.AuditLogs.Entities;
 using MainApi.Src.Modules.AuditLogs.Services;
@@ -22,6 +23,7 @@ public interface IImpersonationService {
 		CancellationToken cancellationToken = default);
 }
 
+[Service(ServiceLifetime.Scoped)]
 public class ImpersonationService : IImpersonationService {
 	private readonly MainApiDbContext _dbContext;
 	private readonly IAuditLogService _auditLogService;

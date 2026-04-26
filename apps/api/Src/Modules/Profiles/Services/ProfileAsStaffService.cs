@@ -1,5 +1,6 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.DI;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Invitations.Entities;
 using MainApi.Src.Modules.Permissions.Entities;
@@ -258,6 +259,7 @@ public interface IProfileAsStaffService {
 	);
 }
 
+[Service(ServiceLifetime.Scoped)]
 public class ProfileAsStaffService : IProfileAsStaffService {
 	private readonly MainApiDbContext _dbContext;
 	private readonly ILogger<ProfileAsStaffService> _logger;

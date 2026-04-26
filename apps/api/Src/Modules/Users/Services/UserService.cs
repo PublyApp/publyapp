@@ -2,6 +2,7 @@ using System.Data;
 
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.DI;
 using MainApi.Src.Modules.Profiles.Entities;
 using MainApi.Src.Modules.Users.Entities;
 
@@ -231,6 +232,7 @@ public interface IUserService {
 	);
 }
 
+[Service(ServiceLifetime.Scoped)]
 public class UserService : IUserService {
 	private readonly MainApiDbContext _dbContext;
 	private readonly ILogger<UserService> _logger;
