@@ -16,9 +16,9 @@ import {
 
 import {
 	clearDeletedStaffUserRelatedQueries,
-	getSuccessfulBulkStaffUserIds,
-	invalidateStaffUsersListAndDetails,
-} from './staff-users-list-helpers.ts';
+	invalidateStaffUserLifecycleQueries,
+} from '#app/routes/authed/staff/staff-users/shared/staff-user-cache-helpers.ts';
+import { getSuccessfulBulkStaffUserIds } from './staff-users-list-helpers.ts';
 
 export type StaffUsersBulkActionType = 'suspend' | 'reactivate' | 'delete';
 
@@ -61,7 +61,7 @@ export const useStaffUsersBulkActions = ({
 				}
 
 				onSuccess('suspend');
-				await invalidateStaffUsersListAndDetails({
+				await invalidateStaffUserLifecycleQueries({
 					queryClient,
 					userIds: successfulUserIds,
 				});
@@ -113,7 +113,7 @@ export const useStaffUsersBulkActions = ({
 				}
 
 				onSuccess('reactivate');
-				await invalidateStaffUsersListAndDetails({
+				await invalidateStaffUserLifecycleQueries({
 					queryClient,
 					userIds: successfulUserIds,
 				});
@@ -165,7 +165,7 @@ export const useStaffUsersBulkActions = ({
 				}
 
 				onSuccess('delete');
-				await invalidateStaffUsersListAndDetails({
+				await invalidateStaffUserLifecycleQueries({
 					queryClient,
 					userIds: successfulUserIds,
 					invalidateStaffProfilesList: true,

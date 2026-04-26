@@ -45,6 +45,7 @@ import {
 	useUpdateStaffUserEmail,
 } from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
 import { interZodClient } from '#app/lib/zod/zod.client.ts';
+import { invalidateStaffUserLifecycleQueries } from '#app/routes/authed/staff/staff-users/shared/staff-user-cache-helpers.ts';
 import { fData } from '#app/utils/format-number.ts';
 import { fDateTime } from '#app/utils/format-time.ts';
 
@@ -368,13 +369,11 @@ const DangerZoneCard = ({
 
 	const { mutate: suspendUser, isPending: isSuspending } = useSuspendStaffUser({
 		meta: { successMessage: 'staff-user-suspended-success' },
-		onSuccess: () => {
+		onSuccess: async () => {
 			setSuspendDialogOpen(false);
-			void queryClient.invalidateQueries({
-				queryKey: useGetStaffUserById.getKey({ userId }),
-			});
-			void queryClient.invalidateQueries({
-				queryKey: useFindStaffUser.getKey(),
+			await invalidateStaffUserLifecycleQueries({
+				queryClient,
+				userIds: [userId],
 			});
 		},
 	});
@@ -382,13 +381,11 @@ const DangerZoneCard = ({
 	const { mutate: reactivateUser, isPending: isReactivating } =
 		useReactivateStaffUser({
 			meta: { successMessage: 'staff-user-reactivated-success' },
-			onSuccess: () => {
+			onSuccess: async () => {
 				setReactivateDialogOpen(false);
-				void queryClient.invalidateQueries({
-					queryKey: useGetStaffUserById.getKey({ userId }),
-				});
-				void queryClient.invalidateQueries({
-					queryKey: useFindStaffUser.getKey(),
+				await invalidateStaffUserLifecycleQueries({
+					queryClient,
+					userIds: [userId],
 				});
 			},
 		});

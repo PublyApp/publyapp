@@ -1,18 +1,6 @@
-import type { QueryClient } from '@tanstack/react-query';
 import toStr from 'lodash/toString';
 
 import type { BulkStaffUserActionResult } from '@org/client-ts/src/models';
-
-import { useGetVerificationLink } from '#app/lib/react-query/features/common/auth.hooks.ts';
-import {
-	useFindStaffProfiles,
-	useFindStaffProfileUsers,
-} from '#app/lib/react-query/features/staff/staff-profile.hooks.ts';
-import {
-	useFindStaffUser,
-	useGetStaffUserById,
-	useGetStaffUserProfiles,
-} from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
 
 type RowSelection = Record<string, boolean>;
 type RowWithId = {
@@ -69,56 +57,4 @@ export const getSuccessfulBulkStaffUserIds = ({
 	}
 
 	return Array.from(successfulUserIds);
-};
-
-export const invalidateStaffUsersListAndDetails = async ({
-	queryClient,
-	userIds,
-	invalidateStaffProfilesList = false,
-}: {
-	queryClient: QueryClient;
-	userIds: readonly string[];
-	invalidateStaffProfilesList?: boolean;
-}) => {
-	const uniqueUserIds = getUniqueTruthyIds(userIds);
-	const invalidations = [
-		queryClient.invalidateQueries({
-			queryKey: useFindStaffUser.getKey(),
-		}),
-		queryClient.invalidateQueries({
-			queryKey: useFindStaffProfileUsers.getKey(),
-		}),
-		...uniqueUserIds.map((userId) => {
-			return queryClient.invalidateQueries({
-				queryKey: useGetStaffUserById.getKey({ userId }),
-			});
-		}),
-	];
-
-	if (invalidateStaffProfilesList) {
-		invalidations.push(
-			queryClient.invalidateQueries({
-				queryKey: useFindStaffProfiles.getKey(),
-			}),
-		);
-	}
-
-	await Promise.all(invalidations);
-};
-
-export const clearDeletedStaffUserRelatedQueries = ({
-	queryClient,
-	userIds,
-}: {
-	queryClient: QueryClient;
-	userIds: readonly string[];
-}) => {
-	for (const userId of getUniqueTruthyIds(userIds)) {
-		queryClient.removeQueries({
-			queryKey: useGetStaffUserProfiles.getKey({ userId }),
-		});
-		queryClient.removeQueries({
-			queryKey: useGetVerificationLink.getKey({ userId }),
-		});
-	}
 };

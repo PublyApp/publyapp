@@ -57,10 +57,10 @@ import {
 	useUnassignStaffProfileUsers,
 } from '#app/lib/react-query/features/staff/staff-profile.hooks.ts';
 import {
-	useGetStaffUserProfiles,
 	useReactivateStaffUser,
 	useSuspendStaffUser,
 } from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
+import { invalidateStaffUserLifecycleQueries } from '#app/routes/authed/staff/staff-users/shared/staff-user-cache-helpers.ts';
 
 import StaffProfileUsersExportDialogController, {
 	type StaffProfileUsersExportDialogControllerRef,
@@ -425,16 +425,12 @@ const ProfileUsersSelectionActions = ({
 			onSuccess: async () => {
 				// Unassigning from the profile changes both sides of the relationship:
 				// refresh the profile-users table and each affected staff-user profile chip set.
-				void queryClient.invalidateQueries({
-					queryKey: useFindStaffProfileUsers.getKey(),
+				await invalidateStaffUserLifecycleQueries({
+					queryClient,
+					userIds: rows.map((row) => row.id),
+					invalidateStaffProfilesList: true,
+					invalidateStaffUserProfiles: true,
 				});
-				await Promise.all(
-					rows.map((row) => {
-						return queryClient.invalidateQueries({
-							queryKey: useGetStaffUserProfiles.getKey({ userId: row.id }),
-						});
-					}),
-				);
 			},
 		});
 
@@ -554,12 +550,12 @@ const StatusCell: MRT_ColumnDef<ProfileUserRowData, string>['Cell'] = (
 
 	const { mutate: suspendUser, isPending: isSuspending } = useSuspendStaffUser({
 		meta: { successMessage: 'staff-user-suspended-success' },
-		onSuccess: () => {
+		onSuccess: async () => {
 			// This status control mutates the user-level status, not a profile-local flag.
 			// Refresh the current projection so suspended users stay visible with updated status.
-			// Refresh any "staff profile -> users" lists after a staff user status change.
-			void queryClient.invalidateQueries({
-				queryKey: useFindStaffProfileUsers.getKey(),
+			await invalidateStaffUserLifecycleQueries({
+				queryClient,
+				userIds: [user.id],
 			});
 			setConfirmDialogOpen(false);
 			setMenuAnchorEl(null);
@@ -569,9 +565,10 @@ const StatusCell: MRT_ColumnDef<ProfileUserRowData, string>['Cell'] = (
 	const { mutate: reactivateUser, isPending: isReactivating } =
 		useReactivateStaffUser({
 			meta: { successMessage: 'staff-user-reactivated-success' },
-			onSuccess: () => {
-				void queryClient.invalidateQueries({
-					queryKey: useFindStaffProfileUsers.getKey(),
+			onSuccess: async () => {
+				await invalidateStaffUserLifecycleQueries({
+					queryClient,
+					userIds: [user.id],
 				});
 				setConfirmDialogOpen(false);
 				setMenuAnchorEl(null);
@@ -764,11 +761,11 @@ const UserActionsCell: MRT_ColumnDef<ProfileUserRowData>['Cell'] = (props) => {
 		useUnassignStaffProfileUsers({
 			onSuccess: async () => {
 				// Keep the "profile -> users" projection in sync after unassignment.
-				void queryClient.invalidateQueries({
-					queryKey: useFindStaffProfileUsers.getKey(),
-				});
-				await queryClient.invalidateQueries({
-					queryKey: useGetStaffUserProfiles.getKey({ userId }),
+				await invalidateStaffUserLifecycleQueries({
+					queryClient,
+					userIds: [userId],
+					invalidateStaffProfilesList: true,
+					invalidateStaffUserProfiles: true,
 				});
 				setConfirmUnassignOpen(false);
 			},
