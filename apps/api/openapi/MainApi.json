@@ -1683,6 +1683,148 @@
         }
       }
     },
+    "/staff/users/bulk-suspend": {
+      "post": {
+        "tags": [
+          "Staff Users"
+        ],
+        "summary": "Bulk suspend staff users",
+        "operationId": "BulkSuspendStaffUsers",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkSuspendStaffUsersBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkStaffUserActionResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/staff/users/bulk-reactivate": {
+      "post": {
+        "tags": [
+          "Staff Users"
+        ],
+        "summary": "Bulk reactivate staff users",
+        "operationId": "BulkReactivateStaffUsers",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkReactivateStaffUsersBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkStaffUserActionResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/staff/users/{userId}/profiles": {
       "get": {
         "tags": [
@@ -7278,6 +7420,14 @@
           }
         }
       },
+      "BulkReactivateStaffUsersBody": {
+        "type": "object",
+        "properties": {
+          "userIds": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
       "BulkReactivateTenantsAsStaffBody": {
         "required": [
           "tenantIds"
@@ -7328,6 +7478,48 @@
           }
         }
       },
+      "BulkStaffUserActionResult": {
+        "required": [
+          "succeededCount",
+          "failedCount",
+          "failedItems"
+        ],
+        "type": "object",
+        "properties": {
+          "succeededCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "failedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "failedItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkStaffUserFailedItem"
+            }
+          }
+        }
+      },
+      "BulkStaffUserFailedItem": {
+        "required": [
+          "userId",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
       "BulkSuspendFailedItem": {
         "required": [
           "tenantId",
@@ -7341,6 +7533,14 @@
           },
           "error": {
             "type": "string"
+          }
+        }
+      },
+      "BulkSuspendStaffUsersBody": {
+        "type": "object",
+        "properties": {
+          "userIds": {
+            "$ref": "#/components/schemas/JsonElement"
           }
         }
       },

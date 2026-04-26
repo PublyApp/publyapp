@@ -4,6 +4,10 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createCreateStaffUserResultFromDiscriminatorValue, createFindStaffUsersResponseFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializeCreateStaffUserBody, serializeCreateStaffUserResult, type AppProblemDetails, type CreateStaffUserBody, type CreateStaffUserResult, type FindStaffUsersResponse, type ValidationProblemDetails } from '../../models/index.js';
 // @ts-ignore
+import { BulkReactivateRequestBuilderRequestsMetadata, type BulkReactivateRequestBuilder } from './bulkReactivate/index.js';
+// @ts-ignore
+import { BulkSuspendRequestBuilderRequestsMetadata, type BulkSuspendRequestBuilder } from './bulkSuspend/index.js';
+// @ts-ignore
 import { type WithUserItemRequestBuilder, WithUserItemRequestBuilderNavigationMetadata, WithUserItemRequestBuilderRequestsMetadata } from './item/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
@@ -12,6 +16,14 @@ import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type 
  * Builds and executes requests for operations under /staff/users
  */
 export interface UsersRequestBuilder extends BaseRequestBuilder<UsersRequestBuilder> {
+    /**
+     * The bulkReactivate property
+     */
+    get bulkReactivate(): BulkReactivateRequestBuilder;
+    /**
+     * The bulkSuspend property
+     */
+    get bulkSuspend(): BulkSuspendRequestBuilder;
     /**
      * Gets an item from the MainApi.Client.staff.users.item collection
      * @param userId Unique identifier of the item
@@ -85,6 +97,12 @@ export const UsersRequestBuilderNavigationMetadata: Record<Exclude<keyof UsersRe
         requestsMetadata: WithUserItemRequestBuilderRequestsMetadata,
         navigationMetadata: WithUserItemRequestBuilderNavigationMetadata,
         pathParametersMappings: ["userId"],
+    },
+    bulkReactivate: {
+        requestsMetadata: BulkReactivateRequestBuilderRequestsMetadata,
+    },
+    bulkSuspend: {
+        requestsMetadata: BulkSuspendRequestBuilderRequestsMetadata,
     },
 };
 /**

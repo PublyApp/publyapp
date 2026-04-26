@@ -73,6 +73,24 @@ public static class UserEndpointsForStaff {
 			.WithSummary("Reactivate a staff user")
 			.WithPermission([AppPermissions.Staff.Users.REACTIVATE_FOR_STAFF]);
 
+		group.MapPost(
+				Routes.Users.ForStaff.BulkSuspend,
+				BulkSuspendStaffUsers.HandleBulkSuspendStaffUsers
+			)
+			.WithName("BulkSuspendStaffUsers")
+			.WithSummary("Bulk suspend staff users")
+			.WithReqBodyValidation<BulkSuspendStaffUsersBody>()
+			.WithPermission([AppPermissions.Staff.Users.SUSPEND_FOR_STAFF]);
+
+		group.MapPost(
+				Routes.Users.ForStaff.BulkReactivate,
+				BulkReactivateStaffUsers.HandleBulkReactivateStaffUsers
+			)
+			.WithName("BulkReactivateStaffUsers")
+			.WithSummary("Bulk reactivate staff users")
+			.WithReqBodyValidation<BulkReactivateStaffUsersBody>()
+			.WithPermission([AppPermissions.Staff.Users.REACTIVATE_FOR_STAFF]);
+
 		group.MapDelete(
 				Routes.Users.ForStaff.Delete,
 				DeleteStaffUser.HandleDeleteStaffUser
