@@ -28,7 +28,7 @@ public class FindStaffUsersQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "q")]
 	public string? Search { get; set; }
 
-	[FromQuery]
+	[FromQuery(Name = "status")]
 	public string? Status { get; set; }
 
 	public string? GetSearchNormalized() {
