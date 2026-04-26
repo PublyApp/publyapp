@@ -981,7 +981,7 @@ public class UserService : IUserService {
 			);
 		}
 
-		return new SuspendStaffUserResult.Success(updatedUserData);
+		return new SuspendStaffUserResult.Success(userData);
 	}
 
 	public async Task<ReactivateStaffUserResult> ReactivateStaffUserAsync(
@@ -1017,17 +1017,9 @@ public class UserService : IUserService {
 			);
 		}
 
-		var updatedUserData = await FindLiveStaffUserAsync(
-			userId,
-			cancellationToken
-		);
-		if (updatedUserData is null) {
-			throw new InvalidOperationException(
-				"Staff user disappeared after successful reactivate update."
-			);
-		}
+		userData.User.Status = UserStatus.Active;
 
-		return new ReactivateStaffUserResult.Success(updatedUserData);
+		return new ReactivateStaffUserResult.Success(userData);
 	}
 
 	public async Task<DeleteStaffUserResult> DeleteStaffUserAsync(
@@ -1213,6 +1205,26 @@ public class UserService : IUserService {
 		throw new InvalidOperationException(
 			"Staff user still matched delete preconditions after a 0-row update."
 		);
+	}
+
+	private async Task SoftDeleteActiveStaffUserProfileLinksAsync(
+		Guid staffAccountId,
+		CancellationToken cancellationToken
+	) {
+		var now = DateTime.UtcNow;
+
+		_ = await _dbContext.UserAccountProfile
+			.Where(x =>
+				x.UserAccountId == staffAccountId
+				&& !x.IsDeleted
+			)
+			.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(x => x.IsDeleted, true)
+					.SetProperty(x => x.DeletedAt, now)
+					.SetProperty(x => x.UpdatedAt, now),
+				cancellationToken
+			);
 	}
 
 	private sealed class LiveStaffUserDeleteTarget {
@@ -2071,7 +2083,33 @@ public class UserService : IUserService {
 			await _dbContext.UserAccountProfile.AddRangeAsync(linksToInsert, cancellationToken);
 		}
 
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		try {
+			await _dbContext.SaveChangesAsync(cancellationToken);
+
+			var isStaffAccountStillLive = await (
+				from ua in _dbContext.UserAccount
+				where ua.Id == staffAccountId.Value
+					&& ua.UserId == userId
+					&& ua.Scope == AccountScope.Staff
+					&& !ua.IsDeleted
+					&& !ua.User.IsDeleted
+				select ua.Id
+			).AnyAsync(cancellationToken);
+
+			if (!isStaffAccountStillLive) {
+				await SoftDeleteActiveStaffUserProfileLinksAsync(
+					staffAccountId.Value,
+					cancellationToken
+				);
+				await transaction.CommitAsync(cancellationToken);
+				return new UpdateStaffUserProfilesServiceResult.UserNotFound();
+			}
+
+			await transaction.CommitAsync(cancellationToken);
+		} catch {
+			await transaction.RollbackAsync(cancellationToken);
+			throw;
+		}
 
 		// Build the result from requestedProfiles in-memory to avoid re-query-ing.
 		// We also preserve the request order (profileIds) for a stable client experience.

@@ -75,7 +75,6 @@ export const UsersRequestBuilderUriTemplate = "{+baseurl}/staff/users{?cursor*,l
 const UsersRequestBuilderGetQueryParametersMapper: Record<string, string> = {
     "sortId": "sort_id",
     "sortOrder": "sort_order",
-    "status": "Status",
 };
 /**
  * Metadata for all the navigation properties in the request builder.
