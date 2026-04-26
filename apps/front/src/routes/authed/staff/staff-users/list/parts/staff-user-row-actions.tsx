@@ -82,6 +82,7 @@ const StaffUserRowActions = ({ user }: StaffUserRowActionsProps) => {
 				await invalidateStaffUsersListAndDetails({
 					queryClient,
 					userIds: [user.id],
+					invalidateStaffProfilesList: true,
 				});
 				clearDeletedStaffUserRelatedQueries({
 					queryClient,
