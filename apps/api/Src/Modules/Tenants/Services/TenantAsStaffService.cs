@@ -1,5 +1,6 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.DI;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Invitations.Entities;
 using MainApi.Src.Modules.Profiles.Entities;
@@ -190,6 +191,7 @@ public interface ITenantAsStaffService {
 	);
 }
 
+[Service(ServiceLifetime.Scoped)]
 public class TenantAsStaffService : ITenantAsStaffService {
 	private readonly MainApiDbContext _dbContext;
 

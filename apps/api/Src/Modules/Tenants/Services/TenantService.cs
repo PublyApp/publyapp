@@ -1,4 +1,5 @@
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Lib.DI;
 using MainApi.Src.Modules.Tenants.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,7 @@ public interface ITenantService {
 	);
 }
 
+[Service(ServiceLifetime.Scoped)]
 public class TenantService : ITenantService {
 	private readonly MainApiDbContext _dbContext;
 

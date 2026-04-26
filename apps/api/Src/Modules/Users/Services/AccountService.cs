@@ -1,5 +1,6 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.DI;
 using MainApi.Src.Modules.Tenants.Entities;
 using MainApi.Src.Modules.Users.Entities;
 
@@ -83,6 +84,7 @@ public interface IAccountService {
 	Task AssignProfileToAccountAsync(Guid accountId, Guid profileId, CancellationToken cancellationToken = default);
 }
 
+[Service(ServiceLifetime.Scoped)]
 public class AccountService : IAccountService {
 	private readonly MainApiDbContext _dbContext;
 

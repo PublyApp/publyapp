@@ -1,5 +1,6 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.DI;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Invitations.Entities;
 using MainApi.Src.Modules.Profiles.Entities;
@@ -205,6 +206,7 @@ public abstract record RevokeInvitationForTenantAsStaffResult {
 	public sealed record AlreadyAccepted : RevokeInvitationForTenantAsStaffResult;
 }
 
+[Service(ServiceLifetime.Scoped)]
 public class InvitationService : IInvitationService {
 	private readonly MainApiDbContext _dbContext;
 	private readonly ILogger<InvitationService> _logger;

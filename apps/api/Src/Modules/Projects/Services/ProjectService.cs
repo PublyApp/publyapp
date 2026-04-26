@@ -1,4 +1,5 @@
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Lib.DI;
 using MainApi.Src.Modules.Projects.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +17,7 @@ public interface IProjectService {
 	Task DeleteProjectAsync(Guid projectId, CancellationToken cancellationToken = default);
 }
 
+[Service(ServiceLifetime.Scoped)]
 public class ProjectService : IProjectService {
 	private readonly MainApiDbContext _dbContext;
 

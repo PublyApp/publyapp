@@ -1,5 +1,6 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.DI;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Auth.Entities;
 
@@ -19,6 +20,7 @@ public interface ISessionService {
 	Task<SessionData?> GetSessionByToken(string token, CancellationToken cancellationToken = default);
 }
 
+[Service(ServiceLifetime.Scoped)]
 public class SessionService : ISessionService {
 	private readonly MainApiDbContext _dbContext;
 

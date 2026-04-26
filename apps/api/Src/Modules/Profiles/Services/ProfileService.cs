@@ -1,5 +1,6 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.DI;
 using MainApi.Src.Modules.Profiles.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,7 @@ public interface IProfileService {
 	);
 }
 
+[Service(ServiceLifetime.Scoped)]
 public class ProfileService : IProfileService {
 	private readonly MainApiDbContext _dbContext;
 	public ProfileService(MainApiDbContext dbContext) {
