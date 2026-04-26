@@ -1,3 +1,5 @@
+using System.Data.Common;
+
 namespace MainApi.Src.Modules.Users.Services;
 
 using FluentAssertions;
@@ -24,11 +26,11 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 
 	[Fact]
 	public async Task
-	ItShouldNotCreateLiveProfileLinksWhenStaffUserWasDeletedBeforeInsert() {
+	ItShouldNotLeaveInsertedProfileLinksLiveWhenDeleteStartsAtCommit() {
 		var userId = await CreateStaffUserAsync(UserStatus.Suspended);
 		var profileId = await CreateStaffProfileAsync();
 
-		var result = await RunWithConcurrentProfileWriteDeleteAsync(
+		var result = await RunWithConcurrentDeleteAtProfileTransactionCommitAsync(
 			userId,
 			service => service.UpdateStaffUserProfilesAsync(
 				userId,
@@ -36,22 +38,35 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 			)
 		);
 
-		result.Should().BeOfType<UpdateStaffUserProfilesServiceResult.UserNotFound>();
+		result.OperationResult.Should().BeOfType<
+			UpdateStaffUserProfilesServiceResult.Success
+		>();
+		var success =
+			(UpdateStaffUserProfilesServiceResult.Success)result.OperationResult;
+		success.AssignedProfiles.Select(x => x.Id).Should().Equal(profileId);
+
+		var deleteResult = await result.DeleteTask;
+		deleteResult.Should().BeOfType<DeleteStaffUserResult.Success>();
 
 		var state = await GetStaffUserProfileStateAsync(userId);
 		state.IsDeleted.Should().BeTrue();
 		state.HasLiveStaffAccount.Should().BeFalse();
 		state.ActiveProfileLinks.Should().BeEmpty();
+		state.AllProfileLinks.Should().ContainSingle(link =>
+			link.ProfileId == profileId
+			&& link.IsDeleted
+			&& link.DeletedAt != null
+		);
 	}
 
 	[Fact]
 	public async Task
-	ItShouldReDeleteUndeletedProfileLinksWhenStaffUserWasDeletedBeforeUndelete() {
+	ItShouldNotLeaveUndeletedProfileLinksLiveWhenDeleteStartsAtCommit() {
 		var userId = await CreateStaffUserAsync(UserStatus.Suspended);
 		var profileId = await CreateStaffProfileAsync();
 		await CreateSoftDeletedStaffUserProfileLinkAsync(userId, profileId);
 
-		var result = await RunWithConcurrentProfileWriteDeleteAsync(
+		var result = await RunWithConcurrentDeleteAtProfileTransactionCommitAsync(
 			userId,
 			service => service.UpdateStaffUserProfilesAsync(
 				userId,
@@ -59,7 +74,15 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 			)
 		);
 
-		result.Should().BeOfType<UpdateStaffUserProfilesServiceResult.UserNotFound>();
+		result.OperationResult.Should().BeOfType<
+			UpdateStaffUserProfilesServiceResult.Success
+		>();
+		var success =
+			(UpdateStaffUserProfilesServiceResult.Success)result.OperationResult;
+		success.AssignedProfiles.Select(x => x.Id).Should().Equal(profileId);
+
+		var deleteResult = await result.DeleteTask;
+		deleteResult.Should().BeOfType<DeleteStaffUserResult.Success>();
 
 		var state = await GetStaffUserProfileStateAsync(userId);
 		state.IsDeleted.Should().BeTrue();
@@ -144,20 +167,43 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task<UpdateStaffUserProfilesServiceResult>
-	RunWithConcurrentProfileWriteDeleteAsync(
+	private async Task<
+		ConcurrentDeleteAtProfileCommitResult<
+			UpdateStaffUserProfilesServiceResult
+		>
+	> RunWithConcurrentDeleteAtProfileTransactionCommitAsync(
 		Guid userId,
 		Func<UserService, Task<UpdateStaffUserProfilesServiceResult>> operationAsync
 	) {
 		var connectionString = await GetConnectionStringAsync();
-		var interceptor = new BeforeProfileChangesAreSavedInterceptor(
+		var deleteTaskSource = new TaskCompletionSource<
+			Task<DeleteStaffUserResult>
+		>(TaskCreationOptions.RunContinuationsAsynchronously);
+		var deleteReachedUserAccountUpdateSource = new TaskCompletionSource<bool>(
+			TaskCreationOptions.RunContinuationsAsynchronously
+		);
+		var interceptor = new BeforeProfileTransactionCommitInterceptor(
 			async cancellationToken => {
-				await using var deleteScope = _fixture.Factory.Services.CreateAsyncScope();
-				var deleteService = deleteScope.ServiceProvider
-					.GetRequiredService<IUserService>();
+				var deleteTask = Task.Run(
+					() => RunDeleteStaffUserDuringProfileCommitAsync(
+						connectionString,
+						userId,
+						deleteReachedUserAccountUpdateSource
+					),
+					CancellationToken.None
+				);
 
-				_ = await deleteService.DeleteStaffUserAsync(
-					userId,
+				deleteTaskSource.TrySetResult(deleteTask);
+
+				await deleteReachedUserAccountUpdateSource.Task.WaitAsync(
+					TimeSpan.FromSeconds(10),
+					cancellationToken
+				);
+
+				// Keep the profile-update commit open long enough for the concurrent delete
+				// to run against uncommitted profile-link changes if no account lock exists.
+				await Task.Delay(
+					TimeSpan.FromMilliseconds(250),
 					cancellationToken
 				);
 			}
@@ -174,7 +220,43 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 			NullLogger<UserService>.Instance
 		);
 
-		return await operationAsync(service);
+		var operationResult = await operationAsync(service);
+		var deleteTask = await deleteTaskSource.Task.WaitAsync(
+			TimeSpan.FromSeconds(10)
+		);
+
+		return new ConcurrentDeleteAtProfileCommitResult<
+			UpdateStaffUserProfilesServiceResult
+		>(
+			operationResult,
+			deleteTask
+		);
+	}
+
+	private static async Task<DeleteStaffUserResult>
+	RunDeleteStaffUserDuringProfileCommitAsync(
+		string connectionString,
+		Guid userId,
+		TaskCompletionSource<bool> deleteReachedUserAccountUpdateSource
+	) {
+		var interceptor = new BeforeDeleteUserAccountUpdateInterceptor(
+			() => {
+				deleteReachedUserAccountUpdateSource.TrySetResult(true);
+			}
+		);
+
+		var options = new DbContextOptionsBuilder<MainApiDbContext>()
+			.UseNpgsql(connectionString)
+			.AddInterceptors(interceptor)
+			.Options;
+
+		await using var dbContext = new MainApiDbContext(options);
+		var service = new UserService(
+			dbContext,
+			NullLogger<UserService>.Instance
+		);
+
+		return await service.DeleteStaffUserAsync(userId);
 	}
 
 	private async Task<string> GetConnectionStringAsync() {
@@ -250,28 +332,80 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 		DateTime? DeletedAt
 	);
 
-	private sealed class BeforeProfileChangesAreSavedInterceptor
-		: SaveChangesInterceptor {
-		private readonly Func<CancellationToken, Task> _beforeSaveChangesAsync;
+	private sealed record ConcurrentDeleteAtProfileCommitResult<TResult>(
+		TResult OperationResult,
+		Task<DeleteStaffUserResult> DeleteTask
+	);
+
+	private sealed class BeforeProfileTransactionCommitInterceptor
+		: DbTransactionInterceptor {
+		private readonly Func<CancellationToken, Task> _beforeCommitAsync;
 		private bool _hasRun;
 
-		public BeforeProfileChangesAreSavedInterceptor(
-			Func<CancellationToken, Task> beforeSaveChangesAsync
+		public BeforeProfileTransactionCommitInterceptor(
+			Func<CancellationToken, Task> beforeCommitAsync
 		) {
-			_beforeSaveChangesAsync = beforeSaveChangesAsync;
+			_beforeCommitAsync = beforeCommitAsync;
 		}
 
-		public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
-			DbContextEventData eventData,
-			InterceptionResult<int> result,
+		public override async ValueTask<InterceptionResult>
+		TransactionCommittingAsync(
+			DbTransaction transaction,
+			TransactionEventData eventData,
+			InterceptionResult result,
 			CancellationToken cancellationToken = default
 		) {
 			if (!_hasRun) {
 				_hasRun = true;
-				await _beforeSaveChangesAsync(cancellationToken);
+				await _beforeCommitAsync(cancellationToken);
 			}
 
-			return await base.SavingChangesAsync(
+			return await base.TransactionCommittingAsync(
+				transaction,
+				eventData,
+				result,
+				cancellationToken
+			);
+		}
+	}
+
+	private sealed class BeforeDeleteUserAccountUpdateInterceptor
+		: DbCommandInterceptor {
+		private readonly Action _beforeDeleteUserAccountUpdate;
+		private bool _hasRun;
+
+		public BeforeDeleteUserAccountUpdateInterceptor(
+			Action beforeDeleteUserAccountUpdate
+		) {
+			_beforeDeleteUserAccountUpdate = beforeDeleteUserAccountUpdate;
+		}
+
+		public override async ValueTask<InterceptionResult<int>>
+		NonQueryExecutingAsync(
+			DbCommand command,
+			CommandEventData eventData,
+			InterceptionResult<int> result,
+			CancellationToken cancellationToken = default
+		) {
+			if (
+				!_hasRun
+				&& (
+					command.CommandText.Contains(
+						"UPDATE user_accounts",
+						StringComparison.OrdinalIgnoreCase
+					)
+					|| command.CommandText.Contains(
+						"UPDATE \"user_accounts\"",
+						StringComparison.OrdinalIgnoreCase
+					)
+				)
+			) {
+				_hasRun = true;
+				_beforeDeleteUserAccountUpdate();
+			}
+
+			return await base.NonQueryExecutingAsync(
+				command,
 				eventData,
 				result,
 				cancellationToken
