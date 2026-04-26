@@ -20,6 +20,12 @@ import {
 
 import { getSuccessfulBulkStaffUserIds } from './staff-users-list-helpers.ts';
 
+import {
+	clearDeletedStaffUserRelatedQueries,
+	getSuccessfulBulkStaffUserIds,
+	invalidateStaffUsersListAndDetails,
+} from './staff-users-list-helpers.ts';
+
 export type StaffUsersBulkActionType = 'suspend' | 'reactivate' | 'delete';
 
 type UseStaffUsersBulkActionsProps = {

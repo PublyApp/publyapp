@@ -70,6 +70,7 @@ import { DeleteStaffUserAction } from './staff-user-row-actions.tsx';
 import type { StaffUsersExportDialogControllerRef } from './staff-users-export-dialog-controller.tsx';
 import StaffUsersSelectionActions from './staff-users-selection-actions.tsx';
 import StaffUsersToolbarFilters from './staff-users-toolbar-filters.tsx';
+import { reconcileVisibleRowSelection } from './staff-users-list-helpers.ts';
 import {
 	type StaffUsersBulkActionType,
 	useStaffUsersBulkActions,
@@ -426,7 +427,7 @@ export const useStaffUsersTableController = () => {
 			...tableState,
 			...queryState,
 			density: 'compact',
-			rowSelection,
+			rowSelection: reconciledRowSelection,
 		},
 		meta: {
 			handlePaginationChange: handleCursorPaginationChange,
