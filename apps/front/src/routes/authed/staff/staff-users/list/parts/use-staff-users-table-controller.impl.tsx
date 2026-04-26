@@ -56,6 +56,7 @@ import type { StaffUsersExportDialogControllerRef } from './staff-users-export-d
 import StaffUserRowActions from './staff-user-row-actions.tsx';
 import StaffUsersSelectionActions from './staff-users-selection-actions.tsx';
 import StaffUsersToolbarFilters from './staff-users-toolbar-filters.tsx';
+import { reconcileVisibleRowSelection } from './staff-users-list-helpers.ts';
 import {
 	type StaffUsersBulkActionType,
 	useStaffUsersBulkActions,
@@ -301,13 +302,27 @@ export const useStaffUsersTableController = () => {
 		type: 'suspend',
 		open: false,
 	});
+	const reconciledRowSelection = useMemo(() => {
+		return reconcileVisibleRowSelection(rowSelection, rows);
+	}, [rowSelection, rows]);
+
+	useEffect(() => {
+		if (isEqual(reconciledRowSelection, rowSelection)) {
+			return;
+		}
+
+		setRowSelection(reconciledRowSelection);
+	}, [reconciledRowSelection, rowSelection]);
 
 	const selectedRows = useMemo(() => {
 		return rows.filter((row) => {
-			return rowSelection[row.id];
+			return reconciledRowSelection[row.id];
 		});
-	}, [rowSelection, rows]);
-	const selectedCount = Object.values(rowSelection).filter(Boolean).length;
+	}, [reconciledRowSelection, rows]);
+	const selectedUserIds = useMemo(() => {
+		return selectedRows.map((row) => row.id);
+	}, [selectedRows]);
+	const selectedCount = selectedRows.length;
 	const isSelectionMode = selectedCount > 0;
 	const selectionModeDisabledReason = t('selection-mode-disable-controls');
 	const sortingDisabledReason = t('selection-mode-disable-sorting');
@@ -332,12 +347,29 @@ export const useStaffUsersTableController = () => {
 		isBulkReactivating,
 		isBulkDeleting,
 	} = useStaffUsersBulkActions({
-		rowSelection,
+		selectedUserIds,
 		onSuccess: (type) => {
 			setBulkActionDialog({ type, open: false });
 			setRowSelection({});
 		},
 	});
+
+	useEffect(() => {
+		if (selectedCount > 0 || !bulkActionDialog.open) {
+			return;
+		}
+
+		setBulkActionDialog((currentDialogState) => {
+			if (!currentDialogState.open) {
+				return currentDialogState;
+			}
+
+			return {
+				...currentDialogState,
+				open: false,
+			};
+		});
+	}, [bulkActionDialog.open, selectedCount]);
 
 	const handleCursorPaginationChange: typeof handlePaginationChange =
 		useCallback(
@@ -424,7 +456,7 @@ export const useStaffUsersTableController = () => {
 			...tableState,
 			...queryState,
 			density: 'compact',
-			rowSelection,
+			rowSelection: reconciledRowSelection,
 		},
 		meta: {
 			handlePaginationChange: handleCursorPaginationChange,
