@@ -9,6 +9,9 @@ import forEach from 'lodash/forEach';
 import isNil from 'lodash/isNil';
 
 import type {
+	BulkDeleteStaffUsersBody,
+	BulkReactivateStaffUsersBody,
+	BulkSuspendStaffUsersBody,
 	CreateStaffUserBody,
 	GetStaffUserProfilesResult,
 	UpdateStaffUserBody,
@@ -33,6 +36,34 @@ const createUntypedValue = (value: unknown): UntypedNode => {
 		getValue: () => value,
 		value,
 	} as UntypedNode;
+};
+
+export const STAFF_USER_STATUS_FILTER_VALUES = [
+	'active',
+	'pending',
+	'suspended',
+	'inactive',
+] as const;
+
+export type StaffUserStatusFilter =
+	(typeof STAFF_USER_STATUS_FILTER_VALUES)[number];
+
+export type StaffUserStatusFilterInput =
+	| StaffUserStatusFilter
+	| readonly StaffUserStatusFilter[];
+
+export const serializeStaffUserStatusFilter = (
+	status?: StaffUserStatusFilterInput,
+): string | undefined => {
+	if (isNil(status)) {
+		return undefined;
+	}
+
+	if (typeof status === 'string') {
+		return status;
+	}
+
+	return status.length > 0 ? status.join(',') : undefined;
 };
 
 type CreateStaffUserPayload = {
@@ -67,7 +98,7 @@ type FindStaffUsersQuery = {
 	limit?: number;
 	sort?: { id: string; order: 'desc' | 'asc' };
 	q?: string;
-	status?: string;
+	status?: StaffUserStatusFilterInput; // csv wire format: active,pending,suspended,inactive
 };
 
 export const useFindStaffUser = createStaffQuery({
@@ -78,7 +109,7 @@ export const useFindStaffUser = createStaffQuery({
 				cursor: params.cursor ?? undefined,
 				limit: params.limit ? params.limit.toString() : undefined,
 				q: params.q,
-				status: params.status,
+				status: serializeStaffUserStatusFilter(params.status),
 				sortId: params.sort?.id,
 				sortOrder: params.sort?.order,
 			},
@@ -173,13 +204,13 @@ export const useDeleteStaffUser = createStaffMutation({
 export const useBulkSuspendStaffUsers = createStaffMutation({
 	mutationKeyFn: (client) => client.staff.users.bulkSuspend.post,
 	mutationFn: async (client, data: { userIds: string[] }) => {
-		const body: Record<string, unknown> = {
+		const body: BulkSuspendStaffUsersBody = {
 			userIds: createUntypedArray(
 				data.userIds.map((id) => createUntypedString(id)),
-			),
+			) as typeof body.userIds,
 		};
 
-		const result = await client.staff.users.bulkSuspend.post(body as never);
+		const result = await client.staff.users.bulkSuspend.post(body);
 		if (isNil(result)) {
 			throw new Error('useBulkSuspendStaffUsers: result is nil');
 		}
@@ -190,13 +221,13 @@ export const useBulkSuspendStaffUsers = createStaffMutation({
 export const useBulkReactivateStaffUsers = createStaffMutation({
 	mutationKeyFn: (client) => client.staff.users.bulkReactivate.post,
 	mutationFn: async (client, data: { userIds: string[] }) => {
-		const body: Record<string, unknown> = {
+		const body: BulkReactivateStaffUsersBody = {
 			userIds: createUntypedArray(
 				data.userIds.map((id) => createUntypedString(id)),
-			),
+			) as typeof body.userIds,
 		};
 
-		const result = await client.staff.users.bulkReactivate.post(body as never);
+		const result = await client.staff.users.bulkReactivate.post(body);
 		if (isNil(result)) {
 			throw new Error('useBulkReactivateStaffUsers: result is nil');
 		}
@@ -207,13 +238,13 @@ export const useBulkReactivateStaffUsers = createStaffMutation({
 export const useBulkDeleteStaffUsers = createStaffMutation({
 	mutationKeyFn: (client) => client.staff.users.bulkDelete.post,
 	mutationFn: async (client, data: { userIds: string[] }) => {
-		const body: Record<string, unknown> = {
+		const body: BulkDeleteStaffUsersBody = {
 			userIds: createUntypedArray(
 				data.userIds.map((id) => createUntypedString(id)),
-			),
+			) as typeof body.userIds,
 		};
 
-		const result = await client.staff.users.bulkDelete.post(body as never);
+		const result = await client.staff.users.bulkDelete.post(body);
 		if (isNil(result)) {
 			throw new Error('useBulkDeleteStaffUsers: result is nil');
 		}
