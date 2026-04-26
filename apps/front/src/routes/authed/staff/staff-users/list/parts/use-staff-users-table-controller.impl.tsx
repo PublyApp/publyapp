@@ -45,6 +45,7 @@ import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { getSelectionLockedSearchAction } from '#app/lib/mrt-table/selection-locked-search.ts';
 import { useGetUserAuthData } from '#app/lib/react-query/features/common/auth.hooks.ts';
 import {
 	STAFF_USER_STATUS_FILTER_VALUES,
@@ -336,21 +337,28 @@ export const useStaffUsersTableController = () => {
 	}, [filterStates.q, globalFilter, isSelectionMode]);
 
 	useEffect(() => {
-		if (isSelectionMode) {
+		const searchAction = getSelectionLockedSearchAction({
+			isSelectionMode,
+			isCancellingSelectionLockedSearch:
+				isCancellingSelectionLockedSearchRef.current,
+			searchValue: globalFilter,
+			debouncedValue: debouncedQ,
+			persistedValue: filterStates.q,
+		});
+
+		if (searchAction === 'wait' || searchAction === 'none') {
 			return;
 		}
 
-		if (isCancellingSelectionLockedSearchRef.current) {
-			if (debouncedQ !== filterStates.q) {
+		if (
+			searchAction === 'clear-cancel' ||
+			searchAction === 'clear-cancel-and-apply'
+		) {
+			isCancellingSelectionLockedSearchRef.current = false;
+
+			if (searchAction === 'clear-cancel') {
 				return;
 			}
-
-			isCancellingSelectionLockedSearchRef.current = false;
-			return;
-		}
-
-		if (debouncedQ === filterStates.q) {
-			return;
 		}
 
 		resetCursorPagination?.();
@@ -359,6 +367,7 @@ export const useStaffUsersTableController = () => {
 			status: statusFilter.join(','),
 		});
 	}, [
+		globalFilter,
 		debouncedQ,
 		filterStates.q,
 		isSelectionMode,
