@@ -320,12 +320,16 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 
 	private sealed class ConcurrentDeleteAtProfileCommitCoordinator
 		: IAsyncDisposable {
+		private static readonly TimeSpan DeleteOperationTimeout =
+			TimeSpan.FromSeconds(10);
+		private static readonly TimeSpan BlockedDeleteObservationTimeout =
+			TimeSpan.FromSeconds(10);
+
 		private readonly string _connectionString;
 		private readonly Guid _userId;
-		private readonly CancellationTokenSource _deleteCancellationTokenSource =
-			new(TimeSpan.FromSeconds(10));
 		private readonly TaskCompletionSource<int> _deleteUserAccountUpdatePidSource =
 			new(TaskCreationOptions.RunContinuationsAsynchronously);
+		private CancellationTokenSource? _deleteCancellationTokenSource;
 		private Task<DeleteStaffUserResult>? _deleteTask;
 
 		public ConcurrentDeleteAtProfileCommitCoordinator(
@@ -354,20 +358,26 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 			}
 
 			var profileUpdatePid = profileConnection.ProcessID;
+			var deleteCancellationTokenSource =
+				CancellationTokenSource.CreateLinkedTokenSource(
+					cancellationToken
+				);
+			deleteCancellationTokenSource.CancelAfter(DeleteOperationTimeout);
+			_deleteCancellationTokenSource = deleteCancellationTokenSource;
 			_deleteTask = Task.Run(
 				() => RunDeleteStaffUserDuringProfileCommitAsync(
 					_connectionString,
 					_userId,
 					_deleteUserAccountUpdatePidSource,
-					_deleteCancellationTokenSource.Token
+					deleteCancellationTokenSource.Token
 				),
-				_deleteCancellationTokenSource.Token
+				deleteCancellationTokenSource.Token
 			);
 			_ = _deleteTask.ContinueWith(
 				task => {
 					if (task.IsCanceled) {
 						_deleteUserAccountUpdatePidSource.TrySetCanceled(
-							_deleteCancellationTokenSource.Token
+							deleteCancellationTokenSource.Token
 						);
 						return;
 					}
@@ -382,7 +392,7 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 			);
 
 			var deletePid = await _deleteUserAccountUpdatePidSource.Task.WaitAsync(
-				TimeSpan.FromSeconds(10),
+				DeleteOperationTimeout,
 				cancellationToken
 			);
 
@@ -404,22 +414,22 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 				);
 			}
 
-			return await _deleteTask.WaitAsync(TimeSpan.FromSeconds(10));
+			return await _deleteTask.WaitAsync(DeleteOperationTimeout);
 		}
 
 		public async ValueTask DisposeAsync() {
-			_deleteCancellationTokenSource.Cancel();
+			_deleteCancellationTokenSource?.Cancel();
 
 			if (_deleteTask is not null) {
 				try {
 					_ = await _deleteTask.WaitAsync(
-						TimeSpan.FromSeconds(10)
+						DeleteOperationTimeout
 					);
 				} catch (OperationCanceledException) {
 				}
 			}
 
-			_deleteCancellationTokenSource.Dispose();
+			_deleteCancellationTokenSource?.Dispose();
 		}
 
 		private async Task WaitUntilDeleteIsBlockedByProfileCommitAsync(
@@ -427,37 +437,55 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 			int profileUpdatePid,
 			CancellationToken cancellationToken
 		) {
+			using var linkedCancellationTokenSource =
+				CancellationTokenSource.CreateLinkedTokenSource(
+					cancellationToken
+				);
+			linkedCancellationTokenSource.CancelAfter(
+				BlockedDeleteObservationTimeout
+			);
+			var linkedCancellationToken = linkedCancellationTokenSource.Token;
+
 			await using var observerConnection = new NpgsqlConnection(
 				_connectionString
 			);
-			await observerConnection.OpenAsync(cancellationToken);
+			try {
+				await observerConnection.OpenAsync(linkedCancellationToken);
 
-			while (true) {
-				await using var command = observerConnection.CreateCommand();
-				command.CommandText = """
-					SELECT EXISTS (
-						SELECT 1
-						FROM unnest(pg_blocking_pids(@delete_pid)) AS blocking_pid
-						WHERE blocking_pid = @profile_update_pid
-					)
-					""";
-				command.Parameters.AddWithValue("delete_pid", deletePid);
-				command.Parameters.AddWithValue(
-					"profile_update_pid",
-					profileUpdatePid
-				);
+				while (true) {
+					await using var command = observerConnection.CreateCommand();
+					command.CommandText = """
+						SELECT EXISTS (
+							SELECT 1
+							FROM unnest(pg_blocking_pids(@delete_pid)) AS blocking_pid
+							WHERE blocking_pid = @profile_update_pid
+						)
+						""";
+					command.Parameters.AddWithValue("delete_pid", deletePid);
+					command.Parameters.AddWithValue(
+						"profile_update_pid",
+						profileUpdatePid
+					);
 
-				var isBlockedByProfileCommit =
-					(bool)(await command.ExecuteScalarAsync(cancellationToken)
-						?? false);
+					var isBlockedByProfileCommit =
+						(bool)(await command.ExecuteScalarAsync(linkedCancellationToken)
+							?? false);
 
-				if (isBlockedByProfileCommit) {
-					return;
+					if (isBlockedByProfileCommit) {
+						return;
+					}
+
+					await Task.Delay(
+						TimeSpan.FromMilliseconds(10),
+						linkedCancellationToken
+					);
 				}
-
-				await Task.Delay(
-					TimeSpan.FromMilliseconds(10),
-					cancellationToken
+			} catch (OperationCanceledException) when (
+				linkedCancellationTokenSource.IsCancellationRequested
+				&& !cancellationToken.IsCancellationRequested
+			) {
+				throw new TimeoutException(
+					$"Timed out waiting for delete pid {deletePid} to block on profile-update pid {profileUpdatePid}."
 				);
 			}
 		}
