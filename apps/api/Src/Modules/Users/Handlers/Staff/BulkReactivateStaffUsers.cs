@@ -15,7 +15,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Modules.Users.Handlers.Staff;
 
 public sealed class BulkReactivateStaffUsersBody {
-	public JsonElement UserIds { get; init; }
+	public required JsonElement UserIds { get; init; }
 
 	public List<Guid> GetUserIds() {
 		var userIds = new List<Guid>();

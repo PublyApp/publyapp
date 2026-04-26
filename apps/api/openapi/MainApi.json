@@ -7421,6 +7421,9 @@
         }
       },
       "BulkReactivateStaffUsersBody": {
+        "required": [
+          "userIds"
+        ],
         "type": "object",
         "properties": {
           "userIds": {
@@ -7537,6 +7540,9 @@
         }
       },
       "BulkSuspendStaffUsersBody": {
+        "required": [
+          "userIds"
+        ],
         "type": "object",
         "properties": {
           "userIds": {

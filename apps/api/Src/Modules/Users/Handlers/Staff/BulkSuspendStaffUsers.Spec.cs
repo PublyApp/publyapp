@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 using FluentAssertions;
 
@@ -51,6 +52,20 @@ public sealed class BulkSuspendStaffUsersSpec : IClassFixture<ApiFixture> {
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
 			Routes.Users.ForStaff.SuspendFn(userId)
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldPublishBulkStaffUserBodiesWithRequiredUserIdsInOpenApi() {
+		var openApiDocument = await ReadOpenApiDocumentAsync();
+
+		AssertSchemaRequiresUserIds(
+			openApiDocument,
+			"BulkSuspendStaffUsersBody"
+		);
+		AssertSchemaRequiresUserIds(
+			openApiDocument,
+			"BulkReactivateStaffUsersBody"
 		);
 	}
 
@@ -222,6 +237,40 @@ public sealed class BulkSuspendStaffUsersSpec : IClassFixture<ApiFixture> {
 
 		user.Should().NotBeNull();
 		user!.Status.Should().Be(expectedStatus);
+	}
+
+	private static async Task<JsonDocument> ReadOpenApiDocumentAsync() {
+		var openApiPath = Path.GetFullPath(
+			Path.Combine(
+				AppContext.BaseDirectory,
+				"..",
+				"..",
+				"..",
+				"..",
+				"openapi",
+				"MainApi.json"
+			)
+		);
+
+		return JsonDocument.Parse(
+			await File.ReadAllTextAsync(openApiPath)
+		);
+	}
+
+	private static void AssertSchemaRequiresUserIds(
+		JsonDocument openApiDocument,
+		string schemaName
+	) {
+		var requiredEntries = openApiDocument.RootElement
+			.GetProperty("components")
+			.GetProperty("schemas")
+			.GetProperty(schemaName)
+			.GetProperty("required")
+			.EnumerateArray()
+			.Select(x => x.GetString())
+			.ToList();
+
+		requiredEntries.Should().Contain("userIds");
 	}
 
 	private sealed record CreateStaffUserResponse {
