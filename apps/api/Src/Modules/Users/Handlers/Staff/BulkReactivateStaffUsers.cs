@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 
 using FluentValidation;
@@ -15,7 +16,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Modules.Users.Handlers.Staff;
 
 public sealed class BulkReactivateStaffUsersBody {
-	public required JsonElement UserIds { get; init; }
+	[Required]
+	public JsonElement UserIds { get; init; }
 
 	public List<Guid> GetUserIds() {
 		var userIds = new List<Guid>();

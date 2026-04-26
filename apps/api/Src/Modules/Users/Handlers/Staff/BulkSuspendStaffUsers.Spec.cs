@@ -90,6 +90,30 @@ public sealed class BulkSuspendStaffUsersSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldReturnValidationProblemWhenBulkSuspendBodyOmitsUserIds() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetBulkSuspendUrl()
+		).WithSessionToken(staffToken);
+
+		request.Content = JsonContent.Create(new { });
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.TranslationKey.Should().Be(ResponseKeys.RequestBodyValidationFailed);
+		problem.Errors.Values
+			.SelectMany(errors => errors)
+			.Should()
+			.Contain(error => error.Contains("required"));
+	}
+
+	[Fact]
 	public async Task ItShouldReturnOkWhenBulkSuspendingActiveStaffUsers() {
 		var staffToken = await _authClient.LoginAsStaffAdminAsync();
 		var firstUserId = Guid.Parse(
