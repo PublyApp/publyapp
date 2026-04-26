@@ -126,7 +126,7 @@ public static class ServiceRegistration {
 	/// Registers Application/business services from MainApi.Src.Modules.*.Services.
 	/// </summary>
 	public static WebApplicationBuilder AddAppServices(this WebApplicationBuilder builder) {
-		// Phase 3: Validate [Service] attributed classes (fail-fast)
+		// Validate [Service] attributed classes up front (fail-fast).
 		var discoveredServices = ValidateServiceAttributes();
 
 		// Optional DI manifest logging (gated by config).
@@ -145,8 +145,8 @@ public static class ServiceRegistration {
 		// Register RequestAuthContext (unified auth + tenant context)
 		builder.Services.AddScoped<IRequestAuthContext, RequestAuthContext>();
 
-		// Phase 3: Register [Service] attributed classes AFTER explicit registrations
-		// This ensures fail-fast detection of "half-migrated" states (same interface registered both ways)
+		// Register [Service] attributed classes after the explicit framework/app registrations above.
+		// Fail fast if any explicit registration overlaps with a discovered [Service] mapping.
 		RegisterDiscoveredServices(builder.Services, discoveredServices);
 
 		// Validate services at build time
@@ -175,7 +175,6 @@ public static class ServiceRegistration {
 
 	/// <summary>
 	/// Registers discovered [Service] attributed classes with the DI container.
-	/// Phase 3: incremental cutover from explicit registrations to attribute-based registration.
 	/// Fails fast if any discovered service interface already has an explicit registration.
 	/// </summary>
 	private static void RegisterDiscoveredServices(
@@ -188,7 +187,7 @@ public static class ServiceRegistration {
 			.Select(s => s.ServiceInterface!)
 			.ToHashSet();
 
-		// Fail-fast: detect "half-migrated" states where both explicit and attribute registrations exist
+		// Fail fast if an explicit registration overlaps with a discovered [Service] mapping.
 		var conflictingDescriptors = services
 			.Where(sd => discoveredInterfaces.Contains(sd.ServiceType))
 			.ToList();
