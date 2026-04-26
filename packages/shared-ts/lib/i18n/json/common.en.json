@@ -569,6 +569,8 @@
 	"billing-coming-soon": "Billing features are under development. The data shown below is placeholder content.",
 	"confirm-delete-tenant-title": "Delete tenant",
 	"confirm-delete-tenant-message": "Are you sure you want to delete this tenant? This action cannot be easily undone.",
+	"confirm-delete-staff-user-title": "Delete staff member",
+	"confirm-delete-staff-user-message": "Are you sure you want to delete this staff member? This action cannot be easily undone.",
 	"delete-tenant-disabled-until-suspended": "Suspend this tenant before deleting it.",
 	"delete-staff-user-disabled-until-suspended": "Suspend this staff member before deleting it.",
 	"users-count": "Users count",
