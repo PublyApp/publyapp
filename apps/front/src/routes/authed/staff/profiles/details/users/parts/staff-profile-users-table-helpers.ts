@@ -27,33 +27,3 @@ export const getVisibleSelectedRows = <TRow extends RowWithId>(
 		return rowSelection[row.id];
 	});
 };
-
-export const getProfileUsersDebouncedSearchAction = ({
-	isSelectionMode,
-	isCancellingSelectionLockedSearch,
-	debouncedQuery,
-	persistedQuery,
-}: {
-	isSelectionMode: boolean;
-	isCancellingSelectionLockedSearch: boolean;
-	debouncedQuery: string;
-	persistedQuery: string;
-}) => {
-	if (isSelectionMode) {
-		return 'none' as const;
-	}
-
-	if (isCancellingSelectionLockedSearch) {
-		if (debouncedQuery !== persistedQuery) {
-			return 'wait' as const;
-		}
-
-		return 'clear-cancel' as const;
-	}
-
-	if (debouncedQuery === persistedQuery) {
-		return 'none' as const;
-	}
-
-	return 'apply' as const;
-};
