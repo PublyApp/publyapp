@@ -945,15 +945,7 @@ public class UserService : IUserService {
 		// Suspension for staff users is a global identity suspension (User.Status).
 		// This mirrors the tenant suspend/reactivate semantics: the staff UserAccount
 		// is still present, but the user can no longer authenticate/use staff routes.
-		var query =
-			from ua in _dbContext.UserAccount
-			where ua.UserId == userId
-				&& ua.Scope == AccountScope.Staff
-				&& !ua.IsDeleted
-				&& !ua.User.IsDeleted
-			select new StaffUserData { User = ua.User, AccountLevel = ua.Level };
-
-		var userData = await query.FirstOrDefaultAsync(cancellationToken);
+		var userData = await FindLiveStaffUserAsync(userId, cancellationToken);
 		if (userData is null) {
 			return new SuspendStaffUserResult.NotFound();
 		}
@@ -962,10 +954,34 @@ public class UserService : IUserService {
 			return new SuspendStaffUserResult.AlreadySuspended();
 		}
 
-		userData.User.Status = UserStatus.Suspended;
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		var now = DateTime.UtcNow;
+		var updatedUserCount = await BuildLiveStaffUserMutationQuery(userId)
+			.Where(x => x.Status != UserStatus.Suspended)
+			.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(x => x.Status, UserStatus.Suspended)
+					.SetProperty(x => x.UpdatedAt, now),
+				cancellationToken
+			);
 
-		return new SuspendStaffUserResult.Success(userData);
+		if (updatedUserCount == 0) {
+			return await ResolveSuspendStaffUserAfterNoRowsAsync(
+				userId,
+				cancellationToken
+			);
+		}
+
+		var updatedUserData = await FindLiveStaffUserAsync(
+			userId,
+			cancellationToken
+		);
+		if (updatedUserData is null) {
+			throw new InvalidOperationException(
+				"Staff user disappeared after successful suspend update."
+			);
+		}
+
+		return new SuspendStaffUserResult.Success(updatedUserData);
 	}
 
 	public async Task<ReactivateStaffUserResult> ReactivateStaffUserAsync(
@@ -975,15 +991,7 @@ public class UserService : IUserService {
 		// Reactivation clears the global identity suspension and restores access.
 		// We keep this explicit (not part of the general PATCH) to make the operation
 		// harder to trigger accidentally and easier to permission-gate.
-		var query =
-			from ua in _dbContext.UserAccount
-			where ua.UserId == userId
-				&& ua.Scope == AccountScope.Staff
-				&& !ua.IsDeleted
-				&& !ua.User.IsDeleted
-			select new StaffUserData { User = ua.User, AccountLevel = ua.Level };
-
-		var userData = await query.FirstOrDefaultAsync(cancellationToken);
+		var userData = await FindLiveStaffUserAsync(userId, cancellationToken);
 		if (userData is null) {
 			return new ReactivateStaffUserResult.NotFound();
 		}
@@ -992,34 +1000,50 @@ public class UserService : IUserService {
 			return new ReactivateStaffUserResult.NotSuspended();
 		}
 
-		userData.User.Status = UserStatus.Active;
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		var now = DateTime.UtcNow;
+		var updatedUserCount = await BuildLiveStaffUserMutationQuery(userId)
+			.Where(x => x.Status == UserStatus.Suspended)
+			.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(x => x.Status, UserStatus.Active)
+					.SetProperty(x => x.UpdatedAt, now),
+				cancellationToken
+			);
 
-		return new ReactivateStaffUserResult.Success(userData);
+		if (updatedUserCount == 0) {
+			return await ResolveReactivateStaffUserAfterNoRowsAsync(
+				userId,
+				cancellationToken
+			);
+		}
+
+		var updatedUserData = await FindLiveStaffUserAsync(
+			userId,
+			cancellationToken
+		);
+		if (updatedUserData is null) {
+			throw new InvalidOperationException(
+				"Staff user disappeared after successful reactivate update."
+			);
+		}
+
+		return new ReactivateStaffUserResult.Success(updatedUserData);
 	}
 
 	public async Task<DeleteStaffUserResult> DeleteStaffUserAsync(
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
-		var target = await (
-			from ua in _dbContext.UserAccount
-			where ua.UserId == userId
-				&& ua.Scope == AccountScope.Staff
-				&& !ua.IsDeleted
-				&& !ua.User.IsDeleted
-			select new {
-				UserAccountId = ua.GetRequiredId(),
-				User = ua.User,
-				Level = ua.Level,
-			}
-		).FirstOrDefaultAsync(cancellationToken);
+		var target = await FindLiveStaffUserDeleteTargetAsync(
+			userId,
+			cancellationToken
+		);
 
 		if (target is null) {
 			return new DeleteStaffUserResult.NotFound();
 		}
 
-		if (!target.User.IsSuspended()) {
+		if (!target.UserData.User.IsSuspended()) {
 			return new DeleteStaffUserResult.NotSuspended();
 		}
 
@@ -1028,12 +1052,8 @@ public class UserService : IUserService {
 			cancellationToken
 		);
 
-		var deletedUserCount = await _dbContext.User
-			.Where(x =>
-				x.Id == userId
-				&& !x.IsDeleted
-				&& x.Status == UserStatus.Suspended
-			)
+		var deletedUserCount = await BuildLiveStaffUserMutationQuery(userId)
+			.Where(x => x.Status == UserStatus.Suspended)
 			.ExecuteUpdateAsync(
 				setters => setters
 					.SetProperty(x => x.IsDeleted, true)
@@ -1044,19 +1064,10 @@ public class UserService : IUserService {
 
 		if (deletedUserCount == 0) {
 			await transaction.RollbackAsync(cancellationToken);
-
-			var currentState = await (
-				from ua in _dbContext.UserAccount
-				where ua.UserId == userId
-					&& ua.Scope == AccountScope.Staff
-					&& !ua.IsDeleted
-					&& !ua.User.IsDeleted
-				select (UserStatus?)ua.User.Status
-			).FirstOrDefaultAsync(cancellationToken);
-
-			return currentState == UserStatus.Suspended
-				? new DeleteStaffUserResult.NotFound()
-				: new DeleteStaffUserResult.NotSuspended();
+			return await ResolveDeleteStaffUserAfterNoRowsAsync(
+				userId,
+				cancellationToken
+			);
 		}
 
 		var deletedUserAccountCount = await _dbContext.UserAccount
@@ -1092,12 +1103,121 @@ public class UserService : IUserService {
 		await transaction.CommitAsync(cancellationToken);
 
 		return new DeleteStaffUserResult.Success(
-			new StaffUserData {
-				User = target.User,
-				AccountLevel = target.Level,
-			},
+			target.UserData,
 			target.UserAccountId
 		);
+	}
+
+	private IQueryable<StaffUserData> BuildLiveStaffUserQuery(Guid userId) {
+		return
+			from ua in _dbContext.UserAccount.AsNoTracking()
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select new StaffUserData {
+				User = ua.User,
+				AccountLevel = ua.Level
+			};
+	}
+
+	private IQueryable<User> BuildLiveStaffUserMutationQuery(Guid userId) {
+		return _dbContext.User.Where(u =>
+			u.Id == userId
+			&& !u.IsDeleted
+			&& _dbContext.UserAccount.Any(ua =>
+				ua.UserId == u.Id
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+			)
+		);
+	}
+
+	private async Task<StaffUserData?> FindLiveStaffUserAsync(
+		Guid userId,
+		CancellationToken cancellationToken
+	) {
+		return await BuildLiveStaffUserQuery(userId)
+			.FirstOrDefaultAsync(cancellationToken);
+	}
+
+	private async Task<LiveStaffUserDeleteTarget?> FindLiveStaffUserDeleteTargetAsync(
+		Guid userId,
+		CancellationToken cancellationToken
+	) {
+		return await (
+			from ua in _dbContext.UserAccount.AsNoTracking()
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select new LiveStaffUserDeleteTarget {
+				UserAccountId = ua.GetRequiredId(),
+				UserData = new StaffUserData {
+					User = ua.User,
+					AccountLevel = ua.Level
+				}
+			}
+		).FirstOrDefaultAsync(cancellationToken);
+	}
+
+	private async Task<SuspendStaffUserResult> ResolveSuspendStaffUserAfterNoRowsAsync(
+		Guid userId,
+		CancellationToken cancellationToken
+	) {
+		var currentUserData = await FindLiveStaffUserAsync(userId, cancellationToken);
+		if (currentUserData is null) {
+			return new SuspendStaffUserResult.NotFound();
+		}
+
+		if (currentUserData.User.IsSuspended()) {
+			return new SuspendStaffUserResult.AlreadySuspended();
+		}
+
+		throw new InvalidOperationException(
+			"Staff user still matched suspend preconditions after a 0-row update."
+		);
+	}
+
+	private async Task<ReactivateStaffUserResult> ResolveReactivateStaffUserAfterNoRowsAsync(
+		Guid userId,
+		CancellationToken cancellationToken
+	) {
+		var currentUserData = await FindLiveStaffUserAsync(userId, cancellationToken);
+		if (currentUserData is null) {
+			return new ReactivateStaffUserResult.NotFound();
+		}
+
+		if (!currentUserData.User.IsSuspended()) {
+			return new ReactivateStaffUserResult.NotSuspended();
+		}
+
+		throw new InvalidOperationException(
+			"Staff user still matched reactivate preconditions after a 0-row update."
+		);
+	}
+
+	private async Task<DeleteStaffUserResult> ResolveDeleteStaffUserAfterNoRowsAsync(
+		Guid userId,
+		CancellationToken cancellationToken
+	) {
+		var currentUserData = await FindLiveStaffUserAsync(userId, cancellationToken);
+		if (currentUserData is null) {
+			return new DeleteStaffUserResult.NotFound();
+		}
+
+		if (!currentUserData.User.IsSuspended()) {
+			return new DeleteStaffUserResult.NotSuspended();
+		}
+
+		throw new InvalidOperationException(
+			"Staff user still matched delete preconditions after a 0-row update."
+		);
+	}
+
+	private sealed class LiveStaffUserDeleteTarget {
+		public required Guid UserAccountId { get; init; }
+		public required StaffUserData UserData { get; init; }
 	}
 
 	public async Task<UpdateStaffUserEmailResult> UpdateStaffUserEmailAsync(
