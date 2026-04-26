@@ -30,8 +30,8 @@ import {
 import type { StaffUserRowData } from './use-staff-users-table-controller.ts';
 import {
 	clearDeletedStaffUserRelatedQueries,
-	invalidateStaffUsersListAndDetails,
-} from './staff-users-list-helpers.ts';
+	invalidateStaffUserLifecycleQueries,
+} from '#app/routes/authed/staff/staff-users/shared/staff-user-cache-helpers.ts';
 
 const ALLOW_COPY_LINK = false;
 
@@ -55,7 +55,7 @@ const StaffUserRowActions = ({ user }: StaffUserRowActionsProps) => {
 			meta: { successMessage: 'staff-user-suspended-success' },
 			onSuccess: async () => {
 				setSuspendDialogOpen(false);
-				await invalidateStaffUsersListAndDetails({
+				await invalidateStaffUserLifecycleQueries({
 					queryClient,
 					userIds: [user.id],
 				});
@@ -67,7 +67,7 @@ const StaffUserRowActions = ({ user }: StaffUserRowActionsProps) => {
 			meta: { successMessage: 'staff-user-reactivated-success' },
 			onSuccess: async () => {
 				setReactivateDialogOpen(false);
-				await invalidateStaffUsersListAndDetails({
+				await invalidateStaffUserLifecycleQueries({
 					queryClient,
 					userIds: [user.id],
 				});
@@ -79,7 +79,7 @@ const StaffUserRowActions = ({ user }: StaffUserRowActionsProps) => {
 			meta: { successMessage: 'staff-user-deleted-success' },
 			onSuccess: async () => {
 				setDeleteDialogOpen(false);
-				await invalidateStaffUsersListAndDetails({
+				await invalidateStaffUserLifecycleQueries({
 					queryClient,
 					userIds: [user.id],
 					invalidateStaffProfilesList: true,
