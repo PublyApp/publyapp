@@ -22,9 +22,9 @@ import { getSuccessfulBulkStaffUserIds } from './staff-users-list-helpers.ts';
 
 import {
 	clearDeletedStaffUserRelatedQueries,
-	getSuccessfulBulkStaffUserIds,
-	invalidateStaffUsersListAndDetails,
-} from './staff-users-list-helpers.ts';
+	invalidateStaffUserLifecycleQueries,
+} from '#app/routes/authed/staff/staff-users/shared/staff-user-cache-helpers.ts';
+import { getSuccessfulBulkStaffUserIds } from './staff-users-list-helpers.ts';
 
 export type StaffUsersBulkActionType = 'suspend' | 'reactivate' | 'delete';
 

@@ -649,12 +649,12 @@ const StatusCell: MRT_ColumnDef<ProfileUserRowData, string>['Cell'] = (
 
 	const { mutate: suspendUser, isPending: isSuspending } = useSuspendStaffUser({
 		meta: { successMessage: 'staff-user-suspended-success' },
-		onSuccess: () => {
+		onSuccess: async () => {
 			// This status control mutates the user-level status, not a profile-local flag.
 			// Refresh the current projection so suspended users stay visible with updated status.
-			// Refresh any "staff profile -> users" lists after a staff user status change.
-			void queryClient.invalidateQueries({
-				queryKey: useFindStaffProfileUsers.getKey(),
+			await invalidateStaffUserLifecycleQueries({
+				queryClient,
+				userIds: [user.id],
 			});
 			setConfirmDialogOpen(false);
 			setMenuAnchorEl(null);
@@ -664,9 +664,10 @@ const StatusCell: MRT_ColumnDef<ProfileUserRowData, string>['Cell'] = (
 	const { mutate: reactivateUser, isPending: isReactivating } =
 		useReactivateStaffUser({
 			meta: { successMessage: 'staff-user-reactivated-success' },
-			onSuccess: () => {
-				void queryClient.invalidateQueries({
-					queryKey: useFindStaffProfileUsers.getKey(),
+			onSuccess: async () => {
+				await invalidateStaffUserLifecycleQueries({
+					queryClient,
+					userIds: [user.id],
 				});
 				setConfirmDialogOpen(false);
 				setMenuAnchorEl(null);
