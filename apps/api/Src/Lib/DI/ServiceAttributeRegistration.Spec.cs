@@ -1,5 +1,7 @@
 namespace MainApi.Src.Lib.DI;
 
+using System.Reflection;
+
 using FluentAssertions;
 
 using MainApi.Src.Lib;
@@ -21,6 +23,11 @@ using Xunit;
 
 public sealed class ServiceAttributeRegistrationSpec
 	: IClassFixture<ApiFixture> {
+	private sealed record QualifyingService(
+		Type ServiceType,
+		Type ImplementationType
+	);
+
 	private static readonly (
 		Type ServiceType,
 		Type ImplementationType
@@ -54,6 +61,18 @@ public sealed class ServiceAttributeRegistrationSpec
 	[Fact]
 	public void
 	ItShouldDiscoverAllQualifyingModuleServicesForAttributeRegistration() {
+		var qualifyingServices =
+			GetQualifyingModuleServices();
+
+		qualifyingServices.Should().BeEquivalentTo(
+			ExpectedServices
+				.Select(x => new QualifyingService(
+					x.ServiceType,
+					x.ImplementationType
+				))
+				.ToArray()
+		);
+
 		var discoveredServices =
 			ServiceScanner.ScanAssembly<Program>();
 
@@ -69,23 +88,15 @@ public sealed class ServiceAttributeRegistrationSpec
 			})
 			.ToList();
 
-		actualServices.Should().HaveCount(
-			ExpectedServices.Length
+		actualServices.Should().BeEquivalentTo(
+			qualifyingServices
+				.Select(x => new {
+					x.ServiceType,
+					x.ImplementationType,
+					Lifetime = ServiceLifetime.Scoped,
+					Key = (string?)null
+				})
 		);
-
-		foreach (var (
-			serviceType,
-			implementationType
-		) in ExpectedServices) {
-			actualServices.Should().Contain(x =>
-				x.ServiceType == serviceType
-				&& x.ImplementationType
-					== implementationType
-				&& x.Lifetime
-					== ServiceLifetime.Scoped
-				&& x.Key == null
-			);
-		}
 	}
 
 	[Fact]
@@ -115,5 +126,43 @@ public sealed class ServiceAttributeRegistrationSpec
 
 		requestAuthContext.Should()
 			.BeOfType<RequestAuthContext>();
+	}
+
+	private static QualifyingService[] GetQualifyingModuleServices() {
+		Assembly assembly = typeof(Program).Assembly;
+
+		return assembly
+			.GetTypes()
+			.Where(type =>
+				type is {
+					IsClass: true,
+					IsAbstract: false,
+					IsGenericTypeDefinition: false,
+					ContainsGenericParameters: false
+				})
+			.Where(type =>
+				type.Namespace is not null
+				&& type.Namespace.StartsWith(
+					"MainApi.Src.Modules.",
+					StringComparison.Ordinal
+				)
+				&& type.Namespace.Contains(
+					".Services",
+					StringComparison.Ordinal
+				))
+			.Select(type => new {
+				ImplementationType = type,
+				ServiceType = type
+					.GetInterfaces()
+					.SingleOrDefault(@interface =>
+						@interface.Name == $"I{type.Name}"
+					)
+			})
+			.Where(x => x.ServiceType is not null)
+			.Select(x => new QualifyingService(
+				x.ServiceType!,
+				x.ImplementationType
+			))
+			.ToArray();
 	}
 }
