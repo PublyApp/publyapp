@@ -1153,6 +1153,27 @@ public class UserService : IUserService {
 		).FirstOrDefaultAsync(cancellationToken);
 	}
 
+	private async Task<Dictionary<Guid, UserStatus>> FindLiveStaffUserStatusesAsync(
+		IReadOnlyCollection<Guid> userIds,
+		CancellationToken cancellationToken
+	) {
+		return await (
+			from ua in _dbContext.UserAccount.AsNoTracking()
+			where userIds.Contains(ua.UserId)
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select new LiveStaffUserStatus {
+				UserId = ua.UserId,
+				Status = ua.User.Status
+			}
+		).ToDictionaryAsync(
+			x => x.UserId,
+			x => x.Status,
+			cancellationToken
+		);
+	}
+
 	private async Task<SuspendStaffUserResult> ResolveSuspendStaffUserAfterNoRowsAsync(
 		Guid userId,
 		CancellationToken cancellationToken
@@ -2918,6 +2939,11 @@ public class UserService : IUserService {
 				AccountLevel = updatedAccount.Account.Level
 			}
 		);
+	}
+
+	private sealed record LiveStaffUserStatus {
+		public required Guid UserId { get; init; }
+		public required UserStatus Status { get; init; }
 	}
 
 	public async Task<RemoveUserFromTenantResult> RemoveUserFromTenantAsync(
