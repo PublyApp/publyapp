@@ -71,11 +71,6 @@ export type StaffUserRowData = {
 	email: string;
 };
 
-type UseStaffUsersTableControllerArgs = {
-	columns: MRT_ColumnDef<StaffUserRowData>[];
-	mapRowData: (staffUser: StaffUserItem) => StaffUserRowData;
-};
-
 type StaffUserStatusFilterOption = {
 	label: string;
 	value: StaffUserStatusFilter;
