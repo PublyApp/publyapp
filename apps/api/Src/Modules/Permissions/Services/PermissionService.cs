@@ -1,4 +1,5 @@
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Lib.DI;
 using MainApi.Src.Modules.Profiles.Entities;
 using MainApi.Src.Modules.Users.Entities;
 
@@ -12,6 +13,7 @@ public interface IPermissionService {
 	Task<HashSet<string>> GetPermissionsForProfilesAsync(List<Guid> profileIds);
 }
 
+[Service(ServiceLifetime.Scoped)]
 public class PermissionService : IPermissionService {
 	private readonly MainApiDbContext _context;
 

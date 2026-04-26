@@ -6,13 +6,6 @@ using MainApi.Src.Data.DbContext;
 using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Lib.DI;
 using MainApi.Src.Lib.Extensions;
-using MainApi.Src.Modules.Auth.Services;
-using MainApi.Src.Modules.Impersonations.Services;
-using MainApi.Src.Modules.Invitations.Services;
-using MainApi.Src.Modules.Permissions.Services;
-using MainApi.Src.Modules.Profiles.Services;
-using MainApi.Src.Modules.Tenants.Services;
-using MainApi.Src.Modules.Users.Services;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
@@ -148,20 +141,6 @@ public static class ServiceRegistration {
 
 		// Register FluentValidation (keep unchanged)
 		builder.Services.AddValidatorsFromAssemblyContaining<Program>();
-
-		// Application services (scoped) - explicit registrations for services not yet migrated to [Service]
-		builder.Services.AddScoped<IUserService, UserService>();
-		builder.Services.AddScoped<ISessionService, SessionService>();
-		builder.Services.AddScoped<ITenantAsStaffService, TenantAsStaffService>();
-		builder.Services.AddScoped<ITenantService, TenantService>();
-		builder.Services.AddScoped<IAccountService, AccountService>();
-		builder.Services.AddScoped<IProfileService, ProfileService>();
-		builder.Services.AddScoped<IInvitationService, InvitationService>();
-		// IAuditLogService -> migrated to [Service] attribute
-		builder.Services.AddScoped<IImpersonationService, ImpersonationService>();
-		builder.Services.AddScoped<IPermissionService, PermissionService>();
-		builder.Services.AddScoped<IProfileAsStaffService, ProfileAsStaffService>();
-		builder.Services.AddScoped<IPermissionAsStaffService, PermissionAsStaffService>();
 
 		// Register RequestAuthContext (unified auth + tenant context)
 		builder.Services.AddScoped<IRequestAuthContext, RequestAuthContext>();
