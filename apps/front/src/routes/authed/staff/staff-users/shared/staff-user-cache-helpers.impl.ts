@@ -83,6 +83,9 @@ export const getDeletedStaffUserQueryRemovals = ({
 	return uniqueUserIds.flatMap((userId) => {
 		return [
 			{
+				queryKey: queryKeys.getStaffUserById(userId),
+			},
+			{
 				queryKey: queryKeys.getStaffUserProfiles(userId),
 			},
 			{

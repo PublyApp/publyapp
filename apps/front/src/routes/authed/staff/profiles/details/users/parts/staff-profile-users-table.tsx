@@ -14,6 +14,7 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import { useQueryClient } from '@tanstack/react-query';
+import isEqual from 'lodash/isEqual';
 import map from 'lodash/map';
 import pick from 'lodash/pick';
 import toStr from 'lodash/toString';
@@ -65,6 +66,11 @@ import { invalidateStaffUserLifecycleQueries } from '#app/routes/authed/staff/st
 import StaffProfileUsersExportDialogController, {
 	type StaffProfileUsersExportDialogControllerRef,
 } from './staff-profile-users-export-dialog-controller.tsx';
+import {
+	getProfileUsersDebouncedSearchAction,
+	getVisibleSelectedRows,
+	reconcileVisibleProfileUserRowSelection,
+} from './staff-profile-users-table-helpers.ts';
 
 export const defaultStaffProfileUsersSorting: MRT_SortingState[number] = {
 	desc: true,
@@ -98,6 +104,7 @@ export const StaffProfileUsersTable = () => {
 
 	// Row selection enables "bulk actions" mode (shared MRT toolbar pattern).
 	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+	const isCancellingSelectionLockedSearchRef = useRef(false);
 	const {
 		handlePaginationChange,
 		handleSortingChange,
@@ -109,28 +116,6 @@ export const StaffProfileUsersTable = () => {
 		defaultSorting: defaultStaffProfileUsersSorting,
 		defaultPageSize: DEFAULT_PAGE_SIZE,
 	});
-
-	const selectedCount = Object.values(rowSelection).filter(Boolean).length;
-	const isSelectionMode = selectedCount > 0;
-
-	useEffect(() => {
-		if (debouncedQ === filterStates.q) {
-			return;
-		}
-
-		// Offset pagination: reset to page 1 when the query changes.
-		setPaginationState({
-			...paginationState,
-			page: '1',
-		});
-		void setFilterStates({ q: debouncedQ });
-	}, [
-		debouncedQ,
-		filterStates.q,
-		paginationState,
-		setFilterStates,
-		setPaginationState,
-	]);
 
 	useEffect(() => {
 		setSearch(filterStates.q);
@@ -176,12 +161,23 @@ export const StaffProfileUsersTable = () => {
 		return map(usersQuery.data?.users, mapProfileUserRowData);
 	}, [usersQuery.data]);
 
-	// Derive selected rows from the currently loaded page.
-	// Selection mode locks query controls (sorting/filter/pagination) so users don't
-	// lose selected rows mid-operation.
-	const selectedRowsFromData = useMemo(() => {
-		return data.filter((row) => rowSelection[row.id]);
+	const reconciledRowSelection = useMemo(() => {
+		return reconcileVisibleProfileUserRowSelection(rowSelection, data);
 	}, [data, rowSelection]);
+
+	useEffect(() => {
+		if (isEqual(reconciledRowSelection, rowSelection)) {
+			return;
+		}
+
+		setRowSelection(reconciledRowSelection);
+	}, [reconciledRowSelection, rowSelection]);
+
+	const selectedRowsFromData = useMemo(() => {
+		return getVisibleSelectedRows(data, reconciledRowSelection);
+	}, [data, reconciledRowSelection]);
+	const selectedCount = selectedRowsFromData.length;
+	const isSelectionMode = selectedCount > 0;
 	const selectionModeDisabledReason = t('selection-mode-disable-controls');
 	const sortingDisabledReason = t('selection-mode-disable-sorting');
 	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
@@ -196,6 +192,52 @@ export const StaffProfileUsersTable = () => {
 			sortedByColumnDesc: sortingDisabledReason,
 		};
 	}, [isSelectionMode, sortingDisabledReason]);
+
+	useEffect(() => {
+		if (!isSelectionMode) {
+			return;
+		}
+
+		isCancellingSelectionLockedSearchRef.current = true;
+		if (search === filterStates.q) {
+			return;
+		}
+
+		setSearch(filterStates.q);
+	}, [filterStates.q, isSelectionMode, search]);
+
+	useEffect(() => {
+		const searchAction = getProfileUsersDebouncedSearchAction({
+			isSelectionMode,
+			isCancellingSelectionLockedSearch:
+				isCancellingSelectionLockedSearchRef.current,
+			debouncedQuery: debouncedQ,
+			persistedQuery: filterStates.q,
+		});
+
+		if (searchAction === 'wait' || searchAction === 'none') {
+			return;
+		}
+
+		if (searchAction === 'clear-cancel') {
+			isCancellingSelectionLockedSearchRef.current = false;
+			return;
+		}
+
+		// Offset pagination: reset to page 1 when the query changes.
+		setPaginationState({
+			...paginationState,
+			page: '1',
+		});
+		setFilterStates({ q: debouncedQ });
+	}, [
+		debouncedQ,
+		filterStates.q,
+		isSelectionMode,
+		paginationState,
+		setFilterStates,
+		setPaginationState,
+	]);
 
 	const table = useMRTTable('minimal', {
 		columns,
@@ -229,7 +271,7 @@ export const StaffProfileUsersTable = () => {
 			...tableState,
 			density: 'compact',
 			isLoading: usersQuery.isPending,
-			rowSelection,
+			rowSelection: reconciledRowSelection,
 		},
 		muiTableHeadCellProps: ({ column }) => {
 			if (!column.getCanSort()) {
