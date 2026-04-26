@@ -1207,24 +1207,28 @@ public class UserService : IUserService {
 		);
 	}
 
-	private async Task SoftDeleteActiveStaffUserProfileLinksAsync(
+	private async Task<UserAccount?> LockLiveStaffUserAccountForProfileUpdateAsync(
+		Guid userId,
 		Guid staffAccountId,
 		CancellationToken cancellationToken
 	) {
-		var now = DateTime.UtcNow;
-
-		_ = await _dbContext.UserAccountProfile
-			.Where(x =>
-				x.UserAccountId == staffAccountId
-				&& !x.IsDeleted
-			)
-			.ExecuteUpdateAsync(
-				setters => setters
-					.SetProperty(x => x.IsDeleted, true)
-					.SetProperty(x => x.DeletedAt, now)
-					.SetProperty(x => x.UpdatedAt, now),
-				cancellationToken
-			);
+		// Hold the staff-account row lock until commit so a concurrent delete cannot
+		// soft-delete the account while missing this transaction's uncommitted links.
+		return await _dbContext.UserAccount
+			.FromSqlInterpolated($"""
+				SELECT ua.*
+				FROM user_accounts AS ua
+				JOIN users AS u
+					ON u.id = ua.user_id
+				WHERE ua.id = {staffAccountId}
+					AND ua.user_id = {userId}
+					AND ua.scope = {(int)AccountScope.Staff}
+					AND NOT ua.is_deleted
+					AND NOT u.is_deleted
+				FOR UPDATE OF ua
+				""")
+			.AsNoTracking()
+			.SingleOrDefaultAsync(cancellationToken);
 	}
 
 	private sealed class LiveStaffUserDeleteTarget {
@@ -2035,7 +2039,7 @@ public class UserService : IUserService {
 		// - when re-adding a previously soft-deleted link, we "undelete" it instead of inserting.
 		var existingLinks = await (
 			from uap in _dbContext.UserAccountProfile
-			where uap.UserAccountId == staffAccountId.Value
+			where uap.UserAccountId == lockedStaffAccountId
 			select uap
 		).ToListAsync(cancellationToken);
 
@@ -2074,7 +2078,7 @@ public class UserService : IUserService {
 			}
 
 			linksToInsert.Add(new UserAccountProfile {
-				UserAccountId = staffAccountId.Value,
+				UserAccountId = lockedStaffAccountId,
 				ProfileId = profileId
 			});
 		}
@@ -2085,26 +2089,6 @@ public class UserService : IUserService {
 
 		try {
 			await _dbContext.SaveChangesAsync(cancellationToken);
-
-			var isStaffAccountStillLive = await (
-				from ua in _dbContext.UserAccount
-				where ua.Id == staffAccountId.Value
-					&& ua.UserId == userId
-					&& ua.Scope == AccountScope.Staff
-					&& !ua.IsDeleted
-					&& !ua.User.IsDeleted
-				select ua.Id
-			).AnyAsync(cancellationToken);
-
-			if (!isStaffAccountStillLive) {
-				await SoftDeleteActiveStaffUserProfileLinksAsync(
-					staffAccountId.Value,
-					cancellationToken
-				);
-				await transaction.CommitAsync(cancellationToken);
-				return new UpdateStaffUserProfilesServiceResult.UserNotFound();
-			}
-
 			await transaction.CommitAsync(cancellationToken);
 		} catch {
 			await transaction.RollbackAsync(cancellationToken);
