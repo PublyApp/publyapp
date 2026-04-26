@@ -61,6 +61,14 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 		);
 	}
 
+	private static string GetBulkDeleteUrl() {
+		return PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Users.ForStaff.Root,
+			"/bulk-delete"
+		);
+	}
+
 	private static string GetUpdateEmailUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
@@ -141,6 +149,23 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
 			GetBulkReactivateUrl()
+		).WithSessionToken(token);
+
+		request.Content = JsonContent.Create(new {
+			userIds = new[] { Guid.NewGuid() }
+		});
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnForbiddenForStaffWithoutBulkDeletePermission() {
+		var token = await CreateUnprivilegedStaffUserTokenAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetBulkDeleteUrl()
 		).WithSessionToken(token);
 
 		request.Content = JsonContent.Create(new {
