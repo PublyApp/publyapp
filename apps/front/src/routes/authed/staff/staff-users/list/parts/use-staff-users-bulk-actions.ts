@@ -168,6 +168,7 @@ export const useStaffUsersBulkActions = ({
 				await invalidateStaffUsersListAndDetails({
 					queryClient,
 					userIds: successfulUserIds,
+					invalidateStaffProfilesList: true,
 				});
 				clearDeletedStaffUserRelatedQueries({
 					queryClient,

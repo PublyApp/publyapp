@@ -175,24 +175,6 @@ export const useStaffUsersTableController = () => {
 	const debouncedQ = useDebounce(globalFilter, 300);
 
 	useEffect(() => {
-		if (debouncedQ === filterStates.q) {
-			return;
-		}
-
-		resetCursorPagination?.();
-		setFilterStates({
-			q: debouncedQ,
-			status: statusFilter.join(','),
-		});
-	}, [
-		debouncedQ,
-		filterStates.q,
-		resetCursorPagination,
-		setFilterStates,
-		statusFilter,
-	]);
-
-	useEffect(() => {
 		setGlobalFilter(filterStates.q);
 	}, [filterStates.q]);
 
@@ -324,6 +306,7 @@ export const useStaffUsersTableController = () => {
 	}, [selectedRows]);
 	const selectedCount = selectedRows.length;
 	const isSelectionMode = selectedCount > 0;
+	const isCancellingSelectionLockedSearchRef = useRef(false);
 	const selectionModeDisabledReason = t('selection-mode-disable-controls');
 	const sortingDisabledReason = t('selection-mode-disable-sorting');
 	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
@@ -338,6 +321,51 @@ export const useStaffUsersTableController = () => {
 			sortedByColumnDesc: sortingDisabledReason,
 		};
 	}, [isSelectionMode, sortingDisabledReason]);
+
+	useEffect(() => {
+		if (!isSelectionMode) {
+			return;
+		}
+
+		isCancellingSelectionLockedSearchRef.current = true;
+		if (globalFilter === filterStates.q) {
+			return;
+		}
+
+		setGlobalFilter(filterStates.q);
+	}, [filterStates.q, globalFilter, isSelectionMode]);
+
+	useEffect(() => {
+		if (isSelectionMode) {
+			return;
+		}
+
+		if (isCancellingSelectionLockedSearchRef.current) {
+			if (debouncedQ !== filterStates.q) {
+				return;
+			}
+
+			isCancellingSelectionLockedSearchRef.current = false;
+			return;
+		}
+
+		if (debouncedQ === filterStates.q) {
+			return;
+		}
+
+		resetCursorPagination?.();
+		setFilterStates({
+			q: debouncedQ,
+			status: statusFilter.join(','),
+		});
+	}, [
+		debouncedQ,
+		filterStates.q,
+		isSelectionMode,
+		resetCursorPagination,
+		setFilterStates,
+		statusFilter,
+	]);
 
 	const {
 		handleBulkSuspend,
