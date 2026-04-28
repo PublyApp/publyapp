@@ -84,6 +84,16 @@ If a preference below conflicts with an existing guide, follow the existing guid
 - Prefer enum-based status fields over boolean flags when modeling lifecycle state.
 - If helper methods exist on entities (e.g., `IsSuspended()`), prefer them over raw `Status == ...` comparisons.
 
+### Permission Definitions
+
+- Permission definition classes should use one fluent assignment per permission, mirroring
+  `InvitationPermissionsForStaff`.
+- Prefer:
+  `Permission.Create*Permission(...).SetTranslation(...).SetTranslation(...)`
+- Do not create a permission and then reassign the same property multiple times to append
+  translations.
+- Keep permission-definition blocks compact and visually consistent across modules.
+
 ## Review Hygiene
 
 - When a change is prompted by review feedback, implement exactly the feedback without bundling unrelated cleanups.

@@ -11,7 +11,7 @@ public static partial class Routes {
 		public const string Login = $"{Root}/login";
 		public const string Register = $"{Root}/register";
 		public const string GetUserAuthData = $"{Root}/user-auth-data";
-		public const string GetTenantAuthData = $"{Root}/tenant-auth-data";
+		public const string GetScopeAuthData = $"{Root}/scope-auth-data";
 		public const string GetUserTenants = $"{Root}/user-tenants";
 		public const string VerifyEmailRequest = $"{Root}/verify-email-request";
 		public const string GetVerificationLink = $"{Root}/verification-link";

@@ -18,6 +18,141 @@ public class StaffProfileItem {
 	public int UserAccountCount { get; set; }
 }
 
+public class TenantProfileItem {
+	public Guid Id { get; set; }
+	public string Name { get; set; } = string.Empty;
+	public string? Description { get; set; }
+	public bool IsDefault { get; set; }
+	public int UserAccountCount { get; set; }
+}
+
+public sealed record TenantProfileAuditData(
+	Guid ProfileId,
+	string ProfileName,
+	string? Description,
+	bool IsDefault
+);
+
+public abstract record FindTenantProfilesResult {
+	public sealed record Success(CursorPaginatedResult<TenantProfileItem> Data)
+		: FindTenantProfilesResult;
+
+	public sealed record CursorNotFound(string Cursor) : FindTenantProfilesResult;
+
+	public sealed record InvalidSortId(string SortId) : FindTenantProfilesResult;
+}
+
+public sealed record FindTenantProfilesArgs(
+	Guid TenantId,
+	Guid Cursor,
+	int? Limit,
+	string? SortId,
+	SortOrder? SortOrder,
+	string? Search
+);
+
+public sealed record GetTenantProfileByIdArgs(
+	Guid TenantId,
+	Guid ProfileId
+);
+
+public abstract record GetTenantProfileByIdResult {
+	public sealed record Success(TenantProfileItem Profile)
+		: GetTenantProfileByIdResult;
+
+	public sealed record ProfileNotFound : GetTenantProfileByIdResult;
+}
+
+public sealed record CreateTenantProfileArgs(
+	Guid TenantId,
+	string Name,
+	string? Description,
+	List<string> PermissionKeys
+);
+
+public abstract record CreateTenantProfileResult {
+	public sealed record Success(
+		TenantProfileItem Profile,
+		List<string> InitialPermissionKeys
+	)
+		: CreateTenantProfileResult;
+
+	public sealed record TenantNotFound : CreateTenantProfileResult;
+
+	public sealed record ProfileNameExists(string Name)
+		: CreateTenantProfileResult;
+
+	public sealed record InvalidPermissions(List<string> InvalidKeys)
+		: CreateTenantProfileResult;
+}
+
+public sealed record UpdateTenantProfileArgs(
+	Guid TenantId,
+	Guid ProfileId,
+	PatchField<string?> Name,
+	PatchField<string?> Description
+);
+
+public abstract record UpdateTenantProfileResult {
+	public sealed record Success(
+		TenantProfileItem Profile,
+		TenantProfileAuditData PreviousProfile
+	)
+		: UpdateTenantProfileResult;
+
+	public sealed record ProfileNotFound : UpdateTenantProfileResult;
+
+	public sealed record ProfileNameExists(string Name)
+		: UpdateTenantProfileResult;
+}
+
+public sealed record DeleteTenantProfileArgs(
+	Guid TenantId,
+	Guid ProfileId
+);
+
+public abstract record DeleteTenantProfileResult {
+	public sealed record Success(
+		TenantProfileAuditData Profile,
+		int DeletedProfileCount
+	)
+		: DeleteTenantProfileResult;
+
+	public sealed record ProfileNotFound : DeleteTenantProfileResult;
+
+	public sealed record DefaultProfileDeletionNotAllowed : DeleteTenantProfileResult;
+}
+
+public sealed record FindTenantProfilePermissionKeysArgs(
+	Guid TenantId,
+	Guid ProfileId
+);
+
+public abstract record FindTenantProfilePermissionKeysResult {
+	public sealed record Success(List<string> PermissionKeys)
+		: FindTenantProfilePermissionKeysResult;
+
+	public sealed record ProfileNotFound : FindTenantProfilePermissionKeysResult;
+}
+
+public sealed record SetTenantProfilePermissionArgs(
+	Guid TenantId,
+	Guid ProfileId,
+	string PermissionKey,
+	bool IsAssigned
+);
+
+public abstract record SetTenantProfilePermissionResult {
+	public sealed record Success(
+		TenantProfileAuditData Profile,
+		bool Changed
+	) : SetTenantProfilePermissionResult;
+
+	public sealed record ProfileNotFound : SetTenantProfilePermissionResult;
+
+	public sealed record PermissionNotFound : SetTenantProfilePermissionResult;
+}
+
 /// <summary>
 /// Discriminated union representing the result of finding staff profiles.
 /// </summary>
@@ -195,12 +330,38 @@ public interface IProfileAsStaffService {
 		CancellationToken cancellationToken = default
 	);
 
-	Task<List<Profile>> FindTenantProfilesAsync(
-		Guid tenantId,
-		int? page = null,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
+	Task<FindTenantProfilesResult> FindTenantProfilesAsync(
+		FindTenantProfilesArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<GetTenantProfileByIdResult> GetTenantProfileByIdAsync(
+		GetTenantProfileByIdArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<CreateTenantProfileResult> CreateTenantProfileAsync(
+		CreateTenantProfileArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<UpdateTenantProfileResult> UpdateTenantProfileAsync(
+		UpdateTenantProfileArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<DeleteTenantProfileResult> DeleteTenantProfileAsync(
+		DeleteTenantProfileArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<FindTenantProfilePermissionKeysResult> FindTenantProfilePermissionKeysAsync(
+		FindTenantProfilePermissionKeysArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<SetTenantProfilePermissionResult> SetTenantProfilePermissionAsync(
+		SetTenantProfilePermissionArgs args,
 		CancellationToken cancellationToken = default
 	);
 
@@ -311,28 +472,614 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		return savedDefaultProfile.Entity;
 	}
 
-	public async Task<List<Profile>> FindTenantProfilesAsync(
-		Guid tenantId,
-		int? page = null,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
+	public async Task<FindTenantProfilesResult> FindTenantProfilesAsync(
+		FindTenantProfilesArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var effectivePage = page ?? 1;
-		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveLimit =
+			args.Limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
+		var effectiveSortId = args.SortId ?? "id";
+		var search = args.Search;
+		var isAsc = effectiveSortOrder == SortOrder.Asc;
 
-		var query =
+		var sortFieldHandlers = new Dictionary<string, SortFieldHandler>(
+			StringComparer.OrdinalIgnoreCase
+		) {
+			// Keep cursor semantics explicit per sort field so each branch stays consistent with
+			// the repo's keyset pagination rules and matching composite indexes.
+			["id"] = new SortFieldHandler(
+				getCursorValue: async (guid) => {
+					var profileId = await _dbContext.Profile
+						.Where(p =>
+							p.Id == guid
+							&& p.Scope == ProfileScope.Tenant
+							&& p.TenantId == args.TenantId
+							&& !p.IsDeleted
+						)
+						.Select(p => p.Id)
+						.FirstOrDefaultAsync(cancellationToken);
+					return profileId;
+				},
+				applyFilter: (q, cursorValue, isAscLocal) => {
+					var cursorGuid = (Guid?)cursorValue;
+					if (cursorGuid is null) {
+						return q;
+					}
+
+					return isAscLocal
+						? q.Where(p => p.Id > cursorGuid)
+						: q.Where(p => p.Id < cursorGuid);
+				},
+				applyOrdering: (q, isAscLocal) => isAscLocal
+					? q.OrderBy(p => p.Id)
+					: q.OrderByDescending(p => p.Id)
+			),
+			["name"] = new SortFieldHandler(
+				getCursorValue: async (guid) => {
+					var profile = await _dbContext.Profile
+						.Where(p =>
+							p.Id == guid
+							&& p.Scope == ProfileScope.Tenant
+							&& p.TenantId == args.TenantId
+							&& !p.IsDeleted
+						)
+						.Select(p => new { p.Name, p.Id })
+						.FirstOrDefaultAsync(cancellationToken);
+					return profile is not null ? (profile.Name, profile.Id) : null;
+				},
+				applyFilter: (q, cursorValue, isAscLocal) => {
+					if (cursorValue is null) {
+						return q;
+					}
+
+					var (cursorName, cursorId) = ((string, Guid?))cursorValue;
+
+					return isAscLocal
+						? q.Where(p => p.Name.CompareTo(cursorName) > 0 || (p.Name == cursorName && p.Id > cursorId))
+						: q.Where(p => p.Name.CompareTo(cursorName) < 0 || (p.Name == cursorName && p.Id < cursorId));
+				},
+				applyOrdering: (q, isAscLocal) => isAscLocal
+					? q.OrderBy(p => p.Name).ThenBy(p => p.Id)
+					: q.OrderByDescending(p => p.Name).ThenByDescending(p => p.Id)
+			),
+			["created_at"] = new SortFieldHandler(
+				getCursorValue: async (guid) => {
+					var profile = await _dbContext.Profile
+						.Where(p =>
+							p.Id == guid
+							&& p.Scope == ProfileScope.Tenant
+							&& p.TenantId == args.TenantId
+							&& !p.IsDeleted
+						)
+						.Select(p => new { p.CreatedAt, p.Id })
+						.FirstOrDefaultAsync(cancellationToken);
+					return profile is not null ? (profile.CreatedAt, profile.Id) : null;
+				},
+				applyFilter: (q, cursorValue, isAscLocal) => {
+					if (cursorValue is null) {
+						return q;
+					}
+
+					var (cursorCreatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
+					return isAscLocal
+						? q.Where(p => p.CreatedAt > cursorCreatedAt || (p.CreatedAt == cursorCreatedAt && p.Id > cursorId))
+						: q.Where(p => p.CreatedAt < cursorCreatedAt || (p.CreatedAt == cursorCreatedAt && p.Id < cursorId));
+				},
+				applyOrdering: (q, isAscLocal) => isAscLocal
+					? q.OrderBy(p => p.CreatedAt).ThenBy(p => p.Id)
+					: q.OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id)
+			),
+		};
+
+		if (!sortFieldHandlers.TryGetValue(effectiveSortId, out var handler)) {
+			return new FindTenantProfilesResult.InvalidSortId(effectiveSortId);
+		}
+
+		var baseQuery =
 			from p in _dbContext.Profile
 			where p.Scope == ProfileScope.Tenant
-			&& p.TenantId == tenantId
+				&& p.TenantId == args.TenantId
+				&& !p.IsDeleted
+				&& p.Id != null
 			select p;
 
-		return await query
-			.Skip((effectivePage - 1) * effectiveLimit)
-			.Take(effectiveLimit)
+		IQueryable<Profile> query = baseQuery;
+
+		if (search is { } q) {
+			var pattern = $"%{q}%";
+			query = query.Where(p =>
+				EF.Functions.ILike(p.Name, pattern)
+				|| (p.Description != null && EF.Functions.ILike(p.Description, pattern))
+			);
+		}
+
+		if (args.Cursor != Guid.Empty) {
+			var cursorValue = await handler.GetCursorValue(args.Cursor);
+			if (cursorValue is null) {
+				return new FindTenantProfilesResult.CursorNotFound(args.Cursor.ToString());
+			}
+
+			query = handler.ApplyFilter(query, cursorValue, isAsc);
+		}
+
+		var orderedQuery = handler.ApplyOrdering(query, isAsc);
+
+		var profiles = await orderedQuery
+			.Take(effectiveLimit + 1)
 			.ToListAsync(cancellationToken);
+
+		string? nextCursor = null;
+		if (profiles.Count > effectiveLimit) {
+			profiles.RemoveAt(profiles.Count - 1);
+			nextCursor = profiles.Last().GetRequiredId().ToString();
+		}
+
+		var profileIds = profiles.Select(p => p.GetRequiredId()).ToList();
+
+		// The list DTO needs assignment counts, but we fetch them in one grouped query so the
+		// table avoids per-row lookups.
+		var userAccountCounts = await (
+			from uap in _dbContext.UserAccountProfile
+			where profileIds.Contains(uap.ProfileId)
+				&& !uap.IsDeleted
+			group uap by uap.ProfileId into g
+			select new { ProfileId = g.Key, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+
+		var userAccountCountByProfileId = new Dictionary<Guid, int>();
+		foreach (var row in userAccountCounts) {
+			userAccountCountByProfileId[row.ProfileId] = row.Count;
+		}
+
+		var items = profiles.Select(p => {
+			var profileId = p.GetRequiredId();
+			return new TenantProfileItem {
+				Id = profileId,
+				Name = p.Name,
+				Description = p.Description,
+				IsDefault = p.IsDefault,
+				UserAccountCount = userAccountCountByProfileId.GetValueOrDefault(profileId, 0),
+			};
+		}).ToList();
+
+		return new FindTenantProfilesResult.Success(
+			new CursorPaginatedResult<TenantProfileItem> {
+				Data = items,
+				NextCursor = nextCursor,
+			}
+		);
+	}
+
+	public async Task<GetTenantProfileByIdResult> GetTenantProfileByIdAsync(
+		GetTenantProfileByIdArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var profile = await (
+			from p in _dbContext.Profile
+			where p.Id == args.ProfileId
+				&& p.Scope == ProfileScope.Tenant
+				&& p.TenantId == args.TenantId
+				&& !p.IsDeleted
+			select new TenantProfileItem {
+				Id = p.Id ?? Guid.Empty,
+				Name = p.Name,
+				Description = p.Description,
+				IsDefault = p.IsDefault,
+				UserAccountCount = p.UserAccountProfiles.Count(uap => !uap.IsDeleted),
+			}
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (profile is null) {
+			return new GetTenantProfileByIdResult.ProfileNotFound();
+		}
+
+		return new GetTenantProfileByIdResult.Success(profile);
+	}
+
+	public async Task<CreateTenantProfileResult> CreateTenantProfileAsync(
+		CreateTenantProfileArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var tenantExists = await (
+			from t in _dbContext.Tenant
+			where t.Id == args.TenantId
+				&& !t.IsDeleted
+			select t.Id
+		).AnyAsync(cancellationToken);
+
+		if (!tenantExists) {
+			return new CreateTenantProfileResult.TenantNotFound();
+		}
+
+		var normalizedName = args.Name.Trim();
+		var normalizedDescription = args.Description?.Trim();
+		var normalizedPermissionKeys = args.PermissionKeys
+			.Select(key => key.Trim())
+			.Where(key => !string.IsNullOrWhiteSpace(key))
+			.Distinct(StringComparer.Ordinal)
+			.OrderBy(key => key, StringComparer.Ordinal)
+			.ToList();
+
+		var profileExists = await (
+			from p in _dbContext.Profile
+			where p.TenantId == args.TenantId
+				&& p.Scope == ProfileScope.Tenant
+				&& !p.IsDeleted
+				&& p.Name == normalizedName
+			select p.Id
+		).AnyAsync(cancellationToken);
+
+		if (profileExists) {
+			return new CreateTenantProfileResult.ProfileNameExists(normalizedName);
+		}
+
+		var validPermissionKeys = await (
+			from permission in _dbContext.Permission
+			where normalizedPermissionKeys.Contains(permission.Key)
+				&& permission.Scope == PermissionScope.Tenant
+				&& !permission.IsDeleted
+			select permission.Key
+		).ToListAsync(cancellationToken);
+
+		var invalidPermissionKeys = normalizedPermissionKeys
+			.Except(validPermissionKeys, StringComparer.Ordinal)
+			.ToList();
+
+		if (invalidPermissionKeys.Count > 0) {
+			return new CreateTenantProfileResult.InvalidPermissions(
+				invalidPermissionKeys
+			);
+		}
+
+		await using var transaction = await _dbContext.Database
+			.BeginTransactionAsync(cancellationToken);
+
+		var profile = Profile.CreateTenantProfile(
+			args.TenantId,
+			normalizedName,
+			normalizedDescription
+		);
+
+		try {
+			await _dbContext.Profile.AddAsync(profile, cancellationToken);
+			await _dbContext.SaveChangesAsync(cancellationToken);
+
+			var profileId = profile.GetRequiredId();
+			if (validPermissionKeys.Count > 0) {
+				// Create uses one atomic write batch so the initial permission set cannot drift
+				// away from the newly-created profile if one of the inserts fails.
+				var profilePermissions = validPermissionKeys
+					.Select(permissionKey => new ProfilePermission {
+						ProfileId = profileId,
+						PermissionKey = permissionKey
+					})
+					.ToList();
+
+				await _dbContext.ProfilePermission
+					.AddRangeAsync(profilePermissions, cancellationToken);
+				await _dbContext.SaveChangesAsync(cancellationToken);
+			}
+
+			await transaction.CommitAsync(cancellationToken);
+		} catch (DbUpdateException ex) when (IsTenantProfileNameUniqueViolation(ex)) {
+			// The pre-check keeps the common path friendly, but the unique index is the real
+			// guard against concurrent creates or renames racing each other.
+			await transaction.RollbackAsync(cancellationToken);
+			_dbContext.Entry(profile).State = EntityState.Detached;
+			return new CreateTenantProfileResult.ProfileNameExists(normalizedName);
+		} catch {
+			await transaction.RollbackAsync(cancellationToken);
+			throw;
+		}
+
+		var created = new TenantProfileItem {
+			Id = profile.GetRequiredId(),
+			Name = profile.Name,
+			Description = profile.Description,
+			IsDefault = profile.IsDefault,
+			UserAccountCount = 0,
+		};
+
+		return new CreateTenantProfileResult.Success(
+			created,
+			validPermissionKeys
+		);
+	}
+
+	public async Task<UpdateTenantProfileResult> UpdateTenantProfileAsync(
+		UpdateTenantProfileArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var profile = await (
+			from p in _dbContext.Profile
+			where p.Id == args.ProfileId
+				&& p.Scope == ProfileScope.Tenant
+				&& p.TenantId == args.TenantId
+				&& !p.IsDeleted
+			select p
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (profile is null) {
+			return new UpdateTenantProfileResult.ProfileNotFound();
+		}
+
+		var previousProfile = new TenantProfileAuditData(
+			profile.GetRequiredId(),
+			profile.Name,
+			profile.Description,
+			profile.IsDefault
+		);
+
+		if (args.Name.IsPresent) {
+			var candidateName = args.Name.Value?.Trim();
+			if (string.IsNullOrWhiteSpace(candidateName)) {
+				throw new InvalidOperationException(
+					"UpdateTenantProfileAsync received an invalid name. " +
+					"Ensure endpoint validation ran before calling the service."
+				);
+			}
+
+			var exists = await (
+				from p in _dbContext.Profile
+				where p.TenantId == args.TenantId
+					&& p.Scope == ProfileScope.Tenant
+					&& !p.IsDeleted
+					&& p.Id != args.ProfileId
+					&& p.Name == candidateName
+				select p.Id
+			).AnyAsync(cancellationToken);
+
+			if (exists) {
+				return new UpdateTenantProfileResult.ProfileNameExists(candidateName);
+			}
+
+			profile.Name = candidateName;
+		}
+
+		if (args.Description.IsPresent) {
+			profile.Description = args.Description.Value?.Trim();
+		}
+
+		try {
+			await _dbContext.SaveChangesAsync(cancellationToken);
+		} catch (DbUpdateException ex) when (IsTenantProfileNameUniqueViolation(ex)) {
+			_dbContext.Entry(profile).State = EntityState.Detached;
+			return new UpdateTenantProfileResult.ProfileNameExists(profile.Name);
+		}
+
+		var userAccountCount = await (
+			from uap in _dbContext.UserAccountProfile
+			where uap.ProfileId == args.ProfileId
+				&& !uap.IsDeleted
+			select uap.Id
+		).CountAsync(cancellationToken);
+
+		var updated = new TenantProfileItem {
+			Id = profile.GetRequiredId(),
+			Name = profile.Name,
+			Description = profile.Description,
+			IsDefault = profile.IsDefault,
+			UserAccountCount = userAccountCount,
+		};
+
+		return new UpdateTenantProfileResult.Success(updated, previousProfile);
+	}
+
+	public async Task<DeleteTenantProfileResult> DeleteTenantProfileAsync(
+		DeleteTenantProfileArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var profile = await (
+			from p in _dbContext.Profile
+			where p.Id == args.ProfileId
+				&& p.Scope == ProfileScope.Tenant
+				&& p.TenantId == args.TenantId
+				&& !p.IsDeleted
+			select p
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (profile is null) {
+			return new DeleteTenantProfileResult.ProfileNotFound();
+		}
+
+		if (profile.IsDefault) {
+			return new DeleteTenantProfileResult.DefaultProfileDeletionNotAllowed();
+		}
+
+		var profileAudit = new TenantProfileAuditData(
+			profile.GetRequiredId(),
+			profile.Name,
+			profile.Description,
+			profile.IsDefault
+		);
+
+		var profileIdValue = profile.GetRequiredId();
+
+		var links = await (
+			from uap in _dbContext.UserAccountProfile
+			where uap.ProfileId == profileIdValue
+			select uap
+		).ToListAsync(cancellationToken);
+
+		if (links.Count > 0) {
+			// A deleted tenant profile must stop contributing memberships immediately, so we remove
+			// the junction rows instead of leaving soft-deleted joins behind.
+			_dbContext.ForceHardDeleteRange(links);
+		}
+
+		var permissions = await (
+			from pp in _dbContext.ProfilePermission
+			where pp.ProfileId == profileIdValue
+			select pp
+		).ToListAsync(cancellationToken);
+
+		if (permissions.Count > 0) {
+			// Same rationale as the user-account links above: deleting the profile should fully
+			// detach its permission membership rows in the same transaction.
+			_dbContext.ForceHardDeleteRange(permissions);
+		}
+
+		profile.IsDeleted = true;
+		profile.DeletedAt = DateTime.UtcNow;
+		profile.UpdatedAt = DateTime.UtcNow;
+
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		return new DeleteTenantProfileResult.Success(
+			Profile: profileAudit,
+			DeletedProfileCount: 1
+		);
+	}
+
+	public async Task<FindTenantProfilePermissionKeysResult>
+		FindTenantProfilePermissionKeysAsync(
+			FindTenantProfilePermissionKeysArgs args,
+			CancellationToken cancellationToken = default
+		) {
+		var profileExists = await (
+			from p in _dbContext.Profile
+			where p.Id == args.ProfileId
+				&& p.Scope == ProfileScope.Tenant
+				&& p.TenantId == args.TenantId
+				&& !p.IsDeleted
+			select p.Id
+		).AnyAsync(cancellationToken);
+
+		if (!profileExists) {
+			return new FindTenantProfilePermissionKeysResult.ProfileNotFound();
+		}
+
+		var permissionKeys = await (
+			from pp in _dbContext.ProfilePermission
+			join p in _dbContext.Permission on pp.PermissionKey equals p.Key
+			where pp.ProfileId == args.ProfileId
+				&& !pp.IsDeleted
+				&& !p.IsDeleted
+				&& p.Scope == PermissionScope.Tenant
+			select pp.PermissionKey
+		)
+			.OrderBy(k => k)
+			.ToListAsync(cancellationToken);
+
+		return new FindTenantProfilePermissionKeysResult.Success(permissionKeys);
+	}
+
+	public async Task<SetTenantProfilePermissionResult>
+		SetTenantProfilePermissionAsync(
+			SetTenantProfilePermissionArgs args,
+			CancellationToken cancellationToken = default
+		) {
+		var profile = await (
+			from p in _dbContext.Profile
+			where p.Id == args.ProfileId
+				&& p.Scope == ProfileScope.Tenant
+				&& p.TenantId == args.TenantId
+				&& !p.IsDeleted
+			select p
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (profile is null) {
+			return new SetTenantProfilePermissionResult.ProfileNotFound();
+		}
+
+		var profileAudit = new TenantProfileAuditData(
+			profile.GetRequiredId(),
+			profile.Name,
+			profile.Description,
+			profile.IsDefault
+		);
+
+		var permissionExists = await (
+			from p in _dbContext.Permission
+			where p.Key == args.PermissionKey
+				&& !p.IsDeleted
+				&& p.Scope == PermissionScope.Tenant
+			select p.Key
+		).AnyAsync(cancellationToken);
+
+		if (!permissionExists) {
+			return new SetTenantProfilePermissionResult.PermissionNotFound();
+		}
+
+		var existing = await (
+			from pp in _dbContext.ProfilePermission
+			where pp.ProfileId == args.ProfileId
+				&& pp.PermissionKey == args.PermissionKey
+			select pp
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (existing is null) {
+			if (args.IsAssigned) {
+				await _dbContext.ProfilePermission.AddAsync(
+					new ProfilePermission {
+						ProfileId = args.ProfileId,
+						PermissionKey = args.PermissionKey,
+					},
+					cancellationToken
+				);
+
+				await _dbContext.SaveChangesAsync(cancellationToken);
+				return new SetTenantProfilePermissionResult.Success(
+					profileAudit,
+					Changed: true
+				);
+			}
+
+			return new SetTenantProfilePermissionResult.Success(
+				profileAudit,
+				Changed: false
+			);
+		}
+
+		if (args.IsAssigned) {
+			if (existing.IsDeleted) {
+				existing.IsDeleted = false;
+				existing.DeletedAt = null;
+				existing.UpdatedAt = DateTime.UtcNow;
+				await _dbContext.SaveChangesAsync(cancellationToken);
+				return new SetTenantProfilePermissionResult.Success(
+					profileAudit,
+					Changed: true
+				);
+			}
+
+			return new SetTenantProfilePermissionResult.Success(
+				profileAudit,
+				Changed: false
+			);
+		}
+
+		if (!existing.IsDeleted) {
+			existing.IsDeleted = true;
+			existing.DeletedAt = DateTime.UtcNow;
+			existing.UpdatedAt = DateTime.UtcNow;
+			await _dbContext.SaveChangesAsync(cancellationToken);
+			return new SetTenantProfilePermissionResult.Success(
+				profileAudit,
+				Changed: true
+			);
+		}
+
+		return new SetTenantProfilePermissionResult.Success(
+			profileAudit,
+			Changed: false
+		);
+	}
+
+	/// <summary>
+	/// Detects unique constraint violations on the profiles table.
+	/// PostgreSQL error code 23505 = unique_violation.
+	/// We only map the active tenant-profile name invariant here.
+	/// </summary>
+	private static bool IsTenantProfileNameUniqueViolation(DbUpdateException ex) {
+		if (ex.InnerException is Npgsql.PostgresException pgEx) {
+			return pgEx.SqlState == "23505"
+				&& pgEx.TableName is not null
+				&& pgEx.TableName.Equals("profiles", StringComparison.OrdinalIgnoreCase);
+		}
+
+		return false;
 	}
 
 	/// <summary>

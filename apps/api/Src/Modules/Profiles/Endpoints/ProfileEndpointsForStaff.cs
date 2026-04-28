@@ -129,6 +129,64 @@ public static class ProfileEndpointsForStaff {
 			.WithPermission([AppPermissions.Staff.Profiles.LIST_FOR_TENANT])
 			.WithReqQueryValidation<FindTenantProfilesAsStaffQuery>();
 
+		tenantGroup.MapGet(
+			Routes.Profiles.ForTenantAsStaff.Get,
+			GetTenantProfileByIdAsStaff.HandleGetTenantProfileByIdAsStaff
+		)
+			.WithName("GetTenantProfileByIdAsStaff")
+			.WithSummary("Get a tenant profile by id")
+			.WithPermission([AppPermissions.Staff.Profiles.GET_FOR_TENANT]);
+
+		tenantGroup.MapPost(
+			Routes.Profiles.ForTenantAsStaff.Create,
+			CreateTenantProfileAsStaff.HandleCreateTenantProfileAsStaff
+		)
+			.WithName("CreateTenantProfileAsStaff")
+			.WithSummary("Create a tenant profile")
+			.WithPermission([AppPermissions.Staff.Profiles.CREATE_FOR_TENANT])
+			.WithReqBodyValidation<CreateTenantProfileAsStaffBody>();
+
+		tenantGroup.MapPatch(
+			Routes.Profiles.ForTenantAsStaff.Update,
+			UpdateTenantProfileAsStaff.HandleUpdateTenantProfileAsStaff
+		)
+			.WithName("UpdateTenantProfileAsStaff")
+			.WithSummary("Update a tenant profile")
+			.WithPermission([AppPermissions.Staff.Profiles.UPDATE_FOR_TENANT])
+			.WithReqBodyValidation<UpdateTenantProfileAsStaffBody>();
+
+		tenantGroup.MapDelete(
+			Routes.Profiles.ForTenantAsStaff.Delete,
+			DeleteTenantProfileAsStaff.HandleDeleteTenantProfileAsStaff
+		)
+			.WithName("DeleteTenantProfileAsStaff")
+			.WithSummary("Delete a tenant profile")
+			.WithPermission([AppPermissions.Staff.Profiles.DELETE_FOR_TENANT]);
+
+		tenantGroup.MapGet(
+			Routes.Profiles.ForTenantAsStaff.Permissions.Find,
+			FindTenantProfilePermissionsAsStaff.HandleFindTenantProfilePermissionsAsStaff
+		)
+			.WithName("FindTenantProfilePermissionsAsStaff")
+			.WithSummary("List permission keys assigned to a tenant profile")
+			.WithPermission([AppPermissions.Staff.Profiles.GET_FOR_TENANT]);
+
+		tenantGroup.MapPost(
+			Routes.Profiles.ForTenantAsStaff.Permissions.Upsert,
+			AssignTenantProfilePermissionAsStaff.HandleAssignTenantProfilePermissionAsStaff
+		)
+			.WithName("AssignTenantProfilePermissionAsStaff")
+			.WithSummary("Assign a permission key to a tenant profile")
+			.WithPermission([AppPermissions.Staff.Profiles.UPDATE_FOR_TENANT]);
+
+		tenantGroup.MapDelete(
+			Routes.Profiles.ForTenantAsStaff.Permissions.Upsert,
+			UnassignTenantProfilePermissionAsStaff.HandleUnassignTenantProfilePermissionAsStaff
+		)
+			.WithName("UnassignTenantProfilePermissionAsStaff")
+			.WithSummary("Unassign a permission key from a tenant profile")
+			.WithPermission([AppPermissions.Staff.Profiles.UPDATE_FOR_TENANT]);
+
 		return routes;
 	}
 }

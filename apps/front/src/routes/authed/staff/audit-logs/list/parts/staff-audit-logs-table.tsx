@@ -2,7 +2,6 @@ import Box from '@mui/material/Box';
 import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import InputLabel from '@mui/material/InputLabel';
-import ListItemText from '@mui/material/ListItemText';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import Tooltip from '@mui/material/Tooltip';
@@ -318,17 +317,25 @@ const UserCell: MRT_ColumnDef<AuditLogRowData, string>['Cell'] = (props) => {
 	const userEmail = props.row.original.userEmail;
 
 	return (
-		<ListItemText
-			primary={userName || '-'}
-			secondary={userEmail || '-'}
-			slotProps={{
-				primary: { noWrap: true },
-				secondary: {
-					noWrap: true,
-					sx: { color: 'text.disabled', fontSize: '0.75rem' },
-				},
+		<Box
+			sx={{
+				minWidth: 0,
+				display: 'flex',
+				flexDirection: 'column',
+				gap: 0.25,
 			}}
-		/>
+		>
+			<Typography variant="body2" noWrap>
+				{userName || '-'}
+			</Typography>
+			<Typography
+				variant="caption"
+				noWrap
+				sx={{ color: 'text.disabled', display: 'block' }}
+			>
+				{userEmail || '-'}
+			</Typography>
+		</Box>
 	);
 };
 

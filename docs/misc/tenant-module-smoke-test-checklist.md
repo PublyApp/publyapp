@@ -338,18 +338,38 @@ It covers category `0` through `10`.
 
 ## Category 7: Profiles
 
-### 7.1 Verify permission/profile display
-- Status: `PARTIAL`
-- [ ] The tenant profiles table loads real backend profile data rather than placeholder-only content.
-- [ ] The permissions matrix shown in the UI matches the backend profile data for the selected tenant.
-
-### 7.2 Create new profile
+### 7.1 Profiles table and list behaviors
 - Status: `PENDING`
-- [ ] The create-profile CTA either opens a real creation flow or remains explicitly marked pending; it is not left as an implied feature with placeholder drawer content.
+- [x] The tenant profiles table loads real backend profile data for the selected tenant.
+- [x] Search updates the server-side results correctly.
+- [x] Cursor pagination works without duplicating or skipping rows.
+- [x] Row selection mode can be entered and exited cleanly.
+- [x] The export dialog opens from the table and exports either the current results or the current selection.
 
-### 7.3 Delete profile
+### 7.2 Preview and compare
 - Status: `PENDING`
-- [ ] The delete-profile action either performs a real mutation or remains explicitly marked pending; it is not left as a visible toast stub that looks complete.
+- [x] The preview drawer opens from the row action and shows real profile metadata and assigned permissions.
+- [x] Compare mode only enables when 2 to 3 profiles are selected.
+- [x] The compare drawer shows permission differences accurately for the selected profiles.
+
+### 7.3 Create and edit profile
+- Status: `PENDING`
+- [x] The create-profile CTA opens a real form drawer.
+- [x] Creating a non-default tenant profile persists and refreshes the table.
+- [x] Editing an existing tenant profile updates name and description correctly.
+- [x] Assigning and unassigning tenant permissions in the form drawer persists correctly.
+- [x] Duplicate profile names are rejected with the expected validation or domain error.
+
+### 7.4 Delete and default-profile protection
+- Status: `PENDING`
+- [x] A non-default tenant profile can be deleted successfully from the row action.
+- [x] Bulk delete works for selected non-default tenant profiles.
+- [x] The default tenant profile cannot be deleted from the UI flow.
+- [x] The backend still blocks default-profile deletion even if the UI guard is bypassed.
+
+### 7.5 Permission-driven tenant shell access
+- Status: `DEFERRED`
+- [ ] Tenant-side UI permission gating is intentionally deferred to a dedicated follow-up task and is not part of the current tenant-profile completion scope.
 
 ## Category 8: Activity Tab / Audit Trail
 
@@ -455,5 +475,5 @@ Before declaring the Tenants module umbrella complete, at minimum all of the fol
 - [ ] Category 4 passes except for any consciously deferred logo-upload scope.
 - [ ] Category 5 has an explicit decision on whether invitation status needs separate UX.
 - [ ] Categories 6, 8, and 10 are either implemented or formally declared deferred.
-- [ ] Category 7 has an explicit decision on profile create and delete scope.
+- [ ] Category 7 table, profile-management, and permission-gating checks pass.
 - [ ] Category 9 automated-coverage gaps are either closed or explicitly acknowledged, especially for invite and bulk-action specs.

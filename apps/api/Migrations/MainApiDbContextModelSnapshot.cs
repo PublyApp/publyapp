@@ -363,6 +363,11 @@ namespace MainApi.Migrations
 
                     b.HasIndex("ProjectId");
 
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ux_profiles_tenant_name")
+                        .HasFilter("\"scope\" = 1 AND \"is_deleted\" = false");
+
                     b.HasIndex("Scope", "CreatedAt", "Id")
                         .HasDatabaseName("ix_profiles_staff_created_at_id")
                         .HasFilter("\"scope\" = 0");

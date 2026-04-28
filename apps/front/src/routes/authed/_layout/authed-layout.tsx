@@ -1,7 +1,8 @@
 import { useSuspenseQueries } from '@tanstack/react-query';
 import * as cookie from 'cookie';
 import i18next from 'i18next';
-import _ from 'lodash';
+import get from 'lodash/get';
+import toStr from 'lodash/toString';
 import { type ReactNode, Suspense, useEffect } from 'react';
 import { Outlet, redirect } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
@@ -24,7 +25,6 @@ import {
 import { SplashScreen } from '#app/components/loading-screen/index.ts';
 import type { SettingsState } from '#app/components/settings/index.ts';
 import { toast } from '#app/components/snackbar/index.ts';
-import { useTenantParam } from '#app/hooks/use-tenant-param.ts';
 import { toApiFailure } from '#app/lib/api-failure/index.ts';
 import {
 	SIDEBAR_COOKIE_MAX_AGE,
@@ -36,10 +36,7 @@ import {
 	getSessionTokensFromClient,
 } from '#app/lib/cookies/session-cookie.utils.ts';
 import { getClientManager } from '#app/lib/js-client/client-manager.ts';
-import {
-	useGetTenantAuthData,
-	useGetUserAuthData,
-} from '#app/lib/react-query/features/common/auth.hooks.ts';
+import { useGetUserAuthData } from '#app/lib/react-query/features/common/auth.hooks.ts';
 import {
 	resetAuthLogoutFlag,
 	resetTenantSuspendedFlag,
@@ -128,7 +125,7 @@ export const clientLoader = getClientLoader({
 		}
 
 		const browserCookies = cookie.parse(document.cookie);
-		const sideBarCookie = _.get(browserCookies, SIDEBAR_COOKIE_NAME);
+		const sideBarCookie = get(browserCookies, SIDEBAR_COOKIE_NAME);
 
 		// Initialize zustand navLayout state
 		useMainStore.setState((root) => {
@@ -138,7 +135,7 @@ export const clientLoader = getClientLoader({
 				'horizontal',
 			];
 
-			let state = _.toString(sideBarCookie);
+			let state = toStr(sideBarCookie);
 
 			if (!allowedStates.includes(state as never)) {
 				state = allowedStates[0];
@@ -157,14 +154,7 @@ export const clientLoader = getClientLoader({
 });
 
 const AuthQueriesLoader = ({ children }: { children: ReactNode }) => {
-	const tenantId = useTenantParam();
-
-	// Build queries array - only include tenant auth if we have a tenantId
 	const queries = [useGetUserAuthData.getOptions({})];
-
-	if (tenantId) {
-		queries.push(useGetTenantAuthData.getOptions({ tenantId }));
-	}
 
 	// trigger the queries in parallel
 	useSuspenseQueries({ queries });

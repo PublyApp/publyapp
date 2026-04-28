@@ -47,9 +47,9 @@ type FindStaffPermissionsParams = {
 };
 
 export const useFindStaffPermissions = createStaffQuery({
-	queryKeyFn: (client) => client.staff.permissions.get,
+	queryKeyFn: (client) => client.staff.permissions.scopes.staff.get,
 	fetcher: async (client, params: FindStaffPermissionsParams) => {
-		const result = await client.staff.permissions.get({
+		const result = await client.staff.permissions.scopes.staff.get({
 			queryParameters: {
 				language: params.language,
 			},

@@ -3,7 +3,8 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
-import _ from 'lodash';
+import get from 'lodash/get';
+import toLower from 'lodash/toLower';
 import type { MRT_TableInstance } from 'material-react-table';
 import { varAlpha } from 'minimal-shared/utils';
 
@@ -52,7 +53,8 @@ export const minimalTablePreset = (theme: Theme): TablePreset => {
 		state: {
 			showLoadingOverlay: false,
 			showGlobalFilter: true,
-			density: 'comfortable', // Match the 'sm' breakpoint height (52px) better than 'compact'
+			// Dense rows are the repo-wide default for MRT-backed data tables.
+			density: 'compact',
 		},
 
 		// -----------------------------------------------------------------
@@ -205,7 +207,7 @@ export const minimalTablePreset = (theme: Theme): TablePreset => {
 		},
 		muiTableBodyRowProps: ({ row }) => {
 			// Helper logic to auto-apply classes if data matches common patterns
-			const status = _.chain(row.original).get('status').toLower().value();
+			const status = toLower(get(row.original, 'status'));
 			let className = '';
 
 			if (status === 'failed' || status === 'error') {

@@ -16,7 +16,7 @@ import { useGetUserAuthData } from '#app/lib/react-query/features/common/auth.ho
 
 const TenantLayout = () => {
 	const { t } = useTranslate();
-	const { tenantId } = useParams();
+	const { tenantId = '' } = useParams();
 	const { data: userAuthData } = useGetUserAuthData();
 	const userId = userAuthData?.id;
 
@@ -52,6 +52,8 @@ const TenantLayout = () => {
 		};
 	}, [tenantId, userId]);
 
+	const tenantPaths = FRONT_PATH_NAMES.tenant(tenantId);
+
 	const tenantNavData: NavDataType = [
 		{
 			subheader: t('posts'),
@@ -59,25 +61,25 @@ const TenantLayout = () => {
 			items: [
 				{
 					title: t('calendar'),
-					path: FRONT_PATH_NAMES.tenant(tenantId).root,
+					path: tenantPaths.root,
 					icon: ICONS.calendar,
 					deepActiveMatch: false,
 				},
 				{
 					title: t('queue'),
-					path: FRONT_PATH_NAMES.tenant(tenantId).posts.root,
+					path: tenantPaths.posts.root,
 					icon: ICONS.queue,
 					deepActiveMatch: false,
 				},
 				{
 					title: t('drafts'),
-					path: FRONT_PATH_NAMES.tenant(tenantId).posts.drafts,
+					path: tenantPaths.posts.drafts,
 					icon: ICONS.drafts,
 					deepActiveMatch: true,
 				},
 				{
 					title: t('history'),
-					path: FRONT_PATH_NAMES.tenant(tenantId).posts.history,
+					path: tenantPaths.posts.history,
 					icon: ICONS.history,
 					deepActiveMatch: false,
 				},
@@ -89,7 +91,7 @@ const TenantLayout = () => {
 			items: [
 				{
 					title: t('settings'),
-					path: FRONT_PATH_NAMES.tenant(tenantId).settings.root,
+					path: tenantPaths.settings.root,
 					icon: ICONS.settings,
 					deepActiveMatch: true,
 				},

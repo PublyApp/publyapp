@@ -8,7 +8,7 @@ import { InvitationsRequestBuilderNavigationMetadata, InvitationsRequestBuilderR
 // @ts-ignore
 import { NoticesRequestBuilderNavigationMetadata, NoticesRequestBuilderRequestsMetadata, type NoticesRequestBuilder } from './notices/index.js';
 // @ts-ignore
-import { PermissionsRequestBuilderRequestsMetadata, type PermissionsRequestBuilder } from './permissions/index.js';
+import { PermissionsRequestBuilderNavigationMetadata, type PermissionsRequestBuilder } from './permissions/index.js';
 // @ts-ignore
 import { ProfilesRequestBuilderNavigationMetadata, ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
 // @ts-ignore
@@ -72,7 +72,7 @@ export const StaffRequestBuilderNavigationMetadata: Record<Exclude<keyof StaffRe
         navigationMetadata: NoticesRequestBuilderNavigationMetadata,
     },
     permissions: {
-        requestsMetadata: PermissionsRequestBuilderRequestsMetadata,
+        navigationMetadata: PermissionsRequestBuilderNavigationMetadata,
     },
     profiles: {
         requestsMetadata: ProfilesRequestBuilderRequestsMetadata,

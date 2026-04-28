@@ -4,13 +4,16 @@ import {
 	createUntypedNumber,
 	createUntypedString,
 } from '@microsoft/kiota-abstractions';
-import _ from 'lodash';
+import isNil from 'lodash/isNil';
 
 import type {
 	CreateTenantAsStaffBody,
 	CreateTenantAsStaffResult,
+	CreateTenantProfileAsStaffBody,
+	GetTenantProfileByIdResponse,
 	SuspendTenantAsStaffBody,
 	UpdateTenantAsStaffBody,
+	UpdateTenantProfileAsStaffBody,
 	UpdateTenantUserAsStaffBody,
 } from '@org/client-ts/src/models';
 import { SESSION_TOKEN_HEADER_KEY } from '@org/shared-ts/lib/constants';
@@ -58,7 +61,7 @@ export const useCreateTenant = createStaffMutation({
 
 		const result: CreateTenantAsStaffResult | undefined = await response.json();
 
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useCreateTenant: result is nil');
 		}
 		return result;
@@ -70,7 +73,7 @@ export const useGetTenant = createStaffQuery({
 	fetcher: async (client, params: { tenantId: string }) => {
 		const result = await client.staff.tenants.byTenantId(params.tenantId).get();
 
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useGetTenant: result is nil');
 		}
 
@@ -100,7 +103,7 @@ export const useFindTenants = createStaffQuery({
 			},
 		});
 
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useFindTenants: result is nil');
 		}
 
@@ -110,9 +113,10 @@ export const useFindTenants = createStaffQuery({
 
 type FindTenantProfilesParams = {
 	tenantId: string;
-	page?: number;
+	cursor?: string;
 	limit?: number;
 	sort?: { id: string; order: 'desc' | 'asc' };
+	q?: string;
 };
 
 export const useFindTenantProfiles = createStaffQuery({
@@ -122,18 +126,252 @@ export const useFindTenantProfiles = createStaffQuery({
 			.byTenantId(params.tenantId)
 			.profiles.get({
 				queryParameters: {
-					page: params.page ? params.page.toString() : undefined,
+					cursor: params.cursor,
 					limit: params.limit ? params.limit.toString() : undefined,
 					sortId: params.sort?.id,
 					sortOrder: params.sort?.order,
+					q: params.q,
 				},
 			});
 
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useFindTenantProfiles: result is nil');
 		}
 
 		return result;
+	},
+});
+
+type FindTenantPermissionsParams = {
+	language?: string;
+};
+
+export const useFindTenantPermissions = createStaffQuery({
+	queryKeyFn: (client) => client.staff.permissions.scopes.tenant.get,
+	fetcher: async (client, params: FindTenantPermissionsParams) => {
+		// The backend owns the tenant permission catalog now, including translated labels.
+		const result = await client.staff.permissions.scopes.tenant.get({
+			queryParameters: {
+				language: params.language,
+			},
+		});
+
+		if (isNil(result)) {
+			throw new Error('useFindTenantPermissions: result is nil');
+		}
+
+		return result;
+	},
+});
+
+type GetTenantProfileByIdParams = {
+	tenantId: string;
+	profileId: string;
+};
+
+export const useGetTenantProfileById = createStaffQuery({
+	queryKeyFn: (client) =>
+		client.staff.tenants.byTenantId('').profiles.byProfileId('').get,
+	fetcher: async (client, params: GetTenantProfileByIdParams) => {
+		const result: GetTenantProfileByIdResponse | undefined =
+			await client.staff.tenants
+				.byTenantId(params.tenantId)
+				.profiles.byProfileId(params.profileId)
+				.get();
+
+		if (isNil(result)) {
+			throw new Error('useGetTenantProfileById: result is nil');
+		}
+
+		if (isNil(result.profile)) {
+			throw new Error('useGetTenantProfileById: profile is nil');
+		}
+
+		return result;
+	},
+});
+
+type CreateTenantProfilePayload = {
+	tenantId: string;
+	name: string;
+	description?: string | null;
+	permissionKeys: string[];
+};
+
+export const useCreateTenantProfile = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.tenants.byTenantId('').profiles.post,
+	mutationFn: async (client, payload: CreateTenantProfilePayload) => {
+		const body: CreateTenantProfileAsStaffBody = {};
+
+		body.name = createUntypedString(payload.name) as typeof body.name;
+
+		if (payload.description !== undefined) {
+			body.description =
+				payload.description === null
+					? (createUntypedNull() as typeof body.description)
+					: (createUntypedString(
+							payload.description,
+						) as typeof body.description);
+		}
+
+		body.permissionKeys = createUntypedArray(
+			payload.permissionKeys.map((permissionKey) => {
+				return createUntypedString(permissionKey);
+			}),
+		) as typeof body.permissionKeys;
+
+		const result: GetTenantProfileByIdResponse | undefined =
+			await client.staff.tenants
+				.byTenantId(payload.tenantId)
+				.profiles.post(body);
+
+		if (isNil(result)) {
+			throw new Error('useCreateTenantProfile: result is nil');
+		}
+
+		if (isNil(result.profile)) {
+			throw new Error('useCreateTenantProfile: profile is nil');
+		}
+
+		return result;
+	},
+});
+
+type UpdateTenantProfilePayload = {
+	tenantId: string;
+	profileId: string;
+	name?: string;
+	description?: string | null;
+};
+
+export const useUpdateTenantProfile = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.tenants.byTenantId('').profiles.byProfileId('').patch,
+	mutationFn: async (client, payload: UpdateTenantProfilePayload) => {
+		const body: UpdateTenantProfileAsStaffBody = {};
+
+		if (payload.name !== undefined) {
+			body.name = createUntypedString(payload.name) as typeof body.name;
+		}
+
+		if (payload.description !== undefined) {
+			body.description =
+				payload.description === null
+					? (createUntypedNull() as typeof body.description)
+					: (createUntypedString(
+							payload.description,
+						) as typeof body.description);
+		}
+
+		const result: GetTenantProfileByIdResponse | undefined =
+			await client.staff.tenants
+				.byTenantId(payload.tenantId)
+				.profiles.byProfileId(payload.profileId)
+				.patch(body);
+
+		if (isNil(result)) {
+			throw new Error('useUpdateTenantProfile: result is nil');
+		}
+
+		if (isNil(result.profile)) {
+			throw new Error('useUpdateTenantProfile: profile is nil');
+		}
+
+		return result;
+	},
+});
+
+type DeleteTenantProfilePayload = {
+	tenantId: string;
+	profileId: string;
+};
+
+export const useDeleteTenantProfile = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.tenants.byTenantId('').profiles.byProfileId('').delete,
+	mutationFn: async (client, payload: DeleteTenantProfilePayload) => {
+		const result = await client.staff.tenants
+			.byTenantId(payload.tenantId)
+			.profiles.byProfileId(payload.profileId)
+			.delete();
+
+		if (isNil(result)) {
+			throw new Error('useDeleteTenantProfile: result is nil');
+		}
+
+		return result;
+	},
+});
+
+type FindTenantProfilePermissionsParams = {
+	tenantId: string;
+	profileId: string;
+};
+
+export const useFindTenantProfilePermissions = createStaffQuery({
+	queryKeyFn: (client) =>
+		client.staff.tenants.byTenantId('').profiles.byProfileId('').permissions
+			.get,
+	fetcher: async (client, params: FindTenantProfilePermissionsParams) => {
+		const result = await client.staff.tenants
+			.byTenantId(params.tenantId)
+			.profiles.byProfileId(params.profileId)
+			.permissions.get();
+
+		if (isNil(result)) {
+			throw new Error('useFindTenantProfilePermissions: result is nil');
+		}
+
+		if (isNil(result.permissionKeys)) {
+			throw new Error('useFindTenantProfilePermissions: permissionKeys is nil');
+		}
+
+		return result;
+	},
+});
+
+type AssignTenantProfilePermissionPayload = {
+	tenantId: string;
+	profileId: string;
+	permissionKey: string;
+};
+
+export const useAssignTenantProfilePermission = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.tenants
+			.byTenantId('')
+			.profiles.byProfileId('')
+			.permissions.byPermissionKey('').post,
+	mutationFn: async (client, payload: AssignTenantProfilePermissionPayload) => {
+		await client.staff.tenants
+			.byTenantId(payload.tenantId)
+			.profiles.byProfileId(payload.profileId)
+			.permissions.byPermissionKey(payload.permissionKey)
+			.post();
+	},
+});
+
+type UnassignTenantProfilePermissionPayload = {
+	tenantId: string;
+	profileId: string;
+	permissionKey: string;
+};
+
+export const useUnassignTenantProfilePermission = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.tenants
+			.byTenantId('')
+			.profiles.byProfileId('')
+			.permissions.byPermissionKey('').delete,
+	mutationFn: async (
+		client,
+		payload: UnassignTenantProfilePermissionPayload,
+	) => {
+		await client.staff.tenants
+			.byTenantId(payload.tenantId)
+			.profiles.byProfileId(payload.profileId)
+			.permissions.byPermissionKey(payload.permissionKey)
+			.delete();
 	},
 });
 
@@ -151,7 +389,7 @@ export const useSuspendTenant = createStaffMutation({
 		const result = await client.staff.tenants
 			.byTenantId(variables.tenantId)
 			.suspend.post(body);
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useSuspendTenant: result is nil');
 		}
 		return result;
@@ -165,7 +403,7 @@ export const useReactivateTenant = createStaffMutation({
 		const result = await client.staff.tenants
 			.byTenantId(variables.tenantId)
 			.reactivate.post();
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useReactivateTenant: result is nil');
 		}
 		return result;
@@ -197,7 +435,7 @@ export const useFindTenantUsers = createStaffQuery({
 				},
 			});
 
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useFindTenantUsers: result is nil');
 		}
 
@@ -230,7 +468,7 @@ export const useFindTenantInvitations = createStaffQuery({
 				},
 			});
 
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useFindTenantInvitations: result is nil');
 		}
 
@@ -252,7 +490,7 @@ export const useRevokeTenantInvitation = createStaffMutation({
 			.invitations.byInvitationId(variables.invitationId)
 			.delete();
 
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useRevokeTenantInvitation: result is nil');
 		}
 
@@ -280,7 +518,7 @@ export const useInviteTenantUser = createStaffMutation({
 			.byTenantId(variables.tenantId)
 			.users.invitations.post(body as never);
 
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useInviteTenantUser: result is nil');
 		}
 		return result;
@@ -299,7 +537,7 @@ export const useRemoveTenantUser = createStaffMutation({
 			.users.byUserId(variables.userId)
 			.delete();
 
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useRemoveTenantUser: result is nil');
 		}
 		return result;
@@ -318,7 +556,7 @@ export const useSuspendTenantUser = createStaffMutation({
 			.users.byUserId(variables.userId)
 			.suspend.post();
 
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useSuspendTenantUser: result is nil');
 		}
 		return result;
@@ -337,7 +575,7 @@ export const useReactivateTenantUser = createStaffMutation({
 			.users.byUserId(variables.userId)
 			.reactivate.post();
 
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useReactivateTenantUser: result is nil');
 		}
 		return result;
@@ -389,7 +627,7 @@ export const useUpdateTenantUser = createStaffMutation({
 			.users.byUserId(variables.userId)
 			.patch(body);
 
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useUpdateTenantUser: result is nil');
 		}
 		return result;
@@ -428,7 +666,7 @@ export const useUpdateTenant = createStaffMutation({
 		const result = await client.staff.tenants
 			.byTenantId(variables.tenantId)
 			.patch(body);
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useUpdateTenant: result is nil');
 		}
 		return result;
@@ -441,7 +679,7 @@ export const useDeleteTenant = createStaffMutation({
 		const result = await client.staff.tenants
 			.byTenantId(variables.tenantId)
 			.delete();
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useDeleteTenant: result is nil');
 		}
 		return result;
@@ -463,7 +701,7 @@ export const useBulkSuspendTenants = createStaffMutation({
 			body.reason = createUntypedString(variables.reason);
 		}
 		const result = await client.staff.tenants.bulkSuspend.post(body as never);
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useBulkSuspendTenants: result is nil');
 		}
 		return result;
@@ -481,7 +719,7 @@ export const useBulkReactivateTenants = createStaffMutation({
 		const result = await client.staff.tenants.bulkReactivate.post(
 			body as never,
 		);
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useBulkReactivateTenants: result is nil');
 		}
 		return result;
@@ -497,7 +735,7 @@ export const useBulkDeleteTenants = createStaffMutation({
 			),
 		};
 		const result = await client.staff.tenants.bulkDelete.post(body as never);
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useBulkDeleteTenants: result is nil');
 		}
 		return result;

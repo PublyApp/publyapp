@@ -761,6 +761,15 @@ export function createCreateTenantAsStaffResultFromDiscriminatorValue(parseNode:
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CreateTenantProfileAsStaffBody}
+ */
+// @ts-ignore
+export function createCreateTenantProfileAsStaffBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantProfileAsStaffBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {FindAuditLogsResponse}
  */
 // @ts-ignore
@@ -829,6 +838,15 @@ export function createFindStaffUsersResponseFromDiscriminatorValue(parseNode: Pa
 // @ts-ignore
 export function createFindSystemNoticesResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoFindSystemNoticesResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindTenantProfilePermissionsAsStaffResult}
+ */
+// @ts-ignore
+export function createFindTenantProfilePermissionsAsStaffResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindTenantProfilePermissionsAsStaffResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -919,6 +937,15 @@ export function createGetStaffUserProfilesResultFromDiscriminatorValue(parseNode
 // @ts-ignore
 export function createGetTenantAsStaffResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoGetTenantAsStaffResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {GetTenantProfileByIdResponse}
+ */
+// @ts-ignore
+export function createGetTenantProfileByIdResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetTenantProfileByIdResponse;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1055,15 +1082,6 @@ export function createPasswordRegisterBodyFromDiscriminatorValue(parseNode: Pars
 // @ts-ignore
 export function createPasswordRegisterResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoPasswordRegisterResult;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {ProfileAsStaffItem}
- */
-// @ts-ignore
-export function createProfileAsStaffItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoProfileAsStaffItem;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1454,6 +1472,29 @@ export function createTenantFromDiscriminatorValue(parseNode: ParseNode | undefi
 export function createTenantListItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoTenantListItem;
 }
+export interface CreateTenantProfileAsStaffBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The description property
+     */
+    description?: UntypedNode | null;
+    /**
+     * The name property
+     */
+    name?: UntypedNode | null;
+    /**
+     * The permissionKeys property
+     */
+    permissionKeys?: UntypedNode | null;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {TenantProfileItem}
+ */
+// @ts-ignore
+export function createTenantProfileItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoTenantProfileItem;
+}
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
@@ -1687,6 +1728,15 @@ export function createUpdateTenantAsStaffBody_nameMember1FromDiscriminatorValue(
 // @ts-ignore
 export function createUpdateTenantAsStaffBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoUpdateTenantAsStaffBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {UpdateTenantProfileAsStaffBody}
+ */
+// @ts-ignore
+export function createUpdateTenantProfileAsStaffBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUpdateTenantProfileAsStaffBody;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -2364,6 +2414,19 @@ export function deserializeIntoCreateTenantAsStaffResult(createTenantAsStaffResu
 }
 /**
  * The deserialization information for the current model
+ * @param CreateTenantProfileAsStaffBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCreateTenantProfileAsStaffBody(createTenantProfileAsStaffBody: Partial<CreateTenantProfileAsStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "description": n => { createTenantProfileAsStaffBody.description = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "name": n => { createTenantProfileAsStaffBody.name = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "permissionKeys": n => { createTenantProfileAsStaffBody.permissionKeys = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param FindAuditLogsResponse The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -2459,14 +2522,25 @@ export function deserializeIntoFindSystemNoticesResponse(findSystemNoticesRespon
 }
 /**
  * The deserialization information for the current model
+ * @param FindTenantProfilePermissionsAsStaffResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindTenantProfilePermissionsAsStaffResult(findTenantProfilePermissionsAsStaffResult: Partial<FindTenantProfilePermissionsAsStaffResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "permissionKeys": n => { findTenantProfilePermissionsAsStaffResult.permissionKeys = n.getCollectionOfPrimitiveValues<string>(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param FindTenantProfilesAsStaffResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
 export function deserializeIntoFindTenantProfilesAsStaffResult(findTenantProfilesAsStaffResult: Partial<FindTenantProfilesAsStaffResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "count": n => { findTenantProfilesAsStaffResult.count = n.getNumberValue(); },
-        "profiles": n => { findTenantProfilesAsStaffResult.profiles = n.getCollectionOfObjectValues<ProfileAsStaffItem>(createProfileAsStaffItemFromDiscriminatorValue); },
+        "data": n => { findTenantProfilesAsStaffResult.data = n.getCollectionOfObjectValues<TenantProfileItem>(createTenantProfileItemFromDiscriminatorValue); },
+        "nextCursor": n => { findTenantProfilesAsStaffResult.nextCursor = n.getStringValue(); },
     }
 }
 /**
@@ -2586,6 +2660,17 @@ export function deserializeIntoGetTenantAsStaffResult(getTenantAsStaffResult: Pa
         "tenantId": n => { getTenantAsStaffResult.tenantId = n.getGuidValue(); },
         "updatedAt": n => { getTenantAsStaffResult.updatedAt = n.getDateValue(); },
         "usersCount": n => { getTenantAsStaffResult.usersCount = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param GetTenantProfileByIdResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoGetTenantProfileByIdResponse(getTenantProfileByIdResponse: Partial<GetTenantProfileByIdResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "profile": n => { getTenantProfileByIdResponse.profile = n.getObjectValue<TenantProfileItem>(createTenantProfileItemFromDiscriminatorValue); },
     }
 }
 /**
@@ -2772,18 +2857,6 @@ export function deserializeIntoPasswordRegisterResult(passwordRegisterResult: Pa
         "email": n => { passwordRegisterResult.email = n.getStringValue(); },
         "id": n => { passwordRegisterResult.id = n.getGuidValue(); },
         "updatedAt": n => { passwordRegisterResult.updatedAt = n.getDateValue(); },
-    }
-}
-/**
- * The deserialization information for the current model
- * @param ProfileAsStaffItem The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoProfileAsStaffItem(profileAsStaffItem: Partial<ProfileAsStaffItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        "id": n => { profileAsStaffItem.id = n.getGuidValue(); },
-        "name": n => { profileAsStaffItem.name = n.getStringValue(); },
     }
 }
 /**
@@ -3190,6 +3263,21 @@ export function deserializeIntoTenantListItem(tenantListItem: Partial<TenantList
 }
 /**
  * The deserialization information for the current model
+ * @param TenantProfileItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoTenantProfileItem(tenantProfileItem: Partial<TenantProfileItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "description": n => { tenantProfileItem.description = n.getStringValue(); },
+        "id": n => { tenantProfileItem.id = n.getGuidValue(); },
+        "isDefault": n => { tenantProfileItem.isDefault = n.getBooleanValue(); },
+        "name": n => { tenantProfileItem.name = n.getStringValue(); },
+        "userAccountCount": n => { tenantProfileItem.userAccountCount = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param TenantReactivatedResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -3503,6 +3591,18 @@ export function deserializeIntoUpdateTenantAsStaffBody_nameMember1(updateTenantA
 }
 /**
  * The deserialization information for the current model
+ * @param UpdateTenantProfileAsStaffBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUpdateTenantProfileAsStaffBody(updateTenantProfileAsStaffBody: Partial<UpdateTenantProfileAsStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "description": n => { updateTenantProfileAsStaffBody.description = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "name": n => { updateTenantProfileAsStaffBody.name = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param UpdateTenantUserAsStaffBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -3662,15 +3762,21 @@ export interface FindSystemNoticesResponse extends AdditionalDataHolder, Parsabl
      */
     nextCursor?: string | null;
 }
+export interface FindTenantProfilePermissionsAsStaffResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The permissionKeys property
+     */
+    permissionKeys?: string[] | null;
+}
 export interface FindTenantProfilesAsStaffResult extends AdditionalDataHolder, Parsable {
     /**
-     * The count property
+     * The data property
      */
-    count?: number | null;
+    data?: TenantProfileItem[] | null;
     /**
-     * The profiles property
+     * The nextCursor property
      */
-    profiles?: ProfileAsStaffItem[] | null;
+    nextCursor?: string | null;
 }
 export interface FindTenantsAsStaffResponse extends AdditionalDataHolder, Parsable {
     /**
@@ -3805,6 +3911,12 @@ export interface GetTenantAsStaffResult extends AdditionalDataHolder, Parsable {
      * The usersCount property
      */
     usersCount?: number | null;
+}
+export interface GetTenantProfileByIdResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The profile property
+     */
+    profile?: TenantProfileItem | null;
 }
 export interface GetUserAuthDataResult extends AdditionalDataHolder, Parsable {
     /**
@@ -4017,16 +4129,6 @@ export interface PasswordRegisterResult extends AdditionalDataHolder, Parsable {
      * The updatedAt property
      */
     updatedAt?: Date | null;
-}
-export interface ProfileAsStaffItem extends AdditionalDataHolder, Parsable {
-    /**
-     * The id property
-     */
-    id?: Guid | null;
-    /**
-     * The name property
-     */
-    name?: string | null;
 }
 export interface ProfileItem extends AdditionalDataHolder, Parsable {
     /**
@@ -4766,6 +4868,20 @@ export function serializeCreateTenantAsStaffResult(writer: SerializationWriter, 
 }
 /**
  * Serializes information the current object
+ * @param CreateTenantProfileAsStaffBody The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCreateTenantProfileAsStaffBody(writer: SerializationWriter, createTenantProfileAsStaffBody: Partial<CreateTenantProfileAsStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!createTenantProfileAsStaffBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("description", createTenantProfileAsStaffBody.description);
+    writer.writeObjectValue("name", createTenantProfileAsStaffBody.name);
+    writer.writeObjectValue("permissionKeys", createTenantProfileAsStaffBody.permissionKeys);
+    writer.writeAdditionalData(createTenantProfileAsStaffBody.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param FindAuditLogsResponse The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -4869,6 +4985,18 @@ export function serializeFindSystemNoticesResponse(writer: SerializationWriter, 
 }
 /**
  * Serializes information the current object
+ * @param FindTenantProfilePermissionsAsStaffResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindTenantProfilePermissionsAsStaffResult(writer: SerializationWriter, findTenantProfilePermissionsAsStaffResult: Partial<FindTenantProfilePermissionsAsStaffResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findTenantProfilePermissionsAsStaffResult || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfPrimitiveValues<string>("permissionKeys", findTenantProfilePermissionsAsStaffResult.permissionKeys);
+    writer.writeAdditionalData(findTenantProfilePermissionsAsStaffResult.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param FindTenantProfilesAsStaffResult The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -4876,8 +5004,8 @@ export function serializeFindSystemNoticesResponse(writer: SerializationWriter, 
 // @ts-ignore
 export function serializeFindTenantProfilesAsStaffResult(writer: SerializationWriter, findTenantProfilesAsStaffResult: Partial<FindTenantProfilesAsStaffResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!findTenantProfilesAsStaffResult || isSerializingDerivedType) { return; }
-    writer.writeNumberValue("count", findTenantProfilesAsStaffResult.count);
-    writer.writeCollectionOfObjectValues<ProfileAsStaffItem>("profiles", findTenantProfilesAsStaffResult.profiles, serializeProfileAsStaffItem);
+    writer.writeCollectionOfObjectValues<TenantProfileItem>("data", findTenantProfilesAsStaffResult.data, serializeTenantProfileItem);
+    writer.writeStringValue("nextCursor", findTenantProfilesAsStaffResult.nextCursor);
     writer.writeAdditionalData(findTenantProfilesAsStaffResult.additionalData);
 }
 /**
@@ -5007,6 +5135,18 @@ export function serializeGetTenantAsStaffResult(writer: SerializationWriter, get
     writer.writeDateValue("updatedAt", getTenantAsStaffResult.updatedAt);
     writer.writeNumberValue("usersCount", getTenantAsStaffResult.usersCount);
     writer.writeAdditionalData(getTenantAsStaffResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param GetTenantProfileByIdResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeGetTenantProfileByIdResponse(writer: SerializationWriter, getTenantProfileByIdResponse: Partial<GetTenantProfileByIdResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getTenantProfileByIdResponse || isSerializingDerivedType) { return; }
+    writer.writeObjectValue<TenantProfileItem>("profile", getTenantProfileByIdResponse.profile, serializeTenantProfileItem);
+    writer.writeAdditionalData(getTenantProfileByIdResponse.additionalData);
 }
 /**
  * Serializes information the current object
@@ -5207,19 +5347,6 @@ export function serializePasswordRegisterResult(writer: SerializationWriter, pas
     writer.writeGuidValue("id", passwordRegisterResult.id);
     writer.writeDateValue("updatedAt", passwordRegisterResult.updatedAt);
     writer.writeAdditionalData(passwordRegisterResult.additionalData);
-}
-/**
- * Serializes information the current object
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param ProfileAsStaffItem The instance to serialize from.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeProfileAsStaffItem(writer: SerializationWriter, profileAsStaffItem: Partial<ProfileAsStaffItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!profileAsStaffItem || isSerializingDerivedType) { return; }
-    writer.writeGuidValue("id", profileAsStaffItem.id);
-    writer.writeStringValue("name", profileAsStaffItem.name);
-    writer.writeAdditionalData(profileAsStaffItem.additionalData);
 }
 /**
  * Serializes information the current object
@@ -5652,6 +5779,22 @@ export function serializeTenantListItem(writer: SerializationWriter, tenantListI
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param TenantProfileItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeTenantProfileItem(writer: SerializationWriter, tenantProfileItem: Partial<TenantProfileItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!tenantProfileItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("description", tenantProfileItem.description);
+    writer.writeGuidValue("id", tenantProfileItem.id);
+    writer.writeBooleanValue("isDefault", tenantProfileItem.isDefault);
+    writer.writeStringValue("name", tenantProfileItem.name);
+    writer.writeNumberValue("userAccountCount", tenantProfileItem.userAccountCount);
+    writer.writeAdditionalData(tenantProfileItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param TenantReactivatedResult The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -5973,6 +6116,19 @@ export function serializeUpdateTenantAsStaffBody_name(writer: SerializationWrite
 export function serializeUpdateTenantAsStaffBody_nameMember1(writer: SerializationWriter, updateTenantAsStaffBody_nameMember1: Partial<UpdateTenantAsStaffBody_nameMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!updateTenantAsStaffBody_nameMember1 || isSerializingDerivedType) { return; }
     writer.writeAdditionalData(updateTenantAsStaffBody_nameMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UpdateTenantProfileAsStaffBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUpdateTenantProfileAsStaffBody(writer: SerializationWriter, updateTenantProfileAsStaffBody: Partial<UpdateTenantProfileAsStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!updateTenantProfileAsStaffBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("description", updateTenantProfileAsStaffBody.description);
+    writer.writeObjectValue("name", updateTenantProfileAsStaffBody.name);
+    writer.writeAdditionalData(updateTenantProfileAsStaffBody.additionalData);
 }
 /**
  * Serializes information the current object
@@ -6508,6 +6664,28 @@ export interface TenantListItem extends AdditionalDataHolder, Parsable {
      */
     name?: string | null;
 }
+export interface TenantProfileItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The description property
+     */
+    description?: string | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The isDefault property
+     */
+    isDefault?: boolean | null;
+    /**
+     * The name property
+     */
+    name?: string | null;
+    /**
+     * The userAccountCount property
+     */
+    userAccountCount?: number | null;
+}
 export interface TenantReactivatedResult extends AdditionalDataHolder, Parsable {
     /**
      * The name property
@@ -6711,6 +6889,16 @@ export interface UpdateTenantAsStaffBody_maxUsersMember1 extends AdditionalDataH
 }
 export type UpdateTenantAsStaffBody_name = JsonElement | UpdateTenantAsStaffBody_nameMember1;
 export interface UpdateTenantAsStaffBody_nameMember1 extends AdditionalDataHolder, Parsable {
+}
+export interface UpdateTenantProfileAsStaffBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The description property
+     */
+    description?: UntypedNode | null;
+    /**
+     * The name property
+     */
+    name?: UntypedNode | null;
 }
 /**
  * Updates a tenant user's profile and/or account level.

@@ -12,7 +12,8 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { type UseQueryResult, useQueryClient } from '@tanstack/react-query';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import toStr from 'lodash/toString';
 import { type FC, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useOutletContext, useParams } from 'react-router';
@@ -86,7 +87,7 @@ const TenantDetailsGeneralPage = () => {
 	const { tenantName } = useOutletContext<TenantDetailsOutletContext>();
 
 	const getTenantQuery = useGetTenant({
-		variables: { tenantId: _.toString(tenantId) },
+		variables: { tenantId: toStr(tenantId) },
 		enabled: !!tenantId,
 	});
 
@@ -96,10 +97,10 @@ const TenantDetailsGeneralPage = () => {
 				heading={tenantName || t('tenant-details')}
 				links={[
 					{
-						name: _.capitalize(t('tenants')),
+						name: capitalize(t('tenants')),
 						href: FRONT_PATH_NAMES.staff.tenants.root,
 					},
-					{ name: _.capitalize(t('details')) },
+					{ name: capitalize(t('details')) },
 				]}
 				sx={{ mb: { xs: 3, md: 5 } }}
 			/>
@@ -107,13 +108,11 @@ const TenantDetailsGeneralPage = () => {
 				<QueryDisplay
 					query={getTenantQuery}
 					LoadingSlot={<TenantGeneralSkeleton />}
-					ErrorSlot={({ error }) => (
-						<ErrorView error={error} getTenantQuery={getTenantQuery} />
-					)}
+					ErrorSlot={ErrorView}
 				>
 					{({ data }) => (
 						<TenantGeneralContent
-							tenantId={_.toString(data.tenantId)}
+							tenantId={toStr(data.tenantId)}
 							name={data.name}
 							code={data.code}
 							logoUrl={data.logoUrl}
@@ -585,85 +584,154 @@ const TenantGeneralSkeleton = () => (
 				display: 'grid',
 				gap: 3,
 				gridTemplateColumns: '1fr',
+				alignItems: 'start',
 				'@container (min-width: 800px)': {
-					gridTemplateColumns: '1fr 2fr',
+					gridTemplateColumns: 'minmax(0, 300px) minmax(0, 1fr)',
 				},
 			}}
 		>
-			{/* Left sidebar skeleton */}
-			<Card sx={{ pt: 8, pb: 5, px: 3, textAlign: 'center' }}>
-				<Skeleton
-					variant="circular"
-					width={144}
-					height={144}
-					sx={{ mx: 'auto' }}
-				/>
-				<Skeleton
-					variant="rectangular"
-					width={60}
-					height={24}
-					sx={{ mx: 'auto', mt: 3, borderRadius: 1 }}
-				/>
+			<Card sx={{ pt: 6, pb: 4, px: 3 }}>
+				<Stack spacing={3} alignItems="center">
+					<Skeleton
+						variant="rounded"
+						width={132}
+						height={132}
+						sx={{ borderRadius: 4 }}
+					/>
+					<Stack spacing={1} alignItems="center" sx={{ width: 1 }}>
+						<Skeleton
+							variant="rounded"
+							width={84}
+							height={24}
+							sx={{ borderRadius: 999 }}
+						/>
+						<Skeleton variant="text" width="62%" height={28} />
+						<Skeleton variant="text" width="48%" height={18} />
+					</Stack>
+				</Stack>
+
 				<Divider sx={{ my: 3, borderStyle: 'dashed' }} />
-				<Stack spacing={2} sx={{ px: 2 }}>
-					<Skeleton variant="text" width="80%" height={40} />
-					<Skeleton variant="text" width="80%" height={40} />
-					<Skeleton variant="text" width="80%" height={40} />
+
+				<Stack spacing={1.75}>
+					{['74%', '58%', '66%', '52%'].map((width) => (
+						<Box
+							key={width}
+							sx={{
+								display: 'flex',
+								alignItems: 'center',
+								gap: 1.5,
+							}}
+						>
+							<Skeleton variant="circular" width={18} height={18} />
+							<Box sx={{ minWidth: 0, flex: 1 }}>
+								<Skeleton variant="text" width="34%" height={16} />
+								<Skeleton variant="text" width={width} height={20} />
+							</Box>
+						</Box>
+					))}
 				</Stack>
 			</Card>
 
-			{/* Right content skeleton */}
 			<Stack spacing={3}>
 				<Card sx={{ p: 3 }}>
-					<Skeleton variant="text" width={200} height={32} sx={{ mb: 3 }} />
 					<Stack spacing={3}>
-						<Skeleton
-							variant="rectangular"
-							height={56}
-							sx={{ borderRadius: 1 }}
-						/>
-						<Skeleton
-							variant="rectangular"
-							height={56}
-							sx={{ borderRadius: 1 }}
-						/>
-						<Skeleton
-							variant="rectangular"
-							height={56}
-							sx={{ borderRadius: 1 }}
-						/>
-						<Skeleton
-							variant="rectangular"
-							height={48}
-							width={160}
-							sx={{ borderRadius: 1 }}
-						/>
+						<Box>
+							<Skeleton
+								variant="text"
+								width="32%"
+								height={30}
+								sx={{ mb: 0.5 }}
+							/>
+							<Skeleton variant="text" width="52%" height={18} />
+						</Box>
+
+						<Stack spacing={2.5}>
+							<Skeleton
+								variant="rounded"
+								height={56}
+								sx={{ borderRadius: 2 }}
+							/>
+							<Skeleton
+								variant="rounded"
+								height={56}
+								sx={{ borderRadius: 2 }}
+							/>
+							<Skeleton
+								variant="rounded"
+								height={108}
+								sx={{ borderRadius: 2 }}
+							/>
+						</Stack>
+
+						<Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+							<Skeleton
+								variant="rounded"
+								width={132}
+								height={36}
+								sx={{ borderRadius: 2 }}
+							/>
+						</Box>
 					</Stack>
-					<Box
-						sx={{
-							display: 'flex',
-							justifyContent: 'flex-end',
-							mt: 3,
-						}}
-					>
-						<Skeleton
-							variant="rectangular"
-							width={130}
-							height={36}
-							sx={{ borderRadius: 1 }}
-						/>
-					</Box>
 				</Card>
 
 				<Card sx={{ p: 3 }}>
-					<Skeleton variant="text" width={120} height={28} sx={{ mb: 1 }} />
-					<Skeleton variant="text" width={350} height={20} sx={{ mb: 3 }} />
-					<Skeleton
-						variant="rectangular"
-						width={90}
-						height={36}
-						sx={{ borderRadius: 1 }}
-					/>
+					<Stack spacing={2.5}>
+						<Box>
+							<Skeleton
+								variant="text"
+								width="22%"
+								height={28}
+								sx={{ mb: 0.5 }}
+							/>
+							<Skeleton variant="text" width="58%" height={18} />
+						</Box>
+
+						<Box
+							sx={{
+								display: 'grid',
+								gap: 2,
+								gridTemplateColumns: {
+									xs: '1fr',
+									sm: 'repeat(2, minmax(0, 1fr))',
+								},
+							}}
+						>
+							{['42%', '56%', '48%', '38%'].map((width) => (
+								<Box key={width}>
+									<Skeleton variant="text" width="34%" height={16} />
+									<Skeleton variant="text" width={width} height={22} />
+								</Box>
+							))}
+						</Box>
+					</Stack>
+				</Card>
+
+				<Card sx={{ p: 3 }}>
+					<Stack spacing={2.5}>
+						<Box>
+							<Skeleton
+								variant="text"
+								width="20%"
+								height={28}
+								sx={{ mb: 0.5 }}
+							/>
+							<Skeleton variant="text" width="64%" height={18} />
+						</Box>
+						<Box
+							sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}
+						>
+							<Box sx={{ minWidth: 0, flex: 1 }}>
+								<Skeleton variant="text" width="28%" height={16} />
+								<Skeleton variant="text" width="46%" height={22} />
+							</Box>
+							<Skeleton
+								variant="rounded"
+								width={104}
+								height={36}
+								sx={{ borderRadius: 2, flexShrink: 0 }}
+							/>
+						</Box>
+					</Stack>
 				</Card>
 			</Stack>
 		</Box>
@@ -672,8 +740,8 @@ const TenantGeneralSkeleton = () => (
 
 const ErrorView: FC<{
 	error: unknown;
-	getTenantQuery: UseQueryResult<GetTenantAsStaffResult, Error>;
-}> = ({ error, getTenantQuery }) => {
+	query: UseQueryResult<GetTenantAsStaffResult, Error>;
+}> = ({ error, query }) => {
 	const { t } = useTranslate();
 
 	const failure = toApiFailure(error);
@@ -686,7 +754,7 @@ const ErrorView: FC<{
 		return (
 			<NotFoundView
 				withLayout={false}
-				title={_.capitalize(t('tenant-not-found-title'))}
+				title={capitalize(t('tenant-not-found-title'))}
 				description={t('tenant-not-found-description')}
 			/>
 		);
@@ -697,7 +765,7 @@ const ErrorView: FC<{
 			<ErrorContent
 				title={t('tenant-details-error-title')}
 				description={t('tenant-details-error-description')}
-				onRetry={() => getTenantQuery.refetch()}
+				onRetry={() => query.refetch()}
 			/>
 		</Box>
 	);

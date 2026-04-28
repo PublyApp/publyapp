@@ -6,7 +6,7 @@ import { createApiResponseFromDiscriminatorValue, createAppProblemDetailsFromDis
 // @ts-ignore
 import { InvitationsRequestBuilderNavigationMetadata, InvitationsRequestBuilderRequestsMetadata, type InvitationsRequestBuilder } from './invitations/index.js';
 // @ts-ignore
-import { ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
+import { ProfilesRequestBuilderNavigationMetadata, ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
 // @ts-ignore
 import { ReactivateRequestBuilderRequestsMetadata, type ReactivateRequestBuilder } from './reactivate/index.js';
 // @ts-ignore
@@ -109,6 +109,7 @@ export const WithTenantItemRequestBuilderNavigationMetadata: Record<Exclude<keyo
     },
     profiles: {
         requestsMetadata: ProfilesRequestBuilderRequestsMetadata,
+        navigationMetadata: ProfilesRequestBuilderNavigationMetadata,
     },
     reactivate: {
         requestsMetadata: ReactivateRequestBuilderRequestsMetadata,

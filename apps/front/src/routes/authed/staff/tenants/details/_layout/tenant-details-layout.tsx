@@ -117,9 +117,7 @@ const TenantDetailsLayout = () => {
 		<QueryDisplay
 			query={getTenantQuery}
 			LoadingSlot={<TenantDetailsLayoutSkeleton />}
-			ErrorSlot={({ error }) => (
-				<LayoutErrorView error={error} getTenantQuery={getTenantQuery} />
-			)}
+			ErrorSlot={LayoutErrorView}
 		>
 			{() => (
 				<SidebarSettingsLayout
@@ -137,8 +135,8 @@ export default TenantDetailsLayout;
 
 const LayoutErrorView: FC<{
 	error: unknown;
-	getTenantQuery: UseQueryResult<GetTenantAsStaffResult, Error>;
-}> = ({ error, getTenantQuery }) => {
+	query: UseQueryResult<GetTenantAsStaffResult, Error>;
+}> = ({ error, query }) => {
 	const { t } = useTranslate();
 
 	const failure = toApiFailure(error);
@@ -163,15 +161,41 @@ const LayoutErrorView: FC<{
 				<ErrorContent
 					title={t('tenant-details-error-title')}
 					description={t('tenant-details-error-description')}
-					onRetry={() => getTenantQuery.refetch()}
+					onRetry={() => query.refetch()}
 				/>
 			</Box>
 		</DashboardContent>
 	);
 };
 
-const NavItemSkeleton = () => (
-	<Skeleton variant="rectangular" height={36} sx={{ borderRadius: 1 }} />
+const TenantDetailsNavItemSkeleton = ({
+	width,
+	locked = false,
+}: {
+	width: string;
+	locked?: boolean;
+}) => (
+	<Box
+		sx={{
+			display: 'flex',
+			alignItems: 'center',
+			gap: 1.25,
+			px: 1,
+			py: 0.75,
+			borderRadius: 1,
+		}}
+	>
+		<Skeleton variant="circular" width={18} height={18} />
+		<Skeleton variant="rounded" width={width} height={14} />
+		{locked ? (
+			<Skeleton
+				variant="circular"
+				width={14}
+				height={14}
+				sx={{ ml: 'auto', flexShrink: 0 }}
+			/>
+		) : null}
+	</Box>
 );
 
 const TenantDetailsLayoutSkeleton = () => (
@@ -183,26 +207,55 @@ const TenantDetailsLayoutSkeleton = () => (
 				flexDirection: { xs: 'column', md: 'row' },
 			}}
 		>
-			{/* Sidebar skeleton */}
 			<Box
 				sx={{
 					display: { xs: 'none', md: 'block' },
 					flexShrink: 0,
-					width: 200,
+					width: 220,
 				}}
 			>
-				<Stack spacing={0.5}>
-					<NavItemSkeleton />
-					<NavItemSkeleton />
-					<NavItemSkeleton />
-					<NavItemSkeleton />
+				<Stack spacing={2}>
+					<Box sx={{ px: 1 }}>
+						<Skeleton variant="text" width="56%" height={16} sx={{ mb: 0.5 }} />
+						<Skeleton variant="text" width="88%" height={28} />
+						<Skeleton variant="text" width="72%" height={16} />
+					</Box>
+
+					<Box sx={{ display: 'grid', gap: 0.5 }}>
+						<TenantDetailsNavItemSkeleton width="48%" />
+						<TenantDetailsNavItemSkeleton width="34%" />
+						<TenantDetailsNavItemSkeleton width="46%" />
+						<TenantDetailsNavItemSkeleton width="40%" />
+						<TenantDetailsNavItemSkeleton width="38%" locked />
+					</Box>
 				</Stack>
 			</Box>
 
-			{/* Content area skeleton */}
 			<Box sx={{ flex: 1, minWidth: 0 }}>
-				<Skeleton variant="text" width={200} height={32} sx={{ mb: 2 }} />
-				<Skeleton variant="rectangular" height={300} sx={{ borderRadius: 2 }} />
+				<Box sx={{ mb: { xs: 3, md: 5 } }}>
+					<Skeleton variant="text" width="36%" height={38} />
+					<Skeleton variant="text" width="54%" height={18} />
+				</Box>
+
+				<Box
+					sx={{
+						display: 'grid',
+						gap: 3,
+						gridTemplateColumns: {
+							xs: '1fr',
+							lg: 'minmax(0, 300px) minmax(0, 1fr)',
+						},
+					}}
+				>
+					<Box sx={{ display: 'grid', gap: 3 }}>
+						<Skeleton variant="rounded" height={360} sx={{ borderRadius: 2 }} />
+					</Box>
+
+					<Box sx={{ display: 'grid', gap: 3 }}>
+						<Skeleton variant="rounded" height={264} sx={{ borderRadius: 2 }} />
+						<Skeleton variant="rounded" height={176} sx={{ borderRadius: 2 }} />
+					</Box>
+				</Box>
 			</Box>
 		</Box>
 	</DashboardContent>

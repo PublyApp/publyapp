@@ -344,6 +344,13 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.HasFilter("\"scope\" = 0");
 
 		modelBuilder.Entity<Profile>()
+			.HasIndex(p => new { p.TenantId, p.Name })
+			.IsUnique()
+			.HasDatabaseName("ux_profiles_tenant_name")
+			// Tenant profile names must be unique per tenant across active rows only.
+			.HasFilter("\"scope\" = 1 AND \"is_deleted\" = false");
+
+		modelBuilder.Entity<Profile>()
 			.HasIndex(p => new { p.TenantId, p.Scope, p.IsDefault })
 			.IsUnique()
 			.HasDatabaseName("ux_profiles_tenant_default_profile")
