@@ -64,7 +64,7 @@ export const combinedMiddlewaresWithSettingsPersist = <T>(
 				} as unknown as Partial<T>;
 			},
 			merge: (persistedState, currentState) => {
-				return _.merge({}, currentState, persistedState);
+				return merge({}, currentState, persistedState);
 			},
 			// migrate: (persisted, fromVersion) => persisted, // intentional no-op until shape changes
 		}),
