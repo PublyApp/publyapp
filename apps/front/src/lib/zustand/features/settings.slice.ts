@@ -3,6 +3,7 @@ import _ from 'lodash';
 
 import { defaultSettings } from '#app/components/settings/settings-config.ts';
 import type { SettingsState } from '#app/components/settings/types.ts';
+import { settingsTabSync } from '#app/lib/settings/settings-tab-sync.client.ts';
 
 import { SIDEBAR_COOKIE_MAX_AGE, SIDEBAR_COOKIE_NAME } from '../../constants';
 import type { useMainStore } from '../store';
@@ -103,6 +104,20 @@ export default settingsSlice;
 // };
 
 // -----------------------------------------------------------------------------------------
+
+export const subscribeToSettingsState = (store: typeof useMainStore) => {
+	return store.subscribe((rootState, prevRootState) => {
+		const next = rootState.settingsSlice.state;
+		const prev = prevRootState.settingsSlice.state;
+		if (next === prev) {
+			return;
+		}
+		if (!settingsTabSync.shouldBroadcast()) {
+			return;
+		}
+		settingsTabSync.broadcastSettingsToTabs(next);
+	});
+};
 
 export const subscribeToNavLayout = (store: typeof useMainStore) => {
 	store.subscribe((rootState, prevRootState) => {
