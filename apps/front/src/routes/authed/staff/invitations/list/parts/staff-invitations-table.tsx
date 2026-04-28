@@ -4,7 +4,6 @@ import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import InputLabel from '@mui/material/InputLabel';
 import Link from '@mui/material/Link';
-import ListItemText from '@mui/material/ListItemText';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import Tooltip from '@mui/material/Tooltip';
@@ -302,22 +301,33 @@ const EmailCell: MRT_ColumnDef<StaffInvitationRowData, string>['Cell'] = (
 	const id = props.row.original.id;
 
 	return (
-		<ListItemText
-			primary={email || '-'}
-			secondary={
-				<Link
-					component={RouterLink}
-					href={FRONT_PATH_NAMES.staff.invitations.details(id)}
-					underline="hover"
-					sx={{ color: 'text.disabled', fontSize: '0.75rem' }}
-				>
-					{id}
-				</Link>
-			}
-			slotProps={{
-				primary: { noWrap: true },
+		<Box
+			sx={{
+				minWidth: 0,
+				display: 'flex',
+				flexDirection: 'column',
+				gap: 0.25,
 			}}
-		/>
+		>
+			<Typography variant="body2" noWrap>
+				{email || '-'}
+			</Typography>
+			<Link
+				component={RouterLink}
+				href={FRONT_PATH_NAMES.staff.invitations.details(id)}
+				underline="hover"
+				sx={{
+					color: 'text.disabled',
+					fontSize: '0.75rem',
+					display: 'block',
+					overflow: 'hidden',
+					textOverflow: 'ellipsis',
+					whiteSpace: 'nowrap',
+				}}
+			>
+				{id}
+			</Link>
+		</Box>
 	);
 };
 

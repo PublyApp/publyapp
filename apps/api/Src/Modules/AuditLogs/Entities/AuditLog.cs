@@ -54,6 +54,12 @@ public static class AuditActions {
 	public const string StaffProfileCreated = "staff.profile.created";
 	public const string StaffProfilePermissionsAssigned = "staff.profile.permissions.assigned";
 	public const string StaffProfileUserAssigned = "staff.profile.user.assigned";
+	public const string TenantProfileCreated = "tenant.profile.created";
+	public const string TenantProfileUpdated = "tenant.profile.updated";
+	public const string TenantProfileDeleted = "tenant.profile.deleted";
+	public const string TenantProfilePermissionsAssigned = "tenant.profile.permissions.assigned";
+	public const string TenantProfilePermissionsUnassigned = "tenant.profile.permissions.unassigned";
+	public const string TenantProfileBulkDeleted = "tenant.profile.bulk.deleted";
 	public const string TenantInvitationAccepted = "tenant.invitation.accepted";
 	public const string TenantUpdated = "tenant.updated";
 	public const string TenantDeleted = "tenant.deleted";

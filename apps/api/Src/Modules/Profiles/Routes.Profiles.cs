@@ -71,6 +71,26 @@ public static partial class Routes {
 			public static string RootFn(string tenantId) => $"/tenants/{tenantId}/profiles";
 			public const string Find = "/";
 			public static string FindFn(string tenantId) => $"{RootFn(tenantId)}/";
+			public const string Get = "/{profileId}";
+			public static string GetFn(string profileId) => $"/{profileId}";
+			public const string Create = "/";
+			public const string Update = "/{profileId}";
+			public static string UpdateFn(string profileId) => $"/{profileId}";
+			public const string Delete = "/{profileId}";
+			public static string DeleteFn(string profileId) => $"/{profileId}";
+
+			/// <summary>Tenant profile permissions routes</summary>
+			public static class Permissions {
+				public const string Root = "/{profileId}/permissions";
+				public static string RootFn(string profileId) => $"/{profileId}/permissions";
+
+				public const string Find = Root;
+				public static string FindFn(string profileId) => RootFn(profileId);
+
+				public const string Upsert = Root + "/{permissionKey}";
+				public static string UpsertFn(string profileId, string permissionKey) =>
+					$"{RootFn(profileId)}/{permissionKey}";
+			}
 		}
 	}
 }

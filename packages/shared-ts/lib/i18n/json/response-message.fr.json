@@ -42,6 +42,8 @@
 	"staff-profile-created-successfully": "Profil staff créé avec succès",
 	"staff-profile-updated-successfully": "Profil staff mis à jour avec succès",
 	"staff-profile-deleted-success": "Profil staff supprimé avec succès",
+	"tenant-profile-default-delete-not-allowed": "Le profil par défaut du tenant ne peut pas être supprimé",
+	"tenant-profile-deleted-success": "Profil du tenant supprimé avec succès",
 	"staff-profile-users-unassigned-success": "Utilisateurs retirés du profil avec succès",
 	"profile-name-already-exists": "Le nom du profil existe déjà",
 	"profiles": "profils",
