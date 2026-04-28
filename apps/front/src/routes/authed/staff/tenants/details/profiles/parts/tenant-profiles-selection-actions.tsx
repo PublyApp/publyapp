@@ -20,8 +20,8 @@ import {
 	useGetTenantProfileById,
 } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
 
-import type { TenantProfileRowData } from './tenant-profiles-table.types.ts';
 import TenantProfilesCompareDrawer from './tenant-profiles-compare-drawer.tsx';
+import type { TenantProfileRowData } from './tenant-profiles-table.types.ts';
 
 const SELECTION_MODE_MENU_MIN_WIDTH = 220;
 
