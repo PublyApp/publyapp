@@ -8,9 +8,9 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
 import map from 'lodash/map';
+import { varAlpha } from 'minimal-shared/utils';
 import type { Ref } from 'react';
 import { useImperativeHandle, useState } from 'react';
-import { varAlpha } from 'minimal-shared/utils';
 
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
@@ -168,11 +168,7 @@ const StaffUsersExportDialogController = ({
 						color="text.secondary"
 						sx={{ minHeight: 20 }}
 					>
-						{exportFormat === 'xlsx'
-							? t('xlsx-export-coming-soon', {
-									defaultValue: 'XLSX export is coming soon.',
-								})
-							: ' '}
+						{exportFormat === 'xlsx' ? t('xlsx-export-coming-soon') : ' '}
 					</Typography>
 				</Box>
 			</DialogContent>

@@ -57,12 +57,7 @@ const StaffUsersSelectionActions = ({
 					}}
 				>
 					<Iconify icon="solar:download-bold" width={18} />
-					<ListItemText
-						primary={t('export-selected', {
-							defaultValue: 'Export selected',
-						})}
-						sx={{ ml: 1 }}
-					/>
+					<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
 				</MenuItem>
 
 				<MenuItem

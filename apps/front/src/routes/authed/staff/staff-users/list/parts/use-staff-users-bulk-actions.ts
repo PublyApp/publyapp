@@ -13,11 +13,11 @@ import {
 	useBulkReactivateStaffUsers,
 	useBulkSuspendStaffUsers,
 } from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
-
 import {
 	clearDeletedStaffUserRelatedQueries,
 	invalidateStaffUserLifecycleQueries,
 } from '#app/routes/authed/staff/staff-users/shared/staff-user-cache-helpers.ts';
+
 import { getSuccessfulBulkStaffUserIds } from './staff-users-list-helpers.ts';
 
 export type StaffUsersBulkActionType = 'suspend' | 'reactivate' | 'delete';

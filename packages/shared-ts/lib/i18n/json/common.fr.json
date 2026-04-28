@@ -642,6 +642,7 @@
 	"export-current-results": "Exporter le résultat actuel ({{count}} élément(s)).",
 	"export-selected-items": "Exporter {{count}} élément(s) sélectionné(s)",
 	"export-selected": "Exporter la sélection",
+	"xlsx-export-coming-soon": "L'export XLSX arrive bientôt.",
 	"export-invitations": "Exporter les invitations",
 	"export-selected-invitations": "Exporter les invitations sélectionnées",
 	"export-staff-users": "Exporter les membres du staff",

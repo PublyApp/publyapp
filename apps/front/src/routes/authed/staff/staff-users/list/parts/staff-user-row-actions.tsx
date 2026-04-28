@@ -1,5 +1,5 @@
-import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import { useQueryClient } from '@tanstack/react-query';
@@ -23,15 +23,15 @@ import {
 } from '#app/lib/react-query/features/common/auth.hooks.ts';
 import {
 	useDeleteStaffUser,
-	useSuspendStaffUser,
 	useReactivateStaffUser,
+	useSuspendStaffUser,
 } from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
-
-import type { StaffUserRowData } from './use-staff-users-table-controller.ts';
 import {
 	clearDeletedStaffUserRelatedQueries,
 	invalidateStaffUserLifecycleQueries,
 } from '#app/routes/authed/staff/staff-users/shared/staff-user-cache-helpers.ts';
+
+import type { StaffUserRowData } from './use-staff-users-table-controller.ts';
 
 const ALLOW_COPY_LINK = false;
 
