@@ -46,7 +46,6 @@ import {
 	useMemo,
 	useRef,
 	useState,
-	type Ref,
 } from 'react';
 
 import type { TenantAsStaffListItem } from '@org/client-ts/src/models';

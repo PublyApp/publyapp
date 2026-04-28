@@ -68,6 +68,10 @@ import StaffProfileUsersExportDialogController, {
 	type StaffProfileUsersExportDialogControllerRef,
 } from './staff-profile-users-export-dialog-controller.tsx';
 
+import StaffProfileUsersExportDialogController, {
+	type StaffProfileUsersExportDialogControllerRef,
+} from './staff-profile-users-export-dialog-controller.tsx';
+
 export const defaultStaffProfileUsersSorting: MRT_SortingState[number] = {
 	desc: true,
 	id: 'created_at',

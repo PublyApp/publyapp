@@ -50,7 +50,6 @@ import {
 	useMemo,
 	useRef,
 	useState,
-	type Ref,
 } from 'react';
 import { useParams } from 'react-router';
 
