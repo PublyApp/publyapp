@@ -8,6 +8,7 @@ import { useSettingsContext } from '#app/hooks/use-settings-context.ts';
 
 import { useTranslate } from '../../../hooks/use-translate';
 import { createTheme } from './create-theme';
+import { SettingsTabSyncBridge } from './settings-tab-sync-bridge';
 import type { ThemeOptions } from './types';
 
 // ----------------------------------------------------------------------
@@ -34,6 +35,7 @@ export const MuiThemeProvider = ({
 	return (
 		<ThemeVarsProvider disableTransitionOnChange theme={theme} {...other}>
 			<CssBaseline />
+			<SettingsTabSyncBridge />
 			{children}
 		</ThemeVarsProvider>
 	);
