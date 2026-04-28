@@ -28,7 +28,9 @@ import {
 
 import { NotFoundView, View403, View500 } from '#app/components/error/index.ts';
 import {
+	COLOR_SCHEME_STORAGE_KEY,
 	defaultSettings,
+	SETTINGS_STORAGE_KEY,
 	SettingsDrawer,
 } from '#app/components/settings/index.ts';
 

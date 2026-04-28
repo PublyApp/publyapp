@@ -26,6 +26,8 @@ const getSettingsLocalStorage = (): StateStorage => {
 	return window.localStorage;
 };
 
+// Zustand creates the store during SSR too. Returning a no-op storage keeps the
+// middleware shape identical on server and browser without touching `window`.
 const noopStorage: StateStorage = {
 	getItem: () => null,
 	setItem: () => undefined,
@@ -39,7 +41,7 @@ const getSettingsLocalStorage = (): StateStorage => {
 	return window.localStorage;
 };
 
-export const combinedMiddlewaresWithSettingsPersist = <T>(
+export const combinedMiddlewares = <T>(
 	initializer: StateCreator<T, [['zustand/immer', never]], []>,
 ) => {
 	return devtools(
@@ -49,22 +51,45 @@ export const combinedMiddlewaresWithSettingsPersist = <T>(
 			storage: createJSONStorage<T>(() => {
 				return getSettingsLocalStorage();
 			}) as never,
-			// Persist only settingsSlice.state — leave actions, openDrawer, canReset, and other slices untouched.
+			// Persist only durable settings data. UI state and actions must be rebuilt
+			// on every load so drawer state, callbacks, and unrelated slices cannot leak.
 			partialize: (state) => {
 				const settingsSlice = (
 					state as unknown as {
-						settingsSlice?: { state?: unknown };
+						settingsSlice?: {
+							state?: unknown;
+							revision?: unknown;
+							updatedAt?: unknown;
+							syncId?: unknown;
+						};
 					}
 				).settingsSlice;
 
 				return {
 					settingsSlice: {
 						state: settingsSlice?.state,
+						revision: settingsSlice?.revision,
+						updatedAt: settingsSlice?.updatedAt,
+						syncId: settingsSlice?.syncId,
 					},
 				} as unknown as Partial<T>;
 			},
 			merge: (persistedState, currentState) => {
-				return merge({}, currentState, persistedState);
+				const snapshot = getSettingsSnapshotFromPersistedRoot(persistedState);
+				if (!snapshot) {
+					return currentState;
+				}
+
+				// Persisted data is browser-controlled input. Sanitize it before it
+				// reaches the live store so malformed localStorage cannot poison MUI.
+				return merge({}, currentState, {
+					settingsSlice: {
+						state: snapshot.state,
+						revision: snapshot.revision,
+						updatedAt: snapshot.updatedAt,
+						syncId: snapshot.syncId,
+					},
+				});
 			},
 			// migrate: (persisted, fromVersion) => persisted, // intentional no-op until shape changes
 		}),
