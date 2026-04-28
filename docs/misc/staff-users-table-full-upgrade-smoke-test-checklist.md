@@ -11,11 +11,11 @@ Related surfaces:
 
 ## 1. Table Loading And Basic Rendering
 
-- [ ] The staff users list loads without an error state.
-- [ ] The first column shows user identity in a dense two-line layout: full name on the first line and email on the second line.
+- [x] The staff users list loads without an error state.
+- [x] The first column shows user identity in a dense two-line layout: full name on the first line and email on the second line.
 - [ ] The status column renders valid labels only for the supported statuses: `Active`, `Pending`, `Suspended`, and `Inactive`.
 - [ ] No row renders a `Banned` status label.
-- [ ] The action column renders the expected actions for a regular active user.
+- [ ] The action column renders only row-level actions for a regular active user: quick preview and delete.
 
 ## 2. Search, Filter, Sort, And Cursor Pagination
 
@@ -57,11 +57,13 @@ Related surfaces:
 
 - [ ] For a pending user, the follow-up action is visible and works.
 - [ ] For a pending user, the verification-link copy action works when enabled by the feature flag.
-- [ ] Suspending an active user works and updates the row status.
-- [ ] Reactivating a suspended user works and updates the row status.
+- [ ] Opening the status cell menu on an active user allows suspending the user and updates the row status.
+- [ ] Opening the status cell menu on a suspended user allows reactivating the user and updates the row status.
+- [ ] Opening the level cell menu allows changing between `Admin` and `User` and updates the row level.
 - [ ] Deleting a suspended user works and removes the row from the table.
 - [ ] The delete action is disabled for non-suspended users and shows the explanatory tooltip.
-- [ ] The details action opens the correct staff-user details page.
+- [ ] The quick preview action uses the `solar:list-bold` icon and opens a right drawer with the user's details.
+- [ ] The quick preview drawer includes a link to the correct staff-user details page.
 
 ## 7. Staff User Details Regression Checks
 

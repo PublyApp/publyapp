@@ -1,8 +1,13 @@
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import ButtonBase from '@mui/material/ButtonBase';
 import Link from '@mui/material/Link';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
+import Tooltip from '@mui/material/Tooltip';
+import { useQueryClient } from '@tanstack/react-query';
 import capitalize from 'lodash/capitalize';
 import isEqual from 'lodash/isEqual';
 import map from 'lodash/map';
@@ -16,6 +21,7 @@ import {
 	type MRT_TableOptions,
 } from 'material-react-table';
 import { useDebounce } from 'minimal-shared/hooks';
+import { varAlpha } from 'minimal-shared/utils';
 import { parseAsString, useQueryStates } from 'nuqs';
 import {
 	type ChangeEvent,
@@ -37,10 +43,12 @@ import {
 } from '@org/shared-ts/lib/constants';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
+import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { Label } from '#app/components/label/label.tsx';
 import type { LabelColor } from '#app/components/label/types.ts';
 import { RouterLink } from '#app/components/router-link.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
@@ -51,7 +59,11 @@ import {
 	STAFF_USER_STATUS_FILTER_VALUES,
 	type StaffUserStatusFilter,
 	useFindStaffUser,
+	useReactivateStaffUser,
+	useSuspendStaffUser,
+	useUpdateStaffUser,
 } from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
+import { invalidateStaffUserLifecycleQueries } from '#app/routes/authed/staff/staff-users/shared/staff-user-cache-helpers.ts';
 
 import StaffUserRowActions from './staff-user-row-actions.tsx';
 import type { StaffUsersExportDialogControllerRef } from './staff-users-export-dialog-controller.tsx';
@@ -272,7 +284,7 @@ export const useStaffUsersTableController = () => {
 				header: t('actions'),
 				Cell: ActionsCell,
 				enableSorting: false,
-				size: 180,
+				size: 120,
 			}),
 		];
 	}, [t]);
@@ -611,6 +623,11 @@ const UserCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 
 const StatusCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 	const { t } = useTranslate();
+	const queryClient = useQueryClient();
+	const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | null>(null);
+	const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
+	const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
+	const user = props.row.original;
 	const status = props.cell.getValue();
 
 	let label = t('unknown-item', { item: 'status' });
@@ -630,15 +647,185 @@ const StatusCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 		color = 'default';
 	}
 
+	const canChangeStatus =
+		status === USER_STATUS_ENUM.ACTIVE || status === USER_STATUS_ENUM.SUSPENDED;
+
+	const { mutate: suspendStaffUser, isPending: isSuspending } =
+		useSuspendStaffUser({
+			meta: { successMessage: 'staff-user-suspended-success' },
+			onSuccess: async () => {
+				setSuspendDialogOpen(false);
+				await invalidateStaffUserLifecycleQueries({
+					queryClient,
+					userIds: [user.id],
+				});
+			},
+		});
+
+	const { mutate: reactivateStaffUser, isPending: isReactivating } =
+		useReactivateStaffUser({
+			meta: { successMessage: 'staff-user-reactivated-success' },
+			onSuccess: async () => {
+				setReactivateDialogOpen(false);
+				await invalidateStaffUserLifecycleQueries({
+					queryClient,
+					userIds: [user.id],
+				});
+			},
+		});
+
+	const handleChangeStatus = (
+		nextStatus:
+			| typeof USER_STATUS_ENUM.ACTIVE
+			| typeof USER_STATUS_ENUM.SUSPENDED,
+	) => {
+		if (nextStatus === status) {
+			setMenuAnchorEl(null);
+			return;
+		}
+
+		setMenuAnchorEl(null);
+
+		if (nextStatus === USER_STATUS_ENUM.SUSPENDED) {
+			setSuspendDialogOpen(true);
+			return;
+		}
+
+		setReactivateDialogOpen(true);
+	};
+
+	if (!canChangeStatus) {
+		return (
+			<Label variant="soft" color={color}>
+				{label}
+			</Label>
+		);
+	}
+
 	return (
-		<Label variant="soft" color={color}>
-			{label}
-		</Label>
+		<>
+			<Tooltip title={t('change-status')} placement="top" arrow>
+				<ButtonBase
+					onClick={(event) => {
+						setMenuAnchorEl(event.currentTarget);
+					}}
+					disabled={isSuspending || isReactivating}
+					sx={(theme) => ({
+						gap: 0.5,
+						px: 0.5,
+						py: 0.25,
+						borderRadius: 1,
+						display: 'inline-flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						transition: theme.transitions.create('background-color', {
+							duration: theme.transitions.duration.shorter,
+						}),
+						'&:hover': {
+							backgroundColor: varAlpha(
+								theme.vars.palette.grey['500Channel'],
+								0.08,
+							),
+						},
+						'&:disabled': {
+							opacity: 0.48,
+						},
+					})}
+				>
+					<Label variant="soft" color={color}>
+						{label}
+					</Label>
+					<Iconify icon="eva:arrow-ios-downward-fill" width={16} />
+				</ButtonBase>
+			</Tooltip>
+
+			<Menu
+				open={menuAnchorEl !== null}
+				disableAutoFocusItem
+				onClose={() => {
+					setMenuAnchorEl(null);
+				}}
+				anchorEl={menuAnchorEl}
+				anchorOrigin={{
+					vertical: 'bottom',
+					horizontal: 'left',
+				}}
+				transformOrigin={{
+					vertical: 'top',
+					horizontal: 'left',
+				}}
+			>
+				<MenuItem
+					selected={status === USER_STATUS_ENUM.ACTIVE}
+					onClick={() => handleChangeStatus(USER_STATUS_ENUM.ACTIVE)}
+				>
+					<Stack direction="row" alignItems="center" gap={1}>
+						{status === USER_STATUS_ENUM.ACTIVE ? (
+							<Iconify icon="solar:check-circle-bold" width={18} />
+						) : (
+							<Iconify icon="solar:play-circle-bold" width={18} />
+						)}
+						{t('active')}
+					</Stack>
+				</MenuItem>
+
+				<MenuItem
+					selected={status === USER_STATUS_ENUM.SUSPENDED}
+					onClick={() => handleChangeStatus(USER_STATUS_ENUM.SUSPENDED)}
+				>
+					<Stack direction="row" alignItems="center" gap={1}>
+						{status === USER_STATUS_ENUM.SUSPENDED ? (
+							<Iconify icon="solar:check-circle-bold" width={18} />
+						) : (
+							<Iconify icon="solar:forbidden-circle-bold" width={18} />
+						)}
+						{t('suspended')}
+					</Stack>
+				</MenuItem>
+			</Menu>
+
+			<ConfirmDialog
+				open={suspendDialogOpen}
+				onClose={() => setSuspendDialogOpen(false)}
+				title={t('suspend-staff-user')}
+				content={t('suspend-staff-user-confirm')}
+				action={
+					<Button
+						variant="contained"
+						color="warning"
+						onClick={() => suspendStaffUser({ userId: user.id })}
+						disabled={isSuspending}
+					>
+						{t('suspend')}
+					</Button>
+				}
+			/>
+
+			<ConfirmDialog
+				open={reactivateDialogOpen}
+				onClose={() => setReactivateDialogOpen(false)}
+				title={t('reactivate-staff-user')}
+				content={t('reactivate-staff-user-confirm')}
+				action={
+					<Button
+						variant="contained"
+						color="success"
+						onClick={() => reactivateStaffUser({ userId: user.id })}
+						disabled={isReactivating}
+					>
+						{t('reactivate')}
+					</Button>
+				}
+			/>
+		</>
 	);
 };
 
 const LevelCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 	const { t } = useTranslate();
+	const queryClient = useQueryClient();
+	const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | null>(null);
+	const user = props.row.original;
 	const level = props.cell.getValue();
 
 	let label = t('unknown-item', { item: 'role' });
@@ -652,10 +839,113 @@ const LevelCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 		color = 'warning';
 	}
 
+	const { mutate: updateStaffUser, isPending } = useUpdateStaffUser({
+		onSuccess: async () => {
+			setMenuAnchorEl(null);
+			toast.success(t('user-level-updated-success'));
+			await invalidateStaffUserLifecycleQueries({
+				queryClient,
+				userIds: [user.id],
+			});
+		},
+	});
+
+	const handleChangeLevel = (
+		nextLevel: typeof ACCOUNT_LEVEL_ENUM.ADMIN | typeof ACCOUNT_LEVEL_ENUM.USER,
+	) => {
+		if (nextLevel === level) {
+			setMenuAnchorEl(null);
+			return;
+		}
+
+		updateStaffUser({
+			id: user.id,
+			accountLevel: nextLevel,
+		});
+	};
+
 	return (
-		<Label variant="soft" color={color}>
-			{label}
-		</Label>
+		<>
+			<Tooltip title={t('change-role')} placement="top" arrow>
+				<ButtonBase
+					onClick={(event) => {
+						setMenuAnchorEl(event.currentTarget);
+					}}
+					disabled={isPending}
+					sx={(theme) => ({
+						gap: 0.5,
+						px: 0.5,
+						py: 0.25,
+						borderRadius: 1,
+						display: 'inline-flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						transition: theme.transitions.create('background-color', {
+							duration: theme.transitions.duration.shorter,
+						}),
+						'&:hover': {
+							backgroundColor: varAlpha(
+								theme.vars.palette.grey['500Channel'],
+								0.08,
+							),
+						},
+						'&:disabled': {
+							opacity: 0.48,
+						},
+					})}
+				>
+					<Label variant="soft" color={color}>
+						{label}
+					</Label>
+					<Iconify icon="eva:arrow-ios-downward-fill" width={16} />
+				</ButtonBase>
+			</Tooltip>
+
+			<Menu
+				open={menuAnchorEl !== null}
+				disableAutoFocusItem
+				onClose={() => {
+					setMenuAnchorEl(null);
+				}}
+				anchorEl={menuAnchorEl}
+				anchorOrigin={{
+					vertical: 'bottom',
+					horizontal: 'left',
+				}}
+				transformOrigin={{
+					vertical: 'top',
+					horizontal: 'left',
+				}}
+			>
+				<MenuItem
+					selected={level === ACCOUNT_LEVEL_ENUM.ADMIN}
+					onClick={() => handleChangeLevel(ACCOUNT_LEVEL_ENUM.ADMIN)}
+				>
+					<Stack direction="row" alignItems="center" gap={1}>
+						{level === ACCOUNT_LEVEL_ENUM.ADMIN ? (
+							<Iconify icon="solar:check-circle-bold" width={18} />
+						) : (
+							<Iconify icon="solar:shield-check-bold" width={18} />
+						)}
+						{t('admin')}
+					</Stack>
+				</MenuItem>
+
+				<MenuItem
+					selected={level === ACCOUNT_LEVEL_ENUM.USER}
+					onClick={() => handleChangeLevel(ACCOUNT_LEVEL_ENUM.USER)}
+				>
+					<Stack direction="row" alignItems="center" gap={1}>
+						{level === ACCOUNT_LEVEL_ENUM.USER ? (
+							<Iconify icon="solar:check-circle-bold" width={18} />
+						) : (
+							<Iconify icon="solar:users-group-rounded-bold" width={18} />
+						)}
+						{t('user')}
+					</Stack>
+				</MenuItem>
+			</Menu>
+		</>
 	);
 };
 
