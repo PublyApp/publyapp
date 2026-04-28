@@ -39,6 +39,7 @@ import { useBoolean, useDebounce } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
 import { parseAsString, useQueryStates } from 'nuqs';
 import {
+	type Ref,
 	useCallback,
 	useEffect,
 	useId,
@@ -47,7 +48,6 @@ import {
 	useReducer,
 	useRef,
 	useState,
-	type Ref,
 } from 'react';
 import { useParams } from 'react-router';
 

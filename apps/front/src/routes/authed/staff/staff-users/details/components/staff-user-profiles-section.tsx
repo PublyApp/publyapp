@@ -11,18 +11,20 @@ import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
-import { useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { type UseQueryResult, useQueryClient } from '@tanstack/react-query';
 import capitalize from 'lodash/capitalize';
 import toLower from 'lodash/toLower';
 import toStr from 'lodash/toString';
 import uniqBy from 'lodash/uniqBy';
 import {
+	type FC,
 	useCallback,
 	useDeferredValue,
 	useMemo,
 	useState,
-	type FC,
 } from 'react';
+
+import type { GetStaffUserProfilesResult } from '@org/client-ts/src/models';
 
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
 import QueryDisplay from '#app/components/query-display.tsx';
@@ -36,7 +38,6 @@ import {
 	useGetStaffUserProfiles,
 	useUpdateStaffUserProfiles,
 } from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
-import type { GetStaffUserProfilesResult } from '@org/client-ts/src/models';
 
 const StaffUserProfilesSection = ({ userId }: { userId: string }) => {
 	const { t } = useTranslate();

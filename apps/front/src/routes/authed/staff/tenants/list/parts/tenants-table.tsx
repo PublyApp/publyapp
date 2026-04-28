@@ -39,6 +39,7 @@ import { varAlpha } from 'minimal-shared/utils';
 import { nanoid } from 'nanoid';
 import { parseAsString, useQueryStates } from 'nuqs';
 import {
+	type Ref,
 	useCallback,
 	useEffect,
 	useId,
@@ -47,7 +48,6 @@ import {
 	useReducer,
 	useRef,
 	useState,
-	type Ref,
 } from 'react';
 
 import type { TenantAsStaffListItem } from '@org/client-ts/src/models';

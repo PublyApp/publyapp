@@ -6,8 +6,8 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
-import type { TenantProfileRowData } from './tenant-profiles-table.types.ts';
 import TenantProfileFormDrawer from './tenant-profile-form-drawer.tsx';
+import type { TenantProfileRowData } from './tenant-profiles-table.types.ts';
 
 type TenantProfileEditActionProps = {
 	tenantId: string;

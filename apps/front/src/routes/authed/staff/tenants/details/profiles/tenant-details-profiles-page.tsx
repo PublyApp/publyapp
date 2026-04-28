@@ -1,6 +1,6 @@
 import Box from '@mui/material/Box';
-import { useOutletContext, useParams } from 'react-router';
 import capitalize from 'lodash/capitalize';
+import { useOutletContext, useParams } from 'react-router';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 

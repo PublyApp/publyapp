@@ -48,9 +48,6 @@ import type { LabelColor } from '#app/components/label/index.ts';
 import { Label } from '#app/components/label/label.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
-import StaffProfileUsersExportDialogController, {
-	type StaffProfileUsersExportDialogControllerRef,
-} from './staff-profile-users-export-dialog-controller.tsx';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
@@ -64,6 +61,10 @@ import {
 	useReactivateStaffUser,
 	useSuspendStaffUser,
 } from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
+
+import StaffProfileUsersExportDialogController, {
+	type StaffProfileUsersExportDialogControllerRef,
+} from './staff-profile-users-export-dialog-controller.tsx';
 
 export const defaultStaffProfileUsersSorting: MRT_SortingState[number] = {
 	desc: true,
