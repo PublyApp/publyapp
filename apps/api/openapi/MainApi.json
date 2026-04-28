@@ -214,11 +214,11 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Get Tenant Auth Data",
-        "operationId": "GetTenantAuthData",
+        "summary": "Get Scope Auth Data",
+        "operationId": "GetScopeAuthData",
         "parameters": [
           {
-            "name": "TenantId",
+            "name": "scope",
             "in": "query",
             "required": true,
             "schema": {

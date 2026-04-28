@@ -109,7 +109,7 @@ const TenantLayout = () => {
 			items: [
 				{
 					title: t('settings'),
-					path: FRONT_PATH_NAMES.tenant(tenantId).settings.root,
+					path: tenantPaths.settings.root,
 					icon: ICONS.settings,
 					deepActiveMatch: true,
 				},

@@ -8,7 +8,7 @@ import { InvitationsRequestBuilderNavigationMetadata, InvitationsRequestBuilderR
 // @ts-ignore
 import { PermissionsRequestBuilderNavigationMetadata, type PermissionsRequestBuilder } from './permissions/index.js';
 // @ts-ignore
-import { PermissionsRequestBuilderRequestsMetadata, type PermissionsRequestBuilder } from './permissions/index.js';
+import { PermissionsRequestBuilderNavigationMetadata, type PermissionsRequestBuilder } from './permissions/index.js';
 // @ts-ignore
 import { TenantsRequestBuilderNavigationMetadata, TenantsRequestBuilderRequestsMetadata, type TenantsRequestBuilder } from './tenants/index.js';
 // @ts-ignore
