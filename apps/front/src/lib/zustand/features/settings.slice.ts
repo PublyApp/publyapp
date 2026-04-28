@@ -123,6 +123,20 @@ export default settingsSlice;
 
 // -----------------------------------------------------------------------------------------
 
+export const subscribeToSettingsState = (store: typeof useMainStore) => {
+	return store.subscribe((rootState, prevRootState) => {
+		const next = rootState.settingsSlice.state;
+		const prev = prevRootState.settingsSlice.state;
+		if (next === prev) {
+			return;
+		}
+		if (!settingsTabSync.shouldBroadcast()) {
+			return;
+		}
+		settingsTabSync.broadcastSettingsToTabs(next);
+	});
+};
+
 export const subscribeToNavLayout = (store: typeof useMainStore) => {
 	store.subscribe((rootState, prevRootState) => {
 		const navLayout = rootState.settingsSlice.state.navLayout;
