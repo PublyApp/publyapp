@@ -583,9 +583,6 @@ const StatusCell: MRT_ColumnDef<ProfileUserRowData, string>['Cell'] = (
 	} else if (status === USER_STATUS_ENUM.PENDING) {
 		tMessage = t('pending');
 		color = 'warning';
-	} else if (status === USER_STATUS_ENUM.BANNED) {
-		tMessage = t('banned');
-		color = 'error';
 	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
 		tMessage = t('suspended');
 		color = 'warning';
@@ -796,9 +793,6 @@ const UserActionsCell: MRT_ColumnDef<ProfileUserRowData>['Cell'] = (props) => {
 	if (status === USER_STATUS_ENUM.ACTIVE) {
 		statusLabel = t('active');
 		statusColor = 'success';
-	} else if (status === USER_STATUS_ENUM.BANNED) {
-		statusLabel = t('banned');
-		statusColor = 'error';
 	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
 		statusLabel = t('suspended');
 		statusColor = 'warning';

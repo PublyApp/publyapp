@@ -18,14 +18,14 @@ import {
 import { useDebounce } from 'minimal-shared/hooks';
 import { parseAsString, useQueryStates } from 'nuqs';
 import {
+	type ChangeEvent,
+	type SyntheticEvent,
 	useCallback,
 	useEffect,
 	useId,
 	useMemo,
 	useRef,
 	useState,
-	type ChangeEvent,
-	type SyntheticEvent,
 } from 'react';
 
 import type { StaffUserItem } from '@org/client-ts/src/models';
@@ -53,11 +53,11 @@ import {
 	useFindStaffUser,
 } from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
 
-import type { StaffUsersExportDialogControllerRef } from './staff-users-export-dialog-controller.tsx';
 import StaffUserRowActions from './staff-user-row-actions.tsx';
+import type { StaffUsersExportDialogControllerRef } from './staff-users-export-dialog-controller.tsx';
+import { reconcileVisibleRowSelection } from './staff-users-list-helpers.ts';
 import StaffUsersSelectionActions from './staff-users-selection-actions.tsx';
 import StaffUsersToolbarFilters from './staff-users-toolbar-filters.tsx';
-import { reconcileVisibleRowSelection } from './staff-users-list-helpers.ts';
 import {
 	type StaffUsersBulkActionType,
 	useStaffUsersBulkActions,
@@ -622,9 +622,6 @@ const StatusCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 	} else if (status === USER_STATUS_ENUM.PENDING) {
 		label = t('pending');
 		color = 'warning';
-	} else if (status === USER_STATUS_ENUM.BANNED) {
-		label = t('banned');
-		color = 'error';
 	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
 		label = t('suspended');
 		color = 'warning';
