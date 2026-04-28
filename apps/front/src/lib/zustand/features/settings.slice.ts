@@ -1,5 +1,7 @@
 import * as cookie from 'cookie';
-import _ from 'lodash';
+import isArray from 'lodash/isArray';
+import mergeWith from 'lodash/mergeWith';
+import lodashSet from 'lodash/set';
 
 import { defaultSettings } from '#app/components/settings/settings-config.ts';
 import type { SettingsState } from '#app/components/settings/types.ts';
@@ -36,7 +38,7 @@ const defaultValues: SettingsSliceValues = {
 const sliceName = 'settingsSlice' as const;
 
 const customizer = (objValue: unknown, srcValue: unknown) => {
-	if (_.isArray(objValue)) {
+	if (isArray(objValue)) {
 		return objValue.concat(srcValue);
 	}
 
@@ -71,7 +73,7 @@ const settingsSlice = new Slice<
 			},
 			setState: (updateState) => {
 				set((state) => {
-					state.settingsSlice.state = _.mergeWith(
+					state.settingsSlice.state = mergeWith(
 						state.settingsSlice.state,
 						updateState,
 						customizer,
@@ -80,7 +82,7 @@ const settingsSlice = new Slice<
 			},
 			setField: (path, value) => {
 				set((state) => {
-					_.set(state.settingsSlice.state, path, value);
+					lodashSet(state.settingsSlice.state, path, value);
 				});
 			},
 		};
