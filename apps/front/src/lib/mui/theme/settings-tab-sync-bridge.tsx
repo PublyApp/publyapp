@@ -32,7 +32,7 @@ export const SettingsTabSyncBridge = () => {
 			const remoteScheme = message.settings.colorScheme as
 				| ThemeColorScheme
 				| undefined;
-			if (remoteScheme && remoteScheme !== mode) {
+			if (remoteScheme) {
 				setMode(remoteScheme);
 			}
 		};
