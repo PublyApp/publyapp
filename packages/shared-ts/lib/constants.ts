@@ -109,7 +109,7 @@ export const FRONT_PATH_NAMES = {
 			},
 			settings: {
 				root: makePath(RESOURCE.app, tenantId, 'settings'),
-				general: makePath(RESOURCE.app, tenantId, 'settings', 'general'),
+				general: makePath(RESOURCE.app, tenantId, 'settings'),
 				members: makePath(RESOURCE.app, tenantId, 'settings', 'members'),
 				roles: makePath(RESOURCE.app, tenantId, 'settings', 'roles'),
 				workspaces: makePath(RESOURCE.app, tenantId, 'settings', 'workspaces'),
@@ -326,37 +326,6 @@ export const isPreRenderPath = (path: string): path is PreRenderPath => {
 
 export const STATIC_PRE_RENDER_PATHS_MAP_NONCE =
 	'Ynuh4K7aYVf6z5RVxEGnal9zru8ZmYZsSE3n2GNtbBbc6Z2VRq';
-
-export const TENANT_PROFILES_PERMISSIONS_ENUM = {
-	CAN_ACCESS_DASHBOARD: 'can_access_dashboard',
-	CAN_ACCESS_BILLING: 'can_access_billing',
-	CAN_ACCESS_SETTINGS: 'can_access_settings',
-	CAN_ACCESS_USERS: 'can_access_users',
-} as const;
-
-export const TENANT_MODULES_ENUM = {
-	ALL: 'all',
-} as const;
-
-export const TENANT_MODULES_GROUPING = {
-	// Group in a single module for now.
-	// When we have more modules, we can split them into different modules.
-	ALL: {
-		code: 'all',
-		permissions: [
-			TENANT_PROFILES_PERMISSIONS_ENUM.CAN_ACCESS_DASHBOARD,
-			TENANT_PROFILES_PERMISSIONS_ENUM.CAN_ACCESS_BILLING,
-			TENANT_PROFILES_PERMISSIONS_ENUM.CAN_ACCESS_SETTINGS,
-			TENANT_PROFILES_PERMISSIONS_ENUM.CAN_ACCESS_USERS,
-		],
-	},
-} as const;
-
-export type TenantModulesEnum = ValueOf<typeof TENANT_MODULES_ENUM>;
-
-export type TenantProfilesPermissionsEnum = ValueOf<
-	typeof TENANT_PROFILES_PERMISSIONS_ENUM
->;
 
 export const LANGUAGE_DETECTION_METHOD_ENUM = {
 	COOKIE: 'cookie',

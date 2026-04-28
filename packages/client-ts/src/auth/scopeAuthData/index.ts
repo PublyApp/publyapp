@@ -7,47 +7,41 @@ import { createAppProblemDetailsFromDiscriminatorValue, createTenantFromDiscrimi
 import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
- * Builds and executes requests for operations under /auth/tenant-auth-data
+ * Builds and executes requests for operations under /auth/scope-auth-data
  */
-export interface TenantAuthDataRequestBuilder extends BaseRequestBuilder<TenantAuthDataRequestBuilder> {
+export interface ScopeAuthDataRequestBuilder extends BaseRequestBuilder<ScopeAuthDataRequestBuilder> {
     /**
-     * Get Tenant Auth Data
+     * Get Scope Auth Data
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<Tenant>}
      * @throws {AppProblemDetails} error when the service returns a 401 status code
      * @throws {AppProblemDetails} error when the service returns a 403 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
-     get(requestConfiguration?: RequestConfiguration<TenantAuthDataRequestBuilderGetQueryParameters> | undefined) : Promise<Tenant | undefined>;
+     get(requestConfiguration?: RequestConfiguration<ScopeAuthDataRequestBuilderGetQueryParameters> | undefined) : Promise<Tenant | undefined>;
     /**
-     * Get Tenant Auth Data
+     * Get Scope Auth Data
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */
-     toGetRequestInformation(requestConfiguration?: RequestConfiguration<TenantAuthDataRequestBuilderGetQueryParameters> | undefined) : RequestInformation;
+     toGetRequestInformation(requestConfiguration?: RequestConfiguration<ScopeAuthDataRequestBuilderGetQueryParameters> | undefined) : RequestInformation;
 }
 /**
- * Get Tenant Auth Data
+ * Get Scope Auth Data
  */
-export interface TenantAuthDataRequestBuilderGetQueryParameters {
-    tenantId?: string;
+export interface ScopeAuthDataRequestBuilderGetQueryParameters {
+    scope?: string;
 }
 /**
  * Uri template for the request builder.
  */
-export const TenantAuthDataRequestBuilderUriTemplate = "{+baseurl}/auth/tenant-auth-data?TenantId={TenantId}";
-/**
- * Mapper for query parameters from symbol name to serialization name represented as a constant.
- */
-const TenantAuthDataRequestBuilderGetQueryParametersMapper: Record<string, string> = {
-    "tenantId": "TenantId",
-};
+export const ScopeAuthDataRequestBuilderUriTemplate = "{+baseurl}/auth/scope-auth-data?scope={scope}";
 /**
  * Metadata for all the requests in the request builder.
  */
-export const TenantAuthDataRequestBuilderRequestsMetadata: RequestsMetadata = {
+export const ScopeAuthDataRequestBuilderRequestsMetadata: RequestsMetadata = {
     get: {
-        uriTemplate: TenantAuthDataRequestBuilderUriTemplate,
+        uriTemplate: ScopeAuthDataRequestBuilderUriTemplate,
         responseBodyContentType: "application/json",
         errorMappings: {
             401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
@@ -56,7 +50,6 @@ export const TenantAuthDataRequestBuilderRequestsMetadata: RequestsMetadata = {
         },
         adapterMethodName: "send",
         responseBodyFactory:  createTenantFromDiscriminatorValue,
-        queryParametersMapper: TenantAuthDataRequestBuilderGetQueryParametersMapper,
     },
 };
 /* tslint:enable */

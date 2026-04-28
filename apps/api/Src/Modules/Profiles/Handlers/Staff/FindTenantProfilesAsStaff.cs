@@ -1,3 +1,5 @@
+using FluentValidation;
+
 using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
@@ -9,19 +11,28 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Src.Modules.Profiles.Handlers.Staff;
 
-public class ProfileAsStaffItem {
-	public Guid Id { get; set; }
-	public string Name { get; set; } = string.Empty;
+public class FindTenantProfilesAsStaffResult : CursorPaginatedResult<TenantProfileItem> { }
+
+public class FindTenantProfilesAsStaffQuery : CursorPaginatedQuery {
+	[FromQuery(Name = "q")]
+	public string? Search { get; set; }
+
+	public string? GetSearchNormalized() {
+		if (Search is null) {
+			return null;
+		}
+
+		var trimmed = Search.Trim();
+		return trimmed.Length == 0 ? null : trimmed;
+	}
 }
 
-public class FindTenantProfilesAsStaffResult {
-	public required List<ProfileAsStaffItem> Profiles { get; set; }
-	public required int Count { get; set; }
+public class FindTenantProfilesAsStaffQueryValidator
+	: CursorPaginatedQueryValidator<FindTenantProfilesAsStaffQuery> {
+	public FindTenantProfilesAsStaffQueryValidator() {
+		RuleFor(x => x.Search).MaximumLength(200);
+	}
 }
-
-public class FindTenantProfilesAsStaffQuery : OffsetPaginatedQuery { }
-
-public class FindTenantProfilesAsStaffQueryValidator : OffsetPaginatedQueryValidator<FindTenantProfilesAsStaffQuery> { }
 
 public class FindTenantProfilesAsStaff {
 	public static async Task<
@@ -39,28 +50,54 @@ public class FindTenantProfilesAsStaff {
 			return TypedProblems.BadRequest("Invalid tenant ID", ResponseKeys.MalformedId);
 		}
 
-		var page = findTenantProfilesAsStaffQuery.GetPage();
+		var cursor = findTenantProfilesAsStaffQuery.GetCursor();
+		var cursorGuid = Guid.Empty;
+
+		if (!string.IsNullOrEmpty(cursor)) {
+			if (!Guid.TryParse(cursor, out cursorGuid)) {
+				return TypedProblems.BadRequest("Invalid cursor", ResponseKeys.BadRequest);
+			}
+		}
+
 		var limit = findTenantProfilesAsStaffQuery.GetLimit();
 		var sortId = findTenantProfilesAsStaffQuery.GetSortId();
 		var sortOrder = findTenantProfilesAsStaffQuery.GetSortOrder();
 
-		var profiles = await profileAsStaffService.FindTenantProfilesAsync(
-			tenantId: tenantIdGuid,
-			page: page,
-			limit: limit,
-			sortId: sortId,
-			sortOrder: sortOrder,
+		var args = new FindTenantProfilesArgs(
+			TenantId: tenantIdGuid,
+			Cursor: cursorGuid,
+			Limit: limit,
+			SortId: sortId,
+			SortOrder: sortOrder,
+			Search: findTenantProfilesAsStaffQuery.GetSearchNormalized()
+		);
+
+		var serviceResult = await profileAsStaffService.FindTenantProfilesAsync(
+			args,
 			cancellationToken: cancellationToken
 		);
 
-		return TypedResults.Ok(new FindTenantProfilesAsStaffResult {
-			Profiles = profiles
-				.Select(profile => new ProfileAsStaffItem {
-					Id = profile.GetRequiredId(),
-					Name = profile.Name,
-				})
-				.ToList(),
-			Count = profiles.Count,
-		});
+		if (serviceResult is Services.FindTenantProfilesResult.CursorNotFound cursorError) {
+			return TypedProblems.BadRequest(
+				$"Cursor record not found: {cursorError.Cursor}. The record may have been deleted or the cursor is invalid.",
+				ResponseKeys.BadRequest
+			);
+		}
+
+		if (serviceResult is Services.FindTenantProfilesResult.InvalidSortId sortIdError) {
+			return TypedProblems.BadRequest(
+				$"Invalid sortId: {sortIdError.SortId}. Allowed values: id, name, created_at",
+				ResponseKeys.BadRequest
+			);
+		}
+
+		if (serviceResult is Services.FindTenantProfilesResult.Success success) {
+			return TypedResults.Ok(new FindTenantProfilesAsStaffResult {
+				Data = success.Data.Data,
+				NextCursor = success.Data.NextCursor,
+			});
+		}
+
+		throw new InvalidOperationException("Unhandled result type");
 	}
 }

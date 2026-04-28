@@ -44,7 +44,8 @@ export const defaultTablePreset = (theme: Theme): TablePreset => {
 		state: {
 			showLoadingOverlay: false,
 			showGlobalFilter: true,
-			density: 'spacious',
+			// Dense rows are the repo-wide default for MRT-backed data tables.
+			density: 'compact',
 		},
 		muiTablePaperProps: {
 			sx: {

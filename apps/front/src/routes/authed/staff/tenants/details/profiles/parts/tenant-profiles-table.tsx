@@ -1,256 +1,376 @@
+import Avatar from '@mui/material/Avatar';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import Checkbox from '@mui/material/Checkbox';
-import Drawer from '@mui/material/Drawer';
-import IconButton from '@mui/material/IconButton';
-import Link from '@mui/material/Link';
-import Skeleton from '@mui/material/Skeleton';
-import Stack from '@mui/material/Stack';
-import { darken, useColorScheme, useTheme } from '@mui/material/styles';
+import InputAdornment from '@mui/material/InputAdornment';
+import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
 import {
 	createMRTColumnHelper,
 	MaterialReactTable,
 	type MRT_ColumnDef,
+	type MRT_TableOptions,
 } from 'material-react-table';
-import { useBoolean } from 'minimal-shared/hooks';
-import { nanoid } from 'nanoid';
-import { useMemo } from 'react';
-import { useParams } from 'react-router';
+import { useMemo, useRef } from 'react';
 
-import type { ProfileAsStaffItem } from '@org/client-ts/src/models';
-import { TENANT_PROFILES_PERMISSIONS_ENUM } from '@org/shared-ts/lib/constants';
-
-import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
-import { toast } from '#app/components/snackbar/index.ts';
+import { Label } from '#app/components/label/label.tsx';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { useFindTenantProfiles } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
 
-type TenantProfileRowData = Record<string, unknown> & { permission: string };
+import TenantProfileDeleteAction from './tenant-profile-delete-action.tsx';
+import TenantProfileEditAction from './tenant-profile-edit-action.tsx';
+import TenantProfilesExportDialogController, {
+	type TenantProfilesExportDialogControllerRef,
+} from './tenant-profiles-export-dialog-controller.tsx';
+import TenantProfilesSelectionActions from './tenant-profiles-selection-actions.tsx';
+import type { TenantProfileRowData } from './tenant-profiles-table.types.ts';
+import useTenantProfilesTableController from './use-tenant-profiles-table-controller.ts';
 
 const columnHelper = createMRTColumnHelper<TenantProfileRowData>();
 
-const commonColumns = [
-	columnHelper.accessor('permission', {
-		header: 'Permission',
-		// Header: () => {
-		// 	return <Typography>Permission</Typography>;
-		// },
-		Cell: ({ cell }) => {
-			return <>{cell.getValue()}</>;
-		},
-		size: 250, // ! no choice but to set a fixed size
-	}),
-];
+type TenantProfilesTableProps = {
+	tenantId: string;
+};
 
-const placeholderColumns = [
-	...commonColumns,
-	...Array.from({ length: 10 }, (_, index) => {
-		return columnHelper.accessor(`placeholder-${index}`, {
-			id: `placeholder-${index}`,
-			header: `Placeholder ${index}`,
-			Header: () => {
-				return <Skeleton variant="text" width="100%" height="100%" />;
-			},
-			Cell: () => {
-				return <Skeleton variant="text" width="100%" height="100%" />;
-			},
-		});
-	}),
-];
-
-const ALL_PERMISSIONS = _.values(TENANT_PROFILES_PERMISSIONS_ENUM);
-
-const rows = _.map(ALL_PERMISSIONS, (permission: string) => {
-	return {
-		permission,
-	};
-});
-
-const TenantProfilesTable = () => {
-	const { tenantId } = useParams();
-	const { data: profiles, isPending } = useFindTenantProfiles({
-		variables: {
-			tenantId: _.toString(tenantId),
-		},
-		enabled: !!tenantId,
-	});
-
-	const profilesMap = useMemo(() => {
-		const map = new Map<string, ProfileAsStaffItem>();
-
-		_.forEach(profiles?.profiles, (profile) => {
-			if (!profile || !profile.id) return;
-			map.set(profile.id, profile);
-		});
-
-		return map;
-	}, [profiles]);
-
-	const theme = useTheme();
+const TenantProfilesTable = ({ tenantId }: TenantProfilesTableProps) => {
+	const { t } = useTranslate();
+	const exportDialogRef =
+		useRef<TenantProfilesExportDialogControllerRef | null>(null);
+	const {
+		handleCursorPaginationChange,
+		handleSortingChange,
+		hasNextPage,
+		hasPreviousPage,
+		isSelectionMode,
+		profilesQuery,
+		queryState,
+		renderEmptyRowsFallback,
+		rowSelection,
+		rows,
+		searchValue,
+		selectedCount,
+		selectedRows,
+		selectionModeDisabledReason,
+		setRowSelection,
+		setSearchValue,
+		sortTooltipLocalization,
+		sortingDisabledReason,
+		tableState,
+	} = useTenantProfilesTableController(tenantId);
 
 	const columns = useMemo(() => {
-		const columnsDefinition = [...commonColumns];
+		return [
+			columnHelper.accessor('name', {
+				header: capitalize(t('profile')),
+				Cell: ProfileNameCell,
+				size: 280,
+			}),
+			columnHelper.accessor('description', {
+				header: t('description'),
+				enableSorting: false,
+				Cell: DescriptionCell,
+				size: 360,
+			}),
+			columnHelper.accessor('userAccountCount', {
+				id: 'user_account_count',
+				header: t('user-accounts'),
+				Cell: UserAccountCountCell,
+				size: 120,
+				muiTableHeadCellProps: {
+					align: 'center',
+				},
+				muiTableBodyCellProps: {
+					align: 'center',
+				},
+			}),
+			columnHelper.display({
+				id: 'actions',
+				header: t('actions'),
+				Cell: (props) => {
+					return (
+						<ProfileActionsCell
+							tenantId={tenantId}
+							profile={props.row.original}
+						/>
+					);
+				},
+				size: 120,
+			}),
+		];
+	}, [t, tenantId]);
 
-		profilesMap.forEach((profile) => {
-			const profileId = profile.id ?? '';
-			columnsDefinition.push(
-				columnHelper.accessor(`${profileId}-${nanoid()}`, {
-					header: profile.name ?? '',
-					Header: ProfileHeader,
-					size: 190,
-					Cell: ({ row }) => {
-						const currentProfile = profilesMap.get(profileId);
-						const isActive = _.get(
-							currentProfile,
-							`permissions.${row.original.permission}`,
-							false,
-						);
-
-						return <Checkbox checked={isActive} />;
-					},
-				}),
-			);
-		});
-		return columnsDefinition;
-	}, [profilesMap]);
-
-	const table = useMRTTable('minimal', {
-		columns: isPending ? placeholderColumns : columns,
+	const table = useMRTTable('minimal-cursor', {
+		columns,
 		data: rows,
+		enableRowSelection: true,
+		manualSorting: true,
+		localization: sortTooltipLocalization,
+		manualPagination: true,
+		getRowId: (row) => row.id,
+		onRowSelectionChange: (updater) => {
+			setRowSelection((prev) => {
+				return typeof updater === 'function' ? updater(prev) : updater;
+			});
+		},
+		onSortingChange: (updater) => {
+			// Lock query-shaping controls while rows are selected so the user does not
+			// accidentally page/filter away the current bulk-action target set.
+			if (isSelectionMode) {
+				return;
+			}
+
+			handleSortingChange(updater);
+		},
 		state: {
-			isLoading: isPending,
-			columnPinning: {
-				left: ['permission'],
-			},
+			...tableState,
+			...queryState,
+			density: 'compact',
+			rowSelection,
 		},
-		enableRowSelection: false,
-		enableSorting: false,
-		enablePagination: false,
-		enableBottomToolbar: false,
-		enableColumnPinning: true,
-		muiTableProps: {
+		muiTableHeadCellProps: ({ column }) => {
+			if (!column.getCanSort()) {
+				return {};
+			}
+
+			if (!isSelectionMode) {
+				return {
+					title: undefined,
+				};
+			}
+
+			return {
+				title: sortingDisabledReason,
+				sx: {
+					'& .MuiTableSortLabel-root': {
+						cursor: 'not-allowed',
+						pointerEvents: 'none',
+						opacity: 0.56,
+					},
+					'& .MuiTableSortLabel-icon': {
+						opacity: '1 !important',
+					},
+				},
+			} satisfies MRT_TableOptions<TenantProfileRowData>['muiTableHeadCellProps'];
+		},
+		muiTablePaperProps: {
 			sx: {
-				'& tr th:not(:first-of-type) .Mui-TableHeadCell-Content, & tr td:not(:first-of-type)':
-					{
-						justifyContent: 'center',
-					},
-				'& tr th:first-of-type .Mui-TableHeadCell-Content, & tr td:first-of-type':
-					{
-						justifyContent: 'flex-start !important',
-					},
-				'& th[data-pinned="true"]:before, & td[data-pinned="true"]:before': {
-					boxShadow: 'unset',
-					borderRight: `1px dashed ${theme.vars.palette.divider}`,
-					backgroundColor: 'var(--permission-column-bg) !important',
-				},
-				'& th[data-pinned="true"], & td[data-pinned="true"]': {
-					opacity: 1,
-				},
+				flexGrow: 1,
 			},
 		},
+		meta: {
+			handlePaginationChange: handleCursorPaginationChange,
+			hasNextPage,
+			hasPreviousPage,
+			isPending: profilesQuery.isPending,
+			disablePaginationControls: isSelectionMode,
+			renderToolbarFilters: () => {
+				return (
+					<Tooltip
+						title={isSelectionMode ? selectionModeDisabledReason : ''}
+						arrow
+						disableHoverListener={!isSelectionMode}
+						describeChild
+					>
+						<Box component="span">
+							<TextField
+								size="small"
+								placeholder={t('search')}
+								value={searchValue}
+								onChange={(event) => setSearchValue(event.target.value)}
+								disabled={isSelectionMode}
+								sx={{ minWidth: 320 }}
+								slotProps={{
+									input: {
+										startAdornment: (
+											<InputAdornment position="start">
+												<Iconify icon="eva:search-fill" />
+											</InputAdornment>
+										),
+										'aria-label': t('search'),
+									},
+								}}
+							/>
+						</Box>
+					</Tooltip>
+				);
+			},
+			renderExportActions: () => {
+				return (
+					<Button
+						size="small"
+						variant="outlined"
+						onClick={() => exportDialogRef.current?.open()}
+						startIcon={<Iconify icon="solar:download-bold" />}
+					>
+						{t('export')}
+					</Button>
+				);
+			},
+			renderSelectionActions: () => {
+				return (
+					<TenantProfilesSelectionActions
+						tenantId={tenantId}
+						selectedRows={selectedRows}
+						onExportSelected={() => exportDialogRef.current?.open()}
+						onClearSelection={() => setRowSelection({})}
+						onKeepSelectedRows={(profileIds) => {
+							setRowSelection(
+								Object.fromEntries(
+									profileIds.map((profileId) => [profileId, true]),
+								),
+							);
+						}}
+					/>
+				);
+			},
+		},
+		renderEmptyRowsFallback,
 	});
 
-	const { mode } = useColorScheme();
-
 	return (
-		<Card
+		<Box
 			sx={{
 				flexGrow: 1,
 				display: 'flex',
 				flexDirection: 'column',
-				border: 'none',
-			}}
-			style={{
-				['--permission-column-bg' as string]:
-					mode === 'dark'
-						? darken(theme.palette.grey[800], 0.05)
-						: theme.vars.palette.grey[100],
 			}}
 		>
 			<MaterialReactTable table={table} />
-		</Card>
+
+			<TenantProfilesExportDialogController
+				ref={exportDialogRef}
+				isSelectionMode={isSelectionMode}
+				selectedCount={selectedCount}
+				rows={rows}
+				selectedRows={selectedRows}
+			/>
+		</Box>
 	);
 };
 
 export default TenantProfilesTable;
 
-const ProfileHeader: MRT_ColumnDef<TenantProfileRowData, string>['Header'] = ({
-	column,
-}) => {
-	const openDrawer = useBoolean();
-	const confirmDialog = useBoolean();
+const ProfileNameCell: MRT_ColumnDef<TenantProfileRowData, string>['Cell'] = (
+	props,
+) => {
+	const name = props.row.original.name;
+	const profileId = props.row.original.id;
+	const isDefault = props.row.original.isDefault;
 	const { t } = useTranslate();
 
-	const onConfirmDeleteRow = () => {
-		// menuActions.onClose();
-		confirmDialog.onFalse();
-		toast.warning(`onDelete: ${column.columnDef.header}`);
-	};
-
-	const renderConfirmDialog = () => (
-		<ConfirmDialog
-			open={confirmDialog.value}
-			onClose={confirmDialog.onFalse}
-			title={_.capitalize(t('delete-item', { item: t('profile') }))}
-			content={t('confirm-delete-dialog-text')}
-			action={
-				<Button variant="contained" color="error" onClick={onConfirmDeleteRow}>
-					{t('delete')}
-				</Button>
-			}
-		/>
-	);
-
-	const renderDrawer = () => {
-		return (
-			<Drawer
-				open={openDrawer.value}
-				onClose={openDrawer.onFalse}
-				anchor="right"
-				sx={(theme) => {
-					return {
-						zIndex: theme.zIndex.modal + 1,
-					};
-				}}
-				slotProps={{
-					paper: {
-						sx: { width: 400 },
-					},
+	return (
+		<Box
+			sx={{
+				gap: 1.5,
+				width: 1,
+				minWidth: 0,
+				display: 'flex',
+				alignItems: 'center',
+			}}
+		>
+			<Avatar
+				variant="rounded"
+				sx={{
+					width: 36,
+					height: 36,
+					flexShrink: 0,
+					bgcolor: 'background.neutral',
+					color: 'text.disabled',
 				}}
 			>
-				<Typography variant="h6">{column.columnDef.header}</Typography>
-			</Drawer>
-		);
-	};
+				<Iconify icon="solar:user-id-bold" width={20} />
+			</Avatar>
+
+			<Box
+				sx={{
+					minWidth: 0,
+					flex: '1 1 auto',
+					display: 'flex',
+					flexDirection: 'column',
+					gap: 0.25,
+				}}
+			>
+				<Box
+					sx={{
+						minWidth: 0,
+						display: 'flex',
+						alignItems: 'center',
+						gap: 0.75,
+					}}
+				>
+					<Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
+						{name}
+					</Typography>
+					{isDefault ? (
+						<Label
+							variant="soft"
+							color="default"
+							sx={{
+								height: 18,
+								px: 0.5,
+								flexShrink: 0,
+								typography: 'caption',
+								color: 'text.secondary',
+							}}
+						>
+							{t('default')}
+						</Label>
+					) : null}
+				</Box>
+				<Tooltip title={profileId} placement="top" arrow>
+					<Typography
+						variant="caption"
+						component="span"
+						noWrap
+						sx={{ color: 'text.disabled', display: 'block' }}
+					>
+						{profileId}
+					</Typography>
+				</Tooltip>
+			</Box>
+		</Box>
+	);
+};
+
+const DescriptionCell: MRT_ColumnDef<
+	TenantProfileRowData,
+	string | null
+>['Cell'] = (props) => {
+	const description = props.cell.getValue();
 
 	return (
-		<>
-			<Stack direction="row" alignItems="center" gap={1}>
-				<Link
-					onClick={openDrawer.onToggle}
-					sx={{ cursor: 'pointer', color: 'inherit' }}
-				>
-					<Typography
-						sx={{
-							maxWidth: 105,
-						}}
-						noWrap
-						variant="body2"
-					>
-						{column.columnDef.header}
-					</Typography>
-				</Link>
-				<IconButton size="small" color="error" onClick={confirmDialog.onTrue}>
-					<Iconify icon="solar:trash-bin-trash-bold" />
-				</IconButton>
-			</Stack>
+		<Box
+			sx={{
+				color: description ? 'text.primary' : 'text.disabled',
+			}}
+		>
+			{description || '-'}
+		</Box>
+	);
+};
 
-			{renderDrawer()}
-			{renderConfirmDialog()}
-		</>
+const UserAccountCountCell: MRT_ColumnDef<
+	TenantProfileRowData,
+	number
+>['Cell'] = (props) => {
+	const count = props.cell.getValue();
+
+	return <Label variant="soft">{count}</Label>;
+};
+
+const ProfileActionsCell = ({
+	tenantId,
+	profile,
+}: {
+	tenantId: string;
+	profile: TenantProfileRowData;
+}) => {
+	return (
+		<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+			<TenantProfileEditAction tenantId={tenantId} profile={profile} />
+			<TenantProfileDeleteAction tenantId={tenantId} profile={profile} />
+		</Box>
 	);
 };

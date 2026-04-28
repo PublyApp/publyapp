@@ -337,6 +337,16 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey TenantNotSuspendedCannotDelete = new("tenant-not-suspended-cannot-delete");
 
 	/// <summary>
+	/// Default tenant profile cannot be deleted
+	/// </summary>
+	public static readonly TranslationKey TenantProfileDefaultDeleteNotAllowed = new("tenant-profile-default-delete-not-allowed");
+
+	/// <summary>
+	/// Tenant profile deleted successfully
+	/// </summary>
+	public static readonly TranslationKey TenantProfileDeletedSuccess = new("tenant-profile-deleted-success");
+
+	/// <summary>
 	/// Tenant has been reactivated successfully
 	/// </summary>
 	public static readonly TranslationKey TenantReactivatedSuccess = new("tenant-reactivated-success");

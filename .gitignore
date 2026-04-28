@@ -65,3 +65,5 @@ voicetree*/
 .voicetree/
 .superpowers/
 .worktrees/
+
+.tmp/

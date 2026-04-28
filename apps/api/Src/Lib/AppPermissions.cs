@@ -30,7 +30,9 @@ public class StaffScopePermissions : IScopePermissions {
 
 public class TenantScopePermissions : IScopePermissions {
 	public string KeyPrefix { get; } = Permission.ScopeKeyPrefix.Tenant;
-	// TODO: Add tenant permissions
+	// Tenant module permissions are intentionally coarse-grained for now.
+	// They drive both the backend catalog endpoint and the tenant auth payload used by the UI.
+	public TenantModulePermissionsForTenant Modules { get; } = new TenantModulePermissionsForTenant();
 }
 
 public static class AppPermissions {

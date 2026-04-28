@@ -10,7 +10,13 @@ public static partial class Routes {
 		/// <summary>Staff permission routes</summary>
 		public static class ForStaff {
 			public const string Root = "/permissions";
-			public const string Find = "/";
+
+			/// <summary>Permission catalogs grouped by permission scope</summary>
+			public static class Scopes {
+				public const string Root = "/scopes";
+				public const string Staff = "/staff";
+				public const string Tenant = "/tenant";
+			}
 		}
 	}
 }

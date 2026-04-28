@@ -413,9 +413,9 @@ const ProfileNameCell: MRT_ColumnDef<StaffProfileRowData, string>['Cell'] = (
 	return (
 		<Box
 			sx={{
-				py: 1,
-				gap: 2,
+				gap: 1.5,
 				width: 1,
+				minWidth: 0,
 				display: 'flex',
 				alignItems: 'center',
 			}}
@@ -424,27 +424,55 @@ const ProfileNameCell: MRT_ColumnDef<StaffProfileRowData, string>['Cell'] = (
 				alt={name}
 				variant="rounded"
 				sx={{
-					width: 40,
-					height: 40,
+					width: 36,
+					height: 36,
+					flexShrink: 0,
 					bgcolor: 'background.neutral',
 					color: 'text.disabled',
 				}}
 			>
-				<Iconify icon="solar:user-id-bold" width={24} />
+				<Iconify icon="solar:user-id-bold" width={20} />
 			</Avatar>
 
-			<ListItemText
-				primary={
-					<Link component={RouterLink} href={href} color="inherit">
-						{name}
-					</Link>
-				}
-				secondary={props.row.original.id}
-				slotProps={{
-					primary: { noWrap: true },
-					secondary: { sx: { color: 'text.disabled', fontSize: '0.75rem' } },
+			<Box
+				sx={{
+					minWidth: 0,
+					flex: '1 1 auto',
+					display: 'flex',
+					flexDirection: 'column',
+					gap: 0.25,
 				}}
-			/>
+			>
+				<Link
+					component={RouterLink}
+					href={href}
+					color="inherit"
+					underline="hover"
+					sx={{
+						typography: 'body2',
+						fontWeight: 500,
+						display: 'block',
+						overflow: 'hidden',
+						textOverflow: 'ellipsis',
+						whiteSpace: 'nowrap',
+					}}
+				>
+					{name}
+				</Link>
+				<Box
+					component="span"
+					sx={{
+						color: 'text.disabled',
+						typography: 'caption',
+						display: 'block',
+						overflow: 'hidden',
+						textOverflow: 'ellipsis',
+						whiteSpace: 'nowrap',
+					}}
+				>
+					{props.row.original.id}
+				</Box>
+			</Box>
 		</Box>
 	);
 };

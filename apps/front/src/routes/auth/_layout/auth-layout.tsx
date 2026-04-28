@@ -1,5 +1,7 @@
 import i18next from 'i18next';
-import _ from 'lodash';
+import first from 'lodash/first';
+import some from 'lodash/some';
+import toLower from 'lodash/toLower';
 import { Suspense } from 'react';
 import { Outlet, redirect } from 'react-router';
 
@@ -20,10 +22,7 @@ import {
 } from '#app/lib/cookies/session-cookie.utils.ts';
 import { readTenantHintsFromRequestHeaders } from '#app/lib/cookies/tenant-hint-cookie.utils.ts';
 import { getClientManager } from '#app/lib/js-client/client-manager.ts';
-import {
-	useGetTenantAuthData,
-	useGetUserAuthData,
-} from '#app/lib/react-query/features/common/auth.hooks.ts';
+import { useGetUserAuthData } from '#app/lib/react-query/features/common/auth.hooks.ts';
 import { getQueryClient } from '#app/lib/react-query/query-client.tsx';
 import { getClientLoader } from '#app/lib/react-router/client-data.ts';
 import { safeRun } from '#app/lib/react-router/safeRun.ts';
@@ -135,16 +134,15 @@ export const clientLoader = getClientLoader({
 				serverData.redirectCodePromise,
 			]);
 
-			if (_.some(resultsArray, (result) => result.status === 'error')) {
+			if (some(resultsArray, (result) => result.status === 'error')) {
 				const errors = resultsArray.filter(
 					(result) => result.status === 'error',
 				);
 
 				if (
-					_.some(
+					some(
 						errors,
-						(error) =>
-							_.toLower(error.error.message) === _.toLower('Unauthorized'),
+						(error) => toLower(error.error.message) === toLower('Unauthorized'),
 					)
 				) {
 					// Clear session token cookie with all possible combinations
@@ -155,7 +153,7 @@ export const clientLoader = getClientLoader({
 				}
 
 				throw (
-					_.first(errors)?.error ||
+					first(errors)?.error ||
 					new Error('Failed to get user auth data or redirect code')
 				);
 			}
@@ -185,16 +183,8 @@ export const clientLoader = getClientLoader({
 
 				if (redirectCode === REDIRECT_CODE.TENANT_PICKER) {
 					// Multiple tenants, no valid hint - go to tenant portal/picker
-					// Don't prefetch tenant auth data (no specific tenant yet)
 					return redirect(FRONT_PATH_NAMES.tenant()._root);
 				}
-
-				// redirectCode is a valid tenant ID - prefetch and redirect
-				getQueryClient().prefetchQuery({
-					queryKey: useGetTenantAuthData.getKey({ tenantId: redirectCode }),
-					queryFn: () =>
-						useGetTenantAuthData.fetcher({ tenantId: redirectCode }),
-				});
 
 				return redirect(FRONT_PATH_NAMES.tenant(redirectCode).root);
 			}

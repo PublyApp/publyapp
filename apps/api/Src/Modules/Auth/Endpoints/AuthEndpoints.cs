@@ -41,11 +41,11 @@ public static class AuthEndpoints {
 			.WithSessionAuthentication();
 
 		group.MapGet(
-			PathUtils.GetLastSegment(Routes.Auth.GetTenantAuthData),
-			GetTenantAuthData.HandleGetTenantAuthData
+			PathUtils.GetLastSegment(Routes.Auth.GetScopeAuthData),
+			GetScopeAuthData.HandleGetScopeAuthData
 		)
-			.WithName("GetTenantAuthData")
-			.WithSummary("Get Tenant Auth Data")
+			.WithName("GetScopeAuthData")
+			.WithSummary("Get Scope Auth Data")
 			.WithCheckSessionHeader()
 			.WithSessionAuthentication();
 

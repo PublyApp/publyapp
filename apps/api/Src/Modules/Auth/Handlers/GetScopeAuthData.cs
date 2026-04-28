@@ -13,30 +13,35 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Src.Modules.Auth.Handlers;
 
-public class GetTenantAuthDataQuery {
-	[FromQuery]
-	public string TenantId { get; set; } = string.Empty;
+public class GetScopeAuthDataQuery {
+	[FromQuery(Name = "scope")]
+	public string Scope { get; set; } = string.Empty;
 
-	public Guid GetTenantId() {
+	public bool IsStaffScope() {
+		return string.Equals(Scope, "staff", StringComparison.Ordinal);
+	}
+
+	public Guid GetTenantScopeId() {
 		return Guid.TryParse(
-			TenantId, out var tenantId
+			Scope, out var tenantId
 		)
 			? tenantId
 			: Guid.Empty;
 	}
 }
 
-public class GetTenantAuthDataQueryValidator
-	: AbstractValidator<GetTenantAuthDataQuery> {
-	public GetTenantAuthDataQueryValidator() {
-		// TenantId validation is handled in the handler at line ~138-144.
+public class GetScopeAuthDataQueryValidator
+	: AbstractValidator<GetScopeAuthDataQuery> {
+	public GetScopeAuthDataQueryValidator() {
+		// Scope validation is handled in the handler because "staff" and tenant GUIDs share
+		// one endpoint contract and we still want membership failures to return 403.
 		// We allow empty string here so handler can return security-appropriate 403
-		// instead of 422 (which would leak whether tenant ID format is valid).
-		// This preserves the security pattern: don't tell clients which tenant IDs exist.
+		// instead of 422 (which would leak whether the scope format is valid).
+		// This preserves the security pattern: don't tell clients which tenant scopes exist.
 	}
 }
 
-public class GetTenantAuthDataResult {
+public class GetScopeAuthDataResult {
 	public class Tenant {
 		public Guid Id { get; set; }
 		public string Name { get; set; } = string.Empty;
@@ -56,17 +61,17 @@ public class GetTenantAuthDataResult {
 	}
 }
 
-public class GetTenantAuthData {
+public class GetScopeAuthData {
 	public static async Task<
 		Results<
-			Ok<GetTenantAuthDataResult.Staff>,
-			Ok<GetTenantAuthDataResult.Tenant>,
+			Ok<GetScopeAuthDataResult.Staff>,
+			Ok<GetScopeAuthDataResult.Tenant>,
 			AppForbiddenHttpResult
 		>
-	> HandleGetTenantAuthData(
+	> HandleGetScopeAuthData(
 		IRequestAuthContext authContext,
-		ILogger<GetTenantAuthData> logger,
-		[AsParameters] GetTenantAuthDataQuery query,
+		ILogger<GetScopeAuthData> logger,
+		[AsParameters] GetScopeAuthDataQuery query,
 		[FromServices] ITenantService tenantService,
 		[FromServices] IAccountService accountService,
 		[FromServices] IProfileService profileService,
@@ -74,23 +79,20 @@ public class GetTenantAuthData {
 	) {
 		if (!authContext.IsAuthenticated) {
 			if (logger.IsEnabled(LogLevel.Error)) {
-				logger.LogError("{@GetUserAuthData}", new {
+				logger.LogError("{@GetScopeAuthData}", new {
 					UserId = authContext.UserId,
 					HasSessionToken = authContext.SessionToken is not null
 				});
 			}
-			throw new Exception($"GetTenantAuthData must be set behind SessionAuthFilter.");
+			throw new Exception($"GetScopeAuthData must be set behind SessionAuthFilter.");
 		}
 
 		if (authContext.UserId is not Guid userId) {
 			throw new Exception($"{nameof(authContext.UserId)} is not a GUID");
 		}
 
-		if (string.Equals(
-			query.TenantId,
-			"staff",
-			StringComparison.Ordinal
-		)) {
+		if (query.IsStaffScope()) {
+			// Staff scope reuses this payload shape with a reserved scope identifier.
 			var isUserStaffUser = await accountService.IsUserStaffUserAsync(userId, cancellationToken);
 
 			if (!isUserStaffUser) {
@@ -99,7 +101,7 @@ public class GetTenantAuthData {
 						"Attempt to access staff auth data by user who is not a staff member, {@LogData}",
 						new {
 							UserId = userId,
-							TenantId = query.TenantId,
+							Scope = query.Scope,
 						}
 					);
 				}
@@ -123,7 +125,7 @@ public class GetTenantAuthData {
 				.ToList();
 
 			return TypedResults.Ok(
-				new GetTenantAuthDataResult.Staff {
+				new GetScopeAuthDataResult.Staff {
 					Code = "staff",
 					Profiles = staffProfileItems,
 					AccountLevel = UserAccount.GetLevelDescription(staffAccount?.Level ?? AccountLevel.User),
@@ -133,7 +135,7 @@ public class GetTenantAuthData {
 			);
 		}
 
-		var tenantId = query.GetTenantId();
+		var tenantId = query.GetTenantScopeId();
 
 		if (tenantId == Guid.Empty) {
 			// Invalid tenant ID format - give generic 403 (don't reveal if tenant exists)
@@ -158,7 +160,7 @@ public class GetTenantAuthData {
 					"Attempt to access tenant auth data by user who is not a member, {@LogData}",
 					new {
 						UserId = userId,
-						TenantId = tenantId,
+						Scope = query.Scope,
 					}
 				);
 			}
@@ -203,18 +205,18 @@ public class GetTenantAuthData {
 		var tenantProfileItems = await profileService.GetUserProfilesWithPermissionsForTenantAsync(
 			userId,
 			tenantId,
-			AppEnvironment.Instance.MAX_PROFILES_PER_USER,
 			cancellationToken
 		);
 
-		// Flatten permissions from all profiles
+		// This read must reflect the full effective permission set. Do not apply the write-side
+		// max-profiles cap here or auth data can silently omit valid permissions.
 		var tenantPermissions = tenantProfileItems
-			.SelectMany(p => p.Permissions)
+			.SelectMany(profile => profile.Permissions)
 			.Distinct()
 			.ToList();
 
 		return TypedResults.Ok(
-			new GetTenantAuthDataResult.Tenant {
+			new GetScopeAuthDataResult.Tenant {
 				Id = tenantId,
 				Name = tenant.Name,
 				Code = tenant.Code,

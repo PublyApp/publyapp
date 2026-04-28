@@ -20,7 +20,7 @@ import { useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 
 import type { FindStaffProfilePermissionsResult } from '@org/client-ts/src/models';
-import type { PermissionsGetResponse } from '@org/client-ts/src/staff/permissions';
+import type { StaffGetResponse } from '@org/client-ts/src/staff/permissions/scopes/staff';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
@@ -267,7 +267,7 @@ const PermissionsError = ({
 	query,
 }: {
 	query: UseQueryResult<
-		PermissionsGetResponse | FindStaffProfilePermissionsResult,
+		StaffGetResponse | FindStaffProfilePermissionsResult,
 		Error
 	>;
 }) => {
