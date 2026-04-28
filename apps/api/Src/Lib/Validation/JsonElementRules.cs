@@ -253,6 +253,29 @@ public static class JsonElementRules {
 			);
 	}
 
+	/// <summary>
+	/// Validates a non-nullable JsonElement string field for PATCH-like scenarios:
+	/// Undefined OK (omit), null OK, otherwise must be a string.
+	/// Use this when the endpoint wants to preserve nullable-string semantics while
+	/// still using the shared JsonElement shape check.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBePatchFieldNullableString<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName
+	) {
+		return ruleBuilder
+			.Must(e => {
+				var kind = e.ValueKind;
+				return kind is JsonValueKind.Undefined
+					or JsonValueKind.Null
+					or JsonValueKind.String;
+			})
+			.WithMessage(
+				$"{fieldName} must be a string, null, or omitted"
+			);
+	}
+
 
 	/// <summary>
 	/// Validates a nullable JsonElement? boolean field:

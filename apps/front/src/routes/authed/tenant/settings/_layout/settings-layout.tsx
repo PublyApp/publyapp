@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
-import _ from 'lodash';
-import { useMemo } from 'react';
+import capitalize from 'lodash/capitalize';
+import get from 'lodash/get';
 import { data, useParams } from 'react-router';
 
 import {
@@ -18,7 +18,7 @@ import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 import type { Route } from './+types/settings-layout';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(t('organization-settings'));
+	let str: string = capitalize(t('organization-settings'));
 
 	if (seo) {
 		str = `${str} | ${APP_NAME}`;
@@ -29,7 +29,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
+		return get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;
@@ -57,21 +57,39 @@ export const loader = getServerLoader({
 
 const SettingsLayout = () => {
 	const { t } = useTranslate();
-	const { tenantId } = useParams();
+	const { tenantId = '' } = useParams();
+	const paths = FRONT_PATH_NAMES.tenant(tenantId).settings;
 
-	const navItems: SettingsNavItem[] = useMemo(() => {
-		const paths = FRONT_PATH_NAMES.tenant(tenantId).settings;
-
-		return [
-			{ label: t('general'), href: paths.root },
-			{ label: t('members'), href: paths.members },
-			{ label: t('workspaces'), href: paths.workspaces },
-			{ label: t('roles-and-permissions'), href: paths.roles },
-			{ label: t('security'), href: paths.security },
-			{ label: t('integrations'), href: paths.integrations },
-			{ label: t('billing'), href: paths.billing },
-		];
-	}, [t, tenantId]);
+	const navItems: SettingsNavItem[] = [
+		{
+			label: t('general'),
+			href: paths.root,
+		},
+		{
+			label: t('members'),
+			href: paths.members,
+		},
+		{
+			label: t('workspaces'),
+			href: paths.workspaces,
+		},
+		{
+			label: t('roles-and-permissions'),
+			href: paths.roles,
+		},
+		{
+			label: t('security'),
+			href: paths.security,
+		},
+		{
+			label: t('integrations'),
+			href: paths.integrations,
+		},
+		{
+			label: t('billing'),
+			href: paths.billing,
+		},
+	];
 
 	return <SidebarSettingsLayout items={navItems} />;
 };

@@ -1346,9 +1346,9 @@ const TenantCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 	return (
 		<Box
 			sx={{
-				py: 1,
-				gap: 2,
+				gap: 1.5,
 				width: 1,
+				minWidth: 0,
 				display: 'flex',
 				alignItems: 'center',
 			}}
@@ -1358,8 +1358,9 @@ const TenantCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 				src={normalizedLogoUrl || undefined}
 				variant="rounded"
 				sx={{
-					width: 46,
-					height: 46,
+					width: 36,
+					height: 36,
+					flexShrink: 0,
 					...(normalizedLogoUrl
 						? {}
 						: {
@@ -1369,22 +1370,43 @@ const TenantCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 				}}
 			>
 				{!normalizedLogoUrl ? (
-					<Iconify icon="solar:buildings-bold" width={24} />
+					<Iconify icon="solar:buildings-bold" width={20} />
 				) : null}
 			</Avatar>
 
-			<ListItemText
-				primary={
-					<Link component={RouterLink} href={href} color="inherit">
-						{name}
-					</Link>
-				}
-				secondary={props.row.original.id}
-				slotProps={{
-					primary: { noWrap: true },
-					secondary: { sx: { color: 'text.disabled' } },
+			<Box
+				sx={{
+					minWidth: 0,
+					flex: '1 1 auto',
+					display: 'flex',
+					flexDirection: 'column',
+					gap: 0.25,
 				}}
-			/>
+			>
+				<Link
+					component={RouterLink}
+					href={href}
+					color="inherit"
+					underline="hover"
+					sx={{
+						typography: 'body2',
+						fontWeight: 500,
+						display: 'block',
+						overflow: 'hidden',
+						textOverflow: 'ellipsis',
+						whiteSpace: 'nowrap',
+					}}
+				>
+					{name}
+				</Link>
+				<Typography
+					variant="caption"
+					noWrap
+					sx={{ color: 'text.disabled', display: 'block' }}
+				>
+					{props.row.original.id}
+				</Typography>
+			</Box>
 		</Box>
 	);
 };

@@ -21,6 +21,14 @@ public interface IPermissionAsStaffService {
 		string? language = null,
 		CancellationToken? cancellationToken = default
 	);
+
+	Task<Dictionary<
+			string, // slice key prefix
+			Dictionary<string, PermissionAsStaffItem> // permission key -> permission item
+		>> FindTenantPermissionsAsync(
+		string? language = null,
+		CancellationToken? cancellationToken = default
+	);
 }
 
 [Service(ServiceLifetime.Scoped)]
@@ -30,10 +38,39 @@ public class PermissionAsStaffService : IPermissionAsStaffService {
 		_dbContext = dbContext;
 	}
 
-	public async Task<Dictionary<
+	public Task<Dictionary<
 			string, // slice key prefix
 			Dictionary<string, PermissionAsStaffItem> // permission key -> permission item
 		>> FindStaffPermissionsAsync(
+		string? language = null,
+		CancellationToken? cancellationToken = default
+	) {
+		return FindPermissionsAsync(
+			AppPermissions.Staff,
+			language,
+			cancellationToken
+		);
+	}
+
+	public Task<Dictionary<
+			string, // slice key prefix
+			Dictionary<string, PermissionAsStaffItem> // permission key -> permission item
+		>> FindTenantPermissionsAsync(
+		string? language = null,
+		CancellationToken? cancellationToken = default
+	) {
+		return FindPermissionsAsync(
+			AppPermissions.Tenant,
+			language,
+			cancellationToken
+		);
+	}
+
+	private async Task<Dictionary<
+			string, // slice key prefix
+			Dictionary<string, PermissionAsStaffItem> // permission key -> permission item
+		>> FindPermissionsAsync(
+		IScopePermissions scopePermissions,
 		string? language = null,
 		CancellationToken? cancellationToken = default
 	) {
@@ -51,12 +88,10 @@ public class PermissionAsStaffService : IPermissionAsStaffService {
 
 		var runtimePermissionsKeys = new HashSet<string>();
 
-		// Loop over the properties of staffPermissions and detect
+		// Loop over the properties of the scope permissions and detect
 		// if each is assignable to ISlicePermissions
-		var staffPermissions = AppPermissions.Staff;
-
-		foreach (var scopeProperty in staffPermissions.GetType().GetProperties()) {
-			var scopeValue = scopeProperty.GetValue(staffPermissions);
+		foreach (var scopeProperty in scopePermissions.GetType().GetProperties()) {
+			var scopeValue = scopeProperty.GetValue(scopePermissions);
 
 			if (scopeValue is not ISlicePermissions slicePermissions) {
 				continue;
@@ -85,7 +120,7 @@ public class PermissionAsStaffService : IPermissionAsStaffService {
 			}
 		}
 
-		// From allStaffPermissions, I need to check which permissions are present in the database
+		// From the scope permissions, check which permissions are present in the database
 		if (runtimePermissionsKeys.Count == 0) {
 			return outputPermissionsMappedBySlice;
 		}
@@ -107,7 +142,7 @@ public class PermissionAsStaffService : IPermissionAsStaffService {
 			}
 
 			foreach (var (runtimePermissionKey, runtimePermission) in runtimePermissions) {
-				if (!dbPermissionsMappedByKey.TryGetValue(runtimePermissionKey, out var dbPermission)) {
+				if (!dbPermissionsMappedByKey.ContainsKey(runtimePermissionKey)) {
 					continue;
 				}
 

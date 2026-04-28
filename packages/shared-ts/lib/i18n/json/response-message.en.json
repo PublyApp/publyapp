@@ -42,6 +42,8 @@
 	"staff-profile-created-successfully": "Staff profile created successfully",
 	"staff-profile-updated-successfully": "Staff profile updated successfully",
 	"staff-profile-deleted-success": "Staff profile deleted successfully",
+	"tenant-profile-default-delete-not-allowed": "Default tenant profile cannot be deleted",
+	"tenant-profile-deleted-success": "Tenant profile deleted successfully",
 	"staff-profile-users-unassigned-success": "Users unassigned from profile successfully",
 	"profile-name-already-exists": "Profile name already exists",
 	"profiles": "profiles",
