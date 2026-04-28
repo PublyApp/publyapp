@@ -16,6 +16,7 @@ import {
 	invalidateStaffUserLifecycleQueries,
 } from '#app/routes/authed/staff/staff-users/shared/staff-user-cache-helpers.ts';
 
+import StaffUserPreviewAction from './staff-user-preview-action.tsx';
 import type { StaffUserRowData } from './use-staff-users-table-controller.ts';
 import {
 	clearDeletedStaffUserRelatedQueries,
