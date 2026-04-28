@@ -5,7 +5,7 @@ import lodashSet from 'lodash/set';
 
 import { defaultSettings } from '#app/components/settings/settings-config.ts';
 import type { SettingsState } from '#app/components/settings/types.ts';
-import { settingsTabSync } from '#app/lib/settings/settings-tab-sync.client.ts';
+import { createSettingsSyncId } from '#app/lib/settings/settings-sync-state.client.ts';
 
 import { SIDEBAR_COOKIE_MAX_AGE, SIDEBAR_COOKIE_NAME } from '../../constants';
 import type { useMainStore } from '../store';
@@ -15,6 +15,9 @@ export type SettingsSliceValues = {
 	openDrawer: boolean;
 	canReset: boolean;
 	state: SettingsState;
+	revision: number;
+	updatedAt: number;
+	syncId: string;
 };
 
 export type SettingsSliceActions = {
@@ -33,6 +36,9 @@ const defaultValues: SettingsSliceValues = {
 	openDrawer: false,
 	canReset: true,
 	state: defaultSettings,
+	revision: 0,
+	updatedAt: 0,
+	syncId: '',
 };
 
 const sliceName = 'settingsSlice' as const;
@@ -43,6 +49,14 @@ const customizer = (objValue: unknown, srcValue: unknown) => {
 	}
 
 	return undefined;
+};
+
+const markSettingsChanged = (state: { settingsSlice: SettingsSliceValues }) => {
+	// Every local settings mutation advances the snapshot metadata persisted by
+	// Zustand. Remote tabs use this to reject stale delayed storage events.
+	state.settingsSlice.revision += 1;
+	state.settingsSlice.updatedAt = Date.now();
+	state.settingsSlice.syncId = createSettingsSyncId();
 };
 
 const settingsSlice = new Slice<
@@ -69,6 +83,7 @@ const settingsSlice = new Slice<
 			onReset: () => {
 				set((state) => {
 					state.settingsSlice.state = defaultSettings;
+					markSettingsChanged(state);
 				});
 			},
 			setState: (updateState) => {
@@ -78,11 +93,13 @@ const settingsSlice = new Slice<
 						updateState,
 						customizer,
 					);
+					markSettingsChanged(state);
 				});
 			},
 			setField: (path, value) => {
 				set((state) => {
 					lodashSet(state.settingsSlice.state, path, value);
+					markSettingsChanged(state);
 				});
 			},
 		};
@@ -106,20 +123,6 @@ export default settingsSlice;
 // };
 
 // -----------------------------------------------------------------------------------------
-
-export const subscribeToSettingsState = (store: typeof useMainStore) => {
-	return store.subscribe((rootState, prevRootState) => {
-		const next = rootState.settingsSlice.state;
-		const prev = prevRootState.settingsSlice.state;
-		if (next === prev) {
-			return;
-		}
-		if (!settingsTabSync.shouldBroadcast()) {
-			return;
-		}
-		settingsTabSync.broadcastSettingsToTabs(next);
-	});
-};
 
 export const subscribeToNavLayout = (store: typeof useMainStore) => {
 	store.subscribe((rootState, prevRootState) => {
