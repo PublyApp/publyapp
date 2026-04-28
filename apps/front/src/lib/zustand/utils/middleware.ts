@@ -1,4 +1,5 @@
-import _ from 'lodash';
+import merge from 'lodash/merge';
+import pick from 'lodash/pick';
 import type { StateCreator } from 'zustand';
 import {
 	createJSONStorage,
@@ -62,10 +63,10 @@ export const combinedMiddlewaresWithPersist = <T>(
 				return getStorage();
 			}) as never,
 			merge: (persistedState, currentState) => {
-				return _.merge({}, currentState, persistedState);
+				return merge({}, currentState, persistedState);
 			},
 			partialize: (state) => {
-				const p = _.pick(state, [...selectedFields]);
+				const p = pick(state, [...selectedFields]);
 				return p;
 			},
 		}),
@@ -110,7 +111,7 @@ export const combinedMiddlewaresWithSettingsPersist = <T>(
 				} as unknown as Partial<T>;
 			},
 			merge: (persistedState, currentState) => {
-				return _.merge({}, currentState, persistedState);
+				return merge({}, currentState, persistedState);
 			},
 			// migrate: (persisted, fromVersion) => persisted, // intentional no-op until shape changes
 		}),
