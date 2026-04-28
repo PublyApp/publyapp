@@ -42,6 +42,12 @@ If a preference below conflicts with an existing guide, follow the existing guid
 - Table rows should **always show actions**; if unavailable, show them **disabled + greyed out** (do not hide the action column or render nothing).
 - Avoid heavy repeated text buttons in dense lists (e.g., `Assign` repeated per row).
   - Prefer subtle icon buttons with tooltips.
+- Mutable enum/status columns should expose their primary change action from the cell itself when the repo already has an inline menu pattern for that entity type.
+  - Use the selected-item popover/menu pattern: current value selected, menu anchored under the trigger, no disabled current-value placeholder.
+  - Keep suspend/reactivate or level/role changes in the status/level cell instead of duplicating them in the row action cell.
+- Do not put a plain "view details" link in dense row action cells when a quick preview drawer pattern exists.
+  - Use `solar:list-bold` for the quick preview/details action.
+  - Put the explicit full details link inside the drawer.
 - For drawer UX:
   - Make the header (title + search) fixed.
   - Make only the list scrollable (use the shared `Scrollbar` component when appropriate).

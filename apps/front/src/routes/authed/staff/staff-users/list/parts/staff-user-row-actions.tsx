@@ -6,31 +6,24 @@ import { useQueryClient } from '@tanstack/react-query';
 import capitalize from 'lodash/capitalize';
 import { useState } from 'react';
 
-import {
-	FRONT_PATH_NAMES,
-	USER_STATUS_ENUM,
-} from '@org/shared-ts/lib/constants';
+import { USER_STATUS_ENUM } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
-import { RouterLink } from '#app/components/router-link.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
 	useGetVerificationLink,
 	useSendEmailVerificationReminder,
 } from '#app/lib/react-query/features/common/auth.hooks.ts';
-import {
-	useDeleteStaffUser,
-	useReactivateStaffUser,
-	useSuspendStaffUser,
-} from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
+import { useDeleteStaffUser } from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
 import {
 	clearDeletedStaffUserRelatedQueries,
 	invalidateStaffUserLifecycleQueries,
 } from '#app/routes/authed/staff/staff-users/shared/staff-user-cache-helpers.ts';
 
+import StaffUserPreviewAction from './staff-user-preview-action.tsx';
 import type { StaffUserRowData } from './use-staff-users-table-controller.ts';
 
 const ALLOW_COPY_LINK = false;
@@ -42,37 +35,11 @@ type StaffUserRowActionsProps = {
 const StaffUserRowActions = ({ user }: StaffUserRowActionsProps) => {
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
-	const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
-	const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
 	const isPendingUser = user.status === USER_STATUS_ENUM.PENDING;
 	const isSuspended = user.status === USER_STATUS_ENUM.SUSPENDED;
 	const canDelete = isSuspended;
-
-	const { mutate: suspendStaffUser, isPending: isSuspending } =
-		useSuspendStaffUser({
-			meta: { successMessage: 'staff-user-suspended-success' },
-			onSuccess: async () => {
-				setSuspendDialogOpen(false);
-				await invalidateStaffUserLifecycleQueries({
-					queryClient,
-					userIds: [user.id],
-				});
-			},
-		});
-
-	const { mutate: reactivateStaffUser, isPending: isReactivating } =
-		useReactivateStaffUser({
-			meta: { successMessage: 'staff-user-reactivated-success' },
-			onSuccess: async () => {
-				setReactivateDialogOpen(false);
-				await invalidateStaffUserLifecycleQueries({
-					queryClient,
-					userIds: [user.id],
-				});
-			},
-		});
 
 	const { mutate: deleteStaffUser, isPending: isDeleting } = useDeleteStaffUser(
 		{
@@ -99,40 +66,7 @@ const StaffUserRowActions = ({ user }: StaffUserRowActionsProps) => {
 
 				<CopyLinkButton isUserPending={isPendingUser} userId={user.id} />
 
-				{isSuspended ? (
-					<Tooltip title={t('reactivate')} placement="top" arrow>
-						<IconButton
-							color="default"
-							size="small"
-							onClick={() => setReactivateDialogOpen(true)}
-							disabled={isReactivating}
-						>
-							<Iconify icon="solar:play-circle-bold" width={18} />
-						</IconButton>
-					</Tooltip>
-				) : (
-					<Tooltip title={t('suspend')} placement="top" arrow>
-						<IconButton
-							color="default"
-							size="small"
-							onClick={() => setSuspendDialogOpen(true)}
-							disabled={isSuspending}
-						>
-							<Iconify icon="solar:forbidden-circle-bold" width={18} />
-						</IconButton>
-					</Tooltip>
-				)}
-
-				<Tooltip title={t('view-details')} placement="top" arrow>
-					<IconButton
-						color="default"
-						size="small"
-						LinkComponent={RouterLink}
-						href={FRONT_PATH_NAMES.staff.staffUsers.details(user.id)}
-					>
-						<Iconify icon="solar:eye-bold" width={18} />
-					</IconButton>
-				</Tooltip>
+				<StaffUserPreviewAction user={user} />
 
 				<Tooltip
 					title={
@@ -158,40 +92,6 @@ const StaffUserRowActions = ({ user }: StaffUserRowActionsProps) => {
 					</Box>
 				</Tooltip>
 			</Box>
-
-			<ConfirmDialog
-				open={suspendDialogOpen}
-				onClose={() => setSuspendDialogOpen(false)}
-				title={t('suspend-staff-user')}
-				content={t('suspend-staff-user-confirm')}
-				action={
-					<Button
-						variant="contained"
-						color="warning"
-						onClick={() => suspendStaffUser({ userId: user.id })}
-						disabled={isSuspending}
-					>
-						{t('suspend')}
-					</Button>
-				}
-			/>
-
-			<ConfirmDialog
-				open={reactivateDialogOpen}
-				onClose={() => setReactivateDialogOpen(false)}
-				title={t('reactivate-staff-user')}
-				content={t('reactivate-staff-user-confirm')}
-				action={
-					<Button
-						variant="contained"
-						color="success"
-						onClick={() => reactivateStaffUser({ userId: user.id })}
-						disabled={isReactivating}
-					>
-						{t('reactivate')}
-					</Button>
-				}
-			/>
 
 			<ConfirmDialog
 				open={deleteDialogOpen}
