@@ -26,7 +26,9 @@ import {
 
 import { NotFoundView, View403, View500 } from '#app/components/error/index.ts';
 import {
+	COLOR_SCHEME_STORAGE_KEY,
 	defaultSettings,
+	SETTINGS_STORAGE_KEY,
 	SettingsDrawer,
 } from '#app/components/settings/index.ts';
 
@@ -38,6 +40,7 @@ import { Snackbar } from './components/snackbar/snackbar';
 import { useNonce } from './hooks/use-nonce-context';
 import { logout } from './lib/cookies/logout.utils';
 import { LocalizationProvider } from './lib/locales/localization-provider';
+import { themeConfig } from './lib/mui/theme/theme-config';
 import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
 import { getQueryClient } from './lib/react-query/query-client';
 import { setGlobalNavigate } from './lib/react-router/navigation-helper';
@@ -123,6 +126,29 @@ const getRootQueryClient = () => {
 	});
 };
 
+const getColorSchemeBootstrapScript = () => {
+	// MUI's InitColorSchemeScript can only read a flat mode key. The app's full
+	// settings are stored as a Zustand payload, so this tiny pre-MUI bridge copies
+	// the validated color scheme into the flat key before the first paint.
+	return `
+(function() {
+  try {
+    var settingsRaw = window.localStorage.getItem(${JSON.stringify(SETTINGS_STORAGE_KEY)});
+    if (!settingsRaw) return;
+    var parsed = JSON.parse(settingsRaw);
+    var colorScheme = parsed &&
+      parsed.state &&
+      parsed.state.settingsSlice &&
+      parsed.state.settingsSlice.state &&
+      parsed.state.settingsSlice.state.colorScheme;
+    if (colorScheme !== 'light' && colorScheme !== 'dark') return;
+    window.localStorage.setItem(${JSON.stringify(COLOR_SCHEME_STORAGE_KEY)}, colorScheme);
+    document.documentElement.dataset.colorScheme = colorScheme;
+  } catch (error) {}
+})();
+	`;
+};
+
 export const Layout = ({ children }: { children: React.ReactNode }) => {
 	const { i18n } = useTranslation();
 	const nonce = useNonce();
@@ -139,8 +165,19 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 				<Links />
 			</head>
 			<body>
+				<script
+					nonce={nonce}
+					// This must run before InitColorSchemeScript. The nonce is required
+					// by CSP; suppressHydrationWarning avoids React comparing the
+					// browser-hidden nonce attribute during hydration.
+					suppressHydrationWarning
+				>
+					{getColorSchemeBootstrapScript()}
+				</script>
 				<InitColorSchemeScript
 					attribute="[data-color-scheme='%s']"
+					defaultMode={themeConfig.defaultMode}
+					modeStorageKey={COLOR_SCHEME_STORAGE_KEY}
 					nonce={nonce}
 				/>
 				<QueryClientProvider client={queryClient}>

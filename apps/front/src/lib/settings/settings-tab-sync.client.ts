@@ -1,214 +1,99 @@
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
-import type { SettingsState } from '#app/components/settings/types.ts';
-
-type SettingsTabSyncMessage = {
-	v: 1;
-	settings: SettingsState;
-	senderId: string;
-	ts: number;
-};
-
-export type { SettingsTabSyncMessage };
+import {
+	getPersistedSettingsStorageKey,
+	getSettingsSnapshotFromPersistedValue,
+	isIncomingSettingsSnapshotNewer,
+	type SettingsSyncSnapshot,
+} from './settings-sync-state.client.ts';
 
 export type SettingsTabSyncResult = {
 	stop: () => void;
 };
 
+type SettingsTabSyncOptions = {
+	// The sync class does not import the store directly. The bridge supplies the
+	// current snapshot so this class stays a browser-event adapter.
+	getCurrentSnapshot: () => SettingsSyncSnapshot;
+	// Applying a snapshot updates Zustand and MUI together; keeping it injected
+	// avoids this low-level class depending on React hooks.
+	applySnapshot: (snapshot: SettingsSyncSnapshot) => void;
+};
+
 export class SettingsTabSync {
-	// Cross-tab settings sync (mirrored on LocaleTabSync):
-	// - Primary: BroadcastChannel for instant in-process delivery on modern browsers.
-	// - Fallback: localStorage signal key + `storage` event for compatibility.
-	private static readonly _channelName = 'publyapp:app-settings';
-	private static readonly _signalStorageKey = 'publyapp:app-settings:signal';
-
-	private static _createSenderId(): string {
-		try {
-			if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-				return crypto.randomUUID();
-			}
-		} catch {
-			// ignore
-		}
-
-		return `${Math.random().toString(16).slice(2)}-${Date.now().toString(16)}`;
-	}
-
-	private static _isSettingsState(value: unknown): value is SettingsState {
-		// Loose runtime shape check — message validators reject if not an object.
-		return value !== null && typeof value === 'object';
-	}
-
-	private static _tryParseMessageFromUnknown(
-		data: unknown,
-	): SettingsTabSyncMessage | null {
-		if (!data || typeof data !== 'object') {
-			return null;
-		}
-
-		if ((data as { v?: unknown }).v !== 1) {
-			return null;
-		}
-
-		const settings = (data as { settings?: unknown }).settings;
-		const senderId = (data as { senderId?: unknown }).senderId;
-		const ts = (data as { ts?: unknown }).ts;
-
-		if (!SettingsTabSync._isSettingsState(settings)) {
-			return null;
-		}
-
-		if (typeof senderId !== 'string' || senderId.length === 0) {
-			return null;
-		}
-
-		if (typeof ts !== 'number') {
-			return null;
-		}
-
-		return {
-			v: 1,
-			settings: settings as SettingsState,
-			senderId,
-			ts,
-		};
-	}
-
-	private static _tryParseMessage(raw: string): SettingsTabSyncMessage | null {
-		try {
-			const parsed: unknown = JSON.parse(raw);
-			return SettingsTabSync._tryParseMessageFromUnknown(parsed);
-		} catch {
-			return null;
-		}
-	}
-
-	private _started = false;
-	private _applyingRemote = false;
-	private _lastAppliedTs = 0;
-	private readonly _senderId = SettingsTabSync._createSenderId();
-	private _channel: BroadcastChannel | null | undefined = undefined;
+	private _storageStarted = false;
+	private _visibilityStarted = false;
 	private _onStorageEvent: ((event: StorageEvent) => void) | null = null;
-	private _onChannelMessage: ((event: MessageEvent) => void) | null = null;
 	private _onVisibility: (() => void) | null = null;
 	private _onPageshow: ((event: PageTransitionEvent) => void) | null = null;
-	private _visibilityStarted = false;
 
-	public shouldBroadcast(): boolean {
-		return !this._applyingRemote;
-	}
-
-	private _getChannel() {
-		if (this._channel !== undefined) {
-			return this._channel;
-		}
-
-		if (typeof window === 'undefined') {
-			this._channel = null;
-			return this._channel;
-		}
-
-		try {
-			if ('BroadcastChannel' in window) {
-				this._channel = new BroadcastChannel(SettingsTabSync._channelName);
-				return this._channel;
-			}
-		} catch (error) {
-			logger.debug('[settings-sync] BroadcastChannel init failed', { error });
-		}
-
-		this._channel = null;
-		return this._channel;
-	}
-
-	// Broadcast a settings change to other tabs (best-effort; never throws).
-	public broadcastSettingsToTabs(settings: SettingsState) {
-		if (typeof window === 'undefined') {
+	private _applyIfNewer(
+		snapshot: SettingsSyncSnapshot,
+		options: SettingsTabSyncOptions,
+	) {
+		// Storage events can be delayed or duplicated. Apply only if the canonical
+		// persisted snapshot wins against the live store snapshot.
+		if (
+			!isIncomingSettingsSnapshotNewer(snapshot, options.getCurrentSnapshot())
+		) {
 			return;
 		}
 
-		const message: SettingsTabSyncMessage = {
-			v: 1,
-			settings,
-			senderId: this._senderId,
-			ts: Date.now(),
-		};
-
-		try {
-			this._getChannel()?.postMessage(message);
-		} catch (error) {
-			logger.debug('[settings-sync] BroadcastChannel post failed', { error });
+		const colorScheme = snapshot.state.colorScheme;
+		if (
+			colorScheme &&
+			document.documentElement.dataset.colorScheme !== colorScheme
+		) {
+			// Write the data attribute before scheduling React/MUI updates so the
+			// resumed tab paints with the latest CSS variable selector.
+			document.documentElement.dataset.colorScheme = colorScheme;
 		}
 
+		options.applySnapshot(snapshot);
+	}
+
+	private _readSnapshotFromStorage() {
 		try {
-			window.localStorage.setItem(
-				SettingsTabSync._signalStorageKey,
-				JSON.stringify(message),
+			// Visibility/pageshow rehydrates from canonical persisted settings, not
+			// from a transient signal key, so stale notification payloads cannot win.
+			return getSettingsSnapshotFromPersistedValue(
+				window.localStorage.getItem(getPersistedSettingsStorageKey()),
 			);
 		} catch (error) {
-			logger.debug('[settings-sync] localStorage write failed', { error });
+			logger.debug('[settings-sync] localStorage read failed', { error });
+			return null;
 		}
 	}
 
-	// Apply callback receives the validated remote message; the bridge component
-	// supplies an implementation that updates Zustand and calls MUI's setMode.
-	public initSettingsTabListener(
-		applyRemote: (message: SettingsTabSyncMessage) => void,
+	public initSettingsStorageListener(
+		options: SettingsTabSyncOptions,
 	): SettingsTabSyncResult {
 		if (typeof window === 'undefined') {
 			return { stop: () => {} };
 		}
 
-		if (this._started) {
+		if (this._storageStarted) {
 			return { stop: () => {} };
 		}
-		this._started = true;
-
-		const channel = this._getChannel();
-
-		const onRemoteMessage = (message: SettingsTabSyncMessage) => {
-			if (message.senderId === this._senderId) {
-				return; // echo
-			}
-
-			if (message.ts <= this._lastAppliedTs) {
-				return; // stale
-			}
-
-			this._applyingRemote = true;
-			try {
-				applyRemote(message);
-				this._lastAppliedTs = message.ts;
-			} finally {
-				this._applyingRemote = false;
-			}
-		};
-
-		const onChannelMessage = (event: MessageEvent) => {
-			const parsed = SettingsTabSync._tryParseMessageFromUnknown(event.data);
-			if (!parsed) {
-				return;
-			}
-			onRemoteMessage(parsed);
-		};
+		this._storageStarted = true;
 
 		const onStorageEvent = (event: StorageEvent) => {
-			if (event.key !== SettingsTabSync._signalStorageKey || !event.newValue) {
+			if (event.key !== getPersistedSettingsStorageKey()) {
 				return;
 			}
 
-			const parsed = SettingsTabSync._tryParseMessage(event.newValue);
-			if (!parsed) {
+			// Other tabs notify us by changing the same persisted key that reloads
+			// use. One key means one source of truth.
+			const snapshot = getSettingsSnapshotFromPersistedValue(event.newValue);
+			if (!snapshot) {
 				return;
 			}
-			onRemoteMessage(parsed);
+
+			this._applyIfNewer(snapshot, options);
 		};
 
 		this._onStorageEvent = onStorageEvent;
-		this._onChannelMessage = onChannelMessage;
-
 		window.addEventListener('storage', onStorageEvent);
-		channel?.addEventListener('message', onChannelMessage);
 
 		const stop = () => {
 			if (this._onStorageEvent) {
@@ -219,24 +104,7 @@ export class SettingsTabSync {
 				}
 				this._onStorageEvent = null;
 			}
-
-			if (this._onChannelMessage) {
-				try {
-					channel?.removeEventListener('message', this._onChannelMessage);
-				} catch {
-					// ignore
-				}
-				this._onChannelMessage = null;
-			}
-
-			try {
-				channel?.close();
-			} catch {
-				// ignore
-			}
-
-			this._channel = undefined;
-			this._started = false;
+			this._storageStarted = false;
 		};
 
 		if (import.meta.hot) {
@@ -248,10 +116,8 @@ export class SettingsTabSync {
 		return { stop };
 	}
 
-	// Synchronously reapplies the latest scheme on visibility/pageshow, eliminating
-	// the cached-compositor-frame flash when a backgrounded tab regains focus.
 	public initVisibilityRehydrate(
-		applyRemote: (message: SettingsTabSyncMessage) => void,
+		options: SettingsTabSyncOptions,
 	): SettingsTabSyncResult {
 		if (typeof window === 'undefined') {
 			return { stop: () => {} };
@@ -267,54 +133,20 @@ export class SettingsTabSync {
 				return;
 			}
 
-			let raw: string | null;
-			try {
-				raw = window.localStorage.getItem(SettingsTabSync._signalStorageKey);
-			} catch (error) {
-				logger.debug('[settings-sync] localStorage read failed', { error });
+			// Focus and BFCache restores can miss or delay storage events. Reading
+			// the canonical value on resume closes that gap.
+			const snapshot = this._readSnapshotFromStorage();
+			if (!snapshot) {
 				return;
 			}
 
-			if (!raw) {
-				return;
-			}
-
-			const parsed = SettingsTabSync._tryParseMessage(raw);
-			if (!parsed) {
-				return;
-			}
-
-			if (parsed.senderId === this._senderId) {
-				return; // self
-			}
-
-			if (parsed.ts <= this._lastAppliedTs) {
-				return; // already applied
-			}
-
-			// Synchronous DOM mutation BEFORE any React render, so the next composited
-			// frame uses the right CSS variables (data-color-scheme drives them).
-			const colorScheme = parsed.settings.colorScheme;
-			if (
-				colorScheme &&
-				document.documentElement.dataset.colorScheme !== colorScheme
-			) {
-				document.documentElement.dataset.colorScheme = colorScheme;
-			}
-
-			this._applyingRemote = true;
-			try {
-				applyRemote(parsed);
-				this._lastAppliedTs = parsed.ts;
-			} finally {
-				this._applyingRemote = false;
-			}
+			this._applyIfNewer(snapshot, options);
 		};
 
 		const onVisibility = () => {
 			rehydrate();
 		};
-		const onPageshow = (_event: PageTransitionEvent) => {
+		const onPageshow = () => {
 			rehydrate();
 		};
 

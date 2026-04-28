@@ -2,10 +2,10 @@ import { create } from 'zustand';
 
 import { subscribeToNavLayout } from './features/settings.slice';
 import { getInitialStore, type RootState } from './slices';
-import { combinedMiddlewaresWithSettingsPersist } from './utils/middleware';
+import { combinedMiddlewares } from './utils/middleware';
 
 export const useMainStore = create<RootState>()(
-	combinedMiddlewaresWithSettingsPersist((...a) => {
+	combinedMiddlewares((...a) => {
 		return getInitialStore(...a);
 	}),
 );
