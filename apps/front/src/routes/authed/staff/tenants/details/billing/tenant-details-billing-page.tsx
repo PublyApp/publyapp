@@ -10,14 +10,14 @@ import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-bre
 import { View403 } from '#app/components/error/index.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
+import { TENANT_DETAILS_BILLING_ENABLED } from '../_layout/tenant-details-feature-flags';
+import type { TenantDetailsOutletContext } from '../_layout/tenant-details-layout';
 import {
 	billingDemoAddressBook,
 	billingDemoCards,
 	billingDemoInvoices,
 	billingDemoPlans,
 } from './billing-demo-data';
-import { TENANT_DETAILS_BILLING_ENABLED } from '../_layout/tenant-details-feature-flags';
-import type { TenantDetailsOutletContext } from '../_layout/tenant-details-layout';
 
 const TenantDetailsBillingPage = () => {
 	const { t } = useTranslate();

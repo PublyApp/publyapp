@@ -7,7 +7,7 @@ import { useColorScheme } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { hasKeys, varAlpha } from 'minimal-shared/utils';
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 
 import { themeConfig } from '#app/lib/mui/theme/theme-config.ts';
 import type { ThemeColorScheme } from '#app/lib/mui/theme/types.ts';
@@ -366,14 +366,7 @@ export const SettingsDrawer = ({
 }: SettingsDrawerProps) => {
 	const settings = useSettingsContext();
 
-	const { mode, setMode, systemMode } = useColorScheme();
-
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
-	useEffect(() => {
-		if (mode === 'system' && systemMode) {
-			settings.setState({ colorScheme: systemMode });
-		}
-	}, [mode, systemMode]);
+	const { mode, setMode } = useColorScheme();
 
 	const handleReset = useCallback(() => {
 		settings.onReset();
