@@ -88,6 +88,31 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldReturnPendingStatusForNewlyCreatedStaffUsers() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var email = $"pending-{Guid.NewGuid():N}@example.com";
+
+		var userId = await CreateStaffUserAsync(token, email);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(limit: 50, status: "pending")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		result!.Data.Should().ContainSingle(user =>
+			user.Id == userId
+			&& string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase)
+			&& user.Status == "Pending"
+		);
+	}
+
+	[Fact]
 	public async Task ItShouldReturnValidationProblemForUnknownStatusFilter() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 

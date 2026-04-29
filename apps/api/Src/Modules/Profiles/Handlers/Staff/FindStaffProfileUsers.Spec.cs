@@ -256,8 +256,7 @@ public sealed class FindStaffProfileUsersSpec
 		var activeUserId = await CreateStaffUserAsync(token, activeEmail, firstName: "Active");
 		var inactiveUserId = await CreateStaffUserAsync(token, inactiveEmail, firstName: "Inactive");
 
-		// CreateStaffUser defaults to UserStatus.Inactive (user is not verified yet). Make the values distinct
-		// so sorting by status has a deterministic order.
+		// Make the values distinct so sorting by status has a deterministic order.
 		await SetStaffUserStatusAsync(activeUserId, UserStatus.Active);
 		await SetStaffUserStatusAsync(inactiveUserId, UserStatus.Inactive);
 

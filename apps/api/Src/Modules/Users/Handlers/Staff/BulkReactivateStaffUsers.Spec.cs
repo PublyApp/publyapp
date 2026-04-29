@@ -178,7 +178,7 @@ public sealed class BulkReactivateStaffUsersSpec : IClassFixture<ApiFixture> {
 		);
 
 		await AssertStaffUserStatusAsync(suspendedUserId, UserStatus.Active);
-		await AssertStaffUserStatusAsync(nonSuspendedUserId, UserStatus.Inactive);
+		await AssertStaffUserStatusAsync(nonSuspendedUserId, UserStatus.Pending);
 	}
 
 	private async Task<string> CreateStaffUserAsync(string staffToken, string email) {
