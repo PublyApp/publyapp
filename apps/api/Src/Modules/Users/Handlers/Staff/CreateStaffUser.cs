@@ -167,6 +167,7 @@ public class CreateStaffUser {
 			LastName = body.GetLastName(),
 			FirstName = body.GetFirstName(),
 			AvatarUrl = body.GetAvatarUrl(),
+			Status = UserStatus.Pending,
 			IsVerified = false,
 		};
 
