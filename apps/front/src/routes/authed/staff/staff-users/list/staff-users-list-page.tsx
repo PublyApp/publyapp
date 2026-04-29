@@ -1,6 +1,7 @@
 import Button from '@mui/material/Button';
 import i18next, { type TFunction } from 'i18next';
-import _ from 'lodash';
+import get from 'lodash/get';
+import toLower from 'lodash/toLower';
 import { data } from 'react-router';
 
 import {
@@ -20,9 +21,7 @@ import type { Route } from './+types/staff-users-list-page';
 import StaffUsersTable from './parts/staff-users-table';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(
-		t('list-of-items', { items: _.toLower(t('staff-users')) }),
-	);
+	let str = t('users');
 
 	if (seo) {
 		str = `${str} | Staff Dashboard - ${APP_NAME}`;
@@ -33,7 +32,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
+		return get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;
@@ -70,10 +69,10 @@ const StaffUsersListPage = () => {
 				heading={getPageTitle(t as never)}
 				links={[
 					{
-						name: _.capitalize(t('staff-users')),
+						name: t('staff'),
 						href: FRONT_PATH_NAMES.staff.staffUsers.root,
 					},
-					{ name: _.capitalize(t('list')) },
+					{ name: t('users') },
 				]}
 				action={
 					<Button
@@ -82,7 +81,7 @@ const StaffUsersListPage = () => {
 						variant="contained"
 						startIcon={<Iconify width={16} icon="mingcute:add-line" />}
 					>
-						{t('new-item', { item: _.toLower(t('staff-user')) })}
+						{t('new-item', { item: toLower(t('user')) })}
 					</Button>
 				}
 				sx={{ mb: { xs: 3, md: 5 } }}
