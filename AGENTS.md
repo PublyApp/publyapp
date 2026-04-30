@@ -228,6 +228,9 @@ array methods, arrow functions, arrow components, forms, QueryDisplay, and compo
 Additional repo-specific preferences for AI assistants (to reduce review churn):
 [`docs/guides/ai-agent-preferences.md`](docs/guides/ai-agent-preferences.md)
 
+For the marketing-vs-product surface split (what brand DNA must match vs what's allowed to diverge on radii/sizing/motion, approved hardcoded-color exceptions, where marketing code lives), see:
+[`docs/guides/marketing-surface-conventions.md`](docs/guides/marketing-surface-conventions.md)
+
 **Key principles (always apply):**
 - MUI v6 only — never native HTML elements (`<div>` → `<Box>`, `<h1>` → `<Typography variant="h1">`)
 - `sx` prop for all styling — never Tailwind CSS or className
@@ -237,6 +240,7 @@ Additional repo-specific preferences for AI assistants (to reduce review churn):
 - No `Array.reduce()` — use `find`, `filter+map`, `for...of`, or `Object.groupBy`
 - React Hook Form + Zod for form validation — always use `Form`/`Field.*` wrappers from `@/front/components/hook-form`, never raw MUI `TextField` with `register()`
 - First-column table entity avatars/icons must use a neutral, muted, subtle fallback treatment; preserve real images when present, but avoid bright semantic or generated avatar colors for fallback icons
+- Marketing surfaces (landing, pricing, future blog) may diverge from product defaults on radii (16–40 px), button sizing, spacing, and motion — but must match product on palette tokens, typography family, primary CTA color, and dark-mode mechanism. See `docs/guides/marketing-surface-conventions.md` for the full divergence table and approved hardcoded-color exceptions.
 
 ## JavaScript/TypeScript Conventions
 
