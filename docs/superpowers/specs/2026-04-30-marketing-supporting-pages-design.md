@@ -149,3 +149,28 @@ If standing up a public preview URL takes >30 minutes, fall back to:
 - **Status page** — external service
 - **Careers / press / media kit** — defer until business need
 - **Code adoption of the AIDesigner canvases** — separate implementation spec follows
+
+---
+
+## Canvas IDs and brand kit
+
+**Brand kit ID:** `31329e88-32ed-4dc2-9130-c5f5018e1c67`
+**Name:** PublyApp Marketing v3 (light)
+**Source:** `https://ant-noted-briefly.ngrok-free.app` (ngrok paid tunnel → `localhost:5050`)
+**Locked on:** 2026-04-30
+
+**Brand kit summary**:
+- Mood: *Clean, professional, and growth-oriented*
+- Swatches: `#10B981` (primary green), `#1F2937` (text/headings), `#FCFCFD` (background)
+- Typography: Inter / system sans-serif
+- Descriptors: Vibrant Green Accent, Modern Sans-Serif, High Contrast
+
+**Notes on extraction**:
+- Required temporarily switching the app's `defaultMode` from `'dark'` to `'light'` (commit `e1b34799`) so AIDesigner's headless browser captured the light-mode rendering
+- Required ngrok paid tier to bypass the free-tier browser warning interstitial (which AIDesigner's Firecrawl fetcher would otherwise extract instead of the homepage)
+- Two earlier brand kits are saved but unused: `d10b9272-...` (interstitial-extracted) and `373bd82a-...` (dark-themed, before light-mode default was set)
+
+### Canvases
+
+| Page | Mode | Canvas ID | Accepted on |
+| --- | --- | --- | --- |
