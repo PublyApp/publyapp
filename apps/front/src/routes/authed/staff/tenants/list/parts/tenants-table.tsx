@@ -256,7 +256,7 @@ const useTenantsTableController = () => {
 		}
 
 		resetCursorPagination?.();
-		setFilterStates({ q: debouncedQ, status: statusFilter.join(',') });
+		void setFilterStates({ q: debouncedQ, status: statusFilter.join(',') });
 	}, [
 		debouncedQ,
 		filterStates.q,
@@ -289,7 +289,10 @@ const useTenantsTableController = () => {
 		const nextStatusFilter = map(selectedOptions, (option) => option.value);
 		resetCursorPagination?.();
 		setStatusFilter(nextStatusFilter);
-		setFilterStates({ q: globalFilter, status: nextStatusFilter.join(',') });
+		void setFilterStates({
+			q: globalFilter,
+			status: nextStatusFilter.join(','),
+		});
 	};
 
 	// Row selection state for bulk actions
