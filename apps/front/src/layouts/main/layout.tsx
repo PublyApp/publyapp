@@ -100,8 +100,9 @@ export const MainLayout = ({
 				/>
 				<NavMobile data={navData} open={open} onClose={onClose} />
 
+				{/** Keep this href stable across SSR and hydration; useHomePath reads client cookies. */}
 				{/** @slot Logo */}
-				<Logo />
+				<Logo href={FRONT_PATH_NAMES.home} />
 			</>
 		),
 		centerArea: (
