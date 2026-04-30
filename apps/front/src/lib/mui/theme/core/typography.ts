@@ -28,18 +28,19 @@ function responsiveFontSizes(
 	obj: ResponsiveFontSizesInput,
 ): ResponsiveFontSizesResult {
 	const breakpoints: Breakpoint[] = defaultMuiTheme.breakpoints.keys;
+	const responsiveStyles: ResponsiveFontSizesResult = {};
 
-	return breakpoints.reduce((acc, breakpoint) => {
+	for (const breakpoint of breakpoints) {
 		const value = obj[breakpoint];
 
 		if (value !== undefined && value >= 0) {
-			acc[defaultMuiTheme.breakpoints.up(breakpoint)] = {
+			responsiveStyles[defaultMuiTheme.breakpoints.up(breakpoint)] = {
 				fontSize: pxToRem(value),
 			};
 		}
+	}
 
-		return acc;
-	}, {} as ResponsiveFontSizesResult);
+	return responsiveStyles;
 }
 
 // ----------------------------------------------------------------------

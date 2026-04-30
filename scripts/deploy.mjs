@@ -453,9 +453,9 @@ function run(command, args, options = {}) {
 			stdio: task ? ['inherit', 'pipe', 'pipe'] : 'inherit',
 		});
 
-		/** @type {import('node:stream').Writable | undefined} */
+		/** @type {import('node:stream').Writable} */
 		let stdoutWriter;
-		/** @type {import('node:stream').Writable | undefined} */
+		/** @type {import('node:stream').Writable} */
 		let stderrWriter;
 		if (task) {
 			stdoutWriter = task.stdout();

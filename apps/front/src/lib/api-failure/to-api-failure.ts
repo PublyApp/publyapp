@@ -122,7 +122,7 @@ export const toApiFailure = (error: unknown): ApiFailure => {
 	// 8. Truly unknown - string, null, undefined, or other primitive
 	return {
 		kind: 'unknown',
-		message: error != null ? String(error) : 'An unexpected error occurred',
+		message: typeof error === 'string' ? error : 'An unexpected error occurred',
 		raw: error,
 	};
 };

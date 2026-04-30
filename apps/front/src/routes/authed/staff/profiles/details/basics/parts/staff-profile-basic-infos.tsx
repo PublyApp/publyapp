@@ -55,7 +55,7 @@ const StaffProfileBasicInfos = () => {
 						return;
 					}
 
-					queryClient.invalidateQueries({
+					void queryClient.invalidateQueries({
 						queryKey: useGetStaffProfileById.getKey({
 							profileId: profileIdStr,
 						}),

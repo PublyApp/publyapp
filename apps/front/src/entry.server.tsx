@@ -152,7 +152,7 @@ const handleRequest = async (
 					reject(error);
 				},
 				onError: (error: unknown) => {
-					// biome-ignore lint/style/noParameterAssign: boilerplate from react-router framework scaffolding, just left as is
+					// oxlint-disable-next-line no-param-reassign -- boilerplate from react-router framework scaffolding
 					responseStatusCode = 500;
 
 					// Log streaming rendering errors from inside the shell.  Don't log

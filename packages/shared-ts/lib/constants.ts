@@ -8,8 +8,6 @@ export const APP_NAME_PASCAl_CASE = toPascalCase(APP_NAME);
 
 export const SESSION_TOKEN_HEADER_KEY = 'X-Session-Token';
 export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}-session_token`;
-/** @deprecated Use TENANT_HINTS_COOKIE_KEY_LEGACY for new code */
-export const LAST_USED_TENANT_ID_COOKIE_KEY = `${APP_ID}-last_used_tenant`;
 export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detect language server-side
 
 // =============================================================================
@@ -21,7 +19,10 @@ export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detec
 export const TENANT_HINTS_COOKIE_KEY = `${APP_ID}-last_tenants`;
 
 /** Legacy cookie key (v1-v3, for migration) */
-export const TENANT_HINTS_COOKIE_KEY_LEGACY = LAST_USED_TENANT_ID_COOKIE_KEY;
+export const TENANT_HINTS_COOKIE_KEY_LEGACY = `${APP_ID}-last_used_tenant`;
+
+/** @deprecated Use TENANT_HINTS_COOKIE_KEY_LEGACY for new code */
+export const LAST_USED_TENANT_ID_COOKIE_KEY = TENANT_HINTS_COOKIE_KEY_LEGACY;
 
 /** Max users to store in mapping (keeps cookie under 1KB) */
 export const TENANT_HINTS_MAX_ENTRIES = 10;

@@ -9,7 +9,7 @@ type CreateNavItemReturn = {
 	subItem: boolean;
 	rootItem: boolean;
 	subDeepItem: boolean;
-	// biome-ignore lint/suspicious/noExplicitAny: code from template leave as is for now
+	// oxlint-disable-next-line typescript/no-explicit-any -- code from template leave as is for now
 	baseProps: Record<string, any>;
 	renderIcon: React.ReactNode;
 	renderInfo: React.ReactNode;

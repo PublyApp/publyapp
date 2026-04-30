@@ -27,7 +27,7 @@ architecture with shared packages and type-safe API communication.
 
 - **Turborepo** - Monorepo build system
 - **pnpm** - Fast, efficient package manager
-- **Biome** - Fast linter and formatter
+- **oxlint + oxfmt** - Fast JavaScript/TypeScript linting and formatting
 - **Husky** - Git hooks for code quality
 - **Microsoft Kiota** - Auto-generated TypeScript API client from OpenAPI
 
@@ -54,7 +54,8 @@ publyapp/
 ├── scripts/              # Build and deployment scripts
 ├── justfile              # Development commands
 ├── turbo.json            # Turborepo configuration
-├── biome.jsonc           # Biome linter/formatter config
+├── .oxlintrc.json        # oxlint config
+├── .oxfmtrc.json         # oxfmt config
 └── docker-compose.*.yml  # Docker configurations
 ```
 
@@ -80,7 +81,7 @@ Before you begin, ensure you have the following installed:
 ### Windows Notes
 
 - The repo `justfile` uses PowerShell 7 (`pwsh`) on Windows (not Windows PowerShell 5.1).
-- Code quality commands use Biome via `pnpm exec biome` (not a globally-installed `biome` binary).
+- Code quality commands use `oxlint` and `oxfmt` via pnpm scripts, not globally installed binaries.
 
 ## Installation
 
@@ -206,7 +207,7 @@ just build-deploy     # Build for deployment
 ### Code Quality
 
 ```bash
-just lint             # Run Biome linting
+just lint             # Run oxlint
 just lint-write       # Fix linting issues
 just format           # Check code formatting
 just format-write     # Fix formatting issues
@@ -316,7 +317,7 @@ just tsc-front
 
 Husky automatically runs quality checks on commit. Ensure all checks pass:
 
-- Biome formatting and linting
+- oxlint linting and oxfmt formatting
 - TypeScript type checking (frontend)
 - Staged file validation
 

@@ -1,3 +1,5 @@
+export {};
+
 // declare module 'mui-one-time-password-input' {
 // 	declare interface BaseMuiOtpInputProps {
 // 		value?: string;

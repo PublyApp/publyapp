@@ -13,6 +13,8 @@ import copyI18nFiles from './_vite/copy-i18n-files';
 import generateClient from './_vite/generate-client';
 
 const frontSrcDir = fileURLToPath(new URL('./src', import.meta.url));
+const frontRootDir = fileURLToPath(new URL('.', import.meta.url));
+const workspaceRootDir = fileURLToPath(new URL('../..', import.meta.url));
 
 const optimizeDepsIncludes = [
 	'lodash',
@@ -180,8 +182,20 @@ export default defineConfig(({ mode, isSsrBuild }) => {
 			devtoolsJson(),
 			checker({
 				enableBuild: false,
-				typescript: true,
-				biome: true,
+				root: workspaceRootDir,
+				typescript: {
+					root: frontRootDir,
+					tsconfigPath: 'tsconfig.json',
+				},
+				oxlint: {
+					lintCommand: 'oxlint --quiet',
+					watchPath: [
+						'.oxlintrc.json',
+						'apps/front',
+						'packages/shared-ts',
+						'scripts',
+					],
+				},
 			}),
 			reactRouterDevTools(),
 			reactRouter(),

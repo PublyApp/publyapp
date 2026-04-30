@@ -2,13 +2,13 @@ import { logger } from '../lib/logger/iso-logger';
 import { isAsyncFunction, isPromise } from './any.utils';
 import { getErrorMessage } from './error.utils';
 
-// biome-ignore lint/suspicious/noExplicitAny: return type can be anything
+// oxlint-disable-next-line typescript/no-explicit-any -- return type can be anything
 type Handler = (error: unknown) => any;
-// biome-ignore lint/suspicious/noExplicitAny: return type can be anything
+// oxlint-disable-next-line typescript/no-explicit-any -- return type can be anything
 type AsyncHandler = (error: unknown) => Promise<any>;
-// biome-ignore lint/suspicious/noExplicitAny: return type can be anything
+// oxlint-disable-next-line typescript/no-explicit-any -- return type can be anything
 type ErrorHandler<T extends GenericFunction = () => any> =
-	// biome-ignore lint/suspicious/noExplicitAny: return type can be anything
+	// oxlint-disable-next-line typescript/no-explicit-any -- return type can be anything
 	ReturnType<T> extends PromiseLike<any> ? Handler | AsyncHandler : Handler;
 
 const defaultErrorHandler: ErrorHandler = (error) => {
@@ -29,47 +29,45 @@ export const tryCatchWrapper = <F extends GenericFunction>({
 	handler: F;
 	onError?: ErrorHandler<F>;
 }): F => {
-	if (!onError) {
-		onError = defaultErrorHandler as never;
-	}
+	const handleError = onError ?? (defaultErrorHandler as ErrorHandler<F>);
 
 	if (isAsyncFunction(handler)) {
-		// biome-ignore lint/suspicious/noExplicitAny: forwarding any arguments from the original function
+		// oxlint-disable-next-line typescript/no-explicit-any -- forwarding any arguments from the original function
 		const wrappedFunctionAsync = async (...args: any[]) => {
 			try {
 				const result = await handler(...args);
 				return result;
 			} catch (error) {
-				if (isAsyncFunction(onError)) {
-					const result = await onError(error);
+				if (isAsyncFunction(handleError)) {
+					const result = await handleError(error);
 					return result;
 				}
 
-				return onError(error);
+				return handleError(error);
 			}
 		};
 
 		return wrappedFunctionAsync as never;
 	}
 
-	if (isAsyncFunction(onError)) {
+	if (isAsyncFunction(handleError)) {
 		throw new Error(
 			'Cannot have an async error handler if the main function not async',
 		);
 	}
 
-	// biome-ignore lint/suspicious/noExplicitAny: forwarding any arguments from the original function
+	// oxlint-disable-next-line typescript/no-explicit-any -- forwarding any arguments from the original function
 	const wrappedFunctionSync = (...args: any[]) => {
 		try {
 			const result = handler(...args);
 
 			if (isPromise(result)) {
-				return result.catch(onError as never);
+				return result.catch(handleError as never);
 			}
 
 			return result;
 		} catch (error) {
-			return onError(error);
+			return handleError(error);
 		}
 	};
 

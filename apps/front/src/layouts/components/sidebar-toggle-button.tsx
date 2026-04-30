@@ -9,7 +9,7 @@ export type SidebarToggleButtonProps = IconButtonProps & {
 };
 
 export const SidebarToggleButton = ({
-	isNavMini,
+	isNavMini: _isNavMini,
 	sx,
 	...other
 }: SidebarToggleButtonProps) => {

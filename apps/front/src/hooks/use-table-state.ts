@@ -155,7 +155,6 @@ export const useTableState = (
 	// All dependencies are intentional (not accidental)
 	// Why they're needed: cursors become invalid when query params change
 	// What would break: without these deps, users would see invalid data when changing sort/size
-	// biome-ignore lint/correctness/useExhaustiveDependencies: All dependencies are intentional (not accidental)
 	useEffect(() => {
 		if (paginationMode === 'cursor') {
 			setCursorHistory([]);
@@ -164,8 +163,11 @@ export const useTableState = (
 		}
 	}, [
 		paginationMode,
+		// oxlint-disable-next-line react/exhaustive-deps -- All dependencies are intentional (not accidental)
 		sortingState[queryKeys.sorting.id],
+		// oxlint-disable-next-line react/exhaustive-deps -- All dependencies are intentional (not accidental)
 		sortingState[queryKeys.sorting.order],
+		// oxlint-disable-next-line react/exhaustive-deps -- All dependencies are intentional (not accidental)
 		paginationState[queryKeys.pagination.pageSize],
 	]);
 
@@ -184,14 +186,14 @@ export const useTableState = (
 					},
 				])[0] ||
 					defaultSorting || { id: 'createdAt', desc: true };
-				setSortingState({
+				void setSortingState({
 					[queryKeys.sorting.id]: id,
 					[queryKeys.sorting.order]: desc === false ? 'asc' : 'desc',
 				});
 			} else {
 				const { desc, id } = updaterOrValue[0] ||
 					defaultSorting || { id: 'createdAt', desc: true };
-				setSortingState({
+				void setSortingState({
 					[queryKeys.sorting.id]: id,
 					[queryKeys.sorting.order]: desc === false ? 'asc' : 'desc',
 				});
@@ -263,7 +265,7 @@ export const useTableState = (
 					newPagination.pageSize !==
 					Number(paginationState[queryKeys.pagination.pageSize])
 				) {
-					setPaginationState({
+					void setPaginationState({
 						[queryKeys.pagination.pageSize]: newPagination.pageSize.toString(),
 					});
 				}
@@ -274,14 +276,14 @@ export const useTableState = (
 						pageIndex: Number(paginationState[queryKeys.pagination.page]) - 1,
 						pageSize: Number(paginationState[queryKeys.pagination.pageSize]),
 					});
-					setPaginationState({
+					void setPaginationState({
 						[queryKeys.pagination.page]: (
 							newPagination.pageIndex + 1
 						).toString(),
 						[queryKeys.pagination.pageSize]: newPagination.pageSize.toString(),
 					});
 				} else {
-					setPaginationState({
+					void setPaginationState({
 						[queryKeys.pagination.page]: (
 							updaterOrValue.pageIndex + 1
 						).toString(),

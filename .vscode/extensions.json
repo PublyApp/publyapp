@@ -1,6 +1,5 @@
 {
 	"recommendations": [
-		"biomejs.biome",
 		"usernamehw.errorlens",
 		"aaron-bond.better-comments",
 		"streetsidesoftware.code-spell-checker",
@@ -34,6 +33,7 @@
 		"jock.svg",
 		"MarkosTh09.color-picker",
 		"ms-dotnettools.csdevkit",
-		"nefrob.vscode-just-syntax"
+		"nefrob.vscode-just-syntax",
+		"oxc.oxc-vscode"
 	]
 }

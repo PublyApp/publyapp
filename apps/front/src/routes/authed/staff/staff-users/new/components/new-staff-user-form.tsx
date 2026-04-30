@@ -58,11 +58,11 @@ const NewStaffUserForm = () => {
 						t('item-creation-success-message', { item: t('staff-user') }),
 					),
 				);
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useFindStaffUser.getKey(),
 				});
 				form.reset();
-				router.push(FRONT_PATH_NAMES.staff.staffUsers.root);
+				void router.push(FRONT_PATH_NAMES.staff.staffUsers.root);
 			},
 			// Error toasts handled by global handler automatically
 		},

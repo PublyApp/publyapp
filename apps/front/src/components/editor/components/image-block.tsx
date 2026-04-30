@@ -24,14 +24,17 @@ export const ImageBlock = ({ editor }: Pick<EditorToolbarProps, 'editor'>) => {
 		setAnchorEl(null);
 	};
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
-	const handleUpdateUrl = useCallback(() => {
-		handleClosePopover();
+	const handleUpdateUrl = useCallback(
+		() => {
+			handleClosePopover();
 
-		if (anchorEl) {
-			editor?.chain().focus().setImage({ src: url }).run();
-		}
-	}, [anchorEl, editor, url]);
+			if (anchorEl) {
+				editor?.chain().focus().setImage({ src: url }).run();
+			}
+		},
+		// oxlint-disable-next-line react/exhaustive-deps -- code from template leave as is for now
+		[anchorEl, editor, url],
+	);
 
 	if (!editor) {
 		return null;

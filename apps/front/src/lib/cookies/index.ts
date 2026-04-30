@@ -23,7 +23,6 @@ export {
 	readTenantHintsFromRequest, // If you already have parsed cookies
 	// Server-side helpers (SSR loaders/actions)
 	readTenantHintsFromRequestHeaders, // Preferred - parses cookies internally
-	serializeClearLegacyCookie, // Deprecated - only clears at /
 	serializeClearLegacyCookieHeaders, // Preferred - clears at all likely paths
 	serializeTenantHintsForResponse,
 	setTenantHintForUser,

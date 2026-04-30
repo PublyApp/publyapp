@@ -1,3 +1,5 @@
+export {};
+
 // /**
 //  * simplebar-react - v3.3.1
 //  * React component for SimpleBar
@@ -30,10 +32,10 @@
 // 			SimpleBarOptions {
 // 		children?: ReactNode | RenderFunc;
 // 		scrollableNodeProps?: {
-// 			// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+// 			// oxlint-disable-next-line typescript/no-explicit-any -- <explanation>
 // 			ref?: any;
 // 			className?: string;
-// 			// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+// 			// oxlint-disable-next-line typescript/no-explicit-any -- <explanation>
 // 			[key: string]: any;
 // 		};
 // 	}

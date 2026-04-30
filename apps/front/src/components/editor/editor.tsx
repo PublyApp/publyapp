@@ -114,12 +114,15 @@ export const Editor = ({
 		};
 	}, [content, editor]);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
-	useEffect(() => {
-		if (resetValue && !content) {
-			editor?.commands.clearContent();
-		}
-	}, [content]);
+	useEffect(
+		() => {
+			if (resetValue && !content) {
+				editor?.commands.clearContent();
+			}
+		},
+		// oxlint-disable-next-line react/exhaustive-deps -- code from template leave as is for now
+		[content],
+	);
 
 	useEffect(() => {
 		return () => {
