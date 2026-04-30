@@ -177,3 +177,4 @@ If standing up a public preview URL takes >30 minutes, fall back to:
 | Homepage anchor | light | `2e8a4817-4386-4d7b-8bf2-39b5d5bac514` | 2026-04-30 |
 | Pricing | light | `35a6d196-5354-45b9-943c-4417adf150c9` | 2026-04-30 |
 | Pricing | dark | `6c3e35f3-c07f-4ec8-917d-95c78b07597e` | 2026-04-30 |
+| Terms of Use | light | `4a0e2717-f7d6-4041-8ad4-b4ed18e6f16f` | 2026-04-30 |
