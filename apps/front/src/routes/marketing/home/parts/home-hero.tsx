@@ -75,7 +75,10 @@ const HeroGlows = () => {
 				sx={(theme) => {
 					return {
 						position: 'absolute',
-						top: '25%',
+						// Use fixed offsets instead of percentage positioning. This
+						// keeps decorative glows stable while streamed content changes
+						// the hero section height during first load.
+						top: { xs: 120, md: 180 },
 						left: '25%',
 						width: 384,
 						height: 384,
@@ -91,7 +94,10 @@ const HeroGlows = () => {
 				sx={(theme) => {
 					return {
 						position: 'absolute',
-						bottom: '25%',
+						// Keep this independent from section height for the same reason
+						// as the primary glow above: percentage bottom shifts during SSR
+						// streaming as more homepage sections arrive.
+						top: { xs: 360, md: 420 },
 						right: '25%',
 						width: 384,
 						height: 384,
