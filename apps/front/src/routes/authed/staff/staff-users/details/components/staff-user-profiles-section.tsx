@@ -66,7 +66,7 @@ const StaffUserProfilesSection = ({ userId }: { userId: string }) => {
 	const { mutate: updateProfiles, isPending: isUpdating } =
 		useUpdateStaffUserProfiles({
 			onSuccess: () => {
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useGetStaffUserProfiles.getKey({ userId }),
 				});
 				toast.success(

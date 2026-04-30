@@ -463,7 +463,7 @@ const useTenantProfileFormDrawerController = ({
 			| undefined;
 
 		queryClient.setQueryData(queryKey, {
-			...(previousPermissionsQueryData ?? {}),
+			...previousPermissionsQueryData,
 			permissionKeys: nextSelection,
 		});
 		pendingPermissionKeysRef.current = {

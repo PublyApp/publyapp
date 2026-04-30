@@ -460,7 +460,7 @@ const InvitationActionsCell: MRT_ColumnDef<StaffInvitationRowData>['Cell'] = (
 		useRevokeStaffInvitation({
 			onSuccess: () => {
 				toast.success(t('staff-invitation-revoked'));
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useFindStaffInvitations.getKey(),
 				});
 			},

@@ -175,7 +175,7 @@ const StaffProfilesTable = () => {
 		}
 
 		resetCursorPagination?.();
-		setFilterStates({ q: debouncedQ });
+		void setFilterStates({ q: debouncedQ });
 	}, [debouncedQ, filterStates.q, resetCursorPagination, setFilterStates]);
 
 	useEffect(() => {

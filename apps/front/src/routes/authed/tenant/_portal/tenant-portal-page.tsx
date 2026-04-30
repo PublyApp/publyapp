@@ -26,7 +26,7 @@ const RedirectToUnauthorized = () => {
 	const navigate = useNavigate();
 
 	useEffect(() => {
-		navigate(FRONT_PATH_NAMES.unauthorized, { replace: true });
+		void navigate(FRONT_PATH_NAMES.unauthorized, { replace: true });
 	}, [navigate]);
 
 	return <SplashScreen />;
@@ -52,16 +52,16 @@ const RedirectHandler = ({
 		if (showTenantPicker) return;
 
 		if (!redirectCode || redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
-			navigate(FRONT_PATH_NAMES.unauthorized, { replace: true });
+			void navigate(FRONT_PATH_NAMES.unauthorized, { replace: true });
 		} else if (redirectCode === REDIRECT_CODE.STAFF) {
-			navigate(FRONT_PATH_NAMES.staff.root, { replace: true });
+			void navigate(FRONT_PATH_NAMES.staff.root, { replace: true });
 		} else {
 			// redirectCode is a tenant ID
 			let path = FRONT_PATH_NAMES.tenant(redirectCode).root;
 			if (hasSuspendedTenants) {
 				path += `?${queryParamKey.notice}=${queryParamValue.notice.org_suspended}`;
 			}
-			navigate(path, { replace: true });
+			void navigate(path, { replace: true });
 		}
 	}, [redirectCode, navigate, showTenantPicker, hasSuspendedTenants]);
 

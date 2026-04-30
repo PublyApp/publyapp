@@ -33,7 +33,7 @@ rl.on('line', (input) => {
 	const trimmed = input.trim().toLowerCase();
 	if (trimmed === 'rs') {
 		console.log('Manual restart triggered...');
-		restartDotnet();
+		void restartDotnet();
 	}
 });
 
@@ -99,7 +99,7 @@ watcher.on('all', async (event, path) => {
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
 	console.log('\nShutting down...');
-	watcher.close();
+	void watcher.close();
 	rl.close();
 	if (dotnetProcess) {
 		await killProcess(dotnetProcess);
@@ -109,7 +109,7 @@ process.on('SIGINT', async () => {
 
 process.on('SIGTERM', async () => {
 	console.log('\nShutting down...');
-	watcher.close();
+	void watcher.close();
 	rl.close();
 	if (dotnetProcess) {
 		await killProcess(dotnetProcess);

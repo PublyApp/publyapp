@@ -44,7 +44,7 @@ const checkIsExternalUrl = (to: To, clientOrigin: string) => {
 
 	try {
 		url = new URL(to);
-	} catch (_e) {}
+	} catch {}
 
 	if (!url) {
 		return false;
@@ -86,7 +86,7 @@ const RouterLink_A = ({ href, ref, ...other }: RouterLinkProps) => {
 
 			try {
 				url = new URL(href);
-			} catch (_e) {}
+			} catch {}
 
 			if (!url) {
 				const [pathname, search] = href.split('?');

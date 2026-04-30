@@ -241,10 +241,10 @@ const InvitationDetailsContent = ({
 		useRevokeStaffInvitation({
 			onSuccess: () => {
 				toast.success(t('staff-invitation-revoked'));
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useFindStaffInvitations.getKey(),
 				});
-				router.push(FRONT_PATH_NAMES.staff.invitations.root);
+				void router.push(FRONT_PATH_NAMES.staff.invitations.root);
 			},
 		});
 

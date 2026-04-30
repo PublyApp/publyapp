@@ -139,7 +139,7 @@ export const TenantPickerView = () => {
 	const tenantsQuery = useGetUserTenantsForPicker({});
 
 	const handleSelectTenant = (tenantId: string) => {
-		navigate(FRONT_PATH_NAMES.tenant(tenantId).root, { replace: true });
+		void navigate(FRONT_PATH_NAMES.tenant(tenantId).root, { replace: true });
 	};
 
 	const handleLogout = useCallback(() => {

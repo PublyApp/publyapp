@@ -115,7 +115,7 @@ export function AddressListDialog({
 			>
 				<Typography variant="h6"> {title} </Typography>
 
-				{action && action}
+				{action}
 			</Box>
 
 			<Stack sx={{ p: 2, pt: 0 }}>

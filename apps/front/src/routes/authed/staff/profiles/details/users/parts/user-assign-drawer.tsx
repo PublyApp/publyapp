@@ -449,7 +449,7 @@ const useUserAssignDrawerController = (profileName: string) => {
 				useGetStaffUserProfiles.getKey({ userId }),
 				(current) => {
 					return {
-						...(current ?? {}),
+						...current,
 						assignedProfiles: result.assignedProfiles ?? [],
 					};
 				},
@@ -745,14 +745,7 @@ export const UserAssignDrawer = ({
 		observer.observe(sentinelNode);
 
 		return () => observer.disconnect();
-	}, [
-		openDrawer.value,
-		findUsersQuery.fetchNextPage,
-		findUsersQuery.hasNextPage,
-		findUsersQuery.isFetchingNextPage,
-		scrollableNode,
-		sentinelNode,
-	]);
+	}, [openDrawer.value, findUsersQuery, scrollableNode, sentinelNode]);
 
 	return (
 		<>

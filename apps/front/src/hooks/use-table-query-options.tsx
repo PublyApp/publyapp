@@ -121,6 +121,7 @@ export const useTableQueryOptions = <TData = unknown, TError = Error>({
 	// Merge user config with defaults
 	const finalEmptyContent = { ...defaultEmptyContent, ...emptyContent };
 	const finalErrorContent = { ...defaultErrorContent, ...errorContent };
+	const finalEmptyContentRenderAction = finalEmptyContent.renderAction;
 
 	// Memoized fallback renderer
 	const renderEmptyRowsFallback = useCallback(() => {
@@ -146,7 +147,7 @@ export const useTableQueryOptions = <TData = unknown, TError = Error>({
 			<EmptyContent
 				title={finalEmptyContent.title}
 				description={finalEmptyContent.description}
-				action={finalEmptyContent.renderAction?.()}
+				action={finalEmptyContentRenderAction?.()}
 				sx={[
 					{ minHeight: 400 },
 					...(Array.isArray(finalEmptyContent.props?.sx)
@@ -164,7 +165,7 @@ export const useTableQueryOptions = <TData = unknown, TError = Error>({
 		finalErrorContent.props,
 		finalEmptyContent.title,
 		finalEmptyContent.description,
-		finalEmptyContent.renderAction,
+		finalEmptyContentRenderAction,
 		finalEmptyContent.props,
 		refetch,
 	]);

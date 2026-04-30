@@ -71,7 +71,7 @@ export function FloatingCard({
 	placement = 'bottom-right',
 	offset = 20,
 	elevation = 6,
-	onClose,
+	onClose: _onClose,
 	parentContainerRef,
 	...paperProps
 }: FloatingCardProps) {
@@ -134,10 +134,12 @@ export function FloatingCard({
 			offset={offset}
 			elevation={elevation}
 			{...paperProps}
-			sx={{
-				...paperProps.sx,
-				...(customSx && customSx),
-			}}
+			sx={[
+				...(Array.isArray(paperProps.sx)
+					? paperProps.sx
+					: [paperProps.sx ?? {}]),
+				customSx ?? {},
+			]}
 		>
 			{/* {onClose && (
 				<IconButton

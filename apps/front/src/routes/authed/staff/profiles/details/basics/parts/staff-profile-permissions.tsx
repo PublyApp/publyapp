@@ -135,7 +135,7 @@ const StaffProfilePermissions = () => {
 				: prevKeys.filter((k) => k !== vars.permissionKey);
 
 			queryClient.setQueryData(queryKey, {
-				...(previous ?? {}),
+				...previous,
 				permissionKeys: nextKeys,
 			});
 

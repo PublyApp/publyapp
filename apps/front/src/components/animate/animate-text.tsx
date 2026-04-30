@@ -75,17 +75,17 @@ export const AnimateText = ({
 			if (repeatDelayMs) {
 				timeout = setTimeout(async () => {
 					await animationControls.start('initial');
-					animationControls.start('animate');
+					void animationControls.start('animate');
 				}, repeatDelayMs);
 			} else {
-				animationControls.start('animate');
+				void animationControls.start('animate');
 			}
 		};
 
 		if (isInView) {
 			triggerAnimation();
 		} else {
-			animationControls.start('initial');
+			void animationControls.start('initial');
 		}
 
 		return () => {

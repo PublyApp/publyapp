@@ -42,7 +42,7 @@ export const LanguagePopover = ({
 
 	const handleChangeLang = useCallback(
 		(newLang: AppLocale) => {
-			onChangeLang(newLang);
+			void onChangeLang(newLang);
 			onClose();
 		},
 		[onChangeLang, onClose],

@@ -130,7 +130,7 @@ const TenantInvitationsTable = () => {
 		}
 
 		resetCursorPagination?.();
-		setFilterStates({
+		void setFilterStates({
 			q: debouncedSearchValue,
 			status: statusFilter.join(','),
 		});
@@ -164,7 +164,7 @@ const TenantInvitationsTable = () => {
 		const nextStatusFilter = selectedOptions.map((option) => option.value);
 		resetCursorPagination?.();
 		setStatusFilter(nextStatusFilter);
-		setFilterStates({
+		void setFilterStates({
 			q: searchValue,
 			status: nextStatusFilter.join(','),
 		});
@@ -819,7 +819,7 @@ const RevokeInvitationAction = ({
 			toast.success(t('invitation-revoked-success'));
 			confirmDialog.onFalse();
 			if (tenantId) {
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useFindTenantInvitations.getKey({ tenantId }),
 				});
 			}

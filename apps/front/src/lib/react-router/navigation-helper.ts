@@ -45,5 +45,5 @@ export const globalNavigate = (
 		return;
 	}
 
-	navigateFn(path, { replace: options?.replace });
+	void navigateFn(path, { replace: options?.replace });
 };

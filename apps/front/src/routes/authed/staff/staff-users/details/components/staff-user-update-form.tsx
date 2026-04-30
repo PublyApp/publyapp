@@ -118,10 +118,10 @@ const StaffUserUpdateForm = ({
 						t('item-update-success-message', { item: t('staff-user') }),
 					),
 				);
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useFindStaffUser.getKey(),
 				});
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useGetStaffUserById.getKey({ userId: currentUser.id }),
 				});
 				// Stay on the details page: this is an "edit in place" UX.
@@ -370,10 +370,12 @@ const DangerZoneCard = ({
 		meta: { successMessage: 'staff-user-suspended-success' },
 		onSuccess: () => {
 			setSuspendDialogOpen(false);
-			queryClient.invalidateQueries({
+			void queryClient.invalidateQueries({
 				queryKey: useGetStaffUserById.getKey({ userId }),
 			});
-			queryClient.invalidateQueries({ queryKey: useFindStaffUser.getKey() });
+			void queryClient.invalidateQueries({
+				queryKey: useFindStaffUser.getKey(),
+			});
 		},
 	});
 
@@ -382,10 +384,12 @@ const DangerZoneCard = ({
 			meta: { successMessage: 'staff-user-reactivated-success' },
 			onSuccess: () => {
 				setReactivateDialogOpen(false);
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useGetStaffUserById.getKey({ userId }),
 				});
-				queryClient.invalidateQueries({ queryKey: useFindStaffUser.getKey() });
+				void queryClient.invalidateQueries({
+					queryKey: useFindStaffUser.getKey(),
+				});
 			},
 		});
 
@@ -396,10 +400,12 @@ const DangerZoneCard = ({
 				setEmailDialogOpen(false);
 				setNewEmail('');
 				setConfirmEmail('');
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useGetStaffUserById.getKey({ userId }),
 				});
-				queryClient.invalidateQueries({ queryKey: useFindStaffUser.getKey() });
+				void queryClient.invalidateQueries({
+					queryKey: useFindStaffUser.getKey(),
+				});
 			},
 		});
 

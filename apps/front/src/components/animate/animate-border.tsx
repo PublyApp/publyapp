@@ -308,8 +308,37 @@ const useComputedElementStyles = (
 		}
 	}, [ref, isRtl]);
 
+	const toCssValue = (value: unknown) => {
+		if (Array.isArray(value)) {
+			return value.join(' ');
+		}
+
+		if (
+			typeof value === 'string' ||
+			typeof value === 'number' ||
+			typeof value === 'boolean'
+		) {
+			return String(value);
+		}
+
+		return '0px';
+	};
+
+	const paddingTop = toCssValue(computedStyles?.paddingTop);
+	const paddingRight = toCssValue(computedStyles?.paddingRight);
+	const paddingBottom = toCssValue(computedStyles?.paddingBottom);
+	const paddingLeft = toCssValue(computedStyles?.paddingLeft);
+	const borderTopLeftRadius = toCssValue(computedStyles?.borderTopLeftRadius);
+	const borderTopRightRadius = toCssValue(computedStyles?.borderTopRightRadius);
+	const borderBottomRightRadius = toCssValue(
+		computedStyles?.borderBottomRightRadius,
+	);
+	const borderBottomLeftRadius = toCssValue(
+		computedStyles?.borderBottomLeftRadius,
+	);
+
 	return {
-		padding: `${computedStyles?.paddingTop} ${computedStyles?.paddingRight} ${computedStyles?.paddingBottom} ${computedStyles?.paddingLeft}`,
-		borderRadius: `${computedStyles?.borderTopLeftRadius} ${computedStyles?.borderTopRightRadius} ${computedStyles?.borderBottomRightRadius} ${computedStyles?.borderBottomLeftRadius}`,
+		padding: `${paddingTop} ${paddingRight} ${paddingBottom} ${paddingLeft}`,
+		borderRadius: `${borderTopLeftRadius} ${borderTopRightRadius} ${borderBottomRightRadius} ${borderBottomLeftRadius}`,
 	};
 };

@@ -65,7 +65,7 @@ export const action = getServerAction({
 				);
 
 				// we intentionally don't return the actual outcome of the request
-				requestEmailVerification({
+				void requestEmailVerification({
 					email: {
 						getValue() {
 							return parsed.data.email;

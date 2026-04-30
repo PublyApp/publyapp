@@ -64,7 +64,7 @@ export function AddressItem({ address, action, sx, ...other }: Props) {
 				</Typography>
 			</Box>
 
-			{action && action}
+			{action}
 		</Paper>
 	);
 }

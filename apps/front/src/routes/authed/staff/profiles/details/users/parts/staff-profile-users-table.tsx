@@ -123,7 +123,7 @@ export const StaffProfileUsersTable = () => {
 			...paginationState,
 			page: '1',
 		});
-		setFilterStates({ q: debouncedQ });
+		void setFilterStates({ q: debouncedQ });
 	}, [
 		debouncedQ,
 		filterStates.q,
@@ -366,14 +366,14 @@ const UserCell: MRT_ColumnDef<ProfileUserRowData, string>['Cell'] = (props) => {
 			<Avatar
 				alt={fullName}
 				src={normalizedAvatarUrl || undefined}
-				sx={{
-					...(normalizedAvatarUrl
+				sx={
+					normalizedAvatarUrl
 						? {}
 						: {
 								bgcolor: 'background.neutral',
 								color: 'text.disabled',
-							}),
-				}}
+							}
+				}
 			>
 				{!normalizedAvatarUrl ? (
 					<Iconify icon="solar:user-rounded-bold" width={20} />
@@ -425,7 +425,7 @@ const ProfileUsersSelectionActions = ({
 			onSuccess: async () => {
 				// Unassigning from the profile changes both sides of the relationship:
 				// refresh the profile-users table and each affected staff-user profile chip set.
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useFindStaffProfileUsers.getKey(),
 				});
 				await Promise.all(
@@ -558,7 +558,7 @@ const StatusCell: MRT_ColumnDef<ProfileUserRowData, string>['Cell'] = (
 			// This status control mutates the user-level status, not a profile-local flag.
 			// Refresh the current projection so suspended users stay visible with updated status.
 			// Refresh any "staff profile -> users" lists after a staff user status change.
-			queryClient.invalidateQueries({
+			void queryClient.invalidateQueries({
 				queryKey: useFindStaffProfileUsers.getKey(),
 			});
 			setConfirmDialogOpen(false);
@@ -570,7 +570,7 @@ const StatusCell: MRT_ColumnDef<ProfileUserRowData, string>['Cell'] = (
 		useReactivateStaffUser({
 			meta: { successMessage: 'staff-user-reactivated-success' },
 			onSuccess: () => {
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useFindStaffProfileUsers.getKey(),
 				});
 				setConfirmDialogOpen(false);
@@ -764,7 +764,7 @@ const UserActionsCell: MRT_ColumnDef<ProfileUserRowData>['Cell'] = (props) => {
 		useUnassignStaffProfileUsers({
 			onSuccess: async () => {
 				// Keep the "profile -> users" projection in sync after unassignment.
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useFindStaffProfileUsers.getKey(),
 				});
 				await queryClient.invalidateQueries({

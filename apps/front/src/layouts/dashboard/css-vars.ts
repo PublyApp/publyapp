@@ -99,6 +99,6 @@ export function dashboardNavColorVars(
 				},
 			};
 		default:
-			throw new Error(`Invalid color: ${navColor}`);
+			throw new Error(`Invalid color: ${String(navColor)}`);
 	}
 }
