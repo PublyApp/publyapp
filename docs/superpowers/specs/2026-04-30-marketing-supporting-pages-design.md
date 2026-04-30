@@ -1,7 +1,7 @@
 # Marketing Supporting Pages — Design Spec
 
 **Date:** 2026-04-30
-**Status:** Draft, pending user review
+**Status:** Design generation complete — all canvases accepted by user, ready for code adoption
 **Predecessor:** `docs/guides/marketing-surface-conventions.md` (boundary doc, ratified 2026-04-30)
 **Branch:** `feature/marketing-supporting-pages`
 
@@ -189,3 +189,7 @@ If standing up a public preview URL takes >30 minutes, fall back to:
 | Blog index | dark | `7dc01154-66db-49fd-85ab-fd839ec89a3c` | 2026-04-30 |
 | Blog article | light | `a9b20a6e-02a5-4124-bd13-79e539201e3f` | 2026-04-30 |
 | Changelog | light | `f0f2cb18-b79f-41b7-935a-da9100190f1e` | 2026-04-30 |
+| About | light | `778a0d63-2e0b-4b2c-9e4e-a2e7e88b2957` | 2026-04-30 |
+| Contact | light | `78b2258b-7518-43e4-86ce-ad50bbe37a87` | 2026-04-30 |
+| Security | light | `9e9499b8-10e0-47de-b7f8-206c4e8a9110` | 2026-04-30 |
+| 404 / Not Found | light | `06818f67-4e71-4281-bba5-a8bb1575590e` | 2026-04-30 |
