@@ -42,7 +42,7 @@ export const themeConfig: ThemeConfig = {
 	/** **************************************
 	 * Base
 	 *************************************** */
-	defaultMode: 'light', // Match publyapp-5 while theme sync work is pending merge
+	defaultMode: 'light',
 	enableSystemMode: false,
 	modeStorageKey: 'theme-mode',
 	direction: 'ltr',
