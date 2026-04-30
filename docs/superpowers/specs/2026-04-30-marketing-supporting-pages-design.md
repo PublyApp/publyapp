@@ -174,3 +174,4 @@ If standing up a public preview URL takes >30 minutes, fall back to:
 
 | Page | Mode | Canvas ID | Accepted on |
 | --- | --- | --- | --- |
+| Homepage anchor | light | `2e8a4817-4386-4d7b-8bf2-39b5d5bac514` | 2026-04-30 |
