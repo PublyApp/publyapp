@@ -22,17 +22,13 @@ const MuiAppBar: Components<Theme>['MuiAppBar'] = {
 				borderTop: 'none',
 				borderLeft: 'none',
 				borderRight: 'none',
-				borderBottom: isTransparent
-					? 'none'
-					: `1px solid ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)}`,
+				borderBottom: `1px solid ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)}`,
 				backgroundColor: isTransparent
 					? 'transparent'
 					: theme.vars.palette.background.default,
 				backgroundImage: 'none',
 				...theme.applyStyles('dark', {
-					borderBottom: isTransparent
-						? 'none'
-						: `1px solid ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+					borderBottom: `1px solid ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
 					backgroundColor: isTransparent
 						? 'transparent'
 						: theme.vars.palette.background.default,
