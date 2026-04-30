@@ -103,14 +103,19 @@ Designed for template reuse and feedback velocity:
 
 ### Light/dark mode strategy (hybrid by visual weight)
 
-| Pages that get both modes in AIDesigner (12 canvases) | Pages that get light only — dark in code (5 canvases) |
+| Pages that get both modes in AIDesigner | Pages that get light only — dark in code |
 |---|---|
 | Pricing | Terms |
-| About | Privacy |
-| Contact | Cookies |
-| Security | Blog article |
-| 404 | Changelog |
-| Blog index | |
+| Blog index | Privacy |
+| | Cookies |
+| | Blog article |
+| | Changelog |
+| | About |
+| | Contact |
+| | Security |
+| | 404 |
+
+**Mid-execution pivot (2026-04-30):** After generating dark variants for Pricing and Blog index, the user determined the AIDesigner dark outputs add insufficient design value vs the credit cost — color-only flips don't surface meaningful design decisions that the existing `theme.applyStyles('dark', …)` infrastructure can't already handle in code. The remaining originally-dual-mode pages (About, Contact, Security, 404) are downgraded to light-only in AIDesigner; their dark variants get derived in code during adoption per the same hybrid strategy that already governs the legal/blog-article/changelog set.
 
 **Rationale:** the left column has heroes, cards, gradients, and intentional always-dark surfaces (the `#242424` pattern from the homepage) — dark mode there is a *design* decision worth visual review. The right column is mostly typography on background — dark mode there is a *token swap* the existing infrastructure handles well.
 
@@ -180,3 +185,5 @@ If standing up a public preview URL takes >30 minutes, fall back to:
 | Terms of Use | light | `4a0e2717-f7d6-4041-8ad4-b4ed18e6f16f` | 2026-04-30 |
 | Privacy Policy | light | `09f5881d-7fec-49db-9b4b-77eba2c61de4` | 2026-04-30 |
 | Cookie Policy | light | `d9e26780-40d7-4d60-88c4-f6abf50aaafb` | 2026-04-30 |
+| Blog index | light | `42ba72a3-52de-4c9d-adf9-7e0f74953f69` | 2026-04-30 |
+| Blog index | dark | `7dc01154-66db-49fd-85ab-fd839ec89a3c` | 2026-04-30 |
