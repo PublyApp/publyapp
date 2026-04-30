@@ -51,7 +51,7 @@ const useTenantProfilesTableController = (tenantId: string) => {
 		// Search changes invalidate the current cursor chain, so reset pagination before pushing
 		// the new query state into the URL.
 		resetCursorPagination?.();
-		setFilterStates({ q: debouncedSearchValue });
+		void setFilterStates({ q: debouncedSearchValue });
 	}, [
 		debouncedSearchValue,
 		filterStates.q,

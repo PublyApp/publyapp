@@ -1,11 +1,11 @@
 import { type ChipProps, chipClasses } from '@mui/material/Chip';
-import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
 import type {
 	Components,
 	ComponentsVariants,
 	CSSObject,
 	Theme,
 } from '@mui/material/styles';
+import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
 import _ from 'lodash';
 import { varAlpha } from 'minimal-shared/utils';
 
@@ -56,16 +56,13 @@ const styleColors = (
 	ownerState: ChipProps,
 	styles: (val: PaletteColor) => CSSObject,
 ) => {
-	const outputStyle = COLORS.reduce((acc, color) => {
+	for (const color of COLORS) {
 		if (!ownerState.disabled && ownerState.color === color) {
-			// biome-ignore lint/style/noParameterAssign: code from template leave as is for now
-			acc = styles(color);
+			return styles(color);
 		}
+	}
 
-		return acc;
-	}, {});
-
-	return outputStyle;
+	return {};
 };
 
 const softVariant: Record<string, ComponentsVariants<Theme>['MuiChip']> = {

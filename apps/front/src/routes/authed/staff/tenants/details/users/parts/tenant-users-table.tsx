@@ -359,7 +359,7 @@ const useTenantUsersTableController = () => {
 		}
 
 		resetCursorPagination?.();
-		setFilterStates({
+		void setFilterStates({
 			q: debouncedSearchValue,
 			status: statusFilter.join(','),
 		});
@@ -393,7 +393,7 @@ const useTenantUsersTableController = () => {
 		const nextStatusFilter = map(selectedOptions, (option) => option.value);
 		resetCursorPagination?.();
 		setStatusFilter(nextStatusFilter);
-		setFilterStates({
+		void setFilterStates({
 			q: searchValue,
 			status: nextStatusFilter.join(','),
 		});
@@ -706,28 +706,30 @@ const useTenantUsersTableController = () => {
 									placeholder={
 										statusFilter.length === 0 ? t('all-statuses') : undefined
 									}
-									InputProps={{
-										...params.InputProps,
-										startAdornment: (
-											<>
-												<Box
-													component="span"
-													sx={{
-														color: 'text.secondary',
-														typography: 'body2',
-														whiteSpace: 'nowrap',
-														mr: 1,
-														display: 'inline-flex',
-														alignItems: 'center',
-														alignSelf: 'center',
-														minHeight: 24,
-													}}
-												>
-													{t('status')}:
-												</Box>
-												{params.InputProps.startAdornment}
-											</>
-										),
+									slotProps={{
+										input: {
+											...params.InputProps,
+											startAdornment: (
+												<>
+													<Box
+														component="span"
+														sx={{
+															color: 'text.secondary',
+															typography: 'body2',
+															whiteSpace: 'nowrap',
+															mr: 1,
+															display: 'inline-flex',
+															alignItems: 'center',
+															alignSelf: 'center',
+															minHeight: 24,
+														}}
+													>
+														{t('status')}:
+													</Box>
+													{params.InputProps.startAdornment}
+												</>
+											),
+										},
 									}}
 								/>
 							)}
@@ -984,14 +986,14 @@ const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 			<Avatar
 				alt={fullName}
 				src={normalizedAvatarUrl || undefined}
-				sx={{
-					...(normalizedAvatarUrl
+				sx={
+					normalizedAvatarUrl
 						? {}
 						: {
 								bgcolor: 'background.neutral',
 								color: 'text.disabled',
-							}),
-				}}
+							}
+				}
 			>
 				{!normalizedAvatarUrl ? (
 					<Iconify icon="solar:user-rounded-bold" width={20} />
@@ -1108,7 +1110,7 @@ const StatusCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (
 				setConfirmDialogOpen(false);
 				setMenuAnchorEl(null);
 				if (tenantId) {
-					queryClient.invalidateQueries({
+					void queryClient.invalidateQueries({
 						queryKey: useFindTenantUsers.getKey({ tenantId }),
 					});
 				}
@@ -1123,7 +1125,7 @@ const StatusCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (
 				setConfirmDialogOpen(false);
 				setMenuAnchorEl(null);
 				if (tenantId) {
-					queryClient.invalidateQueries({
+					void queryClient.invalidateQueries({
 						queryKey: useFindTenantUsers.getKey({ tenantId }),
 					});
 				}
@@ -1331,7 +1333,7 @@ const LevelCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 			toast.success(t('user-level-updated-success'));
 			setMenuAnchorEl(null);
 			if (tenantId) {
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useFindTenantUsers.getKey({
 						tenantId,
 					}),
@@ -1680,7 +1682,7 @@ const RemoveUserAction = ({
 			toast.success(t('user-removed-success'));
 			confirmDialog.onFalse();
 			if (tenantId) {
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useFindTenantUsers.getKey({
 						tenantId,
 					}),

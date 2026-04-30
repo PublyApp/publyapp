@@ -165,7 +165,7 @@ const StaffUsersTable = () => {
 		}
 
 		resetCursorPagination?.();
-		setFilterStates({ q: debouncedSearch });
+		void setFilterStates({ q: debouncedSearch });
 	}, [debouncedSearch, filterStates.q, resetCursorPagination, setFilterStates]);
 
 	useEffect(() => {
@@ -251,14 +251,14 @@ const UserCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 			<Avatar
 				alt={fullName}
 				src={normalizedAvatarUrl || undefined}
-				sx={{
-					...(normalizedAvatarUrl
+				sx={
+					normalizedAvatarUrl
 						? {}
 						: {
 								bgcolor: 'background.neutral',
 								color: 'text.disabled',
-							}),
-				}}
+							}
+				}
 			>
 				{!normalizedAvatarUrl ? (
 					<Iconify icon="solar:user-rounded-bold" width={20} />
@@ -480,7 +480,7 @@ const CopyLinkButton = ({
 							link = result.data.link || link;
 						}
 					}
-					navigator.clipboard.writeText(link);
+					void navigator.clipboard.writeText(link);
 					toast.success(t('copy-to-clipboard-success'));
 					onClose?.();
 				}}

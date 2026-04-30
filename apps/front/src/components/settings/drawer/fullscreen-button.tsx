@@ -11,10 +11,10 @@ export const FullScreenButton = () => {
 
 	const handleToggleFullscreen = useCallback(() => {
 		if (!document.fullscreenElement) {
-			document.documentElement.requestFullscreen();
+			void document.documentElement.requestFullscreen();
 			setFullscreen(true);
 		} else if (document.exitFullscreen) {
-			document.exitFullscreen();
+			void document.exitFullscreen();
 			setFullscreen(false);
 		}
 	}, []);

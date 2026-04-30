@@ -2,8 +2,8 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
-import Switch from '@mui/material/Switch';
 import { styled } from '@mui/material/styles';
+import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 import { varAlpha } from 'minimal-shared/utils';
@@ -157,7 +157,9 @@ const BillingCycleToggle = ({
 				onChange={(_e, checked) => {
 					return onAnnualChange(checked);
 				}}
-				inputProps={{ 'aria-label': 'Toggle annual billing' }}
+				slotProps={{
+					input: { 'aria-label': 'Toggle annual billing' },
+				}}
 			/>
 			<Stack
 				direction="row"

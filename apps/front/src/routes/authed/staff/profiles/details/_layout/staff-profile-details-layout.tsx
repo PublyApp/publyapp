@@ -242,7 +242,7 @@ const UsersTabSkeleton = () => (
 		{/* Table rows */}
 		{Array.from({ length: 6 }).map((_, idx) => (
 			<Box
-				// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
+				// oxlint-disable-next-line react/no-array-index-key -- static skeleton rows
 				key={idx}
 				sx={{
 					display: 'grid',

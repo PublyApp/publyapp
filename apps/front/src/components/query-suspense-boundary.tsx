@@ -30,12 +30,15 @@ const getFallBackComponent = ({
 	errorLocation: ReturnType<typeof useLocation>;
 }): ComponentType<FallbackProps> => {
 	return ({ error, resetErrorBoundary }: FallbackProps) => {
-		// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
-		useEffect(() => {
-			if (location.pathname !== errorLocation.pathname) {
-				resetErrorBoundary();
-			}
-		}, [location.pathname]);
+		useEffect(
+			() => {
+				if (location.pathname !== errorLocation.pathname) {
+					resetErrorBoundary();
+				}
+			},
+			// oxlint-disable-next-line react/exhaustive-deps -- code from template leave as is for now
+			[location.pathname],
+		);
 
 		if (!FallbackComponent) {
 			return <div>Error: No fallback component provided</div>;

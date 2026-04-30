@@ -1,5 +1,5 @@
 import Autocomplete, {
-	type AutocompleteRenderGetTagProps,
+	type AutocompleteRenderValueGetItemProps,
 } from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -66,7 +66,7 @@ const StaffUserProfilesSection = ({ userId }: { userId: string }) => {
 	const { mutate: updateProfiles, isPending: isUpdating } =
 		useUpdateStaffUserProfiles({
 			onSuccess: () => {
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useGetStaffUserProfiles.getKey({ userId }),
 				});
 				toast.success(
@@ -110,13 +110,13 @@ const StaffUserProfilesSection = ({ userId }: { userId: string }) => {
 		);
 	}, [assignedProfiles, searchProfiles]);
 
-	const renderTags = useCallback(
+	const renderValue = useCallback(
 		(
 			value: StaffProfilePreviewOption[],
-			getTagProps: AutocompleteRenderGetTagProps,
+			getItemProps: AutocompleteRenderValueGetItemProps<true>,
 		) => {
 			return value.map((option, index) => {
-				const { key, ...tagProps } = getTagProps({ index });
+				const { key, ...itemProps } = getItemProps({ index });
 
 				return (
 					<Tooltip
@@ -129,7 +129,7 @@ const StaffUserProfilesSection = ({ userId }: { userId: string }) => {
 						placement="top"
 					>
 						<Chip
-							{...tagProps}
+							{...itemProps}
 							label={option.name}
 							onClickCapture={(event) => {
 								if (
@@ -194,7 +194,7 @@ const StaffUserProfilesSection = ({ userId }: { userId: string }) => {
 									multiple
 									options={options}
 									value={assignedProfiles}
-									renderTags={renderTags}
+									renderValue={renderValue}
 									loading={findProfilesQuery.isFetching}
 									disabled={isUpdating}
 									// Keep the search text stable when the input loses focus.
@@ -260,16 +260,18 @@ const StaffUserProfilesSection = ({ userId }: { userId: string }) => {
 														overflowX: 'hidden',
 													},
 												}}
-												InputProps={{
-													...params.InputProps,
-													endAdornment: (
-														<>
-															{findProfilesQuery.isFetching ? (
-																<CircularProgress size={18} />
-															) : null}
-															{params.InputProps.endAdornment}
-														</>
-													),
+												slotProps={{
+													input: {
+														...params.InputProps,
+														endAdornment: (
+															<>
+																{findProfilesQuery.isFetching ? (
+																	<CircularProgress size={18} />
+																) : null}
+																{params.InputProps.endAdornment}
+															</>
+														),
+													},
 												}}
 											/>
 										);

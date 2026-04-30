@@ -1,6 +1,6 @@
 import { type AlertProps, alertClasses } from '@mui/material/Alert';
-import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
 import type { Components, CSSObject, Theme } from '@mui/material/styles';
+import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
@@ -74,16 +74,13 @@ const styleColors = (
 	ownerState: AlertProps,
 	styles: (val: PaletteColor) => CSSObject,
 ) => {
-	const outputStyle = COLORS.reduce((acc, color) => {
+	for (const color of COLORS) {
 		if (ownerState.severity === color) {
-			// biome-ignore lint/style/noParameterAssign: code from template leave as is for now
-			acc = styles(color);
+			return styles(color);
 		}
+	}
 
-		return acc;
-	}, {});
-
-	return outputStyle;
+	return {};
 };
 
 // ----------------------------------------------------------------------

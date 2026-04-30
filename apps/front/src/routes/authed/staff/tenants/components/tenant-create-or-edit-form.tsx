@@ -156,7 +156,7 @@ export const TenantCreateOrEditForm = ({
 			toast.success(
 				_.capitalize(t('item-creation-success-message', { item: t('tenant') })),
 			);
-			router.push(FRONT_PATH_NAMES.staff.tenants.root);
+			void router.push(FRONT_PATH_NAMES.staff.tenants.root);
 		},
 		onError: (error) => {
 			const failure = toApiFailure(error);
@@ -184,7 +184,7 @@ export const TenantCreateOrEditForm = ({
 
 			return handler(e);
 		},
-		[handleSubmit, openDialog.onTrue],
+		[handleSubmit, openDialog],
 	);
 
 	useEffect(() => {

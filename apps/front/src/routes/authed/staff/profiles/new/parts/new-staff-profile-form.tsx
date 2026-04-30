@@ -16,8 +16,8 @@ import ListSubheader from '@mui/material/ListSubheader';
 import Paper from '@mui/material/Paper';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
-import Switch from '@mui/material/Switch';
 import { useTheme } from '@mui/material/styles';
+import Switch from '@mui/material/Switch';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
@@ -216,11 +216,11 @@ const NewStaffProfileForm = () => {
 	const { mutate: createProfile, isPending } = useCreateStaffProfile({
 		onSuccess: () => {
 			toast.success(t('profile-created-successfully'));
-			queryClient.invalidateQueries({
+			void queryClient.invalidateQueries({
 				queryKey: useFindStaffProfiles.getKey(),
 			});
 			form.reset();
-			router.push(FRONT_PATH_NAMES.staff.profiles.root);
+			void router.push(FRONT_PATH_NAMES.staff.profiles.root);
 		},
 		// Error toasts handled by global handler automatically
 	});
