@@ -13,6 +13,7 @@ import {
 	varTap,
 } from '#app/components/animate/index.ts';
 import { CustomPopover } from '#app/components/custom-popover/index.ts';
+import type { CustomPopoverProps } from '#app/components/custom-popover/types.ts';
 import { FlagIcon } from '#app/components/flag-icon/index.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
@@ -24,12 +25,14 @@ export type LanguagePopoverProps = IconButtonProps & {
 		label: string;
 		countryCode: string;
 	}[];
+	popoverSlotProps?: CustomPopoverProps['slotProps'];
 };
 
 const EMPTY_LANGUAGE_OPTIONS: NonNullable<LanguagePopoverProps['data']> = [];
 
 export const LanguagePopover = ({
 	data = EMPTY_LANGUAGE_OPTIONS,
+	popoverSlotProps,
 	sx,
 	...other
 }: LanguagePopoverProps) => {
@@ -44,29 +47,6 @@ export const LanguagePopover = ({
 		},
 		[onChangeLang, onClose],
 	);
-
-	const renderMenuList = () => {
-		return (
-			<CustomPopover open={open} anchorEl={anchorEl} onClose={onClose}>
-				<MenuList sx={{ width: 160 }}>
-					{data?.map((option) => {
-						return (
-							<MenuItem
-								key={option.value}
-								selected={option.value === currentLang.value}
-								onClick={() => {
-									return handleChangeLang(option.value as AppLocale);
-								}}
-							>
-								<FlagIcon code={option.countryCode} />
-								{option.label}
-							</MenuItem>
-						);
-					})}
-				</MenuList>
-			</CustomPopover>
-		);
-	};
 
 	return (
 		<>
@@ -93,7 +73,29 @@ export const LanguagePopover = ({
 				<FlagIcon code={currentLang.countryCode} />
 			</IconButton>
 
-			{renderMenuList()}
+			<CustomPopover
+				open={open}
+				anchorEl={anchorEl}
+				onClose={onClose}
+				slotProps={popoverSlotProps}
+			>
+				<MenuList sx={{ width: 160 }}>
+					{data?.map((option) => {
+						return (
+							<MenuItem
+								key={option.value}
+								selected={option.value === currentLang.value}
+								onClick={() => {
+									return handleChangeLang(option.value as AppLocale);
+								}}
+							>
+								<FlagIcon code={option.countryCode} />
+								{option.label}
+							</MenuItem>
+						);
+					})}
+				</MenuList>
+			</CustomPopover>
 		</>
 	);
 };

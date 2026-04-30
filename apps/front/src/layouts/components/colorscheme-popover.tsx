@@ -3,7 +3,8 @@ import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import { m } from 'framer-motion';
-import _ from 'lodash';
+import get from 'lodash/get';
+import map from 'lodash/map';
 import { usePopover } from 'minimal-shared/hooks';
 
 import {
@@ -12,6 +13,7 @@ import {
 	varTap,
 } from '#app/components/animate/index.ts';
 import { CustomPopover } from '#app/components/custom-popover/index.ts';
+import type { CustomPopoverProps } from '#app/components/custom-popover/types.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useSettingsContext } from '#app/hooks/use-settings-context.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
@@ -29,9 +31,12 @@ const colorSchemeConfigs = {
 	},
 };
 
-export type ColorSchemePopoverProps = IconButtonProps;
+export type ColorSchemePopoverProps = IconButtonProps & {
+	popoverSlotProps?: CustomPopoverProps['slotProps'];
+};
 
 export const ColorSchemePopover = ({
+	popoverSlotProps,
 	sx,
 	...other
 }: ColorSchemePopoverProps) => {
@@ -46,36 +51,6 @@ export const ColorSchemePopover = ({
 		settings.setState({
 			colorScheme,
 		});
-	};
-
-	const renderMenuList = () => {
-		return (
-			<CustomPopover open={open} anchorEl={anchorEl} onClose={onClose}>
-				<MenuList sx={{ width: 160 }}>
-					{_.map(allColorSchemes, (option) => {
-						return (
-							<MenuItem
-								key={option}
-								selected={option === resolvedMode}
-								onClick={() => {
-									handleChangeColorScheme(option);
-									onClose();
-								}}
-							>
-								{_.get(
-									colorSchemeConfigs,
-									`${option}.icon`,
-									<Iconify icon="solar:moon-bold-duotone" />,
-								)}
-								{t(
-									_.get(colorSchemeConfigs, `${option}.t_key`, option) as never,
-								)}
-							</MenuItem>
-						);
-					})}
-				</MenuList>
-			</CustomPopover>
-		);
 	};
 
 	return (
@@ -100,14 +75,41 @@ export const ColorSchemePopover = ({
 				]}
 				{...other}
 			>
-				{_.get(
+				{get(
 					colorSchemeConfigs,
 					`${resolvedMode}.icon`,
 					<Iconify icon="solar:moon-bold-duotone" />,
 				)}
 			</IconButton>
 
-			{renderMenuList()}
+			<CustomPopover
+				open={open}
+				anchorEl={anchorEl}
+				onClose={onClose}
+				slotProps={popoverSlotProps}
+			>
+				<MenuList sx={{ width: 160 }}>
+					{map(allColorSchemes, (option) => {
+						return (
+							<MenuItem
+								key={option}
+								selected={option === resolvedMode}
+								onClick={() => {
+									handleChangeColorScheme(option);
+									onClose();
+								}}
+							>
+								{get(
+									colorSchemeConfigs,
+									`${option}.icon`,
+									<Iconify icon="solar:moon-bold-duotone" />,
+								)}
+								{t(get(colorSchemeConfigs, `${option}.t_key`, option) as never)}
+							</MenuItem>
+						);
+					})}
+				</MenuList>
+			</CustomPopover>
 		</>
 	);
 };
