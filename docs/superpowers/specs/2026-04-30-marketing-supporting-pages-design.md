@@ -187,3 +187,4 @@ If standing up a public preview URL takes >30 minutes, fall back to:
 | Cookie Policy | light | `d9e26780-40d7-4d60-88c4-f6abf50aaafb` | 2026-04-30 |
 | Blog index | light | `42ba72a3-52de-4c9d-adf9-7e0f74953f69` | 2026-04-30 |
 | Blog index | dark | `7dc01154-66db-49fd-85ab-fd839ec89a3c` | 2026-04-30 |
+| Blog article | light | `a9b20a6e-02a5-4124-bd13-79e539201e3f` | 2026-04-30 |
