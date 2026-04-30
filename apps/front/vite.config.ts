@@ -13,11 +13,6 @@ import copyI18nFiles from './_vite/copy-i18n-files';
 import generateClient from './_vite/generate-client';
 
 const frontSrcDir = fileURLToPath(new URL('./src', import.meta.url));
-// Keep React Router DevTools, but skip its source injector: it can add
-// data-rrdt-source to fragments and trigger React 19 dev warnings.
-const reactRouterDevToolsPlugins = reactRouterDevTools().filter((plugin) => {
-	return plugin.name !== 'react-router-devtools:inject-source';
-});
 
 export default defineConfig(({ mode, isSsrBuild }) => {
 	const envFileName = `.env.${mode}`;
@@ -37,7 +32,7 @@ export default defineConfig(({ mode, isSsrBuild }) => {
 				typescript: true,
 				biome: true,
 			}),
-			...reactRouterDevToolsPlugins,
+			reactRouterDevTools(),
 			reactRouter(),
 		],
 		resolve: {
