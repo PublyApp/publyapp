@@ -103,19 +103,20 @@ Designed for template reuse and feedback velocity:
 
 ### Light/dark mode strategy (hybrid by visual weight)
 
-| Pages that get both modes in AIDesigner (10 canvases) | Pages that get light only — dark in code (5 canvases) |
+| Pages that get both modes in AIDesigner (12 canvases) | Pages that get light only — dark in code (5 canvases) |
 |---|---|
 | Pricing | Terms |
 | About | Privacy |
-| Security | Cookies |
-| 404 | Blog article |
-| Blog index | Changelog |
+| Contact | Cookies |
+| Security | Blog article |
+| 404 | Changelog |
+| Blog index | |
 
 **Rationale:** the left column has heroes, cards, gradients, and intentional always-dark surfaces (the `#242424` pattern from the homepage) — dark mode there is a *design* decision worth visual review. The right column is mostly typography on background — dark mode there is a *token swap* the existing infrastructure handles well.
 
 The homepage itself sits outside this table — it already ships in production with both modes in code, and only needs a single light-mode anchor canvas in AIDesigner (step 4 of the workflow above).
 
-**Total AIDesigner canvases:** **16** = 1 homepage anchor (light) + 5 dual-mode pages × 2 modes (10) + 5 light-only pages (5).
+**Total AIDesigner canvases:** **18** = 1 homepage anchor (light) + 6 dual-mode pages × 2 modes (12) + 5 light-only pages (5).
 
 ### Fallback if Approach A is blocked
 
