@@ -1,329 +1,664 @@
-import Box, { type BoxProps } from '@mui/material/Box';
+import Avatar from '@mui/material/Avatar';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
-import type { Breakpoint } from '@mui/material/styles';
+import type { SxProps, Theme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
-import useMediaQuery from '@mui/material/useMediaQuery';
-import {
-	type MotionProps,
-	type MotionValue,
-	m,
-	type SpringOptions,
-	useMotionValueEvent,
-	useScroll,
-	useSpring,
-	useTransform,
-} from 'framer-motion';
-import { useRef, useState } from 'react';
+import { m } from 'framer-motion';
+import { varAlpha } from 'minimal-shared/utils';
+import type { ReactNode } from 'react';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
-import { MotionContainer, varFade } from '#app/components/animate/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
-import { useTranslate } from '#app/hooks/use-translate.ts';
-
-import { HeroBackground } from '../components/hero-background';
 
 // ----------------------------------------------------------------------
 
-const smKey: Breakpoint = 'sm';
-const mdKey: Breakpoint = 'md';
-const lgKey: Breakpoint = 'lg';
-
-const motionProps: MotionProps = {
-	variants: varFade('inUp', { distance: 24 }),
+const textGradientSx: SxProps<Theme> = (theme) => {
+	return {
+		background: `linear-gradient(180deg, ${theme.vars.palette.primary.main} 0%, ${theme.vars.palette.primary.dark} 100%)`,
+		WebkitBackgroundClip: 'text',
+		WebkitTextFillColor: 'transparent',
+		backgroundClip: 'text',
+		color: 'transparent',
+	};
 };
 
-const HomeHeroHeading = () => {
+const curvedBgUrl =
+	"url(\"data:image/svg+xml,%3Csvg width='1440' height='400' viewBox='0 0 1440 400' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-30 200C250 350 450 -50 780 150C1110 350 1250 50 1500 250' stroke='%23E2E2E2' stroke-width='2' stroke-linecap='round' stroke-dasharray='8 8'/%3E%3C/svg%3E\")";
+
+const queueItems = [
+	{
+		icon: 'ph:x-logo-fill',
+		color: 'text.primary',
+		bgcolor: 'action.hover',
+		lineWidth: '75%',
+		sublineWidth: '50%',
+		time: 'Tue 9AM',
+	},
+	{
+		icon: 'ph:instagram-logo-fill',
+		color: '#E1306C',
+		bgcolor: 'rgba(225, 48, 108, 0.10)',
+		lineWidth: '100%',
+		sublineWidth: '67%',
+		time: 'Wed 2PM',
+	},
+];
+
+const MotionButtonWrap = ({ children }: { children: ReactNode }) => {
 	return (
-		<m.div {...motionProps}>
+		<Box
+			component={m.div}
+			initial="rest"
+			animate="rest"
+			whileHover="hover"
+			whileTap={{ scale: 0.97 }}
+			variants={{
+				rest: { y: 0, scale: 1 },
+				hover: { y: -6, scale: 1.04 },
+			}}
+			transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+			sx={{ display: 'inline-flex' }}
+		>
+			{children}
+		</Box>
+	);
+};
+
+const HeroGlows = () => {
+	return (
+		<>
 			<Box
-				component="h1"
-				sx={[
-					(theme) => {
-						return {
-							my: 0,
-							mx: 'auto',
-							maxWidth: 800,
-							display: 'flex',
-							flexWrap: 'wrap',
-							typography: 'h2',
-							justifyContent: 'center',
-							fontFamily: theme.typography.fontSecondaryFamily,
-							[theme.breakpoints.up(lgKey)]: {
-								fontSize: theme.typography.pxToRem(72 + 10),
-								lineHeight: '100px',
-							},
-						};
-					},
-				]}
+				sx={(theme) => {
+					return {
+						position: 'absolute',
+						top: '25%',
+						left: '25%',
+						width: 384,
+						height: 384,
+						bgcolor: varAlpha(theme.vars.palette.primary.mainChannel, 0.18),
+						borderRadius: '50%',
+						filter: 'blur(120px)',
+						zIndex: -1,
+						pointerEvents: 'none',
+					};
+				}}
+			/>
+			<Box
+				sx={(theme) => {
+					return {
+						position: 'absolute',
+						bottom: '25%',
+						right: '25%',
+						width: 384,
+						height: 384,
+						bgcolor: varAlpha(theme.vars.palette.secondary.mainChannel, 0.12),
+						borderRadius: '50%',
+						filter: 'blur(120px)',
+						zIndex: -1,
+						pointerEvents: 'none',
+					};
+				}}
+			/>
+		</>
+	);
+};
+
+const HeroBadge = () => {
+	return (
+		<Stack
+			direction="row"
+			alignItems="center"
+			spacing={1}
+			sx={{
+				display: 'inline-flex',
+				px: 2,
+				py: 1,
+				bgcolor: 'background.paper',
+				borderRadius: 999,
+				boxShadow: '0 12px 24px -8px rgba(17,24,39,0.05)',
+				border: '1px solid',
+				borderColor: 'divider',
+				mb: 4,
+			}}
+		>
+			<Box
+				sx={{
+					width: 20,
+					height: 20,
+					display: 'inline-flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					borderRadius: '50%',
+					bgcolor: 'primary.lighter',
+					color: 'primary.main',
+				}}
 			>
-				<Box component="span" sx={{ width: 1, whiteSpace: 'nowrap' }}>
-					Schedule Smarter,
+				<Iconify width={12} icon={'ph:rocket-launch-fill' as never} />
+			</Box>
+			<Typography sx={{ fontSize: 14, fontWeight: 600 }}>
+				Built for Social Teams
+			</Typography>
+		</Stack>
+	);
+};
+
+const HeroHeadline = () => {
+	return (
+		<Typography
+			component="h1"
+			sx={{
+				fontWeight: 800,
+				letterSpacing: '-0.02em',
+				color: 'text.primary',
+				lineHeight: 1.1,
+				fontSize: { xs: 48, md: 78 },
+				maxWidth: 880,
+				mx: 'auto',
+				mb: 3,
+			}}
+		>
+			Turn Your Followers
+			<br />
+			Into{' '}
+			<Box component="span" sx={{ position: 'relative', whiteSpace: 'nowrap' }}>
+				<Box component="span" sx={textGradientSx}>
+					Brand Advocates
 				</Box>
 				<Box
-					component="span"
-					sx={{
-						display: 'flex',
-						alignItems: 'center',
-						gap: 3,
-						whiteSpace: 'nowrap',
-						flexWrap: 'nowrap',
+					component="svg"
+					viewBox="0 0 200 9"
+					fill="none"
+					sx={(theme) => {
+						return {
+							position: 'absolute',
+							left: 0,
+							bottom: { xs: -8, md: -16 },
+							width: '100%',
+							height: { xs: 12, md: 20 },
+							color: varAlpha(theme.vars.palette.primary.mainChannel, 0.2),
+							zIndex: -1,
+						};
 					}}
 				>
-					<Box sx={{ opacity: 0.24 }}>Not</Box>
-					<Box
-						component={m.span}
-						animate={{ backgroundPosition: '200% center' }}
-						transition={{
-							duration: 20,
-							ease: 'linear',
-							repeat: Number.POSITIVE_INFINITY,
-							repeatType: 'reverse',
-						}}
-						sx={[
-							(theme) => {
-								return {
-									...theme.mixins.textGradient(
-										`300deg, ${theme.vars.palette.primary.main} 0%, ${theme.vars.palette.warning.main} 25%, ${theme.vars.palette.primary.main} 50%, ${theme.vars.palette.warning.main} 75%, ${theme.vars.palette.primary.main} 100%`,
-									),
-									backgroundSize: '400%',
-								};
-							},
-							{
-								whiteSpace: 'nowrap',
-							},
-						]}
-					>
-						Harder.
-					</Box>
+					<path
+						d="M2.0002 6.55135C58.3888 1.55134 140.231 -1.44866 198.001 6.55135"
+						stroke="currentColor"
+						strokeWidth="3"
+						strokeLinecap="round"
+					/>
 				</Box>
 			</Box>
-		</m.div>
+		</Typography>
 	);
 };
 
-const HomeHeroText = () => {
+const PrimaryHeroButton = () => {
 	return (
-		<m.div {...motionProps}>
-			<Typography
-				variant="body2"
-				sx={[
-					(theme) => {
-						return {
-							mx: 'auto',
-							[theme.breakpoints.up(smKey)]: { whiteSpace: 'pre' },
-							[theme.breakpoints.up(lgKey)]: {
-								fontSize: 20,
-								lineHeight: '36px',
-							},
-						};
-					},
-				]}
+		<MotionButtonWrap>
+			<Button
+				component={RouterLink}
+				href={FRONT_PATH_NAMES.auth.signup}
+				size="large"
+				variant="contained"
+				sx={(theme) => {
+					return {
+						bgcolor: 'grey.900',
+						color: 'common.white',
+						px: 6,
+						py: 2.75,
+						borderRadius: 2,
+						fontWeight: 600,
+						fontSize: 20,
+						boxShadow: '0 12px 24px -8px rgba(17,24,39,0.20)',
+						'&:hover': { bgcolor: 'grey.900' },
+						...theme.applyStyles('dark', {
+							bgcolor: 'common.white',
+							color: 'grey.900',
+							'&:hover': { bgcolor: 'common.white' },
+						}),
+					};
+				}}
 			>
-				Plan, schedule, and publish your social media content across all
-				platforms — effortlessly.
-			</Typography>
-		</m.div>
+				Start Your Free Trial
+			</Button>
+		</MotionButtonWrap>
 	);
 };
 
-type HomeHeroButtonsProps = {
-	signInLabel: string;
-	signUpLabel: string;
+const DemoButton = () => {
+	return (
+		<Button
+			component={m.button}
+			size="large"
+			variant="outlined"
+			initial="rest"
+			animate="rest"
+			whileHover="hover"
+			whileTap={{ scale: 0.97 }}
+			variants={{
+				rest: { y: 0, scale: 1 },
+				hover: { y: -6, scale: 1.04 },
+			}}
+			transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+			startIcon={
+				<Box
+					component={m.span}
+					variants={{
+						rest: { scale: 1, rotate: 0 },
+						hover: { scale: 1.2, rotate: 8 },
+					}}
+					transition={{ type: 'spring', stiffness: 500, damping: 14 }}
+					sx={{ display: 'inline-flex' }}
+				>
+					<Iconify
+						width={24}
+						icon={'ph:play-circle-fill' as never}
+						sx={{ color: 'primary.main' }}
+					/>
+				</Box>
+			}
+			sx={{
+				bgcolor: 'background.paper',
+				backdropFilter: 'blur(12px)',
+				borderColor: 'divider',
+				color: 'text.primary',
+				px: 6,
+				py: 2.75,
+				borderRadius: 2,
+				fontWeight: 600,
+				fontSize: 20,
+				'&:hover': {
+					bgcolor: 'background.paper',
+					color: 'text.primary',
+					borderColor: 'divider',
+					boxShadow: '0 16px 32px -10px rgba(17,24,39,0.18)',
+				},
+			}}
+		>
+			Watch Demo
+		</Button>
+	);
 };
 
-const HomeHeroButtons = ({
-	signInLabel,
-	signUpLabel,
-}: HomeHeroButtonsProps) => {
+const HeroActions = () => {
+	return (
+		<Stack
+			direction={{ xs: 'column', sm: 'row' }}
+			spacing={2}
+			sx={{ alignItems: 'center', justifyContent: 'center' }}
+		>
+			<PrimaryHeroButton />
+			<DemoButton />
+		</Stack>
+	);
+};
+
+const FloatingCreatorCard = () => {
+	return (
+		<Box
+			component={m.div}
+			animate={{ y: [0, -12, 0] }}
+			transition={{
+				duration: 6,
+				ease: 'easeInOut',
+				repeat: Number.POSITIVE_INFINITY,
+			}}
+			sx={{
+				position: 'absolute',
+				top: '25%',
+				left: '10%',
+				bgcolor: 'background.paper',
+				p: 1.5,
+				borderRadius: '20px',
+				boxShadow: '0 20px 40px -4px rgba(17,24,39,0.08)',
+				border: '1px solid',
+				borderColor: 'divider',
+				display: 'flex',
+				alignItems: 'center',
+				gap: 1.5,
+			}}
+		>
+			<Avatar
+				sx={{ width: 40, height: 40, bgcolor: 'grey.200' }}
+				src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80"
+				alt="Sarah"
+			/>
+			<Box>
+				<Typography sx={{ fontSize: 12, fontWeight: 700 }}>
+					@sarahcreates
+				</Typography>
+				<Typography sx={{ fontSize: 10, color: 'text.secondary' }}>
+					Drafting Content...
+				</Typography>
+			</Box>
+		</Box>
+	);
+};
+
+const QueueItem = ({
+	icon,
+	color,
+	bgcolor,
+	lineWidth,
+	sublineWidth,
+	time,
+}: {
+	icon: string;
+	color: string;
+	bgcolor: string;
+	lineWidth: string;
+	sublineWidth: string;
+	time: string;
+}) => {
+	return (
+		<Stack
+			direction="row"
+			alignItems="center"
+			spacing={1}
+			sx={{
+				bgcolor: 'background.paper',
+				p: 1,
+				borderRadius: 1.5,
+				border: '1px solid',
+				borderColor: 'divider',
+			}}
+		>
+			<Box
+				sx={{
+					width: 24,
+					height: 24,
+					borderRadius: 0.5,
+					bgcolor,
+					color,
+					display: 'inline-flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+				}}
+			>
+				<Iconify icon={icon as never} width={14} />
+			</Box>
+			<Box sx={{ flex: 1 }}>
+				<Box
+					sx={{
+						height: 8,
+						width: lineWidth,
+						bgcolor: 'action.disabledBackground',
+						borderRadius: 999,
+						mb: 0.5,
+					}}
+				/>
+				<Box
+					sx={{
+						height: 6,
+						width: sublineWidth,
+						bgcolor: 'action.hover',
+						borderRadius: 999,
+					}}
+				/>
+			</Box>
+			<Typography
+				sx={{
+					fontSize: 9,
+					fontWeight: 700,
+					color: 'primary.main',
+					bgcolor: 'primary.lighter',
+					px: 1,
+					py: 0.25,
+					borderRadius: 999,
+				}}
+			>
+				{time}
+			</Typography>
+		</Stack>
+	);
+};
+
+const QueueCard = () => {
+	return (
+		<Box
+			sx={(theme) => {
+				return {
+					position: 'absolute',
+					top: '50%',
+					left: '50%',
+					transform: 'translate(-50%, -50%)',
+					bgcolor: varAlpha(theme.vars.palette.background.paperChannel, 0.7),
+					backdropFilter: 'blur(24px)',
+					p: 2.5,
+					borderRadius: '24px',
+					boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+					border: '1px solid',
+					borderColor: 'divider',
+					width: 320,
+					zIndex: 2,
+				};
+			}}
+		>
+			<Stack
+				direction="row"
+				alignItems="center"
+				justifyContent="space-between"
+				sx={{ mb: 2 }}
+			>
+				<Typography sx={{ fontSize: 14, fontWeight: 700 }}>
+					Next Week's Queue
+				</Typography>
+				<Iconify
+					icon={'ph:calendar-check-fill' as never}
+					sx={{ color: 'primary.main' }}
+				/>
+			</Stack>
+			<Stack spacing={1}>
+				{queueItems.map((item) => {
+					return <QueueItem key={item.time} {...item} />;
+				})}
+			</Stack>
+		</Box>
+	);
+};
+
+const EngagementCard = () => {
+	return (
+		<Box
+			component={m.div}
+			animate={{ y: [0, -10, 0] }}
+			transition={{
+				duration: 7,
+				ease: 'easeInOut',
+				repeat: Number.POSITIVE_INFINITY,
+				delay: 2,
+			}}
+			sx={{
+				position: 'absolute',
+				top: '15%',
+				right: '20%',
+				bgcolor: 'background.paper',
+				p: 1.5,
+				borderRadius: '20px',
+				boxShadow: '0 20px 40px -4px rgba(17,24,39,0.08)',
+				border: '1px solid',
+				borderColor: 'divider',
+				display: 'flex',
+				alignItems: 'center',
+				gap: 1.5,
+			}}
+		>
+			<Box sx={{ position: 'relative' }}>
+				<Box
+					sx={{
+						width: 48,
+						height: 48,
+						borderRadius: '50%',
+						background: 'linear-gradient(45deg, #FF0080 0%, #7928CA 100%)',
+						p: '2px',
+					}}
+				>
+					<Avatar
+						sx={{
+							width: '100%',
+							height: '100%',
+							border: '2px solid',
+							borderColor: 'background.paper',
+						}}
+						src="https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=100&q=80"
+						alt="Post"
+					/>
+				</Box>
+				<Box
+					sx={{
+						position: 'absolute',
+						bottom: -4,
+						right: -4,
+						width: 20,
+						height: 20,
+						bgcolor: 'success.main',
+						borderRadius: '50%',
+						border: '2px solid',
+						borderColor: 'background.paper',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+					}}
+				>
+					<Iconify
+						icon={'ph:check-bold' as never}
+						width={10}
+						sx={{ color: 'common.white' }}
+					/>
+				</Box>
+			</Box>
+			<Box>
+				<Typography sx={{ fontSize: 12, fontWeight: 700 }}>
+					+2,400 Likes
+				</Typography>
+				<Typography
+					sx={{ fontSize: 10, color: 'success.dark', fontWeight: 600 }}
+				>
+					Going Viral
+				</Typography>
+			</Box>
+		</Box>
+	);
+};
+
+const FollowersCard = () => {
+	return (
+		<Box
+			component={m.div}
+			animate={{ y: [0, -12, 0] }}
+			transition={{
+				duration: 6,
+				ease: 'easeInOut',
+				repeat: Number.POSITIVE_INFINITY,
+				delay: 1,
+			}}
+			sx={{
+				position: 'absolute',
+				bottom: '20%',
+				right: '15%',
+				bgcolor: 'background.paper',
+				px: 2,
+				py: 1.5,
+				borderRadius: '20px',
+				boxShadow: '0 20px 40px -4px rgba(17,24,39,0.08)',
+				border: '1px solid',
+				borderColor: 'divider',
+			}}
+		>
+			<Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+				<Iconify
+					icon={'ph:trend-up-fill' as never}
+					sx={{ color: 'secondary.main' }}
+					width={14}
+				/>
+				<Typography
+					sx={{
+						fontSize: 10,
+						color: 'text.secondary',
+						fontWeight: 700,
+						textTransform: 'uppercase',
+						letterSpacing: '0.1em',
+					}}
+				>
+					Followers
+				</Typography>
+			</Stack>
+			<Typography sx={{ fontSize: 20, fontWeight: 800 }}>12.5K</Typography>
+		</Box>
+	);
+};
+
+const WorkflowGraphic = () => {
 	return (
 		<Box
 			sx={{
-				display: 'flex',
-				flexWrap: 'wrap',
-				justifyContent: 'center',
-				gap: { xs: 1.5, sm: 2 },
+				position: 'relative',
+				width: '100%',
+				maxWidth: 1152,
+				mx: 'auto',
+				mt: 10,
+				height: 400,
+				display: { xs: 'none', md: 'block' },
+				backgroundImage: curvedBgUrl,
+				backgroundRepeat: 'no-repeat',
+				backgroundPosition: 'center',
 			}}
 		>
-			<m.div {...motionProps}>
-				<Stack spacing={2.5} sx={{ alignItems: 'center' }}>
-					<Button
-						component={RouterLink}
-						href={FRONT_PATH_NAMES.auth.signup}
-						color="inherit"
-						size="large"
-						variant="contained"
-						startIcon={
-							<Iconify width={24} icon={'solar:user-plus-outline' as never} />
-						}
-					>
-						<span>{signUpLabel}</span>
-					</Button>
-				</Stack>
-			</m.div>
-
-			<m.div {...motionProps}>
-				<Button
-					color="inherit"
-					size="large"
-					variant="outlined"
-					target="_blank"
-					rel="noopener"
-					href={FRONT_PATH_NAMES.auth.login}
-					startIcon={<Iconify width={38} icon="solar:user-id-bold" />}
-					sx={{ borderColor: 'text.primary' }}
-				>
-					{signInLabel}
-				</Button>
-			</m.div>
+			<FloatingCreatorCard />
+			<QueueCard />
+			<EngagementCard />
+			<FollowersCard />
 		</Box>
 	);
 };
 
-export const HomeHero = ({ sx, ...other }: BoxProps) => {
-	const { t } = useTranslate();
-	const scrollProgress = useScrollPercent();
-
-	const mdUp = useMediaQuery((theme) => {
-		return theme.breakpoints.up(mdKey);
-	});
-
-	const distance = mdUp ? scrollProgress.percent : 0;
-
-	const y1 = useTransformY(scrollProgress.scrollY, distance * -7);
-	const y2 = useTransformY(scrollProgress.scrollY, distance * -6);
-	const y4 = useTransformY(scrollProgress.scrollY, distance * -4);
-
-	const opacity: MotionValue<number> = useTransform(
-		scrollProgress.scrollY,
-		[0, 1],
-		[1, mdUp ? Number((1 - scrollProgress.percent / 100).toFixed(1)) : 1],
-	);
-
+export const HomeHero = () => {
 	return (
 		<Box
-			ref={scrollProgress.elementRef}
 			component="section"
-			sx={[
-				(theme) => {
-					return {
-						overflow: 'hidden',
-						position: 'relative',
-						[theme.breakpoints.up(mdKey)]: {
-							minHeight: 760,
-							height: '100vh',
-							maxHeight: 1440,
-							display: 'block',
-							willChange: 'opacity',
-							mt: 'calc(var(--layout-header-desktop-height) * -1)',
-						},
-					};
-				},
-				...(Array.isArray(sx) ? sx : [sx]),
-			]}
-			{...other}
+			sx={(theme) => {
+				return {
+					position: 'relative',
+					overflow: 'hidden',
+					pt: { xs: 14, md: 18 },
+					pb: { xs: 12, md: 16 },
+					minHeight: { md: '90vh' },
+					display: 'flex',
+					flexDirection: 'column',
+					justifyContent: 'center',
+					bgcolor: 'background.default',
+					backgroundImage: `radial-gradient(at 10% 20%, ${varAlpha(theme.vars.palette.primary.mainChannel, 0.12)} 0px, transparent 50%), radial-gradient(at 90% 80%, ${varAlpha(theme.vars.palette.secondary.mainChannel, 0.08)} 0px, transparent 50%)`,
+				};
+			}}
 		>
-			<Box
-				component={m.div}
-				style={{ opacity }}
-				sx={[
-					(theme) => {
-						return {
-							width: 1,
-							display: 'flex',
-							position: 'relative',
-							flexDirection: 'column',
-							transition: theme.transitions.create(['opacity']),
-							[theme.breakpoints.up(mdKey)]: {
-								height: 1,
-								position: 'fixed',
-								maxHeight: 'inherit',
-							},
-						};
-					},
-				]}
+			<HeroGlows />
+			<Container
+				maxWidth="lg"
+				sx={{ position: 'relative', textAlign: 'center', zIndex: 1 }}
 			>
-				<Container
-					component={MotionContainer}
-					sx={[
-						(theme) => {
-							return {
-								py: 3,
-								gap: 5,
-								zIndex: 9,
-								display: 'flex',
-								alignItems: 'center',
-								flexDirection: 'column',
-								[theme.breakpoints.up(mdKey)]: {
-									flex: '1 1 auto',
-									justifyContent: 'center',
-									py: 'var(--layout-header-desktop-height)',
-								},
-							};
-						},
-					]}
+				<HeroBadge />
+				<HeroHeadline />
+				<Typography
+					sx={{
+						fontSize: { xs: 18, md: 20 },
+						color: 'text.secondary',
+						maxWidth: 640,
+						mx: 'auto',
+						mb: 5,
+						lineHeight: 1.6,
+						fontWeight: 500,
+					}}
 				>
-					<Stack spacing={3} sx={{ textAlign: 'center' }}>
-						<m.div style={{ y: y1 }}>
-							<HomeHeroHeading />
-						</m.div>
-						<m.div style={{ y: y2 }}>
-							<HomeHeroText />
-						</m.div>
-					</Stack>
-
-					<m.div style={{ y: y4 }}>
-						<HomeHeroButtons
-							signInLabel={t('sign-in')}
-							signUpLabel={t('sign-up')}
-						/>
-					</m.div>
-				</Container>
-
-				<HeroBackground />
-			</Box>
+					From ideation to execution: master your social calendar, auto-publish
+					across platforms, and grow your audience on autopilot.
+				</Typography>
+				<HeroActions />
+			</Container>
+			<WorkflowGraphic />
 		</Box>
 	);
-};
-
-// ----------------------------------------------------------------------
-
-const useTransformY = (value: MotionValue<number>, distance: number) => {
-	const physics: SpringOptions = {
-		mass: 0.1,
-		damping: 20,
-		stiffness: 300,
-		restDelta: 0.001,
-	};
-
-	return useSpring(useTransform(value, [0, 1], [0, distance]), physics);
-};
-
-const useScrollPercent = () => {
-	const elementRef = useRef<HTMLDivElement>(null);
-
-	const { scrollY } = useScroll();
-
-	const [percent, setPercent] = useState(0);
-
-	useMotionValueEvent(scrollY, 'change', (scrollHeight) => {
-		let heroHeight = 0;
-
-		if (elementRef.current) {
-			heroHeight = elementRef.current.offsetHeight;
-		}
-
-		const scrollPercent = Math.floor((scrollHeight / heroHeight) * 100);
-
-		if (scrollPercent >= 100) {
-			setPercent(100);
-		} else {
-			setPercent(Math.floor(scrollPercent));
-		}
-	});
-
-	return { elementRef, percent, scrollY };
 };

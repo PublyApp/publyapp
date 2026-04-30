@@ -1,8 +1,12 @@
 {
-	"mcpServers": {
-		"voicetree": {
-			"type": "http",
-			"url": "http://localhost:3001/mcp"
-		}
-	}
+  "mcpServers": {
+    "voicetree": {
+      "type": "http",
+      "url": "http://127.0.0.1:3001/mcp"
+    },
+    "aidesigner": {
+      "type": "http",
+      "url": "https://api.aidesigner.ai/api/v1/mcp"
+    }
+  }
 }

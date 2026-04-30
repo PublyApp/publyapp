@@ -67,3 +67,5 @@ voicetree*/
 .worktrees/
 
 .tmp/
+.aidesigner/*
+!.aidesigner/.gitkeep
