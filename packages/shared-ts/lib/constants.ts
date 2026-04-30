@@ -47,6 +47,20 @@ export const FORWARDED_FOR_HEADER_KEY = 'X-Forwarded-For';
 export const REMIX_CLIENT_IP_HEADER_KEY = 'X-Remix-Client-IP';
 export const CLOUDFLARE_CONNECTING_IP_HEADER_KEY = 'CF-Connecting-IP';
 
+// =============================================================================
+// Redirect Codes (GetRedirectCode API response)
+// =============================================================================
+
+export const REDIRECT_CODE = {
+	STAFF: 'staff',
+	UNAUTHORIZED: 'unauthorized',
+	TENANT_PICKER: 'tenant-picker',
+} as const;
+
+export type RedirectCode =
+	| (typeof REDIRECT_CODE)[keyof typeof REDIRECT_CODE]
+	| (string & {});
+
 const RESOURCE = {
 	users: 'users',
 	app: 'app',
@@ -62,6 +76,7 @@ const RESOURCE = {
 	staffUsers: 'staff-users',
 	profiles: 'profiles',
 	invitations: 'invitations',
+	auditLogs: 'audit-logs',
 } as const;
 
 const ROOTS = {
@@ -122,6 +137,11 @@ export const FRONT_PATH_NAMES = {
 	},
 	staff: {
 		root: makePath(ROOTS.STAFF),
+		account: {
+			root: makePath(ROOTS.STAFF, 'account'),
+			security: makePath(ROOTS.STAFF, 'account', 'security'),
+			notifications: makePath(ROOTS.STAFF, 'account', 'notifications'),
+		},
 		profiles: {
 			root: makePath(ROOTS.STAFF, RESOURCE.profiles),
 			new: makePath(ROOTS.STAFF, RESOURCE.profiles, 'new'),
@@ -231,6 +251,12 @@ export const FRONT_PATH_NAMES = {
 				);
 			},
 		},
+		auditLogs: {
+			root: makePath(ROOTS.STAFF, RESOURCE.auditLogs),
+			details: (logId = '') => {
+				return makePath(ROOTS.STAFF, RESOURCE.auditLogs, 'details', logId);
+			},
+		},
 		backgroundJobs: {
 			root: makePath(ROOTS.STAFF, 'background-jobs'),
 		},
@@ -248,6 +274,7 @@ export const SLUG_REGEX = /^[a-z0-9-]+$/;
 export const queryParamKey = {
 	language: 'lng',
 	token: 'token',
+	notice: 'notice',
 	login_page: {
 		redirect_cause: 'rc',
 		redirect_to: 'rto',
@@ -277,6 +304,9 @@ export const formActionKey = {
 } as const;
 
 export const queryParamValue = {
+	notice: {
+		org_suspended: 'org-suspended',
+	},
 	login_page: {
 		redirect_cause: {
 			invalid_session: 'invalid_session',
