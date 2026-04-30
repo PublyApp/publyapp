@@ -188,3 +188,4 @@ If standing up a public preview URL takes >30 minutes, fall back to:
 | Blog index | light | `42ba72a3-52de-4c9d-adf9-7e0f74953f69` | 2026-04-30 |
 | Blog index | dark | `7dc01154-66db-49fd-85ab-fd839ec89a3c` | 2026-04-30 |
 | Blog article | light | `a9b20a6e-02a5-4124-bd13-79e539201e3f` | 2026-04-30 |
+| Changelog | light | `f0f2cb18-b79f-41b7-935a-da9100190f1e` | 2026-04-30 |
