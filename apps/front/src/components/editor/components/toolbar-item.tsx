@@ -1,6 +1,6 @@
 import ButtonBase from '@mui/material/ButtonBase';
-import SvgIcon from '@mui/material/SvgIcon';
 import { styled } from '@mui/material/styles';
+import SvgIcon from '@mui/material/SvgIcon';
 import _ from 'lodash';
 
 import type { EditorToolbarItemProps } from '../types';

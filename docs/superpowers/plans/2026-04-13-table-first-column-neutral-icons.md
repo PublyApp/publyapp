@@ -6,7 +6,7 @@
 
 **Architecture:** Keep the existing base-template pattern of using MUI `Avatar` directly inside table cells. Do not change the global `MuiAvatar` fallback theme and do not add a new shared avatar component. Instead, update affected first-column table cells to render explicit entity-specific `Iconify` children with neutral `sx` only when the row has no image.
 
-**Tech Stack:** React 19, TypeScript, MUI v6, Material React Table, existing `Iconify` wrapper, Biome, `just`
+**Tech Stack:** React 19, TypeScript, MUI v6, Material React Table, existing `Iconify` wrapper, oxlint/oxfmt, `just`
 
 ---
 

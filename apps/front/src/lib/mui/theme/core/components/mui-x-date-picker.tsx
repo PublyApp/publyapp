@@ -1,7 +1,7 @@
 import { buttonClasses } from '@mui/material/Button';
 import { dialogActionsClasses } from '@mui/material/DialogActions';
-import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
 import type { Components, Theme } from '@mui/material/styles';
+import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
 import { pickersOutlinedInputClasses } from '@mui/x-date-pickers/PickersTextField';
 import toNumber from 'lodash/toNumber';
 

@@ -1,6 +1,5 @@
 // * https://reactrouter.com/api/other-api/adapter#react-routerexpress
 import 'react-router';
-
 import { createRequestHandler } from '@react-router/express';
 import express from 'express';
 import helmet from 'helmet';

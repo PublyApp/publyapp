@@ -26,7 +26,7 @@ export type SettingsSliceActions = {
 	onReset: () => void;
 	setState: (updateState: SettingsState | Partial<SettingsState>) => void;
 
-	// biome-ignore lint/suspicious/noExplicitAny: use any for now
+	// oxlint-disable-next-line typescript/no-explicit-any -- use any for now
 	setField: (path: string, value: any) => void;
 };
 

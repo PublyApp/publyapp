@@ -21,7 +21,7 @@ type WithTenantId<T> = { tenantId: string } & Omit<T, 'tenantId'>;
 type MaybeWithTenantId<T> = { tenantId?: string } & Omit<T, 'tenantId'>;
 
 // Empty variables type - use this instead of EmptyVariables
-// biome-ignore lint/complexity/noBannedTypes: We need an empty object type here
+// oxlint-disable-next-line typescript/no-empty-object-type -- We need an empty object type here
 type EmptyVariables = {};
 
 // Base query options we accept (from react-query-kit's CreateQueryOptions)

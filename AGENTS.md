@@ -42,7 +42,7 @@ just build-deploy       # Build everything for deployment
 ### Code Quality
 
 ```bash
-just check-write        # Run Biome linting + formatting (auto-fix)
+just check-write        # Run oxlint + oxfmt (auto-fix)
 just tsc-front          # TypeScript type checking
 just knip               # Check for unused dependencies
 ```

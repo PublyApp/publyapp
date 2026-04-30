@@ -6,7 +6,7 @@ import { FormProvider as RHFForm, type UseFormReturn } from 'react-hook-form';
 export type FormProps = {
 	onSubmit?: () => void;
 	children: React.ReactNode;
-	// biome-ignore lint/suspicious/noExplicitAny: code from template leave as is for now
+	// oxlint-disable-next-line typescript/no-explicit-any -- code from template leave as is for now
 	methods: UseFormReturn<any>;
 	slotProps?: {
 		form?: BoxProps;

@@ -38,13 +38,16 @@ export function NavList({
 	const isRtl = theme.direction === 'rtl';
 	const id = open ? `${data.title}-popover` : undefined;
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
-	useEffect(() => {
-		// If the pathname changes, close the menu
-		if (open) {
-			onClose();
-		}
-	}, [pathname]);
+	useEffect(
+		() => {
+			// If the pathname changes, close the menu
+			if (open) {
+				onClose();
+			}
+		},
+		// oxlint-disable-next-line react/exhaustive-deps -- code from template leave as is for now
+		[pathname],
+	);
 
 	const handleOpenMenu = useCallback(() => {
 		if (data.children) {

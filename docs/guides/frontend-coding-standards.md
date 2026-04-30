@@ -255,7 +255,7 @@ for (const item of items) {
 }
 ```
 
-**Note:** Biome does not yet have a `noArrayReduce` rule (like ESLint's `unicorn/no-array-reduce`). This is a manual code review guideline until Biome adds support.
+**Enforced by oxlint:** `unicorn/no-array-reduce`.
 
 ## JavaScript/TypeScript Helpers: Prefer Targeted Lodash When Safer
 
@@ -316,7 +316,7 @@ Do not use nested ternary expressions (especially in JSX). They are hard to scan
 - Prefer `if/else` blocks that return JSX, or compute an intermediate `const` and render it.
 - If the rendering branches grow, extract a small component.
 
-**Enforced by Biome:** `style/noNestedTernary`.
+**Enforced by oxlint:** `no-nested-ternary`.
 
 ## React Composition and Rerender Isolation
 

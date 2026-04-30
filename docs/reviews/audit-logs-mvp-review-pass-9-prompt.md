@@ -74,7 +74,7 @@ Really think about this one:
 Be strict:
 - **C# standards**: Does `StartsWithFormulaTrigger` follow the naming convention? Is the pattern matching (`c is '=' or '+' or '-' or '@'`) correct per C# coding standards? Is the `foreach` loop style acceptable or should it use LINQ?
 - **Test naming**: `ItShouldNeutralizeFormulaTriggerCharsInCsv` — does this follow `ItShould{Expected}When{Scenario}` strictly? There's no `When` clause. Should it be `ItShouldNeutralizeFormulaTriggerCharsWhenExportingCsv`?
-- **Frontend**: The `format-time.ts` now has `export type { Dayjs };` as a re-export. Is this the idiomatic way to re-export a type in TypeScript? Biome moved it after the import block — is the final ordering clean?
+- **Frontend**: The `format-time.ts` now has `export type { Dayjs };` as a re-export. Is this the idiomatic way to re-export a type in TypeScript? oxfmt moved it after the import block — is the final ordering clean?
 
 ### 7. Edge cases for the formula injection fix
 

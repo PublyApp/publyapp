@@ -1,5 +1,3 @@
-import './styles/main.css';
-
 import interLatinExtFontUrl from '@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2?url';
 import interLatinFontUrl from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
 import GlobalStyles from '@mui/material/GlobalStyles';
@@ -36,6 +34,7 @@ import {
 	SettingsDrawer,
 } from '#app/components/settings/index.ts';
 
+import './styles/main.css';
 import type { Route } from './+types/root';
 import { MotionLazy } from './components/animate/motion-lazy';
 import View400 from './components/error/400-view';

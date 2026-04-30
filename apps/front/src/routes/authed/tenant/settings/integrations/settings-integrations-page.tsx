@@ -4,8 +4,8 @@ import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
-import Switch from '@mui/material/Switch';
 import { alpha } from '@mui/material/styles';
+import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';

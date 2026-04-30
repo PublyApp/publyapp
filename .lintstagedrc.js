@@ -7,10 +7,10 @@ module.exports = {
 			(file) => !file.includes('packages/client-ts/'),
 		);
 		return filteredFiles.length > 0
-			? `biome format --write ${filteredFiles.join(' ')}`
+			? `oxfmt --write ${filteredFiles.join(' ')}`
 			: [];
 	},
-	'*.{json,jsonc}': 'biome format --write --no-errors-on-unmatched',
+	'*.{json,jsonc}': 'oxfmt --write --no-error-on-unmatched-pattern',
 	'*.cs': (absolutePaths) => {
 		const cwd = process.cwd();
 		const relativePaths = absolutePaths.map((file) => path.relative(cwd, file));

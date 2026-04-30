@@ -131,53 +131,55 @@ const shouldForwardProp = (prop: string) => {
 /**
  * @slot root
  */
-const ItemRoot = styled(ButtonBase, { shouldForwardProp })<StyledState>(
-	({ active, open, theme }) => {
-		const rootItemStyles: CSSObject = {
-			padding: 'var(--nav-item-root-padding)',
-			minHeight: 'var(--nav-item-root-height)',
-			...(open && {
-				color: 'var(--nav-item-root-open-color)',
-				backgroundColor: 'var(--nav-item-root-open-bg)',
+const ItemRoot = styled(ButtonBase, { shouldForwardProp })<StyledState>(({
+	active,
+	open,
+	theme,
+}) => {
+	const rootItemStyles: CSSObject = {
+		padding: 'var(--nav-item-root-padding)',
+		minHeight: 'var(--nav-item-root-height)',
+		...(open && {
+			color: 'var(--nav-item-root-open-color)',
+			backgroundColor: 'var(--nav-item-root-open-bg)',
+		}),
+		...(active && {
+			color: 'var(--nav-item-root-active-color)',
+			backgroundColor: 'var(--nav-item-root-active-bg)',
+			'&:hover': { backgroundColor: 'var(--nav-item-root-active-hover-bg)' },
+			...theme.applyStyles('dark', {
+				color: 'var(--nav-item-root-active-color-on-dark)',
 			}),
-			...(active && {
-				color: 'var(--nav-item-root-active-color)',
-				backgroundColor: 'var(--nav-item-root-active-bg)',
-				'&:hover': { backgroundColor: 'var(--nav-item-root-active-hover-bg)' },
-				...theme.applyStyles('dark', {
-					color: 'var(--nav-item-root-active-color-on-dark)',
-				}),
-			}),
-		};
+		}),
+	};
 
-		const subItemStyles: CSSObject = {
-			padding: 'var(--nav-item-sub-padding)',
-			minHeight: 'var(--nav-item-sub-height)',
-			color: theme.vars.palette.text.secondary,
-			...(open && {
-				color: 'var(--nav-item-sub-open-color)',
-				backgroundColor: 'var(--nav-item-sub-open-bg)',
-			}),
-			...(active && {
-				color: 'var(--nav-item-sub-active-color)',
-				backgroundColor: 'var(--nav-item-sub-active-bg)',
-			}),
-		};
+	const subItemStyles: CSSObject = {
+		padding: 'var(--nav-item-sub-padding)',
+		minHeight: 'var(--nav-item-sub-height)',
+		color: theme.vars.palette.text.secondary,
+		...(open && {
+			color: 'var(--nav-item-sub-open-color)',
+			backgroundColor: 'var(--nav-item-sub-open-bg)',
+		}),
+		...(active && {
+			color: 'var(--nav-item-sub-active-color)',
+			backgroundColor: 'var(--nav-item-sub-active-bg)',
+		}),
+	};
 
-		return {
-			width: '100%',
-			flexShrink: 0,
-			color: 'var(--nav-item-color)',
-			borderRadius: 'var(--nav-item-radius)',
-			'&:hover': { backgroundColor: 'var(--nav-item-hover-bg)' },
-			variants: [
-				{ props: { variant: 'rootItem' }, style: rootItemStyles },
-				{ props: { variant: 'subItem' }, style: subItemStyles },
-				{ props: { disabled: true }, style: navItemStyles.disabled },
-			],
-		};
-	},
-);
+	return {
+		width: '100%',
+		flexShrink: 0,
+		color: 'var(--nav-item-color)',
+		borderRadius: 'var(--nav-item-radius)',
+		'&:hover': { backgroundColor: 'var(--nav-item-hover-bg)' },
+		variants: [
+			{ props: { variant: 'rootItem' }, style: rootItemStyles },
+			{ props: { variant: 'subItem' }, style: subItemStyles },
+			{ props: { disabled: true }, style: navItemStyles.disabled },
+		],
+	};
+});
 
 /**
  * @slot icon
@@ -200,64 +202,64 @@ const ItemIcon = styled('span', { shouldForwardProp })<StyledState>(() => {
 /**
  * @slot title
  */
-const ItemTitle = styled('span', { shouldForwardProp })<StyledState>(
-	({ theme }) => {
-		return {
-			...navItemStyles.title(theme),
-			...theme.typography.body2,
-			fontWeight: theme.typography.fontWeightMedium,
-			variants: [
-				{
-					props: { active: true },
-					style: { fontWeight: theme.typography.fontWeightSemiBold },
-				},
-			],
-		};
-	},
-);
+const ItemTitle = styled('span', { shouldForwardProp })<StyledState>(({
+	theme,
+}) => {
+	return {
+		...navItemStyles.title(theme),
+		...theme.typography.body2,
+		fontWeight: theme.typography.fontWeightMedium,
+		variants: [
+			{
+				props: { active: true },
+				style: { fontWeight: theme.typography.fontWeightSemiBold },
+			},
+		],
+	};
+});
 
 /**
  * @slot caption icon
  */
-const ItemCaptionIcon = styled(Iconify, { shouldForwardProp })<StyledState>(
-	({ theme }) => {
-		return {
-			...navItemStyles.captionIcon,
-			color: 'var(--nav-item-caption-color)',
-			variants: [
-				{
-					props: { variant: 'rootItem' },
-					style: { marginLeft: theme.spacing(0.75) },
-				},
-			],
-		};
-	},
-);
+const ItemCaptionIcon = styled(Iconify, { shouldForwardProp })<StyledState>(({
+	theme,
+}) => {
+	return {
+		...navItemStyles.captionIcon,
+		color: 'var(--nav-item-caption-color)',
+		variants: [
+			{
+				props: { variant: 'rootItem' },
+				style: { marginLeft: theme.spacing(0.75) },
+			},
+		],
+	};
+});
 
 /**
  * @slot info
  */
-const ItemInfo = styled('span', { shouldForwardProp })<StyledState>(
-	({ theme: _t }) => {
-		return {
-			...navItemStyles.info,
-		};
-	},
-);
+const ItemInfo = styled('span', { shouldForwardProp })<StyledState>(({
+	theme: _t,
+}) => {
+	return {
+		...navItemStyles.info,
+	};
+});
 
 /**
  * @slot arrow
  */
-const ItemArrow = styled(Iconify, { shouldForwardProp })<StyledState>(
-	({ theme }) => {
-		return {
-			...navItemStyles.arrow(theme),
-			variants: [
-				{
-					props: { variant: 'subItem' },
-					style: { marginRight: theme.spacing(-0.5) },
-				},
-			],
-		};
-	},
-);
+const ItemArrow = styled(Iconify, { shouldForwardProp })<StyledState>(({
+	theme,
+}) => {
+	return {
+		...navItemStyles.arrow(theme),
+		variants: [
+			{
+				props: { variant: 'subItem' },
+				style: { marginRight: theme.spacing(-0.5) },
+			},
+		],
+	};
+});

@@ -142,10 +142,12 @@ const TocList = ({
 	activeId: string | null;
 	onNavigate: (id: string) => void;
 }) => {
-	const minLevel = sections.reduce<number>((acc, s) => {
-		const lvl = s.level ?? 1;
-		return Math.min(acc, lvl);
-	}, Number.POSITIVE_INFINITY);
+	let minLevel = Number.POSITIVE_INFINITY;
+
+	for (const section of sections) {
+		const level = section.level ?? 1;
+		minLevel = Math.min(minLevel, level);
+	}
 
 	return (
 		<List
@@ -201,11 +203,13 @@ const TocList = ({
 						/>
 						<ListItemText
 							primary={s.label}
-							primaryTypographyProps={{
-								variant: 'body2',
-								noWrap: true,
-								sx: {
-									fontWeight: selected ? 600 : 400,
+							slotProps={{
+								primary: {
+									variant: 'body2',
+									noWrap: true,
+									sx: {
+										fontWeight: selected ? 600 : 400,
+									},
 								},
 							}}
 						/>

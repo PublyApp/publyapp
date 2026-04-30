@@ -51,7 +51,7 @@ const StaffLayout = () => {
 					deepActiveMatch: true,
 				},
 				{
-					title: `${t('profiles')}`,
+					title: t('profiles'),
 					path: FRONT_PATH_NAMES.staff.profiles.root,
 					icon: ICONS.lock,
 					deepActiveMatch: true,

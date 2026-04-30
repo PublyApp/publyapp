@@ -138,56 +138,58 @@ const shouldForwardProp = (prop: string) =>
  * @slot root
  * Metronic-inspired compact nav items - no tree branching
  */
-const ItemRoot = styled(ButtonBase, { shouldForwardProp })<StyledState>(
-	({ active, open, theme }) => {
-		const rootItemStyles: CSSObject = {
-			minHeight: 'var(--nav-item-root-height)',
-			...(open && {
-				color: 'var(--nav-item-root-open-color)',
-				backgroundColor: 'var(--nav-item-root-open-bg)',
+const ItemRoot = styled(ButtonBase, { shouldForwardProp })<StyledState>(({
+	active,
+	open,
+	theme,
+}) => {
+	const rootItemStyles: CSSObject = {
+		minHeight: 'var(--nav-item-root-height)',
+		...(open && {
+			color: 'var(--nav-item-root-open-color)',
+			backgroundColor: 'var(--nav-item-root-open-bg)',
+		}),
+		...(active && {
+			color: 'var(--nav-item-root-active-color)',
+			backgroundColor: 'var(--nav-item-root-active-bg)',
+			'&:hover': { backgroundColor: 'var(--nav-item-root-active-hover-bg)' },
+			...theme.applyStyles('dark', {
+				color: 'var(--nav-item-root-active-color-on-dark)',
 			}),
-			...(active && {
-				color: 'var(--nav-item-root-active-color)',
-				backgroundColor: 'var(--nav-item-root-active-bg)',
-				'&:hover': { backgroundColor: 'var(--nav-item-root-active-hover-bg)' },
-				...theme.applyStyles('dark', {
-					color: 'var(--nav-item-root-active-color-on-dark)',
-				}),
-			}),
-		};
+		}),
+	};
 
-		// Sub items - no bullet/tree branching, just indentation
-		const subItemStyles: CSSObject = {
-			minHeight: 'var(--nav-item-sub-height)',
-			paddingLeft: 'var(--nav-item-pl)', // Use same padding as root items
-			...(open && {
-				color: 'var(--nav-item-sub-open-color)',
-				backgroundColor: 'var(--nav-item-sub-open-bg)',
-			}),
-			...(active && {
-				color: 'var(--nav-item-sub-active-color)',
-				backgroundColor: 'var(--nav-item-sub-active-bg)',
-			}),
-		};
+	// Sub items - no bullet/tree branching, just indentation
+	const subItemStyles: CSSObject = {
+		minHeight: 'var(--nav-item-sub-height)',
+		paddingLeft: 'var(--nav-item-pl)', // Use same padding as root items
+		...(open && {
+			color: 'var(--nav-item-sub-open-color)',
+			backgroundColor: 'var(--nav-item-sub-open-bg)',
+		}),
+		...(active && {
+			color: 'var(--nav-item-sub-active-color)',
+			backgroundColor: 'var(--nav-item-sub-active-bg)',
+		}),
+	};
 
-		return {
-			width: '100%',
-			paddingTop: 'var(--nav-item-pt)',
-			paddingLeft: 'var(--nav-item-pl)',
-			paddingRight: 'var(--nav-item-pr)',
-			paddingBottom: 'var(--nav-item-pb)',
-			borderRadius: 'var(--nav-item-radius)',
-			color: 'var(--nav-item-color)',
-			fontSize: '13px', // Compact font size
-			'&:hover': { backgroundColor: 'var(--nav-item-hover-bg)' },
-			variants: [
-				{ props: { variant: 'rootItem' }, style: rootItemStyles },
-				{ props: { variant: 'subItem' }, style: subItemStyles },
-				{ props: { disabled: true }, style: navItemStyles.disabled },
-			],
-		};
-	},
-);
+	return {
+		width: '100%',
+		paddingTop: 'var(--nav-item-pt)',
+		paddingLeft: 'var(--nav-item-pl)',
+		paddingRight: 'var(--nav-item-pr)',
+		paddingBottom: 'var(--nav-item-pb)',
+		borderRadius: 'var(--nav-item-radius)',
+		color: 'var(--nav-item-color)',
+		fontSize: '13px', // Compact font size
+		'&:hover': { backgroundColor: 'var(--nav-item-hover-bg)' },
+		variants: [
+			{ props: { variant: 'rootItem' }, style: rootItemStyles },
+			{ props: { variant: 'subItem' }, style: subItemStyles },
+			{ props: { disabled: true }, style: navItemStyles.disabled },
+		],
+	};
+});
 
 /**
  * @slot icon

@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-04-28-cross-tab-theme-sync-design.md`
 
-**Note on tests:** This codebase has no frontend test runner today (AGENTS.md: "Frontend tests (when implemented)"). The spec's automated unit tests are aspirational and out of scope here — `LocaleTabSync` shipped without unit tests, and we mirror that. Each task gates on TypeScript (`just tsc-front`), Biome (`just check-write`), and the spec's manual acceptance flow.
+**Note on tests:** This codebase has no frontend test runner today (AGENTS.md: "Frontend tests (when implemented)"). The spec's automated unit tests are aspirational and out of scope here — `LocaleTabSync` shipped without unit tests, and we mirror that. Each task gates on TypeScript (`just tsc-front`), oxlint/oxfmt (`just check-write`), and the spec's manual acceptance flow.
 
 ---
 
@@ -130,7 +130,7 @@ export const combinedMiddlewaresWithSettingsPersist = <T>(
 };
 ```
 
-The `import` for `SETTINGS_STORAGE_KEY` should be moved to the top of the file with the other imports (Biome will reorder on `just check-write`).
+The `import` for `SETTINGS_STORAGE_KEY` should be moved to the top of the file with the other imports (oxfmt will reorder on `just check-write`).
 
 - [ ] **Step 2: Type-check**
 
@@ -796,53 +796,59 @@ export const SettingsTabSyncBridge = () => {
 
 	// Listener + visibility rehydrate + broadcast subscription.
 	// Empty deps: setMode is stable from MUI; we want to init exactly once per mount.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: stable references; init once
-	useEffect(() => {
-		if (typeof window === 'undefined') {
-			return;
-		}
-
-		const applyRemote = (message: SettingsTabSyncMessage) => {
-			useMainStore.setState((root) => {
-				root.settingsSlice.state = message.settings;
-			});
-
-			const remoteScheme = message.settings.colorScheme as
-				| ThemeColorScheme
-				| undefined;
-			if (remoteScheme && remoteScheme !== mode) {
-				setMode(remoteScheme);
+	useEffect(
+		() => {
+			if (typeof window === 'undefined') {
+				return;
 			}
-		};
 
-		const listener = settingsTabSync.initSettingsTabListener(applyRemote);
-		const rehydrate = settingsTabSync.initVisibilityRehydrate(applyRemote);
-		const unsubBroadcast = subscribeToSettingsState(useMainStore);
+			const applyRemote = (message: SettingsTabSyncMessage) => {
+				useMainStore.setState((root) => {
+					root.settingsSlice.state = message.settings;
+				});
 
-		return () => {
-			listener.stop();
-			rehydrate.stop();
-			unsubBroadcast();
-		};
-	}, []);
+				const remoteScheme = message.settings.colorScheme as
+					| ThemeColorScheme
+					| undefined;
+				if (remoteScheme && remoteScheme !== mode) {
+					setMode(remoteScheme);
+				}
+			};
+
+			const listener = settingsTabSync.initSettingsTabListener(applyRemote);
+			const rehydrate = settingsTabSync.initVisibilityRehydrate(applyRemote);
+			const unsubBroadcast = subscribeToSettingsState(useMainStore);
+
+			return () => {
+				listener.stop();
+				rehydrate.stop();
+				unsubBroadcast();
+			};
+		},
+		// oxlint-disable-next-line react/exhaustive-deps -- stable references; init once
+		[],
+	);
 
 	// Safety net: keep settings.state.colorScheme aligned with MUI's resolved mode
 	// (covers system-mode resolution and any drift from external setMode calls).
 	// Uses getState() so the effect re-runs only when MUI's mode/systemMode changes,
 	// not on every settings change.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: store read via getState() is intentional
-	useEffect(() => {
-		const resolved =
-			mode === 'system' ? systemMode : (mode as ThemeColorScheme | undefined);
-		if (!resolved) {
-			return;
-		}
-		const slice = useMainStore.getState().settingsSlice;
-		if (resolved === slice.state.colorScheme) {
-			return;
-		}
-		slice.setState({ colorScheme: resolved });
-	}, [mode, systemMode]);
+	useEffect(
+		() => {
+			const resolved =
+				mode === 'system' ? systemMode : (mode as ThemeColorScheme | undefined);
+			if (!resolved) {
+				return;
+			}
+			const slice = useMainStore.getState().settingsSlice;
+			if (resolved === slice.state.colorScheme) {
+				return;
+			}
+			slice.setState({ colorScheme: resolved });
+		},
+		// oxlint-disable-next-line react/exhaustive-deps -- store read via getState() is intentional
+		[mode, systemMode],
+	);
 
 	return null;
 };
@@ -944,12 +950,15 @@ git commit -m "feat(front): mount SettingsTabSyncBridge inside ThemeVarsProvider
 In `apps/front/src/components/settings/drawer/settings-drawer.tsx`, locate this block (currently lines 371–376):
 
 ```tsx
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
-	useEffect(() => {
-		if (mode === 'system' && systemMode) {
-			settings.setState({ colorScheme: systemMode });
-		}
-	}, [mode, systemMode]);
+	useEffect(
+		() => {
+			if (mode === 'system' && systemMode) {
+				settings.setState({ colorScheme: systemMode });
+			}
+		},
+		// oxlint-disable-next-line react/exhaustive-deps -- code from template leave as is for now
+		[mode, systemMode],
+	);
 ```
 
 Delete it.
@@ -976,7 +985,7 @@ The destructured `systemMode` from `useColorScheme()` (line 369) is also no long
 
 Run: `just tsc-front && just check-write`
 
-Expected: 0 errors. Biome may flag any remaining unused imports — fix per its suggestion.
+Expected: 0 errors. oxlint may flag any remaining unused imports — fix per its suggestion.
 
 - [ ] **Step 3: Commit**
 

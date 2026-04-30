@@ -14,7 +14,7 @@
 
 ## Discoveries (from migration)
 
-- **`biome` isn’t global:** it’s a pnpm dev dependency, so use `pnpm exec biome …` (or `just check` / `just check-write`).
+- **JS/TS tooling is local:** oxlint and oxfmt are pnpm dev dependencies, so use `pnpm exec oxlint …`, `pnpm exec oxfmt …`, or the `just check` / `just check-write` wrappers.
 - **PowerShell 5.1 vs 7:** Windows PowerShell 5.1 doesn’t support `&&`, but PowerShell 7 (`pwsh`) does.
 - **Windows shells:** `just` can run via `sh` on Windows when a `sh.exe` is on `PATH` (Git Bash/MSYS2/Cygwin). We chose `pwsh` for consistency.
 - **Short-circuit semantics:** replacing `cd dir; cmd` with `cd dir && cmd` ensures the command won’t run if `cd` fails (matches Unix expectations).
@@ -159,27 +159,29 @@ tsc-front:
 
 lint *args:
   @echo "Running linting..."
-  pnpm biome lint . {{args}}
+  pnpm lint -- {{args}}
 
 lint-write *args:
   @echo "Running linting with auto-fix..."
-  pnpm biome lint --write . {{args}}
+  pnpm lint:fix -- {{args}}
 
 format *args:
   @echo "Formatting code..."
-  pnpm biome format . {{args}}
+  pnpm format -- {{args}}
 
 format-write *args:
   @echo "Formatting code with auto-fix..."
-  pnpm biome format --write . {{args}}
+  pnpm format:write -- {{args}}
 
 check *args:
   @echo "Running all checks..."
-  pnpm biome check . {{args}}
+  pnpm lint -- {{args}}
+  pnpm format -- {{args}}
 
 check-write *args:
   @echo "Running all checks with auto-fix..."
-  pnpm biome check --write . {{args}}
+  pnpm lint:fix -- {{args}}
+  pnpm format:write -- {{args}}
 
 knip:
   @echo "Checking for unused dependencies..."

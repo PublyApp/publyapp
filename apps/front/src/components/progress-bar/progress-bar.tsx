@@ -1,8 +1,8 @@
-import './styles.css';
-
 import NProgress from 'nprogress';
 import { useEffect } from 'react';
 import { useNavigation } from 'react-router';
+
+import './styles.css';
 
 // ----------------------------------------------------------------------
 

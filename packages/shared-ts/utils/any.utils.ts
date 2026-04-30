@@ -11,7 +11,7 @@ export const delay = <T = unknown>(timeout: number, value?: T) => {
 	});
 };
 
-// biome-ignore lint/suspicious/noExplicitAny: any is the only way to do this
+// oxlint-disable-next-line typescript/no-explicit-any -- any is the only way to do this
 type Asyncfunction = (...args: any[]) => Promise<any>;
 
 export const isAsyncFunction = (
@@ -31,7 +31,7 @@ export const isPromise = (input: unknown): input is Promise<unknown> => {
 	);
 };
 
-// biome-ignore lint/suspicious/noExplicitAny: any is the only way to do this
+// oxlint-disable-next-line typescript/no-explicit-any -- any is the only way to do this
 type DeepReadonly<T> = T extends (...args: any) => any
 	? T
 	: { readonly [P in keyof T]: DeepReadonly<T[P]> };
@@ -73,7 +73,7 @@ export const urlStartWithProtocol = (url: string) => {
 export const withResolvers = <T = unknown>() => {
 	let resolve: (value: T) => void;
 
-	// biome-ignore lint/suspicious/noExplicitAny: any is the only way to do this
+	// oxlint-disable-next-line typescript/no-explicit-any -- any is the only way to do this
 	let reject: (reason: any) => void;
 
 	const promise = new Promise((_resolve, _reject) => {

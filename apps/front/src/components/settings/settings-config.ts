@@ -4,10 +4,10 @@ import type { SettingsState } from './types';
 
 // ----------------------------------------------------------------------
 
-export const SETTINGS_STORAGE_KEY: string = 'publyapp:app-settings';
+export const SETTINGS_STORAGE_KEY = 'publyapp:app-settings';
 // MUI boot needs a flat mode value, while Zustand stores the full settings
 // object. Keeping this separate lets first paint and full settings both work.
-export const COLOR_SCHEME_STORAGE_KEY: string = 'publyapp:color-scheme';
+export const COLOR_SCHEME_STORAGE_KEY = 'publyapp:color-scheme';
 
 export const defaultSettings: SettingsState = {
 	colorScheme: themeConfig.defaultMode,

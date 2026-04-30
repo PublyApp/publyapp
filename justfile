@@ -118,29 +118,31 @@ tsc-front:
 # Code quality
 # =============================================================================
 
-# Lint (biome)
+# Lint (oxlint)
 lint:
-  pnpm exec biome lint .
+  pnpm lint
 
 # Lint with auto-fix
 lint-write:
-  pnpm exec biome lint --write .
+  pnpm lint:fix
 
-# Format check (biome)
+# Format check (oxfmt)
 format:
-  pnpm exec biome format . --line-ending=auto
+  pnpm format
 
 # Format with auto-fix
 format-write:
-  pnpm exec biome format --write . --line-ending=auto
+  pnpm format:write
 
 # Run all checks (lint + format)
 check:
-  pnpm exec biome check . --line-ending=auto
+  pnpm lint
+  pnpm format
 
 # Run all checks with auto-fix
 check-write:
-  pnpm exec biome check --write . --line-ending=auto
+  pnpm lint:fix
+  pnpm format:write
 
 # Check for unused dependencies
 knip:
