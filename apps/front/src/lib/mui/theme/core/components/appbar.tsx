@@ -15,18 +15,30 @@ const MuiAppBar: Components<Theme>['MuiAppBar'] = {
 	 * Uses same border opacity as sidebar for consistency
 	 *************************************** */
 	styleOverrides: {
-		root: ({ theme }) => ({
-			boxShadow: 'none',
-			borderTop: 'none',
-			borderLeft: 'none',
-			borderRight: 'none',
-			borderBottom: `1px solid ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)}`,
-			backgroundColor: theme.vars.palette.background.default,
-			...theme.applyStyles('dark', {
-				borderBottom: `1px solid ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
-				backgroundColor: theme.vars.palette.background.default,
-			}),
-		}),
+		root: ({ ownerState, theme }) => {
+			const isTransparent = ownerState.color === 'transparent';
+			return {
+				boxShadow: 'none',
+				borderTop: 'none',
+				borderLeft: 'none',
+				borderRight: 'none',
+				borderBottom: isTransparent
+					? 'none'
+					: `1px solid ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)}`,
+				backgroundColor: isTransparent
+					? 'transparent'
+					: theme.vars.palette.background.default,
+				backgroundImage: 'none',
+				...theme.applyStyles('dark', {
+					borderBottom: isTransparent
+						? 'none'
+						: `1px solid ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+					backgroundColor: isTransparent
+						? 'transparent'
+						: theme.vars.palette.background.default,
+				}),
+			};
+		},
 	},
 };
 
