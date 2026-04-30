@@ -193,13 +193,15 @@ export const InviteUserForm = ({ onClose }: { onClose?: () => void }) => {
 						name="email"
 						label={t('email')}
 						placeholder="user@example.com"
-						InputProps={{
-							startAdornment: (
-								<Iconify
-									icon="solar:letter-bold"
-									sx={{ mr: 1, color: 'text.disabled' }}
-								/>
-							),
+						slotProps={{
+							input: {
+								startAdornment: (
+									<Iconify
+										icon="solar:letter-bold"
+										sx={{ mr: 1, color: 'text.disabled' }}
+									/>
+								),
+							},
 						}}
 					/>
 
@@ -227,14 +229,14 @@ export const InviteUserForm = ({ onClose }: { onClose?: () => void }) => {
 									},
 								},
 							},
-						}}
-						InputProps={{
-							startAdornment: (
-								<Iconify
-									icon="solar:user-id-bold"
-									sx={{ mr: 1, color: 'text.disabled' }}
-								/>
-							),
+							input: {
+								startAdornment: (
+									<Iconify
+										icon="solar:user-id-bold"
+										sx={{ mr: 1, color: 'text.disabled' }}
+									/>
+								),
+							},
 						}}
 					>
 						{ACCOUNT_LEVEL_OPTIONS.map((option) => (

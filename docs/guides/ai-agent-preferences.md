@@ -14,7 +14,7 @@ If a preference below conflicts with an existing guide, follow the existing guid
 ## General
 
 - Prefer **minimal diffs** and avoid stylistic churn.
-- Do not run formatting/linting commands (Biome, etc.) unless explicitly requested.
+- Do not run formatting/linting commands (`oxlint`, `oxfmt`, etc.) unless explicitly requested.
 - Avoid large refactors unless they directly serve the task; when refactoring, keep it mechanical and behavior-preserving.
 - Avoid nested ternaries; use `if`/`else`, small helpers, or early returns.
 

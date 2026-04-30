@@ -31,12 +31,15 @@ export const NavList = ({
 
 	const { value: open, onFalse: onClose, onToggle } = useBoolean(isActive);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
-	useEffect(() => {
-		if (!isActive) {
-			onClose();
-		}
-	}, [pathname]);
+	useEffect(
+		() => {
+			if (!isActive) {
+				onClose();
+			}
+		},
+		// oxlint-disable-next-line react/exhaustive-deps -- code from template leave as is for now
+		[pathname],
+	);
 
 	const handleToggleMenu = useCallback(() => {
 		if (data.children) {

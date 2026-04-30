@@ -200,15 +200,16 @@ git commit -m "refactor: update tsconfig path aliases"
 
 ---
 
-## Task 7: Update biome.jsonc
+## Task 7: Update oxlint/oxfmt ignore patterns
 
 **Files:**
-- Modify: `biome.jsonc`
+- Modify: `.oxlintrc.json`
+- Modify: `.oxfmtrc.json`
 
 **Step 1: Read current ignore patterns**
 
 ```bash
-grep -A2 "ignore" biome.jsonc
+grep -A2 "ignore" .oxlintrc.json .oxfmtrc.json
 ```
 
 **Step 2: Edit**
@@ -224,8 +225,8 @@ grep -A2 "ignore" biome.jsonc
 **Step 3: Commit**
 
 ```bash
-git add biome.jsonc
-git commit -m "refactor: update biome ignore patterns"
+git add .oxlintrc.json .oxfmtrc.json
+git commit -m "refactor: update js tooling ignore patterns"
 ```
 
 ---

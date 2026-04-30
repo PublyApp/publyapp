@@ -493,15 +493,17 @@ const DescriptionCell: MRT_ColumnDef<StaffProfileRowData, string>['Cell'] = (
 	);
 };
 
-const UserAccountCountCell: MRT_ColumnDef<StaffProfileRowData, number>['Cell'] =
-	(props) => {
-		const count = props.cell.getValue();
-		return (
-			<Label variant="soft" color={count > 0 ? 'info' : 'default'}>
-				{count}
-			</Label>
-		);
-	};
+const UserAccountCountCell: MRT_ColumnDef<
+	StaffProfileRowData,
+	number
+>['Cell'] = (props) => {
+	const count = props.cell.getValue();
+	return (
+		<Label variant="soft" color={count > 0 ? 'info' : 'default'}>
+			{count}
+		</Label>
+	);
+};
 
 const ProfileActionsCell: MRT_ColumnDef<StaffProfileRowData>['Cell'] = (
 	props,
@@ -654,7 +656,7 @@ const StaffProfilesSelectionActions = ({
 			try {
 				// Keep the mutation sequential so a single failure doesn't mask the rest.
 				// This matches the repo's existing bulk-table fallback behavior.
-				// eslint-disable-next-line no-await-in-loop
+				// oxlint-disable-next-line no-await-in-loop -- sequential retries are intentional here
 				await deleteProfile({ profileId: row.id });
 				succeeded += 1;
 			} catch (error) {

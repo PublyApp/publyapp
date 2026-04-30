@@ -1,11 +1,10 @@
-import './code-highlight-block.css';
-
 import {
 	NodeViewContent,
 	type NodeViewProps,
 	NodeViewWrapper,
 } from '@tiptap/react';
 
+import './code-highlight-block.css';
 import { editorClasses } from '../classes';
 
 // ----------------------------------------------------------------------

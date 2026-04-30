@@ -21,16 +21,13 @@ const styleColors = (
 	ownerState: LinearProgressProps,
 	styles: (val: PaletteColor) => CSSObject,
 ) => {
-	const outputStyle = COLORS.reduce((acc, color) => {
+	for (const color of COLORS) {
 		if (ownerState.color === color) {
-			// biome-ignore lint/style/noParameterAssign: code from template leave as is for now
-			acc = styles(color);
+			return styles(color);
 		}
+	}
 
-		return acc;
-	}, {});
-
-	return outputStyle;
+	return {};
 };
 
 const MuiLinearProgress: Components<Theme>['MuiLinearProgress'] = {

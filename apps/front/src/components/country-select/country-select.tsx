@@ -1,6 +1,5 @@
 import Autocomplete, {
 	type AutocompleteProps,
-	type AutocompleteRenderGetTagProps,
 	type AutocompleteRenderInputParams,
 } from '@mui/material/Autocomplete';
 import Chip from '@mui/material/Chip';
@@ -17,11 +16,14 @@ import { FlagIcon, flagIconClasses } from '../flag-icon';
 // ----------------------------------------------------------------------
 
 type Value = string;
+type CountrySelectRenderValue = NonNullable<
+	AutocompleteProps<Value, boolean, boolean, boolean>['renderValue']
+>;
 
 export type AutocompleteBaseProps = Omit<
-	// biome-ignore lint/suspicious/noExplicitAny: code from template leave as is for now
+	// oxlint-disable-next-line typescript/no-explicit-any -- code from template leave as is for now
 	AutocompleteProps<any, boolean, boolean, boolean>,
-	'options' | 'renderOption' | 'renderInput' | 'renderTags' | 'getOptionLabel'
+	'options' | 'renderOption' | 'renderInput' | 'renderValue' | 'getOptionLabel'
 >;
 
 export type CountrySelectProps = AutocompleteBaseProps & {
@@ -156,14 +158,18 @@ export const CountrySelect = ({
 		],
 	);
 
-	const renderTags = useCallback(
-		(selected: Value[], getTagProps: AutocompleteRenderGetTagProps) => {
+	const renderValue = useCallback<CountrySelectRenderValue>(
+		(selected, getItemProps) => {
+			if (!Array.isArray(selected)) {
+				return null;
+			}
+
 			return selected.map((option, index) => {
 				const country = getCountry(option);
 
 				return (
 					<Chip
-						{...getTagProps({ index })}
+						{...getItemProps({ index })}
 						key={country.label}
 						label={country.label}
 						size="small"
@@ -205,7 +211,7 @@ export const CountrySelect = ({
 			disableCloseOnSelect={multiple}
 			renderOption={renderOption}
 			renderInput={renderInput}
-			renderTags={multiple ? renderTags : undefined}
+			renderValue={multiple ? renderValue : undefined}
 			getOptionLabel={getOptionLabel}
 			{...other}
 		/>

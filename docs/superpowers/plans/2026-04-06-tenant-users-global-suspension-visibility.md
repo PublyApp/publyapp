@@ -478,12 +478,12 @@ Do not reintroduce hidden actions. Keep them visible but muted/disabled with the
 Run:
 
 ```powershell
-pnpm exec biome check apps/front/src/routes/authed/staff/tenants/details/users/parts/tenant-users-table.tsx
-make tsc-front
+pnpm exec oxlint apps/front/src/routes/authed/staff/tenants/details/users/parts/tenant-users-table.tsx
+just tsc-front
 ```
 
 Expected:
-- Biome passes on the edited table file
+- oxlint passes on the edited table file
 - TypeScript passes after the client regeneration and UI update
 
 - [ ] **Step 5: Run React-specific verification**

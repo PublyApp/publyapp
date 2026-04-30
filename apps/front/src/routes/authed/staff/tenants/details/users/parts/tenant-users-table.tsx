@@ -706,28 +706,30 @@ const useTenantUsersTableController = () => {
 									placeholder={
 										statusFilter.length === 0 ? t('all-statuses') : undefined
 									}
-									InputProps={{
-										...params.InputProps,
-										startAdornment: (
-											<>
-												<Box
-													component="span"
-													sx={{
-														color: 'text.secondary',
-														typography: 'body2',
-														whiteSpace: 'nowrap',
-														mr: 1,
-														display: 'inline-flex',
-														alignItems: 'center',
-														alignSelf: 'center',
-														minHeight: 24,
-													}}
-												>
-													{t('status')}:
-												</Box>
-												{params.InputProps.startAdornment}
-											</>
-										),
+									slotProps={{
+										input: {
+											...params.InputProps,
+											startAdornment: (
+												<>
+													<Box
+														component="span"
+														sx={{
+															color: 'text.secondary',
+															typography: 'body2',
+															whiteSpace: 'nowrap',
+															mr: 1,
+															display: 'inline-flex',
+															alignItems: 'center',
+															alignSelf: 'center',
+															minHeight: 24,
+														}}
+													>
+														{t('status')}:
+													</Box>
+													{params.InputProps.startAdornment}
+												</>
+											),
+										},
 									}}
 								/>
 							)}

@@ -261,9 +261,9 @@ At minimum cover:
 
 At minimum verify:
 
-- `make generate-client` if the API contract changes
-- `make tsc-front`
-- targeted Biome check on touched frontend files
+- `just generate-client` if the API contract changes
+- `just tsc-front`
+- targeted oxlint check on touched frontend files
 - `react-doctor` because this is a React UI change
 
 ### Manual smoke expectations

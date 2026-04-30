@@ -1,7 +1,7 @@
 import { radioClasses } from '@mui/material/Radio';
+import type { Components, Theme } from '@mui/material/styles';
 import type { SvgIconProps } from '@mui/material/SvgIcon';
 import SvgIcon from '@mui/material/SvgIcon';
-import type { Components, Theme } from '@mui/material/styles';
 
 // ----------------------------------------------------------------------
 
