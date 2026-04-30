@@ -2,8 +2,9 @@ import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import { iconButtonClasses } from '@mui/material/IconButton';
 import { type Breakpoint, useTheme } from '@mui/material/styles';
-import _ from 'lodash';
+import merge from 'lodash/merge';
 import { useBoolean } from 'minimal-shared/hooks';
+import { varAlpha } from 'minimal-shared/utils';
 import { useMemo } from 'react';
 
 import { Logo } from '#app/components/logo/index.ts';
@@ -204,8 +205,21 @@ export const DashboardLayout = ({
 				disableElevation={isNavVertical}
 				{...slotProps?.header}
 				slots={{ ...headerSlots, ...slotProps?.header?.slots }}
-				slotProps={_.merge(headerSlotProps, slotProps?.header?.slotProps ?? {})}
-				sx={slotProps?.header?.sx}
+				slotProps={merge(headerSlotProps, slotProps?.header?.slotProps ?? {})}
+				sx={[
+					(theme) => {
+						return {
+							// Keep the topbar divider dashboard-scoped so marketing headers stay borderless.
+							borderBottom: `1px solid ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)}`,
+							...theme.applyStyles('dark', {
+								borderBottom: `1px solid ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+							}),
+						};
+					},
+					...(Array.isArray(slotProps?.header?.sx)
+						? slotProps.header.sx
+						: [slotProps?.header?.sx]),
+				]}
 			/>
 		);
 	};
