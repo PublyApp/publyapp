@@ -3,7 +3,10 @@ import { PassThrough } from 'node:stream';
 import { createReadableStreamFromReadable } from '@react-router/node';
 import * as cookie from 'cookie';
 import { isbot } from 'isbot';
-import _ from 'lodash';
+import forEach from 'lodash/forEach';
+import get from 'lodash/get';
+import set from 'lodash/set';
+import toLower from 'lodash/toLower';
 import { nanoid } from 'nanoid';
 import {
 	type RenderToPipeableStreamOptions,
@@ -46,12 +49,12 @@ const handleRequest = async (
 	const analytics = finalLoadContext.analytics;
 
 	if (import.meta.env.PROD) {
-		if (!_.toString(responseStatusCode).startsWith('2')) {
+		if (!String(responseStatusCode).startsWith('2')) {
 			const ipAddresses = {};
-			_.forEach(
+			forEach(
 				[
-					_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
-					_.toLower(REMIX_CLIENT_IP_HEADER_KEY),
+					toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
+					toLower(REMIX_CLIENT_IP_HEADER_KEY),
 					// 'x-forwarded-for',
 					// 'x-real-ip',
 					// 'x-client-ip',
@@ -60,15 +63,15 @@ const handleRequest = async (
 					// 'forwarded',
 				],
 				(headerKey) => {
-					const lowerKey = _.toLower(headerKey);
-					_.set(ipAddresses, lowerKey, request.headers.get(lowerKey));
+					const lowerKey = toLower(headerKey);
+					set(ipAddresses, lowerKey, request.headers.get(lowerKey));
 				},
 			);
 
 			analytics.capture({
 				distinctId:
-					_.get(ipAddresses, _.toLower(REMIX_CLIENT_IP_HEADER_KEY)) ||
-					_.get(ipAddresses, _.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY)) ||
+					get(ipAddresses, toLower(REMIX_CLIENT_IP_HEADER_KEY)) ||
+					get(ipAddresses, toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY)) ||
 					nanoid(),
 				event: 'bad_request',
 				properties: {
@@ -92,7 +95,7 @@ const handleRequest = async (
 		locale = getCorrectLocale(language);
 	} else {
 		const reqCookies = cookie.parse(request.headers.get('cookie') || '');
-		const localeCookie = _.get(reqCookies, LOCALE_COOKIE_KEY);
+		const localeCookie = get(reqCookies, LOCALE_COOKIE_KEY);
 		locale = getCorrectLocale(localeCookie);
 	}
 

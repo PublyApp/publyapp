@@ -1,9 +1,13 @@
 import './styles/main.css';
 
+import interLatinExtFontUrl from '@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2?url';
+import interLatinFontUrl from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
+import GlobalStyles from '@mui/material/GlobalStyles';
 import InitColorSchemeScript from '@mui/material/InitColorSchemeScript';
 import { QueryClientProvider } from '@tanstack/react-query';
 import i18next, { type TFunction } from 'i18next';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import get from 'lodash/get';
 import { NuqsAdapter } from 'nuqs/adapters/react-router/v7';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -40,6 +44,7 @@ import { Snackbar } from './components/snackbar/snackbar';
 import { useNonce } from './hooks/use-nonce-context';
 import { logout } from './lib/cookies/logout.utils';
 import { LocalizationProvider } from './lib/locales/localization-provider';
+import { createTheme } from './lib/mui/theme/create-theme';
 import { themeConfig } from './lib/mui/theme/theme-config';
 import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
 import { getQueryClient } from './lib/react-query/query-client';
@@ -47,7 +52,7 @@ import { setGlobalNavigate } from './lib/react-router/navigation-helper';
 import { getServerLoader } from './lib/react-router/server-data.server';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(t('social-media-management-platform'));
+	let str: string = capitalize(t('social-media-management-platform'));
 
 	if (seo) {
 		str = `${APP_NAME} | ${str}`;
@@ -56,24 +61,33 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 	return str;
 };
 
+const firstPaintTheme = createTheme({ settingsState: defaultSettings });
+const firstPaintMuiCssVariables = firstPaintTheme.generateStyleSheets();
+
 export const links: Route.LinksFunction = () => {
 	return [
-		{ rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+		// The theme uses Inter Variable. Preload the primary latin subsets so the
+		// first paint does not swap from fallback text into the final app font.
 		{
-			rel: 'preconnect',
-			href: 'https://fonts.gstatic.com',
+			rel: 'preload',
+			href: interLatinFontUrl,
+			as: 'font',
+			type: 'font/woff2',
 			crossOrigin: 'anonymous',
 		},
 		{
-			rel: 'stylesheet',
-			href: 'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap',
+			rel: 'preload',
+			href: interLatinExtFontUrl,
+			as: 'font',
+			type: 'font/woff2',
+			crossOrigin: 'anonymous',
 		},
 	];
 };
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
+		return get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;
@@ -163,6 +177,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 				<meta name="csp-nonce" content={nonce} />
 				<Meta />
 				<Links />
+				{/* Stream MUI variables in the head so component CSS that uses
+				var(--palette-*) and var(--spacing) is valid before body chunks paint. */}
+				<GlobalStyles styles={firstPaintMuiCssVariables} />
 			</head>
 			<body>
 				<script
@@ -230,8 +247,8 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 		if (error.status === 400) {
 			return (
 				<View400
-					title={_.get(error.data, 'title')}
-					description={_.get(error.data, 'description')}
+					title={get(error.data, 'title')}
+					description={get(error.data, 'description')}
 				/>
 			);
 		}
