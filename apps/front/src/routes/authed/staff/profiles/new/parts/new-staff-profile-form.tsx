@@ -216,11 +216,11 @@ const NewStaffProfileForm = () => {
 	const { mutate: createProfile, isPending } = useCreateStaffProfile({
 		onSuccess: () => {
 			toast.success(t('profile-created-successfully'));
-			queryClient.invalidateQueries({
+			void queryClient.invalidateQueries({
 				queryKey: useFindStaffProfiles.getKey(),
 			});
 			form.reset();
-			router.push(FRONT_PATH_NAMES.staff.profiles.root);
+			void router.push(FRONT_PATH_NAMES.staff.profiles.root);
 		},
 		// Error toasts handled by global handler automatically
 	});

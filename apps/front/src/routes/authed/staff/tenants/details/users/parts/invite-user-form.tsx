@@ -101,7 +101,7 @@ export const InviteUserForm = ({ onClose }: { onClose?: () => void }) => {
 	const handleViewInvitations = () => {
 		handleClose();
 		if (invitationsPath) {
-			navigate(invitationsPath);
+			void navigate(invitationsPath);
 		}
 	};
 

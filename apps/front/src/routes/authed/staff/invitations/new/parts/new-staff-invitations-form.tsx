@@ -97,11 +97,11 @@ const NewStaffInvitationsForm = () => {
 				toast.success(
 					t('invitations-sent-successfully', { count: createdCount }),
 				);
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useFindStaffInvitations.getKey(),
 				});
 				form.reset();
-				router.push(FRONT_PATH_NAMES.staff.invitations.root);
+				void router.push(FRONT_PATH_NAMES.staff.invitations.root);
 			},
 			onError: (error) => {
 				const failure = toApiFailure(error);

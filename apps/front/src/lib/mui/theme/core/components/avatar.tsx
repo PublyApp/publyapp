@@ -84,8 +84,8 @@ const MuiAvatar: Components<Theme>['MuiAvatar'] = {
 			const color = colorByName(ownerState.alt);
 
 			return {
-				...(!!ownerState.alt && {
-					...(color !== 'default'
+				...(!!ownerState.alt &&
+					(color !== 'default'
 						? {
 								color: theme.vars.palette[color].contrastText,
 								backgroundColor: theme.vars.palette[color].main,
@@ -96,8 +96,7 @@ const MuiAvatar: Components<Theme>['MuiAvatar'] = {
 									theme.vars.palette.grey['500Channel'],
 									0.24,
 								),
-							}),
-				}),
+							})),
 			};
 		},
 	},

@@ -31,6 +31,8 @@
 		"typescript/no-deprecated": "error",
 		"typescript/no-explicit-any": "error",
 		"typescript/no-inferrable-types": "error",
+		"typescript/no-misused-spread": "off",
+		"typescript/unbound-method": "off",
 		"typescript/no-unnecessary-template-expression": "error",
 		"typescript/prefer-as-const": "error",
 		"typescript/prefer-enum-initializers": "error",

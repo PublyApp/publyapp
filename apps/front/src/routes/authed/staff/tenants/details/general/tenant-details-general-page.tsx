@@ -173,10 +173,10 @@ const TenantGeneralContent = ({
 		withFormValidation(methods.setError, {
 			meta: { successMessage: 'tenant-updated-success' },
 			onSuccess: () => {
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useGetTenant.getKey({ tenantId }),
 				});
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useFindTenants.getKey({}),
 				});
 			},
@@ -204,7 +204,7 @@ const TenantGeneralContent = ({
 	});
 
 	const handleCopyValue = (field: 'code' | 'tenantId', value: string) => {
-		navigator.clipboard.writeText(value);
+		void navigator.clipboard.writeText(value);
 		setCopiedField(field);
 		setTimeout(() => setCopiedField(null), 2000);
 	};
@@ -449,7 +449,7 @@ const DangerZoneCard = ({
 		meta: { successMessage: 'tenant-suspended-success' },
 		onSuccess: () => {
 			setSuspendDialogOpen(false);
-			queryClient.invalidateQueries({
+			void queryClient.invalidateQueries({
 				queryKey: useGetTenant.getKey({ tenantId }),
 			});
 		},
@@ -460,7 +460,7 @@ const DangerZoneCard = ({
 			meta: { successMessage: 'tenant-reactivated-success' },
 			onSuccess: () => {
 				setReactivateDialogOpen(false);
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useGetTenant.getKey({ tenantId }),
 				});
 			},
@@ -470,10 +470,10 @@ const DangerZoneCard = ({
 		meta: { successMessage: 'tenant-deleted-success' },
 		onSuccess: () => {
 			setDeleteDialogOpen(false);
-			queryClient.invalidateQueries({
+			void queryClient.invalidateQueries({
 				queryKey: useFindTenants.getKey({}),
 			});
-			navigate(FRONT_PATH_NAMES.staff.tenants.root);
+			void navigate(FRONT_PATH_NAMES.staff.tenants.root);
 		},
 	});
 

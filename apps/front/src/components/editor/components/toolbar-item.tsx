@@ -18,7 +18,7 @@ export const ToolbarItem = ({
 	return (
 		<ItemRoot active={active} disabled={disabled} sx={sx} {...other}>
 			{icon && <SvgIcon sx={{ fontSize: 18 }}>{icon}</SvgIcon>}
-			{label && label}
+			{label}
 		</ItemRoot>
 	);
 };

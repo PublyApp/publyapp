@@ -1,3 +1,5 @@
+export {};
+
 // /**
 //  * simplebar-react - v3.3.1
 //  * React component for SimpleBar

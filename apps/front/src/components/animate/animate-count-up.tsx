@@ -15,7 +15,7 @@ export type AnimateCountUpProps = TypographyProps & {
 	from?: number;
 	toFixed?: number;
 	duration?: number;
-	unit?: 'k' | 'm' | 'b' | string;
+	unit?: 'k' | 'm' | 'b' | (string & {});
 	once?: UseInViewOptions['once'];
 	amount?: UseInViewOptions['amount'];
 };

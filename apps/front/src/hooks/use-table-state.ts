@@ -186,14 +186,14 @@ export const useTableState = (
 					},
 				])[0] ||
 					defaultSorting || { id: 'createdAt', desc: true };
-				setSortingState({
+				void setSortingState({
 					[queryKeys.sorting.id]: id,
 					[queryKeys.sorting.order]: desc === false ? 'asc' : 'desc',
 				});
 			} else {
 				const { desc, id } = updaterOrValue[0] ||
 					defaultSorting || { id: 'createdAt', desc: true };
-				setSortingState({
+				void setSortingState({
 					[queryKeys.sorting.id]: id,
 					[queryKeys.sorting.order]: desc === false ? 'asc' : 'desc',
 				});
@@ -265,7 +265,7 @@ export const useTableState = (
 					newPagination.pageSize !==
 					Number(paginationState[queryKeys.pagination.pageSize])
 				) {
-					setPaginationState({
+					void setPaginationState({
 						[queryKeys.pagination.pageSize]: newPagination.pageSize.toString(),
 					});
 				}
@@ -276,14 +276,14 @@ export const useTableState = (
 						pageIndex: Number(paginationState[queryKeys.pagination.page]) - 1,
 						pageSize: Number(paginationState[queryKeys.pagination.pageSize]),
 					});
-					setPaginationState({
+					void setPaginationState({
 						[queryKeys.pagination.page]: (
 							newPagination.pageIndex + 1
 						).toString(),
 						[queryKeys.pagination.pageSize]: newPagination.pageSize.toString(),
 					});
 				} else {
-					setPaginationState({
+					void setPaginationState({
 						[queryKeys.pagination.page]: (
 							updaterOrValue.pageIndex + 1
 						).toString(),

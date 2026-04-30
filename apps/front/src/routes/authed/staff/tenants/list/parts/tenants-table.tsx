@@ -204,7 +204,7 @@ const useTenantsTableController = () => {
 		}
 
 		resetCursorPagination?.();
-		setFilterStates({ q: debouncedQ, status: statusFilter.join(',') });
+		void setFilterStates({ q: debouncedQ, status: statusFilter.join(',') });
 	}, [
 		debouncedQ,
 		filterStates.q,
@@ -237,7 +237,10 @@ const useTenantsTableController = () => {
 		const nextStatusFilter = map(selectedOptions, (option) => option.value);
 		resetCursorPagination?.();
 		setStatusFilter(nextStatusFilter);
-		setFilterStates({ q: globalFilter, status: nextStatusFilter.join(',') });
+		void setFilterStates({
+			q: globalFilter,
+			status: nextStatusFilter.join(','),
+		});
 	};
 
 	// Row selection state for bulk actions
@@ -613,7 +616,7 @@ const useTenantsBulkActions = ({
 	const queryClient = useQueryClient();
 
 	const invalidateTenants = () => {
-		queryClient.invalidateQueries({
+		void queryClient.invalidateQueries({
 			queryKey: useFindTenants.getKey(),
 		});
 	};
@@ -1446,7 +1449,7 @@ const StatusCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 		meta: { successMessage: 'tenant-suspended-success' },
 		onSuccess: () => {
 			setSuspendDialogOpen(false);
-			queryClient.invalidateQueries({
+			void queryClient.invalidateQueries({
 				queryKey: useFindTenants.getKey(),
 			});
 		},
@@ -1457,7 +1460,7 @@ const StatusCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 			meta: { successMessage: 'tenant-reactivated-success' },
 			onSuccess: () => {
 				setReactivateDialogOpen(false);
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useFindTenants.getKey(),
 				});
 			},
@@ -1640,7 +1643,7 @@ const DeleteTenantAction = ({ tenant }: TenantActionProps) => {
 		meta: { successMessage: 'tenant-deleted-success' },
 		onSuccess: () => {
 			setDeleteDialogOpen(false);
-			queryClient.invalidateQueries({
+			void queryClient.invalidateQueries({
 				queryKey: useFindTenants.getKey(),
 			});
 		},

@@ -135,7 +135,6 @@ class BrowserConsoleFormatter {
 
 		// If we have meta objects, use console.group for better formatting
 		if (
-			formattedMeta.length > 0 &&
 			formattedMeta.some((item) => typeof item === 'object' && item !== null)
 		) {
 			console.group(formattedMessage, styles.badge, styles.text);
