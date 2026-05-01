@@ -38,6 +38,8 @@ const BillingToggle = ({ billing, onBillingChange }: PricingHeroProps) => {
 
 	return (
 		<Box
+			role="group"
+			aria-label="Billing cycle"
 			sx={{
 				position: 'relative',
 				bgcolor: 'background.paper',
@@ -49,11 +51,11 @@ const BillingToggle = ({ billing, onBillingChange }: PricingHeroProps) => {
 				alignItems: 'center',
 				boxShadow: '0 1px 2px rgba(17,24,39,0.05)',
 				width: 260,
-				cursor: 'pointer',
 			}}
 		>
 			{/* Sliding dark thumb */}
 			<Box
+				aria-hidden="true"
 				sx={{
 					position: 'absolute',
 					top: 6,
@@ -71,6 +73,8 @@ const BillingToggle = ({ billing, onBillingChange }: PricingHeroProps) => {
 			{/* Monthly segment */}
 			<Box
 				component="button"
+				type="button"
+				aria-pressed={!isAnnual}
 				onClick={() => {
 					onBillingChange('monthly');
 				}}
@@ -94,6 +98,8 @@ const BillingToggle = ({ billing, onBillingChange }: PricingHeroProps) => {
 			{/* Annually segment */}
 			<Box
 				component="button"
+				type="button"
+				aria-pressed={isAnnual}
 				onClick={() => {
 					onBillingChange('annually');
 				}}
@@ -187,7 +193,7 @@ export const PricingHero = ({ billing, onBillingChange }: PricingHeroProps) => {
 					}}
 				>
 					<Iconify
-						icon={'ph-fill:tag' as never}
+						icon="solar:tag-horizontal-bold-duotone"
 						width={14}
 						sx={{ color: 'primary.main' }}
 					/>
