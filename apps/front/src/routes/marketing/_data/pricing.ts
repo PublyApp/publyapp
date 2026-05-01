@@ -6,6 +6,8 @@ import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 export type PricingTierId = 'creator' | 'scale' | 'enterprise';
 
+export type Billing = 'monthly' | 'annually';
+
 export type PricingTier = {
 	id: PricingTierId;
 	name: string;
