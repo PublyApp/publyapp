@@ -51,7 +51,7 @@ const bannedReasonPatterns = [
 const cwd = process.cwd();
 const disableToken = 'oxlint' + '-disable';
 const disablePattern = new RegExp(
-	`${disableToken}(?:-next-line)?\\s+([^\\s]+)\\s+--\\s+(.+)`,
+	`${disableToken}(?:-next-line|-line)?\\s+(.+?)\\s+--\\s+(.+)`,
 );
 
 const toPosixPath = (value) => value.split(path.sep).join('/');
@@ -72,11 +72,18 @@ const getFailureReason = (line) => {
 		return 'missing a specific rule or reviewable reason';
 	}
 
-	const [, ruleName, reason] = match;
+	const [, ruleNames, reason] = match;
 	const trimmedReason = reason.trim();
+	const rules = ruleNames.split(',').map((ruleName) => ruleName.trim());
 
-	if (!ruleName.includes('/') && !allowedCoreRules.has(ruleName)) {
-		return `core rule "${ruleName}" is not allowed`;
+	for (const ruleName of rules) {
+		if (ruleName.length === 0) {
+			return 'empty rule name';
+		}
+
+		if (!ruleName.includes('/') && !allowedCoreRules.has(ruleName)) {
+			return `core rule "${ruleName}" is not allowed`;
+		}
 	}
 
 	for (const pattern of bannedReasonPatterns) {
