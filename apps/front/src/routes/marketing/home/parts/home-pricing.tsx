@@ -71,10 +71,11 @@ const CREATOR_PRICE = { monthly: 19, annually: 15 };
 const SCALE_PRICE = { monthly: 49, annually: 39 };
 
 const TRACK_W = 288;
-const TRACK_H = 44;
+const TRACK_H = 52;
 const THUMB_W = 136;
-const THUMB_OFFSET_X = 8;
-const THUMB_OFFSET_Y = 4;
+const THUMB_INSET = 8;
+const THUMB_OFFSET_X = THUMB_INSET;
+const THUMB_OFFSET_Y = THUMB_INSET;
 const THUMB_LEFT_CHECKED = TRACK_W - THUMB_OFFSET_X - THUMB_W;
 
 const BillingSwitch = styled(Switch)(() => {
