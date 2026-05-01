@@ -2,7 +2,7 @@ import { popoverClasses } from '@mui/material/Popover';
 import { useTheme } from '@mui/material/styles';
 import { usePopoverHover } from 'minimal-shared/hooks';
 import { isActiveLink, isExternalLink } from 'minimal-shared/utils';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { usePathname } from '#app/hooks/use-pathname.ts';
 
@@ -37,17 +37,18 @@ export const NavList = ({
 
 	const isRtl = theme.direction === 'rtl';
 	const id = open ? `${data.title}-popover` : undefined;
+	const openRef = useRef(open);
+	const onCloseRef = useRef(onClose);
 
-	useEffect(
-		() => {
-			// If the pathname changes, close the menu
-			if (open) {
-				onClose();
-			}
-		},
-		// oxlint-disable-next-line react/exhaustive-deps -- code from template leave as is for now
-		[pathname],
-	);
+	openRef.current = open;
+	onCloseRef.current = onClose;
+
+	useEffect(() => {
+		// If the pathname changes, close the menu
+		if (openRef.current) {
+			onCloseRef.current();
+		}
+	}, [pathname]);
 
 	const handleOpenMenu = useCallback(() => {
 		if (data.children) {

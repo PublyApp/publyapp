@@ -30,15 +30,14 @@ const getFallBackComponent = ({
 	errorLocation: ReturnType<typeof useLocation>;
 }): ComponentType<FallbackProps> => {
 	return ({ error, resetErrorBoundary }: FallbackProps) => {
-		useEffect(
-			() => {
-				if (location.pathname !== errorLocation.pathname) {
-					resetErrorBoundary();
-				}
-			},
-			// oxlint-disable-next-line react/exhaustive-deps -- code from template leave as is for now
-			[location.pathname],
-		);
+		const currentPathname = location.pathname;
+		const errorPathname = errorLocation.pathname;
+
+		useEffect(() => {
+			if (currentPathname !== errorPathname) {
+				resetErrorBoundary();
+			}
+		}, [currentPathname, errorPathname, resetErrorBoundary]);
 
 		if (!FallbackComponent) {
 			return <div>Error: No fallback component provided</div>;

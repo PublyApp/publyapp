@@ -151,6 +151,10 @@ export const useTableState = (
 				},
 	);
 
+	const sortId = sortingState[queryKeys.sorting.id];
+	const sortOrder = sortingState[queryKeys.sorting.order];
+	const pageSize = paginationState[queryKeys.pagination.pageSize];
+
 	// Reset cursor history when sorting or page size changes in cursor mode
 	// All dependencies are intentional (not accidental)
 	// Why they're needed: cursors become invalid when query params change
@@ -161,15 +165,7 @@ export const useTableState = (
 			setCurrentCursor(null);
 			setVirtualPageIndex(0);
 		}
-	}, [
-		paginationMode,
-		// oxlint-disable-next-line react/exhaustive-deps -- All dependencies are intentional (not accidental)
-		sortingState[queryKeys.sorting.id],
-		// oxlint-disable-next-line react/exhaustive-deps -- All dependencies are intentional (not accidental)
-		sortingState[queryKeys.sorting.order],
-		// oxlint-disable-next-line react/exhaustive-deps -- All dependencies are intentional (not accidental)
-		paginationState[queryKeys.pagination.pageSize],
-	]);
+	}, [paginationMode, sortId, sortOrder, pageSize]);
 
 	// Sorting change handler
 	const handleSortingChange = useCallback<OnChangeFn<MRT_SortingState>>(

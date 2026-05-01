@@ -13,18 +13,14 @@ export const useSyncFormToLang = <
 	lng: string,
 	methods: UseFormReturn<TFieldValues>,
 ) => {
-	useEffect(
-		() => {
-			if (/* methods.formState.isDirty &&  */ methods.formState.isSubmitted) {
-				void methods.trigger();
-			}
-		},
-		// oxlint-disable-next-line react/exhaustive-deps -- This is intended to obtain the desired effect
-		[
-			lng,
-			methods.formState.isDirty,
-			methods.formState.isSubmitted,
-			methods.trigger,
-		],
-	);
+	const {
+		formState: { isSubmitted },
+		trigger,
+	} = methods;
+
+	useEffect(() => {
+		if (isSubmitted) {
+			void trigger();
+		}
+	}, [lng, isSubmitted, trigger]);
 };

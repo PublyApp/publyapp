@@ -114,15 +114,11 @@ export const Editor = ({
 		};
 	}, [content, editor]);
 
-	useEffect(
-		() => {
-			if (resetValue && !content) {
-				editor?.commands.clearContent();
-			}
-		},
-		// oxlint-disable-next-line react/exhaustive-deps -- code from template leave as is for now
-		[content],
-	);
+	useEffect(() => {
+		if (resetValue && !content) {
+			editor?.commands.clearContent();
+		}
+	}, [content, editor, resetValue]);
 
 	useEffect(() => {
 		return () => {
