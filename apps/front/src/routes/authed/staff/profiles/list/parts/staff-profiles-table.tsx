@@ -656,7 +656,7 @@ const StaffProfilesSelectionActions = ({
 			try {
 				// Keep the mutation sequential so a single failure doesn't mask the rest.
 				// This matches the repo's existing bulk-table fallback behavior.
-				// oxlint-disable-next-line no-await-in-loop -- retries must run sequentially to preserve server-side ordering
+				// oxlint-disable-next-line no-await-in-loop -- single-delete fallback runs sequentially so one failure does not mask later rows
 				await deleteProfile({ profileId: row.id });
 				succeeded += 1;
 			} catch (error) {
