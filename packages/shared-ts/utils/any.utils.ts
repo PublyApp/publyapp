@@ -11,7 +11,7 @@ export const delay = <T = unknown>(timeout: number, value?: T) => {
 	});
 };
 
-type AsyncFunction = (...args: unknown[]) => Promise<unknown>;
+type AsyncFunction = (...args: never[]) => Promise<unknown>;
 
 export const isAsyncFunction = (
 	func: GenericFunction,
@@ -72,7 +72,7 @@ export const withResolvers = <T = unknown>() => {
 	let resolve: (value: T | PromiseLike<T>) => void = () => {};
 	let reject: (reason?: unknown) => void = () => {};
 
-	const promise = new Promise((_resolve, _reject) => {
+	const promise = new Promise<T>((_resolve, _reject) => {
 		resolve = _resolve;
 		reject = _reject;
 	});
