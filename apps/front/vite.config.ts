@@ -197,7 +197,16 @@ export default defineConfig(({ mode, isSsrBuild }) => {
 					],
 				},
 			}),
-			reactRouterDevTools(),
+			reactRouterDevTools({
+				tanstackViteConfig: {
+					injectSource: {
+						enabled: true,
+						ignore: {
+							components: ['PortalWrapper'],
+						},
+					},
+				},
+			}),
 			reactRouter(),
 		],
 		resolve: {
