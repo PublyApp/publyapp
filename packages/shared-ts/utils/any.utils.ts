@@ -11,12 +11,11 @@ export const delay = <T = unknown>(timeout: number, value?: T) => {
 	});
 };
 
-// oxlint-disable-next-line typescript/no-explicit-any -- any is the only way to do this
-type Asyncfunction = (...args: any[]) => Promise<any>;
+type AsyncFunction = (...args: never[]) => Promise<unknown>;
 
 export const isAsyncFunction = (
 	func: GenericFunction,
-): func is Asyncfunction => {
+): func is AsyncFunction => {
 	return func.constructor.name === 'AsyncFunction';
 };
 
@@ -31,8 +30,7 @@ export const isPromise = (input: unknown): input is Promise<unknown> => {
 	);
 };
 
-// oxlint-disable-next-line typescript/no-explicit-any -- any is the only way to do this
-type DeepReadonly<T> = T extends (...args: any) => any
+type DeepReadonly<T> = T extends (...args: never[]) => unknown
 	? T
 	: { readonly [P in keyof T]: DeepReadonly<T[P]> };
 
@@ -71,17 +69,14 @@ export const urlStartWithProtocol = (url: string) => {
 };
 
 export const withResolvers = <T = unknown>() => {
-	let resolve: (value: T) => void;
+	let resolve: (value: T | PromiseLike<T>) => void = () => {};
+	let reject: (reason?: unknown) => void = () => {};
 
-	// oxlint-disable-next-line typescript/no-explicit-any -- any is the only way to do this
-	let reject: (reason: any) => void;
-
-	const promise = new Promise((_resolve, _reject) => {
+	const promise = new Promise<T>((_resolve, _reject) => {
 		resolve = _resolve;
 		reject = _reject;
 	});
 
-	// @ts-expect-error
 	return { promise, resolve, reject };
 };
 

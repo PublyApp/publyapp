@@ -21,16 +21,17 @@ export const NavList = ({ data, sx, ...other }: NavListProps) => {
 
 	const isActive = isActiveLink(pathname, data.path, !!data.children);
 	const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
+	const openRef = useRef(open);
+	const onCloseRef = useRef(onClose);
 
-	useEffect(
-		() => {
-			if (open) {
-				onClose();
-			}
-		},
-		// oxlint-disable-next-line react/exhaustive-deps -- code from template leave as is for now
-		[pathname],
-	);
+	openRef.current = open;
+	onCloseRef.current = onClose;
+
+	useEffect(() => {
+		if (openRef.current) {
+			onCloseRef.current();
+		}
+	}, [pathname]);
 
 	const handleOpenMenu = useCallback(() => {
 		if (data.children) {

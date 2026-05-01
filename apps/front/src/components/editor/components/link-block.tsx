@@ -28,28 +28,24 @@ export const LinkBlock = ({ editor }: Pick<EditorToolbarProps, 'editor'>) => {
 		}
 	};
 
-	const handleClosePopover = () => {
+	const handleClosePopover = useCallback(() => {
 		setAnchorEl(null);
-	};
+	}, []);
 
-	const handleUpdateUrl = useCallback(
-		() => {
-			handleClosePopover();
+	const handleUpdateUrl = useCallback(() => {
+		handleClosePopover();
 
-			if (!url) {
-				editor?.chain().focus().extendMarkRange('link').unsetLink().run();
-			} else {
-				editor
-					?.chain()
-					.focus()
-					.extendMarkRange('link')
-					.setLink({ href: url })
-					.run();
-			}
-		},
-		// oxlint-disable-next-line react/exhaustive-deps -- code from template leave as is for now
-		[editor, url],
-	);
+		if (!url) {
+			editor?.chain().focus().extendMarkRange('link').unsetLink().run();
+		} else {
+			editor
+				?.chain()
+				.focus()
+				.extendMarkRange('link')
+				.setLink({ href: url })
+				.run();
+		}
+	}, [editor, handleClosePopover, url]);
 
 	if (!editor) {
 		return null;

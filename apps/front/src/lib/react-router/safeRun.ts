@@ -4,8 +4,7 @@ import { tryCatchWrapper } from '@org/shared-ts/utils/try-catch';
 
 type SafeRunFunction<F extends GenericFunction> = (
 	...args: Parameters<F>
-	// oxlint-disable-next-line typescript/no-explicit-any -- safe to use any here
-) => ReturnType<F> extends PromiseLike<any>
+) => ReturnType<F> extends PromiseLike<unknown>
 	?
 			| Promise<{
 					status: 'success';

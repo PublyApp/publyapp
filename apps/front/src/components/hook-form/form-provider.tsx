@@ -1,19 +1,27 @@
 import Box, { type BoxProps } from '@mui/material/Box';
-import { FormProvider as RHFForm, type UseFormReturn } from 'react-hook-form';
+import {
+	FormProvider as RHFForm,
+	type FieldValues,
+	type UseFormReturn,
+} from 'react-hook-form';
 
 // ----------------------------------------------------------------------
 
-export type FormProps = {
+export type FormProps<TFieldValues extends FieldValues = FieldValues> = {
 	onSubmit?: () => void;
 	children: React.ReactNode;
-	// oxlint-disable-next-line typescript/no-explicit-any -- code from template leave as is for now
-	methods: UseFormReturn<any>;
+	methods: UseFormReturn<TFieldValues>;
 	slotProps?: {
 		form?: BoxProps;
 	};
 };
 
-export const Form = ({ children, onSubmit, methods, slotProps }: FormProps) => {
+export const Form = <TFieldValues extends FieldValues = FieldValues>({
+	children,
+	onSubmit,
+	methods,
+	slotProps,
+}: FormProps<TFieldValues>) => {
 	return (
 		<RHFForm {...methods}>
 			<Box
