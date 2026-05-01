@@ -26,13 +26,13 @@ export type ComparisonCategory =
 	| 'AI & Automation'
 	| 'Advanced';
 
-export type ComparisonRow = {
+type ComparisonRow = {
 	category: ComparisonCategory;
 	feature: string;
 	tiers: Record<PricingTierId, boolean | string>;
 };
 
-export type PricingFaqItem = { question: string; answer: string };
+type PricingFaqItem = { question: string; answer: string };
 
 export const TIERS: PricingTier[] = [
 	{

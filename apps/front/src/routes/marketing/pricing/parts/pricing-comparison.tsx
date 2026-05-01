@@ -4,6 +4,7 @@ import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import groupBy from 'lodash/groupBy';
+import { varAlpha } from 'minimal-shared/utils';
 import { Fragment } from 'react';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
@@ -69,15 +70,16 @@ const BoolPill = ({ value }: { value: boolean }) => {
 
 	return (
 		<Box
-			sx={{
+			sx={(theme) => ({
 				display: 'inline-flex',
 				width: 20,
 				height: 20,
 				alignItems: 'center',
 				justifyContent: 'center',
 				borderRadius: '6px',
-				bgcolor: 'grey.100',
-			}}
+				bgcolor: varAlpha(theme.vars.palette.text.primaryChannel, 0.08),
+				color: 'text.disabled',
+			})}
 		>
 			<Iconify
 				icon="ph:minus-bold"
@@ -162,7 +164,7 @@ const TierColumnHeader = ({
 			{/* CTA button */}
 			<Button
 				component={isMailto ? 'a' : RouterLink}
-				{...(isMailto ? { href: tier.cta.href } : { href: tier.cta.href })}
+				href={tier.cta.href}
 				variant={isScale ? 'contained' : 'outlined'}
 				disableElevation
 				sx={{

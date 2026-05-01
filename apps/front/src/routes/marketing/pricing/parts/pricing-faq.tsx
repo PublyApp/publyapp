@@ -4,15 +4,17 @@ import AccordionSummary from '@mui/material/AccordionSummary';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
+import { varAlpha } from 'minimal-shared/utils';
 import { useState } from 'react';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { PRICING_FAQS } from '#app/routes/marketing/_data/pricing.ts';
 
 const ExpandIcon = ({ expanded }: { expanded: boolean }) => {
+	const iconName = expanded ? 'ph:x-bold' : 'ph:plus-bold';
 	return (
 		<Iconify
-			icon={(expanded ? 'ph:x-bold' : 'ph:plus-bold') as never}
+			icon={iconName}
 			width={18}
 			sx={{
 				color: 'text.disabled',
@@ -61,7 +63,7 @@ export const PricingFaq = () => {
 								sx={{
 									borderRadius: '16px',
 									overflow: 'hidden',
-									bgcolor: 'grey.50',
+									bgcolor: 'background.neutral',
 									border: '1px solid',
 									borderColor: 'divider',
 									boxShadow: '0 2px 10px -4px rgba(0,0,0,0.03)',
@@ -71,10 +73,13 @@ export const PricingFaq = () => {
 							>
 								<AccordionSummary
 									expandIcon={<ExpandIcon expanded={expanded} />}
-									sx={{
+									sx={(theme) => ({
 										px: 3,
 										py: 2,
-										bgcolor: 'grey.100',
+										bgcolor: varAlpha(
+											theme.vars.palette.text.primaryChannel,
+											0.04,
+										),
 										minHeight: 0,
 										'& .MuiAccordionSummary-content': { my: 0 },
 										'& .MuiAccordionSummary-expandIconWrapper': {
@@ -83,7 +88,7 @@ export const PricingFaq = () => {
 										'& .MuiAccordionSummary-expandIconWrapper.Mui-expanded': {
 											transform: 'none',
 										},
-									}}
+									})}
 								>
 									<Typography
 										sx={{

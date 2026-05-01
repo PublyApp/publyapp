@@ -265,7 +265,7 @@ const TierCard = ({
 			{/* CTA */}
 			<Button
 				component={isMailto ? 'a' : RouterLink}
-				{...(isMailto ? { href: tier.cta.href } : { href: tier.cta.href })}
+				href={tier.cta.href}
 				variant="contained"
 				disableElevation
 				sx={{
