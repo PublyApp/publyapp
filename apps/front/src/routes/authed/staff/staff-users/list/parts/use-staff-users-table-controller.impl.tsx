@@ -20,7 +20,6 @@ import {
 	type MRT_SortingState,
 	type MRT_TableOptions,
 } from 'material-react-table';
-import { useDebounce } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
 import { parseAsString, useQueryStates } from 'nuqs';
 import {
@@ -49,11 +48,12 @@ import { Label } from '#app/components/label/label.tsx';
 import type { LabelColor } from '#app/components/label/types.ts';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
+import { useTableRowSelection } from '#app/hooks/table/use-table-row-selection.ts';
+import { useUrlBackedDebouncedSearch } from '#app/hooks/table/use-url-backed-debounced-search.ts';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { getSelectionLockedSearchAction } from '#app/lib/mrt-table/selection-locked-search.ts';
 import { useGetUserAuthData } from '#app/lib/react-query/features/common/auth.hooks.ts';
 import {
 	STAFF_USER_STATUS_FILTER_VALUES,
@@ -67,7 +67,6 @@ import { invalidateStaffUserLifecycleQueries } from '#app/routes/authed/staff/st
 
 import StaffUserRowActions from './staff-user-row-actions.tsx';
 import type { StaffUsersExportDialogControllerRef } from './staff-users-export-dialog-controller.tsx';
-import { reconcileVisibleRowSelection } from './staff-users-list-helpers.ts';
 import StaffUsersSelectionActions from './staff-users-selection-actions.tsx';
 import StaffUsersToolbarFilters from './staff-users-toolbar-filters.tsx';
 import {
@@ -164,7 +163,6 @@ export const useStaffUsersTableController = () => {
 		q: parseAsString.withDefault(''),
 		status: parseAsString.withDefault(''),
 	});
-	const [globalFilter, setGlobalFilter] = useState(filterStates.q);
 	const [statusFilter, setStatusFilter] = useState<StaffUserStatusFilter[]>(
 		() => {
 			return parseStatusFilter(filterStates.status);
@@ -185,12 +183,6 @@ export const useStaffUsersTableController = () => {
 		paginationMode: 'cursor',
 	});
 
-	const debouncedQ = useDebounce(globalFilter, 300);
-
-	useEffect(() => {
-		setGlobalFilter(filterStates.q);
-	}, [filterStates.q]);
-
 	useEffect(() => {
 		const nextStatusFilter = parseStatusFilter(filterStates.status);
 
@@ -198,26 +190,6 @@ export const useStaffUsersTableController = () => {
 			setStatusFilter(nextStatusFilter);
 		}
 	}, [filterStates.status, statusFilter]);
-
-	const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
-		setGlobalFilter(event.target.value);
-	};
-
-	const handleStatusChange = (
-		_event: SyntheticEvent,
-		selectedOptions: StaffUserStatusFilterOption[],
-	) => {
-		const nextStatusFilter = map(selectedOptions, (option) => {
-			return option.value;
-		});
-
-		resetCursorPagination?.();
-		setStatusFilter(nextStatusFilter);
-		setFilterStates({
-			q: globalFilter,
-			status: nextStatusFilter.join(','),
-		});
-	};
 
 	const staffUsersQuery = useFindStaffUser({
 		variables: {
@@ -289,7 +261,6 @@ export const useStaffUsersTableController = () => {
 		];
 	}, [t]);
 
-	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
 	const [bulkActionDialog, setBulkActionDialog] = useState<{
 		type: StaffUsersBulkActionType;
 		open: boolean;
@@ -297,29 +268,53 @@ export const useStaffUsersTableController = () => {
 		type: 'suspend',
 		open: false,
 	});
-	const reconciledRowSelection = useMemo(() => {
-		return reconcileVisibleRowSelection(rowSelection, rows);
-	}, [rowSelection, rows]);
-
-	useEffect(() => {
-		if (isEqual(reconciledRowSelection, rowSelection)) {
-			return;
-		}
-
-		setRowSelection(reconciledRowSelection);
-	}, [reconciledRowSelection, rowSelection]);
-
-	const selectedRows = useMemo(() => {
-		return rows.filter((row) => {
-			return reconciledRowSelection[row.id];
-		});
-	}, [reconciledRowSelection, rows]);
+	const {
+		rowSelection,
+		setRowSelection,
+		selectedRows,
+		selectedCount,
+		isSelectionMode,
+		clearSelection,
+	} = useTableRowSelection({
+		rows,
+		reconcileVisibleRows: true,
+	});
 	const selectedUserIds = useMemo(() => {
 		return selectedRows.map((row) => row.id);
 	}, [selectedRows]);
-	const selectedCount = selectedRows.length;
-	const isSelectionMode = selectedCount > 0;
-	const isCancellingSelectionLockedSearchRef = useRef(false);
+	const handleDebouncedSearchChange = useCallback(
+		(nextSearchValue: string) => {
+			resetCursorPagination?.();
+			void setFilterStates({
+				q: nextSearchValue,
+				status: statusFilter.join(','),
+			});
+		},
+		[resetCursorPagination, setFilterStates, statusFilter],
+	);
+	const { searchValue, setSearchValue } = useUrlBackedDebouncedSearch({
+		persistedValue: filterStates.q,
+		isSelectionMode,
+		onDebouncedValueChange: handleDebouncedSearchChange,
+	});
+	const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
+		setSearchValue(event.target.value);
+	};
+	const handleStatusChange = (
+		_event: SyntheticEvent,
+		selectedOptions: StaffUserStatusFilterOption[],
+	) => {
+		const nextStatusFilter = map(selectedOptions, (option) => {
+			return option.value;
+		});
+
+		resetCursorPagination?.();
+		setStatusFilter(nextStatusFilter);
+		void setFilterStates({
+			q: searchValue,
+			status: nextStatusFilter.join(','),
+		});
+	};
 	const selectionModeDisabledReason = t('selection-mode-disable-controls');
 	const sortingDisabledReason = t('selection-mode-disable-sorting');
 	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
@@ -335,59 +330,6 @@ export const useStaffUsersTableController = () => {
 		};
 	}, [isSelectionMode, sortingDisabledReason]);
 
-	useEffect(() => {
-		if (!isSelectionMode) {
-			return;
-		}
-
-		isCancellingSelectionLockedSearchRef.current = true;
-		if (globalFilter === filterStates.q) {
-			return;
-		}
-
-		setGlobalFilter(filterStates.q);
-	}, [filterStates.q, globalFilter, isSelectionMode]);
-
-	useEffect(() => {
-		const searchAction = getSelectionLockedSearchAction({
-			isSelectionMode,
-			isCancellingSelectionLockedSearch:
-				isCancellingSelectionLockedSearchRef.current,
-			searchValue: globalFilter,
-			debouncedValue: debouncedQ,
-			persistedValue: filterStates.q,
-		});
-
-		if (searchAction === 'wait' || searchAction === 'none') {
-			return;
-		}
-
-		if (
-			searchAction === 'clear-cancel' ||
-			searchAction === 'clear-cancel-and-apply'
-		) {
-			isCancellingSelectionLockedSearchRef.current = false;
-
-			if (searchAction === 'clear-cancel') {
-				return;
-			}
-		}
-
-		resetCursorPagination?.();
-		setFilterStates({
-			q: debouncedQ,
-			status: statusFilter.join(','),
-		});
-	}, [
-		globalFilter,
-		debouncedQ,
-		filterStates.q,
-		isSelectionMode,
-		resetCursorPagination,
-		setFilterStates,
-		statusFilter,
-	]);
-
 	const {
 		handleBulkSuspend,
 		handleBulkReactivate,
@@ -399,7 +341,7 @@ export const useStaffUsersTableController = () => {
 		selectedUserIds,
 		onSuccess: (type) => {
 			setBulkActionDialog({ type, open: false });
-			setRowSelection({});
+			clearSelection();
 		},
 	});
 
@@ -449,7 +391,7 @@ export const useStaffUsersTableController = () => {
 				statusTooltipId={statusTooltipId}
 				isSelectionMode={isSelectionMode}
 				disabledReason={selectionModeDisabledReason}
-				globalFilter={globalFilter}
+				globalFilter={searchValue}
 				statusFilter={statusFilter}
 				statusOptions={staffUserStatusOptions}
 				onSearchChange={handleSearchChange}
@@ -505,7 +447,7 @@ export const useStaffUsersTableController = () => {
 			...tableState,
 			...queryState,
 			density: 'compact',
-			rowSelection: reconciledRowSelection,
+			rowSelection,
 		},
 		meta: {
 			handlePaginationChange: handleCursorPaginationChange,
@@ -584,14 +526,14 @@ const UserCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 			<Avatar
 				alt={fullName}
 				src={normalizedAvatarUrl || undefined}
-				sx={{
-					...(normalizedAvatarUrl
-						? {}
+				sx={
+					normalizedAvatarUrl
+						? undefined
 						: {
 								bgcolor: 'background.neutral',
 								color: 'text.disabled',
-							}),
-				}}
+							}
+				}
 			>
 				{!normalizedAvatarUrl ? (
 					<Iconify icon="solar:user-rounded-bold" width={20} />
