@@ -26,11 +26,12 @@ export const tryCatchWrapper = <F extends GenericFunction>({
 	onError?: ErrorHandler<F>;
 }): F => {
 	const handleError = onError ?? (defaultErrorHandler as ErrorHandler<F>);
+	const originalHandler = handler;
 
 	if (isAsyncFunction(handler)) {
 		const wrappedFunctionAsync = async (...args: Parameters<F>) => {
 			try {
-				const result = await handler(...args);
+				const result = await originalHandler(...args);
 				return result;
 			} catch (error) {
 				if (isAsyncFunction(handleError)) {
