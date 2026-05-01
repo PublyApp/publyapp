@@ -11,7 +11,7 @@ import type { Ref } from 'react';
 import { useImperativeHandle, useState } from 'react';
 
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { buildCsv } from '#app/lib/export/csv.ts';
+import { downloadCsvFile, downloadJsonFile } from '#app/lib/export/download.ts';
 import { fDate } from '#app/utils/format-time.ts';
 
 import type { TenantInvitationRowData } from './tenant-invitations-table';
@@ -68,30 +68,21 @@ const TenantInvitationsExportDialogController = ({
 				row.expiresAt ? fDate(row.expiresAt) : '',
 				row.invitedByName,
 			]);
-			const csv = buildCsv([headers, ...csvRows]);
-			const blob = new Blob([csv], { type: 'text/csv' });
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = isSelectionMode
-				? 'selected-tenant-invitations.csv'
-				: 'tenant-invitations.csv';
-			a.click();
-			URL.revokeObjectURL(url);
+			downloadCsvFile({
+				fileName: isSelectionMode
+					? 'selected-tenant-invitations.csv'
+					: 'tenant-invitations.csv',
+				rows: [headers, ...csvRows],
+			});
 			return;
 		}
 
-		const blob = new Blob([JSON.stringify(rowsToExport, null, 2)], {
-			type: 'application/json',
+		downloadJsonFile({
+			fileName: isSelectionMode
+				? 'selected-tenant-invitations.json'
+				: 'tenant-invitations.json',
+			data: rowsToExport,
 		});
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = isSelectionMode
-			? 'selected-tenant-invitations.json'
-			: 'tenant-invitations.json';
-		a.click();
-		URL.revokeObjectURL(url);
 	};
 
 	const handleExport = () => {

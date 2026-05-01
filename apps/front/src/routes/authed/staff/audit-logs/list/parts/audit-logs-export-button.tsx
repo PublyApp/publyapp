@@ -8,6 +8,7 @@ import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { downloadTextFile } from '#app/lib/export/download.ts';
 import { getClientManager } from '#app/lib/js-client/client-manager.ts';
 
 type AuditLogsExportButtonProps = {
@@ -18,15 +19,11 @@ type AuditLogsExportButtonProps = {
 
 const triggerDownload = (buffer: ArrayBuffer, format: string) => {
 	const mimeType = format === 'csv' ? 'text/csv' : 'application/json';
-	const blob = new Blob([buffer], { type: mimeType });
-	const url = URL.createObjectURL(blob);
-	const anchor = document.createElement('a');
-	anchor.href = url;
-	anchor.download = `audit-logs-${Date.now()}.${format}`;
-	document.body.appendChild(anchor);
-	anchor.click();
-	document.body.removeChild(anchor);
-	URL.revokeObjectURL(url);
+	downloadTextFile({
+		fileName: `audit-logs-${Date.now()}.${format}`,
+		mimeType,
+		content: buffer,
+	});
 };
 
 export const AuditLogsExportButton = ({
@@ -39,7 +36,7 @@ export const AuditLogsExportButton = ({
 	const [isExporting, setIsExporting] = useState(false);
 	const open = Boolean(anchorEl);
 
-	const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+	const openExportMenu = (event: React.MouseEvent<HTMLElement>) => {
 		setAnchorEl(event.currentTarget);
 	};
 
@@ -81,7 +78,7 @@ export const AuditLogsExportButton = ({
 			<Button
 				variant="outlined"
 				startIcon={<Iconify icon="solar:download-bold" width={18} />}
-				onClick={handleClick}
+				onClick={openExportMenu}
 				loading={isExporting}
 			>
 				{t('export')}

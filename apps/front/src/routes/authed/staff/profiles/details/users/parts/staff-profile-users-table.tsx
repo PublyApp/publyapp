@@ -14,7 +14,6 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import { useQueryClient } from '@tanstack/react-query';
-import isEqual from 'lodash/isEqual';
 import map from 'lodash/map';
 import pick from 'lodash/pick';
 import toStr from 'lodash/toString';
@@ -27,10 +26,9 @@ import {
 	type MRT_SortingState,
 	type MRT_TableOptions,
 } from 'material-react-table';
-import { useDebounce } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
 import { parseAsString, useQueryStates } from 'nuqs';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 
 import type { StaffProfileUserItem } from '@org/client-ts/src/models';
@@ -49,11 +47,13 @@ import type { LabelColor } from '#app/components/label/index.ts';
 import { Label } from '#app/components/label/label.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
+import { useTableRowSelection } from '#app/hooks/table/use-table-row-selection.ts';
+import { useUrlBackedDebouncedSearch } from '#app/hooks/table/use-url-backed-debounced-search.ts';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getUntypedNumber } from '#app/lib/js-client/kiota-utils.ts';
-import { getSelectionLockedSearchAction } from '#app/lib/mrt-table/selection-locked-search.ts';
+import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
 import {
 	useFindStaffProfileUsers,
 	useUnassignStaffProfileUsers,
@@ -67,10 +67,6 @@ import { invalidateStaffUserLifecycleQueries } from '#app/routes/authed/staff/st
 import StaffProfileUsersExportDialogController, {
 	type StaffProfileUsersExportDialogControllerRef,
 } from './staff-profile-users-export-dialog-controller.tsx';
-import {
-	getVisibleSelectedRows,
-	reconcileVisibleProfileUserRowSelection,
-} from './staff-profile-users-table-helpers.ts';
 
 export const defaultStaffProfileUsersSorting: MRT_SortingState[number] = {
 	desc: true,
@@ -99,12 +95,7 @@ export const StaffProfileUsersTable = () => {
 	const [filterStates, setFilterStates] = useQueryStates({
 		q: parseAsString.withDefault(''),
 	});
-	const [search, setSearch] = useState(filterStates.q);
-	const debouncedQ = useDebounce(search, 300);
 
-	// Row selection enables "bulk actions" mode (shared MRT toolbar pattern).
-	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
-	const isCancellingSelectionLockedSearchRef = useRef(false);
 	const {
 		handlePaginationChange,
 		handleSortingChange,
@@ -116,10 +107,6 @@ export const StaffProfileUsersTable = () => {
 		defaultSorting: defaultStaffProfileUsersSorting,
 		defaultPageSize: DEFAULT_PAGE_SIZE,
 	});
-
-	useEffect(() => {
-		setSearch(filterStates.q);
-	}, [filterStates.q]);
 
 	const columns = useMemo(() => {
 		return [
@@ -160,24 +147,33 @@ export const StaffProfileUsersTable = () => {
 	const data = useMemo(() => {
 		return map(usersQuery.data?.users, mapProfileUserRowData);
 	}, [usersQuery.data]);
-
-	const reconciledRowSelection = useMemo(() => {
-		return reconcileVisibleProfileUserRowSelection(rowSelection, data);
-	}, [data, rowSelection]);
-
-	useEffect(() => {
-		if (isEqual(reconciledRowSelection, rowSelection)) {
-			return;
-		}
-
-		setRowSelection(reconciledRowSelection);
-	}, [reconciledRowSelection, rowSelection]);
-
-	const selectedRowsFromData = useMemo(() => {
-		return getVisibleSelectedRows(data, reconciledRowSelection);
-	}, [data, reconciledRowSelection]);
-	const selectedCount = selectedRowsFromData.length;
-	const isSelectionMode = selectedCount > 0;
+	const {
+		rowSelection,
+		setRowSelection,
+		selectedRows: selectedRowsFromData,
+		selectedCount,
+		isSelectionMode,
+		clearSelection,
+	} = useTableRowSelection({
+		rows: data,
+		reconcileVisibleRows: true,
+	});
+	const handleDebouncedSearchChange = useCallback(
+		(nextSearchValue: string) => {
+			// Offset pagination: reset to page 1 when the committed URL query changes.
+			setPaginationState({
+				...paginationState,
+				page: '1',
+			});
+			void setFilterStates({ q: nextSearchValue });
+		},
+		[paginationState, setFilterStates, setPaginationState],
+	);
+	const { searchValue, setSearchValue } = useUrlBackedDebouncedSearch({
+		persistedValue: filterStates.q,
+		isSelectionMode,
+		onDebouncedValueChange: handleDebouncedSearchChange,
+	});
 	const selectionModeDisabledReason = t('selection-mode-disable-controls');
 	const sortingDisabledReason = t('selection-mode-disable-sorting');
 	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
@@ -192,60 +188,6 @@ export const StaffProfileUsersTable = () => {
 			sortedByColumnDesc: sortingDisabledReason,
 		};
 	}, [isSelectionMode, sortingDisabledReason]);
-
-	useEffect(() => {
-		if (!isSelectionMode) {
-			return;
-		}
-
-		isCancellingSelectionLockedSearchRef.current = true;
-		if (search === filterStates.q) {
-			return;
-		}
-
-		setSearch(filterStates.q);
-	}, [filterStates.q, isSelectionMode, search]);
-
-	useEffect(() => {
-		const searchAction = getSelectionLockedSearchAction({
-			isSelectionMode,
-			isCancellingSelectionLockedSearch:
-				isCancellingSelectionLockedSearchRef.current,
-			searchValue: search,
-			debouncedValue: debouncedQ,
-			persistedValue: filterStates.q,
-		});
-
-		if (searchAction === 'wait' || searchAction === 'none') {
-			return;
-		}
-
-		if (
-			searchAction === 'clear-cancel' ||
-			searchAction === 'clear-cancel-and-apply'
-		) {
-			isCancellingSelectionLockedSearchRef.current = false;
-
-			if (searchAction === 'clear-cancel') {
-				return;
-			}
-		}
-
-		// Offset pagination: reset to page 1 when the query changes.
-		setPaginationState({
-			...paginationState,
-			page: '1',
-		});
-		setFilterStates({ q: debouncedQ });
-	}, [
-		search,
-		debouncedQ,
-		filterStates.q,
-		isSelectionMode,
-		paginationState,
-		setFilterStates,
-		setPaginationState,
-	]);
 
 	const table = useMRTTable('minimal', {
 		columns,
@@ -279,7 +221,7 @@ export const StaffProfileUsersTable = () => {
 			...tableState,
 			density: 'compact',
 			isLoading: usersQuery.isPending,
-			rowSelection: reconciledRowSelection,
+			rowSelection,
 		},
 		muiTableHeadCellProps: ({ column }) => {
 			if (!column.getCanSort()) {
@@ -309,17 +251,16 @@ export const StaffProfileUsersTable = () => {
 		meta: {
 			renderToolbarFilters: () => {
 				return (
-					<Tooltip
-						title={isSelectionMode ? selectionModeDisabledReason : ''}
-						arrow
-						disableHoverListener={!isSelectionMode}
+					<SelectionLockedControl
+						isSelectionMode={isSelectionMode}
+						disabledReason={selectionModeDisabledReason}
 					>
 						<Box component="span">
 							<TextField
 								size="small"
 								placeholder={t('search-by-email-or-name')}
-								value={search}
-								onChange={(event) => setSearch(event.target.value)}
+								value={searchValue}
+								onChange={(event) => setSearchValue(event.target.value)}
 								disabled={isSelectionMode}
 								sx={{ minWidth: 320 }}
 								slotProps={{
@@ -334,7 +275,7 @@ export const StaffProfileUsersTable = () => {
 								}}
 							/>
 						</Box>
-					</Tooltip>
+					</SelectionLockedControl>
 				);
 			},
 			renderSelectionActions: () => {
@@ -342,7 +283,7 @@ export const StaffProfileUsersTable = () => {
 					<ProfileUsersSelectionActions
 						rows={selectedRowsFromData}
 						onOpenExportDialog={() => exportDialogRef.current?.open()}
-						onClearSelection={() => setRowSelection({})}
+						onClearSelection={clearSelection}
 					/>
 				);
 			},

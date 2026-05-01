@@ -3,11 +3,11 @@ import Box from '@mui/material/Box';
 import Checkbox from '@mui/material/Checkbox';
 import InputAdornment from '@mui/material/InputAdornment';
 import TextField from '@mui/material/TextField';
-import Tooltip from '@mui/material/Tooltip';
 import { varAlpha } from 'minimal-shared/utils';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
 import type { StaffUserStatusFilter } from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
 
 export type StaffUserStatusFilterOption = {
@@ -45,12 +45,11 @@ const StaffUsersToolbarFilters = ({
 
 	return (
 		<>
-			<Tooltip
-				title={isSelectionMode ? disabledReason : ''}
-				arrow
-				disableHoverListener={!isSelectionMode}
+			<SelectionLockedControl
+				isSelectionMode={isSelectionMode}
+				disabledReason={disabledReason}
 				describeChild
-				slotProps={{ tooltip: { id: searchTooltipId } }}
+				tooltipId={searchTooltipId}
 			>
 				<Box component="span">
 					<TextField
@@ -72,14 +71,13 @@ const StaffUsersToolbarFilters = ({
 						sx={{ minWidth: 260 }}
 					/>
 				</Box>
-			</Tooltip>
+			</SelectionLockedControl>
 
-			<Tooltip
-				title={isSelectionMode ? disabledReason : ''}
-				arrow
-				disableHoverListener={!isSelectionMode}
+			<SelectionLockedControl
+				isSelectionMode={isSelectionMode}
+				disabledReason={disabledReason}
 				describeChild
-				slotProps={{ tooltip: { id: statusTooltipId } }}
+				tooltipId={statusTooltipId}
 			>
 				<Box component="span">
 					<Autocomplete
@@ -102,28 +100,30 @@ const StaffUsersToolbarFilters = ({
 								placeholder={
 									statusFilter.length === 0 ? t('all-statuses') : undefined
 								}
-								InputProps={{
-									...params.InputProps,
-									startAdornment: (
-										<>
-											<Box
-												component="span"
-												sx={{
-													color: 'text.secondary',
-													typography: 'body2',
-													whiteSpace: 'nowrap',
-													mr: 1,
-													display: 'inline-flex',
-													alignItems: 'center',
-													alignSelf: 'center',
-													minHeight: 24,
-												}}
-											>
-												{t('status')}:
-											</Box>
-											{params.InputProps.startAdornment}
-										</>
-									),
+								slotProps={{
+									input: {
+										...params.InputProps,
+										startAdornment: (
+											<>
+												<Box
+													component="span"
+													sx={{
+														color: 'text.secondary',
+														typography: 'body2',
+														whiteSpace: 'nowrap',
+														mr: 1,
+														display: 'inline-flex',
+														alignItems: 'center',
+														alignSelf: 'center',
+														minHeight: 24,
+													}}
+												>
+													{t('status')}:
+												</Box>
+												{params.InputProps.startAdornment}
+											</>
+										),
+									},
 								}}
 							/>
 						)}
@@ -190,7 +190,7 @@ const StaffUsersToolbarFilters = ({
 						}}
 					/>
 				</Box>
-			</Tooltip>
+			</SelectionLockedControl>
 		</>
 	);
 };

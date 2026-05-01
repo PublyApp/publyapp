@@ -20,9 +20,8 @@ import {
 	type MRT_SortingState,
 	type MRT_TableOptions,
 } from 'material-react-table';
-import { useDebounce } from 'minimal-shared/hooks';
 import { parseAsString, useQueryStates } from 'nuqs';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type { StaffProfileItem } from '@org/client-ts/src/models';
@@ -39,12 +38,15 @@ import { toast } from '#app/components/snackbar/index.ts';
 import StaffProfilePreviewDrawer, {
 	type StaffProfilePreviewOption,
 } from '#app/components/staff-profile-preview-drawer.tsx';
+import { useTableRowSelection } from '#app/hooks/table/use-table-row-selection.ts';
+import { useUrlBackedDebouncedSearch } from '#app/hooks/table/use-url-backed-debounced-search.ts';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
 import { getUntypedNumber } from '#app/lib/js-client/kiota-utils.ts';
+import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
 import {
 	useDeleteStaffProfile,
 	useFindStaffProfiles,
@@ -118,8 +120,6 @@ const StaffProfilesTable = () => {
 	const [filterStates, setFilterStates] = useQueryStates({
 		q: parseAsString.withDefault(''),
 	});
-	const [search, setSearch] = useState(filterStates.q);
-	const debouncedQ = useDebounce(search, 300);
 
 	// Column definitions
 	const columns = useMemo(() => {
@@ -169,18 +169,17 @@ const StaffProfilesTable = () => {
 		paginationMode: 'cursor',
 	});
 
-	useEffect(() => {
-		if (debouncedQ === filterStates.q) {
-			return;
-		}
-
-		resetCursorPagination?.();
-		void setFilterStates({ q: debouncedQ });
-	}, [debouncedQ, filterStates.q, resetCursorPagination, setFilterStates]);
-
-	useEffect(() => {
-		setSearch(filterStates.q);
-	}, [filterStates.q]);
+	const handleDebouncedSearchChange = useCallback(
+		(nextSearchValue: string) => {
+			resetCursorPagination?.();
+			void setFilterStates({ q: nextSearchValue });
+		},
+		[resetCursorPagination, setFilterStates],
+	);
+	const { searchValue, setSearchValue } = useUrlBackedDebouncedSearch({
+		persistedValue: filterStates.q,
+		onDebouncedValueChange: handleDebouncedSearchChange,
+	});
 
 	// Data fetching with cursor from apiVariables
 	const profilesQuery = useFindStaffProfiles({
@@ -236,13 +235,16 @@ const StaffProfilesTable = () => {
 		return map(profilesQuery.data?.data, StaffProfileRowDataMapper);
 	}, [profilesQuery.data]);
 
-	// Row selection state enables selection mode (bulk/selected actions).
-	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
-	const selectedRows = useMemo(() => {
-		return dataTable.filter((row) => rowSelection[row.id]);
-	}, [dataTable, rowSelection]);
-	const selectedCount = Object.keys(rowSelection).length;
-	const isSelectionMode = selectedCount > 0;
+	const {
+		rowSelection,
+		setRowSelection,
+		selectedRows,
+		selectedCount,
+		isSelectionMode,
+		clearSelection,
+	} = useTableRowSelection({
+		rows: dataTable,
+	});
 
 	const selectionModeDisabledReason = t('selection-mode-disable-controls');
 	const sortingDisabledReason = t('selection-mode-disable-sorting');
@@ -325,17 +327,16 @@ const StaffProfilesTable = () => {
 			disablePaginationControls: isSelectionMode,
 			renderToolbarFilters: () => {
 				return (
-					<Tooltip
-						title={isSelectionMode ? selectionModeDisabledReason : ''}
-						arrow
-						disableHoverListener={!isSelectionMode}
+					<SelectionLockedControl
+						isSelectionMode={isSelectionMode}
+						disabledReason={selectionModeDisabledReason}
 					>
 						<Box component="span">
 							<TextField
 								size="small"
 								placeholder={t('search')}
-								value={search}
-								onChange={(event) => setSearch(event.target.value)}
+								value={searchValue}
+								onChange={(event) => setSearchValue(event.target.value)}
 								disabled={isSelectionMode}
 								sx={{ minWidth: 320 }}
 								slotProps={{
@@ -350,7 +351,7 @@ const StaffProfilesTable = () => {
 								}}
 							/>
 						</Box>
-					</Tooltip>
+					</SelectionLockedControl>
 				);
 			},
 			renderExportActions: () => {
@@ -370,7 +371,7 @@ const StaffProfilesTable = () => {
 					<StaffProfilesSelectionActions
 						onExportSelected={() => exportDialogRef.current?.open()}
 						selectedRows={selectedRows}
-						onClearSelection={() => setRowSelection({})}
+						onClearSelection={clearSelection}
 					/>
 				);
 			},

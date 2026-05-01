@@ -16,7 +16,7 @@ import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { buildCsv } from '#app/lib/export/csv.ts';
+import { downloadCsvFile, downloadJsonFile } from '#app/lib/export/download.ts';
 
 import type { StaffUserRowData } from './use-staff-users-table-controller.ts';
 
@@ -70,30 +70,21 @@ const StaffUsersExportDialogController = ({
 					row.level,
 				];
 			});
-			const csv = buildCsv([headers, ...csvRows]);
-			const blob = new Blob([csv], { type: 'text/csv' });
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = isSelectionMode
-				? 'selected-staff-users.csv'
-				: 'staff-users.csv';
-			a.click();
-			URL.revokeObjectURL(url);
+			downloadCsvFile({
+				fileName: isSelectionMode
+					? 'selected-staff-users.csv'
+					: 'staff-users.csv',
+				rows: [headers, ...csvRows],
+			});
 			return;
 		}
 
-		const blob = new Blob([JSON.stringify(rowsToExport, null, 2)], {
-			type: 'application/json',
+		downloadJsonFile({
+			fileName: isSelectionMode
+				? 'selected-staff-users.json'
+				: 'staff-users.json',
+			data: rowsToExport,
 		});
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = isSelectionMode
-			? 'selected-staff-users.json'
-			: 'staff-users.json';
-		a.click();
-		URL.revokeObjectURL(url);
 	};
 
 	return (

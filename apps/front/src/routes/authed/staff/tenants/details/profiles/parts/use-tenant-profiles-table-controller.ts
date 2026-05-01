@@ -1,12 +1,13 @@
 import capitalize from 'lodash/capitalize';
 import type { MRT_Localization, MRT_SortingState } from 'material-react-table';
-import { useDebounce } from 'minimal-shared/hooks';
 import { parseAsString, useQueryStates } from 'nuqs';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 import type { TenantProfileItem } from '@org/client-ts/src/models';
 import { DEFAULT_PAGE_SIZE } from '@org/shared-ts/lib/constants';
 
+import { useTableRowSelection } from '#app/hooks/table/use-table-row-selection.ts';
+import { useUrlBackedDebouncedSearch } from '#app/hooks/table/use-url-backed-debounced-search.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
@@ -25,9 +26,6 @@ const useTenantProfilesTableController = (tenantId: string) => {
 	const [filterStates, setFilterStates] = useQueryStates({
 		q: parseAsString.withDefault(''),
 	});
-	const [searchValue, setSearchValue] = useState(filterStates.q);
-	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
-	const debouncedSearchValue = useDebounce(searchValue, 300);
 
 	const {
 		handlePaginationChange,
@@ -43,25 +41,19 @@ const useTenantProfilesTableController = (tenantId: string) => {
 		paginationMode: 'cursor',
 	});
 
-	useEffect(() => {
-		if (debouncedSearchValue === filterStates.q) {
-			return;
-		}
-
-		// Search changes invalidate the current cursor chain, so reset pagination before pushing
-		// the new query state into the URL.
-		resetCursorPagination?.();
-		void setFilterStates({ q: debouncedSearchValue });
-	}, [
-		debouncedSearchValue,
-		filterStates.q,
-		resetCursorPagination,
-		setFilterStates,
-	]);
-
-	useEffect(() => {
-		setSearchValue(filterStates.q);
-	}, [filterStates.q]);
+	const handleDebouncedSearchChange = useCallback(
+		(nextSearchValue: string) => {
+			// Search changes invalidate the current cursor chain, so reset pagination before
+			// pushing the new query state into the URL.
+			resetCursorPagination?.();
+			void setFilterStates({ q: nextSearchValue });
+		},
+		[resetCursorPagination, setFilterStates],
+	);
+	const { searchValue, setSearchValue } = useUrlBackedDebouncedSearch({
+		persistedValue: filterStates.q,
+		onDebouncedValueChange: handleDebouncedSearchChange,
+	});
 
 	const profilesQuery = useFindTenantProfiles({
 		variables: {
@@ -92,35 +84,18 @@ const useTenantProfilesTableController = (tenantId: string) => {
 		);
 	}, [profilesQuery.data]);
 
-	useEffect(() => {
-		if (profilesQuery.isFetching) {
-			return;
-		}
-
-		// Keep selection scoped to visible rows so bulk actions never target profiles from an
-		// older cursor page after search/sort changes reshuffle the table contents.
-		const visibleRowIds = new Set(rows.map((row) => row.id));
-		setRowSelection((prev) => {
-			const nextEntries = Object.entries(prev).filter(
-				([profileId, isSelected]) => {
-					return isSelected && visibleRowIds.has(profileId);
-				},
-			);
-
-			if (nextEntries.length === Object.keys(prev).length) {
-				return prev;
-			}
-
-			return Object.fromEntries(nextEntries);
-		});
-	}, [profilesQuery.isFetching, rows]);
-
-	const selectedRows = useMemo(() => {
-		return rows.filter((row) => rowSelection[row.id]);
-	}, [rowSelection, rows]);
-
-	const selectedCount = Object.keys(rowSelection).length;
-	const isSelectionMode = selectedCount > 0;
+	const {
+		rowSelection,
+		setRowSelection,
+		selectedRows,
+		selectedCount,
+		isSelectionMode,
+		clearSelection,
+	} = useTableRowSelection({
+		rows,
+		reconcileVisibleRows: true,
+		reconcileVisibleRowsEnabled: !profilesQuery.isFetching,
+	});
 	const selectionModeDisabledReason = t('selection-mode-disable-controls');
 	const sortingDisabledReason = t('selection-mode-disable-sorting');
 	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
@@ -166,6 +141,7 @@ const useTenantProfilesTableController = (tenantId: string) => {
 	return {
 		handleCursorPaginationChange,
 		handleSortingChange,
+		clearSelection,
 		hasNextPage,
 		hasPreviousPage,
 		isSelectionMode,
