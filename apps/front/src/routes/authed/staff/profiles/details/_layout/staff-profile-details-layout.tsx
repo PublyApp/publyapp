@@ -242,7 +242,7 @@ const UsersTabSkeleton = () => (
 		{/* Table rows */}
 		{Array.from({ length: 6 }).map((_, idx) => (
 			<Box
-				// oxlint-disable-next-line react/no-array-index-key -- static skeleton rows
+				// oxlint-disable-next-line react/no-array-index-key -- skeleton rows are static placeholders with no item identity
 				key={idx}
 				sx={{
 					display: 'grid',
