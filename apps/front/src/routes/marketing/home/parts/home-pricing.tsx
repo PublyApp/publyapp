@@ -9,8 +9,12 @@ import { m } from 'framer-motion';
 import { varAlpha } from 'minimal-shared/utils';
 import { useState } from 'react';
 
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+
 import { MotionViewport, varFade } from '#app/components/animate/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { TIERS } from '#app/routes/marketing/_data/pricing.ts';
 
 // ----------------------------------------------------------------------
 
@@ -42,33 +46,11 @@ const SectionEyebrow = ({ label }: { label: string }) => {
 	);
 };
 
-type CreatorFeature = { label: string; included: boolean };
-
-const CREATOR_FEATURES: CreatorFeature[] = [
-	{ label: '1 User Workspace', included: true },
-	{ label: 'Up to 5 Social Profiles', included: true },
-	{ label: '100 Scheduled Posts/mo', included: true },
-	{ label: 'Basic AI Caption Writing', included: true },
-	{ label: 'Advanced Revenue Analytics', included: false },
-];
-
-const SCALE_FEATURES = [
-	'5 User Workspaces',
-	'Unlimited Social Profiles',
-	'Unlimited Scheduled Posts',
-	'Advanced AI Tone Match',
-	'Deep Revenue Analytics',
-	'Unified Inbox Tool',
-];
-
 const ASSURANCES = [
 	'Cancel anytime',
 	'No credit card for trial',
 	'Priority email support',
 ];
-
-const CREATOR_PRICE = { monthly: 19, annually: 15 };
-const SCALE_PRICE = { monthly: 49, annually: 39 };
 
 const TRACK_W = 288;
 const TRACK_H = 52;
@@ -283,36 +265,29 @@ const PricingHeader = ({
 	);
 };
 
-const CreatorFeatureItem = ({ feature }: { feature: CreatorFeature }) => {
+const CreatorFeatureItem = ({ label }: { label: string }) => {
 	return (
 		<Stack
 			direction="row"
 			alignItems="center"
 			spacing={1.5}
-			sx={{
-				fontSize: 14,
-				fontWeight: 500,
-				...(feature.included ? {} : { color: 'text.disabled' }),
-			}}
+			sx={{ fontSize: 14, fontWeight: 500 }}
 		>
 			<Box
 				sx={{
 					width: 20,
 					height: 20,
 					borderRadius: '50%',
-					bgcolor: feature.included ? 'success.lighter' : 'rgba(0, 0, 0, 0.05)',
-					color: feature.included ? 'success.main' : 'text.disabled',
+					bgcolor: 'success.lighter',
+					color: 'success.main',
 					display: 'flex',
 					alignItems: 'center',
 					justifyContent: 'center',
 				}}
 			>
-				<Iconify
-					icon={(feature.included ? 'ph:check-bold' : 'ph:x-bold') as never}
-					width={10}
-				/>
+				<Iconify icon={'ph:check-bold' as never} width={10} />
 			</Box>
-			<Box component="span">{feature.label}</Box>
+			<Box component="span">{label}</Box>
 		</Stack>
 	);
 };
@@ -395,8 +370,8 @@ const CreatorPlanCard = ({ price }: { price: number }) => {
 					</Typography>
 				</Stack>
 				<Stack spacing={2} sx={{ mb: 5, flex: 1 }}>
-					{CREATOR_FEATURES.map((feature) => {
-						return <CreatorFeatureItem key={feature.label} feature={feature} />;
+					{TIERS[0].features.map((label) => {
+						return <CreatorFeatureItem key={label} label={label} />;
 					})}
 				</Stack>
 				<Button
@@ -492,7 +467,7 @@ const ScalePlanCard = ({ price }: { price: number }) => {
 							</Typography>
 						</Stack>
 						<Stack spacing={2} sx={{ mb: 5, flex: 1 }}>
-							{SCALE_FEATURES.map((label) => {
+							{TIERS[1].features.map((label) => {
 								return <ScaleFeatureItem key={label} label={label} />;
 							})}
 						</Stack>
@@ -583,8 +558,17 @@ const ScaleCardDecor = () => {
 };
 
 const PricingPlans = ({ annual }: { annual: boolean }) => {
-	const creatorPrice = annual ? CREATOR_PRICE.annually : CREATOR_PRICE.monthly;
-	const scalePrice = annual ? SCALE_PRICE.annually : SCALE_PRICE.monthly;
+	const creatorTier = TIERS[0];
+	const scaleTier = TIERS[1];
+
+	// TIERS Creator and Scale use numeric pricing; cast is safe.
+	// Enterprise (TIERS[2]) uses 'custom' and is not rendered on the home strip.
+	const creatorPrice = (
+		annual ? creatorTier.pricing.annually : creatorTier.pricing.monthly
+	) as number;
+	const scalePrice = (
+		annual ? scaleTier.pricing.annually : scaleTier.pricing.monthly
+	) as number;
 
 	return (
 		<Box
@@ -637,6 +621,33 @@ const PricingAssurances = () => {
 	);
 };
 
+const SeeFullPricingLink = () => {
+	return (
+		<Stack direction="row" justifyContent="center" sx={{ mt: 4 }}>
+			<Box
+				component={RouterLink}
+				href={FRONT_PATH_NAMES.marketing.pricing}
+				sx={{
+					display: 'inline-flex',
+					alignItems: 'center',
+					gap: 0.75,
+					fontSize: 14,
+					fontWeight: 700,
+					color: 'primary.main',
+					textDecoration: 'none',
+					transition: 'transform 240ms ease',
+					'&:hover': {
+						transform: 'translateX(2px)',
+					},
+				}}
+			>
+				See full pricing
+				<Iconify icon={'ph:arrow-right-bold' as never} width={14} />
+			</Box>
+		</Stack>
+	);
+};
+
 export const HomePricing = () => {
 	const [annual, setAnnual] = useState(false);
 
@@ -657,6 +668,7 @@ export const HomePricing = () => {
 				<PricingHeader annual={annual} onAnnualChange={setAnnual} />
 				<PricingPlans annual={annual} />
 				<PricingAssurances />
+				<SeeFullPricingLink />
 			</Container>
 		</Box>
 	);
