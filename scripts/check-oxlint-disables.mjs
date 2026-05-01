@@ -2,6 +2,14 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
+// Guardrail for source-owned lint suppressions.
+//
+// This script is intentionally stricter than oxlint itself: oxlint only needs a
+// syntactically valid disable directive, while this repo also requires a
+// reviewable reason so suppressions stay auditable over time.
+
+// Directory names that should never be scanned, no matter where they appear in
+// the tree. These are generated, dependency, cache, or build artifact folders.
 const ignoredSegments = new Set([
 	'.git',
 	'.react-router',
@@ -11,6 +19,9 @@ const ignoredSegments = new Set([
 	'node_modules',
 ]);
 
+// Repo-relative roots that are intentionally outside this audit. Keep this
+// close to .oxlintrc.json's generated-output ignores so the guard follows the
+// same source-owned boundary as normal linting.
 const ignoredRelativeRoots = [
 	'apps/api/Generated',
 	'apps/api/Migrations',
@@ -21,6 +32,8 @@ const ignoredRelativeRoots = [
 	'packages/client-ts',
 ];
 
+// Limit scanning to source-like text files where oxlint directives are expected
+// to appear. JSON/CSS/docs are omitted so normal prose cannot trip the guard.
 const scannedExtensions = new Set([
 	'.cjs',
 	'.cts',
@@ -32,6 +45,8 @@ const scannedExtensions = new Set([
 	'.tsx',
 ]);
 
+// Core oxlint rule names do not include a plugin prefix. Any unprefixed rule not
+// listed here is treated as suspicious so typos do not silently pass review.
 const allowedCoreRules = new Set([
 	'default-param-last',
 	'no-await-in-loop',
@@ -41,6 +56,8 @@ const allowedCoreRules = new Set([
 	'no-unused-vars',
 ]);
 
+// These phrases are process smells rather than technical explanations. New
+// suppressions need to say what invariant makes the rule inapplicable.
 const bannedReasonPatterns = [
 	/<explanation>/i,
 	/\bfor now\b/i,
@@ -50,6 +67,10 @@ const bannedReasonPatterns = [
 
 const cwd = process.cwd();
 const disableToken = 'oxlint' + '-disable';
+
+// Accept all directive variants supported by oxlint. Rule names may be
+// comma-separated, but whitespace-separated multi-rule lists are rejected later
+// because oxlint's documented multi-rule syntax uses commas.
 const disablePattern = new RegExp(
 	`${disableToken}(?:-next-line|-line)?\\s+(.+?)\\s+--\\s+(.+)`,
 );
@@ -58,6 +79,12 @@ const toPosixPath = (value) => value.split(path.sep).join('/');
 
 const getRelativePath = (filePath) => toPosixPath(path.relative(cwd, filePath));
 
+/**
+ * Checks repo-relative paths against audit-level ignore roots.
+ *
+ * Segment ignores are handled while walking the tree; this function handles
+ * longer repo-relative paths such as generated API/client folders.
+ */
 const isIgnoredPath = (relativePath) =>
 	ignoredRelativeRoots.some((ignoredRoot) => {
 		return (
@@ -65,6 +92,10 @@ const isIgnoredPath = (relativePath) =>
 		);
 	});
 
+/**
+ * Returns a failure reason for a single suppression line, or null when the
+ * directive is specific enough to keep.
+ */
 const getFailureReason = (line) => {
 	const match = line.match(disablePattern);
 
@@ -103,6 +134,9 @@ const getFailureReason = (line) => {
 	return null;
 };
 
+/**
+ * Scans one source file and appends all low-quality disable findings.
+ */
 const scanFile = async (filePath, failures) => {
 	const content = await readFile(filePath, 'utf8');
 	const relativePath = getRelativePath(filePath);
@@ -123,6 +157,10 @@ const scanFile = async (filePath, failures) => {
 	}
 };
 
+/**
+ * Recursively scans a directory while pruning generated, dependency, and build
+ * folders before reading their contents.
+ */
 const scanDirectory = async (directoryPath, failures) => {
 	const entries = await readdir(directoryPath, { withFileTypes: true });
 
