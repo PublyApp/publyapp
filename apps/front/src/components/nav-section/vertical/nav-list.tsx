@@ -30,16 +30,17 @@ export const NavList = ({
 	);
 
 	const { value: open, onFalse: onClose, onToggle } = useBoolean(isActive);
+	const isActiveRef = useRef(isActive);
+	const onCloseRef = useRef(onClose);
 
-	useEffect(
-		() => {
-			if (!isActive) {
-				onClose();
-			}
-		},
-		// oxlint-disable-next-line react/exhaustive-deps -- code from template leave as is for now
-		[pathname],
-	);
+	isActiveRef.current = isActive;
+	onCloseRef.current = onClose;
+
+	useEffect(() => {
+		if (!isActiveRef.current) {
+			onCloseRef.current();
+		}
+	}, [pathname]);
 
 	const handleToggleMenu = useCallback(() => {
 		if (data.children) {

@@ -9,8 +9,10 @@ type CreateNavItemReturn = {
 	subItem: boolean;
 	rootItem: boolean;
 	subDeepItem: boolean;
-	// oxlint-disable-next-line typescript/no-explicit-any -- code from template leave as is for now
-	baseProps: Record<string, any>;
+	baseProps:
+		| { href: string; target: string; rel: string }
+		| { component: typeof RouterLink; href: string }
+		| { component: 'div' };
 	renderIcon: React.ReactNode;
 	renderInfo: React.ReactNode;
 };
@@ -37,7 +39,9 @@ export const createNavItem = ({
 		: { component: RouterLink, href: path };
 
 	const baseProps =
-		hasChild && !enabledRootRedirect ? { component: 'div' } : linkProps;
+		hasChild && !enabledRootRedirect
+			? ({ component: 'div' } as const)
+			: linkProps;
 
 	/**
 	 * Render @icon

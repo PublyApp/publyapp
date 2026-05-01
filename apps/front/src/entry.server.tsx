@@ -45,6 +45,7 @@ const handleRequest = async (
 	loadContext: AppLoadContext,
 ) => {
 	const finalLoadContext = loadContext;
+	let statusCode = responseStatusCode;
 
 	const analytics = finalLoadContext.analytics;
 
@@ -142,7 +143,7 @@ const handleRequest = async (
 					resolve(
 						new Response(stream, {
 							headers: responseHeaders,
-							status: responseStatusCode,
+							status: statusCode,
 						}),
 					);
 
@@ -152,8 +153,7 @@ const handleRequest = async (
 					reject(error);
 				},
 				onError: (error: unknown) => {
-					// oxlint-disable-next-line no-param-reassign -- boilerplate from react-router framework scaffolding
-					responseStatusCode = 500;
+					statusCode = 500;
 
 					// Log streaming rendering errors from inside the shell.  Don't log
 					// errors encountered during initial shell rendering since they'll

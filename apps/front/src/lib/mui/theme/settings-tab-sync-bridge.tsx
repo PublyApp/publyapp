@@ -77,7 +77,7 @@ export const SettingsTabSyncBridge = () => {
 				rehydrate.stop();
 			};
 		},
-		// oxlint-disable-next-line react/exhaustive-deps -- stable references; init once
+		// oxlint-disable-next-line react/exhaustive-deps -- bridge initializes once and reads current store state through stable callbacks
 		[],
 	);
 

@@ -1,7 +1,7 @@
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import { mergeClasses } from 'minimal-shared/utils';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { Logo } from '#app/components/logo/index.ts';
 import {
@@ -35,16 +35,17 @@ export const NavMobile = ({
 	...other
 }: NavMobileProps) => {
 	const pathname = usePathname();
+	const openRef = useRef(open);
+	const onCloseRef = useRef(onClose);
 
-	useEffect(
-		() => {
-			if (open) {
-				onClose();
-			}
-		},
-		// oxlint-disable-next-line react/exhaustive-deps -- code from template leave as is for now
-		[pathname],
-	);
+	openRef.current = open;
+	onCloseRef.current = onClose;
+
+	useEffect(() => {
+		if (openRef.current) {
+			onCloseRef.current();
+		}
+	}, [pathname]);
 
 	return (
 		<Drawer
