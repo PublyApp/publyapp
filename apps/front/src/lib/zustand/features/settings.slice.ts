@@ -26,8 +26,7 @@ export type SettingsSliceActions = {
 	onReset: () => void;
 	setState: (updateState: SettingsState | Partial<SettingsState>) => void;
 
-	// oxlint-disable-next-line typescript/no-explicit-any -- use any for now
-	setField: (path: string, value: any) => void;
+	setField: (path: string, value: unknown) => void;
 };
 
 export type SettingsSliceState = SettingsSliceValues & SettingsSliceActions;

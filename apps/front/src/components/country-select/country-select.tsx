@@ -21,8 +21,7 @@ type CountrySelectRenderValue = NonNullable<
 >;
 
 export type AutocompleteBaseProps = Omit<
-	// oxlint-disable-next-line typescript/no-explicit-any -- code from template leave as is for now
-	AutocompleteProps<any, boolean, boolean, boolean>,
+	AutocompleteProps<Value, boolean, boolean, boolean>,
 	'options' | 'renderOption' | 'renderInput' | 'renderValue' | 'getOptionLabel'
 >;
 
