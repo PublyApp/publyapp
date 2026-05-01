@@ -81,6 +81,10 @@ const getFailureReason = (line) => {
 			return 'empty rule name';
 		}
 
+		if (/\s/.test(ruleName)) {
+			return `rule "${ruleName}" must be comma-separated`;
+		}
+
 		if (!ruleName.includes('/') && !allowedCoreRules.has(ruleName)) {
 			return `core rule "${ruleName}" is not allowed`;
 		}
