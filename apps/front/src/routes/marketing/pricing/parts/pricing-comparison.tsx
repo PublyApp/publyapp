@@ -4,6 +4,7 @@ import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import groupBy from 'lodash/groupBy';
+import { Fragment } from 'react';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
@@ -324,7 +325,7 @@ export const PricingComparison = ({ billing }: PricingComparisonProps) => {
 								const rows = grouped[category] ?? [];
 
 								return (
-									<>
+									<Fragment key={category}>
 										{/* Category label row */}
 										<Box component="tr" key={`cat-${category}`}>
 											<Box
@@ -359,7 +360,7 @@ export const PricingComparison = ({ billing }: PricingComparisonProps) => {
 												/>
 											);
 										})}
-									</>
+									</Fragment>
 								);
 							})}
 						</Box>
