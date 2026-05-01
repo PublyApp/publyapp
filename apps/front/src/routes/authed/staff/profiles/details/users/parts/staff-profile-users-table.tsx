@@ -14,7 +14,6 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import { useQueryClient } from '@tanstack/react-query';
-import isEqual from 'lodash/isEqual';
 import map from 'lodash/map';
 import pick from 'lodash/pick';
 import toStr from 'lodash/toString';
@@ -68,10 +67,6 @@ import { invalidateStaffUserLifecycleQueries } from '#app/routes/authed/staff/st
 import StaffProfileUsersExportDialogController, {
 	type StaffProfileUsersExportDialogControllerRef,
 } from './staff-profile-users-export-dialog-controller.tsx';
-import {
-	getVisibleSelectedRows,
-	reconcileVisibleProfileUserRowSelection,
-} from './staff-profile-users-table-helpers.ts';
 
 import StaffProfileUsersExportDialogController, {
 	type StaffProfileUsersExportDialogControllerRef,
@@ -116,10 +111,6 @@ export const StaffProfileUsersTable = () => {
 		defaultSorting: defaultStaffProfileUsersSorting,
 		defaultPageSize: DEFAULT_PAGE_SIZE,
 	});
-
-	useEffect(() => {
-		setSearch(filterStates.q);
-	}, [filterStates.q]);
 
 	const columns = useMemo(() => {
 		return [
@@ -234,60 +225,6 @@ export const StaffProfileUsersTable = () => {
 		};
 	}, [isSelectionMode, sortingDisabledReason]);
 
-	useEffect(() => {
-		if (!isSelectionMode) {
-			return;
-		}
-
-		isCancellingSelectionLockedSearchRef.current = true;
-		if (search === filterStates.q) {
-			return;
-		}
-
-		setSearch(filterStates.q);
-	}, [filterStates.q, isSelectionMode, search]);
-
-	useEffect(() => {
-		const searchAction = getSelectionLockedSearchAction({
-			isSelectionMode,
-			isCancellingSelectionLockedSearch:
-				isCancellingSelectionLockedSearchRef.current,
-			searchValue: search,
-			debouncedValue: debouncedQ,
-			persistedValue: filterStates.q,
-		});
-
-		if (searchAction === 'wait' || searchAction === 'none') {
-			return;
-		}
-
-		if (
-			searchAction === 'clear-cancel' ||
-			searchAction === 'clear-cancel-and-apply'
-		) {
-			isCancellingSelectionLockedSearchRef.current = false;
-
-			if (searchAction === 'clear-cancel') {
-				return;
-			}
-		}
-
-		// Offset pagination: reset to page 1 when the query changes.
-		setPaginationState({
-			...paginationState,
-			page: '1',
-		});
-		setFilterStates({ q: debouncedQ });
-	}, [
-		search,
-		debouncedQ,
-		filterStates.q,
-		isSelectionMode,
-		paginationState,
-		setFilterStates,
-		setPaginationState,
-	]);
-
 	const table = useMRTTable('minimal', {
 		columns,
 		data,
@@ -320,7 +257,7 @@ export const StaffProfileUsersTable = () => {
 			...tableState,
 			density: 'compact',
 			isLoading: usersQuery.isPending,
-			rowSelection: reconciledRowSelection,
+			rowSelection,
 		},
 		muiTableHeadCellProps: ({ column }) => {
 			if (!column.getCanSort()) {

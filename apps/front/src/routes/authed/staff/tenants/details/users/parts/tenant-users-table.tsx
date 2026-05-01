@@ -35,7 +35,7 @@ import {
 	type MRT_SortingState,
 	type MRT_TableOptions,
 } from 'material-react-table';
-import { useBoolean, useDebounce } from 'minimal-shared/hooks';
+import { useBoolean } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
 import { parseAsString, useQueryStates } from 'nuqs';
 import { useBoolean } from 'minimal-shared/hooks';
@@ -107,27 +107,6 @@ const defaultSorting: MRT_SortingState[number] = {
 const SELECTION_MODE_MENU_MIN_WIDTH = 220;
 const GLOBALLY_SUSPENDED_STATUS_VALUE = 'globally_suspended';
 const GLOBALLY_SUSPENDED_STATUS_DESCRIPTION = 'GloballySuspended';
-
-type TableUiState = {
-	rowSelection: Record<string, boolean>;
-	bulkRemoveDialogOpen: boolean;
-};
-
-const initialTableUiState: TableUiState = {
-	rowSelection: {},
-	bulkRemoveDialogOpen: false,
-};
-
-const tableUiReducer = (
-	state: TableUiState,
-	update:
-		| Partial<TableUiState>
-		| ((state: TableUiState) => Partial<TableUiState>),
-) => {
-	const nextState = typeof update === 'function' ? update(state) : update;
-
-	return { ...state, ...nextState };
-};
 
 const isGloballySuspendedStatus = (status: string) => {
 	return (

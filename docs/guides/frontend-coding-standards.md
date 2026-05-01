@@ -318,6 +318,7 @@ const tenantId = lodashToString(id);
 - Importing from `lodash/functionName` preserves this safety preference without pulling in the whole lodash package
 
 **Pattern:**
+
 ```ts
 import map from 'lodash/map';
 import trim from 'lodash/trim';
@@ -331,6 +332,7 @@ const tenantId = lodashToString(id);
 ```
 
 **Guidance:**
+
 - Prefer targeted imports such as `lodash/map`, `lodash/trim`, `lodash/isEqual`, and `lodash/capitalize`
 - Do not shadow restricted global names; alias helpers like `lodashToString` when needed
 - If a built-in method is clearly safe in context and lodash provides no meaningful safety or clarity benefit, use judgment, but default to the lodash helper preference in this repo

@@ -54,7 +54,6 @@ import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { getSelectionLockedSearchAction } from '#app/lib/mrt-table/selection-locked-search.ts';
 import { useGetUserAuthData } from '#app/lib/react-query/features/common/auth.hooks.ts';
 import {
 	STAFF_USER_STATUS_FILTER_VALUES,
@@ -306,59 +305,6 @@ export const useStaffUsersTableController = () => {
 		};
 	}, [isSelectionMode, sortingDisabledReason]);
 
-	useEffect(() => {
-		if (!isSelectionMode) {
-			return;
-		}
-
-		isCancellingSelectionLockedSearchRef.current = true;
-		if (globalFilter === filterStates.q) {
-			return;
-		}
-
-		setGlobalFilter(filterStates.q);
-	}, [filterStates.q, globalFilter, isSelectionMode]);
-
-	useEffect(() => {
-		const searchAction = getSelectionLockedSearchAction({
-			isSelectionMode,
-			isCancellingSelectionLockedSearch:
-				isCancellingSelectionLockedSearchRef.current,
-			searchValue: globalFilter,
-			debouncedValue: debouncedQ,
-			persistedValue: filterStates.q,
-		});
-
-		if (searchAction === 'wait' || searchAction === 'none') {
-			return;
-		}
-
-		if (
-			searchAction === 'clear-cancel' ||
-			searchAction === 'clear-cancel-and-apply'
-		) {
-			isCancellingSelectionLockedSearchRef.current = false;
-
-			if (searchAction === 'clear-cancel') {
-				return;
-			}
-		}
-
-		resetCursorPagination?.();
-		setFilterStates({
-			q: debouncedQ,
-			status: statusFilter.join(','),
-		});
-	}, [
-		globalFilter,
-		debouncedQ,
-		filterStates.q,
-		isSelectionMode,
-		resetCursorPagination,
-		setFilterStates,
-		statusFilter,
-	]);
-
 	const {
 		handleBulkSuspend,
 		handleBulkReactivate,
@@ -480,7 +426,7 @@ export const useStaffUsersTableController = () => {
 			...tableState,
 			...queryState,
 			density: 'compact',
-			rowSelection: reconciledRowSelection,
+			rowSelection,
 		},
 		meta: {
 			handlePaginationChange: handleCursorPaginationChange,

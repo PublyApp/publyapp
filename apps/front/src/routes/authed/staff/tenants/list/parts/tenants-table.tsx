@@ -247,27 +247,20 @@ const useTenantsTableController = () => {
 		paginationMode: 'cursor',
 	});
 
-	// Debounce URL updates (NOT UI typing).
-	const debouncedQ = useDebounce(globalFilter, 300);
-
-	useEffect(() => {
-		if (debouncedQ === filterStates.q) {
-			return;
-		}
-
-		resetCursorPagination?.();
-		void setFilterStates({ q: debouncedQ, status: statusFilter.join(',') });
-	}, [
-		debouncedQ,
-		filterStates.q,
-		resetCursorPagination,
-		setFilterStates,
-		statusFilter,
-	]);
-
-	useEffect(() => {
-		setGlobalFilter(filterStates.q);
-	}, [filterStates.q]);
+	const handleDebouncedSearchChange = useCallback(
+		(nextSearchValue: string) => {
+			resetCursorPagination?.();
+			void setFilterStates({
+				q: nextSearchValue,
+				status: statusFilter.join(','),
+			});
+		},
+		[resetCursorPagination, setFilterStates, statusFilter],
+	);
+	const { searchValue, setSearchValue } = useUrlBackedDebouncedSearch({
+		persistedValue: filterStates.q,
+		onDebouncedValueChange: handleDebouncedSearchChange,
+	});
 
 	useEffect(() => {
 		const nextStatusFilter = parseStatusFilter(filterStates.status);
@@ -277,8 +270,7 @@ const useTenantsTableController = () => {
 	}, [filterStates.status, statusFilter]);
 
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const value = e.target.value;
-		setGlobalFilter(value);
+		setSearchValue(e.target.value);
 	};
 
 	// Status filter handler - reset cursor before updating
@@ -290,36 +282,16 @@ const useTenantsTableController = () => {
 		resetCursorPagination?.();
 		setStatusFilter(nextStatusFilter);
 		void setFilterStates({
-			q: globalFilter,
+			q: searchValue,
 			status: nextStatusFilter.join(','),
 		});
 	};
 
-	// Row selection state for bulk actions
-	const [tableUiState, setTableUiState] = useReducer(
-		tableUiReducer,
-		initialTableUiState,
-	);
-	const { rowSelection, bulkActionDialog } = tableUiState;
-
-	const handleBulkActionSuccess = useCallback((type: BulkActionType) => {
-		setTableUiState({
-			bulkActionDialog: { type, open: false },
-			rowSelection: {},
+	const [bulkActionDialog, setBulkActionDialog] =
+		useState<BulkActionDialogState>({
+			type: 'suspend',
+			open: false,
 		});
-	}, []);
-
-	const {
-		handleBulkSuspend,
-		handleBulkReactivate,
-		handleBulkDelete,
-		isBulkSuspending,
-		isBulkReactivating,
-		isBulkDeleting,
-	} = useTenantsBulkActions({
-		rowSelection,
-		onSuccess: handleBulkActionSuccess,
-	});
 
 	const columns = useMemo(() => {
 		return [
@@ -468,9 +440,7 @@ const useTenantsTableController = () => {
 		});
 	};
 	const closeBulkActionDialog = (type: BulkActionType) => {
-		setTableUiState({
-			bulkActionDialog: { type, open: false },
-		});
+		setBulkActionDialog({ type, open: false });
 	};
 	const exportRows = (format: 'csv' | 'json') => {
 		const rowsToExport = isSelectionMode ? selectedRows : dataTable;
