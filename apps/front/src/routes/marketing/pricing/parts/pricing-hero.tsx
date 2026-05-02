@@ -4,6 +4,7 @@ import Typography from '@mui/material/Typography';
 import { varAlpha } from 'minimal-shared/utils';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { BillingCycleToggle } from '#app/routes/marketing/_components/billing-cycle-toggle.tsx';
 import { type Billing } from '#app/routes/marketing/_data/pricing.ts';
 
 // ----------------------------------------------------------------------
@@ -30,120 +31,6 @@ const HeroHalo = () => {
 				zIndex: -1,
 			})}
 		/>
-	);
-};
-
-const BillingToggle = ({ billing, onBillingChange }: PricingHeroProps) => {
-	const isAnnual = billing === 'annually';
-
-	return (
-		<Box
-			role="group"
-			aria-label="Billing cycle"
-			sx={{
-				position: 'relative',
-				bgcolor: 'background.paper',
-				border: '1px solid',
-				borderColor: 'divider',
-				p: 0.75,
-				borderRadius: '16px',
-				display: 'inline-flex',
-				alignItems: 'center',
-				boxShadow: '0 1px 2px rgba(17,24,39,0.05)',
-				width: 260,
-			}}
-		>
-			{/* Sliding dark thumb */}
-			<Box
-				aria-hidden="true"
-				sx={{
-					position: 'absolute',
-					top: 6,
-					bottom: 6,
-					left: 6,
-					width: 'calc(50% - 6px)',
-					bgcolor: '#242424',
-					borderRadius: '12px',
-					zIndex: 0,
-					transform: isAnnual ? 'translateX(100%)' : 'translateX(0%)',
-					transition: 'transform 400ms cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-				}}
-			/>
-
-			{/* Monthly segment */}
-			<Box
-				component="button"
-				type="button"
-				aria-pressed={!isAnnual}
-				onClick={() => {
-					onBillingChange('monthly');
-				}}
-				sx={{
-					position: 'relative',
-					zIndex: 1,
-					flex: 1,
-					py: 1,
-					fontSize: 14,
-					fontWeight: 500,
-					color: isAnnual ? 'text.secondary' : 'common.white',
-					background: 'none',
-					border: 'none',
-					cursor: 'pointer',
-					transition: 'color 300ms',
-				}}
-			>
-				Monthly
-			</Box>
-
-			{/* Annually segment */}
-			<Box
-				component="button"
-				type="button"
-				aria-pressed={isAnnual}
-				onClick={() => {
-					onBillingChange('annually');
-				}}
-				sx={{
-					position: 'relative',
-					zIndex: 1,
-					flex: 1,
-					py: 1,
-					fontSize: 14,
-					fontWeight: 500,
-					color: isAnnual ? 'common.white' : 'text.secondary',
-					background: 'none',
-					border: 'none',
-					cursor: 'pointer',
-					transition: 'color 300ms',
-				}}
-			>
-				Act Annually
-			</Box>
-
-			{/* Floating -20% badge */}
-			<Box
-				sx={{
-					position: 'absolute',
-					top: -12,
-					right: -24,
-					bgcolor: 'primary.main',
-					color: 'common.white',
-					fontSize: 10,
-					fontWeight: 700,
-					px: 1,
-					py: 0.25,
-					borderRadius: '6px',
-					boxShadow: '0 1px 2px rgba(17,24,39,0.10)',
-					border: '1px solid',
-					borderColor: 'primary.light',
-					transform: 'rotate(6deg)',
-					transformOrigin: 'bottom left',
-					pointerEvents: 'none',
-				}}
-			>
-				-20%
-			</Box>
-		</Box>
 	);
 };
 
@@ -241,7 +128,10 @@ export const PricingHero = ({ billing, onBillingChange }: PricingHeroProps) => {
 				</Typography>
 
 				{/* Billing toggle */}
-				<BillingToggle billing={billing} onBillingChange={onBillingChange} />
+				<BillingCycleToggle
+					billing={billing}
+					onBillingChange={onBillingChange}
+				/>
 			</Container>
 		</Box>
 	);

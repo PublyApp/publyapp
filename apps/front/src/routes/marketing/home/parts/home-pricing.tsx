@@ -2,8 +2,6 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
-import { styled } from '@mui/material/styles';
-import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 import { varAlpha } from 'minimal-shared/utils';
@@ -14,6 +12,7 @@ import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { MotionViewport, varFade } from '#app/components/animate/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
+import { BillingCycleToggle } from '#app/routes/marketing/_components/billing-cycle-toggle.tsx';
 import { TIERS } from '#app/routes/marketing/_data/pricing.ts';
 
 // ----------------------------------------------------------------------
@@ -52,57 +51,6 @@ const ASSURANCES = [
 	'Priority email support',
 ];
 
-const TRACK_W = 288;
-const TRACK_H = 52;
-const THUMB_W = 136;
-const THUMB_INSET = 8;
-const THUMB_OFFSET_X = THUMB_INSET;
-const THUMB_OFFSET_Y = THUMB_INSET;
-const THUMB_LEFT_CHECKED = TRACK_W - THUMB_OFFSET_X - THUMB_W;
-
-const BillingSwitch = styled(Switch)(() => {
-	return {
-		width: TRACK_W,
-		height: TRACK_H,
-		padding: 0,
-		overflow: 'visible',
-		'& .MuiSwitch-switchBase': {
-			padding: 0,
-			top: THUMB_OFFSET_Y,
-			left: THUMB_OFFSET_X,
-			width: THUMB_W,
-			height: TRACK_H - THUMB_OFFSET_Y * 2,
-			transform: 'none',
-			transition: 'left 320ms cubic-bezier(0.4, 0, 0.2, 1)',
-			'&.Mui-checked': {
-				transform: 'none',
-				left: THUMB_LEFT_CHECKED,
-				'& + .MuiSwitch-track': {
-					backgroundColor: '#FFFFFF',
-					opacity: 1,
-				},
-			},
-			'&:hover, &.Mui-checked:hover': {
-				backgroundColor: 'transparent',
-			},
-		},
-		'& .MuiSwitch-thumb': {
-			width: THUMB_W,
-			height: TRACK_H - THUMB_OFFSET_Y * 2,
-			borderRadius: 999,
-			backgroundColor: '#242424',
-			boxShadow: '0 4px 12px -2px rgba(17, 24, 39, 0.25)',
-		},
-		'& .MuiSwitch-track': {
-			borderRadius: 999,
-			backgroundColor: '#FFFFFF',
-			border: '1px solid rgba(17, 24, 39, 0.08)',
-			opacity: 1,
-			boxShadow: 'inset 0 2px 4px 0 rgba(0,0,0,0.02)',
-		},
-	};
-});
-
 const PricingHalo = () => {
 	return (
 		<Box
@@ -122,94 +70,6 @@ const PricingHalo = () => {
 				};
 			}}
 		/>
-	);
-};
-
-const BillingCycleToggle = ({
-	annual,
-	onAnnualChange,
-}: {
-	annual: boolean;
-	onAnnualChange: (value: boolean) => void;
-}) => {
-	return (
-		<Box sx={{ position: 'relative', display: 'inline-block', lineHeight: 0 }}>
-			<BillingSwitch
-				id="billing-cycle-switch"
-				checked={annual}
-				onChange={(_e, checked) => {
-					return onAnnualChange(checked);
-				}}
-				slotProps={{
-					input: { 'aria-label': 'Toggle annual billing' },
-				}}
-			/>
-			<Stack
-				direction="row"
-				sx={{
-					position: 'absolute',
-					inset: 0,
-					pointerEvents: 'none',
-					zIndex: 2,
-				}}
-			>
-				<Box
-					onClick={() => {
-						return onAnnualChange(false);
-					}}
-					sx={{
-						flex: 1,
-						display: 'flex',
-						alignItems: 'center',
-						justifyContent: 'center',
-						cursor: 'pointer',
-						pointerEvents: 'auto',
-						fontSize: 14,
-						fontWeight: 700,
-						color: annual ? 'text.secondary' : 'common.white',
-						transition: 'color 0.3s ease',
-					}}
-				>
-					Monthly
-				</Box>
-				<Box
-					onClick={() => {
-						return onAnnualChange(true);
-					}}
-					sx={{
-						flex: 1,
-						display: 'flex',
-						alignItems: 'center',
-						justifyContent: 'center',
-						gap: 0.75,
-						cursor: 'pointer',
-						pointerEvents: 'auto',
-						fontSize: 14,
-						fontWeight: 700,
-						color: annual ? 'common.white' : 'text.secondary',
-						transition: 'color 0.3s ease',
-					}}
-				>
-					<Box component="span">Annually</Box>
-					<Box
-						component="span"
-						sx={{
-							fontSize: 10,
-							color: annual ? 'common.white' : 'secondary.main',
-							bgcolor: annual ? 'rgba(255,255,255,0.18)' : 'secondary.lighter',
-							px: 0.75,
-							py: 0.25,
-							borderRadius: 999,
-							fontWeight: 800,
-							lineHeight: 1.2,
-							transition: 'all 0.3s ease',
-						}}
-					>
-						-20%
-					</Box>
-				</Box>
-			</Stack>
-		</Box>
 	);
 };
 
@@ -259,7 +119,12 @@ const PricingHeader = ({
 			</m.div>
 
 			<m.div variants={varFade('inUp', { distance: 24 })}>
-				<BillingCycleToggle annual={annual} onAnnualChange={onAnnualChange} />
+				<BillingCycleToggle
+					billing={annual ? 'annually' : 'monthly'}
+					onBillingChange={(next) => {
+						return onAnnualChange(next === 'annually');
+					}}
+				/>
 			</m.div>
 		</Box>
 	);
