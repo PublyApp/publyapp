@@ -3,7 +3,11 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { varAlpha } from 'minimal-shared/utils';
 
-import { LegalDocPage } from '#app/routes/marketing/_components/legal-doc-page.tsx';
+import {
+	LegalDocPage,
+	LEGAL_H2_SX,
+	LEGAL_P_SX,
+} from '#app/routes/marketing/_components/legal-doc-page.tsx';
 import {
 	COOKIES_INVENTORY,
 	COOKIES_LAST_UPDATED,
@@ -12,19 +16,6 @@ import {
 } from '#app/routes/marketing/_data/legal-cookies.ts';
 
 // ----------------------------------------------------------------------
-
-const H2_SX = {
-	fontSize: { xs: 22, md: 26 },
-	fontWeight: 700,
-	color: 'text.primary',
-	mb: 2,
-} as const;
-
-const P_SX = {
-	fontSize: 15,
-	color: 'text.secondary',
-	lineHeight: 1.75,
-} as const;
 
 const STRONG_SX = {
 	color: 'text.primary',
@@ -195,12 +186,12 @@ const CookiesPage = () => {
 					<Typography
 						component="h2"
 						id={COOKIES_SECTION_IDS.whatAreCookies}
-						sx={H2_SX}
+						sx={LEGAL_H2_SX}
 					>
 						1. What Are Cookies
 					</Typography>
 					<Stack spacing={2}>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							Cookies are small text files that are stored locally by your web
 							browser on your computer or mobile device when you visit a
 							website. Modern web applications utilize these files to ensure the
@@ -209,7 +200,7 @@ const CookiesPage = () => {
 							preserve custom preferences during your navigation between
 							different pages in your workspace.
 						</Typography>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							Functionally, cookies generally drop into two major retention
 							categories:{' '}
 							<Box component="strong" sx={STRONG_SX}>
@@ -224,7 +215,7 @@ const CookiesPage = () => {
 							them or until they successfully reach their predetermined
 							expiration date programmed by the issuer.
 						</Typography>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							Additionally, cookies fall under different ownership scopes.{' '}
 							<Box component="strong" sx={STRONG_SX}>
 								First-party cookies
@@ -247,11 +238,11 @@ const CookiesPage = () => {
 					<Typography
 						component="h2"
 						id={COOKIES_SECTION_IDS.cookiesWeSet}
-						sx={H2_SX}
+						sx={LEGAL_H2_SX}
 					>
 						2. Cookies We Set
 					</Typography>
-					<Typography sx={P_SX}>
+					<Typography sx={LEGAL_P_SX}>
 						Below is a comprehensive and strictly monitored inventory of the
 						technical cookies actively deployed when interacting closely with
 						the PublyApp platform. This catalog dictates both required utility
@@ -265,12 +256,12 @@ const CookiesPage = () => {
 					<Typography
 						component="h2"
 						id={COOKIES_SECTION_IDS.thirdParty}
-						sx={H2_SX}
+						sx={LEGAL_H2_SX}
 					>
 						3. Third-Party Cookies
 					</Typography>
 					<Stack spacing={2}>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							To safely scale our infrastructure, PublyApp delegates specialized
 							operations directly to trusted third-party providers who, in
 							return, securely inject cookies through our ecosystem interface.
@@ -280,7 +271,7 @@ const CookiesPage = () => {
 							Intercom tracking strings to tie anonymous chat initiations
 							explicitly back to your verified session.
 						</Typography>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							Furthermore, compliant subscription billing operates
 							comprehensively via Stripe, which relies deeply on its own
 							localized security parameters. Each partner strictly processes
@@ -300,12 +291,12 @@ const CookiesPage = () => {
 					<Typography
 						component="h2"
 						id={COOKIES_SECTION_IDS.managingPreferences}
-						sx={H2_SX}
+						sx={LEGAL_H2_SX}
 					>
 						4. Managing Your Cookie Preferences
 					</Typography>
 					<Stack spacing={2}>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							We actively respect individual tracking autonomy and consistently
 							offer a streamlined pathway permitting your personal configuration
 							of these technologies. Upon an initial localized visit, you will
@@ -314,7 +305,7 @@ const CookiesPage = () => {
 							constraints. You hold the inherent right at any time to
 							confidently revoke initial consents entirely.
 						</Typography>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							For individuals seeking exhaustive technical control bypassing our
 							interfaces, modifying overarching preferences directly inside
 							browser architectural settings supplies definitive constraints.
@@ -333,12 +324,12 @@ const CookiesPage = () => {
 					<Typography
 						component="h2"
 						id={COOKIES_SECTION_IDS.updates}
-						sx={H2_SX}
+						sx={LEGAL_H2_SX}
 					>
 						5. Updates to This Policy
 					</Typography>
 					<Stack spacing={2}>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							As internet protocols fiercely evolve and integrated data
 							collection architectures shift inherently over progressive cycles,
 							we systematically reserve the explicit right to independently
@@ -347,7 +338,7 @@ const CookiesPage = () => {
 							fully retired legacy vendors previously attached deeply to our
 							active system.
 						</Typography>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							Any definitive configuration changes comprehensively rewrite the
 							&ldquo;Last updated&rdquo; timeline stamp structurally anchored
 							tightly at the header of this documented text. In cases where
