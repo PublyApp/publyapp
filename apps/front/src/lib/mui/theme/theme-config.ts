@@ -42,7 +42,7 @@ export const themeConfig: ThemeConfig = {
 	/** **************************************
 	 * Base
 	 *************************************** */
-	defaultMode: 'dark', // Linear/Superhuman-style dark-first
+	defaultMode: 'light', // Match publyapp-5 while theme sync work is pending merge
 	enableSystemMode: false,
 	modeStorageKey: 'theme-mode',
 	direction: 'ltr',
