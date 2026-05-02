@@ -281,91 +281,93 @@ export const PricingComparison = ({ billing }: PricingComparisonProps) => {
 					Compare features
 				</Typography>
 
-				{/* Horizontally scrollable table wrapper */}
-				<Box sx={{ overflowX: 'auto', pb: 1 }}>
+				{/* Table — no overflow wrapper so sticky thead anchors to the page viewport */}
+				<Box
+					component="table"
+					sx={{
+						width: '100%',
+						minWidth: 900,
+						borderCollapse: 'collapse',
+						textAlign: 'left',
+					}}
+				>
+					{/* Sticky column headers */}
 					<Box
-						component="table"
+						component="thead"
 						sx={{
-							width: '100%',
-							minWidth: 900,
-							borderCollapse: 'collapse',
-							textAlign: 'left',
+							position: 'sticky',
+							top: 72,
+							zIndex: 30,
+							bgcolor: 'background.default',
+							'& th': {
+								bgcolor: 'background.default',
+							},
+							boxShadow: '0 1px 0 0 rgba(0,0,0,0.04)',
 						}}
 					>
-						{/* Sticky column headers */}
-						<Box
-							component="thead"
-							sx={{
-								position: 'sticky',
-								top: 72,
-								zIndex: 30,
-								bgcolor: 'background.default',
-							}}
-						>
-							<Box component="tr">
-								{/* Empty first column */}
-								<Box component="th" sx={{ py: 3, px: 4, width: '34%' }} />
+						<Box component="tr">
+							{/* Empty first column */}
+							<Box component="th" sx={{ py: 3, px: 4, width: '34%' }} />
 
-								{/* Tier header columns */}
-								{TIERS.map((tier) => {
-									return (
-										<Box
-											component="th"
-											key={tier.id}
-											sx={{ py: 3, px: 3, width: '22%', textAlign: 'center' }}
-										>
-											<TierColumnHeader tier={tier} billing={billing} />
-										</Box>
-									);
-								})}
-							</Box>
-						</Box>
-
-						{/* Feature rows grouped by category */}
-						<Box component="tbody" sx={{ fontSize: 14 }}>
-							{CATEGORY_ORDER.map((category) => {
-								const rows = grouped[category] ?? [];
-
+							{/* Tier header columns */}
+							{TIERS.map((tier) => {
 								return (
-									<Fragment key={category}>
-										{/* Category label row */}
-										<Box component="tr" key={`cat-${category}`}>
-											<Box
-												component="td"
-												colSpan={4}
-												sx={{
-													pt: 5,
-													pb: 2,
-													px: 4,
-													fontSize: 11,
-													fontWeight: 700,
-													textTransform: 'uppercase',
-													letterSpacing: '0.1em',
-													color: 'text.secondary',
-												}}
-											>
-												{category}
-											</Box>
-										</Box>
-
-										{/* Feature rows for this category */}
-										{rows.map((row) => {
-											return (
-												<MatrixRow
-													key={`${category}-${row.feature}`}
-													feature={row.feature}
-													values={[
-														row.tiers.creator,
-														row.tiers.scale,
-														row.tiers.enterprise,
-													]}
-												/>
-											);
-										})}
-									</Fragment>
+									<Box
+										component="th"
+										key={tier.id}
+										sx={{ py: 3, px: 3, width: '22%', textAlign: 'center' }}
+									>
+										<TierColumnHeader tier={tier} billing={billing} />
+									</Box>
 								);
 							})}
 						</Box>
+					</Box>
+
+					{/* Feature rows grouped by category */}
+					<Box component="tbody" sx={{ fontSize: 14 }}>
+						{CATEGORY_ORDER.map((category) => {
+							const rows = grouped[category] ?? [];
+
+							return (
+								<Fragment key={category}>
+									{/* Category label row */}
+									<Box component="tr" key={`cat-${category}`}>
+										<Box
+											component="td"
+											colSpan={4}
+											sx={{
+												pt: 5,
+												pb: 2,
+												px: 4,
+												fontSize: 11,
+												fontWeight: 700,
+												textTransform: 'uppercase',
+												letterSpacing: '0.1em',
+												color: 'text.secondary',
+											}}
+										>
+											{category}
+										</Box>
+									</Box>
+
+									{/* Feature rows for this category */}
+									{rows.map((row) => {
+										return (
+											<MatrixRow
+												key={`${category}-${row.feature}`}
+												feature={row.feature}
+												values={[
+													row.tiers.creator,
+													row.tiers.scale,
+													row.tiers.enterprise,
+												]}
+											/>
+										);
+									})}
+								</Fragment>
+							);
+						})}
 					</Box>
 				</Box>
 			</Container>
