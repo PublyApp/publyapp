@@ -136,6 +136,7 @@ const optimizeDepsIncludes = [
 	'@mui/material/MenuList',
 	'@mui/material/OutlinedInput',
 	'@mui/material/PaginationItem',
+	'@mui/material/Paper',
 	'@mui/material/Popover',
 	'@mui/material/Portal',
 	'@mui/material/Radio',
