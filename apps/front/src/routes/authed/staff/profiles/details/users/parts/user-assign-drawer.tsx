@@ -969,6 +969,9 @@ const ProfileUserAssignmentAction = ({
 			bgcolor: 'action.hover',
 			color: 'text.primary',
 		},
+		'&.Mui-disabled': {
+			color: 'action.disabled',
+		},
 	} as const;
 
 	let actionButton: React.ReactNode = (

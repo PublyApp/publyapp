@@ -476,7 +476,8 @@ const ProfileUsersSelectionActions = ({
 						closeMenu();
 						setConfirmBulkUnassignOpen(true);
 					}}
-					sx={{ color: 'text.secondary' }}
+					// Bulk menu actions need active contrast; row-level icons stay quieter.
+					sx={{ color: 'text.primary' }}
 				>
 					<Iconify icon="lucide:user-minus" width={18} />
 					<ListItemText primary={t('unassign')} sx={{ ml: 1 }} />
@@ -491,7 +492,6 @@ const ProfileUsersSelectionActions = ({
 				action={
 					<Button
 						variant="contained"
-						color="inherit"
 						onClick={handleConfirmBulkUnassign}
 						disabled={isUnassigning}
 					>
@@ -790,6 +790,7 @@ const UserActionsCell: MRT_ColumnDef<ProfileUserRowData>['Cell'] = (props) => {
 						color="default"
 						onClick={() => setConfirmUnassignOpen(true)}
 						disabled={isUnassigning}
+						sx={{ color: isUnassigning ? 'action.disabled' : 'text.secondary' }}
 					>
 						{isUnassigning ? (
 							<CircularProgress size={18} />

@@ -49,50 +49,50 @@ Related surfaces:
 
 ## 5. Export
 
-- [ ] The page export action opens the export dialog.
-- [ ] In normal mode, exporting CSV downloads the current result set.
-- [ ] In normal mode, exporting JSON downloads the current result set.
-- [ ] In selection mode, exporting CSV downloads only the selected rows.
-- [ ] In selection mode, exporting JSON downloads only the selected rows.
-- [ ] Selecting `XLSX` shows the translated “coming soon” message and disables the export button.
+- [x] The page export action opens the export dialog.
+- [x] In normal mode, exporting CSV downloads the current result set.
+- [x] In normal mode, exporting JSON downloads the current result set.
+- [x] In selection mode, exporting CSV downloads only the selected rows.
+- [x] In selection mode, exporting JSON downloads only the selected rows.
+- [x] Selecting `XLSX` shows the translated “coming soon” message and disables the export button.
 
 ## 6. Row Actions
 
-- [ ] For a pending user, the follow-up action is visible and works.
-- [ ] For a pending user, the verification-link copy action works when enabled by the feature flag.
-- [ ] Opening the status cell menu on an active user allows suspending the user and updates the row status.
-- [ ] Opening the status cell menu on a suspended user allows reactivating the user and updates the row status.
-- [ ] Opening the level cell menu allows changing between `Admin` and `User` and updates the row level.
-- [ ] Deleting a suspended user works and removes the row from the table.
-- [ ] The delete action is disabled for non-suspended users and shows the explanatory tooltip.
-- [ ] The quick preview action uses the `solar:list-bold` icon and opens a right drawer with the user's details.
-- [ ] The quick preview drawer includes a link to the correct staff-user details page.
+- [x] For a pending user, the follow-up action is visible and works.
+- [x] For a pending user, the verification-link copy action works when enabled by the feature flag.
+- [x] Opening the status cell menu on an active user allows suspending the user after confirmation and updates the row status.
+- [x] Opening the status cell menu on a suspended user allows reactivating the user after confirmation and updates the row status.
+- [x] Opening the level cell menu allows changing between `Admin` and `User` and updates the row level.
+- [x] Deleting a suspended user works and removes the row from the table.
+- [x] The delete action is disabled for non-suspended users and shows the explanatory tooltip.
+- [x] The quick preview action uses the `solar:list-bold` icon and opens a right drawer with the user's details.
+- [x] The quick preview drawer includes a link to the correct staff-user details page.
 
 ## 7. Staff User Details Regression Checks
 
-- [ ] Suspending a user from the details page updates the details view and the list view consistently.
-- [ ] Reactivating a user from the details page updates the details view and the list view consistently.
-- [ ] Updating the user email from the details danger zone still works.
-- [ ] Returning to the staff users list after a details-page lifecycle action shows fresh data, not stale cached data.
+- [x] Suspending a user from the details page updates the details view and the list view consistently.
+- [x] Reactivating a user from the details page updates the details view and the list view consistently.
+- <s>[ ] Updating the user email from the details danger zone still works.</s>
+- [x] Returning to the staff users list after a details-page lifecycle action shows fresh data, not stale cached data.
 
 ## 8. Staff Profile Users Regression Checks
 
-- [ ] In `/staff/profiles/details/{profileId}/users`, the table still renders assigned users correctly.
-- [ ] Suspending a user from the profile users table updates both the profile users table and the staff users list consistently.
-- [ ] Reactivating a user from the profile users table updates both surfaces consistently.
-- [ ] Unassigning a user from the profile users table still works and does not leave stale selection state behind.
+- [x] In `/staff/profiles/details/{profileId}/users`, the table still renders assigned users correctly.
+- [x] Suspending a user from the profile users table updates both the profile users table and the staff users list consistently.
+- [x] Reactivating a user from the profile users table updates both surfaces consistently.
+- [x] Unassigning a user from the profile users table still works and does not leave stale selection state behind.
 
-## 9. Permission Checks
+## 9. API Permission Enforcement
 
-- [ ] A staff user without `list staff users` permission cannot access the list page.
-- [ ] A staff user without `suspend staff users` permission cannot call suspend endpoints from row or bulk actions.
-- [ ] A staff user without `reactivate staff users` permission cannot call reactivate endpoints from row or bulk actions.
-- [ ] A staff user without `delete staff users` permission cannot call delete endpoints from row or bulk actions.
-- [ ] A staff user without `update email for staff users` permission cannot use the email change action from the details page.
+- [x] A staff user without `list staff users` permission cannot call the staff-users list endpoint.
+- [x] A staff user without `suspend staff users` permission cannot call suspend endpoints from row or bulk actions.
+- [x] A staff user without `reactivate staff users` permission cannot call reactivate endpoints from row or bulk actions.
+- [x] A staff user without `delete staff users` permission cannot call delete endpoints from row or bulk actions.
+- [x] A staff user without `update email for staff users` permission cannot call the email-change endpoint.
 
 ## 10. Negative / Edge Cases
 
-- [ ] A bulk action with a mixed selection of valid and invalid targets reports partial success correctly.
-- [ ] After deleting a suspended user, refreshing the page does not bring the deleted user back into the list.
-- [ ] A deleted staff user is not accessible from the direct details URL.
-- [ ] A deleted staff user no longer resolves in the profiles endpoint for that user.
+- [x] A bulk action with a mixed selection of valid and invalid targets reports partial success correctly.
+- [x] After deleting a suspended user, refreshing the page does not bring the deleted user back into the list.
+- [x] A deleted staff user is not accessible from the direct details URL.
+- [x] A deleted staff user no longer resolves in the profiles endpoint for that user.

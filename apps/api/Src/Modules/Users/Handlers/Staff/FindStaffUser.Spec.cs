@@ -30,6 +30,52 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldReturnUnauthorizedWithoutSession() {
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(limit: 20)
+		);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnForbiddenForNonStaffUser() {
+		var token = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(limit: 20)
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
+		var token = await _authClient.LoginAsync(
+			TestConstants.StaffUserEmail,
+			TestConstants.SeedPassword
+		);
+
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(limit: 20)
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+	}
+
+	[Fact]
 	public async Task ItShouldFilterStaffUsersBySearchQuery() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 
