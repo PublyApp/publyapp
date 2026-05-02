@@ -174,36 +174,41 @@ const TenantInvitationsTable = () => {
 			columnHelper.accessor('email', {
 				id: 'email',
 				header: t('email'),
-				size: 250,
+				size: 300,
 			}),
 			columnHelper.accessor((row) => getInvitationStatus(row), {
 				id: 'status',
 				header: t('status'),
 				enableSorting: false,
-				size: 120,
 				Cell: StatusCell,
+				size: 120,
+				grow: false,
 			}),
 			columnHelper.accessor('invitedByName', {
 				header: t('invited-by'),
 				enableSorting: false,
 				size: 150,
+				grow: false,
 			}),
 			columnHelper.accessor('expiresAt', {
 				id: 'expires_at',
 				header: t('expires', { defaultValue: 'Expires' }),
-				size: 150,
 				Cell: ExpiresAtCell,
+				size: 150,
+				grow: false,
 			}),
 			columnHelper.accessor('profileName', {
 				header: t('profiles'),
 				enableSorting: false,
-				size: 200,
 				Cell: ProfileNameCell,
+				size: 200,
+				grow: false,
 			}),
 			columnHelper.display({
 				header: 'Actions',
 				Cell: InvitationActionsCell,
-				size: 120,
+				size: 80,
+				grow: false,
 			}),
 		];
 	}, [t]);
@@ -626,14 +631,6 @@ const TenantInvitationsTable = () => {
 		muiTablePaperProps: {
 			sx: {
 				flexGrow: 1,
-			},
-		},
-		muiTableProps: {
-			sx: {
-				'& .MuiTableBody-root > tr > td:not(:nth-of-type(2)), & .MuiTableHead-root > tr > th:not(:nth-of-type(2))':
-					{
-						flex: '1 1 auto !important',
-					},
 			},
 		},
 		muiTableHeadCellProps: ({ column }) => {
