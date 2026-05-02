@@ -304,16 +304,19 @@ export const PricingComparison = ({ billing }: PricingComparisonProps) => {
 					{/* Sticky column headers */}
 					<Box
 						component="thead"
-						sx={{
+						sx={(theme) => ({
 							position: 'sticky',
-							top: 72,
+							top: 'var(--layout-header-mobile-height)',
+							[theme.breakpoints.up('md')]: {
+								top: 'var(--layout-header-desktop-height)',
+							},
 							zIndex: 30,
 							bgcolor: 'background.default',
 							'& th': {
 								bgcolor: 'background.default',
 							},
 							boxShadow: '0 1px 0 0 rgba(0,0,0,0.04)',
-						}}
+						})}
 					>
 						<Box component="tr">
 							{/* Empty first column */}
