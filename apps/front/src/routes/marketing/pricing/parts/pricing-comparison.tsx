@@ -167,7 +167,7 @@ const TierColumnHeader = ({
 				href={tier.cta.href}
 				variant={isScale ? 'contained' : 'outlined'}
 				disableElevation
-				sx={{
+				sx={(theme) => ({
 					width: '100%',
 					maxWidth: 140,
 					fontSize: 13,
@@ -176,19 +176,29 @@ const TierColumnHeader = ({
 					px: 2,
 					borderRadius: '10px',
 					textTransform: 'none',
+					transition: 'transform 240ms ease, box-shadow 240ms ease',
 					...(isScale
 						? {
 								bgcolor: 'primary.main',
 								color: 'common.white',
-								'&:hover': { bgcolor: 'primary.dark' },
+								'&:hover': {
+									bgcolor: 'primary.main',
+									transform: 'translateY(-1px)',
+									boxShadow: `0 8px 16px -4px ${varAlpha(theme.vars.palette.primary.mainChannel, 0.35)}`,
+								},
 							}
 						: {
 								bgcolor: 'transparent',
 								color: 'text.primary',
 								borderColor: 'divider',
-								'&:hover': { bgcolor: 'action.hover', borderColor: 'divider' },
+								'&:hover': {
+									bgcolor: 'transparent',
+									borderColor: 'divider',
+									transform: 'translateY(-1px)',
+									boxShadow: '0 6px 14px -4px rgba(17,24,39,0.10)',
+								},
 							}),
-				}}
+				})}
 			>
 				{HEADER_BUTTON_LABEL[tier.id]}
 			</Button>
