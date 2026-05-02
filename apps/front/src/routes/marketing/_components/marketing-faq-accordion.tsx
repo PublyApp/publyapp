@@ -2,7 +2,6 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { AnimatePresence, m } from 'framer-motion';
-import { varAlpha } from 'minimal-shared/utils';
 import { useState } from 'react';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
@@ -46,21 +45,21 @@ const FaqRow = ({ item }: { item: MarketingFaqItem }) => {
 			whileHover={!expanded ? { scale: 1.005, y: -1 } : undefined}
 			transition={{
 				type: 'spring',
-				stiffness: 420,
-				damping: 26,
-				mass: 0.5,
+				stiffness: 700,
+				damping: 30,
+				mass: 0.4,
 			}}
-			sx={(theme) => ({
+			sx={{
 				bgcolor: 'background.paper',
 				borderRadius: 2,
 				boxShadow: expanded
-					? `0 18px 36px -12px ${varAlpha(theme.vars.palette.primary.mainChannel, 0.2)}, 0 4px 12px -4px rgba(0,0,0,0.06)`
+					? '0 12px 28px -10px rgba(17,24,39,0.12), 0 2px 6px -2px rgba(17,24,39,0.06)'
 					: '0 1px 2px 0 rgba(0,0,0,0.05)',
 				border: '1px solid',
-				borderColor: expanded ? 'primary.main' : 'divider',
+				borderColor: 'divider',
 				overflow: 'hidden',
-				transition: 'box-shadow 320ms ease, border-color 320ms ease',
-			})}
+				transition: 'box-shadow 180ms ease',
+			}}
 		>
 			{/* Question button */}
 			<Box
@@ -116,33 +115,33 @@ const FaqRow = ({ item }: { item: MarketingFaqItem }) => {
 						transition={{
 							height: {
 								type: 'spring',
-								stiffness: 420,
-								damping: 32,
-								mass: 0.6,
+								stiffness: 700,
+								damping: 38,
+								mass: 0.45,
 							},
-							opacity: { duration: 0.12, delay: 0.04 },
+							opacity: { duration: 0.1, delay: 0.02 },
 						}}
 						sx={{ overflow: 'hidden' }}
 					>
 						<Box
 							component={m.div}
-							initial={{ y: -12, opacity: 0, scale: 0.98 }}
+							initial={{ y: -10, opacity: 0, scale: 0.98 }}
 							animate={{ y: 0, opacity: 1, scale: 1 }}
-							exit={{ y: -8, opacity: 0 }}
+							exit={{ y: -6, opacity: 0 }}
 							transition={{
 								y: {
 									type: 'spring',
-									stiffness: 480,
-									damping: 28,
-									mass: 0.5,
-									delay: 0.05,
+									stiffness: 720,
+									damping: 32,
+									mass: 0.4,
+									delay: 0.02,
 								},
-								opacity: { duration: 0.18, delay: 0.06 },
+								opacity: { duration: 0.12, delay: 0.03 },
 								scale: {
 									type: 'spring',
-									stiffness: 500,
-									damping: 30,
-									delay: 0.05,
+									stiffness: 700,
+									damping: 34,
+									delay: 0.02,
 								},
 							}}
 							sx={{ px: 3, pt: 0, pb: 3, transformOrigin: 'top left' }}
