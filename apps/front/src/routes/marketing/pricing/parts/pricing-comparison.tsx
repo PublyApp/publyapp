@@ -11,8 +11,8 @@ import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import {
 	type Billing,
-	type ComparisonCategory,
 	COMPARISON_MATRIX,
+	type ComparisonCategory,
 	type PricingTier,
 	type PricingTierId,
 	TIERS,
@@ -186,6 +186,15 @@ const TierColumnHeader = ({
 									transform: 'translateY(-1px)',
 									boxShadow: `0 8px 16px -4px ${varAlpha(theme.vars.palette.primary.mainChannel, 0.35)}`,
 								},
+								...theme.applyStyles('dark', {
+									bgcolor: 'common.white',
+									color: 'grey.900',
+									'&:hover': {
+										bgcolor: 'common.white',
+										transform: 'translateY(-1px)',
+										boxShadow: 'none',
+									},
+								}),
 							}
 						: {
 								bgcolor: 'transparent',
