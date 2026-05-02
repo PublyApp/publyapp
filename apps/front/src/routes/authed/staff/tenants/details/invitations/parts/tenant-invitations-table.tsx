@@ -492,6 +492,11 @@ const TenantInvitationsTable = () => {
 								);
 							}}
 							slotProps={{
+								popper: {
+									// Keep MRT toolbar filters anchored while table rows swap between
+									// skeleton and data layouts.
+									placement: 'bottom-start',
+								},
 								paper: {
 									sx: {
 										width: 280,
@@ -573,7 +578,7 @@ const TenantInvitationsTable = () => {
 							closeSelectionActionMenu();
 							setBulkRevokeDialogOpen(true);
 						}}
-						sx={{ color: 'error.main' }}
+						sx={{ color: 'text.secondary' }}
 					>
 						<Iconify icon="solar:trash-bin-trash-bold" width={18} />
 						<ListItemText
@@ -687,7 +692,7 @@ const TenantInvitationsTable = () => {
 				action={
 					<Button
 						variant="contained"
-						color="error"
+						color="inherit"
 						onClick={handleBulkRevoke}
 						disabled={isBulkRevoking}
 					>
@@ -870,7 +875,7 @@ const RevokeInvitationAction = ({
 						disabled={!canRevoke || isPending}
 						sx={(theme) => ({
 							color: canRevoke
-								? theme.vars.palette.error.main
+								? theme.vars.palette.text.secondary
 								: theme.vars.palette.text.disabled,
 						})}
 					>
@@ -891,7 +896,7 @@ const RevokeInvitationAction = ({
 				action={
 					<Button
 						variant="contained"
-						color="error"
+						color="inherit"
 						onClick={onConfirmRevoke}
 						disabled={isPending}
 					>

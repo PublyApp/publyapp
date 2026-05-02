@@ -47,7 +47,7 @@ const StaffUsersBulkActionDialogs = ({
 				action={
 					<Button
 						variant="contained"
-						color="warning"
+						color="inherit"
 						onClick={onBulkSuspend}
 						disabled={isBulkSuspending}
 					>
@@ -66,7 +66,7 @@ const StaffUsersBulkActionDialogs = ({
 				action={
 					<Button
 						variant="contained"
-						color="success"
+						color="inherit"
 						onClick={onBulkReactivate}
 						disabled={isBulkReactivating}
 					>
@@ -85,7 +85,7 @@ const StaffUsersBulkActionDialogs = ({
 				action={
 					<Button
 						variant="contained"
-						color="error"
+						color="inherit"
 						onClick={onBulkDelete}
 						disabled={isBulkDeleting}
 					>

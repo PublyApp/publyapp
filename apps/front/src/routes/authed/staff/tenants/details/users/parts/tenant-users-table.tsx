@@ -731,6 +731,11 @@ const useTenantUsersTableController = () => {
 								);
 							}}
 							slotProps={{
+								popper: {
+									// Keep MRT toolbar filters anchored while table rows swap between
+									// skeleton and data layouts.
+									placement: 'bottom-start',
+								},
 								paper: {
 									sx: {
 										width: 280,
@@ -919,7 +924,7 @@ const TenantUsersTable = () => {
 				action={
 					<Button
 						variant="contained"
-						color="error"
+						color="inherit"
 						onClick={handleBulkRemove}
 						disabled={isBulkRemoving}
 					>
@@ -1031,7 +1036,7 @@ const TenantUsersSelectionActions = ({
 						closeMenu();
 						onOpenBulkRemoveDialog();
 					}}
-					sx={{ color: 'error.main' }}
+					sx={{ color: 'text.secondary' }}
 				>
 					<Iconify icon="solar:trash-bin-trash-bold" width={18} />
 					<ListItemText
@@ -1256,9 +1261,7 @@ const StatusCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (
 				action={
 					<Button
 						variant="contained"
-						color={
-							pendingStatus === USER_STATUS_ENUM.SUSPENDED ? 'error' : 'primary'
-						}
+						color="inherit"
 						onClick={handleConfirm}
 						disabled={isPending}
 					>
@@ -1549,6 +1552,8 @@ const UserDetailsDrawerAction = ({
 						color="default"
 						disabled={disabled}
 						onClick={detailsDrawer.onTrue}
+						// Preview is the primary navigation affordance in compact row actions.
+						sx={{ color: disabled ? 'action.disabled' : 'text.primary' }}
 					>
 						<Iconify icon="solar:list-bold" width={18} />
 					</IconButton>
@@ -1674,7 +1679,7 @@ const RemoveUserAction = ({
 						onClick={confirmDialog.onTrue}
 						disabled={isRemoving || disabled}
 						sx={{
-							color: disabled ? 'action.disabled' : 'error.main',
+							color: disabled ? 'action.disabled' : 'text.secondary',
 						}}
 					>
 						<Iconify icon="solar:trash-bin-trash-bold" width={18} />
@@ -1696,7 +1701,7 @@ const RemoveUserAction = ({
 				action={
 					<Button
 						variant="contained"
-						color="error"
+						color="inherit"
 						onClick={onConfirmRemove}
 						disabled={isRemoving}
 					>

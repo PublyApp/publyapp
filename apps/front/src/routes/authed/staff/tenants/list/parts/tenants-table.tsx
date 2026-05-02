@@ -880,6 +880,11 @@ const TenantsToolbarFilters = ({
 							);
 						}}
 						slotProps={{
+							popper: {
+								// Keep MRT toolbar filters anchored while table rows swap between
+								// skeleton and data layouts.
+								placement: 'bottom-start',
+							},
 							paper: {
 								sx: {
 									width: 280,
@@ -1009,7 +1014,7 @@ const TenantsSelectionActions = ({
 						closeMenu();
 						onOpenBulkActionDialog('delete');
 					}}
-					sx={{ color: 'error.main' }}
+					sx={{ color: 'text.secondary' }}
 				>
 					<Iconify icon="solar:trash-bin-trash-bold" width={18} />
 					<ListItemText primary={t('bulk-delete')} sx={{ ml: 1 }} />
@@ -1252,7 +1257,7 @@ const TenantsBulkActionDialogs = ({
 				action={
 					<Button
 						variant="contained"
-						color="warning"
+						color="inherit"
 						onClick={onBulkSuspend}
 						disabled={isBulkSuspending}
 					>
@@ -1269,7 +1274,7 @@ const TenantsBulkActionDialogs = ({
 				action={
 					<Button
 						variant="contained"
-						color="success"
+						color="inherit"
 						onClick={onBulkReactivate}
 						disabled={isBulkReactivating}
 					>
@@ -1286,7 +1291,7 @@ const TenantsBulkActionDialogs = ({
 				action={
 					<Button
 						variant="contained"
-						color="error"
+						color="inherit"
 						onClick={onBulkDelete}
 						disabled={isBulkDeleting}
 					>
@@ -1538,7 +1543,7 @@ const StatusCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 				action={
 					<Button
 						variant="contained"
-						color="warning"
+						color="inherit"
 						onClick={() => suspendTenant({ tenantId: tenant.id })}
 						disabled={isSuspending}
 					>
@@ -1555,7 +1560,7 @@ const StatusCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 				action={
 					<Button
 						variant="contained"
-						color="success"
+						color="inherit"
 						onClick={() => reactivateTenant({ tenantId: tenant.id })}
 						disabled={isReactivating}
 					>
@@ -1622,7 +1627,7 @@ const DeleteTenantAction = ({ tenant }: TenantActionProps) => {
 						onClick={() => setDeleteDialogOpen(true)}
 						disabled={!canDelete}
 						sx={{
-							color: canDelete ? 'error.main' : 'text.disabled',
+							color: canDelete ? 'text.secondary' : 'action.disabled',
 						}}
 					>
 						<Iconify icon="solar:trash-bin-trash-bold" />
@@ -1638,7 +1643,7 @@ const DeleteTenantAction = ({ tenant }: TenantActionProps) => {
 				action={
 					<Button
 						variant="contained"
-						color="error"
+						color="inherit"
 						onClick={() => deleteTenant({ tenantId: tenant.id })}
 						disabled={isDeleting}
 					>

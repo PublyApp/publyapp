@@ -162,9 +162,17 @@ const StaffUsersToolbarFilters = ({
 							);
 						}}
 						slotProps={{
+							popper: {
+								// MRT loading/skeleton row transitions can make centered Popper menus
+								// look shifted. Anchor filter menus to the field's lower-left edge.
+								placement: 'bottom-start',
+								sx: {
+									width: '280px !important',
+								},
+							},
 							paper: {
 								sx: {
-									width: 280,
+									width: 1,
 								},
 							},
 							chip: {

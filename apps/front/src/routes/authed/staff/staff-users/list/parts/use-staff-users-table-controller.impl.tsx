@@ -65,7 +65,12 @@ import {
 } from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
 import { invalidateStaffUserLifecycleQueries } from '#app/routes/authed/staff/staff-users/shared/staff-user-cache-helpers.ts';
 
-import StaffUserRowActions from './staff-user-row-actions.tsx';
+import StaffUserPreviewAction from './staff-user-preview-action.tsx';
+import {
+	CopyLinkButton,
+	DeleteStaffUserAction,
+	FollowUpButton,
+} from './staff-user-row-actions.tsx';
 import type { StaffUsersExportDialogControllerRef } from './staff-users-export-dialog-controller.tsx';
 import StaffUsersSelectionActions from './staff-users-selection-actions.tsx';
 import StaffUsersToolbarFilters from './staff-users-toolbar-filters.tsx';
@@ -734,7 +739,7 @@ const StatusCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 				action={
 					<Button
 						variant="contained"
-						color="warning"
+						color="inherit"
 						onClick={() => suspendStaffUser({ userId: user.id })}
 						disabled={isSuspending}
 					>
@@ -751,7 +756,7 @@ const StatusCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 				action={
 					<Button
 						variant="contained"
-						color="success"
+						color="inherit"
 						onClick={() => reactivateStaffUser({ userId: user.id })}
 						disabled={isReactivating}
 					>
@@ -892,5 +897,18 @@ const LevelCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 };
 
 const ActionsCell: MRT_ColumnDef<StaffUserRowData>['Cell'] = (props) => {
-	return <StaffUserRowActions user={props.row.original} />;
+	const user = props.row.original;
+	const isPendingUser = user.status === USER_STATUS_ENUM.PENDING;
+
+	return (
+		<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+			<FollowUpButton isUserPending={isPendingUser} email={user.email} />
+
+			<CopyLinkButton isUserPending={isPendingUser} userId={user.id} />
+
+			<StaffUserPreviewAction user={user} />
+
+			<DeleteStaffUserAction user={user} />
+		</Box>
+	);
 };

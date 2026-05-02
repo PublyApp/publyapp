@@ -80,7 +80,13 @@ const StaffUserPreviewAction = ({ user }: StaffUserPreviewActionProps) => {
 	return (
 		<>
 			<Tooltip title={t('preview')} placement="top" arrow>
-				<IconButton color="default" size="small" onClick={previewDrawer.onTrue}>
+				<IconButton
+					color="default"
+					size="small"
+					onClick={previewDrawer.onTrue}
+					// Preview is the primary navigation affordance in compact row actions.
+					sx={{ color: 'text.primary' }}
+				>
 					<Iconify icon="solar:list-bold" width={18} />
 				</IconButton>
 			</Tooltip>

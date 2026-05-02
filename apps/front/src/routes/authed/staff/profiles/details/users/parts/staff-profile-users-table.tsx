@@ -476,7 +476,7 @@ const ProfileUsersSelectionActions = ({
 						closeMenu();
 						setConfirmBulkUnassignOpen(true);
 					}}
-					sx={{ color: 'error.main' }}
+					sx={{ color: 'text.secondary' }}
 				>
 					<Iconify icon="lucide:user-minus" width={18} />
 					<ListItemText primary={t('unassign')} sx={{ ml: 1 }} />
@@ -491,7 +491,7 @@ const ProfileUsersSelectionActions = ({
 				action={
 					<Button
 						variant="contained"
-						color="error"
+						color="inherit"
 						onClick={handleConfirmBulkUnassign}
 						disabled={isUnassigning}
 					>
@@ -778,6 +778,8 @@ const UserActionsCell: MRT_ColumnDef<ProfileUserRowData>['Cell'] = (props) => {
 						onClick={() => {
 							setDrawerOpen(true);
 						}}
+						// Preview is the primary navigation affordance in compact row actions.
+						sx={{ color: 'text.primary' }}
 					>
 						<Iconify icon="solar:list-bold" width={18} />
 					</IconButton>
@@ -874,7 +876,7 @@ const UserActionsCell: MRT_ColumnDef<ProfileUserRowData>['Cell'] = (props) => {
 				action={
 					<Button
 						variant="contained"
-						color="error"
+						color="inherit"
 						onClick={handleConfirmUnassign}
 						disabled={isUnassigning}
 					>
