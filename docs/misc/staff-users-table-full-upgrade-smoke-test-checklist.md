@@ -18,34 +18,34 @@ Related surfaces:
 - [x] The status column renders valid labels only for the supported statuses: `Active`, `Pending`, and `Suspended`.
 - [x] A newly created unverified staff user appears with `Pending` status.
 - [x] No row renders a `Banned` status label.
-- [ ] The action column always renders the full row-action set; actions that do not apply to the current row are disabled and show a reason tooltip.
+- [x] The action column always renders the full row-action set; actions that do not apply to the current row are disabled and show a reason tooltip.
 
 ## 2. Search, Filter, Sort, And Cursor Pagination
 
-- [ ] Typing in the search field filters the list after debounce.
-- [ ] Clearing the search field restores the default result set.
-- [ ] The status filter accepts supported statuses and updates the list correctly.
-- [ ] Selecting multiple statuses filters correctly when more than one status is chosen.
-- [ ] Sorting by each supported column works without breaking pagination.
-- [ ] Advancing to the next cursor page works and does not duplicate rows from the previous page.
+- [x] Typing in the search field filters the list after debounce.
+- [x] Clearing the search field restores the default result set.
+- [x] The status filter accepts supported statuses and updates the list correctly.
+- [x] Selecting multiple statuses filters correctly when more than one status is chosen.
+- [x] Sorting by each supported column works without breaking pagination.
+- [x] Advancing to the next cursor page works and does not duplicate rows from the previous page.
 
 ## 3. Selection Mode Locking
 
-- [ ] Selecting one or more rows enters selection mode.
-- [ ] While selection mode is active, search is visually disabled.
-- [ ] While selection mode is active, filter controls are visually disabled.
-- [ ] While selection mode is active, table sorting is visually disabled.
-- [ ] Clearing the selection exits selection mode and restores normal search/filter/sort controls.
-- [ ] If a search term was edited just before entering selection mode, clearing the selection restores the correct search behavior without applying a stale value.
+- [x] Selecting one or more rows enters selection mode.
+- [x] While selection mode is active, search is visually disabled.
+- [x] While selection mode is active, filter controls are visually disabled.
+- [x] While selection mode is active, table sorting is visually disabled.
+- [x] Clearing the selection exits selection mode and restores normal search/filter/sort controls.
+- [x] If a search term was edited just before entering selection mode, the uncommitted debounced draft is discarded, and clearing the selection keeps the last committed URL search value.
 
 ## 4. Bulk Actions
 
-- [ ] Opening the bulk actions menu shows `Export selected`, `Suspend selected`, `Reactivate selected`, and `Delete selected`.
-- [ ] Bulk suspend works for active users and shows the correct success or partial-success toast.
-- [ ] Bulk reactivate works for suspended users and shows the correct success or partial-success toast.
-- [ ] Bulk delete only succeeds for suspended users and shows the correct success or partial-success toast.
-- [ ] After a successful bulk lifecycle action, the affected rows update correctly in the table.
-- [ ] After a successful bulk delete, deleted users disappear from the list.
+- [x] Opening the bulk actions menu shows `Export selected`, `Suspend selected`, `Reactivate selected`, and `Delete selected`.
+- [x] Bulk suspend works for active users and shows the correct success or partial-success toast.
+- [x] Bulk reactivate works for suspended users and shows the correct success or partial-success toast.
+- [x] Bulk delete only succeeds for suspended users and shows the correct success or partial-success toast.
+- [x] After a successful bulk lifecycle action, the affected rows update correctly in the table.
+- [x] After a successful bulk delete, deleted users disappear from the list.
 
 ## 5. Export
 

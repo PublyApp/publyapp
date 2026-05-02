@@ -85,7 +85,7 @@ const StaffUsersSelectionActions = ({
 						closeMenu();
 						onOpenBulkActionDialog('delete');
 					}}
-					sx={{ color: 'text.secondary' }}
+					sx={{ color: 'error.main' }}
 				>
 					<Iconify icon="solar:trash-bin-trash-bold" width={18} />
 					<ListItemText primary={t('bulk-delete')} sx={{ ml: 1 }} />
