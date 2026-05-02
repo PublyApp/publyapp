@@ -85,11 +85,6 @@ export type StaffUserRowData = {
 	email: string;
 };
 
-type StaffUserStatusFilterOption = {
-	label: string;
-	value: StaffUserStatusFilter;
-};
-
 const columnHelper = createMRTColumnHelper<StaffUserRowData>();
 
 const defaultSorting: MRT_SortingState[number] = {
@@ -113,21 +108,6 @@ const parseStatusFilter = (value: string): StaffUserStatusFilter[] => {
 	return Array.from(new Set(value.split(',').filter(isStaffUserStatusFilter)));
 };
 
-const getStatusLabel = (
-	t: ReturnType<typeof useTranslate>['t'],
-	value: StaffUserStatusFilter,
-) => {
-	if (value === 'active') {
-		return t('active');
-	}
-
-	if (value === 'suspended') {
-		return t('suspended');
-	}
-
-	return t('unknown-item', { item: 'status' });
-};
-
 const mapStaffUserRowData = (staffUser: StaffUserItem): StaffUserRowData => {
 	return {
 		id: toStr(staffUser.id),
@@ -147,15 +127,6 @@ export const useStaffUsersTableController = () => {
 	const exportDialogRef = useRef<StaffUsersExportDialogControllerRef | null>(
 		null,
 	);
-	const staffUserStatusOptions = useMemo<StaffUserStatusFilterOption[]>(() => {
-		return STAFF_USER_STATUS_FILTER_VALUES.map((value) => {
-			return {
-				label: getStatusLabel(t, value),
-				value,
-			};
-		});
-	}, [t]);
-
 	const [filterStates, setFilterStates] = useQueryStates({
 		q: parseAsString.withDefault(''),
 		status: parseAsString.withDefault(''),
@@ -282,6 +253,12 @@ export const useStaffUsersTableController = () => {
 	const selectedUserIds = useMemo(() => {
 		return selectedRows.map((row) => row.id);
 	}, [selectedRows]);
+	const selectedActiveCount = selectedRows.filter((row) => {
+		return row.status === USER_STATUS_ENUM.ACTIVE;
+	}).length;
+	const selectedSuspendedCount = selectedRows.filter((row) => {
+		return row.status === USER_STATUS_ENUM.SUSPENDED;
+	}).length;
 	const handleDebouncedSearchChange = useCallback(
 		(nextSearchValue: string) => {
 			resetCursorPagination?.();
@@ -302,11 +279,9 @@ export const useStaffUsersTableController = () => {
 	};
 	const handleStatusChange = (
 		_event: SyntheticEvent,
-		selectedOptions: StaffUserStatusFilterOption[],
+		selectedOptions: StaffUserStatusFilter[],
 	) => {
-		const nextStatusFilter = map(selectedOptions, (option) => {
-			return option.value;
-		});
+		const nextStatusFilter = selectedOptions;
 
 		resetCursorPagination?.();
 		setStatusFilter(nextStatusFilter);
@@ -393,7 +368,6 @@ export const useStaffUsersTableController = () => {
 				disabledReason={selectionModeDisabledReason}
 				globalFilter={searchValue}
 				statusFilter={statusFilter}
-				statusOptions={staffUserStatusOptions}
 				onSearchChange={handleSearchChange}
 				onStatusChange={handleStatusChange}
 			/>
@@ -416,6 +390,11 @@ export const useStaffUsersTableController = () => {
 	const renderSelectionActions = () => {
 		return (
 			<StaffUsersSelectionActions
+				canSuspend={selectedActiveCount > 0}
+				canReactivate={selectedSuspendedCount > 0}
+				canDelete={
+					selectedCount > 0 && selectedSuspendedCount === selectedCount
+				}
 				onOpenExportDialog={openExportDialog}
 				onOpenBulkActionDialog={openBulkActionDialog}
 			/>

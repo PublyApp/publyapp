@@ -216,7 +216,7 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 				name = "Delete Staff User " + Guid.NewGuid().ToString("N")[..8],
 				description = "Profile used by DeleteStaffUserSpec",
 				permissions = new[] { AppPermissions.Staff.Users.LIST_FOR_STAFF.Key },
-				emails = Array.Empty<string>(),
+				emails = new string[] { },
 			}
 		);
 

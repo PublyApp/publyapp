@@ -86,7 +86,7 @@ const StaffUsersListPage = () => {
 						component={RouterLink}
 						href={FRONT_PATH_NAMES.staff.invitations.new}
 					>
-						{t('new-item', { item: toLower(t('invitation')) })}
+						{t('new-item', { item: toLower(t('user')) })}
 					</Button>
 				}
 				sx={{ mb: { xs: 3, md: 5 } }}

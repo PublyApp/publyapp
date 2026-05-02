@@ -342,7 +342,7 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 				name = "Bulk Delete Staff User " + Guid.NewGuid().ToString("N")[..8],
 				description = "Profile used by BulkDeleteStaffUsersSpec",
 				permissions = new[] { AppPermissions.Staff.Users.LIST_FOR_STAFF.Key },
-				emails = Array.Empty<string>(),
+				emails = new string[] { },
 			}
 		);
 
