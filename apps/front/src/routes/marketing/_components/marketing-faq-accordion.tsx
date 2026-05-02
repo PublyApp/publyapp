@@ -1,8 +1,7 @@
-import Accordion from '@mui/material/Accordion';
-import AccordionDetails from '@mui/material/AccordionDetails';
-import AccordionSummary from '@mui/material/AccordionSummary';
+import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { AnimatePresence, m } from 'framer-motion';
 import { useState } from 'react';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
@@ -26,8 +25,7 @@ const ExpandIcon = ({ expanded }: { expanded: boolean }) => {
 			width={16}
 			sx={{
 				color: expanded ? 'primary.main' : 'text.disabled',
-				transition: 'transform 300ms ease, color 300ms ease',
-				transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
+				transition: 'color 300ms ease',
 			}}
 		/>
 	);
@@ -37,14 +35,7 @@ const FaqRow = ({ item }: { item: MarketingFaqItem }) => {
 	const [expanded, setExpanded] = useState(item.defaultOpen ?? false);
 
 	return (
-		<Accordion
-			expanded={expanded}
-			onChange={() => {
-				return setExpanded(!expanded);
-			}}
-			disableGutters
-			elevation={0}
-			square
+		<Box
 			sx={{
 				bgcolor: 'background.paper',
 				borderRadius: 2,
@@ -52,44 +43,82 @@ const FaqRow = ({ item }: { item: MarketingFaqItem }) => {
 				border: '1px solid',
 				borderColor: 'divider',
 				overflow: 'hidden',
-				'&:before': { display: 'none' },
-				'&.Mui-expanded': { margin: 0, borderRadius: 2 },
 			}}
 		>
-			<AccordionSummary
-				expandIcon={<ExpandIcon expanded={expanded} />}
+			{/* Question button */}
+			<Box
+				component="button"
+				type="button"
+				aria-expanded={expanded}
+				onClick={() => {
+					return setExpanded(!expanded);
+				}}
 				sx={{
+					width: '100%',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'space-between',
+					gap: 2,
 					px: 3,
-					py: 1.5,
-					'& .MuiAccordionSummary-content': { my: 1.5 },
-					// Suppress MUI's default 180deg rotation on the wrapper —
-					// the icon swap + own rotation handles the visual.
-					'& .MuiAccordionSummary-expandIconWrapper': { transform: 'none' },
-					'& .MuiAccordionSummary-expandIconWrapper.Mui-expanded': {
-						transform: 'none',
-					},
+					py: 2,
+					border: 'none',
+					background: 'transparent',
+					cursor: 'pointer',
+					textAlign: 'left',
+					color: 'text.primary',
 				}}
 			>
-				<Typography
-					component="h4"
-					sx={{ fontSize: 14, fontWeight: 600, color: 'text.primary' }}
-				>
+				<Typography component="span" sx={{ fontSize: 14, fontWeight: 600 }}>
 					{item.question}
 				</Typography>
-			</AccordionSummary>
-			<AccordionDetails sx={{ px: 3, pb: 3, pt: 0 }}>
-				<Typography
-					sx={{
-						fontSize: 14,
-						color: 'text.secondary',
-						lineHeight: 1.7,
-						pr: 4,
-					}}
+				<Box
+					component={m.div}
+					animate={{ rotate: expanded ? 90 : 0 }}
+					transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+					sx={{ display: 'inline-flex', flexShrink: 0 }}
 				>
-					{item.answer}
-				</Typography>
-			</AccordionDetails>
-		</Accordion>
+					<ExpandIcon expanded={expanded} />
+				</Box>
+			</Box>
+
+			{/* Animated body */}
+			<AnimatePresence initial={false}>
+				{expanded && (
+					<Box
+						component={m.div}
+						key="content"
+						initial={{ height: 0, opacity: 0 }}
+						animate={{ height: 'auto', opacity: 1 }}
+						exit={{ height: 0, opacity: 0 }}
+						transition={{
+							height: { type: 'spring', stiffness: 220, damping: 28 },
+							opacity: { duration: 0.18, delay: 0.08 },
+						}}
+						sx={{ overflow: 'hidden' }}
+					>
+						<Box
+							component={m.div}
+							initial={{ y: -6 }}
+							animate={{ y: 0 }}
+							exit={{ y: -6 }}
+							transition={{ type: 'spring', stiffness: 220, damping: 28 }}
+							sx={{ px: 3, pt: 0, pb: 3 }}
+						>
+							<Typography
+								sx={{
+									fontSize: 14,
+									color: 'text.secondary',
+									lineHeight: 1.7,
+									pr: 4,
+								}}
+							>
+								{item.answer}
+							</Typography>
+						</Box>
+					</Box>
+				)}
+			</AnimatePresence>
+		</Box>
 	);
 };
 
