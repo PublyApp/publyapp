@@ -175,8 +175,8 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		modelBuilder.Entity<User>()
 			.ToTable(t => {
 				t.HasCheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)");
-				// UserStatus has no inactive/banned state; Pending is the pre-activation lifecycle state.
-				t.HasCheckConstraint("CK_User_Status", "status IN (20, 30, 40)");
+				// User onboarding is invitation-first; persisted identity states are active or suspended.
+				t.HasCheckConstraint("CK_User_Status", "status IN (30, 40)");
 			});
 
 		// Database-level account type constraints

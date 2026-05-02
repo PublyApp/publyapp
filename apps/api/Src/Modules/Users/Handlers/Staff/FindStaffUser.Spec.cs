@@ -134,28 +134,22 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldReturnPendingStatusForNewlyCreatedStaffUsers() {
+	public async Task ItShouldReturnValidationProblemForPendingStatusFilter() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
-		var email = $"pending-{Guid.NewGuid():N}@example.com";
-
-		var userId = await CreateStaffUserAsync(token, email);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetFindUrl(limit: 50, status: "pending")
+			GetFindUrl(status: "pending")
 		).WithSessionToken(token);
 
 		using var response = await _http.SendAsync(request);
 
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
-		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		result!.Data.Should().ContainSingle(user =>
-			user.Id == userId
-			&& string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase)
-			&& user.Status == "Pending"
-		);
+		var problem =
+			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.Errors.Should().ContainKey("Status");
 	}
 
 	[Fact]
@@ -416,32 +410,14 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> CreateStaffUserAsync(string staffToken, string email) {
-		var request = new HttpRequestMessage(
-			HttpMethod.Post,
-			PathUtils.Join(
-				Routes.Staff.Root,
-				Routes.Users.ForStaff.Root,
-				Routes.Users.ForStaff.Create
-			)
-		).WithSessionToken(staffToken);
-
-		request.Content = JsonContent.Create(
-			new {
-				email,
-				lastName = "Staff",
-				firstName = "Test",
-				avatarUrl = (string?)null,
-				accountLevel = "User",
-				sendNotification = false,
-			}
+		_ = staffToken;
+		// Direct create is no longer mapped; seed staff users directly for setup.
+		return await StaffUserTestHelper.SeedStaffUserAsync(
+			_fixture,
+			email,
+			firstName: "Test",
+			lastName: "Staff"
 		);
-
-		using var response = await _http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.Created);
-
-		var created = await response.Content.ReadFromJsonAsync<CreateStaffUserResponse>();
-		created.Should().NotBeNull();
-		return created!.Id;
 	}
 
 	private async Task SetStaffUserStatusAsync(Guid userId, UserStatus status) {
@@ -486,11 +462,6 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		public string? AvatarUrl { get; init; }
 		public string Status { get; init; } = string.Empty;
 		public string Level { get; init; } = string.Empty;
-	}
-
-	private record CreateStaffUserResponse {
-		public Guid Id { get; init; }
-		public Guid AccountId { get; init; }
 	}
 
 	private static async Task<AppProblemDetails?> ReadProblemAsync(

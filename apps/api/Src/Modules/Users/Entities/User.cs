@@ -33,8 +33,9 @@ public class User : BaseAttributes, INoTenantEntity {
 	public string? AvatarUrl { get; set; }
 
 	[Column("status")]
-	// Global identity lifecycle. Suspended here dominates all staff/tenant/project memberships.
-	public UserStatus Status { get; set; } = UserStatus.Pending;
+	// Default closed: normal onboarding flows must explicitly activate the identity.
+	// This avoids accidentally granting access when a new User is built without a status.
+	public UserStatus Status { get; set; } = UserStatus.Suspended;
 
 	[Column("is_verified")]
 	public bool IsVerified { get; set; } = false;
@@ -59,7 +60,6 @@ public class User : BaseAttributes, INoTenantEntity {
 
 	public static string GetStatusDescription(UserStatus status) {
 		return status switch {
-			UserStatus.Pending => nameof(UserStatus.Pending),
 			UserStatus.Suspended => nameof(UserStatus.Suspended),
 			UserStatus.Active => nameof(UserStatus.Active),
 			_ => "Unknown",
@@ -67,14 +67,6 @@ public class User : BaseAttributes, INoTenantEntity {
 	}
 
 	public static UserStatus? ParseStatus(string statusString) {
-		var isPending = string.Equals(
-			statusString,
-			nameof(UserStatus.Pending),
-			StringComparison.OrdinalIgnoreCase
-		);
-		if (isPending) {
-			return UserStatus.Pending;
-		}
 		var isSuspended = string.Equals(
 			statusString,
 			nameof(UserStatus.Suspended),
@@ -94,20 +86,12 @@ public class User : BaseAttributes, INoTenantEntity {
 		return null;
 	}
 
-	public bool IsPending() {
-		return IsPending(Status);
-	}
-
 	public bool IsSuspended() {
 		return IsSuspended(Status);
 	}
 
 	public bool IsActive() {
 		return IsActive(Status);
-	}
-
-	public static bool IsPending(UserStatus status) {
-		return status == UserStatus.Pending;
 	}
 
 	public static bool IsSuspended(UserStatus status) {
@@ -120,7 +104,6 @@ public class User : BaseAttributes, INoTenantEntity {
 }
 
 public enum UserStatus {
-	Pending = 20,
 	Suspended = 30,
 	Active = 40,
 }

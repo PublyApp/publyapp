@@ -99,7 +99,6 @@ public sealed class UserValidationRulesSpec {
 	// ============== MustBeNullableUserStatus ==============
 
 	[Theory]
-	[InlineData("pending")]
 	[InlineData("suspended")]
 	[InlineData("active")]
 	public void ItShouldPassUserStatusWhenValid(
