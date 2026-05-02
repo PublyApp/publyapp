@@ -20,17 +20,23 @@ export const TERMS_SECTION_IDS = {
 } as const;
 
 export const TERMS_TOC: TocItem[] = [
-	{ id: TERMS_SECTION_IDS.acceptance, label: 'Acceptance of Terms' },
-	{ id: TERMS_SECTION_IDS.accountRegistration, label: 'Account Registration' },
-	{ id: TERMS_SECTION_IDS.acceptableUse, label: 'Acceptable Use' },
-	{ id: TERMS_SECTION_IDS.billing, label: 'Subscription and Billing' },
+	{ id: TERMS_SECTION_IDS.acceptance, label: '1. Acceptance of Terms' },
+	{
+		id: TERMS_SECTION_IDS.accountRegistration,
+		label: '2. Account Registration',
+	},
+	{ id: TERMS_SECTION_IDS.acceptableUse, label: '3. Acceptable Use' },
+	{ id: TERMS_SECTION_IDS.billing, label: '4. Subscription and Billing' },
 	{
 		id: TERMS_SECTION_IDS.intellectualProperty,
-		label: 'Intellectual Property',
+		label: '5. Intellectual Property',
 	},
-	{ id: TERMS_SECTION_IDS.userContent, label: 'User Content' },
-	{ id: TERMS_SECTION_IDS.termination, label: 'Termination' },
-	{ id: TERMS_SECTION_IDS.disclaimers, label: 'Disclaimers and Limitations' },
-	{ id: TERMS_SECTION_IDS.changes, label: 'Changes to Terms' },
-	{ id: TERMS_SECTION_IDS.contact, label: 'Contact' },
+	{ id: TERMS_SECTION_IDS.userContent, label: '6. User Content' },
+	{ id: TERMS_SECTION_IDS.termination, label: '7. Termination' },
+	{
+		id: TERMS_SECTION_IDS.disclaimers,
+		label: '8. Disclaimers and Limitations',
+	},
+	{ id: TERMS_SECTION_IDS.changes, label: '9. Changes to Terms' },
+	{ id: TERMS_SECTION_IDS.contact, label: '10. Contact' },
 ];
