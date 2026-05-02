@@ -336,6 +336,46 @@ public static class JsonElementRules {
 	}
 
 	/// <summary>
+	/// Validates a required JsonElement GUID array field:
+	/// required → array → non-empty → bounded size → every item is a GUID string.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBeRequiredGuidArray<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName,
+			string itemName,
+			int maxCount
+	) {
+		return ruleBuilder
+			.Must(element =>
+				element.ValueKind
+				is not JsonValueKind.Undefined
+				and not JsonValueKind.Null
+			)
+			.WithMessage($"{fieldName} is required")
+			.Must(element => element.ValueKind == JsonValueKind.Array)
+			.WithMessage($"{fieldName} must be an array")
+			.Must(element =>
+				element.ValueKind == JsonValueKind.Array
+				&& element.EnumerateArray().Any()
+			)
+			.WithMessage($"At least one {itemName} is required")
+			.Must(element =>
+				element.ValueKind == JsonValueKind.Array
+				&& element.EnumerateArray().Count() <= maxCount
+			)
+			.WithMessage($"Maximum {maxCount} {fieldName} allowed")
+			.Must(element =>
+				element.ValueKind == JsonValueKind.Array
+				&& element.EnumerateArray().All(item =>
+					item.ValueKind == JsonValueKind.String
+					&& item.TryGetGuid(out _)
+				)
+			)
+			.WithMessage($"Every {itemName} must be a valid GUID");
+	}
+
+	/// <summary>
 	/// Validates a required JsonElement string field that
 	/// must also be a valid encrypted string (for token IDs).
 	/// </summary>

@@ -26,10 +26,9 @@ import {
 	type MRT_SortingState,
 	type MRT_TableOptions,
 } from 'material-react-table';
-import { useDebounce } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
 import { parseAsString, useQueryStates } from 'nuqs';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 
 import type { StaffProfileUserItem } from '@org/client-ts/src/models';
@@ -48,19 +47,22 @@ import type { LabelColor } from '#app/components/label/index.ts';
 import { Label } from '#app/components/label/label.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
+import { useTableRowSelection } from '#app/hooks/table/use-table-row-selection.ts';
+import { useUrlBackedDebouncedSearch } from '#app/hooks/table/use-url-backed-debounced-search.ts';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getUntypedNumber } from '#app/lib/js-client/kiota-utils.ts';
+import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
 import {
 	useFindStaffProfileUsers,
 	useUnassignStaffProfileUsers,
 } from '#app/lib/react-query/features/staff/staff-profile.hooks.ts';
 import {
-	useGetStaffUserProfiles,
 	useReactivateStaffUser,
 	useSuspendStaffUser,
 } from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
+import { invalidateStaffUserLifecycleQueries } from '#app/routes/authed/staff/staff-users/shared/staff-user-cache-helpers.ts';
 
 import StaffProfileUsersExportDialogController, {
 	type StaffProfileUsersExportDialogControllerRef,
@@ -93,11 +95,7 @@ export const StaffProfileUsersTable = () => {
 	const [filterStates, setFilterStates] = useQueryStates({
 		q: parseAsString.withDefault(''),
 	});
-	const [search, setSearch] = useState(filterStates.q);
-	const debouncedQ = useDebounce(search, 300);
 
-	// Row selection enables "bulk actions" mode (shared MRT toolbar pattern).
-	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
 	const {
 		handlePaginationChange,
 		handleSortingChange,
@@ -109,32 +107,6 @@ export const StaffProfileUsersTable = () => {
 		defaultSorting: defaultStaffProfileUsersSorting,
 		defaultPageSize: DEFAULT_PAGE_SIZE,
 	});
-
-	const selectedCount = Object.values(rowSelection).filter(Boolean).length;
-	const isSelectionMode = selectedCount > 0;
-
-	useEffect(() => {
-		if (debouncedQ === filterStates.q) {
-			return;
-		}
-
-		// Offset pagination: reset to page 1 when the query changes.
-		setPaginationState({
-			...paginationState,
-			page: '1',
-		});
-		void setFilterStates({ q: debouncedQ });
-	}, [
-		debouncedQ,
-		filterStates.q,
-		paginationState,
-		setFilterStates,
-		setPaginationState,
-	]);
-
-	useEffect(() => {
-		setSearch(filterStates.q);
-	}, [filterStates.q]);
 
 	const columns = useMemo(() => {
 		return [
@@ -175,13 +147,33 @@ export const StaffProfileUsersTable = () => {
 	const data = useMemo(() => {
 		return map(usersQuery.data?.users, mapProfileUserRowData);
 	}, [usersQuery.data]);
-
-	// Derive selected rows from the currently loaded page.
-	// Selection mode locks query controls (sorting/filter/pagination) so users don't
-	// lose selected rows mid-operation.
-	const selectedRowsFromData = useMemo(() => {
-		return data.filter((row) => rowSelection[row.id]);
-	}, [data, rowSelection]);
+	const {
+		rowSelection,
+		setRowSelection,
+		selectedRows: selectedRowsFromData,
+		selectedCount,
+		isSelectionMode,
+		clearSelection,
+	} = useTableRowSelection({
+		rows: data,
+		reconcileVisibleRows: true,
+	});
+	const handleDebouncedSearchChange = useCallback(
+		(nextSearchValue: string) => {
+			// Offset pagination: reset to page 1 when the committed URL query changes.
+			setPaginationState({
+				...paginationState,
+				page: '1',
+			});
+			void setFilterStates({ q: nextSearchValue });
+		},
+		[paginationState, setFilterStates, setPaginationState],
+	);
+	const { searchValue, setSearchValue } = useUrlBackedDebouncedSearch({
+		persistedValue: filterStates.q,
+		isSelectionMode,
+		onDebouncedValueChange: handleDebouncedSearchChange,
+	});
 	const selectionModeDisabledReason = t('selection-mode-disable-controls');
 	const sortingDisabledReason = t('selection-mode-disable-sorting');
 	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
@@ -259,17 +251,16 @@ export const StaffProfileUsersTable = () => {
 		meta: {
 			renderToolbarFilters: () => {
 				return (
-					<Tooltip
-						title={isSelectionMode ? selectionModeDisabledReason : ''}
-						arrow
-						disableHoverListener={!isSelectionMode}
+					<SelectionLockedControl
+						isSelectionMode={isSelectionMode}
+						disabledReason={selectionModeDisabledReason}
 					>
 						<Box component="span">
 							<TextField
 								size="small"
 								placeholder={t('search-by-email-or-name')}
-								value={search}
-								onChange={(event) => setSearch(event.target.value)}
+								value={searchValue}
+								onChange={(event) => setSearchValue(event.target.value)}
 								disabled={isSelectionMode}
 								sx={{ minWidth: 320 }}
 								slotProps={{
@@ -284,7 +275,7 @@ export const StaffProfileUsersTable = () => {
 								}}
 							/>
 						</Box>
-					</Tooltip>
+					</SelectionLockedControl>
 				);
 			},
 			renderSelectionActions: () => {
@@ -292,7 +283,7 @@ export const StaffProfileUsersTable = () => {
 					<ProfileUsersSelectionActions
 						rows={selectedRowsFromData}
 						onOpenExportDialog={() => exportDialogRef.current?.open()}
-						onClearSelection={() => setRowSelection({})}
+						onClearSelection={clearSelection}
 					/>
 				);
 			},
@@ -425,16 +416,12 @@ const ProfileUsersSelectionActions = ({
 			onSuccess: async () => {
 				// Unassigning from the profile changes both sides of the relationship:
 				// refresh the profile-users table and each affected staff-user profile chip set.
-				void queryClient.invalidateQueries({
-					queryKey: useFindStaffProfileUsers.getKey(),
+				await invalidateStaffUserLifecycleQueries({
+					queryClient,
+					userIds: rows.map((row) => row.id),
+					invalidateStaffProfilesList: true,
+					invalidateStaffUserProfiles: true,
 				});
-				await Promise.all(
-					rows.map((row) => {
-						return queryClient.invalidateQueries({
-							queryKey: useGetStaffUserProfiles.getKey({ userId: row.id }),
-						});
-					}),
-				);
 			},
 		});
 
@@ -489,7 +476,8 @@ const ProfileUsersSelectionActions = ({
 						closeMenu();
 						setConfirmBulkUnassignOpen(true);
 					}}
-					sx={{ color: 'error.main' }}
+					// Bulk menu actions need active contrast; row-level icons stay quieter.
+					sx={{ color: 'text.primary' }}
 				>
 					<Iconify icon="lucide:user-minus" width={18} />
 					<ListItemText primary={t('unassign')} sx={{ ml: 1 }} />
@@ -504,7 +492,6 @@ const ProfileUsersSelectionActions = ({
 				action={
 					<Button
 						variant="contained"
-						color="error"
 						onClick={handleConfirmBulkUnassign}
 						disabled={isUnassigning}
 					>
@@ -534,18 +521,9 @@ const StatusCell: MRT_ColumnDef<ProfileUserRowData, string>['Cell'] = (
 	if (status === USER_STATUS_ENUM.ACTIVE) {
 		tMessage = t('active');
 		color = 'success';
-	} else if (status === USER_STATUS_ENUM.PENDING) {
-		tMessage = t('pending');
-		color = 'warning';
-	} else if (status === USER_STATUS_ENUM.BANNED) {
-		tMessage = t('banned');
-		color = 'error';
 	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
 		tMessage = t('suspended');
 		color = 'warning';
-	} else if (status === USER_STATUS_ENUM.INACTIVE) {
-		tMessage = t('inactive');
-		color = 'default';
 	}
 
 	const isActive = status === USER_STATUS_ENUM.ACTIVE;
@@ -554,12 +532,12 @@ const StatusCell: MRT_ColumnDef<ProfileUserRowData, string>['Cell'] = (
 
 	const { mutate: suspendUser, isPending: isSuspending } = useSuspendStaffUser({
 		meta: { successMessage: 'staff-user-suspended-success' },
-		onSuccess: () => {
+		onSuccess: async () => {
 			// This status control mutates the user-level status, not a profile-local flag.
 			// Refresh the current projection so suspended users stay visible with updated status.
-			// Refresh any "staff profile -> users" lists after a staff user status change.
-			void queryClient.invalidateQueries({
-				queryKey: useFindStaffProfileUsers.getKey(),
+			await invalidateStaffUserLifecycleQueries({
+				queryClient,
+				userIds: [user.id],
 			});
 			setConfirmDialogOpen(false);
 			setMenuAnchorEl(null);
@@ -569,9 +547,10 @@ const StatusCell: MRT_ColumnDef<ProfileUserRowData, string>['Cell'] = (
 	const { mutate: reactivateUser, isPending: isReactivating } =
 		useReactivateStaffUser({
 			meta: { successMessage: 'staff-user-reactivated-success' },
-			onSuccess: () => {
-				void queryClient.invalidateQueries({
-					queryKey: useFindStaffProfileUsers.getKey(),
+			onSuccess: async () => {
+				await invalidateStaffUserLifecycleQueries({
+					queryClient,
+					userIds: [user.id],
 				});
 				setConfirmDialogOpen(false);
 				setMenuAnchorEl(null);
@@ -749,26 +728,20 @@ const UserActionsCell: MRT_ColumnDef<ProfileUserRowData>['Cell'] = (props) => {
 	if (status === USER_STATUS_ENUM.ACTIVE) {
 		statusLabel = t('active');
 		statusColor = 'success';
-	} else if (status === USER_STATUS_ENUM.BANNED) {
-		statusLabel = t('banned');
-		statusColor = 'error';
 	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
 		statusLabel = t('suspended');
 		statusColor = 'warning';
-	} else if (status === USER_STATUS_ENUM.INACTIVE) {
-		statusLabel = t('inactive');
-		statusColor = 'default';
 	}
 
 	const { mutateAsync: unassignUsers, isPending: isUnassigning } =
 		useUnassignStaffProfileUsers({
 			onSuccess: async () => {
 				// Keep the "profile -> users" projection in sync after unassignment.
-				void queryClient.invalidateQueries({
-					queryKey: useFindStaffProfileUsers.getKey(),
-				});
-				await queryClient.invalidateQueries({
-					queryKey: useGetStaffUserProfiles.getKey({ userId }),
+				await invalidateStaffUserLifecycleQueries({
+					queryClient,
+					userIds: [userId],
+					invalidateStaffProfilesList: true,
+					invalidateStaffUserProfiles: true,
 				});
 				setConfirmUnassignOpen(false);
 			},
@@ -802,6 +775,8 @@ const UserActionsCell: MRT_ColumnDef<ProfileUserRowData>['Cell'] = (props) => {
 						onClick={() => {
 							setDrawerOpen(true);
 						}}
+						// Preview is the primary navigation affordance in compact row actions.
+						sx={{ color: 'text.primary' }}
 					>
 						<Iconify icon="solar:list-bold" width={18} />
 					</IconButton>
@@ -812,6 +787,7 @@ const UserActionsCell: MRT_ColumnDef<ProfileUserRowData>['Cell'] = (props) => {
 						color="default"
 						onClick={() => setConfirmUnassignOpen(true)}
 						disabled={isUnassigning}
+						sx={{ color: isUnassigning ? 'action.disabled' : 'text.secondary' }}
 					>
 						{isUnassigning ? (
 							<CircularProgress size={18} />
@@ -898,7 +874,7 @@ const UserActionsCell: MRT_ColumnDef<ProfileUserRowData>['Cell'] = (props) => {
 				action={
 					<Button
 						variant="contained"
-						color="error"
+						color="inherit"
 						onClick={handleConfirmUnassign}
 						disabled={isUnassigning}
 					>

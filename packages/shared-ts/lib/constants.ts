@@ -348,11 +348,8 @@ export const ACCOUNT_LEVEL_ENUM = {
 export type AccountLevel = ValueOf<typeof ACCOUNT_LEVEL_ENUM>;
 
 export const USER_STATUS_ENUM = {
-	INACTIVE: 'Inactive',
-	PENDING: 'Pending',
 	SUSPENDED: 'Suspended',
 	ACTIVE: 'Active',
-	BANNED: 'Banned',
 } as const;
 
 export type UserStatus = ValueOf<typeof USER_STATUS_ENUM>;

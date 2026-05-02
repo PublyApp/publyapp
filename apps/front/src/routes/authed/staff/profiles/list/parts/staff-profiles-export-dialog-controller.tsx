@@ -14,7 +14,7 @@ import { useImperativeHandle, useState } from 'react';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { buildCsv } from '#app/lib/export/csv.ts';
+import { downloadCsvFile, downloadJsonFile } from '#app/lib/export/download.ts';
 
 import type { StaffProfileRowData } from './staff-profiles-table';
 
@@ -70,26 +70,17 @@ const StaffProfilesExportDialogController = ({
 					lodashToString(row.user_account_count),
 				];
 			});
-			const csv = buildCsv([headers, ...csvRows]);
-			const blob = new Blob([csv], { type: 'text/csv' });
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = isSelectionMode ? 'selected-profiles.csv' : 'profiles.csv';
-			a.click();
-			URL.revokeObjectURL(url);
+			downloadCsvFile({
+				fileName: isSelectionMode ? 'selected-profiles.csv' : 'profiles.csv',
+				rows: [headers, ...csvRows],
+			});
 			return;
 		}
 
-		const blob = new Blob([JSON.stringify(rowsToExport, null, 2)], {
-			type: 'application/json',
+		downloadJsonFile({
+			fileName: isSelectionMode ? 'selected-profiles.json' : 'profiles.json',
+			data: rowsToExport,
 		});
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = isSelectionMode ? 'selected-profiles.json' : 'profiles.json';
-		a.click();
-		URL.revokeObjectURL(url);
 	};
 
 	return (

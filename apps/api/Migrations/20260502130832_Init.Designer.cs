@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MainApi.Migrations
 {
     [DbContext(typeof(MainApiDbContext))]
-    [Migration("20260422162410_TenantProfileNameUniqueIndex")]
-    partial class TenantProfileNameUniqueIndex
+    [Migration("20260502130832_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -721,7 +721,7 @@ namespace MainApi.Migrations
                         {
                             t.HasCheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)");
 
-                            t.HasCheckConstraint("CK_User_Status", "status IN (10, 20, 30, 40)");
+                            t.HasCheckConstraint("CK_User_Status", "status IN (30, 40)");
                         });
                 });
 

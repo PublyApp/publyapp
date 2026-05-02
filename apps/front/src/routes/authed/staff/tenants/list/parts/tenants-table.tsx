@@ -34,7 +34,6 @@ import {
 	type MRT_SortingState,
 	type MRT_TableOptions,
 } from 'material-react-table';
-import { useDebounce } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
 import { nanoid } from 'nanoid';
 import { parseAsString, useQueryStates } from 'nuqs';
@@ -45,7 +44,6 @@ import {
 	useId,
 	useImperativeHandle,
 	useMemo,
-	useReducer,
 	useRef,
 	useState,
 } from 'react';
@@ -63,6 +61,8 @@ import { Label } from '#app/components/label/label.tsx';
 import type { LabelColor } from '#app/components/label/types.ts';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
+import { useTableRowSelection } from '#app/hooks/table/use-table-row-selection.ts';
+import { useUrlBackedDebouncedSearch } from '#app/hooks/table/use-url-backed-debounced-search.ts';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
@@ -73,7 +73,9 @@ import {
 	isProblemFailure,
 	toApiFailure,
 } from '#app/lib/api-failure/index.ts';
+import { downloadCsvFile, downloadJsonFile } from '#app/lib/export/download.ts';
 import { getUntypedNumber } from '#app/lib/js-client/kiota-utils.ts';
+import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
 import {
 	useBulkDeleteTenants,
 	useBulkReactivateTenants,
@@ -135,27 +137,6 @@ type TenantStatusFilterOption = {
 	value: string;
 };
 
-type TableUiState = {
-	rowSelection: Record<string, boolean>;
-	bulkActionDialog: BulkActionDialogState;
-};
-
-const initialTableUiState: TableUiState = {
-	rowSelection: {},
-	bulkActionDialog: { type: 'suspend', open: false },
-};
-
-const tableUiReducer = (
-	state: TableUiState,
-	update:
-		| Partial<TableUiState>
-		| ((state: TableUiState) => Partial<TableUiState>),
-) => {
-	const nextState = typeof update === 'function' ? update(state) : update;
-
-	return { ...state, ...nextState };
-};
-
 const useTenantsTableController = () => {
 	const { t } = useTranslate();
 	const searchTooltipId = useId();
@@ -175,7 +156,6 @@ const useTenantsTableController = () => {
 		status: parseAsString.withDefault(''),
 	});
 
-	const [globalFilter, setGlobalFilter] = useState(filterStates.q);
 	const [statusFilter, setStatusFilter] = useState<string[]>(() =>
 		parseStatusFilter(filterStates.status),
 	);
@@ -195,27 +175,20 @@ const useTenantsTableController = () => {
 		paginationMode: 'cursor',
 	});
 
-	// Debounce URL updates (NOT UI typing).
-	const debouncedQ = useDebounce(globalFilter, 300);
-
-	useEffect(() => {
-		if (debouncedQ === filterStates.q) {
-			return;
-		}
-
-		resetCursorPagination?.();
-		void setFilterStates({ q: debouncedQ, status: statusFilter.join(',') });
-	}, [
-		debouncedQ,
-		filterStates.q,
-		resetCursorPagination,
-		setFilterStates,
-		statusFilter,
-	]);
-
-	useEffect(() => {
-		setGlobalFilter(filterStates.q);
-	}, [filterStates.q]);
+	const handleDebouncedSearchChange = useCallback(
+		(nextSearchValue: string) => {
+			resetCursorPagination?.();
+			void setFilterStates({
+				q: nextSearchValue,
+				status: statusFilter.join(','),
+			});
+		},
+		[resetCursorPagination, setFilterStates, statusFilter],
+	);
+	const { searchValue, setSearchValue } = useUrlBackedDebouncedSearch({
+		persistedValue: filterStates.q,
+		onDebouncedValueChange: handleDebouncedSearchChange,
+	});
 
 	useEffect(() => {
 		const nextStatusFilter = parseStatusFilter(filterStates.status);
@@ -225,8 +198,7 @@ const useTenantsTableController = () => {
 	}, [filterStates.status, statusFilter]);
 
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const value = e.target.value;
-		setGlobalFilter(value);
+		setSearchValue(e.target.value);
 	};
 
 	// Status filter handler - reset cursor before updating
@@ -238,36 +210,16 @@ const useTenantsTableController = () => {
 		resetCursorPagination?.();
 		setStatusFilter(nextStatusFilter);
 		void setFilterStates({
-			q: globalFilter,
+			q: searchValue,
 			status: nextStatusFilter.join(','),
 		});
 	};
 
-	// Row selection state for bulk actions
-	const [tableUiState, setTableUiState] = useReducer(
-		tableUiReducer,
-		initialTableUiState,
-	);
-	const { rowSelection, bulkActionDialog } = tableUiState;
-
-	const handleBulkActionSuccess = useCallback((type: BulkActionType) => {
-		setTableUiState({
-			bulkActionDialog: { type, open: false },
-			rowSelection: {},
+	const [bulkActionDialog, setBulkActionDialog] =
+		useState<BulkActionDialogState>({
+			type: 'suspend',
+			open: false,
 		});
-	}, []);
-
-	const {
-		handleBulkSuspend,
-		handleBulkReactivate,
-		handleBulkDelete,
-		isBulkSuspending,
-		isBulkReactivating,
-		isBulkDeleting,
-	} = useTenantsBulkActions({
-		rowSelection,
-		onSuccess: handleBulkActionSuccess,
-	});
 
 	const columns = useMemo(() => {
 		return [
@@ -352,8 +304,34 @@ const useTenantsTableController = () => {
 		return map(tenantsQuery.data.data, (tenant) => TenantRowDataMapper(tenant));
 	}, [tenantsQuery.data]);
 
-	const selectedCount = Object.keys(rowSelection).length;
-	const isSelectionMode = selectedCount > 0;
+	const {
+		rowSelection,
+		setRowSelection,
+		selectedRows,
+		selectedCount,
+		isSelectionMode,
+		clearSelection,
+	} = useTableRowSelection({
+		rows: dataTable,
+	});
+	const handleBulkActionSuccess = useCallback(
+		(type: BulkActionType) => {
+			setBulkActionDialog({ type, open: false });
+			clearSelection();
+		},
+		[clearSelection],
+	);
+	const {
+		handleBulkSuspend,
+		handleBulkReactivate,
+		handleBulkDelete,
+		isBulkSuspending,
+		isBulkReactivating,
+		isBulkDeleting,
+	} = useTenantsBulkActions({
+		rowSelection,
+		onSuccess: handleBulkActionSuccess,
+	});
 	const selectionModeDisabledReason = t('selection-mode-disable-controls', {
 		defaultValue:
 			'Clear the current selection to change the table query or navigation.',
@@ -373,24 +351,16 @@ const useTenantsTableController = () => {
 			sortedByColumnDesc: sortingDisabledReason,
 		};
 	}, [isSelectionMode, sortingDisabledReason]);
-	const selectedRows = useMemo(() => {
-		return dataTable.filter((row) => rowSelection[row.id]);
-	}, [dataTable, rowSelection]);
-
 	const openExportDialog = () => {
 		// Keep dialog `open` state inside the dialog controller so opening the export
 		// UI doesn't cause a full table re-render (the table is the heavy sibling).
 		exportDialogRef.current?.open();
 	};
 	const openBulkActionDialog = (type: BulkActionType) => {
-		setTableUiState({
-			bulkActionDialog: { type, open: true },
-		});
+		setBulkActionDialog({ type, open: true });
 	};
 	const closeBulkActionDialog = (type: BulkActionType) => {
-		setTableUiState({
-			bulkActionDialog: { type, open: false },
-		});
+		setBulkActionDialog({ type, open: false });
 	};
 	const exportRows = (format: 'csv' | 'json') => {
 		const rowsToExport = isSelectionMode ? selectedRows : dataTable;
@@ -398,31 +368,22 @@ const useTenantsTableController = () => {
 		if (format === 'csv') {
 			const headers = ['Name', 'Status', 'Users', 'Max Users'];
 			const rows = map(rowsToExport, (row) => [
-				`"${row.name}"`,
+				row.name,
 				row.status,
 				lodashToString(row.usersCount),
 				lodashToString(row.maxUsers),
 			]);
-			const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
-			const blob = new Blob([csv], { type: 'text/csv' });
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = isSelectionMode ? 'selected-tenants.csv' : 'tenants.csv';
-			a.click();
-			URL.revokeObjectURL(url);
+			downloadCsvFile({
+				fileName: isSelectionMode ? 'selected-tenants.csv' : 'tenants.csv',
+				rows: [headers, ...rows],
+			});
 			return;
 		}
 
-		const blob = new Blob([JSON.stringify(rowsToExport, null, 2)], {
-			type: 'application/json',
+		downloadJsonFile({
+			fileName: isSelectionMode ? 'selected-tenants.json' : 'tenants.json',
+			data: rowsToExport,
 		});
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = isSelectionMode ? 'selected-tenants.json' : 'tenants.json';
-		a.click();
-		URL.revokeObjectURL(url);
 	};
 
 	const renderToolbarFilters = () => {
@@ -432,7 +393,7 @@ const useTenantsTableController = () => {
 				statusTooltipId={statusTooltipId}
 				isSelectionMode={isSelectionMode}
 				disabledReason={selectionModeDisabledReason}
-				globalFilter={globalFilter}
+				globalFilter={searchValue}
 				statusFilter={statusFilter}
 				statusOptions={tenantStatusOptions}
 				onSearchChange={handleSearchChange}
@@ -466,11 +427,10 @@ const useTenantsTableController = () => {
 		manualSorting: true,
 		localization: sortTooltipLocalization,
 		onRowSelectionChange: (updater) => {
-			setTableUiState((state) => {
-				const rowSelection =
-					typeof updater === 'function' ? updater(state.rowSelection) : updater;
-
-				return { rowSelection };
+			setRowSelection((previousRowSelection) => {
+				return typeof updater === 'function'
+					? updater(previousRowSelection)
+					: updater;
 			});
 		},
 		onSortingChange: (updater) => {
@@ -804,12 +764,11 @@ const TenantsToolbarFilters = ({
 
 	return (
 		<>
-			<Tooltip
-				title={isSelectionMode ? disabledReason : ''}
-				arrow
-				disableHoverListener={!isSelectionMode}
+			<SelectionLockedControl
+				isSelectionMode={isSelectionMode}
+				disabledReason={disabledReason}
 				describeChild
-				slotProps={{ tooltip: { id: searchTooltipId } }}
+				tooltipId={searchTooltipId}
 			>
 				<Box component="span">
 					<TextField
@@ -830,14 +789,13 @@ const TenantsToolbarFilters = ({
 						sx={{ minWidth: 260 }}
 					/>
 				</Box>
-			</Tooltip>
+			</SelectionLockedControl>
 
-			<Tooltip
-				title={isSelectionMode ? disabledReason : ''}
-				arrow
-				disableHoverListener={!isSelectionMode}
+			<SelectionLockedControl
+				isSelectionMode={isSelectionMode}
+				disabledReason={disabledReason}
 				describeChild
-				slotProps={{ tooltip: { id: statusTooltipId } }}
+				tooltipId={statusTooltipId}
 			>
 				<Box component="span">
 					<Autocomplete
@@ -922,6 +880,11 @@ const TenantsToolbarFilters = ({
 							);
 						}}
 						slotProps={{
+							popper: {
+								// Keep MRT toolbar filters anchored while table rows swap between
+								// skeleton and data layouts.
+								placement: 'bottom-start',
+							},
 							paper: {
 								sx: {
 									width: 280,
@@ -950,7 +913,7 @@ const TenantsToolbarFilters = ({
 						}}
 					/>
 				</Box>
-			</Tooltip>
+			</SelectionLockedControl>
 		</>
 	);
 };
@@ -1294,7 +1257,7 @@ const TenantsBulkActionDialogs = ({
 				action={
 					<Button
 						variant="contained"
-						color="warning"
+						color="inherit"
 						onClick={onBulkSuspend}
 						disabled={isBulkSuspending}
 					>
@@ -1311,7 +1274,7 @@ const TenantsBulkActionDialogs = ({
 				action={
 					<Button
 						variant="contained"
-						color="success"
+						color="inherit"
 						onClick={onBulkReactivate}
 						disabled={isBulkReactivating}
 					>
@@ -1580,7 +1543,7 @@ const StatusCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 				action={
 					<Button
 						variant="contained"
-						color="warning"
+						color="inherit"
 						onClick={() => suspendTenant({ tenantId: tenant.id })}
 						disabled={isSuspending}
 					>
@@ -1597,7 +1560,7 @@ const StatusCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 				action={
 					<Button
 						variant="contained"
-						color="success"
+						color="inherit"
 						onClick={() => reactivateTenant({ tenantId: tenant.id })}
 						disabled={isReactivating}
 					>
@@ -1664,7 +1627,7 @@ const DeleteTenantAction = ({ tenant }: TenantActionProps) => {
 						onClick={() => setDeleteDialogOpen(true)}
 						disabled={!canDelete}
 						sx={{
-							color: canDelete ? 'error.main' : 'text.disabled',
+							color: canDelete ? 'text.secondary' : 'action.disabled',
 						}}
 					>
 						<Iconify icon="solar:trash-bin-trash-bold" />

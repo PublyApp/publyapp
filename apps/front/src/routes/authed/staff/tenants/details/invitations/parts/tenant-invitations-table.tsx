@@ -19,10 +19,17 @@ import {
 	type MRT_SortingState,
 	type MRT_TableOptions,
 } from 'material-react-table';
-import { useBoolean, useDebounce } from 'minimal-shared/hooks';
+import { useBoolean } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
 import { parseAsString, useQueryStates } from 'nuqs';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+	useCallback,
+	useEffect,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from 'react';
 import { useParams } from 'react-router';
 
 import { DEFAULT_PAGE_SIZE } from '@org/shared-ts/lib/constants';
@@ -30,11 +37,14 @@ import { DEFAULT_PAGE_SIZE } from '@org/shared-ts/lib/constants';
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
+import { useTableRowSelection } from '#app/hooks/table/use-table-row-selection.ts';
+import { useUrlBackedDebouncedSearch } from '#app/hooks/table/use-url-backed-debounced-search.ts';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
+import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
 import {
 	useFindTenantInvitations,
 	useRevokeTenantInvitation,
@@ -96,18 +106,14 @@ const TenantInvitationsTable = () => {
 		status: parseAsString.withDefault(''),
 	});
 
-	const [searchValue, setSearchValue] = useState(filterStates.q);
 	const [statusFilter, setStatusFilter] = useState<string[]>(() =>
 		parseStatusFilter(filterStates.status),
 	);
-	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
 	const [selectionActionAnchorEl, setSelectionActionAnchorEl] =
 		useState<null | HTMLElement>(null);
 	const [bulkRevokeDialogOpen, setBulkRevokeDialogOpen] = useState(false);
 	const exportDialogRef =
 		useRef<TenantInvitationsExportDialogControllerRef>(null);
-
-	const debouncedSearchValue = useDebounce(searchValue, 300);
 
 	const {
 		handlePaginationChange,
@@ -124,27 +130,20 @@ const TenantInvitationsTable = () => {
 		paginationMode: 'cursor',
 	});
 
-	useEffect(() => {
-		if (debouncedSearchValue === filterStates.q) {
-			return;
-		}
-
-		resetCursorPagination?.();
-		void setFilterStates({
-			q: debouncedSearchValue,
-			status: statusFilter.join(','),
-		});
-	}, [
-		debouncedSearchValue,
-		filterStates.q,
-		resetCursorPagination,
-		setFilterStates,
-		statusFilter,
-	]);
-
-	useEffect(() => {
-		setSearchValue(filterStates.q);
-	}, [filterStates.q]);
+	const handleDebouncedSearchChange = useCallback(
+		(nextSearchValue: string) => {
+			resetCursorPagination?.();
+			void setFilterStates({
+				q: nextSearchValue,
+				status: statusFilter.join(','),
+			});
+		},
+		[resetCursorPagination, setFilterStates, statusFilter],
+	);
+	const { searchValue, setSearchValue } = useUrlBackedDebouncedSearch({
+		persistedValue: filterStates.q,
+		onDebouncedValueChange: handleDebouncedSearchChange,
+	});
 
 	useEffect(() => {
 		const nextStatusFilter = parseStatusFilter(filterStates.status);
@@ -175,47 +174,41 @@ const TenantInvitationsTable = () => {
 			columnHelper.accessor('email', {
 				id: 'email',
 				header: t('email'),
-				size: 250,
+				size: 300,
 			}),
 			columnHelper.accessor((row) => getInvitationStatus(row), {
 				id: 'status',
 				header: t('status'),
 				enableSorting: false,
-				size: 120,
 				Cell: StatusCell,
+				size: 120,
+				grow: false,
 			}),
 			columnHelper.accessor('invitedByName', {
 				header: t('invited-by'),
 				enableSorting: false,
 				size: 150,
+				grow: false,
 			}),
 			columnHelper.accessor('expiresAt', {
 				id: 'expires_at',
 				header: t('expires', { defaultValue: 'Expires' }),
+				Cell: ExpiresAtCell,
 				size: 150,
-				Cell: ({ cell }) => {
-					const date = cell.getValue();
-					if (!date) return '-';
-					return fDate(date);
-				},
+				grow: false,
 			}),
 			columnHelper.accessor('profileName', {
 				header: t('profiles'),
 				enableSorting: false,
+				Cell: ProfileNameCell,
 				size: 200,
-				Cell: ({ cell }) => {
-					const value = cell.getValue();
-					if (value) {
-						return value;
-					}
-
-					return t('admin');
-				},
+				grow: false,
 			}),
 			columnHelper.display({
 				header: 'Actions',
 				Cell: InvitationActionsCell,
-				size: 120,
+				size: 80,
+				grow: false,
 			}),
 		];
 	}, [t]);
@@ -278,13 +271,18 @@ const TenantInvitationsTable = () => {
 		});
 	}, [tenantInvitationsQuery.data]);
 
-	const selectedCount = Object.keys(rowSelection).length;
-	const isSelectionMode = selectedCount > 0;
+	const {
+		rowSelection,
+		setRowSelection,
+		selectedRows,
+		selectedCount,
+		isSelectionMode,
+		clearSelection,
+	} = useTableRowSelection({
+		rows,
+	});
 	const selectionModeDisabledReason = t('selection-mode-disable-controls');
 	const sortingDisabledReason = t('selection-mode-disable-sorting');
-	const selectedRows = useMemo(() => {
-		return rows.filter((row) => rowSelection[row.id]);
-	}, [rowSelection, rows]);
 	const isSelectionActionMenuOpen = Boolean(selectionActionAnchorEl);
 	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
 		if (!isSelectionMode) {
@@ -336,7 +334,7 @@ const TenantInvitationsTable = () => {
 		}
 
 		setBulkRevokeDialogOpen(false);
-		setRowSelection({});
+		clearSelection();
 		await queryClient.invalidateQueries({
 			queryKey: useFindTenantInvitations.getKey({
 				tenantId: _.toString(tenantId),
@@ -376,12 +374,11 @@ const TenantInvitationsTable = () => {
 	const renderToolbarFilters = () => {
 		return (
 			<>
-				<Tooltip
-					title={isSelectionMode ? selectionModeDisabledReason : ''}
-					arrow
-					disableHoverListener={!isSelectionMode}
+				<SelectionLockedControl
+					isSelectionMode={isSelectionMode}
+					disabledReason={selectionModeDisabledReason}
 					describeChild
-					slotProps={{ tooltip: { id: searchTooltipId } }}
+					tooltipId={searchTooltipId}
 				>
 					<Box component="span">
 						<TextField
@@ -404,14 +401,13 @@ const TenantInvitationsTable = () => {
 							sx={{ minWidth: 260 }}
 						/>
 					</Box>
-				</Tooltip>
+				</SelectionLockedControl>
 
-				<Tooltip
-					title={isSelectionMode ? selectionModeDisabledReason : ''}
-					arrow
-					disableHoverListener={!isSelectionMode}
+				<SelectionLockedControl
+					isSelectionMode={isSelectionMode}
+					disabledReason={selectionModeDisabledReason}
 					describeChild
-					slotProps={{ tooltip: { id: statusTooltipId } }}
+					tooltipId={statusTooltipId}
 				>
 					<Box component="span">
 						<Autocomplete
@@ -496,6 +492,11 @@ const TenantInvitationsTable = () => {
 								);
 							}}
 							slotProps={{
+								popper: {
+									// Keep MRT toolbar filters anchored while table rows swap between
+									// skeleton and data layouts.
+									placement: 'bottom-start',
+								},
 								paper: {
 									sx: {
 										width: 280,
@@ -524,7 +525,7 @@ const TenantInvitationsTable = () => {
 							}}
 						/>
 					</Box>
-				</Tooltip>
+				</SelectionLockedControl>
 			</>
 		);
 	};
@@ -577,7 +578,7 @@ const TenantInvitationsTable = () => {
 							closeSelectionActionMenu();
 							setBulkRevokeDialogOpen(true);
 						}}
-						sx={{ color: 'error.main' }}
+						sx={{ color: 'text.secondary' }}
 					>
 						<Iconify icon="solar:trash-bin-trash-bold" width={18} />
 						<ListItemText
@@ -637,14 +638,6 @@ const TenantInvitationsTable = () => {
 				flexGrow: 1,
 			},
 		},
-		muiTableProps: {
-			sx: {
-				'& .MuiTableBody-root > tr > td:not(:nth-of-type(2)), & .MuiTableHead-root > tr > th:not(:nth-of-type(2))':
-					{
-						flex: '1 1 auto !important',
-					},
-			},
-		},
 		muiTableHeadCellProps: ({ column }) => {
 			if (!column.getCanSort()) {
 				return {};
@@ -699,7 +692,7 @@ const TenantInvitationsTable = () => {
 				action={
 					<Button
 						variant="contained"
-						color="error"
+						color="inherit"
 						onClick={handleBulkRevoke}
 						disabled={isBulkRevoking}
 					>
@@ -784,6 +777,28 @@ const StatusCell: MRT_ColumnDef<TenantInvitationRowData, string>['Cell'] = (
 	);
 };
 
+const ExpiresAtCell: MRT_ColumnDef<
+	TenantInvitationRowData,
+	DatePickerFormat
+>['Cell'] = (props) => {
+	const date = props.cell.getValue();
+	if (!date) return '-';
+	return fDate(date);
+};
+
+const ProfileNameCell: MRT_ColumnDef<
+	TenantInvitationRowData,
+	string
+>['Cell'] = (props) => {
+	const { t } = useTranslate();
+	const value = props.cell.getValue();
+	if (value) {
+		return value;
+	}
+
+	return t('admin');
+};
+
 const InvitationActionsCell: MRT_ColumnDef<TenantInvitationRowData>['Cell'] = (
 	props,
 ) => {
@@ -860,7 +875,7 @@ const RevokeInvitationAction = ({
 						disabled={!canRevoke || isPending}
 						sx={(theme) => ({
 							color: canRevoke
-								? theme.vars.palette.error.main
+								? theme.vars.palette.text.secondary
 								: theme.vars.palette.text.disabled,
 						})}
 					>
@@ -881,7 +896,7 @@ const RevokeInvitationAction = ({
 				action={
 					<Button
 						variant="contained"
-						color="error"
+						color="inherit"
 						onClick={onConfirmRevoke}
 						disabled={isPending}
 					>

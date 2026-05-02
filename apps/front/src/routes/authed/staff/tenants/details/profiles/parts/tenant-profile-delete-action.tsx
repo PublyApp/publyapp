@@ -116,7 +116,7 @@ const TenantProfileDeleteAction = ({
 						onClick={canDelete ? confirmDialog.onTrue : undefined}
 						disabled={!canDelete || isDeleting}
 						sx={{
-							color: canDelete ? 'error.main' : 'action.disabled',
+							color: canDelete ? 'text.secondary' : 'action.disabled',
 						}}
 					>
 						<Iconify icon="solar:trash-bin-trash-bold" width={18} />

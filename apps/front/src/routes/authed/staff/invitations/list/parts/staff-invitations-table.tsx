@@ -492,7 +492,11 @@ const InvitationActionsCell: MRT_ColumnDef<StaffInvitationRowData>['Cell'] = (
 			title={t('revoke-invitation')}
 			content={t('confirm-revoke-invitation')}
 			action={
-				<Button variant="contained" color="error" onClick={handleConfirmRevoke}>
+				<Button
+					variant="contained"
+					color="inherit"
+					onClick={handleConfirmRevoke}
+				>
 					{t('staff-revoke')}
 				</Button>
 			}
@@ -545,7 +549,7 @@ const InvitationActionsCell: MRT_ColumnDef<StaffInvitationRowData>['Cell'] = (
 							color="default"
 							loading={isRevoking}
 							onClick={confirmDialog.onTrue}
-							sx={{ color: 'error.main' }}
+							sx={{ color: 'text.secondary' }}
 							size="small"
 						>
 							<Iconify icon="solar:close-circle-bold" />

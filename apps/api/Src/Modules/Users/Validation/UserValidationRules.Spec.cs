@@ -99,8 +99,6 @@ public sealed class UserValidationRulesSpec {
 	// ============== MustBeNullableUserStatus ==============
 
 	[Theory]
-	[InlineData("inactive")]
-	[InlineData("pending")]
 	[InlineData("suspended")]
 	[InlineData("active")]
 	public void ItShouldPassUserStatusWhenValid(
@@ -117,6 +115,16 @@ public sealed class UserValidationRulesSpec {
 	public void ItShouldFailUserStatusWhenInvalidString() {
 		var el = JsonSerializer
 			.SerializeToElement("unknown");
+		var model = new UserStatusModel { Status = el };
+		var result = new UserStatusValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailUserStatusWhenInactiveString() {
+		var el = JsonSerializer
+			.SerializeToElement("inactive");
 		var model = new UserStatusModel { Status = el };
 		var result = new UserStatusValidator()
 			.Validate(model);

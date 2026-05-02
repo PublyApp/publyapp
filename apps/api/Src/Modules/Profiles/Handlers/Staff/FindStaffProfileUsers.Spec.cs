@@ -251,18 +251,21 @@ public sealed class FindStaffProfileUsersSpec
 		var profileId = await CreateStaffProfileAsync(token);
 
 		var activeEmail = $"active.sort-{Guid.NewGuid():N}@example.com";
-		var inactiveEmail = $"inactive.sort-{Guid.NewGuid():N}@example.com";
+		var suspendedEmail = $"suspended.sort-{Guid.NewGuid():N}@example.com";
 
 		var activeUserId = await CreateStaffUserAsync(token, activeEmail, firstName: "Active");
-		var inactiveUserId = await CreateStaffUserAsync(token, inactiveEmail, firstName: "Inactive");
+		var suspendedUserId = await CreateStaffUserAsync(
+			token,
+			suspendedEmail,
+			firstName: "Suspended"
+		);
 
-		// CreateStaffUser defaults to UserStatus.Inactive (user is not verified yet). Make the values distinct
-		// so sorting by status has a deterministic order.
+		// Make the values distinct so sorting by status has a deterministic order.
 		await SetStaffUserStatusAsync(activeUserId, UserStatus.Active);
-		await SetStaffUserStatusAsync(inactiveUserId, UserStatus.Inactive);
+		await SetStaffUserStatusAsync(suspendedUserId, UserStatus.Suspended);
 
 		await AssignProfileToStaffUserAsync(token, activeUserId, profileId);
-		await AssignProfileToStaffUserAsync(token, inactiveUserId, profileId);
+		await AssignProfileToStaffUserAsync(token, suspendedUserId, profileId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
@@ -275,8 +278,8 @@ public sealed class FindStaffProfileUsersSpec
 		var result = await response.Content.ReadFromJsonAsync<FindStaffProfileUsersResponse>();
 		result.Should().NotBeNull();
 
-		// Sorting is based on the enum numeric values: Inactive (10) should come before Active (40).
-		result!.Users.First().Email.Should().Be(inactiveEmail);
+		// Sorting is based on enum numeric values: Suspended (30) comes before Active (40).
+		result!.Users.First().Email.Should().Be(suspendedEmail);
 	}
 
 	[Fact]
@@ -385,33 +388,15 @@ public sealed class FindStaffProfileUsersSpec
 		string? firstName = null,
 		string? lastName = null
 	) {
-		var url = PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.Users.ForStaff.Root,
-			Routes.Users.ForStaff.Create
+		_ = staffToken;
+		// Direct create is intentionally unmapped; profile tests seed setup users directly.
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
+			_fixture,
+			email,
+			firstName: firstName ?? "Test",
+			lastName: lastName ?? "User"
 		);
-
-		using var request = new HttpRequestMessage(
-			HttpMethod.Post,
-			url
-		).WithSessionToken(staffToken);
-
-		request.Content = JsonContent.Create(
-			new {
-				email,
-				firstName = firstName ?? "Test",
-				lastName = lastName ?? "User",
-				accountLevel = "User",
-				sendNotification = false,
-			}
-		);
-
-		using var response = await _http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.Created);
-
-		var created = await response.Content.ReadFromJsonAsync<CreateStaffUserResponse>();
-		created.Should().NotBeNull();
-		return created!.Id.ToString();
+		return userId.ToString();
 	}
 
 	private async Task AssignProfileToStaffUserAsync(
@@ -451,10 +436,6 @@ public sealed class FindStaffProfileUsersSpec
 	private record FindStaffProfileUsersResponse {
 		public List<StaffProfileUserItemResponse> Users { get; init; } = [];
 		public int Count { get; init; }
-	}
-
-	private record CreateStaffUserResponse {
-		public Guid Id { get; init; }
 	}
 
 	private record StaffProfileUserItemResponse {

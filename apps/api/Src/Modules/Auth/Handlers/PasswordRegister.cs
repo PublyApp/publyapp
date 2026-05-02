@@ -51,6 +51,9 @@ public class PasswordRegister {
 		var newUser = new User {
 			Email = email,
 			Password = password,
+			// Password registration owns credential setup, so it opts into activation
+			// instead of relying on the User entity's safe suspended default.
+			Status = UserStatus.Active,
 		};
 
 		var createUserResult = await userService.CreateUserAsync(newUser, cancellationToken);

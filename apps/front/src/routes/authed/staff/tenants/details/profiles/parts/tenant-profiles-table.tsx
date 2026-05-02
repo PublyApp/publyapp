@@ -18,6 +18,7 @@ import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { Label } from '#app/components/label/label.tsx';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
 
 import TenantProfileDeleteAction from './tenant-profile-delete-action.tsx';
 import TenantProfileEditAction from './tenant-profile-edit-action.tsx';
@@ -41,6 +42,7 @@ const TenantProfilesTable = ({ tenantId }: TenantProfilesTableProps) => {
 	const {
 		handleCursorPaginationChange,
 		handleSortingChange,
+		clearSelection,
 		hasNextPage,
 		hasPreviousPage,
 		isSelectionMode,
@@ -167,10 +169,9 @@ const TenantProfilesTable = ({ tenantId }: TenantProfilesTableProps) => {
 			disablePaginationControls: isSelectionMode,
 			renderToolbarFilters: () => {
 				return (
-					<Tooltip
-						title={isSelectionMode ? selectionModeDisabledReason : ''}
-						arrow
-						disableHoverListener={!isSelectionMode}
+					<SelectionLockedControl
+						isSelectionMode={isSelectionMode}
+						disabledReason={selectionModeDisabledReason}
 						describeChild
 					>
 						<Box component="span">
@@ -193,7 +194,7 @@ const TenantProfilesTable = ({ tenantId }: TenantProfilesTableProps) => {
 								}}
 							/>
 						</Box>
-					</Tooltip>
+					</SelectionLockedControl>
 				);
 			},
 			renderExportActions: () => {
@@ -214,7 +215,7 @@ const TenantProfilesTable = ({ tenantId }: TenantProfilesTableProps) => {
 						tenantId={tenantId}
 						selectedRows={selectedRows}
 						onExportSelected={() => exportDialogRef.current?.open()}
-						onClearSelection={() => setRowSelection({})}
+						onClearSelection={clearSelection}
 						onKeepSelectedRows={(profileIds) => {
 							setRowSelection(
 								Object.fromEntries(

@@ -30,6 +30,52 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldReturnUnauthorizedWithoutSession() {
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(limit: 20)
+		);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnForbiddenForNonStaffUser() {
+		var token = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(limit: 20)
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
+		var token = await _authClient.LoginAsync(
+			TestConstants.StaffUserEmail,
+			TestConstants.SeedPassword
+		);
+
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(limit: 20)
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+	}
+
+	[Fact]
 	public async Task ItShouldFilterStaffUsersBySearchQuery() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 
@@ -55,6 +101,112 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		result.Data.Should().NotContain(user =>
 			string.Equals(user.Email, betaEmail, StringComparison.OrdinalIgnoreCase)
 		);
+	}
+
+	[Fact]
+	public async Task ItShouldFilterStaffUsersByStatusQuery() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var activeId = await CreateStaffUserAsync(
+			token,
+			$"active-{Guid.NewGuid():N}@example.com"
+		);
+		var suspendedId = await CreateStaffUserAsync(
+			token,
+			$"suspended-{Guid.NewGuid():N}@example.com"
+		);
+
+		await SetStaffUserStatusAsync(activeId, UserStatus.Active);
+		await SetStaffUserStatusAsync(suspendedId, UserStatus.Suspended);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(limit: 50, status: "suspended")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		result!.Data.Should().ContainSingle(user => user.Id == suspendedId);
+		result.Data.Should().NotContain(user => user.Id == activeId);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnValidationProblemForPendingStatusFilter() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(status: "pending")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem =
+			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.Errors.Should().ContainKey("Status");
+	}
+
+	[Fact]
+	public async Task ItShouldReturnValidationProblemForUnknownStatusFilter() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(status: "banned")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem =
+			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.Errors.Should().ContainKey("Status");
+	}
+
+	[Fact]
+	public async Task ItShouldReturnValidationProblemForInactiveStatusFilter() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(status: "inactive")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem =
+			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.Errors.Should().ContainKey("Status");
+	}
+
+	[Fact]
+	public async Task ItShouldReturnValidationProblemForMixedCaseStatusFilter() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetFindUrl(status: "Suspended")
+		).WithSessionToken(token);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem =
+			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.Errors.Should().ContainKey("Status");
 	}
 
 	[Fact]
@@ -222,7 +374,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		int? limit = null,
 		string? sortId = null,
 		string? sortOrder = null,
-		string? q = null
+		string? q = null,
+		string? status = null
 	) {
 		var basePath = PathUtils.Join(
 			Routes.Staff.Root,
@@ -247,6 +400,9 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		if (q is not null) {
 			queryParams.Add($"q={Uri.EscapeDataString(q)}");
 		}
+		if (status is not null) {
+			queryParams.Add($"status={Uri.EscapeDataString(status)}");
+		}
 
 		return queryParams.Count > 0
 			? $"{basePath}?{string.Join("&", queryParams)}"
@@ -254,32 +410,14 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> CreateStaffUserAsync(string staffToken, string email) {
-		var request = new HttpRequestMessage(
-			HttpMethod.Post,
-			PathUtils.Join(
-				Routes.Staff.Root,
-				Routes.Users.ForStaff.Root,
-				Routes.Users.ForStaff.Create
-			)
-		).WithSessionToken(staffToken);
-
-		request.Content = JsonContent.Create(
-			new {
-				email,
-				lastName = "Staff",
-				firstName = "Test",
-				avatarUrl = (string?)null,
-				accountLevel = "User",
-				sendNotification = false,
-			}
+		_ = staffToken;
+		// Direct create is no longer mapped; seed staff users directly for setup.
+		return await StaffUserTestHelper.SeedStaffUserAsync(
+			_fixture,
+			email,
+			firstName: "Test",
+			lastName: "Staff"
 		);
-
-		using var response = await _http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.Created);
-
-		var created = await response.Content.ReadFromJsonAsync<CreateStaffUserResponse>();
-		created.Should().NotBeNull();
-		return created!.Id;
 	}
 
 	private async Task SetStaffUserStatusAsync(Guid userId, UserStatus status) {
@@ -324,11 +462,6 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		public string? AvatarUrl { get; init; }
 		public string Status { get; init; } = string.Empty;
 		public string Level { get; init; } = string.Empty;
-	}
-
-	private record CreateStaffUserResponse {
-		public Guid Id { get; init; }
-		public Guid AccountId { get; init; }
 	}
 
 	private static async Task<AppProblemDetails?> ReadProblemAsync(
