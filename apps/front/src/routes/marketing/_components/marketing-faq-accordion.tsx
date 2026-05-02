@@ -2,6 +2,7 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { AnimatePresence, m } from 'framer-motion';
+import { varAlpha } from 'minimal-shared/utils';
 import { useState } from 'react';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
@@ -36,14 +37,30 @@ const FaqRow = ({ item }: { item: MarketingFaqItem }) => {
 
 	return (
 		<Box
-			sx={{
+			component={m.div}
+			layout
+			animate={{
+				scale: expanded ? 1.015 : 1,
+				y: expanded ? -2 : 0,
+			}}
+			whileHover={!expanded ? { scale: 1.005, y: -1 } : undefined}
+			transition={{
+				type: 'spring',
+				stiffness: 420,
+				damping: 26,
+				mass: 0.5,
+			}}
+			sx={(theme) => ({
 				bgcolor: 'background.paper',
 				borderRadius: 2,
-				boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
+				boxShadow: expanded
+					? `0 18px 36px -12px ${varAlpha(theme.vars.palette.primary.mainChannel, 0.2)}, 0 4px 12px -4px rgba(0,0,0,0.06)`
+					: '0 1px 2px 0 rgba(0,0,0,0.05)',
 				border: '1px solid',
-				borderColor: 'divider',
+				borderColor: expanded ? 'primary.main' : 'divider',
 				overflow: 'hidden',
-			}}
+				transition: 'box-shadow 320ms ease, border-color 320ms ease',
+			})}
 		>
 			{/* Question button */}
 			<Box
