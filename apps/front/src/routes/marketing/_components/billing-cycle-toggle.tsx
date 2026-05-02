@@ -42,15 +42,16 @@ export const BillingCycleToggle = ({
 				boxShadow: '0 1px 2px rgba(17,24,39,0.04)',
 			}}
 		>
-			{/* Sliding dark thumb */}
+			{/* Sliding dark thumb — uses top + bottom insets (not explicit height)
+			    so the 1px rail border doesn't squeeze the bottom gap. */}
 			<Box
 				aria-hidden="true"
 				sx={(theme) => ({
 					position: 'absolute',
 					top: THUMB_INSET,
+					bottom: THUMB_INSET,
 					left: THUMB_INSET,
 					width: THUMB_W,
-					height: TRACK_H - THUMB_INSET * 2,
 					bgcolor: '#242424',
 					borderRadius: '12px',
 					transform: isAnnual ? `translateX(${THUMB_W}px)` : 'translateX(0)',
