@@ -45,7 +45,7 @@ export const BillingCycleToggle = ({
 			{/* Sliding dark thumb */}
 			<Box
 				aria-hidden="true"
-				sx={{
+				sx={(theme) => ({
 					position: 'absolute',
 					top: THUMB_INSET,
 					left: THUMB_INSET,
@@ -57,7 +57,11 @@ export const BillingCycleToggle = ({
 					transition: 'transform 400ms cubic-bezier(0.175, 0.885, 0.32, 1.275)',
 					boxShadow: '0 4px 12px -2px rgba(17,24,39,0.25)',
 					pointerEvents: 'none',
-				}}
+					...theme.applyStyles('dark', {
+						bgcolor: 'common.white',
+						boxShadow: '0 4px 12px -2px rgba(0,0,0,0.40)',
+					}),
+				})}
 			/>
 
 			{/* Monthly button */}
@@ -68,7 +72,7 @@ export const BillingCycleToggle = ({
 				onClick={() => {
 					return onBillingChange('monthly');
 				}}
-				sx={{
+				sx={(theme) => ({
 					position: 'relative',
 					zIndex: 1,
 					flex: 1,
@@ -80,7 +84,10 @@ export const BillingCycleToggle = ({
 					fontWeight: 700,
 					color: isAnnual ? 'text.secondary' : 'common.white',
 					transition: 'color 300ms ease',
-				}}
+					...theme.applyStyles('dark', {
+						color: isAnnual ? 'text.secondary' : '#242424',
+					}),
+				})}
 			>
 				Monthly
 			</Box>
@@ -93,7 +100,7 @@ export const BillingCycleToggle = ({
 				onClick={() => {
 					return onBillingChange('annually');
 				}}
-				sx={{
+				sx={(theme) => ({
 					position: 'relative',
 					zIndex: 1,
 					flex: 1,
@@ -109,12 +116,15 @@ export const BillingCycleToggle = ({
 					alignItems: 'center',
 					justifyContent: 'center',
 					gap: 0.75,
-				}}
+					...theme.applyStyles('dark', {
+						color: isAnnual ? '#242424' : 'text.secondary',
+					}),
+				})}
 			>
 				<Box component="span">Annually</Box>
 				<Box
 					component="span"
-					sx={{
+					sx={(theme) => ({
 						fontSize: 10,
 						fontWeight: 800,
 						lineHeight: 1.2,
@@ -124,7 +134,13 @@ export const BillingCycleToggle = ({
 						color: isAnnual ? 'common.white' : 'secondary.main',
 						bgcolor: isAnnual ? 'rgba(255,255,255,0.18)' : 'secondary.lighter',
 						transition: 'all 300ms ease',
-					}}
+						...theme.applyStyles('dark', {
+							color: isAnnual ? '#242424' : 'secondary.main',
+							bgcolor: isAnnual
+								? 'rgba(0,0,0,0.10)'
+								: `rgba(${theme.vars.palette.secondary.mainChannel} / 0.16)`,
+						}),
+					})}
 				>
 					-{annualDiscountPct}%
 				</Box>
