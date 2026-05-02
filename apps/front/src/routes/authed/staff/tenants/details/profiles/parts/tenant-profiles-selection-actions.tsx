@@ -231,7 +231,10 @@ const TenantProfilesSelectionActions = ({
 								closeMenu();
 								setConfirmBulkDeleteOpen(true);
 							}}
-							sx={{ color: 'text.secondary' }}
+							sx={{
+								color: 'error.main',
+								'&.Mui-disabled': { color: 'action.disabled' },
+							}}
 						>
 							<Iconify icon="solar:trash-bin-trash-bold" width={18} />
 							<ListItemText primary={t('bulk-delete')} sx={{ ml: 1 }} />
@@ -260,7 +263,7 @@ const TenantProfilesSelectionActions = ({
 				action={
 					<Button
 						variant="contained"
-						color="inherit"
+						color="error"
 						onClick={handleConfirmBulkDelete}
 						disabled={isBulkDeleting || hasDefaultSelected}
 					>

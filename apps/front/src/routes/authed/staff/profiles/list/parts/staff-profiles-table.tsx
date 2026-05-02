@@ -610,7 +610,7 @@ const ProfileActionsCell: MRT_ColumnDef<StaffProfileRowData>['Cell'] = (
 				action={
 					<Button
 						variant="contained"
-						color="inherit"
+						color="error"
 						onClick={() => deleteProfile({ profileId: row.id })}
 						disabled={isDeleting}
 					>
@@ -745,7 +745,7 @@ const StaffProfilesSelectionActions = ({
 						closeMenu();
 						setConfirmBulkDeleteOpen(true);
 					}}
-					sx={{ color: 'text.secondary' }}
+					sx={{ color: 'error.main' }}
 				>
 					<Iconify icon="solar:trash-bin-trash-bold" width={18} />
 					<ListItemText primary={t('delete')} sx={{ ml: 1 }} />
@@ -763,7 +763,7 @@ const StaffProfilesSelectionActions = ({
 				action={
 					<Button
 						variant="contained"
-						color="inherit"
+						color="error"
 						onClick={handleConfirmBulkDelete}
 						disabled={isBulkDeleting}
 					>

@@ -135,7 +135,7 @@ const TenantProfileDeleteAction = ({
 				action={
 					<Button
 						variant="contained"
-						color="inherit"
+						color="error"
 						onClick={handleConfirmDelete}
 						disabled={isDeleting}
 					>
