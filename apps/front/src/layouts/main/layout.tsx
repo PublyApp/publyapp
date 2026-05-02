@@ -48,7 +48,9 @@ export type MainLayoutProps = LayoutBaseProps & {
 			data?: NavMainProps['data'];
 		};
 		main?: MainSectionProps;
-		footer?: FooterProps;
+		footer?: FooterProps & {
+			variant?: 'home' | 'app';
+		};
 	};
 };
 
@@ -77,6 +79,8 @@ export const MainLayout = ({
 	}, []);
 
 	const isHomePage = pathname === '/';
+
+	const useHomeFooter = isHomePage || slotProps?.footer?.variant === 'home';
 
 	const navData = slotProps?.nav?.data ?? mainNavData;
 
@@ -276,7 +280,7 @@ export const MainLayout = ({
 		/>
 	);
 
-	const footerSection = isHomePage ? (
+	const footerSection = useHomeFooter ? (
 		<HomeFooter sx={slotProps?.footer?.sx} />
 	) : (
 		<Footer sx={slotProps?.footer?.sx} layoutQuery={layoutQuery} />
