@@ -8,12 +8,10 @@ import { varAlpha } from 'minimal-shared/utils';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
-import type { StaffUserStatusFilter } from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
-
-export type StaffUserStatusFilterOption = {
-	label: string;
-	value: StaffUserStatusFilter;
-};
+import {
+	STAFF_USER_STATUS_FILTER_VALUES,
+	type StaffUserStatusFilter,
+} from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
 
 type StaffUsersToolbarFiltersProps = {
 	searchTooltipId: string;
@@ -22,11 +20,10 @@ type StaffUsersToolbarFiltersProps = {
 	disabledReason: string;
 	globalFilter: string;
 	statusFilter: StaffUserStatusFilter[];
-	statusOptions: StaffUserStatusFilterOption[];
 	onSearchChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
 	onStatusChange: (
 		event: React.SyntheticEvent,
-		selectedOptions: StaffUserStatusFilterOption[],
+		selectedOptions: StaffUserStatusFilter[],
 	) => void;
 };
 
@@ -37,11 +34,18 @@ const StaffUsersToolbarFilters = ({
 	disabledReason,
 	globalFilter,
 	statusFilter,
-	statusOptions,
 	onSearchChange,
 	onStatusChange,
 }: StaffUsersToolbarFiltersProps) => {
 	const { t } = useTranslate();
+
+	const getStatusLabel = (value: StaffUserStatusFilter) => {
+		if (value === 'active') {
+			return t('active');
+		}
+
+		return t('suspended');
+	};
 
 	return (
 		<>
@@ -84,16 +88,12 @@ const StaffUsersToolbarFilters = ({
 						multiple
 						disableCloseOnSelect
 						size="small"
-						options={statusOptions}
-						value={statusOptions.filter((option) =>
-							statusFilter.includes(option.value),
-						)}
+						options={STAFF_USER_STATUS_FILTER_VALUES}
+						value={statusFilter}
 						onChange={onStatusChange}
 						disabled={isSelectionMode}
-						isOptionEqualToValue={(option, value) =>
-							option.value === value.value
-						}
-						getOptionLabel={(option) => option.label}
+						isOptionEqualToValue={(option, value) => option === value}
+						getOptionLabel={getStatusLabel}
 						renderInput={(params) => (
 							<TextField
 								{...params}
@@ -157,7 +157,7 @@ const StaffUsersToolbarFilters = ({
 									})}
 								>
 									<Checkbox checked={selected} sx={{ mr: 1 }} />
-									{option.label}
+									{getStatusLabel(option)}
 								</Box>
 							);
 						}}
