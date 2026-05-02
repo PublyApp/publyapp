@@ -33,18 +33,36 @@ canvas you are translating. If a pattern appears in only one place across all
 
 ## Color tokens (canvas → theme)
 
-Where a canvas class maps to a theme token, prefer the token — it dark-swaps
-automatically. Only fall back to a literal hex if a `// dark-diff:` override
-demands it.
+Where a canvas class maps to a theme token, prefer the token — but only certain
+tokens dark-swap automatically. Use these and the surface adapts; reach for
+`varAlpha` overlays when a fixed-ramp token would otherwise stick out in dark mode.
 
-| Canvas class | Theme token |
+| Canvas class | Theme token | Dark-swaps? |
+|---|---|---|
+| `text-slate-600`, `text-brand-muted` | `color: 'text.secondary'` | ✓ |
+| `text-slate-900`, `text-brand-dark` | `color: 'text.primary'` | ✓ |
+| `border-brand-border`, `border-slate-200` | `borderColor: 'divider'` | ✓ |
+| `bg-white` (card surface) | `bgcolor: 'background.paper'` | ✓ |
+| `bg-slate-50` (panel surface) | `bgcolor: 'background.neutral'` | ✓ |
+| `bg-brand-bg` (page bg) | `bgcolor: 'background.default'` | ✓ |
+
+### `grey.X` does NOT dark-swap
+
+`grey.50`/`grey.100`/.../`grey.900` are **static** values from the palette ramp
+(`'#FAFBFC'`, `'#F3F4F6'`, …). They look fine in light mode and broken in dark
+mode (light-gray pills on a near-black page). Avoid them for surface backgrounds.
+
+For subtle tints that should adapt to mode, use a `varAlpha` overlay on a token
+that DOES swap:
+
+| Need | sx (dark-safe) |
 |---|---|
-| `text-slate-600`, `text-brand-muted` | `color: 'text.secondary'` |
-| `text-slate-900`, `text-brand-dark` | `color: 'text.primary'` |
-| `bg-slate-100` (tag chips) | `bgcolor: 'grey.100'` |
-| `border-brand-border`, `border-slate-200` | `borderColor: 'divider'` |
-| `bg-white` (card surface) | `bgcolor: 'background.paper'` |
-| `bg-brand-bg` (page bg) | `bgcolor: 'background.default'` |
+| Tag chip bg (was `bg-slate-100` / `grey.100`) | `bgcolor: varAlpha(theme.vars.palette.text.primaryChannel, 0.04)` |
+| Disabled-pill bg (was `bg-gray-100` / `grey.100`) | `bgcolor: varAlpha(theme.vars.palette.text.primaryChannel, 0.08)` |
+| Subtle panel bg (was `bg-gray-50` / `grey.50`) | `bgcolor: 'background.neutral'` |
+
+`common.black` / `common.white` are intentionally fixed (true black, true
+white). Use them deliberately, e.g. text on a `#242424` always-dark surface.
 
 ## Group hover (parent-triggered child transitions)
 
@@ -70,6 +88,42 @@ not for styling.
 
 This is the only sanctioned use of `className` in marketing surface code.
 
+## Iconify icon names
+
+Canvas markup uses the Tailwind/CDN convention `'ph-fill:tag'`, `'ph-bold:check'`.
+Our registered icon set (`apps/front/src/components/iconify/icon-sets.ts`) uses
+the colon-after-prefix Phosphor convention: `'ph:tag-fill'`, `'ph:check-bold'`.
+
+| Canvas markup | Use in code |
+|---|---|
+| `<i class="ph ph-tag">` | `<Iconify icon="ph:tag" />` |
+| `<i class="ph-fill ph-tag">` | `<Iconify icon="ph:tag-fill">` |
+| `<i class="ph-bold ph-check">` | `<Iconify icon="ph:check-bold">` |
+| `<i class="ph-fill ph-check-circle">` | `<Iconify icon="ph:check-circle-fill">` |
+| `<i class="ph-bold ph-x">` | `<Iconify icon="ph:x-bold">` |
+| `<i class="ph-bold ph-plus">` | `<Iconify icon="ph:plus-bold">` |
+
+Unknown icon names trigger a runtime warning AND a network fetch (visible
+flicker on first paint). **Never use `as never` to silence the TypeScript
+error** — that just hides the bug and the icon falls back to network. If TS
+complains, the name is wrong; either correct it or register the icon in
+`icon-sets.ts`.
+
+## Brand-color literals → varAlpha
+
+Hardcoded primary-tinted shadows like `rgba(16, 185, 129, 0.4)` shouldn't be
+literal — that's the current `primary.main` hex. Use `varAlpha` so brand
+shifts propagate.
+
+| Avoid | Prefer |
+|---|---|
+| `boxShadow: '0 10px 30px rgba(16,185,129,0.4)'` | `boxShadow: \`0 10px 30px ${varAlpha(theme.vars.palette.primary.mainChannel, 0.4)}\`` |
+| `borderColor: 'rgba(16,185,129,0.5)'` | `borderColor: varAlpha(theme.vars.palette.primary.mainChannel, 0.5)` |
+
+Approved exceptions (gray/black shadow recipes, third-party brand colors,
+the `#242424` always-dark surface) are listed in
+`docs/guides/marketing-surface-conventions.md`.
+
 ## Animations
 
 - **No perpetual animations.** No shimmer, no marching skeleton effects, no
@@ -87,6 +141,22 @@ sx={{
   },
 }}
 ```
+
+### Spring physics for marketing micro-interactions
+
+Tuned values from the home + /pricing build, by interaction type:
+
+| Interaction | spring config |
+|---|---|
+| CTA button hover lift | `{ stiffness: 400, damping: 18 }` (parent), `{ stiffness: 500, damping: 14–16 }` (inner icon) |
+| Card hover lift | `{ stiffness: 280–300, damping: 20–22, y: -8 to -12, scale: 1.01–1.03 }` |
+| Toggle thumb slide | `transition: 'transform 400ms cubic-bezier(0.175, 0.885, 0.32, 1.275)'` |
+| FAQ card open (whole card scale + lift) | `{ type: 'spring', stiffness: 700, damping: 30, mass: 0.4 }` |
+| FAQ body height expand | `{ type: 'spring', stiffness: 700, damping: 38, mass: 0.45 }` |
+| FAQ icon plus↔X swap rotation | `{ type: 'spring', stiffness: 600, damping: 18, mass: 0.5 }` |
+
+Snappy + physical = high stiffness (500+) with low mass (0.4–0.5). Bouncy = low
+damping (16–22). Settled = high damping (28–38).
 
 ## Dark-mode override convention
 
