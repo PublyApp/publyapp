@@ -721,7 +721,7 @@ namespace MainApi.Migrations
                         {
                             t.HasCheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)");
 
-                            t.HasCheckConstraint("CK_User_Status", "status IN (10, 20, 30, 40)");
+                            t.HasCheckConstraint("CK_User_Status", "status IN (20, 30, 40)");
                         });
                 });
 
