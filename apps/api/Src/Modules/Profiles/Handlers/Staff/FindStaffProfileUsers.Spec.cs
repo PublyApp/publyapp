@@ -438,10 +438,6 @@ public sealed class FindStaffProfileUsersSpec
 		public int Count { get; init; }
 	}
 
-	private record CreateStaffUserResponse {
-		public Guid Id { get; init; }
-	}
-
 	private record StaffProfileUserItemResponse {
 		public Guid Id { get; init; }
 		public string Email { get; init; } = string.Empty;
