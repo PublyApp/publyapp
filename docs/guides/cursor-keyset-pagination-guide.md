@@ -241,9 +241,11 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
     // ═══════════════════════════════════════════════════════════════════════
     // STEP 3.1: Define Sort Field Handlers
     // ═══════════════════════════════════════════════════════════════════════
-    var sortFieldHandlers = new Dictionary<string, SortFieldHandler> {
+    var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<YourEntity>>(
+        StringComparer.OrdinalIgnoreCase
+    ) {
         // Handler for Id sorting (simple case)
-        ["id"] = new SortFieldHandler(
+        ["id"] = new CursorSortFieldHandler<YourEntity>(
             getCursorValue: async (guid) => {
                 var entity = await _dbContext.YourEntity.FindAsync(guid);
                 return entity?.Id;
@@ -257,18 +259,11 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
             },
             applyOrdering: (q, isAsc) => isAsc
                 ? q.OrderBy(e => e.Id)
-                : q.OrderByDescending(e => e.Id),
-            getOffset: async (q, cursorValue, isAsc) => {
-                var cursorGuid = (Guid?)cursorValue;
-                if (cursorGuid is null) return 0;
-                return isAsc
-                    ? await q.CountAsync(e => e.Id < cursorGuid)
-                    : await q.CountAsync(e => e.Id > cursorGuid);
-            }
+                : q.OrderByDescending(e => e.Id)
         ),
 
         // Handler for Name sorting (with tie-breaker)
-        ["name"] = new SortFieldHandler(
+        ["name"] = new CursorSortFieldHandler<YourEntity>(
             getCursorValue: async (guid) => {
                 var entity = await _dbContext.YourEntity
                     .Where(e => e.Id == guid)
@@ -285,19 +280,11 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
             },
             applyOrdering: (q, isAsc) => isAsc
                 ? q.OrderBy(e => e.Name).ThenBy(e => e.Id)
-                : q.OrderByDescending(e => e.Name).ThenByDescending(e => e.Id),
-            getOffset: async (q, cursorValue, isAsc) => {
-                if (cursorValue is null) return 0;
-                var (cursorName, cursorId) = ((string, Guid?))cursorValue;
-                // Count items BEFORE cursor (considering tie-breaker)
-                return isAsc
-                    ? await q.CountAsync(e => e.Name.CompareTo(cursorName) < 0 || (e.Name == cursorName && e.Id < cursorId))
-                    : await q.CountAsync(e => e.Name.CompareTo(cursorName) > 0 || (e.Name == cursorName && e.Id > cursorId));
-            }
+                : q.OrderByDescending(e => e.Name).ThenByDescending(e => e.Id)
         ),
 
         // Handler for CreatedAt sorting (with tie-breaker)
-        ["created_at"] = new SortFieldHandler(
+        ["created_at"] = new CursorSortFieldHandler<YourEntity>(
             getCursorValue: async (guid) => {
                 var entity = await _dbContext.YourEntity
                     .Where(e => e.Id == guid)
@@ -314,18 +301,11 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
             },
             applyOrdering: (q, isAsc) => isAsc
                 ? q.OrderBy(e => e.CreatedAt).ThenBy(e => e.Id)
-                : q.OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id),
-            getOffset: async (q, cursorValue, isAsc) => {
-                if (cursorValue is null) return 0;
-                var (cursorCreatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
-                return isAsc
-                    ? await q.CountAsync(e => e.CreatedAt < cursorCreatedAt || (e.CreatedAt == cursorCreatedAt && e.Id < cursorId))
-                    : await q.CountAsync(e => e.CreatedAt > cursorCreatedAt || (e.CreatedAt == cursorCreatedAt && e.Id > cursorId));
-            }
+                : q.OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id)
         ),
 
         // Handler for computed fields (with tie-breaker)
-        ["related_count"] = new SortFieldHandler(
+        ["related_count"] = new CursorSortFieldHandler<YourEntity>(
             getCursorValue: async (guid) => {
                 var entity = await _dbContext.YourEntity
                     .Where(e => e.Id == guid)
@@ -342,14 +322,7 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
             },
             applyOrdering: (q, isAsc) => isAsc
                 ? q.OrderBy(e => e.RelatedEntities.Count).ThenBy(e => e.Id)
-                : q.OrderByDescending(e => e.RelatedEntities.Count).ThenByDescending(e => e.Id),
-            getOffset: async (q, cursorValue, isAsc) => {
-                if (cursorValue is null) return 0;
-                var (cursorCount, cursorId) = ((int, Guid?))cursorValue;
-                return isAsc
-                    ? await q.CountAsync(e => e.RelatedEntities.Count < cursorCount || (e.RelatedEntities.Count == cursorCount && e.Id < cursorId))
-                    : await q.CountAsync(e => e.RelatedEntities.Count > cursorCount || (e.RelatedEntities.Count == cursorCount && e.Id > cursorId));
-            }
+                : q.OrderByDescending(e => e.RelatedEntities.Count).ThenByDescending(e => e.Id)
         )
     };
 
@@ -415,24 +388,8 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
     );
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// STEP 3.8: Define SortFieldHandler Helper Class
-// ═══════════════════════════════════════════════════════════════════════
-private class SortFieldHandler {
-    public Func<Guid, Task<object?>> GetCursorValue { get; }
-    public Func<IQueryable<YourEntity>, object?, bool, IQueryable<YourEntity>> ApplyFilter { get; }
-    public Func<IQueryable<YourEntity>, bool, IQueryable<YourEntity>> ApplyOrdering { get; }
-
-    public SortFieldHandler(
-        Func<Guid, Task<object?>> getCursorValue,
-        Func<IQueryable<YourEntity>, object?, bool, IQueryable<YourEntity>> applyFilter,
-        Func<IQueryable<YourEntity>, bool, IQueryable<YourEntity>> applyOrdering
-    ) {
-        GetCursorValue = getCursorValue;
-        ApplyFilter = applyFilter;
-        ApplyOrdering = applyOrdering;
-    }
-}
+// CursorSortFieldHandler<TEntity> lives in MainApi.Src.Lib.
+// Do not define a private SortFieldHandler helper in each service.
 ```
 
 ### Step 4: Implement Handler
@@ -529,8 +486,8 @@ public class FindEntities {
 ## Complete Example
 
 For a complete, working example, see:
-- Service: `apps/api/Src/Features/Staff/ProfileAsStaff/ProfileAsStaffService.cs`
-- Handler: `apps/api/Src/Features/Staff/ProfileAsStaff/Handlers/FindStaffProfiles.cs`
+- Service: `apps/api/Src/Modules/Profiles/Services/ProfileAsStaffService.cs`
+- Handler: `apps/api/Src/Modules/Profiles/Handlers/Staff/FindStaffProfiles.cs`
 
 ## Common Pitfalls
 
@@ -736,7 +693,7 @@ When implementing cursor pagination:
 
 - [ ] Created DTO with all required fields including `Id`
 - [ ] Defined discriminated union result type with `Success`, `CursorNotFound`, and `InvalidSortId`
-- [ ] Implemented `SortFieldHandler` for each sortable field
+- [ ] Implemented `CursorSortFieldHandler<TEntity>` entries for each sortable field
 - [ ] For non-Id sorts: included tie-breaker in `getCursorValue` (returns tuple)
 - [ ] For non-Id sorts: included tie-breaker in `applyFilter` (OR clause with Id comparison)
 - [ ] For non-Id sorts: included tie-breaker in `applyOrdering` (ThenBy/ThenByDescending)
