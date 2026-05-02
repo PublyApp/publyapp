@@ -239,7 +239,7 @@ export const useStaffUsersTableController = () => {
 					header: t('name'),
 					Cell: UserCell,
 					enableSorting: false,
-					size: 250,
+					size: 300,
 				},
 			),
 			columnHelper.accessor('level', {
