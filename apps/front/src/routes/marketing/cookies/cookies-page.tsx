@@ -26,66 +26,93 @@ const P_SX = {
 	lineHeight: 1.75,
 } as const;
 
+const STRONG_SX = {
+	color: 'text.primary',
+} as const;
+
+const VISUALLY_HIDDEN_SX = {
+	position: 'absolute',
+	width: 1,
+	height: 1,
+	padding: 0,
+	margin: -1,
+	overflow: 'hidden',
+	clip: 'rect(0, 0, 0, 0)',
+	whiteSpace: 'nowrap',
+	border: 0,
+} as const;
+
 // ----------------------------------------------------------------------
 
 const CookieInventoryTable = () => {
 	return (
-		<Box
-			component="table"
-			sx={{
-				width: '100%',
-				borderCollapse: 'collapse',
-				fontSize: 14,
-				my: 3,
-				'& th, & td': {
-					textAlign: 'left',
-					px: 2,
-					py: 1.5,
-					borderBottom: '1px solid',
-					borderColor: 'divider',
-				},
-				'& th': {
-					fontSize: 12,
-					fontWeight: 700,
-					textTransform: 'uppercase',
-					letterSpacing: '0.08em',
-					color: 'text.secondary',
-				},
-				'& td': {
-					color: 'text.primary',
-				},
-			}}
-		>
-			<Box component="thead">
-				<Box component="tr">
-					<Box component="th">Cookie name</Box>
-					<Box component="th">Purpose</Box>
-					<Box component="th">Duration</Box>
+		<Box sx={{ overflowX: 'auto', my: 3 }}>
+			<Box
+				component="table"
+				sx={{
+					width: '100%',
+					minWidth: 480,
+					borderCollapse: 'collapse',
+					fontSize: 14,
+					'& th, & td': {
+						textAlign: 'left',
+						px: 2,
+						py: 1.5,
+						borderBottom: '1px solid',
+						borderColor: 'divider',
+					},
+					'& th': {
+						fontSize: 12,
+						fontWeight: 700,
+						textTransform: 'uppercase',
+						letterSpacing: '0.08em',
+						color: 'text.secondary',
+					},
+					'& td': {
+						color: 'text.primary',
+					},
+				}}
+			>
+				<Box component="caption" sx={VISUALLY_HIDDEN_SX}>
+					Cookies set by the PublyApp platform, with purpose and retention.
 				</Box>
-			</Box>
-			<Box component="tbody">
-				{COOKIES_INVENTORY.map((row) => {
-					return (
-						<Box component="tr" key={row.name}>
-							<Box
-								component="td"
-								sx={{
-									fontFamily: 'monospace',
-									fontSize: 13,
-									color: 'text.primary',
-								}}
-							>
-								{row.name}
-							</Box>
-							<Box component="td" sx={{ color: 'text.secondary' }}>
-								{row.purpose}
-							</Box>
-							<Box component="td" sx={{ color: 'text.secondary' }}>
-								{row.duration}
-							</Box>
+				<Box component="thead">
+					<Box component="tr">
+						<Box component="th" scope="col">
+							Cookie name
 						</Box>
-					);
-				})}
+						<Box component="th" scope="col">
+							Purpose
+						</Box>
+						<Box component="th" scope="col">
+							Duration
+						</Box>
+					</Box>
+				</Box>
+				<Box component="tbody">
+					{COOKIES_INVENTORY.map((row) => {
+						return (
+							<Box component="tr" key={row.name}>
+								<Box
+									component="td"
+									sx={{
+										fontFamily: 'monospace',
+										fontSize: 13,
+										color: 'text.primary',
+									}}
+								>
+									{row.name}
+								</Box>
+								<Box component="td" sx={{ color: 'text.secondary' }}>
+									{row.purpose}
+								</Box>
+								<Box component="td" sx={{ color: 'text.secondary' }}>
+									{row.duration}
+								</Box>
+							</Box>
+						);
+					})}
+				</Box>
 			</Box>
 		</Box>
 	);
@@ -140,6 +167,10 @@ const CookiePreferencesCallout = () => {
 						transform: 'translateY(-1px)',
 						boxShadow: `0 8px 16px -4px ${varAlpha(theme.vars.palette.primary.mainChannel, 0.35)}`,
 					},
+					'&:focus-visible': {
+						outline: `2px solid ${theme.vars.palette.primary.main}`,
+						outlineOffset: 2,
+					},
 				})}
 			>
 				Open cookie preferences
@@ -181,12 +212,12 @@ const CookiesPage = () => {
 						<Typography sx={P_SX}>
 							Functionally, cookies generally drop into two major retention
 							categories:{' '}
-							<Box component="strong" sx={{ color: 'text.primary' }}>
+							<Box component="strong" sx={STRONG_SX}>
 								Session cookies
 							</Box>{' '}
 							are temporary and uniformly deleted from your device the instant
 							you fully close your browser window. Conversely,{' '}
-							<Box component="strong" sx={{ color: 'text.primary' }}>
+							<Box component="strong" sx={STRONG_SX}>
 								Persistent cookies
 							</Box>{' '}
 							remain secured on your hard drive until you meticulously erase
@@ -195,12 +226,12 @@ const CookiesPage = () => {
 						</Typography>
 						<Typography sx={P_SX}>
 							Additionally, cookies fall under different ownership scopes.{' '}
-							<Box component="strong" sx={{ color: 'text.primary' }}>
+							<Box component="strong" sx={STRONG_SX}>
 								First-party cookies
 							</Box>{' '}
 							are established immediately by the PublyApp domain you are
 							directly visiting and are essential for core site interactions.{' '}
-							<Box component="strong" sx={{ color: 'text.primary' }}>
+							<Box component="strong" sx={STRONG_SX}>
 								Third-party cookies
 							</Box>
 							, established externally by our tightly integrated service
