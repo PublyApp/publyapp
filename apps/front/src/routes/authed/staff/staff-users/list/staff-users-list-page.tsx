@@ -1,7 +1,6 @@
 import Button from '@mui/material/Button';
 import i18next, { type TFunction } from 'i18next';
 import get from 'lodash/get';
-import toLower from 'lodash/toLower';
 import { data } from 'react-router';
 
 import {
@@ -86,7 +85,7 @@ const StaffUsersListPage = () => {
 						component={RouterLink}
 						href={FRONT_PATH_NAMES.staff.invitations.new}
 					>
-						{t('new-item', { item: toLower(t('user')) })}
+						{t('invite-users')}
 					</Button>
 				}
 				sx={{ mb: { xs: 3, md: 5 } }}

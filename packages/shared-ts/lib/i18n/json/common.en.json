@@ -659,6 +659,7 @@
 	"tenant-user-bulk-remove-failure": "Failed to remove selected users from this tenant.",
 	"invite-first-user": "Invite first user",
 	"invite-user": "Invite user",
+	"invite-users": "Invite users",
 	"invitation-sent-success": "Invitation sent successfully",
 	"invitation-sent-error": "Failed to send invitation",
 	"invitation-created-success": "Invitation created successfully",
