@@ -324,6 +324,7 @@ export const PricingTierCard = ({ tier, billing }: PricingTierCardProps) => {
 							: { component: RouterLink, href: tier.cta.href })}
 						fullWidth
 						variant="contained"
+						color="inherit"
 						disableElevation
 						size="large"
 						sx={
@@ -336,7 +337,7 @@ export const PricingTierCard = ({ tier, billing }: PricingTierCardProps) => {
 										boxShadow: `0 10px 30px ${varAlpha(theme.vars.palette.primary.mainChannel, 0.3)}`,
 										mt: 'auto',
 										textTransform: 'none',
-										'&:hover': {
+										'&&:hover': {
 											bgcolor: 'primary.main',
 											transform: 'translateY(-2px)',
 											boxShadow: `0 16px 40px ${varAlpha(theme.vars.palette.primary.mainChannel, 0.45)}`,
@@ -345,7 +346,7 @@ export const PricingTierCard = ({ tier, billing }: PricingTierCardProps) => {
 										...theme.applyStyles('dark', {
 											bgcolor: 'primary.main',
 											color: 'common.white',
-											'&:hover': {
+											'&&:hover': {
 												bgcolor: 'primary.main',
 												transform: 'translateY(-2px)',
 												boxShadow: `0 16px 40px ${varAlpha(theme.vars.palette.primary.mainChannel, 0.55)}`,
@@ -360,7 +361,7 @@ export const PricingTierCard = ({ tier, billing }: PricingTierCardProps) => {
 										mt: 'auto',
 										textTransform: 'none',
 										transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-										'&:hover': {
+										'&&:hover': {
 											bgcolor: 'grey.900',
 											transform: 'translateY(-2px)',
 											boxShadow: '0 12px 24px -8px rgba(17,24,39,0.30)',
@@ -368,7 +369,7 @@ export const PricingTierCard = ({ tier, billing }: PricingTierCardProps) => {
 										...theme.applyStyles('dark', {
 											bgcolor: 'common.white',
 											color: 'grey.900',
-											'&:hover': {
+											'&&:hover': {
 												bgcolor: 'common.white',
 												transform: 'translateY(-2px)',
 												boxShadow: '0 12px 24px -8px rgba(0,0,0,0.40)',
