@@ -192,24 +192,13 @@ const TenantInvitationsTable = () => {
 				id: 'expires_at',
 				header: t('expires', { defaultValue: 'Expires' }),
 				size: 150,
-				Cell: ({ cell }) => {
-					const date = cell.getValue();
-					if (!date) return '-';
-					return fDate(date);
-				},
+				Cell: ExpiresAtCell,
 			}),
 			columnHelper.accessor('profileName', {
 				header: t('profiles'),
 				enableSorting: false,
 				size: 200,
-				Cell: ({ cell }) => {
-					const value = cell.getValue();
-					if (value) {
-						return value;
-					}
-
-					return t('admin');
-				},
+				Cell: ProfileNameCell,
 			}),
 			columnHelper.display({
 				header: 'Actions',
@@ -784,6 +773,28 @@ const StatusCell: MRT_ColumnDef<TenantInvitationRowData, string>['Cell'] = (
 			{label}
 		</Box>
 	);
+};
+
+const ExpiresAtCell: MRT_ColumnDef<
+	TenantInvitationRowData,
+	DatePickerFormat
+>['Cell'] = (props) => {
+	const date = props.cell.getValue();
+	if (!date) return '-';
+	return fDate(date);
+};
+
+const ProfileNameCell: MRT_ColumnDef<
+	TenantInvitationRowData,
+	string
+>['Cell'] = (props) => {
+	const { t } = useTranslate();
+	const value = props.cell.getValue();
+	if (value) {
+		return value;
+	}
+
+	return t('admin');
 };
 
 const InvitationActionsCell: MRT_ColumnDef<TenantInvitationRowData>['Cell'] = (
