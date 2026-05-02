@@ -23,23 +23,19 @@ import {
 	invalidateStaffUserLifecycleQueries,
 } from '#app/routes/authed/staff/staff-users/shared/staff-user-cache-helpers.ts';
 
-import StaffUserPreviewAction from './staff-user-preview-action.tsx';
 import type { StaffUserRowData } from './use-staff-users-table-controller.ts';
 
 const ALLOW_COPY_LINK = false;
 
-type StaffUserRowActionsProps = {
+type DeleteStaffUserActionProps = {
 	user: StaffUserRowData;
 };
 
-const StaffUserRowActions = ({ user }: StaffUserRowActionsProps) => {
+export const DeleteStaffUserAction = ({ user }: DeleteStaffUserActionProps) => {
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-
-	const isPendingUser = user.status === USER_STATUS_ENUM.PENDING;
-	const isSuspended = user.status === USER_STATUS_ENUM.SUSPENDED;
-	const canDelete = isSuspended;
+	const canDelete = user.status === USER_STATUS_ENUM.SUSPENDED;
 
 	const { mutate: deleteStaffUser, isPending: isDeleting } = useDeleteStaffUser(
 		{
@@ -61,37 +57,29 @@ const StaffUserRowActions = ({ user }: StaffUserRowActionsProps) => {
 
 	return (
 		<>
-			<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-				<FollowUpButton isUserPending={isPendingUser} email={user.email} />
-
-				<CopyLinkButton isUserPending={isPendingUser} userId={user.id} />
-
-				<StaffUserPreviewAction user={user} />
-
-				<Tooltip
-					title={
-						canDelete
-							? t('delete')
-							: t('delete-staff-user-disabled-until-suspended')
-					}
-					placement="top"
-					arrow
-				>
-					<Box component="span">
-						<IconButton
-							color="default"
-							size="small"
-							onClick={() => setDeleteDialogOpen(true)}
-							disabled={!canDelete || isDeleting}
-							sx={{
-								color: canDelete ? 'error.main' : 'text.disabled',
-							}}
-						>
-							<Iconify icon="solar:trash-bin-trash-bold" width={18} />
-						</IconButton>
-					</Box>
-				</Tooltip>
-			</Box>
+			<Tooltip
+				title={
+					canDelete
+						? t('delete')
+						: t('delete-staff-user-disabled-until-suspended')
+				}
+				placement="top"
+				arrow
+			>
+				<Box component="span">
+					<IconButton
+						color="default"
+						size="small"
+						onClick={() => setDeleteDialogOpen(true)}
+						disabled={!canDelete || isDeleting}
+						sx={{
+							color: canDelete ? 'text.secondary' : 'action.disabled',
+						}}
+					>
+						<Iconify icon="solar:trash-bin-trash-bold" width={18} />
+					</IconButton>
+				</Box>
+			</Tooltip>
 
 			<ConfirmDialog
 				open={deleteDialogOpen}
@@ -101,7 +89,7 @@ const StaffUserRowActions = ({ user }: StaffUserRowActionsProps) => {
 				action={
 					<Button
 						variant="contained"
-						color="error"
+						color="inherit"
 						onClick={() => deleteStaffUser({ userId: user.id })}
 						disabled={isDeleting}
 					>
@@ -120,7 +108,7 @@ type CopyLinkButtonProps = {
 	forceShow?: boolean;
 };
 
-const CopyLinkButton = ({
+export const CopyLinkButton = ({
 	isUserPending,
 	userId,
 	onClose,
@@ -186,7 +174,7 @@ type FollowUpButtonProps = {
 	forceShow?: boolean;
 };
 
-const FollowUpButton = ({
+export const FollowUpButton = ({
 	isUserPending,
 	email,
 	forceShow = false,
@@ -224,5 +212,3 @@ const FollowUpButton = ({
 		</Tooltip>
 	);
 };
-
-export default StaffUserRowActions;

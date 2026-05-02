@@ -39,7 +39,20 @@ If a preference below conflicts with an existing guide, follow the existing guid
 
 ### Tables, Drawers, Actions
 
-- Table rows should **always show actions**; if unavailable, show them **disabled + greyed out** (do not hide the action column or render nothing).
+- Table rows should **always show actions**. If an action is not relevant for the current
+  row/state/permission, render it disabled and show a tooltip explaining why; do not hide
+  the action column or render nothing.
+  - If a row action owns behavior/state (mutation, dialog, drawer, loading, optimistic
+    update), make it its own focused action component. The row action group should compose
+    action components, not own every action's internal state.
+  - Table action controls should use neutral grey styling, not semantic `error`/`warning`/
+    `success`/`primary` colors. Use existing disabled tokens first (`text.disabled`,
+    `action.disabled`, or the component's disabled state). Use normal neutral tokens
+    (`text.secondary`, `action.active`, `grey['500Channel']` with `varAlpha`) for
+    enabled row actions, bulk actions, and confirmation buttons launched from table actions.
+  - Keep semantic colors for status badges, validation, dedicated danger-zone context, and
+    other non-action state indicators where the color communicates state rather than click
+    priority.
 - Avoid heavy repeated text buttons in dense lists (e.g., `Assign` repeated per row).
   - Prefer subtle icon buttons with tooltips.
 - Mutable enum/status columns should expose their primary change action from the cell itself when the repo already has an inline menu pattern for that entity type.

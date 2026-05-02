@@ -30,6 +30,10 @@ const TenantProfileEditAction = ({
 						size="small"
 						onClick={editDrawer.onTrue}
 						disabled={!profile.id}
+						// Details is the primary navigation affordance in compact row actions.
+						sx={{
+							color: profile.id ? 'text.primary' : 'action.disabled',
+						}}
 					>
 						<Iconify icon="solar:list-bold" width={18} />
 					</IconButton>

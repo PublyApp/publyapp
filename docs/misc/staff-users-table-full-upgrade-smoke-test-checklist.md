@@ -3,9 +3,11 @@
 Use this checklist to manually validate the work from PR `#329` on branch `feat/280-staff-users-table-full-upgrade`.
 
 Route under test:
+
 - `/staff/staff-users`
 
 Related surfaces:
+
 - `/staff/staff-users/details/{userId}`
 - `/staff/profiles/details/{profileId}/users`
 
@@ -13,10 +15,10 @@ Related surfaces:
 
 - [x] The staff users list loads without an error state.
 - [x] The first column shows user identity in a dense two-line layout: full name on the first line and email on the second line.
-- [ ] The status column renders valid labels only for the supported statuses: `Active`, `Pending`, and `Suspended`.
-- [ ] A newly created unverified staff user appears with `Pending` status.
-- [ ] No row renders a `Banned` status label.
-- [ ] The action column renders only row-level actions for a regular active user: quick preview and delete.
+- [x] The status column renders valid labels only for the supported statuses: `Active`, `Pending`, and `Suspended`.
+- [x] A newly created unverified staff user appears with `Pending` status.
+- [x] No row renders a `Banned` status label.
+- [ ] The action column always renders the full row-action set; actions that do not apply to the current row are disabled and show a reason tooltip.
 
 ## 2. Search, Filter, Sort, And Cursor Pagination
 
