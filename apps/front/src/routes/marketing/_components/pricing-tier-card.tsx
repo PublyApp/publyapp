@@ -1,5 +1,4 @@
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
@@ -317,60 +316,78 @@ export const PricingTierCard = ({ tier, billing }: PricingTierCardProps) => {
 						})}
 					</Stack>
 
-					{/* CTA */}
-					<Button
+					{/* CTA — custom Box-as-button so we have full control over hover
+					    (MUI Button injects --variant-hover-bg CSS vars that fight sx). */}
+					<Box
 						{...(isMailto
 							? { component: 'a' as const, href: tier.cta.href }
 							: { component: RouterLink, href: tier.cta.href })}
-						fullWidth
-						variant="contained"
-						color="inherit"
-						disableElevation
-						size="large"
 						sx={
 							highlighted
 								? (theme) => ({
+										display: 'inline-flex',
+										alignItems: 'center',
+										justifyContent: 'center',
+										width: '100%',
+										py: 1.75,
+										px: 3,
+										mt: 'auto',
 										borderRadius: 2,
+										fontSize: 15,
 										fontWeight: 700,
+										textDecoration: 'none',
+										textTransform: 'none',
+										cursor: 'pointer',
 										bgcolor: 'primary.main',
 										color: 'common.white',
 										boxShadow: `0 10px 30px ${varAlpha(theme.vars.palette.primary.mainChannel, 0.3)}`,
-										mt: 'auto',
-										textTransform: 'none',
-										'&&:hover': {
+										transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+										'&:hover': {
 											bgcolor: 'primary.main',
+											color: 'common.white',
 											transform: 'translateY(-2px)',
 											boxShadow: `0 16px 40px ${varAlpha(theme.vars.palette.primary.mainChannel, 0.45)}`,
 										},
-										// Defensively reassert bg + hover so MUI's dark-mode contained Button defaults can't override.
 										...theme.applyStyles('dark', {
 											bgcolor: 'primary.main',
 											color: 'common.white',
-											'&&:hover': {
+											'&:hover': {
 												bgcolor: 'primary.main',
+												color: 'common.white',
 												transform: 'translateY(-2px)',
 												boxShadow: `0 16px 40px ${varAlpha(theme.vars.palette.primary.mainChannel, 0.55)}`,
 											},
 										}),
 									})
 								: (theme) => ({
+										display: 'inline-flex',
+										alignItems: 'center',
+										justifyContent: 'center',
+										width: '100%',
+										py: 1.75,
+										px: 3,
+										mt: 'auto',
 										borderRadius: 2,
+										fontSize: 15,
 										fontWeight: 700,
+										textDecoration: 'none',
+										textTransform: 'none',
+										cursor: 'pointer',
 										bgcolor: 'grey.900',
 										color: 'common.white',
-										mt: 'auto',
-										textTransform: 'none',
 										transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-										'&&:hover': {
+										'&:hover': {
 											bgcolor: 'grey.900',
+											color: 'common.white',
 											transform: 'translateY(-2px)',
 											boxShadow: '0 12px 24px -8px rgba(17,24,39,0.30)',
 										},
 										...theme.applyStyles('dark', {
 											bgcolor: 'common.white',
 											color: 'grey.900',
-											'&&:hover': {
+											'&:hover': {
 												bgcolor: 'common.white',
+												color: 'grey.900',
 												transform: 'translateY(-2px)',
 												boxShadow: '0 12px 24px -8px rgba(0,0,0,0.40)',
 											},
@@ -379,7 +396,7 @@ export const PricingTierCard = ({ tier, billing }: PricingTierCardProps) => {
 						}
 					>
 						{tier.cta.label}
-					</Button>
+					</Box>
 				</Box>
 			</Box>
 		</m.div>
