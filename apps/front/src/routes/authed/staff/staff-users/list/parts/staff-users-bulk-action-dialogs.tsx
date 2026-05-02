@@ -85,7 +85,7 @@ const StaffUsersBulkActionDialogs = ({
 				action={
 					<Button
 						variant="contained"
-						color="inherit"
+						color="error"
 						onClick={onBulkDelete}
 						disabled={isBulkDeleting}
 					>

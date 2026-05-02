@@ -1094,7 +1094,7 @@ const TenantsSelectionActions = ({
 						closeMenu();
 						onOpenBulkActionDialog('delete');
 					}}
-					sx={{ color: 'text.secondary' }}
+					sx={{ color: 'error.main' }}
 				>
 					<Iconify icon="solar:trash-bin-trash-bold" width={18} />
 					<ListItemText primary={t('bulk-delete')} sx={{ ml: 1 }} />
@@ -1371,7 +1371,7 @@ const TenantsBulkActionDialogs = ({
 				action={
 					<Button
 						variant="contained"
-						color="inherit"
+						color="error"
 						onClick={onBulkDelete}
 						disabled={isBulkDeleting}
 					>

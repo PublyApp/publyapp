@@ -263,7 +263,7 @@ const TenantProfilesSelectionActions = ({
 				action={
 					<Button
 						variant="contained"
-						color="inherit"
+						color="error"
 						onClick={handleConfirmBulkDelete}
 						disabled={isBulkDeleting || hasDefaultSelected}
 					>

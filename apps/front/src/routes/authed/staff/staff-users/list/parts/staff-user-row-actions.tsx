@@ -84,7 +84,7 @@ export const DeleteStaffUserAction = ({ user }: DeleteStaffUserActionProps) => {
 				action={
 					<Button
 						variant="contained"
-						color="inherit"
+						color="error"
 						onClick={() => deleteStaffUser({ userId: user.id })}
 						disabled={isDeleting}
 					>
