@@ -84,6 +84,7 @@ The following must stay the same:
 - No route or handler changes unless needed for compilation
 - No attempt to introduce a broader cursor pagination framework
 - No attempt to remove `object?` cursor values in this pass
+- No attempt to move sort handler dictionaries to static members in this pass
 
 ## Documentation Rules
 
@@ -150,9 +151,17 @@ Use the existing dictionary comparers exactly as they are today unless a local
 file already needs adjustment for compilation. This refactor should not change
 sort ID case-sensitivity semantics.
 
+Keep sort handler dictionaries inside their current service methods. Although
+the current dictionaries and handler instances are allocated per method call,
+the `getCursorValue` delegates capture scoped or request-specific values such as
+`_dbContext`, `cancellationToken`, `tenantId`, and `args.TenantId`. Moving these
+maps to static members would require a separate handler signature redesign that
+passes request state explicitly. That is outside this refactor.
+
 ## Open Decisions Resolved
 
 - The shared helper will be named `CursorSortFieldHandler<TEntity>`.
 - The current six duplicate/near-duplicate helper classes are in scope.
 - The cursor pagination guide is in scope.
+- Per-method handler dictionaries stay per-method for now.
 - Broader keyset pagination abstraction is out of scope.
