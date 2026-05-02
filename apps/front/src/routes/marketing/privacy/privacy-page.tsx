@@ -2,6 +2,9 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+
+import { RouterLink } from '#app/components/router-link.tsx';
 import { LegalDocPage } from '#app/routes/marketing/_components/legal-doc-page.tsx';
 import {
 	PRIVACY_LAST_UPDATED,
@@ -22,6 +25,11 @@ const P_SX = {
 	fontSize: 15,
 	color: 'text.secondary',
 	lineHeight: 1.75,
+} as const;
+
+const LINK_SX = {
+	color: 'primary.main',
+	textDecoration: 'underline',
 } as const;
 
 // ----------------------------------------------------------------------
@@ -122,15 +130,8 @@ const PrivacyPage = () => {
 							specific third-party sub-processors whose services are strictly
 							required to operate our platform. These vendors include cloud
 							hosting providers (e.g., AWS), transactional email relays, and
-							secure payment gateways (e.g., Stripe). An updated{' '}
-							<Box
-								component="a"
-								href="#"
-								sx={{ color: 'primary.main', textDecoration: 'underline' }}
-							>
-								list of our authorized sub-processors is available here
-							</Box>
-							.
+							secure payment gateways (e.g., Stripe). An updated list of our
+							authorized sub-processors is available.
 						</Typography>
 						<Typography sx={P_SX}>
 							Data sharing also intrinsically occurs when you authorize
@@ -173,9 +174,9 @@ const PrivacyPage = () => {
 							specific tracking technologies deployed and comprehensive
 							configuration opt-outs, please refer to our{' '}
 							<Box
-								component="a"
-								href="#"
-								sx={{ color: 'primary.main', textDecoration: 'underline' }}
+								component={RouterLink}
+								href={FRONT_PATH_NAMES.marketing.cookies}
+								sx={LINK_SX}
 							>
 								Cookie Policy
 							</Box>
@@ -245,7 +246,7 @@ const PrivacyPage = () => {
 							<Box
 								component="a"
 								href="mailto:privacy@publyapp.com"
-								sx={{ color: 'primary.main', textDecoration: 'underline' }}
+								sx={LINK_SX}
 							>
 								privacy@publyapp.com
 							</Box>
@@ -331,18 +332,12 @@ const PrivacyPage = () => {
 							security architectures across our stack. All data transferred
 							between your endpoint and our servers is strictly encrypted in
 							transit explicitly using{' '}
-							<Box
-								component="strong"
-								sx={{ color: 'text.primary', fontWeight: 700 }}
-							>
+							<Box component="strong" sx={{ color: 'text.primary' }}>
 								TLS 1.3
 							</Box>{' '}
 							protocols. Additionally, sensitive database fields encompassing
 							personal user definitions are heavily encrypted at rest utilizing{' '}
-							<Box
-								component="strong"
-								sx={{ color: 'text.primary', fontWeight: 700 }}
-							>
+							<Box component="strong" sx={{ color: 'text.primary' }}>
 								AES-256
 							</Box>{' '}
 							standard cryptographic ciphers.
@@ -407,11 +402,7 @@ const PrivacyPage = () => {
 							demands regarding this structured Privacy Policy, please engage
 							with our formal internal compliance team. Our appointed Data
 							Protection Officer can be contacted continuously and securely at{' '}
-							<Box
-								component="a"
-								href="mailto:dpo@publyapp.com"
-								sx={{ color: 'primary.main', textDecoration: 'underline' }}
-							>
+							<Box component="a" href="mailto:dpo@publyapp.com" sx={LINK_SX}>
 								dpo@publyapp.com
 							</Box>
 							.
