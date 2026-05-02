@@ -2,7 +2,7 @@ import type { TocItem } from '#app/routes/marketing/_components/legal-doc-page.t
 
 // ----------------------------------------------------------------------
 
-export const COOKIES_LAST_UPDATED = '2026-04-30'; // ISO date
+export const COOKIES_LAST_UPDATED = '2026-05-02'; // ISO date
 
 // One entry per h2 in document order. The page imports this and uses
 // each value as the `id` on its corresponding <Typography component="h2" id={...}>.
