@@ -1,24 +1,17 @@
-import Accordion from '@mui/material/Accordion';
-import AccordionDetails from '@mui/material/AccordionDetails';
-import AccordionSummary from '@mui/material/AccordionSummary';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
-import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 
 import { MotionViewport, varFade } from '#app/components/animate/index.ts';
-import { Iconify } from '#app/components/iconify/iconify.tsx';
+import {
+	MarketingFaqAccordion,
+	type MarketingFaqItem,
+} from '#app/routes/marketing/_components/marketing-faq-accordion.tsx';
 
 // ----------------------------------------------------------------------
 
-type FaqItem = {
-	question: string;
-	answer: string;
-	defaultOpen?: boolean;
-};
-
-const FAQS: FaqItem[] = [
+const FAQS: MarketingFaqItem[] = [
 	{
 		question: 'How many social accounts can I connect?',
 		answer:
@@ -106,75 +99,7 @@ export const HomeFaq = () => {
 					</m.div>
 				</Box>
 
-				<Stack spacing={2}>
-					{FAQS.map((faq) => {
-						return (
-							<Accordion
-								key={faq.question}
-								defaultExpanded={faq.defaultOpen}
-								disableGutters
-								square
-								elevation={0}
-								sx={{
-									bgcolor: 'background.paper',
-									borderRadius: 2,
-									boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
-									border: '1px solid',
-									borderColor: 'divider',
-									overflow: 'hidden',
-									'&:before': { display: 'none' },
-									'&.Mui-expanded': { margin: 0, borderRadius: 2 },
-								}}
-							>
-								<AccordionSummary
-									expandIcon={
-										<Iconify
-											icon={'ph:plus-bold' as never}
-											width={16}
-											sx={{ color: 'text.disabled' }}
-										/>
-									}
-									sx={{
-										px: 3,
-										py: 1.5,
-										'& .MuiAccordionSummary-content': { my: 1.5 },
-										'& .MuiAccordionSummary-expandIconWrapper': {
-											transition: 'transform 0.25s ease, color 0.25s ease',
-											'&.Mui-expanded': {
-												transform: 'rotate(45deg)',
-												color: 'primary.main',
-												'& svg': { color: 'primary.main' },
-											},
-										},
-									}}
-								>
-									<Typography
-										component="h4"
-										sx={{
-											fontSize: 14,
-											fontWeight: 600,
-											color: 'text.primary',
-										}}
-									>
-										{faq.question}
-									</Typography>
-								</AccordionSummary>
-								<AccordionDetails sx={{ px: 3, pb: 3, pt: 0 }}>
-									<Typography
-										sx={{
-											fontSize: 14,
-											color: 'text.secondary',
-											lineHeight: 1.7,
-											pr: 4,
-										}}
-									>
-										{faq.answer}
-									</Typography>
-								</AccordionDetails>
-							</Accordion>
-						);
-					})}
-				</Stack>
+				<MarketingFaqAccordion items={FAQS} />
 			</Container>
 		</Box>
 	);
