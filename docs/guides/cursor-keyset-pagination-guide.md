@@ -179,8 +179,6 @@ public class StaffProfileItem {
 // public class CursorPaginatedResult<T> {
 //     public List<T> Data { get; set; } = [];
 //     public string? NextCursor { get; set; } = null;
-//     public int TotalCount { get; set; }         // Total items across all pages
-//     public int CurrentOffset { get; set; }      // Items before current page
 // }
 ```
 
@@ -399,11 +397,12 @@ Create the endpoint handler with proper error handling:
 ```csharp
 // In your handler file (e.g., Handlers/FindEntities.cs)
 using MainApi.Localization;
+using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Src.Features.YourFeature.Handlers;
+namespace MainApi.Src.Modules.YourFeature.Handlers;
 
 public class FindEntitiesResult : CursorPaginatedResult<EntityItem> { }
 
