@@ -6,10 +6,6 @@ import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import { type Breakpoint, styled } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
-// import { Iconify } from '#app/components/iconify/index.ts';
-// import { Logo } from '#app/components/logo/index.ts';
-// import { RouterLink } from '#app/routes/components';
-// import { paths } from '#app/routes/paths';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { Logo } from '#app/components/logo/logo.tsx';
@@ -218,8 +214,6 @@ export const Footer = ({
 		</FooterRoot>
 	);
 };
-
-// ----------------------------------------------------------------------
 
 // ----------------------------------------------------------------------
 
