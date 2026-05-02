@@ -10,14 +10,18 @@ public static class UserEndpointsForStaff {
 		var group = routes.MapGroup(Routes.Users.ForStaff.Root)
 			.WithTags("Staff Users");
 
-		group.MapPost(
-				Routes.Users.ForStaff.Create,
-				CreateStaffUser.HandleCreateStaffUser
-			)
-			.WithName("CreateStaffUser")
-			.WithSummary("Create a new staff user")
-			.WithReqBodyValidation<CreateStaffUserBody>()
-			.WithPermission([AppPermissions.Staff.Users.CREATE_FOR_STAFF]);
+		// Direct staff-user creation is intentionally not mapped: onboarding must flow
+		// through invitations so expiry, revocation, acceptance metadata, and profile
+		// assignment intent remain owned by the invitation lifecycle. Keep the handler
+		// code for now while we confirm no internal/bootstrap path still needs it.
+		// group.MapPost(
+		// 		Routes.Users.ForStaff.Create,
+		// 		CreateStaffUser.HandleCreateStaffUser
+		// 	)
+		// 	.WithName("CreateStaffUser")
+		// 	.WithSummary("Create a new staff user")
+		// 	.WithReqBodyValidation<CreateStaffUserBody>()
+		// 	.WithPermission([AppPermissions.Staff.Users.CREATE_FOR_STAFF]);
 
 		group.MapGet(
 				Routes.Users.ForStaff.GetById,

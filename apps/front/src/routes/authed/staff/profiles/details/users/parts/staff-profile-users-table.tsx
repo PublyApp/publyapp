@@ -521,9 +521,6 @@ const StatusCell: MRT_ColumnDef<ProfileUserRowData, string>['Cell'] = (
 	if (status === USER_STATUS_ENUM.ACTIVE) {
 		tMessage = t('active');
 		color = 'success';
-	} else if (status === USER_STATUS_ENUM.PENDING) {
-		tMessage = t('pending');
-		color = 'warning';
 	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
 		tMessage = t('suspended');
 		color = 'warning';

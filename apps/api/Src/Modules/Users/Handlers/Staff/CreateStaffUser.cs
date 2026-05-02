@@ -109,7 +109,9 @@ public class CreateStaffUser {
 			LastName = body.GetLastName(),
 			FirstName = body.GetFirstName(),
 			AvatarUrl = body.GetAvatarUrl(),
-			Status = UserStatus.Pending,
+			// Legacy unmapped handler: default closed if this code is reused internally.
+			// Invitation acceptance is the normal path and explicitly activates users.
+			Status = UserStatus.Suspended,
 			IsVerified = false,
 		};
 

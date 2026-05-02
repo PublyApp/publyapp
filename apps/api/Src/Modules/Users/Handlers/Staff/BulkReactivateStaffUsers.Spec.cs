@@ -38,14 +38,6 @@ public sealed class BulkReactivateStaffUsersSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static string GetCreateUrl() {
-		return PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.Users.ForStaff.Root,
-			Routes.Users.ForStaff.Create
-		);
-	}
-
 	private static string GetSuspendUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
@@ -178,29 +170,19 @@ public sealed class BulkReactivateStaffUsersSpec : IClassFixture<ApiFixture> {
 		);
 
 		await AssertStaffUserStatusAsync(suspendedUserId, UserStatus.Active);
-		await AssertStaffUserStatusAsync(nonSuspendedUserId, UserStatus.Pending);
+		await AssertStaffUserStatusAsync(nonSuspendedUserId, UserStatus.Active);
 	}
 
 	private async Task<string> CreateStaffUserAsync(string staffToken, string email) {
-		using var request = new HttpRequestMessage(
-			HttpMethod.Post,
-			GetCreateUrl()
-		).WithSessionToken(staffToken);
-
-		request.Content = JsonContent.Create(
-			new {
-				email,
-				lastName = "BulkReactivate",
-				firstName = "Staff",
-			}
+		_ = staffToken;
+		// Direct create is intentionally unmapped; bulk tests seed setup users directly.
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
+			_fixture,
+			email,
+			firstName: "Staff",
+			lastName: "BulkReactivate"
 		);
-
-		using var response = await _http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.Created);
-
-		var created = await response.Content.ReadFromJsonAsync<CreateStaffUserResponse>();
-		created.Should().NotBeNull();
-		return created!.Id.ToString();
+		return userId.ToString();
 	}
 
 	private async Task SuspendStaffUserAsync(string staffToken, string userId) {
@@ -242,10 +224,6 @@ public sealed class BulkReactivateStaffUsersSpec : IClassFixture<ApiFixture> {
 
 		user.Should().NotBeNull();
 		user!.Status.Should().Be(expectedStatus);
-	}
-
-	private sealed record CreateStaffUserResponse {
-		public Guid Id { get; init; }
 	}
 
 	private sealed record BulkStaffUserActionResponse {

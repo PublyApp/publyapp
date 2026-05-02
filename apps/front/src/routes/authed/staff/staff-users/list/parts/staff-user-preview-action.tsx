@@ -37,10 +37,6 @@ const getStatusPresentation = (
 		return { label: t('active'), color: 'success' };
 	}
 
-	if (status === USER_STATUS_ENUM.PENDING) {
-		return { label: t('pending'), color: 'warning' };
-	}
-
 	if (status === USER_STATUS_ENUM.SUSPENDED) {
 		return { label: t('suspended'), color: 'warning' };
 	}

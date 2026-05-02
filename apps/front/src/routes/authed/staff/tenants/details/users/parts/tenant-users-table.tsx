@@ -75,7 +75,6 @@ import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
 import { downloadCsvFile, downloadJsonFile } from '#app/lib/export/download.ts';
 import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
-import { useSendEmailVerificationReminder } from '#app/lib/react-query/features/common/auth.hooks.ts';
 import {
 	useFindTenantUsers,
 	useReactivateTenantUser,
@@ -1430,12 +1429,6 @@ const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
 
 	return (
 		<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-			<FollowUpAction
-				user={user}
-				disabled={isGloballySuspended}
-				disabledReason={disabledReason}
-			/>
-
 			<UserDetailsDrawerAction
 				user={user}
 				disabled={isGloballySuspended}
@@ -1448,58 +1441,6 @@ const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
 				disabledReason={disabledReason}
 			/>
 		</Box>
-	);
-};
-
-type FollowUpActionProps = {
-	user: TenantUserRowData;
-	disabled: boolean;
-	disabledReason: string;
-};
-
-const FollowUpAction = ({
-	user,
-	disabled,
-	disabledReason,
-}: FollowUpActionProps) => {
-	const { t } = useTranslate();
-	const isUserPending = user.status === USER_STATUS_ENUM.PENDING;
-
-	const {
-		mutateAsync: sendEmailVerificationReminder,
-		isPending: isPendingSendEmailVerificationReminder,
-	} = useSendEmailVerificationReminder({
-		onSuccess: () => {
-			toast.success(t('email-verification-follow-up-success'));
-		},
-	});
-
-	if (!isUserPending) {
-		return null;
-	}
-
-	return (
-		<Tooltip
-			title={
-				disabled
-					? disabledReason
-					: capitalize(t('send-email-verification-follow-up'))
-			}
-			placement="top"
-		>
-			<Box component="span">
-				<IconButton
-					color="default"
-					loading={isPendingSendEmailVerificationReminder}
-					disabled={disabled}
-					onClick={async () => {
-						await sendEmailVerificationReminder({ email: user.email });
-					}}
-				>
-					<Iconify icon="custom:send-fill" width={18} />
-				</IconButton>
-			</Box>
-		</Tooltip>
 	);
 };
 
@@ -1534,8 +1475,6 @@ const UserDetailsDrawerAction = ({
 		statusLabel = t('active');
 	} else if (isGloballySuspendedStatus(user.status)) {
 		statusLabel = t('globally-suspended');
-	} else if (user.status === USER_STATUS_ENUM.PENDING) {
-		statusLabel = t('pending');
 	} else if (user.status === USER_STATUS_ENUM.SUSPENDED) {
 		statusLabel = t('suspended');
 	}

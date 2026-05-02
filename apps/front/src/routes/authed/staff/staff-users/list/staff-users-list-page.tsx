@@ -76,12 +76,17 @@ const StaffUsersListPage = () => {
 				]}
 				action={
 					<Button
-						component={RouterLink}
-						href={FRONT_PATH_NAMES.staff.staffUsers.new}
 						variant="contained"
-						startIcon={<Iconify width={16} icon="mingcute:add-line" />}
+						startIcon={
+							<Iconify
+								icon="mingcute:add-line"
+								sx={{ width: 16, height: 16 }}
+							/>
+						}
+						component={RouterLink}
+						href={FRONT_PATH_NAMES.staff.invitations.new}
 					>
-						{t('new-item', { item: toLower(t('user')) })}
+						{t('new-item', { item: toLower(t('invitation')) })}
 					</Button>
 				}
 				sx={{ mb: { xs: 3, md: 5 } }}

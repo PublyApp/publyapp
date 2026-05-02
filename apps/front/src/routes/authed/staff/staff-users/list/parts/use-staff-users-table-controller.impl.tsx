@@ -66,11 +66,7 @@ import {
 import { invalidateStaffUserLifecycleQueries } from '#app/routes/authed/staff/staff-users/shared/staff-user-cache-helpers.ts';
 
 import StaffUserPreviewAction from './staff-user-preview-action.tsx';
-import {
-	CopyLinkButton,
-	DeleteStaffUserAction,
-	FollowUpButton,
-} from './staff-user-row-actions.tsx';
+import { DeleteStaffUserAction } from './staff-user-row-actions.tsx';
 import type { StaffUsersExportDialogControllerRef } from './staff-users-export-dialog-controller.tsx';
 import StaffUsersSelectionActions from './staff-users-selection-actions.tsx';
 import StaffUsersToolbarFilters from './staff-users-toolbar-filters.tsx';
@@ -123,10 +119,6 @@ const getStatusLabel = (
 ) => {
 	if (value === 'active') {
 		return t('active');
-	}
-
-	if (value === 'pending') {
-		return t('pending');
 	}
 
 	if (value === 'suspended') {
@@ -586,9 +578,6 @@ const StatusCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 	if (status === USER_STATUS_ENUM.ACTIVE) {
 		label = t('active');
 		color = 'success';
-	} else if (status === USER_STATUS_ENUM.PENDING) {
-		label = t('pending');
-		color = 'warning';
 	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
 		label = t('suspended');
 		color = 'warning';
@@ -898,14 +887,9 @@ const LevelCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 
 const ActionsCell: MRT_ColumnDef<StaffUserRowData>['Cell'] = (props) => {
 	const user = props.row.original;
-	const isPendingUser = user.status === USER_STATUS_ENUM.PENDING;
 
 	return (
 		<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-			<FollowUpButton isUserPending={isPendingUser} email={user.email} />
-
-			<CopyLinkButton isUserPending={isPendingUser} userId={user.id} />
-
 			<StaffUserPreviewAction user={user} />
 
 			<DeleteStaffUserAction user={user} />

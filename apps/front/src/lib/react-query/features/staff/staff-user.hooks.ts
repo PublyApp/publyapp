@@ -12,7 +12,6 @@ import type {
 	BulkDeleteStaffUsersBody,
 	BulkReactivateStaffUsersBody,
 	BulkSuspendStaffUsersBody,
-	CreateStaffUserBody,
 	GetStaffUserProfilesResult,
 	UpdateStaffUserBody,
 	UpdateStaffUserEmailBody,
@@ -38,11 +37,7 @@ const createUntypedValue = (value: unknown): UntypedNode => {
 	} as UntypedNode;
 };
 
-export const STAFF_USER_STATUS_FILTER_VALUES = [
-	'active',
-	'pending',
-	'suspended',
-] as const;
+export const STAFF_USER_STATUS_FILTER_VALUES = ['active', 'suspended'] as const;
 
 export type StaffUserStatusFilter =
 	(typeof STAFF_USER_STATUS_FILTER_VALUES)[number];
@@ -65,39 +60,12 @@ export const serializeStaffUserStatusFilter = (
 	return status.length > 0 ? status.join(',') : undefined;
 };
 
-type CreateStaffUserPayload = {
-	email: string;
-	firstName?: string;
-	lastName?: string;
-	avatarUrl?: string;
-	sendNotification?: boolean;
-	accountLevel?: AccountLevel;
-};
-
-export const useCreateStaffUser = createStaffMutation({
-	mutationKeyFn: (client) => client.staff.users.post,
-	mutationFn: async (client, data: CreateStaffUserPayload) => {
-		const body: CreateStaffUserBody = {};
-		forEach(data, (value, key) => {
-			if (value !== undefined) {
-				// Use type assertion since generated types don't include UntypedNode in unions
-				(body as Record<string, unknown>)[key] = createUntypedValue(value);
-			}
-		});
-		const result = await client.staff.users.post(body);
-		if (isNil(result)) {
-			throw new Error('useCreateStaffUser: result is nil');
-		}
-		return result;
-	},
-});
-
 type FindStaffUsersQuery = {
 	cursor?: string | null;
 	limit?: number;
 	sort?: { id: string; order: 'desc' | 'asc' };
 	q?: string;
-	status?: StaffUserStatusFilterInput; // csv wire format: active,pending,suspended
+	status?: StaffUserStatusFilterInput; // csv wire format: active,suspended
 };
 
 export const useFindStaffUser = createStaffQuery({

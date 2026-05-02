@@ -15,8 +15,9 @@ Related surfaces:
 
 - [x] The staff users list loads without an error state.
 - [x] The first column shows user identity in a dense two-line layout: full name on the first line and email on the second line.
-- [x] The status column renders valid labels only for the supported statuses: `Active`, `Pending`, and `Suspended`.
-- [x] A newly created unverified staff user appears with `Pending` status.
+- [x] The status column renders valid labels only for the supported statuses: `Active` and `Suspended`.
+- [x] Direct staff-user creation is not exposed; onboarding must go through staff invitations.
+- [x] The page-level create action navigates to the staff invitation creation flow, not direct user creation.
 - [x] No row renders a `Banned` status label.
 - [x] The action column always renders the full row-action set; actions that do not apply to the current row are disabled and show a reason tooltip.
 
@@ -58,8 +59,7 @@ Related surfaces:
 
 ## 6. Row Actions
 
-- [x] For a pending user, the follow-up action is visible and works.
-- [x] For a pending user, the verification-link copy action works when enabled by the feature flag.
+- [x] No pending-user follow-up or verification-link copy actions are exposed from the staff-users row actions.
 - [x] Opening the status cell menu on an active user allows suspending the user after confirmation and updates the row status.
 - [x] Opening the status cell menu on a suspended user allows reactivating the user after confirmation and updates the row status.
 - [x] Opening the level cell menu allows changing between `Admin` and `User` and updates the row level.
@@ -84,6 +84,7 @@ Related surfaces:
 
 ## 9. API Permission Enforcement
 
+- [x] `POST /staff/users` is not mapped for normal API usage.
 - [x] A staff user without `list staff users` permission cannot call the staff-users list endpoint.
 - [x] A staff user without `suspend staff users` permission cannot call suspend endpoints from row or bulk actions.
 - [x] A staff user without `reactivate staff users` permission cannot call reactivate endpoints from row or bulk actions.
