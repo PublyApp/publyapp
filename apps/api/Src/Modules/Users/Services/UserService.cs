@@ -956,10 +956,10 @@ public class UserService : IUserService {
 		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
 		var isAsc = effectiveSortOrder == SortOrder.Asc;
 
-		var sortFieldHandlers = new Dictionary<string, SortFieldHandler>(
+		var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<UserAccount>>(
 			StringComparer.OrdinalIgnoreCase
 		) {
-			["created_at"] = new SortFieldHandler(
+			["created_at"] = new CursorSortFieldHandler<UserAccount>(
 				getCursorValue: async guid => {
 					var item =
 						await (
@@ -1003,7 +1003,7 @@ public class UserService : IUserService {
 						orderby ua.User.CreatedAt descending, ua.UserId descending
 						select ua
 			),
-			["updated_at"] = new SortFieldHandler(
+			["updated_at"] = new CursorSortFieldHandler<UserAccount>(
 				getCursorValue: async guid => {
 					var item =
 						await (
@@ -1047,7 +1047,7 @@ public class UserService : IUserService {
 						orderby ua.User.UpdatedAt descending, ua.UserId descending
 						select ua
 			),
-			["email"] = new SortFieldHandler(
+			["email"] = new CursorSortFieldHandler<UserAccount>(
 				getCursorValue: async guid => {
 					var item =
 						await (
@@ -1089,7 +1089,7 @@ public class UserService : IUserService {
 						orderby ua.User.Email descending, ua.UserId descending
 						select ua
 			),
-			["first_name"] = new SortFieldHandler(
+			["first_name"] = new CursorSortFieldHandler<UserAccount>(
 				getCursorValue: async guid => {
 					var item =
 						await (
@@ -1135,7 +1135,7 @@ public class UserService : IUserService {
 						orderby firstName descending, ua.UserId descending
 						select ua
 			),
-			["last_name"] = new SortFieldHandler(
+			["last_name"] = new CursorSortFieldHandler<UserAccount>(
 				getCursorValue: async guid => {
 					var item =
 						await (
@@ -1181,7 +1181,7 @@ public class UserService : IUserService {
 						orderby lastName descending, ua.UserId descending
 						select ua
 			),
-			["status"] = new SortFieldHandler(
+			["status"] = new CursorSortFieldHandler<UserAccount>(
 				getCursorValue: async guid => {
 					var item =
 						await (
@@ -1223,7 +1223,7 @@ public class UserService : IUserService {
 						orderby ua.User.Status descending, ua.UserId descending
 						select ua
 			),
-			["level"] = new SortFieldHandler(
+			["level"] = new CursorSortFieldHandler<UserAccount>(
 				getCursorValue: async guid => {
 					var item =
 						await (
@@ -1270,7 +1270,7 @@ public class UserService : IUserService {
 		if (
 			!sortFieldHandlers.TryGetValue(
 				effectiveSortId,
-				out SortFieldHandler? handler
+				out CursorSortFieldHandler<UserAccount>? handler
 			)
 		) {
 			return new FindStaffUsersResult.InvalidSortId(
@@ -1587,10 +1587,10 @@ public class UserService : IUserService {
 		var effectiveSortId = args.SortId ?? "id";
 
 		var sortFieldHandlers =
-			new Dictionary<string, SortFieldHandler>(
+			new Dictionary<string, CursorSortFieldHandler<UserAccount>>(
 				StringComparer.OrdinalIgnoreCase
 			) {
-				["id"] = new SortFieldHandler(
+				["id"] = new CursorSortFieldHandler<UserAccount>(
 					getCursorValue: async (guid) => {
 						var ua = await (
 							from x in _dbContext.UserAccount
@@ -1620,7 +1620,7 @@ public class UserService : IUserService {
 						)
 				),
 
-				["email"] = new SortFieldHandler(
+				["email"] = new CursorSortFieldHandler<UserAccount>(
 					getCursorValue: async (guid) => {
 						var item = await (
 							from x in _dbContext.UserAccount
@@ -1671,7 +1671,7 @@ public class UserService : IUserService {
 						)
 				),
 
-				["status"] = new SortFieldHandler(
+				["status"] = new CursorSortFieldHandler<UserAccount>(
 					getCursorValue: async (guid) => {
 						var item = await (
 							from x in _dbContext.UserAccount
@@ -1752,7 +1752,7 @@ public class UserService : IUserService {
 						)
 				),
 
-				["level"] = new SortFieldHandler(
+				["level"] = new CursorSortFieldHandler<UserAccount>(
 					getCursorValue: async (guid) => {
 						var item = await (
 							from x in _dbContext.UserAccount
@@ -1798,7 +1798,7 @@ public class UserService : IUserService {
 						)
 				),
 
-				["created_at"] = new SortFieldHandler(
+				["created_at"] = new CursorSortFieldHandler<UserAccount>(
 					getCursorValue: async (guid) => {
 						var item = await (
 							from x in _dbContext.UserAccount
@@ -1852,7 +1852,7 @@ public class UserService : IUserService {
 		if (
 			!sortFieldHandlers.TryGetValue(
 				effectiveSortId,
-				out SortFieldHandler? handler
+				out CursorSortFieldHandler<UserAccount>? handler
 			)
 		) {
 			return new FindTenantUsersResult.InvalidSortId(
@@ -2045,42 +2045,6 @@ public class UserService : IUserService {
 				exception.Message
 			);
 		}
-	}
-
-	private class SortFieldHandler(
-		Func<Guid, Task<object?>> getCursorValue,
-		Func<
-			IQueryable<UserAccount>,
-			object?,
-			bool,
-			IQueryable<UserAccount>
-		> applyFilter,
-		Func<
-			IQueryable<UserAccount>,
-			bool,
-			IQueryable<UserAccount>
-		> applyOrdering
-	) {
-		public Func<Guid, Task<object?>>
-			GetCursorValue { get; } = getCursorValue;
-
-		public Func<
-			IQueryable<UserAccount>,
-			object?,
-			bool,
-			IQueryable<UserAccount>
-		> ApplyFilter { get; } = applyFilter;
-
-		public Func<
-			IQueryable<UserAccount>,
-			bool,
-			IQueryable<UserAccount>
-		> ApplyOrdering { get; } = applyOrdering;
-	}
-
-	private sealed record LiveStaffUserStatus {
-		public required Guid UserId { get; init; }
-		public required UserStatus Status { get; init; }
 	}
 
 	public async Task<RemoveUserFromTenantResult> RemoveUserFromTenantAsync(
