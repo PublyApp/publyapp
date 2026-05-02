@@ -22,12 +22,13 @@ The target model is enum-first, with each entity owning exactly one persisted li
 
 Target `UserStatus` values:
 
-- `Inactive`
 - `Pending`
 - `Active`
 - `Suspended`
 
-`Banned` is removed because it is not currently modeled as a materially different lifecycle state from `Suspended`.
+`Inactive` and `Banned` are removed because they are not modeled as materially
+different lifecycle states. New unverified users use `Pending`, and global
+blocking uses `Suspended`.
 
 Rules:
 

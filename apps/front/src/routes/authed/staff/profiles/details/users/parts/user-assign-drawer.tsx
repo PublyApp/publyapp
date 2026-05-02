@@ -53,10 +53,10 @@ import {
 	useResolveStaffProfileUserAssignments,
 } from '#app/lib/react-query/features/staff/staff-profile.hooks.ts';
 import {
-	useFindStaffUser,
 	useGetStaffUserProfiles,
 	useUpdateStaffUserProfiles,
 } from '#app/lib/react-query/features/staff/staff-user.hooks.ts';
+import { invalidateStaffUserLifecycleQueries } from '#app/routes/authed/staff/staff-users/shared/staff-user-cache-helpers.ts';
 
 const PROFILE_USERS_DRAWER_PAGE_SIZE = 20;
 
@@ -486,17 +486,14 @@ const useUserAssignDrawerController = (profileName: string) => {
 			setOptimisticAssignment(userId, undefined);
 
 			void Promise.all([
-				queryClient.invalidateQueries({
-					queryKey: profileUsersQueryKey,
+				invalidateStaffUserLifecycleQueries({
+					queryClient,
+					userIds: [userId],
+					invalidateStaffProfilesList: true,
+					invalidateStaffUserProfiles: true,
 				}),
 				queryClient.invalidateQueries({
 					queryKey: drawerUsersQueryKey,
-				}),
-				queryClient.invalidateQueries({
-					queryKey: useGetStaffUserProfiles.getKey({ userId }),
-				}),
-				queryClient.invalidateQueries({
-					queryKey: useFindStaffUser.getKey(),
 				}),
 			]);
 		}
@@ -971,6 +968,9 @@ const ProfileUserAssignmentAction = ({
 		'&:hover': {
 			bgcolor: 'action.hover',
 			color: 'text.primary',
+		},
+		'&.Mui-disabled': {
+			color: 'action.disabled',
 		},
 	} as const;
 

@@ -231,7 +231,10 @@ const TenantProfilesSelectionActions = ({
 								closeMenu();
 								setConfirmBulkDeleteOpen(true);
 							}}
-							sx={{ color: 'error.main' }}
+							sx={{
+								color: 'error.main',
+								'&.Mui-disabled': { color: 'action.disabled' },
+							}}
 						>
 							<Iconify icon="solar:trash-bin-trash-bold" width={18} />
 							<ListItemText primary={t('bulk-delete')} sx={{ ml: 1 }} />

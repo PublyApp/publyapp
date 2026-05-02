@@ -181,6 +181,12 @@ export interface BulkDeleteFailedItem extends AdditionalDataHolder, Parsable {
      */
     tenantId?: Guid | null;
 }
+export interface BulkDeleteStaffUsersBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The userIds property
+     */
+    userIds?: UntypedNode | null;
+}
 export interface BulkDeleteTenantsAsStaffBody extends AdditionalDataHolder, Parsable {
     /**
      * The tenantIds property
@@ -211,6 +217,12 @@ export interface BulkReactivateFailedItem extends AdditionalDataHolder, Parsable
      */
     tenantId?: Guid | null;
 }
+export interface BulkReactivateStaffUsersBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The userIds property
+     */
+    userIds?: UntypedNode | null;
+}
 export interface BulkReactivateTenantsAsStaffBody extends AdditionalDataHolder, Parsable {
     /**
      * The tenantIds property
@@ -237,6 +249,30 @@ export interface BulkStaffInvitationsCreated extends AdditionalDataHolder, Parsa
      */
     created?: number | null;
 }
+export interface BulkStaffUserActionResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The failedCount property
+     */
+    failedCount?: number | null;
+    /**
+     * The failedItems property
+     */
+    failedItems?: BulkStaffUserFailedItem[] | null;
+    /**
+     * The succeededCount property
+     */
+    succeededCount?: number | null;
+}
+export interface BulkStaffUserFailedItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The error property
+     */
+    errorEscaped?: string | null;
+    /**
+     * The userId property
+     */
+    userId?: Guid | null;
+}
 export interface BulkSuspendFailedItem extends AdditionalDataHolder, Parsable {
     /**
      * The error property
@@ -246,6 +282,12 @@ export interface BulkSuspendFailedItem extends AdditionalDataHolder, Parsable {
      * The tenantId property
      */
     tenantId?: Guid | null;
+}
+export interface BulkSuspendStaffUsersBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The userIds property
+     */
+    userIds?: UntypedNode | null;
 }
 export interface BulkSuspendTenantsAsStaffBody extends AdditionalDataHolder, Parsable {
     /**
@@ -401,6 +443,15 @@ export function createBulkDeleteFailedItemFromDiscriminatorValue(parseNode: Pars
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkDeleteStaffUsersBody}
+ */
+// @ts-ignore
+export function createBulkDeleteStaffUsersBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkDeleteStaffUsersBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {BulkDeleteTenantsAsStaffBody}
  */
 // @ts-ignore
@@ -424,6 +475,15 @@ export function createBulkDeleteTenantsResultFromDiscriminatorValue(parseNode: P
 // @ts-ignore
 export function createBulkReactivateFailedItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoBulkReactivateFailedItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkReactivateStaffUsersBody}
+ */
+// @ts-ignore
+export function createBulkReactivateStaffUsersBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkReactivateStaffUsersBody;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -455,11 +515,38 @@ export function createBulkStaffInvitationsCreatedFromDiscriminatorValue(parseNod
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkStaffUserActionResult}
+ */
+// @ts-ignore
+export function createBulkStaffUserActionResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkStaffUserActionResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkStaffUserFailedItem}
+ */
+// @ts-ignore
+export function createBulkStaffUserFailedItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkStaffUserFailedItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {BulkSuspendFailedItem}
  */
 // @ts-ignore
 export function createBulkSuspendFailedItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoBulkSuspendFailedItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkSuspendStaffUsersBody}
+ */
+// @ts-ignore
+export function createBulkSuspendStaffUsersBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkSuspendStaffUsersBody;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -622,96 +709,6 @@ export function createCreateStaffProfileBody_permissionsMember1FromDiscriminator
 // @ts-ignore
 export function createCreateStaffProfileBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoCreateStaffProfileBody;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {CreateStaffUserBody_accountLevelMember1 | JsonElement}
- */
-// @ts-ignore
-export function createCreateStaffUserBody_accountLevelFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoCreateStaffUserBody_accountLevel;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {CreateStaffUserBody_accountLevelMember1}
- */
-// @ts-ignore
-export function createCreateStaffUserBody_accountLevelMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoCreateStaffUserBody_accountLevelMember1;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {CreateStaffUserBody_avatarUrlMember1 | JsonElement}
- */
-// @ts-ignore
-export function createCreateStaffUserBody_avatarUrlFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoCreateStaffUserBody_avatarUrl;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {CreateStaffUserBody_avatarUrlMember1}
- */
-// @ts-ignore
-export function createCreateStaffUserBody_avatarUrlMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoCreateStaffUserBody_avatarUrlMember1;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {CreateStaffUserBody_firstNameMember1 | JsonElement}
- */
-// @ts-ignore
-export function createCreateStaffUserBody_firstNameFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoCreateStaffUserBody_firstName;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {CreateStaffUserBody_firstNameMember1}
- */
-// @ts-ignore
-export function createCreateStaffUserBody_firstNameMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoCreateStaffUserBody_firstNameMember1;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {CreateStaffUserBody_sendNotificationMember1 | JsonElement}
- */
-// @ts-ignore
-export function createCreateStaffUserBody_sendNotificationFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoCreateStaffUserBody_sendNotification;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {CreateStaffUserBody_sendNotificationMember1}
- */
-// @ts-ignore
-export function createCreateStaffUserBody_sendNotificationMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoCreateStaffUserBody_sendNotificationMember1;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {CreateStaffUserBody}
- */
-// @ts-ignore
-export function createCreateStaffUserBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoCreateStaffUserBody;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {CreateStaffUserResult}
- */
-// @ts-ignore
-export function createCreateStaffUserResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoCreateStaffUserResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1231,44 +1228,6 @@ export function createStaffProfileItemFromDiscriminatorValue(parseNode: ParseNod
 export function createStaffProfileUserItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoStaffProfileUserItem;
 }
-export interface CreateStaffUserBody extends AdditionalDataHolder, Parsable {
-    /**
-     * The accountLevel property
-     */
-    accountLevel?: CreateStaffUserBody_accountLevelMember1 | JsonElement | null;
-    /**
-     * The avatarUrl property
-     */
-    avatarUrl?: CreateStaffUserBody_avatarUrlMember1 | JsonElement | null;
-    /**
-     * The email property
-     */
-    email?: UntypedNode | null;
-    /**
-     * The firstName property
-     */
-    firstName?: CreateStaffUserBody_firstNameMember1 | JsonElement | null;
-    /**
-     * The lastName property
-     */
-    lastName?: UntypedNode | null;
-    /**
-     * The sendNotification property
-     */
-    sendNotification?: CreateStaffUserBody_sendNotificationMember1 | JsonElement | null;
-}
-export type CreateStaffUserBody_accountLevel = CreateStaffUserBody_accountLevelMember1 | JsonElement;
-export interface CreateStaffUserBody_accountLevelMember1 extends AdditionalDataHolder, Parsable {
-}
-export type CreateStaffUserBody_avatarUrl = CreateStaffUserBody_avatarUrlMember1 | JsonElement;
-export interface CreateStaffUserBody_avatarUrlMember1 extends AdditionalDataHolder, Parsable {
-}
-export type CreateStaffUserBody_firstName = CreateStaffUserBody_firstNameMember1 | JsonElement;
-export interface CreateStaffUserBody_firstNameMember1 extends AdditionalDataHolder, Parsable {
-}
-export type CreateStaffUserBody_sendNotification = CreateStaffUserBody_sendNotificationMember1 | JsonElement;
-export interface CreateStaffUserBody_sendNotificationMember1 extends AdditionalDataHolder, Parsable {
-}
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
@@ -1295,16 +1254,6 @@ export function createStaffUserProfileItemFromDiscriminatorValue(parseNode: Pars
 // @ts-ignore
 export function createStaffUserReactivatedResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoStaffUserReactivatedResult;
-}
-export interface CreateStaffUserResult extends AdditionalDataHolder, Parsable {
-    /**
-     * The accountId property
-     */
-    accountId?: Guid | null;
-    /**
-     * The id property
-     */
-    id?: Guid | null;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1943,6 +1892,17 @@ export function deserializeIntoBulkDeleteFailedItem(bulkDeleteFailedItem: Partia
 }
 /**
  * The deserialization information for the current model
+ * @param BulkDeleteStaffUsersBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkDeleteStaffUsersBody(bulkDeleteStaffUsersBody: Partial<BulkDeleteStaffUsersBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "userIds": n => { bulkDeleteStaffUsersBody.userIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param BulkDeleteTenantsAsStaffBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -1975,6 +1935,17 @@ export function deserializeIntoBulkReactivateFailedItem(bulkReactivateFailedItem
     return {
         "error": n => { bulkReactivateFailedItem.errorEscaped = n.getStringValue(); },
         "tenantId": n => { bulkReactivateFailedItem.tenantId = n.getGuidValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param BulkReactivateStaffUsersBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkReactivateStaffUsersBody(bulkReactivateStaffUsersBody: Partial<BulkReactivateStaffUsersBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "userIds": n => { bulkReactivateStaffUsersBody.userIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -2014,6 +1985,31 @@ export function deserializeIntoBulkStaffInvitationsCreated(bulkStaffInvitationsC
 }
 /**
  * The deserialization information for the current model
+ * @param BulkStaffUserActionResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkStaffUserActionResult(bulkStaffUserActionResult: Partial<BulkStaffUserActionResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "failedCount": n => { bulkStaffUserActionResult.failedCount = n.getNumberValue(); },
+        "failedItems": n => { bulkStaffUserActionResult.failedItems = n.getCollectionOfObjectValues<BulkStaffUserFailedItem>(createBulkStaffUserFailedItemFromDiscriminatorValue); },
+        "succeededCount": n => { bulkStaffUserActionResult.succeededCount = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param BulkStaffUserFailedItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkStaffUserFailedItem(bulkStaffUserFailedItem: Partial<BulkStaffUserFailedItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "error": n => { bulkStaffUserFailedItem.errorEscaped = n.getStringValue(); },
+        "userId": n => { bulkStaffUserFailedItem.userId = n.getGuidValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param BulkSuspendFailedItem The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -2022,6 +2018,17 @@ export function deserializeIntoBulkSuspendFailedItem(bulkSuspendFailedItem: Part
     return {
         "error": n => { bulkSuspendFailedItem.errorEscaped = n.getStringValue(); },
         "tenantId": n => { bulkSuspendFailedItem.tenantId = n.getGuidValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param BulkSuspendStaffUsersBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkSuspendStaffUsersBody(bulkSuspendStaffUsersBody: Partial<BulkSuspendStaffUsersBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "userIds": n => { bulkSuspendStaffUsersBody.userIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -2232,122 +2239,6 @@ export function deserializeIntoCreateStaffProfileBody_permissions(createStaffPro
 // @ts-ignore
 export function deserializeIntoCreateStaffProfileBody_permissionsMember1(createStaffProfileBody_permissionsMember1: Partial<CreateStaffProfileBody_permissionsMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-    }
-}
-/**
- * The deserialization information for the current model
- * @param CreateStaffUserBody The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoCreateStaffUserBody(createStaffUserBody: Partial<CreateStaffUserBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        "accountLevel": n => { createStaffUserBody.accountLevel = n.getObjectValue<CreateStaffUserBody_accountLevelMember1>(createCreateStaffUserBody_accountLevelMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
-        "avatarUrl": n => { createStaffUserBody.avatarUrl = n.getObjectValue<CreateStaffUserBody_avatarUrlMember1>(createCreateStaffUserBody_avatarUrlMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
-        "email": n => { createStaffUserBody.email = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
-        "firstName": n => { createStaffUserBody.firstName = n.getObjectValue<CreateStaffUserBody_firstNameMember1>(createCreateStaffUserBody_firstNameMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
-        "lastName": n => { createStaffUserBody.lastName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
-        "sendNotification": n => { createStaffUserBody.sendNotification = n.getObjectValue<CreateStaffUserBody_sendNotificationMember1>(createCreateStaffUserBody_sendNotificationMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
-    }
-}
-/**
- * The deserialization information for the current model
- * @param CreateStaffUserBody_accountLevel The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoCreateStaffUserBody_accountLevel(createStaffUserBody_accountLevel: Partial<CreateStaffUserBody_accountLevelMember1 | JsonElement> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        ...deserializeIntoCreateStaffUserBody_accountLevelMember1(createStaffUserBody_accountLevel as CreateStaffUserBody_accountLevelMember1),
-        ...deserializeIntoJsonElement(createStaffUserBody_accountLevel as JsonElement),
-    }
-}
-/**
- * The deserialization information for the current model
- * @param CreateStaffUserBody_accountLevelMember1 The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoCreateStaffUserBody_accountLevelMember1(createStaffUserBody_accountLevelMember1: Partial<CreateStaffUserBody_accountLevelMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-    }
-}
-/**
- * The deserialization information for the current model
- * @param CreateStaffUserBody_avatarUrl The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoCreateStaffUserBody_avatarUrl(createStaffUserBody_avatarUrl: Partial<CreateStaffUserBody_avatarUrlMember1 | JsonElement> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        ...deserializeIntoCreateStaffUserBody_avatarUrlMember1(createStaffUserBody_avatarUrl as CreateStaffUserBody_avatarUrlMember1),
-        ...deserializeIntoJsonElement(createStaffUserBody_avatarUrl as JsonElement),
-    }
-}
-/**
- * The deserialization information for the current model
- * @param CreateStaffUserBody_avatarUrlMember1 The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoCreateStaffUserBody_avatarUrlMember1(createStaffUserBody_avatarUrlMember1: Partial<CreateStaffUserBody_avatarUrlMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-    }
-}
-/**
- * The deserialization information for the current model
- * @param CreateStaffUserBody_firstName The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoCreateStaffUserBody_firstName(createStaffUserBody_firstName: Partial<CreateStaffUserBody_firstNameMember1 | JsonElement> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        ...deserializeIntoCreateStaffUserBody_firstNameMember1(createStaffUserBody_firstName as CreateStaffUserBody_firstNameMember1),
-        ...deserializeIntoJsonElement(createStaffUserBody_firstName as JsonElement),
-    }
-}
-/**
- * The deserialization information for the current model
- * @param CreateStaffUserBody_firstNameMember1 The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoCreateStaffUserBody_firstNameMember1(createStaffUserBody_firstNameMember1: Partial<CreateStaffUserBody_firstNameMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-    }
-}
-/**
- * The deserialization information for the current model
- * @param CreateStaffUserBody_sendNotification The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoCreateStaffUserBody_sendNotification(createStaffUserBody_sendNotification: Partial<CreateStaffUserBody_sendNotificationMember1 | JsonElement> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        ...deserializeIntoCreateStaffUserBody_sendNotificationMember1(createStaffUserBody_sendNotification as CreateStaffUserBody_sendNotificationMember1),
-        ...deserializeIntoJsonElement(createStaffUserBody_sendNotification as JsonElement),
-    }
-}
-/**
- * The deserialization information for the current model
- * @param CreateStaffUserBody_sendNotificationMember1 The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoCreateStaffUserBody_sendNotificationMember1(createStaffUserBody_sendNotificationMember1: Partial<CreateStaffUserBody_sendNotificationMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-    }
-}
-/**
- * The deserialization information for the current model
- * @param CreateStaffUserResult The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoCreateStaffUserResult(createStaffUserResult: Partial<CreateStaffUserResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        "accountId": n => { createStaffUserResult.accountId = n.getGuidValue(); },
-        "id": n => { createStaffUserResult.id = n.getGuidValue(); },
     }
 }
 /**
@@ -4377,6 +4268,18 @@ export function serializeBulkDeleteFailedItem(writer: SerializationWriter, bulkD
 }
 /**
  * Serializes information the current object
+ * @param BulkDeleteStaffUsersBody The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkDeleteStaffUsersBody(writer: SerializationWriter, bulkDeleteStaffUsersBody: Partial<BulkDeleteStaffUsersBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkDeleteStaffUsersBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("userIds", bulkDeleteStaffUsersBody.userIds);
+    writer.writeAdditionalData(bulkDeleteStaffUsersBody.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param BulkDeleteTenantsAsStaffBody The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -4413,6 +4316,18 @@ export function serializeBulkReactivateFailedItem(writer: SerializationWriter, b
     writer.writeStringValue("error", bulkReactivateFailedItem.errorEscaped);
     writer.writeGuidValue("tenantId", bulkReactivateFailedItem.tenantId);
     writer.writeAdditionalData(bulkReactivateFailedItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param BulkReactivateStaffUsersBody The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkReactivateStaffUsersBody(writer: SerializationWriter, bulkReactivateStaffUsersBody: Partial<BulkReactivateStaffUsersBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkReactivateStaffUsersBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("userIds", bulkReactivateStaffUsersBody.userIds);
+    writer.writeAdditionalData(bulkReactivateStaffUsersBody.additionalData);
 }
 /**
  * Serializes information the current object
@@ -4454,6 +4369,33 @@ export function serializeBulkStaffInvitationsCreated(writer: SerializationWriter
 }
 /**
  * Serializes information the current object
+ * @param BulkStaffUserActionResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkStaffUserActionResult(writer: SerializationWriter, bulkStaffUserActionResult: Partial<BulkStaffUserActionResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkStaffUserActionResult || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("failedCount", bulkStaffUserActionResult.failedCount);
+    writer.writeCollectionOfObjectValues<BulkStaffUserFailedItem>("failedItems", bulkStaffUserActionResult.failedItems, serializeBulkStaffUserFailedItem);
+    writer.writeNumberValue("succeededCount", bulkStaffUserActionResult.succeededCount);
+    writer.writeAdditionalData(bulkStaffUserActionResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param BulkStaffUserFailedItem The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkStaffUserFailedItem(writer: SerializationWriter, bulkStaffUserFailedItem: Partial<BulkStaffUserFailedItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkStaffUserFailedItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("error", bulkStaffUserFailedItem.errorEscaped);
+    writer.writeGuidValue("userId", bulkStaffUserFailedItem.userId);
+    writer.writeAdditionalData(bulkStaffUserFailedItem.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param BulkSuspendFailedItem The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -4464,6 +4406,18 @@ export function serializeBulkSuspendFailedItem(writer: SerializationWriter, bulk
     writer.writeStringValue("error", bulkSuspendFailedItem.errorEscaped);
     writer.writeGuidValue("tenantId", bulkSuspendFailedItem.tenantId);
     writer.writeAdditionalData(bulkSuspendFailedItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param BulkSuspendStaffUsersBody The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkSuspendStaffUsersBody(writer: SerializationWriter, bulkSuspendStaffUsersBody: Partial<BulkSuspendStaffUsersBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkSuspendStaffUsersBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("userIds", bulkSuspendStaffUsersBody.userIds);
+    writer.writeAdditionalData(bulkSuspendStaffUsersBody.additionalData);
 }
 /**
  * Serializes information the current object
@@ -4682,124 +4636,6 @@ export function serializeCreateStaffProfileBody_permissions(writer: Serializatio
 export function serializeCreateStaffProfileBody_permissionsMember1(writer: SerializationWriter, createStaffProfileBody_permissionsMember1: Partial<CreateStaffProfileBody_permissionsMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!createStaffProfileBody_permissionsMember1 || isSerializingDerivedType) { return; }
     writer.writeAdditionalData(createStaffProfileBody_permissionsMember1.additionalData);
-}
-/**
- * Serializes information the current object
- * @param CreateStaffUserBody The instance to serialize from.
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeCreateStaffUserBody(writer: SerializationWriter, createStaffUserBody: Partial<CreateStaffUserBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!createStaffUserBody || isSerializingDerivedType) { return; }
-    writer.writeObjectValue<CreateStaffUserBody_accountLevelMember1 | JsonElement>("accountLevel", createStaffUserBody.accountLevel, serializeCreateStaffUserBody_accountLevel);
-    writer.writeObjectValue<CreateStaffUserBody_avatarUrlMember1 | JsonElement>("avatarUrl", createStaffUserBody.avatarUrl, serializeCreateStaffUserBody_avatarUrl);
-    writer.writeObjectValue("email", createStaffUserBody.email);
-    writer.writeObjectValue<CreateStaffUserBody_firstNameMember1 | JsonElement>("firstName", createStaffUserBody.firstName, serializeCreateStaffUserBody_firstName);
-    writer.writeObjectValue("lastName", createStaffUserBody.lastName);
-    writer.writeObjectValue<CreateStaffUserBody_sendNotificationMember1 | JsonElement>("sendNotification", createStaffUserBody.sendNotification, serializeCreateStaffUserBody_sendNotification);
-    writer.writeAdditionalData(createStaffUserBody.additionalData);
-}
-/**
- * Serializes information the current object
- * @param CreateStaffUserBody_accountLevel The instance to serialize from.
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeCreateStaffUserBody_accountLevel(writer: SerializationWriter, createStaffUserBody_accountLevel: Partial<CreateStaffUserBody_accountLevelMember1 | JsonElement> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    serializeCreateStaffUserBody_accountLevelMember1(writer, createStaffUserBody_accountLevel as CreateStaffUserBody_accountLevelMember1);
-    serializeJsonElement(writer, createStaffUserBody_accountLevel as JsonElement);
-}
-/**
- * Serializes information the current object
- * @param CreateStaffUserBody_accountLevelMember1 The instance to serialize from.
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeCreateStaffUserBody_accountLevelMember1(writer: SerializationWriter, createStaffUserBody_accountLevelMember1: Partial<CreateStaffUserBody_accountLevelMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!createStaffUserBody_accountLevelMember1 || isSerializingDerivedType) { return; }
-    writer.writeAdditionalData(createStaffUserBody_accountLevelMember1.additionalData);
-}
-/**
- * Serializes information the current object
- * @param CreateStaffUserBody_avatarUrl The instance to serialize from.
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeCreateStaffUserBody_avatarUrl(writer: SerializationWriter, createStaffUserBody_avatarUrl: Partial<CreateStaffUserBody_avatarUrlMember1 | JsonElement> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    serializeCreateStaffUserBody_avatarUrlMember1(writer, createStaffUserBody_avatarUrl as CreateStaffUserBody_avatarUrlMember1);
-    serializeJsonElement(writer, createStaffUserBody_avatarUrl as JsonElement);
-}
-/**
- * Serializes information the current object
- * @param CreateStaffUserBody_avatarUrlMember1 The instance to serialize from.
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeCreateStaffUserBody_avatarUrlMember1(writer: SerializationWriter, createStaffUserBody_avatarUrlMember1: Partial<CreateStaffUserBody_avatarUrlMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!createStaffUserBody_avatarUrlMember1 || isSerializingDerivedType) { return; }
-    writer.writeAdditionalData(createStaffUserBody_avatarUrlMember1.additionalData);
-}
-/**
- * Serializes information the current object
- * @param CreateStaffUserBody_firstName The instance to serialize from.
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeCreateStaffUserBody_firstName(writer: SerializationWriter, createStaffUserBody_firstName: Partial<CreateStaffUserBody_firstNameMember1 | JsonElement> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    serializeCreateStaffUserBody_firstNameMember1(writer, createStaffUserBody_firstName as CreateStaffUserBody_firstNameMember1);
-    serializeJsonElement(writer, createStaffUserBody_firstName as JsonElement);
-}
-/**
- * Serializes information the current object
- * @param CreateStaffUserBody_firstNameMember1 The instance to serialize from.
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeCreateStaffUserBody_firstNameMember1(writer: SerializationWriter, createStaffUserBody_firstNameMember1: Partial<CreateStaffUserBody_firstNameMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!createStaffUserBody_firstNameMember1 || isSerializingDerivedType) { return; }
-    writer.writeAdditionalData(createStaffUserBody_firstNameMember1.additionalData);
-}
-/**
- * Serializes information the current object
- * @param CreateStaffUserBody_sendNotification The instance to serialize from.
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeCreateStaffUserBody_sendNotification(writer: SerializationWriter, createStaffUserBody_sendNotification: Partial<CreateStaffUserBody_sendNotificationMember1 | JsonElement> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    serializeCreateStaffUserBody_sendNotificationMember1(writer, createStaffUserBody_sendNotification as CreateStaffUserBody_sendNotificationMember1);
-    serializeJsonElement(writer, createStaffUserBody_sendNotification as JsonElement);
-}
-/**
- * Serializes information the current object
- * @param CreateStaffUserBody_sendNotificationMember1 The instance to serialize from.
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeCreateStaffUserBody_sendNotificationMember1(writer: SerializationWriter, createStaffUserBody_sendNotificationMember1: Partial<CreateStaffUserBody_sendNotificationMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!createStaffUserBody_sendNotificationMember1 || isSerializingDerivedType) { return; }
-    writer.writeAdditionalData(createStaffUserBody_sendNotificationMember1.additionalData);
-}
-/**
- * Serializes information the current object
- * @param CreateStaffUserResult The instance to serialize from.
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeCreateStaffUserResult(writer: SerializationWriter, createStaffUserResult: Partial<CreateStaffUserResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!createStaffUserResult || isSerializingDerivedType) { return; }
-    writer.writeGuidValue("accountId", createStaffUserResult.accountId);
-    writer.writeGuidValue("id", createStaffUserResult.id);
-    writer.writeAdditionalData(createStaffUserResult.additionalData);
 }
 /**
  * Serializes information the current object

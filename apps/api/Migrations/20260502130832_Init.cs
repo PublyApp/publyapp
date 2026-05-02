@@ -72,7 +72,7 @@ namespace MainApi.Migrations {
 					constraints: table => {
 						table.PrimaryKey("PK_users", x => x.id);
 						table.CheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)");
-						table.CheckConstraint("CK_User_Status", "status IN (10, 20, 30, 40)");
+						table.CheckConstraint("CK_User_Status", "status IN (30, 40)");
 					});
 
 			migrationBuilder.CreateTable(
@@ -434,7 +434,8 @@ namespace MainApi.Migrations {
 			migrationBuilder.CreateIndex(
 					name: "IX_profile_permissions_profile_id_permission_key",
 					table: "profile_permissions",
-					columns: new[] { "profile_id", "permission_key" });
+					columns: new[] { "profile_id", "permission_key" },
+					unique: true);
 
 			migrationBuilder.CreateIndex(
 					name: "IX_profiles_project_id",
@@ -459,6 +460,13 @@ namespace MainApi.Migrations {
 					columns: new[] { "tenant_id", "scope", "is_default" },
 					unique: true,
 					filter: "\"scope\" = 1 AND \"project_id\" IS NULL AND \"is_default\" = true AND \"is_deleted\" = false");
+
+			migrationBuilder.CreateIndex(
+					name: "ux_profiles_tenant_name",
+					table: "profiles",
+					columns: new[] { "tenant_id", "name" },
+					unique: true,
+					filter: "\"scope\" = 1 AND \"is_deleted\" = false");
 
 			migrationBuilder.CreateIndex(
 					name: "IX_projects_tenant_id_name",

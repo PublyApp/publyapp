@@ -14,7 +14,7 @@ import { useImperativeHandle, useState } from 'react';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { buildCsv } from '#app/lib/export/csv.ts';
+import { downloadCsvFile, downloadJsonFile } from '#app/lib/export/download.ts';
 
 import type { TenantProfileRowData } from './tenant-profiles-table.types.ts';
 
@@ -72,30 +72,21 @@ const TenantProfilesExportDialogController = ({
 					row.isDefault ? t('yes') : t('no'),
 				];
 			});
-			const csv = buildCsv([headers, ...csvRows]);
-			const blob = new Blob([csv], { type: 'text/csv' });
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = isSelectionMode
-				? 'selected-tenant-profiles.csv'
-				: 'tenant-profiles.csv';
-			a.click();
-			URL.revokeObjectURL(url);
+			downloadCsvFile({
+				fileName: isSelectionMode
+					? 'selected-tenant-profiles.csv'
+					: 'tenant-profiles.csv',
+				rows: [headers, ...csvRows],
+			});
 			return;
 		}
 
-		const blob = new Blob([JSON.stringify(rowsToExport, null, 2)], {
-			type: 'application/json',
+		downloadJsonFile({
+			fileName: isSelectionMode
+				? 'selected-tenant-profiles.json'
+				: 'tenant-profiles.json',
+			data: rowsToExport,
 		});
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = isSelectionMode
-			? 'selected-tenant-profiles.json'
-			: 'tenant-profiles.json';
-		a.click();
-		URL.revokeObjectURL(url);
 	};
 
 	const handleExport = () => {

@@ -39,9 +39,38 @@ If a preference below conflicts with an existing guide, follow the existing guid
 
 ### Tables, Drawers, Actions
 
-- Table rows should **always show actions**; if unavailable, show them **disabled + greyed out** (do not hide the action column or render nothing).
+- Table rows should **always show actions**. If an action is not relevant for the current
+  row/state/permission, render it disabled and show a tooltip explaining why; do not hide
+  the action column or render nothing.
+  - If a row action owns behavior/state (mutation, dialog, drawer, loading, optimistic
+    update), make it its own focused action component. The row action group should compose
+    action components, not own every action's internal state.
+  - Dense repeated row action icon buttons should use neutral grey styling by default, not
+    semantic `warning`/`success`/`primary` colors. Use existing disabled tokens first
+    (`text.disabled`, `action.disabled`, or the component's disabled state). Use normal
+    neutral tokens (`text.secondary`, `action.active`, `grey['500Channel']` with
+    `varAlpha`) for enabled non-destructive repeated row action icons.
+  - Destructive row action icons (for example delete) may use the theme danger/error
+    styling when muting them would hide the risk of the action. Keep disabled destructive
+    row actions on disabled tokens.
+  - Destructive bulk delete actions and destructive confirmation CTAs should still use the
+    theme danger/error styling (`error` / `error.main`). Do not mute destructive delete
+    actions merely because they originated from a table.
+  - Relationship-removal actions that are reversible in context (for example unassigning a
+    user from a profile) should stay neutral unless the product explicitly treats them as
+    destructive. Dense row icons can use `text.secondary`, but bulk menu labels and contained
+    confirmation CTAs must still look enabled (`text.primary` or default contained styling).
+  - Keep semantic colors for status badges, validation, dedicated danger-zone context, and
+    other non-action state indicators where the color communicates state rather than click
+    priority.
 - Avoid heavy repeated text buttons in dense lists (e.g., `Assign` repeated per row).
   - Prefer subtle icon buttons with tooltips.
+- Mutable enum/status columns should expose their primary change action from the cell itself when the repo already has an inline menu pattern for that entity type.
+  - Use the selected-item popover/menu pattern: current value selected, menu anchored under the trigger, no disabled current-value placeholder.
+  - Keep suspend/reactivate or level/role changes in the status/level cell instead of duplicating them in the row action cell.
+- Do not put a plain "view details" link in dense row action cells when a quick preview drawer pattern exists.
+  - Use `solar:list-bold` for the quick preview/details action.
+  - Put the explicit full details link inside the drawer.
 - For drawer UX:
   - Make the header (title + search) fixed.
   - Make only the list scrollable (use the shared `Scrollbar` component when appropriate).

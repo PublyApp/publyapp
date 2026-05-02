@@ -35,7 +35,7 @@ import {
 	type MRT_SortingState,
 	type MRT_TableOptions,
 } from 'material-react-table';
-import { useBoolean, useDebounce } from 'minimal-shared/hooks';
+import { useBoolean } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
 import { parseAsString, useQueryStates } from 'nuqs';
 import {
@@ -45,7 +45,6 @@ import {
 	useId,
 	useImperativeHandle,
 	useMemo,
-	useReducer,
 	useRef,
 	useState,
 } from 'react';
@@ -67,12 +66,15 @@ import { Label } from '#app/components/label/label.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { useSectionPageWithDrawer } from '#app/components/settings/section-page-with-drawer.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
+import { useTableRowSelection } from '#app/hooks/table/use-table-row-selection.ts';
+import { useUrlBackedDebouncedSearch } from '#app/hooks/table/use-url-backed-debounced-search.ts';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
-import { useSendEmailVerificationReminder } from '#app/lib/react-query/features/common/auth.hooks.ts';
+import { downloadCsvFile, downloadJsonFile } from '#app/lib/export/download.ts';
+import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
 import {
 	useFindTenantUsers,
 	useReactivateTenantUser,
@@ -100,27 +102,6 @@ const defaultSorting: MRT_SortingState[number] = {
 const SELECTION_MODE_MENU_MIN_WIDTH = 220;
 const GLOBALLY_SUSPENDED_STATUS_VALUE = 'globally_suspended';
 const GLOBALLY_SUSPENDED_STATUS_DESCRIPTION = 'GloballySuspended';
-
-type TableUiState = {
-	rowSelection: Record<string, boolean>;
-	bulkRemoveDialogOpen: boolean;
-};
-
-const initialTableUiState: TableUiState = {
-	rowSelection: {},
-	bulkRemoveDialogOpen: false,
-};
-
-const tableUiReducer = (
-	state: TableUiState,
-	update:
-		| Partial<TableUiState>
-		| ((state: TableUiState) => Partial<TableUiState>),
-) => {
-	const nextState = typeof update === 'function' ? update(state) : update;
-
-	return { ...state, ...nextState };
-};
 
 const isGloballySuspendedStatus = (status: string) => {
 	return (
@@ -327,17 +308,10 @@ const useTenantUsersTableController = () => {
 		status: parseAsString.withDefault(''),
 	});
 
-	const [searchValue, setSearchValue] = useState(filterStates.q);
 	const [statusFilter, setStatusFilter] = useState<string[]>(() =>
 		parseStatusFilter(filterStates.status),
 	);
-	const [tableUiState, setTableUiState] = useReducer(
-		tableUiReducer,
-		initialTableUiState,
-	);
-	const { rowSelection, bulkRemoveDialogOpen } = tableUiState;
-
-	const debouncedSearchValue = useDebounce(searchValue, 300);
+	const [bulkRemoveDialogOpen, setBulkRemoveDialogOpen] = useState(false);
 
 	const {
 		handlePaginationChange,
@@ -353,27 +327,20 @@ const useTenantUsersTableController = () => {
 		paginationMode: 'cursor',
 	});
 
-	useEffect(() => {
-		if (debouncedSearchValue === filterStates.q) {
-			return;
-		}
-
-		resetCursorPagination?.();
-		void setFilterStates({
-			q: debouncedSearchValue,
-			status: statusFilter.join(','),
-		});
-	}, [
-		debouncedSearchValue,
-		filterStates.q,
-		resetCursorPagination,
-		setFilterStates,
-		statusFilter,
-	]);
-
-	useEffect(() => {
-		setSearchValue(filterStates.q);
-	}, [filterStates.q]);
+	const handleDebouncedSearchChange = useCallback(
+		(nextSearchValue: string) => {
+			resetCursorPagination?.();
+			void setFilterStates({
+				q: nextSearchValue,
+				status: statusFilter.join(','),
+			});
+		},
+		[resetCursorPagination, setFilterStates, statusFilter],
+	);
+	const { searchValue, setSearchValue } = useUrlBackedDebouncedSearch({
+		persistedValue: filterStates.q,
+		onDebouncedValueChange: handleDebouncedSearchChange,
+	});
 
 	useEffect(() => {
 		const nextStatusFilter = parseStatusFilter(filterStates.status);
@@ -507,13 +474,18 @@ const useTenantUsersTableController = () => {
 		});
 	}, [tenantUsersQuery.data]);
 
-	const selectedCount = Object.keys(rowSelection).length;
-	const isSelectionMode = selectedCount > 0;
+	const {
+		rowSelection,
+		setRowSelection,
+		selectedRows,
+		selectedCount,
+		isSelectionMode,
+		clearSelection,
+	} = useTableRowSelection({
+		rows,
+	});
 	const selectionModeDisabledReason = t('selection-mode-disable-controls');
 	const sortingDisabledReason = t('selection-mode-disable-sorting');
-	const selectedRows = useMemo(() => {
-		return rows.filter((row) => rowSelection[row.id]);
-	}, [rowSelection, rows]);
 	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
 		if (!isSelectionMode) {
 			return {};
@@ -533,7 +505,7 @@ const useTenantUsersTableController = () => {
 		exportDialogRef.current?.open();
 	};
 	const closeBulkRemoveDialog = () => {
-		setTableUiState({ bulkRemoveDialogOpen: false });
+		setBulkRemoveDialogOpen(false);
 	};
 
 	const exportRows = (format: 'csv' | 'json') => {
@@ -542,38 +514,29 @@ const useTenantUsersTableController = () => {
 		if (format === 'csv') {
 			const headers = ['Name', 'Email', 'Level', 'Status'];
 			const csvRows = map(rowsToExport, (row) => [
-				`"${getUserFullName({
+				getUserFullName({
 					firstName: row.firstName,
 					lastName: row.lastName,
-				})}"`,
-				`"${row.email}"`,
+				}),
+				row.email,
 				row.level,
 				row.status,
 			]);
-			const csv = [headers, ...csvRows].map((row) => row.join(',')).join('\n');
-			const blob = new Blob([csv], { type: 'text/csv' });
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = isSelectionMode
-				? 'selected-tenant-users.csv'
-				: 'tenant-users.csv';
-			a.click();
-			URL.revokeObjectURL(url);
+			downloadCsvFile({
+				fileName: isSelectionMode
+					? 'selected-tenant-users.csv'
+					: 'tenant-users.csv',
+				rows: [headers, ...csvRows],
+			});
 			return;
 		}
 
-		const blob = new Blob([JSON.stringify(rowsToExport, null, 2)], {
-			type: 'application/json',
+		downloadJsonFile({
+			fileName: isSelectionMode
+				? 'selected-tenant-users.json'
+				: 'tenant-users.json',
+			data: rowsToExport,
 		});
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = isSelectionMode
-			? 'selected-tenant-users.json'
-			: 'tenant-users.json';
-		a.click();
-		URL.revokeObjectURL(url);
 	};
 
 	const handleExport = (format: 'csv' | 'json') => {
@@ -611,7 +574,8 @@ const useTenantUsersTableController = () => {
 			}
 		}
 
-		setTableUiState({ bulkRemoveDialogOpen: false, rowSelection: {} });
+		setBulkRemoveDialogOpen(false);
+		clearSelection();
 		await queryClient.invalidateQueries({
 			queryKey: useFindTenantUsers.getKey({ tenantId }),
 		});
@@ -648,12 +612,11 @@ const useTenantUsersTableController = () => {
 	const renderToolbarFilters = () => {
 		return (
 			<>
-				<Tooltip
-					title={isSelectionMode ? selectionModeDisabledReason : ''}
-					arrow
-					disableHoverListener={!isSelectionMode}
+				<SelectionLockedControl
+					isSelectionMode={isSelectionMode}
+					disabledReason={selectionModeDisabledReason}
 					describeChild
-					slotProps={{ tooltip: { id: searchTooltipId } }}
+					tooltipId={searchTooltipId}
 				>
 					<Box component="span">
 						<TextField
@@ -676,14 +639,13 @@ const useTenantUsersTableController = () => {
 							sx={{ minWidth: 260 }}
 						/>
 					</Box>
-				</Tooltip>
+				</SelectionLockedControl>
 
-				<Tooltip
-					title={isSelectionMode ? selectionModeDisabledReason : ''}
-					arrow
-					disableHoverListener={!isSelectionMode}
+				<SelectionLockedControl
+					isSelectionMode={isSelectionMode}
+					disabledReason={selectionModeDisabledReason}
 					describeChild
-					slotProps={{ tooltip: { id: statusTooltipId } }}
+					tooltipId={statusTooltipId}
 				>
 					<Box component="span">
 						<Autocomplete
@@ -768,6 +730,11 @@ const useTenantUsersTableController = () => {
 								);
 							}}
 							slotProps={{
+								popper: {
+									// Keep MRT toolbar filters anchored while table rows swap between
+									// skeleton and data layouts.
+									placement: 'bottom-start',
+								},
 								paper: {
 									sx: {
 										width: 280,
@@ -796,7 +763,7 @@ const useTenantUsersTableController = () => {
 							}}
 						/>
 					</Box>
-				</Tooltip>
+				</SelectionLockedControl>
 			</>
 		);
 	};
@@ -818,9 +785,7 @@ const useTenantUsersTableController = () => {
 		return (
 			<TenantUsersSelectionActions
 				onOpenExportDialog={openExportDialog}
-				onOpenBulkRemoveDialog={() =>
-					setTableUiState({ bulkRemoveDialogOpen: true })
-				}
+				onOpenBulkRemoveDialog={() => setBulkRemoveDialogOpen(true)}
 			/>
 		);
 	};
@@ -833,11 +798,10 @@ const useTenantUsersTableController = () => {
 		manualSorting: true,
 		localization: sortTooltipLocalization,
 		onRowSelectionChange: (updater) => {
-			setTableUiState((state) => {
-				const rowSelection =
-					typeof updater === 'function' ? updater(state.rowSelection) : updater;
-
-				return { rowSelection };
+			setRowSelection((previousRowSelection) => {
+				return typeof updater === 'function'
+					? updater(previousRowSelection)
+					: updater;
 			});
 		},
 		onSortingChange: (updater) => {
@@ -959,7 +923,7 @@ const TenantUsersTable = () => {
 				action={
 					<Button
 						variant="contained"
-						color="error"
+						color="inherit"
 						onClick={handleBulkRemove}
 						disabled={isBulkRemoving}
 					>
@@ -1071,7 +1035,7 @@ const TenantUsersSelectionActions = ({
 						closeMenu();
 						onOpenBulkRemoveDialog();
 					}}
-					sx={{ color: 'error.main' }}
+					sx={{ color: 'text.secondary' }}
 				>
 					<Iconify icon="solar:trash-bin-trash-bold" width={18} />
 					<ListItemText
@@ -1296,9 +1260,7 @@ const StatusCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (
 				action={
 					<Button
 						variant="contained"
-						color={
-							pendingStatus === USER_STATUS_ENUM.SUSPENDED ? 'error' : 'primary'
-						}
+						color="inherit"
 						onClick={handleConfirm}
 						disabled={isPending}
 					>
@@ -1467,12 +1429,6 @@ const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
 
 	return (
 		<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-			<FollowUpAction
-				user={user}
-				disabled={isGloballySuspended}
-				disabledReason={disabledReason}
-			/>
-
 			<UserDetailsDrawerAction
 				user={user}
 				disabled={isGloballySuspended}
@@ -1485,58 +1441,6 @@ const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
 				disabledReason={disabledReason}
 			/>
 		</Box>
-	);
-};
-
-type FollowUpActionProps = {
-	user: TenantUserRowData;
-	disabled: boolean;
-	disabledReason: string;
-};
-
-const FollowUpAction = ({
-	user,
-	disabled,
-	disabledReason,
-}: FollowUpActionProps) => {
-	const { t } = useTranslate();
-	const isUserPending = user.status === USER_STATUS_ENUM.PENDING;
-
-	const {
-		mutateAsync: sendEmailVerificationReminder,
-		isPending: isPendingSendEmailVerificationReminder,
-	} = useSendEmailVerificationReminder({
-		onSuccess: () => {
-			toast.success(t('email-verification-follow-up-success'));
-		},
-	});
-
-	if (!isUserPending) {
-		return null;
-	}
-
-	return (
-		<Tooltip
-			title={
-				disabled
-					? disabledReason
-					: capitalize(t('send-email-verification-follow-up'))
-			}
-			placement="top"
-		>
-			<Box component="span">
-				<IconButton
-					color="default"
-					loading={isPendingSendEmailVerificationReminder}
-					disabled={disabled}
-					onClick={async () => {
-						await sendEmailVerificationReminder({ email: user.email });
-					}}
-				>
-					<Iconify icon="custom:send-fill" width={18} />
-				</IconButton>
-			</Box>
-		</Tooltip>
 	);
 };
 
@@ -1571,14 +1475,8 @@ const UserDetailsDrawerAction = ({
 		statusLabel = t('active');
 	} else if (isGloballySuspendedStatus(user.status)) {
 		statusLabel = t('globally-suspended');
-	} else if (user.status === USER_STATUS_ENUM.PENDING) {
-		statusLabel = t('pending');
-	} else if (user.status === USER_STATUS_ENUM.BANNED) {
-		statusLabel = t('banned');
 	} else if (user.status === USER_STATUS_ENUM.SUSPENDED) {
 		statusLabel = t('suspended');
-	} else if (user.status === USER_STATUS_ENUM.INACTIVE) {
-		statusLabel = t('inactive');
 	}
 
 	return (
@@ -1593,6 +1491,8 @@ const UserDetailsDrawerAction = ({
 						color="default"
 						disabled={disabled}
 						onClick={detailsDrawer.onTrue}
+						// Preview is the primary navigation affordance in compact row actions.
+						sx={{ color: disabled ? 'action.disabled' : 'text.primary' }}
 					>
 						<Iconify icon="solar:list-bold" width={18} />
 					</IconButton>
@@ -1718,7 +1618,7 @@ const RemoveUserAction = ({
 						onClick={confirmDialog.onTrue}
 						disabled={isRemoving || disabled}
 						sx={{
-							color: disabled ? 'action.disabled' : 'error.main',
+							color: disabled ? 'action.disabled' : 'text.secondary',
 						}}
 					>
 						<Iconify icon="solar:trash-bin-trash-bold" width={18} />
@@ -1740,7 +1640,7 @@ const RemoveUserAction = ({
 				action={
 					<Button
 						variant="contained"
-						color="error"
+						color="inherit"
 						onClick={onConfirmRemove}
 						disabled={isRemoving}
 					>

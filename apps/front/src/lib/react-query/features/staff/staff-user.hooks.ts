@@ -9,7 +9,9 @@ import forEach from 'lodash/forEach';
 import isNil from 'lodash/isNil';
 
 import type {
-	CreateStaffUserBody,
+	BulkDeleteStaffUsersBody,
+	BulkReactivateStaffUsersBody,
+	BulkSuspendStaffUsersBody,
 	GetStaffUserProfilesResult,
 	UpdateStaffUserBody,
 	UpdateStaffUserEmailBody,
@@ -35,38 +37,35 @@ const createUntypedValue = (value: unknown): UntypedNode => {
 	} as UntypedNode;
 };
 
-type CreateStaffUserPayload = {
-	email: string;
-	firstName?: string;
-	lastName?: string;
-	avatarUrl?: string;
-	sendNotification?: boolean;
-	accountLevel?: AccountLevel;
-};
+export const STAFF_USER_STATUS_FILTER_VALUES = ['active', 'suspended'] as const;
 
-export const useCreateStaffUser = createStaffMutation({
-	mutationKeyFn: (client) => client.staff.users.post,
-	mutationFn: async (client, data: CreateStaffUserPayload) => {
-		const body: CreateStaffUserBody = {};
-		forEach(data, (value, key) => {
-			if (value !== undefined) {
-				// Use type assertion since generated types don't include UntypedNode in unions
-				(body as Record<string, unknown>)[key] = createUntypedValue(value);
-			}
-		});
-		const result = await client.staff.users.post(body);
-		if (isNil(result)) {
-			throw new Error('useCreateStaffUser: result is nil');
-		}
-		return result;
-	},
-});
+export type StaffUserStatusFilter =
+	(typeof STAFF_USER_STATUS_FILTER_VALUES)[number];
+
+export type StaffUserStatusFilterInput =
+	| StaffUserStatusFilter
+	| readonly StaffUserStatusFilter[];
+
+export const serializeStaffUserStatusFilter = (
+	status?: StaffUserStatusFilterInput,
+): string | undefined => {
+	if (isNil(status)) {
+		return undefined;
+	}
+
+	if (typeof status === 'string') {
+		return status;
+	}
+
+	return status.length > 0 ? status.join(',') : undefined;
+};
 
 type FindStaffUsersQuery = {
 	cursor?: string | null;
 	limit?: number;
 	sort?: { id: string; order: 'desc' | 'asc' };
 	q?: string;
+	status?: StaffUserStatusFilterInput; // csv wire format: active,suspended
 };
 
 export const useFindStaffUser = createStaffQuery({
@@ -77,6 +76,7 @@ export const useFindStaffUser = createStaffQuery({
 				cursor: params.cursor ?? undefined,
 				limit: params.limit ? params.limit.toString() : undefined,
 				q: params.q,
+				status: serializeStaffUserStatusFilter(params.status),
 				sortId: params.sort?.id,
 				sortOrder: params.sort?.order,
 			},
@@ -152,6 +152,68 @@ export const useReactivateStaffUser = createStaffMutation({
 			.reactivate.post();
 		if (isNil(result)) {
 			throw new Error('useReactivateStaffUser: result is nil');
+		}
+		return result;
+	},
+});
+
+export const useDeleteStaffUser = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.users.byUserId('').delete,
+	mutationFn: async (client, data: { userId: string }) => {
+		const result = await client.staff.users.byUserId(data.userId).delete();
+		if (isNil(result)) {
+			throw new Error('useDeleteStaffUser: result is nil');
+		}
+		return result;
+	},
+});
+
+export const useBulkSuspendStaffUsers = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.users.bulkSuspend.post,
+	mutationFn: async (client, data: { userIds: string[] }) => {
+		const body: BulkSuspendStaffUsersBody = {
+			userIds: createUntypedArray(
+				data.userIds.map((id) => createUntypedString(id)),
+			) as typeof body.userIds,
+		};
+
+		const result = await client.staff.users.bulkSuspend.post(body);
+		if (isNil(result)) {
+			throw new Error('useBulkSuspendStaffUsers: result is nil');
+		}
+		return result;
+	},
+});
+
+export const useBulkReactivateStaffUsers = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.users.bulkReactivate.post,
+	mutationFn: async (client, data: { userIds: string[] }) => {
+		const body: BulkReactivateStaffUsersBody = {
+			userIds: createUntypedArray(
+				data.userIds.map((id) => createUntypedString(id)),
+			) as typeof body.userIds,
+		};
+
+		const result = await client.staff.users.bulkReactivate.post(body);
+		if (isNil(result)) {
+			throw new Error('useBulkReactivateStaffUsers: result is nil');
+		}
+		return result;
+	},
+});
+
+export const useBulkDeleteStaffUsers = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.users.bulkDelete.post,
+	mutationFn: async (client, data: { userIds: string[] }) => {
+		const body: BulkDeleteStaffUsersBody = {
+			userIds: createUntypedArray(
+				data.userIds.map((id) => createUntypedString(id)),
+			) as typeof body.userIds,
+		};
+
+		const result = await client.staff.users.bulkDelete.post(body);
+		if (isNil(result)) {
+			throw new Error('useBulkDeleteStaffUsers: result is nil');
 		}
 		return result;
 	},
