@@ -138,10 +138,10 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var effectiveSortId = args.SortId ?? "created_at";
 
 		var sortFieldHandlers =
-			new Dictionary<string, SortFieldHandler>(
+			new Dictionary<string, CursorSortFieldHandler<AuditLog>>(
 				StringComparer.OrdinalIgnoreCase
 			) {
-				["created_at"] = new SortFieldHandler(
+				["created_at"] = new CursorSortFieldHandler<AuditLog>(
 				getCursorValue: async (guid) => {
 					var log = await _dbContext.AuditLog
 						.Where(a => a.Id == guid
@@ -184,7 +184,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			};
 
 		if (!sortFieldHandlers.TryGetValue(
-			effectiveSortId, out SortFieldHandler? handler
+			effectiveSortId, out CursorSortFieldHandler<AuditLog>? handler
 		)) {
 			return new FindAuditLogsResult.InvalidSortId(
 				effectiveSortId
@@ -445,38 +445,4 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		return query;
 	}
 
-	private class SortFieldHandler {
-		public Func<Guid, Task<object?>>
-			GetCursorValue { get; }
-		public Func<
-			IQueryable<AuditLog>,
-			object?,
-			bool,
-			IQueryable<AuditLog>
-		> ApplyFilter { get; }
-		public Func<
-			IQueryable<AuditLog>,
-			bool,
-			IQueryable<AuditLog>
-		> ApplyOrdering { get; }
-
-		public SortFieldHandler(
-			Func<Guid, Task<object?>> getCursorValue,
-			Func<
-				IQueryable<AuditLog>,
-				object?,
-				bool,
-				IQueryable<AuditLog>
-			> applyFilter,
-			Func<
-				IQueryable<AuditLog>,
-				bool,
-				IQueryable<AuditLog>
-			> applyOrdering
-		) {
-			GetCursorValue = getCursorValue;
-			ApplyFilter = applyFilter;
-			ApplyOrdering = applyOrdering;
-		}
-	}
 }
