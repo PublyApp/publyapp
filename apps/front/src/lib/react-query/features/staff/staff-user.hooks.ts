@@ -42,7 +42,6 @@ export const STAFF_USER_STATUS_FILTER_VALUES = [
 	'active',
 	'pending',
 	'suspended',
-	'inactive',
 ] as const;
 
 export type StaffUserStatusFilter =
@@ -98,7 +97,7 @@ type FindStaffUsersQuery = {
 	limit?: number;
 	sort?: { id: string; order: 'desc' | 'asc' };
 	q?: string;
-	status?: StaffUserStatusFilterInput; // csv wire format: active,pending,suspended,inactive
+	status?: StaffUserStatusFilterInput; // csv wire format: active,pending,suspended
 };
 
 export const useFindStaffUser = createStaffQuery({

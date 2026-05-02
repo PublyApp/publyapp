@@ -72,7 +72,7 @@ namespace MainApi.Migrations {
 					constraints: table => {
 						table.PrimaryKey("PK_users", x => x.id);
 						table.CheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)");
-						table.CheckConstraint("CK_User_Status", "status IN (10, 20, 30, 40)");
+						table.CheckConstraint("CK_User_Status", "status IN (20, 30, 40)");
 					});
 
 			migrationBuilder.CreateTable(

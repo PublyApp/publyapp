@@ -52,7 +52,6 @@ import { fDateTime } from '#app/utils/format-time.ts';
 const USER_STATUS_COLOR_MAP = {
 	Active: 'success',
 	Suspended: 'warning',
-	Inactive: 'default',
 	Pending: 'default',
 } as const;
 

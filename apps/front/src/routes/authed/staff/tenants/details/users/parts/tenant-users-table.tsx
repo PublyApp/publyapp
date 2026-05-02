@@ -1533,12 +1533,8 @@ const UserDetailsDrawerAction = ({
 		statusLabel = t('globally-suspended');
 	} else if (user.status === USER_STATUS_ENUM.PENDING) {
 		statusLabel = t('pending');
-	} else if (user.status === USER_STATUS_ENUM.BANNED) {
-		statusLabel = t('banned');
 	} else if (user.status === USER_STATUS_ENUM.SUSPENDED) {
 		statusLabel = t('suspended');
-	} else if (user.status === USER_STATUS_ENUM.INACTIVE) {
-		statusLabel = t('inactive');
 	}
 
 	return (

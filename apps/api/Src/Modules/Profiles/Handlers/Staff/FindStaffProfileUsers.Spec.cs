@@ -251,17 +251,17 @@ public sealed class FindStaffProfileUsersSpec
 		var profileId = await CreateStaffProfileAsync(token);
 
 		var activeEmail = $"active.sort-{Guid.NewGuid():N}@example.com";
-		var inactiveEmail = $"inactive.sort-{Guid.NewGuid():N}@example.com";
+		var pendingEmail = $"pending.sort-{Guid.NewGuid():N}@example.com";
 
 		var activeUserId = await CreateStaffUserAsync(token, activeEmail, firstName: "Active");
-		var inactiveUserId = await CreateStaffUserAsync(token, inactiveEmail, firstName: "Inactive");
+		var pendingUserId = await CreateStaffUserAsync(token, pendingEmail, firstName: "Pending");
 
 		// Make the values distinct so sorting by status has a deterministic order.
 		await SetStaffUserStatusAsync(activeUserId, UserStatus.Active);
-		await SetStaffUserStatusAsync(inactiveUserId, UserStatus.Inactive);
+		await SetStaffUserStatusAsync(pendingUserId, UserStatus.Pending);
 
 		await AssignProfileToStaffUserAsync(token, activeUserId, profileId);
-		await AssignProfileToStaffUserAsync(token, inactiveUserId, profileId);
+		await AssignProfileToStaffUserAsync(token, pendingUserId, profileId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
@@ -274,8 +274,8 @@ public sealed class FindStaffProfileUsersSpec
 		var result = await response.Content.ReadFromJsonAsync<FindStaffProfileUsersResponse>();
 		result.Should().NotBeNull();
 
-		// Sorting is based on the enum numeric values: Inactive (10) should come before Active (40).
-		result!.Users.First().Email.Should().Be(inactiveEmail);
+		// Sorting is based on the enum numeric values: Pending (20) should come before Active (40).
+		result!.Users.First().Email.Should().Be(pendingEmail);
 	}
 
 	[Fact]

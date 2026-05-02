@@ -111,10 +111,9 @@ Update the entities to this shape:
 ```csharp
 // apps/api/Src/Modules/Users/Entities/User.cs
 [Column("status")]
-public UserStatus Status { get; set; } = UserStatus.Inactive;
+public UserStatus Status { get; set; } = UserStatus.Pending;
 
 public enum UserStatus {
-	Inactive = 10,
 	Pending = 20,
 	Suspended = 30,
 	Active = 40,

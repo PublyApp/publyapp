@@ -34,7 +34,7 @@ public class User : BaseAttributes, INoTenantEntity {
 
 	[Column("status")]
 	// Global identity lifecycle. Suspended here dominates all staff/tenant/project memberships.
-	public UserStatus Status { get; set; } = UserStatus.Inactive;
+	public UserStatus Status { get; set; } = UserStatus.Pending;
 
 	[Column("is_verified")]
 	public bool IsVerified { get; set; } = false;
@@ -59,7 +59,6 @@ public class User : BaseAttributes, INoTenantEntity {
 
 	public static string GetStatusDescription(UserStatus status) {
 		return status switch {
-			UserStatus.Inactive => nameof(UserStatus.Inactive),
 			UserStatus.Pending => nameof(UserStatus.Pending),
 			UserStatus.Suspended => nameof(UserStatus.Suspended),
 			UserStatus.Active => nameof(UserStatus.Active),
@@ -68,27 +67,31 @@ public class User : BaseAttributes, INoTenantEntity {
 	}
 
 	public static UserStatus? ParseStatus(string statusString) {
-		var isInactive = string.Compare(statusString, nameof(UserStatus.Inactive), StringComparison.OrdinalIgnoreCase) == 0;
-		if (isInactive) {
-			return UserStatus.Inactive;
-		}
-		var isPending = string.Compare(statusString, nameof(UserStatus.Pending), StringComparison.OrdinalIgnoreCase) == 0;
+		var isPending = string.Equals(
+			statusString,
+			nameof(UserStatus.Pending),
+			StringComparison.OrdinalIgnoreCase
+		);
 		if (isPending) {
 			return UserStatus.Pending;
 		}
-		var isSuspended = string.Compare(statusString, nameof(UserStatus.Suspended), StringComparison.OrdinalIgnoreCase) == 0;
+		var isSuspended = string.Equals(
+			statusString,
+			nameof(UserStatus.Suspended),
+			StringComparison.OrdinalIgnoreCase
+		);
 		if (isSuspended) {
 			return UserStatus.Suspended;
 		}
-		var isActive = string.Compare(statusString, nameof(UserStatus.Active), StringComparison.OrdinalIgnoreCase) == 0;
+		var isActive = string.Equals(
+			statusString,
+			nameof(UserStatus.Active),
+			StringComparison.OrdinalIgnoreCase
+		);
 		if (isActive) {
 			return UserStatus.Active;
 		}
 		return null;
-	}
-
-	public bool IsInactive() {
-		return IsInactive(Status);
 	}
 
 	public bool IsPending() {
@@ -101,10 +104,6 @@ public class User : BaseAttributes, INoTenantEntity {
 
 	public bool IsActive() {
 		return IsActive(Status);
-	}
-
-	public static bool IsInactive(UserStatus status) {
-		return status == UserStatus.Inactive;
 	}
 
 	public static bool IsPending(UserStatus status) {
@@ -121,7 +120,6 @@ public class User : BaseAttributes, INoTenantEntity {
 }
 
 public enum UserStatus {
-	Inactive = 10,
 	Pending = 20,
 	Suspended = 30,
 	Active = 40,
