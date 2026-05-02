@@ -5,7 +5,11 @@ import Typography from '@mui/material/Typography';
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { RouterLink } from '#app/components/router-link.tsx';
-import { LegalDocPage } from '#app/routes/marketing/_components/legal-doc-page.tsx';
+import {
+	LegalDocPage,
+	LEGAL_H2_SX,
+	LEGAL_P_SX,
+} from '#app/routes/marketing/_components/legal-doc-page.tsx';
 import {
 	PRIVACY_LAST_UPDATED,
 	PRIVACY_SECTION_IDS,
@@ -13,19 +17,6 @@ import {
 } from '#app/routes/marketing/_data/legal-privacy.ts';
 
 // ----------------------------------------------------------------------
-
-const H2_SX = {
-	fontSize: { xs: 22, md: 26 },
-	fontWeight: 700,
-	color: 'text.primary',
-	mb: 2,
-} as const;
-
-const P_SX = {
-	fontSize: 15,
-	color: 'text.secondary',
-	lineHeight: 1.75,
-} as const;
 
 const LINK_SX = {
 	color: 'primary.main',
@@ -48,12 +39,12 @@ const PrivacyPage = () => {
 					<Typography
 						component="h2"
 						id={PRIVACY_SECTION_IDS.whatWeCollect}
-						sx={H2_SX}
+						sx={LEGAL_H2_SX}
 					>
 						1. What We Collect
 					</Typography>
 					<Stack spacing={2}>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							To provide and improve the PublyApp Service, we collect several
 							different types of information from and about you. This primarily
 							includes account information such as your name, corporate email
@@ -62,7 +53,7 @@ const PrivacyPage = () => {
 							store the content and communications you explicitly post, route,
 							or manage through our Service interfaces.
 						</Typography>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							In addition to direct inputs, we automatically collect usage data
 							and device information when you interact with our platform. This
 							system data includes your device's Internet Protocol (IP) address,
@@ -81,12 +72,12 @@ const PrivacyPage = () => {
 					<Typography
 						component="h2"
 						id={PRIVACY_SECTION_IDS.howWeUseYourData}
-						sx={H2_SX}
+						sx={LEGAL_H2_SX}
 					>
 						2. How We Use Your Data
 					</Typography>
 					<Stack spacing={2}>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							Our primary purpose in processing your data is to reliably
 							provide, maintain, and continuously improve the Service you
 							subscribe to. We leverage your account and usage information to
@@ -94,7 +85,7 @@ const PrivacyPage = () => {
 							billing, manage account provisioning, and resolve technical
 							support queries you escalate to us.
 						</Typography>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							We also utilize algorithmic analysis of aggregate usage patterns
 							to enhance platform security, actively prevent fraudulent
 							activity, and identify potential infrastructural bottlenecks
@@ -105,7 +96,7 @@ const PrivacyPage = () => {
 							platform features, which you can opt out of at any time via your
 							communication preferences.
 						</Typography>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							Finally, data usage is governed by our obligation back to legal
 							and compliance requirements, ensuring that PublyApp meets
 							regulatory standards in processing user telemetry within
@@ -119,12 +110,12 @@ const PrivacyPage = () => {
 					<Typography
 						component="h2"
 						id={PRIVACY_SECTION_IDS.dataSharingAndThirdParties}
-						sx={H2_SX}
+						sx={LEGAL_H2_SX}
 					>
 						3. Data Sharing and Third Parties
 					</Typography>
 					<Stack spacing={2}>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							PublyApp does not—and will never—sell your personal data to data
 							brokers or advertising networks. We only share information with
 							specific third-party sub-processors whose services are strictly
@@ -133,7 +124,7 @@ const PrivacyPage = () => {
 							secure payment gateways (e.g., Stripe). An updated list of our
 							authorized sub-processors is available.
 						</Typography>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							Data sharing also intrinsically occurs when you authorize
 							third-party integrations (such as linking your social media
 							accounts to our platform). During these integration points, data
@@ -152,12 +143,12 @@ const PrivacyPage = () => {
 					<Typography
 						component="h2"
 						id={PRIVACY_SECTION_IDS.cookiesAndTracking}
-						sx={H2_SX}
+						sx={LEGAL_H2_SX}
 					>
 						4. Cookies and Tracking
 					</Typography>
 					<Stack spacing={2}>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							PublyApp uses cookies and similar tracking technologies to track
 							activity on our Service and store certain configuration
 							information. Essential cookies are deployed automatically as they
@@ -165,7 +156,7 @@ const PrivacyPage = () => {
 							your secure login sessions, handle cross-site request forgery
 							protection, and preserve core user preferences.
 						</Typography>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							We separately utilize analytics and performance cookies to
 							understand aggregate user behavior, diagnose usability issues, and
 							measure the health of our infrastructure. You have the right to
@@ -190,12 +181,12 @@ const PrivacyPage = () => {
 					<Typography
 						component="h2"
 						id={PRIVACY_SECTION_IDS.dataRetention}
-						sx={H2_SX}
+						sx={LEGAL_H2_SX}
 					>
 						5. Data Retention
 					</Typography>
 					<Stack spacing={2}>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							We retain your personal data only for as long as is strictly
 							necessary for the purposes outlined in this Privacy Policy. Your
 							core account profile, configuration states, and user-generated
@@ -204,7 +195,7 @@ const PrivacyPage = () => {
 							active data is securely purged from primary production databases
 							within 90 days.
 						</Typography>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							Due to overarching legal stipulations and tax compliance mandates,
 							immutable records—such as subscription billing invoices,
 							transactional histories, and formal consent logs—must be retained
@@ -221,12 +212,12 @@ const PrivacyPage = () => {
 					<Typography
 						component="h2"
 						id={PRIVACY_SECTION_IDS.yourRights}
-						sx={H2_SX}
+						sx={LEGAL_H2_SX}
 					>
 						6. Your Rights (GDPR/CCPA)
 					</Typography>
 					<Stack spacing={2}>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							Depending on your jurisdiction, comprehensive data privacy
 							frameworks (such as the GDPR in Europe and the CCPA in California)
 							afford you significant control over your personal data. You
@@ -235,7 +226,7 @@ const PrivacyPage = () => {
 							mandate the complete erasure of your platform footprint under
 							standard conditions.
 						</Typography>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							You also retain rights to restrict specific processing avenues,
 							object to certain automated decision-making processes, demand data
 							portability in standard machine-readable formats, and withdraw
@@ -260,12 +251,12 @@ const PrivacyPage = () => {
 					<Typography
 						component="h2"
 						id={PRIVACY_SECTION_IDS.internationalTransfers}
-						sx={H2_SX}
+						sx={LEGAL_H2_SX}
 					>
 						7. International Transfers
 					</Typography>
 					<Stack spacing={2}>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							Given the global nature of our infrastructure, information
 							collected through the Service may be transferred to, and processed
 							in, servers residing outside of your home country—specifically
@@ -273,7 +264,7 @@ const PrivacyPage = () => {
 							locations may deviate from the legal standards guaranteed in your
 							jurisdiction.
 						</Typography>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							To ensure absolute compliance when transferring data across
 							borders, PublyApp enforces robust legal safeguards. For transfers
 							originating from within the European Economic Area (EEA), we
@@ -290,12 +281,12 @@ const PrivacyPage = () => {
 					<Typography
 						component="h2"
 						id={PRIVACY_SECTION_IDS.childrensPrivacy}
-						sx={H2_SX}
+						sx={LEGAL_H2_SX}
 					>
 						8. Children&apos;s Privacy
 					</Typography>
 					<Stack spacing={2}>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							The PublyApp platform operates explicitly as a
 							business-to-business (B2B) utility and professional SaaS product.
 							At no point is our Service fundamentally structured, intended, or
@@ -304,7 +295,7 @@ const PrivacyPage = () => {
 							knowingly solicit nor independently collect personally identifying
 							information from minors.
 						</Typography>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							If you represent a parent, legal guardian, or regulatory
 							administrator and become aware that a minor has provisioned
 							personal data onto our platform without requisite consent, please
@@ -321,12 +312,12 @@ const PrivacyPage = () => {
 					<Typography
 						component="h2"
 						id={PRIVACY_SECTION_IDS.securityMeasures}
-						sx={H2_SX}
+						sx={LEGAL_H2_SX}
 					>
 						9. Security Measures
 					</Typography>
 					<Stack spacing={2}>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							Protecting the integrity, availability, and confidentiality of
 							your data is paramount. We maintain rigorous, industry-standard
 							security architectures across our stack. All data transferred
@@ -342,7 +333,7 @@ const PrivacyPage = () => {
 							</Box>{' '}
 							standard cryptographic ciphers.
 						</Typography>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							PublyApp commits to ongoing compliance against rigorous objective
 							frameworks, including annual SOC 2 Type II independent audits. We
 							routinely execute exhaustive third-party penetration testing
@@ -360,12 +351,12 @@ const PrivacyPage = () => {
 					<Typography
 						component="h2"
 						id={PRIVACY_SECTION_IDS.changesToThisPolicy}
-						sx={H2_SX}
+						sx={LEGAL_H2_SX}
 					>
 						10. Changes to This Policy
 					</Typography>
 					<Stack spacing={2}>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							We actively reserve the right to amend, rewrite, or definitively
 							update this Privacy Policy at our sole discretion to actively
 							reflect changing legal regulations, nuanced business practices, or
@@ -373,7 +364,7 @@ const PrivacyPage = () => {
 							applied without broadcast, any material changes altering your
 							overarching rights heavily dictate active notifications.
 						</Typography>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							If a foundational revision is made, we guarantee notification will
 							be delivered explicitly via the primary email address tied to your
 							account hierarchy, alongside a prominent banner displayed
@@ -391,12 +382,12 @@ const PrivacyPage = () => {
 					<Typography
 						component="h2"
 						id={PRIVACY_SECTION_IDS.contactOurDpo}
-						sx={H2_SX}
+						sx={LEGAL_H2_SX}
 					>
 						11. Contact Our DPO
 					</Typography>
 					<Stack spacing={2}>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							To ask questions, submit feedback, officially invoke your
 							protected privacy rights, or directly escalate complex compliance
 							demands regarding this structured Privacy Policy, please engage
@@ -407,7 +398,7 @@ const PrivacyPage = () => {
 							</Box>
 							.
 						</Typography>
-						<Typography sx={P_SX}>
+						<Typography sx={LEGAL_P_SX}>
 							For paper correspondence or formal legally mandated servicing
 							routes requiring physical receipt validation, queries should be
 							directly addressed against our corporate headquarters via

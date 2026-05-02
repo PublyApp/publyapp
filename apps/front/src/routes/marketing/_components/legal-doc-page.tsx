@@ -14,6 +14,23 @@ export type TocItem = {
 	label: string;
 };
 
+// ----------------------------------------------------------------------
+
+export const LEGAL_H2_SX = {
+	fontSize: { xs: 22, md: 26 },
+	fontWeight: 700,
+	color: 'text.primary',
+	mb: 2,
+} as const;
+
+export const LEGAL_P_SX = {
+	fontSize: 15,
+	color: 'text.secondary',
+	lineHeight: 1.75,
+} as const;
+
+// ----------------------------------------------------------------------
+
 type LegalDocPageProps = {
 	eyebrow: string;
 	title: string;
