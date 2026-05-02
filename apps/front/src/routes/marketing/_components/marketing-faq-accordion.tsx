@@ -73,8 +73,14 @@ const FaqRow = ({ item }: { item: MarketingFaqItem }) => {
 				</Typography>
 				<Box
 					component={m.div}
-					animate={{ rotate: expanded ? 90 : 0 }}
-					transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+					animate={{ rotate: expanded ? 90 : 0, scale: expanded ? 1 : 1 }}
+					whileTap={{ scale: 0.85 }}
+					transition={{
+						type: 'spring',
+						stiffness: 600,
+						damping: 18,
+						mass: 0.5,
+					}}
 					sx={{ display: 'inline-flex', flexShrink: 0 }}
 				>
 					<ExpandIcon expanded={expanded} />
@@ -91,18 +97,38 @@ const FaqRow = ({ item }: { item: MarketingFaqItem }) => {
 						animate={{ height: 'auto', opacity: 1 }}
 						exit={{ height: 0, opacity: 0 }}
 						transition={{
-							height: { type: 'spring', stiffness: 220, damping: 28 },
-							opacity: { duration: 0.18, delay: 0.08 },
+							height: {
+								type: 'spring',
+								stiffness: 420,
+								damping: 32,
+								mass: 0.6,
+							},
+							opacity: { duration: 0.12, delay: 0.04 },
 						}}
 						sx={{ overflow: 'hidden' }}
 					>
 						<Box
 							component={m.div}
-							initial={{ y: -6 }}
-							animate={{ y: 0 }}
-							exit={{ y: -6 }}
-							transition={{ type: 'spring', stiffness: 220, damping: 28 }}
-							sx={{ px: 3, pt: 0, pb: 3 }}
+							initial={{ y: -12, opacity: 0, scale: 0.98 }}
+							animate={{ y: 0, opacity: 1, scale: 1 }}
+							exit={{ y: -8, opacity: 0 }}
+							transition={{
+								y: {
+									type: 'spring',
+									stiffness: 480,
+									damping: 28,
+									mass: 0.5,
+									delay: 0.05,
+								},
+								opacity: { duration: 0.18, delay: 0.06 },
+								scale: {
+									type: 'spring',
+									stiffness: 500,
+									damping: 30,
+									delay: 0.05,
+								},
+							}}
+							sx={{ px: 3, pt: 0, pb: 3, transformOrigin: 'top left' }}
 						>
 							<Typography
 								sx={{
