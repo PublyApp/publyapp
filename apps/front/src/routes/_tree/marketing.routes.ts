@@ -5,5 +5,8 @@ export const marketingRoutes = [
 	layout('routes/marketing/_layout/marketing-layout.tsx', [
 		index('routes/marketing/home/home-page.tsx'),
 		route('pricing', 'routes/marketing/pricing/pricing-page.tsx'),
+		route('terms', 'routes/marketing/terms/terms-page.tsx'),
+		route('privacy', 'routes/marketing/privacy/privacy-page.tsx'),
+		route('cookies', 'routes/marketing/cookies/cookies-page.tsx'),
 	]),
 ];
