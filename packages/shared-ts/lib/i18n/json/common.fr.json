@@ -659,6 +659,7 @@
 	"tenant-user-bulk-remove-failure": "Échec du retrait des utilisateurs sélectionnés de ce locataire.",
 	"invite-first-user": "Inviter le premier utilisateur",
 	"invite-user": "Inviter un utilisateur",
+	"invite-users": "Inviter des utilisateurs",
 	"invitation-sent-success": "Invitation envoyée avec succès",
 	"invitation-sent-error": "Échec de l'envoi de l'invitation",
 	"invitation-created-success": "Invitation créée avec succès",

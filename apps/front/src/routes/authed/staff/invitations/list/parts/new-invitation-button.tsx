@@ -18,7 +18,7 @@ export const NewInvitationButton = () => {
 			component={RouterLink}
 			href={FRONT_PATH_NAMES.staff.invitations.new}
 		>
-			{t('new-invitation')}
+			{t('invite-users')}
 		</Button>
 	);
 };
