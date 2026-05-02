@@ -323,6 +323,8 @@ export const PricingTierCard = ({ tier, billing }: PricingTierCardProps) => {
 							? { component: 'a' as const, href: tier.cta.href }
 							: { component: RouterLink, href: tier.cta.href })}
 						fullWidth
+						variant="contained"
+						disableElevation
 						size="large"
 						sx={
 							highlighted
@@ -339,6 +341,16 @@ export const PricingTierCard = ({ tier, billing }: PricingTierCardProps) => {
 											transform: 'translateY(-2px)',
 											boxShadow: `0 16px 40px ${varAlpha(theme.vars.palette.primary.mainChannel, 0.45)}`,
 										},
+										// Defensively reassert bg + hover so MUI's dark-mode contained Button defaults can't override.
+										...theme.applyStyles('dark', {
+											bgcolor: 'primary.main',
+											color: 'common.white',
+											'&:hover': {
+												bgcolor: 'primary.main',
+												transform: 'translateY(-2px)',
+												boxShadow: `0 16px 40px ${varAlpha(theme.vars.palette.primary.mainChannel, 0.55)}`,
+											},
+										}),
 									})
 								: (theme) => ({
 										borderRadius: 2,
