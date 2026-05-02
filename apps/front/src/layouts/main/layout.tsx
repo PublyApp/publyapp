@@ -47,9 +47,7 @@ export type MainLayoutProps = LayoutBaseProps & {
 			data?: NavMainProps['data'];
 		};
 		main?: MainSectionProps;
-		footer?: FooterProps & {
-			variant?: 'home' | 'app';
-		};
+		footer?: FooterProps;
 	};
 };
 

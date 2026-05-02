@@ -4,7 +4,7 @@ import { MainLayout } from '#app/layouts/main/layout.tsx';
 
 const MarketingLayout = () => {
 	return (
-		<MainLayout slotProps={{ nav: { data: [] }, footer: { variant: 'home' } }}>
+		<MainLayout slotProps={{ nav: { data: [] } }}>
 			<Outlet />
 		</MainLayout>
 	);
