@@ -181,7 +181,7 @@ public class FindStaffUsersQuery : CursorPaginatedQuery {
 public class FindStaffUsersQueryValidator
 	: CursorPaginatedQueryValidator<FindStaffUsersQuery> {
 	private static readonly HashSet<string> AllowedStatuses =
-		new(["active", "pending", "suspended", "inactive"], StringComparer.OrdinalIgnoreCase);
+		new(["active", "pending", "suspended"], StringComparer.OrdinalIgnoreCase);
 
 	public FindStaffUsersQueryValidator() {
 		RuleFor(x => x.Search).MaximumLength(200);
@@ -197,7 +197,7 @@ public class FindStaffUsersQueryValidator
 				);
 				return parts.All(AllowedStatuses.Contains);
 			})
-			.WithMessage("Status must be comma-separated: active,pending,suspended,inactive");
+			.WithMessage("Status must be comma-separated: active,pending,suspended");
 	}
 }
 ```
@@ -1241,7 +1241,7 @@ export const useStaffUsersBulkActions = ({
 
 - [ ] **Step 2: Add the controller that owns cursor pagination, URL filters, selection state, and MRT meta**
 
-This file should look like the tenants-table controller, but use only the actual staff-user-supported status tokens: `active`, `pending`, `suspended`, `inactive`.
+This file should look like the tenants-table controller, but use only the actual staff-user-supported status tokens: `active`, `pending`, `suspended`.
 
 ```ts
 const parseStatusFilter = (value: string) => {

@@ -175,8 +175,8 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		modelBuilder.Entity<User>()
 			.ToTable(t => {
 				t.HasCheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)");
-				// UserStatus intentionally has no Banned value; Suspension is the global block state.
-				t.HasCheckConstraint("CK_User_Status", "status IN (10, 20, 30, 40)");
+				// UserStatus has no inactive/banned state; Pending is the pre-activation lifecycle state.
+				t.HasCheckConstraint("CK_User_Status", "status IN (20, 30, 40)");
 			});
 
 		// Database-level account type constraints

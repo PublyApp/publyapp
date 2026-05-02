@@ -71,7 +71,7 @@ public class FindStaffUsersQuery : CursorPaginatedQuery {
 public class FindStaffUsersQueryValidator
 	: CursorPaginatedQueryValidator<FindStaffUsersQuery> {
 	private static readonly HashSet<string> AllowedStatuses =
-		new(["active", "pending", "suspended", "inactive"]);
+		new(["active", "pending", "suspended"]);
 
 	public FindStaffUsersQueryValidator() {
 		RuleFor(x => x.Search).MaximumLength(200);
@@ -85,7 +85,10 @@ public class FindStaffUsersQueryValidator
 					.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 				return parts.All(AllowedStatuses.Contains);
 			})
-			.WithMessage("Invalid status value. Must be comma-separated: " + string.Join(",", AllowedStatuses));
+			.WithMessage(
+				"Invalid status value. Must be comma-separated: "
+				+ string.Join(",", AllowedStatuses)
+			);
 	}
 }
 

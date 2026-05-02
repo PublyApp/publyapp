@@ -128,7 +128,7 @@ const getStatusLabel = (
 		return t('suspended');
 	}
 
-	return t('inactive');
+	return t('unknown-item', { item: 'status' });
 };
 
 const mapStaffUserRowData = (staffUser: StaffUserItem): StaffUserRowData => {
@@ -587,9 +587,6 @@ const StatusCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
 		label = t('suspended');
 		color = 'warning';
-	} else if (status === USER_STATUS_ENUM.INACTIVE) {
-		label = t('inactive');
-		color = 'default';
 	}
 
 	const canChangeStatus =

@@ -527,9 +527,6 @@ const StatusCell: MRT_ColumnDef<ProfileUserRowData, string>['Cell'] = (
 	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
 		tMessage = t('suspended');
 		color = 'warning';
-	} else if (status === USER_STATUS_ENUM.INACTIVE) {
-		tMessage = t('inactive');
-		color = 'default';
 	}
 
 	const isActive = status === USER_STATUS_ENUM.ACTIVE;
@@ -737,9 +734,6 @@ const UserActionsCell: MRT_ColumnDef<ProfileUserRowData>['Cell'] = (props) => {
 	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
 		statusLabel = t('suspended');
 		statusColor = 'warning';
-	} else if (status === USER_STATUS_ENUM.INACTIVE) {
-		statusLabel = t('inactive');
-		statusColor = 'default';
 	}
 
 	const { mutateAsync: unassignUsers, isPending: isUnassigning } =

@@ -13,8 +13,8 @@ Related surfaces:
 
 - [x] The staff users list loads without an error state.
 - [x] The first column shows user identity in a dense two-line layout: full name on the first line and email on the second line.
-- [ ] The status column renders valid labels only for the supported statuses: `Active`, `Pending`, `Suspended`, and `Inactive`.
-- [ ] A newly created unverified staff user appears with `Pending` status, not `Inactive`.
+- [ ] The status column renders valid labels only for the supported statuses: `Active`, `Pending`, and `Suspended`.
+- [ ] A newly created unverified staff user appears with `Pending` status.
 - [ ] No row renders a `Banned` status label.
 - [ ] The action column renders only row-level actions for a regular active user: quick preview and delete.
 

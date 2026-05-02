@@ -45,10 +45,6 @@ const getStatusPresentation = (
 		return { label: t('suspended'), color: 'warning' };
 	}
 
-	if (status === USER_STATUS_ENUM.INACTIVE) {
-		return { label: t('inactive'), color: 'default' };
-	}
-
 	return { label: t('unknown-item', { item: 'status' }), color: 'default' };
 };
 
