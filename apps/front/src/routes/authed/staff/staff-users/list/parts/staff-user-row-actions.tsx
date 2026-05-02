@@ -16,7 +16,6 @@ import {
 	invalidateStaffUserLifecycleQueries,
 } from '#app/routes/authed/staff/staff-users/shared/staff-user-cache-helpers.ts';
 
-import StaffUserPreviewAction from './staff-user-preview-action.tsx';
 import type { StaffUserRowData } from './use-staff-users-table-controller.ts';
 import {
 	clearDeletedStaffUserRelatedQueries,
@@ -85,7 +84,7 @@ export const DeleteStaffUserAction = ({ user }: DeleteStaffUserActionProps) => {
 				action={
 					<Button
 						variant="contained"
-						color="error"
+						color="inherit"
 						onClick={() => deleteStaffUser({ userId: user.id })}
 						disabled={isDeleting}
 					>
