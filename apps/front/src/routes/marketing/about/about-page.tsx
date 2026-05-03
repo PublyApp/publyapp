@@ -7,6 +7,7 @@ import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
+import { FEATURES } from '#app/lib/features/flags.ts';
 import { ContentBand } from '#app/routes/marketing/_components/content-band.tsx';
 import { CtaBand } from '#app/routes/marketing/_components/cta-band.tsx';
 import { MarketingEyebrow } from '#app/routes/marketing/_components/marketing-eyebrow.tsx';
@@ -323,30 +324,32 @@ const AboutPage = () => {
 						We're growing fast and looking for forward-thinking engineers,
 						designers, and customer success leads. All remote, all async-first.
 					</Typography>
-					<Box
-						component={RouterLink}
-						href={FRONT_PATH_NAMES.marketing.contact}
-						sx={{
-							display: 'inline-flex',
-							alignItems: 'center',
-							py: 1.5,
-							px: 3,
-							borderRadius: 2,
-							fontWeight: 700,
-							fontSize: 15,
-							textDecoration: 'none',
-							cursor: 'pointer',
-							bgcolor: 'primary.main',
-							color: 'common.white',
-							transition: 'transform 240ms ease, box-shadow 240ms ease',
-							'&:hover': {
-								transform: 'translateY(-2px)',
-								boxShadow: '0 8px 16px -4px rgba(17,24,39,0.12)',
-							},
-						}}
-					>
-						Get in touch
-					</Box>
+					{FEATURES.marketing.contact ? (
+						<Box
+							component={RouterLink}
+							href={FRONT_PATH_NAMES.marketing.contact}
+							sx={{
+								display: 'inline-flex',
+								alignItems: 'center',
+								py: 1.5,
+								px: 3,
+								borderRadius: 2,
+								fontWeight: 700,
+								fontSize: 15,
+								textDecoration: 'none',
+								cursor: 'pointer',
+								bgcolor: 'primary.main',
+								color: 'common.white',
+								transition: 'transform 240ms ease, box-shadow 240ms ease',
+								'&:hover': {
+									transform: 'translateY(-2px)',
+									boxShadow: '0 8px 16px -4px rgba(17,24,39,0.12)',
+								},
+							}}
+						>
+							Get in touch
+						</Box>
+					) : null}
 				</Stack>
 			</ContentBand>
 

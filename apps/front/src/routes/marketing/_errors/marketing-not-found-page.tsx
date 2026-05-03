@@ -9,6 +9,7 @@ import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import type { IconifyName } from '#app/components/iconify/register-icons.ts';
 import { RouterLink } from '#app/components/router-link.tsx';
+import { FEATURES } from '#app/lib/features/flags.ts';
 
 // ----------------------------------------------------------------------
 
@@ -26,24 +27,36 @@ const POPULAR_DESTINATIONS: PopularDestination[] = [
 		href: FRONT_PATH_NAMES.marketing.pricing,
 		icon: 'ph:tag-bold',
 	},
-	{
-		id: 'about',
-		label: 'About',
-		href: FRONT_PATH_NAMES.marketing.about,
-		icon: 'ph:users-three-bold',
-	},
-	{
-		id: 'contact',
-		label: 'Contact',
-		href: FRONT_PATH_NAMES.marketing.contact,
-		icon: 'ph:envelope-bold',
-	},
-	{
-		id: 'security',
-		label: 'Trust & Security',
-		href: FRONT_PATH_NAMES.marketing.security,
-		icon: 'ph:shield-check-bold',
-	},
+	...(FEATURES.marketing.about
+		? [
+				{
+					id: 'about',
+					label: 'About',
+					href: FRONT_PATH_NAMES.marketing.about,
+					icon: 'ph:users-three-bold' as IconifyName,
+				},
+			]
+		: []),
+	...(FEATURES.marketing.contact
+		? [
+				{
+					id: 'contact',
+					label: 'Contact',
+					href: FRONT_PATH_NAMES.marketing.contact,
+					icon: 'ph:envelope-bold' as IconifyName,
+				},
+			]
+		: []),
+	...(FEATURES.marketing.security
+		? [
+				{
+					id: 'security',
+					label: 'Trust & Security',
+					href: FRONT_PATH_NAMES.marketing.security,
+					icon: 'ph:shield-check-bold' as IconifyName,
+				},
+			]
+		: []),
 	{
 		id: 'login',
 		label: 'Log in',

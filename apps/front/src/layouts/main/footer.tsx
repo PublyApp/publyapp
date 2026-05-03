@@ -8,6 +8,7 @@ import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
+import { FEATURES } from '#app/lib/features/flags.ts';
 
 // ----------------------------------------------------------------------
 
@@ -24,28 +25,46 @@ export type FooterProps = React.ComponentProps<typeof FooterRoot>;
 
 const HOME_FOOTER_PRODUCT_LINKS = [
 	{ label: 'Features', href: '/#features' },
-	{ label: 'Integrations', href: FRONT_PATH_NAMES.marketing.integrations },
+	...(FEATURES.marketing.integrations
+		? [{ label: 'Integrations', href: FRONT_PATH_NAMES.marketing.integrations }]
+		: []),
 	{ label: 'Pricing', href: FRONT_PATH_NAMES.marketing.pricing },
-	{ label: 'Changelog', href: FRONT_PATH_NAMES.marketing.changelog },
+	...(FEATURES.marketing.changelog
+		? [{ label: 'Changelog', href: FRONT_PATH_NAMES.marketing.changelog }]
+		: []),
 ];
 
 const HOME_FOOTER_COMPANY_LINKS = [
-	{ label: 'About', href: FRONT_PATH_NAMES.marketing.about },
-	{ label: 'Contact', href: FRONT_PATH_NAMES.marketing.contact },
+	...(FEATURES.marketing.about
+		? [{ label: 'About', href: FRONT_PATH_NAMES.marketing.about }]
+		: []),
+	...(FEATURES.marketing.contact
+		? [{ label: 'Contact', href: FRONT_PATH_NAMES.marketing.contact }]
+		: []),
 ];
 
 const HOME_FOOTER_LEGAL_LINKS = [
 	{ label: 'Terms of Use', href: FRONT_PATH_NAMES.marketing.terms },
 	{ label: 'Privacy Policy', href: FRONT_PATH_NAMES.marketing.privacy },
 	{ label: 'Cookie Policy', href: FRONT_PATH_NAMES.marketing.cookies },
-	{ label: 'Security', href: FRONT_PATH_NAMES.marketing.security },
+	...(FEATURES.marketing.security
+		? [{ label: 'Security', href: FRONT_PATH_NAMES.marketing.security }]
+		: []),
 ];
 
 const HOME_FOOTER_RESOURCE_LINKS = [
-	{ label: 'Blog', href: FRONT_PATH_NAMES.marketing.blog },
-	{ label: 'Help Center', href: FRONT_PATH_NAMES.marketing.help },
-	{ label: 'Community', href: FRONT_PATH_NAMES.marketing.community },
-	{ label: 'Contact Support', href: FRONT_PATH_NAMES.marketing.contact },
+	...(FEATURES.marketing.blog
+		? [{ label: 'Blog', href: FRONT_PATH_NAMES.marketing.blog }]
+		: []),
+	...(FEATURES.marketing.help
+		? [{ label: 'Help Center', href: FRONT_PATH_NAMES.marketing.help }]
+		: []),
+	...(FEATURES.marketing.community
+		? [{ label: 'Community', href: FRONT_PATH_NAMES.marketing.community }]
+		: []),
+	...(FEATURES.marketing.contact
+		? [{ label: 'Contact Support', href: FRONT_PATH_NAMES.marketing.contact }]
+		: []),
 ];
 
 const HOME_FOOTER_SOCIALS: { label: string; icon: string }[] = [
@@ -53,6 +72,21 @@ const HOME_FOOTER_SOCIALS: { label: string; icon: string }[] = [
 	{ label: 'Instagram', icon: 'ph:instagram-logo-fill' },
 	{ label: 'LinkedIn', icon: 'ph:linkedin-logo-fill' },
 ];
+
+type FooterLinkColumn = {
+	heading: string;
+	links: { label: string; href: string }[];
+};
+
+// Empty columns are filtered out so the grid doesn't render orphan headings
+// when all entries in a column are flagged off.
+const HOME_FOOTER_LINK_COLUMNS: FooterLinkColumn[] = [
+	{ heading: 'Product', links: HOME_FOOTER_PRODUCT_LINKS },
+	{ heading: 'Company', links: HOME_FOOTER_COMPANY_LINKS },
+	{ heading: 'Resources', links: HOME_FOOTER_RESOURCE_LINKS },
+].filter((column) => {
+	return column.links.length > 0;
+});
 
 export const HomeFooter = ({ sx, ...other }: FooterProps) => {
 	return (
@@ -70,7 +104,10 @@ export const HomeFooter = ({ sx, ...other }: FooterProps) => {
 				<Box
 					sx={{
 						display: 'grid',
-						gridTemplateColumns: { xs: '1fr', md: 'repeat(5, 1fr)' },
+						gridTemplateColumns: {
+							xs: '1fr',
+							md: `repeat(${2 + HOME_FOOTER_LINK_COLUMNS.length}, 1fr)`,
+						},
 						gap: 6,
 						mb: 8,
 					}}
@@ -157,131 +194,51 @@ export const HomeFooter = ({ sx, ...other }: FooterProps) => {
 						</Box>
 					</Box>
 
-					<Box>
-						<Typography
-							sx={{
-								fontWeight: 700,
-								fontSize: 14,
-								color: 'text.primary',
-								mb: 2,
-							}}
-						>
-							Product
-						</Typography>
-						<Box
-							component="ul"
-							sx={{
-								listStyle: 'none',
-								p: 0,
-								m: 0,
-								'& > li + li': { mt: 1.5 },
-							}}
-						>
-							{HOME_FOOTER_PRODUCT_LINKS.map((item) => {
-								return (
-									<Box component="li" key={item.label}>
-										<Link
-											component={RouterLink}
-											href={item.href}
-											underline="none"
-											sx={{
-												fontSize: 14,
-												color: 'text.secondary',
-												transition: 'color 0.3s ease',
-												'&:hover': { color: 'primary.main' },
-											}}
-										>
-											{item.label}
-										</Link>
-									</Box>
-								);
-							})}
-						</Box>
-					</Box>
-
-					<Box>
-						<Typography
-							sx={{
-								fontWeight: 700,
-								fontSize: 14,
-								color: 'text.primary',
-								mb: 2,
-							}}
-						>
-							Company
-						</Typography>
-						<Box
-							component="ul"
-							sx={{
-								listStyle: 'none',
-								p: 0,
-								m: 0,
-								'& > li + li': { mt: 1.5 },
-							}}
-						>
-							{HOME_FOOTER_COMPANY_LINKS.map((item) => {
-								return (
-									<Box component="li" key={item.label}>
-										<Link
-											component={RouterLink}
-											href={item.href}
-											underline="none"
-											sx={{
-												fontSize: 14,
-												color: 'text.secondary',
-												transition: 'color 0.3s ease',
-												'&:hover': { color: 'primary.main' },
-											}}
-										>
-											{item.label}
-										</Link>
-									</Box>
-								);
-							})}
-						</Box>
-					</Box>
-
-					<Box>
-						<Typography
-							sx={{
-								fontWeight: 700,
-								fontSize: 14,
-								color: 'text.primary',
-								mb: 2,
-							}}
-						>
-							Resources
-						</Typography>
-						<Box
-							component="ul"
-							sx={{
-								listStyle: 'none',
-								p: 0,
-								m: 0,
-								'& > li + li': { mt: 1.5 },
-							}}
-						>
-							{HOME_FOOTER_RESOURCE_LINKS.map((item) => {
-								return (
-									<Box component="li" key={item.label}>
-										<Link
-											component={RouterLink}
-											href={item.href}
-											underline="none"
-											sx={{
-												fontSize: 14,
-												color: 'text.secondary',
-												transition: 'color 0.3s ease',
-												'&:hover': { color: 'primary.main' },
-											}}
-										>
-											{item.label}
-										</Link>
-									</Box>
-								);
-							})}
-						</Box>
-					</Box>
+					{HOME_FOOTER_LINK_COLUMNS.map((column) => {
+						return (
+							<Box key={column.heading}>
+								<Typography
+									sx={{
+										fontWeight: 700,
+										fontSize: 14,
+										color: 'text.primary',
+										mb: 2,
+									}}
+								>
+									{column.heading}
+								</Typography>
+								<Box
+									component="ul"
+									sx={{
+										listStyle: 'none',
+										p: 0,
+										m: 0,
+										'& > li + li': { mt: 1.5 },
+									}}
+								>
+									{column.links.map((item) => {
+										return (
+											<Box component="li" key={item.label}>
+												<Link
+													component={RouterLink}
+													href={item.href}
+													underline="none"
+													sx={{
+														fontSize: 14,
+														color: 'text.secondary',
+														transition: 'color 0.3s ease',
+														'&:hover': { color: 'primary.main' },
+													}}
+												>
+													{item.label}
+												</Link>
+											</Box>
+										);
+									})}
+								</Box>
+							</Box>
+						);
+					})}
 				</Box>
 
 				<Box
