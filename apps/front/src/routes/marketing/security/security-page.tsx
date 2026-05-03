@@ -21,72 +21,104 @@ import {
 
 const SubProcessorsTable = () => {
 	return (
-		<Box sx={{ overflowX: 'auto' }}>
+		<Stack spacing={1.5}>
 			<Box
-				component="table"
 				sx={{
-					width: '100%',
-					minWidth: 480,
-					borderCollapse: 'collapse',
-					fontSize: 14,
-					'& th, & td': {
-						textAlign: 'left',
-						px: 2,
-						py: 1.5,
-						borderBottom: '1px solid',
-						borderColor: 'divider',
-					},
-					'& th': {
-						fontSize: 12,
-						fontWeight: 700,
-						textTransform: 'uppercase',
-						letterSpacing: '0.08em',
-						color: 'text.secondary',
-					},
-					'& td': {
-						color: 'text.primary',
-					},
+					borderRadius: '20px',
+					bgcolor: 'background.paper',
+					border: '1px solid',
+					borderColor: 'divider',
+					boxShadow: '0 4px 6px -1px rgba(17,24,39,0.05)',
+					overflow: 'hidden',
 				}}
 			>
-				<Box component="thead">
-					<Box component="tr">
-						<Box component="th" scope="col">
-							Vendor
+				<Box sx={{ overflowX: 'auto' }}>
+					<Box
+						component="table"
+						sx={{
+							width: '100%',
+							minWidth: 480,
+							borderCollapse: 'collapse',
+							fontSize: 14,
+							'& th, & td': {
+								textAlign: 'left',
+								px: 3,
+								py: 2,
+							},
+							'& thead': {
+								bgcolor: 'background.neutral',
+							},
+							'& th': {
+								fontSize: 12,
+								fontWeight: 700,
+								textTransform: 'uppercase',
+								letterSpacing: '0.08em',
+								color: 'text.secondary',
+								borderBottom: '1px solid',
+								borderColor: 'divider',
+							},
+							'& tbody tr': {
+								borderTop: '1px solid',
+								borderColor: 'divider',
+							},
+							'& tbody tr:first-of-type': {
+								borderTop: 'none',
+							},
+							'& td': {
+								color: 'text.primary',
+							},
+						}}
+					>
+						<Box component="thead">
+							<Box component="tr">
+								<Box component="th" scope="col">
+									Vendor
+								</Box>
+								<Box component="th" scope="col">
+									Purpose
+								</Box>
+								<Box component="th" scope="col">
+									Region
+								</Box>
+							</Box>
 						</Box>
-						<Box component="th" scope="col">
-							Purpose
-						</Box>
-						<Box component="th" scope="col">
-							Region
+						<Box component="tbody">
+							{SUB_PROCESSORS.map((row) => {
+								return (
+									<Box component="tr" key={row.id}>
+										<Box component="td" sx={{ fontWeight: 600 }}>
+											{row.vendor}
+										</Box>
+										<Box component="td" sx={{ color: 'text.secondary' }}>
+											{row.purpose}
+										</Box>
+										<Box
+											component="td"
+											sx={{
+												color: 'text.secondary',
+												fontFamily: 'monospace',
+												fontSize: 13,
+											}}
+										>
+											{row.region}
+										</Box>
+									</Box>
+								);
+							})}
 						</Box>
 					</Box>
 				</Box>
-				<Box component="tbody">
-					{SUB_PROCESSORS.map((row) => {
-						return (
-							<Box component="tr" key={row.id}>
-								<Box component="td" sx={{ fontWeight: 600 }}>
-									{row.vendor}
-								</Box>
-								<Box component="td" sx={{ color: 'text.secondary' }}>
-									{row.purpose}
-								</Box>
-								<Box
-									component="td"
-									sx={{
-										color: 'text.secondary',
-										fontFamily: 'monospace',
-										fontSize: 13,
-									}}
-								>
-									{row.region}
-								</Box>
-							</Box>
-						);
-					})}
-				</Box>
 			</Box>
-		</Box>
+			<Typography
+				sx={{
+					fontSize: 12,
+					color: 'text.disabled',
+					textAlign: 'right',
+				}}
+			>
+				Last updated: Current Quarter. Subject to specific MSA terms.
+			</Typography>
+		</Stack>
 	);
 };
 
@@ -333,6 +365,30 @@ const SecurityPage = () => {
 								. Our triage team responds within 24 hours, and we credit
 								responsible researchers in our hall of fame after mitigation.
 							</Typography>
+						</Box>
+						<Box
+							component="a"
+							href="#disclosure-policy"
+							sx={{
+								flexShrink: 0,
+								display: 'inline-flex',
+								alignItems: 'center',
+								gap: 0.75,
+								fontSize: 14,
+								fontWeight: 600,
+								color: 'primary.main',
+								textDecoration: 'none',
+								borderRadius: '2px',
+								'&:hover': { textDecoration: 'underline' },
+								'&:focus-visible': {
+									outline: '2px solid',
+									outlineColor: 'primary.main',
+									outlineOffset: '2px',
+								},
+							}}
+						>
+							Read disclosure policy
+							<Iconify icon="ph:arrow-right-bold" width={14} />
 						</Box>
 					</Box>
 				</Container>
