@@ -103,14 +103,18 @@ apps/front/src/routes/marketing/
 ├── _components/                          # shared primitives — second-consumer extractions
 │   ├── billing-cycle-toggle.tsx
 │   ├── marketing-faq-accordion.tsx
-│   └── pricing-tier-card.tsx
+│   ├── pricing-tier-card.tsx
+│   └── legal-doc-page.tsx                # slot-based: hero + sticky TOC + body slot
 ├── _data/                                # shared static content modules
-│   └── pricing.ts                        # TIERS, COMPARISON_MATRIX, PRICING_FAQS, Billing
+│   ├── pricing.ts                        # TIERS, COMPARISON_MATRIX, PRICING_FAQS, Billing
+│   ├── legal-terms.ts                    # TERMS_LAST_UPDATED, TERMS_SECTION_IDS, TERMS_TOC
+│   ├── legal-privacy.ts                  # PRIVACY_LAST_UPDATED, PRIVACY_SECTION_IDS, PRIVACY_TOC
+│   └── legal-cookies.ts                  # COOKIES_LAST_UPDATED, COOKIES_SECTION_IDS, COOKIES_TOC, CookieInventoryRow, COOKIES_INVENTORY
 ├── _layout/
 │   └── marketing-layout.tsx              # mounts MainLayout + ScrollProgress + BackToTop
 ├── home/
 │   ├── home-page.tsx
-│   └── parts/
+│   └── _parts/
 │       ├── home-hero.tsx
 │       ├── home-features.tsx
 │       ├── home-onboarding.tsx
@@ -120,14 +124,29 @@ apps/front/src/routes/marketing/
 │       └── home-logos.tsx
 ├── pricing/
 │   ├── pricing-page.tsx
-│   └── parts/
+│   └── _parts/
 │       ├── pricing-hero.tsx
 │       ├── pricing-tiers.tsx
 │       ├── pricing-comparison.tsx
 │       ├── pricing-faq.tsx
 │       └── pricing-enterprise.tsx
-└── (future: blog/, changelog/, about/, contact/, security/, terms/, privacy/, cookies/, 404/)
+├── terms/
+│   └── terms-page.tsx                    # composes <LegalDocPage>; body JSX inline
+├── privacy/
+│   └── privacy-page.tsx
+├── cookies/
+│   └── cookies-page.tsx                  # adds inline <CookieInventoryTable> + <CookiePreferencesCallout>
+└── (future: blog/, changelog/, about/, contact/, security/, 404/)
 ```
+
+Generic hooks consumed by marketing primitives (placed in shared `hooks/` so future blog/docs surfaces can reuse them):
+
+```
+apps/front/src/hooks/
+└── use-active-toc-section.ts             # IntersectionObserver-based active TOC item tracker
+```
+
+All non-route folders inside `apps/front/src/routes/` use a leading-underscore prefix (`_components`, `_data`, `_layout`, `_parts`, `_errors`, `_tree`). When you create a folder under a route that's NOT itself a route, prefix it with `_`.
 
 The marketing layout (`apps/front/src/layouts/main/layout.tsx`) handles the transparent-on-scroll topbar and unconditionally renders `HomeFooter` for ALL marketing routes (the `isHomePage` gate that previously rendered a placeholder `Footer` on non-home routes was removed). This layout is **only** mounted under marketing routes; auth and dashboard use their own layouts.
 
@@ -140,10 +159,52 @@ When building a new marketing page, check `_components/` first:
 | `BillingCycleToggle` | Custom Monthly/Annually segmented toggle with sliding dark thumb (light) / white thumb (dark). Spring physics on slide. | `home-pricing`, `pricing-hero` |
 | `PricingTierCard` | Tier card (Creator/Scale/Enterprise) with framer-motion spring hover, large-radius surface, circle+check feature icons, Box-as-button CTA. Handles `'custom'` price ("Let's talk"). | `home-pricing` (slice 0..2), `pricing-tiers` (full TIERS) |
 | `MarketingFaqAccordion` | Custom framer-motion accordion (no MUI Accordion); plus/X icon swap, snappy spring expand, neutral elevated shadow when open. Independent toggle per item; supports `defaultOpen`. | `home-faq`, `pricing-faq` |
+| `LegalDocPage` | Slot-based long-form page: full-width hero band (eyebrow + h1 + last-updated), 2-col body row (`flex:1` body + 240px sticky TOC sidebar), active-section TOC highlight via `useActiveTocSection`. Body content passed as `children` JSX. Also exports `LEGAL_H2_SX`, `LEGAL_P_SX` so all consumers share section-heading and prose typography. Container narrowed to a custom 1024px maxWidth so the body settles around 700px reading width. | `terms-page`, `privacy-page`, `cookies-page` |
 
 Tier prices, feature lists, comparison rows, and FAQ items live in `_data/pricing.ts` — one source of truth shared by both pages. **Never duplicate tier prices/features in a part file.** If pricing changes, edit `_data/pricing.ts`.
 
 The `Billing = 'monthly' \| 'annually'` type exported from `_data/pricing.ts` is the canonical billing-state shape for ALL marketing pages.
+
+## Long-form content pages (sticky TOC pattern)
+
+Legal pages, future blog articles, and future docs all share the same shape: a hero band on top, then a 2-column body with the prose on the left and a sticky table-of-contents sidebar on the right. The `LegalDocPage` primitive codifies the pattern; if a new long-form page lands (DPA, AUP, blog article, doc page), it should compose `LegalDocPage` rather than rebuilding the layout.
+
+Layout rules baked into the primitive (don't relitigate per-page):
+
+- **Hero outside the 2-col row.** Eyebrow + h1 + "Last updated" sit ABOVE the flex row, not inside the left column. Keeps the title's left edge aligned with the page (rather than indented to match a flex item) and lets the title size independently of the body's width.
+- **Container ~1024px, not `lg`.** Reading-column comfort caps line length around 60–75 characters (~720px at 16px). At MUI `lg` (1200px) with TOC = 240px, body grows to ~880px — too long. At `md` (900px) it's too cramped. The custom `maxWidth: 1024` was the sweet spot for the legal trio.
+- **Body uses `flex: 1, minWidth: 0, width: 1`** — no maxWidth. Body fills all available space minus the TOC sidebar + gap. The `minWidth: 0` is critical (see pitfalls below). The `width: 1` (= `100%`) keeps body filling its parent in the mobile column layout, where `flex: 1` doesn't constrain horizontal sizing.
+- **Sticky TOC is the direct flex child** with `position: sticky` styled inline — NOT a wrapper Box around an inner `<TocSidebar>` component. If sticky lives on a height-collapsed wrapper its scroll context becomes the wrapper itself (240px tall), and it appears not to stick.
+- **Active TOC highlight.** Drives via `useActiveTocSection({ ids, rootMargin: '-80px 0px -65% 0px' })`. The `rootMargin` top must align with where `scrollMarginTop` lands h2s on click (just below the sticky topbar) — see pitfall on this below.
+
+Per-doc data shape (matches `_data/legal-*.ts`):
+
+```ts
+export const X_LAST_UPDATED = '2026-05-02'; // ISO; ALL pages in a trio should share the ship date
+export const X_SECTION_IDS = { foo: 'foo', bar: 'bar' } as const;
+export const X_TOC: TocItem[] = [
+  { id: X_SECTION_IDS.foo, label: '1. Foo' },  // labels match the canvas TOC verbatim, including any numbering
+  { id: X_SECTION_IDS.bar, label: '2. Bar' },
+];
+```
+
+Page composition (matches `terms-page.tsx`):
+
+```tsx
+<LegalDocPage eyebrow="Legal" title="Terms of Use" lastUpdated={X_LAST_UPDATED} toc={X_TOC}>
+  <Stack spacing={6}>
+    <Box component="section">
+      <Typography component="h2" id={X_SECTION_IDS.foo} sx={LEGAL_H2_SX}>1. Foo</Typography>
+      <Typography sx={LEGAL_P_SX}>...</Typography>
+    </Box>
+    {/* one section per h2 in X_SECTION_IDS order */}
+  </Stack>
+</LegalDocPage>
+```
+
+`LEGAL_H2_SX` and `LEGAL_P_SX` are exported from `_components/legal-doc-page.tsx` so all three pages share heading + prose typography. **Never inline these styles** — import the consts.
+
+One-off blocks (e.g. cookies' inventory table, "Open cookie preferences" callout) live as inline `<Box>` JSX inside the consumer page, NOT in the primitive. They're per-page concerns.
 
 ## When to add `_shared/`
 
@@ -236,6 +297,76 @@ The "footer is different on /pricing" complaint turned out to be a pre-existing 
 ### Canvas content is authoritative when it conflicts with prior code
 
 When AIDesigner canvas content (tier feature lists, FAQ copy, hero phrasing) conflicts with what the home page already had, canvas wins — it was designed intentionally and reviewed visually. Update `_data/*` to match the canvas; older home-only strings get replaced.
+
+This includes "boring" details like TOC label numbering — if the canvas TOC reads `"1. Acceptance of Terms"`, the data module's TOC label must include the `"1. "` prefix. Don't strip it for "cleaner" looks.
+
+### Flex item containing wide content (table, code block) → page-wide horizontal scroll
+
+The default `min-width: auto` on a flex item lets it grow PAST its `flex` allocation when its content is wider than the allocation. A wide table inside a `<Box overflowX="auto">` wrapper inside a flex-item body Box will inflate the body past viewport, even though the wrapper is supposed to clip and scroll the table internally.
+
+Fix: add `minWidth: 0` to the flex item itself. Then `flex: 1` actually constrains the item to its allocated space, the inner overflow wrapper does its job, and the table scrolls inside the wrapper instead of inflating the page.
+
+For the `LegalDocPage` body slot: `flex: 1, minWidth: 0, width: 1` (the `width: 1` covers the mobile-column case where flex-grow doesn't apply).
+
+This is the trap that caused the page-wide horizontal scroll on `/cookies`.
+
+### MUI sx `width: 1` is `100%`, not `1px`
+
+In MUI's `sx` prop, `width: 1` is shorthand for `100%` (theme spacing semantics for box dimensions), NOT one pixel. For a 1×1 visually-hidden element (the standard a11y trick), use literal pixel strings:
+
+```tsx
+sx={{
+  position: 'absolute',
+  width: '1px',   // NOT width: 1 (that's 100%)
+  height: '1px',  // NOT height: 1
+  margin: '-1px',
+  // ...
+}}
+```
+
+Same trap applies to `width: 0.5` (= `50%`), `height: 1` (= `100%`), etc. When you mean a pixel value, write the string.
+
+### `<caption>` element + `position: absolute` doesn't behave normally
+
+The HTML `<table><caption>` element has special table-layout handling. Applying `position: absolute` directly to the caption (e.g. for the visually-hidden a11y trick) causes layout glitches in some browsers and engines.
+
+If you need a screen-reader-only caption, the safe pattern is a zero-height caption shell with a visually-hidden span inside:
+
+```tsx
+<Box component="caption" sx={{ captionSide: 'bottom', height: 0, p: 0, m: 0, lineHeight: 0, overflow: 'hidden' }}>
+  <Box component="span" sx={VISUALLY_HIDDEN_SX}>caption text</Box>
+</Box>
+```
+
+Better yet: skip the caption entirely if the surrounding section h2 already tells screen readers what the table is about. Defensive a11y armor that just duplicates context above is noise; section heading + `<th scope="col">` cells almost always suffice.
+
+### `position: sticky` element must be the direct flex/scroll child
+
+`position: sticky` anchors the element within its parent's box. If the sticky element is wrapped in a Box that ONLY exists to apply `display: { xs: 'none', lg: 'block' }`, the wrapper collapses to the sticky child's height (e.g. 240px), and sticky's "scroll context" becomes that 240px wrapper instead of the tall flex container — appearing not to stick.
+
+Fix: put the `display: { xs: 'none', lg: 'block' }` ON the sticky element itself. Don't wrap it in a layout-only Box.
+
+### IntersectionObserver `rootMargin` must align with `scrollMarginTop`
+
+For active-section TOC highlighting, the IntersectionObserver's effective viewport must INCLUDE the position where clicked anchor links land. With a sticky topbar + `scrollMarginTop: 'calc(var(--layout-header-desktop-height) + 16px)'`, h2s land at ~80px from viewport top on click. If `rootMargin` is `'-20% 0px -70% 0px'` (the hook's generic default), the active band starts at 20% of viewport height — meaning the just-landed h2 at 80px is ABOVE the band → IntersectionObserver doesn't fire → clicked TOC item never registers as active.
+
+Fix in the consumer: pass an explicit `rootMargin` whose top matches the topbar offset:
+
+```tsx
+useActiveTocSection({ ids, rootMargin: '-80px 0px -65% 0px' })
+```
+
+The `-80px` shrinks the viewport top by 80px so the active band starts right where h2s land. The `-65%` shrinks the bottom so the band is a comfortable middle-of-viewport region (not too tall, not too thin).
+
+### `lastUpdated` consistency across a content trio
+
+Pages that ship together as a trio (legal: Terms / Privacy / Cookies; future: company: About / Contact / Security) and share a "Last updated" date band should ALL display the trio's ship date, not whatever date the AIDesigner canvas was authored on. Inconsistent dates within a same-day-shipping group ("Terms: May 2 / Privacy: May 2 / Cookies: April 30") look like a bug to users.
+
+When in doubt, the trio's ship date wins over canvas-design date for this one field. Other content fields (TOC numbering, h2 wording, prose) still follow canvas-faithful rules.
+
+### Don't pre-extract a11y armor that duplicates surrounding context
+
+A `<caption>` describing a table sitting under an `<h2>Cookies We Set</h2>` is redundant — screen readers reading sequentially already know what the table is. Same for ARIA labels that just restate visible text. The marketing-page review rule: add a11y attributes when context is genuinely missing, not when context is redundant.
 
 ## Adding a new marketing page
 
