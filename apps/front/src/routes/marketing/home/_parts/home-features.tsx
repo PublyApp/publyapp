@@ -9,6 +9,7 @@ import { varAlpha } from 'minimal-shared/utils';
 
 import { MotionViewport, varFade } from '#app/components/animate/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { MarketingEyebrow } from '#app/routes/marketing/_components/marketing-eyebrow.tsx';
 
 // ----------------------------------------------------------------------
 
@@ -38,31 +39,6 @@ const chartBars = [
 	{ id: 'b4', height: '40%', highlight: false },
 	{ id: 'b5', height: '60%', highlight: false },
 ];
-
-const SectionEyebrow = ({ label }: { label: string }) => {
-	return (
-		<Box
-			sx={{
-				display: 'inline-block',
-				px: 1.5,
-				py: 0.5,
-				bgcolor: 'background.paper',
-				borderRadius: '6px',
-				boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
-				border: '1px solid',
-				borderColor: 'divider',
-				mb: 2,
-				fontSize: 12,
-				fontWeight: 700,
-				color: 'primary.main',
-				letterSpacing: '0.1em',
-				textTransform: 'uppercase',
-			}}
-		>
-			{label}
-		</Box>
-	);
-};
 
 const FeatureIcon = ({
 	icon,
@@ -95,9 +71,13 @@ const FeatureIcon = ({
 const FeatureHeader = () => {
 	return (
 		<Box sx={{ textAlign: 'center', mb: 10 }}>
-			<m.div variants={varFade('inUp', { distance: 24 })}>
-				<SectionEyebrow label="Features" />
-			</m.div>
+			<Box
+				component={m.div}
+				variants={varFade('inUp', { distance: 24 })}
+				sx={{ mb: 2 }}
+			>
+				<MarketingEyebrow label="Features" />
+			</Box>
 
 			<m.div variants={varFade('inUp', { distance: 24 })}>
 				<Typography
