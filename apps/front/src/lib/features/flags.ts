@@ -37,6 +37,8 @@ export const FEATURES = deepFreeze({
 		tenants: {
 			details: {
 				billing: readFlag('VITE_FEATURE_STAFF_TENANT_BILLING', false),
+				activity: readFlag('VITE_FEATURE_STAFF_TENANT_ACTIVITY', false),
+				usage: readFlag('VITE_FEATURE_STAFF_TENANT_USAGE', false),
 			},
 		},
 	},

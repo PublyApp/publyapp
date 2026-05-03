@@ -28,6 +28,7 @@ import { SidebarSettingsLayout } from '#app/components/settings/sidebar-settings
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
 import { isProblemFailure, toApiFailure } from '#app/lib/api-failure/index.ts';
+import { FEATURES } from '#app/lib/features/flags.ts';
 import { useGetTenant } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
@@ -45,11 +46,6 @@ import { useGetTenant } from '#app/lib/react-query/features/staff/staff-tenant.h
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/tenant-details-layout';
-import {
-	TENANT_DETAILS_ACTIVITY_ENABLED,
-	TENANT_DETAILS_BILLING_ENABLED,
-	TENANT_DETAILS_USAGE_ENABLED,
-} from './tenant-details-feature-flags';
 
 export type TenantDetailsOutletContext = {
 	tenantName: string;
@@ -122,8 +118,8 @@ const TenantDetailsLayout = () => {
 				label: t('activity'),
 				href: paths.tabs.activity,
 				deep: true,
-				disabled: !TENANT_DETAILS_ACTIVITY_ENABLED,
-				endIcon: !TENANT_DETAILS_ACTIVITY_ENABLED ? (
+				disabled: !FEATURES.staff.tenants.details.activity,
+				endIcon: !FEATURES.staff.tenants.details.activity ? (
 					<Iconify icon="solar:lock-password-outline" width={16} />
 				) : undefined,
 			},
@@ -131,8 +127,8 @@ const TenantDetailsLayout = () => {
 				label: t('usage'),
 				href: paths.tabs.usage,
 				deep: true,
-				disabled: !TENANT_DETAILS_USAGE_ENABLED,
-				endIcon: !TENANT_DETAILS_USAGE_ENABLED ? (
+				disabled: !FEATURES.staff.tenants.details.usage,
+				endIcon: !FEATURES.staff.tenants.details.usage ? (
 					<Iconify icon="solar:lock-password-outline" width={16} />
 				) : undefined,
 			},
@@ -140,8 +136,8 @@ const TenantDetailsLayout = () => {
 				label: t('billing'),
 				href: paths.tabs.billing,
 				deep: true,
-				disabled: !TENANT_DETAILS_BILLING_ENABLED,
-				endIcon: !TENANT_DETAILS_BILLING_ENABLED ? (
+				disabled: !FEATURES.staff.tenants.details.billing,
+				endIcon: !FEATURES.staff.tenants.details.billing ? (
 					<Iconify icon="solar:lock-password-outline" width={16} />
 				) : undefined,
 			},
