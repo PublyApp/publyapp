@@ -390,6 +390,12 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
 // Do not define a private SortFieldHandler helper in each service.
 ```
 
+`CursorSortFieldHandler<TEntity>` intentionally has no `getOffset` delegate.
+Cursor pagination in this codebase does not calculate `CurrentOffset` or expose
+page numbers; it only returns `NextCursor`. If a workflow needs offsets or
+numbered pages, use offset pagination for that workflow instead of adding offset
+calculation to the cursor handler.
+
 ### Step 4: Implement Handler
 
 Create the endpoint handler with proper error handling:
