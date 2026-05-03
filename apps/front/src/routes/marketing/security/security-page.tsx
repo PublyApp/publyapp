@@ -2,7 +2,6 @@ import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { varAlpha } from 'minimal-shared/utils';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
@@ -289,110 +288,57 @@ const SecurityPage = () => {
 				<SubProcessorsTable />
 			</ContentBand>
 
-			{/* Vulnerability Reporting — horizontal alert card (canvas-faithful) */}
-			<Box component="section" sx={{ py: { xs: 6, md: 8 } }}>
-				<Container maxWidth="md">
+			{/* Vulnerability disclosure — regular ContentBand, no card framing */}
+			<ContentBand
+				eyebrow="Vulnerability disclosure"
+				eyebrowIcon="ph:shield-warning-bold"
+				title="Found a vulnerability?"
+				subhead="We take potential threats seriously. Our triage team responds within 24 hours, and we credit responsible researchers in our hall of fame after mitigation."
+			>
+				<Stack spacing={2} alignItems="center" sx={{ textAlign: 'center' }}>
 					<Box
+						component="a"
+						href={`mailto:${SECURITY_CONTACT_EMAIL}`}
 						sx={{
-							p: { xs: 4, md: 5 },
-							borderRadius: '24px',
-							bgcolor: 'background.neutral',
-							border: '1px solid',
-							borderColor: 'divider',
-							display: 'flex',
-							flexDirection: { xs: 'column', md: 'row' },
-							alignItems: { xs: 'flex-start', md: 'center' },
-							gap: { xs: 3, md: 4 },
-							transition: 'background-color 240ms ease',
-							'&:hover': {
-								bgcolor: 'background.paper',
+							fontSize: 18,
+							fontWeight: 700,
+							color: 'primary.main',
+							textDecoration: 'underline',
+							borderRadius: '2px',
+							'&:focus-visible': {
+								outline: '2px solid',
+								outlineColor: 'primary.main',
+								outlineOffset: '2px',
 							},
 						}}
 					>
-						<Box
-							sx={(theme) => ({
-								width: 56,
-								height: 56,
-								flexShrink: 0,
-								borderRadius: '50%',
-								bgcolor: varAlpha(theme.vars.palette.primary.mainChannel, 0.1),
-								color: 'primary.main',
-								display: 'inline-flex',
-								alignItems: 'center',
-								justifyContent: 'center',
-							})}
-						>
-							<Iconify icon="ph:shield-warning-bold" width={28} />
-						</Box>
-						<Box sx={{ flex: 1, minWidth: 0 }}>
-							<Typography
-								sx={{
-									fontSize: 20,
-									fontWeight: 700,
-									color: 'text.primary',
-									mb: 1,
-								}}
-							>
-								Found a vulnerability?
-							</Typography>
-							<Typography
-								sx={{
-									fontSize: 14,
-									color: 'text.secondary',
-									lineHeight: 1.6,
-									maxWidth: 560,
-								}}
-							>
-								We take potential threats seriously. Report it to{' '}
-								<Box
-									component="a"
-									href={`mailto:${SECURITY_CONTACT_EMAIL}`}
-									sx={{
-										fontWeight: 600,
-										color: 'text.primary',
-										textDecoration: 'underline',
-										borderRadius: '2px',
-										'&:hover': { color: 'primary.main' },
-										'&:focus-visible': {
-											outline: '2px solid',
-											outlineColor: 'primary.main',
-											outlineOffset: '2px',
-										},
-									}}
-								>
-									{SECURITY_CONTACT_EMAIL}
-								</Box>
-								. Our triage team responds within 24 hours, and we credit
-								responsible researchers in our hall of fame after mitigation.
-							</Typography>
-						</Box>
-						<Box
-							component="a"
-							href="#disclosure-policy"
-							sx={{
-								flexShrink: 0,
-								display: 'inline-flex',
-								alignItems: 'center',
-								gap: 0.75,
-								fontSize: 14,
-								fontWeight: 600,
-								color: 'primary.main',
-								textDecoration: 'none',
-								borderRadius: '2px',
-								'&:hover': { textDecoration: 'underline' },
-								'&:focus-visible': {
-									outline: '2px solid',
-									outlineColor: 'primary.main',
-									outlineOffset: '2px',
-								},
-							}}
-						>
-							Read disclosure policy
-							<Iconify icon="ph:arrow-right-bold" width={14} />
-						</Box>
+						{SECURITY_CONTACT_EMAIL}
 					</Box>
-				</Container>
-			</Box>
+					<Box
+						component="a"
+						href="#disclosure-policy"
+						sx={{
+							display: 'inline-flex',
+							alignItems: 'center',
+							gap: 0.5,
+							fontSize: 13,
+							fontWeight: 600,
+							color: 'text.secondary',
+							textDecoration: 'none',
+							borderRadius: '2px',
+							'&:hover': { color: 'primary.main' },
+							'&:focus-visible': {
+								outline: '2px solid',
+								outlineColor: 'primary.main',
+								outlineOffset: '2px',
+							},
+						}}
+					>
+						Read disclosure policy
+						<Iconify icon="ph:arrow-right-bold" width={12} />
+					</Box>
+				</Stack>
+			</ContentBand>
 
 			{/* Bottom CTA */}
 			<CtaBand
