@@ -29,10 +29,16 @@ const HOME_FOOTER_PRODUCT_LINKS = [
 	{ label: 'Changelog', href: '#' },
 ];
 
+const HOME_FOOTER_COMPANY_LINKS = [
+	{ label: 'About', href: FRONT_PATH_NAMES.marketing.about },
+	{ label: 'Contact', href: FRONT_PATH_NAMES.marketing.contact },
+];
+
 const HOME_FOOTER_LEGAL_LINKS = [
 	{ label: 'Terms of Use', href: FRONT_PATH_NAMES.marketing.terms },
 	{ label: 'Privacy Policy', href: FRONT_PATH_NAMES.marketing.privacy },
 	{ label: 'Cookie Policy', href: FRONT_PATH_NAMES.marketing.cookies },
+	{ label: 'Security', href: FRONT_PATH_NAMES.marketing.security },
 ];
 
 const HOME_FOOTER_RESOURCE_LINKS = [
@@ -64,7 +70,7 @@ export const HomeFooter = ({ sx, ...other }: FooterProps) => {
 				<Box
 					sx={{
 						display: 'grid',
-						gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' },
+						gridTemplateColumns: { xs: '1fr', md: 'repeat(5, 1fr)' },
 						gap: 6,
 						mb: 8,
 					}}
@@ -172,6 +178,48 @@ export const HomeFooter = ({ sx, ...other }: FooterProps) => {
 							}}
 						>
 							{HOME_FOOTER_PRODUCT_LINKS.map((item) => {
+								return (
+									<Box component="li" key={item.label}>
+										<Link
+											component={RouterLink}
+											href={item.href}
+											underline="none"
+											sx={{
+												fontSize: 14,
+												color: 'text.secondary',
+												transition: 'color 0.3s ease',
+												'&:hover': { color: 'primary.main' },
+											}}
+										>
+											{item.label}
+										</Link>
+									</Box>
+								);
+							})}
+						</Box>
+					</Box>
+
+					<Box>
+						<Typography
+							sx={{
+								fontWeight: 700,
+								fontSize: 14,
+								color: 'text.primary',
+								mb: 2,
+							}}
+						>
+							Company
+						</Typography>
+						<Box
+							component="ul"
+							sx={{
+								listStyle: 'none',
+								p: 0,
+								m: 0,
+								'& > li + li': { mt: 1.5 },
+							}}
+						>
+							{HOME_FOOTER_COMPANY_LINKS.map((item) => {
 								return (
 									<Box component="li" key={item.label}>
 										<Link
