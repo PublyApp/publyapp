@@ -245,7 +245,11 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
         // Handler for Id sorting (simple case)
         ["id"] = new CursorSortFieldHandler<YourEntity>(
             getCursorValue: async (guid) => {
-                var entity = await _dbContext.YourEntity.FindAsync(guid);
+                var entity = await _dbContext.YourEntity
+                    .AsNoTracking()
+                    .Where(e => e.Id == guid)
+                    .Select(e => new { e.Id })
+                    .FirstOrDefaultAsync();
                 return entity?.Id;
             },
             applyFilter: (q, cursorValue, isAsc) => {
@@ -264,6 +268,7 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
         ["name"] = new CursorSortFieldHandler<YourEntity>(
             getCursorValue: async (guid) => {
                 var entity = await _dbContext.YourEntity
+                    .AsNoTracking()
                     .Where(e => e.Id == guid)
                     .Select(e => new { e.Name, e.Id })
                     .FirstOrDefaultAsync();
@@ -285,6 +290,7 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
         ["created_at"] = new CursorSortFieldHandler<YourEntity>(
             getCursorValue: async (guid) => {
                 var entity = await _dbContext.YourEntity
+                    .AsNoTracking()
                     .Where(e => e.Id == guid)
                     .Select(e => new { e.CreatedAt, e.Id })
                     .FirstOrDefaultAsync();
@@ -306,6 +312,7 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
         ["related_count"] = new CursorSortFieldHandler<YourEntity>(
             getCursorValue: async (guid) => {
                 var entity = await _dbContext.YourEntity
+                    .AsNoTracking()
                     .Where(e => e.Id == guid)
                     .Select(e => new { Count = e.RelatedEntities.Count, e.Id })
                     .FirstOrDefaultAsync();
@@ -337,6 +344,7 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
     // STEP 3.3: Build Base Query
     // ═══════════════════════════════════════════════════════════════════════
     var query = _dbContext.YourEntity
+        .AsNoTracking()
         .Where(e => e.Id != null);  // Add your filters here
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -615,7 +623,14 @@ public abstract record FindEntitiesResult {
 }
 ```
 
-### 2. Project to DTOs at the Database Level
+### 2. Use `AsNoTracking()` for Read-Only Cursor Queries
+
+Cursor-paginated list methods are read-only. Add `AsNoTracking()` to the base
+result query and to each `GetCursorValue` lookup query so EF Core does not track
+entities that will never be updated. Apply the same rule to secondary metadata
+queries used only to hydrate list DTOs.
+
+### 3. Project to DTOs at the Database Level
 
 ```csharp
 // ✅ GOOD: Projection happens in the database
@@ -633,7 +648,7 @@ var entities = await query.Take(limit).ToListAsync();
 var results = entities.Select(e => new EntityItem { ... }).ToList();
 ```
 
-### 3. Document Sort Field Allowed Values
+### 4. Document Sort Field Allowed Values
 
 In error messages and documentation, clearly state which sort fields are supported:
 
@@ -644,7 +659,7 @@ return TypedProblems.BadRequest(
 );
 ```
 
-### 4. Use Meaningful Default Sort
+### 5. Use Meaningful Default Sort
 
 Choose a default sort that makes sense for your domain:
 
@@ -656,7 +671,7 @@ Validate the value against a case-sensitive snake_case allowlist, or normalize i
 through an explicit parser/dictionary built with
 `StringComparer.OrdinalIgnoreCase`. Do not use `ToLowerInvariant()` for dispatch.
 
-### 5. Consider Database Indexes
+### 6. Consider Database Indexes
 
 For optimal performance, create indexes that match your sort patterns:
 
@@ -668,7 +683,7 @@ CREATE INDEX idx_profiles_name_id ON profiles(name, id);
 CREATE INDEX idx_profiles_created_at_id ON profiles(created_at, id);
 ```
 
-### 6. Validate `sort_id` Early
+### 7. Validate `sort_id` Early
 
 Validate the wire `sort_id` parameter before doing any database work:
 
@@ -678,7 +693,7 @@ if (!sortFieldHandlers.ContainsKey(effectiveSortId)) {
 }
 ```
 
-### 7. Make Cursor Optional in First Request
+### 8. Make Cursor Optional in First Request
 
 Allow `cursor` to be `null` or `Guid.Empty` for the first page:
 
@@ -705,6 +720,9 @@ When implementing cursor pagination:
 - [ ] For non-Id sorts: included tie-breaker in `applyOrdering` (ThenBy/ThenByDescending)
 - [ ] Tie-breaker direction matches primary sort direction
 - [ ] Validated `sort_id` parameter against allowed values
+- [ ] Added `AsNoTracking()` to read-only cursor lookup queries
+- [ ] Added `AsNoTracking()` to the read-only base result query
+- [ ] Added `AsNoTracking()` to secondary read-only metadata queries
 - [ ] Handled `cursor == Guid.Empty` for first page
 - [ ] Validated cursor exists before applying filter
 - [ ] Fetched `limit + 1` records to detect more pages
