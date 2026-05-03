@@ -18,7 +18,7 @@ import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/tenants-list-page';
-import TenantsTable from './parts/tenants-table';
+import TenantsTable from './_parts/tenants-table';
 
 const getPageTitle = (t: TFunction) => {
 	return _.capitalize(t('list-of-items', { items: t('tenants') }));

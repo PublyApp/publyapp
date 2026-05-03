@@ -18,7 +18,7 @@ import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 import { useMainStore } from '#app/lib/zustand/store.ts';
 
-import { TenantCreateOrEditForm } from '../components/tenant-create-or-edit-form';
+import { TenantCreateOrEditForm } from '../_components/tenant-create-or-edit-form';
 import type { Route } from './+types/new-tenant-page';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {

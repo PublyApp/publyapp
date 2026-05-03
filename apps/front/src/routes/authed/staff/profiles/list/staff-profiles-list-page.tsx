@@ -15,7 +15,7 @@ import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/staff-profiles-list-page';
-import StaffProfilesTable from './parts/staff-profiles-table';
+import StaffProfilesTable from './_parts/staff-profiles-table';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = _.capitalize(t('staff-profiles'));

@@ -33,7 +33,7 @@ import {
 } from '#app/lib/react-router/server-data.server.ts';
 import { interZodClient } from '#app/lib/zod/zod.client.ts';
 
-import InvalidLinkView from '../components/invalid-link-view';
+import InvalidLinkView from '../_components/invalid-link-view';
 import type { Route } from './+types/verify-email-page';
 
 const actionIntent = {

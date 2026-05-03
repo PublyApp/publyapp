@@ -7,8 +7,8 @@ import { SectionPageWithDrawer } from '#app/components/settings/section-page-wit
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
 import type { TenantDetailsOutletContext } from '../_layout/tenant-details-layout';
-import { InviteUserForm } from './parts/invite-user-form';
-import TenantUsersTable from './parts/tenant-users-table';
+import { InviteUserForm } from './_parts/invite-user-form';
+import TenantUsersTable from './_parts/tenant-users-table';
 
 const TenantDetailsUsersPage = () => {
 	const { t } = useTranslate();

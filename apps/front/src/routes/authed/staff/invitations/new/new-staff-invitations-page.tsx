@@ -15,7 +15,7 @@ import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/new-staff-invitations-page';
-import NewStaffInvitationsForm from './parts/new-staff-invitations-form';
+import NewStaffInvitationsForm from './_parts/new-staff-invitations-form';
 
 const getPageTitle = (t: TFunction, seo?: true) => {
 	let str = t('invite-users');
