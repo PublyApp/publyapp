@@ -114,7 +114,7 @@ const MarketingNotFoundPage = () => {
 						404
 					</Typography>
 
-					{/* Heading floats with light-bleed glow — appears to hover, not boxed */}
+					{/* Heading floats with backdrop blur softening the watermark behind */}
 					<Box
 						sx={(theme) => ({
 							mt: { xs: -4, sm: -8, md: -12 },
@@ -128,7 +128,6 @@ const MarketingNotFoundPage = () => {
 								0.6,
 							),
 							backdropFilter: 'blur(32px)',
-							boxShadow: `0 0 80px 24px ${varAlpha(theme.vars.palette.background.defaultChannel, 0.9)}`,
 							position: 'relative',
 							zIndex: 1,
 						})}

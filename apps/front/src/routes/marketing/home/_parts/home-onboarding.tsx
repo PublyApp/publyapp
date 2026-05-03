@@ -8,6 +8,7 @@ import type { ReactNode } from 'react';
 
 import { MotionViewport, varFade } from '#app/components/animate/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { MarketingEyebrow } from '#app/routes/marketing/_components/marketing-eyebrow.tsx';
 
 // ----------------------------------------------------------------------
 
@@ -73,31 +74,6 @@ const platformTiles = [
 		distance: -12,
 	},
 ];
-
-const SectionEyebrow = ({ label }: { label: string }) => {
-	return (
-		<Box
-			sx={{
-				display: 'inline-block',
-				px: 1.5,
-				py: 0.5,
-				bgcolor: 'background.paper',
-				borderRadius: '6px',
-				boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
-				border: '1px solid',
-				borderColor: 'divider',
-				mb: 2,
-				fontSize: 12,
-				fontWeight: 700,
-				color: 'primary.main',
-				letterSpacing: '0.1em',
-				textTransform: 'uppercase',
-			}}
-		>
-			{label}
-		</Box>
-	);
-};
 
 const StepBadge = ({ label, tone }: { label: string; tone: StepTone }) => {
 	return (
@@ -178,9 +154,13 @@ const stepCardSx: SxProps<Theme> = {
 const OnboardingHeader = () => {
 	return (
 		<Box sx={{ textAlign: 'center', mb: 12 }}>
-			<m.div variants={varFade('inUp', { distance: 24 })}>
-				<SectionEyebrow label="How it works" />
-			</m.div>
+			<Box
+				component={m.div}
+				variants={varFade('inUp', { distance: 24 })}
+				sx={{ mb: 2 }}
+			>
+				<MarketingEyebrow label="How it works" />
+			</Box>
 
 			<m.div variants={varFade('inUp', { distance: 24 })}>
 				<Typography

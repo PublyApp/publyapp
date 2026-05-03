@@ -12,35 +12,11 @@ import { MotionViewport, varFade } from '#app/components/animate/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { BillingCycleToggle } from '#app/routes/marketing/_components/billing-cycle-toggle.tsx';
+import { MarketingEyebrow } from '#app/routes/marketing/_components/marketing-eyebrow.tsx';
 import { PricingTierCard } from '#app/routes/marketing/_components/pricing-tier-card.tsx';
 import { type Billing, TIERS } from '#app/routes/marketing/_data/pricing.ts';
 
 // ----------------------------------------------------------------------
-
-const SectionEyebrow = ({ label }: { label: string }) => {
-	return (
-		<Box
-			sx={{
-				display: 'inline-block',
-				px: 1.5,
-				py: 0.5,
-				bgcolor: 'background.paper',
-				borderRadius: '6px',
-				boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
-				border: '1px solid',
-				borderColor: 'divider',
-				mb: 2,
-				fontSize: 12,
-				fontWeight: 700,
-				color: 'primary.main',
-				letterSpacing: '0.1em',
-				textTransform: 'uppercase',
-			}}
-		>
-			{label}
-		</Box>
-	);
-};
 
 const ASSURANCES = [
 	'Cancel anytime',
@@ -79,9 +55,13 @@ const PricingHeader = ({
 }) => {
 	return (
 		<Box sx={{ textAlign: 'center', mb: 8, position: 'relative', zIndex: 1 }}>
-			<m.div variants={varFade('inUp', { distance: 24 })}>
-				<SectionEyebrow label="Pricing" />
-			</m.div>
+			<Box
+				component={m.div}
+				variants={varFade('inUp', { distance: 24 })}
+				sx={{ mb: 2 }}
+			>
+				<MarketingEyebrow label="Pricing" />
+			</Box>
 
 			<m.div variants={varFade('inUp', { distance: 24 })}>
 				<Typography

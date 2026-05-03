@@ -4,6 +4,7 @@ import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 
 import { MotionViewport, varFade } from '#app/components/animate/index.ts';
+import { MarketingEyebrow } from '#app/routes/marketing/_components/marketing-eyebrow.tsx';
 import {
 	MarketingFaqAccordion,
 	type MarketingFaqItem,
@@ -35,31 +36,6 @@ const FAQS: MarketingFaqItem[] = [
 	},
 ];
 
-const SectionEyebrow = ({ label }: { label: string }) => {
-	return (
-		<Box
-			sx={{
-				display: 'inline-block',
-				px: 1.5,
-				py: 0.5,
-				bgcolor: 'background.paper',
-				borderRadius: '6px',
-				boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
-				border: '1px solid',
-				borderColor: 'divider',
-				mb: 2,
-				fontSize: 12,
-				fontWeight: 700,
-				color: 'primary.main',
-				letterSpacing: '0.1em',
-				textTransform: 'uppercase',
-			}}
-		>
-			{label}
-		</Box>
-	);
-};
-
 export const HomeFaq = () => {
 	return (
 		<Box
@@ -72,9 +48,13 @@ export const HomeFaq = () => {
 		>
 			<Container maxWidth="md" component={MotionViewport}>
 				<Box sx={{ textAlign: 'center', mb: 8 }}>
-					<m.div variants={varFade('inUp', { distance: 24 })}>
-						<SectionEyebrow label="FAQ" />
-					</m.div>
+					<Box
+						component={m.div}
+						variants={varFade('inUp', { distance: 24 })}
+						sx={{ mb: 2 }}
+					>
+						<MarketingEyebrow label="FAQ" />
+					</Box>
 
 					<m.div variants={varFade('inUp', { distance: 24 })}>
 						<Typography
