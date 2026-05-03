@@ -120,22 +120,59 @@ export const LegalDocPage = ({
 				maxWidth="lg"
 				sx={{ pt: { xs: 6, md: 10 }, pb: { xs: 8, md: 12 } }}
 			>
-				{/* 2-column wrapper: hero + body share the LEFT reading column so they
-				    align on the same left edge; TOC sidebar is the RIGHT direct flex
-				    child so position:sticky has a tall scroll context to stick within. */}
+				{/* Hero band — sits ABOVE the 2-col area so the title can span its
+				    own width independently of the reading column / TOC layout. */}
+				<Stack
+					spacing={2}
+					sx={{ mb: { xs: 6, md: 8 }, maxWidth: READING_COLUMN_W }}
+				>
+					<Typography
+						sx={{
+							fontSize: 12,
+							fontWeight: 700,
+							textTransform: 'uppercase',
+							letterSpacing: '0.12em',
+							color: 'primary.main',
+						}}
+					>
+						{eyebrow}
+					</Typography>
+					<Typography
+						component="h1"
+						sx={{
+							fontSize: { xs: 32, md: 44 },
+							fontWeight: 700,
+							lineHeight: 1.15,
+							letterSpacing: '-0.02em',
+							color: 'text.primary',
+						}}
+					>
+						{title}
+					</Typography>
+					<Typography sx={{ fontSize: 14, color: 'text.secondary' }}>
+						Last updated {fDate(lastUpdated, 'MMMM D, YYYY')}
+					</Typography>
+				</Stack>
+
+				{/* 2-column wrapper: body left, sticky TOC right.
+				    flex:1 + maxWidth + minWidth:0 on the body slot lets it grow to
+				    READING_COLUMN_W AND lets it shrink under content (the minWidth:0
+				    fix is what prevents wide tables/code blocks inside the body from
+				    inflating the flex item past viewport, which would cause horizontal
+				    scroll on the page). */}
 				<Box
 					sx={{
 						display: 'flex',
 						flexDirection: { xs: 'column', lg: 'row' },
-						gap: { xs: 4, lg: 8 },
-						justifyContent: { lg: 'space-between' },
+						gap: { xs: 4, lg: 4 },
 						alignItems: 'flex-start',
 					}}
 				>
-					{/* Left column: hero band + body slot, both at the same x-origin */}
+					{/* Body slot */}
 					<Box
 						sx={(theme) => ({
-							width: { xs: '100%', lg: READING_COLUMN_W },
+							flex: 1,
+							minWidth: 0,
 							maxWidth: READING_COLUMN_W,
 							color: 'text.primary',
 							// h2[id] anchor scroll lands below the sticky topbar (16px buffer)
@@ -149,37 +186,6 @@ export const LegalDocPage = ({
 							},
 						})}
 					>
-						{/* Hero band */}
-						<Stack spacing={2} sx={{ mb: { xs: 6, md: 8 } }}>
-							<Typography
-								sx={{
-									fontSize: 12,
-									fontWeight: 700,
-									textTransform: 'uppercase',
-									letterSpacing: '0.12em',
-									color: 'primary.main',
-								}}
-							>
-								{eyebrow}
-							</Typography>
-							<Typography
-								component="h1"
-								sx={{
-									fontSize: { xs: 32, md: 44 },
-									fontWeight: 700,
-									lineHeight: 1.15,
-									letterSpacing: '-0.02em',
-									color: 'text.primary',
-								}}
-							>
-								{title}
-							</Typography>
-							<Typography sx={{ fontSize: 14, color: 'text.secondary' }}>
-								Last updated {fDate(lastUpdated, 'MMMM D, YYYY')}
-							</Typography>
-						</Stack>
-
-						{/* Body content slot */}
 						{children}
 					</Box>
 
