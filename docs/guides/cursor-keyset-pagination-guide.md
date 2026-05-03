@@ -392,9 +392,10 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
 
 `CursorSortFieldHandler<TEntity>` intentionally has no `getOffset` delegate.
 Cursor pagination in this codebase does not calculate `CurrentOffset` or expose
-page numbers; it only returns `NextCursor`. If a workflow needs offsets or
-numbered pages, use offset pagination for that workflow instead of adding offset
-calculation to the cursor handler.
+page numbers today; it only returns `NextCursor`. Future cursor UX work that
+needs `total_count` or visible range text, such as issue #282, should add an
+explicit pagination metadata contract instead of reusing the stale `getOffset`
+helper shape.
 
 ### Step 4: Implement Handler
 
