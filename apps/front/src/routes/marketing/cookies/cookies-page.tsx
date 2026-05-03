@@ -21,27 +21,6 @@ const STRONG_SX = {
 	color: 'text.primary',
 } as const;
 
-const TABLE_CAPTION_SX = {
-	captionSide: 'bottom',
-	height: 0,
-	p: 0,
-	m: 0,
-	lineHeight: 0,
-	overflow: 'hidden',
-} as const;
-
-const VISUALLY_HIDDEN_SX = {
-	position: 'absolute',
-	width: '1px',
-	height: '1px',
-	padding: 0,
-	margin: '-1px',
-	overflow: 'hidden',
-	clip: 'rect(0, 0, 0, 0)',
-	whiteSpace: 'nowrap',
-	border: 0,
-} as const;
-
 // ----------------------------------------------------------------------
 
 const CookieInventoryTable = () => {
@@ -73,11 +52,6 @@ const CookieInventoryTable = () => {
 					},
 				}}
 			>
-				<Box component="caption" sx={TABLE_CAPTION_SX}>
-					<Box component="span" sx={VISUALLY_HIDDEN_SX}>
-						Cookies set by the PublyApp platform, with purpose and retention.
-					</Box>
-				</Box>
 				<Box component="thead">
 					<Box component="tr">
 						<Box component="th" scope="col">
