@@ -26,7 +26,7 @@ import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 import type { Route } from './+types/new-staff-profile-page';
 import NewStaffProfileForm, {
 	NewStaffProfileSidebar,
-} from './parts/new-staff-profile-form';
+} from './_parts/new-staff-profile-form';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = _.capitalize(

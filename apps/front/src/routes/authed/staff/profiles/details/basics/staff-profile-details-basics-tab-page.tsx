@@ -15,12 +15,12 @@ import type { StaffProfileDetailsOutletContext } from '../_layout/staff-profile-
 import {
 	StaffProfilePermissionsToc,
 	type TocSection,
-} from './components/staff-profile-permissions-toc';
-import StaffProfileBasicInfos from './parts/staff-profile-basic-infos';
+} from './_components/staff-profile-permissions-toc';
+import StaffProfileBasicInfos from './_parts/staff-profile-basic-infos';
 import StaffProfilePermissions, {
 	getPermissionModuleId,
 	getStaffPermissionGroups,
-} from './parts/staff-profile-permissions';
+} from './_parts/staff-profile-permissions';
 
 const StaffProfileDetailsBasicsTabPage = () => {
 	const { t, currentLang } = useTranslate();
