@@ -112,7 +112,13 @@ export const LegalDocPage = ({
 	const ids = toc.map((item) => {
 		return item.id;
 	});
-	const activeId = useActiveTocSection({ ids });
+	// rootMargin top is set to -80px so the active band starts just below the
+	// sticky topbar — matches where scrollMarginTop lands the h2 on click,
+	// so clicking a TOC item correctly highlights it as active.
+	const activeId = useActiveTocSection({
+		ids,
+		rootMargin: '-80px 0px -65% 0px',
+	});
 
 	return (
 		<Box component="section">
@@ -154,16 +160,17 @@ export const LegalDocPage = ({
 					</Typography>
 				</Stack>
 
-				{/* 2-column wrapper: body left, sticky TOC right.
-				    width:100% + maxWidth keeps the body from shrink-wrapping wide
-				    internal content in the mobile column layout, while minWidth:0 lets
-				    wide tables/code blocks scroll inside the body instead of inflating
-				    the flex item past the viewport. */}
+				{/* 2-column wrapper: body grows to fill (flex:1, no maxWidth), TOC
+				    sidebar is fixed-width on the right. width:1 keeps body at 100%
+				    of its parent in the mobile column layout. minWidth:0 lets wide
+				    tables/code blocks inside the body scroll within their own wrapper
+				    instead of inflating the flex item past the viewport. */}
 				<Box
 					sx={{
 						display: 'flex',
 						flexDirection: { xs: 'column', lg: 'row' },
 						gap: { xs: 4, lg: 4 },
+						justifyContent: { lg: 'space-between' },
 						alignItems: 'flex-start',
 					}}
 				>
@@ -173,7 +180,6 @@ export const LegalDocPage = ({
 							flex: 1,
 							minWidth: 0,
 							width: 1,
-							maxWidth: READING_COLUMN_W,
 							color: 'text.primary',
 							// h2[id] anchor scroll lands below the sticky topbar (16px buffer)
 							'& h2[id]': {
