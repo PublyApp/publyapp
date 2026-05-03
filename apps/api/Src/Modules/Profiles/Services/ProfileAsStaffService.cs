@@ -491,6 +491,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			["id"] = new CursorSortFieldHandler<Profile>(
 				getCursorValue: async (guid) => {
 					var profileId = await _dbContext.Profile
+						.AsNoTracking()
 						.Where(p =>
 							p.Id == guid
 							&& p.Scope == ProfileScope.Tenant
@@ -518,6 +519,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			["name"] = new CursorSortFieldHandler<Profile>(
 				getCursorValue: async (guid) => {
 					var profile = await _dbContext.Profile
+						.AsNoTracking()
 						.Where(p =>
 							p.Id == guid
 							&& p.Scope == ProfileScope.Tenant
@@ -546,6 +548,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			["created_at"] = new CursorSortFieldHandler<Profile>(
 				getCursorValue: async (guid) => {
 					var profile = await _dbContext.Profile
+						.AsNoTracking()
 						.Where(p =>
 							p.Id == guid
 							&& p.Scope == ProfileScope.Tenant
@@ -577,7 +580,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		}
 
 		var baseQuery =
-			from p in _dbContext.Profile
+			from p in _dbContext.Profile.AsNoTracking()
 			where p.Scope == ProfileScope.Tenant
 				&& p.TenantId == args.TenantId
 				&& !p.IsDeleted
@@ -620,7 +623,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		// The list DTO needs assignment counts, but we fetch them in one grouped query so the
 		// table avoids per-row lookups.
 		var userAccountCounts = await (
-			from uap in _dbContext.UserAccountProfile
+			from uap in _dbContext.UserAccountProfile.AsNoTracking()
 			where profileIds.Contains(uap.ProfileId)
 				&& !uap.IsDeleted
 			group uap by uap.ProfileId into g
@@ -1128,6 +1131,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 					// GetCursorValue: Just fetch the Id value
 					getCursorValue: async (guid) => {
 						var profileId = await _dbContext.Profile
+							.AsNoTracking()
 							.Where(p => p.Id == guid
 								&& p.Scope == ProfileScope.Staff
 								&& !p.IsDeleted)
@@ -1159,6 +1163,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 					// We need both values to construct the keyset filter correctly
 					getCursorValue: async (guid) => {
 						var profile = await _dbContext.Profile
+							.AsNoTracking()
 							.Where(p => p.Id == guid
 								&& p.Scope == ProfileScope.Staff
 								&& !p.IsDeleted)
@@ -1194,6 +1199,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 					// GetCursorValue: Fetch BOTH CreatedAt and Id
 					getCursorValue: async (guid) => {
 						var profile = await _dbContext.Profile
+							.AsNoTracking()
 							.Where(p => p.Id == guid
 								&& p.Scope == ProfileScope.Staff
 								&& !p.IsDeleted)
@@ -1226,6 +1232,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 					// GetCursorValue: Calculate the count for the cursor record
 					getCursorValue: async (guid) => {
 						var profile = await _dbContext.Profile
+							.AsNoTracking()
 							.Where(p => p.Id == guid
 								&& p.Scope == ProfileScope.Staff
 								&& !p.IsDeleted)
@@ -1267,7 +1274,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		// ───────────────────────────────────────────────────────────────────────
 		// Start with staff profiles only, excluding soft-deleted records
 		var baseQuery =
-			from p in _dbContext.Profile
+			from p in _dbContext.Profile.AsNoTracking()
 			where p.Scope == ProfileScope.Staff
 				&& !p.IsDeleted
 				&& p.Id != null
