@@ -114,9 +114,9 @@ const MarketingNotFoundPage = () => {
 						404
 					</Typography>
 
-					{/* Heading floats; glass bg only on the top portion (where it overlaps
-					    the 404), fading to invisible by the bottom. The ::before holds the
-					    bg + backdrop-filter so the text content stays unmasked. */}
+					{/* Heading floats; glass bg radiates from top-center (where the 404
+					    overlaps), fading to invisible toward sides AND bottom. The ::before
+					    holds the bg + backdrop-filter so the text content stays unmasked. */}
 					<Box
 						sx={(theme) => ({
 							mt: { xs: -4, sm: -8, md: -12 },
@@ -138,9 +138,9 @@ const MarketingNotFoundPage = () => {
 								backdropFilter: 'blur(32px)',
 								WebkitBackdropFilter: 'blur(32px)',
 								WebkitMaskImage:
-									'linear-gradient(to bottom, black 0%, black 30%, transparent 80%)',
+									'radial-gradient(ellipse 70% 90% at 50% 0%, black 0%, black 35%, transparent 100%)',
 								maskImage:
-									'linear-gradient(to bottom, black 0%, black 30%, transparent 80%)',
+									'radial-gradient(ellipse 70% 90% at 50% 0%, black 0%, black 35%, transparent 100%)',
 								pointerEvents: 'none',
 								zIndex: -1,
 							},
