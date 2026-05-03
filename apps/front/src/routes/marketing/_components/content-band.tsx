@@ -4,10 +4,14 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import type { ReactNode } from 'react';
 
+import type { IconifyName } from '#app/components/iconify/register-icons.ts';
+import { MarketingEyebrow } from '#app/routes/marketing/_components/marketing-eyebrow.tsx';
+
 // ----------------------------------------------------------------------
 
 type ContentBandProps = {
 	eyebrow?: string;
+	eyebrowIcon?: IconifyName;
 	title: string;
 	subhead?: string;
 	bg?: 'default' | 'neutral';
@@ -18,6 +22,7 @@ type ContentBandProps = {
 
 export const ContentBand = ({
 	eyebrow,
+	eyebrowIcon,
 	title,
 	subhead,
 	bg = 'default',
@@ -32,19 +37,18 @@ export const ContentBand = ({
 			}}
 		>
 			<Container maxWidth="lg">
-				<Stack spacing={2} sx={{ maxWidth: 720, mb: { xs: 5, md: 7 } }}>
+				<Stack
+					spacing={2}
+					sx={{
+						maxWidth: 720,
+						mx: 'auto',
+						mb: { xs: 5, md: 7 },
+						alignItems: 'center',
+						textAlign: 'center',
+					}}
+				>
 					{eyebrow ? (
-						<Typography
-							sx={{
-								fontSize: 12,
-								fontWeight: 700,
-								textTransform: 'uppercase',
-								letterSpacing: '0.12em',
-								color: 'primary.main',
-							}}
-						>
-							{eyebrow}
-						</Typography>
+						<MarketingEyebrow label={eyebrow} icon={eyebrowIcon} />
 					) : null}
 					<Typography
 						component="h2"

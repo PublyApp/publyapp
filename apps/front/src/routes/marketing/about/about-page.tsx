@@ -56,7 +56,7 @@ const AboutPage = () => {
 			</ContentBand>
 
 			{/* Values */}
-			<ContentBand eyebrow="Values" title="What we believe" bg="neutral">
+			<ContentBand eyebrow="Values" title="What we believe">
 				<Box
 					sx={{
 						display: 'grid',
@@ -185,7 +185,7 @@ const AboutPage = () => {
 			</ContentBand>
 
 			{/* We're hiring */}
-			<ContentBand eyebrow="We're hiring" title="Join the team" bg="neutral">
+			<ContentBand eyebrow="We're hiring" title="Join the team">
 				<Stack spacing={3} alignItems="flex-start">
 					<Typography
 						sx={{

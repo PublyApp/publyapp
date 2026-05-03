@@ -207,7 +207,7 @@ const ContactPage = () => {
 				</Box>
 			</ContentBand>
 
-			<ContentBand title="Quick answers" bg="neutral">
+			<ContentBand title="Quick answers">
 				<Box
 					sx={{
 						display: 'grid',
