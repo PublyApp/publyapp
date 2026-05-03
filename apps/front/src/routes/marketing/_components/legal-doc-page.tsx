@@ -155,11 +155,10 @@ export const LegalDocPage = ({
 				</Stack>
 
 				{/* 2-column wrapper: body left, sticky TOC right.
-				    flex:1 + maxWidth + minWidth:0 on the body slot lets it grow to
-				    READING_COLUMN_W AND lets it shrink under content (the minWidth:0
-				    fix is what prevents wide tables/code blocks inside the body from
-				    inflating the flex item past viewport, which would cause horizontal
-				    scroll on the page). */}
+				    width:100% + maxWidth keeps the body from shrink-wrapping wide
+				    internal content in the mobile column layout, while minWidth:0 lets
+				    wide tables/code blocks scroll inside the body instead of inflating
+				    the flex item past the viewport. */}
 				<Box
 					sx={{
 						display: 'flex',
@@ -173,6 +172,7 @@ export const LegalDocPage = ({
 						sx={(theme) => ({
 							flex: 1,
 							minWidth: 0,
+							width: 1,
 							maxWidth: READING_COLUMN_W,
 							color: 'text.primary',
 							// h2[id] anchor scroll lands below the sticky topbar (16px buffer)
