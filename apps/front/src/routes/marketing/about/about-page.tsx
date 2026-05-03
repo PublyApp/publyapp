@@ -185,7 +185,7 @@ const AboutPage = () => {
 
 			{/* We're hiring */}
 			<ContentBand eyebrow="We're hiring" title="Join the team">
-				<Stack spacing={3} alignItems="flex-start">
+				<Stack spacing={3} alignItems="center" sx={{ textAlign: 'center' }}>
 					<Typography
 						sx={{
 							fontSize: 16,
