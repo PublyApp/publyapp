@@ -1,6 +1,8 @@
 import Box from '@mui/material/Box';
+import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { varAlpha } from 'minimal-shared/utils';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
@@ -95,70 +97,88 @@ const SecurityPage = () => {
 		<>
 			<MarketingHero
 				eyebrow="Security & Trust"
+				eyebrowIcon="ph:shield-check-bold"
 				title="Built for teams that take security seriously"
 				subhead="Bank-grade encryption, SOC 2 Type II compliance, and infrastructure that scales seamlessly with your enterprise requirements."
+				secondaryCta={{
+					label: `Email ${SECURITY_CONTACT_EMAIL}`,
+					href: `mailto:${SECURITY_CONTACT_EMAIL}`,
+				}}
 			/>
 
-			{/* Trust badges */}
-			<ContentBand title="Verified compliance" bg="neutral">
-				<Box
-					sx={{
-						display: 'grid',
-						gridTemplateColumns: {
-							xs: '1fr',
-							sm: 'repeat(2, 1fr)',
-							md: 'repeat(4, 1fr)',
-						},
-						gap: 3,
-					}}
-				>
-					{TRUST_BADGES.map((badge) => {
-						return (
-							<Stack
-								key={badge.id}
-								spacing={1.5}
-								alignItems="flex-start"
-								sx={{
-									p: 3,
-									borderRadius: '20px',
-									bgcolor: 'background.paper',
-									border: '1px solid',
-									borderColor: 'divider',
-								}}
-							>
-								<Box
+			{/* Verified Compliance — inline grayscale pills (canvas-faithful) */}
+			<Box
+				component="section"
+				sx={{
+					bgcolor: 'background.neutral',
+					py: { xs: 6, md: 8 },
+				}}
+			>
+				<Container maxWidth="lg">
+					<Typography
+						sx={{
+							fontSize: 12,
+							fontWeight: 700,
+							textTransform: 'uppercase',
+							letterSpacing: '0.18em',
+							color: 'text.secondary',
+							textAlign: 'center',
+							mb: 3,
+						}}
+					>
+						Verified Compliance
+					</Typography>
+					<Box
+						sx={{
+							display: 'flex',
+							flexWrap: 'wrap',
+							justifyContent: 'center',
+							gap: { xs: 2, sm: 3 },
+						}}
+					>
+						{TRUST_BADGES.map((badge) => {
+							return (
+								<Stack
+									key={badge.id}
+									alignItems="center"
+									spacing={1}
 									sx={{
-										width: 40,
-										height: 40,
-										borderRadius: '10px',
-										display: 'inline-flex',
-										alignItems: 'center',
-										justifyContent: 'center',
-										bgcolor: 'primary.lighter',
-										color: 'primary.main',
-									}}
-								>
-									<Iconify icon={badge.icon} width={20} />
-								</Box>
-								<Typography
-									sx={{ fontSize: 15, fontWeight: 700, color: 'text.primary' }}
-								>
-									{badge.label}
-								</Typography>
-								<Typography
-									sx={{
-										fontSize: 13,
+										minWidth: 140,
+										px: 3,
+										py: 2,
+										bgcolor: 'background.paper',
+										border: '1px solid',
+										borderColor: 'divider',
+										borderRadius: '16px',
 										color: 'text.secondary',
-										lineHeight: 1.5,
+										filter: 'grayscale(1)',
+										opacity: 0.75,
+										transition:
+											'filter 240ms ease, opacity 240ms ease, transform 240ms ease, box-shadow 240ms ease',
+										'&:hover': {
+											filter: 'grayscale(0)',
+											opacity: 1,
+											transform: 'translateY(-2px)',
+											boxShadow: '0 8px 16px -8px rgba(17,24,39,0.10)',
+										},
 									}}
 								>
-									{badge.description}
-								</Typography>
-							</Stack>
-						);
-					})}
-				</Box>
-			</ContentBand>
+									<Iconify icon={badge.icon} width={28} />
+									<Typography
+										sx={{
+											fontSize: 12,
+											fontWeight: 600,
+											color: 'text.primary',
+										}}
+									>
+										{badge.label}
+									</Typography>
+								</Stack>
+							);
+						})}
+					</Box>
+				</Container>
+			</Box>
 
 			{/* Defense in depth */}
 			<ContentBand
@@ -239,32 +259,86 @@ const SecurityPage = () => {
 				<SubProcessorsTable />
 			</ContentBand>
 
-			{/* Vulnerability reporting */}
-			<ContentBand
-				title="Reporting a vulnerability"
-				subhead="We take potential threats seriously. Report it to our security team — we respond within 24 hours and credit responsible researchers in our hall of fame after mitigation."
-			>
-				<Stack spacing={2} alignItems="flex-start">
+			{/* Vulnerability Reporting — horizontal alert card (canvas-faithful) */}
+			<Box component="section" sx={{ py: { xs: 6, md: 8 } }}>
+				<Container maxWidth="md">
 					<Box
-						component="a"
-						href={`mailto:${SECURITY_CONTACT_EMAIL}`}
 						sx={{
-							fontSize: 18,
-							fontWeight: 700,
-							color: 'primary.main',
-							textDecoration: 'underline',
-							borderRadius: '2px',
-							'&:focus-visible': {
-								outline: '2px solid',
-								outlineColor: 'primary.main',
-								outlineOffset: '2px',
+							p: { xs: 4, md: 5 },
+							borderRadius: '24px',
+							bgcolor: 'background.neutral',
+							border: '1px solid',
+							borderColor: 'divider',
+							display: 'flex',
+							flexDirection: { xs: 'column', md: 'row' },
+							alignItems: { xs: 'flex-start', md: 'center' },
+							gap: { xs: 3, md: 4 },
+							transition: 'background-color 240ms ease',
+							'&:hover': {
+								bgcolor: 'background.paper',
 							},
 						}}
 					>
-						{SECURITY_CONTACT_EMAIL}
+						<Box
+							sx={(theme) => ({
+								width: 56,
+								height: 56,
+								flexShrink: 0,
+								borderRadius: '50%',
+								bgcolor: varAlpha(theme.vars.palette.primary.mainChannel, 0.1),
+								color: 'primary.main',
+								display: 'inline-flex',
+								alignItems: 'center',
+								justifyContent: 'center',
+							})}
+						>
+							<Iconify icon="ph:shield-warning-bold" width={28} />
+						</Box>
+						<Box sx={{ flex: 1, minWidth: 0 }}>
+							<Typography
+								sx={{
+									fontSize: 20,
+									fontWeight: 700,
+									color: 'text.primary',
+									mb: 1,
+								}}
+							>
+								Found a vulnerability?
+							</Typography>
+							<Typography
+								sx={{
+									fontSize: 14,
+									color: 'text.secondary',
+									lineHeight: 1.6,
+									maxWidth: 560,
+								}}
+							>
+								We take potential threats seriously. Report it to{' '}
+								<Box
+									component="a"
+									href={`mailto:${SECURITY_CONTACT_EMAIL}`}
+									sx={{
+										fontWeight: 600,
+										color: 'text.primary',
+										textDecoration: 'underline',
+										borderRadius: '2px',
+										'&:hover': { color: 'primary.main' },
+										'&:focus-visible': {
+											outline: '2px solid',
+											outlineColor: 'primary.main',
+											outlineOffset: '2px',
+										},
+									}}
+								>
+									{SECURITY_CONTACT_EMAIL}
+								</Box>
+								. Our triage team responds within 24 hours, and we credit
+								responsible researchers in our hall of fame after mitigation.
+							</Typography>
+						</Box>
 					</Box>
-				</Stack>
-			</ContentBand>
+				</Container>
+			</Box>
 
 			{/* Bottom CTA */}
 			<CtaBand
