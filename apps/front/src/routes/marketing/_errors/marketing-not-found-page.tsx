@@ -114,23 +114,21 @@ const MarketingNotFoundPage = () => {
 						404
 					</Typography>
 
-					{/* Glass card overlapping the bottom of the 404 */}
+					{/* Heading floats with light-bleed glow — appears to hover, not boxed */}
 					<Box
 						sx={(theme) => ({
-							mt: { xs: -3, sm: -5, md: -8 },
-							display: 'inline-block',
-							maxWidth: 560,
-							px: { xs: 3, md: 4 },
-							py: { xs: 3, md: 4 },
-							borderRadius: '24px',
+							mt: { xs: -4, sm: -8, md: -12 },
+							mx: 'auto',
+							maxWidth: 640,
+							px: { xs: 3, md: 5 },
+							py: { xs: 4, md: 5 },
+							borderRadius: '32px',
 							bgcolor: varAlpha(
-								theme.vars.palette.background.paperChannel,
-								0.7,
+								theme.vars.palette.background.defaultChannel,
+								0.6,
 							),
-							backdropFilter: 'blur(24px)',
-							border: '1px solid',
-							borderColor: 'divider',
-							boxShadow: '0 24px 48px -20px rgba(17,24,39,0.10)',
+							backdropFilter: 'blur(32px)',
+							boxShadow: `0 0 60px 20px ${varAlpha(theme.vars.palette.background.defaultChannel, 0.9)}`,
 							position: 'relative',
 							zIndex: 1,
 						})}
@@ -138,21 +136,23 @@ const MarketingNotFoundPage = () => {
 						<Typography
 							component="h1"
 							sx={{
-								fontSize: { xs: 24, md: 32 },
+								fontSize: { xs: 28, md: 40 },
 								fontWeight: 700,
 								color: 'text.primary',
-								mb: 1.5,
-								letterSpacing: '-0.01em',
-								lineHeight: 1.2,
+								mb: 2,
+								letterSpacing: '-0.02em',
+								lineHeight: 1.15,
 							}}
 						>
 							This post got deleted by the algorithm
 						</Typography>
 						<Typography
 							sx={{
-								fontSize: { xs: 14, md: 16 },
+								fontSize: { xs: 15, md: 17 },
 								color: 'text.secondary',
 								lineHeight: 1.6,
+								maxWidth: 480,
+								mx: 'auto',
 							}}
 						>
 							Or maybe the link is broken. Either way — let's get you back on
