@@ -503,10 +503,10 @@ public class InvitationService : IInvitationService {
 		var effectiveSortId = sortId ?? "created_at";
 
 		// Keyset pagination handlers per sortId (cursor stays a Guid).
-		var sortFieldHandlers = new Dictionary<string, SortFieldHandler>(
+		var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<Invitation>>(
 			StringComparer.OrdinalIgnoreCase
 		) {
-			["created_at"] = new SortFieldHandler(
+			["created_at"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Staff)
@@ -525,7 +525,7 @@ public class InvitationService : IInvitationService {
 					? q.OrderBy(inv => inv.CreatedAt).ThenBy(inv => inv.Id)
 					: q.OrderByDescending(inv => inv.CreatedAt).ThenByDescending(inv => inv.Id)
 			),
-			["expires_at"] = new SortFieldHandler(
+			["expires_at"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Staff)
@@ -544,7 +544,7 @@ public class InvitationService : IInvitationService {
 					? q.OrderBy(inv => inv.ExpiresAt).ThenBy(inv => inv.Id)
 					: q.OrderByDescending(inv => inv.ExpiresAt).ThenByDescending(inv => inv.Id)
 			),
-			["email"] = new SortFieldHandler(
+			["email"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Staff)
@@ -563,7 +563,7 @@ public class InvitationService : IInvitationService {
 					? q.OrderBy(inv => inv.Email).ThenBy(inv => inv.Id)
 					: q.OrderByDescending(inv => inv.Email).ThenByDescending(inv => inv.Id)
 			),
-			["accepted_at"] = new SortFieldHandler(
+			["accepted_at"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Staff)
@@ -592,7 +592,12 @@ public class InvitationService : IInvitationService {
 			)
 		};
 
-		if (!sortFieldHandlers.TryGetValue(effectiveSortId, out SortFieldHandler? handler)) {
+		if (
+			!sortFieldHandlers.TryGetValue(
+				effectiveSortId,
+				out CursorSortFieldHandler<Invitation>? handler
+			)
+		) {
 			return new FindStaffInvitationsResult.InvalidSortId(effectiveSortId);
 		}
 
@@ -707,10 +712,10 @@ public class InvitationService : IInvitationService {
 		var filters = args.Filters;
 
 		// Keyset pagination handlers per sortId (cursor stays a Guid).
-		var sortFieldHandlers = new Dictionary<string, SortFieldHandler>(
+		var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<Invitation>>(
 			StringComparer.OrdinalIgnoreCase
 		) {
-			["created_at"] = new SortFieldHandler(
+			["created_at"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId)
@@ -729,7 +734,7 @@ public class InvitationService : IInvitationService {
 					? q.OrderBy(inv => inv.CreatedAt).ThenBy(inv => inv.Id)
 					: q.OrderByDescending(inv => inv.CreatedAt).ThenByDescending(inv => inv.Id)
 			),
-			["expires_at"] = new SortFieldHandler(
+			["expires_at"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId)
@@ -748,7 +753,7 @@ public class InvitationService : IInvitationService {
 					? q.OrderBy(inv => inv.ExpiresAt).ThenBy(inv => inv.Id)
 					: q.OrderByDescending(inv => inv.ExpiresAt).ThenByDescending(inv => inv.Id)
 			),
-			["email"] = new SortFieldHandler(
+			["email"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId)
@@ -767,7 +772,7 @@ public class InvitationService : IInvitationService {
 					? q.OrderBy(inv => inv.Email).ThenBy(inv => inv.Id)
 					: q.OrderByDescending(inv => inv.Email).ThenByDescending(inv => inv.Id)
 			),
-			["accepted_at"] = new SortFieldHandler(
+			["accepted_at"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId)
@@ -795,7 +800,12 @@ public class InvitationService : IInvitationService {
 			)
 		};
 
-		if (!sortFieldHandlers.TryGetValue(effectiveSortId, out SortFieldHandler? handler)) {
+		if (
+			!sortFieldHandlers.TryGetValue(
+				effectiveSortId,
+				out CursorSortFieldHandler<Invitation>? handler
+			)
+		) {
 			return new FindTenantInvitationsResult.InvalidSortId(effectiveSortId);
 		}
 
@@ -1327,22 +1337,6 @@ public class InvitationService : IInvitationService {
 
 		if (_logger.IsEnabled(LogLevel.Information)) {
 			_logger.LogInformation("Marked invitation {InvitationId} as accepted", invitationId);
-		}
-	}
-
-	private class SortFieldHandler {
-		public Func<Guid, Task<object?>> GetCursorValue { get; }
-		public Func<IQueryable<Invitation>, object?, bool, IQueryable<Invitation>> ApplyFilter { get; }
-		public Func<IQueryable<Invitation>, bool, IQueryable<Invitation>> ApplyOrdering { get; }
-
-		public SortFieldHandler(
-			Func<Guid, Task<object?>> getCursorValue,
-			Func<IQueryable<Invitation>, object?, bool, IQueryable<Invitation>> applyFilter,
-			Func<IQueryable<Invitation>, bool, IQueryable<Invitation>> applyOrdering
-		) {
-			GetCursorValue = getCursorValue;
-			ApplyFilter = applyFilter;
-			ApplyOrdering = applyOrdering;
 		}
 	}
 
