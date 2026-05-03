@@ -297,6 +297,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			["created_at"] = new CursorSortFieldHandler<Tenant>(
 				getCursorValue: async (guid) => {
 					var tenant = await _dbContext.Tenant
+						.AsNoTracking()
 						.Where(t => t.Id == guid && t.IsDeleted != true)
 						.Select(t => new { t.CreatedAt, t.Id })
 						.FirstOrDefaultAsync(cancellationToken);
@@ -316,6 +317,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			["updated_at"] = new CursorSortFieldHandler<Tenant>(
 				getCursorValue: async (guid) => {
 					var tenant = await _dbContext.Tenant
+						.AsNoTracking()
 						.Where(t => t.Id == guid && t.IsDeleted != true)
 						.Select(t => new { t.UpdatedAt, t.Id })
 						.FirstOrDefaultAsync(cancellationToken);
@@ -335,6 +337,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			["name"] = new CursorSortFieldHandler<Tenant>(
 				getCursorValue: async (guid) => {
 					var tenant = await _dbContext.Tenant
+						.AsNoTracking()
 						.Where(t => t.Id == guid && t.IsDeleted != true)
 						.Select(t => new { t.Name, t.Id })
 						.FirstOrDefaultAsync(cancellationToken);
@@ -354,6 +357,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			["status"] = new CursorSortFieldHandler<Tenant>(
 				getCursorValue: async (guid) => {
 					var tenant = await _dbContext.Tenant
+						.AsNoTracking()
 						.Where(t => t.Id == guid && t.IsDeleted != true)
 						.Select(t => new { t.Status, t.Id })
 						.FirstOrDefaultAsync(cancellationToken);
@@ -383,7 +387,9 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		}
 
 		// Build base query on Tenant entity only (no joins for pagination)
-		IQueryable<Tenant> baseQuery = _dbContext.Tenant.Where(t => t.IsDeleted != true && t.Id.HasValue);
+		IQueryable<Tenant> baseQuery = _dbContext.Tenant
+			.AsNoTracking()
+			.Where(t => t.IsDeleted != true && t.Id.HasValue);
 
 		// Apply search filter
 		if (args.Filters?.Search is { } search) {
@@ -432,7 +438,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 
 		// Fetch users count for all tenant IDs
 		var usersCounts = await (
-			from ua in _dbContext.UserAccount
+			from ua in _dbContext.UserAccount.AsNoTracking()
 			where ua.Scope == AccountScope.Tenant
 				&& ua.IsDeleted != true
 				&& ua.TenantId != null
