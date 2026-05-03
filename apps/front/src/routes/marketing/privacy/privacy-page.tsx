@@ -21,6 +21,12 @@ import {
 const LINK_SX = {
 	color: 'primary.main',
 	textDecoration: 'underline',
+	borderRadius: '2px',
+	'&:focus-visible': {
+		outline: '2px solid',
+		outlineColor: 'primary.main',
+		outlineOffset: '2px',
+	},
 } as const;
 
 // ----------------------------------------------------------------------
@@ -97,10 +103,10 @@ const PrivacyPage = () => {
 							communication preferences.
 						</Typography>
 						<Typography sx={LEGAL_P_SX}>
-							Finally, data usage is governed by our obligation back to legal
-							and compliance requirements, ensuring that PublyApp meets
-							regulatory standards in processing user telemetry within
-							respective regional jurisdictions.
+							Finally, data usage is governed by our obligation to comply with
+							legal and regulatory requirements, ensuring that PublyApp meets
+							compliance standards in processing user telemetry within the
+							jurisdictions in which we operate.
 						</Typography>
 					</Stack>
 				</Box>
