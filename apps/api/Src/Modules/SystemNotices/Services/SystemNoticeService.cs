@@ -149,6 +149,7 @@ public class SystemNoticeService : ISystemNoticeService {
 				["created_at"] = new CursorSortFieldHandler<SystemNotice>(
 				getCursorValue: async (guid) => {
 					var notice = await _dbContext.SystemNotice
+						.AsNoTracking()
 						.Where(n => n.Id == guid
 							&& n.IsDeleted == false)
 						.Select(n => new { n.CreatedAt, n.Id })
@@ -182,6 +183,7 @@ public class SystemNoticeService : ISystemNoticeService {
 				["starts_at"] = new CursorSortFieldHandler<SystemNotice>(
 				getCursorValue: async (guid) => {
 					var notice = await _dbContext.SystemNotice
+						.AsNoTracking()
 						.Where(n => n.Id == guid
 							&& n.IsDeleted == false)
 						.Select(n => new { n.StartsAt, n.Id })
@@ -215,6 +217,7 @@ public class SystemNoticeService : ISystemNoticeService {
 				["severity"] = new CursorSortFieldHandler<SystemNotice>(
 				getCursorValue: async (guid) => {
 					var notice = await _dbContext.SystemNotice
+						.AsNoTracking()
 						.Where(n => n.Id == guid
 							&& n.IsDeleted == false)
 						.Select(n => new { n.Severity, n.Id })
@@ -256,6 +259,7 @@ public class SystemNoticeService : ISystemNoticeService {
 		}
 
 		var query = _dbContext.SystemNotice
+			.AsNoTracking()
 			.Where(n => n.IsDeleted == false && n.Id != null);
 
 		if (cursor != Guid.Empty) {
