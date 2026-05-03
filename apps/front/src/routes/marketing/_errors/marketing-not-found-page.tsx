@@ -114,7 +114,9 @@ const MarketingNotFoundPage = () => {
 						404
 					</Typography>
 
-					{/* Heading floats with backdrop blur softening the watermark behind */}
+					{/* Heading floats; glass bg only on the top portion (where it overlaps
+					    the 404), fading to invisible by the bottom. The ::before holds the
+					    bg + backdrop-filter so the text content stays unmasked. */}
 					<Box
 						sx={(theme) => ({
 							mt: { xs: -4, sm: -8, md: -12 },
@@ -122,14 +124,26 @@ const MarketingNotFoundPage = () => {
 							maxWidth: 880,
 							px: { xs: 4, md: 8 },
 							py: { xs: 5, md: 7 },
-							borderRadius: '40px',
-							bgcolor: varAlpha(
-								theme.vars.palette.background.defaultChannel,
-								0.6,
-							),
-							backdropFilter: 'blur(32px)',
 							position: 'relative',
 							zIndex: 1,
+							'&::before': {
+								content: '""',
+								position: 'absolute',
+								inset: 0,
+								borderRadius: '40px',
+								backgroundColor: varAlpha(
+									theme.vars.palette.background.defaultChannel,
+									0.6,
+								),
+								backdropFilter: 'blur(32px)',
+								WebkitBackdropFilter: 'blur(32px)',
+								WebkitMaskImage:
+									'linear-gradient(to bottom, black 0%, black 30%, transparent 80%)',
+								maskImage:
+									'linear-gradient(to bottom, black 0%, black 30%, transparent 80%)',
+								pointerEvents: 'none',
+								zIndex: -1,
+							},
 						})}
 					>
 						<Typography
