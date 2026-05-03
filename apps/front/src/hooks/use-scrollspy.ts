@@ -1,5 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 
+/**
+ * Returns the id of the most-visible section among `sectionIds` while
+ * the user scrolls. Selection is ratio-based: the section with the
+ * highest intersection ratio wins; ties break toward the section
+ * closest to the viewport top.
+ *
+ * Best for interactive multi-section forms where the user is focused
+ * on one section at a time (e.g. staff profile basics tab).
+ *
+ * See also: `useActiveTocSection` (sibling hook). Simpler "first
+ * intersecting in DOM order, in a thin band" selection. Prefer it for
+ * read-only long-scroll docs (legal, blog article, docs) where the
+ * question is "what am I currently reading."
+ */
 export interface UseScrollspyOptions {
 	sectionIds: string[];
 	offset?: number;

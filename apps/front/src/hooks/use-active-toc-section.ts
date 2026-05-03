@@ -17,6 +17,13 @@ type UseActiveTocSectionOptions = {
  * currently reading is near the top of where your eyes are).
  *
  * SSR-safe: bails out when window is undefined.
+ *
+ * See also: `useScrollspy` (sibling hook). Different selection logic —
+ * `useScrollspy` picks the section with the highest intersection ratio
+ * (best for forms with sections of varying length where the user is
+ * actively interacting with one). Prefer `useActiveTocSection` for
+ * read-only long-scroll docs (legal, blog article, docs); prefer
+ * `useScrollspy` for interactive multi-section forms.
  */
 export const useActiveTocSection = ({
 	ids,
