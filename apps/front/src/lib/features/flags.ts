@@ -22,16 +22,16 @@ const readFlag = (envKey: string, defaultValue: boolean): boolean => {
 export const FEATURES = deepFreeze({
 	marketing: {
 		// Phase 3 supporting pages — built but not all needed at launch
-		about: readFlag('VITE_FEATURE_MARKETING_ABOUT', false),
-		contact: readFlag('VITE_FEATURE_MARKETING_CONTACT', false),
-		security: readFlag('VITE_FEATURE_MARKETING_SECURITY', false),
+		about: readFlag('VITE_FEATURE_MARKETING_ABOUT', true),
+		contact: readFlag('VITE_FEATURE_MARKETING_CONTACT', true),
+		security: readFlag('VITE_FEATURE_MARKETING_SECURITY', true),
 		// Path segments only — pages not built yet, footer links 404 to
 		// MarketingNotFoundPage when enabled
-		blog: readFlag('VITE_FEATURE_MARKETING_BLOG', false),
-		changelog: readFlag('VITE_FEATURE_MARKETING_CHANGELOG', false),
-		integrations: readFlag('VITE_FEATURE_MARKETING_INTEGRATIONS', false),
-		help: readFlag('VITE_FEATURE_MARKETING_HELP', false),
-		community: readFlag('VITE_FEATURE_MARKETING_COMMUNITY', false),
+		blog: readFlag('VITE_FEATURE_MARKETING_BLOG', true),
+		changelog: readFlag('VITE_FEATURE_MARKETING_CHANGELOG', true),
+		integrations: readFlag('VITE_FEATURE_MARKETING_INTEGRATIONS', true),
+		help: readFlag('VITE_FEATURE_MARKETING_HELP', true),
+		community: readFlag('VITE_FEATURE_MARKETING_COMMUNITY', true),
 	},
 	staff: {
 		tenants: {
