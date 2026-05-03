@@ -17,7 +17,6 @@ export const MarketingEyebrow = ({ label, icon }: MarketingEyebrowProps) => {
 				display: 'inline-flex',
 				alignItems: 'center',
 				gap: 0.75,
-				alignSelf: 'center',
 				px: 1.5,
 				py: 0.75,
 				borderRadius: 999,
