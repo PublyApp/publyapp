@@ -113,7 +113,12 @@ export const MarketingHero = ({
 			>
 				<Stack
 					spacing={3}
-					sx={{ maxWidth: 760, mx: 'auto', textAlign: 'center' }}
+					sx={{
+						maxWidth: 760,
+						mx: 'auto',
+						alignItems: 'center',
+						textAlign: 'center',
+					}}
 				>
 					<MarketingEyebrow label={eyebrow} icon={eyebrowIcon} />
 					<Typography
