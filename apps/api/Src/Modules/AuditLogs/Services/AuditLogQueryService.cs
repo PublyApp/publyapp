@@ -144,6 +144,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 				["created_at"] = new CursorSortFieldHandler<AuditLog>(
 				getCursorValue: async (guid) => {
 					var log = await _dbContext.AuditLog
+						.AsNoTracking()
 						.Where(a => a.Id == guid
 							&& a.IsDeleted == false)
 						.Select(a => new {
