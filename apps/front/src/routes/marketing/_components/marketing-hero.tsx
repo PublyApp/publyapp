@@ -4,6 +4,8 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { varAlpha } from 'minimal-shared/utils';
 
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import type { IconifyName } from '#app/components/iconify/register-icons.ts';
 import { RouterLink } from '#app/components/router-link.tsx';
 
 // ----------------------------------------------------------------------
@@ -15,6 +17,7 @@ type CtaConfig = {
 
 type MarketingHeroProps = {
 	eyebrow: string;
+	eyebrowIcon?: IconifyName;
 	title: string;
 	subhead: string;
 	primaryCta?: CtaConfig;
@@ -96,6 +99,7 @@ const SecondaryCtaButton = ({ cta }: { cta: CtaConfig }) => {
 
 export const MarketingHero = ({
 	eyebrow,
+	eyebrowIcon,
 	title,
 	subhead,
 	primaryCta,
@@ -111,17 +115,40 @@ export const MarketingHero = ({
 					spacing={3}
 					sx={{ maxWidth: 760, mx: 'auto', textAlign: 'center' }}
 				>
-					<Typography
-						sx={{
-							fontSize: 12,
-							fontWeight: 700,
-							textTransform: 'uppercase',
-							letterSpacing: '0.12em',
-							color: 'primary.main',
-						}}
-					>
-						{eyebrow}
-					</Typography>
+					{eyebrowIcon ? (
+						<Box
+							sx={(theme) => ({
+								alignSelf: 'center',
+								display: 'inline-flex',
+								alignItems: 'center',
+								gap: 0.75,
+								px: 1.5,
+								py: 0.75,
+								borderRadius: 999,
+								bgcolor: varAlpha(theme.vars.palette.primary.mainChannel, 0.1),
+								color: 'primary.main',
+								fontSize: 12,
+								fontWeight: 700,
+								textTransform: 'uppercase',
+								letterSpacing: '0.12em',
+							})}
+						>
+							<Iconify icon={eyebrowIcon} width={14} />
+							{eyebrow}
+						</Box>
+					) : (
+						<Typography
+							sx={{
+								fontSize: 12,
+								fontWeight: 700,
+								textTransform: 'uppercase',
+								letterSpacing: '0.12em',
+								color: 'primary.main',
+							}}
+						>
+							{eyebrow}
+						</Typography>
+					)}
 					<Typography
 						component="h1"
 						sx={{
