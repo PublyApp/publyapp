@@ -722,6 +722,7 @@ When implementing cursor pagination:
 - [ ] Validated `sort_id` parameter against allowed values
 - [ ] Added `AsNoTracking()` to read-only cursor lookup queries
 - [ ] Added `AsNoTracking()` to the read-only base result query
+- [ ] Added `AsNoTracking()` to secondary read-only metadata queries
 - [ ] Handled `cursor == Guid.Empty` for first page
 - [ ] Validated cursor exists before applying filter
 - [ ] Fetched `limit + 1` records to detect more pages
