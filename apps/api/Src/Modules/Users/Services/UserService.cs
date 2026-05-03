@@ -812,6 +812,11 @@ public class UserService : IUserService {
 		);
 	}
 
+	private sealed record LiveStaffUserStatus {
+		public required Guid UserId { get; init; }
+		public required UserStatus Status { get; init; }
+	}
+
 	private async Task<SuspendStaffUserResult> ResolveSuspendStaffUserAfterNoRowsAsync(
 		Guid userId,
 		CancellationToken cancellationToken
