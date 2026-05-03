@@ -85,7 +85,7 @@ const MarketingNotFoundPage = () => {
 				}}
 			/>
 
-			<Container maxWidth="md" sx={{ position: 'relative' }}>
+			<Container maxWidth="lg" sx={{ position: 'relative' }}>
 				{/* Hero: 404 in gradient text + glass card overlapping the bottom */}
 				<Box
 					sx={{
@@ -119,16 +119,16 @@ const MarketingNotFoundPage = () => {
 						sx={(theme) => ({
 							mt: { xs: -4, sm: -8, md: -12 },
 							mx: 'auto',
-							maxWidth: 640,
-							px: { xs: 3, md: 5 },
-							py: { xs: 4, md: 5 },
-							borderRadius: '32px',
+							maxWidth: 880,
+							px: { xs: 4, md: 8 },
+							py: { xs: 5, md: 7 },
+							borderRadius: '40px',
 							bgcolor: varAlpha(
 								theme.vars.palette.background.defaultChannel,
 								0.6,
 							),
 							backdropFilter: 'blur(32px)',
-							boxShadow: `0 0 60px 20px ${varAlpha(theme.vars.palette.background.defaultChannel, 0.9)}`,
+							boxShadow: `0 0 80px 24px ${varAlpha(theme.vars.palette.background.defaultChannel, 0.9)}`,
 							position: 'relative',
 							zIndex: 1,
 						})}
@@ -136,12 +136,14 @@ const MarketingNotFoundPage = () => {
 						<Typography
 							component="h1"
 							sx={{
-								fontSize: { xs: 28, md: 40 },
+								fontSize: { xs: 28, md: 44 },
 								fontWeight: 700,
 								color: 'text.primary',
-								mb: 2,
+								mb: 3,
 								letterSpacing: '-0.02em',
 								lineHeight: 1.15,
+								maxWidth: 720,
+								mx: 'auto',
 							}}
 						>
 							This post got deleted by the algorithm
@@ -151,7 +153,7 @@ const MarketingNotFoundPage = () => {
 								fontSize: { xs: 15, md: 17 },
 								color: 'text.secondary',
 								lineHeight: 1.6,
-								maxWidth: 480,
+								maxWidth: 560,
 								mx: 'auto',
 							}}
 						>
