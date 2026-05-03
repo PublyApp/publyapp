@@ -77,3 +77,38 @@ export const CONTACT_TOPICS: ContactTopic[] = [
 	{ value: 'support', label: 'Technical Support' },
 	{ value: 'press', label: 'Press & Media' },
 ];
+
+// ----------------------------------------------------------------------
+
+export type ContactFaq = {
+	id: string;
+	question: string;
+	answer: string;
+};
+
+export const CONTACT_FAQS: ContactFaq[] = [
+	{
+		id: 'free-trial',
+		question: 'Do you offer a free trial?',
+		answer:
+			"Yes, all paid plans come with a no-commitment 14-day free trial. You don't need a credit card to start exploring the platform.",
+	},
+	{
+		id: 'switch-plans',
+		question: 'Can I switch plans anytime?',
+		answer:
+			'Absolutely. You can upgrade, downgrade, or cancel your subscription at any time directly from your dashboard settings. Credits scale proportionally.',
+	},
+	{
+		id: 'data-security',
+		question: 'Is my data secure?',
+		answer:
+			'We use enterprise-grade encryption for all data at rest and in transit. We are fully compliant with GDPR and SOC 2 standards.',
+	},
+	{
+		id: 'public-api',
+		question: 'Do you have a public API?',
+		answer:
+			'Scale and Enterprise plans include full access to our REST API, allowing you to seamlessly integrate PublyApp data into your own systems.',
+	},
+];
