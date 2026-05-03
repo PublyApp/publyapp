@@ -968,7 +968,7 @@ public class UserService : IUserService {
 				getCursorValue: async guid => {
 					var item =
 						await (
-							from ua in _dbContext.UserAccount
+							from ua in _dbContext.UserAccount.AsNoTracking()
 							where ua.UserId == guid
 								&& ua.Scope == AccountScope.Staff
 								&& !ua.IsDeleted
@@ -1012,7 +1012,7 @@ public class UserService : IUserService {
 				getCursorValue: async guid => {
 					var item =
 						await (
-							from ua in _dbContext.UserAccount
+							from ua in _dbContext.UserAccount.AsNoTracking()
 							where ua.UserId == guid
 								&& ua.Scope == AccountScope.Staff
 								&& !ua.IsDeleted
@@ -1056,7 +1056,7 @@ public class UserService : IUserService {
 				getCursorValue: async guid => {
 					var item =
 						await (
-							from ua in _dbContext.UserAccount
+							from ua in _dbContext.UserAccount.AsNoTracking()
 							where ua.UserId == guid
 								&& ua.Scope == AccountScope.Staff
 								&& !ua.IsDeleted
@@ -1098,7 +1098,7 @@ public class UserService : IUserService {
 				getCursorValue: async guid => {
 					var item =
 						await (
-							from ua in _dbContext.UserAccount
+							from ua in _dbContext.UserAccount.AsNoTracking()
 							where ua.UserId == guid
 								&& ua.Scope == AccountScope.Staff
 								&& !ua.IsDeleted
@@ -1144,7 +1144,7 @@ public class UserService : IUserService {
 				getCursorValue: async guid => {
 					var item =
 						await (
-							from ua in _dbContext.UserAccount
+							from ua in _dbContext.UserAccount.AsNoTracking()
 							where ua.UserId == guid
 								&& ua.Scope == AccountScope.Staff
 								&& !ua.IsDeleted
@@ -1190,7 +1190,7 @@ public class UserService : IUserService {
 				getCursorValue: async guid => {
 					var item =
 						await (
-							from ua in _dbContext.UserAccount
+							from ua in _dbContext.UserAccount.AsNoTracking()
 							where ua.UserId == guid
 								&& ua.Scope == AccountScope.Staff
 								&& !ua.IsDeleted
@@ -1232,7 +1232,7 @@ public class UserService : IUserService {
 				getCursorValue: async guid => {
 					var item =
 						await (
-							from ua in _dbContext.UserAccount
+							from ua in _dbContext.UserAccount.AsNoTracking()
 							where ua.UserId == guid
 								&& ua.Scope == AccountScope.Staff
 								&& !ua.IsDeleted
@@ -1284,7 +1284,7 @@ public class UserService : IUserService {
 		}
 
 		var baseQuery =
-			from ua in _dbContext.UserAccount
+			from ua in _dbContext.UserAccount.AsNoTracking()
 			where ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
 				&& !ua.User.IsDeleted
@@ -1598,7 +1598,7 @@ public class UserService : IUserService {
 				["id"] = new CursorSortFieldHandler<UserAccount>(
 					getCursorValue: async (guid) => {
 						var ua = await (
-							from x in _dbContext.UserAccount
+							from x in _dbContext.UserAccount.AsNoTracking()
 							where x.UserId == guid
 								&& x.TenantId == tenantId
 								&& x.Scope
@@ -1628,7 +1628,7 @@ public class UserService : IUserService {
 				["email"] = new CursorSortFieldHandler<UserAccount>(
 					getCursorValue: async (guid) => {
 						var item = await (
-							from x in _dbContext.UserAccount
+							from x in _dbContext.UserAccount.AsNoTracking()
 							where x.UserId == guid
 								&& x.TenantId == tenantId
 								&& x.Scope
@@ -1679,7 +1679,7 @@ public class UserService : IUserService {
 				["status"] = new CursorSortFieldHandler<UserAccount>(
 					getCursorValue: async (guid) => {
 						var item = await (
-							from x in _dbContext.UserAccount
+							from x in _dbContext.UserAccount.AsNoTracking()
 							where x.UserId == guid
 								&& x.TenantId == tenantId
 								&& x.Scope
@@ -1760,7 +1760,7 @@ public class UserService : IUserService {
 				["level"] = new CursorSortFieldHandler<UserAccount>(
 					getCursorValue: async (guid) => {
 						var item = await (
-							from x in _dbContext.UserAccount
+							from x in _dbContext.UserAccount.AsNoTracking()
 							where x.UserId == guid
 								&& x.TenantId == tenantId
 								&& x.Scope
@@ -1806,7 +1806,7 @@ public class UserService : IUserService {
 				["created_at"] = new CursorSortFieldHandler<UserAccount>(
 					getCursorValue: async (guid) => {
 						var item = await (
-							from x in _dbContext.UserAccount
+							from x in _dbContext.UserAccount.AsNoTracking()
 							where x.UserId == guid
 								&& x.TenantId == tenantId
 								&& x.Scope
@@ -1866,7 +1866,7 @@ public class UserService : IUserService {
 		}
 
 		var baseQuery =
-			from ua in _dbContext.UserAccount
+			from ua in _dbContext.UserAccount.AsNoTracking()
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted
