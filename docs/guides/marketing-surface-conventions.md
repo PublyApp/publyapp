@@ -104,14 +104,24 @@ apps/front/src/routes/marketing/
 │   ├── billing-cycle-toggle.tsx
 │   ├── marketing-faq-accordion.tsx
 │   ├── pricing-tier-card.tsx
-│   └── legal-doc-page.tsx                # slot-based: hero + sticky TOC + body slot
+│   ├── legal-doc-page.tsx                # slot-based: hero + sticky TOC + body slot
+│   ├── marketing-eyebrow.tsx             # canon eyebrow chip (white-bg pill + optional icon)
+│   ├── marketing-hero.tsx                # prop-based hero (eyebrow + h1 + subhead + optional CTAs)
+│   ├── content-band.tsx                  # slot-based section (centered header + children)
+│   ├── cta-band.tsx                      # dark #242424 card (eyebrow pill + title + CTA + microcopy)
+│   └── marketing-error-view.tsx          # gradient numeral + masked glass + popular destination pills
 ├── _data/                                # shared static content modules
 │   ├── pricing.ts                        # TIERS, COMPARISON_MATRIX, PRICING_FAQS, Billing
 │   ├── legal-terms.ts                    # TERMS_LAST_UPDATED, TERMS_SECTION_IDS, TERMS_TOC
 │   ├── legal-privacy.ts                  # PRIVACY_LAST_UPDATED, PRIVACY_SECTION_IDS, PRIVACY_TOC
-│   └── legal-cookies.ts                  # COOKIES_LAST_UPDATED, COOKIES_SECTION_IDS, COOKIES_TOC, CookieInventoryRow, COOKIES_INVENTORY
+│   ├── legal-cookies.ts                  # COOKIES_LAST_UPDATED, COOKIES_SECTION_IDS, COOKIES_TOC, CookieInventoryRow, COOKIES_INVENTORY
+│   ├── about.ts                          # COMPANY_VALUES, TEAM_MEMBERS (with photoUrl)
+│   ├── contact.ts                        # CONTACT_EMAIL, CONTACT_CHANNELS, SUPPORT_TIERS, CONTACT_TOPICS, CONTACT_FAQS
+│   └── security.ts                       # SECURITY_CONTACT_EMAIL, TRUST_BADGES, SECURITY_PILLARS, SUB_PROCESSORS
 ├── _layout/
-│   └── marketing-layout.tsx              # mounts MainLayout + ScrollProgress + BackToTop
+│   └── marketing-layout.tsx              # mounts MainLayout + ScrollProgress + BackToTop + ErrorBoundary
+├── _errors/
+│   └── marketing-not-found-page.tsx      # catch-all; thin shim consuming MarketingErrorView
 ├── home/
 │   ├── home-page.tsx
 │   └── _parts/
@@ -120,12 +130,12 @@ apps/front/src/routes/marketing/
 │       ├── home-onboarding.tsx
 │       ├── home-pricing.tsx
 │       ├── home-faq.tsx
-│       ├── home-cta.tsx
+│       ├── home-cta.tsx                  # thin wrapper: <CtaBand {...home-specific copy} />
 │       └── home-logos.tsx
 ├── pricing/
 │   ├── pricing-page.tsx
 │   └── _parts/
-│       ├── pricing-hero.tsx
+│       ├── pricing-hero.tsx              # custom variant — chip eyebrow + gradient title + halo + integrated BillingCycleToggle (deliberately doesn't compose MarketingHero)
 │       ├── pricing-tiers.tsx
 │       ├── pricing-comparison.tsx
 │       ├── pricing-faq.tsx
@@ -136,7 +146,15 @@ apps/front/src/routes/marketing/
 │   └── privacy-page.tsx
 ├── cookies/
 │   └── cookies-page.tsx                  # adds inline <CookieInventoryTable> + <CookiePreferencesCallout>
-└── (future: blog/, changelog/, about/, contact/, security/, 404/)
+├── about/
+│   └── about-page.tsx                    # composes MarketingHero + custom OurStorySection (2-col + founder quote) + ContentBand x4 + CtaBand
+├── contact/
+│   ├── contact-page.tsx                  # composes MarketingHero + ContentBand (form + info-panel split) + ContentBand (FAQ) + CtaBand
+│   └── _parts/
+│       └── contact-form.tsx              # RHF + Zod, mailto: submit, response-time microcopy below button
+├── security/
+│   └── security-page.tsx                 # composes MarketingHero + custom trust-badges row + ContentBand x3 + ContentBand (vulnerability) + CtaBand
+└── (future: blog/, changelog/)
 ```
 
 Generic hooks consumed by marketing primitives (placed in shared `hooks/` so future blog/docs surfaces can reuse them):
@@ -160,6 +178,11 @@ When building a new marketing page, check `_components/` first:
 | `PricingTierCard` | Tier card (Creator/Scale/Enterprise) with framer-motion spring hover, large-radius surface, circle+check feature icons, Box-as-button CTA. Handles `'custom'` price ("Let's talk"). | `home-pricing` (slice 0..2), `pricing-tiers` (full TIERS) |
 | `MarketingFaqAccordion` | Custom framer-motion accordion (no MUI Accordion); plus/X icon swap, snappy spring expand, neutral elevated shadow when open. Independent toggle per item; supports `defaultOpen`. | `home-faq`, `pricing-faq` |
 | `LegalDocPage` | Slot-based long-form page: full-width hero band (eyebrow + h1 + last-updated), 2-col body row (`flex:1` body + 240px sticky TOC sidebar), active-section TOC highlight via `useActiveTocSection`. Body content passed as `children` JSX. Also exports `LEGAL_H2_SX`, `LEGAL_P_SX` so all consumers share section-heading and prose typography. Container narrowed to a custom 1024px maxWidth so the body settles around 700px reading width. | `terms-page`, `privacy-page`, `cookies-page` |
+| `MarketingEyebrow` | **Canon eyebrow chip.** White-bg pill, divider border, faint shadow, near-black uppercase text + optional primary-color icon. The single eyebrow style across ALL marketing surfaces (hero + section eyebrows + home section labels). | `MarketingHero`, `ContentBand`, all 4 home `*-features/onboarding/pricing/faq` |
+| `MarketingHero` | Prop-based centered hero: eyebrow + h1 + subhead + optional `primaryCta` / `secondaryCta` pair, with optional `eyebrowIcon`. Locks the brand-consistent heading triplet across pages. CTAs use `<Box component={RouterLink/'a'}>` (not MUI Button); external-href detection switches RouterLink → `<a>` for `mailto:`/`http`. | `/about`, `/contact`, `/security` (NOT `/pricing` — pricing's chip+gradient+halo+billing-toggle hero is intentionally a custom variant) |
+| `ContentBand` | Slot-based section wrapper: centered header (eyebrow chip + h2 + optional subhead) above arbitrary `children` body. Header centers via `mx auto + alignItems center + textAlign center`. Always `bgcolor: 'background.default'` — no `bg='neutral'` alternation (Phase 3 dropped this; sections separated by spacing only). | `/about`, `/contact`, `/security` for grids/tables/inline blocks |
+| `CtaBand` | Dark `#242424` card (always-dark, both color schemes — see approved exceptions). Eyebrow pill + h2 (with `pre-line` `\n` support) + subhead + CTA button + microcopy. `pt: { xs: 8, md: 12 }` matches `ContentBand pb` for consistent vertical rhythm. | `home`, `/about`, `/security` (NOT `/contact` — contact ends at the form per spec) |
+| `MarketingErrorView` | Visual shell for 404 + render errors: gradient-text numeral (orange→purple→teal) + masked glass card (radial gradient mask scoped to top region) + ambient triple-radial watermark + popular-destination pills (flag-guarded). Props: `numeral`, `title`, `subhead`, optional `destinations`. | `/marketing-not-found-page` (404 catch-all), `MarketingLayout`'s `ErrorBoundary` (route-error 404 + 500-style) |
 
 Tier prices, feature lists, comparison rows, and FAQ items live in `_data/pricing.ts` — one source of truth shared by both pages. **Never duplicate tier prices/features in a part file.** If pricing changes, edit `_data/pricing.ts`.
 
@@ -235,6 +258,150 @@ Specifically:
 
 - **Logo `href`** — `<Logo />` without an explicit `href` calls `useHomePath()` which reads cookies → SSR returns `/`, client may return `/staff` after hydration → React warns and the link goes stale. Pass `<Logo href={FRONT_PATH_NAMES.home} />` everywhere chrome renders the logo. The home topbar already comments this; the previous template `Footer` violated it before being deleted.
 - Avoid `Date.now()`, `Math.random()`, `new Date().toLocaleString()` in chrome render paths. If you need a current date in marketing copy (e.g., copyright year), compute it server-side once and pass via props.
+
+## Page composition primitives (hero + bands + bottom CTA)
+
+The Phase 3 pages (about/contact/security) all share the same skeleton: `<MarketingHero>` → N × `<ContentBand>` → `<CtaBand>`. New marketing pages should follow this pattern unless there's a specific visual reason to diverge (pricing's bespoke hero is the precedent).
+
+```tsx
+const MyPage = () => (
+  <>
+    <MarketingHero
+      eyebrow="Section"
+      eyebrowIcon="ph:..."         // optional — chip rendering identical w/wo icon
+      title="..."
+      subhead="..."
+      primaryCta={{ label, href }}  // optional
+      secondaryCta={{ label, href }} // optional, mailto/http auto-uses <a>
+    />
+    <ContentBand eyebrow="Eyebrow" title="Section title" subhead="...">
+      {/* grid / table / inline block */}
+    </ContentBand>
+    {/* repeat ContentBand per section */}
+    <CtaBand
+      eyebrowLabel="Get started"
+      title={'Multi-line\ntitle supported'}  // \n + whiteSpace pre-line
+      subhead="..."
+      ctaLabel="Start for Free"
+      ctaHref={FRONT_PATH_NAMES.auth.signup}
+      microcopy="..."
+    />
+  </>
+);
+```
+
+Rules baked into the primitives (don't relitigate per page):
+
+- **One eyebrow style across the whole surface.** `MarketingEyebrow` is the only chip — Option B (white-bg pill + optional primary icon). MarketingHero, ContentBand, and the 4 home section eyebrows all consume it. **Never inline a custom eyebrow** — if you need a tweak, change the primitive.
+- **No alternating background colors between sections.** `ContentBand` defaults to `background.default`; we deliberately removed the `bg='neutral'` alternation from Phase 3 pages because the visual rhythm comes from spacing + the white-bg eyebrow chips already standing out.
+- **Section headers are centered.** `ContentBand` centers eyebrow + h2 + subhead via `Stack alignItems="center" textAlign="center"` to match hero alignment. If a specific section needs left-aligned text (rare — e.g. /about's Our Story 2-col with founder quote), bypass `ContentBand` and write a custom `<Box component="section">` with `Stack alignItems="flex-start"`.
+- **CtaBand `pt` matches ContentBand `pb`.** Both are `{ xs: 8, md: 12 }` so the gap above the dark card matches the gap between regular ContentBands. If `pt` is smaller, the CtaBand feels cramped against the section above.
+- **Inline cross-page links must mirror route flags.** If `MyCtaBand` links to `/contact` and `FEATURES.marketing.contact` is off, swap to a fallback (e.g. `mailto:`) or hide the CTA entirely. See "Centralized feature flags" below.
+
+### Two-column section layouts (bypass ContentBand)
+
+For sections that need left-text + right-content (e.g. /about's "Our Story" with founder quote on the right), `ContentBand`'s centered header doesn't fit. Bypass it and compose directly:
+
+```tsx
+<Box component="section" sx={{ py: { xs: 8, md: 12 } }}>
+  <Container maxWidth="lg">
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '7fr 5fr' }, gap: { xs: 5, md: 8, lg: 12 }, alignItems: 'center' }}>
+      <Stack spacing={3} alignItems="flex-start" sx={{ textAlign: 'left' }}>
+        <MarketingEyebrow label="Our story" />
+        <Typography component="h2" sx={{ /* h2 styles */ }}>Title</Typography>
+        {/* paragraphs */}
+      </Stack>
+      {/* right column: quote card / image / etc */}
+    </Box>
+  </Container>
+</Box>
+```
+
+Reuse `MarketingEyebrow` so the eyebrow style stays canonical — only the layout changes.
+
+### Don't stack a card directly above CtaBand
+
+If a section is itself wrapped in a card-like surface (white bg + border + shadow + radius — e.g. early Phase 3 had a "Found a vulnerability?" alert card right above the dark CtaBand), it visually competes with the bottom CtaBand. Two stacked cards near the page bottom = confused hierarchy.
+
+Fix: drop the card framing on the section above CtaBand. Use a regular `ContentBand` with chip eyebrow + heading + body + inline link. The CtaBand stays the only card-style element on the page bottom.
+
+## Marketing error view + ErrorBoundary
+
+`MarketingErrorView` is the single visual shell for both the catch-all 404 AND any error caught by `MarketingLayout`'s `ErrorBoundary` export. Same gradient numerals, same masked glass card, same popular-destinations pill grid — just the `numeral`/`title`/`subhead` props differ.
+
+The shell is composed once in the primitive; consumers are thin shims:
+
+```tsx
+// /marketing-not-found-page.tsx (catch-all)
+const MarketingNotFoundPage = () => (
+  <MarketingErrorView
+    numeral="404"
+    title="This post got deleted by the algorithm"
+    subhead="Or maybe the link is broken. Either way — let's get you back on track."
+  />
+);
+
+// marketing-layout.tsx ErrorBoundary export — catches loader throws + render exceptions
+export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return <MainLayout><MarketingErrorView numeral="404" title="..." subhead="..." /></MainLayout>;
+  }
+  return <MainLayout><MarketingErrorView numeral="500" title="Something broke on our end" subhead="..." /></MainLayout>;
+};
+```
+
+Wrap the boundary's view in `<MainLayout>` explicitly — the layout's normal `MarketingLayout` Outlet doesn't render when an error is thrown above it, so chrome has to be re-mounted at the boundary.
+
+`DEFAULT_POPULAR_DESTINATIONS` in `marketing-error-view.tsx` is the canonical destination list and consumes feature flags directly — disabled marketing pages drop out of the destination grid automatically. Override only if a specific error context needs a different list.
+
+### Glass card mask trick (theme-adaptive lift without shadow)
+
+The 404/error glass card uses a `::before` pseudo-element with `mask-image: radial-gradient(ellipse 70% 90% at 50% 0%, black 0%, black 35%, transparent 100%)` to scope the bg + backdrop-filter to a region around the top. The bottom + sides blend into the page bg.
+
+The mask trick is the right answer here for two reasons:
+
+1. **Box-shadow halos invert wrong in dark mode.** A `boxShadow: '0 0 80px 24px rgba(default-bg, 0.9)'` reads as a "light bleed" in light mode (white glow on light bg = invisible halo). In dark mode, the same shadow is a dark glow on a dark page → visible darker oval — looks like a degradation artifact.
+2. **The text content stays unmasked.** The bg/blur lives on `::before` (z-index -1); the h1 + subhead sit in the parent Box and render on top untouched.
+
+When you want a glass-card effect that adapts cleanly to both color schemes, prefer `::before` + radial mask over a colored shadow.
+
+## Centralized feature flags
+
+All feature flags (marketing pages + staff features + future) live in `apps/front/src/lib/features/flags.ts`. Single source of truth.
+
+```ts
+export const FEATURES = deepFreeze({
+  marketing: {
+    about: readFlag('VITE_FEATURE_MARKETING_ABOUT', true),
+    contact: readFlag('VITE_FEATURE_MARKETING_CONTACT', true),
+    security: readFlag('VITE_FEATURE_MARKETING_SECURITY', true),
+    blog: readFlag('VITE_FEATURE_MARKETING_BLOG', true),
+    // ...
+  },
+  staff: {
+    tenants: { details: { billing: readFlag('VITE_FEATURE_STAFF_TENANT_BILLING', false) } },
+  },
+});
+```
+
+`readFlag(envKey, defaultValue)` reads `import.meta.env[envKey]` — `'true'` or `'false'` strings override; anything else falls through to `defaultValue`. Static defaults edit-and-redeploy; env-var overrides flip without recompile.
+
+### One flag drives BOTH route registration AND link visibility
+
+If you flip a marketing flag off but only guard the route, every link pointing to it 404s on click — bad UX. The same flag must also hide:
+
+1. **Routes** (`marketing.routes.ts`): spread-guard each route. Disabled routes fall through to the catch-all 404 naturally.
+   ```ts
+   ...(FEATURES.marketing.about ? [route('about', '...')] : []),
+   ```
+2. **Footer link arrays** (Product / Company / Resources / Legal): spread-guard each entry. Empty columns hide entirely (filter the column-data array; grid template adjusts via `repeat(${2 + visibleCols.length}, 1fr)`).
+   ```ts
+   ...(FEATURES.marketing.about ? [{ label: 'About', href: '...' }] : []),
+   ```
+3. **Default destinations on `MarketingErrorView`**: same spread-guard pattern in `DEFAULT_POPULAR_DESTINATIONS`.
+4. **Cross-page inline links**: the `/about` "Get in touch" → `/contact` button is conditionally rendered with `{FEATURES.marketing.contact && <Box ...>}`. The `/security` CtaBand `ctaHref` falls back to `mailto:security@` when contact is off.
+
+Audit checklist when adding a new feature-flag entry: route + footer column entries + 404 destinations + every inline cross-page reference. One flag flip should toggle all of them.
 
 ## Pitfalls and gotchas (recurring traps)
 
@@ -367,6 +534,52 @@ When in doubt, the trio's ship date wins over canvas-design date for this one fi
 ### Don't pre-extract a11y armor that duplicates surrounding context
 
 A `<caption>` describing a table sitting under an `<h2>Cookies We Set</h2>` is redundant — screen readers reading sequentially already know what the table is. Same for ARIA labels that just restate visible text. The marketing-page review rule: add a11y attributes when context is genuinely missing, not when context is redundant.
+
+### Inline-flex flex-item still defaults to `align-self: stretch`
+
+`display: 'inline-flex'` on a child of a flex container changes the child's INNER layout to flex but does NOT shrink it to content as a flex item. As a flex item, its outer size is governed by the parent's `align-items` (cross axis). If the parent doesn't set `alignItems` and the child doesn't set `alignSelf`, the default `align-self: stretch` makes the child fill the cross axis.
+
+This bit `MarketingEyebrow` after we removed its baked-in `alignSelf: 'center'` (so consumers could control alignment): the eyebrow chip stretched to full hero width. Fix: ensure parent containers consuming the eyebrow have an explicit `alignItems` (`'center'` for centered headers, `'flex-start'` for left-aligned 2-col layouts). `MarketingHero` and `ContentBand` both set `alignItems: 'center'` on their header Stack now.
+
+### Mask trick > shadow trick for theme-adaptive glass
+
+See "Glass card mask trick" above. Summary: when you want a glass card to lift visually without a defined boundary, use `::before` + `mask-image: radial-gradient(...)` to scope the bg + backdrop-filter. A `boxShadow` halo using `var(--mui-palette-background-default)` at high alpha looks fine in light mode but creates a visible darker oval in dark mode (dark glow on dark gradient watermark = visible boundary). Mask scales the visual rendering itself so it inherits the page bg correctly in both schemes.
+
+### CtaBand top spacing must match ContentBand bottom
+
+Originally `CtaBand` had `pt: 5` (40px) because `home-cta` was its only consumer and the home FAQ above already had its own bottom padding. After Phase 3 added it to /about and /security where ContentBands precede it, the 40px gap felt cramped against the 96px ContentBand `pb`. Now `pt: { xs: 8, md: 12 }` matches ContentBand's `py` so the inter-section rhythm stays consistent (192px gap going into CtaBand, same as gap between two ContentBands).
+
+If you add a new card-like primitive that follows other content sections, audit its `pt` against the upstream section's `pb`.
+
+### Footer columns hide when empty (don't render orphan headings)
+
+When all entries in a footer link column are flag-guarded off, render the column conditionally — don't leave an orphan heading ("Resources") above an empty `<ul>`. The Phase 3 footer refactor uses a column-data array filtered by `column.links.length > 0`, then renders only visible columns and computes the grid template `repeat(${2 + visibleCols.length}, 1fr)` so columns redistribute cleanly.
+
+Same logic applies to bottom legal row: filter the array; if a Legal entry's flag is off, drop it.
+
+### "Use the canvas hero style" can clash with the canon eyebrow
+
+Canvas designs occasionally pick different eyebrow styles per page (e.g. /pricing canvas uses white-bg chip, /security canvas uses primary-tinted chip, /about canvas uses plain uppercase). When standardizing on a canon, you may have to override per-page canvas eyebrow choices to keep brand discipline. The canon decision (Option B, white-bg chip) was chosen for two reasons: multiple canvases independently picked it (pricing, contact); white-bg + primary icon balances brand presence without monochromatic green-on-green fatigue.
+
+If a canvas eyebrow has a deliberate semantic meaning (e.g. "warning" needs amber tint), override per-page; otherwise consume the canon.
+
+### Pricing hero is a deliberate variant — don't force it through MarketingHero
+
+The pricing hero has a chip eyebrow with icon, gradient text on part of the title, a halo decorative element behind the heading, and an integrated `BillingCycleToggle` below the subhead. None of these fit `MarketingHero`'s prop-based interface without polluting the primitive (`eyebrowVariant`, `titleHighlight`, `decoration`, etc).
+
+Documented decision: `pricing-hero.tsx` keeps its custom inline implementation. `MarketingHero` is the base for /about, /contact, /security, marketing 404, and any future page whose hero IS a clean eyebrow + h1 + subhead + optional CTAs. Don't try to absorb pricing back in.
+
+### About page Unsplash photos use specific photo IDs (not source.unsplash.com)
+
+`source.unsplash.com/random` is deprecated/unreliable. Use specific Unsplash hot-link URLs:
+
+```ts
+const unsplashPortrait = (slug: string): string => {
+  return `https://images.unsplash.com/photo-${slug}?w=240&h=240&fit=crop&crop=faces&auto=format&q=80`;
+};
+```
+
+The `crop=faces` param ensures faces don't get cut off when the URL crops. `TEAM_MEMBERS` in `_data/about.ts` uses 12 known portrait slugs as placeholders — replace pre-launch with real team photos.
 
 ## Adding a new marketing page
 
