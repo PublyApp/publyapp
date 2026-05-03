@@ -146,21 +146,20 @@ const AboutPage = () => {
 								sx={{ textAlign: 'center' }}
 							>
 								<Box
+									component="img"
+									src={member.photoUrl}
+									alt={`${member.name}, ${member.role}`}
+									loading="lazy"
 									sx={{
 										width: 96,
 										height: 96,
 										borderRadius: '50%',
+										objectFit: 'cover',
 										bgcolor: 'background.neutral',
 										border: '1px solid',
 										borderColor: 'divider',
-										display: 'inline-flex',
-										alignItems: 'center',
-										justifyContent: 'center',
-										color: 'text.disabled',
 									}}
-								>
-									<Iconify icon="ph:user-bold" width={40} />
-								</Box>
+								/>
 								<Typography
 									sx={{
 										fontSize: 15,
