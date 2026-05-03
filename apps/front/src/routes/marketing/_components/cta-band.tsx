@@ -44,7 +44,10 @@ export const CtaBand = ({
 	const ctaIsExternal = isExternalHref(ctaHref);
 
 	return (
-		<Box component="section" sx={{ pt: 5, pb: 14, px: { xs: 2, md: 3 } }}>
+		<Box
+			component="section"
+			sx={{ pt: { xs: 8, md: 12 }, pb: 14, px: { xs: 2, md: 3 } }}
+		>
 			<Container maxWidth="lg" component={MotionViewport}>
 				<m.div variants={varFade('inUp', { distance: 24 })}>
 					<Box
