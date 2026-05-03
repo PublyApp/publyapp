@@ -509,6 +509,7 @@ public class InvitationService : IInvitationService {
 			["created_at"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
+						.AsNoTracking()
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Staff)
 						.Select(inv => new { inv.CreatedAt, inv.Id })
 						.FirstOrDefaultAsync(cancellationToken);
@@ -528,6 +529,7 @@ public class InvitationService : IInvitationService {
 			["expires_at"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
+						.AsNoTracking()
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Staff)
 						.Select(inv => new { inv.ExpiresAt, inv.Id })
 						.FirstOrDefaultAsync(cancellationToken);
@@ -547,6 +549,7 @@ public class InvitationService : IInvitationService {
 			["email"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
+						.AsNoTracking()
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Staff)
 						.Select(inv => new { inv.Email, inv.Id })
 						.FirstOrDefaultAsync(cancellationToken);
@@ -566,6 +569,7 @@ public class InvitationService : IInvitationService {
 			["accepted_at"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
+						.AsNoTracking()
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Staff)
 						.Select(inv => new {
 							// Treat null AcceptedAt as min value to keep ordering stable.
@@ -602,6 +606,7 @@ public class InvitationService : IInvitationService {
 		}
 
 		var query = _dbContext.Invitation
+			.AsNoTracking()
 			.Where(inv => inv.Scope == InvitationScope.Staff && inv.Id != null);
 
 		if (!string.IsNullOrWhiteSpace(status)) {
@@ -637,7 +642,7 @@ public class InvitationService : IInvitationService {
 		// Fetch one extra row to compute the next cursor.
 		var results = await orderedQuery
 			.Join(
-				_dbContext.User,
+				_dbContext.User.AsNoTracking(),
 				inv => inv.InvitedByUserId,
 				inviter => inviter.Id,
 				(inv, inviter) => new {
@@ -657,9 +662,9 @@ public class InvitationService : IInvitationService {
 		// Load profile names separately to avoid duplicating invitation rows.
 		var invitationIds = results.Select(r => r.Invitation.GetRequiredId()).ToList();
 		var profileNamesQuery =
-			from ip in _dbContext.InvitationProfile
+			from ip in _dbContext.InvitationProfile.AsNoTracking()
 			where invitationIds.Contains(ip.InvitationId)
-			join p in _dbContext.Profile on ip.ProfileId equals p.Id
+			join p in _dbContext.Profile.AsNoTracking() on ip.ProfileId equals p.Id
 			select new {
 				InvitationId = ip.InvitationId,
 				ProfileName = p.Name
@@ -718,6 +723,7 @@ public class InvitationService : IInvitationService {
 			["created_at"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
+						.AsNoTracking()
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId)
 						.Select(inv => new { inv.CreatedAt, inv.Id })
 						.FirstOrDefaultAsync(cancellationToken);
@@ -737,6 +743,7 @@ public class InvitationService : IInvitationService {
 			["expires_at"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
+						.AsNoTracking()
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId)
 						.Select(inv => new { inv.ExpiresAt, inv.Id })
 						.FirstOrDefaultAsync(cancellationToken);
@@ -756,6 +763,7 @@ public class InvitationService : IInvitationService {
 			["email"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
+						.AsNoTracking()
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId)
 						.Select(inv => new { inv.Email, inv.Id })
 						.FirstOrDefaultAsync(cancellationToken);
@@ -775,6 +783,7 @@ public class InvitationService : IInvitationService {
 			["accepted_at"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
+						.AsNoTracking()
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId)
 						.Select(inv => new {
 							AcceptedAt = inv.AcceptedAt ?? DateTime.MinValue,
@@ -810,6 +819,7 @@ public class InvitationService : IInvitationService {
 		}
 
 		var query = _dbContext.Invitation
+			.AsNoTracking()
 			.Where(inv => inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId && inv.Id != null);
 
 		var searchQuery = filters.Search;
@@ -842,7 +852,7 @@ public class InvitationService : IInvitationService {
 
 		var results = await orderedQuery
 			.Join(
-				_dbContext.User,
+				_dbContext.User.AsNoTracking(),
 				inv => inv.InvitedByUserId,
 				inviter => inviter.Id,
 				(inv, inviter) => new {
@@ -861,9 +871,9 @@ public class InvitationService : IInvitationService {
 
 		var invitationIds = results.Select(r => r.Invitation.GetRequiredId()).ToList();
 		var profileNamesQuery =
-			from ip in _dbContext.InvitationProfile
+			from ip in _dbContext.InvitationProfile.AsNoTracking()
 			where invitationIds.Contains(ip.InvitationId)
-			join p in _dbContext.Profile on ip.ProfileId equals p.Id
+			join p in _dbContext.Profile.AsNoTracking() on ip.ProfileId equals p.Id
 			select new {
 				InvitationId = ip.InvitationId,
 				ProfileName = p.Name
