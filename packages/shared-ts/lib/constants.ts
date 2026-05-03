@@ -95,6 +95,9 @@ export const FRONT_PATH_NAMES = {
 		terms: makePath('terms'),
 		privacy: makePath('privacy'),
 		cookies: makePath('cookies'),
+		about: makePath('about'),
+		contact: makePath('contact'),
+		security: makePath('security'),
 	},
 	auth: {
 		login: makePath('login'),
