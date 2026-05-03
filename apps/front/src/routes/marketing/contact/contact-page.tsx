@@ -10,6 +10,8 @@ import {
 	SUPPORT_TIERS,
 } from '#app/routes/marketing/_data/contact.ts';
 
+import { ContactForm } from './_parts/contact-form.tsx';
+
 // ----------------------------------------------------------------------
 
 const DirectContactsCard = () => {
@@ -195,30 +197,7 @@ const ContactPage = () => {
 						alignItems: 'flex-start',
 					}}
 				>
-					{/* Left: form (placeholder until Task 8) */}
-					<Box
-						sx={{
-							p: { xs: 3, md: 5 },
-							borderRadius: '20px',
-							bgcolor: 'background.paper',
-							border: '1px solid',
-							borderColor: 'divider',
-							minHeight: 480,
-							display: 'flex',
-							alignItems: 'center',
-							justifyContent: 'center',
-							color: 'text.disabled',
-						}}
-					>
-						<Stack alignItems="center" spacing={1}>
-							<Iconify icon="ph:envelope-bold" width={32} />
-							<Typography sx={{ fontSize: 14 }}>
-								Form coming in Task 8
-							</Typography>
-						</Stack>
-					</Box>
-
-					{/* Right: info panel */}
+					<ContactForm />
 					<ContactInfoPanel />
 				</Box>
 			</ContentBand>
