@@ -110,7 +110,6 @@ const SecurityPage = () => {
 			<Box
 				component="section"
 				sx={{
-					bgcolor: 'background.neutral',
 					py: { xs: 6, md: 8 },
 				}}
 			>
@@ -254,7 +253,6 @@ const SecurityPage = () => {
 				eyebrow="Transparency"
 				title="Who has access to your data"
 				subhead="Full transparency on every external sub-processor that touches customer data flows."
-				bg="neutral"
 			>
 				<SubProcessorsTable />
 			</ContentBand>
