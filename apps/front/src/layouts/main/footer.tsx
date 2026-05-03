@@ -4,6 +4,8 @@ import Link from '@mui/material/Link';
 import { styled } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 
@@ -21,10 +23,16 @@ export type FooterProps = React.ComponentProps<typeof FooterRoot>;
 // ----------------------------------------------------------------------
 
 const HOME_FOOTER_PRODUCT_LINKS = [
-	{ label: 'Features', href: '#features' },
+	{ label: 'Features', href: '/#features' },
 	{ label: 'Integrations', href: '#' },
-	{ label: 'Pricing', href: '#pricing' },
+	{ label: 'Pricing', href: FRONT_PATH_NAMES.marketing.pricing },
 	{ label: 'Changelog', href: '#' },
+];
+
+const HOME_FOOTER_LEGAL_LINKS = [
+	{ label: 'Terms of Use', href: FRONT_PATH_NAMES.marketing.terms },
+	{ label: 'Privacy Policy', href: FRONT_PATH_NAMES.marketing.privacy },
+	{ label: 'Cookie Policy', href: FRONT_PATH_NAMES.marketing.cookies },
 ];
 
 const HOME_FOOTER_RESOURCE_LINKS = [
@@ -167,6 +175,7 @@ export const HomeFooter = ({ sx, ...other }: FooterProps) => {
 								return (
 									<Box component="li" key={item.label}>
 										<Link
+											component={RouterLink}
 											href={item.href}
 											underline="none"
 											sx={{
@@ -208,6 +217,7 @@ export const HomeFooter = ({ sx, ...other }: FooterProps) => {
 								return (
 									<Box component="li" key={item.label}>
 										<Link
+											component={RouterLink}
 											href={item.href}
 											underline="none"
 											sx={{
@@ -242,25 +252,24 @@ export const HomeFooter = ({ sx, ...other }: FooterProps) => {
 						© 2026 PublyApp Inc. All rights reserved.
 					</Typography>
 					<Box sx={{ display: 'flex', gap: 3 }}>
-						{['Terms of Service', 'Privacy Policy', 'Cookie Policy'].map(
-							(label) => {
-								return (
-									<Link
-										key={label}
-										href="#"
-										underline="none"
-										sx={{
-											fontSize: 12,
-											color: 'text.disabled',
-											transition: 'color 0.3s ease',
-											'&:hover': { color: 'text.primary' },
-										}}
-									>
-										{label}
-									</Link>
-								);
-							},
-						)}
+						{HOME_FOOTER_LEGAL_LINKS.map((item) => {
+							return (
+								<Link
+									key={item.label}
+									component={RouterLink}
+									href={item.href}
+									underline="none"
+									sx={{
+										fontSize: 12,
+										color: 'text.disabled',
+										transition: 'color 0.3s ease',
+										'&:hover': { color: 'text.primary' },
+									}}
+								>
+									{item.label}
+								</Link>
+							);
+						})}
 					</Box>
 				</Box>
 
