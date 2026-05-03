@@ -290,11 +290,11 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		var effectiveSortId = args.SortId ?? "created_at";
 		var isAsc = effectiveSortOrder == SortOrder.Asc;
 
-		// SortFieldHandler dictionary - works on Tenant entity only
-		var sortFieldHandlers = new Dictionary<string, TenantSortFieldHandler>(
+		// Cursor sort field handlers work on Tenant entities only.
+		var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<Tenant>>(
 			StringComparer.OrdinalIgnoreCase
 		) {
-			["created_at"] = new TenantSortFieldHandler(
+			["created_at"] = new CursorSortFieldHandler<Tenant>(
 				getCursorValue: async (guid) => {
 					var tenant = await _dbContext.Tenant
 						.Where(t => t.Id == guid && t.IsDeleted != true)
@@ -313,7 +313,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 					? q.OrderBy(t => t.CreatedAt).ThenBy(t => t.Id)
 					: q.OrderByDescending(t => t.CreatedAt).ThenByDescending(t => t.Id)
 			),
-			["updated_at"] = new TenantSortFieldHandler(
+			["updated_at"] = new CursorSortFieldHandler<Tenant>(
 				getCursorValue: async (guid) => {
 					var tenant = await _dbContext.Tenant
 						.Where(t => t.Id == guid && t.IsDeleted != true)
@@ -332,7 +332,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 					? q.OrderBy(t => t.UpdatedAt).ThenBy(t => t.Id)
 					: q.OrderByDescending(t => t.UpdatedAt).ThenByDescending(t => t.Id)
 			),
-			["name"] = new TenantSortFieldHandler(
+			["name"] = new CursorSortFieldHandler<Tenant>(
 				getCursorValue: async (guid) => {
 					var tenant = await _dbContext.Tenant
 						.Where(t => t.Id == guid && t.IsDeleted != true)
@@ -351,7 +351,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 					? q.OrderBy(t => t.Name).ThenBy(t => t.Id)
 					: q.OrderByDescending(t => t.Name).ThenByDescending(t => t.Id)
 			),
-			["status"] = new TenantSortFieldHandler(
+			["status"] = new CursorSortFieldHandler<Tenant>(
 				getCursorValue: async (guid) => {
 					var tenant = await _dbContext.Tenant
 						.Where(t => t.Id == guid && t.IsDeleted != true)
@@ -373,7 +373,12 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		};
 
 		// Validate sortId via TryGetValue
-		if (!sortFieldHandlers.TryGetValue(effectiveSortId, out TenantSortFieldHandler? handler)) {
+		if (
+			!sortFieldHandlers.TryGetValue(
+				effectiveSortId,
+				out CursorSortFieldHandler<Tenant>? handler
+			)
+		) {
 			return new FindTenantsAsStaffServiceResult.InvalidSortId(effectiveSortId);
 		}
 
@@ -463,23 +468,6 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				NextCursor = nextCursor
 			}
 		);
-	}
-
-	// SortFieldHandler for Tenant entity only
-	private class TenantSortFieldHandler {
-		public Func<Guid, Task<object?>> GetCursorValue { get; }
-		public Func<IQueryable<Tenant>, object?, bool, IQueryable<Tenant>> ApplyFilter { get; }
-		public Func<IQueryable<Tenant>, bool, IOrderedQueryable<Tenant>> ApplyOrdering { get; }
-
-		public TenantSortFieldHandler(
-			Func<Guid, Task<object?>> getCursorValue,
-			Func<IQueryable<Tenant>, object?, bool, IQueryable<Tenant>> applyFilter,
-			Func<IQueryable<Tenant>, bool, IOrderedQueryable<Tenant>> applyOrdering
-		) {
-			GetCursorValue = getCursorValue;
-			ApplyFilter = applyFilter;
-			ApplyOrdering = applyOrdering;
-		}
 	}
 
 	public async Task<CreateTenantWithInitialUsersResult> CreateTenantWithInitialUsersAsync(
