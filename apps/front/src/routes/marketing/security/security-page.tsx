@@ -6,6 +6,7 @@ import Typography from '@mui/material/Typography';
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { FEATURES } from '#app/lib/features/flags.ts';
 import { ContentBand } from '#app/routes/marketing/_components/content-band.tsx';
 import { CtaBand } from '#app/routes/marketing/_components/cta-band.tsx';
 import { MarketingHero } from '#app/routes/marketing/_components/marketing-hero.tsx';
@@ -346,7 +347,11 @@ const SecurityPage = () => {
 				title="Want to talk to security in detail?"
 				subhead="Our compliance engineering team will walk you through our operational controls, facilitate a custom risk assessment, and securely complete your vendor questionnaires."
 				ctaLabel="Schedule a security call"
-				ctaHref={FRONT_PATH_NAMES.marketing.contact}
+				ctaHref={
+					FEATURES.marketing.contact
+						? FRONT_PATH_NAMES.marketing.contact
+						: `mailto:${SECURITY_CONTACT_EMAIL}`
+				}
 				microcopy="Typical response within one business day."
 			/>
 		</>
