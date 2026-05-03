@@ -123,8 +123,8 @@ export const LegalDocPage = ({
 	return (
 		<Box component="section">
 			<Container
-				maxWidth="lg"
-				sx={{ pt: { xs: 6, md: 10 }, pb: { xs: 8, md: 12 } }}
+				maxWidth={false}
+				sx={{ maxWidth: 1024, pt: { xs: 6, md: 10 }, pb: { xs: 8, md: 12 } }}
 			>
 				{/* Hero band — sits ABOVE the 2-col area so the title can span its
 				    own width independently of the reading column / TOC layout. */}
