@@ -98,6 +98,12 @@ export const FRONT_PATH_NAMES = {
 		about: makePath('about'),
 		contact: makePath('contact'),
 		security: makePath('security'),
+		// Not yet shipped — these paths 404 to MarketingNotFoundPage until built:
+		blog: makePath('blog'),
+		changelog: makePath('changelog'),
+		integrations: makePath('integrations'),
+		help: makePath('help'),
+		community: makePath('community'),
 	},
 	auth: {
 		login: makePath('login'),

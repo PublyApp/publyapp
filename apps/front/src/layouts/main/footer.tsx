@@ -24,9 +24,9 @@ export type FooterProps = React.ComponentProps<typeof FooterRoot>;
 
 const HOME_FOOTER_PRODUCT_LINKS = [
 	{ label: 'Features', href: '/#features' },
-	{ label: 'Integrations', href: '#' },
+	{ label: 'Integrations', href: FRONT_PATH_NAMES.marketing.integrations },
 	{ label: 'Pricing', href: FRONT_PATH_NAMES.marketing.pricing },
-	{ label: 'Changelog', href: '#' },
+	{ label: 'Changelog', href: FRONT_PATH_NAMES.marketing.changelog },
 ];
 
 const HOME_FOOTER_COMPANY_LINKS = [
@@ -42,10 +42,10 @@ const HOME_FOOTER_LEGAL_LINKS = [
 ];
 
 const HOME_FOOTER_RESOURCE_LINKS = [
-	{ label: 'Blog', href: '#' },
-	{ label: 'Help Center', href: '#' },
-	{ label: 'Community', href: '#' },
-	{ label: 'Contact Support', href: '#' },
+	{ label: 'Blog', href: FRONT_PATH_NAMES.marketing.blog },
+	{ label: 'Help Center', href: FRONT_PATH_NAMES.marketing.help },
+	{ label: 'Community', href: FRONT_PATH_NAMES.marketing.community },
+	{ label: 'Contact Support', href: FRONT_PATH_NAMES.marketing.contact },
 ];
 
 const HOME_FOOTER_SOCIALS: { label: string; icon: string }[] = [
