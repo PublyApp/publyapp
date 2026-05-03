@@ -29,6 +29,9 @@ export const LEGAL_P_SX = {
 	lineHeight: 1.75,
 } as const;
 
+const READING_COLUMN_W = 720;
+const TOC_SIDEBAR_W = 240;
+
 // ----------------------------------------------------------------------
 
 type LegalDocPageProps = {
@@ -41,7 +44,7 @@ type LegalDocPageProps = {
 
 // ----------------------------------------------------------------------
 
-const TocSidebar = ({
+const TocSidebarContent = ({
 	toc,
 	activeId,
 }: {
@@ -49,21 +52,7 @@ const TocSidebar = ({
 	activeId: string | null;
 }) => {
 	return (
-		<Box
-			component="nav"
-			aria-label="Table of contents"
-			sx={(theme) => ({
-				position: 'sticky',
-				top: 'var(--layout-header-mobile-height)',
-				[theme.breakpoints.up('md')]: {
-					top: 'var(--layout-header-desktop-height)',
-				},
-				width: 240,
-				flexShrink: 0,
-				alignSelf: 'flex-start',
-				py: 4,
-			})}
-		>
+		<>
 			<Typography
 				sx={{
 					fontSize: 11,
@@ -107,7 +96,7 @@ const TocSidebar = ({
 					);
 				})}
 			</Stack>
-		</Box>
+		</>
 	);
 };
 
@@ -131,55 +120,23 @@ export const LegalDocPage = ({
 				maxWidth="lg"
 				sx={{ pt: { xs: 6, md: 10 }, pb: { xs: 8, md: 12 } }}
 			>
-				{/* Hero band */}
-				<Stack spacing={2} sx={{ mb: { xs: 6, md: 8 }, maxWidth: 720 }}>
-					<Typography
-						sx={{
-							fontSize: 12,
-							fontWeight: 700,
-							textTransform: 'uppercase',
-							letterSpacing: '0.12em',
-							color: 'primary.main',
-						}}
-					>
-						{eyebrow}
-					</Typography>
-					<Typography
-						component="h1"
-						sx={{
-							fontSize: { xs: 32, md: 44 },
-							fontWeight: 700,
-							lineHeight: 1.15,
-							letterSpacing: '-0.02em',
-							color: 'text.primary',
-						}}
-					>
-						{title}
-					</Typography>
-					<Typography sx={{ fontSize: 14, color: 'text.secondary' }}>
-						Last updated {fDate(lastUpdated, 'MMMM D, YYYY')}
-					</Typography>
-				</Stack>
-
-				{/* 2-column body: TOC right (lg+), content left */}
+				{/* 2-column wrapper: hero + body share the LEFT reading column so they
+				    align on the same left edge; TOC sidebar is the RIGHT direct flex
+				    child so position:sticky has a tall scroll context to stick within. */}
 				<Box
 					sx={{
 						display: 'flex',
-						flexDirection: { xs: 'column', lg: 'row-reverse' },
+						flexDirection: { xs: 'column', lg: 'row' },
 						gap: { xs: 4, lg: 8 },
+						justifyContent: { lg: 'space-between' },
 						alignItems: 'flex-start',
 					}}
 				>
-					{/* TOC sidebar — desktop only */}
-					<Box sx={{ display: { xs: 'none', lg: 'block' } }}>
-						<TocSidebar toc={toc} activeId={activeId} />
-					</Box>
-
-					{/* Body content slot */}
+					{/* Left column: hero band + body slot, both at the same x-origin */}
 					<Box
 						sx={(theme) => ({
-							flex: 1,
-							maxWidth: 720,
+							width: { xs: '100%', lg: READING_COLUMN_W },
+							maxWidth: READING_COLUMN_W,
 							color: 'text.primary',
 							// h2[id] anchor scroll lands below the sticky topbar (16px buffer)
 							'& h2[id]': {
@@ -192,7 +149,60 @@ export const LegalDocPage = ({
 							},
 						})}
 					>
+						{/* Hero band */}
+						<Stack spacing={2} sx={{ mb: { xs: 6, md: 8 } }}>
+							<Typography
+								sx={{
+									fontSize: 12,
+									fontWeight: 700,
+									textTransform: 'uppercase',
+									letterSpacing: '0.12em',
+									color: 'primary.main',
+								}}
+							>
+								{eyebrow}
+							</Typography>
+							<Typography
+								component="h1"
+								sx={{
+									fontSize: { xs: 32, md: 44 },
+									fontWeight: 700,
+									lineHeight: 1.15,
+									letterSpacing: '-0.02em',
+									color: 'text.primary',
+								}}
+							>
+								{title}
+							</Typography>
+							<Typography sx={{ fontSize: 14, color: 'text.secondary' }}>
+								Last updated {fDate(lastUpdated, 'MMMM D, YYYY')}
+							</Typography>
+						</Stack>
+
+						{/* Body content slot */}
 						{children}
+					</Box>
+
+					{/* Right column: sticky TOC sidebar — desktop only.
+					    Sticky lives on this Box (a direct flex child) so its scroll
+					    context is the tall flex container, not a height-collapsed wrapper. */}
+					<Box
+						component="nav"
+						aria-label="Table of contents"
+						sx={(theme) => ({
+							display: { xs: 'none', lg: 'block' },
+							position: 'sticky',
+							top: 'var(--layout-header-mobile-height)',
+							[theme.breakpoints.up('md')]: {
+								top: 'var(--layout-header-desktop-height)',
+							},
+							width: TOC_SIDEBAR_W,
+							flexShrink: 0,
+							alignSelf: 'flex-start',
+							py: 4,
+						})}
+					>
+						<TocSidebarContent toc={toc} activeId={activeId} />
 					</Box>
 				</Box>
 			</Container>
