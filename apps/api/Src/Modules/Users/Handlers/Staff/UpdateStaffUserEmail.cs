@@ -108,10 +108,15 @@ public sealed class UpdateStaffUserEmail {
 		}
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.StaffUserEmailUpdated,
-			userIdGuid,
-			new { TargetUserId = userIdGuid, Email = email.Trim().ToLowerInvariant() },
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.StaffUserEmailUpdated,
+				TargetId: userIdGuid,
+				Details: new {
+					TargetUserId = userIdGuid,
+					Email = email.Trim().ToLowerInvariant()
+				}
+			),
 			cancellationToken
 		);
 

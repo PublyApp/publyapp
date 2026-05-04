@@ -57,14 +57,17 @@ public class FindStaffInvitations {
 		var sortId = findStaffInvitationsQuery.GetSortId();
 		var sortOrder = findStaffInvitationsQuery.GetSortOrder();
 		var status = findStaffInvitationsQuery.GetStatus();
+		var args = new FindStaffInvitationsArgs(
+			Cursor: cursorGuid,
+			Limit: limit,
+			SortId: sortId,
+			SortOrder: sortOrder,
+			Status: status
+		);
 
 		var serviceResult = await invitationService.FindStaffInvitationsAsync(
-			cursor: cursorGuid,
-			limit: limit,
-			sortId: sortId,
-			sortOrder: sortOrder,
-			status: status,
-			cancellationToken: cancellationToken
+			args,
+			cancellationToken
 		);
 
 		if (serviceResult is Services.FindStaffInvitationsResult.CursorNotFound cursorError) {

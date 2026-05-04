@@ -318,9 +318,12 @@ public class BulkCreateStaffInvitations {
 		}
 
 		// Call the service to create invitations
+		var createArgs = new BulkCreateStaffInvitationsArgs(
+			Invitations: invitations,
+			InvitedByUserId: account.UserId
+		);
 		var invitationTokens = await invitationService.BulkCreateStaffInvitationsAsync(
-			invitations,
-			account.UserId,
+			createArgs,
 			cancellationToken
 		);
 
@@ -336,10 +339,12 @@ public class BulkCreateStaffInvitations {
 
 		// Audit logging
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.InvitationCreated,
-			null, // Bulk operation has no single target
-			new { Count = invitationTokens.Count, Scope = "Staff" },
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.InvitationCreated,
+				TargetId: null, // Bulk operation has no single target
+				Details: new { Count = invitationTokens.Count, Scope = "Staff" }
+			),
 			cancellationToken
 		);
 

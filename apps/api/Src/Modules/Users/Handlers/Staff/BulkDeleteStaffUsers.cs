@@ -81,17 +81,19 @@ public sealed class BulkDeleteStaffUsers {
 		}
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.StaffUserBulkDeleted,
-			null,
-			new {
-				RequestedCount = requestedUserIds.Count,
-				SucceededCount = result.SucceededCount,
-				FailedCount = result.FailedCount,
-				RequestedUserIds = requestedUserIds,
-				SucceededUserIds = succeededUserIds,
-				FailedItems = result.FailedItems
-			},
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.StaffUserBulkDeleted,
+				TargetId: null,
+				Details: new {
+					RequestedCount = requestedUserIds.Count,
+					SucceededCount = result.SucceededCount,
+					FailedCount = result.FailedCount,
+					RequestedUserIds = requestedUserIds,
+					SucceededUserIds = succeededUserIds,
+					FailedItems = result.FailedItems
+				}
+			),
 			cancellationToken
 		);
 

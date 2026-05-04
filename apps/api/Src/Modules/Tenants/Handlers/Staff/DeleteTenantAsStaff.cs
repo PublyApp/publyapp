@@ -64,10 +64,12 @@ public class DeleteTenantAsStaff {
 		var tenant = success.Tenant;
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.TenantDeleted,
-			tenantIdGuid,
-			new { TenantName = tenant.Name },
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.TenantDeleted,
+				TargetId: tenantIdGuid,
+				Details: new { TenantName = tenant.Name }
+			),
 			cancellationToken
 		);
 

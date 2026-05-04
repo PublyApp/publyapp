@@ -228,12 +228,15 @@ public class CreateStaffProfile {
 		var currentUserId = authContext.AccountStaff.UserId;
 
 		// Create staff profile via service
+		var args = new CreateStaffProfileArgs(
+			Name: name,
+			Description: description,
+			Permissions: permissions,
+			Emails: emails,
+			InvitedByUserId: currentUserId
+		);
 		var result = await profileAsStaffService.CreateStaffProfileAsync(
-			name,
-			description,
-			permissions,
-			emails,
-			currentUserId,
+			args,
 			cancellationToken
 		);
 
@@ -322,15 +325,17 @@ public class CreateStaffProfile {
 
 		// Audit log - profile created
 		await auditLogService.LogAsync(
-			currentUserId,
-			AuditActions.StaffProfileCreated,
-			profileId,
-			new {
-				Name = success.Profile.Name,
-				PermissionsCount = success.PermissionsAssigned,
-				UsersAssigned = success.UsersAssigned,
-				InvitationsSent = success.InvitationsSent
-			},
+			new CreateAuditLogArgs(
+				UserId: currentUserId,
+				Action: AuditActions.StaffProfileCreated,
+				TargetId: profileId,
+				Details: new {
+					Name = success.Profile.Name,
+					PermissionsCount = success.PermissionsAssigned,
+					UsersAssigned = success.UsersAssigned,
+					InvitationsSent = success.InvitationsSent
+				}
+			),
 			cancellationToken
 		);
 

@@ -102,16 +102,18 @@ public class SuspendTenantUserAsStaff {
 		var userData = success.UserData;
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.TenantUserSuspended,
-			userIdGuid,
-			new {
-				TenantId = tenantIdGuid,
-				UserId = userIdGuid,
-				SuspendedByUserId = account.UserId,
-				UserEmail = userData.User.Email,
-				UserFullName = $"{userData.User.FirstName} {userData.User.LastName}".Trim()
-			},
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.TenantUserSuspended,
+				TargetId: userIdGuid,
+				Details: new {
+					TenantId = tenantIdGuid,
+					UserId = userIdGuid,
+					SuspendedByUserId = account.UserId,
+					UserEmail = userData.User.Email,
+					UserFullName = $"{userData.User.FirstName} {userData.User.LastName}".Trim()
+				}
+			),
 			cancellationToken
 		);
 

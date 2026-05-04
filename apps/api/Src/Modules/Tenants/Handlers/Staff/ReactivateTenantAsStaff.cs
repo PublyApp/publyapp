@@ -72,10 +72,12 @@ public class ReactivateTenantAsStaff {
 		var tenant = success.Tenant;
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.TenantReactivated,
-			tenantIdGuid,
-			new { TenantName = tenant.Name },
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.TenantReactivated,
+				TargetId: tenantIdGuid,
+				Details: new { TenantName = tenant.Name }
+			),
 			cancellationToken
 		);
 

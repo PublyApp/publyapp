@@ -265,6 +265,14 @@ public abstract record SetStaffProfilePermissionResult {
 	public sealed record PermissionNotFound : SetStaffProfilePermissionResult;
 }
 
+public sealed record CreateStaffProfileArgs(
+	string Name,
+	string? Description,
+	List<string> Permissions,
+	List<string> Emails,
+	Guid InvitedByUserId
+);
+
 public abstract record DeleteStaffProfileServiceResult {
 	public sealed record Success(int DeletedProfileCount) : DeleteStaffProfileServiceResult;
 	public sealed record ProfileNotFound : DeleteStaffProfileServiceResult;
@@ -401,11 +409,7 @@ public interface IProfileAsStaffService {
 	);
 
 	Task<CreateStaffProfileResult> CreateStaffProfileAsync(
-		string name,
-		string? description,
-		List<string> permissions,
-		List<string> emails,
-		Guid invitedByUserId,
+		CreateStaffProfileArgs args,
 		CancellationToken cancellationToken = default
 	);
 
@@ -1749,13 +1753,15 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 	/// Success with statistics, or error result if validation fails
 	/// </returns>
 	public async Task<CreateStaffProfileResult> CreateStaffProfileAsync(
-		string name,
-		string? description,
-		List<string> permissions,
-		List<string> emails,
-		Guid invitedByUserId,
+		CreateStaffProfileArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		var name = args.Name;
+		var description = args.Description;
+		var permissions = args.Permissions;
+		var emails = args.Emails;
+		var invitedByUserId = args.InvitedByUserId;
+
 		// Normalize and validate inputs
 		var normalizedName = name.Trim();
 		var normalizedEmails = emails

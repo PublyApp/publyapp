@@ -174,15 +174,17 @@ public class AcceptInvitation {
 				}
 
 				await auditLogService.LogAsync(
-					existingUser.GetRequiredId(),
-					AuditActions.TenantInvitationAccepted,
-					invitation.GetRequiredId(),
-					new {
-						Email = invitation.Email,
-						TenantId = invitation.TenantId,
-						AccountLevel = (string?)(invitation.AccountLevel ?? AccountLevel.User).ToString(),
-						AcceptedWithExistingAccount = true
-					},
+					new CreateAuditLogArgs(
+						UserId: existingUser.GetRequiredId(),
+						Action: AuditActions.TenantInvitationAccepted,
+						TargetId: invitation.GetRequiredId(),
+						Details: new {
+							Email = invitation.Email,
+							TenantId = invitation.TenantId,
+							AccountLevel = (string?)(invitation.AccountLevel ?? AccountLevel.User).ToString(),
+							AcceptedWithExistingAccount = true
+						}
+					),
 					cancellationToken
 				);
 
@@ -234,19 +236,25 @@ public class AcceptInvitation {
 		// Call appropriate service based on invitation scope
 		UserEntity user;
 		if (invitation.Scope == InvitationScope.Staff) {
+			var acceptArgs = new AcceptStaffInvitationArgs(
+				Invitation: invitation,
+				FirstName: firstName,
+				LastName: lastName,
+				PasswordHash: passwordHash
+			);
 			user = await invitationService.AcceptStaffInvitationAsync(
-				invitation,
-				firstName,
-				lastName,
-				passwordHash,
+				acceptArgs,
 				cancellationToken
 			);
 		} else if (invitation.Scope == InvitationScope.Tenant) {
+			var acceptArgs = new AcceptTenantInvitationArgs(
+				Invitation: invitation,
+				FirstName: firstName,
+				LastName: lastName,
+				PasswordHash: passwordHash
+			);
 			user = await invitationService.AcceptTenantInvitationAsync(
-				invitation,
-				firstName,
-				lastName,
-				passwordHash,
+				acceptArgs,
 				cancellationToken
 			);
 		} else {
@@ -278,10 +286,12 @@ public class AcceptInvitation {
 			};
 
 		await auditLogService.LogAsync(
-			user.GetRequiredId(),
-			auditAction,
-			invitation.GetRequiredId(),
-			auditData,
+			new CreateAuditLogArgs(
+				UserId: user.GetRequiredId(),
+				Action: auditAction,
+				TargetId: invitation.GetRequiredId(),
+				Details: auditData
+			),
 			cancellationToken
 		);
 

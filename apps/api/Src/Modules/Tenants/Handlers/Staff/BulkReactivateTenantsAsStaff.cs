@@ -77,13 +77,15 @@ public class BulkReactivateTenantsAsStaff {
 		var account = authContext.AccountStaff;
 		if (account is not null) {
 			await auditLogService.LogAsync(
-				account.UserId,
-				AuditActions.TenantBulkReactivated,
-				account.UserId,
-				new {
-					Count = result.SucceededCount,
-					FailedCount = result.FailedCount
-				},
+				new CreateAuditLogArgs(
+					UserId: account.UserId,
+					Action: AuditActions.TenantBulkReactivated,
+					TargetId: account.UserId,
+					Details: new {
+						Count = result.SucceededCount,
+						FailedCount = result.FailedCount
+					}
+				),
 				cancellationToken
 			);
 		}

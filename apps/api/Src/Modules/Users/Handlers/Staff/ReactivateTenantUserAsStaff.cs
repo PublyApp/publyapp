@@ -95,16 +95,18 @@ public class ReactivateTenantUserAsStaff {
 		var userData = success.UserData;
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.TenantUserReactivated,
-			userIdGuid,
-			new {
-				TenantId = tenantIdGuid,
-				UserId = userIdGuid,
-				ReactivatedByUserId = account.UserId,
-				UserEmail = userData.User.Email,
-				UserFullName = $"{userData.User.FirstName} {userData.User.LastName}".Trim()
-			},
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.TenantUserReactivated,
+				TargetId: userIdGuid,
+				Details: new {
+					TenantId = tenantIdGuid,
+					UserId = userIdGuid,
+					ReactivatedByUserId = account.UserId,
+					UserEmail = userData.User.Email,
+					UserFullName = $"{userData.User.FirstName} {userData.User.LastName}".Trim()
+				}
+			),
 			cancellationToken
 		);
 

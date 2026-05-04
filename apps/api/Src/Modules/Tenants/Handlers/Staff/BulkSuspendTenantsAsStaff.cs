@@ -101,14 +101,16 @@ public class BulkSuspendTenantsAsStaff {
 			// We can't easily get individual tenant names in bulk without extra queries
 			// Log a summary audit entry
 			await auditLogService.LogAsync(
-				account.UserId,
-				AuditActions.TenantBulkSuspended,
-				account.UserId, // Use actor as target since multiple tenants
-				new {
-					Count = result.SucceededCount,
-					FailedCount = result.FailedCount,
-					Reason = reason
-				},
+				new CreateAuditLogArgs(
+					UserId: account.UserId,
+					Action: AuditActions.TenantBulkSuspended,
+					TargetId: account.UserId, // Use actor as target since multiple tenants
+					Details: new {
+						Count = result.SucceededCount,
+						FailedCount = result.FailedCount,
+						Reason = reason
+					}
+				),
 				cancellationToken
 			);
 		}

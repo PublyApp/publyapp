@@ -80,16 +80,18 @@ public class AssignTenantProfilePermissionAsStaff {
 				}
 
 				await auditLogService.LogAsync(
-					account.UserId,
-					AuditActions.TenantProfilePermissionsAssigned,
-					profileIdGuid,
-					new {
-						TenantId = tenantIdGuid,
-						ProfileId = profileIdGuid,
-						ProfileName = success.Profile.ProfileName,
-						IsDefault = success.Profile.IsDefault,
-						PermissionKey = normalizedPermissionKey
-					},
+					new CreateAuditLogArgs(
+						UserId: account.UserId,
+						Action: AuditActions.TenantProfilePermissionsAssigned,
+						TargetId: profileIdGuid,
+						Details: new {
+							TenantId = tenantIdGuid,
+							ProfileId = profileIdGuid,
+							ProfileName = success.Profile.ProfileName,
+							IsDefault = success.Profile.IsDefault,
+							PermissionKey = normalizedPermissionKey
+						}
+					),
 					cancellationToken
 				);
 			}

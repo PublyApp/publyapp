@@ -181,16 +181,18 @@ public class UpdateTenantProfileAsStaff {
 				}
 
 				await auditLogService.LogAsync(
-					account.UserId,
-					AuditActions.TenantProfileUpdated,
-					profileIdGuid,
-					new {
-						TenantId = tenantIdGuid,
-						ProfileId = profileIdGuid,
-						ProfileName = success.Profile.Name,
-						IsDefault = success.Profile.IsDefault,
-						ChangedFields = changedFields
-					},
+					new CreateAuditLogArgs(
+						UserId: account.UserId,
+						Action: AuditActions.TenantProfileUpdated,
+						TargetId: profileIdGuid,
+						Details: new {
+							TenantId = tenantIdGuid,
+							ProfileId = profileIdGuid,
+							ProfileName = success.Profile.Name,
+							IsDefault = success.Profile.IsDefault,
+							ChangedFields = changedFields
+						}
+					),
 					cancellationToken
 				);
 			}

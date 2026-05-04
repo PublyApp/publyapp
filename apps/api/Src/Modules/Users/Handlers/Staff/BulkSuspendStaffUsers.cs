@@ -74,15 +74,17 @@ public sealed class BulkSuspendStaffUsers {
 		}
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.StaffUserBulkSuspended,
-			null,
-			new {
-				RequestedCount = userIds.Distinct().Count(),
-				SucceededCount = result.SucceededCount,
-				FailedCount = result.FailedCount,
-				UserIds = userIds.Distinct().ToList()
-			},
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.StaffUserBulkSuspended,
+				TargetId: null,
+				Details: new {
+					RequestedCount = userIds.Distinct().Count(),
+					SucceededCount = result.SucceededCount,
+					FailedCount = result.FailedCount,
+					UserIds = userIds.Distinct().ToList()
+				}
+			),
 			cancellationToken
 		);
 

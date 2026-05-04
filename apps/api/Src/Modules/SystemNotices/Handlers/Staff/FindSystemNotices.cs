@@ -41,13 +41,16 @@ public class FindSystemNotices {
 		var limit = query.GetLimit();
 		var sortId = query.GetSortId();
 		var sortOrder = query.GetSortOrder();
+		var args = new FindSystemNoticesArgs(
+			Cursor: cursorGuid,
+			Limit: limit,
+			SortId: sortId,
+			SortOrder: sortOrder
+		);
 
 		var serviceResult = await systemNoticeService.FindAsync(
-			cursor: cursorGuid,
-			limit: limit,
-			sortId: sortId,
-			sortOrder: sortOrder,
-			cancellationToken: cancellationToken
+			args,
+			cancellationToken
 		);
 
 		if (serviceResult

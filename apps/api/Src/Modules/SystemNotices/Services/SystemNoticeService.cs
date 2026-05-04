@@ -24,16 +24,20 @@ public record UpdateSystemNoticeArgs(
 	PatchField<DateTime?> ExpiresAt
 );
 
+public record FindSystemNoticesArgs(
+	Guid Cursor,
+	int? Limit,
+	string? SortId,
+	SortOrder? SortOrder
+);
+
 public interface ISystemNoticeService {
 	Task<SystemNotice> CreateAsync(
 		CreateSystemNoticeArgs args,
 		CancellationToken cancellationToken = default);
 
 	Task<FindSystemNoticesResult> FindAsync(
-		Guid cursor,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
+		FindSystemNoticesArgs args,
 		CancellationToken cancellationToken = default);
 
 	Task<SystemNotice?> GetByIdAsync(
@@ -131,16 +135,14 @@ public class SystemNoticeService : ISystemNoticeService {
 	}
 
 	public async Task<FindSystemNoticesResult> FindAsync(
-		Guid cursor,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
+		FindSystemNoticesArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var effectiveLimit = limit
+		var cursor = args.Cursor;
+		var effectiveLimit = args.Limit
 			?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
-		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-		var effectiveSortId = sortId ?? "created_at";
+		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
+		var effectiveSortId = args.SortId ?? "created_at";
 
 		var sortFieldHandlers =
 			new Dictionary<string, CursorSortFieldHandler<SystemNotice>>(

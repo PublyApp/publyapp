@@ -74,15 +74,17 @@ public sealed class BulkReactivateStaffUsers {
 		}
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.StaffUserBulkReactivated,
-			null,
-			new {
-				RequestedCount = userIds.Distinct().Count(),
-				SucceededCount = result.SucceededCount,
-				FailedCount = result.FailedCount,
-				UserIds = userIds.Distinct().ToList()
-			},
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.StaffUserBulkReactivated,
+				TargetId: null,
+				Details: new {
+					RequestedCount = userIds.Distinct().Count(),
+					SucceededCount = result.SucceededCount,
+					FailedCount = result.FailedCount,
+					UserIds = userIds.Distinct().ToList()
+				}
+			),
 			cancellationToken
 		);
 
