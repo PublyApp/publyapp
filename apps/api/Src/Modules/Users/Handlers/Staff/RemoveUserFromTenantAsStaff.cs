@@ -65,14 +65,16 @@ public class RemoveUserFromTenantAsStaff {
 			}
 
 			await auditLogService.LogAsync(
-				account.UserId,
-				AuditActions.TenantUserRemoved,
-				userIdGuid,
-				new {
-					TenantId = tenantIdGuid,
-					TenantUserId = userIdGuid,
-					RemovedByUserId = account.UserId
-				},
+				new CreateAuditLogArgs(
+					UserId: account.UserId,
+					Action: AuditActions.TenantUserRemoved,
+					TargetId: userIdGuid,
+					Details: new {
+						TenantId = tenantIdGuid,
+						TenantUserId = userIdGuid,
+						RemovedByUserId = account.UserId
+					}
+				),
 				cancellationToken
 			);
 

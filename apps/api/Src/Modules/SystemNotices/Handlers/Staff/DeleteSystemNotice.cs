@@ -50,10 +50,11 @@ public class DeleteSystemNotice {
 		}
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.SystemNoticeDeleted,
-			noticeIdGuid,
-			null,
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.SystemNoticeDeleted,
+				TargetId: noticeIdGuid
+			),
 			cancellationToken
 		);
 

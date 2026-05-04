@@ -149,11 +149,14 @@ public class CreateInvitationForTenantAsStaff {
 		}
 
 		// Create the invitation
+		var createArgs = new CreateTenantInvitationArgs(
+			Email: email,
+			TenantId: tenantIdGuid,
+			ProfileIds: profileIds,
+			InvitedByUserId: account.UserId
+		);
 		var (invitation, token) = await invitationService.CreateTenantInvitationAsync(
-			email,
-			tenantIdGuid,
-			profileIds,
-			account.UserId,
+			createArgs,
 			cancellationToken
 		);
 		var createdInvitation = invitation;
@@ -176,15 +179,17 @@ public class CreateInvitationForTenantAsStaff {
 
 		// Audit log
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.InvitationCreated,
-			createdInvitation.GetRequiredId(),
-			new {
-				Email = email,
-				TenantId = tenantIdGuid,
-				AccountLevel = accountLevelStr,
-				Scope = "Tenant"
-			},
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.InvitationCreated,
+				TargetId: createdInvitation.GetRequiredId(),
+				Details: new {
+					Email = email,
+					TenantId = tenantIdGuid,
+					AccountLevel = accountLevelStr,
+					Scope = "Tenant"
+				}
+			),
 			cancellationToken
 		);
 

@@ -73,16 +73,18 @@ public class UnassignTenantProfilePermissionAsStaff {
 				}
 
 				await auditLogService.LogAsync(
-					account.UserId,
-					AuditActions.TenantProfilePermissionsUnassigned,
-					profileIdGuid,
-					new {
-						TenantId = tenantIdGuid,
-						ProfileId = profileIdGuid,
-						ProfileName = success.Profile.ProfileName,
-						IsDefault = success.Profile.IsDefault,
-						PermissionKey = normalizedPermissionKey
-					},
+					new CreateAuditLogArgs(
+						UserId: account.UserId,
+						Action: AuditActions.TenantProfilePermissionsUnassigned,
+						TargetId: profileIdGuid,
+						Details: new {
+							TenantId = tenantIdGuid,
+							ProfileId = profileIdGuid,
+							ProfileName = success.Profile.ProfileName,
+							IsDefault = success.Profile.IsDefault,
+							PermissionKey = normalizedPermissionKey
+						}
+					),
 					cancellationToken
 				);
 			}

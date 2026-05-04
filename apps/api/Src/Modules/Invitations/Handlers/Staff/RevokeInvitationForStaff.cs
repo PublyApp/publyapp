@@ -58,10 +58,11 @@ public class RevokeInvitationForStaff {
 		}
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.InvitationRevoked,
-			invitationIdGuid,
-			null,
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.InvitationRevoked,
+				TargetId: invitationIdGuid
+			),
 			cancellationToken
 		);
 

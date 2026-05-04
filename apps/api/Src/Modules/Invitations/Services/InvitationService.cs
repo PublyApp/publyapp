@@ -25,18 +25,53 @@ public record FindTenantInvitationsArgs {
 	public FindTenantInvitationsFilters Filters { get; init; } = new();
 }
 
+public record FindStaffInvitationsArgs(
+	Guid Cursor,
+	int? Limit,
+	string? SortId,
+	SortOrder? SortOrder,
+	string? Status
+);
+
+public record CreateStaffInvitationArgs(
+	string Email,
+	List<Guid> ProfileIds,
+	Guid InvitedByUserId
+);
+
+public record CreateTenantInvitationArgs(
+	string Email,
+	Guid TenantId,
+	List<Guid> ProfileIds,
+	Guid InvitedByUserId
+);
+
+public record AcceptStaffInvitationArgs(
+	Invitation Invitation,
+	string FirstName,
+	string LastName,
+	string PasswordHash
+);
+
+public record AcceptTenantInvitationArgs(
+	Invitation Invitation,
+	string FirstName,
+	string LastName,
+	string PasswordHash
+);
+
+public record BulkCreateStaffInvitationsArgs(
+	List<BulkStaffInvitationItem> Invitations,
+	Guid InvitedByUserId
+);
+
 public interface IInvitationService {
 	Task<(Invitation Invitation, string Token)> CreateStaffInvitationAsync(
-		string email,
-		List<Guid> profileIds,
-		Guid invitedByUserId,
+		CreateStaffInvitationArgs args,
 		CancellationToken cancellationToken = default);
 
 	Task<(Invitation Invitation, string Token)> CreateTenantInvitationAsync(
-		string email,
-		Guid tenantId,
-		List<Guid> profileIds,
-		Guid invitedByUserId,
+		CreateTenantInvitationArgs args,
 		CancellationToken cancellationToken = default);
 
 	Task<Invitation?> GetInvitationByTokenAsync(
@@ -79,11 +114,7 @@ public interface IInvitationService {
 		CancellationToken cancellationToken = default);
 
 	Task<FindStaffInvitationsResult> FindStaffInvitationsAsync(
-		Guid cursor,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
-		string? status = null,
+		FindStaffInvitationsArgs args,
 		CancellationToken cancellationToken = default);
 
 	Task<FindTenantInvitationsResult> FindTenantInvitationsAsync(
@@ -92,17 +123,11 @@ public interface IInvitationService {
 		CancellationToken cancellationToken = default);
 
 	Task<UserEntity> AcceptStaffInvitationAsync(
-		Invitation invitation,
-		string firstName,
-		string lastName,
-		string passwordHash,
+		AcceptStaffInvitationArgs args,
 		CancellationToken cancellationToken = default);
 
 	Task<UserEntity> AcceptTenantInvitationAsync(
-		Invitation invitation,
-		string firstName,
-		string lastName,
-		string passwordHash,
+		AcceptTenantInvitationArgs args,
 		CancellationToken cancellationToken = default);
 
 	Task<UserEntity> AcceptTenantInvitationForExistingUserAsync(
@@ -126,8 +151,7 @@ public interface IInvitationService {
 
 	// Bulk creation method
 	Task<List<(string Email, string Token)>> BulkCreateStaffInvitationsAsync(
-		List<BulkStaffInvitationItem> invitations,
-		Guid invitedByUserId,
+		BulkCreateStaffInvitationsArgs args,
 		CancellationToken cancellationToken = default);
 
 	Task MarkInvitationAsAcceptedAsync(
@@ -220,11 +244,12 @@ public class InvitationService : IInvitationService {
 	}
 
 	public async Task<(Invitation Invitation, string Token)> CreateStaffInvitationAsync(
-		string email,
-		List<Guid> profileIds,
-		Guid invitedByUserId,
+		CreateStaffInvitationArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		var email = args.Email;
+		var profileIds = args.ProfileIds;
+		var invitedByUserId = args.InvitedByUserId;
 		var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
 		var expiresAt = DateTime.UtcNow.AddDays(7);
 
@@ -254,12 +279,13 @@ public class InvitationService : IInvitationService {
 	}
 
 	public async Task<(Invitation Invitation, string Token)> CreateTenantInvitationAsync(
-		string email,
-		Guid tenantId,
-		List<Guid> profileIds,
-		Guid invitedByUserId,
+		CreateTenantInvitationArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		var email = args.Email;
+		var tenantId = args.TenantId;
+		var profileIds = args.ProfileIds;
+		var invitedByUserId = args.InvitedByUserId;
 		var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
 		var expiresAt = DateTime.UtcNow.AddDays(7);
 
@@ -491,16 +517,14 @@ public class InvitationService : IInvitationService {
 	}
 
 	public async Task<FindStaffInvitationsResult> FindStaffInvitationsAsync(
-		Guid cursor,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
-		string? status = null,
+		FindStaffInvitationsArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
-		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-		var effectiveSortId = sortId ?? "created_at";
+		var cursor = args.Cursor;
+		var effectiveLimit = args.Limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
+		var effectiveSortId = args.SortId ?? "created_at";
+		var status = args.Status;
 
 		// Keyset pagination handlers per sortId (cursor stays a Guid).
 		var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<Invitation>>(
@@ -915,12 +939,13 @@ public class InvitationService : IInvitationService {
 	}
 
 	public async Task<UserEntity> AcceptStaffInvitationAsync(
-		Invitation invitation,
-		string firstName,
-		string lastName,
-		string passwordHash,
+		AcceptStaffInvitationArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		var invitation = args.Invitation;
+		var firstName = args.FirstName;
+		var lastName = args.LastName;
+		var passwordHash = args.PasswordHash;
 		await using var tx = await _dbContext.Database
 			.BeginTransactionAsync(cancellationToken);
 		try {
@@ -986,12 +1011,13 @@ public class InvitationService : IInvitationService {
 	}
 
 	public async Task<UserEntity> AcceptTenantInvitationAsync(
-		Invitation invitation,
-		string firstName,
-		string lastName,
-		string passwordHash,
+		AcceptTenantInvitationArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		var invitation = args.Invitation;
+		var firstName = args.FirstName;
+		var lastName = args.LastName;
+		var passwordHash = args.PasswordHash;
 		await using var tx = await _dbContext.Database
 			.BeginTransactionAsync(cancellationToken);
 		try {
@@ -1259,10 +1285,11 @@ public class InvitationService : IInvitationService {
 	}
 
 	public async Task<List<(string Email, string Token)>> BulkCreateStaffInvitationsAsync(
-		List<BulkStaffInvitationItem> invitations,
-		Guid invitedByUserId,
+		BulkCreateStaffInvitationsArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		var invitations = args.Invitations;
+		var invitedByUserId = args.InvitedByUserId;
 		await using var tx = await _dbContext.Database
 			.BeginTransactionAsync(cancellationToken);
 		try {

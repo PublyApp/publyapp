@@ -211,19 +211,21 @@ public class CreateTenantProfileAsStaff {
 			}
 
 			await auditLogService.LogAsync(
-				account.UserId,
-				AuditActions.TenantProfileCreated,
-				success.Profile.Id,
-				new {
-					// Keep audit payload aligned with preview/table data so staff can reconcile
-					// mutations without opening the profile first.
-					TenantId = tenantIdGuid,
-					ProfileId = success.Profile.Id,
-					ProfileName = success.Profile.Name,
-					IsDefault = success.Profile.IsDefault,
-					InitialPermissionKeys = success.InitialPermissionKeys,
-					InitialPermissionCount = success.InitialPermissionKeys.Count
-				},
+				new CreateAuditLogArgs(
+					UserId: account.UserId,
+					Action: AuditActions.TenantProfileCreated,
+					TargetId: success.Profile.Id,
+					Details: new {
+						// Keep audit payload aligned with preview/table data so staff can reconcile
+						// mutations without opening the profile first.
+						TenantId = tenantIdGuid,
+						ProfileId = success.Profile.Id,
+						ProfileName = success.Profile.Name,
+						IsDefault = success.Profile.IsDefault,
+						InitialPermissionKeys = success.InitialPermissionKeys,
+						InitialPermissionCount = success.InitialPermissionKeys.Count
+					}
+				),
 				cancellationToken
 			);
 

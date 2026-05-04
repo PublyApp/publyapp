@@ -72,10 +72,12 @@ public class SuspendStaffUser {
 		}
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.StaffUserSuspended,
-			userIdGuid,
-			new { TargetUserId = userIdGuid },
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.StaffUserSuspended,
+				TargetId: userIdGuid,
+				Details: new { TargetUserId = userIdGuid }
+			),
 			cancellationToken
 		);
 

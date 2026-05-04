@@ -161,15 +161,17 @@ public class UpdateTenantAsStaff {
 			);
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.TenantUpdated,
-			tenantIdGuid,
-			new {
-				Name = args.Name,
-				LogoUrl = args.LogoUrl.IsPresent
-					? args.LogoUrl.Value : null,
-				MaxUsers = args.MaxUsers,
-			},
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.TenantUpdated,
+				TargetId: tenantIdGuid,
+				Details: new {
+					Name = args.Name,
+					LogoUrl = args.LogoUrl.IsPresent
+						? args.LogoUrl.Value : null,
+					MaxUsers = args.MaxUsers,
+				}
+			),
 			cancellationToken
 		);
 

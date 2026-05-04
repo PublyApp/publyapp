@@ -131,10 +131,13 @@ public class CreateStaffInvitation {
 		}
 
 		// Create invitation via service (wrap single profileId in list for new API)
+		var createArgs = new CreateStaffInvitationArgs(
+			Email: email,
+			ProfileIds: [profileId],
+			InvitedByUserId: account.UserId
+		);
 		var (invitation, token) = await invitationService.CreateStaffInvitationAsync(
-			email,
-			new List<Guid> { profileId },
-			account.UserId,
+			createArgs,
 			cancellationToken
 		);
 
@@ -151,10 +154,12 @@ public class CreateStaffInvitation {
 
 		// Audit log
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.InvitationCreated,
-			invitation.GetRequiredId(),
-			new { Email = email, ProfileId = profileId, Scope = "Staff" },
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.InvitationCreated,
+				TargetId: invitation.GetRequiredId(),
+				Details: new { Email = email, ProfileId = profileId, Scope = "Staff" }
+			),
 			cancellationToken
 		);
 
