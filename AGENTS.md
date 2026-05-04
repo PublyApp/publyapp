@@ -268,7 +268,8 @@ For FluentValidation conventions (shared extension methods, pagination validator
 - In handlers, cache body DTO getter results in locals when they are used 2+ times or return parsing-sensitive values like `PatchField<T>`, trimmed strings, parsed timestamps, or parsed enums
 - All errors use `TypedProblems.*` (RFC 7807), never `TypedResults.Forbid()`
 - Services MUST NOT depend on other services (only DbContext + infrastructure)
-- Use `[Service]` attribute for DI registration; `{Action}{Domain}Args` records for 3+ params
+- Use `[Service]` attribute for DI registration; `{Action}{Domain}Args` records for 3+ params;
+  update `apps/api/Src/Lib/Architecture/ServiceArgsRecordConvention.Spec.cs` assertions when adding/refactoring these methods
 - `PatchField<T>` for clearable nullable PATCH fields (see [`docs/guides/patchfield-pattern.md`](docs/guides/patchfield-pattern.md))
 - Max 100 char line length; always use braces on control flow blocks
 - "Find" prefix for list/collection retrieval (not "List")
