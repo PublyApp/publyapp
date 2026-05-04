@@ -312,6 +312,9 @@ public static async Task<Ok> HandleCreateUser(
 2. **Placement:** Define the args record in the **service file** (it's the service's input contract, not an HTTP DTO)
 3. **Construction:** Handlers construct the args record inline — no separate mapper class needed
 4. **Keep `id` separate:** Entity identifiers remain as separate parameters (they're routing concerns, not domain input)
+5. **Architecture guard:** When adding or refactoring service methods that should use
+   Args records, add/update the relevant assertions in
+   `apps/api/Src/Lib/Architecture/ServiceArgsRecordConvention.Spec.cs`
 
 ```csharp
 // ✅ CORRECT - Args record in the service file
