@@ -178,15 +178,17 @@ public class CreateSystemNotice {
 		);
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.SystemNoticeCreated,
-			notice.Id,
-			new {
-				Severity = severityStr,
-				Title = args.Title,
-				StartsAt = args.StartsAt,
-				ExpiresAt = args.ExpiresAt
-			},
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.SystemNoticeCreated,
+				TargetId: notice.Id,
+				Details: new {
+					Severity = severityStr,
+					Title = args.Title,
+					StartsAt = args.StartsAt,
+					ExpiresAt = args.ExpiresAt
+				}
+			),
 			cancellationToken
 		);
 

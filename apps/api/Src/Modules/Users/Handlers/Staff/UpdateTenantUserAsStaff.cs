@@ -172,20 +172,22 @@ public class UpdateTenantUserAsStaff {
 			}
 
 			await auditLogService.LogAsync(
-				account.UserId,
-				AuditActions.TenantUserUpdated,
-				userIdGuid,
-				new {
-					TenantId = tenantIdGuid,
-					TenantUserId = userIdGuid,
-					UpdatedByUserId = account.UserId,
-					UpdatedFields = new {
-						FirstName = body.GetFirstName().IsPresent,
-						LastName = body.GetLastName().IsPresent,
-						AvatarUrl = body.GetAvatarUrl().IsPresent,
-						Level = body.GetLevel() is not null,
+				new CreateAuditLogArgs(
+					UserId: account.UserId,
+					Action: AuditActions.TenantUserUpdated,
+					TargetId: userIdGuid,
+					Details: new {
+						TenantId = tenantIdGuid,
+						TenantUserId = userIdGuid,
+						UpdatedByUserId = account.UserId,
+						UpdatedFields = new {
+							FirstName = body.GetFirstName().IsPresent,
+							LastName = body.GetLastName().IsPresent,
+							AvatarUrl = body.GetAvatarUrl().IsPresent,
+							Level = body.GetLevel() is not null,
+						}
 					}
-				},
+				),
 				cancellationToken
 			);
 

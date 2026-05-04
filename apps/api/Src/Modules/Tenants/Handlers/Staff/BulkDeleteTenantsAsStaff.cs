@@ -77,13 +77,15 @@ public class BulkDeleteTenantsAsStaff {
 		var account = authContext.AccountStaff;
 		if (account is not null) {
 			await auditLogService.LogAsync(
-				account.UserId,
-				AuditActions.TenantBulkDeleted,
-				account.UserId,
-				new {
-					Count = result.SucceededCount,
-					FailedCount = result.FailedCount
-				},
+				new CreateAuditLogArgs(
+					UserId: account.UserId,
+					Action: AuditActions.TenantBulkDeleted,
+					TargetId: account.UserId,
+					Details: new {
+						Count = result.SucceededCount,
+						FailedCount = result.FailedCount
+					}
+				),
 				cancellationToken
 			);
 		}

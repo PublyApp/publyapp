@@ -254,18 +254,20 @@ public class UpdateSystemNotice {
 		}
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.SystemNoticeUpdated,
-			noticeIdGuid,
-			new {
-				Severity = severity?.ToString()
-					.ToLowerInvariant(),
-				Title = args.Title,
-				StartsAt = args.StartsAt,
-				ExpiresAt = args.ExpiresAt.IsPresent
-					? args.ExpiresAt.Value
-					: null,
-			},
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.SystemNoticeUpdated,
+				TargetId: noticeIdGuid,
+				Details: new {
+					Severity = severity?.ToString()
+						.ToLowerInvariant(),
+					Title = args.Title,
+					StartsAt = args.StartsAt,
+					ExpiresAt = args.ExpiresAt.IsPresent
+						? args.ExpiresAt.Value
+						: null,
+				}
+			),
 			cancellationToken
 		);
 

@@ -6,12 +6,16 @@ using MainApi.Src.Modules.AuditLogs.Entities;
 
 namespace MainApi.Src.Modules.AuditLogs.Services;
 
+public record CreateAuditLogArgs(
+	Guid UserId,
+	string Action,
+	Guid? TargetId = null,
+	object? Details = null
+);
+
 public interface IAuditLogService {
 	Task LogAsync(
-		Guid userId,
-		string action,
-		Guid? targetId = null,
-		object? details = null,
+		CreateAuditLogArgs args,
 		CancellationToken cancellationToken = default);
 }
 
@@ -32,19 +36,18 @@ public class AuditLogService : IAuditLogService {
 	}
 
 	public async Task LogAsync(
-		Guid userId,
-		string action,
-		Guid? targetId = null,
-		object? details = null,
+		CreateAuditLogArgs args,
 		CancellationToken cancellationToken = default
 	) {
 		var httpContext = _httpContextAccessor.HttpContext;
 
 		var auditLog = new AuditLog {
-			UserId = userId,
-			Action = action,
-			TargetId = targetId,
-			Details = details is not null ? JsonSerializer.Serialize(details) : null,
+			UserId = args.UserId,
+			Action = args.Action,
+			TargetId = args.TargetId,
+			Details = args.Details is not null
+				? JsonSerializer.Serialize(args.Details)
+				: null,
 			IpAddress = httpContext?.Connection.RemoteIpAddress?.ToString(),
 			UserAgent = httpContext?.Request.Headers.UserAgent.ToString()
 		};
@@ -55,9 +58,9 @@ public class AuditLogService : IAuditLogService {
 		if (_logger.IsEnabled(LogLevel.Information)) {
 			_logger.LogInformation(
 				"Audit log created for action {Action} by user {UserId} targeting {TargetId}",
-				action,
-				userId,
-				targetId
+				args.Action,
+				args.UserId,
+				args.TargetId
 			);
 		}
 	}

@@ -116,10 +116,12 @@ public class SuspendTenantAsStaff {
 		var tenant = success.Tenant;
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.TenantSuspended,
-			tenantIdGuid,
-			new { TenantName = tenant.Name, Reason = reason },
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.TenantSuspended,
+				TargetId: tenantIdGuid,
+				Details: new { TenantName = tenant.Name, Reason = reason }
+			),
 			cancellationToken
 		);
 

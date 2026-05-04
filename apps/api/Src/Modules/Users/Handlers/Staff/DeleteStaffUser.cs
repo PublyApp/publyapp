@@ -62,10 +62,12 @@ public class DeleteStaffUser {
 		}
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.StaffUserDeleted,
-			userIdGuid,
-			new { UserEmail = success.UserData.User.Email },
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.StaffUserDeleted,
+				TargetId: userIdGuid,
+				Details: new { UserEmail = success.UserData.User.Email }
+			),
 			cancellationToken
 		);
 

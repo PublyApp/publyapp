@@ -74,17 +74,19 @@ public sealed class DeleteTenantProfileAsStaff {
 		}
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.TenantProfileDeleted,
-			profileIdGuid,
-			new {
-				// Log the pre-delete snapshot because the profile row is soft-deleted and its
-				// junction rows are removed in the same transaction.
-				TenantId = tenantIdGuid,
-				ProfileId = profileIdGuid,
-				ProfileName = success.Profile.ProfileName,
-				IsDefault = success.Profile.IsDefault
-			},
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.TenantProfileDeleted,
+				TargetId: profileIdGuid,
+				Details: new {
+					// Log the pre-delete snapshot because the profile row is soft-deleted and its
+					// junction rows are removed in the same transaction.
+					TenantId = tenantIdGuid,
+					ProfileId = profileIdGuid,
+					ProfileName = success.Profile.ProfileName,
+					IsDefault = success.Profile.IsDefault
+				}
+			),
 			cancellationToken
 		);
 

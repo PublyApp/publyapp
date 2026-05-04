@@ -71,10 +71,12 @@ public class ReactivateStaffUser {
 		}
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.StaffUserReactivated,
-			userIdGuid,
-			new { TargetUserId = userIdGuid },
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.StaffUserReactivated,
+				TargetId: userIdGuid,
+				Details: new { TargetUserId = userIdGuid }
+			),
 			cancellationToken
 		);
 
