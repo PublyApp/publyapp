@@ -2,25 +2,35 @@ namespace MainApi.Src.Modules.Tenants.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 
 using FluentAssertions;
 
 using MainApi.Localization;
+using MainApi.Src.Data.DbContext;
 using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Testing.Fixtures;
 using MainApi.Src.Lib.Testing.Helpers;
+using MainApi.Src.Modules.AuditLogs.Entities;
+using MainApi.Src.Modules.Tenants.Entities;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
 public sealed class SuspendTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
 	public SuspendTenantAsStaffSpec(
 		ApiFixture fixture
 	) {
+		_fixture = fixture;
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);
 	}
@@ -112,6 +122,48 @@ public sealed class SuspendTenantAsStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldWriteAuditLogWhenReasonProvided() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync(
+				"Tenant Suspend Audit",
+				TenantStatus.Active
+			);
+		var reason = "Compliance review";
+
+		using var response =
+			await TenantTestHelper
+				.SuspendTenantWithReasonAsync(
+					_http,
+					staffToken,
+					seededTenant.TenantId,
+					reason
+				);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var auditLog = await GetLatestAuditLogAsync(
+			AuditActions.TenantSuspended,
+			seededTenant.TenantId
+		);
+		auditLog.Should().NotBeNull();
+		if (auditLog is null) {
+			throw new InvalidOperationException(
+				"Tenant suspend audit log was not written."
+			);
+		}
+
+		AssertSuspendAuditDetails(
+			auditLog,
+			expectedTenantName: seededTenant.Name,
+			expectedReason: reason
+		);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnValidationErrorWhenReasonExceeds500Chars() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
@@ -135,6 +187,38 @@ public sealed class SuspendTenantAsStaffSpec
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnValidationErrorWhenReasonIsNotString() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync(
+				"Tenant Invalid Suspend Reason",
+				TenantStatus.Active
+			);
+
+		using var response =
+			await _http.SendAsync(
+				CreateRawSuspendRequest(
+					staffToken,
+					seededTenant.TenantId,
+					"""{ "reason": 123 }"""
+				)
+			);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.TranslationKey.Should()
+			.Be(ResponseKeys.RequestBodyValidationFailed.Value);
+		problem.Errors.Keys.Should()
+			.Contain("Reason");
 	}
 
 	[Fact]
@@ -262,6 +346,35 @@ public sealed class SuspendTenantAsStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldReturnForbiddenForStaffWithoutPermission() {
+		var token =
+			await _authClient.LoginAsync(
+				TestConstants.StaffUserEmail,
+				TestConstants.SeedPassword
+			);
+		var seededTenant =
+			await SeedTenantAsync(
+				"Tenant Suspend Forbidden",
+				TenantStatus.Active
+			);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			TenantTestHelper.GetSuspendUrl(
+				seededTenant.TenantId
+			)
+		).WithSessionToken(token);
+		request.Content = JsonContent.Create(new { });
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.Forbidden);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnBadRequestForMalformedId() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
@@ -298,4 +411,95 @@ public sealed class SuspendTenantAsStaffSpec
 		public string Name { get; init; } = string.Empty;
 		public string Status { get; init; } = string.Empty;
 	}
+
+	private static HttpRequestMessage CreateRawSuspendRequest(
+		string staffToken,
+		Guid tenantId,
+		string body
+	) {
+		var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			TenantTestHelper.GetSuspendUrl(tenantId)
+		).WithSessionToken(staffToken);
+
+		request.Content = new StringContent(
+			body,
+			Encoding.UTF8,
+			"application/json"
+		);
+
+		return request;
+	}
+
+	private async Task<SeededTenantSnapshot> SeedTenantAsync(
+		string namePrefix,
+		TenantStatus status
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<MainApiDbContext>();
+
+		var tenant = new Tenant {
+			Name = $"{namePrefix} {Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = status,
+			MaxUsers = 10,
+		};
+
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+
+		return new SeededTenantSnapshot(
+			TenantId: tenant.GetRequiredId(),
+			Name: tenant.Name
+		);
+	}
+
+	private async Task<AuditLog?> GetLatestAuditLogAsync(
+		string action,
+		Guid targetId
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<MainApiDbContext>();
+
+		var query =
+			from log in dbContext.AuditLog
+			where log.Action == action
+				&& log.TargetId == targetId
+			orderby log.CreatedAt descending
+			select log;
+
+		return await query.FirstOrDefaultAsync();
+	}
+
+	private static void AssertSuspendAuditDetails(
+		AuditLog auditLog,
+		string expectedTenantName,
+		string expectedReason
+	) {
+		auditLog.Details.Should().NotBeNull();
+		if (auditLog.Details is null) {
+			throw new InvalidOperationException(
+				"Tenant suspend audit log details were empty."
+			);
+		}
+
+		using var document = JsonDocument.Parse(
+			auditLog.Details
+		);
+		var details = document.RootElement;
+
+		details.GetProperty("TenantName").GetString()
+			.Should().Be(expectedTenantName);
+		details.GetProperty("Reason").GetString()
+			.Should().Be(expectedReason);
+	}
+
+	private sealed record SeededTenantSnapshot(
+		Guid TenantId,
+		string Name
+	);
 }

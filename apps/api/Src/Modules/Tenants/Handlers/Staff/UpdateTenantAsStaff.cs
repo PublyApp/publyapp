@@ -17,12 +17,20 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Modules.Tenants.Handlers.Staff;
 
 public record UpdateTenantAsStaffBody {
-	public JsonElement? Name { get; init; }
+	public JsonElement Name { get; init; }
 	public JsonElement LogoUrl { get; init; }
 	public JsonElement? MaxUsers { get; init; }
 
 	public string? GetName() =>
-		Name.GetValueAsStringOrNull();
+		Name.ValueKind switch {
+			JsonValueKind.Undefined =>
+				null,
+			JsonValueKind.String =>
+				Name.GetValueAsString(),
+			_ => throw new InvalidOperationException(
+				"Name must be a string or omitted"
+			),
+		};
 
 	public PatchField<string?> GetLogoUrl() =>
 		LogoUrl.ValueKind switch {
@@ -47,13 +55,13 @@ public class UpdateTenantAsStaffBodyValidator
 	: AbstractValidator<UpdateTenantAsStaffBody> {
 	public UpdateTenantAsStaffBodyValidator() {
 		RuleFor(x => x.Name)
-			.Must(e => e is null
-				|| e.Value.ValueKind == JsonValueKind.String)
+			.Must(e => e.ValueKind == JsonValueKind.Undefined
+				|| e.ValueKind == JsonValueKind.String)
 			.WithMessage("Name must be a string")
 			.DependentRules(() => {
 				RuleFor(x => x.Name)
-					.Must(e => e is null
-						|| (e.Value.GetString()?.Length ?? 0)
+					.Must(e => e.ValueKind == JsonValueKind.Undefined
+						|| (e.GetString()?.Length ?? 0)
 							>= 5)
 					.WithMessage(
 						"Name must be at least 5 characters"

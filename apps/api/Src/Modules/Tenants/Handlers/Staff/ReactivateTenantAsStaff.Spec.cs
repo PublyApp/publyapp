@@ -2,26 +2,35 @@ namespace MainApi.Src.Modules.Tenants.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 using FluentAssertions;
 
 using MainApi.Localization;
+using MainApi.Src.Data.DbContext;
 using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Testing.Fixtures;
 using MainApi.Src.Lib.Testing.Helpers;
+using MainApi.Src.Modules.AuditLogs.Entities;
+using MainApi.Src.Modules.Tenants.Entities;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
 public sealed class
 ReactivateTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
 	public ReactivateTenantAsStaffSpec(
 		ApiFixture fixture
 	) {
+		_fixture = fixture;
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);
 	}
@@ -78,6 +87,44 @@ ReactivateTenantAsStaffSpec
 				// Ignore — tenant may already be active
 			}
 		}
+	}
+
+	[Fact]
+	public async Task
+	ItShouldWriteAuditLogWhenTenantReactivated() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync(
+				"Tenant Reactivate Audit",
+				TenantStatus.Suspended
+			);
+
+		using var response =
+			await TenantTestHelper.ReactivateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId
+			);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var auditLog = await GetLatestAuditLogAsync(
+			AuditActions.TenantReactivated,
+			seededTenant.TenantId
+		);
+		auditLog.Should().NotBeNull();
+		if (auditLog is null) {
+			throw new InvalidOperationException(
+				"Tenant reactivate audit log was not written."
+			);
+		}
+
+		AssertReactivateAuditDetails(
+			auditLog,
+			expectedTenantName: seededTenant.Name
+		);
 	}
 
 	[Fact]
@@ -199,8 +246,36 @@ ReactivateTenantAsStaffSpec
 				await TenantTestHelper
 					.ReactivateTenantAsync(
 						_http, staffToken, tenantId
-					);
+			);
 		}
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnForbiddenForStaffWithoutPermission() {
+		var token =
+			await _authClient.LoginAsync(
+				TestConstants.StaffUserEmail,
+				TestConstants.SeedPassword
+			);
+		var seededTenant =
+			await SeedTenantAsync(
+				"Tenant Reactivate Forbidden",
+				TenantStatus.Suspended
+			);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			TenantTestHelper.GetReactivateUrl(
+				seededTenant.TenantId
+			)
+		).WithSessionToken(token);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
@@ -285,4 +360,73 @@ ReactivateTenantAsStaffSpec
 		public string Name { get; init; } = string.Empty;
 		public string Status { get; init; } = string.Empty;
 	}
+
+	private async Task<SeededTenantSnapshot> SeedTenantAsync(
+		string namePrefix,
+		TenantStatus status
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<MainApiDbContext>();
+
+		var tenant = new Tenant {
+			Name = $"{namePrefix} {Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = status,
+			MaxUsers = 10,
+		};
+
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+
+		return new SeededTenantSnapshot(
+			TenantId: tenant.GetRequiredId(),
+			Name: tenant.Name
+		);
+	}
+
+	private async Task<AuditLog?> GetLatestAuditLogAsync(
+		string action,
+		Guid targetId
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<MainApiDbContext>();
+
+		var query =
+			from log in dbContext.AuditLog
+			where log.Action == action
+				&& log.TargetId == targetId
+			orderby log.CreatedAt descending
+			select log;
+
+		return await query.FirstOrDefaultAsync();
+	}
+
+	private static void AssertReactivateAuditDetails(
+		AuditLog auditLog,
+		string expectedTenantName
+	) {
+		auditLog.Details.Should().NotBeNull();
+		if (auditLog.Details is null) {
+			throw new InvalidOperationException(
+				"Tenant reactivate audit log details were empty."
+			);
+		}
+
+		using var document = JsonDocument.Parse(
+			auditLog.Details
+		);
+		var details = document.RootElement;
+
+		details.GetProperty("TenantName").GetString()
+			.Should().Be(expectedTenantName);
+	}
+
+	private sealed record SeededTenantSnapshot(
+		Guid TenantId,
+		string Name
+	);
 }

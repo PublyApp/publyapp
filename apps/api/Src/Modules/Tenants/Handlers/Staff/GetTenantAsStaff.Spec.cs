@@ -5,21 +5,29 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
+using MainApi.Src.Data.DbContext;
 using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Routes;
 using MainApi.Src.Lib.Testing.Fixtures;
 using MainApi.Src.Lib.Testing.Helpers;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Modules.Auth.Utils;
+using MainApi.Src.Modules.Tenants.Entities;
+using MainApi.Src.Modules.Users.Entities;
+
+using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
 public sealed class GetTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
 	public GetTenantAsStaffSpec(ApiFixture fixture) {
+		_fixture = fixture;
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);
 	}
@@ -135,6 +143,57 @@ public sealed class GetTenantAsStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldReturnActiveTenantWithEnrichedFields() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantWithUsersAsync(
+				"Tenant Get Enriched",
+				usersCount: 2
+			);
+
+		var url = GetUrl(seededTenant.TenantId.ToString());
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(staffToken);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<GetTenantAsStaffResult>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"GET tenant response was empty."
+			);
+		}
+
+		result.TenantId.Should()
+			.Be(seededTenant.TenantId);
+		result.Name.Should()
+			.Be(seededTenant.Name);
+		result.Code.Should()
+			.Be(seededTenant.Code);
+		result.LogoUrl.Should()
+			.Be(seededTenant.LogoUrl);
+		result.MaxUsers.Should()
+			.Be(seededTenant.MaxUsers);
+		result.Status.Should()
+			.Be(nameof(TenantStatus.Active));
+		result.UsersCount.Should()
+			.Be(2);
+		result.CreatedAt.Should()
+			.BeCloseTo(seededTenant.CreatedAt, TimeSpan.FromSeconds(1));
+		result.UpdatedAt.Should()
+			.BeCloseTo(seededTenant.UpdatedAt, TimeSpan.FromSeconds(1));
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnTenantWhenSuspended() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
@@ -186,4 +245,72 @@ public sealed class GetTenantAsStaffSpec
 			}
 		}
 	}
+
+	private async Task<SeededTenantSnapshot>
+	SeedTenantWithUsersAsync(
+		string namePrefix,
+		int usersCount
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<MainApiDbContext>();
+
+		var tenant = new Tenant {
+			Name = $"{namePrefix} {Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			LogoUrl = "https://example.com/tenant-logo.png",
+			Status = TenantStatus.Active,
+			MaxUsers = usersCount + 5,
+		};
+
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+
+		var tenantId = tenant.GetRequiredId();
+		for (var i = 0; i < usersCount; i++) {
+			var user = new User {
+				Email = $"tenant-get-user-{Guid.NewGuid():N}@example.com",
+				Password = PasswordUtils.HashPassword(
+					TestConstants.SeedPassword
+				),
+				FirstName = "Tenant",
+				LastName = $"User {i}",
+				Status = UserStatus.Active,
+				IsVerified = true,
+			};
+
+			await dbContext.User.AddAsync(user);
+			await dbContext.SaveChangesAsync();
+
+			await dbContext.UserAccount.AddAsync(
+				UserAccount.CreateTenantAccount(
+					user.GetRequiredId(),
+					tenantId
+				)
+			);
+		}
+
+		await dbContext.SaveChangesAsync();
+
+		return new SeededTenantSnapshot(
+			TenantId: tenantId,
+			Name: tenant.Name,
+			Code: tenant.Code,
+			LogoUrl: tenant.LogoUrl,
+			MaxUsers: tenant.MaxUsers,
+			CreatedAt: tenant.CreatedAt,
+			UpdatedAt: tenant.UpdatedAt
+		);
+	}
+
+	private sealed record SeededTenantSnapshot(
+		Guid TenantId,
+		string Name,
+		string Code,
+		string? LogoUrl,
+		int MaxUsers,
+		DateTime CreatedAt,
+		DateTime UpdatedAt
+	);
 }

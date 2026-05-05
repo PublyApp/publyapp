@@ -7640,10 +7640,6 @@
         }
       },
       "CreateInvitationForTenantAsStaffBody": {
-        "required": [
-          "email",
-          "accountLevel"
-        ],
         "type": "object",
         "properties": {
           "email": {
@@ -9452,14 +9448,7 @@
         "type": "object",
         "properties": {
           "name": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JsonElement"
-              }
-            ]
+            "$ref": "#/components/schemas/JsonElement"
           },
           "logoUrl": {
             "$ref": "#/components/schemas/JsonElement"
