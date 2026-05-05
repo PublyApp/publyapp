@@ -381,8 +381,8 @@ It covers category `0` through `10`.
 ## Category 9: Backend and Automated Coverage
 
 ### 9.1 Tenant usage metrics endpoint
-- Status: `PENDING`
-- [ ] There is a clear answer on whether a tenant usage metrics endpoint exists and is wired anywhere in the current module scope.
+- Status: `DEFERRED`
+- [x] Tenant usage metrics are intentionally deferred because the endpoint shape, metric definitions, and UI surface need dedicated product/API brainstorming before implementation. Tracked by `#168`.
 
 ### 9.2 Staff endpoint for tenant users
 - Status: `DONE`
