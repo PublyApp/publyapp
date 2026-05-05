@@ -1986,24 +1986,6 @@ export function createUpdateTenantAsStaffBody_maxUsersMember1FromDiscriminatorVa
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {JsonElement | UpdateTenantAsStaffBody_nameMember1}
- */
-// @ts-ignore
-export function createUpdateTenantAsStaffBody_nameFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoUpdateTenantAsStaffBody_name;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {UpdateTenantAsStaffBody_nameMember1}
- */
-// @ts-ignore
-export function createUpdateTenantAsStaffBody_nameMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoUpdateTenantAsStaffBody_nameMember1;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {UpdateTenantAsStaffBody}
  */
 // @ts-ignore
@@ -4076,7 +4058,7 @@ export function deserializeIntoUpdateTenantAsStaffBody(updateTenantAsStaffBody: 
     return {
         "logoUrl": n => { updateTenantAsStaffBody.logoUrl = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "maxUsers": n => { updateTenantAsStaffBody.maxUsers = n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue) ?? n.getObjectValue<UpdateTenantAsStaffBody_maxUsersMember1>(createUpdateTenantAsStaffBody_maxUsersMember1FromDiscriminatorValue); },
-        "name": n => { updateTenantAsStaffBody.name = n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue) ?? n.getObjectValue<UpdateTenantAsStaffBody_nameMember1>(createUpdateTenantAsStaffBody_nameMember1FromDiscriminatorValue); },
+        "name": n => { updateTenantAsStaffBody.name = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -4098,28 +4080,6 @@ export function deserializeIntoUpdateTenantAsStaffBody_maxUsers(updateTenantAsSt
  */
 // @ts-ignore
 export function deserializeIntoUpdateTenantAsStaffBody_maxUsersMember1(updateTenantAsStaffBody_maxUsersMember1: Partial<UpdateTenantAsStaffBody_maxUsersMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-    }
-}
-/**
- * The deserialization information for the current model
- * @param UpdateTenantAsStaffBody_name The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoUpdateTenantAsStaffBody_name(updateTenantAsStaffBody_name: Partial<JsonElement | UpdateTenantAsStaffBody_nameMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        ...deserializeIntoJsonElement(updateTenantAsStaffBody_name as JsonElement),
-        ...deserializeIntoUpdateTenantAsStaffBody_nameMember1(updateTenantAsStaffBody_name as UpdateTenantAsStaffBody_nameMember1),
-    }
-}
-/**
- * The deserialization information for the current model
- * @param UpdateTenantAsStaffBody_nameMember1 The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoUpdateTenantAsStaffBody_nameMember1(updateTenantAsStaffBody_nameMember1: Partial<UpdateTenantAsStaffBody_nameMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
     }
 }
@@ -6870,7 +6830,7 @@ export function serializeUpdateTenantAsStaffBody(writer: SerializationWriter, up
     if (!updateTenantAsStaffBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("logoUrl", updateTenantAsStaffBody.logoUrl);
     writer.writeObjectValue<JsonElement | UpdateTenantAsStaffBody_maxUsersMember1>("maxUsers", updateTenantAsStaffBody.maxUsers, serializeUpdateTenantAsStaffBody_maxUsers);
-    writer.writeObjectValue<JsonElement | UpdateTenantAsStaffBody_nameMember1>("name", updateTenantAsStaffBody.name, serializeUpdateTenantAsStaffBody_name);
+    writer.writeObjectValue("name", updateTenantAsStaffBody.name);
     writer.writeAdditionalData(updateTenantAsStaffBody.additionalData);
 }
 /**
@@ -6894,28 +6854,6 @@ export function serializeUpdateTenantAsStaffBody_maxUsers(writer: SerializationW
 export function serializeUpdateTenantAsStaffBody_maxUsersMember1(writer: SerializationWriter, updateTenantAsStaffBody_maxUsersMember1: Partial<UpdateTenantAsStaffBody_maxUsersMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!updateTenantAsStaffBody_maxUsersMember1 || isSerializingDerivedType) { return; }
     writer.writeAdditionalData(updateTenantAsStaffBody_maxUsersMember1.additionalData);
-}
-/**
- * Serializes information the current object
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param UpdateTenantAsStaffBody_name The instance to serialize from.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeUpdateTenantAsStaffBody_name(writer: SerializationWriter, updateTenantAsStaffBody_name: Partial<JsonElement | UpdateTenantAsStaffBody_nameMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    serializeJsonElement(writer, updateTenantAsStaffBody_name as JsonElement);
-    serializeUpdateTenantAsStaffBody_nameMember1(writer, updateTenantAsStaffBody_name as UpdateTenantAsStaffBody_nameMember1);
-}
-/**
- * Serializes information the current object
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param UpdateTenantAsStaffBody_nameMember1 The instance to serialize from.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeUpdateTenantAsStaffBody_nameMember1(writer: SerializationWriter, updateTenantAsStaffBody_nameMember1: Partial<UpdateTenantAsStaffBody_nameMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!updateTenantAsStaffBody_nameMember1 || isSerializingDerivedType) { return; }
-    writer.writeAdditionalData(updateTenantAsStaffBody_nameMember1.additionalData);
 }
 /**
  * Serializes information the current object
@@ -7790,13 +7728,10 @@ export interface UpdateTenantAsStaffBody extends AdditionalDataHolder, Parsable 
     /**
      * The name property
      */
-    name?: JsonElement | UpdateTenantAsStaffBody_nameMember1 | null;
+    name?: UntypedNode | null;
 }
 export type UpdateTenantAsStaffBody_maxUsers = JsonElement | UpdateTenantAsStaffBody_maxUsersMember1;
 export interface UpdateTenantAsStaffBody_maxUsersMember1 extends AdditionalDataHolder, Parsable {
-}
-export type UpdateTenantAsStaffBody_name = JsonElement | UpdateTenantAsStaffBody_nameMember1;
-export interface UpdateTenantAsStaffBody_nameMember1 extends AdditionalDataHolder, Parsable {
 }
 export interface UpdateTenantProfileAsStaffBody extends AdditionalDataHolder, Parsable {
     /**
