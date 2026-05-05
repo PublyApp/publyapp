@@ -1,9 +1,9 @@
 import { useTheme } from '@mui/material/styles';
 import { usePopoverHover } from 'minimal-shared/hooks';
 import { isActiveLink, isExternalLink } from 'minimal-shared/utils';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
-import { usePathname } from '@/front/hooks/use-pathname';
+import { usePathname } from '#app/hooks/use-pathname.ts';
 
 import { NavDropdown, NavDropdownPaper, NavLi, NavUl } from '../components';
 import { navSectionClasses } from '../styles';
@@ -37,12 +37,16 @@ export function NavList({
 
 	const isRtl = theme.direction === 'rtl';
 	const id = open ? `${data.title}-popover` : undefined;
+	const openRef = useRef(open);
+	const onCloseRef = useRef(onClose);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
+	openRef.current = open;
+	onCloseRef.current = onClose;
+
 	useEffect(() => {
 		// If the pathname changes, close the menu
-		if (open) {
-			onClose();
+		if (openRef.current) {
+			onCloseRef.current();
 		}
 	}, [pathname]);
 

@@ -8,7 +8,8 @@ import {
 } from 'react-query-kit';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
-import { getClientManager } from '@/front/lib/js-client/client-manager';
+
+import { getClientManager } from '#app/lib/js-client/client-manager.ts';
 
 import { getQueryKey } from './query-utils';
 
@@ -19,8 +20,8 @@ type WithTenantId<T> = { tenantId: string } & Omit<T, 'tenantId'>;
 // Type for variables that may or may not have tenantId
 type MaybeWithTenantId<T> = { tenantId?: string } & Omit<T, 'tenantId'>;
 
-// Empty variables type - use this instead of EmptyVariables
-// biome-ignore lint/complexity/noBannedTypes: We need an empty object type here
+// Empty variables type - use this instead of react-query-kit's EmptyVariables.
+// oxlint-disable-next-line typescript/no-empty-object-type -- hook factories need a generic object default with no required fields
 type EmptyVariables = {};
 
 // Base query options we accept (from react-query-kit's CreateQueryOptions)

@@ -14,8 +14,9 @@ import {
 	REDIRECT_CODE,
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@org/shared-ts/lib/constants';
-import { toast } from '@/front/components/snackbar';
-import { useTranslate } from '@/front/hooks/use-translate';
+
+import { toast } from '#app/components/snackbar/index.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
 	getTenantHintForUser,
 	isSecureCookieFromRequest,
@@ -23,18 +24,30 @@ import {
 	serializeClearLegacyCookieHeaders,
 	serializeTenantHintsForResponse,
 	setTenantHintForUser,
-} from '@/front/lib/cookies';
-import { formatSessionCookie } from '@/front/lib/cookies/session-cookie.utils';
-import { getClientManager } from '@/front/lib/js-client/client-manager';
-import { safeRun } from '@/front/lib/react-router/safeRun';
+} from '#app/lib/cookies/index.ts';
+import { formatSessionCookie } from '#app/lib/cookies/session-cookie.utils.ts';
+import { getClientManager } from '#app/lib/js-client/client-manager.ts';
+import { safeRun } from '#app/lib/react-router/safeRun.ts';
 import {
 	getServerAction,
 	getServerLoader,
-} from '@/front/lib/react-router/server-data.server';
-import { fSecondsUntil } from '@/front/utils/format-time';
+} from '#app/lib/react-router/server-data.server.ts';
+import { fSecondsUntil } from '#app/utils/format-time.ts';
 
 import type { Route } from './+types/login-page';
 import LoginForm from './login-form';
+
+const getSafeRedirectTo = (value: string | null): string | undefined => {
+	if (!value) {
+		return undefined;
+	}
+
+	if (!value.startsWith('/') || value.startsWith('//')) {
+		return undefined;
+	}
+
+	return value;
+};
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = _.capitalize(t('login'));
@@ -72,6 +85,11 @@ export const action = getServerAction({
 	action: async ({ request, context }) => {
 		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const formData = await request.formData();
+		const redirectTo = getSafeRedirectTo(
+			new URL(request.url).searchParams.get(
+				queryParamKey.login_page.redirect_to,
+			),
+		);
 
 		const email = _.toString(formData.get('email'));
 		const password = _.toString(formData.get('password'));
@@ -207,6 +225,12 @@ export const action = getServerAction({
 			}
 		}
 
+		if (redirectTo) {
+			return redirect(redirectTo, {
+				headers: responseHeaders,
+			}) as never;
+		}
+
 		return redirect(redirectPath, {
 			headers: responseHeaders,
 		}) as never;
@@ -219,6 +243,7 @@ const LoginPage = ({ actionData: _ }: Route.ComponentProps) => {
 	const redirect_cause = searchParams.get(
 		queryParamKey.login_page.redirect_cause,
 	);
+	const prefilledEmail = searchParams.get(queryParamKey.login_page.email) ?? '';
 	const hasShownToast = useRef(false);
 
 	useEffect(() => {
@@ -241,7 +266,7 @@ const LoginPage = ({ actionData: _ }: Route.ComponentProps) => {
 		}
 	}, [redirect_cause, t]);
 
-	return <LoginForm />;
+	return <LoginForm prefilledEmail={prefilledEmail} />;
 };
 
 export default LoginPage;

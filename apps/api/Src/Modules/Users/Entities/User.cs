@@ -23,7 +23,7 @@ public class User : BaseAttributes, INoTenantEntity {
 	[EmailAddress]
 	public required string Email {
 		get { return _email; }
-		set { _email = value.ToLower(); }
+		set { _email = value.ToLowerInvariant(); }
 	}
 
 	[Column("password")]
@@ -33,10 +33,9 @@ public class User : BaseAttributes, INoTenantEntity {
 	public string? AvatarUrl { get; set; }
 
 	[Column("status")]
-	public UserStatus Status { get; set; } = UserStatus.Inactive;
-
-	[Column("is_suspended")]
-	public bool IsSuspended { get; set; } = false;
+	// Default closed: normal onboarding flows must explicitly activate the identity.
+	// This avoids accidentally granting access when a new User is built without a status.
+	public UserStatus Status { get; set; } = UserStatus.Suspended;
 
 	[Column("is_verified")]
 	public bool IsVerified { get; set; } = false;
@@ -61,49 +60,50 @@ public class User : BaseAttributes, INoTenantEntity {
 
 	public static string GetStatusDescription(UserStatus status) {
 		return status switch {
-			UserStatus.Inactive => "Inactive",
-			UserStatus.Pending => "Pending",
-			UserStatus.Suspended => "Suspended",
-			UserStatus.Active => "Active",
-			UserStatus.Deleted => "Deleted",
+			UserStatus.Suspended => nameof(UserStatus.Suspended),
+			UserStatus.Active => nameof(UserStatus.Active),
 			_ => "Unknown",
 		};
 	}
 
 	public static UserStatus? ParseStatus(string statusString) {
-		var isInactive = string.Compare(statusString, "inactive", StringComparison.OrdinalIgnoreCase) == 0;
-		if (isInactive) {
-			return UserStatus.Inactive;
-		}
-		var isPending = string.Compare(statusString, "pending", StringComparison.OrdinalIgnoreCase) == 0;
-		if (isPending) {
-			return UserStatus.Pending;
-		}
-		var isSuspended = string.Compare(statusString, "suspended", StringComparison.OrdinalIgnoreCase) == 0;
+		var isSuspended = string.Equals(
+			statusString,
+			nameof(UserStatus.Suspended),
+			StringComparison.OrdinalIgnoreCase
+		);
 		if (isSuspended) {
 			return UserStatus.Suspended;
 		}
-		var isActive = string.Compare(statusString, "active", StringComparison.OrdinalIgnoreCase) == 0;
+		var isActive = string.Equals(
+			statusString,
+			nameof(UserStatus.Active),
+			StringComparison.OrdinalIgnoreCase
+		);
 		if (isActive) {
 			return UserStatus.Active;
 		}
-		var isDeleted = string.Compare(statusString, "deleted", StringComparison.OrdinalIgnoreCase) == 0;
-		if (isDeleted) {
-			return UserStatus.Deleted;
-		}
-		var isBanned = string.Compare(statusString, "banned", StringComparison.OrdinalIgnoreCase) == 0;
-		if (isBanned) {
-			return UserStatus.Banned;
-		}
 		return null;
+	}
+
+	public bool IsSuspended() {
+		return IsSuspended(Status);
+	}
+
+	public bool IsActive() {
+		return IsActive(Status);
+	}
+
+	public static bool IsSuspended(UserStatus status) {
+		return status == UserStatus.Suspended;
+	}
+
+	public static bool IsActive(UserStatus status) {
+		return status == UserStatus.Active;
 	}
 }
 
 public enum UserStatus {
-	Inactive = 10,
-	Pending = 20,
 	Suspended = 30,
 	Active = 40,
-	Deleted = 50,
-	Banned = 60,
 }

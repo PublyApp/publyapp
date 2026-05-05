@@ -1,5 +1,6 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.DI;
 using MainApi.Src.Modules.Tenants.Entities;
 using MainApi.Src.Modules.Users.Entities;
 
@@ -17,6 +18,13 @@ public abstract record CreateTenantAccountResult {
 	public sealed record Success(UserAccount Account) : CreateTenantAccountResult;
 	public sealed record UserAlreadyMemberOfTenant : CreateTenantAccountResult;
 	public sealed record UserHasStaffAccount : CreateTenantAccountResult;
+}
+
+public abstract record ResolveTenantInvitationTargetByEmailResult {
+	public sealed record UserNotFound : ResolveTenantInvitationTargetByEmailResult;
+	public sealed record EligibleExistingUser(User User) : ResolveTenantInvitationTargetByEmailResult;
+	public sealed record UserHasStaffAccount : ResolveTenantInvitationTargetByEmailResult;
+	public sealed record UserAlreadyMemberOfTenant : ResolveTenantInvitationTargetByEmailResult;
 }
 
 public record UserTenantInfo {
@@ -43,8 +51,6 @@ public record TenantForPicker {
 	public required string Name { get; init; }
 	public required string Code { get; init; }
 	public required string Status { get; init; }
-	public required bool IsSuspended { get; init; }
-	public required bool IsActive { get; init; }
 }
 
 public interface IAccountService {
@@ -56,6 +62,12 @@ public interface IAccountService {
 	Task<bool> IsUserMemberOfActiveTenantAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
 	Task<bool> HasStaffAccountAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<bool> HasTenantAccountAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
+	Task<ResolveTenantInvitationTargetByEmailResult> ResolveTenantInvitationTargetByEmailAsync(
+		string email,
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	);
+	Task<bool> HasTenantAccountByEmailAsync(string email, Guid tenantId, CancellationToken cancellationToken = default);
 	Task<bool> HasTenantOrProjectAccountsAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<bool> HasStaffAccountByEmailAsync(string email, CancellationToken cancellationToken = default);
 	Task<bool> HasTenantOrProjectAccountsByEmailAsync(string email, CancellationToken cancellationToken = default);
@@ -72,6 +84,7 @@ public interface IAccountService {
 	Task AssignProfileToAccountAsync(Guid accountId, Guid profileId, CancellationToken cancellationToken = default);
 }
 
+[Service(ServiceLifetime.Scoped)]
 public class AccountService : IAccountService {
 	private readonly MainApiDbContext _dbContext;
 
@@ -118,11 +131,13 @@ public class AccountService : IAccountService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
+		// Active-account lookups must exclude globally suspended identities too.
 		var query =
 			from ua in _dbContext.UserAccount
 			where ua.UserId == userId
 			&& ua.Scope == AccountScope.Staff
-			&& !ua.IsDeleted && !ua.IsSuspended
+			&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
+			&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
 			select ua;
 
 		return await query.FirstOrDefaultAsync(cancellationToken);
@@ -138,7 +153,8 @@ public class AccountService : IAccountService {
 			where ua.UserId == userId
 			&& ua.TenantId == tenantId
 			&& ua.Scope == AccountScope.Tenant
-			&& !ua.IsDeleted && !ua.IsSuspended
+			&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
+			&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
 			select ua;
 
 		return await query.FirstOrDefaultAsync(cancellationToken);
@@ -152,7 +168,8 @@ public class AccountService : IAccountService {
 			from ua in _dbContext.UserAccount
 			where ua.UserId == userId
 			&& ua.Scope == AccountScope.Staff
-			&& !ua.IsDeleted && !ua.IsSuspended
+			&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
+			&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
 			select ua;
 
 		return await query.AnyAsync(cancellationToken);
@@ -168,7 +185,8 @@ public class AccountService : IAccountService {
 			where ua.UserId == userId
 			&& ua.TenantId == tenantId
 			&& ua.Scope == AccountScope.Tenant
-			&& !ua.IsDeleted && !ua.IsSuspended
+			&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
+			&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
 			select ua;
 
 		return await query.AnyAsync(cancellationToken);
@@ -188,8 +206,9 @@ public class AccountService : IAccountService {
 			where ua.UserId == userId
 				&& ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
-				&& !ua.IsDeleted && !ua.IsSuspended
-				&& !t.IsDeleted && t.Status == TenantStatus.Active && !t.IsSuspended
+				&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
+				&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
+				&& !t.IsDeleted && t.Status == TenantStatus.Active
 			select ua;
 
 		return await query.AnyAsync(cancellationToken);
@@ -199,7 +218,7 @@ public class AccountService : IAccountService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
-		// Note: IsSuspended is intentionally NOT checked here.
+		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// Suspended accounts still count for mutual exclusivity (identity conflict).
 		return await (
 			from ua in _dbContext.UserAccount
@@ -215,7 +234,7 @@ public class AccountService : IAccountService {
 		Guid tenantId,
 		CancellationToken cancellationToken = default
 	) {
-		// Note: IsSuspended is intentionally NOT checked here.
+		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// This is existence-based to align with unique constraint and prevent duplicate insert attempts.
 		return await (
 			from ua in _dbContext.UserAccount
@@ -227,11 +246,92 @@ public class AccountService : IAccountService {
 		).AnyAsync(cancellationToken);
 	}
 
+	public async Task<ResolveTenantInvitationTargetByEmailResult>
+	ResolveTenantInvitationTargetByEmailAsync(
+		string email,
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		var normalizedEmail = email.ToLowerInvariant();
+
+		// Resolve the invitation target in one database roundtrip.
+		// We first locate the existing user by normalized email, then project the two
+		// business-rule checks the handler cares about:
+		// 1. does this identity already have a staff account?
+		// 2. is this identity already a member of the target tenant?
+		//
+		// Keeping this in one query makes the handler branch on one explicit result
+		// instead of orchestrating several separate existence checks.
+		var result = await (
+			from u in _dbContext.User
+			where u.Email == normalizedEmail
+				&& !u.IsDeleted
+			select new {
+				User = u,
+				HasStaffAccount = (
+					from ua in _dbContext.UserAccount
+					where ua.UserId == u.Id
+						&& ua.Scope == AccountScope.Staff
+						&& !ua.IsDeleted
+					select ua
+				).Any(),
+				IsAlreadyMemberOfTenant = (
+					from ua in _dbContext.UserAccount
+					where ua.UserId == u.Id
+						&& ua.TenantId == tenantId
+						&& ua.Scope == AccountScope.Tenant
+						&& !ua.IsDeleted
+					select ua
+				).Any(),
+			}
+		).FirstOrDefaultAsync(cancellationToken);
+
+		// No user with that email exists yet, so the invitation can proceed as a
+		// brand-new tenant invitation target.
+		if (result is null) {
+			return new ResolveTenantInvitationTargetByEmailResult.UserNotFound();
+		}
+
+		// Staff and tenant/project identities are mutually exclusive.
+		if (result.HasStaffAccount) {
+			return new ResolveTenantInvitationTargetByEmailResult.UserHasStaffAccount();
+		}
+
+		// Prevent creating a duplicate membership invitation for the same tenant.
+		if (result.IsAlreadyMemberOfTenant) {
+			return new ResolveTenantInvitationTargetByEmailResult.UserAlreadyMemberOfTenant();
+		}
+
+		// Existing non-staff users from another tenant are valid invitation targets.
+		return new ResolveTenantInvitationTargetByEmailResult.EligibleExistingUser(result.User);
+	}
+
+	public async Task<bool> HasTenantAccountByEmailAsync(
+		string email,
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		// Note: AccountStatus.Suspended is intentionally NOT checked here.
+		// This is existence-based to align with unique constraint and prevent duplicate insert attempts.
+		var normalizedEmail = email.ToLowerInvariant();
+
+		return await (
+			from u in _dbContext.User
+			join ua in _dbContext.UserAccount on u.Id equals ua.UserId
+			where u.Email == normalizedEmail
+				&& ua.TenantId == tenantId
+				&& ua.Scope == AccountScope.Tenant
+				&& !u.IsDeleted
+				&& !ua.IsDeleted
+			select ua
+		).AnyAsync(cancellationToken);
+	}
+
 	public async Task<bool> HasTenantOrProjectAccountsAsync(
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
-		// Note: IsSuspended is intentionally NOT checked here.
+		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// Suspended accounts still count for mutual exclusivity (identity conflict).
 		return await (
 			from ua in _dbContext.UserAccount
@@ -246,7 +346,7 @@ public class AccountService : IAccountService {
 		string email,
 		CancellationToken cancellationToken = default
 	) {
-		// Note: IsSuspended is intentionally NOT checked here.
+		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// Suspended accounts still count for mutual exclusivity (identity conflict).
 		var normalizedEmail = email.ToLowerInvariant();
 
@@ -265,7 +365,7 @@ public class AccountService : IAccountService {
 		string email,
 		CancellationToken cancellationToken = default
 	) {
-		// Note: IsSuspended is intentionally NOT checked here.
+		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// Suspended accounts still count for mutual exclusivity (identity conflict).
 		var normalizedEmail = email.ToLowerInvariant();
 
@@ -284,7 +384,7 @@ public class AccountService : IAccountService {
 		List<string> emails,
 		CancellationToken cancellationToken = default
 	) {
-		// Note: IsSuspended is intentionally NOT checked here.
+		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// Suspended accounts still count for mutual exclusivity (identity conflict).
 		if (emails.Count == 0) return [];
 
@@ -305,7 +405,7 @@ public class AccountService : IAccountService {
 		List<string> emails,
 		CancellationToken cancellationToken = default
 	) {
-		// Note: IsSuspended is intentionally NOT checked here.
+		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// Suspended accounts still count for mutual exclusivity (identity conflict).
 		if (emails.Count == 0) return [];
 
@@ -334,7 +434,8 @@ public class AccountService : IAccountService {
 			where ua.UserId == userId
 			&& ua.Scope == AccountScope.Tenant
 			&& ua.TenantId != null
-			&& !ua.IsDeleted && !ua.IsSuspended
+			&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
+			&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
 			select ua;
 
 		return await query.Take(effectiveLimit).ToListAsync(cancellationToken);
@@ -415,8 +516,9 @@ public class AccountService : IAccountService {
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.TenantId != null
-				&& !ua.IsDeleted && !ua.IsSuspended
-				&& !t.IsDeleted && t.Status == TenantStatus.Active && !t.IsSuspended
+				&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
+				&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
+				&& !t.IsDeleted && t.Status == TenantStatus.Active
 			select new { ua, t };
 
 		var totalCount = await baseQuery.CountAsync(cancellationToken);
@@ -450,13 +552,14 @@ public class AccountService : IAccountService {
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.TenantId != null
-				&& !ua.IsDeleted && !ua.IsSuspended  // Account must be active
+				&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended  // Account must be active
+				&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
 				&& !t.IsDeleted                       // Tenant must not be deleted
 			select new { ua, t };
 
 		var totalCount = await baseQuery.CountAsync(cancellationToken);
 		var activeCount = await baseQuery
-			.Where(q => q.t.Status == TenantStatus.Active && !q.t.IsSuspended)
+			.Where(q => q.t.Status == TenantStatus.Active && q.t.Status != TenantStatus.Suspended)
 			.CountAsync(cancellationToken);
 
 		var tenants = await baseQuery
@@ -467,9 +570,6 @@ public class AccountService : IAccountService {
 				Name = q.t.Name,
 				Code = q.t.Code,
 				Status = Tenant.GetStatusDescription(q.t.Status),
-				IsSuspended = q.t.IsSuspended,
-				// Computed from enum - same logic as ActiveCount predicate
-				IsActive = q.t.Status == TenantStatus.Active && !q.t.IsSuspended
 			})
 			.ToListAsync(cancellationToken);
 

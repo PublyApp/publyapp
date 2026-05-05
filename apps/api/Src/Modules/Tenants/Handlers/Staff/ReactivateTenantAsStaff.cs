@@ -14,43 +14,44 @@ namespace MainApi.Src.Modules.Tenants.Handlers.Staff;
 public record TenantReactivatedResult {
 	public required Guid TenantId { get; init; }
 	public required string Name { get; init; }
-	public required bool IsSuspended { get; init; }
 	public required string Status { get; init; }
 }
 
-public static class ReactivateTenantAsStaff {
+public class ReactivateTenantAsStaff {
 	public static async Task<Results<
 		Ok<TenantReactivatedResult>,
 		AppNotFoundHttpResult,
+		AppBadRequestHttpResult,
 		AppConflictHttpResult
 	>> HandleReactivateTenantAsStaff(
-		[FromRoute] Guid tenantId,
+		[FromRoute] string tenantId,
 		[FromServices] ITenantAsStaffService tenantService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
 		CancellationToken cancellationToken = default
 	) {
-		var result = await tenantService.ReactivateTenantAsync(tenantId, cancellationToken);
+		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
+			return TypedProblems.BadRequest(
+				"Invalid tenantId",
+				ResponseKeys.MalformedId
+			);
+		}
 
-		if (result.Error
-			is ReactivateTenantError.NotFound
-		) {
+		var result = await tenantService.ReactivateTenantAsync(
+			tenantIdGuid,
+			cancellationToken
+		);
+
+		if (result is ReactivateTenantResult.NotFound) {
 			return TypedProblems.NotFound(
 				"Tenant not found",
 				ResponseKeys.TenantNotFound
 			);
 		}
-		if (result.Error
-			is ReactivateTenantError.NotSuspended
-		) {
+		if (result is ReactivateTenantResult.NotSuspended) {
 			return TypedProblems.Conflict(
 				"Tenant is not currently suspended",
 				ResponseKeys.TenantNotSuspended
-			);
-		}
-		if (result.Error is not null) {
-			throw new InvalidOperationException(
-				$"Unknown error: {result.Error}"
 			);
 		}
 
@@ -63,26 +64,26 @@ public static class ReactivateTenantAsStaff {
 			);
 		}
 
-		if (result.Tenant is null) {
+		if (result is not ReactivateTenantResult.Success success) {
 			throw new InvalidOperationException(
-				"Service returned success "
-				+ "but Tenant was null."
+				$"Unknown reactivate tenant result: {result.GetType().Name}"
 			);
 		}
-		var tenant = result.Tenant;
+		var tenant = success.Tenant;
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.TenantReactivated,
-			tenantId,
-			new { TenantName = tenant.Name },
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.TenantReactivated,
+				TargetId: tenantIdGuid,
+				Details: new { TenantName = tenant.Name }
+			),
 			cancellationToken
 		);
 
 		return TypedResults.Ok(new TenantReactivatedResult {
 			TenantId = tenant.GetRequiredId(),
 			Name = tenant.Name,
-			IsSuspended = tenant.IsSuspended,
 			Status = Tenant.GetStatusDescription(tenant.Status)
 		});
 	}

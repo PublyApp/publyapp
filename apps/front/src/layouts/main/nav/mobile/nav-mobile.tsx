@@ -1,11 +1,11 @@
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Drawer from '@mui/material/Drawer';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
-import { Logo } from '@/front/components/logo/logo';
-import { Scrollbar } from '@/front/components/scrollbar/scrollbar';
-import { usePathname } from '@/front/hooks/use-pathname';
+import { Logo } from '#app/components/logo/logo.tsx';
+import { Scrollbar } from '#app/components/scrollbar/scrollbar.tsx';
+import { usePathname } from '#app/hooks/use-pathname.ts';
 
 import { SignInButton } from '../../../components/sign-in-button';
 import { Nav, NavUl } from '../components';
@@ -31,11 +31,15 @@ export const NavMobile = ({
 	sx,
 }: NavMobileProps) => {
 	const pathname = usePathname();
+	const openRef = useRef(open);
+	const onCloseRef = useRef(onClose);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
+	openRef.current = open;
+	onCloseRef.current = onClose;
+
 	useEffect(() => {
-		if (open) {
-			onClose();
+		if (openRef.current) {
+			onCloseRef.current();
 		}
 	}, [pathname]);
 

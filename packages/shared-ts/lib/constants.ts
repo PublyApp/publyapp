@@ -8,8 +8,6 @@ export const APP_NAME_PASCAl_CASE = toPascalCase(APP_NAME);
 
 export const SESSION_TOKEN_HEADER_KEY = 'X-Session-Token';
 export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}-session_token`;
-/** @deprecated Use TENANT_HINTS_COOKIE_KEY_LEGACY for new code */
-export const LAST_USED_TENANT_ID_COOKIE_KEY = `${APP_ID}-last_used_tenant`;
 export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detect language server-side
 
 // =============================================================================
@@ -21,7 +19,10 @@ export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detec
 export const TENANT_HINTS_COOKIE_KEY = `${APP_ID}-last_tenants`;
 
 /** Legacy cookie key (v1-v3, for migration) */
-export const TENANT_HINTS_COOKIE_KEY_LEGACY = LAST_USED_TENANT_ID_COOKIE_KEY;
+export const TENANT_HINTS_COOKIE_KEY_LEGACY = `${APP_ID}-last_used_tenant`;
+
+/** @deprecated Use TENANT_HINTS_COOKIE_KEY_LEGACY for new code */
+export const LAST_USED_TENANT_ID_COOKIE_KEY = TENANT_HINTS_COOKIE_KEY_LEGACY;
 
 /** Max users to store in mapping (keeps cookie under 1KB) */
 export const TENANT_HINTS_MAX_ENTRIES = 10;
@@ -109,7 +110,7 @@ export const FRONT_PATH_NAMES = {
 			},
 			settings: {
 				root: makePath(RESOURCE.app, tenantId, 'settings'),
-				general: makePath(RESOURCE.app, tenantId, 'settings', 'general'),
+				general: makePath(RESOURCE.app, tenantId, 'settings'),
 				members: makePath(RESOURCE.app, tenantId, 'settings', 'members'),
 				roles: makePath(RESOURCE.app, tenantId, 'settings', 'roles'),
 				workspaces: makePath(RESOURCE.app, tenantId, 'settings', 'workspaces'),
@@ -185,6 +186,27 @@ export const FRONT_PATH_NAMES = {
 							tenantId,
 							'users',
 						),
+						invitations: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenants,
+							'details',
+							tenantId,
+							'invitations',
+						),
+						activity: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenants,
+							'details',
+							tenantId,
+							'activity',
+						),
+						usage: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenants,
+							'details',
+							tenantId,
+							'usage',
+						),
 						billing: makePath(
 							ROOTS.STAFF,
 							RESOURCE.tenants,
@@ -255,6 +277,8 @@ export const queryParamKey = {
 	notice: 'notice',
 	login_page: {
 		redirect_cause: 'rc',
+		redirect_to: 'rto',
+		email: 'email',
 	},
 	reset_password_page: {
 		redirect_cause: 'rc',
@@ -318,37 +342,6 @@ export const isPreRenderPath = (path: string): path is PreRenderPath => {
 export const STATIC_PRE_RENDER_PATHS_MAP_NONCE =
 	'Ynuh4K7aYVf6z5RVxEGnal9zru8ZmYZsSE3n2GNtbBbc6Z2VRq';
 
-export const TENANT_PROFILES_PERMISSIONS_ENUM = {
-	CAN_ACCESS_DASHBOARD: 'can_access_dashboard',
-	CAN_ACCESS_BILLING: 'can_access_billing',
-	CAN_ACCESS_SETTINGS: 'can_access_settings',
-	CAN_ACCESS_USERS: 'can_access_users',
-} as const;
-
-export const TENANT_MODULES_ENUM = {
-	ALL: 'all',
-} as const;
-
-export const TENANT_MODULES_GROUPING = {
-	// Group in a single module for now.
-	// When we have more modules, we can split them into different modules.
-	ALL: {
-		code: 'all',
-		permissions: [
-			TENANT_PROFILES_PERMISSIONS_ENUM.CAN_ACCESS_DASHBOARD,
-			TENANT_PROFILES_PERMISSIONS_ENUM.CAN_ACCESS_BILLING,
-			TENANT_PROFILES_PERMISSIONS_ENUM.CAN_ACCESS_SETTINGS,
-			TENANT_PROFILES_PERMISSIONS_ENUM.CAN_ACCESS_USERS,
-		],
-	},
-} as const;
-
-export type TenantModulesEnum = ValueOf<typeof TENANT_MODULES_ENUM>;
-
-export type TenantProfilesPermissionsEnum = ValueOf<
-	typeof TENANT_PROFILES_PERMISSIONS_ENUM
->;
-
 export const LANGUAGE_DETECTION_METHOD_ENUM = {
 	COOKIE: 'cookie',
 	QUERY_PARAM: 'queryParam',
@@ -369,12 +362,8 @@ export const ACCOUNT_LEVEL_ENUM = {
 export type AccountLevel = ValueOf<typeof ACCOUNT_LEVEL_ENUM>;
 
 export const USER_STATUS_ENUM = {
-	INACTIVE: 'Inactive',
-	PENDING: 'Pending',
 	SUSPENDED: 'Suspended',
 	ACTIVE: 'Active',
-	DELETED: 'Deleted',
-	BANNED: 'Banned',
 } as const;
 
 export type UserStatus = ValueOf<typeof USER_STATUS_ENUM>;
@@ -383,7 +372,6 @@ export const TENANT_STATUS_ENUM = {
 	PENDING: 'Pending',
 	ACTIVE: 'Active',
 	SUSPENDED: 'Suspended',
-	ARCHIVED: 'Archived',
 } as const;
 
 export type TenantStatus = ValueOf<typeof TENANT_STATUS_ENUM>;

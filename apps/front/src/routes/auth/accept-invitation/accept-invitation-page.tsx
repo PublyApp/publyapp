@@ -13,7 +13,13 @@ import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import _ from 'lodash';
 import { useForm } from 'react-hook-form';
-import { redirect, useFetcher, useSearchParams } from 'react-router';
+import { Trans } from 'react-i18next';
+import {
+	redirect,
+	useFetcher,
+	useLocation,
+	useSearchParams,
+} from 'react-router';
 import { serializeError } from 'serialize-error';
 import type { z } from 'zod';
 
@@ -24,23 +30,33 @@ import {
 	queryParamKey,
 	REDIRECT_CODE,
 	SESSION_TOKEN_COOKIE_KEY,
+	SESSION_TOKEN_HEADER_KEY,
 } from '@org/shared-ts/lib/constants';
 import duration from '@org/shared-ts/utils/duration.utils';
 import { getSerializedErrorMessage } from '@org/shared-ts/utils/error.utils';
 import { getAcceptInvitationSchema } from '@org/shared-ts/validations/invitation.validations';
-import { Field, Form } from '@/front/components/hook-form';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { formatSessionCookie } from '@/front/lib/cookies/session-cookie.utils';
-import { getClientManager } from '@/front/lib/js-client/client-manager';
-import { safeRun } from '@/front/lib/react-router/safeRun';
+
+import { Field, Form } from '#app/components/hook-form/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import {
+	isSecureCookieFromRequest,
+	readTenantHintsFromRequestHeaders,
+	serializeTenantHintsForResponse,
+	setTenantHintForUser,
+} from '#app/lib/cookies/index.ts';
+import { logout } from '#app/lib/cookies/logout.utils.ts';
+import { formatSessionCookie } from '#app/lib/cookies/session-cookie.utils.ts';
+import { env } from '#app/lib/env.ts';
+import { getClientManager } from '#app/lib/js-client/client-manager.ts';
+import { safeRun } from '#app/lib/react-router/safeRun.ts';
 import {
 	getServerAction,
 	getServerLoader,
-} from '@/front/lib/react-router/server-data.server';
-import { interZodClient } from '@/front/lib/zod/zod.client';
+} from '#app/lib/react-router/server-data.server.ts';
+import { interZodClient } from '#app/lib/zod/zod.client.ts';
 
 import type { Route } from './+types/accept-invitation-page';
 
@@ -71,7 +87,7 @@ type AcceptInvitationForm = z.infer<
 export type InvitationLoaderResult = Awaited<ReturnType<typeof loader>>;
 
 export const loader = getServerLoader({
-	loader: async ({ request, z, context }) => {
+	loader: async ({ request, z, context, sessionToken }) => {
 		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const searchParams = new URL(request.url).searchParams;
 		const encodedEmail = searchParams.get(
@@ -118,6 +134,10 @@ export const loader = getServerLoader({
 			} as const;
 		}
 
+		const invitationCheckData = checkResult.data as
+			| (typeof checkResult.data & { userExists?: boolean })
+			| undefined;
+
 		const getInvitationDetails = safeRun(async () => {
 			return apiClient.invitations.byToken(token).details.get();
 		});
@@ -135,9 +155,36 @@ export const loader = getServerLoader({
 			} as const;
 		}
 
+		let currentUserEmail: string | undefined;
+		if (sessionToken) {
+			const authedApiClient = getClientManager({
+				tenantToken: sessionToken,
+			}).createClient();
+			const getUserAuthData = safeRun(async () => {
+				return authedApiClient.auth.userAuthData.get();
+			});
+			const userAuthDataResult = await getUserAuthData();
+
+			if (userAuthDataResult.status === 'success') {
+				currentUserEmail = userAuthDataResult.data?.email ?? undefined;
+			}
+		}
+
+		const isSessionMismatch =
+			Boolean(currentUserEmail) &&
+			!_.isEqual(
+				_.toLower(currentUserEmail),
+				_.toLower(result.data?.email ?? ''),
+			);
+
 		return {
 			code: 'VALID',
 			invitationData: result.data,
+			userExists: invitationCheckData?.userExists ?? false,
+			isAuthenticated: Boolean(sessionToken),
+			currentUserEmail,
+			isSessionMismatch,
+			meta,
 		} as const;
 	},
 });
@@ -145,11 +192,12 @@ export const loader = getServerLoader({
 export type AcceptInvitationActionResult = Awaited<ReturnType<typeof action>>;
 
 export const action = getServerAction({
-	action: async ({ request, context }) => {
+	action: async ({ request, context, sessionToken }) => {
 		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const formData = await request.formData();
 
 		const token = formData.get('token') as string;
+		const acceptMode = formData.get('acceptMode') as string;
 		const firstName = formData.get('firstName') as string;
 		const lastName = formData.get('lastName') as string;
 		const password = formData.get('password') as string;
@@ -159,6 +207,125 @@ export const action = getServerAction({
 				status: 'error',
 				error: serializeError(new Error('No invitation token provided')),
 			} as const;
+		}
+
+		const getInvitationDetails = safeRun(async () => {
+			return apiClient.invitations.byToken(token).details.get();
+		});
+		const invitationDetailsResult = await getInvitationDetails();
+
+		if (invitationDetailsResult.status === 'error') {
+			return {
+				status: 'error',
+				error: serializeError(new Error('Invalid invitation link')),
+			} as const;
+		}
+
+		if (sessionToken) {
+			const authedApiClient = getClientManager({
+				tenantToken: sessionToken,
+			}).createClient();
+			const getUserAuthData = safeRun(async () => {
+				return authedApiClient.auth.userAuthData.get();
+			});
+			const userAuthDataResult = await getUserAuthData();
+
+			if (userAuthDataResult.status === 'success') {
+				const currentUserEmail = userAuthDataResult.data?.email ?? undefined;
+				const invitationEmail =
+					invitationDetailsResult.data?.email ?? undefined;
+				const isSessionMismatch =
+					Boolean(currentUserEmail) &&
+					!_.isEqual(
+						_.toLower(currentUserEmail),
+						_.toLower(invitationEmail ?? ''),
+					);
+
+				if (isSessionMismatch) {
+					return {
+						status: 'error',
+						error: serializeError(
+							new Error(
+								`This invitation is for ${invitationEmail}, but you are signed in as ${currentUserEmail}. Log out or switch accounts to continue.`,
+							),
+						),
+					} as const;
+				}
+			}
+		}
+
+		if (acceptMode === 'existing-user') {
+			if (!sessionToken) {
+				return {
+					status: 'error',
+					error: serializeError(
+						new Error('You must be signed in to accept this invitation'),
+					),
+				} as const;
+			}
+
+			const response = await fetch(
+				`${env.VITE_ASP_SERVER_URL}/invitations/${encodeURIComponent(token)}/accept`,
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						[SESSION_TOKEN_HEADER_KEY]: sessionToken,
+					},
+					body: JSON.stringify({
+						useExistingAccount: true,
+					}),
+				},
+			);
+
+			if (!response.ok) {
+				const errorBody = (await response.json().catch(() => null)) as {
+					detail?: string;
+					title?: string;
+				} | null;
+
+				context.logger.error('acceptInvitation existing-user error', {
+					status: response.status,
+					error: errorBody,
+				});
+
+				return {
+					status: 'error',
+					error: serializeError(
+						new Error(
+							errorBody?.detail ||
+								errorBody?.title ||
+								'Failed to accept invitation',
+						),
+					),
+				} as const;
+			}
+
+			const result = (await response.json()) as {
+				userId?: string;
+				tenantId?: string;
+			};
+			const tenantId = result.tenantId;
+			const userId = result.userId;
+			const responseHeaders = new Headers();
+
+			if (tenantId && userId) {
+				const { map: hintsMap } = readTenantHintsFromRequestHeaders(request);
+				const updatedMap = setTenantHintForUser(hintsMap, userId, tenantId);
+				const isSecure = isSecureCookieFromRequest(request);
+				const mappingCookie = serializeTenantHintsForResponse(
+					updatedMap,
+					isSecure,
+				);
+				responseHeaders.append('Set-Cookie', mappingCookie);
+			}
+
+			return redirect(
+				tenantId
+					? FRONT_PATH_NAMES.tenant(tenantId).root
+					: FRONT_PATH_NAMES.tenant()._root,
+				{ headers: responseHeaders },
+			) as never;
 		}
 
 		const acceptInvitation = safeRun(async () => {
@@ -196,7 +363,7 @@ export const action = getServerAction({
 
 		// Create authenticated session
 		const responseHeaders = new Headers();
-		const sessionToken = result.data?.sessionToken || '';
+		const newSessionToken = result.data?.sessionToken || '';
 
 		const sessionExpiry = dayjs().add(7, 'days').toDate();
 
@@ -209,7 +376,7 @@ export const action = getServerAction({
 		// Note: We pass the token as tenantToken for legacy compatibility; ClientManager's
 		// staff context already falls back to tenantToken for legacy cookies.
 		const authedApiClient = getClientManager({
-			tenantToken: sessionToken,
+			tenantToken: newSessionToken,
 		}).createClient();
 
 		const getRedirectCode = safeRun(async () => {
@@ -224,8 +391,8 @@ export const action = getServerAction({
 
 		const sessionCookieValue =
 			redirectCode === REDIRECT_CODE.STAFF
-				? formatSessionCookie({ staffToken: sessionToken })
-				: formatSessionCookie({ tenantToken: sessionToken });
+				? formatSessionCookie({ staffToken: newSessionToken })
+				: formatSessionCookie({ tenantToken: newSessionToken });
 
 		const sessionTokenCookie = cookie.serialize(
 			SESSION_TOKEN_COOKIE_KEY,
@@ -303,6 +470,7 @@ const AcceptInvitationForm = ({
 	loaderData: Awaited<ReturnType<typeof loader>>;
 }) => {
 	const [searchParams] = useSearchParams();
+	const location = useLocation();
 	const token = searchParams.get(queryParamKey.token);
 	const { t, i18n } = useTranslate();
 
@@ -345,11 +513,44 @@ const AcceptInvitationForm = ({
 		);
 	});
 
+	const handleAcceptWithExistingAccount = async () => {
+		if (!token) {
+			return;
+		}
+
+		if (fetcher.state === 'submitting' || fetcher.state === 'loading') {
+			return;
+		}
+
+		await fetcher.submit(
+			{
+				token,
+				acceptMode: 'existing-user',
+			},
+			{
+				method: 'post',
+			},
+		);
+	};
+
 	if (loaderData.code !== 'VALID' || !loaderData.invitationData) {
 		return null;
 	}
 
 	const invitationData = loaderData.invitationData;
+	const invitationEmail = invitationData.email ?? '';
+	const loginHref = `${FRONT_PATH_NAMES.auth.login}?${new URLSearchParams({
+		[queryParamKey.login_page.redirect_to]:
+			`${location.pathname}${location.search}`,
+		[queryParamKey.login_page.email]: invitationEmail,
+	}).toString()}`;
+	const logoutToLoginHref = `${FRONT_PATH_NAMES.auth.login}?${new URLSearchParams(
+		{
+			[queryParamKey.login_page.redirect_to]:
+				`${location.pathname}${location.search}`,
+			[queryParamKey.login_page.email]: invitationEmail,
+		},
+	).toString()}`;
 
 	return (
 		<>
@@ -399,59 +600,161 @@ const AcceptInvitationForm = ({
 				</CardContent>
 			</Card>
 
-			{/* Account Creation Form */}
-			<Form methods={form} onSubmit={handleSubmit}>
-				<Typography variant="h5" color="text.primary" sx={{ mb: 1 }}>
-					{t('auth-accept-invitation')}
-				</Typography>
-				<Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-					{t('auth-accept-invitation-description', {
-						email: invitationData.email,
-						role: invitationData.profileName,
-					})}
-				</Typography>
-				<Stack spacing={2.5}>
-					<Field.Text
-						name="firstName"
-						label={t('firstname')}
-						slotProps={{ inputLabel: { shrink: true } }}
-					/>
-					<Field.Text
-						name="lastName"
-						label={t('lastname')}
-						slotProps={{ inputLabel: { shrink: true } }}
-						required
-					/>
-					<Field.Text
-						name="password"
-						label={t('password')}
-						type="password"
-						slotProps={{ inputLabel: { shrink: true } }}
-						required
-					/>
-					<Field.Text
-						name="confirmPassword"
-						label={t('confirm-password')}
-						type="password"
-						slotProps={{ inputLabel: { shrink: true } }}
-						required
-					/>
-				</Stack>
-				<Button
-					fullWidth
-					size="large"
-					type="submit"
-					variant="contained"
-					sx={{ mt: 3 }}
-					loading={
-						isSubmitting ||
-						fetcher.state === 'submitting' ||
-						fetcher.state === 'loading'
+			{loaderData.isSessionMismatch ? (
+				<Box>
+					<Typography variant="h5" color="text.primary" sx={{ mb: 1 }}>
+						{t('auth-invitation-wrong-account-title')}
+					</Typography>
+					<Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+						<Trans
+							i18nKey={
+								loaderData.userExists
+									? 'auth-invitation-existing-user-mismatch-description'
+									: 'auth-invitation-new-user-mismatch-description'
+							}
+							values={{
+								invitationEmail: invitationData.email,
+								currentUserEmail: loaderData.currentUserEmail,
+							}}
+							components={{
+								strong: (
+									<Box
+										component="strong"
+										sx={{
+											fontWeight: 600,
+											overflowWrap: 'anywhere',
+										}}
+									/>
+								),
+							}}
+						/>
+					</Typography>
+					<Button
+						fullWidth
+						size="large"
+						variant="contained"
+						sx={{
+							whiteSpace: 'normal',
+							textAlign: 'center',
+							overflowWrap: 'anywhere',
+							py: 1.5,
+						}}
+						onClick={() => {
+							logout({
+								redirectTo: loaderData.userExists
+									? logoutToLoginHref
+									: `${location.pathname}${location.search}`,
+							});
+						}}
+					>
+						{loaderData.userExists
+							? t('auth-invitation-log-out-and-sign-in')
+							: t('auth-invitation-log-out-and-continue')}
+					</Button>
+				</Box>
+			) : (
+				(() => {
+					if (loaderData.userExists) {
+						const description = loaderData.isAuthenticated
+							? t('auth-invitation-existing-user-authenticated-description')
+							: t('auth-invitation-existing-user-login-description');
+
+						return (
+							<Box>
+								<Typography variant="h5" color="text.primary" sx={{ mb: 1 }}>
+									{t('auth-accept-invitation')}
+								</Typography>
+								<Typography
+									variant="body2"
+									color="text.secondary"
+									sx={{ mb: 3 }}
+								>
+									{description}
+								</Typography>
+								{loaderData.isAuthenticated ? (
+									<Button
+										fullWidth
+										size="large"
+										variant="contained"
+										onClick={handleAcceptWithExistingAccount}
+										loading={
+											fetcher.state === 'submitting' ||
+											fetcher.state === 'loading'
+										}
+									>
+										{t('join-organization')}
+									</Button>
+								) : (
+									<Button
+										fullWidth
+										size="large"
+										variant="contained"
+										component={RouterLink}
+										href={loginHref}
+									>
+										{t('sign-in')}
+									</Button>
+								)}
+							</Box>
+						);
 					}
-				>
-					{t('create-account')}
-				</Button>
-			</Form>
+
+					return (
+						<Form methods={form} onSubmit={handleSubmit}>
+							<Typography variant="h5" color="text.primary" sx={{ mb: 1 }}>
+								{t('auth-accept-invitation')}
+							</Typography>
+							<Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+								{t('auth-accept-invitation-description', {
+									email: invitationData.email,
+									role: invitationData.profileName,
+								})}
+							</Typography>
+							<Stack spacing={2.5}>
+								<Field.Text
+									name="firstName"
+									label={t('firstname')}
+									slotProps={{ inputLabel: { shrink: true } }}
+								/>
+								<Field.Text
+									name="lastName"
+									label={t('lastname')}
+									slotProps={{ inputLabel: { shrink: true } }}
+									required
+								/>
+								<Field.Text
+									name="password"
+									label={t('password')}
+									type="password"
+									slotProps={{ inputLabel: { shrink: true } }}
+									required
+								/>
+								<Field.Text
+									name="confirmPassword"
+									label={t('confirm-password')}
+									type="password"
+									slotProps={{ inputLabel: { shrink: true } }}
+									required
+								/>
+							</Stack>
+							<Button
+								fullWidth
+								size="large"
+								type="submit"
+								variant="contained"
+								sx={{ mt: 3 }}
+								loading={
+									isSubmitting ||
+									fetcher.state === 'submitting' ||
+									fetcher.state === 'loading'
+								}
+							>
+								{t('create-account')}
+							</Button>
+						</Form>
+					);
+				})()
+			)}
 		</>
 	);
 };

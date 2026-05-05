@@ -539,8 +539,8 @@ All questions resolved:
 - [ ] Filter controls: action dropdown, date range, user autocomplete (search by name/email)
 - [ ] Export button (CSV/JSON download)
 - [ ] Detail page with full audit log information including formatted JSON details
-- [ ] `make tsc-front` passes
-- [ ] `make check-write` passes (Biome lint + formatting)
+- [ ] `just tsc-front` passes
+- [ ] `just check-write` passes (oxlint + oxfmt)
 
 ### Final
 - [ ] All 4 PRs merged (or single PR if preferred)

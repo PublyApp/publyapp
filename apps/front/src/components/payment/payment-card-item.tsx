@@ -7,7 +7,7 @@ import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import { usePopover } from 'minimal-shared/hooks';
 
-import type { IPaymentCard } from '@/front/types/common';
+import type { IPaymentCard } from '#app/types/common.ts';
 
 import { CustomPopover } from '../custom-popover/custom-popover';
 import { Iconify } from '../iconify/iconify';

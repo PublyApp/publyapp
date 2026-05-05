@@ -179,14 +179,14 @@ public class StaffProfileItem {
 // public class CursorPaginatedResult<T> {
 //     public List<T> Data { get; set; } = [];
 //     public string? NextCursor { get; set; } = null;
-//     public int TotalCount { get; set; }         // Total items across all pages
-//     public int CurrentOffset { get; set; }      // Items before current page
 // }
 ```
 
 ### Step 2: Define Service Interface
 
-Create a discriminated union for the result type to handle errors:
+Create a discriminated union for the result type to handle errors. Keep C#
+property names idiomatic, but expose multi-word query params on the wire in
+snake_case via `[FromQuery(Name = "...")]`.
 
 ```csharp
 /// <summary>
@@ -204,7 +204,7 @@ public abstract record FindEntitiesResult {
     public sealed record CursorNotFound(string Cursor) : FindEntitiesResult;
 
     /// <summary>
-    /// Error result when the sortId is not supported.
+    /// Error result when the sort_id value is not supported.
     /// </summary>
     public sealed record InvalidSortId(string SortId) : FindEntitiesResult;
 }
@@ -234,16 +234,22 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
 ) {
     var effectiveLimit = limit ?? _appSettings.Value.PAGINATION_DEFAULT_LIMIT;
     var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-    var effectiveSortId = (sortId ?? "id").ToLowerInvariant();
+    var effectiveSortId = sortId ?? "id";
 
     // ═══════════════════════════════════════════════════════════════════════
     // STEP 3.1: Define Sort Field Handlers
     // ═══════════════════════════════════════════════════════════════════════
-    var sortFieldHandlers = new Dictionary<string, SortFieldHandler> {
+    var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<YourEntity>>(
+        StringComparer.OrdinalIgnoreCase
+    ) {
         // Handler for Id sorting (simple case)
-        ["id"] = new SortFieldHandler(
+        ["id"] = new CursorSortFieldHandler<YourEntity>(
             getCursorValue: async (guid) => {
-                var entity = await _dbContext.YourEntity.FindAsync(guid);
+                var entity = await _dbContext.YourEntity
+                    .AsNoTracking()
+                    .Where(e => e.Id == guid)
+                    .Select(e => new { e.Id })
+                    .FirstOrDefaultAsync();
                 return entity?.Id;
             },
             applyFilter: (q, cursorValue, isAsc) => {
@@ -255,20 +261,14 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
             },
             applyOrdering: (q, isAsc) => isAsc
                 ? q.OrderBy(e => e.Id)
-                : q.OrderByDescending(e => e.Id),
-            getOffset: async (q, cursorValue, isAsc) => {
-                var cursorGuid = (Guid?)cursorValue;
-                if (cursorGuid is null) return 0;
-                return isAsc
-                    ? await q.CountAsync(e => e.Id < cursorGuid)
-                    : await q.CountAsync(e => e.Id > cursorGuid);
-            }
+                : q.OrderByDescending(e => e.Id)
         ),
 
         // Handler for Name sorting (with tie-breaker)
-        ["name"] = new SortFieldHandler(
+        ["name"] = new CursorSortFieldHandler<YourEntity>(
             getCursorValue: async (guid) => {
                 var entity = await _dbContext.YourEntity
+                    .AsNoTracking()
                     .Where(e => e.Id == guid)
                     .Select(e => new { e.Name, e.Id })
                     .FirstOrDefaultAsync();
@@ -283,21 +283,14 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
             },
             applyOrdering: (q, isAsc) => isAsc
                 ? q.OrderBy(e => e.Name).ThenBy(e => e.Id)
-                : q.OrderByDescending(e => e.Name).ThenByDescending(e => e.Id),
-            getOffset: async (q, cursorValue, isAsc) => {
-                if (cursorValue is null) return 0;
-                var (cursorName, cursorId) = ((string, Guid?))cursorValue;
-                // Count items BEFORE cursor (considering tie-breaker)
-                return isAsc
-                    ? await q.CountAsync(e => e.Name.CompareTo(cursorName) < 0 || (e.Name == cursorName && e.Id < cursorId))
-                    : await q.CountAsync(e => e.Name.CompareTo(cursorName) > 0 || (e.Name == cursorName && e.Id > cursorId));
-            }
+                : q.OrderByDescending(e => e.Name).ThenByDescending(e => e.Id)
         ),
 
         // Handler for CreatedAt sorting (with tie-breaker)
-        ["created_at"] = new SortFieldHandler(
+        ["created_at"] = new CursorSortFieldHandler<YourEntity>(
             getCursorValue: async (guid) => {
                 var entity = await _dbContext.YourEntity
+                    .AsNoTracking()
                     .Where(e => e.Id == guid)
                     .Select(e => new { e.CreatedAt, e.Id })
                     .FirstOrDefaultAsync();
@@ -312,20 +305,14 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
             },
             applyOrdering: (q, isAsc) => isAsc
                 ? q.OrderBy(e => e.CreatedAt).ThenBy(e => e.Id)
-                : q.OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id),
-            getOffset: async (q, cursorValue, isAsc) => {
-                if (cursorValue is null) return 0;
-                var (cursorCreatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
-                return isAsc
-                    ? await q.CountAsync(e => e.CreatedAt < cursorCreatedAt || (e.CreatedAt == cursorCreatedAt && e.Id < cursorId))
-                    : await q.CountAsync(e => e.CreatedAt > cursorCreatedAt || (e.CreatedAt == cursorCreatedAt && e.Id > cursorId));
-            }
+                : q.OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id)
         ),
 
         // Handler for computed fields (with tie-breaker)
-        ["related_count"] = new SortFieldHandler(
+        ["related_count"] = new CursorSortFieldHandler<YourEntity>(
             getCursorValue: async (guid) => {
                 var entity = await _dbContext.YourEntity
+                    .AsNoTracking()
                     .Where(e => e.Id == guid)
                     .Select(e => new { Count = e.RelatedEntities.Count, e.Id })
                     .FirstOrDefaultAsync();
@@ -340,19 +327,12 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
             },
             applyOrdering: (q, isAsc) => isAsc
                 ? q.OrderBy(e => e.RelatedEntities.Count).ThenBy(e => e.Id)
-                : q.OrderByDescending(e => e.RelatedEntities.Count).ThenByDescending(e => e.Id),
-            getOffset: async (q, cursorValue, isAsc) => {
-                if (cursorValue is null) return 0;
-                var (cursorCount, cursorId) = ((int, Guid?))cursorValue;
-                return isAsc
-                    ? await q.CountAsync(e => e.RelatedEntities.Count < cursorCount || (e.RelatedEntities.Count == cursorCount && e.Id < cursorId))
-                    : await q.CountAsync(e => e.RelatedEntities.Count > cursorCount || (e.RelatedEntities.Count == cursorCount && e.Id > cursorId));
-            }
+                : q.OrderByDescending(e => e.RelatedEntities.Count).ThenByDescending(e => e.Id)
         )
     };
 
     // ═══════════════════════════════════════════════════════════════════════
-    // STEP 3.2: Validate sortId Parameter
+    // STEP 3.2: Validate sort_id Parameter
     // ═══════════════════════════════════════════════════════════════════════
     if (!sortFieldHandlers.ContainsKey(effectiveSortId)) {
         return new FindEntitiesResult.InvalidSortId(effectiveSortId);
@@ -364,6 +344,7 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
     // STEP 3.3: Build Base Query
     // ═══════════════════════════════════════════════════════════════════════
     var query = _dbContext.YourEntity
+        .AsNoTracking()
         .Where(e => e.Id != null);  // Add your filters here
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -413,25 +394,16 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
     );
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// STEP 3.8: Define SortFieldHandler Helper Class
-// ═══════════════════════════════════════════════════════════════════════
-private class SortFieldHandler {
-    public Func<Guid, Task<object?>> GetCursorValue { get; }
-    public Func<IQueryable<YourEntity>, object?, bool, IQueryable<YourEntity>> ApplyFilter { get; }
-    public Func<IQueryable<YourEntity>, bool, IQueryable<YourEntity>> ApplyOrdering { get; }
-
-    public SortFieldHandler(
-        Func<Guid, Task<object?>> getCursorValue,
-        Func<IQueryable<YourEntity>, object?, bool, IQueryable<YourEntity>> applyFilter,
-        Func<IQueryable<YourEntity>, bool, IQueryable<YourEntity>> applyOrdering
-    ) {
-        GetCursorValue = getCursorValue;
-        ApplyFilter = applyFilter;
-        ApplyOrdering = applyOrdering;
-    }
-}
+// CursorSortFieldHandler<TEntity> lives in MainApi.Src.Lib.
+// Do not define a private SortFieldHandler helper in each service.
 ```
+
+`CursorSortFieldHandler<TEntity>` intentionally has no `getOffset` delegate.
+Cursor pagination in this codebase does not calculate `CurrentOffset` or expose
+page numbers today; it only returns `NextCursor`. Future cursor UX work that
+needs `total_count` or visible range text, such as issue #282, should add an
+explicit pagination metadata contract instead of reusing the stale `getOffset`
+helper shape.
 
 ### Step 4: Implement Handler
 
@@ -440,15 +412,22 @@ Create the endpoint handler with proper error handling:
 ```csharp
 // In your handler file (e.g., Handlers/FindEntities.cs)
 using MainApi.Localization;
+using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Src.Features.YourFeature.Handlers;
+namespace MainApi.Src.Modules.YourFeature.Handlers;
 
 public class FindEntitiesResult : CursorPaginatedResult<EntityItem> { }
 
-public class FindEntitiesQuery : CursorPaginatedQuery { }
+public class FindEntitiesQuery : CursorPaginatedQuery {
+    [FromQuery(Name = "sort_id")]
+    public string? SortId { get; init; }
+
+    [FromQuery(Name = "sort_order")]
+    public string? SortOrder { get; init; }
+}
 
 public class FindEntitiesQueryValidator : CursorPaginatedQueryValidator<FindEntitiesQuery> { }
 
@@ -501,7 +480,7 @@ public class FindEntities {
 
         if (serviceResult is YourFeature.FindEntitiesResult.InvalidSortId sortIdError) {
             return TypedProblems.BadRequest(
-                $"Invalid sortId: {sortIdError.SortId}. Allowed values: id, name, created_at, related_count",
+                $"Invalid sort_id: {sortIdError.SortId}. Allowed values: id, name, created_at, related_count",
                 ResponseKeys.BadRequest
             );
         }
@@ -521,8 +500,8 @@ public class FindEntities {
 ## Complete Example
 
 For a complete, working example, see:
-- Service: `apps/api/Src/Features/Staff/ProfileAsStaff/ProfileAsStaffService.cs`
-- Handler: `apps/api/Src/Features/Staff/ProfileAsStaff/Handlers/FindStaffProfiles.cs`
+- Service: `apps/api/Src/Modules/Profiles/Services/ProfileAsStaffService.cs`
+- Handler: `apps/api/Src/Modules/Profiles/Handlers/Staff/FindStaffProfiles.cs`
 
 ## Common Pitfalls
 
@@ -613,11 +592,15 @@ return results;  // Correctly returns 10 records
 
 ## Best Practices
 
-### 0. Keep `sortId` Stable Across Frontend and Backend
+### 0. Keep `sort_id` Stable Across Frontend and Backend
 
-Cursor pagination requires deterministic ordering. In this codebase, list pages use **snake_case** `sortId` values (e.g., `created_at`, `updated_at`, `name`).
+Cursor pagination requires deterministic ordering. In this codebase, list pages
+use **snake_case** `sort_id` values on the wire (e.g., `created_at`,
+`updated_at`, `name`).
 
-**Frontend note (Material React Table):** MRT emits sorting IDs from column `id`. If the backend expects snake_case sort IDs, the table columns must explicitly set snake_case IDs:
+**Frontend note (Material React Table):** MRT emits sorting IDs from column `id`.
+If the backend expects snake_case sort IDs, the table columns must explicitly set
+snake_case IDs:
 
 ```ts
 columnHelper.accessor('createdAt', { id: 'created_at', header: 'Created at' });
@@ -625,7 +608,8 @@ columnHelper.accessor('updatedAt', { id: 'updated_at', header: 'Updated at' });
 columnHelper.accessor('name', { id: 'name', header: 'Name' });
 ```
 
-If a visible column is not supported by backend sorting, set `enableSorting: false` to prevent sending invalid `sortId` values.
+If a visible column is not supported by backend sorting, set `enableSorting: false`
+to prevent sending invalid `sort_id` values.
 
 ### 1. Always Use Discriminated Unions for Results
 
@@ -639,7 +623,14 @@ public abstract record FindEntitiesResult {
 }
 ```
 
-### 2. Project to DTOs at the Database Level
+### 2. Use `AsNoTracking()` for Read-Only Cursor Queries
+
+Cursor-paginated list methods are read-only. Add `AsNoTracking()` to the base
+result query and to each `GetCursorValue` lookup query so EF Core does not track
+entities that will never be updated. Apply the same rule to secondary metadata
+queries used only to hydrate list DTOs.
+
+### 3. Project to DTOs at the Database Level
 
 ```csharp
 // ✅ GOOD: Projection happens in the database
@@ -657,26 +648,30 @@ var entities = await query.Take(limit).ToListAsync();
 var results = entities.Select(e => new EntityItem { ... }).ToList();
 ```
 
-### 3. Document Sort Field Allowed Values
+### 4. Document Sort Field Allowed Values
 
 In error messages and documentation, clearly state which sort fields are supported:
 
 ```csharp
 return TypedProblems.BadRequest(
-    $"Invalid sortId: {sortIdError.SortId}. Allowed values: id, name, created_at, user_account_count",
+    $"Invalid sort_id: {sortIdError.SortId}. Allowed values: id, name, created_at, user_account_count",
     ResponseKeys.BadRequest
 );
 ```
 
-### 4. Use Meaningful Default Sort
+### 5. Use Meaningful Default Sort
 
 Choose a default sort that makes sense for your domain:
 
 ```csharp
-var effectiveSortId = (sortId ?? "created_at").ToLowerInvariant();  // Most recent first
+var effectiveSortId = sortId ?? "created_at";  // Most recent first
 ```
 
-### 5. Consider Database Indexes
+Validate the value against a case-sensitive snake_case allowlist, or normalize it
+through an explicit parser/dictionary built with
+`StringComparer.OrdinalIgnoreCase`. Do not use `ToLowerInvariant()` for dispatch.
+
+### 6. Consider Database Indexes
 
 For optimal performance, create indexes that match your sort patterns:
 
@@ -688,9 +683,9 @@ CREATE INDEX idx_profiles_name_id ON profiles(name, id);
 CREATE INDEX idx_profiles_created_at_id ON profiles(created_at, id);
 ```
 
-### 6. Validate sortId Early
+### 7. Validate `sort_id` Early
 
-Validate the sortId parameter before doing any database work:
+Validate the wire `sort_id` parameter before doing any database work:
 
 ```csharp
 if (!sortFieldHandlers.ContainsKey(effectiveSortId)) {
@@ -698,7 +693,7 @@ if (!sortFieldHandlers.ContainsKey(effectiveSortId)) {
 }
 ```
 
-### 7. Make Cursor Optional in First Request
+### 8. Make Cursor Optional in First Request
 
 Allow `cursor` to be `null` or `Guid.Empty` for the first page:
 
@@ -719,12 +714,15 @@ When implementing cursor pagination:
 
 - [ ] Created DTO with all required fields including `Id`
 - [ ] Defined discriminated union result type with `Success`, `CursorNotFound`, and `InvalidSortId`
-- [ ] Implemented `SortFieldHandler` for each sortable field
+- [ ] Implemented `CursorSortFieldHandler<TEntity>` entries for each sortable field
 - [ ] For non-Id sorts: included tie-breaker in `getCursorValue` (returns tuple)
 - [ ] For non-Id sorts: included tie-breaker in `applyFilter` (OR clause with Id comparison)
 - [ ] For non-Id sorts: included tie-breaker in `applyOrdering` (ThenBy/ThenByDescending)
 - [ ] Tie-breaker direction matches primary sort direction
-- [ ] Validated `sortId` parameter against allowed values
+- [ ] Validated `sort_id` parameter against allowed values
+- [ ] Added `AsNoTracking()` to read-only cursor lookup queries
+- [ ] Added `AsNoTracking()` to the read-only base result query
+- [ ] Added `AsNoTracking()` to secondary read-only metadata queries
 - [ ] Handled `cursor == Guid.Empty` for first page
 - [ ] Validated cursor exists before applying filter
 - [ ] Fetched `limit + 1` records to detect more pages

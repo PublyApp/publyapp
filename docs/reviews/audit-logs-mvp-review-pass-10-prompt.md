@@ -34,7 +34,7 @@ This is a small delta, so go deep rather than wide. Here are the angles:
 - The collection expression `[.. typeof(AuditActions).GetFields(...).Where(...).Select(...).Distinct().Order()]` — does this actually produce an `ImmutableArray<string>` when assigned to a field typed as `ImmutableArray<string>`? Collection expressions use target-typing, so the compiler should produce the right type. Verify.
 - `ImmutableArray<string>` is a struct. It implements `IReadOnlyList<string>`. The return statement `Task.FromResult<IReadOnlyList<string>>(CachedActions)` boxes the struct. Is this a concern? It happens once per call to `GetDistinctActionsAsync`. Since the list is cached and never changes, this boxing is negligible — but is there a way to avoid it (e.g. cache the `Task` itself)?
 - Is there any performance difference between `ImmutableArray<string>` and the old `List<string>` for this use case? The array is small (maybe 15-20 action strings), created once at class load, never mutated. Both are fine, but is `ImmutableArray` the right choice vs `FrozenSet<string>` or `ReadOnlyCollection<string>`?
-- The `System.Collections.Immutable` namespace — does this pull in a new NuGet dependency, or is it part of the .NET 9/10 BCL? (It's BCL, but verify there's no unnecessary package reference.)
+- The `System.Collections.Immutable` namespace — does this pull in a new NuGet dependency, or is it part of the .NET 10 BCL? (It's BCL, but verify there's no unnecessary package reference.)
 
 ### 2. Is the `[Collection("AuditLogExport")]` correct and sufficient?
 

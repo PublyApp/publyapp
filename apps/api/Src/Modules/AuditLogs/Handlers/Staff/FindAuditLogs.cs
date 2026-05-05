@@ -94,7 +94,7 @@ public class FindAuditLogsQueryValidator
 	}
 }
 
-public static class FindAuditLogs {
+public class FindAuditLogs {
 	public static async Task<Results<
 		Ok<FindAuditLogsResponse>,
 		AppBadRequestHttpResult

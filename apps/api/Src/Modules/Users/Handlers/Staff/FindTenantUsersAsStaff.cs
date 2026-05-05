@@ -1,3 +1,5 @@
+using FluentValidation;
+
 using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
@@ -24,12 +26,75 @@ public class FindTenantUsersAsStaffResult
 	: CursorPaginatedResult<TenantUserItem> { }
 
 public class FindTenantUsersAsStaffQuery
-	: CursorPaginatedQuery { }
+	: CursorPaginatedQuery {
+	[FromQuery(Name = "q")]
+	public string? Search { get; set; }
+
+	[FromQuery]
+	public string? Status { get; set; }
+
+	public string? GetSearchNormalized() {
+		if (Search is null) {
+			return null;
+		}
+
+		var trimmed = Search.Trim();
+		return trimmed.Length == 0 ? null : trimmed;
+	}
+
+	public IReadOnlySet<TenantUserStatus>? GetStatusesOrNull() {
+		if (Status is null) {
+			return null;
+		}
+
+		var trimmed = Status.Trim();
+		if (trimmed.Length == 0) {
+			return null;
+		}
+
+		var parts = trimmed
+			.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+		if (parts.Length == 0) {
+			return null;
+		}
+
+		var statuses = new HashSet<TenantUserStatus>();
+		foreach (var part in parts) {
+			TenantUserStatus? parsed = UserAccount.ParseTenantStatus(part);
+			if (parsed is { } status) {
+				statuses.Add(status);
+			}
+		}
+
+		return statuses.Count > 0 ? statuses : null;
+	}
+}
 
 public class FindTenantUsersAsStaffQueryValidator
 	: CursorPaginatedQueryValidator<
 		FindTenantUsersAsStaffQuery
-	> { }
+	> {
+	private static readonly HashSet<string> AllowedStatuses =
+		new(
+			["active", "suspended", "globally_suspended"],
+			StringComparer.OrdinalIgnoreCase
+		);
+
+	public FindTenantUsersAsStaffQueryValidator() {
+		RuleFor(x => x.Search).MaximumLength(200);
+		RuleFor(x => x.Status)
+			.Must(raw => {
+				if (string.IsNullOrEmpty(raw)) {
+					return true;
+				}
+
+				var parts = raw
+					.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+				return parts.All(AllowedStatuses.Contains);
+			})
+			.WithMessage("Invalid status value. Must be comma-separated: " + string.Join(",", AllowedStatuses));
+	}
+}
 
 public class FindTenantUsersAsStaff {
 	public static async Task<
@@ -52,7 +117,7 @@ public class FindTenantUsersAsStaff {
 		) {
 			return TypedProblems.BadRequest(
 				"Invalid tenantId",
-				ResponseKeys.BadRequest
+				ResponseKeys.MalformedId
 			);
 		}
 
@@ -76,14 +141,21 @@ public class FindTenantUsersAsStaff {
 		var limit = query.GetLimit();
 		var sortId = query.GetSortId();
 		var sortOrder = query.GetSortOrder();
+		var args = new FindTenantUsersAsStaffArgs(
+			Cursor: cursorGuid,
+			Limit: limit,
+			SortId: sortId,
+			SortOrder: sortOrder,
+			Filters: new FindTenantUsersAsStaffFilters(
+				Search: query.GetSearchNormalized(),
+				Status: query.GetStatusesOrNull()
+			)
+		);
 
 		var serviceResult =
 			await userService.FindTenantUsersAsync(
 				tenantId: tenantIdGuid,
-				cursor: cursorGuid,
-				limit: limit,
-				sortId: sortId,
-				sortOrder: sortOrder,
+				args: args,
 				cancellationToken: cancellationToken
 			);
 
@@ -131,12 +203,14 @@ public class FindTenantUsersAsStaff {
 									tu.User.FirstName,
 								AvatarUrl =
 									tu.User.AvatarUrl,
-								Status = User
-									.GetStatusDescription(
-										tu.User.Status
-									),
+								Status = UserAccount.GetStatusDescription(
+									UserAccount.GetTenantStatus(
+										tu.User.Status,
+										tu.Account.Status
+									)
+								),
 								Level = UserAccount
-									.GetAccountLevelDescription(
+									.GetLevelDescription(
 										tu.AccountLevel
 									),
 							}

@@ -22,10 +22,9 @@ export const useScrollProgress = (
 		target === 'container' ? options : undefined,
 	);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	const memoizedValue = useMemo(() => {
 		return { elementRef, scrollXProgress, scrollYProgress };
-	}, [elementRef, scrollXProgress, scrollYProgress]);
+	}, [scrollXProgress, scrollYProgress]);
 
 	return memoizedValue;
 };

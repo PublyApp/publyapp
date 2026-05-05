@@ -2,13 +2,13 @@ import Box from '@mui/material/Box';
 import { type Breakpoint, styled } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 
-import { Logo } from '@/front/components/logo';
+import { Logo } from '#app/components/logo/index.ts';
 import {
 	NavSectionMini,
 	type NavSectionProps,
 	NavSectionVertical,
-} from '@/front/components/nav-section';
-import { Scrollbar } from '@/front/components/scrollbar';
+} from '#app/components/nav-section/index.ts';
+import { Scrollbar } from '#app/components/scrollbar/index.ts';
 
 import { layoutClasses } from '../core/classes';
 
@@ -124,26 +124,28 @@ const NavRoot = styled('div', {
 	shouldForwardProp: (prop: string) => {
 		return !['isNavMini', 'layoutQuery', 'sx'].includes(prop);
 	},
-})<Pick<NavVerticalProps, 'isNavMini' | 'layoutQuery'>>(
-	({ isNavMini, layoutQuery = 'md', theme }) => {
-		return {
-			top: 0,
-			left: 0,
-			height: '100%',
-			display: 'none',
-			position: 'fixed',
-			flexDirection: 'column',
-			zIndex: 'var(--layout-nav-zIndex)',
-			backgroundColor: 'var(--layout-nav-bg)',
-			width: isNavMini
-				? 'var(--layout-nav-mini-width)'
-				: 'var(--layout-nav-vertical-width)',
-			borderRight: `1px solid var(--layout-nav-border-color, ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)})`,
-			transition: theme.transitions.create(['width'], {
-				easing: 'var(--layout-transition-easing)',
-				duration: 'var(--layout-transition-duration)',
-			}),
-			[theme.breakpoints.up(layoutQuery)]: { display: 'flex' },
-		};
-	},
-);
+})<Pick<NavVerticalProps, 'isNavMini' | 'layoutQuery'>>(({
+	isNavMini,
+	layoutQuery = 'md',
+	theme,
+}) => {
+	return {
+		top: 0,
+		left: 0,
+		height: '100%',
+		display: 'none',
+		position: 'fixed',
+		flexDirection: 'column',
+		zIndex: 'var(--layout-nav-zIndex)',
+		backgroundColor: 'var(--layout-nav-bg)',
+		width: isNavMini
+			? 'var(--layout-nav-mini-width)'
+			: 'var(--layout-nav-vertical-width)',
+		borderRight: `1px solid var(--layout-nav-border-color, ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)})`,
+		transition: theme.transitions.create(['width'], {
+			easing: 'var(--layout-transition-easing)',
+			duration: 'var(--layout-transition-duration)',
+		}),
+		[theme.breakpoints.up(layoutQuery)]: { display: 'flex' },
+	};
+});

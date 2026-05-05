@@ -1,15 +1,16 @@
 import { createUntypedString } from '@microsoft/kiota-abstractions';
-import _ from 'lodash';
+import isNil from 'lodash/isNil';
 import type { CreateQueryOptions } from 'react-query-kit';
 
 import type { VerifyEmailRequestBody } from '@org/client-ts/src/models';
-import { toApiFailure } from '@/front/lib/api-failure';
+
+import { toApiFailure } from '#app/lib/api-failure/index.ts';
+import { setCurrentUserIdForTenantHint } from '#app/lib/react-query/query-client.tsx';
 
 import {
 	createAuthMutation,
 	createAuthQuery,
 	createAuthSuspenseQuery,
-	createTenantSuspenseQuery,
 } from '../../create-hooks';
 
 // Custom retry logic for auth failures - fail fast on auth errors
@@ -40,26 +41,10 @@ export const useGetUserAuthData = createAuthSuspenseQuery({
 	queryKeyFn: (client) => client.auth.userAuthData.get,
 	fetcher: async (client) => {
 		const result = await client.auth.userAuthData.get();
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useGetUserAuthData: result is nil');
 		}
-		return result;
-	},
-	retry: authRetry,
-});
-
-// This hook needs tenantId (query param), and we also use the tenant client so the tenant header is set.
-export const useGetTenantAuthData = createTenantSuspenseQuery({
-	queryKeyFn: (client) => client.auth.tenantAuthData.get,
-	fetcher: async (client, { tenantId }) => {
-		const result = await client.auth.tenantAuthData.get({
-			queryParameters: {
-				tenantId,
-			},
-		});
-		if (_.isNil(result)) {
-			throw new Error('useGetTenantAuthData: result is nil');
-		}
+		setCurrentUserIdForTenantHint(result.id ?? undefined);
 		return result;
 	},
 	retry: authRetry,
@@ -73,7 +58,7 @@ export const useGetVerificationLink = createAuthQuery({
 				userId,
 			},
 		});
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useGetVerificationLink: result is nil');
 		}
 		return result;
@@ -88,7 +73,7 @@ export const useGetRedirectCode = createAuthQuery({
 				tenantId,
 			},
 		});
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useGetRedirectCode: result is nil');
 		}
 		return result;
@@ -102,7 +87,7 @@ export const useSendEmailVerificationReminder = createAuthMutation({
 			email: createUntypedString(email) as typeof body.email,
 		};
 		const result = await client.auth.verifyEmailRequest.post(body);
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useSendEmailVerificationReminder: result is nil');
 		}
 		return result;
@@ -113,7 +98,7 @@ export const useGetUserTenants = createAuthQuery({
 	queryKeyFn: (client) => client.auth.userTenants.get,
 	fetcher: async (client) => {
 		const result = await client.auth.userTenants.get();
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useGetUserTenants: result is nil');
 		}
 		return result;
@@ -124,7 +109,7 @@ export const useGetUserTenantsForPicker = createAuthQuery({
 	queryKeyFn: (client) => client.auth.tenantsForPicker.get,
 	fetcher: async (client) => {
 		const result = await client.auth.tenantsForPicker.get();
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useGetUserTenantsForPicker: result is nil');
 		}
 		return result;

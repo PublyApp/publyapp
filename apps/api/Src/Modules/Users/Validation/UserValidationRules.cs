@@ -12,6 +12,30 @@ namespace MainApi.Src.Modules.Users.Validation;
 /// </summary>
 public static class UserValidationRules {
 	/// <summary>
+	/// Validates a required JsonElement account level field:
+	/// must be a string and parse via UserAccount.ParseLevel().
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBeRequiredAccountLevel<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder
+		) {
+		return ruleBuilder
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String) {
+					return false;
+				}
+				var str = e.GetString()
+					?? string.Empty;
+				return UserAccount
+					.ParseLevel(str) is not null;
+			})
+			.WithMessage(
+				"AccountLevel must be a valid "
+				+ "account level"
+			);
+	}
+
+	/// <summary>
 	/// Validates a nullable JsonElement? account level field:
 	/// null OK, otherwise must be valid account level string.
 	/// </summary>
@@ -34,7 +58,7 @@ public static class UserValidationRules {
 				var str = e.Value.GetString()
 					?? string.Empty;
 				return UserAccount
-					.ParseAccountLevel(str) is not null;
+					.ParseLevel(str) is not null;
 			})
 			.WithMessage(
 				"AccountLevel must be a valid "
@@ -58,7 +82,7 @@ public static class UserValidationRules {
 				}
 				var kind = e.Value.ValueKind;
 				if (kind is JsonValueKind.Null) {
-					return true;
+					return false;
 				}
 				if (kind != JsonValueKind.String) {
 					return false;

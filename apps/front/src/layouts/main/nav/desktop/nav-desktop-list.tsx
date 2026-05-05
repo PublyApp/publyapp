@@ -6,7 +6,7 @@ import {
 } from 'minimal-shared/utils';
 import { useCallback, useEffect, useRef } from 'react';
 
-import { usePathname } from '@/front/hooks/use-pathname';
+import { usePathname } from '#app/hooks/use-pathname.ts';
 
 import { Nav, NavDropdown, NavLi, NavUl } from '../components';
 import type { NavListProps, NavSubListProps } from '../types';
@@ -21,11 +21,15 @@ export const NavList = ({ data, sx, ...other }: NavListProps) => {
 
 	const isActive = isActiveLink(pathname, data.path, !!data.children);
 	const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
+	const openRef = useRef(open);
+	const onCloseRef = useRef(onClose);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
+	openRef.current = open;
+	onCloseRef.current = onClose;
+
 	useEffect(() => {
-		if (open) {
-			onClose();
+		if (openRef.current) {
+			onCloseRef.current();
 		}
 	}, [pathname]);
 

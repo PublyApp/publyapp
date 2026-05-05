@@ -3,7 +3,7 @@
 This is a step-by-step guide to build the LinkedIn-only social scheduler MVP in ~10 weeks using the existing PublyApp codebase.
 
 Targets:
-- **Backend**: .NET 9, EF Core 9, PostgreSQL, Hangfire
+- **Backend**: .NET 10, EF Core 10, PostgreSQL, Hangfire
 - **Frontend**: React + Vite
 - **Scope**: LinkedIn OAuth, compose text + single image, schedule, publish via background jobs, queue/history UI
 
@@ -12,7 +12,7 @@ Targets:
 ## 1. Pre-Implementation Setup (Week 0)
 
 ### Development environment checklist
-- [ ] Install .NET 9 SDK
+- [ ] Install .NET 10 SDK
 - [ ] Node.js 20+ and PNPM 9+
 - [ ] Docker Desktop (or equivalent)
 - [ ] PostgreSQL (via docker compose below)

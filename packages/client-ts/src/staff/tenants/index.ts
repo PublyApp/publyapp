@@ -4,6 +4,12 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createCreateTenantAsStaffResultFromDiscriminatorValue, createFindTenantsAsStaffResponseFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializeCreateTenantAsStaffBody, serializeCreateTenantAsStaffResult, type AppProblemDetails, type CreateTenantAsStaffBody, type CreateTenantAsStaffResult, type FindTenantsAsStaffResponse, type ValidationProblemDetails } from '../../models/index.js';
 // @ts-ignore
+import { BulkDeleteRequestBuilderRequestsMetadata, type BulkDeleteRequestBuilder } from './bulkDelete/index.js';
+// @ts-ignore
+import { BulkReactivateRequestBuilderRequestsMetadata, type BulkReactivateRequestBuilder } from './bulkReactivate/index.js';
+// @ts-ignore
+import { BulkSuspendRequestBuilderRequestsMetadata, type BulkSuspendRequestBuilder } from './bulkSuspend/index.js';
+// @ts-ignore
 import { type WithTenantItemRequestBuilder, WithTenantItemRequestBuilderNavigationMetadata, WithTenantItemRequestBuilderRequestsMetadata } from './item/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
@@ -12,6 +18,18 @@ import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type 
  * Builds and executes requests for operations under /staff/tenants
  */
 export interface TenantsRequestBuilder extends BaseRequestBuilder<TenantsRequestBuilder> {
+    /**
+     * The bulkDelete property
+     */
+    get bulkDelete(): BulkDeleteRequestBuilder;
+    /**
+     * The bulkReactivate property
+     */
+    get bulkReactivate(): BulkReactivateRequestBuilder;
+    /**
+     * The bulkSuspend property
+     */
+    get bulkSuspend(): BulkSuspendRequestBuilder;
     /**
      * Gets an item from the MainApi.Client.staff.tenants.item collection
      * @param tenantId Unique identifier of the item
@@ -69,15 +87,13 @@ export interface TenantsRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const TenantsRequestBuilderUriTemplate = "{+baseurl}/staff/tenants{?Cursor*,Limit*,SortId*,SortOrder*,Status*,q*}";
+export const TenantsRequestBuilderUriTemplate = "{+baseurl}/staff/tenants{?Status*,cursor*,limit*,q*,sort_id*,sort_order*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
 const TenantsRequestBuilderGetQueryParametersMapper: Record<string, string> = {
-    "cursor": "Cursor",
-    "limit": "Limit",
-    "sortId": "SortId",
-    "sortOrder": "SortOrder",
+    "sortId": "sort_id",
+    "sortOrder": "sort_order",
     "status": "Status",
 };
 /**
@@ -88,6 +104,15 @@ export const TenantsRequestBuilderNavigationMetadata: Record<Exclude<keyof Tenan
         requestsMetadata: WithTenantItemRequestBuilderRequestsMetadata,
         navigationMetadata: WithTenantItemRequestBuilderNavigationMetadata,
         pathParametersMappings: ["tenantId"],
+    },
+    bulkDelete: {
+        requestsMetadata: BulkDeleteRequestBuilderRequestsMetadata,
+    },
+    bulkReactivate: {
+        requestsMetadata: BulkReactivateRequestBuilderRequestsMetadata,
+    },
+    bulkSuspend: {
+        requestsMetadata: BulkSuspendRequestBuilderRequestsMetadata,
     },
 };
 /**

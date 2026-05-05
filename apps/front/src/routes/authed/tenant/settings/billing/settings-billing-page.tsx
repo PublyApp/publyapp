@@ -9,9 +9,9 @@ import { alpha } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import { nanoid } from 'nanoid';
 
-import { Iconify } from '@/front/components/iconify/iconify';
-import { SettingsPageHeader } from '@/front/components/settings/settings-page-header';
-import { useTranslate } from '@/front/hooks/use-translate';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { SettingsPageHeader } from '#app/components/settings/settings-page-header.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 
 const _invoices = [
 	{ id: nanoid(), date: 'Dec 1, 2026', amount: '$49.00', status: 'Paid' },
@@ -150,7 +150,7 @@ const SettingsBillingPage = () => {
 				</Box>
 
 				<Button
-					startIcon={<Iconify icon="mingcute:add-line" width={20} />}
+					startIcon={<Iconify icon="mingcute:add-line" width={16} />}
 					sx={{ mt: 2 }}
 					disabled
 				>

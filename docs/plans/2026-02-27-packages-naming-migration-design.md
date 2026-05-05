@@ -42,7 +42,7 @@ Update all TypeScript imports:
 |------|--------|
 | `Makefile` | Variables: `SHARED_DIR`, `JS_CLIENT_DIR` |
 | `tsconfig.paths.json` | Path aliases |
-| `biome.jsonc` | Ignore patterns |
+| `.oxlintrc.json` / `.oxfmtrc.json` | Ignore patterns |
 | `.lintstagedrc.js` | Filter patterns |
 | `apps/api/MainApi.csproj` | Translation JSON path |
 | `apps/front/Dockerfile` | COPY paths |

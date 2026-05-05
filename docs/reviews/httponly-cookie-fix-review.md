@@ -214,7 +214,7 @@ Overall, the approach is **coherent and likely to fix the infinite-loop issue**,
 
 #### 7.2 Minor formatting change
 
-- `export const voidFunction = () => { };` gains a space between braces. This is purely stylistic; just ensure it matches your formatter rules (Biome/Prettier/etc.) to avoid back-and-forth diffs.
+- `export const voidFunction = () => { };` gains a space between braces. This is purely stylistic; just ensure it matches your formatter rules (oxfmt/etc.) to avoid back-and-forth diffs.
 
 ---
 

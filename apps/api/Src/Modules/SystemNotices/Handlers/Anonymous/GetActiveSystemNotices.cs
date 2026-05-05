@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Src.Modules.SystemNotices.Handlers.Anonymous;
 
-public static class GetActiveSystemNotices {
+public class GetActiveSystemNotices {
 	public static async Task<Ok<List<ActiveSystemNotice>>> HandleGetActiveSystemNotices(
 		[FromServices] ISystemNoticeService systemNoticeService,
 		CancellationToken cancellationToken = default

@@ -1,9 +1,10 @@
 import Button from '@mui/material/Button';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { useTranslate } from '@/front/hooks/use-translate';
+
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 
 export const NewInvitationButton = () => {
 	const { t } = useTranslate();
@@ -17,7 +18,7 @@ export const NewInvitationButton = () => {
 			component={RouterLink}
 			href={FRONT_PATH_NAMES.staff.invitations.new}
 		>
-			{t('new-invitation')}
+			{t('invite-users')}
 		</Button>
 	);
 };

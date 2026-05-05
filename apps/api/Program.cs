@@ -8,6 +8,7 @@ using MainApi.Src.Modules.Auth.Endpoints;
 using MainApi.Src.Modules.Invitations.Endpoints;
 using MainApi.Src.Modules.Permissions.Endpoints;
 using MainApi.Src.Modules.Profiles.Endpoints;
+using MainApi.Src.Modules.SystemNotices.Endpoints;
 using MainApi.Src.Modules.Tenants.Endpoints;
 using MainApi.Src.Modules.Users.Endpoints;
 
@@ -47,6 +48,7 @@ public class Program {
 
 		app.MapAuthEndpoints();
 		app.MapInvitationEndpointsAnonymous();
+		app.MapSystemNoticeEndpointsAnonymous();
 
 		// Apply filters to route groups (in order of execution)
 		var staffGroup = app.MapGroup(Routes.Staff.Root)
@@ -64,6 +66,7 @@ public class Program {
 		staffGroup.MapUserEndpointsForStaff();
 		staffGroup.MapUserEndpointsForTenantAsStaff();
 		staffGroup.MapInvitationEndpointsForStaff();
+		staffGroup.MapInvitationEndpointsForTenantAsStaff();
 		staffGroup.MapPermissionEndpointsForStaff();
 		staffGroup.MapProfileEndpointsForStaff();
 		staffGroup.MapTenantEndpointsForStaff();

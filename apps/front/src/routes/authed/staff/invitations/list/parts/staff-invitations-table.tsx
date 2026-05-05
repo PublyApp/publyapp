@@ -4,7 +4,6 @@ import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import InputLabel from '@mui/material/InputLabel';
 import Link from '@mui/material/Link';
-import ListItemText from '@mui/material/ListItemText';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import Tooltip from '@mui/material/Tooltip';
@@ -18,7 +17,7 @@ import {
 	type MRT_SortingState,
 } from 'material-react-table';
 import { useBoolean } from 'minimal-shared/hooks';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import type { InvitationListItem } from '@org/client-ts/src/models';
 import {
@@ -26,23 +25,24 @@ import {
 	FRONT_PATH_NAMES,
 } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
-import { Iconify } from '@/front/components/iconify/iconify';
-import type { LabelColor } from '@/front/components/label';
-import { Label } from '@/front/components/label/label';
-import { RouterLink } from '@/front/components/router-link';
-import { toast } from '@/front/components/snackbar';
-import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { useTableQueryOptions } from '@/front/hooks/use-table-query-options';
-import { useTableState } from '@/front/hooks/use-table-state';
-import { useTranslate } from '@/front/hooks/use-translate';
+
+import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import type { LabelColor } from '#app/components/label/index.ts';
+import { Label } from '#app/components/label/label.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
+import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
+import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
+import { useTableState } from '#app/hooks/use-table-state.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
 	useFindStaffInvitations,
-	useGetInvitationLink,
-	useResendInvitation,
-	useRevokeInvitation,
-} from '@/front/lib/react-query/features/staff/staff-invitation.hooks';
-import { fDate, fIsAfter, fToNow } from '@/front/utils/format-time';
+	useGetStaffInvitationLink,
+	useResendStaffInvitation,
+	useRevokeStaffInvitation,
+} from '#app/lib/react-query/features/staff/staff-invitation.hooks.ts';
+import { fDate, fIsAfter, fToNow } from '#app/utils/format-time.ts';
 
 import { NewInvitationButton } from './new-invitation-button';
 
@@ -59,15 +59,17 @@ type StaffInvitationRowData = {
 	createdAt: Date | null;
 };
 
-// Derive a stable status from API fields for UI and filtering.
 const getInvitationStatus = (
 	invitation: InvitationListItem,
 ): StaffInvitationStatus => {
-	if (invitation.isAccepted) {
-		return 'accepted';
-	}
-	if (invitation.isRevoked) {
-		return 'revoked';
+	const status = invitation.status ? _.snakeCase(invitation.status) : undefined;
+	if (
+		status === 'pending' ||
+		status === 'accepted' ||
+		status === 'expired' ||
+		status === 'revoked'
+	) {
+		return status;
 	}
 	if (invitation.expiresAt && fIsAfter(new Date(), invitation.expiresAt)) {
 		return 'expired';
@@ -108,7 +110,6 @@ const StaffInvitationsTable = () => {
 		apiVariables,
 		tableState,
 		setNextCursor,
-		hasNextPage,
 		hasPreviousPage,
 		resetCursorPagination,
 	} = useTableState({
@@ -152,12 +153,19 @@ const StaffInvitationsTable = () => {
 		},
 	});
 
-	// Sync latest cursor into the table state outside render.
-	useEffect(() => {
-		if (setNextCursor) {
-			setNextCursor(invitationsQuery.data?.nextCursor);
-		}
-	}, [invitationsQuery.data?.nextCursor, setNextCursor]);
+	const handleCursorPaginationChange: typeof handlePaginationChange =
+		useCallback(
+			(updater) => {
+				setNextCursor?.(invitationsQuery.data?.nextCursor);
+				handlePaginationChange(updater);
+			},
+			[
+				handlePaginationChange,
+				invitationsQuery.data?.nextCursor,
+				setNextCursor,
+			],
+		);
+	const hasNextPage = invitationsQuery.data?.nextCursor != null;
 
 	const dataTable = useMemo(() => {
 		return _.map(invitationsQuery.data?.data, StaffInvitationRowDataMapper);
@@ -231,7 +239,7 @@ const StaffInvitationsTable = () => {
 		},
 		renderEmptyRowsFallback,
 		meta: {
-			handlePaginationChange,
+			handlePaginationChange: handleCursorPaginationChange,
 			hasNextPage,
 			hasPreviousPage,
 			isPending: invitationsQuery.isPending,
@@ -293,22 +301,33 @@ const EmailCell: MRT_ColumnDef<StaffInvitationRowData, string>['Cell'] = (
 	const id = props.row.original.id;
 
 	return (
-		<ListItemText
-			primary={email || '-'}
-			secondary={
-				<Link
-					component={RouterLink}
-					href={FRONT_PATH_NAMES.staff.invitations.details(id)}
-					underline="hover"
-					sx={{ color: 'text.disabled', fontSize: '0.75rem' }}
-				>
-					{id}
-				</Link>
-			}
-			slotProps={{
-				primary: { noWrap: true },
+		<Box
+			sx={{
+				minWidth: 0,
+				display: 'flex',
+				flexDirection: 'column',
+				gap: 0.25,
 			}}
-		/>
+		>
+			<Typography variant="body2" noWrap>
+				{email || '-'}
+			</Typography>
+			<Link
+				component={RouterLink}
+				href={FRONT_PATH_NAMES.staff.invitations.details(id)}
+				underline="hover"
+				sx={{
+					color: 'text.disabled',
+					fontSize: '0.75rem',
+					display: 'block',
+					overflow: 'hidden',
+					textOverflow: 'ellipsis',
+					whiteSpace: 'nowrap',
+				}}
+			>
+				{id}
+			</Link>
+		</Box>
 	);
 };
 
@@ -430,18 +449,18 @@ const InvitationActionsCell: MRT_ColumnDef<StaffInvitationRowData>['Cell'] = (
 	const canManage = status === 'pending';
 
 	const { mutateAsync: getInvitationLink, isPending: isGettingLink } =
-		useGetInvitationLink();
+		useGetStaffInvitationLink();
 	const { mutateAsync: resendInvitation, isPending: isResending } =
-		useResendInvitation({
+		useResendStaffInvitation({
 			onSuccess: () => {
 				toast.success(t('staff-invitation-resent'));
 			},
 		});
 	const { mutateAsync: revokeInvitation, isPending: isRevoking } =
-		useRevokeInvitation({
+		useRevokeStaffInvitation({
 			onSuccess: () => {
 				toast.success(t('staff-invitation-revoked'));
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useFindStaffInvitations.getKey(),
 				});
 			},
@@ -473,7 +492,11 @@ const InvitationActionsCell: MRT_ColumnDef<StaffInvitationRowData>['Cell'] = (
 			title={t('revoke-invitation')}
 			content={t('confirm-revoke-invitation')}
 			action={
-				<Button variant="contained" color="error" onClick={handleConfirmRevoke}>
+				<Button
+					variant="contained"
+					color="inherit"
+					onClick={handleConfirmRevoke}
+				>
 					{t('staff-revoke')}
 				</Button>
 			}
@@ -526,7 +549,7 @@ const InvitationActionsCell: MRT_ColumnDef<StaffInvitationRowData>['Cell'] = (
 							color="default"
 							loading={isRevoking}
 							onClick={confirmDialog.onTrue}
-							sx={{ color: 'error.main' }}
+							sx={{ color: 'text.secondary' }}
 							size="small"
 						>
 							<Iconify icon="solar:close-circle-bold" />

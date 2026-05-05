@@ -10,10 +10,10 @@ import Typography from '@mui/material/Typography';
 import { usePopover } from 'minimal-shared/hooks';
 import { useCallback, useState } from 'react';
 
-import { CustomPopover } from '@/front/components/custom-popover';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Label } from '@/front/components/label';
-import { Scrollbar } from '@/front/components/scrollbar';
+import { CustomPopover } from '#app/components/custom-popover/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { Label } from '#app/components/label/index.ts';
+import { Scrollbar } from '#app/components/scrollbar/index.ts';
 
 // ----------------------------------------------------------------------
 
@@ -26,8 +26,10 @@ export type WorkspacesPopoverProps = ButtonBaseProps & {
 	}[];
 };
 
+const EMPTY_WORKSPACES: NonNullable<WorkspacesPopoverProps['data']> = [];
+
 export const WorkspacesPopover = ({
-	data = [],
+	data = EMPTY_WORKSPACES,
 	sx,
 	...other
 }: WorkspacesPopoverProps) => {
@@ -170,7 +172,7 @@ export const WorkspacesPopover = ({
 
 				<Button
 					fullWidth
-					startIcon={<Iconify width={18} icon="mingcute:add-line" />}
+					startIcon={<Iconify width={16} icon="mingcute:add-line" />}
 					onClick={() => {
 						onClose();
 					}}

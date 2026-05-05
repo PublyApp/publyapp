@@ -6,7 +6,8 @@ import Typography from '@mui/material/Typography';
 import _ from 'lodash';
 import { varAlpha } from 'minimal-shared/utils';
 
-import { Iconify } from '@/front/components/iconify/iconify';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 
 // ----------------------------------------------------------------------
 
@@ -29,11 +30,13 @@ export const ErrorContent = ({
 	filled,
 	slotProps,
 	onRetry,
-	retryLabel = 'Retry',
+	retryLabel,
 	description,
 	title = 'Something went wrong',
 	...other
 }: ErrorContentProps) => {
+	const { t } = useTranslate();
+
 	return (
 		<ContentRoot filled={filled} sx={sx} {...other}>
 			<Box
@@ -108,7 +111,7 @@ export const ErrorContent = ({
 							: [slotProps?.retryButton?.sx]),
 					]}
 				>
-					{retryLabel}
+					{retryLabel ?? t('retry')}
 				</Button>
 			)}
 		</ContentRoot>

@@ -76,8 +76,7 @@ public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAs
 				RuleFor(x => x.MaxUsers)
 					.Must(m => {
 						if (m.ValueKind != JsonValueKind.Number) return true;
-						var value = m.GetInt32();
-						return value > 0;
+						return m.TryGetInt32(out var value) && value > 0;
 					})
 					.WithMessage("MaxUsers must be greater than 0 when provided");
 			});
@@ -98,9 +97,15 @@ public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAs
 				}
 
 				var body = context.InstanceToValidate as CreateTenantAsStaffBody;
-				var maxUsers = body?.MaxUsers.ValueKind == JsonValueKind.Number
-					? body.MaxUsers.GetInt32()
-					: AppEnvironment.Instance.DEFAULT_MAX_USERS_PER_TENANT;
+				// Invalid numeric tokens are reported by the MaxUsers rule above; avoid
+				// throwing here while validating the independent InitialUsers rule.
+				var maxUsers = AppEnvironment.Instance.DEFAULT_MAX_USERS_PER_TENANT;
+				if (
+					body?.MaxUsers.ValueKind == JsonValueKind.Number &&
+					body.MaxUsers.TryGetInt32(out var parsedMaxUsers)
+				) {
+					maxUsers = parsedMaxUsers;
+				}
 
 				if (array.Count > maxUsers) {
 					context.AddFailure(
@@ -151,13 +156,13 @@ public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAs
 								"AccountLevel is required"
 							);
 						} else {
-							var normalizedLevel = level.ToLowerInvariant();
-							if (normalizedLevel != "admin" && normalizedLevel != "user") {
+							var parsedLevel = UserAccount.ParseLevel(level);
+							if (parsedLevel is null) {
 								context.AddFailure(
 									$"initialUsers[{i}].accountLevel",
 									"AccountLevel must be 'admin' or 'user'"
 								);
-							} else if (normalizedLevel == "admin") {
+							} else if (parsedLevel is AccountLevel.Admin) {
 								hasAdmin = true;
 							}
 						}
@@ -196,7 +201,7 @@ public class CreateTenantAsStaffResult {
 	public string Name { get; set; } = string.Empty;
 }
 
-public static class CreateTenantAsStaff {
+public class CreateTenantAsStaff {
 	public static async Task<
 	Results<
 	Created<CreateTenantAsStaffResult>,
@@ -207,14 +212,15 @@ public static class CreateTenantAsStaff {
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] ILoggerFactory loggerFactory,
+		[FromServices] ILogger<CreateTenantAsStaff> logger,
 		CancellationToken cancellationToken
 	) {
-		var logger = loggerFactory.CreateLogger(nameof(CreateTenantAsStaff));
-
 		var staffAccount = authContext.AccountStaff;
 		if (staffAccount is null) {
-			return TypedProblems.BadRequest("Unauthorized", ResponseKeys.Unauthorized);
+			throw new InvalidOperationException(
+				"Staff account not found in auth context. "
+				+ "Ensure the endpoint has .WithPermission() middleware."
+			);
 		}
 
 		var tenantName = body.GetName();
@@ -225,7 +231,7 @@ public static class CreateTenantAsStaff {
 
 		var initialUsers = initialUsersItems
 			.Select(u => {
-				var level = UserAccount.ParseAccountLevel(u.AccountLevel);
+				var level = UserAccount.ParseLevel(u.AccountLevel);
 				if (level is null) {
 					throw new InvalidOperationException($"Invalid account level: {u.AccountLevel}");
 				}
@@ -234,11 +240,15 @@ public static class CreateTenantAsStaff {
 			.ToList();
 
 		try {
+			var args = new CreateTenantWithInitialUsersArgs(
+				Name: tenantName,
+				MaxUsers: effectiveMaxUsers,
+				InitialUsers: initialUsers,
+				InvitedByUserId: staffAccount.UserId
+			);
+
 			var result = await tenantAsStaffService.CreateTenantWithInitialUsersAsync(
-				tenantName,
-				effectiveMaxUsers,
-				initialUsers,
-				staffAccount.UserId,
+				args,
 				cancellationToken
 			);
 

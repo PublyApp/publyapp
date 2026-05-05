@@ -7,7 +7,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useCallback, useState } from 'react';
 
-import type { IAddressItem } from '@/front/types/common';
+import type { IAddressItem } from '#app/types/common.ts';
 
 import { Iconify } from '../iconify/iconify';
 import { Label } from '../label/label';
@@ -115,7 +115,7 @@ export function AddressListDialog({
 			>
 				<Typography variant="h6"> {title} </Typography>
 
-				{action && action}
+				{action}
 			</Box>
 
 			<Stack sx={{ p: 2, pt: 0 }}>

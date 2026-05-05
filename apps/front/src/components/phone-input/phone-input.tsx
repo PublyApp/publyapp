@@ -9,8 +9,8 @@ import { parsePhoneNumber } from 'react-phone-number-input';
 import type { Country, Value } from 'react-phone-number-input/input';
 import PhoneNumberInput from 'react-phone-number-input/input';
 
-import { countries } from '@/front/assets/data/countries';
-import { Iconify } from '@/front/components/iconify';
+import { countries } from '#app/assets/data/countries.ts';
+import { Iconify } from '#app/components/iconify/index.ts';
 
 import { CountryListPopover } from './list-popover';
 import type { PhoneInputProps } from './types';

@@ -10,14 +10,15 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { useCallback } from 'react';
 
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
-import { AnimateBorder } from '@/front/components/animate';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Label } from '@/front/components/label';
-import { RouterLink } from '@/front/components/router-link';
-import { Scrollbar } from '@/front/components/scrollbar';
-import { usePathname } from '@/front/hooks/use-pathname';
-import { logout } from '@/front/lib/cookies/logout.utils';
-import { useGetUserAuthData } from '@/front/lib/react-query/features/common/auth.hooks';
+
+import { AnimateBorder } from '#app/components/animate/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { Label } from '#app/components/label/index.ts';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { Scrollbar } from '#app/components/scrollbar/index.ts';
+import { usePathname } from '#app/hooks/use-pathname.ts';
+import { logout } from '#app/lib/cookies/logout.utils.ts';
+import { useGetUserAuthData } from '#app/lib/react-query/features/common/auth.hooks.ts';
 
 import { AccountButton } from './account-button';
 import { SignOutButton } from './sign-out-button';
@@ -33,8 +34,10 @@ export type AccountDrawerProps = IconButtonProps & {
 	}[];
 };
 
+const EMPTY_ACCOUNT_DRAWER_DATA: NonNullable<AccountDrawerProps['data']> = [];
+
 export const AccountDrawer = ({
-	data = [],
+	data = EMPTY_ACCOUNT_DRAWER_DATA,
 	sx,
 	...other
 }: AccountDrawerProps) => {
@@ -184,54 +187,7 @@ export const AccountDrawer = ({
 						</Typography>
 					</Box>
 
-					{/* <Box
-						sx={{
-							p: 3,
-							gap: 1,
-							flexWrap: 'wrap',
-							display: 'flex',
-							justifyContent: 'center',
-						}}
-					>
-						{Array.from({ length: 3 }, (_, index) => {
-							return (
-								<Tooltip
-									key={_mock.fullName(index + 1)}
-									title={`Switch to: ${_mock.fullName(index + 1)}`}
-								>
-									<Avatar
-										alt={_mock.fullName(index + 1)}
-										src={_mock.image.avatar(index + 1)}
-										onClick={() => {}}
-									/>
-								</Tooltip>
-							);
-						})}
-
-						<Tooltip title="Add account">
-							<IconButton
-								sx={[
-									(theme) => {
-										return {
-											bgcolor: varAlpha(
-												theme.vars.palette.grey['500Channel'],
-												0.08,
-											),
-											border: `dashed 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.32)}`,
-										};
-									},
-								]}
-							>
-								<Iconify icon="mingcute:add-line" />
-							</IconButton>
-						</Tooltip>
-					</Box> */}
-
 					{renderList()}
-
-					{/* <Box sx={{ px: 2.5, py: 3 }}>
-						<UpgradeBlock />
-					</Box> */}
 				</Scrollbar>
 
 				<Box sx={{ p: 2.5 }}>

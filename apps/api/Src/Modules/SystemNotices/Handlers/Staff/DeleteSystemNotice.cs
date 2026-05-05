@@ -10,15 +10,16 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Src.Modules.SystemNotices.Handlers.Staff;
 
-public static class DeleteSystemNotice {
+public class DeleteSystemNotice {
 	public static async Task<Results<
 		Ok<ApiResponse>,
-		AppNotFoundHttpResult
+		AppNotFoundHttpResult,
+		AppBadRequestHttpResult
 	>> HandleDeleteSystemNotice(
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] ISystemNoticeService systemNoticeService,
 		[FromServices] IAuditLogService auditLogService,
-		[FromRoute] Guid noticeId,
+		[FromRoute] string noticeId,
 		CancellationToken cancellationToken = default
 	) {
 		var account = authContext.AccountStaff;
@@ -30,8 +31,15 @@ public static class DeleteSystemNotice {
 			);
 		}
 
+		if (!Guid.TryParse(noticeId, out var noticeIdGuid)) {
+			return TypedProblems.BadRequest(
+				"Invalid noticeId",
+				ResponseKeys.MalformedId
+			);
+		}
+
 		var deleted = await systemNoticeService.DeleteAsync(
-			noticeId, cancellationToken
+			noticeIdGuid, cancellationToken
 		);
 
 		if (!deleted) {
@@ -42,10 +50,11 @@ public static class DeleteSystemNotice {
 		}
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.SystemNoticeDeleted,
-			noticeId,
-			null,
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.SystemNoticeDeleted,
+				TargetId: noticeIdGuid
+			),
 			cancellationToken
 		);
 

@@ -16,7 +16,8 @@ public sealed class FindStaffPermissionsSpec
 	private static readonly string FindUrl = PathUtils.Join(
 		Routes.Staff.Root,
 		Routes.Permissions.ForStaff.Root,
-		Routes.Permissions.ForStaff.Find
+		Routes.Permissions.ForStaff.Scopes.Root,
+		Routes.Permissions.ForStaff.Scopes.Staff
 	);
 
 	private readonly HttpClient _http;

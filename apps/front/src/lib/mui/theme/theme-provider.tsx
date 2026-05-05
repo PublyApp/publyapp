@@ -1,13 +1,16 @@
 import CssBaseline from '@mui/material/CssBaseline';
 import {
-	ThemeProvider as ThemeVarsProvider,
 	type ThemeProviderProps as MuiThemeProviderProps,
+	ThemeProvider as ThemeVarsProvider,
 } from '@mui/material/styles';
 
-import { useSettingsContext } from '@/front/hooks/use-settings-context';
+import { COLOR_SCHEME_STORAGE_KEY } from '#app/components/settings/settings-config.ts';
+import { useSettingsContext } from '#app/hooks/use-settings-context.ts';
 
 import { useTranslate } from '../../../hooks/use-translate';
 import { createTheme } from './create-theme';
+import { SettingsTabSyncBridge } from './settings-tab-sync-bridge';
+import { themeConfig } from './theme-config';
 import type { ThemeOptions } from './types';
 
 // ----------------------------------------------------------------------
@@ -32,8 +35,17 @@ export const MuiThemeProvider = ({
 	});
 
 	return (
-		<ThemeVarsProvider disableTransitionOnChange theme={theme} {...other}>
+		<ThemeVarsProvider
+			// Match InitColorSchemeScript so server boot, first paint, and the
+			// hydrated MUI provider all read the same flat color-scheme key.
+			defaultMode={themeConfig.defaultMode}
+			disableTransitionOnChange
+			modeStorageKey={COLOR_SCHEME_STORAGE_KEY}
+			theme={theme}
+			{...other}
+		>
 			<CssBaseline />
+			<SettingsTabSyncBridge />
 			{children}
 		</ThemeVarsProvider>
 	);

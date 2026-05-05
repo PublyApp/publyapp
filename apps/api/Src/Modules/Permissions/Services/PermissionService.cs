@@ -1,4 +1,5 @@
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Lib.DI;
 using MainApi.Src.Modules.Profiles.Entities;
 using MainApi.Src.Modules.Users.Entities;
 
@@ -12,6 +13,7 @@ public interface IPermissionService {
 	Task<HashSet<string>> GetPermissionsForProfilesAsync(List<Guid> profileIds);
 }
 
+[Service(ServiceLifetime.Scoped)]
 public class PermissionService : IPermissionService {
 	private readonly MainApiDbContext _context;
 
@@ -39,7 +41,7 @@ public class PermissionService : IPermissionService {
 				uap => uap.ProfileId,
 				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId })
 			.Join(_context.Set<UserAccount>()
-				.Where(ua => !ua.IsDeleted && !ua.IsSuspended),
+				.Where(ua => !ua.IsDeleted && ua.Status != AccountStatus.Suspended),
 				joined => joined.UserAccountId,
 				ua => ua.Id,
 				(joined, ua) => new {
@@ -64,17 +66,30 @@ public class PermissionService : IPermissionService {
 	/// Gets staff permissions for a user (from staff profiles)
 	/// </summary>
 	public async Task<HashSet<string>> GetPermissionsAsync(Guid userId) {
+		// Important: respect soft-deletes on all involved entities.
+		// Otherwise, "unassigned" profiles (soft-deleted UserAccountProfile rows) would still grant permissions.
 		return await _context.Set<ProfilePermission>()
-			.Join(_context.Set<UserAccountProfile>(),
+			.Where(pp => !pp.IsDeleted)
+			.Join(
+				_context.Set<UserAccountProfile>().Where(uap => !uap.IsDeleted),
 				pp => pp.ProfileId,
 				uap => uap.ProfileId,
-				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId })
-			.Join(_context.Set<UserAccount>(),
+				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId }
+			)
+			.Join(
+				_context.Set<UserAccount>()
+					.Where(ua =>
+						!ua.IsDeleted
+						&& ua.Scope == AccountScope.Staff
+						&& ua.Status != AccountStatus.Suspended
+					),
 				joined => joined.UserAccountId,
 				ua => ua.Id,
-				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.Scope })
-			.Where(x => x.UserId == userId && x.Scope == AccountScope.Staff)
+				(joined, ua) => new { joined.PermissionKey, ua.UserId }
+			)
+			.Where(x => x.UserId == userId)
 			.Select(x => x.PermissionKey)
+			.Distinct()
 			.ToHashSetAsync();
 	}
 
@@ -83,16 +98,18 @@ public class PermissionService : IPermissionService {
 	/// </summary>
 	public async Task<HashSet<string>> GetTenantPermissionsAsync(Guid userId, Guid tenantId) {
 		return await _context.Set<ProfilePermission>()
-			.Join(_context.Set<UserAccountProfile>(),
+			.Where(pp => !pp.IsDeleted)
+			.Join(_context.Set<UserAccountProfile>().Where(uap => !uap.IsDeleted),
 				pp => pp.ProfileId,
 				uap => uap.ProfileId,
 				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId })
-			.Join(_context.Set<UserAccount>(),
+			.Join(_context.Set<UserAccount>().Where(ua => !ua.IsDeleted && ua.Status != AccountStatus.Suspended),
 				joined => joined.UserAccountId,
 				ua => ua.Id,
 				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.TenantId, ua.Scope })
 			.Where(x => x.UserId == userId && x.TenantId == tenantId && x.Scope == AccountScope.Tenant)
 			.Select(x => x.PermissionKey)
+			.Distinct()
 			.ToHashSetAsync();
 	}
 
@@ -101,16 +118,18 @@ public class PermissionService : IPermissionService {
 	/// </summary>
 	public async Task<HashSet<string>> GetProjectPermissionsAsync(Guid userId, Guid tenantId, Guid projectId) {
 		return await _context.Set<ProfilePermission>()
-			.Join(_context.Set<UserAccountProfile>(),
+			.Where(pp => !pp.IsDeleted)
+			.Join(_context.Set<UserAccountProfile>().Where(uap => !uap.IsDeleted),
 				pp => pp.ProfileId,
 				uap => uap.ProfileId,
 				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId })
-			.Join(_context.Set<UserAccount>(),
+			.Join(_context.Set<UserAccount>().Where(ua => !ua.IsDeleted && ua.Status != AccountStatus.Suspended),
 				joined => joined.UserAccountId,
 				ua => ua.Id,
 				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.TenantId, ua.ProjectId, ua.Scope })
 			.Where(x => x.UserId == userId && x.TenantId == tenantId && x.ProjectId == projectId && x.Scope == AccountScope.Project)
 			.Select(x => x.PermissionKey)
+			.Distinct()
 			.ToHashSetAsync();
 	}
 
@@ -119,8 +138,9 @@ public class PermissionService : IPermissionService {
 	/// </summary>
 	public async Task<HashSet<string>> GetPermissionsForProfilesAsync(List<Guid> profileIds) {
 		return await _context.Set<ProfilePermission>()
-			.Where(pp => profileIds.Contains(pp.ProfileId))
+			.Where(pp => !pp.IsDeleted && profileIds.Contains(pp.ProfileId))
 			.Select(pp => pp.PermissionKey)
+			.Distinct()
 			.ToHashSetAsync();
 	}
 }

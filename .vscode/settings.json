@@ -1,10 +1,9 @@
 {
 	"cSpell.language": "en,fr",
-	"editor.defaultFormatter": "biomejs.biome",
+	"editor.defaultFormatter": "oxc.oxc-vscode",
 	"editor.codeActionsOnSave": {
 		"source.sortImports": "explicit",
-		"source.fixAll.biome": "explicit",
-		"source.organizeImports.biome": "explicit",
+		"source.fixAll.oxc": "explicit",
 		"source.fixAll.csharp": "explicit",
 		"source.organizeImports.csharp": "explicit"
 	},
@@ -27,7 +26,8 @@
 	"typescript.tsdk": "node_modules\\typescript\\lib",
 	"files.eol": "\n",
 	"files.associations": {
-		"*.slnx": "xml"
+		"*.slnx": "xml",
+		"justfile": "makefile"
 	},
 	"[jsonc]": {
 		"editor.defaultFormatter": "vscode.json-language-features"
@@ -76,6 +76,7 @@
 		"dokploy",
 		"Dokploy",
 		"dotnet",
+		"Dtos",
 		"ecommerce",
 		"faqs",
 		"fetchlibrary",
@@ -87,9 +88,11 @@
 		"httponly",
 		"ianvs",
 		"iconify",
+		"ILIKE",
 		"immer",
 		"Immer",
 		"isbot",
+		"justfile",
 		"kiota",
 		"knip",
 		"languagedetector",
@@ -115,9 +118,12 @@
 		"openapi",
 		"originalname",
 		"outdir",
+		"oxlint",
+		"oxlintrc",
 		"Parens",
 		"partialize",
 		"pdash",
+		"permissioned",
 		"PHOTOSHOP",
 		"Pipeable",
 		"postgres",
@@ -129,9 +135,11 @@
 		"Proxifier",
 		"publyapp",
 		"radandevist",
+		"refetches",
 		"remixicon",
 		"Revalidator",
 		"Roboto",
+		"rrdt",
 		"rsbuild",
 		"rspack",
 		"samesite",
@@ -150,6 +158,10 @@
 		"toastify",
 		"Togglable",
 		"TOGGLABLE",
+		"Turborepo",
+		"unassigning",
+		"unassignment",
+		"undelete",
 		"unkeyed",
 		"Unkeyed",
 		"uuidv",

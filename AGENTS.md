@@ -4,7 +4,7 @@ This file provides guidance to AI coding assistants when working with code in th
 
 ## Project Overview
 
-PublyApp is a modern full-stack multi-tenant SaaS application built with .NET 9.0 and React 19. The monorepo architecture uses Turborepo and pnpm workspaces with three user scopes: Staff (platform administrators), Tenant (organization-level users), and Project (project-level users).
+PublyApp is a modern full-stack multi-tenant SaaS application built with .NET 10.0 and React 19. The monorepo architecture uses Turborepo and pnpm workspaces with three user scopes: Staff (platform administrators), Tenant (organization-level users), and Project (project-level users).
 
 ## Development Commands
 
@@ -12,14 +12,16 @@ PublyApp is a modern full-stack multi-tenant SaaS application built with .NET 9.
 
 ```bash
 # Terminal 1 - Start API with hot reload
-make dev-api
+just dev-api
 
 # Terminal 2 - Start React frontend with Vite
-make dev-front
+just dev-front
 
 # Start PostgreSQL in Docker
-make dev-db
+just dev-db
 ```
+
+**Windows note:** the repo `justfile` uses PowerShell 7 (`pwsh`) on Windows (not Windows PowerShell 5.1).
 
 ### Configuration (AppEnvironment)
 
@@ -32,26 +34,26 @@ The API reads configuration exclusively from environment variables via `AppEnvir
 ### Building
 
 ```bash
-make build-api          # Build .NET API
-make build-front        # Build React frontend for production
-make build-deploy       # Build everything for deployment
+just build-api          # Build .NET API
+just build-front        # Build React frontend for production
+just build-deploy       # Build everything for deployment
 ```
 
 ### Code Quality
 
 ```bash
-make check-write        # Run Biome linting + formatting (auto-fix)
-make tsc-front          # TypeScript type checking
-make knip               # Check for unused dependencies
+just check-write        # Run oxlint + oxfmt (auto-fix)
+just tsc-front          # TypeScript type checking
+just knip               # Check for unused dependencies
 ```
 
 ### Database Operations
 
 ```bash
-make db-migrate                # Run EF Core migrations
-make db-add NAME=MigrationName # Add new migration
-make db-reset                  # Drop and recreate database
-make db-remove                 # Remove last migration
+just db-migrate                # Run EF Core migrations
+just db-add MigrationName      # Add new migration
+just db-reset                  # Drop and recreate database
+just db-remove                 # Remove last migration
 ```
 
 ### API Client Generation
@@ -59,7 +61,7 @@ make db-remove                 # Remove last migration
 After backend changes that modify the API contract:
 
 ```bash
-make generate-client    # Generate TypeScript client from OpenAPI
+just generate-client    # Generate TypeScript client from OpenAPI
 ```
 
 This is critical - the frontend TypeScript client is auto-generated from the backend OpenAPI spec.
@@ -67,7 +69,7 @@ This is critical - the frontend TypeScript client is auto-generated from the bac
 ### Running Tests
 
 ```bash
-make test-api          # Run API integration tests (requires Docker)
+just test-api          # Run API integration tests (requires Docker)
 ```
 
 **Prerequisites:** Docker must be running (Testcontainers spins up Postgres automatically).
@@ -91,7 +93,7 @@ For the full guide on writing and debugging integration tests, see [`docs/guides
 
 ```
 apps/
-├── api/              # .NET 9.0 Web API backend
+├── api/              # .NET 10.0 Web API backend
 ├── front/            # React Router v7 frontend (SSR-enabled)
 └── jobs/             # Background jobs (future)
 
@@ -209,12 +211,25 @@ For route parameter conventions (no route constraints, ID validation pattern), s
 - Symmetry: same resource names in both APIs (`users`, `invitations`, `posts`)
 - Handler suffixes: `*ForStaff`, `*ForTenantAsStaff`, `*ForTenant`, `*Anonymous`
 - **Never** use route constraints (`:guid`, `:int`) on ID parameters — validate with `Guid.TryParse` in handlers; malformed ID → `BadRequest` (400), entity not found → `NotFound` (404)
+- **API contract naming split**:
+  - Internal .NET symbols stay **PascalCase** (`UpdatedAt`, `SortId`, `UserId`)
+  - Database column names stay **snake_case** via EF mappings (`updated_at`)
+  - JSON body/response fields stay **camelCase** unless a deliberate contract migration says otherwise
+  - URL/query parameter names use **snake_case** (`sort_id`, `sort_order`, `updated_at`)
+  - Multi-word wire-format option values also use **snake_case** (`created_at`, `user_account_count`)
+  - Never use collapsed lowercase wire values like `updatedat`
 
 ## Frontend Coding Standards
 
 For the complete frontend coding standards (MUI components, sx prop styling, Day.js utilities,
 array methods, arrow functions, arrow components, forms, QueryDisplay, and component structure), see:
 [`docs/guides/frontend-coding-standards.md`](docs/guides/frontend-coding-standards.md)
+
+Additional repo-specific preferences for AI assistants (to reduce review churn):
+[`docs/guides/ai-agent-preferences.md`](docs/guides/ai-agent-preferences.md)
+
+For the marketing-vs-product surface split (what brand DNA must match vs what's allowed to diverge on radii/sizing/motion, approved hardcoded-color exceptions, where marketing code lives), see:
+[`docs/guides/marketing-surface-conventions.md`](docs/guides/marketing-surface-conventions.md)
 
 **Key principles (always apply):**
 - MUI v6 only — never native HTML elements (`<div>` → `<Box>`, `<h1>` → `<Typography variant="h1">`)
@@ -224,6 +239,14 @@ array methods, arrow functions, arrow components, forms, QueryDisplay, and compo
 - `QueryDisplay` component for TanStack Query states — never manual conditional rendering
 - No `Array.reduce()` — use `find`, `filter+map`, `for...of`, or `Object.groupBy`
 - React Hook Form + Zod for form validation — always use `Form`/`Field.*` wrappers from `@/front/components/hook-form`, never raw MUI `TextField` with `register()`
+- First-column table entity avatars/icons must use a neutral, muted, subtle fallback treatment; preserve real images when present, but avoid bright semantic or generated avatar colors for fallback icons
+- Marketing surfaces (landing, pricing, future blog) may diverge from product defaults on radii (16–40 px), button sizing, spacing, and motion — but must match product on palette tokens, typography family, primary CTA color, and dark-mode mechanism. See `docs/guides/marketing-surface-conventions.md` for the full divergence table and approved hardcoded-color exceptions.
+
+## JavaScript/TypeScript Conventions
+
+**Key principles (always apply):**
+- Prefer targeted `lodash/*` helpers over built-in JavaScript methods when the lodash helper provides safer runtime handling for nullish or invalid inputs
+- Import specific helpers such as `lodash/map`, `lodash/trim`, `lodash/isEqual`, and `lodash/capitalize` instead of the full `lodash` package
 
 ## C# Coding Standards
 
@@ -242,9 +265,11 @@ For FluentValidation conventions (shared extension methods, pagination validator
 - Query syntax for database LINQ queries; method syntax only for terminal ops
 - Handlers orchestrate, services implement (no DbContext in handlers)
 - Request body DTOs use `JsonElement` with `Get*()` methods for FluentValidation compatibility
+- In handlers, cache body DTO getter results in locals when they are used 2+ times or return parsing-sensitive values like `PatchField<T>`, trimmed strings, parsed timestamps, or parsed enums
 - All errors use `TypedProblems.*` (RFC 7807), never `TypedResults.Forbid()`
 - Services MUST NOT depend on other services (only DbContext + infrastructure)
-- Use `[Service]` attribute for DI registration; `{Action}{Domain}Args` records for 3+ params
+- Use `[Service]` attribute for DI registration; `{Action}{Domain}Args` records for 3+ params;
+  update `apps/api/Src/Lib/Architecture/ServiceArgsRecordConvention.Spec.cs` assertions when adding/refactoring these methods
 - `PatchField<T>` for clearable nullable PATCH fields (see [`docs/guides/patchfield-pattern.md`](docs/guides/patchfield-pattern.md))
 - Max 100 char line length; always use braces on control flow blocks
 - "Find" prefix for list/collection retrieval (not "List")
@@ -252,6 +277,9 @@ For FluentValidation conventions (shared extension methods, pagination validator
 - For cursor/keyset pagination, see [`docs/guides/cursor-keyset-pagination-guide.md`](docs/guides/cursor-keyset-pagination-guide.md)
 - For list pages with search/filter + cursor pagination + bulk actions, see [`docs/guides/list-pages-search-filter-cursor-pagination.md`](docs/guides/list-pages-search-filter-cursor-pagination.md)
 - **Validators**: use `JsonElementRules.*` extension methods (never inline validation chains); inherit `OffsetPaginatedQueryValidator<T>`/`CursorPaginatedQueryValidator<T>` for pagination; inherit `EncryptedIdTokenQueryValidator<T>` for encrypted-ID + token queries
+- **Never** use `ToLower()` / `ToLowerInvariant()` as a comparison or dispatch strategy; use
+  `StringComparison.OrdinalIgnoreCase`, `StringComparer.OrdinalIgnoreCase`, or explicit
+  case-insensitive parsers/dictionaries instead
 
 ## Test Conventions
 
@@ -268,8 +296,8 @@ For step-by-step checklists (adding features, updating API contract, adding enti
 [`docs/guides/common-workflows.md`](docs/guides/common-workflows.md)
 
 **Quick reference:**
-- After API contract changes: `make build-api && make generate-client` (never modify `packages/client-ts/` manually)
-- New entity: inherit `BaseAttributes`, implement tenant interface, add `DbSet`, `make db-add && make db-migrate`
+- After API contract changes: `just build-api && just generate-client` (never modify `packages/client-ts/` manually)
+- New entity: inherit `BaseAttributes`, implement tenant interface, add `DbSet`, `just db-add <MigrationName> && just db-migrate`
 - New permission: add to `Seeder.cs`, use `PermissionFilter` on endpoint, check via `AuthContext.HasPermission()`
 
 ## Project Conventions
@@ -282,6 +310,7 @@ For detailed conventions (route naming, API response format with JSON examples, 
 - Errors: `AppProblemDetails` (400/401/403/404/500) + `ValidationProblemDetails` (422) — both RFC 7807
 - Frontend/Node: use `logger` from `@/shared/lib/logger/iso-logger` (not `console.*`)
 - Frontend API errors: centralized via `ApiFailure` discriminated union — see [`docs/guides/frontend-error-handling.md`](docs/guides/frontend-error-handling.md)
+- Frontend local mutation handlers must derive user-facing error text through `getFailureMessage(toApiFailure(error), ...)`; never translate `response-message` keys manually at the call site
 
 ## Development Environment
 
@@ -305,7 +334,7 @@ client regeneration workflow, and TypeScript patterns), see:
 **Key rules (always apply):**
 - Required body fields: non-nullable `JsonElement` (not `JsonElement?`) for cleaner TypeScript types
 - Never add XML comments to generic types (`<T>`) — triggers .NET 10 OpenAPI bug
-- After DTO/endpoint changes: `make build-api && make generate-client && make tsc-front`
+- After DTO/endpoint changes: `just build-api && just generate-client && just tsc-front`
 - Use `createUntypedString()` / `createUntypedArray()` for request body fields in TypeScript
 
 ## Documentation Organization

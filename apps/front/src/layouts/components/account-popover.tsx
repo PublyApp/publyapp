@@ -6,20 +6,14 @@ import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import Typography from '@mui/material/Typography';
 import { usePopover } from 'minimal-shared/hooks';
-
-// import { useMockedUser } from '@/front/auth/hooks';
-// import { RouterLink } from '@/front/routes/components';
-// import { usePathname } from '@/front/routes/hooks';
-// import { paths } from '@/front/routes/paths';
-
 import { useCallback } from 'react';
 
-import { CustomPopover } from '@/front/components/custom-popover';
-import { Label } from '@/front/components/label';
-import { RouterLink } from '@/front/components/router-link';
-import { usePathname } from '@/front/hooks/use-pathname';
-import { logout } from '@/front/lib/cookies/logout.utils';
-import { useGetUserAuthData } from '@/front/lib/react-query/features/common/auth.hooks';
+import { CustomPopover } from '#app/components/custom-popover/index.ts';
+import { Label } from '#app/components/label/index.ts';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { usePathname } from '#app/hooks/use-pathname.ts';
+import { logout } from '#app/lib/cookies/logout.utils.ts';
+import { useGetUserAuthData } from '#app/lib/react-query/features/common/auth.hooks.ts';
 
 import { AccountButton } from './account-button';
 import { SignOutButton } from './sign-out-button';
@@ -35,8 +29,10 @@ export type AccountPopoverProps = IconButtonProps & {
 	}[];
 };
 
+const EMPTY_ACCOUNT_POPOVER_DATA: NonNullable<AccountPopoverProps['data']> = [];
+
 export const AccountPopover = ({
-	data = [],
+	data = EMPTY_ACCOUNT_POPOVER_DATA,
 	sx,
 	...other
 }: AccountPopoverProps) => {

@@ -3,6 +3,7 @@ using System.Text.Json;
 using FluentValidation;
 
 using MainApi.Localization;
+using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Validation;
@@ -16,41 +17,56 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Modules.Users.Handlers.Staff;
 
 public class UpdateStaffUserBody {
-	public JsonElement? Email { get; set; }
-	public JsonElement? LastName { get; set; }
-	public JsonElement? FirstName { get; set; }
-	public JsonElement? AvatarUrl { get; set; }
+	// NOTE: This is the "general details" PATCH endpoint for a staff user.
+	// High-risk identity operations (email changes) and lifecycle operations (suspend/reactivate)
+	// are intentionally handled by dedicated endpoints so they can be permission-gated and audited
+	// more explicitly than a generic patch.
+	public JsonElement LastName { get; init; }
+	public JsonElement FirstName { get; init; }
+	public JsonElement AvatarUrl { get; init; }
 	public JsonElement? AccountLevel { get; set; }
-	public JsonElement? Status { get; set; }
 
-	public string? GetEmail() => Email?.GetValueAsStringOrNull();
-	public string? GetLastName() => LastName?.GetValueAsStringOrNull();
-	public string? GetFirstName() => FirstName?.GetValueAsStringOrNull();
-	public string? GetAvatarUrl() => AvatarUrl?.GetValueAsStringOrNull();
+	public PatchField<string?> GetFirstName() =>
+		FirstName.ValueKind switch {
+			JsonValueKind.Undefined => PatchField<string?>.Absent(),
+			JsonValueKind.Null => PatchField<string?>.Set(null),
+			JsonValueKind.String => PatchField<string?>.Set(FirstName.GetValueAsString()),
+			_ => throw new InvalidOperationException("FirstName must be a string, null, or omitted"),
+		};
+
+	public PatchField<string?> GetLastName() =>
+		LastName.ValueKind switch {
+			JsonValueKind.Undefined => PatchField<string?>.Absent(),
+			JsonValueKind.Null => PatchField<string?>.Set(null),
+			JsonValueKind.String => PatchField<string?>.Set(LastName.GetValueAsString()),
+			_ => throw new InvalidOperationException("LastName must be a string, null, or omitted"),
+		};
+
+	public PatchField<string?> GetAvatarUrl() =>
+		AvatarUrl.ValueKind switch {
+			JsonValueKind.Undefined => PatchField<string?>.Absent(),
+			JsonValueKind.Null => PatchField<string?>.Set(null),
+			JsonValueKind.String => PatchField<string?>.Set(AvatarUrl.GetValueAsString()),
+			_ => throw new InvalidOperationException("AvatarUrl must be a string, null, or omitted"),
+		};
+
 	public string? GetAccountLevel() => AccountLevel?.GetValueAsStringOrNull();
-	public string? GetStatus() => Status?.GetValueAsStringOrNull();
 }
 
 public class UpdateStaffUserBodyValidator
 	: AbstractValidator<UpdateStaffUserBody> {
 	public UpdateStaffUserBodyValidator() {
-		RuleFor(x => x.Email)
-			.MustBeNullableEmail();
-
 		RuleFor(x => x.LastName)
-			.MustBeNullableNonEmptyString("LastName");
+			.MustBePatchFieldString("LastName");
 
 		RuleFor(x => x.FirstName)
-			.MustBeNullableNonEmptyString("FirstName");
+			.MustBePatchFieldString("FirstName");
 
 		RuleFor(x => x.AvatarUrl)
-			.MustBeNullableUrl("AvatarUrl");
+			.MustBePatchFieldUrl("AvatarUrl");
 
 		RuleFor(x => x.AccountLevel)
 			.MustBeNullableAccountLevel();
-
-		RuleFor(x => x.Status)
-			.MustBeNullableUserStatus();
 	}
 }
 
@@ -79,12 +95,22 @@ public class UpdateStaffUser {
 
 			return TypedProblems.BadRequest(
 				"Invalid user ID",
+				ResponseKeys.MalformedId
+			);
+		}
+
+		if (!body.GetFirstName().IsPresent
+			&& !body.GetLastName().IsPresent
+			&& !body.GetAvatarUrl().IsPresent
+			&& body.GetAccountLevel() is null) {
+			// PATCH-like endpoint: an empty request means the client sent no work.
+			return TypedProblems.BadRequest(
+				"No fields to update",
 				ResponseKeys.BadRequest
 			);
 		}
 
 		var updateUserDocument = new UpdateUserDocument {
-			Email = body.GetEmail(),
 			LastName = body.GetLastName(),
 			FirstName = body.GetFirstName(),
 			AvatarUrl = body.GetAvatarUrl(),
@@ -156,7 +182,7 @@ public class UpdateStaffUser {
 				AvatarUrl = userData.User.AvatarUrl,
 				AccountLevel =
 					UserAccount
-						.GetAccountLevelDescription(
+						.GetLevelDescription(
 							userData.AccountLevel
 						),
 				Status = User.GetStatusDescription(

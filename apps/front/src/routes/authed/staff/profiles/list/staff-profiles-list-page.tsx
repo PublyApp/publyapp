@@ -6,12 +6,13 @@ import _ from 'lodash';
 import { data } from 'react-router';
 
 import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
-import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+
+import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
+import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/staff-profiles-list-page';
 import StaffProfilesTable from './parts/staff-profiles-table';
@@ -75,7 +76,7 @@ const StaffInvitationsListPage = () => {
 						component={RouterLink}
 						href={FRONT_PATH_NAMES.staff.profiles.new}
 						variant="contained"
-						startIcon={<Iconify icon="mingcute:add-line" />}
+						startIcon={<Iconify width={16} icon="mingcute:add-line" />}
 					>
 						{t('new-item', { item: _.toLower(t('profile')) })}
 					</Button>

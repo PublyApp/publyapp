@@ -5,8 +5,8 @@ import type { Breakpoint } from '@mui/material/styles';
 import { mergeSx } from '@mui/x-date-pickers/internals';
 import _ from 'lodash';
 
-import { Logo } from '@/front/components/logo/logo';
-import { RouterLink } from '@/front/components/router-link';
+import { Logo } from '#app/components/logo/logo.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
 
 import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
 import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';

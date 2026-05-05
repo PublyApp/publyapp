@@ -186,6 +186,96 @@ public static class JsonElementRules {
 			);
 	}
 
+	/// <summary>
+	/// Validates a non-nullable JsonElement URL field for PatchField pattern:
+	/// Undefined OK (omit), null OK (clear), otherwise must be valid http(s) URL.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBePatchFieldUrl<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName
+	) {
+		return ruleBuilder
+			.Must(e => {
+				var kind = e.ValueKind;
+				if (kind is JsonValueKind.Undefined) {
+					return true;
+				}
+				if (kind is JsonValueKind.Null) {
+					return true;
+				}
+				if (kind is not JsonValueKind.String) {
+					return false;
+				}
+				var url = e.GetString();
+				if (string.IsNullOrWhiteSpace(url)) {
+					return false;
+				}
+				if (!Uri.TryCreate(
+					url, UriKind.Absolute, out var result
+				)) {
+					return false;
+				}
+				return result.Scheme == Uri.UriSchemeHttp
+					|| result.Scheme == Uri.UriSchemeHttps;
+			})
+			.WithMessage(
+				$"{fieldName} must be a string, null, or omitted"
+			);
+	}
+
+	/// <summary>
+	/// Validates a non-nullable JsonElement string field for PatchField pattern:
+	/// Undefined OK (omit), null OK (clear), otherwise must be a non-empty string.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBePatchFieldString<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName
+	) {
+		return ruleBuilder
+			.Must(e => {
+				var kind = e.ValueKind;
+				if (kind is JsonValueKind.Undefined) {
+					return true;
+				}
+				if (kind is JsonValueKind.Null) {
+					return true;
+				}
+				if (kind is not JsonValueKind.String) {
+					return false;
+				}
+				var str = e.GetString();
+				return !string.IsNullOrWhiteSpace(str);
+			})
+			.WithMessage(
+				$"{fieldName} must be a non-empty string, null, or omitted"
+			);
+	}
+
+	/// <summary>
+	/// Validates a non-nullable JsonElement string field for PATCH-like scenarios:
+	/// Undefined OK (omit), null OK, otherwise must be a string.
+	/// Use this when the endpoint wants to preserve nullable-string semantics while
+	/// still using the shared JsonElement shape check.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBePatchFieldNullableString<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName
+	) {
+		return ruleBuilder
+			.Must(e => {
+				var kind = e.ValueKind;
+				return kind is JsonValueKind.Undefined
+					or JsonValueKind.Null
+					or JsonValueKind.String;
+			})
+			.WithMessage(
+				$"{fieldName} must be a string, null, or omitted"
+			);
+	}
+
 
 	/// <summary>
 	/// Validates a nullable JsonElement? boolean field:
@@ -243,6 +333,46 @@ public static class JsonElementRules {
 			.WithMessage(
 				"Email must be a valid email address"
 			);
+	}
+
+	/// <summary>
+	/// Validates a required JsonElement GUID array field:
+	/// required → array → non-empty → bounded size → every item is a GUID string.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBeRequiredGuidArray<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName,
+			string itemName,
+			int maxCount
+	) {
+		return ruleBuilder
+			.Must(element =>
+				element.ValueKind
+				is not JsonValueKind.Undefined
+				and not JsonValueKind.Null
+			)
+			.WithMessage($"{fieldName} is required")
+			.Must(element => element.ValueKind == JsonValueKind.Array)
+			.WithMessage($"{fieldName} must be an array")
+			.Must(element =>
+				element.ValueKind == JsonValueKind.Array
+				&& element.EnumerateArray().Any()
+			)
+			.WithMessage($"At least one {itemName} is required")
+			.Must(element =>
+				element.ValueKind == JsonValueKind.Array
+				&& element.EnumerateArray().Count() <= maxCount
+			)
+			.WithMessage($"Maximum {maxCount} {fieldName} allowed")
+			.Must(element =>
+				element.ValueKind == JsonValueKind.Array
+				&& element.EnumerateArray().All(item =>
+					item.ValueKind == JsonValueKind.String
+					&& item.TryGetGuid(out _)
+				)
+			)
+			.WithMessage($"Every {itemName} must be a valid GUID");
 	}
 
 	/// <summary>

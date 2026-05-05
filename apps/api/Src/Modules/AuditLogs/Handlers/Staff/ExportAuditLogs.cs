@@ -21,7 +21,18 @@ public class ExportAuditLogsQuery {
 	[FromQuery] public string? EndDate { get; set; }
 
 	public string? GetFormat() {
-		return Format?.ToLowerInvariant();
+		if (Format is null) {
+			return null;
+		}
+
+		if (string.Equals(Format, "csv", StringComparison.OrdinalIgnoreCase)) {
+			return "csv";
+		}
+		if (string.Equals(Format, "json", StringComparison.OrdinalIgnoreCase)) {
+			return "json";
+		}
+
+		return Format;
 	}
 
 	public Guid? GetUserId() {
@@ -118,7 +129,7 @@ public class ExportAuditLogsQueryValidator
 	}
 }
 
-public static class ExportAuditLogs {
+public class ExportAuditLogs {
 	public static async Task<IResult>
 		HandleExportAuditLogs(
 		[AsParameters] ExportAuditLogsQuery query,

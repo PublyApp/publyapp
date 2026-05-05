@@ -2,7 +2,6 @@ import Box from '@mui/material/Box';
 import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import InputLabel from '@mui/material/InputLabel';
-import ListItemText from '@mui/material/ListItemText';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import Tooltip from '@mui/material/Tooltip';
@@ -15,29 +14,30 @@ import {
 	type MRT_ColumnDef,
 	type MRT_SortingState,
 } from 'material-react-table';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import type { AuditLogListItem } from '@org/client-ts/src/models';
 import {
 	DEFAULT_PAGE_SIZE,
 	FRONT_PATH_NAMES,
 } from '@org/shared-ts/lib/constants';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { useTableQueryOptions } from '@/front/hooks/use-table-query-options';
-import { useTableState } from '@/front/hooks/use-table-state';
-import { useTranslate } from '@/front/hooks/use-translate';
+
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
+import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
+import { useTableState } from '#app/hooks/use-table-state.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
 	useFindStaffAuditLogs,
 	useGetStaffAuditLogActions,
-} from '@/front/lib/react-query/features/staff/staff-audit-log.hooks';
+} from '#app/lib/react-query/features/staff/staff-audit-log.hooks.ts';
 import {
 	type Dayjs,
 	fDateTime,
 	formatPatterns,
 	fToNow,
-} from '@/front/utils/format-time';
+} from '#app/utils/format-time.ts';
 
 import { AuditLogsExportButton } from './audit-logs-export-button';
 
@@ -82,7 +82,6 @@ const StaffAuditLogsTable = () => {
 		apiVariables,
 		tableState,
 		setNextCursor,
-		hasNextPage,
 		hasPreviousPage,
 		resetCursorPagination,
 	} = useTableState({
@@ -127,11 +126,15 @@ const StaffAuditLogsTable = () => {
 		},
 	});
 
-	useEffect(() => {
-		if (setNextCursor) {
-			setNextCursor(auditLogsQuery.data?.nextCursor);
-		}
-	}, [auditLogsQuery.data?.nextCursor, setNextCursor]);
+	const handleCursorPaginationChange: typeof handlePaginationChange =
+		useCallback(
+			(updater) => {
+				setNextCursor?.(auditLogsQuery.data?.nextCursor);
+				handlePaginationChange(updater);
+			},
+			[handlePaginationChange, auditLogsQuery.data?.nextCursor, setNextCursor],
+		);
+	const hasNextPage = auditLogsQuery.data?.nextCursor != null;
 
 	const dataTable = useMemo(() => {
 		return _.map(auditLogsQuery.data?.data, AuditLogRowDataMapper);
@@ -194,7 +197,7 @@ const StaffAuditLogsTable = () => {
 		},
 		renderEmptyRowsFallback,
 		meta: {
-			handlePaginationChange,
+			handlePaginationChange: handleCursorPaginationChange,
 			hasNextPage,
 			hasPreviousPage,
 			isPending: auditLogsQuery.isPending,
@@ -314,17 +317,25 @@ const UserCell: MRT_ColumnDef<AuditLogRowData, string>['Cell'] = (props) => {
 	const userEmail = props.row.original.userEmail;
 
 	return (
-		<ListItemText
-			primary={userName || '-'}
-			secondary={userEmail || '-'}
-			slotProps={{
-				primary: { noWrap: true },
-				secondary: {
-					noWrap: true,
-					sx: { color: 'text.disabled', fontSize: '0.75rem' },
-				},
+		<Box
+			sx={{
+				minWidth: 0,
+				display: 'flex',
+				flexDirection: 'column',
+				gap: 0.25,
 			}}
-		/>
+		>
+			<Typography variant="body2" noWrap>
+				{userName || '-'}
+			</Typography>
+			<Typography
+				variant="caption"
+				noWrap
+				sx={{ color: 'text.disabled', display: 'block' }}
+			>
+				{userEmail || '-'}
+			</Typography>
+		</Box>
 	);
 };
 

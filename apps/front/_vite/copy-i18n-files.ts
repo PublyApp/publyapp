@@ -59,7 +59,7 @@ const copyI18nFiles = (): Plugin => {
 				}
 			})();
 
-			task.then(() => {
+			void task.then(() => {
 				_debug(`copied ${src} to ${dest}`);
 			});
 			tasks.push(task);

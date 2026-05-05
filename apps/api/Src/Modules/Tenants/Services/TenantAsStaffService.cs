@@ -1,5 +1,6 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.DI;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Invitations.Entities;
 using MainApi.Src.Modules.Profiles.Entities;
@@ -23,7 +24,6 @@ public class TenantAsStaffListItem {
 	public required int UsersCount { get; init; }
 	public required int MaxUsers { get; init; }
 	public required string Status { get; init; }
-	public required bool IsSuspended { get; init; }
 }
 
 public record CreateTenantWithInitialUsersResult {
@@ -32,17 +32,48 @@ public record CreateTenantWithInitialUsersResult {
 }
 
 // Result types for suspend/reactivate operations
-public enum SuspendTenantError { NotFound, AlreadySuspended, NotActiveStatus }
-public enum ReactivateTenantError { NotFound, NotSuspended }
-public record SuspendTenantResult(Tenant? Tenant, SuspendTenantError? Error);
-public record ReactivateTenantResult(Tenant? Tenant, ReactivateTenantError? Error);
+public abstract record SuspendTenantResult {
+	public sealed record Success(Tenant Tenant) : SuspendTenantResult;
+	public sealed record NotFound : SuspendTenantResult;
+	public sealed record AlreadySuspended : SuspendTenantResult;
+	public sealed record NotActiveStatus : SuspendTenantResult;
+}
+
+public abstract record ReactivateTenantResult {
+	public sealed record Success(Tenant Tenant) : ReactivateTenantResult;
+	public sealed record NotFound : ReactivateTenantResult;
+	public sealed record NotSuspended : ReactivateTenantResult;
+}
+
+// Result types for bulk operations
+public record BulkSuspendResult(
+	int SucceededCount,
+	int FailedCount,
+	List<(Guid TenantId, string Error)> FailedItems
+);
+public record BulkReactivateResult(
+	int SucceededCount,
+	int FailedCount,
+	List<(Guid TenantId, string Error)> FailedItems
+);
+public record BulkDeleteResult(
+	int SucceededCount,
+	int FailedCount,
+	List<(Guid TenantId, string Error)> FailedItems
+);
 
 // Result types for update/delete operations
-public enum UpdateTenantError { NotFound, MaxUsersBelowCurrentCount }
-public record UpdateTenantResult(Tenant? Tenant, UpdateTenantError? Error);
+public abstract record UpdateTenantResult {
+	public sealed record Success(Tenant Tenant) : UpdateTenantResult;
+	public sealed record NotFound : UpdateTenantResult;
+	public sealed record MaxUsersBelowCurrentCount : UpdateTenantResult;
+}
 
-public enum DeleteTenantError { NotFound, NotSuspended }
-public record DeleteTenantResult(Tenant? Tenant, DeleteTenantError? Error);
+public abstract record DeleteTenantResult {
+	public sealed record Success(Tenant Tenant) : DeleteTenantResult;
+	public sealed record NotFound : DeleteTenantResult;
+	public sealed record NotSuspended : DeleteTenantResult;
+}
 
 public record UpdateTenantAsStaffArgs(
 	string? Name,
@@ -53,6 +84,21 @@ public record UpdateTenantAsStaffArgs(
 public record FindTenantsAsStaffFilters(
 	string? Search,
 	IReadOnlySet<TenantStatus>? Status
+);
+
+public record FindTenantsAsStaffArgs(
+	Guid Cursor,
+	int? Limit,
+	string? SortId,
+	SortOrder? SortOrder,
+	FindTenantsAsStaffFilters? Filters
+);
+
+public record CreateTenantWithInitialUsersArgs(
+	string Name,
+	int MaxUsers,
+	List<(string Email, AccountLevel AccountLevel)> InitialUsers,
+	Guid InvitedByUserId
 );
 
 public abstract record FindTenantsAsStaffServiceResult {
@@ -68,7 +114,9 @@ public abstract record FindTenantsAsStaffServiceResult {
 
 public interface ITenantAsStaffService {
 	Task<Tenant> CreateTenant(Tenant tenant, CancellationToken cancellationToken = default);
+
 	Task<Tenant?> GetTenantByIdAsync(Guid tenantId, CancellationToken cancellationToken = default);
+
 	Task<List<TenantAsStaffItem>> FindTenantsAsync(
 		int? page = null,
 		int? limit = null,
@@ -76,22 +124,17 @@ public interface ITenantAsStaffService {
 		SortOrder? sortOrder = null,
 		CancellationToken cancellationToken = default
 	);
+
 	Task<FindTenantsAsStaffServiceResult> FindTenantsAsStaffAsync(
-		Guid cursor,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
-		FindTenantsAsStaffFilters? filters = null,
+		FindTenantsAsStaffArgs args,
 		CancellationToken cancellationToken = default
 	);
+
 	Task<int> CountTenantsAsync(CancellationToken cancellationToken = default);
 
 	// NEW: Create tenant with initial users via invitations
 	Task<CreateTenantWithInitialUsersResult> CreateTenantWithInitialUsersAsync(
-		string name,
-		int maxUsers,
-		List<(string Email, AccountLevel AccountLevel)> initialUsers,
-		Guid invitedByUserId,
+		CreateTenantWithInitialUsersArgs args,
 		CancellationToken cancellationToken = default
 	);
 
@@ -100,6 +143,7 @@ public interface ITenantAsStaffService {
 		Guid tenantId,
 		CancellationToken cancellationToken = default
 	);
+
 	Task<ReactivateTenantResult> ReactivateTenantAsync(
 		Guid tenantId,
 		CancellationToken cancellationToken = default
@@ -124,13 +168,30 @@ public interface ITenantAsStaffService {
 		CancellationToken cancellationToken = default
 	);
 
-	// Soft-delete a suspended tenant
+	// Soft-delete a suspended tenant without changing its last live status
 	Task<DeleteTenantResult> DeleteTenantAsync(
 		Guid tenantId,
 		CancellationToken cancellationToken = default
 	);
+
+	// Bulk operations
+	Task<BulkSuspendResult> BulkSuspendAsync(
+		IReadOnlyList<Guid> tenantIds,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<BulkReactivateResult> BulkReactivateAsync(
+		IReadOnlyList<Guid> tenantIds,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<BulkDeleteResult> BulkDeleteAsync(
+		IReadOnlyList<Guid> tenantIds,
+		CancellationToken cancellationToken = default
+	);
 }
 
+[Service(ServiceLifetime.Scoped)]
 public class TenantAsStaffService : ITenantAsStaffService {
 	private readonly MainApiDbContext _dbContext;
 
@@ -182,27 +243,25 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			};
 
 		if (sortId is not null) {
-			query = sortId.ToLower() switch {
-				"createdat" => effectiveSortOrder == SortOrder.Asc
-					? query.OrderBy(t => t.Tenant.CreatedAt)
-					: query.OrderByDescending(t => t.Tenant.CreatedAt),
-				"updatedat" => effectiveSortOrder == SortOrder.Asc
-					? query.OrderBy(t => t.Tenant.UpdatedAt)
-					: query.OrderByDescending(t => t.Tenant.UpdatedAt),
-				"code" => effectiveSortOrder == SortOrder.Asc
-					? query.OrderBy(t => t.Tenant.Code)
-					: query.OrderByDescending(t => t.Tenant.Code),
-				"name" => effectiveSortOrder == SortOrder.Asc
-					? query.OrderBy(t => t.Tenant.Name)
-					: query.OrderByDescending(t => t.Tenant.Name),
-				"status" => effectiveSortOrder == SortOrder.Asc
-					? query.OrderBy(t => t.Tenant.Status)
-					: query.OrderByDescending(t => t.Tenant.Status),
-				"userscount" => effectiveSortOrder == SortOrder.Asc
-					? query.OrderBy(t => t.UsersCount)
-					: query.OrderByDescending(t => t.UsersCount),
-				_ => query // Default: no sorting for unsupported fields
-			};
+			var isAsc = effectiveSortOrder == SortOrder.Asc;
+			if (string.Equals(sortId, "created_at", StringComparison.OrdinalIgnoreCase)) {
+				query = isAsc ? query.OrderBy(t => t.Tenant.CreatedAt) : query.OrderByDescending(t => t.Tenant.CreatedAt);
+			}
+			if (string.Equals(sortId, "updated_at", StringComparison.OrdinalIgnoreCase)) {
+				query = isAsc ? query.OrderBy(t => t.Tenant.UpdatedAt) : query.OrderByDescending(t => t.Tenant.UpdatedAt);
+			}
+			if (string.Equals(sortId, "code", StringComparison.OrdinalIgnoreCase)) {
+				query = isAsc ? query.OrderBy(t => t.Tenant.Code) : query.OrderByDescending(t => t.Tenant.Code);
+			}
+			if (string.Equals(sortId, "name", StringComparison.OrdinalIgnoreCase)) {
+				query = isAsc ? query.OrderBy(t => t.Tenant.Name) : query.OrderByDescending(t => t.Tenant.Name);
+			}
+			if (string.Equals(sortId, "status", StringComparison.OrdinalIgnoreCase)) {
+				query = isAsc ? query.OrderBy(t => t.Tenant.Status) : query.OrderByDescending(t => t.Tenant.Status);
+			}
+			if (string.Equals(sortId, "users_count", StringComparison.OrdinalIgnoreCase)) {
+				query = isAsc ? query.OrderBy(t => t.UsersCount) : query.OrderByDescending(t => t.UsersCount);
+			}
 		}
 
 		query = query
@@ -223,23 +282,22 @@ public class TenantAsStaffService : ITenantAsStaffService {
 	}
 
 	public async Task<FindTenantsAsStaffServiceResult> FindTenantsAsStaffAsync(
-		Guid cursor,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
-		FindTenantsAsStaffFilters? filters = null,
+		FindTenantsAsStaffArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
-		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-		var effectiveSortId = (sortId ?? "created_at").ToLowerInvariant();
+		var effectiveLimit = args.Limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
+		var effectiveSortId = args.SortId ?? "created_at";
 		var isAsc = effectiveSortOrder == SortOrder.Asc;
 
-		// SortFieldHandler dictionary - works on Tenant entity only
-		var sortFieldHandlers = new Dictionary<string, TenantSortFieldHandler> {
-			["created_at"] = new TenantSortFieldHandler(
+		// Cursor sort field handlers work on Tenant entities only.
+		var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<Tenant>>(
+			StringComparer.OrdinalIgnoreCase
+		) {
+			["created_at"] = new CursorSortFieldHandler<Tenant>(
 				getCursorValue: async (guid) => {
 					var tenant = await _dbContext.Tenant
+						.AsNoTracking()
 						.Where(t => t.Id == guid && t.IsDeleted != true)
 						.Select(t => new { t.CreatedAt, t.Id })
 						.FirstOrDefaultAsync(cancellationToken);
@@ -256,9 +314,10 @@ public class TenantAsStaffService : ITenantAsStaffService {
 					? q.OrderBy(t => t.CreatedAt).ThenBy(t => t.Id)
 					: q.OrderByDescending(t => t.CreatedAt).ThenByDescending(t => t.Id)
 			),
-			["updated_at"] = new TenantSortFieldHandler(
+			["updated_at"] = new CursorSortFieldHandler<Tenant>(
 				getCursorValue: async (guid) => {
 					var tenant = await _dbContext.Tenant
+						.AsNoTracking()
 						.Where(t => t.Id == guid && t.IsDeleted != true)
 						.Select(t => new { t.UpdatedAt, t.Id })
 						.FirstOrDefaultAsync(cancellationToken);
@@ -275,9 +334,10 @@ public class TenantAsStaffService : ITenantAsStaffService {
 					? q.OrderBy(t => t.UpdatedAt).ThenBy(t => t.Id)
 					: q.OrderByDescending(t => t.UpdatedAt).ThenByDescending(t => t.Id)
 			),
-			["name"] = new TenantSortFieldHandler(
+			["name"] = new CursorSortFieldHandler<Tenant>(
 				getCursorValue: async (guid) => {
 					var tenant = await _dbContext.Tenant
+						.AsNoTracking()
 						.Where(t => t.Id == guid && t.IsDeleted != true)
 						.Select(t => new { t.Name, t.Id })
 						.FirstOrDefaultAsync(cancellationToken);
@@ -294,9 +354,10 @@ public class TenantAsStaffService : ITenantAsStaffService {
 					? q.OrderBy(t => t.Name).ThenBy(t => t.Id)
 					: q.OrderByDescending(t => t.Name).ThenByDescending(t => t.Id)
 			),
-			["status"] = new TenantSortFieldHandler(
+			["status"] = new CursorSortFieldHandler<Tenant>(
 				getCursorValue: async (guid) => {
 					var tenant = await _dbContext.Tenant
+						.AsNoTracking()
 						.Where(t => t.Id == guid && t.IsDeleted != true)
 						.Select(t => new { t.Status, t.Id })
 						.FirstOrDefaultAsync(cancellationToken);
@@ -316,15 +377,22 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		};
 
 		// Validate sortId via TryGetValue
-		if (!sortFieldHandlers.TryGetValue(effectiveSortId, out TenantSortFieldHandler? handler)) {
+		if (
+			!sortFieldHandlers.TryGetValue(
+				effectiveSortId,
+				out CursorSortFieldHandler<Tenant>? handler
+			)
+		) {
 			return new FindTenantsAsStaffServiceResult.InvalidSortId(effectiveSortId);
 		}
 
 		// Build base query on Tenant entity only (no joins for pagination)
-		IQueryable<Tenant> baseQuery = _dbContext.Tenant.Where(t => t.IsDeleted != true && t.Id.HasValue);
+		IQueryable<Tenant> baseQuery = _dbContext.Tenant
+			.AsNoTracking()
+			.Where(t => t.IsDeleted != true && t.Id.HasValue);
 
 		// Apply search filter
-		if (filters?.Search is { } search) {
+		if (args.Filters?.Search is { } search) {
 			// Search semantics:
 			// - Name: substring match (ILIKE %q%) backed by pg_trgm index on tenants.name.
 			// - Code: prefix match only (StartsWith) so we can rely on the existing btree index
@@ -338,15 +406,15 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		}
 
 		// Apply status filter
-		if (filters?.Status is { } statuses && statuses.Count > 0) {
+		if (args.Filters?.Status is { } statuses && statuses.Count > 0) {
 			baseQuery = baseQuery.Where(t => statuses.Contains(t.Status));
 		}
 
 		// Apply cursor filter
-		if (cursor != Guid.Empty) {
-			var cursorValue = await handler.GetCursorValue(cursor);
+		if (args.Cursor != Guid.Empty) {
+			var cursorValue = await handler.GetCursorValue(args.Cursor);
 			if (cursorValue is null) {
-				return new FindTenantsAsStaffServiceResult.CursorNotFound(cursor.ToString());
+				return new FindTenantsAsStaffServiceResult.CursorNotFound(args.Cursor.ToString());
 			}
 			baseQuery = handler.ApplyFilter(baseQuery, cursorValue, isAsc);
 		}
@@ -370,7 +438,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 
 		// Fetch users count for all tenant IDs
 		var usersCounts = await (
-			from ua in _dbContext.UserAccount
+			from ua in _dbContext.UserAccount.AsNoTracking()
 			where ua.Scope == AccountScope.Tenant
 				&& ua.IsDeleted != true
 				&& ua.TenantId != null
@@ -397,7 +465,6 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				UsersCount = usersCountDict.GetValueOrDefault(tenantId, 0),
 				MaxUsers = t.MaxUsers,
 				Status = Tenant.GetStatusDescription(t.Status),
-				IsSuspended = t.IsSuspended
 			};
 		}).ToList();
 
@@ -409,28 +476,8 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		);
 	}
 
-	// SortFieldHandler for Tenant entity only
-	private class TenantSortFieldHandler {
-		public Func<Guid, Task<object?>> GetCursorValue { get; }
-		public Func<IQueryable<Tenant>, object?, bool, IQueryable<Tenant>> ApplyFilter { get; }
-		public Func<IQueryable<Tenant>, bool, IOrderedQueryable<Tenant>> ApplyOrdering { get; }
-
-		public TenantSortFieldHandler(
-			Func<Guid, Task<object?>> getCursorValue,
-			Func<IQueryable<Tenant>, object?, bool, IQueryable<Tenant>> applyFilter,
-			Func<IQueryable<Tenant>, bool, IOrderedQueryable<Tenant>> applyOrdering
-		) {
-			GetCursorValue = getCursorValue;
-			ApplyFilter = applyFilter;
-			ApplyOrdering = applyOrdering;
-		}
-	}
-
 	public async Task<CreateTenantWithInitialUsersResult> CreateTenantWithInitialUsersAsync(
-		string name,
-		int maxUsers,
-		List<(string Email, AccountLevel AccountLevel)> initialUsers,
-		Guid invitedByUserId,
+		CreateTenantWithInitialUsersArgs args,
 		CancellationToken cancellationToken = default
 	) {
 		await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
@@ -438,10 +485,10 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		try {
 			// 1. Create tenant
 			var tenant = new Tenant {
-				Name = name,
+				Name = args.Name,
 				Code = CryptoUtils.RandomString(10).ToLower(),
 				Status = TenantStatus.Pending,
-				MaxUsers = maxUsers
+				MaxUsers = args.MaxUsers
 			};
 
 			var savedTenant = await _dbContext.Tenant.AddAsync(tenant, cancellationToken);
@@ -452,7 +499,8 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			var defaultProfile = Profile.CreateTenantProfile(
 				tenantId,
 				name: "Default profile",
-				description: "Default profile with no permissions"
+				description: "Default profile with no permissions",
+				isDefault: true
 			);
 			var savedDefaultProfile = await _dbContext.Profile.AddAsync(defaultProfile, cancellationToken);
 			await _dbContext.SaveChangesAsync(cancellationToken);
@@ -464,7 +512,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			var invitationTokens = new List<(string Email, string Token, AccountLevel Level)>();
 			var expiresAt = DateTime.UtcNow.AddDays(7);
 
-			foreach (var (email, accountLevel) in initialUsers) {
+			foreach (var (email, accountLevel) in args.InitialUsers) {
 				var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
 
 				// Determine profile IDs based on account level
@@ -482,7 +530,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 					email,
 					tenantId,
 					profileIds,
-					invitedByUserId,
+					args.InvitedByUserId,
 					expiresAt,
 					token
 				);
@@ -522,13 +570,13 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		).FirstOrDefaultAsync(cancellationToken);
 
 		if (tenant is null) {
-			return new SuspendTenantResult(null, SuspendTenantError.NotFound);
+			return new SuspendTenantResult.NotFound();
 		}
-		if (tenant.IsSuspended) {
-			return new SuspendTenantResult(null, SuspendTenantError.AlreadySuspended);
+		if (tenant.IsSuspended()) {
+			return new SuspendTenantResult.AlreadySuspended();
 		}
-		if (tenant.Status != TenantStatus.Active) {
-			return new SuspendTenantResult(null, SuspendTenantError.NotActiveStatus);
+		if (!tenant.IsActive()) {
+			return new SuspendTenantResult.NotActiveStatus();
 		}
 
 		// Atomic update with WHERE clause checking current state (race condition safe)
@@ -536,18 +584,17 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			.Where(t =>
 				t.Id == tenantId &&
 				!t.IsDeleted &&
-				!t.IsSuspended &&
+				t.Status != TenantStatus.Suspended &&
 				t.Status == TenantStatus.Active)
 			.ExecuteUpdateAsync(
 				setters => setters
-					.SetProperty(t => t.IsSuspended, true)
 					.SetProperty(t => t.Status, TenantStatus.Suspended)
 					.SetProperty(t => t.UpdatedAt, DateTime.UtcNow),
 				cancellationToken);
 
 		if (rowsAffected == 0) {
 			// Race condition: someone else changed the state between our read and update
-			return new SuspendTenantResult(null, SuspendTenantError.AlreadySuspended);
+			return new SuspendTenantResult.AlreadySuspended();
 		}
 
 		// Re-fetch tenant to return current state
@@ -557,7 +604,13 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			select t
 		).FirstOrDefaultAsync(cancellationToken);
 
-		return new SuspendTenantResult(updatedTenant, null);
+		if (updatedTenant is null) {
+			throw new InvalidOperationException(
+				"Tenant disappeared after successful suspend update."
+			);
+		}
+
+		return new SuspendTenantResult.Success(updatedTenant);
 	}
 
 	public async Task<ReactivateTenantResult> ReactivateTenantAsync(
@@ -572,10 +625,10 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		).FirstOrDefaultAsync(cancellationToken);
 
 		if (tenant is null) {
-			return new ReactivateTenantResult(null, ReactivateTenantError.NotFound);
+			return new ReactivateTenantResult.NotFound();
 		}
-		if (!tenant.IsSuspended) {
-			return new ReactivateTenantResult(null, ReactivateTenantError.NotSuspended);
+		if (!tenant.IsSuspended()) {
+			return new ReactivateTenantResult.NotSuspended();
 		}
 
 		// Atomic update with WHERE clause checking current state (race condition safe)
@@ -583,18 +636,16 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			.Where(t =>
 				t.Id == tenantId &&
 				!t.IsDeleted &&
-				t.IsSuspended &&
 				t.Status == TenantStatus.Suspended)
 			.ExecuteUpdateAsync(
 				setters => setters
-					.SetProperty(t => t.IsSuspended, false)
 					.SetProperty(t => t.Status, TenantStatus.Active)
 					.SetProperty(t => t.UpdatedAt, DateTime.UtcNow),
 				cancellationToken);
 
 		if (rowsAffected == 0) {
 			// Race condition: someone else changed the state between our read and update
-			return new ReactivateTenantResult(null, ReactivateTenantError.NotSuspended);
+			return new ReactivateTenantResult.NotSuspended();
 		}
 
 		// Re-fetch tenant to return current state
@@ -604,7 +655,13 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			select t
 		).FirstOrDefaultAsync(cancellationToken);
 
-		return new ReactivateTenantResult(updatedTenant, null);
+		if (updatedTenant is null) {
+			throw new InvalidOperationException(
+				"Tenant disappeared after successful reactivate update."
+			);
+		}
+
+		return new ReactivateTenantResult.Success(updatedTenant);
 	}
 
 	public async Task<Tenant?> GetTenantByIdForStaffAsync(
@@ -645,9 +702,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		).FirstOrDefaultAsync(cancellationToken);
 
 		if (tenant is null) {
-			return new UpdateTenantResult(
-				null, UpdateTenantError.NotFound
-			);
+			return new UpdateTenantResult.NotFound();
 		}
 
 		// Validate MaxUsers against current user count
@@ -656,10 +711,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				tenantId, cancellationToken
 			);
 			if (args.MaxUsers.Value < currentUserCount) {
-				return new UpdateTenantResult(
-					null,
-					UpdateTenantError.MaxUsersBelowCurrentCount
-				);
+				return new UpdateTenantResult.MaxUsersBelowCurrentCount();
 			}
 		}
 
@@ -676,7 +728,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		tenant.UpdatedAt = DateTime.UtcNow;
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
-		return new UpdateTenantResult(tenant, null);
+		return new UpdateTenantResult.Success(tenant);
 	}
 
 	public async Task<DeleteTenantResult> DeleteTenantAsync(
@@ -690,15 +742,11 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		).FirstOrDefaultAsync(cancellationToken);
 
 		if (tenant is null) {
-			return new DeleteTenantResult(
-				null, DeleteTenantError.NotFound
-			);
+			return new DeleteTenantResult.NotFound();
 		}
 
-		if (!tenant.IsSuspended) {
-			return new DeleteTenantResult(
-				null, DeleteTenantError.NotSuspended
-			);
+		if (!tenant.IsSuspended()) {
+			return new DeleteTenantResult.NotSuspended();
 		}
 
 		// Atomic soft-delete with WHERE clause (race-condition safe)
@@ -706,18 +754,12 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			.Where(t =>
 				t.Id == tenantId
 				&& !t.IsDeleted
-				&& t.IsSuspended)
+				&& t.Status == TenantStatus.Suspended)
 			.ExecuteUpdateAsync(
 				setters => setters
 					.SetProperty(t => t.IsDeleted, true)
 					.SetProperty(
 						t => t.DeletedAt, DateTime.UtcNow
-					)
-					.SetProperty(
-						t => t.IsSuspended, false
-					)
-					.SetProperty(
-						t => t.Status, TenantStatus.Archived
 					)
 					.SetProperty(
 						t => t.UpdatedAt, DateTime.UtcNow
@@ -727,11 +769,106 @@ public class TenantAsStaffService : ITenantAsStaffService {
 
 		if (rowsAffected == 0) {
 			// Race condition: state changed between read and update
-			return new DeleteTenantResult(
-				null, DeleteTenantError.NotSuspended
-			);
+			return new DeleteTenantResult.NotSuspended();
 		}
 
-		return new DeleteTenantResult(tenant, null);
+		return new DeleteTenantResult.Success(tenant);
+	}
+
+	public async Task<BulkSuspendResult> BulkSuspendAsync(
+		IReadOnlyList<Guid> tenantIds,
+		CancellationToken cancellationToken = default
+	) {
+		var failedItems = new List<(Guid TenantId, string Error)>();
+		var succeededCount = 0;
+
+		foreach (var tenantId in tenantIds) {
+			var result = await SuspendTenantAsync(tenantId, cancellationToken);
+
+			if (result is SuspendTenantResult.Success) {
+				succeededCount++;
+				continue;
+			}
+
+			var errorMessage = result switch {
+				SuspendTenantResult.NotFound => "Tenant not found",
+				SuspendTenantResult.AlreadySuspended => "Already suspended",
+				SuspendTenantResult.NotActiveStatus => "Tenant is not active",
+				_ => throw new InvalidOperationException(
+					$"Unknown suspend tenant result: {result.GetType().Name}"
+				)
+			};
+			failedItems.Add((tenantId, errorMessage));
+		}
+
+		return new BulkSuspendResult(
+			SucceededCount: succeededCount,
+			FailedCount: failedItems.Count,
+			FailedItems: failedItems
+		);
+	}
+
+	public async Task<BulkReactivateResult> BulkReactivateAsync(
+		IReadOnlyList<Guid> tenantIds,
+		CancellationToken cancellationToken = default
+	) {
+		var failedItems = new List<(Guid TenantId, string Error)>();
+		var succeededCount = 0;
+
+		foreach (var tenantId in tenantIds) {
+			var result = await ReactivateTenantAsync(tenantId, cancellationToken);
+
+			if (result is ReactivateTenantResult.Success) {
+				succeededCount++;
+				continue;
+			}
+
+			var errorMessage = result switch {
+				ReactivateTenantResult.NotFound => "Tenant not found",
+				ReactivateTenantResult.NotSuspended => "Tenant is not suspended",
+				_ => throw new InvalidOperationException(
+					$"Unknown reactivate tenant result: {result.GetType().Name}"
+				)
+			};
+			failedItems.Add((tenantId, errorMessage));
+		}
+
+		return new BulkReactivateResult(
+			SucceededCount: succeededCount,
+			FailedCount: failedItems.Count,
+			FailedItems: failedItems
+		);
+	}
+
+	public async Task<BulkDeleteResult> BulkDeleteAsync(
+		IReadOnlyList<Guid> tenantIds,
+		CancellationToken cancellationToken = default
+	) {
+		var failedItems = new List<(Guid TenantId, string Error)>();
+		var succeededCount = 0;
+
+		foreach (var tenantId in tenantIds) {
+			var result = await DeleteTenantAsync(tenantId, cancellationToken);
+
+			if (result is DeleteTenantResult.Success) {
+				succeededCount++;
+				continue;
+			}
+
+			var errorMessage = result switch {
+				DeleteTenantResult.NotFound => "Tenant not found",
+				DeleteTenantResult.NotSuspended => "Tenant is not suspended",
+				_ => throw new InvalidOperationException(
+					$"Unknown delete tenant result: {result.GetType().Name}"
+				)
+			};
+			failedItems.Add((tenantId, errorMessage));
+		}
+
+		return new BulkDeleteResult(
+			SucceededCount: succeededCount,
+			FailedCount: failedItems.Count,
+			FailedItems: failedItems
+		);
 	}
 }

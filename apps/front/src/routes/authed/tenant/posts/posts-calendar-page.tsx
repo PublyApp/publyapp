@@ -2,17 +2,19 @@ import Typography from '@mui/material/Typography';
 import { isServer } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import get from 'lodash/get';
 import { data } from 'react-router';
 
 import { APP_NAME } from '@org/shared-ts/lib/constants';
-import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+
+import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
+import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/posts-calendar-page';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(t('calendar'));
+	let str: string = capitalize(t('calendar'));
 
 	if (seo) {
 		str = `${str} | ${APP_NAME}`;
@@ -23,7 +25,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
+		return get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;

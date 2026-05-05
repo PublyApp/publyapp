@@ -16,7 +16,7 @@ import type { CSSObject } from '@mui/material/styles';
  * ...theme.mixins.bgGradient({
  *   images: [
  *     `linear-gradient(0deg, ${varAlpha(theme.vars.palette.primary.darkerChannel, 0.8)}, ${varAlpha(theme.vars.palette.primary.darkerChannel, 0.8)})`,
- *     `url(/assets/background/overlay.png)`,
+ *     `url(/assets/background/background-3-blur.webp)`,
  *   ],
  *   sizes: ['cover', '80px 80px'],
  *   positions: ['center', 'top right'],
@@ -57,7 +57,7 @@ export const bgGradient = ({
  * @example
  * ...theme.mixins.bgBlur({
  *   color: varAlpha(theme.vars.palette.background.paperChannel, 0.8),
- *   imgUrl: '/assets/background/overlay.png',
+ *   imgUrl: '/assets/background/background-3-blur.webp',
  *   blur: 6,
  * });
  */

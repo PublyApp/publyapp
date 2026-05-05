@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Src.Modules.AuditLogs.Handlers.Staff;
 
-public static class GetAuditLogById {
+public class GetAuditLogById {
 	public static async Task<Results<
 		Ok<AuditLogDetail>,
 		AppBadRequestHttpResult,

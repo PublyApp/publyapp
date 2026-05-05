@@ -76,6 +76,33 @@ public static class TenantEndpointsForStaff {
 				[AppPermissions.Staff.Tenants.DELETE]
 			);
 
+		group.MapPost(
+			Routes.Tenants.ForStaff.BulkSuspend,
+			BulkSuspendTenantsAsStaff.HandleBulkSuspendTenantsAsStaff
+		)
+			.WithName("BulkSuspendTenants")
+			.WithSummary("Bulk suspend tenants")
+			.WithReqBodyValidation<BulkSuspendTenantsAsStaffBody>()
+			.WithPermission([AppPermissions.Staff.Tenants.SUSPEND]);
+
+		group.MapPost(
+			Routes.Tenants.ForStaff.BulkReactivate,
+			BulkReactivateTenantsAsStaff.HandleBulkReactivateTenantsAsStaff
+		)
+			.WithName("BulkReactivateTenants")
+			.WithSummary("Bulk reactivate tenants")
+			.WithReqBodyValidation<BulkReactivateTenantsAsStaffBody>()
+			.WithPermission([AppPermissions.Staff.Tenants.REACTIVATE]);
+
+		group.MapPost(
+			Routes.Tenants.ForStaff.BulkDelete,
+			BulkDeleteTenantsAsStaff.HandleBulkDeleteTenantsAsStaff
+		)
+			.WithName("BulkDeleteTenants")
+			.WithSummary("Bulk delete tenants")
+			.WithReqBodyValidation<BulkDeleteTenantsAsStaffBody>()
+			.WithPermission([AppPermissions.Staff.Tenants.DELETE]);
+
 		return routes;
 	}
 }

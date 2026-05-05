@@ -1,5 +1,5 @@
-import { switchClasses } from '@mui/material/Switch';
 import type { Components, Theme } from '@mui/material/styles';
+import { switchClasses } from '@mui/material/Switch';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------

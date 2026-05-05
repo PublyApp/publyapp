@@ -12,7 +12,6 @@ using MainApi.Src.Modules.AuditLogs.Entities;
 using MainApi.Src.Modules.AuditLogs.Services;
 using MainApi.Src.Modules.Invitations.Entities;
 using MainApi.Src.Modules.Invitations.Services;
-using MainApi.Src.Modules.Users.Entities;
 using MainApi.Src.Modules.Users.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -55,7 +54,7 @@ public class CreateStaffInvitationBodyValidator
 	}
 }
 
-public static class CreateStaffInvitation {
+public class CreateStaffInvitation {
 	public static async Task<Results<
 		Created<InvitationCreated>,
 		AppBadRequestHttpResult,
@@ -66,19 +65,16 @@ public static class CreateStaffInvitation {
 		[FromServices] IAccountService accountService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
-		[FromServices] ILoggerFactory loggerFactory,
+		[FromServices] ILogger<CreateStaffInvitation> logger,
 		[FromBody] CreateStaffInvitationBody body,
 		CancellationToken cancellationToken = default
 	) {
-		var logger = loggerFactory.CreateLogger(nameof(CreateStaffInvitation));
-		// Authorization check
+		// IMPOSSIBLE STATE: Staff endpoint without staff account
 		var account = authContext.AccountStaff;
-		if (account is null
-			|| account.Scope != AccountScope.Staff
-			|| account.Level != AccountLevel.Admin) {
-			return TypedProblems.Forbidden(
-				"User does not have the necessary permissions",
-				ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
+		if (account is null) {
+			throw new InvalidOperationException(
+				"Staff account not found in auth context. "
+				+ "Ensure the endpoint has .WithPermission() middleware."
 			);
 		}
 
@@ -135,10 +131,13 @@ public static class CreateStaffInvitation {
 		}
 
 		// Create invitation via service (wrap single profileId in list for new API)
+		var createArgs = new CreateStaffInvitationArgs(
+			Email: email,
+			ProfileIds: [profileId],
+			InvitedByUserId: account.UserId
+		);
 		var (invitation, token) = await invitationService.CreateStaffInvitationAsync(
-			email,
-			new List<Guid> { profileId },
-			account.UserId,
+			createArgs,
 			cancellationToken
 		);
 
@@ -155,10 +154,12 @@ public static class CreateStaffInvitation {
 
 		// Audit log
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.InvitationCreated,
-			invitation.GetRequiredId(),
-			new { Email = email, ProfileId = profileId, Scope = "Staff" },
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.InvitationCreated,
+				TargetId: invitation.GetRequiredId(),
+				Details: new { Email = email, ProfileId = profileId, Scope = "Staff" }
+			),
 			cancellationToken
 		);
 

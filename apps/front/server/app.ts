@@ -1,6 +1,5 @@
 // * https://reactrouter.com/api/other-api/adapter#react-routerexpress
 import 'react-router';
-
 import { createRequestHandler } from '@react-router/express';
 import express from 'express';
 import helmet from 'helmet';
@@ -14,7 +13,8 @@ import {
 import { getUnifiedCSPConfig } from '@org/shared-ts/lib/csp';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { LogLevelEnum } from '@org/shared-ts/lib/logger/logger.utils';
-import { analytics } from '@/front/lib/analytics/analytics';
+
+import { analytics } from '#app/lib/analytics/analytics.ts';
 
 declare global {
 	namespace Express {

@@ -22,7 +22,6 @@ public record SuspendTenantAsStaffBody {
 public record TenantSuspendedResult {
 	public required Guid TenantId { get; init; }
 	public required string Name { get; init; }
-	public required bool IsSuspended { get; init; }
 	public required string Status { get; init; }
 }
 
@@ -50,54 +49,53 @@ public class SuspendTenantAsStaffBodyValidator : AbstractValidator<SuspendTenant
 	}
 }
 
-public static class SuspendTenantAsStaff {
+public class SuspendTenantAsStaff {
 	public static async Task<Results<
 		Ok<TenantSuspendedResult>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult,
 		AppConflictHttpResult
 	>> HandleSuspendTenantAsStaff(
-		[FromRoute] Guid tenantId,
+		[FromRoute] string tenantId,
 		[FromServices] ITenantAsStaffService tenantService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
 		[FromBody] SuspendTenantAsStaffBody request,
 		CancellationToken cancellationToken = default
 	) {
+		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
+			return TypedProblems.BadRequest(
+				"Invalid tenantId",
+				ResponseKeys.MalformedId
+			);
+		}
+
 		var reason = request.Reason?.ValueKind == JsonValueKind.String
 			? request.Reason.Value.GetString()
 			: null;
 
-		var result = await tenantService.SuspendTenantAsync(tenantId, cancellationToken);
+		var result = await tenantService.SuspendTenantAsync(
+			tenantIdGuid,
+			cancellationToken
+		);
 
-		if (result.Error
-			is SuspendTenantError.NotFound
-		) {
+		if (result is SuspendTenantResult.NotFound) {
 			return TypedProblems.NotFound(
 				"Tenant not found",
 				ResponseKeys.TenantNotFound
 			);
 		}
-		if (result.Error
-			is SuspendTenantError.AlreadySuspended
-		) {
+		if (result is SuspendTenantResult.AlreadySuspended) {
 			return TypedProblems.Conflict(
 				"Tenant is already suspended",
 				ResponseKeys.TenantAlreadySuspended
 			);
 		}
-		if (result.Error
-			is SuspendTenantError.NotActiveStatus
-		) {
+		if (result is SuspendTenantResult.NotActiveStatus) {
 			return TypedProblems.BadRequest(
 				"Only active tenants can be suspended",
 				ResponseKeys
 					.TenantNotActiveCannotSuspend
-			);
-		}
-		if (result.Error is not null) {
-			throw new InvalidOperationException(
-				$"Unknown error: {result.Error}"
 			);
 		}
 
@@ -110,26 +108,26 @@ public static class SuspendTenantAsStaff {
 			);
 		}
 
-		if (result.Tenant is null) {
+		if (result is not SuspendTenantResult.Success success) {
 			throw new InvalidOperationException(
-				"Service returned success "
-				+ "but Tenant was null."
+				$"Unknown suspend tenant result: {result.GetType().Name}"
 			);
 		}
-		var tenant = result.Tenant;
+		var tenant = success.Tenant;
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.TenantSuspended,
-			tenantId,
-			new { TenantName = tenant.Name, Reason = reason },
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.TenantSuspended,
+				TargetId: tenantIdGuid,
+				Details: new { TenantName = tenant.Name, Reason = reason }
+			),
 			cancellationToken
 		);
 
 		return TypedResults.Ok(new TenantSuspendedResult {
 			TenantId = tenant.GetRequiredId(),
 			Name = tenant.Name,
-			IsSuspended = tenant.IsSuspended,
 			Status = Tenant.GetStatusDescription(tenant.Status)
 		});
 	}

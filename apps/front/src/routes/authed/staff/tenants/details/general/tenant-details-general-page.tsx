@@ -2,7 +2,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
-import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -12,26 +11,34 @@ import { alpha } from '@mui/material/styles';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { useQueryClient } from '@tanstack/react-query';
-import _ from 'lodash';
+import { type UseQueryResult, useQueryClient } from '@tanstack/react-query';
+import capitalize from 'lodash/capitalize';
+import toStr from 'lodash/toString';
 import { type FC, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useOutletContext, useParams } from 'react-router';
 import { z } from 'zod';
 
-import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
-import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
-import { ErrorContent } from '@/front/components/empty-content/error-content';
-import { NotFoundView } from '@/front/components/error/not-found-view';
-import { Field, Form } from '@/front/components/hook-form';
-import { Iconify } from '@/front/components/iconify/iconify';
-import type { IconifyName } from '@/front/components/iconify/register-icons';
-import QueryDisplay from '@/front/components/query-display';
-import { SettingsPageHeader } from '@/front/components/settings/settings-page-header';
-import { UploadAvatar } from '@/front/components/upload';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { isProblemFailure, toApiFailure } from '@/front/lib/api-failure';
-import { withFormValidation } from '@/front/lib/api-failure/with-form-validation';
+import type { GetTenantAsStaffResult } from '@org/client-ts/src/models';
+import {
+	FRONT_PATH_NAMES,
+	TENANT_STATUS_ENUM,
+} from '@org/shared-ts/lib/constants';
+import { mbToBytes } from '@org/shared-ts/utils/any.utils';
+
+import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
+import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
+import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
+import { NotFoundView } from '#app/components/error/not-found-view.tsx';
+import { Field, Form } from '#app/components/hook-form/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import type { IconifyName } from '#app/components/iconify/register-icons.ts';
+import QueryDisplay from '#app/components/query-display.tsx';
+import { StatusChip } from '#app/components/status-chip/status-chip.tsx';
+import { UploadAvatar } from '#app/components/upload/index.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { isProblemFailure, toApiFailure } from '#app/lib/api-failure/index.ts';
+import { withFormValidation } from '#app/lib/api-failure/with-form-validation.ts';
 import {
 	useDeleteTenant,
 	useFindTenants,
@@ -39,8 +46,17 @@ import {
 	useReactivateTenant,
 	useSuspendTenant,
 	useUpdateTenant,
-} from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
-import { fDateTime } from '@/front/utils/format-time';
+} from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
+import { fData } from '#app/utils/format-number.ts';
+import { fDateTime } from '#app/utils/format-time.ts';
+
+import type { TenantDetailsOutletContext } from '../_layout/tenant-details-layout';
+
+const TENANT_STATUS_COLOR_MAP = {
+	Active: 'success',
+	Suspended: 'warning',
+	Pending: 'default',
+} as const;
 
 const updateTenantSchema = z.object({
 	name: z.string().min(5),
@@ -49,40 +65,67 @@ const updateTenantSchema = z.object({
 
 type UpdateTenantFormValues = z.infer<typeof updateTenantSchema>;
 
+const readOnlyFieldInputSx = {
+	bgcolor: 'action.hover',
+	color: 'text.secondary',
+	cursor: 'default',
+	'& .MuiOutlinedInput-notchedOutline': {
+		borderColor: 'divider',
+	},
+	'&:hover .MuiOutlinedInput-notchedOutline': {
+		borderColor: 'divider',
+	},
+	'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+		borderColor: 'divider',
+		borderWidth: 1,
+	},
+};
+
 const TenantDetailsGeneralPage = () => {
 	const { t } = useTranslate();
 	const { tenantId } = useParams();
+	const { tenantName } = useOutletContext<TenantDetailsOutletContext>();
 
 	const getTenantQuery = useGetTenant({
-		variables: { tenantId: _.toString(tenantId) },
+		variables: { tenantId: toStr(tenantId) },
 		enabled: !!tenantId,
 	});
 
 	return (
-		<Stack spacing={3}>
-			<SettingsPageHeader subtitle={t('tenant-details')} title={t('general')} />
-
-			<QueryDisplay
-				query={getTenantQuery}
-				LoadingSlot={<TenantGeneralSkeleton />}
-				ErrorSlot={ErrorView}
-			>
-				{({ data }) => (
-					<TenantGeneralContent
-						tenantId={_.toString(data.tenantId)}
-						name={data.name}
-						code={data.code}
-						logoUrl={data.logoUrl}
-						maxUsers={data.maxUsers}
-						status={data.status}
-						isSuspended={data.isSuspended}
-						usersCount={data.usersCount}
-						createdAt={data.createdAt}
-						updatedAt={data.updatedAt}
-					/>
-				)}
-			</QueryDisplay>
-		</Stack>
+		<>
+			<CustomBreadcrumbs
+				heading={tenantName || t('tenant-details')}
+				links={[
+					{
+						name: capitalize(t('tenants')),
+						href: FRONT_PATH_NAMES.staff.tenants.root,
+					},
+					{ name: capitalize(t('details')) },
+				]}
+				sx={{ mb: { xs: 3, md: 5 } }}
+			/>
+			<Stack spacing={3}>
+				<QueryDisplay
+					query={getTenantQuery}
+					LoadingSlot={<TenantGeneralSkeleton />}
+					ErrorSlot={ErrorView}
+				>
+					{({ data }) => (
+						<TenantGeneralContent
+							tenantId={toStr(data.tenantId)}
+							name={data.name}
+							code={data.code}
+							logoUrl={data.logoUrl}
+							maxUsers={data.maxUsers}
+							status={data.status}
+							usersCount={data.usersCount}
+							createdAt={data.createdAt}
+							updatedAt={data.updatedAt}
+						/>
+					)}
+				</QueryDisplay>
+			</Stack>
+		</>
 	);
 };
 
@@ -95,7 +138,6 @@ type TenantGeneralContentProps = {
 	logoUrl?: string | null;
 	maxUsers?: number | null;
 	status?: string | null;
-	isSuspended?: boolean | null;
 	usersCount?: number | null;
 	createdAt?: Date | null;
 	updatedAt?: Date | null;
@@ -108,7 +150,6 @@ const TenantGeneralContent = ({
 	logoUrl,
 	maxUsers,
 	status,
-	isSuspended,
 	usersCount,
 	createdAt,
 	updatedAt,
@@ -116,7 +157,9 @@ const TenantGeneralContent = ({
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
-	const [copied, setCopied] = useState(false);
+	const [copiedField, setCopiedField] = useState<'code' | 'tenantId' | null>(
+		null,
+	);
 
 	const methods = useForm<UpdateTenantFormValues>({
 		resolver: zodResolver(updateTenantSchema),
@@ -128,12 +171,12 @@ const TenantGeneralContent = ({
 
 	const { mutate: updateTenant, isPending: isUpdating } = useUpdateTenant(
 		withFormValidation(methods.setError, {
-			meta: { showSuccessToast: true },
+			meta: { successMessage: 'tenant-updated-success' },
 			onSuccess: () => {
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useGetTenant.getKey({ tenantId }),
 				});
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useFindTenants.getKey({}),
 				});
 			},
@@ -141,13 +184,29 @@ const TenantGeneralContent = ({
 	);
 
 	const handleSubmit = methods.handleSubmit((data) => {
-		updateTenant({ tenantId, ...data });
+		const payload: {
+			tenantId: string;
+			name?: string;
+			maxUsers?: number;
+		} = {
+			tenantId,
+		};
+
+		if (methods.formState.dirtyFields.name) {
+			payload.name = data.name;
+		}
+
+		if (methods.formState.dirtyFields.maxUsers) {
+			payload.maxUsers = data.maxUsers;
+		}
+
+		updateTenant(payload);
 	});
 
-	const handleCopyId = () => {
-		navigator.clipboard.writeText(tenantId);
-		setCopied(true);
-		setTimeout(() => setCopied(false), 2000);
+	const handleCopyValue = (field: 'code' | 'tenantId', value: string) => {
+		void navigator.clipboard.writeText(value);
+		setCopiedField(field);
+		setTimeout(() => setCopiedField(null), 2000);
 	};
 
 	return (
@@ -165,9 +224,32 @@ const TenantGeneralContent = ({
 				{/* Left Sidebar */}
 				<Card sx={{ pt: 8, pb: 5, px: 3 }}>
 					<Box sx={{ textAlign: 'center' }}>
-						<UploadAvatar value={logoUrl ?? null} disabled />
+						<UploadAvatar
+							value={logoUrl ?? null}
+							disabled
+							maxSize={mbToBytes(3)}
+							helperText={
+								<Typography
+									variant="caption"
+									sx={{
+										mt: 3,
+										mx: 'auto',
+										display: 'block',
+										textAlign: 'center',
+										color: 'text.disabled',
+									}}
+								>
+									{t('uploads-not-supported-yet')}
+									<br /> {t('max-size', { size: fData(mbToBytes(3)) })}
+								</Typography>
+							}
+						/>
 
-						<StatusChip status={status} sx={{ mt: 3 }} />
+						<StatusChip
+							status={status}
+							sx={{ mt: 3 }}
+							colorMap={TENANT_STATUS_COLOR_MAP}
+						/>
 					</Box>
 
 					<Divider sx={{ my: 3, borderStyle: 'dashed' }} />
@@ -206,7 +288,37 @@ const TenantGeneralContent = ({
 								<TextField
 									label={t('code')}
 									value={code ?? ''}
-									slotProps={{ input: { readOnly: true } }}
+									slotProps={{
+										input: {
+											readOnly: true,
+											sx: readOnlyFieldInputSx,
+											endAdornment: (
+												<InputAdornment position="end">
+													<Tooltip
+														title={
+															copiedField === 'code' ? t('copied') : t('copy')
+														}
+													>
+														<IconButton
+															size="small"
+															onClick={() =>
+																handleCopyValue('code', code ?? '')
+															}
+														>
+															<Iconify
+																icon={
+																	copiedField === 'code'
+																		? 'solar:check-circle-bold'
+																		: 'solar:copy-bold'
+																}
+																width={18}
+															/>
+														</IconButton>
+													</Tooltip>
+												</InputAdornment>
+											),
+										},
+									}}
 								/>
 
 								<TextField
@@ -215,13 +327,25 @@ const TenantGeneralContent = ({
 									slotProps={{
 										input: {
 											readOnly: true,
+											sx: readOnlyFieldInputSx,
 											endAdornment: (
 												<InputAdornment position="end">
-													<Tooltip title={copied ? t('copied') : t('copy')}>
-														<IconButton size="small" onClick={handleCopyId}>
+													<Tooltip
+														title={
+															copiedField === 'tenantId'
+																? t('copied')
+																: t('copy')
+														}
+													>
+														<IconButton
+															size="small"
+															onClick={() =>
+																handleCopyValue('tenantId', tenantId)
+															}
+														>
 															<Iconify
 																icon={
-																	copied
+																	copiedField === 'tenantId'
 																		? 'solar:check-circle-bold'
 																		: 'solar:copy-bold'
 																}
@@ -253,9 +377,10 @@ const TenantGeneralContent = ({
 								<Button
 									type="submit"
 									variant="contained"
-									disabled={!methods.formState.isDirty || isUpdating}
+									loading={isUpdating}
+									disabled={!methods.formState.isDirty}
 								>
-									{isUpdating ? t('saving') : t('save-changes')}
+									{t('save-changes')}
 								</Button>
 							</Box>
 						</Form>
@@ -265,7 +390,7 @@ const TenantGeneralContent = ({
 					<DangerZoneCard
 						tenantId={tenantId}
 						tenantName={name ?? ''}
-						isSuspended={isSuspended ?? false}
+						status={status ?? null}
 						queryClient={queryClient}
 						navigate={navigate}
 					/>
@@ -302,7 +427,7 @@ const InfoRow = ({ icon, label, value }: InfoRowProps) => (
 type DangerZoneCardProps = {
 	tenantId: string;
 	tenantName: string;
-	isSuspended: boolean;
+	status?: string | null;
 	queryClient: ReturnType<typeof useQueryClient>;
 	navigate: ReturnType<typeof useNavigate>;
 };
@@ -310,7 +435,7 @@ type DangerZoneCardProps = {
 const DangerZoneCard = ({
 	tenantId,
 	tenantName,
-	isSuspended,
+	status,
 	queryClient,
 	navigate,
 }: DangerZoneCardProps) => {
@@ -318,12 +443,13 @@ const DangerZoneCard = ({
 	const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
 	const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const isSuspended = status === TENANT_STATUS_ENUM.SUSPENDED;
 
 	const { mutate: suspendTenant, isPending: isSuspending } = useSuspendTenant({
-		meta: { showSuccessToast: true },
+		meta: { successMessage: 'tenant-suspended-success' },
 		onSuccess: () => {
 			setSuspendDialogOpen(false);
-			queryClient.invalidateQueries({
+			void queryClient.invalidateQueries({
 				queryKey: useGetTenant.getKey({ tenantId }),
 			});
 		},
@@ -331,23 +457,23 @@ const DangerZoneCard = ({
 
 	const { mutate: reactivateTenant, isPending: isReactivating } =
 		useReactivateTenant({
-			meta: { showSuccessToast: true },
+			meta: { successMessage: 'tenant-reactivated-success' },
 			onSuccess: () => {
 				setReactivateDialogOpen(false);
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useGetTenant.getKey({ tenantId }),
 				});
 			},
 		});
 
 	const { mutate: deleteTenant, isPending: isDeleting } = useDeleteTenant({
-		meta: { showSuccessToast: true },
+		meta: { successMessage: 'tenant-deleted-success' },
 		onSuccess: () => {
 			setDeleteDialogOpen(false);
-			queryClient.invalidateQueries({
+			void queryClient.invalidateQueries({
 				queryKey: useFindTenants.getKey({}),
 			});
-			navigate(FRONT_PATH_NAMES.staff.tenants.root);
+			void navigate(FRONT_PATH_NAMES.staff.tenants.root);
 		},
 	});
 
@@ -451,27 +577,6 @@ const DangerZoneCard = ({
 	);
 };
 
-const statusColorMap: Record<
-	string,
-	'success' | 'warning' | 'error' | 'default'
-> = {
-	Active: 'success',
-	Suspended: 'warning',
-	Archived: 'error',
-	Pending: 'default',
-};
-
-type StatusChipProps = {
-	status?: string | null;
-	sx?: object;
-};
-
-const StatusChip = ({ status, sx }: StatusChipProps) => {
-	const label = status ?? 'Unknown';
-	const color = statusColorMap[label] ?? 'default';
-	return <Chip label={label} color={color} size="small" sx={sx} />;
-};
-
 const TenantGeneralSkeleton = () => (
 	<Box sx={{ containerType: 'inline-size' }}>
 		<Box
@@ -479,92 +584,164 @@ const TenantGeneralSkeleton = () => (
 				display: 'grid',
 				gap: 3,
 				gridTemplateColumns: '1fr',
+				alignItems: 'start',
 				'@container (min-width: 800px)': {
-					gridTemplateColumns: '1fr 2fr',
+					gridTemplateColumns: 'minmax(0, 300px) minmax(0, 1fr)',
 				},
 			}}
 		>
-			{/* Left sidebar skeleton */}
-			<Card sx={{ pt: 8, pb: 5, px: 3, textAlign: 'center' }}>
-				<Skeleton
-					variant="circular"
-					width={144}
-					height={144}
-					sx={{ mx: 'auto' }}
-				/>
-				<Skeleton
-					variant="rectangular"
-					width={60}
-					height={24}
-					sx={{ mx: 'auto', mt: 3, borderRadius: 1 }}
-				/>
+			<Card sx={{ pt: 6, pb: 4, px: 3 }}>
+				<Stack spacing={3} alignItems="center">
+					<Skeleton
+						variant="rounded"
+						width={132}
+						height={132}
+						sx={{ borderRadius: 4 }}
+					/>
+					<Stack spacing={1} alignItems="center" sx={{ width: 1 }}>
+						<Skeleton
+							variant="rounded"
+							width={84}
+							height={24}
+							sx={{ borderRadius: 999 }}
+						/>
+						<Skeleton variant="text" width="62%" height={28} />
+						<Skeleton variant="text" width="48%" height={18} />
+					</Stack>
+				</Stack>
+
 				<Divider sx={{ my: 3, borderStyle: 'dashed' }} />
-				<Stack spacing={2} sx={{ px: 2 }}>
-					<Skeleton variant="text" width="80%" height={40} />
-					<Skeleton variant="text" width="80%" height={40} />
-					<Skeleton variant="text" width="80%" height={40} />
+
+				<Stack spacing={1.75}>
+					{['74%', '58%', '66%', '52%'].map((width) => (
+						<Box
+							key={width}
+							sx={{
+								display: 'flex',
+								alignItems: 'center',
+								gap: 1.5,
+							}}
+						>
+							<Skeleton variant="circular" width={18} height={18} />
+							<Box sx={{ minWidth: 0, flex: 1 }}>
+								<Skeleton variant="text" width="34%" height={16} />
+								<Skeleton variant="text" width={width} height={20} />
+							</Box>
+						</Box>
+					))}
 				</Stack>
 			</Card>
 
-			{/* Right content skeleton */}
 			<Stack spacing={3}>
 				<Card sx={{ p: 3 }}>
-					<Skeleton variant="text" width={200} height={32} sx={{ mb: 3 }} />
 					<Stack spacing={3}>
-						<Skeleton
-							variant="rectangular"
-							height={56}
-							sx={{ borderRadius: 1 }}
-						/>
-						<Skeleton
-							variant="rectangular"
-							height={56}
-							sx={{ borderRadius: 1 }}
-						/>
-						<Skeleton
-							variant="rectangular"
-							height={56}
-							sx={{ borderRadius: 1 }}
-						/>
-						<Skeleton
-							variant="rectangular"
-							height={48}
-							width={160}
-							sx={{ borderRadius: 1 }}
-						/>
+						<Box>
+							<Skeleton
+								variant="text"
+								width="32%"
+								height={30}
+								sx={{ mb: 0.5 }}
+							/>
+							<Skeleton variant="text" width="52%" height={18} />
+						</Box>
+
+						<Stack spacing={2.5}>
+							<Skeleton
+								variant="rounded"
+								height={56}
+								sx={{ borderRadius: 2 }}
+							/>
+							<Skeleton
+								variant="rounded"
+								height={56}
+								sx={{ borderRadius: 2 }}
+							/>
+							<Skeleton
+								variant="rounded"
+								height={108}
+								sx={{ borderRadius: 2 }}
+							/>
+						</Stack>
+
+						<Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+							<Skeleton
+								variant="rounded"
+								width={132}
+								height={36}
+								sx={{ borderRadius: 2 }}
+							/>
+						</Box>
 					</Stack>
-					<Box
-						sx={{
-							display: 'flex',
-							justifyContent: 'flex-end',
-							mt: 3,
-						}}
-					>
-						<Skeleton
-							variant="rectangular"
-							width={130}
-							height={36}
-							sx={{ borderRadius: 1 }}
-						/>
-					</Box>
 				</Card>
 
 				<Card sx={{ p: 3 }}>
-					<Skeleton variant="text" width={120} height={28} sx={{ mb: 1 }} />
-					<Skeleton variant="text" width={350} height={20} sx={{ mb: 3 }} />
-					<Skeleton
-						variant="rectangular"
-						width={90}
-						height={36}
-						sx={{ borderRadius: 1 }}
-					/>
+					<Stack spacing={2.5}>
+						<Box>
+							<Skeleton
+								variant="text"
+								width="22%"
+								height={28}
+								sx={{ mb: 0.5 }}
+							/>
+							<Skeleton variant="text" width="58%" height={18} />
+						</Box>
+
+						<Box
+							sx={{
+								display: 'grid',
+								gap: 2,
+								gridTemplateColumns: {
+									xs: '1fr',
+									sm: 'repeat(2, minmax(0, 1fr))',
+								},
+							}}
+						>
+							{['42%', '56%', '48%', '38%'].map((width) => (
+								<Box key={width}>
+									<Skeleton variant="text" width="34%" height={16} />
+									<Skeleton variant="text" width={width} height={22} />
+								</Box>
+							))}
+						</Box>
+					</Stack>
+				</Card>
+
+				<Card sx={{ p: 3 }}>
+					<Stack spacing={2.5}>
+						<Box>
+							<Skeleton
+								variant="text"
+								width="20%"
+								height={28}
+								sx={{ mb: 0.5 }}
+							/>
+							<Skeleton variant="text" width="64%" height={18} />
+						</Box>
+						<Box
+							sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}
+						>
+							<Box sx={{ minWidth: 0, flex: 1 }}>
+								<Skeleton variant="text" width="28%" height={16} />
+								<Skeleton variant="text" width="46%" height={22} />
+							</Box>
+							<Skeleton
+								variant="rounded"
+								width={104}
+								height={36}
+								sx={{ borderRadius: 2, flexShrink: 0 }}
+							/>
+						</Box>
+					</Stack>
 				</Card>
 			</Stack>
 		</Box>
 	</Box>
 );
 
-const ErrorView: FC<{ error: unknown }> = ({ error }) => {
+const ErrorView: FC<{
+	error: unknown;
+	query: UseQueryResult<GetTenantAsStaffResult, Error>;
+}> = ({ error, query }) => {
 	const { t } = useTranslate();
 
 	const failure = toApiFailure(error);
@@ -577,7 +754,7 @@ const ErrorView: FC<{ error: unknown }> = ({ error }) => {
 		return (
 			<NotFoundView
 				withLayout={false}
-				title={_.capitalize(t('tenant-not-found-title'))}
+				title={capitalize(t('tenant-not-found-title'))}
 				description={t('tenant-not-found-description')}
 			/>
 		);
@@ -588,6 +765,7 @@ const ErrorView: FC<{ error: unknown }> = ({ error }) => {
 			<ErrorContent
 				title={t('tenant-details-error-title')}
 				description={t('tenant-details-error-description')}
+				onRetry={() => query.refetch()}
 			/>
 		</Box>
 	);

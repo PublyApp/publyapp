@@ -17,12 +17,20 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Modules.Tenants.Handlers.Staff;
 
 public record UpdateTenantAsStaffBody {
-	public JsonElement? Name { get; init; }
+	public JsonElement Name { get; init; }
 	public JsonElement LogoUrl { get; init; }
 	public JsonElement? MaxUsers { get; init; }
 
 	public string? GetName() =>
-		Name.GetValueAsStringOrNull();
+		Name.ValueKind switch {
+			JsonValueKind.Undefined =>
+				null,
+			JsonValueKind.String =>
+				Name.GetValueAsString(),
+			_ => throw new InvalidOperationException(
+				"Name must be a string or omitted"
+			),
+		};
 
 	public PatchField<string?> GetLogoUrl() =>
 		LogoUrl.ValueKind switch {
@@ -47,13 +55,13 @@ public class UpdateTenantAsStaffBodyValidator
 	: AbstractValidator<UpdateTenantAsStaffBody> {
 	public UpdateTenantAsStaffBodyValidator() {
 		RuleFor(x => x.Name)
-			.Must(e => e is null
-				|| e.Value.ValueKind == JsonValueKind.String)
+			.Must(e => e.ValueKind == JsonValueKind.Undefined
+				|| e.ValueKind == JsonValueKind.String)
 			.WithMessage("Name must be a string")
 			.DependentRules(() => {
 				RuleFor(x => x.Name)
-					.Must(e => e is null
-						|| (e.Value.GetString()?.Length ?? 0)
+					.Must(e => e.ValueKind == JsonValueKind.Undefined
+						|| (e.GetString()?.Length ?? 0)
 							>= 5)
 					.WithMessage(
 						"Name must be at least 5 characters"
@@ -85,7 +93,7 @@ public class UpdateTenantAsStaffBodyValidator
 	}
 }
 
-public static class UpdateTenantAsStaff {
+public class UpdateTenantAsStaff {
 	public static async Task<Results<
 		Ok<GetTenantAsStaffResult>,
 		AppBadRequestHttpResult,
@@ -105,6 +113,16 @@ public static class UpdateTenantAsStaff {
 			);
 		}
 
+		// Guard against empty PATCH body
+		if (body.GetName() is null
+			&& !body.GetLogoUrl().IsPresent
+			&& body.GetMaxUsers() is null) {
+			return TypedProblems.BadRequest(
+				"No fields to update",
+				ResponseKeys.BadRequest
+			);
+		}
+
 		var args = new UpdateTenantAsStaffArgs(
 			Name: body.GetName(),
 			LogoUrl: body.GetLogoUrl(),
@@ -115,25 +133,18 @@ public static class UpdateTenantAsStaff {
 			tenantIdGuid, args, cancellationToken
 		);
 
-		if (result.Error is UpdateTenantError.NotFound) {
+		if (result is UpdateTenantResult.NotFound) {
 			return TypedProblems.NotFound(
 				"Tenant not found",
 				ResponseKeys.TenantNotFound
 			);
 		}
-		if (result.Error
-			is UpdateTenantError.MaxUsersBelowCurrentCount
-		) {
+		if (result is UpdateTenantResult.MaxUsersBelowCurrentCount) {
 			return TypedProblems.BadRequest(
 				"Max users cannot be less than "
 				+ "the current number of users",
 				ResponseKeys
 					.TenantMaxUsersBelowCount
-			);
-		}
-		if (result.Error is not null) {
-			throw new InvalidOperationException(
-				$"Unknown error: {result.Error}"
 			);
 		}
 
@@ -146,28 +157,29 @@ public static class UpdateTenantAsStaff {
 			);
 		}
 
-		if (result.Tenant is null) {
+		if (result is not UpdateTenantResult.Success success) {
 			throw new InvalidOperationException(
-				"Service returned success "
-				+ "but Tenant was null."
+				$"Unknown update tenant result: {result.GetType().Name}"
 			);
 		}
-		var tenant = result.Tenant;
+		var tenant = success.Tenant;
 		var usersCount = await tenantService
 			.CountTenantUsersAsync(
 				tenantIdGuid, cancellationToken
 			);
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.TenantUpdated,
-			tenantIdGuid,
-			new {
-				Name = args.Name,
-				LogoUrl = args.LogoUrl.IsPresent
-					? args.LogoUrl.Value : null,
-				MaxUsers = args.MaxUsers,
-			},
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.TenantUpdated,
+				TargetId: tenantIdGuid,
+				Details: new {
+					Name = args.Name,
+					LogoUrl = args.LogoUrl.IsPresent
+						? args.LogoUrl.Value : null,
+					MaxUsers = args.MaxUsers,
+				}
+			),
 			cancellationToken
 		);
 
@@ -180,7 +192,6 @@ public static class UpdateTenantAsStaff {
 			Status = Tenant.GetStatusDescription(
 				tenant.Status
 			),
-			IsSuspended = tenant.IsSuspended,
 			UsersCount = usersCount,
 			CreatedAt = tenant.CreatedAt,
 			UpdatedAt = tenant.UpdatedAt,

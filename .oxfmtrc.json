@@ -1,0 +1,66 @@
+{
+	"$schema": "./node_modules/oxfmt/configuration_schema.json",
+	"useTabs": true,
+	"tabWidth": 2,
+	"printWidth": 80,
+	"singleQuote": true,
+	"jsxSingleQuote": false,
+	"quoteProps": "as-needed",
+	"trailingComma": "all",
+	"semi": true,
+	"arrowParens": "always",
+	"bracketSameLine": false,
+	"bracketSpacing": true,
+	"sortImports": {
+		"customGroups": [
+			{
+				"groupName": "runtime",
+				"elementNamePattern": ["bun:*"],
+				"selector": "import"
+			}
+		],
+		"groups": [
+			["builtin", "runtime"],
+			{
+				"newlinesBetween": true
+			},
+			"external",
+			{
+				"newlinesBetween": true
+			},
+			"internal",
+			{
+				"newlinesBetween": true
+			},
+			"subpath",
+			{
+				"newlinesBetween": true
+			},
+			["parent", "sibling", "index", "style", "side_effect_style"]
+		],
+		"internalPattern": ["@/", "@org/"],
+		"newlinesBetween": true,
+		"order": "asc",
+		"partitionByComment": false,
+		"partitionByNewline": false,
+		"sortSideEffects": false
+	},
+	"sortPackageJson": false,
+	"ignorePatterns": [
+		"**/node_modules",
+		"**/build",
+		"**/dist",
+		"**/.turbo",
+		"**/.husky/_",
+		"**/.react-router",
+		"packages/client-ts",
+		"apps/api/openapi",
+		"apps/api/Migrations",
+		"apps/api/bin",
+		".config/dotnet-tools.json",
+		"apps/api/Generated",
+		".dump",
+		".mcp.json",
+		".claude/settings.local.json"
+	]
+}

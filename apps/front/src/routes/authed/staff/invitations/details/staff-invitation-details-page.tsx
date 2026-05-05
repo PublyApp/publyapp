@@ -23,29 +23,30 @@ import {
 	FRONT_PATH_NAMES,
 	isServer,
 } from '@org/shared-ts/lib/constants';
-import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
-import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
-import { EmptyContent } from '@/front/components/empty-content/empty-content';
-import { ErrorContent } from '@/front/components/empty-content/error-content';
-import View400 from '@/front/components/error/400-view';
-import { Iconify } from '@/front/components/iconify/iconify';
-import type { IconifyName } from '@/front/components/iconify/register-icons';
-import { Label } from '@/front/components/label/label';
-import type { LabelColor } from '@/front/components/label/types';
-import QueryDisplay from '@/front/components/query-display';
-import { toast } from '@/front/components/snackbar';
-import { useRouter } from '@/front/hooks/use-router';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { isProblemFailure, toApiFailure } from '@/front/lib/api-failure';
+
+import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
+import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
+import { EmptyContent } from '#app/components/empty-content/empty-content.tsx';
+import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
+import View400 from '#app/components/error/400-view.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import type { IconifyName } from '#app/components/iconify/register-icons.ts';
+import { Label } from '#app/components/label/label.tsx';
+import type { LabelColor } from '#app/components/label/types.ts';
+import QueryDisplay from '#app/components/query-display.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
+import { useRouter } from '#app/hooks/use-router.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
+import { isProblemFailure, toApiFailure } from '#app/lib/api-failure/index.ts';
 import {
 	useFindStaffInvitations,
 	useGetStaffInvitation,
-	useResendInvitation,
-	useRevokeInvitation,
-} from '@/front/lib/react-query/features/staff/staff-invitation.hooks';
-import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { fDate, fIsAfter, fToNow } from '@/front/utils/format-time';
+	useResendStaffInvitation,
+	useRevokeStaffInvitation,
+} from '#app/lib/react-query/features/staff/staff-invitation.hooks.ts';
+import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
+import { fDate, fIsAfter, fToNow } from '#app/utils/format-time.ts';
 
 import type { Route } from './+types/staff-invitation-details-page';
 
@@ -230,20 +231,20 @@ const InvitationDetailsContent = ({
 	const canManage = status === 'pending';
 
 	const { mutateAsync: resendInvitation, isPending: isResending } =
-		useResendInvitation({
+		useResendStaffInvitation({
 			onSuccess: () => {
 				toast.success(t('staff-invitation-resent'));
 			},
 		});
 
 	const { mutateAsync: revokeInvitation, isPending: isRevoking } =
-		useRevokeInvitation({
+		useRevokeStaffInvitation({
 			onSuccess: () => {
 				toast.success(t('staff-invitation-revoked'));
-				queryClient.invalidateQueries({
+				void queryClient.invalidateQueries({
 					queryKey: useFindStaffInvitations.getKey(),
 				});
-				router.push(FRONT_PATH_NAMES.staff.invitations.root);
+				void router.push(FRONT_PATH_NAMES.staff.invitations.root);
 			},
 		});
 

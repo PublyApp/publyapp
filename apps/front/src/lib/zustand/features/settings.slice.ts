@@ -1,8 +1,11 @@
 import * as cookie from 'cookie';
-import _ from 'lodash';
+import isArray from 'lodash/isArray';
+import mergeWith from 'lodash/mergeWith';
+import lodashSet from 'lodash/set';
 
-import { defaultSettings } from '@/front/components/settings/settings-config';
-import type { SettingsState } from '@/front/components/settings/types';
+import { defaultSettings } from '#app/components/settings/settings-config.ts';
+import type { SettingsState } from '#app/components/settings/types.ts';
+import { createSettingsSyncId } from '#app/lib/settings/settings-sync-state.client.ts';
 
 import { SIDEBAR_COOKIE_MAX_AGE, SIDEBAR_COOKIE_NAME } from '../../constants';
 import type { useMainStore } from '../store';
@@ -12,6 +15,9 @@ export type SettingsSliceValues = {
 	openDrawer: boolean;
 	canReset: boolean;
 	state: SettingsState;
+	revision: number;
+	updatedAt: number;
+	syncId: string;
 };
 
 export type SettingsSliceActions = {
@@ -20,8 +26,7 @@ export type SettingsSliceActions = {
 	onReset: () => void;
 	setState: (updateState: SettingsState | Partial<SettingsState>) => void;
 
-	// biome-ignore lint/suspicious/noExplicitAny: use any for now
-	setField: (path: string, value: any) => void;
+	setField: (path: string, value: unknown) => void;
 };
 
 export type SettingsSliceState = SettingsSliceValues & SettingsSliceActions;
@@ -30,16 +35,27 @@ const defaultValues: SettingsSliceValues = {
 	openDrawer: false,
 	canReset: true,
 	state: defaultSettings,
+	revision: 0,
+	updatedAt: 0,
+	syncId: '',
 };
 
 const sliceName = 'settingsSlice' as const;
 
 const customizer = (objValue: unknown, srcValue: unknown) => {
-	if (_.isArray(objValue)) {
+	if (isArray(objValue)) {
 		return objValue.concat(srcValue);
 	}
 
 	return undefined;
+};
+
+const markSettingsChanged = (state: { settingsSlice: SettingsSliceValues }) => {
+	// Every local settings mutation advances the snapshot metadata persisted by
+	// Zustand. Remote tabs use this to reject stale delayed storage events.
+	state.settingsSlice.revision += 1;
+	state.settingsSlice.updatedAt = Date.now();
+	state.settingsSlice.syncId = createSettingsSyncId();
 };
 
 const settingsSlice = new Slice<
@@ -66,20 +82,23 @@ const settingsSlice = new Slice<
 			onReset: () => {
 				set((state) => {
 					state.settingsSlice.state = defaultSettings;
+					markSettingsChanged(state);
 				});
 			},
 			setState: (updateState) => {
 				set((state) => {
-					state.settingsSlice.state = _.mergeWith(
+					state.settingsSlice.state = mergeWith(
 						state.settingsSlice.state,
 						updateState,
 						customizer,
 					);
+					markSettingsChanged(state);
 				});
 			},
 			setField: (path, value) => {
 				set((state) => {
-					_.set(state.settingsSlice.state, path, value);
+					lodashSet(state.settingsSlice.state, path, value);
+					markSettingsChanged(state);
 				});
 			},
 		};

@@ -11,7 +11,7 @@ import { mergeClasses } from 'minimal-shared/utils';
 import { nanoid } from 'nanoid';
 import { useEffect, useMemo, useRef } from 'react';
 
-import { createClasses } from '@/front/lib/mui/theme/create-classes';
+import { createClasses } from '#app/lib/mui/theme/create-classes.ts';
 
 import { varContainer, varFade } from './variants';
 
@@ -75,17 +75,17 @@ export const AnimateText = ({
 			if (repeatDelayMs) {
 				timeout = setTimeout(async () => {
 					await animationControls.start('initial');
-					animationControls.start('animate');
+					void animationControls.start('animate');
 				}, repeatDelayMs);
 			} else {
-				animationControls.start('animate');
+				void animationControls.start('animate');
 			}
 		};
 
 		if (isInView) {
 			triggerAnimation();
 		} else {
-			animationControls.start('initial');
+			void animationControls.start('initial');
 		}
 
 		return () => {

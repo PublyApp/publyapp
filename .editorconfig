@@ -71,6 +71,13 @@ dotnet_diagnostic.CS1591.severity = none
 dotnet_diagnostic.CA1848.severity = none
 # CA1062: Validate arguments of public methods
 dotnet_diagnostic.CA1873.severity = warning
+# Enable CA1507 as a warning (common choice)
+dotnet_diagnostic.CA1507.severity = warning
+# IDE0030: null check can be simplified
+dotnet_diagnostic.IDE0030.severity = none
+# IDE0075: Simplify conditional expression
+dotnet_diagnostic.IDE0075.severity = none
+
 
 # EF Core Migrations - auto-generated code
 [**/Migrations/*.cs]

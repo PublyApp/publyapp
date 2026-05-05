@@ -16,6 +16,8 @@ public class GetStaffUserByIdResult {
 	public string? AvatarUrl { get; set; }
 	public string AccountLevel { get; set; } = string.Empty;
 	public string Status { get; set; } = string.Empty;
+	public DateTime CreatedAt { get; set; }
+	public DateTime UpdatedAt { get; set; }
 }
 
 public class GetStaffUserById {
@@ -70,9 +72,10 @@ public class GetStaffUserById {
 			LastName = user.User.LastName,
 			FirstName = user.User.FirstName,
 			AvatarUrl = user.User.AvatarUrl,
-			AccountLevel = UserAccount.GetAccountLevelDescription(user.AccountLevel),
+			AccountLevel = UserAccount.GetLevelDescription(user.AccountLevel),
 			Status = User.GetStatusDescription(user.User.Status),
+			CreatedAt = user.User.CreatedAt,
+			UpdatedAt = user.User.UpdatedAt,
 		});
 	}
 }
-

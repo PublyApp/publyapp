@@ -3,8 +3,8 @@ import Box from '@mui/material/Box';
 import type { Breakpoint } from '@mui/material/styles';
 import _ from 'lodash';
 
-import { Logo } from '@/front/components/logo/logo';
-import { allLangs } from '@/front/lib/locales/all-langs';
+import { Logo } from '#app/components/logo/logo.tsx';
+import { allLangs } from '#app/lib/locales/all-langs.ts';
 
 import { ColorSchemePopover } from '../components/colorscheme-popover';
 import { LanguagePopover } from '../components/language-popover';

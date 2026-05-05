@@ -158,7 +158,7 @@ export const UploadAvatar = ({
 				{renderContent()}
 			</Box>
 
-			{helperText && helperText}
+			{helperText}
 
 			{!!fileRejections.length && <RejectionFiles files={fileRejections} />}
 		</>

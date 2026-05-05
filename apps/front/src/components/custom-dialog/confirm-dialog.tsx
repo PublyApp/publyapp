@@ -4,7 +4,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 
-import { useTranslate } from '@/front/hooks/use-translate';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 
 import type { ConfirmDialogProps } from './types';
 

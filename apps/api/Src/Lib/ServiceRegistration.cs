@@ -6,13 +6,6 @@ using MainApi.Src.Data.DbContext;
 using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Lib.DI;
 using MainApi.Src.Lib.Extensions;
-using MainApi.Src.Modules.Auth.Services;
-using MainApi.Src.Modules.Impersonations.Services;
-using MainApi.Src.Modules.Invitations.Services;
-using MainApi.Src.Modules.Permissions.Services;
-using MainApi.Src.Modules.Profiles.Services;
-using MainApi.Src.Modules.Tenants.Services;
-using MainApi.Src.Modules.Users.Services;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
@@ -133,7 +126,7 @@ public static class ServiceRegistration {
 	/// Registers Application/business services from MainApi.Src.Modules.*.Services.
 	/// </summary>
 	public static WebApplicationBuilder AddAppServices(this WebApplicationBuilder builder) {
-		// Phase 3: Validate [Service] attributed classes (fail-fast)
+		// Validate [Service] attributed classes up front (fail-fast).
 		var discoveredServices = ValidateServiceAttributes();
 
 		// Optional DI manifest logging (gated by config).
@@ -149,25 +142,11 @@ public static class ServiceRegistration {
 		// Register FluentValidation (keep unchanged)
 		builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
-		// Application services (scoped) - explicit registrations for services not yet migrated to [Service]
-		builder.Services.AddScoped<IUserService, UserService>();
-		builder.Services.AddScoped<ISessionService, SessionService>();
-		builder.Services.AddScoped<ITenantAsStaffService, TenantAsStaffService>();
-		builder.Services.AddScoped<ITenantService, TenantService>();
-		builder.Services.AddScoped<IAccountService, AccountService>();
-		builder.Services.AddScoped<IProfileService, ProfileService>();
-		builder.Services.AddScoped<IInvitationService, InvitationService>();
-		// IAuditLogService -> migrated to [Service] attribute
-		builder.Services.AddScoped<IImpersonationService, ImpersonationService>();
-		builder.Services.AddScoped<IPermissionService, PermissionService>();
-		builder.Services.AddScoped<IProfileAsStaffService, ProfileAsStaffService>();
-		builder.Services.AddScoped<IPermissionAsStaffService, PermissionAsStaffService>();
-
 		// Register RequestAuthContext (unified auth + tenant context)
 		builder.Services.AddScoped<IRequestAuthContext, RequestAuthContext>();
 
-		// Phase 3: Register [Service] attributed classes AFTER explicit registrations
-		// This ensures fail-fast detection of "half-migrated" states (same interface registered both ways)
+		// Register [Service] attributed classes after the explicit framework/app registrations above.
+		// Fail fast if any explicit registration overlaps with a discovered [Service] mapping.
 		RegisterDiscoveredServices(builder.Services, discoveredServices);
 
 		// Validate services at build time
@@ -196,7 +175,6 @@ public static class ServiceRegistration {
 
 	/// <summary>
 	/// Registers discovered [Service] attributed classes with the DI container.
-	/// Phase 3: incremental cutover from explicit registrations to attribute-based registration.
 	/// Fails fast if any discovered service interface already has an explicit registration.
 	/// </summary>
 	private static void RegisterDiscoveredServices(
@@ -209,7 +187,7 @@ public static class ServiceRegistration {
 			.Select(s => s.ServiceInterface!)
 			.ToHashSet();
 
-		// Fail-fast: detect "half-migrated" states where both explicit and attribute registrations exist
+		// Fail fast if an explicit registration overlaps with a discovered [Service] mapping.
 		var conflictingDescriptors = services
 			.Where(sd => discoveredInterfaces.Contains(sd.ServiceType))
 			.ToList();

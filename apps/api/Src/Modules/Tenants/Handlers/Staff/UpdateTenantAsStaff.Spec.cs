@@ -2,24 +2,37 @@ namespace MainApi.Src.Modules.Tenants.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 
 using FluentAssertions;
 
+using MainApi.Localization;
+using MainApi.Src.Data.DbContext;
 using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Routes;
 using MainApi.Src.Lib.Testing.Fixtures;
 using MainApi.Src.Lib.Testing.Helpers;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Modules.AuditLogs.Entities;
+using MainApi.Src.Modules.Auth.Utils;
+using MainApi.Src.Modules.Tenants.Entities;
+using MainApi.Src.Modules.Users.Entities;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
 public sealed class UpdateTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
 	public UpdateTenantAsStaffSpec(ApiFixture fixture) {
+		_fixture = fixture;
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);
 	}
@@ -141,7 +154,176 @@ public sealed class UpdateTenantAsStaffSpec
 
 	[Fact]
 	public async Task
-	ItShouldReturn200ForEmptyPatchBody() {
+	ItShouldSetLogoUrlWhenStringProvided() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Logo Update");
+		var logoUrl =
+			"https://cdn.example.com/tenant-logo.png";
+
+		using var response =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { logoUrl }
+			);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<GetTenantAsStaffResult>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"PATCH tenant response was empty."
+			);
+		}
+
+		result.TenantId.Should()
+			.Be(seededTenant.TenantId);
+		result.LogoUrl.Should()
+			.Be(logoUrl);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldUpdateMaxUsersSuccessfully() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync(
+				"Tenant Max Users Update",
+				maxUsers: 5
+			);
+
+		using var response =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { maxUsers = 12 }
+			);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<GetTenantAsStaffResult>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"PATCH tenant response was empty."
+			);
+		}
+
+		result.TenantId.Should()
+			.Be(seededTenant.TenantId);
+		result.MaxUsers.Should()
+			.Be(12);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldUpdateMultipleFieldsAndWriteAuditLog() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync(
+				"Tenant Multi Update",
+				maxUsers: 4
+			);
+		var newName =
+			$"Tenant Multi Updated {Guid.NewGuid():N}";
+		var newLogoUrl =
+			"https://cdn.example.com/tenant-multi.png";
+		var newMaxUsers = 9;
+
+		using var response =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new {
+					name = newName,
+					logoUrl = newLogoUrl,
+					maxUsers = newMaxUsers,
+				}
+			);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<GetTenantAsStaffResult>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"PATCH tenant response was empty."
+			);
+		}
+
+		result.Name.Should()
+			.Be(newName);
+		result.LogoUrl.Should()
+			.Be(newLogoUrl);
+		result.MaxUsers.Should()
+			.Be(newMaxUsers);
+
+		var auditLog = await GetLatestAuditLogAsync(
+			AuditActions.TenantUpdated,
+			seededTenant.TenantId
+		);
+		auditLog.Should().NotBeNull();
+		if (auditLog is null) {
+			throw new InvalidOperationException(
+				"Tenant update audit log was not written."
+			);
+		}
+
+		AssertUpdateAuditDetails(
+			auditLog,
+			expectedName: newName,
+			expectedLogoUrl: newLogoUrl,
+			expectedMaxUsers: newMaxUsers
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnBadRequestWhenMaxUsersBelowCurrentUserCount() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantWithUsersAsync(
+				"Tenant Max Below Count",
+				usersCount: 2,
+				maxUsers: 5
+			);
+
+		using var response =
+			await TenantTestHelper.UpdateTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId,
+				new { maxUsers = 1 }
+			);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.BadRequest);
+
+		var problem = await response.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.TranslationKey.Should()
+			.Be(ResponseKeys.TenantMaxUsersBelowCount);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturn400ForEmptyPatchBody() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -160,12 +342,7 @@ public sealed class UpdateTenantAsStaffSpec
 			);
 
 		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<GetTenantAsStaffResult>();
-		result.Should().NotBeNull();
-		result!.TenantId.Should().Be(tenantId);
+			.Be(HttpStatusCode.BadRequest);
 	}
 
 	[Fact]
@@ -247,6 +424,33 @@ public sealed class UpdateTenantAsStaffSpec
 		// maxUsers = 0 should fail validation (must be > 0)
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Theory]
+	[MemberData(nameof(InvalidUpdateTenantBodies))]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenPatchBodyIsInvalid(
+		string body,
+		string expectedField
+	) {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync("Tenant Invalid Patch");
+
+		using var response =
+			await _http.SendAsync(
+				CreateRawUpdateRequest(
+					staffToken,
+					seededTenant.TenantId,
+					body
+				)
+			);
+
+		await AssertValidationProblemAsync(
+			response,
+			expectedField
+		);
 	}
 
 	[Fact]
@@ -334,4 +538,224 @@ public sealed class UpdateTenantAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
 	}
+
+	public static IEnumerable<object[]>
+	InvalidUpdateTenantBodies() {
+		yield return [
+			"""
+			{ "name": 123 }
+			""",
+			"Name",
+		];
+		yield return [
+			"""
+			{ "name": null }
+			""",
+			"Name",
+		];
+		yield return [
+			"""
+			{ "name": "Tiny" }
+			""",
+			"Name",
+		];
+		yield return [
+			"""
+			{ "logoUrl": 123 }
+			""",
+			"LogoUrl",
+		];
+		yield return [
+			"""
+			{ "maxUsers": "10" }
+			""",
+			"MaxUsers",
+		];
+		yield return [
+			"""
+			{ "maxUsers": 1.5 }
+			""",
+			"MaxUsers",
+		];
+		yield return [
+			"""
+			{ "maxUsers": 999999999999999999999999999999 }
+			""",
+			"MaxUsers",
+		];
+		yield return [
+			"""
+			{ "maxUsers": -1 }
+			""",
+			"MaxUsers",
+		];
+	}
+
+	private static HttpRequestMessage
+	CreateRawUpdateRequest(
+		string staffToken,
+		Guid tenantId,
+		string body
+	) {
+		var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl(tenantId.ToString())
+		).WithSessionToken(staffToken);
+
+		request.Content = new StringContent(
+			body,
+			Encoding.UTF8,
+			"application/json"
+		);
+
+		return request;
+	}
+
+	private async Task<SeededTenantSnapshot>
+	SeedTenantAsync(
+		string namePrefix,
+		TenantStatus status = TenantStatus.Active,
+		int maxUsers = 10
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<MainApiDbContext>();
+
+		var tenant = new Tenant {
+			Name = $"{namePrefix} {Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = status,
+			MaxUsers = maxUsers,
+		};
+
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+
+		return new SeededTenantSnapshot(
+			TenantId: tenant.GetRequiredId(),
+			Name: tenant.Name,
+			Code: tenant.Code,
+			MaxUsers: tenant.MaxUsers
+		);
+	}
+
+	private async Task<SeededTenantSnapshot>
+	SeedTenantWithUsersAsync(
+		string namePrefix,
+		int usersCount,
+		int maxUsers
+	) {
+		var seededTenant = await SeedTenantAsync(
+			namePrefix,
+			maxUsers: maxUsers
+		);
+
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<MainApiDbContext>();
+
+		for (var i = 0; i < usersCount; i++) {
+			var user = new User {
+				Email = $"tenant-update-user-{Guid.NewGuid():N}@example.com",
+				Password = PasswordUtils.HashPassword(
+					TestConstants.SeedPassword
+				),
+				FirstName = "Tenant",
+				LastName = $"User {i}",
+				Status = UserStatus.Active,
+				IsVerified = true,
+			};
+
+			await dbContext.User.AddAsync(user);
+			await dbContext.SaveChangesAsync();
+
+			await dbContext.UserAccount.AddAsync(
+				UserAccount.CreateTenantAccount(
+					user.GetRequiredId(),
+					seededTenant.TenantId
+				)
+			);
+		}
+
+		await dbContext.SaveChangesAsync();
+
+		return seededTenant;
+	}
+
+	private async Task<AuditLog?> GetLatestAuditLogAsync(
+		string action,
+		Guid targetId
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<MainApiDbContext>();
+
+		var query =
+			from log in dbContext.AuditLog
+			where log.Action == action
+				&& log.TargetId == targetId
+			orderby log.CreatedAt descending
+			select log;
+
+		return await query.FirstOrDefaultAsync();
+	}
+
+	private static void AssertUpdateAuditDetails(
+		AuditLog auditLog,
+		string expectedName,
+		string expectedLogoUrl,
+		int expectedMaxUsers
+	) {
+		auditLog.Details.Should().NotBeNull();
+		if (auditLog.Details is null) {
+			throw new InvalidOperationException(
+				"Tenant update audit log details were empty."
+			);
+		}
+
+		using var document = JsonDocument.Parse(
+			auditLog.Details
+		);
+		var details = document.RootElement;
+
+		details.GetProperty("Name").GetString()
+			.Should().Be(expectedName);
+		details.GetProperty("LogoUrl").GetString()
+			.Should().Be(expectedLogoUrl);
+		details.GetProperty("MaxUsers").GetInt32()
+			.Should().Be(expectedMaxUsers);
+	}
+
+	private static async Task AssertValidationProblemAsync(
+		HttpResponseMessage response,
+		string expectedField
+	) {
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem =
+			await response.Content
+				.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		if (problem is null) {
+			throw new InvalidOperationException(
+				"Validation problem response was empty."
+			);
+		}
+
+		problem.TranslationKey.Should()
+			.Be(ResponseKeys.RequestBodyValidationFailed.Value);
+		problem.Errors.Keys.Should()
+			.Contain(expectedField);
+	}
+
+	private sealed record SeededTenantSnapshot(
+		Guid TenantId,
+		string Name,
+		string Code,
+		int MaxUsers
+	);
 }

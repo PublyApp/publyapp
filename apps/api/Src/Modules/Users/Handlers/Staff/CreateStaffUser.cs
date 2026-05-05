@@ -48,7 +48,7 @@ public class CreateStaffUserBody {
 				return AccountLevelEnum.User;
 			case JsonValueKind.String: {
 					var accountLevelString = AccountLevel.GetValueAsString();
-					var accountLevel = UserAccount.ParseAccountLevel(accountLevelString);
+					var accountLevel = UserAccount.ParseLevel(accountLevelString);
 					if (accountLevel is null) {
 						throw new InvalidOperationException("Invalid account level: " + accountLevelString);
 					}
@@ -109,6 +109,9 @@ public class CreateStaffUser {
 			LastName = body.GetLastName(),
 			FirstName = body.GetFirstName(),
 			AvatarUrl = body.GetAvatarUrl(),
+			// Legacy unmapped handler: default closed if this code is reused internally.
+			// Invitation acceptance is the normal path and explicitly activates users.
+			Status = UserStatus.Suspended,
 			IsVerified = false,
 		};
 

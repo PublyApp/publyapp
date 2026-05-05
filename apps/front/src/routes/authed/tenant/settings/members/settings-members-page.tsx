@@ -14,9 +14,9 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
-import { Iconify } from '@/front/components/iconify/iconify';
-import { SettingsPageHeader } from '@/front/components/settings/settings-page-header';
-import { useTranslate } from '@/front/hooks/use-translate';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { SettingsPageHeader } from '#app/components/settings/settings-page-header.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 
 const MOCK_MEMBERS = [
 	{
@@ -93,7 +93,7 @@ const SettingsMembersPage = () => {
 						/>
 						<Button
 							variant="contained"
-							startIcon={<Iconify icon="mingcute:add-line" width={20} />}
+							startIcon={<Iconify icon="mingcute:add-line" width={16} />}
 							disabled
 						>
 							{t('invite-member')}
@@ -117,8 +117,15 @@ const SettingsMembersPage = () => {
 								<TableRow key={member.id}>
 									<TableCell>
 										<Stack direction="row" alignItems="center" spacing={2}>
-											<Avatar sx={{ width: 36, height: 36 }}>
-												{member.name.charAt(0)}
+											<Avatar
+												sx={{
+													width: 36,
+													height: 36,
+													bgcolor: 'background.neutral',
+													color: 'text.disabled',
+												}}
+											>
+												<Iconify icon="solar:user-rounded-bold" width={20} />
 											</Avatar>
 											<Box>
 												<Typography variant="subtitle2">

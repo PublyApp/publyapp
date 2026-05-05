@@ -1,21 +1,53 @@
+import Autocomplete from '@mui/material/Autocomplete';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import ButtonBase from '@mui/material/ButtonBase';
+import Checkbox from '@mui/material/Checkbox';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
+import ListItemText from '@mui/material/ListItemText';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
+import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import _ from 'lodash';
+import { useQueryClient } from '@tanstack/react-query';
+import capitalize from 'lodash/capitalize';
+import isEqual from 'lodash/isEqual';
+import map from 'lodash/map';
+import lodashToString from 'lodash/toString';
+import trim from 'lodash/trim';
 import {
 	createMRTColumnHelper,
 	MaterialReactTable,
 	type MRT_ColumnDef,
+	type MRT_Localization,
 	type MRT_SortingState,
+	type MRT_TableOptions,
 } from 'material-react-table';
 import { useBoolean } from 'minimal-shared/hooks';
-import { useEffect, useMemo } from 'react';
+import { varAlpha } from 'minimal-shared/utils';
+import { parseAsString, useQueryStates } from 'nuqs';
+import {
+	type Ref,
+	useCallback,
+	useEffect,
+	useId,
+	useImperativeHandle,
+	useMemo,
+	useRef,
+	useState,
+} from 'react';
 import { useParams } from 'react-router';
 
 import {
@@ -23,27 +55,33 @@ import {
 	DEFAULT_PAGE_SIZE,
 	FRONT_PATH_NAMES,
 	USER_STATUS_ENUM,
-	voidFunction,
 } from '@org/shared-ts/lib/constants';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { getErrorMessage } from '@org/shared-ts/utils/error.utils';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
-import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
-import DrawerAnchor from '@/front/components/drawer-anchor';
-import { Iconify } from '@/front/components/iconify/iconify';
-import type { LabelColor } from '@/front/components/label';
-import { Label } from '@/front/components/label/label';
-import { RouterLink } from '@/front/components/router-link';
-import { toast } from '@/front/components/snackbar';
-import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { useTableQueryOptions } from '@/front/hooks/use-table-query-options';
-import { useTableState } from '@/front/hooks/use-table-state';
-import { useTranslate } from '@/front/hooks/use-translate';
+
+import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
+import DrawerAnchor from '#app/components/drawer-anchor.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import type { LabelColor } from '#app/components/label/index.ts';
+import { Label } from '#app/components/label/label.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
+import { useSectionPageWithDrawer } from '#app/components/settings/section-page-with-drawer.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
+import { useTableRowSelection } from '#app/hooks/table/use-table-row-selection.ts';
+import { useUrlBackedDebouncedSearch } from '#app/hooks/table/use-url-backed-debounced-search.ts';
+import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
+import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
+import { useTableState } from '#app/hooks/use-table-state.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
+import { downloadCsvFile, downloadJsonFile } from '#app/lib/export/download.ts';
+import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
 import {
-	useGetVerificationLink,
-	useSendEmailVerificationReminder,
-} from '@/front/lib/react-query/features/common/auth.hooks';
-import { useFindTenantUsers } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
+	useFindTenantUsers,
+	useReactivateTenantUser,
+	useRemoveTenantUser,
+	useSuspendTenantUser,
+	useUpdateTenantUser,
+} from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
 
 export type TenantUserRowData = {
 	id: string;
@@ -59,34 +97,283 @@ const columnHelper = createMRTColumnHelper<TenantUserRowData>();
 
 const defaultSorting: MRT_SortingState[number] = {
 	desc: true,
-	id: 'createdAt',
+	id: 'created_at',
+};
+const SELECTION_MODE_MENU_MIN_WIDTH = 220;
+const GLOBALLY_SUSPENDED_STATUS_VALUE = 'globally_suspended';
+const GLOBALLY_SUSPENDED_STATUS_DESCRIPTION = 'GloballySuspended';
+
+const isGloballySuspendedStatus = (status: string) => {
+	return (
+		status === GLOBALLY_SUSPENDED_STATUS_VALUE ||
+		status === GLOBALLY_SUSPENDED_STATUS_DESCRIPTION
+	);
 };
 
-const TenantUsersTable = () => {
-	const { t } = useTranslate();
+const parseStatusFilter = (value: string) => {
+	if (!value) {
+		return [];
+	}
 
-	// Use the custom table state hook with cursor pagination
+	return value.split(',').filter(Boolean);
+};
+
+type ExportFormat = 'csv' | 'json' | 'xlsx';
+
+type TenantUsersExportDialogControllerRef = {
+	open: () => void;
+};
+
+type TenantUsersExportDialogControllerProps = {
+	isSelectionMode: boolean;
+	selectedCount: number;
+	rowsCount: number;
+	onExport: (format: 'csv' | 'json') => void;
+	ref?: Ref<TenantUsersExportDialogControllerRef>;
+};
+
+const TenantUsersExportDialogController = ({
+	isSelectionMode,
+	selectedCount,
+	rowsCount,
+	onExport,
+	ref,
+}: TenantUsersExportDialogControllerProps) => {
+	const { t } = useTranslate();
+	const [open, setOpen] = useState(false);
+	const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
+
+	// React 19: `ref` is a normal prop (no `forwardRef` needed). We use an
+	// imperative handle because the export dialog can be opened from multiple
+	// toolbar/menu triggers without lifting dialog state into the heavy table.
+	useImperativeHandle(ref, () => {
+		return {
+			open: () => {
+				setExportFormat('csv');
+				setOpen(true);
+			},
+		};
+	}, []);
+
+	return (
+		<Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs">
+			<DialogTitle sx={{ pb: 1 }}>
+				{isSelectionMode
+					? t('export-selected-users', {
+							defaultValue: 'Export selected users',
+						})
+					: t('export-users', {
+							defaultValue: 'Export users',
+						})}
+			</DialogTitle>
+			<DialogContent sx={{ pt: '8px !important', pb: 2.5 }}>
+				<Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+					<Typography variant="body2">
+						{isSelectionMode
+							? t('export-selected-items', {
+									count: selectedCount,
+								})
+							: t('export-current-results', {
+									count: rowsCount,
+									defaultValue:
+										'Export the current result set ({{count}} item(s)).',
+								})}
+					</Typography>
+					<Tabs
+						value={exportFormat}
+						onChange={(_event, value: 'csv' | 'json' | 'xlsx') => {
+							setExportFormat(value);
+						}}
+						sx={(theme) => ({
+							mt: 1.5,
+							alignSelf: 'flex-start',
+							minHeight: 32,
+							p: '2px 2px 1px',
+							border: `1px solid ${theme.vars.palette.divider}`,
+							borderRadius: 1,
+							bgcolor: 'background.paper',
+							'& .MuiTabs-indicator': {
+								display: 'none',
+							},
+							'& .MuiTabs-list': {
+								gap: '2px',
+							},
+							'& .MuiTab-root': {
+								minHeight: 26,
+								minWidth: 64,
+								px: 1,
+								py: 0.375,
+								borderRadius: 0.75,
+								fontSize: theme.typography.caption.fontSize,
+								fontWeight: theme.typography.fontWeightMedium,
+								textTransform: 'none',
+								color: 'text.secondary',
+								m: 0,
+								transition: theme.transitions.create(
+									['background-color', 'color', 'box-shadow'],
+									{
+										duration: theme.transitions.duration.shorter,
+									},
+								),
+							},
+							'& .MuiTab-root.Mui-selected': {
+								color: 'text.primary',
+								bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
+								boxShadow: 'none',
+							},
+							'& .MuiTab-root.Mui-disabled': {
+								opacity: 0.48,
+							},
+						})}
+					>
+						<Tab label="CSV" value="csv" />
+						<Tab label="JSON" value="json" />
+						<Tab label="XLSX" value="xlsx" />
+					</Tabs>
+					<Typography
+						variant="body2"
+						color="text.secondary"
+						sx={{ minHeight: 20 }}
+					>
+						{exportFormat === 'xlsx'
+							? t('xlsx-export-coming-soon', {
+									defaultValue: 'XLSX export is coming soon.',
+								})
+							: ' '}
+					</Typography>
+				</Box>
+			</DialogContent>
+			<DialogActions
+				sx={{
+					px: 3,
+					pb: 3,
+					pt: 0,
+					gap: 0.75,
+					justifyContent: 'flex-end',
+				}}
+			>
+				<Button
+					variant="contained"
+					onClick={() => {
+						if (exportFormat === 'xlsx') {
+							return;
+						}
+
+						onExport(exportFormat);
+						setOpen(false);
+					}}
+					startIcon={<Iconify icon="solar:download-bold" />}
+					disabled={exportFormat === 'xlsx'}
+				>
+					{t('export')}
+				</Button>
+				<Button
+					variant="outlined"
+					color="inherit"
+					onClick={() => setOpen(false)}
+				>
+					{t('cancel')}
+				</Button>
+			</DialogActions>
+		</Dialog>
+	);
+};
+
+const useTenantUsersTableController = () => {
+	const { t } = useTranslate();
+	const { tenantId } = useParams();
+	const queryClient = useQueryClient();
+	const { openDrawer } = useSectionPageWithDrawer();
+	const searchTooltipId = useId();
+	const statusTooltipId = useId();
+	const exportDialogRef = useRef<TenantUsersExportDialogControllerRef | null>(
+		null,
+	);
+	const statusOptions = useMemo(() => {
+		return [
+			{ label: t('active'), value: USER_STATUS_ENUM.ACTIVE },
+			{ label: t('suspended'), value: USER_STATUS_ENUM.SUSPENDED },
+			{
+				label: t('globally-suspended', {
+					defaultValue: 'Globally suspended',
+				}),
+				value: GLOBALLY_SUSPENDED_STATUS_VALUE,
+			},
+		];
+	}, [t]);
+
+	// Search and filter state
+	const [filterStates, setFilterStates] = useQueryStates({
+		q: parseAsString.withDefault(''),
+		status: parseAsString.withDefault(''),
+	});
+
+	const [statusFilter, setStatusFilter] = useState<string[]>(() =>
+		parseStatusFilter(filterStates.status),
+	);
+	const [bulkRemoveDialogOpen, setBulkRemoveDialogOpen] = useState(false);
+
 	const {
 		handlePaginationChange,
 		handleSortingChange,
 		apiVariables,
 		tableState,
 		setNextCursor,
-		hasNextPage,
 		hasPreviousPage,
+		resetCursorPagination,
 	} = useTableState({
 		defaultSorting,
 		defaultPageSize: DEFAULT_PAGE_SIZE,
 		paginationMode: 'cursor',
 	});
 
-	const { tenantId } = useParams();
+	const handleDebouncedSearchChange = useCallback(
+		(nextSearchValue: string) => {
+			resetCursorPagination?.();
+			void setFilterStates({
+				q: nextSearchValue,
+				status: statusFilter.join(','),
+			});
+		},
+		[resetCursorPagination, setFilterStates, statusFilter],
+	);
+	const { searchValue, setSearchValue } = useUrlBackedDebouncedSearch({
+		persistedValue: filterStates.q,
+		onDebouncedValueChange: handleDebouncedSearchChange,
+	});
+
+	useEffect(() => {
+		const nextStatusFilter = parseStatusFilter(filterStates.status);
+		if (!isEqual(nextStatusFilter, statusFilter)) {
+			setStatusFilter(nextStatusFilter);
+		}
+	}, [filterStates.status, statusFilter]);
+
+	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		setSearchValue(e.target.value);
+	};
+
+	const handleStatusChange = (
+		_value: React.SyntheticEvent,
+		selectedOptions: typeof statusOptions,
+	) => {
+		const nextStatusFilter = map(selectedOptions, (option) => option.value);
+		resetCursorPagination?.();
+		setStatusFilter(nextStatusFilter);
+		void setFilterStates({
+			q: searchValue,
+			status: nextStatusFilter.join(','),
+		});
+	};
 
 	const columns = useMemo(() => {
 		return [
 			columnHelper.accessor(
 				(row) => {
-					return getUserFullName(_.pick(row, ['firstName', 'lastName']));
+					return getUserFullName({
+						firstName: row.firstName,
+						lastName: row.lastName,
+					});
 				},
 				{
 					id: 'fullName',
@@ -115,33 +402,52 @@ const TenantUsersTable = () => {
 
 	const tenantUsersQuery = useFindTenantUsers({
 		variables: {
-			tenantId: _.toString(tenantId),
+			tenantId: lodashToString(tenantId),
 			cursor: apiVariables.cursor || undefined,
 			limit: apiVariables.limit,
 			sort: apiVariables.sort,
+			q: filterStates.q || undefined,
+			status: filterStates.status || undefined,
 		},
 		enabled: !!tenantId,
 	});
 
-	// Sync latest cursor into the table state outside render
-	useEffect(() => {
-		if (setNextCursor) {
-			setNextCursor(tenantUsersQuery.data?.nextCursor);
-		}
-	}, [tenantUsersQuery.data?.nextCursor, setNextCursor]);
+	const handleCursorPaginationChange: typeof handlePaginationChange =
+		useCallback(
+			(updater) => {
+				setNextCursor?.(tenantUsersQuery.data?.nextCursor);
+				handlePaginationChange(updater);
+			},
+			[
+				handlePaginationChange,
+				tenantUsersQuery.data?.nextCursor,
+				setNextCursor,
+			],
+		);
+	const hasNextPage = tenantUsersQuery.data?.nextCursor != null;
 
 	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
 		query: tenantUsersQuery,
 		emptyContent: {
-			title: _.capitalize(
+			title: capitalize(
 				t('no-items-found', {
 					item: t('users'),
 					ns: 'response-message',
 				}),
 			),
+			renderAction: () => (
+				<Button
+					variant="contained"
+					startIcon={<Iconify width={16} icon="mingcute:add-line" />}
+					onClick={openDrawer}
+					sx={{ mt: 2 }}
+				>
+					{t('invite-first-user')}
+				</Button>
+			),
 		},
 		errorContent: {
-			title: _.capitalize(
+			title: capitalize(
 				t('error-loading-items', {
 					item: t('users'),
 					ns: 'response-message',
@@ -151,9 +457,11 @@ const TenantUsersTable = () => {
 	});
 
 	const rows: TenantUserRowData[] = useMemo(() => {
-		if (!tenantUsersQuery.data?.data) return [];
+		if (!tenantUsersQuery.data?.data) {
+			return [];
+		}
 
-		return _.map(tenantUsersQuery.data.data, (tenantUser) => {
+		return map(tenantUsersQuery.data.data, (tenantUser) => {
 			return {
 				id: tenantUser.id || '',
 				avatarUrl: tenantUser.avatarUrl || '',
@@ -166,38 +474,463 @@ const TenantUsersTable = () => {
 		});
 	}, [tenantUsersQuery.data]);
 
+	const {
+		rowSelection,
+		setRowSelection,
+		selectedRows,
+		selectedCount,
+		isSelectionMode,
+		clearSelection,
+	} = useTableRowSelection({
+		rows,
+	});
+	const selectionModeDisabledReason = t('selection-mode-disable-controls');
+	const sortingDisabledReason = t('selection-mode-disable-sorting');
+	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
+		if (!isSelectionMode) {
+			return {};
+		}
+
+		return {
+			sortByColumnAsc: sortingDisabledReason,
+			sortByColumnDesc: sortingDisabledReason,
+			sortedByColumnAsc: sortingDisabledReason,
+			sortedByColumnDesc: sortingDisabledReason,
+		};
+	}, [isSelectionMode, sortingDisabledReason]);
+
+	const openExportDialog = () => {
+		// Keep dialog `open` state inside the dialog controller so opening the export
+		// UI doesn't cause a full table re-render (the table is the heavy sibling).
+		exportDialogRef.current?.open();
+	};
+	const closeBulkRemoveDialog = () => {
+		setBulkRemoveDialogOpen(false);
+	};
+
+	const exportRows = (format: 'csv' | 'json') => {
+		const rowsToExport = isSelectionMode ? selectedRows : rows;
+
+		if (format === 'csv') {
+			const headers = ['Name', 'Email', 'Level', 'Status'];
+			const csvRows = map(rowsToExport, (row) => [
+				getUserFullName({
+					firstName: row.firstName,
+					lastName: row.lastName,
+				}),
+				row.email,
+				row.level,
+				row.status,
+			]);
+			downloadCsvFile({
+				fileName: isSelectionMode
+					? 'selected-tenant-users.csv'
+					: 'tenant-users.csv',
+				rows: [headers, ...csvRows],
+			});
+			return;
+		}
+
+		downloadJsonFile({
+			fileName: isSelectionMode
+				? 'selected-tenant-users.json'
+				: 'tenant-users.json',
+			data: rowsToExport,
+		});
+	};
+
+	const handleExport = (format: 'csv' | 'json') => {
+		exportRows(format);
+	};
+
+	const { mutateAsync: removeTenantUserAsync, isPending: isBulkRemoving } =
+		useRemoveTenantUser({
+			meta: { skipGlobalErrorHandler: true },
+		});
+
+	const handleBulkRemove = async () => {
+		if (!tenantId) {
+			return;
+		}
+
+		let succeeded = 0;
+		let failed = 0;
+		let firstFailureMessage: string | undefined;
+
+		for (const userId of Object.keys(rowSelection)) {
+			try {
+				await removeTenantUserAsync({
+					tenantId,
+					userId,
+				});
+				succeeded += 1;
+			} catch (error) {
+				failed += 1;
+
+				const failure = toApiFailure(error);
+				if (firstFailureMessage == null) {
+					firstFailureMessage = getFailureMessage(failure);
+				}
+			}
+		}
+
+		setBulkRemoveDialogOpen(false);
+		clearSelection();
+		await queryClient.invalidateQueries({
+			queryKey: useFindTenantUsers.getKey({ tenantId }),
+		});
+
+		if (succeeded === 0 && failed > 0) {
+			toast.error(
+				firstFailureMessage ||
+					t('tenant-user-bulk-remove-failure', {
+						defaultValue: 'Failed to remove selected users from this tenant.',
+					}),
+			);
+			return;
+		}
+
+		if (failed > 0) {
+			toast.warning(
+				t('tenant-user-bulk-remove-partial-success', {
+					succeeded,
+					failed,
+					defaultValue: 'Removed {{succeeded}} user(s), {{failed}} failed.',
+				}),
+			);
+			return;
+		}
+
+		toast.success(
+			t('tenant-user-bulk-remove-success', {
+				count: succeeded,
+				defaultValue: 'Successfully removed {{count}} user(s).',
+			}),
+		);
+	};
+
+	const renderToolbarFilters = () => {
+		return (
+			<>
+				<SelectionLockedControl
+					isSelectionMode={isSelectionMode}
+					disabledReason={selectionModeDisabledReason}
+					describeChild
+					tooltipId={searchTooltipId}
+				>
+					<Box component="span">
+						<TextField
+							size="small"
+							placeholder={t('search-users', {
+								defaultValue: 'Search users',
+							})}
+							value={searchValue}
+							onChange={handleSearchChange}
+							disabled={isSelectionMode}
+							slotProps={{
+								input: {
+									startAdornment: (
+										<InputAdornment position="start">
+											<Iconify icon="eva:search-fill" />
+										</InputAdornment>
+									),
+								},
+							}}
+							sx={{ minWidth: 260 }}
+						/>
+					</Box>
+				</SelectionLockedControl>
+
+				<SelectionLockedControl
+					isSelectionMode={isSelectionMode}
+					disabledReason={selectionModeDisabledReason}
+					describeChild
+					tooltipId={statusTooltipId}
+				>
+					<Box component="span">
+						<Autocomplete
+							multiple
+							disableCloseOnSelect
+							size="small"
+							options={statusOptions}
+							value={statusOptions.filter((option) =>
+								statusFilter.includes(option.value),
+							)}
+							onChange={handleStatusChange}
+							disabled={isSelectionMode}
+							isOptionEqualToValue={(option, value) =>
+								option.value === value.value
+							}
+							getOptionLabel={(option) => option.label}
+							renderInput={(params) => (
+								<TextField
+									{...params}
+									placeholder={
+										statusFilter.length === 0 ? t('all-statuses') : undefined
+									}
+									slotProps={{
+										input: {
+											...params.InputProps,
+											startAdornment: (
+												<>
+													<Box
+														component="span"
+														sx={{
+															color: 'text.secondary',
+															typography: 'body2',
+															whiteSpace: 'nowrap',
+															mr: 1,
+															display: 'inline-flex',
+															alignItems: 'center',
+															alignSelf: 'center',
+															minHeight: 24,
+														}}
+													>
+														{t('status')}:
+													</Box>
+													{params.InputProps.startAdornment}
+												</>
+											),
+										},
+									}}
+								/>
+							)}
+							renderOption={(props, option, { selected }) => {
+								const { key, ...optionProps } = props;
+
+								return (
+									<Box
+										component="li"
+										key={key}
+										{...optionProps}
+										sx={(theme) => ({
+											'&.Mui-focused': {
+												backgroundColor: varAlpha(
+													theme.vars.palette.grey['500Channel'],
+													0.08,
+												),
+											},
+											'&[aria-selected="true"]': {
+												backgroundColor: varAlpha(
+													theme.vars.palette.primary.mainChannel,
+													0.08,
+												),
+											},
+											'&[aria-selected="true"].Mui-focused': {
+												backgroundColor: varAlpha(
+													theme.vars.palette.primary.mainChannel,
+													0.12,
+												),
+											},
+										})}
+									>
+										<Checkbox checked={selected} sx={{ mr: 1 }} />
+										{option.label}
+									</Box>
+								);
+							}}
+							slotProps={{
+								popper: {
+									// Keep MRT toolbar filters anchored while table rows swap between
+									// skeleton and data layouts.
+									placement: 'bottom-start',
+								},
+								paper: {
+									sx: {
+										width: 280,
+									},
+								},
+								chip: {
+									sx: (theme) => ({
+										backgroundColor: varAlpha(
+											theme.vars.palette.grey['500Channel'],
+											0.16,
+										),
+										color: 'text.secondary',
+										'&:hover': {
+											backgroundColor: varAlpha(
+												theme.vars.palette.grey['500Channel'],
+												0.24,
+											),
+										},
+									}),
+								},
+							}}
+							sx={{
+								'& .MuiAutocomplete-tag': {
+									maxWidth: 120,
+								},
+							}}
+						/>
+					</Box>
+				</SelectionLockedControl>
+			</>
+		);
+	};
+
+	const renderExportActions = () => {
+		return (
+			<Button
+				size="small"
+				variant="outlined"
+				onClick={openExportDialog}
+				startIcon={<Iconify icon="solar:download-bold" />}
+			>
+				{t('export')}
+			</Button>
+		);
+	};
+
+	const renderSelectionActions = () => {
+		return (
+			<TenantUsersSelectionActions
+				onOpenExportDialog={openExportDialog}
+				onOpenBulkRemoveDialog={() => setBulkRemoveDialogOpen(true)}
+			/>
+		);
+	};
+
 	const table = useMRTTable('minimal-cursor', {
 		columns,
 		data: rows,
+		enableRowSelection: true,
+		getRowId: (row) => row.id,
 		manualSorting: true,
-		onSortingChange: handleSortingChange,
+		localization: sortTooltipLocalization,
+		onRowSelectionChange: (updater) => {
+			setRowSelection((previousRowSelection) => {
+				return typeof updater === 'function'
+					? updater(previousRowSelection)
+					: updater;
+			});
+		},
+		onSortingChange: (updater) => {
+			if (isSelectionMode) {
+				return;
+			}
+
+			handleSortingChange(updater);
+		},
 		state: {
 			...tableState,
 			...queryState,
 			density: 'compact',
+			rowSelection,
 		},
 		meta: {
-			handlePaginationChange,
+			handlePaginationChange: handleCursorPaginationChange,
 			hasNextPage,
 			hasPreviousPage,
 			isPending: tenantUsersQuery.isPending,
+			disablePaginationControls: isSelectionMode,
+			renderToolbarFilters,
+			renderSelectionActions,
+			renderExportActions,
 		},
 		renderEmptyRowsFallback,
+		muiTablePaperProps: {
+			sx: {
+				flexGrow: 1,
+			},
+		},
 		muiTableProps: {
 			sx: {
 				'& .MuiTableBody-root > tr > td:not(:nth-of-type(2)), & .MuiTableHead-root > tr > th:not(:nth-of-type(2))':
 					{
-						// backgroundColor: 'red !important',
 						flex: '1 1 auto !important',
-						// flexGrow: 1,
 					},
 			},
 		},
+		muiTableHeadCellProps: ({ column }) => {
+			if (!column.getCanSort()) {
+				return {};
+			}
+
+			if (!isSelectionMode) {
+				return {
+					title: undefined,
+				};
+			}
+
+			return {
+				title: sortingDisabledReason,
+				sx: {
+					'& .MuiTableSortLabel-root': {
+						cursor: 'not-allowed',
+						pointerEvents: 'none',
+						opacity: 0.56,
+					},
+					'& .MuiTableSortLabel-icon': {
+						opacity: '1 !important',
+					},
+				},
+			} satisfies MRT_TableOptions<TenantUserRowData>['muiTableHeadCellProps'];
+		},
 	});
+
+	return {
+		table,
+		exportDialogRef,
+		isSelectionMode,
+		selectedCount,
+		rowsCount: rows.length,
+		handleExport,
+		bulkRemoveDialogOpen,
+		closeBulkRemoveDialog,
+		handleBulkRemove,
+		isBulkRemoving,
+	};
+};
+
+const TenantUsersTable = () => {
+	const { t } = useTranslate();
+	const {
+		table,
+		exportDialogRef,
+		isSelectionMode,
+		selectedCount,
+		rowsCount,
+		handleExport,
+		bulkRemoveDialogOpen,
+		closeBulkRemoveDialog,
+		handleBulkRemove,
+		isBulkRemoving,
+	} = useTenantUsersTableController();
 
 	return (
 		<Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
 			<MaterialReactTable table={table} />
+
+			<TenantUsersExportDialogController
+				ref={exportDialogRef}
+				isSelectionMode={isSelectionMode}
+				selectedCount={selectedCount}
+				rowsCount={rowsCount}
+				onExport={handleExport}
+			/>
+
+			<ConfirmDialog
+				open={bulkRemoveDialogOpen}
+				onClose={closeBulkRemoveDialog}
+				title={t('remove-selected-from-tenant', {
+					defaultValue: 'Remove selected from tenant',
+				})}
+				content={t('confirm-bulk-remove-tenant-users', {
+					count: selectedCount,
+					defaultValue:
+						'Are you sure you want to remove {{count}} selected user(s) from this tenant?',
+				})}
+				action={
+					<Button
+						variant="contained"
+						color="inherit"
+						onClick={handleBulkRemove}
+						disabled={isBulkRemoving}
+					>
+						{t('remove')}
+					</Button>
+				}
+			/>
 		</Box>
 	);
 };
@@ -207,17 +940,29 @@ export default TenantUsersTable;
 // ----------------------------------------------------------------------
 
 const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
-	const userId = props.row.original.id;
 	const fullName = props.cell.getValue();
-	const avatarUrl = props.row.original.avatarUrl;
-	const email = props.row.original.email;
-	const openDrawer = useBoolean();
-
-	const userDetailsLink = FRONT_PATH_NAMES.staff.tenantUsers.details(userId);
+	const { id, avatarUrl, email } = props.row.original;
+	const normalizedAvatarUrl = trim(avatarUrl);
+	const userDetailsLink = FRONT_PATH_NAMES.staff.tenantUsers.details(id);
 
 	return (
 		<Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-			<Avatar alt={fullName} src={avatarUrl} />
+			<Avatar
+				alt={fullName}
+				src={normalizedAvatarUrl || undefined}
+				sx={
+					normalizedAvatarUrl
+						? {}
+						: {
+								bgcolor: 'background.neutral',
+								color: 'text.disabled',
+							}
+				}
+			>
+				{!normalizedAvatarUrl ? (
+					<Iconify icon="solar:user-rounded-bold" width={20} />
+				) : null}
+			</Avatar>
 
 			<Stack
 				sx={{
@@ -226,41 +971,541 @@ const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 					alignItems: 'flex-start',
 				}}
 			>
-				<Stack direction="row" gap={0.7}>
-					<Link
-						color="inherit"
-						sx={{ cursor: 'pointer' }}
-						onClick={openDrawer.onTrue}
-					>
-						{fullName}
-					</Link>
-					<Link
-						component={RouterLink}
-						href={userDetailsLink}
-						color="text.secondary"
-						sx={{ position: 'relative', top: -3 }}
-					>
-						<Iconify
-							icon="eva:external-link-outline"
-							width={16}
-							height={16}
-							fontWeight={900}
-						/>
-					</Link>
-				</Stack>
+				<Link color="inherit" component={RouterLink} href={userDetailsLink}>
+					{fullName}
+				</Link>
 				<Box component="span" sx={{ color: 'text.disabled' }}>
 					{email}
 				</Box>
 			</Stack>
-			<Drawer
-				open={openDrawer.value}
-				onClose={openDrawer.onFalse}
-				anchor="right"
-				sx={(theme) => {
-					return {
-						zIndex: theme.zIndex.modal + 1,
-					};
+		</Box>
+	);
+};
+
+// ----------------------------------------------------------------------
+
+type TenantUsersSelectionActionsProps = {
+	onOpenExportDialog: () => void;
+	onOpenBulkRemoveDialog: () => void;
+};
+
+const TenantUsersSelectionActions = ({
+	onOpenExportDialog,
+	onOpenBulkRemoveDialog,
+}: TenantUsersSelectionActionsProps) => {
+	const { t } = useTranslate();
+	const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+	const open = Boolean(anchorEl);
+	const closeMenu = () => setAnchorEl(null);
+
+	return (
+		<>
+			<IconButton
+				size="small"
+				onClick={(event) => setAnchorEl(event.currentTarget)}
+				sx={{ width: 32, height: 32 }}
+			>
+				<Iconify icon="eva:more-vertical-fill" width={18} />
+			</IconButton>
+			<Menu
+				anchorEl={anchorEl}
+				open={open}
+				onClose={closeMenu}
+				anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+				transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+				slotProps={{
+					paper: {
+						sx: {
+							minWidth: SELECTION_MODE_MENU_MIN_WIDTH,
+						},
+					},
 				}}
+			>
+				<MenuItem
+					onClick={() => {
+						closeMenu();
+						onOpenExportDialog();
+					}}
+				>
+					<Iconify icon="solar:download-bold" width={18} />
+					<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
+				</MenuItem>
+				<MenuItem
+					onClick={() => {
+						closeMenu();
+						onOpenBulkRemoveDialog();
+					}}
+					sx={{ color: 'text.secondary' }}
+				>
+					<Iconify icon="solar:trash-bin-trash-bold" width={18} />
+					<ListItemText
+						primary={t('remove-selected-from-tenant', {
+							defaultValue: 'Remove selected from tenant',
+						})}
+						sx={{ ml: 1 }}
+					/>
+				</MenuItem>
+			</Menu>
+		</>
+	);
+};
+
+const StatusCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (
+	props,
+) => {
+	const { t } = useTranslate();
+	const { tenantId } = useParams();
+	const queryClient = useQueryClient();
+	const user = props.row.original;
+	const status = props.cell.getValue();
+	const isGloballySuspended = isGloballySuspendedStatus(status);
+	const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+	const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+	const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+	const globallySuspendedReason = t('globally-suspended-row-disabled', {
+		defaultValue:
+			'This user is globally suspended. Reactivate the user globally before managing tenant membership.',
+	});
+
+	const { mutate: suspendUser, isPending: isSuspending } = useSuspendTenantUser(
+		{
+			onSuccess: () => {
+				toast.success(t('tenant-user-suspended-success'));
+				setConfirmDialogOpen(false);
+				setMenuAnchorEl(null);
+				if (tenantId) {
+					void queryClient.invalidateQueries({
+						queryKey: useFindTenantUsers.getKey({ tenantId }),
+					});
+				}
+			},
+		},
+	);
+
+	const { mutate: reactivateUser, isPending: isReactivating } =
+		useReactivateTenantUser({
+			onSuccess: () => {
+				toast.success(t('tenant-user-reactivated-success'));
+				setConfirmDialogOpen(false);
+				setMenuAnchorEl(null);
+				if (tenantId) {
+					void queryClient.invalidateQueries({
+						queryKey: useFindTenantUsers.getKey({ tenantId }),
+					});
+				}
+			},
+		});
+
+	let label: string = t('unknown-item', { item: 'status' });
+	let color: LabelColor = 'default';
+
+	if (isGloballySuspended) {
+		label = t('globally-suspended', {
+			defaultValue: 'Globally suspended',
+		});
+		color = 'error';
+	} else if (status === USER_STATUS_ENUM.ACTIVE) {
+		label = t('active');
+		color = 'success';
+	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
+		label = t('suspended');
+		color = 'warning';
+	}
+
+	const isPending = isSuspending || isReactivating;
+
+	const handleStatusClick = (newStatus: string) => {
+		if (newStatus === status) {
+			setMenuAnchorEl(null);
+			return;
+		}
+		setPendingStatus(newStatus);
+		setConfirmDialogOpen(true);
+	};
+
+	const handleConfirm = () => {
+		if (!tenantId || !pendingStatus) return;
+
+		if (pendingStatus === USER_STATUS_ENUM.SUSPENDED) {
+			suspendUser({ tenantId, userId: user.id });
+		} else if (pendingStatus === USER_STATUS_ENUM.ACTIVE) {
+			reactivateUser({ tenantId, userId: user.id });
+		}
+	};
+
+	const isActive = status === USER_STATUS_ENUM.ACTIVE;
+	const isSuspended = status === USER_STATUS_ENUM.SUSPENDED;
+	const canChangeStatus = !isGloballySuspended && (isActive || isSuspended);
+
+	if (!canChangeStatus) {
+		return (
+			<Tooltip
+				title={isGloballySuspended ? globallySuspendedReason : ''}
+				placement="top"
+				arrow
+				disableHoverListener={!isGloballySuspended}
+			>
+				<Box component="span">
+					<Label variant="soft" color={color}>
+						{label}
+					</Label>
+				</Box>
+			</Tooltip>
+		);
+	}
+
+	return (
+		<>
+			<Box sx={{ display: 'flex', alignItems: 'center' }}>
+				<Tooltip title={t('change-status')} placement="top" arrow>
+					<ButtonBase
+						onClick={(event) => {
+							setMenuAnchorEl(event.currentTarget);
+						}}
+						disabled={isPending}
+						sx={(theme) => ({
+							gap: 0.5,
+							px: 0.5,
+							py: 0.25,
+							borderRadius: 1,
+							display: 'inline-flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							transition: theme.transitions.create('background-color', {
+								duration: theme.transitions.duration.shorter,
+							}),
+							'&:hover': {
+								backgroundColor: varAlpha(
+									theme.vars.palette.grey['500Channel'],
+									0.08,
+								),
+							},
+							'&:disabled': {
+								opacity: 0.48,
+							},
+						})}
+					>
+						<Label variant="soft" color={color}>
+							{label}
+						</Label>
+						<Iconify icon="eva:arrow-ios-downward-fill" width={16} />
+					</ButtonBase>
+				</Tooltip>
+
+				<Menu
+					open={menuAnchorEl !== null}
+					disableAutoFocusItem
+					onClose={() => {
+						setMenuAnchorEl(null);
+					}}
+					anchorEl={menuAnchorEl}
+					anchorOrigin={{
+						vertical: 'bottom',
+						horizontal: 'left',
+					}}
+					transformOrigin={{
+						vertical: 'top',
+						horizontal: 'left',
+					}}
+				>
+					<MenuItem
+						selected={isActive}
+						onClick={() => handleStatusClick(USER_STATUS_ENUM.ACTIVE)}
+					>
+						<Stack direction="row" alignItems="center" gap={1}>
+							{isActive ? (
+								<Iconify icon="solar:check-circle-bold" width={18} />
+							) : (
+								<Iconify icon="solar:shield-check-bold" width={18} />
+							)}
+							{t('active')}
+						</Stack>
+					</MenuItem>
+
+					<MenuItem
+						selected={isSuspended}
+						onClick={() => handleStatusClick(USER_STATUS_ENUM.SUSPENDED)}
+					>
+						<Stack direction="row" alignItems="center" gap={1}>
+							{isSuspended ? (
+								<Iconify icon="solar:check-circle-bold" width={18} />
+							) : (
+								<Iconify icon="solar:stop-circle-bold" width={18} />
+							)}
+							{t('suspended')}
+						</Stack>
+					</MenuItem>
+				</Menu>
+			</Box>
+
+			<ConfirmDialog
+				open={confirmDialogOpen}
+				onClose={() => setConfirmDialogOpen(false)}
+				title={
+					pendingStatus === USER_STATUS_ENUM.SUSPENDED
+						? t('confirm-suspend-tenant-user')
+						: t('confirm-reactivate-tenant-user')
+				}
+				content={
+					pendingStatus === USER_STATUS_ENUM.SUSPENDED
+						? t('suspend-tenant-user-description', {
+								defaultValue:
+									'This user will lose access to this tenant. Are you sure you want to proceed?',
+							})
+						: t('reactivate-tenant-user-description', {
+								defaultValue:
+									'Access to this tenant will be restored. Are you sure you want to proceed?',
+							})
+				}
+				action={
+					<Button
+						variant="contained"
+						color="inherit"
+						onClick={handleConfirm}
+						disabled={isPending}
+					>
+						{pendingStatus === USER_STATUS_ENUM.SUSPENDED
+							? t('suspend')
+							: t('reactivate')}
+					</Button>
+				}
+			/>
+		</>
+	);
+};
+
+const LevelCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
+	const { t } = useTranslate();
+	const { tenantId } = useParams();
+	const queryClient = useQueryClient();
+	const user = props.row.original;
+	const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+	const userId = user.id;
+	const level = props.cell.getValue();
+	const isGloballySuspended = isGloballySuspendedStatus(user.status);
+	const globallySuspendedReason = t('globally-suspended-row-disabled', {
+		defaultValue:
+			'This user is globally suspended. Reactivate the user globally before managing tenant membership.',
+	});
+
+	const { mutate: updateUser, isPending } = useUpdateTenantUser({
+		// Row-level tenant-user actions rely on the centralized mutation error
+		// handler to translate RFC7807/translationKey failures consistently.
+		onSuccess: () => {
+			toast.success(t('user-level-updated-success'));
+			setMenuAnchorEl(null);
+			if (tenantId) {
+				void queryClient.invalidateQueries({
+					queryKey: useFindTenantUsers.getKey({
+						tenantId,
+					}),
+				});
+			}
+		},
+	});
+
+	let label: string = t('unknown-item', { item: 'role' });
+	let color: LabelColor = 'default';
+
+	if (level === ACCOUNT_LEVEL_ENUM.ADMIN) {
+		label = t('admin');
+		color = 'success';
+	} else if (level === ACCOUNT_LEVEL_ENUM.USER) {
+		label = t('user');
+		color = 'warning';
+	}
+
+	const handleChangeLevel = (
+		newLevel: typeof ACCOUNT_LEVEL_ENUM.ADMIN | typeof ACCOUNT_LEVEL_ENUM.USER,
+	) => {
+		if (newLevel === level) {
+			setMenuAnchorEl(null);
+			return;
+		}
+
+		if (!tenantId) {
+			return;
+		}
+
+		updateUser({ tenantId, userId, level: newLevel });
+	};
+
+	return (
+		<Box sx={{ display: 'flex', alignItems: 'center' }}>
+			<Tooltip
+				title={isGloballySuspended ? globallySuspendedReason : t('change-role')}
+				placement="top"
+				arrow
+			>
+				<Box component="span">
+					<ButtonBase
+						onClick={(event) => {
+							setMenuAnchorEl(event.currentTarget);
+						}}
+						disabled={isPending || isGloballySuspended}
+						sx={(theme) => ({
+							gap: 0.5,
+							px: 0.5,
+							py: 0.25,
+							borderRadius: 1,
+							display: 'inline-flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							transition: theme.transitions.create('background-color', {
+								duration: theme.transitions.duration.shorter,
+							}),
+							'&:hover': {
+								backgroundColor: varAlpha(
+									theme.vars.palette.grey['500Channel'],
+									0.08,
+								),
+							},
+							'&:disabled': {
+								opacity: 0.48,
+							},
+						})}
+					>
+						<Label variant="soft" color={color}>
+							{label}
+						</Label>
+						<Iconify icon="eva:arrow-ios-downward-fill" width={16} />
+					</ButtonBase>
+				</Box>
+			</Tooltip>
+
+			<Menu
+				open={menuAnchorEl !== null}
+				disableAutoFocusItem
+				onClose={() => {
+					setMenuAnchorEl(null);
+				}}
+				anchorEl={menuAnchorEl}
+				anchorOrigin={{
+					vertical: 'bottom',
+					horizontal: 'left',
+				}}
+				transformOrigin={{
+					vertical: 'top',
+					horizontal: 'left',
+				}}
+			>
+				<MenuItem
+					selected={level === ACCOUNT_LEVEL_ENUM.ADMIN}
+					onClick={() => handleChangeLevel(ACCOUNT_LEVEL_ENUM.ADMIN)}
+				>
+					<Stack direction="row" alignItems="center" gap={1}>
+						{level === ACCOUNT_LEVEL_ENUM.ADMIN ? (
+							<Iconify icon="solar:check-circle-bold" width={18} />
+						) : (
+							<Iconify icon="solar:shield-check-bold" width={18} />
+						)}
+						{t('admin')}
+					</Stack>
+				</MenuItem>
+
+				<MenuItem
+					selected={level === ACCOUNT_LEVEL_ENUM.USER}
+					onClick={() => handleChangeLevel(ACCOUNT_LEVEL_ENUM.USER)}
+				>
+					<Stack direction="row" alignItems="center" gap={1}>
+						{level === ACCOUNT_LEVEL_ENUM.USER ? (
+							<Iconify icon="solar:check-circle-bold" width={18} />
+						) : (
+							<Iconify icon="solar:users-group-rounded-bold" width={18} />
+						)}
+						{t('user')}
+					</Stack>
+				</MenuItem>
+			</Menu>
+		</Box>
+	);
+};
+
+const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
+	const user = props.row.original;
+	const { t } = useTranslate();
+	const isGloballySuspended = isGloballySuspendedStatus(user.status);
+	const disabledReason = t('globally-suspended-row-disabled');
+
+	return (
+		<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+			<UserDetailsDrawerAction
+				user={user}
+				disabled={isGloballySuspended}
+				disabledReason={disabledReason}
+			/>
+
+			<RemoveUserAction
+				user={user}
+				disabled={isGloballySuspended}
+				disabledReason={disabledReason}
+			/>
+		</Box>
+	);
+};
+
+type UserDetailsDrawerActionProps = {
+	user: TenantUserRowData;
+	disabled: boolean;
+	disabledReason: string;
+};
+
+const UserDetailsDrawerAction = ({
+	user,
+	disabled,
+	disabledReason,
+}: UserDetailsDrawerActionProps) => {
+	const { t } = useTranslate();
+	const detailsDrawer = useBoolean();
+	const userDetailsLink = FRONT_PATH_NAMES.staff.tenantUsers.details(user.id);
+	const fullName = getUserFullName({
+		firstName: user.firstName,
+		lastName: user.lastName,
+	});
+
+	let levelLabel = t('unknown-item', { item: 'role' });
+	if (user.level === ACCOUNT_LEVEL_ENUM.ADMIN) {
+		levelLabel = t('admin');
+	} else if (user.level === ACCOUNT_LEVEL_ENUM.USER) {
+		levelLabel = t('user');
+	}
+
+	let statusLabel = t('unknown-item', { item: 'status' });
+	if (user.status === USER_STATUS_ENUM.ACTIVE) {
+		statusLabel = t('active');
+	} else if (isGloballySuspendedStatus(user.status)) {
+		statusLabel = t('globally-suspended');
+	} else if (user.status === USER_STATUS_ENUM.SUSPENDED) {
+		statusLabel = t('suspended');
+	}
+
+	return (
+		<>
+			<Tooltip
+				title={disabled ? disabledReason : t('view-details')}
+				placement="top"
+				arrow
+			>
+				<Box component="span">
+					<IconButton
+						color="default"
+						disabled={disabled}
+						onClick={detailsDrawer.onTrue}
+						// Preview is the primary navigation affordance in compact row actions.
+						sx={{ color: disabled ? 'action.disabled' : 'text.primary' }}
+					>
+						<Iconify icon="solar:list-bold" width={18} />
+					</IconButton>
+				</Box>
+			</Tooltip>
+
+			<Drawer
+				open={detailsDrawer.value}
+				onClose={detailsDrawer.onFalse}
+				anchor="right"
+				sx={(theme) => ({
+					zIndex: theme.zIndex.modal + 1,
+				})}
 				slotProps={{
 					paper: {
 						sx: {
@@ -270,241 +1515,139 @@ const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 					},
 				}}
 			>
-				<DrawerAnchor component={RouterLink} href={userDetailsLink}>
-					<Iconify icon="eva:expand-outline" />
-				</DrawerAnchor>
-				<Box sx={{ width: 300, p: 2 }}>
-					<Typography>{fullName}</Typography>
+				<Tooltip title={t('view-details')} placement="left" arrow>
+					<DrawerAnchor
+						component={RouterLink}
+						href={userDetailsLink}
+						sx={{ left: 0 }}
+					>
+						<Iconify icon="eva:expand-outline" width={18} />
+					</DrawerAnchor>
+				</Tooltip>
+
+				<Box sx={{ p: 3 }}>
+					<Stack spacing={2}>
+						<Box>
+							<Typography variant="h5">{fullName}</Typography>
+							<Typography variant="body2" color="text.secondary">
+								{user.email}
+							</Typography>
+						</Box>
+
+						<Stack direction="row" spacing={4}>
+							<Box>
+								<Typography variant="overline" color="text.disabled">
+									{t('level')}
+								</Typography>
+								<Typography variant="body2">{levelLabel}</Typography>
+							</Box>
+							<Box>
+								<Typography variant="overline" color="text.disabled">
+									{t('status')}
+								</Typography>
+								<Typography variant="body2">{statusLabel}</Typography>
+							</Box>
+						</Stack>
+					</Stack>
 				</Box>
 			</Drawer>
-		</Box>
-	);
-};
-
-const StatusCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (
-	props,
-) => {
-	const { t } = useTranslate();
-
-	const status = props.cell.getValue();
-
-	let t_message: string = t('unknown-item', { item: 'status' });
-	let color: LabelColor = 'default';
-
-	if (status === USER_STATUS_ENUM.ACTIVE) {
-		t_message = t('active');
-		color = 'success';
-	} else if (status === USER_STATUS_ENUM.PENDING) {
-		t_message = t('pending');
-		color = 'warning';
-	} else if (status === USER_STATUS_ENUM.BANNED) {
-		t_message = t('banned');
-		color = 'error';
-	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
-		t_message = t('suspended');
-		color = 'warning';
-	} else if (status === USER_STATUS_ENUM.DELETED) {
-		t_message = t('deleted');
-		color = 'error';
-	} else if (status === USER_STATUS_ENUM.INACTIVE) {
-		t_message = t('inactive');
-		color = 'default';
-	}
-
-	return (
-		<Label variant="soft" color={color}>
-			{t_message}
-		</Label>
-	);
-};
-
-const LevelCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
-	const { t } = useTranslate();
-
-	const level = props.cell.getValue();
-
-	let t_message: string = t('unknown-item', { item: 'role' });
-	let color: LabelColor = 'default';
-
-	if (level === ACCOUNT_LEVEL_ENUM.ADMIN) {
-		t_message = t('admin');
-		color = 'success';
-	} else if (level === ACCOUNT_LEVEL_ENUM.USER) {
-		t_message = t('user');
-		color = 'warning';
-	}
-
-	return (
-		<Label variant="soft" color={color}>
-			{t_message}
-		</Label>
-	);
-};
-
-const ALLOW_COPY_LINK = false;
-
-const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
-	const userId = props.row.original.id;
-	const isUserPending = props.row.original.status === USER_STATUS_ENUM.PENDING;
-
-	const confirmDialog = useBoolean();
-	const { t } = useTranslate();
-
-	const onConfirmDeleteRow = () => {
-		logger.info('onConfirmDeleteRow', { userId });
-		toast.warning('TODO: implement delete');
-	};
-
-	const renderConfirmDialog = () => (
-		<ConfirmDialog
-			open={confirmDialog.value}
-			onClose={confirmDialog.onFalse}
-			title={t('delete-item', { item: t('staff-user') })}
-			content={t('confirm-delete-dialog-text')}
-			action={
-				<Button variant="contained" color="error" onClick={onConfirmDeleteRow}>
-					{t('delete')}
-				</Button>
-			}
-		/>
-	);
-
-	return (
-		<>
-			<Box sx={{ display: 'flex', alignItems: 'center' }}>
-				<FollowUpButton
-					isUserPending={isUserPending}
-					email={props.row.original.email}
-				/>
-
-				<CopyLinkButton
-					isUserPending={isUserPending}
-					userId={userId}
-					onClose={voidFunction}
-				/>
-
-				<Tooltip title={t('view-details')} placement="top" arrow>
-					<IconButton
-						color={'default'}
-						LinkComponent={RouterLink}
-						href={FRONT_PATH_NAMES.staff.tenantUsers.details(userId)}
-					>
-						<Iconify icon="solar:eye-bold" />
-					</IconButton>
-				</Tooltip>
-
-				<Tooltip title="Delete" placement="top" arrow>
-					<IconButton
-						color={'default'}
-						onClick={confirmDialog.onTrue}
-						sx={{ color: 'error.main' }}
-					>
-						<Iconify icon="solar:trash-bin-trash-bold" />
-					</IconButton>
-				</Tooltip>
-			</Box>
-
-			{renderConfirmDialog()}
 		</>
 	);
 };
 
-const CopyLinkButton = ({
-	isUserPending,
-	userId,
-	onClose,
-	forceShow = false,
-}: {
-	isUserPending: boolean;
-	userId: string;
-	onClose?: () => void;
-	forceShow?: boolean;
-}) => {
-	const { t } = useTranslate();
-
-	const {
-		data: linkData,
-		refetch: fetchVerificationLink,
-		isLoading: isLoadingGetVerificationLink,
-	} = useGetVerificationLink({
-		variables: { userId },
-		enabled: false,
-	});
-
-	if ((!isUserPending || !ALLOW_COPY_LINK) && !forceShow) {
-		return null;
-	}
-
-	return (
-		<Tooltip
-			title={_.capitalize(t('copy-item', { item: t('verification-link') }))}
-			placement="top"
-		>
-			<IconButton
-				color={'default'}
-				loading={isLoadingGetVerificationLink}
-				onClick={async () => {
-					let link = linkData?.link || 'unable to get verification link';
-					if (!linkData) {
-						const result = await fetchVerificationLink();
-						if (result.error) {
-							logger.error(getErrorMessage(result.error), {
-								error: result.error,
-							});
-							toast.error(t('copy-to-clipboard-error'));
-							return;
-						}
-						if (result.data) {
-							link = result.data.link || link;
-						}
-					}
-					navigator.clipboard.writeText(link);
-					toast.success(t('copy-to-clipboard-success'));
-					onClose?.();
-				}}
-			>
-				<Iconify icon="solar:copy-bold-duotone" />
-			</IconButton>
-		</Tooltip>
-	);
+type RemoveUserActionProps = {
+	user: TenantUserRowData;
+	disabled: boolean;
+	disabledReason: string;
 };
 
-const FollowUpButton = ({
-	isUserPending,
-	email,
-	forceShow = false,
-}: {
-	isUserPending: boolean;
-	email: string;
-	forceShow?: boolean;
-}) => {
+const RemoveUserAction = ({
+	user,
+	disabled,
+	disabledReason,
+}: RemoveUserActionProps) => {
+	const confirmDialog = useBoolean();
 	const { t } = useTranslate();
+	const { tenantId } = useParams();
+	const queryClient = useQueryClient();
+	const fullName = getUserFullName({
+		firstName: user.firstName,
+		lastName: user.lastName,
+	});
 
-	const {
-		mutateAsync: sendEmailVerificationReminder,
-		isPending: isPendingSendEmailVerificationReminder,
-	} = useSendEmailVerificationReminder({
+	const { mutate: removeUser, isPending: isRemoving } = useRemoveTenantUser({
+		// Row-level tenant-user actions rely on the centralized mutation error
+		// handler to translate RFC7807/translationKey failures consistently.
 		onSuccess: () => {
-			toast.success(t('email-verification-follow-up-success'));
+			toast.success(t('user-removed-success'));
+			confirmDialog.onFalse();
+			if (tenantId) {
+				void queryClient.invalidateQueries({
+					queryKey: useFindTenantUsers.getKey({
+						tenantId,
+					}),
+				});
+			}
 		},
 	});
 
-	if (!isUserPending && !forceShow) return null;
+	const onConfirmRemove = () => {
+		if (!tenantId) {
+			return;
+		}
+
+		removeUser({ tenantId, userId: user.id });
+	};
 
 	return (
-		<Tooltip
-			title={_.capitalize(t('send-email-verification-follow-up'))}
-			placement="top"
-		>
-			<IconButton
-				color={'default'}
-				loading={isPendingSendEmailVerificationReminder}
-				onClick={async () => {
-					await sendEmailVerificationReminder({ email });
-				}}
+		<>
+			<Tooltip
+				title={
+					disabled
+						? disabledReason
+						: t('remove-user-from-tenant', {
+								defaultValue: 'Remove from tenant',
+							})
+				}
+				placement="top"
+				arrow
 			>
-				<Iconify icon="custom:send-fill" />
-			</IconButton>
-		</Tooltip>
+				<Box component="span">
+					<IconButton
+						color="default"
+						onClick={confirmDialog.onTrue}
+						disabled={isRemoving || disabled}
+						sx={{
+							color: disabled ? 'action.disabled' : 'text.secondary',
+						}}
+					>
+						<Iconify icon="solar:trash-bin-trash-bold" width={18} />
+					</IconButton>
+				</Box>
+			</Tooltip>
+
+			<ConfirmDialog
+				open={confirmDialog.value}
+				onClose={confirmDialog.onFalse}
+				title={t('remove-user-from-tenant', {
+					defaultValue: 'Remove from tenant',
+				})}
+				content={t('confirm-remove-user-from-tenant', {
+					name: fullName,
+					defaultValue:
+						'Are you sure you want to remove {{name}} from this tenant?',
+				})}
+				action={
+					<Button
+						variant="contained"
+						color="inherit"
+						onClick={onConfirmRemove}
+						disabled={isRemoving}
+					>
+						{t('remove')}
+					</Button>
+				}
+			/>
+		</>
 	);
 };

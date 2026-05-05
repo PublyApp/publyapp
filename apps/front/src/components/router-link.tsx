@@ -1,5 +1,4 @@
-import _ from 'lodash';
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { Link, type LinkProps, type To } from 'react-router';
 
 import {
@@ -24,8 +23,20 @@ if (import.meta.env.DEV) {
 }
 const viteOrigin = viteUrl.origin;
 
-const checkIsExternalUrl = (to: To, clientOrigin?: string): to is string => {
-	if (_.isObject(to)) {
+const subscribeToOrigin = () => {
+	return () => {};
+};
+
+const getClientOrigin = () => {
+	return window.location.origin;
+};
+
+const getServerOrigin = () => {
+	return viteOrigin;
+};
+
+const checkIsExternalUrl = (to: To, clientOrigin: string) => {
+	if (typeof to !== 'string') {
 		return false;
 	}
 
@@ -33,14 +44,13 @@ const checkIsExternalUrl = (to: To, clientOrigin?: string): to is string => {
 
 	try {
 		url = new URL(to);
-	} catch (_e) {}
+	} catch {}
 
 	if (!url) {
 		return false;
 	}
 
-	const origin = clientOrigin || viteOrigin;
-	if (origin === url.origin) {
+	if (clientOrigin === url.origin) {
 		return true;
 	}
 
@@ -48,12 +58,12 @@ const checkIsExternalUrl = (to: To, clientOrigin?: string): to is string => {
 };
 
 const RouterLink_A = ({ href, ref, ...other }: RouterLinkProps) => {
-	const [clientOrigin, setClientOrigin] = useState<string | undefined>();
 	const { currentLang } = useTranslate();
-
-	useEffect(() => {
-		setClientOrigin(window.location.origin);
-	}, []);
+	const clientOrigin = useSyncExternalStore(
+		subscribeToOrigin,
+		getClientOrigin,
+		getServerOrigin,
+	);
 
 	const isExternalUrl = checkIsExternalUrl(href, clientOrigin);
 
@@ -62,7 +72,7 @@ const RouterLink_A = ({ href, ref, ...other }: RouterLinkProps) => {
 	if (isExternalUrl) {
 		// do nothing
 	} else {
-		if (!_.isString(href)) {
+		if (typeof href !== 'string') {
 			const searchParams = new URLSearchParams(href.search);
 			searchParams.set(queryParamKey.language, currentLang.value);
 
@@ -76,10 +86,10 @@ const RouterLink_A = ({ href, ref, ...other }: RouterLinkProps) => {
 
 			try {
 				url = new URL(href);
-			} catch (_e) {}
+			} catch {}
 
 			if (!url) {
-				const [pathname, search] = _.split(href, '?');
+				const [pathname, search] = href.split('?');
 				const searchParams = new URLSearchParams(search);
 				searchParams.set(queryParamKey.language, currentLang.value);
 				const searchString = searchParams.toString();
