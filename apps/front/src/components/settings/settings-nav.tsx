@@ -4,7 +4,7 @@ import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import { varAlpha } from 'minimal-shared/utils';
-import type { ReactNode } from 'react';
+import type { ReactElement } from 'react';
 
 import { RouterLink } from '#app/components/router-link.tsx';
 import useMatchPath from '#app/hooks/use-match-path.ts';
@@ -15,7 +15,7 @@ export type SettingsNavItem = {
 	/** If true, match sub-paths as active (default: false for exact match) */
 	deep?: boolean;
 	disabled?: boolean;
-	endIcon?: ReactNode;
+	endIcon?: ReactElement;
 };
 
 type SettingsNavProps = {

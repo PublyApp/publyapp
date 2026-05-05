@@ -32,7 +32,10 @@ import { useGetTenant } from '#app/lib/react-query/features/staff/staff-tenant.h
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/tenant-details-layout';
-import { TENANT_DETAILS_BILLING_ENABLED } from './tenant-details-feature-flags';
+import {
+	TENANT_DETAILS_ACTIVITY_ENABLED,
+	TENANT_DETAILS_BILLING_ENABLED,
+} from './tenant-details-feature-flags';
 
 export type TenantDetailsOutletContext = {
 	tenantName: string;
@@ -96,6 +99,15 @@ const TenantDetailsLayout = () => {
 				label: t('profiles'),
 				href: paths.tabs.profiles,
 				deep: true,
+			},
+			{
+				label: t('activity'),
+				href: paths.tabs.activity,
+				deep: true,
+				disabled: !TENANT_DETAILS_ACTIVITY_ENABLED,
+				endIcon: !TENANT_DETAILS_ACTIVITY_ENABLED ? (
+					<Iconify icon="solar:lock-password-outline" width={16} />
+				) : undefined,
 			},
 			{
 				label: t('billing'),
@@ -226,6 +238,7 @@ const TenantDetailsLayoutSkeleton = () => (
 						<TenantDetailsNavItemSkeleton width="34%" />
 						<TenantDetailsNavItemSkeleton width="46%" />
 						<TenantDetailsNavItemSkeleton width="40%" />
+						<TenantDetailsNavItemSkeleton width="36%" locked />
 						<TenantDetailsNavItemSkeleton width="38%" locked />
 					</Box>
 				</Stack>
