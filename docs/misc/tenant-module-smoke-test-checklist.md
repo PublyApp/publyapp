@@ -421,10 +421,10 @@ It covers category `0` through `10`.
 
 ### 9.7 Update/Delete/Get tests
 - Status: `DONE`
-- [ ] The update-tenant spec passes.
-- [ ] The delete-tenant spec passes.
-- [ ] The enriched get-tenant spec passes.
-- [ ] The suspend and reactivate specs pass.
+- [x] The update-tenant spec passes, including successful field updates, invalid PATCH values, max-users domain validation, permission gating, and audit logging.
+- [x] The delete-tenant spec passes, including suspended-only deletion, persisted soft-delete state, permission gating, and audit logging.
+- [x] The enriched get-tenant spec passes, including active and suspended tenants plus exact enriched-field coverage.
+- [x] The suspend and reactivate specs pass, including lifecycle transitions, invalid states, auth/permission gating, body validation, and audit logging.
 
 ### 9.8 Tenant-user tests
 - Status: `DONE`
