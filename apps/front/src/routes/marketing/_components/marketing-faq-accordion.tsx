@@ -1,7 +1,8 @@
 import Box from '@mui/material/Box';
+import Collapse from '@mui/material/Collapse';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { AnimatePresence, m } from 'framer-motion';
+import { m } from 'framer-motion';
 import { useState } from 'react';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
@@ -37,17 +38,19 @@ const FaqRow = ({ item }: { item: MarketingFaqItem }) => {
 	return (
 		<Box
 			component={m.div}
-			layout
 			animate={{
 				scale: expanded ? 1.015 : 1,
 				y: expanded ? -2 : 0,
 			}}
 			whileHover={!expanded ? { scale: 1.005, y: -1 } : undefined}
+			// High-stiffness, low-mass spring → snappy pop with slight overshoot.
+			// Earlier values (700/30/0.4) felt sleepy; previous fps drops came
+			// from a `layout` prop + nested motion subtrees, not from spring config.
 			transition={{
 				type: 'spring',
-				stiffness: 700,
-				damping: 30,
-				mass: 0.4,
+				stiffness: 1200,
+				damping: 20,
+				mass: 0.25,
 			}}
 			sx={{
 				bgcolor: 'background.paper',
@@ -89,13 +92,15 @@ const FaqRow = ({ item }: { item: MarketingFaqItem }) => {
 				</Typography>
 				<Box
 					component={m.div}
-					animate={{ rotate: expanded ? 90 : 0, scale: expanded ? 1 : 1 }}
+					animate={{ rotate: expanded ? 90 : 0 }}
 					whileTap={{ scale: 0.85 }}
+					// Whip-fast rotation — slightly under-damped on purpose so the
+					// icon flick reads as the "trigger" of the body open/close.
 					transition={{
 						type: 'spring',
-						stiffness: 600,
-						damping: 18,
-						mass: 0.5,
+						stiffness: 1500,
+						damping: 14,
+						mass: 0.22,
 					}}
 					sx={{ display: 'inline-flex', flexShrink: 0 }}
 				>
@@ -103,63 +108,35 @@ const FaqRow = ({ item }: { item: MarketingFaqItem }) => {
 				</Box>
 			</Box>
 
-			{/* Animated body */}
-			<AnimatePresence initial={false}>
-				{expanded && (
-					<Box
-						component={m.div}
-						key="content"
-						initial={{ opacity: 0, scaleY: 0 }}
-						animate={{ opacity: 1, scaleY: 1 }}
-						exit={{ opacity: 0, scaleY: 0 }}
-						transition={{
-							scaleY: {
-								type: 'spring',
-								stiffness: 700,
-								damping: 38,
-								mass: 0.45,
-							},
-							opacity: { duration: 0.1, delay: 0.02 },
+			{/*
+				Body uses MUI Collapse (real height animation) instead of a
+				framer-motion scaleY container. scaleY distorted text mid-transition
+				and didn't reserve real height in the surrounding stack. Asymmetric
+				timeout — opening uses an overshoot easing for a playful pop, closing
+				uses standard ease-in-out so it feels decisive rather than bouncy.
+			*/}
+			<Collapse
+				in={expanded}
+				timeout={{ enter: 160, exit: 120 }}
+				easing={{
+					enter: 'cubic-bezier(0.34, 1.4, 0.64, 1)',
+					exit: 'cubic-bezier(0.4, 0, 0.6, 1)',
+				}}
+				unmountOnExit
+			>
+				<Box sx={{ px: 3, pb: 3 }}>
+					<Typography
+						sx={{
+							fontSize: 14,
+							color: 'text.secondary',
+							lineHeight: 1.7,
+							pr: 4,
 						}}
-						sx={{ overflow: 'hidden', transformOrigin: 'top' }}
 					>
-						<Box
-							component={m.div}
-							initial={{ y: -10, opacity: 0, scale: 0.98 }}
-							animate={{ y: 0, opacity: 1, scale: 1 }}
-							exit={{ y: -6, opacity: 0 }}
-							transition={{
-								y: {
-									type: 'spring',
-									stiffness: 720,
-									damping: 32,
-									mass: 0.4,
-									delay: 0.02,
-								},
-								opacity: { duration: 0.12, delay: 0.03 },
-								scale: {
-									type: 'spring',
-									stiffness: 700,
-									damping: 34,
-									delay: 0.02,
-								},
-							}}
-							sx={{ px: 3, pt: 0, pb: 3, transformOrigin: 'top left' }}
-						>
-							<Typography
-								sx={{
-									fontSize: 14,
-									color: 'text.secondary',
-									lineHeight: 1.7,
-									pr: 4,
-								}}
-							>
-								{item.answer}
-							</Typography>
-						</Box>
-					</Box>
-				)}
-			</AnimatePresence>
+						{item.answer}
+					</Typography>
+				</Box>
+			</Collapse>
 		</Box>
 	);
 };
