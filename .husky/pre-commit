@@ -18,6 +18,6 @@ elif command -v bun >/dev/null 2>&1; then
 elif command -v npx >/dev/null 2>&1; then
     npx lint-staged
 else
-    echo "Error: Neither pnpm, nor npx found. Please install pnpm, or npm."
+    echo "❌ Neither pnpm, nor npx found. Please install pnpm, or npm."
     exit 1
 fi

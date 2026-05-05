@@ -1,22 +1,8 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 
-if [ "$current_branch" = "deploy-server" ]; then
-	npm run prepare:deploy
-
-	if git status --porcelain | grep -E '^(M|A|D|R|C)' &> /dev/null; then
-		echo "There are changes to commit."
-
-		current_date=$(date +'%d-%m-%y %H:%M')
-		git add .
-		git commit -m "prepare deploy $current_date"
-	else
-		echo "Nothing to commit."
-	fi
-else
-	# do nothing
-	echo ""
+if [ "$current_branch" = "main" ] || [ "$current_branch" = "develop" ]; then
+	# Write to stderr
+  echo "Direct push to $current_branch branch is not allowed, please create a new branch then do a pull request" >&2
+  exit 1
 fi
 

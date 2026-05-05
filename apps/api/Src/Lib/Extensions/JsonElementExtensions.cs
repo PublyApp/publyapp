@@ -6,18 +6,42 @@ using MainApi.Src.Lib.Utils;
 namespace MainApi.Src.Lib.Extensions;
 
 public static class JsonElementExtensions {
-	public static string GetValueAsString(this JsonElement element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
-		return element.ValueKind switch {
-			JsonValueKind.String => element.GetString() ?? throw new InvalidOperationException($"{propertyName} is not a string"),
-			_ => throw new InvalidOperationException($"{propertyName} is not a string")
-		};
+	public static string GetValueAsString(
+		this JsonElement element,
+		[CallerArgumentExpression(nameof(element))]
+		string? propertyName = null
+	) {
+		if (element.ValueKind != JsonValueKind.String) {
+			throw new InvalidOperationException(
+				$"{propertyName} is not a string"
+			);
+		}
+		var value = element.GetString();
+		if (value is null) {
+			throw new InvalidOperationException(
+				$"{propertyName} is not a string"
+			);
+		}
+		return value;
 	}
 
-	public static string GetValueAsString(this JsonElement? element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
-		return element?.ValueKind switch {
-			JsonValueKind.String => element?.GetString() ?? throw new InvalidOperationException($"{propertyName} is not a string"),
-			_ => throw new InvalidOperationException($"{propertyName} is not a string")
-		};
+	public static string GetValueAsString(
+		this JsonElement? element,
+		[CallerArgumentExpression(nameof(element))]
+		string? propertyName = null
+	) {
+		if (element?.ValueKind != JsonValueKind.String) {
+			throw new InvalidOperationException(
+				$"{propertyName} is not a string"
+			);
+		}
+		var value = element.Value.GetString();
+		if (value is null) {
+			throw new InvalidOperationException(
+				$"{propertyName} is not a string"
+			);
+		}
+		return value;
 	}
 
 	public static string? GetValueAsStringOrNull(this JsonElement? element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
@@ -60,21 +84,51 @@ public static class JsonElementExtensions {
 		};
 	}
 
-	public static Guid GetValueAsGuid(this JsonElement element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
-		return element.ValueKind switch {
-			JsonValueKind.String => Guid.Parse(element.GetString() ?? throw new InvalidOperationException($"{propertyName} is not a guid")),
-			_ => throw new InvalidOperationException($"{propertyName} must be a guid")
-		};
+	public static Guid GetValueAsGuid(
+		this JsonElement element,
+		[CallerArgumentExpression(nameof(element))]
+		string? propertyName = null
+	) {
+		if (element.ValueKind != JsonValueKind.String) {
+			throw new InvalidOperationException(
+				$"{propertyName} must be a guid"
+			);
+		}
+		var guidStr = element.GetString();
+		if (guidStr is null) {
+			throw new InvalidOperationException(
+				$"{propertyName} is not a guid"
+			);
+		}
+		return Guid.Parse(guidStr);
 	}
 
-	public static Guid GetValueAsGuid(this JsonElement? element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
-		return element?.ValueKind switch {
-			null => throw new InvalidOperationException($"{propertyName} is not a guid"),
-			JsonValueKind.Null => throw new InvalidOperationException($"{propertyName} is not a guid"),
-			JsonValueKind.Undefined => throw new InvalidOperationException($"{propertyName} is not a guid"),
-			JsonValueKind.String => Guid.Parse(element?.GetString() ?? throw new InvalidOperationException($"{propertyName} is not a guid")),
-			_ => throw new InvalidOperationException($"{propertyName} must be a guid")
-		};
+	public static Guid GetValueAsGuid(
+		this JsonElement? element,
+		[CallerArgumentExpression(nameof(element))]
+		string? propertyName = null
+	) {
+		if (element is null
+			|| element.Value.ValueKind
+				is JsonValueKind.Null
+				or JsonValueKind.Undefined) {
+			throw new InvalidOperationException(
+				$"{propertyName} is not a guid"
+			);
+		}
+		if (element.Value.ValueKind
+			!= JsonValueKind.String) {
+			throw new InvalidOperationException(
+				$"{propertyName} must be a guid"
+			);
+		}
+		var guidStr = element.Value.GetString();
+		if (guidStr is null) {
+			throw new InvalidOperationException(
+				$"{propertyName} is not a guid"
+			);
+		}
+		return Guid.Parse(guidStr);
 	}
 
 	public static int GetValueAsInt32(this JsonElement element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {

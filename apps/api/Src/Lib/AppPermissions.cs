@@ -17,11 +17,13 @@ public interface ISlicePermissions {
 
 public class StaffScopePermissions : IScopePermissions {
 	public string KeyPrefix { get; } = Permission.ScopeKeyPrefix.Staff;
-	public TenantAsStaffPermissions Tenants { get; } = new TenantAsStaffPermissions();
-	public UserAsStaffPermissions Users { get; } = new UserAsStaffPermissions();
-	public ProfileAsStaffPermissions Profiles { get; } = new ProfileAsStaffPermissions();
-	public PermissionAsStaffPermissions Permissions { get; } = new PermissionAsStaffPermissions();
-	public StaffMemberPermissions StaffMembers { get; } = new StaffMemberPermissions();
+	public UserPermissionsForStaff Users { get; } = new UserPermissionsForStaff();
+	public InvitationPermissionsForStaff Invitations { get; } = new InvitationPermissionsForStaff();
+	public TenantPermissionsForStaff Tenants { get; } = new TenantPermissionsForStaff();
+	public ProfilePermissionsForStaff Profiles { get; } = new ProfilePermissionsForStaff();
+	public PermissionPermissionsForStaff Permissions { get; } = new PermissionPermissionsForStaff();
+	public SystemNoticePermissionsForStaff SystemNotices { get; } = new SystemNoticePermissionsForStaff();
+	public AuditLogPermissionsForStaff AuditLogs { get; } = new AuditLogPermissionsForStaff();
 }
 
 public class TenantScopePermissions : IScopePermissions {

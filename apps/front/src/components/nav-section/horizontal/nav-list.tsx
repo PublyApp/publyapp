@@ -1,3 +1,4 @@
+import { popoverClasses } from '@mui/material/Popover';
 import { useTheme } from '@mui/material/styles';
 import { usePopoverHover } from 'minimal-shared/hooks';
 import { isActiveLink, isExternalLink } from 'minimal-shared/utils';
@@ -12,7 +13,7 @@ import { NavItem } from './nav-item';
 
 // ----------------------------------------------------------------------
 
-export function NavList({
+export const NavList = ({
 	data,
 	depth,
 	render,
@@ -20,7 +21,7 @@ export function NavList({
 	slotProps,
 	checkPermissions,
 	enabledRootRedirect,
-}: NavListProps) {
+}: NavListProps) => {
 	const theme = useTheme();
 
 	const pathname = usePathname();
@@ -57,71 +58,86 @@ export function NavList({
 		}
 	}, [data.children, onOpen]);
 
-	const renderNavItem = () => (
-		<NavItem
-			ref={navItemRef}
-			aria-describedby={id}
-			// slots
-			path={data.path}
-			icon={data.icon}
-			info={data.info}
-			title={data.title}
-			caption={data.caption}
-			// state
-			active={isActive}
-			open={open}
-			disabled={data.disabled}
-			// options
-			depth={depth}
-			render={render}
-			hasChild={!!data.children}
-			externalLink={isExternalLink(data.path)}
-			enabledRootRedirect={enabledRootRedirect}
-			// styles
-			slotProps={depth === 1 ? slotProps?.rootItem : slotProps?.subItem}
-			// actions
-			onMouseEnter={handleOpenMenu}
-			onMouseLeave={onClose}
-		/>
-	);
-
-	const renderDropdown = () =>
-		!!data.children && (
-			<NavDropdown
-				disableScrollLock
-				id={id}
+	const renderNavItem = () => {
+		return (
+			<NavItem
+				ref={navItemRef}
+				aria-describedby={id}
+				// slots
+				title={data.title}
+				path={data.path}
+				icon={data.icon}
+				info={data.info}
+				caption={data.caption}
+				// state
+				active={isActive}
 				open={open}
-				anchorEl={anchorEl}
-				anchorOrigin={{ vertical: 'top', horizontal: isRtl ? 'left' : 'right' }}
-				transformOrigin={{
-					vertical: 'top',
-					horizontal: isRtl ? 'right' : 'left',
-				}}
-				slotProps={{
-					paper: {
-						onMouseEnter: handleOpenMenu,
-						onMouseLeave: onClose,
-						className: navSectionClasses.dropdown.root,
-					},
-				}}
-				sx={{ ...cssVars }}
-			>
-				<NavDropdownPaper
-					className={navSectionClasses.dropdown.paper}
-					sx={slotProps?.dropdown?.paper}
-				>
-					<NavSubList
-						data={data.children}
-						depth={depth}
-						render={render}
-						cssVars={cssVars}
-						slotProps={slotProps}
-						checkPermissions={checkPermissions}
-						enabledRootRedirect={enabledRootRedirect}
-					/>
-				</NavDropdownPaper>
-			</NavDropdown>
+				disabled={data.disabled}
+				// options
+				depth={depth}
+				render={render}
+				hasChild={!!data.children}
+				externalLink={isExternalLink(data.path)}
+				enabledRootRedirect={enabledRootRedirect}
+				// styles
+				slotProps={depth === 1 ? slotProps?.rootItem : slotProps?.subItem}
+				// actions
+				onMouseEnter={handleOpenMenu}
+				onMouseLeave={onClose}
+			/>
 		);
+	};
+
+	const renderDropdown = () => {
+		return (
+			!!data.children && (
+				<NavDropdown
+					disableScrollLock
+					id={id}
+					open={open}
+					anchorEl={anchorEl}
+					anchorOrigin={
+						depth === 1
+							? { vertical: 'bottom', horizontal: isRtl ? 'right' : 'left' }
+							: { vertical: 'center', horizontal: isRtl ? 'left' : 'right' }
+					}
+					transformOrigin={
+						depth === 1
+							? { vertical: 'top', horizontal: isRtl ? 'right' : 'left' }
+							: { vertical: 'center', horizontal: isRtl ? 'right' : 'left' }
+					}
+					slotProps={{
+						paper: {
+							onMouseEnter: handleOpenMenu,
+							onMouseLeave: onClose,
+							className: navSectionClasses.dropdown.root,
+						},
+					}}
+					sx={{
+						...cssVars,
+						[`& .${popoverClasses.paper}`]: {
+							...(depth === 1 && { pt: 1, ml: -0.75 }),
+						},
+					}}
+				>
+					<NavDropdownPaper
+						className={navSectionClasses.dropdown.paper}
+						sx={slotProps?.dropdown?.paper}
+					>
+						<NavSubList
+							data={data.children}
+							depth={depth}
+							render={render}
+							cssVars={cssVars}
+							slotProps={slotProps}
+							checkPermissions={checkPermissions}
+							enabledRootRedirect={enabledRootRedirect}
+						/>
+					</NavDropdownPaper>
+				</NavDropdown>
+			)
+		);
+	};
 
 	// Hidden item by role
 	if (
@@ -143,11 +159,11 @@ export function NavList({
 			{open && renderDropdown()}
 		</NavLi>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
-function NavSubList({
+const NavSubList = ({
 	data,
 	render,
 	cssVars,
@@ -155,21 +171,23 @@ function NavSubList({
 	slotProps,
 	checkPermissions,
 	enabledRootRedirect,
-}: NavSubListProps) {
+}: NavSubListProps) => {
 	return (
 		<NavUl sx={{ gap: 0.5 }}>
-			{data.map((list) => (
-				<NavList
-					key={list.title}
-					data={list}
-					render={render}
-					depth={depth + 1}
-					cssVars={cssVars}
-					slotProps={slotProps}
-					checkPermissions={checkPermissions}
-					enabledRootRedirect={enabledRootRedirect}
-				/>
-			))}
+			{data.map((list) => {
+				return (
+					<NavList
+						key={list.title}
+						data={list}
+						render={render}
+						depth={depth + 1}
+						cssVars={cssVars}
+						slotProps={slotProps}
+						checkPermissions={checkPermissions}
+						enabledRootRedirect={enabledRootRedirect}
+					/>
+				);
+			})}
 		</NavUl>
 	);
-}
+};

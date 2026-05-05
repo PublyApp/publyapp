@@ -1,5 +1,4 @@
 import { Outlet } from 'react-router';
-import { View500 } from '@/front/components/error';
 
 import { View500 } from '#app/components/error/index.ts';
 

@@ -22,18 +22,11 @@ public class VerifyEmailRequestBody {
 	}
 }
 
-public class VerifyEmailRequestBodyValidator : AbstractValidator<VerifyEmailRequestBody> {
+public class VerifyEmailRequestBodyValidator
+	: AbstractValidator<VerifyEmailRequestBody> {
 	public VerifyEmailRequestBodyValidator() {
 		RuleFor(x => x.Email)
-			.NotEmpty().WithMessage("Email is required")
-			.DependentRules(() => {
-				RuleFor(x => x.Email)
-					.Must(email => email.ValueKind == JsonValueKind.String).WithMessage("Email must be a string")
-					.DependentRules(() => {
-						RuleFor(x => x.Email.GetString()!)
-							.EmailAddress().WithMessage("Invalid email address");
-					});
-			});
+			.MustBeRequiredEmail();
 	}
 }
 

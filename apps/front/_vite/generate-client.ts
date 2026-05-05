@@ -20,7 +20,7 @@ const generateKiotaClient = (): Plugin => {
 		try {
 			const jsClientPath = path.resolve(
 				process.cwd(),
-				'../../packages/js-client',
+				'../../packages/client-ts',
 			);
 			const kiotaLockPath = path.join(jsClientPath, 'src/kiota-lock.json');
 			const openApiPath = path.resolve(
