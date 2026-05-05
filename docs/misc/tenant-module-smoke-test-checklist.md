@@ -373,10 +373,10 @@ It covers category `0` through `10`.
 
 ## Category 8: Activity Tab / Audit Trail
 
-- Status: `PENDING/DEFERRED`
-- [ ] There is a clear product decision on whether a tenant activity tab should exist in the current navigation.
-- [ ] If activity is in scope, tenant-scoped audit log data loads correctly for the selected tenant.
-- [ ] If activity is intentionally deferred to issue `#172`, this category stays explicitly deferred and its absence is not treated as a regression.
+- Status: `DEFERRED`
+- [x] The tenant activity tab should exist in the tenant detail navigation, but it stays locked while tenant-scoped audit loading is deferred.
+- [x] The locked `Activity` route renders a `403` view while the feature flag is disabled.
+- [x] Tenant-scoped audit log data loading is deferred to issue `#364` and remains related to the broader audit-log follow-up issue `#172`.
 
 ## Category 9: Backend and Automated Coverage
 

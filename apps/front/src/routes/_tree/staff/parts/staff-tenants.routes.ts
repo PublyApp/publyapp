@@ -32,6 +32,12 @@ export const staffTenantsRoutes = [
 				),
 				route(
 					getLastPath(
+						FRONT_PATH_NAMES.staff.tenants.details(':tenantId').tabs.activity,
+					),
+					'routes/authed/staff/tenants/details/activity/tenant-details-activity-page.tsx',
+				),
+				route(
+					getLastPath(
 						FRONT_PATH_NAMES.staff.tenants.details(':tenantId').tabs.billing,
 					),
 					'routes/authed/staff/tenants/details/billing/tenant-details-billing-page.tsx',

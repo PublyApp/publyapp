@@ -15,8 +15,11 @@ export const SettingsNavMobile = ({ items }: SettingsNavMobileProps) => {
 	const navigate = useNavigate();
 
 	const activeHref =
-		items.find((item) => matchPath(item.href, item.deep ?? false).active)
-			?.href ?? items[0]?.href;
+		items.find(
+			(item) =>
+				!(item.disabled ?? false) &&
+				matchPath(item.href, item.deep ?? false).active,
+		)?.href ?? items[0]?.href;
 
 	return (
 		<Tabs
@@ -29,9 +32,20 @@ export const SettingsNavMobile = ({ items }: SettingsNavMobileProps) => {
 				borderColor: 'divider',
 			}}
 		>
-			{items.map((item) => (
-				<Tab key={item.href} label={item.label} value={item.href} />
-			))}
+			{items.map((item) => {
+				const isDisabled = item.disabled ?? false;
+
+				return (
+					<Tab
+						key={item.href}
+						disabled={isDisabled}
+						icon={item.endIcon}
+						iconPosition="end"
+						label={item.label}
+						value={item.href}
+					/>
+				);
+			})}
 		</Tabs>
 	);
 };
