@@ -412,7 +412,7 @@ It covers category `0` through `10`.
 
 ### 9.5 Create endpoint tests
 - Status: `DONE`
-- [ ] `CreateTenantAsStaff.Spec.cs` passes and still matches the current create-tenant contract.
+- [x] `CreateTenantAsStaff.Spec.cs` passes and covers the current create-tenant contract, including creation side effects, auth/permission gating, validation edge cases, default max-users handling, default profile assignment, invitation creation, and email dispatch.
 
 ### 9.6 Find endpoint tests
 - Status: `DONE/PARTIAL`
