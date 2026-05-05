@@ -68,15 +68,16 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff {
 		[Fact]
 		public async Task
 		ItShouldAllowPermissionedNonAdminStaffUserToRevokeTenantInvitation() {
-			Guid tenantId = await LoginAsStaffUserWithInvitationPermissionAsync(
+			string staffUserToken = await CreateStaffUserTokenWithInvitationPermissionAsync(
 				AppPermissions.Staff.Invitations.REVOKE_FOR_TENANT.Key
 			);
-			string staffUserToken = await _authClient.LoginAsync(
-				TestConstants.StaffUserEmail,
-				TestConstants.SeedPassword
+			string staffAdminToken = await _authClient.LoginAsStaffAdminAsync();
+			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
+				_http,
+				staffAdminToken,
+				SeedConstants.Tenants.AcmeName
 			);
 
-			string staffAdminToken = await _authClient.LoginAsStaffAdminAsync();
 			Guid invitationId = await CreateTenantInvitationAsync(
 				staffAdminToken,
 				tenantId,
@@ -88,6 +89,30 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff {
 			);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+		}
+
+		[Fact]
+		public async Task
+		ItShouldReturnBadRequestWhenTenantInvitationIsAlreadyAccepted() {
+			string staffToken = await _authClient.LoginAsStaffAdminAsync();
+			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
+				_http,
+				staffToken,
+				SeedConstants.Tenants.AcmeName
+			);
+			Guid invitationId = await CreateTenantInvitationAsync(
+				staffToken,
+				tenantId,
+				$"tenant-revoke-accepted-{Guid.NewGuid():N}@example.com"
+			);
+
+			await MarkInvitationAcceptedAsync(invitationId);
+
+			using HttpResponseMessage response = await _http.SendAsync(
+				CreateTenantRevokeRequest(staffToken, tenantId.ToString(), invitationId.ToString())
+			);
+
+			_ = response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		}
 
 		[Fact]
@@ -256,10 +281,7 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff {
 				tenantId,
 				$"tenant-revoke-no-permission-{Guid.NewGuid():N}@example.com"
 			);
-			string staffUserToken = await _authClient.LoginAsync(
-				TestConstants.StaffUserEmail,
-				TestConstants.SeedPassword
-			);
+			string staffUserToken = await CreateStaffUserTokenWithoutPermissionAsync();
 
 			using HttpResponseMessage response = await _http.SendAsync(
 				CreateTenantRevokeRequest(staffUserToken, tenantId.ToString(), invitationId.ToString())
@@ -318,12 +340,8 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff {
 		[Fact]
 		public async Task
 		ItShouldAllowPermissionedNonAdminStaffUserToRevokeStaffInvitation() {
-			_ = await LoginAsStaffUserWithInvitationPermissionAsync(
+			string staffUserToken = await CreateStaffUserTokenWithInvitationPermissionAsync(
 				AppPermissions.Staff.Invitations.REVOKE_FOR_STAFF.Key
-			);
-			string staffUserToken = await _authClient.LoginAsync(
-				TestConstants.StaffUserEmail,
-				TestConstants.SeedPassword
 			);
 
 			string staffAdminToken = await _authClient.LoginAsStaffAdminAsync();
@@ -398,19 +416,38 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff {
 			return body!.InvitationId;
 		}
 
-		private async Task<Guid> LoginAsStaffUserWithInvitationPermissionAsync(
+		private async Task<string> CreateStaffUserTokenWithoutPermissionAsync() {
+			string email =
+				$"invitation-revoke-no-permission-{Guid.NewGuid():N}@example.com";
+
+			await StaffUserTestHelper.SeedStaffUserAsync(
+				_fixture,
+				email
+			);
+
+			return await _authClient.LoginAsync(
+				email,
+				TestConstants.SeedPassword
+			);
+		}
+
+		private async Task<string> CreateStaffUserTokenWithInvitationPermissionAsync(
 			string permissionKey
 		) {
+			string email =
+				$"invitation-revoke-permissioned-{Guid.NewGuid():N}@example.com";
+			Guid userId = await StaffUserTestHelper.SeedStaffUserAsync(
+				_fixture,
+				email
+			);
+
 			using IServiceScope scope = _fixture.Factory.Services.CreateScope();
 			MainApiDbContext dbContext = scope.ServiceProvider
 				.GetRequiredService<MainApiDbContext>();
 
-			User staffUser = await dbContext.User
-				.Where(user => user.Email == TestConstants.StaffUserEmail)
-				.FirstAsync();
 			UserAccount staffAccount = await dbContext.UserAccount
 				.Where(account =>
-					account.UserId == staffUser.GetRequiredId()
+					account.UserId == userId
 					&& account.Scope == AccountScope.Staff
 					&& !account.IsDeleted
 				)
@@ -434,12 +471,24 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff {
 			});
 			_ = await dbContext.SaveChangesAsync();
 
-			string staffAdminToken = await _authClient.LoginAsStaffAdminAsync();
-			return await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
-				staffAdminToken,
-				SeedConstants.Tenants.AcmeName
+			return await _authClient.LoginAsync(
+				email,
+				TestConstants.SeedPassword
 			);
+		}
+
+		private async Task MarkInvitationAcceptedAsync(Guid invitationId) {
+			using IServiceScope scope = _fixture.Factory.Services.CreateScope();
+			MainApiDbContext dbContext = scope.ServiceProvider
+				.GetRequiredService<MainApiDbContext>();
+
+			Invitation invitation = await dbContext.Invitation
+				.Where(inv => inv.Id == invitationId)
+				.FirstAsync();
+			invitation.Status = InvitationStatus.Accepted;
+			invitation.AcceptedAt = DateTime.UtcNow;
+
+			_ = await dbContext.SaveChangesAsync();
 		}
 
 		private async Task<Guid> CreateStaffInvitationAsync(

@@ -436,13 +436,13 @@ It covers category `0` through `10`.
 
 ### 9.8.1 Tenant-invitation tests
 - Status: `DONE`
-- [ ] `FindInvitationsForTenantAsStaff.Spec.cs` passes, including revoked-status coverage.
-- [ ] `RevokeInvitationForTenantAsStaff.Spec.cs` passes for success, malformed ids, not-found cases, and auth/permission gating.
-- [ ] Global staff invitation revoke coverage proves tenant invitations are no longer revocable through the staff invitation revoke route.
+- [x] `FindInvitationsForTenantAsStaff.Spec.cs` passes, including cursor pagination, tenant isolation, search, sort, and pending/accepted/expired/revoked status coverage.
+- [x] `RevokeInvitationForTenantAsStaff.Spec.cs` passes for success, malformed ids, not-found cases, accepted-invitation rejection, auth/permission gating, and permissioned non-admin staff access.
+- [x] Global staff invitation revoke coverage proves tenant invitations are no longer revocable through the staff invitation revoke route.
 
 ### 9.9 Bulk action tests
-- Status: `PENDING`
-- [ ] Automated coverage for bulk suspend, bulk reactivate, and bulk delete endpoints either exists and passes or remains explicitly tracked as missing.
+- Status: `DONE`
+- [x] Automated coverage for bulk suspend, bulk reactivate, and bulk delete endpoints passes, including success, partial success, persisted state, validation, auth/permission gating, permissioned non-admin staff access, and audit logging.
 
 ## Category 10: Tenant-Side Self-Service
 

@@ -14,7 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Modules.Tenants.Handlers.Staff;
 
 public record BulkSuspendTenantsAsStaffBody {
-	public required JsonElement TenantIds { get; init; }
+	public JsonElement TenantIds { get; init; }
 	public JsonElement? Reason { get; init; }
 }
 
@@ -32,6 +32,7 @@ public record BulkSuspendFailedItem {
 public class BulkSuspendTenantsAsStaffBodyValidator : AbstractValidator<BulkSuspendTenantsAsStaffBody> {
 	public BulkSuspendTenantsAsStaffBodyValidator() {
 		RuleFor(x => x.TenantIds)
+			.Cascade(CascadeMode.Stop)
 			.Must(x => x.ValueKind == JsonValueKind.Array)
 			.WithMessage("TenantIds must be an array")
 			.Must(x => x.EnumerateArray().Count() > 0)
