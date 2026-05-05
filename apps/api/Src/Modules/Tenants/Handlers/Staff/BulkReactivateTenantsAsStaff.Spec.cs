@@ -15,13 +15,13 @@ using MainApi.Src.Modules.Tenants.Entities;
 
 using Xunit;
 
-public sealed class BulkSuspendTenantsAsStaffSpec
+public sealed class BulkReactivateTenantsAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
-	public BulkSuspendTenantsAsStaffSpec(ApiFixture fixture) {
+	public BulkReactivateTenantsAsStaffSpec(ApiFixture fixture) {
 		_fixture = fixture;
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);
@@ -29,18 +29,17 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 
 	[Fact]
 	public async Task
-	ItShouldSuspendActiveTenantsAndWriteAuditLog() {
+	ItShouldReactivateSuspendedTenantsAndWriteAuditLog() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var firstTenant = await SeedTenantAsync(
-			"Bulk Suspend Active A",
-			TenantStatus.Active
+			"Bulk Reactivate Suspended A",
+			TenantStatus.Suspended
 		);
 		var secondTenant = await SeedTenantAsync(
-			"Bulk Suspend Active B",
-			TenantStatus.Active
+			"Bulk Reactivate Suspended B",
+			TenantStatus.Suspended
 		);
-		var reason = "Bulk compliance review";
 
 		using var response = await _http.SendAsync(
 			CreateRequest(
@@ -50,7 +49,6 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 						firstTenant.TenantId,
 						secondTenant.TenantId,
 					},
-					reason,
 				}
 			)
 		);
@@ -63,7 +61,7 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 		result.Should().NotBeNull();
 		if (result is null) {
 			throw new InvalidOperationException(
-				"Bulk suspend response was empty."
+				"Bulk reactivate response was empty."
 			);
 		}
 		result.SucceededCount.Should().Be(2);
@@ -72,48 +70,43 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 
 		await AssertTenantStatusAsync(
 			firstTenant.TenantId,
-			TenantStatus.Suspended
+			TenantStatus.Active
 		);
 		await AssertTenantStatusAsync(
 			secondTenant.TenantId,
-			TenantStatus.Suspended
+			TenantStatus.Active
 		);
 
 		var auditLog = await TenantBulkActionSpecSupport
 			.GetLatestAuditLogAsync(
 				_fixture,
-				AuditActions.TenantBulkSuspended
+				AuditActions.TenantBulkReactivated
 			);
 		auditLog.Should().NotBeNull();
 		if (auditLog is null) {
 			throw new InvalidOperationException(
-				"Bulk suspend audit log was not written."
+				"Bulk reactivate audit log was not written."
 			);
 		}
 		TenantBulkActionSpecSupport.AssertAuditDetails(
 			auditLog,
 			expectedCount: 2,
-			expectedFailedCount: 0,
-			expectedReason: reason
+			expectedFailedCount: 0
 		);
 	}
 
 	[Fact]
 	public async Task
-	ItShouldReturnPartialResultForNonSuspendableTenants() {
+	ItShouldReturnPartialResultForNonReactivatableTenants() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
-		var activeTenant = await SeedTenantAsync(
-			"Bulk Suspend Partial Active",
-			TenantStatus.Active
-		);
 		var suspendedTenant = await SeedTenantAsync(
-			"Bulk Suspend Partial Suspended",
+			"Bulk Reactivate Partial Suspended",
 			TenantStatus.Suspended
 		);
-		var pendingTenant = await SeedTenantAsync(
-			"Bulk Suspend Partial Pending",
-			TenantStatus.Pending
+		var activeTenant = await SeedTenantAsync(
+			"Bulk Reactivate Partial Active",
+			TenantStatus.Active
 		);
 		var missingTenantId = Guid.NewGuid();
 
@@ -122,9 +115,8 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 				staffToken,
 				new {
 					tenantIds = new[] {
-						activeTenant.TenantId,
 						suspendedTenant.TenantId,
-						pendingTenant.TenantId,
+						activeTenant.TenantId,
 						missingTenantId,
 					},
 				}
@@ -139,18 +131,14 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 		result.Should().NotBeNull();
 		if (result is null) {
 			throw new InvalidOperationException(
-				"Bulk suspend response was empty."
+				"Bulk reactivate response was empty."
 			);
 		}
 		result.SucceededCount.Should().Be(1);
-		result.FailedCount.Should().Be(3);
+		result.FailedCount.Should().Be(2);
 		result.FailedItems.Should().Contain(item =>
-			item.TenantId == suspendedTenant.TenantId
-			&& item.Error == "Already suspended"
-		);
-		result.FailedItems.Should().Contain(item =>
-			item.TenantId == pendingTenant.TenantId
-			&& item.Error == "Tenant is not active"
+			item.TenantId == activeTenant.TenantId
+			&& item.Error == "Tenant is not suspended"
 		);
 		result.FailedItems.Should().Contain(item =>
 			item.TenantId == missingTenantId
@@ -158,28 +146,28 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 		);
 
 		await AssertTenantStatusAsync(
-			activeTenant.TenantId,
-			TenantStatus.Suspended
+			suspendedTenant.TenantId,
+			TenantStatus.Active
 		);
 		await AssertTenantStatusAsync(
-			pendingTenant.TenantId,
-			TenantStatus.Pending
+			activeTenant.TenantId,
+			TenantStatus.Active
 		);
 	}
 
 	[Fact]
 	public async Task
-	ItShouldAllowPermissionedNonAdminStaffUserToBulkSuspend() {
+	ItShouldAllowPermissionedNonAdminStaffUserToBulkReactivate() {
 		var staffToken = await TenantBulkActionSpecSupport
 			.CreateStaffUserTokenWithPermissionAsync(
 				_fixture,
 				_authClient,
-				"bulk-suspend",
-				AppPermissions.Staff.Tenants.SUSPEND.Key
+				"bulk-reactivate",
+				AppPermissions.Staff.Tenants.REACTIVATE.Key
 			);
 		var tenant = await SeedTenantAsync(
-			"Bulk Suspend Permissioned",
-			TenantStatus.Active
+			"Bulk Reactivate Permissioned",
+			TenantStatus.Suspended
 		);
 
 		using var response = await _http.SendAsync(
@@ -197,8 +185,8 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 	public async Task
 	ItShouldReturnUnauthorizedWithoutSession() {
 		var tenant = await SeedTenantAsync(
-			"Bulk Suspend Unauthorized",
-			TenantStatus.Active
+			"Bulk Reactivate Unauthorized",
+			TenantStatus.Suspended
 		);
 
 		using var response = await _http.SendAsync(
@@ -220,8 +208,8 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 			TestConstants.SeedPassword
 		);
 		var tenant = await SeedTenantAsync(
-			"Bulk Suspend Tenant User",
-			TenantStatus.Active
+			"Bulk Reactivate Tenant User",
+			TenantStatus.Suspended
 		);
 
 		using var response = await _http.SendAsync(
@@ -242,11 +230,11 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 			.CreateStaffUserTokenWithoutPermissionAsync(
 				_fixture,
 				_authClient,
-				"bulk-suspend-no-permission"
+				"bulk-reactivate-no-permission"
 			);
 		var tenant = await SeedTenantAsync(
-			"Bulk Suspend No Permission",
-			TenantStatus.Active
+			"Bulk Reactivate No Permission",
+			TenantStatus.Suspended
 		);
 
 		using var response = await _http.SendAsync(
@@ -264,50 +252,28 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 	[MemberData(nameof(InvalidBodies))]
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenBodyIsInvalid(
-		string body,
-		string expectedField
+		string body
 	) {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 
 		using var response = await _http.SendAsync(
 			TenantBulkActionSpecSupport.CreateRawJsonRequest(
-				TenantBulkActionSpecSupport.GetBulkSuspendUrl(),
+				TenantBulkActionSpecSupport.GetBulkReactivateUrl(),
 				staffToken,
 				body
 			)
 		);
 
-		await AssertValidationProblemAsync(
-			response,
-			expectedField
-		);
+		await AssertValidationProblemAsync(response);
 	}
 
 	public static IEnumerable<object[]> InvalidBodies() {
-		yield return ["""{}""", "TenantIds"];
-		yield return ["""{ "tenantIds": null }""", "TenantIds"];
-		yield return ["""{ "tenantIds": "not-an-array" }""", "TenantIds"];
-		yield return ["""{ "tenantIds": [] }""", "TenantIds"];
-		yield return ["""{ "tenantIds": ["not-a-guid"] }""", "TenantIds"];
-		yield return [
-			$$"""
-			{
-				"tenantIds": ["{{Guid.NewGuid()}}"],
-				"reason": 123
-			}
-			""",
-			"Reason",
-		];
-		yield return [
-			$$"""
-			{
-				"tenantIds": ["{{Guid.NewGuid()}}"],
-				"reason": "{{new string('x', 501)}}"
-			}
-			""",
-			"Reason",
-		];
+		yield return ["""{}"""];
+		yield return ["""{ "tenantIds": null }"""];
+		yield return ["""{ "tenantIds": "not-an-array" }"""];
+		yield return ["""{ "tenantIds": [] }"""];
+		yield return ["""{ "tenantIds": ["not-a-guid"] }"""];
 		yield return [
 			$$"""
 			{
@@ -316,7 +282,6 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 				]
 			}
 			""",
-			"TenantIds",
 		];
 	}
 
@@ -325,7 +290,7 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 		object body
 	) =>
 		TenantBulkActionSpecSupport.CreateJsonRequest(
-			TenantBulkActionSpecSupport.GetBulkSuspendUrl(),
+			TenantBulkActionSpecSupport.GetBulkReactivateUrl(),
 			sessionToken,
 			body
 		);
@@ -357,8 +322,7 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 	}
 
 	private static async Task AssertValidationProblemAsync(
-		HttpResponseMessage response,
-		string expectedField
+		HttpResponseMessage response
 	) {
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -374,6 +338,6 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 		problem.TranslationKey.Should()
 			.Be(ResponseKeys.RequestBodyValidationFailed.Value);
 		problem.Errors.Keys.Should()
-			.Contain(expectedField);
+			.Contain("TenantIds");
 	}
 }

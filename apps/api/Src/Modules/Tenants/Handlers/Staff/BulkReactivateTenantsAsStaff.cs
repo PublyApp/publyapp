@@ -14,7 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Modules.Tenants.Handlers.Staff;
 
 public record BulkReactivateTenantsAsStaffBody {
-	public required JsonElement TenantIds { get; init; }
+	public JsonElement TenantIds { get; init; }
 }
 
 public record BulkReactivateTenantsResult {
@@ -31,6 +31,7 @@ public record BulkReactivateFailedItem {
 public class BulkReactivateTenantsAsStaffBodyValidator : AbstractValidator<BulkReactivateTenantsAsStaffBody> {
 	public BulkReactivateTenantsAsStaffBodyValidator() {
 		RuleFor(x => x.TenantIds)
+			.Cascade(CascadeMode.Stop)
 			.Must(x => x.ValueKind == JsonValueKind.Array)
 			.WithMessage("TenantIds must be an array")
 			.Must(x => x.EnumerateArray().Count() > 0)
