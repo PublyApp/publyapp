@@ -1,34 +1,49 @@
 import Box from '@mui/material/Box';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
+import type { UseQueryResult } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import get from 'lodash/get';
+import toStr from 'lodash/toString';
 import type { FC } from 'react';
 import { useMemo } from 'react';
 import { data, useParams } from 'react-router';
 
+import type { GetTenantAsStaffResult } from '@org/client-ts/src/models';
 import {
 	APP_NAME,
 	FRONT_PATH_NAMES,
 	isServer,
 } from '@org/shared-ts/lib/constants';
-import { ErrorContent } from '@/front/components/empty-content/error-content';
-import View400 from '@/front/components/error/400-view';
-import { NotFoundView } from '@/front/components/error/not-found-view';
-import QueryDisplay from '@/front/components/query-display';
-import type { SettingsNavItem } from '@/front/components/settings/settings-nav';
-import { SidebarSettingsLayout } from '@/front/components/settings/sidebar-settings-layout';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { isProblemFailure, toApiFailure } from '@/front/lib/api-failure';
-import { useGetTenant } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
-import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+
+import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
+import View400 from '#app/components/error/400-view.tsx';
+import { NotFoundView } from '#app/components/error/not-found-view.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import QueryDisplay from '#app/components/query-display.tsx';
+import type { SettingsNavItem } from '#app/components/settings/settings-nav.tsx';
+import { SidebarSettingsLayout } from '#app/components/settings/sidebar-settings-layout.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
+import { isProblemFailure, toApiFailure } from '#app/lib/api-failure/index.ts';
+import { useGetTenant } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
+import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/tenant-details-layout';
+import {
+	TENANT_DETAILS_ACTIVITY_ENABLED,
+	TENANT_DETAILS_BILLING_ENABLED,
+	TENANT_DETAILS_USAGE_ENABLED,
+} from './tenant-details-feature-flags';
+
+export type TenantDetailsOutletContext = {
+	tenantName: string;
+};
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(t('tenant-details'));
+	let str: string = capitalize(t('tenant-details'));
 
 	if (seo) {
 		str = `${str} | Staff Dashboard - ${APP_NAME}`;
@@ -39,7 +54,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
+		return get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;
@@ -70,7 +85,7 @@ const TenantDetailsLayout = () => {
 	const { tenantId } = useParams();
 
 	const getTenantQuery = useGetTenant({
-		variables: { tenantId: _.toString(tenantId) },
+		variables: { tenantId: toStr(tenantId) },
 		enabled: !!tenantId,
 	});
 
@@ -80,12 +95,39 @@ const TenantDetailsLayout = () => {
 		return [
 			{ label: t('general'), href: paths.tabs.general },
 			{ label: t('users'), href: paths.tabs.users, deep: true },
+			{ label: t('invitations'), href: paths.tabs.invitations, deep: true },
 			{
 				label: t('profiles'),
 				href: paths.tabs.profiles,
 				deep: true,
 			},
-			{ label: t('billing'), href: paths.tabs.billing, deep: true },
+			{
+				label: t('activity'),
+				href: paths.tabs.activity,
+				deep: true,
+				disabled: !TENANT_DETAILS_ACTIVITY_ENABLED,
+				endIcon: !TENANT_DETAILS_ACTIVITY_ENABLED ? (
+					<Iconify icon="solar:lock-password-outline" width={16} />
+				) : undefined,
+			},
+			{
+				label: t('usage'),
+				href: paths.tabs.usage,
+				deep: true,
+				disabled: !TENANT_DETAILS_USAGE_ENABLED,
+				endIcon: !TENANT_DETAILS_USAGE_ENABLED ? (
+					<Iconify icon="solar:lock-password-outline" width={16} />
+				) : undefined,
+			},
+			{
+				label: t('billing'),
+				href: paths.tabs.billing,
+				deep: true,
+				disabled: !TENANT_DETAILS_BILLING_ENABLED,
+				endIcon: !TENANT_DETAILS_BILLING_ENABLED ? (
+					<Iconify icon="solar:lock-password-outline" width={16} />
+				) : undefined,
+			},
 		];
 	}, [t, tenantId]);
 
@@ -99,14 +141,24 @@ const TenantDetailsLayout = () => {
 			LoadingSlot={<TenantDetailsLayoutSkeleton />}
 			ErrorSlot={LayoutErrorView}
 		>
-			{() => <SidebarSettingsLayout items={navItems} />}
+			{() => (
+				<SidebarSettingsLayout
+					items={navItems}
+					outletContext={{
+						tenantName: getTenantQuery.data?.name ?? '',
+					}}
+				/>
+			)}
 		</QueryDisplay>
 	);
 };
 
 export default TenantDetailsLayout;
 
-const LayoutErrorView: FC<{ error: unknown }> = ({ error }) => {
+const LayoutErrorView: FC<{
+	error: unknown;
+	query: UseQueryResult<GetTenantAsStaffResult, Error>;
+}> = ({ error, query }) => {
 	const { t } = useTranslate();
 
 	const failure = toApiFailure(error);
@@ -119,7 +171,7 @@ const LayoutErrorView: FC<{ error: unknown }> = ({ error }) => {
 		return (
 			<NotFoundView
 				withLayout={false}
-				title={_.capitalize(t('tenant-not-found-title'))}
+				title={capitalize(t('tenant-not-found-title'))}
 				description={t('tenant-not-found-description')}
 			/>
 		);
@@ -131,14 +183,41 @@ const LayoutErrorView: FC<{ error: unknown }> = ({ error }) => {
 				<ErrorContent
 					title={t('tenant-details-error-title')}
 					description={t('tenant-details-error-description')}
+					onRetry={() => query.refetch()}
 				/>
 			</Box>
 		</DashboardContent>
 	);
 };
 
-const NavItemSkeleton = () => (
-	<Skeleton variant="rectangular" height={36} sx={{ borderRadius: 1 }} />
+const TenantDetailsNavItemSkeleton = ({
+	width,
+	locked = false,
+}: {
+	width: string;
+	locked?: boolean;
+}) => (
+	<Box
+		sx={{
+			display: 'flex',
+			alignItems: 'center',
+			gap: 1.25,
+			px: 1,
+			py: 0.75,
+			borderRadius: 1,
+		}}
+	>
+		<Skeleton variant="circular" width={18} height={18} />
+		<Skeleton variant="rounded" width={width} height={14} />
+		{locked ? (
+			<Skeleton
+				variant="circular"
+				width={14}
+				height={14}
+				sx={{ ml: 'auto', flexShrink: 0 }}
+			/>
+		) : null}
+	</Box>
 );
 
 const TenantDetailsLayoutSkeleton = () => (
@@ -150,26 +229,57 @@ const TenantDetailsLayoutSkeleton = () => (
 				flexDirection: { xs: 'column', md: 'row' },
 			}}
 		>
-			{/* Sidebar skeleton */}
 			<Box
 				sx={{
 					display: { xs: 'none', md: 'block' },
 					flexShrink: 0,
-					width: 200,
+					width: 220,
 				}}
 			>
-				<Stack spacing={0.5}>
-					<NavItemSkeleton />
-					<NavItemSkeleton />
-					<NavItemSkeleton />
-					<NavItemSkeleton />
+				<Stack spacing={2}>
+					<Box sx={{ px: 1 }}>
+						<Skeleton variant="text" width="56%" height={16} sx={{ mb: 0.5 }} />
+						<Skeleton variant="text" width="88%" height={28} />
+						<Skeleton variant="text" width="72%" height={16} />
+					</Box>
+
+					<Box sx={{ display: 'grid', gap: 0.5 }}>
+						<TenantDetailsNavItemSkeleton width="48%" />
+						<TenantDetailsNavItemSkeleton width="34%" />
+						<TenantDetailsNavItemSkeleton width="46%" />
+						<TenantDetailsNavItemSkeleton width="40%" />
+						<TenantDetailsNavItemSkeleton width="36%" locked />
+						<TenantDetailsNavItemSkeleton width="32%" locked />
+						<TenantDetailsNavItemSkeleton width="38%" locked />
+					</Box>
 				</Stack>
 			</Box>
 
-			{/* Content area skeleton */}
 			<Box sx={{ flex: 1, minWidth: 0 }}>
-				<Skeleton variant="text" width={200} height={32} sx={{ mb: 2 }} />
-				<Skeleton variant="rectangular" height={300} sx={{ borderRadius: 2 }} />
+				<Box sx={{ mb: { xs: 3, md: 5 } }}>
+					<Skeleton variant="text" width="36%" height={38} />
+					<Skeleton variant="text" width="54%" height={18} />
+				</Box>
+
+				<Box
+					sx={{
+						display: 'grid',
+						gap: 3,
+						gridTemplateColumns: {
+							xs: '1fr',
+							lg: 'minmax(0, 300px) minmax(0, 1fr)',
+						},
+					}}
+				>
+					<Box sx={{ display: 'grid', gap: 3 }}>
+						<Skeleton variant="rounded" height={360} sx={{ borderRadius: 2 }} />
+					</Box>
+
+					<Box sx={{ display: 'grid', gap: 3 }}>
+						<Skeleton variant="rounded" height={264} sx={{ borderRadius: 2 }} />
+						<Skeleton variant="rounded" height={176} sx={{ borderRadius: 2 }} />
+					</Box>
+				</Box>
 			</Box>
 		</Box>
 	</DashboardContent>

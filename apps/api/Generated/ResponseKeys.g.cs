@@ -17,6 +17,21 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey BadRequest = new("bad-request");
 
 	/// <summary>
+	/// Cannot demote the last admin from the tenant
+	/// </summary>
+	public static readonly TranslationKey CannotDemoteLastAdmin = new("cannot-demote-last-admin");
+
+	/// <summary>
+	/// Cannot remove the last admin from the tenant
+	/// </summary>
+	public static readonly TranslationKey CannotRemoveLastAdmin = new("cannot-remove-last-admin");
+
+	/// <summary>
+	/// Cannot suspend the last admin from the tenant
+	/// </summary>
+	public static readonly TranslationKey CannotSuspendLastAdmin = new("cannot-suspend-last-admin");
+
+	/// <summary>
 	/// are you sure you want to delete this item?
 	/// </summary>
 	public static readonly TranslationKey ConfirmDeleteDialogText = new("confirm-delete-dialog-text");
@@ -30,6 +45,11 @@ public static partial class ResponseKeys {
 	/// delete {{item}}
 	/// </summary>
 	public static readonly TranslationKey DeleteItem = new("delete-item");
+
+	/// <summary>
+	/// Email is already in use
+	/// </summary>
+	public static readonly TranslationKey EmailAlreadyInUse = new("email-already-in-use");
 
 	/// <summary>
 	/// Email already verified
@@ -107,6 +127,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey InvalidSession = new("invalid-session");
 
 	/// <summary>
+	/// Accepted invitations cannot be revoked
+	/// </summary>
+	public static readonly TranslationKey InvitationAlreadyAccepted = new("invitation-already-accepted");
+
+	/// <summary>
 	/// Invitation email resent successfully
 	/// </summary>
 	public static readonly TranslationKey InvitationResent = new("invitation-resent");
@@ -120,6 +145,11 @@ public static partial class ResponseKeys {
 	/// Malformed ID
 	/// </summary>
 	public static readonly TranslationKey MalformedId = new("malformed-id");
+
+	/// <summary>
+	/// Max profiles per user exceeded
+	/// </summary>
+	public static readonly TranslationKey MaxProfilesPerUserExceeded = new("max-profiles-per-user-exceeded");
 
 	/// <summary>
 	/// Method not allowed
@@ -147,7 +177,7 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PasswordResetSuccess = new("password-reset-success");
 
 	/// <summary>
-	/// A pending invitation already exists
+	/// A pending invitation already exists for this email
 	/// </summary>
 	public static readonly TranslationKey PendingInvitationExists = new("pending-invitation-exists");
 
@@ -160,6 +190,11 @@ public static partial class ResponseKeys {
 	/// Profile name already exists
 	/// </summary>
 	public static readonly TranslationKey ProfileNameAlreadyExists = new("profile-name-already-exists");
+
+	/// <summary>
+	/// Profile must be a staff profile
+	/// </summary>
+	public static readonly TranslationKey ProfileNotStaffScope = new("profile-not-staff-scope");
 
 	/// <summary>
 	/// profiles
@@ -197,14 +232,79 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey StaffProfileCreatedSuccessfully = new("staff-profile-created-successfully");
 
 	/// <summary>
+	/// Staff profile deleted successfully
+	/// </summary>
+	public static readonly TranslationKey StaffProfileDeletedSuccess = new("staff-profile-deleted-success");
+
+	/// <summary>
+	/// Staff profile updated successfully
+	/// </summary>
+	public static readonly TranslationKey StaffProfileUpdatedSuccessfully = new("staff-profile-updated-successfully");
+
+	/// <summary>
+	/// Users unassigned from profile successfully
+	/// </summary>
+	public static readonly TranslationKey StaffProfileUsersUnassignedSuccess = new("staff-profile-users-unassigned-success");
+
+	/// <summary>
 	/// staff profiles
 	/// </summary>
 	public static readonly TranslationKey StaffProfiles = new("staff-profiles");
 
 	/// <summary>
+	/// Staff user is already suspended
+	/// </summary>
+	public static readonly TranslationKey StaffUserAlreadySuspended = new("staff-user-already-suspended");
+
+	/// <summary>
+	/// Staff member deleted successfully
+	/// </summary>
+	public static readonly TranslationKey StaffUserDeletedSuccess = new("staff-user-deleted-success");
+
+	/// <summary>
+	/// Staff user is not currently suspended
+	/// </summary>
+	public static readonly TranslationKey StaffUserNotSuspended = new("staff-user-not-suspended");
+
+	/// <summary>
+	/// Only suspended staff users can be deleted
+	/// </summary>
+	public static readonly TranslationKey StaffUserNotSuspendedCannotDelete = new("staff-user-not-suspended-cannot-delete");
+
+	/// <summary>
+	/// Staff member reactivated successfully
+	/// </summary>
+	public static readonly TranslationKey StaffUserReactivatedSuccess = new("staff-user-reactivated-success");
+
+	/// <summary>
+	/// Staff member suspended successfully
+	/// </summary>
+	public static readonly TranslationKey StaffUserSuspendedSuccess = new("staff-user-suspended-success");
+
+	/// <summary>
 	/// Staff user updated successfully
 	/// </summary>
 	public static readonly TranslationKey StaffUserUpdatedSuccessfully = new("staff-user-updated-successfully");
+
+	/// <summary>
+	/// System notice created successfully
+	/// </summary>
+	public static readonly TranslationKey SystemNoticeCreatedSuccessfully = new("system-notice-created-successfully");
+
+	/// <summary>
+	/// System notice deleted successfully
+	/// </summary>
+	public static readonly TranslationKey SystemNoticeDeletedSuccessfully = new("system-notice-deleted-successfully");
+
+	/// <summary>
+	/// System notice not found
+	/// </summary>
+	public static readonly TranslationKey SystemNoticeNotFound = new("system-notice-not-found");
+
+	/// <summary>
+	/// System notice updated successfully
+	/// </summary>
+	public static readonly TranslationKey SystemNoticeUpdatedSuccessfully = new("system-notice-updated-successfully");
 
 	/// <summary>
 	/// Tenant is already suspended
@@ -245,6 +345,16 @@ public static partial class ResponseKeys {
 	/// Only suspended tenants can be deleted
 	/// </summary>
 	public static readonly TranslationKey TenantNotSuspendedCannotDelete = new("tenant-not-suspended-cannot-delete");
+
+	/// <summary>
+	/// Default tenant profile cannot be deleted
+	/// </summary>
+	public static readonly TranslationKey TenantProfileDefaultDeleteNotAllowed = new("tenant-profile-default-delete-not-allowed");
+
+	/// <summary>
+	/// Tenant profile deleted successfully
+	/// </summary>
+	public static readonly TranslationKey TenantProfileDeletedSuccess = new("tenant-profile-deleted-success");
 
 	/// <summary>
 	/// Tenant has been reactivated successfully
@@ -297,6 +407,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey UserAlreadyMemberOfStaff = new("user-already-member-of-staff");
 
 	/// <summary>
+	/// User is already a member of this tenant
+	/// </summary>
+	public static readonly TranslationKey UserAlreadyMemberOfTenant = new("user-already-member-of-tenant");
+
+	/// <summary>
 	/// User does not have the necessary permissions
 	/// </summary>
 	public static readonly TranslationKey UserDoesNotHaveTheNecessaryPermissions = new("user-does-not-have-the-necessary-permissions");
@@ -317,14 +432,29 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey UserIdRequired = new("user-id-required");
 
 	/// <summary>
+	/// User level has been updated successfully
+	/// </summary>
+	public static readonly TranslationKey UserLevelUpdatedSuccess = new("user-level-updated-success");
+
+	/// <summary>
 	/// User not found
 	/// </summary>
 	public static readonly TranslationKey UserNotFound = new("user-not-found");
 
 	/// <summary>
+	/// User is not currently suspended
+	/// </summary>
+	public static readonly TranslationKey UserNotSuspended = new("user-not-suspended");
+
+	/// <summary>
 	/// User not verified
 	/// </summary>
 	public static readonly TranslationKey UserNotVerified = new("user-not-verified");
+
+	/// <summary>
+	/// User has been removed from tenant successfully
+	/// </summary>
+	public static readonly TranslationKey UserRemovedSuccess = new("user-removed-success");
 
 	/// <summary>
 	/// User suspended

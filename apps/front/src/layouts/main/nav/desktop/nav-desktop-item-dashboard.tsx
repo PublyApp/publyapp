@@ -3,8 +3,12 @@ import Link from '@mui/material/Link';
 import { m } from 'framer-motion';
 import { varAlpha } from 'minimal-shared/utils';
 
-import { transitionTap, varHover, varTap } from '@/front/components/animate';
-import { RouterLink } from '@/front/components/router-link';
+import {
+	transitionTap,
+	varHover,
+	varTap,
+} from '#app/components/animate/index.ts';
+import { RouterLink } from '#app/components/router-link.tsx';
 
 // ----------------------------------------------------------------------
 

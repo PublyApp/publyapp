@@ -1,8 +1,8 @@
 import type {} from '@mui/lab/themeAugmentation';
-import type {} from '@mui/x-tree-view/themeAugmentation';
+import type {} from '@mui/material/themeCssVarsAugmentation';
 import type {} from '@mui/x-data-grid/themeAugmentation';
 import type {} from '@mui/x-date-pickers/themeAugmentation';
-import type {} from '@mui/material/themeCssVarsAugmentation';
+import type {} from '@mui/x-tree-view/themeAugmentation';
 
 import type { AvatarGroupExtendVariant } from './core/components/avatar';
 import type { BadgeExtendVariant } from './core/components/badge';

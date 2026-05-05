@@ -13,8 +13,8 @@ import {
 	PlanFreeIcon,
 	PlanPremiumIcon,
 	PlanStarterIcon,
-} from '@/front/assets/icons';
-import type { IAddressItem, IPaymentCard } from '@/front/types/common';
+} from '#app/assets/icons/index.ts';
+import type { IAddressItem, IPaymentCard } from '#app/types/common.ts';
 
 import { AddressListDialog } from '../address';
 import { Iconify } from '../iconify/iconify';
@@ -239,7 +239,7 @@ export function AccountBillingPlan({ cardList, addressBook, plans }: Props) {
 				action={
 					<Button
 						size="small"
-						startIcon={<Iconify icon="mingcute:add-line" />}
+						startIcon={<Iconify width={16} icon="mingcute:add-line" />}
 						sx={{ alignSelf: 'flex-end' }}
 					>
 						New

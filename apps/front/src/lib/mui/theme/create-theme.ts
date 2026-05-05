@@ -1,7 +1,7 @@
 import type { Components, Theme } from '@mui/material/styles';
 import { createTheme as createMuiTheme } from '@mui/material/styles';
 
-import type { SettingsState } from '@/front/components/settings';
+import type { SettingsState } from '#app/components/settings/index.ts';
 
 import { components } from './core/components';
 import { customShadows } from './core/custom-shadows';

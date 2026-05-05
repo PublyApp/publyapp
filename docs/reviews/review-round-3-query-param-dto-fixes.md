@@ -41,7 +41,7 @@ If everything looks good, a simple APPROVE with any optional suggestions is grea
 
 ## Project Context (unchanged)
 
-- **Stack**: .NET 9.0 (.NET 10 preview SDK), Minimal APIs, FluentValidation, EF Core, PostgreSQL
+- **Stack**: .NET 10.0, Minimal APIs, FluentValidation, EF Core, PostgreSQL
 - **Architecture**: Vertical Slice (domain-first modules), CQRS-lite handlers
 - **Query binding**: `[AsParameters]` with `[FromQuery]` on each property
 - **Validation**: FluentValidation auto-wired via endpoint extensions

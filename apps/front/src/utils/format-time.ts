@@ -254,7 +254,7 @@ export const fDateRangeShortLabel = (
 	} else if (isSameYear && isSameMonth && !isSameDay) {
 		label = `${fDate(startDate, 'DD')} - ${fDate(endDate)}`;
 	} else if (isSameYear && isSameMonth && isSameDay) {
-		label = `${fDate(endDate)}`;
+		label = fDate(endDate);
 	}
 
 	return label;

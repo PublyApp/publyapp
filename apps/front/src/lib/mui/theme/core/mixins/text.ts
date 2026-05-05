@@ -90,20 +90,20 @@ export const maxLine = ({ line, persistent }: MaxLineProps): CSSObject => {
 		return baseStyles;
 	}
 
-	const responsiveStyles = breakpoints.reduce((acc, breakpoint) => {
+	const responsiveStyles: CSSObject = {};
+
+	for (const breakpoint of breakpoints) {
 		const fontSize = getFontSize(
 			(persistent as MediaFontSize)[defaultMuiTheme.breakpoints.up(breakpoint)]
 				?.fontSize,
 		);
 
 		if (fontSize) {
-			acc[defaultMuiTheme.breakpoints.up(breakpoint)] = {
+			responsiveStyles[defaultMuiTheme.breakpoints.up(breakpoint)] = {
 				height: calculateHeight(fontSize, lineHeight, line),
 			};
 		}
-
-		return acc;
-	}, {} as CSSObject);
+	}
 
 	return {
 		...baseStyles,

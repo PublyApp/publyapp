@@ -41,7 +41,10 @@ export const Editor = ({
 
 	const handleToggleFullScreen = useCallback(() => {
 		setFullScreen((prev) => {
-			return !prev;
+			const nextFullScreen = !prev;
+			document.body.style.overflow = nextFullScreen ? 'hidden' : '';
+
+			return nextFullScreen;
 		});
 	}, []);
 
@@ -111,20 +114,17 @@ export const Editor = ({
 		};
 	}, [content, editor]);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	useEffect(() => {
 		if (resetValue && !content) {
 			editor?.commands.clearContent();
 		}
-	}, [content]);
+	}, [content, editor, resetValue]);
 
 	useEffect(() => {
-		if (fullScreen) {
-			document.body.style.overflow = 'hidden';
-		} else {
+		return () => {
 			document.body.style.overflow = '';
-		}
-	}, [fullScreen]);
+		};
+	}, []);
 
 	return (
 		<Portal disablePortal={!fullScreen}>

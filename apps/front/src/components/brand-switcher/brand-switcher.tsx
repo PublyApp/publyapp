@@ -7,9 +7,9 @@ import Typography from '@mui/material/Typography';
 import { usePopover } from 'minimal-shared/hooks';
 import { useCallback } from 'react';
 
-import { CustomPopover } from '@/front/components/custom-popover';
-import { Iconify } from '@/front/components/iconify';
-import { Scrollbar } from '@/front/components/scrollbar';
+import { CustomPopover } from '#app/components/custom-popover/index.ts';
+import { Iconify } from '#app/components/iconify/index.ts';
+import { Scrollbar } from '#app/components/scrollbar/index.ts';
 
 import { useBrand } from './brand-context';
 import type { BrandItem, BrandSwitcherProps } from './types';

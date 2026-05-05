@@ -11,7 +11,7 @@ import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type Requ
  */
 export interface AcceptRequestBuilder extends BaseRequestBuilder<AcceptRequestBuilder> {
     /**
-     * Accept invitation and create account + session
+     * Accept invitation with a new or existing account
      * @param body The request body
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<InvitationAccepted>}
@@ -22,7 +22,7 @@ export interface AcceptRequestBuilder extends BaseRequestBuilder<AcceptRequestBu
      */
      post(body: AcceptInvitationBody, requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<InvitationAccepted | undefined>;
     /**
-     * Accept invitation and create account + session
+     * Accept invitation with a new or existing account
      * @param body The request body
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}

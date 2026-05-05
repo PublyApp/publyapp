@@ -13,15 +13,14 @@ export const useSyncFormToLang = <
 	lng: string,
 	methods: UseFormReturn<TFieldValues>,
 ) => {
-	// biome-ignore lint/correctness/useExhaustiveDependencies: This is intended to obtain the desired effect
+	const {
+		formState: { isSubmitted },
+		trigger,
+	} = methods;
+
 	useEffect(() => {
-		if (/* methods.formState.isDirty &&  */ methods.formState.isSubmitted) {
-			methods.trigger();
+		if (isSubmitted) {
+			void trigger();
 		}
-	}, [
-		lng,
-		methods.formState.isDirty,
-		methods.formState.isSubmitted,
-		methods.trigger,
-	]);
+	}, [lng, isSubmitted, trigger]);
 };

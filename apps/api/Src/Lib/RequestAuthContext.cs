@@ -34,6 +34,6 @@ public class RequestAuthContext : IRequestAuthContext {
 
 	public bool IsTenantAuthorized =>
 		AccountTenant is not null &&
-		!AccountTenant.IsSuspended &&
+		!AccountTenant.IsSuspended() &&
 		AccountTenant.Scope == AccountScope.Tenant;
 }

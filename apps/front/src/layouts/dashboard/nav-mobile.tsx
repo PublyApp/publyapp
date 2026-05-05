@@ -1,15 +1,15 @@
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import { mergeClasses } from 'minimal-shared/utils';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
-import { Logo } from '@/front/components/logo';
+import { Logo } from '#app/components/logo/index.ts';
 import {
 	type NavSectionProps,
 	NavSectionVertical,
-} from '@/front/components/nav-section';
-import { Scrollbar } from '@/front/components/scrollbar';
-import { usePathname } from '@/front/hooks/use-pathname';
+} from '#app/components/nav-section/index.ts';
+import { Scrollbar } from '#app/components/scrollbar/index.ts';
+import { usePathname } from '#app/hooks/use-pathname.ts';
 
 import { layoutClasses } from '../core/classes';
 
@@ -35,11 +35,15 @@ export const NavMobile = ({
 	...other
 }: NavMobileProps) => {
 	const pathname = usePathname();
+	const openRef = useRef(open);
+	const onCloseRef = useRef(onClose);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
+	openRef.current = open;
+	onCloseRef.current = onClose;
+
 	useEffect(() => {
-		if (open) {
-			onClose();
+		if (openRef.current) {
+			onCloseRef.current();
 		}
 	}, [pathname]);
 
@@ -78,7 +82,6 @@ export const NavMobile = ({
 					sx={{ px: 2, flex: '1 1 auto' }}
 					{...other}
 				/>
-				{/* <NavUpgrade /> */}
 			</Scrollbar>
 
 			{slots?.bottomArea}

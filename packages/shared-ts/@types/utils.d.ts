@@ -1,4 +1,4 @@
-/** biome-ignore-all lint/correctness/noUnusedVariables: this file contains global type definitions */
+/* oxlint-disable no-unused-vars -- this file contains global type definitions */
 
 type DeepPartial<T> = {
 	[K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
@@ -7,11 +7,12 @@ type DeepPartial<T> = {
 type ExcludeFunctionPropertyNames<T> = Pick<
 	T,
 	{
-		// biome-ignore lint/complexity/noBannedTypes: Utility type definition is safe to use Function type here. Until prover the contrary
+		// oxlint-disable-next-line typescript/no-unsafe-function-type -- global helper intentionally detects broad Function-shaped values
 		[K in keyof T]: T[K] extends Function ? never : K;
 	}[keyof T]
 >;
 
+// oxlint-disable-next-line typescript/no-unnecessary-template-expression -- type-level literal filtering requires the template literal form
 type StringLiteral<T> = T extends `${string & T}` ? T : never;
 
 /**
@@ -36,10 +37,10 @@ type ToPrimitive<T> = T extends string
 									[K in keyof T]: ToPrimitive<T[K]>;
 								};
 
-// biome-ignore lint/suspicious/noExplicitAny: Safe to use any here.
+// oxlint-disable-next-line typescript/no-explicit-any -- global helper must preserve arbitrary synchronous function parameters and return type
 type SyncFunction = (...args: any[]) => any;
 
-// biome-ignore lint/suspicious/noExplicitAny: Safe to use any here.
+// oxlint-disable-next-line typescript/no-explicit-any -- global helper must preserve arbitrary asynchronous function parameters and resolved type
 type AsyncFunction = (...args: any[]) => Promise<any>;
 
 /**

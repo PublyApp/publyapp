@@ -1,4 +1,4 @@
-import type { NavBasicProps } from '@/front/components/nav-basic';
+import type { NavBasicProps } from '#app/components/nav-basic/index.ts';
 
 // ----------------------------------------------------------------------
 

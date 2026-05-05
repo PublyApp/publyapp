@@ -1,6 +1,8 @@
 using MainApi.Localization;
 using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Modules.Invitations.Entities;
 using MainApi.Src.Modules.Invitations.Services;
+using MainApi.Src.Modules.Users.Entities;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -13,7 +15,7 @@ public record InvitationDetails {
 	public required DateTime ExpiresAt { get; init; }
 }
 
-public static class GetInvitationDetails {
+public class GetInvitationDetails {
 	public static async Task<Results<
 		Ok<InvitationDetails>,
 		AppNotFoundHttpResult
@@ -37,15 +39,28 @@ public static class GetInvitationDetails {
 			.Where(n => !string.IsNullOrEmpty(n))
 			.ToList();
 
-		if (names.Count == 0) {
+		string? roleDisplayName = null;
+
+		if (names.Count > 0) {
+			roleDisplayName = string.Join(", ", names);
+		}
+
+		if (
+			roleDisplayName is null
+			&& invitation.Scope == InvitationScope.Tenant
+		) {
+			roleDisplayName = UserAccount.GetLevelDescription(
+				invitation.AccountLevel ?? AccountLevel.User
+			);
+		}
+
+		if (roleDisplayName is null) {
 			return TypedProblems.NotFound("Profile not found", ResponseKeys.NotFound);
 		}
 
-		var profileNames = string.Join(", ", names);
-
 		return TypedResults.Ok(new InvitationDetails {
 			Email = invitation.Email,
-			ProfileName = profileNames,
+			ProfileName = roleDisplayName,
 			ExpiresAt = invitation.ExpiresAt
 		});
 	}

@@ -26,10 +26,8 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 	public string? LogoUrl { get; set; }
 
 	[Column("status")]
-	public TenantStatus Status { get; set; } = TenantStatus.Archived;
-
-	[Column("is_suspended")]
-	public bool IsSuspended { get; set; } = false;
+	// Tenant lifecycle. Soft deletion still uses BaseAttributes.IsDeleted.
+	public TenantStatus Status { get; set; } = TenantStatus.Pending;
 
 	[Column("max_users")]
 	public required int MaxUsers { get; set; }
@@ -42,32 +40,66 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 
 	public static string GetStatusDescription(TenantStatus status) {
 		return status switch {
-			TenantStatus.Pending => "Pending",
-			TenantStatus.Active => "Active",
-			TenantStatus.Suspended => "Suspended",
-			TenantStatus.Archived => "Archived",
-			_ => throw new ArgumentException("Unknown"),
+			TenantStatus.Pending => nameof(TenantStatus.Pending),
+			TenantStatus.Active => nameof(TenantStatus.Active),
+			TenantStatus.Suspended => nameof(TenantStatus.Suspended),
+			_ => "Unknown",
 		};
 	}
 
+	public static TenantStatus? ParseStatus(string statusString) {
+		if (string.Equals(statusString, nameof(TenantStatus.Pending), StringComparison.OrdinalIgnoreCase)) {
+			return TenantStatus.Pending;
+		}
+		if (string.Equals(statusString, nameof(TenantStatus.Active), StringComparison.OrdinalIgnoreCase)) {
+			return TenantStatus.Active;
+		}
+		if (string.Equals(statusString, nameof(TenantStatus.Suspended), StringComparison.OrdinalIgnoreCase)) {
+			return TenantStatus.Suspended;
+		}
+		return null;
+	}
+
 	public static bool IsTenantActive(Tenant tenant) {
-		return tenant.Status == TenantStatus.Active && !tenant.IsSuspended;
+		return tenant.IsActive();
+	}
+
+	public bool IsPending() {
+		return IsPending(Status);
+	}
+
+	public bool IsActive() {
+		return IsActive(Status);
+	}
+
+	public bool IsSuspended() {
+		return IsSuspended(Status);
+	}
+
+	public static bool IsPending(TenantStatus status) {
+		return status == TenantStatus.Pending;
+	}
+
+	public static bool IsActive(TenantStatus status) {
+		return status == TenantStatus.Active;
+	}
+
+	public static bool IsSuspended(TenantStatus status) {
+		return status == TenantStatus.Suspended;
 	}
 
 	public bool Suspend() {
-		if (IsSuspended || Status != TenantStatus.Active) {
+		if (IsSuspended() || !IsActive()) {
 			return false;
 		}
-		IsSuspended = true;
 		Status = TenantStatus.Suspended;
 		return true;
 	}
 
 	public bool Reactivate() {
-		if (!IsSuspended || Status != TenantStatus.Suspended) {
+		if (!IsSuspended()) {
 			return false;
 		}
-		IsSuspended = false;
 		Status = TenantStatus.Active;
 		return true;
 	}
@@ -77,5 +109,4 @@ public enum TenantStatus {
 	Pending = 10,
 	Active = 20,
 	Suspended = 30,
-	Archived = 40,
 }

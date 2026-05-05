@@ -3,7 +3,7 @@ import type { PaperProps } from '@mui/material/Paper';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 
-import type { IAddressItem } from '@/front/types/common';
+import type { IAddressItem } from '#app/types/common.ts';
 
 import { Label } from '../label/label';
 
@@ -64,7 +64,7 @@ export function AddressItem({ address, action, sx, ...other }: Props) {
 				</Typography>
 			</Box>
 
-			{action && action}
+			{action}
 		</Paper>
 	);
 }

@@ -568,6 +568,6 @@ If search needs to scale and be “smart” (tokenization, ranking):
 
 ## Closing Notes
 
-- The plan text says “.NET 9” while the prompt context says “.NET 10”. This isn’t inherently a problem, but it’s a signal the plan may not be anchored to the actual repo state. Confirm target framework + generator behavior before implementing.
+- The plan text should stay aligned with the repo’s .NET 10 baseline. A version mismatch here is a signal the plan may not be anchored to the actual repo state, so confirm target framework + generator behavior before implementing.
 - The plan’s overall approach can work well, but only if you tighten the contracts (query parsing/validation), define filter semantics, and put in the baseline performance/security guardrails now.
  - Export is intentionally dropped from this phase per current product preference. If reintroduced later, ensure you include CSV injection mitigation for CSV exports (values beginning with `=`, `+`, `-`, `@`), plus clear scope (“current page” vs “all matches”) and limits.

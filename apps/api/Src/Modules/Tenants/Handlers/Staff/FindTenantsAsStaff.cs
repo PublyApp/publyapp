@@ -19,7 +19,6 @@ public class TenantAsStaffItem {
 	public int UsersCount { get; set; }
 	public int MaxUsers { get; set; }
 	public string Status { get; set; } = string.Empty;
-	public bool IsSuspended { get; set; }
 }
 
 public class TenantAsStaffResult {
@@ -28,34 +27,40 @@ public class TenantAsStaffResult {
 }
 
 public class FindTenantsAsStaffQuery : CursorPaginatedQuery {
-	[FromQuery(Name = "q")] public string? Search { get; set; }
-	[FromQuery] public string? Status { get; set; }
+	[FromQuery(Name = "q")]
+	public string? Search { get; set; }
+
+	[FromQuery]
+	public string? Status { get; set; }
 
 	public string? GetSearchNormalized() {
-		if (Search is null) return null;
+		if (Search is null) {
+			return null;
+		}
+
 		var trimmed = Search.Trim();
 		return trimmed.Length == 0 ? null : trimmed;
 	}
 
 	public IReadOnlySet<TenantStatus>? GetStatusesOrNull() {
-		if (Status is null) return null;
+		if (Status is null) {
+			return null;
+		}
 
 		var trimmed = Status.Trim();
-		if (trimmed.Length == 0) return null;
+		if (trimmed.Length == 0) {
+			return null;
+		}
 
 		var parts = trimmed
 			.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-		if (parts.Length == 0) return null;
+		if (parts.Length == 0) {
+			return null;
+		}
 
 		var statuses = new HashSet<TenantStatus>();
 		foreach (var part in parts) {
-			var parsed = part.ToLowerInvariant() switch {
-				"pending" => (TenantStatus?)TenantStatus.Pending,
-				"active" => (TenantStatus?)TenantStatus.Active,
-				"suspended" => (TenantStatus?)TenantStatus.Suspended,
-				"archived" => (TenantStatus?)TenantStatus.Archived,
-				_ => null,
-			};
+			TenantStatus? parsed = Tenant.ParseStatus(part);
 			if (parsed is { } status) {
 				statuses.Add(status);
 			}
@@ -67,19 +72,23 @@ public class FindTenantsAsStaffQuery : CursorPaginatedQuery {
 public class FindTenantsAsStaffQueryValidator
 	: CursorPaginatedQueryValidator<FindTenantsAsStaffQuery> {
 
-	private static readonly string[] AllowedStatuses = ["pending", "active", "suspended", "archived"];
+	private static readonly HashSet<string> AllowedStatuses =
+		new([nameof(TenantStatus.Pending), nameof(TenantStatus.Active), nameof(TenantStatus.Suspended)], StringComparer.OrdinalIgnoreCase);
 
 	public FindTenantsAsStaffQueryValidator() {
 		RuleFor(x => x.Search).MaximumLength(200);
 
 		RuleFor(x => x.Status)
 			.Must(raw => {
-				if (string.IsNullOrEmpty(raw)) return true;
-				var parts = raw.Split(',',
-					StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-				return parts.All(p => AllowedStatuses.Contains(p.ToLowerInvariant()));
+				if (string.IsNullOrEmpty(raw)) {
+					return true;
+				}
+
+				var parts = raw
+					.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+				return parts.All(p => AllowedStatuses.Contains(p));
 			})
-			.WithMessage("Invalid status value. Must be comma-separated: pending,active,suspended,archived");
+			.WithMessage("Invalid status value. Must be comma-separated: " + string.Join(",", AllowedStatuses));
 	}
 }
 
@@ -106,36 +115,38 @@ public class FindTenantsAsStaff {
 		var sortId = findTenantsAsStaffQuery.GetSortId();
 		var sortOrder = findTenantsAsStaffQuery.GetSortOrder();
 
-		var filters = new FindTenantsAsStaffFilters(
-			Search: findTenantsAsStaffQuery.GetSearchNormalized(),
-			Status: findTenantsAsStaffQuery.GetStatusesOrNull()
+		var args = new FindTenantsAsStaffArgs(
+			Cursor: cursorGuid,
+			Limit: limit,
+			SortId: sortId,
+			SortOrder: sortOrder,
+			Filters: new FindTenantsAsStaffFilters(
+				Search: findTenantsAsStaffQuery.GetSearchNormalized(),
+				Status: findTenantsAsStaffQuery.GetStatusesOrNull()
+			)
 		);
 
-		var result = await tenantAsStaffService.FindTenantsAsStaffAsync(
-			cursor: cursorGuid,
-			limit: limit,
-			sortId: sortId,
-			sortOrder: sortOrder,
-			filters: filters,
+		var serviceResult = await tenantAsStaffService.FindTenantsAsStaffAsync(
+			args: args,
 			cancellationToken: cancellationToken
 		);
 
 		// Pattern matching for discriminated union
-		if (result is FindTenantsAsStaffServiceResult.CursorNotFound cursorError) {
+		if (serviceResult is FindTenantsAsStaffServiceResult.CursorNotFound cursorError) {
 			return TypedProblems.BadRequest(
 				$"Cursor record not found: {cursorError.Cursor}",
 				ResponseKeys.BadRequest
 			);
 		}
 
-		if (result is FindTenantsAsStaffServiceResult.InvalidSortId sortIdError) {
+		if (serviceResult is FindTenantsAsStaffServiceResult.InvalidSortId sortIdError) {
 			return TypedProblems.BadRequest(
 				$"Invalid sortId: {sortIdError.SortId}. Allowed: created_at, updated_at, name, status",
 				ResponseKeys.BadRequest
 			);
 		}
 
-		if (result is FindTenantsAsStaffServiceResult.Success success) {
+		if (serviceResult is FindTenantsAsStaffServiceResult.Success success) {
 			return TypedResults.Ok(new FindTenantsAsStaffResponse {
 				Data = success.Data.Data,
 				NextCursor = success.Data.NextCursor,

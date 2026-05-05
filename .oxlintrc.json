@@ -1,0 +1,44 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"plugins": ["unicorn", "typescript", "oxc", "react"],
+	"options": {
+		"typeAware": true
+	},
+	"ignorePatterns": [
+		"**/node_modules",
+		"**/build",
+		"**/dist",
+		"**/.turbo",
+		"**/.husky/_",
+		"**/.react-router",
+		"packages/client-ts",
+		"apps/api/openapi",
+		"apps/api/Migrations",
+		"apps/api/bin",
+		".config/dotnet-tools.json",
+		"apps/api/Generated",
+		".dump",
+		".mcp.json",
+		".claude/settings.local.json"
+	],
+	"rules": {
+		"no-else-return": "error",
+		"no-nested-ternary": "error",
+		"no-param-reassign": "error",
+		"default-param-last": "error",
+		"react/self-closing-comp": "error",
+		"react/rules-of-hooks": "error",
+		"typescript/no-deprecated": "error",
+		"typescript/no-explicit-any": "error",
+		"typescript/no-inferrable-types": "error",
+		"typescript/no-misused-spread": "off",
+		"typescript/unbound-method": "off",
+		"typescript/no-unnecessary-template-expression": "error",
+		"typescript/prefer-as-const": "error",
+		"typescript/prefer-enum-initializers": "error",
+		"unicorn/no-array-for-each": "off",
+		"unicorn/no-array-reduce": "error",
+		"unicorn/no-document-cookie": "off",
+		"unicorn/prefer-number-properties": "error"
+	}
+}

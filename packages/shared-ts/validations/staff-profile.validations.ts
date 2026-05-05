@@ -22,3 +22,27 @@ export const getNewStaffProfileSchema = (z: InterZod) => {
 			.default([]),
 	});
 };
+
+export const getUpdateStaffProfileSchema = (z: InterZod) => {
+	return z.object({
+		name: z
+			.string()
+			.trim()
+			.min(2, z.t('name-must-be-at-least-2-characters'))
+			.max(100, z.t('name-must-be-at-most-100-characters')),
+		// For PATCH we want a way to clear the description.
+		// The UI represents "clear" as an empty string, and we map that to `null`.
+		description: z
+			.string()
+			.trim()
+			.max(500, z.t('description-must-be-at-most-500-characters'))
+			.optional()
+			.transform((val) => {
+				if (val === undefined) {
+					return undefined;
+				}
+
+				return val === '' ? null : val;
+			}),
+	});
+};

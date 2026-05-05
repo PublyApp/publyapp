@@ -17,7 +17,13 @@ import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
 import { nanoid } from 'nanoid';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useFieldArray, useForm } from 'react-hook-form';
+import {
+	type FieldArrayWithId,
+	type UseFieldArrayRemove,
+	type UseFormSetValue,
+	useFieldArray,
+	useForm,
+} from 'react-hook-form';
 import type zod from 'zod';
 
 import {
@@ -28,19 +34,21 @@ import {
 } from '@org/shared-ts/lib/constants';
 import { mbToBytes } from '@org/shared-ts/utils/any.utils';
 import { getNewTenantSchemaClientSide } from '@org/shared-ts/validations/tenant/tenant-client.validations';
-import { FieldContainer } from '@/front/components/form-extras';
-import { Field } from '@/front/components/hook-form/fields';
-import { Form } from '@/front/components/hook-form/form-provider';
-import { HelperText } from '@/front/components/hook-form/help-text';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { toast } from '@/front/components/snackbar';
-import { useRouter } from '@/front/hooks/use-router';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { useCreateTenant } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
-import { interZodClient } from '@/front/lib/zod/zod.client';
-import { useMainStore } from '@/front/lib/zustand/store';
-import { fData } from '@/front/utils/format-number';
+
+import { FieldContainer } from '#app/components/form-extras.tsx';
+import { Field } from '#app/components/hook-form/fields.tsx';
+import { Form } from '#app/components/hook-form/form-provider.tsx';
+import { HelperText } from '#app/components/hook-form/help-text.tsx';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
+import { useRouter } from '#app/hooks/use-router.ts';
+import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
+import { useCreateTenant } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
+import { interZodClient } from '#app/lib/zod/zod.client.ts';
+import { useMainStore } from '#app/lib/zustand/store.ts';
+import { fData } from '#app/utils/format-number.ts';
 
 // ----------------------------------------------------------------------
 
@@ -82,6 +90,10 @@ type TenantCreateOrEditFormProps = {
 	currentTenant?: ITenantItem;
 };
 
+type AlertMessage =
+	| string
+	| { key: string; params: Record<string, string> | undefined };
+
 export const TenantCreateOrEditForm = ({
 	currentTenant,
 }: TenantCreateOrEditFormProps) => {
@@ -121,20 +133,21 @@ export const TenantCreateOrEditForm = ({
 	const {
 		reset,
 		handleSubmit,
+		setValue,
+		watch,
 		formState: { isSubmitting, errors },
 		control,
 	} = methods;
 
 	useSyncFormToLang(i18n.language, methods);
 
-	const { fields, append, remove, update } = useFieldArray({
+	const { fields, append, remove } = useFieldArray({
 		control,
 		name: 'initialUsers',
 	});
+	const initialUsers = watch('initialUsers');
 
-	const [alertMessage, setAlertMessage] = useState<
-		string | { key: string; params: Record<string, string> | undefined }
-	>();
+	const [alertMessage, setAlertMessage] = useState<AlertMessage>();
 
 	const { mutate: createTenant, isPending } = useCreateTenant({
 		onSuccess: () => {
@@ -143,32 +156,12 @@ export const TenantCreateOrEditForm = ({
 			toast.success(
 				_.capitalize(t('item-creation-success-message', { item: t('tenant') })),
 			);
-			router.push(FRONT_PATH_NAMES.staff.tenants.root);
+			void router.push(FRONT_PATH_NAMES.staff.tenants.root);
 		},
 		onError: (error) => {
-			// if (error instanceof ParseRestError) {
-			// 	if (error.code === X_CODE.NO_STAFF_MEMBERS_ALLOWED_IN_TENANT) {
-			// 		const notAllowedEmailsStr = _.map(
-			// 			_.get(error.data, 'staff-user-emails', []) as string[],
-			// 			(email) => {
-			// 				return `'${email}'`;
-			// 			},
-			// 		).join(', ');
-			// 		setAlertMessage({
-			// 			key: X_CODE.NO_STAFF_MEMBERS_ALLOWED_IN_TENANT,
-			// 			params: {
-			// 				emails: notAllowedEmailsStr,
-			// 			},
-			// 		});
-			// 	} else {
-			// 		setAlertMessage(error.message);
-			// 	}
-			// } else {
-			// 	setAlertMessage(error.message);
-			// }
-			setAlertMessage(error.message);
+			const failure = toApiFailure(error);
+			setAlertMessage(getFailureMessage(failure));
 			handleCloseDialog();
-			toast.error(error.message);
 		},
 	});
 
@@ -191,7 +184,7 @@ export const TenantCreateOrEditForm = ({
 
 			return handler(e);
 		},
-		[handleSubmit, openDialog.onTrue],
+		[handleSubmit, openDialog],
 	);
 
 	useEffect(() => {
@@ -308,7 +301,7 @@ export const TenantCreateOrEditForm = ({
 	const handleAddUserToForm = () => {
 		append({
 			email: '',
-			accountLevel: ACCOUNT_LEVEL_ENUM.ADMIN,
+			accountLevel: ACCOUNT_LEVEL_ENUM.USER,
 			// role: _.isEmpty(fields)
 			// 	? tenantSubRoleEnum.ADMIN
 			// 	: tenantSubRoleEnum.CONTRIBUTOR,
@@ -317,212 +310,304 @@ export const TenantCreateOrEditForm = ({
 
 	return (
 		<>
-			{alertMessage ? (
-				<Alert
-					severity="error"
-					onClose={() => {
-						setAlertMessage(undefined);
-					}}
-					sx={{ mb: 3 }}
-				>
-					{_.isString(alertMessage)
-						? alertMessage
-						: (t(
-								alertMessage.key as never,
-								alertMessage.params as never,
-							) as unknown as string)}
-				</Alert>
-			) : null}
+			<TenantFormAlert
+				alertMessage={alertMessage}
+				onClose={() => {
+					setAlertMessage(undefined);
+				}}
+			/>
 
 			<Form methods={methods} onSubmit={handleOpenDialog}>
 				<Grid container spacing={3}>
 					<Grid size={{ xs: 12, md: 4 }}>
-						<Card sx={{ pt: 10, pb: 5, px: 3 }}>
-							<Box sx={{ mb: 5 }}>
-								<Field.UploadAvatar
-									name="logo"
-									maxSize={3145728}
-									helperText={
-										<Typography
-											variant="caption"
-											sx={{
-												mt: 3,
-												mx: 'auto',
-												display: 'block',
-												textAlign: 'center',
-												color: 'text.disabled',
-											}}
-										>
-											Allowed *.jpeg, *.jpg, *.png, *.gif
-											<br /> max size of {fData(mbToBytes(3))}
-										</Typography>
-									}
-								/>
-							</Box>
-						</Card>
+						<TenantLogoCard />
 					</Grid>
 
 					<Grid size={{ xs: 12, md: 8 }}>
-						<Card sx={{ p: 3, mb: 5 }}>
-							<Box
-								sx={{
-									rowGap: 3,
-									columnGap: 2,
-									display: 'grid',
-									gridTemplateColumns: {
-										xs: 'repeat(1, 1fr)',
-										sm: 'repeat(1, 2.5fr 1.5fr)',
-									},
-									alignItems: 'flex-start',
-								}}
-							>
-								<Field.Text name="name" label={t('workspace-name')} required />
+						<TenantFieldsCard
+							editMode={editMode}
+							isSubmitting={isSubmitting || isPending}
+							onOpenDialog={handleOpenDialog}
+						/>
 
-								<FieldContainer
-									label={t('max-users')}
-									sx={{ alignItems: 'flex-start' }}
-								>
-									<Field.NumberInput
-										name="maxUsers"
-										disabled
-										sx={{
-											maxWidth: 120,
-										}}
-									/>
-								</FieldContainer>
-							</Box>
-							{!editMode ? null : (
-								<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-									<Button
-										type="submit"
-										variant="contained"
-										loading={isSubmitting || isPending}
-										onClick={handleOpenDialog}
-									>
-										{!editMode ? t('create-the-tenant') : t('save-changes')}
-									</Button>
-								</Stack>
-							)}
-						</Card>
-
-						<Box>
-							{errors.initialUsers?.root?.message ? (
-								<HelperText
-									error
-									errorMessage={errors.initialUsers?.root?.message}
-									sx={{ mb: 1 }}
-								/>
-							) : null}
-
-							{editMode ? null : (
-								<Card
-									sx={(theme) => {
-										return {
-											p: 3,
-											'--error': theme.vars.customShadows.cardErrorOutline,
-											'--normal': theme.vars.customShadows.card,
-											boxShadow: 'var(--shadow-card)',
-										};
-									}}
-									style={{
-										['--shadow-card' as string]: errors.initialUsers?.root
-											? 'var(--error)'
-											: 'var(--normal)',
-									}}
-								>
-									<Box
-										sx={{
-											rowGap: 3,
-											columnGap: 2,
-											display: 'grid',
-											gridTemplateColumns: {
-												xs: 'repeat(1, 4fr 1.5fr 0.25fr)',
-											},
-										}}
-									>
-										{_.map(fields, (field, index) => {
-											return (
-												<UserRow
-													key={field.id}
-													remove={remove}
-													update={update}
-													index={index}
-													fields={fields}
-													hasError={!!errors.initialUsers?.[index]}
-												/>
-											);
-										})}
-									</Box>
-
-									<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-										<Tooltip
-											title={t('max-users-reached')}
-											disableHoverListener={!(fields.length >= values.maxUsers)}
-											placement="top"
-										>
-											<span>
-												<Button
-													variant="contained"
-													onClick={handleAddUserToForm}
-													disabled={fields.length >= values.maxUsers}
-												>
-													{_.capitalize(t('add-a-user'))}
-												</Button>
-											</span>
-										</Tooltip>
-									</Stack>
-								</Card>
-							)}
-						</Box>
+						<InitialUsersCard
+							editMode={editMode}
+							fields={fields}
+							remove={remove}
+							setValue={setValue}
+							initialUsers={initialUsers}
+							rootErrorMessage={errors.initialUsers?.root?.message}
+							hasRowError={(index) => !!errors.initialUsers?.[index]}
+							maxUsers={values.maxUsers}
+							onAddUser={handleAddUserToForm}
+						/>
 					</Grid>
 				</Grid>
 			</Form>
 
-			<Dialog open={openDialog.value} onClose={handleCloseDialog}>
-				<DialogTitle>
-					{_.capitalize(
-						t('save-item-confirmation-title', { item: t('tenant') }),
-					)}
-				</DialogTitle>
-
-				<DialogContent sx={{ color: 'text.secondary' }}>
-					<Typography sx={{ mb: 2 }}>
-						{_.capitalize(
-							t('save-item-confirmation-message', { item: t('tenant') }),
-						)}
-					</Typography>
-					{renderConfirmValues}
-					{/* {confirmValues.map((value) => {
-						return (
-							<Typography key={value.name} sx={{ mb: 1 }}>
-								<Box component="span" sx={{ fontWeight: 'bold' }}>
-									{value.name}
-								</Box>
-								: {value.value}
-							</Typography>
-						);
-					})} */}
-				</DialogContent>
-
-				<DialogActions>
-					<Button
-						variant="outlined"
-						onClick={handleCloseDialog}
-						disabled={isSubmitting || isPending}
-					>
-						{t('cancel')}
-					</Button>
-					<Button
-						variant="contained"
-						onClick={handleConfirmDialog}
-						autoFocus
-						loading={isSubmitting || isPending}
-					>
-						{t('confirm')}
-					</Button>
-				</DialogActions>
-			</Dialog>
+			<TenantConfirmDialog
+				open={openDialog.value}
+				confirmValues={renderConfirmValues}
+				isSubmitting={isSubmitting || isPending}
+				onClose={handleCloseDialog}
+				onConfirm={handleConfirmDialog}
+			/>
 		</>
+	);
+};
+
+type TenantFormAlertProps = {
+	alertMessage: AlertMessage | undefined;
+	onClose: () => void;
+};
+
+const TenantFormAlert = ({ alertMessage, onClose }: TenantFormAlertProps) => {
+	const { t } = useTranslate();
+
+	if (!alertMessage) {
+		return null;
+	}
+
+	return (
+		<Alert severity="error" onClose={onClose} sx={{ mb: 3 }}>
+			{_.isString(alertMessage)
+				? alertMessage
+				: (t(
+						alertMessage.key as never,
+						alertMessage.params as never,
+					) as unknown as string)}
+		</Alert>
+	);
+};
+
+const TenantLogoCard = () => {
+	return (
+		<Card sx={{ pt: 10, pb: 5, px: 3 }}>
+			<Box sx={{ mb: 5 }}>
+				<Field.UploadAvatar
+					name="logo"
+					maxSize={3145728}
+					helperText={
+						<Typography
+							variant="caption"
+							sx={{
+								mt: 3,
+								mx: 'auto',
+								display: 'block',
+								textAlign: 'center',
+								color: 'text.disabled',
+							}}
+						>
+							Allowed *.jpeg, *.jpg, *.png, *.gif
+							<br /> max size of {fData(mbToBytes(3))}
+						</Typography>
+					}
+				/>
+			</Box>
+		</Card>
+	);
+};
+
+type TenantFieldsCardProps = {
+	editMode: boolean;
+	isSubmitting: boolean;
+	onOpenDialog: (e?: React.BaseSyntheticEvent) => Promise<void>;
+};
+
+const TenantFieldsCard = ({
+	editMode,
+	isSubmitting,
+	onOpenDialog,
+}: TenantFieldsCardProps) => {
+	const { t } = useTranslate();
+
+	return (
+		<Card sx={{ p: 3, mb: 5 }}>
+			<Box
+				sx={{
+					rowGap: 3,
+					columnGap: 2,
+					display: 'grid',
+					gridTemplateColumns: {
+						xs: 'repeat(1, 1fr)',
+						sm: 'repeat(1, 2.5fr 1.5fr)',
+					},
+					alignItems: 'flex-start',
+				}}
+			>
+				<Field.Text name="name" label={t('workspace-name')} required />
+
+				<FieldContainer
+					label={t('max-users')}
+					sx={{ alignItems: 'flex-start' }}
+				>
+					<Field.NumberInput
+						name="maxUsers"
+						disabled
+						sx={{
+							maxWidth: 120,
+						}}
+					/>
+				</FieldContainer>
+			</Box>
+			{!editMode ? null : (
+				<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
+					<Button
+						type="submit"
+						variant="contained"
+						loading={isSubmitting}
+						onClick={onOpenDialog}
+					>
+						{t('save-changes')}
+					</Button>
+				</Stack>
+			)}
+		</Card>
+	);
+};
+
+type InitialUsersCardProps = {
+	editMode: boolean;
+	fields: FieldArrayWithId<NewTenantSchemaType, 'initialUsers'>[];
+	remove: UseFieldArrayRemove;
+	setValue: UseFormSetValue<NewTenantSchemaType>;
+	initialUsers: UserRowType[];
+	rootErrorMessage: string | undefined;
+	hasRowError: (index: number) => boolean;
+	maxUsers: number;
+	onAddUser: () => void;
+};
+
+const InitialUsersCard = ({
+	editMode,
+	fields,
+	remove,
+	setValue,
+	initialUsers,
+	rootErrorMessage,
+	hasRowError,
+	maxUsers,
+	onAddUser,
+}: InitialUsersCardProps) => {
+	const { t } = useTranslate();
+
+	if (editMode) {
+		return null;
+	}
+
+	return (
+		<Box>
+			{rootErrorMessage ? (
+				<HelperText error errorMessage={rootErrorMessage} sx={{ mb: 1 }} />
+			) : null}
+
+			<Card
+				sx={(theme) => {
+					return {
+						p: 3,
+						'--error': theme.vars.customShadows.cardErrorOutline,
+						'--normal': theme.vars.customShadows.card,
+						boxShadow: 'var(--shadow-card)',
+					};
+				}}
+				style={{
+					['--shadow-card' as string]: rootErrorMessage
+						? 'var(--error)'
+						: 'var(--normal)',
+				}}
+			>
+				<Box
+					sx={{
+						rowGap: 3,
+						columnGap: 2,
+						display: 'grid',
+						gridTemplateColumns: {
+							xs: 'repeat(1, 4fr 1.5fr 0.25fr)',
+						},
+					}}
+				>
+					{_.map(fields, (field, index) => {
+						return (
+							<UserRow
+								key={field.id}
+								remove={remove}
+								setValue={setValue}
+								index={index}
+								initialUsers={initialUsers}
+								hasError={hasRowError(index)}
+							/>
+						);
+					})}
+				</Box>
+
+				<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
+					<Tooltip
+						title={t('max-users-reached')}
+						disableHoverListener={!(fields.length >= maxUsers)}
+						placement="top"
+					>
+						<span>
+							<Button
+								variant="contained"
+								onClick={onAddUser}
+								disabled={fields.length >= maxUsers}
+							>
+								{_.capitalize(t('add-a-user'))}
+							</Button>
+						</span>
+					</Tooltip>
+				</Stack>
+			</Card>
+		</Box>
+	);
+};
+
+type TenantConfirmDialogProps = {
+	open: boolean;
+	confirmValues: React.ReactNode;
+	isSubmitting: boolean;
+	onClose: () => void;
+	onConfirm: (e?: React.BaseSyntheticEvent) => Promise<void>;
+};
+
+const TenantConfirmDialog = ({
+	open,
+	confirmValues,
+	isSubmitting,
+	onClose,
+	onConfirm,
+}: TenantConfirmDialogProps) => {
+	const { t } = useTranslate();
+
+	return (
+		<Dialog open={open} onClose={onClose}>
+			<DialogTitle>
+				{_.capitalize(t('save-item-confirmation-title', { item: t('tenant') }))}
+			</DialogTitle>
+
+			<DialogContent sx={{ color: 'text.secondary' }}>
+				<Typography sx={{ mb: 2 }}>
+					{_.capitalize(
+						t('save-item-confirmation-message', { item: t('tenant') }),
+					)}
+				</Typography>
+				{confirmValues}
+			</DialogContent>
+
+			<DialogActions>
+				<Button variant="outlined" onClick={onClose} disabled={isSubmitting}>
+					{t('cancel')}
+				</Button>
+				<Button
+					variant="contained"
+					onClick={onConfirm}
+					autoFocus
+					loading={isSubmitting}
+				>
+					{t('confirm')}
+				</Button>
+			</DialogActions>
+		</Dialog>
 	);
 };
 
@@ -530,13 +615,19 @@ type UserRowType = { email: string; accountLevel: AccountLevel };
 
 type UserRowProps = {
 	index: number;
-	remove: (index: number) => void;
-	update: (index: number, value: UserRowType) => void;
-	fields: UserRowType[];
+	remove: UseFieldArrayRemove;
+	setValue: UseFormSetValue<NewTenantSchemaType>;
+	initialUsers: UserRowType[];
 	hasError: boolean;
 };
 
-const UserRow = ({ index, remove, fields, hasError, update }: UserRowProps) => {
+const UserRow = ({
+	index,
+	remove,
+	initialUsers,
+	hasError,
+	setValue,
+}: UserRowProps) => {
 	const { t } = useTranslate();
 
 	const handleRemoveUserRow = () => {
@@ -546,17 +637,18 @@ const UserRow = ({ index, remove, fields, hasError, update }: UserRowProps) => {
 	const handleChangeRole = useCallback(
 		(e: React.ChangeEvent<HTMLInputElement>) => {
 			const value = e.target.value as AccountLevel;
-			update(index, {
-				...fields[index],
-				accountLevel: value,
+			setValue(`initialUsers.${index}.accountLevel`, value, {
+				shouldDirty: true,
+				shouldTouch: true,
+				shouldValidate: true,
 			});
 		},
-		[fields, index, update],
+		[index, setValue],
 	);
 
 	const isAdmin =
-		_.get(fields, `${index}.accountLevel`) === ACCOUNT_LEVEL_ENUM.ADMIN;
-	const adminsList = _.filter(fields, (field) => {
+		_.get(initialUsers, `${index}.accountLevel`) === ACCOUNT_LEVEL_ENUM.ADMIN;
+	const adminsList = _.filter(initialUsers, (field) => {
 		return field.accountLevel === ACCOUNT_LEVEL_ENUM.ADMIN;
 	});
 	const isTheOnlyAdmin = isAdmin && adminsList.length === 1;

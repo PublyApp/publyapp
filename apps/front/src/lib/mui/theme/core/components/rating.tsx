@@ -1,9 +1,9 @@
 import { ratingClasses } from '@mui/material/Rating';
+import type { Components, Theme } from '@mui/material/styles';
 import SvgIcon, {
 	type SvgIconProps,
 	svgIconClasses,
 } from '@mui/material/SvgIcon';
-import type { Components, Theme } from '@mui/material/styles';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------

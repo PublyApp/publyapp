@@ -1,26 +1,26 @@
 /** **************************************
  * Fonts: app
  *************************************** */
-@import "@fontsource-variable/public-sans";
+@import '@fontsource-variable/public-sans';
 
-@import "@fontsource/barlow/400.css";
-@import "@fontsource/barlow/500.css";
-@import "@fontsource/barlow/600.css";
-@import "@fontsource/barlow/700.css";
-@import "@fontsource/barlow/800.css";
+@import '@fontsource/barlow/400.css';
+@import '@fontsource/barlow/500.css';
+@import '@fontsource/barlow/600.css';
+@import '@fontsource/barlow/700.css';
+@import '@fontsource/barlow/800.css';
 
 /** **************************************
  * Fonts: options
  *************************************** */
-@import "@fontsource-variable/dm-sans";
-@import "@fontsource-variable/inter";
-@import "@fontsource-variable/nunito-sans";
+@import '@fontsource-variable/dm-sans';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/nunito-sans';
 
 /** **************************************
  * Plugins
  *************************************** */
 /* scrollbar */
-@import "../components/scrollbar/styles.css";
+@import '../components/scrollbar/styles.css';
 
 /* map */
 /* @import '../components/map/styles.css'; */
@@ -56,15 +56,15 @@ ul {
 	padding: 0;
 	list-style-type: none;
 }
-input[type="number"] {
+input[type='number'] {
 	-moz-appearance: textfield;
 	appearance: none;
 }
-input[type="number"]::-webkit-outer-spin-button {
+input[type='number']::-webkit-outer-spin-button {
 	margin: 0;
 	-webkit-appearance: none;
 }
-input[type="number"]::-webkit-inner-spin-button {
+input[type='number']::-webkit-inner-spin-button {
 	margin: 0;
 	-webkit-appearance: none;
 }
@@ -73,14 +73,14 @@ input[type="number"]::-webkit-inner-spin-button {
  * UI Foundations focus styles
  *************************************** */
 .Mui-focusVisible {
-	/* biome-ignore lint/complexity/noImportantStyles: I don't know why !important is needed here, need to investigate */
+	/* TODO: Investigate why this needs !important. */
 	box-shadow: 0 0 0 2px var(--mui-palette-primary-200) !important;
 }
 .MuiTablePagination-select {
-	/* biome-ignore lint/complexity/noImportantStyles: I don't know why !important is needed here, need to investigate */
+	/* TODO: Investigate why this needs !important. */
 	padding-bottom: 1px !important;
 }
 .MuiDataGrid-menuList {
-	/* biome-ignore lint/complexity/noImportantStyles: I don't know why !important is needed here, need to investigate */
+	/* TODO: Investigate why this needs !important. */
 	padding: 4px !important;
 }

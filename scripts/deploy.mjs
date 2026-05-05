@@ -453,9 +453,9 @@ function run(command, args, options = {}) {
 			stdio: task ? ['inherit', 'pipe', 'pipe'] : 'inherit',
 		});
 
-		/** @type {import('node:stream').Writable | undefined} */
+		/** @type {import('node:stream').Writable} */
 		let stdoutWriter;
-		/** @type {import('node:stream').Writable | undefined} */
+		/** @type {import('node:stream').Writable} */
 		let stderrWriter;
 		if (task) {
 			stdoutWriter = task.stdout();
@@ -557,8 +557,8 @@ async function dokployUploadWithRetry(options, retryOptions = {}) {
 				/** @type {any} */ (err)?.response?.status ??
 				0;
 
-			const errorCode = String(/** @type {any} */(err)?.code ?? '');
-			const message = String(/** @type {any} */(err)?.message ?? '');
+			const errorCode = String(/** @type {any} */ (err)?.code ?? '');
+			const message = String(/** @type {any} */ (err)?.message ?? '');
 			const isRetryable =
 				statusCode === 499 ||
 				errorCode === 'TIMEOUT' ||
@@ -587,8 +587,6 @@ async function getFrontDockerfile({ port }) {
 
 	return `FROM node:24-alpine
 WORKDIR /repo
-
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.paths.json ./
 
 COPY apps/front/package.json apps/front/package.json
 COPY packages/shared-ts/package.json packages/shared-ts/package.json
@@ -662,7 +660,6 @@ function createFrontAssembleArtifactTasks({ artifactDir, frontPort }) {
 		'package.json',
 		'pnpm-lock.yaml',
 		'pnpm-workspace.yaml',
-		'tsconfig.paths.json',
 	];
 
 	return withStepTitles(

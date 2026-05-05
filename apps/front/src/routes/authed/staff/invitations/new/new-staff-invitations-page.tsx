@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
-import _ from 'lodash';
+import get from 'lodash/get';
 import { data } from 'react-router';
 
 import {
@@ -8,18 +8,17 @@ import {
 	FRONT_PATH_NAMES,
 	isServer,
 } from '@org/shared-ts/lib/constants';
-import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+
+import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
+import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
+import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/new-staff-invitations-page';
 import NewStaffInvitationsForm from './parts/new-staff-invitations-form';
 
 const getPageTitle = (t: TFunction, seo?: true) => {
-	let str: string = _.capitalize(
-		t('new-item', { item: _.toLower(t('staff-invitations')) }),
-	);
+	let str = t('invite-users');
 
 	if (seo) {
 		str = `${str} | Staff Dashboard - ${APP_NAME}`;
@@ -30,7 +29,7 @@ const getPageTitle = (t: TFunction, seo?: true) => {
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
+		return get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;
@@ -52,17 +51,21 @@ const NewStaffInvitationPage = () => {
 
 	return (
 		<DashboardContent
-			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
-			compact
+			sx={{
+				flexGrow: 1,
+				display: 'flex',
+				flexDirection: 'column',
+				maxWidth: '800px',
+			}}
 		>
 			<CustomBreadcrumbs
 				heading={getPageTitle(t as never)}
 				links={[
 					{
-						name: _.capitalize(t('staff-invitations')),
+						name: t('staff-invitations'),
 						href: FRONT_PATH_NAMES.staff.invitations.root,
 					},
-					{ name: _.capitalize(t('new')) },
+					{ name: t('invite-users') },
 				]}
 				sx={{ mb: { xs: 3, md: 5 } }}
 			/>

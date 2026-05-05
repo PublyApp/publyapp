@@ -6,7 +6,7 @@ import { createAppProblemDetailsFromDiscriminatorValue, createFindSystemNoticesR
 // @ts-ignore
 import { type WithNoticeItemRequestBuilder, WithNoticeItemRequestBuilderRequestsMetadata } from './item/index.js';
 // @ts-ignore
-import { type BaseRequestBuilder, type Guid, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
+import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /staff/notices
@@ -17,7 +17,7 @@ export interface NoticesRequestBuilder extends BaseRequestBuilder<NoticesRequest
      * @param noticeId Unique identifier of the item
      * @returns {WithNoticeItemRequestBuilder}
      */
-     byNoticeId(noticeId: Guid) : WithNoticeItemRequestBuilder;
+     byNoticeId(noticeId: string) : WithNoticeItemRequestBuilder;
     /**
      * List all system notices with pagination
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -67,15 +67,13 @@ export interface NoticesRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const NoticesRequestBuilderUriTemplate = "{+baseurl}/staff/notices{?Cursor*,Limit*,SortId*,SortOrder*}";
+export const NoticesRequestBuilderUriTemplate = "{+baseurl}/staff/notices{?cursor*,limit*,sort_id*,sort_order*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
 const NoticesRequestBuilderGetQueryParametersMapper: Record<string, string> = {
-    "cursor": "Cursor",
-    "limit": "Limit",
-    "sortId": "SortId",
-    "sortOrder": "SortOrder",
+    "sortId": "sort_id",
+    "sortOrder": "sort_order",
 };
 /**
  * Metadata for all the navigation properties in the request builder.

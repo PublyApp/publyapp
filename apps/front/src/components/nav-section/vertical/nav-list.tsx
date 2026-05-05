@@ -3,7 +3,7 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { isActiveLink, isExternalLink } from 'minimal-shared/utils';
 import { useCallback, useEffect, useRef } from 'react';
 
-import { usePathname } from '@/front/hooks/use-pathname';
+import { usePathname } from '#app/hooks/use-pathname.ts';
 
 import { NavCollapse, NavLi, NavUl } from '../components';
 import { navSectionClasses } from '../styles';
@@ -30,11 +30,15 @@ export const NavList = ({
 	);
 
 	const { value: open, onFalse: onClose, onToggle } = useBoolean(isActive);
+	const isActiveRef = useRef(isActive);
+	const onCloseRef = useRef(onClose);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
+	isActiveRef.current = isActive;
+	onCloseRef.current = onClose;
+
 	useEffect(() => {
-		if (!isActive) {
-			onClose();
+		if (!isActiveRef.current) {
+			onCloseRef.current();
 		}
 	}, [pathname]);
 

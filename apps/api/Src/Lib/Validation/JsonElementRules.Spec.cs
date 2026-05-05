@@ -58,6 +58,10 @@ public sealed class JsonElementRulesSpec {
 		public JsonElement RequiredEncryptedId { get; set; }
 	}
 
+	private class GuidArrayModel {
+		public JsonElement RequiredGuidArray { get; set; }
+	}
+
 	// ----- validators (one per concern) -----
 
 	private class EmailValidator
@@ -131,6 +135,18 @@ public sealed class JsonElementRulesSpec {
 		public EncryptedIdValidator() {
 			RuleFor(x => x.RequiredEncryptedId)
 				.MustBeRequiredEncryptedId();
+		}
+	}
+
+	private class GuidArrayValidator
+		: AbstractValidator<GuidArrayModel> {
+		public GuidArrayValidator() {
+			RuleFor(x => x.RequiredGuidArray)
+				.MustBeRequiredGuidArray(
+					"userIds",
+					"userId",
+					100
+				);
 		}
 	}
 
@@ -478,6 +494,54 @@ public sealed class JsonElementRulesSpec {
 			NullableEmail = email,
 		};
 		var result = new NullableEmailValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	// ================= RequiredGuidArray =================
+
+	[Fact]
+	public void ItShouldPassRequiredGuidArrayWhenValid() {
+		var ids = JsonSerializer.SerializeToElement(
+			new[] { Guid.NewGuid(), Guid.NewGuid() }
+		);
+		var model = new GuidArrayModel {
+			RequiredGuidArray = ids,
+		};
+		var result = new GuidArrayValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailRequiredGuidArrayWhenNull() {
+		var model = new GuidArrayModel {
+			RequiredGuidArray = JsonDocument
+				.Parse("null").RootElement,
+		};
+		var result = new GuidArrayValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailRequiredGuidArrayWhenNotAnArray() {
+		var model = new GuidArrayModel {
+			RequiredGuidArray = JsonSerializer
+				.SerializeToElement("not-an-array"),
+		};
+		var result = new GuidArrayValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailRequiredGuidArrayWhenEmpty() {
+		var model = new GuidArrayModel {
+			RequiredGuidArray = JsonSerializer
+				.SerializeToElement(Array.Empty<Guid>()),
+		};
+		var result = new GuidArrayValidator()
 			.Validate(model);
 		_ = result.IsValid.Should().BeFalse();
 	}

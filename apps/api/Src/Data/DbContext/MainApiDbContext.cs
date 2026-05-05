@@ -162,18 +162,22 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		modelBuilder.Entity<Tenant>()
 			.ToTable(t => {
 				t.HasCheckConstraint("CK_Tenant_Code_Lowercase", "code = LOWER(code)");
-				// Enforce consistency between IsSuspended flag and Status enum
-				// TenantStatus.Suspended = 30
+				// Keep lifecycle enum values constrained at the database boundary.
+				// TenantStatus: Pending = 10, Active = 20, Suspended = 30.
 				t.HasCheckConstraint(
-					"chk_tenant_suspended_status",
-					"(is_suspended = true AND status = 30) OR (is_suspended = false AND status != 30)"
+					"CK_Tenant_Status",
+					"status IN (10, 20, 30)"
 				);
 			})
 			.Property(t => t.MaxUsers)
 			.HasDefaultValue(env.DEFAULT_MAX_USERS_PER_TENANT);
 
 		modelBuilder.Entity<User>()
-			.ToTable(t => t.HasCheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)"));
+			.ToTable(t => {
+				t.HasCheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)");
+				// User onboarding is invitation-first; persisted identity states are active or suspended.
+				t.HasCheckConstraint("CK_User_Status", "status IN (30, 40)");
+			});
 
 		// Database-level account type constraints
 		modelBuilder.Entity<UserAccount>()
@@ -187,6 +191,15 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		modelBuilder.Entity<UserAccount>()
 			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Project_Constraints",
 				"(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2"));
+
+		modelBuilder.Entity<UserAccount>()
+			// AccountStatus is membership-local only. GloballySuspended is a derived read-model
+			// status and must never be stored in user_accounts.status.
+			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Status", "status IN (0, 1)"));
+
+		modelBuilder.Entity<Project>()
+			// Project status is lifecycle state, not soft-delete state. Deleted rows use BaseAttributes.
+			.ToTable(t => t.HasCheckConstraint("CK_Project_Status", "status IN (10, 20)"));
 
 		// Database-level profile type constraints
 		modelBuilder.Entity<Profile>()
@@ -213,6 +226,10 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		modelBuilder.Entity<Invitation>()
 			.ToTable(t => t.HasCheckConstraint("CK_Invitation_Project_Constraints",
 				"(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2"));
+
+		modelBuilder.Entity<Invitation>()
+			// Expired is derived from Pending + ExpiresAt, so only persisted lifecycle states are allowed.
+			.ToTable(t => t.HasCheckConstraint("CK_Invitation_Status", "status IN (0, 1, 2)"));
 
 		// Database-level permission key prefix constraints
 		modelBuilder.Entity<Permission>()
@@ -310,7 +327,8 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		modelBuilder.Entity<UserAccount>()
 			.HasIndex(u => new { u.UserId, u.Scope })
 			.HasDatabaseName("ix_user_accounts_user_id_account_type_active")
-			.HasFilter("\"is_deleted\" = false AND \"is_suspended\" = false");
+			// Covers active membership lookups. Status 1 is AccountStatus.Suspended.
+			.HasFilter("\"is_deleted\" = false AND \"status\" != 1");
 
 		// Keyset pagination indexes for staff profiles
 		// Supports efficient sorting by Name with Id as tie-breaker
@@ -324,6 +342,21 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.HasIndex(p => new { p.Scope, p.CreatedAt, p.Id })
 			.HasDatabaseName("ix_profiles_staff_created_at_id")
 			.HasFilter("\"scope\" = 0");
+
+		modelBuilder.Entity<Profile>()
+			.HasIndex(p => new { p.TenantId, p.Name })
+			.IsUnique()
+			.HasDatabaseName("ux_profiles_tenant_name")
+			// Tenant profile names must be unique per tenant across active rows only.
+			.HasFilter("\"scope\" = 1 AND \"is_deleted\" = false");
+
+		modelBuilder.Entity<Profile>()
+			.HasIndex(p => new { p.TenantId, p.Scope, p.IsDefault })
+			.IsUnique()
+			.HasDatabaseName("ux_profiles_tenant_default_profile")
+			// At most one active default tenant profile can exist per tenant.
+			// Soft-deleted defaults are excluded so a replacement default can be created safely.
+			.HasFilter("\"scope\" = 1 AND \"project_id\" IS NULL AND \"is_default\" = true AND \"is_deleted\" = false");
 
 		// Apply matching query filters to ensure consistent filtering
 		if (TenantId != null) {

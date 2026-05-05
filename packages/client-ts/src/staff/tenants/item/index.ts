@@ -4,13 +4,15 @@
 // @ts-ignore
 import { createApiResponseFromDiscriminatorValue, createAppProblemDetailsFromDiscriminatorValue, createGetTenantAsStaffResultFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializeGetTenantAsStaffResult, serializeUpdateTenantAsStaffBody, type ApiResponse, type AppProblemDetails, type GetTenantAsStaffResult, type UpdateTenantAsStaffBody, type ValidationProblemDetails } from '../../../models/index.js';
 // @ts-ignore
-import { ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
+import { InvitationsRequestBuilderNavigationMetadata, InvitationsRequestBuilderRequestsMetadata, type InvitationsRequestBuilder } from './invitations/index.js';
+// @ts-ignore
+import { ProfilesRequestBuilderNavigationMetadata, ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
 // @ts-ignore
 import { ReactivateRequestBuilderRequestsMetadata, type ReactivateRequestBuilder } from './reactivate/index.js';
 // @ts-ignore
 import { SuspendRequestBuilderRequestsMetadata, type SuspendRequestBuilder } from './suspend/index.js';
 // @ts-ignore
-import { type UsersRequestBuilder, UsersRequestBuilderRequestsMetadata } from './users/index.js';
+import { type UsersRequestBuilder, UsersRequestBuilderNavigationMetadata, UsersRequestBuilderRequestsMetadata } from './users/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
@@ -18,6 +20,10 @@ import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type 
  * Builds and executes requests for operations under /staff/tenants/{tenantId}
  */
 export interface WithTenantItemRequestBuilder extends BaseRequestBuilder<WithTenantItemRequestBuilder> {
+    /**
+     * The invitations property
+     */
+    get invitations(): InvitationsRequestBuilder;
     /**
      * The profiles property
      */
@@ -97,8 +103,13 @@ export const WithTenantItemRequestBuilderUriTemplate = "{+baseurl}/staff/tenants
  * Metadata for all the navigation properties in the request builder.
  */
 export const WithTenantItemRequestBuilderNavigationMetadata: Record<Exclude<keyof WithTenantItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    invitations: {
+        requestsMetadata: InvitationsRequestBuilderRequestsMetadata,
+        navigationMetadata: InvitationsRequestBuilderNavigationMetadata,
+    },
     profiles: {
         requestsMetadata: ProfilesRequestBuilderRequestsMetadata,
+        navigationMetadata: ProfilesRequestBuilderNavigationMetadata,
     },
     reactivate: {
         requestsMetadata: ReactivateRequestBuilderRequestsMetadata,
@@ -108,6 +119,7 @@ export const WithTenantItemRequestBuilderNavigationMetadata: Record<Exclude<keyo
     },
     users: {
         requestsMetadata: UsersRequestBuilderRequestsMetadata,
+        navigationMetadata: UsersRequestBuilderNavigationMetadata,
     },
 };
 /**

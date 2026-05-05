@@ -3,7 +3,7 @@ using FluentValidation;
 namespace MainApi.Src.Lib.Validation;
 
 public class OffsetPaginatedQueryValidator<T>
-	: AbstractValidator<T> where T : PaginatedQuery {
+	: AbstractValidator<T> where T : OffsetPaginatedQuery {
 	public OffsetPaginatedQueryValidator() {
 		RuleFor(x => x.Page)
 			.Must(PaginationPredicates

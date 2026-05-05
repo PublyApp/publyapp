@@ -26,7 +26,7 @@ type AspectRatioType =
 	| '21/9'
 	| '9/21'
 	| '1/1'
-	| string;
+	| (string & {});
 
 export type ImageProps = React.ComponentProps<typeof ImageRoot> & {
 	src?: string;

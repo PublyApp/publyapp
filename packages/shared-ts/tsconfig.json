@@ -1,5 +1,5 @@
 {
-	"extends": "../../tsconfig.paths.json",
+	"extends": "../_tsconfig/tsconfig.base.json",
 	"compilerOptions": {
 		"resolveJsonModule": true,
 		"module": "ESNext",
@@ -8,8 +8,7 @@
 		// The inferred type of XXX cannot be named without a reference to '@/ui-react/node_modules/@types/react/jsx-runtime'. This is likely not portable. A type annotation is necessary.
 		// https://github.com/microsoft/TypeScript/issues/29808#issuecomment-560951060
 		"declarationMap": false,
-		"declaration": false,
-		"typeRoots": ["./node_modules/@types"] // comment if using bun (or any other hoisted package manager)
+		"declaration": false
 	},
 	"include": ["."],
 	"exclude": ["node_modules"]

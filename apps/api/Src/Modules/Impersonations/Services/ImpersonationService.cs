@@ -1,4 +1,5 @@
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Lib.DI;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.AuditLogs.Entities;
 using MainApi.Src.Modules.AuditLogs.Services;
@@ -9,12 +10,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Modules.Impersonations.Services;
 
+public record CreateImpersonationSessionArgs(
+	Guid TenantId,
+	Guid StaffUserId,
+	string Reason,
+	int DurationMinutes = 60
+);
+
 public interface IImpersonationService {
 	Task<Session> CreateImpersonationSessionAsync(
-		Guid tenantId,
-		Guid staffUserId,
-		string reason,
-		int durationMinutes = 60,
+		CreateImpersonationSessionArgs args,
 		CancellationToken cancellationToken = default);
 
 	Task<bool> ValidateImpersonationSessionAsync(
@@ -22,6 +27,7 @@ public interface IImpersonationService {
 		CancellationToken cancellationToken = default);
 }
 
+[Service(ServiceLifetime.Scoped)]
 public class ImpersonationService : IImpersonationService {
 	private readonly MainApiDbContext _dbContext;
 	private readonly IAuditLogService _auditLogService;
@@ -38,17 +44,19 @@ public class ImpersonationService : IImpersonationService {
 	}
 
 	public async Task<Session> CreateImpersonationSessionAsync(
-		Guid tenantId,
-		Guid staffUserId,
-		string reason,
-		int durationMinutes = 60,
+		CreateImpersonationSessionArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		var tenantId = args.TenantId;
+		var staffUserId = args.StaffUserId;
+		var reason = args.Reason;
+		var durationMinutes = args.DurationMinutes;
+
 		var tenantAccountQuery =
 			from ua in _dbContext.UserAccount
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
-				&& ua.IsSuspended == false
+				&& ua.Status != AccountStatus.Suspended
 			orderby ua.Level descending, ua.CreatedAt ascending
 			select ua;
 
@@ -74,10 +82,12 @@ public class ImpersonationService : IImpersonationService {
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
 		await _auditLogService.LogAsync(
-			staffUserId,
-			AuditActions.ImpersonationStarted,
-			tenantId,
-			new { Reason = reason, Duration = durationMinutes },
+			new CreateAuditLogArgs(
+				UserId: staffUserId,
+				Action: AuditActions.ImpersonationStarted,
+				TargetId: tenantId,
+				Details: new { Reason = reason, Duration = durationMinutes }
+			),
 			cancellationToken
 		);
 

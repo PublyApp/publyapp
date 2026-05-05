@@ -49,9 +49,6 @@ public record SystemNoticeCreated {
 
 public class CreateSystemNoticeBodyValidator
 	: AbstractValidator<CreateSystemNoticeBody> {
-	private static readonly string[] ValidSeverities =
-		["info", "warning", "critical"];
-
 	public CreateSystemNoticeBodyValidator() {
 		RuleFor(x => x.Severity)
 			.Must(e => e.ValueKind == JsonValueKind.String)
@@ -104,8 +101,11 @@ public class CreateSystemNoticeBodyValidator
 		if (element.ValueKind != JsonValueKind.String) {
 			return false;
 		}
-		var value = element.GetString()?.ToLowerInvariant();
-		return ValidSeverities.Contains(value);
+		var value = element.GetString();
+		if (value is null) {
+			return false;
+		}
+		return SystemNotice.ParseSeverity(value) is not null;
 	}
 
 	private bool BeValidDateTime(JsonElement element) {
@@ -133,7 +133,7 @@ public class CreateSystemNoticeBodyValidator
 	}
 }
 
-public static class CreateSystemNotice {
+public class CreateSystemNotice {
 	public static async Task<Results<
 		Created<SystemNoticeCreated>,
 		AppBadRequestHttpResult
@@ -178,15 +178,17 @@ public static class CreateSystemNotice {
 		);
 
 		await auditLogService.LogAsync(
-			account.UserId,
-			AuditActions.SystemNoticeCreated,
-			notice.Id,
-			new {
-				Severity = severityStr,
-				Title = args.Title,
-				StartsAt = args.StartsAt,
-				ExpiresAt = args.ExpiresAt
-			},
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.SystemNoticeCreated,
+				TargetId: notice.Id,
+				Details: new {
+					Severity = severityStr,
+					Title = args.Title,
+					StartsAt = args.StartsAt,
+					ExpiresAt = args.ExpiresAt
+				}
+			),
 			cancellationToken
 		);
 

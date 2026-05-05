@@ -16,8 +16,8 @@ import ListSubheader from '@mui/material/ListSubheader';
 import Paper from '@mui/material/Paper';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
-import Switch from '@mui/material/Switch';
 import { useTheme } from '@mui/material/styles';
+import Switch from '@mui/material/Switch';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
@@ -31,41 +31,42 @@ import type zod from 'zod';
 import { FRONT_PATH_NAMES, isServer } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { getNewStaffProfileSchema } from '@org/shared-ts/validations/staff-profile.validations';
-import { FloatingCard } from '@/front/components/floating-card';
-import { Form } from '@/front/components/hook-form';
-import { Field } from '@/front/components/hook-form/fields';
-import { HelperText } from '@/front/components/hook-form/help-text';
-import { Iconify } from '@/front/components/iconify/iconify';
+
+import { FloatingCard } from '#app/components/floating-card.tsx';
+import { Field } from '#app/components/hook-form/fields.tsx';
+import { HelperText } from '#app/components/hook-form/help-text.tsx';
+import { Form } from '#app/components/hook-form/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
 import {
 	Nav,
 	NavCollapse,
 	NavLi,
 	NavSubheader,
 	NavUl,
-} from '@/front/components/nav-section/components';
+} from '#app/components/nav-section/components/index.ts';
 import {
 	navSectionClasses,
 	navSectionCssVars,
-} from '@/front/components/nav-section/styles';
+} from '#app/components/nav-section/styles/index.ts';
 import type {
 	NavGroupProps,
 	NavListProps,
 	NavSectionProps,
 	NavSubListProps,
-} from '@/front/components/nav-section/types';
-import { NavItem } from '@/front/components/nav-section/vertical/nav-item';
-import QueryDisplay from '@/front/components/query-display';
-import { toast } from '@/front/components/snackbar';
-import { useRouter } from '@/front/hooks/use-router';
-import { useScrollspy } from '@/front/hooks/use-scrollspy';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
+} from '#app/components/nav-section/types.ts';
+import { NavItem } from '#app/components/nav-section/vertical/nav-item.tsx';
+import QueryDisplay from '#app/components/query-display.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
+import { useRouter } from '#app/hooks/use-router.ts';
+import { useScrollspy } from '#app/hooks/use-scrollspy.ts';
+import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
 	useCreateStaffProfile,
 	useFindStaffPermissions,
 	useFindStaffProfiles,
-} from '@/front/lib/react-query/features/staff/staff-profile.hooks';
-import { interZodClient } from '@/front/lib/zod/zod.client';
+} from '#app/lib/react-query/features/staff/staff-profile.hooks.ts';
+import { interZodClient } from '#app/lib/zod/zod.client.ts';
 
 // ============================================================
 // CONSTANTS & TYPES
@@ -215,11 +216,11 @@ const NewStaffProfileForm = () => {
 	const { mutate: createProfile, isPending } = useCreateStaffProfile({
 		onSuccess: () => {
 			toast.success(t('profile-created-successfully'));
-			queryClient.invalidateQueries({
+			void queryClient.invalidateQueries({
 				queryKey: useFindStaffProfiles.getKey(),
 			});
 			form.reset();
-			router.push(FRONT_PATH_NAMES.staff.profiles.root);
+			void router.push(FRONT_PATH_NAMES.staff.profiles.root);
 		},
 		// Error toasts handled by global handler automatically
 	});
@@ -629,81 +630,6 @@ export function NewStaffProfileSidebar() {
 	const theme = useTheme();
 	const cssVars = navSectionCssVars.vertical(theme);
 
-	// Custom Group component that uses CustomNavList
-	const Group = ({
-		items,
-		render,
-		subheader,
-		collapsible,
-		slotProps,
-		checkPermissions,
-		enabledRootRedirect,
-	}: NavGroupProps) => {
-		const groupOpen = useBoolean(true);
-		const isCollapsible = collapsible !== false;
-
-		const renderContent = () => {
-			return (
-				<NavUl sx={{ gap: 'var(--nav-item-gap)' }}>
-					{items.map((list) => {
-						return (
-							<CustomNavList
-								key={list.title}
-								data={list}
-								render={render}
-								depth={1}
-								slotProps={slotProps}
-								checkPermissions={checkPermissions}
-								enabledRootRedirect={enabledRootRedirect}
-								activeSection={activeSection}
-								onSectionClick={handleClick}
-							/>
-						);
-					})}
-				</NavUl>
-			);
-		};
-
-		const renderSubheader = () => {
-			if (!subheader) {
-				return null;
-			}
-
-			if (isCollapsible) {
-				return (
-					<NavSubheader
-						data-title={subheader}
-						open={groupOpen.value}
-						onClick={groupOpen.onToggle}
-						sx={slotProps?.subheader}
-					>
-						{subheader}
-					</NavSubheader>
-				);
-			}
-
-			return (
-				<NavSubheader data-title={subheader} sx={slotProps?.subheader}>
-					{subheader}
-				</NavSubheader>
-			);
-		};
-
-		const renderGroupContent = () => {
-			if (subheader && isCollapsible) {
-				return <Collapse in={groupOpen.value}>{renderContent()}</Collapse>;
-			}
-			return renderContent();
-		};
-
-		return (
-			<NavLi>
-				{renderSubheader()}
-				{renderGroupContent()}
-			</NavLi>
-		);
-	};
-
 	// Get section title for screen reader announcements
 	const getSectionTitle = (sectionId: string | null): string => {
 		if (!sectionId) {
@@ -769,12 +695,14 @@ export function NewStaffProfileSidebar() {
 							<NavUl sx={{ flex: '1 1 auto', gap: 'var(--nav-item-gap)' }}>
 								{navData.map((group) => {
 									return (
-										<Group
+										<SidebarGroup
 											key={group.subheader ?? group.items[0].title}
 											subheader={group.subheader}
 											collapsible={group.collapsible}
 											items={group.items}
 											render={{}}
+											activeSection={activeSection}
+											onSectionClick={handleClick}
 											slotProps={{
 												rootItem: {
 													sx: {
@@ -969,6 +897,90 @@ function CustomNavSubList({
 // ============================================================
 // HELPER COMPONENTS
 // ============================================================
+
+/**
+ * Sidebar group component with scrollspy navigation
+ */
+type SidebarGroupProps = NavGroupProps & {
+	activeSection?: string | null;
+	onSectionClick?: (sectionId: string) => void;
+};
+
+function SidebarGroup({
+	items,
+	render,
+	subheader,
+	collapsible,
+	slotProps,
+	checkPermissions,
+	enabledRootRedirect,
+	activeSection,
+	onSectionClick,
+}: SidebarGroupProps) {
+	const groupOpen = useBoolean(true);
+	const isCollapsible = collapsible !== false;
+
+	const renderContent = () => {
+		return (
+			<NavUl sx={{ gap: 'var(--nav-item-gap)' }}>
+				{items.map((list) => {
+					return (
+						<CustomNavList
+							key={list.title}
+							data={list}
+							render={render}
+							depth={1}
+							slotProps={slotProps}
+							checkPermissions={checkPermissions}
+							enabledRootRedirect={enabledRootRedirect}
+							activeSection={activeSection}
+							onSectionClick={onSectionClick}
+						/>
+					);
+				})}
+			</NavUl>
+		);
+	};
+
+	const renderSubheader = () => {
+		if (!subheader) {
+			return null;
+		}
+
+		if (isCollapsible) {
+			return (
+				<NavSubheader
+					data-title={subheader}
+					open={groupOpen.value}
+					onClick={groupOpen.onToggle}
+					sx={slotProps?.subheader}
+				>
+					{subheader}
+				</NavSubheader>
+			);
+		}
+
+		return (
+			<NavSubheader data-title={subheader} sx={slotProps?.subheader}>
+				{subheader}
+			</NavSubheader>
+		);
+	};
+
+	const renderGroupContent = () => {
+		if (subheader && isCollapsible) {
+			return <Collapse in={groupOpen.value}>{renderContent()}</Collapse>;
+		}
+		return renderContent();
+	};
+
+	return (
+		<NavLi>
+			{renderSubheader()}
+			{renderGroupContent()}
+		</NavLi>
+	);
+}
 
 /**
  * Sidebar skeleton loading component

@@ -200,7 +200,7 @@ public class CreateStaffProfileBodyValidator
 	}
 }
 
-public static class CreateStaffProfile {
+public class CreateStaffProfile {
 	public static async Task<Results<
 		Created<StaffProfileCreated>,
 		AppBadRequestHttpResult
@@ -209,12 +209,10 @@ public static class CreateStaffProfile {
 		[FromServices] IProfileAsStaffService profileAsStaffService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
-		[FromServices] ILoggerFactory loggerFactory,
+		[FromServices] ILogger<CreateStaffProfile> logger,
 		[FromBody] CreateStaffProfileBody body,
 		CancellationToken cancellationToken = default
 	) {
-		var logger = loggerFactory.CreateLogger(nameof(CreateStaffProfile));
-
 		// Extract values after validation
 		string name = body.GetName();
 		string? description = body.GetDescription();
@@ -230,12 +228,15 @@ public static class CreateStaffProfile {
 		var currentUserId = authContext.AccountStaff.UserId;
 
 		// Create staff profile via service
+		var args = new CreateStaffProfileArgs(
+			Name: name,
+			Description: description,
+			Permissions: permissions,
+			Emails: emails,
+			InvitedByUserId: currentUserId
+		);
 		var result = await profileAsStaffService.CreateStaffProfileAsync(
-			name,
-			description,
-			permissions,
-			emails,
-			currentUserId,
+			args,
 			cancellationToken
 		);
 
@@ -324,15 +325,17 @@ public static class CreateStaffProfile {
 
 		// Audit log - profile created
 		await auditLogService.LogAsync(
-			currentUserId,
-			AuditActions.StaffProfileCreated,
-			profileId,
-			new {
-				Name = success.Profile.Name,
-				PermissionsCount = success.PermissionsAssigned,
-				UsersAssigned = success.UsersAssigned,
-				InvitationsSent = success.InvitationsSent
-			},
+			new CreateAuditLogArgs(
+				UserId: currentUserId,
+				Action: AuditActions.StaffProfileCreated,
+				TargetId: profileId,
+				Details: new {
+					Name = success.Profile.Name,
+					PermissionsCount = success.PermissionsAssigned,
+					UsersAssigned = success.UsersAssigned,
+					InvitationsSent = success.InvitationsSent
+				}
+			),
 			cancellationToken
 		);
 

@@ -9,7 +9,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import { useBoolean } from 'minimal-shared/hooks';
 
-import type { IPaymentCard } from '@/front/types/common';
+import type { IPaymentCard } from '#app/types/common.ts';
 
 import { Iconify } from '../iconify/iconify';
 import { PaymentCardItem } from '../payment/payment-card-item';
@@ -33,7 +33,7 @@ export function AccountBillingPayment({ cards, sx, ...other }: Props) {
 						<Button
 							size="small"
 							color="primary"
-							startIcon={<Iconify icon="mingcute:add-line" />}
+							startIcon={<Iconify width={16} icon="mingcute:add-line" />}
 							onClick={openForm.onTrue}
 						>
 							New card

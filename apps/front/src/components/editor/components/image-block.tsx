@@ -20,18 +20,17 @@ export const ImageBlock = ({ editor }: Pick<EditorToolbarProps, 'editor'>) => {
 		setAnchorEl(event.currentTarget);
 	};
 
-	const handleClosePopover = () => {
+	const handleClosePopover = useCallback(() => {
 		setAnchorEl(null);
-	};
+	}, []);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	const handleUpdateUrl = useCallback(() => {
 		handleClosePopover();
 
 		if (anchorEl) {
 			editor?.chain().focus().setImage({ src: url }).run();
 		}
-	}, [anchorEl, editor, url]);
+	}, [anchorEl, editor, handleClosePopover, url]);
 
 	if (!editor) {
 		return null;

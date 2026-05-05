@@ -10,7 +10,7 @@ import {
 import dayjs from 'dayjs';
 import { Controller, useFormContext } from 'react-hook-form';
 
-import { formatPatterns } from '@/front/utils/format-time';
+import { formatPatterns } from '#app/utils/format-time.ts';
 
 // ----------------------------------------------------------------------
 

@@ -1,6 +1,5 @@
 import 'dayjs/locale/en';
 import 'dayjs/locale/fr';
-
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider as Provider } from '@mui/x-date-pickers/LocalizationProvider';
 

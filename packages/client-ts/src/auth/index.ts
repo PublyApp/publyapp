@@ -14,7 +14,7 @@ import { RegisterRequestBuilderRequestsMetadata, type RegisterRequestBuilder } f
 // @ts-ignore
 import { ResetPasswordRequestBuilderRequestsMetadata, type ResetPasswordRequestBuilder } from './resetPassword/index.js';
 // @ts-ignore
-import { TenantAuthDataRequestBuilderRequestsMetadata, type TenantAuthDataRequestBuilder } from './tenantAuthData/index.js';
+import { ScopeAuthDataRequestBuilderRequestsMetadata, type ScopeAuthDataRequestBuilder } from './scopeAuthData/index.js';
 // @ts-ignore
 import { TenantsForPickerRequestBuilderRequestsMetadata, type TenantsForPickerRequestBuilder } from './tenantsForPicker/index.js';
 // @ts-ignore
@@ -57,9 +57,9 @@ export interface AuthRequestBuilder extends BaseRequestBuilder<AuthRequestBuilde
      */
     get resetPassword(): ResetPasswordRequestBuilder;
     /**
-     * The tenantAuthData property
+     * The scopeAuthData property
      */
-    get tenantAuthData(): TenantAuthDataRequestBuilder;
+    get scopeAuthData(): ScopeAuthDataRequestBuilder;
     /**
      * The tenantsForPicker property
      */
@@ -107,8 +107,8 @@ export const AuthRequestBuilderNavigationMetadata: Record<Exclude<keyof AuthRequ
     resetPassword: {
         requestsMetadata: ResetPasswordRequestBuilderRequestsMetadata,
     },
-    tenantAuthData: {
-        requestsMetadata: TenantAuthDataRequestBuilderRequestsMetadata,
+    scopeAuthData: {
+        requestsMetadata: ScopeAuthDataRequestBuilderRequestsMetadata,
     },
     tenantsForPicker: {
         requestsMetadata: TenantsForPickerRequestBuilderRequestsMetadata,

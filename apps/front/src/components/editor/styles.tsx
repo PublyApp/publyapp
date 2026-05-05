@@ -44,8 +44,8 @@ export const EditorRoot = styled('div', {
 			position: 'fixed',
 			zIndex: theme.zIndex.modal,
 			maxHeight: 'unset !important',
-			width: `calc(100% - ${32}px)`,
-			height: `calc(100% - ${32}px)`,
+			width: 'calc(100% - 32px)',
+			height: 'calc(100% - 32px)',
 			backgroundColor: theme.vars.palette.background.default,
 		}),
 		/**

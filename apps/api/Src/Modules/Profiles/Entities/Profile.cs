@@ -29,6 +29,9 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 	[Column("scope")]
 	public ProfileScope Scope { get; set; }
 
+	[Column("is_default")]
+	public bool IsDefault { get; set; }
+
 	// Computed properties for easy identification
 	public bool IsStaffProfile => Scope == ProfileScope.Staff && TenantId == null && ProjectId == null;
 	public bool IsTenantProfile => Scope == ProfileScope.Tenant && TenantId != null && ProjectId == null;
@@ -40,16 +43,23 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 			Name = name,
 			Description = description,
 			Scope = ProfileScope.Staff,
+			IsDefault = false,
 			TenantId = null,
 			ProjectId = null
 		};
 	}
 
-	public static Profile CreateTenantProfile(Guid tenantId, string name, string? description = null) {
+	public static Profile CreateTenantProfile(
+		Guid tenantId,
+		string name,
+		string? description = null,
+		bool isDefault = false
+	) {
 		return new Profile {
 			Name = name,
 			Description = description,
 			Scope = ProfileScope.Tenant,
+			IsDefault = isDefault,
 			TenantId = tenantId,
 			ProjectId = null
 		};
@@ -60,6 +70,7 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 			Name = name,
 			Description = description,
 			Scope = ProfileScope.Project,
+			IsDefault = false,
 			TenantId = tenantId,
 			ProjectId = projectId
 		};
@@ -72,6 +83,9 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 				if (TenantId != null || ProjectId != null) {
 					throw new InvalidOperationException("Staff profiles cannot have TenantId or ProjectId");
 				}
+				if (IsDefault) {
+					throw new InvalidOperationException("Staff profiles cannot be default profiles");
+				}
 				break;
 			case ProfileScope.Tenant:
 				if (TenantId == null || ProjectId != null) {
@@ -81,6 +95,9 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 			case ProfileScope.Project:
 				if (TenantId == null || ProjectId == null) {
 					throw new InvalidOperationException("Project profiles must have both TenantId and ProjectId");
+				}
+				if (IsDefault) {
+					throw new InvalidOperationException("Project profiles cannot be default profiles");
 				}
 				break;
 		}

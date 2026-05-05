@@ -1,8 +1,8 @@
-// import { '#' from '@/front/routes/'#'
+// import { '#' from '#app/routes/'#'
 
 //
 
-// import { Iconify } from '@/front/components/iconify';
+// import { Iconify } from '#app/components/iconify/index.ts';
 
 import { Iconify } from '../components/iconify/iconify';
 import type { NavMainProps } from './main/nav/types';

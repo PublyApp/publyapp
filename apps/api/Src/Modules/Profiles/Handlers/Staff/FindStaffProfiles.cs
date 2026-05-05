@@ -1,3 +1,5 @@
+using FluentValidation;
+
 using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
@@ -11,9 +13,25 @@ namespace MainApi.Src.Modules.Profiles.Handlers.Staff;
 
 public class FindStaffProfilesResult : CursorPaginatedResult<StaffProfileItem> { }
 
-public class FindStaffProfilesQuery : CursorPaginatedQuery { }
+public class FindStaffProfilesQuery : CursorPaginatedQuery {
+	[FromQuery(Name = "q")]
+	public string? Search { get; set; }
 
-public class FindStaffProfilesQueryValidator : CursorPaginatedQueryValidator<FindStaffProfilesQuery> { }
+	public string? GetSearchNormalized() {
+		if (Search is null) {
+			return null;
+		}
+
+		var trimmed = Search.Trim();
+		return trimmed.Length == 0 ? null : trimmed;
+	}
+}
+
+public class FindStaffProfilesQueryValidator : CursorPaginatedQueryValidator<FindStaffProfilesQuery> {
+	public FindStaffProfilesQueryValidator() {
+		RuleFor(x => x.Search).MaximumLength(200);
+	}
+}
 
 public class FindStaffProfiles {
 	public static async Task<Results<Ok<FindStaffProfilesResult>, AppBadRequestHttpResult>> HandleFindStaffProfiles(
@@ -35,11 +53,16 @@ public class FindStaffProfiles {
 		var sortId = findStaffProfilesQuery.GetSortId();
 		var sortOrder = findStaffProfilesQuery.GetSortOrder();
 
+		var args = new FindStaffProfilesArgs(
+			Cursor: cursorGuid,
+			Limit: limit,
+			SortId: sortId,
+			SortOrder: sortOrder,
+			Search: findStaffProfilesQuery.GetSearchNormalized()
+		);
+
 		var serviceResult = await profileAsStaffService.FindStaffProfilesAsync(
-			cursor: cursorGuid,
-			limit: limit,
-			sortId: sortId,
-			sortOrder: sortOrder,
+			args,
 			cancellationToken: cancellationToken
 		);
 

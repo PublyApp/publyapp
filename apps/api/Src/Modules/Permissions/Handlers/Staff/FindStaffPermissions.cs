@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Modules.Permissions.Handlers.Staff;
 
 public class FindStaffPermissionsQuery {
-	[FromQuery]
+	[FromQuery(Name = "language")]
 	public string? Language { get; set; }
 
 	public string GetLanguage() {

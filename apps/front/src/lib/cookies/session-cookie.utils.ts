@@ -104,7 +104,7 @@ export function clearSessionCookie(): void {
 	clearCookieOptions.forEach((options) => {
 		try {
 			document.cookie = cookie.serialize(SESSION_TOKEN_COOKIE_KEY, '', options);
-		} catch (_error) {
+		} catch {
 			// Ignore errors - this is defensive cleanup
 		}
 	});

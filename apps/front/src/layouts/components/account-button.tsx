@@ -7,7 +7,7 @@ import {
 	transitionTap,
 	varHover,
 	varTap,
-} from '@/front/components/animate';
+} from '#app/components/animate/index.ts';
 
 // ----------------------------------------------------------------------
 

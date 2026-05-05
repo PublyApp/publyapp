@@ -5,7 +5,7 @@ import type {
 	MRT_SortingState,
 } from 'material-react-table';
 import { parseAsString, parseAsStringLiteral, useQueryStates } from 'nuqs';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { DEFAULT_PAGE_SIZE } from '@org/shared-ts/lib/constants';
 
@@ -114,9 +114,15 @@ export const useTableState = (
 	const [currentCursor, setCurrentCursor] = useState<string | null>(null);
 	const [virtualPageIndex, setVirtualPageIndex] = useState(0);
 	// Track the next cursor in state so pagination updates stay explicit.
-	const [nextCursor, setNextCursor] = useState<string | null | undefined>(
+	const [nextCursor, setNextCursorState] = useState<string | null | undefined>(
 		undefined,
 	);
+	const nextCursorRef = useRef<string | null | undefined>(undefined);
+
+	const setNextCursor = useCallback((cursor: string | null | undefined) => {
+		nextCursorRef.current = cursor;
+		setNextCursorState(cursor);
+	}, []);
 
 	// Explicit reset for cursor pagination when external filters change.
 	const resetCursorPagination = useCallback(() => {
@@ -127,7 +133,7 @@ export const useTableState = (
 		setCurrentCursor(null);
 		setNextCursor(undefined);
 		setVirtualPageIndex(0);
-	}, [paginationMode]);
+	}, [paginationMode, setNextCursor]);
 
 	// Pagination state (conditional based on mode)
 	const [paginationState, setPaginationState] = useQueryStates(
@@ -145,23 +151,21 @@ export const useTableState = (
 				},
 	);
 
+	const sortId = sortingState[queryKeys.sorting.id];
+	const sortOrder = sortingState[queryKeys.sorting.order];
+	const pageSize = paginationState[queryKeys.pagination.pageSize];
+
 	// Reset cursor history when sorting or page size changes in cursor mode
 	// All dependencies are intentional (not accidental)
 	// Why they're needed: cursors become invalid when query params change
 	// What would break: without these deps, users would see invalid data when changing sort/size
-	// biome-ignore lint/correctness/useExhaustiveDependencies: All dependencies are intentional (not accidental)
 	useEffect(() => {
 		if (paginationMode === 'cursor') {
 			setCursorHistory([]);
 			setCurrentCursor(null);
 			setVirtualPageIndex(0);
 		}
-	}, [
-		paginationMode,
-		sortingState[queryKeys.sorting.id],
-		sortingState[queryKeys.sorting.order],
-		paginationState[queryKeys.pagination.pageSize],
-	]);
+	}, [paginationMode, sortId, sortOrder, pageSize]);
 
 	// Sorting change handler
 	const handleSortingChange = useCallback<OnChangeFn<MRT_SortingState>>(
@@ -178,14 +182,14 @@ export const useTableState = (
 					},
 				])[0] ||
 					defaultSorting || { id: 'createdAt', desc: true };
-				setSortingState({
+				void setSortingState({
 					[queryKeys.sorting.id]: id,
 					[queryKeys.sorting.order]: desc === false ? 'asc' : 'desc',
 				});
 			} else {
 				const { desc, id } = updaterOrValue[0] ||
 					defaultSorting || { id: 'createdAt', desc: true };
-				setSortingState({
+				void setSortingState({
 					[queryKeys.sorting.id]: id,
 					[queryKeys.sorting.order]: desc === false ? 'asc' : 'desc',
 				});
@@ -218,9 +222,10 @@ export const useTableState = (
 
 				const newPageIndex = newPagination.pageIndex;
 				const currentPageIndex = virtualPageIndex;
+				const currentNextCursor = nextCursorRef.current;
 				if (newPageIndex > currentPageIndex) {
 					// Going forward
-					if (nextCursor) {
+					if (currentNextCursor) {
 						// Push current cursor to history (limit to MAX_CURSOR_HISTORY)
 						setCursorHistory((prev) => {
 							const newHistory = currentCursor
@@ -229,7 +234,7 @@ export const useTableState = (
 							// Keep only the last MAX_CURSOR_HISTORY items
 							return newHistory.slice(-MAX_CURSOR_HISTORY);
 						});
-						setCurrentCursor(nextCursor);
+						setCurrentCursor(currentNextCursor);
 						setVirtualPageIndex(newPageIndex);
 					}
 				} else if (newPageIndex < currentPageIndex) {
@@ -256,7 +261,7 @@ export const useTableState = (
 					newPagination.pageSize !==
 					Number(paginationState[queryKeys.pagination.pageSize])
 				) {
-					setPaginationState({
+					void setPaginationState({
 						[queryKeys.pagination.pageSize]: newPagination.pageSize.toString(),
 					});
 				}
@@ -267,14 +272,14 @@ export const useTableState = (
 						pageIndex: Number(paginationState[queryKeys.pagination.page]) - 1,
 						pageSize: Number(paginationState[queryKeys.pagination.pageSize]),
 					});
-					setPaginationState({
+					void setPaginationState({
 						[queryKeys.pagination.page]: (
 							newPagination.pageIndex + 1
 						).toString(),
 						[queryKeys.pagination.pageSize]: newPagination.pageSize.toString(),
 					});
 				} else {
-					setPaginationState({
+					void setPaginationState({
 						[queryKeys.pagination.page]: (
 							updaterOrValue.pageIndex + 1
 						).toString(),
@@ -291,7 +296,6 @@ export const useTableState = (
 			setPaginationState,
 			virtualPageIndex,
 			currentCursor,
-			nextCursor,
 		],
 	);
 

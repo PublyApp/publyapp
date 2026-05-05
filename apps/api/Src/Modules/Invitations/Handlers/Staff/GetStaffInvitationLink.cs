@@ -12,18 +12,25 @@ public class GetStaffInvitationLinkResult {
 	public required string Link { get; init; }
 }
 
-public static class GetStaffInvitationLink {
+public class GetStaffInvitationLink {
 	public static async Task<Results<
 		Ok<GetStaffInvitationLinkResult>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
 	>> HandleGetStaffInvitationLink(
-		[FromRoute] Guid invitationId,
+		[FromRoute] string invitationId,
 		[FromServices] IInvitationService invitationService,
 		CancellationToken cancellationToken = default
 	) {
+		if (!Guid.TryParse(invitationId, out var invitationIdGuid)) {
+			return TypedProblems.BadRequest(
+				"Invalid invitationId",
+				ResponseKeys.MalformedId
+			);
+		}
+
 		var invitation = await invitationService.GetStaffInvitationByIdAsync(
-			invitationId,
+			invitationIdGuid,
 			cancellationToken
 		);
 

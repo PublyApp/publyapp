@@ -28,11 +28,10 @@ export const LinkBlock = ({ editor }: Pick<EditorToolbarProps, 'editor'>) => {
 		}
 	};
 
-	const handleClosePopover = () => {
+	const handleClosePopover = useCallback(() => {
 		setAnchorEl(null);
-	};
+	}, []);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	const handleUpdateUrl = useCallback(() => {
 		handleClosePopover();
 
@@ -46,7 +45,7 @@ export const LinkBlock = ({ editor }: Pick<EditorToolbarProps, 'editor'>) => {
 				.setLink({ href: url })
 				.run();
 		}
-	}, [editor, url]);
+	}, [editor, handleClosePopover, url]);
 
 	if (!editor) {
 		return null;

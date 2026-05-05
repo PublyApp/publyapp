@@ -7,7 +7,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useCallback, useState } from 'react';
 
-import type { IPaymentCard } from '@/front/types/common';
+import type { IPaymentCard } from '#app/types/common.ts';
 
 import { Iconify } from '../iconify/iconify';
 import { SearchNotFound } from '../search-not-found/search-not-found';
@@ -91,7 +91,7 @@ export function PaymentCardListDialog({
 
 				<Button
 					size="small"
-					startIcon={<Iconify icon="mingcute:add-line" />}
+					startIcon={<Iconify width={16} icon="mingcute:add-line" />}
 					sx={{ alignSelf: 'flex-end' }}
 				>
 					New

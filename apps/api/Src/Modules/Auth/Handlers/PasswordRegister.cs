@@ -33,7 +33,7 @@ public class PasswordRegisterResult {
 	public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
-public static class PasswordRegister {
+public class PasswordRegister {
 	public static async Task<Results<
 		Ok<PasswordRegisterResult>,
 		AppBadRequestHttpResult
@@ -51,6 +51,9 @@ public static class PasswordRegister {
 		var newUser = new User {
 			Email = email,
 			Password = password,
+			// Password registration owns credential setup, so it opts into activation
+			// instead of relying on the User entity's safe suspended default.
+			Status = UserStatus.Active,
 		};
 
 		var createUserResult = await userService.CreateUserAsync(newUser, cancellationToken);

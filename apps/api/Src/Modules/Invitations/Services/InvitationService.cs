@@ -1,8 +1,10 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.DI;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Invitations.Entities;
 using MainApi.Src.Modules.Profiles.Entities;
+using MainApi.Src.Modules.Tenants.Entities;
 using MainApi.Src.Modules.Users.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -11,18 +13,65 @@ using UserEntity = MainApi.Src.Modules.Users.Entities.User;
 
 namespace MainApi.Src.Modules.Invitations.Services;
 
+public record FindTenantInvitationsFilters {
+	public string? Search { get; init; }
+	public IReadOnlySet<InvitationEffectiveStatus>? Status { get; init; }
+}
+public record FindTenantInvitationsArgs {
+	public Guid Cursor { get; init; }
+	public int? Limit { get; init; }
+	public string? SortId { get; init; }
+	public SortOrder SortOrder { get; init; }
+	public FindTenantInvitationsFilters Filters { get; init; } = new();
+}
+
+public record FindStaffInvitationsArgs(
+	Guid Cursor,
+	int? Limit,
+	string? SortId,
+	SortOrder? SortOrder,
+	string? Status
+);
+
+public record CreateStaffInvitationArgs(
+	string Email,
+	List<Guid> ProfileIds,
+	Guid InvitedByUserId
+);
+
+public record CreateTenantInvitationArgs(
+	string Email,
+	Guid TenantId,
+	List<Guid> ProfileIds,
+	Guid InvitedByUserId
+);
+
+public record AcceptStaffInvitationArgs(
+	Invitation Invitation,
+	string FirstName,
+	string LastName,
+	string PasswordHash
+);
+
+public record AcceptTenantInvitationArgs(
+	Invitation Invitation,
+	string FirstName,
+	string LastName,
+	string PasswordHash
+);
+
+public record BulkCreateStaffInvitationsArgs(
+	List<BulkStaffInvitationItem> Invitations,
+	Guid InvitedByUserId
+);
+
 public interface IInvitationService {
 	Task<(Invitation Invitation, string Token)> CreateStaffInvitationAsync(
-		string email,
-		List<Guid> profileIds,
-		Guid invitedByUserId,
+		CreateStaffInvitationArgs args,
 		CancellationToken cancellationToken = default);
 
 	Task<(Invitation Invitation, string Token)> CreateTenantInvitationAsync(
-		string email,
-		Guid tenantId,
-		List<Guid> profileIds,
-		Guid invitedByUserId,
+		CreateTenantInvitationArgs args,
 		CancellationToken cancellationToken = default);
 
 	Task<Invitation?> GetInvitationByTokenAsync(
@@ -37,7 +86,12 @@ public interface IInvitationService {
 		Guid invitationId,
 		CancellationToken cancellationToken = default);
 
-	Task<bool> RevokeInvitationAsync(
+	Task<RevokeInvitationForStaffResult> RevokeInvitationForStaffAsync(
+		Guid invitationId,
+		CancellationToken cancellationToken = default);
+
+	Task<RevokeInvitationForTenantAsStaffResult> RevokeInvitationForTenantAsStaffAsync(
+		Guid tenantId,
 		Guid invitationId,
 		CancellationToken cancellationToken = default);
 
@@ -54,26 +108,31 @@ public interface IInvitationService {
 		InvitationScope scope,
 		CancellationToken cancellationToken = default);
 
+	Task<bool> PendingTenantInvitationExistsAsync(
+		string email,
+		Guid tenantId,
+		CancellationToken cancellationToken = default);
+
 	Task<FindStaffInvitationsResult> FindStaffInvitationsAsync(
-		Guid cursor,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
-		string? status = null,
+		FindStaffInvitationsArgs args,
+		CancellationToken cancellationToken = default);
+
+	Task<FindTenantInvitationsResult> FindTenantInvitationsAsync(
+		Guid tenantId,
+		FindTenantInvitationsArgs args,
 		CancellationToken cancellationToken = default);
 
 	Task<UserEntity> AcceptStaffInvitationAsync(
-		Invitation invitation,
-		string firstName,
-		string lastName,
-		string passwordHash,
+		AcceptStaffInvitationArgs args,
 		CancellationToken cancellationToken = default);
 
 	Task<UserEntity> AcceptTenantInvitationAsync(
+		AcceptTenantInvitationArgs args,
+		CancellationToken cancellationToken = default);
+
+	Task<UserEntity> AcceptTenantInvitationForExistingUserAsync(
 		Invitation invitation,
-		string firstName,
-		string lastName,
-		string passwordHash,
+		Guid userId,
 		CancellationToken cancellationToken = default);
 
 	// Batch validation methods for bulk operations
@@ -92,8 +151,7 @@ public interface IInvitationService {
 
 	// Bulk creation method
 	Task<List<(string Email, string Token)>> BulkCreateStaffInvitationsAsync(
-		List<BulkStaffInvitationItem> invitations,
-		Guid invitedByUserId,
+		BulkCreateStaffInvitationsArgs args,
 		CancellationToken cancellationToken = default);
 
 	Task MarkInvitationAsAcceptedAsync(
@@ -106,10 +164,9 @@ public record InvitationListItem {
 	public required string Email { get; init; }
 	public required string Scope { get; init; }
 	public required string ProfileName { get; init; }
+	public required string Status { get; init; }
 	public required DateTime ExpiresAt { get; init; }
 	public DateTime? AcceptedAt { get; init; }
-	public required bool IsAccepted { get; init; }
-	public required bool IsRevoked { get; init; }
 	public required DateTime CreatedAt { get; init; }
 	public string? InvitedByName { get; init; }
 }
@@ -122,6 +179,16 @@ public abstract record FindStaffInvitationsResult {
 	public sealed record CursorNotFound(string Cursor) : FindStaffInvitationsResult;
 
 	public sealed record InvalidSortId(string SortId) : FindStaffInvitationsResult;
+}
+
+public abstract record FindTenantInvitationsResult {
+	public sealed record Success(
+		CursorPaginatedResult<InvitationListItem> Data
+	) : FindTenantInvitationsResult;
+
+	public sealed record CursorNotFound(string Cursor) : FindTenantInvitationsResult;
+
+	public sealed record InvalidSortId(string SortId) : FindTenantInvitationsResult;
 }
 
 public record BulkStaffInvitationItem {
@@ -140,14 +207,30 @@ public record StaffInvitationDetailsResult {
 	public required DateTime ExpiresAt { get; init; }
 	public DateTime? AcceptedAt { get; init; }
 	public DateTime? RevokedAt { get; init; }
-	public required bool IsAccepted { get; init; }
-	public required bool IsRevoked { get; init; }
+	public required string Status { get; init; }
 	public required DateTime CreatedAt { get; init; }
 	public required string InvitedByName { get; init; }
 	public required Guid InvitedByUserId { get; init; }
 	public required List<StaffInvitationProfileInfo> Profiles { get; init; }
 }
 
+public abstract record RevokeInvitationForStaffResult {
+	public sealed record Success : RevokeInvitationForStaffResult;
+
+	public sealed record NotFound : RevokeInvitationForStaffResult;
+
+	public sealed record AlreadyAccepted : RevokeInvitationForStaffResult;
+}
+
+public abstract record RevokeInvitationForTenantAsStaffResult {
+	public sealed record Success : RevokeInvitationForTenantAsStaffResult;
+
+	public sealed record NotFound : RevokeInvitationForTenantAsStaffResult;
+
+	public sealed record AlreadyAccepted : RevokeInvitationForTenantAsStaffResult;
+}
+
+[Service(ServiceLifetime.Scoped)]
 public class InvitationService : IInvitationService {
 	private readonly MainApiDbContext _dbContext;
 	private readonly ILogger<InvitationService> _logger;
@@ -161,11 +244,12 @@ public class InvitationService : IInvitationService {
 	}
 
 	public async Task<(Invitation Invitation, string Token)> CreateStaffInvitationAsync(
-		string email,
-		List<Guid> profileIds,
-		Guid invitedByUserId,
+		CreateStaffInvitationArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		var email = args.Email;
+		var profileIds = args.ProfileIds;
+		var invitedByUserId = args.InvitedByUserId;
 		var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
 		var expiresAt = DateTime.UtcNow.AddDays(7);
 
@@ -195,12 +279,13 @@ public class InvitationService : IInvitationService {
 	}
 
 	public async Task<(Invitation Invitation, string Token)> CreateTenantInvitationAsync(
-		string email,
-		Guid tenantId,
-		List<Guid> profileIds,
-		Guid invitedByUserId,
+		CreateTenantInvitationArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		var email = args.Email;
+		var tenantId = args.TenantId;
+		var profileIds = args.ProfileIds;
+		var invitedByUserId = args.InvitedByUserId;
 		var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
 		var expiresAt = DateTime.UtcNow.AddDays(7);
 
@@ -311,11 +396,16 @@ public class InvitationService : IInvitationService {
 		return new StaffInvitationDetailsResult {
 			Id = invitation.GetRequiredId(),
 			Email = invitation.Email,
+			Status = Invitation.GetEffectiveStatusDescription(
+				Invitation.GetEffectiveStatus(
+					invitation.Status,
+					invitation.ExpiresAt,
+					DateTime.UtcNow
+				)
+			),
 			ExpiresAt = invitation.ExpiresAt,
 			AcceptedAt = invitation.AcceptedAt,
 			RevokedAt = invitation.RevokedAt,
-			IsAccepted = invitation.IsAccepted,
-			IsRevoked = invitation.IsRevoked,
 			CreatedAt = invitation.CreatedAt,
 			InvitedByName = inviterName,
 			InvitedByUserId = invitation.InvitedByUserId,
@@ -323,46 +413,47 @@ public class InvitationService : IInvitationService {
 		};
 	}
 
-	public async Task<bool> RevokeInvitationAsync(
+	public async Task<RevokeInvitationForStaffResult> RevokeInvitationForStaffAsync(
 		Guid invitationId,
 		CancellationToken cancellationToken = default
 	) {
-		var invitation = await _dbContext.Invitation
-			.FindAsync(new object[] { invitationId }, cancellationToken);
+		Invitation? invitation = await _dbContext.Invitation
+			.Where(inv => inv.Id == invitationId && inv.Scope == InvitationScope.Staff)
+			.FirstOrDefaultAsync(cancellationToken);
 
-		if (invitation is null) {
-			return false;
-		}
+		return await RevokeInvitationInternalAsync(
+			invitation,
+			invitationId,
+			cancellationToken
+		);
+	}
 
-		if (invitation.IsRevoked) {
-			if (_logger.IsEnabled(LogLevel.Information)) {
-				_logger.LogInformation(
-					"Invitation {InvitationId} is already revoked; no-op",
-					invitationId
-				);
-			}
-			return true;
-		}
+	public async Task<RevokeInvitationForTenantAsStaffResult> RevokeInvitationForTenantAsStaffAsync(
+		Guid tenantId,
+		Guid invitationId,
+		CancellationToken cancellationToken = default
+	) {
+		Invitation? invitation = await _dbContext.Invitation
+			.Where(inv =>
+				inv.Id == invitationId
+				&& inv.Scope == InvitationScope.Tenant
+				&& inv.TenantId == tenantId
+			)
+			.FirstOrDefaultAsync(cancellationToken);
 
-		if (invitation.IsAccepted) {
-			if (_logger.IsEnabled(LogLevel.Warning)) {
-				_logger.LogWarning(
-					"Attempt to revoke accepted invitation {InvitationId} blocked",
-					invitationId
-				);
-			}
-			return false;
-		}
+		RevokeInvitationForStaffResult result = await RevokeInvitationInternalAsync(
+			invitation,
+			invitationId,
+			cancellationToken
+		);
 
-		invitation.IsRevoked = true;
-		invitation.RevokedAt = DateTime.UtcNow;
-
-		await _dbContext.SaveChangesAsync(cancellationToken);
-
-		if (_logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation("Revoked invitation {InvitationId}", invitationId);
-		}
-		return true;
+		return result switch {
+			RevokeInvitationForStaffResult.Success =>
+				new RevokeInvitationForTenantAsStaffResult.Success(),
+			RevokeInvitationForStaffResult.AlreadyAccepted =>
+				new RevokeInvitationForTenantAsStaffResult.AlreadyAccepted(),
+			_ => new RevokeInvitationForTenantAsStaffResult.NotFound()
+		};
 	}
 
 	public async Task<Profile?> GetStaffProfileAsync(
@@ -400,8 +491,25 @@ public class InvitationService : IInvitationService {
 			from inv in _dbContext.Invitation
 			where inv.Email == normalizedEmail
 				&& inv.Scope == scope
-				&& inv.IsAccepted == false
-				&& inv.IsRevoked == false
+				&& inv.Status == InvitationStatus.Pending
+				&& inv.ExpiresAt > DateTime.UtcNow
+			select inv;
+
+		return await invitationQuery.AnyAsync(cancellationToken);
+	}
+
+	public async Task<bool> PendingTenantInvitationExistsAsync(
+		string email,
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		var normalizedEmail = email.ToLowerInvariant();
+		var invitationQuery =
+			from inv in _dbContext.Invitation
+			where inv.Email == normalizedEmail
+				&& inv.Scope == InvitationScope.Tenant
+				&& inv.TenantId == tenantId
+				&& inv.Status == InvitationStatus.Pending
 				&& inv.ExpiresAt > DateTime.UtcNow
 			select inv;
 
@@ -409,22 +517,23 @@ public class InvitationService : IInvitationService {
 	}
 
 	public async Task<FindStaffInvitationsResult> FindStaffInvitationsAsync(
-		Guid cursor,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
-		string? status = null,
+		FindStaffInvitationsArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
-		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-		var effectiveSortId = (sortId ?? "created_at").ToLowerInvariant();
+		var cursor = args.Cursor;
+		var effectiveLimit = args.Limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
+		var effectiveSortId = args.SortId ?? "created_at";
+		var status = args.Status;
 
 		// Keyset pagination handlers per sortId (cursor stays a Guid).
-		var sortFieldHandlers = new Dictionary<string, SortFieldHandler> {
-			["created_at"] = new SortFieldHandler(
+		var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<Invitation>>(
+			StringComparer.OrdinalIgnoreCase
+		) {
+			["created_at"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
+						.AsNoTracking()
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Staff)
 						.Select(inv => new { inv.CreatedAt, inv.Id })
 						.FirstOrDefaultAsync(cancellationToken);
@@ -441,9 +550,10 @@ public class InvitationService : IInvitationService {
 					? q.OrderBy(inv => inv.CreatedAt).ThenBy(inv => inv.Id)
 					: q.OrderByDescending(inv => inv.CreatedAt).ThenByDescending(inv => inv.Id)
 			),
-			["expires_at"] = new SortFieldHandler(
+			["expires_at"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
+						.AsNoTracking()
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Staff)
 						.Select(inv => new { inv.ExpiresAt, inv.Id })
 						.FirstOrDefaultAsync(cancellationToken);
@@ -460,9 +570,10 @@ public class InvitationService : IInvitationService {
 					? q.OrderBy(inv => inv.ExpiresAt).ThenBy(inv => inv.Id)
 					: q.OrderByDescending(inv => inv.ExpiresAt).ThenByDescending(inv => inv.Id)
 			),
-			["email"] = new SortFieldHandler(
+			["email"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
+						.AsNoTracking()
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Staff)
 						.Select(inv => new { inv.Email, inv.Id })
 						.FirstOrDefaultAsync(cancellationToken);
@@ -479,9 +590,10 @@ public class InvitationService : IInvitationService {
 					? q.OrderBy(inv => inv.Email).ThenBy(inv => inv.Id)
 					: q.OrderByDescending(inv => inv.Email).ThenByDescending(inv => inv.Id)
 			),
-			["accepted_at"] = new SortFieldHandler(
+			["accepted_at"] = new CursorSortFieldHandler<Invitation>(
 				getCursorValue: async (guid) => {
 					var invitation = await _dbContext.Invitation
+						.AsNoTracking()
 						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Staff)
 						.Select(inv => new {
 							// Treat null AcceptedAt as min value to keep ordering stable.
@@ -508,31 +620,35 @@ public class InvitationService : IInvitationService {
 			)
 		};
 
-		if (!sortFieldHandlers.TryGetValue(effectiveSortId, out SortFieldHandler? handler)) {
+		if (
+			!sortFieldHandlers.TryGetValue(
+				effectiveSortId,
+				out CursorSortFieldHandler<Invitation>? handler
+			)
+		) {
 			return new FindStaffInvitationsResult.InvalidSortId(effectiveSortId);
 		}
 
 		var query = _dbContext.Invitation
+			.AsNoTracking()
 			.Where(inv => inv.Scope == InvitationScope.Staff && inv.Id != null);
 
 		if (!string.IsNullOrWhiteSpace(status)) {
 			// Apply backend status semantics so UI filters match persisted state.
-			var normalizedStatus = status.Trim().ToLowerInvariant();
+			var normalizedStatus = status.Trim();
 			var now = DateTime.UtcNow;
 
-			switch (normalizedStatus) {
-				case "pending":
-					query = query.Where(inv => !inv.IsAccepted && !inv.IsRevoked && inv.ExpiresAt > now);
-					break;
-				case "accepted":
-					query = query.Where(inv => inv.IsAccepted);
-					break;
-				case "revoked":
-					query = query.Where(inv => inv.IsRevoked);
-					break;
-				case "expired":
-					query = query.Where(inv => !inv.IsAccepted && !inv.IsRevoked && inv.ExpiresAt <= now);
-					break;
+			if (string.Equals(normalizedStatus, "pending", StringComparison.OrdinalIgnoreCase)) {
+				query = query.Where(inv => inv.Status == InvitationStatus.Pending && inv.ExpiresAt > now);
+			}
+			if (string.Equals(normalizedStatus, "accepted", StringComparison.OrdinalIgnoreCase)) {
+				query = query.Where(inv => inv.Status == InvitationStatus.Accepted);
+			}
+			if (string.Equals(normalizedStatus, "revoked", StringComparison.OrdinalIgnoreCase)) {
+				query = query.Where(inv => inv.Status == InvitationStatus.Revoked);
+			}
+			if (string.Equals(normalizedStatus, "expired", StringComparison.OrdinalIgnoreCase)) {
+				query = query.Where(inv => inv.Status == InvitationStatus.Pending && inv.ExpiresAt <= now);
 			}
 		}
 
@@ -550,7 +666,7 @@ public class InvitationService : IInvitationService {
 		// Fetch one extra row to compute the next cursor.
 		var results = await orderedQuery
 			.Join(
-				_dbContext.User,
+				_dbContext.User.AsNoTracking(),
 				inv => inv.InvitedByUserId,
 				inviter => inviter.Id,
 				(inv, inviter) => new {
@@ -570,9 +686,9 @@ public class InvitationService : IInvitationService {
 		// Load profile names separately to avoid duplicating invitation rows.
 		var invitationIds = results.Select(r => r.Invitation.GetRequiredId()).ToList();
 		var profileNamesQuery =
-			from ip in _dbContext.InvitationProfile
+			from ip in _dbContext.InvitationProfile.AsNoTracking()
 			where invitationIds.Contains(ip.InvitationId)
-			join p in _dbContext.Profile on ip.ProfileId equals p.Id
+			join p in _dbContext.Profile.AsNoTracking() on ip.ProfileId equals p.Id
 			select new {
 				InvitationId = ip.InvitationId,
 				ProfileName = p.Name
@@ -591,10 +707,15 @@ public class InvitationService : IInvitationService {
 				Email = r.Invitation.Email,
 				Scope = "Staff",
 				ProfileName = profileName,
+				Status = Invitation.GetEffectiveStatusDescription(
+					Invitation.GetEffectiveStatus(
+						r.Invitation.Status,
+						r.Invitation.ExpiresAt,
+						DateTime.UtcNow
+					)
+				),
 				ExpiresAt = r.Invitation.ExpiresAt,
 				AcceptedAt = r.Invitation.AcceptedAt,
-				IsAccepted = r.Invitation.IsAccepted,
-				IsRevoked = r.Invitation.IsRevoked,
 				CreatedAt = r.Invitation.CreatedAt,
 				InvitedByName = r.InviterName
 			};
@@ -608,13 +729,223 @@ public class InvitationService : IInvitationService {
 		);
 	}
 
-	public async Task<UserEntity> AcceptStaffInvitationAsync(
-		Invitation invitation,
-		string firstName,
-		string lastName,
-		string passwordHash,
+	public async Task<FindTenantInvitationsResult> FindTenantInvitationsAsync(
+		Guid tenantId,
+		FindTenantInvitationsArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		var cursor = args.Cursor;
+		var effectiveLimit = args.Limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveSortOrder = args.SortOrder;
+		var effectiveSortId = args.SortId ?? "created_at";
+		var filters = args.Filters;
+
+		// Keyset pagination handlers per sortId (cursor stays a Guid).
+		var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<Invitation>>(
+			StringComparer.OrdinalIgnoreCase
+		) {
+			["created_at"] = new CursorSortFieldHandler<Invitation>(
+				getCursorValue: async (guid) => {
+					var invitation = await _dbContext.Invitation
+						.AsNoTracking()
+						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId)
+						.Select(inv => new { inv.CreatedAt, inv.Id })
+						.FirstOrDefaultAsync(cancellationToken);
+					return invitation is not null ? (invitation.CreatedAt, invitation.Id) : null;
+				},
+				applyFilter: (q, cursorValue, isAsc) => {
+					if (cursorValue is null) return q;
+					var (cursorCreatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
+					return isAsc
+						? q.Where(inv => inv.CreatedAt > cursorCreatedAt || (inv.CreatedAt == cursorCreatedAt && inv.Id > cursorId))
+						: q.Where(inv => inv.CreatedAt < cursorCreatedAt || (inv.CreatedAt == cursorCreatedAt && inv.Id < cursorId));
+				},
+				applyOrdering: (q, isAsc) => isAsc
+					? q.OrderBy(inv => inv.CreatedAt).ThenBy(inv => inv.Id)
+					: q.OrderByDescending(inv => inv.CreatedAt).ThenByDescending(inv => inv.Id)
+			),
+			["expires_at"] = new CursorSortFieldHandler<Invitation>(
+				getCursorValue: async (guid) => {
+					var invitation = await _dbContext.Invitation
+						.AsNoTracking()
+						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId)
+						.Select(inv => new { inv.ExpiresAt, inv.Id })
+						.FirstOrDefaultAsync(cancellationToken);
+					return invitation is not null ? (invitation.ExpiresAt, invitation.Id) : null;
+				},
+				applyFilter: (q, cursorValue, isAsc) => {
+					if (cursorValue is null) return q;
+					var (cursorExpiresAt, cursorId) = ((DateTime, Guid?))cursorValue;
+					return isAsc
+						? q.Where(inv => inv.ExpiresAt > cursorExpiresAt || (inv.ExpiresAt == cursorExpiresAt && inv.Id > cursorId))
+						: q.Where(inv => inv.ExpiresAt < cursorExpiresAt || (inv.ExpiresAt == cursorExpiresAt && inv.Id < cursorId));
+				},
+				applyOrdering: (q, isAsc) => isAsc
+					? q.OrderBy(inv => inv.ExpiresAt).ThenBy(inv => inv.Id)
+					: q.OrderByDescending(inv => inv.ExpiresAt).ThenByDescending(inv => inv.Id)
+			),
+			["email"] = new CursorSortFieldHandler<Invitation>(
+				getCursorValue: async (guid) => {
+					var invitation = await _dbContext.Invitation
+						.AsNoTracking()
+						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId)
+						.Select(inv => new { inv.Email, inv.Id })
+						.FirstOrDefaultAsync(cancellationToken);
+					return invitation is not null ? (invitation.Email, invitation.Id) : null;
+				},
+				applyFilter: (q, cursorValue, isAsc) => {
+					if (cursorValue is null) return q;
+					var (cursorEmail, cursorId) = ((string, Guid?))cursorValue;
+					return isAsc
+						? q.Where(inv => inv.Email.CompareTo(cursorEmail) > 0 || (inv.Email == cursorEmail && inv.Id > cursorId))
+						: q.Where(inv => inv.Email.CompareTo(cursorEmail) < 0 || (inv.Email == cursorEmail && inv.Id < cursorId));
+				},
+				applyOrdering: (q, isAsc) => isAsc
+					? q.OrderBy(inv => inv.Email).ThenBy(inv => inv.Id)
+					: q.OrderByDescending(inv => inv.Email).ThenByDescending(inv => inv.Id)
+			),
+			["accepted_at"] = new CursorSortFieldHandler<Invitation>(
+				getCursorValue: async (guid) => {
+					var invitation = await _dbContext.Invitation
+						.AsNoTracking()
+						.Where(inv => inv.Id == guid && inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId)
+						.Select(inv => new {
+							AcceptedAt = inv.AcceptedAt ?? DateTime.MinValue,
+							inv.Id
+						})
+						.FirstOrDefaultAsync(cancellationToken);
+					return invitation is not null ? (invitation.AcceptedAt, invitation.Id) : null;
+				},
+				applyFilter: (q, cursorValue, isAsc) => {
+					if (cursorValue is null) return q;
+					var (cursorAcceptedAt, cursorId) = ((DateTime, Guid?))cursorValue;
+					return isAsc
+						? q.Where(inv =>
+							(inv.AcceptedAt ?? DateTime.MinValue) > cursorAcceptedAt
+							|| ((inv.AcceptedAt ?? DateTime.MinValue) == cursorAcceptedAt && inv.Id > cursorId))
+						: q.Where(inv =>
+							(inv.AcceptedAt ?? DateTime.MinValue) < cursorAcceptedAt
+							|| ((inv.AcceptedAt ?? DateTime.MinValue) == cursorAcceptedAt && inv.Id < cursorId));
+				},
+				applyOrdering: (q, isAsc) => isAsc
+					? q.OrderBy(inv => inv.AcceptedAt ?? DateTime.MinValue).ThenBy(inv => inv.Id)
+					: q.OrderByDescending(inv => inv.AcceptedAt ?? DateTime.MinValue).ThenByDescending(inv => inv.Id)
+			)
+		};
+
+		if (
+			!sortFieldHandlers.TryGetValue(
+				effectiveSortId,
+				out CursorSortFieldHandler<Invitation>? handler
+			)
+		) {
+			return new FindTenantInvitationsResult.InvalidSortId(effectiveSortId);
+		}
+
+		var query = _dbContext.Invitation
+			.AsNoTracking()
+			.Where(inv => inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId && inv.Id != null);
+
+		var searchQuery = filters.Search;
+		if (!string.IsNullOrWhiteSpace(searchQuery)) {
+			var trimmedSearchQuery = searchQuery.Trim();
+			query = query.Where(inv => inv.Email.Contains(trimmedSearchQuery));
+		}
+
+		if (filters.Status is { Count: > 0 } statuses) {
+			var now = DateTime.UtcNow;
+			query = query.Where(inv =>
+				// Filters are effective statuses: Expired is derived from Pending + ExpiresAt.
+				(statuses.Contains(InvitationEffectiveStatus.Pending) && inv.Status == InvitationStatus.Pending && inv.ExpiresAt > now) ||
+				(statuses.Contains(InvitationEffectiveStatus.Accepted) && inv.Status == InvitationStatus.Accepted) ||
+				(statuses.Contains(InvitationEffectiveStatus.Revoked) && inv.Status == InvitationStatus.Revoked) ||
+				(statuses.Contains(InvitationEffectiveStatus.Expired) && inv.Status == InvitationStatus.Pending && inv.ExpiresAt <= now)
+			);
+		}
+
+		if (cursor != Guid.Empty) {
+			var cursorValue = await handler.GetCursorValue(cursor);
+			if (cursorValue is null) {
+				return new FindTenantInvitationsResult.CursorNotFound(cursor.ToString());
+			}
+
+			query = handler.ApplyFilter(query, cursorValue, effectiveSortOrder == SortOrder.Asc);
+		}
+
+		var orderedQuery = handler.ApplyOrdering(query, effectiveSortOrder == SortOrder.Asc);
+
+		var results = await orderedQuery
+			.Join(
+				_dbContext.User.AsNoTracking(),
+				inv => inv.InvitedByUserId,
+				inviter => inviter.Id,
+				(inv, inviter) => new {
+					Invitation = inv,
+					InviterName = $"{inviter.FirstName} {inviter.LastName}"
+				}
+			)
+			.Take(effectiveLimit + 1)
+			.ToListAsync(cancellationToken);
+
+		string? nextCursor = null;
+		if (results.Count > effectiveLimit) {
+			results.RemoveAt(results.Count - 1);
+			nextCursor = results.Last().Invitation.GetRequiredId().ToString();
+		}
+
+		var invitationIds = results.Select(r => r.Invitation.GetRequiredId()).ToList();
+		var profileNamesQuery =
+			from ip in _dbContext.InvitationProfile.AsNoTracking()
+			where invitationIds.Contains(ip.InvitationId)
+			join p in _dbContext.Profile.AsNoTracking() on ip.ProfileId equals p.Id
+			select new {
+				InvitationId = ip.InvitationId,
+				ProfileName = p.Name
+			};
+
+		var profileNames = await profileNamesQuery.ToListAsync(cancellationToken);
+		var profileNamesByInvitation = profileNames
+			.GroupBy(pn => pn.InvitationId)
+			.ToDictionary(g => g.Key, g => string.Join(", ", g.Select(x => x.ProfileName)));
+
+		var invitationItems = results.Select(r => {
+			var invitationId = r.Invitation.GetRequiredId();
+			var profileName = profileNamesByInvitation.TryGetValue(invitationId, out var name) ? name : "";
+			return new InvitationListItem {
+				Id = invitationId,
+				Email = r.Invitation.Email,
+				Scope = "Tenant",
+				ProfileName = profileName,
+				Status = Invitation.GetEffectiveStatusDescription(
+					Invitation.GetEffectiveStatus(
+						r.Invitation.Status,
+						r.Invitation.ExpiresAt,
+						DateTime.UtcNow
+					)
+				),
+				ExpiresAt = r.Invitation.ExpiresAt,
+				AcceptedAt = r.Invitation.AcceptedAt,
+				CreatedAt = r.Invitation.CreatedAt,
+				InvitedByName = r.InviterName
+			};
+		}).ToList();
+
+		return new FindTenantInvitationsResult.Success(
+			new CursorPaginatedResult<InvitationListItem> {
+				Data = invitationItems,
+				NextCursor = nextCursor,
+			}
+		);
+	}
+
+	public async Task<UserEntity> AcceptStaffInvitationAsync(
+		AcceptStaffInvitationArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var invitation = args.Invitation;
+		var firstName = args.FirstName;
+		var lastName = args.LastName;
+		var passwordHash = args.PasswordHash;
 		await using var tx = await _dbContext.Database
 			.BeginTransactionAsync(cancellationToken);
 		try {
@@ -657,7 +988,7 @@ public class InvitationService : IInvitationService {
 			}
 
 			// Mark invitation as accepted
-			invitation.IsAccepted = true;
+			invitation.Status = InvitationStatus.Accepted;
 			invitation.AcceptedAt = DateTime.UtcNow;
 			await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -680,12 +1011,13 @@ public class InvitationService : IInvitationService {
 	}
 
 	public async Task<UserEntity> AcceptTenantInvitationAsync(
-		Invitation invitation,
-		string firstName,
-		string lastName,
-		string passwordHash,
+		AcceptTenantInvitationArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		var invitation = args.Invitation;
+		var firstName = args.FirstName;
+		var lastName = args.LastName;
+		var passwordHash = args.PasswordHash;
 		await using var tx = await _dbContext.Database
 			.BeginTransactionAsync(cancellationToken);
 		try {
@@ -738,8 +1070,25 @@ public class InvitationService : IInvitationService {
 				);
 			}
 
+			var tenant = await (
+				from t in _dbContext.Tenant
+				where t.Id == tenantId && !t.IsDeleted
+				select t
+			).FirstOrDefaultAsync(cancellationToken);
+
+			if (tenant is null) {
+				throw new InvalidOperationException(
+					$"Tenant {tenantId} not found for invitation {invitation.GetRequiredId()}"
+				);
+			}
+
+			if (tenant.IsPending() && !tenant.IsSuspended()) {
+				tenant.Status = TenantStatus.Active;
+				tenant.UpdatedAt = DateTime.UtcNow;
+			}
+
 			// Mark invitation as accepted
-			invitation.IsAccepted = true;
+			invitation.Status = InvitationStatus.Accepted;
 			invitation.AcceptedAt = DateTime.UtcNow;
 			await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -749,6 +1098,129 @@ public class InvitationService : IInvitationService {
 				_logger.LogInformation(
 					"Tenant invitation accepted: User {UserId} created in tenant {TenantId} with AccountLevel {AccountLevel} and {ProfileCount} profiles from invitation {InvitationId}",
 					user.GetRequiredId(),
+					tenantId,
+					accountLevel,
+					invitationProfiles.Count,
+					invitation.GetRequiredId()
+				);
+			}
+
+			return user;
+		} catch {
+			await tx.RollbackAsync(cancellationToken);
+			throw;
+		}
+	}
+
+	public async Task<UserEntity> AcceptTenantInvitationForExistingUserAsync(
+		Invitation invitation,
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		await using var tx = await _dbContext.Database
+			.BeginTransactionAsync(cancellationToken);
+		try {
+			if (invitation.TenantId is null) {
+				throw new InvalidOperationException(
+					$"Tenant invitation {invitation.GetRequiredId()} has no TenantId"
+				);
+			}
+
+			var tenantId = invitation.TenantId.Value;
+			var accountLevel = invitation.AccountLevel ?? AccountLevel.User;
+
+			var user = await (
+				from u in _dbContext.User
+				where u.Id == userId && !u.IsDeleted
+				select u
+			).FirstOrDefaultAsync(cancellationToken);
+
+			if (user is null) {
+				throw new InvalidOperationException(
+					$"User {userId} not found for invitation acceptance"
+				);
+			}
+
+			var hasStaffAccount = await (
+				from ua in _dbContext.UserAccount
+				where ua.UserId == userId
+					&& ua.Scope == AccountScope.Staff
+					&& !ua.IsDeleted
+				select ua
+			).AnyAsync(cancellationToken);
+
+			if (hasStaffAccount) {
+				throw new InvalidOperationException(
+					"Staff and tenant/project accounts are mutually exclusive"
+				);
+			}
+
+			var existingTenantAccount = await (
+				from ua in _dbContext.UserAccount
+				where ua.UserId == userId
+					&& ua.TenantId == tenantId
+					&& ua.Scope == AccountScope.Tenant
+					&& !ua.IsDeleted
+				select ua
+			).FirstOrDefaultAsync(cancellationToken);
+
+			if (existingTenantAccount is not null) {
+				throw new InvalidOperationException(
+					"User is already member of tenant"
+				);
+			}
+
+			var account = UserAccount.CreateTenantAccount(
+				userId,
+				tenantId,
+				accountLevel
+			);
+			await _dbContext.UserAccount.AddAsync(account, cancellationToken);
+			await _dbContext.SaveChangesAsync(cancellationToken);
+
+			var invitationProfiles = await (
+				from ip in _dbContext.InvitationProfile
+				where ip.InvitationId == invitation.GetRequiredId()
+				select ip
+			).ToListAsync(cancellationToken);
+
+			foreach (var invitationProfile in invitationProfiles) {
+				await _dbContext.UserAccountProfile.AddAsync(
+					new UserAccountProfile {
+						UserAccountId = account.GetRequiredId(),
+						ProfileId = invitationProfile.ProfileId
+					},
+					cancellationToken
+				);
+			}
+
+			var tenant = await (
+				from t in _dbContext.Tenant
+				where t.Id == tenantId && !t.IsDeleted
+				select t
+			).FirstOrDefaultAsync(cancellationToken);
+
+			if (tenant is null) {
+				throw new InvalidOperationException(
+					$"Tenant {tenantId} not found for invitation {invitation.GetRequiredId()}"
+				);
+			}
+
+			if (tenant.IsPending() && !tenant.IsSuspended()) {
+				tenant.Status = TenantStatus.Active;
+				tenant.UpdatedAt = DateTime.UtcNow;
+			}
+
+			invitation.Status = InvitationStatus.Accepted;
+			invitation.AcceptedAt = DateTime.UtcNow;
+			await _dbContext.SaveChangesAsync(cancellationToken);
+
+			await tx.CommitAsync(cancellationToken);
+
+			if (_logger.IsEnabled(LogLevel.Information)) {
+				_logger.LogInformation(
+					"Tenant invitation accepted by existing user {UserId} in tenant {TenantId} with AccountLevel {AccountLevel} and {ProfileCount} profiles from invitation {InvitationId}",
+					userId,
 					tenantId,
 					accountLevel,
 					invitationProfiles.Count,
@@ -789,8 +1261,7 @@ public class InvitationService : IInvitationService {
 			from inv in _dbContext.Invitation.AsNoTracking()
 			where normalizedEmails.Contains(inv.Email)
 				&& inv.Scope == scope
-				&& inv.IsAccepted == false
-				&& inv.IsRevoked == false
+				&& inv.Status == InvitationStatus.Pending
 				&& inv.ExpiresAt > DateTime.UtcNow
 			select inv.Email
 		).ToListAsync(cancellationToken);
@@ -814,10 +1285,11 @@ public class InvitationService : IInvitationService {
 	}
 
 	public async Task<List<(string Email, string Token)>> BulkCreateStaffInvitationsAsync(
-		List<BulkStaffInvitationItem> invitations,
-		Guid invitedByUserId,
+		BulkCreateStaffInvitationsArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		var invitations = args.Invitations;
+		var invitedByUserId = args.InvitedByUserId;
 		await using var tx = await _dbContext.Database
 			.BeginTransactionAsync(cancellationToken);
 		try {
@@ -873,7 +1345,7 @@ public class InvitationService : IInvitationService {
 		CancellationToken cancellationToken = default
 	) {
 		var invitation = await _dbContext.Invitation
-			.FindAsync(new object[] { invitationId }, cancellationToken);
+			.FindAsync([invitationId], cancellationToken);
 
 		if (invitation is null) {
 			if (_logger.IsEnabled(LogLevel.Warning)) {
@@ -885,7 +1357,7 @@ public class InvitationService : IInvitationService {
 			return;
 		}
 
-		if (invitation.IsAccepted) {
+		if (invitation.IsAccepted()) {
 			if (_logger.IsEnabled(LogLevel.Information)) {
 				_logger.LogInformation(
 					"Invitation {InvitationId} is already accepted; no-op",
@@ -895,7 +1367,7 @@ public class InvitationService : IInvitationService {
 			return;
 		}
 
-		invitation.IsAccepted = true;
+		invitation.Status = InvitationStatus.Accepted;
 		invitation.AcceptedAt = DateTime.UtcNow;
 
 		await _dbContext.SaveChangesAsync(cancellationToken);
@@ -905,19 +1377,44 @@ public class InvitationService : IInvitationService {
 		}
 	}
 
-	private class SortFieldHandler {
-		public Func<Guid, Task<object?>> GetCursorValue { get; }
-		public Func<IQueryable<Invitation>, object?, bool, IQueryable<Invitation>> ApplyFilter { get; }
-		public Func<IQueryable<Invitation>, bool, IQueryable<Invitation>> ApplyOrdering { get; }
-
-		public SortFieldHandler(
-			Func<Guid, Task<object?>> getCursorValue,
-			Func<IQueryable<Invitation>, object?, bool, IQueryable<Invitation>> applyFilter,
-			Func<IQueryable<Invitation>, bool, IQueryable<Invitation>> applyOrdering
-		) {
-			GetCursorValue = getCursorValue;
-			ApplyFilter = applyFilter;
-			ApplyOrdering = applyOrdering;
+	private async Task<RevokeInvitationForStaffResult> RevokeInvitationInternalAsync(
+		Invitation? invitation,
+		Guid invitationId,
+		CancellationToken cancellationToken
+	) {
+		if (invitation is null) {
+			return new RevokeInvitationForStaffResult.NotFound();
 		}
+
+		if (invitation.IsRevoked()) {
+			if (_logger.IsEnabled(LogLevel.Information)) {
+				_logger.LogInformation(
+					"Invitation {InvitationId} is already revoked; no-op",
+					invitationId
+				);
+			}
+			return new RevokeInvitationForStaffResult.Success();
+		}
+
+		if (invitation.IsAccepted()) {
+			if (_logger.IsEnabled(LogLevel.Warning)) {
+				_logger.LogWarning(
+					"Attempt to revoke accepted invitation {InvitationId} blocked",
+					invitationId
+				);
+			}
+			return new RevokeInvitationForStaffResult.AlreadyAccepted();
+		}
+
+		invitation.Status = InvitationStatus.Revoked;
+		invitation.RevokedAt = DateTime.UtcNow;
+
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		if (_logger.IsEnabled(LogLevel.Information)) {
+			_logger.LogInformation("Revoked invitation {InvitationId}", invitationId);
+		}
+
+		return new RevokeInvitationForStaffResult.Success();
 	}
 }

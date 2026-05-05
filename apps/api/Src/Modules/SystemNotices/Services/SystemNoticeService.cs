@@ -24,16 +24,20 @@ public record UpdateSystemNoticeArgs(
 	PatchField<DateTime?> ExpiresAt
 );
 
+public record FindSystemNoticesArgs(
+	Guid Cursor,
+	int? Limit,
+	string? SortId,
+	SortOrder? SortOrder
+);
+
 public interface ISystemNoticeService {
 	Task<SystemNotice> CreateAsync(
 		CreateSystemNoticeArgs args,
 		CancellationToken cancellationToken = default);
 
 	Task<FindSystemNoticesResult> FindAsync(
-		Guid cursor,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
+		FindSystemNoticesArgs args,
 		CancellationToken cancellationToken = default);
 
 	Task<SystemNotice?> GetByIdAsync(
@@ -131,23 +135,23 @@ public class SystemNoticeService : ISystemNoticeService {
 	}
 
 	public async Task<FindSystemNoticesResult> FindAsync(
-		Guid cursor,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
+		FindSystemNoticesArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var effectiveLimit = limit
+		var cursor = args.Cursor;
+		var effectiveLimit = args.Limit
 			?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
-		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-		var effectiveSortId = (sortId ?? "created_at")
-			.ToLowerInvariant();
+		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
+		var effectiveSortId = args.SortId ?? "created_at";
 
 		var sortFieldHandlers =
-			new Dictionary<string, SortFieldHandler> {
-				["created_at"] = new SortFieldHandler(
+			new Dictionary<string, CursorSortFieldHandler<SystemNotice>>(
+				StringComparer.OrdinalIgnoreCase
+			) {
+				["created_at"] = new CursorSortFieldHandler<SystemNotice>(
 				getCursorValue: async (guid) => {
 					var notice = await _dbContext.SystemNotice
+						.AsNoTracking()
 						.Where(n => n.Id == guid
 							&& n.IsDeleted == false)
 						.Select(n => new { n.CreatedAt, n.Id })
@@ -178,9 +182,10 @@ public class SystemNoticeService : ISystemNoticeService {
 					: q.OrderByDescending(n => n.CreatedAt)
 						.ThenByDescending(n => n.Id)
 			),
-				["starts_at"] = new SortFieldHandler(
+				["starts_at"] = new CursorSortFieldHandler<SystemNotice>(
 				getCursorValue: async (guid) => {
 					var notice = await _dbContext.SystemNotice
+						.AsNoTracking()
 						.Where(n => n.Id == guid
 							&& n.IsDeleted == false)
 						.Select(n => new { n.StartsAt, n.Id })
@@ -211,9 +216,10 @@ public class SystemNoticeService : ISystemNoticeService {
 					: q.OrderByDescending(n => n.StartsAt)
 						.ThenByDescending(n => n.Id)
 			),
-				["severity"] = new SortFieldHandler(
+				["severity"] = new CursorSortFieldHandler<SystemNotice>(
 				getCursorValue: async (guid) => {
 					var notice = await _dbContext.SystemNotice
+						.AsNoTracking()
 						.Where(n => n.Id == guid
 							&& n.IsDeleted == false)
 						.Select(n => new { n.Severity, n.Id })
@@ -247,7 +253,7 @@ public class SystemNoticeService : ISystemNoticeService {
 			};
 
 		if (!sortFieldHandlers.TryGetValue(
-			effectiveSortId, out SortFieldHandler? handler
+			effectiveSortId, out CursorSortFieldHandler<SystemNotice>? handler
 		)) {
 			return new FindSystemNoticesResult.InvalidSortId(
 				effectiveSortId
@@ -255,6 +261,7 @@ public class SystemNoticeService : ISystemNoticeService {
 		}
 
 		var query = _dbContext.SystemNotice
+			.AsNoTracking()
 			.Where(n => n.IsDeleted == false && n.Id != null);
 
 		if (cursor != Guid.Empty) {
@@ -413,37 +420,4 @@ public class SystemNoticeService : ISystemNoticeService {
 			.ToListAsync(cancellationToken);
 	}
 
-	private class SortFieldHandler {
-		public Func<Guid, Task<object?>> GetCursorValue { get; }
-		public Func<
-			IQueryable<SystemNotice>,
-			object?,
-			bool,
-			IQueryable<SystemNotice>
-		> ApplyFilter { get; }
-		public Func<
-			IQueryable<SystemNotice>,
-			bool,
-			IQueryable<SystemNotice>
-		> ApplyOrdering { get; }
-
-		public SortFieldHandler(
-			Func<Guid, Task<object?>> getCursorValue,
-			Func<
-				IQueryable<SystemNotice>,
-				object?,
-				bool,
-				IQueryable<SystemNotice>
-			> applyFilter,
-			Func<
-				IQueryable<SystemNotice>,
-				bool,
-				IQueryable<SystemNotice>
-			> applyOrdering
-		) {
-			GetCursorValue = getCursorValue;
-			ApplyFilter = applyFilter;
-			ApplyOrdering = applyOrdering;
-		}
-	}
 }

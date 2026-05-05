@@ -1,7 +1,8 @@
 import { useSuspenseQueries } from '@tanstack/react-query';
 import * as cookie from 'cookie';
 import i18next from 'i18next';
-import _ from 'lodash';
+import get from 'lodash/get';
+import toStr from 'lodash/toString';
 import { type ReactNode, Suspense, useEffect } from 'react';
 import { Outlet, redirect } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
@@ -14,38 +15,34 @@ import {
 	REDIRECT_CODE,
 } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+
 import {
 	NotFoundView,
 	View403,
 	View500,
 	ViewTenantSuspended,
-} from '@/front/components/error';
-import { SplashScreen } from '@/front/components/loading-screen';
-import type { SettingsState } from '@/front/components/settings';
-import { toast } from '@/front/components/snackbar';
-import { useTenantParam } from '@/front/hooks/use-tenant-param';
-import { toApiFailure } from '@/front/lib/api-failure';
+} from '#app/components/error/index.ts';
+import { SplashScreen } from '#app/components/loading-screen/index.ts';
+import type { SettingsState } from '#app/components/settings/index.ts';
+import { toast } from '#app/components/snackbar/index.ts';
+import { toApiFailure } from '#app/lib/api-failure/index.ts';
 import {
 	SIDEBAR_COOKIE_MAX_AGE,
 	SIDEBAR_COOKIE_NAME,
-} from '@/front/lib/constants';
-import { logout, resetLogoutFlag } from '@/front/lib/cookies/logout.utils';
+} from '#app/lib/constants.ts';
+import { logout, resetLogoutFlag } from '#app/lib/cookies/logout.utils.ts';
 import {
 	getSessionCookieFromClient,
 	getSessionTokensFromClient,
-} from '@/front/lib/cookies/session-cookie.utils';
-import { getClientManager } from '@/front/lib/js-client/client-manager';
-import {
-	useGetTenantAuthData,
-	useGetUserAuthData,
-} from '@/front/lib/react-query/features/common/auth.hooks';
+} from '#app/lib/cookies/session-cookie.utils.ts';
+import { getClientManager } from '#app/lib/js-client/client-manager.ts';
+import { useGetUserAuthData } from '#app/lib/react-query/features/common/auth.hooks.ts';
 import {
 	resetAuthLogoutFlag,
 	resetTenantSuspendedFlag,
-	setCurrentUserIdForTenantHint,
-} from '@/front/lib/react-query/query-client';
-import { getClientLoader } from '@/front/lib/react-router/client-data';
-import { useMainStore } from '@/front/lib/zustand/store';
+} from '#app/lib/react-query/query-client.tsx';
+import { getClientLoader } from '#app/lib/react-router/client-data.ts';
+import { useMainStore } from '#app/lib/zustand/store.ts';
 
 import type { Route } from './+types/authed-layout';
 
@@ -128,7 +125,7 @@ export const clientLoader = getClientLoader({
 		}
 
 		const browserCookies = cookie.parse(document.cookie);
-		const sideBarCookie = _.get(browserCookies, SIDEBAR_COOKIE_NAME);
+		const sideBarCookie = get(browserCookies, SIDEBAR_COOKIE_NAME);
 
 		// Initialize zustand navLayout state
 		useMainStore.setState((root) => {
@@ -138,7 +135,7 @@ export const clientLoader = getClientLoader({
 				'horizontal',
 			];
 
-			let state = _.toString(sideBarCookie);
+			let state = toStr(sideBarCookie);
 
 			if (!allowedStates.includes(state as never)) {
 				state = allowedStates[0];
@@ -157,21 +154,10 @@ export const clientLoader = getClientLoader({
 });
 
 const AuthQueriesLoader = ({ children }: { children: ReactNode }) => {
-	const tenantId = useTenantParam();
-
-	// Build queries array - only include tenant auth if we have a tenantId
 	const queries = [useGetUserAuthData.getOptions({})];
 
-	if (tenantId) {
-		queries.push(useGetTenantAuthData.getOptions({ tenantId }));
-	}
-
 	// trigger the queries in parallel
-	const results = useSuspenseQueries({ queries });
-
-	// Extract user ID from auth data for tenant-suspended handling
-	const userAuthData = results[0]?.data as { id?: string } | undefined;
-	const userId = userAuthData?.id;
+	useSuspenseQueries({ queries });
 
 	// Session is valid - reset all logout/auth flags on mount
 	// This ensures flags don't stay stuck after SPA navigation (no page reload)
@@ -181,14 +167,6 @@ const AuthQueriesLoader = ({ children }: { children: ReactNode }) => {
 		resetTenantSuspendedFlag();
 		resetLogoutFlag();
 	}, []);
-
-	// Set current user ID for tenant hint management (tenant-suspended handling)
-	// This needs to run after auth data is loaded so the global handler can clear the hint
-	useEffect(() => {
-		if (userId) {
-			setCurrentUserIdForTenantHint(userId);
-		}
-	}, [userId]);
 
 	// Show toast when redirected with org-suspended notice
 	useEffect(() => {

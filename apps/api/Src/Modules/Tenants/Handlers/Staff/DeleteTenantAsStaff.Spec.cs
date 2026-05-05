@@ -2,9 +2,11 @@ namespace MainApi.Src.Modules.Tenants.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 using FluentAssertions;
 
+using MainApi.Src.Data.DbContext;
 using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
@@ -12,15 +14,22 @@ using MainApi.Src.Lib.Routes;
 using MainApi.Src.Lib.Testing.Fixtures;
 using MainApi.Src.Lib.Testing.Helpers;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Modules.AuditLogs.Entities;
+using MainApi.Src.Modules.Tenants.Entities;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
 public sealed class DeleteTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
 	public DeleteTenantAsStaffSpec(ApiFixture fixture) {
+		_fixture = fixture;
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);
 	}
@@ -85,6 +94,58 @@ public sealed class DeleteTenantAsStaffSpec
 
 		getResponse.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldPersistSoftDeleteStateAndWriteAuditLog() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seededTenant =
+			await SeedTenantAsync(
+				"Tenant Delete Audit",
+				TenantStatus.Suspended
+			);
+
+		using var response =
+			await TenantTestHelper.DeleteTenantAsync(
+				_http,
+				staffToken,
+				seededTenant.TenantId
+			);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var deletedTenant = await GetTenantIgnoringFiltersAsync(
+			seededTenant.TenantId
+		);
+		deletedTenant.Should().NotBeNull();
+		if (deletedTenant is null) {
+			throw new InvalidOperationException(
+				"Deleted tenant row could not be loaded."
+			);
+		}
+		deletedTenant.IsDeleted.Should().BeTrue();
+		deletedTenant.DeletedAt.Should().NotBeNull();
+		deletedTenant.Status.Should()
+			.Be(TenantStatus.Suspended);
+
+		var auditLog = await GetLatestAuditLogAsync(
+			AuditActions.TenantDeleted,
+			seededTenant.TenantId
+		);
+		auditLog.Should().NotBeNull();
+		if (auditLog is null) {
+			throw new InvalidOperationException(
+				"Tenant delete audit log was not written."
+			);
+		}
+
+		AssertDeleteAuditDetails(
+			auditLog,
+			expectedTenantName: seededTenant.Name
+		);
 	}
 
 	[Fact]
@@ -272,4 +333,89 @@ public sealed class DeleteTenantAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
 	}
+
+	private async Task<SeededTenantSnapshot> SeedTenantAsync(
+		string namePrefix,
+		TenantStatus status
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<MainApiDbContext>();
+
+		var tenant = new Tenant {
+			Name = $"{namePrefix} {Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = status,
+			MaxUsers = 10,
+		};
+
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+
+		return new SeededTenantSnapshot(
+			TenantId: tenant.GetRequiredId(),
+			Name: tenant.Name
+		);
+	}
+
+	private async Task<Tenant?> GetTenantIgnoringFiltersAsync(
+		Guid tenantId
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<MainApiDbContext>();
+
+		var query =
+			from tenant in dbContext.Tenant.IgnoreQueryFilters()
+			where tenant.Id == tenantId
+			select tenant;
+
+		return await query.FirstOrDefaultAsync();
+	}
+
+	private async Task<AuditLog?> GetLatestAuditLogAsync(
+		string action,
+		Guid targetId
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<MainApiDbContext>();
+
+		var query =
+			from log in dbContext.AuditLog
+			where log.Action == action
+				&& log.TargetId == targetId
+			orderby log.CreatedAt descending
+			select log;
+
+		return await query.FirstOrDefaultAsync();
+	}
+
+	private static void AssertDeleteAuditDetails(
+		AuditLog auditLog,
+		string expectedTenantName
+	) {
+		auditLog.Details.Should().NotBeNull();
+		if (auditLog.Details is null) {
+			throw new InvalidOperationException(
+				"Tenant delete audit log details were empty."
+			);
+		}
+
+		using var document = JsonDocument.Parse(
+			auditLog.Details
+		);
+		var details = document.RootElement;
+
+		details.GetProperty("TenantName").GetString()
+			.Should().Be(expectedTenantName);
+	}
+
+	private sealed record SeededTenantSnapshot(
+		Guid TenantId,
+		string Name
+	);
 }

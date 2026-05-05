@@ -44,6 +44,33 @@ public sealed class PasswordLoginSpec
 
 	[Fact]
 	public async Task
+	ItShouldReturnSessionTokenWithMixedCaseEmail() {
+		var mixedCaseEmail = TestConstants.StaffAdminEmail
+			.Replace("staff", "StAfF", StringComparison.Ordinal)
+			.Replace("admin", "AdMiN", StringComparison.Ordinal)
+			.Replace("example", "ExAmPlE", StringComparison.Ordinal);
+
+		var loginRequest = new {
+			email = mixedCaseEmail,
+			password = TestConstants.SeedPassword
+		};
+
+		using var response = await _http.PostAsJsonAsync(
+			Routes.Auth.Login,
+			loginRequest
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<LoginResponse>();
+		result.Should().NotBeNull();
+		result!.SessionToken.Should().NotBeNullOrEmpty();
+		result.UserId.Should().NotBeEmpty();
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnBadRequestWithInvalidPassword() {
 		var loginRequest = new {
 			email = TestConstants.StaffAdminEmail,
