@@ -76,8 +76,7 @@ public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAs
 				RuleFor(x => x.MaxUsers)
 					.Must(m => {
 						if (m.ValueKind != JsonValueKind.Number) return true;
-						var value = m.GetInt32();
-						return value > 0;
+						return m.TryGetInt32(out var value) && value > 0;
 					})
 					.WithMessage("MaxUsers must be greater than 0 when provided");
 			});
@@ -98,9 +97,15 @@ public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAs
 				}
 
 				var body = context.InstanceToValidate as CreateTenantAsStaffBody;
-				var maxUsers = body?.MaxUsers.ValueKind == JsonValueKind.Number
-					? body.MaxUsers.GetInt32()
-					: AppEnvironment.Instance.DEFAULT_MAX_USERS_PER_TENANT;
+				// Invalid numeric tokens are reported by the MaxUsers rule above; avoid
+				// throwing here while validating the independent InitialUsers rule.
+				var maxUsers = AppEnvironment.Instance.DEFAULT_MAX_USERS_PER_TENANT;
+				if (
+					body?.MaxUsers.ValueKind == JsonValueKind.Number &&
+					body.MaxUsers.TryGetInt32(out var parsedMaxUsers)
+				) {
+					maxUsers = parsedMaxUsers;
+				}
 
 				if (array.Count > maxUsers) {
 					context.AddFailure(
