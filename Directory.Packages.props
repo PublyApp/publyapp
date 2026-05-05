@@ -27,6 +27,7 @@
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <!-- Security packages -->
     <PackageVersion Include="NetEscapades.AspNetCore.SecurityHeaders" Version="1.2.0" />
+    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.7" />
 
     <!-- Testing packages -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
