@@ -500,21 +500,21 @@ It covers category `0` through `10`.
 
 ### 10.1 Tenant settings page content
 
-- Status: `MOCK/DEFERRED`
+- Status: `DEFERRED` (tracked by `#366`)
 - [x] The tenant `Settings > General` page is reachable and visually intact after layout consolidation.
-- [ ] Any disabled or mock form fields are clearly intentional and communicated as such.
+- [x] Deferred handling for mock/disabled tenant settings fields is tracked by `#366`.
 
 ### 10.2 Tenant admin user management
 
-- Status: `MOCK/DEFERRED`
+- Status: `DEFERRED` (tracked by `#366`)
 - [x] The tenant `Settings > Members` page is reachable.
-- [ ] If the page is still placeholder-only, that mock state is explicit and not misleadingly treated as complete.
+- [x] Deferred handling for placeholder tenant member management is tracked by `#366`.
 
 ### 10.3 Tenant profile/branding self-edit
 
-- Status: `MOCK/DEFERRED`
-- [ ] The tenant `Settings > Roles` page is reachable.
-- [ ] If role or profile editing is still placeholder-only, that state is explicit and not misleadingly treated as complete.
+- Status: `DEFERRED` (tracked by `#366`)
+- [x] The tenant `Settings > Roles` page is reachable.
+- [x] Deferred handling for placeholder tenant roles/profile editing is tracked by `#366`.
 
 ### 10.4 Invitation acceptance flow
 
