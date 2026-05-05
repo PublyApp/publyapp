@@ -50,11 +50,8 @@ public class Program {
 		app.MapInvitationEndpointsAnonymous();
 		app.MapSystemNoticeEndpointsAnonymous();
 
-		app.MapAuthEndpoints();
-		app.MapInvitationEndpointsAnonymous();
-		app.MapSystemNoticeEndpointsAnonymous();
-
-		var staffGroup = app.MapGroup(RoutePath.Staff.Root)
+		// Apply filters to route groups (in order of execution)
+		var staffGroup = app.MapGroup(Routes.Staff.Root)
 			.WithCheckSessionHeader()         // 1. Check session header
 			.WithSessionAuthentication()      // 2. Authenticate session
 			.WithStaffAuthorization();        // 3. Verify staff account
@@ -79,16 +76,8 @@ public class Program {
 		// TODO: once we have a tenant endpoint, we can remove this
 		tenantGroup.MapGet("/test", () => "Hello, World!");
 
-		// Staff endpoints
-		staffGroup.MapUserEndpointsForStaff();
-		staffGroup.MapUserEndpointsForTenantAsStaff();
-		staffGroup.MapInvitationEndpointsForStaff();
-		staffGroup.MapInvitationEndpointsForTenantAsStaff();
-		staffGroup.MapPermissionEndpointsForStaff();
-		staffGroup.MapProfileEndpointsForStaff();
-		staffGroup.MapTenantEndpointsForStaff();
-		staffGroup.MapSystemNoticeEndpointsForStaff();
-		staffGroup.MapAuditLogEndpointsForStaff();
+		app.MapHealthChecks("/health");
+		app.MapNotFoundRoute();
 
 		app.Run();
 	}

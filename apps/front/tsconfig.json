@@ -24,6 +24,18 @@
 		"declaration": false,
 		"typeRoots": ["./node_modules/@types"] // comment if using bun (or any other hoisted package manager)
 	},
-	"include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-	"exclude": ["node_modules"]
+	"include": [
+		"**/*",
+		"**/.server/**/*",
+		"**/.client/**/*",
+		".react-router/types/**/*",
+		// ====
+		"@types",
+		"src",
+		"server"
+		// ====
+		// "../server/@types"
+		// "../../node_modules/simplebar-react/dist/index.d.ts"
+	],
+	"exclude": ["node_modules", "dist", "build", "public"]
 }

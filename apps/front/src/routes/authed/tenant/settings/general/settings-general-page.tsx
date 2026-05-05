@@ -13,39 +13,6 @@ import { FormRow } from '#app/components/settings/form-row.tsx';
 import { SettingsPageHeader } from '#app/components/settings/settings-page-header.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
-// Horizontal form row component for consistent layout
-const FormRow = ({
-	label,
-	description,
-	children,
-}: {
-	label: string;
-	description?: string;
-	children: React.ReactNode;
-}) => (
-	<Box
-		sx={{
-			display: 'grid',
-			gridTemplateColumns: { xs: '1fr', md: '240px 1fr' },
-			gap: { xs: 1.5, md: 3 },
-			alignItems: 'flex-start',
-			py: 2,
-		}}
-	>
-		<Box>
-			<Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
-				{label}
-			</Typography>
-			{description && (
-				<Typography variant="caption" sx={{ color: 'text.secondary' }}>
-					{description}
-				</Typography>
-			)}
-		</Box>
-		<Box>{children}</Box>
-	</Box>
-);
-
 const SettingsGeneralPage = () => {
 	const { t } = useTranslate();
 

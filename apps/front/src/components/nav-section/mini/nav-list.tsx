@@ -48,7 +48,6 @@ export function NavList({
 		if (openRef.current) {
 			onCloseRef.current();
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [pathname]);
 
 	const handleOpenMenu = useCallback(() => {

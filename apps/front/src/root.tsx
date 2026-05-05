@@ -34,14 +34,6 @@ import {
 	SettingsDrawer,
 } from '#app/components/settings/index.ts';
 
-import { NotFoundView, View403, View500 } from '#app/components/error/index.ts';
-import {
-	COLOR_SCHEME_STORAGE_KEY,
-	defaultSettings,
-	SETTINGS_STORAGE_KEY,
-	SettingsDrawer,
-} from '#app/components/settings/index.ts';
-
 import './styles/main.css';
 import type { Route } from './+types/root';
 import { MotionLazy } from './components/animate/motion-lazy';

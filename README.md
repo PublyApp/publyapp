@@ -120,13 +120,6 @@ just db-migrate
 
 ### 4. Environment Variables
 
-```bash
-just db-migrate
-# Or: cd apps/api && dotnet ef database update
-```
-
-### 4. Environment Variables
-
 The project uses `.env.development` for local development. Key variables:
 
 ```env

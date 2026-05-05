@@ -1,8 +1,4 @@
 using MainApi.Src.Data.DbContext;
-using MainApi.Src.Features.Common.Account;
-using MainApi.Src.Features.Common.Invitation;
-using MainApi.Src.Features.Common.Permission;
-using MainApi.Src.Features.Common.Profile;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.DI;
 using MainApi.Src.Lib.Utils;
@@ -12,9 +8,8 @@ using MainApi.Src.Modules.Profiles.Entities;
 using MainApi.Src.Modules.Users.Entities;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
-namespace MainApi.Src.Features.Staff.ProfileAsStaff;
+namespace MainApi.Src.Modules.Profiles.Services;
 
 public class StaffProfileItem {
 	public Guid Id { get; set; }
@@ -427,26 +422,17 @@ public interface IProfileAsStaffService {
 		UnassignStaffProfileUsersArgs args,
 		CancellationToken cancellationToken = default
 	);
-
-	Task<DeleteStaffProfileServiceResult> DeleteStaffProfileAsync(
-		Guid profileId,
-		CancellationToken cancellationToken = default
-	);
-
-	Task<UnassignStaffProfileUsersServiceResult> UnassignStaffProfileUsersAsync(
-		UnassignStaffProfileUsersArgs args,
-		CancellationToken cancellationToken = default
-	);
 }
 
 [Service(ServiceLifetime.Scoped)]
 public class ProfileAsStaffService : IProfileAsStaffService {
 	private readonly MainApiDbContext _dbContext;
-	private readonly IOptions<AppSettings> _appSettings;
 	private readonly ILogger<ProfileAsStaffService> _logger;
-	public ProfileAsStaffService(MainApiDbContext dbContext, IOptions<AppSettings> appSettings, ILogger<ProfileAsStaffService> logger) {
+	public ProfileAsStaffService(
+		MainApiDbContext dbContext,
+		ILogger<ProfileAsStaffService> logger
+	) {
 		_dbContext = dbContext;
-		_appSettings = appSettings;
 		_logger = logger;
 	}
 

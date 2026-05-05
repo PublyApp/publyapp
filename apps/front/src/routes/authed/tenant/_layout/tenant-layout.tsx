@@ -86,24 +86,6 @@ const TenantLayout = () => {
 			],
 		},
 		{
-			subheader: t('settings'),
-			collapsible: false,
-			items: [
-				{
-					title: t('settings'),
-					path: tenantPaths.settings.root,
-					icon: ICONS.settings,
-					deepActiveMatch: true,
-				},
-				{
-					title: t('history'),
-					path: FRONT_PATH_NAMES.tenant(tenantId).posts.history,
-					icon: ICONS.history,
-					deepActiveMatch: false,
-				},
-			],
-		},
-		{
 			subheader: t('others'),
 			collapsible: false,
 			items: [

@@ -341,10 +341,6 @@ namespace MainApi.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
-                    b.Property<bool>("IsDefault")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_default");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text")

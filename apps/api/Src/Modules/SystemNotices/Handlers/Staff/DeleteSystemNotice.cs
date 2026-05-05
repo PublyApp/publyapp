@@ -38,13 +38,6 @@ public class DeleteSystemNotice {
 			);
 		}
 
-		if (!Guid.TryParse(noticeId, out var noticeIdGuid)) {
-			return TypedProblems.BadRequest(
-				"Invalid noticeId",
-				ResponseKeys.MalformedId
-			);
-		}
-
 		var deleted = await systemNoticeService.DeleteAsync(
 			noticeIdGuid, cancellationToken
 		);

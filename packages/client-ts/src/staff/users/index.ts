@@ -10,12 +10,6 @@ import { BulkReactivateRequestBuilderRequestsMetadata, type BulkReactivateReques
 // @ts-ignore
 import { BulkSuspendRequestBuilderRequestsMetadata, type BulkSuspendRequestBuilder } from './bulkSuspend/index.js';
 // @ts-ignore
-import { BulkDeleteRequestBuilderRequestsMetadata, type BulkDeleteRequestBuilder } from './bulkDelete/index.js';
-// @ts-ignore
-import { BulkReactivateRequestBuilderRequestsMetadata, type BulkReactivateRequestBuilder } from './bulkReactivate/index.js';
-// @ts-ignore
-import { BulkSuspendRequestBuilderRequestsMetadata, type BulkSuspendRequestBuilder } from './bulkSuspend/index.js';
-// @ts-ignore
 import { type WithUserItemRequestBuilder, WithUserItemRequestBuilderNavigationMetadata, WithUserItemRequestBuilderRequestsMetadata } from './item/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';

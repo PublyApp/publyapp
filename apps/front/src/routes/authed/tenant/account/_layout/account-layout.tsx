@@ -16,16 +16,6 @@ import { useTenantParam } from '#app/hooks/use-tenant-param.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
-import type { SettingsNavItem } from '#app/components/settings/settings-nav.tsx';
-import { SidebarSettingsLayout } from '#app/components/settings/sidebar-settings-layout.tsx';
-import { useTenantParam } from '#app/hooks/use-tenant-param.ts';
-import { useTranslate } from '#app/hooks/use-translate.ts';
-import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
-
-import {
-	SettingsNav,
-	type SettingsNavItem,
-} from '../../settings/_layout/settings-nav';
 import type { Route } from './+types/account-layout';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {

@@ -44,7 +44,6 @@ export const NavList = ({
 	openRef.current = open;
 	onCloseRef.current = onClose;
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	useEffect(() => {
 		// If the pathname changes, close the menu
 		if (openRef.current) {

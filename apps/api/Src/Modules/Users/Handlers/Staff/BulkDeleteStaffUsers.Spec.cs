@@ -583,10 +583,6 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 		public Guid ProfileId { get; init; }
 	}
 
-	private sealed record StaffProfileCreatedResponse {
-		public Guid ProfileId { get; init; }
-	}
-
 	private sealed record BulkStaffUserActionResponse {
 		public int SucceededCount { get; init; }
 		public int FailedCount { get; init; }

@@ -1,15 +1,16 @@
 using System.Linq.Expressions;
-using MainApi.Src.Features.Common.Account;
-using MainApi.Src.Features.Common.Profile;
-using MainApi.Src.Features.Common.Permission;
-using MainApi.Src.Features.Common.Project;
-using MainApi.Src.Features.Common.Session;
-using MainApi.Src.Features.Common.Tenant;
-using MainApi.Src.Features.Common.User;
-using MainApi.Src.Features.Common.Invitation;
-using MainApi.Src.Features.Staff.Audit;
-using MainApi.Src.Features.Staff.Notice;
-using MainApi.Src.Features.Tenant.Product;
+
+using MainApi.Src.Lib;
+using MainApi.Src.Modules.AuditLogs.Entities;
+using MainApi.Src.Modules.Auth.Entities;
+using MainApi.Src.Modules.Invitations.Entities;
+using MainApi.Src.Modules.Permissions.Entities;
+using MainApi.Src.Modules.Profiles.Entities;
+using MainApi.Src.Modules.Projects.Entities;
+using MainApi.Src.Modules.SystemNotices.Entities;
+using MainApi.Src.Modules.Tenants.Entities;
+using MainApi.Src.Modules.Users.Entities;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
@@ -275,103 +276,6 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 				.OnDelete(DeleteBehavior.Restrict);
 		});
 
-		// Database-level account type constraints
-		modelBuilder.Entity<UserAccount>()
-			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Staff_Constraints",
-				"(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0"));
-
-		modelBuilder.Entity<UserAccount>()
-			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Tenant_Constraints",
-				"(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1"));
-
-		modelBuilder.Entity<UserAccount>()
-			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Project_Constraints",
-				"(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2"));
-
-		modelBuilder.Entity<UserAccount>()
-			// AccountStatus is membership-local only. GloballySuspended is a derived read-model
-			// status and must never be stored in user_accounts.status.
-			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Status", "status IN (0, 1)"));
-
-		modelBuilder.Entity<Project>()
-			// Project status is lifecycle state, not soft-delete state. Deleted rows use BaseAttributes.
-			.ToTable(t => t.HasCheckConstraint("CK_Project_Status", "status IN (10, 20)"));
-
-		// Database-level profile type constraints
-		modelBuilder.Entity<Profile>()
-			.ToTable(t => t.HasCheckConstraint("CK_Profile_Staff_Constraints",
-				"(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0"));
-
-		modelBuilder.Entity<Profile>()
-			.ToTable(t => t.HasCheckConstraint("CK_Profile_Tenant_Constraints",
-				"(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1"));
-
-		modelBuilder.Entity<Profile>()
-			.ToTable(t => t.HasCheckConstraint("CK_Profile_Project_Constraints",
-				"(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2"));
-
-		// Database-level invitation scope constraints
-		modelBuilder.Entity<Invitation>()
-			.ToTable(t => t.HasCheckConstraint("CK_Invitation_Staff_Constraints",
-				"(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0"));
-
-		modelBuilder.Entity<Invitation>()
-			.ToTable(t => t.HasCheckConstraint("CK_Invitation_Tenant_Constraints",
-				"(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1"));
-
-		modelBuilder.Entity<Invitation>()
-			.ToTable(t => t.HasCheckConstraint("CK_Invitation_Project_Constraints",
-				"(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2"));
-
-		modelBuilder.Entity<Invitation>()
-			// Expired is derived from Pending + ExpiresAt, so only persisted lifecycle states are allowed.
-			.ToTable(t => t.HasCheckConstraint("CK_Invitation_Status", "status IN (0, 1, 2)"));
-
-		// Database-level permission key prefix constraints
-		modelBuilder.Entity<Permission>()
-			.ToTable(t => t.HasCheckConstraint("CK_Permission_Staff_Key_Prefix",
-				"(scope = 0 AND key LIKE 'staff.%') OR scope != 0"));
-
-		modelBuilder.Entity<Permission>()
-			.ToTable(t => t.HasCheckConstraint("CK_Permission_Tenant_Key_Prefix",
-				"(scope = 1 AND key LIKE 'tenant.%') OR scope != 1"));
-
-		modelBuilder.Entity<Permission>()
-			.ToTable(t => t.HasCheckConstraint("CK_Permission_Project_Key_Prefix",
-				"(scope = 2 AND key LIKE 'project.%') OR scope != 2"));
-
-		// Translations is runtime-only, explicitly exclude from mapping
-		modelBuilder.Entity<Permission>()
-			.Ignore(p => p.Translations);
-
-		// Explicit relationships for Session -> User (two FKs to same principal)
-		modelBuilder.Entity<Session>()
-			.HasOne(s => s.User)
-			.WithMany(u => u.Sessions)
-			.HasForeignKey(s => s.UserId)
-			.IsRequired();
-
-		modelBuilder.Entity<Session>()
-			.HasOne(s => s.ImpersonatingStaffUser)
-			.WithMany()
-			.HasForeignKey(s => s.ImpersonatingStaffUserId)
-			.OnDelete(DeleteBehavior.Restrict);
-
-		// Configure InvitationProfile junction table
-		modelBuilder.Entity<InvitationProfile>(entity => {
-			entity.HasKey(e => new { e.InvitationId, e.ProfileId });
-
-			entity.HasOne(e => e.Invitation)
-				.WithMany(i => i.InvitationProfiles)
-				.HasForeignKey(e => e.InvitationId)
-				.OnDelete(DeleteBehavior.Cascade);
-
-			entity.HasOne(e => e.Profile)
-				.WithMany()
-				.HasForeignKey(e => e.ProfileId)
-				.OnDelete(DeleteBehavior.Restrict);
-		});
-
 		// Partial indexes to favor active rows without enforcing global filters
 		modelBuilder.HasPostgresExtension("pg_trgm");
 
@@ -445,27 +349,6 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.HasDatabaseName("ux_profiles_tenant_name")
 			// Tenant profile names must be unique per tenant across active rows only.
 			.HasFilter("\"scope\" = 1 AND \"is_deleted\" = false");
-
-		modelBuilder.Entity<Profile>()
-			.HasIndex(p => new { p.TenantId, p.Scope, p.IsDefault })
-			.IsUnique()
-			.HasDatabaseName("ux_profiles_tenant_default_profile")
-			// At most one active default tenant profile can exist per tenant.
-			// Soft-deleted defaults are excluded so a replacement default can be created safely.
-			.HasFilter("\"scope\" = 1 AND \"project_id\" IS NULL AND \"is_default\" = true AND \"is_deleted\" = false");
-
-		// Keyset pagination indexes for staff profiles
-		// Supports efficient sorting by Name with Id as tie-breaker
-		modelBuilder.Entity<Profile>()
-			.HasIndex(p => new { p.Scope, p.Name, p.Id })
-			.HasDatabaseName("ix_profiles_staff_name_id")
-			.HasFilter("\"scope\" = 0");
-
-		// Supports efficient sorting by CreatedAt with Id as tie-breaker
-		modelBuilder.Entity<Profile>()
-			.HasIndex(p => new { p.Scope, p.CreatedAt, p.Id })
-			.HasDatabaseName("ix_profiles_staff_created_at_id")
-			.HasFilter("\"scope\" = 0");
 
 		modelBuilder.Entity<Profile>()
 			.HasIndex(p => new { p.TenantId, p.Scope, p.IsDefault })

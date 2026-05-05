@@ -178,15 +178,6 @@ cursor-paginated `GET /staff/users` contract plus the existing
 - [x] Call the next page using the returned `nextCursor`.
 - [x] Confirm the next page continues correctly without duplicates from the previous page.
 
-### Canonical Staff Users Endpoint Used By The Drawer
-
-- [x] In Scalar: call `GET /staff/users?limit=20&sort_id=created_at&sort_order=desc`.
-- [x] Confirm the response uses the canonical cursor contract: `data[]` + `nextCursor`.
-- [x] Call `GET /staff/users?q=<email_part>&limit=20&sort_id=created_at&sort_order=desc`.
-- [x] Confirm `q` filters by name/email on the server.
-- [x] Call the next page using the returned `nextCursor`.
-- [x] Confirm the next page continues correctly without duplicates from the previous page.
-
 ## Permission Enforcement (Backend)
 
 ### Endpoint Access Controls

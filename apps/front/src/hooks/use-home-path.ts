@@ -4,8 +4,6 @@ import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { getSessionTokensFromClient } from '#app/lib/cookies/session-cookie.utils.ts';
 
-import { getSessionTokensFromClient } from '#app/lib/cookies/session-cookie.utils.ts';
-
 export const useHomePath = () => {
 	const location = useLocation();
 

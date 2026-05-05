@@ -58,8 +58,6 @@ const TENANT_STATUS_COLOR_MAP = {
 	Pending: 'default',
 } as const;
 
-import type { TenantDetailsOutletContext } from '../_layout/tenant-details-layout';
-
 const updateTenantSchema = z.object({
 	name: z.string().min(5),
 	maxUsers: z.coerce.number().int().positive(),
@@ -746,16 +744,7 @@ const ErrorView: FC<{
 }> = ({ error, query }) => {
 	const { t } = useTranslate();
 
-	// if (error instanceof ParseRestError) {
-	// 	if (error.code === X_CODE.USER_NOT_FOUND) {
-	// 		return (
-	// 			<NotFoundView
-	// 				withLayout={false}
-	// 				title={t('item-not-found', { item: t('user') })}
-	// 				description={t('user-not-found-description')}
-	// 			/>
-	// 		);
-	// 	}
+	const failure = toApiFailure(error);
 
 	if (
 		isProblemFailure(failure) &&

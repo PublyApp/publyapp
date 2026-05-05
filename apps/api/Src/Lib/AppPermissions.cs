@@ -1,9 +1,11 @@
-using MainApi.Src.Features.Common.Permission;
-using MainApi.Src.Features.Staff.PermissionAsStaff;
-using MainApi.Src.Features.Staff.ProfileAsStaff;
-using MainApi.Src.Features.Staff.StaffMember;
-using MainApi.Src.Features.Staff.TenantAsStaff;
-using MainApi.Src.Features.Staff.UserAsStaff;
+using MainApi.Src.Modules.AuditLogs.Permissions;
+using MainApi.Src.Modules.Invitations.Permissions;
+using MainApi.Src.Modules.Permissions.Entities;
+using MainApi.Src.Modules.Permissions.Permissions;
+using MainApi.Src.Modules.Profiles.Permissions;
+using MainApi.Src.Modules.SystemNotices.Permissions;
+using MainApi.Src.Modules.Tenants.Permissions;
+using MainApi.Src.Modules.Users.Permissions;
 
 namespace MainApi.Src.Lib;
 

@@ -7,8 +7,6 @@ import { APP_NAME } from '@org/shared-ts/lib/constants';
 
 import { useHomePath } from '#app/hooks/use-home-path.ts';
 
-import { useHomePath } from '#app/hooks/use-home-path.ts';
-
 import { RouterLink } from '../router-link';
 import { logoClasses } from './classes';
 

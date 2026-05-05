@@ -16,7 +16,7 @@ import { ResetPasswordRequestBuilderRequestsMetadata, type ResetPasswordRequestB
 // @ts-ignore
 import { ScopeAuthDataRequestBuilderRequestsMetadata, type ScopeAuthDataRequestBuilder } from './scopeAuthData/index.js';
 // @ts-ignore
-import { ScopeAuthDataRequestBuilderRequestsMetadata, type ScopeAuthDataRequestBuilder } from './scopeAuthData/index.js';
+import { TenantsForPickerRequestBuilderRequestsMetadata, type TenantsForPickerRequestBuilder } from './tenantsForPicker/index.js';
 // @ts-ignore
 import { type UserAuthDataRequestBuilder, UserAuthDataRequestBuilderRequestsMetadata } from './userAuthData/index.js';
 // @ts-ignore
@@ -36,10 +36,6 @@ export interface AuthRequestBuilder extends BaseRequestBuilder<AuthRequestBuilde
      * The checkEmailVerificationToken property
      */
     get checkEmailVerificationToken(): CheckEmailVerificationTokenRequestBuilder;
-    /**
-     * The checkInvitationToken property
-     */
-    get checkInvitationToken(): CheckInvitationTokenRequestBuilder;
     /**
      * The checkResetPasswordToken property
      */
@@ -95,9 +91,6 @@ export const AuthRequestBuilderUriTemplate = "{+baseurl}/auth";
 export const AuthRequestBuilderNavigationMetadata: Record<Exclude<keyof AuthRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     checkEmailVerificationToken: {
         requestsMetadata: CheckEmailVerificationTokenRequestBuilderRequestsMetadata,
-    },
-    checkInvitationToken: {
-        requestsMetadata: CheckInvitationTokenRequestBuilderRequestsMetadata,
     },
     checkResetPasswordToken: {
         requestsMetadata: CheckResetPasswordTokenRequestBuilderRequestsMetadata,

@@ -4,8 +4,6 @@ import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { RouterLink } from '#app/components/router-link.tsx';
 
-import { RouterLink } from '#app/components/router-link.tsx';
-
 // ----------------------------------------------------------------------
 
 export const SignInButton = ({ sx, ...other }: ButtonProps) => {

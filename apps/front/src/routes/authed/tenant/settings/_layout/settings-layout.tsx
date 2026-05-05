@@ -15,11 +15,6 @@ import { SidebarSettingsLayout } from '#app/components/settings/sidebar-settings
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
-import type { SettingsNavItem } from '#app/components/settings/settings-nav.tsx';
-import { SidebarSettingsLayout } from '#app/components/settings/sidebar-settings-layout.tsx';
-import { useTranslate } from '#app/hooks/use-translate.ts';
-import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
-
 import type { Route } from './+types/settings-layout';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {

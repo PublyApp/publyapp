@@ -15,16 +15,6 @@ import {
 } from '#app/lib/react-query/query-client.tsx';
 import { globalNavigate } from '#app/lib/react-router/navigation-helper.ts';
 
-import {
-	ClientManager,
-	getClientManager,
-} from '#app/lib/js-client/client-manager.ts';
-import {
-	getQueryClient,
-	markAuthLogoutInProgress,
-} from '#app/lib/react-query/query-client.tsx';
-import { globalNavigate } from '#app/lib/react-router/navigation-helper.ts';
-
 import { clearSessionCookie } from './session-cookie.utils';
 
 type LogoutOptions = {

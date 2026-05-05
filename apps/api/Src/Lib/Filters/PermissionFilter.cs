@@ -7,8 +7,6 @@ using MainApi.Src.Modules.Users.Entities;
 
 namespace MainApi.Src.Lib.Filters;
 
-namespace MainApi.Src.Lib.Filters;
-
 public class PermissionFilter : IEndpointFilter {
 	private readonly Permission[]? _requiredPermissions;
 	private readonly Func<HashSet<string>, bool>? _customPermissionChecker;

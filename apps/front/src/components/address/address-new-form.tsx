@@ -15,8 +15,6 @@ import { getErrorMessage } from '@org/shared-ts/utils/error.utils';
 
 import type { IAddressItem } from '#app/types/common.ts';
 
-import type { IAddressItem } from '#app/types/common.ts';
-
 import { Field } from '../hook-form/fields';
 import { Form } from '../hook-form/form-provider';
 import { schemaHelper } from '../hook-form/schema-helper';

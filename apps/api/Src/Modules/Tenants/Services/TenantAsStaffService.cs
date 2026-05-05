@@ -62,23 +62,6 @@ public record BulkDeleteResult(
 	List<(Guid TenantId, string Error)> FailedItems
 );
 
-// Result types for bulk operations
-public record BulkSuspendResult(
-	int SucceededCount,
-	int FailedCount,
-	List<(Guid TenantId, string Error)> FailedItems
-);
-public record BulkReactivateResult(
-	int SucceededCount,
-	int FailedCount,
-	List<(Guid TenantId, string Error)> FailedItems
-);
-public record BulkDeleteResult(
-	int SucceededCount,
-	int FailedCount,
-	List<(Guid TenantId, string Error)> FailedItems
-);
-
 // Result types for update/delete operations
 public abstract record UpdateTenantResult {
 	public sealed record Success(Tenant Tenant) : UpdateTenantResult;
@@ -790,103 +773,6 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		}
 
 		return new DeleteTenantResult.Success(tenant);
-	}
-
-	public async Task<BulkSuspendResult> BulkSuspendAsync(
-		IReadOnlyList<Guid> tenantIds,
-		CancellationToken cancellationToken = default
-	) {
-		var failedItems = new List<(Guid TenantId, string Error)>();
-		var succeededCount = 0;
-
-		foreach (var tenantId in tenantIds) {
-			var result = await SuspendTenantAsync(tenantId, cancellationToken);
-
-			if (result is SuspendTenantResult.Success) {
-				succeededCount++;
-				continue;
-			}
-
-			var errorMessage = result switch {
-				SuspendTenantResult.NotFound => "Tenant not found",
-				SuspendTenantResult.AlreadySuspended => "Already suspended",
-				SuspendTenantResult.NotActiveStatus => "Tenant is not active",
-				_ => throw new InvalidOperationException(
-					$"Unknown suspend tenant result: {result.GetType().Name}"
-				)
-			};
-			failedItems.Add((tenantId, errorMessage));
-		}
-
-		return new BulkSuspendResult(
-			SucceededCount: succeededCount,
-			FailedCount: failedItems.Count,
-			FailedItems: failedItems
-		);
-	}
-
-	public async Task<BulkReactivateResult> BulkReactivateAsync(
-		IReadOnlyList<Guid> tenantIds,
-		CancellationToken cancellationToken = default
-	) {
-		var failedItems = new List<(Guid TenantId, string Error)>();
-		var succeededCount = 0;
-
-		foreach (var tenantId in tenantIds) {
-			var result = await ReactivateTenantAsync(tenantId, cancellationToken);
-
-			if (result is ReactivateTenantResult.Success) {
-				succeededCount++;
-				continue;
-			}
-
-			var errorMessage = result switch {
-				ReactivateTenantResult.NotFound => "Tenant not found",
-				ReactivateTenantResult.NotSuspended => "Tenant is not suspended",
-				_ => throw new InvalidOperationException(
-					$"Unknown reactivate tenant result: {result.GetType().Name}"
-				)
-			};
-			failedItems.Add((tenantId, errorMessage));
-		}
-
-		return new BulkReactivateResult(
-			SucceededCount: succeededCount,
-			FailedCount: failedItems.Count,
-			FailedItems: failedItems
-		);
-	}
-
-	public async Task<BulkDeleteResult> BulkDeleteAsync(
-		IReadOnlyList<Guid> tenantIds,
-		CancellationToken cancellationToken = default
-	) {
-		var failedItems = new List<(Guid TenantId, string Error)>();
-		var succeededCount = 0;
-
-		foreach (var tenantId in tenantIds) {
-			var result = await DeleteTenantAsync(tenantId, cancellationToken);
-
-			if (result is DeleteTenantResult.Success) {
-				succeededCount++;
-				continue;
-			}
-
-			var errorMessage = result switch {
-				DeleteTenantResult.NotFound => "Tenant not found",
-				DeleteTenantResult.NotSuspended => "Tenant is not suspended",
-				_ => throw new InvalidOperationException(
-					$"Unknown delete tenant result: {result.GetType().Name}"
-				)
-			};
-			failedItems.Add((tenantId, errorMessage));
-		}
-
-		return new BulkDeleteResult(
-			SucceededCount: succeededCount,
-			FailedCount: failedItems.Count,
-			FailedItems: failedItems
-		);
 	}
 
 	public async Task<BulkSuspendResult> BulkSuspendAsync(

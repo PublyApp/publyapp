@@ -122,15 +122,6 @@ public static class AuthEndpoints {
 			.WithCheckSessionHeader()
 			.WithSessionAuthentication();
 
-		group.MapGet(
-			PathUtils.GetLastSegment(RoutePath.Auth.CheckInvitationToken),
-			CheckInvitationToken.HandleCheckInvitationToken
-		)
-			.WithName("CheckInvitationToken")
-			.WithSummary("Check Invitation Token")
-			.WithReqQueryValidation<CheckInvitationTokenQuery>()
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
-
 		return group;
 	}
 }

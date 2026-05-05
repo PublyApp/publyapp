@@ -157,7 +157,7 @@ const AuthQueriesLoader = ({ children }: { children: ReactNode }) => {
 	const queries = [useGetUserAuthData.getOptions({})];
 
 	// trigger the queries in parallel
-	const results = useSuspenseQueries({ queries });
+	useSuspenseQueries({ queries });
 
 	// Session is valid - reset all logout/auth flags on mount
 	// This ensures flags don't stay stuck after SPA navigation (no page reload)
@@ -167,31 +167,6 @@ const AuthQueriesLoader = ({ children }: { children: ReactNode }) => {
 		resetTenantSuspendedFlag();
 		resetLogoutFlag();
 	}, []);
-
-	// Show toast when redirected with org-suspended notice
-	useEffect(() => {
-		const params = new URLSearchParams(window.location.search);
-		if (
-			params.get(queryParamKey.notice) === queryParamValue.notice.org_suspended
-		) {
-			toast.warning(i18next.t('suspended-tenants-notice', { ns: 'common' }));
-			// Clean up the query param from URL
-			params.delete(queryParamKey.notice);
-			const newUrl =
-				params.size > 0
-					? `${window.location.pathname}?${params}`
-					: window.location.pathname;
-			window.history.replaceState({}, '', newUrl);
-		}
-	}, []);
-
-	// Set current user ID for tenant hint management (tenant-suspended handling)
-	// This needs to run after auth data is loaded so the global handler can clear the hint
-	useEffect(() => {
-		if (userId) {
-			setCurrentUserIdForTenantHint(userId);
-		}
-	}, [userId]);
 
 	// Show toast when redirected with org-suspended notice
 	useEffect(() => {

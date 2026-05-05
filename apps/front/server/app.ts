@@ -16,16 +16,6 @@ import { LogLevelEnum } from '@org/shared-ts/lib/logger/logger.utils';
 
 import { analytics } from '#app/lib/analytics/analytics.ts';
 
-import { analytics } from '#app/lib/analytics/analytics.ts';
-
-declare global {
-	namespace Express {
-		export interface Request {
-			___NONCE___?: string;
-		}
-	}
-}
-
 declare global {
 	namespace Express {
 		export interface Request {

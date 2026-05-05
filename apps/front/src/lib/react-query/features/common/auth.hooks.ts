@@ -7,9 +7,6 @@ import type { VerifyEmailRequestBody } from '@org/client-ts/src/models';
 import { toApiFailure } from '#app/lib/api-failure/index.ts';
 import { setCurrentUserIdForTenantHint } from '#app/lib/react-query/query-client.tsx';
 
-import { toApiFailure } from '#app/lib/api-failure/index.ts';
-import { setCurrentUserIdForTenantHint } from '#app/lib/react-query/query-client.tsx';
-
 import {
 	createAuthMutation,
 	createAuthQuery,

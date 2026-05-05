@@ -1,15 +1,23 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+
 using FluentValidation;
+
 using MainApi.Localization;
-using MainApi.Src.Features.Common.Email;
-using MainApi.Src.Features.Staff.Audit;
+using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
+using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Modules.AuditLogs.Entities;
+using MainApi.Src.Modules.AuditLogs.Services;
+using MainApi.Src.Modules.Profiles.Services;
+
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Src.Features.Staff.ProfileAsStaff.Handlers;
+using Polly;
+
+namespace MainApi.Src.Modules.Profiles.Handlers.Staff;
 
 public record CreateStaffProfileBody {
 	public JsonElement? Name { get; init; }
@@ -54,7 +62,7 @@ public record StaffProfileCreated {
 	public required int InvitationsSent { get; init; }
 }
 
-public partial class CreateStaffProfileBodyValidator
+public class CreateStaffProfileBodyValidator
 	: AbstractValidator<CreateStaffProfileBody> {
 	public CreateStaffProfileBodyValidator() {
 		RuleFor(x => x.Name)
@@ -62,14 +70,44 @@ public partial class CreateStaffProfileBodyValidator
 			.WithMessage("Name is required")
 			.DependentRules(() => {
 				RuleFor(x => x.Name)
-					.Must(e => e!.Value.ValueKind == JsonValueKind.String)
+					.Must(e =>
+						e is not null
+						&& e.Value.ValueKind
+							== JsonValueKind.String)
 					.WithMessage("Name must be a string")
-					.Must(e => !string.IsNullOrWhiteSpace(e!.Value.GetString()))
+					.Must(e => {
+						if (!e.HasValue) {
+							return false;
+						}
+						var str = e.Value.GetString();
+						return !string
+							.IsNullOrWhiteSpace(str);
+					})
 					.WithMessage("Name cannot be empty")
-					.Must(e => e!.Value.GetString()!.Trim().Length >= 2)
-					.WithMessage("Name must be at least 2 characters long")
-					.Must(e => e!.Value.GetString()!.Trim().Length <= 100)
-					.WithMessage("Name must be at most 100 characters long");
+					.Must(e => {
+						if (!e.HasValue) {
+							return false;
+						}
+						var str = e.Value.GetString();
+						return str is not null
+							&& str.Trim().Length >= 2;
+					})
+					.WithMessage(
+						"Name must be at least "
+						+ "2 characters long"
+					)
+					.Must(e => {
+						if (!e.HasValue) {
+							return false;
+						}
+						var str = e.Value.GetString();
+						return str is not null
+							&& str.Trim().Length <= 100;
+					})
+					.WithMessage(
+						"Name must be at most "
+						+ "100 characters long"
+					);
 			});
 
 		RuleFor(x => x.Description)
@@ -86,7 +124,10 @@ public partial class CreateStaffProfileBodyValidator
 			.WithMessage("Permissions is required")
 			.DependentRules(() => {
 				RuleFor(x => x.Permissions)
-					.Must(e => e!.Value.ValueKind == JsonValueKind.Array)
+					.Must(e =>
+						e is not null
+						&& e.Value.ValueKind
+							== JsonValueKind.Array)
 					.WithMessage("Permissions must be an array")
 					.DependentRules(() => {
 						RuleFor(x => x.Permissions)
@@ -143,8 +184,7 @@ public partial class CreateStaffProfileBodyValidator
 		}
 	}
 
-	[GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
-	private static partial Regex EmailRegex();
+	private static readonly Regex EmailRegex = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
 
 	private static bool BeValidEmailList(JsonElement? element) {
 		if (!element.HasValue) return true;
@@ -153,7 +193,7 @@ public partial class CreateStaffProfileBodyValidator
 
 			if (list is null) return false;
 
-			return list.All(email => EmailRegex().IsMatch(email));
+			return list.All(email => EmailRegex.IsMatch(email));
 		} catch {
 			return false;
 		}
@@ -162,10 +202,10 @@ public partial class CreateStaffProfileBodyValidator
 
 public class CreateStaffProfile {
 	public static async Task<Results<
-		Ok<StaffProfileCreated>,
-		BadRequest<ApiResponse>
+		Created<StaffProfileCreated>,
+		AppBadRequestHttpResult
 	>> HandleCreateStaffProfile(
-		[FromServices] IAuthContext authContext,
+		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IProfileAsStaffService profileAsStaffService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
@@ -180,8 +220,12 @@ public class CreateStaffProfile {
 		List<string> emails = body.GetEmails();
 
 		// Get current user ID for audit logging and invitations
-		var currentUserId = authContext.AccountStaff?.UserId
-			?? throw new InvalidOperationException("User ID not found in auth context");
+		if (authContext.AccountStaff is null) {
+			throw new InvalidOperationException(
+				"User ID not found in auth context"
+			);
+		}
+		var currentUserId = authContext.AccountStaff.UserId;
 
 		// Create staff profile via service
 		var args = new CreateStaffProfileArgs(
@@ -198,47 +242,37 @@ public class CreateStaffProfile {
 
 		// Handle different result types
 		if (result is CreateStaffProfileResult.ProfileNameExists) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create(
-					"Profile name already exists",
-					ResponseKeys.ProfileNameAlreadyExists
-				)
+			return TypedProblems.BadRequest(
+				"Profile name already exists",
+				ResponseKeys.ProfileNameAlreadyExists
 			);
 		}
 
 		if (result is CreateStaffProfileResult.InvalidPermissions invalidPerms) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create(
-					$"Invalid permission keys: {string.Join(", ", invalidPerms.InvalidKeys)}",
-					ResponseKeys.BadRequest
-				)
+			return TypedProblems.BadRequest(
+				$"Invalid permission keys: {string.Join(", ", invalidPerms.InvalidKeys)}",
+				ResponseKeys.BadRequest
 			);
 		}
 
 		if (result is CreateStaffProfileResult.DuplicateEmails duplicates) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create(
-					$"Duplicate emails provided: {string.Join(", ", duplicates.Emails)}",
-					ResponseKeys.BadRequest
-				)
+			return TypedProblems.BadRequest(
+				$"Duplicate emails provided: {string.Join(", ", duplicates.Emails)}",
+				ResponseKeys.BadRequest
 			);
 		}
 
 		if (result is CreateStaffProfileResult.UsersWithConflictingAccounts conflicts) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create(
-					$"Cannot assign staff profile to users with existing tenant/project accounts: {string.Join(", ", conflicts.Emails)}",
-					ResponseKeys.BadRequest
-				)
+			return TypedProblems.BadRequest(
+				$"Cannot assign staff profile to users with existing tenant/project accounts: {string.Join(", ", conflicts.Emails)}",
+				ResponseKeys.BadRequest
 			);
 		}
 
 		if (result is CreateStaffProfileResult.NoPermissionsProvided) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create(
-					"At least one permission is required",
-					ResponseKeys.BadRequest
-				)
+			return TypedProblems.BadRequest(
+				"At least one permission is required",
+				ResponseKeys.BadRequest
 			);
 		}
 
@@ -253,15 +287,13 @@ public class CreateStaffProfile {
 			);
 		}
 
-		return TypedResults.BadRequest(
-			ApiResponse.Create(
-				"Failed to create staff profile",
-				ResponseKeys.BadRequest
-			)
+		return TypedProblems.BadRequest(
+			"Failed to create staff profile",
+			ResponseKeys.BadRequest
 		);
 	}
 
-	private static async Task<Ok<StaffProfileCreated>> HandleSuccessAsync(
+	private static async Task<Created<StaffProfileCreated>> HandleSuccessAsync(
 		CreateStaffProfileResult.Success success,
 		IEmailService emailService,
 		IAuditLogService auditLogService,
@@ -307,14 +339,21 @@ public class CreateStaffProfile {
 			cancellationToken
 		);
 
-		return TypedResults.Ok(new StaffProfileCreated {
-			ProfileId = profileId,
-			Name = success.Profile.Name,
-			Description = success.Profile.Description,
-			PermissionsAssigned = success.PermissionsAssigned,
-			UsersAssigned = success.UsersAssigned,
-			InvitationsSent = success.InvitationsSent
-		});
+		return TypedResults.Created(
+			(string?)null,
+			new StaffProfileCreated {
+				ProfileId = profileId,
+				Name = success.Profile.Name,
+				Description = success.Profile
+					.Description,
+				PermissionsAssigned = success
+					.PermissionsAssigned,
+				UsersAssigned = success
+					.UsersAssigned,
+				InvitationsSent = success
+					.InvitationsSent
+			}
+		);
 	}
 
 	/// <summary>
@@ -335,10 +374,12 @@ public class CreateStaffProfile {
 			await semaphore.WaitAsync(cancellationToken);
 			try {
 				await SendEmailWithRetryAsync(
-					async () => await emailService.SendInvitationToJoinStaffEmailAsync(
-						invitation.Email,
-						invitation.Token
-					),
+					async () => {
+						await emailService.SendInvitationToJoinStaffEmailAsync(
+							invitation.Email,
+							invitation.Token
+						);
+					},
 					logger,
 					invitation.Email,
 					"invitation",
@@ -370,7 +411,9 @@ public class CreateStaffProfile {
 			await semaphore.WaitAsync(cancellationToken);
 			try {
 				await SendEmailWithRetryAsync(
-					async () => await emailService.SendJoinedStaffNotificationEmailAsync(email),
+					async () => {
+						await emailService.SendJoinedStaffNotificationEmailAsync(email);
+					},
 					logger,
 					email,
 					"notification",
@@ -385,7 +428,9 @@ public class CreateStaffProfile {
 	}
 
 	/// <summary>
-	/// Sends an email with exponential backoff retry logic.
+	/// Sends an email with exponential backoff retry logic using Polly.
+	/// Creates a retry policy per call with Context for per-call logging.
+	/// Policy creation is lightweight, so this approach is acceptable for this use case.
 	/// </summary>
 	private static async Task SendEmailWithRetryAsync(
 		Func<Task> sendEmailAction,
@@ -394,48 +439,65 @@ public class CreateStaffProfile {
 		string emailType,
 		CancellationToken cancellationToken
 	) {
-		const int maxRetries = 3;
-		var delays = new[] {
-			TimeSpan.FromSeconds(1),
-			TimeSpan.FromSeconds(2),
-			TimeSpan.FromSeconds(4)
+		// Create context to pass logger/email info for retry logging
+		var context = new Context {
+			["logger"] = logger,
+			["email"] = email,
+			["emailType"] = emailType
 		};
 
-		for (int attempt = 0; attempt < maxRetries; attempt++) {
-			try {
-				await sendEmailAction();
+		// Create policy with onRetry that uses context (policy creation is lightweight)
+		var retryPolicy = Policy
+			.Handle<Exception>()
+			.WaitAndRetryAsync(
+				retryCount: 3,
+				sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt - 1)),
+				onRetry: (exception, timeSpan, retryCount, ctx) => {
+					var log = (ILogger)ctx["logger"];
+					var emailAddr = (string)ctx["email"];
+					var type = (string)ctx["emailType"];
+
+					if (log.IsEnabled(LogLevel.Warning)) {
+						log.LogWarning(
+							exception,
+							"Failed to send {EmailType} email to {Email} (attempt {Attempt}/3), " +
+							"retrying in {Delay}ms",
+							type,
+							emailAddr,
+							retryCount,
+							timeSpan.TotalMilliseconds
+						);
+					}
+				}
+			);
+
+		try {
+			await retryPolicy.ExecuteAsync(
+				async (ctx, ct) => {
+					await sendEmailAction();
+				},
+				context,
+				cancellationToken
+			);
+
+			// Log success only after policy completes successfully
+			if (logger.IsEnabled(LogLevel.Information)) {
 				logger.LogInformation(
 					"Successfully sent {EmailType} email to {Email}",
 					emailType,
 					email
 				);
-				return;
-			} catch (Exception ex) {
-				var isLastAttempt = attempt == maxRetries - 1;
-				if (isLastAttempt) {
-					logger.LogError(
-						ex,
-						"Failed to send {EmailType} email to {Email} after {Attempts} attempts",
-						emailType,
-						email,
-						maxRetries
-					);
-					return;
-				}
-
-				logger.LogWarning(
-					ex,
-					"Failed to send {EmailType} email to {Email} (attempt {Attempt}/{MaxRetries}), " +
-					"retrying in {Delay}ms",
-					emailType,
-					email,
-					attempt + 1,
-					maxRetries,
-					delays[attempt].TotalMilliseconds
-				);
-
-				await Task.Delay(delays[attempt], cancellationToken);
 			}
+		} catch (Exception ex) {
+			if (logger.IsEnabled(LogLevel.Error)) {
+				logger.LogError(
+					ex,
+					"Failed to send {EmailType} email to {Email} after 3 attempts",
+					emailType,
+					email
+				);
+			}
+			// Don't rethrow - email failures shouldn't break the main operation
 		}
 	}
 }

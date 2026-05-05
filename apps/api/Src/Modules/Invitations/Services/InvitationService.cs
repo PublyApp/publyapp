@@ -122,22 +122,12 @@ public interface IInvitationService {
 		FindTenantInvitationsArgs args,
 		CancellationToken cancellationToken = default);
 
-	Task<FindTenantInvitationsResult> FindTenantInvitationsAsync(
-		Guid tenantId,
-		FindTenantInvitationsArgs args,
-		CancellationToken cancellationToken = default);
-
 	Task<UserEntity> AcceptStaffInvitationAsync(
 		AcceptStaffInvitationArgs args,
 		CancellationToken cancellationToken = default);
 
 	Task<UserEntity> AcceptTenantInvitationAsync(
 		AcceptTenantInvitationArgs args,
-		CancellationToken cancellationToken = default);
-
-	Task<UserEntity> AcceptTenantInvitationForExistingUserAsync(
-		Invitation invitation,
-		Guid userId,
 		CancellationToken cancellationToken = default);
 
 	Task<UserEntity> AcceptTenantInvitationForExistingUserAsync(
@@ -501,24 +491,6 @@ public class InvitationService : IInvitationService {
 			from inv in _dbContext.Invitation
 			where inv.Email == normalizedEmail
 				&& inv.Scope == scope
-				&& inv.Status == InvitationStatus.Pending
-				&& inv.ExpiresAt > DateTime.UtcNow
-			select inv;
-
-		return await invitationQuery.AnyAsync(cancellationToken);
-	}
-
-	public async Task<bool> PendingTenantInvitationExistsAsync(
-		string email,
-		Guid tenantId,
-		CancellationToken cancellationToken = default
-	) {
-		var normalizedEmail = email.ToLowerInvariant();
-		var invitationQuery =
-			from inv in _dbContext.Invitation
-			where inv.Email == normalizedEmail
-				&& inv.Scope == InvitationScope.Tenant
-				&& inv.TenantId == tenantId
 				&& inv.Status == InvitationStatus.Pending
 				&& inv.ExpiresAt > DateTime.UtcNow
 			select inv;
@@ -1403,47 +1375,6 @@ public class InvitationService : IInvitationService {
 		if (_logger.IsEnabled(LogLevel.Information)) {
 			_logger.LogInformation("Marked invitation {InvitationId} as accepted", invitationId);
 		}
-	}
-
-	private async Task<RevokeInvitationForStaffResult> RevokeInvitationInternalAsync(
-		Invitation? invitation,
-		Guid invitationId,
-		CancellationToken cancellationToken
-	) {
-		if (invitation is null) {
-			return new RevokeInvitationForStaffResult.NotFound();
-		}
-
-		if (invitation.IsRevoked()) {
-			if (_logger.IsEnabled(LogLevel.Information)) {
-				_logger.LogInformation(
-					"Invitation {InvitationId} is already revoked; no-op",
-					invitationId
-				);
-			}
-			return new RevokeInvitationForStaffResult.Success();
-		}
-
-		if (invitation.IsAccepted()) {
-			if (_logger.IsEnabled(LogLevel.Warning)) {
-				_logger.LogWarning(
-					"Attempt to revoke accepted invitation {InvitationId} blocked",
-					invitationId
-				);
-			}
-			return new RevokeInvitationForStaffResult.AlreadyAccepted();
-		}
-
-		invitation.Status = InvitationStatus.Revoked;
-		invitation.RevokedAt = DateTime.UtcNow;
-
-		await _dbContext.SaveChangesAsync(cancellationToken);
-
-		if (_logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation("Revoked invitation {InvitationId}", invitationId);
-		}
-
-		return new RevokeInvitationForStaffResult.Success();
 	}
 
 	private async Task<RevokeInvitationForStaffResult> RevokeInvitationInternalAsync(

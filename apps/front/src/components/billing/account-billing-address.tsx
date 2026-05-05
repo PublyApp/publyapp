@@ -12,8 +12,6 @@ import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import type { IAddressItem } from '#app/types/common.ts';
 
-import type { IAddressItem } from '#app/types/common.ts';
-
 import { AddressItem, AddressNewForm } from '../address';
 import { CustomPopover } from '../custom-popover/custom-popover';
 import { Iconify } from '../iconify/iconify';

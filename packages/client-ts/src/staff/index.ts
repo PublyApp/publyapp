@@ -6,9 +6,11 @@ import { AuditLogsRequestBuilderNavigationMetadata, AuditLogsRequestBuilderReque
 // @ts-ignore
 import { InvitationsRequestBuilderNavigationMetadata, InvitationsRequestBuilderRequestsMetadata, type InvitationsRequestBuilder } from './invitations/index.js';
 // @ts-ignore
-import { PermissionsRequestBuilderNavigationMetadata, type PermissionsRequestBuilder } from './permissions/index.js';
+import { NoticesRequestBuilderNavigationMetadata, NoticesRequestBuilderRequestsMetadata, type NoticesRequestBuilder } from './notices/index.js';
 // @ts-ignore
 import { PermissionsRequestBuilderNavigationMetadata, type PermissionsRequestBuilder } from './permissions/index.js';
+// @ts-ignore
+import { ProfilesRequestBuilderNavigationMetadata, ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
 // @ts-ignore
 import { TenantsRequestBuilderNavigationMetadata, TenantsRequestBuilderRequestsMetadata, type TenantsRequestBuilder } from './tenants/index.js';
 // @ts-ignore
@@ -57,6 +59,10 @@ export const StaffRequestBuilderUriTemplate = "{+baseurl}/staff";
  * Metadata for all the navigation properties in the request builder.
  */
 export const StaffRequestBuilderNavigationMetadata: Record<Exclude<keyof StaffRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    auditLogs: {
+        requestsMetadata: AuditLogsRequestBuilderRequestsMetadata,
+        navigationMetadata: AuditLogsRequestBuilderNavigationMetadata,
+    },
     invitations: {
         requestsMetadata: InvitationsRequestBuilderRequestsMetadata,
         navigationMetadata: InvitationsRequestBuilderNavigationMetadata,
@@ -75,6 +81,10 @@ export const StaffRequestBuilderNavigationMetadata: Record<Exclude<keyof StaffRe
     tenants: {
         requestsMetadata: TenantsRequestBuilderRequestsMetadata,
         navigationMetadata: TenantsRequestBuilderNavigationMetadata,
+    },
+    users: {
+        requestsMetadata: UsersRequestBuilderRequestsMetadata,
+        navigationMetadata: UsersRequestBuilderNavigationMetadata,
     },
 };
 /* tslint:enable */

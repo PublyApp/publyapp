@@ -12,18 +12,12 @@ import { BulkSuspendRequestBuilderRequestsMetadata, type BulkSuspendRequestBuild
 // @ts-ignore
 import { type WithTenantItemRequestBuilder, WithTenantItemRequestBuilderNavigationMetadata, WithTenantItemRequestBuilderRequestsMetadata } from './item/index.js';
 // @ts-ignore
-import { BulkReactivateRequestBuilderRequestsMetadata, type BulkReactivateRequestBuilder } from './bulkReactivate/index.js';
-// @ts-ignore
-import { BulkSuspendRequestBuilderRequestsMetadata, type BulkSuspendRequestBuilder } from './bulkSuspend/index.js';
-// @ts-ignore
-import { type WithTenantItemRequestBuilder, WithTenantItemRequestBuilderNavigationMetadata, WithTenantItemRequestBuilderRequestsMetadata } from './item/index.js';
-// @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /staff/tenants
  */
-export interface StaffUsersRequestBuilder extends BaseRequestBuilder<StaffUsersRequestBuilder> {
+export interface TenantsRequestBuilder extends BaseRequestBuilder<TenantsRequestBuilder> {
     /**
      * The bulkDelete property
      */
@@ -41,43 +35,43 @@ export interface StaffUsersRequestBuilder extends BaseRequestBuilder<StaffUsersR
      * @param tenantId Unique identifier of the item
      * @returns {WithTenantItemRequestBuilder}
      */
-    byUserId(userId: string): WithUserItemRequestBuilder;
+     byTenantId(tenantId: string) : WithTenantItemRequestBuilder;
     /**
-     * Find staff members
+     * Find tenants with pagination
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
-     * @returns {Promise<FindStaffUsersResult>}
+     * @returns {Promise<FindTenantsAsStaffResponse>}
      * @throws {AppProblemDetails} error when the service returns a 400 status code
      * @throws {AppProblemDetails} error when the service returns a 401 status code
      * @throws {AppProblemDetails} error when the service returns a 403 status code
      * @throws {ValidationProblemDetails} error when the service returns a 422 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
-    get(requestConfiguration?: RequestConfiguration<StaffUsersRequestBuilderGetQueryParameters> | undefined): Promise<FindStaffUsersResult | undefined>;
+     get(requestConfiguration?: RequestConfiguration<TenantsRequestBuilderGetQueryParameters> | undefined) : Promise<FindTenantsAsStaffResponse | undefined>;
     /**
-     * Create a new staff member
+     * Create a new tenant
      * @param body The request body
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
-     * @returns {Promise<CreateStaffUserResult>}
+     * @returns {Promise<CreateTenantAsStaffResult>}
      * @throws {AppProblemDetails} error when the service returns a 400 status code
      * @throws {AppProblemDetails} error when the service returns a 401 status code
      * @throws {AppProblemDetails} error when the service returns a 403 status code
      * @throws {ValidationProblemDetails} error when the service returns a 422 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
-    post(body: CreateStaffUserBody, requestConfiguration?: RequestConfiguration<object> | undefined): Promise<CreateStaffUserResult | undefined>;
+     post(body: CreateTenantAsStaffBody, requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<CreateTenantAsStaffResult | undefined>;
     /**
-     * Find staff members
+     * Find tenants with pagination
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */
-    toGetRequestInformation(requestConfiguration?: RequestConfiguration<StaffUsersRequestBuilderGetQueryParameters> | undefined): RequestInformation;
+     toGetRequestInformation(requestConfiguration?: RequestConfiguration<TenantsRequestBuilderGetQueryParameters> | undefined) : RequestInformation;
     /**
-     * Create a new staff member
+     * Create a new tenant
      * @param body The request body
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */
-    toPostRequestInformation(body: CreateStaffUserBody, requestConfiguration?: RequestConfiguration<object> | undefined): RequestInformation;
+     toPostRequestInformation(body: CreateTenantAsStaffBody, requestConfiguration?: RequestConfiguration<object> | undefined) : RequestInformation;
 }
 /**
  * Find tenants with pagination
@@ -105,10 +99,11 @@ const TenantsRequestBuilderGetQueryParametersMapper: Record<string, string> = {
 /**
  * Metadata for all the navigation properties in the request builder.
  */
-export const StaffUsersRequestBuilderNavigationMetadata: Record<Exclude<keyof StaffUsersRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
-    byUserId: {
-        requestsMetadata: WithUserItemRequestBuilderRequestsMetadata,
-        pathParametersMappings: ["userId"],
+export const TenantsRequestBuilderNavigationMetadata: Record<Exclude<keyof TenantsRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    byTenantId: {
+        requestsMetadata: WithTenantItemRequestBuilderRequestsMetadata,
+        navigationMetadata: WithTenantItemRequestBuilderNavigationMetadata,
+        pathParametersMappings: ["tenantId"],
     },
     bulkDelete: {
         requestsMetadata: BulkDeleteRequestBuilderRequestsMetadata,

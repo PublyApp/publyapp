@@ -6,8 +6,6 @@ import { createApiResponseFromDiscriminatorValue, createAppProblemDetailsFromDis
 // @ts-ignore
 import { EmailRequestBuilderRequestsMetadata, type EmailRequestBuilder } from './email/index.js';
 // @ts-ignore
-import { EmailRequestBuilderRequestsMetadata, type EmailRequestBuilder } from './email/index.js';
-// @ts-ignore
 import { ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
 // @ts-ignore
 import { ReactivateRequestBuilderRequestsMetadata, type ReactivateRequestBuilder } from './reactivate/index.js';
@@ -54,27 +52,23 @@ export interface WithUserItemRequestBuilder extends BaseRequestBuilder<WithUserI
      * @throws {AppProblemDetails} error when the service returns a 400 status code
      * @throws {AppProblemDetails} error when the service returns a 401 status code
      * @throws {AppProblemDetails} error when the service returns a 403 status code
+     * @throws {AppProblemDetails} error when the service returns a 404 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
-    get(requestConfiguration?: RequestConfiguration<object> | undefined): Promise<GetStaffUserByIdResult | undefined>;
+     get(requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<GetStaffUserByIdResult | undefined>;
     /**
-     * Update a staff member
+     * Update a staff user
      * @param body The request body
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
-     * @returns {Promise<ApiResponse>}
+     * @returns {Promise<GetStaffUserByIdResult>}
      * @throws {AppProblemDetails} error when the service returns a 400 status code
      * @throws {AppProblemDetails} error when the service returns a 401 status code
      * @throws {AppProblemDetails} error when the service returns a 403 status code
+     * @throws {AppProblemDetails} error when the service returns a 404 status code
      * @throws {ValidationProblemDetails} error when the service returns a 422 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
-    patch(body: UpdateStaffUserBody, requestConfiguration?: RequestConfiguration<object> | undefined): Promise<ApiResponse | undefined>;
-    /**
-     * Soft-delete a suspended staff user
-     * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
-     * @returns {RequestInformation}
-     */
-     toDeleteRequestInformation(requestConfiguration?: RequestConfiguration<object> | undefined) : RequestInformation;
+     patch(body: UpdateStaffUserBody, requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<GetStaffUserByIdResult | undefined>;
     /**
      * Soft-delete a suspended staff user
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -86,36 +80,19 @@ export interface WithUserItemRequestBuilder extends BaseRequestBuilder<WithUserI
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */
-    toGetRequestInformation(requestConfiguration?: RequestConfiguration<object> | undefined): RequestInformation;
+     toGetRequestInformation(requestConfiguration?: RequestConfiguration<object> | undefined) : RequestInformation;
     /**
-     * Update a staff member
+     * Update a staff user
      * @param body The request body
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */
-    toPatchRequestInformation(body: UpdateStaffUserBody, requestConfiguration?: RequestConfiguration<object> | undefined): RequestInformation;
+     toPatchRequestInformation(body: UpdateStaffUserBody, requestConfiguration?: RequestConfiguration<object> | undefined) : RequestInformation;
 }
 /**
  * Uri template for the request builder.
  */
 export const WithUserItemRequestBuilderUriTemplate = "{+baseurl}/staff/users/{userId}";
-/**
- * Metadata for all the navigation properties in the request builder.
- */
-export const WithUserItemRequestBuilderNavigationMetadata: Record<Exclude<keyof WithUserItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
-    email: {
-        requestsMetadata: EmailRequestBuilderRequestsMetadata,
-    },
-    profiles: {
-        requestsMetadata: ProfilesRequestBuilderRequestsMetadata,
-    },
-    reactivate: {
-        requestsMetadata: ReactivateRequestBuilderRequestsMetadata,
-    },
-    suspend: {
-        requestsMetadata: SuspendRequestBuilderRequestsMetadata,
-    },
-};
 /**
  * Metadata for all the navigation properties in the request builder.
  */
@@ -157,10 +134,11 @@ export const WithUserItemRequestBuilderRequestsMetadata: RequestsMetadata = {
             400: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             403: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            404: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "send",
-        responseBodyFactory: createGetStaffUserByIdResultFromDiscriminatorValue,
+        responseBodyFactory:  createGetStaffUserByIdResultFromDiscriminatorValue,
     },
     patch: {
         uriTemplate: WithUserItemRequestBuilderUriTemplate,
@@ -169,11 +147,12 @@ export const WithUserItemRequestBuilderRequestsMetadata: RequestsMetadata = {
             400: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             403: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            404: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             422: createValidationProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "send",
-        responseBodyFactory: createApiResponseFromDiscriminatorValue,
+        responseBodyFactory:  createGetStaffUserByIdResultFromDiscriminatorValue,
         requestBodyContentType: "application/json",
         requestBodySerializer: serializeUpdateStaffUserBody,
         requestInformationContentSetMethod: "setContentFromParsable",
