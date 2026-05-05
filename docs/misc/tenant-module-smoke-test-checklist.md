@@ -383,6 +383,8 @@ It covers category `0` through `10`.
 ### 9.1 Tenant usage metrics endpoint
 - Status: `DEFERRED`
 - [x] Tenant usage metrics are intentionally deferred because the endpoint shape, metric definitions, and UI surface need dedicated product/API brainstorming before implementation. Tracked by `#168`.
+- [x] The tenant usage tab should exist in the tenant detail navigation, but it stays locked while metric definitions and data loading are deferred.
+- [x] The locked `Usage` route renders a `403` view while the feature flag is disabled.
 
 ### 9.2 Staff endpoint for tenant users
 - Status: `DONE`

@@ -38,6 +38,12 @@ export const staffTenantsRoutes = [
 				),
 				route(
 					getLastPath(
+						FRONT_PATH_NAMES.staff.tenants.details(':tenantId').tabs.usage,
+					),
+					'routes/authed/staff/tenants/details/usage/tenant-details-usage-page.tsx',
+				),
+				route(
+					getLastPath(
 						FRONT_PATH_NAMES.staff.tenants.details(':tenantId').tabs.billing,
 					),
 					'routes/authed/staff/tenants/details/billing/tenant-details-billing-page.tsx',

@@ -35,6 +35,7 @@ import type { Route } from './+types/tenant-details-layout';
 import {
 	TENANT_DETAILS_ACTIVITY_ENABLED,
 	TENANT_DETAILS_BILLING_ENABLED,
+	TENANT_DETAILS_USAGE_ENABLED,
 } from './tenant-details-feature-flags';
 
 export type TenantDetailsOutletContext = {
@@ -106,6 +107,15 @@ const TenantDetailsLayout = () => {
 				deep: true,
 				disabled: !TENANT_DETAILS_ACTIVITY_ENABLED,
 				endIcon: !TENANT_DETAILS_ACTIVITY_ENABLED ? (
+					<Iconify icon="solar:lock-password-outline" width={16} />
+				) : undefined,
+			},
+			{
+				label: t('usage'),
+				href: paths.tabs.usage,
+				deep: true,
+				disabled: !TENANT_DETAILS_USAGE_ENABLED,
+				endIcon: !TENANT_DETAILS_USAGE_ENABLED ? (
 					<Iconify icon="solar:lock-password-outline" width={16} />
 				) : undefined,
 			},
@@ -239,6 +249,7 @@ const TenantDetailsLayoutSkeleton = () => (
 						<TenantDetailsNavItemSkeleton width="46%" />
 						<TenantDetailsNavItemSkeleton width="40%" />
 						<TenantDetailsNavItemSkeleton width="36%" locked />
+						<TenantDetailsNavItemSkeleton width="32%" locked />
 						<TenantDetailsNavItemSkeleton width="38%" locked />
 					</Box>
 				</Stack>
