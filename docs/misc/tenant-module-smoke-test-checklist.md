@@ -415,9 +415,9 @@ It covers category `0` through `10`.
 - [x] `CreateTenantAsStaff.Spec.cs` passes and covers the current create-tenant contract, including creation side effects, auth/permission gating, validation edge cases, default max-users handling, default profile assignment, invitation creation, and email dispatch.
 
 ### 9.6 Find endpoint tests
-- Status: `DONE/PARTIAL`
-- [ ] `FindTenantsAsStaff.Spec.cs` passes for pagination, cursor flow, search, and multi-status filtering.
-- [ ] If bulk or export behavior needs dedicated API coverage, that missing coverage is explicitly tracked.
+- Status: `DONE`
+- [x] `FindTenantsAsStaff.Spec.cs` passes for pagination, cursor flow, search, and multi-status filtering.
+- [x] Tenant bulk actions are tracked separately under `9.9`; bulk export depends on the future worker service and is out of scope for the current tenant-module completion issue.
 
 ### 9.7 Update/Delete/Get tests
 - Status: `DONE`
