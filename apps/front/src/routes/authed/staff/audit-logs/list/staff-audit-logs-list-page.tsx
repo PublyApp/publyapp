@@ -12,7 +12,7 @@ import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/staff-audit-logs-list-page';
-import StaffAuditLogsTable from './parts/staff-audit-logs-table';
+import StaffAuditLogsTable from './_parts/staff-audit-logs-table';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = _.capitalize(t('audit-logs'));

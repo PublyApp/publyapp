@@ -13,7 +13,6 @@ import { makePath } from '@org/shared-ts/utils/string.utils';
 
 import { Logo } from '#app/components/logo/logo.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
-import { usePathname } from '#app/hooks/use-pathname.ts';
 import { allLangs } from '#app/lib/locales/all-langs.ts';
 
 import { ColorSchemePopover } from '../components/colorscheme-popover';
@@ -24,7 +23,7 @@ import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
 import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
 import { MainSection, type MainSectionProps } from '../core/main-section';
 import { navData as mainNavData } from '../nav-config-main';
-import { Footer, type FooterProps, HomeFooter } from './footer';
+import { type FooterProps, HomeFooter } from './footer';
 import { NavDesktop } from './nav/desktop';
 import { NavMobile } from './nav/mobile';
 import type { NavMainProps } from './nav/types';
@@ -59,8 +58,6 @@ export const MainLayout = ({
 	slotProps,
 	layoutQuery = 'md',
 }: MainLayoutProps) => {
-	const pathname = usePathname();
-
 	const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
 	const [scrolled, setScrolled] = useState(false);
@@ -75,8 +72,6 @@ export const MainLayout = ({
 			return window.removeEventListener('scroll', onScroll);
 		};
 	}, []);
-
-	const isHomePage = pathname === '/';
 
 	const navData = slotProps?.nav?.data ?? mainNavData;
 
@@ -276,11 +271,7 @@ export const MainLayout = ({
 		/>
 	);
 
-	const footerSection = isHomePage ? (
-		<HomeFooter sx={slotProps?.footer?.sx} />
-	) : (
-		<Footer sx={slotProps?.footer?.sx} layoutQuery={layoutQuery} />
-	);
+	const footerSection = <HomeFooter sx={slotProps?.footer?.sx} />;
 
 	const mainSection = (
 		<MainSection {...slotProps?.main}>{children}</MainSection>

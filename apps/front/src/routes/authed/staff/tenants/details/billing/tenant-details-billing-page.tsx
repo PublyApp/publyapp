@@ -9,8 +9,8 @@ import { AccountBilling } from '#app/components/billing/account-billing.tsx';
 import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import { View403 } from '#app/components/error/index.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { FEATURES } from '#app/lib/features/flags.ts';
 
-import { TENANT_DETAILS_BILLING_ENABLED } from '../_layout/tenant-details-feature-flags';
 import type { TenantDetailsOutletContext } from '../_layout/tenant-details-layout';
 import {
 	billingDemoAddressBook,
@@ -23,7 +23,7 @@ const TenantDetailsBillingPage = () => {
 	const { t } = useTranslate();
 	const { tenantName } = useOutletContext<TenantDetailsOutletContext>();
 
-	if (!TENANT_DETAILS_BILLING_ENABLED) {
+	if (!FEATURES.staff.tenants.details.billing) {
 		return <View403 withLayout={false} />;
 	}
 

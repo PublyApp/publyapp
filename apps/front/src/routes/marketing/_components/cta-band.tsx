@@ -5,8 +5,6 @@ import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 import { varAlpha } from 'minimal-shared/utils';
 
-import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
-
 import { MotionViewport, varFade } from '#app/components/animate/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
@@ -16,9 +14,40 @@ import { RouterLink } from '#app/components/router-link.tsx';
 const noiseOverlayUrl =
 	"url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")";
 
-export const HomeCta = () => {
+// ----------------------------------------------------------------------
+
+type CtaBandProps = {
+	eyebrowLabel: string;
+	title: string;
+	subhead: string;
+	ctaLabel: string;
+	ctaHref: string;
+	microcopy: string;
+};
+
+// ----------------------------------------------------------------------
+
+const isExternalHref = (href: string): boolean => {
+	return href.startsWith('http') || href.startsWith('mailto:');
+};
+
+// ----------------------------------------------------------------------
+
+export const CtaBand = ({
+	eyebrowLabel,
+	title,
+	subhead,
+	ctaLabel,
+	ctaHref,
+	microcopy,
+}: CtaBandProps) => {
+	const ctaIsExternal = isExternalHref(ctaHref);
+
 	return (
-		<Box component="section" sx={{ pt: 5, pb: 14, px: { xs: 2, md: 3 } }}>
+		<Box
+			component="section"
+			sx={{ pt: { xs: 8, md: 12 }, pb: 14, px: { xs: 2, md: 3 } }}
+		>
 			<Container maxWidth="lg" component={MotionViewport}>
 				<m.div variants={varFade('inUp', { distance: 24 })}>
 					<Box
@@ -34,15 +63,13 @@ export const HomeCta = () => {
 						}}
 					>
 						<Box
-							sx={(theme) => {
-								return {
-									position: 'absolute',
-									inset: 0,
-									borderRadius: '40px',
-									pointerEvents: 'none',
-									background: `radial-gradient(circle at 0% 100%, ${varAlpha(theme.vars.palette.primary.mainChannel, 0.1)} 0%, transparent 35%)`,
-								};
-							}}
+							sx={(theme) => ({
+								position: 'absolute',
+								inset: 0,
+								borderRadius: '40px',
+								pointerEvents: 'none',
+								background: `radial-gradient(circle at 0% 100%, ${varAlpha(theme.vars.palette.primary.mainChannel, 0.1)} 0%, transparent 35%)`,
+							})}
 						/>
 						<Box
 							sx={{
@@ -87,11 +114,11 @@ export const HomeCta = () => {
 								}}
 							>
 								<Iconify
-									icon={'ph:lightning-fill' as never}
+									icon="ph:lightning-fill"
 									width={14}
 									sx={{ verticalAlign: 'text-bottom', mr: 0.5 }}
 								/>{' '}
-								Start Scaling Today
+								{eyebrowLabel}
 							</Box>
 
 							<Typography
@@ -103,11 +130,10 @@ export const HomeCta = () => {
 									mb: 3,
 									lineHeight: 1.1,
 									letterSpacing: '-0.02em',
+									whiteSpace: 'pre-line',
 								}}
 							>
-								Unlock the Power of
-								<br />
-								Automated Social Growth
+								{title}
 							</Typography>
 
 							<Typography
@@ -120,8 +146,7 @@ export const HomeCta = () => {
 									fontWeight: 500,
 								}}
 							>
-								Join 10,000+ brands organizing the chaos. We handle the
-								publishing, you handle the community.
+								{subhead}
 							</Typography>
 
 							<Box
@@ -142,8 +167,8 @@ export const HomeCta = () => {
 								sx={{ display: 'inline-flex', mx: 'auto' }}
 							>
 								<Button
-									component={RouterLink}
-									href={FRONT_PATH_NAMES.auth.signup}
+									component={ctaIsExternal ? 'a' : RouterLink}
+									href={ctaHref}
 									endIcon={
 										<Box
 											component={m.div}
@@ -166,34 +191,29 @@ export const HomeCta = () => {
 												justifyContent: 'center',
 											}}
 										>
-											<Iconify
-												icon={'ph:arrow-right-bold' as never}
-												width={16}
-											/>
+											<Iconify icon="ph:arrow-right-bold" width={16} />
 										</Box>
 									}
-									sx={(theme) => {
-										return {
+									sx={(theme) => ({
+										bgcolor: 'primary.main',
+										color: 'common.white',
+										px: 5,
+										py: 2.5,
+										borderRadius: 2,
+										fontWeight: 700,
+										fontSize: 18,
+										boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+										border: '1px solid rgba(255,255,255,0.10)',
+										outline: `2px solid ${varAlpha(theme.vars.palette.primary.mainChannel, 0.3)}`,
+										outlineOffset: 2,
+										'&:hover': {
 											bgcolor: 'primary.main',
-											color: 'common.white',
-											px: 5,
-											py: 2.5,
-											borderRadius: 2,
-											fontWeight: 700,
-											fontSize: 18,
-											boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-											border: '1px solid rgba(255,255,255,0.10)',
-											outline: `2px solid ${varAlpha(theme.vars.palette.primary.mainChannel, 0.3)}`,
-											outlineOffset: 2,
-											'&:hover': {
-												bgcolor: 'primary.main',
-												boxShadow: `0 28px 60px -12px ${varAlpha(theme.vars.palette.primary.mainChannel, 0.6)}`,
-												outline: `2px solid ${varAlpha(theme.vars.palette.primary.mainChannel, 0.5)}`,
-											},
-										};
-									}}
+											boxShadow: `0 28px 60px -12px ${varAlpha(theme.vars.palette.primary.mainChannel, 0.6)}`,
+											outline: `2px solid ${varAlpha(theme.vars.palette.primary.mainChannel, 0.5)}`,
+										},
+									})}
 								>
-									Start for Free
+									{ctaLabel}
 								</Button>
 							</Box>
 
@@ -205,7 +225,7 @@ export const HomeCta = () => {
 									fontWeight: 500,
 								}}
 							>
-								14-day free trial. No credit card required.
+								{microcopy}
 							</Typography>
 						</Box>
 					</Box>

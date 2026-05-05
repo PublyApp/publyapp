@@ -12,8 +12,8 @@ import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/staff-invitations-list-page';
-import { NewInvitationButton } from './parts/new-invitation-button';
-import StaffInvitationsTable from './parts/staff-invitations-table';
+import { NewInvitationButton } from './_parts/new-invitation-button';
+import StaffInvitationsTable from './_parts/staff-invitations-table';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = _.capitalize(t('staff-invitations'));

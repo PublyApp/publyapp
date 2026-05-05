@@ -1,66 +1,14 @@
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
-import Divider from '@mui/material/Divider';
-import Grid from '@mui/material/Grid';
-import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
-import { type Breakpoint, styled } from '@mui/material/styles';
+import { styled } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
-// import { Iconify } from '#app/components/iconify/index.ts';
-// import { Logo } from '#app/components/logo/index.ts';
-// import { RouterLink } from '#app/routes/components';
-// import { paths } from '#app/routes/paths';
+
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
-import { Logo } from '#app/components/logo/logo.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
-
-// ----------------------------------------------------------------------
-
-const _socials = [
-	{
-		value: 'facebook',
-		label: 'Facebook',
-		path: 'https://www.facebook.com/caitlyn.kerluke',
-	},
-	{
-		value: 'instagram',
-		label: 'Instagram',
-		path: 'https://www.instagram.com/caitlyn.kerluke',
-	},
-	{
-		value: 'linkedin',
-		label: 'Linkedin',
-		path: 'https://www.linkedin.com/caitlyn.kerluke',
-	},
-	{
-		value: 'twitter',
-		label: 'Twitter',
-		path: 'https://www.twitter.com/caitlyn.kerluke',
-	},
-];
-
-const LINKS = [
-	{
-		headline: 'Minimal',
-		children: [
-			{ name: 'About us', href: '#' },
-			{ name: 'Contact us', href: '#' },
-			{ name: 'FAQs', href: '#' },
-		],
-	},
-	{
-		headline: 'Legal',
-		children: [
-			{ name: 'Terms and condition', href: '#' },
-			{ name: 'Privacy policy', href: '#' },
-		],
-	},
-	{
-		headline: 'Contact',
-		children: [{ name: 'support@minimals.cc', href: '#' }],
-	},
-];
+import { FEATURES } from '#app/lib/features/flags.ts';
 
 // ----------------------------------------------------------------------
 
@@ -73,168 +21,50 @@ const FooterRoot = styled('footer')(({ theme }) => {
 
 export type FooterProps = React.ComponentProps<typeof FooterRoot>;
 
-export const Footer = ({
-	sx,
-	layoutQuery = 'md',
-	...other
-}: FooterProps & { layoutQuery?: Breakpoint }) => {
-	return (
-		<FooterRoot sx={sx} {...other}>
-			<Divider />
-
-			<Container
-				sx={(theme) => {
-					return {
-						pb: 5,
-						pt: 10,
-						textAlign: 'center',
-						[theme.breakpoints.up(layoutQuery)]: { textAlign: 'unset' },
-					};
-				}}
-			>
-				<Logo />
-
-				<Grid
-					container
-					sx={[
-						(theme) => {
-							return {
-								mt: 3,
-								justifyContent: 'center',
-								[theme.breakpoints.up(layoutQuery)]: {
-									justifyContent: 'space-between',
-								},
-							};
-						},
-					]}
-				>
-					<Grid size={{ xs: 12, [layoutQuery]: 3 }}>
-						<Typography
-							variant="body2"
-							sx={(theme) => {
-								return {
-									mx: 'auto',
-									maxWidth: 280,
-									[theme.breakpoints.up(layoutQuery)]: { mx: 'unset' },
-								};
-							}}
-						>
-							The starting point for your next project with Minimal UI Kit,
-							built on the newest version of Material-UI ©, ready to be
-							customized to your style.
-						</Typography>
-
-						<Box
-							sx={(theme) => {
-								return {
-									mt: 3,
-									mb: 5,
-									display: 'flex',
-									justifyContent: 'center',
-									[theme.breakpoints.up(layoutQuery)]: {
-										mb: 0,
-										justifyContent: 'flex-start',
-									},
-								};
-							}}
-						>
-							{_socials.map((social) => {
-								return (
-									<IconButton key={social.label}>
-										{social.value === 'twitter' && (
-											<Iconify icon="socials:twitter" />
-										)}
-										{social.value === 'facebook' && (
-											<Iconify icon="socials:facebook" />
-										)}
-										{social.value === 'instagram' && (
-											<Iconify icon="socials:instagram" />
-										)}
-										{social.value === 'linkedin' && (
-											<Iconify icon="socials:linkedin" />
-										)}
-									</IconButton>
-								);
-							})}
-						</Box>
-					</Grid>
-
-					<Grid size={{ xs: 12, [layoutQuery]: 6 }}>
-						<Box
-							sx={(theme) => {
-								return {
-									gap: 5,
-									display: 'flex',
-									flexDirection: 'column',
-									[theme.breakpoints.up(layoutQuery)]: { flexDirection: 'row' },
-								};
-							}}
-						>
-							{LINKS.map((list) => {
-								return (
-									<Box
-										key={list.headline}
-										sx={(theme) => {
-											return {
-												gap: 2,
-												width: 1,
-												display: 'flex',
-												alignItems: 'center',
-												flexDirection: 'column',
-												[theme.breakpoints.up(layoutQuery)]: {
-													alignItems: 'flex-start',
-												},
-											};
-										}}
-									>
-										<Typography component="div" variant="overline">
-											{list.headline}
-										</Typography>
-
-										{list.children.map((link) => {
-											return (
-												<Link
-													key={link.name}
-													component={RouterLink}
-													href={link.href}
-													color="inherit"
-													variant="body2"
-												>
-													{link.name}
-												</Link>
-											);
-										})}
-									</Box>
-								);
-							})}
-						</Box>
-					</Grid>
-				</Grid>
-
-				<Typography variant="body2" sx={{ mt: 10 }}>
-					© All rights reserved.
-				</Typography>
-			</Container>
-		</FooterRoot>
-	);
-};
-
-// ----------------------------------------------------------------------
-
 // ----------------------------------------------------------------------
 
 const HOME_FOOTER_PRODUCT_LINKS = [
-	{ label: 'Features', href: '#features' },
-	{ label: 'Integrations', href: '#' },
-	{ label: 'Pricing', href: '#pricing' },
-	{ label: 'Changelog', href: '#' },
+	{ label: 'Features', href: '/#features' },
+	...(FEATURES.marketing.integrations
+		? [{ label: 'Integrations', href: FRONT_PATH_NAMES.marketing.integrations }]
+		: []),
+	{ label: 'Pricing', href: FRONT_PATH_NAMES.marketing.pricing },
+	...(FEATURES.marketing.changelog
+		? [{ label: 'Changelog', href: FRONT_PATH_NAMES.marketing.changelog }]
+		: []),
+];
+
+const HOME_FOOTER_COMPANY_LINKS = [
+	...(FEATURES.marketing.about
+		? [{ label: 'About', href: FRONT_PATH_NAMES.marketing.about }]
+		: []),
+	...(FEATURES.marketing.contact
+		? [{ label: 'Contact', href: FRONT_PATH_NAMES.marketing.contact }]
+		: []),
+];
+
+const HOME_FOOTER_LEGAL_LINKS = [
+	{ label: 'Terms of Use', href: FRONT_PATH_NAMES.marketing.terms },
+	{ label: 'Privacy Policy', href: FRONT_PATH_NAMES.marketing.privacy },
+	{ label: 'Cookie Policy', href: FRONT_PATH_NAMES.marketing.cookies },
+	...(FEATURES.marketing.security
+		? [{ label: 'Security', href: FRONT_PATH_NAMES.marketing.security }]
+		: []),
 ];
 
 const HOME_FOOTER_RESOURCE_LINKS = [
-	{ label: 'Blog', href: '#' },
-	{ label: 'Help Center', href: '#' },
-	{ label: 'Community', href: '#' },
-	{ label: 'Contact Support', href: '#' },
+	...(FEATURES.marketing.blog
+		? [{ label: 'Blog', href: FRONT_PATH_NAMES.marketing.blog }]
+		: []),
+	...(FEATURES.marketing.help
+		? [{ label: 'Help Center', href: FRONT_PATH_NAMES.marketing.help }]
+		: []),
+	...(FEATURES.marketing.community
+		? [{ label: 'Community', href: FRONT_PATH_NAMES.marketing.community }]
+		: []),
+	...(FEATURES.marketing.contact
+		? [{ label: 'Contact Support', href: FRONT_PATH_NAMES.marketing.contact }]
+		: []),
 ];
 
 const HOME_FOOTER_SOCIALS: { label: string; icon: string }[] = [
@@ -242,6 +72,21 @@ const HOME_FOOTER_SOCIALS: { label: string; icon: string }[] = [
 	{ label: 'Instagram', icon: 'ph:instagram-logo-fill' },
 	{ label: 'LinkedIn', icon: 'ph:linkedin-logo-fill' },
 ];
+
+type FooterLinkColumn = {
+	heading: string;
+	links: { label: string; href: string }[];
+};
+
+// Empty columns are filtered out so the grid doesn't render orphan headings
+// when all entries in a column are flagged off.
+const HOME_FOOTER_LINK_COLUMNS: FooterLinkColumn[] = [
+	{ heading: 'Product', links: HOME_FOOTER_PRODUCT_LINKS },
+	{ heading: 'Company', links: HOME_FOOTER_COMPANY_LINKS },
+	{ heading: 'Resources', links: HOME_FOOTER_RESOURCE_LINKS },
+].filter((column) => {
+	return column.links.length > 0;
+});
 
 export const HomeFooter = ({ sx, ...other }: FooterProps) => {
 	return (
@@ -259,7 +104,10 @@ export const HomeFooter = ({ sx, ...other }: FooterProps) => {
 				<Box
 					sx={{
 						display: 'grid',
-						gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' },
+						gridTemplateColumns: {
+							xs: '1fr',
+							md: `repeat(${2 + HOME_FOOTER_LINK_COLUMNS.length}, 1fr)`,
+						},
 						gap: 6,
 						mb: 8,
 					}}
@@ -346,87 +194,51 @@ export const HomeFooter = ({ sx, ...other }: FooterProps) => {
 						</Box>
 					</Box>
 
-					<Box>
-						<Typography
-							sx={{
-								fontWeight: 700,
-								fontSize: 14,
-								color: 'text.primary',
-								mb: 2,
-							}}
-						>
-							Product
-						</Typography>
-						<Box
-							component="ul"
-							sx={{
-								listStyle: 'none',
-								p: 0,
-								m: 0,
-								'& > li + li': { mt: 1.5 },
-							}}
-						>
-							{HOME_FOOTER_PRODUCT_LINKS.map((item) => {
-								return (
-									<Box component="li" key={item.label}>
-										<Link
-											href={item.href}
-											underline="none"
-											sx={{
-												fontSize: 14,
-												color: 'text.secondary',
-												transition: 'color 0.3s ease',
-												'&:hover': { color: 'primary.main' },
-											}}
-										>
-											{item.label}
-										</Link>
-									</Box>
-								);
-							})}
-						</Box>
-					</Box>
-
-					<Box>
-						<Typography
-							sx={{
-								fontWeight: 700,
-								fontSize: 14,
-								color: 'text.primary',
-								mb: 2,
-							}}
-						>
-							Resources
-						</Typography>
-						<Box
-							component="ul"
-							sx={{
-								listStyle: 'none',
-								p: 0,
-								m: 0,
-								'& > li + li': { mt: 1.5 },
-							}}
-						>
-							{HOME_FOOTER_RESOURCE_LINKS.map((item) => {
-								return (
-									<Box component="li" key={item.label}>
-										<Link
-											href={item.href}
-											underline="none"
-											sx={{
-												fontSize: 14,
-												color: 'text.secondary',
-												transition: 'color 0.3s ease',
-												'&:hover': { color: 'primary.main' },
-											}}
-										>
-											{item.label}
-										</Link>
-									</Box>
-								);
-							})}
-						</Box>
-					</Box>
+					{HOME_FOOTER_LINK_COLUMNS.map((column) => {
+						return (
+							<Box key={column.heading}>
+								<Typography
+									sx={{
+										fontWeight: 700,
+										fontSize: 14,
+										color: 'text.primary',
+										mb: 2,
+									}}
+								>
+									{column.heading}
+								</Typography>
+								<Box
+									component="ul"
+									sx={{
+										listStyle: 'none',
+										p: 0,
+										m: 0,
+										'& > li + li': { mt: 1.5 },
+									}}
+								>
+									{column.links.map((item) => {
+										return (
+											<Box component="li" key={item.label}>
+												<Link
+													component={RouterLink}
+													href={item.href}
+													underline="none"
+													sx={{
+														fontSize: 14,
+														color: 'text.secondary',
+														transition: 'color 0.3s ease',
+														'&:hover': { color: 'primary.main' },
+													}}
+												>
+													{item.label}
+												</Link>
+											</Box>
+										);
+									})}
+								</Box>
+							</Box>
+						);
+					})}
 				</Box>
 
 				<Box
@@ -445,25 +257,24 @@ export const HomeFooter = ({ sx, ...other }: FooterProps) => {
 						© 2026 PublyApp Inc. All rights reserved.
 					</Typography>
 					<Box sx={{ display: 'flex', gap: 3 }}>
-						{['Terms of Service', 'Privacy Policy', 'Cookie Policy'].map(
-							(label) => {
-								return (
-									<Link
-										key={label}
-										href="#"
-										underline="none"
-										sx={{
-											fontSize: 12,
-											color: 'text.disabled',
-											transition: 'color 0.3s ease',
-											'&:hover': { color: 'text.primary' },
-										}}
-									>
-										{label}
-									</Link>
-								);
-							},
-						)}
+						{HOME_FOOTER_LEGAL_LINKS.map((item) => {
+							return (
+								<Link
+									key={item.label}
+									component={RouterLink}
+									href={item.href}
+									underline="none"
+									sx={{
+										fontSize: 12,
+										color: 'text.disabled',
+										transition: 'color 0.3s ease',
+										'&:hover': { color: 'text.primary' },
+									}}
+								>
+									{item.label}
+								</Link>
+							);
+						})}
 					</Box>
 				</Box>
 
