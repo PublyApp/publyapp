@@ -339,6 +339,8 @@ const optimizeDepsIncludes = [
 	'@mui/material/Switch',
 	'@mui/material/Tab',
 	'@mui/material/TableCell',
+	'@mui/material/TableContainer',
+	'@mui/material/TableHead',
 	'@mui/material/TableRow',
 	'@mui/material/Tabs',
 	'@mui/material/TextField',
