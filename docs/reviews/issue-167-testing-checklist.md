@@ -20,94 +20,96 @@
 - [x] Find an **Active** tenant in the list
 - [x] Click the suspend button (warning/orange icon)
 - [x] Verify confirmation dialog appears with tenant name
-- [ ] Cancel - verify nothing changes
-- [ ] Click suspend again and confirm
-- [ ] Verify success toast: "Tenant has been suspended successfully"
+- [x] Cancel - verify nothing changes
+- [x] Click suspend again and confirm
+- [x] Verify success toast: "Tenant has been suspended successfully"
 - [ ] Verify tenant status changes to "Suspended" in the list
-- [ ] Verify suspend button is now hidden for this tenant
-- [ ] Verify reactivate button is now visible
+- [x] Verify suspend button is now hidden for this tenant
+- [x] Verify reactivate button is now visible
 
 ### 1.3 Reactivate Tenant Action
-- [ ] Find a **Suspended** tenant in the list
-- [ ] Click the reactivate button (green play icon)
-- [ ] Verify confirmation dialog appears with tenant name
-- [ ] Cancel - verify nothing changes
-- [ ] Click reactivate again and confirm
-- [ ] Verify success toast: "Tenant has been reactivated successfully"
-- [ ] Verify tenant status changes back to "Active"
-- [ ] Verify reactivate button is now hidden
-- [ ] Verify suspend button is now visible
+- [x] Find a **Suspended** tenant in the list
+- [x] Click the reactivate button (green play icon)
+- [x] Verify confirmation dialog appears with tenant name
+- [x] Cancel - verify nothing changes
+- [x] Click reactivate again and confirm
+- [x] Verify success toast: "Tenant has been reactivated successfully"
+- [x] Verify tenant status changes back to "Active"
+- [x] Verify reactivate button is now hidden
+- [x] Verify suspend button is now visible
 
 ### 1.4 Edge Cases
-- [ ] Try suspending a non-Active tenant (Pending/Archived) - should not show suspend button
-- [ ] Refresh the page after suspend/reactivate - verify state persists
+- [x] Try suspending a non-Active tenant (Pending/Archived) - should not show suspend button
+- [x] Refresh the page after suspend/reactivate - verify state persists
 
 ---
 
 ## 2. Tenant User Experience - Suspended Tenant
 
 ### 2.1 Access Blocked When Tenant Suspended
-- [ ] Log in as a tenant user who belongs to a suspended tenant
-- [ ] Try to access the tenant dashboard
-- [ ] Verify you are redirected to the tenant picker page
-- [ ] Verify the suspended tenant shows in the list with "Suspended" badge
-- [ ] Verify the suspended tenant card is disabled (greyed out, not clickable)
+- [x] Log in as a tenant user who belongs to a suspended tenant
+- [x] Try to access the tenant dashboard
+- [x] Verify you are redirected to the tenant picker page
+- [x] Verify the suspended tenant shows in the list with "Suspended" badge
+- [x] Verify the suspended tenant card is disabled (greyed out, not clickable)
 
 ### 2.2 Warning Banner
-- [ ] On the tenant picker, verify warning alert banner appears
-- [ ] Banner text: "Some of your organizations have been suspended..."
-- [ ] Verify "Contact Support" button is present
+- [x] On the tenant picker, verify warning alert banner appears
+- [x] Banner text: "Some of your organizations have been suspended..."
+- [x] Verify "Contact Support" button is present
 
 ### 2.3 Multiple Tenants Scenario
-- [ ] Log in as a user who belongs to multiple tenants (one suspended, one active)
-- [ ] Verify tenant picker shows both
-- [ ] Verify only the active tenant is clickable
-- [ ] Click the active tenant - verify access works normally
+- [x] Log in as a user who belongs to multiple tenants (one suspended, one active)
+- [-] Verify tenant picker shows both
+- [x] Verify only the active tenant is clickable
+- [x] Click the active tenant - verify access works normally
 
 ### 2.4 All Tenants Suspended
-- [ ] Log in as a user where ALL their tenants are suspended
-- [ ] Verify tenant picker shows with all tenants disabled
-- [ ] Verify warning banner is displayed
-- [ ] Verify user cannot proceed (all options disabled)
+- [x] Log in as a user where ALL their tenants are suspended
+- [x] Verify tenant picker shows with all tenants disabled
+- [x] Verify warning banner is displayed
+- [x] Verify user cannot proceed (all options disabled)
 
 ---
 
 ## 3. Redirect Logic (GetRedirectCode)
 
 ### 3.1 Single Active Tenant
-- [ ] User with exactly 1 active tenant (no suspended)
-- [ ] Verify auto-redirect to that tenant (no picker shown)
+- [x] User with exactly 1 active tenant (no suspended)
+- [x] Verify auto-redirect to that tenant (no picker shown)
 
 ### 3.2 Single Tenant But Suspended
-- [ ] User with exactly 1 tenant and it's suspended
-- [ ] Verify tenant picker is shown (not "unauthorized")
-- [ ] Verify the suspended tenant appears disabled
+- [x] User with exactly 1 tenant and it's suspended
+- [x] Verify tenant picker is shown (not "unauthorized")
+- [x] Verify the suspended tenant appears disabled
 
 ### 3.3 Multiple Active Tenants
-- [ ] User with 2+ active tenants
-- [ ] Verify tenant picker is shown
-- [ ] Verify all active tenants are clickable
+- [x] User with 2+ active tenants
+- [x] Verify tenant picker is shown
+- [x] Verify all active tenants are clickable
 
 ### 3.4 Mix of Active and Suspended
-- [ ] User with 1 active + 1 suspended tenant
-- [ ] Verify tenant picker is shown
-- [ ] Verify only active tenant is clickable
+- [x] User with 1 active + 1 suspended tenant
+- [-] Verify tenant picker is shown
+- [x] Verify only active tenant is clickable
 
 ---
 
 ## 4. Security (D9 - Membership First)
 
 ### 4.1 Non-Member Cannot Probe Tenant IDs
-- [ ] As a logged-in user, try accessing a tenant you're NOT a member of
-- [ ] Via direct URL: `/tenant/{random-uuid}/dashboard`
-- [ ] Verify you get generic 403 "Forbidden" (not "Tenant suspended" or "Not found")
-- [ ] Try with a real tenant ID you're not a member of - same 403
+- [x] As a logged-in user, try accessing a tenant you're NOT a member of
+- [x] Via direct URL: `/tenant/{random-uuid}/dashboard`
+- [x] Verify you get generic 403 "Forbidden" (not "Tenant suspended" or "Not found")
+- [x] Try with a real tenant ID you're not a member of - same 403
 
-### 4.2 Member Sees Specific Error
-- [ ] Suspend a tenant where you ARE a member
-- [ ] Try to access that tenant
-- [ ] Verify you see "tenant-suspended" error (specific message for members)
-- [ ] Verify redirect to tenant picker
+### 4.2 Member Sees Suspension in Tenant Picker
+- [ ] Suspend a tenant where you ARE a member (user has 2 tenants, 1 suspended)
+- [ ] Log in or access `/app` → verify tenant picker is shown (not auto-redirect)
+- [ ] Verify suspended tenant is shown with "Suspended" label and is not clickable
+- [ ] Verify active tenant is clickable and navigates to its dashboard
+- [ ] Suspend ALL tenants for the user → verify tenant picker shows all tenants as disabled with "Suspended" labels
+- [ ] While on an active tenant, suspend it mid-session → verify 403 "tenant-suspended" error triggers redirect to `/app`
 
 ### 4.3 Deleted Tenant
 - [ ] If possible, soft-delete a tenant

@@ -1,5 +1,4 @@
 import _ from 'lodash';
-
 import { useLocation, useParams } from 'react-router';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';

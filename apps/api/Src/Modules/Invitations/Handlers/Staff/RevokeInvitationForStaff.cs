@@ -1,10 +1,4 @@
 using MainApi.Localization;
-<<<<<<<< HEAD:apps/api/Src/Modules/Invitations/Handlers/Staff/RevokeStaffInvitation.cs
-========
-using MainApi.Src.Modules.Shared.Users;
-using MainApi.Src.Modules.Shared.Invitations;
-using MainApi.Src.Modules.Staff.Audit;
->>>>>>>> e130a4f49 (refactor: Restructure API modules to enhance clarity and maintainability):apps/api/Src/Modules/Staff/Invitations/Handlers/RevokeInvitation.cs
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Modules.AuditLogs.Entities;
@@ -14,11 +8,7 @@ using MainApi.Src.Modules.Invitations.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-<<<<<<<< HEAD:apps/api/Src/Modules/Invitations/Handlers/Staff/RevokeStaffInvitation.cs
 namespace MainApi.Src.Modules.Invitations.Handlers.Staff;
-========
-namespace MainApi.Src.Modules.Staff.Invitations.Handlers;
->>>>>>>> e130a4f49 (refactor: Restructure API modules to enhance clarity and maintainability):apps/api/Src/Modules/Staff/Invitations/Handlers/RevokeInvitation.cs
 
 public class RevokeInvitationForStaff {
 	public static async Task<Results<

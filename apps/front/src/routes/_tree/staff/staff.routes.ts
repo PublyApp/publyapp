@@ -1,8 +1,9 @@
 import { index, layout, route } from '@react-router/dev/routes';
 
-import { FRONT_PATH_NAMES } from '@org/shared/lib/constants';
-import { getLastPath } from '@org/shared/utils/string.utils';
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+import { getLastPath } from '@org/shared-ts/utils/string.utils';
 
+import { staffAuditLogsRoutes } from './parts/staff-audit-logs.routes';
 import { staffInvitationsRoutes } from './parts/staff-invitations.routes';
 import { staffProfilesRoutes } from './parts/staff-profiles.routes';
 import { staffTenantsRoutes } from './parts/staff-tenants.routes';
@@ -19,6 +20,7 @@ export const staffRoutes = [
 				...staffUsersRoutes,
 				...staffInvitationsRoutes,
 				...staffProfilesRoutes,
+				...staffAuditLogsRoutes,
 			]),
 			route('*', 'routes/authed/staff/_errors/staff-not-found-page.tsx'),
 		],

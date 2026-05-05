@@ -5,6 +5,7 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { useForm } from 'react-hook-form';
 import { redirect, useFetcher } from 'react-router';
+import { serializeError } from 'serialize-error';
 
 import {
 	FRONT_PATH_NAMES,
@@ -73,10 +74,9 @@ export const action = getServerAction({
 					},
 				}).then((result) => {
 					if (result.status === 'error') {
-						context.logger.error(
-							'Error when requesting email verification',
-							result.error,
-						);
+						context.logger.error('Error when requesting email verification', {
+							error: serializeError(result.error),
+						});
 					}
 				});
 

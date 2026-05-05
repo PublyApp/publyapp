@@ -296,7 +296,7 @@ public class SystemNoticeService : ISystemNoticeService {
 
 		var now = DateTime.UtcNow;
 		var items = results.Select(n => new SystemNoticeListItem {
-			Id = n.Id!.Value,
+			Id = n.GetRequiredId(),
 			Severity = n.Severity.ToString().ToLowerInvariant(),
 			Title = n.Title,
 			StartsAt = n.StartsAt,
@@ -408,7 +408,7 @@ public class SystemNoticeService : ISystemNoticeService {
 				&& (n.ExpiresAt == null || n.ExpiresAt > now)
 			orderby n.Severity descending, n.StartsAt descending
 			select new ActiveSystemNotice {
-				Id = n.Id!.Value,
+				Id = n.Id ?? Guid.Empty,
 				Severity = n.Severity.ToString()
 					.ToLowerInvariant(),
 				Title = n.Title,

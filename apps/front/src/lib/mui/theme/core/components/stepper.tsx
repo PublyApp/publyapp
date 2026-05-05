@@ -36,11 +36,11 @@ const MuiStepLabel: Components<Theme>['MuiStepLabel'] = {
 		label: ({ theme }) => ({
 			...theme.typography.body2,
 			fontWeight: theme.typography.fontWeightMedium,
-			['&.Mui-active']: {
+			'&.Mui-active': {
 				fontWeight: theme.typography.fontWeightSemiBold,
 				color: theme.vars.palette.text.primary,
 			},
-			['&.Mui-completed']: {
+			'&.Mui-completed': {
 				fontWeight: theme.typography.fontWeightMedium,
 				color: theme.vars.palette.text.primary,
 			},

@@ -1,5 +1,7 @@
 using MainApi.Localization;
-using MainApi.Src.Modules.Shared.Users;
+using MainApi.Src.Lib.Extensions;
+using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Modules.Users.Services;
 
 namespace MainApi.Src.Lib.Filters;
 
@@ -20,22 +22,19 @@ public class StaffAuthFilter : IEndpointFilter {
 		EndpointFilterDelegate next
 	) {
 		var httpContext = context.HttpContext;
-		var authContext = httpContext.RequestServices.GetRequiredService<IAuthContext>();
+		var authContext = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>();
 		var accountService = httpContext.RequestServices.GetRequiredService<IAccountService>();
 
 		if (!authContext.IsAuthenticated) {
-			_logger.LogError("Request userId or sessionToken is missing: {@StaffAuthData}", new {
-				UserId = authContext.UserId,
-			});
-			_logger.LogError(
-				"{SessionAuthFilter} must be passed before {StaffAuthFilter}",
-				nameof(SessionAuthFilter),
-				nameof(StaffAuthFilter)
-			);
-			return TypedResults.Json(
-				ApiResponse.Create("Failed to authenticate user", ResponseKeys.FailedToAuthenticateUser),
-				statusCode: StatusCodes.Status500InternalServerError
-			);
+			if (_logger.IsEnabled(LogLevel.Error)) {
+				_logger.LogError("Request userId or sessionToken is missing: {UserId}", authContext.UserId);
+				_logger.LogError(
+					"{SessionAuthFilter} must be passed before {StaffAuthFilter}",
+					nameof(SessionAuthFilter),
+					nameof(StaffAuthFilter)
+				);
+			}
+			return TypedProblems.InternalServerError("Failed to authenticate user", ResponseKeys.FailedToAuthenticateUser);
 		}
 
 		if (authContext.UserId is not Guid userId) {
@@ -47,11 +46,10 @@ public class StaffAuthFilter : IEndpointFilter {
 			.GetUserStaffAccountAsync(userId, httpContext.RequestAborted);
 
 		if (accountStaff is null) {
-			_logger.LogDebug("User is not a staff member: {@StaffAuthData}", new { UserId = authContext.UserId });
-			return TypedResults.Json(
-				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),
-				statusCode: StatusCodes.Status401Unauthorized
-			);
+			if (_logger.IsEnabled(LogLevel.Debug)) {
+				_logger.LogDebug("User is not a staff member: {UserId}", authContext.UserId);
+			}
+			return TypedProblems.Forbidden("User is not a staff member", ResponseKeys.NotAStaffUser);
 		}
 
 		authContext.AccountStaff = accountStaff;
@@ -69,7 +67,9 @@ public static class StaffAuthFilterExtensions {
 	/// Requires SessionAuthFilter to be applied first.
 	/// </summary>
 	public static RouteGroupBuilder WithStaffAuthorization(this RouteGroupBuilder builder) {
-		return builder.AddEndpointFilter<StaffAuthFilter>();
+		return builder
+			.AddEndpointFilter<StaffAuthFilter>()
+			.ProducesAppProblem(StatusCodes.Status403Forbidden, StatusCodes.Status500InternalServerError);
 	}
 
 	/// <summary>
@@ -78,6 +78,9 @@ public static class StaffAuthFilterExtensions {
 	/// Requires SessionAuthFilter to be applied first.
 	/// </summary>
 	public static RouteHandlerBuilder WithStaffAuthorization(this RouteHandlerBuilder builder) {
-		return builder.AddEndpointFilter<StaffAuthFilter>();
+		return builder
+			.AddEndpointFilter<StaffAuthFilter>()
+			.Produces<AppProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")
+			.Produces<AppProblemDetails>(StatusCodes.Status500InternalServerError, "application/problem+json");
 	}
 }

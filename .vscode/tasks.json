@@ -1,16 +1,4 @@
 {
 	"version": "2.0.0",
-	"tasks": [
-		{
-			"type": "npm",
-			"script": "dev",
-			"path": "apps/server",
-			"problemMatcher": [],
-			"label": "npm: dev - apps/server",
-			"detail": "pnpm dev:local",
-			// "runOptions": {
-			// 	"runOn": "folderOpen"
-			// }
-		},
-	]
+	"tasks": []
 }
