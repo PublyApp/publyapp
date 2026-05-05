@@ -25,8 +25,10 @@ using Polly;
 namespace MainApi.Src.Modules.Users.Handlers.Staff;
 
 public record CreateInvitationForTenantAsStaffBody {
-	public required JsonElement Email { get; init; }
-	public required JsonElement AccountLevel { get; init; }
+	// Do not mark JsonElement fields as C# required here: missing JSON properties must
+	// reach FluentValidation so clients receive the repo-standard 422 validation problem.
+	public JsonElement Email { get; init; }
+	public JsonElement AccountLevel { get; init; }
 }
 
 public record InvitationCreatedForTenant {

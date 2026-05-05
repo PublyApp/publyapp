@@ -386,23 +386,23 @@ It covers category `0` through `10`.
 
 ### 9.2 Staff endpoint for tenant users
 - Status: `DONE`
-- [ ] `GET /staff/tenants/{tenantId}/users` is covered for success, malformed ID, bad cursor, invalid sort, unauthenticated, and unauthorized scenarios.
+- [x] `GET /staff/tenants/{tenantId}/users` is covered for success, malformed ID, bad cursor, invalid sort, unauthenticated, and unauthorized scenarios.
 
 ### 9.3 Staff-side tenant user management endpoints
-- Status: `DONE/PARTIAL`
-- [ ] The tenant invite endpoint works end to end.
-- [ ] The tenant user update endpoint works end to end.
-- [ ] The tenant user delete endpoint works end to end.
-- [ ] If the invite endpoint still lacks automated coverage, that gap is explicitly tracked.
+- Status: `DONE`
+- [x] The tenant invite endpoint works end to end.
+- [x] The tenant user update endpoint works end to end.
+- [x] The tenant user delete endpoint works end to end.
+- [x] The tenant invite endpoint now has automated integration coverage, so there is no remaining tracking gap for this endpoint.
 - [x] The shared tenant invitation accept endpoint is covered for both new-account acceptance and existing-account join.
 
 ### 9.3.1 Staff-side invitation management permissions
 - Status: `DONE`
-- [ ] Staff invitation create/revoke handlers rely on route permissions rather than hardcoded admin-only checks.
-- [ ] Tenant invitation revoke handler relies on route permissions rather than a hardcoded admin-only check.
-- [ ] A permissioned non-admin staff user can create staff invitations.
-- [ ] A permissioned non-admin staff user can revoke staff invitations.
-- [ ] A permissioned non-admin staff user can revoke tenant invitations.
+- [x] Staff invitation create/revoke handlers rely on route permissions rather than hardcoded admin-only checks.
+- [x] Tenant invitation revoke handler relies on route permissions rather than a hardcoded admin-only check.
+- [x] A permissioned non-admin staff user can create staff invitations.
+- [x] A permissioned non-admin staff user can revoke staff invitations.
+- [x] A permissioned non-admin staff user can revoke tenant invitations.
 
 ### 9.4 Tenant archival/data-retention logic
 - Status: `PENDING`
@@ -425,12 +425,12 @@ It covers category `0` through `10`.
 - [ ] The suspend and reactivate specs pass.
 
 ### 9.8 Tenant-user tests
-- Status: `PARTIAL`
-- [ ] `FindTenantUsersAsStaff.Spec.cs` passes.
-- [ ] `RemoveUserFromTenantAsStaff.Spec.cs` passes.
-- [ ] `UpdateTenantUserAsStaff.Spec.cs` passes.
-- [ ] If tenant-user search and filter coverage is missing, that gap is explicitly tracked.
-- [ ] If the staff-side invite endpoint still lacks a spec, that gap is explicitly tracked.
+- Status: `DONE`
+- [x] `FindTenantUsersAsStaff.Spec.cs` passes.
+- [x] `RemoveUserFromTenantAsStaff.Spec.cs` passes.
+- [x] `UpdateTenantUserAsStaff.Spec.cs` passes.
+- [x] Tenant-user search and filter behavior has automated coverage in `FindTenantUsersAsStaff.Spec.cs`.
+- [x] The staff-side invite endpoint has automated coverage in `CreateInvitationForTenantAsStaff.Spec.cs`.
 
 ### 9.8.1 Tenant-invitation tests
 - Status: `DONE`
