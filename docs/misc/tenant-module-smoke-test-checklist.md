@@ -5,27 +5,32 @@ Last updated: 2026-04-06
 ## Changes Since 2026-03-25
 
 ### 03-25
+
 - Fixed bulk tenant handlers to request typed `ILogger<THandler>` instead of plain `ILogger` (closes local dev 500 on `/staff/tenants/bulk-suspend` and sibling bulk endpoints).
 - Standardized all remaining API handler entrypoints to non-static classes with typed `ILogger<THandler>` injection.
 - Replaced generic tenant bulk toasts with action-specific success/partial/failure messages for bulk suspend, bulk reactivate, and bulk delete.
 - Updated bulk-actions section to reflect action-specific toast copy on success, partial-success, and failure paths.
 
 ### 03-26
+
 - Clarified export-scope: full export across all pages deferred to async worker-service jobs (`#286`); current page-only export is a temporary limitation.
 - Made tenants-list row-level `Delete` action real for suspended tenants (mirrors suspend/reactivate pattern).
 - Refined row delete UX: delete icon always visible, disabled + muted for non-suspended tenants, tooltip explains constraint instead of disappearing.
 
 ### 03-27
+
 - Converted `SuspendTenantResult`, `ReactivateTenantResult`, `UpdateTenantResult`, and `DeleteTenantResult` from nullable payload-plus-error pairs into proper discriminated unions.
 - Staff tenant general form now submits only dirty editable fields (`name`, `maxUsers`) to match backend PATCH contract.
 - Item 4.5 (logo upload) confirmed deferred to `#95` (file-upload work).
 
 ### 03-28
+
 - Aligned staff tenant details > users table with shared MRT actionable-table UX: toolbar, selection, export behavior.
 - Extended tenant-users API/status filter contract to accept comma-separated multi-status filtering (e.g., `?status=active,pending`).
 - New passing integration spec covers multi-status tenant-user filtering.
 
 ### 04-06
+
 - Corrected invitation revoke route shape: staff invitation revoke remains global staff-scoped, tenant invitation revoke is now explicitly tenant-scoped.
 - Tenant details `Invitations` tab revoke actions now use `DELETE /staff/tenants/{tenantId}/invitations/{invitationId}` instead of the global staff invitation revoke route.
 - Invitation management handlers now follow the intended permission-driven model instead of hardcoding admin-level checks on top of route permissions.
@@ -75,6 +80,7 @@ It covers category `0` through `10`.
 ## Category 1: Bug Fixes
 
 ### 1.1 Fix #191, users tab shows tenant users instead of staff users
+
 - Status: `DONE`
 - [x] Opening a tenant detail `Users` tab loads the selected tenant's users instead of staff-platform users.
 - [x] Switching from one tenant to another refreshes the table and shows different tenant-scoped data.
@@ -82,6 +88,7 @@ It covers category `0` through `10`.
 - [x] Tenant-user pagination still works after the #191 fix and continues loading tenant-scoped results on later pages.
 
 ### 1.2 General-tab error handling
+
 - Status: `DONE`
 - [x] A missing tenant on the general tab renders the intended `404` not-found state.
 - [x] A malformed `tenantId` on the general tab renders the intended invalid-id state.
@@ -90,6 +97,7 @@ It covers category `0` through `10`.
 ## Category 2: Core CRUD and Enriched Tenant Data
 
 ### 2.1 Create tenant
+
 - Status: `DONE`
 - [x] Submitting a valid form from `/staff/tenants/new` creates a tenant successfully.
 - [x] Submitting an invalid create form surfaces the expected field or form validation errors in the UI.
@@ -99,6 +107,7 @@ It covers category `0` through `10`.
 - [x] An invited existing tenant/project user can sign in, return to the invitation URL, click `Join organization`, and join the new tenant successfully.
 
 ### 2.2 Update tenant
+
 - Status: `DONE`
 - [x] Editing the tenant `name` on the general tab and saving persists the new value.
 - [x] Editing `maxUsers` on the general tab and saving persists the new value.
@@ -106,6 +115,7 @@ It covers category `0` through `10`.
 - [x] Submitting invalid update values keeps the form on screen and surfaces clear validation errors.
 
 ### 2.3 Delete tenant
+
 - Status: `DONE`
 - [x] The delete action is visible only when the tenant is in a deletable state.
 - [x] The delete confirmation dialog opens when requested and closes cleanly on cancel.
@@ -113,18 +123,21 @@ It covers category `0` through `10`.
 - [x] A disallowed delete attempt returns the expected API problem response, keeps the tenant intact, and shows a single clear UI error.
 
 ### 2.4 Suspend tenant
+
 - Status: `DONE`
 - [x] Suspending an active tenant from the list row action succeeds and updates the row state after refresh or invalidation.
 - [x] Suspending an active tenant from the general-tab danger zone succeeds and updates the detail page state immediately.
 - [x] Once suspended, the tenant is shown as suspended in both the list and detail views.
 
 ### 2.5 Reactivate tenant
+
 - Status: `DONE`
 - [x] Reactivating a suspended tenant from the list row action succeeds and updates the row state after refresh or invalidation.
 - [x] Reactivating a suspended tenant from the general-tab danger zone succeeds and updates the detail page state immediately.
 - [x] Once reactivated, the tenant is shown as active again in both the list and detail views.
 
 ### 2.6 Enriched GET tenant response
+
 - Status: `DONE`
 - [x] The staff detail page renders the tenant ID value returned by the enriched GET response.
 - [x] The staff detail page renders the tenant name returned by the enriched GET response.
@@ -140,6 +153,7 @@ It covers category `0` through `10`.
 ## Category 3: Tenant List Improvements
 
 ### 3.1 Search by tenant name/code
+
 - Status: `DONE`
 - [x] Typing in the tenant search input updates the URL state.
 - [x] Searching by tenant name filters the list to matching tenants.
@@ -147,6 +161,7 @@ It covers category `0` through `10`.
 - [x] Changing the search term resets cursor pagination to the first page correctly.
 
 ### 3.2 Filter by status
+
 - Status: `DONE`
 - [x] Changing the status filter updates the URL state.
 - [x] The status filter allows selecting multiple statuses at the same time and keeps the selected set visible in the input.
@@ -157,10 +172,12 @@ It covers category `0` through `10`.
 - [x] Combining search and status filters returns the expected intersection of both filters.
 
 ### 3.3 Filter by suspension state
+
 - Status: `DONE`
 - [x] There is an explicit product decision that no separate suspended-only control is needed because the status filter already supports `suspended`.
 
 ### 3.4 Bulk actions
+
 - Status: `DONE`
 - [x] Selecting tenant rows enables bulk actions for the selected tenants.
 - [x] When rows are selected, the table enters selection mode and keeps search, filters, sorting, and pagination visible but disabled with explanatory tooltips.
@@ -175,6 +192,7 @@ It covers category `0` through `10`.
 - [x] After each bulk mutation, the tenant list invalidates and refreshes to reflect the new state.
 
 ### 3.5 Export tenant list
+
 - Status: `PARTIAL`
 - [x] CSV export downloads successfully for the current filtered page.
 - [x] JSON export downloads successfully for the current filtered page.
@@ -185,6 +203,7 @@ It covers category `0` through `10`.
 - [x] There is an explicit product decision that full export should eventually cover the entire filtered result set across all pages, but this is deferred until asynchronous worker-service export jobs exist; current page-only export is a temporary limitation, not the final product behavior.
 
 ### List-specific regression checks
+
 - Status: `PARTIAL`
 - [x] Sorting by `created_at` changes list ordering correctly.
 - [x] Sorting by `updated_at` changes list ordering correctly.
@@ -194,33 +213,40 @@ It covers category `0` through `10`.
 ## Category 4: Staff Tenant Detail, General Tab
 
 ### 4.1 Wire edit form to PATCH
+
 - Status: `DONE`
 - [x] Saving changes from the general tab performs a real PATCH mutation and persists data instead of triggering a stub action.
 
 ### 4.2 Display tenant code
+
 - Status: `DONE`
 - [x] The code field is visible, read-only, and styled as non-editable.
 
 ### 4.3 Display status and suspension badge/state
+
 - Status: `DONE`
 - [x] The status badge or chip reflects the actual tenant state from the backend.
 - [x] The danger-zone actions change correctly when the tenant moves between active and suspended states.
 
 ### 4.4 Display created/updated timestamps
+
 - Status: `DONE`
 - [x] Both timestamps render and use the shared time-formatting utilities rather than ad hoc formatting.
 
 ### 4.5 Logo upload integration
+
 - Status: `DEFERRED`
 - [x] The logo area is intentionally read-only in the current scope.
 - [x] Real tenant logo upload/edit support is deferred to the broader file-upload work tracked in `#95`.
 
 ### 4.6 Suspend/reactivate from detail page
+
 - Status: `DONE`
 - [x] The general-tab danger zone exposes the correct action for the tenant's current state.
 - [x] After suspending or reactivating from the detail page, the page state updates immediately to reflect the new status.
 
 ### 4.7 Delete from detail page
+
 - Status: `DONE`
 - [x] The detail-page delete action is visible only when deletion is allowed.
 - [x] After a successful delete from the detail page, the app redirects away and the list data is invalidated.
@@ -228,21 +254,25 @@ It covers category `0` through `10`.
 ## Category 5: Staff Tenant Detail, Users Tab
 
 ### 5.1 Show actual tenant users
+
 - Status: `DONE`
 - [x] The users table loads tenant-scoped user results for the selected tenant.
 - [x] The users tab shows the intended empty state and error state when no data or failing data is returned.
 
 ### 5.2 Show user account level
+
 - Status: `DONE`
 - [x] The level column renders `Admin` and `User` correctly for the returned data.
 - [x] The level visuals use the intended chip or badge distinction for the two account levels.
 
 ### 5.3 Show invitation status
+
 - Status: `DONE`
 - [x] Pending invited users are sufficiently represented by the current `status` column.
 - [x] There is an explicit product decision that no separate invitation-status column is required in the tenant users table.
 
 ### 5.4 Invite new user to tenant
+
 - Status: `DONE`
 - [x] Clicking the invite CTA opens the invite drawer from the users tab.
 - [x] The invite form validates email correctly.
@@ -260,6 +290,7 @@ It covers category `0` through `10`.
 - [x] A successful invite from the `Users` tab provides a clear path to the tenant details `Invitations` tab without forcing an automatic redirect away from `Users`.
 
 ### 5.5 Tenant invitations tab
+
 - Status: `DONE`
 - [x] The tenant details navigation includes an `Invitations` tab.
 - [x] Opening the `Invitations` tab shows the current tenant name in the standard tenant-details page header pattern.
@@ -275,12 +306,14 @@ It covers category `0` through `10`.
 - [x] A non-admin staff user without the tenant invitation revoke permission receives `403` and does not see a false-success UI outcome.
 
 ### 5.6 Remove user from tenant
+
 - Status: `DONE`
 - [x] Clicking remove opens a confirmation step before mutation.
 - [x] A successful remove invalidates the tenant users query and removes the user from the refreshed list.
 - [x] A failing remove attempt keeps the user in place and shows the expected error feedback.
 
 ### 5.7 Change user account level
+
 - Status: `DONE`
 - [x] Opening the change-role action exposes the role update menu.
 - [x] Promoting a tenant user to `Admin` succeeds and the new level appears after invalidation or refresh.
@@ -288,6 +321,7 @@ It covers category `0` through `10`.
 - [x] The query invalidates after a successful role change and the visible table state matches the backend result.
 
 ### 5.8 Suspend/reactivate tenant user membership
+
 - Status: `DONE`
 - [x] The `Status` cell exposes the membership status control for tenant users.
 - [x] A globally active tenant user with an unsuspended membership is shown as `Active` in the tenant users list.
@@ -310,6 +344,7 @@ It covers category `0` through `10`.
 - [ ] (deferred test: tracked in #319) Re-activating the user globally restores auth eligibility, and tenant membership state then determines whether the user is shown as `Active` or `Suspended` in the tenant users list.
 
 ### 5.9 Search/filter tenant users
+
 - Status: `DONE/PARTIAL`
 - [x] Typing in the users search input filters the tenant users list.
 - [x] Filtering by `active` returns only active tenant users.
@@ -322,6 +357,7 @@ It covers category `0` through `10`.
 - [x] The users table uses valid backend sort IDs and does not send invalid sort parameters.
 
 ### 5.10 Users-tab regression checks
+
 - Status: `PARTIAL`
 - [ ] (deferred test: tracked in #320) Pending users can still receive the intended verification follow-up email flow.
 - [ ] (deferred test: tracked in #320) Copy-verification-link behavior is either intentionally unavailable or fully supported end to end.
@@ -339,6 +375,7 @@ It covers category `0` through `10`.
 ## Category 7: Profiles
 
 ### 7.1 Profiles table and list behaviors
+
 - Status: `PENDING`
 - [x] The tenant profiles table loads real backend profile data for the selected tenant.
 - [x] Search updates the server-side results correctly.
@@ -347,12 +384,14 @@ It covers category `0` through `10`.
 - [x] The export dialog opens from the table and exports either the current results or the current selection.
 
 ### 7.2 Preview and compare
+
 - Status: `PENDING`
 - [x] The preview drawer opens from the row action and shows real profile metadata and assigned permissions.
 - [x] Compare mode only enables when 2 to 3 profiles are selected.
 - [x] The compare drawer shows permission differences accurately for the selected profiles.
 
 ### 7.3 Create and edit profile
+
 - Status: `PENDING`
 - [x] The create-profile CTA opens a real form drawer.
 - [x] Creating a non-default tenant profile persists and refreshes the table.
@@ -361,6 +400,7 @@ It covers category `0` through `10`.
 - [x] Duplicate profile names are rejected with the expected validation or domain error.
 
 ### 7.4 Delete and default-profile protection
+
 - Status: `PENDING`
 - [x] A non-default tenant profile can be deleted successfully from the row action.
 - [x] Bulk delete works for selected non-default tenant profiles.
@@ -368,6 +408,7 @@ It covers category `0` through `10`.
 - [x] The backend still blocks default-profile deletion even if the UI guard is bypassed.
 
 ### 7.5 Permission-driven tenant shell access
+
 - Status: `DEFERRED`
 - [ ] Tenant-side UI permission gating is intentionally deferred to a dedicated follow-up task and is not part of the current tenant-profile completion scope.
 
@@ -381,16 +422,19 @@ It covers category `0` through `10`.
 ## Category 9: Backend and Automated Coverage
 
 ### 9.1 Tenant usage metrics endpoint
+
 - Status: `DEFERRED`
 - [x] Tenant usage metrics are intentionally deferred because the endpoint shape, metric definitions, and UI surface need dedicated product/API brainstorming before implementation. Tracked by `#168`.
 - [x] The tenant usage tab should exist in the tenant detail navigation, but it stays locked while metric definitions and data loading are deferred.
 - [x] The locked `Usage` route renders a `403` view while the feature flag is disabled.
 
 ### 9.2 Staff endpoint for tenant users
+
 - Status: `DONE`
 - [x] `GET /staff/tenants/{tenantId}/users` is covered for success, malformed ID, bad cursor, invalid sort, unauthenticated, and unauthorized scenarios.
 
 ### 9.3 Staff-side tenant user management endpoints
+
 - Status: `DONE`
 - [x] The tenant invite endpoint works end to end.
 - [x] The tenant user update endpoint works end to end.
@@ -399,6 +443,7 @@ It covers category `0` through `10`.
 - [x] The shared tenant invitation accept endpoint is covered for both new-account acceptance and existing-account join.
 
 ### 9.3.1 Staff-side invitation management permissions
+
 - Status: `DONE`
 - [x] Staff invitation create/revoke handlers rely on route permissions rather than hardcoded admin-only checks.
 - [x] Tenant invitation revoke handler relies on route permissions rather than a hardcoded admin-only check.
@@ -407,19 +452,23 @@ It covers category `0` through `10`.
 - [x] A permissioned non-admin staff user can revoke tenant invitations.
 
 ### 9.4 Tenant archival/data-retention logic
+
 - Status: `DEFERRED`
 - [x] Tenant archival/data-retention semantics are intentionally deferred because lifecycle, restore, cascade, hard-delete, audit-log, and legal retention requirements need dedicated product/API design. Tracked by `#365`.
 
 ### 9.5 Create endpoint tests
+
 - Status: `DONE`
 - [x] `CreateTenantAsStaff.Spec.cs` passes and covers the current create-tenant contract, including creation side effects, auth/permission gating, validation edge cases, default max-users handling, default profile assignment, invitation creation, and email dispatch.
 
 ### 9.6 Find endpoint tests
+
 - Status: `DONE`
 - [x] `FindTenantsAsStaff.Spec.cs` passes for pagination, cursor flow, search, and multi-status filtering.
 - [x] Tenant bulk actions are tracked separately under `9.9`; bulk export depends on the future worker service and is out of scope for the current tenant-module completion issue.
 
 ### 9.7 Update/Delete/Get tests
+
 - Status: `DONE`
 - [x] The update-tenant spec passes, including successful field updates, invalid PATCH values, max-users domain validation, permission gating, and audit logging.
 - [x] The delete-tenant spec passes, including suspended-only deletion, persisted soft-delete state, permission gating, and audit logging.
@@ -427,6 +476,7 @@ It covers category `0` through `10`.
 - [x] The suspend and reactivate specs pass, including lifecycle transitions, invalid states, auth/permission gating, body validation, and audit logging.
 
 ### 9.8 Tenant-user tests
+
 - Status: `DONE`
 - [x] `FindTenantUsersAsStaff.Spec.cs` passes.
 - [x] `RemoveUserFromTenantAsStaff.Spec.cs` passes.
@@ -435,37 +485,43 @@ It covers category `0` through `10`.
 - [x] The staff-side invite endpoint has automated coverage in `CreateInvitationForTenantAsStaff.Spec.cs`.
 
 ### 9.8.1 Tenant-invitation tests
+
 - Status: `DONE`
 - [x] `FindInvitationsForTenantAsStaff.Spec.cs` passes, including cursor pagination, tenant isolation, search, sort, and pending/accepted/expired/revoked status coverage.
 - [x] `RevokeInvitationForTenantAsStaff.Spec.cs` passes for success, malformed ids, not-found cases, accepted-invitation rejection, auth/permission gating, and permissioned non-admin staff access.
 - [x] Global staff invitation revoke coverage proves tenant invitations are no longer revocable through the staff invitation revoke route.
 
 ### 9.9 Bulk action tests
+
 - Status: `DONE`
 - [x] Automated coverage for bulk suspend, bulk reactivate, and bulk delete endpoints passes, including success, partial success, persisted state, validation, auth/permission gating, permissioned non-admin staff access, and audit logging.
 
 ## Category 10: Tenant-Side Self-Service
 
 ### 10.1 Tenant settings page content
+
 - Status: `MOCK/DEFERRED`
-- [ ] The tenant `Settings > General` page is reachable and visually intact after layout consolidation.
+- [x] The tenant `Settings > General` page is reachable and visually intact after layout consolidation.
 - [ ] Any disabled or mock form fields are clearly intentional and communicated as such.
 
 ### 10.2 Tenant admin user management
+
 - Status: `MOCK/DEFERRED`
-- [ ] The tenant `Settings > Members` page is reachable.
+- [x] The tenant `Settings > Members` page is reachable.
 - [ ] If the page is still placeholder-only, that mock state is explicit and not misleadingly treated as complete.
 
 ### 10.3 Tenant profile/branding self-edit
+
 - Status: `MOCK/DEFERRED`
 - [ ] The tenant `Settings > Roles` page is reachable.
 - [ ] If role or profile editing is still placeholder-only, that state is explicit and not misleadingly treated as complete.
 
 ### 10.4 Invitation acceptance flow
+
 - Status: `DONE/PARTIAL`
 - [x] A brand-new invited user can accept a valid invitation by creating an account from the invitation page.
 - [x] An existing invited user is prompted to sign in, returned to the invitation URL, and can complete acceptance with the `Join organization` CTA.
-- [ ] There is an explicit product decision on whether existing-user acceptance should remain a manual post-login confirmation or become auto-complete after login. Tracked by `#269`.
+- [x] DONE (issue 269 was closed a while ago now): There is an explicit product decision on whether existing-user acceptance should remain a manual post-login confirmation or become auto-complete after login. Tracked by `#269`.
 
 ## Practical Completion Gate
 
