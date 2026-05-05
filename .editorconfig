@@ -1,0 +1,78 @@
+# EditorConfig is awesome: https://EditorConfig.org
+
+# top-most EditorConfig file
+root = true
+
+# Unix-style newlines with a newline ending every file
+[*]
+end_of_line = lf
+insert_final_newline = true
+indent_style = tab
+tab_width = 2
+indent_size = 2
+trim_trailing_whitespace = true
+
+[*.{yml,yaml}]
+indent_style = space
+
+# C# files
+[*.cs]
+# IDE0001: Simplify Names
+dotnet_diagnostic.IDE0001.severity = none
+# IDE0290: Use primary constructor
+dotnet_diagnostic.IDE0290.severity = none
+# IDE0270: Null check can be simplified
+dotnet_diagnostic.IDE0270.severity = none
+# Using directive is unnecessary.
+dotnet_diagnostic.IDE0005.severity = warning
+# IDE0090: Use 'new'
+dotnet_diagnostic.IDE0090.severity = none
+# Use compound assignment
+dotnet_diagnostic.IDE0074.severity = none
+# Member name can be simplified
+dotnet_diagnostic.IDE0037.severity = none
+# IDE0305: Simplify collection initialization
+dotnet_diagnostic.IDE0305.severity = none
+# IDE0200: Remove unnecessary lambda expression
+dotnet_diagnostic.IDE0200.severity = none
+# IDE2000: Avoid multiple blank lines
+dotnet_diagnostic.IDE2000.severity = warning
+# ==== Braces syntax to follow Js/Java style ====
+csharp_new_line_before_open_brace = none
+csharp_new_line_before_else = false
+csharp_new_line_before_catch = false
+csharp_new_line_before_finally = false
+# ==== Braces syntax to follow Js/Java style ====
+# IDE0042: Deconstruct variable declaration
+dotnet_diagnostic.IDE0042.severity = none
+# IDE0028: Simplify collection initialization
+dotnet_diagnostic.IDE0028.severity = none
+# CA1860: Avoid using 'Enumerable.Any()' extension method
+dotnet_diagnostic.CA1860.severity = warning
+# IDE0130: Namespace declaration does not match folder structure
+dotnet_diagnostic.IDE0130.severity = warning
+# ==== Using directive organization ====
+# Sort System.* using directives first
+dotnet_sort_system_directives_first = true
+# Separate using directive groups with blank lines
+dotnet_separate_import_directive_groups = true
+# ======================================
+# CS0168: The variable 'name' is declared but never used
+dotnet_diagnostic.CS0168.severity = warning
+# CS0219: Variable is assigned but its value is never used
+dotnet_diagnostic.CS0219.severity = warning
+# IDE0059: Unnecessary assignment of a value
+dotnet_diagnostic.IDE0059.severity = warning
+# IDE0060: Remove unused parameter
+dotnet_diagnostic.IDE0060.severity = warning
+# CS1591: Missing XML comment for publicly visible type or member
+dotnet_diagnostic.CS1591.severity = none
+# CA1848: Use the LoggerMessage delegates for performance
+dotnet_diagnostic.CA1848.severity = none
+# CA1062: Validate arguments of public methods
+dotnet_diagnostic.CA1873.severity = warning
+
+# EF Core Migrations - auto-generated code
+[**/Migrations/*.cs]
+# Disable unnecessary using directive check for generated migrations
+dotnet_diagnostic.IDE0005.severity = none

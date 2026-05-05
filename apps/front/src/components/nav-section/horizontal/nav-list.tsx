@@ -1,0 +1,188 @@
+import { popoverClasses } from '@mui/material/Popover';
+import { useTheme } from '@mui/material/styles';
+import { usePopoverHover } from 'minimal-shared/hooks';
+import { isActiveLink, isExternalLink } from 'minimal-shared/utils';
+import { useCallback, useEffect } from 'react';
+
+import { usePathname } from '@/front/hooks/use-pathname';
+
+import { NavDropdown, NavDropdownPaper, NavLi, NavUl } from '../components';
+import { navSectionClasses } from '../styles';
+import type { NavListProps, NavSubListProps } from '../types';
+import { NavItem } from './nav-item';
+
+// ----------------------------------------------------------------------
+
+export const NavList = ({
+	data,
+	depth,
+	render,
+	cssVars,
+	slotProps,
+	checkPermissions,
+	enabledRootRedirect,
+}: NavListProps) => {
+	const theme = useTheme();
+
+	const pathname = usePathname();
+
+	const isActive = isActiveLink(pathname, data.path, !!data.children);
+
+	const {
+		open,
+		onOpen,
+		onClose,
+		anchorEl,
+		elementRef: navItemRef,
+	} = usePopoverHover<HTMLButtonElement>();
+
+	const isRtl = theme.direction === 'rtl';
+	const id = open ? `${data.title}-popover` : undefined;
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
+	useEffect(() => {
+		// If the pathname changes, close the menu
+		if (open) {
+			onClose();
+		}
+	}, [pathname]);
+
+	const handleOpenMenu = useCallback(() => {
+		if (data.children) {
+			onOpen();
+		}
+	}, [data.children, onOpen]);
+
+	const renderNavItem = () => {
+		return (
+			<NavItem
+				ref={navItemRef}
+				aria-describedby={id}
+				// slots
+				title={data.title}
+				path={data.path}
+				icon={data.icon}
+				info={data.info}
+				caption={data.caption}
+				// state
+				active={isActive}
+				open={open}
+				disabled={data.disabled}
+				// options
+				depth={depth}
+				render={render}
+				hasChild={!!data.children}
+				externalLink={isExternalLink(data.path)}
+				enabledRootRedirect={enabledRootRedirect}
+				// styles
+				slotProps={depth === 1 ? slotProps?.rootItem : slotProps?.subItem}
+				// actions
+				onMouseEnter={handleOpenMenu}
+				onMouseLeave={onClose}
+			/>
+		);
+	};
+
+	const renderDropdown = () => {
+		return (
+			!!data.children && (
+				<NavDropdown
+					disableScrollLock
+					id={id}
+					open={open}
+					anchorEl={anchorEl}
+					anchorOrigin={
+						depth === 1
+							? { vertical: 'bottom', horizontal: isRtl ? 'right' : 'left' }
+							: { vertical: 'center', horizontal: isRtl ? 'left' : 'right' }
+					}
+					transformOrigin={
+						depth === 1
+							? { vertical: 'top', horizontal: isRtl ? 'right' : 'left' }
+							: { vertical: 'center', horizontal: isRtl ? 'right' : 'left' }
+					}
+					slotProps={{
+						paper: {
+							onMouseEnter: handleOpenMenu,
+							onMouseLeave: onClose,
+							className: navSectionClasses.dropdown.root,
+						},
+					}}
+					sx={{
+						...cssVars,
+						[`& .${popoverClasses.paper}`]: {
+							...(depth === 1 && { pt: 1, ml: -0.75 }),
+						},
+					}}
+				>
+					<NavDropdownPaper
+						className={navSectionClasses.dropdown.paper}
+						sx={slotProps?.dropdown?.paper}
+					>
+						<NavSubList
+							data={data.children}
+							depth={depth}
+							render={render}
+							cssVars={cssVars}
+							slotProps={slotProps}
+							checkPermissions={checkPermissions}
+							enabledRootRedirect={enabledRootRedirect}
+						/>
+					</NavDropdownPaper>
+				</NavDropdown>
+			)
+		);
+	};
+
+	// Hidden item by role
+	if (
+		data.allowedRoles &&
+		checkPermissions &&
+		checkPermissions(data.allowedRoles)
+	) {
+		return null;
+	}
+
+	return (
+		<NavLi disabled={data.disabled}>
+			{renderNavItem()}
+			{/*
+			 * TODO: Should be removed in MUI next.
+			 * Add `open` condition to disable transition effect on close.
+			 * https://github.com/mui/material-ui/issues/43106
+			 */}
+			{open && renderDropdown()}
+		</NavLi>
+	);
+};
+
+// ----------------------------------------------------------------------
+
+const NavSubList = ({
+	data,
+	render,
+	cssVars,
+	depth = 0,
+	slotProps,
+	checkPermissions,
+	enabledRootRedirect,
+}: NavSubListProps) => {
+	return (
+		<NavUl sx={{ gap: 0.5 }}>
+			{data.map((list) => {
+				return (
+					<NavList
+						key={list.title}
+						data={list}
+						render={render}
+						depth={depth + 1}
+						cssVars={cssVars}
+						slotProps={slotProps}
+						checkPermissions={checkPermissions}
+						enabledRootRedirect={enabledRootRedirect}
+					/>
+				);
+			})}
+		</NavUl>
+	);
+};

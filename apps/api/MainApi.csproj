@@ -1,0 +1,81 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<PublishDir>publish</PublishDir>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Remove="**/*.Spec.cs" />
+		<Compile Remove="scripts/**" />
+		<None Remove="scripts/**" />
+		<Compile Remove="Src/Lib/Testing/**/*.cs" />
+		<Compile Remove="Tests/**/*.cs" />
+		<None Remove="Src/Lib/Testing/**" />
+		<None Remove="Tests/**" />
+		<Content Remove="Src/Lib/Testing/**" />
+		<Content Remove="Tests/**" />
+		<EmbeddedResource Remove="Src/Lib/Testing/**" />
+		<EmbeddedResource Remove="Tests/**" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="DotNetEnv" />
+		<PackageReference Include="FluentValidation.AspNetCore" />
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+			<PrivateAssets>all</PrivateAssets>
+		</PackageReference>
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+		<PackageReference Include="Resend" />
+		<PackageReference Include="Scalar.AspNetCore" />
+		<PackageReference Include="Serilog.AspNetCore" />
+		<PackageReference Include="Serilog.Enrichers.Environment" />
+		<PackageReference Include="Serilog.Enrichers.Thread" />
+		<PackageReference Include="Serilog.Sinks.Async" />
+		<PackageReference Include="Serilog.Sinks.Console" />
+		<PackageReference Include="Serilog.Sinks.File" />
+		<PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders" />
+		<PackageReference Include="Polly" />
+		<!-- for exporting openapi documents to json file at build time -->
+		<PackageReference Include="Microsoft.Extensions.ApiDescription.Server">
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+			<PrivateAssets>all</PrivateAssets>
+		</PackageReference>
+		<PackageReference Include="Bogus" />
+	</ItemGroup>
+
+	<!-- for exporting openapi documents to json file at build time -->
+	<PropertyGroup Condition="'$(Configuration)' != 'Test'">
+		<OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
+		<OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)\openapi</OpenApiDocumentsDirectory>
+		<!-- Prevent duplicate assembly attributes when OpenAPI doc generation runs -->
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)' == 'Test'">
+		<OpenApiGenerateDocuments>false</OpenApiGenerateDocuments>
+	</PropertyGroup>
+
+	<!-- Generate translation keys before build (.NET 10 file-based app) -->
+	<PropertyGroup>
+		<GeneratedDir>Generated</GeneratedDir>
+		<TranslationJsonFile>$(MSBuildProjectDirectory)\..\..\packages\shared-ts\lib\i18n\json\response-message.en.json</TranslationJsonFile>
+		<GeneratedKeysFile>$(MSBuildProjectDirectory)\$(GeneratedDir)\ResponseKeys.g.cs</GeneratedKeysFile>
+		<TranslationKeyGenScript>$(MSBuildProjectDirectory)\scripts\generate-translation-keys.cs</TranslationKeyGenScript>
+	</PropertyGroup>
+
+	<Target Name="GenerateTranslationKeys"
+			BeforeTargets="BeforeBuild"
+			Condition="'$(Configuration)' != 'Test'"
+			Inputs="$(TranslationJsonFile);$(TranslationKeyGenScript)"
+			Outputs="$(GeneratedKeysFile)">
+		<Message Text="Generating translation keys from response-message.en.json..."
+				 Importance="high" />
+		<Exec Command="dotnet run --file &quot;$(TranslationKeyGenScript)&quot; -- &quot;$(TranslationJsonFile)&quot; &quot;$(GeneratedKeysFile)&quot;"
+			  ContinueOnError="false" />
+	</Target>
+</Project>

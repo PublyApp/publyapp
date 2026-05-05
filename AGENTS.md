@@ -1,0 +1,316 @@
+# AGENTS.md
+
+This file provides guidance to AI coding assistants when working with code in this repository.
+
+## Project Overview
+
+PublyApp is a modern full-stack multi-tenant SaaS application built with .NET 9.0 and React 19. The monorepo architecture uses Turborepo and pnpm workspaces with three user scopes: Staff (platform administrators), Tenant (organization-level users), and Project (project-level users).
+
+## Development Commands
+
+### Starting Development Servers
+
+```bash
+# Terminal 1 - Start API with hot reload
+make dev-api
+
+# Terminal 2 - Start React frontend with Vite
+make dev-front
+
+# Start PostgreSQL in Docker
+make dev-db
+```
+
+### Configuration (AppEnvironment)
+
+The API reads configuration exclusively from environment variables via `AppEnvironment` (`apps/api/Src/Lib/AppEnvironment.cs`).
+
+- Development defaults live in repo-root `.env.development` and are loaded when the host environment is `Development`.
+- `dotnet build` also runs the app during OpenAPI document generation; if `ASPNETCORE_ENVIRONMENT`/`DOTNET_ENVIRONMENT` are unset, `.env.development` is loaded to prevent build failures.
+- Prefer keeping secrets out of the repo: use an example file (e.g. `.env.development.example`) + local overrides / CI secrets.
+
+### Building
+
+```bash
+make build-api          # Build .NET API
+make build-front        # Build React frontend for production
+make build-deploy       # Build everything for deployment
+```
+
+### Code Quality
+
+```bash
+make check-write        # Run Biome linting + formatting (auto-fix)
+make tsc-front          # TypeScript type checking
+make knip               # Check for unused dependencies
+```
+
+### Database Operations
+
+```bash
+make db-migrate                # Run EF Core migrations
+make db-add NAME=MigrationName # Add new migration
+make db-reset                  # Drop and recreate database
+make db-remove                 # Remove last migration
+```
+
+### API Client Generation
+
+After backend changes that modify the API contract:
+
+```bash
+make generate-client    # Generate TypeScript client from OpenAPI
+```
+
+This is critical - the frontend TypeScript client is auto-generated from the backend OpenAPI spec.
+
+### Running Tests
+
+```bash
+make test-api          # Run API integration tests (requires Docker)
+```
+
+**Prerequisites:** Docker must be running (Testcontainers spins up Postgres automatically).
+
+```bash
+# Run a specific test class
+cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test --filter "FullyQualifiedName~PasswordLoginSpec"
+
+# Run a specific test method
+cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test --filter "ItShouldReturnSessionTokenWithValidCredentials"
+
+# Frontend tests (when implemented)
+cd apps/front && pnpm test
+```
+
+For the full guide on writing and debugging integration tests, see [`docs/guides/api-integration-tests.md`](docs/guides/api-integration-tests.md).
+
+## Architecture
+
+### Monorepo Structure
+
+```
+apps/
+├── api/              # .NET 9.0 Web API backend
+├── front/            # React Router v7 frontend (SSR-enabled)
+└── jobs/             # Background jobs (future)
+
+packages/
+├── shared/           # Shared utilities, validations, i18n
+├── js-client/        # Auto-generated TypeScript API client
+└── _tsconfig/        # Shared TypeScript configurations
+```
+
+### Backend Architecture (Vertical Slice, Domain-First)
+
+The backend follows **Vertical Slice Architecture** using a **domain-first** module layout:
+
+```
+apps/api/Src/Modules/<Domain>/
+├── Entities/                     # EF Core entities for the domain
+├── Services/                     # Domain services (business logic)
+├── Seeders/                      # Seeders for the domain
+├── Permissions/                  # Permission definitions (used by seeder)
+├── Endpoints/                    # Minimal API mappings (by route scope)
+└── Handlers/                     # Request handlers (CQRS-lite)
+    ├── Anonymous/                # Public/auth-free handlers
+    ├── Staff/                    # Staff-only handlers
+    └── Tenant/                   # Tenant-scoped handlers
+```
+
+**Key Patterns:**
+- **CQRS-lite**: handlers per operation (create/find/get/update/delete)
+- **Minimal APIs**: endpoints map routes and attach filters/permissions
+- **FluentValidation**: automatic body/query validation via endpoint extensions
+- **Response Format**: errors return RFC 7807 via `TypedProblems.*`; Create success → 201 `Created<T>` with entity DTO; Update success → 200 `Ok<T>` with entity DTO; Delete/action-only success → 200 `Ok<ApiResponse>` with message + translationKey
+- **Namespace discipline**: `IDE0130` is treated as error — file namespace must match its folder path
+
+**Finding Backend Code:**
+- Domain modules (preferred): `apps/api/Src/Modules/<Domain>/` (e.g. `Auth`, `Users`, `Invitations`)
+- Legacy (migration in progress): `apps/api/Src/Modules/{Shared,Staff,Tenant}/` (do not add new code here unless you're migrating existing slices)
+- Cross-cutting utilities/middleware: `apps/api/Src/Lib/`
+- Infrastructure services (email, storage, etc.): `apps/api/Src/Infrastructure/`
+
+### API Module Structure Rules
+
+For the complete module structure rules (module organization, junction entities, infrastructure placement,
+slice boundaries, permission enforcement, vertical slice design principles, and decision tree), see:
+[`docs/guides/api-module-structure.md`](docs/guides/api-module-structure.md)
+
+**Key principles (always apply):**
+- Domain-first modules: `apps/api/Src/Modules/<Domain>/` — route scope expressed via handler folders + endpoint groups
+- Junction entities live with their **primary entity**'s domain
+- Infrastructure services go in `Infrastructure/`, domain services in `Modules/<Domain>/Services/`
+- Split by actor (Staff/Tenant) when auth/security boundary differs; share handler when only permission differs
+- Enforce permissions at the route level with `.WithPermission()` (Pattern 1, preferred)
+- `AGENTS.md` + its referenced guide files are the single source of truth for architecture rules
+
+### Architecture Details
+
+For detailed documentation on business rules, database layer, authentication, and i18n, see:
+[`docs/guides/architecture-details.md`](docs/guides/architecture-details.md)
+
+**Key facts (always apply):**
+- Staff/Tenant mutual exclusivity: a `User` can only have accounts of ONE scope type (Staff or Tenant/Project, never both); suspended accounts still count
+- PostgreSQL 18 with UUID v7 PKs, soft deletes (`IsDeleted`), audit tracking (`CreatedAt`/`UpdatedAt`/`DeletedAt`), all entities inherit `BaseAttributes`
+- Session-based auth via `X-Session-Token`; permission-based authorization via `PermissionFilter`
+- Middleware order: Security headers → Exception handling → CORS → Tenant header → Session header → Session auth → Staff auth
+
+### Frontend Architecture (React Router v7)
+
+**File-based routing:**
+- Routes defined in `app/routes.ts`
+- Route components in `app/routes/[section]/[page]/`
+- Three main layouts: Marketing, Auth, Authenticated
+
+**State Management Strategy:**
+```
+Server State     → TanStack Query (API data, caching, mutations)
+Global State     → Zustand (user preferences, UI state)
+URL State        → nuqs (filters, pagination, search)
+Form State       → React Hook Form (local form state)
+```
+
+For detailed frontend architecture patterns (API client integration, getting clients in hooks/browser/SSR,
+data fetching patterns by route type, and optimized prefetching), see:
+[`docs/guides/frontend-architecture.md`](docs/guides/frontend-architecture.md)
+
+**Key rules (always apply):**
+- Marketing/Auth pages use SSR loaders; Authed pages use TanStack Query (client-only)
+- Never fetch application data in authed page `loader` — use hook factories (`createStaffQuery`, etc.)
+- Use `getClientLoader` wrapper (not raw `clientLoader`) for client-side prefetching
+- Authed layout wrapped in `<ClientOnly>` component
+
+### RFC 7807 + Frontend Logout Semantics (Do Not Regress)
+
+**Backend invariants:**
+- Error responses must be RFC 7807 `application/problem+json` via `TypedProblems.*` and the `App*HttpResult` types.
+- `422` is for validation problems and must include `errors: Dictionary<string, string[]>` with stable keys.
+- `401` must be reserved for **invalid/missing session** only (frontend treats `401` as "logout now").
+- Tenant header issues should not return `401` (use `400`/`422` as appropriate).
+- Never log secrets: do not log `X-Session-Token` (or any session token value) in any log level.
+
+**Frontend invariants:**
+- Only `401` triggers centralized logout; `403` must not log users out.
+
+### API Routes & Endpoint Path Design
+
+For the complete route design guide (staff/tenant/anonymous route structures, design principles,
+route constants, handler naming conventions, and adding new domain slices), see:
+[`docs/guides/api-route-design.md`](docs/guides/api-route-design.md)
+
+For route parameter conventions (no route constraints, ID validation pattern), see:
+[`docs/guides/api-route-parameters.md`](docs/guides/api-route-parameters.md)
+
+**Key principles (always apply):**
+- Staff API: `/staff/...` with explicit `{tenantId}` in path
+- Tenant API: `/...` (root) with implicit tenant from `X-Tenant-Id` header
+- Anonymous: `/auth/...`, `/invitations/...`
+- Symmetry: same resource names in both APIs (`users`, `invitations`, `posts`)
+- Handler suffixes: `*ForStaff`, `*ForTenantAsStaff`, `*ForTenant`, `*Anonymous`
+- **Never** use route constraints (`:guid`, `:int`) on ID parameters — validate with `Guid.TryParse` in handlers; malformed ID → `BadRequest` (400), entity not found → `NotFound` (404)
+
+## Frontend Coding Standards
+
+For the complete frontend coding standards (MUI components, sx prop styling, Day.js utilities,
+array methods, arrow functions, arrow components, forms, QueryDisplay, and component structure), see:
+[`docs/guides/frontend-coding-standards.md`](docs/guides/frontend-coding-standards.md)
+
+**Key principles (always apply):**
+- MUI v6 only — never native HTML elements (`<div>` → `<Box>`, `<h1>` → `<Typography variant="h1">`)
+- `sx` prop for all styling — never Tailwind CSS or className
+- Day.js via `format-time.ts` utilities — never import dayjs directly in components
+- Arrow function components only — never `function` declarations for components
+- `QueryDisplay` component for TanStack Query states — never manual conditional rendering
+- No `Array.reduce()` — use `find`, `filter+map`, `for...of`, or `Object.groupBy`
+- React Hook Form + Zod for form validation — always use `Form`/`Field.*` wrappers from `@/front/components/hook-form`, never raw MUI `TextField` with `register()`
+
+## C# Coding Standards
+
+For the complete C# coding standards (null checking, LINQ, async/await, handler architecture,
+DTOs, service layer, DI rules, API responses, formatting, and more), see:
+[`docs/guides/csharp-coding-standards.md`](docs/guides/csharp-coding-standards.md)
+
+For FluentValidation conventions (shared extension methods, pagination validators, encrypted-ID queries), see:
+[`docs/guides/validator-conventions.md`](docs/guides/validator-conventions.md)
+
+**Key principles (always apply):**
+- Pattern matching for null checks (`is null` / `is not null`, never `== null`)
+- **Never** use `?? throw` — use traditional `if` guard clauses for null-then-throw patterns
+- **Never** use the null-forgiving operator (`!`) in production code — always handle null explicitly with guard clauses or safe accessors like `GetRequiredId()`
+- Guard clauses (flat `if`/early return) over `switch` expressions when handling discriminated union error results from services
+- Query syntax for database LINQ queries; method syntax only for terminal ops
+- Handlers orchestrate, services implement (no DbContext in handlers)
+- Request body DTOs use `JsonElement` with `Get*()` methods for FluentValidation compatibility
+- All errors use `TypedProblems.*` (RFC 7807), never `TypedResults.Forbid()`
+- Services MUST NOT depend on other services (only DbContext + infrastructure)
+- Use `[Service]` attribute for DI registration; `{Action}{Domain}Args` records for 3+ params
+- `PatchField<T>` for clearable nullable PATCH fields (see [`docs/guides/patchfield-pattern.md`](docs/guides/patchfield-pattern.md))
+- Max 100 char line length; always use braces on control flow blocks
+- "Find" prefix for list/collection retrieval (not "List")
+- Staff handlers MUST use `*ForStaff*` service method variants (e.g., `GetTenantByIdForStaffAsync`) — base methods filter suspended entities
+- For cursor/keyset pagination, see [`docs/guides/cursor-keyset-pagination-guide.md`](docs/guides/cursor-keyset-pagination-guide.md)
+- For list pages with search/filter + cursor pagination + bulk actions, see [`docs/guides/list-pages-search-filter-cursor-pagination.md`](docs/guides/list-pages-search-filter-cursor-pagination.md)
+- **Validators**: use `JsonElementRules.*` extension methods (never inline validation chains); inherit `OffsetPaginatedQueryValidator<T>`/`CursorPaginatedQueryValidator<T>` for pagination; inherit `EncryptedIdTokenQueryValidator<T>` for encrypted-ID + token queries
+
+## Test Conventions
+
+For full test conventions (file naming, BDD method naming, folder structure, imports), see:
+[`docs/guides/test-conventions.md`](docs/guides/test-conventions.md)
+For writing and debugging integration tests, see:
+[`docs/guides/api-integration-tests.md`](docs/guides/api-integration-tests.md)
+
+**Key rules:** `*.Spec.cs` suffix, `ItShould{Expected}When{Scenario}` method names, specs co-located with source, test infra in `Src/Lib/Testing/{Fixtures,Helpers,Fakes}/`
+
+## Common Workflows
+
+For step-by-step checklists (adding features, updating API contract, adding entities, handling permissions), see:
+[`docs/guides/common-workflows.md`](docs/guides/common-workflows.md)
+
+**Quick reference:**
+- After API contract changes: `make build-api && make generate-client` (never modify `packages/client-ts/` manually)
+- New entity: inherit `BaseAttributes`, implement tenant interface, add `DbSet`, `make db-add && make db-migrate`
+- New permission: add to `Seeder.cs`, use `PermissionFilter` on endpoint, check via `AuthContext.HasPermission()`
+
+## Project Conventions
+
+For detailed conventions (route naming, API response format with JSON examples, validation, error handling, logger rules), see:
+[`docs/guides/project-conventions.md`](docs/guides/project-conventions.md)
+
+**Key rules (always apply):**
+- Backend routes use kebab-case; constants in `RoutePath.cs` (backend) and `constants.ts` (frontend)
+- Errors: `AppProblemDetails` (400/401/403/404/500) + `ValidationProblemDetails` (422) — both RFC 7807
+- Frontend/Node: use `logger` from `@/shared/lib/logger/iso-logger` (not `console.*`)
+- Frontend API errors: centralized via `ApiFailure` discriminated union — see [`docs/guides/frontend-error-handling.md`](docs/guides/frontend-error-handling.md)
+
+## Development Environment
+
+**Local access:** Frontend `localhost:5050` | API `localhost:5000` | Scalar docs `localhost:5000/scalar/v1` | Postgres `localhost:5454`
+**Env vars:** `.env.development` (committed), `.env.production` (not in repo), validated at startup via `AppEnvironment.Initialize()`
+
+## Deployment
+
+Dokploy on Hostinger VPS: GitHub → GHCR Docker images → Dokploy → Traefik SSL. Config in `dokploy.yml`.
+
+## OpenAPI Documentation
+
+Interactive API docs at `/scalar/v1`. Source of truth for the API contract; drives TypeScript client generation.
+
+## OpenAPI & Kiota Client Generation Safeguards
+
+For the complete Kiota safeguards guide (JsonElement nullability, generic types bug, schema transformer,
+client regeneration workflow, and TypeScript patterns), see:
+[`docs/guides/openapi-kiota-safeguards.md`](docs/guides/openapi-kiota-safeguards.md)
+
+**Key rules (always apply):**
+- Required body fields: non-nullable `JsonElement` (not `JsonElement?`) for cleaner TypeScript types
+- Never add XML comments to generic types (`<T>`) — triggers .NET 10 OpenAPI bug
+- After DTO/endpoint changes: `make build-api && make generate-client && make tsc-front`
+- Use `createUntypedString()` / `createUntypedArray()` for request body fields in TypeScript
+
+## Documentation Organization
+
+- **Never** place generated docs at the repo root — always under `docs/`
+- Use existing subdirectories when appropriate; create new ones with kebab-case names
+- Existing dirs: `docs/implementation-plans/`, `docs/refactoring-guides/`, `docs/roadmaps/`, `docs/reviews/`, `docs/misc/`
+- Only `docs/guides/` files should be referenced from AGENTS.md; unreferenced guides belong elsewhere

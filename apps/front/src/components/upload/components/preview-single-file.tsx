@@ -1,0 +1,79 @@
+import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
+import { styled } from '@mui/material/styles';
+import { mergeClasses, varAlpha } from 'minimal-shared/utils';
+
+import { Iconify } from '../../iconify/iconify';
+import { uploadClasses } from '../classes';
+import type { SingleFilePreviewProps } from '../types';
+
+// ----------------------------------------------------------------------
+
+export const SingleFilePreview = ({
+	file,
+	sx,
+	className,
+	...other
+}: SingleFilePreviewProps) => {
+	const fileName = typeof file === 'string' ? file : file.name;
+
+	const previewUrl =
+		typeof file === 'string' ? file : URL.createObjectURL(file);
+
+	return (
+		<PreviewRoot
+			className={mergeClasses([uploadClasses.uploadSinglePreview, className])}
+			sx={sx}
+			{...other}
+		>
+			<img alt={fileName} src={previewUrl} />
+		</PreviewRoot>
+	);
+};
+
+// ----------------------------------------------------------------------
+
+const PreviewRoot = styled('div')(({ theme }) => {
+	return {
+		top: 0,
+		left: 0,
+		width: '100%',
+		height: '100%',
+		position: 'absolute',
+		padding: theme.spacing(1),
+		'& > img': {
+			width: '100%',
+			height: '100%',
+			objectFit: 'cover',
+			borderRadius: theme.shape.borderRadius,
+		},
+	};
+});
+
+// ----------------------------------------------------------------------
+
+export const DeleteButton = ({ sx, ...other }: IconButtonProps) => {
+	return (
+		<IconButton
+			size="small"
+			sx={[
+				(theme) => {
+					return {
+						top: 16,
+						right: 16,
+						zIndex: 9,
+						position: 'absolute',
+						color: varAlpha(theme.vars.palette.common.whiteChannel, 0.8),
+						bgcolor: varAlpha(theme.vars.palette.grey['900Channel'], 0.72),
+						'&:hover': {
+							bgcolor: varAlpha(theme.vars.palette.grey['900Channel'], 0.48),
+						},
+					};
+				},
+				...(Array.isArray(sx) ? sx : [sx]),
+			]}
+			{...other}
+		>
+			<Iconify icon="mingcute:close-line" width={18} />
+		</IconButton>
+	);
+};
