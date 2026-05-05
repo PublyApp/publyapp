@@ -17,10 +17,6 @@ import {
 } from '#app/routes/authed/staff/staff-users/shared/staff-user-cache-helpers.ts';
 
 import type { StaffUserRowData } from './use-staff-users-table-controller.ts';
-import {
-	clearDeletedStaffUserRelatedQueries,
-	invalidateStaffUserLifecycleQueries,
-} from '#app/routes/authed/staff/staff-users/shared/staff-user-cache-helpers.ts';
 
 type DeleteStaffUserActionProps = {
 	user: StaffUserRowData;

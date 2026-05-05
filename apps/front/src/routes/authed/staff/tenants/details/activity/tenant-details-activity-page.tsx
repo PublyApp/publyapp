@@ -1,9 +1,8 @@
 import { View403 } from '#app/components/error/index.ts';
-
-import { TENANT_DETAILS_ACTIVITY_ENABLED } from '../_layout/tenant-details-feature-flags';
+import { FEATURES } from '#app/lib/features/flags.ts';
 
 const TenantDetailsActivityPage = () => {
-	if (!TENANT_DETAILS_ACTIVITY_ENABLED) {
+	if (!FEATURES.staff.tenants.details.activity) {
 		return <View403 withLayout={false} />;
 	}
 

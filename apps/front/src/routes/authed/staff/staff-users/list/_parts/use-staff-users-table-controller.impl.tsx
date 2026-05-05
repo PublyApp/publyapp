@@ -617,61 +617,6 @@ const StatusCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 		);
 	}
 
-	const canChangeStatus =
-		status === USER_STATUS_ENUM.ACTIVE || status === USER_STATUS_ENUM.SUSPENDED;
-
-	const { mutate: suspendStaffUser, isPending: isSuspending } =
-		useSuspendStaffUser({
-			meta: { successMessage: 'staff-user-suspended-success' },
-			onSuccess: async () => {
-				setSuspendDialogOpen(false);
-				await invalidateStaffUserLifecycleQueries({
-					queryClient,
-					userIds: [user.id],
-				});
-			},
-		});
-
-	const { mutate: reactivateStaffUser, isPending: isReactivating } =
-		useReactivateStaffUser({
-			meta: { successMessage: 'staff-user-reactivated-success' },
-			onSuccess: async () => {
-				setReactivateDialogOpen(false);
-				await invalidateStaffUserLifecycleQueries({
-					queryClient,
-					userIds: [user.id],
-				});
-			},
-		});
-
-	const handleChangeStatus = (
-		nextStatus:
-			| typeof USER_STATUS_ENUM.ACTIVE
-			| typeof USER_STATUS_ENUM.SUSPENDED,
-	) => {
-		if (nextStatus === status) {
-			setMenuAnchorEl(null);
-			return;
-		}
-
-		setMenuAnchorEl(null);
-
-		if (nextStatus === USER_STATUS_ENUM.SUSPENDED) {
-			setSuspendDialogOpen(true);
-			return;
-		}
-
-		setReactivateDialogOpen(true);
-	};
-
-	if (!canChangeStatus) {
-		return (
-			<Label variant="soft" color={color}>
-				{label}
-			</Label>
-		);
-	}
-
 	return (
 		<>
 			<Tooltip title={t('change-status')} placement="top" arrow>

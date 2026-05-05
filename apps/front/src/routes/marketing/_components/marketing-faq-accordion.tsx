@@ -109,11 +109,11 @@ const FaqRow = ({ item }: { item: MarketingFaqItem }) => {
 					<Box
 						component={m.div}
 						key="content"
-						initial={{ height: 0, opacity: 0 }}
-						animate={{ height: 'auto', opacity: 1 }}
-						exit={{ height: 0, opacity: 0 }}
+						initial={{ opacity: 0, scaleY: 0 }}
+						animate={{ opacity: 1, scaleY: 1 }}
+						exit={{ opacity: 0, scaleY: 0 }}
 						transition={{
-							height: {
+							scaleY: {
 								type: 'spring',
 								stiffness: 700,
 								damping: 38,
@@ -121,7 +121,7 @@ const FaqRow = ({ item }: { item: MarketingFaqItem }) => {
 							},
 							opacity: { duration: 0.1, delay: 0.02 },
 						}}
-						sx={{ overflow: 'hidden' }}
+						sx={{ overflow: 'hidden', transformOrigin: 'top' }}
 					>
 						<Box
 							component={m.div}

@@ -14,11 +14,6 @@ import { useTranslate } from '#app/hooks/use-translate.ts';
 import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
-import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
-import { useTranslate } from '#app/hooks/use-translate.ts';
-import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
-import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
-
 import type { Route } from './+types/new-staff-invitations-page';
 import NewStaffInvitationsForm from './_parts/new-staff-invitations-form';
 

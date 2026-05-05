@@ -68,10 +68,6 @@ import StaffProfileUsersExportDialogController, {
 	type StaffProfileUsersExportDialogControllerRef,
 } from './staff-profile-users-export-dialog-controller.tsx';
 
-import StaffProfileUsersExportDialogController, {
-	type StaffProfileUsersExportDialogControllerRef,
-} from './staff-profile-users-export-dialog-controller.tsx';
-
 export const defaultStaffProfileUsersSorting: MRT_SortingState[number] = {
 	desc: true,
 	id: 'created_at',
@@ -178,38 +174,6 @@ export const StaffProfileUsersTable = () => {
 		isSelectionMode,
 		onDebouncedValueChange: handleDebouncedSearchChange,
 	});
-	const selectionModeDisabledReason = t('selection-mode-disable-controls');
-	const sortingDisabledReason = t('selection-mode-disable-sorting');
-	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
-		if (!isSelectionMode) {
-			return {};
-		}
-
-		return {
-			sortByColumnAsc: sortingDisabledReason,
-			sortByColumnDesc: sortingDisabledReason,
-			sortedByColumnAsc: sortingDisabledReason,
-			sortedByColumnDesc: sortingDisabledReason,
-		};
-	}, [isSelectionMode, sortingDisabledReason]);
-
-	const reconciledRowSelection = useMemo(() => {
-		return reconcileVisibleProfileUserRowSelection(rowSelection, data);
-	}, [data, rowSelection]);
-
-	useEffect(() => {
-		if (isEqual(reconciledRowSelection, rowSelection)) {
-			return;
-		}
-
-		setRowSelection(reconciledRowSelection);
-	}, [reconciledRowSelection, rowSelection]);
-
-	const selectedRowsFromData = useMemo(() => {
-		return getVisibleSelectedRows(data, reconciledRowSelection);
-	}, [data, reconciledRowSelection]);
-	const selectedCount = selectedRowsFromData.length;
-	const isSelectionMode = selectedCount > 0;
 	const selectionModeDisabledReason = t('selection-mode-disable-controls');
 	const sortingDisabledReason = t('selection-mode-disable-sorting');
 	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
@@ -560,72 +524,6 @@ const StatusCell: MRT_ColumnDef<ProfileUserRowData, string>['Cell'] = (
 	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
 		tMessage = t('suspended');
 		color = 'warning';
-	}
-
-	const isActive = status === USER_STATUS_ENUM.ACTIVE;
-	const isSuspended = status === USER_STATUS_ENUM.SUSPENDED;
-	const canChangeStatus = isActive || isSuspended;
-
-	const { mutate: suspendUser, isPending: isSuspending } = useSuspendStaffUser({
-		meta: { successMessage: 'staff-user-suspended-success' },
-		onSuccess: async () => {
-			// This status control mutates the user-level status, not a profile-local flag.
-			// Refresh the current projection so suspended users stay visible with updated status.
-			await invalidateStaffUserLifecycleQueries({
-				queryClient,
-				userIds: [user.id],
-			});
-			setConfirmDialogOpen(false);
-			setMenuAnchorEl(null);
-		},
-	});
-
-	const { mutate: reactivateUser, isPending: isReactivating } =
-		useReactivateStaffUser({
-			meta: { successMessage: 'staff-user-reactivated-success' },
-			onSuccess: async () => {
-				await invalidateStaffUserLifecycleQueries({
-					queryClient,
-					userIds: [user.id],
-				});
-				setConfirmDialogOpen(false);
-				setMenuAnchorEl(null);
-			},
-		});
-
-	const isMutating = isSuspending || isReactivating;
-
-	const handleStatusClick = (newStatus: string) => {
-		if (newStatus === status) {
-			setMenuAnchorEl(null);
-			return;
-		}
-
-		setPendingStatus(newStatus);
-		setConfirmDialogOpen(true);
-	};
-
-	const handleConfirm = () => {
-		if (!pendingStatus) {
-			return;
-		}
-
-		if (pendingStatus === USER_STATUS_ENUM.SUSPENDED) {
-			suspendUser({ userId: user.id });
-			return;
-		}
-
-		if (pendingStatus === USER_STATUS_ENUM.ACTIVE) {
-			reactivateUser({ userId: user.id });
-		}
-	};
-
-	if (!canChangeStatus) {
-		return (
-			<Label variant="soft" color={color}>
-				{tMessage}
-			</Label>
-		);
 	}
 
 	const isActive = status === USER_STATUS_ENUM.ACTIVE;

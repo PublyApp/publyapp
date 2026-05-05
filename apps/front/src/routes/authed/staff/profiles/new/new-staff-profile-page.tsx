@@ -17,12 +17,6 @@ import { useTranslate } from '#app/hooks/use-translate.ts';
 import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
-import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
-import { useIsMobile } from '#app/hooks/use-is-mobile.ts';
-import { useTranslate } from '#app/hooks/use-translate.ts';
-import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
-import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
-
 import type { Route } from './+types/new-staff-profile-page';
 import NewStaffProfileForm, {
 	NewStaffProfileSidebar,

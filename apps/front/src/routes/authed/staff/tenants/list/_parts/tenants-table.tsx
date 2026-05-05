@@ -221,78 +221,6 @@ const useTenantsTableController = () => {
 			open: false,
 		});
 
-	// Filter state with nuqs (URL-persisted)
-	const [filterStates, setFilterStates] = useQueryStates({
-		q: parseAsString.withDefault(''),
-		status: parseAsString.withDefault(''),
-	});
-
-	const [globalFilter, setGlobalFilter] = useState(filterStates.q);
-	const [statusFilter, setStatusFilter] = useState<string[]>(() =>
-		parseStatusFilter(filterStates.status),
-	);
-
-	// Use the custom table state hook for cursor pagination
-	const {
-		handlePaginationChange,
-		handleSortingChange,
-		apiVariables,
-		tableState,
-		setNextCursor,
-		hasPreviousPage,
-		resetCursorPagination,
-	} = useTableState({
-		defaultSorting,
-		defaultPageSize: DEFAULT_PAGE_SIZE,
-		paginationMode: 'cursor',
-	});
-
-	const handleDebouncedSearchChange = useCallback(
-		(nextSearchValue: string) => {
-			resetCursorPagination?.();
-			void setFilterStates({
-				q: nextSearchValue,
-				status: statusFilter.join(','),
-			});
-		},
-		[resetCursorPagination, setFilterStates, statusFilter],
-	);
-	const { searchValue, setSearchValue } = useUrlBackedDebouncedSearch({
-		persistedValue: filterStates.q,
-		onDebouncedValueChange: handleDebouncedSearchChange,
-	});
-
-	useEffect(() => {
-		const nextStatusFilter = parseStatusFilter(filterStates.status);
-		if (!isEqual(nextStatusFilter, statusFilter)) {
-			setStatusFilter(nextStatusFilter);
-		}
-	}, [filterStates.status, statusFilter]);
-
-	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		setSearchValue(e.target.value);
-	};
-
-	// Status filter handler - reset cursor before updating
-	const handleStatusChange = (
-		_value: React.SyntheticEvent,
-		selectedOptions: TenantStatusFilterOption[],
-	) => {
-		const nextStatusFilter = map(selectedOptions, (option) => option.value);
-		resetCursorPagination?.();
-		setStatusFilter(nextStatusFilter);
-		void setFilterStates({
-			q: searchValue,
-			status: nextStatusFilter.join(','),
-		});
-	};
-
-	const [bulkActionDialog, setBulkActionDialog] =
-		useState<BulkActionDialogState>({
-			type: 'suspend',
-			open: false,
-		});
-
 	const columns = useMemo(() => {
 		return [
 			// Hidden columns for sorting by created_at/updated_at (snake_case to match backend)
@@ -430,14 +358,6 @@ const useTenantsTableController = () => {
 	};
 	const openBulkActionDialog = (type: BulkActionType) => {
 		setBulkActionDialog({ type, open: true });
-	};
-	const closeBulkActionDialog = (type: BulkActionType) => {
-		setBulkActionDialog({ type, open: false });
-	};
-	const openBulkActionDialog = (type: BulkActionType) => {
-		setTableUiState({
-			bulkActionDialog: { type, open: true },
-		});
 	};
 	const closeBulkActionDialog = (type: BulkActionType) => {
 		setBulkActionDialog({ type, open: false });
@@ -1724,89 +1644,6 @@ const DeleteTenantAction = ({ tenant }: TenantActionProps) => {
 					<Button
 						variant="contained"
 						color="error"
-						onClick={() => deleteTenant({ tenantId: tenant.id })}
-						disabled={isDeleting}
-					>
-						{t('delete')}
-					</Button>
-				}
-			/>
-		</>
-	);
-};
-
-const UsersCountCell: MRT_ColumnDef<TenantRowData, number>['Cell'] = (
-	props,
-) => {
-	return (
-		<>
-			{props.cell.getValue()} / {props.row.original.maxUsers}
-		</>
-	);
-};
-
-const TenantActionsCell: MRT_ColumnDef<TenantRowData>['Cell'] = (props) => {
-	const tenant = props.row.original;
-
-	return (
-		<Box sx={{ display: 'flex', alignItems: 'center' }}>
-			<DeleteTenantAction tenant={tenant} />
-		</Box>
-	);
-};
-
-type TenantActionProps = {
-	tenant: TenantRowData;
-};
-
-const DeleteTenantAction = ({ tenant }: TenantActionProps) => {
-	const { t } = useTranslate();
-	const queryClient = useQueryClient();
-	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-	const canDelete = tenant.isSuspended;
-
-	const { mutate: deleteTenant, isPending: isDeleting } = useDeleteTenant({
-		meta: { successMessage: 'tenant-deleted-success' },
-		onSuccess: () => {
-			setDeleteDialogOpen(false);
-			queryClient.invalidateQueries({
-				queryKey: useFindTenants.getKey(),
-			});
-		},
-	});
-
-	return (
-		<>
-			<Tooltip
-				title={
-					canDelete ? t('delete') : t('delete-tenant-disabled-until-suspended')
-				}
-				placement="top"
-				arrow
-			>
-				<Box component="span">
-					<IconButton
-						color="default"
-						onClick={() => setDeleteDialogOpen(true)}
-						disabled={!canDelete}
-						sx={{
-							color: canDelete ? 'error.main' : 'text.disabled',
-						}}
-					>
-						<Iconify icon="solar:trash-bin-trash-bold" />
-					</IconButton>
-				</Box>
-			</Tooltip>
-
-			<ConfirmDialog
-				open={deleteDialogOpen}
-				onClose={() => setDeleteDialogOpen(false)}
-				title={t('confirm-delete-tenant-title')}
-				content={t('confirm-delete-tenant-message')}
-				action={
-					<Button
-						variant="contained"
-						color="inherit"
 						onClick={() => deleteTenant({ tenantId: tenant.id })}
 						disabled={isDeleting}
 					>

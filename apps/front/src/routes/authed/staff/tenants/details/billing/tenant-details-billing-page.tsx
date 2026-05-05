@@ -18,14 +18,6 @@ import {
 	billingDemoInvoices,
 	billingDemoPlans,
 } from './billing-demo-data';
-import { TENANT_DETAILS_BILLING_ENABLED } from '../_layout/tenant-details-feature-flags';
-import type { TenantDetailsOutletContext } from '../_layout/tenant-details-layout';
-import {
-	billingDemoAddressBook,
-	billingDemoCards,
-	billingDemoInvoices,
-	billingDemoPlans,
-} from './billing-demo-data';
 
 const TenantDetailsBillingPage = () => {
 	const { t } = useTranslate();

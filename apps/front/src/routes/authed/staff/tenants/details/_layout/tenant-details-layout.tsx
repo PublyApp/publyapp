@@ -32,24 +32,7 @@ import { FEATURES } from '#app/lib/features/flags.ts';
 import { useGetTenant } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
-import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
-import View400 from '#app/components/error/400-view.tsx';
-import { NotFoundView } from '#app/components/error/not-found-view.tsx';
-import { Iconify } from '#app/components/iconify/iconify.tsx';
-import QueryDisplay from '#app/components/query-display.tsx';
-import type { SettingsNavItem } from '#app/components/settings/settings-nav.tsx';
-import { SidebarSettingsLayout } from '#app/components/settings/sidebar-settings-layout.tsx';
-import { useTranslate } from '#app/hooks/use-translate.ts';
-import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
-import { isProblemFailure, toApiFailure } from '#app/lib/api-failure/index.ts';
-import { useGetTenant } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
-import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
-
 import type { Route } from './+types/tenant-details-layout';
-
-export type TenantDetailsOutletContext = {
-	tenantName: string;
-};
 
 export type TenantDetailsOutletContext = {
 	tenantName: string;

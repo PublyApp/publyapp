@@ -38,9 +38,6 @@ import {
 import { useBoolean } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
 import { parseAsString, useQueryStates } from 'nuqs';
-import { useBoolean } from 'minimal-shared/hooks';
-import { varAlpha } from 'minimal-shared/utils';
-import { parseAsString, useQueryStates } from 'nuqs';
 import {
 	type Ref,
 	useCallback,
@@ -85,8 +82,6 @@ import {
 	useSuspendTenantUser,
 	useUpdateTenantUser,
 } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
-
-// Status values are now returned as strings from the API
 
 export type TenantUserRowData = {
 	id: string;
@@ -512,12 +507,6 @@ const useTenantUsersTableController = () => {
 	const closeBulkRemoveDialog = () => {
 		setBulkRemoveDialogOpen(false);
 	};
-	const closeExportDialog = () => {
-		setTableUiState({ exportDialogOpen: false });
-	};
-	const closeBulkRemoveDialog = () => {
-		setTableUiState({ bulkRemoveDialogOpen: false });
-	};
 
 	const exportRows = (format: 'csv' | 'json') => {
 		const rowsToExport = isSelectionMode ? selectedRows : rows;
@@ -841,10 +830,7 @@ const useTenantUsersTableController = () => {
 		renderEmptyRowsFallback,
 		muiTablePaperProps: {
 			sx: {
-				'& .MuiTableBody-root > tr > td:not(:nth-of-type(2)), & .MuiTableHead-root > tr > th:not(:nth-of-type(2))':
-					{
-						flex: '1 1 auto !important',
-					},
+				flexGrow: 1,
 			},
 		},
 		muiTableProps: {

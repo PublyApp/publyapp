@@ -18,27 +18,6 @@ import {
 	getCheckEmailVerificationTokenSchema,
 	getEmailFormSchema,
 	getRequestEmailVerificationSchema,
-} from '@/shared/validations/auth.validations';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, type Theme } from '@mui/material';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
-import { useForm } from 'react-hook-form';
-import { redirect, useFetcher } from 'react-router';
-import { serializeError } from 'serialize-error';
-
-import {
-	FRONT_PATH_NAMES,
-	queryParamKey,
-	queryParamValue,
-} from '@org/shared-ts/lib/constants';
-import { getCorrectLocale } from '@org/shared-ts/lib/i18n/i18n.utils';
-import { getErrorMessage } from '@org/shared-ts/utils/error.utils';
-import {
-	getCheckEmailVerificationTokenSchema,
-	getEmailFormSchema,
-	getRequestEmailVerificationSchema,
 } from '@org/shared-ts/validations/auth.validations';
 
 import { Field, Form } from '#app/components/hook-form/index.ts';
@@ -54,20 +33,7 @@ import {
 } from '#app/lib/react-router/server-data.server.ts';
 import { interZodClient } from '#app/lib/zod/zod.client.ts';
 
-import { Field, Form } from '#app/components/hook-form/index.ts';
-import { Iconify } from '#app/components/iconify/iconify.tsx';
-import { RouterLink } from '#app/components/router-link.tsx';
-import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
-import { useTranslate } from '#app/hooks/use-translate.ts';
-import { getClientManager } from '#app/lib/js-client/client-manager.ts';
-import { safeRun } from '#app/lib/react-router/safeRun.ts';
-import {
-	getServerAction,
-	getServerLoader,
-} from '#app/lib/react-router/server-data.server.ts';
-import { interZodClient } from '#app/lib/zod/zod.client.ts';
-
-import InvalidLinkView from '../components/invalid-link-view';
+import InvalidLinkView from '../_components/invalid-link-view';
 import type { Route } from './+types/verify-email-page';
 
 const actionIntent = {
