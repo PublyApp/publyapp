@@ -407,8 +407,8 @@ It covers category `0` through `10`.
 - [x] A permissioned non-admin staff user can revoke tenant invitations.
 
 ### 9.4 Tenant archival/data-retention logic
-- Status: `PENDING`
-- [ ] There is a clear answer on whether archival or data-retention semantics exist beyond suspended and deleted tenant flows.
+- Status: `DEFERRED`
+- [x] Tenant archival/data-retention semantics are intentionally deferred because lifecycle, restore, cascade, hard-delete, audit-log, and legal retention requirements need dedicated product/API design. Tracked by `#365`.
 
 ### 9.5 Create endpoint tests
 - Status: `DONE`
