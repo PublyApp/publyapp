@@ -4,6 +4,7 @@ export * from './bounce';
 export * from './container';
 export * from './fade';
 export * from './flip';
+export * from './hover';
 export * from './path';
 export * from './rotate';
 export * from './scale';

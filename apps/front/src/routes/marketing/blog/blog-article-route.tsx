@@ -1,31 +1,34 @@
-import { type LazyExoticComponent, lazy, Suspense } from 'react';
 import { useParams } from 'react-router';
 
 import { APP_NAME } from '@org/shared-ts/lib/constants';
 
-import { BLOG_POSTS, unsplashCover } from '#app/routes/marketing/_data/blog.ts';
+import {
+	getPublishedPosts,
+	unsplashCover,
+} from '#app/routes/marketing/_data/blog.ts';
+
+import BlogElementsReferenceArticle from './_articles/blog-elements-reference-article.tsx';
+import MultiTenantArchitectureLessonsArticle from './_articles/multi-tenant-architecture-lessons-article.tsx';
+import ShippingDailyWithoutBurningOutArticle from './_articles/shipping-daily-without-burning-out-article.tsx';
+import TurningTrialUsersIntoPayingCustomersArticle from './_articles/turning-trial-users-into-paying-customers-article.tsx';
+import WhyWeRewroteOurSchedulerArticle from './_articles/why-we-rewrote-our-scheduler-article.tsx';
 
 // ----------------------------------------------------------------------
 
-// Static slug → lazy article-component map. Lazy keeps each article's body
-// bundle out of the index page payload AND each other's payload — only the
-// requested slug's body downloads on navigation.
-const ARTICLE_COMPONENTS: Record<
-	string,
-	LazyExoticComponent<() => React.ReactNode>
-> = {
-	'multi-tenant-architecture-lessons': lazy(() => {
-		return import('./_articles/multi-tenant-architecture-lessons-article.tsx');
-	}),
-	'shipping-daily-without-burning-out': lazy(() => {
-		return import('./_articles/shipping-daily-without-burning-out-article.tsx');
-	}),
-	'why-we-rewrote-our-scheduler': lazy(() => {
-		return import('./_articles/why-we-rewrote-our-scheduler-article.tsx');
-	}),
-	'turning-trial-users-into-paying-customers': lazy(() => {
-		return import('./_articles/turning-trial-users-into-paying-customers-article.tsx');
-	}),
+// Static slug → article-component map. Imports are eager, NOT lazy().
+// Why eager: lazy() + <Suspense> caused a hydration flash on SSR — the server
+// rendered the article body, then on client hydrate React would suspend
+// while fetching the per-article chunk and render the null fallback (content
+// disappears), then resolve and re-render (content reappears). With only ~4
+// article files of placeholder content, the bundle cost is negligible and
+// far better than a visible flash on every navigation.
+const ARTICLE_COMPONENTS: Record<string, () => React.ReactNode> = {
+	'blog-elements-reference': BlogElementsReferenceArticle,
+	'multi-tenant-architecture-lessons': MultiTenantArchitectureLessonsArticle,
+	'shipping-daily-without-burning-out': ShippingDailyWithoutBurningOutArticle,
+	'why-we-rewrote-our-scheduler': WhyWeRewroteOurSchedulerArticle,
+	'turning-trial-users-into-paying-customers':
+		TurningTrialUsersIntoPayingCustomersArticle,
 };
 
 // ----------------------------------------------------------------------
@@ -37,7 +40,10 @@ const BlogArticleRoute = () => {
 		throw new Response('Not Found', { status: 404 });
 	}
 
-	const post = BLOG_POSTS.find((p) => {
+	// Look up against PUBLISHED posts only — unpublished slugs 404 instead
+	// of leaking the article body. Editors can still preview by flipping
+	// `published: true` in `_data/blog.ts`.
+	const post = getPublishedPosts().find((p) => {
 		return p.slug === slug;
 	});
 
@@ -57,11 +63,7 @@ const BlogArticleRoute = () => {
 		);
 	}
 
-	return (
-		<Suspense fallback={null}>
-			<ArticleComponent />
-		</Suspense>
-	);
+	return <ArticleComponent />;
 };
 
 export default BlogArticleRoute;
@@ -73,7 +75,9 @@ export default BlogArticleRoute;
 type MetaArgs = { params: { slug?: string } };
 
 export const meta = ({ params }: MetaArgs) => {
-	const post = BLOG_POSTS.find((p) => {
+	// Mirror the route component's published-only lookup so meta tags don't
+	// advertise an article that 404s when crawled.
+	const post = getPublishedPosts().find((p) => {
 		return p.slug === params.slug;
 	});
 

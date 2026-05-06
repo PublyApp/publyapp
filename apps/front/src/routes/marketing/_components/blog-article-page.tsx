@@ -11,6 +11,7 @@ import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import type { IconifyName } from '#app/components/iconify/register-icons.ts';
 import { Image } from '#app/components/image/image.tsx';
+import { RouterLink } from '#app/components/router-link.tsx';
 import { useActiveTocSection } from '#app/hooks/use-active-toc-section.ts';
 import { BlogPostCard } from '#app/routes/marketing/_components/blog-post-card.tsx';
 import { CtaBand } from '#app/routes/marketing/_components/cta-band.tsx';
@@ -18,8 +19,8 @@ import { MarketingEyebrow } from '#app/routes/marketing/_components/marketing-ey
 import {
 	BLOG_AUTHORS,
 	type BlogPost,
-	BLOG_POSTS,
 	BLOG_TAGS,
+	getPublishedPosts,
 	unsplashCover,
 } from '#app/routes/marketing/_data/blog.ts';
 
@@ -73,13 +74,96 @@ const tagLabel = (value: BlogPost['tag']): string => {
 
 // ----------------------------------------------------------------------
 
-const ArticleHero = ({ post }: { post: BlogPost }) => {
+// Shared horizontal byline row used by `above-title` (centered) and
+// `cinematic` (left-aligned over dark). Pass `tone="dark"` to flip text
+// colors to white-on-dark for the cinematic variant.
+const HeroByline = ({
+	post,
+	tone = 'light',
+	align = 'center',
+}: {
+	post: BlogPost;
+	tone?: 'light' | 'dark';
+	align?: 'center' | 'flex-start';
+}) => {
 	const author = BLOG_AUTHORS[post.authorId];
+	const isDark = tone === 'dark';
+	const primaryColor = isDark ? 'rgba(255,255,255,0.95)' : 'text.primary';
+	const mutedColor = isDark ? 'rgba(255,255,255,0.65)' : 'text.secondary';
+	const dotColor = isDark ? 'rgba(255,255,255,0.30)' : 'divider';
+
+	return (
+		<Stack
+			direction="row"
+			spacing={1.5}
+			alignItems="center"
+			sx={{
+				flexWrap: 'wrap',
+				justifyContent: align === 'center' ? 'center' : 'flex-start',
+			}}
+		>
+			<Image
+				src={author.photoUrl}
+				alt={author.name}
+				ratio="1/1"
+				sx={{
+					width: 32,
+					flexShrink: 0,
+					borderRadius: '50%',
+					overflow: 'hidden',
+					bgcolor: 'background.neutral',
+					border: isDark ? '1px solid rgba(255,255,255,0.30)' : 'none',
+				}}
+			/>
+			<Typography sx={{ fontSize: 14, fontWeight: 700, color: primaryColor }}>
+				{author.name}
+			</Typography>
+			<Box component="span" aria-hidden="true" sx={{ color: dotColor }}>
+				·
+			</Box>
+			<Typography sx={{ fontSize: 14, color: mutedColor }}>
+				{author.role}
+			</Typography>
+			<Box
+				component="span"
+				aria-hidden="true"
+				sx={{ color: dotColor, display: { xs: 'none', sm: 'inline' } }}
+			>
+				·
+			</Box>
+			<Typography sx={{ fontSize: 14, color: mutedColor }}>
+				{formatPostDate(post.publishedAt)}
+			</Typography>
+			<Box
+				component="span"
+				aria-hidden="true"
+				sx={{ color: dotColor, display: { xs: 'none', sm: 'inline' } }}
+			>
+				·
+			</Box>
+			<Stack
+				direction="row"
+				spacing={0.5}
+				alignItems="center"
+				sx={{ fontSize: 14, color: mutedColor }}
+			>
+				<Iconify icon="ph:clock-bold" width={14} />
+				<Box component="span">{post.readingMinutes} min read</Box>
+			</Stack>
+		</Stack>
+	);
+};
+
+// ----------------------------------------------------------------------
+
+// Variant A — Above-Title (canonical). Centered tag + h1 + byline, then a
+// wide cover below at the same lg rail width. The catch-all default.
+const AboveTitleHero = ({ post }: { post: BlogPost }) => {
 	const coverUrl = unsplashCover(post.coverSlug, { w: 1600, h: 900 });
 
 	return (
 		<Box component="header" sx={{ pt: { xs: 8, md: 14 } }}>
-			<Container maxWidth="md">
+			<Container maxWidth="lg">
 				<Stack spacing={3} alignItems="center" sx={{ textAlign: 'center' }}>
 					<MarketingEyebrow label={tagLabel(post.tag)} />
 					<Typography
@@ -95,74 +179,10 @@ const ArticleHero = ({ post }: { post: BlogPost }) => {
 					>
 						{post.title}
 					</Typography>
-					<Stack
-						direction="row"
-						spacing={1.5}
-						alignItems="center"
-						sx={{ flexWrap: 'wrap', justifyContent: 'center' }}
-					>
-						<Box
-							component="img"
-							src={author.photoUrl}
-							alt={author.name}
-							loading="lazy"
-							sx={{
-								width: 32,
-								height: 32,
-								borderRadius: '50%',
-								objectFit: 'cover',
-								bgcolor: 'background.neutral',
-							}}
-						/>
-						<Typography
-							sx={{ fontSize: 14, fontWeight: 700, color: 'text.primary' }}
-						>
-							{author.name}
-						</Typography>
-						<Box component="span" aria-hidden="true" sx={{ color: 'divider' }}>
-							·
-						</Box>
-						<Typography sx={{ fontSize: 14, color: 'text.secondary' }}>
-							{author.role}
-						</Typography>
-						<Box
-							component="span"
-							aria-hidden="true"
-							sx={{
-								color: 'divider',
-								display: { xs: 'none', sm: 'inline' },
-							}}
-						>
-							·
-						</Box>
-						<Typography sx={{ fontSize: 14, color: 'text.secondary' }}>
-							{formatPostDate(post.publishedAt)}
-						</Typography>
-						<Box
-							component="span"
-							aria-hidden="true"
-							sx={{
-								color: 'divider',
-								display: { xs: 'none', sm: 'inline' },
-							}}
-						>
-							·
-						</Box>
-						<Stack
-							direction="row"
-							spacing={0.5}
-							alignItems="center"
-							sx={{ fontSize: 14, color: 'text.secondary' }}
-						>
-							<Iconify icon="ph:clock-bold" width={14} />
-							<Box component="span">{post.readingMinutes} min read</Box>
-						</Stack>
-					</Stack>
+					<HeroByline post={post} />
 				</Stack>
 			</Container>
-
-			{/* Cover at reading-column width (max-w-3xl ~768px) */}
-			<Container maxWidth="md" sx={{ mt: { xs: 6, md: 10 } }}>
+			<Container maxWidth="lg" sx={{ mt: { xs: 6, md: 10 } }}>
 				<Image
 					src={coverUrl}
 					alt={post.title}
@@ -177,6 +197,345 @@ const ArticleHero = ({ post }: { post: BlogPost }) => {
 			</Container>
 		</Box>
 	);
+};
+
+// Variant B — Split. 2-col with cover on the left (square aspect) and the
+// title + excerpt + byline on the right. Best for customer stories /
+// partner announcements where the visual carries narrative weight.
+// Note: the canvas had floating "stat badges" hovering over the cover —
+// those are case-study-specific data points and would feel fabricated on
+// generic posts, so they're intentionally omitted here.
+const SplitHero = ({ post }: { post: BlogPost }) => {
+	const coverUrl = unsplashCover(post.coverSlug, { w: 1000, h: 1000 });
+
+	return (
+		<Box component="header" sx={{ pt: { xs: 8, md: 14 } }}>
+			<Container maxWidth="lg">
+				<Box
+					sx={{
+						display: 'grid',
+						gridTemplateColumns: { xs: '1fr', lg: '1fr 1.1fr' },
+						gap: { xs: 5, md: 8, lg: 12 },
+						alignItems: 'center',
+					}}
+				>
+					{/* Cover — square. Reverse stack order on mobile so title leads. */}
+					<Box
+						sx={{
+							order: { xs: 2, lg: 1 },
+							borderRadius: { xs: '20px', md: '24px' },
+							overflow: 'hidden',
+							border: '1px solid',
+							borderColor: 'divider',
+							boxShadow: '0 20px 40px -15px rgba(17,24,39,0.10)',
+						}}
+					>
+						<Image
+							src={coverUrl}
+							alt={post.title}
+							ratio="1/1"
+							sx={{ overflow: 'hidden' }}
+						/>
+					</Box>
+
+					<Stack
+						spacing={3}
+						alignItems="flex-start"
+						sx={{ order: { xs: 1, lg: 2 }, maxWidth: 560 }}
+					>
+						<MarketingEyebrow label={tagLabel(post.tag)} />
+						<Typography
+							component="h1"
+							sx={{
+								fontSize: { xs: 32, md: 44, lg: 54 },
+								fontWeight: 800,
+								color: 'text.primary',
+								lineHeight: 1.05,
+								letterSpacing: '-0.025em',
+							}}
+						>
+							{post.title}
+						</Typography>
+						<Typography
+							sx={{
+								fontSize: { xs: 16, md: 17 },
+								color: 'text.secondary',
+								lineHeight: 1.6,
+							}}
+						>
+							{post.excerpt}
+						</Typography>
+						<HeroByline post={post} align="flex-start" />
+					</Stack>
+				</Box>
+			</Container>
+		</Box>
+	);
+};
+
+// Variant C — Editorial. Zero image. Large white card with centered title
+// and an italic kicker quote (uses `excerpt` as the pull-quote). Built for
+// essays / opinion / reflective pieces; rewards typography over imagery
+// and ships a near-instant LCP.
+const EditorialHero = ({ post }: { post: BlogPost }) => {
+	const author = BLOG_AUTHORS[post.authorId];
+
+	return (
+		<Box component="header" sx={{ pt: { xs: 8, md: 14 } }}>
+			<Container maxWidth="lg">
+				<Box
+					sx={{
+						p: { xs: 4, md: 8, lg: 10 },
+						borderRadius: { xs: '24px', md: '32px' },
+						bgcolor: 'background.paper',
+						border: '1px solid',
+						borderColor: 'divider',
+						boxShadow: '0 1px 2px rgba(31,41,55,0.03)',
+						textAlign: 'center',
+					}}
+				>
+					<Stack
+						spacing={4}
+						alignItems="center"
+						sx={{ maxWidth: 720, mx: 'auto' }}
+					>
+						<Typography
+							component="span"
+							sx={{
+								fontSize: 10,
+								fontWeight: 700,
+								letterSpacing: '0.20em',
+								textTransform: 'uppercase',
+								color: 'text.secondary',
+							}}
+						>
+							Essay · {tagLabel(post.tag)}
+						</Typography>
+						<Typography
+							component="h1"
+							sx={{
+								fontSize: { xs: 32, md: 48, lg: 56 },
+								fontWeight: 800,
+								color: 'text.primary',
+								lineHeight: 1.1,
+								letterSpacing: '-0.025em',
+							}}
+						>
+							{post.title}
+						</Typography>
+						<Typography
+							sx={{
+								fontSize: { xs: 18, md: 22 },
+								color: 'text.secondary',
+								lineHeight: 1.5,
+								fontStyle: 'italic',
+								fontWeight: 500,
+							}}
+						>
+							"{post.excerpt}"
+						</Typography>
+						<Box
+							sx={{
+								pt: 4,
+								borderTop: '1px solid',
+								borderTopColor: 'divider',
+								display: 'inline-flex',
+								flexDirection: 'column',
+								alignItems: 'center',
+							}}
+						>
+							<Image
+								src={author.photoUrl}
+								alt={author.name}
+								ratio="1/1"
+								sx={{
+									width: 48,
+									flexShrink: 0,
+									borderRadius: '50%',
+									overflow: 'hidden',
+									mb: 1.5,
+									border: '4px solid',
+									borderColor: 'background.default',
+								}}
+							/>
+							<Typography
+								sx={{
+									fontSize: 14,
+									fontWeight: 700,
+									color: 'text.primary',
+									textTransform: 'uppercase',
+									letterSpacing: '0.05em',
+								}}
+							>
+								{author.name}
+							</Typography>
+							<Typography
+								sx={{
+									fontSize: 12,
+									color: 'text.secondary',
+									mt: 0.5,
+									letterSpacing: '0.08em',
+									textTransform: 'uppercase',
+								}}
+							>
+								{author.role} · {formatPostDate(post.publishedAt)}
+							</Typography>
+						</Box>
+					</Stack>
+				</Box>
+			</Container>
+		</Box>
+	);
+};
+
+// Variant D — Cinematic. Full-bleed background image with dark gradients
+// + glassmorphic chip + white headline anchored to the bottom. Reserve
+// for major launches / big announcements (heavy LCP cost). Intentionally
+// breaks out of the lg rail — there's no Container wrapping the hero.
+const CinematicHero = ({ post }: { post: BlogPost }) => {
+	const coverUrl = unsplashCover(post.coverSlug, { w: 2400, h: 1400 });
+
+	return (
+		<Box
+			component="header"
+			sx={{
+				position: 'relative',
+				width: '100%',
+				minHeight: { xs: 560, md: 650, lg: '75vh' },
+				display: 'flex',
+				alignItems: 'flex-end',
+				bgcolor: '#1F2937',
+				overflow: 'hidden',
+			}}
+		>
+			{/*
+				Background cover — full-bleed `object-cover` over the parent's
+				dimensions. Using a raw `<img>` here is a deliberate exception to
+				the "use <Image> for content imagery" rule: the parent already
+				has its own size (min-height + flex), and <Image> is built around
+				ratio-driven sizing, not background-fill mode.
+			*/}
+			<Box
+				component="img"
+				src={coverUrl}
+				alt={post.title}
+				sx={{
+					position: 'absolute',
+					inset: 0,
+					width: '100%',
+					height: '100%',
+					objectFit: 'cover',
+					zIndex: 0,
+				}}
+			/>
+			{/* Bottom-up dark gradient (legibility) */}
+			<Box
+				aria-hidden="true"
+				sx={{
+					position: 'absolute',
+					inset: 0,
+					background:
+						'linear-gradient(to top, rgba(31,41,55,0.95) 0%, rgba(31,41,55,0.55) 50%, transparent 100%)',
+					zIndex: 1,
+				}}
+			/>
+			{/* Left-side dark wash so the headline doesn't fight the photo */}
+			<Box
+				aria-hidden="true"
+				sx={{
+					position: 'absolute',
+					inset: 0,
+					width: '60%',
+					background:
+						'linear-gradient(to right, rgba(31,41,55,0.70), transparent)',
+					zIndex: 1,
+				}}
+			/>
+			<Container
+				maxWidth="lg"
+				sx={{
+					position: 'relative',
+					zIndex: 2,
+					pb: { xs: 8, md: 12 },
+					pt: { xs: 16, md: 20 },
+				}}
+			>
+				<Box sx={{ maxWidth: 760 }}>
+					<Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 4 }}>
+						{/* Glass tag chip */}
+						<Stack
+							direction="row"
+							alignItems="center"
+							spacing={1}
+							sx={{
+								px: 1.5,
+								py: 0.75,
+								borderRadius: 999,
+								border: '1px solid rgba(255,255,255,0.20)',
+								bgcolor: 'rgba(255,255,255,0.10)',
+								backdropFilter: 'blur(12px)',
+								WebkitBackdropFilter: 'blur(12px)',
+							}}
+						>
+							<Box
+								sx={{
+									width: 6,
+									height: 6,
+									borderRadius: '50%',
+									bgcolor: 'primary.main',
+								}}
+							/>
+							<Typography
+								sx={{
+									fontSize: 11,
+									fontWeight: 600,
+									letterSpacing: '0.18em',
+									textTransform: 'uppercase',
+									color: 'rgba(255,255,255,0.92)',
+								}}
+							>
+								{tagLabel(post.tag)}
+							</Typography>
+						</Stack>
+					</Stack>
+					<Typography
+						component="h1"
+						sx={{
+							fontSize: { xs: 36, md: 56, lg: 72 },
+							fontWeight: 800,
+							color: 'common.white',
+							lineHeight: 1.05,
+							letterSpacing: '-0.025em',
+							mb: 5,
+							textShadow: '0 2px 14px rgba(0,0,0,0.30)',
+						}}
+					>
+						{post.title}
+					</Typography>
+					<HeroByline post={post} tone="dark" align="flex-start" />
+				</Box>
+			</Container>
+		</Box>
+	);
+};
+
+// ----------------------------------------------------------------------
+
+// Dispatcher — picks one of the 4 hero treatments by `post.coverType`.
+// Defaults to `above-title` when undefined to preserve old behavior.
+const ArticleHero = ({ post }: { post: BlogPost }) => {
+	const coverType = post.coverType ?? 'above-title';
+
+	if (coverType === 'split') {
+		return <SplitHero post={post} />;
+	}
+	if (coverType === 'editorial') {
+		return <EditorialHero post={post} />;
+	}
+	if (coverType === 'cinematic') {
+		return <CinematicHero post={post} />;
+	}
+	return <AboveTitleHero post={post} />;
 };
 
 // ----------------------------------------------------------------------
@@ -270,7 +629,9 @@ const MobileToc = ({
 
 // ----------------------------------------------------------------------
 
-const DesktopTocSidebar = ({
+// Inner TOC list — extracted so the sticky aside wrapper can stack it with
+// the trial + newsletter CTA cards. Renders nothing when there are no items.
+const TocList = ({
 	tocItems,
 	activeId,
 }: {
@@ -282,17 +643,7 @@ const DesktopTocSidebar = ({
 	}
 
 	return (
-		<Box
-			component="aside"
-			sx={{
-				display: { xs: 'none', lg: 'block' },
-				position: 'sticky',
-				top: 'calc(var(--layout-header-desktop-height) + 32px)',
-				alignSelf: 'flex-start',
-				width: 240,
-				flexShrink: 0,
-			}}
-		>
+		<Box>
 			<Typography
 				sx={{
 					fontSize: 11,
@@ -344,6 +695,218 @@ const DesktopTocSidebar = ({
 				})}
 			</Box>
 		</Box>
+	);
+};
+
+// ----------------------------------------------------------------------
+
+// Trial CTA card — dark-surface (#242424, the canon CtaBand color) with a
+// subtle green radial glow at the top-right. Mirrors the article-page
+// canvas's sidebar trial card; a slim, persistent conversion path that
+// reads alongside the prose without demanding attention.
+const AsideTrialCard = () => {
+	return (
+		<Box
+			sx={{
+				position: 'relative',
+				p: 3,
+				borderRadius: '16px',
+				bgcolor: '#242424',
+				color: 'common.white',
+				overflow: 'hidden',
+			}}
+		>
+			{/* Green radial glow accent — pure decoration, hidden under content */}
+			<Box
+				aria-hidden="true"
+				sx={{
+					position: 'absolute',
+					inset: 0,
+					background:
+						'radial-gradient(circle at top right, rgba(16,185,129,0.18), transparent 55%)',
+					pointerEvents: 'none',
+				}}
+			/>
+			<Stack spacing={1} sx={{ position: 'relative' }}>
+				<Typography
+					sx={{
+						fontSize: 10,
+						fontWeight: 700,
+						textTransform: 'uppercase',
+						letterSpacing: '0.18em',
+						color: 'primary.main',
+					}}
+				>
+					Get started
+				</Typography>
+				<Typography
+					component="p"
+					sx={{ fontSize: 16, fontWeight: 700, color: 'common.white' }}
+				>
+					Try PublyApp free
+				</Typography>
+				<Typography sx={{ fontSize: 12, color: 'grey.400', lineHeight: 1.6 }}>
+					14-day trial. No credit card required.
+				</Typography>
+				<Box
+					component={RouterLink}
+					href={FRONT_PATH_NAMES.auth.signup}
+					sx={{
+						mt: 2,
+						display: 'block',
+						width: '100%',
+						py: 1.25,
+						borderRadius: '10px',
+						fontSize: 13,
+						fontWeight: 700,
+						textAlign: 'center',
+						textDecoration: 'none',
+						bgcolor: 'primary.main',
+						color: 'common.white',
+						boxShadow: '0 4px 14px 0 rgba(16,185,129,0.25)',
+						transition: 'transform 240ms ease, box-shadow 240ms ease',
+						'&:hover': {
+							transform: 'translateY(-1px)',
+							boxShadow: '0 8px 22px 0 rgba(16,185,129,0.35)',
+						},
+					}}
+				>
+					Start for free
+				</Box>
+			</Stack>
+		</Box>
+	);
+};
+
+// Newsletter CTA card — light-surface complement to the trial card.
+// Email input is a placeholder (no backend yet); submit is a no-op.
+// Keep the visual but defer wiring to a real signup endpoint.
+const AsideNewsletterCard = () => {
+	return (
+		<Box
+			sx={{
+				p: 3,
+				borderRadius: '16px',
+				bgcolor: 'background.paper',
+				border: '1px solid',
+				borderColor: 'divider',
+			}}
+		>
+			<Stack spacing={1}>
+				<Iconify
+					icon="ph:envelope-bold"
+					width={20}
+					sx={{ color: 'primary.main' }}
+				/>
+				<Typography
+					component="p"
+					sx={{ fontSize: 16, fontWeight: 700, color: 'text.primary' }}
+				>
+					Get social ops insights
+				</Typography>
+				<Typography
+					sx={{ fontSize: 12, color: 'text.secondary', lineHeight: 1.6 }}
+				>
+					Weekly. No spam. Unsubscribe anytime.
+				</Typography>
+				<Box
+					component="form"
+					onSubmit={(e: React.FormEvent) => e.preventDefault()}
+					sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}
+				>
+					<Box
+						component="input"
+						type="email"
+						placeholder="Email address"
+						aria-label="Email address"
+						sx={{
+							width: '100%',
+							py: 1.25,
+							px: 1.5,
+							fontSize: 13,
+							borderRadius: '10px',
+							border: '1px solid',
+							borderColor: 'divider',
+							bgcolor: 'background.paper',
+							color: 'text.primary',
+							outline: 'none',
+							transition: 'border-color 200ms ease, box-shadow 200ms ease',
+							'&:focus': {
+								borderColor: 'primary.main',
+								boxShadow: '0 0 0 3px rgba(16,185,129,0.15)',
+							},
+						}}
+					/>
+					<Box
+						component="button"
+						type="submit"
+						sx={{
+							width: '100%',
+							py: 1.25,
+							borderRadius: '10px',
+							fontSize: 13,
+							fontWeight: 700,
+							border: 'none',
+							cursor: 'pointer',
+							bgcolor: 'text.primary',
+							color: 'background.paper',
+							transition: 'opacity 200ms ease',
+							'&:hover': { opacity: 0.85 },
+						}}
+					>
+						Subscribe
+					</Box>
+				</Box>
+			</Stack>
+		</Box>
+	);
+};
+
+// Desktop aside: sticky stack of TOC + trial CTA + newsletter CTA. Hidden
+// under lg. The sticky boundary is the outer aside, so the whole block
+// (TOC + cards) slides as one piece with the scroll.
+const AsideStack = ({
+	tocItems,
+	activeId,
+}: {
+	tocItems: TocItem[];
+	activeId: string | null;
+}) => {
+	return (
+		<Box
+			component="aside"
+			sx={{
+				display: { xs: 'none', lg: 'block' },
+				position: 'sticky',
+				top: 'calc(var(--layout-header-desktop-height) + 32px)',
+				alignSelf: 'flex-start',
+				width: 280,
+				flexShrink: 0,
+			}}
+		>
+			<Stack spacing={5}>
+				<TocList tocItems={tocItems} activeId={activeId} />
+				<Stack spacing={3}>
+					<AsideTrialCard />
+					<AsideNewsletterCard />
+				</Stack>
+			</Stack>
+		</Box>
+	);
+};
+
+// Mobile equivalent of the aside CTAs — no TOC (the MobileToc lives at the
+// top of the body). Stacked between body content and ShareRow so users on
+// narrow viewports still get the conversion path.
+const MobileAsideCtas = () => {
+	return (
+		<Stack
+			spacing={2.5}
+			sx={{ display: { xs: 'flex', lg: 'none' }, mt: { xs: 6, md: 8 } }}
+		>
+			<AsideTrialCard />
+			<AsideNewsletterCard />
+		</Stack>
 	);
 };
 
@@ -531,21 +1094,19 @@ const AuthorBioCard = ({ post }: { post: BlogPost }) => {
 				borderColor: 'divider',
 			}}
 		>
-			<Box
-				component="img"
+			<Image
 				src={author.photoUrl}
 				alt={author.name}
-				loading="lazy"
+				ratio="1/1"
 				sx={{
 					width: 64,
-					height: 64,
+					flexShrink: 0,
 					borderRadius: '50%',
-					objectFit: 'cover',
+					overflow: 'hidden',
 					bgcolor: 'background.paper',
 					border: '2px solid',
 					borderColor: 'background.paper',
 					boxShadow: '0 2px 8px rgba(17,24,39,0.06)',
-					flexShrink: 0,
 				}}
 			/>
 			<Box>
@@ -576,9 +1137,11 @@ const AuthorBioCard = ({ post }: { post: BlogPost }) => {
 // ----------------------------------------------------------------------
 
 const ContinueReading = ({ post }: { post: BlogPost }) => {
-	const related = BLOG_POSTS.filter((p) => {
-		return p.tag === post.tag && p.slug !== post.slug;
-	}).slice(0, 3);
+	const related = getPublishedPosts()
+		.filter((p) => {
+			return p.tag === post.tag && p.slug !== post.slug;
+		})
+		.slice(0, 3);
 
 	if (related.length === 0) {
 		return null;
@@ -607,13 +1170,20 @@ const ContinueReading = ({ post }: { post: BlogPost }) => {
 				>
 					Continue reading
 				</Typography>
+				{/*
+					Grid is always 3 columns on md+ regardless of `related.length`.
+					Earlier the column count tracked the post count, which made a
+					single related post stretch full-width — visually ugly and broke
+					the index-grid rhythm. With repeat(3,1fr), 1 or 2 related posts
+					occupy 1 or 2 cells of a 3-up row.
+				*/}
 				<Box
 					sx={{
 						display: 'grid',
 						gridTemplateColumns: {
 							xs: '1fr',
 							sm: 'repeat(2, 1fr)',
-							md: `repeat(${related.length}, 1fr)`,
+							md: 'repeat(3, 1fr)',
 						},
 						gap: 3,
 					}}
@@ -648,9 +1218,15 @@ export const BlogArticlePage = ({
 		<Box component="article">
 			<ArticleHero post={post} />
 
-			{/* 2-col body row: body left, sticky TOC sidebar right (lg+) */}
+			{/*
+				Body sits inside the same lg rail as the topbar/footer/CtaBand.
+				The inner prose column caps at 760px so the line length stays
+				readable even when the lg rail is wider than the prose + sidebar
+				combined (between md and lg breakpoints the sidebar is hidden,
+				so without a cap the prose would stretch the full container).
+			*/}
 			<Container
-				maxWidth="md"
+				maxWidth="lg"
 				sx={{ pt: { xs: 6, md: 10 }, pb: { xs: 4, md: 6 } }}
 			>
 				<Box
@@ -659,15 +1235,17 @@ export const BlogArticlePage = ({
 						flexDirection: { xs: 'column', lg: 'row' },
 						gap: { xs: 0, lg: 8 },
 						alignItems: 'flex-start',
+						justifyContent: 'center',
 					}}
 				>
-					<Box sx={{ flex: 1, minWidth: 0, width: 1 }}>
+					<Box sx={{ flex: 1, minWidth: 0, maxWidth: { xs: '100%', lg: 760 } }}>
 						<MobileToc tocItems={tocItems} activeId={activeId} />
 						{children}
+						<MobileAsideCtas />
 						<ShareRow post={post} />
 						<AuthorBioCard post={post} />
 					</Box>
-					<DesktopTocSidebar tocItems={tocItems} activeId={activeId} />
+					<AsideStack tocItems={tocItems} activeId={activeId} />
 				</Box>
 			</Container>
 

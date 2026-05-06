@@ -83,6 +83,68 @@ Box has none of MUI Button's CSS-variable machinery — `sx` wins outright. The 
 
 If you must use `<Button>` (e.g., for a form submit), audit hover behavior in BOTH light and dark mode, in EVERY tier/variant — fixing one button on a page doesn't fix others sharing the same pattern.
 
+## Use `<Image>` for content imagery — never raw `<img>` / `<Box component="img">`
+
+Every content image on the marketing surface (blog covers, author portraits, team photos, hero illustrations, in-article figures, gallery cells, related-post thumbnails) MUST use the `<Image>` primitive at `apps/front/src/components/image/image.tsx`.
+
+```tsx
+// ❌ Bad — raw img misses the IntersectionObserver lazy-load + blur placeholder
+<Box component="img" src={...} alt={...} loading="lazy" sx={{ width: 32, height: 32, ... }} />
+
+// ✅ Good — <Image> handles lazy + placeholder + ratio enforcement
+<Image
+  src={...}
+  alt={...}
+  ratio="1/1"
+  sx={{ width: 32, flexShrink: 0, borderRadius: '50%', overflow: 'hidden' }}
+/>
+```
+
+Notes:
+- Pass `ratio` (e.g. `"1/1"` for avatars, `"16/9"`/`"16/10"` for cards/heroes). Sizing comes from the parent container width plus the ratio.
+- Drop `height` from sx — the ratio drives it. Keep `width` only.
+- Drop `loading="lazy"` — `<Image>` already lazy-loads via IntersectionObserver.
+- Drop `objectFit: 'cover'` — `<Image>` covers by default.
+- For rounded shapes (avatars, rounded thumbs), the parent needs `overflow: hidden` so the radius clips the inner img.
+
+**Approved exceptions** (use raw `<img>` / `Box component="img"` only here):
+- **Full-bleed background images** with `position: absolute, inset: 0, object-fit: cover` over a parent that already has explicit dimensions (e.g., the cinematic blog hero). `<Image>` is built around ratio-driven sizing, not background-fill mode.
+- **Inline SVG icons** — use the `Iconify` component, not `<img>`.
+- **Brand wordmarks / logos** rendered as inline SVG.
+
+When in doubt: if the image is *content* (a person, a product shot, a photo), use `<Image>`. If it's *background decoration* that fills its parent, raw img is fine.
+
+## Reuse hover animation presets — don't inline framer-motion configs
+
+The marketing surface has a recurring set of hover patterns: card lift, cover-image zoom, padded-cover expansion. These live in `apps/front/src/components/animate/variants/hover.ts` and are exposed via the `animate` index:
+
+```tsx
+import { asHoverRoot, hoverLift, hoverPadCollapse, hoverZoom } from '#app/components/animate/index.ts';
+
+const STANDARD_LIFT = hoverLift();              // { y: -10, scale: 1.018 } default
+const FEATURED_LIFT = hoverLift({ y: -6, scale: 1.01 }); // gentler
+const COVER_ZOOM = hoverZoom();                 // { scale: 1.06 } default
+const COVER_EXPAND = hoverPadCollapse({ from: 16, to: 0 });
+
+// ROOT motion element — wrap with asHoverRoot to get initial/animate/whileHover
+<Box component={m.div} {...asHoverRoot(STANDARD_LIFT)} sx={{...}}>
+  {/* CHILD motion elements — variants cascade automatically; no whileHover needed */}
+  <Box component={m.div} {...COVER_EXPAND} sx={{...}}>
+    <Box component={m.div} {...COVER_ZOOM}>
+      <Image ... />
+    </Box>
+  </Box>
+</Box>
+```
+
+Rules:
+1. **Prefer presets** — if `hoverLift` / `hoverZoom` / `hoverPadCollapse` cover the case (with optional opts overrides), use them. Don't re-declare `{ rest, hover }` variants + spring `{stiffness, damping, mass}` inline.
+2. **Override via opts** — when defaults don't fit (highlighted card needs more lift, cover needs subtler zoom), pass opts: `hoverLift({ y: -14, scale: 1.025 })`. The defaults document the marketing canon.
+3. **Add a new preset when the same custom shape repeats ≥ 2 times** — if you find yourself writing the same inline `{rest, hover}` object across two different files, extract it into `variants/hover.ts` (e.g. `hoverGlow`, `hoverRotate`, `hoverNudge`). The extracted name becomes the new canon for that pattern.
+4. **Inline is OK only when** — the animation is genuinely one-off and unlikely to repeat (e.g., a CTA's arrow-icon translation; a unique hero entrance). The bar for "one-off" is high: if any other piece of the surface could plausibly want the same effect, codify it as a preset.
+
+The same rule applies to entry/exit animations via the existing `varFade` / `varScale` / `varZoom` family: prefer them over inline `initial`/`animate` props.
+
 ## Approved hardcoded-color exceptions
 
 These are the only hardcoded colors permitted in marketing parts. Anything else must use theme tokens.
@@ -183,6 +245,9 @@ When building a new marketing page, check `_components/` first:
 | `ContentBand` | Slot-based section wrapper: centered header (eyebrow chip + h2 + optional subhead) above arbitrary `children` body. Header centers via `mx auto + alignItems center + textAlign center`. Always `bgcolor: 'background.default'` — no `bg='neutral'` alternation (Phase 3 dropped this; sections separated by spacing only). | `/about`, `/contact`, `/security` for grids/tables/inline blocks |
 | `CtaBand` | Dark `#242424` card (always-dark, both color schemes — see approved exceptions). Eyebrow pill + h2 (with `pre-line` `\n` support) + subhead + CTA button + microcopy. `pt: { xs: 8, md: 12 }` matches `ContentBand pb` for consistent vertical rhythm. | `home`, `/about`, `/security` (NOT `/contact` — contact ends at the form per spec) |
 | `MarketingErrorView` | Visual shell for 404 + render errors: gradient-text numeral (orange→purple→teal) + masked glass card (radial gradient mask scoped to top region) + ambient triple-radial watermark + popular-destination pills (flag-guarded). Props: `numeral`, `title`, `subhead`, optional `destinations`. | `/marketing-not-found-page` (404 catch-all), `MarketingLayout`'s `ErrorBoundary` (route-error 404 + 500-style) |
+| `BlogPostCard` | Three-variant card (`standard`/`featured`/`compact`). Standard rides `hoverLift` + `hoverPadCollapse` (cover expands to card-edge on hover) + `hoverZoom` (image scales 1→1.06). Featured uses gentler `hoverLift({y:-6, scale:1.01})` + static cover. Title hover → muted color + instant underline. ::before pseudo on the title-link extends click target to the whole card. | `/blog` index grid, `BlogArticlePage` "Continue reading" |
+| `BlogArticlePage` | Article shell with 4 hero treatments dispatched by `post.coverType`: `above-title` (canonical), `split` (2-col with cover left), `editorial` (zero-image card with kicker quote), `cinematic` (full-bleed bg + glass tag + white headline). Body slot composes from `blog-content-elements.tsx` primitives. Sticky `AsideStack` (TOC + trial CTA + newsletter CTA) on lg+; mobile equivalents stack between body and share row. | `/blog/:slug` route shim |
+| `blog-content-elements.tsx` | All blog body primitives: typography sx (`BLOG_LEAD_SX`, `BLOG_H3_SX`, `BLOG_H4_SX`, `BLOG_LINK_SX`, `BLOG_CODE_INLINE_SX`, `BLOG_UL_SX`, `BLOG_OL_SX`, `BLOG_BLOCKQUOTE_SX`, `BLOG_HR_SX`) + `BlogCodeBlock` (with `<Token>` for pseudo-syntax-highlighting) + `BlogCallout` (info/tip/warning/success) + `BlogPullQuote` + `BlogFigure` + `BlogGallery` + `BlogTable` + `BlogVideo` (iframe or play-button placeholder). Kitchen-sink reference at `_articles/multi-tenant-architecture-lessons-article.tsx`. | All `_articles/*` |
 
 Tier prices, feature lists, comparison rows, and FAQ items live in `_data/pricing.ts` — one source of truth shared by both pages. **Never duplicate tier prices/features in a part file.** If pricing changes, edit `_data/pricing.ts`.
 

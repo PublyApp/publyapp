@@ -241,6 +241,8 @@ For the marketing-vs-product surface split (what brand DNA must match vs what's 
 - React Hook Form + Zod for form validation — always use `Form`/`Field.*` wrappers from `@/front/components/hook-form`, never raw MUI `TextField` with `register()`
 - First-column table entity avatars/icons must use a neutral, muted, subtle fallback treatment; preserve real images when present, but avoid bright semantic or generated avatar colors for fallback icons
 - Marketing surfaces (landing, pricing, future blog) may diverge from product defaults on radii (16–40 px), button sizing, spacing, and motion — but must match product on palette tokens, typography family, primary CTA color, and dark-mode mechanism. See `docs/guides/marketing-surface-conventions.md` for the full divergence table and approved hardcoded-color exceptions.
+- **Content imagery (photos, avatars, hero illustrations) must use the `<Image>` primitive** at `apps/front/src/components/image/image.tsx` with a `ratio` prop — never raw `<img>` or `<Box component="img">`. Approved exceptions: full-bleed backgrounds with `position:absolute + inset:0 + object-fit:cover`, inline SVGs, brand wordmarks. See marketing-surface-conventions.md → "Use `<Image>` for content imagery".
+- **Animation presets are canon** — entry/exit via `varFade`/`varScale`/`varZoom`; hover via `hoverLift`/`hoverZoom`/`hoverPadCollapse` from `apps/front/src/components/animate/variants/`. Override via opts (`hoverLift({ y: -14 })`); only inline custom variants for genuinely one-off cases. If the same custom shape repeats ≥ 2 times, extract a new preset into `variants/hover.ts`. See marketing-surface-conventions.md → "Reuse hover animation presets".
 
 ## JavaScript/TypeScript Conventions
 

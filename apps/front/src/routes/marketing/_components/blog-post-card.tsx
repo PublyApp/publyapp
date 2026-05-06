@@ -1,10 +1,16 @@
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { m } from 'framer-motion';
 
+import {
+	asHoverRoot,
+	hoverLift,
+	hoverPadCollapse,
+	hoverZoom,
+} from '#app/components/animate/index.ts';
 import { Image } from '#app/components/image/image.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
-import { MarketingEyebrow } from '#app/routes/marketing/_components/marketing-eyebrow.tsx';
 import {
 	BLOG_AUTHORS,
 	type BlogPost,
@@ -14,7 +20,7 @@ import {
 
 // ----------------------------------------------------------------------
 
-type BlogPostCardVariant = 'standard' | 'featured' | 'compact';
+export type BlogPostCardVariant = 'standard' | 'featured' | 'compact';
 
 type BlogPostCardProps = {
 	post: BlogPost;
@@ -28,12 +34,41 @@ type BlogPostCardProps = {
 // for a 200px thumbnail.
 const COVER_PRESETS: Record<
 	BlogPostCardVariant,
-	{ ratio: '16/9' | '2/1' | '1/1'; w: number; h: number }
+	{ ratio: '16/9' | '16/10' | '2/1' | '1/1'; w: number; h: number }
 > = {
-	standard: { ratio: '16/9', w: 600, h: 338 },
+	standard: { ratio: '16/10', w: 600, h: 375 },
 	featured: { ratio: '2/1', w: 1080, h: 540 },
 	compact: { ratio: '1/1', w: 200, h: 200 },
 };
+
+// Title hover affordance — base sx applied to every card title.
+// `text-decoration-color: transparent` at rest + `currentColor` on hover
+// makes the underline appear/disappear instantly. Per request: NO transition
+// on the underline itself; only the color shift fades. This avoids the
+// "fading underline" feel and keeps the hover feedback crisp.
+const TITLE_HOVER_SX = {
+	textDecoration: 'underline',
+	textDecorationColor: 'transparent',
+	textUnderlineOffset: '4px',
+	textDecorationThickness: '2px',
+	transition: 'color 200ms ease',
+} as const;
+
+// All hover-state animation comes from the shared preset library
+// (`#app/components/animate` → `hoverLift` / `hoverZoom` / `hoverPadCollapse`).
+// On the standard card three layers move in concert:
+//   - card root → hoverLift (translateY + scale)
+//   - cover wrapper → hoverPadCollapse (16 → 0 padding, fills the card)
+//   - inner image → hoverZoom (scale 1 → 1.06 inside the rounded crop)
+// The featured-card variant uses a smaller hoverLift + a static cover.
+//
+// Spring shapes + default values live in `variants/hover.ts`. Override only
+// when the visual contract calls for it (the standard card uses default
+// values; the featured card asks for a gentler lift).
+const STANDARD_LIFT = hoverLift();
+const FEATURED_LIFT = hoverLift({ y: -6, scale: 1.01 });
+const COVER_ZOOM = hoverZoom();
+const COVER_EXPAND = hoverPadCollapse({ from: 16, to: 0 });
 
 // ----------------------------------------------------------------------
 
@@ -51,63 +86,148 @@ const tagLabel = (value: BlogPost['tag']): string => {
 
 // ----------------------------------------------------------------------
 
+const TagPill = ({ tag }: { tag: BlogPost['tag'] }) => {
+	const isBrand = tag === 'growth';
+
+	return (
+		<Box
+			component="span"
+			sx={{
+				display: 'inline-flex',
+				alignItems: 'center',
+				px: '10px',
+				py: '3px',
+				borderRadius: '6px',
+				fontSize: 11,
+				fontWeight: 600,
+				letterSpacing: '0.05em',
+				textTransform: 'uppercase',
+				bgcolor: isBrand ? 'rgba(16,185,129,0.10)' : 'background.neutral',
+				color: isBrand ? '#0d9467' : 'text.secondary',
+				border: '1px solid',
+				borderColor: isBrand ? 'rgba(16,185,129,0.20)' : 'transparent',
+			}}
+		>
+			{tagLabel(tag)}
+		</Box>
+	);
+};
+
 const ByLine = ({
 	post,
-	avatarSize = 32,
-	titleSize = 13,
-	roleSize = 12,
+	avatarSize = 34,
 }: {
 	post: BlogPost;
 	avatarSize?: number;
-	titleSize?: number;
-	roleSize?: number;
 }) => {
 	const author = BLOG_AUTHORS[post.authorId];
 
 	return (
 		<Stack direction="row" spacing={1.5} alignItems="center">
-			<Box
-				component="img"
+			<Image
 				src={author.photoUrl}
 				alt={author.name}
-				loading="lazy"
+				ratio="1/1"
 				sx={{
 					width: avatarSize,
-					height: avatarSize,
-					borderRadius: '50%',
-					objectFit: 'cover',
-					bgcolor: 'background.neutral',
 					flexShrink: 0,
+					borderRadius: '50%',
+					overflow: 'hidden',
+					bgcolor: 'background.neutral',
+					border: '2px solid',
+					borderColor: 'background.paper',
+					boxShadow: '0 0 0 1px rgba(17,24,39,0.06)',
 				}}
 			/>
-			<Stack spacing={0}>
+			<Stack spacing={0.25}>
 				<Typography
-					sx={{ fontSize: titleSize, fontWeight: 700, color: 'text.primary' }}
+					sx={{
+						fontSize: 13,
+						fontWeight: 600,
+						color: 'text.primary',
+						lineHeight: 1.2,
+					}}
 				>
 					{author.name}
 				</Typography>
-				<Typography sx={{ fontSize: roleSize, color: 'text.secondary' }}>
-					{author.role}
+				<Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+					{formatPostDate(post.publishedAt)} · {post.readingMinutes} min read
 				</Typography>
 			</Stack>
 		</Stack>
 	);
 };
 
-const DateAndReadingTime = ({ post, sx }: { post: BlogPost; sx?: object }) => {
-	return (
-		<Stack
-			direction="row"
-			spacing={1}
-			alignItems="center"
-			sx={{ fontSize: 12, color: 'text.secondary', ...sx }}
+// ----------------------------------------------------------------------
+
+// Cover wrapper. Two modes:
+// - `cardEdge` (standard card): at rest the cover sits in a 16px inset
+//   with rounded corners. On parent-card hover it expands to fill the
+//   card width (padding 16→0) and the corners morph (16,16,16,16 →
+//   24,24,0,0) to align with the card's outer 24px curve at the top and
+//   sit flush against the title block at the bottom.
+// - default (featured-card variant): static rounded crop, no expansion.
+//
+// Both modes share the same inner zoom: image scales 1 → 1.06 on parent
+// hover via cascading framer variants.
+const CoverWrap = ({
+	src,
+	alt,
+	ratio,
+	radius = '16px',
+	cardEdge = false,
+}: {
+	src: string;
+	alt: string;
+	ratio: '16/9' | '16/10' | '2/1' | '1/1';
+	radius?: string;
+	cardEdge?: boolean;
+}) => {
+	const zoomLayer = (
+		<Box
+			component={m.div}
+			{...COVER_ZOOM}
+			sx={{
+				display: 'block',
+				transformOrigin: 'center center',
+				willChange: 'transform',
+			}}
 		>
-			<Box component="span">{formatPostDate(post.publishedAt)}</Box>
-			<Box component="span" aria-hidden="true">
-				·
+			<Image src={src} alt={alt} ratio={ratio} />
+		</Box>
+	);
+
+	if (cardEdge) {
+		return (
+			<Box
+				component={m.div}
+				{...COVER_EXPAND}
+				// Inline rest values so SSR matches before motion takes over.
+				sx={{ pt: '16px', pl: '16px', pr: '16px' }}
+			>
+				<Box
+					sx={{
+						overflow: 'hidden',
+						borderRadius: '16px',
+						display: 'block',
+					}}
+				>
+					{zoomLayer}
+				</Box>
 			</Box>
-			<Box component="span">{post.readingMinutes} min read</Box>
-		</Stack>
+		);
+	}
+
+	return (
+		<Box
+			sx={{
+				borderRadius: radius,
+				overflow: 'hidden',
+				display: 'block',
+			}}
+		>
+			{zoomLayer}
+		</Box>
 	);
 };
 
@@ -123,9 +243,10 @@ export const BlogPostCard = ({
 	if (variant === 'featured') {
 		return (
 			<Box
-				component={RouterLink}
-				href={`/blog/${post.slug}`}
+				component={m.div}
+				{...asHoverRoot(FEATURED_LIFT)}
 				sx={{
+					position: 'relative',
 					display: 'grid',
 					gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
 					gap: { xs: 3, md: 5 },
@@ -135,50 +256,73 @@ export const BlogPostCard = ({
 					bgcolor: 'background.paper',
 					border: '1px solid',
 					borderColor: 'divider',
-					textDecoration: 'none',
-					color: 'inherit',
-					transition: 'transform 240ms ease, box-shadow 240ms ease',
+					boxShadow: '0 1px 2px rgba(31,41,55,0.03)',
+					transition: 'box-shadow 350ms ease',
 					'&:hover': {
-						transform: 'translateY(-2px)',
-						boxShadow: '0 20px 40px -16px rgba(17,24,39,0.12)',
+						boxShadow: '0 25px 50px -16px rgba(31,41,55,0.18)',
+					},
+					'&:hover .card-title': {
+						color: 'text.secondary',
+						textDecorationColor: 'currentColor',
 					},
 				}}
 			>
-				<Image
+				<CoverWrap
 					src={coverUrl}
 					alt={post.title}
 					ratio={cover.ratio}
-					sx={{ borderRadius: '16px', overflow: 'hidden' }}
+					radius="20px"
 				/>
 				<Stack spacing={2.5} alignItems="flex-start">
-					<MarketingEyebrow label={tagLabel(post.tag)} />
+					<TagPill tag={post.tag} />
 					<Typography
 						component="h3"
+						className="card-title"
 						sx={{
 							fontSize: { xs: 24, md: 32 },
 							fontWeight: 700,
 							color: 'text.primary',
 							lineHeight: 1.2,
 							letterSpacing: '-0.01em',
+							...TITLE_HOVER_SX,
 						}}
 					>
-						{post.title}
+						{/*
+							Title carries the actual <a> for a11y, then ::before
+							extends the click target to the entire card surface.
+							Parent is `position: relative` so ::before fills it.
+						*/}
+						<Box
+							component={RouterLink}
+							href={`/blog/${post.slug}`}
+							sx={{
+								color: 'inherit',
+								textDecoration: 'inherit',
+								'&::before': {
+									content: '""',
+									position: 'absolute',
+									inset: 0,
+									zIndex: 1,
+								},
+							}}
+						>
+							{post.title}
+						</Box>
 					</Typography>
 					<Typography
 						sx={{ fontSize: 16, color: 'text.secondary', lineHeight: 1.6 }}
 					>
 						{post.excerpt}
 					</Typography>
-					<Stack spacing={1}>
-						<ByLine post={post} avatarSize={40} titleSize={14} roleSize={13} />
-						<DateAndReadingTime post={post} />
-					</Stack>
+					<ByLine post={post} avatarSize={40} />
 				</Stack>
 			</Box>
 		);
 	}
 
 	if (variant === 'compact') {
+		// Compact stays CSS-only — it's a sidebar/list-row component, motion
+		// would feel out of place at this scale. Just the title affordance.
 		return (
 			<Box
 				component={RouterLink}
@@ -191,8 +335,12 @@ export const BlogPostCard = ({
 					borderRadius: '12px',
 					textDecoration: 'none',
 					color: 'inherit',
-					transition: 'background-color 240ms ease',
+					transition: 'background-color 200ms ease',
 					'&:hover': { bgcolor: 'background.neutral' },
+					'&:hover .card-title': {
+						color: 'text.secondary',
+						textDecorationColor: 'currentColor',
+					},
 				}}
 			>
 				<Image
@@ -208,6 +356,7 @@ export const BlogPostCard = ({
 				/>
 				<Stack spacing={0.5} sx={{ minWidth: 0 }}>
 					<Typography
+						className="card-title"
 						sx={{
 							fontSize: 13,
 							fontWeight: 700,
@@ -217,57 +366,102 @@ export const BlogPostCard = ({
 							WebkitLineClamp: 2,
 							WebkitBoxOrient: 'vertical',
 							overflow: 'hidden',
+							...TITLE_HOVER_SX,
 						}}
 					>
 						{post.title}
 					</Typography>
-					<DateAndReadingTime post={post} sx={{ fontSize: 11 }} />
+					<Typography sx={{ fontSize: 11, color: 'text.secondary' }}>
+						{formatPostDate(post.publishedAt)} · {post.readingMinutes} min read
+					</Typography>
 				</Stack>
 			</Box>
 		);
 	}
 
-	// standard
+	// standard — framer-motion orchestrated, mirrors the PricingTierCard
+	// idiom (m.div + spring `whileHover`). The whole card rides one spring;
+	// the cover rides a slightly slower one with mass:0.7, so the photo
+	// settles a beat after the card lifts — gives the hover a layered,
+	// weighted feel instead of one flat scale.
+	//
+	// Card itself is NOT a link (you can't compose RouterLink with motion's
+	// hover variants cleanly without losing client-side nav). Instead, the
+	// title wraps a RouterLink whose ::before pseudo-element extends the
+	// click target to the entire card surface — the modern accessible
+	// "card with link" pattern. Parent is `position: relative` so the
+	// pseudo fills it.
 	return (
 		<Box
-			component={RouterLink}
-			href={`/blog/${post.slug}`}
+			component={m.div}
+			{...asHoverRoot(STANDARD_LIFT)}
 			sx={{
+				position: 'relative',
 				display: 'flex',
 				flexDirection: 'column',
-				borderRadius: '20px',
+				borderRadius: '24px',
 				bgcolor: 'background.paper',
 				border: '1px solid',
 				borderColor: 'divider',
+				// Card clips the cover's top corners to its own 24px curve
+				// (cover has no border-radius of its own in `cardEdge` mode).
 				overflow: 'hidden',
-				textDecoration: 'none',
-				color: 'inherit',
-				transition: 'transform 240ms ease, box-shadow 240ms ease',
+				boxShadow: '0 1px 2px rgba(31,41,55,0.03)',
+				transition: 'box-shadow 350ms ease',
 				'&:hover': {
-					transform: 'translateY(-4px)',
-					boxShadow: '0 20px 40px -16px rgba(17,24,39,0.12)',
+					boxShadow: '0 25px 50px -16px rgba(31,41,55,0.18)',
+				},
+				'&:hover .card-title': {
+					color: 'text.secondary',
+					textDecorationColor: 'currentColor',
 				},
 			}}
 		>
-			<Image src={coverUrl} alt={post.title} ratio={cover.ratio} />
+			<CoverWrap src={coverUrl} alt={post.title} ratio={cover.ratio} cardEdge />
 			<Stack
-				spacing={2}
+				spacing={0}
 				alignItems="flex-start"
-				sx={{ p: 3, flex: 1, justifyContent: 'space-between' }}
+				sx={{
+					p: { xs: 3, md: 3.5 },
+					flex: 1,
+					justifyContent: 'space-between',
+				}}
 			>
-				<Stack spacing={2} alignItems="flex-start">
-					<MarketingEyebrow label={tagLabel(post.tag)} />
+				<Stack spacing={1.5} alignItems="flex-start" sx={{ width: '100%' }}>
+					<TagPill tag={post.tag} />
 					<Typography
 						component="h3"
+						className="card-title"
 						sx={{
-							fontSize: 20,
+							fontSize: { xs: 19, md: 21 },
 							fontWeight: 700,
 							color: 'text.primary',
-							lineHeight: 1.3,
+							lineHeight: 1.35,
 							letterSpacing: '-0.01em',
+							display: '-webkit-box',
+							WebkitLineClamp: 2,
+							WebkitBoxOrient: 'vertical',
+							overflow: 'hidden',
+							...TITLE_HOVER_SX,
 						}}
 					>
-						{post.title}
+						<Box
+							component={RouterLink}
+							href={`/blog/${post.slug}`}
+							sx={{
+								color: 'inherit',
+								textDecoration: 'inherit',
+								// ::before extends the click target to the whole card.
+								'&::before': {
+									content: '""',
+									position: 'absolute',
+									inset: 0,
+									zIndex: 1,
+								},
+							}}
+						>
+							{post.title}
+						</Box>
 					</Typography>
 					<Typography
 						sx={{
@@ -275,7 +469,7 @@ export const BlogPostCard = ({
 							color: 'text.secondary',
 							lineHeight: 1.6,
 							display: '-webkit-box',
-							WebkitLineClamp: 3,
+							WebkitLineClamp: 2,
 							WebkitBoxOrient: 'vertical',
 							overflow: 'hidden',
 						}}
@@ -283,10 +477,9 @@ export const BlogPostCard = ({
 						{post.excerpt}
 					</Typography>
 				</Stack>
-				<Stack spacing={1} sx={{ width: '100%' }}>
+				<Box sx={{ mt: 4, width: '100%' }}>
 					<ByLine post={post} />
-					<DateAndReadingTime post={post} />
-				</Stack>
+				</Box>
 			</Stack>
 		</Box>
 	);
