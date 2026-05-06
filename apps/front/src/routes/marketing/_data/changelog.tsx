@@ -244,6 +244,443 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
 			</Typography>
 		),
 	},
+	{
+		version: 'v1.2.6',
+		date: '2025-09-22',
+		title: 'Composer typing latency cut by half',
+		types: ['performance'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				Keystroke-to-paint in the composer dropped from 88ms (p75) to 41ms after
+				the mention-suggestion query was moved off the main thread and the
+				content tree switched to a structural-sharing immutable model. Most
+				noticeable on threads beyond 30 entries.
+			</Typography>
+		),
+	},
+	{
+		version: 'v1.2.5',
+		date: '2025-08-15',
+		title: 'SSO via Google Workspace and Microsoft 365',
+		types: ['feature', 'security'],
+		body: (
+			<>
+				<Typography sx={BLOG_P_SX}>
+					Workspace admins can now configure SAML 2.0 SSO against Google
+					Workspace or Microsoft Entra ID. SCIM 2.0 user provisioning is
+					supported on the same connectors — deactivated upstream users lose
+					dashboard access on the next sync window.
+				</Typography>
+				<BlogCallout variant="info" title="Available on Team plans and above">
+					Existing email/password members keep working alongside SSO; admins can
+					enforce SSO-only on a per-domain basis from Security settings.
+				</BlogCallout>
+			</>
+		),
+	},
+	{
+		version: 'v1.2.4',
+		date: '2025-06-30',
+		title: 'Daylight-saving shift broke recurring queues',
+		types: ['fix'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				Recurring queues defined in non-UTC timezones could drift by an hour
+				across DST boundaries. Now stored as a wall-clock time + IANA timezone
+				pair instead of a UTC offset, which keeps "every Monday at 9am Paris"
+				anchored to local 9am year-round.
+			</Typography>
+		),
+	},
+	{
+		version: 'v1.2.3',
+		date: '2025-05-12',
+		title: 'Inline image editing in the composer',
+		types: ['feature', 'improvement'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				Crop, rotate, and adjust brightness without leaving the composer.
+				Adjustments stay non-destructive — the original asset is preserved and
+				every edit can be reverted up until publish.
+			</Typography>
+		),
+	},
+	{
+		version: 'v1.2.2',
+		date: '2025-03-18',
+		title: 'Mandatory 2FA for workspace owners',
+		types: ['security'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				Workspace owner accounts now require TOTP or WebAuthn second-factor on
+				sign-in. Members and admins can opt in voluntarily; the requirement will
+				roll out to admins later this year.
+			</Typography>
+		),
+	},
+	{
+		version: 'v1.2.1',
+		date: '2025-02-04',
+		title: 'New self-serve API onboarding tutorial',
+		types: ['documentation'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				A guided 15-minute walkthrough that takes you from creating an API token
+				to publishing your first scheduled post. Includes copy-paste snippets in
+				Node, Python, and Go.
+			</Typography>
+		),
+	},
+	{
+		version: 'v1.2.0',
+		date: '2024-12-09',
+		title: 'Custom emoji reactions in the inbox',
+		types: ['feature'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				Upload custom workspace emoji and react to inbox conversations the same
+				way you would in Slack. Reactions are visible to teammates and surface
+				as filters in saved views.
+			</Typography>
+		),
+	},
+	{
+		version: 'v1.1.4',
+		date: '2024-10-22',
+		title: 'Worker pool rebalance — queue backlog down 70%',
+		types: ['performance'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				Background workers are now allocated by queue priority class instead of
+				a flat round-robin. Under sustained load the high-priority backlog
+				cleared 3x faster while low-priority throughput stayed flat.
+			</Typography>
+		),
+	},
+	{
+		version: 'v1.1.3',
+		date: '2024-09-03',
+		title: 'Drag handle disappearing on Safari 17',
+		types: ['fix'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				A Safari 17 quirk hid the row drag handle on hover when a parent element
+				had{' '}
+				<Box component="code" sx={BLOG_CODE_INLINE_SX}>
+					backdrop-filter
+				</Box>{' '}
+				applied. Worked around by promoting the handle to its own stacking
+				context.
+			</Typography>
+		),
+	},
+	{
+		version: 'v1.1.2',
+		date: '2024-07-16',
+		title: 'Slack notifications for queue events',
+		types: ['feature'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				Send a Slack DM or channel message when a queue item is approved,
+				rejected, fails to publish, or breaches its SLA. Configure per-queue
+				from Notifications → Integrations.
+			</Typography>
+		),
+	},
+	{
+		version: 'v1.1.1',
+		date: '2024-05-28',
+		title: 'Renamed "channels" to "destinations" in the API',
+		types: ['breaking'],
+		body: (
+			<>
+				<Typography sx={BLOG_P_SX}>
+					The legacy "channel" resource has been renamed to "destination" across
+					the API to disambiguate from the Slack/Discord notion of "channel".
+					Aliases remain in place until v1.3.0 (Q1 2026); update your client
+					code before then.
+				</Typography>
+				<BlogCodeBlock language="diff" withChrome={false}>
+					{`- POST /v1/channels
++ POST /v1/destinations`}
+				</BlogCodeBlock>
+			</>
+		),
+	},
+	{
+		version: 'v1.1.0',
+		date: '2024-03-04',
+		title: 'Multi-workspace support',
+		types: ['feature'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				A single account can now belong to multiple workspaces. Switch via the
+				top-left workspace picker; permissions, billing, and queues stay fully
+				isolated per workspace.
+			</Typography>
+		),
+	},
+	{
+		version: 'v1.0.2',
+		date: '2023-11-21',
+		title: 'Notification badge stuck after "mark all read"',
+		types: ['fix'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				The header notification count could remain visible after marking all
+				items read until the next page navigation. Fixed by invalidating the
+				unread-count query alongside the mark-all mutation.
+			</Typography>
+		),
+	},
+	{
+		version: 'v1.0.1',
+		date: '2023-09-08',
+		title: 'CSRF token rotation on every session',
+		types: ['security'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				Session-bound CSRF tokens now rotate on each authenticated request
+				rather than once per session, narrowing the window for replay attacks
+				against long-lived dashboard tabs.
+			</Typography>
+		),
+	},
+	{
+		version: 'v1.0.0',
+		date: '2023-06-15',
+		title: 'PublyApp 1.0 — General Availability',
+		types: ['feature', 'breaking'],
+		heroImageSlug: '1499750310107-5fef28a66643',
+		body: (
+			<>
+				<Typography sx={BLOG_P_SX}>
+					After ten months of beta, PublyApp is generally available. The 1.0
+					release includes hardened SLAs, audit-grade logging, and the first
+					formally-supported public API surface.
+				</Typography>
+				<Typography sx={BLOG_P_SX}>
+					Beta workspaces have been migrated automatically. The few breaking
+					changes were called out in advance — see the migration notes in the
+					docs.
+				</Typography>
+			</>
+		),
+	},
+	{
+		version: 'v0.9.5',
+		date: '2023-03-19',
+		title: 'Inbox keyboard shortcuts overhaul',
+		types: ['improvement'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				Full keyboard navigation through the inbox:{' '}
+				<Box component="code" sx={BLOG_CODE_INLINE_SX}>
+					j
+				</Box>
+				/
+				<Box component="code" sx={BLOG_CODE_INLINE_SX}>
+					k
+				</Box>{' '}
+				to move,{' '}
+				<Box component="code" sx={BLOG_CODE_INLINE_SX}>
+					e
+				</Box>{' '}
+				to archive,{' '}
+				<Box component="code" sx={BLOG_CODE_INLINE_SX}>
+					r
+				</Box>{' '}
+				to reply,{' '}
+				<Box component="code" sx={BLOG_CODE_INLINE_SX}>
+					?
+				</Box>{' '}
+				to see the cheatsheet. Shortcuts are remappable from preferences.
+			</Typography>
+		),
+	},
+	{
+		version: 'v0.9.0',
+		date: '2022-11-30',
+		title: 'Public beta opens to anyone with an invite code',
+		types: ['feature'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				Closed alpha graduates to public beta. Invite codes now distribute on a
+				first-come basis from the public landing page; no more manual approval
+				queue.
+			</Typography>
+		),
+	},
+	{
+		version: 'v0.8.0',
+		date: '2022-08-22',
+		title: 'First-class scheduling primitives',
+		types: ['feature'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				Replaces the cron-string-in-a-text-input scheduler with a structured
+				composer: visual cadence picker, timezone-aware previews, and conflict
+				detection across recurring slots.
+			</Typography>
+		),
+	},
+	{
+		version: 'v0.7.0',
+		date: '2022-04-11',
+		title: 'Initial composer release',
+		types: ['feature'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				The first version of what most users now think of as PublyApp: a unified
+				composer that targets multiple destinations from a single editor with
+				preview-per-destination.
+			</Typography>
+		),
+	},
+	{
+		version: 'v0.5.0',
+		date: '2021-10-14',
+		title: 'Database migration to Postgres 14',
+		types: ['performance'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				Cut over from Postgres 12 to 14 over a 90-second maintenance window.
+				Improved JSON path query performance and parallel index builds shaved
+				noticeable latency off the dashboard's largest list views.
+			</Typography>
+		),
+	},
+	{
+		version: 'v0.4.0',
+		date: '2021-05-22',
+		title: 'User accounts and workspaces',
+		types: ['feature'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				The first persistent identity model. Replaces the demo-mode anonymous
+				sessions with real accounts, workspace boundaries, and per-workspace
+				permissions.
+			</Typography>
+		),
+	},
+	{
+		version: 'v0.2.0',
+		date: '2020-09-08',
+		title: 'First closed alpha',
+		types: ['feature'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				Hand-picked alpha cohort gets access to the prototype dashboard. No
+				auth, no billing, no SLAs — just enough to validate that the workflow
+				idea makes sense to people other than the team building it.
+			</Typography>
+		),
+	},
+	{
+		version: 'v0.1.0',
+		date: '2020-04-01',
+		title: 'Project starts',
+		types: ['feature'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				First commit on what became the production codebase. Internal-only
+				sandbox; mostly schemas, naming arguments, and a single endpoint that
+				returns "hello world" with carefully chosen JSON envelope conventions.
+			</Typography>
+		),
+	},
+	{
+		version: 'v0.0.7',
+		date: '2019-11-08',
+		title: 'Internal prototype runs on Vite',
+		types: ['performance'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				Migrated the internal prototype off Webpack onto Vite for the dev loop.
+				Cold start dropped from 18s to 800ms; HMR became actually instant. This
+				one quietly changed how often the team experimented.
+			</Typography>
+		),
+	},
+	{
+		version: 'v0.0.6',
+		date: '2019-05-21',
+		title: 'TypeScript migration of the prototype',
+		types: ['improvement'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				Converted the JavaScript prototype to TypeScript over a quiet sprint.
+				Started catching real bugs the same week — most of them in the date /
+				timezone code that would later become the scheduling primitives.
+			</Typography>
+		),
+	},
+	{
+		version: 'v0.0.5',
+		date: '2018-09-10',
+		title: 'Open-sourced the prototype on GitHub',
+		types: ['feature'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				The early prototype went public on GitHub under an MIT license. No real
+				contributions came in for months, but the act of making it public forced
+				better commit hygiene and a readable README.
+			</Typography>
+		),
+	},
+	{
+		version: 'v0.0.4',
+		date: '2018-03-02',
+		title: 'Switched the core UI from Vue to React',
+		types: ['improvement', 'breaking'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				The Vue 2 prototype was rewritten from scratch in React. Reasoning was
+				mostly about hiring leverage and ecosystem maturity at the time, not
+				framework loyalty. The data layer survived the rewrite untouched.
+			</Typography>
+		),
+	},
+	{
+		version: 'v0.0.3',
+		date: '2017-08-19',
+		title: 'Project name finalized after six months of arguing',
+		types: ['documentation'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				"PublyApp" wins. Other contenders: Postship, Outroad, Brandloop, and a
+				truly cursed list of two-syllable Latin combinations. README updated,
+				all references renamed.
+			</Typography>
+		),
+	},
+	{
+		version: 'v0.0.2',
+		date: '2016-04-25',
+		title: 'First architecture sketches',
+		types: ['documentation'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				First serious whiteboarding session. Most of the diagrams are gone; one
+				survived, scanned and pinned in the team wiki, of a four-tier system
+				almost nothing of which made it to production.
+			</Typography>
+		),
+	},
+	{
+		version: 'v0.0.1',
+		date: '2015-09-13',
+		title: 'Original idea logged in a notebook',
+		types: ['feature'],
+		body: (
+			<Typography sx={BLOG_P_SX}>
+				The idea that became PublyApp first appeared as half a page of notes in
+				a personal notebook: "tool that lets a marketing team queue social posts
+				the same way engineers queue deploys". Filed, mostly forgotten,
+				revisited years later.
+			</Typography>
+		),
+	},
 ];
 
 // ----------------------------------------------------------------------
