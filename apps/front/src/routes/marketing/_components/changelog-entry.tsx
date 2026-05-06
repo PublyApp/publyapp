@@ -53,7 +53,13 @@ export const ChangelogEntry = ({ entry }: ChangelogEntryProps) => {
 			id={slug}
 			sx={{
 				display: 'grid',
-				gridTemplateColumns: { xs: '1fr', lg: '140px 1fr' },
+				// `minmax(0, 1fr)` (vs raw `1fr`) prevents wide children like
+				// <pre> code blocks from blowing out the grid column and
+				// causing horizontal page scroll on narrow viewports.
+				gridTemplateColumns: {
+					xs: 'minmax(0, 1fr)',
+					lg: '140px minmax(0, 1fr)',
+				},
 				alignItems: 'flex-start',
 				// scrollMarginTop parks the entry below the fixed topbar when
 				// targeted via #anchor (direct URL load OR VersionPill click).

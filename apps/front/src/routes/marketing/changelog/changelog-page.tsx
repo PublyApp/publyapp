@@ -104,12 +104,20 @@ const ChangelogPage = () => {
 						</Typography>
 					</Stack>
 				) : (
-					<Stack spacing={0}>
+					<Stack spacing={0} sx={{ minWidth: 0 }}>
 						{entries.map((entry) => {
 							return <ChangelogEntry key={entry.version} entry={entry} />;
 						})}
 					</Stack>
 				)}
+
+				{/* Year chips repeated at the end of the timeline so visitors
+				    don't have to scroll back to the top to switch years. */}
+				<ChangelogYearChips
+					years={availableYears}
+					activeYear={year}
+					variant="bottom"
+				/>
 
 				{FEATURES.marketing.changelogSubscribe ? (
 					<ChangelogSubscribeBand />

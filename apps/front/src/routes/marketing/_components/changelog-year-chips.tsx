@@ -1,5 +1,5 @@
 import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
+import { useEffect, useRef } from 'react';
 
 import { RouterLink } from '#app/components/router-link.tsx';
 
@@ -8,12 +8,28 @@ import { RouterLink } from '#app/components/router-link.tsx';
 type ChangelogYearChipsProps = {
 	years: number[]; // available years, sorted desc
 	activeYear: number;
+	// Visually flag a duplicate placement (e.g. bottom of timeline) so we
+	// can give it a top divider without affecting the primary placement.
+	variant?: 'top' | 'bottom';
 };
 
 export const ChangelogYearChips = ({
 	years,
 	activeYear,
+	variant = 'top',
 }: ChangelogYearChipsProps) => {
+	// Auto-scroll the active chip into view on mobile, where the row
+	// scrolls horizontally instead of wrapping. Without this the active
+	// year can be off-screen on a narrow viewport with many years.
+	const activeChipRef = useRef<HTMLAnchorElement | null>(null);
+	useEffect(() => {
+		activeChipRef.current?.scrollIntoView({
+			behavior: 'auto',
+			inline: 'center',
+			block: 'nearest',
+		});
+	}, [activeYear]);
+
 	// Only one year worth navigating between → render nothing. Saves a
 	// noisy single-pill row when the catalogue is small.
 	if (years.length <= 1) {
@@ -21,23 +37,45 @@ export const ChangelogYearChips = ({
 	}
 
 	return (
-		<Stack
-			direction="row"
-			spacing={1}
-			justifyContent="center"
-			sx={{ flexWrap: 'wrap', mb: { xs: 6, md: 8 }, px: 2 }}
+		<Box
 			role="navigation"
 			aria-label="Changelog year navigation"
+			sx={{
+				display: 'flex',
+				flexDirection: 'row',
+				gap: 1,
+				flexWrap: { xs: 'nowrap', md: 'wrap' },
+				overflowX: { xs: 'auto', md: 'visible' },
+				justifyContent: { xs: 'flex-start', md: 'center' },
+				px: 2,
+				...(variant === 'top'
+					? { mb: { xs: 6, md: 8 } }
+					: {
+							mt: { xs: 4, md: 6 },
+							mb: { xs: 2, md: 4 },
+							pt: { xs: 4, md: 5 },
+							borderTop: '1px dashed',
+							borderTopColor: 'divider',
+						}),
+				// Snap chips to center on mobile scroll for a tidy land.
+				scrollSnapType: { xs: 'x mandatory', md: 'none' },
+				// Hide the scrollbar visually while keeping the row scrollable.
+				scrollbarWidth: 'none',
+				'&::-webkit-scrollbar': { display: 'none' },
+			}}
 		>
 			{years.map((year) => {
 				const active = year === activeYear;
 				return (
 					<Box
 						key={year}
+						ref={active ? activeChipRef : undefined}
 						component={RouterLink}
 						href={`/changelog/${year}`}
 						aria-current={active ? 'page' : undefined}
 						sx={{
+							flex: '0 0 auto',
+							scrollSnapAlign: 'center',
 							display: 'inline-flex',
 							alignItems: 'center',
 							px: 2.25,
@@ -67,6 +105,6 @@ export const ChangelogYearChips = ({
 					</Box>
 				);
 			})}
-		</Stack>
+		</Box>
 	);
 };
