@@ -34,7 +34,7 @@ const ChangelogPage = () => {
 		throw new Response('Not Found', { status: 404 });
 	}
 
-	const year = parseInt(yearParam, 10);
+	const year = Number.parseInt(yearParam, 10);
 	const availableYears = getAvailableYears();
 
 	if (!availableYears.includes(year)) {
@@ -136,7 +136,7 @@ type MetaArgs = { params: { year?: string } };
 
 export const meta = ({ params }: MetaArgs) => {
 	const yearParam = params.year ?? '';
-	const year = parseInt(yearParam, 10);
+	const year = Number.parseInt(yearParam, 10);
 	const entries = Number.isFinite(year) ? getEntriesForYear(year) : [];
 	const description = `${entries.length} releases shipped in ${yearParam}. Features, fixes, and behind-the-scenes wins.`;
 
