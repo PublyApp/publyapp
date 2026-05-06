@@ -58,7 +58,11 @@ const TITLE_HOVER_SX = {
 // (`#app/components/animate` → `hoverLift` / `hoverZoom` / `hoverPadCollapse`).
 // On the standard card three layers move in concert:
 //   - card root → hoverLift (translateY + scale)
-//   - cover wrapper → hoverPadCollapse (16 → 0 padding, fills the card)
+//   - cover wrapper inset → animated `top/left/right` 16 → 0
+//     (NOT the shared `hoverPadCollapse` preset: animating real padding
+//      reflows the wrapper height and shifts every card below; instead
+//      we lock the wrapper height with aspect-ratio and animate the
+//      absolutely-positioned inner cover's inset, which is layout-stable.)
 //   - inner image → hoverZoom (scale 1 → 1.06 inside the rounded crop)
 // The featured-card variant uses a smaller hoverLift + a static cover.
 //
@@ -68,7 +72,10 @@ const TITLE_HOVER_SX = {
 const STANDARD_LIFT = hoverLift();
 const FEATURED_LIFT = hoverLift({ y: -6, scale: 1.01 });
 const COVER_ZOOM = hoverZoom();
-const COVER_EXPAND = hoverPadCollapse({ from: 16, to: 0 });
+// Reuse the canonical pad-collapse spring shape for the inset animation;
+// only the transition is consumed (variants are inline since the property
+// being animated is `top/left/right`, not `padding`).
+const COVER_INSET_TRANSITION = hoverPadCollapse().transition;
 
 // ----------------------------------------------------------------------
 
@@ -163,13 +170,22 @@ const ByLine = ({
 // Cover wrapper. Two modes:
 // - `cardEdge` (standard card): at rest the cover sits in a 16px inset
 //   with rounded corners. On parent-card hover it expands to fill the
-//   card width (padding 16→0) and the corners morph (16,16,16,16 →
-//   24,24,0,0) to align with the card's outer 24px curve at the top and
-//   sit flush against the title block at the bottom.
+//   card width and the corners morph to align with the card's outer
+//   24px curve at the top and sit flush against the title block at
+//   the bottom.
 // - default (featured-card variant): static rounded crop, no expansion.
 //
 // Both modes share the same inner zoom: image scales 1 → 1.06 on parent
 // hover via cascading framer variants.
+//
+// IMPORTANT (cardEdge): the OUTER wrapper has a fixed `aspectRatio` so
+// its rendered height stays constant whether the inset is animating or
+// not. The previous implementation animated `padding` directly on the
+// wrapper, which made the inner image (and therefore the wrapper, via
+// content sizing) ~4px taller on hover and shifted every card in the
+// row downwards. With aspect-ratio locked + the inset cover absolutely
+// positioned, the hover animates only the inner cover's `top/left/right`
+// — no layout reflow on neighbors below.
 const CoverWrap = ({
 	src,
 	alt,
@@ -183,36 +199,54 @@ const CoverWrap = ({
 	radius?: string;
 	cardEdge?: boolean;
 }) => {
-	const zoomLayer = (
-		<Box
-			component={m.div}
-			{...COVER_ZOOM}
-			sx={{
-				display: 'block',
-				transformOrigin: 'center center',
-				willChange: 'transform',
-			}}
-		>
-			<Image src={src} alt={alt} ratio={ratio} />
-		</Box>
-	);
-
 	if (cardEdge) {
+		// CSS aspect-ratio uses space-separated form: '16/10' → '16 / 10'.
+		const aspectRatioCSS = ratio.replace('/', ' / ');
+
 		return (
 			<Box
-				component={m.div}
-				{...COVER_EXPAND}
-				// Inline rest values so SSR matches before motion takes over.
-				sx={{ pt: '16px', pl: '16px', pr: '16px' }}
+				sx={{
+					position: 'relative',
+					width: '100%',
+					aspectRatio: aspectRatioCSS,
+				}}
 			>
 				<Box
+					component={m.div}
+					variants={{
+						rest: { top: 16, left: 16, right: 16 },
+						hover: { top: 0, left: 0, right: 0 },
+					}}
+					transition={COVER_INSET_TRANSITION}
 					sx={{
+						position: 'absolute',
+						bottom: 0,
 						overflow: 'hidden',
 						borderRadius: '16px',
-						display: 'block',
 					}}
 				>
-					{zoomLayer}
+					<Box
+						component={m.div}
+						{...COVER_ZOOM}
+						sx={{
+							width: '100%',
+							height: '100%',
+							transformOrigin: 'center center',
+							willChange: 'transform',
+						}}
+					>
+						<Box
+							component="img"
+							src={src}
+							alt={alt}
+							sx={{
+								display: 'block',
+								width: '100%',
+								height: '100%',
+								objectFit: 'cover',
+							}}
+						/>
+					</Box>
 				</Box>
 			</Box>
 		);
@@ -226,7 +260,17 @@ const CoverWrap = ({
 				display: 'block',
 			}}
 		>
-			{zoomLayer}
+			<Box
+				component={m.div}
+				{...COVER_ZOOM}
+				sx={{
+					display: 'block',
+					transformOrigin: 'center center',
+					willChange: 'transform',
+				}}
+			>
+				<Image src={src} alt={alt} ratio={ratio} />
+			</Box>
 		</Box>
 	);
 };
