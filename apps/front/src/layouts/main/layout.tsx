@@ -117,13 +117,19 @@ export const MainLayout = ({
 							key={link.href}
 							component="a"
 							href={link.href}
-							sx={{
-								fontSize: 14,
-								fontWeight: 600,
-								color: 'text.secondary',
-								textDecoration: 'none',
-								transition: 'color 0.2s ease',
-								'&:hover': { color: 'text.primary' },
+							sx={(theme) => {
+								return {
+									fontSize: 14,
+									fontWeight: 600,
+									color: 'text.secondary',
+									textDecoration: 'none',
+									transition: 'color 0.2s ease',
+									'&:hover': { color: 'text.primary' },
+									...theme.applyStyles('dark', {
+										color: 'common.white',
+										'&:hover': { color: 'common.white', opacity: 0.85 },
+									}),
+								};
 							}}
 						>
 							{link.label}
@@ -169,21 +175,35 @@ export const MainLayout = ({
 					{/** @slot Sign in button */}
 					<SignInButton
 						size="large"
-						sx={{
-							borderRadius: 2,
-							fontWeight: 600,
-							borderColor: 'divider',
-							bgcolor: 'background.paper',
-							backdropFilter: 'blur(12px)',
-							color: 'text.primary',
-							transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-							'&:hover': {
-								bgcolor: 'background.paper',
-								color: 'text.primary',
+						sx={(theme) => {
+							return {
+								borderRadius: 2,
+								fontWeight: 600,
 								borderColor: 'divider',
-								transform: 'translateY(-1px)',
-								boxShadow: '0 8px 16px -8px rgba(17,24,39,0.15)',
-							},
+								bgcolor: 'background.paper',
+								backdropFilter: 'blur(12px)',
+								color: 'text.primary',
+								transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+								'&:hover': {
+									bgcolor: 'background.paper',
+									color: 'text.primary',
+									borderColor: 'divider',
+									transform: 'translateY(-1px)',
+									boxShadow: '0 8px 16px -8px rgba(17,24,39,0.15)',
+								},
+								...theme.applyStyles('dark', {
+									bgcolor: 'background.default',
+									borderColor: 'divider',
+									color: 'common.white',
+									'&:hover': {
+										bgcolor: 'background.default',
+										color: 'common.white',
+										borderColor: 'divider',
+										transform: 'translateY(-1px)',
+										boxShadow: '0 8px 16px -8px rgba(0,0,0,0.45)',
+									},
+								}),
+							};
 						}}
 					/>
 
