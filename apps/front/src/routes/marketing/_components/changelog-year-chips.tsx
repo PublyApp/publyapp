@@ -30,6 +30,14 @@ export const ChangelogYearChips = ({
 		});
 	}, [activeYear]);
 
+	// Bottom-chip clicks happen far below the viewport top — without an
+	// explicit reset the new year's page would render with the user
+	// scrolled deep into the previous year's entries. Always pull them
+	// back to the hero so the year switch feels intentional.
+	const handleChipClick = () => {
+		window.scrollTo({ top: 0, behavior: 'auto' });
+	};
+
 	// Only one year worth navigating between → render nothing. Saves a
 	// noisy single-pill row when the catalogue is small.
 	if (years.length <= 1) {
@@ -73,6 +81,7 @@ export const ChangelogYearChips = ({
 						component={RouterLink}
 						href={`/changelog/${year}`}
 						aria-current={active ? 'page' : undefined}
+						onClick={handleChipClick}
 						sx={{
 							flex: '0 0 auto',
 							scrollSnapAlign: 'center',
