@@ -13,10 +13,11 @@ import { makePath } from '@org/shared-ts/utils/string.utils';
 
 import { Logo } from '#app/components/logo/logo.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
+import { FEATURES } from '#app/lib/features/flags.ts';
 import { allLangs } from '#app/lib/locales/all-langs.ts';
 
-import { ColorSchemePopover } from '../components/colorscheme-popover';
 import { LanguagePopover } from '../components/language-popover';
+import { MarketingColorSchemeToggle } from '../components/marketing-colorscheme-toggle';
 import { MenuButton } from '../components/menu-button';
 import { SignInButton } from '../components/sign-in-button';
 import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
@@ -161,16 +162,18 @@ export const MainLayout = ({
 						gap: { xs: 0.5, sm: 1 },
 					}}
 				>
-					{/** @slot Language switcher */}
-					<LanguagePopover
-						data={allLangs}
-						popoverSlotProps={{ arrow: { placement: 'top-center' } }}
-					/>
+					{/** @slot Language switcher — gated; default off for marketing
+					    until additional locales ship. */}
+					{FEATURES.marketing.languageSwitcher ? (
+						<LanguagePopover
+							data={allLangs}
+							popoverSlotProps={{ arrow: { placement: 'top-center' } }}
+						/>
+					) : null}
 
-					{/** @slot Color scheme toggle */}
-					<ColorSchemePopover
-						popoverSlotProps={{ arrow: { placement: 'top-center' } }}
-					/>
+					{/** @slot Color scheme toggle — marketing variant flips
+					    light↔dark immediately, no popover. */}
+					<MarketingColorSchemeToggle />
 
 					{/** @slot Sign in button */}
 					<SignInButton

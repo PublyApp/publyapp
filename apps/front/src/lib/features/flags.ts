@@ -36,6 +36,13 @@ export const FEATURES = deepFreeze({
 			'VITE_FEATURE_MARKETING_CHANGELOG_SUBSCRIBE',
 			false,
 		),
+		// Topbar language switcher — default OFF until additional locales
+		// ship for the marketing surface. Flipping this back on re-shows
+		// the flag-icon popover in the marketing topbar.
+		languageSwitcher: readFlag(
+			'VITE_FEATURE_MARKETING_LANGUAGE_SWITCHER',
+			false,
+		),
 		integrations: readFlag('VITE_FEATURE_MARKETING_INTEGRATIONS', true),
 		help: readFlag('VITE_FEATURE_MARKETING_HELP', true),
 		community: readFlag('VITE_FEATURE_MARKETING_COMMUNITY', true),
