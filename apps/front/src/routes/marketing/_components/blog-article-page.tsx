@@ -3,8 +3,8 @@ import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import type { SxProps, Theme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
-import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
@@ -19,10 +19,10 @@ import { CtaBand } from '#app/routes/marketing/_components/cta-band.tsx';
 import { MarketingEyebrow } from '#app/routes/marketing/_components/marketing-eyebrow.tsx';
 import {
 	BLOG_AUTHORS,
-	type BlogPost,
 	BLOG_TAGS,
 	getPublishedPosts,
 	unsplashCover,
+	type BlogPost,
 } from '#app/routes/marketing/_data/blog.ts';
 
 // ----------------------------------------------------------------------
@@ -1141,8 +1141,6 @@ const ContinueReading = ({ post }: { post: BlogPost }) => {
 			component="section"
 			sx={{
 				py: { xs: 8, md: 12 },
-				borderTop: '1px solid',
-				borderTopColor: 'divider',
 			}}
 		>
 			<Container maxWidth="lg">
