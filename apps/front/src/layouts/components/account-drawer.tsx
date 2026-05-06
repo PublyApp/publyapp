@@ -11,7 +11,7 @@ import { useCallback } from 'react';
 
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
-import { AnimateBorder } from '#app/components/animate/index.ts';
+import { AnimateBorder } from '#app/components/animate/animate-border.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { Label } from '#app/components/label/label.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';

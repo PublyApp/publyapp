@@ -9,14 +9,12 @@ import Stack from '@mui/material/Stack';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useCallback, useState } from 'react';
 
-import {
-	PlanFreeIcon,
-	PlanPremiumIcon,
-	PlanStarterIcon,
-} from '#app/assets/icons/index.ts';
+import PlanFreeIcon from '#app/assets/icons/plan-free-icon.tsx';
+import PlanPremiumIcon from '#app/assets/icons/plan-premium-icon.tsx';
+import PlanStarterIcon from '#app/assets/icons/plan-starter-icon.tsx';
 import type { IAddressItem, IPaymentCard } from '#app/types/common.ts';
 
-import { AddressListDialog } from '../address';
+import { AddressListDialog } from '../address/address-list-dialog';
 import { Iconify } from '../iconify/iconify';
 import { Label } from '../label/label';
 import { PaymentCardListDialog } from '../payment/payment-card-list-dialog';

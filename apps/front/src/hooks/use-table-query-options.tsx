@@ -4,9 +4,11 @@ import { useCallback } from 'react';
 import {
 	EmptyContent,
 	type EmptyContentProps,
+} from '#app/components/empty-content/empty-content.tsx';
+import {
 	ErrorContent,
 	type ErrorContentProps,
-} from '#app/components/empty-content/index.ts';
+} from '#app/components/empty-content/error-content.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
 // ----------------------------------------------------------------------

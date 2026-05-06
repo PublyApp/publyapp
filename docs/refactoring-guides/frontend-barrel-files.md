@@ -2,7 +2,7 @@
 
 <!-- markdownlint-disable MD013 -->
 
-Status: phase 2 implemented for issue #377, part of #77.
+Status: phase 3 implemented for issue #378, part of #77.
 
 ## Policy
 
@@ -28,8 +28,8 @@ rg --files apps/front/src | rg '(^|/|\\)index\.(ts|tsx)$'
 
 Current counts:
 
-- `apps/front/src`: 44 `index.ts` / `index.tsx` files.
-- `apps/front/src`: 41 pure hand-written re-export barrels.
+- `apps/front/src`: 34 `index.ts` / `index.tsx` files.
+- `apps/front/src`: 31 pure hand-written re-export barrels.
 - `apps/front/src`: 3 `index.ts(x)` implementation or aggregate modules, not pure
   re-export barrels.
 - `packages/client-ts/src`: 72 generated `index.ts` files, excluded from cleanup.
@@ -79,22 +79,27 @@ These low-risk, single-purpose barrels were removed in issue #377.
 | `apps/front/src/components/search-not-found/index.ts` |
 | `apps/front/src/components/svg-color/index.ts` |
 
+## Removed In Phase 3
+
+These inherited template component barrels were removed in issue #378.
+
+| Path |
+| --- |
+| `apps/front/src/assets/icons/index.ts` |
+| `apps/front/src/components/address/index.ts` |
+| `apps/front/src/components/animate/index.ts` |
+| `apps/front/src/components/brand-switcher/index.ts` |
+| `apps/front/src/components/custom-breadcrumbs/index.ts` |
+| `apps/front/src/components/editor/index.ts` |
+| `apps/front/src/components/empty-content/index.ts` |
+| `apps/front/src/components/error/index.ts` |
+| `apps/front/src/components/file-thumbnail/index.ts` |
+| `apps/front/src/components/upload/index.ts` |
+
 ## Remove
 
-These are inherited convenience barrels or unused direct-import candidates.
-
-| Path | Current index refs | Suggested phase |
-| --- | ---: | --- |
-| `apps/front/src/assets/icons/index.ts` | 1 | Phase 3 |
-| `apps/front/src/components/address/index.ts` | 0 | Phase 3 |
-| `apps/front/src/components/animate/index.ts` | 17 | Phase 3 |
-| `apps/front/src/components/brand-switcher/index.ts` | 0 | Phase 3 |
-| `apps/front/src/components/custom-breadcrumbs/index.ts` | 0 | Phase 3 |
-| `apps/front/src/components/editor/index.ts` | 0 | Phase 3 |
-| `apps/front/src/components/empty-content/index.ts` | 3 | Phase 3 |
-| `apps/front/src/components/error/index.ts` | 6 | Phase 3 |
-| `apps/front/src/components/file-thumbnail/index.ts` | 1 | Phase 3 |
-| `apps/front/src/components/upload/index.ts` | 1 | Phase 3 |
+No broad **Remove** candidates remain after phase 3. The remaining hand-written
+frontend barrels are classified as **Keep** or **Narrow**.
 
 ## Narrow
 
@@ -144,8 +149,8 @@ instead of editing generated files by hand.
 Phase 2 removed low-risk single-purpose barrels first. Consumers now import from the
 concrete file and the PR remains mechanical.
 
-Phase 3 should handle inherited template component barrels with broader `export *`
-surfaces. These are the main cleanup targets for dependency clarity.
+Phase 3 removed inherited template component barrels with broader `export *`
+surfaces. These were the main cleanup targets for dependency clarity.
 
 Phase 4 should review layout, nav, settings, cookies, and theme facades case by case.
 Do not delete these mechanically; decide whether the module boundary benefits from a

@@ -11,7 +11,7 @@ import {
 	transitionTap,
 	varHover,
 	varTap,
-} from '#app/components/animate/index.ts';
+} from '#app/components/animate/variants/index.ts';
 import { CustomPopover } from '#app/components/custom-popover/custom-popover.tsx';
 import type { CustomPopoverProps } from '#app/components/custom-popover/types.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';

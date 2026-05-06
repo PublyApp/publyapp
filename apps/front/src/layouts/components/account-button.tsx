@@ -2,12 +2,12 @@ import Avatar from '@mui/material/Avatar';
 import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
 import { m } from 'framer-motion';
 
+import { AnimateBorder } from '#app/components/animate/animate-border.tsx';
 import {
-	AnimateBorder,
 	transitionTap,
 	varHover,
 	varTap,
-} from '#app/components/animate/index.ts';
+} from '#app/components/animate/variants/index.ts';
 
 // ----------------------------------------------------------------------
 

@@ -1,4 +1,4 @@
-import { View403 } from '#app/components/error/index.ts';
+import { View403 } from '#app/components/error/403-view.tsx';
 import { FEATURES } from '#app/lib/features/flags.ts';
 
 const TenantDetailsActivityPage = () => {

@@ -42,7 +42,7 @@ import type {
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 import DrawerAnchor from '#app/components/drawer-anchor.tsx';
-import { EmptyContent } from '#app/components/empty-content/index.ts';
+import { EmptyContent } from '#app/components/empty-content/empty-content.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import QueryDisplay from '#app/components/query-display.tsx';
 import { toast } from '#app/components/snackbar/index.ts';

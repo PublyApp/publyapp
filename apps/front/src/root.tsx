@@ -26,7 +26,9 @@ import {
 	queryParamValue,
 } from '@org/shared-ts/lib/constants';
 
-import { NotFoundView, View403, View500 } from '#app/components/error/index.ts';
+import { View403 } from '#app/components/error/403-view.tsx';
+import { View500 } from '#app/components/error/500-view.tsx';
+import { NotFoundView } from '#app/components/error/not-found-view.tsx';
 import {
 	COLOR_SCHEME_STORAGE_KEY,
 	defaultSettings,

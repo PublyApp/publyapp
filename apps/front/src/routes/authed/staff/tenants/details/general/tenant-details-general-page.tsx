@@ -35,7 +35,7 @@ import { Iconify } from '#app/components/iconify/iconify.tsx';
 import type { IconifyName } from '#app/components/iconify/register-icons.ts';
 import QueryDisplay from '#app/components/query-display.tsx';
 import { StatusChip } from '#app/components/status-chip/status-chip.tsx';
-import { UploadAvatar } from '#app/components/upload/index.ts';
+import { UploadAvatar } from '#app/components/upload/upload-avatar.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { isProblemFailure, toApiFailure } from '#app/lib/api-failure/index.ts';
 import { withFormValidation } from '#app/lib/api-failure/with-form-validation.ts';
