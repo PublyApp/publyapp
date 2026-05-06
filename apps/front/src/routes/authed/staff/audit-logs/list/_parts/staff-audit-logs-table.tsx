@@ -7,7 +7,8 @@ import Select from '@mui/material/Select';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import map from 'lodash/map';
 import {
 	createMRTColumnHelper,
 	MaterialReactTable,
@@ -109,7 +110,7 @@ const StaffAuditLogsTable = () => {
 	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
 		query: auditLogsQuery,
 		emptyContent: {
-			title: _.capitalize(
+			title: capitalize(
 				t('no-items-found', {
 					item: t('audit-logs'),
 					ns: 'response-message',
@@ -117,7 +118,7 @@ const StaffAuditLogsTable = () => {
 			),
 		},
 		errorContent: {
-			title: _.capitalize(
+			title: capitalize(
 				t('error-loading-items', {
 					item: t('audit-logs'),
 					ns: 'response-message',
@@ -137,7 +138,7 @@ const StaffAuditLogsTable = () => {
 	const hasNextPage = auditLogsQuery.data?.nextCursor != null;
 
 	const dataTable = useMemo(() => {
-		return _.map(auditLogsQuery.data?.data, AuditLogRowDataMapper);
+		return map(auditLogsQuery.data?.data, AuditLogRowDataMapper);
 	}, [auditLogsQuery.data]);
 
 	const columns = useMemo(() => {

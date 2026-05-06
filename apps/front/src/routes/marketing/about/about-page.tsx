@@ -66,10 +66,10 @@ const OurStorySection = () => {
 							From an internal tool to 10,000+ brands
 						</Typography>
 						<Stack spacing={3}>
-							{MISSION_PARAGRAPHS.map((paragraph, index) => {
+							{MISSION_PARAGRAPHS.map((paragraph) => {
 								return (
 									<Typography
-										key={index}
+										key={paragraph}
 										sx={{
 											fontSize: { xs: 15, md: 17 },
 											color: 'text.secondary',

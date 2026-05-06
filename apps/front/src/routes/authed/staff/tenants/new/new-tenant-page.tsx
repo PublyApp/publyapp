@@ -1,7 +1,9 @@
 import Button from '@mui/material/Button';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import get from 'lodash/get';
+import toLower from 'lodash/toLower';
 import { data } from 'react-router';
 
 import {
@@ -22,9 +24,7 @@ import { TenantCreateOrEditForm } from '../_components/tenant-create-or-edit-for
 import type { Route } from './+types/new-tenant-page';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(
-		t('new-item', { item: _.toLower(t('tenant')) }),
-	);
+	let str: string = capitalize(t('new-item', { item: toLower(t('tenant')) }));
 
 	if (seo) {
 		str = `${str} | Staff Dashboard - ${APP_NAME}`;
@@ -35,7 +35,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
+		return get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;
@@ -88,10 +88,10 @@ const NewTenantPage = () => {
 				heading={getPageTitle(t as never)}
 				links={[
 					{
-						name: _.capitalize(t('tenants')),
+						name: capitalize(t('tenants')),
 						href: FRONT_PATH_NAMES.staff.tenants.root,
 					},
-					{ name: _.capitalize(t('new')) },
+					{ name: capitalize(t('new')) },
 				]}
 				sx={{ mb: { xs: 3, md: 5 } }}
 				action={

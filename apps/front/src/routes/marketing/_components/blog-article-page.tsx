@@ -4,7 +4,7 @@ import Stack from '@mui/material/Stack';
 import type { SxProps, Theme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import type { ReactNode } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
@@ -926,6 +926,26 @@ const SHARE_TARGETS: { id: ShareTargetId; label: string; icon: IconifyName }[] =
 		{ id: 'copy', label: 'Copy link', icon: 'ph:link-bold' },
 	];
 
+// The canonical URL is client-only. useSyncExternalStore gives SSR the stable
+// empty snapshot and updates after hydration without the old mount setState.
+const subscribeToPageUrl = (onStoreChange: () => void) => {
+	window.addEventListener('popstate', onStoreChange);
+	window.addEventListener('hashchange', onStoreChange);
+
+	return () => {
+		window.removeEventListener('popstate', onStoreChange);
+		window.removeEventListener('hashchange', onStoreChange);
+	};
+};
+
+const getPageUrlSnapshot = () => {
+	return window.location.href;
+};
+
+const getServerPageUrlSnapshot = () => {
+	return '';
+};
+
 const buildShareUrl = (
 	id: ShareTargetId,
 	post: BlogPost,
@@ -947,15 +967,11 @@ const buildShareUrl = (
 
 const ShareRow = ({ post }: { post: BlogPost }) => {
 	const [copied, setCopied] = useState(false);
-	// `window.location.href` isn't available during SSR. Reading it inline
-	// during render produced an empty string on the server vs. a real URL
-	// on the client → React hydration mismatch on the share <a href>s.
-	// Initialise to '' so server + first client render agree, then fill in
-	// after mount.
-	const [pageUrl, setPageUrl] = useState('');
-	useEffect(() => {
-		setPageUrl(window.location.href);
-	}, []);
+	const pageUrl = useSyncExternalStore(
+		subscribeToPageUrl,
+		getPageUrlSnapshot,
+		getServerPageUrlSnapshot,
+	);
 
 	const handleClick = async (
 		event: React.MouseEvent<HTMLAnchorElement>,

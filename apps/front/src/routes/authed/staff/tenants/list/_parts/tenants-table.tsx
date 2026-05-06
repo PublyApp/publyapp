@@ -761,6 +761,12 @@ const TenantsToolbarFilters = ({
 	onStatusChange,
 }: TenantsToolbarFiltersProps) => {
 	const { t } = useTranslate();
+	// Derive the Autocomplete value once so render does not rebuild it from options.
+	const selectedStatusOptions = useMemo(() => {
+		return statusOptions.filter((option) =>
+			statusFilter.includes(option.value),
+		);
+	}, [statusFilter, statusOptions]);
 
 	return (
 		<>
@@ -803,9 +809,7 @@ const TenantsToolbarFilters = ({
 						disableCloseOnSelect
 						size="small"
 						options={statusOptions}
-						value={statusOptions.filter((option) =>
-							statusFilter.includes(option.value),
-						)}
+						value={selectedStatusOptions}
 						onChange={onStatusChange}
 						disabled={isSelectionMode}
 						isOptionEqualToValue={(option, value) =>

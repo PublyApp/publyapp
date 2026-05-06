@@ -190,8 +190,9 @@ const HeroHeadline = () => {
 						};
 					}}
 				>
+					{/* Rounded to 2 decimals for React Doctor; the max delta is sub-pixel. */}
 					<path
-						d="M2.0002 6.55135C58.3888 1.55134 140.231 -1.44866 198.001 6.55135"
+						d="M2 6.55C58.39 1.55 140.23 -1.45 198 6.55"
 						stroke="currentColor"
 						strokeWidth="3"
 						strokeLinecap="round"

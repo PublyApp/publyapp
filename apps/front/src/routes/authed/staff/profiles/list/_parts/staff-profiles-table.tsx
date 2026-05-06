@@ -651,27 +651,27 @@ const StaffProfilesSelectionActions = ({
 	const handleConfirmBulkDelete = async () => {
 		// We still call the single-delete endpoint once per row until the API exposes
 		// a bulk delete route; the important part here is batching the cache refresh.
-		let succeeded = 0;
-		let failed = 0;
-		let firstFailureMessage: string | undefined;
-
-		for (const row of selectedRows) {
-			try {
-				// Keep the mutation sequential so a single failure doesn't mask the rest.
-				// This matches the repo's existing bulk-table fallback behavior.
-				// oxlint-disable-next-line no-await-in-loop -- single-delete fallback runs sequentially so one failure does not mask later rows
-				await deleteProfile({ profileId: row.id });
-				succeeded += 1;
-			} catch (error) {
-				failed += 1;
-
-				if (firstFailureMessage == null) {
-					firstFailureMessage = getFailureMessage(toApiFailure(error), {
-						fallback: t('something-went-wrong'),
-					});
+		// Run independent deletes together and collect per-row failures for
+		// the same toast flow.
+		const results = await Promise.all(
+			selectedRows.map(async (row) => {
+				try {
+					await deleteProfile({ profileId: row.id });
+					return { succeeded: true as const };
+				} catch (error) {
+					return {
+						succeeded: false as const,
+						message: getFailureMessage(toApiFailure(error), {
+							fallback: t('something-went-wrong'),
+						}),
+					};
 				}
-			}
-		}
+			}),
+		);
+		const failedResults = results.filter((result) => !result.succeeded);
+		const succeeded = results.length - failedResults.length;
+		const failed = failedResults.length;
+		const firstFailureMessage = failedResults[0]?.message;
 
 		setConfirmBulkDeleteOpen(false);
 		if (succeeded > 0) {

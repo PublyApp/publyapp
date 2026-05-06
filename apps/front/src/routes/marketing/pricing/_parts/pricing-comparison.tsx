@@ -38,6 +38,8 @@ const HEADER_BUTTON_LABEL: Record<PricingTierId, string> = {
 	scale: 'Free trial',
 	enterprise: 'Contact',
 };
+// Stable tier ids replace array indexes for comparison cell keys.
+const MATRIX_TIER_KEYS = ['creator', 'scale', 'enterprise'] as const;
 
 const formatHeaderPrice = (value: number | 'custom'): string => {
 	return value === 'custom' ? 'Custom' : `$${value}`;
@@ -251,8 +253,7 @@ const MatrixRow = ({
 			{values.map((val, idx) => {
 				return (
 					<Box
-						// eslint-disable-next-line react/no-array-index-key
-						key={idx}
+						key={`${feature}-${MATRIX_TIER_KEYS[idx]}`}
 						component="td"
 						sx={{
 							py: 2.5,

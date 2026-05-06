@@ -9,7 +9,9 @@ import Select from '@mui/material/Select';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import map from 'lodash/map';
+import snakeCase from 'lodash/snakeCase';
 import {
 	createMRTColumnHelper,
 	MaterialReactTable,
@@ -62,7 +64,7 @@ type StaffInvitationRowData = {
 const getInvitationStatus = (
 	invitation: InvitationListItem,
 ): StaffInvitationStatus => {
-	const status = invitation.status ? _.snakeCase(invitation.status) : undefined;
+	const status = invitation.status ? snakeCase(invitation.status) : undefined;
 	if (
 		status === 'pending' ||
 		status === 'accepted' ||
@@ -131,7 +133,7 @@ const StaffInvitationsTable = () => {
 	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
 		query: invitationsQuery,
 		emptyContent: {
-			title: _.capitalize(
+			title: capitalize(
 				t('no-items-found', {
 					item: t('invitations'),
 					ns: 'response-message',
@@ -144,7 +146,7 @@ const StaffInvitationsTable = () => {
 			),
 		},
 		errorContent: {
-			title: _.capitalize(
+			title: capitalize(
 				t('error-loading-items', {
 					item: t('invitations'),
 					ns: 'response-message',
@@ -168,7 +170,7 @@ const StaffInvitationsTable = () => {
 	const hasNextPage = invitationsQuery.data?.nextCursor != null;
 
 	const dataTable = useMemo(() => {
-		return _.map(invitationsQuery.data?.data, StaffInvitationRowDataMapper);
+		return map(invitationsQuery.data?.data, StaffInvitationRowDataMapper);
 	}, [invitationsQuery.data]);
 
 	const columns = useMemo(() => {
@@ -485,24 +487,6 @@ const InvitationActionsCell: MRT_ColumnDef<StaffInvitationRowData>['Cell'] = (
 		confirmDialog.onFalse();
 	};
 
-	const renderConfirmDialog = () => (
-		<ConfirmDialog
-			open={confirmDialog.value}
-			onClose={confirmDialog.onFalse}
-			title={t('revoke-invitation')}
-			content={t('confirm-revoke-invitation')}
-			action={
-				<Button
-					variant="contained"
-					color="inherit"
-					onClick={handleConfirmRevoke}
-				>
-					{t('staff-revoke')}
-				</Button>
-			}
-		/>
-	);
-
 	return (
 		<>
 			<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -557,7 +541,21 @@ const InvitationActionsCell: MRT_ColumnDef<StaffInvitationRowData>['Cell'] = (
 					</Tooltip>
 				)}
 			</Box>
-			{renderConfirmDialog()}
+			<ConfirmDialog
+				open={confirmDialog.value}
+				onClose={confirmDialog.onFalse}
+				title={t('revoke-invitation')}
+				content={t('confirm-revoke-invitation')}
+				action={
+					<Button
+						variant="contained"
+						color="inherit"
+						onClick={handleConfirmRevoke}
+					>
+						{t('staff-revoke')}
+					</Button>
+				}
+			/>
 		</>
 	);
 };

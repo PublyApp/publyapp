@@ -1,7 +1,8 @@
 import Button from '@mui/material/Button';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import get from 'lodash/get';
 import { data } from 'react-router';
 
 import {
@@ -21,12 +22,12 @@ import type { Route } from './+types/tenants-list-page';
 import TenantsTable from './_parts/tenants-table';
 
 const getPageTitle = (t: TFunction) => {
-	return _.capitalize(t('list-of-items', { items: t('tenants') }));
+	return capitalize(t('list-of-items', { items: t('tenants') }));
 };
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
+		return get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;
@@ -63,10 +64,10 @@ const TenantsListPage = () => {
 				heading={getPageTitle(t as never)}
 				links={[
 					{
-						name: _.capitalize(t('tenants')),
+						name: capitalize(t('tenants')),
 						href: FRONT_PATH_NAMES.staff.tenants.root,
 					},
-					{ name: _.capitalize(t('list')) },
+					{ name: capitalize(t('list')) },
 				]}
 				action={
 					<Button
@@ -75,7 +76,7 @@ const TenantsListPage = () => {
 						variant="contained"
 						startIcon={<Iconify width={16} icon="mingcute:add-line" />}
 					>
-						{_.capitalize(t('new-item', { item: t('tenant') }))}
+						{capitalize(t('new-item', { item: t('tenant') }))}
 					</Button>
 				}
 				sx={{ mb: { xs: 3, md: 5 } }}

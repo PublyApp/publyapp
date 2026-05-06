@@ -9,7 +9,9 @@ import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import lodashToString from 'lodash/toString';
+import uniq from 'lodash/uniq';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	useFieldArray,
@@ -54,7 +56,7 @@ const defaultValues: BulkInvitationsFormType = {
 
 const NewStaffInvitationsForm = () => {
 	const { t, i18n } = useTranslate();
-	const router = useRouter();
+	const { push } = useRouter();
 	const queryClient = useQueryClient();
 	const actionsRef = useRef<HTMLDivElement>(null);
 	const previousFieldsCount = useRef(1);
@@ -101,7 +103,7 @@ const NewStaffInvitationsForm = () => {
 					queryKey: useFindStaffInvitations.getKey(),
 				});
 				form.reset();
-				void router.push(FRONT_PATH_NAMES.staff.invitations.root);
+				void push(FRONT_PATH_NAMES.staff.invitations.root);
 			},
 			onError: (error) => {
 				const failure = toApiFailure(error);
@@ -150,37 +152,6 @@ const NewStaffInvitationsForm = () => {
 		}
 	};
 
-	const renderActions = () => (
-		<Box
-			ref={actionsRef}
-			sx={{
-				gap: 2,
-				display: 'flex',
-				flexWrap: 'wrap',
-				justifyContent: 'space-between',
-				alignItems: 'center',
-			}}
-		>
-			<Button
-				variant="outlined"
-				startIcon={<Iconify width={16} icon="mingcute:add-line" />}
-				onClick={handleAddInvitation}
-				disabled={isPending}
-			>
-				{_.capitalize(t('add-invitation'))}
-			</Button>
-
-			<Button
-				type="submit"
-				variant="contained"
-				disabled={isPending}
-				loading={isPending}
-			>
-				{_.capitalize(t('send-invitations'))}
-			</Button>
-		</Box>
-	);
-
 	return (
 		<Form methods={form} onSubmit={onSubmit}>
 			<Stack spacing={{ xs: 3, md: 5 }}>
@@ -212,7 +183,35 @@ const NewStaffInvitationsForm = () => {
 						isPending={isPending}
 					/>
 				))}
-				{renderActions()}
+				{/* Inline actions keep reconciliation stable without a render helper function. */}
+				<Box
+					ref={actionsRef}
+					sx={{
+						gap: 2,
+						display: 'flex',
+						flexWrap: 'wrap',
+						justifyContent: 'space-between',
+						alignItems: 'center',
+					}}
+				>
+					<Button
+						variant="outlined"
+						startIcon={<Iconify width={16} icon="mingcute:add-line" />}
+						onClick={handleAddInvitation}
+						disabled={isPending}
+					>
+						{capitalize(t('add-invitation'))}
+					</Button>
+
+					<Button
+						type="submit"
+						variant="contained"
+						disabled={isPending}
+						loading={isPending}
+					>
+						{capitalize(t('send-invitations'))}
+					</Button>
+				</Box>
 			</Stack>
 		</Form>
 	);
@@ -262,7 +261,7 @@ const InvitationCard = ({
 	useEffect(() => {
 		const profiles = profilesQuery.data?.data ?? [];
 		for (const profile of profiles) {
-			const id = _.toString(profile.id);
+			const id = lodashToString(profile.id);
 			const name = profile.name || '';
 			if (id) {
 				profileNameById.set(id, name);
@@ -272,16 +271,18 @@ const InvitationCard = ({
 
 	const options = useMemo(() => {
 		const profiles = profilesQuery.data?.data ?? [];
-		const fetchedIds = _.map(profiles, (profile) =>
-			_.toString(profile.id),
-		).filter(Boolean);
-		return _.uniq(fetchedIds.concat(selectedProfileIds ?? []));
+		// Transform and drop empty ids in one pass so selected ids remain stable.
+		const fetchedIds = profiles.flatMap((profile) => {
+			const id = lodashToString(profile.id);
+			return id ? [id] : [];
+		});
+		return uniq(fetchedIds.concat(selectedProfileIds ?? []));
 	}, [profilesQuery.data, selectedProfileIds]);
 
 	return (
 		<Card>
 			<CardHeader
-				title={`${_.capitalize(t('invitation'))} #${index + 1}`}
+				title={`${capitalize(t('invitation'))} #${index + 1}`}
 				subheader={t('enter-email-and-select-profiles')}
 				action={
 					canRemove && (

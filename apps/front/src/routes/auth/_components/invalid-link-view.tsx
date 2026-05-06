@@ -1,7 +1,7 @@
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
-import _ from 'lodash';
+import isNil from 'lodash/isNil';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
@@ -40,7 +40,7 @@ const InvalidLinkView = ({
 		);
 	};
 
-	if (!forceIsInvalid && _.isNil(error)) {
+	if (!forceIsInvalid && isNil(error)) {
 		throw new Error('Error should not be nil');
 	}
 

@@ -6,7 +6,7 @@ import Stack from '@mui/material/Stack';
 import type { Breakpoint } from '@mui/material/styles';
 import { useBoolean } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { makePath } from '@org/shared-ts/utils/string.utils';
@@ -38,6 +38,24 @@ const ANCHOR_LINKS: { label: string; href: string }[] = [
 	{ label: 'FAQ', href: '#faqs' },
 ];
 
+// useSyncExternalStore keeps the header's scroll styling SSR-safe without a
+// mount-time setState flash, which React Doctor flags for hydrated pages.
+const subscribeToWindowScroll = (onStoreChange: () => void) => {
+	window.addEventListener('scroll', onStoreChange, { passive: true });
+
+	return () => {
+		window.removeEventListener('scroll', onStoreChange);
+	};
+};
+
+const getScrolledSnapshot = () => {
+	return window.scrollY > 8;
+};
+
+const getServerScrolledSnapshot = () => {
+	return false;
+};
+
 type LayoutBaseProps = Pick<LayoutSectionProps, 'sx' | 'children' | 'cssVars'>;
 
 export type MainLayoutProps = LayoutBaseProps & {
@@ -60,19 +78,11 @@ export const MainLayout = ({
 	layoutQuery = 'md',
 }: MainLayoutProps) => {
 	const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
-
-	const [scrolled, setScrolled] = useState(false);
-
-	useEffect(() => {
-		const onScroll = () => {
-			return setScrolled(window.scrollY > 8);
-		};
-		onScroll();
-		window.addEventListener('scroll', onScroll, { passive: true });
-		return () => {
-			return window.removeEventListener('scroll', onScroll);
-		};
-	}, []);
+	const scrolled = useSyncExternalStore(
+		subscribeToWindowScroll,
+		getScrolledSnapshot,
+		getServerScrolledSnapshot,
+	);
 
 	const navData = slotProps?.nav?.data ?? mainNavData;
 

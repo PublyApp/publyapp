@@ -553,26 +553,28 @@ const useTenantUsersTableController = () => {
 			return;
 		}
 
-		let succeeded = 0;
-		let failed = 0;
-		let firstFailureMessage: string | undefined;
-
-		for (const userId of Object.keys(rowSelection)) {
-			try {
-				await removeTenantUserAsync({
-					tenantId,
-					userId,
-				});
-				succeeded += 1;
-			} catch (error) {
-				failed += 1;
-
-				const failure = toApiFailure(error);
-				if (firstFailureMessage == null) {
-					firstFailureMessage = getFailureMessage(failure);
+		// Removal calls are independent, but the UI still needs aggregate
+		// success/failure counts for the existing bulk-action toasts.
+		const results = await Promise.all(
+			Object.keys(rowSelection).map(async (userId) => {
+				try {
+					await removeTenantUserAsync({
+						tenantId,
+						userId,
+					});
+					return { succeeded: true as const };
+				} catch (error) {
+					return {
+						succeeded: false as const,
+						message: getFailureMessage(toApiFailure(error)),
+					};
 				}
-			}
-		}
+			}),
+		);
+		const failedResults = results.filter((result) => !result.succeeded);
+		const succeeded = results.length - failedResults.length;
+		const failed = failedResults.length;
+		const firstFailureMessage = failedResults[0]?.message;
 
 		setBulkRemoveDialogOpen(false);
 		clearSelection();
@@ -608,6 +610,13 @@ const useTenantUsersTableController = () => {
 			}),
 		);
 	};
+
+	// Derive the Autocomplete value once so render does not rebuild it from options.
+	const selectedStatusOptions = useMemo(() => {
+		return statusOptions.filter((option) =>
+			statusFilter.includes(option.value),
+		);
+	}, [statusFilter, statusOptions]);
 
 	const renderToolbarFilters = () => {
 		return (
@@ -653,9 +662,7 @@ const useTenantUsersTableController = () => {
 							disableCloseOnSelect
 							size="small"
 							options={statusOptions}
-							value={statusOptions.filter((option) =>
-								statusFilter.includes(option.value),
-							)}
+							value={selectedStatusOptions}
 							onChange={handleStatusChange}
 							disabled={isSelectionMode}
 							isOptionEqualToValue={(option, value) =>

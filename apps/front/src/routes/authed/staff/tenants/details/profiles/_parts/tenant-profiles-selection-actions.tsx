@@ -91,30 +91,33 @@ const TenantProfilesSelectionActions = ({
 			return;
 		}
 
-		let firstFailureMessage: string | undefined;
-		const failedProfileIds: string[] = [];
-		const succeededProfileIds: string[] = [];
-
-		for (const row of selectedRows) {
-			try {
-				// Bulk delete currently falls back to the existing single-delete route.
-				// Keep it sequential so a failure does not prevent later rows from running.
-				// eslint_disable-next-line no-await-in-loop
-				await deleteProfile({
-					tenantId,
-					profileId: row.id,
-				});
-				succeededProfileIds.push(row.id);
-			} catch (error) {
-				failedProfileIds.push(row.id);
-
-				if (firstFailureMessage == null) {
-					firstFailureMessage = getFailureMessage(toApiFailure(error), {
-						fallback: t('tenant-profile-bulk-delete-failure'),
+		// Single-delete calls are independent; keep per-profile results so partial
+		// success messaging and targeted cache invalidation still work.
+		const results = await Promise.all(
+			selectedRows.map(async (row) => {
+				try {
+					await deleteProfile({
+						tenantId,
+						profileId: row.id,
 					});
+					return { profileId: row.id, succeeded: true as const };
+				} catch (error) {
+					return {
+						profileId: row.id,
+						succeeded: false as const,
+						message: getFailureMessage(toApiFailure(error), {
+							fallback: t('tenant-profile-bulk-delete-failure'),
+						}),
+					};
 				}
-			}
-		}
+			}),
+		);
+		const failedResults = results.filter((result) => !result.succeeded);
+		const succeededProfileIds = results.flatMap((result) => {
+			return result.succeeded ? [result.profileId] : [];
+		});
+		const failedProfileIds = failedResults.map((result) => result.profileId);
+		const firstFailureMessage = failedResults[0]?.message;
 
 		setConfirmBulkDeleteOpen(false);
 

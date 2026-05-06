@@ -1,4 +1,4 @@
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
 import { useOutletContext } from 'react-router';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
@@ -19,12 +19,12 @@ const TenantDetailsInvitationsPage = () => {
 			title={tenantName || t('tenant-details')}
 			links={[
 				{
-					name: _.capitalize(t('tenants')),
+					name: capitalize(t('tenants')),
 					href: FRONT_PATH_NAMES.staff.tenants.root,
 				},
-				{ name: _.capitalize(t('details')) },
+				{ name: capitalize(t('details')) },
 			]}
-			ctaLabel={_.capitalize(t('invite-user'))}
+			ctaLabel={capitalize(t('invite-user'))}
 			drawerWidth={480}
 			drawerContent={<InviteUserForm />}
 		>

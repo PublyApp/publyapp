@@ -9,7 +9,15 @@ import Grid from '@mui/material/Grid';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import chain from 'lodash/chain';
+import isBoolean from 'lodash/isBoolean';
+import isEmpty from 'lodash/isEmpty';
+import isNil from 'lodash/isNil';
+import isObject from 'lodash/isObject';
+import toLower from 'lodash/toLower';
+import lodashToString from 'lodash/toString';
+import values from 'lodash/values';
 import { useBoolean } from 'minimal-shared/hooks';
 import type { ReactNode } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
@@ -40,7 +48,7 @@ type Props<T extends Record<string, unknown>> = {
 	sidebarFooter?: ReactNode;
 };
 
-const ACCOUNT_LEVEL_OPTIONS = _.values(ACCOUNT_LEVEL_ENUM);
+const ACCOUNT_LEVEL_OPTIONS = values(ACCOUNT_LEVEL_ENUM);
 
 export const UserNewEditForm = <T extends Record<string, unknown>>({
 	onMutate,
@@ -69,28 +77,28 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 		onMutate?.(data);
 	});
 
-	const confirmValues = _.chain(form.getValues())
+	const confirmValues = chain(form.getValues())
 		.entries()
 		.map((value) => {
 			const [key, fieldValue] = value;
 			let finalValue = '';
-			if (_.isNil(fieldValue) || _.isEmpty(fieldValue)) {
+			if (isNil(fieldValue) || isEmpty(fieldValue)) {
 				finalValue = 'N/A';
 			} else {
-				if (_.isObject(fieldValue)) {
+				if (isObject(fieldValue)) {
 					finalValue = JSON.stringify(fieldValue);
 				} else {
-					finalValue = _.toString(fieldValue);
+					finalValue = lodashToString(fieldValue);
 				}
 			}
-			if (_.isBoolean(fieldValue)) {
+			if (isBoolean(fieldValue)) {
 				finalValue = fieldValue ? t('yes') : t('no');
 			}
 			if (fieldValue instanceof File) {
 				finalValue = fieldValue.name;
 			}
 			return {
-				name: _.capitalize(t(_.toLower(key) as never)),
+				name: capitalize(t(toLower(key) as never)),
 				value: finalValue,
 			};
 		})
@@ -229,14 +237,14 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 			{confirmOnSubmit ? (
 				<Dialog open={openDialog.value} onClose={handleCloseDialog}>
 					<DialogTitle>
-						{_.capitalize(
+						{capitalize(
 							t('save-item-confirmation-title', { item: t('staff-user') }),
 						)}
 					</DialogTitle>
 
 					<DialogContent sx={{ color: 'text.secondary' }}>
 						<Typography sx={{ mb: 2 }}>
-							{_.capitalize(
+							{capitalize(
 								t('save-item-confirmation-message', { item: t('staff-user') }),
 							)}
 						</Typography>
@@ -263,7 +271,6 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 						<Button
 							variant="contained"
 							onClick={handleConfirmDialog}
-							autoFocus
 							loading={isSubmitting || isMutating}
 						>
 							{t('confirm')}

@@ -13,7 +13,16 @@ import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import chain from 'lodash/chain';
+import filter from 'lodash/filter';
+import get from 'lodash/get';
+import isArray from 'lodash/isArray';
+import isNil from 'lodash/isNil';
+import isString from 'lodash/isString';
+import map from 'lodash/map';
+import lodashToString from 'lodash/toString';
+import values from 'lodash/values';
 import { useBoolean } from 'minimal-shared/hooks';
 import { nanoid } from 'nanoid';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -58,13 +67,7 @@ type NewTenantSchemaType = zod.infer<
 
 // ----------------------------------------------------------------------
 
-const ACCOUNT_LEVEL_OPTIONS = _.chain(ACCOUNT_LEVEL_ENUM)
-	.entries()
-	.map((value) => {
-		const [, accountLevel] = value;
-		return accountLevel;
-	})
-	.value();
+const ACCOUNT_LEVEL_OPTIONS = values(ACCOUNT_LEVEL_ENUM);
 
 const initialUser = {
 	email: '',
@@ -98,7 +101,7 @@ export const TenantCreateOrEditForm = ({
 	currentTenant,
 }: TenantCreateOrEditFormProps) => {
 	const { t, i18n } = useTranslate();
-	const router = useRouter();
+	const { push } = useRouter();
 	const openDialog = useBoolean();
 
 	let NewTenantSchema = getNewTenantSchemaClientSide(interZodClient, {
@@ -113,8 +116,6 @@ export const TenantCreateOrEditForm = ({
 		}) as never;
 	}
 
-	const [disabledFormOnSuccess, setDisabledFormOnSuccess] = useState(false);
-
 	const methods = useForm<NewTenantSchemaType>({
 		mode: 'onSubmit',
 		resolver: zodResolver(NewTenantSchema),
@@ -127,7 +128,6 @@ export const TenantCreateOrEditForm = ({
 					initialUsers: [],
 				}
 			: undefined,
-		disabled: disabledFormOnSuccess,
 	});
 
 	const {
@@ -152,11 +152,10 @@ export const TenantCreateOrEditForm = ({
 	const { mutate: createTenant, isPending } = useCreateTenant({
 		onSuccess: () => {
 			reset();
-			setDisabledFormOnSuccess(true);
 			toast.success(
-				_.capitalize(t('item-creation-success-message', { item: t('tenant') })),
+				capitalize(t('item-creation-success-message', { item: t('tenant') })),
 			);
-			void router.push(FRONT_PATH_NAMES.staff.tenants.root);
+			void push(FRONT_PATH_NAMES.staff.tenants.root);
 		},
 		onError: (error) => {
 			const failure = toApiFailure(error);
@@ -208,9 +207,10 @@ export const TenantCreateOrEditForm = ({
 	const handleCloseDialog = openDialog.onFalse;
 
 	const values = methods.getValues();
+	const formBusy = isSubmitting || isPending;
 
 	const renderConfirmValues = useMemo(() => {
-		return _.chain(values)
+		return chain(values)
 			.entries()
 			.map((value) => {
 				const [key, fieldValue] = value;
@@ -221,8 +221,8 @@ export const TenantCreateOrEditForm = ({
 					}
 
 					let values = null;
-					if (_.isArray(fieldValue)) {
-						values = _.map(fieldValue, (value) => {
+					if (isArray(fieldValue)) {
+						values = map(fieldValue, (value) => {
 							return (
 								<Typography
 									key={`${value.email}_${value.accountLevel}`}
@@ -258,8 +258,8 @@ export const TenantCreateOrEditForm = ({
 
 				if (key === 'maxUsers') {
 					let value = 'N/A';
-					if (!_.isNil(fieldValue)) {
-						value = _.toString(fieldValue);
+					if (!isNil(fieldValue)) {
+						value = lodashToString(fieldValue);
 					}
 					return (
 						<Typography key={key} sx={{ mb: 1 }}>
@@ -273,8 +273,8 @@ export const TenantCreateOrEditForm = ({
 
 				if (key === 'name') {
 					let value = 'N/A';
-					if (!_.isNil(fieldValue)) {
-						value = _.toString(fieldValue);
+					if (!isNil(fieldValue)) {
+						value = lodashToString(fieldValue);
 					}
 					return (
 						<Typography key={key} sx={{ mb: 1 }}>
@@ -302,7 +302,7 @@ export const TenantCreateOrEditForm = ({
 		append({
 			email: '',
 			accountLevel: ACCOUNT_LEVEL_ENUM.USER,
-			// role: _.isEmpty(fields)
+			// role: fields.length === 0
 			// 	? tenantSubRoleEnum.ADMIN
 			// 	: tenantSubRoleEnum.CONTRIBUTOR,
 		});
@@ -326,7 +326,7 @@ export const TenantCreateOrEditForm = ({
 					<Grid size={{ xs: 12, md: 8 }}>
 						<TenantFieldsCard
 							editMode={editMode}
-							isSubmitting={isSubmitting || isPending}
+							isSubmitting={formBusy}
 							onOpenDialog={handleOpenDialog}
 						/>
 
@@ -348,7 +348,7 @@ export const TenantCreateOrEditForm = ({
 			<TenantConfirmDialog
 				open={openDialog.value}
 				confirmValues={renderConfirmValues}
-				isSubmitting={isSubmitting || isPending}
+				isSubmitting={formBusy}
 				onClose={handleCloseDialog}
 				onConfirm={handleConfirmDialog}
 			/>
@@ -370,7 +370,7 @@ const TenantFormAlert = ({ alertMessage, onClose }: TenantFormAlertProps) => {
 
 	return (
 		<Alert severity="error" onClose={onClose} sx={{ mb: 3 }}>
-			{_.isString(alertMessage)
+			{isString(alertMessage)
 				? alertMessage
 				: (t(
 						alertMessage.key as never,
@@ -526,7 +526,7 @@ const InitialUsersCard = ({
 						},
 					}}
 				>
-					{_.map(fields, (field, index) => {
+					{map(fields, (field, index) => {
 						return (
 							<UserRow
 								key={field.id}
@@ -552,7 +552,7 @@ const InitialUsersCard = ({
 								onClick={onAddUser}
 								disabled={fields.length >= maxUsers}
 							>
-								{_.capitalize(t('add-a-user'))}
+								{capitalize(t('add-a-user'))}
 							</Button>
 						</span>
 					</Tooltip>
@@ -582,12 +582,12 @@ const TenantConfirmDialog = ({
 	return (
 		<Dialog open={open} onClose={onClose}>
 			<DialogTitle>
-				{_.capitalize(t('save-item-confirmation-title', { item: t('tenant') }))}
+				{capitalize(t('save-item-confirmation-title', { item: t('tenant') }))}
 			</DialogTitle>
 
 			<DialogContent sx={{ color: 'text.secondary' }}>
 				<Typography sx={{ mb: 2 }}>
-					{_.capitalize(
+					{capitalize(
 						t('save-item-confirmation-message', { item: t('tenant') }),
 					)}
 				</Typography>
@@ -598,12 +598,7 @@ const TenantConfirmDialog = ({
 				<Button variant="outlined" onClick={onClose} disabled={isSubmitting}>
 					{t('cancel')}
 				</Button>
-				<Button
-					variant="contained"
-					onClick={onConfirm}
-					autoFocus
-					loading={isSubmitting}
-				>
+				<Button variant="contained" onClick={onConfirm} loading={isSubmitting}>
 					{t('confirm')}
 				</Button>
 			</DialogActions>
@@ -647,8 +642,8 @@ const UserRow = ({
 	);
 
 	const isAdmin =
-		_.get(initialUsers, `${index}.accountLevel`) === ACCOUNT_LEVEL_ENUM.ADMIN;
-	const adminsList = _.filter(initialUsers, (field) => {
+		get(initialUsers, `${index}.accountLevel`) === ACCOUNT_LEVEL_ENUM.ADMIN;
+	const adminsList = filter(initialUsers, (field) => {
 		return field.accountLevel === ACCOUNT_LEVEL_ENUM.ADMIN;
 	});
 	const isTheOnlyAdmin = isAdmin && adminsList.length === 1;

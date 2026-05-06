@@ -6,8 +6,8 @@ import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
-import _ from 'lodash';
-import { useState } from 'react';
+import capitalize from 'lodash/capitalize';
+import { useBoolean } from 'minimal-shared/hooks';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
@@ -51,7 +51,7 @@ export const InviteUserForm = ({ onClose }: { onClose?: () => void }) => {
 	const queryClient = useQueryClient();
 	const { closeDrawer } = useSectionPageWithDrawer();
 	const handleClose = onClose ?? closeDrawer;
-	const [showSuccess, setShowSuccess] = useState(false);
+	const successState = useBoolean(false);
 
 	const methods = useForm<InviteUserFormValues>({
 		resolver: zodResolver(inviteUserSchema),
@@ -76,7 +76,7 @@ export const InviteUserForm = ({ onClose }: { onClose?: () => void }) => {
 				});
 			}
 			toast.success(t('invitation-created-success'));
-			setShowSuccess(true);
+			successState.onTrue();
 			reset();
 		},
 		onError: (error) => {
@@ -106,12 +106,12 @@ export const InviteUserForm = ({ onClose }: { onClose?: () => void }) => {
 	};
 
 	const handleCloseAndReset = () => {
-		setShowSuccess(false);
+		successState.onFalse();
 		handleClose();
 	};
 
-	// Show success state with CTA
-	if (showSuccess) {
+	// Show success state with CTA after the invitation has been accepted by the API.
+	if (successState.value) {
 		return (
 			<Box
 				sx={{
@@ -184,7 +184,7 @@ export const InviteUserForm = ({ onClose }: { onClose?: () => void }) => {
 				justifyContent="space-between"
 				sx={{ mb: 3 }}
 			>
-				<Typography variant="h3">{_.capitalize(t('invite-user'))}</Typography>
+				<Typography variant="h3">{capitalize(t('invite-user'))}</Typography>
 			</Stack>
 
 			<Form methods={methods} onSubmit={onSubmit}>
@@ -255,7 +255,7 @@ export const InviteUserForm = ({ onClose }: { onClose?: () => void }) => {
 							loading={isPending}
 							startIcon={<Iconify icon="solar:letter-bold" />}
 						>
-							{_.capitalize(t('send-invitation'))}
+							{capitalize(t('send-invitation'))}
 						</Button>
 					</Stack>
 				</Stack>

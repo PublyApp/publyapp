@@ -44,30 +44,38 @@ export const createTenantPermissionGroups = (
 ): TenantPermissionGroup[] => {
 	// The API returns a nested "slice -> permission map" payload. Normalize it once here so
 	// the create/edit/preview/compare surfaces all render from the same grouped structure.
-	return Object.entries(apiData)
-		.map(([moduleKey, permissions]) => {
-			return {
-				moduleKey,
-				module: startCase(moduleKey),
-				permissions: Object.values(permissions)
-					.map((permission) => {
-						return {
-							key: permission.key ?? '',
-							name: permission.name ?? '',
-							description: permission.description ?? '',
-						};
-					})
-					.filter((permission) => {
-						return permission.key.length > 0 && permission.name.length > 0;
-					})
-					.sort((a, b) => {
-						return a.name.localeCompare(b.name);
-					}),
+	const groups: TenantPermissionGroup[] = [];
+
+	for (const [moduleKey, permissions] of Object.entries(apiData)) {
+		const modulePermissions: TenantPermissionItem[] = [];
+
+		for (const permission of Object.values(permissions)) {
+			const normalizedPermission = {
+				key: permission.key ?? '',
+				name: permission.name ?? '',
+				description: permission.description ?? '',
 			};
-		})
-		.sort((a, b) => {
-			return a.module.localeCompare(b.module);
+
+			if (
+				normalizedPermission.key.length > 0 &&
+				normalizedPermission.name.length > 0
+			) {
+				modulePermissions.push(normalizedPermission);
+			}
+		}
+
+		groups.push({
+			moduleKey,
+			module: startCase(moduleKey),
+			permissions: modulePermissions.toSorted((a, b) => {
+				return a.name.localeCompare(b.name);
+			}),
 		});
+	}
+
+	return groups.toSorted((a, b) => {
+		return a.module.localeCompare(b.module);
+	});
 };
 
 type TenantProfilePermissionsListProps = {

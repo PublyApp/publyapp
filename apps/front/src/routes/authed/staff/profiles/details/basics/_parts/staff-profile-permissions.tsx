@@ -67,29 +67,40 @@ export const getPermissionModuleId = (moduleKey: string): string => {
 export const getStaffPermissionGroups = (
 	apiData: PermissionsApiData,
 ): PermissionGroup[] => {
-	return (
-		Object.entries(apiData)
-			.map(([moduleKey, permissions]) => {
-				const moduleLabel = startCase(moduleKey);
-				return {
-					moduleKey,
-					module: moduleLabel,
-					permissions: Object.values(permissions)
-						.map((p) => {
-							return {
-								key: p.key ?? '',
-								name: p.name ?? '',
-								description: p.description ?? null,
-							};
-						})
-						.filter((p) => p.key.length > 0 && p.name.length > 0)
-						// Deterministic ordering: keeps the UI and ToC stable across refreshes.
-						.toSorted((a, b) => a.name.localeCompare(b.name)),
-				};
-			})
+	const groups: PermissionGroup[] = [];
+
+	for (const [moduleKey, permissions] of Object.entries(apiData)) {
+		const modulePermissions: Permission[] = [];
+
+		for (const permission of Object.values(permissions)) {
+			const normalizedPermission = {
+				key: permission.key ?? '',
+				name: permission.name ?? '',
+				description: permission.description ?? null,
+			};
+
+			if (
+				normalizedPermission.key.length > 0 &&
+				normalizedPermission.name.length > 0
+			) {
+				modulePermissions.push(normalizedPermission);
+			}
+		}
+
+		groups.push({
+			moduleKey,
+			module: startCase(moduleKey),
 			// Deterministic ordering: keeps the UI and ToC stable across refreshes.
-			.toSorted((a, b) => a.module.localeCompare(b.module))
-	);
+			permissions: modulePermissions.toSorted((a, b) => {
+				return a.name.localeCompare(b.name);
+			}),
+		});
+	}
+
+	// Deterministic ordering: keeps the UI and ToC stable across refreshes.
+	return groups.toSorted((a, b) => {
+		return a.module.localeCompare(b.module);
+	});
 };
 
 const StaffProfilePermissions = () => {

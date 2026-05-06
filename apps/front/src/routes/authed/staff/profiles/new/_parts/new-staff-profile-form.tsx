@@ -21,7 +21,9 @@ import Switch from '@mui/material/Switch';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import lodashMap from 'lodash/map';
+import startCase from 'lodash/startCase';
 import { useBoolean } from 'minimal-shared/hooks';
 import { isExternalLink } from 'minimal-shared/utils';
 import { type RefObject, useCallback, useEffect, useMemo, useRef } from 'react';
@@ -82,6 +84,19 @@ const SCROLL_CONFIG = {
 	OFFSET_PX: '100px',
 	/** Root margin for IntersectionObserver */
 	ROOT_MARGIN: '0px',
+} as const;
+
+// Shared screen-reader-only style avoids a large inline style object in render.
+const VISUALLY_HIDDEN_SX = {
+	position: 'absolute',
+	width: '1px',
+	height: '1px',
+	padding: 0,
+	margin: '-1px',
+	overflow: 'hidden',
+	clip: 'rect(0, 0, 0, 0)',
+	whiteSpace: 'nowrap',
+	borderWidth: 0,
 } as const;
 
 const DUMMY_EMAIL_OPTIONS = [
@@ -168,16 +183,16 @@ const transformPermissionsData = (
 	apiData: PermissionsApiData,
 	includePermissions = true,
 ): PermissionSlice[] | ModuleInfo[] => {
-	return _.map(apiData, (permissions, moduleName) => {
+	return lodashMap(apiData, (permissions, moduleName) => {
 		const base = {
-			module: _.startCase(moduleName),
+			module: startCase(moduleName),
 			moduleKey: moduleName,
 		};
 
 		if (includePermissions) {
 			return {
 				...base,
-				permissions: _.map(permissions, (permission) => {
+				permissions: lodashMap(permissions, (permission) => {
 					return {
 						key: permission.key,
 						name: permission.name,
@@ -197,7 +212,7 @@ const transformPermissionsData = (
 
 const NewStaffProfileForm = () => {
 	const { t, i18n } = useTranslate();
-	const router = useRouter();
+	const { push } = useRouter();
 	const queryClient = useQueryClient();
 	const floatingCardContainerRef = useRef<HTMLDivElement>(null);
 
@@ -220,7 +235,7 @@ const NewStaffProfileForm = () => {
 				queryKey: useFindStaffProfiles.getKey(),
 			});
 			form.reset();
-			void router.push(FRONT_PATH_NAMES.staff.profiles.root);
+			void push(FRONT_PATH_NAMES.staff.profiles.root);
 		},
 		// Error toasts handled by global handler automatically
 	});
@@ -303,7 +318,7 @@ const NewStaffProfileForm = () => {
 						disabled={isPending}
 						loading={isPending}
 					>
-						{_.capitalize(t('create-profile'))}
+						{capitalize(t('create-profile'))}
 					</Button>
 				</FloatingCard>
 			</Form>
@@ -479,7 +494,7 @@ const PermissionsSection = ({
 
 							return (
 								<>
-									{_.map(transformedData, (group) => {
+									{lodashMap(transformedData, (group) => {
 										return (
 											<Box
 												key={group.moduleKey}
@@ -493,7 +508,7 @@ const PermissionsSection = ({
 														</ListSubheader>
 													}
 												>
-													{_.map(group.permissions, (permission) => {
+													{lodashMap(group.permissions, (permission) => {
 														const isChecked =
 															permissions?.includes(permission.key) ?? false;
 														return (
@@ -529,7 +544,7 @@ const PermissionsSection = ({
  * New Staff Profile Sidebar Component
  * Provides scrollspy-based navigation for form sections
  */
-export function NewStaffProfileSidebar() {
+export const NewStaffProfileSidebar = () => {
 	const { t, currentLang } = useTranslate();
 	const permissionsQuery = useFindStaffPermissions({
 		variables: {
@@ -562,7 +577,7 @@ export function NewStaffProfileSidebar() {
 		offset: SCROLL_CONFIG.OFFSET,
 	});
 
-	const handleClick = (sectionId: string) => {
+	const handleSectionClick = (sectionId: string) => {
 		const element = document.getElementById(sectionId);
 		if (element) {
 			const elementPosition = element.getBoundingClientRect().top;
@@ -618,6 +633,19 @@ export function NewStaffProfileSidebar() {
 		];
 	}, [permissionsQuery.data, t]);
 
+	// Build a section index once so the live region avoids nested find loops.
+	const sectionTitleById = useMemo(() => {
+		const titles = new Map<string, string>();
+
+		for (const group of navData) {
+			for (const item of group.items) {
+				titles.set(item.path.replace('#', ''), item.title);
+			}
+		}
+
+		return titles;
+	}, [navData]);
+
 	const config = {
 		gap: 4,
 		icon: 24,
@@ -636,17 +664,7 @@ export function NewStaffProfileSidebar() {
 			return '';
 		}
 
-		// Find the section title from navData
-		for (const group of navData) {
-			const item = group.items.find((item) => {
-				return item.path === `#${sectionId}`;
-			});
-			if (item) {
-				return item.title;
-			}
-		}
-
-		return sectionId;
+		return sectionTitleById.get(sectionId) ?? sectionId;
 	};
 
 	return (
@@ -664,23 +682,14 @@ export function NewStaffProfileSidebar() {
 			}}
 		>
 			{/* Screen reader announcement for active section changes */}
-			<div
+			<Box
+				component="span"
 				aria-live="polite"
 				aria-atomic="true"
-				style={{
-					position: 'absolute',
-					width: '1px',
-					height: '1px',
-					padding: 0,
-					margin: '-1px',
-					overflow: 'hidden',
-					clip: 'rect(0, 0, 0, 0)',
-					whiteSpace: 'nowrap',
-					borderWidth: 0,
-				}}
+				sx={VISUALLY_HIDDEN_SX}
 			>
 				{activeSection && `Now viewing: ${getSectionTitle(activeSection)}`}
-			</div>
+			</Box>
 
 			<QueryDisplay query={permissionsQuery} LoadingSlot={SidebarSkeleton}>
 				{() => {
@@ -702,7 +711,7 @@ export function NewStaffProfileSidebar() {
 											items={group.items}
 											render={{}}
 											activeSection={activeSection}
-											onSectionClick={handleClick}
+											onSectionClick={handleSectionClick}
 											slotProps={{
 												rootItem: {
 													sx: {
@@ -738,7 +747,7 @@ export function NewStaffProfileSidebar() {
 			</QueryDisplay>
 		</Paper>
 	);
-}
+};
 
 // Custom NavList component for scrollspy-based navigation
 type CustomNavListProps = NavListProps & {
@@ -746,7 +755,7 @@ type CustomNavListProps = NavListProps & {
 	onSectionClick?: (sectionId: string) => void;
 };
 
-function CustomNavList({
+const CustomNavList = ({
 	data,
 	depth,
 	render,
@@ -755,7 +764,7 @@ function CustomNavList({
 	enabledRootRedirect,
 	activeSection,
 	onSectionClick,
-}: CustomNavListProps) {
+}: CustomNavListProps) => {
 	const navItemRef = useRef<HTMLButtonElement>(null);
 
 	// Determine active state based on scrollspy instead of pathname
@@ -770,7 +779,7 @@ function CustomNavList({
 		}
 	}, [isActive, onClose]);
 
-	const handleClick = useCallback(() => {
+	const handleNavItemClick = useCallback(() => {
 		if (data.children) {
 			onToggle();
 		} else if (onSectionClick && data.path.startsWith('#')) {
@@ -778,59 +787,6 @@ function CustomNavList({
 			onSectionClick(sectionId);
 		}
 	}, [data.children, data.path, onSectionClick, onToggle, sectionId]);
-
-	const renderNavItem = () => {
-		return (
-			<NavItem
-				ref={navItemRef}
-				// slots
-				path={data.path}
-				icon={data.icon}
-				info={data.info}
-				title={data.title}
-				caption={data.caption}
-				// state
-				open={open}
-				active={isActive}
-				disabled={data.disabled}
-				// options
-				depth={depth}
-				render={render}
-				hasChild={!!data.children}
-				externalLink={isExternalLink(data.path)}
-				enabledRootRedirect={enabledRootRedirect}
-				// styles
-				slotProps={depth === 1 ? slotProps?.rootItem : slotProps?.subItem}
-				// actions
-				onClick={handleClick}
-			/>
-		);
-	};
-
-	const renderCollapse = () => {
-		return (
-			!!data.children && (
-				<NavCollapse
-					mountOnEnter
-					unmountOnExit
-					depth={depth}
-					in={open}
-					data-group={data.title}
-				>
-					<CustomNavSubList
-						data={data.children}
-						render={render}
-						depth={depth}
-						slotProps={slotProps}
-						checkPermissions={checkPermissions}
-						enabledRootRedirect={enabledRootRedirect}
-						activeSection={activeSection}
-						onSectionClick={onSectionClick}
-					/>
-				</NavCollapse>
-			)
-		);
-	};
 
 	// Hidden item by role
 	if (
@@ -852,18 +808,59 @@ function CustomNavList({
 				}),
 			}}
 		>
-			{renderNavItem()}
-			{renderCollapse()}
+			<NavItem
+				ref={navItemRef}
+				// slots
+				path={data.path}
+				icon={data.icon}
+				info={data.info}
+				title={data.title}
+				caption={data.caption}
+				// state
+				open={open}
+				active={isActive}
+				disabled={data.disabled}
+				// options
+				depth={depth}
+				render={render}
+				hasChild={!!data.children}
+				externalLink={isExternalLink(data.path)}
+				enabledRootRedirect={enabledRootRedirect}
+				// styles
+				slotProps={depth === 1 ? slotProps?.rootItem : slotProps?.subItem}
+				// actions
+				onClick={handleNavItemClick}
+			/>
+			{data.children ? (
+				<NavCollapse
+					mountOnEnter
+					unmountOnExit
+					depth={depth}
+					in={open}
+					data-group={data.title}
+				>
+					<CustomNavSubList
+						data={data.children}
+						render={render}
+						depth={depth}
+						slotProps={slotProps}
+						checkPermissions={checkPermissions}
+						enabledRootRedirect={enabledRootRedirect}
+						activeSection={activeSection}
+						onSectionClick={onSectionClick}
+					/>
+				</NavCollapse>
+			) : null}
 		</NavLi>
 	);
-}
+};
 
 type CustomNavSubListProps = NavSubListProps & {
 	activeSection?: string | null;
 	onSectionClick?: (sectionId: string) => void;
 };
 
-function CustomNavSubList({
+const CustomNavSubList = ({
 	data,
 	render,
 	depth = 0,
@@ -872,7 +869,7 @@ function CustomNavSubList({
 	enabledRootRedirect,
 	activeSection,
 	onSectionClick,
-}: CustomNavSubListProps) {
+}: CustomNavSubListProps) => {
 	return (
 		<NavUl sx={{ gap: 'var(--nav-item-gap)' }}>
 			{data.map((list) => {
@@ -892,7 +889,7 @@ function CustomNavSubList({
 			})}
 		</NavUl>
 	);
-}
+};
 
 // ============================================================
 // HELPER COMPONENTS
@@ -906,7 +903,7 @@ type SidebarGroupProps = NavGroupProps & {
 	onSectionClick?: (sectionId: string) => void;
 };
 
-function SidebarGroup({
+const SidebarGroup = ({
 	items,
 	render,
 	subheader,
@@ -916,76 +913,57 @@ function SidebarGroup({
 	enabledRootRedirect,
 	activeSection,
 	onSectionClick,
-}: SidebarGroupProps) {
+}: SidebarGroupProps) => {
 	const groupOpen = useBoolean(true);
 	const isCollapsible = collapsible !== false;
 
-	const renderContent = () => {
-		return (
-			<NavUl sx={{ gap: 'var(--nav-item-gap)' }}>
-				{items.map((list) => {
-					return (
-						<CustomNavList
-							key={list.title}
-							data={list}
-							render={render}
-							depth={1}
-							slotProps={slotProps}
-							checkPermissions={checkPermissions}
-							enabledRootRedirect={enabledRootRedirect}
-							activeSection={activeSection}
-							onSectionClick={onSectionClick}
-						/>
-					);
-				})}
-			</NavUl>
-		);
-	};
+	// Keep the group body as JSX instead of render helper functions; React can
+	// reconcile the subtree directly and still reuse it for collapsed groups.
+	const content = (
+		<NavUl sx={{ gap: 'var(--nav-item-gap)' }}>
+			{items.map((list) => {
+				return (
+					<CustomNavList
+						key={list.title}
+						data={list}
+						render={render}
+						depth={1}
+						slotProps={slotProps}
+						checkPermissions={checkPermissions}
+						enabledRootRedirect={enabledRootRedirect}
+						activeSection={activeSection}
+						onSectionClick={onSectionClick}
+					/>
+				);
+			})}
+		</NavUl>
+	);
 
-	const renderSubheader = () => {
-		if (!subheader) {
-			return null;
-		}
-
-		if (isCollapsible) {
-			return (
+	return (
+		<NavLi>
+			{subheader ? (
 				<NavSubheader
 					data-title={subheader}
-					open={groupOpen.value}
-					onClick={groupOpen.onToggle}
+					open={isCollapsible ? groupOpen.value : undefined}
+					onClick={isCollapsible ? groupOpen.onToggle : undefined}
 					sx={slotProps?.subheader}
 				>
 					{subheader}
 				</NavSubheader>
-			);
-		}
-
-		return (
-			<NavSubheader data-title={subheader} sx={slotProps?.subheader}>
-				{subheader}
-			</NavSubheader>
-		);
-	};
-
-	const renderGroupContent = () => {
-		if (subheader && isCollapsible) {
-			return <Collapse in={groupOpen.value}>{renderContent()}</Collapse>;
-		}
-		return renderContent();
-	};
-
-	return (
-		<NavLi>
-			{renderSubheader()}
-			{renderGroupContent()}
+			) : null}
+			{subheader && isCollapsible ? (
+				<Collapse in={groupOpen.value}>{content}</Collapse>
+			) : (
+				content
+			)}
 		</NavLi>
 	);
-}
+};
 
 /**
  * Sidebar skeleton loading component
  */
-function SidebarSkeleton() {
+const SidebarSkeleton = () => {
 	return (
 		<Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
 			{/* Base sections skeleton */}
@@ -1035,7 +1013,7 @@ function SidebarSkeleton() {
 			})}
 		</Box>
 	);
-}
+};
 
 const PermissionListItem = ({
 	permission,
