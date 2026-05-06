@@ -4,7 +4,7 @@ import { styled } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
 import { mergeClasses } from 'minimal-shared/utils';
 
-import { Iconify } from '#app/components/iconify/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
 
 import { navItemStyles, navSectionClasses } from '../styles';
 import type { NavItemProps } from '../types';

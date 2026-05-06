@@ -43,8 +43,8 @@ import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx'
 import DrawerAnchor from '#app/components/drawer-anchor.tsx';
 import { EmptyContent } from '#app/components/empty-content/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
-import type { LabelColor } from '#app/components/label/index.ts';
 import { Label } from '#app/components/label/label.tsx';
+import type { LabelColor } from '#app/components/label/types.ts';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
 import { useTableRowSelection } from '#app/hooks/table/use-table-row-selection.ts';

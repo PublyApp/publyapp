@@ -13,9 +13,9 @@ import {
 	varHover,
 	varTap,
 } from '#app/components/animate/index.ts';
-import { CustomPopover } from '#app/components/custom-popover/index.ts';
+import { CustomPopover } from '#app/components/custom-popover/custom-popover.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
-import { Scrollbar } from '#app/components/scrollbar/index.ts';
+import { Scrollbar } from '#app/components/scrollbar/scrollbar.tsx';
 import { fToNow } from '#app/utils/format-time.ts';
 
 // ----------------------------------------------------------------------

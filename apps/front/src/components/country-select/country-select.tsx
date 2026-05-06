@@ -11,7 +11,8 @@ import { useCallback, useMemo } from 'react';
 
 import { countries } from '#app/assets/data/countries.ts';
 
-import { FlagIcon, flagIconClasses } from '../flag-icon';
+import { flagIconClasses } from '../flag-icon/classes';
+import { FlagIcon } from '../flag-icon/flag-icon';
 
 // ----------------------------------------------------------------------
 

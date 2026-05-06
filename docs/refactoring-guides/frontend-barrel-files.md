@@ -2,7 +2,7 @@
 
 <!-- markdownlint-disable MD013 -->
 
-Status: phase 1 inventory for issue #376, part of #77.
+Status: phase 2 implemented for issue #377, part of #77.
 
 ## Policy
 
@@ -28,8 +28,8 @@ rg --files apps/front/src | rg '(^|/|\\)index\.(ts|tsx)$'
 
 Current counts:
 
-- `apps/front/src`: 62 `index.ts` / `index.tsx` files.
-- `apps/front/src`: 59 pure hand-written re-export barrels.
+- `apps/front/src`: 44 `index.ts` / `index.tsx` files.
+- `apps/front/src`: 41 pure hand-written re-export barrels.
 - `apps/front/src`: 3 `index.ts(x)` implementation or aggregate modules, not pure
   re-export barrels.
 - `packages/client-ts/src`: 72 generated `index.ts` files, excluded from cleanup.
@@ -54,39 +54,46 @@ These are intentional facades or index-named implementation modules.
 | `apps/front/src/lib/api-failure/index.ts` | Canonical failure-message facade; already uses explicit exports. |
 | `apps/front/src/lib/mui/theme/core/components/index.ts` | Theme component aggregate implementation, not a pure re-export barrel. |
 
+## Removed In Phase 2
+
+These low-risk, single-purpose barrels were removed in issue #377.
+
+| Path |
+| --- |
+| `apps/front/src/assets/data/index.ts` |
+| `apps/front/src/components/animate/scroll-progress/index.ts` |
+| `apps/front/src/components/country-select/index.ts` |
+| `apps/front/src/components/custom-dialog/index.ts` |
+| `apps/front/src/components/custom-popover/index.ts` |
+| `apps/front/src/components/custom-tabs/index.ts` |
+| `apps/front/src/components/flag-icon/index.ts` |
+| `apps/front/src/components/iconify/index.ts` |
+| `apps/front/src/components/image/index.ts` |
+| `apps/front/src/components/label/index.ts` |
+| `apps/front/src/components/loading-screen/index.ts` |
+| `apps/front/src/components/logo/index.ts` |
+| `apps/front/src/components/number-input/index.ts` |
+| `apps/front/src/components/phone-input/index.ts` |
+| `apps/front/src/components/progress-bar/index.ts` |
+| `apps/front/src/components/scrollbar/index.ts` |
+| `apps/front/src/components/search-not-found/index.ts` |
+| `apps/front/src/components/svg-color/index.ts` |
+
 ## Remove
 
 These are inherited convenience barrels or unused direct-import candidates.
 
 | Path | Current index refs | Suggested phase |
 | --- | ---: | --- |
-| `apps/front/src/assets/data/index.ts` | 0 | Phase 2 |
 | `apps/front/src/assets/icons/index.ts` | 1 | Phase 3 |
 | `apps/front/src/components/address/index.ts` | 0 | Phase 3 |
 | `apps/front/src/components/animate/index.ts` | 17 | Phase 3 |
-| `apps/front/src/components/animate/scroll-progress/index.ts` | 0 | Phase 2 |
 | `apps/front/src/components/brand-switcher/index.ts` | 0 | Phase 3 |
-| `apps/front/src/components/country-select/index.ts` | 0 | Phase 2 |
 | `apps/front/src/components/custom-breadcrumbs/index.ts` | 0 | Phase 3 |
-| `apps/front/src/components/custom-dialog/index.ts` | 0 | Phase 2 |
-| `apps/front/src/components/custom-popover/index.ts` | 8 | Phase 2 |
-| `apps/front/src/components/custom-tabs/index.ts` | 1 | Phase 2 |
 | `apps/front/src/components/editor/index.ts` | 0 | Phase 3 |
 | `apps/front/src/components/empty-content/index.ts` | 3 | Phase 3 |
 | `apps/front/src/components/error/index.ts` | 6 | Phase 3 |
 | `apps/front/src/components/file-thumbnail/index.ts` | 1 | Phase 3 |
-| `apps/front/src/components/flag-icon/index.ts` | 1 | Phase 2 |
-| `apps/front/src/components/iconify/index.ts` | 6 | Phase 2 |
-| `apps/front/src/components/image/index.ts` | 0 | Phase 2 |
-| `apps/front/src/components/label/index.ts` | 10 | Phase 2 |
-| `apps/front/src/components/loading-screen/index.ts` | 3 | Phase 2 |
-| `apps/front/src/components/logo/index.ts` | 3 | Phase 2 |
-| `apps/front/src/components/number-input/index.ts` | 0 | Phase 2 |
-| `apps/front/src/components/phone-input/index.ts` | 0 | Phase 2 |
-| `apps/front/src/components/progress-bar/index.ts` | 0 | Phase 2 |
-| `apps/front/src/components/scrollbar/index.ts` | 9 | Phase 2 |
-| `apps/front/src/components/search-not-found/index.ts` | 1 | Phase 2 |
-| `apps/front/src/components/svg-color/index.ts` | 0 | Phase 2 |
 | `apps/front/src/components/upload/index.ts` | 1 | Phase 3 |
 
 ## Narrow
@@ -134,8 +141,8 @@ instead of editing generated files by hand.
 
 ## Phase Guidance
 
-Phase 2 should remove low-risk single-purpose barrels first. Prefer direct imports from
-the concrete file and keep the PR mechanical.
+Phase 2 removed low-risk single-purpose barrels first. Consumers now import from the
+concrete file and the PR remains mechanical.
 
 Phase 3 should handle inherited template component barrels with broader `export *`
 surfaces. These are the main cleanup targets for dependency clarity.

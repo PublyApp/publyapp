@@ -22,7 +22,7 @@ import {
 	View500,
 	ViewTenantSuspended,
 } from '#app/components/error/index.ts';
-import { SplashScreen } from '#app/components/loading-screen/index.ts';
+import { SplashScreen } from '#app/components/loading-screen/splash-screen.tsx';
 import type { SettingsState } from '#app/components/settings/index.ts';
 import { toast } from '#app/components/snackbar/index.ts';
 import { toApiFailure } from '#app/lib/api-failure/index.ts';

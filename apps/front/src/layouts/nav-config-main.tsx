@@ -2,7 +2,7 @@
 
 //
 
-// import { Iconify } from '#app/components/iconify/index.ts';
+// import { Iconify } from '#app/components/iconify/iconify.tsx';
 
 import { Iconify } from '../components/iconify/iconify';
 import type { NavMainProps } from './main/nav/types';

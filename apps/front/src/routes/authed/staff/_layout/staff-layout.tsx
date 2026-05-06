@@ -3,7 +3,7 @@ import { Outlet } from 'react-router';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
-import { LoadingScreen } from '#app/components/loading-screen/index.ts';
+import { LoadingScreen } from '#app/components/loading-screen/loading-screen.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { DashboardLayout } from '#app/layouts/dashboard/layout.tsx';
 import { ICONS, type NavDataType } from '#app/layouts/nav-config-dashboard.tsx';

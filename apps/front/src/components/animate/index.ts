@@ -6,5 +6,6 @@ export * from './back-to-top-button';
 export * from './back-to-top-button';
 export * from './motion-container';
 export * from './motion-viewport';
-export * from './scroll-progress';
+export * from './scroll-progress/scroll-progress';
+export * from './scroll-progress/use-scroll-progress';
 export * from './variants';

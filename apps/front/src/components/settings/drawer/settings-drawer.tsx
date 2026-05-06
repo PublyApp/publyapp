@@ -15,7 +15,7 @@ import { primaryColorPresets } from '#app/lib/mui/theme/with-settings/index.ts';
 
 import { useSettingsContext } from '../../../hooks/use-settings-context';
 import { Iconify } from '../../iconify/iconify';
-import { Scrollbar } from '../../scrollbar';
+import { Scrollbar } from '../../scrollbar/scrollbar';
 import type {
 	SettingsContextValue,
 	SettingsDrawerProps,

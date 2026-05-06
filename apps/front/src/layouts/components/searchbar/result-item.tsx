@@ -6,7 +6,7 @@ import ListItemText from '@mui/material/ListItemText';
 import { isExternalLink, varAlpha } from 'minimal-shared/utils';
 import { nanoid } from 'nanoid';
 
-import { Label } from '#app/components/label/index.ts';
+import { Label } from '#app/components/label/label.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 
 // ----------------------------------------------------------------------

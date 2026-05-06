@@ -15,10 +15,10 @@ import {
 	varHover,
 	varTap,
 } from '#app/components/animate/index.ts';
-import { CustomTabs } from '#app/components/custom-tabs/index.ts';
+import { CustomTabs } from '#app/components/custom-tabs/custom-tabs.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
-import { Label } from '#app/components/label/index.ts';
-import { Scrollbar } from '#app/components/scrollbar/index.ts';
+import { Label } from '#app/components/label/label.tsx';
+import { Scrollbar } from '#app/components/scrollbar/scrollbar.tsx';
 
 import {
 	NotificationItem,

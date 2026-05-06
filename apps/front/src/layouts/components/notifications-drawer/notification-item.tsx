@@ -7,7 +7,7 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 
 import { FileThumbnail } from '#app/components/file-thumbnail/index.ts';
-import { Label } from '#app/components/label/index.ts';
+import { Label } from '#app/components/label/label.tsx';
 import { fToNow } from '#app/utils/format-time.ts';
 
 import { notificationIcons } from './icons';

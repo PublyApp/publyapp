@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
-import { CustomPopover } from '#app/components/custom-popover/index.ts';
+import { CustomPopover } from '#app/components/custom-popover/custom-popover.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { useTenantParam } from '#app/hooks/use-tenant-param.ts';
