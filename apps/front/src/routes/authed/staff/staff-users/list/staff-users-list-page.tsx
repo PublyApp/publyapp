@@ -17,7 +17,7 @@ import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/staff-users-list-page';
-import StaffUsersTable from './parts/staff-users-table';
+import StaffUsersTable from './_parts/staff-users-table';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str = t('users');

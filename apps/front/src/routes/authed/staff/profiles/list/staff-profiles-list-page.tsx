@@ -2,7 +2,9 @@ import Button from '@mui/material/Button';
 import { isServer } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import get from 'lodash/get';
+import toLower from 'lodash/toLower';
 import { data } from 'react-router';
 
 import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
@@ -15,10 +17,10 @@ import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/staff-profiles-list-page';
-import StaffProfilesTable from './parts/staff-profiles-table';
+import StaffProfilesTable from './_parts/staff-profiles-table';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(t('staff-profiles'));
+	let str: string = capitalize(t('staff-profiles'));
 
 	if (seo) {
 		str = `${str} | Staff Dashboard - ${APP_NAME}`;
@@ -29,7 +31,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
+		return get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;
@@ -66,10 +68,10 @@ const StaffInvitationsListPage = () => {
 				heading={getPageTitle(t as never)}
 				links={[
 					{
-						name: _.capitalize(t('staff-profiles')),
+						name: capitalize(t('staff-profiles')),
 						href: FRONT_PATH_NAMES.staff.invitations.root,
 					},
-					{ name: _.capitalize(t('list')) },
+					{ name: capitalize(t('list')) },
 				]}
 				action={
 					<Button
@@ -78,7 +80,7 @@ const StaffInvitationsListPage = () => {
 						variant="contained"
 						startIcon={<Iconify width={16} icon="mingcute:add-line" />}
 					>
-						{t('new-item', { item: _.toLower(t('profile')) })}
+						{t('new-item', { item: toLower(t('profile')) })}
 					</Button>
 				}
 				sx={{ mb: { xs: 3, md: 5 } }}

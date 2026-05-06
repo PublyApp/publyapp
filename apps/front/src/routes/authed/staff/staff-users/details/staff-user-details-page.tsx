@@ -29,11 +29,11 @@ import { useGetStaffUserById } from '#app/lib/react-query/features/staff/staff-u
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/staff-user-details-page';
-import { StaffUserDetailsPageSkeleton } from './components/staff-user-details-page-skeleton';
-import StaffUserProfilesSection from './components/staff-user-profiles-section';
+import { StaffUserDetailsPageSkeleton } from './_components/staff-user-details-page-skeleton';
+import StaffUserProfilesSection from './_components/staff-user-profiles-section';
 import StaffUserUpdateForm, {
 	type StaffUserUpdateData,
-} from './components/staff-user-update-form';
+} from './_components/staff-user-update-form';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = capitalize(

@@ -8,8 +8,8 @@ import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-bre
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
 import type { TenantDetailsOutletContext } from '../_layout/tenant-details-layout';
-import TenantProfileCreateAction from './parts/tenant-profile-create-action.tsx';
-import TenantProfilesTable from './parts/tenant-profiles-table.tsx';
+import TenantProfileCreateAction from './_parts/tenant-profile-create-action.tsx';
+import TenantProfilesTable from './_parts/tenant-profiles-table.tsx';
 
 const TenantDetailsProfilesPage = () => {
 	const { t } = useTranslate();

@@ -9,8 +9,8 @@ import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-bre
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
 import type { StaffProfileDetailsOutletContext } from '../_layout/staff-profile-details-layout';
-import { StaffProfileUsersTable } from './parts/staff-profile-users-table.tsx';
-import { UserAssignDrawer } from './parts/user-assign-drawer.tsx';
+import { StaffProfileUsersTable } from './_parts/staff-profile-users-table.tsx';
+import { UserAssignDrawer } from './_parts/user-assign-drawer.tsx';
 
 const StaffProfileDetailsUsersTabPage = () => {
 	const { t } = useTranslate();
