@@ -1,0 +1,45 @@
+# Normalize all text files to LF; keep explicit binaries marked
+* text=auto eol=lf
+
+# Common binary file types
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.bmp binary
+*.tif binary
+*.tiff binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.7z binary
+*.rar binary
+*.tar binary
+*.bz2 binary
+*.xz binary
+*.jar binary
+*.class binary
+*.dll binary
+*.exe binary
+*.exe.config -text
+*.so binary
+*.dylib binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.eot binary
+*.wasm binary
+*.apk binary
+*.ipa binary
+*.psd binary
+*.ai binary
+*.mp4 binary
+*.mov binary
+*.mp3 binary
+*.wav binary
+*.flac binary
+*.ogg binary
