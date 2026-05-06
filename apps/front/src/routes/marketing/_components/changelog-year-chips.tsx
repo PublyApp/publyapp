@@ -40,11 +40,16 @@ export const ChangelogYearChips = ({
 						sx={{
 							display: 'inline-flex',
 							alignItems: 'center',
-							px: 2,
-							py: '6px',
+							px: 2.25,
+							py: '8px',
 							borderRadius: '10px',
-							fontSize: 12,
-							fontWeight: 600,
+							fontSize: 13,
+							fontWeight: 700,
+							lineHeight: 1,
+							letterSpacing: '0.02em',
+							// Tabular figures so 2025 / 2026 / 2024 / etc. all align to
+							// identical glyph widths — no shifting between chips.
+							fontVariantNumeric: 'tabular-nums',
 							textDecoration: 'none',
 							border: '1px solid',
 							borderColor: active ? 'primary.main' : 'divider',
