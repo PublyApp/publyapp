@@ -13,6 +13,7 @@ import type { IconifyName } from '#app/components/iconify/register-icons.ts';
 import { Image } from '#app/components/image/image.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { useActiveTocSection } from '#app/hooks/use-active-toc-section.ts';
+import { copyToClipboard } from '#app/lib/clipboard.ts';
 import { BlogPostCard } from '#app/routes/marketing/_components/blog-post-card.tsx';
 import { CtaBand } from '#app/routes/marketing/_components/cta-band.tsx';
 import { MarketingEyebrow } from '#app/routes/marketing/_components/marketing-eyebrow.tsx';
@@ -942,24 +943,6 @@ const buildShareUrl = (
 	}
 
 	return pageUrl;
-};
-
-const copyToClipboard = async (text: string): Promise<boolean> => {
-	if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-		try {
-			await navigator.clipboard.writeText(text);
-			return true;
-		} catch {
-			// fall through to prompt fallback
-		}
-	}
-
-	if (typeof window !== 'undefined') {
-		window.prompt('Copy this URL', text);
-		return true;
-	}
-
-	return false;
 };
 
 const ShareRow = ({ post }: { post: BlogPost }) => {
