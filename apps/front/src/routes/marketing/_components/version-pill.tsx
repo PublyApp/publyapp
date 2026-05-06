@@ -24,7 +24,9 @@ export const VersionPill = ({ version }: VersionPillProps) => {
 	const [copied, setCopied] = useState(false);
 	const slug = slugifyVersion(version);
 
-	const handleClick = async (event: React.MouseEvent<HTMLAnchorElement>) => {
+	const handleCopyLinkClick = async (
+		event: React.MouseEvent<HTMLAnchorElement>,
+	) => {
 		event.preventDefault();
 
 		// Build the absolute URL so the copied link includes origin + the
@@ -55,7 +57,7 @@ export const VersionPill = ({ version }: VersionPillProps) => {
 		<Stack
 			component="a"
 			href={`#${slug}`}
-			onClick={handleClick}
+			onClick={handleCopyLinkClick}
 			direction="row"
 			spacing={0.75}
 			alignItems="center"
