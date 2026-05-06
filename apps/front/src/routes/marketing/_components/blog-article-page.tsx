@@ -3,7 +3,7 @@ import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import type { SxProps, Theme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
@@ -947,6 +947,15 @@ const buildShareUrl = (
 
 const ShareRow = ({ post }: { post: BlogPost }) => {
 	const [copied, setCopied] = useState(false);
+	// `window.location.href` isn't available during SSR. Reading it inline
+	// during render produced an empty string on the server vs. a real URL
+	// on the client → React hydration mismatch on the share <a href>s.
+	// Initialise to '' so server + first client render agree, then fill in
+	// after mount.
+	const [pageUrl, setPageUrl] = useState('');
+	useEffect(() => {
+		setPageUrl(window.location.href);
+	}, []);
 
 	const handleClick = async (
 		event: React.MouseEvent<HTMLAnchorElement>,
@@ -954,7 +963,6 @@ const ShareRow = ({ post }: { post: BlogPost }) => {
 	) => {
 		if (id === 'copy') {
 			event.preventDefault();
-			const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
 			const ok = await copyToClipboard(pageUrl);
 
 			if (ok) {
@@ -997,8 +1005,6 @@ const ShareRow = ({ post }: { post: BlogPost }) => {
 				aria-label="Share this article"
 			>
 				{SHARE_TARGETS.map((target) => {
-					const pageUrl =
-						typeof window !== 'undefined' ? window.location.href : '';
 					const href =
 						target.id === 'copy'
 							? '#'
