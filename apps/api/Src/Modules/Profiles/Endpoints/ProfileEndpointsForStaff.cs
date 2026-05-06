@@ -49,6 +49,17 @@ public static class ProfileEndpointsForStaff {
 			// manage profile contents without automatically gaining destructive access.
 			.WithPermission([AppPermissions.Staff.Profiles.DELETE_FOR_STAFF]);
 
+		staffGroup.MapPost(
+			Routes.Profiles.ForStaff.BulkDelete,
+			BulkDeleteStaffProfiles.HandleBulkDeleteStaffProfiles
+		)
+			.WithName("BulkDeleteStaffProfiles")
+			.WithSummary("Bulk delete staff profiles")
+			// Use the same delete permission as single deletes; this endpoint performs
+			// one request for a multi-id payload.
+			.WithPermission([AppPermissions.Staff.Profiles.DELETE_FOR_STAFF])
+			.WithReqBodyValidation<BulkDeleteStaffProfilesBody>();
+
 		staffGroup.MapPatch(
 			Routes.Profiles.ForStaff.Update,
 			UpdateStaffProfile.HandleUpdateStaffProfile
@@ -162,6 +173,16 @@ public static class ProfileEndpointsForStaff {
 			.WithName("DeleteTenantProfileAsStaff")
 			.WithSummary("Delete a tenant profile")
 			.WithPermission([AppPermissions.Staff.Profiles.DELETE_FOR_TENANT]);
+
+		tenantGroup.MapPost(
+			Routes.Profiles.ForTenantAsStaff.BulkDelete,
+			BulkDeleteTenantProfilesAsStaff.HandleBulkDeleteTenantProfilesAsStaff
+		)
+			.WithName("BulkDeleteTenantProfilesAsStaff")
+			.WithSummary("Bulk delete tenant profiles")
+			// Keep tenant scope on this endpoint to prevent cross-tenant profile deletion.
+			.WithPermission([AppPermissions.Staff.Profiles.DELETE_FOR_TENANT])
+			.WithReqBodyValidation<BulkDeleteTenantProfilesBody>();
 
 		tenantGroup.MapGet(
 			Routes.Profiles.ForTenantAsStaff.Permissions.Find,

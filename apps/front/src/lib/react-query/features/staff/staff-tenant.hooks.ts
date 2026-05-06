@@ -7,6 +7,7 @@ import {
 import isNil from 'lodash/isNil';
 
 import type {
+	BulkProfileActionResult,
 	CreateTenantAsStaffBody,
 	CreateTenantAsStaffResult,
 	CreateTenantProfileAsStaffBody,
@@ -297,6 +298,36 @@ export const useDeleteTenantProfile = createStaffMutation({
 
 		if (isNil(result)) {
 			throw new Error('useDeleteTenantProfile: result is nil');
+		}
+
+		return result;
+	},
+});
+
+type BulkDeleteTenantProfilesPayload = {
+	tenantId: string;
+	profileIds: string[];
+};
+
+export const useBulkDeleteTenantProfiles = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.tenants.byTenantId('').profiles.bulkDelete.post,
+	mutationFn: async (client, payload: BulkDeleteTenantProfilesPayload) => {
+		// Convert profile IDs into the untyped payload shape required by the bulk API.
+		const body = {
+			profileIds: createUntypedArray(
+				payload.profileIds.map((id) => createUntypedString(id)),
+			),
+		} as Record<string, unknown>;
+
+		const result:
+			| BulkProfileActionResult
+			| undefined =
+			await client.staff.tenants.byTenantId(payload.tenantId).profiles.bulkDelete
+				.post(body);
+
+		if (result == null) {
+			throw new Error('useBulkDeleteTenantProfiles: result is nil');
 		}
 
 		return result;

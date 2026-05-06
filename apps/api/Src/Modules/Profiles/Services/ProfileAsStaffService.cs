@@ -111,6 +111,13 @@ public sealed record DeleteTenantProfileArgs(
 	Guid ProfileId
 );
 
+// Tenant bulk-delete input used by staff endpoints. Duplicates are trimmed before DB
+// work to keep result counts stable.
+public sealed record BulkDeleteTenantProfilesArgs(
+	Guid TenantId,
+	List<Guid> ProfileIds
+);
+
 public abstract record DeleteTenantProfileResult {
 	public sealed record Success(
 		TenantProfileAuditData Profile,
@@ -122,6 +129,20 @@ public abstract record DeleteTenantProfileResult {
 
 	public sealed record DefaultProfileDeletionNotAllowed : DeleteTenantProfileResult;
 }
+
+// Represents per-item failures for bulk operations where some rows can succeed and
+// some fail independently.
+public sealed record BulkProfileActionFailedItem(
+	Guid ProfileId,
+	string Error
+);
+
+// Normalized aggregate result returned from bulk delete operations.
+public sealed record BulkProfileActionResult(
+	int SucceededCount,
+	int FailedCount,
+	List<BulkProfileActionFailedItem> FailedItems
+);
 
 public sealed record FindTenantProfilePermissionKeysArgs(
 	Guid TenantId,
@@ -160,7 +181,8 @@ public abstract record FindStaffProfilesResult {
 	/// <summary>
 	/// Successful result containing the paginated staff profiles.
 	/// </summary>
-	public sealed record Success(CursorPaginatedResult<StaffProfileItem> Data) : FindStaffProfilesResult;
+	public sealed record Success(CursorPaginatedResult<StaffProfileItem> Data)
+		: FindStaffProfilesResult;
 
 	/// <summary>
 	/// Error result when the cursor record was not found (deleted or invalid).
@@ -170,7 +192,8 @@ public abstract record FindStaffProfilesResult {
 	/// <summary>
 	/// Error result when the sortId is not supported.
 	/// </summary>
-	public sealed record InvalidSortId(string SortId) : FindStaffProfilesResult;
+	public sealed record InvalidSortId(string SortId)
+		: FindStaffProfilesResult;
 }
 
 public sealed record FindStaffProfilesArgs(
@@ -232,12 +255,14 @@ public sealed record ResolveStaffProfileUserAssignmentsArgs(
 );
 
 public abstract record GetStaffProfileByIdServiceResult {
-	public sealed record Success(StaffProfileItem Profile) : GetStaffProfileByIdServiceResult;
+	public sealed record Success(StaffProfileItem Profile)
+		: GetStaffProfileByIdServiceResult;
 	public sealed record ProfileNotFound : GetStaffProfileByIdServiceResult;
 }
 
 public abstract record FindStaffProfilePermissionKeysResult {
-	public sealed record Success(List<string> PermissionKeys) : FindStaffProfilePermissionKeysResult;
+	public sealed record Success(List<string> PermissionKeys)
+		: FindStaffProfilePermissionKeysResult;
 	public sealed record ProfileNotFound : FindStaffProfilePermissionKeysResult;
 }
 
@@ -248,7 +273,8 @@ public sealed record UpdateStaffProfileArgs(
 );
 
 public abstract record UpdateStaffProfileResult {
-	public sealed record Success(StaffProfileItem Profile) : UpdateStaffProfileResult;
+	public sealed record Success(StaffProfileItem Profile)
+		: UpdateStaffProfileResult;
 	public sealed record ProfileNotFound : UpdateStaffProfileResult;
 	public sealed record ProfileNameExists(string Name) : UpdateStaffProfileResult;
 }
@@ -273,8 +299,13 @@ public sealed record CreateStaffProfileArgs(
 	Guid InvitedByUserId
 );
 
+public sealed record BulkDeleteStaffProfilesArgs(
+	List<Guid> ProfileIds
+);
+
 public abstract record DeleteStaffProfileServiceResult {
-	public sealed record Success(int DeletedProfileCount) : DeleteStaffProfileServiceResult;
+	public sealed record Success(int DeletedProfileCount)
+		: DeleteStaffProfileServiceResult;
 	public sealed record ProfileNotFound : DeleteStaffProfileServiceResult;
 }
 
@@ -284,7 +315,8 @@ public sealed record UnassignStaffProfileUsersArgs(
 );
 
 public abstract record UnassignStaffProfileUsersServiceResult {
-	public sealed record Success(int UnassignedCount) : UnassignStaffProfileUsersServiceResult;
+	public sealed record Success(int UnassignedCount)
+		: UnassignStaffProfileUsersServiceResult;
 	public sealed record ProfileNotFound : UnassignStaffProfileUsersServiceResult;
 }
 
@@ -362,6 +394,11 @@ public interface IProfileAsStaffService {
 		DeleteTenantProfileArgs args,
 		CancellationToken cancellationToken = default
 	);
+	// Bulk tenant profile deletion used by staff actions.
+	Task<BulkProfileActionResult> BulkDeleteTenantProfilesAsync(
+		BulkDeleteTenantProfilesArgs args,
+		CancellationToken cancellationToken = default
+	);
 
 	Task<FindTenantProfilePermissionKeysResult> FindTenantProfilePermissionKeysAsync(
 		FindTenantProfilePermissionKeysArgs args,
@@ -415,6 +452,11 @@ public interface IProfileAsStaffService {
 
 	Task<DeleteStaffProfileServiceResult> DeleteStaffProfileAsync(
 		Guid profileId,
+		CancellationToken cancellationToken = default
+	);
+	// Bulk staff profile deletion used by staff actions.
+	Task<BulkProfileActionResult> BulkDeleteStaffProfilesAsync(
+		BulkDeleteStaffProfilesArgs args,
 		CancellationToken cancellationToken = default
 	);
 
@@ -542,8 +584,16 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 					var (cursorName, cursorId) = ((string, Guid?))cursorValue;
 
 					return isAscLocal
-						? q.Where(p => p.Name.CompareTo(cursorName) > 0 || (p.Name == cursorName && p.Id > cursorId))
-						: q.Where(p => p.Name.CompareTo(cursorName) < 0 || (p.Name == cursorName && p.Id < cursorId));
+						? q.Where(
+							p =>
+								p.Name.CompareTo(cursorName) > 0
+								|| (p.Name == cursorName && p.Id > cursorId)
+						)
+						: q.Where(
+							p =>
+								p.Name.CompareTo(cursorName) < 0
+								|| (p.Name == cursorName && p.Id < cursorId)
+						);
 				},
 				applyOrdering: (q, isAscLocal) => isAscLocal
 					? q.OrderBy(p => p.Name).ThenBy(p => p.Id)
@@ -570,8 +620,16 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 
 					var (cursorCreatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
 					return isAscLocal
-						? q.Where(p => p.CreatedAt > cursorCreatedAt || (p.CreatedAt == cursorCreatedAt && p.Id > cursorId))
-						: q.Where(p => p.CreatedAt < cursorCreatedAt || (p.CreatedAt == cursorCreatedAt && p.Id < cursorId));
+						? q.Where(
+							p =>
+								p.CreatedAt > cursorCreatedAt
+								|| (p.CreatedAt == cursorCreatedAt && p.Id > cursorId)
+						)
+						: q.Where(
+							p =>
+								p.CreatedAt < cursorCreatedAt
+								|| (p.CreatedAt == cursorCreatedAt && p.Id < cursorId)
+						);
 				},
 				applyOrdering: (q, isAscLocal) => isAscLocal
 					? q.OrderBy(p => p.CreatedAt).ThenBy(p => p.Id)
@@ -939,6 +997,122 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		);
 	}
 
+	public async Task<BulkProfileActionResult> BulkDeleteTenantProfilesAsync(
+		BulkDeleteTenantProfilesArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		// Deduplicate caller input once so we evaluate each ID only one time and keep
+		// deterministic succeeded/failed counts.
+		var requestedProfileIds = args.ProfileIds.Distinct().ToList();
+
+		if (requestedProfileIds.Count == 0) {
+			return new BulkProfileActionResult(
+				SucceededCount: 0,
+				FailedCount: 0,
+				FailedItems: []
+			);
+		}
+
+		// Resolve all matching tenant profiles in one DB call; this lets us decide
+		// exactly which requested IDs are invalid or protected.
+		var profiles = await (
+			from p in _dbContext.Profile
+			where p.TenantId == args.TenantId
+				&& p.Scope == ProfileScope.Tenant
+				&& !p.IsDeleted
+				&& p.Id != null
+				&& requestedProfileIds.Contains(p.Id.Value)
+			select p
+		).ToListAsync(cancellationToken);
+
+		var profileById = profiles.ToDictionary(p => p.GetRequiredId());
+		var failedItems = new List<BulkProfileActionFailedItem>();
+
+		foreach (var requestedProfileId in requestedProfileIds) {
+			if (!profileById.TryGetValue(requestedProfileId, out var profile)) {
+				failedItems.Add(
+					new BulkProfileActionFailedItem(
+						requestedProfileId,
+						"Profile not found"
+					)
+				);
+				continue;
+			}
+
+			if (profile.IsDefault) {
+				failedItems.Add(
+					new BulkProfileActionFailedItem(
+						requestedProfileId,
+						"Default tenant profile cannot be deleted"
+					)
+				);
+			}
+		}
+
+		// Exclude default profiles from bulk operations to preserve the existing
+		// platform rule that defaults are not deletable.
+		var deletableProfileIds = profiles
+			.Where(profile => !profile.IsDefault)
+			.Select(profile => profile.GetRequiredId())
+			.ToList();
+
+		if (deletableProfileIds.Count == 0) {
+			return new BulkProfileActionResult(
+				SucceededCount: 0,
+				FailedCount: failedItems.Count,
+				FailedItems: failedItems
+			);
+		}
+
+		var links = await (
+			from uap in _dbContext.UserAccountProfile
+			where deletableProfileIds.Contains(uap.ProfileId)
+			select uap
+		).ToListAsync(cancellationToken);
+
+		if (links.Count > 0) {
+			_dbContext.ForceHardDeleteRange(links);
+		}
+
+		var permissions = await (
+			from pp in _dbContext.ProfilePermission
+			where deletableProfileIds.Contains(pp.ProfileId)
+			select pp
+		).ToListAsync(cancellationToken);
+
+		if (permissions.Count > 0) {
+			_dbContext.ForceHardDeleteRange(permissions);
+		}
+
+		// Keep a single pass over non-default profiles for the actual soft-delete.
+		var profilesToDelete = profileById
+			.Values
+			.Where(profile => !profile.IsDefault)
+			.ToList();
+
+		foreach (var profile in profilesToDelete) {
+			profile.IsDeleted = true;
+			profile.DeletedAt = DateTime.UtcNow;
+			profile.UpdatedAt = DateTime.UtcNow;
+		}
+
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		var failedItemsById = new HashSet<Guid>(
+			failedItems.Select(item => item.ProfileId)
+		);
+
+		var succeededProfileIds = requestedProfileIds
+			.Where(id => !failedItemsById.Contains(id))
+			.ToList();
+
+		return new BulkProfileActionResult(
+			SucceededCount: succeededProfileIds.Count,
+			FailedCount: failedItems.Count,
+			FailedItems: failedItems
+		);
+	}
+
 	public async Task<FindTenantProfilePermissionKeysResult>
 		FindTenantProfilePermissionKeysAsync(
 			FindTenantProfilePermissionKeysArgs args,
@@ -1092,12 +1266,13 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 	/// <summary>
 	/// Finds staff profiles using keyset pagination with multi-field sorting support.
 	///
-	/// KEYSET PAGINATION EXPLANATION:
-	/// - The cursor is always a Profile.Id (Guid), but we can sort by any field
-	/// - For non-Id sorts, we use composite ordering: ORDER BY {sortField}, Id
-	/// - When paginating, we look up the cursor record to get its sort field value
-	/// - Then apply a keyset filter: WHERE (field > cursorValue) OR (field = cursorValue AND id > cursorId)
-	/// - This ensures no gaps or duplicates in paginated results
+/// KEYSET PAGINATION EXPLANATION:
+/// - The cursor is always a Profile.Id (Guid), but we can sort by any field
+/// - For non-Id sorts, we use composite ordering: ORDER BY {sortField}, Id
+/// - When paginating, we look up the cursor record to get its sort field value
+/// - Then apply a keyset filter:
+///   (field > cursorValue) OR (field = cursorValue AND id > cursorId)
+/// - This ensures no gaps or duplicates in paginated results
 	///
 	/// EXAMPLE:
 	/// Page 1: GET /profiles?sort_id=name&sort_order=asc&limit=3
@@ -1184,8 +1359,16 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 						if (cursorValue is null) return q;
 						var (cursorName, cursorId) = ((string, Guid?))cursorValue;
 						return isAsc
-							? q.Where(p => p.Name.CompareTo(cursorName) > 0 || (p.Name == cursorName && p.Id > cursorId))
-							: q.Where(p => p.Name.CompareTo(cursorName) < 0 || (p.Name == cursorName && p.Id < cursorId));
+							? q.Where(
+								p =>
+									p.Name.CompareTo(cursorName) > 0
+									|| (p.Name == cursorName && p.Id > cursorId)
+							)
+							: q.Where(
+								p =>
+									p.Name.CompareTo(cursorName) < 0
+									|| (p.Name == cursorName && p.Id < cursorId)
+							);
 					},
 					// ApplyOrdering: ORDER BY Name, Id (both same direction)
 					// Id tie-breaker MUST match primary sort direction for keyset pagination to work correctly
@@ -1218,8 +1401,16 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 						if (cursorValue is null) return q;
 						var (cursorCreatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
 						return isAsc
-							? q.Where(p => p.CreatedAt > cursorCreatedAt || (p.CreatedAt == cursorCreatedAt && p.Id > cursorId))
-							: q.Where(p => p.CreatedAt < cursorCreatedAt || (p.CreatedAt == cursorCreatedAt && p.Id < cursorId));
+							? q.Where(
+								p =>
+									p.CreatedAt > cursorCreatedAt
+									|| (p.CreatedAt == cursorCreatedAt && p.Id > cursorId)
+							)
+							: q.Where(
+								p =>
+									p.CreatedAt < cursorCreatedAt
+									|| (p.CreatedAt == cursorCreatedAt && p.Id < cursorId)
+							);
 					},
 					// ApplyOrdering: ORDER BY CreatedAt, Id (both same direction)
 					applyOrdering: (q, isAsc) => isAsc
@@ -1251,8 +1442,18 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 						if (cursorValue is null) return q;
 						var (cursorCount, cursorId) = ((int, Guid?))cursorValue;
 						return isAsc
-							? q.Where(p => p.UserAccountProfiles.Count > cursorCount || (p.UserAccountProfiles.Count == cursorCount && p.Id > cursorId))
-							: q.Where(p => p.UserAccountProfiles.Count < cursorCount || (p.UserAccountProfiles.Count == cursorCount && p.Id < cursorId));
+							? q.Where(
+								p =>
+									p.UserAccountProfiles.Count > cursorCount
+									|| (p.UserAccountProfiles.Count == cursorCount
+										&& p.Id > cursorId)
+							)
+							: q.Where(
+								p =>
+									p.UserAccountProfiles.Count < cursorCount
+									|| (p.UserAccountProfiles.Count == cursorCount
+										&& p.Id < cursorId)
+							);
 					},
 					// ApplyOrdering: ORDER BY UserAccountProfiles.Count, Id (both same direction)
 					applyOrdering: (q, isAsc) => isAsc
@@ -1473,7 +1674,8 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		);
 	}
 
-	public async Task<ResolveStaffProfileUserAssignmentsServiceResult> ResolveStaffProfileUserAssignmentsAsync(
+	public async Task<ResolveStaffProfileUserAssignmentsServiceResult>
+		ResolveStaffProfileUserAssignmentsAsync(
 		ResolveStaffProfileUserAssignmentsArgs args,
 		CancellationToken cancellationToken = default
 	) {
@@ -2105,6 +2307,105 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
 		return new DeleteStaffProfileServiceResult.Success(DeletedProfileCount: 1);
+	}
+
+	public async Task<BulkProfileActionResult> BulkDeleteStaffProfilesAsync(
+		BulkDeleteStaffProfilesArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		// Deduplicate caller input first to avoid duplicate work and duplicate
+		// failed/succeeded accounting for repeated IDs.
+		var requestedProfileIds = args.ProfileIds.Distinct().ToList();
+
+		if (requestedProfileIds.Count == 0) {
+			return new BulkProfileActionResult(
+				SucceededCount: 0,
+				FailedCount: 0,
+				FailedItems: []
+			);
+		}
+
+		// Load candidate staff profiles once, then evaluate each requested ID without
+		// issuing a per-profile delete request.
+		var profiles = await (
+			from p in _dbContext.Profile
+			where p.Scope == ProfileScope.Staff
+				&& !p.IsDeleted
+				&& p.Id != null
+				&& requestedProfileIds.Contains(p.Id.Value)
+			select p
+		).ToListAsync(cancellationToken);
+
+		var profileById = profiles.ToDictionary(p => p.GetRequiredId());
+		var failedItems = new List<BulkProfileActionFailedItem>();
+		foreach (var requestedProfileId in requestedProfileIds) {
+			if (!profileById.ContainsKey(requestedProfileId)) {
+				failedItems.Add(
+					new BulkProfileActionFailedItem(
+						requestedProfileId,
+						"Profile not found"
+					)
+				);
+			}
+		}
+
+		// Drop default profiles from the delete list before touching joins or row state.
+		var deletableProfileIds = profileById
+			.Where(profile => !profile.Value.IsDefault)
+			.Select(profile => profile.Key)
+			.ToList();
+		if (deletableProfileIds.Count == 0) {
+			return new BulkProfileActionResult(
+				SucceededCount: 0,
+				FailedCount: failedItems.Count,
+				FailedItems: failedItems
+			);
+		}
+
+		var links = await (
+			from uap in _dbContext.UserAccountProfile
+			where deletableProfileIds.Contains(uap.ProfileId)
+			select uap
+		).ToListAsync(cancellationToken);
+
+		if (links.Count > 0) {
+			_dbContext.ForceHardDeleteRange(links);
+		}
+
+		var permissions = await (
+			from pp in _dbContext.ProfilePermission
+			where deletableProfileIds.Contains(pp.ProfileId)
+			select pp
+		).ToListAsync(cancellationToken);
+
+		if (permissions.Count > 0) {
+			_dbContext.ForceHardDeleteRange(permissions);
+		}
+
+		// Soft-delete only non-default profiles in-memory and persist once.
+		var profilesToDelete = profileById
+			.Values
+			.Where(profile => !profile.IsDefault)
+			.ToList();
+
+		foreach (var profile in profilesToDelete) {
+			profile.IsDeleted = true;
+			profile.DeletedAt = DateTime.UtcNow;
+			profile.UpdatedAt = DateTime.UtcNow;
+		}
+
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		var failedProfileIds = new HashSet<Guid>(failedItems.Select(item => item.ProfileId));
+		var succeededProfileIds = requestedProfileIds
+			.Where(id => !failedProfileIds.Contains(id))
+			.ToList();
+
+		return new BulkProfileActionResult(
+			SucceededCount: succeededProfileIds.Count,
+			FailedCount: failedItems.Count,
+			FailedItems: failedItems
+		);
 	}
 
 	public async Task<UnassignStaffProfileUsersServiceResult> UnassignStaffProfileUsersAsync(
