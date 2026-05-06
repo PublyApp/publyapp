@@ -289,9 +289,8 @@ export const useBulkDeleteStaffProfiles = createStaffMutation({
 			),
 		} as Record<string, unknown>;
 
-		const result:
-			| BulkProfileActionResult
-			| undefined = await client.staff.profiles.bulkDelete.post(body);
+		const result: BulkProfileActionResult | undefined =
+			await client.staff.profiles.bulkDelete.post(body);
 
 		if (result == null) {
 			throw new Error('useBulkDeleteStaffProfiles: result is nil');

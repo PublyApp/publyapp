@@ -1266,13 +1266,13 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 	/// <summary>
 	/// Finds staff profiles using keyset pagination with multi-field sorting support.
 	///
-/// KEYSET PAGINATION EXPLANATION:
-/// - The cursor is always a Profile.Id (Guid), but we can sort by any field
-/// - For non-Id sorts, we use composite ordering: ORDER BY {sortField}, Id
-/// - When paginating, we look up the cursor record to get its sort field value
-/// - Then apply a keyset filter:
-///   (field > cursorValue) OR (field = cursorValue AND id > cursorId)
-/// - This ensures no gaps or duplicates in paginated results
+	/// KEYSET PAGINATION EXPLANATION:
+	/// - The cursor is always a Profile.Id (Guid), but we can sort by any field
+	/// - For non-Id sorts, we use composite ordering: ORDER BY {sortField}, Id
+	/// - When paginating, we look up the cursor record to get its sort field value
+	/// - Then apply a keyset filter:
+	///   (field > cursorValue) OR (field = cursorValue AND id > cursorId)
+	/// - This ensures no gaps or duplicates in paginated results
 	///
 	/// EXAMPLE:
 	/// Page 1: GET /profiles?sort_id=name&sort_order=asc&limit=3

@@ -35,7 +35,6 @@ import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { Label } from '#app/components/label/label.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
-import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
 import StaffProfilePreviewDrawer, {
 	type StaffProfilePreviewOption,
 } from '#app/components/staff-profile-preview-drawer.tsx';
@@ -45,6 +44,7 @@ import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
 import { getUntypedNumber } from '#app/lib/js-client/kiota-utils.ts';
 import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
 import {

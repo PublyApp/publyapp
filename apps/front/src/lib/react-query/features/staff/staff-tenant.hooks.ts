@@ -320,11 +320,10 @@ export const useBulkDeleteTenantProfiles = createStaffMutation({
 			),
 		} as Record<string, unknown>;
 
-		const result:
-			| BulkProfileActionResult
-			| undefined =
-			await client.staff.tenants.byTenantId(payload.tenantId).profiles.bulkDelete
-				.post(body);
+		const result: BulkProfileActionResult | undefined =
+			await client.staff.tenants
+				.byTenantId(payload.tenantId)
+				.profiles.bulkDelete.post(body);
 
 		if (result == null) {
 			throw new Error('useBulkDeleteTenantProfiles: result is nil');
