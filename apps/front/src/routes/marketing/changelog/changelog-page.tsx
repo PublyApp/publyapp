@@ -60,9 +60,9 @@ const ChangelogPage = () => {
 				/>
 			) : null}
 
-			<ChangelogYearChips years={availableYears} activeYear={year} />
-
 			<Container maxWidth="md" sx={{ pb: { xs: 8, md: 12 } }}>
+				<ChangelogYearChips years={availableYears} activeYear={year} />
+
 				{entries.length === 0 ? (
 					<Stack
 						alignItems="center"
