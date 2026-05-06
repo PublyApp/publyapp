@@ -59,12 +59,12 @@ export const ChangelogYearChips = ({
 						}),
 				'& .MuiTabs-flexContainer': {
 					gap: 1,
-					// Center chips within the scroll container when they fit.
-					// When content overflows, the flex container's width grows
-					// to fit content and justifyContent has no visible effect —
-					// MUI's scrollable behavior takes over and left-anchors the
-					// row, which is the conventional pattern for scrollable nav.
-					justifyContent: 'center',
+					// `safe center` is the trick here: center when content fits,
+					// fall back to flex-start when it overflows. Plain `center`
+					// pushes overflow into negative offsets that scrollLeft
+					// can't reach, leaving leftmost chips visually trapped
+					// behind the scroll-arrow boundary.
+					justifyContent: 'safe center',
 				},
 				'& .MuiTabScrollButton-root': {
 					width: 32,
