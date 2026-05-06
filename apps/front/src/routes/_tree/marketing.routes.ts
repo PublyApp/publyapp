@@ -2,8 +2,8 @@ import { index, layout, route } from '@react-router/dev/routes';
 
 import { FEATURES } from '../../lib/features/flags.ts';
 
-// Marketing routes — supporting pages (about/contact/security/blog) are
-// flag-guarded. Disabled routes fall through to the catch-all 404 naturally.
+// Marketing routes — supporting pages (about/contact/security/blog/changelog)
+// are flag-guarded. Disabled routes fall through to the catch-all 404 naturally.
 export const marketingRoutes = [
 	layout('routes/marketing/_layout/marketing-layout.tsx', [
 		index('routes/marketing/home/home-page.tsx'),
@@ -24,6 +24,18 @@ export const marketingRoutes = [
 			? [
 					route('blog', 'routes/marketing/blog/blog-index-page.tsx'),
 					route('blog/:slug', 'routes/marketing/blog/blog-article-route.tsx'),
+				]
+			: []),
+		...(FEATURES.marketing.changelog
+			? [
+					route(
+						'changelog',
+						'routes/marketing/changelog/changelog-redirect-route.tsx',
+					),
+					route(
+						'changelog/:year',
+						'routes/marketing/changelog/changelog-page.tsx',
+					),
 				]
 			: []),
 		route('*', 'routes/marketing/_errors/marketing-not-found-page.tsx'),
