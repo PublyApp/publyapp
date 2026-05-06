@@ -2,7 +2,9 @@ import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import get from 'lodash/get';
+import toLower from 'lodash/toLower';
 import { data } from 'react-router';
 
 import {
@@ -20,11 +22,11 @@ import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 import type { Route } from './+types/new-staff-profile-page';
 import NewStaffProfileForm, {
 	NewStaffProfileSidebar,
-} from './parts/new-staff-profile-form';
+} from './_parts/new-staff-profile-form';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(
-		t('new-item', { item: _.toLower(t('staff-profile')) }),
+	let str: string = capitalize(
+		t('new-item', { item: toLower(t('staff-profile')) }),
 	);
 
 	if (seo) {
@@ -36,7 +38,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
+		return get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;
@@ -81,12 +83,12 @@ const NewStaffProfilePage = () => {
 				heading={getPageTitle(t as never)}
 				links={[
 					{
-						name: _.capitalize(t('staff-profiles')),
+						name: capitalize(t('staff-profiles')),
 						href: FRONT_PATH_NAMES.staff.profiles.root,
 					},
 					{
-						name: _.capitalize(
-							t('new-item', { item: _.toLower(t('staff-profile')) }),
+						name: capitalize(
+							t('new-item', { item: toLower(t('staff-profile')) }),
 						),
 					},
 				]}

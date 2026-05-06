@@ -6,25 +6,25 @@ import Stack from '@mui/material/Stack';
 import type { Breakpoint } from '@mui/material/styles';
 import { useBoolean } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { makePath } from '@org/shared-ts/utils/string.utils';
 
 import { Logo } from '#app/components/logo/logo.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
-import { usePathname } from '#app/hooks/use-pathname.ts';
+import { FEATURES } from '#app/lib/features/flags.ts';
 import { allLangs } from '#app/lib/locales/all-langs.ts';
 
-import { ColorSchemePopover } from '../components/colorscheme-popover';
 import { LanguagePopover } from '../components/language-popover';
+import { MarketingColorSchemeToggle } from '../components/marketing-colorscheme-toggle';
 import { MenuButton } from '../components/menu-button';
 import { SignInButton } from '../components/sign-in-button';
 import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
 import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
 import { MainSection, type MainSectionProps } from '../core/main-section';
 import { navData as mainNavData } from '../nav-config-main';
-import { Footer, type FooterProps, HomeFooter } from './footer';
+import { type FooterProps, HomeFooter } from './footer';
 import { NavDesktop } from './nav/desktop';
 import { NavMobile } from './nav/mobile';
 import type { NavMainProps } from './nav/types';
@@ -37,6 +37,24 @@ const ANCHOR_LINKS: { label: string; href: string }[] = [
 	{ label: 'Pricing', href: '#pricing' },
 	{ label: 'FAQ', href: '#faqs' },
 ];
+
+// useSyncExternalStore keeps the header's scroll styling SSR-safe without a
+// mount-time setState flash, which React Doctor flags for hydrated pages.
+const subscribeToWindowScroll = (onStoreChange: () => void) => {
+	window.addEventListener('scroll', onStoreChange, { passive: true });
+
+	return () => {
+		window.removeEventListener('scroll', onStoreChange);
+	};
+};
+
+const getScrolledSnapshot = () => {
+	return window.scrollY > 8;
+};
+
+const getServerScrolledSnapshot = () => {
+	return false;
+};
 
 type LayoutBaseProps = Pick<LayoutSectionProps, 'sx' | 'children' | 'cssVars'>;
 
@@ -59,24 +77,12 @@ export const MainLayout = ({
 	slotProps,
 	layoutQuery = 'md',
 }: MainLayoutProps) => {
-	const pathname = usePathname();
-
 	const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
-
-	const [scrolled, setScrolled] = useState(false);
-
-	useEffect(() => {
-		const onScroll = () => {
-			return setScrolled(window.scrollY > 8);
-		};
-		onScroll();
-		window.addEventListener('scroll', onScroll, { passive: true });
-		return () => {
-			return window.removeEventListener('scroll', onScroll);
-		};
-	}, []);
-
-	const isHomePage = pathname === '/';
+	const scrolled = useSyncExternalStore(
+		subscribeToWindowScroll,
+		getScrolledSnapshot,
+		getServerScrolledSnapshot,
+	);
 
 	const navData = slotProps?.nav?.data ?? mainNavData;
 
@@ -122,13 +128,19 @@ export const MainLayout = ({
 							key={link.href}
 							component="a"
 							href={link.href}
-							sx={{
-								fontSize: 14,
-								fontWeight: 600,
-								color: 'text.secondary',
-								textDecoration: 'none',
-								transition: 'color 0.2s ease',
-								'&:hover': { color: 'text.primary' },
+							sx={(theme) => {
+								return {
+									fontSize: 14,
+									fontWeight: 600,
+									color: 'text.secondary',
+									textDecoration: 'none',
+									transition: 'color 0.2s ease',
+									'&:hover': { color: 'text.primary' },
+									...theme.applyStyles('dark', {
+										color: 'common.white',
+										'&:hover': { color: 'common.white', opacity: 0.85 },
+									}),
+								};
 							}}
 						>
 							{link.label}
@@ -160,35 +172,51 @@ export const MainLayout = ({
 						gap: { xs: 0.5, sm: 1 },
 					}}
 				>
-					{/** @slot Language switcher */}
-					<LanguagePopover
-						data={allLangs}
-						popoverSlotProps={{ arrow: { placement: 'top-center' } }}
-					/>
+					{/** @slot Language switcher — gated; default off for marketing
+					    until additional locales ship. */}
+					{FEATURES.marketing.languageSwitcher ? (
+						<LanguagePopover
+							data={allLangs}
+							popoverSlotProps={{ arrow: { placement: 'top-center' } }}
+						/>
+					) : null}
 
-					{/** @slot Color scheme toggle */}
-					<ColorSchemePopover
-						popoverSlotProps={{ arrow: { placement: 'top-center' } }}
-					/>
+					{/** @slot Color scheme toggle — marketing variant flips
+					    light↔dark immediately, no popover. */}
+					<MarketingColorSchemeToggle />
 
 					{/** @slot Sign in button */}
 					<SignInButton
 						size="large"
-						sx={{
-							borderRadius: 2,
-							fontWeight: 600,
-							borderColor: 'divider',
-							bgcolor: 'background.paper',
-							backdropFilter: 'blur(12px)',
-							color: 'text.primary',
-							transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-							'&:hover': {
-								bgcolor: 'background.paper',
-								color: 'text.primary',
+						sx={(theme) => {
+							return {
+								borderRadius: 2,
+								fontWeight: 600,
 								borderColor: 'divider',
-								transform: 'translateY(-1px)',
-								boxShadow: '0 8px 16px -8px rgba(17,24,39,0.15)',
-							},
+								bgcolor: 'background.paper',
+								backdropFilter: 'blur(12px)',
+								color: 'text.primary',
+								transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+								'&:hover': {
+									bgcolor: 'background.paper',
+									color: 'text.primary',
+									borderColor: 'divider',
+									transform: 'translateY(-1px)',
+									boxShadow: '0 8px 16px -8px rgba(17,24,39,0.15)',
+								},
+								...theme.applyStyles('dark', {
+									bgcolor: 'background.default',
+									borderColor: 'divider',
+									color: 'common.white',
+									'&:hover': {
+										bgcolor: 'background.default',
+										color: 'common.white',
+										borderColor: 'divider',
+										transform: 'translateY(-1px)',
+										boxShadow: '0 8px 16px -8px rgba(0,0,0,0.45)',
+									},
+								}),
+							};
 						}}
 					/>
 
@@ -276,11 +304,7 @@ export const MainLayout = ({
 		/>
 	);
 
-	const footerSection = isHomePage ? (
-		<HomeFooter sx={slotProps?.footer?.sx} />
-	) : (
-		<Footer sx={slotProps?.footer?.sx} layoutQuery={layoutQuery} />
-	);
+	const footerSection = <HomeFooter sx={slotProps?.footer?.sx} />;
 
 	const mainSection = (
 		<MainSection {...slotProps?.main}>{children}</MainSection>

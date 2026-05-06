@@ -22,6 +22,7 @@ const optimizeDepsIncludes = [
 	'lodash/first',
 	'lodash/forEach',
 	'lodash/get',
+	'lodash/groupBy',
 	'lodash/isArray',
 	'lodash/isEqual',
 	'lodash/isNil',

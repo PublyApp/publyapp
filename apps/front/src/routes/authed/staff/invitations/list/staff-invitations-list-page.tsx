@@ -1,7 +1,8 @@
 import { isServer } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import get from 'lodash/get';
 import { data } from 'react-router';
 
 import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
@@ -12,11 +13,11 @@ import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/staff-invitations-list-page';
-import { NewInvitationButton } from './parts/new-invitation-button';
-import StaffInvitationsTable from './parts/staff-invitations-table';
+import { NewInvitationButton } from './_parts/new-invitation-button';
+import StaffInvitationsTable from './_parts/staff-invitations-table';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(t('staff-invitations'));
+	let str: string = capitalize(t('staff-invitations'));
 
 	if (seo) {
 		str = `${str} | Staff Dashboard - ${APP_NAME}`;
@@ -27,7 +28,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
+		return get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;
@@ -64,10 +65,10 @@ const StaffInvitationsListPage = () => {
 				heading={getPageTitle(t as never)}
 				links={[
 					{
-						name: _.capitalize(t('staff-invitations')),
+						name: capitalize(t('staff-invitations')),
 						href: FRONT_PATH_NAMES.staff.invitations.root,
 					},
-					{ name: _.capitalize(t('list')) },
+					{ name: capitalize(t('list')) },
 				]}
 				action={<NewInvitationButton />}
 				sx={{ mb: { xs: 3, md: 5 } }}
