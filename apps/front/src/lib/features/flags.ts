@@ -29,6 +29,13 @@ export const FEATURES = deepFreeze({
 		// MarketingNotFoundPage when enabled
 		blog: readFlag('VITE_FEATURE_MARKETING_BLOG', true),
 		changelog: readFlag('VITE_FEATURE_MARKETING_CHANGELOG', true),
+		// Phase 5 changelog secondary surfaces — default OFF, opt-in once
+		// real data / signup endpoint exist
+		changelogStats: readFlag('VITE_FEATURE_MARKETING_CHANGELOG_STATS', false),
+		changelogSubscribe: readFlag(
+			'VITE_FEATURE_MARKETING_CHANGELOG_SUBSCRIBE',
+			false,
+		),
 		integrations: readFlag('VITE_FEATURE_MARKETING_INTEGRATIONS', true),
 		help: readFlag('VITE_FEATURE_MARKETING_HELP', true),
 		community: readFlag('VITE_FEATURE_MARKETING_COMMUNITY', true),
