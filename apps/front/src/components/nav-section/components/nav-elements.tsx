@@ -1,7 +1,7 @@
 import { styled } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 
-import { navSectionClasses } from '../styles';
+import { navSectionClasses } from '../styles/classes';
 
 // ----------------------------------------------------------------------
 

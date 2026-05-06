@@ -1,20 +1,18 @@
 import type { Components, Theme } from '@mui/material/styles';
 import { createTheme as createMuiTheme } from '@mui/material/styles';
 
-import type { SettingsState } from '#app/components/settings/index.ts';
+import type { SettingsState } from '#app/components/settings/types.ts';
 
 import { components } from './core/components';
 import { customShadows } from './core/custom-shadows';
-import { mixins } from './core/mixins';
+import { mixins } from './core/mixins/mixins';
 import { palette } from './core/palette';
 import { shadows } from './core/shadows';
 import { typography } from './core/typography';
 import { themeConfig } from './theme-config';
 import type { ThemeOptions } from './types';
-import {
-	updateComponentsWithSettings,
-	updateCoreWithSettings,
-} from './with-settings';
+import { updateComponentsWithSettings } from './with-settings/update-components';
+import { updateCoreWithSettings } from './with-settings/update-core';
 
 // ----------------------------------------------------------------------
 

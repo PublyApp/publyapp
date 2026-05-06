@@ -39,17 +39,15 @@ import { Field } from '#app/components/hook-form/fields.tsx';
 import { HelperText } from '#app/components/hook-form/help-text.tsx';
 import { Form } from '#app/components/hook-form/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { NavCollapse } from '#app/components/nav-section/components/nav-collapse.tsx';
 import {
 	Nav,
-	NavCollapse,
 	NavLi,
-	NavSubheader,
 	NavUl,
-} from '#app/components/nav-section/components/index.ts';
-import {
-	navSectionClasses,
-	navSectionCssVars,
-} from '#app/components/nav-section/styles/index.ts';
+} from '#app/components/nav-section/components/nav-elements.tsx';
+import { NavSubheader } from '#app/components/nav-section/components/nav-subheader.tsx';
+import { navSectionClasses } from '#app/components/nav-section/styles/classes.ts';
+import { navSectionCssVars } from '#app/components/nav-section/styles/css-vars.ts';
 import type {
 	NavGroupProps,
 	NavListProps,

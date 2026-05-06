@@ -8,7 +8,7 @@ import { Scrollbar } from '#app/components/scrollbar/scrollbar.tsx';
 import { usePathname } from '#app/hooks/use-pathname.ts';
 
 import { SignInButton } from '../../../components/sign-in-button';
-import { Nav, NavUl } from '../components';
+import { Nav, NavUl } from '../components/nav-elements';
 import type { NavMainProps } from '../types';
 import { NavList } from './nav-mobile-list';
 

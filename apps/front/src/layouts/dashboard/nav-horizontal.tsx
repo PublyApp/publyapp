@@ -3,10 +3,8 @@ import Divider from '@mui/material/Divider';
 import type { Breakpoint } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 
-import {
-	NavSectionHorizontal,
-	type NavSectionProps,
-} from '#app/components/nav-section/index.ts';
+import { NavSectionHorizontal } from '#app/components/nav-section/horizontal/nav-section-horizontal.tsx';
+import type { NavSectionProps } from '#app/components/nav-section/types.ts';
 
 import { layoutClasses } from '../core/classes';
 

@@ -3,13 +3,11 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { isActiveLink, isExternalLink, varAlpha } from 'minimal-shared/utils';
 import { useCallback, useRef } from 'react';
 
-import {
-	NavSectionVertical,
-	navSectionClasses,
-} from '#app/components/nav-section/index.ts';
+import { navSectionClasses } from '#app/components/nav-section/styles/classes.ts';
+import { NavSectionVertical } from '#app/components/nav-section/vertical/nav-section-vertical.tsx';
 import { usePathname } from '#app/hooks/use-pathname.ts';
 
-import { NavLi } from '../components';
+import { NavLi } from '../components/nav-elements';
 import type { NavListProps } from '../types';
 import { NavItem } from './nav-mobile-item';
 

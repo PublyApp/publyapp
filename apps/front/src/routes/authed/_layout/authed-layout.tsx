@@ -21,7 +21,7 @@ import { View500 } from '#app/components/error/500-view.tsx';
 import { NotFoundView } from '#app/components/error/not-found-view.tsx';
 import { ViewTenantSuspended } from '#app/components/error/tenant-suspended-view.tsx';
 import { SplashScreen } from '#app/components/loading-screen/splash-screen.tsx';
-import type { SettingsState } from '#app/components/settings/index.ts';
+import type { SettingsState } from '#app/components/settings/types.ts';
 import { toast } from '#app/components/snackbar/index.ts';
 import { toApiFailure } from '#app/lib/api-failure/index.ts';
 import {

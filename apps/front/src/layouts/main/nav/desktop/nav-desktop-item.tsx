@@ -3,11 +3,9 @@ import { type CSSObject, styled } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
-import {
-	createNavItem,
-	navItemStyles,
-	navSectionClasses,
-} from '#app/components/nav-section/index.ts';
+import { navSectionClasses } from '#app/components/nav-section/styles/classes.ts';
+import { navItemStyles } from '#app/components/nav-section/styles/nav-item-styles.ts';
+import { createNavItem } from '#app/components/nav-section/utils/create-nav-item.ts';
 
 import type { NavItemProps } from '../types';
 

@@ -7,7 +7,7 @@ import { mergeClasses } from 'minimal-shared/utils';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 
 import { iconifyClasses } from '../../iconify/classes';
-import { navSectionClasses } from '../styles';
+import { navSectionClasses } from '../styles/classes';
 
 // ----------------------------------------------------------------------
 

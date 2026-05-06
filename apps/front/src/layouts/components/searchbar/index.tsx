@@ -15,7 +15,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { Label } from '#app/components/label/label.tsx';
-import type { NavSectionProps } from '#app/components/nav-section/index.ts';
+import type { NavSectionProps } from '#app/components/nav-section/types.ts';
 import { Scrollbar } from '#app/components/scrollbar/scrollbar.tsx';
 import { SearchNotFound } from '#app/components/search-not-found/search-not-found.tsx';
 

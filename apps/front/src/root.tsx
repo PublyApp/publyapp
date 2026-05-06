@@ -29,12 +29,12 @@ import {
 import { View403 } from '#app/components/error/403-view.tsx';
 import { View500 } from '#app/components/error/500-view.tsx';
 import { NotFoundView } from '#app/components/error/not-found-view.tsx';
+import { SettingsDrawer } from '#app/components/settings/drawer/settings-drawer.tsx';
 import {
 	COLOR_SCHEME_STORAGE_KEY,
 	defaultSettings,
 	SETTINGS_STORAGE_KEY,
-	SettingsDrawer,
-} from '#app/components/settings/index.ts';
+} from '#app/components/settings/settings-config.ts';
 
 import './styles/main.css';
 import type { Route } from './+types/root';

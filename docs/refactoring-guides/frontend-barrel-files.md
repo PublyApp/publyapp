@@ -2,7 +2,7 @@
 
 <!-- markdownlint-disable MD013 -->
 
-Status: phase 3 implemented for issue #378, part of #77.
+Status: phase 4 implemented for issue #379, part of #77.
 
 ## Policy
 
@@ -28,8 +28,8 @@ rg --files apps/front/src | rg '(^|/|\\)index\.(ts|tsx)$'
 
 Current counts:
 
-- `apps/front/src`: 34 `index.ts` / `index.tsx` files.
-- `apps/front/src`: 31 pure hand-written re-export barrels.
+- `apps/front/src`: 7 `index.ts` / `index.tsx` files.
+- `apps/front/src`: 4 pure hand-written facade barrels kept intentionally.
 - `apps/front/src`: 3 `index.ts(x)` implementation or aggregate modules, not pure
   re-export barrels.
 - `packages/client-ts/src`: 72 generated `index.ts` files, excluded from cleanup.
@@ -96,46 +96,50 @@ These inherited template component barrels were removed in issue #378.
 | `apps/front/src/components/file-thumbnail/index.ts` |
 | `apps/front/src/components/upload/index.ts` |
 
+## Removed In Phase 4
+
+These coupled layout, navigation, settings, cookies, and theme barrels were removed in
+issue #379 after migrating consumers to concrete module imports.
+
+| Path |
+| --- |
+| `apps/front/src/components/nav-basic/components/index.ts` |
+| `apps/front/src/components/nav-basic/desktop/index.ts` |
+| `apps/front/src/components/nav-basic/index.ts` |
+| `apps/front/src/components/nav-basic/mobile/index.ts` |
+| `apps/front/src/components/nav-basic/styles/index.ts` |
+| `apps/front/src/components/nav-basic/utils/index.ts` |
+| `apps/front/src/components/nav-section/components/index.ts` |
+| `apps/front/src/components/nav-section/horizontal/index.ts` |
+| `apps/front/src/components/nav-section/index.ts` |
+| `apps/front/src/components/nav-section/mini/index.ts` |
+| `apps/front/src/components/nav-section/styles/index.ts` |
+| `apps/front/src/components/nav-section/utils/index.ts` |
+| `apps/front/src/components/nav-section/vertical/index.ts` |
+| `apps/front/src/components/settings/drawer/index.ts` |
+| `apps/front/src/components/settings/index.ts` |
+| `apps/front/src/layouts/auth-split/index.ts` |
+| `apps/front/src/layouts/core/index.ts` |
+| `apps/front/src/layouts/dashboard/index.ts` |
+| `apps/front/src/layouts/main/index.ts` |
+| `apps/front/src/layouts/main/nav/components/index.ts` |
+| `apps/front/src/layouts/main/nav/desktop/index.ts` |
+| `apps/front/src/layouts/main/nav/mobile/index.ts` |
+| `apps/front/src/layouts/simple/index.ts` |
+| `apps/front/src/lib/cookies/index.ts` |
+| `apps/front/src/lib/mui/theme/core/index.ts` |
+| `apps/front/src/lib/mui/theme/core/mixins/index.ts` |
+| `apps/front/src/lib/mui/theme/with-settings/index.ts` |
+
 ## Remove
 
-No broad **Remove** candidates remain after phase 3. The remaining hand-written
-frontend barrels are classified as **Keep** or **Narrow**.
+No broad **Remove** candidates remain after phase 4. The remaining frontend indexes
+are intentional **Keep** entries.
 
 ## Narrow
 
-These areas are more coupled. Treat them in the case-by-case phase: remove them if they
-are only inherited convenience exports, or keep a small explicit public facade when it
-protects a useful module boundary.
-
-| Path | Current index refs | Suggested phase | Notes |
-| --- | ---: | --- | --- |
-| `apps/front/src/components/nav-basic/components/index.ts` | 0 | Phase 4 | Navigation internals. |
-| `apps/front/src/components/nav-basic/desktop/index.ts` | 0 | Phase 4 | Navigation internals. |
-| `apps/front/src/components/nav-basic/index.ts` | 0 | Phase 4 | Navigation facade. |
-| `apps/front/src/components/nav-basic/mobile/index.ts` | 0 | Phase 4 | Navigation internals. |
-| `apps/front/src/components/nav-basic/styles/index.ts` | 0 | Phase 4 | Navigation styling helpers. |
-| `apps/front/src/components/nav-basic/utils/index.ts` | 0 | Phase 4 | Navigation utility helper. |
-| `apps/front/src/components/nav-section/components/index.ts` | 1 | Phase 4 | Navigation internals. |
-| `apps/front/src/components/nav-section/horizontal/index.ts` | 0 | Phase 4 | Navigation internals. |
-| `apps/front/src/components/nav-section/index.ts` | 11 | Phase 4 | Heavily used navigation facade. |
-| `apps/front/src/components/nav-section/mini/index.ts` | 0 | Phase 4 | Navigation internals. |
-| `apps/front/src/components/nav-section/styles/index.ts` | 1 | Phase 4 | Navigation styling helpers. |
-| `apps/front/src/components/nav-section/utils/index.ts` | 0 | Phase 4 | Navigation utility helper. |
-| `apps/front/src/components/nav-section/vertical/index.ts` | 0 | Phase 4 | Navigation internals. |
-| `apps/front/src/components/settings/drawer/index.ts` | 0 | Phase 4 | Settings submodule facade. |
-| `apps/front/src/components/settings/index.ts` | 6 | Phase 4 | Settings facade used by app root/layouts. |
-| `apps/front/src/layouts/auth-split/index.ts` | 0 | Phase 4 | Layout facade. |
-| `apps/front/src/layouts/core/index.ts` | 0 | Phase 4 | Layout primitives facade. |
-| `apps/front/src/layouts/dashboard/index.ts` | 0 | Phase 4 | Layout facade. |
-| `apps/front/src/layouts/main/index.ts` | 0 | Phase 4 | Layout facade. |
-| `apps/front/src/layouts/main/nav/components/index.ts` | 0 | Phase 4 | Main-nav internals. |
-| `apps/front/src/layouts/main/nav/desktop/index.ts` | 0 | Phase 4 | Main-nav internals. |
-| `apps/front/src/layouts/main/nav/mobile/index.ts` | 0 | Phase 4 | Main-nav internals. |
-| `apps/front/src/layouts/simple/index.ts` | 0 | Phase 4 | Layout facade. |
-| `apps/front/src/lib/cookies/index.ts` | 2 | Phase 4 | Mixed client/server cookie exports; split or make explicit. |
-| `apps/front/src/lib/mui/theme/core/index.ts` | 0 | Phase 4 | Theme facade. |
-| `apps/front/src/lib/mui/theme/core/mixins/index.ts` | 0 | Phase 4 | Theme helper facade. |
-| `apps/front/src/lib/mui/theme/with-settings/index.ts` | 1 | Phase 4 | Theme settings facade. |
+No **Narrow** candidates remain after phase 4. The remaining frontend indexes are
+intentional **Keep** entries.
 
 ## Generated Client Exclusion
 
@@ -152,9 +156,9 @@ concrete file and the PR remains mechanical.
 Phase 3 removed inherited template component barrels with broader `export *`
 surfaces. These were the main cleanup targets for dependency clarity.
 
-Phase 4 should review layout, nav, settings, cookies, and theme facades case by case.
-Do not delete these mechanically; decide whether the module boundary benefits from a
-small explicit facade.
+Phase 4 reviewed layout, nav, settings, cookies, and theme facades case by case.
+The inherited convenience barrels did not protect useful module boundaries, so
+consumers now import from concrete files.
 
 Phase 5 should add a guardrail that rejects new unapproved hand-written barrels under
 `apps/front/src` while allowlisting generated client files and intentional facades.
