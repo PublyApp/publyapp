@@ -49,12 +49,20 @@ public class SessionService : ISessionService {
 		var query =
 			from s in _dbContext.Session
 			join u in _dbContext.User on s.UserId equals u.Id
-			where s.Token == token && s.ExpiresAt > DateTime.UtcNow
+			where s.Token == token && !s.IsDeleted
 			select new { Session = s, User = u };
 
 		var result = await query.FirstOrDefaultAsync(cancellationToken);
 
-		if (result is null) return null;
+		if (result is null) {
+			return null;
+		}
+
+		if (result.Session.ExpiresAt <= DateTime.UtcNow) {
+			_dbContext.ForceHardDelete(result.Session);
+			await _dbContext.SaveChangesAsync(cancellationToken);
+			return null;
+		}
 
 		// Runtime filtering
 		if (result.User.IsDeleted || result.User.IsSuspended() || !result.User.IsVerified) {
