@@ -12,15 +12,19 @@ namespace MainApi.Src.Modules.Users.Entities;
 /// This is intentionally a pure junction entity: the composite key is the identity,
 /// and unassigning a profile hard-deletes the row. Historical assignment data belongs
 /// in audit logs, not in inactive junction rows.
+/// `UserAccountId` and `ProfileId` are foreign keys and together form the composite
+/// primary key. They are not a surrogate row id.
 /// </remarks>
 [Table("user_account_profiles")]
 public class UserAccountProfile : INoTenantEntity {
+	// Foreign key to user_accounts.id; first half of the composite primary key.
 	[Column("user_account_id")]
 	public Guid UserAccountId { get; set; }
 
 	[JsonIgnore]
 	public UserAccount UserAccount { get; set; } = null!;
 
+	// Foreign key to profiles.id; second half of the composite primary key.
 	[Column("profile_id")]
 	public Guid ProfileId { get; set; }
 

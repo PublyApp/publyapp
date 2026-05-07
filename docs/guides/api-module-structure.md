@@ -30,6 +30,32 @@ Examples:
 - `ProfilePermission` → lives in `Profiles/` (primary: Profile)
 - `InvitationProfile` → lives in `Invitations/` (primary: Invitation)
 
+## Junction Entity Key Rule
+
+Pure junction entities represent current membership between two existing rows. Their
+identity is the foreign-key pair itself, so they must use a composite primary key made
+from those foreign-key columns.
+
+Required pattern:
+- Do **not** inherit `BaseAttributes` or `BaseAttributesNoKey`.
+- Do **not** add a surrogate `id` column.
+- Do **not** add `is_deleted` or `deleted_at` columns.
+- Keep `created_at`/`updated_at` manually when timestamps are useful for sorting,
+  auditing context, or consistency with other junction entities.
+- Configure the composite key explicitly in `MainApiDbContext` with
+  `entity.HasKey(e => new { e.LeftForeignKeyId, e.RightForeignKeyId });`.
+- Treat row existence as the active assignment state. Unassignment/revocation should
+  hard-delete the junction row; historical assignment data belongs in `AuditLog`.
+
+Examples:
+- `InvitationProfile`: `PRIMARY KEY (invitation_id, profile_id)`
+- `UserAccountProfile`: `PRIMARY KEY (user_account_id, profile_id)`
+- `ProfilePermission`: `PRIMARY KEY (profile_id, permission_key)`
+
+The `InvitationId`, `ProfileId`, `UserAccountId`, and `PermissionKey` properties are
+foreign-key values and composite-key parts. They are required; they are not surrogate
+row identifiers like a standalone `id` column.
+
 ## Infrastructure Services Placement Rules
 
 **Infrastructure folder** (`Infrastructure/`): Technical/architectural services that provide capabilities TO domain modules
