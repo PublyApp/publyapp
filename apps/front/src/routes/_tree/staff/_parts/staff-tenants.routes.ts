@@ -25,6 +25,15 @@ export const staffTenantsRoutes = [
 				),
 				route(
 					getLastPath(
+						FRONT_PATH_NAMES.staff.tenants
+							.details(':tenantId')
+							.users.details(':userId'),
+						2,
+					),
+					'routes/authed/staff/tenants/details/users/details/tenant-user-details-page.tsx',
+				),
+				route(
+					getLastPath(
 						FRONT_PATH_NAMES.staff.tenants.details(':tenantId').tabs
 							.invitations,
 					),

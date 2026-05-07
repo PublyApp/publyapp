@@ -473,6 +473,29 @@ export const useFindTenantUsers = createStaffQuery({
 	},
 });
 
+export const useGetTenantUser = createStaffQuery({
+	queryKeyFn: (client) =>
+		client.staff.tenants.byTenantId('').users.byUserId('').get,
+	fetcher: async (
+		client,
+		params: {
+			tenantId: string;
+			userId: string;
+		},
+	) => {
+		const result = await client.staff.tenants
+			.byTenantId(params.tenantId)
+			.users.byUserId(params.userId)
+			.get();
+
+		if (isNil(result)) {
+			throw new Error('useGetTenantUser: result is nil');
+		}
+
+		return result;
+	},
+});
+
 type FindTenantInvitationsParams = {
 	tenantId: string;
 	cursor?: string;

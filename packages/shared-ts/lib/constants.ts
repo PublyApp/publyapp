@@ -237,6 +237,25 @@ export const FRONT_PATH_NAMES = {
 							'profiles',
 						),
 					},
+					users: {
+						root: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenants,
+							'details',
+							tenantId,
+							'users',
+						),
+						details: (userId = '') => {
+							return makePath(
+								ROOTS.STAFF,
+								RESOURCE.tenants,
+								'details',
+								tenantId,
+								'users',
+								userId,
+							);
+						},
+					},
 				};
 			},
 		},
