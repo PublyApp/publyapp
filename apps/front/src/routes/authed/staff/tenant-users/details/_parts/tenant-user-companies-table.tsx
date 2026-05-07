@@ -150,22 +150,26 @@ const TenantUserCompaniesTable = () => {
 				header: t('tenant'),
 				Cell: CompanyCell,
 				size: 320,
+				grow: true,
 			}),
 			columnHelper.accessor('level', {
 				header: t('level'),
 				Cell: (props) => <CompanyLevelCell company={props.row.original} />,
-				size: 170,
+				size: 130,
+				grow: false,
 			}),
 			columnHelper.accessor('status', {
 				header: t('status'),
 				Cell: (props) => <CompanyStatusCell company={props.row.original} />,
-				size: 160,
+				size: 130,
+				grow: false,
 			}),
 			columnHelper.display({
 				id: 'actions',
 				header: t('actions'),
 				Cell: (props) => <CompanyActionsCell company={props.row.original} />,
-				size: 120,
+				size: 80,
+				grow: false,
 			}),
 		];
 	}, [t]);
