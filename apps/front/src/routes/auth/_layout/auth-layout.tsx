@@ -2,8 +2,8 @@ import i18next from 'i18next';
 import first from 'lodash/first';
 import some from 'lodash/some';
 import toLower from 'lodash/toLower';
-import { Suspense } from 'react';
-import { Outlet, redirect } from 'react-router';
+import { type ReactNode, Suspense } from 'react';
+import { isRouteErrorResponse, Outlet, redirect } from 'react-router';
 
 import {
 	FRONT_PATH_NAMES,
@@ -13,9 +13,14 @@ import {
 } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
+import { View401 } from '#app/components/error/401-view.tsx';
+import { View500 } from '#app/components/error/500-view.tsx';
+import { GenericErrorView } from '#app/components/error/generic-error-view.tsx';
+import { NotFoundView } from '#app/components/error/not-found-view.tsx';
 import { SplashScreen } from '#app/components/loading-screen/splash-screen.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { AuthSplitLayout } from '#app/layouts/auth-split/layout.tsx';
+import { toApiFailure } from '#app/lib/api-failure/index.ts';
 import {
 	clearSessionCookie,
 	getSessionCookieFromClient,
@@ -27,6 +32,8 @@ import { getQueryClient } from '#app/lib/react-query/query-client.tsx';
 import { getClientLoader } from '#app/lib/react-router/client-data.ts';
 import { safeRun } from '#app/lib/react-router/safeRun.ts';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
+
+import type { Route } from './+types/auth-layout';
 
 export const loader = getServerLoader({
 	loader: async ({ request, sessionToken, staffToken, tenantToken }) => {
@@ -215,4 +222,42 @@ export default AuthLayout;
 
 export const HydrateFallback = () => {
 	return <SplashScreen />;
+};
+
+export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
+	const { t } = useTranslate();
+	const failure = toApiFailure(error);
+
+	const renderInLayout = (view: ReactNode) => {
+		return (
+			<AuthSplitLayout
+				slotProps={{
+					section: { title: t('auth-welcome-title'), subtitle: '' },
+				}}
+			>
+				{view}
+			</AuthSplitLayout>
+		);
+	};
+
+	// Route 404 (typo'd /auth/X)
+	if (isRouteErrorResponse(error) && error.status === 404) {
+		return renderInLayout(<NotFoundView withLayout={false} />);
+	}
+
+	// CRITICAL: a 401 in the auth surface does NOT trigger logout. The user
+	// is not logged in to begin with — auth-surface 401s typically come from
+	// expired URL-borne tokens (invitation, reset). Show the view + back-to-
+	// login CTA. Contrast with authed-layout.tsx where 401 → logout.
+	if (failure.kind === 'problem' && failure.status === 401) {
+		return renderInLayout(<View401 withLayout={false} />);
+	}
+
+	// Network failure (auth server unreachable)
+	if (failure.kind === 'network') {
+		return renderInLayout(<View500 withLayout={false} />);
+	}
+
+	// Render exception / unknown — generic with back-to-sign-in
+	return renderInLayout(<GenericErrorView withLayout={false} />);
 };
