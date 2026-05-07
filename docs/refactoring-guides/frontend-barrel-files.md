@@ -2,7 +2,7 @@
 
 <!-- markdownlint-disable MD013 -->
 
-Status: phase 4 implemented for issue #379, part of #77.
+Status: phase 5 implemented for issue #380, part of #77.
 
 ## Policy
 
@@ -141,6 +141,41 @@ are intentional **Keep** entries.
 No **Narrow** candidates remain after phase 4. The remaining frontend indexes are
 intentional **Keep** entries.
 
+## Guardrail
+
+Phase 5 added `scripts/check-frontend-barrels.mjs` to reject new unapproved
+hand-written `apps/front/src/**/index.ts(x)` files.
+
+Run it directly with:
+
+```powershell
+pnpm check:frontend-barrels
+```
+
+It also runs through existing quality commands:
+
+- `pnpm lint`
+- `pnpm lint:fix`
+- `just check`
+- `just check-write`
+
+The script scans only `apps/front/src`, so generated Kiota client barrels under
+`packages/client-ts` are ignored.
+
+To add an exception, update both:
+
+- `allowedFrontendIndexFiles` in `scripts/check-frontend-barrels.mjs`
+- the **Keep** table in this guide with the reason the facade is intentional
+
+Do not add an exception for inherited convenience exports. Prefer concrete module
+imports unless the module benefits from one canonical, documented public surface.
+
+The guardrail tests are:
+
+```powershell
+pnpm test:frontend-barrels
+```
+
 ## Generated Client Exclusion
 
 `packages/client-ts/src` currently has 72 generated `index.ts` files. Leave them alone
@@ -160,5 +195,5 @@ Phase 4 reviewed layout, nav, settings, cookies, and theme facades case by case.
 The inherited convenience barrels did not protect useful module boundaries, so
 consumers now import from concrete files.
 
-Phase 5 should add a guardrail that rejects new unapproved hand-written barrels under
-`apps/front/src` while allowlisting generated client files and intentional facades.
+Phase 5 added a guardrail that rejects new unapproved hand-written barrels under
+`apps/front/src` while allowing the documented intentional frontend indexes.
