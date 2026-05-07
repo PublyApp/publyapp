@@ -8,8 +8,8 @@ import Typography from '@mui/material/Typography';
 import { usePopover } from 'minimal-shared/hooks';
 import { useCallback } from 'react';
 
-import { CustomPopover } from '#app/components/custom-popover/index.ts';
-import { Label } from '#app/components/label/index.ts';
+import { CustomPopover } from '#app/components/custom-popover/custom-popover.tsx';
+import { Label } from '#app/components/label/label.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { usePathname } from '#app/hooks/use-pathname.ts';
 import { logout } from '#app/lib/cookies/logout.utils.ts';

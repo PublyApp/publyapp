@@ -8,7 +8,8 @@ import { useCallback, useEffect, useRef } from 'react';
 
 import { usePathname } from '#app/hooks/use-pathname.ts';
 
-import { Nav, NavDropdown, NavLi, NavUl } from '../components';
+import { NavDropdown } from '../components/nav-dropdown';
+import { Nav, NavLi, NavUl } from '../components/nav-elements';
 import type { NavListProps, NavSubListProps } from '../types';
 import { NavItem } from './nav-desktop-item';
 import { NavItemDashboard } from './nav-desktop-item-dashboard';

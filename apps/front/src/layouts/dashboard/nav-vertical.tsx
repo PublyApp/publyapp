@@ -2,13 +2,11 @@ import Box from '@mui/material/Box';
 import { type Breakpoint, styled } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 
-import { Logo } from '#app/components/logo/index.ts';
-import {
-	NavSectionMini,
-	type NavSectionProps,
-	NavSectionVertical,
-} from '#app/components/nav-section/index.ts';
-import { Scrollbar } from '#app/components/scrollbar/index.ts';
+import { Logo } from '#app/components/logo/logo.tsx';
+import { NavSectionMini } from '#app/components/nav-section/mini/nav-section-mini.tsx';
+import type { NavSectionProps } from '#app/components/nav-section/types.ts';
+import { NavSectionVertical } from '#app/components/nav-section/vertical/nav-section-vertical.tsx';
+import { Scrollbar } from '#app/components/scrollbar/scrollbar.tsx';
 
 import { layoutClasses } from '../core/classes';
 

@@ -16,14 +16,12 @@ import {
 } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
-import {
-	NotFoundView,
-	View403,
-	View500,
-	ViewTenantSuspended,
-} from '#app/components/error/index.ts';
-import { SplashScreen } from '#app/components/loading-screen/index.ts';
-import type { SettingsState } from '#app/components/settings/index.ts';
+import { View403 } from '#app/components/error/403-view.tsx';
+import { View500 } from '#app/components/error/500-view.tsx';
+import { NotFoundView } from '#app/components/error/not-found-view.tsx';
+import { ViewTenantSuspended } from '#app/components/error/tenant-suspended-view.tsx';
+import { SplashScreen } from '#app/components/loading-screen/splash-screen.tsx';
+import type { SettingsState } from '#app/components/settings/types.ts';
 import { toast } from '#app/components/snackbar/index.ts';
 import { toApiFailure } from '#app/lib/api-failure/index.ts';
 import {

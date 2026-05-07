@@ -10,7 +10,7 @@ import type { Country, Value } from 'react-phone-number-input/input';
 import PhoneNumberInput from 'react-phone-number-input/input';
 
 import { countries } from '#app/assets/data/countries.ts';
-import { Iconify } from '#app/components/iconify/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
 
 import { CountryListPopover } from './list-popover';
 import type { PhoneInputProps } from './types';

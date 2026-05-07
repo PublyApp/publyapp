@@ -14,10 +14,10 @@ import { useParams } from 'react-router';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
-import { CustomPopover } from '#app/components/custom-popover/index.ts';
+import { CustomPopover } from '#app/components/custom-popover/custom-popover.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
-import { Scrollbar } from '#app/components/scrollbar/index.ts';
+import { Scrollbar } from '#app/components/scrollbar/scrollbar.tsx';
 
 // ----------------------------------------------------------------------
 

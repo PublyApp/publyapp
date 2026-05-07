@@ -1,6 +1,8 @@
 import * as cookie from 'cookie';
 import i18next, { type TFunction } from 'i18next';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import get from 'lodash/get';
+import toString from 'lodash/toString';
 import { useEffect, useRef } from 'react';
 import { data, redirect, useSearchParams } from 'react-router';
 import { serializeError } from 'serialize-error';
@@ -17,6 +19,7 @@ import {
 
 import { toast } from '#app/components/snackbar/index.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { formatSessionCookie } from '#app/lib/cookies/session-cookie.utils.ts';
 import {
 	getTenantHintForUser,
 	isSecureCookieFromRequest,
@@ -24,8 +27,7 @@ import {
 	serializeClearLegacyCookieHeaders,
 	serializeTenantHintsForResponse,
 	setTenantHintForUser,
-} from '#app/lib/cookies/index.ts';
-import { formatSessionCookie } from '#app/lib/cookies/session-cookie.utils.ts';
+} from '#app/lib/cookies/tenant-hint-cookie.utils.ts';
 import { getClientManager } from '#app/lib/js-client/client-manager.ts';
 import { safeRun } from '#app/lib/react-router/safeRun.ts';
 import {
@@ -50,7 +52,7 @@ const getSafeRedirectTo = (value: string | null): string | undefined => {
 };
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(t('login'));
+	let str: string = capitalize(t('login'));
 
 	if (seo) {
 		str = `${str} | ${APP_NAME}`;
@@ -61,7 +63,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
+		return get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;
@@ -91,8 +93,8 @@ export const action = getServerAction({
 			),
 		);
 
-		const email = _.toString(formData.get('email'));
-		const password = _.toString(formData.get('password'));
+		const email = toString(formData.get('email'));
+		const password = toString(formData.get('password'));
 
 		const passwordLogin = safeRun(
 			async ({ email, password }: { email: string; password: string }) => {

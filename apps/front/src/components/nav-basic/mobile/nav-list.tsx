@@ -4,8 +4,9 @@ import { useCallback, useEffect, useRef } from 'react';
 
 import { usePathname } from '#app/hooks/use-pathname.ts';
 
-import { NavCollapse, NavLi, NavUl } from '../components';
-import { navBasicClasses } from '../styles';
+import { NavCollapse } from '../components/nav-collapse';
+import { NavLi, NavUl } from '../components/nav-elements';
+import { navBasicClasses } from '../styles/classes';
 import type { NavListProps, NavSubListProps } from '../types';
 import { NavItem } from './nav-item';
 

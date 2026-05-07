@@ -3,12 +3,10 @@ import Drawer from '@mui/material/Drawer';
 import { mergeClasses } from 'minimal-shared/utils';
 import { useEffect, useRef } from 'react';
 
-import { Logo } from '#app/components/logo/index.ts';
-import {
-	type NavSectionProps,
-	NavSectionVertical,
-} from '#app/components/nav-section/index.ts';
-import { Scrollbar } from '#app/components/scrollbar/index.ts';
+import { Logo } from '#app/components/logo/logo.tsx';
+import type { NavSectionProps } from '#app/components/nav-section/types.ts';
+import { NavSectionVertical } from '#app/components/nav-section/vertical/nav-section-vertical.tsx';
+import { Scrollbar } from '#app/components/scrollbar/scrollbar.tsx';
 import { usePathname } from '#app/hooks/use-pathname.ts';
 
 import { layoutClasses } from '../core/classes';

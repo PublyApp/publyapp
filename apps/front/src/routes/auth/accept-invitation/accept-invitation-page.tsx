@@ -11,7 +11,10 @@ import * as cookie from 'cookie';
 import dayjs from 'dayjs';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import get from 'lodash/get';
+import isEqual from 'lodash/isEqual';
+import toLower from 'lodash/toLower';
 import { useForm } from 'react-hook-form';
 import { Trans } from 'react-i18next';
 import {
@@ -41,14 +44,14 @@ import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { logout } from '#app/lib/cookies/logout.utils.ts';
+import { formatSessionCookie } from '#app/lib/cookies/session-cookie.utils.ts';
 import {
 	isSecureCookieFromRequest,
 	readTenantHintsFromRequestHeaders,
 	serializeTenantHintsForResponse,
 	setTenantHintForUser,
-} from '#app/lib/cookies/index.ts';
-import { logout } from '#app/lib/cookies/logout.utils.ts';
-import { formatSessionCookie } from '#app/lib/cookies/session-cookie.utils.ts';
+} from '#app/lib/cookies/tenant-hint-cookie.utils.ts';
 import { env } from '#app/lib/env.ts';
 import { getClientManager } from '#app/lib/js-client/client-manager.ts';
 import { safeRun } from '#app/lib/react-router/safeRun.ts';
@@ -61,7 +64,7 @@ import { interZodClient } from '#app/lib/zod/zod.client.ts';
 import type { Route } from './+types/accept-invitation-page';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(t('accept-invitation'));
+	let str: string = capitalize(t('accept-invitation'));
 
 	if (seo) {
 		str = `${str} | ${APP_NAME}`;
@@ -72,7 +75,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
+		return get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;
@@ -172,10 +175,7 @@ export const loader = getServerLoader({
 
 		const isSessionMismatch =
 			Boolean(currentUserEmail) &&
-			!_.isEqual(
-				_.toLower(currentUserEmail),
-				_.toLower(result.data?.email ?? ''),
-			);
+			!isEqual(toLower(currentUserEmail), toLower(result.data?.email ?? ''));
 
 		return {
 			code: 'VALID',
@@ -236,10 +236,7 @@ export const action = getServerAction({
 					invitationDetailsResult.data?.email ?? undefined;
 				const isSessionMismatch =
 					Boolean(currentUserEmail) &&
-					!_.isEqual(
-						_.toLower(currentUserEmail),
-						_.toLower(invitationEmail ?? ''),
-					);
+					!isEqual(toLower(currentUserEmail), toLower(invitationEmail ?? ''));
 
 				if (isSessionMismatch) {
 					return {

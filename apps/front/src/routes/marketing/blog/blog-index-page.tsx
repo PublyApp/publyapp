@@ -7,7 +7,7 @@ import { parseAsStringEnum, useQueryState } from 'nuqs';
 
 import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
-import { hoverZoom } from '#app/components/animate/index.ts';
+import { hoverZoom } from '#app/components/animate/variants/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { Image } from '#app/components/image/image.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';

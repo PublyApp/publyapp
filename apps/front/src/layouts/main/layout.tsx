@@ -25,8 +25,8 @@ import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
 import { MainSection, type MainSectionProps } from '../core/main-section';
 import { navData as mainNavData } from '../nav-config-main';
 import { type FooterProps, HomeFooter } from './footer';
-import { NavDesktop } from './nav/desktop';
-import { NavMobile } from './nav/mobile';
+import { NavDesktop } from './nav/desktop/nav-desktop';
+import { NavMobile } from './nav/mobile/nav-mobile';
 import type { NavMainProps } from './nav/types';
 
 // ----------------------------------------------------------------------

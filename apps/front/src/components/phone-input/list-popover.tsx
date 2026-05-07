@@ -11,10 +11,10 @@ import { usePopover } from 'minimal-shared/hooks';
 import { useMemo } from 'react';
 import type { Country } from 'react-phone-number-input/input';
 
-import { Iconify } from '#app/components/iconify/index.ts';
+import { Iconify } from '#app/components/iconify/iconify.tsx';
 
-import { FlagIcon } from '../flag-icon';
-import { SearchNotFound } from '../search-not-found';
+import { FlagIcon } from '../flag-icon/flag-icon';
+import { SearchNotFound } from '../search-not-found/search-not-found';
 import type { CountryListProps } from './types';
 
 // ----------------------------------------------------------------------

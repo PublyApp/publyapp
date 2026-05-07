@@ -10,10 +10,10 @@ import Typography from '@mui/material/Typography';
 import { usePopover } from 'minimal-shared/hooks';
 import { useCallback, useState } from 'react';
 
-import { CustomPopover } from '#app/components/custom-popover/index.ts';
+import { CustomPopover } from '#app/components/custom-popover/custom-popover.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
-import { Label } from '#app/components/label/index.ts';
-import { Scrollbar } from '#app/components/scrollbar/index.ts';
+import { Label } from '#app/components/label/label.tsx';
+import { Scrollbar } from '#app/components/scrollbar/scrollbar.tsx';
 
 // ----------------------------------------------------------------------
 

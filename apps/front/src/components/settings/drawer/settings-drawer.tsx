@@ -11,11 +11,11 @@ import { useCallback } from 'react';
 
 import { themeConfig } from '#app/lib/mui/theme/theme-config.ts';
 import type { ThemeColorScheme } from '#app/lib/mui/theme/types.ts';
-import { primaryColorPresets } from '#app/lib/mui/theme/with-settings/index.ts';
+import { primaryColorPresets } from '#app/lib/mui/theme/with-settings/color-presets.ts';
 
 import { useSettingsContext } from '../../../hooks/use-settings-context';
 import { Iconify } from '../../iconify/iconify';
-import { Scrollbar } from '../../scrollbar';
+import { Scrollbar } from '../../scrollbar/scrollbar';
 import type {
 	SettingsContextValue,
 	SettingsDrawerProps,

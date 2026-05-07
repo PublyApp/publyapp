@@ -12,7 +12,7 @@ import { SimpleLayout } from '#app/layouts/simple/layout.tsx';
 
 import { MotionContainer } from '../animate/motion-container';
 import { varBounce } from '../animate/variants';
-import { Iconify } from '../iconify';
+import { Iconify } from '../iconify/iconify';
 import { RouterLink } from '../router-link';
 
 // ----------------------------------------------------------------------

@@ -1,12 +1,13 @@
-import _ from 'lodash';
+import isBoolean from 'lodash/isBoolean';
 import { useBoolean } from 'minimal-shared/hooks';
 import { isActiveLink, isExternalLink } from 'minimal-shared/utils';
 import { useCallback, useEffect, useRef } from 'react';
 
 import { usePathname } from '#app/hooks/use-pathname.ts';
 
-import { NavCollapse, NavLi, NavUl } from '../components';
-import { navSectionClasses } from '../styles';
+import { NavCollapse } from '../components/nav-collapse';
+import { NavLi, NavUl } from '../components/nav-elements';
+import { navSectionClasses } from '../styles/classes';
 import type { NavListProps, NavSubListProps } from '../types';
 import { NavItem } from './nav-item';
 
@@ -26,7 +27,7 @@ export const NavList = ({
 	const isActive = isActiveLink(
 		pathname,
 		data.path,
-		_.isBoolean(data.deepActiveMatch) ? data.deepActiveMatch : !!data.children,
+		isBoolean(data.deepActiveMatch) ? data.deepActiveMatch : !!data.children,
 	);
 
 	const { value: open, onFalse: onClose, onToggle } = useBoolean(isActive);

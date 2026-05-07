@@ -1,7 +1,8 @@
 import { useTheme } from '@mui/material/styles';
 
-import { Nav, NavUl } from '../components';
-import { navBasicClasses, navBasicVars } from '../styles';
+import { Nav, NavUl } from '../components/nav-elements';
+import { navBasicClasses } from '../styles/classes';
+import { navBasicVars } from '../styles/css-vars';
 import type { NavBasicProps } from '../types';
 import { NavList } from './nav-list';
 
