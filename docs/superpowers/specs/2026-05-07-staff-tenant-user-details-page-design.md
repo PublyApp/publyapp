@@ -237,7 +237,7 @@ Required primitives to reuse:
 Required layout pattern:
 
 - `DashboardContent` inside the normal Staff app sidebar shell
-- a wider details page width that can comfortably host an MRT table
+- same `maxWidth="md"` details page width as Staff user details
 - two-column top details layout
 - left card with disabled avatar upload and user status chip
 - right column with the editable identity form card and a separate metadata card

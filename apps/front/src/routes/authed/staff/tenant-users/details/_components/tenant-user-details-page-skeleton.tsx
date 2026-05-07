@@ -10,14 +10,22 @@ export const TenantUserDetailsPageSkeleton = () => {
 		<DashboardContent
 			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
 			compact
-			maxWidth="lg"
+			maxWidth="md"
 		>
 			<Box sx={{ mb: { xs: 3, md: 5 } }}>
 				<Skeleton variant="text" width="38%" height={44} />
 				<Skeleton variant="text" width="52%" height={22} />
 			</Box>
 
-			<Stack spacing={3}>
+			<Stack
+				spacing={3}
+				sx={{
+					flexGrow: 1,
+					minHeight: 0,
+					display: 'flex',
+					flexDirection: 'column',
+				}}
+			>
 				<Box sx={{ containerType: 'inline-size' }}>
 					<Box
 						sx={{
@@ -117,7 +125,7 @@ export const TenantUserDetailsPageSkeleton = () => {
 					</Box>
 				</Box>
 
-				<Card sx={{ p: 3 }}>
+				<Card sx={{ p: 3, flexGrow: 1, minHeight: 0 }}>
 					<Skeleton variant="text" width={180} height={32} />
 					<Skeleton variant="text" width={260} height={20} sx={{ mb: 3 }} />
 					<Stack spacing={1.5}>

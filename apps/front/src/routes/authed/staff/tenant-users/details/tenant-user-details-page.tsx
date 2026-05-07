@@ -136,7 +136,7 @@ const TenantUserDetailsPage = () => {
 				return (
 					<DashboardContent
 						sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
-						maxWidth="lg"
+						maxWidth="md"
 						compact
 					>
 						<CustomBreadcrumbs
@@ -152,7 +152,15 @@ const TenantUserDetailsPage = () => {
 							sx={{ mb: { xs: 3, md: 5 } }}
 						/>
 
-						<Stack spacing={3}>
+						<Stack
+							spacing={3}
+							sx={{
+								flexGrow: 1,
+								minHeight: 0,
+								display: 'flex',
+								flexDirection: 'column',
+							}}
+						>
 							<TenantUserUpdateForm
 								currentUser={currentUser}
 								companyTenantIds={companyTenantIds}

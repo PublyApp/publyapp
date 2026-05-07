@@ -190,7 +190,16 @@ const TenantUserUpdateForm = ({
 						},
 					}}
 				>
-					<Card sx={{ pt: 8, pb: 5, px: 3, minWidth: 0, overflow: 'hidden' }}>
+					<Card
+						sx={{
+							pt: 8,
+							pb: 5,
+							px: 3,
+							minWidth: 0,
+							height: 'fit-content',
+							overflow: 'hidden',
+						}}
+					>
 						<Box sx={{ textAlign: 'center' }}>
 							<Box sx={{ mb: 3 }}>
 								<Field.UploadAvatar
@@ -300,11 +309,6 @@ export const TenantUserCompaniesList = ({
 				Cell: CompanyStatusCell,
 				size: 160,
 			}),
-			columnHelper.accessor('updatedAt', {
-				header: t('updated-at'),
-				Cell: UpdatedAtCell,
-				size: 180,
-			}),
 			columnHelper.display({
 				id: 'actions',
 				header: t('actions'),
@@ -344,23 +348,21 @@ export const TenantUserCompaniesList = ({
 		muiTablePaperProps: {
 			sx: {
 				minHeight: 0,
-				height: 'auto',
-				flexGrow: 0,
-				border: '1px solid',
-				borderColor: 'divider',
-				borderRadius: 1,
-				overflow: 'hidden',
-			},
-		},
-		muiTableContainerProps: {
-			sx: {
-				maxHeight: 'none',
+				flexGrow: 1,
 			},
 		},
 	});
 
 	return (
-		<Box sx={{ minWidth: 0 }}>
+		<Box
+			sx={{
+				minWidth: 0,
+				minHeight: 0,
+				flexGrow: 1,
+				display: 'flex',
+				flexDirection: 'column',
+			}}
+		>
 			<MaterialReactTable table={table} />
 		</Box>
 	);
@@ -553,19 +555,6 @@ const CompanyStatusCell: MRT_ColumnDef<
 			unknownLabel={capitalize(t('unknown'))}
 			colorMap={TENANT_USER_STATUS_COLOR_MAP}
 		/>
-	);
-};
-
-const UpdatedAtCell: MRT_ColumnDef<
-	TenantUserCompanyData,
-	DatePickerFormat | undefined
->['Cell'] = (props) => {
-	const value = props.cell.getValue();
-
-	return (
-		<Typography variant="body2" sx={{ color: 'text.secondary' }}>
-			{value ? fDateTime(value) : '-'}
-		</Typography>
 	);
 };
 
