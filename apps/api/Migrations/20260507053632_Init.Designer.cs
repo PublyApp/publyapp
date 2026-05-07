@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MainApi.Migrations
 {
     [DbContext(typeof(MainApiDbContext))]
-    [Migration("20260502130832_Init")]
+    [Migration("20260507053632_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -396,43 +396,25 @@ namespace MainApi.Migrations
 
             modelBuilder.Entity("MainApi.Src.Modules.Profiles.Entities.ProfilePermission", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
+                    b.Property<Guid>("ProfileId")
                         .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuidv7()");
+                        .HasColumnName("profile_id");
+
+                    b.Property<string>("PermissionKey")
+                        .HasColumnType("text")
+                        .HasColumnName("permission_key");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
-
-                    b.Property<string>("PermissionKey")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("permission_key");
-
-                    b.Property<Guid>("ProfileId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("profile_id");
-
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.HasKey("Id");
+                    b.HasKey("ProfileId", "PermissionKey");
 
                     b.HasIndex("PermissionKey");
-
-                    b.HasIndex("ProfileId", "PermissionKey")
-                        .IsUnique();
 
                     b.ToTable("profile_permissions");
                 });
@@ -802,41 +784,25 @@ namespace MainApi.Migrations
 
             modelBuilder.Entity("MainApi.Src.Modules.Users.Entities.UserAccountProfile", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
+                    b.Property<Guid>("UserAccountId")
                         .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
+                        .HasColumnName("user_account_id");
 
                     b.Property<Guid>("ProfileId")
                         .HasColumnType("uuid")
                         .HasColumnName("profile_id");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<Guid>("UserAccountId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("user_account_id");
-
-                    b.HasKey("Id");
+                    b.HasKey("UserAccountId", "ProfileId");
 
                     b.HasIndex("ProfileId");
-
-                    b.HasIndex("UserAccountId", "ProfileId")
-                        .IsUnique();
 
                     b.ToTable("user_account_profiles");
                 });
@@ -935,13 +901,15 @@ namespace MainApi.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MainApi.Src.Modules.Profiles.Entities.Profile", null)
+                    b.HasOne("MainApi.Src.Modules.Profiles.Entities.Profile", "Profile")
                         .WithMany("ProfilePermissions")
                         .HasForeignKey("ProfileId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Permission");
+
+                    b.Navigation("Profile");
                 });
 
             modelBuilder.Entity("MainApi.Src.Modules.Projects.Entities.Project", b =>

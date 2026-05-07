@@ -3,10 +3,20 @@ using System.Reflection;
 
 using FluentAssertions;
 
+using MainApi.Src.Data.DbContext;
+using MainApi.Src.Modules.Profiles.Entities;
+using MainApi.Src.Modules.Users.Entities;
+
+using Microsoft.EntityFrameworkCore;
+
 using Xunit;
 
 namespace MainApi.Src.Lib.Architecture {
 	public sealed class ArchitectureGuardSpec {
+		static ArchitectureGuardSpec() {
+			AppEnvironment.Initialize();
+		}
+
 		[Fact]
 		public void
 		ItShouldRejectPatchFieldInHttpDtos() {
@@ -36,6 +46,47 @@ namespace MainApi.Src.Lib.Architecture {
 				+ "wire DTOs (Body/Query/Response records). "
 				+ "Use it only in service args records."
 			);
+		}
+
+		[Fact]
+		public void ItShouldUseCompositeKeysForJunctionTables() {
+			// This guard protects the junction-table convention from drifting back to
+			// BaseAttributes, which would silently reintroduce id/soft-delete columns.
+			var options = new DbContextOptionsBuilder<MainApiDbContext>()
+				.UseNpgsql("Host=localhost;Database=architecture_guard")
+				.Options;
+			using var dbContext = new MainApiDbContext(options);
+
+			AssertCompositeJunctionKey<UserAccountProfile>(
+				dbContext,
+				[nameof(UserAccountProfile.UserAccountId), nameof(UserAccountProfile.ProfileId)]
+			);
+			AssertCompositeJunctionKey<ProfilePermission>(
+				dbContext,
+				[nameof(ProfilePermission.ProfileId), nameof(ProfilePermission.PermissionKey)]
+			);
+		}
+
+		private static void AssertCompositeJunctionKey<TEntity>(
+			MainApiDbContext dbContext,
+			string[] expectedKeyPropertyNames
+		) {
+			var entityType = dbContext.Model.FindEntityType(typeof(TEntity));
+			entityType.Should().NotBeNull();
+
+			var primaryKeyPropertyNames = entityType!.FindPrimaryKey()
+				?.Properties
+				.Select(property => property.Name)
+				.ToArray();
+
+			primaryKeyPropertyNames.Should().Equal(expectedKeyPropertyNames);
+			// The absence checks matter as much as the key check: inactive membership rows
+			// would change auth semantics by making revoked links queryable again.
+			entityType.FindProperty("Id").Should().BeNull();
+			entityType.FindProperty("IsDeleted").Should().BeNull();
+			entityType.FindProperty("DeletedAt").Should().BeNull();
+			entityType.FindProperty("CreatedAt").Should().NotBeNull();
+			entityType.FindProperty("UpdatedAt").Should().NotBeNull();
 		}
 
 		private static bool ContainsPatchField(Type type) {

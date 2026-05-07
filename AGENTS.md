@@ -142,6 +142,9 @@ slice boundaries, permission enforcement, vertical slice design principles, and 
 **Key principles (always apply):**
 - Domain-first modules: `apps/api/Src/Modules/<Domain>/` — route scope expressed via handler folders + endpoint groups
 - Junction entities live with their **primary entity**'s domain
+- Pure junction entities use a composite primary key made from their foreign keys; do not inherit
+  `BaseAttributes`, do not add a surrogate `id`, and do not add `is_deleted`/`deleted_at`.
+  Unassignment hard-deletes the junction row; history belongs in audit logs.
 - Infrastructure services go in `Infrastructure/`, domain services in `Modules/<Domain>/Services/`
 - Split by actor (Staff/Tenant) when auth/security boundary differs; share handler when only permission differs
 - Enforce permissions at the route level with `.WithPermission()` (Pattern 1, preferred)
@@ -154,7 +157,9 @@ For detailed documentation on business rules, database layer, authentication, an
 
 **Key facts (always apply):**
 - Staff/Tenant mutual exclusivity: a `User` can only have accounts of ONE scope type (Staff or Tenant/Project, never both); suspended accounts still count
-- PostgreSQL 18 with UUID v7 PKs, soft deletes (`IsDeleted`), audit tracking (`CreatedAt`/`UpdatedAt`/`DeletedAt`), all entities inherit `BaseAttributes`
+- PostgreSQL 18 with UUID v7 PKs, soft deletes (`IsDeleted`), and audit tracking
+  (`CreatedAt`/`UpdatedAt`/`DeletedAt`) for normal entities via `BaseAttributes`;
+  pure junction entities use composite foreign-key primary keys with manual timestamps instead
 - Session-based auth via `X-Session-Token`; permission-based authorization via `PermissionFilter`
 - Middleware order: Security headers → Exception handling → CORS → Tenant header → Session header → Session auth → Staff auth
 

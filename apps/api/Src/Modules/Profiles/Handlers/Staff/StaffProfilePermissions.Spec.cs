@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
+using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Routes;
@@ -12,14 +13,19 @@ using MainApi.Src.Lib.Testing.Fixtures;
 using MainApi.Src.Lib.Testing.Helpers;
 using MainApi.Src.Lib.Utils;
 
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
 using Xunit;
 
 public sealed class StaffProfilePermissionsSpec
 	: IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
 	public StaffProfilePermissionsSpec(ApiFixture fixture) {
+		_fixture = fixture;
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);
 	}
@@ -182,6 +188,38 @@ public sealed class StaffProfilePermissionsSpec
 	}
 
 	[Fact]
+	public async Task ItShouldHardDeletePermissionRowWhenUnassigned() {
+		// The public DELETE contract is still idempotent, but internally the row must be
+		// gone so the composite primary key represents only active grants.
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var profileId = await CreateStaffProfileAsync(token);
+		var profileGuid = Guid.Parse(profileId);
+		var permissionKey = AppPermissions.Staff.Users.GET_FOR_STAFF.Key;
+
+		using (var assignRequest = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetPermissionToggleUrl(profileId, permissionKey)
+		).WithSessionToken(token)) {
+			using var assignResponse = await _http.SendAsync(assignRequest);
+			assignResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+		}
+
+		(await CountProfilePermissionRowsAsync(profileGuid, permissionKey))
+			.Should().Be(1);
+
+		using (var unassignRequest = new HttpRequestMessage(
+			HttpMethod.Delete,
+			GetPermissionToggleUrl(profileId, permissionKey)
+		).WithSessionToken(token)) {
+			using var unassignResponse = await _http.SendAsync(unassignRequest);
+			unassignResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+		}
+
+		(await CountProfilePermissionRowsAsync(profileGuid, permissionKey))
+			.Should().Be(0);
+	}
+
+	[Fact]
 	public async Task ItShouldReturnBadRequestForAssigningUnknownPermissionKey() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 		var profileId = await CreateStaffProfileAsync(token);
@@ -255,6 +293,21 @@ public sealed class StaffProfilePermissionsSpec
 		}
 
 		return payload.PermissionKeys;
+	}
+
+	private async Task<int> CountProfilePermissionRowsAsync(
+		Guid profileId,
+		string permissionKey
+	) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+
+		return await dbContext.ProfilePermission
+			.IgnoreQueryFilters()
+			.CountAsync(pp =>
+				pp.ProfileId == profileId
+				&& pp.PermissionKey == permissionKey
+			);
 	}
 
 	// -- Response DTOs --

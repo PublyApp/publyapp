@@ -720,15 +720,11 @@ public class UserService : IUserService {
 			return new DeleteStaffUserResult.NotFound();
 		}
 
+		// Profile links have no independent lifecycle after the staff account is deleted.
+		// ExecuteDeleteAsync bypasses soft-delete conversion and removes membership rows.
 		await _dbContext.UserAccountProfile
-			.Where(x => x.UserAccountId == target.UserAccountId && !x.IsDeleted)
-			.ExecuteUpdateAsync(
-				setters => setters
-					.SetProperty(x => x.IsDeleted, true)
-					.SetProperty(x => x.DeletedAt, now)
-					.SetProperty(x => x.UpdatedAt, now),
-				cancellationToken
-			);
+			.Where(x => x.UserAccountId == target.UserAccountId)
+			.ExecuteDeleteAsync(cancellationToken);
 
 		await transaction.CommitAsync(cancellationToken);
 
@@ -1375,12 +1371,12 @@ public class UserService : IUserService {
 		}
 
 		// Load currently assigned staff profiles (via the junction table).
-		// We filter out deleted links and deleted profiles and enforce staff-scope profiles only.
+		// Junction rows are hard-deleted when unassigned, so row existence is the active
+		// assignment state. We still filter deleted profiles and enforce staff scope.
 		var assignedProfilesRaw = await (
 			from uap in _dbContext.UserAccountProfile
 			join p in _dbContext.Profile on uap.ProfileId equals p.Id
 			where uap.UserAccountId == staffAccountId.Value
-				&& !uap.IsDeleted
 				&& !p.IsDeleted
 				&& p.Scope == ProfileScope.Staff
 			select new { p.Id, p.Name, p.Description }
@@ -1486,56 +1482,38 @@ public class UserService : IUserService {
 
 		var lockedStaffAccountId = lockedStaffAccount.GetRequiredId();
 
-		// "Replace set" semantics for a junction table that uses soft-delete:
+		// "Replace set" semantics for a pure junction table:
 		// - remove links that are currently assigned but not in the new set
 		// - add links that are in the new set but not currently assigned
-		//
-		// IMPORTANT:
-		// `user_account_profiles` has a unique constraint on (UserAccountId, ProfileId).
-		// If we soft-delete a link, inserting the same pair later will violate the constraint.
-		// So we:
-		// - hard-delete links we remove (ForceHardDeleteRange), and
-		// - when re-adding a previously soft-deleted link, we "undelete" it instead of inserting.
 		var existingLinks = await (
 			from uap in _dbContext.UserAccountProfile
 			where uap.UserAccountId == lockedStaffAccountId
 			select uap
 		).ToListAsync(cancellationToken);
 
-		var existingLinksByProfileId = existingLinks
-			.ToDictionary(x => x.ProfileId, x => x);
-
-		var activeProfileIds = existingLinks
-			.Where(x => !x.IsDeleted)
+		var existingProfileIds = existingLinks
 			.Select(x => x.ProfileId)
 			.ToHashSet();
 
 		var desiredProfileIds = profileIds.Distinct().ToList();
 
 		var linksToRemove = existingLinks
-			.Where(x => !x.IsDeleted && !desiredProfileIds.Contains(x.ProfileId))
+			.Where(x => !desiredProfileIds.Contains(x.ProfileId))
 			.ToList();
 
 		if (linksToRemove.Count > 0) {
-			// Force hard delete to avoid leaving rows that would block future re-adds due to the unique constraint.
-			_dbContext.ForceHardDeleteRange(linksToRemove);
+			// RemoveRange is a hard delete because UserAccountProfile no longer inherits
+			// BaseAttributesNoKey, so SaveChanges will not convert it to soft-delete.
+			_dbContext.UserAccountProfile.RemoveRange(linksToRemove);
 		}
 
 		var toAddIds = desiredProfileIds
-			.Where(id => !activeProfileIds.Contains(id))
+			.Where(id => !existingProfileIds.Contains(id))
 			.ToList();
 
+		// Only insert missing pairs. Existing composite-key rows already mean assigned.
 		var linksToInsert = new List<UserAccountProfile>();
 		foreach (var profileId in toAddIds) {
-			if (existingLinksByProfileId.TryGetValue(profileId, out var existingLink)) {
-				if (existingLink.IsDeleted) {
-					// "Undelete" to satisfy the uniqueness constraint on (UserAccountId, ProfileId).
-					existingLink.IsDeleted = false;
-					existingLink.DeletedAt = null;
-				}
-				continue;
-			}
-
 			linksToInsert.Add(new UserAccountProfile {
 				UserAccountId = lockedStaffAccountId,
 				ProfileId = profileId

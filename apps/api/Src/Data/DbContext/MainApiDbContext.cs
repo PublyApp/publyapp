@@ -248,6 +248,40 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		modelBuilder.Entity<Permission>()
 			.Ignore(p => p.Translations);
 
+		// ProfilePermission is an active-state junction table. The composite key prevents
+		// duplicate grants without carrying a surrogate id or soft-delete state.
+		modelBuilder.Entity<ProfilePermission>(entity => {
+			entity.HasKey(e => new { e.ProfileId, e.PermissionKey });
+
+			// Cascade from Profile/Permission is appropriate because the junction row has no
+			// independent lifecycle once either side of the relationship disappears.
+			entity.HasOne(e => e.Profile)
+				.WithMany(p => p.ProfilePermissions)
+				.HasForeignKey(e => e.ProfileId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			entity.HasOne(e => e.Permission)
+				.WithMany(p => p.ProfilePermissions)
+				.HasForeignKey(e => e.PermissionKey)
+				.OnDelete(DeleteBehavior.Cascade);
+		});
+
+		// UserAccountProfile mirrors the same active-state design. User/profile assignment
+		// history is tracked via audit logs, while this table stores current membership only.
+		modelBuilder.Entity<UserAccountProfile>(entity => {
+			entity.HasKey(e => new { e.UserAccountId, e.ProfileId });
+
+			entity.HasOne(e => e.UserAccount)
+				.WithMany(ua => ua.UserAccountProfiles)
+				.HasForeignKey(e => e.UserAccountId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			entity.HasOne(e => e.Profile)
+				.WithMany(p => p.UserAccountProfiles)
+				.HasForeignKey(e => e.ProfileId)
+				.OnDelete(DeleteBehavior.Cascade);
+		});
+
 		// Explicit relationships for Session -> User (two FKs to same principal)
 		modelBuilder.Entity<Session>()
 			.HasOne(s => s.User)

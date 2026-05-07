@@ -109,7 +109,7 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		(await response.Content.ReadFromJsonAsync<ApiResponse>())!.Key
 			.Should().Be(ResponseKeys.StaffUserDeletedSuccess);
 
-		await AssertSoftDeletedRowsAsync(userId, expectedProfileLinkCount: 2);
+		await AssertSoftDeletedRowsAsync(userId, expectedProfileLinkCount: 0);
 		await AssertFindStaffUsersDoesNotContainAsync(staffToken, userId);
 		await AssertGetStaffUserReturnsNotFoundAsync(staffToken, userId);
 		await AssertGetStaffUserProfilesReturnsNotFoundAsync(staffToken, userId);
@@ -186,11 +186,8 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 			.Where(x => x.UserAccountId == staffAccount.GetRequiredId())
 			.ToListAsync();
 
+		// Profile links are active-state rows; deleting the staff account removes them.
 		userAccountProfiles.Should().HaveCount(expectedProfileLinkCount);
-		userAccountProfiles.Should().OnlyContain(x =>
-			x.IsDeleted
-			&& x.DeletedAt != null
-		);
 	}
 
 	private async Task<string> CreateStaffUserAsync(string staffToken, string email) {
