@@ -2,7 +2,7 @@ import Portal from '@mui/material/Portal';
 import { type SxProps, styled, type Theme } from '@mui/material/styles';
 import { Fragment } from 'react';
 
-import { AnimateLogoZoom } from '../animate';
+import { AnimateLogoZoom } from '../animate/animate-logo';
 
 // ----------------------------------------------------------------------
 

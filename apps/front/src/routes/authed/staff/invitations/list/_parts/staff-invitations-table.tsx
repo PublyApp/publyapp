@@ -30,8 +30,8 @@ import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
-import type { LabelColor } from '#app/components/label/index.ts';
 import { Label } from '#app/components/label/label.tsx';
+import type { LabelColor } from '#app/components/label/types.ts';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';

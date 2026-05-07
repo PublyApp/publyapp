@@ -1,6 +1,7 @@
 import { Controller, useFormContext } from 'react-hook-form';
 
-import { Editor, type EditorProps } from '../editor';
+import { Editor } from '../editor/editor';
+import type { EditorProps } from '../editor/types';
 
 // ----------------------------------------------------------------------
 

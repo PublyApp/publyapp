@@ -26,19 +26,21 @@ import {
 	queryParamValue,
 } from '@org/shared-ts/lib/constants';
 
-import { NotFoundView, View403, View500 } from '#app/components/error/index.ts';
+import { View403 } from '#app/components/error/403-view.tsx';
+import { View500 } from '#app/components/error/500-view.tsx';
+import { NotFoundView } from '#app/components/error/not-found-view.tsx';
+import { SettingsDrawer } from '#app/components/settings/drawer/settings-drawer.tsx';
 import {
 	COLOR_SCHEME_STORAGE_KEY,
 	defaultSettings,
 	SETTINGS_STORAGE_KEY,
-	SettingsDrawer,
-} from '#app/components/settings/index.ts';
+} from '#app/components/settings/settings-config.ts';
 
 import './styles/main.css';
 import type { Route } from './+types/root';
 import { MotionLazy } from './components/animate/motion-lazy';
 import View400 from './components/error/400-view';
-import { ProgressBar } from './components/progress-bar';
+import { ProgressBar } from './components/progress-bar/progress-bar';
 import { Snackbar } from './components/snackbar/snackbar';
 import { useNonce } from './hooks/use-nonce-context';
 import { logout } from './lib/cookies/logout.utils';

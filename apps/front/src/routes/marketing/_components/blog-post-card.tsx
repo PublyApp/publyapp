@@ -8,7 +8,7 @@ import {
 	hoverLift,
 	hoverPadCollapse,
 	hoverZoom,
-} from '#app/components/animate/index.ts';
+} from '#app/components/animate/variants/index.ts';
 import { Image } from '#app/components/image/image.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import {

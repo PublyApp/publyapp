@@ -16,7 +16,7 @@ import type {
 } from './core/components/pagination';
 import type { SliderExtendColor } from './core/components/slider';
 import type { CustomShadows } from './core/custom-shadows';
-import type { MixinsExtend } from './core/mixins';
+import type { MixinsExtend } from './core/mixins/mixins';
 import type {
 	CommonColorsExtend,
 	GreyExtend,

@@ -5,7 +5,8 @@ import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 
 import { fData } from '#app/utils/format-number.ts';
 
-import { FileThumbnail, fileData } from '../../file-thumbnail';
+import { FileThumbnail } from '../../file-thumbnail/file-thumbnail';
+import { fileData } from '../../file-thumbnail/utils';
 import { Iconify } from '../../iconify/iconify';
 import { uploadClasses } from '../classes';
 import type { MultiFilePreviewProps } from '../types';

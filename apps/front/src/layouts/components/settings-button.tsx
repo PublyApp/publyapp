@@ -7,7 +7,7 @@ import {
 	transitionTap,
 	varHover,
 	varTap,
-} from '#app/components/animate/index.ts';
+} from '#app/components/animate/variants/index.ts';
 import { useSettingsContext } from '#app/hooks/use-settings-context.ts';
 
 // ----------------------------------------------------------------------

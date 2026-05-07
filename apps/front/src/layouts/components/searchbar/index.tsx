@@ -14,10 +14,10 @@ import { varAlpha } from 'minimal-shared/utils';
 import { useCallback, useEffect, useState } from 'react';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
-import { Label } from '#app/components/label/index.ts';
-import type { NavSectionProps } from '#app/components/nav-section/index.ts';
-import { Scrollbar } from '#app/components/scrollbar/index.ts';
-import { SearchNotFound } from '#app/components/search-not-found/index.ts';
+import { Label } from '#app/components/label/label.tsx';
+import type { NavSectionProps } from '#app/components/nav-section/types.ts';
+import { Scrollbar } from '#app/components/scrollbar/scrollbar.tsx';
+import { SearchNotFound } from '#app/components/search-not-found/search-not-found.tsx';
 
 import { ResultItem } from './result-item';
 import { applyFilter, flattenNavSections } from './utils';

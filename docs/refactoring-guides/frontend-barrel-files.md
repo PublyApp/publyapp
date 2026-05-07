@@ -1,0 +1,199 @@
+# Frontend Barrel File Cleanup
+
+<!-- markdownlint-disable MD013 -->
+
+Status: phase 5 implemented for issue #380, part of #77.
+
+## Policy
+
+Prefer direct imports from the concrete module file in `apps/front/src`.
+
+Do not add new hand-written frontend barrel files by default. A barrel is allowed
+only when it is an intentional, narrow public facade for a module that benefits
+from one canonical import surface.
+
+Generated client barrels are out of scope. Do not manually edit or delete
+`packages/client-ts/**/index.ts`; Kiota generation owns those files.
+
+When a facade remains, prefer explicit exports over broad `export *` unless the module
+is intentionally exposing a large family of same-purpose helpers.
+
+## Inventory Summary
+
+Inventory command:
+
+```powershell
+rg --files apps/front/src | rg '(^|/|\\)index\.(ts|tsx)$'
+```
+
+Current counts:
+
+- `apps/front/src`: 7 `index.ts` / `index.tsx` files.
+- `apps/front/src`: 4 pure hand-written facade barrels kept intentionally.
+- `apps/front/src`: 3 `index.ts(x)` implementation or aggregate modules, not pure
+  re-export barrels.
+- `packages/client-ts/src`: 72 generated `index.ts` files, excluded from cleanup.
+
+Classification values:
+
+- **Remove**: migrate consumers to direct imports and delete the barrel when unused.
+- **Narrow**: review in the relevant phase; keep only a documented, explicit facade.
+- **Keep**: intentional public facade or not a barrel-file cleanup target.
+
+## Keep
+
+These are intentional facades or index-named implementation modules.
+
+| Path | Reason |
+| --- | --- |
+| `apps/front/src/components/animate/variants/index.ts` | Canonical animation preset surface. Keep unless later phases prove direct imports are clearer. |
+| `apps/front/src/components/hook-form/index.ts` | Canonical form component facade referenced by repo frontend standards. |
+| `apps/front/src/components/snackbar/index.ts` | Central toast/snackbar facade with `sonner` integration. |
+| `apps/front/src/layouts/components/notifications-drawer/index.tsx` | Implementation module, not a pure re-export barrel. |
+| `apps/front/src/layouts/components/searchbar/index.tsx` | Implementation module, not a pure re-export barrel. |
+| `apps/front/src/lib/api-failure/index.ts` | Canonical failure-message facade; already uses explicit exports. |
+| `apps/front/src/lib/mui/theme/core/components/index.ts` | Theme component aggregate implementation, not a pure re-export barrel. |
+
+## Removed In Phase 2
+
+These low-risk, single-purpose barrels were removed in issue #377.
+
+| Path |
+| --- |
+| `apps/front/src/assets/data/index.ts` |
+| `apps/front/src/components/animate/scroll-progress/index.ts` |
+| `apps/front/src/components/country-select/index.ts` |
+| `apps/front/src/components/custom-dialog/index.ts` |
+| `apps/front/src/components/custom-popover/index.ts` |
+| `apps/front/src/components/custom-tabs/index.ts` |
+| `apps/front/src/components/flag-icon/index.ts` |
+| `apps/front/src/components/iconify/index.ts` |
+| `apps/front/src/components/image/index.ts` |
+| `apps/front/src/components/label/index.ts` |
+| `apps/front/src/components/loading-screen/index.ts` |
+| `apps/front/src/components/logo/index.ts` |
+| `apps/front/src/components/number-input/index.ts` |
+| `apps/front/src/components/phone-input/index.ts` |
+| `apps/front/src/components/progress-bar/index.ts` |
+| `apps/front/src/components/scrollbar/index.ts` |
+| `apps/front/src/components/search-not-found/index.ts` |
+| `apps/front/src/components/svg-color/index.ts` |
+
+## Removed In Phase 3
+
+These inherited template component barrels were removed in issue #378.
+
+| Path |
+| --- |
+| `apps/front/src/assets/icons/index.ts` |
+| `apps/front/src/components/address/index.ts` |
+| `apps/front/src/components/animate/index.ts` |
+| `apps/front/src/components/brand-switcher/index.ts` |
+| `apps/front/src/components/custom-breadcrumbs/index.ts` |
+| `apps/front/src/components/editor/index.ts` |
+| `apps/front/src/components/empty-content/index.ts` |
+| `apps/front/src/components/error/index.ts` |
+| `apps/front/src/components/file-thumbnail/index.ts` |
+| `apps/front/src/components/upload/index.ts` |
+
+## Removed In Phase 4
+
+These coupled layout, navigation, settings, cookies, and theme barrels were removed in
+issue #379 after migrating consumers to concrete module imports.
+
+| Path |
+| --- |
+| `apps/front/src/components/nav-basic/components/index.ts` |
+| `apps/front/src/components/nav-basic/desktop/index.ts` |
+| `apps/front/src/components/nav-basic/index.ts` |
+| `apps/front/src/components/nav-basic/mobile/index.ts` |
+| `apps/front/src/components/nav-basic/styles/index.ts` |
+| `apps/front/src/components/nav-basic/utils/index.ts` |
+| `apps/front/src/components/nav-section/components/index.ts` |
+| `apps/front/src/components/nav-section/horizontal/index.ts` |
+| `apps/front/src/components/nav-section/index.ts` |
+| `apps/front/src/components/nav-section/mini/index.ts` |
+| `apps/front/src/components/nav-section/styles/index.ts` |
+| `apps/front/src/components/nav-section/utils/index.ts` |
+| `apps/front/src/components/nav-section/vertical/index.ts` |
+| `apps/front/src/components/settings/drawer/index.ts` |
+| `apps/front/src/components/settings/index.ts` |
+| `apps/front/src/layouts/auth-split/index.ts` |
+| `apps/front/src/layouts/core/index.ts` |
+| `apps/front/src/layouts/dashboard/index.ts` |
+| `apps/front/src/layouts/main/index.ts` |
+| `apps/front/src/layouts/main/nav/components/index.ts` |
+| `apps/front/src/layouts/main/nav/desktop/index.ts` |
+| `apps/front/src/layouts/main/nav/mobile/index.ts` |
+| `apps/front/src/layouts/simple/index.ts` |
+| `apps/front/src/lib/cookies/index.ts` |
+| `apps/front/src/lib/mui/theme/core/index.ts` |
+| `apps/front/src/lib/mui/theme/core/mixins/index.ts` |
+| `apps/front/src/lib/mui/theme/with-settings/index.ts` |
+
+## Remove
+
+No broad **Remove** candidates remain after phase 4. The remaining frontend indexes
+are intentional **Keep** entries.
+
+## Narrow
+
+No **Narrow** candidates remain after phase 4. The remaining frontend indexes are
+intentional **Keep** entries.
+
+## Guardrail
+
+Phase 5 added `scripts/check-frontend-barrels.mjs` to reject new unapproved
+hand-written `apps/front/src/**/index.ts(x)` files.
+
+Run it directly with:
+
+```powershell
+pnpm check:frontend-barrels
+```
+
+It also runs through existing quality commands:
+
+- `pnpm lint`
+- `pnpm lint:fix`
+- `just check`
+- `just check-write`
+
+The script scans only `apps/front/src`, so generated Kiota client barrels under
+`packages/client-ts` are ignored.
+
+To add an exception, update both:
+
+- `allowedFrontendIndexFiles` in `scripts/check-frontend-barrels.mjs`
+- the **Keep** table in this guide with the reason the facade is intentional
+
+Do not add an exception for inherited convenience exports. Prefer concrete module
+imports unless the module benefits from one canonical, documented public surface.
+
+The guardrail tests are:
+
+```powershell
+pnpm test:frontend-barrels
+```
+
+## Generated Client Exclusion
+
+`packages/client-ts/src` currently has 72 generated `index.ts` files. Leave them alone
+in this cleanup because `just generate-client` will recreate Kiota output. If the
+generated import shape becomes a real problem, change the OpenAPI/Kiota generation setup
+instead of editing generated files by hand.
+
+## Phase Guidance
+
+Phase 2 removed low-risk single-purpose barrels first. Consumers now import from the
+concrete file and the PR remains mechanical.
+
+Phase 3 removed inherited template component barrels with broader `export *`
+surfaces. These were the main cleanup targets for dependency clarity.
+
+Phase 4 reviewed layout, nav, settings, cookies, and theme facades case by case.
+The inherited convenience barrels did not protect useful module boundaries, so
+consumers now import from concrete files.
+
+Phase 5 added a guardrail that rejects new unapproved hand-written barrels under
+`apps/front/src` while allowing the documented intentional frontend indexes.

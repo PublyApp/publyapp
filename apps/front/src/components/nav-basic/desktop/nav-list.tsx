@@ -6,8 +6,9 @@ import { useCallback, useEffect, useRef } from 'react';
 
 import { usePathname } from '#app/hooks/use-pathname.ts';
 
-import { NavDropdown, NavDropdownPaper, NavLi, NavUl } from '../components';
-import { navBasicClasses } from '../styles';
+import { NavDropdown, NavDropdownPaper } from '../components/nav-dropdown';
+import { NavLi, NavUl } from '../components/nav-elements';
+import { navBasicClasses } from '../styles/classes';
 import type { NavListProps, NavSubListProps } from '../types';
 import { NavItem } from './nav-item';
 

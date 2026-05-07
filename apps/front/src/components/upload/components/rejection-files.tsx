@@ -4,7 +4,7 @@ import type { FileRejection } from 'react-dropzone';
 
 import { fData } from '#app/utils/format-number.ts';
 
-import { fileData } from '../../file-thumbnail';
+import { fileData } from '../../file-thumbnail/utils';
 import { uploadClasses } from '../classes';
 
 // ----------------------------------------------------------------------

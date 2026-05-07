@@ -11,10 +11,10 @@ import {
 	transitionTap,
 	varHover,
 	varTap,
-} from '#app/components/animate/index.ts';
-import { CustomPopover } from '#app/components/custom-popover/index.ts';
+} from '#app/components/animate/variants/index.ts';
+import { CustomPopover } from '#app/components/custom-popover/custom-popover.tsx';
 import type { CustomPopoverProps } from '#app/components/custom-popover/types.ts';
-import { FlagIcon } from '#app/components/flag-icon/index.ts';
+import { FlagIcon } from '#app/components/flag-icon/flag-icon.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
 // ----------------------------------------------------------------------

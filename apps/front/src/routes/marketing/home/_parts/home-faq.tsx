@@ -3,7 +3,8 @@ import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 
-import { MotionViewport, varFade } from '#app/components/animate/index.ts';
+import { MotionViewport } from '#app/components/animate/motion-viewport.tsx';
+import { varFade } from '#app/components/animate/variants/index.ts';
 import { MarketingEyebrow } from '#app/routes/marketing/_components/marketing-eyebrow.tsx';
 import {
 	MarketingFaqAccordion,

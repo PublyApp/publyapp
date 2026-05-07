@@ -6,7 +6,8 @@ import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 import type { ReactNode } from 'react';
 
-import { MotionViewport, varFade } from '#app/components/animate/index.ts';
+import { MotionViewport } from '#app/components/animate/motion-viewport.tsx';
+import { varFade } from '#app/components/animate/variants/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { MarketingEyebrow } from '#app/routes/marketing/_components/marketing-eyebrow.tsx';
 

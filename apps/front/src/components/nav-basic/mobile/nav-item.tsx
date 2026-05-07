@@ -4,9 +4,10 @@ import Tooltip from '@mui/material/Tooltip';
 import { mergeClasses } from 'minimal-shared/utils';
 
 import { Iconify } from '../../iconify/iconify';
-import { navBasicClasses, navItemStyles } from '../styles';
+import { navBasicClasses } from '../styles/classes';
+import { navItemStyles } from '../styles/nav-item-styles';
 import type { NavItemProps } from '../types';
-import { createNavItem } from '../utils';
+import { createNavItem } from '../utils/create-nav-item';
 
 // ----------------------------------------------------------------------
 

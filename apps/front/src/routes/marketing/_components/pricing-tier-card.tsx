@@ -4,7 +4,7 @@ import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 import { varAlpha } from 'minimal-shared/utils';
 
-import { varFade } from '#app/components/animate/index.ts';
+import { varFade } from '#app/components/animate/variants/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import {

@@ -11,11 +11,11 @@ import { useCallback } from 'react';
 
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
-import { AnimateBorder } from '#app/components/animate/index.ts';
+import { AnimateBorder } from '#app/components/animate/animate-border.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
-import { Label } from '#app/components/label/index.ts';
+import { Label } from '#app/components/label/label.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
-import { Scrollbar } from '#app/components/scrollbar/index.ts';
+import { Scrollbar } from '#app/components/scrollbar/scrollbar.tsx';
 import { usePathname } from '#app/hooks/use-pathname.ts';
 import { logout } from '#app/lib/cookies/logout.utils.ts';
 import { useGetUserAuthData } from '#app/lib/react-query/features/common/auth.hooks.ts';

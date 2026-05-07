@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import type { NavSectionProps } from '#app/components/nav-section/index.ts';
+import type { NavSectionProps } from '#app/components/nav-section/types.ts';
 
 // ----------------------------------------------------------------------
 

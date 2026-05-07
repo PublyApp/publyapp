@@ -7,7 +7,7 @@ import {
 	transitionTap,
 	varHover,
 	varTap,
-} from '#app/components/animate/index.ts';
+} from '#app/components/animate/variants/index.ts';
 import { RouterLink } from '#app/components/router-link.tsx';
 
 // ----------------------------------------------------------------------

@@ -7,11 +7,11 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
 import { useMemo } from 'react';
 
-import { Logo } from '#app/components/logo/index.ts';
+import { Logo } from '#app/components/logo/logo.tsx';
 import type {
 	NavItemProps,
 	NavSectionProps,
-} from '#app/components/nav-section/index.ts';
+} from '#app/components/nav-section/types.ts';
 import { useSettingsContext } from '#app/hooks/use-settings-context.ts';
 import { allLangs } from '#app/lib/locales/all-langs.ts';
 import {

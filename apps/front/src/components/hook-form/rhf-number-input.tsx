@@ -1,6 +1,9 @@
 import { Controller, useFormContext } from 'react-hook-form';
 
-import { NumberInput, type NumberInputProps } from '../number-input';
+import {
+	NumberInput,
+	type NumberInputProps,
+} from '../number-input/number-input';
 
 // ----------------------------------------------------------------------
 

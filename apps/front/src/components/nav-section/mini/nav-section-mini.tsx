@@ -1,8 +1,9 @@
 import { useTheme } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 
-import { Nav, NavLi, NavUl } from '../components';
-import { navSectionClasses, navSectionCssVars } from '../styles';
+import { Nav, NavLi, NavUl } from '../components/nav-elements';
+import { navSectionClasses } from '../styles/classes';
+import { navSectionCssVars } from '../styles/css-vars';
 import type { NavGroupProps, NavSectionProps } from '../types';
 import { NavList } from './nav-list';
 

@@ -100,6 +100,19 @@ If a preference below conflicts with an existing guide, follow the existing guid
 - Reuse existing utilities (example: `getUserFullName`) instead of rewriting equivalents.
 - If an existing utility is missing behavior, prefer improving the shared utility rather than duplicating logic locally.
 
+### Import Paths and Barrel Files
+
+- Prefer direct imports from the concrete frontend module file.
+  - Example: `#app/components/iconify/iconify.tsx` instead of
+    `#app/components/iconify/index.ts`.
+- Do not add new hand-written frontend barrel files under `apps/front/src` by
+  default.
+- Keep a frontend barrel only when it is an intentional, narrow public facade
+  with a documented reason.
+- Do not manually edit generated Kiota client barrels under `packages/client-ts`.
+
+Reference: `docs/refactoring-guides/frontend-barrel-files.md`
+
 ## Backend (API)
 
 ### Error Semantics
