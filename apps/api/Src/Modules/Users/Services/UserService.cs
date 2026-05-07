@@ -2031,16 +2031,15 @@ public class UserService : IUserService {
 		CancellationToken cancellationToken = default
 	) {
 		var user = await (
-			from ua in _dbContext.UserAccount.AsNoTracking()
-			join u in _dbContext.User.AsNoTracking()
-				on ua.UserId equals u.Id
-			join tenant in _dbContext.Tenant.AsNoTracking()
-				on ua.TenantId equals (Guid?)tenant.Id
-			where ua.UserId == userId
-				&& ua.Scope == AccountScope.Tenant
-				&& !ua.IsDeleted
+			from u in _dbContext.User.AsNoTracking()
+			where u.Id == userId
 				&& !u.IsDeleted
-				&& !tenant.IsDeleted
+				&& (
+					from ua in _dbContext.UserAccount.AsNoTracking()
+					where ua.UserId == u.Id
+						&& ua.Scope == AccountScope.Tenant
+					select ua
+				).Any()
 			select u
 		).FirstOrDefaultAsync(cancellationToken);
 
@@ -2327,7 +2326,31 @@ public class UserService : IUserService {
 		var hasAnyCompany =
 			await baseQuery.AnyAsync(cancellationToken);
 		if (!hasAnyCompany) {
-			return new FindTenantUserCompaniesResult.NotFound();
+			if (args.Cursor != Guid.Empty) {
+				return new FindTenantUserCompaniesResult
+					.CursorNotFound(args.Cursor.ToString());
+			}
+
+			var hasTenantUserIdentity = await (
+				from ua in _dbContext.UserAccount.AsNoTracking()
+				join u in _dbContext.User.AsNoTracking()
+					on ua.UserId equals u.Id
+				where ua.UserId == userId
+					&& ua.Scope == AccountScope.Tenant
+					&& !u.IsDeleted
+				select ua
+			).AnyAsync(cancellationToken);
+
+			if (!hasTenantUserIdentity) {
+				return new FindTenantUserCompaniesResult.NotFound();
+			}
+
+			return new FindTenantUserCompaniesResult.Success(
+				new CursorPaginatedResult<TenantUserCompanyData> {
+					Data = [],
+					NextCursor = null,
+				}
+			);
 		}
 
 		IQueryable<TenantUserCompanyQueryRow> query = baseQuery;
@@ -2649,12 +2672,8 @@ public class UserService : IUserService {
 				&& !u.IsDeleted
 			where (
 				from ua in _dbContext.UserAccount
-				join tenant in _dbContext.Tenant
-					on ua.TenantId equals (Guid?)tenant.Id
 				where ua.UserId == userId
 					&& ua.Scope == AccountScope.Tenant
-					&& !ua.IsDeleted
-					&& !tenant.IsDeleted
 				select ua
 			).Any()
 			select u;

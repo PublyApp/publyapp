@@ -23,12 +23,9 @@ import {
 import { useBoolean } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useParams } from 'react-router';
 
-import type {
-	TenantUserCompanyForStaffResult,
-	TenantUserDetailsForStaffResult,
-} from '@org/client-ts/src/models';
+import type { TenantUserCompanyForStaffResult } from '@org/client-ts/src/models';
 import {
 	ACCOUNT_LEVEL_ENUM,
 	type AccountLevel,
@@ -668,41 +665,13 @@ const RemoveTenantUserCompanyAction = ({
 }) => {
 	const { userId = '' } = useParams();
 	const { t } = useTranslate();
-	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const confirmDialog = useBoolean();
-
-	const tenantId = company.tenantId;
 
 	const { mutate: removeUser, isPending: isRemoving } = useRemoveTenantUser({
 		onSuccess: async () => {
 			toast.success(t('user-removed-success'));
 			confirmDialog.onFalse();
-
-			const tenantUserDetails =
-				queryClient.getQueryData<TenantUserDetailsForStaffResult>(
-					useGetTenantUserById.getKey({ userId }),
-				);
-			const isLastCompany = tenantUserDetails?.companyCount === 1;
-
-			if (isLastCompany) {
-				void navigate(
-					FRONT_PATH_NAMES.staff.tenants.details(tenantId).tabs.users,
-				);
-				await Promise.all([
-					queryClient.invalidateQueries({
-						queryKey: useFindTenantUserCompanies.getKey(),
-					}),
-					queryClient.invalidateQueries({
-						queryKey: useFindTenantUsers.getKey(),
-					}),
-				]);
-				queryClient.removeQueries({
-					queryKey: useGetTenantUserById.getKey({ userId }),
-				});
-				return;
-			}
-
 			await invalidateTenantUserCompanyQueries({
 				queryClient,
 				userId,
@@ -736,7 +705,7 @@ const RemoveTenantUserCompanyAction = ({
 					<Button
 						variant="contained"
 						color="inherit"
-						onClick={() => removeUser({ tenantId, userId })}
+						onClick={() => removeUser({ tenantId: company.tenantId, userId })}
 						disabled={isRemoving}
 					>
 						{t('remove')}

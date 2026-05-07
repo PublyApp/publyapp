@@ -34,6 +34,19 @@ public sealed class GetTenantUserByIdForStaffSpec
 		);
 	}
 
+	private static string GetRemoveUrl(
+		Guid tenantId,
+		string userId
+	) {
+		return PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Users.ForTenantAsStaff.DeleteFn(
+				tenantId.ToString(),
+				userId
+			)
+		);
+	}
+
 	[Fact]
 	public async Task
 	ItShouldReturnTenantUserDetailsWithoutEmbeddedCompaniesWhenTenantUserExists() {
@@ -81,6 +94,57 @@ public sealed class GetTenantUserByIdForStaffSpec
 			"companies",
 			out _
 		).Should().BeFalse();
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnTenantUserDetailsWhenLastCompanyMembershipWasRemoved() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var techStartTenantId =
+			await TenantTestHelper.GetTenantIdByNameAsync(
+				_http,
+				staffToken,
+				SeedConstants.Tenants.TechStartName
+			);
+		var globalTenantId =
+			await TenantTestHelper.GetTenantIdByNameAsync(
+				_http,
+				staffToken,
+				SeedConstants.Tenants.GlobalName
+			);
+		var userId = await GetUserIdByEmailAsync(
+			_http,
+			staffToken,
+			techStartTenantId,
+			SeedConstants.CrossTenant.BobEmail
+		);
+
+		await RemoveTenantMembershipAsync(
+			staffToken,
+			techStartTenantId,
+			userId
+		);
+		await RemoveTenantMembershipAsync(
+			staffToken,
+			globalTenantId,
+			userId
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(userId)
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var result = await response.Content
+			.ReadFromJsonAsync<TenantUserDetailsResponse>();
+		result.Should().NotBeNull();
+		result!.Id.ToString().Should().Be(userId);
+		result.Email.Should().Be(SeedConstants.CrossTenant.BobEmail);
+		result.CompanyCount.Should().Be(0);
 	}
 
 	[Fact]
@@ -199,6 +263,20 @@ public sealed class GetTenantUserByIdForStaffSpec
 		}
 
 		return user.Id;
+	}
+
+	private async Task RemoveTenantMembershipAsync(
+		string staffToken,
+		Guid tenantId,
+		string userId
+	) {
+		using var request = new HttpRequestMessage(
+			HttpMethod.Delete,
+			GetRemoveUrl(tenantId, userId)
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
 	private sealed record FindUsersResponse {

@@ -94,6 +94,54 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldReturnEmptyCompanyPageWhenTenantUserHasNoLiveCompanies() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var techStartTenantId =
+			await TenantTestHelper.GetTenantIdByNameAsync(
+				_http,
+				staffToken,
+				SeedConstants.Tenants.TechStartName
+			);
+		var globalTenantId =
+			await TenantTestHelper.GetTenantIdByNameAsync(
+				_http,
+				staffToken,
+				SeedConstants.Tenants.GlobalName
+			);
+		var userId = await GetUserIdByEmailAsync(
+			staffToken,
+			techStartTenantId,
+			SeedConstants.CrossTenant.BobEmail
+		);
+
+		await RemoveTenantMembershipAsync(
+			staffToken,
+			techStartTenantId,
+			userId
+		);
+		await RemoveTenantMembershipAsync(
+			staffToken,
+			globalTenantId,
+			userId
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(userId)
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var result = await response.Content
+			.ReadFromJsonAsync<FindCompaniesResponse>();
+		result.Should().NotBeNull();
+		result!.Data.Should().BeEmpty();
+		result.NextCursor.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnBadRequestWhenUserIdIsMalformed() {
 		var staffToken = await _authClient.LoginAsStaffAdminAsync();
 
@@ -218,6 +266,19 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		return $"{basePath}?{string.Join("&", queryParams)}";
 	}
 
+	private static string GetRemoveUrl(
+		Guid tenantId,
+		string userId
+	) {
+		return PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Users.ForTenantAsStaff.DeleteFn(
+				tenantId.ToString(),
+				userId
+			)
+		);
+	}
+
 	private async Task<string> GetUserIdByEmailAsync(
 		string staffToken,
 		Guid tenantId,
@@ -262,6 +323,20 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		}
 
 		return user.Id;
+	}
+
+	private async Task RemoveTenantMembershipAsync(
+		string staffToken,
+		Guid tenantId,
+		string userId
+	) {
+		using var request = new HttpRequestMessage(
+			HttpMethod.Delete,
+			GetRemoveUrl(tenantId, userId)
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
 	private sealed record FindUsersResponse {

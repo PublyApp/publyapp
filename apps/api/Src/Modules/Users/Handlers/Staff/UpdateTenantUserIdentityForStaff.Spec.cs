@@ -34,6 +34,19 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 		);
 	}
 
+	private static string GetRemoveUrl(
+		Guid tenantId,
+		string userId
+	) {
+		return PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Users.ForTenantAsStaff.DeleteFn(
+				tenantId.ToString(),
+				userId
+			)
+		);
+	}
+
 	[Fact]
 	public async Task
 	ItShouldUpdateTenantUserIdentityWhenFieldsAreValid() {
@@ -86,6 +99,64 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 		).Should().BeFalse();
 
 		await ResetUserNameAsync(staffToken, userId);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldUpdateTenantUserIdentityWhenNoLiveCompaniesRemain() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var techStartTenantId =
+			await TenantTestHelper.GetTenantIdByNameAsync(
+				_http,
+				staffToken,
+				SeedConstants.Tenants.TechStartName
+			);
+		var globalTenantId =
+			await TenantTestHelper.GetTenantIdByNameAsync(
+				_http,
+				staffToken,
+				SeedConstants.Tenants.GlobalName
+			);
+		var userId = await GetUserIdByEmailAsync(
+			_http,
+			staffToken,
+			techStartTenantId,
+			SeedConstants.CrossTenant.BobEmail
+		);
+
+		await RemoveTenantMembershipAsync(
+			staffToken,
+			techStartTenantId,
+			userId
+		);
+		await RemoveTenantMembershipAsync(
+			staffToken,
+			globalTenantId,
+			userId
+		);
+
+		var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl(userId)
+		).WithSessionToken(staffToken);
+		request.Content = JsonContent.Create(
+			new {
+				firstName = "Zero",
+				lastName = "Companies"
+			}
+		);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var result = await response.Content
+			.ReadFromJsonAsync<TenantUserDetailsResponse>();
+		result.Should().NotBeNull();
+		result!.Id.ToString().Should().Be(userId);
+		result.FirstName.Should().Be("Zero");
+		result.LastName.Should().Be("Companies");
+		result.CompanyCount.Should().Be(0);
 	}
 
 	[Fact]
@@ -184,6 +255,20 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 
 		using var response = await _http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
+	}
+
+	private async Task RemoveTenantMembershipAsync(
+		string staffToken,
+		Guid tenantId,
+		string userId
+	) {
+		using var request = new HttpRequestMessage(
+			HttpMethod.Delete,
+			GetRemoveUrl(tenantId, userId)
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
 	private static async Task<string> GetUserIdByEmailAsync(
