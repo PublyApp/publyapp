@@ -185,6 +185,10 @@ data fetching patterns by route type, and optimized prefetching), see:
 For route-local file placement rules (`_parts` vs `_components`), see:
 [`docs/guides/frontend-route-file-organization.md`](docs/guides/frontend-route-file-organization.md)
 
+For the cross-surface error view system (the `AppErrorView` shell, wrapper inventory, ErrorBoundary placement
+map, and the 401-no-logout invariant for the auth surface), see:
+[`docs/guides/error-views.md`](docs/guides/error-views.md)
+
 **Key rules (always apply):**
 - Marketing/Auth pages use SSR loaders; Authed pages use TanStack Query (client-only)
 - Never fetch application data in authed page `loader` — use hook factories (`createStaffQuery`, etc.)
