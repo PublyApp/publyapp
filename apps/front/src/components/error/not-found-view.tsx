@@ -1,17 +1,10 @@
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Container from '@mui/material/Container';
-import Typography from '@mui/material/Typography';
-import { m } from 'framer-motion';
 
 import { useHomePath } from '#app/hooks/use-home-path.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { SimpleCompactContent } from '#app/layouts/simple/content.tsx';
-import { SimpleLayout } from '#app/layouts/simple/layout.tsx';
 
-import { MotionContainer } from '../animate/motion-container';
-import { varBounce } from '../animate/variants';
 import { RouterLink } from '../router-link';
+import { AppErrorView } from './app-error-view';
 
 // ----------------------------------------------------------------------
 
@@ -29,79 +22,23 @@ export const NotFoundView = ({
 	const { t } = useTranslate();
 	const homePath = useHomePath();
 
-	const renderContent = () => {
-		return (
-			<Container component={MotionContainer} sx={{ textAlign: 'center' }}>
-				<m.div variants={varBounce('in')}>
-					<Typography
-						variant="h1"
-						sx={(theme) => ({
-							mb: 3,
-							background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-							WebkitBackgroundClip: 'text',
-							WebkitTextFillColor: 'transparent',
-							fontSize: { xs: '8rem', sm: '10rem', md: '12rem' },
-							fontWeight: 800,
-							lineHeight: 1,
-							letterSpacing: '-0.02em',
-							textShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-						})}
-					>
-						404
-					</Typography>
-				</m.div>
-
-				<m.div variants={varBounce('in')}>
-					<Typography variant="h3" sx={{ mb: 2 }}>
-						{title || t('page-not-found')}
-					</Typography>
-				</m.div>
-
-				<m.div variants={varBounce('in')}>
-					<Typography
-						sx={{
-							color: 'text.secondary',
-							maxWidth: 480,
-							mx: 'auto',
-						}}
-					>
-						{description || t('not-found-sentence')}
-					</Typography>
-				</m.div>
-
-				<m.div variants={varBounce('in')}>
-					<Box sx={{ my: { xs: 5, sm: 8 } }} />
-				</m.div>
-
-				<m.div variants={varBounce('in')}>
-					<Button
-						component={RouterLink}
-						href={homePath}
-						size="large"
-						variant="contained"
-					>
-						{t('go-to-home')}
-					</Button>
-				</m.div>
-			</Container>
-		);
-	};
-
-	if (!withLayout) {
-		return (
-			<SimpleCompactContent layoutQuery="md">
-				{renderContent()}
-			</SimpleCompactContent>
-		);
-	}
-
 	return (
-		<SimpleLayout
-			slotProps={{
-				content: { compact: true },
-			}}
-		>
-			{renderContent()}
-		</SimpleLayout>
+		<AppErrorView
+			withLayout={withLayout}
+			tone="primary"
+			numeral="404"
+			title={title || t('page-not-found')}
+			description={description || t('not-found-sentence')}
+			actions={
+				<Button
+					component={RouterLink}
+					href={homePath}
+					size="large"
+					variant="contained"
+				>
+					{t('go-to-home')}
+				</Button>
+			}
+		/>
 	);
 };
