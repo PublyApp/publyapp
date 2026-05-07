@@ -139,6 +139,11 @@ public sealed class GetTenantUserAsStaffSpec
 		using var response = await _http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+		var problem = await response.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.TranslationKey.Should().Be(ResponseKeys.NotFound);
+		problem.Detail.Should().Be("User not found in tenant");
 	}
 
 	[Fact]
