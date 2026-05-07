@@ -21,6 +21,14 @@ public static class UserEndpointsForTenantAsStaff {
 			.WithPermission([AppPermissions.Staff.Users.LIST_FOR_TENANT])
 			.WithReqQueryValidation<FindTenantUsersAsStaffQuery>();
 
+		group.MapGet(
+			Routes.Users.ForTenantAsStaff.GetById,
+			GetTenantUserAsStaff.HandleGetTenantUserAsStaff
+		)
+			.WithName("GetTenantUserAsStaff")
+			.WithSummary("Get a tenant user")
+			.WithPermission([AppPermissions.Staff.Users.GET_FOR_TENANT]);
+
 		group.MapPost(
 			Routes.Users.ForTenantAsStaff.Invite,
 			CreateInvitationForTenantAsStaff.HandleCreateInvitationForTenantAsStaff

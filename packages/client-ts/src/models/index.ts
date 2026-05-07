@@ -3303,6 +3303,7 @@ export function deserializeIntoTenantSuspendedResult(tenantSuspendedResult: Part
 export function deserializeIntoTenantUserDetailsResult(tenantUserDetailsResult: Partial<TenantUserDetailsResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "avatarUrl": n => { tenantUserDetailsResult.avatarUrl = n.getStringValue(); },
+        "createdAt": n => { tenantUserDetailsResult.createdAt = n.getDateValue(); },
         "email": n => { tenantUserDetailsResult.email = n.getStringValue(); },
         "firstName": n => { tenantUserDetailsResult.firstName = n.getStringValue(); },
         "id": n => { tenantUserDetailsResult.id = n.getGuidValue(); },
@@ -3310,6 +3311,7 @@ export function deserializeIntoTenantUserDetailsResult(tenantUserDetailsResult: 
         "level": n => { tenantUserDetailsResult.level = n.getStringValue(); },
         "status": n => { tenantUserDetailsResult.status = n.getStringValue(); },
         "tenantId": n => { tenantUserDetailsResult.tenantId = n.getGuidValue(); },
+        "updatedAt": n => { tenantUserDetailsResult.updatedAt = n.getDateValue(); },
     }
 }
 /**
@@ -5796,6 +5798,7 @@ export function serializeTenantSuspendedResult(writer: SerializationWriter, tena
 export function serializeTenantUserDetailsResult(writer: SerializationWriter, tenantUserDetailsResult: Partial<TenantUserDetailsResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!tenantUserDetailsResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("avatarUrl", tenantUserDetailsResult.avatarUrl);
+    writer.writeDateValue("createdAt", tenantUserDetailsResult.createdAt);
     writer.writeStringValue("email", tenantUserDetailsResult.email);
     writer.writeStringValue("firstName", tenantUserDetailsResult.firstName);
     writer.writeGuidValue("id", tenantUserDetailsResult.id);
@@ -5803,6 +5806,7 @@ export function serializeTenantUserDetailsResult(writer: SerializationWriter, te
     writer.writeStringValue("level", tenantUserDetailsResult.level);
     writer.writeStringValue("status", tenantUserDetailsResult.status);
     writer.writeGuidValue("tenantId", tenantUserDetailsResult.tenantId);
+    writer.writeDateValue("updatedAt", tenantUserDetailsResult.updatedAt);
     writer.writeAdditionalData(tenantUserDetailsResult.additionalData);
 }
 /**
@@ -6667,6 +6671,10 @@ export interface TenantUserDetailsResult extends AdditionalDataHolder, Parsable 
      */
     avatarUrl?: string | null;
     /**
+     * The createdAt property
+     */
+    createdAt?: Date | null;
+    /**
      * The email property
      */
     email?: string | null;
@@ -6694,6 +6702,10 @@ export interface TenantUserDetailsResult extends AdditionalDataHolder, Parsable 
      * The tenantId property
      */
     tenantId?: Guid | null;
+    /**
+     * The updatedAt property
+     */
+    updatedAt?: Date | null;
 }
 export interface TenantUserItem extends AdditionalDataHolder, Parsable {
     /**

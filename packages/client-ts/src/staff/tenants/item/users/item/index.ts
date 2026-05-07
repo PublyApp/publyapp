@@ -34,6 +34,17 @@ export interface WithUserItemRequestBuilder extends BaseRequestBuilder<WithUserI
      */
      delete(requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<ApiResponse | undefined>;
     /**
+     * Get a tenant user
+     * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
+     * @returns {Promise<TenantUserDetailsResult>}
+     * @throws {AppProblemDetails} error when the service returns a 400 status code
+     * @throws {AppProblemDetails} error when the service returns a 401 status code
+     * @throws {AppProblemDetails} error when the service returns a 403 status code
+     * @throws {AppProblemDetails} error when the service returns a 404 status code
+     * @throws {AppProblemDetails} error when the service returns a 500 status code
+     */
+     get(requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<TenantUserDetailsResult | undefined>;
+    /**
      * Update a tenant user's profile or account level
      * @param body Updates a tenant user's profile and/or account level.
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -52,6 +63,12 @@ export interface WithUserItemRequestBuilder extends BaseRequestBuilder<WithUserI
      * @returns {RequestInformation}
      */
      toDeleteRequestInformation(requestConfiguration?: RequestConfiguration<object> | undefined) : RequestInformation;
+    /**
+     * Get a tenant user
+     * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
+     * @returns {RequestInformation}
+     */
+     toGetRequestInformation(requestConfiguration?: RequestConfiguration<object> | undefined) : RequestInformation;
     /**
      * Update a tenant user's profile or account level
      * @param body Updates a tenant user's profile and/or account level.
@@ -91,6 +108,19 @@ export const WithUserItemRequestBuilderRequestsMetadata: RequestsMetadata = {
         },
         adapterMethodName: "send",
         responseBodyFactory:  createApiResponseFromDiscriminatorValue,
+    },
+    get: {
+        uriTemplate: WithUserItemRequestBuilderUriTemplate,
+        responseBodyContentType: "application/json",
+        errorMappings: {
+            400: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            403: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            404: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+        },
+        adapterMethodName: "send",
+        responseBodyFactory:  createTenantUserDetailsResultFromDiscriminatorValue,
     },
     patch: {
         uriTemplate: WithUserItemRequestBuilderUriTemplate,

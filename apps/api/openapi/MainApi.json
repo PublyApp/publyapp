@@ -2120,13 +2120,13 @@
         }
       }
     },
-    "/staff/tenants/{tenantId}/users/invitations": {
-      "post": {
+    "/staff/tenants/{tenantId}/users/{userId}": {
+      "get": {
         "tags": [
           "Tenant Users (Staff View)"
         ],
-        "summary": "Invite a user to a tenant",
-        "operationId": "CreateInvitationForTenantAsStaff",
+        "summary": "Get a tenant user",
+        "operationId": "GetTenantUserAsStaff",
         "parameters": [
           {
             "name": "tenantId",
@@ -2135,18 +2135,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateInvitationForTenantAsStaffBody"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "401": {
             "description": "Unauthorized",
@@ -2178,12 +2176,12 @@
               }
             }
           },
-          "201": {
-            "description": "Created",
+          "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InvitationCreatedForTenant"
+                  "$ref": "#/components/schemas/TenantUserDetailsResult"
                 }
               }
             }
@@ -2198,20 +2196,18 @@
               }
             }
           },
-          "422": {
-            "description": "Unprocessable Entity",
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
           }
         }
-      }
-    },
-    "/staff/tenants/{tenantId}/users/{userId}": {
+      },
       "delete": {
         "tags": [
           "Tenant Users (Staff View)"
@@ -2386,6 +2382,97 @@
           },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/staff/tenants/{tenantId}/users/invitations": {
+      "post": {
+        "tags": [
+          "Tenant Users (Staff View)"
+        ],
+        "summary": "Invite a user to a tenant",
+        "operationId": "CreateInvitationForTenantAsStaff",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvitationForTenantAsStaffBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationCreatedForTenant"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -9500,6 +9587,14 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "description": "Result for getting a tenant user by ID."
