@@ -46,6 +46,8 @@ public class SessionService : ISessionService {
 	}
 
 	public async Task<SessionData?> GetSessionByToken(string token, CancellationToken cancellationToken = default) {
+		var utcNow = DateTime.UtcNow;
+
 		var query =
 			from s in _dbContext.Session
 			join u in _dbContext.User on s.UserId equals u.Id
@@ -58,9 +60,11 @@ public class SessionService : ISessionService {
 			return null;
 		}
 
-		if (result.Session.ExpiresAt <= DateTime.UtcNow) {
-			_dbContext.ForceHardDelete(result.Session);
-			await _dbContext.SaveChangesAsync(cancellationToken);
+		if (result.Session.ExpiresAt <= utcNow) {
+			await _dbContext.Session
+				.Where(s => s.Token == token && !s.IsDeleted && s.ExpiresAt <= utcNow)
+				.ExecuteDeleteAsync(cancellationToken);
+
 			return null;
 		}
 

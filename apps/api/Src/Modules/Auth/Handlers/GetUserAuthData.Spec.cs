@@ -51,6 +51,46 @@ public sealed class GetUserAuthDataSpec
 		sessionCount.Should().Be(0);
 	}
 
+	[Fact]
+	public async Task
+	ItShouldReturnUnauthorizedForConcurrentExpiredSessionRequests() {
+		var token = await _authClient.LoginAsync(
+			TestConstants.StaffAdminEmail,
+			TestConstants.SeedPassword
+		);
+
+		await ExpireSessionAsync(token);
+
+		using var firstRequest = CreateAuthDataRequest(token);
+		using var secondRequest = CreateAuthDataRequest(token);
+
+		var firstResponseTask = _http.SendAsync(firstRequest);
+		var secondResponseTask = _http.SendAsync(secondRequest);
+		var responses = await Task.WhenAll(firstResponseTask, secondResponseTask);
+
+		try {
+			foreach (var response in responses) {
+				response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+			}
+		} finally {
+			foreach (var response in responses) {
+				response.Dispose();
+			}
+		}
+
+		var sessionCount = await CountSessionsByTokenAsync(token);
+		sessionCount.Should().Be(0);
+	}
+
+	private static HttpRequestMessage CreateAuthDataRequest(
+		string token
+	) {
+		return new HttpRequestMessage(
+			HttpMethod.Get,
+			Routes.Auth.GetUserAuthData
+		).WithSessionToken(token);
+	}
+
 	private async Task ExpireSessionAsync(
 		string token
 	) {
