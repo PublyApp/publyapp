@@ -12,6 +12,9 @@ public static partial class Routes {
 			public const string Root = "/profiles";
 			public const string Create = "/";
 			public const string Find = "/";
+			// Single endpoint that accepts a profileId array and deletes matching staff
+			// profiles in one request.
+			public const string BulkDelete = "/bulk-delete";
 			public const string Get = "/{profileId}";
 			public static string GetFn(string profileId) => $"/{profileId}";
 
@@ -39,7 +42,10 @@ public static partial class Routes {
 					$"{RootFn(profileId)}/{permissionKey}";
 			}
 
-			/// <summary>Staff profile users routes (staff viewing users assigned to a staff profile)</summary>
+			/// <summary>
+			/// Staff profile users routes (staff viewing users assigned to a staff
+			/// profile).
+			/// </summary>
 			public static class Users {
 				// NOTE: This is relative to "/staff" and "/profiles" route grouping.
 				public const string Root = "/{profileId}/users";
@@ -71,6 +77,9 @@ public static partial class Routes {
 			public static string RootFn(string tenantId) => $"/tenants/{tenantId}/profiles";
 			public const string Find = "/";
 			public static string FindFn(string tenantId) => $"{RootFn(tenantId)}/";
+			// Bulk tenant profile deletion is scoped by tenantId route and uses one
+			// request body containing multiple profile IDs.
+			public const string BulkDelete = "/bulk-delete";
 			public const string Get = "/{profileId}";
 			public static string GetFn(string profileId) => $"/{profileId}";
 			public const string Create = "/";

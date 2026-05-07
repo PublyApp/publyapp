@@ -53,6 +53,8 @@ public static class AuditActions {
 	public const string SystemNoticeDeleted = "system.notice.deleted";
 	public const string StaffProfileCreated = "staff.profile.created";
 	public const string StaffProfilePermissionsAssigned = "staff.profile.permissions.assigned";
+	// Distinguish bulk delete of staff profiles from single-profile delete audit events.
+	public const string StaffProfileBulkDeleted = "staff.profile.bulk.deleted";
 	public const string StaffProfileUserAssigned = "staff.profile.user.assigned";
 	public const string TenantProfileCreated = "tenant.profile.created";
 	public const string TenantProfileUpdated = "tenant.profile.updated";

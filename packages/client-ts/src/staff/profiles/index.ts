@@ -4,6 +4,8 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createFindStaffProfilesResultFromDiscriminatorValue, createStaffProfileCreatedFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializeCreateStaffProfileBody, serializeStaffProfileCreated, type AppProblemDetails, type CreateStaffProfileBody, type FindStaffProfilesResult, type StaffProfileCreated, type ValidationProblemDetails } from '../../models/index.js';
 // @ts-ignore
+import { BulkDeleteRequestBuilderRequestsMetadata, type BulkDeleteRequestBuilder } from './bulkDelete/index.js';
+// @ts-ignore
 import { type WithProfileItemRequestBuilder, WithProfileItemRequestBuilderNavigationMetadata, WithProfileItemRequestBuilderRequestsMetadata } from './item/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
@@ -12,6 +14,10 @@ import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type 
  * Builds and executes requests for operations under /staff/profiles
  */
 export interface ProfilesRequestBuilder extends BaseRequestBuilder<ProfilesRequestBuilder> {
+    /**
+     * The bulkDelete property
+     */
+    get bulkDelete(): BulkDeleteRequestBuilder;
     /**
      * Gets an item from the MainApi.Client.staff.profiles.item collection
      * @param profileId Unique identifier of the item
@@ -84,6 +90,9 @@ export const ProfilesRequestBuilderNavigationMetadata: Record<Exclude<keyof Prof
         requestsMetadata: WithProfileItemRequestBuilderRequestsMetadata,
         navigationMetadata: WithProfileItemRequestBuilderNavigationMetadata,
         pathParametersMappings: ["profileId"],
+    },
+    bulkDelete: {
+        requestsMetadata: BulkDeleteRequestBuilderRequestsMetadata,
     },
 };
 /**
