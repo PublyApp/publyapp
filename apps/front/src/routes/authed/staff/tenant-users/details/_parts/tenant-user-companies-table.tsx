@@ -20,11 +20,15 @@ import {
 	type MRT_ColumnDef,
 	type MRT_SortingState,
 } from 'material-react-table';
+import { useBoolean } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 
-import type { TenantUserCompanyForStaffResult } from '@org/client-ts/src/models';
+import type {
+	TenantUserCompanyForStaffResult,
+	TenantUserDetailsForStaffResult,
+} from '@org/client-ts/src/models';
 import {
 	ACCOUNT_LEVEL_ENUM,
 	type AccountLevel,
@@ -154,20 +158,20 @@ const TenantUserCompaniesTable = () => {
 			}),
 			columnHelper.accessor('level', {
 				header: t('level'),
-				Cell: (props) => <CompanyLevelCell company={props.row.original} />,
+				Cell: CompanyLevelCell,
 				size: 130,
 				grow: false,
 			}),
 			columnHelper.accessor('status', {
 				header: t('status'),
-				Cell: (props) => <CompanyStatusCell company={props.row.original} />,
+				Cell: CompanyStatusCell,
 				size: 130,
 				grow: false,
 			}),
 			columnHelper.display({
 				id: 'actions',
 				header: t('actions'),
-				Cell: (props) => <CompanyActionsCell company={props.row.original} />,
+				Cell: CompanyActionsCell,
 				size: 80,
 				grow: false,
 			}),
@@ -287,7 +291,11 @@ const CompanyCell: MRT_ColumnDef<TenantUserCompanyData, string>['Cell'] = (
 	);
 };
 
-const CompanyLevelCell = ({ company }: { company: TenantUserCompanyData }) => {
+const CompanyLevelCell: MRT_ColumnDef<
+	TenantUserCompanyData,
+	string | undefined
+>['Cell'] = (props) => {
+	const company = props.row.original;
 	const { userId = '' } = useParams();
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
@@ -423,7 +431,11 @@ const CompanyLevelCell = ({ company }: { company: TenantUserCompanyData }) => {
 	);
 };
 
-const CompanyStatusCell = ({ company }: { company: TenantUserCompanyData }) => {
+const CompanyStatusCell: MRT_ColumnDef<
+	TenantUserCompanyData,
+	string | undefined
+>['Cell'] = (props) => {
+	const company = props.row.original;
 	const { userId = '' } = useParams();
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
@@ -637,22 +649,60 @@ const CompanyStatusCell = ({ company }: { company: TenantUserCompanyData }) => {
 	);
 };
 
-const CompanyActionsCell = ({
+const CompanyActionsCell: MRT_ColumnDef<TenantUserCompanyData>['Cell'] = (
+	props,
+) => {
+	const company = props.row.original;
+
+	return (
+		<Box sx={{ display: 'flex', alignItems: 'center' }}>
+			<RemoveTenantUserCompanyAction company={company} />
+		</Box>
+	);
+};
+
+const RemoveTenantUserCompanyAction = ({
 	company,
 }: {
 	company: TenantUserCompanyData;
 }) => {
 	const { userId = '' } = useParams();
 	const { t } = useTranslate();
+	const navigate = useNavigate();
 	const queryClient = useQueryClient();
-	const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+	const confirmDialog = useBoolean();
 
 	const tenantId = company.tenantId;
 
 	const { mutate: removeUser, isPending: isRemoving } = useRemoveTenantUser({
 		onSuccess: async () => {
 			toast.success(t('user-removed-success'));
-			setRemoveDialogOpen(false);
+			confirmDialog.onFalse();
+
+			const tenantUserDetails =
+				queryClient.getQueryData<TenantUserDetailsForStaffResult>(
+					useGetTenantUserById.getKey({ userId }),
+				);
+			const isLastCompany = tenantUserDetails?.companyCount === 1;
+
+			if (isLastCompany) {
+				void navigate(
+					FRONT_PATH_NAMES.staff.tenants.details(tenantId).tabs.users,
+				);
+				await Promise.all([
+					queryClient.invalidateQueries({
+						queryKey: useFindTenantUserCompanies.getKey(),
+					}),
+					queryClient.invalidateQueries({
+						queryKey: useFindTenantUsers.getKey(),
+					}),
+				]);
+				queryClient.removeQueries({
+					queryKey: useGetTenantUserById.getKey({ userId }),
+				});
+				return;
+			}
+
 			await invalidateTenantUserCompanyQueries({
 				queryClient,
 				userId,
@@ -662,37 +712,30 @@ const CompanyActionsCell = ({
 
 	return (
 		<>
-			<Stack direction="row" spacing={0.5} alignItems="center">
-				<Tooltip title={t('tenant')} placement="top" arrow>
+			<Tooltip title={t('remove')} placement="top" arrow>
+				<Box component="span">
 					<IconButton
-						component={RouterLink}
-						href={FRONT_PATH_NAMES.staff.tenants.details(tenantId).root}
 						color="default"
-					>
-						<Iconify icon="solar:buildings-bold" width={18} />
-					</IconButton>
-				</Tooltip>
-
-				<Tooltip title={t('remove')} placement="top" arrow>
-					<IconButton
-						color="error"
 						disabled={isRemoving}
-						onClick={() => setRemoveDialogOpen(true)}
+						onClick={confirmDialog.onTrue}
+						sx={{
+							color: isRemoving ? 'action.disabled' : 'text.secondary',
+						}}
 					>
 						<Iconify icon="solar:trash-bin-trash-bold" width={18} />
 					</IconButton>
-				</Tooltip>
-			</Stack>
+				</Box>
+			</Tooltip>
 
 			<ConfirmDialog
-				open={removeDialogOpen}
-				onClose={() => setRemoveDialogOpen(false)}
+				open={confirmDialog.value}
+				onClose={confirmDialog.onFalse}
 				title={t('remove-user-from-tenant')}
 				content={t('confirm-remove-user-from-tenant-details')}
 				action={
 					<Button
 						variant="contained"
-						color="error"
+						color="inherit"
 						onClick={() => removeUser({ tenantId, userId })}
 						disabled={isRemoving}
 					>
