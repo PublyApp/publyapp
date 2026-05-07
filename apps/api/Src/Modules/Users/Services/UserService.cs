@@ -243,6 +243,11 @@ public interface IUserService {
 		FindTenantUsersAsStaffArgs args,
 		CancellationToken cancellationToken = default
 	);
+	Task<TenantUserData?> GetTenantUserByIdAsync(
+		Guid tenantId,
+		Guid userId,
+		CancellationToken cancellationToken = default
+	);
 	Task<RemoveUserFromTenantResult> RemoveUserFromTenantAsync(
 		Guid tenantId,
 		Guid userId,
@@ -1929,6 +1934,26 @@ public class UserService : IUserService {
 				NextCursor = nextCursor,
 			}
 		);
+	}
+
+	public async Task<TenantUserData?> GetTenantUserByIdAsync(
+		Guid tenantId,
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		return await (
+			from ua in _dbContext.UserAccount.AsNoTracking()
+			where ua.TenantId == tenantId
+				&& ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select new TenantUserData {
+				User = ua.User,
+				Account = ua,
+				AccountLevel = ua.Level,
+			}
+		).FirstOrDefaultAsync(cancellationToken);
 	}
 
 	public async Task<UpdateUserByIdResult> UpdateStaffUserByIdAsync(
