@@ -41,9 +41,9 @@ public class ProfileService : IProfileService {
 		Guid tenantId,
 		CancellationToken cancellationToken = default
 	) {
-		// Tenant auth data must only reflect active tenant-profile assignments and active
-		// tenant-scoped permissions. Otherwise revoked links or wrong-scope permissions can
-		// leak into the effective permission set returned to the frontend.
+		// Tenant auth data must only reflect current tenant-profile assignments and active
+		// tenant-scoped permissions. Revoked assignments have no junction row, while deleted
+		// users/accounts/profiles still need explicit filters.
 		//
 		// Do not cap this read by MAX_PROFILES_PER_USER. The cap is a write-side business
 		// rule; auth data must still reflect the full effective assignment set if historical
@@ -54,8 +54,7 @@ public class ProfileService : IProfileService {
 				&& p.TenantId == tenantId
 				&& !p.IsDeleted
 				&& p.UserAccountProfiles.Any(uap =>
-					!uap.IsDeleted
-					&& !uap.UserAccount.IsDeleted
+					!uap.UserAccount.IsDeleted
 					&& !uap.UserAccount.User.IsDeleted
 					&& uap.UserAccount.Scope == AccountScope.Tenant
 					&& uap.UserAccount.UserId == userId
@@ -66,8 +65,7 @@ public class ProfileService : IProfileService {
 				Name = p.Name,
 				Permissions = (
 					from pp in p.ProfilePermissions
-					where !pp.IsDeleted
-						&& !pp.Permission.IsDeleted
+					where !pp.Permission.IsDeleted
 						&& pp.Permission.Scope == PermissionScope.Tenant
 					select pp.PermissionKey
 				).ToList()
@@ -88,15 +86,14 @@ public class ProfileService : IProfileService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
-		// The same read-side rule applies to staff auth data: return the full effective set,
-		// even if historical data temporarily exceeds the configured write-time cap.
+		// The same read-side rule applies to staff auth data: row existence means assigned,
+		// and the write-time MAX_PROFILES_PER_USER cap must not hide existing permissions.
 		var query =
 			from p in _dbContext.Profile
 			where p.Scope == ProfileScope.Staff
 				&& !p.IsDeleted
 				&& p.UserAccountProfiles.Any(uap =>
-					!uap.IsDeleted
-					&& !uap.UserAccount.IsDeleted
+					!uap.UserAccount.IsDeleted
 					&& !uap.UserAccount.User.IsDeleted
 					&& uap.UserAccount.Scope == AccountScope.Staff
 					&& uap.UserAccount.UserId == userId
@@ -106,8 +103,7 @@ public class ProfileService : IProfileService {
 				Name = p.Name,
 				Permissions = (
 					from pp in p.ProfilePermissions
-					where !pp.IsDeleted
-						&& !pp.Permission.IsDeleted
+					where !pp.Permission.IsDeleted
 						&& pp.Permission.Scope == PermissionScope.Staff
 					select pp.PermissionKey
 				).ToList()

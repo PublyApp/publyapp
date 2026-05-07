@@ -769,9 +769,8 @@ public sealed class GetScopeAuthDataSpec
 			);
 		}
 
-		revokedPermission.IsDeleted = true;
-		revokedPermission.DeletedAt = DateTime.UtcNow;
-		revokedPermission.UpdatedAt = DateTime.UtcNow;
+		// Revoked permission membership is represented by no ProfilePermission row.
+		dbContext.ProfilePermission.Remove(revokedPermission);
 
 		var softDeletedLink = await (
 			from uap in dbContext.UserAccountProfile
@@ -786,9 +785,8 @@ public sealed class GetScopeAuthDataSpec
 			);
 		}
 
-		softDeletedLink.IsDeleted = true;
-		softDeletedLink.DeletedAt = DateTime.UtcNow;
-		softDeletedLink.UpdatedAt = DateTime.UtcNow;
+		// Revoked profile membership is represented by no UserAccountProfile row.
+		dbContext.UserAccountProfile.Remove(softDeletedLink);
 
 		_ = await dbContext.ProfilePermission.AddAsync(
 			new ProfilePermission {

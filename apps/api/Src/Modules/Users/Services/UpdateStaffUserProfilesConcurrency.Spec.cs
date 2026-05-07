@@ -56,19 +56,16 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 		state.IsDeleted.Should().BeTrue();
 		state.HasLiveStaffAccount.Should().BeFalse();
 		state.ActiveProfileLinks.Should().BeEmpty();
-		state.AllProfileLinks.Should().ContainSingle(link =>
-			link.ProfileId == profileId
-			&& link.IsDeleted
-			&& link.DeletedAt != null
-		);
+		// Delete serializes behind the profile update and then hard-deletes the link.
+		state.AllProfileLinks.Should().BeEmpty();
 	}
 
 	[Fact]
 	public async Task
-	ItShouldReturnSuccessAndLetDeleteSweepUndeletedLinksWhenProfileUpdateCommitsFirst() {
+	ItShouldReturnSuccessAndLetDeleteSweepExistingLinksWhenProfileUpdateCommitsFirst() {
 		var userId = await CreateStaffUserAsync(UserStatus.Suspended);
 		var profileId = await CreateStaffProfileAsync();
-		await CreateSoftDeletedStaffUserProfileLinkAsync(userId, profileId);
+		await CreateStaffUserProfileLinkAsync(userId, profileId);
 
 		var result = await RunWithConcurrentDeleteAtProfileTransactionCommitAsync(
 			userId,
@@ -91,11 +88,8 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 		state.IsDeleted.Should().BeTrue();
 		state.HasLiveStaffAccount.Should().BeFalse();
 		state.ActiveProfileLinks.Should().BeEmpty();
-		state.AllProfileLinks.Should().ContainSingle(link =>
-			link.ProfileId == profileId
-			&& link.IsDeleted
-			&& link.DeletedAt != null
-		);
+		// Existing links are swept the same way as newly inserted links.
+		state.AllProfileLinks.Should().BeEmpty();
 	}
 
 	private async Task<Guid> CreateStaffUserAsync(UserStatus status) {
@@ -139,7 +133,7 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 		return profile.GetRequiredId();
 	}
 
-	private async Task CreateSoftDeletedStaffUserProfileLinkAsync(
+	private async Task CreateStaffUserProfileLinkAsync(
 		Guid userId,
 		Guid profileId
 	) {
@@ -162,8 +156,6 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 			new UserAccountProfile {
 				UserAccountId = staffAccountId.Value,
 				ProfileId = profileId,
-				IsDeleted = true,
-				DeletedAt = DateTime.UtcNow,
 				UpdatedAt = DateTime.UtcNow,
 			}
 		);
@@ -281,22 +273,14 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 		var allProfileLinks = await dbContext.UserAccountProfile
 			.IgnoreQueryFilters()
 			.Where(x => x.UserAccountId == staffAccountId.Value)
-			.Select(x => new ProfileLinkState(
-				x.ProfileId,
-				x.IsDeleted,
-				x.DeletedAt
-			))
+			.Select(x => new ProfileLinkState(x.ProfileId))
 			.ToListAsync();
-
-		var activeProfileLinks = allProfileLinks
-			.Where(x => !x.IsDeleted)
-			.ToList();
 
 		return new StaffUserProfileState(
 			IsDeleted: user.IsDeleted,
 			HasLiveStaffAccount: hasLiveStaffAccount,
 			AllProfileLinks: allProfileLinks,
-			ActiveProfileLinks: activeProfileLinks
+			ActiveProfileLinks: allProfileLinks
 		);
 	}
 
@@ -307,11 +291,7 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 		List<ProfileLinkState> ActiveProfileLinks
 	);
 
-	private sealed record ProfileLinkState(
-		Guid ProfileId,
-		bool IsDeleted,
-		DateTime? DeletedAt
-	);
+	private sealed record ProfileLinkState(Guid ProfileId);
 
 	private sealed record ConcurrentDeleteAtProfileCommitResult<TResult>(
 		TResult OperationResult,

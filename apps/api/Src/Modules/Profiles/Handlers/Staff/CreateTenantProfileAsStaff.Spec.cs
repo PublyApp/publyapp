@@ -388,9 +388,10 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
 
+		// No IsDeleted filter here: profile_permissions now stores active grants only.
 		return await (
 			from pp in dbContext.ProfilePermission
-			where pp.ProfileId == profileId && !pp.IsDeleted
+			where pp.ProfileId == profileId
 			orderby pp.PermissionKey
 			select pp.PermissionKey
 		).ToListAsync();

@@ -31,12 +31,10 @@ public class PermissionService : IPermissionService {
 	/// <param name="projectId">Optional project ID for project-scoped permissions</param>
 	/// <returns>HashSet of permission keys</returns>
 	public async Task<HashSet<string>> GetEffectivePermissionsAsync(Guid userId, Guid? tenantId = null, Guid? projectId = null) {
-		// Optimized query using proper indexing
-		// This query leverages the new composite indexes for better performance
+		// Join tables are active-state only. Do not add IsDeleted filters here:
+		// removing a profile or permission assignment physically removes the row.
 		var userPermissions = await _context.Set<ProfilePermission>()
-			.Where(pp => !pp.IsDeleted)
-			.Join(_context.Set<UserAccountProfile>()
-				.Where(uap => !uap.IsDeleted),
+			.Join(_context.Set<UserAccountProfile>(),
 				pp => pp.ProfileId,
 				uap => uap.ProfileId,
 				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId })
@@ -66,12 +64,11 @@ public class PermissionService : IPermissionService {
 	/// Gets staff permissions for a user (from staff profiles)
 	/// </summary>
 	public async Task<HashSet<string>> GetPermissionsAsync(Guid userId) {
-		// Important: respect soft-deletes on all involved entities.
-		// Otherwise, "unassigned" profiles (soft-deleted UserAccountProfile rows) would still grant permissions.
+		// Important: respect soft-deletes on user/account entities. Junction rows are hard
+		// deleted when unassigned, so row existence is the active membership state.
 		return await _context.Set<ProfilePermission>()
-			.Where(pp => !pp.IsDeleted)
 			.Join(
-				_context.Set<UserAccountProfile>().Where(uap => !uap.IsDeleted),
+				_context.Set<UserAccountProfile>(),
 				pp => pp.ProfileId,
 				uap => uap.ProfileId,
 				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId }
@@ -97,9 +94,9 @@ public class PermissionService : IPermissionService {
 	/// Gets tenant permissions for a user in a specific tenant
 	/// </summary>
 	public async Task<HashSet<string>> GetTenantPermissionsAsync(Guid userId, Guid tenantId) {
+		// Tenant-scoped auth uses the same row-existence contract as staff auth.
 		return await _context.Set<ProfilePermission>()
-			.Where(pp => !pp.IsDeleted)
-			.Join(_context.Set<UserAccountProfile>().Where(uap => !uap.IsDeleted),
+			.Join(_context.Set<UserAccountProfile>(),
 				pp => pp.ProfileId,
 				uap => uap.ProfileId,
 				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId })
@@ -117,9 +114,10 @@ public class PermissionService : IPermissionService {
 	/// Gets project permissions for a user in a specific project
 	/// </summary>
 	public async Task<HashSet<string>> GetProjectPermissionsAsync(Guid userId, Guid tenantId, Guid projectId) {
+		// Project permissions still travel through profile membership, so the two junction
+		// tables remain the only active-state filters before account scope checks.
 		return await _context.Set<ProfilePermission>()
-			.Where(pp => !pp.IsDeleted)
-			.Join(_context.Set<UserAccountProfile>().Where(uap => !uap.IsDeleted),
+			.Join(_context.Set<UserAccountProfile>(),
 				pp => pp.ProfileId,
 				uap => uap.ProfileId,
 				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId })
@@ -137,8 +135,9 @@ public class PermissionService : IPermissionService {
 	/// Gets permissions for specific profile IDs (backward compatibility with existing filter)
 	/// </summary>
 	public async Task<HashSet<string>> GetPermissionsForProfilesAsync(List<Guid> profileIds) {
+		// A missing ProfilePermission row is the only revoked state for a profile permission.
 		return await _context.Set<ProfilePermission>()
-			.Where(pp => !pp.IsDeleted && profileIds.Contains(pp.ProfileId))
+			.Where(pp => profileIds.Contains(pp.ProfileId))
 			.Select(pp => pp.PermissionKey)
 			.Distinct()
 			.ToHashSetAsync();

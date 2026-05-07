@@ -276,7 +276,7 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 
 		await AssertSoftDeletedRowsAsync(
 			deletedUserIdGuid,
-			expectedProfileLinkCount: 2
+			expectedProfileLinkCount: 0
 		);
 		await AssertFindStaffUsersDoesNotContainAsync(
 			staffToken,
@@ -427,11 +427,8 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 			.Where(x => x.UserAccountId == staffAccount.GetRequiredId())
 			.ToListAsync();
 
+		// Bulk delete shares the single-delete contract: membership rows are removed.
 		userAccountProfiles.Should().HaveCount(expectedProfileLinkCount.Value);
-		userAccountProfiles.Should().OnlyContain(x =>
-			x.IsDeleted
-			&& x.DeletedAt != null
-		);
 	}
 
 	private async Task AssertStaffUserStateAsync(

@@ -682,12 +682,11 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 
 		var profileIds = profiles.Select(p => p.GetRequiredId()).ToList();
 
-		// The list DTO needs assignment counts, but we fetch them in one grouped query so the
-		// table avoids per-row lookups.
+		// The list DTO needs current assignment counts. Because unassignment hard-deletes
+		// links, counting rows directly is the active membership count.
 		var userAccountCounts = await (
 			from uap in _dbContext.UserAccountProfile.AsNoTracking()
 			where profileIds.Contains(uap.ProfileId)
-				&& !uap.IsDeleted
 			group uap by uap.ProfileId into g
 			select new { ProfileId = g.Key, Count = g.Count() }
 		).ToListAsync(cancellationToken);
@@ -731,7 +730,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				Name = p.Name,
 				Description = p.Description,
 				IsDefault = p.IsDefault,
-				UserAccountCount = p.UserAccountProfiles.Count(uap => !uap.IsDeleted),
+				UserAccountCount = p.UserAccountProfiles.Count,
 			}
 		).FirstOrDefaultAsync(cancellationToken);
 
@@ -913,11 +912,12 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			return new UpdateTenantProfileResult.ProfileNameExists(profile.Name);
 		}
 
+		// Profile update does not touch assignments, but the response must reflect the
+		// current membership count after any concurrent assignment cleanup.
 		var userAccountCount = await (
 			from uap in _dbContext.UserAccountProfile
 			where uap.ProfileId == args.ProfileId
-				&& !uap.IsDeleted
-			select uap.Id
+			select uap.ProfileId
 		).CountAsync(cancellationToken);
 
 		var updated = new TenantProfileItem {
@@ -969,7 +969,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 
 		if (links.Count > 0) {
 			// A deleted tenant profile must stop contributing memberships immediately, so we remove
-			// the junction rows instead of leaving soft-deleted joins behind.
+			// the junction rows instead of leaving stale memberships behind.
 			_dbContext.ForceHardDeleteRange(links);
 		}
 
@@ -1135,7 +1135,6 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			from pp in _dbContext.ProfilePermission
 			join p in _dbContext.Permission on pp.PermissionKey equals p.Key
 			where pp.ProfileId == args.ProfileId
-				&& !pp.IsDeleted
 				&& !p.IsDeleted
 				&& p.Scope == PermissionScope.Tenant
 			select pp.PermissionKey
@@ -1214,37 +1213,21 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		}
 
 		if (args.IsAssigned) {
-			if (existing.IsDeleted) {
-				existing.IsDeleted = false;
-				existing.DeletedAt = null;
-				existing.UpdatedAt = DateTime.UtcNow;
-				await _dbContext.SaveChangesAsync(cancellationToken);
-				return new SetTenantProfilePermissionResult.Success(
-					profileAudit,
-					Changed: true
-				);
-			}
-
+			// Existing row already represents an active grant; repeated POST is idempotent.
 			return new SetTenantProfilePermissionResult.Success(
 				profileAudit,
 				Changed: false
 			);
 		}
 
-		if (!existing.IsDeleted) {
-			existing.IsDeleted = true;
-			existing.DeletedAt = DateTime.UtcNow;
-			existing.UpdatedAt = DateTime.UtcNow;
-			await _dbContext.SaveChangesAsync(cancellationToken);
-			return new SetTenantProfilePermissionResult.Success(
-				profileAudit,
-				Changed: true
-			);
-		}
+		// DELETE removes the active grant. There is no inactive row to preserve because audit
+		// logs are the history source for permission-assignment changes.
+		_dbContext.ProfilePermission.Remove(existing);
+		await _dbContext.SaveChangesAsync(cancellationToken);
 
 		return new SetTenantProfilePermissionResult.Success(
 			profileAudit,
-			Changed: false
+			Changed: true
 		);
 	}
 
@@ -1598,7 +1581,6 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			join ua in _dbContext.UserAccount on uap.UserAccountId equals ua.Id
 			join u in _dbContext.User on ua.UserId equals u.Id
 			where uap.ProfileId == args.ProfileId
-				&& !uap.IsDeleted
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
 				&& !u.IsDeleted
@@ -1704,7 +1686,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		// Resolve assignment in one query:
 		// - Only staff accounts are relevant for staff profiles
 		// - Deleted/suspended users/accounts are treated as not assignable via staff tooling
-		// - Deleted junction links are ignored
+		// - Junction links are hard-deleted when users are unassigned
 		var assignedUserIds = await (
 			from ua in _dbContext.UserAccount
 			join uap in _dbContext.UserAccountProfile on ua.Id equals uap.UserAccountId
@@ -1716,7 +1698,6 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				&& !u.IsDeleted
 				&& u.Status != UserStatus.Suspended
 				&& uap.ProfileId == args.ProfileId
-				&& !uap.IsDeleted
 			select u.Id
 		)
 			.Distinct()
@@ -1787,7 +1768,6 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			from pp in _dbContext.ProfilePermission
 			join p in _dbContext.Permission on pp.PermissionKey equals p.Key
 			where pp.ProfileId == profileId
-				&& !pp.IsDeleted
 				&& !p.IsDeleted
 				&& p.Scope == PermissionScope.Staff
 			select pp.PermissionKey
@@ -1848,11 +1828,11 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
+		// Same response contract as tenant profiles: count active membership rows only.
 		var userAccountCount = await (
 			from uap in _dbContext.UserAccountProfile
 			where uap.ProfileId == args.ProfileId
-				&& !uap.IsDeleted
-			select uap.Id
+			select uap.ProfileId
 		).CountAsync(cancellationToken);
 
 		var updated = new StaffProfileItem {
@@ -1919,25 +1899,13 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		}
 
 		if (args.IsAssigned) {
-			if (existing.IsDeleted) {
-				// Re-assigning after a previous unassign: revive the soft-deleted junction row.
-				existing.IsDeleted = false;
-				existing.DeletedAt = null;
-				existing.UpdatedAt = DateTime.UtcNow;
-				await _dbContext.SaveChangesAsync(cancellationToken);
-			}
-
+			// Existing row already represents an active grant; repeated POST is idempotent.
 			return new SetStaffProfilePermissionResult.Success();
 		}
 
-		// Unassign
-		if (!existing.IsDeleted) {
-			// Soft-delete the junction row to preserve assignment history for future audit needs.
-			existing.IsDeleted = true;
-			existing.DeletedAt = DateTime.UtcNow;
-			existing.UpdatedAt = DateTime.UtcNow;
-			await _dbContext.SaveChangesAsync(cancellationToken);
-		}
+		// DELETE removes the grant row so future POST can insert a fresh composite-key row.
+		_dbContext.ProfilePermission.Remove(existing);
+		await _dbContext.SaveChangesAsync(cancellationToken);
 
 		return new SetStaffProfilePermissionResult.Success();
 	}
