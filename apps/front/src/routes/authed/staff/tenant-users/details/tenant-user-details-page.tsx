@@ -136,7 +136,7 @@ const TenantUserDetailsPage = () => {
 				return (
 					<DashboardContent
 						sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
-						maxWidth="md"
+						maxWidth="lg"
 						compact
 					>
 						<CustomBreadcrumbs

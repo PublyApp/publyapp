@@ -3,9 +3,9 @@ import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
-import Divider from '@mui/material/Divider';
 import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
+import IconButton from '@mui/material/IconButton';
+import Link from '@mui/material/Link';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
@@ -14,8 +14,14 @@ import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
 import capitalize from 'lodash/capitalize';
 import toStr from 'lodash/toString';
+import trim from 'lodash/trim';
 import values from 'lodash/values';
-import { useState } from 'react';
+import {
+	createMRTColumnHelper,
+	MaterialReactTable,
+	type MRT_ColumnDef,
+} from 'material-react-table';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type zod from 'zod';
 
@@ -29,12 +35,14 @@ import { mbToBytes } from '@org/shared-ts/utils/any.utils';
 import { getUpdateTenantUserIdentitySchema } from '@org/shared-ts/validations/tenant-user.validations';
 
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
+import { EmptyContent } from '#app/components/empty-content/empty-content.tsx';
 import { Field, Form } from '#app/components/hook-form/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import type { IconifyName } from '#app/components/iconify/register-icons.ts';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
 import { StatusChip } from '#app/components/status-chip/status-chip.tsx';
+import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
 	useFindTenantUsers,
@@ -90,6 +98,7 @@ export type TenantUserUpdateData = {
 };
 
 const ACCOUNT_LEVEL_OPTIONS: AccountLevel[] = values(ACCOUNT_LEVEL_ENUM);
+const columnHelper = createMRTColumnHelper<TenantUserCompanyData>();
 
 const isGloballySuspendedStatus = (status: string | null) => {
 	return (
@@ -219,64 +228,42 @@ const TenantUserUpdateForm = ({
 								sx={{ mt: 1 }}
 							/>
 						</Box>
-
-						<Divider sx={{ my: 3, borderStyle: 'dashed' }} />
-
-						<Stack spacing={2} sx={{ px: 2 }}>
-							<InfoRow
-								icon="solar:letter-bold"
-								label={t('email-address')}
-								value={currentUser.email ?? '-'}
-							/>
-							<InfoRow
-								icon="solar:buildings-bold"
-								label={capitalize(t('companies'))}
-								value={toStr(companyTenantIds.length)}
-							/>
-							<InfoRow
-								icon="solar:calendar-date-bold"
-								label={t('created-at')}
-								value={
-									currentUser.createdAt ? fDateTime(currentUser.createdAt) : '-'
-								}
-							/>
-							<InfoRow
-								icon="solar:pen-bold"
-								label={t('updated-at')}
-								value={
-									currentUser.updatedAt ? fDateTime(currentUser.updatedAt) : '-'
-								}
-							/>
-						</Stack>
 					</Card>
 
-					<Card sx={{ p: 3, minWidth: 0, overflow: 'hidden' }}>
-						<Typography variant="h4" sx={{ mb: 3 }}>
-							{t('tenant-user-details')}
-						</Typography>
+					<Stack spacing={3} sx={{ minWidth: 0 }}>
+						<Card sx={{ p: 3, minWidth: 0, overflow: 'hidden' }}>
+							<Typography variant="h4" sx={{ mb: 3 }}>
+								{t('tenant-user-details')}
+							</Typography>
 
-						<Box
-							sx={{
-								rowGap: 3,
-								columnGap: 2,
-								display: 'grid',
-							}}
-						>
-							<Field.Text name="lastName" label={t('lastname')} required />
-							<Field.Text name="firstName" label={t('firstname')} />
-						</Box>
-
-						<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-							<Button
-								type="submit"
-								variant="contained"
-								loading={form.formState.isSubmitting || isUpdating}
-								disabled={!form.formState.isDirty || isUpdating}
+							<Box
+								sx={{
+									rowGap: 3,
+									columnGap: 2,
+									display: 'grid',
+								}}
 							>
-								{t('save-changes')}
-							</Button>
-						</Stack>
-					</Card>
+								<Field.Text name="lastName" label={t('lastname')} required />
+								<Field.Text name="firstName" label={t('firstname')} />
+							</Box>
+
+							<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
+								<Button
+									type="submit"
+									variant="contained"
+									loading={form.formState.isSubmitting || isUpdating}
+									disabled={!form.formState.isDirty || isUpdating}
+								>
+									{t('save-changes')}
+								</Button>
+							</Stack>
+						</Card>
+
+						<TenantUserMetadataCard
+							currentUser={currentUser}
+							companyCount={companyTenantIds.length}
+						/>
+					</Stack>
 				</Box>
 			</Box>
 		</Form>
@@ -294,31 +281,295 @@ export const TenantUserCompaniesList = ({
 }) => {
 	const { t } = useTranslate();
 
-	if (companies.length === 0) {
-		return (
-			<Card sx={{ p: 3 }}>
-				<Typography variant="h6">{t('companies')}</Typography>
-				<Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-					{t('no-data')}
-				</Typography>
-			</Card>
-		);
-	}
+	const columns = useMemo(() => {
+		return [
+			columnHelper.accessor('tenantName', {
+				header: t('tenant'),
+				Cell: CompanyCell,
+				size: 320,
+			}),
+			columnHelper.accessor('level', {
+				header: t('level'),
+				Cell: (props) => (
+					<CompanyLevelCell userId={userId} company={props.row.original} />
+				),
+				size: 170,
+			}),
+			columnHelper.accessor('status', {
+				header: t('status'),
+				Cell: CompanyStatusCell,
+				size: 160,
+			}),
+			columnHelper.accessor('updatedAt', {
+				header: t('updated-at'),
+				Cell: UpdatedAtCell,
+				size: 180,
+			}),
+			columnHelper.display({
+				id: 'actions',
+				header: t('actions'),
+				Cell: (props) => (
+					<CompanyActionsCell userId={userId} company={props.row.original} />
+				),
+				size: 160,
+			}),
+		];
+	}, [t, userId]);
+
+	const table = useMRTTable('minimal', {
+		columns,
+		data: companies,
+		enableColumnFilters: false,
+		enableGlobalFilter: false,
+		enablePagination: false,
+		enableRowSelection: false,
+		enableSorting: false,
+		getRowId: (row) => row.tenantId,
+		state: {
+			density: 'compact',
+		},
+		meta: {
+			renderToolbarFilters: () => (
+				<Stack spacing={0.5}>
+					<Typography variant="h5">{t('companies')}</Typography>
+					<Typography variant="body2" sx={{ color: 'text.secondary' }}>
+						{t('list-of-items', { items: t('companies') })}
+					</Typography>
+				</Stack>
+			),
+		},
+		renderEmptyRowsFallback: () => (
+			<EmptyContent title={t('no-data')} sx={{ minHeight: 240 }} />
+		),
+		muiTablePaperProps: {
+			sx: {
+				minHeight: 0,
+				height: 'auto',
+				flexGrow: 0,
+				border: '1px solid',
+				borderColor: 'divider',
+				borderRadius: 1,
+				overflow: 'hidden',
+			},
+		},
+		muiTableContainerProps: {
+			sx: {
+				maxHeight: 'none',
+			},
+		},
+	});
 
 	return (
-		<Stack spacing={2}>
-			{companies.map((company) => (
-				<TenantUserCompanyCard
-					key={company.tenantId}
-					userId={userId}
-					company={company}
-				/>
-			))}
-		</Stack>
+		<Box sx={{ minWidth: 0 }}>
+			<MaterialReactTable table={table} />
+		</Box>
 	);
 };
 
-const TenantUserCompanyCard = ({
+const TenantUserMetadataCard = ({
+	currentUser,
+	companyCount,
+}: {
+	currentUser: TenantUserUpdateData;
+	companyCount: number;
+}) => {
+	const { t } = useTranslate();
+
+	return (
+		<Card sx={{ p: 3, minWidth: 0, overflow: 'hidden' }}>
+			<Typography variant="h5" sx={{ mb: 2 }}>
+				{t('metadata')}
+			</Typography>
+
+			<Box
+				sx={{
+					display: 'grid',
+					gap: 2,
+					gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+				}}
+			>
+				<InfoRow
+					icon="solar:letter-bold"
+					label={t('email-address')}
+					value={currentUser.email ?? '-'}
+				/>
+				<InfoRow
+					icon="solar:buildings-bold"
+					label={capitalize(t('companies'))}
+					value={toStr(companyCount)}
+				/>
+				<InfoRow
+					icon="solar:calendar-date-bold"
+					label={t('created-at')}
+					value={currentUser.createdAt ? fDateTime(currentUser.createdAt) : '-'}
+				/>
+				<InfoRow
+					icon="solar:pen-bold"
+					label={t('updated-at')}
+					value={currentUser.updatedAt ? fDateTime(currentUser.updatedAt) : '-'}
+				/>
+			</Box>
+		</Card>
+	);
+};
+
+const CompanyCell: MRT_ColumnDef<TenantUserCompanyData, string>['Cell'] = (
+	props,
+) => {
+	const company = props.row.original;
+	const tenantName = trim(props.cell.getValue()) || '-';
+	const normalizedLogoUrl = trim(company.tenantLogoUrl ?? '');
+
+	return (
+		<Box sx={{ gap: 2, display: 'flex', alignItems: 'center', minWidth: 0 }}>
+			<Avatar
+				alt={tenantName}
+				src={normalizedLogoUrl || undefined}
+				sx={
+					normalizedLogoUrl
+						? {}
+						: {
+								bgcolor: 'background.neutral',
+								color: 'text.disabled',
+							}
+				}
+			>
+				{!normalizedLogoUrl ? (
+					<Iconify icon="solar:buildings-bold" width={20} />
+				) : null}
+			</Avatar>
+
+			<Box sx={{ minWidth: 0 }}>
+				<Link
+					color="inherit"
+					component={RouterLink}
+					href={FRONT_PATH_NAMES.staff.tenants.details(company.tenantId).root}
+					sx={{
+						display: 'block',
+						fontWeight: 600,
+						overflow: 'hidden',
+						textOverflow: 'ellipsis',
+						whiteSpace: 'nowrap',
+					}}
+				>
+					{tenantName}
+				</Link>
+				<Typography
+					variant="caption"
+					sx={{
+						color: 'text.secondary',
+						display: 'block',
+						overflow: 'hidden',
+						textOverflow: 'ellipsis',
+						whiteSpace: 'nowrap',
+					}}
+				>
+					{company.tenantId}
+				</Typography>
+			</Box>
+		</Box>
+	);
+};
+
+const CompanyLevelCell = ({
+	userId,
+	company,
+}: {
+	userId: string;
+	company: TenantUserCompanyData;
+}) => {
+	const { t } = useTranslate();
+	const queryClient = useQueryClient();
+	const tenantId = company.tenantId;
+	const isGloballySuspended = isGloballySuspendedStatus(company.status ?? null);
+	const selectedLevel = ACCOUNT_LEVEL_OPTIONS.includes(
+		company.level as AccountLevel,
+	)
+		? (company.level as AccountLevel)
+		: '';
+
+	const { mutate: updateTenantUser, isPending: isUpdatingLevel } =
+		useUpdateTenantUser({
+			onSuccess: async () => {
+				toast.success(t('user-level-updated-success'));
+				await invalidateTenantUserCompanyQueries({
+					queryClient,
+					userId,
+					tenantId,
+				});
+			},
+		});
+
+	return (
+		<Tooltip
+			title={
+				isGloballySuspended ? t('globally-suspended-row-disabled') : t('level')
+			}
+			placement="top"
+			arrow
+		>
+			<Box component="span">
+				<FormControl size="small" sx={{ minWidth: 132 }}>
+					<Select
+						value={selectedLevel}
+						disabled={isUpdatingLevel || isGloballySuspended}
+						displayEmpty
+						inputProps={{
+							'aria-label': t('level'),
+						}}
+						onChange={(event) => {
+							const nextLevel = event.target.value as AccountLevel;
+							if (
+								!ACCOUNT_LEVEL_OPTIONS.includes(nextLevel) ||
+								nextLevel === company.level
+							) {
+								return;
+							}
+
+							updateTenantUser({ tenantId, userId, level: nextLevel });
+						}}
+					>
+						{ACCOUNT_LEVEL_OPTIONS.map((option) => (
+							<MenuItem key={option} value={option}>
+								{option}
+							</MenuItem>
+						))}
+					</Select>
+				</FormControl>
+			</Box>
+		</Tooltip>
+	);
+};
+
+const CompanyStatusCell: MRT_ColumnDef<
+	TenantUserCompanyData,
+	string
+>['Cell'] = (props) => {
+	const { t } = useTranslate();
+
+	return (
+		<StatusChip
+			status={props.row.original.status ?? null}
+			unknownLabel={capitalize(t('unknown'))}
+			colorMap={TENANT_USER_STATUS_COLOR_MAP}
+		/>
+	);
+};
+
+const UpdatedAtCell: MRT_ColumnDef<
+	TenantUserCompanyData,
+	DatePickerFormat | undefined
+>['Cell'] = (props) => {
+	const value = props.cell.getValue();
+
+	return (
+		<Typography variant="body2" sx={{ color: 'text.secondary' }}>
+			{value ? fDateTime(value) : '-'}
+		</Typography>
+	);
+};
+
+const CompanyActionsCell = ({
 	userId,
 	company,
 }: {
@@ -335,35 +586,25 @@ const TenantUserCompanyCard = ({
 	const status = company.status ?? null;
 	const isGloballySuspended = isGloballySuspendedStatus(status);
 	const isSuspended = status === USER_STATUS_ENUM.SUSPENDED;
-	const selectedLevel = ACCOUNT_LEVEL_OPTIONS.includes(
-		company.level as AccountLevel,
-	)
-		? (company.level as AccountLevel)
-		: '';
+	const lifecycleDisabledReason = t('globally-suspended-row-disabled');
+	let lifecycleActionLabel = t('suspend');
 
-	const invalidateTenantUserQueries = async () => {
-		await queryClient.invalidateQueries({
-			queryKey: useGetTenantUserById.getKey({ userId }),
-		});
-		await queryClient.invalidateQueries({
-			queryKey: useFindTenantUsers.getKey({ tenantId }),
-		});
-	};
-
-	const { mutate: updateTenantUser, isPending: isUpdatingLevel } =
-		useUpdateTenantUser({
-			onSuccess: async () => {
-				toast.success(t('user-level-updated-success'));
-				await invalidateTenantUserQueries();
-			},
-		});
+	if (isGloballySuspended) {
+		lifecycleActionLabel = lifecycleDisabledReason;
+	} else if (isSuspended) {
+		lifecycleActionLabel = t('reactivate');
+	}
 
 	const { mutate: suspendUser, isPending: isSuspending } = useSuspendTenantUser(
 		{
 			onSuccess: async () => {
 				toast.success(t('tenant-user-suspended-success'));
 				setSuspendDialogOpen(false);
-				await invalidateTenantUserQueries();
+				await invalidateTenantUserCompanyQueries({
+					queryClient,
+					userId,
+					tenantId,
+				});
 			},
 		},
 	);
@@ -373,7 +614,11 @@ const TenantUserCompanyCard = ({
 			onSuccess: async () => {
 				toast.success(t('tenant-user-reactivated-success'));
 				setReactivateDialogOpen(false);
-				await invalidateTenantUserQueries();
+				await invalidateTenantUserCompanyQueries({
+					queryClient,
+					userId,
+					tenantId,
+				});
 			},
 		});
 
@@ -381,140 +626,62 @@ const TenantUserCompanyCard = ({
 		onSuccess: async () => {
 			toast.success(t('user-removed-success'));
 			setRemoveDialogOpen(false);
-			await invalidateTenantUserQueries();
+			await invalidateTenantUserCompanyQueries({
+				queryClient,
+				userId,
+				tenantId,
+			});
 		},
 	});
 
 	return (
-		<Card sx={{ p: 3, minWidth: 0, overflow: 'hidden' }}>
-			<Stack
-				direction={{ xs: 'column', sm: 'row' }}
-				spacing={2}
-				alignItems={{ xs: 'flex-start', sm: 'center' }}
-				justifyContent="space-between"
-			>
-				<Stack
-					direction="row"
-					spacing={2}
-					alignItems="center"
-					sx={{ minWidth: 0 }}
-				>
-					<Avatar
-						alt={company.tenantName}
-						src={company.tenantLogoUrl || undefined}
-						sx={
-							company.tenantLogoUrl
-								? {}
-								: {
-										bgcolor: 'background.neutral',
-										color: 'text.disabled',
-									}
-						}
-					>
-						{!company.tenantLogoUrl ? (
-							<Iconify icon="solar:buildings-bold" width={20} />
-						) : null}
-					</Avatar>
-
-					<Box sx={{ minWidth: 0 }}>
-						<Typography
-							variant="subtitle1"
-							sx={{
-								overflow: 'hidden',
-								textOverflow: 'ellipsis',
-								whiteSpace: 'nowrap',
-							}}
-						>
-							{company.tenantName}
-						</Typography>
-						<Stack
-							direction="row"
-							spacing={1}
-							alignItems="center"
-							sx={{ mt: 0.5, flexWrap: 'wrap', rowGap: 0.5 }}
-						>
-							<StatusChip
-								status={status}
-								unknownLabel={capitalize(t('unknown'))}
-								colorMap={TENANT_USER_STATUS_COLOR_MAP}
-							/>
-							<Typography variant="caption" sx={{ color: 'text.secondary' }}>
-								{t('updated-at')}:{' '}
-								{company.updatedAt ? fDateTime(company.updatedAt) : '-'}
-							</Typography>
-						</Stack>
-					</Box>
-				</Stack>
-
-				<Stack
-					direction="row"
-					spacing={1}
-					alignItems="center"
-					sx={{ flexWrap: 'wrap', rowGap: 1 }}
-				>
-					<FormControl size="small" sx={{ minWidth: 144 }}>
-						<InputLabel id={`tenant-user-level-${tenantId}`}>
-							{t('level')}
-						</InputLabel>
-						<Select
-							labelId={`tenant-user-level-${tenantId}`}
-							value={selectedLevel}
-							label={t('level')}
-							disabled={isUpdatingLevel || isGloballySuspended}
-							onChange={(event) => {
-								updateTenantUser({
-									tenantId,
-									userId,
-									level: event.target.value as AccountLevel,
-								});
-							}}
-						>
-							{ACCOUNT_LEVEL_OPTIONS.map((option) => (
-								<MenuItem key={option} value={option}>
-									{option}
-								</MenuItem>
-							))}
-						</Select>
-					</FormControl>
-
-					<Button
+		<>
+			<Stack direction="row" spacing={0.5} alignItems="center">
+				<Tooltip title={t('tenant')} placement="top" arrow>
+					<IconButton
 						component={RouterLink}
 						href={FRONT_PATH_NAMES.staff.tenants.details(tenantId).root}
-						variant="outlined"
-						color="inherit"
-						startIcon={<Iconify icon="solar:buildings-bold" />}
+						color="default"
 					>
-						{t('tenant')}
-					</Button>
+						<Iconify icon="solar:buildings-bold" width={18} />
+					</IconButton>
+				</Tooltip>
 
-					{!isGloballySuspended && !isSuspended ? (
-						<Button
-							variant="outlined"
-							color="warning"
-							onClick={() => setSuspendDialogOpen(true)}
+				<Tooltip title={lifecycleActionLabel} placement="top" arrow>
+					<Box component="span">
+						<IconButton
+							color={isSuspended ? 'success' : 'warning'}
+							disabled={isGloballySuspended || isSuspending || isReactivating}
+							onClick={() => {
+								if (isSuspended) {
+									setReactivateDialogOpen(true);
+									return;
+								}
+
+								setSuspendDialogOpen(true);
+							}}
 						>
-							{t('suspend')}
-						</Button>
-					) : null}
+							<Iconify
+								icon={
+									isSuspended
+										? 'solar:play-circle-bold'
+										: 'solar:stop-circle-bold'
+								}
+								width={18}
+							/>
+						</IconButton>
+					</Box>
+				</Tooltip>
 
-					{!isGloballySuspended && isSuspended ? (
-						<Button
-							variant="outlined"
-							color="success"
-							onClick={() => setReactivateDialogOpen(true)}
-						>
-							{t('reactivate')}
-						</Button>
-					) : null}
-
-					<Button
-						variant="outlined"
+				<Tooltip title={t('remove')} placement="top" arrow>
+					<IconButton
 						color="error"
+						disabled={isRemoving}
 						onClick={() => setRemoveDialogOpen(true)}
 					>
-						{t('remove')}
-					</Button>
-				</Stack>
+						<Iconify icon="solar:trash-bin-trash-bold" width={18} />
+					</IconButton>
+				</Tooltip>
 			</Stack>
 
 			<ConfirmDialog
@@ -567,7 +734,7 @@ const TenantUserCompanyCard = ({
 					</Button>
 				}
 			/>
-		</Card>
+		</>
 	);
 };
 
@@ -615,3 +782,20 @@ const InfoRow = ({
 		</Box>
 	</Box>
 );
+
+const invalidateTenantUserCompanyQueries = async ({
+	queryClient,
+	userId,
+	tenantId,
+}: {
+	queryClient: ReturnType<typeof useQueryClient>;
+	userId: string;
+	tenantId: string;
+}) => {
+	await queryClient.invalidateQueries({
+		queryKey: useGetTenantUserById.getKey({ userId }),
+	});
+	await queryClient.invalidateQueries({
+		queryKey: useFindTenantUsers.getKey({ tenantId }),
+	});
+};

@@ -54,6 +54,7 @@
 	"tenant-users": "Tenant users",
 	"tenant-user-details": "Tenant user details",
 	"companies": "Companies",
+	"metadata": "Metadata",
 	"item-is-required": "{{item}} is required",
 	"item-not-found": "{{item}} not found",
 	"profile-not-found": "Profile not found",

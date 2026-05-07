@@ -91,8 +91,8 @@ FRONT_PATH_NAMES.staff.tenantUsers.details(userId)
 ```
 
 Tenant details remains the entry point for tenant-local context. Its `Users` tab
-links to the first-class route, and the destination page shows each company
-membership under the `Companies` tab.
+links to the first-class route, and the destination page keeps each company
+membership visible in an inline `Companies` table below the identity details.
 
 ## API Design
 
@@ -236,11 +236,12 @@ Required primitives to reuse:
 
 Required layout pattern:
 
-- same `maxWidth="md"` details page width as Staff user details
-- same two-column card layout
-- same left summary rail with avatar, status, and metadata rows
-- same right editable form card
-- company memberships render below the identity form on the same page
+- `DashboardContent` inside the normal Staff app sidebar shell
+- a wider details page width that can comfortably host an MRT table
+- two-column top details layout
+- left card with disabled avatar upload and user status chip
+- right column with the editable identity form card and a separate metadata card
+- company memberships render below the details grid on the same page
 - company membership actions live in the company list, not in the identity form
 - same skeleton structure adapted for tenant-user fields
 
@@ -269,7 +270,8 @@ this issue because tenant-user email has sign-in and global identity impact.
 
 ## Company List
 
-Each company row/card should expose tenant-scoped membership actions:
+The company list should use the existing Material React Table primitives, not
+cards or tabs. Each company row should expose tenant-scoped membership actions:
 
 - suspend tenant membership when the effective tenant-user status is active
 - reactivate tenant membership when the tenant membership is suspended
@@ -348,7 +350,7 @@ Frontend verification:
 - click drawer expand action from tenant details users table
 - edit first name / last name and verify dirty-field PATCH
 - edit account level for one company
-- suspend/reactivate tenant membership from a company row/card
+- suspend/reactivate tenant membership from a company table row
 - remove user from tenant and verify details refresh
 - verify malformed/missing IDs do not trigger logout
 
@@ -359,7 +361,8 @@ Frontend verification:
 3. Add the first-class frontend route helper and route file.
 4. Add the `useGetTenantUserById` and `useUpdateTenantUserIdentity` hooks.
 5. Build the tenant-user details page using Staff user details primitives.
-6. Render the company list below the identity form on the same page.
+6. Render the company list as an inline MRT table below the details grid on the
+   same page.
 7. Update tenant-users table links to the first-class details route.
 8. Run API, client generation, and frontend type verification.
 

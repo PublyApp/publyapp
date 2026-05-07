@@ -4,7 +4,7 @@
 
 **Goal:** Fix issue 386 by adding a full editable Staff dashboard tenant-user details page at `/staff/tenant-users/:userId`.
 
-**Architecture:** Add first-class Staff tenant-user `GET/PATCH /staff/tenant-users/{userId}` endpoints, regenerate the Kiota client, then register the frontend route at `/staff/tenant-users/:userId`. The page reuses the same primitives and visual structure as the existing Staff user details page, with shared identity editing first and tenant/company membership actions listed below on the same page.
+**Architecture:** Add first-class Staff tenant-user `GET/PATCH /staff/tenant-users/{userId}` endpoints, regenerate the Kiota client, then register the frontend route at `/staff/tenant-users/:userId`. The page reuses the same primitives as the existing Staff user details page, with shared identity editing in the top details grid and tenant/company membership actions listed below in an MRT table on the same page.
 
 **Tech Stack:** .NET 10 minimal APIs, EF Core, FluentValidation/RFC7807 problem helpers, Kiota TypeScript client, React 19, React Router v7, TanStack Query, MUI v6, React Hook Form, Zod
 
@@ -21,8 +21,18 @@ final target to a first-class Staff tenant-user page:
 ```
 
 This route uses `User.Id`, not `UserAccount.Id`. Tenant/company membership context
-is listed below the shared identity form on the same page. Tenant-scoped
+is listed below the shared identity details on the same page. Tenant-scoped
 endpoints remain in use for company membership actions.
+
+## UI Review Update
+
+The approved final layout is not tabbed. It uses the normal Staff dashboard
+shell, a top details grid, and a company list below it:
+
+- left details card: disabled avatar upload and global user status chip
+- right details column: editable name form card, then read-only metadata card
+- lower section: companies as a Material React Table with membership level,
+  status, tenant link, suspend/reactivate, and remove actions
 
 ## File Structure
 
