@@ -2,12 +2,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import ButtonBase from '@mui/material/ButtonBase';
 import Card from '@mui/material/Card';
-import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
+import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
@@ -21,6 +21,7 @@ import {
 	MaterialReactTable,
 	type MRT_ColumnDef,
 } from 'material-react-table';
+import { varAlpha } from 'minimal-shared/utils';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type zod from 'zod';
@@ -39,6 +40,8 @@ import { EmptyContent } from '#app/components/empty-content/empty-content.tsx';
 import { Field, Form } from '#app/components/hook-form/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import type { IconifyName } from '#app/components/iconify/register-icons.ts';
+import { Label } from '#app/components/label/label.tsx';
+import type { LabelColor } from '#app/components/label/types.ts';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
 import { StatusChip } from '#app/components/status-chip/status-chip.tsx';
@@ -60,13 +63,6 @@ import { fDateTime, type DatePickerFormat } from '#app/utils/format-time.ts';
 const USER_STATUS_COLOR_MAP = {
 	Active: 'success',
 	Suspended: 'warning',
-} as const;
-
-const TENANT_USER_STATUS_COLOR_MAP = {
-	Active: 'success',
-	Suspended: 'warning',
-	GloballySuspended: 'error',
-	globally_suspended: 'error',
 } as const;
 
 const GLOBALLY_SUSPENDED_STATUS_VALUE = 'globally_suspended';
@@ -306,7 +302,9 @@ export const TenantUserCompaniesList = ({
 			}),
 			columnHelper.accessor('status', {
 				header: t('status'),
-				Cell: CompanyStatusCell,
+				Cell: (props) => (
+					<CompanyStatusCell userId={userId} company={props.row.original} />
+				),
 				size: 160,
 			}),
 			columnHelper.display({
@@ -482,18 +480,27 @@ const CompanyLevelCell = ({
 }) => {
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
+	const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
 	const tenantId = company.tenantId;
 	const isGloballySuspended = isGloballySuspendedStatus(company.status ?? null);
-	const selectedLevel = ACCOUNT_LEVEL_OPTIONS.includes(
-		company.level as AccountLevel,
-	)
-		? (company.level as AccountLevel)
-		: '';
+	const level = company.level ?? '';
+
+	let label: string = t('unknown-item', { item: 'role' });
+	let color: LabelColor = 'default';
+
+	if (level === ACCOUNT_LEVEL_ENUM.ADMIN) {
+		label = t('admin');
+		color = 'success';
+	} else if (level === ACCOUNT_LEVEL_ENUM.USER) {
+		label = t('user');
+		color = 'warning';
+	}
 
 	const { mutate: updateTenantUser, isPending: isUpdatingLevel } =
 		useUpdateTenantUser({
 			onSuccess: async () => {
 				toast.success(t('user-level-updated-success'));
+				setMenuAnchorEl(null);
 				await invalidateTenantUserCompanyQueries({
 					queryClient,
 					userId,
@@ -502,63 +509,111 @@ const CompanyLevelCell = ({
 			},
 		});
 
+	const handleChangeLevel = (nextLevel: AccountLevel) => {
+		if (!ACCOUNT_LEVEL_OPTIONS.includes(nextLevel) || nextLevel === level) {
+			setMenuAnchorEl(null);
+			return;
+		}
+
+		updateTenantUser({ tenantId, userId, level: nextLevel });
+	};
+
 	return (
-		<Tooltip
-			title={
-				isGloballySuspended ? t('globally-suspended-row-disabled') : t('level')
-			}
-			placement="top"
-			arrow
-		>
-			<Box component="span">
-				<FormControl size="small" sx={{ minWidth: 132 }}>
-					<Select
-						value={selectedLevel}
+		<Box sx={{ display: 'flex', alignItems: 'center' }}>
+			<Tooltip
+				title={
+					isGloballySuspended
+						? t('globally-suspended-row-disabled')
+						: t('change-role')
+				}
+				placement="top"
+				arrow
+			>
+				<Box component="span">
+					<ButtonBase
+						onClick={(event) => {
+							setMenuAnchorEl(event.currentTarget);
+						}}
 						disabled={isUpdatingLevel || isGloballySuspended}
-						displayEmpty
-						inputProps={{
-							'aria-label': t('level'),
-						}}
-						onChange={(event) => {
-							const nextLevel = event.target.value as AccountLevel;
-							if (
-								!ACCOUNT_LEVEL_OPTIONS.includes(nextLevel) ||
-								nextLevel === company.level
-							) {
-								return;
-							}
-
-							updateTenantUser({ tenantId, userId, level: nextLevel });
-						}}
+						sx={(theme) => ({
+							gap: 0.5,
+							px: 0.5,
+							py: 0.25,
+							borderRadius: 1,
+							display: 'inline-flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							transition: theme.transitions.create('background-color', {
+								duration: theme.transitions.duration.shorter,
+							}),
+							'&:hover': {
+								backgroundColor: varAlpha(
+									theme.vars.palette.grey['500Channel'],
+									0.08,
+								),
+							},
+							'&:disabled': {
+								opacity: 0.48,
+							},
+						})}
 					>
-						{ACCOUNT_LEVEL_OPTIONS.map((option) => (
-							<MenuItem key={option} value={option}>
-								{option}
-							</MenuItem>
-						))}
-					</Select>
-				</FormControl>
-			</Box>
-		</Tooltip>
+						<Label variant="soft" color={color}>
+							{label}
+						</Label>
+						<Iconify icon="eva:arrow-ios-downward-fill" width={16} />
+					</ButtonBase>
+				</Box>
+			</Tooltip>
+
+			<Menu
+				open={menuAnchorEl !== null}
+				disableAutoFocusItem
+				onClose={() => {
+					setMenuAnchorEl(null);
+				}}
+				anchorEl={menuAnchorEl}
+				anchorOrigin={{
+					vertical: 'bottom',
+					horizontal: 'left',
+				}}
+				transformOrigin={{
+					vertical: 'top',
+					horizontal: 'left',
+				}}
+			>
+				<MenuItem
+					selected={level === ACCOUNT_LEVEL_ENUM.ADMIN}
+					onClick={() => handleChangeLevel(ACCOUNT_LEVEL_ENUM.ADMIN)}
+				>
+					<Stack direction="row" alignItems="center" gap={1}>
+						{level === ACCOUNT_LEVEL_ENUM.ADMIN ? (
+							<Iconify icon="solar:check-circle-bold" width={18} />
+						) : (
+							<Iconify icon="solar:shield-check-bold" width={18} />
+						)}
+						{t('admin')}
+					</Stack>
+				</MenuItem>
+
+				<MenuItem
+					selected={level === ACCOUNT_LEVEL_ENUM.USER}
+					onClick={() => handleChangeLevel(ACCOUNT_LEVEL_ENUM.USER)}
+				>
+					<Stack direction="row" alignItems="center" gap={1}>
+						{level === ACCOUNT_LEVEL_ENUM.USER ? (
+							<Iconify icon="solar:check-circle-bold" width={18} />
+						) : (
+							<Iconify icon="solar:users-group-rounded-bold" width={18} />
+						)}
+						{t('user')}
+					</Stack>
+				</MenuItem>
+			</Menu>
+		</Box>
 	);
 };
 
-const CompanyStatusCell: MRT_ColumnDef<
-	TenantUserCompanyData,
-	string
->['Cell'] = (props) => {
-	const { t } = useTranslate();
-
-	return (
-		<StatusChip
-			status={props.row.original.status ?? null}
-			unknownLabel={capitalize(t('unknown'))}
-			colorMap={TENANT_USER_STATUS_COLOR_MAP}
-		/>
-	);
-};
-
-const CompanyActionsCell = ({
+const CompanyStatusCell = ({
 	userId,
 	company,
 }: {
@@ -567,28 +622,34 @@ const CompanyActionsCell = ({
 }) => {
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
-	const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
-	const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
-	const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+	const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+	const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+	const [pendingStatus, setPendingStatus] = useState<string | null>(null);
 
 	const tenantId = company.tenantId;
 	const status = company.status ?? null;
 	const isGloballySuspended = isGloballySuspendedStatus(status);
-	const isSuspended = status === USER_STATUS_ENUM.SUSPENDED;
-	const lifecycleDisabledReason = t('globally-suspended-row-disabled');
-	let lifecycleActionLabel = t('suspend');
+
+	let label: string = t('unknown-item', { item: 'status' });
+	let color: LabelColor = 'default';
 
 	if (isGloballySuspended) {
-		lifecycleActionLabel = lifecycleDisabledReason;
-	} else if (isSuspended) {
-		lifecycleActionLabel = t('reactivate');
+		label = t('globally-suspended');
+		color = 'error';
+	} else if (status === USER_STATUS_ENUM.ACTIVE) {
+		label = t('active');
+		color = 'success';
+	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
+		label = t('suspended');
+		color = 'warning';
 	}
 
 	const { mutate: suspendUser, isPending: isSuspending } = useSuspendTenantUser(
 		{
 			onSuccess: async () => {
 				toast.success(t('tenant-user-suspended-success'));
-				setSuspendDialogOpen(false);
+				setConfirmDialogOpen(false);
+				setMenuAnchorEl(null);
 				await invalidateTenantUserCompanyQueries({
 					queryClient,
 					userId,
@@ -602,7 +663,8 @@ const CompanyActionsCell = ({
 		useReactivateTenantUser({
 			onSuccess: async () => {
 				toast.success(t('tenant-user-reactivated-success'));
-				setReactivateDialogOpen(false);
+				setConfirmDialogOpen(false);
+				setMenuAnchorEl(null);
 				await invalidateTenantUserCompanyQueries({
 					queryClient,
 					userId,
@@ -610,6 +672,180 @@ const CompanyActionsCell = ({
 				});
 			},
 		});
+
+	const isPending = isSuspending || isReactivating;
+	const isActive = status === USER_STATUS_ENUM.ACTIVE;
+	const isSuspended = status === USER_STATUS_ENUM.SUSPENDED;
+	const canChangeStatus = !isGloballySuspended && (isActive || isSuspended);
+
+	const handleStatusClick = (nextStatus: string) => {
+		if (nextStatus === status) {
+			setMenuAnchorEl(null);
+			return;
+		}
+
+		setPendingStatus(nextStatus);
+		setConfirmDialogOpen(true);
+	};
+
+	const handleConfirm = () => {
+		if (!pendingStatus) {
+			return;
+		}
+
+		if (pendingStatus === USER_STATUS_ENUM.SUSPENDED) {
+			suspendUser({ tenantId, userId });
+			return;
+		}
+
+		if (pendingStatus === USER_STATUS_ENUM.ACTIVE) {
+			reactivateUser({ tenantId, userId });
+		}
+	};
+
+	if (!canChangeStatus) {
+		return (
+			<Tooltip
+				title={isGloballySuspended ? t('globally-suspended-row-disabled') : ''}
+				placement="top"
+				arrow
+				disableHoverListener={!isGloballySuspended}
+			>
+				<Box component="span">
+					<Label variant="soft" color={color}>
+						{label}
+					</Label>
+				</Box>
+			</Tooltip>
+		);
+	}
+
+	return (
+		<>
+			<Box sx={{ display: 'flex', alignItems: 'center' }}>
+				<Tooltip title={t('change-status')} placement="top" arrow>
+					<ButtonBase
+						onClick={(event) => {
+							setMenuAnchorEl(event.currentTarget);
+						}}
+						disabled={isPending}
+						sx={(theme) => ({
+							gap: 0.5,
+							px: 0.5,
+							py: 0.25,
+							borderRadius: 1,
+							display: 'inline-flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							transition: theme.transitions.create('background-color', {
+								duration: theme.transitions.duration.shorter,
+							}),
+							'&:hover': {
+								backgroundColor: varAlpha(
+									theme.vars.palette.grey['500Channel'],
+									0.08,
+								),
+							},
+							'&:disabled': {
+								opacity: 0.48,
+							},
+						})}
+					>
+						<Label variant="soft" color={color}>
+							{label}
+						</Label>
+						<Iconify icon="eva:arrow-ios-downward-fill" width={16} />
+					</ButtonBase>
+				</Tooltip>
+
+				<Menu
+					open={menuAnchorEl !== null}
+					disableAutoFocusItem
+					onClose={() => {
+						setMenuAnchorEl(null);
+					}}
+					anchorEl={menuAnchorEl}
+					anchorOrigin={{
+						vertical: 'bottom',
+						horizontal: 'left',
+					}}
+					transformOrigin={{
+						vertical: 'top',
+						horizontal: 'left',
+					}}
+				>
+					<MenuItem
+						selected={isActive}
+						onClick={() => handleStatusClick(USER_STATUS_ENUM.ACTIVE)}
+					>
+						<Stack direction="row" alignItems="center" gap={1}>
+							{isActive ? (
+								<Iconify icon="solar:check-circle-bold" width={18} />
+							) : (
+								<Iconify icon="solar:shield-check-bold" width={18} />
+							)}
+							{t('active')}
+						</Stack>
+					</MenuItem>
+
+					<MenuItem
+						selected={isSuspended}
+						onClick={() => handleStatusClick(USER_STATUS_ENUM.SUSPENDED)}
+					>
+						<Stack direction="row" alignItems="center" gap={1}>
+							{isSuspended ? (
+								<Iconify icon="solar:check-circle-bold" width={18} />
+							) : (
+								<Iconify icon="solar:stop-circle-bold" width={18} />
+							)}
+							{t('suspended')}
+						</Stack>
+					</MenuItem>
+				</Menu>
+			</Box>
+
+			<ConfirmDialog
+				open={confirmDialogOpen}
+				onClose={() => setConfirmDialogOpen(false)}
+				title={
+					pendingStatus === USER_STATUS_ENUM.SUSPENDED
+						? t('confirm-suspend-tenant-user')
+						: t('confirm-reactivate-tenant-user')
+				}
+				content={
+					pendingStatus === USER_STATUS_ENUM.SUSPENDED
+						? t('suspend-tenant-user-description')
+						: t('reactivate-tenant-user-description')
+				}
+				action={
+					<Button
+						variant="contained"
+						color="inherit"
+						onClick={handleConfirm}
+						disabled={isPending}
+					>
+						{pendingStatus === USER_STATUS_ENUM.SUSPENDED
+							? t('suspend')
+							: t('reactivate')}
+					</Button>
+				}
+			/>
+		</>
+	);
+};
+
+const CompanyActionsCell = ({
+	userId,
+	company,
+}: {
+	userId: string;
+	company: TenantUserCompanyData;
+}) => {
+	const { t } = useTranslate();
+	const queryClient = useQueryClient();
+	const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+
+	const tenantId = company.tenantId;
 
 	const { mutate: removeUser, isPending: isRemoving } = useRemoveTenantUser({
 		onSuccess: async () => {
@@ -636,32 +872,6 @@ const CompanyActionsCell = ({
 					</IconButton>
 				</Tooltip>
 
-				<Tooltip title={lifecycleActionLabel} placement="top" arrow>
-					<Box component="span">
-						<IconButton
-							color={isSuspended ? 'success' : 'warning'}
-							disabled={isGloballySuspended || isSuspending || isReactivating}
-							onClick={() => {
-								if (isSuspended) {
-									setReactivateDialogOpen(true);
-									return;
-								}
-
-								setSuspendDialogOpen(true);
-							}}
-						>
-							<Iconify
-								icon={
-									isSuspended
-										? 'solar:play-circle-bold'
-										: 'solar:stop-circle-bold'
-								}
-								width={18}
-							/>
-						</IconButton>
-					</Box>
-				</Tooltip>
-
 				<Tooltip title={t('remove')} placement="top" arrow>
 					<IconButton
 						color="error"
@@ -672,40 +882,6 @@ const CompanyActionsCell = ({
 					</IconButton>
 				</Tooltip>
 			</Stack>
-
-			<ConfirmDialog
-				open={suspendDialogOpen}
-				onClose={() => setSuspendDialogOpen(false)}
-				title={t('confirm-suspend-tenant-user')}
-				content={t('suspend-tenant-user-description')}
-				action={
-					<Button
-						variant="contained"
-						color="warning"
-						onClick={() => suspendUser({ tenantId, userId })}
-						disabled={isSuspending}
-					>
-						{t('suspend')}
-					</Button>
-				}
-			/>
-
-			<ConfirmDialog
-				open={reactivateDialogOpen}
-				onClose={() => setReactivateDialogOpen(false)}
-				title={t('confirm-reactivate-tenant-user')}
-				content={t('reactivate-tenant-user-description')}
-				action={
-					<Button
-						variant="contained"
-						color="success"
-						onClick={() => reactivateUser({ tenantId, userId })}
-						disabled={isReactivating}
-					>
-						{t('reactivate')}
-					</Button>
-				}
-			/>
 
 			<ConfirmDialog
 				open={removeDialogOpen}
