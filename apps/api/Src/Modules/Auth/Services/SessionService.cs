@@ -46,15 +46,27 @@ public class SessionService : ISessionService {
 	}
 
 	public async Task<SessionData?> GetSessionByToken(string token, CancellationToken cancellationToken = default) {
+		var utcNow = DateTime.UtcNow;
+
 		var query =
 			from s in _dbContext.Session
 			join u in _dbContext.User on s.UserId equals u.Id
-			where s.Token == token && s.ExpiresAt > DateTime.UtcNow
+			where s.Token == token && !s.IsDeleted
 			select new { Session = s, User = u };
 
 		var result = await query.FirstOrDefaultAsync(cancellationToken);
 
-		if (result is null) return null;
+		if (result is null) {
+			return null;
+		}
+
+		if (result.Session.ExpiresAt <= utcNow) {
+			await _dbContext.Session
+				.Where(s => s.Token == token && !s.IsDeleted && s.ExpiresAt <= utcNow)
+				.ExecuteDeleteAsync(cancellationToken);
+
+			return null;
+		}
 
 		// Runtime filtering
 		if (result.User.IsDeleted || result.User.IsSuspended() || !result.User.IsVerified) {
