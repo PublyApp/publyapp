@@ -510,6 +510,35 @@ export const useGetTenantUserById = createStaffQuery({
 	},
 });
 
+type FindTenantUserCompaniesParams = {
+	userId: string;
+	cursor?: string;
+	limit?: number;
+	sort?: { id: string; order: 'desc' | 'asc' };
+};
+
+export const useFindTenantUserCompanies = createStaffQuery({
+	queryKeyFn: (client) => client.staff.tenantUsers.byUserId('').companies.get,
+	fetcher: async (client, params: FindTenantUserCompaniesParams) => {
+		const result = await client.staff.tenantUsers
+			.byUserId(params.userId)
+			.companies.get({
+				queryParameters: {
+					cursor: params.cursor,
+					limit: params.limit ? params.limit.toString() : undefined,
+					sortId: params.sort?.id,
+					sortOrder: params.sort?.order,
+				},
+			});
+
+		if (isNil(result)) {
+			throw new Error('useFindTenantUserCompanies: result is nil');
+		}
+
+		return result;
+	},
+});
+
 type FindTenantInvitationsParams = {
 	tenantId: string;
 	cursor?: string;

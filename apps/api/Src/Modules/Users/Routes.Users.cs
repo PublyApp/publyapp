@@ -79,6 +79,9 @@ public static partial class Routes {
 			public const string Root = "/tenant-users";
 			public const string GetById = "/{userId}";
 			public static string GetByIdFn(string userId) => $"/tenant-users/{userId}";
+			public const string FindCompanies = "/{userId}/companies";
+			public static string FindCompaniesFn(string userId) =>
+				$"/tenant-users/{userId}/companies";
 			public const string Update = "/{userId}";
 			public static string UpdateFn(string userId) => $"/tenant-users/{userId}";
 		}

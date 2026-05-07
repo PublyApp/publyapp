@@ -100,6 +100,7 @@ Add first-class Staff tenant-user endpoints:
 
 ```text
 GET /staff/tenant-users/{userId}
+GET /staff/tenant-users/{userId}/companies
 PATCH /staff/tenant-users/{userId}
 ```
 
@@ -117,9 +118,21 @@ Expected first-class response fields:
 - `status`
 - `createdAt`
 - `updatedAt`
-- `companies`
+- `companyCount`
 
-Each `companies` item includes:
+The details response must not embed the company membership list. Company
+memberships are loaded through the cursor-paginated companies endpoint so a
+tenant user with many company memberships does not make the details endpoint
+unbounded.
+
+Expected company endpoint query params:
+
+- `cursor`
+- `limit`
+- `sort_id`
+- `sort_order`
+
+Each paginated company item includes:
 
 - `tenantId`
 - `tenantName`
@@ -139,6 +152,7 @@ The handler should follow current route-parameter rules:
 The endpoints use route-level permission enforcement:
 
 - `GET`: `AppPermissions.Staff.Users.GET_FOR_TENANT`
+- `GET /companies`: `AppPermissions.Staff.Users.GET_FOR_TENANT`
 - `PATCH`: `AppPermissions.Staff.Users.UPDATE_FOR_TENANT`
 
 ## Backend Service Design
@@ -151,6 +165,12 @@ Task<TenantUserDetailsData?> GetTenantUserDetailsAsync(
 	CancellationToken cancellationToken = default
 );
 
+Task<FindTenantUserCompaniesResult> FindTenantUserCompaniesAsync(
+	Guid userId,
+	FindTenantUserCompaniesForStaffArgs args,
+	CancellationToken cancellationToken = default
+);
+
 Task<UpdateTenantUserIdentityResult> UpdateTenantUserIdentityAsync(
 	Guid userId,
 	UpdateTenantUserIdentityDocument document,
@@ -158,13 +178,21 @@ Task<UpdateTenantUserIdentityResult> UpdateTenantUserIdentityAsync(
 );
 ```
 
-The read query must match a non-deleted user with at least one non-deleted tenant
-membership and return all tenant/company memberships:
+The details query must match a non-deleted user with at least one non-deleted
+tenant membership and return identity fields plus a bounded `companyCount`:
 
 - `User.Id == userId`
 - account scope is `AccountScope.Tenant`
 - soft-deleted users, accounts, and tenants are excluded
 - suspended users and suspended memberships remain visible
+
+The companies query applies the same visibility rules, returns cursor-paginated
+membership rows, and supports explicit sort fields used by the MRT table:
+
+- `tenant_name`
+- `status`
+- `level`
+- `created_at`
 
 The identity update method only changes shared `User` fields:
 
@@ -204,6 +232,7 @@ export const useGetTenantUserById = createStaffQuery({
 The page should use:
 
 - `useUpdateTenantUserIdentity` for the identity form
+- `useFindTenantUserCompanies` for the paginated company table
 - `useUpdateTenantUser` for company membership level changes
 - `useSuspendTenantUser`
 - `useReactivateTenantUser`
@@ -212,7 +241,8 @@ The page should use:
 Cache invalidation should refresh:
 
 - the first-class details query for `{ userId }`
-- each affected tenant-users list query for `{ tenantId }`
+- the cursor-paginated company queries
+- tenant-users list queries that may contain the changed membership
 
 ## UI Design
 
@@ -271,7 +301,9 @@ this issue because tenant-user email has sign-in and global identity impact.
 ## Company List
 
 The company list should use the existing Material React Table primitives, not
-cards or tabs. Each company row should expose tenant-scoped membership actions:
+cards or tabs. Its data comes from `GET /staff/tenant-users/{userId}/companies`,
+not from the details payload. Each company row should expose tenant-scoped
+membership actions:
 
 - suspend tenant membership when the effective tenant-user status is active
 - reactivate tenant membership when the tenant membership is suspended
@@ -334,7 +366,10 @@ FRONT_PATH_NAMES.staff.tenantUsers.details(id)
 
 Backend integration coverage:
 
-- valid staff user can get a tenant user by `{userId}` with `companies`
+- valid staff user can get a tenant user by `{userId}` without embedded
+  `companies`
+- valid staff user can page through companies by `{userId}` using cursor
+  pagination
 - malformed `userId` returns `400`
 - valid but missing tenant-side identity returns `404`
 - tenant user without staff permission receives `403`
@@ -358,13 +393,15 @@ Frontend verification:
 
 1. Add backend service and handler coverage for first-class tenant-user GET/PATCH.
 2. Map the first-class backend endpoints and regenerate the TypeScript client.
-3. Add the first-class frontend route helper and route file.
-4. Add the `useGetTenantUserById` and `useUpdateTenantUserIdentity` hooks.
-5. Build the tenant-user details page using Staff user details primitives.
-6. Render the company list as an inline MRT table below the details grid on the
+3. Add backend service and handler coverage for cursor-paginated company lookup.
+4. Add the first-class frontend route helper and route file.
+5. Add the `useGetTenantUserById`, `useFindTenantUserCompanies`, and
+   `useUpdateTenantUserIdentity` hooks.
+6. Build the tenant-user details page using Staff user details primitives.
+7. Render the company list as an inline MRT table below the details grid on the
    same page.
-7. Update tenant-users table links to the first-class details route.
-8. Run API, client generation, and frontend type verification.
+8. Update tenant-users table links to the first-class details route.
+9. Run API, client generation, and frontend type verification.
 
 ## Self-Review
 

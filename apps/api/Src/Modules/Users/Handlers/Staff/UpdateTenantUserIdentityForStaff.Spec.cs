@@ -2,6 +2,7 @@ namespace MainApi.Src.Modules.Users.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 using FluentAssertions;
 
@@ -65,16 +66,24 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 		using var response = await _http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		var result = await response.Content
-			.ReadFromJsonAsync<TenantUserDetailsResponse>();
+		var json = await response.Content.ReadAsStringAsync();
+		var result = JsonSerializer.Deserialize<TenantUserDetailsResponse>(
+			json,
+			new JsonSerializerOptions {
+				PropertyNameCaseInsensitive = true,
+			}
+		);
 		result.Should().NotBeNull();
 		result!.Id.ToString().Should().Be(userId);
 		result.FirstName.Should().Be("Tenant");
 		result.LastName.Should().Be("Identity");
-		result.Companies.Should().ContainSingle(
-			company => company.TenantId == tenantId
-				&& company.Level == "User"
-		);
+		result.CompanyCount.Should().Be(1);
+
+		var document = JsonDocument.Parse(json);
+		document.RootElement.TryGetProperty(
+			"companies",
+			out _
+		).Should().BeFalse();
 
 		await ResetUserNameAsync(staffToken, userId);
 	}
@@ -238,11 +247,6 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 		public string Email { get; init; } = string.Empty;
 		public string? FirstName { get; init; }
 		public string? LastName { get; init; }
-		public List<TenantUserCompanyResponse> Companies { get; init; } = [];
-	}
-
-	private sealed record TenantUserCompanyResponse {
-		public Guid TenantId { get; init; }
-		public string Level { get; init; } = string.Empty;
+		public int CompanyCount { get; init; }
 	}
 }

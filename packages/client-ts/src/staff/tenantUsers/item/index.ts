@@ -4,14 +4,20 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createTenantUserDetailsForStaffResultFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializeTenantUserDetailsForStaffResult, serializeUpdateTenantUserIdentityForStaffBody, type AppProblemDetails, type TenantUserDetailsForStaffResult, type UpdateTenantUserIdentityForStaffBody, type ValidationProblemDetails } from '../../../models/index.js';
 // @ts-ignore
-import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
+import { CompaniesRequestBuilderRequestsMetadata, type CompaniesRequestBuilder } from './companies/index.js';
+// @ts-ignore
+import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /staff/tenant-users/{userId}
  */
 export interface WithUserItemRequestBuilder extends BaseRequestBuilder<WithUserItemRequestBuilder> {
     /**
-     * Get a tenant user with company memberships
+     * The companies property
+     */
+    get companies(): CompaniesRequestBuilder;
+    /**
+     * Get a tenant user's shared identity details
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<TenantUserDetailsForStaffResult>}
      * @throws {AppProblemDetails} error when the service returns a 400 status code
@@ -35,7 +41,7 @@ export interface WithUserItemRequestBuilder extends BaseRequestBuilder<WithUserI
      */
      patch(body: UpdateTenantUserIdentityForStaffBody, requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<TenantUserDetailsForStaffResult | undefined>;
     /**
-     * Get a tenant user with company memberships
+     * Get a tenant user's shared identity details
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */
@@ -52,6 +58,14 @@ export interface WithUserItemRequestBuilder extends BaseRequestBuilder<WithUserI
  * Uri template for the request builder.
  */
 export const WithUserItemRequestBuilderUriTemplate = "{+baseurl}/staff/tenant-users/{userId}";
+/**
+ * Metadata for all the navigation properties in the request builder.
+ */
+export const WithUserItemRequestBuilderNavigationMetadata: Record<Exclude<keyof WithUserItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    companies: {
+        requestsMetadata: CompaniesRequestBuilderRequestsMetadata,
+    },
+};
 /**
  * Metadata for all the requests in the request builder.
  */

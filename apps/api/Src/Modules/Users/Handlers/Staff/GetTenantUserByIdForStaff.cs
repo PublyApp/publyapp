@@ -17,17 +17,7 @@ public class TenantUserDetailsForStaffResult {
 	public string Status { get; set; } = string.Empty;
 	public DateTime CreatedAt { get; set; }
 	public DateTime UpdatedAt { get; set; }
-	public List<TenantUserCompanyForStaffResult> Companies { get; set; } = [];
-}
-
-public class TenantUserCompanyForStaffResult {
-	public Guid TenantId { get; set; }
-	public string TenantName { get; set; } = string.Empty;
-	public string? TenantLogoUrl { get; set; }
-	public string Level { get; set; } = string.Empty;
-	public string Status { get; set; } = string.Empty;
-	public DateTime CreatedAt { get; set; }
-	public DateTime UpdatedAt { get; set; }
+	public int CompanyCount { get; set; }
 }
 
 public static class TenantUserDetailsForStaffMapper {
@@ -43,24 +33,7 @@ public static class TenantUserDetailsForStaffMapper {
 			Status = User.GetStatusDescription(userData.User.Status),
 			CreatedAt = userData.User.CreatedAt,
 			UpdatedAt = userData.User.UpdatedAt,
-			Companies = userData.Companies
-				.Select(company => new TenantUserCompanyForStaffResult {
-					TenantId = company.Tenant.GetRequiredId(),
-					TenantName = company.Tenant.Name,
-					TenantLogoUrl = company.Tenant.LogoUrl,
-					Level = UserAccount.GetLevelDescription(
-						company.AccountLevel
-					),
-					Status = UserAccount.GetStatusDescription(
-						UserAccount.GetTenantStatus(
-							userData.User.Status,
-							company.Account.Status
-						)
-					),
-					CreatedAt = company.Account.CreatedAt,
-					UpdatedAt = company.Account.UpdatedAt,
-				})
-				.ToList(),
+			CompanyCount = userData.CompanyCount,
 		};
 	}
 }

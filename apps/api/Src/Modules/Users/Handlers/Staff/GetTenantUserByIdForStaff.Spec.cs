@@ -2,6 +2,7 @@ namespace MainApi.Src.Modules.Users.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 using FluentAssertions;
 
@@ -35,7 +36,7 @@ public sealed class GetTenantUserByIdForStaffSpec
 
 	[Fact]
 	public async Task
-	ItShouldReturnTenantUserWithCompaniesWhenTenantUserExists() {
+	ItShouldReturnTenantUserDetailsWithoutEmbeddedCompaniesWhenTenantUserExists() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -59,20 +60,27 @@ public sealed class GetTenantUserByIdForStaffSpec
 		using var response = await _http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		var result = await response.Content
-			.ReadFromJsonAsync<TenantUserDetailsResponse>();
+		var json = await response.Content.ReadAsStringAsync();
+		var result = JsonSerializer.Deserialize<TenantUserDetailsResponse>(
+			json,
+			new JsonSerializerOptions {
+				PropertyNameCaseInsensitive = true,
+			}
+		);
 		result.Should().NotBeNull();
 		result!.Id.ToString().Should().Be(userId);
 		result.Email.Should().Be(TestConstants.AcmeUserEmail);
 		result.Status.Should().NotBeNullOrWhiteSpace();
 		result.CreatedAt.Should().NotBe(default);
 		result.UpdatedAt.Should().NotBe(default);
-		result.Companies.Should().ContainSingle(
-			company => company.TenantId == tenantId
-				&& company.TenantName == SeedConstants.Tenants.AcmeName
-				&& company.Level == "User"
-				&& company.Status == "Active"
-		);
+		result.CompanyCount.Should().Be(1);
+
+		var document = JsonDocument.Parse(json);
+		document.Should().NotBeNull();
+		document.RootElement.TryGetProperty(
+			"companies",
+			out _
+		).Should().BeFalse();
 	}
 
 	[Fact]
@@ -212,16 +220,6 @@ public sealed class GetTenantUserByIdForStaffSpec
 		public string Status { get; init; } = string.Empty;
 		public DateTime CreatedAt { get; init; }
 		public DateTime UpdatedAt { get; init; }
-		public List<TenantUserCompanyResponse> Companies { get; init; } = [];
-	}
-
-	private sealed record TenantUserCompanyResponse {
-		public Guid TenantId { get; init; }
-		public string TenantName { get; init; } = string.Empty;
-		public string? TenantLogoUrl { get; init; }
-		public string Level { get; init; } = string.Empty;
-		public string Status { get; init; } = string.Empty;
-		public DateTime CreatedAt { get; init; }
-		public DateTime UpdatedAt { get; init; }
+		public int CompanyCount { get; init; }
 	}
 }

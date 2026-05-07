@@ -17,8 +17,18 @@ public static class UserEndpointsForTenantUsersAsStaff {
 			GetTenantUserByIdForStaff.HandleGetTenantUserByIdForStaff
 		)
 			.WithName("GetTenantUserByIdForStaff")
-			.WithSummary("Get a tenant user with company memberships")
+			.WithSummary("Get a tenant user's shared identity details")
 			.WithPermission([AppPermissions.Staff.Users.GET_FOR_TENANT]);
+
+		group.MapGet(
+			Routes.Users.ForTenantUsersAsStaff.FindCompanies,
+			FindTenantUserCompaniesForStaff
+				.HandleFindTenantUserCompaniesForStaff
+		)
+			.WithName("FindTenantUserCompaniesForStaff")
+			.WithSummary("Find companies assigned to a tenant user")
+			.WithPermission([AppPermissions.Staff.Users.GET_FOR_TENANT])
+			.WithReqQueryValidation<FindTenantUserCompaniesForStaffQuery>();
 
 		group.MapPatch(
 			Routes.Users.ForTenantUsersAsStaff.Update,

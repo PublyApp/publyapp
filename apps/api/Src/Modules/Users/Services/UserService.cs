@@ -4,6 +4,7 @@ using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.DI;
 using MainApi.Src.Modules.Profiles.Entities;
+using MainApi.Src.Modules.Tenants.Entities;
 using MainApi.Src.Modules.Users.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -95,6 +96,29 @@ public record FindTenantUsersAsStaffArgs(
 	FindTenantUsersAsStaffFilters? Filters
 );
 
+public abstract record FindTenantUserCompaniesResult {
+	public sealed record Success(
+		CursorPaginatedResult<TenantUserCompanyData> Data
+	) : FindTenantUserCompaniesResult;
+
+	public sealed record NotFound() : FindTenantUserCompaniesResult;
+
+	public sealed record CursorNotFound(
+		string Cursor
+	) : FindTenantUserCompaniesResult;
+
+	public sealed record InvalidSortId(
+		string SortId
+	) : FindTenantUserCompaniesResult;
+}
+
+public record FindTenantUserCompaniesForStaffArgs(
+	Guid Cursor,
+	int? Limit,
+	string? SortId,
+	SortOrder? SortOrder
+);
+
 public abstract record RemoveUserFromTenantResult {
 	public sealed record Success() : RemoveUserFromTenantResult;
 	public sealed record NotFound() : RemoveUserFromTenantResult;
@@ -109,13 +133,14 @@ public class TenantUserData {
 
 public class TenantUserCompanyData {
 	public required UserAccount Account { get; set; }
-	public required MainApi.Src.Modules.Tenants.Entities.Tenant Tenant { get; set; }
+	public required Tenant Tenant { get; set; }
 	public required AccountLevel AccountLevel { get; set; }
+	public required UserStatus UserStatus { get; set; }
 }
 
 public class TenantUserDetailsData {
 	public required User User { get; set; }
-	public required List<TenantUserCompanyData> Companies { get; set; }
+	public required int CompanyCount { get; set; }
 }
 
 public class UpdateTenantUserDocument {
@@ -276,6 +301,11 @@ public interface IUserService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	);
+	Task<FindTenantUserCompaniesResult> FindTenantUserCompaniesAsync(
+		Guid userId,
+		FindTenantUserCompaniesForStaffArgs args,
+		CancellationToken cancellationToken = default
+	);
 	Task<RemoveUserFromTenantResult> RemoveUserFromTenantAsync(
 		Guid tenantId,
 		Guid userId,
@@ -306,6 +336,13 @@ public interface IUserService {
 
 [Service(ServiceLifetime.Scoped)]
 public class UserService : IUserService {
+	private sealed class TenantUserCompanyQueryRow {
+		public required UserAccount Account { get; init; }
+		public required User User { get; init; }
+		public required Tenant Tenant { get; init; }
+		public required Guid TenantId { get; init; }
+	}
+
 	private readonly MainApiDbContext _dbContext;
 	private readonly ILogger<UserService> _logger;
 
@@ -1993,7 +2030,7 @@ public class UserService : IUserService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
-		var rows = await (
+		var user = await (
 			from ua in _dbContext.UserAccount.AsNoTracking()
 			join u in _dbContext.User.AsNoTracking()
 				on ua.UserId equals u.Id
@@ -2004,27 +2041,339 @@ public class UserService : IUserService {
 				&& !ua.IsDeleted
 				&& !u.IsDeleted
 				&& !tenant.IsDeleted
-			orderby tenant.Name, ua.UserId
-			select new {
-				User = u,
-				Account = ua,
-				Tenant = tenant,
-			}
-		).ToListAsync(cancellationToken);
+			select u
+		).FirstOrDefaultAsync(cancellationToken);
 
-		if (rows.Count == 0) {
+		if (user is null) {
 			return null;
 		}
 
-		var user = rows[0].User;
+		var companyCount = await (
+			from ua in _dbContext.UserAccount.AsNoTracking()
+			join tenant in _dbContext.Tenant.AsNoTracking()
+				on ua.TenantId equals (Guid?)tenant.Id
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !tenant.IsDeleted
+			select ua
+		).CountAsync(cancellationToken);
+
 		return new TenantUserDetailsData {
 			User = user,
-			Companies = rows.Select(row => new TenantUserCompanyData {
-				Account = row.Account,
-				Tenant = row.Tenant,
-				AccountLevel = row.Account.Level,
-			}).ToList(),
+			CompanyCount = companyCount,
 		};
+	}
+
+	public async Task<FindTenantUserCompaniesResult>
+	FindTenantUserCompaniesAsync(
+		Guid userId,
+		FindTenantUserCompaniesForStaffArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var effectiveLimit = args.Limit
+			?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
+		var effectiveSortId = args.SortId ?? "tenant_name";
+
+		var sortFieldHandlers =
+			new Dictionary<string, CursorSortFieldHandler<TenantUserCompanyQueryRow>>(
+				StringComparer.OrdinalIgnoreCase
+			) {
+				["tenant_name"] = new CursorSortFieldHandler<TenantUserCompanyQueryRow>(
+					getCursorValue: async (guid) => {
+						var item = await (
+							from ua in _dbContext.UserAccount.AsNoTracking()
+							join tenant in _dbContext.Tenant.AsNoTracking()
+								on ua.TenantId equals (Guid?)tenant.Id
+							where ua.UserId == userId
+								&& ua.TenantId == guid
+								&& ua.Scope == AccountScope.Tenant
+								&& ua.TenantId != null
+								&& !ua.IsDeleted
+								&& !ua.User.IsDeleted
+								&& !tenant.IsDeleted
+							select new {
+								tenant.Name,
+								TenantId = ua.TenantId ?? Guid.Empty,
+							}
+						).FirstOrDefaultAsync(cancellationToken);
+						return item is not null
+							? (item.Name, item.TenantId)
+							: null;
+					},
+					applyFilter: (q, val, isAsc) => {
+						if (val is null) {
+							return q;
+						}
+						var (name, tenantId) = ((string, Guid))val;
+						return isAsc
+							? q.Where(x =>
+								x.Tenant.Name.CompareTo(name) > 0
+								|| (x.Tenant.Name == name
+									&& x.TenantId > tenantId))
+							: q.Where(x =>
+								x.Tenant.Name.CompareTo(name) < 0
+								|| (x.Tenant.Name == name
+									&& x.TenantId < tenantId));
+					},
+					applyOrdering: (q, isAsc) => isAsc
+						? q.OrderBy(x => x.Tenant.Name)
+							.ThenBy(x => x.TenantId)
+						: q.OrderByDescending(x => x.Tenant.Name)
+							.ThenByDescending(x => x.TenantId)
+				),
+
+				["status"] = new CursorSortFieldHandler<TenantUserCompanyQueryRow>(
+					getCursorValue: async (guid) => {
+						var item = await (
+							from ua in _dbContext.UserAccount.AsNoTracking()
+							join u in _dbContext.User.AsNoTracking()
+								on ua.UserId equals u.Id
+							join tenant in _dbContext.Tenant.AsNoTracking()
+								on ua.TenantId equals (Guid?)tenant.Id
+							where ua.UserId == userId
+								&& ua.TenantId == guid
+								&& ua.Scope == AccountScope.Tenant
+								&& ua.TenantId != null
+								&& !ua.IsDeleted
+								&& !u.IsDeleted
+								&& !tenant.IsDeleted
+							select new {
+								IsUserGloballySuspended = u.Status == UserStatus.Suspended,
+								IsMembershipSuspended = ua.Status == AccountStatus.Suspended,
+								TenantId = ua.TenantId ?? Guid.Empty,
+							}
+						).FirstOrDefaultAsync(cancellationToken);
+						return item is not null
+							? (
+								GetTenantUserStatusRank(
+									item.IsUserGloballySuspended,
+									item.IsMembershipSuspended
+								),
+								item.TenantId
+							)
+							: null;
+					},
+					applyFilter: (q, val, isAsc) => {
+						if (val is null) {
+							return q;
+						}
+						var (statusRank, tenantId) = ((int, Guid))val;
+						return isAsc
+							? q.Where(x =>
+								(x.User.Status == UserStatus.Suspended
+									? 2
+									: x.Account.Status == AccountStatus.Suspended
+										? 1
+										: 0) > statusRank
+								|| (((x.User.Status == UserStatus.Suspended
+										? 2
+										: x.Account.Status == AccountStatus.Suspended
+											? 1
+											: 0)
+										== statusRank)
+									&& x.TenantId > tenantId))
+							: q.Where(x =>
+								(x.User.Status == UserStatus.Suspended
+									? 2
+									: x.Account.Status == AccountStatus.Suspended
+										? 1
+										: 0) < statusRank
+								|| (((x.User.Status == UserStatus.Suspended
+										? 2
+										: x.Account.Status == AccountStatus.Suspended
+											? 1
+											: 0)
+										== statusRank)
+									&& x.TenantId < tenantId));
+					},
+					applyOrdering: (q, isAsc) => isAsc
+						? q.OrderBy(
+							x => x.User.Status == UserStatus.Suspended
+								? 2
+								: x.Account.Status == AccountStatus.Suspended
+									? 1
+									: 0
+						).ThenBy(x => x.TenantId)
+						: q.OrderByDescending(
+							x => x.User.Status == UserStatus.Suspended
+								? 2
+								: x.Account.Status == AccountStatus.Suspended
+									? 1
+									: 0
+						).ThenByDescending(x => x.TenantId)
+				),
+
+				["level"] = new CursorSortFieldHandler<TenantUserCompanyQueryRow>(
+					getCursorValue: async (guid) => {
+						var item = await (
+							from ua in _dbContext.UserAccount.AsNoTracking()
+							join tenant in _dbContext.Tenant.AsNoTracking()
+								on ua.TenantId equals (Guid?)tenant.Id
+							where ua.UserId == userId
+								&& ua.TenantId == guid
+								&& ua.Scope == AccountScope.Tenant
+								&& ua.TenantId != null
+								&& !ua.IsDeleted
+								&& !ua.User.IsDeleted
+								&& !tenant.IsDeleted
+							select new {
+								ua.Level,
+								TenantId = ua.TenantId ?? Guid.Empty,
+							}
+						).FirstOrDefaultAsync(cancellationToken);
+						return item is not null
+							? (item.Level, item.TenantId)
+							: null;
+					},
+					applyFilter: (q, val, isAsc) => {
+						if (val is null) {
+							return q;
+						}
+						var (level, tenantId) = ((AccountLevel, Guid))val;
+						return isAsc
+							? q.Where(x =>
+								x.Account.Level > level
+								|| (x.Account.Level == level
+									&& x.TenantId > tenantId))
+							: q.Where(x =>
+								x.Account.Level < level
+								|| (x.Account.Level == level
+									&& x.TenantId < tenantId));
+					},
+					applyOrdering: (q, isAsc) => isAsc
+						? q.OrderBy(x => x.Account.Level)
+							.ThenBy(x => x.TenantId)
+						: q.OrderByDescending(x => x.Account.Level)
+							.ThenByDescending(x => x.TenantId)
+				),
+
+				["created_at"] = new CursorSortFieldHandler<TenantUserCompanyQueryRow>(
+					getCursorValue: async (guid) => {
+						var item = await (
+							from ua in _dbContext.UserAccount.AsNoTracking()
+							join tenant in _dbContext.Tenant.AsNoTracking()
+								on ua.TenantId equals (Guid?)tenant.Id
+							where ua.UserId == userId
+								&& ua.TenantId == guid
+								&& ua.Scope == AccountScope.Tenant
+								&& ua.TenantId != null
+								&& !ua.IsDeleted
+								&& !ua.User.IsDeleted
+								&& !tenant.IsDeleted
+							select new {
+								ua.CreatedAt,
+								TenantId = ua.TenantId ?? Guid.Empty,
+							}
+						).FirstOrDefaultAsync(cancellationToken);
+						return item is not null
+							? (item.CreatedAt, item.TenantId)
+							: null;
+					},
+					applyFilter: (q, val, isAsc) => {
+						if (val is null) {
+							return q;
+						}
+						var (createdAt, tenantId) = ((DateTime, Guid))val;
+						return isAsc
+							? q.Where(x =>
+								x.Account.CreatedAt > createdAt
+								|| (x.Account.CreatedAt == createdAt
+									&& x.TenantId > tenantId))
+							: q.Where(x =>
+								x.Account.CreatedAt < createdAt
+								|| (x.Account.CreatedAt == createdAt
+									&& x.TenantId < tenantId));
+					},
+					applyOrdering: (q, isAsc) => isAsc
+						? q.OrderBy(x => x.Account.CreatedAt)
+							.ThenBy(x => x.TenantId)
+						: q.OrderByDescending(x => x.Account.CreatedAt)
+							.ThenByDescending(x => x.TenantId)
+				),
+			};
+
+		if (
+			!sortFieldHandlers.TryGetValue(
+				effectiveSortId,
+				out CursorSortFieldHandler<TenantUserCompanyQueryRow>? handler
+			)
+		) {
+			return new FindTenantUserCompaniesResult.InvalidSortId(
+				effectiveSortId
+			);
+		}
+
+		var baseQuery =
+			from ua in _dbContext.UserAccount.AsNoTracking()
+			join u in _dbContext.User.AsNoTracking()
+				on ua.UserId equals u.Id
+			join tenant in _dbContext.Tenant.AsNoTracking()
+				on ua.TenantId equals (Guid?)tenant.Id
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& ua.TenantId != null
+				&& !ua.IsDeleted
+				&& !u.IsDeleted
+				&& !tenant.IsDeleted
+			select new TenantUserCompanyQueryRow {
+				Account = ua,
+				User = u,
+				Tenant = tenant,
+				TenantId = ua.TenantId ?? Guid.Empty,
+			};
+
+		var hasAnyCompany =
+			await baseQuery.AnyAsync(cancellationToken);
+		if (!hasAnyCompany) {
+			return new FindTenantUserCompaniesResult.NotFound();
+		}
+
+		IQueryable<TenantUserCompanyQueryRow> query = baseQuery;
+		if (args.Cursor != Guid.Empty) {
+			var cursorValue =
+				await handler.GetCursorValue(args.Cursor);
+
+			if (cursorValue is null) {
+				return new FindTenantUserCompaniesResult
+					.CursorNotFound(args.Cursor.ToString());
+			}
+
+			query = handler.ApplyFilter(
+				query,
+				cursorValue,
+				effectiveSortOrder == SortOrder.Asc
+			);
+		}
+
+		var orderedQuery = handler.ApplyOrdering(
+			query,
+			effectiveSortOrder == SortOrder.Asc
+		);
+
+		var results = await orderedQuery
+			.Take(effectiveLimit + 1)
+			.ToListAsync(cancellationToken);
+
+		string? nextCursor = null;
+		if (results.Count > effectiveLimit) {
+			results.RemoveAt(results.Count - 1);
+			nextCursor = results.Last()
+				.Tenant.GetRequiredId().ToString();
+		}
+
+		return new FindTenantUserCompaniesResult.Success(
+			new CursorPaginatedResult<TenantUserCompanyData> {
+				Data = results.Select(row => new TenantUserCompanyData {
+					Account = row.Account,
+					Tenant = row.Tenant,
+					AccountLevel = row.Account.Level,
+					UserStatus = row.User.Status,
+				}).ToList(),
+				NextCursor = nextCursor,
+			}
+		);
 	}
 
 	public async Task<UpdateUserByIdResult> UpdateStaffUserByIdAsync(

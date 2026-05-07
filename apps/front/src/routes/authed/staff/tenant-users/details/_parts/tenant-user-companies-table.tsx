@@ -1,9 +1,7 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
-import Card from '@mui/material/Card';
 import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import Menu from '@mui/material/Menu';
@@ -20,57 +18,44 @@ import {
 	createMRTColumnHelper,
 	MaterialReactTable,
 	type MRT_ColumnDef,
+	type MRT_SortingState,
 } from 'material-react-table';
 import { varAlpha } from 'minimal-shared/utils';
-import { useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import type zod from 'zod';
+import { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router';
 
+import type { TenantUserCompanyForStaffResult } from '@org/client-ts/src/models';
 import {
 	ACCOUNT_LEVEL_ENUM,
 	type AccountLevel,
+	DEFAULT_PAGE_SIZE,
 	FRONT_PATH_NAMES,
 	USER_STATUS_ENUM,
 } from '@org/shared-ts/lib/constants';
-import { mbToBytes } from '@org/shared-ts/utils/any.utils';
-import { getUpdateTenantUserIdentitySchema } from '@org/shared-ts/validations/tenant-user.validations';
 
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
-import { EmptyContent } from '#app/components/empty-content/empty-content.tsx';
-import { Field, Form } from '#app/components/hook-form/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
-import type { IconifyName } from '#app/components/iconify/register-icons.ts';
 import { Label } from '#app/components/label/label.tsx';
 import type { LabelColor } from '#app/components/label/types.ts';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
-import { StatusChip } from '#app/components/status-chip/status-chip.tsx';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
+import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
+import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
+	useFindTenantUserCompanies,
 	useFindTenantUsers,
 	useGetTenantUserById,
 	useReactivateTenantUser,
 	useRemoveTenantUser,
 	useSuspendTenantUser,
 	useUpdateTenantUser,
-	useUpdateTenantUserIdentity,
 } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
-import { interZodClient } from '#app/lib/zod/zod.client.ts';
-import { fData } from '#app/utils/format-number.ts';
-import { fDateTime, type DatePickerFormat } from '#app/utils/format-time.ts';
-
-const USER_STATUS_COLOR_MAP = {
-	Active: 'success',
-	Suspended: 'warning',
-} as const;
+import { type DatePickerFormat } from '#app/utils/format-time.ts';
 
 const GLOBALLY_SUSPENDED_STATUS_VALUE = 'globally_suspended';
 const GLOBALLY_SUSPENDED_STATUS_DESCRIPTION = 'GloballySuspended';
-
-type UpdateTenantUserIdentitySchemaType = Prettify<
-	zod.infer<ReturnType<typeof getUpdateTenantUserIdentitySchema>>
->;
 
 export type TenantUserCompanyData = {
 	tenantId: string;
@@ -82,19 +67,12 @@ export type TenantUserCompanyData = {
 	updatedAt?: DatePickerFormat;
 };
 
-export type TenantUserUpdateData = {
-	id: string;
-	firstName?: string;
-	lastName?: string;
-	email?: string;
-	status?: string;
-	avatar?: string;
-	createdAt?: DatePickerFormat;
-	updatedAt?: DatePickerFormat;
-};
-
 const ACCOUNT_LEVEL_OPTIONS: AccountLevel[] = values(ACCOUNT_LEVEL_ENUM);
 const columnHelper = createMRTColumnHelper<TenantUserCompanyData>();
+const defaultSorting: MRT_SortingState[number] = {
+	desc: false,
+	id: 'tenant_name',
+};
 
 const isGloballySuspendedStatus = (status: string | null) => {
 	return (
@@ -103,234 +81,115 @@ const isGloballySuspendedStatus = (status: string | null) => {
 	);
 };
 
-const TenantUserUpdateForm = ({
-	currentUser,
-	companyTenantIds,
-}: {
-	currentUser: TenantUserUpdateData;
-	companyTenantIds: string[];
-}) => {
+const TenantUserCompaniesTable = () => {
+	const { userId = '' } = useParams();
 	const { t } = useTranslate();
-	const queryClient = useQueryClient();
-	const UpdateTenantUserIdentitySchema =
-		getUpdateTenantUserIdentitySchema(interZodClient);
+	const {
+		handlePaginationChange,
+		handleSortingChange,
+		apiVariables,
+		tableState,
+		setNextCursor,
+		hasPreviousPage,
+	} = useTableState({
+		defaultSorting,
+		defaultPageSize: DEFAULT_PAGE_SIZE,
+		paginationMode: 'cursor',
+	});
 
-	const form = useForm<UpdateTenantUserIdentitySchemaType>({
-		mode: 'onSubmit',
-		resolver: zodResolver(UpdateTenantUserIdentitySchema),
-		values: {
-			id: currentUser.id,
-			firstName: currentUser.firstName,
-			lastName: currentUser.lastName,
-			avatar: currentUser.avatar,
+	const companiesQuery = useFindTenantUserCompanies({
+		variables: {
+			userId,
+			cursor: apiVariables.cursor || undefined,
+			limit: apiVariables.limit,
+			sort: apiVariables.sort,
+		},
+		enabled: userId.length > 0,
+	});
+
+	useEffect(() => {
+		setNextCursor?.(companiesQuery.data?.nextCursor);
+	}, [companiesQuery.data?.nextCursor, setNextCursor]);
+
+	const rows = useMemo<TenantUserCompanyData[]>(() => {
+		return (companiesQuery.data?.data ?? []).map(
+			(company: TenantUserCompanyForStaffResult) => ({
+				tenantId: toStr(company.tenantId),
+				tenantName: company.tenantName ?? t('un-named'),
+				tenantLogoUrl: company.tenantLogoUrl ?? undefined,
+				level: company.level ?? undefined,
+				status: company.status ?? undefined,
+				createdAt: company.createdAt ?? undefined,
+				updatedAt: company.updatedAt ?? undefined,
+			}),
+		);
+	}, [companiesQuery.data?.data, t]);
+
+	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
+		query: companiesQuery,
+		emptyContent: {
+			title: capitalize(t('no-items-found', { item: t('companies') })),
+		},
+		errorContent: {
+			title: capitalize(t('error-loading-items', { item: t('companies') })),
 		},
 	});
 
-	const { mutate: updateTenantUserIdentity, isPending: isUpdating } =
-		useUpdateTenantUserIdentity({
-			onSuccess: () => {
-				form.reset();
-				toast.success(
-					capitalize(
-						t('item-update-success-message', { item: t('tenant-user') }),
-					),
-				);
-				void queryClient.invalidateQueries({
-					queryKey: useGetTenantUserById.getKey({ userId: currentUser.id }),
-				});
-				for (const tenantId of companyTenantIds) {
-					void queryClient.invalidateQueries({
-						queryKey: useFindTenantUsers.getKey({ tenantId }),
-					});
-				}
-			},
-		});
-
-	return (
-		<Form
-			methods={form}
-			onSubmit={form.handleSubmit((data) => {
-				const dirtyFields = form.formState.dirtyFields;
-				const payload: {
-					userId: string;
-					firstName?: string | null;
-					lastName?: string | null;
-					avatarUrl?: string | null;
-				} = {
-					userId: data.id,
-				};
-
-				if (dirtyFields.firstName) {
-					payload.firstName = data.firstName ?? null;
-				}
-
-				if (dirtyFields.lastName) {
-					payload.lastName = data.lastName ?? null;
-				}
-
-				if (dirtyFields.avatar && typeof data.avatar === 'string') {
-					payload.avatarUrl = data.avatar;
-				}
-
-				updateTenantUserIdentity(payload);
-			})}
-		>
-			<Box sx={{ containerType: 'inline-size' }}>
-				<Box
-					sx={{
-						display: 'grid',
-						gap: 3,
-						gridTemplateColumns: '1fr',
-						'@container (min-width: 837px)': {
-							gridTemplateColumns: '1fr 2fr',
-						},
-					}}
-				>
-					<Card
-						sx={{
-							pt: 8,
-							pb: 5,
-							px: 3,
-							minWidth: 0,
-							height: 'fit-content',
-							overflow: 'hidden',
-						}}
-					>
-						<Box sx={{ textAlign: 'center' }}>
-							<Box sx={{ mb: 3 }}>
-								<Field.UploadAvatar
-									name="avatar"
-									maxSize={mbToBytes(3)}
-									disabled
-									helperText={
-										<Typography
-											variant="caption"
-											sx={{
-												mt: 3,
-												mx: 'auto',
-												display: 'block',
-												textAlign: 'center',
-												color: 'text.disabled',
-											}}
-										>
-											<Stack component="span">
-												<Box component="span">
-													{t('uploads-not-supported-yet')}
-												</Box>
-												<Box component="span">
-													{t('max-size', { size: fData(mbToBytes(3)) })}
-												</Box>
-											</Stack>
-										</Typography>
-									}
-								/>
-							</Box>
-
-							<StatusChip
-								status={currentUser.status ?? null}
-								unknownLabel={capitalize(t('unknown'))}
-								colorMap={USER_STATUS_COLOR_MAP}
-								sx={{ mt: 1 }}
-							/>
-						</Box>
-					</Card>
-
-					<Stack spacing={3} sx={{ minWidth: 0 }}>
-						<Card sx={{ p: 3, minWidth: 0, overflow: 'hidden' }}>
-							<Typography variant="h4" sx={{ mb: 3 }}>
-								{t('tenant-user-details')}
-							</Typography>
-
-							<Box
-								sx={{
-									rowGap: 3,
-									columnGap: 2,
-									display: 'grid',
-								}}
-							>
-								<Field.Text name="lastName" label={t('lastname')} required />
-								<Field.Text name="firstName" label={t('firstname')} />
-							</Box>
-
-							<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-								<Button
-									type="submit"
-									variant="contained"
-									loading={form.formState.isSubmitting || isUpdating}
-									disabled={!form.formState.isDirty || isUpdating}
-								>
-									{t('save-changes')}
-								</Button>
-							</Stack>
-						</Card>
-
-						<TenantUserMetadataCard
-							currentUser={currentUser}
-							companyCount={companyTenantIds.length}
-						/>
-					</Stack>
-				</Box>
-			</Box>
-		</Form>
-	);
-};
-
-export default TenantUserUpdateForm;
-
-export const TenantUserCompaniesList = ({
-	userId,
-	companies,
-}: {
-	userId: string;
-	companies: TenantUserCompanyData[];
-}) => {
-	const { t } = useTranslate();
+	const hasNextPage = companiesQuery.data?.nextCursor != null;
+	const handleCursorPaginationChange: typeof handlePaginationChange = (
+		updater,
+	) => {
+		setNextCursor?.(companiesQuery.data?.nextCursor);
+		handlePaginationChange(updater);
+	};
 
 	const columns = useMemo(() => {
 		return [
 			columnHelper.accessor('tenantName', {
+				id: 'tenant_name',
 				header: t('tenant'),
 				Cell: CompanyCell,
 				size: 320,
 			}),
 			columnHelper.accessor('level', {
 				header: t('level'),
-				Cell: (props) => (
-					<CompanyLevelCell userId={userId} company={props.row.original} />
-				),
+				Cell: (props) => <CompanyLevelCell company={props.row.original} />,
 				size: 170,
 			}),
 			columnHelper.accessor('status', {
 				header: t('status'),
-				Cell: (props) => (
-					<CompanyStatusCell userId={userId} company={props.row.original} />
-				),
+				Cell: (props) => <CompanyStatusCell company={props.row.original} />,
 				size: 160,
 			}),
 			columnHelper.display({
 				id: 'actions',
 				header: t('actions'),
-				Cell: (props) => (
-					<CompanyActionsCell userId={userId} company={props.row.original} />
-				),
-				size: 160,
+				Cell: (props) => <CompanyActionsCell company={props.row.original} />,
+				size: 120,
 			}),
 		];
-	}, [t, userId]);
+	}, [t]);
 
-	const table = useMRTTable('minimal', {
+	const table = useMRTTable('minimal-cursor', {
 		columns,
-		data: companies,
+		data: rows,
 		enableColumnFilters: false,
 		enableGlobalFilter: false,
-		enablePagination: false,
 		enableRowSelection: false,
-		enableSorting: false,
+		manualPagination: true,
+		manualSorting: true,
 		getRowId: (row) => row.tenantId,
+		onSortingChange: handleSortingChange,
 		state: {
+			...tableState,
+			...queryState,
 			density: 'compact',
 		},
 		meta: {
+			handlePaginationChange: handleCursorPaginationChange,
+			hasNextPage,
+			hasPreviousPage,
+			isPending: companiesQuery.isPending,
 			renderToolbarFilters: () => (
 				<Stack spacing={0.5}>
 					<Typography variant="h5">{t('companies')}</Typography>
@@ -340,9 +199,7 @@ export const TenantUserCompaniesList = ({
 				</Stack>
 			),
 		},
-		renderEmptyRowsFallback: () => (
-			<EmptyContent title={t('no-data')} sx={{ minHeight: 240 }} />
-		),
+		renderEmptyRowsFallback,
 		muiTablePaperProps: {
 			sx: {
 				minHeight: 0,
@@ -366,52 +223,7 @@ export const TenantUserCompaniesList = ({
 	);
 };
 
-const TenantUserMetadataCard = ({
-	currentUser,
-	companyCount,
-}: {
-	currentUser: TenantUserUpdateData;
-	companyCount: number;
-}) => {
-	const { t } = useTranslate();
-
-	return (
-		<Card sx={{ p: 3, minWidth: 0, overflow: 'hidden' }}>
-			<Typography variant="h5" sx={{ mb: 2 }}>
-				{t('metadata')}
-			</Typography>
-
-			<Box
-				sx={{
-					display: 'grid',
-					gap: 2,
-					gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-				}}
-			>
-				<InfoRow
-					icon="solar:letter-bold"
-					label={t('email-address')}
-					value={currentUser.email ?? '-'}
-				/>
-				<InfoRow
-					icon="solar:buildings-bold"
-					label={capitalize(t('companies'))}
-					value={toStr(companyCount)}
-				/>
-				<InfoRow
-					icon="solar:calendar-date-bold"
-					label={t('created-at')}
-					value={currentUser.createdAt ? fDateTime(currentUser.createdAt) : '-'}
-				/>
-				<InfoRow
-					icon="solar:pen-bold"
-					label={t('updated-at')}
-					value={currentUser.updatedAt ? fDateTime(currentUser.updatedAt) : '-'}
-				/>
-			</Box>
-		</Card>
-	);
-};
+export default TenantUserCompaniesTable;
 
 const CompanyCell: MRT_ColumnDef<TenantUserCompanyData, string>['Cell'] = (
 	props,
@@ -471,13 +283,8 @@ const CompanyCell: MRT_ColumnDef<TenantUserCompanyData, string>['Cell'] = (
 	);
 };
 
-const CompanyLevelCell = ({
-	userId,
-	company,
-}: {
-	userId: string;
-	company: TenantUserCompanyData;
-}) => {
+const CompanyLevelCell = ({ company }: { company: TenantUserCompanyData }) => {
+	const { userId = '' } = useParams();
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
 	const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
@@ -504,7 +311,6 @@ const CompanyLevelCell = ({
 				await invalidateTenantUserCompanyQueries({
 					queryClient,
 					userId,
-					tenantId,
 				});
 			},
 		});
@@ -613,13 +419,8 @@ const CompanyLevelCell = ({
 	);
 };
 
-const CompanyStatusCell = ({
-	userId,
-	company,
-}: {
-	userId: string;
-	company: TenantUserCompanyData;
-}) => {
+const CompanyStatusCell = ({ company }: { company: TenantUserCompanyData }) => {
+	const { userId = '' } = useParams();
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
 	const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
@@ -653,7 +454,6 @@ const CompanyStatusCell = ({
 				await invalidateTenantUserCompanyQueries({
 					queryClient,
 					userId,
-					tenantId,
 				});
 			},
 		},
@@ -668,7 +468,6 @@ const CompanyStatusCell = ({
 				await invalidateTenantUserCompanyQueries({
 					queryClient,
 					userId,
-					tenantId,
 				});
 			},
 		});
@@ -835,12 +634,11 @@ const CompanyStatusCell = ({
 };
 
 const CompanyActionsCell = ({
-	userId,
 	company,
 }: {
-	userId: string;
 	company: TenantUserCompanyData;
 }) => {
+	const { userId = '' } = useParams();
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
 	const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
@@ -854,7 +652,6 @@ const CompanyActionsCell = ({
 			await invalidateTenantUserCompanyQueries({
 				queryClient,
 				userId,
-				tenantId,
 			});
 		},
 	});
@@ -903,64 +700,22 @@ const CompanyActionsCell = ({
 	);
 };
 
-const InfoRow = ({
-	icon,
-	label,
-	value,
-}: {
-	icon: IconifyName;
-	label: string;
-	value: string;
-}) => (
-	<Box
-		sx={{
-			display: 'flex',
-			alignItems: 'center',
-			gap: 1.5,
-			minWidth: 0,
-			width: '100%',
-		}}
-	>
-		<Iconify
-			icon={icon}
-			width={20}
-			sx={{ color: 'text.secondary', flexShrink: 0 }}
-		/>
-		<Box sx={{ minWidth: 0, flex: '1 1 auto' }}>
-			<Typography variant="caption" sx={{ color: 'text.secondary' }}>
-				{label}
-			</Typography>
-			<Tooltip title={value} placement="top-start">
-				<Typography
-					variant="body2"
-					sx={{
-						fontWeight: 500,
-						minWidth: 0,
-						overflow: 'hidden',
-						textOverflow: 'ellipsis',
-						whiteSpace: 'nowrap',
-					}}
-				>
-					{value}
-				</Typography>
-			</Tooltip>
-		</Box>
-	</Box>
-);
-
 const invalidateTenantUserCompanyQueries = async ({
 	queryClient,
 	userId,
-	tenantId,
 }: {
 	queryClient: ReturnType<typeof useQueryClient>;
 	userId: string;
-	tenantId: string;
 }) => {
-	await queryClient.invalidateQueries({
-		queryKey: useGetTenantUserById.getKey({ userId }),
-	});
-	await queryClient.invalidateQueries({
-		queryKey: useFindTenantUsers.getKey({ tenantId }),
-	});
+	await Promise.all([
+		queryClient.invalidateQueries({
+			queryKey: useGetTenantUserById.getKey({ userId }),
+		}),
+		queryClient.invalidateQueries({
+			queryKey: useFindTenantUserCompanies.getKey(),
+		}),
+		queryClient.invalidateQueries({
+			queryKey: useFindTenantUsers.getKey(),
+		}),
+	]);
 };

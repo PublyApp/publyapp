@@ -5,7 +5,6 @@ import i18next from 'i18next';
 import capitalize from 'lodash/capitalize';
 import get from 'lodash/get';
 import toLower from 'lodash/toLower';
-import toStr from 'lodash/toString';
 import type { FC } from 'react';
 import { data, useParams } from 'react-router';
 
@@ -31,11 +30,10 @@ import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/tenant-user-details-page';
 import { TenantUserDetailsPageSkeleton } from './_components/tenant-user-details-page-skeleton';
+import TenantUserCompaniesTable from './_parts/tenant-user-companies-table';
 import TenantUserUpdateForm, {
-	TenantUserCompaniesList,
-	type TenantUserCompanyData,
 	type TenantUserUpdateData,
-} from './_components/tenant-user-update-form';
+} from './_parts/tenant-user-update-form';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = capitalize(
@@ -111,27 +109,15 @@ const TenantUserDetailsPage = () => {
 				const title = fullName || data?.email || t('un-named');
 
 				const currentUser: TenantUserUpdateData = {
-					id: toStr(data?.id),
 					firstName: data?.firstName ?? undefined,
 					lastName: data?.lastName ?? undefined,
 					email: data?.email ?? undefined,
 					avatar: data?.avatarUrl ?? undefined,
 					status: data?.status ?? undefined,
+					companyCount: data?.companyCount ?? 0,
 					createdAt: data?.createdAt ?? undefined,
 					updatedAt: data?.updatedAt ?? undefined,
 				};
-				const companies: TenantUserCompanyData[] = (data?.companies ?? []).map(
-					(company) => ({
-						tenantId: toStr(company?.tenantId),
-						tenantName: company?.tenantName ?? t('un-named'),
-						tenantLogoUrl: company?.tenantLogoUrl ?? undefined,
-						level: company?.level ?? undefined,
-						status: company?.status ?? undefined,
-						createdAt: company?.createdAt ?? undefined,
-						updatedAt: company?.updatedAt ?? undefined,
-					}),
-				);
-				const companyTenantIds = companies.map((company) => company.tenantId);
 
 				return (
 					<DashboardContent
@@ -161,14 +147,8 @@ const TenantUserDetailsPage = () => {
 								flexDirection: 'column',
 							}}
 						>
-							<TenantUserUpdateForm
-								currentUser={currentUser}
-								companyTenantIds={companyTenantIds}
-							/>
-							<TenantUserCompaniesList
-								userId={currentUser.id}
-								companies={companies}
-							/>
+							<TenantUserUpdateForm currentUser={currentUser} />
+							<TenantUserCompaniesTable />
 						</Stack>
 					</DashboardContent>
 				);

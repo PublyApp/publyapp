@@ -2697,7 +2697,7 @@
         "tags": [
           "Tenant Users (Staff)"
         ],
-        "summary": "Get a tenant user with company memberships",
+        "summary": "Get a tenant user's shared identity details",
         "operationId": "GetTenantUserByIdForStaff",
         "parameters": [
           {
@@ -2835,6 +2835,125 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantUserDetailsForStaffResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/staff/tenant-users/{userId}/companies": {
+      "get": {
+        "tags": [
+          "Tenant Users (Staff)"
+        ],
+        "summary": "Find companies assigned to a tenant user",
+        "operationId": "FindTenantUserCompaniesForStaff",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort_order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindTenantUserCompaniesForStaffResult"
                 }
               }
             }
@@ -8451,6 +8570,23 @@
           }
         }
       },
+      "FindTenantUserCompaniesForStaffResult": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantUserCompanyForStaffResult"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "FindTenantUsersAsStaffResult": {
         "type": "object",
         "properties": {
@@ -9798,11 +9934,10 @@
             "type": "string",
             "format": "date-time"
           },
-          "companies": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TenantUserCompanyForStaffResult"
-            }
+          "companyCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

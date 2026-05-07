@@ -938,6 +938,15 @@ export function createFindTenantsAsStaffResponseFromDiscriminatorValue(parseNode
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindTenantUserCompaniesForStaffResult}
+ */
+// @ts-ignore
+export function createFindTenantUserCompaniesForStaffResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindTenantUserCompaniesForStaffResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {FindTenantUsersAsStaffResult}
  */
 // @ts-ignore
@@ -2576,6 +2585,18 @@ export function deserializeIntoFindTenantsAsStaffResponse(findTenantsAsStaffResp
 }
 /**
  * The deserialization information for the current model
+ * @param FindTenantUserCompaniesForStaffResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindTenantUserCompaniesForStaffResult(findTenantUserCompaniesForStaffResult: Partial<FindTenantUserCompaniesForStaffResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "data": n => { findTenantUserCompaniesForStaffResult.data = n.getCollectionOfObjectValues<TenantUserCompanyForStaffResult>(createTenantUserCompanyForStaffResultFromDiscriminatorValue); },
+        "nextCursor": n => { findTenantUserCompaniesForStaffResult.nextCursor = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param FindTenantUsersAsStaffResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -3347,7 +3368,7 @@ export function deserializeIntoTenantUserCompanyForStaffResult(tenantUserCompany
 export function deserializeIntoTenantUserDetailsForStaffResult(tenantUserDetailsForStaffResult: Partial<TenantUserDetailsForStaffResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "avatarUrl": n => { tenantUserDetailsForStaffResult.avatarUrl = n.getStringValue(); },
-        "companies": n => { tenantUserDetailsForStaffResult.companies = n.getCollectionOfObjectValues<TenantUserCompanyForStaffResult>(createTenantUserCompanyForStaffResultFromDiscriminatorValue); },
+        "companyCount": n => { tenantUserDetailsForStaffResult.companyCount = n.getNumberValue(); },
         "createdAt": n => { tenantUserDetailsForStaffResult.createdAt = n.getDateValue(); },
         "email": n => { tenantUserDetailsForStaffResult.email = n.getStringValue(); },
         "firstName": n => { tenantUserDetailsForStaffResult.firstName = n.getStringValue(); },
@@ -3831,6 +3852,16 @@ export interface FindTenantsAsStaffResponse extends AdditionalDataHolder, Parsab
      * The data property
      */
     data?: TenantAsStaffListItem[] | null;
+    /**
+     * The nextCursor property
+     */
+    nextCursor?: string | null;
+}
+export interface FindTenantUserCompaniesForStaffResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The data property
+     */
+    data?: TenantUserCompanyForStaffResult[] | null;
     /**
      * The nextCursor property
      */
@@ -5067,6 +5098,19 @@ export function serializeFindTenantsAsStaffResponse(writer: SerializationWriter,
 }
 /**
  * Serializes information the current object
+ * @param FindTenantUserCompaniesForStaffResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindTenantUserCompaniesForStaffResult(writer: SerializationWriter, findTenantUserCompaniesForStaffResult: Partial<FindTenantUserCompaniesForStaffResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findTenantUserCompaniesForStaffResult || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<TenantUserCompanyForStaffResult>("data", findTenantUserCompaniesForStaffResult.data, serializeTenantUserCompanyForStaffResult);
+    writer.writeStringValue("nextCursor", findTenantUserCompaniesForStaffResult.nextCursor);
+    writer.writeAdditionalData(findTenantUserCompaniesForStaffResult.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param FindTenantUsersAsStaffResult The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -5892,7 +5936,7 @@ export function serializeTenantUserCompanyForStaffResult(writer: SerializationWr
 export function serializeTenantUserDetailsForStaffResult(writer: SerializationWriter, tenantUserDetailsForStaffResult: Partial<TenantUserDetailsForStaffResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!tenantUserDetailsForStaffResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("avatarUrl", tenantUserDetailsForStaffResult.avatarUrl);
-    writer.writeCollectionOfObjectValues<TenantUserCompanyForStaffResult>("companies", tenantUserDetailsForStaffResult.companies, serializeTenantUserCompanyForStaffResult);
+    writer.writeNumberValue("companyCount", tenantUserDetailsForStaffResult.companyCount);
     writer.writeDateValue("createdAt", tenantUserDetailsForStaffResult.createdAt);
     writer.writeStringValue("email", tenantUserDetailsForStaffResult.email);
     writer.writeStringValue("firstName", tenantUserDetailsForStaffResult.firstName);
@@ -6826,9 +6870,9 @@ export interface TenantUserDetailsForStaffResult extends AdditionalDataHolder, P
      */
     avatarUrl?: string | null;
     /**
-     * The companies property
+     * The companyCount property
      */
-    companies?: TenantUserCompanyForStaffResult[] | null;
+    companyCount?: number | null;
     /**
      * The createdAt property
      */
