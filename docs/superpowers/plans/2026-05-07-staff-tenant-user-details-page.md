@@ -4,7 +4,7 @@
 
 **Goal:** Fix issue 386 by adding a full editable Staff dashboard tenant-user details page at `/staff/tenant-users/:userId`.
 
-**Architecture:** Add first-class Staff tenant-user `GET/PATCH /staff/tenant-users/{userId}` endpoints, regenerate the Kiota client, then register the frontend route at `/staff/tenant-users/:userId`. The page reuses the same primitives and visual structure as the existing Staff user details page, with shared identity editing in `General` and tenant/company membership actions in `Companies`.
+**Architecture:** Add first-class Staff tenant-user `GET/PATCH /staff/tenant-users/{userId}` endpoints, regenerate the Kiota client, then register the frontend route at `/staff/tenant-users/:userId`. The page reuses the same primitives and visual structure as the existing Staff user details page, with shared identity editing first and tenant/company membership actions listed below on the same page.
 
 **Tech Stack:** .NET 10 minimal APIs, EF Core, FluentValidation/RFC7807 problem helpers, Kiota TypeScript client, React 19, React Router v7, TanStack Query, MUI v6, React Hook Form, Zod
 
@@ -21,8 +21,8 @@ final target to a first-class Staff tenant-user page:
 ```
 
 This route uses `User.Id`, not `UserAccount.Id`. Tenant/company membership context
-moves into a `Companies` tab, while the `General` tab edits global user identity
-fields. Tenant-scoped endpoints remain in use for company membership actions.
+is listed below the shared identity form on the same page. Tenant-scoped
+endpoints remain in use for company membership actions.
 
 ## File Structure
 

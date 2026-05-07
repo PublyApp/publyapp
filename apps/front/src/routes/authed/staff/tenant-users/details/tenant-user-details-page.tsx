@@ -1,5 +1,5 @@
 import Box from '@mui/material/Box';
-import Tab from '@mui/material/Tab';
+import Stack from '@mui/material/Stack';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import capitalize from 'lodash/capitalize';
@@ -7,7 +7,6 @@ import get from 'lodash/get';
 import toLower from 'lodash/toLower';
 import toStr from 'lodash/toString';
 import type { FC } from 'react';
-import { useState } from 'react';
 import { data, useParams } from 'react-router';
 
 import {
@@ -20,7 +19,6 @@ import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
-import { CustomTabs } from '#app/components/custom-tabs/custom-tabs.tsx';
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
 import View400 from '#app/components/error/400-view.tsx';
 import { NotFoundView } from '#app/components/error/not-found-view.tsx';
@@ -34,7 +32,7 @@ import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 import type { Route } from './+types/tenant-user-details-page';
 import { TenantUserDetailsPageSkeleton } from './_components/tenant-user-details-page-skeleton';
 import TenantUserUpdateForm, {
-	TenantUserCompaniesTab,
+	TenantUserCompaniesList,
 	type TenantUserCompanyData,
 	type TenantUserUpdateData,
 } from './_components/tenant-user-update-form';
@@ -93,7 +91,6 @@ clientLoader.hydrate = true as const;
 const TenantUserDetailsPage = () => {
 	const { t } = useTranslate();
 	const { userId } = useParams();
-	const [currentTab, setCurrentTab] = useState('general');
 	const getTenantUserQuery = useGetTenantUserById({
 		variables: { userId: userId ?? '' },
 		enabled: !!userId,
@@ -155,26 +152,16 @@ const TenantUserDetailsPage = () => {
 							sx={{ mb: { xs: 3, md: 5 } }}
 						/>
 
-						<CustomTabs
-							value={currentTab}
-							onChange={(_, value) => setCurrentTab(value)}
-							sx={{ mb: 3, borderRadius: 1 }}
-						>
-							<Tab value="general" label={capitalize(t('general'))} />
-							<Tab value="companies" label={capitalize(t('companies'))} />
-						</CustomTabs>
-
-						{currentTab === 'general' ? (
+						<Stack spacing={3}>
 							<TenantUserUpdateForm
 								currentUser={currentUser}
 								companyTenantIds={companyTenantIds}
 							/>
-						) : (
-							<TenantUserCompaniesTab
+							<TenantUserCompaniesList
 								userId={currentUser.id}
 								companies={companies}
 							/>
-						)}
+						</Stack>
 					</DashboardContent>
 				);
 			}}

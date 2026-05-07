@@ -21,20 +21,20 @@ The final route should be first-class in the Staff surface:
 
 This page uses `User.Id` as the route identifier, not `UserAccount.Id`. The page
 represents the tenant-side identity globally, while tenant/company memberships are
-shown as scoped rows in a `Companies` tab.
+shown as scoped rows on the same details page.
 
-The details page has two tabs:
+The details page has two sections:
 
-- `General`: editable identity fields shared by every tenant/company membership
+- identity details: editable fields shared by every tenant/company membership
   for this user (`firstName`, `lastName`, `avatarUrl`).
-- `Companies`: all tenant memberships for the user, including tenant name/logo,
+- company list: all tenant memberships for the user, including tenant name/logo,
   membership `level`, effective membership `status`, and tenant-scoped actions
   such as suspend/reactivate/remove.
 
 Tenant details remains the strongest entry point for day-to-day context. The
 tenant details `Users` tab should link to `/staff/tenant-users/:userId`; the
 destination then frames the user as a first-class tenant user and keeps
-company-specific context in the `Companies` tab.
+company-specific context in the company list.
 
 ## Classification
 
@@ -57,7 +57,7 @@ completed:
 - The details URL is `/staff/tenant-users/:userId`.
 - The page is a full editable tenant-user details page, not a read-only stopgap.
 - The page separates global tenant-user identity fields from tenant/company
-  membership fields.
+  membership fields without hiding either behind tabs.
 - The UI reuses the same primitives and visual structure as the existing Staff
   user details page.
 - Existing table-level tenant-user actions remain consistent with the new page.
@@ -203,7 +203,7 @@ export const useGetTenantUserById = createStaffQuery({
 
 The page should use:
 
-- `useUpdateTenantUserIdentity` for the `General` tab
+- `useUpdateTenantUserIdentity` for the identity form
 - `useUpdateTenantUser` for company membership level changes
 - `useSuspendTenantUser`
 - `useReactivateTenantUser`
@@ -240,9 +240,8 @@ Required layout pattern:
 - same two-column card layout
 - same left summary rail with avatar, status, and metadata rows
 - same right editable form card
-- tabs above the detail body: `General` and `Companies`
-- company membership actions live in the `Companies` tab, not in the `General`
-  identity form
+- company memberships render below the identity form on the same page
+- company membership actions live in the company list, not in the identity form
 - same skeleton structure adapted for tenant-user fields
 
 The tenant-user page should not introduce a new dashboard composition, new card
@@ -250,7 +249,7 @@ hierarchy, or a top-level marketing-like layout.
 
 ## Editable Fields
 
-The `General` tab should edit shared identity fields:
+The identity form should edit shared identity fields:
 
 - last name
 - first name
@@ -259,7 +258,7 @@ The `General` tab should edit shared identity fields:
 
 The form should send only dirty fields to preserve existing PATCH semantics.
 
-The `Companies` tab should edit membership-local levels with the existing shared
+The company list should edit membership-local levels with the existing shared
 values:
 
 - `Admin`
@@ -268,7 +267,7 @@ values:
 The page should display email as read-only metadata. Email editing stays out of
 this issue because tenant-user email has sign-in and global identity impact.
 
-## Companies Tab
+## Company List
 
 Each company row/card should expose tenant-scoped membership actions:
 
@@ -348,7 +347,6 @@ Frontend verification:
 - click tenant user name from tenant details users table
 - click drawer expand action from tenant details users table
 - edit first name / last name and verify dirty-field PATCH
-- switch to `Companies`
 - edit account level for one company
 - suspend/reactivate tenant membership from a company row/card
 - remove user from tenant and verify details refresh
@@ -361,7 +359,7 @@ Frontend verification:
 3. Add the first-class frontend route helper and route file.
 4. Add the `useGetTenantUserById` and `useUpdateTenantUserIdentity` hooks.
 5. Build the tenant-user details page using Staff user details primitives.
-6. Split the page into `General` and `Companies` tabs.
+6. Render the company list below the identity form on the same page.
 7. Update tenant-users table links to the first-class details route.
 8. Run API, client generation, and frontend type verification.
 
@@ -370,7 +368,7 @@ Frontend verification:
 - No placeholder requirements remain.
 - The route uses `User.Id`, not `UserAccount.Id`.
 - The design does not reuse Staff-user scoped APIs for tenant-user data.
-- The design keeps tenant/company context in the `Companies` tab.
+- The design keeps tenant/company context visible in the same-page company list.
 - The UI explicitly reuses Staff user details primitives and layout.
 - The plan stays within issue 386 and does not add unrelated tenant-profile or
   email-editing behavior.

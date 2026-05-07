@@ -285,7 +285,7 @@ const TenantUserUpdateForm = ({
 
 export default TenantUserUpdateForm;
 
-export const TenantUserCompaniesTab = ({
+export const TenantUserCompaniesList = ({
 	userId,
 	companies,
 }: {
