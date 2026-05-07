@@ -198,8 +198,14 @@ const TenantUserUpdateForm = ({
 												color: 'text.disabled',
 											}}
 										>
-											{t('uploads-not-supported-yet')}
-											<br /> {t('max-size', { size: fData(mbToBytes(3)) })}
+											<Stack component="span">
+												<Box component="span">
+													{t('uploads-not-supported-yet')}
+												</Box>
+												<Box component="span">
+													{t('max-size', { size: fData(mbToBytes(3)) })}
+												</Box>
+											</Stack>
 										</Typography>
 									}
 								/>
@@ -394,6 +400,9 @@ const DangerZoneCard = ({
 			setRemoveDialogOpen(false);
 			await queryClient.invalidateQueries({
 				queryKey: useFindTenantUsers.getKey({ tenantId }),
+			});
+			await queryClient.invalidateQueries({
+				queryKey: useGetTenantUser.getKey({ tenantId, userId }),
 			});
 			void navigate(
 				FRONT_PATH_NAMES.staff.tenants.details(tenantId).users.root,
