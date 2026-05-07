@@ -85,6 +85,7 @@ const isGloballySuspendedStatus = (status: string | null) => {
 const TenantUserCompaniesTable = () => {
 	const { userId = '' } = useParams();
 	const { t } = useTranslate();
+	const handleLinkCompany = () => undefined;
 	const {
 		handlePaginationChange,
 		handleSortingChange,
@@ -129,10 +130,31 @@ const TenantUserCompaniesTable = () => {
 	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
 		query: companiesQuery,
 		emptyContent: {
-			title: capitalize(t('no-items-found', { item: t('companies') })),
+			title: capitalize(
+				t('no-items-found', {
+					item: t('companies'),
+					ns: 'response-message',
+				}),
+			),
+			renderAction: () => (
+				<Button
+					variant="contained"
+					size="small"
+					startIcon={<Iconify icon="mingcute:add-line" width={16} />}
+					onClick={handleLinkCompany}
+					sx={{ mt: 2 }}
+				>
+					{t('add-first-company')}
+				</Button>
+			),
 		},
 		errorContent: {
-			title: capitalize(t('error-loading-items', { item: t('companies') })),
+			title: capitalize(
+				t('error-loading-items', {
+					item: t('companies'),
+					ns: 'response-message',
+				}),
+			),
 		},
 	});
 
@@ -195,6 +217,16 @@ const TenantUserCompaniesTable = () => {
 			hasNextPage,
 			hasPreviousPage,
 			isPending: companiesQuery.isPending,
+			renderToolbarActions: () => (
+				<Button
+					variant="contained"
+					size="small"
+					startIcon={<Iconify icon="mingcute:add-line" width={16} />}
+					onClick={handleLinkCompany}
+				>
+					{t('link-to-company')}
+				</Button>
+			),
 			renderToolbarFilters: () => (
 				<Stack spacing={0.5}>
 					<Typography variant="h5">{t('companies')}</Typography>

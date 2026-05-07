@@ -53,6 +53,8 @@
 	"tenant-users": "Utilisateurs du locataire",
 	"tenant-user-details": "Détails de l'utilisateur du locataire",
 	"companies": "Sociétés",
+	"add-first-company": "Ajouter la première société",
+	"link-to-company": "Lier à une société",
 	"metadata": "Métadonnées",
 	"staff-invitations": "Invitations au staff",
 	"staff-invitations-description": "Gérer les invitations au staff",

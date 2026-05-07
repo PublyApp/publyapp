@@ -54,6 +54,8 @@
 	"tenant-users": "Tenant users",
 	"tenant-user-details": "Tenant user details",
 	"companies": "Companies",
+	"add-first-company": "Add first company",
+	"link-to-company": "Link to company",
 	"metadata": "Metadata",
 	"item-is-required": "{{item}} is required",
 	"item-not-found": "{{item}} not found",
