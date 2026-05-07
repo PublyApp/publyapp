@@ -14,7 +14,7 @@ import { toast } from '#app/components/snackbar/index.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
 import {
-	useDeleteTenantProfile,
+	useBulkDeleteTenantProfiles,
 	useFindTenantProfilePermissions,
 	useFindTenantProfiles,
 	useGetTenantProfileById,
@@ -66,8 +66,8 @@ const TenantProfilesSelectionActions = ({
 		compareDisabledReason = t('compare-selected-disabled-max');
 	}
 
-	const { mutateAsync: deleteProfile, isPending: isBulkDeleting } =
-		useDeleteTenantProfile({
+	const { mutateAsync: bulkDeleteProfiles, isPending: isBulkDeleting } =
+		useBulkDeleteTenantProfiles({
 			meta: { skipGlobalErrorHandler: true },
 		});
 
@@ -91,84 +91,83 @@ const TenantProfilesSelectionActions = ({
 			return;
 		}
 
-		// Single-delete calls are independent; keep per-profile results so partial
-		// success messaging and targeted cache invalidation still work.
-		const results = await Promise.all(
-			selectedRows.map(async (row) => {
-				try {
-					await deleteProfile({
-						tenantId,
-						profileId: row.id,
-					});
-					return { profileId: row.id, succeeded: true as const };
-				} catch (error) {
-					return {
-						profileId: row.id,
-						succeeded: false as const,
-						message: getFailureMessage(toApiFailure(error), {
-							fallback: t('tenant-profile-bulk-delete-failure'),
-						}),
-					};
-				}
-			}),
-		);
-		const failedResults = results.filter((result) => !result.succeeded);
-		const succeededProfileIds = results.flatMap((result) => {
-			return result.succeeded ? [result.profileId] : [];
-		});
-		const failedProfileIds = failedResults.map((result) => result.profileId);
-		const firstFailureMessage = failedResults[0]?.message;
+		try {
+			// Call the tenant bulk delete endpoint once for all selected profile IDs.
+			const selectedProfileIds = selectedRows.map((row) => row.id);
+			const result = await bulkDeleteProfiles({
+				tenantId,
+				profileIds: selectedProfileIds,
+			});
+			const failedProfileIds = (result.failedItems ?? [])
+				.map((item) => item.profileId)
+				.filter((id): id is string => id != null && id !== '');
+			const failedProfileIdSet = new Set(failedProfileIds);
+			const succeededProfileIds = selectedProfileIds.filter(
+				(profileId) => !failedProfileIdSet.has(profileId),
+			);
+			const succeeded = succeededProfileIds.length;
+			const failed = result.failedCount ?? 0;
 
-		setConfirmBulkDeleteOpen(false);
+			setConfirmBulkDeleteOpen(false);
 
-		if (succeededProfileIds.length > 0) {
-			await Promise.all([
-				queryClient.invalidateQueries({
-					queryKey: useFindTenantProfiles.getKey({ tenantId }),
-				}),
-				...succeededProfileIds.map((profileId) => {
-					return queryClient.invalidateQueries({
-						queryKey: useGetTenantProfileById.getKey({
-							tenantId,
-							profileId,
-						}),
-					});
-				}),
-				...succeededProfileIds.map((profileId) => {
-					return queryClient.invalidateQueries({
-						queryKey: useFindTenantProfilePermissions.getKey({
-							tenantId,
-							profileId,
-						}),
-					});
-				}),
-			]);
-		}
+			if (succeededProfileIds.length > 0) {
+				// Refresh list and only the per-profile detail/query caches that actually changed.
+				await Promise.all([
+					queryClient.invalidateQueries({
+						queryKey: useFindTenantProfiles.getKey({ tenantId }),
+					}),
+					...succeededProfileIds.map((profileId) => {
+						return queryClient.invalidateQueries({
+							queryKey: useGetTenantProfileById.getKey({
+								tenantId,
+								profileId,
+							}),
+						});
+					}),
+					...succeededProfileIds.map((profileId) => {
+						return queryClient.invalidateQueries({
+							queryKey: useFindTenantProfilePermissions.getKey({
+								tenantId,
+								profileId,
+							}),
+						});
+					}),
+				]);
+			}
 
-		if (failedProfileIds.length > 0 && succeededProfileIds.length === 0) {
+			if (failed > 0 && succeeded === 0) {
+				// Keep the full set selected so the user can retry after a full failure.
+				onKeepSelectedRows(selectedProfileIds);
+				toast.error(t('tenant-profile-bulk-delete-failure'));
+				return;
+			}
+
+			if (failed > 0) {
+				// Keep only failed rows selected so retries are limited to unresolved items.
+				onKeepSelectedRows(failedProfileIds);
+				toast.warning(
+					t('tenant-profile-bulk-delete-partial-success', {
+						succeeded,
+						failed,
+					}),
+				);
+				return;
+			}
+
+			onClearSelection();
+			toast.success(
+				t('tenant-profile-bulk-delete-success', {
+					count: succeededProfileIds.length,
+				}),
+			);
+		} catch (error) {
+			setConfirmBulkDeleteOpen(false);
 			toast.error(
-				firstFailureMessage || t('tenant-profile-bulk-delete-failure'),
-			);
-			return;
-		}
-
-		if (failedProfileIds.length > 0) {
-			onKeepSelectedRows(failedProfileIds);
-			toast.warning(
-				t('tenant-profile-bulk-delete-partial-success', {
-					succeeded: succeededProfileIds.length,
-					failed: failedProfileIds.length,
+				getFailureMessage(toApiFailure(error), {
+					fallback: t('tenant-profile-bulk-delete-failure'),
 				}),
 			);
-			return;
 		}
-
-		onClearSelection();
-		toast.success(
-			t('tenant-profile-bulk-delete-success', {
-				count: succeededProfileIds.length,
-			}),
-		);
 	};
 
 	return (

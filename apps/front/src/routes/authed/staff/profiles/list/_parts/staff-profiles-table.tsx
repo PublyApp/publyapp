@@ -48,9 +48,11 @@ import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
 import { getUntypedNumber } from '#app/lib/js-client/kiota-utils.ts';
 import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
 import {
+	useBulkDeleteStaffProfiles,
 	useDeleteStaffProfile,
 	useFindStaffProfiles,
 	useGetStaffProfileById,
+	useFindStaffProfilePermissions,
 } from '#app/lib/react-query/features/staff/staff-profile.hooks.ts';
 import { getQueryKey } from '#app/lib/react-query/query-utils.ts';
 
@@ -372,6 +374,18 @@ const StaffProfilesTable = () => {
 						onExportSelected={() => exportDialogRef.current?.open()}
 						selectedRows={selectedRows}
 						onClearSelection={clearSelection}
+						onKeepSelectedRows={(profileIds) => {
+							setRowSelection((prev) => {
+								const nextSelection: Record<string, boolean> = {};
+								for (const profileId of profileIds) {
+									if (prev[profileId]) {
+										nextSelection[profileId] = true;
+									}
+								}
+
+								return nextSelection;
+							});
+						}}
 					/>
 				);
 			},
@@ -628,12 +642,14 @@ type StaffProfilesSelectionActionsProps = {
 	onExportSelected: () => void;
 	selectedRows: StaffProfileRowData[];
 	onClearSelection: () => void;
+	onKeepSelectedRows: (profileIds: string[]) => void;
 };
 
 const StaffProfilesSelectionActions = ({
 	onExportSelected,
 	selectedRows,
 	onClearSelection,
+	onKeepSelectedRows,
 }: StaffProfilesSelectionActionsProps) => {
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
@@ -641,68 +657,116 @@ const StaffProfilesSelectionActions = ({
 	const open = Boolean(anchorEl);
 	const [confirmBulkDeleteOpen, setConfirmBulkDeleteOpen] = useState(false);
 
-	const { mutateAsync: deleteProfile, isPending: isBulkDeleting } =
-		useDeleteStaffProfile({
+	const { mutateAsync: bulkDeleteProfiles, isPending: isBulkDeleting } =
+		useBulkDeleteStaffProfiles({
 			meta: { skipGlobalErrorHandler: true },
 		});
 
 	const closeMenu = () => setAnchorEl(null);
 
 	const handleConfirmBulkDelete = async () => {
-		// We still call the single-delete endpoint once per row until the API exposes
-		// a bulk delete route; the important part here is batching the cache refresh.
-		// Run independent deletes together and collect per-row failures for
-		// the same toast flow.
-		const results = await Promise.all(
-			selectedRows.map(async (row) => {
-				try {
-					await deleteProfile({ profileId: row.id });
-					return { succeeded: true as const };
-				} catch (error) {
-					return {
-						succeeded: false as const,
-						message: getFailureMessage(toApiFailure(error), {
-							fallback: t('something-went-wrong'),
-						}),
-					};
-				}
-			}),
-		);
-		const failedResults = results.filter((result) => !result.succeeded);
-		const succeeded = results.length - failedResults.length;
-		const failed = failedResults.length;
-		const firstFailureMessage = failedResults[0]?.message;
-
-		setConfirmBulkDeleteOpen(false);
-		if (succeeded > 0) {
-			await queryClient.invalidateQueries({
-				queryKey: useFindStaffProfiles.getKey(),
+		try {
+			// Convert current selection into an ID list, call bulk endpoint once,
+			// then split IDs by failedItems from the backend response.
+			const selectedProfileIds = selectedRows.map((row) => row.id);
+			const result = await bulkDeleteProfiles({
+				profileIds: selectedProfileIds,
 			});
-		}
-
-		if (failed > 0 && succeeded === 0) {
-			toast.error(
-				firstFailureMessage || t('staff-profile-bulk-delete-failure'),
+			const failedProfileIds = (result.failedItems ?? [])
+				.map((item) => item.profileId)
+				.filter((id): id is string => id != null && id !== '');
+			const failedProfileIdSet = new Set(failedProfileIds);
+			const succeededProfileIds = selectedProfileIds.filter(
+				(profileId) => !failedProfileIdSet.has(profileId),
 			);
-			return;
-		}
+			const succeeded = succeededProfileIds.length;
+			const failed = result.failedCount ?? 0;
 
-		if (failed > 0) {
-			toast.warning(
-				t('staff-profile-bulk-delete-partial-success', {
-					succeeded,
-					failed,
+			setConfirmBulkDeleteOpen(false);
+			if (failed > 0 && succeeded === 0) {
+				// Keep full selection open for retry when nothing succeeded.
+				onKeepSelectedRows(selectedProfileIds);
+				toast.error(t('staff-profile-bulk-delete-failure'));
+				return;
+			}
+
+			if (succeeded > 0) {
+				// Invalidate both list/detail and user/perms related caches so UI reflects
+				// soft-deleted profile state immediately.
+				await queryClient.invalidateQueries({
+					queryKey: useFindStaffProfiles.getKey(),
+				});
+
+				for (const profileId of succeededProfileIds) {
+					await Promise.all([
+						queryClient.invalidateQueries({
+							queryKey: useGetStaffProfileById.getKey({
+								profileId,
+							}),
+						}),
+						queryClient.invalidateQueries({
+							queryKey: useFindStaffProfilePermissions.getKey({
+								profileId,
+							}),
+						}),
+					]);
+				}
+
+				await Promise.all([
+					queryClient.invalidateQueries({
+						predicate: (query) => {
+							return (
+								getQueryKeyRoot(query.queryKey) ===
+								staffProfileUsersQueryKeyRoot
+							);
+						},
+					}),
+					queryClient.invalidateQueries({
+						predicate: (query) => {
+							return (
+								getQueryKeyRoot(query.queryKey) ===
+								staffProfilePermissionsQueryKeyRoot
+							);
+						},
+					}),
+					queryClient.invalidateQueries({
+						predicate: (query) => {
+							return (
+								getQueryKeyRoot(query.queryKey) ===
+								staffUserProfilesQueryKeyRoot
+							);
+						},
+					}),
+				]);
+			}
+
+			if (failed > 0) {
+				// Preserve failed rows in selection for a focused retry path.
+				onKeepSelectedRows(failedProfileIds);
+				toast.warning(
+					t('staff-profile-bulk-delete-partial-success', {
+						succeeded,
+						failed,
+					}),
+				);
+
+				return;
+			}
+
+			onClearSelection();
+			toast.success(
+				t('staff-profile-bulk-delete-success', {
+					count: succeeded,
 				}),
 			);
-			return;
+		} catch (error) {
+			setConfirmBulkDeleteOpen(false);
+			toast.error(
+				getFailureMessage(toApiFailure(error), {
+					fallback: t('staff-profile-bulk-delete-failure'),
+				}),
+			);
 		}
-
-		onClearSelection();
-		toast.success(
-			t('staff-profile-bulk-delete-success', {
-				count: succeeded,
-			}),
-		);
 	};
 
 	return (

@@ -6,6 +6,7 @@ import {
 
 import type {
 	CreateStaffProfileBody,
+	BulkProfileActionResult,
 	ResolveStaffProfileUserAssignmentsBody,
 	UnassignStaffProfileUsersBody,
 	UpdateStaffProfileBody,
@@ -268,6 +269,31 @@ export const useDeleteStaffProfile = createStaffMutation({
 
 		if (result == null) {
 			throw new Error('useDeleteStaffProfile: result is nil');
+		}
+
+		return result;
+	},
+});
+
+type BulkDeleteStaffProfilesPayload = {
+	profileIds: string[];
+};
+
+export const useBulkDeleteStaffProfiles = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.profiles.bulkDelete.post,
+	mutationFn: async (client, payload: BulkDeleteStaffProfilesPayload) => {
+		// Encode the request as the API expects raw JsonElement array for profile IDs.
+		const body = {
+			profileIds: createUntypedArray(
+				payload.profileIds.map((id) => createUntypedString(id)),
+			),
+		} as Record<string, unknown>;
+
+		const result: BulkProfileActionResult | undefined =
+			await client.staff.profiles.bulkDelete.post(body);
+
+		if (result == null) {
+			throw new Error('useBulkDeleteStaffProfiles: result is nil');
 		}
 
 		return result;

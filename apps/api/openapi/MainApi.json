@@ -4025,6 +4025,77 @@
         }
       }
     },
+    "/staff/profiles/bulk-delete": {
+      "post": {
+        "tags": [
+          "Staff Profiles"
+        ],
+        "summary": "Bulk delete staff profiles",
+        "operationId": "BulkDeleteStaffProfiles",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkDeleteStaffProfilesBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkProfileActionResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/staff/profiles/{profileId}/permissions": {
       "get": {
         "tags": [
@@ -5087,6 +5158,97 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/staff/tenants/{tenantId}/profiles/bulk-delete": {
+      "post": {
+        "tags": [
+          "Tenant Profiles (Staff View)"
+        ],
+        "summary": "Bulk delete tenant profiles",
+        "operationId": "BulkDeleteTenantProfilesAsStaff",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkDeleteTenantProfilesBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkProfileActionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -7359,6 +7521,17 @@
           }
         }
       },
+      "BulkDeleteStaffProfilesBody": {
+        "required": [
+          "profileIds"
+        ],
+        "type": "object",
+        "properties": {
+          "profileIds": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
       "BulkDeleteStaffUsersBody": {
         "required": [
           "userIds"
@@ -7366,6 +7539,17 @@
         "type": "object",
         "properties": {
           "userIds": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "BulkDeleteTenantProfilesBody": {
+        "required": [
+          "profileIds"
+        ],
+        "type": "object",
+        "properties": {
+          "profileIds": {
             "$ref": "#/components/schemas/JsonElement"
           }
         }
@@ -7400,6 +7584,48 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/BulkDeleteFailedItem"
+            }
+          }
+        }
+      },
+      "BulkProfileActionFailedItem": {
+        "required": [
+          "profileId",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "profileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "BulkProfileActionResult": {
+        "required": [
+          "succeededCount",
+          "failedCount",
+          "failedItems"
+        ],
+        "type": "object",
+        "properties": {
+          "succeededCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "failedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "failedItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkProfileActionFailedItem"
             }
           }
         }
