@@ -324,16 +324,13 @@ namespace MainApi.Migrations {
 			migrationBuilder.CreateTable(
 					name: "profile_permissions",
 					columns: table => new {
-						id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "uuidv7()"),
 						profile_id = table.Column<Guid>(type: "uuid", nullable: false),
 						permission_key = table.Column<string>(type: "text", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
-						deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
 					},
 					constraints: table => {
-						table.PrimaryKey("PK_profile_permissions", x => x.id);
+						table.PrimaryKey("PK_profile_permissions", x => new { x.profile_id, x.permission_key });
 						table.ForeignKey(
 											name: "FK_profile_permissions_permissions_permission_key",
 											column: x => x.permission_key,
@@ -351,16 +348,13 @@ namespace MainApi.Migrations {
 			migrationBuilder.CreateTable(
 					name: "user_account_profiles",
 					columns: table => new {
-						id = table.Column<Guid>(type: "uuid", nullable: false),
 						user_account_id = table.Column<Guid>(type: "uuid", nullable: false),
 						profile_id = table.Column<Guid>(type: "uuid", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
-						deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
 					},
 					constraints: table => {
-						table.PrimaryKey("PK_user_account_profiles", x => x.id);
+						table.PrimaryKey("PK_user_account_profiles", x => new { x.user_account_id, x.profile_id });
 						table.ForeignKey(
 											name: "FK_user_account_profiles_profiles_profile_id",
 											column: x => x.profile_id,
@@ -430,12 +424,6 @@ namespace MainApi.Migrations {
 					name: "IX_profile_permissions_permission_key",
 					table: "profile_permissions",
 					column: "permission_key");
-
-			migrationBuilder.CreateIndex(
-					name: "IX_profile_permissions_profile_id_permission_key",
-					table: "profile_permissions",
-					columns: new[] { "profile_id", "permission_key" },
-					unique: true);
 
 			migrationBuilder.CreateIndex(
 					name: "IX_profiles_project_id",
@@ -553,12 +541,6 @@ namespace MainApi.Migrations {
 					name: "IX_user_account_profiles_profile_id",
 					table: "user_account_profiles",
 					column: "profile_id");
-
-			migrationBuilder.CreateIndex(
-					name: "IX_user_account_profiles_user_account_id_profile_id",
-					table: "user_account_profiles",
-					columns: new[] { "user_account_id", "profile_id" },
-					unique: true);
 
 			migrationBuilder.CreateIndex(
 					name: "IX_user_accounts_project_id_scope",
