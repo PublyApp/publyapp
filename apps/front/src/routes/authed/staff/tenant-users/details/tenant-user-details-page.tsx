@@ -1,4 +1,5 @@
 import Box from '@mui/material/Box';
+import Tab from '@mui/material/Tab';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import capitalize from 'lodash/capitalize';
@@ -6,6 +7,7 @@ import get from 'lodash/get';
 import toLower from 'lodash/toLower';
 import toStr from 'lodash/toString';
 import type { FC } from 'react';
+import { useState } from 'react';
 import { data, useParams } from 'react-router';
 
 import {
@@ -18,6 +20,7 @@ import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
+import { CustomTabs } from '#app/components/custom-tabs/custom-tabs.tsx';
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
 import View400 from '#app/components/error/400-view.tsx';
 import { NotFoundView } from '#app/components/error/not-found-view.tsx';
@@ -25,12 +28,14 @@ import QueryDisplay from '#app/components/query-display.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
 import { isProblemFailure, toApiFailure } from '#app/lib/api-failure/index.ts';
-import { useGetTenantUser } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
+import { useGetTenantUserById } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/tenant-user-details-page';
 import { TenantUserDetailsPageSkeleton } from './_components/tenant-user-details-page-skeleton';
 import TenantUserUpdateForm, {
+	TenantUserCompaniesTab,
+	type TenantUserCompanyData,
 	type TenantUserUpdateData,
 } from './_components/tenant-user-update-form';
 
@@ -87,19 +92,15 @@ clientLoader.hydrate = true as const;
 
 const TenantUserDetailsPage = () => {
 	const { t } = useTranslate();
-	const { tenantId, userId } = useParams();
-	const getTenantUserQuery = useGetTenantUser({
-		variables: { tenantId: tenantId ?? '', userId: userId ?? '' },
-		enabled: !!tenantId && !!userId,
+	const { userId } = useParams();
+	const [currentTab, setCurrentTab] = useState('general');
+	const getTenantUserQuery = useGetTenantUserById({
+		variables: { userId: userId ?? '' },
+		enabled: !!userId,
 	});
 
-	if (!tenantId || !userId) {
-		return (
-			<View400
-				title="Bad Request"
-				description="Tenant ID and user ID are required"
-			/>
-		);
+	if (!userId) {
+		return <View400 title="Bad Request" description="User ID is required" />;
 	}
 
 	return (
@@ -114,16 +115,26 @@ const TenantUserDetailsPage = () => {
 
 				const currentUser: TenantUserUpdateData = {
 					id: toStr(data?.id),
-					tenantId,
 					firstName: data?.firstName ?? undefined,
 					lastName: data?.lastName ?? undefined,
 					email: data?.email ?? undefined,
 					avatar: data?.avatarUrl ?? undefined,
-					level: data?.level ?? undefined,
 					status: data?.status ?? undefined,
 					createdAt: data?.createdAt ?? undefined,
 					updatedAt: data?.updatedAt ?? undefined,
 				};
+				const companies: TenantUserCompanyData[] = (data?.companies ?? []).map(
+					(company) => ({
+						tenantId: toStr(company?.tenantId),
+						tenantName: company?.tenantName ?? t('un-named'),
+						tenantLogoUrl: company?.tenantLogoUrl ?? undefined,
+						level: company?.level ?? undefined,
+						status: company?.status ?? undefined,
+						createdAt: company?.createdAt ?? undefined,
+						updatedAt: company?.updatedAt ?? undefined,
+					}),
+				);
+				const companyTenantIds = companies.map((company) => company.tenantId);
 
 				return (
 					<DashboardContent
@@ -138,17 +149,32 @@ const TenantUserDetailsPage = () => {
 									name: capitalize(t('tenants')),
 									href: FRONT_PATH_NAMES.staff.tenants.root,
 								},
-								{
-									name: capitalize(t('users')),
-									href: FRONT_PATH_NAMES.staff.tenants.details(tenantId).users
-										.root,
-								},
+								{ name: capitalize(t('tenant-users')) },
 								{ name: capitalize(t('details')) },
 							]}
 							sx={{ mb: { xs: 3, md: 5 } }}
 						/>
 
-						<TenantUserUpdateForm currentUser={currentUser} />
+						<CustomTabs
+							value={currentTab}
+							onChange={(_, value) => setCurrentTab(value)}
+							sx={{ mb: 3, borderRadius: 1 }}
+						>
+							<Tab value="general" label={capitalize(t('general'))} />
+							<Tab value="companies" label={capitalize(t('companies'))} />
+						</CustomTabs>
+
+						{currentTab === 'general' ? (
+							<TenantUserUpdateForm
+								currentUser={currentUser}
+								companyTenantIds={companyTenantIds}
+							/>
+						) : (
+							<TenantUserCompaniesTab
+								userId={currentUser.id}
+								companies={companies}
+							/>
+						)}
 					</DashboardContent>
 				);
 			}}

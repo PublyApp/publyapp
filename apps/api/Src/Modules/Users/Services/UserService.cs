@@ -107,11 +107,28 @@ public class TenantUserData {
 	public required AccountLevel AccountLevel { get; set; }
 }
 
+public class TenantUserCompanyData {
+	public required UserAccount Account { get; set; }
+	public required MainApi.Src.Modules.Tenants.Entities.Tenant Tenant { get; set; }
+	public required AccountLevel AccountLevel { get; set; }
+}
+
+public class TenantUserDetailsData {
+	public required User User { get; set; }
+	public required List<TenantUserCompanyData> Companies { get; set; }
+}
+
 public class UpdateTenantUserDocument {
 	public PatchField<string?> FirstName { get; set; } = PatchField<string?>.Absent();
 	public PatchField<string?> LastName { get; set; } = PatchField<string?>.Absent();
 	public PatchField<string?> AvatarUrl { get; set; } = PatchField<string?>.Absent();
 	public string? Level { get; set; }
+}
+
+public class UpdateTenantUserIdentityDocument {
+	public PatchField<string?> FirstName { get; set; } = PatchField<string?>.Absent();
+	public PatchField<string?> LastName { get; set; } = PatchField<string?>.Absent();
+	public PatchField<string?> AvatarUrl { get; set; } = PatchField<string?>.Absent();
 }
 
 public abstract record UpdateTenantUserResult {
@@ -120,6 +137,13 @@ public abstract record UpdateTenantUserResult {
 	) : UpdateTenantUserResult;
 	public sealed record NotFound() : UpdateTenantUserResult;
 	public sealed record CannotDemoteLastAdmin() : UpdateTenantUserResult;
+}
+
+public abstract record UpdateTenantUserIdentityResult {
+	public sealed record Success(
+		TenantUserDetailsData UserData
+	) : UpdateTenantUserIdentityResult;
+	public sealed record NotFound() : UpdateTenantUserIdentityResult;
 }
 
 public abstract record SuspendTenantUserResult {
@@ -248,6 +272,10 @@ public interface IUserService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	);
+	Task<TenantUserDetailsData?> GetTenantUserDetailsAsync(
+		Guid userId,
+		CancellationToken cancellationToken = default
+	);
 	Task<RemoveUserFromTenantResult> RemoveUserFromTenantAsync(
 		Guid tenantId,
 		Guid userId,
@@ -257,6 +285,11 @@ public interface IUserService {
 		Guid tenantId,
 		Guid userId,
 		UpdateTenantUserDocument document,
+		CancellationToken cancellationToken = default
+	);
+	Task<UpdateTenantUserIdentityResult> UpdateTenantUserIdentityAsync(
+		Guid userId,
+		UpdateTenantUserIdentityDocument document,
 		CancellationToken cancellationToken = default
 	);
 	Task<SuspendTenantUserResult> SuspendTenantUserAsync(
@@ -1956,6 +1989,44 @@ public class UserService : IUserService {
 		).FirstOrDefaultAsync(cancellationToken);
 	}
 
+	public async Task<TenantUserDetailsData?> GetTenantUserDetailsAsync(
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		var rows = await (
+			from ua in _dbContext.UserAccount.AsNoTracking()
+			join u in _dbContext.User.AsNoTracking()
+				on ua.UserId equals u.Id
+			join tenant in _dbContext.Tenant.AsNoTracking()
+				on ua.TenantId equals (Guid?)tenant.Id
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !u.IsDeleted
+				&& !tenant.IsDeleted
+			orderby tenant.Name, ua.UserId
+			select new {
+				User = u,
+				Account = ua,
+				Tenant = tenant,
+			}
+		).ToListAsync(cancellationToken);
+
+		if (rows.Count == 0) {
+			return null;
+		}
+
+		var user = rows[0].User;
+		return new TenantUserDetailsData {
+			User = user,
+			Companies = rows.Select(row => new TenantUserCompanyData {
+				Account = row.Account,
+				Tenant = row.Tenant,
+				AccountLevel = row.Account.Level,
+			}).ToList(),
+		};
+	}
+
 	public async Task<UpdateUserByIdResult> UpdateStaffUserByIdAsync(
 		Guid userId,
 		UpdateUserDocument document,
@@ -2216,6 +2287,64 @@ public class UserService : IUserService {
 				AccountLevel = account.Level
 			}
 		);
+	}
+
+	public async Task<UpdateTenantUserIdentityResult> UpdateTenantUserIdentityAsync(
+		Guid userId,
+		UpdateTenantUserIdentityDocument document,
+		CancellationToken cancellationToken = default
+	) {
+		var tenantUserQuery =
+			from u in _dbContext.User
+			where u.Id == userId
+				&& !u.IsDeleted
+			where (
+				from ua in _dbContext.UserAccount
+				join tenant in _dbContext.Tenant
+					on ua.TenantId equals (Guid?)tenant.Id
+				where ua.UserId == userId
+					&& ua.Scope == AccountScope.Tenant
+					&& !ua.IsDeleted
+					&& !tenant.IsDeleted
+				select ua
+			).Any()
+			select u;
+
+		var user = await tenantUserQuery
+			.FirstOrDefaultAsync(cancellationToken);
+
+		if (user is null) {
+			return new UpdateTenantUserIdentityResult.NotFound();
+		}
+
+		if (document.FirstName.IsPresent) {
+			user.FirstName = document.FirstName.Value;
+		}
+
+		if (document.LastName.IsPresent) {
+			user.LastName = document.LastName.Value;
+		}
+
+		if (document.AvatarUrl.IsPresent) {
+			user.AvatarUrl = document.AvatarUrl.Value;
+		}
+
+		user.UpdatedAt = DateTime.UtcNow;
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		var userData = await GetTenantUserDetailsAsync(
+			userId,
+			cancellationToken
+		);
+
+		if (userData is null) {
+			throw new InvalidOperationException(
+				"Tenant user not found after successful identity update. "
+				+ "This indicates a data integrity issue."
+			);
+		}
+
+		return new UpdateTenantUserIdentityResult.Success(userData);
 	}
 
 	public async Task<SuspendTenantUserResult> SuspendTenantUserAsync(

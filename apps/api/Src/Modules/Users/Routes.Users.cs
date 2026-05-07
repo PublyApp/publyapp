@@ -74,6 +74,15 @@ public static partial class Routes {
 				$"{RootFn(tenantId)}/{userId}/reactivate";
 		}
 
+		/// <summary>First-class tenant-user routes (staff managing tenant-side identities)</summary>
+		public static class ForTenantUsersAsStaff {
+			public const string Root = "/tenant-users";
+			public const string GetById = "/{userId}";
+			public static string GetByIdFn(string userId) => $"/tenant-users/{userId}";
+			public const string Update = "/{userId}";
+			public static string UpdateFn(string userId) => $"/tenant-users/{userId}";
+		}
+
 		/// <summary>Tenant API routes (tenant self-service)</summary>
 		public static class ForTenant {
 			public const string Root = "/users";

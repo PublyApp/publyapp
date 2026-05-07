@@ -948,12 +948,9 @@ export default TenantUsersTable;
 
 const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 	const fullName = props.cell.getValue();
-	const { tenantId } = useParams();
 	const { id, avatarUrl, email } = props.row.original;
 	const normalizedAvatarUrl = trim(avatarUrl);
-	const userDetailsLink = FRONT_PATH_NAMES.staff.tenants
-		.details(tenantId ?? '')
-		.users.details(id);
+	const userDetailsLink = FRONT_PATH_NAMES.staff.tenantUsers.details(id);
 
 	return (
 		<Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
@@ -1441,7 +1438,7 @@ const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
 		<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
 			<UserDetailsDrawerAction
 				user={user}
-				disabled={isGloballySuspended}
+				disabled={false}
 				disabledReason={disabledReason}
 			/>
 
@@ -1466,11 +1463,8 @@ const UserDetailsDrawerAction = ({
 	disabledReason,
 }: UserDetailsDrawerActionProps) => {
 	const { t } = useTranslate();
-	const { tenantId } = useParams();
 	const detailsDrawer = useBoolean();
-	const userDetailsLink = FRONT_PATH_NAMES.staff.tenants
-		.details(tenantId ?? '')
-		.users.details(user.id);
+	const userDetailsLink = FRONT_PATH_NAMES.staff.tenantUsers.details(user.id);
 	const fullName = getUserFullName({
 		firstName: user.firstName,
 		lastName: user.lastName,

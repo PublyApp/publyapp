@@ -15,6 +15,7 @@ import type {
 	SuspendTenantAsStaffBody,
 	UpdateTenantAsStaffBody,
 	UpdateTenantProfileAsStaffBody,
+	UpdateTenantUserIdentityForStaffBody,
 	UpdateTenantUserAsStaffBody,
 } from '@org/client-ts/src/models';
 import { SESSION_TOKEN_HEADER_KEY } from '@org/shared-ts/lib/constants';
@@ -496,6 +497,19 @@ export const useGetTenantUser = createStaffQuery({
 	},
 });
 
+export const useGetTenantUserById = createStaffQuery({
+	queryKeyFn: (client) => client.staff.tenantUsers.byUserId('').get,
+	fetcher: async (client, params: { userId: string }) => {
+		const result = await client.staff.tenantUsers.byUserId(params.userId).get();
+
+		if (isNil(result)) {
+			throw new Error('useGetTenantUserById: result is nil');
+		}
+
+		return result;
+	},
+});
+
 type FindTenantInvitationsParams = {
 	tenantId: string;
 	cursor?: string;
@@ -683,6 +697,52 @@ export const useUpdateTenantUser = createStaffMutation({
 		if (isNil(result)) {
 			throw new Error('useUpdateTenantUser: result is nil');
 		}
+		return result;
+	},
+});
+
+export const useUpdateTenantUserIdentity = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.tenantUsers.byUserId('').patch,
+	mutationFn: async (
+		client,
+		variables: {
+			userId: string;
+			firstName?: string | null;
+			lastName?: string | null;
+			avatarUrl?: string | null;
+		},
+	) => {
+		const body: UpdateTenantUserIdentityForStaffBody = {};
+		if (variables.firstName !== undefined) {
+			body.firstName = (
+				variables.firstName === null
+					? createUntypedNull()
+					: createUntypedString(variables.firstName)
+			) as typeof body.firstName;
+		}
+		if (variables.lastName !== undefined) {
+			body.lastName = (
+				variables.lastName === null
+					? createUntypedNull()
+					: createUntypedString(variables.lastName)
+			) as typeof body.lastName;
+		}
+		if (variables.avatarUrl !== undefined) {
+			body.avatarUrl = (
+				variables.avatarUrl === null
+					? createUntypedNull()
+					: createUntypedString(variables.avatarUrl)
+			) as typeof body.avatarUrl;
+		}
+
+		const result = await client.staff.tenantUsers
+			.byUserId(variables.userId)
+			.patch(body);
+
+		if (isNil(result)) {
+			throw new Error('useUpdateTenantUserIdentity: result is nil');
+		}
+
 		return result;
 	},
 });

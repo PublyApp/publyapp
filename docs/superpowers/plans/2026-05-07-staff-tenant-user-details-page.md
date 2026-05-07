@@ -2,13 +2,27 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Fix issue 386 by adding a full editable Staff dashboard tenant-user details page with tenant-scoped routing, data loading, editing, lifecycle actions, and remove-from-tenant handling.
+**Goal:** Fix issue 386 by adding a full editable Staff dashboard tenant-user details page at `/staff/tenant-users/:userId`.
 
-**Architecture:** Add the missing scoped backend `GET /staff/tenants/{tenantId}/users/{userId}` endpoint, regenerate the Kiota client, then add a tenant-details nested frontend route at `/staff/tenants/details/:tenantId/users/:userId`. The page must reuse the same primitives and visual structure as the existing Staff user details page while calling tenant-user scoped hooks and mutations.
+**Architecture:** Add first-class Staff tenant-user `GET/PATCH /staff/tenant-users/{userId}` endpoints, regenerate the Kiota client, then register the frontend route at `/staff/tenant-users/:userId`. The page reuses the same primitives and visual structure as the existing Staff user details page, with shared identity editing in `General` and tenant/company membership actions in `Companies`.
 
 **Tech Stack:** .NET 10 minimal APIs, EF Core, FluentValidation/RFC7807 problem helpers, Kiota TypeScript client, React 19, React Router v7, TanStack Query, MUI v6, React Hook Form, Zod
 
 ---
+
+## Review Update
+
+The first implementation used the tenant-scoped route
+`/staff/tenants/details/:tenantId/users/:userId`. Review feedback changed the
+final target to a first-class Staff tenant-user page:
+
+```text
+/staff/tenant-users/:userId
+```
+
+This route uses `User.Id`, not `UserAccount.Id`. Tenant/company membership context
+moves into a `Companies` tab, while the `General` tab edits global user identity
+fields. Tenant-scoped endpoints remain in use for company membership actions.
 
 ## File Structure
 

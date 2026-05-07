@@ -1,19 +1,22 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Divider from '@mui/material/Divider';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
-import { alpha } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
 import capitalize from 'lodash/capitalize';
+import toStr from 'lodash/toString';
 import values from 'lodash/values';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router';
 import type zod from 'zod';
 
 import {
@@ -23,28 +26,35 @@ import {
 	USER_STATUS_ENUM,
 } from '@org/shared-ts/lib/constants';
 import { mbToBytes } from '@org/shared-ts/utils/any.utils';
-import { getUpdateTenantUserSchema } from '@org/shared-ts/validations/tenant-user.validations';
+import { getUpdateTenantUserIdentitySchema } from '@org/shared-ts/validations/tenant-user.validations';
 
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { Field, Form } from '#app/components/hook-form/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import type { IconifyName } from '#app/components/iconify/register-icons.ts';
+import { RouterLink } from '#app/components/router-link.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
 import { StatusChip } from '#app/components/status-chip/status-chip.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
 	useFindTenantUsers,
-	useGetTenantUser,
+	useGetTenantUserById,
 	useReactivateTenantUser,
 	useRemoveTenantUser,
 	useSuspendTenantUser,
 	useUpdateTenantUser,
+	useUpdateTenantUserIdentity,
 } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
 import { interZodClient } from '#app/lib/zod/zod.client.ts';
 import { fData } from '#app/utils/format-number.ts';
 import { fDateTime, type DatePickerFormat } from '#app/utils/format-time.ts';
 
 const USER_STATUS_COLOR_MAP = {
+	Active: 'success',
+	Suspended: 'warning',
+} as const;
+
+const TENANT_USER_STATUS_COLOR_MAP = {
 	Active: 'success',
 	Suspended: 'warning',
 	GloballySuspended: 'error',
@@ -54,16 +64,24 @@ const USER_STATUS_COLOR_MAP = {
 const GLOBALLY_SUSPENDED_STATUS_VALUE = 'globally_suspended';
 const GLOBALLY_SUSPENDED_STATUS_DESCRIPTION = 'GloballySuspended';
 
-type UpdateTenantUserSchemaType = Prettify<
-	zod.infer<ReturnType<typeof getUpdateTenantUserSchema>>
+type UpdateTenantUserIdentitySchemaType = Prettify<
+	zod.infer<ReturnType<typeof getUpdateTenantUserIdentitySchema>>
 >;
+
+export type TenantUserCompanyData = {
+	tenantId: string;
+	tenantName: string;
+	tenantLogoUrl?: string;
+	level?: string;
+	status?: string;
+	createdAt?: DatePickerFormat;
+	updatedAt?: DatePickerFormat;
+};
 
 export type TenantUserUpdateData = {
 	id: string;
-	tenantId: string;
 	firstName?: string;
 	lastName?: string;
-	level?: string;
 	email?: string;
 	status?: string;
 	avatar?: string;
@@ -82,36 +100,29 @@ const isGloballySuspendedStatus = (status: string | null) => {
 
 const TenantUserUpdateForm = ({
 	currentUser,
+	companyTenantIds,
 }: {
 	currentUser: TenantUserUpdateData;
+	companyTenantIds: string[];
 }) => {
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
+	const UpdateTenantUserIdentitySchema =
+		getUpdateTenantUserIdentitySchema(interZodClient);
 
-	const UpdateTenantUserSchema = getUpdateTenantUserSchema(interZodClient);
-
-	let evaluatedLevel: AccountLevel | undefined;
-	if (!ACCOUNT_LEVEL_OPTIONS.includes(currentUser.level as AccountLevel)) {
-		evaluatedLevel = undefined;
-	} else {
-		evaluatedLevel = currentUser.level as AccountLevel;
-	}
-
-	const form = useForm<UpdateTenantUserSchemaType>({
+	const form = useForm<UpdateTenantUserIdentitySchemaType>({
 		mode: 'onSubmit',
-		resolver: zodResolver(UpdateTenantUserSchema),
+		resolver: zodResolver(UpdateTenantUserIdentitySchema),
 		values: {
 			id: currentUser.id,
-			tenantId: currentUser.tenantId,
 			firstName: currentUser.firstName,
 			lastName: currentUser.lastName,
 			avatar: currentUser.avatar,
-			level: evaluatedLevel,
 		},
 	});
 
-	const { mutate: updateTenantUser, isPending: isUpdating } =
-		useUpdateTenantUser({
+	const { mutate: updateTenantUserIdentity, isPending: isUpdating } =
+		useUpdateTenantUserIdentity({
 			onSuccess: () => {
 				form.reset();
 				toast.success(
@@ -120,16 +131,13 @@ const TenantUserUpdateForm = ({
 					),
 				);
 				void queryClient.invalidateQueries({
-					queryKey: useFindTenantUsers.getKey({
-						tenantId: currentUser.tenantId,
-					}),
+					queryKey: useGetTenantUserById.getKey({ userId: currentUser.id }),
 				});
-				void queryClient.invalidateQueries({
-					queryKey: useGetTenantUser.getKey({
-						tenantId: currentUser.tenantId,
-						userId: currentUser.id,
-					}),
-				});
+				for (const tenantId of companyTenantIds) {
+					void queryClient.invalidateQueries({
+						queryKey: useFindTenantUsers.getKey({ tenantId }),
+					});
+				}
 			},
 		});
 
@@ -139,14 +147,11 @@ const TenantUserUpdateForm = ({
 			onSubmit={form.handleSubmit((data) => {
 				const dirtyFields = form.formState.dirtyFields;
 				const payload: {
-					tenantId: string;
 					userId: string;
 					firstName?: string | null;
 					lastName?: string | null;
 					avatarUrl?: string | null;
-					level?: AccountLevel;
 				} = {
-					tenantId: data.tenantId,
 					userId: data.id,
 				};
 
@@ -162,11 +167,7 @@ const TenantUserUpdateForm = ({
 					payload.avatarUrl = data.avatar;
 				}
 
-				if (dirtyFields.level) {
-					payload.level = data.level;
-				}
-
-				updateTenantUser(payload);
+				updateTenantUserIdentity(payload);
 			})}
 		>
 			<Box sx={{ containerType: 'inline-size' }}>
@@ -228,9 +229,9 @@ const TenantUserUpdateForm = ({
 								value={currentUser.email ?? '-'}
 							/>
 							<InfoRow
-								icon="solar:shield-user-bold"
-								label={t('level')}
-								value={currentUser.level ?? '-'}
+								icon="solar:buildings-bold"
+								label={capitalize(t('companies'))}
+								value={toStr(companyTenantIds.length)}
 							/>
 							<InfoRow
 								icon="solar:calendar-date-bold"
@@ -249,50 +250,33 @@ const TenantUserUpdateForm = ({
 						</Stack>
 					</Card>
 
-					<Stack spacing={3} sx={{ minWidth: 0 }}>
-						<Card sx={{ p: 3, minWidth: 0, overflow: 'hidden' }}>
-							<Typography variant="h4" sx={{ mb: 3 }}>
-								{t('tenant-user-details')}
-							</Typography>
+					<Card sx={{ p: 3, minWidth: 0, overflow: 'hidden' }}>
+						<Typography variant="h4" sx={{ mb: 3 }}>
+							{t('tenant-user-details')}
+						</Typography>
 
-							<Box
-								sx={{
-									rowGap: 3,
-									columnGap: 2,
-									display: 'grid',
-								}}
+						<Box
+							sx={{
+								rowGap: 3,
+								columnGap: 2,
+								display: 'grid',
+							}}
+						>
+							<Field.Text name="lastName" label={t('lastname')} required />
+							<Field.Text name="firstName" label={t('firstname')} />
+						</Box>
+
+						<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
+							<Button
+								type="submit"
+								variant="contained"
+								loading={form.formState.isSubmitting || isUpdating}
+								disabled={!form.formState.isDirty || isUpdating}
 							>
-								<Field.Text name="lastName" label={t('lastname')} required />
-								<Field.Text name="firstName" label={t('firstname')} />
-
-								<Field.Select name="level" label={t('level')} required>
-									{ACCOUNT_LEVEL_OPTIONS.map((option) => (
-										<MenuItem key={option} value={option}>
-											{option}
-										</MenuItem>
-									))}
-								</Field.Select>
-							</Box>
-
-							<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-								<Button
-									type="submit"
-									variant="contained"
-									loading={form.formState.isSubmitting || isUpdating}
-									disabled={!form.formState.isDirty || isUpdating}
-								>
-									{t('save-changes')}
-								</Button>
-							</Stack>
-						</Card>
-
-						<DangerZoneCard
-							tenantId={currentUser.tenantId}
-							userId={currentUser.id}
-							status={currentUser.status ?? null}
-							queryClient={queryClient}
-						/>
-					</Stack>
+								{t('save-changes')}
+							</Button>
+						</Stack>
+					</Card>
 				</Box>
 			</Box>
 		</Form>
@@ -301,79 +285,78 @@ const TenantUserUpdateForm = ({
 
 export default TenantUserUpdateForm;
 
-const InfoRow = ({
-	icon,
-	label,
-	value,
-}: {
-	icon: IconifyName;
-	label: string;
-	value: string;
-}) => (
-	<Box
-		sx={{
-			display: 'flex',
-			alignItems: 'center',
-			gap: 1.5,
-			minWidth: 0,
-			width: '100%',
-		}}
-	>
-		<Iconify
-			icon={icon}
-			width={20}
-			sx={{ color: 'text.secondary', flexShrink: 0 }}
-		/>
-		<Box sx={{ minWidth: 0, flex: '1 1 auto' }}>
-			<Typography variant="caption" sx={{ color: 'text.secondary' }}>
-				{label}
-			</Typography>
-			<Tooltip title={value} placement="top-start">
-				<Typography
-					variant="body2"
-					sx={{
-						fontWeight: 500,
-						minWidth: 0,
-						overflow: 'hidden',
-						textOverflow: 'ellipsis',
-						whiteSpace: 'nowrap',
-					}}
-				>
-					{value}
-				</Typography>
-			</Tooltip>
-		</Box>
-	</Box>
-);
-
-const DangerZoneCard = ({
-	tenantId,
+export const TenantUserCompaniesTab = ({
 	userId,
-	status,
-	queryClient,
+	companies,
 }: {
-	tenantId: string;
 	userId: string;
-	status: string | null;
-	queryClient: ReturnType<typeof useQueryClient>;
+	companies: TenantUserCompanyData[];
 }) => {
 	const { t } = useTranslate();
-	const navigate = useNavigate();
+
+	if (companies.length === 0) {
+		return (
+			<Card sx={{ p: 3 }}>
+				<Typography variant="h6">{t('companies')}</Typography>
+				<Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+					{t('no-data')}
+				</Typography>
+			</Card>
+		);
+	}
+
+	return (
+		<Stack spacing={2}>
+			{companies.map((company) => (
+				<TenantUserCompanyCard
+					key={company.tenantId}
+					userId={userId}
+					company={company}
+				/>
+			))}
+		</Stack>
+	);
+};
+
+const TenantUserCompanyCard = ({
+	userId,
+	company,
+}: {
+	userId: string;
+	company: TenantUserCompanyData;
+}) => {
+	const { t } = useTranslate();
+	const queryClient = useQueryClient();
 	const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
 	const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
 	const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
 
+	const tenantId = company.tenantId;
+	const status = company.status ?? null;
 	const isGloballySuspended = isGloballySuspendedStatus(status);
 	const isSuspended = status === USER_STATUS_ENUM.SUSPENDED;
+	const selectedLevel = ACCOUNT_LEVEL_OPTIONS.includes(
+		company.level as AccountLevel,
+	)
+		? (company.level as AccountLevel)
+		: '';
 
 	const invalidateTenantUserQueries = async () => {
 		await queryClient.invalidateQueries({
-			queryKey: useFindTenantUsers.getKey({ tenantId }),
+			queryKey: useGetTenantUserById.getKey({ userId }),
 		});
 		await queryClient.invalidateQueries({
-			queryKey: useGetTenantUser.getKey({ tenantId, userId }),
+			queryKey: useFindTenantUsers.getKey({ tenantId }),
 		});
 	};
+
+	const { mutate: updateTenantUser, isPending: isUpdatingLevel } =
+		useUpdateTenantUser({
+			onSuccess: async () => {
+				toast.success(t('user-level-updated-success'));
+				await invalidateTenantUserQueries();
+			},
+		});
 
 	const { mutate: suspendUser, isPending: isSuspending } = useSuspendTenantUser(
 		{
@@ -398,66 +381,140 @@ const DangerZoneCard = ({
 		onSuccess: async () => {
 			toast.success(t('user-removed-success'));
 			setRemoveDialogOpen(false);
-			await queryClient.invalidateQueries({
-				queryKey: useFindTenantUsers.getKey({ tenantId }),
-			});
-			await queryClient.invalidateQueries({
-				queryKey: useGetTenantUser.getKey({ tenantId, userId }),
-			});
-			void navigate(
-				FRONT_PATH_NAMES.staff.tenants.details(tenantId).users.root,
-			);
+			await invalidateTenantUserQueries();
 		},
 	});
 
 	return (
-		<Card
-			sx={{
-				p: 3,
-				minWidth: 0,
-				overflow: 'hidden',
-				border: '1px solid',
-				borderColor: 'error.main',
-				bgcolor: (theme) => alpha(theme.palette.error.main, 0.02),
-			}}
-		>
-			<Typography variant="h5" sx={{ color: 'error.main', mb: 1 }}>
-				{t('danger-zone')}
-			</Typography>
-			<Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
-				{isGloballySuspended
-					? t('danger-zone-tenant-user-globally-suspended-description')
-					: t('danger-zone-tenant-user-description')}
-			</Typography>
-
-			<Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
-				{!isGloballySuspended && !isSuspended ? (
-					<Button
-						variant="outlined"
-						color="warning"
-						onClick={() => setSuspendDialogOpen(true)}
-					>
-						{t('suspend')}
-					</Button>
-				) : null}
-
-				{!isGloballySuspended && isSuspended ? (
-					<Button
-						variant="outlined"
-						color="success"
-						onClick={() => setReactivateDialogOpen(true)}
-					>
-						{t('reactivate')}
-					</Button>
-				) : null}
-
-				<Button
-					variant="outlined"
-					color="error"
-					onClick={() => setRemoveDialogOpen(true)}
+		<Card sx={{ p: 3, minWidth: 0, overflow: 'hidden' }}>
+			<Stack
+				direction={{ xs: 'column', sm: 'row' }}
+				spacing={2}
+				alignItems={{ xs: 'flex-start', sm: 'center' }}
+				justifyContent="space-between"
+			>
+				<Stack
+					direction="row"
+					spacing={2}
+					alignItems="center"
+					sx={{ minWidth: 0 }}
 				>
-					{t('remove')}
-				</Button>
+					<Avatar
+						alt={company.tenantName}
+						src={company.tenantLogoUrl || undefined}
+						sx={
+							company.tenantLogoUrl
+								? {}
+								: {
+										bgcolor: 'background.neutral',
+										color: 'text.disabled',
+									}
+						}
+					>
+						{!company.tenantLogoUrl ? (
+							<Iconify icon="solar:buildings-bold" width={20} />
+						) : null}
+					</Avatar>
+
+					<Box sx={{ minWidth: 0 }}>
+						<Typography
+							variant="subtitle1"
+							sx={{
+								overflow: 'hidden',
+								textOverflow: 'ellipsis',
+								whiteSpace: 'nowrap',
+							}}
+						>
+							{company.tenantName}
+						</Typography>
+						<Stack
+							direction="row"
+							spacing={1}
+							alignItems="center"
+							sx={{ mt: 0.5, flexWrap: 'wrap', rowGap: 0.5 }}
+						>
+							<StatusChip
+								status={status}
+								unknownLabel={capitalize(t('unknown'))}
+								colorMap={TENANT_USER_STATUS_COLOR_MAP}
+							/>
+							<Typography variant="caption" sx={{ color: 'text.secondary' }}>
+								{t('updated-at')}:{' '}
+								{company.updatedAt ? fDateTime(company.updatedAt) : '-'}
+							</Typography>
+						</Stack>
+					</Box>
+				</Stack>
+
+				<Stack
+					direction="row"
+					spacing={1}
+					alignItems="center"
+					sx={{ flexWrap: 'wrap', rowGap: 1 }}
+				>
+					<FormControl size="small" sx={{ minWidth: 144 }}>
+						<InputLabel id={`tenant-user-level-${tenantId}`}>
+							{t('level')}
+						</InputLabel>
+						<Select
+							labelId={`tenant-user-level-${tenantId}`}
+							value={selectedLevel}
+							label={t('level')}
+							disabled={isUpdatingLevel || isGloballySuspended}
+							onChange={(event) => {
+								updateTenantUser({
+									tenantId,
+									userId,
+									level: event.target.value as AccountLevel,
+								});
+							}}
+						>
+							{ACCOUNT_LEVEL_OPTIONS.map((option) => (
+								<MenuItem key={option} value={option}>
+									{option}
+								</MenuItem>
+							))}
+						</Select>
+					</FormControl>
+
+					<Button
+						component={RouterLink}
+						href={FRONT_PATH_NAMES.staff.tenants.details(tenantId).root}
+						variant="outlined"
+						color="inherit"
+						startIcon={<Iconify icon="solar:buildings-bold" />}
+					>
+						{t('tenant')}
+					</Button>
+
+					{!isGloballySuspended && !isSuspended ? (
+						<Button
+							variant="outlined"
+							color="warning"
+							onClick={() => setSuspendDialogOpen(true)}
+						>
+							{t('suspend')}
+						</Button>
+					) : null}
+
+					{!isGloballySuspended && isSuspended ? (
+						<Button
+							variant="outlined"
+							color="success"
+							onClick={() => setReactivateDialogOpen(true)}
+						>
+							{t('reactivate')}
+						</Button>
+					) : null}
+
+					<Button
+						variant="outlined"
+						color="error"
+						onClick={() => setRemoveDialogOpen(true)}
+					>
+						{t('remove')}
+					</Button>
+				</Stack>
 			</Stack>
 
 			<ConfirmDialog
@@ -513,3 +570,48 @@ const DangerZoneCard = ({
 		</Card>
 	);
 };
+
+const InfoRow = ({
+	icon,
+	label,
+	value,
+}: {
+	icon: IconifyName;
+	label: string;
+	value: string;
+}) => (
+	<Box
+		sx={{
+			display: 'flex',
+			alignItems: 'center',
+			gap: 1.5,
+			minWidth: 0,
+			width: '100%',
+		}}
+	>
+		<Iconify
+			icon={icon}
+			width={20}
+			sx={{ color: 'text.secondary', flexShrink: 0 }}
+		/>
+		<Box sx={{ minWidth: 0, flex: '1 1 auto' }}>
+			<Typography variant="caption" sx={{ color: 'text.secondary' }}>
+				{label}
+			</Typography>
+			<Tooltip title={value} placement="top-start">
+				<Typography
+					variant="body2"
+					sx={{
+						fontWeight: 500,
+						minWidth: 0,
+						overflow: 'hidden',
+						textOverflow: 'ellipsis',
+						whiteSpace: 'nowrap',
+					}}
+				>
+					{value}
+				</Typography>
+			</Tooltip>
+		</Box>
+	</Box>
+);
