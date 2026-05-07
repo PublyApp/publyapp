@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MainApi.Migrations
 {
     [DbContext(typeof(MainApiDbContext))]
-    [Migration("20260507043904_RefactorJunctionTablesCompositePrimaryKeys")]
-    partial class RefactorJunctionTablesCompositePrimaryKeys
+    [Migration("20260507053632_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
