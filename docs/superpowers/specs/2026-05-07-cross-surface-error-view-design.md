@@ -64,9 +64,12 @@ type AppErrorViewProps = {
   numeral?: string;                 // e.g. "404", "500"
   icon?: IconifyName;               // e.g. "solar:shield-keyhole-bold-duotone"
 
-  // Always provided
+  // Required
   title: string;
-  description: string;
+
+  // Optional — wrappers may render their body content via the
+  // `errorDetails` slot when inline JSX is needed (see ViewTenantSuspended).
+  description?: string;
 
   // Optional content
   actions?: ReactNode;              // one or more <Button> elements
@@ -125,7 +128,7 @@ Per-wrapper config (each wrapper's job is to fill the shell's slots — no scaff
 | `View500` | error | icon `solar:danger-triangle-bold` | `error-500-title` | `error-500-description` | Reload page (`router.refresh()`) |
 | `NotFoundView` | primary | numeral `404` | `page-not-found` | `not-found-sentence` | Go home |
 | `GenericErrorView` | warning | icon `solar:danger-triangle-bold` | `generic-error-title` | `generic-error-description` | Try again (`router.refresh()`) + Go home |
-| `ViewTenantSuspended` | warning | icon `solar:shield-keyhole-bold-duotone` | `tenant-suspended-title` | `tenant-suspended-description` (with mailto support link) | Go to organizations |
+| `ViewTenantSuspended` | warning | icon `solar:shield-keyhole-bold-duotone` | `tenant-suspended-title` | rendered via `errorDetails` slot — `tenant-suspended-description` + inline mailto support link | Go to organizations |
 
 `GenericErrorView` is the only wrapper that uses the optional `errorDetails` slot (preserves its existing `Error` debug block behavior).
 
