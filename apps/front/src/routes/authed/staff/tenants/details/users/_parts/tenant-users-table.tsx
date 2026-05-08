@@ -950,7 +950,7 @@ const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 	const fullName = props.cell.getValue();
 	const { id, avatarUrl, email } = props.row.original;
 	const normalizedAvatarUrl = trim(avatarUrl);
-	const userDetailsLink = FRONT_PATH_NAMES.staff.tenantUsers.details(id);
+	const userDetailsLink = FRONT_PATH_NAMES.staff.tenantUsers.details(id).root;
 
 	return (
 		<Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
@@ -1464,7 +1464,9 @@ const UserDetailsDrawerAction = ({
 }: UserDetailsDrawerActionProps) => {
 	const { t } = useTranslate();
 	const detailsDrawer = useBoolean();
-	const userDetailsLink = FRONT_PATH_NAMES.staff.tenantUsers.details(user.id);
+	const userDetailsLink = FRONT_PATH_NAMES.staff.tenantUsers.details(
+		user.id,
+	).root;
 	const fullName = getUserFullName({
 		firstName: user.firstName,
 		lastName: user.lastName,
