@@ -122,8 +122,12 @@ const SettingsMembersPage = () => {
 			density: 'compact',
 		},
 		muiTablePaperProps: {
+			// Preset defaults (minHeight: 640, height: '1px', flexGrow: 1) target
+			// full-page tables; this surface lives inside a settings Card.
 			sx: {
-				flexGrow: 1,
+				minHeight: 'unset',
+				flexGrow: 0,
+				height: 'auto',
 			},
 		},
 		meta: {
