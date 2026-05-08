@@ -29,7 +29,7 @@ export const allLangs = [
 	},
 	{
 		value: 'fr',
-		label: 'French',
+		label: 'Français',
 		countryCode: 'FR',
 		adapterLocale: 'fr',
 		numberFormat: { code: 'fr-Fr', currency: 'EUR' },
