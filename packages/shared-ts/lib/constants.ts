@@ -87,22 +87,36 @@ const ROOTS = {
 	ONBOARDING: 'onboarding',
 } as const;
 
+// Marketing routes use trailing slashes for SEO canonical consistency.
+// Auth/staff/tenant intentionally don't (no SEO benefit, deep-link risk).
+const marketingPath = (...params: string[]): string => {
+	const path = makePath(...params);
+	if (path === '/') {
+		return '/';
+	}
+	return `${path}/`;
+};
+
 export const FRONT_PATH_NAMES = {
 	home: '/',
 	marketing: {
-		pricing: makePath('pricing'),
-		terms: makePath('terms'),
-		privacy: makePath('privacy'),
-		cookies: makePath('cookies'),
-		about: makePath('about'),
-		contact: makePath('contact'),
-		security: makePath('security'),
-		// Not yet shipped — these paths 404 to MarketingNotFoundPage until built:
-		blog: makePath('blog'),
-		changelog: makePath('changelog'),
-		integrations: makePath('integrations'),
-		help: makePath('help'),
-		community: makePath('community'),
+		pricing: marketingPath('pricing'),
+		terms: marketingPath('terms'),
+		privacy: marketingPath('privacy'),
+		cookies: marketingPath('cookies'),
+		about: marketingPath('about'),
+		contact: marketingPath('contact'),
+		security: marketingPath('security'),
+		// Blog index + dynamic article helper.
+		blog: marketingPath('blog'),
+		blogArticle: (slug: string) => marketingPath('blog', slug),
+		// Changelog index + dynamic year helper.
+		changelog: marketingPath('changelog'),
+		changelogYear: (year: number | string) =>
+			marketingPath('changelog', String(year)),
+		integrations: marketingPath('integrations'),
+		help: marketingPath('help'),
+		community: marketingPath('community'),
 	},
 	auth: {
 		login: makePath('login'),
