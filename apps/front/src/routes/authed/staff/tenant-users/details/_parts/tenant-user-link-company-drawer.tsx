@@ -4,6 +4,7 @@ import Button from '@mui/material/Button';
 import Drawer from '@mui/material/Drawer';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
+import type { Theme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
 import toStr from 'lodash/toString';
@@ -63,6 +64,9 @@ const defaultValues: LinkCompanyFormValues = {
 	level: ACCOUNT_LEVEL_ENUM.USER,
 };
 const EMPTY_TENANT_OPTIONS: TenantOption[] = [];
+const getDrawerOverlaySx = (theme: Theme) => ({
+	zIndex: theme.zIndex.modal + 2,
+});
 
 const TenantUserLinkCompanyDrawer = ({
 	open,
@@ -235,13 +239,34 @@ const TenantUserLinkCompanyDrawer = ({
 							);
 						}}
 						slotProps={{
+							popper: {
+								sx: getDrawerOverlaySx,
+							},
 							textfield: {
 								required: true,
 							},
 						}}
 					/>
 
-					<Field.Select name="level" label={t('level')} required>
+					<Field.Select
+						name="level"
+						label={t('level')}
+						required
+						slotProps={{
+							select: {
+								MenuProps: {
+									slotProps: {
+										root: {
+											sx: getDrawerOverlaySx,
+										},
+										paper: {
+											sx: getDrawerOverlaySx,
+										},
+									},
+								},
+							},
+						}}
+					>
 						<MenuItem value={ACCOUNT_LEVEL_ENUM.USER}>{t('user')}</MenuItem>
 						<MenuItem value={ACCOUNT_LEVEL_ENUM.ADMIN}>{t('admin')}</MenuItem>
 					</Field.Select>
