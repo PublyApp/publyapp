@@ -1,5 +1,4 @@
 import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
 import { iconButtonClasses } from '@mui/material/IconButton';
 import { type Breakpoint, useTheme } from '@mui/material/styles';
 import merge from 'lodash/merge';
@@ -13,14 +12,11 @@ import type {
 	NavSectionProps,
 } from '#app/components/nav-section/types.ts';
 import { useSettingsContext } from '#app/hooks/use-settings-context.ts';
-import { allLangs } from '#app/lib/locales/all-langs.ts';
 import {
 	useGetUserAuthData,
 	useGetUserTenants,
 } from '#app/lib/react-query/features/common/auth.hooks.ts';
 
-import { ColorSchemePopover } from '../components/colorscheme-popover';
-import { LanguagePopover } from '../components/language-popover';
 import { MenuButton } from '../components/menu-button';
 import { SidebarToggleButton } from '../components/sidebar-toggle-button';
 import { SidebarUserMenu } from '../components/sidebar-user-menu';
@@ -178,24 +174,6 @@ export const DashboardLayout = ({
 						/>
 					)}
 				</>
-			),
-			rightArea: (
-				<Box
-					sx={{
-						display: 'flex',
-						alignItems: 'center',
-						gap: { xs: 0, sm: 0.75 },
-					}}
-				>
-					{/** @slot Color scheme */}
-					<ColorSchemePopover />
-
-					{/** @slot Language popover */}
-					<LanguagePopover data={allLangs} />
-
-					{/** @slot Settings button */}
-					{/* <SettingsButton /> */}
-				</Box>
 			),
 		};
 
