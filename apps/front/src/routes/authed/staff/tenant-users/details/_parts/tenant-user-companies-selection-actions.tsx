@@ -210,7 +210,6 @@ const TenantUserCompaniesSelectionActions = ({
 					onClick={() => {
 						openConfirmDialog('remove');
 					}}
-					sx={{ color: 'text.secondary' }}
 				>
 					<Iconify icon="solar:trash-bin-trash-bold" width={18} />
 					<ListItemText

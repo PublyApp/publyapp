@@ -156,15 +156,25 @@ const TenantUserLinkCompanyDrawer = ({
 			open={open}
 			onClose={handleClose}
 			anchor="right"
+			sx={(theme) => ({
+				zIndex: theme.zIndex.modal + 1,
+			})}
 			slotProps={{
 				paper: {
 					sx: {
 						width: { xs: 1, sm: 420 },
+						overflow: 'unset',
 					},
 				},
 			}}
 		>
-			<DrawerAnchor onClick={handleClose} aria-label={t('close')} />
+			<DrawerAnchor
+				onClick={handleClose}
+				aria-label={t('close')}
+				sx={{ left: 0 }}
+			>
+				<Iconify icon="mingcute:close-line" width={18} />
+			</DrawerAnchor>
 			<Form
 				methods={methods}
 				onSubmit={handleSubmit}

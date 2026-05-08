@@ -395,12 +395,6 @@ const TenantUserCompaniesToolbarFilters = ({
 			spacing={2}
 			alignItems={{ xs: 'stretch', sm: 'center' }}
 		>
-			<Stack spacing={0.5} sx={{ minWidth: 0 }}>
-				<Typography variant="h5">{t('companies')}</Typography>
-				<Typography variant="body2" sx={{ color: 'text.secondary' }}>
-					{t('list-of-items', { items: t('companies') })}
-				</Typography>
-			</Stack>
 			<SelectionLockedControl
 				isSelectionMode={isSelectionMode}
 				disabledReason={disabledReason}
