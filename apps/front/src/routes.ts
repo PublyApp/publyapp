@@ -1,10 +1,13 @@
-import { layout, type RouteConfig } from '@react-router/dev/routes';
+import { layout, type RouteConfig, route } from '@react-router/dev/routes';
 
 import { actionsRoutes } from './routes/_tree/actions.routes';
 import { authRoutes } from './routes/_tree/auth.routes';
 import { marketingRoutes } from './routes/_tree/marketing.routes';
 import { staffRoutes } from './routes/_tree/staff/staff.routes';
 import { tenantRoutes } from './routes/_tree/tenant/tenant.routes';
+
+// SEO infrastructure routes — loader-only, raw Response.
+const seoRoutes = [route('sitemap.xml', 'routes/sitemap[.]xml.tsx')];
 
 const authedRoutes = [
 	layout('routes/authed/_layout/authed-layout.tsx', [
@@ -14,6 +17,7 @@ const authedRoutes = [
 ];
 
 const routes = [
+	...seoRoutes,
 	...actionsRoutes,
 	...marketingRoutes,
 	...authRoutes,
