@@ -8,19 +8,24 @@ import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
+import { buildSeoMeta } from '#app/lib/seo/meta.ts';
 import { CtaBand } from '#app/routes/marketing/_components/cta-band.tsx';
 import { MarketingHero } from '#app/routes/marketing/_components/marketing-hero.tsx';
 import { getLatestYear } from '#app/routes/marketing/_data/changelog.tsx';
+
+import type { Route } from './+types/changelog-redirect-route';
 
 // ----------------------------------------------------------------------
 
 // React Router loader — runs BEFORE the route component renders. If we
 // have entries, redirect to the latest year (302). Otherwise return null
-// so the component can render its empty state.
+// so the component can render its empty state. The redirect target uses
+// the helper so the URL ends in `/`, matching the marketing trailing-slash
+// policy (avoids a wasteful 302→301 chain through the layout loader).
 export const loader = () => {
 	const latest = getLatestYear();
 	if (latest !== null) {
-		return redirect(`/changelog/${latest}`);
+		return redirect(FRONT_PATH_NAMES.marketing.changelogYear(latest));
 	}
 	return null;
 };
@@ -117,10 +122,10 @@ export default ChangelogRedirectRoute;
 
 // ----------------------------------------------------------------------
 
-export const meta = () => [
-	{ title: `Changelog | ${APP_NAME}` },
-	{
-		name: 'description',
-		content: 'Product updates, fixes, and behind-the-scenes wins.',
-	},
-];
+export const meta = ({ location }: Route.MetaArgs) => {
+	return buildSeoMeta({
+		title: `Changelog | ${APP_NAME}`,
+		description: 'Product updates, fixes, and behind-the-scenes wins.',
+		pathname: location.pathname,
+	});
+};
