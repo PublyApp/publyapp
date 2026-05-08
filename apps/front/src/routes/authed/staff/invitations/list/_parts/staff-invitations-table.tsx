@@ -243,6 +243,7 @@ const StaffInvitationsTable = () => {
 		let succeeded = 0;
 		let failed = 0;
 		let firstFailureMessage: string | undefined;
+		const failedIds: string[] = [];
 
 		for (const invitation of eligibleBulkRevokeRows) {
 			try {
@@ -250,6 +251,7 @@ const StaffInvitationsTable = () => {
 				succeeded += 1;
 			} catch (error) {
 				failed += 1;
+				failedIds.push(invitation.id);
 				const failure = toApiFailure(error);
 				if (firstFailureMessage == null) {
 					firstFailureMessage = getFailureMessage(failure);
@@ -258,10 +260,24 @@ const StaffInvitationsTable = () => {
 		}
 
 		setBulkRevokeDialogOpen(false);
-		clearSelection();
 		await queryClient.invalidateQueries({
 			queryKey: useFindStaffInvitations.getKey(),
 		});
+
+		if (failed === 0) {
+			clearSelection();
+		} else {
+			// Reconcile selection so retried bulk revoke only acts on the still-failed rows.
+			setRowSelection((prev) => {
+				const next: typeof prev = {};
+				for (const id of failedIds) {
+					if (prev[id]) {
+						next[id] = true;
+					}
+				}
+				return next;
+			});
+		}
 
 		if (succeeded === 0 && failed > 0) {
 			toast.error(
@@ -403,15 +419,22 @@ const StaffInvitationsTable = () => {
 	const renderSelectionActions = () => {
 		return (
 			<>
-				<IconButton
-					size="small"
-					onClick={(event) => {
-						setSelectionActionAnchorEl(event.currentTarget);
-					}}
-					sx={{ width: 32, height: 32 }}
+				<Tooltip
+					title={t('more-actions', { defaultValue: 'More actions' })}
+					placement="top"
+					arrow
 				>
-					<Iconify icon="eva:more-vertical-fill" width={18} />
-				</IconButton>
+					<IconButton
+						size="small"
+						aria-label={t('more-actions', { defaultValue: 'More actions' })}
+						onClick={(event) => {
+							setSelectionActionAnchorEl(event.currentTarget);
+						}}
+						sx={{ width: 32, height: 32 }}
+					>
+						<Iconify icon="eva:more-vertical-fill" width={18} />
+					</IconButton>
+				</Tooltip>
 				<Menu
 					anchorEl={selectionActionAnchorEl}
 					open={isSelectionActionMenuOpen}
