@@ -103,6 +103,7 @@ export const FRONT_PATH_NAMES = {
 		integrations: makePath('integrations'),
 		help: makePath('help'),
 		community: makePath('community'),
+		roadmap: makePath('roadmap'),
 	},
 	auth: {
 		login: makePath('login'),
