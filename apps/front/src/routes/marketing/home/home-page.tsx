@@ -1,4 +1,9 @@
+import { JsonLd } from '#app/components/json-ld.tsx';
 import { buildSeoMeta } from '#app/lib/seo/meta.ts';
+import {
+	buildOrganizationSchema,
+	buildWebSiteSchema,
+} from '#app/lib/seo/schemas.ts';
 
 import type { Route } from './+types/home-page';
 import { HomeCta } from './_parts/home-cta';
@@ -21,6 +26,8 @@ export const meta = ({ location }: Route.MetaArgs) => {
 const HomePage = ({ loaderData: _ }: Route.ComponentProps) => {
 	return (
 		<>
+			<JsonLd schema={buildOrganizationSchema()} />
+			<JsonLd schema={buildWebSiteSchema()} />
 			<HomeHero />
 			<HomeLogos />
 			<HomeFeatures />

@@ -6,9 +6,11 @@ import Typography from '@mui/material/Typography';
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { JsonLd } from '#app/components/json-ld.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { FEATURES } from '#app/lib/features/flags.ts';
 import { buildSeoMeta } from '#app/lib/seo/meta.ts';
+import { buildOrganizationSchema } from '#app/lib/seo/schemas.ts';
 import { ContentBand } from '#app/routes/marketing/_components/content-band.tsx';
 import { CtaBand } from '#app/routes/marketing/_components/cta-band.tsx';
 import { MarketingEyebrow } from '#app/routes/marketing/_components/marketing-eyebrow.tsx';
@@ -185,6 +187,7 @@ const OurStorySection = () => {
 const AboutPage = () => {
 	return (
 		<>
+			<JsonLd schema={buildOrganizationSchema()} />
 			<MarketingHero
 				eyebrow="About"
 				title="We help brands organize the chaos of social"

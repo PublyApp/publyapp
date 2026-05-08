@@ -5,7 +5,9 @@ import Typography from '@mui/material/Typography';
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { JsonLd } from '#app/components/json-ld.tsx';
 import { buildSeoMeta } from '#app/lib/seo/meta.ts';
+import { buildFaqPageSchema } from '#app/lib/seo/schemas.ts';
 import { ContentBand } from '#app/routes/marketing/_components/content-band.tsx';
 import { CtaBand } from '#app/routes/marketing/_components/cta-band.tsx';
 import { MarketingHero } from '#app/routes/marketing/_components/marketing-hero.tsx';
@@ -197,6 +199,7 @@ const ContactInfoPanel = () => {
 const ContactPage = () => {
 	return (
 		<>
+			<JsonLd schema={buildFaqPageSchema(CONTACT_FAQS)} />
 			<MarketingHero
 				eyebrow="Contact"
 				eyebrowIcon="ph:envelope-bold"

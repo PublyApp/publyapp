@@ -1,9 +1,16 @@
 import { useParams } from 'react-router';
 
-import { APP_NAME } from '@org/shared-ts/lib/constants';
+import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
+import { JsonLd } from '#app/components/json-ld.tsx';
+import { buildCanonicalUrl } from '#app/lib/seo/canonical.ts';
 import { buildSeoMeta } from '#app/lib/seo/meta.ts';
 import {
+	buildBlogPostingSchema,
+	buildBreadcrumbListSchema,
+} from '#app/lib/seo/schemas.ts';
+import {
+	BLOG_AUTHORS,
 	getPublishedPosts,
 	unsplashCover,
 } from '#app/routes/marketing/_data/blog.ts';
@@ -65,7 +72,23 @@ const BlogArticleRoute = () => {
 		);
 	}
 
-	return <ArticleComponent />;
+	const author = BLOG_AUTHORS[post.authorId];
+	const breadcrumbs = [
+		{ name: 'Home', url: buildCanonicalUrl('/') },
+		{ name: 'Blog', url: buildCanonicalUrl(FRONT_PATH_NAMES.marketing.blog) },
+		{
+			name: post.title,
+			url: buildCanonicalUrl(FRONT_PATH_NAMES.marketing.blogArticle(post.slug)),
+		},
+	];
+
+	return (
+		<>
+			{author ? <JsonLd schema={buildBlogPostingSchema(post, author)} /> : null}
+			<JsonLd schema={buildBreadcrumbListSchema(breadcrumbs)} />
+			<ArticleComponent />
+		</>
+	);
 };
 
 export default BlogArticleRoute;

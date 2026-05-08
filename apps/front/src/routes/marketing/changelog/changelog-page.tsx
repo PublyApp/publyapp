@@ -7,8 +7,11 @@ import { useParams } from 'react-router';
 import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { JsonLd } from '#app/components/json-ld.tsx';
 import { FEATURES } from '#app/lib/features/flags.ts';
+import { buildCanonicalUrl } from '#app/lib/seo/canonical.ts';
 import { buildSeoMeta } from '#app/lib/seo/meta.ts';
+import { buildBreadcrumbListSchema } from '#app/lib/seo/schemas.ts';
 import { ChangelogEntry } from '#app/routes/marketing/_components/changelog-entry.tsx';
 import { ChangelogStats } from '#app/routes/marketing/_components/changelog-stats.tsx';
 import { ChangelogSubscribeBand } from '#app/routes/marketing/_components/changelog-subscribe-band.tsx';
@@ -46,8 +49,23 @@ const ChangelogPage = () => {
 
 	const entries = getEntriesForYear(year);
 
+	const breadcrumbs = [
+		{ name: 'Home', url: buildCanonicalUrl('/') },
+		{
+			name: 'Changelog',
+			url: buildCanonicalUrl(FRONT_PATH_NAMES.marketing.changelog),
+		},
+		{
+			name: yearParam,
+			url: buildCanonicalUrl(
+				FRONT_PATH_NAMES.marketing.changelogYear(yearParam),
+			),
+		},
+	];
+
 	return (
 		<>
+			<JsonLd schema={buildBreadcrumbListSchema(breadcrumbs)} />
 			<MarketingHero
 				eyebrow="Changelog"
 				eyebrowIcon="ph:rocket-launch-fill"
