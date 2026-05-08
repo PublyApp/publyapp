@@ -255,6 +255,154 @@ public sealed class TenantUserCompanyActionsForStaffSpec
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
 
+	[Theory]
+	[InlineData("""{ "tenantIds": ["019e00f1-fdc4-7eb5-adb4-7d91dee9f9e8"] }""")]
+	[InlineData("""
+		{
+			"tenantIds": ["019e00f1-fdc4-7eb5-adb4-7d91dee9f9e8"],
+			"level": "Owner"
+		}
+		""")]
+	public async Task
+	ItShouldReturnValidationProblemForInvalidAssignCompanyBody(
+		string body
+	) {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var seeded = await SeedTenantUserCompanyScenarioAsync();
+
+		using var response = await _http.SendAsync(
+			CreateRawJsonRequest(
+				HttpMethod.Post,
+				GetCompaniesUrl(seeded.UserId),
+				staffToken,
+				body
+			)
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnValidationProblemWhenBulkCompanyRequestExceedsMaximum() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var seeded = await SeedTenantUserCompanyScenarioAsync();
+		var tenantIds = Enumerable
+			.Range(0, 101)
+			.Select(_ => $"\"{Guid.NewGuid()}\"");
+		var body = $$"""
+			{
+				"tenantIds": [{{string.Join(",", tenantIds)}}]
+			}
+			""";
+
+		using var response = await _http.SendAsync(
+			CreateRawJsonRequest(
+				HttpMethod.Post,
+				GetBulkSuspendUrl(seeded.UserId),
+				staffToken,
+				body
+			)
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Theory]
+	[InlineData("assign")]
+	[InlineData("bulk-remove")]
+	[InlineData("bulk-suspend")]
+	[InlineData("bulk-reactivate")]
+	public async Task
+	ItShouldReturnBadRequestWhenCompanyActionUserIdIsMalformed(string action) {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+
+		using var response = await _http.SendAsync(
+			CreateJsonRequest(
+				HttpMethod.Post,
+				GetCompanyActionUrl(action, "not-a-guid"),
+				staffToken,
+				CreateValidCompanyActionBody(action, Guid.NewGuid())
+			)
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
+
+	[Theory]
+	[InlineData("assign")]
+	[InlineData("bulk-remove")]
+	[InlineData("bulk-suspend")]
+	[InlineData("bulk-reactivate")]
+	public async Task
+	ItShouldReturnNotFoundWhenCompanyActionTenantUserDoesNotExist(
+		string action
+	) {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+
+		using var response = await _http.SendAsync(
+			CreateJsonRequest(
+				HttpMethod.Post,
+				GetCompanyActionUrl(action, Guid.NewGuid().ToString()),
+				staffToken,
+				CreateValidCompanyActionBody(action, Guid.NewGuid())
+			)
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnPartialFailuresWhenAssigningExistingAndMissingCompanies() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var seeded = await SeedTenantUserCompanyScenarioAsync();
+		var missingTenantId = Guid.NewGuid();
+
+		using var response = await _http.SendAsync(
+			CreateJsonRequest(
+				HttpMethod.Post,
+				GetCompaniesUrl(seeded.UserId),
+				staffToken,
+				new {
+					tenantIds = new[] {
+						seeded.PrimaryTenantId,
+						seeded.NewTenantId,
+						missingTenantId,
+					},
+					level = "Admin",
+				}
+			)
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var result = await response.Content
+			.ReadFromJsonAsync<TenantUserCompanyBulkActionResponse>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"Tenant user company assign response was empty."
+			);
+		}
+		result.SucceededCount.Should().Be(1);
+		result.FailedCount.Should().Be(2);
+		result.FailedItems.Should().Contain(item =>
+			item.TenantId == seeded.PrimaryTenantId
+			&& item.Error == "Already assigned"
+		);
+		result.FailedItems.Should().Contain(item =>
+			item.TenantId == missingTenantId
+			&& item.Error == "Tenant not found"
+		);
+
+		await AssertTenantMembershipAsync(
+			seeded.UserId,
+			seeded.NewTenantId,
+			AccountStatus.Active,
+			AccountLevel.Admin
+		);
+	}
+
 	private async Task<SeededTenantUserCompanyScenario>
 	SeedTenantUserCompanyScenarioAsync() {
 		await using var scope =
@@ -479,28 +627,76 @@ public sealed class TenantUserCompanyActionsForStaffSpec
 		);
 
 	private static string GetCompaniesUrl(Guid userId) =>
+		GetCompaniesUrl(userId.ToString());
+
+	private static string GetCompaniesUrl(string userId) =>
 		PathUtils.Join(
 			Routes.Staff.Root,
 			$"/tenant-users/{userId}/companies"
 		);
 
 	private static string GetBulkSuspendUrl(Guid userId) =>
+		GetBulkSuspendUrl(userId.ToString());
+
+	private static string GetBulkSuspendUrl(string userId) =>
 		PathUtils.Join(
 			Routes.Staff.Root,
 			$"/tenant-users/{userId}/companies/bulk-suspend"
 		);
 
 	private static string GetBulkReactivateUrl(Guid userId) =>
+		GetBulkReactivateUrl(userId.ToString());
+
+	private static string GetBulkReactivateUrl(string userId) =>
 		PathUtils.Join(
 			Routes.Staff.Root,
 			$"/tenant-users/{userId}/companies/bulk-reactivate"
 		);
 
 	private static string GetBulkRemoveUrl(Guid userId) =>
+		GetBulkRemoveUrl(userId.ToString());
+
+	private static string GetBulkRemoveUrl(string userId) =>
 		PathUtils.Join(
 			Routes.Staff.Root,
 			$"/tenant-users/{userId}/companies/bulk-remove"
 		);
+
+	private static string GetCompanyActionUrl(
+		string action,
+		string userId
+	) {
+		if (action == "assign") {
+			return GetCompaniesUrl(userId);
+		}
+		if (action == "bulk-remove") {
+			return GetBulkRemoveUrl(userId);
+		}
+		if (action == "bulk-suspend") {
+			return GetBulkSuspendUrl(userId);
+		}
+		if (action == "bulk-reactivate") {
+			return GetBulkReactivateUrl(userId);
+		}
+
+		throw new InvalidOperationException(
+			$"Unsupported company action '{action}'."
+		);
+	}
+
+	private static object CreateValidCompanyActionBody(
+		string action,
+		Guid tenantId
+	) {
+		if (action == "assign") {
+			return new {
+				tenantIds = new[] { tenantId },
+				level = "User",
+			};
+		}
+
+		return new { tenantIds = new[] { tenantId } };
+	}
 
 	private sealed record SeededTenantUserCompanyScenario(
 		Guid UserId,

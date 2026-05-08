@@ -6,21 +6,28 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using MainApi.Localization;
+using MainApi.Src.Data.DbContext;
 using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Routes;
 using MainApi.Src.Lib.Testing.Fixtures;
 using MainApi.Src.Lib.Testing.Helpers;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Modules.Tenants.Entities;
+using MainApi.Src.Modules.Users.Entities;
+
+using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
 public sealed class TenantUserIdentityDangerZoneForStaffSpec
 	: IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
 	public TenantUserIdentityDangerZoneForStaffSpec(ApiFixture fixture) {
+		_fixture = fixture;
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);
 	}
@@ -194,6 +201,219 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		problem.Errors.Should().ContainKey("email");
 	}
 
+	[Fact]
+	public async Task
+	ItShouldReturnValidationProblemWhenTenantUserEmailIsInvalid() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetEmailUrl(Guid.NewGuid().ToString())
+		).WithSessionToken(staffToken);
+		request.Content = JsonContent.Create(
+			new { email = "not-an-email" }
+		);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnBadRequestWhenTenantUserEmailUserIdIsMalformed() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetEmailUrl("not-a-guid")
+		).WithSessionToken(staffToken);
+		request.Content = JsonContent.Create(
+			new { email = $"tenant-email-{Guid.NewGuid():N}@example.com" }
+		);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+		var problem = await response.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnNotFoundWhenTenantUserEmailUserDoesNotExist() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetEmailUrl(Guid.NewGuid().ToString())
+		).WithSessionToken(staffToken);
+		request.Content = JsonContent.Create(
+			new { email = $"tenant-email-{Guid.NewGuid():N}@example.com" }
+		);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+		var problem = await response.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.TranslationKey.Should().Be(ResponseKeys.NotFound);
+	}
+
+	[Theory]
+	[InlineData("suspend")]
+	[InlineData("reactivate")]
+	public async Task
+	ItShouldReturnBadRequestWhenTenantUserIdentityActionUserIdIsMalformed(
+		string action
+	) {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetIdentityActionUrl(action, "not-a-guid")
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+		var problem = await response.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+	}
+
+	[Theory]
+	[InlineData("suspend")]
+	[InlineData("reactivate")]
+	public async Task
+	ItShouldReturnNotFoundWhenTenantUserIdentityActionUserDoesNotExist(
+		string action
+	) {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetIdentityActionUrl(action, Guid.NewGuid().ToString())
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+		var problem = await response.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.TranslationKey.Should().Be(ResponseKeys.NotFound);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnConflictWhenGloballySuspendingAlreadySuspendedTenantUser() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seeded = await SeedTenantUserIdentityAsync(UserStatus.Suspended);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetSuspendUrl(seeded.UserId.ToString())
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+		var problem = await response.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.TranslationKey.Should().Be(ResponseKeys.UserSuspended);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnConflictWhenReactivatingActiveTenantUser() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seeded = await SeedTenantUserIdentityAsync(UserStatus.Active);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetReactivateUrl(seeded.UserId.ToString())
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+		var problem = await response.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.TranslationKey.Should().Be(ResponseKeys.UserNotSuspended);
+	}
+
+	private async Task<SeededTenantUserIdentity>
+	SeedTenantUserIdentityAsync(UserStatus status) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<MainApiDbContext>();
+
+		var unique = Guid.NewGuid().ToString("N");
+		var user = new User {
+			Email = $"tenant-user-danger-zone-{unique}@example.com",
+			Password = "unused",
+			FirstName = "Tenant",
+			LastName = "Danger Zone",
+			Status = status,
+			IsVerified = true,
+		};
+		var tenant = new Tenant {
+			Name = $"Danger Zone Tenant {unique}",
+			Code = Guid.NewGuid().ToString("N")[..12],
+			Status = TenantStatus.Active,
+			MaxUsers = 100,
+		};
+
+		await dbContext.User.AddAsync(user);
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+
+		await dbContext.UserAccount.AddAsync(
+			UserAccount.CreateTenantAccount(
+				user.GetRequiredId(),
+				tenant.GetRequiredId()
+			)
+		);
+		await dbContext.SaveChangesAsync();
+
+		return new SeededTenantUserIdentity(
+			user.GetRequiredId(),
+			tenant.GetRequiredId(),
+			user.Email
+		);
+	}
+
+	private static string GetIdentityActionUrl(
+		string action,
+		string userId
+	) {
+		if (action == "suspend") {
+			return GetSuspendUrl(userId);
+		}
+		if (action == "reactivate") {
+			return GetReactivateUrl(userId);
+		}
+
+		throw new InvalidOperationException(
+			$"Unsupported identity action '{action}'."
+		);
+	}
+
 	private static async Task<string> GetUserIdByEmailAsync(
 		HttpClient http,
 		string staffToken,
@@ -256,4 +476,10 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		public string Email { get; init; } = string.Empty;
 		public string Status { get; init; } = string.Empty;
 	}
+
+	private sealed record SeededTenantUserIdentity(
+		Guid UserId,
+		Guid TenantId,
+		string Email
+	);
 }
