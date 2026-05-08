@@ -103,6 +103,12 @@ export const FRONT_PATH_NAMES = {
 		integrations: makePath('integrations'),
 		help: makePath('help'),
 		community: makePath('community'),
+		// Dynamic helper for the customer-story template. There is no
+		// /customer-stories index page yet (deferred until 3+ stories), so
+		// only the per-slug helper is exposed here.
+		customerStory: (slug = '') => {
+			return makePath('customer-stories', slug);
+		},
 	},
 	auth: {
 		login: makePath('login'),
