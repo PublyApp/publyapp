@@ -120,7 +120,7 @@ export const CookiePreferencesDialog = () => {
 					pr: 1,
 				}}
 			>
-				<span>Cookie preferences</span>
+				<Box component="span">Cookie preferences</Box>
 				<IconButton
 					autoFocus
 					aria-label="Close cookie preferences"
@@ -143,7 +143,7 @@ export const CookiePreferencesDialog = () => {
 				<CategoryRow
 					title="Analytics"
 					description="Helps us understand how the product is used so we can improve it."
-					checked={consent.categories.analytics}
+					checked={consent.editingCategories.analytics}
 					onChange={(value) => {
 						consent.setCategory('analytics', value);
 					}}
@@ -151,7 +151,7 @@ export const CookiePreferencesDialog = () => {
 				<CategoryRow
 					title="Marketing"
 					description="Personalized content and embedded social media (videos, posts)."
-					checked={consent.categories.marketing}
+					checked={consent.editingCategories.marketing}
 					onChange={(value) => {
 						consent.setCategory('marketing', value);
 					}}
