@@ -5,21 +5,28 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using MainApi.Localization;
+using MainApi.Src.Data.DbContext;
 using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Routes;
 using MainApi.Src.Lib.Testing.Fixtures;
 using MainApi.Src.Lib.Testing.Helpers;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Modules.Tenants.Entities;
+using MainApi.Src.Modules.Users.Entities;
+
+using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
 namespace MainApi.Src.Modules.Users.Handlers.Staff {
 	public sealed class SuspendTenantUserAsStaffSpec : IClassFixture<ApiFixture> {
+		private readonly ApiFixture _fixture;
 		private readonly HttpClient _http;
 		private readonly TestAuthClient _authClient;
 
 		public SuspendTenantUserAsStaffSpec(ApiFixture fixture) {
+			_fixture = fixture;
 			_http = fixture.HttpClient;
 			_authClient = new TestAuthClient(_http);
 		}
@@ -95,6 +102,27 @@ namespace MainApi.Src.Modules.Users.Handlers.Staff {
 			_ = response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 			AppProblemDetails? problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 			_ = problem!.TranslationKey.Should().Be(ResponseKeys.CannotSuspendLastAdmin);
+		}
+
+		[Fact]
+		public async Task
+		ItShouldReturnBadRequestWhenSuspendingAdminWhoseOnlyPeerIsGloballySuspended() {
+			string staffToken = await _authClient.LoginAsStaffAdminAsync();
+			var seeded = await SeedTenantAdminWithSuspendedPeerAsync();
+
+			string url = GetSuspendUrl(
+				seeded.TenantId.ToString(),
+				seeded.UserId.ToString()
+			);
+			HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url)
+				.WithSessionToken(staffToken);
+			using HttpResponseMessage response = await _http.SendAsync(request);
+
+			_ = response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+			AppProblemDetails? problem = await response.Content
+				.ReadFromJsonAsync<AppProblemDetails>();
+			_ = problem!.TranslationKey.Should()
+				.Be(ResponseKeys.CannotSuspendLastAdmin);
 		}
 
 		[Fact]
@@ -220,5 +248,65 @@ namespace MainApi.Src.Modules.Users.Handlers.Staff {
 			public string Level { get; init; } = string.Empty;
 			public string Status { get; init; } = string.Empty;
 		}
+
+		private async Task<SeededTenantAdminScenario>
+		SeedTenantAdminWithSuspendedPeerAsync() {
+			await using var scope =
+				_fixture.Factory.Services.CreateAsyncScope();
+			var dbContext = scope.ServiceProvider
+				.GetRequiredService<MainApiDbContext>();
+
+			var unique = Guid.NewGuid().ToString("N");
+			var user = new User {
+				Email = $"tenant-suspend-admin-{unique}@example.com",
+				Password = "unused",
+				FirstName = "Tenant",
+				LastName = "Admin",
+				Status = UserStatus.Active,
+				IsVerified = true,
+			};
+			var suspendedPeer = new User {
+				Email = $"tenant-suspend-peer-{unique}@example.com",
+				Password = "unused",
+				FirstName = "Suspended",
+				LastName = "Peer",
+				Status = UserStatus.Suspended,
+				IsVerified = true,
+			};
+			var tenant = new Tenant {
+				Name = $"Suspend Admin Tenant {unique}",
+				Code = Guid.NewGuid().ToString("N")[..12],
+				Status = TenantStatus.Active,
+				MaxUsers = 100,
+			};
+
+			await dbContext.User.AddRangeAsync(user, suspendedPeer);
+			await dbContext.Tenant.AddAsync(tenant);
+			await dbContext.SaveChangesAsync();
+
+			await dbContext.UserAccount.AddRangeAsync(
+				UserAccount.CreateTenantAccount(
+					user.GetRequiredId(),
+					tenant.GetRequiredId(),
+					AccountLevel.Admin
+				),
+				UserAccount.CreateTenantAccount(
+					suspendedPeer.GetRequiredId(),
+					tenant.GetRequiredId(),
+					AccountLevel.Admin
+				)
+			);
+			await dbContext.SaveChangesAsync();
+
+			return new SeededTenantAdminScenario(
+				user.GetRequiredId(),
+				tenant.GetRequiredId()
+			);
+		}
+
+		private sealed record SeededTenantAdminScenario(
+			Guid UserId,
+			Guid TenantId
+		);
 	}
 }

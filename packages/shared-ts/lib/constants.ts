@@ -237,14 +237,51 @@ export const FRONT_PATH_NAMES = {
 							'profiles',
 						),
 					},
+					users: {
+						root: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenants,
+							'details',
+							tenantId,
+							'users',
+						),
+						details: (userId = '') => {
+							return makePath(
+								ROOTS.STAFF,
+								RESOURCE.tenants,
+								'details',
+								tenantId,
+								'users',
+								userId,
+							);
+						},
+					},
 				};
 			},
 		},
 		tenantUsers: {
+			// Staff tenant-user details are keyed by User.Id. Organization
+			// memberships are managed under the details tabs, not in the URL id.
 			root: makePath(ROOTS.STAFF, RESOURCE.tenantUsers),
 			new: makePath(ROOTS.STAFF, RESOURCE.tenantUsers, 'new'),
 			details: (userId = '') => {
-				return makePath(ROOTS.STAFF, RESOURCE.tenantUsers, 'details', userId);
+				return {
+					root: makePath(ROOTS.STAFF, RESOURCE.tenantUsers, userId),
+					tabs: {
+						general: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenantUsers,
+							userId,
+							'general',
+						),
+						organizations: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenantUsers,
+							userId,
+							'organizations',
+						),
+					},
+				};
 			},
 		},
 		staffUsers: {

@@ -74,6 +74,42 @@ public static partial class Routes {
 				$"{RootFn(tenantId)}/{userId}/reactivate";
 		}
 
+		/// <summary>First-class tenant-user routes (staff managing tenant-side identities)</summary>
+		public static class ForTenantUsersAsStaff {
+			// {userId} is the shared User.Id. Tenant/company memberships remain
+			// separate UserAccount rows and are addressed through /companies actions.
+			public const string Root = "/tenant-users";
+			public const string GetById = "/{userId}";
+			public static string GetByIdFn(string userId) => $"/tenant-users/{userId}";
+			public const string FindCompanies = "/{userId}/companies";
+			public static string FindCompaniesFn(string userId) =>
+				$"/tenant-users/{userId}/companies";
+			public const string AssignCompanies = "/{userId}/companies";
+			public static string AssignCompaniesFn(string userId) =>
+				$"/tenant-users/{userId}/companies";
+			public const string BulkRemoveCompanies = "/{userId}/companies/bulk-remove";
+			public static string BulkRemoveCompaniesFn(string userId) =>
+				$"/tenant-users/{userId}/companies/bulk-remove";
+			public const string BulkSuspendCompanies = "/{userId}/companies/bulk-suspend";
+			public static string BulkSuspendCompaniesFn(string userId) =>
+				$"/tenant-users/{userId}/companies/bulk-suspend";
+			public const string BulkReactivateCompanies =
+				"/{userId}/companies/bulk-reactivate";
+			public static string BulkReactivateCompaniesFn(string userId) =>
+				$"/tenant-users/{userId}/companies/bulk-reactivate";
+			public const string Update = "/{userId}";
+			public static string UpdateFn(string userId) => $"/tenant-users/{userId}";
+			public const string UpdateEmail = "/{userId}/email";
+			public static string UpdateEmailFn(string userId) =>
+				$"/tenant-users/{userId}/email";
+			public const string Suspend = "/{userId}/suspend";
+			public static string SuspendFn(string userId) =>
+				$"/tenant-users/{userId}/suspend";
+			public const string Reactivate = "/{userId}/reactivate";
+			public static string ReactivateFn(string userId) =>
+				$"/tenant-users/{userId}/reactivate";
+		}
+
 		/// <summary>Tenant API routes (tenant self-service)</summary>
 		public static class ForTenant {
 			public const string Root = "/users";

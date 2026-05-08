@@ -14,6 +14,8 @@ import { ProfilesRequestBuilderNavigationMetadata, ProfilesRequestBuilderRequest
 // @ts-ignore
 import { TenantsRequestBuilderNavigationMetadata, TenantsRequestBuilderRequestsMetadata, type TenantsRequestBuilder } from './tenants/index.js';
 // @ts-ignore
+import { TenantUsersRequestBuilderNavigationMetadata, type TenantUsersRequestBuilder } from './tenantUsers/index.js';
+// @ts-ignore
 import { type UsersRequestBuilder, UsersRequestBuilderNavigationMetadata, UsersRequestBuilderRequestsMetadata } from './users/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata } from '@microsoft/kiota-abstractions';
@@ -46,6 +48,10 @@ export interface StaffRequestBuilder extends BaseRequestBuilder<StaffRequestBuil
      * The tenants property
      */
     get tenants(): TenantsRequestBuilder;
+    /**
+     * The tenantUsers property
+     */
+    get tenantUsers(): TenantUsersRequestBuilder;
     /**
      * The users property
      */
@@ -81,6 +87,9 @@ export const StaffRequestBuilderNavigationMetadata: Record<Exclude<keyof StaffRe
     tenants: {
         requestsMetadata: TenantsRequestBuilderRequestsMetadata,
         navigationMetadata: TenantsRequestBuilderNavigationMetadata,
+    },
+    tenantUsers: {
+        navigationMetadata: TenantUsersRequestBuilderNavigationMetadata,
     },
     users: {
         requestsMetadata: UsersRequestBuilderRequestsMetadata,

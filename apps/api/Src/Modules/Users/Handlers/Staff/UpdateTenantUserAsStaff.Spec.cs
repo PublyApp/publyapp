@@ -6,23 +6,30 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using MainApi.Localization;
+using MainApi.Src.Data.DbContext;
 using MainApi.Src.Data.Seeding;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Routes;
 using MainApi.Src.Lib.Testing.Fixtures;
 using MainApi.Src.Lib.Testing.Helpers;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Modules.Tenants.Entities;
+using MainApi.Src.Modules.Users.Entities;
+
+using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
 public sealed class UpdateTenantUserAsStaffSpec
 	: IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
 	public UpdateTenantUserAsStaffSpec(
 		ApiFixture fixture
 	) {
+		_fixture = fixture;
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);
 	}
@@ -365,6 +372,36 @@ public sealed class UpdateTenantUserAsStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldReturnBadRequestWhenDemotingAdminWhoseOnlyPeerIsGloballySuspended() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seeded = await SeedTenantAdminWithSuspendedPeerAsync();
+
+		var url = GetUpdateUrl(
+			seeded.TenantId.ToString(),
+			seeded.UserId.ToString()
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Patch, url
+		).WithSessionToken(staffToken);
+		request.Content = JsonContent.Create(
+			new { level = "User" }
+		);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.BadRequest);
+		var problem = await response.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.TranslationKey.Should()
+			.Be(ResponseKeys.CannotDemoteLastAdmin);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnNotFoundWhenUserNotInTenant() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
@@ -594,6 +631,61 @@ public sealed class UpdateTenantUserAsStaffSpec
 		return user.Level;
 	}
 
+	private async Task<SeededTenantAdminScenario>
+	SeedTenantAdminWithSuspendedPeerAsync() {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<MainApiDbContext>();
+
+		var unique = Guid.NewGuid().ToString("N");
+		var user = new User {
+			Email = $"tenant-demote-admin-{unique}@example.com",
+			Password = "unused",
+			FirstName = "Tenant",
+			LastName = "Admin",
+			Status = UserStatus.Active,
+			IsVerified = true,
+		};
+		var suspendedPeer = new User {
+			Email = $"tenant-demote-peer-{unique}@example.com",
+			Password = "unused",
+			FirstName = "Suspended",
+			LastName = "Peer",
+			Status = UserStatus.Suspended,
+			IsVerified = true,
+		};
+		var tenant = new Tenant {
+			Name = $"Demote Admin Tenant {unique}",
+			Code = Guid.NewGuid().ToString("N")[..12],
+			Status = TenantStatus.Active,
+			MaxUsers = 100,
+		};
+
+		await dbContext.User.AddRangeAsync(user, suspendedPeer);
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+
+		await dbContext.UserAccount.AddRangeAsync(
+			UserAccount.CreateTenantAccount(
+				user.GetRequiredId(),
+				tenant.GetRequiredId(),
+				AccountLevel.Admin
+			),
+			UserAccount.CreateTenantAccount(
+				suspendedPeer.GetRequiredId(),
+				tenant.GetRequiredId(),
+				AccountLevel.Admin
+			)
+		);
+		await dbContext.SaveChangesAsync();
+
+		return new SeededTenantAdminScenario(
+			user.GetRequiredId(),
+			tenant.GetRequiredId()
+		);
+	}
+
 	// -- Response DTOs --
 
 	private record FindUsersResponse {
@@ -611,4 +703,9 @@ public sealed class UpdateTenantUserAsStaffSpec
 		public string Level { get; init; } = string.Empty;
 		public string Status { get; init; } = string.Empty;
 	}
+
+	private sealed record SeededTenantAdminScenario(
+		Guid UserId,
+		Guid TenantId
+	);
 }

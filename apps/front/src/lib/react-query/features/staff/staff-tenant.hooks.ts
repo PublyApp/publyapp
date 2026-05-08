@@ -7,14 +7,18 @@ import {
 import isNil from 'lodash/isNil';
 
 import type {
+	AssignTenantUserCompaniesForStaffBody,
 	BulkProfileActionResult,
 	CreateTenantAsStaffBody,
 	CreateTenantAsStaffResult,
 	CreateTenantProfileAsStaffBody,
 	GetTenantProfileByIdResponse,
 	SuspendTenantAsStaffBody,
+	TenantUserCompanyIdsForStaffBody,
 	UpdateTenantAsStaffBody,
 	UpdateTenantProfileAsStaffBody,
+	UpdateTenantUserEmailForStaffBody,
+	UpdateTenantUserIdentityForStaffBody,
 	UpdateTenantUserAsStaffBody,
 } from '@org/client-ts/src/models';
 import { SESSION_TOKEN_HEADER_KEY } from '@org/shared-ts/lib/constants';
@@ -473,6 +477,170 @@ export const useFindTenantUsers = createStaffQuery({
 	},
 });
 
+export const useGetTenantUser = createStaffQuery({
+	queryKeyFn: (client) =>
+		client.staff.tenants.byTenantId('').users.byUserId('').get,
+	fetcher: async (
+		client,
+		params: {
+			tenantId: string;
+			userId: string;
+		},
+	) => {
+		const result = await client.staff.tenants
+			.byTenantId(params.tenantId)
+			.users.byUserId(params.userId)
+			.get();
+
+		if (isNil(result)) {
+			throw new Error('useGetTenantUser: result is nil');
+		}
+
+		return result;
+	},
+});
+
+// First-class tenant-user details use the shared User.Id. Membership-level
+// mutations still pass tenantId separately through the tenant-scoped hooks.
+export const useGetTenantUserById = createStaffQuery({
+	queryKeyFn: (client) => client.staff.tenantUsers.byUserId('').get,
+	fetcher: async (client, params: { userId: string }) => {
+		const result = await client.staff.tenantUsers.byUserId(params.userId).get();
+
+		if (isNil(result)) {
+			throw new Error('useGetTenantUserById: result is nil');
+		}
+
+		return result;
+	},
+});
+
+type FindTenantUserCompaniesParams = {
+	userId: string;
+	cursor?: string;
+	limit?: number;
+	sort?: { id: string; order: 'desc' | 'asc' };
+	q?: string;
+};
+
+export const useFindTenantUserCompanies = createStaffQuery({
+	queryKeyFn: (client) => client.staff.tenantUsers.byUserId('').companies.get,
+	fetcher: async (client, params: FindTenantUserCompaniesParams) => {
+		const result = await client.staff.tenantUsers
+			.byUserId(params.userId)
+			.companies.get({
+				queryParameters: {
+					cursor: params.cursor,
+					limit: params.limit ? params.limit.toString() : undefined,
+					q: params.q,
+					sortId: params.sort?.id,
+					sortOrder: params.sort?.order,
+				},
+			});
+
+		if (isNil(result)) {
+			throw new Error('useFindTenantUserCompanies: result is nil');
+		}
+
+		return result;
+	},
+});
+
+type TenantUserCompanyIdsPayload = {
+	userId: string;
+	tenantIds: string[];
+};
+
+type AssignTenantUserCompaniesPayload = TenantUserCompanyIdsPayload & {
+	level: 'Admin' | 'User';
+};
+
+const createTenantUserCompanyIdsBody = (
+	tenantIds: string[],
+): TenantUserCompanyIdsForStaffBody => {
+	// Kiota models JsonElement arrays as untyped values; keep the conversion in
+	// one place so assign/remove/suspend/reactivate send the same payload shape.
+	return {
+		tenantIds: createUntypedArray(
+			tenantIds.map((id) => createUntypedString(id)),
+		),
+	} as TenantUserCompanyIdsForStaffBody;
+};
+
+export const useAssignTenantUserCompanies = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.tenantUsers.byUserId('').companies.post,
+	mutationFn: async (client, variables: AssignTenantUserCompaniesPayload) => {
+		const body: AssignTenantUserCompaniesForStaffBody = {
+			...createTenantUserCompanyIdsBody(variables.tenantIds),
+			level: createUntypedString(variables.level),
+		} as AssignTenantUserCompaniesForStaffBody;
+		const result = await client.staff.tenantUsers
+			.byUserId(variables.userId)
+			.companies.post(body);
+
+		if (isNil(result)) {
+			throw new Error('useAssignTenantUserCompanies: result is nil');
+		}
+
+		return result;
+	},
+});
+
+export const useBulkRemoveTenantUserCompanies = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.tenantUsers.byUserId('').companies.bulkRemove.post,
+	mutationFn: async (client, variables: TenantUserCompanyIdsPayload) => {
+		const result = await client.staff.tenantUsers
+			.byUserId(variables.userId)
+			.companies.bulkRemove.post(
+				createTenantUserCompanyIdsBody(variables.tenantIds),
+			);
+
+		if (isNil(result)) {
+			throw new Error('useBulkRemoveTenantUserCompanies: result is nil');
+		}
+
+		return result;
+	},
+});
+
+export const useBulkSuspendTenantUserCompanies = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.tenantUsers.byUserId('').companies.bulkSuspend.post,
+	mutationFn: async (client, variables: TenantUserCompanyIdsPayload) => {
+		const result = await client.staff.tenantUsers
+			.byUserId(variables.userId)
+			.companies.bulkSuspend.post(
+				createTenantUserCompanyIdsBody(variables.tenantIds),
+			);
+
+		if (isNil(result)) {
+			throw new Error('useBulkSuspendTenantUserCompanies: result is nil');
+		}
+
+		return result;
+	},
+});
+
+export const useBulkReactivateTenantUserCompanies = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.tenantUsers.byUserId('').companies.bulkReactivate.post,
+	mutationFn: async (client, variables: TenantUserCompanyIdsPayload) => {
+		const result = await client.staff.tenantUsers
+			.byUserId(variables.userId)
+			.companies.bulkReactivate.post(
+				createTenantUserCompanyIdsBody(variables.tenantIds),
+			);
+
+		if (isNil(result)) {
+			throw new Error('useBulkReactivateTenantUserCompanies: result is nil');
+		}
+
+		return result;
+	},
+});
+
 type FindTenantInvitationsParams = {
 	tenantId: string;
 	cursor?: string;
@@ -660,6 +828,107 @@ export const useUpdateTenantUser = createStaffMutation({
 		if (isNil(result)) {
 			throw new Error('useUpdateTenantUser: result is nil');
 		}
+		return result;
+	},
+});
+
+export const useUpdateTenantUserIdentity = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.tenantUsers.byUserId('').patch,
+	mutationFn: async (
+		client,
+		variables: {
+			userId: string;
+			firstName?: string | null;
+			lastName?: string | null;
+			avatarUrl?: string | null;
+		},
+	) => {
+		const body: UpdateTenantUserIdentityForStaffBody = {};
+		if (variables.firstName !== undefined) {
+			body.firstName = (
+				variables.firstName === null
+					? createUntypedNull()
+					: createUntypedString(variables.firstName)
+			) as typeof body.firstName;
+		}
+		if (variables.lastName !== undefined) {
+			body.lastName = (
+				variables.lastName === null
+					? createUntypedNull()
+					: createUntypedString(variables.lastName)
+			) as typeof body.lastName;
+		}
+		if (variables.avatarUrl !== undefined) {
+			body.avatarUrl = (
+				variables.avatarUrl === null
+					? createUntypedNull()
+					: createUntypedString(variables.avatarUrl)
+			) as typeof body.avatarUrl;
+		}
+
+		const result = await client.staff.tenantUsers
+			.byUserId(variables.userId)
+			.patch(body);
+
+		if (isNil(result)) {
+			throw new Error('useUpdateTenantUserIdentity: result is nil');
+		}
+
+		return result;
+	},
+});
+
+export const useUpdateTenantUserEmail = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.tenantUsers.byUserId('').email.patch,
+	mutationFn: async (
+		client,
+		variables: {
+			userId: string;
+			email: string;
+		},
+	) => {
+		const body: UpdateTenantUserEmailForStaffBody = {};
+		body.email = createUntypedString(variables.email) as typeof body.email;
+
+		const result = await client.staff.tenantUsers
+			.byUserId(variables.userId)
+			.email.patch(body);
+
+		if (isNil(result)) {
+			throw new Error('useUpdateTenantUserEmail: result is nil');
+		}
+
+		return result;
+	},
+});
+
+export const useSuspendTenantUserIdentity = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.tenantUsers.byUserId('').suspend.post,
+	mutationFn: async (client, variables: { userId: string }) => {
+		const result = await client.staff.tenantUsers
+			.byUserId(variables.userId)
+			.suspend.post();
+
+		if (isNil(result)) {
+			throw new Error('useSuspendTenantUserIdentity: result is nil');
+		}
+
+		return result;
+	},
+});
+
+export const useReactivateTenantUserIdentity = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.tenantUsers.byUserId('').reactivate.post,
+	mutationFn: async (client, variables: { userId: string }) => {
+		const result = await client.staff.tenantUsers
+			.byUserId(variables.userId)
+			.reactivate.post();
+
+		if (isNil(result)) {
+			throw new Error('useReactivateTenantUserIdentity: result is nil');
+		}
+
 		return result;
 	},
 });

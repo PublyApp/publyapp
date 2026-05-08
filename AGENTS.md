@@ -182,11 +182,15 @@ For detailed frontend architecture patterns (API client integration, getting cli
 data fetching patterns by route type, and optimized prefetching), see:
 [`docs/guides/frontend-architecture.md`](docs/guides/frontend-architecture.md)
 
+For route-local file placement rules (`_parts` vs `_components`), see:
+[`docs/guides/frontend-route-file-organization.md`](docs/guides/frontend-route-file-organization.md)
+
 **Key rules (always apply):**
 - Marketing/Auth pages use SSR loaders; Authed pages use TanStack Query (client-only)
 - Never fetch application data in authed page `loader` — use hook factories (`createStaffQuery`, etc.)
 - Use `getClientLoader` wrapper (not raw `clientLoader`) for client-side prefetching
 - Authed layout wrapped in `<ClientOnly>` component
+- `_parts` is for private page/route implementation; `_components` is for reusable route-family components with a stable local API
 
 ### RFC 7807 + Frontend Logout Semantics (Do Not Regress)
 
