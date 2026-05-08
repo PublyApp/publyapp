@@ -19,6 +19,7 @@ import {
 	useNavigate,
 } from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
+import { ClientOnly } from 'remix-utils/client-only';
 
 import {
 	APP_NAME,
@@ -26,6 +27,7 @@ import {
 	queryParamValue,
 } from '@org/shared-ts/lib/constants';
 
+import { CookieConsentBanner } from '#app/components/cookie-consent/cookie-consent-banner.tsx';
 import { View403 } from '#app/components/error/403-view.tsx';
 import { View404 } from '#app/components/error/404-view.tsx';
 import { View500 } from '#app/components/error/500-view.tsx';
@@ -35,6 +37,7 @@ import {
 	defaultSettings,
 	SETTINGS_STORAGE_KEY,
 } from '#app/components/settings/settings-config.ts';
+import { FEATURES } from '#app/lib/features/flags.ts';
 
 import './styles/main.css';
 import type { Route } from './+types/root';
@@ -206,6 +209,13 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 								<ProgressBar />
 								<SettingsDrawer defaultSettings={defaultSettings} />
 								{children}
+								{FEATURES.marketing.cookieConsent && (
+									<ClientOnly fallback={null}>
+										{() => {
+											return <CookieConsentBanner />;
+										}}
+									</ClientOnly>
+								)}
 							</MotionLazy>
 						</MuiThemeProvider>
 					</LocalizationProvider>
