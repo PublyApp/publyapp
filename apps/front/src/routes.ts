@@ -7,7 +7,10 @@ import { staffRoutes } from './routes/_tree/staff/staff.routes';
 import { tenantRoutes } from './routes/_tree/tenant/tenant.routes';
 
 // SEO infrastructure routes — loader-only, raw Response.
-const seoRoutes = [route('sitemap.xml', 'routes/sitemap[.]xml.tsx')];
+const seoRoutes = [
+	route('sitemap.xml', 'routes/sitemap[.]xml.tsx'),
+	route('robots.txt', 'routes/robots[.]txt.tsx'),
+];
 
 const authedRoutes = [
 	layout('routes/authed/_layout/authed-layout.tsx', [
