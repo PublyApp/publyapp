@@ -1,4 +1,4 @@
-import { Outlet, isRouteErrorResponse } from 'react-router';
+import { Outlet, isRouteErrorResponse, redirect } from 'react-router';
 
 import { BackToTopButton } from '#app/components/animate/back-to-top-button.tsx';
 import { ScrollProgress } from '#app/components/animate/scroll-progress/scroll-progress.tsx';
@@ -7,6 +7,27 @@ import { MainLayout } from '#app/layouts/main/layout.tsx';
 import { MarketingErrorView } from '#app/routes/marketing/_components/marketing-error-view.tsx';
 
 import type { Route } from './+types/marketing-layout';
+
+export const loader = ({ request }: Route.LoaderArgs) => {
+	const url = new URL(request.url);
+
+	// Skip root path (already in canonical '/' form).
+	if (url.pathname === '/') {
+		return null;
+	}
+	// Skip asset-like paths (anything with a '.' — e.g. /sitemap.xml, /robots.txt
+	// when those become available in this layout's catchment).
+	if (url.pathname.includes('.')) {
+		return null;
+	}
+	// Already has trailing slash → no-op.
+	if (url.pathname.endsWith('/')) {
+		return null;
+	}
+
+	url.pathname += '/';
+	throw redirect(url.toString(), 301);
+};
 
 const MarketingLayout = () => {
 	const pageProgress = useScrollProgress();
