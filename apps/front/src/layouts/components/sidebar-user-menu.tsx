@@ -21,8 +21,8 @@ import { RouterLink } from '#app/components/router-link.tsx';
 import { useTenantParam } from '#app/hooks/use-tenant-param.ts';
 import { logout } from '#app/lib/cookies/logout.utils.ts';
 
-import { ColorSchemeMenuItem } from './user-menu-color-scheme-item';
-import { LanguageMenuItem } from './user-menu-language-item';
+import { ColorSchemeMenuItem } from './user-menu-color-scheme-item.tsx';
+import { LanguageMenuItem } from './user-menu-language-item.tsx';
 
 // ----------------------------------------------------------------------
 
