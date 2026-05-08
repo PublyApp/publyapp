@@ -1,7 +1,12 @@
 import { useState } from 'react';
 
+import { JsonLd } from '#app/components/json-ld.tsx';
 import { buildSeoMeta } from '#app/lib/seo/meta.ts';
-import { type Billing } from '#app/routes/marketing/_data/pricing.ts';
+import { buildFaqPageSchema } from '#app/lib/seo/schemas.ts';
+import {
+	type Billing,
+	PRICING_FAQS,
+} from '#app/routes/marketing/_data/pricing.ts';
 import { HomeCta } from '#app/routes/marketing/home/_parts/home-cta.tsx';
 
 import type { Route } from './+types/pricing-page';
@@ -24,6 +29,7 @@ const PricingPage = () => {
 
 	return (
 		<>
+			<JsonLd schema={buildFaqPageSchema(PRICING_FAQS)} />
 			<PricingHero billing={billing} onBillingChange={setBilling} />
 			<PricingTiers billing={billing} />
 			<PricingComparison billing={billing} />
