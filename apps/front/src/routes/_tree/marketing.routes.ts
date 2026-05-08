@@ -20,6 +20,14 @@ export const marketingRoutes = [
 		...(FEATURES.marketing.security
 			? [route('security', 'routes/marketing/security/security-page.tsx')]
 			: []),
+		...(FEATURES.marketing.comparison
+			? [
+					route(
+						'compare/:competitor',
+						'routes/marketing/comparison/comparison-page.tsx',
+					),
+				]
+			: []),
 		...(FEATURES.marketing.blog
 			? [
 					route('blog', 'routes/marketing/blog/blog-index-page.tsx'),
