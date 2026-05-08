@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 
 import {
+	useFindTenants,
 	useFindTenantUserCompanies,
 	useFindTenantUsers,
 	useGetTenantUserById,
@@ -24,6 +25,9 @@ export const invalidateTenantUserCompanyQueries = async ({
 		}),
 		queryClient.invalidateQueries({
 			queryKey: useFindTenantUsers.getKey(),
+		}),
+		queryClient.invalidateQueries({
+			queryKey: useFindTenants.getKey(),
 		}),
 	]);
 };

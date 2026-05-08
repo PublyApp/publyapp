@@ -7,12 +7,14 @@ import {
 import isNil from 'lodash/isNil';
 
 import type {
+	AssignTenantUserCompaniesForStaffBody,
 	BulkProfileActionResult,
 	CreateTenantAsStaffBody,
 	CreateTenantAsStaffResult,
 	CreateTenantProfileAsStaffBody,
 	GetTenantProfileByIdResponse,
 	SuspendTenantAsStaffBody,
+	TenantUserCompanyIdsForStaffBody,
 	UpdateTenantAsStaffBody,
 	UpdateTenantProfileAsStaffBody,
 	UpdateTenantUserEmailForStaffBody,
@@ -516,6 +518,7 @@ type FindTenantUserCompaniesParams = {
 	cursor?: string;
 	limit?: number;
 	sort?: { id: string; order: 'desc' | 'asc' };
+	q?: string;
 };
 
 export const useFindTenantUserCompanies = createStaffQuery({
@@ -527,6 +530,7 @@ export const useFindTenantUserCompanies = createStaffQuery({
 				queryParameters: {
 					cursor: params.cursor,
 					limit: params.limit ? params.limit.toString() : undefined,
+					q: params.q,
 					sortId: params.sort?.id,
 					sortOrder: params.sort?.order,
 				},
@@ -534,6 +538,99 @@ export const useFindTenantUserCompanies = createStaffQuery({
 
 		if (isNil(result)) {
 			throw new Error('useFindTenantUserCompanies: result is nil');
+		}
+
+		return result;
+	},
+});
+
+type TenantUserCompanyIdsPayload = {
+	userId: string;
+	tenantIds: string[];
+};
+
+type AssignTenantUserCompaniesPayload = TenantUserCompanyIdsPayload & {
+	level: 'Admin' | 'User';
+};
+
+const createTenantUserCompanyIdsBody = (
+	tenantIds: string[],
+): TenantUserCompanyIdsForStaffBody => {
+	return {
+		tenantIds: createUntypedArray(
+			tenantIds.map((id) => createUntypedString(id)),
+		),
+	} as TenantUserCompanyIdsForStaffBody;
+};
+
+export const useAssignTenantUserCompanies = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.tenantUsers.byUserId('').companies.post,
+	mutationFn: async (client, variables: AssignTenantUserCompaniesPayload) => {
+		const body: AssignTenantUserCompaniesForStaffBody = {
+			...createTenantUserCompanyIdsBody(variables.tenantIds),
+			level: createUntypedString(variables.level),
+		} as AssignTenantUserCompaniesForStaffBody;
+		const result = await client.staff.tenantUsers
+			.byUserId(variables.userId)
+			.companies.post(body);
+
+		if (isNil(result)) {
+			throw new Error('useAssignTenantUserCompanies: result is nil');
+		}
+
+		return result;
+	},
+});
+
+export const useBulkRemoveTenantUserCompanies = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.tenantUsers.byUserId('').companies.bulkRemove.post,
+	mutationFn: async (client, variables: TenantUserCompanyIdsPayload) => {
+		const result = await client.staff.tenantUsers
+			.byUserId(variables.userId)
+			.companies.bulkRemove.post(
+				createTenantUserCompanyIdsBody(variables.tenantIds),
+			);
+
+		if (isNil(result)) {
+			throw new Error('useBulkRemoveTenantUserCompanies: result is nil');
+		}
+
+		return result;
+	},
+});
+
+export const useBulkSuspendTenantUserCompanies = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.tenantUsers.byUserId('').companies.bulkSuspend.post,
+	mutationFn: async (client, variables: TenantUserCompanyIdsPayload) => {
+		const result = await client.staff.tenantUsers
+			.byUserId(variables.userId)
+			.companies.bulkSuspend.post(
+				createTenantUserCompanyIdsBody(variables.tenantIds),
+			);
+
+		if (isNil(result)) {
+			throw new Error('useBulkSuspendTenantUserCompanies: result is nil');
+		}
+
+		return result;
+	},
+});
+
+export const useBulkReactivateTenantUserCompanies = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.tenantUsers.byUserId('').companies.bulkReactivate.post,
+	mutationFn: async (client, variables: TenantUserCompanyIdsPayload) => {
+		const result = await client.staff.tenantUsers
+			.byUserId(variables.userId)
+			.companies.bulkReactivate.post(
+				createTenantUserCompanyIdsBody(variables.tenantIds),
+			);
+
+		if (isNil(result)) {
+			throw new Error('useBulkReactivateTenantUserCompanies: result is nil');
 		}
 
 		return result;

@@ -1,3 +1,5 @@
+using FluentValidation;
+
 using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
@@ -23,12 +25,28 @@ public class TenantUserCompanyForStaffResult {
 public class FindTenantUserCompaniesForStaffResult
 	: CursorPaginatedResult<TenantUserCompanyForStaffResult> { }
 
-public class FindTenantUserCompaniesForStaffQuery : CursorPaginatedQuery { }
+public class FindTenantUserCompaniesForStaffQuery : CursorPaginatedQuery {
+	[FromQuery(Name = "q")]
+	public string? Search { get; set; }
+
+	public string? GetSearchNormalized() {
+		if (string.IsNullOrWhiteSpace(Search)) {
+			return null;
+		}
+
+		return Search.Trim();
+	}
+}
 
 public class FindTenantUserCompaniesForStaffQueryValidator
 	: CursorPaginatedQueryValidator<
 		FindTenantUserCompaniesForStaffQuery
-	> { }
+	> {
+	public FindTenantUserCompaniesForStaffQueryValidator() {
+		RuleFor(x => x.Search)
+			.MaximumLength(200);
+	}
+}
 
 public static class TenantUserCompanyForStaffMapper {
 	public static TenantUserCompanyForStaffResult Map(
@@ -87,7 +105,10 @@ public class FindTenantUserCompaniesForStaff {
 			Cursor: cursorGuid,
 			Limit: query.GetLimit(),
 			SortId: query.GetSortId(),
-			SortOrder: query.GetSortOrder()
+			SortOrder: query.GetSortOrder(),
+			Filters: new FindTenantUserCompaniesForStaffFilters(
+				Search: query.GetSearchNormalized()
+			)
 		);
 
 		var result = await userService.FindTenantUserCompaniesAsync(

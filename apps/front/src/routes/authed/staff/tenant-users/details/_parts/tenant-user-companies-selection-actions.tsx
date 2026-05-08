@@ -8,17 +8,25 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useParams } from 'react-router';
 
+import type { TenantUserCompanyBulkActionResult } from '@org/client-ts/src/models';
+
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
-import { useRemoveTenantUser } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
+import {
+	useBulkReactivateTenantUserCompanies,
+	useBulkRemoveTenantUserCompanies,
+	useBulkSuspendTenantUserCompanies,
+} from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
 
 import { invalidateTenantUserCompanyQueries } from './tenant-user-companies-cache.ts';
 import type { TenantUserCompanyData } from './tenant-user-companies-table.types.ts';
 
 const SELECTION_MODE_MENU_MIN_WIDTH = 220;
+
+type BulkCompanyAction = 'remove' | 'suspend' | 'reactivate';
 
 type TenantUserCompaniesSelectionActionsProps = {
 	selectedRows: TenantUserCompanyData[];
@@ -35,60 +43,29 @@ const TenantUserCompaniesSelectionActions = ({
 	const { userId = '' } = useParams();
 	const queryClient = useQueryClient();
 	const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-	const [confirmBulkRemoveOpen, setConfirmBulkRemoveOpen] = useState(false);
+	const [confirmAction, setConfirmAction] = useState<BulkCompanyAction | null>(
+		null,
+	);
 	const isMenuOpen = anchorEl != null;
 	const closeMenu = () => {
 		setAnchorEl(null);
 	};
+	const selectedTenantIds = selectedRows.map((row) => row.tenantId);
 
-	const { mutateAsync: removeTenantUserAsync, isPending: isBulkRemoving } =
-		useRemoveTenantUser({
-			meta: { skipGlobalErrorHandler: true },
-		});
+	const handleBulkSuccess = async (
+		action: BulkCompanyAction,
+		result: TenantUserCompanyBulkActionResult,
+	) => {
+		const succeeded = result.succeededCount ?? 0;
+		const failed = result.failedCount ?? 0;
 
-	const handleConfirmBulkRemove = async () => {
-		if (!userId) {
-			return;
-		}
-
-		const results = await Promise.all(
-			selectedRows.map(async (row) => {
-				try {
-					await removeTenantUserAsync({
-						tenantId: row.tenantId,
-						userId,
-					});
-					return { succeeded: true as const };
-				} catch (error) {
-					return {
-						succeeded: false as const,
-						message: getFailureMessage(toApiFailure(error), {
-							fallback: t('tenant-user-company-bulk-remove-failure'),
-						}),
-					};
-				}
-			}),
-		);
-
-		const failedResults = results.filter((result) => !result.succeeded);
-		const succeeded = results.length - failedResults.length;
-		const failed = failedResults.length;
-		const firstFailureMessage = failedResults[0]?.message;
-
-		setConfirmBulkRemoveOpen(false);
+		setConfirmAction(null);
 		onClearSelection();
 		await invalidateTenantUserCompanyQueries({ queryClient, userId });
 
-		if (succeeded === 0 && failed > 0) {
-			toast.error(
-				firstFailureMessage || t('tenant-user-company-bulk-remove-failure'),
-			);
-			return;
-		}
-
 		if (failed > 0) {
 			toast.warning(
-				t('tenant-user-company-bulk-remove-partial-success', {
+				t(getPartialSuccessKey(action), {
 					succeeded,
 					failed,
 				}),
@@ -97,10 +74,79 @@ const TenantUserCompaniesSelectionActions = ({
 		}
 
 		toast.success(
-			t('tenant-user-company-bulk-remove-success', {
+			t(getSuccessKey(action), {
 				count: succeeded,
 			}),
 		);
+	};
+
+	const handleBulkError = (action: BulkCompanyAction, error: unknown) => {
+		toast.error(
+			getFailureMessage(toApiFailure(error), {
+				fallback: t(getFailureKey(action)),
+			}),
+		);
+	};
+
+	const { mutate: bulkRemove, isPending: isBulkRemoving } =
+		useBulkRemoveTenantUserCompanies({
+			meta: { skipGlobalErrorHandler: true },
+			onSuccess: (result) => {
+				void handleBulkSuccess('remove', result);
+			},
+			onError: (error: unknown) => {
+				handleBulkError('remove', error);
+			},
+		});
+
+	const { mutate: bulkSuspend, isPending: isBulkSuspending } =
+		useBulkSuspendTenantUserCompanies({
+			meta: { skipGlobalErrorHandler: true },
+			onSuccess: (result) => {
+				void handleBulkSuccess('suspend', result);
+			},
+			onError: (error: unknown) => {
+				handleBulkError('suspend', error);
+			},
+		});
+
+	const { mutate: bulkReactivate, isPending: isBulkReactivating } =
+		useBulkReactivateTenantUserCompanies({
+			meta: { skipGlobalErrorHandler: true },
+			onSuccess: (result) => {
+				void handleBulkSuccess('reactivate', result);
+			},
+			onError: (error: unknown) => {
+				handleBulkError('reactivate', error);
+			},
+		});
+
+	const isBulkPending =
+		isBulkRemoving || isBulkSuspending || isBulkReactivating;
+
+	const openConfirmDialog = (action: BulkCompanyAction) => {
+		closeMenu();
+		setConfirmAction(action);
+	};
+
+	const handleConfirmBulkAction = () => {
+		if (!userId) {
+			return;
+		}
+
+		if (confirmAction === 'remove') {
+			bulkRemove({ userId, tenantIds: selectedTenantIds });
+			return;
+		}
+
+		if (confirmAction === 'suspend') {
+			bulkSuspend({ userId, tenantIds: selectedTenantIds });
+			return;
+		}
+
+		if (confirmAction === 'reactivate') {
+			bulkReactivate({ userId, tenantIds: selectedTenantIds });
+		}
 	};
 
 	return (
@@ -140,8 +186,29 @@ const TenantUserCompaniesSelectionActions = ({
 				</MenuItem>
 				<MenuItem
 					onClick={() => {
-						closeMenu();
-						setConfirmBulkRemoveOpen(true);
+						openConfirmDialog('suspend');
+					}}
+				>
+					<Iconify icon="solar:stop-circle-bold" width={18} />
+					<ListItemText
+						primary={t('suspend-selected-organizations')}
+						sx={{ ml: 1 }}
+					/>
+				</MenuItem>
+				<MenuItem
+					onClick={() => {
+						openConfirmDialog('reactivate');
+					}}
+				>
+					<Iconify icon="solar:restart-bold" width={18} />
+					<ListItemText
+						primary={t('reactivate-selected-organizations')}
+						sx={{ ml: 1 }}
+					/>
+				</MenuItem>
+				<MenuItem
+					onClick={() => {
+						openConfirmDialog('remove');
 					}}
 					sx={{ color: 'text.secondary' }}
 				>
@@ -154,20 +221,24 @@ const TenantUserCompaniesSelectionActions = ({
 			</Menu>
 
 			<ConfirmDialog
-				open={confirmBulkRemoveOpen}
-				onClose={() => setConfirmBulkRemoveOpen(false)}
-				title={t('remove-selected-organizations')}
-				content={t('confirm-bulk-remove-tenant-user-companies', {
-					count: selectedRows.length,
-				})}
+				open={confirmAction != null}
+				onClose={() => setConfirmAction(null)}
+				title={confirmAction ? t(getTitleKey(confirmAction)) : ''}
+				content={
+					confirmAction
+						? t(getContentKey(confirmAction), {
+								count: selectedRows.length,
+							})
+						: ''
+				}
 				action={
 					<Button
 						variant="contained"
 						color="inherit"
-						onClick={handleConfirmBulkRemove}
-						disabled={isBulkRemoving}
+						onClick={handleConfirmBulkAction}
+						disabled={isBulkPending}
 					>
-						{t('remove')}
+						{confirmAction ? t(getActionLabelKey(confirmAction)) : t('confirm')}
 					</Button>
 				}
 			/>
@@ -176,3 +247,63 @@ const TenantUserCompaniesSelectionActions = ({
 };
 
 export default TenantUserCompaniesSelectionActions;
+
+const getTitleKey = (action: BulkCompanyAction) => {
+	if (action === 'suspend') {
+		return 'suspend-selected-organizations';
+	}
+	if (action === 'reactivate') {
+		return 'reactivate-selected-organizations';
+	}
+	return 'remove-selected-organizations';
+};
+
+const getContentKey = (action: BulkCompanyAction) => {
+	if (action === 'suspend') {
+		return 'confirm-bulk-suspend-tenant-user-companies';
+	}
+	if (action === 'reactivate') {
+		return 'confirm-bulk-reactivate-tenant-user-companies';
+	}
+	return 'confirm-bulk-remove-tenant-user-companies';
+};
+
+const getActionLabelKey = (action: BulkCompanyAction) => {
+	if (action === 'suspend') {
+		return 'suspend';
+	}
+	if (action === 'reactivate') {
+		return 'reactivate';
+	}
+	return 'remove';
+};
+
+const getSuccessKey = (action: BulkCompanyAction) => {
+	if (action === 'suspend') {
+		return 'tenant-user-company-bulk-suspend-success';
+	}
+	if (action === 'reactivate') {
+		return 'tenant-user-company-bulk-reactivate-success';
+	}
+	return 'tenant-user-company-bulk-remove-success';
+};
+
+const getPartialSuccessKey = (action: BulkCompanyAction) => {
+	if (action === 'suspend') {
+		return 'tenant-user-company-bulk-suspend-partial-success';
+	}
+	if (action === 'reactivate') {
+		return 'tenant-user-company-bulk-reactivate-partial-success';
+	}
+	return 'tenant-user-company-bulk-remove-partial-success';
+};
+
+const getFailureKey = (action: BulkCompanyAction) => {
+	if (action === 'suspend') {
+		return 'tenant-user-company-bulk-suspend-failure';
+	}
+	if (action === 'reactivate') {
+		return 'tenant-user-company-bulk-reactivate-failure';
+	}
+	return 'tenant-user-company-bulk-remove-failure';
+};

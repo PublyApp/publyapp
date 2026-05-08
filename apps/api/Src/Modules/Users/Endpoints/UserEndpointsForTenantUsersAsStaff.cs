@@ -30,6 +30,46 @@ public static class UserEndpointsForTenantUsersAsStaff {
 			.WithPermission([AppPermissions.Staff.Users.GET_FOR_TENANT])
 			.WithReqQueryValidation<FindTenantUserCompaniesForStaffQuery>();
 
+		group.MapPost(
+			Routes.Users.ForTenantUsersAsStaff.AssignCompanies,
+			AssignTenantUserCompaniesForStaff
+				.HandleAssignTenantUserCompaniesForStaff
+		)
+			.WithName("AssignTenantUserCompaniesForStaff")
+			.WithSummary("Assign companies to a tenant user")
+			.WithPermission([AppPermissions.Staff.Users.UPDATE_FOR_TENANT])
+			.WithReqBodyValidation<AssignTenantUserCompaniesForStaffBody>();
+
+		group.MapPost(
+			Routes.Users.ForTenantUsersAsStaff.BulkRemoveCompanies,
+			BulkRemoveTenantUserCompaniesForStaff
+				.HandleBulkRemoveTenantUserCompaniesForStaff
+		)
+			.WithName("BulkRemoveTenantUserCompaniesForStaff")
+			.WithSummary("Remove a tenant user from selected companies")
+			.WithPermission([AppPermissions.Staff.Users.DELETE_FOR_TENANT])
+			.WithReqBodyValidation<TenantUserCompanyIdsForStaffBody>();
+
+		group.MapPost(
+			Routes.Users.ForTenantUsersAsStaff.BulkSuspendCompanies,
+			BulkSuspendTenantUserCompaniesForStaff
+				.HandleBulkSuspendTenantUserCompaniesForStaff
+		)
+			.WithName("BulkSuspendTenantUserCompaniesForStaff")
+			.WithSummary("Suspend a tenant user in selected companies")
+			.WithPermission([AppPermissions.Staff.Users.UPDATE_FOR_TENANT])
+			.WithReqBodyValidation<TenantUserCompanyIdsForStaffBody>();
+
+		group.MapPost(
+			Routes.Users.ForTenantUsersAsStaff.BulkReactivateCompanies,
+			BulkReactivateTenantUserCompaniesForStaff
+				.HandleBulkReactivateTenantUserCompaniesForStaff
+		)
+			.WithName("BulkReactivateTenantUserCompaniesForStaff")
+			.WithSummary("Reactivate a tenant user in selected companies")
+			.WithPermission([AppPermissions.Staff.Users.UPDATE_FOR_TENANT])
+			.WithReqBodyValidation<TenantUserCompanyIdsForStaffBody>();
+
 		group.MapPatch(
 			Routes.Users.ForTenantUsersAsStaff.Update,
 			UpdateTenantUserIdentityForStaff

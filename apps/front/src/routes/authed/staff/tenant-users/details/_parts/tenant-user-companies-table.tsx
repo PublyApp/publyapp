@@ -3,10 +3,12 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
 import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
@@ -24,7 +26,8 @@ import {
 } from 'material-react-table';
 import { useBoolean } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { parseAsString, useQueryStates } from 'nuqs';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 
 import type { TenantUserCompanyForStaffResult } from '@org/client-ts/src/models';
@@ -43,10 +46,12 @@ import type { LabelColor } from '#app/components/label/types.ts';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
 import { useTableRowSelection } from '#app/hooks/table/use-table-row-selection.ts';
+import { useUrlBackedDebouncedSearch } from '#app/hooks/table/use-url-backed-debounced-search.ts';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
 import {
 	useFindTenantUserCompanies,
 	useReactivateTenantUser,
@@ -79,12 +84,20 @@ const isGloballySuspendedStatus = (status: string | null) => {
 	);
 };
 
-const TenantUserCompaniesTable = () => {
+type TenantUserCompaniesTableProps = {
+	onLinkCompany: () => void;
+};
+
+const TenantUserCompaniesTable = ({
+	onLinkCompany,
+}: TenantUserCompaniesTableProps) => {
 	const { userId = '' } = useParams();
 	const { t } = useTranslate();
 	const exportDialogRef =
 		useRef<TenantUserCompaniesExportDialogControllerRef | null>(null);
-	const handleLinkCompany = () => undefined;
+	const [filterStates, setFilterStates] = useQueryStates({
+		q: parseAsString.withDefault(''),
+	});
 	const {
 		handlePaginationChange,
 		handleSortingChange,
@@ -92,6 +105,7 @@ const TenantUserCompaniesTable = () => {
 		tableState,
 		setNextCursor,
 		hasPreviousPage,
+		resetCursorPagination,
 	} = useTableState({
 		defaultSorting,
 		defaultPageSize: DEFAULT_PAGE_SIZE,
@@ -104,6 +118,7 @@ const TenantUserCompaniesTable = () => {
 			cursor: apiVariables.cursor || undefined,
 			limit: apiVariables.limit,
 			sort: apiVariables.sort,
+			q: filterStates.q || undefined,
 		},
 		enabled: userId.length > 0,
 	});
@@ -139,6 +154,7 @@ const TenantUserCompaniesTable = () => {
 		reconcileVisibleRowsEnabled: !companiesQuery.isFetching,
 	});
 	const sortingDisabledReason = t('selection-mode-disable-sorting');
+	const selectionModeDisabledReason = t('selection-mode-disable-controls');
 	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
 		if (!isSelectionMode) {
 			return {};
@@ -151,6 +167,24 @@ const TenantUserCompaniesTable = () => {
 			sortedByColumnDesc: sortingDisabledReason,
 		};
 	}, [isSelectionMode, sortingDisabledReason]);
+	const handleDebouncedSearchChange = useCallback(
+		(nextSearchValue: string) => {
+			resetCursorPagination?.();
+			void setFilterStates({
+				q: nextSearchValue,
+			});
+		},
+		[resetCursorPagination, setFilterStates],
+	);
+	const { searchValue, setSearchValue } = useUrlBackedDebouncedSearch({
+		persistedValue: filterStates.q,
+		isSelectionMode,
+		onDebouncedValueChange: handleDebouncedSearchChange,
+	});
+
+	const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+		setSearchValue(event.target.value);
+	};
 
 	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
 		query: companiesQuery,
@@ -166,7 +200,7 @@ const TenantUserCompaniesTable = () => {
 					variant="contained"
 					size="small"
 					startIcon={<Iconify icon="mingcute:add-line" width={16} />}
-					onClick={handleLinkCompany}
+					onClick={onLinkCompany}
 					sx={{ mt: 2 }}
 				>
 					{t('add-first-company')}
@@ -299,12 +333,12 @@ const TenantUserCompaniesTable = () => {
 				/>
 			),
 			renderToolbarFilters: () => (
-				<Stack spacing={0.5}>
-					<Typography variant="h5">{t('companies')}</Typography>
-					<Typography variant="body2" sx={{ color: 'text.secondary' }}>
-						{t('list-of-items', { items: t('companies') })}
-					</Typography>
-				</Stack>
+				<TenantUserCompaniesToolbarFilters
+					isSelectionMode={isSelectionMode}
+					disabledReason={selectionModeDisabledReason}
+					searchValue={searchValue}
+					onSearchChange={handleSearchChange}
+				/>
 			),
 		},
 		renderEmptyRowsFallback,
@@ -339,6 +373,62 @@ const TenantUserCompaniesTable = () => {
 };
 
 export default TenantUserCompaniesTable;
+
+type TenantUserCompaniesToolbarFiltersProps = {
+	isSelectionMode: boolean;
+	disabledReason: string;
+	searchValue: string;
+	onSearchChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+};
+
+const TenantUserCompaniesToolbarFilters = ({
+	isSelectionMode,
+	disabledReason,
+	searchValue,
+	onSearchChange,
+}: TenantUserCompaniesToolbarFiltersProps) => {
+	const { t } = useTranslate();
+
+	return (
+		<Stack
+			direction={{ xs: 'column', sm: 'row' }}
+			spacing={2}
+			alignItems={{ xs: 'stretch', sm: 'center' }}
+		>
+			<Stack spacing={0.5} sx={{ minWidth: 0 }}>
+				<Typography variant="h5">{t('companies')}</Typography>
+				<Typography variant="body2" sx={{ color: 'text.secondary' }}>
+					{t('list-of-items', { items: t('companies') })}
+				</Typography>
+			</Stack>
+			<SelectionLockedControl
+				isSelectionMode={isSelectionMode}
+				disabledReason={disabledReason}
+				describeChild
+			>
+				<Box component="span">
+					<TextField
+						size="small"
+						placeholder={t('search-companies')}
+						value={searchValue}
+						onChange={onSearchChange}
+						disabled={isSelectionMode}
+						slotProps={{
+							input: {
+								startAdornment: (
+									<InputAdornment position="start">
+										<Iconify icon="eva:search-fill" />
+									</InputAdornment>
+								),
+							},
+						}}
+						sx={{ minWidth: 260 }}
+					/>
+				</Box>
+			</SelectionLockedControl>
+		</Stack>
+	);
+};
 
 const CompanyCell: MRT_ColumnDef<TenantUserCompanyData, string>['Cell'] = (
 	props,

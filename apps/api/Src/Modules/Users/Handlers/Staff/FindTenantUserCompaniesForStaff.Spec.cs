@@ -94,6 +94,44 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldFilterCompaniesBySearchTextWhenTenantUserExists() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
+			_http,
+			staffToken,
+			SeedConstants.Tenants.AcmeName
+		);
+		var userId = await GetUserIdByEmailAsync(
+			staffToken,
+			acmeTenantId,
+			SeedConstants.CrossTenant.AliceEmail
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(
+				userId,
+				limit: 10,
+				sortId: "tenant_name",
+				sortOrder: "asc",
+				q: SeedConstants.Tenants.TechStartCode
+			)
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var result = await response.Content
+			.ReadFromJsonAsync<FindCompaniesResponse>();
+		result.Should().NotBeNull();
+		result!.Data.Should().ContainSingle(company =>
+			company.TenantName == SeedConstants.Tenants.TechStartName
+		);
+		result.NextCursor.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnEmptyCompanyPageWhenTenantUserHasNoLiveCompanies() {
 		var staffToken = await _authClient.LoginAsStaffAdminAsync();
 		var techStartTenantId =
@@ -237,7 +275,8 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		string? cursor = null,
 		int? limit = null,
 		string? sortId = null,
-		string? sortOrder = null
+		string? sortOrder = null,
+		string? q = null
 	) {
 		var basePath = PathUtils.Join(
 			Routes.Staff.Root,
@@ -257,6 +296,9 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		}
 		if (sortOrder is not null) {
 			queryParams.Add($"sort_order={Uri.EscapeDataString(sortOrder)}");
+		}
+		if (q is not null) {
+			queryParams.Add($"q={Uri.EscapeDataString(q)}");
 		}
 
 		if (queryParams.Count == 0) {

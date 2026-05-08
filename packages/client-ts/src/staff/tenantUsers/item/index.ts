@@ -4,7 +4,7 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createTenantUserDetailsForStaffResultFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializeTenantUserDetailsForStaffResult, serializeUpdateTenantUserIdentityForStaffBody, type AppProblemDetails, type TenantUserDetailsForStaffResult, type UpdateTenantUserIdentityForStaffBody, type ValidationProblemDetails } from '../../../models/index.js';
 // @ts-ignore
-import { CompaniesRequestBuilderRequestsMetadata, type CompaniesRequestBuilder } from './companies/index.js';
+import { CompaniesRequestBuilderNavigationMetadata, CompaniesRequestBuilderRequestsMetadata, type CompaniesRequestBuilder } from './companies/index.js';
 // @ts-ignore
 import { EmailRequestBuilderRequestsMetadata, type EmailRequestBuilder } from './email/index.js';
 // @ts-ignore
@@ -82,6 +82,7 @@ export const WithUserItemRequestBuilderUriTemplate = "{+baseurl}/staff/tenant-us
 export const WithUserItemRequestBuilderNavigationMetadata: Record<Exclude<keyof WithUserItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     companies: {
         requestsMetadata: CompaniesRequestBuilderRequestsMetadata,
+        navigationMetadata: CompaniesRequestBuilderNavigationMetadata,
     },
     email: {
         requestsMetadata: EmailRequestBuilderRequestsMetadata,

@@ -89,6 +89,16 @@ export interface AppProblemDetails extends AdditionalDataHolder, ApiError, Parsa
      */
     type?: string | null;
 }
+export interface AssignTenantUserCompaniesForStaffBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The level property
+     */
+    level?: UntypedNode | null;
+    /**
+     * The tenantIds property
+     */
+    tenantIds?: UntypedNode | null;
+}
 export interface AuditLogDetail extends AdditionalDataHolder, Parsable {
     /**
      * The action property
@@ -439,6 +449,15 @@ export function createApiResponseFromDiscriminatorValue(parseNode: ParseNode | u
 // @ts-ignore
 export function createAppProblemDetailsFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoAppProblemDetails;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {AssignTenantUserCompaniesForStaffBody}
+ */
+// @ts-ignore
+export function createAssignTenantUserCompaniesForStaffBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoAssignTenantUserCompaniesForStaffBody;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1546,11 +1565,38 @@ export function createTenantSuspendedResultFromDiscriminatorValue(parseNode: Par
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {TenantUserCompanyBulkActionFailedItem}
+ */
+// @ts-ignore
+export function createTenantUserCompanyBulkActionFailedItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoTenantUserCompanyBulkActionFailedItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {TenantUserCompanyBulkActionResult}
+ */
+// @ts-ignore
+export function createTenantUserCompanyBulkActionResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoTenantUserCompanyBulkActionResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {TenantUserCompanyForStaffResult}
  */
 // @ts-ignore
 export function createTenantUserCompanyForStaffResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoTenantUserCompanyForStaffResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {TenantUserCompanyIdsForStaffBody}
+ */
+// @ts-ignore
+export function createTenantUserCompanyIdsForStaffBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoTenantUserCompanyIdsForStaffBody;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1926,6 +1972,18 @@ export function deserializeIntoAppProblemDetails(appProblemDetails: Partial<AppP
         "title": n => { appProblemDetails.title = n.getStringValue(); },
         "translationKey": n => { appProblemDetails.translationKey = n.getStringValue(); },
         "type": n => { appProblemDetails.type = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param AssignTenantUserCompaniesForStaffBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoAssignTenantUserCompaniesForStaffBody(assignTenantUserCompaniesForStaffBody: Partial<AssignTenantUserCompaniesForStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "level": n => { assignTenantUserCompaniesForStaffBody.level = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "tenantIds": n => { assignTenantUserCompaniesForStaffBody.tenantIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -3353,6 +3411,31 @@ export function deserializeIntoTenantSuspendedResult(tenantSuspendedResult: Part
 }
 /**
  * The deserialization information for the current model
+ * @param TenantUserCompanyBulkActionFailedItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoTenantUserCompanyBulkActionFailedItem(tenantUserCompanyBulkActionFailedItem: Partial<TenantUserCompanyBulkActionFailedItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "error": n => { tenantUserCompanyBulkActionFailedItem.errorEscaped = n.getStringValue(); },
+        "tenantId": n => { tenantUserCompanyBulkActionFailedItem.tenantId = n.getGuidValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param TenantUserCompanyBulkActionResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoTenantUserCompanyBulkActionResult(tenantUserCompanyBulkActionResult: Partial<TenantUserCompanyBulkActionResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "failedCount": n => { tenantUserCompanyBulkActionResult.failedCount = n.getNumberValue(); },
+        "failedItems": n => { tenantUserCompanyBulkActionResult.failedItems = n.getCollectionOfObjectValues<TenantUserCompanyBulkActionFailedItem>(createTenantUserCompanyBulkActionFailedItemFromDiscriminatorValue); },
+        "succeededCount": n => { tenantUserCompanyBulkActionResult.succeededCount = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param TenantUserCompanyForStaffResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -3366,6 +3449,17 @@ export function deserializeIntoTenantUserCompanyForStaffResult(tenantUserCompany
         "tenantLogoUrl": n => { tenantUserCompanyForStaffResult.tenantLogoUrl = n.getStringValue(); },
         "tenantName": n => { tenantUserCompanyForStaffResult.tenantName = n.getStringValue(); },
         "updatedAt": n => { tenantUserCompanyForStaffResult.updatedAt = n.getDateValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param TenantUserCompanyIdsForStaffBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoTenantUserCompanyIdsForStaffBody(tenantUserCompanyIdsForStaffBody: Partial<TenantUserCompanyIdsForStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "tenantIds": n => { tenantUserCompanyIdsForStaffBody.tenantIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -4408,6 +4502,19 @@ export function serializeAppProblemDetails(writer: SerializationWriter, appProbl
     writer.writeStringValue("translationKey", appProblemDetails.translationKey);
     writer.writeStringValue("type", appProblemDetails.type);
     writer.writeAdditionalData(appProblemDetails.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param AssignTenantUserCompaniesForStaffBody The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeAssignTenantUserCompaniesForStaffBody(writer: SerializationWriter, assignTenantUserCompaniesForStaffBody: Partial<AssignTenantUserCompaniesForStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!assignTenantUserCompaniesForStaffBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("level", assignTenantUserCompaniesForStaffBody.level);
+    writer.writeObjectValue("tenantIds", assignTenantUserCompaniesForStaffBody.tenantIds);
+    writer.writeAdditionalData(assignTenantUserCompaniesForStaffBody.additionalData);
 }
 /**
  * Serializes information the current object
@@ -5931,6 +6038,33 @@ export function serializeTenantSuspendedResult(writer: SerializationWriter, tena
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param TenantUserCompanyBulkActionFailedItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeTenantUserCompanyBulkActionFailedItem(writer: SerializationWriter, tenantUserCompanyBulkActionFailedItem: Partial<TenantUserCompanyBulkActionFailedItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!tenantUserCompanyBulkActionFailedItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("error", tenantUserCompanyBulkActionFailedItem.errorEscaped);
+    writer.writeGuidValue("tenantId", tenantUserCompanyBulkActionFailedItem.tenantId);
+    writer.writeAdditionalData(tenantUserCompanyBulkActionFailedItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param TenantUserCompanyBulkActionResult The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeTenantUserCompanyBulkActionResult(writer: SerializationWriter, tenantUserCompanyBulkActionResult: Partial<TenantUserCompanyBulkActionResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!tenantUserCompanyBulkActionResult || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("failedCount", tenantUserCompanyBulkActionResult.failedCount);
+    writer.writeCollectionOfObjectValues<TenantUserCompanyBulkActionFailedItem>("failedItems", tenantUserCompanyBulkActionResult.failedItems, serializeTenantUserCompanyBulkActionFailedItem);
+    writer.writeNumberValue("succeededCount", tenantUserCompanyBulkActionResult.succeededCount);
+    writer.writeAdditionalData(tenantUserCompanyBulkActionResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param TenantUserCompanyForStaffResult The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -5945,6 +6079,18 @@ export function serializeTenantUserCompanyForStaffResult(writer: SerializationWr
     writer.writeStringValue("tenantName", tenantUserCompanyForStaffResult.tenantName);
     writer.writeDateValue("updatedAt", tenantUserCompanyForStaffResult.updatedAt);
     writer.writeAdditionalData(tenantUserCompanyForStaffResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param TenantUserCompanyIdsForStaffBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeTenantUserCompanyIdsForStaffBody(writer: SerializationWriter, tenantUserCompanyIdsForStaffBody: Partial<TenantUserCompanyIdsForStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!tenantUserCompanyIdsForStaffBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("tenantIds", tenantUserCompanyIdsForStaffBody.tenantIds);
+    writer.writeAdditionalData(tenantUserCompanyIdsForStaffBody.additionalData);
 }
 /**
  * Serializes information the current object
@@ -6866,6 +7012,30 @@ export interface TenantSuspendedResult extends AdditionalDataHolder, Parsable {
      */
     tenantId?: Guid | null;
 }
+export interface TenantUserCompanyBulkActionFailedItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The error property
+     */
+    errorEscaped?: string | null;
+    /**
+     * The tenantId property
+     */
+    tenantId?: Guid | null;
+}
+export interface TenantUserCompanyBulkActionResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The failedCount property
+     */
+    failedCount?: number | null;
+    /**
+     * The failedItems property
+     */
+    failedItems?: TenantUserCompanyBulkActionFailedItem[] | null;
+    /**
+     * The succeededCount property
+     */
+    succeededCount?: number | null;
+}
 export interface TenantUserCompanyForStaffResult extends AdditionalDataHolder, Parsable {
     /**
      * The createdAt property
@@ -6895,6 +7065,12 @@ export interface TenantUserCompanyForStaffResult extends AdditionalDataHolder, P
      * The updatedAt property
      */
     updatedAt?: Date | null;
+}
+export interface TenantUserCompanyIdsForStaffBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The tenantIds property
+     */
+    tenantIds?: UntypedNode | null;
 }
 export interface TenantUserDetailsForStaffResult extends AdditionalDataHolder, Parsable {
     /**

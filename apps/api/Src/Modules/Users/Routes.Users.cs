@@ -82,6 +82,19 @@ public static partial class Routes {
 			public const string FindCompanies = "/{userId}/companies";
 			public static string FindCompaniesFn(string userId) =>
 				$"/tenant-users/{userId}/companies";
+			public const string AssignCompanies = "/{userId}/companies";
+			public static string AssignCompaniesFn(string userId) =>
+				$"/tenant-users/{userId}/companies";
+			public const string BulkRemoveCompanies = "/{userId}/companies/bulk-remove";
+			public static string BulkRemoveCompaniesFn(string userId) =>
+				$"/tenant-users/{userId}/companies/bulk-remove";
+			public const string BulkSuspendCompanies = "/{userId}/companies/bulk-suspend";
+			public static string BulkSuspendCompaniesFn(string userId) =>
+				$"/tenant-users/{userId}/companies/bulk-suspend";
+			public const string BulkReactivateCompanies =
+				"/{userId}/companies/bulk-reactivate";
+			public static string BulkReactivateCompaniesFn(string userId) =>
+				$"/tenant-users/{userId}/companies/bulk-reactivate";
 			public const string Update = "/{userId}";
 			public static string UpdateFn(string userId) => $"/tenant-users/{userId}";
 			public const string UpdateEmail = "/{userId}/email";
