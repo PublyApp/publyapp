@@ -5,6 +5,7 @@ import Typography from '@mui/material/Typography';
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { RouterLink } from '#app/components/router-link.tsx';
+import { buildSeoMeta } from '#app/lib/seo/meta.ts';
 import {
 	LegalDocPage,
 	LEGAL_H2_SX,
@@ -15,6 +16,17 @@ import {
 	PRIVACY_SECTION_IDS,
 	PRIVACY_TOC,
 } from '#app/routes/marketing/_data/legal-privacy.ts';
+
+import type { Route } from './+types/privacy-page';
+
+export const meta = ({ location }: Route.MetaArgs) => {
+	return buildSeoMeta({
+		title: 'Privacy Policy — PublyApp',
+		description:
+			'How PublyApp collects, uses, and protects your personal data. GDPR + CCPA compliant.',
+		pathname: location.pathname,
+	});
+};
 
 // ----------------------------------------------------------------------
 

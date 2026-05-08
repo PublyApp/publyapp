@@ -7,6 +7,7 @@ import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { FEATURES } from '#app/lib/features/flags.ts';
+import { buildSeoMeta } from '#app/lib/seo/meta.ts';
 import { ContentBand } from '#app/routes/marketing/_components/content-band.tsx';
 import { CtaBand } from '#app/routes/marketing/_components/cta-band.tsx';
 import { MarketingHero } from '#app/routes/marketing/_components/marketing-hero.tsx';
@@ -16,6 +17,17 @@ import {
 	SUB_PROCESSORS,
 	TRUST_BADGES,
 } from '#app/routes/marketing/_data/security.ts';
+
+import type { Route } from './+types/security-page';
+
+export const meta = ({ location }: Route.MetaArgs) => {
+	return buildSeoMeta({
+		title: 'Security — PublyApp',
+		description:
+			'How we protect your data: SOC 2 Type II, AES-256 encryption, EU + US data residency, audited sub-processors.',
+		pathname: location.pathname,
+	});
+};
 
 // ----------------------------------------------------------------------
 
