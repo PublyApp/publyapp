@@ -10,7 +10,7 @@ export const TenantUserDetailsPageSkeleton = () => {
 		<DashboardContent
 			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
 			compact
-			maxWidth="md"
+			maxWidth="lg"
 		>
 			<Box sx={{ mb: { xs: 3, md: 5 } }}>
 				<Skeleton variant="text" width="38%" height={44} />

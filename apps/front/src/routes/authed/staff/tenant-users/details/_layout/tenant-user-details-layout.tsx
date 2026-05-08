@@ -127,7 +127,6 @@ const TenantUserDetailsLayout = () => {
 				return (
 					<SidebarSettingsLayout
 						items={navItems}
-						maxWidth="md"
 						breadcrumbs={
 							<CustomBreadcrumbs
 								heading={title}
