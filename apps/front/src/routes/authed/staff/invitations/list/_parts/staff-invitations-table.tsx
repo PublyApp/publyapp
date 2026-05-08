@@ -991,10 +991,9 @@ const InvitationActionsCell: MRT_ColumnDef<StaffInvitationRowData>['Cell'] = (
 				{canManage && (
 					<Tooltip title={t('revoke-invitation')} placement="top" arrow>
 						<IconButton
-							color="default"
+							color="error"
 							loading={isRevoking}
 							onClick={confirmDialog.onTrue}
-							sx={{ color: 'text.secondary' }}
 							size="small"
 						>
 							<Iconify icon="solar:close-circle-bold" />
@@ -1010,7 +1009,7 @@ const InvitationActionsCell: MRT_ColumnDef<StaffInvitationRowData>['Cell'] = (
 				action={
 					<Button
 						variant="contained"
-						color="inherit"
+						color="error"
 						onClick={handleConfirmRevoke}
 					>
 						{t('staff-revoke')}
