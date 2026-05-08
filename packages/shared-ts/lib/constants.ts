@@ -103,6 +103,11 @@ export const FRONT_PATH_NAMES = {
 		integrations: makePath('integrations'),
 		help: makePath('help'),
 		community: makePath('community'),
+		// Per-feature deep-dive marketing pages, e.g. /features/scheduling
+		// (gated behind FEATURES.marketing.featurePages on the front).
+		featurePage: (slug: string): string => {
+			return makePath('features', slug);
+		},
 	},
 	auth: {
 		login: makePath('login'),

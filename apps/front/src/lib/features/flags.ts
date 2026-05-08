@@ -46,6 +46,10 @@ export const FEATURES = deepFreeze({
 		integrations: readFlag('VITE_FEATURE_MARKETING_INTEGRATIONS', true),
 		help: readFlag('VITE_FEATURE_MARKETING_HELP', true),
 		community: readFlag('VITE_FEATURE_MARKETING_COMMUNITY', true),
+		// Per-feature deep-dive marketing pages (`/features/:slug`). Default
+		// OFF — flip via VITE_FEATURE_MARKETING_FEATURE_PAGES once the first
+		// feature deserves a top-nav slot.
+		featurePages: readFlag('VITE_FEATURE_MARKETING_FEATURE_PAGES', false),
 	},
 	staff: {
 		tenants: {
