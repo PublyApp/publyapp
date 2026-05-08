@@ -38,6 +38,9 @@ export const marketingRoutes = [
 					),
 				]
 			: []),
+		...(FEATURES.marketing.featurePages
+			? [route('features/:slug', 'routes/marketing/features/feature-page.tsx')]
+			: []),
 		route('*', 'routes/marketing/_errors/marketing-not-found-page.tsx'),
 	]),
 ];
