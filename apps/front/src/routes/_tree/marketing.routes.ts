@@ -26,6 +26,14 @@ export const marketingRoutes = [
 					route('blog/:slug', 'routes/marketing/blog/blog-article-route.tsx'),
 				]
 			: []),
+		...(FEATURES.marketing.customerStories
+			? [
+					route(
+						'customer-stories/:slug',
+						'routes/marketing/customer-stories/customer-story-route.tsx',
+					),
+				]
+			: []),
 		...(FEATURES.marketing.changelog
 			? [
 					route(
