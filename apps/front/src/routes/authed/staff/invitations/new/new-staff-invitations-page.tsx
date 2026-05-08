@@ -55,7 +55,7 @@ const NewStaffInvitationPage = () => {
 				flexGrow: 1,
 				display: 'flex',
 				flexDirection: 'column',
-				maxWidth: '800px',
+				maxWidth: '732px',
 			}}
 		>
 			<CustomBreadcrumbs
