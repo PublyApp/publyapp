@@ -4,6 +4,8 @@ import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import InputLabel from '@mui/material/InputLabel';
 import Link from '@mui/material/Link';
+import ListItemText from '@mui/material/ListItemText';
+import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import Tooltip from '@mui/material/Tooltip';
@@ -16,10 +18,12 @@ import {
 	createMRTColumnHelper,
 	MaterialReactTable,
 	type MRT_ColumnDef,
+	type MRT_Localization,
 	type MRT_SortingState,
+	type MRT_TableOptions,
 } from 'material-react-table';
 import { useBoolean } from 'minimal-shared/hooks';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useId, useMemo, useRef, useState } from 'react';
 
 import type { InvitationListItem } from '@org/client-ts/src/models';
 import {
@@ -34,10 +38,13 @@ import { Label } from '#app/components/label/label.tsx';
 import type { LabelColor } from '#app/components/label/types.ts';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
+import { useTableRowSelection } from '#app/hooks/table/use-table-row-selection.ts';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
+import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
 import {
 	useFindStaffInvitations,
 	useGetStaffInvitationLink,
@@ -47,10 +54,13 @@ import {
 import { fDate, fIsAfter, fToNow } from '#app/utils/format-time.ts';
 
 import { NewInvitationButton } from './new-invitation-button';
+import StaffInvitationsExportDialogController, {
+	type StaffInvitationsExportDialogControllerRef,
+} from './staff-invitations-export-dialog-controller';
 
 type StaffInvitationStatus = 'pending' | 'accepted' | 'expired' | 'revoked';
 
-type StaffInvitationRowData = {
+export type StaffInvitationRowData = {
 	id: string;
 	email: string;
 	profileName: string;
@@ -60,6 +70,8 @@ type StaffInvitationRowData = {
 	acceptedAt: Date | null;
 	createdAt: Date | null;
 };
+
+const SELECTION_MODE_MENU_MIN_WIDTH = 240;
 
 const getInvitationStatus = (
 	invitation: InvitationListItem,
@@ -103,8 +115,15 @@ const defaultSorting: MRT_SortingState[number] = {
 
 const StaffInvitationsTable = () => {
 	const { t } = useTranslate();
+	const queryClient = useQueryClient();
+	const statusTooltipId = useId();
+	const exportDialogRef =
+		useRef<StaffInvitationsExportDialogControllerRef>(null);
 	// Local status filter; reset cursor pagination when this changes.
 	const [statusFilter, setStatusFilter] = useState<string>('');
+	const [selectionActionAnchorEl, setSelectionActionAnchorEl] =
+		useState<null | HTMLElement>(null);
+	const [bulkRevokeDialogOpen, setBulkRevokeDialogOpen] = useState(false);
 
 	const {
 		handlePaginationChange,
@@ -129,7 +148,6 @@ const StaffInvitationsTable = () => {
 		},
 	});
 
-	// Hook that provides query-aware table options (empty/error fallback, loading state)
 	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
 		query: invitationsQuery,
 		emptyContent: {
@@ -172,6 +190,108 @@ const StaffInvitationsTable = () => {
 	const dataTable = useMemo(() => {
 		return map(invitationsQuery.data?.data, StaffInvitationRowDataMapper);
 	}, [invitationsQuery.data]);
+
+	const {
+		rowSelection,
+		setRowSelection,
+		selectedRows,
+		selectedCount,
+		isSelectionMode,
+		clearSelection,
+	} = useTableRowSelection({
+		rows: dataTable,
+	});
+
+	const selectionModeDisabledReason = t('selection-mode-disable-controls');
+	const sortingDisabledReason = t('selection-mode-disable-sorting');
+	const isSelectionActionMenuOpen = Boolean(selectionActionAnchorEl);
+
+	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
+		if (!isSelectionMode) {
+			return {};
+		}
+
+		return {
+			sortByColumnAsc: sortingDisabledReason,
+			sortByColumnDesc: sortingDisabledReason,
+			sortedByColumnAsc: sortingDisabledReason,
+			sortedByColumnDesc: sortingDisabledReason,
+		};
+	}, [isSelectionMode, sortingDisabledReason]);
+
+	const closeSelectionActionMenu = () => {
+		setSelectionActionAnchorEl(null);
+	};
+
+	const openExportDialog = () => {
+		closeSelectionActionMenu();
+		exportDialogRef.current?.open();
+	};
+
+	const { mutateAsync: revokeInvitationAsync, isPending: isBulkRevoking } =
+		useRevokeStaffInvitation({
+			meta: { skipGlobalErrorHandler: true },
+		});
+
+	const eligibleBulkRevokeRows = useMemo(() => {
+		return selectedRows.filter((row) => row.status === 'pending');
+	}, [selectedRows]);
+	const eligibleBulkRevokeCount = eligibleBulkRevokeRows.length;
+	const ineligibleBulkRevokeCount = selectedCount - eligibleBulkRevokeCount;
+
+	const handleBulkRevoke = async () => {
+		let succeeded = 0;
+		let failed = 0;
+		let firstFailureMessage: string | undefined;
+
+		for (const invitation of eligibleBulkRevokeRows) {
+			try {
+				await revokeInvitationAsync({ invitationId: invitation.id });
+				succeeded += 1;
+			} catch (error) {
+				failed += 1;
+				const failure = toApiFailure(error);
+				if (firstFailureMessage == null) {
+					firstFailureMessage = getFailureMessage(failure);
+				}
+			}
+		}
+
+		setBulkRevokeDialogOpen(false);
+		clearSelection();
+		await queryClient.invalidateQueries({
+			queryKey: useFindStaffInvitations.getKey(),
+		});
+
+		if (succeeded === 0 && failed > 0) {
+			toast.error(
+				firstFailureMessage ||
+					t('invitation-bulk-revoke-failure', {
+						defaultValue: 'Failed to revoke selected invitations.',
+					}),
+			);
+			return;
+		}
+
+		if (failed > 0) {
+			toast.warning(
+				t('invitation-bulk-revoke-partial-success', {
+					succeeded,
+					failed,
+					defaultValue:
+						'Revoked {{succeeded}} invitation(s), {{failed}} failed.',
+				}),
+			);
+			return;
+		}
+
+		toast.success(
+			t('invitation-bulk-revoke-success', {
+				count: succeeded,
+				defaultValue: 'Successfully revoked {{count}} invitation(s).',
+			}),
+		);
+	};
 
 	const columns = useMemo(() => {
 		return [
@@ -224,15 +344,156 @@ const StaffInvitationsTable = () => {
 		];
 	}, [t]);
 
+	const renderToolbarFilters = () => {
+		return (
+			<SelectionLockedControl
+				isSelectionMode={isSelectionMode}
+				disabledReason={selectionModeDisabledReason}
+				describeChild
+				tooltipId={statusTooltipId}
+			>
+				<Box component="span">
+					<FormControl size="small" sx={{ minWidth: 200 }}>
+						<InputLabel id="staff-invitations-status-filter-label">
+							{t('status')}
+						</InputLabel>
+						<Select
+							labelId="staff-invitations-status-filter-label"
+							label={t('status')}
+							value={statusFilter}
+							disabled={isSelectionMode}
+							onChange={(event) => {
+								// Filters invalidate cursor history, so reset to the first page.
+								resetCursorPagination?.();
+								setStatusFilter(event.target.value);
+							}}
+							displayEmpty
+							renderValue={(selected) => {
+								if (!selected) {
+									return t('all');
+								}
+								return t(selected as never);
+							}}
+						>
+							<MenuItem value="">{t('all')}</MenuItem>
+							<MenuItem value="pending">{t('pending')}</MenuItem>
+							<MenuItem value="accepted">{t('accepted')}</MenuItem>
+							<MenuItem value="expired">{t('expired')}</MenuItem>
+							<MenuItem value="revoked">{t('revoked')}</MenuItem>
+						</Select>
+					</FormControl>
+				</Box>
+			</SelectionLockedControl>
+		);
+	};
+
+	const renderExportActions = () => {
+		return (
+			<Button
+				size="small"
+				variant="outlined"
+				onClick={openExportDialog}
+				startIcon={<Iconify icon="solar:download-bold" />}
+			>
+				{t('export')}
+			</Button>
+		);
+	};
+
+	const renderSelectionActions = () => {
+		return (
+			<>
+				<IconButton
+					size="small"
+					onClick={(event) => {
+						setSelectionActionAnchorEl(event.currentTarget);
+					}}
+					sx={{ width: 32, height: 32 }}
+				>
+					<Iconify icon="eva:more-vertical-fill" width={18} />
+				</IconButton>
+				<Menu
+					anchorEl={selectionActionAnchorEl}
+					open={isSelectionActionMenuOpen}
+					onClose={closeSelectionActionMenu}
+					anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+					transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+					slotProps={{
+						paper: {
+							sx: {
+								minWidth: SELECTION_MODE_MENU_MIN_WIDTH,
+							},
+						},
+					}}
+				>
+					<MenuItem onClick={openExportDialog}>
+						<Iconify icon="solar:download-bold" width={18} />
+						<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
+					</MenuItem>
+					<Tooltip
+						title={
+							eligibleBulkRevokeCount === 0
+								? t('only-pending-invitations-can-be-revoked', {
+										defaultValue: 'Only pending invitations can be revoked.',
+									})
+								: ''
+						}
+						placement="left"
+						arrow
+						disableHoverListener={eligibleBulkRevokeCount > 0}
+					>
+						<Box component="span">
+							<MenuItem
+								disabled={eligibleBulkRevokeCount === 0}
+								onClick={() => {
+									closeSelectionActionMenu();
+									setBulkRevokeDialogOpen(true);
+								}}
+								sx={{ color: 'text.secondary', width: '100%' }}
+							>
+								<Iconify icon="solar:close-circle-bold" width={18} />
+								<ListItemText
+									primary={t('revoke-selected', {
+										defaultValue: 'Revoke selected',
+									})}
+									sx={{ ml: 1 }}
+								/>
+							</MenuItem>
+						</Box>
+					</Tooltip>
+				</Menu>
+			</>
+		);
+	};
+
 	const table = useMRTTable('minimal-cursor', {
 		columns,
 		data: dataTable,
+		enableRowSelection: true,
+		getRowId: (row) => row.id,
 		manualSorting: true,
-		onSortingChange: handleSortingChange,
+		localization: sortTooltipLocalization,
+		onRowSelectionChange: (updater) => {
+			setRowSelection((prev) => {
+				if (typeof updater === 'function') {
+					return updater(prev);
+				}
+
+				return updater;
+			});
+		},
+		onSortingChange: (updater) => {
+			if (isSelectionMode) {
+				return;
+			}
+
+			handleSortingChange(updater);
+		},
 		state: {
 			...tableState,
 			...queryState,
 			density: 'compact',
+			rowSelection,
 		},
 		muiTablePaperProps: {
 			sx: {
@@ -245,6 +506,35 @@ const StaffInvitationsTable = () => {
 			hasNextPage,
 			hasPreviousPage,
 			isPending: invitationsQuery.isPending,
+			disablePaginationControls: isSelectionMode,
+			renderToolbarFilters,
+			renderSelectionActions,
+			renderExportActions,
+		},
+		muiTableHeadCellProps: ({ column }) => {
+			if (!column.getCanSort()) {
+				return {};
+			}
+
+			if (!isSelectionMode) {
+				return {
+					title: undefined,
+				};
+			}
+
+			return {
+				title: sortingDisabledReason,
+				sx: {
+					'& .MuiTableSortLabel-root': {
+						cursor: 'not-allowed',
+						pointerEvents: 'none',
+						opacity: 0.56,
+					},
+					'& .MuiTableSortLabel-icon': {
+						opacity: '1 !important',
+					},
+				},
+			} satisfies MRT_TableOptions<StaffInvitationRowData>['muiTableHeadCellProps'];
 		},
 	});
 
@@ -254,42 +544,50 @@ const StaffInvitationsTable = () => {
 				flexGrow: 1,
 				display: 'flex',
 				flexDirection: 'column',
-				gap: 2,
 				border: 'none',
 			}}
 		>
-			<Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-				<FormControl size="small" sx={{ minWidth: 200 }}>
-					<InputLabel id="staff-invitations-status-filter-label">
-						{t('status')}
-					</InputLabel>
-					<Select
-						labelId="staff-invitations-status-filter-label"
-						label={t('status')}
-						value={statusFilter}
-						onChange={(event) => {
-							// Filters invalidate cursor history, so reset to the first page.
-							resetCursorPagination?.();
-							setStatusFilter(event.target.value);
-						}}
-						displayEmpty
-						renderValue={(selected) => {
-							if (!selected) {
-								return t('all');
-							}
-							return t(selected as never);
-						}}
-					>
-						<MenuItem value="">{t('all')}</MenuItem>
-						<MenuItem value="pending">{t('pending')}</MenuItem>
-						<MenuItem value="accepted">{t('accepted')}</MenuItem>
-						<MenuItem value="expired">{t('expired')}</MenuItem>
-						<MenuItem value="revoked">{t('revoked')}</MenuItem>
-					</Select>
-				</FormControl>
-			</Box>
-
 			<MaterialReactTable table={table} />
+
+			<StaffInvitationsExportDialogController
+				ref={exportDialogRef}
+				isSelectionMode={isSelectionMode}
+				selectedCount={selectedCount}
+				rows={dataTable}
+				selectedRows={selectedRows}
+			/>
+
+			<ConfirmDialog
+				open={bulkRevokeDialogOpen}
+				onClose={() => setBulkRevokeDialogOpen(false)}
+				title={t('revoke-selected', {
+					defaultValue: 'Revoke selected',
+				})}
+				content={
+					ineligibleBulkRevokeCount > 0
+						? t('confirm-bulk-revoke-invitations-with-ineligible', {
+								eligible: eligibleBulkRevokeCount,
+								ineligible: ineligibleBulkRevokeCount,
+								defaultValue:
+									'{{eligible}} pending invitation(s) will be revoked. {{ineligible}} non-pending selection(s) will be skipped. Continue?',
+							})
+						: t('confirm-bulk-revoke-invitations', {
+								count: eligibleBulkRevokeCount,
+								defaultValue:
+									'Are you sure you want to revoke {{count}} selected invitation(s)?',
+							})
+				}
+				action={
+					<Button
+						variant="contained"
+						color="inherit"
+						onClick={handleBulkRevoke}
+						disabled={isBulkRevoking}
+					>
+						{t('staff-revoke')}
+					</Button>
+				}
+			/>
 		</Box>
 	);
 };
