@@ -8,6 +8,7 @@ import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { FEATURES } from '#app/lib/features/flags.ts';
+import { buildSeoMeta } from '#app/lib/seo/meta.ts';
 import { ChangelogEntry } from '#app/routes/marketing/_components/changelog-entry.tsx';
 import { ChangelogStats } from '#app/routes/marketing/_components/changelog-stats.tsx';
 import { ChangelogSubscribeBand } from '#app/routes/marketing/_components/changelog-subscribe-band.tsx';
@@ -18,6 +19,8 @@ import {
 	getAvailableYears,
 	getEntriesForYear,
 } from '#app/routes/marketing/_data/changelog.tsx';
+
+import type { Route } from './+types/changelog-page';
 
 // ----------------------------------------------------------------------
 
@@ -140,19 +143,15 @@ export default ChangelogPage;
 
 // ----------------------------------------------------------------------
 
-type MetaArgs = { params: { year?: string } };
-
-export const meta = ({ params }: MetaArgs) => {
+export const meta = ({ params, location }: Route.MetaArgs) => {
 	const yearParam = params.year ?? '';
 	const year = Number.parseInt(yearParam, 10);
 	const entries = Number.isFinite(year) ? getEntriesForYear(year) : [];
 	const description = `${entries.length} releases shipped in ${yearParam}. Features, fixes, and behind-the-scenes wins.`;
 
-	return [
-		{ title: `Changelog · ${yearParam} | ${APP_NAME}` },
-		{ name: 'description', content: description },
-		{ property: 'og:title', content: `Changelog · ${yearParam} | ${APP_NAME}` },
-		{ property: 'og:description', content: description },
-		{ property: 'og:type', content: 'website' },
-	];
+	return buildSeoMeta({
+		title: `Changelog · ${yearParam} | ${APP_NAME}`,
+		description,
+		pathname: location.pathname,
+	});
 };

@@ -2,11 +2,13 @@ import { useParams } from 'react-router';
 
 import { APP_NAME } from '@org/shared-ts/lib/constants';
 
+import { buildSeoMeta } from '#app/lib/seo/meta.ts';
 import {
 	getPublishedPosts,
 	unsplashCover,
 } from '#app/routes/marketing/_data/blog.ts';
 
+import type { Route } from './+types/blog-article-route';
 import BlogElementsReferenceArticle from './_articles/blog-elements-reference-article.tsx';
 import MultiTenantArchitectureLessonsArticle from './_articles/multi-tenant-architecture-lessons-article.tsx';
 import ShippingDailyWithoutBurningOutArticle from './_articles/shipping-daily-without-burning-out-article.tsx';
@@ -72,9 +74,7 @@ export default BlogArticleRoute;
 
 // Per-article SEO meta, derived from BLOG_POSTS. React Router calls this
 // with the same params as the route, so we look up the post by slug here too.
-type MetaArgs = { params: { slug?: string } };
-
-export const meta = ({ params }: MetaArgs) => {
+export const meta = ({ params, location }: Route.MetaArgs) => {
 	// Mirror the route component's published-only lookup so meta tags don't
 	// advertise an article that 404s when crawled.
 	const post = getPublishedPosts().find((p) => {
@@ -82,17 +82,18 @@ export const meta = ({ params }: MetaArgs) => {
 	});
 
 	if (!post) {
-		return [{ title: `Not Found | ${APP_NAME}` }];
+		return buildSeoMeta({
+			title: `Not Found | ${APP_NAME}`,
+			description: 'This article is no longer available.',
+			pathname: location.pathname,
+		});
 	}
 
-	const ogImage = unsplashCover(post.coverSlug, { w: 1200, h: 630 });
-
-	return [
-		{ title: `${post.title} | ${APP_NAME}` },
-		{ name: 'description', content: post.excerpt },
-		{ property: 'og:title', content: post.title },
-		{ property: 'og:description', content: post.excerpt },
-		{ property: 'og:image', content: ogImage },
-		{ property: 'og:type', content: 'article' },
-	];
+	return buildSeoMeta({
+		title: `${post.title} | ${APP_NAME}`,
+		description: post.excerpt,
+		pathname: location.pathname,
+		ogImage: unsplashCover(post.coverSlug, { w: 1200, h: 630 }),
+		ogType: 'article',
+	});
 };

@@ -5,6 +5,7 @@ import { varAlpha } from 'minimal-shared/utils';
 
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
+import { buildSeoMeta } from '#app/lib/seo/meta.ts';
 import {
 	LegalDocPage,
 	LEGAL_H2_SX,
@@ -16,6 +17,17 @@ import {
 	COOKIES_SECTION_IDS,
 	COOKIES_TOC,
 } from '#app/routes/marketing/_data/legal-cookies.ts';
+
+import type { Route } from './+types/cookies-page';
+
+export const meta = ({ location }: Route.MetaArgs) => {
+	return buildSeoMeta({
+		title: 'Cookie Policy — PublyApp',
+		description:
+			'How PublyApp uses cookies and similar technologies, and how to manage your preferences.',
+		pathname: location.pathname,
+	});
+};
 
 // ----------------------------------------------------------------------
 

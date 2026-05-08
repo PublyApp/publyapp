@@ -5,6 +5,7 @@ import Typography from '@mui/material/Typography';
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { buildSeoMeta } from '#app/lib/seo/meta.ts';
 import { ContentBand } from '#app/routes/marketing/_components/content-band.tsx';
 import { CtaBand } from '#app/routes/marketing/_components/cta-band.tsx';
 import { MarketingHero } from '#app/routes/marketing/_components/marketing-hero.tsx';
@@ -14,7 +15,17 @@ import {
 	SUPPORT_TIERS,
 } from '#app/routes/marketing/_data/contact.ts';
 
+import type { Route } from './+types/contact-page';
 import { ContactForm } from './_parts/contact-form.tsx';
+
+export const meta = ({ location }: Route.MetaArgs) => {
+	return buildSeoMeta({
+		title: 'Contact — PublyApp',
+		description:
+			'Get in touch with the PublyApp team. Sales, support, and partnerships — usually under 4 hours.',
+		pathname: location.pathname,
+	});
+};
 
 // ----------------------------------------------------------------------
 

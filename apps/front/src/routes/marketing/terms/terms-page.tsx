@@ -2,6 +2,7 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
+import { buildSeoMeta } from '#app/lib/seo/meta.ts';
 import {
 	LegalDocPage,
 	LEGAL_H2_SX,
@@ -12,6 +13,17 @@ import {
 	TERMS_SECTION_IDS,
 	TERMS_TOC,
 } from '#app/routes/marketing/_data/legal-terms.ts';
+
+import type { Route } from './+types/terms-page';
+
+export const meta = ({ location }: Route.MetaArgs) => {
+	return buildSeoMeta({
+		title: 'Terms of Service — PublyApp',
+		description:
+			'The legal terms governing your use of PublyApp. By using the service, you agree to these terms.',
+		pathname: location.pathname,
+	});
+};
 
 // ----------------------------------------------------------------------
 

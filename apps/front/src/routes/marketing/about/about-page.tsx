@@ -8,6 +8,7 @@ import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { FEATURES } from '#app/lib/features/flags.ts';
+import { buildSeoMeta } from '#app/lib/seo/meta.ts';
 import { ContentBand } from '#app/routes/marketing/_components/content-band.tsx';
 import { CtaBand } from '#app/routes/marketing/_components/cta-band.tsx';
 import { MarketingEyebrow } from '#app/routes/marketing/_components/marketing-eyebrow.tsx';
@@ -16,6 +17,17 @@ import {
 	COMPANY_VALUES,
 	TEAM_MEMBERS,
 } from '#app/routes/marketing/_data/about.ts';
+
+import type { Route } from './+types/about-page';
+
+export const meta = ({ location }: Route.MetaArgs) => {
+	return buildSeoMeta({
+		title: 'About — PublyApp',
+		description:
+			'Built by operators who got tired of managing 14 platforms in 14 tabs. Today we power the social ops of 10,000+ brands worldwide.',
+		pathname: location.pathname,
+	});
+};
 
 // ----------------------------------------------------------------------
 

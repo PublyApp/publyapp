@@ -11,6 +11,7 @@ import { hoverZoom } from '#app/components/animate/variants/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { Image } from '#app/components/image/image.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
+import { buildSeoMeta } from '#app/lib/seo/meta.ts';
 import {
 	BlogPostCard,
 	type BlogPostCardVariant,
@@ -25,6 +26,8 @@ import {
 	getPublishedPosts,
 	unsplashCover,
 } from '#app/routes/marketing/_data/blog.ts';
+
+import type { Route } from './+types/blog-index-page';
 
 // ----------------------------------------------------------------------
 
@@ -556,15 +559,11 @@ export default BlogIndexPage;
 
 // ----------------------------------------------------------------------
 
-export const meta = () => [
-	{ title: `Blog | ${APP_NAME}` },
-	{
-		name: 'description',
-		content: 'Stories, lessons, and product updates from the PublyApp team.',
-	},
-	{ property: 'og:title', content: `Blog | ${APP_NAME}` },
-	{
-		property: 'og:description',
-		content: 'Stories, lessons, and product updates from the PublyApp team.',
-	},
-];
+export const meta = ({ location }: Route.MetaArgs) => {
+	return buildSeoMeta({
+		title: `Blog | ${APP_NAME}`,
+		description:
+			'Stories, lessons, and product updates from the PublyApp team.',
+		pathname: location.pathname,
+	});
+};
