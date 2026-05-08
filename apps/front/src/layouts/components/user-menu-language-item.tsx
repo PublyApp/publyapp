@@ -2,6 +2,7 @@ import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import Typography from '@mui/material/Typography';
 import { usePopover } from 'minimal-shared/hooks';
+import { useId } from 'react';
 
 import type { AppLocale } from '@org/shared-ts/lib/i18n/resources';
 
@@ -15,6 +16,7 @@ import { allLangs } from '#app/lib/locales/all-langs.ts';
 export const LanguageMenuItem = () => {
 	const { t, onChangeLang, currentLang } = useTranslate();
 	const { open, anchorEl, onClose, onOpen } = usePopover();
+	const submenuId = useId();
 
 	const handleChangeLang = (newLang: AppLocale) => {
 		void onChangeLang(newLang);
@@ -25,6 +27,9 @@ export const LanguageMenuItem = () => {
 		<>
 			<MenuItem
 				onClick={onOpen}
+				aria-haspopup="menu"
+				aria-expanded={open ? 'true' : undefined}
+				aria-controls={open ? submenuId : undefined}
 				sx={{
 					'&.MuiMenuItem-root': { gap: 1 },
 					py: 0.5,
@@ -56,19 +61,24 @@ export const LanguageMenuItem = () => {
 					paper: { sx: { ml: 0.5 } },
 				}}
 			>
-				<MenuList sx={{ width: 160 }}>
-					{allLangs.map((option) => (
-						<MenuItem
-							key={option.value}
-							selected={option.value === currentLang.value}
-							onClick={() => {
-								handleChangeLang(option.value as AppLocale);
-							}}
-						>
-							<FlagIcon code={option.countryCode} />
-							{option.label}
-						</MenuItem>
-					))}
+				<MenuList id={submenuId} autoFocusItem={open} sx={{ width: 160 }}>
+					{allLangs.map((option) => {
+						const isSelected = option.value === currentLang.value;
+
+						return (
+							<MenuItem
+								key={option.value}
+								selected={isSelected}
+								autoFocus={isSelected}
+								onClick={() => {
+									handleChangeLang(option.value as AppLocale);
+								}}
+							>
+								<FlagIcon code={option.countryCode} />
+								{option.label}
+							</MenuItem>
+						);
+					})}
 				</MenuList>
 			</CustomPopover>
 		</>

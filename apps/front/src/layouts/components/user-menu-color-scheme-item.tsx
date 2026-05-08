@@ -3,9 +3,8 @@ import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import Typography from '@mui/material/Typography';
-import get from 'lodash/get';
-import map from 'lodash/map';
 import { usePopover } from 'minimal-shared/hooks';
+import { useId } from 'react';
 
 import { CustomPopover } from '#app/components/custom-popover/custom-popover.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
@@ -13,6 +12,12 @@ import { useSettingsContext } from '#app/hooks/use-settings-context.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
 // ----------------------------------------------------------------------
+
+// `enableSystemMode: false` in `theme-config.ts`, so MUI surfaces only
+// `light` / `dark` through `useColorScheme().allColorSchemes`. If we ever
+// turn system mode on, add a `system` entry here, expand the settings
+// sanitizer in `settings-sync-state.client.ts`, and update the bridge.
+type LightDark = 'light' | 'dark';
 
 const colorSchemeConfigs = {
 	light: {
@@ -25,11 +30,17 @@ const colorSchemeConfigs = {
 		shortTKey: 'dark',
 		longTKey: 'dark-mode',
 	},
-	system: {
-		icon: 'solar:monitor-bold-duotone',
-		shortTKey: 'system',
-		longTKey: 'system-mode',
-	},
+} as const satisfies Record<
+	LightDark,
+	{
+		icon: string;
+		shortTKey: 'light' | 'dark';
+		longTKey: 'light-mode' | 'dark-mode';
+	}
+>;
+
+const isLightDark = (value: unknown): value is LightDark => {
+	return value === 'light' || value === 'dark';
 };
 
 export const ColorSchemeMenuItem = () => {
@@ -37,17 +48,15 @@ export const ColorSchemeMenuItem = () => {
 	const { open, anchorEl, onClose, onOpen } = usePopover();
 	const settings = useSettingsContext();
 	const { mode, systemMode, setMode, allColorSchemes } = useColorScheme();
+	const submenuId = useId();
 
+	// `mode` can be 'system' if external code set it, even with system mode
+	// disabled in config. Resolve to the effective light/dark value.
 	const resolvedMode = mode === 'system' ? (systemMode ?? 'dark') : mode;
-	const activeKey = mode ?? resolvedMode;
-	const activeIcon = get(
-		colorSchemeConfigs,
-		`${activeKey}.icon`,
-		'solar:moon-bold-duotone',
-	) as string;
-	const activeLabel = t(
-		get(colorSchemeConfigs, `${activeKey}.shortTKey`, activeKey) as never,
-	);
+	const activeKey: LightDark = isLightDark(resolvedMode)
+		? resolvedMode
+		: 'light';
+	const activeConfig = colorSchemeConfigs[activeKey];
 
 	const handleChangeColorScheme = (colorScheme: SupportedColorScheme) => {
 		setMode(colorScheme);
@@ -59,6 +68,9 @@ export const ColorSchemeMenuItem = () => {
 		<>
 			<MenuItem
 				onClick={onOpen}
+				aria-haspopup="menu"
+				aria-expanded={open ? 'true' : undefined}
+				aria-controls={open ? submenuId : undefined}
 				sx={{
 					'&.MuiMenuItem-root': { gap: 1 },
 					py: 0.5,
@@ -66,7 +78,7 @@ export const ColorSchemeMenuItem = () => {
 					minHeight: 32,
 				}}
 			>
-				<Iconify width={18} icon={activeIcon as never} />
+				<Iconify width={18} icon={activeConfig.icon} />
 				<Typography variant="body2" sx={{ fontSize: '0.8125rem', flex: 1 }}>
 					{t('theme')}
 				</Typography>
@@ -82,10 +94,11 @@ export const ColorSchemeMenuItem = () => {
 						variant="caption"
 						sx={{ color: 'inherit', fontSize: '0.75rem' }}
 					>
-						{activeLabel}
+						{t(activeConfig.shortTKey)}
 					</Typography>
 					<Box
 						component="kbd"
+						aria-label="Keyboard shortcut Control J"
 						sx={{
 							px: 0.5,
 							py: 0.125,
@@ -112,28 +125,26 @@ export const ColorSchemeMenuItem = () => {
 					paper: { sx: { ml: 0.5 } },
 				}}
 			>
-				<MenuList sx={{ width: 160 }}>
-					{map(allColorSchemes, (option) => {
-						const optionIcon = get(
-							colorSchemeConfigs,
-							`${option}.icon`,
-							'solar:moon-bold-duotone',
-						) as string;
-						const optionLabel = t(
-							get(colorSchemeConfigs, `${option}.longTKey`, option) as never,
-						);
+				<MenuList id={submenuId} autoFocusItem={open} sx={{ width: 160 }}>
+					{allColorSchemes.map((option) => {
+						if (!isLightDark(option)) {
+							return null;
+						}
+						const optionConfig = colorSchemeConfigs[option];
+						const isSelected = option === activeKey;
 
 						return (
 							<MenuItem
 								key={option}
-								selected={option === activeKey}
+								selected={isSelected}
+								autoFocus={isSelected}
 								onClick={() => {
 									handleChangeColorScheme(option);
 								}}
 							>
-								<Iconify icon={optionIcon as never} />
+								<Iconify icon={optionConfig.icon} />
 								<Box component="span" sx={{ flex: 1 }}>
-									{optionLabel}
+									{t(optionConfig.longTKey)}
 								</Box>
 							</MenuItem>
 						);
