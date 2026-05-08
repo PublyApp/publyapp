@@ -18,7 +18,6 @@ import {
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
-import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
 import View400 from '#app/components/error/400-view.tsx';
 import { NotFoundView } from '#app/components/error/not-found-view.tsx';
@@ -127,20 +126,6 @@ const TenantUserDetailsLayout = () => {
 				return (
 					<SidebarSettingsLayout
 						items={navItems}
-						breadcrumbs={
-							<CustomBreadcrumbs
-								heading={title}
-								links={[
-									{
-										name: capitalize(t('tenants')),
-										href: FRONT_PATH_NAMES.staff.tenants.root,
-									},
-									{ name: capitalize(t('tenant-users')) },
-									{ name: capitalize(t('details')) },
-								]}
-								sx={{ mb: { xs: 3, md: 5 } }}
-							/>
-						}
 						outletContext={
 							{
 								tenantUser: data,

@@ -1,12 +1,14 @@
 import { useOutletContext } from 'react-router';
 
 import type { TenantUserDetailsOutletContext } from '../_layout/tenant-user-details-layout';
+import { TenantUserDetailsBreadcrumbs } from '../_parts/tenant-user-details-breadcrumbs';
 import TenantUserUpdateForm, {
 	type TenantUserUpdateData,
 } from '../_parts/tenant-user-update-form';
 
 const TenantUserDetailsGeneralPage = () => {
-	const { tenantUser } = useOutletContext<TenantUserDetailsOutletContext>();
+	const { tenantUser, title } =
+		useOutletContext<TenantUserDetailsOutletContext>();
 
 	const currentUser: TenantUserUpdateData = {
 		firstName: tenantUser.firstName ?? undefined,
@@ -19,7 +21,12 @@ const TenantUserDetailsGeneralPage = () => {
 		updatedAt: tenantUser.updatedAt ?? undefined,
 	};
 
-	return <TenantUserUpdateForm currentUser={currentUser} />;
+	return (
+		<>
+			<TenantUserDetailsBreadcrumbs title={title} />
+			<TenantUserUpdateForm currentUser={currentUser} />
+		</>
+	);
 };
 
 export default TenantUserDetailsGeneralPage;
