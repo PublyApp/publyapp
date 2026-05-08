@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import Typography from '@mui/material/Typography';
@@ -27,7 +28,7 @@ export const LanguageMenuItem = () => {
 			<MenuItem
 				onClick={onOpen}
 				sx={{
-					gap: 1,
+					'&.MuiMenuItem-root': { gap: 1 },
 					py: 0.5,
 					px: 1.5,
 					minHeight: 32,
@@ -40,17 +41,22 @@ export const LanguageMenuItem = () => {
 				<Typography variant="body2" sx={{ fontSize: '0.8125rem', flex: 1 }}>
 					{t('language')}
 				</Typography>
-				<Typography
-					variant="caption"
-					sx={{ color: 'text.secondary', fontSize: '0.75rem' }}
+				<Box
+					sx={{
+						display: 'flex',
+						alignItems: 'center',
+						gap: 0.5,
+						color: 'text.secondary',
+					}}
 				>
-					{currentLang.label}
-				</Typography>
-				<Iconify
-					width={16}
-					icon="eva:arrow-ios-forward-fill"
-					sx={{ color: 'text.disabled' }}
-				/>
+					<Typography
+						variant="caption"
+						sx={{ color: 'inherit', fontSize: '0.75rem' }}
+					>
+						{currentLang.label}
+					</Typography>
+					<Iconify width={16} icon="eva:arrow-ios-forward-fill" />
+				</Box>
 			</MenuItem>
 
 			<CustomPopover

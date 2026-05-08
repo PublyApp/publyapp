@@ -9,15 +9,28 @@ import { usePopover } from 'minimal-shared/hooks';
 
 import { CustomPopover } from '#app/components/custom-popover/custom-popover.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { useColorSchemeShortcut } from '#app/hooks/use-color-scheme-shortcut.ts';
 import { useSettingsContext } from '#app/hooks/use-settings-context.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
 // ----------------------------------------------------------------------
 
 const colorSchemeConfigs = {
-	light: { icon: 'solar:sun-bold-duotone', tKey: 'light-mode' },
-	dark: { icon: 'solar:moon-bold-duotone', tKey: 'dark-mode' },
-	system: { icon: 'solar:monitor-bold-duotone', tKey: 'system-mode' },
+	light: {
+		icon: 'solar:sun-bold-duotone',
+		shortTKey: 'light',
+		longTKey: 'light-mode',
+	},
+	dark: {
+		icon: 'solar:moon-bold-duotone',
+		shortTKey: 'dark',
+		longTKey: 'dark-mode',
+	},
+	system: {
+		icon: 'solar:monitor-bold-duotone',
+		shortTKey: 'system',
+		longTKey: 'system-mode',
+	},
 };
 
 export const ColorSchemeMenuItem = () => {
@@ -25,6 +38,8 @@ export const ColorSchemeMenuItem = () => {
 	const { open, anchorEl, onClose, onOpen } = usePopover();
 	const settings = useSettingsContext();
 	const { mode, systemMode, setMode, allColorSchemes } = useColorScheme();
+
+	useColorSchemeShortcut();
 
 	const resolvedMode = mode === 'system' ? (systemMode ?? 'dark') : mode;
 	const activeKey = mode ?? resolvedMode;
@@ -34,7 +49,7 @@ export const ColorSchemeMenuItem = () => {
 		'solar:moon-bold-duotone',
 	) as string;
 	const activeLabel = t(
-		get(colorSchemeConfigs, `${activeKey}.tKey`, activeKey) as never,
+		get(colorSchemeConfigs, `${activeKey}.shortTKey`, activeKey) as never,
 	);
 
 	const handleChangeColorScheme = (colorScheme: SupportedColorScheme) => {
@@ -48,7 +63,7 @@ export const ColorSchemeMenuItem = () => {
 			<MenuItem
 				onClick={onOpen}
 				sx={{
-					gap: 1,
+					'&.MuiMenuItem-root': { gap: 1 },
 					py: 0.5,
 					px: 1.5,
 					minHeight: 32,
@@ -58,17 +73,22 @@ export const ColorSchemeMenuItem = () => {
 				<Typography variant="body2" sx={{ fontSize: '0.8125rem', flex: 1 }}>
 					{t('theme')}
 				</Typography>
-				<Typography
-					variant="caption"
-					sx={{ color: 'text.secondary', fontSize: '0.75rem' }}
+				<Box
+					sx={{
+						display: 'flex',
+						alignItems: 'center',
+						gap: 0.5,
+						color: 'text.secondary',
+					}}
 				>
-					{activeLabel}
-				</Typography>
-				<Iconify
-					width={16}
-					icon="eva:arrow-ios-forward-fill"
-					sx={{ color: 'text.disabled' }}
-				/>
+					<Typography
+						variant="caption"
+						sx={{ color: 'inherit', fontSize: '0.75rem' }}
+					>
+						{activeLabel}
+					</Typography>
+					<Iconify width={16} icon="eva:arrow-ios-forward-fill" />
+				</Box>
 			</MenuItem>
 
 			<CustomPopover
@@ -88,7 +108,7 @@ export const ColorSchemeMenuItem = () => {
 							'solar:moon-bold-duotone',
 						) as string;
 						const optionLabel = t(
-							get(colorSchemeConfigs, `${option}.tKey`, option) as never,
+							get(colorSchemeConfigs, `${option}.longTKey`, option) as never,
 						);
 
 						return (
