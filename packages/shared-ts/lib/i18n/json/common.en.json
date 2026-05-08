@@ -633,6 +633,7 @@
 	"select-up-to-n-items": "Select up to {{count}} {{items}}.",
 	"cannot-select-more-than-n-items": "Cannot select more than {{count}} {{items}}.",
 	"clear-selection": "Clear selection",
+	"more-actions": "More actions",
 	"bulk-suspend-result": "{{succeeded}} suspended, {{failed}} failed",
 	"bulk-suspend-confirm": "Are you sure you want to suspend {{count}} tenants?",
 	"bulk-reactivate-confirm": "Are you sure you want to reactivate {{count}} tenants?",

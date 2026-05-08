@@ -419,14 +419,10 @@ const StaffInvitationsTable = () => {
 	const renderSelectionActions = () => {
 		return (
 			<>
-				<Tooltip
-					title={t('more-actions', { defaultValue: 'More actions' })}
-					placement="top"
-					arrow
-				>
+				<Tooltip title={t('more-actions')} placement="top" arrow>
 					<IconButton
 						size="small"
-						aria-label={t('more-actions', { defaultValue: 'More actions' })}
+						aria-label={t('more-actions')}
 						onClick={(event) => {
 							setSelectionActionAnchorEl(event.currentTarget);
 						}}
