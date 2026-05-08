@@ -30,7 +30,7 @@ public sealed class ReactivateTenantUserIdentityForStaff {
 			);
 		}
 
-		var result = await userService.ReactivateTenantUserIdentityAsync(
+		var result = await userService.ReactivateTenantUserIdentityForStaffAsync(
 			userIdGuid,
 			cancellationToken
 		);

@@ -337,6 +337,28 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldReturnBadRequestWhenGloballySuspendingLastActiveTenantAdmin() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var seeded = await SeedTenantAdminIdentityWithSuspendedAdminPeerAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetSuspendUrl(seeded.UserId.ToString())
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+		var problem = await response.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.TranslationKey.Should()
+			.Be(ResponseKeys.CannotSuspendLastAdmin);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnConflictWhenReactivatingActiveTenantUser() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
@@ -387,6 +409,62 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 			UserAccount.CreateTenantAccount(
 				user.GetRequiredId(),
 				tenant.GetRequiredId()
+			)
+		);
+		await dbContext.SaveChangesAsync();
+
+		return new SeededTenantUserIdentity(
+			user.GetRequiredId(),
+			tenant.GetRequiredId(),
+			user.Email
+		);
+	}
+
+	private async Task<SeededTenantUserIdentity>
+	SeedTenantAdminIdentityWithSuspendedAdminPeerAsync() {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<MainApiDbContext>();
+
+		var unique = Guid.NewGuid().ToString("N");
+		var user = new User {
+			Email = $"tenant-user-admin-danger-zone-{unique}@example.com",
+			Password = "unused",
+			FirstName = "Tenant",
+			LastName = "Admin",
+			Status = UserStatus.Active,
+			IsVerified = true,
+		};
+		var suspendedPeer = new User {
+			Email = $"tenant-user-suspended-admin-peer-{unique}@example.com",
+			Password = "unused",
+			FirstName = "Suspended",
+			LastName = "Peer",
+			Status = UserStatus.Suspended,
+			IsVerified = true,
+		};
+		var tenant = new Tenant {
+			Name = $"Danger Zone Admin Tenant {unique}",
+			Code = Guid.NewGuid().ToString("N")[..12],
+			Status = TenantStatus.Active,
+			MaxUsers = 100,
+		};
+
+		await dbContext.User.AddRangeAsync(user, suspendedPeer);
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+
+		await dbContext.UserAccount.AddRangeAsync(
+			UserAccount.CreateTenantAccount(
+				user.GetRequiredId(),
+				tenant.GetRequiredId(),
+				AccountLevel.Admin
+			),
+			UserAccount.CreateTenantAccount(
+				suspendedPeer.GetRequiredId(),
+				tenant.GetRequiredId(),
+				AccountLevel.Admin
 			)
 		);
 		await dbContext.SaveChangesAsync();

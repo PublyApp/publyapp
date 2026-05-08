@@ -112,7 +112,7 @@ public class UpdateTenantUserIdentityForStaff {
 			AvatarUrl = avatarUrl,
 		};
 
-		var result = await userService.UpdateTenantUserIdentityAsync(
+		var result = await userService.UpdateTenantUserIdentityForStaffAsync(
 			userIdGuid,
 			updateDocument,
 			cancellationToken

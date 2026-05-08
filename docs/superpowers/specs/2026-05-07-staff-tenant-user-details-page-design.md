@@ -13,20 +13,24 @@ a real, full editable tenant-user details page.
 
 ## Review Update
 
-The final route should be first-class in the Staff surface:
+The final route should be first-class in the Staff surface and use routed
+settings-style tabs:
 
 ```text
-/staff/tenant-users/:userId
+/staff/tenant-users/:userId/general
+/staff/tenant-users/:userId/organizations
 ```
 
 This page uses `User.Id` as the route identifier, not `UserAccount.Id`. The page
 represents the tenant-side identity globally, while tenant/company memberships are
-shown as scoped rows on the same details page.
+shown as scoped rows on the Organizations tab. The root details URL redirects to
+the General tab.
 
-The details page has two sections:
+The details page has two routed sections:
 
 - identity details: editable fields shared by every tenant/company membership
-  for this user (`firstName`, `lastName`, `avatarUrl`).
+  for this user (`firstName`, `lastName`, `avatarUrl`) plus identity-level danger
+  zone actions.
 - company list: all tenant memberships for the user, including tenant name/logo,
   membership `level`, effective membership `status`, and tenant-scoped actions
   such as suspend/reactivate/remove.
@@ -48,8 +52,8 @@ completed:
 - current tenant-user path helper points at an unregistered Staff route
 - backend has tenant-scoped membership actions, but no first-class Staff
   tenant-user details contract
-- generated client needs a first-class `GET/PATCH /staff/tenant-users/{userId}`
-  contract for the editable details page
+- generated client needs first-class `/staff/tenant-users/{userId}` contracts
+  for the editable details page and membership actions
 
 ## Goals
 
@@ -57,9 +61,9 @@ completed:
 - The details URL is `/staff/tenant-users/:userId`.
 - The page is a full editable tenant-user details page, not a read-only stopgap.
 - The page separates global tenant-user identity fields from tenant/company
-  membership fields without hiding either behind tabs.
+  membership fields with `General` and `Organizations` routed tabs.
 - The UI reuses the same primitives and visual structure as the existing Staff
-  user details page.
+  user details page and the tenant details settings layout.
 - Existing table-level tenant-user actions remain consistent with the new page.
 
 ## Non-Goals
@@ -67,8 +71,6 @@ completed:
 - Do not redirect tenant users to the Staff-user details page.
 - Do not add a top-level tenant-user list page in this slice.
 - Do not change tenant-user invitation behavior.
-- Do not add tenant-user email editing in this slice. Email is an identity-level
-  operation and there is no dedicated tenant-user scoped email endpoint today.
 - Do not add tenant profile assignment UI here unless a separate requirement
   defines tenant profile assignment from the user details page.
 
@@ -77,22 +79,25 @@ completed:
 Use a first-class Staff tenant-user route:
 
 ```text
-/staff/tenant-users/:userId
+/staff/tenant-users/:userId/general
+/staff/tenant-users/:userId/organizations
 ```
 
 The route identifier is `User.Id`. `UserAccount.Id` is not used in the URL
 because the page represents the tenant-side identity globally, not one specific
 membership row.
 
-The path helper should be:
+The path helpers should be:
 
 ```ts
 FRONT_PATH_NAMES.staff.tenantUsers.details(userId)
+FRONT_PATH_NAMES.staff.tenantUsers.detailsGeneral(userId)
+FRONT_PATH_NAMES.staff.tenantUsers.detailsOrganizations(userId)
 ```
 
 Tenant details remains the entry point for tenant-local context. Its `Users` tab
 links to the first-class route, and the destination page keeps each company
-membership visible in an inline `Companies` table below the identity details.
+membership visible in the Organizations table.
 
 ## API Design
 
@@ -101,12 +106,20 @@ Add first-class Staff tenant-user endpoints:
 ```text
 GET /staff/tenant-users/{userId}
 GET /staff/tenant-users/{userId}/companies
+POST /staff/tenant-users/{userId}/companies
+POST /staff/tenant-users/{userId}/companies/bulk-remove
+POST /staff/tenant-users/{userId}/companies/bulk-suspend
+POST /staff/tenant-users/{userId}/companies/bulk-reactivate
 PATCH /staff/tenant-users/{userId}
+PATCH /staff/tenant-users/{userId}/email
+POST /staff/tenant-users/{userId}/suspend
+POST /staff/tenant-users/{userId}/reactivate
 ```
 
 The tenant-scoped endpoints under `/staff/tenants/{tenantId}/users/{userId}`
 remain in place for membership-specific actions: level changes, suspend,
-reactivate, and remove.
+reactivate, and remove. The first-class company bulk endpoints are Staff
+convenience endpoints over the same tenant-membership operations.
 
 Expected first-class response fields:
 
@@ -153,37 +166,42 @@ The endpoints use route-level permission enforcement:
 
 - `GET`: `AppPermissions.Staff.Users.GET_FOR_TENANT`
 - `GET /companies`: `AppPermissions.Staff.Users.GET_FOR_TENANT`
+- `POST /companies`: `AppPermissions.Staff.Users.UPDATE_FOR_TENANT`
+- company bulk actions: `AppPermissions.Staff.Users.DELETE_FOR_TENANT`
 - `PATCH`: `AppPermissions.Staff.Users.UPDATE_FOR_TENANT`
+- `PATCH /email`: `AppPermissions.Staff.Users.UPDATE_FOR_TENANT`
+- global suspend/reactivate: `AppPermissions.Staff.Users.UPDATE_FOR_TENANT`
 
 ## Backend Service Design
 
 Add first-class tenant-user read/update methods to `IUserService`/`UserService`:
 
 ```csharp
-Task<TenantUserDetailsData?> GetTenantUserDetailsAsync(
+Task<TenantUserDetailsData?> GetTenantUserDetailsForStaffAsync(
 	Guid userId,
 	CancellationToken cancellationToken = default
 );
 
-Task<FindTenantUserCompaniesResult> FindTenantUserCompaniesAsync(
+Task<FindTenantUserCompaniesResult> FindTenantUserCompaniesForStaffAsync(
 	Guid userId,
 	FindTenantUserCompaniesForStaffArgs args,
 	CancellationToken cancellationToken = default
 );
 
-Task<UpdateTenantUserIdentityResult> UpdateTenantUserIdentityAsync(
+Task<UpdateTenantUserIdentityResult> UpdateTenantUserIdentityForStaffAsync(
 	Guid userId,
 	UpdateTenantUserIdentityDocument document,
 	CancellationToken cancellationToken = default
 );
 ```
 
-The details query must match a non-deleted user with at least one non-deleted
-tenant membership and return identity fields plus a bounded `companyCount`:
+The details query must match a non-deleted user with at least one tenant-side
+identity account record and return identity fields plus a bounded `companyCount`:
 
 - `User.Id == userId`
 - account scope is `AccountScope.Tenant`
-- soft-deleted users, accounts, and tenants are excluded
+- soft-deleted users are excluded
+- `companyCount` excludes soft-deleted accounts and tenants
 - suspended users and suspended memberships remain visible
 
 The companies query applies the same visibility rules, returns cursor-paginated
@@ -201,6 +219,10 @@ The identity update method only changes shared `User` fields:
 - `AvatarUrl`
 
 Company membership updates continue through the tenant-scoped update endpoint.
+Identity-level email change and global suspend/reactivate are exposed on the
+first-class tenant-user route because the page intentionally mirrors the Staff
+user details danger-zone primitives. Global suspend must not leave any tenant
+without an active admin.
 
 ## Frontend Data Design
 
@@ -233,10 +255,15 @@ The page should use:
 
 - `useUpdateTenantUserIdentity` for the identity form
 - `useFindTenantUserCompanies` for the paginated company table
+- `useAssignTenantUserCompanies` for linking organizations
+- tenant-user company bulk action hooks for selection actions
 - `useUpdateTenantUser` for company membership level changes
 - `useSuspendTenantUser`
 - `useReactivateTenantUser`
 - `useRemoveTenantUser`
+- `useUpdateTenantUserEmail`
+- `useSuspendTenantUserIdentity`
+- `useReactivateTenantUserIdentity`
 
 Cache invalidation should refresh:
 
@@ -253,6 +280,7 @@ Required primitives to reuse:
 
 - `DashboardContent`
 - `CustomBreadcrumbs`
+- `SidebarSettingsLayout`
 - `QueryDisplay`
 - `NotFoundView`
 - `View400`
@@ -267,11 +295,12 @@ Required primitives to reuse:
 Required layout pattern:
 
 - `DashboardContent` inside the normal Staff app sidebar shell
-- same `maxWidth="md"` details page width as Staff user details
+- same `maxWidth="lg"` page width as tenant details
+- settings sidebar with `General` and `Organizations` routed tabs
 - two-column top details layout
 - left card with disabled avatar upload and user status chip
 - right column with the editable identity form card and a separate metadata card
-- company memberships render below the details grid on the same page
+- company memberships render on the Organizations route
 - company membership actions live in the company list, not in the identity form
 - same skeleton structure adapted for tenant-user fields
 
@@ -295,15 +324,16 @@ values:
 - `Admin`
 - `User`
 
-The page should display email as read-only metadata. Email editing stays out of
-this issue because tenant-user email has sign-in and global identity impact.
+The page should display email as metadata and allow Staff to change it through a
+danger-zone dialog using the same RHF/Zod form and field-error mapping patterns
+as the Staff user details surface.
 
 ## Company List
 
-The company list should use the existing Material React Table primitives, not
-cards or tabs. Its data comes from `GET /staff/tenant-users/{userId}/companies`,
-not from the details payload. Each company row should expose tenant-scoped
-membership actions:
+The company list should use the existing Material React Table primitives on the
+Organizations tab. Its data comes from
+`GET /staff/tenant-users/{userId}/companies`, not from the details payload. Each
+company row should expose tenant-scoped membership actions:
 
 - suspend tenant membership when the effective tenant-user status is active
 - reactivate tenant membership when the tenant membership is suspended
@@ -320,8 +350,9 @@ Globally suspended users need careful handling:
 - explain that global reactivation belongs to the Staff-user/global identity flow
 
 Remove-from-tenant should confirm and refresh the first-class details query. If
-the removed company was the user's last tenant membership, the details query will
-return not found.
+the removed company was the user's last live tenant membership, the details page
+stays mounted and the Organizations table shows an empty state so Staff does not
+lose context after their confirmed action.
 
 ## Error Handling
 
@@ -334,7 +365,7 @@ Malformed API IDs:
 - backend returns `400` with `ResponseKeys.MalformedId`
 - frontend renders the not-found/bad-request UX consistent with Staff user details
 
-Missing tenant membership:
+Missing tenant-user identity:
 
 - backend returns `404`
 - frontend renders `NotFoundView`
@@ -374,7 +405,10 @@ Backend integration coverage:
 - valid but missing tenant-side identity returns `404`
 - tenant user without staff permission receives `403`
 - staff can update shared tenant-user identity fields by `{userId}`
-- company membership status/level actions still use tenant-scoped endpoints
+- company membership status/level row actions still use tenant-scoped endpoints
+- first-class company assign/bulk endpoints validate malformed IDs, missing
+  identities, partial failures, and last-active-admin invariants
+- global suspend refuses to leave any tenant without an active admin
 
 Frontend verification:
 
@@ -398,8 +432,7 @@ Frontend verification:
 5. Add the `useGetTenantUserById`, `useFindTenantUserCompanies`, and
    `useUpdateTenantUserIdentity` hooks.
 6. Build the tenant-user details page using Staff user details primitives.
-7. Render the company list as an inline MRT table below the details grid on the
-   same page.
+7. Render the company list as an MRT table on the Organizations routed tab.
 8. Update tenant-users table links to the first-class details route.
 9. Run API, client generation, and frontend type verification.
 
@@ -408,7 +441,9 @@ Frontend verification:
 - No placeholder requirements remain.
 - The route uses `User.Id`, not `UserAccount.Id`.
 - The design does not reuse Staff-user scoped APIs for tenant-user data.
-- The design keeps tenant/company context visible in the same-page company list.
+- The design keeps tenant/company context visible in the routed Organizations
+  table and preserves the tenant-user page after the last live membership is
+  removed.
 - The UI explicitly reuses Staff user details primitives and layout.
-- The plan stays within issue 386 and does not add unrelated tenant-profile or
-  email-editing behavior.
+- The plan stays within issue 386 and does not add unrelated tenant-profile
+  behavior.

@@ -175,7 +175,10 @@ const TenantUserLinkCompanyDrawer = ({
 			<DrawerAnchor
 				onClick={handleClose}
 				aria-label={t('close')}
-				sx={{ left: 0 }}
+				sx={(theme) => ({
+					left: 0,
+					zIndex: theme.zIndex.modal + 3,
+				})}
 			>
 				<Iconify icon="mingcute:close-line" width={18} />
 			</DrawerAnchor>

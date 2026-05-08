@@ -12,6 +12,7 @@ using MainApi.Src.Modules.AuditLogs.Entities;
 using MainApi.Src.Modules.AuditLogs.Services;
 using MainApi.Src.Modules.Users.Entities;
 using MainApi.Src.Modules.Users.Services;
+using MainApi.Src.Modules.Users.Validation;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -76,12 +77,7 @@ public sealed class AssignTenantUserCompaniesForStaffBodyValidator
 
 		RuleFor(x => x.Level)
 			.MustBeRequiredString("level")
-			.Must(element =>
-				element.ValueKind == JsonValueKind.String
-				&& UserAccount.ParseLevel(element.GetString() ?? string.Empty)
-					is not null
-			)
-			.WithMessage("level must be Admin or User");
+			.MustBeRequiredAccountLevel();
 	}
 }
 
@@ -105,7 +101,7 @@ public sealed class AssignTenantUserCompaniesForStaff {
 			);
 		}
 
-		var tenantUser = await userService.GetTenantUserDetailsAsync(
+		var tenantUser = await userService.GetTenantUserDetailsForStaffAsync(
 			userIdGuid,
 			cancellationToken
 		);
@@ -117,7 +113,7 @@ public sealed class AssignTenantUserCompaniesForStaff {
 		}
 
 		var tenantIds = body.GetTenantIds();
-		var result = await userService.AssignTenantUserCompaniesAsync(
+		var result = await userService.AssignTenantUserCompaniesForStaffAsync(
 			new AssignTenantUserCompaniesArgs(
 				UserId: userIdGuid,
 				TenantIds: tenantIds,
@@ -180,7 +176,7 @@ public sealed class BulkRemoveTenantUserCompaniesForStaff {
 			);
 		}
 
-		var tenantUser = await userService.GetTenantUserDetailsAsync(
+		var tenantUser = await userService.GetTenantUserDetailsForStaffAsync(
 			userIdGuid,
 			cancellationToken
 		);
@@ -192,7 +188,7 @@ public sealed class BulkRemoveTenantUserCompaniesForStaff {
 		}
 
 		var tenantIds = body.GetTenantIds();
-		var result = await userService.BulkRemoveTenantUserCompaniesAsync(
+		var result = await userService.BulkRemoveTenantUserCompaniesForStaffAsync(
 			new TenantUserCompanyIdsArgs(
 				UserId: userIdGuid,
 				TenantIds: tenantIds
@@ -234,7 +230,7 @@ public sealed class BulkSuspendTenantUserCompaniesForStaff {
 			);
 		}
 
-		var tenantUser = await userService.GetTenantUserDetailsAsync(
+		var tenantUser = await userService.GetTenantUserDetailsForStaffAsync(
 			userIdGuid,
 			cancellationToken
 		);
@@ -246,7 +242,7 @@ public sealed class BulkSuspendTenantUserCompaniesForStaff {
 		}
 
 		var tenantIds = body.GetTenantIds();
-		var result = await userService.BulkSuspendTenantUserCompaniesAsync(
+		var result = await userService.BulkSuspendTenantUserCompaniesForStaffAsync(
 			new TenantUserCompanyIdsArgs(
 				UserId: userIdGuid,
 				TenantIds: tenantIds
@@ -288,7 +284,7 @@ public sealed class BulkReactivateTenantUserCompaniesForStaff {
 			);
 		}
 
-		var tenantUser = await userService.GetTenantUserDetailsAsync(
+		var tenantUser = await userService.GetTenantUserDetailsForStaffAsync(
 			userIdGuid,
 			cancellationToken
 		);
@@ -300,7 +296,7 @@ public sealed class BulkReactivateTenantUserCompaniesForStaff {
 		}
 
 		var tenantIds = body.GetTenantIds();
-		var result = await userService.BulkReactivateTenantUserCompaniesAsync(
+		var result = await userService.BulkReactivateTenantUserCompaniesForStaffAsync(
 			new TenantUserCompanyIdsArgs(
 				UserId: userIdGuid,
 				TenantIds: tenantIds

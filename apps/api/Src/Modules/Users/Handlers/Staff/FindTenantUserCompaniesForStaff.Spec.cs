@@ -224,6 +224,83 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldReturnNotFoundWhenTenantUserDoesNotExistEvenWithCursor() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(Guid.NewGuid().ToString(), cursor: Guid.NewGuid().ToString())
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+		var problem = await response.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+		problem!.TranslationKey.Should().Be(ResponseKeys.NotFound);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnBadRequestWhenSortIdIsNotAllowed() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
+			_http,
+			staffToken,
+			SeedConstants.Tenants.AcmeName
+		);
+		var userId = await GetUserIdByEmailAsync(
+			staffToken,
+			acmeTenantId,
+			SeedConstants.CrossTenant.AliceEmail
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(userId, sortId: "not_allowed")
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
+
+	[Theory]
+	[InlineData("tenant_name")]
+	[InlineData("status")]
+	[InlineData("level")]
+	[InlineData("created_at")]
+	public async Task
+	ItShouldReturnCompaniesWhenSortingByAllowedColumn(string sortId) {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
+			_http,
+			staffToken,
+			SeedConstants.Tenants.AcmeName
+		);
+		var userId = await GetUserIdByEmailAsync(
+			staffToken,
+			acmeTenantId,
+			SeedConstants.CrossTenant.AliceEmail
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetUrl(userId, limit: 10, sortId: sortId, sortOrder: "asc")
+		).WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var result = await response.Content
+			.ReadFromJsonAsync<FindCompaniesResponse>();
+		result.Should().NotBeNull();
+		result!.Data.Should().NotBeEmpty();
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnNotFoundWhenTenantUserDoesNotExist() {
 		var staffToken = await _authClient.LoginAsStaffAdminAsync();
 

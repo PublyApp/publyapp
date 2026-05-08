@@ -8,19 +8,19 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import Stack from '@mui/material/Stack';
 import { alpha } from '@mui/material/styles';
-import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
 import capitalize from 'lodash/capitalize';
 import toStr from 'lodash/toString';
-import { useReducer } from 'react';
+import { useEffect, useMemo, useReducer } from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router';
 import type zod from 'zod';
 
 import { USER_STATUS_ENUM } from '@org/shared-ts/lib/constants';
 import { mbToBytes } from '@org/shared-ts/utils/any.utils';
+import { getEmailFieldSchema } from '@org/shared-ts/validations/auth.validations';
 import { getUpdateTenantUserIdentitySchema } from '@org/shared-ts/validations/tenant-user.validations';
 
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
@@ -30,6 +30,7 @@ import type { IconifyName } from '#app/components/iconify/register-icons.ts';
 import { toast } from '#app/components/snackbar/index.ts';
 import { StatusChip } from '#app/components/status-chip/status-chip.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { withFormValidation } from '#app/lib/api-failure/with-form-validation.ts';
 import {
 	useFindTenantUserCompanies,
 	useFindTenantUsers,
@@ -51,8 +52,6 @@ const dangerZoneInitialState = {
 	suspendDialogOpen: false,
 	reactivateDialogOpen: false,
 	emailDialogOpen: false,
-	newEmail: '',
-	confirmEmail: '',
 };
 
 type TenantUserDangerZoneState = typeof dangerZoneInitialState;
@@ -64,8 +63,6 @@ type TenantUserDangerZoneAction =
 	| { type: 'closeReactivateDialog' }
 	| { type: 'openEmailDialog' }
 	| { type: 'closeEmailDialog' }
-	| { type: 'setNewEmail'; value: string }
-	| { type: 'setConfirmEmail'; value: string }
 	| { type: 'resetEmailDialog' };
 
 const tenantUserDangerZoneReducer = (
@@ -92,8 +89,6 @@ const tenantUserDangerZoneReducer = (
 		return {
 			...state,
 			emailDialogOpen: true,
-			newEmail: '',
-			confirmEmail: '',
 		};
 	}
 
@@ -101,20 +96,10 @@ const tenantUserDangerZoneReducer = (
 		return { ...state, emailDialogOpen: false };
 	}
 
-	if (action.type === 'setNewEmail') {
-		return { ...state, newEmail: action.value };
-	}
-
-	if (action.type === 'setConfirmEmail') {
-		return { ...state, confirmEmail: action.value };
-	}
-
 	if (action.type === 'resetEmailDialog') {
 		return {
 			...state,
 			emailDialogOpen: false,
-			newEmail: '',
-			confirmEmail: '',
 		};
 	}
 
@@ -124,6 +109,12 @@ const tenantUserDangerZoneReducer = (
 type UpdateTenantUserIdentitySchemaType = Prettify<
 	zod.infer<ReturnType<typeof getUpdateTenantUserIdentitySchema>>
 >;
+
+type ChangeTenantUserEmailFormValues = {
+	currentEmail: string;
+	newEmail: string;
+	confirmEmail: string;
+};
 
 export type TenantUserUpdateData = {
 	firstName?: string;
@@ -417,21 +408,53 @@ const TenantUserDangerZoneCard = ({
 		tenantUserDangerZoneReducer,
 		dangerZoneInitialState,
 	);
-	const {
-		suspendDialogOpen,
-		reactivateDialogOpen,
-		emailDialogOpen,
-		newEmail,
-		confirmEmail,
-	} = state;
+	const { suspendDialogOpen, reactivateDialogOpen, emailDialogOpen } = state;
 
 	const isSuspended = status === USER_STATUS_ENUM.SUSPENDED;
+	const emailSchema = useMemo(
+		() =>
+			interZodClient
+				.object({
+					currentEmail: interZodClient.string(),
+					newEmail: getEmailFieldSchema(interZodClient).trim(),
+					confirmEmail: getEmailFieldSchema(interZodClient).trim(),
+				})
+				.refine((data) => data.newEmail === data.confirmEmail, {
+					message: t('emails-do-not-match'),
+					path: ['confirmEmail'],
+				})
+				.refine(
+					(data) =>
+						!email ||
+						data.newEmail.toLowerCase() !== email.trim().toLowerCase(),
+					{
+						message: t('email-must-be-different'),
+						path: ['newEmail'],
+					},
+				),
+		[email, t],
+	);
+	const emailForm = useForm<ChangeTenantUserEmailFormValues>({
+		mode: 'onSubmit',
+		resolver: zodResolver(emailSchema),
+		defaultValues: {
+			currentEmail: email ?? '',
+			newEmail: '',
+			confirmEmail: '',
+		},
+	});
 
-	const emailMismatch =
-		emailDialogOpen &&
-		newEmail.length > 0 &&
-		confirmEmail.length > 0 &&
-		newEmail !== confirmEmail;
+	useEffect(() => {
+		if (!emailDialogOpen) {
+			return;
+		}
+
+		emailForm.reset({
+			currentEmail: email ?? '',
+			newEmail: '',
+			confirmEmail: '',
+		});
+	}, [email, emailDialogOpen, emailForm]);
 
 	const { mutate: suspendUser, isPending: isSuspending } =
 		useSuspendTenantUserIdentity({
@@ -452,13 +475,18 @@ const TenantUserDangerZoneCard = ({
 		});
 
 	const { mutate: updateEmail, isPending: isUpdatingEmail } =
-		useUpdateTenantUserEmail({
-			onSuccess: async () => {
-				toast.success(t('tenant-user-email-updated-success'));
-				dispatch({ type: 'resetEmailDialog' });
-				await invalidateTenantUserIdentityQueries({ queryClient, userId });
-			},
-		});
+		useUpdateTenantUserEmail(
+			withFormValidation(emailForm.setError, {
+				fieldMapping: {
+					email: 'newEmail',
+				},
+				onSuccess: async () => {
+					toast.success(t('tenant-user-email-updated-success'));
+					dispatch({ type: 'resetEmailDialog' });
+					await invalidateTenantUserIdentityQueries({ queryClient, userId });
+				},
+			}),
+		);
 
 	return (
 		<Card
@@ -547,50 +575,45 @@ const TenantUserDangerZoneCard = ({
 				maxWidth="sm"
 			>
 				<DialogTitle>{t('change-email')}</DialogTitle>
-				<DialogContent sx={{ pt: 1 }}>
-					<Stack spacing={2} sx={{ mt: 1 }}>
-						<TextField
-							label={t('current-email')}
-							value={email ?? ''}
-							slotProps={{ input: { readOnly: true } }}
-						/>
-						<TextField
-							label={t('new-email')}
-							value={newEmail}
-							onChange={(e) =>
-								dispatch({ type: 'setNewEmail', value: e.target.value })
-							}
-						/>
-						<TextField
-							label={t('confirm-new-email')}
-							value={confirmEmail}
-							onChange={(e) =>
-								dispatch({ type: 'setConfirmEmail', value: e.target.value })
-							}
-							error={emailMismatch}
-							helperText={emailMismatch ? t('emails-do-not-match') : ' '}
-						/>
-					</Stack>
-				</DialogContent>
-				<DialogActions>
-					<Button
-						variant="outlined"
-						onClick={() => dispatch({ type: 'closeEmailDialog' })}
-					>
-						{t('cancel')}
-					</Button>
-					<Button
-						variant="contained"
-						color="error"
-						disabled={
-							!newEmail || !confirmEmail || emailMismatch || isUpdatingEmail
-						}
-						loading={isUpdatingEmail}
-						onClick={() => updateEmail({ userId, email: newEmail })}
-					>
-						{t('confirm')}
-					</Button>
-				</DialogActions>
+				<Form
+					methods={emailForm}
+					onSubmit={emailForm.handleSubmit((data) => {
+						updateEmail({ userId, email: data.newEmail.trim() });
+					})}
+				>
+					<DialogContent sx={{ pt: 1 }}>
+						<Stack spacing={2} sx={{ mt: 1 }}>
+							<Field.Text
+								name="currentEmail"
+								label={t('current-email')}
+								slotProps={{ input: { readOnly: true } }}
+							/>
+							<Field.Text name="newEmail" label={t('new-email')} required />
+							<Field.Text
+								name="confirmEmail"
+								label={t('confirm-new-email')}
+								required
+							/>
+						</Stack>
+					</DialogContent>
+					<DialogActions>
+						<Button
+							variant="outlined"
+							onClick={() => dispatch({ type: 'closeEmailDialog' })}
+						>
+							{t('cancel')}
+						</Button>
+						<Button
+							type="submit"
+							variant="contained"
+							color="error"
+							disabled={!emailForm.formState.isDirty || isUpdatingEmail}
+							loading={isUpdatingEmail}
+						>
+							{t('confirm')}
+						</Button>
+					</DialogActions>
+				</Form>
 			</Dialog>
 		</Card>
 	);

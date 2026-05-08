@@ -94,6 +94,10 @@ public sealed class TenantUserCompanyActionsForStaffSpec
 			seeded.UserId,
 			seeded.RemovedTenantId
 		);
+		await AssertOnlyDefaultProfileAssignedAsync(
+			seeded.UserId,
+			seeded.RemovedTenantId
+		);
 	}
 
 	[Fact]
@@ -460,6 +464,19 @@ public sealed class TenantUserCompanyActionsForStaffSpec
 		await dbContext.UserAccount.AddRangeAsync(accounts);
 		await dbContext.SaveChangesAsync();
 
+		var staleProfile = Profile.CreateTenantProfile(
+			removedTenantId,
+			$"Actions Stale Profile {unique}"
+		);
+		await dbContext.Profile.AddAsync(staleProfile);
+		await dbContext.SaveChangesAsync();
+		await dbContext.UserAccountProfile.AddAsync(
+			new UserAccountProfile {
+				UserAccountId = accounts[^1].GetRequiredId(),
+				ProfileId = staleProfile.GetRequiredId(),
+			}
+		);
+
 		accounts[^1].Status = AccountStatus.Suspended;
 		accounts[^1].IsDeleted = true;
 		accounts[^1].DeletedAt = DateTime.UtcNow;
@@ -564,6 +581,35 @@ public sealed class TenantUserCompanyActionsForStaffSpec
 
 		var hasDefaultProfile = await query.AnyAsync();
 		hasDefaultProfile.Should().BeTrue();
+	}
+
+	private async Task AssertOnlyDefaultProfileAssignedAsync(
+		Guid userId,
+		Guid tenantId
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<MainApiDbContext>();
+
+		var profiles = await (
+			from account in dbContext.UserAccount.IgnoreQueryFilters()
+			join link in dbContext.UserAccountProfile
+				on account.Id equals link.UserAccountId
+			join profile in dbContext.Profile.IgnoreQueryFilters()
+				on link.ProfileId equals profile.Id
+			where account.UserId == userId
+				&& account.TenantId == tenantId
+				&& account.Scope == AccountScope.Tenant
+				&& !account.IsDeleted
+				&& profile.Scope == ProfileScope.Tenant
+				&& profile.TenantId == tenantId
+				&& !profile.IsDeleted
+			select profile
+		).ToListAsync();
+
+		profiles.Should().ContainSingle();
+		profiles[0].IsDefault.Should().BeTrue();
 	}
 
 	private static async Task<UserAccount?> FindTenantMembershipAsync(

@@ -181,6 +181,7 @@ const TenantUserCompaniesTable = ({
 		isSelectionMode,
 		onDebouncedValueChange: handleDebouncedSearchChange,
 	});
+	const hasSearchFilter = trim(filterStates.q).length > 0;
 
 	const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
 		setSearchValue(event.target.value);
@@ -189,21 +190,36 @@ const TenantUserCompaniesTable = ({
 	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
 		query: companiesQuery,
 		emptyContent: {
-			title: capitalize(
-				t('no-items-found', {
-					item: t('companies'),
-					ns: 'response-message',
-				}),
-			),
+			title: hasSearchFilter
+				? t('no-matching-companies')
+				: capitalize(
+						t('no-items-found', {
+							item: t('companies'),
+							ns: 'response-message',
+						}),
+					),
 			renderAction: () => (
 				<Button
 					variant="contained"
 					size="small"
-					startIcon={<Iconify icon="mingcute:add-line" width={16} />}
-					onClick={onLinkCompany}
-					sx={{ mt: 2 }}
+					startIcon={
+						hasSearchFilter ? undefined : (
+							<Iconify icon="mingcute:add-line" width={16} />
+						)
+					}
+					onClick={() => {
+						if (hasSearchFilter) {
+							resetCursorPagination?.();
+							setSearchValue('');
+							void setFilterStates({ q: '' });
+							return;
+						}
+
+						onLinkCompany();
+					}}
+					sx={{ mt: 0 }}
 				>
-					{t('add-first-company')}
+					{hasSearchFilter ? t('clear-search') : t('add-first-company')}
 				</Button>
 			),
 		},

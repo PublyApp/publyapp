@@ -30,7 +30,7 @@ public sealed class SuspendTenantUserIdentityForStaff {
 			);
 		}
 
-		var result = await userService.SuspendTenantUserIdentityAsync(
+		var result = await userService.SuspendTenantUserIdentityForStaffAsync(
 			userIdGuid,
 			cancellationToken
 		);
@@ -46,6 +46,13 @@ public sealed class SuspendTenantUserIdentityForStaff {
 			return TypedProblems.Conflict(
 				"Tenant user is already globally suspended",
 				ResponseKeys.UserSuspended
+			);
+		}
+
+		if (result is SuspendTenantUserIdentityResult.CannotSuspendLastAdmin) {
+			return TypedProblems.BadRequest(
+				"Cannot suspend the last admin from the tenant",
+				ResponseKeys.CannotSuspendLastAdmin
 			);
 		}
 

@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import ListItemText from '@mui/material/ListItemText';
@@ -9,6 +10,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router';
 
 import type { TenantUserCompanyBulkActionResult } from '@org/client-ts/src/models';
+import { USER_STATUS_ENUM } from '@org/shared-ts/lib/constants';
 
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
@@ -25,6 +27,8 @@ import { invalidateTenantUserCompanyQueries } from './tenant-user-companies-cach
 import type { TenantUserCompanyData } from './tenant-user-companies-table.types.ts';
 
 const SELECTION_MODE_MENU_MIN_WIDTH = 220;
+const GLOBALLY_SUSPENDED_STATUS_VALUE = 'globally_suspended';
+const GLOBALLY_SUSPENDED_STATUS_DESCRIPTION = 'GloballySuspended';
 
 type BulkCompanyAction = 'remove' | 'suspend' | 'reactivate';
 
@@ -50,7 +54,15 @@ const TenantUserCompaniesSelectionActions = ({
 	const closeMenu = () => {
 		setAnchorEl(null);
 	};
-	const selectedTenantIds = selectedRows.map((row) => row.tenantId);
+	const eligibleRows = confirmAction
+		? getEligibleRows(confirmAction, selectedRows)
+		: selectedRows;
+	const selectedTenantIds = eligibleRows.map((row) => row.tenantId);
+	const skippedCount = selectedRows.length - eligibleRows.length;
+	const suspendableCount = getEligibleRows('suspend', selectedRows).length;
+	const reactivatableCount = getEligibleRows('reactivate', selectedRows).length;
+	const canSuspendSelection = suspendableCount > 0;
+	const canReactivateSelection = reactivatableCount > 0;
 
 	const handleBulkSuccess = async (
 		action: BulkCompanyAction,
@@ -125,12 +137,21 @@ const TenantUserCompaniesSelectionActions = ({
 		isBulkRemoving || isBulkSuspending || isBulkReactivating;
 
 	const openConfirmDialog = (action: BulkCompanyAction) => {
+		if (getEligibleRows(action, selectedRows).length === 0) {
+			return;
+		}
+
 		closeMenu();
 		setConfirmAction(action);
 	};
 
 	const handleConfirmBulkAction = () => {
 		if (!userId) {
+			return;
+		}
+
+		if (selectedTenantIds.length === 0) {
+			setConfirmAction(null);
 			return;
 		}
 
@@ -184,28 +205,54 @@ const TenantUserCompaniesSelectionActions = ({
 					<Iconify icon="solar:download-bold" width={18} />
 					<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
 				</MenuItem>
-				<MenuItem
-					onClick={() => {
-						openConfirmDialog('suspend');
-					}}
+				<Tooltip
+					title={
+						canSuspendSelection
+							? ''
+							: t('bulk-suspend-disabled-no-active-organizations')
+					}
+					placement="left"
+					arrow
 				>
-					<Iconify icon="solar:stop-circle-bold" width={18} />
-					<ListItemText
-						primary={t('suspend-selected-organizations')}
-						sx={{ ml: 1 }}
-					/>
-				</MenuItem>
-				<MenuItem
-					onClick={() => {
-						openConfirmDialog('reactivate');
-					}}
+					<Box component="span">
+						<MenuItem
+							disabled={!canSuspendSelection}
+							onClick={() => {
+								openConfirmDialog('suspend');
+							}}
+						>
+							<Iconify icon="solar:stop-circle-bold" width={18} />
+							<ListItemText
+								primary={t('suspend-selected-organizations')}
+								sx={{ ml: 1 }}
+							/>
+						</MenuItem>
+					</Box>
+				</Tooltip>
+				<Tooltip
+					title={
+						canReactivateSelection
+							? ''
+							: t('bulk-reactivate-disabled-no-suspended-organizations')
+					}
+					placement="left"
+					arrow
 				>
-					<Iconify icon="solar:restart-bold" width={18} />
-					<ListItemText
-						primary={t('reactivate-selected-organizations')}
-						sx={{ ml: 1 }}
-					/>
-				</MenuItem>
+					<Box component="span">
+						<MenuItem
+							disabled={!canReactivateSelection}
+							onClick={() => {
+								openConfirmDialog('reactivate');
+							}}
+						>
+							<Iconify icon="solar:restart-bold" width={18} />
+							<ListItemText
+								primary={t('reactivate-selected-organizations')}
+								sx={{ ml: 1 }}
+							/>
+						</MenuItem>
+					</Box>
+				</Tooltip>
 				<MenuItem
 					onClick={() => {
 						openConfirmDialog('remove');
@@ -225,9 +272,18 @@ const TenantUserCompaniesSelectionActions = ({
 				title={confirmAction ? t(getTitleKey(confirmAction)) : ''}
 				content={
 					confirmAction
-						? t(getContentKey(confirmAction), {
-								count: selectedRows.length,
-							})
+						? [
+								t(getContentKey(confirmAction), {
+									count: eligibleRows.length,
+								}),
+								skippedCount > 0
+									? t('bulk-tenant-user-companies-skipped', {
+											skipped: skippedCount,
+										})
+									: null,
+							]
+								.filter(Boolean)
+								.join(' ')
 						: ''
 				}
 				action={
@@ -305,4 +361,34 @@ const getFailureKey = (action: BulkCompanyAction) => {
 		return 'tenant-user-company-bulk-reactivate-failure';
 	}
 	return 'tenant-user-company-bulk-remove-failure';
+};
+
+const isGloballySuspendedStatus = (status: string | undefined) => {
+	return (
+		status === GLOBALLY_SUSPENDED_STATUS_VALUE ||
+		status === GLOBALLY_SUSPENDED_STATUS_DESCRIPTION
+	);
+};
+
+const getEligibleRows = (
+	action: BulkCompanyAction,
+	rows: TenantUserCompanyData[],
+) => {
+	if (action === 'remove') {
+		return rows;
+	}
+
+	if (action === 'suspend') {
+		return rows.filter(
+			(row) =>
+				row.status === USER_STATUS_ENUM.ACTIVE &&
+				!isGloballySuspendedStatus(row.status),
+		);
+	}
+
+	return rows.filter(
+		(row) =>
+			row.status === USER_STATUS_ENUM.SUSPENDED &&
+			!isGloballySuspendedStatus(row.status),
+	);
 };

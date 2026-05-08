@@ -111,7 +111,7 @@ public class FindTenantUserCompaniesForStaff {
 			)
 		);
 
-		var result = await userService.FindTenantUserCompaniesAsync(
+		var result = await userService.FindTenantUserCompaniesForStaffAsync(
 			userIdGuid,
 			args,
 			cancellationToken

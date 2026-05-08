@@ -212,6 +212,7 @@ public abstract record SuspendTenantUserIdentityResult {
 	) : SuspendTenantUserIdentityResult;
 	public sealed record NotFound() : SuspendTenantUserIdentityResult;
 	public sealed record AlreadySuspended() : SuspendTenantUserIdentityResult;
+	public sealed record CannotSuspendLastAdmin() : SuspendTenantUserIdentityResult;
 }
 
 public abstract record ReactivateTenantUserIdentityResult {
@@ -348,28 +349,29 @@ public interface IUserService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	);
-	Task<TenantUserDetailsData?> GetTenantUserDetailsAsync(
+	Task<TenantUserDetailsData?> GetTenantUserDetailsForStaffAsync(
 		Guid userId,
 		CancellationToken cancellationToken = default
 	);
-	Task<FindTenantUserCompaniesResult> FindTenantUserCompaniesAsync(
+	Task<FindTenantUserCompaniesResult> FindTenantUserCompaniesForStaffAsync(
 		Guid userId,
 		FindTenantUserCompaniesForStaffArgs args,
 		CancellationToken cancellationToken = default
 	);
-	Task<TenantUserCompanyBulkActionResult> AssignTenantUserCompaniesAsync(
+	Task<TenantUserCompanyBulkActionResult> AssignTenantUserCompaniesForStaffAsync(
 		AssignTenantUserCompaniesArgs args,
 		CancellationToken cancellationToken = default
 	);
-	Task<TenantUserCompanyBulkActionResult> BulkRemoveTenantUserCompaniesAsync(
+	Task<TenantUserCompanyBulkActionResult> BulkRemoveTenantUserCompaniesForStaffAsync(
 		TenantUserCompanyIdsArgs args,
 		CancellationToken cancellationToken = default
 	);
-	Task<TenantUserCompanyBulkActionResult> BulkSuspendTenantUserCompaniesAsync(
+	Task<TenantUserCompanyBulkActionResult> BulkSuspendTenantUserCompaniesForStaffAsync(
 		TenantUserCompanyIdsArgs args,
 		CancellationToken cancellationToken = default
 	);
-	Task<TenantUserCompanyBulkActionResult> BulkReactivateTenantUserCompaniesAsync(
+	Task<TenantUserCompanyBulkActionResult>
+	BulkReactivateTenantUserCompaniesForStaffAsync(
 		TenantUserCompanyIdsArgs args,
 		CancellationToken cancellationToken = default
 	);
@@ -384,21 +386,21 @@ public interface IUserService {
 		UpdateTenantUserDocument document,
 		CancellationToken cancellationToken = default
 	);
-	Task<UpdateTenantUserIdentityResult> UpdateTenantUserIdentityAsync(
+	Task<UpdateTenantUserIdentityResult> UpdateTenantUserIdentityForStaffAsync(
 		Guid userId,
 		UpdateTenantUserIdentityDocument document,
 		CancellationToken cancellationToken = default
 	);
-	Task<UpdateTenantUserEmailResult> UpdateTenantUserEmailAsync(
+	Task<UpdateTenantUserEmailResult> UpdateTenantUserEmailForStaffAsync(
 		Guid userId,
 		string email,
 		CancellationToken cancellationToken = default
 	);
-	Task<SuspendTenantUserIdentityResult> SuspendTenantUserIdentityAsync(
+	Task<SuspendTenantUserIdentityResult> SuspendTenantUserIdentityForStaffAsync(
 		Guid userId,
 		CancellationToken cancellationToken = default
 	);
-	Task<ReactivateTenantUserIdentityResult> ReactivateTenantUserIdentityAsync(
+	Task<ReactivateTenantUserIdentityResult> ReactivateTenantUserIdentityForStaffAsync(
 		Guid userId,
 		CancellationToken cancellationToken = default
 	);
@@ -2106,7 +2108,7 @@ public class UserService : IUserService {
 		).FirstOrDefaultAsync(cancellationToken);
 	}
 
-	public async Task<TenantUserDetailsData?> GetTenantUserDetailsAsync(
+	public async Task<TenantUserDetailsData?> GetTenantUserDetailsForStaffAsync(
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
@@ -2145,7 +2147,7 @@ public class UserService : IUserService {
 	}
 
 	public async Task<FindTenantUserCompaniesResult>
-	FindTenantUserCompaniesAsync(
+	FindTenantUserCompaniesForStaffAsync(
 		Guid userId,
 		FindTenantUserCompaniesForStaffArgs args,
 		CancellationToken cancellationToken = default
@@ -2414,26 +2416,26 @@ public class UserService : IUserService {
 				select row;
 		}
 
+		var hasTenantUserIdentity = await (
+			from ua in _dbContext.UserAccount.IgnoreQueryFilters()
+			join u in _dbContext.User.AsNoTracking()
+				on ua.UserId equals u.Id
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& !u.IsDeleted
+			select ua
+		).AnyAsync(cancellationToken);
+
+		if (!hasTenantUserIdentity) {
+			return new FindTenantUserCompaniesResult.NotFound();
+		}
+
 		var hasAnyCompany =
 			await baseQuery.AnyAsync(cancellationToken);
 		if (!hasAnyCompany) {
 			if (args.Cursor != Guid.Empty) {
 				return new FindTenantUserCompaniesResult
 					.CursorNotFound(args.Cursor.ToString());
-			}
-
-			var hasTenantUserIdentity = await (
-				from ua in _dbContext.UserAccount.AsNoTracking()
-				join u in _dbContext.User.AsNoTracking()
-					on ua.UserId equals u.Id
-				where ua.UserId == userId
-					&& ua.Scope == AccountScope.Tenant
-					&& !u.IsDeleted
-				select ua
-			).AnyAsync(cancellationToken);
-
-			if (!hasTenantUserIdentity) {
-				return new FindTenantUserCompaniesResult.NotFound();
 			}
 
 			return new FindTenantUserCompaniesResult.Success(
@@ -2490,7 +2492,7 @@ public class UserService : IUserService {
 	}
 
 	public async Task<TenantUserCompanyBulkActionResult>
-	AssignTenantUserCompaniesAsync(
+	AssignTenantUserCompaniesForStaffAsync(
 		AssignTenantUserCompaniesArgs args,
 		CancellationToken cancellationToken = default
 	) {
@@ -2547,34 +2549,55 @@ public class UserService : IUserService {
 				continue;
 			}
 
-			var tenantAccount = existingAccount;
-			var now = DateTime.UtcNow;
-			if (tenantAccount is null) {
-				tenantAccount = UserAccount.CreateTenantAccount(
-					args.UserId,
-					tenantId,
-					args.Level
-				);
-				tenantAccount.ValidateAccountType();
-				await _dbContext.UserAccount.AddAsync(
-					tenantAccount,
+			await using var transaction =
+				await _dbContext.Database.BeginTransactionAsync(
 					cancellationToken
 				);
-			} else {
-				tenantAccount.IsDeleted = false;
-				tenantAccount.DeletedAt = null;
-				tenantAccount.Status = AccountStatus.Active;
-				tenantAccount.Level = args.Level;
-				tenantAccount.UpdatedAt = now;
-				tenantAccount.ValidateAccountType();
+
+			var tenantAccount = existingAccount;
+			var now = DateTime.UtcNow;
+			var isRestoringRemovedAccount = tenantAccount is not null;
+			try {
+				if (tenantAccount is null) {
+					tenantAccount = UserAccount.CreateTenantAccount(
+						args.UserId,
+						tenantId,
+						args.Level
+					);
+					tenantAccount.ValidateAccountType();
+					await _dbContext.UserAccount.AddAsync(
+						tenantAccount,
+						cancellationToken
+					);
+				} else {
+					tenantAccount.IsDeleted = false;
+					tenantAccount.DeletedAt = null;
+					tenantAccount.Status = AccountStatus.Active;
+					tenantAccount.Level = args.Level;
+					tenantAccount.UpdatedAt = now;
+					tenantAccount.ValidateAccountType();
+				}
+
+				await _dbContext.SaveChangesAsync(cancellationToken);
+				if (isRestoringRemovedAccount) {
+					await RemoveUserAccountProfileLinksAsync(
+						tenantAccount.GetRequiredId(),
+						cancellationToken
+					);
+					await _dbContext.SaveChangesAsync(cancellationToken);
+				}
+
+				await AssignDefaultProfileToTenantAccountAsync(
+					tenantAccount,
+					tenantId,
+					cancellationToken
+				);
+				await transaction.CommitAsync(cancellationToken);
+			} catch {
+				await transaction.RollbackAsync(cancellationToken);
+				throw;
 			}
 
-			await _dbContext.SaveChangesAsync(cancellationToken);
-			await AssignDefaultProfileToTenantAccountAsync(
-				tenantAccount,
-				tenantId,
-				cancellationToken
-			);
 			succeededCount++;
 		}
 
@@ -2586,7 +2609,7 @@ public class UserService : IUserService {
 	}
 
 	public async Task<TenantUserCompanyBulkActionResult>
-	BulkRemoveTenantUserCompaniesAsync(
+	BulkRemoveTenantUserCompaniesForStaffAsync(
 		TenantUserCompanyIdsArgs args,
 		CancellationToken cancellationToken = default
 	) {
@@ -2621,7 +2644,7 @@ public class UserService : IUserService {
 	}
 
 	public async Task<TenantUserCompanyBulkActionResult>
-	BulkSuspendTenantUserCompaniesAsync(
+	BulkSuspendTenantUserCompaniesForStaffAsync(
 		TenantUserCompanyIdsArgs args,
 		CancellationToken cancellationToken = default
 	) {
@@ -2656,7 +2679,7 @@ public class UserService : IUserService {
 	}
 
 	public async Task<TenantUserCompanyBulkActionResult>
-	BulkReactivateTenantUserCompaniesAsync(
+	BulkReactivateTenantUserCompaniesForStaffAsync(
 		TenantUserCompanyIdsArgs args,
 		CancellationToken cancellationToken = default
 	) {
@@ -2981,17 +3004,19 @@ public class UserService : IUserService {
 		try {
 			// Check if this user is the last admin
 			if (userAccount.Level == AccountLevel.Admin) {
-				var adminCount = await (
-					from ua in _dbContext.UserAccount
-					where ua.TenantId == tenantId
-						&& ua.Scope == AccountScope.Tenant
-						&& ua.Level == AccountLevel.Admin
-						&& ua.Status != AccountStatus.Suspended
-						&& !ua.IsDeleted
-					select ua
-				).CountAsync(cancellationToken);
+				var isRemovingActiveAdmin = await IsActiveTenantAdminAsync(
+					tenantId,
+					userId,
+					cancellationToken
+				);
+				var activeAdminCount = isRemovingActiveAdmin
+					? await CountActiveTenantAdminsAsync(
+						tenantId,
+						cancellationToken
+					)
+					: 0;
 
-				if (adminCount <= 1) {
+				if (isRemovingActiveAdmin && activeAdminCount <= 1) {
 					return new RemoveUserFromTenantResult.CannotRemoveLastAdmin();
 				}
 			}
@@ -2999,6 +3024,10 @@ public class UserService : IUserService {
 			// Soft delete the user account
 			userAccount.IsDeleted = true;
 			userAccount.DeletedAt = DateTime.UtcNow;
+			await RemoveUserAccountProfileLinksAsync(
+				userAccount.GetRequiredId(),
+				cancellationToken
+			);
 			await _dbContext.SaveChangesAsync(cancellationToken);
 
 			await transaction.CommitAsync(cancellationToken);
@@ -3061,18 +3090,19 @@ public class UserService : IUserService {
 		try {
 			// Check last-admin invariant if demoting from admin
 			if (needsAdminInvariantTransaction) {
-				var adminCount = await (
-					from ua in _dbContext.UserAccount
-					where ua.TenantId == tenantId
-						&& ua.Scope == AccountScope.Tenant
-						&& ua.Level == AccountLevel.Admin
-						&& ua.UserId != userId
-						&& ua.Status != AccountStatus.Suspended
-						&& !ua.IsDeleted
-					select ua
-				).CountAsync(cancellationToken);
+				var isDemotingActiveAdmin = await IsActiveTenantAdminAsync(
+					tenantId,
+					userId,
+					cancellationToken
+				);
+				var hasAnotherActiveAdmin = isDemotingActiveAdmin
+					&& await TenantHasAnotherActiveAdminAsync(
+						tenantId,
+						userId,
+						cancellationToken
+					);
 
-				if (adminCount == 0) {
+				if (isDemotingActiveAdmin && !hasAnotherActiveAdmin) {
 					return new UpdateTenantUserResult.CannotDemoteLastAdmin();
 				}
 			}
@@ -3115,7 +3145,7 @@ public class UserService : IUserService {
 		);
 	}
 
-	public async Task<UpdateTenantUserIdentityResult> UpdateTenantUserIdentityAsync(
+	public async Task<UpdateTenantUserIdentityResult> UpdateTenantUserIdentityForStaffAsync(
 		Guid userId,
 		UpdateTenantUserIdentityDocument document,
 		CancellationToken cancellationToken = default
@@ -3154,7 +3184,7 @@ public class UserService : IUserService {
 		user.UpdatedAt = DateTime.UtcNow;
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
-		var userData = await GetTenantUserDetailsAsync(
+		var userData = await GetTenantUserDetailsForStaffAsync(
 			userId,
 			cancellationToken
 		);
@@ -3169,7 +3199,7 @@ public class UserService : IUserService {
 		return new UpdateTenantUserIdentityResult.Success(userData);
 	}
 
-	public async Task<UpdateTenantUserEmailResult> UpdateTenantUserEmailAsync(
+	public async Task<UpdateTenantUserEmailResult> UpdateTenantUserEmailForStaffAsync(
 		Guid userId,
 		string email,
 		CancellationToken cancellationToken = default
@@ -3197,7 +3227,7 @@ public class UserService : IUserService {
 			await _dbContext.SaveChangesAsync(cancellationToken);
 		}
 
-		var userData = await GetTenantUserDetailsAsync(
+		var userData = await GetTenantUserDetailsForStaffAsync(
 			userId,
 			cancellationToken
 		);
@@ -3213,11 +3243,11 @@ public class UserService : IUserService {
 	}
 
 	public async Task<SuspendTenantUserIdentityResult>
-	SuspendTenantUserIdentityAsync(
+	SuspendTenantUserIdentityForStaffAsync(
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
-		var userData = await GetTenantUserDetailsAsync(
+		var userData = await GetTenantUserDetailsForStaffAsync(
 			userId,
 			cancellationToken
 		);
@@ -3230,24 +3260,74 @@ public class UserService : IUserService {
 			return new SuspendTenantUserIdentityResult.AlreadySuspended();
 		}
 
-		var now = DateTime.UtcNow;
-		var updatedUserCount = await BuildLiveTenantUserIdentityMutationQuery(userId)
-			.Where(x => x.Status != UserStatus.Suspended)
-			.ExecuteUpdateAsync(
-				setters => setters
-					.SetProperty(x => x.Status, UserStatus.Suspended)
-					.SetProperty(x => x.UpdatedAt, now),
+		await using var transaction =
+			await _dbContext.Database.BeginTransactionAsync(
+				IsolationLevel.Serializable,
 				cancellationToken
 			);
 
-		if (updatedUserCount == 0) {
-			return await ResolveSuspendTenantUserIdentityAfterNoRowsAsync(
-				userId,
-				cancellationToken
-			);
+		try {
+			var hasTenantWithoutAnotherActiveAdmin = await (
+				from ua in _dbContext.UserAccount
+				join u in _dbContext.User on ua.UserId equals u.Id
+				where ua.UserId == userId
+					&& ua.Scope == AccountScope.Tenant
+					&& ua.TenantId != null
+					&& ua.Level == AccountLevel.Admin
+					&& ua.Status != AccountStatus.Suspended
+					&& !ua.IsDeleted
+					&& !u.IsDeleted
+					&& u.Status != UserStatus.Suspended
+				where !(
+					from otherUa in _dbContext.UserAccount
+					join otherUser in _dbContext.User
+						on otherUa.UserId equals otherUser.Id
+					where otherUa.TenantId == ua.TenantId
+						&& otherUa.UserId != userId
+						&& otherUa.Scope == AccountScope.Tenant
+						&& otherUa.Level == AccountLevel.Admin
+						&& otherUa.Status != AccountStatus.Suspended
+						&& !otherUa.IsDeleted
+						&& !otherUser.IsDeleted
+						&& otherUser.Status != UserStatus.Suspended
+					select otherUa
+				).Any()
+				select ua
+			).AnyAsync(cancellationToken);
+
+			if (hasTenantWithoutAnotherActiveAdmin) {
+				await transaction.RollbackAsync(cancellationToken);
+				return new SuspendTenantUserIdentityResult
+					.CannotSuspendLastAdmin();
+			}
+
+			var now = DateTime.UtcNow;
+			var updatedUserCount = await BuildLiveTenantUserIdentityMutationQuery(
+				userId
+			)
+				.Where(x => x.Status != UserStatus.Suspended)
+				.ExecuteUpdateAsync(
+					setters => setters
+						.SetProperty(x => x.Status, UserStatus.Suspended)
+						.SetProperty(x => x.UpdatedAt, now),
+					cancellationToken
+				);
+
+			if (updatedUserCount == 0) {
+				await transaction.RollbackAsync(cancellationToken);
+				return await ResolveSuspendTenantUserIdentityAfterNoRowsAsync(
+					userId,
+					cancellationToken
+				);
+			}
+
+			await transaction.CommitAsync(cancellationToken);
+		} catch {
+			await transaction.RollbackAsync(cancellationToken);
+			throw;
 		}
 
-		var updatedUserData = await GetTenantUserDetailsAsync(
+		var updatedUserData = await GetTenantUserDetailsForStaffAsync(
 			userId,
 			cancellationToken
 		);
@@ -3263,11 +3343,11 @@ public class UserService : IUserService {
 	}
 
 	public async Task<ReactivateTenantUserIdentityResult>
-	ReactivateTenantUserIdentityAsync(
+	ReactivateTenantUserIdentityForStaffAsync(
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
-		var userData = await GetTenantUserDetailsAsync(
+		var userData = await GetTenantUserDetailsForStaffAsync(
 			userId,
 			cancellationToken
 		);
@@ -3297,7 +3377,7 @@ public class UserService : IUserService {
 			);
 		}
 
-		var updatedUserData = await GetTenantUserDetailsAsync(
+		var updatedUserData = await GetTenantUserDetailsForStaffAsync(
 			userId,
 			cancellationToken
 		);
@@ -3323,12 +3403,73 @@ public class UserService : IUserService {
 		);
 	}
 
+	private IQueryable<UserAccount> BuildActiveTenantAdminAccountsQuery(
+		Guid tenantId
+	) {
+		return
+			from ua in _dbContext.UserAccount
+			join u in _dbContext.User on ua.UserId equals u.Id
+			where ua.TenantId == tenantId
+				&& ua.Scope == AccountScope.Tenant
+				&& ua.Level == AccountLevel.Admin
+				&& ua.Status != AccountStatus.Suspended
+				&& !ua.IsDeleted
+				&& !u.IsDeleted
+				&& u.Status != UserStatus.Suspended
+			select ua;
+	}
+
+	private async Task<bool> IsActiveTenantAdminAsync(
+		Guid tenantId,
+		Guid userId,
+		CancellationToken cancellationToken
+	) {
+		return await (
+			from ua in BuildActiveTenantAdminAccountsQuery(tenantId)
+			where ua.UserId == userId
+			select ua
+		).AnyAsync(cancellationToken);
+	}
+
+	private async Task<int> CountActiveTenantAdminsAsync(
+		Guid tenantId,
+		CancellationToken cancellationToken
+	) {
+		return await BuildActiveTenantAdminAccountsQuery(tenantId)
+			.CountAsync(cancellationToken);
+	}
+
+	private async Task<bool> TenantHasAnotherActiveAdminAsync(
+		Guid tenantId,
+		Guid userId,
+		CancellationToken cancellationToken
+	) {
+		return await (
+			from ua in BuildActiveTenantAdminAccountsQuery(tenantId)
+			where ua.UserId != userId
+			select ua
+		).AnyAsync(cancellationToken);
+	}
+
+	private async Task RemoveUserAccountProfileLinksAsync(
+		Guid userAccountId,
+		CancellationToken cancellationToken
+	) {
+		var links = await (
+			from link in _dbContext.UserAccountProfile
+			where link.UserAccountId == userAccountId
+			select link
+		).ToListAsync(cancellationToken);
+
+		_dbContext.UserAccountProfile.RemoveRange(links);
+	}
+
 	private async Task<SuspendTenantUserIdentityResult>
 	ResolveSuspendTenantUserIdentityAfterNoRowsAsync(
 		Guid userId,
 		CancellationToken cancellationToken
 	) {
-		var currentUserData = await GetTenantUserDetailsAsync(
+		var currentUserData = await GetTenantUserDetailsForStaffAsync(
 			userId,
 			cancellationToken
 		);
@@ -3350,7 +3491,7 @@ public class UserService : IUserService {
 		Guid userId,
 		CancellationToken cancellationToken
 	) {
-		var currentUserData = await GetTenantUserDetailsAsync(
+		var currentUserData = await GetTenantUserDetailsForStaffAsync(
 			userId,
 			cancellationToken
 		);
@@ -3396,17 +3537,19 @@ public class UserService : IUserService {
 
 		// Check last-admin invariant: cannot suspend the last active admin
 		if (account.Level == AccountLevel.Admin) {
-			var activeAdminCount = await (
-				from ua in _dbContext.UserAccount
-				where ua.TenantId == tenantId
-					&& ua.Scope == AccountScope.Tenant
-					&& ua.Level == AccountLevel.Admin
-					&& !ua.IsDeleted
-					&& ua.Status != AccountStatus.Suspended
-				select ua
-			).CountAsync(cancellationToken);
+			var isSuspendingActiveAdmin = await IsActiveTenantAdminAsync(
+				tenantId,
+				userId,
+				cancellationToken
+			);
+			var activeAdminCount = isSuspendingActiveAdmin
+				? await CountActiveTenantAdminsAsync(
+					tenantId,
+					cancellationToken
+				)
+				: 0;
 
-			if (activeAdminCount <= 1) {
+			if (isSuspendingActiveAdmin && activeAdminCount <= 1) {
 				return new SuspendTenantUserResult.CannotSuspendLastAdmin();
 			}
 		}

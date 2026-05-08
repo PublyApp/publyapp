@@ -56,7 +56,7 @@ public class GetTenantUserByIdForStaff {
 			);
 		}
 
-		var userData = await userService.GetTenantUserDetailsAsync(
+		var userData = await userService.GetTenantUserDetailsForStaffAsync(
 			userIdGuid,
 			cancellationToken
 		);
