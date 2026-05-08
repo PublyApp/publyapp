@@ -46,6 +46,9 @@ export const FEATURES = deepFreeze({
 		integrations: readFlag('VITE_FEATURE_MARKETING_INTEGRATIONS', true),
 		help: readFlag('VITE_FEATURE_MARKETING_HELP', true),
 		community: readFlag('VITE_FEATURE_MARKETING_COMMUNITY', true),
+		// Comparison surface — /compare/:competitor template, default OFF
+		// until the first competitor ships publicly.
+		comparison: readFlag('VITE_FEATURE_MARKETING_COMPARISON', false),
 	},
 	staff: {
 		tenants: {
