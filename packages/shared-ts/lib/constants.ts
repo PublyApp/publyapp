@@ -97,6 +97,10 @@ export const FRONT_PATH_NAMES = {
 		about: makePath('about'),
 		contact: makePath('contact'),
 		security: makePath('security'),
+		// Comparison surface — index path is reserved for a future hub
+		// page; only the per-competitor route is wired today.
+		comparison: makePath('compare'),
+		compareCompetitor: (slug = '') => makePath('compare', slug),
 		// Not yet shipped — these paths 404 to MarketingNotFoundPage until built:
 		blog: makePath('blog'),
 		changelog: makePath('changelog'),
