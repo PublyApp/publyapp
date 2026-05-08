@@ -46,6 +46,8 @@ export const FEATURES = deepFreeze({
 		integrations: readFlag('VITE_FEATURE_MARKETING_INTEGRATIONS', true),
 		help: readFlag('VITE_FEATURE_MARKETING_HELP', true),
 		community: readFlag('VITE_FEATURE_MARKETING_COMMUNITY', true),
+		// Public roadmap — default OFF until placeholder copy is reviewed.
+		roadmap: readFlag('VITE_FEATURE_MARKETING_ROADMAP', false),
 	},
 	staff: {
 		tenants: {
