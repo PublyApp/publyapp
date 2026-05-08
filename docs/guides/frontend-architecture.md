@@ -145,3 +145,12 @@ export async function clientLoader() { ... }
 ```
 
 **Benefits:** `getClientLoader` provides initialized `apiClient`, `z` (Zod with i18n), and `locale` - just like `getServerLoader` on the server.
+
+## Route-Local File Organization
+
+Use `_parts` for private implementation pieces owned by one page, tab, or route
+segment. Use `_components` for reusable route-family components with a stable
+local API.
+
+See [`frontend-route-file-organization.md`](frontend-route-file-organization.md)
+for the full `_parts` vs `_components` rule.

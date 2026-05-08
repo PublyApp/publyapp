@@ -29,6 +29,8 @@ public class TenantUserDetailsResult {
 	public string Level { get; set; } = string.Empty;
 	public string Status { get; set; } = string.Empty;
 	public Guid? TenantId { get; set; }
+	public DateTime CreatedAt { get; set; }
+	public DateTime UpdatedAt { get; set; }
 }
 
 /// <summary>
@@ -207,6 +209,8 @@ public class UpdateTenantUserAsStaff {
 						)
 					),
 					TenantId = userData.Account.TenantId,
+					CreatedAt = userData.User.CreatedAt,
+					UpdatedAt = userData.User.UpdatedAt,
 				}
 			);
 		}
