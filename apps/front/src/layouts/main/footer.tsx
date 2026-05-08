@@ -43,12 +43,31 @@ const HOME_FOOTER_COMPANY_LINKS = [
 		: []),
 ];
 
-const HOME_FOOTER_LEGAL_LINKS = [
+type FooterLink =
+	| { label: string; href: string; onClick?: never }
+	| { label: string; onClick: () => void; href?: never };
+
+const HOME_FOOTER_LEGAL_LINKS: FooterLink[] = [
 	{ label: 'Terms of Use', href: FRONT_PATH_NAMES.marketing.terms },
 	{ label: 'Privacy Policy', href: FRONT_PATH_NAMES.marketing.privacy },
 	{ label: 'Cookie Policy', href: FRONT_PATH_NAMES.marketing.cookies },
 	...(FEATURES.marketing.security
-		? [{ label: 'Security', href: FRONT_PATH_NAMES.marketing.security }]
+		? [
+				{
+					label: 'Security',
+					href: FRONT_PATH_NAMES.marketing.security,
+				} satisfies FooterLink,
+			]
+		: []),
+	...(FEATURES.marketing.cookieConsent
+		? [
+				{
+					label: 'Cookie Preferences',
+					onClick: () => {
+						window.__cookieConsent?.openPreferences();
+					},
+				} satisfies FooterLink,
+			]
 		: []),
 ];
 
@@ -75,7 +94,7 @@ const HOME_FOOTER_SOCIALS: { label: string; icon: string }[] = [
 
 type FooterLinkColumn = {
 	heading: string;
-	links: { label: string; href: string }[];
+	links: FooterLink[];
 };
 
 // Empty columns are filtered out so the grid doesn't render orphan headings
@@ -217,21 +236,46 @@ export const HomeFooter = ({ sx, ...other }: FooterProps) => {
 									}}
 								>
 									{column.links.map((item) => {
+										if ('href' in item && item.href !== undefined) {
+											return (
+												<Box component="li" key={item.label}>
+													<Link
+														component={RouterLink}
+														href={item.href}
+														underline="none"
+														sx={{
+															fontSize: 14,
+															color: 'text.secondary',
+															transition: 'color 0.3s ease',
+															'&:hover': { color: 'primary.main' },
+														}}
+													>
+														{item.label}
+													</Link>
+												</Box>
+											);
+										}
 										return (
 											<Box component="li" key={item.label}>
-												<Link
-													component={RouterLink}
-													href={item.href}
-													underline="none"
+												<Box
+													component="button"
+													type="button"
+													onClick={item.onClick}
 													sx={{
 														fontSize: 14,
 														color: 'text.secondary',
 														transition: 'color 0.3s ease',
+														background: 'none',
+														border: 'none',
+														padding: 0,
+														cursor: 'pointer',
+														font: 'inherit',
+														textAlign: 'left',
 														'&:hover': { color: 'primary.main' },
 													}}
 												>
 													{item.label}
-												</Link>
+												</Box>
 											</Box>
 										);
 									})}
@@ -258,21 +302,45 @@ export const HomeFooter = ({ sx, ...other }: FooterProps) => {
 					</Typography>
 					<Box sx={{ display: 'flex', gap: 3 }}>
 						{HOME_FOOTER_LEGAL_LINKS.map((item) => {
+							if ('href' in item && item.href !== undefined) {
+								return (
+									<Link
+										key={item.label}
+										component={RouterLink}
+										href={item.href}
+										underline="none"
+										sx={{
+											fontSize: 12,
+											color: 'text.disabled',
+											transition: 'color 0.3s ease',
+											'&:hover': { color: 'text.primary' },
+										}}
+									>
+										{item.label}
+									</Link>
+								);
+							}
 							return (
-								<Link
+								<Box
 									key={item.label}
-									component={RouterLink}
-									href={item.href}
-									underline="none"
+									component="button"
+									type="button"
+									onClick={item.onClick}
 									sx={{
 										fontSize: 12,
 										color: 'text.disabled',
 										transition: 'color 0.3s ease',
+										background: 'none',
+										border: 'none',
+										padding: 0,
+										cursor: 'pointer',
+										font: 'inherit',
+										textAlign: 'left',
 										'&:hover': { color: 'text.primary' },
 									}}
 								>
 									{item.label}
-								</Link>
+								</Box>
 							);
 						})}
 					</Box>
