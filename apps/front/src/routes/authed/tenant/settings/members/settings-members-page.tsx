@@ -4,21 +4,37 @@ import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import {
+	createMRTColumnHelper,
+	MaterialReactTable,
+	type MRT_ColumnDef,
+} from 'material-react-table';
+import { useMemo } from 'react';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { SettingsPageHeader } from '#app/components/settings/settings-page-header.tsx';
+import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
-const MOCK_MEMBERS = [
+type MemberRowData = {
+	id: string;
+	name: string;
+	email: string;
+	role: string;
+	status: 'Active' | 'Pending';
+	lastActive: string;
+};
+
+// Productization placeholder: this surface uses mock data until the tenant
+// members API lands. Issue #395. Loading/error states are intentionally not
+// modelled — the data is static, so only the empty-state pathway from the
+// shared MRT preset is relevant for future parity.
+const MOCK_MEMBERS: MemberRowData[] = [
 	{
 		id: '1',
 		name: 'Jason Tatum',
@@ -53,8 +69,107 @@ const MOCK_MEMBERS = [
 	},
 ];
 
+const columnHelper = createMRTColumnHelper<MemberRowData>();
+
 const SettingsMembersPage = () => {
 	const { t } = useTranslate();
+
+	const placeholderTooltip = t('members-table-placeholder-tooltip', {
+		defaultValue: 'Available once the tenant members API is connected.',
+	});
+
+	const columns = useMemo(() => {
+		return [
+			columnHelper.accessor('name', {
+				header: t('member', { defaultValue: 'Member' }),
+				Cell: MemberCell,
+				enableSorting: false,
+				size: 320,
+			}),
+			columnHelper.accessor('role', {
+				header: t('role'),
+				Cell: RoleCell,
+				enableSorting: false,
+				size: 140,
+			}),
+			columnHelper.accessor('status', {
+				header: t('status'),
+				Cell: StatusCell,
+				enableSorting: false,
+				size: 120,
+			}),
+			columnHelper.accessor('lastActive', {
+				header: t('last-active'),
+				Cell: LastActiveCell,
+				enableSorting: false,
+				size: 160,
+			}),
+			columnHelper.display({
+				id: 'actions',
+				header: t('actions'),
+				Cell: MemberActionsCell,
+				size: 100,
+			}),
+		];
+	}, [t]);
+
+	const table = useMRTTable<MemberRowData>('minimal', {
+		columns,
+		data: MOCK_MEMBERS,
+		enableRowSelection: false,
+		getRowId: (row) => row.id,
+		state: {
+			density: 'compact',
+		},
+		muiTablePaperProps: {
+			sx: {
+				flexGrow: 1,
+			},
+		},
+		meta: {
+			renderToolbarFilters: () => {
+				return (
+					<Tooltip title={placeholderTooltip} placement="top" arrow>
+						<Box component="span">
+							<TextField
+								size="small"
+								placeholder={t('search-members', {
+									defaultValue: 'Search members...',
+								})}
+								disabled
+								slotProps={{
+									input: {
+										startAdornment: (
+											<InputAdornment position="start">
+												<Iconify icon="eva:search-fill" />
+											</InputAdornment>
+										),
+										'aria-label': t('search'),
+									},
+								}}
+								sx={{ minWidth: 240 }}
+							/>
+						</Box>
+					</Tooltip>
+				);
+			},
+			renderToolbarActions: () => {
+				return (
+					<Tooltip title={placeholderTooltip} placement="top" arrow>
+						<Box component="span">
+							<Button
+								variant="contained"
+								startIcon={<Iconify icon="mingcute:add-line" width={16} />}
+								disabled
+							>
+								{t('invite-member')}
+							</Button>
+						</Box>
+					</Tooltip>
+				);
+			},
+		},
+	});
 
 	return (
 		<Stack spacing={3}>
@@ -65,113 +180,11 @@ const SettingsMembersPage = () => {
 
 			{/* Team Members Card */}
 			<Card sx={{ p: 3 }}>
-				<Stack
-					direction={{ xs: 'column', sm: 'row' }}
-					alignItems={{ xs: 'stretch', sm: 'center' }}
-					justifyContent="space-between"
-					spacing={2}
-					sx={{ mb: 3 }}
-				>
-					<Typography variant="h4">{t('team-members')}</Typography>
-					<Stack direction="row" spacing={2}>
-						<TextField
-							size="small"
-							placeholder="Search members..."
-							disabled
-							slotProps={{
-								input: {
-									startAdornment: (
-										<Iconify
-											icon="eva:search-fill"
-											width={20}
-											sx={{ color: 'text.disabled', mr: 1 }}
-										/>
-									),
-								},
-							}}
-							sx={{ width: 200 }}
-						/>
-						<Button
-							variant="contained"
-							startIcon={<Iconify icon="mingcute:add-line" width={16} />}
-							disabled
-						>
-							{t('invite-member')}
-						</Button>
-					</Stack>
-				</Stack>
+				<Typography variant="h4" sx={{ mb: 3 }}>
+					{t('team-members')}
+				</Typography>
 
-				<TableContainer>
-					<Table>
-						<TableHead>
-							<TableRow>
-								<TableCell>Member</TableCell>
-								<TableCell>{t('role')}</TableCell>
-								<TableCell>{t('status')}</TableCell>
-								<TableCell>{t('last-active')}</TableCell>
-								<TableCell align="right">{t('actions')}</TableCell>
-							</TableRow>
-						</TableHead>
-						<TableBody>
-							{MOCK_MEMBERS.map((member) => (
-								<TableRow key={member.id}>
-									<TableCell>
-										<Stack direction="row" alignItems="center" spacing={2}>
-											<Avatar
-												sx={{
-													width: 36,
-													height: 36,
-													bgcolor: 'background.neutral',
-													color: 'text.disabled',
-												}}
-											>
-												<Iconify icon="solar:user-rounded-bold" width={20} />
-											</Avatar>
-											<Box>
-												<Typography variant="subtitle2">
-													{member.name}
-												</Typography>
-												<Typography
-													variant="caption"
-													sx={{ color: 'text.secondary' }}
-												>
-													{member.email}
-												</Typography>
-											</Box>
-										</Stack>
-									</TableCell>
-									<TableCell>
-										<Typography variant="body2">{member.role}</Typography>
-									</TableCell>
-									<TableCell>
-										<Chip
-											label={member.status}
-											size="small"
-											color={member.status === 'Active' ? 'success' : 'warning'}
-											variant="soft"
-										/>
-									</TableCell>
-									<TableCell>
-										<Typography
-											variant="body2"
-											sx={{ color: 'text.secondary' }}
-										>
-											{member.lastActive}
-										</Typography>
-									</TableCell>
-									<TableCell align="right">
-										<IconButton size="small" disabled>
-											<Iconify icon="solar:pen-bold" width={18} />
-										</IconButton>
-										<IconButton size="small" disabled>
-											<Iconify icon="solar:trash-bin-trash-bold" width={18} />
-										</IconButton>
-									</TableCell>
-								</TableRow>
-							))}
-						</TableBody>
-					</Table>
-				</TableContainer>
+				<MaterialReactTable table={table} />
 			</Card>
 
 			{/* Pending Invitations */}
@@ -202,3 +215,93 @@ const SettingsMembersPage = () => {
 };
 
 export default SettingsMembersPage;
+
+// ----------------------------------------------------------------------
+
+const MemberCell: MRT_ColumnDef<MemberRowData, string>['Cell'] = (props) => {
+	const member = props.row.original;
+
+	return (
+		<Stack direction="row" alignItems="center" spacing={2}>
+			<Avatar
+				sx={{
+					width: 36,
+					height: 36,
+					bgcolor: 'background.neutral',
+					color: 'text.disabled',
+				}}
+			>
+				<Iconify icon="solar:user-rounded-bold" width={20} />
+			</Avatar>
+			<Box sx={{ minWidth: 0 }}>
+				<Typography variant="subtitle2" noWrap>
+					{member.name}
+				</Typography>
+				<Typography
+					variant="caption"
+					noWrap
+					sx={{ color: 'text.secondary', display: 'block' }}
+				>
+					{member.email}
+				</Typography>
+			</Box>
+		</Stack>
+	);
+};
+
+const RoleCell: MRT_ColumnDef<MemberRowData, string>['Cell'] = (props) => {
+	return <Typography variant="body2">{props.cell.getValue()}</Typography>;
+};
+
+const StatusCell: MRT_ColumnDef<
+	MemberRowData,
+	MemberRowData['status']
+>['Cell'] = (props) => {
+	const status = props.cell.getValue();
+
+	return (
+		<Chip
+			label={status}
+			size="small"
+			color={status === 'Active' ? 'success' : 'warning'}
+			variant="soft"
+		/>
+	);
+};
+
+const LastActiveCell: MRT_ColumnDef<MemberRowData, string>['Cell'] = (
+	props,
+) => {
+	return (
+		<Typography variant="body2" sx={{ color: 'text.secondary' }}>
+			{props.cell.getValue()}
+		</Typography>
+	);
+};
+
+const MemberActionsCell: MRT_ColumnDef<MemberRowData>['Cell'] = () => {
+	const { t } = useTranslate();
+
+	const placeholderTooltip = t('members-table-placeholder-tooltip', {
+		defaultValue: 'Available once the tenant members API is connected.',
+	});
+
+	return (
+		<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+			<Tooltip title={placeholderTooltip} placement="top" arrow>
+				<Box component="span">
+					<IconButton size="small" disabled aria-label={t('edit')}>
+						<Iconify icon="solar:pen-bold" width={18} />
+					</IconButton>
+				</Box>
+			</Tooltip>
+			<Tooltip title={placeholderTooltip} placement="top" arrow>
+				<Box component="span">
+					<IconButton size="small" disabled aria-label={t('delete')}>
+						<Iconify icon="solar:trash-bin-trash-bold" width={18} />
+					</IconButton>
+				</Box>
+			</Tooltip>
+		</Box>
+	);
+};
