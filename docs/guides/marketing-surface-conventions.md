@@ -151,13 +151,35 @@ These are the only hardcoded colors permitted in marketing parts. Anything else 
 
 | Exception | Rationale |
 |---|---|
-| Third-party brand colors — `#E1306C` (Instagram), `#1877F2` (Facebook), `#0A66C2` (LinkedIn), `#FFD600 / #FF0069 / #7638FA` (Instagram gradient), `#0F172A` (X) | These are external brand identities (logos, mocked posts). Theme tokens cannot represent them. |
+| Third-party brand colors — `#E1306C` (Instagram), `#1877F2` (Facebook), `#0A66C2` (LinkedIn), `#1DA1F2` (Twitter / X), `#FFD600 / #FF0069 / #7638FA` (Instagram gradient), `#0F172A` (X dark wordmark) | These are external brand identities (logos, mocked posts). Theme tokens cannot represent them. Same rule extends to any other social/SaaS brand color used in mocked composer/preview UI. |
+| OS chrome dot colors — `#FF5F56` (red), `#FFBD2E` (yellow), `#27C93F` (green) | macOS window-control "traffic light" buttons used in faux-screenshot mockups (e.g. on feature pages). Universally recognizable; theme tokens would lose the OS reference. |
 | Step tone palette in `home-onboarding.tsx` — orange `#F97316`, purple `#A855F7`, teal `#14B8A6` (+ darks/rgb) | Intentional creative split across the three onboarding steps; theme palette is single-tone. |
 | Dark surface `#242424` — used on Unified Inbox bento, Scale pricing card, bottom CTA card | Deliberate "always-dark" cards that retain identity in light mode for contrast. |
 | Decorative shadow recipes — `rgba(17, 24, 39, 0.05–0.30)`, `rgba(0, 0, 0, 0.05–0.30)` | Standard elevation recipe. Could route through `varAlpha(theme.vars.palette.common.blackChannel, n)` but readability tradeoff isn't worth it. |
 | `#D97706` (warning amber) — used on the Changelog `breaking` entry-type pill | Deliberate semantic color: brighter than `warning.dark` (#B45309) so the pill reads at small sizes against muted bg. Treated as the canon "Breaking" tone across the marketing surface. |
 
 If you find yourself adding a new hardcoded color outside these categories, stop and use a theme token.
+
+## 404 strategy for marketing dynamic routes
+
+When a marketing route component looks up a data record by slug (e.g. `/blog/:slug`, `/changelog/:year`, `/features/:slug`, `/customer-stories/:slug`, `/compare/:competitor`) and finds nothing, **throw a 404 Response, do not render an error view inline**:
+
+```tsx
+const story = slug ? getPublishedCustomerStory(slug) : undefined;
+
+if (!story) {
+	throw new Response('Not Found', { status: 404 });
+}
+```
+
+The marketing-layout `ErrorBoundary` (`apps/front/src/routes/marketing/_layout/marketing-layout.tsx`) catches `isRouteErrorResponse(error) && error.status === 404` and renders `MarketingErrorView` inside `MainLayout`, so the user stays inside the marketing chrome (topbar + footer) anyway.
+
+**Why throw, not inline render:**
+- SSR returns an accurate `404` HTTP status code — search engines + crawlers correctly de-index missing slugs.
+- Inline `<MarketingErrorView />` would return HTTP `200` with 404 content in the body, which Google treats as a soft-404 SEO penalty.
+- Both approaches keep the user in marketing chrome (the layout's ErrorBoundary handles that), so there's no UX cost to going the SEO-correct route.
+
+The same rule applies to `meta` exports for these routes: re-do the lookup, return a "Not Found" title fallback when the record is missing.
 
 ## Where marketing code lives
 

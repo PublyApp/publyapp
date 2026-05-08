@@ -9,7 +9,6 @@ import { CustomerStoryHero } from '#app/routes/marketing/_components/customer-st
 import { CustomerStoryNarrative } from '#app/routes/marketing/_components/customer-story-narrative.tsx';
 import { CustomerStoryPullQuote } from '#app/routes/marketing/_components/customer-story-pull-quote.tsx';
 import { CustomerStoryStatsBand } from '#app/routes/marketing/_components/customer-story-stats-band.tsx';
-import { MarketingErrorView } from '#app/routes/marketing/_components/marketing-error-view.tsx';
 import {
 	customerStoryOgImage,
 	getPublishedCustomerStory,
@@ -19,9 +18,13 @@ import {
 
 // Customer-story route. Reads `:slug` and looks up the story in
 // `CUSTOMER_STORIES` (filtered by `published !== false`). Unknown slugs
-// render the marketing 404 view inline (NOT a `throw new Response`) so
-// the user stays inside the marketing chrome (topbar / footer) rather
-// than bouncing into the root error boundary.
+// throw a 404 Response — the marketing-layout ErrorBoundary catches
+// `isRouteErrorResponse(error) && error.status === 404` and renders
+// MarketingErrorView inside MainLayout chrome (added in PR #367). Throwing
+// the Response gives the SSR a correct 404 status code (better for SEO
+// and crawlers) while still keeping the user inside the marketing topbar
+// + footer. This is the canonical pattern across marketing dynamic routes
+// — see docs/guides/marketing-surface-conventions.md.
 
 // ----------------------------------------------------------------------
 
@@ -30,13 +33,7 @@ const CustomerStoryRoute = () => {
 	const story = slug ? getPublishedCustomerStory(slug) : undefined;
 
 	if (!story) {
-		return (
-			<MarketingErrorView
-				numeral="404"
-				title="Customer story not found"
-				subhead="The story you're looking for might have moved, been unpublished, or never existed. Browse popular destinations below to keep exploring."
-			/>
-		);
+		throw new Response('Not Found', { status: 404 });
 	}
 
 	return (
