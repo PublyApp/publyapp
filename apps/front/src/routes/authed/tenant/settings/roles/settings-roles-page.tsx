@@ -90,6 +90,7 @@ const SettingsRolesPage = () => {
 				size: 140,
 			}),
 			columnHelper.display({
+				id: 'actions',
 				header: t('actions'),
 				Cell: RoleActionsCell,
 				size: 100,
@@ -264,8 +265,15 @@ const DescriptionCell: MRT_ColumnDef<RoleRowData, string>['Cell'] = (props) => {
 };
 
 const MembersCell: MRT_ColumnDef<RoleRowData, number>['Cell'] = (props) => {
+	const { t } = useTranslate();
 	const members = props.cell.getValue();
-	const label = `${members} ${members === 1 ? 'member' : 'members'}`;
+	const label =
+		members === 1
+			? t('members-count-one', { count: members, defaultValue: '1 member' })
+			: t('members-count-other', {
+					count: members,
+					defaultValue: '{{count}} members',
+				});
 
 	return <Chip label={label} size="small" variant="soft" />;
 };
