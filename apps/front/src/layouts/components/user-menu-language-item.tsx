@@ -1,4 +1,3 @@
-import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import Typography from '@mui/material/Typography';
@@ -8,7 +7,6 @@ import type { AppLocale } from '@org/shared-ts/lib/i18n/resources';
 
 import { CustomPopover } from '#app/components/custom-popover/custom-popover.tsx';
 import { FlagIcon } from '#app/components/flag-icon/flag-icon.tsx';
-import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { allLangs } from '#app/lib/locales/all-langs.ts';
 
@@ -41,22 +39,12 @@ export const LanguageMenuItem = () => {
 				<Typography variant="body2" sx={{ fontSize: '0.8125rem', flex: 1 }}>
 					{t('language')}
 				</Typography>
-				<Box
-					sx={{
-						display: 'flex',
-						alignItems: 'center',
-						gap: 0.5,
-						color: 'text.secondary',
-					}}
+				<Typography
+					variant="caption"
+					sx={{ color: 'text.secondary', fontSize: '0.75rem' }}
 				>
-					<Typography
-						variant="caption"
-						sx={{ color: 'inherit', fontSize: '0.75rem' }}
-					>
-						{currentLang.label}
-					</Typography>
-					<Iconify width={16} icon="eva:arrow-ios-forward-fill" />
-				</Box>
+					{currentLang.label}
+				</Typography>
 			</MenuItem>
 
 			<CustomPopover

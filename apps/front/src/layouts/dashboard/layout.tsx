@@ -11,6 +11,7 @@ import type {
 	NavItemProps,
 	NavSectionProps,
 } from '#app/components/nav-section/types.ts';
+import { useColorSchemeShortcut } from '#app/hooks/use-color-scheme-shortcut.ts';
 import { useSettingsContext } from '#app/hooks/use-settings-context.ts';
 import {
 	useGetUserAuthData,
@@ -62,6 +63,8 @@ export const DashboardLayout = ({
 	const { data: tenantsData } = useGetUserTenants();
 
 	const settings = useSettingsContext();
+
+	useColorSchemeShortcut();
 
 	const navVars = dashboardNavColorVars(
 		theme,

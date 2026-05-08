@@ -184,7 +184,7 @@ export const SidebarUserMenu = ({
 				slotProps={{
 					paper: {
 						sx: {
-							width: 220,
+							width: 240,
 							ml: isCollapsed ? 1.1 : 0,
 							mt: isCollapsed ? 0 : -1,
 						},

@@ -9,7 +9,6 @@ import { usePopover } from 'minimal-shared/hooks';
 
 import { CustomPopover } from '#app/components/custom-popover/custom-popover.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
-import { useColorSchemeShortcut } from '#app/hooks/use-color-scheme-shortcut.ts';
 import { useSettingsContext } from '#app/hooks/use-settings-context.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
@@ -38,8 +37,6 @@ export const ColorSchemeMenuItem = () => {
 	const { open, anchorEl, onClose, onOpen } = usePopover();
 	const settings = useSettingsContext();
 	const { mode, systemMode, setMode, allColorSchemes } = useColorScheme();
-
-	useColorSchemeShortcut();
 
 	const resolvedMode = mode === 'system' ? (systemMode ?? 'dark') : mode;
 	const activeKey = mode ?? resolvedMode;
@@ -77,7 +74,7 @@ export const ColorSchemeMenuItem = () => {
 					sx={{
 						display: 'flex',
 						alignItems: 'center',
-						gap: 0.5,
+						gap: 0.75,
 						color: 'text.secondary',
 					}}
 				>
@@ -87,7 +84,22 @@ export const ColorSchemeMenuItem = () => {
 					>
 						{activeLabel}
 					</Typography>
-					<Iconify width={16} icon="eva:arrow-ios-forward-fill" />
+					<Box
+						component="kbd"
+						sx={{
+							px: 0.5,
+							py: 0.125,
+							fontFamily: 'inherit',
+							fontSize: '0.7rem',
+							lineHeight: 1.4,
+							color: 'text.disabled',
+							borderRadius: 0.75,
+							border: '1px solid',
+							borderColor: 'divider',
+						}}
+					>
+						⌘J
+					</Box>
 				</Box>
 			</MenuItem>
 
