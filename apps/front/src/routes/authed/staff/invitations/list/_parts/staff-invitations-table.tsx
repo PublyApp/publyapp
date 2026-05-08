@@ -902,105 +902,158 @@ const ExpiryDateCell: MRT_ColumnDef<
 const InvitationActionsCell: MRT_ColumnDef<StaffInvitationRowData>['Cell'] = (
 	props,
 ) => {
+	const invitation = props.row.original;
+
+	return (
+		<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+			<CopyInvitationLinkAction invitation={invitation} />
+			<ResendInvitationAction invitation={invitation} />
+			<RevokeInvitationAction invitation={invitation} />
+		</Box>
+	);
+};
+
+type InvitationRowActionProps = {
+	invitation: StaffInvitationRowData;
+};
+
+const CopyInvitationLinkAction = ({ invitation }: InvitationRowActionProps) => {
 	const { t } = useTranslate();
-	const queryClient = useQueryClient();
-	const confirmDialog = useBoolean();
+	const canManage = invitation.status === 'pending';
+	const disabledReason = t('only-pending-invitations-can-be-copied', {
+		defaultValue: 'Only pending invitations can have their link copied.',
+	});
 
-	const invitationId = props.row.original.id;
-	const status = props.row.original.status;
-	// Only pending invitations can be resent, revoked, or copied.
-	const canManage = status === 'pending';
+	const { mutateAsync, isPending } = useGetStaffInvitationLink();
 
-	const { mutateAsync: getInvitationLink, isPending: isGettingLink } =
-		useGetStaffInvitationLink();
-	const { mutateAsync: resendInvitation, isPending: isResending } =
-		useResendStaffInvitation({
-			onSuccess: () => {
-				toast.success(t('staff-invitation-resent'));
-			},
-		});
-	const { mutateAsync: revokeInvitation, isPending: isRevoking } =
-		useRevokeStaffInvitation({
-			onSuccess: () => {
-				toast.success(t('staff-invitation-revoked'));
-				void queryClient.invalidateQueries({
-					queryKey: useFindStaffInvitations.getKey(),
-				});
-			},
-		});
-
-	const handleCopyLink = async () => {
-		const result = await getInvitationLink({ invitationId });
+	const handleCopy = async () => {
+		const result = await mutateAsync({ invitationId: invitation.id });
 		if (!result?.link) {
-			logger.warn('Invitation link response missing', { invitationId });
+			logger.warn('Invitation link response missing', {
+				invitationId: invitation.id,
+			});
 			return;
 		}
 		await navigator.clipboard.writeText(result.link);
 		toast.success(t('staff-invitation-link-copied'));
 	};
 
+	return (
+		<Tooltip
+			title={canManage ? t('copy-link') : disabledReason}
+			placement="top"
+			arrow
+		>
+			<Box component="span">
+				<IconButton
+					color="default"
+					loading={isPending}
+					onClick={handleCopy}
+					disabled={!canManage}
+					size="small"
+					sx={(theme) => ({
+						color: canManage
+							? theme.vars.palette.text.secondary
+							: theme.vars.palette.text.disabled,
+					})}
+				>
+					<Iconify icon="solar:copy-bold-duotone" />
+				</IconButton>
+			</Box>
+		</Tooltip>
+	);
+};
+
+const ResendInvitationAction = ({ invitation }: InvitationRowActionProps) => {
+	const { t } = useTranslate();
+	const canManage = invitation.status === 'pending';
+	const disabledReason = t('only-pending-invitations-can-be-resent', {
+		defaultValue: 'Only pending invitations can be resent.',
+	});
+
+	const { mutateAsync, isPending } = useResendStaffInvitation({
+		onSuccess: () => {
+			toast.success(t('staff-invitation-resent'));
+		},
+	});
+
 	const handleResend = async () => {
-		await resendInvitation({ invitationId });
+		await mutateAsync({ invitationId: invitation.id });
 	};
 
+	return (
+		<Tooltip
+			title={canManage ? t('resend-invitation') : disabledReason}
+			placement="top"
+			arrow
+		>
+			<Box component="span">
+				<IconButton
+					color="default"
+					loading={isPending}
+					onClick={handleResend}
+					disabled={!canManage}
+					size="small"
+					sx={(theme) => ({
+						color: canManage
+							? theme.vars.palette.text.secondary
+							: theme.vars.palette.text.disabled,
+					})}
+				>
+					<Iconify icon="solar:plain-bold" />
+				</IconButton>
+			</Box>
+		</Tooltip>
+	);
+};
+
+const RevokeInvitationAction = ({ invitation }: InvitationRowActionProps) => {
+	const { t } = useTranslate();
+	const queryClient = useQueryClient();
+	const confirmDialog = useBoolean();
+	const canManage = invitation.status === 'pending';
+	const disabledReason = t('only-pending-invitations-can-be-revoked', {
+		defaultValue: 'Only pending invitations can be revoked.',
+	});
+
+	const { mutateAsync, isPending } = useRevokeStaffInvitation({
+		onSuccess: () => {
+			toast.success(t('staff-invitation-revoked'));
+			void queryClient.invalidateQueries({
+				queryKey: useFindStaffInvitations.getKey(),
+			});
+		},
+	});
+
 	const handleConfirmRevoke = async () => {
-		await revokeInvitation({ invitationId });
+		await mutateAsync({ invitationId: invitation.id });
 		confirmDialog.onFalse();
 	};
 
 	return (
 		<>
-			<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-				{canManage && (
-					<Tooltip title={t('copy-link')} placement="top" arrow>
-						<IconButton
-							color="default"
-							loading={isGettingLink}
-							onClick={handleCopyLink}
-							size="small"
-						>
-							<Iconify icon="solar:copy-bold-duotone" />
-						</IconButton>
-					</Tooltip>
-				)}
-
-				{canManage && (
-					<Tooltip title={t('resend-invitation')} placement="top" arrow>
-						<IconButton
-							color="default"
-							loading={isResending}
-							onClick={handleResend}
-							size="small"
-						>
-							<Iconify icon="solar:letter-bold" />
-						</IconButton>
-					</Tooltip>
-				)}
-
-				<Tooltip title={t('view-details')} placement="top" arrow>
+			<Tooltip
+				title={canManage ? t('revoke-invitation') : disabledReason}
+				placement="top"
+				arrow
+			>
+				<Box component="span">
 					<IconButton
 						color="default"
-						LinkComponent={RouterLink}
-						href={FRONT_PATH_NAMES.staff.invitations.details(invitationId)}
+						loading={isPending}
+						onClick={confirmDialog.onTrue}
+						disabled={!canManage}
 						size="small"
+						sx={(theme) => ({
+							color: canManage
+								? theme.vars.palette.text.secondary
+								: theme.vars.palette.text.disabled,
+						})}
 					>
-						<Iconify icon="solar:eye-bold" />
+						<Iconify icon="solar:close-circle-bold" />
 					</IconButton>
-				</Tooltip>
-
-				{canManage && (
-					<Tooltip title={t('revoke-invitation')} placement="top" arrow>
-						<IconButton
-							color="error"
-							loading={isRevoking}
-							onClick={confirmDialog.onTrue}
-							size="small"
-						>
-							<Iconify icon="solar:close-circle-bold" />
-						</IconButton>
-					</Tooltip>
-				)}
-			</Box>
+				</Box>
+			</Tooltip>
 			<ConfirmDialog
 				open={confirmDialog.value}
 				onClose={confirmDialog.onFalse}
@@ -1011,6 +1064,7 @@ const InvitationActionsCell: MRT_ColumnDef<StaffInvitationRowData>['Cell'] = (
 						variant="contained"
 						color="error"
 						onClick={handleConfirmRevoke}
+						disabled={isPending}
 					>
 						{t('staff-revoke')}
 					</Button>
