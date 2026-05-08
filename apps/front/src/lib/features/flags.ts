@@ -29,10 +29,6 @@ export const FEATURES = deepFreeze({
 		// MarketingNotFoundPage when enabled
 		blog: readFlag('VITE_FEATURE_MARKETING_BLOG', true),
 		changelog: readFlag('VITE_FEATURE_MARKETING_CHANGELOG', true),
-		// Customer-story template (slice 4 of #372). Default OFF until a real
-		// customer signs off on shipping their story; the placeholder Lumen
-		// Studio page is template-shaped, not launch-ready content.
-		customerStories: readFlag('VITE_FEATURE_MARKETING_CUSTOMER_STORIES', false),
 		// Phase 5 changelog secondary surfaces — default OFF, opt-in once
 		// real data / signup endpoint exist
 		changelogStats: readFlag('VITE_FEATURE_MARKETING_CHANGELOG_STATS', false),
@@ -50,6 +46,10 @@ export const FEATURES = deepFreeze({
 		integrations: readFlag('VITE_FEATURE_MARKETING_INTEGRATIONS', true),
 		help: readFlag('VITE_FEATURE_MARKETING_HELP', true),
 		community: readFlag('VITE_FEATURE_MARKETING_COMMUNITY', true),
+		// Customer-story template (slice 4 of #372). Default OFF until a real
+		// customer signs off on shipping their story; the placeholder Lumen
+		// Studio page is template-shaped, not launch-ready content.
+		customerStories: readFlag('VITE_FEATURE_MARKETING_CUSTOMER_STORIES', false),
 	},
 	staff: {
 		tenants: {
