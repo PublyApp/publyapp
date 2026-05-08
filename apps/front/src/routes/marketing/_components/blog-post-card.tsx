@@ -3,6 +3,8 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+
 import {
 	asHoverRoot,
 	hoverLift,
@@ -338,7 +340,7 @@ export const BlogPostCard = ({
 						*/}
 						<Box
 							component={RouterLink}
-							href={`/blog/${post.slug}`}
+							href={FRONT_PATH_NAMES.marketing.blogArticle(post.slug)}
 							sx={{
 								color: 'inherit',
 								textDecoration: 'inherit',
@@ -370,7 +372,7 @@ export const BlogPostCard = ({
 		return (
 			<Box
 				component={RouterLink}
-				href={`/blog/${post.slug}`}
+				href={FRONT_PATH_NAMES.marketing.blogArticle(post.slug)}
 				sx={{
 					display: 'flex',
 					gap: 2,
@@ -491,7 +493,7 @@ export const BlogPostCard = ({
 					>
 						<Box
 							component={RouterLink}
-							href={`/blog/${post.slug}`}
+							href={FRONT_PATH_NAMES.marketing.blogArticle(post.slug)}
 							sx={{
 								color: 'inherit',
 								textDecoration: 'inherit',

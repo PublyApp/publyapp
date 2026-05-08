@@ -201,7 +201,7 @@ const FeaturedHero = ({ post }: { post: BlogPost }) => {
 
 					<Box
 						component={RouterLink}
-						href={`/blog/${post.slug}`}
+						href={FRONT_PATH_NAMES.marketing.blogArticle(post.slug)}
 						sx={{
 							// position: relative + zIndex above the overlay so this
 							// CTA still receives its own click + hover.
@@ -228,7 +228,7 @@ const FeaturedHero = ({ post }: { post: BlogPost }) => {
 				{/* Single click overlay covering the whole featured grid */}
 				<Box
 					component={RouterLink}
-					href={`/blog/${post.slug}`}
+					href={FRONT_PATH_NAMES.marketing.blogArticle(post.slug)}
 					aria-label={post.title}
 					sx={{ position: 'absolute', inset: 0, zIndex: 1 }}
 				/>

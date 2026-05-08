@@ -2,6 +2,8 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { BlogFigure } from '#app/routes/marketing/_components/blog-content-elements.tsx';
@@ -180,7 +182,7 @@ export const ChangelogEntry = ({ entry }: ChangelogEntryProps) => {
 				{entry.relatedBlogSlug ? (
 					<Box
 						component={RouterLink}
-						href={`/blog/${entry.relatedBlogSlug}`}
+						href={FRONT_PATH_NAMES.marketing.blogArticle(entry.relatedBlogSlug)}
 						sx={{
 							display: 'inline-flex',
 							alignItems: 'center',
