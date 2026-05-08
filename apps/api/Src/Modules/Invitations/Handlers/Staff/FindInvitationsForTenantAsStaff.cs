@@ -73,13 +73,13 @@ public class FindInvitationsForTenantAsStaffQueryValidator : CursorPaginatedQuer
 		RuleFor(x => x.Search).MaximumLength(200);
 		RuleFor(x => x.Status)
 			.Must(raw => {
-				if (string.IsNullOrEmpty(raw)) {
+				if (string.IsNullOrWhiteSpace(raw)) {
 					return true;
 				}
 
 				var parts = raw
 					.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-				return parts.All(AllowedStatuses.Contains);
+				return parts.Length > 0 && parts.All(AllowedStatuses.Contains);
 			})
 			.WithMessage("Invalid status value. Must be comma-separated: " + string.Join(",", AllowedStatuses));
 	}
