@@ -18,11 +18,13 @@ import {
 	createMRTColumnHelper,
 	MaterialReactTable,
 	type MRT_ColumnDef,
+	type MRT_Localization,
 	type MRT_SortingState,
+	type MRT_TableOptions,
 } from 'material-react-table';
 import { useBoolean } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 
 import type { TenantUserCompanyForStaffResult } from '@org/client-ts/src/models';
@@ -40,33 +42,28 @@ import { Label } from '#app/components/label/label.tsx';
 import type { LabelColor } from '#app/components/label/types.ts';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
+import { useTableRowSelection } from '#app/hooks/table/use-table-row-selection.ts';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
 	useFindTenantUserCompanies,
-	useFindTenantUsers,
-	useGetTenantUserById,
 	useReactivateTenantUser,
 	useRemoveTenantUser,
 	useSuspendTenantUser,
 	useUpdateTenantUser,
 } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
-import { type DatePickerFormat } from '#app/utils/format-time.ts';
+
+import { invalidateTenantUserCompanyQueries } from './tenant-user-companies-cache.ts';
+import TenantUserCompaniesExportDialogController, {
+	type TenantUserCompaniesExportDialogControllerRef,
+} from './tenant-user-companies-export-dialog-controller.tsx';
+import TenantUserCompaniesSelectionActions from './tenant-user-companies-selection-actions.tsx';
+import type { TenantUserCompanyData } from './tenant-user-companies-table.types.ts';
 
 const GLOBALLY_SUSPENDED_STATUS_VALUE = 'globally_suspended';
 const GLOBALLY_SUSPENDED_STATUS_DESCRIPTION = 'GloballySuspended';
-
-export type TenantUserCompanyData = {
-	tenantId: string;
-	tenantName: string;
-	tenantLogoUrl?: string;
-	level?: string;
-	status?: string;
-	createdAt?: DatePickerFormat;
-	updatedAt?: DatePickerFormat;
-};
 
 const ACCOUNT_LEVEL_OPTIONS: AccountLevel[] = values(ACCOUNT_LEVEL_ENUM);
 const columnHelper = createMRTColumnHelper<TenantUserCompanyData>();
@@ -85,6 +82,8 @@ const isGloballySuspendedStatus = (status: string | null) => {
 const TenantUserCompaniesTable = () => {
 	const { userId = '' } = useParams();
 	const { t } = useTranslate();
+	const exportDialogRef =
+		useRef<TenantUserCompaniesExportDialogControllerRef | null>(null);
 	const handleLinkCompany = () => undefined;
 	const {
 		handlePaginationChange,
@@ -116,6 +115,7 @@ const TenantUserCompaniesTable = () => {
 	const rows = useMemo<TenantUserCompanyData[]>(() => {
 		return (companiesQuery.data?.data ?? []).map(
 			(company: TenantUserCompanyForStaffResult) => ({
+				id: toStr(company.tenantId),
 				tenantId: toStr(company.tenantId),
 				tenantName: company.tenantName ?? t('un-named'),
 				tenantLogoUrl: company.tenantLogoUrl ?? undefined,
@@ -126,6 +126,31 @@ const TenantUserCompaniesTable = () => {
 			}),
 		);
 	}, [companiesQuery.data?.data, t]);
+	const {
+		rowSelection,
+		setRowSelection,
+		selectedRows,
+		selectedCount,
+		isSelectionMode,
+		clearSelection,
+	} = useTableRowSelection({
+		rows,
+		reconcileVisibleRows: true,
+		reconcileVisibleRowsEnabled: !companiesQuery.isFetching,
+	});
+	const sortingDisabledReason = t('selection-mode-disable-sorting');
+	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
+		if (!isSelectionMode) {
+			return {};
+		}
+
+		return {
+			sortByColumnAsc: sortingDisabledReason,
+			sortByColumnDesc: sortingDisabledReason,
+			sortedByColumnAsc: sortingDisabledReason,
+			sortedByColumnDesc: sortingDisabledReason,
+		};
+	}, [isSelectionMode, sortingDisabledReason]);
 
 	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
 		query: companiesQuery,
@@ -202,30 +227,76 @@ const TenantUserCompaniesTable = () => {
 		data: rows,
 		enableColumnFilters: false,
 		enableGlobalFilter: false,
-		enableRowSelection: false,
+		enableRowSelection: true,
 		manualPagination: true,
 		manualSorting: true,
-		getRowId: (row) => row.tenantId,
-		onSortingChange: handleSortingChange,
+		localization: sortTooltipLocalization,
+		getRowId: (row) => row.id,
+		onRowSelectionChange: (updater) => {
+			setRowSelection((prev) => {
+				return typeof updater === 'function' ? updater(prev) : updater;
+			});
+		},
+		onSortingChange: (updater) => {
+			if (isSelectionMode) {
+				return;
+			}
+
+			handleSortingChange(updater);
+		},
 		state: {
 			...tableState,
 			...queryState,
 			density: 'compact',
+			rowSelection,
+		},
+		muiTableHeadCellProps: ({ column }) => {
+			if (!column.getCanSort()) {
+				return {};
+			}
+
+			if (!isSelectionMode) {
+				return {
+					title: undefined,
+				};
+			}
+
+			return {
+				title: sortingDisabledReason,
+				sx: {
+					'& .MuiTableSortLabel-root': {
+						cursor: 'not-allowed',
+						pointerEvents: 'none',
+						opacity: 0.56,
+					},
+					'& .MuiTableSortLabel-icon': {
+						opacity: '1 !important',
+					},
+				},
+			} satisfies MRT_TableOptions<TenantUserCompanyData>['muiTableHeadCellProps'];
 		},
 		meta: {
 			handlePaginationChange: handleCursorPaginationChange,
 			hasNextPage,
 			hasPreviousPage,
 			isPending: companiesQuery.isPending,
-			renderToolbarActions: () => (
+			disablePaginationControls: isSelectionMode,
+			renderExportActions: () => (
 				<Button
-					variant="contained"
 					size="small"
-					startIcon={<Iconify icon="mingcute:add-line" width={16} />}
-					onClick={handleLinkCompany}
+					variant="outlined"
+					onClick={() => exportDialogRef.current?.open()}
+					startIcon={<Iconify icon="solar:download-bold" width={18} />}
 				>
-					{t('link-to-company')}
+					{t('export')}
 				</Button>
+			),
+			renderSelectionActions: () => (
+				<TenantUserCompaniesSelectionActions
+					selectedRows={selectedRows}
+					onExportSelected={() => exportDialogRef.current?.open()}
+					onClearSelection={clearSelection}
+				/>
 			),
 			renderToolbarFilters: () => (
 				<Stack spacing={0.5}>
@@ -256,6 +327,13 @@ const TenantUserCompaniesTable = () => {
 			}}
 		>
 			<MaterialReactTable table={table} />
+			<TenantUserCompaniesExportDialogController
+				ref={exportDialogRef}
+				isSelectionMode={isSelectionMode}
+				selectedCount={selectedCount}
+				rows={rows}
+				selectedRows={selectedRows}
+			/>
 		</Box>
 	);
 };
@@ -746,24 +824,4 @@ const RemoveTenantUserCompanyAction = ({
 			/>
 		</>
 	);
-};
-
-const invalidateTenantUserCompanyQueries = async ({
-	queryClient,
-	userId,
-}: {
-	queryClient: ReturnType<typeof useQueryClient>;
-	userId: string;
-}) => {
-	await Promise.all([
-		queryClient.invalidateQueries({
-			queryKey: useGetTenantUserById.getKey({ userId }),
-		}),
-		queryClient.invalidateQueries({
-			queryKey: useFindTenantUserCompanies.getKey(),
-		}),
-		queryClient.invalidateQueries({
-			queryKey: useFindTenantUsers.getKey(),
-		}),
-	]);
 };
