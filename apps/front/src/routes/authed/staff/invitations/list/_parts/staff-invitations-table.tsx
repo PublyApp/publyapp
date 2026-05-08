@@ -123,24 +123,28 @@ const defaultSorting: MRT_SortingState[number] = {
 	id: 'created_at',
 };
 
-const STATUS_OPTIONS: { label: string; value: StaffInvitationStatus }[] = [
-	{ label: 'Pending', value: 'pending' },
-	{ label: 'Accepted', value: 'accepted' },
-	{ label: 'Expired', value: 'expired' },
-	{ label: 'Revoked', value: 'revoked' },
+const STATUS_VALUES: readonly StaffInvitationStatus[] = [
+	'pending',
+	'accepted',
+	'expired',
+	'revoked',
 ];
+
+type StaffInvitationStatusOption = {
+	label: string;
+	value: StaffInvitationStatus;
+};
 
 const parseStatusFilter = (value: string): StaffInvitationStatus[] => {
 	if (!value) {
 		return [];
 	}
 
+	const valid = new Set<string>(STATUS_VALUES);
 	return value
 		.split(',')
 		.map((part) => part.trim())
-		.filter((part): part is StaffInvitationStatus =>
-			STATUS_OPTIONS.some((option) => option.value === part),
-		);
+		.filter((part): part is StaffInvitationStatus => valid.has(part));
 };
 
 const StaffInvitationsTable = () => {
@@ -403,9 +407,18 @@ const StaffInvitationsTable = () => {
 		];
 	}, [t]);
 
+	const statusOptions = useMemo<StaffInvitationStatusOption[]>(() => {
+		return STATUS_VALUES.map((value) => ({ label: t(value), value }));
+	}, [t]);
+	const selectedStatusOptions = useMemo(() => {
+		return statusOptions.filter((option) =>
+			statusFilter.includes(option.value),
+		);
+	}, [statusOptions, statusFilter]);
+
 	const handleStatusChange = (
 		_event: React.SyntheticEvent,
-		selectedOptions: typeof STATUS_OPTIONS,
+		selectedOptions: StaffInvitationStatusOption[],
 	) => {
 		const nextStatusFilter = selectedOptions.map((option) => option.value);
 		// Filters invalidate cursor history, so reset to the first page.
@@ -427,10 +440,8 @@ const StaffInvitationsTable = () => {
 						multiple
 						disableCloseOnSelect
 						size="small"
-						options={STATUS_OPTIONS}
-						value={STATUS_OPTIONS.filter((option) =>
-							statusFilter.includes(option.value),
-						)}
+						options={statusOptions}
+						value={selectedStatusOptions}
 						onChange={handleStatusChange}
 						disabled={isSelectionMode}
 						isOptionEqualToValue={(option, value) =>
