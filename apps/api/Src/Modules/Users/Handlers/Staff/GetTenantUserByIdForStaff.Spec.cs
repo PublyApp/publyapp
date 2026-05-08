@@ -120,6 +120,8 @@ public sealed class GetTenantUserByIdForStaffSpec
 			SeedConstants.CrossTenant.BobEmail
 		);
 
+		// Removing every live membership should not be interpreted as deleting
+		// the shared tenant-user identity page.
 		await RemoveTenantMembershipAsync(
 			staffToken,
 			techStartTenantId,

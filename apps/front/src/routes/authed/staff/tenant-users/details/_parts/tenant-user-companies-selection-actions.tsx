@@ -54,6 +54,8 @@ const TenantUserCompaniesSelectionActions = ({
 	const closeMenu = () => {
 		setAnchorEl(null);
 	};
+	// Bulk suspend/reactivate are tenant-membership actions. Globally suspended
+	// rows stay selected for export/remove, but are skipped for those actions.
 	const eligibleRows = confirmAction
 		? getEligibleRows(confirmAction, selectedRows)
 		: selectedRows;

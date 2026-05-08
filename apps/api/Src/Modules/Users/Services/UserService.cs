@@ -2112,6 +2112,9 @@ public class UserService : IUserService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
+		// Treat tenant user details as a shared identity page. Live company
+		// memberships are counted separately so unlinking the last company does
+		// not imply the User record was deleted.
 		var user = await (
 			from u in _dbContext.User.AsNoTracking()
 			where u.Id == userId
@@ -2405,17 +2408,9 @@ public class UserService : IUserService {
 				TenantId = ua.TenantId ?? Guid.Empty,
 			};
 
-		IQueryable<TenantUserCompanyQueryRow> query = baseQuery;
-		var search = args.Filters?.Search?.Trim();
-		if (!string.IsNullOrEmpty(search)) {
-			var searchPattern = $"%{search}%";
-			query =
-				from row in query
-				where EF.Functions.ILike(row.Tenant.Name, searchPattern)
-					|| EF.Functions.ILike(row.Tenant.Code, searchPattern)
-				select row;
-		}
-
+		// Route-resource existence is independent from cursor validity. Missing
+		// tenant users must remain a 404; bad cursors for existing identities are
+		// reported as 400 below.
 		var hasTenantUserIdentity = await (
 			from ua in _dbContext.UserAccount.IgnoreQueryFilters()
 			join u in _dbContext.User.AsNoTracking()
@@ -2428,6 +2423,17 @@ public class UserService : IUserService {
 
 		if (!hasTenantUserIdentity) {
 			return new FindTenantUserCompaniesResult.NotFound();
+		}
+
+		IQueryable<TenantUserCompanyQueryRow> query = baseQuery;
+		var search = args.Filters?.Search?.Trim();
+		if (!string.IsNullOrEmpty(search)) {
+			var searchPattern = $"%{search}%";
+			query =
+				from row in query
+				where EF.Functions.ILike(row.Tenant.Name, searchPattern)
+					|| EF.Functions.ILike(row.Tenant.Code, searchPattern)
+				select row;
 		}
 
 		var hasAnyCompany =
@@ -2580,6 +2586,9 @@ public class UserService : IUserService {
 
 				await _dbContext.SaveChangesAsync(cancellationToken);
 				if (isRestoringRemovedAccount) {
+					// Removed memberships may still have old profile links. Purge
+					// them before adding the tenant default profile so reassignment
+					// cannot resurrect stale permissions.
 					await RemoveUserAccountProfileLinksAsync(
 						tenantAccount.GetRequiredId(),
 						cancellationToken
@@ -3267,6 +3276,8 @@ public class UserService : IUserService {
 			);
 
 		try {
+			// Global suspension disables this user in every tenant. The last-admin
+			// guard must therefore scan all active admin memberships atomically.
 			var hasTenantWithoutAnotherActiveAdmin = await (
 				from ua in _dbContext.UserAccount
 				join u in _dbContext.User on ua.UserId equals u.Id
@@ -3406,6 +3417,8 @@ public class UserService : IUserService {
 	private IQueryable<UserAccount> BuildActiveTenantAdminAccountsQuery(
 		Guid tenantId
 	) {
+		// A globally suspended User cannot satisfy tenant last-admin protection,
+		// even when the tenant membership row itself is still active.
 		return
 			from ua in _dbContext.UserAccount
 			join u in _dbContext.User on ua.UserId equals u.Id
@@ -3455,6 +3468,8 @@ public class UserService : IUserService {
 		Guid userAccountId,
 		CancellationToken cancellationToken
 	) {
+		// UserAccountProfile is current membership state. Hard-delete links when
+		// membership is removed or restored so stale permissions cannot return.
 		var links = await (
 			from link in _dbContext.UserAccountProfile
 			where link.UserAccountId == userAccountId

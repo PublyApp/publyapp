@@ -65,6 +65,8 @@ const defaultValues: LinkCompanyFormValues = {
 };
 const EMPTY_TENANT_OPTIONS: TenantOption[] = [];
 const getDrawerOverlaySx = (theme: Theme) => ({
+	// The drawer sits above the app sidebar; nested poppers need a higher layer
+	// or autocomplete/select menus render behind the drawer paper.
 	zIndex: theme.zIndex.modal + 2,
 });
 
@@ -316,6 +318,8 @@ const mergeTenantOptions = (
 	selectedOptions: TenantOption[],
 	fetchedOptions: TenantOption[],
 ) => {
+	// Preserve selected tenants while search results page away from them, so MUI
+	// can still render chips and labels for already chosen options.
 	const optionsById = new Map<string, TenantOption>();
 
 	for (const option of selectedOptions) {

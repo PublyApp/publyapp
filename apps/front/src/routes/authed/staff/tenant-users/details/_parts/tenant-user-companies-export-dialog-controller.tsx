@@ -42,6 +42,8 @@ const TenantUserCompaniesExportDialogController = ({
 	const [open, setOpen] = useState(false);
 	const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
 
+	// Cursor pagination means export can only include loaded rows or the current
+	// selection, not every server-side match.
 	useImperativeHandle(ref, () => {
 		return {
 			open: () => {

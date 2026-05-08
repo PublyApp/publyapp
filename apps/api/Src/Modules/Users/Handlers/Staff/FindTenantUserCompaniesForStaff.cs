@@ -59,6 +59,8 @@ public static class TenantUserCompanyForStaffMapper {
 			Level = UserAccount.GetLevelDescription(
 				companyData.AccountLevel
 			),
+			// Expose effective row status: global User suspension overrides an
+			// otherwise active tenant membership.
 			Status = UserAccount.GetStatusDescription(
 				UserAccount.GetTenantStatus(
 					companyData.UserStatus,

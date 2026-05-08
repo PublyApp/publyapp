@@ -470,6 +470,8 @@ public sealed class TenantUserCompanyActionsForStaffSpec
 		);
 		await dbContext.Profile.AddAsync(staleProfile);
 		await dbContext.SaveChangesAsync();
+		// Reassignment must not resurrect this stale link; the service should
+		// purge old membership profile links before assigning the default profile.
 		await dbContext.UserAccountProfile.AddAsync(
 			new UserAccountProfile {
 				UserAccountId = accounts[^1].GetRequiredId(),

@@ -30,6 +30,8 @@ public sealed class ReactivateTenantUserIdentityForStaff {
 			);
 		}
 
+		// Reactivation clears the global User suspension only. Tenant-level
+		// memberships that were separately suspended remain suspended.
 		var result = await userService.ReactivateTenantUserIdentityForStaffAsync(
 			userIdGuid,
 			cancellationToken

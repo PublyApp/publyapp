@@ -16,6 +16,8 @@ export const invalidateTenantUserCompanyQueries = async ({
 	queryClient,
 	userId,
 }: InvalidateTenantUserCompanyQueriesArgs) => {
+	// Membership mutations affect the identity company count, this table's
+	// cursor pages, tenant detail user tables, and tenant list counters.
 	await Promise.all([
 		queryClient.invalidateQueries({
 			queryKey: useGetTenantUserById.getKey({ userId }),

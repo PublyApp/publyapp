@@ -37,6 +37,9 @@ public class TenantUserCompanyIdsForStaffBody {
 public sealed class TenantUserCompanyIdsForStaffBodyValidator
 	: AbstractValidator<TenantUserCompanyIdsForStaffBody> {
 	public TenantUserCompanyIdsForStaffBodyValidator() {
+		// Bulk actions are intentionally bounded even though the UI submits the
+		// current table selection; this endpoint should not become an unbounded
+		// assignment/removal surface.
 		RuleFor(x => x.TenantIds)
 			.MustBeRequiredGuidArray(
 				fieldName: "tenantIds",

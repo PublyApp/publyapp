@@ -260,6 +260,8 @@ export const FRONT_PATH_NAMES = {
 			},
 		},
 		tenantUsers: {
+			// Staff tenant-user details are keyed by User.Id. Organization
+			// memberships are managed under the details tabs, not in the URL id.
 			root: makePath(ROOTS.STAFF, RESOURCE.tenantUsers),
 			new: makePath(ROOTS.STAFF, RESOURCE.tenantUsers, 'new'),
 			details: (userId = '') => {

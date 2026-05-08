@@ -76,6 +76,8 @@ public static partial class Routes {
 
 		/// <summary>First-class tenant-user routes (staff managing tenant-side identities)</summary>
 		public static class ForTenantUsersAsStaff {
+			// {userId} is the shared User.Id. Tenant/company memberships remain
+			// separate UserAccount rows and are addressed through /companies actions.
 			public const string Root = "/tenant-users";
 			public const string GetById = "/{userId}";
 			public static string GetByIdFn(string userId) => $"/tenant-users/{userId}";

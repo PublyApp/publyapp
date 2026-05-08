@@ -9,6 +9,9 @@ public static class UserEndpointsForTenantUsersAsStaff {
 	public static IEndpointRouteBuilder MapUserEndpointsForTenantUsersAsStaff(
 		this IEndpointRouteBuilder routes
 	) {
+		// These first-class routes are keyed by User.Id, not UserAccount.Id.
+		// Company actions below mutate tenant memberships while keeping the
+		// identity details URL stable.
 		var group = routes.MapGroup(Routes.Users.ForTenantUsersAsStaff.Root)
 			.WithTags("Tenant Users (Staff)");
 

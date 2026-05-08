@@ -54,6 +54,8 @@ public sealed class UpdateTenantUserEmailForStaff {
 		}
 
 		var email = body.GetEmail();
+		// Email is stored on the shared User identity. The route is under
+		// tenant-users only because Staff reaches it from that details page.
 		var result = await userService.UpdateTenantUserEmailForStaffAsync(
 			userIdGuid,
 			email,

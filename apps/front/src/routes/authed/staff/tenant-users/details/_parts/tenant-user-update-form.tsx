@@ -135,6 +135,8 @@ const TenantUserUpdateForm = ({
 	const { userId = '' } = useParams();
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
+	// This form edits the shared User identity. Organization membership
+	// role/status actions live in the Organizations tab.
 	const UpdateTenantUserIdentitySchema =
 		getUpdateTenantUserIdentitySchema(interZodClient);
 
@@ -404,6 +406,8 @@ const TenantUserDangerZoneCard = ({
 	queryClient: ReturnType<typeof useQueryClient>;
 }) => {
 	const { t } = useTranslate();
+	// Danger-zone actions operate on the global User record, not one tenant
+	// membership. Per-organization suspension stays in the Organizations tab.
 	const [state, dispatch] = useReducer(
 		tenantUserDangerZoneReducer,
 		dangerZoneInitialState,
@@ -478,6 +482,8 @@ const TenantUserDangerZoneCard = ({
 		useUpdateTenantUserEmail(
 			withFormValidation(emailForm.setError, {
 				fieldMapping: {
+					// Backend duplicate-email validation reports `email`; this dialog
+					// shows that error beside the editable new-email field.
 					email: 'newEmail',
 				},
 				onSuccess: async () => {

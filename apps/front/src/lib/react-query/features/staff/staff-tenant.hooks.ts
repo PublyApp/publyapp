@@ -500,6 +500,8 @@ export const useGetTenantUser = createStaffQuery({
 	},
 });
 
+// First-class tenant-user details use the shared User.Id. Membership-level
+// mutations still pass tenantId separately through the tenant-scoped hooks.
 export const useGetTenantUserById = createStaffQuery({
 	queryKeyFn: (client) => client.staff.tenantUsers.byUserId('').get,
 	fetcher: async (client, params: { userId: string }) => {
@@ -556,6 +558,8 @@ type AssignTenantUserCompaniesPayload = TenantUserCompanyIdsPayload & {
 const createTenantUserCompanyIdsBody = (
 	tenantIds: string[],
 ): TenantUserCompanyIdsForStaffBody => {
+	// Kiota models JsonElement arrays as untyped values; keep the conversion in
+	// one place so assign/remove/suspend/reactivate send the same payload shape.
 	return {
 		tenantIds: createUntypedArray(
 			tenantIds.map((id) => createUntypedString(id)),

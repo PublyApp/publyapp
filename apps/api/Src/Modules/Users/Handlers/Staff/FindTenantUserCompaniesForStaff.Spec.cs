@@ -152,6 +152,8 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			SeedConstants.CrossTenant.BobEmail
 		);
 
+		// The companies collection can be empty while the first-class
+		// tenant-user identity remains addressable.
 		await RemoveTenantMembershipAsync(
 			staffToken,
 			techStartTenantId,

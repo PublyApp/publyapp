@@ -77,6 +77,8 @@ const defaultSorting: MRT_SortingState[number] = {
 	id: 'tenant_name',
 };
 
+// Accept both backend enum descriptions and frontend-normalized values. This
+// keeps row actions correct if client generation changes enum casing again.
 const isGloballySuspendedStatus = (status: string | null) => {
 	return (
 		status === GLOBALLY_SUSPENDED_STATUS_VALUE ||
@@ -88,11 +90,47 @@ type TenantUserCompaniesTableProps = {
 	onLinkCompany: () => void;
 };
 
+const useTenantUserCompanyColumns = () => {
+	const { t } = useTranslate();
+
+	return useMemo(() => {
+		return [
+			columnHelper.accessor('tenantName', {
+				id: 'tenant_name',
+				header: t('tenant'),
+				Cell: CompanyCell,
+				size: 320,
+				grow: true,
+			}),
+			columnHelper.accessor('level', {
+				header: t('level'),
+				Cell: CompanyLevelCell,
+				size: 130,
+				grow: false,
+			}),
+			columnHelper.accessor('status', {
+				header: t('status'),
+				Cell: CompanyStatusCell,
+				size: 130,
+				grow: false,
+			}),
+			columnHelper.display({
+				id: 'actions',
+				header: t('actions'),
+				Cell: CompanyActionsCell,
+				size: 80,
+				grow: false,
+			}),
+		];
+	}, [t]);
+};
+
 const TenantUserCompaniesTable = ({
 	onLinkCompany,
 }: TenantUserCompaniesTableProps) => {
 	const { userId = '' } = useParams();
 	const { t } = useTranslate();
+	const columns = useTenantUserCompanyColumns();
 	const exportDialogRef =
 		useRef<TenantUserCompaniesExportDialogControllerRef | null>(null);
 	const [filterStates, setFilterStates] = useQueryStates({
@@ -153,6 +191,8 @@ const TenantUserCompaniesTable = ({
 		reconcileVisibleRows: true,
 		reconcileVisibleRowsEnabled: !companiesQuery.isFetching,
 	});
+	// Selection is reconciled to the visible cursor page. While selected, lock
+	// controls that would swap the result set out from under the selection.
 	const sortingDisabledReason = t('selection-mode-disable-sorting');
 	const selectionModeDisabledReason = t('selection-mode-disable-controls');
 	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
@@ -240,37 +280,6 @@ const TenantUserCompaniesTable = ({
 		setNextCursor?.(companiesQuery.data?.nextCursor);
 		handlePaginationChange(updater);
 	};
-
-	const columns = useMemo(() => {
-		return [
-			columnHelper.accessor('tenantName', {
-				id: 'tenant_name',
-				header: t('tenant'),
-				Cell: CompanyCell,
-				size: 320,
-				grow: true,
-			}),
-			columnHelper.accessor('level', {
-				header: t('level'),
-				Cell: CompanyLevelCell,
-				size: 130,
-				grow: false,
-			}),
-			columnHelper.accessor('status', {
-				header: t('status'),
-				Cell: CompanyStatusCell,
-				size: 130,
-				grow: false,
-			}),
-			columnHelper.display({
-				id: 'actions',
-				header: t('actions'),
-				Cell: CompanyActionsCell,
-				size: 80,
-				grow: false,
-			}),
-		];
-	}, [t]);
 
 	const table = useMRTTable('minimal-cursor', {
 		columns,
@@ -508,6 +517,8 @@ const CompanyLevelCell: MRT_ColumnDef<
 	const queryClient = useQueryClient();
 	const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
 	const tenantId = company.tenantId;
+	// Level changes are membership-local, so disable them when a global
+	// identity suspension is the effective reason this row cannot be used.
 	const isGloballySuspended = isGloballySuspendedStatus(company.status ?? null);
 	const level = company.level ?? '';
 
@@ -652,6 +663,8 @@ const CompanyStatusCell: MRT_ColumnDef<
 
 	const tenantId = company.tenantId;
 	const status = company.status ?? null;
+	// These status actions only suspend/reactivate the tenant membership.
+	// Global identity suspension is handled in the General tab danger zone.
 	const isGloballySuspended = isGloballySuspendedStatus(status);
 
 	let label: string = t('unknown-item', { item: 'status' });
@@ -878,6 +891,8 @@ const RemoveTenantUserCompanyAction = ({
 	const queryClient = useQueryClient();
 	const confirmDialog = useBoolean();
 
+	// Remove unlinks this company membership only; it must not delete the shared
+	// User identity behind /staff/tenant-users/{userId}.
 	const { mutate: removeUser, isPending: isRemoving } = useRemoveTenantUser({
 		onSuccess: async () => {
 			toast.success(t('user-removed-success'));

@@ -25,6 +25,8 @@ public static class TenantUserDetailsForStaffMapper {
 		TenantUserDetailsData userData
 	) {
 		return new TenantUserDetailsForStaffResult {
+			// This is the shared identity id used by /staff/tenant-users/{userId};
+			// tenant membership ids stay internal to company-level actions.
 			Id = userData.User.GetRequiredId(),
 			Email = userData.User.Email,
 			FirstName = userData.User.FirstName,

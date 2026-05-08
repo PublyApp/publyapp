@@ -30,6 +30,8 @@ public sealed class SuspendTenantUserIdentityForStaff {
 			);
 		}
 
+		// This is a global User status change, not a per-tenant membership
+		// suspension. The service enforces last-admin protection across tenants.
 		var result = await userService.SuspendTenantUserIdentityForStaffAsync(
 			userIdGuid,
 			cancellationToken

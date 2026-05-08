@@ -91,6 +91,8 @@ clientLoader.hydrate = true as const;
 const TenantUserDetailsLayout = () => {
 	const { t } = useTranslate();
 	const { userId } = useParams();
+	// Fetch the shared identity at the layout level so routed tabs keep the same
+	// title/status context and do not duplicate the tenant-user details request.
 	const getTenantUserQuery = useGetTenantUserById({
 		variables: { userId: userId ?? '' },
 		enabled: !!userId,
