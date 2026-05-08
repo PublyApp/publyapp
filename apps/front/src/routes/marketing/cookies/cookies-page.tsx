@@ -3,8 +3,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { varAlpha } from 'minimal-shared/utils';
 
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-
+import { FEATURES } from '#app/lib/features/flags.ts';
 import {
 	LegalDocPage,
 	LEGAL_H2_SX,
@@ -123,8 +122,7 @@ const CookiePreferencesCallout = () => {
 				component="button"
 				type="button"
 				onClick={() => {
-					// Placeholder until the consent banner ships (out of scope per spec)
-					logger.info('[cookies] open preferences clicked');
+					window.__cookieConsent?.openPreferences();
 				}}
 				sx={(theme) => ({
 					display: 'inline-flex',
@@ -302,7 +300,7 @@ const CookiesPage = () => {
 							global token rejection capabilities.
 						</Typography>
 					</Stack>
-					<CookiePreferencesCallout />
+					{FEATURES.marketing.cookieConsent && <CookiePreferencesCallout />}
 				</Box>
 
 				{/* 5. Updates to This Policy */}
