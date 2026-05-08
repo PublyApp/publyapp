@@ -1,6 +1,8 @@
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 
+import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
+
 import { RouterLink } from '#app/components/router-link.tsx';
 
 // ----------------------------------------------------------------------
@@ -80,7 +82,7 @@ export const ChangelogYearChips = ({
 						value={year}
 						label={year}
 						component={RouterLink}
-						href={`/changelog/${year}`}
+						href={FRONT_PATH_NAMES.marketing.changelogYear(year)}
 						onClick={handleChipClick}
 						disableRipple
 						sx={{
