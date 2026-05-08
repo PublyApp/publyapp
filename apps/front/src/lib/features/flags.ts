@@ -36,6 +36,7 @@ export const FEATURES = deepFreeze({
 			'VITE_FEATURE_MARKETING_CHANGELOG_SUBSCRIBE',
 			false,
 		),
+		cookieConsent: readFlag('VITE_FEATURE_MARKETING_COOKIE_CONSENT', false),
 		// Topbar language switcher — default OFF until additional locales
 		// ship for the marketing surface. Flipping this back on re-shows
 		// the flag-icon popover in the marketing topbar.
