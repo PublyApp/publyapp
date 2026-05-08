@@ -181,53 +181,13 @@ const StaffAuditLogsTable = () => {
 		];
 	}, [t]);
 
-	const table = useMRTTable('minimal-cursor', {
-		columns,
-		data: dataTable,
-		manualSorting: true,
-		onSortingChange: handleSortingChange,
-		state: {
-			...tableState,
-			...queryState,
-			density: 'compact',
-		},
-		muiTablePaperProps: {
-			sx: {
-				flexGrow: 1,
-			},
-		},
-		renderEmptyRowsFallback,
-		meta: {
-			handlePaginationChange: handleCursorPaginationChange,
-			hasNextPage,
-			hasPreviousPage,
-			isPending: auditLogsQuery.isPending,
-		},
-	});
-
 	const actionOptions = useMemo(() => {
 		return actionsQuery.data?.actions ?? [];
 	}, [actionsQuery.data]);
 
-	return (
-		<Box
-			sx={{
-				flexGrow: 1,
-				display: 'flex',
-				flexDirection: 'column',
-				gap: 2,
-				border: 'none',
-			}}
-		>
-			<Box
-				sx={{
-					display: 'flex',
-					justifyContent: 'flex-end',
-					alignItems: 'center',
-					gap: 2,
-					flexWrap: 'wrap',
-				}}
-			>
+	const renderToolbarFilters = () => {
+		return (
+			<>
 				<DatePicker
 					label={t('start-date')}
 					value={startDate}
@@ -298,14 +258,56 @@ const StaffAuditLogsTable = () => {
 						))}
 					</Select>
 				</FormControl>
+			</>
+		);
+	};
 
-				<AuditLogsExportButton
-					actionFilter={actionFilter}
-					startDate={startDateIso}
-					endDate={endDateIso}
-				/>
-			</Box>
+	const renderExportActions = () => {
+		return (
+			<AuditLogsExportButton
+				actionFilter={actionFilter}
+				startDate={startDateIso}
+				endDate={endDateIso}
+			/>
+		);
+	};
 
+	const table = useMRTTable('minimal-cursor', {
+		columns,
+		data: dataTable,
+		enableRowSelection: false,
+		manualSorting: true,
+		onSortingChange: handleSortingChange,
+		state: {
+			...tableState,
+			...queryState,
+			density: 'compact',
+		},
+		muiTablePaperProps: {
+			sx: {
+				flexGrow: 1,
+			},
+		},
+		renderEmptyRowsFallback,
+		meta: {
+			handlePaginationChange: handleCursorPaginationChange,
+			hasNextPage,
+			hasPreviousPage,
+			isPending: auditLogsQuery.isPending,
+			renderToolbarFilters,
+			renderExportActions,
+		},
+	});
+
+	return (
+		<Box
+			sx={{
+				flexGrow: 1,
+				display: 'flex',
+				flexDirection: 'column',
+				border: 'none',
+			}}
+		>
 			<MaterialReactTable table={table} />
 		</Box>
 	);
