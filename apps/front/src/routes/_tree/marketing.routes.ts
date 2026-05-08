@@ -38,6 +38,9 @@ export const marketingRoutes = [
 					),
 				]
 			: []),
+		...(FEATURES.marketing.roadmap
+			? [route('roadmap', 'routes/marketing/roadmap/roadmap-page.tsx')]
+			: []),
 		route('*', 'routes/marketing/_errors/marketing-not-found-page.tsx'),
 	]),
 ];
