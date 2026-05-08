@@ -1,0 +1,16 @@
+This file is a placeholder reminder.
+
+Replace this with `og-image-default.jpg` (1200x630, ~80KB target) before
+flipping `VITE_FEATURE_MARKETING_*` flags ON in production. The marketing
+SEO meta builder (`apps/front/src/lib/seo/meta.ts`) defaults `og:image`
+to `/og-image-default.jpg` when a per-page image isn't specified.
+
+Recommended image:
+- Branded gradient background matching the marketing surface
+- "PublyApp" wordmark
+- Tagline (e.g. "Modern social media management")
+- Format: JPEG (smaller than PNG for this content)
+- Dimensions: exactly 1200x630 (Open Graph + Twitter standard)
+
+Drop the JPG at `apps/front/public/og-image-default.jpg` and delete
+this placeholder file.
