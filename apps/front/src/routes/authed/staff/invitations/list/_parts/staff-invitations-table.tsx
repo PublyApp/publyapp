@@ -301,7 +301,9 @@ const StaffInvitationsTable = () => {
 				failedIds.push(invitation.id);
 				const failure = toApiFailure(error);
 				if (firstFailureMessage == null) {
-					firstFailureMessage = getFailureMessage(failure);
+					firstFailureMessage = getFailureMessage(failure, {
+						fallback: t('invitation-bulk-revoke-failure'),
+					});
 				}
 			}
 		}
@@ -327,12 +329,7 @@ const StaffInvitationsTable = () => {
 		}
 
 		if (succeeded === 0 && failed > 0) {
-			toast.error(
-				firstFailureMessage ||
-					t('invitation-bulk-revoke-failure', {
-						defaultValue: 'Failed to revoke selected invitations.',
-					}),
-			);
+			toast.error(firstFailureMessage || t('invitation-bulk-revoke-failure'));
 			return;
 		}
 
@@ -341,8 +338,6 @@ const StaffInvitationsTable = () => {
 				t('invitation-bulk-revoke-partial-success', {
 					succeeded,
 					failed,
-					defaultValue:
-						'Revoked {{succeeded}} invitation(s), {{failed}} failed.',
 				}),
 			);
 			return;
@@ -351,7 +346,6 @@ const StaffInvitationsTable = () => {
 		toast.success(
 			t('invitation-bulk-revoke-success', {
 				count: succeeded,
-				defaultValue: 'Successfully revoked {{count}} invitation(s).',
 			}),
 		);
 	};
@@ -389,7 +383,7 @@ const StaffInvitationsTable = () => {
 			}),
 			columnHelper.accessor('acceptedAt', {
 				id: 'accepted_at',
-				header: t('accepted-at', { defaultValue: 'Accepted at' }),
+				header: t('accepted-at'),
 				Cell: DateCell,
 				size: 170,
 			}),
@@ -603,9 +597,7 @@ const StaffInvitationsTable = () => {
 					<Tooltip
 						title={
 							eligibleBulkRevokeCount === 0
-								? t('only-pending-invitations-can-be-revoked', {
-										defaultValue: 'Only pending invitations can be revoked.',
-									})
+								? t('only-pending-invitations-can-be-revoked')
 								: ''
 						}
 						placement="left"
@@ -626,12 +618,7 @@ const StaffInvitationsTable = () => {
 								}}
 							>
 								<Iconify icon="solar:close-circle-bold" width={18} />
-								<ListItemText
-									primary={t('revoke-selected', {
-										defaultValue: 'Revoke selected',
-									})}
-									sx={{ ml: 1 }}
-								/>
+								<ListItemText primary={t('revoke-selected')} sx={{ ml: 1 }} />
 							</MenuItem>
 						</Box>
 					</Tooltip>
@@ -734,21 +721,15 @@ const StaffInvitationsTable = () => {
 			<ConfirmDialog
 				open={bulkRevokeDialogOpen}
 				onClose={() => setBulkRevokeDialogOpen(false)}
-				title={t('revoke-selected', {
-					defaultValue: 'Revoke selected',
-				})}
+				title={t('revoke-selected')}
 				content={
 					ineligibleBulkRevokeCount > 0
 						? t('confirm-bulk-revoke-invitations-with-ineligible', {
 								eligible: eligibleBulkRevokeCount,
 								ineligible: ineligibleBulkRevokeCount,
-								defaultValue:
-									'{{eligible}} pending invitation(s) will be revoked. {{ineligible}} non-pending selection(s) will be skipped. Continue?',
 							})
 						: t('confirm-bulk-revoke-invitations', {
 								count: eligibleBulkRevokeCount,
-								defaultValue:
-									'Are you sure you want to revoke {{count}} selected invitation(s)?',
 							})
 				}
 				action={
@@ -931,9 +912,7 @@ type InvitationRowActionProps = {
 const CopyInvitationLinkAction = ({ invitation }: InvitationRowActionProps) => {
 	const { t } = useTranslate();
 	const canManage = invitation.status === 'pending';
-	const disabledReason = t('only-pending-invitations-can-be-copied', {
-		defaultValue: 'Only pending invitations can have their link copied.',
-	});
+	const disabledReason = t('only-pending-invitations-can-be-copied');
 
 	const { mutateAsync, isPending } = useGetStaffInvitationLink();
 
@@ -978,9 +957,7 @@ const CopyInvitationLinkAction = ({ invitation }: InvitationRowActionProps) => {
 const ResendInvitationAction = ({ invitation }: InvitationRowActionProps) => {
 	const { t } = useTranslate();
 	const canManage = invitation.status === 'pending';
-	const disabledReason = t('only-pending-invitations-can-be-resent', {
-		defaultValue: 'Only pending invitations can be resent.',
-	});
+	const disabledReason = t('only-pending-invitations-can-be-resent');
 
 	const { mutateAsync, isPending } = useResendStaffInvitation({
 		onSuccess: () => {
@@ -1023,9 +1000,7 @@ const RevokeInvitationAction = ({ invitation }: InvitationRowActionProps) => {
 	const queryClient = useQueryClient();
 	const confirmDialog = useBoolean();
 	const canManage = invitation.status === 'pending';
-	const disabledReason = t('only-pending-invitations-can-be-revoked', {
-		defaultValue: 'Only pending invitations can be revoked.',
-	});
+	const disabledReason = t('only-pending-invitations-can-be-revoked');
 
 	const { mutateAsync, isPending } = useRevokeStaffInvitation({
 		onSuccess: () => {

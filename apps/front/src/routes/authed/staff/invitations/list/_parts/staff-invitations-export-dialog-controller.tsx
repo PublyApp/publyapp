@@ -56,13 +56,13 @@ const StaffInvitationsExportDialogController = ({
 	const exportRows = (format: 'csv' | 'json') => {
 		if (format === 'csv') {
 			const headers = [
-				'Email',
-				'Profile',
-				'Status',
-				'Invited By',
-				'Expires At',
-				'Accepted At',
-				'Created At',
+				t('email'),
+				t('profile'),
+				t('status'),
+				t('staff-invited-by'),
+				t('expiry-date'),
+				t('accepted-at'),
+				t('created-at'),
 			];
 			const csvRows = map(rowsToExport, (row) => [
 				row.email,
