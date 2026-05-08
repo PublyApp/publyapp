@@ -608,7 +608,11 @@ const StaffInvitationsTable = () => {
 									closeSelectionActionMenu();
 									setBulkRevokeDialogOpen(true);
 								}}
-								sx={{ color: 'text.secondary', width: '100%' }}
+								sx={{
+									color: 'error.main',
+									width: '100%',
+									'&.Mui-disabled': { color: 'action.disabled' },
+								}}
 							>
 								<Iconify icon="solar:close-circle-bold" width={18} />
 								<ListItemText
@@ -739,7 +743,7 @@ const StaffInvitationsTable = () => {
 				action={
 					<Button
 						variant="contained"
-						color="inherit"
+						color="error"
 						onClick={handleBulkRevoke}
 						disabled={isBulkRevoking}
 					>
