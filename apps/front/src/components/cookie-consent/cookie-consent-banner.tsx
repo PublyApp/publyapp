@@ -36,7 +36,6 @@ export const CookieConsentBanner = () => {
 					variants={varFade('inUp', { distance: 24 })}
 					initial="initial"
 					animate="animate"
-					exit="exit"
 					role="region"
 					aria-label="Cookie consent"
 					sx={(theme) => ({
@@ -48,7 +47,7 @@ export const CookieConsentBanner = () => {
 						bgcolor: 'background.paper',
 						borderTop: '1px solid',
 						borderColor: 'divider',
-						boxShadow: theme.shadows[8],
+						boxShadow: theme.vars.customShadows.z8,
 					})}
 				>
 					<Container maxWidth="lg" sx={{ py: { xs: 2, sm: 2.5 } }}>
