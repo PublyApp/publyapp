@@ -2,19 +2,28 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import Stack from '@mui/material/Stack';
+import { alpha } from '@mui/material/styles';
+import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
 import capitalize from 'lodash/capitalize';
 import toStr from 'lodash/toString';
+import { useReducer } from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router';
 import type zod from 'zod';
 
+import { USER_STATUS_ENUM } from '@org/shared-ts/lib/constants';
 import { mbToBytes } from '@org/shared-ts/utils/any.utils';
 import { getUpdateTenantUserIdentitySchema } from '@org/shared-ts/validations/tenant-user.validations';
 
+import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { Field, Form } from '#app/components/hook-form/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import type { IconifyName } from '#app/components/iconify/register-icons.ts';
@@ -22,8 +31,12 @@ import { toast } from '#app/components/snackbar/index.ts';
 import { StatusChip } from '#app/components/status-chip/status-chip.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
+	useFindTenantUserCompanies,
 	useFindTenantUsers,
 	useGetTenantUserById,
+	useReactivateTenantUserIdentity,
+	useSuspendTenantUserIdentity,
+	useUpdateTenantUserEmail,
 	useUpdateTenantUserIdentity,
 } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
 import { interZodClient } from '#app/lib/zod/zod.client.ts';
@@ -34,6 +47,79 @@ const USER_STATUS_COLOR_MAP = {
 	Active: 'success',
 	Suspended: 'warning',
 } as const;
+const dangerZoneInitialState = {
+	suspendDialogOpen: false,
+	reactivateDialogOpen: false,
+	emailDialogOpen: false,
+	newEmail: '',
+	confirmEmail: '',
+};
+
+type TenantUserDangerZoneState = typeof dangerZoneInitialState;
+
+type TenantUserDangerZoneAction =
+	| { type: 'openSuspendDialog' }
+	| { type: 'closeSuspendDialog' }
+	| { type: 'openReactivateDialog' }
+	| { type: 'closeReactivateDialog' }
+	| { type: 'openEmailDialog' }
+	| { type: 'closeEmailDialog' }
+	| { type: 'setNewEmail'; value: string }
+	| { type: 'setConfirmEmail'; value: string }
+	| { type: 'resetEmailDialog' };
+
+const tenantUserDangerZoneReducer = (
+	state: TenantUserDangerZoneState,
+	action: TenantUserDangerZoneAction,
+): TenantUserDangerZoneState => {
+	if (action.type === 'openSuspendDialog') {
+		return { ...state, suspendDialogOpen: true };
+	}
+
+	if (action.type === 'closeSuspendDialog') {
+		return { ...state, suspendDialogOpen: false };
+	}
+
+	if (action.type === 'openReactivateDialog') {
+		return { ...state, reactivateDialogOpen: true };
+	}
+
+	if (action.type === 'closeReactivateDialog') {
+		return { ...state, reactivateDialogOpen: false };
+	}
+
+	if (action.type === 'openEmailDialog') {
+		return {
+			...state,
+			emailDialogOpen: true,
+			newEmail: '',
+			confirmEmail: '',
+		};
+	}
+
+	if (action.type === 'closeEmailDialog') {
+		return { ...state, emailDialogOpen: false };
+	}
+
+	if (action.type === 'setNewEmail') {
+		return { ...state, newEmail: action.value };
+	}
+
+	if (action.type === 'setConfirmEmail') {
+		return { ...state, confirmEmail: action.value };
+	}
+
+	if (action.type === 'resetEmailDialog') {
+		return {
+			...state,
+			emailDialogOpen: false,
+			newEmail: '',
+			confirmEmail: '',
+		};
+	}
+
+	return state;
+};
 
 type UpdateTenantUserIdentitySchemaType = Prettify<
 	zod.infer<ReturnType<typeof getUpdateTenantUserIdentitySchema>>
@@ -209,6 +295,13 @@ const TenantUserUpdateForm = ({
 						</Card>
 
 						<TenantUserMetadataCard currentUser={currentUser} />
+
+						<TenantUserDangerZoneCard
+							userId={userId}
+							status={currentUser.status ?? null}
+							email={currentUser.email ?? null}
+							queryClient={queryClient}
+						/>
 					</Stack>
 				</Box>
 			</Box>
@@ -307,3 +400,218 @@ const InfoRow = ({
 		</Box>
 	</Box>
 );
+
+const TenantUserDangerZoneCard = ({
+	userId,
+	status,
+	email,
+	queryClient,
+}: {
+	userId: string;
+	status: string | null;
+	email: string | null;
+	queryClient: ReturnType<typeof useQueryClient>;
+}) => {
+	const { t } = useTranslate();
+	const [state, dispatch] = useReducer(
+		tenantUserDangerZoneReducer,
+		dangerZoneInitialState,
+	);
+	const {
+		suspendDialogOpen,
+		reactivateDialogOpen,
+		emailDialogOpen,
+		newEmail,
+		confirmEmail,
+	} = state;
+
+	const isSuspended = status === USER_STATUS_ENUM.SUSPENDED;
+
+	const emailMismatch =
+		emailDialogOpen &&
+		newEmail.length > 0 &&
+		confirmEmail.length > 0 &&
+		newEmail !== confirmEmail;
+
+	const { mutate: suspendUser, isPending: isSuspending } =
+		useSuspendTenantUserIdentity({
+			onSuccess: async () => {
+				toast.success(t('tenant-user-globally-suspended-success'));
+				dispatch({ type: 'closeSuspendDialog' });
+				await invalidateTenantUserIdentityQueries({ queryClient, userId });
+			},
+		});
+
+	const { mutate: reactivateUser, isPending: isReactivating } =
+		useReactivateTenantUserIdentity({
+			onSuccess: async () => {
+				toast.success(t('tenant-user-globally-reactivated-success'));
+				dispatch({ type: 'closeReactivateDialog' });
+				await invalidateTenantUserIdentityQueries({ queryClient, userId });
+			},
+		});
+
+	const { mutate: updateEmail, isPending: isUpdatingEmail } =
+		useUpdateTenantUserEmail({
+			onSuccess: async () => {
+				toast.success(t('tenant-user-email-updated-success'));
+				dispatch({ type: 'resetEmailDialog' });
+				await invalidateTenantUserIdentityQueries({ queryClient, userId });
+			},
+		});
+
+	return (
+		<Card
+			sx={{
+				p: 3,
+				minWidth: 0,
+				overflow: 'hidden',
+				border: '1px solid',
+				borderColor: 'error.main',
+				bgcolor: (theme) => alpha(theme.palette.error.main, 0.02),
+			}}
+		>
+			<Typography variant="h5" sx={{ color: 'error.main', mb: 1 }}>
+				{t('danger-zone')}
+			</Typography>
+			<Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
+				{t('danger-zone-tenant-user-identity-description')}
+			</Typography>
+
+			<Stack direction="row" spacing={2}>
+				{!isSuspended ? (
+					<Button
+						variant="outlined"
+						color="warning"
+						onClick={() => dispatch({ type: 'openSuspendDialog' })}
+					>
+						{t('suspend')}
+					</Button>
+				) : (
+					<Button
+						variant="outlined"
+						color="success"
+						onClick={() => dispatch({ type: 'openReactivateDialog' })}
+					>
+						{t('reactivate')}
+					</Button>
+				)}
+
+				<Button
+					variant="outlined"
+					color="error"
+					onClick={() => dispatch({ type: 'openEmailDialog' })}
+				>
+					{t('change-email')}
+				</Button>
+			</Stack>
+
+			<ConfirmDialog
+				open={suspendDialogOpen}
+				onClose={() => dispatch({ type: 'closeSuspendDialog' })}
+				title={t('suspend-tenant-user-identity')}
+				content={t('suspend-tenant-user-identity-confirm')}
+				action={
+					<Button
+						variant="contained"
+						color="warning"
+						onClick={() => suspendUser({ userId })}
+						disabled={isSuspending}
+					>
+						{t('suspend')}
+					</Button>
+				}
+			/>
+
+			<ConfirmDialog
+				open={reactivateDialogOpen}
+				onClose={() => dispatch({ type: 'closeReactivateDialog' })}
+				title={t('reactivate-tenant-user-identity')}
+				content={t('reactivate-tenant-user-identity-confirm')}
+				action={
+					<Button
+						variant="contained"
+						color="success"
+						onClick={() => reactivateUser({ userId })}
+						disabled={isReactivating}
+					>
+						{t('reactivate')}
+					</Button>
+				}
+			/>
+
+			<Dialog
+				open={emailDialogOpen}
+				onClose={() => dispatch({ type: 'closeEmailDialog' })}
+				fullWidth
+				maxWidth="sm"
+			>
+				<DialogTitle>{t('change-email')}</DialogTitle>
+				<DialogContent sx={{ pt: 1 }}>
+					<Stack spacing={2} sx={{ mt: 1 }}>
+						<TextField
+							label={t('current-email')}
+							value={email ?? ''}
+							slotProps={{ input: { readOnly: true } }}
+						/>
+						<TextField
+							label={t('new-email')}
+							value={newEmail}
+							onChange={(e) =>
+								dispatch({ type: 'setNewEmail', value: e.target.value })
+							}
+						/>
+						<TextField
+							label={t('confirm-new-email')}
+							value={confirmEmail}
+							onChange={(e) =>
+								dispatch({ type: 'setConfirmEmail', value: e.target.value })
+							}
+							error={emailMismatch}
+							helperText={emailMismatch ? t('emails-do-not-match') : ' '}
+						/>
+					</Stack>
+				</DialogContent>
+				<DialogActions>
+					<Button
+						variant="outlined"
+						onClick={() => dispatch({ type: 'closeEmailDialog' })}
+					>
+						{t('cancel')}
+					</Button>
+					<Button
+						variant="contained"
+						color="error"
+						disabled={
+							!newEmail || !confirmEmail || emailMismatch || isUpdatingEmail
+						}
+						loading={isUpdatingEmail}
+						onClick={() => updateEmail({ userId, email: newEmail })}
+					>
+						{t('confirm')}
+					</Button>
+				</DialogActions>
+			</Dialog>
+		</Card>
+	);
+};
+
+const invalidateTenantUserIdentityQueries = async ({
+	queryClient,
+	userId,
+}: {
+	queryClient: ReturnType<typeof useQueryClient>;
+	userId: string;
+}) => {
+	await Promise.all([
+		queryClient.invalidateQueries({
+			queryKey: useGetTenantUserById.getKey({ userId }),
+		}),
+		queryClient.invalidateQueries({
+			queryKey: useFindTenantUserCompanies.getKey(),
+		}),
+		queryClient.invalidateQueries({
+			queryKey: useFindTenantUsers.getKey(),
+		}),
+	]);
+};

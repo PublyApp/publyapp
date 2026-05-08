@@ -40,6 +40,34 @@ public static class UserEndpointsForTenantUsersAsStaff {
 			.WithPermission([AppPermissions.Staff.Users.UPDATE_FOR_TENANT])
 			.WithReqBodyValidation<UpdateTenantUserIdentityForStaffBody>();
 
+		group.MapPatch(
+			Routes.Users.ForTenantUsersAsStaff.UpdateEmail,
+			UpdateTenantUserEmailForStaff
+				.HandleUpdateTenantUserEmailForStaff
+		)
+			.WithName("UpdateTenantUserEmailForStaff")
+			.WithSummary("Update a tenant user's shared identity email")
+			.WithPermission([AppPermissions.Staff.Users.UPDATE_FOR_TENANT])
+			.WithReqBodyValidation<UpdateTenantUserEmailForStaffBody>();
+
+		group.MapPost(
+			Routes.Users.ForTenantUsersAsStaff.Suspend,
+			SuspendTenantUserIdentityForStaff
+				.HandleSuspendTenantUserIdentityForStaff
+		)
+			.WithName("SuspendTenantUserIdentityForStaff")
+			.WithSummary("Globally suspend a tenant user identity")
+			.WithPermission([AppPermissions.Staff.Users.UPDATE_FOR_TENANT]);
+
+		group.MapPost(
+			Routes.Users.ForTenantUsersAsStaff.Reactivate,
+			ReactivateTenantUserIdentityForStaff
+				.HandleReactivateTenantUserIdentityForStaff
+		)
+			.WithName("ReactivateTenantUserIdentityForStaff")
+			.WithSummary("Globally reactivate a tenant user identity")
+			.WithPermission([AppPermissions.Staff.Users.UPDATE_FOR_TENANT]);
+
 		return routes;
 	}
 }

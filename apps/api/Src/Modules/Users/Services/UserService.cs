@@ -171,6 +171,30 @@ public abstract record UpdateTenantUserIdentityResult {
 	public sealed record NotFound() : UpdateTenantUserIdentityResult;
 }
 
+public abstract record UpdateTenantUserEmailResult {
+	public sealed record Success(
+		TenantUserDetailsData UserData
+	) : UpdateTenantUserEmailResult;
+	public sealed record NotFound() : UpdateTenantUserEmailResult;
+	public sealed record EmailAlreadyInUse() : UpdateTenantUserEmailResult;
+}
+
+public abstract record SuspendTenantUserIdentityResult {
+	public sealed record Success(
+		TenantUserDetailsData UserData
+	) : SuspendTenantUserIdentityResult;
+	public sealed record NotFound() : SuspendTenantUserIdentityResult;
+	public sealed record AlreadySuspended() : SuspendTenantUserIdentityResult;
+}
+
+public abstract record ReactivateTenantUserIdentityResult {
+	public sealed record Success(
+		TenantUserDetailsData UserData
+	) : ReactivateTenantUserIdentityResult;
+	public sealed record NotFound() : ReactivateTenantUserIdentityResult;
+	public sealed record NotSuspended() : ReactivateTenantUserIdentityResult;
+}
+
 public abstract record SuspendTenantUserResult {
 	public sealed record Success(TenantUserData UserData) : SuspendTenantUserResult;
 	public sealed record NotFound() : SuspendTenantUserResult;
@@ -320,6 +344,19 @@ public interface IUserService {
 	Task<UpdateTenantUserIdentityResult> UpdateTenantUserIdentityAsync(
 		Guid userId,
 		UpdateTenantUserIdentityDocument document,
+		CancellationToken cancellationToken = default
+	);
+	Task<UpdateTenantUserEmailResult> UpdateTenantUserEmailAsync(
+		Guid userId,
+		string email,
+		CancellationToken cancellationToken = default
+	);
+	Task<SuspendTenantUserIdentityResult> SuspendTenantUserIdentityAsync(
+		Guid userId,
+		CancellationToken cancellationToken = default
+	);
+	Task<ReactivateTenantUserIdentityResult> ReactivateTenantUserIdentityAsync(
+		Guid userId,
 		CancellationToken cancellationToken = default
 	);
 	Task<SuspendTenantUserResult> SuspendTenantUserAsync(
@@ -2713,6 +2750,204 @@ public class UserService : IUserService {
 		}
 
 		return new UpdateTenantUserIdentityResult.Success(userData);
+	}
+
+	public async Task<UpdateTenantUserEmailResult> UpdateTenantUserEmailAsync(
+		Guid userId,
+		string email,
+		CancellationToken cancellationToken = default
+	) {
+		var normalizedEmail = email.Trim().ToLowerInvariant();
+
+		var user = await BuildLiveTenantUserIdentityMutationQuery(userId)
+			.FirstOrDefaultAsync(cancellationToken);
+
+		if (user is null) {
+			return new UpdateTenantUserEmailResult.NotFound();
+		}
+
+		if (!string.Equals(user.Email, normalizedEmail, StringComparison.Ordinal)) {
+			var existing = await GetUserByEmailAsync(
+				normalizedEmail,
+				cancellationToken
+			);
+			if (existing is not null && existing.GetRequiredId() != userId) {
+				return new UpdateTenantUserEmailResult.EmailAlreadyInUse();
+			}
+
+			user.Email = normalizedEmail;
+			user.UpdatedAt = DateTime.UtcNow;
+			await _dbContext.SaveChangesAsync(cancellationToken);
+		}
+
+		var userData = await GetTenantUserDetailsAsync(
+			userId,
+			cancellationToken
+		);
+
+		if (userData is null) {
+			throw new InvalidOperationException(
+				"Tenant user not found after successful email update. "
+				+ "This indicates a data integrity issue."
+			);
+		}
+
+		return new UpdateTenantUserEmailResult.Success(userData);
+	}
+
+	public async Task<SuspendTenantUserIdentityResult>
+	SuspendTenantUserIdentityAsync(
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		var userData = await GetTenantUserDetailsAsync(
+			userId,
+			cancellationToken
+		);
+
+		if (userData is null) {
+			return new SuspendTenantUserIdentityResult.NotFound();
+		}
+
+		if (userData.User.IsSuspended()) {
+			return new SuspendTenantUserIdentityResult.AlreadySuspended();
+		}
+
+		var now = DateTime.UtcNow;
+		var updatedUserCount = await BuildLiveTenantUserIdentityMutationQuery(userId)
+			.Where(x => x.Status != UserStatus.Suspended)
+			.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(x => x.Status, UserStatus.Suspended)
+					.SetProperty(x => x.UpdatedAt, now),
+				cancellationToken
+			);
+
+		if (updatedUserCount == 0) {
+			return await ResolveSuspendTenantUserIdentityAfterNoRowsAsync(
+				userId,
+				cancellationToken
+			);
+		}
+
+		var updatedUserData = await GetTenantUserDetailsAsync(
+			userId,
+			cancellationToken
+		);
+
+		if (updatedUserData is null) {
+			throw new InvalidOperationException(
+				"Tenant user not found after successful global suspend. "
+				+ "This indicates a data integrity issue."
+			);
+		}
+
+		return new SuspendTenantUserIdentityResult.Success(updatedUserData);
+	}
+
+	public async Task<ReactivateTenantUserIdentityResult>
+	ReactivateTenantUserIdentityAsync(
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		var userData = await GetTenantUserDetailsAsync(
+			userId,
+			cancellationToken
+		);
+
+		if (userData is null) {
+			return new ReactivateTenantUserIdentityResult.NotFound();
+		}
+
+		if (!userData.User.IsSuspended()) {
+			return new ReactivateTenantUserIdentityResult.NotSuspended();
+		}
+
+		var now = DateTime.UtcNow;
+		var updatedUserCount = await BuildLiveTenantUserIdentityMutationQuery(userId)
+			.Where(x => x.Status == UserStatus.Suspended)
+			.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(x => x.Status, UserStatus.Active)
+					.SetProperty(x => x.UpdatedAt, now),
+				cancellationToken
+			);
+
+		if (updatedUserCount == 0) {
+			return await ResolveReactivateTenantUserIdentityAfterNoRowsAsync(
+				userId,
+				cancellationToken
+			);
+		}
+
+		var updatedUserData = await GetTenantUserDetailsAsync(
+			userId,
+			cancellationToken
+		);
+
+		if (updatedUserData is null) {
+			throw new InvalidOperationException(
+				"Tenant user not found after successful global reactivation. "
+				+ "This indicates a data integrity issue."
+			);
+		}
+
+		return new ReactivateTenantUserIdentityResult.Success(updatedUserData);
+	}
+
+	private IQueryable<User> BuildLiveTenantUserIdentityMutationQuery(Guid userId) {
+		return _dbContext.User.Where(u =>
+			u.Id == userId
+			&& !u.IsDeleted
+			&& _dbContext.UserAccount.Any(ua =>
+				ua.UserId == u.Id
+				&& ua.Scope == AccountScope.Tenant
+			)
+		);
+	}
+
+	private async Task<SuspendTenantUserIdentityResult>
+	ResolveSuspendTenantUserIdentityAfterNoRowsAsync(
+		Guid userId,
+		CancellationToken cancellationToken
+	) {
+		var currentUserData = await GetTenantUserDetailsAsync(
+			userId,
+			cancellationToken
+		);
+		if (currentUserData is null) {
+			return new SuspendTenantUserIdentityResult.NotFound();
+		}
+
+		if (currentUserData.User.IsSuspended()) {
+			return new SuspendTenantUserIdentityResult.AlreadySuspended();
+		}
+
+		throw new InvalidOperationException(
+			"Tenant user still matched global suspend preconditions after a 0-row update."
+		);
+	}
+
+	private async Task<ReactivateTenantUserIdentityResult>
+	ResolveReactivateTenantUserIdentityAfterNoRowsAsync(
+		Guid userId,
+		CancellationToken cancellationToken
+	) {
+		var currentUserData = await GetTenantUserDetailsAsync(
+			userId,
+			cancellationToken
+		);
+		if (currentUserData is null) {
+			return new ReactivateTenantUserIdentityResult.NotFound();
+		}
+
+		if (!currentUserData.User.IsSuspended()) {
+			return new ReactivateTenantUserIdentityResult.NotSuspended();
+		}
+
+		throw new InvalidOperationException(
+			"Tenant user still matched global reactivate preconditions after a 0-row update."
+		);
 	}
 
 	public async Task<SuspendTenantUserResult> SuspendTenantUserAsync(

@@ -15,6 +15,7 @@ import type {
 	SuspendTenantAsStaffBody,
 	UpdateTenantAsStaffBody,
 	UpdateTenantProfileAsStaffBody,
+	UpdateTenantUserEmailForStaffBody,
 	UpdateTenantUserIdentityForStaffBody,
 	UpdateTenantUserAsStaffBody,
 } from '@org/client-ts/src/models';
@@ -770,6 +771,61 @@ export const useUpdateTenantUserIdentity = createStaffMutation({
 
 		if (isNil(result)) {
 			throw new Error('useUpdateTenantUserIdentity: result is nil');
+		}
+
+		return result;
+	},
+});
+
+export const useUpdateTenantUserEmail = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.tenantUsers.byUserId('').email.patch,
+	mutationFn: async (
+		client,
+		variables: {
+			userId: string;
+			email: string;
+		},
+	) => {
+		const body: UpdateTenantUserEmailForStaffBody = {};
+		body.email = createUntypedString(variables.email) as typeof body.email;
+
+		const result = await client.staff.tenantUsers
+			.byUserId(variables.userId)
+			.email.patch(body);
+
+		if (isNil(result)) {
+			throw new Error('useUpdateTenantUserEmail: result is nil');
+		}
+
+		return result;
+	},
+});
+
+export const useSuspendTenantUserIdentity = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.tenantUsers.byUserId('').suspend.post,
+	mutationFn: async (client, variables: { userId: string }) => {
+		const result = await client.staff.tenantUsers
+			.byUserId(variables.userId)
+			.suspend.post();
+
+		if (isNil(result)) {
+			throw new Error('useSuspendTenantUserIdentity: result is nil');
+		}
+
+		return result;
+	},
+});
+
+export const useReactivateTenantUserIdentity = createStaffMutation({
+	mutationKeyFn: (client) =>
+		client.staff.tenantUsers.byUserId('').reactivate.post,
+	mutationFn: async (client, variables: { userId: string }) => {
+		const result = await client.staff.tenantUsers
+			.byUserId(variables.userId)
+			.reactivate.post();
+
+		if (isNil(result)) {
+			throw new Error('useReactivateTenantUserIdentity: result is nil');
 		}
 
 		return result;

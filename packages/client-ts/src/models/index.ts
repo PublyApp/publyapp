@@ -1798,6 +1798,15 @@ export function createUpdateTenantUserAsStaffBodyFromDiscriminatorValue(parseNod
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {UpdateTenantUserEmailForStaffBody}
+ */
+// @ts-ignore
+export function createUpdateTenantUserEmailForStaffBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUpdateTenantUserEmailForStaffBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {UpdateTenantUserIdentityForStaffBody}
  */
 // @ts-ignore
@@ -3691,6 +3700,17 @@ export function deserializeIntoUpdateTenantUserAsStaffBody_level(updateTenantUse
 // @ts-ignore
 export function deserializeIntoUpdateTenantUserAsStaffBody_levelMember1(updateTenantUserAsStaffBody_levelMember1: Partial<UpdateTenantUserAsStaffBody_levelMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param UpdateTenantUserEmailForStaffBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUpdateTenantUserEmailForStaffBody(updateTenantUserEmailForStaffBody: Partial<UpdateTenantUserEmailForStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "email": n => { updateTenantUserEmailForStaffBody.email = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -6276,6 +6296,18 @@ export function serializeUpdateTenantUserAsStaffBody_levelMember1(writer: Serial
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UpdateTenantUserEmailForStaffBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUpdateTenantUserEmailForStaffBody(writer: SerializationWriter, updateTenantUserEmailForStaffBody: Partial<UpdateTenantUserEmailForStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!updateTenantUserEmailForStaffBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("email", updateTenantUserEmailForStaffBody.email);
+    writer.writeAdditionalData(updateTenantUserEmailForStaffBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param UpdateTenantUserIdentityForStaffBody The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -7116,6 +7148,12 @@ export interface UpdateTenantUserAsStaffBody extends AdditionalDataHolder, Parsa
 }
 export type UpdateTenantUserAsStaffBody_level = JsonElement | UpdateTenantUserAsStaffBody_levelMember1;
 export interface UpdateTenantUserAsStaffBody_levelMember1 extends AdditionalDataHolder, Parsable {
+}
+export interface UpdateTenantUserEmailForStaffBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The email property
+     */
+    email?: UntypedNode | null;
 }
 export interface UpdateTenantUserIdentityForStaffBody extends AdditionalDataHolder, Parsable {
     /**

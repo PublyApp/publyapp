@@ -84,6 +84,15 @@ public static partial class Routes {
 				$"/tenant-users/{userId}/companies";
 			public const string Update = "/{userId}";
 			public static string UpdateFn(string userId) => $"/tenant-users/{userId}";
+			public const string UpdateEmail = "/{userId}/email";
+			public static string UpdateEmailFn(string userId) =>
+				$"/tenant-users/{userId}/email";
+			public const string Suspend = "/{userId}/suspend";
+			public static string SuspendFn(string userId) =>
+				$"/tenant-users/{userId}/suspend";
+			public const string Reactivate = "/{userId}/reactivate";
+			public static string ReactivateFn(string userId) =>
+				$"/tenant-users/{userId}/reactivate";
 		}
 
 		/// <summary>Tenant API routes (tenant self-service)</summary>

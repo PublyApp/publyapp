@@ -6,6 +6,12 @@ import { createAppProblemDetailsFromDiscriminatorValue, createTenantUserDetailsF
 // @ts-ignore
 import { CompaniesRequestBuilderRequestsMetadata, type CompaniesRequestBuilder } from './companies/index.js';
 // @ts-ignore
+import { EmailRequestBuilderRequestsMetadata, type EmailRequestBuilder } from './email/index.js';
+// @ts-ignore
+import { ReactivateRequestBuilderRequestsMetadata, type ReactivateRequestBuilder } from './reactivate/index.js';
+// @ts-ignore
+import { SuspendRequestBuilderRequestsMetadata, type SuspendRequestBuilder } from './suspend/index.js';
+// @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
@@ -16,6 +22,18 @@ export interface WithUserItemRequestBuilder extends BaseRequestBuilder<WithUserI
      * The companies property
      */
     get companies(): CompaniesRequestBuilder;
+    /**
+     * The email property
+     */
+    get email(): EmailRequestBuilder;
+    /**
+     * The reactivate property
+     */
+    get reactivate(): ReactivateRequestBuilder;
+    /**
+     * The suspend property
+     */
+    get suspend(): SuspendRequestBuilder;
     /**
      * Get a tenant user's shared identity details
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -64,6 +82,15 @@ export const WithUserItemRequestBuilderUriTemplate = "{+baseurl}/staff/tenant-us
 export const WithUserItemRequestBuilderNavigationMetadata: Record<Exclude<keyof WithUserItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     companies: {
         requestsMetadata: CompaniesRequestBuilderRequestsMetadata,
+    },
+    email: {
+        requestsMetadata: EmailRequestBuilderRequestsMetadata,
+    },
+    reactivate: {
+        requestsMetadata: ReactivateRequestBuilderRequestsMetadata,
+    },
+    suspend: {
+        requestsMetadata: SuspendRequestBuilderRequestsMetadata,
     },
 };
 /**

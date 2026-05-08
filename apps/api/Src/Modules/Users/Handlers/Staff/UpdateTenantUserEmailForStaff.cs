@@ -1,0 +1,123 @@
+using System.Text.Json;
+
+using FluentValidation;
+
+using MainApi.Localization;
+using MainApi.Src.Lib;
+using MainApi.Src.Lib.Extensions;
+using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Modules.AuditLogs.Entities;
+using MainApi.Src.Modules.AuditLogs.Services;
+using MainApi.Src.Modules.Users.Services;
+
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+
+namespace MainApi.Src.Modules.Users.Handlers.Staff;
+
+public sealed class UpdateTenantUserEmailForStaffBody {
+	public JsonElement Email { get; init; }
+
+	public string GetEmail() => Email.GetValueAsString();
+}
+
+public sealed class UpdateTenantUserEmailForStaffBodyValidator
+	: AbstractValidator<UpdateTenantUserEmailForStaffBody> {
+	public UpdateTenantUserEmailForStaffBodyValidator() {
+		RuleFor(x => x.Email)
+			.NotEmpty()
+			.WithMessage("Email is required")
+			.Must(e => e.ValueKind == JsonValueKind.String)
+			.WithMessage("Email must be a string")
+			.Must(e => {
+				var email = e.GetString();
+				if (string.IsNullOrWhiteSpace(email)) {
+					return false;
+				}
+				return System.Net.Mail.MailAddress.TryCreate(email, out _);
+			})
+			.WithMessage("Email must be a valid email address");
+	}
+}
+
+public sealed class UpdateTenantUserEmailForStaff {
+	public static async Task<
+		Results<
+			Ok<TenantUserDetailsForStaffResult>,
+			AppBadRequestHttpResult,
+			AppNotFoundHttpResult,
+			AppValidationProblemHttpResult
+		>
+	> HandleUpdateTenantUserEmailForStaff(
+		[FromRoute] string userId,
+		[FromBody] UpdateTenantUserEmailForStaffBody body,
+		[FromServices] IUserService userService,
+		[FromServices] IAuditLogService auditLogService,
+		[FromServices] IRequestAuthContext authContext,
+		CancellationToken cancellationToken
+	) {
+		if (!Guid.TryParse(userId, out var userIdGuid)) {
+			return TypedProblems.BadRequest(
+				"Invalid userId",
+				ResponseKeys.MalformedId
+			);
+		}
+
+		var email = body.GetEmail();
+		var result = await userService.UpdateTenantUserEmailAsync(
+			userIdGuid,
+			email,
+			cancellationToken
+		);
+
+		if (result is UpdateTenantUserEmailResult.NotFound) {
+			return TypedProblems.NotFound(
+				"Tenant user not found",
+				ResponseKeys.NotFound
+			);
+		}
+
+		if (result is UpdateTenantUserEmailResult.EmailAlreadyInUse) {
+			return TypedProblems.ValidationProblem(
+				"Email is already in use",
+				ResponseKeys.EmailAlreadyInUse,
+				new Dictionary<string, string[]> {
+					{ "email", ["Email is already in use"] }
+				}
+			);
+		}
+
+		var account = authContext.AccountStaff;
+		if (account is null) {
+			throw new InvalidOperationException(
+				"Staff account not found in auth context. "
+				+ "Ensure the endpoint has .WithPermission() middleware."
+			);
+		}
+
+		if (result is not UpdateTenantUserEmailResult.Success success) {
+			throw new InvalidOperationException(
+				"Unhandled UpdateTenantUserEmailResult type: "
+				+ $"{result.GetType().Name}"
+			);
+		}
+
+		await auditLogService.LogAsync(
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.TenantUserEmailUpdated,
+				TargetId: userIdGuid,
+				Details: new {
+					TenantUserId = userIdGuid,
+					UpdatedByUserId = account.UserId,
+					Email = email.Trim().ToLowerInvariant()
+				}
+			),
+			cancellationToken
+		);
+
+		return TypedResults.Ok(
+			TenantUserDetailsForStaffMapper.Map(success.UserData)
+		);
+	}
+}
