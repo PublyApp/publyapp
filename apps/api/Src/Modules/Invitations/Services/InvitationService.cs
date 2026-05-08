@@ -30,7 +30,7 @@ public record FindStaffInvitationsArgs(
 	int? Limit,
 	string? SortId,
 	SortOrder? SortOrder,
-	string? Status
+	IReadOnlySet<InvitationEffectiveStatus>? Statuses
 );
 
 public record CreateStaffInvitationArgs(
@@ -524,7 +524,7 @@ public class InvitationService : IInvitationService {
 		var effectiveLimit = args.Limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
 		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
 		var effectiveSortId = args.SortId ?? "created_at";
-		var status = args.Status;
+		var statuses = args.Statuses;
 
 		// Keyset pagination handlers per sortId (cursor stays a Guid).
 		var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<Invitation>>(
@@ -633,23 +633,15 @@ public class InvitationService : IInvitationService {
 			.AsNoTracking()
 			.Where(inv => inv.Scope == InvitationScope.Staff && inv.Id != null);
 
-		if (!string.IsNullOrWhiteSpace(status)) {
-			// Apply backend status semantics so UI filters match persisted state.
-			var normalizedStatus = status.Trim();
+		if (statuses is { Count: > 0 } activeStatuses) {
 			var now = DateTime.UtcNow;
-
-			if (string.Equals(normalizedStatus, "pending", StringComparison.OrdinalIgnoreCase)) {
-				query = query.Where(inv => inv.Status == InvitationStatus.Pending && inv.ExpiresAt > now);
-			}
-			if (string.Equals(normalizedStatus, "accepted", StringComparison.OrdinalIgnoreCase)) {
-				query = query.Where(inv => inv.Status == InvitationStatus.Accepted);
-			}
-			if (string.Equals(normalizedStatus, "revoked", StringComparison.OrdinalIgnoreCase)) {
-				query = query.Where(inv => inv.Status == InvitationStatus.Revoked);
-			}
-			if (string.Equals(normalizedStatus, "expired", StringComparison.OrdinalIgnoreCase)) {
-				query = query.Where(inv => inv.Status == InvitationStatus.Pending && inv.ExpiresAt <= now);
-			}
+			query = query.Where(inv =>
+				// Filters are effective statuses: Expired is derived from Pending + ExpiresAt.
+				(activeStatuses.Contains(InvitationEffectiveStatus.Pending) && inv.Status == InvitationStatus.Pending && inv.ExpiresAt > now) ||
+				(activeStatuses.Contains(InvitationEffectiveStatus.Accepted) && inv.Status == InvitationStatus.Accepted) ||
+				(activeStatuses.Contains(InvitationEffectiveStatus.Revoked) && inv.Status == InvitationStatus.Revoked) ||
+				(activeStatuses.Contains(InvitationEffectiveStatus.Expired) && inv.Status == InvitationStatus.Pending && inv.ExpiresAt <= now)
+			);
 		}
 
 		if (cursor != Guid.Empty) {

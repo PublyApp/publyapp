@@ -1,17 +1,18 @@
+import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import FormControl from '@mui/material/FormControl';
+import Checkbox from '@mui/material/Checkbox';
 import IconButton from '@mui/material/IconButton';
-import InputLabel from '@mui/material/InputLabel';
 import Link from '@mui/material/Link';
 import ListItemText from '@mui/material/ListItemText';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
+import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
 import capitalize from 'lodash/capitalize';
+import isEqual from 'lodash/isEqual';
 import map from 'lodash/map';
 import snakeCase from 'lodash/snakeCase';
 import {
@@ -23,7 +24,16 @@ import {
 	type MRT_TableOptions,
 } from 'material-react-table';
 import { useBoolean } from 'minimal-shared/hooks';
-import { useCallback, useId, useMemo, useRef, useState } from 'react';
+import { varAlpha } from 'minimal-shared/utils';
+import { parseAsString, useQueryStates } from 'nuqs';
+import {
+	useCallback,
+	useEffect,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from 'react';
 
 import type { InvitationListItem } from '@org/client-ts/src/models';
 import {
@@ -113,14 +123,40 @@ const defaultSorting: MRT_SortingState[number] = {
 	id: 'created_at',
 };
 
+const STATUS_OPTIONS: { label: string; value: StaffInvitationStatus }[] = [
+	{ label: 'Pending', value: 'pending' },
+	{ label: 'Accepted', value: 'accepted' },
+	{ label: 'Expired', value: 'expired' },
+	{ label: 'Revoked', value: 'revoked' },
+];
+
+const parseStatusFilter = (value: string): StaffInvitationStatus[] => {
+	if (!value) {
+		return [];
+	}
+
+	return value
+		.split(',')
+		.map((part) => part.trim())
+		.filter((part): part is StaffInvitationStatus =>
+			STATUS_OPTIONS.some((option) => option.value === part),
+		);
+};
+
 const StaffInvitationsTable = () => {
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
 	const statusTooltipId = useId();
 	const exportDialogRef =
 		useRef<StaffInvitationsExportDialogControllerRef>(null);
-	// Local status filter; reset cursor pagination when this changes.
-	const [statusFilter, setStatusFilter] = useState<string>('');
+	const [filterStates, setFilterStates] = useQueryStates({
+		status: parseAsString.withDefault(''),
+	});
+	// Mirror the URL-backed filter so onChange handlers can write through optimistically
+	// without waiting for the next render.
+	const [statusFilter, setStatusFilter] = useState<StaffInvitationStatus[]>(
+		() => parseStatusFilter(filterStates.status),
+	);
 	const [selectionActionAnchorEl, setSelectionActionAnchorEl] =
 		useState<null | HTMLElement>(null);
 	const [bulkRevokeDialogOpen, setBulkRevokeDialogOpen] = useState(false);
@@ -139,12 +175,19 @@ const StaffInvitationsTable = () => {
 		paginationMode: 'cursor',
 	});
 
+	useEffect(() => {
+		const nextStatusFilter = parseStatusFilter(filterStates.status);
+		if (!isEqual(nextStatusFilter, statusFilter)) {
+			setStatusFilter(nextStatusFilter);
+		}
+	}, [filterStates.status, statusFilter]);
+
 	const invitationsQuery = useFindStaffInvitations({
 		variables: {
 			cursor: apiVariables.cursor || undefined,
 			limit: apiVariables.limit,
 			sort: apiVariables.sort,
-			status: statusFilter || undefined,
+			status: filterStates.status || undefined,
 		},
 	});
 
@@ -360,6 +403,17 @@ const StaffInvitationsTable = () => {
 		];
 	}, [t]);
 
+	const handleStatusChange = (
+		_event: React.SyntheticEvent,
+		selectedOptions: typeof STATUS_OPTIONS,
+	) => {
+		const nextStatusFilter = selectedOptions.map((option) => option.value);
+		// Filters invalidate cursor history, so reset to the first page.
+		resetCursorPagination?.();
+		setStatusFilter(nextStatusFilter);
+		void setFilterStates({ status: nextStatusFilter.join(',') });
+	};
+
 	const renderToolbarFilters = () => {
 		return (
 			<SelectionLockedControl
@@ -369,35 +423,121 @@ const StaffInvitationsTable = () => {
 				tooltipId={statusTooltipId}
 			>
 				<Box component="span">
-					<FormControl size="small" sx={{ minWidth: 200 }}>
-						<InputLabel id="staff-invitations-status-filter-label">
-							{t('status')}
-						</InputLabel>
-						<Select
-							labelId="staff-invitations-status-filter-label"
-							label={t('status')}
-							value={statusFilter}
-							disabled={isSelectionMode}
-							onChange={(event) => {
-								// Filters invalidate cursor history, so reset to the first page.
-								resetCursorPagination?.();
-								setStatusFilter(event.target.value);
-							}}
-							displayEmpty
-							renderValue={(selected) => {
-								if (!selected) {
-									return t('all');
+					<Autocomplete
+						multiple
+						disableCloseOnSelect
+						size="small"
+						options={STATUS_OPTIONS}
+						value={STATUS_OPTIONS.filter((option) =>
+							statusFilter.includes(option.value),
+						)}
+						onChange={handleStatusChange}
+						disabled={isSelectionMode}
+						isOptionEqualToValue={(option, value) =>
+							option.value === value.value
+						}
+						getOptionLabel={(option) => option.label}
+						renderInput={(params) => (
+							<TextField
+								{...params}
+								placeholder={
+									statusFilter.length === 0 ? t('all-statuses') : undefined
 								}
-								return t(selected as never);
-							}}
-						>
-							<MenuItem value="">{t('all')}</MenuItem>
-							<MenuItem value="pending">{t('pending')}</MenuItem>
-							<MenuItem value="accepted">{t('accepted')}</MenuItem>
-							<MenuItem value="expired">{t('expired')}</MenuItem>
-							<MenuItem value="revoked">{t('revoked')}</MenuItem>
-						</Select>
-					</FormControl>
+								slotProps={{
+									input: {
+										...params.InputProps,
+										startAdornment: (
+											<>
+												<Box
+													component="span"
+													sx={{
+														color: 'text.secondary',
+														typography: 'body2',
+														whiteSpace: 'nowrap',
+														mr: 1,
+														display: 'inline-flex',
+														alignItems: 'center',
+														alignSelf: 'center',
+														minHeight: 24,
+													}}
+												>
+													{t('status')}:
+												</Box>
+												{params.InputProps.startAdornment}
+											</>
+										),
+									},
+								}}
+							/>
+						)}
+						renderOption={(props, option, { selected }) => {
+							const { key, ...optionProps } = props;
+
+							return (
+								<Box
+									component="li"
+									key={key}
+									{...optionProps}
+									sx={(theme) => ({
+										'&.Mui-focused': {
+											backgroundColor: varAlpha(
+												theme.vars.palette.grey['500Channel'],
+												0.08,
+											),
+										},
+										'&[aria-selected="true"]': {
+											backgroundColor: varAlpha(
+												theme.vars.palette.primary.mainChannel,
+												0.08,
+											),
+										},
+										'&[aria-selected="true"].Mui-focused': {
+											backgroundColor: varAlpha(
+												theme.vars.palette.primary.mainChannel,
+												0.12,
+											),
+										},
+									})}
+								>
+									<Checkbox checked={selected} sx={{ mr: 1 }} />
+									{option.label}
+								</Box>
+							);
+						}}
+						slotProps={{
+							popper: {
+								// Keep MRT toolbar filters anchored while table rows swap between
+								// skeleton and data layouts.
+								placement: 'bottom-start',
+							},
+							paper: {
+								sx: {
+									width: 280,
+								},
+							},
+							chip: {
+								sx: (theme) => ({
+									backgroundColor: varAlpha(
+										theme.vars.palette.grey['500Channel'],
+										0.16,
+									),
+									color: 'text.secondary',
+									'&:hover': {
+										backgroundColor: varAlpha(
+											theme.vars.palette.grey['500Channel'],
+											0.24,
+										),
+									},
+								}),
+							},
+						}}
+						sx={{
+							minWidth: 260,
+							'& .MuiAutocomplete-tag': {
+								maxWidth: 120,
+							},
+						}}
+					/>
 				</Box>
 			</SelectionLockedControl>
 		);

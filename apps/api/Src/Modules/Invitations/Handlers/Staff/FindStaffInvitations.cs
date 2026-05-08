@@ -4,6 +4,7 @@ using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Validation;
+using MainApi.Src.Modules.Invitations.Entities;
 using MainApi.Src.Modules.Invitations.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -16,24 +17,57 @@ public class FindStaffInvitationsResult : CursorPaginatedResult<InvitationListIt
 public class FindStaffInvitationsQuery : CursorPaginatedQuery {
 	[FromQuery] public string? Status { get; set; }
 
-	public string? GetStatus() {
-		// Normalize empty/whitespace to null so validation and service logic align.
-		if (string.IsNullOrWhiteSpace(Status)) {
+	public IReadOnlySet<InvitationEffectiveStatus>? GetStatusesOrNull() {
+		if (Status is null) {
 			return null;
 		}
 
-		return Status;
+		var trimmed = Status.Trim();
+		if (trimmed.Length == 0) {
+			return null;
+		}
+
+		var parts = trimmed
+			.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+		if (parts.Length == 0) {
+			return null;
+		}
+
+		var statuses = new HashSet<InvitationEffectiveStatus>();
+		foreach (var part in parts) {
+			var parsed = Invitation.ParseEffectiveStatus(part);
+			if (parsed is { } status) {
+				statuses.Add(status);
+			}
+		}
+		return statuses.Count > 0 ? statuses : null;
 	}
 }
 
 public class FindStaffInvitationsQueryValidator : CursorPaginatedQueryValidator<FindStaffInvitationsQuery> {
-	private static readonly string[] AllowedStatuses = ["pending", "accepted", "expired", "revoked"];
+	private static readonly HashSet<string> AllowedStatuses =
+		new(
+			[
+				nameof(InvitationEffectiveStatus.Pending),
+				nameof(InvitationEffectiveStatus.Accepted),
+				nameof(InvitationEffectiveStatus.Expired),
+				nameof(InvitationEffectiveStatus.Revoked)
+			],
+			StringComparer.OrdinalIgnoreCase
+		);
 
 	public FindStaffInvitationsQueryValidator() {
 		RuleFor(x => x.Status)
-			.Must(status => AllowedStatuses.Contains(status, StringComparer.OrdinalIgnoreCase))
-			.WithMessage("Status must be one of the following: pending, accepted, expired, revoked")
-			.When(x => !string.IsNullOrEmpty(x.Status));
+			.Must(raw => {
+				if (string.IsNullOrEmpty(raw)) {
+					return true;
+				}
+
+				var parts = raw
+					.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+				return parts.All(AllowedStatuses.Contains);
+			})
+			.WithMessage("Invalid status value. Must be comma-separated: " + string.Join(",", AllowedStatuses));
 	}
 }
 
@@ -56,13 +90,13 @@ public class FindStaffInvitations {
 		var limit = findStaffInvitationsQuery.GetLimit();
 		var sortId = findStaffInvitationsQuery.GetSortId();
 		var sortOrder = findStaffInvitationsQuery.GetSortOrder();
-		var status = findStaffInvitationsQuery.GetStatus();
+		var statuses = findStaffInvitationsQuery.GetStatusesOrNull();
 		var args = new FindStaffInvitationsArgs(
 			Cursor: cursorGuid,
 			Limit: limit,
 			SortId: sortId,
 			SortOrder: sortOrder,
-			Status: status
+			Statuses: statuses
 		);
 
 		var serviceResult = await invitationService.FindStaffInvitationsAsync(
