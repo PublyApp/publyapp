@@ -74,8 +74,13 @@ const columnHelper = createMRTColumnHelper<MemberRowData>();
 const SettingsMembersPage = () => {
 	const { t } = useTranslate();
 
-	const placeholderTooltip = t('members-table-placeholder-tooltip', {
-		defaultValue: 'Available once the tenant members API is connected.',
+	const searchDisabledReason = t('members-search-disabled-reason', {
+		defaultValue:
+			'Search will be available once the tenant members API is connected.',
+	});
+	const inviteDisabledReason = t('members-invite-disabled-reason', {
+		defaultValue:
+			'Inviting members will be available once the tenant members API is connected.',
 	});
 
 	const columns = useMemo(() => {
@@ -117,6 +122,11 @@ const SettingsMembersPage = () => {
 		columns,
 		data: MOCK_MEMBERS,
 		enableRowSelection: false,
+		enableGlobalFilter: false,
+		enableColumnFilters: false,
+		enableHiding: false,
+		enableDensityToggle: false,
+		enableFullScreenToggle: false,
 		getRowId: (row) => row.id,
 		state: {
 			density: 'compact',
@@ -133,7 +143,7 @@ const SettingsMembersPage = () => {
 		meta: {
 			renderToolbarFilters: () => {
 				return (
-					<Tooltip title={placeholderTooltip} placement="top" arrow>
+					<Tooltip title={searchDisabledReason} placement="top" arrow>
 						<Box component="span">
 							<TextField
 								size="small"
@@ -159,7 +169,7 @@ const SettingsMembersPage = () => {
 			},
 			renderToolbarActions: () => {
 				return (
-					<Tooltip title={placeholderTooltip} placement="top" arrow>
+					<Tooltip title={inviteDisabledReason} placement="top" arrow>
 						<Box component="span">
 							<Button
 								variant="contained"
@@ -261,11 +271,13 @@ const StatusCell: MRT_ColumnDef<
 	MemberRowData,
 	MemberRowData['status']
 >['Cell'] = (props) => {
+	const { t } = useTranslate();
 	const status = props.cell.getValue();
+	const statusLabel = status === 'Active' ? t('active') : t('pending');
 
 	return (
 		<Chip
-			label={status}
+			label={statusLabel}
 			size="small"
 			color={status === 'Active' ? 'success' : 'warning'}
 			variant="soft"
@@ -286,20 +298,25 @@ const LastActiveCell: MRT_ColumnDef<MemberRowData, string>['Cell'] = (
 const MemberActionsCell: MRT_ColumnDef<MemberRowData>['Cell'] = () => {
 	const { t } = useTranslate();
 
-	const placeholderTooltip = t('members-table-placeholder-tooltip', {
-		defaultValue: 'Available once the tenant members API is connected.',
+	const editDisabledReason = t('members-edit-disabled-reason', {
+		defaultValue:
+			'Editing members will be available once the tenant members API is connected.',
+	});
+	const removeDisabledReason = t('members-remove-disabled-reason', {
+		defaultValue:
+			'Removing members will be available once the tenant members API is connected.',
 	});
 
 	return (
 		<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-			<Tooltip title={placeholderTooltip} placement="top" arrow>
+			<Tooltip title={editDisabledReason} placement="top" arrow>
 				<Box component="span">
 					<IconButton size="small" disabled aria-label={t('edit')}>
 						<Iconify icon="solar:pen-bold" width={18} />
 					</IconButton>
 				</Box>
 			</Tooltip>
-			<Tooltip title={placeholderTooltip} placement="top" arrow>
+			<Tooltip title={removeDisabledReason} placement="top" arrow>
 				<Box component="span">
 					<IconButton size="small" disabled aria-label={t('delete')}>
 						<Iconify icon="solar:trash-bin-trash-bold" width={18} />
