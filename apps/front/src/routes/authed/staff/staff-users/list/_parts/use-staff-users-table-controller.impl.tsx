@@ -396,6 +396,7 @@ export const useStaffUsersTableController = () => {
 				canDelete={
 					selectedCount > 0 && selectedSuspendedCount === selectedCount
 				}
+				selectedCount={selectedCount}
 				onOpenExportDialog={openExportDialog}
 				onOpenBulkActionDialog={openBulkActionDialog}
 			/>

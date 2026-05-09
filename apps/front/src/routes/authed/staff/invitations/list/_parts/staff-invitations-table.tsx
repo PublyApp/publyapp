@@ -411,6 +411,7 @@ const StaffInvitationsTable = () => {
 			<StaffInvitationsSelectionActions
 				anchorEl={selectionActionAnchorEl}
 				eligibleBulkRevokeCount={eligibleBulkRevokeCount}
+				selectedCount={selectedCount}
 				isOpen={isSelectionActionMenuOpen}
 				onOpenMenu={(event: MouseEvent<HTMLButtonElement>) => {
 					setSelectionActionAnchorEl(event.currentTarget);

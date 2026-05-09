@@ -9,7 +9,10 @@ import { useState } from 'react';
 import { useParams } from 'react-router';
 
 import type { TenantUserCompanyBulkActionResult } from '@org/client-ts/src/models';
-import { USER_STATUS_ENUM } from '@org/shared-ts/lib/constants';
+import {
+	BULK_ACTION_MAX_COUNT,
+	USER_STATUS_ENUM,
+} from '@org/shared-ts/lib/constants';
 
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
@@ -64,6 +67,12 @@ const TenantUserCompaniesSelectionActions = ({
 	const reactivatableCount = getEligibleRows('reactivate', selectedRows).length;
 	const canSuspendSelection = suspendableCount > 0;
 	const canReactivateSelection = reactivatableCount > 0;
+	const selectedCount = selectedRows.length;
+	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
+	const overLimitMessage = t('bulk-action-max-count-exceeded', {
+		max: BULK_ACTION_MAX_COUNT,
+		count: selectedCount,
+	});
 
 	const handleBulkSuccess = async (
 		action: BulkCompanyAction,
@@ -173,14 +182,22 @@ const TenantUserCompaniesSelectionActions = ({
 
 	return (
 		<>
-			<Tooltip title={t('actions')} placement="top" arrow>
-				<IconButton
-					size="small"
-					onClick={(event) => setAnchorEl(event.currentTarget)}
-					sx={{ width: 32, height: 32 }}
-				>
-					<Iconify icon="eva:more-vertical-fill" width={18} />
-				</IconButton>
+			<Tooltip
+				title={isOverLimit ? overLimitMessage : t('actions')}
+				placement="top"
+				arrow
+			>
+				<span>
+					<IconButton
+						size="small"
+						aria-label={isOverLimit ? overLimitMessage : t('actions')}
+						onClick={(event) => setAnchorEl(event.currentTarget)}
+						disabled={isOverLimit}
+						sx={{ width: 32, height: 32 }}
+					>
+						<Iconify icon="eva:more-vertical-fill" width={18} />
+					</IconButton>
+				</span>
 			</Tooltip>
 
 			<Menu

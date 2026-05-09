@@ -26,6 +26,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type { StaffProfileItem } from '@org/client-ts/src/models';
 import {
+	BULK_ACTION_MAX_COUNT,
 	DEFAULT_PAGE_SIZE,
 	FRONT_PATH_NAMES,
 } from '@org/shared-ts/lib/constants';
@@ -656,6 +657,12 @@ const StaffProfilesSelectionActions = ({
 	const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 	const open = Boolean(anchorEl);
 	const [confirmBulkDeleteOpen, setConfirmBulkDeleteOpen] = useState(false);
+	const selectedCount = selectedRows.length;
+	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
+	const overLimitMessage = t('bulk-action-max-count-exceeded', {
+		max: BULK_ACTION_MAX_COUNT,
+		count: selectedCount,
+	});
 
 	const { mutateAsync: bulkDeleteProfiles, isPending: isBulkDeleting } =
 		useBulkDeleteStaffProfiles({
@@ -772,14 +779,22 @@ const StaffProfilesSelectionActions = ({
 
 	return (
 		<>
-			<Tooltip title={t('actions')} placement="top" arrow>
-				<IconButton
-					size="small"
-					onClick={(event) => setAnchorEl(event.currentTarget)}
-					sx={{ width: 32, height: 32 }}
-				>
-					<Iconify icon="solar:menu-dots-bold-duotone" width={18} />
-				</IconButton>
+			<Tooltip
+				title={isOverLimit ? overLimitMessage : t('actions')}
+				placement="top"
+				arrow
+			>
+				<span>
+					<IconButton
+						size="small"
+						aria-label={isOverLimit ? overLimitMessage : t('actions')}
+						onClick={(event) => setAnchorEl(event.currentTarget)}
+						disabled={isOverLimit}
+						sx={{ width: 32, height: 32 }}
+					>
+						<Iconify icon="solar:menu-dots-bold-duotone" width={18} />
+					</IconButton>
+				</span>
 			</Tooltip>
 
 			<Menu

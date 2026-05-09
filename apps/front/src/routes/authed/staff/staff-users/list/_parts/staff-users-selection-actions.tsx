@@ -2,7 +2,10 @@ import IconButton from '@mui/material/IconButton';
 import ListItemText from '@mui/material/ListItemText';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
+import Tooltip from '@mui/material/Tooltip';
 import { useState } from 'react';
+
+import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
@@ -15,6 +18,7 @@ type StaffUsersSelectionActionsProps = {
 	canSuspend: boolean;
 	canReactivate: boolean;
 	canDelete: boolean;
+	selectedCount: number;
 	onOpenExportDialog: () => void;
 	onOpenBulkActionDialog: (type: StaffUsersBulkActionType) => void;
 };
@@ -23,24 +27,40 @@ const StaffUsersSelectionActions = ({
 	canSuspend,
 	canReactivate,
 	canDelete,
+	selectedCount,
 	onOpenExportDialog,
 	onOpenBulkActionDialog,
 }: StaffUsersSelectionActionsProps) => {
 	const { t } = useTranslate();
 	const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 	const open = Boolean(anchorEl);
+	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
+	const overLimitMessage = t('bulk-action-max-count-exceeded', {
+		max: BULK_ACTION_MAX_COUNT,
+		count: selectedCount,
+	});
 
 	const closeMenu = () => setAnchorEl(null);
 
 	return (
 		<>
-			<IconButton
-				size="small"
-				onClick={(event) => setAnchorEl(event.currentTarget)}
-				sx={{ width: 32, height: 32 }}
+			<Tooltip
+				title={isOverLimit ? overLimitMessage : t('more-actions')}
+				placement="top"
+				arrow
 			>
-				<Iconify icon="eva:more-vertical-fill" width={18} />
-			</IconButton>
+				<span>
+					<IconButton
+						size="small"
+						aria-label={isOverLimit ? overLimitMessage : t('more-actions')}
+						onClick={(event) => setAnchorEl(event.currentTarget)}
+						disabled={isOverLimit}
+						sx={{ width: 32, height: 32 }}
+					>
+						<Iconify icon="eva:more-vertical-fill" width={18} />
+					</IconButton>
+				</span>
+			</Tooltip>
 
 			<Menu
 				anchorEl={anchorEl}

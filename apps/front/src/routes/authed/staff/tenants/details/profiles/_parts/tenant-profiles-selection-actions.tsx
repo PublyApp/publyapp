@@ -7,6 +7,8 @@ import Tooltip from '@mui/material/Tooltip';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
+
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
@@ -49,6 +51,11 @@ const TenantProfilesSelectionActions = ({
 	const selectedCount = selectedRows.length;
 	const canCompare = selectedCount === 2 || selectedCount === 3;
 	const hasDefaultSelected = selectedRows.some((row) => row.isDefault);
+	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
+	const overLimitMessage = t('bulk-action-max-count-exceeded', {
+		max: BULK_ACTION_MAX_COUNT,
+		count: selectedCount,
+	});
 
 	const { mutateAsync: bulkDeleteProfiles, isPending: isBulkDeleting } =
 		useBulkDeleteTenantProfiles({
@@ -159,14 +166,22 @@ const TenantProfilesSelectionActions = ({
 
 	return (
 		<>
-			<Tooltip title={t('actions')} placement="top" arrow>
-				<IconButton
-					size="small"
-					onClick={(event) => setAnchorEl(event.currentTarget)}
-					sx={{ width: 32, height: 32 }}
-				>
-					<Iconify icon="eva:more-vertical-fill" width={18} />
-				</IconButton>
+			<Tooltip
+				title={isOverLimit ? overLimitMessage : t('actions')}
+				placement="top"
+				arrow
+			>
+				<span>
+					<IconButton
+						size="small"
+						aria-label={isOverLimit ? overLimitMessage : t('actions')}
+						onClick={(event) => setAnchorEl(event.currentTarget)}
+						disabled={isOverLimit}
+						sx={{ width: 32, height: 32 }}
+					>
+						<Iconify icon="eva:more-vertical-fill" width={18} />
+					</IconButton>
+				</span>
 			</Tooltip>
 
 			<Menu
