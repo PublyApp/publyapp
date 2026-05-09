@@ -311,7 +311,7 @@ const StaffInvitationsTable = () => {
 
 	const dataTable = useMemo(() => {
 		return map(invitationsQuery.data?.data, StaffInvitationRowDataMapper);
-	}, [invitationsQuery.data]);
+	}, [invitationsQuery.data?.data]);
 
 	const {
 		rowSelection,
