@@ -49,6 +49,7 @@ public sealed class BulkRevokeStaffInvitations {
 			[FromServices] IRequestAuthContext authContext,
 			[FromServices] IInvitationService invitationService,
 			[FromServices] IAuditLogService auditLogService,
+			[FromServices] ILogger<BulkRevokeStaffInvitations> logger,
 			CancellationToken cancellationToken = default
 	) {
 		var account = authContext.AccountStaff;
@@ -71,14 +72,24 @@ public sealed class BulkRevokeStaffInvitations {
 			.Where(invitationId => !failedInvitationIds.Contains(invitationId))
 			.ToList();
 
-		foreach (var invitationId in succeededInvitationIds) {
-			await auditLogService.LogAsync(
-				new CreateAuditLogArgs(
-					UserId: account.UserId,
-					Action: AuditActions.InvitationRevoked,
-					TargetId: invitationId
-				),
+		try {
+			await auditLogService.LogManyAsync(
+				succeededInvitationIds
+					.Select(invitationId => new CreateAuditLogArgs(
+						UserId: account.UserId,
+						Action: AuditActions.InvitationRevoked,
+						TargetId: invitationId
+					))
+					.ToList(),
 				cancellationToken
+			);
+		} catch (Exception ex) {
+			// Audit logging is observability — don't fail the bulk response over it.
+			// Log centrally and let the user see their bulk action succeed.
+			logger.LogError(
+				ex,
+				"Failed to write audit logs for bulk staff invitation revoke; {Count} entries lost.",
+				succeededInvitationIds.Count
 			);
 		}
 
