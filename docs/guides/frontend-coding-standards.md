@@ -705,6 +705,43 @@ function StaffUsersPage() {
 - When you need very custom loading logic
 - Background refetches where you want to show stale data
 
+## Unknown Enum Values: Sentinel + `logger.warn`
+
+When mapping a backend enum value to a known UI set (status filters, role tokens, etc.), surface
+drift instead of silently coercing. If the value falls outside the allowlist, log a warning via
+the shared logger (`@/shared/lib/logger/iso-logger`) and return an explicit `'unknown'` sentinel
+the UI can render as a neutral pill.
+
+```ts
+import logger from '@/shared/lib/logger/iso-logger';
+
+export const STAFF_INVITATION_UNKNOWN_STATUS = 'unknown' as const;
+
+const getInvitationStatus = (invitation: InvitationListItem): StaffInvitationRowStatus => {
+	const status = invitation.status ? snakeCase(invitation.status) : undefined;
+	if (status && STAFF_INVITATION_STATUS_VALUE_SET.has(status)) {
+		return status as StaffInvitationStatus;
+	}
+	logger.warn('[staff-invitations-table] unknown invitation status', {
+		invitationId: invitation.id,
+		rawStatus: invitation.status,
+	});
+	return STAFF_INVITATION_UNKNOWN_STATUS;
+};
+```
+
+Why: silent coercion (`status ?? 'pending'`) hides backend/contract drift; the warn + sentinel
+keeps the UI rendering and makes the drift observable in logs.
+
+## CSV / Download Helpers
+
+- All CSV exports MUST go through `escapeCsvCell` from `#app/lib/export/csv.ts`. It handles RFC
+  4180 quoting AND neutralizes formula-injection prefixes (`=`, `+`, `-`, `@`, `\t`, `\r`) per
+  CWE-1236 by prefixing offending cells with a leading apostrophe. Never roll a custom escape.
+- Download filenames MUST use `withTimestamp(baseName, ext)` from `#app/lib/export/download.ts` to
+  prevent silent overwrites when the user exports the same view twice in a row. Table-specific
+  code defines only the `baseName` and row projection.
+
 ## List Pages: Filters + Cursor Pagination (nuqs + useTableState)
 
 When building list pages with search/filter + cursor pagination:

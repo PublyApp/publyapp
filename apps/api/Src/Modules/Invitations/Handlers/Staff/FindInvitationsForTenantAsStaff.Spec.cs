@@ -437,6 +437,34 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff {
 				.Be(HttpStatusCode.UnprocessableEntity);
 		}
 
+		[Fact]
+		public async Task
+		ItShouldReturnUnprocessableEntityWhenStatusCsvHasNoTokens() {
+			string staffToken =
+				await _authClient.LoginAsStaffAdminAsync();
+			Guid tenantId =
+				await TenantTestHelper
+					.GetTenantIdByNameAsync(
+						_http,
+						staffToken,
+						SeedConstants.Tenants.AcmeName
+					);
+
+			string url = GetFindUrl(
+				tenantId,
+				status: ","
+			);
+			HttpRequestMessage request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(staffToken);
+
+			using HttpResponseMessage response =
+				await _http.SendAsync(request);
+
+			_ = response.StatusCode.Should()
+				.Be(HttpStatusCode.UnprocessableEntity);
+		}
+
 		#endregion
 
 		#region Sort Tests

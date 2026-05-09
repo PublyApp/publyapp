@@ -1,5 +1,6 @@
 export const optimizeDepsIncludes = [
 	'lodash',
+	'lodash/uniq',
 	'lodash/capitalize',
 	'lodash/first',
 	'lodash/forEach',

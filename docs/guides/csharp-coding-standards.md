@@ -145,6 +145,51 @@ var results = await Task.WhenAll(tasks);
 - Use `SemaphoreSlim` to limit concurrency in bulk operations
 - Use `await using` for transactions with explicit rollback on errors
 
+## Bulk Operations: Avoid N×SELECT and N×SaveChanges
+
+**CRITICAL:** When a service method processes a batch of IDs, never loop calling
+the per-item service method. That issues N round-trips for both reads and
+writes — at `N = 100` (the bulk action cap) it is catastrophic.
+
+```csharp
+// ❌ WRONG - N SELECTs + N SaveChangesAsync round-trips
+foreach (var id in requestedIds) {
+    await _invitationService.RevokeStaffInvitationAsync(id, ct);
+}
+
+// ✅ CORRECT - Single SELECT + EF tracker mutation + single SaveChangesAsync
+var rows = await _dbContext.Invitation
+    .Where(inv => requestedIds.Contains(inv.Id)
+        && inv.Scope == InvitationScope.Staff)
+    .ToListAsync(cancellationToken);
+var foundById = rows.ToDictionary(inv => inv.Id);
+
+foreach (var id in requestedIds) {
+    if (!foundById.TryGetValue(id, out var inv)) {
+        failedItems.Add(new(id, "not-found"));
+        continue;
+    }
+    inv.Status = InvitationStatus.Revoked;  // tracker mutation
+    succeededIds.Add(id);
+}
+
+await _dbContext.SaveChangesAsync(cancellationToken);
+```
+
+**Same rule for audit logs:** use `IAuditLogService.LogManyAsync` (one INSERT for
+the batch), not a loop of `LogAsync`. Wrap the audit-log call in try/catch so a
+logging hiccup never fails a user-visible response that already succeeded —
+observability isolation.
+
+**Side-effects:** if the per-item public method has side-effects (token
+invalidation, downstream events, notifications), refactor those into a private
+helper that operates on a tracked entity and call it from the loop. Don't lose
+the side-effect by inlining only the field write.
+
+For the full bulk-endpoint contract (route shape, validator, partial-success
+response, frontend selection plumbing), see
+[`docs/guides/bulk-action-ux-conventions.md`](bulk-action-ux-conventions.md).
+
 ## Handler Architecture (Vertical Slice)
 
 **CRITICAL:** Each handler file must be self-contained with ALL related code in ONE file.

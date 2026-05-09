@@ -156,8 +156,9 @@ export const useStaffUsersTableController = () => {
 
 		if (!isEqual(nextStatusFilter, statusFilter)) {
 			setStatusFilter(nextStatusFilter);
+			resetCursorPagination?.();
 		}
-	}, [filterStates.status, statusFilter]);
+	}, [filterStates.status, statusFilter, resetCursorPagination]);
 
 	const staffUsersQuery = useFindStaffUser({
 		variables: {
@@ -395,6 +396,7 @@ export const useStaffUsersTableController = () => {
 				canDelete={
 					selectedCount > 0 && selectedSuspendedCount === selectedCount
 				}
+				selectedCount={selectedCount}
 				onOpenExportDialog={openExportDialog}
 				onOpenBulkActionDialog={openBulkActionDialog}
 			/>
@@ -527,7 +529,6 @@ const UserCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 						component={RouterLink}
 						href={FRONT_PATH_NAMES.staff.staffUsers.details(userId)}
 						color="inherit"
-						sx={{ cursor: 'pointer' }}
 					>
 						{fullName}
 					</Link>

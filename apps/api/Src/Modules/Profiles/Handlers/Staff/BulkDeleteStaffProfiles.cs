@@ -63,8 +63,7 @@ public sealed class BulkDeleteStaffProfiles {
 		}
 
 		// Normalize incoming IDs once; backend service enforces max batch size via validation.
-		var profileIds = body.GetProfileIds();
-		var distinctProfileIds = profileIds.Distinct().ToList();
+		var distinctProfileIds = body.GetProfileIds().Distinct().ToList();
 		var result = await profileAsStaffService.BulkDeleteStaffProfilesAsync(
 			new BulkDeleteStaffProfilesArgs(ProfileIds: distinctProfileIds),
 			cancellationToken

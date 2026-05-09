@@ -25,13 +25,13 @@ public record FindTenantInvitationsArgs {
 	public FindTenantInvitationsFilters Filters { get; init; } = new();
 }
 
-public record FindStaffInvitationsArgs(
-	Guid Cursor,
-	int? Limit,
-	string? SortId,
-	SortOrder? SortOrder,
-	string? Status
-);
+public record FindStaffInvitationsArgs {
+	public Guid Cursor { get; init; }
+	public int? Limit { get; init; }
+	public string? SortId { get; init; }
+	public SortOrder? SortOrder { get; init; }
+	public IReadOnlySet<InvitationEffectiveStatus>? Statuses { get; init; }
+}
 
 public record CreateStaffInvitationArgs(
 	string Email,
@@ -88,6 +88,10 @@ public interface IInvitationService {
 
 	Task<RevokeInvitationForStaffResult> RevokeInvitationForStaffAsync(
 		Guid invitationId,
+		CancellationToken cancellationToken = default);
+
+	Task<BulkStaffInvitationActionResult> BulkRevokeStaffInvitationsAsync(
+		IReadOnlyCollection<Guid> invitationIds,
 		CancellationToken cancellationToken = default);
 
 	Task<RevokeInvitationForTenantAsStaffResult> RevokeInvitationForTenantAsStaffAsync(
@@ -221,6 +225,22 @@ public abstract record RevokeInvitationForStaffResult {
 
 	public sealed record AlreadyAccepted : RevokeInvitationForStaffResult;
 }
+
+public static class BulkStaffInvitationActionFailureReasons {
+	public const string NotFound = "not_found";
+	public const string AlreadyAccepted = "already_accepted";
+}
+
+public record BulkStaffInvitationActionFailedItem(
+	Guid InvitationId,
+	string Reason
+);
+
+public record BulkStaffInvitationActionResult(
+	int SucceededCount,
+	int FailedCount,
+	List<BulkStaffInvitationActionFailedItem> FailedItems
+);
 
 public abstract record RevokeInvitationForTenantAsStaffResult {
 	public sealed record Success : RevokeInvitationForTenantAsStaffResult;
@@ -428,6 +448,94 @@ public class InvitationService : IInvitationService {
 		);
 	}
 
+	// Bulk path is hand-rolled (one SELECT + tracker mutations + one SaveChanges)
+	// rather than looping RevokeInvitationForStaffAsync because the per-item
+	// method round-trips the DB once per id. Keep classification logic in sync
+	// with RevokeInvitationInternalAsync; if revoke ever grows side effects
+	// (email, webhook, audit log), they must be replayed here too — they are
+	// currently invoked at the handler layer instead.
+	public async Task<BulkStaffInvitationActionResult> BulkRevokeStaffInvitationsAsync(
+		IReadOnlyCollection<Guid> invitationIds,
+		CancellationToken cancellationToken = default
+	) {
+		var requestedInvitationIds = invitationIds.Distinct().ToList();
+		if (requestedInvitationIds.Count == 0) {
+			return new BulkStaffInvitationActionResult(0, 0, []);
+		}
+
+		// 1 SELECT for all candidates, scope-filtered. Mirrors the per-item
+		// RevokeInvitationForStaffAsync read predicate.
+		var rows = await _dbContext.Invitation
+			.Where(inv =>
+				inv.Id != null
+				&& requestedInvitationIds.Contains(inv.Id.Value)
+				&& inv.Scope == InvitationScope.Staff
+			)
+			.ToListAsync(cancellationToken);
+
+		var foundById = rows.ToDictionary(inv => inv.GetRequiredId());
+		var failedItems = new List<BulkStaffInvitationActionFailedItem>();
+		var succeededCount = 0;
+		var now = DateTime.UtcNow;
+
+		// Iterate over the requested ids (not over rows) so missing ids surface
+		// as NotFound and the failed-items list preserves the requested order.
+		foreach (var invitationId in requestedInvitationIds) {
+			if (!foundById.TryGetValue(invitationId, out var invitation)) {
+				failedItems.Add(new BulkStaffInvitationActionFailedItem(
+					invitationId,
+					BulkStaffInvitationActionFailureReasons.NotFound
+				));
+				continue;
+			}
+
+			// Mirror RevokeInvitationInternalAsync classification:
+			// already-revoked is a success no-op; accepted is a hard failure.
+			if (invitation.IsRevoked()) {
+				if (_logger.IsEnabled(LogLevel.Information)) {
+					_logger.LogInformation(
+						"Invitation {InvitationId} is already revoked; no-op",
+						invitationId
+					);
+				}
+				succeededCount++;
+				continue;
+			}
+
+			if (invitation.IsAccepted()) {
+				if (_logger.IsEnabled(LogLevel.Warning)) {
+					_logger.LogWarning(
+						"Attempt to revoke accepted invitation {InvitationId} blocked",
+						invitationId
+					);
+				}
+				failedItems.Add(new BulkStaffInvitationActionFailedItem(
+					invitationId,
+					BulkStaffInvitationActionFailureReasons.AlreadyAccepted
+				));
+				continue;
+			}
+
+			// Mutate via the EF tracker; one SaveChanges flushes them all.
+			invitation.Status = InvitationStatus.Revoked;
+			invitation.RevokedAt = now;
+			succeededCount++;
+
+			if (_logger.IsEnabled(LogLevel.Information)) {
+				_logger.LogInformation("Revoked invitation {InvitationId}", invitationId);
+			}
+		}
+
+		// 1 SaveChanges for all updates.
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		return new BulkStaffInvitationActionResult(
+			SucceededCount: succeededCount,
+			FailedCount: failedItems.Count,
+			FailedItems: failedItems
+		);
+	}
+
 	public async Task<RevokeInvitationForTenantAsStaffResult> RevokeInvitationForTenantAsStaffAsync(
 		Guid tenantId,
 		Guid invitationId,
@@ -524,7 +632,7 @@ public class InvitationService : IInvitationService {
 		var effectiveLimit = args.Limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
 		var effectiveSortOrder = args.SortOrder ?? SortOrder.Desc;
 		var effectiveSortId = args.SortId ?? "created_at";
-		var status = args.Status;
+		var statuses = args.Statuses;
 
 		// Keyset pagination handlers per sortId (cursor stays a Guid).
 		var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<Invitation>>(
@@ -633,23 +741,15 @@ public class InvitationService : IInvitationService {
 			.AsNoTracking()
 			.Where(inv => inv.Scope == InvitationScope.Staff && inv.Id != null);
 
-		if (!string.IsNullOrWhiteSpace(status)) {
-			// Apply backend status semantics so UI filters match persisted state.
-			var normalizedStatus = status.Trim();
+		if (statuses is { Count: > 0 } activeStatuses) {
 			var now = DateTime.UtcNow;
-
-			if (string.Equals(normalizedStatus, "pending", StringComparison.OrdinalIgnoreCase)) {
-				query = query.Where(inv => inv.Status == InvitationStatus.Pending && inv.ExpiresAt > now);
-			}
-			if (string.Equals(normalizedStatus, "accepted", StringComparison.OrdinalIgnoreCase)) {
-				query = query.Where(inv => inv.Status == InvitationStatus.Accepted);
-			}
-			if (string.Equals(normalizedStatus, "revoked", StringComparison.OrdinalIgnoreCase)) {
-				query = query.Where(inv => inv.Status == InvitationStatus.Revoked);
-			}
-			if (string.Equals(normalizedStatus, "expired", StringComparison.OrdinalIgnoreCase)) {
-				query = query.Where(inv => inv.Status == InvitationStatus.Pending && inv.ExpiresAt <= now);
-			}
+			query = query.Where(inv =>
+				// Filters are effective statuses: Expired is derived from Pending + ExpiresAt.
+				(activeStatuses.Contains(InvitationEffectiveStatus.Pending) && inv.Status == InvitationStatus.Pending && inv.ExpiresAt > now) ||
+				(activeStatuses.Contains(InvitationEffectiveStatus.Accepted) && inv.Status == InvitationStatus.Accepted) ||
+				(activeStatuses.Contains(InvitationEffectiveStatus.Revoked) && inv.Status == InvitationStatus.Revoked) ||
+				(activeStatuses.Contains(InvitationEffectiveStatus.Expired) && inv.Status == InvitationStatus.Pending && inv.ExpiresAt <= now)
+			);
 		}
 
 		if (cursor != Guid.Empty) {

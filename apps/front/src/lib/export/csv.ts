@@ -1,6 +1,16 @@
+// CWE-1236 / spreadsheet formula injection: cells starting with one of these
+// characters are interpreted as formulas by Excel and Google Sheets, which can
+// execute attacker-controlled HYPERLINK / WEBSERVICE calls when the export is
+// opened. Prefixing with a single quote neutralizes them.
+const FORMULA_PREFIXES = ['=', '+', '-', '@', '\t', '\r'];
+
+const neutralizeFormula = (raw: string) =>
+	raw.length > 0 && FORMULA_PREFIXES.includes(raw[0]) ? `'${raw}` : raw;
+
 const escapeCsvCell = (value: string | number | null | undefined) => {
 	const normalizedValue = value == null ? '' : String(value);
-	return `"${normalizedValue.replaceAll('"', '""')}"`;
+	const safe = neutralizeFormula(normalizedValue);
+	return `"${safe.replaceAll('"', '""')}"`;
 };
 
 export const buildCsv = (

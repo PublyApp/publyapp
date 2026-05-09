@@ -59,10 +59,9 @@ public sealed class BulkDeleteStaffUsers {
 			);
 		}
 
-		var userIds = body.GetUserIds();
-		var requestedUserIds = userIds.Distinct().ToList();
+		var requestedUserIds = body.GetUserIds().Distinct().ToList();
 		var result = await userService.BulkDeleteStaffUsersAsync(
-			userIds,
+			requestedUserIds,
 			cancellationToken
 		);
 		var failedUserIds = result.FailedItems

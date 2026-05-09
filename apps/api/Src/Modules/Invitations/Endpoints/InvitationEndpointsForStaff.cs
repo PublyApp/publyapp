@@ -30,6 +30,15 @@ public static class InvitationEndpointsForStaff {
 			.WithReqBodyValidation<BulkCreateStaffInvitationsBody>()
 			.WithPermission([AppPermissions.Staff.Invitations.CREATE_FOR_STAFF]);
 
+		group.MapPost(
+				Routes.Invitations.ForStaff.BulkRevoke,
+				BulkRevokeStaffInvitations.HandleBulkRevokeStaffInvitations
+			)
+			.WithName("BulkRevokeStaffInvitations")
+			.WithSummary("Bulk revoke staff invitations")
+			.WithReqBodyValidation<BulkRevokeStaffInvitationsBody>()
+			.WithPermission([AppPermissions.Staff.Invitations.REVOKE_FOR_STAFF]);
+
 		group.MapGet(
 				Routes.Invitations.ForStaff.Find,
 				FindStaffInvitations.HandleFindStaffInvitations

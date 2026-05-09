@@ -15,7 +15,11 @@ import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { downloadCsvFile, downloadJsonFile } from '#app/lib/export/download.ts';
+import {
+	downloadCsvFile,
+	downloadJsonFile,
+	withTimestamp,
+} from '#app/lib/export/download.ts';
 
 import type { ProfileUserRowData } from './staff-profile-users-table.tsx';
 
@@ -62,7 +66,7 @@ const StaffProfileUsersExportDialogController = ({
 
 	const exportRows = (format: 'csv' | 'json') => {
 		if (format === 'csv') {
-			const headers = ['Name', 'Email', 'Status'];
+			const headers = [t('name'), t('email'), t('status')];
 			const csvRows = map(rowsToExport, (row) => {
 				return [
 					getUserFullName({ firstName: row.firstName, lastName: row.lastName }),
@@ -71,18 +75,20 @@ const StaffProfileUsersExportDialogController = ({
 				];
 			});
 			downloadCsvFile({
-				fileName: isSelectionMode
-					? 'selected-profile-users.csv'
-					: 'profile-users.csv',
+				fileName: withTimestamp(
+					isSelectionMode ? 'selected-profile-users' : 'profile-users',
+					'csv',
+				),
 				rows: [headers, ...csvRows],
 			});
 			return;
 		}
 
 		downloadJsonFile({
-			fileName: isSelectionMode
-				? 'selected-profile-users.json'
-				: 'profile-users.json',
+			fileName: withTimestamp(
+				isSelectionMode ? 'selected-profile-users' : 'profile-users',
+				'json',
+			),
 			data: rowsToExport,
 		});
 	};
@@ -147,8 +153,15 @@ const StaffProfileUsersExportDialogController = ({
 					>
 						<Tab label="CSV" value="csv" />
 						<Tab label="JSON" value="json" />
-						<Tab label="XLSX" value="xlsx" disabled />
+						<Tab label="XLSX" value="xlsx" />
 					</Tabs>
+					<Typography
+						variant="body2"
+						color="text.secondary"
+						sx={{ minHeight: 20 }}
+					>
+						{exportFormat === 'xlsx' ? t('xlsx-export-coming-soon') : ' '}
+					</Typography>
 				</Box>
 			</DialogContent>
 

@@ -26,6 +26,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type { StaffProfileItem } from '@org/client-ts/src/models';
 import {
+	BULK_ACTION_MAX_COUNT,
 	DEFAULT_PAGE_SIZE,
 	FRONT_PATH_NAMES,
 } from '@org/shared-ts/lib/constants';
@@ -656,6 +657,12 @@ const StaffProfilesSelectionActions = ({
 	const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 	const open = Boolean(anchorEl);
 	const [confirmBulkDeleteOpen, setConfirmBulkDeleteOpen] = useState(false);
+	const selectedCount = selectedRows.length;
+	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
+	const overLimitMessage = t('bulk-action-max-count-exceeded', {
+		max: BULK_ACTION_MAX_COUNT,
+		count: selectedCount,
+	});
 
 	const { mutateAsync: bulkDeleteProfiles, isPending: isBulkDeleting } =
 		useBulkDeleteStaffProfiles({
@@ -665,100 +672,14 @@ const StaffProfilesSelectionActions = ({
 	const closeMenu = () => setAnchorEl(null);
 
 	const handleConfirmBulkDelete = async () => {
+		// Convert current selection into an ID list, call bulk endpoint once,
+		// then split IDs by failedItems from the backend response.
+		const selectedProfileIds = selectedRows.map((row) => row.id);
+		let result: Awaited<ReturnType<typeof bulkDeleteProfiles>>;
 		try {
-			// Convert current selection into an ID list, call bulk endpoint once,
-			// then split IDs by failedItems from the backend response.
-			const selectedProfileIds = selectedRows.map((row) => row.id);
-			const result = await bulkDeleteProfiles({
+			result = await bulkDeleteProfiles({
 				profileIds: selectedProfileIds,
 			});
-			const failedProfileIds = (result.failedItems ?? [])
-				.map((item) => item.profileId)
-				.filter((id): id is string => id != null && id !== '');
-			const failedProfileIdSet = new Set(failedProfileIds);
-			const succeededProfileIds = selectedProfileIds.filter(
-				(profileId) => !failedProfileIdSet.has(profileId),
-			);
-			const succeeded = succeededProfileIds.length;
-			const failed = result.failedCount ?? 0;
-
-			setConfirmBulkDeleteOpen(false);
-			if (failed > 0 && succeeded === 0) {
-				// Keep full selection open for retry when nothing succeeded.
-				onKeepSelectedRows(selectedProfileIds);
-				toast.error(t('staff-profile-bulk-delete-failure'));
-				return;
-			}
-
-			if (succeeded > 0) {
-				// Invalidate both list/detail and user/perms related caches so UI reflects
-				// soft-deleted profile state immediately.
-				await queryClient.invalidateQueries({
-					queryKey: useFindStaffProfiles.getKey(),
-				});
-
-				for (const profileId of succeededProfileIds) {
-					await Promise.all([
-						queryClient.invalidateQueries({
-							queryKey: useGetStaffProfileById.getKey({
-								profileId,
-							}),
-						}),
-						queryClient.invalidateQueries({
-							queryKey: useFindStaffProfilePermissions.getKey({
-								profileId,
-							}),
-						}),
-					]);
-				}
-
-				await Promise.all([
-					queryClient.invalidateQueries({
-						predicate: (query) => {
-							return (
-								getQueryKeyRoot(query.queryKey) ===
-								staffProfileUsersQueryKeyRoot
-							);
-						},
-					}),
-					queryClient.invalidateQueries({
-						predicate: (query) => {
-							return (
-								getQueryKeyRoot(query.queryKey) ===
-								staffProfilePermissionsQueryKeyRoot
-							);
-						},
-					}),
-					queryClient.invalidateQueries({
-						predicate: (query) => {
-							return (
-								getQueryKeyRoot(query.queryKey) ===
-								staffUserProfilesQueryKeyRoot
-							);
-						},
-					}),
-				]);
-			}
-
-			if (failed > 0) {
-				// Preserve failed rows in selection for a focused retry path.
-				onKeepSelectedRows(failedProfileIds);
-				toast.warning(
-					t('staff-profile-bulk-delete-partial-success', {
-						succeeded,
-						failed,
-					}),
-				);
-
-				return;
-			}
-
-			onClearSelection();
-			toast.success(
-				t('staff-profile-bulk-delete-success', {
-					count: succeeded,
-				}),
-			);
 		} catch (error) {
 			setConfirmBulkDeleteOpen(false);
 			toast.error(
@@ -766,19 +687,114 @@ const StaffProfilesSelectionActions = ({
 					fallback: t('staff-profile-bulk-delete-failure'),
 				}),
 			);
+			return;
 		}
+
+		const failedProfileIds = (result.failedItems ?? [])
+			.map((item) => item.profileId)
+			.filter((id): id is string => id != null && id !== '');
+		const failedProfileIdSet = new Set(failedProfileIds);
+		const succeededProfileIds = selectedProfileIds.filter(
+			(profileId) => !failedProfileIdSet.has(profileId),
+		);
+		const succeeded = succeededProfileIds.length;
+		const failed = result.failedCount ?? 0;
+
+		setConfirmBulkDeleteOpen(false);
+		if (failed > 0 && succeeded === 0) {
+			// Keep full selection open for retry when nothing succeeded.
+			onKeepSelectedRows(selectedProfileIds);
+			toast.error(t('staff-profile-bulk-delete-failure'));
+			return;
+		}
+
+		if (succeeded > 0) {
+			// Invalidate both list/detail and user/perms related caches so UI reflects
+			// soft-deleted profile state immediately.
+			await queryClient.invalidateQueries({
+				queryKey: useFindStaffProfiles.getKey(),
+			});
+
+			for (const profileId of succeededProfileIds) {
+				await Promise.all([
+					queryClient.invalidateQueries({
+						queryKey: useGetStaffProfileById.getKey({
+							profileId,
+						}),
+					}),
+					queryClient.invalidateQueries({
+						queryKey: useFindStaffProfilePermissions.getKey({
+							profileId,
+						}),
+					}),
+				]);
+			}
+
+			await Promise.all([
+				queryClient.invalidateQueries({
+					predicate: (query) => {
+						return (
+							getQueryKeyRoot(query.queryKey) === staffProfileUsersQueryKeyRoot
+						);
+					},
+				}),
+				queryClient.invalidateQueries({
+					predicate: (query) => {
+						return (
+							getQueryKeyRoot(query.queryKey) ===
+							staffProfilePermissionsQueryKeyRoot
+						);
+					},
+				}),
+				queryClient.invalidateQueries({
+					predicate: (query) => {
+						return (
+							getQueryKeyRoot(query.queryKey) === staffUserProfilesQueryKeyRoot
+						);
+					},
+				}),
+			]);
+		}
+
+		if (failed > 0) {
+			// Preserve failed rows in selection for a focused retry path.
+			onKeepSelectedRows(failedProfileIds);
+			toast.warning(
+				t('staff-profile-bulk-delete-partial-success', {
+					succeeded,
+					failed,
+				}),
+			);
+
+			return;
+		}
+
+		onClearSelection();
+		toast.success(
+			t('staff-profile-bulk-delete-success', {
+				count: succeeded,
+			}),
+		);
 	};
 
 	return (
 		<>
-			<Tooltip title={t('actions')} placement="top" arrow>
-				<IconButton
-					size="small"
-					onClick={(event) => setAnchorEl(event.currentTarget)}
-					sx={{ width: 32, height: 32 }}
-				>
-					<Iconify icon="solar:menu-dots-bold-duotone" width={18} />
-				</IconButton>
+			<Tooltip
+				title={isOverLimit ? overLimitMessage : t('actions')}
+				placement="top"
+				arrow
+			>
+				<span>
+					<IconButton
+						size="small"
+						aria-label={isOverLimit ? overLimitMessage : t('actions')}
+						onClick={(event) => setAnchorEl(event.currentTarget)}
+						disabled={isOverLimit}
+						sx={{ width: 32, height: 32 }}
+					>
+						<Iconify icon="solar:menu-dots-bold-duotone" width={18} />
+					</IconButton>
+				</span>
 			</Tooltip>
 
 			<Menu

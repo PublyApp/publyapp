@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 using FluentValidation;
 
 using MainApi.Localization;
@@ -74,11 +76,26 @@ public class FindTenantUsersAsStaffQueryValidator
 	: CursorPaginatedQueryValidator<
 		FindTenantUsersAsStaffQuery
 	> {
-	private static readonly HashSet<string> AllowedStatuses =
-		new(
-			["active", "suspended", "globally_suspended"],
-			StringComparer.OrdinalIgnoreCase
-		);
+	// Source of truth: nameof() — rename-safe, no hardcoded strings to maintain.
+	private static readonly string[] AllowedStatuses = [
+		nameof(TenantUserStatus.Active),
+		nameof(TenantUserStatus.Suspended),
+		nameof(TenantUserStatus.GloballySuspended),
+	];
+
+	// Snake-case the PascalCase enum member names once at type init. The wire
+	// contract uses snake_case tokens (e.g. "globally_suspended"); collapsing to
+	// lowercase via .ToLowerInvariant() would yield "globallysuspended" and
+	// break the existing wire format. Both the comparison set and the display
+	// string derive from the same conversion so they stay in sync.
+	private static string ToSnakeCase(string value) =>
+		Regex.Replace(value, "(?<!^)([A-Z])", "_$1").ToLowerInvariant();
+
+	private static readonly HashSet<string> AllowedStatusSet =
+		new(AllowedStatuses.Select(ToSnakeCase), StringComparer.OrdinalIgnoreCase);
+
+	private static readonly string AllowedStatusesDisplay =
+		string.Join(", ", AllowedStatuses.Select(ToSnakeCase).Order());
 
 	public FindTenantUsersAsStaffQueryValidator() {
 		RuleFor(x => x.Search).MaximumLength(200);
@@ -88,11 +105,15 @@ public class FindTenantUsersAsStaffQueryValidator
 					return true;
 				}
 
-				var parts = raw
-					.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-				return parts.All(AllowedStatuses.Contains);
+				// Split WITHOUT RemoveEmptyEntries so empty tokens are caught
+				// (",", ",,", "a,,b") instead of being silently dropped.
+				var parts = raw.Split(',', StringSplitOptions.TrimEntries);
+				if (parts.Length == 0) {
+					return false;
+				}
+				return parts.All(p => p.Length > 0 && AllowedStatusSet.Contains(p));
 			})
-			.WithMessage("Invalid status value. Must be comma-separated: " + string.Join(",", AllowedStatuses));
+			.WithMessage($"Status must be one of: {AllowedStatusesDisplay}");
 	}
 }
 
@@ -177,7 +198,7 @@ public class FindTenantUsersAsStaff {
 					.InvalidSortId sortIdError
 		) {
 			return TypedProblems.BadRequest(
-				$"Invalid sortId: "
+				$"Invalid sort_id: "
 					+ $"{sortIdError.SortId}.",
 				ResponseKeys.BadRequest
 			);

@@ -16,7 +16,11 @@ import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { downloadCsvFile, downloadJsonFile } from '#app/lib/export/download.ts';
+import {
+	downloadCsvFile,
+	downloadJsonFile,
+	withTimestamp,
+} from '#app/lib/export/download.ts';
 
 import type { StaffUserRowData } from './use-staff-users-table-controller.ts';
 
@@ -58,7 +62,7 @@ const StaffUsersExportDialogController = ({
 
 	const exportRows = (format: 'csv' | 'json') => {
 		if (format === 'csv') {
-			const headers = ['Name', 'Email', 'Status', 'Level'];
+			const headers = [t('name'), t('email'), t('status'), t('level')];
 			const csvRows = map(rowsToExport, (row) => {
 				return [
 					getUserFullName({
@@ -71,18 +75,20 @@ const StaffUsersExportDialogController = ({
 				];
 			});
 			downloadCsvFile({
-				fileName: isSelectionMode
-					? 'selected-staff-users.csv'
-					: 'staff-users.csv',
+				fileName: withTimestamp(
+					isSelectionMode ? 'selected-staff-users' : 'staff-users',
+					'csv',
+				),
 				rows: [headers, ...csvRows],
 			});
 			return;
 		}
 
 		downloadJsonFile({
-			fileName: isSelectionMode
-				? 'selected-staff-users.json'
-				: 'staff-users.json',
+			fileName: withTimestamp(
+				isSelectionMode ? 'selected-staff-users' : 'staff-users',
+				'json',
+			),
 			data: rowsToExport,
 		});
 	};

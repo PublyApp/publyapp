@@ -1,4 +1,3 @@
-import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import ListItemText from '@mui/material/ListItemText';
 import Menu from '@mui/material/Menu';
@@ -6,7 +5,10 @@ import MenuItem from '@mui/material/MenuItem';
 import Tooltip from '@mui/material/Tooltip';
 import { useState } from 'react';
 
+import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
+
 import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
 import type { StaffUsersBulkActionType } from './use-staff-users-bulk-actions.ts';
@@ -17,6 +19,7 @@ type StaffUsersSelectionActionsProps = {
 	canSuspend: boolean;
 	canReactivate: boolean;
 	canDelete: boolean;
+	selectedCount: number;
 	onOpenExportDialog: () => void;
 	onOpenBulkActionDialog: (type: StaffUsersBulkActionType) => void;
 };
@@ -25,24 +28,40 @@ const StaffUsersSelectionActions = ({
 	canSuspend,
 	canReactivate,
 	canDelete,
+	selectedCount,
 	onOpenExportDialog,
 	onOpenBulkActionDialog,
 }: StaffUsersSelectionActionsProps) => {
 	const { t } = useTranslate();
 	const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 	const open = Boolean(anchorEl);
+	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
+	const overLimitMessage = t('bulk-action-max-count-exceeded', {
+		max: BULK_ACTION_MAX_COUNT,
+		count: selectedCount,
+	});
 
 	const closeMenu = () => setAnchorEl(null);
 
 	return (
 		<>
-			<IconButton
-				size="small"
-				onClick={(event) => setAnchorEl(event.currentTarget)}
-				sx={{ width: 32, height: 32 }}
+			<Tooltip
+				title={isOverLimit ? overLimitMessage : t('more-actions')}
+				placement="top"
+				arrow
 			>
-				<Iconify icon="eva:more-vertical-fill" width={18} />
-			</IconButton>
+				<span>
+					<IconButton
+						size="small"
+						aria-label={isOverLimit ? overLimitMessage : t('more-actions')}
+						onClick={(event) => setAnchorEl(event.currentTarget)}
+						disabled={isOverLimit}
+						sx={{ width: 32, height: 32 }}
+					>
+						<Iconify icon="eva:more-vertical-fill" width={18} />
+					</IconButton>
+				</span>
+			</Tooltip>
 
 			<Menu
 				anchorEl={anchorEl}
@@ -68,67 +87,60 @@ const StaffUsersSelectionActions = ({
 					<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
 				</MenuItem>
 
-				<Tooltip
-					title={canSuspend ? '' : t('bulk-suspend-disabled-no-active-users')}
-					placement="left"
-					arrow
-				>
-					<Box component="span">
-						<MenuItem
-							disabled={!canSuspend}
-							onClick={() => {
-								closeMenu();
-								onOpenBulkActionDialog('suspend');
-							}}
-						>
-							<Iconify icon="solar:forbidden-circle-bold" width={18} />
-							<ListItemText primary={t('bulk-suspend')} sx={{ ml: 1 }} />
-						</MenuItem>
-					</Box>
-				</Tooltip>
+				{/*
+				  Each bulk action stays visible (not disabled/hidden) when no
+				  rows are eligible; an ineligible click closes the menu and
+				  shows a warning toast explaining why. Discoverability over
+				  silent gating when the selection mixes statuses.
+				*/}
+				<MenuItem
+					onClick={() => {
+						closeMenu();
 
-				<Tooltip
-					title={
-						canReactivate
-							? ''
-							: t('bulk-reactivate-disabled-no-suspended-users')
-					}
-					placement="left"
-					arrow
-				>
-					<Box component="span">
-						<MenuItem
-							disabled={!canReactivate}
-							onClick={() => {
-								closeMenu();
-								onOpenBulkActionDialog('reactivate');
-							}}
-						>
-							<Iconify icon="solar:play-circle-bold" width={18} />
-							<ListItemText primary={t('bulk-reactivate')} sx={{ ml: 1 }} />
-						</MenuItem>
-					</Box>
-				</Tooltip>
+						if (!canSuspend) {
+							toast.warning(t('bulk-suspend-disabled-no-active-users'));
+							return;
+						}
 
-				<Tooltip
-					title={canDelete ? '' : t('bulk-delete-disabled-until-all-suspended')}
-					placement="left"
-					arrow
+						onOpenBulkActionDialog('suspend');
+					}}
 				>
-					<Box component="span">
-						<MenuItem
-							disabled={!canDelete}
-							onClick={() => {
-								closeMenu();
-								onOpenBulkActionDialog('delete');
-							}}
-							sx={{ color: canDelete ? 'error.main' : 'action.disabled' }}
-						>
-							<Iconify icon="solar:trash-bin-trash-bold" width={18} />
-							<ListItemText primary={t('bulk-delete')} sx={{ ml: 1 }} />
-						</MenuItem>
-					</Box>
-				</Tooltip>
+					<Iconify icon="solar:forbidden-circle-bold" width={18} />
+					<ListItemText primary={t('bulk-suspend')} sx={{ ml: 1 }} />
+				</MenuItem>
+
+				<MenuItem
+					onClick={() => {
+						closeMenu();
+
+						if (!canReactivate) {
+							toast.warning(t('bulk-reactivate-disabled-no-suspended-users'));
+							return;
+						}
+
+						onOpenBulkActionDialog('reactivate');
+					}}
+				>
+					<Iconify icon="solar:play-circle-bold" width={18} />
+					<ListItemText primary={t('bulk-reactivate')} sx={{ ml: 1 }} />
+				</MenuItem>
+
+				<MenuItem
+					onClick={() => {
+						closeMenu();
+
+						if (!canDelete) {
+							toast.warning(t('bulk-delete-disabled-until-all-suspended'));
+							return;
+						}
+
+						onOpenBulkActionDialog('delete');
+					}}
+					sx={{ color: 'error.main' }}
+				>
+					<Iconify icon="solar:trash-bin-trash-bold" width={18} />
+					<ListItemText primary={t('bulk-delete')} sx={{ ml: 1 }} />
+				</MenuItem>
 			</Menu>
 		</>
 	);

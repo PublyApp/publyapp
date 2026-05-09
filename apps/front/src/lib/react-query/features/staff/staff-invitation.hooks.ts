@@ -1,7 +1,11 @@
-import { createUntypedString } from '@microsoft/kiota-abstractions';
+import {
+	createUntypedArray,
+	createUntypedString,
+} from '@microsoft/kiota-abstractions';
 import _ from 'lodash';
 
 import type {
+	BulkRevokeStaffInvitationsBody,
 	BulkStaffInvitationsCreated,
 	CreateStaffInvitationBody,
 } from '@org/client-ts/src/models';
@@ -150,6 +154,27 @@ export const useRevokeStaffInvitation = createStaffMutation({
 			.delete();
 		if (_.isNil(result)) {
 			throw new Error('useRevokeStaffInvitation: result is nil');
+		}
+		return result;
+	},
+});
+
+type BulkRevokeStaffInvitationsPayload = {
+	invitationIds: string[];
+};
+
+export const useBulkRevokeStaffInvitations = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.invitations.bulkRevoke.post,
+	mutationFn: async (client, data: BulkRevokeStaffInvitationsPayload) => {
+		const body: BulkRevokeStaffInvitationsBody = {
+			invitationIds: createUntypedArray(
+				data.invitationIds.map((id) => createUntypedString(id)),
+			) as typeof body.invitationIds,
+		};
+
+		const result = await client.staff.invitations.bulkRevoke.post(body);
+		if (_.isNil(result)) {
+			throw new Error('useBulkRevokeStaffInvitations: result is nil');
 		}
 		return result;
 	},

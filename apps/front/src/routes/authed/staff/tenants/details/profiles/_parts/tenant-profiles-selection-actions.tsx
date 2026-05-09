@@ -1,4 +1,3 @@
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import ListItemText from '@mui/material/ListItemText';
@@ -7,6 +6,8 @@ import MenuItem from '@mui/material/MenuItem';
 import Tooltip from '@mui/material/Tooltip';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+
+import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
 
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
@@ -50,21 +51,15 @@ const TenantProfilesSelectionActions = ({
 	const selectedCount = selectedRows.length;
 	const canCompare = selectedCount === 2 || selectedCount === 3;
 	const hasDefaultSelected = selectedRows.some((row) => row.isDefault);
-	const bulkDeleteBlockedReason = t(
-		'tenant-profile-default-delete-not-allowed',
-		{
-			ns: 'response-message',
-		},
-	);
-	let compareDisabledReason = '';
-
-	if (selectedCount < 2) {
-		compareDisabledReason = t('compare-selected-disabled-min');
-	}
-
-	if (selectedCount > 3) {
-		compareDisabledReason = t('compare-selected-disabled-max');
-	}
+	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
+	const overLimitMessage = t('bulk-action-max-count-exceeded', {
+		max: BULK_ACTION_MAX_COUNT,
+		count: selectedCount,
+	});
+	const compareDisabledReason =
+		selectedCount > 3
+			? t('compare-selected-disabled-max')
+			: t('compare-selected-disabled-min');
 
 	const { mutateAsync: bulkDeleteProfiles, isPending: isBulkDeleting } =
 		useBulkDeleteTenantProfiles({
@@ -91,75 +86,14 @@ const TenantProfilesSelectionActions = ({
 			return;
 		}
 
+		// Call the tenant bulk delete endpoint once for all selected profile IDs.
+		const selectedProfileIds = selectedRows.map((row) => row.id);
+		let result: Awaited<ReturnType<typeof bulkDeleteProfiles>>;
 		try {
-			// Call the tenant bulk delete endpoint once for all selected profile IDs.
-			const selectedProfileIds = selectedRows.map((row) => row.id);
-			const result = await bulkDeleteProfiles({
+			result = await bulkDeleteProfiles({
 				tenantId,
 				profileIds: selectedProfileIds,
 			});
-			const failedProfileIds = (result.failedItems ?? [])
-				.map((item) => item.profileId)
-				.filter((id): id is string => id != null && id !== '');
-			const failedProfileIdSet = new Set(failedProfileIds);
-			const succeededProfileIds = selectedProfileIds.filter(
-				(profileId) => !failedProfileIdSet.has(profileId),
-			);
-			const succeeded = succeededProfileIds.length;
-			const failed = result.failedCount ?? 0;
-
-			setConfirmBulkDeleteOpen(false);
-
-			if (succeededProfileIds.length > 0) {
-				// Refresh list and only the per-profile detail/query caches that actually changed.
-				await Promise.all([
-					queryClient.invalidateQueries({
-						queryKey: useFindTenantProfiles.getKey({ tenantId }),
-					}),
-					...succeededProfileIds.map((profileId) => {
-						return queryClient.invalidateQueries({
-							queryKey: useGetTenantProfileById.getKey({
-								tenantId,
-								profileId,
-							}),
-						});
-					}),
-					...succeededProfileIds.map((profileId) => {
-						return queryClient.invalidateQueries({
-							queryKey: useFindTenantProfilePermissions.getKey({
-								tenantId,
-								profileId,
-							}),
-						});
-					}),
-				]);
-			}
-
-			if (failed > 0 && succeeded === 0) {
-				// Keep the full set selected so the user can retry after a full failure.
-				onKeepSelectedRows(selectedProfileIds);
-				toast.error(t('tenant-profile-bulk-delete-failure'));
-				return;
-			}
-
-			if (failed > 0) {
-				// Keep only failed rows selected so retries are limited to unresolved items.
-				onKeepSelectedRows(failedProfileIds);
-				toast.warning(
-					t('tenant-profile-bulk-delete-partial-success', {
-						succeeded,
-						failed,
-					}),
-				);
-				return;
-			}
-
-			onClearSelection();
-			toast.success(
-				t('tenant-profile-bulk-delete-success', {
-					count: succeededProfileIds.length,
-				}),
-			);
 		} catch (error) {
 			setConfirmBulkDeleteOpen(false);
 			toast.error(
@@ -167,19 +101,91 @@ const TenantProfilesSelectionActions = ({
 					fallback: t('tenant-profile-bulk-delete-failure'),
 				}),
 			);
+			return;
 		}
+
+		const failedProfileIds = (result.failedItems ?? [])
+			.map((item) => item.profileId)
+			.filter((id): id is string => id != null && id !== '');
+		const failedProfileIdSet = new Set(failedProfileIds);
+		const succeededProfileIds = selectedProfileIds.filter(
+			(profileId) => !failedProfileIdSet.has(profileId),
+		);
+		const succeeded = succeededProfileIds.length;
+		const failed = result.failedCount ?? 0;
+
+		setConfirmBulkDeleteOpen(false);
+
+		if (succeededProfileIds.length > 0) {
+			// Refresh list and only the per-profile detail/query caches that actually changed.
+			await Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: useFindTenantProfiles.getKey({ tenantId }),
+				}),
+				...succeededProfileIds.map((profileId) => {
+					return queryClient.invalidateQueries({
+						queryKey: useGetTenantProfileById.getKey({
+							tenantId,
+							profileId,
+						}),
+					});
+				}),
+				...succeededProfileIds.map((profileId) => {
+					return queryClient.invalidateQueries({
+						queryKey: useFindTenantProfilePermissions.getKey({
+							tenantId,
+							profileId,
+						}),
+					});
+				}),
+			]);
+		}
+
+		if (failed > 0 && succeeded === 0) {
+			// Keep the full set selected so the user can retry after a full failure.
+			onKeepSelectedRows(selectedProfileIds);
+			toast.error(t('tenant-profile-bulk-delete-failure'));
+			return;
+		}
+
+		if (failed > 0) {
+			// Keep only failed rows selected so retries are limited to unresolved items.
+			onKeepSelectedRows(failedProfileIds);
+			toast.warning(
+				t('tenant-profile-bulk-delete-partial-success', {
+					succeeded,
+					failed,
+				}),
+			);
+			return;
+		}
+
+		onClearSelection();
+		toast.success(
+			t('tenant-profile-bulk-delete-success', {
+				count: succeededProfileIds.length,
+			}),
+		);
 	};
 
 	return (
 		<>
-			<Tooltip title={t('actions')} placement="top" arrow>
-				<IconButton
-					size="small"
-					onClick={(event) => setAnchorEl(event.currentTarget)}
-					sx={{ width: 32, height: 32 }}
-				>
-					<Iconify icon="eva:more-vertical-fill" width={18} />
-				</IconButton>
+			<Tooltip
+				title={isOverLimit ? overLimitMessage : t('actions')}
+				placement="top"
+				arrow
+			>
+				<span>
+					<IconButton
+						size="small"
+						aria-label={isOverLimit ? overLimitMessage : t('actions')}
+						onClick={(event) => setAnchorEl(event.currentTarget)}
+						disabled={isOverLimit}
+						sx={{ width: 32, height: 32 }}
+					>
+						<Iconify icon="eva:more-vertical-fill" width={18} />
+					</IconButton>
+				</span>
 			</Tooltip>
 
 			<Menu
@@ -196,19 +202,20 @@ const TenantProfilesSelectionActions = ({
 					},
 				}}
 			>
-				<Tooltip
-					title={canCompare ? '' : compareDisabledReason}
-					placement="left"
-					arrow
-					disableHoverListener={canCompare}
+				<MenuItem
+					onClick={() => {
+						if (!canCompare) {
+							closeMenu();
+							toast.warning(compareDisabledReason);
+							return;
+						}
+
+						handleOpenCompareDrawer();
+					}}
 				>
-					<Box component="span">
-						<MenuItem disabled={!canCompare} onClick={handleOpenCompareDrawer}>
-							<Iconify icon="carbon:chevron-sort" width={18} />
-							<ListItemText primary={t('compare-selected')} sx={{ ml: 1 }} />
-						</MenuItem>
-					</Box>
-				</Tooltip>
+					<Iconify icon="carbon:chevron-sort" width={18} />
+					<ListItemText primary={t('compare-selected')} sx={{ ml: 1 }} />
+				</MenuItem>
 
 				<MenuItem
 					onClick={() => {
@@ -220,29 +227,26 @@ const TenantProfilesSelectionActions = ({
 					<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
 				</MenuItem>
 
-				<Tooltip
-					title={hasDefaultSelected ? bulkDeleteBlockedReason : ''}
-					placement="left"
-					arrow
-					disableHoverListener={!hasDefaultSelected}
+				<MenuItem
+					onClick={() => {
+						closeMenu();
+
+						if (hasDefaultSelected) {
+							toast.warning(
+								t('tenant-profile-default-delete-not-allowed', {
+									ns: 'response-message',
+								}),
+							);
+							return;
+						}
+
+						setConfirmBulkDeleteOpen(true);
+					}}
+					sx={{ color: 'error.main' }}
 				>
-					<Box component="span">
-						<MenuItem
-							disabled={hasDefaultSelected}
-							onClick={() => {
-								closeMenu();
-								setConfirmBulkDeleteOpen(true);
-							}}
-							sx={{
-								color: 'error.main',
-								'&.Mui-disabled': { color: 'action.disabled' },
-							}}
-						>
-							<Iconify icon="solar:trash-bin-trash-bold" width={18} />
-							<ListItemText primary={t('bulk-delete')} sx={{ ml: 1 }} />
-						</MenuItem>
-					</Box>
-				</Tooltip>
+					<Iconify icon="solar:trash-bin-trash-bold" width={18} />
+					<ListItemText primary={t('bulk-delete')} sx={{ ml: 1 }} />
+				</MenuItem>
 			</Menu>
 
 			<TenantProfilesCompareDrawer

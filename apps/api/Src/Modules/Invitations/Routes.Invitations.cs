@@ -22,6 +22,7 @@ public static partial class Routes {
 			public const string Root = "/invitations";
 			public const string Create = "/";
 			public const string BulkCreate = "/bulk";
+			public const string BulkRevoke = "/bulk-revoke";
 			public const string Find = "/";
 			public const string RevokeById = "/{invitationId}";
 			public static string RevokeByIdFn(string invitationId) => $"/{invitationId}";

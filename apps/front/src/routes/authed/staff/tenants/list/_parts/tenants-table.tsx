@@ -190,12 +190,16 @@ const useTenantsTableController = () => {
 		onDebouncedValueChange: handleDebouncedSearchChange,
 	});
 
+	// Browser back/forward replays the URL filter without a click handler, so
+	// the cursor must be reset here too — a stale cursor paired with a different
+	// filter set produces phantom pages from the API.
 	useEffect(() => {
 		const nextStatusFilter = parseStatusFilter(filterStates.status);
 		if (!isEqual(nextStatusFilter, statusFilter)) {
 			setStatusFilter(nextStatusFilter);
+			resetCursorPagination?.();
 		}
-	}, [filterStates.status, statusFilter]);
+	}, [filterStates.status, statusFilter, resetCursorPagination]);
 
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setSearchValue(e.target.value);
@@ -231,7 +235,7 @@ const useTenantsTableController = () => {
 			}),
 			columnHelper.accessor('updatedAt', {
 				id: 'updated_at',
-				header: t('updated-at', { defaultValue: 'Updated at' }),
+				header: t('updated-at'),
 				enableSorting: true,
 			}),
 			columnHelper.accessor('name', {
@@ -332,13 +336,8 @@ const useTenantsTableController = () => {
 		rowSelection,
 		onSuccess: handleBulkActionSuccess,
 	});
-	const selectionModeDisabledReason = t('selection-mode-disable-controls', {
-		defaultValue:
-			'Clear the current selection to change the table query or navigation.',
-	});
-	const sortingDisabledReason = t('selection-mode-disable-sorting', {
-		defaultValue: 'Clear the current selection to change the table sorting.',
-	});
+	const selectionModeDisabledReason = t('selection-mode-disable-controls');
+	const sortingDisabledReason = t('selection-mode-disable-sorting');
 	const sortTooltipLocalization = useMemo<Partial<MRT_Localization>>(() => {
 		if (!isSelectionMode) {
 			return {};
@@ -988,12 +987,7 @@ const TenantsSelectionActions = ({
 					}}
 				>
 					<Iconify icon="solar:download-bold" width={18} />
-					<ListItemText
-						primary={t('export-selected', {
-							defaultValue: 'Export selected',
-						})}
-						sx={{ ml: 1 }}
-					/>
+					<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
 				</MenuItem>
 				<MenuItem
 					onClick={() => {
@@ -1113,13 +1107,7 @@ const TenantsExportDialog = ({
 	return (
 		<Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
 			<DialogTitle sx={{ pb: 1 }}>
-				{isSelectionMode
-					? t('export-selected-tenants', {
-							defaultValue: 'Export selected tenants',
-						})
-					: t('export-tenants', {
-							defaultValue: 'Export tenants',
-						})}
+				{isSelectionMode ? t('export-selected-tenants') : t('export-tenants')}
 			</DialogTitle>
 			<DialogContent sx={{ pt: '8px !important', pb: 2.5 }}>
 				<Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
@@ -1127,12 +1115,9 @@ const TenantsExportDialog = ({
 						{isSelectionMode
 							? t('export-selected-items', {
 									count: selectedCount,
-									defaultValue: 'Export {{count}} selected item(s)',
 								})
 							: t('export-current-results', {
 									count: rowsCount,
-									defaultValue:
-										'Export the current result set ({{count}} item(s)).',
 								})}
 					</Typography>
 					<Tabs
@@ -1193,11 +1178,7 @@ const TenantsExportDialog = ({
 						color="text.secondary"
 						sx={{ minHeight: 20 }}
 					>
-						{exportFormat === 'xlsx'
-							? t('xlsx-export-coming-soon', {
-									defaultValue: 'XLSX export is coming soon.',
-								})
-							: ' '}
+						{exportFormat === 'xlsx' ? t('xlsx-export-coming-soon') : ' '}
 					</Typography>
 				</Box>
 			</DialogContent>
