@@ -59,10 +59,9 @@ public sealed class BulkRevokeStaffInvitations {
 			);
 		}
 
-		var invitationIds = body.GetInvitationIds();
-		var requestedInvitationIds = invitationIds.Distinct().ToList();
+		var requestedInvitationIds = body.GetInvitationIds().Distinct().ToList();
 		var result = await invitationService.BulkRevokeStaffInvitationsAsync(
-			invitationIds,
+			requestedInvitationIds,
 			cancellationToken
 		);
 		var failedInvitationIds = result.FailedItems
