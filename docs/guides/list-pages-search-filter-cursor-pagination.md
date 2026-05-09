@@ -145,6 +145,15 @@ Rules:
 
 - Filter state lives in URL via nuqs.
 - Any change to `q` or `status` must call `resetCursorPagination?.()` **before** updating URL state.
+- URL→state sync effects (browser back/forward, deep-link entry) must also call
+  `resetCursorPagination?.()` when the URL value changes externally. A stale cursor paired with a
+  different filter set produces phantom pages from the API. Click handlers and history-driven
+  effects share this responsibility.
+- Filter values should be normalized at a single source of truth. If the parsed/UI-validated value
+  differs from the raw URL value (unknown tokens, casing drift, malformed segments), rewrite the
+  URL on mismatch so the API query, the UI checkbox state, and the URL all agree. Trigger the
+  rewrite only when raw and normalized differ, so user-driven updates that already write a
+  normalized value do not loop.
 - Debounce search URL updates (300ms default) using `useUrlBackedDebouncedSearch` from
   `#app/hooks/table/use-url-backed-debounced-search.ts`.
 - Do not hand-roll local search draft state + `useDebounce` + URL synchronization in each table.
@@ -182,6 +191,19 @@ const handleStatusChange = (statusCsv: string) => {
 };
 ```
 
+### Re-derive `hasNextPage` from the freshest server response
+
+`useTableState`'s `hasNextPage` lags by one render until pagination is interacted with, so
+consumers that surface it (MRT pagination, "Load more" buttons) on initial load see a stale value
+and may render an empty next page. Derive it directly from the query payload instead:
+
+```ts
+const hasNextPage = invitationsQuery.data?.nextCursor != null;
+```
+
+Use this pattern in every cursor-paginated table consumer until the hook itself returns a
+freshness-correct value.
+
 ## 7) Bulk Actions (List Tables)
 
 Default starting approach:
@@ -197,6 +219,10 @@ Default starting approach:
 - Use `SelectionLockedControl` from
   `#app/lib/mrt-table/components/selection-locked-control.tsx` for search/filter controls disabled
   during selection mode. Do not repeat raw `Tooltip` wrappers in each table.
+
+For the full selection-menu + mutation-hook + handler/service shape (always-render `MenuItem`,
+shared `BULK_ACTION_MAX_COUNT` cap, split try/catch, partial-success contract), see
+[`docs/guides/bulk-action-ux-conventions.md`](./bulk-action-ux-conventions.md).
 
 If bulk operations become common/heavy, consider adding a batch API later (explicit product/engineering decision).
 
