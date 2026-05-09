@@ -68,7 +68,7 @@ public class FindSystemNotices {
 			is FindSystemNoticesResult.InvalidSortId sortIdError
 		) {
 			return TypedProblems.BadRequest(
-				$"Invalid sortId: {sortIdError.SortId}. "
+				$"Invalid sort_id: {sortIdError.SortId}. "
 				+ "Allowed values: created_at, starts_at, severity",
 				ResponseKeys.BadRequest
 			);

@@ -145,7 +145,7 @@ public class FindInvitationsForTenantAsStaff {
 
 		if (serviceResult is Services.FindTenantInvitationsResult.InvalidSortId sortIdError) {
 			return TypedProblems.BadRequest(
-				$"Invalid sortId: {sortIdError.SortId}. Allowed values: created_at, expires_at, email, accepted_at",
+				$"Invalid sort_id: {sortIdError.SortId}. Allowed values: created_at, expires_at, email, accepted_at",
 				ResponseKeys.BadRequest
 			);
 		}

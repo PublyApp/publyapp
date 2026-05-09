@@ -198,7 +198,7 @@ public class FindTenantUsersAsStaff {
 					.InvalidSortId sortIdError
 		) {
 			return TypedProblems.BadRequest(
-				$"Invalid sortId: "
+				$"Invalid sort_id: "
 					+ $"{sortIdError.SortId}.",
 				ResponseKeys.BadRequest
 			);

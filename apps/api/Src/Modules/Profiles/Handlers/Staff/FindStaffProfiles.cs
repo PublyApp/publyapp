@@ -76,7 +76,7 @@ public class FindStaffProfiles {
 
 		if (serviceResult is Services.FindStaffProfilesResult.InvalidSortId sortIdError) {
 			return TypedProblems.BadRequest(
-				$"Invalid sortId: {sortIdError.SortId}. Allowed values: id, name, created_at, user_account_count",
+				$"Invalid sort_id: {sortIdError.SortId}. Allowed values: id, name, created_at, user_account_count",
 				ResponseKeys.BadRequest
 			);
 		}

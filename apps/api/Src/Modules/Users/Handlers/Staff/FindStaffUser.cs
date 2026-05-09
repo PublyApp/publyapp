@@ -136,7 +136,7 @@ public class FindStaffUsers {
 
 		if (serviceResult is FindStaffUsersResult.InvalidSortId sortIdError) {
 			return TypedProblems.BadRequest(
-				$"Invalid sortId: {sortIdError.SortId}.",
+				$"Invalid sort_id: {sortIdError.SortId}.",
 				ResponseKeys.BadRequest
 			);
 		}

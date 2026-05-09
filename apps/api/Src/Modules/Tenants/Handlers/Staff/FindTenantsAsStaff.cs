@@ -158,7 +158,7 @@ public class FindTenantsAsStaff {
 
 		if (serviceResult is FindTenantsAsStaffServiceResult.InvalidSortId sortIdError) {
 			return TypedProblems.BadRequest(
-				$"Invalid sortId: {sortIdError.SortId}. Allowed: created_at, updated_at, name, status",
+				$"Invalid sort_id: {sortIdError.SortId}. Allowed: created_at, updated_at, name, status",
 				ResponseKeys.BadRequest
 			);
 		}

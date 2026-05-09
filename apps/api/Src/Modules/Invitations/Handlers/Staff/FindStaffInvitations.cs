@@ -124,7 +124,7 @@ public class FindStaffInvitations {
 		if (serviceResult is Services.FindStaffInvitationsResult.InvalidSortId sortIdError) {
 			// Surface invalid sortId explicitly instead of silently falling back.
 			return TypedProblems.BadRequest(
-				$"Invalid sortId: {sortIdError.SortId}. Allowed values: created_at, expires_at, email, accepted_at",
+				$"Invalid sort_id: {sortIdError.SortId}. Allowed values: created_at, expires_at, email, accepted_at",
 				ResponseKeys.BadRequest
 			);
 		}
