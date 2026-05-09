@@ -33,6 +33,7 @@ import {
 import { useParams } from 'react-router';
 
 import { DEFAULT_PAGE_SIZE } from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
@@ -49,11 +50,7 @@ import {
 	useFindTenantInvitations,
 	useRevokeTenantInvitation,
 } from '#app/lib/react-query/features/staff/staff-tenant.hooks.ts';
-import {
-	type DatePickerFormat,
-	fDate,
-	fIsAfter,
-} from '#app/utils/format-time.ts';
+import { type DatePickerFormat, fDate } from '#app/utils/format-time.ts';
 
 import TenantInvitationsExportDialogController, {
 	type TenantInvitationsExportDialogControllerRef,
@@ -93,6 +90,14 @@ const STATUS_OPTIONS = [
 	{ label: 'Expired', value: 'expired' },
 	{ label: 'Revoked', value: 'revoked' },
 ];
+
+// Sentinel used for backend status values that don't match the known set, so
+// the row can still render rather than being silently coerced to a known value.
+// Intentionally NOT included in STATUS_OPTIONS (filter values).
+const TENANT_INVITATION_UNKNOWN_STATUS = 'unknown' as const;
+const TENANT_INVITATION_STATUS_VALUE_SET = new Set<string>(
+	STATUS_OPTIONS.map((option) => option.value),
+);
 
 const TenantInvitationsTable = () => {
 	const { t } = useTranslate();
@@ -691,10 +696,15 @@ export default TenantInvitationsTable;
 // ----------------------------------------------------------------------
 
 const getInvitationStatus = (invitation: TenantInvitationRowData): string => {
-	const status = _.snakeCase(invitation.status);
-	if (status) return status;
-	if (fIsAfter(new Date(), invitation.expiresAt)) return 'expired';
-	return 'pending';
+	const status = invitation.status ? _.snakeCase(invitation.status) : '';
+	if (status && TENANT_INVITATION_STATUS_VALUE_SET.has(status)) {
+		return status;
+	}
+	logger.warn('[tenant-invitations-table] unknown invitation status', {
+		invitationId: invitation.id,
+		rawStatus: invitation.status,
+	});
+	return TENANT_INVITATION_UNKNOWN_STATUS;
 };
 
 const StatusCell: MRT_ColumnDef<TenantInvitationRowData, string>['Cell'] = (
@@ -708,6 +718,10 @@ const StatusCell: MRT_ColumnDef<TenantInvitationRowData, string>['Cell'] = (
 	let color: 'success' | 'error' | 'warning' | 'default';
 
 	switch (status) {
+		case 'pending':
+			label = t('pending');
+			color = 'warning';
+			break;
 		case 'accepted':
 			label = t('accepted');
 			color = 'success';
@@ -721,8 +735,8 @@ const StatusCell: MRT_ColumnDef<TenantInvitationRowData, string>['Cell'] = (
 			color = 'default';
 			break;
 		default:
-			label = t('pending');
-			color = 'warning';
+			label = t('unknown-item', { item: 'status' });
+			color = 'default';
 	}
 
 	return (
