@@ -58,7 +58,10 @@ import { fDate, fIsAfter, fToNow } from '#app/utils/format-time.ts';
 import { NewInvitationButton } from './new-invitation-button';
 import {
 	parseStatusFilter,
+	STAFF_INVITATION_STATUS_VALUE_SET,
 	STAFF_INVITATION_STATUS_VALUES,
+	STAFF_INVITATION_UNKNOWN_STATUS,
+	type StaffInvitationRowStatus,
 	type StaffInvitationStatus,
 	type StaffInvitationStatusOption,
 } from './staff-invitation-status';
@@ -75,7 +78,7 @@ export type StaffInvitationRowData = {
 	id: string;
 	email: string;
 	profileName: string;
-	status: StaffInvitationStatus;
+	status: StaffInvitationRowStatus;
 	invitedByName: string;
 	expiresAt: Date | null;
 	acceptedAt: Date | null;
@@ -84,20 +87,16 @@ export type StaffInvitationRowData = {
 
 const getInvitationStatus = (
 	invitation: InvitationListItem,
-): StaffInvitationStatus => {
+): StaffInvitationRowStatus => {
 	const status = invitation.status ? snakeCase(invitation.status) : undefined;
-	if (
-		status === 'pending' ||
-		status === 'accepted' ||
-		status === 'expired' ||
-		status === 'revoked'
-	) {
-		return status;
+	if (status && STAFF_INVITATION_STATUS_VALUE_SET.has(status)) {
+		return status as StaffInvitationStatus;
 	}
-	if (invitation.expiresAt && fIsAfter(new Date(), invitation.expiresAt)) {
-		return 'expired';
-	}
-	return 'pending';
+	logger.warn('[staff-invitations-table] unknown invitation status', {
+		invitationId: invitation.id,
+		rawStatus: invitation.status,
+	});
+	return STAFF_INVITATION_UNKNOWN_STATUS;
 };
 
 const StaffInvitationRowDataMapper = (
@@ -563,7 +562,7 @@ const ProfileCell: MRT_ColumnDef<StaffInvitationRowData, string>['Cell'] = (
 
 const StatusCell: MRT_ColumnDef<
 	StaffInvitationRowData,
-	StaffInvitationStatus
+	StaffInvitationRowStatus
 >['Cell'] = (props) => {
 	const { t } = useTranslate();
 	const status = props.cell.getValue();
