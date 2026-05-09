@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 using FluentValidation;
 
 using MainApi.Localization;
@@ -81,14 +83,19 @@ public class FindTenantUsersAsStaffQueryValidator
 		nameof(TenantUserStatus.GloballySuspended),
 	];
 
-	private static readonly HashSet<string> AllowedStatusSet =
-		new(AllowedStatuses, StringComparer.OrdinalIgnoreCase);
+	// Snake-case the PascalCase enum member names once at type init. The wire
+	// contract uses snake_case tokens (e.g. "globally_suspended"); collapsing to
+	// lowercase via .ToLowerInvariant() would yield "globallysuspended" and
+	// break the existing wire format. Both the comparison set and the display
+	// string derive from the same conversion so they stay in sync.
+	private static string ToSnakeCase(string value) =>
+		Regex.Replace(value, "(?<!^)([A-Z])", "_$1").ToLowerInvariant();
 
-	// Lowercased once at type init so the validation message matches the wire
-	// contract (lowercase tokens). Comparison itself stays case-insensitive via
-	// OrdinalIgnoreCase — ToLowerInvariant never runs on the request path.
+	private static readonly HashSet<string> AllowedStatusSet =
+		new(AllowedStatuses.Select(ToSnakeCase), StringComparer.OrdinalIgnoreCase);
+
 	private static readonly string AllowedStatusesDisplay =
-		string.Join(", ", AllowedStatuses.Select(s => s.ToLowerInvariant()).Order());
+		string.Join(", ", AllowedStatuses.Select(ToSnakeCase).Order());
 
 	public FindTenantUsersAsStaffQueryValidator() {
 		RuleFor(x => x.Search).MaximumLength(200);

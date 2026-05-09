@@ -295,6 +295,21 @@ Conventions:
 >
 > AGENTS.md forbids `ToLower()` / `ToLowerInvariant()` as a *comparison or dispatch* strategy. The single `ToLowerInvariant()` call here runs once at type initialization for display only — not on the comparison path — so it is consistent with that rule.
 
+> **Multi-word enum members:** the example above lowercases the `nameof()` output, which is correct only for single-word members (`Pending`, `Active`, `Revoked`). For multi-word PascalCase members like `GloballySuspended`, lowercasing collapses to `globallysuspended` and breaks the snake_case wire contract. In that case, derive both the comparison set and the display string with a small `ToSnakeCase` helper:
+>
+> ```csharp
+> private static string ToSnakeCase(string value) =>
+>     Regex.Replace(value, "(?<!^)([A-Z])", "_$1").ToLowerInvariant();
+>
+> private static readonly HashSet<string> AllowedStatusSet =
+>     new(AllowedStatuses.Select(ToSnakeCase), StringComparer.OrdinalIgnoreCase);
+>
+> private static readonly string AllowedStatusesDisplay =
+>     string.Join(", ", AllowedStatuses.Select(ToSnakeCase).Order());
+> ```
+>
+> See `apps/api/Src/Modules/Users/Handlers/Staff/FindTenantUsersAsStaff.cs` for the canonical multi-word example. If a future validator has multiple multi-word enums in different modules, lift `ToSnakeCase` into a shared helper under `MainApi.Src.Lib.Validation`.
+
 Example shape (handler-local):
 
 ```csharp
