@@ -361,9 +361,13 @@ public class FindTenantsQueryValidator : CursorPaginatedQueryValidator<FindTenan
 		RuleFor(x => x.Status)
 			.Must(raw => {
 				if (string.IsNullOrWhiteSpace(raw)) return true;
-				var parts = raw.Split(',',
-					StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-				return parts.Length > 0 && parts.All(AllowedStatusSet.Contains);
+				// Split WITHOUT RemoveEmptyEntries so empty tokens are caught
+				// (",", ",,", "a,,b") instead of being silently dropped.
+				var parts = raw.Split(',', StringSplitOptions.TrimEntries);
+				if (parts.Length == 0) {
+					return false;
+				}
+				return parts.All(p => p.Length > 0 && AllowedStatusSet.Contains(p));
 			})
 			.WithMessage($"Status must be one of: {AllowedStatusesDisplay}");
 	}
