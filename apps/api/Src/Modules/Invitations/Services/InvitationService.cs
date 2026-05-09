@@ -453,28 +453,75 @@ public class InvitationService : IInvitationService {
 		CancellationToken cancellationToken = default
 	) {
 		var requestedInvitationIds = invitationIds.Distinct().ToList();
+		if (requestedInvitationIds.Count == 0) {
+			return new BulkStaffInvitationActionResult(0, 0, []);
+		}
+
+		// 1 SELECT for all candidates, scope-filtered. Mirrors the per-item
+		// RevokeInvitationForStaffAsync read predicate.
+		var rows = await _dbContext.Invitation
+			.Where(inv =>
+				inv.Id != null
+				&& requestedInvitationIds.Contains(inv.Id.Value)
+				&& inv.Scope == InvitationScope.Staff
+			)
+			.ToListAsync(cancellationToken);
+
+		var foundById = rows.ToDictionary(inv => inv.GetRequiredId());
 		var failedItems = new List<BulkStaffInvitationActionFailedItem>();
 		var succeededCount = 0;
+		var now = DateTime.UtcNow;
 
+		// Iterate over the requested ids (not over rows) so missing ids surface
+		// as NotFound and the failed-items list preserves the requested order.
 		foreach (var invitationId in requestedInvitationIds) {
-			RevokeInvitationForStaffResult result =
-				await RevokeInvitationForStaffAsync(invitationId, cancellationToken);
+			if (!foundById.TryGetValue(invitationId, out var invitation)) {
+				failedItems.Add(new BulkStaffInvitationActionFailedItem(
+					invitationId,
+					BulkStaffInvitationActionFailureReasons.NotFound
+				));
+				continue;
+			}
 
-			if (result is RevokeInvitationForStaffResult.Success) {
+			// Mirror RevokeInvitationInternalAsync classification:
+			// already-revoked is a success no-op; accepted is a hard failure.
+			if (invitation.IsRevoked()) {
+				if (_logger.IsEnabled(LogLevel.Information)) {
+					_logger.LogInformation(
+						"Invitation {InvitationId} is already revoked; no-op",
+						invitationId
+					);
+				}
 				succeededCount++;
 				continue;
 			}
 
-			var reason = BulkStaffInvitationActionFailureReasons.NotFound;
-			if (result is RevokeInvitationForStaffResult.AlreadyAccepted) {
-				reason = BulkStaffInvitationActionFailureReasons.AlreadyAccepted;
+			if (invitation.IsAccepted()) {
+				if (_logger.IsEnabled(LogLevel.Warning)) {
+					_logger.LogWarning(
+						"Attempt to revoke accepted invitation {InvitationId} blocked",
+						invitationId
+					);
+				}
+				failedItems.Add(new BulkStaffInvitationActionFailedItem(
+					invitationId,
+					BulkStaffInvitationActionFailureReasons.AlreadyAccepted
+				));
+				continue;
 			}
 
-			failedItems.Add(new BulkStaffInvitationActionFailedItem(
-				invitationId,
-				reason
-			));
+			// Mutate via the EF tracker; one SaveChanges flushes them all.
+			invitation.Status = InvitationStatus.Revoked;
+			invitation.RevokedAt = now;
+			succeededCount++;
+
+			if (_logger.IsEnabled(LogLevel.Information)) {
+				_logger.LogInformation("Revoked invitation {InvitationId}", invitationId);
+			}
 		}
+
+		// 1 SaveChanges for all updates.
+		await _dbContext.SaveChangesAsync(cancellationToken);
 
 		return new BulkStaffInvitationActionResult(
 			SucceededCount: succeededCount,
