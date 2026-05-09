@@ -152,19 +152,305 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
+	[Fact]
+	public async Task
+	ItShouldReturnOnlyPendingStaffInvitationsWhenFilterIsPending() {
+		string staffToken = await _authClient.LoginAsStaffAdminAsync();
+		string pendingEmail = $"staff-only-pending-{Guid.NewGuid():N}@example.com";
+		string acceptedEmail = $"staff-only-pending-accepted-{Guid.NewGuid():N}@example.com";
+		string revokedEmail = $"staff-only-pending-revoked-{Guid.NewGuid():N}@example.com";
+
+		_ = await CreateStaffInvitationAsync(staffToken, pendingEmail);
+		Guid acceptedInvitationId = await CreateStaffInvitationAsync(
+			staffToken,
+			acceptedEmail
+		);
+		Guid revokedInvitationId = await CreateStaffInvitationAsync(
+			staffToken,
+			revokedEmail
+		);
+		await MarkStaffInvitationAcceptedAsync(acceptedInvitationId);
+		await RevokeStaffInvitationAsync(staffToken, revokedInvitationId);
+
+		using HttpResponseMessage response = await _http.SendAsync(
+			CreateFindRequest(staffToken, status: "pending", limit: 100)
+		);
+
+		_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		FindResponse? result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		_ = result.Should().NotBeNull();
+		List<InvitationListItemDto> data = result?.Data ?? [];
+
+		_ = data.Should().Contain(item =>
+			item.Email.Equals(pendingEmail, StringComparison.OrdinalIgnoreCase)
+			&& item.Status == "Pending"
+		);
+		_ = data.Should().NotContain(item =>
+			item.Email.Equals(acceptedEmail, StringComparison.OrdinalIgnoreCase)
+		);
+		_ = data.Should().NotContain(item =>
+			item.Email.Equals(revokedEmail, StringComparison.OrdinalIgnoreCase)
+		);
+		_ = data.Should().OnlyContain(item => item.Status == "Pending");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnAllStatusesWhenFilterIncludesEveryStatus() {
+		string staffToken = await _authClient.LoginAsStaffAdminAsync();
+		string pendingEmail = $"staff-all-pending-{Guid.NewGuid():N}@example.com";
+		string acceptedEmail = $"staff-all-accepted-{Guid.NewGuid():N}@example.com";
+		string revokedEmail = $"staff-all-revoked-{Guid.NewGuid():N}@example.com";
+		string expiredEmail = $"staff-all-expired-{Guid.NewGuid():N}@example.com";
+
+		_ = await CreateStaffInvitationAsync(staffToken, pendingEmail);
+		Guid acceptedInvitationId = await CreateStaffInvitationAsync(
+			staffToken,
+			acceptedEmail
+		);
+		Guid revokedInvitationId = await CreateStaffInvitationAsync(
+			staffToken,
+			revokedEmail
+		);
+		await MarkStaffInvitationAcceptedAsync(acceptedInvitationId);
+		await RevokeStaffInvitationAsync(staffToken, revokedInvitationId);
+		await CreateExpiredStaffInvitationAsync(expiredEmail);
+
+		using HttpResponseMessage response = await _http.SendAsync(
+			CreateFindRequest(
+				staffToken,
+				status: "pending,accepted,expired,revoked",
+				limit: 100
+			)
+		);
+
+		_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		FindResponse? result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		_ = result.Should().NotBeNull();
+		List<InvitationListItemDto> data = result?.Data ?? [];
+
+		_ = data.Should().Contain(item =>
+			item.Email.Equals(pendingEmail, StringComparison.OrdinalIgnoreCase)
+			&& item.Status == "Pending"
+		);
+		_ = data.Should().Contain(item =>
+			item.Email.Equals(acceptedEmail, StringComparison.OrdinalIgnoreCase)
+			&& item.Status == "Accepted"
+		);
+		_ = data.Should().Contain(item =>
+			item.Email.Equals(revokedEmail, StringComparison.OrdinalIgnoreCase)
+			&& item.Status == "Revoked"
+		);
+		_ = data.Should().Contain(item =>
+			item.Email.Equals(expiredEmail, StringComparison.OrdinalIgnoreCase)
+			&& item.Status == "Expired"
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenStatusFilterContainsInvalidToken() {
+		string staffToken = await _authClient.LoginAsStaffAdminAsync();
+
+		using HttpResponseMessage response = await _http.SendAsync(
+			CreateFindRequest(staffToken, status: "foo")
+		);
+
+		_ = response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldDedupeDuplicateStaffInvitationStatusValues() {
+		string staffToken = await _authClient.LoginAsStaffAdminAsync();
+		string pendingEmail = $"staff-dup-pending-{Guid.NewGuid():N}@example.com";
+		string acceptedEmail = $"staff-dup-accepted-{Guid.NewGuid():N}@example.com";
+
+		_ = await CreateStaffInvitationAsync(staffToken, pendingEmail);
+		Guid acceptedInvitationId = await CreateStaffInvitationAsync(
+			staffToken,
+			acceptedEmail
+		);
+		await MarkStaffInvitationAcceptedAsync(acceptedInvitationId);
+
+		using HttpResponseMessage dedupedResponse = await _http.SendAsync(
+			CreateFindRequest(staffToken, status: "pending,pending", limit: 100)
+		);
+		using HttpResponseMessage singleResponse = await _http.SendAsync(
+			CreateFindRequest(staffToken, status: "pending", limit: 100)
+		);
+
+		_ = dedupedResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+		_ = singleResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		FindResponse? deduped = await dedupedResponse.Content
+			.ReadFromJsonAsync<FindResponse>();
+		FindResponse? single = await singleResponse.Content
+			.ReadFromJsonAsync<FindResponse>();
+		_ = deduped.Should().NotBeNull();
+		_ = single.Should().NotBeNull();
+
+		List<InvitationListItemDto> dedupedData = deduped?.Data ?? [];
+		List<InvitationListItemDto> singleData = single?.Data ?? [];
+
+		_ = dedupedData.Should().HaveCount(singleData.Count);
+		_ = dedupedData.Select(item => item.Id)
+			.Should()
+			.BeEquivalentTo(singleData.Select(item => item.Id));
+		_ = dedupedData.Should().Contain(item =>
+			item.Email.Equals(pendingEmail, StringComparison.OrdinalIgnoreCase)
+		);
+		_ = dedupedData.Should().NotContain(item =>
+			item.Email.Equals(acceptedEmail, StringComparison.OrdinalIgnoreCase)
+		);
+		_ = dedupedData.Should().OnlyContain(item => item.Status == "Pending");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldAcceptMixedCaseStaffInvitationStatusValues() {
+		string staffToken = await _authClient.LoginAsStaffAdminAsync();
+		string pendingEmail = $"staff-mixed-pending-{Guid.NewGuid():N}@example.com";
+		string acceptedEmail = $"staff-mixed-accepted-{Guid.NewGuid():N}@example.com";
+		string revokedEmail = $"staff-mixed-revoked-{Guid.NewGuid():N}@example.com";
+
+		_ = await CreateStaffInvitationAsync(staffToken, pendingEmail);
+		Guid acceptedInvitationId = await CreateStaffInvitationAsync(
+			staffToken,
+			acceptedEmail
+		);
+		Guid revokedInvitationId = await CreateStaffInvitationAsync(
+			staffToken,
+			revokedEmail
+		);
+		await MarkStaffInvitationAcceptedAsync(acceptedInvitationId);
+		await RevokeStaffInvitationAsync(staffToken, revokedInvitationId);
+
+		using HttpResponseMessage response = await _http.SendAsync(
+			CreateFindRequest(staffToken, status: "Pending,Accepted", limit: 100)
+		);
+
+		_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		FindResponse? result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		_ = result.Should().NotBeNull();
+		List<InvitationListItemDto> data = result?.Data ?? [];
+
+		_ = data.Should().Contain(item =>
+			item.Email.Equals(pendingEmail, StringComparison.OrdinalIgnoreCase)
+			&& item.Status == "Pending"
+		);
+		_ = data.Should().Contain(item =>
+			item.Email.Equals(acceptedEmail, StringComparison.OrdinalIgnoreCase)
+			&& item.Status == "Accepted"
+		);
+		_ = data.Should().NotContain(item =>
+			item.Email.Equals(revokedEmail, StringComparison.OrdinalIgnoreCase)
+		);
+		_ = data.Should().OnlyContain(item =>
+			item.Status == "Pending" || item.Status == "Accepted"
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnBadRequestWhenSortIdIsInvalid() {
+		string staffToken = await _authClient.LoginAsStaffAdminAsync();
+
+		using HttpResponseMessage response = await _http.SendAsync(
+			CreateFindRequest(staffToken, sortId: "invalid")
+		);
+
+		_ = response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnBadRequestWhenCursorIsNotAGuid() {
+		string staffToken = await _authClient.LoginAsStaffAdminAsync();
+
+		using HttpResponseMessage response = await _http.SendAsync(
+			CreateFindRequest(staffToken, cursor: "not-a-guid")
+		);
+
+		_ = response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldPaginateAcrossNextCursorWithStatusFilter() {
+		string staffToken = await _authClient.LoginAsStaffAdminAsync();
+		// Create 3 pending staff invitations + 1 accepted to confirm the filter
+		// is preserved across pages.
+		string tag = Guid.NewGuid().ToString("N")[..8];
+		List<Guid> pendingIds = [];
+		for (int i = 0; i < 3; i++) {
+			Guid id = await CreateStaffInvitationAsync(
+				staffToken,
+				$"staff-page-{tag}-pending-{i}-{Guid.NewGuid():N}@example.com"
+			);
+			pendingIds.Add(id);
+		}
+		Guid acceptedInvitationId = await CreateStaffInvitationAsync(
+			staffToken,
+			$"staff-page-{tag}-accepted-{Guid.NewGuid():N}@example.com"
+		);
+		await MarkStaffInvitationAcceptedAsync(acceptedInvitationId);
+
+		// Page 1: limit=2 to force a nextCursor with at least one extra row left.
+		using HttpResponseMessage page1Response = await _http.SendAsync(
+			CreateFindRequest(staffToken, status: "pending", limit: 2)
+		);
+		_ = page1Response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		FindResponse? page1 = await page1Response.Content
+			.ReadFromJsonAsync<FindResponse>();
+		_ = page1.Should().NotBeNull();
+		_ = page1!.Data.Should().HaveCount(2);
+		_ = page1.Data.Should().OnlyContain(item => item.Status == "Pending");
+		_ = page1.NextCursor.Should().NotBeNullOrEmpty();
+
+		// Page 2: same filter, follow the cursor. Must keep returning Pending only,
+		// with no overlap with page 1.
+		using HttpResponseMessage page2Response = await _http.SendAsync(
+			CreateFindRequest(
+				staffToken,
+				status: "pending",
+				limit: 2,
+				cursor: page1.NextCursor
+			)
+		);
+		_ = page2Response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		FindResponse? page2 = await page2Response.Content
+			.ReadFromJsonAsync<FindResponse>();
+		_ = page2.Should().NotBeNull();
+		_ = page2!.Data.Should().OnlyContain(item => item.Status == "Pending");
+
+		HashSet<Guid> page1Ids = page1.Data.Select(item => item.Id).ToHashSet();
+		HashSet<Guid> page2Ids = page2.Data.Select(item => item.Id).ToHashSet();
+		_ = page2Ids.Should().NotIntersectWith(page1Ids);
+	}
+
 	private HttpRequestMessage CreateFindRequest(
 		string staffToken,
 		string? status = null,
-		int? limit = null
+		int? limit = null,
+		string? sortId = null,
+		string? cursor = null
 	) {
-		string url = GetFindUrl(status, limit);
+		string url = GetFindUrl(status, limit, sortId, cursor);
 		return new HttpRequestMessage(HttpMethod.Get, url)
 			.WithSessionToken(staffToken);
 	}
 
 	private static string GetFindUrl(
 		string? status = null,
-		int? limit = null
+		int? limit = null,
+		string? sortId = null,
+		string? cursor = null
 	) {
 		var queryParams = new List<string>();
 
@@ -174,6 +460,14 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 
 		if (limit is not null) {
 			queryParams.Add($"limit={limit}");
+		}
+
+		if (sortId is not null) {
+			queryParams.Add($"sort_id={Uri.EscapeDataString(sortId)}");
+		}
+
+		if (cursor is not null) {
+			queryParams.Add($"cursor={Uri.EscapeDataString(cursor)}");
 		}
 
 		string url = PathUtils.Join(
