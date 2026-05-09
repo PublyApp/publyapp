@@ -72,8 +72,21 @@ public class FindTenantsAsStaffQuery : CursorPaginatedQuery {
 public class FindTenantsAsStaffQueryValidator
 	: CursorPaginatedQueryValidator<FindTenantsAsStaffQuery> {
 
-	private static readonly HashSet<string> AllowedStatuses =
-		new([nameof(TenantStatus.Pending), nameof(TenantStatus.Active), nameof(TenantStatus.Suspended)], StringComparer.OrdinalIgnoreCase);
+	// Source of truth: nameof() — rename-safe, no hardcoded strings to maintain.
+	private static readonly string[] AllowedStatuses = [
+		nameof(TenantStatus.Pending),
+		nameof(TenantStatus.Active),
+		nameof(TenantStatus.Suspended),
+	];
+
+	private static readonly HashSet<string> AllowedStatusSet =
+		new(AllowedStatuses, StringComparer.OrdinalIgnoreCase);
+
+	// Lowercased once at type init so the validation message matches the wire
+	// contract (lowercase tokens). Comparison itself stays case-insensitive via
+	// OrdinalIgnoreCase — ToLowerInvariant never runs on the request path.
+	private static readonly string AllowedStatusesDisplay =
+		string.Join(", ", AllowedStatuses.Select(s => s.ToLowerInvariant()).Order());
 
 	public FindTenantsAsStaffQueryValidator() {
 		RuleFor(x => x.Search).MaximumLength(200);
@@ -84,11 +97,15 @@ public class FindTenantsAsStaffQueryValidator
 					return true;
 				}
 
-				var parts = raw
-					.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-				return parts.All(p => AllowedStatuses.Contains(p));
+				// Split WITHOUT RemoveEmptyEntries so empty tokens are caught
+				// (",", ",,", "a,,b") instead of being silently dropped.
+				var parts = raw.Split(',', StringSplitOptions.TrimEntries);
+				if (parts.Length == 0) {
+					return false;
+				}
+				return parts.All(p => p.Length > 0 && AllowedStatusSet.Contains(p));
 			})
-			.WithMessage("Invalid status value. Must be comma-separated: " + string.Join(",", AllowedStatuses));
+			.WithMessage($"Status must be one of: {AllowedStatusesDisplay}");
 	}
 }
 
@@ -141,7 +158,7 @@ public class FindTenantsAsStaff {
 
 		if (serviceResult is FindTenantsAsStaffServiceResult.InvalidSortId sortIdError) {
 			return TypedProblems.BadRequest(
-				$"Invalid sortId: {sortIdError.SortId}. Allowed: created_at, updated_at, name, status",
+				$"Invalid sort_id: {sortIdError.SortId}. Allowed: created_at, updated_at, name, status",
 				ResponseKeys.BadRequest
 			);
 		}

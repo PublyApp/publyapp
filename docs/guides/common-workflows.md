@@ -48,6 +48,28 @@ The TypeScript client is auto-generated - never modify files in `packages/js-cli
 6. Create migration: `make db-add NAME=Add[Entity]Table`
 7. Review and apply: `make db-migrate`
 
+## Adding a Bulk Action Endpoint
+
+For UX rules, mutation hook patterns, and i18n key conventions, see
+[`bulk-action-ux-conventions.md`](bulk-action-ux-conventions.md). Quick
+backend + frontend checklist:
+
+1. **Handler** under `Handlers/<Scope>/` accepting an array body; validate
+   it with FluentValidation using `maxCount: 100` (mirrors the frontend
+   `BULK_ACTION_MAX_COUNT` constant).
+2. **Service method** that batches: a single SELECT for the targeted
+   rows, a single tracker mutation pass, and one `SaveChangesAsync` —
+   not a loop calling the per-item method.
+3. **Audit log** via `LogManyAsync` so each affected entity gets one
+   audit row in the same transaction.
+4. **Endpoint** registered with the appropriate `.WithPermission()`.
+5. **Frontend selection-actions** wired through the shared MRT toolbar
+   slot; respect `BULK_ACTION_MAX_COUNT` client-side.
+6. **Mutation hook** with split try/catch so partial failures surface
+   the right toast and don't swallow audit/refresh side effects.
+7. **i18n keys** added to both `en` and `fr` `response-message.json`
+   plus the relevant `common.json` namespaces.
+
 ## Handling Permissions
 
 **Adding a new permission:**

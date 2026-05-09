@@ -552,6 +552,35 @@ if (failure.kind === 'problem') {
 
 ---
 
+### Split try/catch in mutation hooks (post-processing outside)
+
+When a custom mutation hook awaits a mutation and then runs post-processing (selection reset,
+`queryClient.invalidateQueries`, success toast), wrap ONLY the mutation call in `try`. Post-success
+work goes outside the catch, so a thrown selection/invalidation/toast call does NOT surface as a
+"failed" toast for an action that already committed server-side.
+
+```typescript
+let result;
+try {
+	result = await bulkRevokeStaffInvitations({ invitationIds });
+} catch (error) {
+	closeDialog();
+	toast.error(getFailureMessage(toApiFailure(error), { fallback: t('bulk-revoke-failed') }));
+	return;
+}
+
+setRowSelection({});
+await queryClient.invalidateQueries({ queryKey: [...] });
+closeDialog();
+toast.success(t('bulk-revoke-succeeded', { count: result.succeededCount }));
+```
+
+A unified try/catch around both is a bug: post-processing exceptions are hook bugs, not
+user-visible failures. As always, derive error text via
+`getFailureMessage(toApiFailure(error), ...)`.
+
+---
+
 ## Best Practices
 
 1. **Prefer default behavior**: Let global handler toast errors unless you have a specific reason not to.

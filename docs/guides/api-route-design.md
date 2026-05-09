@@ -146,6 +146,21 @@ public static partial class Routes {
 | Tenant self-service | `*ForTenant` | `*EndpointsForTenant.cs` |
 | Anonymous/public | `*Anonymous` | `*EndpointsAnonymous.cs` |
 
+## Bulk Action Endpoint Shape
+
+List-page multi-select bulk actions (revoke, suspend, reactivate, delete, remove,
+etc.) follow a fixed shape:
+
+- Route: `POST /staff/<resource>/bulk-<action>` (kebab-case in `RoutePath.cs`)
+- Body: `{ <entity>Ids: ["...", "..."] }`
+- Response: partial-success contract — `{ succeededCount, failedCount, failedItems: [{ id, reason }] }`
+
+For the full contract — validator (`minCount: 1`, `maxCount: 100` paired with
+`BULK_ACTION_MAX_COUNT`), service implementation pattern (single SELECT +
+tracker mutation + single SaveChanges), batched audit logs, and frontend
+selection plumbing — see
+[`docs/guides/bulk-action-ux-conventions.md`](bulk-action-ux-conventions.md).
+
 ## Adding a New Domain Slice
 
 When adding a new domain (e.g., `Posts`):

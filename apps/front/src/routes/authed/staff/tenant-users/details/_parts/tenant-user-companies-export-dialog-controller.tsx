@@ -13,7 +13,11 @@ import { useImperativeHandle, useState } from 'react';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { downloadCsvFile, downloadJsonFile } from '#app/lib/export/download.ts';
+import {
+	downloadCsvFile,
+	downloadJsonFile,
+	withTimestamp,
+} from '#app/lib/export/download.ts';
 
 import type { TenantUserCompanyData } from './tenant-user-companies-table.types.ts';
 
@@ -68,18 +72,24 @@ const TenantUserCompaniesExportDialogController = ({
 			});
 
 			downloadCsvFile({
-				fileName: isSelectionMode
-					? 'selected-tenant-user-companies.csv'
-					: 'tenant-user-companies.csv',
+				fileName: withTimestamp(
+					isSelectionMode
+						? 'selected-tenant-user-companies'
+						: 'tenant-user-companies',
+					'csv',
+				),
 				rows: [headers, ...csvRows],
 			});
 			return;
 		}
 
 		downloadJsonFile({
-			fileName: isSelectionMode
-				? 'selected-tenant-user-companies.json'
-				: 'tenant-user-companies.json',
+			fileName: withTimestamp(
+				isSelectionMode
+					? 'selected-tenant-user-companies'
+					: 'tenant-user-companies',
+				'json',
+			),
 			data: rowsToExport,
 		});
 	};
@@ -152,8 +162,15 @@ const TenantUserCompaniesExportDialogController = ({
 					>
 						<Tab label="CSV" value="csv" />
 						<Tab label="JSON" value="json" />
-						<Tab label="XLSX" value="xlsx" disabled />
+						<Tab label="XLSX" value="xlsx" />
 					</Tabs>
+					<Typography
+						variant="body2"
+						color="text.secondary"
+						sx={{ minHeight: 20 }}
+					>
+						{exportFormat === 'xlsx' ? t('xlsx-export-coming-soon') : ' '}
+					</Typography>
 				</Box>
 			</DialogContent>
 			<DialogActions sx={{ px: 3, pb: 2.5 }}>

@@ -158,13 +158,7 @@ const TenantUsersExportDialogController = ({
 	return (
 		<Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs">
 			<DialogTitle sx={{ pb: 1 }}>
-				{isSelectionMode
-					? t('export-selected-users', {
-							defaultValue: 'Export selected users',
-						})
-					: t('export-users', {
-							defaultValue: 'Export users',
-						})}
+				{isSelectionMode ? t('export-selected-users') : t('export-users')}
 			</DialogTitle>
 			<DialogContent sx={{ pt: '8px !important', pb: 2.5 }}>
 				<Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
@@ -175,8 +169,6 @@ const TenantUsersExportDialogController = ({
 								})
 							: t('export-current-results', {
 									count: rowsCount,
-									defaultValue:
-										'Export the current result set ({{count}} item(s)).',
 								})}
 					</Typography>
 					<Tabs
@@ -235,11 +227,7 @@ const TenantUsersExportDialogController = ({
 						color="text.secondary"
 						sx={{ minHeight: 20 }}
 					>
-						{exportFormat === 'xlsx'
-							? t('xlsx-export-coming-soon', {
-									defaultValue: 'XLSX export is coming soon.',
-								})
-							: ' '}
+						{exportFormat === 'xlsx' ? t('xlsx-export-coming-soon') : ' '}
 					</Typography>
 				</Box>
 			</DialogContent>
@@ -294,9 +282,7 @@ const useTenantUsersTableController = () => {
 			{ label: t('active'), value: USER_STATUS_ENUM.ACTIVE },
 			{ label: t('suspended'), value: USER_STATUS_ENUM.SUSPENDED },
 			{
-				label: t('globally-suspended', {
-					defaultValue: 'Globally suspended',
-				}),
+				label: t('globally-suspended'),
 				value: GLOBALLY_SUSPENDED_STATUS_VALUE,
 			},
 		];
@@ -342,12 +328,16 @@ const useTenantUsersTableController = () => {
 		onDebouncedValueChange: handleDebouncedSearchChange,
 	});
 
+	// Browser back/forward replays the URL filter without a click handler, so
+	// the cursor must be reset here too — a stale cursor paired with a different
+	// filter set produces phantom pages from the API.
 	useEffect(() => {
 		const nextStatusFilter = parseStatusFilter(filterStates.status);
 		if (!isEqual(nextStatusFilter, statusFilter)) {
 			setStatusFilter(nextStatusFilter);
+			resetCursorPagination?.();
 		}
-	}, [filterStates.status, statusFilter]);
+	}, [filterStates.status, statusFilter, resetCursorPagination]);
 
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setSearchValue(e.target.value);
@@ -583,12 +573,7 @@ const useTenantUsersTableController = () => {
 		});
 
 		if (succeeded === 0 && failed > 0) {
-			toast.error(
-				firstFailureMessage ||
-					t('tenant-user-bulk-remove-failure', {
-						defaultValue: 'Failed to remove selected users from this tenant.',
-					}),
-			);
+			toast.error(firstFailureMessage || t('tenant-user-bulk-remove-failure'));
 			return;
 		}
 
@@ -597,7 +582,6 @@ const useTenantUsersTableController = () => {
 				t('tenant-user-bulk-remove-partial-success', {
 					succeeded,
 					failed,
-					defaultValue: 'Removed {{succeeded}} user(s), {{failed}} failed.',
 				}),
 			);
 			return;
@@ -606,7 +590,6 @@ const useTenantUsersTableController = () => {
 		toast.success(
 			t('tenant-user-bulk-remove-success', {
 				count: succeeded,
-				defaultValue: 'Successfully removed {{count}} user(s).',
 			}),
 		);
 	};
@@ -630,9 +613,7 @@ const useTenantUsersTableController = () => {
 					<Box component="span">
 						<TextField
 							size="small"
-							placeholder={t('search-users', {
-								defaultValue: 'Search users',
-							})}
+							placeholder={t('search-users')}
 							value={searchValue}
 							onChange={handleSearchChange}
 							disabled={isSelectionMode}
@@ -919,13 +900,9 @@ const TenantUsersTable = () => {
 			<ConfirmDialog
 				open={bulkRemoveDialogOpen}
 				onClose={closeBulkRemoveDialog}
-				title={t('remove-selected-from-tenant', {
-					defaultValue: 'Remove selected from tenant',
-				})}
+				title={t('remove-selected-from-tenant')}
 				content={t('confirm-bulk-remove-tenant-users', {
 					count: selectedCount,
-					defaultValue:
-						'Are you sure you want to remove {{count}} selected user(s) from this tenant?',
 				})}
 				action={
 					<Button
@@ -1046,9 +1023,7 @@ const TenantUsersSelectionActions = ({
 				>
 					<Iconify icon="solar:trash-bin-trash-bold" width={18} />
 					<ListItemText
-						primary={t('remove-selected-from-tenant', {
-							defaultValue: 'Remove selected from tenant',
-						})}
+						primary={t('remove-selected-from-tenant')}
 						sx={{ ml: 1 }}
 					/>
 				</MenuItem>
@@ -1069,10 +1044,7 @@ const StatusCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (
 	const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
 	const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 	const [pendingStatus, setPendingStatus] = useState<string | null>(null);
-	const globallySuspendedReason = t('globally-suspended-row-disabled', {
-		defaultValue:
-			'This user is globally suspended. Reactivate the user globally before managing tenant membership.',
-	});
+	const globallySuspendedReason = t('globally-suspended-row-disabled');
 
 	const { mutate: suspendUser, isPending: isSuspending } = useSuspendTenantUser(
 		{
@@ -1107,9 +1079,7 @@ const StatusCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (
 	let color: LabelColor = 'default';
 
 	if (isGloballySuspended) {
-		label = t('globally-suspended', {
-			defaultValue: 'Globally suspended',
-		});
+		label = t('globally-suspended');
 		color = 'error';
 	} else if (status === USER_STATUS_ENUM.ACTIVE) {
 		label = t('active');
@@ -1255,14 +1225,8 @@ const StatusCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (
 				}
 				content={
 					pendingStatus === USER_STATUS_ENUM.SUSPENDED
-						? t('suspend-tenant-user-description', {
-								defaultValue:
-									'This user will lose access to this tenant. Are you sure you want to proceed?',
-							})
-						: t('reactivate-tenant-user-description', {
-								defaultValue:
-									'Access to this tenant will be restored. Are you sure you want to proceed?',
-							})
+						? t('suspend-tenant-user-description')
+						: t('reactivate-tenant-user-description')
 				}
 				action={
 					<Button
@@ -1290,10 +1254,7 @@ const LevelCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 	const userId = user.id;
 	const level = props.cell.getValue();
 	const isGloballySuspended = isGloballySuspendedStatus(user.status);
-	const globallySuspendedReason = t('globally-suspended-row-disabled', {
-		defaultValue:
-			'This user is globally suspended. Reactivate the user globally before managing tenant membership.',
-	});
+	const globallySuspendedReason = t('globally-suspended-row-disabled');
 
 	const { mutate: updateUser, isPending } = useUpdateTenantUser({
 		// Row-level tenant-user actions rely on the centralized mutation error
@@ -1611,13 +1572,7 @@ const RemoveUserAction = ({
 	return (
 		<>
 			<Tooltip
-				title={
-					disabled
-						? disabledReason
-						: t('remove-user-from-tenant', {
-								defaultValue: 'Remove from tenant',
-							})
-				}
+				title={disabled ? disabledReason : t('remove-user-from-tenant')}
 				placement="top"
 				arrow
 			>
@@ -1638,13 +1593,9 @@ const RemoveUserAction = ({
 			<ConfirmDialog
 				open={confirmDialog.value}
 				onClose={confirmDialog.onFalse}
-				title={t('remove-user-from-tenant', {
-					defaultValue: 'Remove from tenant',
-				})}
+				title={t('remove-user-from-tenant')}
 				content={t('confirm-remove-user-from-tenant', {
 					name: fullName,
-					defaultValue:
-						'Are you sure you want to remove {{name}} from this tenant?',
 				})}
 				action={
 					<Button

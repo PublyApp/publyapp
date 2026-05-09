@@ -8,48 +8,46 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
 import map from 'lodash/map';
-import lodashToString from 'lodash/toString';
 import type { Ref } from 'react';
 import { useImperativeHandle, useState } from 'react';
 
-import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
 	downloadCsvFile,
 	downloadJsonFile,
 	withTimestamp,
 } from '#app/lib/export/download.ts';
+import { fDate } from '#app/utils/format-time.ts';
 
-import type { StaffProfileRowData } from './staff-profiles-table';
+import type { StaffInvitationRowData } from './staff-invitations-table';
 
-export type StaffProfilesExportDialogControllerRef = {
+export type StaffInvitationsExportDialogControllerRef = {
 	open: () => void;
 };
 
 type ExportFormat = 'csv' | 'json' | 'xlsx';
 
-type StaffProfilesExportDialogControllerProps = {
+type StaffInvitationsExportDialogControllerProps = {
 	isSelectionMode: boolean;
 	selectedCount: number;
-	rows: StaffProfileRowData[];
-	selectedRows: StaffProfileRowData[];
-	ref?: Ref<StaffProfilesExportDialogControllerRef>;
+	rows: StaffInvitationRowData[];
+	selectedRows: StaffInvitationRowData[];
+	ref?: Ref<StaffInvitationsExportDialogControllerRef>;
 };
 
-const StaffProfilesExportDialogController = ({
+const StaffInvitationsExportDialogController = ({
 	isSelectionMode,
 	selectedCount,
 	rows,
 	selectedRows,
 	ref,
-}: StaffProfilesExportDialogControllerProps) => {
+}: StaffInvitationsExportDialogControllerProps) => {
 	const { t } = useTranslate();
 	const [open, setOpen] = useState(false);
 	const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
 
-	// React 19: `ref` is a normal prop (no `forwardRef` needed). We use an
-	// imperative handle because the dialog can be opened from multiple triggers
-	// without lifting `open` state into the heavy table component.
+	const rowsToExport = isSelectionMode ? selectedRows : rows;
+
 	useImperativeHandle(ref, () => {
 		return {
 			open: () => {
@@ -59,24 +57,29 @@ const StaffProfilesExportDialogController = ({
 		};
 	}, []);
 
-	// Export only currently loaded rows (cursor pagination does not have "all rows" locally).
-	const rowsToExport = isSelectionMode ? selectedRows : rows;
-
 	const exportRows = (format: 'csv' | 'json') => {
 		if (format === 'csv') {
-			// Reuse the shared CSV builder so profile names/descriptions with commas or
-			// quotes do not produce broken exports.
-			const headers = [t('name'), t('description'), t('user-accounts')];
-			const csvRows = map(rowsToExport, (row) => {
-				return [
-					row.name,
-					row.description ?? '',
-					lodashToString(row.user_account_count),
-				];
-			});
+			const headers = [
+				t('email'),
+				t('profile'),
+				t('status'),
+				t('staff-invited-by'),
+				t('expiry-date'),
+				t('accepted-at'),
+				t('created-at'),
+			];
+			const csvRows = map(rowsToExport, (row) => [
+				row.email,
+				row.profileName,
+				row.status,
+				row.invitedByName,
+				row.expiresAt ? fDate(row.expiresAt) : '',
+				row.acceptedAt ? fDate(row.acceptedAt) : '',
+				row.createdAt ? fDate(row.createdAt) : '',
+			]);
 			downloadCsvFile({
 				fileName: withTimestamp(
-					isSelectionMode ? 'selected-profiles' : 'profiles',
+					isSelectionMode ? 'selected-staff-invitations' : 'staff-invitations',
 					'csv',
 				),
 				rows: [headers, ...csvRows],
@@ -86,17 +89,28 @@ const StaffProfilesExportDialogController = ({
 
 		downloadJsonFile({
 			fileName: withTimestamp(
-				isSelectionMode ? 'selected-profiles' : 'profiles',
+				isSelectionMode ? 'selected-staff-invitations' : 'staff-invitations',
 				'json',
 			),
 			data: rowsToExport,
 		});
 	};
 
+	const handleExport = () => {
+		if (exportFormat === 'xlsx') {
+			return;
+		}
+
+		exportRows(exportFormat);
+		setOpen(false);
+	};
+
 	return (
 		<Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs">
 			<DialogTitle sx={{ pb: 1 }}>
-				{isSelectionMode ? t('export-selected') : t('export')}
+				{isSelectionMode
+					? t('export-selected-invitations')
+					: t('export-invitations')}
 			</DialogTitle>
 			<DialogContent sx={{ pt: '8px !important', pb: 2.5 }}>
 				<Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
@@ -107,7 +121,9 @@ const StaffProfilesExportDialogController = ({
 					</Typography>
 					<Tabs
 						value={exportFormat}
-						onChange={(_event, value: ExportFormat) => setExportFormat(value)}
+						onChange={(_event, value: string) => {
+							setExportFormat(value as ExportFormat);
+						}}
 						sx={(theme) => ({
 							mt: 1.5,
 							alignSelf: 'flex-start',
@@ -128,31 +144,21 @@ const StaffProfilesExportDialogController = ({
 								px: 1,
 								py: 0.375,
 								borderRadius: 0.75,
-								fontSize: theme.typography.caption.fontSize,
-								fontWeight: theme.typography.fontWeightMedium,
 								textTransform: 'none',
-								color: 'text.secondary',
-								m: 0,
-								transition: theme.transitions.create(
-									['background-color', 'color', 'box-shadow'],
-									{
-										duration: theme.transitions.duration.shorter,
-									},
-								),
-							},
-							'& .MuiTab-root.Mui-selected': {
-								color: 'text.primary',
-								bgcolor: theme.vars.palette.background.neutral,
-								boxShadow: 'none',
-							},
-							'& .MuiTab-root.Mui-disabled': {
-								opacity: 0.48,
+								fontWeight: 600,
+								fontSize: 13,
+								color: theme.vars.palette.text.secondary,
+								opacity: 1,
+								'&.Mui-selected': {
+									bgcolor: theme.vars.palette.background.neutral,
+									color: theme.vars.palette.text.primary,
+								},
 							},
 						})}
 					>
-						<Tab label="CSV" value="csv" />
-						<Tab label="JSON" value="json" />
-						<Tab label="XLSX" value="xlsx" />
+						<Tab value="csv" label="CSV" />
+						<Tab value="json" label="JSON" />
+						<Tab value="xlsx" label="XLSX" />
 					</Tabs>
 					<Typography
 						variant="body2"
@@ -167,15 +173,7 @@ const StaffProfilesExportDialogController = ({
 				<Button onClick={() => setOpen(false)}>{t('cancel')}</Button>
 				<Button
 					variant="contained"
-					onClick={() => {
-						if (exportFormat === 'xlsx') {
-							return;
-						}
-
-						exportRows(exportFormat);
-						setOpen(false);
-					}}
-					startIcon={<Iconify icon="solar:download-bold" width={18} />}
+					onClick={handleExport}
 					disabled={exportFormat === 'xlsx'}
 				>
 					{t('export')}
@@ -185,4 +183,4 @@ const StaffProfilesExportDialogController = ({
 	);
 };
 
-export default StaffProfilesExportDialogController;
+export default StaffInvitationsExportDialogController;

@@ -73,8 +73,7 @@ public sealed class BulkDeleteTenantProfilesAsStaff {
 			);
 		}
 
-		var profileIds = body.GetProfileIds();
-		var distinctProfileIds = profileIds.Distinct().ToList();
+		var distinctProfileIds = body.GetProfileIds().Distinct().ToList();
 		var result = await profileAsStaffService.BulkDeleteTenantProfilesAsync(
 			new BulkDeleteTenantProfilesArgs(
 				TenantId: tenantIdGuid,

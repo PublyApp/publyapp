@@ -86,7 +86,7 @@ public class FindTenantProfilesAsStaff {
 
 		if (serviceResult is Services.FindTenantProfilesResult.InvalidSortId sortIdError) {
 			return TypedProblems.BadRequest(
-				$"Invalid sortId: {sortIdError.SortId}. Allowed values: id, name, created_at",
+				$"Invalid sort_id: {sortIdError.SortId}. Allowed values: id, name, created_at",
 				ResponseKeys.BadRequest
 			);
 		}
