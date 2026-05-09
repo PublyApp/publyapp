@@ -147,8 +147,15 @@ const StaffProfileUsersExportDialogController = ({
 					>
 						<Tab label="CSV" value="csv" />
 						<Tab label="JSON" value="json" />
-						<Tab label="XLSX" value="xlsx" disabled />
+						<Tab label="XLSX" value="xlsx" />
 					</Tabs>
+					<Typography
+						variant="body2"
+						color="text.secondary"
+						sx={{ minHeight: 20 }}
+					>
+						{exportFormat === 'xlsx' ? t('xlsx-export-coming-soon') : ' '}
+					</Typography>
 				</Box>
 			</DialogContent>
 
