@@ -288,13 +288,20 @@ Conventions:
 - Empty/whitespace means “no filter”.
 - Validate the raw string (and every token) in the query validator.
 - Parse into a set (`IReadOnlySet<TEnum>`) in a query DTO getter.
-- Prefer lowercase tokens end-to-end for URL/API consistency.
+- Wire contract: **lowercase tokens end-to-end** for URL/API consistency.
+- Source of truth for the allowlist: **`nameof(EnumType.Member)`**, not hardcoded string literals. `nameof()` is rename-safe and gives a single source of truth — when an enum member is renamed, the validator updates automatically. Because `nameof()` returns the PascalCase member name while the wire contract is lowercase, **lowercase once at type init for the user-facing display string only**; comparison stays case-insensitive via `OrdinalIgnoreCase` so the lowercase conversion never runs on the request path.
+
+> **Why this matters:** AI agents reviewing this code repeatedly flag `nameof()` as a deviation from "lowercase tokens end-to-end" and propose hardcoded literals as the fix. That is wrong — the wire contract (request/response strings) is lowercase, but the *source of truth* is the enum, referenced via `nameof()`. The two are reconciled by lowercasing at display, not at the source.
+>
+> AGENTS.md forbids `ToLower()` / `ToLowerInvariant()` as a *comparison or dispatch* strategy. The single `ToLowerInvariant()` call here runs once at type initialization for display only — not on the comparison path — so it is consistent with that rule.
+
+> **Migration TODO:** Existing validators may still use the older pattern (hardcoded lowercase literals or PascalCase tokens leaking into the validation message). When you touch a CSV-enum validator, migrate it to the `nameof()` + lowercase-at-display pattern above. To find candidates, grep `apps/api/Src/Modules/*/Handlers/` for `StringComparer.OrdinalIgnoreCase` next to a string-array literal, and `.WithMessage(...string.Join(",", ...)`.
 
 Example shape (handler-local):
 
 ```csharp
 public class FindTenantsQuery : CursorPaginatedQuery {
-	[FromQuery] public string? Status { get; set; }
+	[FromQuery(Name = "status")] public string? Status { get; set; }
 
 	public IReadOnlySet<TenantStatus>? GetStatusesOrNull() {
 		if (string.IsNullOrWhiteSpace(Status)) {
@@ -321,19 +328,31 @@ public class FindTenantsQuery : CursorPaginatedQuery {
 }
 
 public class FindTenantsQueryValidator : CursorPaginatedQueryValidator<FindTenantsQuery> {
-	private static readonly HashSet<string> Allowed =
-		new(["active", "pending", "suspended"], StringComparer.OrdinalIgnoreCase);
+	// Source of truth: nameof() — rename-safe, no hardcoded strings to maintain.
+	private static readonly string[] AllowedStatuses = [
+		nameof(TenantStatus.Active),
+		nameof(TenantStatus.Pending),
+		nameof(TenantStatus.Suspended),
+	];
+
+	private static readonly HashSet<string> AllowedStatusSet =
+		new(AllowedStatuses, StringComparer.OrdinalIgnoreCase);
+
+	// Lowercased once at type init so the validation message matches the wire
+	// contract (lowercase tokens). Comparison itself stays case-insensitive via
+	// OrdinalIgnoreCase — ToLowerInvariant never runs on the request path.
+	private static readonly string AllowedStatusesDisplay =
+		string.Join(", ", AllowedStatuses.Select(s => s.ToLowerInvariant()).Order());
 
 	public FindTenantsQueryValidator() {
 		RuleFor(x => x.Status)
 			.Must(raw => {
-				if (string.IsNullOrEmpty(raw)) return true;
+				if (string.IsNullOrWhiteSpace(raw)) return true;
 				var parts = raw.Split(',',
 					StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-				return parts.All(p => Allowed.Contains(p));
+				return parts.Length > 0 && parts.All(AllowedStatusSet.Contains);
 			})
-			.WithMessage("Status must be comma-separated: active,pending,suspended")
-			.When(x => !string.IsNullOrEmpty(x.Status));
+			.WithMessage($"Status must be one of: {AllowedStatusesDisplay}");
 	}
 }
 ```
