@@ -156,3 +156,23 @@ sortId=createdAt
 sortId=updatedat
 status=awaitingReview
 ```
+
+### Error messages mirror the wire parameter name
+
+Validation and handler error messages that reference a query parameter must use
+the **snake_case wire name**, not the C# property name. The user is reading the
+URL they sent, not your handler source.
+
+```csharp
+// ✅ CORRECT - matches the wire param the client sent
+return TypedProblems.BadRequest(
+    $"Invalid sort_id: {value}. Allowed values: id, name, created_at",
+    ResponseKeys.BadRequest
+);
+
+// ❌ WRONG - leaks the C# property name
+return TypedProblems.BadRequest(
+    $"Invalid SortId: {value}. Allowed values: ...",
+    ResponseKeys.BadRequest
+);
+```
