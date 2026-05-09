@@ -437,3 +437,12 @@ export const I18N_NAMESPACES = {
 } as const satisfies Record<string, NameSpace>;
 
 export const MAX_PROFILES_PER_ACCOUNT = 5;
+
+/**
+ * Max items per staff/tenant bulk action (revoke / suspend / reactivate /
+ * delete invitations, users, profiles, tenant-user company associations).
+ * Mirrors the C# validator `MustBeRequiredGuidArray(maxCount: 100)` used in
+ * every Bulk*StaffInvitations / BulkSuspend / BulkReactivate / BulkDelete /
+ * TenantUserCompanyActionsForStaff handler. Keep the two values in sync.
+ */
+export const BULK_ACTION_MAX_COUNT = 100;
