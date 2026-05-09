@@ -15,7 +15,7 @@ namespace MainApi.Src.Modules.Invitations.Handlers.Staff;
 public class FindStaffInvitationsResult : CursorPaginatedResult<InvitationListItem> { }
 
 public class FindStaffInvitationsQuery : CursorPaginatedQuery {
-	[FromQuery] public string? Status { get; set; }
+	[FromQuery(Name = "status")] public string? Status { get; set; }
 
 	public IReadOnlySet<InvitationEffectiveStatus>? GetStatusesOrNull() {
 		if (Status is null) {

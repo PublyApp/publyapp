@@ -3771,7 +3771,7 @@
         "operationId": "FindStaffInvitations",
         "parameters": [
           {
-            "name": "Status",
+            "name": "status",
             "in": "query",
             "schema": {
               "type": "string"
