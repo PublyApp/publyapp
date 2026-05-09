@@ -448,6 +448,12 @@ public class InvitationService : IInvitationService {
 		);
 	}
 
+	// Bulk path is hand-rolled (one SELECT + tracker mutations + one SaveChanges)
+	// rather than looping RevokeInvitationForStaffAsync because the per-item
+	// method round-trips the DB once per id. Keep classification logic in sync
+	// with RevokeInvitationInternalAsync; if revoke ever grows side effects
+	// (email, webhook, audit log), they must be replayed here too — they are
+	// currently invoked at the handler layer instead.
 	public async Task<BulkStaffInvitationActionResult> BulkRevokeStaffInvitationsAsync(
 		IReadOnlyCollection<Guid> invitationIds,
 		CancellationToken cancellationToken = default

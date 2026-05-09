@@ -17,6 +17,9 @@ public class FindStaffInvitationsResult : CursorPaginatedResult<InvitationListIt
 public class FindStaffInvitationsQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "status")] public string? Status { get; set; }
 
+	// Returns null (not throws) on unparseable tokens because the validator is
+	// the single rejection point for malformed input — by the time this runs,
+	// the raw string has already passed validation.
 	public IReadOnlySet<InvitationEffectiveStatus>? GetStatusesOrNull() {
 		if (Status is null) {
 			return null;

@@ -37,6 +37,8 @@ public sealed class BulkRevokeStaffInvitationsBodyValidator
 			.MustBeRequiredGuidArray(
 				fieldName: "invitationIds",
 				itemName: "invitationId",
+				// Must stay in sync with shared BULK_ACTION_MAX_COUNT
+				// (packages/shared-ts/lib/constants.ts) used by frontend selection UIs.
 				maxCount: 100
 			);
 	}
