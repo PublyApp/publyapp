@@ -40,6 +40,9 @@ export const useStaffInvitationBulkRevoke = ({
 			invitationIds.push(invitation.id);
 		}
 
+		// Only the mutation call is wrapped: a successful revoke followed by a
+		// throw inside setRowSelection / invalidateQueries must not surface as a
+		// "revoke failed" error toast to the user.
 		let result: Awaited<ReturnType<typeof bulkRevokeStaffInvitations>>;
 		try {
 			result = await bulkRevokeStaffInvitations({ invitationIds });

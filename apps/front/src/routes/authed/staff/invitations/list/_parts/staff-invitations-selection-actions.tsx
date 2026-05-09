@@ -78,6 +78,12 @@ export const StaffInvitationsSelectionActions = ({
 					<Iconify icon="solar:download-bold" width={18} />
 					<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
 				</MenuItem>
+				{/*
+				  Render unconditionally and toast on ineligible click rather than
+				  hiding/disabling the item: keeps the action discoverable when a
+				  user has mixed-status rows selected, with the toast explaining
+				  why nothing happened.
+				*/}
 				<MenuItem
 					onClick={() => {
 						if (eligibleBulkRevokeCount === 0) {

@@ -87,6 +87,12 @@ const StaffUsersSelectionActions = ({
 					<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
 				</MenuItem>
 
+				{/*
+				  Each bulk action stays visible (not disabled/hidden) when no
+				  rows are eligible; an ineligible click closes the menu and
+				  shows a warning toast explaining why. Discoverability over
+				  silent gating when the selection mixes statuses.
+				*/}
 				<MenuItem
 					onClick={() => {
 						closeMenu();

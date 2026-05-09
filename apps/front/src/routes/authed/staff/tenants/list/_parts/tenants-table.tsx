@@ -190,6 +190,9 @@ const useTenantsTableController = () => {
 		onDebouncedValueChange: handleDebouncedSearchChange,
 	});
 
+	// Browser back/forward replays the URL filter without a click handler, so
+	// the cursor must be reset here too — a stale cursor paired with a different
+	// filter set produces phantom pages from the API.
 	useEffect(() => {
 		const nextStatusFilter = parseStatusFilter(filterStates.status);
 		if (!isEqual(nextStatusFilter, statusFilter)) {

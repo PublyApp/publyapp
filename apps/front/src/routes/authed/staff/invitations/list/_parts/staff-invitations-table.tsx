@@ -242,6 +242,9 @@ const StaffInvitationsTable = () => {
 		[filterStates.status],
 	);
 
+	// Browser back/forward replays the URL filter without a click handler, so
+	// the cursor must be reset here too — a stale cursor paired with a different
+	// filter set produces phantom pages from the API.
 	useEffect(() => {
 		const nextStatusFilter = parseStatusFilter(filterStates.status);
 		if (!isEqual(nextStatusFilter, statusFilter)) {
@@ -306,6 +309,9 @@ const StaffInvitationsTable = () => {
 				setNextCursor,
 			],
 		);
+	// Derive from the freshest server response rather than reading the table-state
+	// hook's hasNextPage, which lags by one render until pagination is interacted
+	// with and would otherwise render an empty "next" page on initial load.
 	const hasNextPage = invitationsQuery.data?.nextCursor != null;
 
 	const dataTable = useMemo(() => {
@@ -567,6 +573,8 @@ const StatusCell: MRT_ColumnDef<
 	const { t } = useTranslate();
 	const status = props.cell.getValue();
 
+	// Default to the "unknown" label so that backend status drift surfaces
+	// visibly instead of being silently coerced into a known bucket.
 	let label: string = t('unknown-item', { item: 'status' });
 	let color: LabelColor = 'default';
 
