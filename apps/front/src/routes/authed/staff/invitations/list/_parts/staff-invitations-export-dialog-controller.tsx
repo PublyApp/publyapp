@@ -12,7 +12,11 @@ import type { Ref } from 'react';
 import { useImperativeHandle, useState } from 'react';
 
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { downloadCsvFile, downloadJsonFile } from '#app/lib/export/download.ts';
+import {
+	downloadCsvFile,
+	downloadJsonFile,
+	withTimestamp,
+} from '#app/lib/export/download.ts';
 import { fDate } from '#app/utils/format-time.ts';
 
 import type { StaffInvitationRowData } from './staff-invitations-table';
@@ -74,18 +78,20 @@ const StaffInvitationsExportDialogController = ({
 				row.createdAt ? fDate(row.createdAt) : '',
 			]);
 			downloadCsvFile({
-				fileName: isSelectionMode
-					? 'selected-staff-invitations.csv'
-					: 'staff-invitations.csv',
+				fileName: withTimestamp(
+					isSelectionMode ? 'selected-staff-invitations' : 'staff-invitations',
+					'csv',
+				),
 				rows: [headers, ...csvRows],
 			});
 			return;
 		}
 
 		downloadJsonFile({
-			fileName: isSelectionMode
-				? 'selected-staff-invitations.json'
-				: 'staff-invitations.json',
+			fileName: withTimestamp(
+				isSelectionMode ? 'selected-staff-invitations' : 'staff-invitations',
+				'json',
+			),
 			data: rowsToExport,
 		});
 	};

@@ -14,7 +14,11 @@ import { useImperativeHandle, useState } from 'react';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { downloadCsvFile, downloadJsonFile } from '#app/lib/export/download.ts';
+import {
+	downloadCsvFile,
+	downloadJsonFile,
+	withTimestamp,
+} from '#app/lib/export/download.ts';
 
 import type { StaffProfileRowData } from './staff-profiles-table';
 
@@ -71,14 +75,20 @@ const StaffProfilesExportDialogController = ({
 				];
 			});
 			downloadCsvFile({
-				fileName: isSelectionMode ? 'selected-profiles.csv' : 'profiles.csv',
+				fileName: withTimestamp(
+					isSelectionMode ? 'selected-profiles' : 'profiles',
+					'csv',
+				),
 				rows: [headers, ...csvRows],
 			});
 			return;
 		}
 
 		downloadJsonFile({
-			fileName: isSelectionMode ? 'selected-profiles.json' : 'profiles.json',
+			fileName: withTimestamp(
+				isSelectionMode ? 'selected-profiles' : 'profiles',
+				'json',
+			),
 			data: rowsToExport,
 		});
 	};

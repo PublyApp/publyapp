@@ -15,7 +15,11 @@ import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { downloadCsvFile, downloadJsonFile } from '#app/lib/export/download.ts';
+import {
+	downloadCsvFile,
+	downloadJsonFile,
+	withTimestamp,
+} from '#app/lib/export/download.ts';
 
 import type { ProfileUserRowData } from './staff-profile-users-table.tsx';
 
@@ -71,18 +75,20 @@ const StaffProfileUsersExportDialogController = ({
 				];
 			});
 			downloadCsvFile({
-				fileName: isSelectionMode
-					? 'selected-profile-users.csv'
-					: 'profile-users.csv',
+				fileName: withTimestamp(
+					isSelectionMode ? 'selected-profile-users' : 'profile-users',
+					'csv',
+				),
 				rows: [headers, ...csvRows],
 			});
 			return;
 		}
 
 		downloadJsonFile({
-			fileName: isSelectionMode
-				? 'selected-profile-users.json'
-				: 'profile-users.json',
+			fileName: withTimestamp(
+				isSelectionMode ? 'selected-profile-users' : 'profile-users',
+				'json',
+			),
 			data: rowsToExport,
 		});
 	};
