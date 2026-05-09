@@ -1,13 +1,7 @@
-import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
 import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
-import ListItemText from '@mui/material/ListItemText';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
@@ -24,12 +18,12 @@ import {
 	type MRT_TableOptions,
 } from 'material-react-table';
 import { useBoolean } from 'minimal-shared/hooks';
-import { varAlpha } from 'minimal-shared/utils';
 import { parseAsString, useQueryStates } from 'nuqs';
 import {
+	type MouseEvent,
+	type SyntheticEvent,
 	useCallback,
 	useEffect,
-	useId,
 	useMemo,
 	useRef,
 	useState,
@@ -53,10 +47,7 @@ import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
-import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
 import {
-	useBulkRevokeStaffInvitations,
 	useFindStaffInvitations,
 	useGetStaffInvitationLink,
 	useResendStaffInvitation,
@@ -65,11 +56,20 @@ import {
 import { fDate, fIsAfter, fToNow } from '#app/utils/format-time.ts';
 
 import { NewInvitationButton } from './new-invitation-button';
+import {
+	STAFF_INVITATION_STATUS_VALUES,
+	type StaffInvitationStatus,
+	type StaffInvitationStatusOption,
+	parseStatusFilter,
+} from './staff-invitation-status';
+import { StaffInvitationsBulkRevokeDialog } from './staff-invitations-bulk-revoke-dialog';
+import { StaffInvitationsExportAction } from './staff-invitations-export-action';
 import StaffInvitationsExportDialogController, {
 	type StaffInvitationsExportDialogControllerRef,
 } from './staff-invitations-export-dialog-controller';
-
-type StaffInvitationStatus = 'pending' | 'accepted' | 'expired' | 'revoked';
+import { StaffInvitationsSelectionActions } from './staff-invitations-selection-actions';
+import { StaffInvitationsToolbarFilters } from './staff-invitations-toolbar-filters';
+import { useStaffInvitationBulkRevoke } from './use-staff-invitation-bulk-revoke';
 
 export type StaffInvitationRowData = {
 	id: string;
@@ -81,8 +81,6 @@ export type StaffInvitationRowData = {
 	acceptedAt: Date | null;
 	createdAt: Date | null;
 };
-
-const SELECTION_MODE_MENU_MIN_WIDTH = 240;
 
 const getInvitationStatus = (
 	invitation: InvitationListItem,
@@ -124,34 +122,94 @@ const defaultSorting: MRT_SortingState[number] = {
 	id: 'created_at',
 };
 
-const STATUS_VALUES: readonly StaffInvitationStatus[] = [
-	'pending',
-	'accepted',
-	'expired',
-	'revoked',
-];
+const useStaffInvitationColumns = () => {
+	const { t } = useTranslate();
 
-type StaffInvitationStatusOption = {
-	label: string;
-	value: StaffInvitationStatus;
+	return useMemo(() => {
+		return [
+			columnHelper.accessor('email', {
+				header: t('email'),
+				Cell: EmailCell,
+				size: 260,
+			}),
+			columnHelper.accessor('profileName', {
+				header: t('profiles'),
+				Cell: ProfileCell,
+				enableSorting: false,
+				size: 200,
+			}),
+			columnHelper.accessor('status', {
+				header: t('status'),
+				Cell: StatusCell,
+				enableSorting: false,
+				size: 130,
+			}),
+			columnHelper.accessor('invitedByName', {
+				header: t('staff-invited-by'),
+				Cell: InvitedByCell,
+				enableSorting: false,
+				size: 200,
+			}),
+			columnHelper.accessor('expiresAt', {
+				id: 'expires_at',
+				header: t('expiry-date'),
+				Cell: ExpiryDateCell,
+				size: 170,
+			}),
+			columnHelper.accessor('acceptedAt', {
+				id: 'accepted_at',
+				header: t('accepted-at'),
+				Cell: DateCell,
+				size: 170,
+			}),
+			columnHelper.accessor('createdAt', {
+				id: 'created_at',
+				header: t('created-at'),
+				Cell: DateCell,
+				size: 170,
+			}),
+			columnHelper.display({
+				header: t('actions'),
+				Cell: InvitationActionsCell,
+				size: 140,
+			}),
+		];
+	}, [t]);
 };
 
-const parseStatusFilter = (value: string): StaffInvitationStatus[] => {
-	if (!value) {
-		return [];
-	}
+const createHeadCellProps = (
+	isSelectionMode: boolean,
+	sortingDisabledReason: string,
+): MRT_TableOptions<StaffInvitationRowData>['muiTableHeadCellProps'] => {
+	return ({ column }) => {
+		if (!column.getCanSort()) {
+			return {};
+		}
 
-	const valid = new Set<string>(STATUS_VALUES);
-	return value
-		.split(',')
-		.map((part) => part.trim())
-		.filter((part): part is StaffInvitationStatus => valid.has(part));
+		if (!isSelectionMode) {
+			return {
+				title: undefined,
+			};
+		}
+
+		return {
+			title: sortingDisabledReason,
+			sx: {
+				'& .MuiTableSortLabel-root': {
+					cursor: 'not-allowed',
+					pointerEvents: 'none',
+					opacity: 0.56,
+				},
+				'& .MuiTableSortLabel-icon': {
+					opacity: '1 !important',
+				},
+			},
+		};
+	};
 };
 
 const StaffInvitationsTable = () => {
 	const { t } = useTranslate();
-	const queryClient = useQueryClient();
-	const statusTooltipId = useId();
 	const exportDialogRef =
 		useRef<StaffInvitationsExportDialogControllerRef>(null);
 	const [filterStates, setFilterStates] = useQueryStates({
@@ -276,134 +334,27 @@ const StaffInvitationsTable = () => {
 		exportDialogRef.current?.open();
 	};
 
-	const { mutateAsync: bulkRevokeStaffInvitations, isPending: isBulkRevoking } =
-		useBulkRevokeStaffInvitations({
-			meta: { skipGlobalErrorHandler: true },
-		});
-
 	const eligibleBulkRevokeRows = useMemo(() => {
 		return selectedRows.filter((row) => row.status === 'pending');
 	}, [selectedRows]);
 	const eligibleBulkRevokeCount = eligibleBulkRevokeRows.length;
 	const ineligibleBulkRevokeCount = selectedCount - eligibleBulkRevokeCount;
 
-	const handleBulkRevoke = async () => {
-		try {
-			const result = await bulkRevokeStaffInvitations({
-				invitationIds: eligibleBulkRevokeRows.map(
-					(invitation) => invitation.id,
-				),
-			});
-			const failedItems = result.failedItems ?? [];
-			const succeeded = result.succeededCount ?? 0;
-			const failed = result.failedCount ?? failedItems.length;
-			const failedIds = failedItems
-				.map((item) => item.invitationId)
-				.filter((id): id is string => Boolean(id));
+	const closeBulkRevokeDialog = () => setBulkRevokeDialogOpen(false);
+	const { handleBulkRevoke, isBulkRevoking } = useStaffInvitationBulkRevoke({
+		eligibleRows: eligibleBulkRevokeRows,
+		clearSelection,
+		setRowSelection,
+		closeDialog: closeBulkRevokeDialog,
+	});
 
-			setBulkRevokeDialogOpen(false);
-			await queryClient.invalidateQueries({
-				queryKey: useFindStaffInvitations.getKey(),
-			});
-
-			if (failed === 0) {
-				clearSelection();
-			} else {
-				// Reconcile selection so retried bulk revoke only acts on still-failed rows.
-				setRowSelection((prev) => {
-					const next: typeof prev = {};
-					for (const id of failedIds) {
-						if (prev[id]) {
-							next[id] = true;
-						}
-					}
-					return next;
-				});
-			}
-
-			if (succeeded === 0 && failed > 0) {
-				toast.error(t('invitation-bulk-revoke-failure'));
-				return;
-			}
-
-			if (failed > 0) {
-				toast.warning(
-					t('invitation-bulk-revoke-partial-success', {
-						succeeded,
-						failed,
-					}),
-				);
-				return;
-			}
-
-			toast.success(
-				t('invitation-bulk-revoke-success', {
-					count: succeeded,
-				}),
-			);
-		} catch (error) {
-			const failure = toApiFailure(error);
-			const message = getFailureMessage(failure, {
-				fallback: t('invitation-bulk-revoke-failure'),
-			});
-			setBulkRevokeDialogOpen(false);
-			toast.error(message);
-		}
-	};
-
-	const columns = useMemo(() => {
-		return [
-			columnHelper.accessor('email', {
-				header: t('email'),
-				Cell: EmailCell,
-				size: 260,
-			}),
-			columnHelper.accessor('profileName', {
-				header: t('profiles'),
-				Cell: ProfileCell,
-				enableSorting: false,
-				size: 200,
-			}),
-			columnHelper.accessor('status', {
-				header: t('status'),
-				Cell: StatusCell,
-				enableSorting: false,
-				size: 130,
-			}),
-			columnHelper.accessor('invitedByName', {
-				header: t('staff-invited-by'),
-				Cell: InvitedByCell,
-				enableSorting: false,
-				size: 200,
-			}),
-			columnHelper.accessor('expiresAt', {
-				id: 'expires_at',
-				header: t('expiry-date'),
-				Cell: ExpiryDateCell,
-				size: 170,
-			}),
-			columnHelper.accessor('acceptedAt', {
-				id: 'accepted_at',
-				header: t('accepted-at'),
-				Cell: DateCell,
-				size: 170,
-			}),
-			columnHelper.accessor('createdAt', {
-				id: 'created_at',
-				header: t('created-at'),
-				Cell: DateCell,
-				size: 170,
-			}),
-			columnHelper.display({
-				header: t('actions'),
-				Cell: InvitationActionsCell,
-				size: 140,
-			}),
-		];
-	}, [t]);
+	const columns = useStaffInvitationColumns();
 
 	const statusOptions = useMemo<StaffInvitationStatusOption[]>(() => {
-		return STATUS_VALUES.map((value) => ({ label: t(value), value }));
+		return STAFF_INVITATION_STATUS_VALUES.map((value) => ({
+			label: t(value),
+			value,
+		}));
 	}, [t]);
 	const selectedStatusOptions = useMemo(() => {
 		return statusOptions.filter((option) =>
@@ -412,7 +363,7 @@ const StaffInvitationsTable = () => {
 	}, [statusOptions, statusFilter]);
 
 	const handleStatusChange = (
-		_event: React.SyntheticEvent,
+		_event: SyntheticEvent,
 		selectedOptions: StaffInvitationStatusOption[],
 	) => {
 		const nextStatusFilter = selectedOptions.map((option) => option.value);
@@ -424,209 +375,43 @@ const StaffInvitationsTable = () => {
 
 	const renderToolbarFilters = () => {
 		return (
-			<SelectionLockedControl
+			<StaffInvitationsToolbarFilters
 				isSelectionMode={isSelectionMode}
-				disabledReason={selectionModeDisabledReason}
-				describeChild
-				tooltipId={statusTooltipId}
-			>
-				<Box component="span">
-					<Autocomplete
-						multiple
-						disableCloseOnSelect
-						size="small"
-						options={statusOptions}
-						value={selectedStatusOptions}
-						onChange={handleStatusChange}
-						disabled={isSelectionMode}
-						isOptionEqualToValue={(option, value) =>
-							option.value === value.value
-						}
-						getOptionLabel={(option) => option.label}
-						renderInput={(params) => (
-							<TextField
-								{...params}
-								placeholder={
-									statusFilter.length === 0 ? t('all-statuses') : undefined
-								}
-								slotProps={{
-									input: {
-										...params.InputProps,
-										startAdornment: (
-											<>
-												<Box
-													component="span"
-													sx={{
-														color: 'text.secondary',
-														typography: 'body2',
-														whiteSpace: 'nowrap',
-														mr: 1,
-														display: 'inline-flex',
-														alignItems: 'center',
-														alignSelf: 'center',
-														minHeight: 24,
-													}}
-												>
-													{t('status')}:
-												</Box>
-												{params.InputProps.startAdornment}
-											</>
-										),
-									},
-								}}
-							/>
-						)}
-						renderOption={(props, option, { selected }) => {
-							const { key, ...optionProps } = props;
-
-							return (
-								<Box
-									component="li"
-									key={key}
-									{...optionProps}
-									sx={(theme) => ({
-										'&.Mui-focused': {
-											backgroundColor: varAlpha(
-												theme.vars.palette.grey['500Channel'],
-												0.08,
-											),
-										},
-										'&[aria-selected="true"]': {
-											backgroundColor: varAlpha(
-												theme.vars.palette.primary.mainChannel,
-												0.08,
-											),
-										},
-										'&[aria-selected="true"].Mui-focused': {
-											backgroundColor: varAlpha(
-												theme.vars.palette.primary.mainChannel,
-												0.12,
-											),
-										},
-									})}
-								>
-									<Checkbox checked={selected} sx={{ mr: 1 }} />
-									{option.label}
-								</Box>
-							);
-						}}
-						slotProps={{
-							popper: {
-								// Keep MRT toolbar filters anchored while table rows swap between
-								// skeleton and data layouts.
-								placement: 'bottom-start',
-							},
-							paper: {
-								sx: {
-									width: 280,
-								},
-							},
-							chip: {
-								sx: (theme) => ({
-									backgroundColor: varAlpha(
-										theme.vars.palette.grey['500Channel'],
-										0.16,
-									),
-									color: 'text.secondary',
-									'&:hover': {
-										backgroundColor: varAlpha(
-											theme.vars.palette.grey['500Channel'],
-											0.24,
-										),
-									},
-								}),
-							},
-						}}
-						sx={{
-							minWidth: 260,
-							'& .MuiAutocomplete-tag': {
-								maxWidth: 120,
-							},
-						}}
-					/>
-				</Box>
-			</SelectionLockedControl>
+				selectionModeDisabledReason={selectionModeDisabledReason}
+				statusOptions={statusOptions}
+				selectedStatusOptions={selectedStatusOptions}
+				statusFilterLength={statusFilter.length}
+				onStatusChange={handleStatusChange}
+			/>
 		);
 	};
 
 	const renderExportActions = () => {
-		return (
-			<Button
-				size="small"
-				variant="outlined"
-				onClick={openExportDialog}
-				startIcon={<Iconify icon="solar:download-bold" />}
-			>
-				{t('export')}
-			</Button>
-		);
+		return <StaffInvitationsExportAction onClick={openExportDialog} />;
 	};
 
 	const renderSelectionActions = () => {
 		return (
-			<>
-				<Tooltip title={t('more-actions')} placement="top" arrow>
-					<IconButton
-						size="small"
-						aria-label={t('more-actions')}
-						onClick={(event) => {
-							setSelectionActionAnchorEl(event.currentTarget);
-						}}
-						sx={{ width: 32, height: 32 }}
-					>
-						<Iconify icon="eva:more-vertical-fill" width={18} />
-					</IconButton>
-				</Tooltip>
-				<Menu
-					anchorEl={selectionActionAnchorEl}
-					open={isSelectionActionMenuOpen}
-					onClose={closeSelectionActionMenu}
-					anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-					transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-					slotProps={{
-						paper: {
-							sx: {
-								minWidth: SELECTION_MODE_MENU_MIN_WIDTH,
-							},
-						},
-					}}
-				>
-					<MenuItem onClick={openExportDialog}>
-						<Iconify icon="solar:download-bold" width={18} />
-						<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
-					</MenuItem>
-					<Tooltip
-						title={
-							eligibleBulkRevokeCount === 0
-								? t('only-pending-invitations-can-be-revoked')
-								: ''
-						}
-						placement="left"
-						arrow
-						disableHoverListener={eligibleBulkRevokeCount > 0}
-					>
-						<Box component="span">
-							<MenuItem
-								disabled={eligibleBulkRevokeCount === 0}
-								onClick={() => {
-									closeSelectionActionMenu();
-									setBulkRevokeDialogOpen(true);
-								}}
-								sx={{
-									color: 'error.main',
-									width: '100%',
-									'&.Mui-disabled': { color: 'action.disabled' },
-								}}
-							>
-								<Iconify icon="solar:close-circle-bold" width={18} />
-								<ListItemText primary={t('revoke-selected')} sx={{ ml: 1 }} />
-							</MenuItem>
-						</Box>
-					</Tooltip>
-				</Menu>
-			</>
+			<StaffInvitationsSelectionActions
+				anchorEl={selectionActionAnchorEl}
+				eligibleBulkRevokeCount={eligibleBulkRevokeCount}
+				isOpen={isSelectionActionMenuOpen}
+				onOpenMenu={(event: MouseEvent<HTMLButtonElement>) => {
+					setSelectionActionAnchorEl(event.currentTarget);
+				}}
+				onCloseMenu={closeSelectionActionMenu}
+				onOpenExportDialog={openExportDialog}
+				onOpenBulkRevokeDialog={() => {
+					closeSelectionActionMenu();
+					setBulkRevokeDialogOpen(true);
+				}}
+			/>
 		);
 	};
+	const muiTableHeadCellProps = useMemo(
+		() => createHeadCellProps(isSelectionMode, sortingDisabledReason),
+		[isSelectionMode, sortingDisabledReason],
+	);
 
 	const table = useMRTTable('minimal-cursor', {
 		columns,
@@ -673,31 +458,7 @@ const StaffInvitationsTable = () => {
 			renderSelectionActions,
 			renderExportActions,
 		},
-		muiTableHeadCellProps: ({ column }) => {
-			if (!column.getCanSort()) {
-				return {};
-			}
-
-			if (!isSelectionMode) {
-				return {
-					title: undefined,
-				};
-			}
-
-			return {
-				title: sortingDisabledReason,
-				sx: {
-					'& .MuiTableSortLabel-root': {
-						cursor: 'not-allowed',
-						pointerEvents: 'none',
-						opacity: 0.56,
-					},
-					'& .MuiTableSortLabel-icon': {
-						opacity: '1 !important',
-					},
-				},
-			} satisfies MRT_TableOptions<StaffInvitationRowData>['muiTableHeadCellProps'];
-		},
+		muiTableHeadCellProps,
 	});
 
 	return (
@@ -719,30 +480,13 @@ const StaffInvitationsTable = () => {
 				selectedRows={selectedRows}
 			/>
 
-			<ConfirmDialog
+			<StaffInvitationsBulkRevokeDialog
 				open={bulkRevokeDialogOpen}
-				onClose={() => setBulkRevokeDialogOpen(false)}
-				title={t('revoke-selected')}
-				content={
-					ineligibleBulkRevokeCount > 0
-						? t('confirm-bulk-revoke-invitations-with-ineligible', {
-								eligible: eligibleBulkRevokeCount,
-								ineligible: ineligibleBulkRevokeCount,
-							})
-						: t('confirm-bulk-revoke-invitations', {
-								count: eligibleBulkRevokeCount,
-							})
-				}
-				action={
-					<Button
-						variant="contained"
-						color="error"
-						onClick={handleBulkRevoke}
-						disabled={isBulkRevoking}
-					>
-						{t('staff-revoke')}
-					</Button>
-				}
+				onClose={closeBulkRevokeDialog}
+				eligibleCount={eligibleBulkRevokeCount}
+				ineligibleCount={ineligibleBulkRevokeCount}
+				isPending={isBulkRevoking}
+				onConfirm={handleBulkRevoke}
 			/>
 		</Box>
 	);
