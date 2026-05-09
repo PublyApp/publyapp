@@ -346,8 +346,9 @@ const useTenantUsersTableController = () => {
 		const nextStatusFilter = parseStatusFilter(filterStates.status);
 		if (!isEqual(nextStatusFilter, statusFilter)) {
 			setStatusFilter(nextStatusFilter);
+			resetCursorPagination?.();
 		}
-	}, [filterStates.status, statusFilter]);
+	}, [filterStates.status, statusFilter, resetCursorPagination]);
 
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setSearchValue(e.target.value);

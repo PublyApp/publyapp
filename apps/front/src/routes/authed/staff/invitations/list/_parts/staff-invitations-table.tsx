@@ -247,8 +247,9 @@ const StaffInvitationsTable = () => {
 		const nextStatusFilter = parseStatusFilter(filterStates.status);
 		if (!isEqual(nextStatusFilter, statusFilter)) {
 			setStatusFilter(nextStatusFilter);
+			resetCursorPagination?.();
 		}
-	}, [filterStates.status, statusFilter]);
+	}, [filterStates.status, statusFilter, resetCursorPagination]);
 
 	// Rewrite the URL when the raw value contains unknown/malformed tokens so
 	// the API query, the UI checkbox state, and the URL all agree. Triggered

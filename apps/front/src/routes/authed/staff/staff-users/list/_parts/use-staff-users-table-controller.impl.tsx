@@ -156,8 +156,9 @@ export const useStaffUsersTableController = () => {
 
 		if (!isEqual(nextStatusFilter, statusFilter)) {
 			setStatusFilter(nextStatusFilter);
+			resetCursorPagination?.();
 		}
-	}, [filterStates.status, statusFilter]);
+	}, [filterStates.status, statusFilter, resetCursorPagination]);
 
 	const staffUsersQuery = useFindStaffUser({
 		variables: {
