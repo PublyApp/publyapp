@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
 import type { StaffUsersBulkActionType } from './use-staff-users-bulk-actions.ts';
@@ -86,42 +87,54 @@ const StaffUsersSelectionActions = ({
 					<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
 				</MenuItem>
 
-				{canSuspend && (
-					<MenuItem
-						onClick={() => {
-							closeMenu();
-							onOpenBulkActionDialog('suspend');
-						}}
-					>
-						<Iconify icon="solar:forbidden-circle-bold" width={18} />
-						<ListItemText primary={t('bulk-suspend')} sx={{ ml: 1 }} />
-					</MenuItem>
-				)}
+				<MenuItem
+					onClick={() => {
+						closeMenu();
 
-				{canReactivate && (
-					<MenuItem
-						onClick={() => {
-							closeMenu();
-							onOpenBulkActionDialog('reactivate');
-						}}
-					>
-						<Iconify icon="solar:play-circle-bold" width={18} />
-						<ListItemText primary={t('bulk-reactivate')} sx={{ ml: 1 }} />
-					</MenuItem>
-				)}
+						if (!canSuspend) {
+							toast.warning(t('bulk-suspend-disabled-no-active-users'));
+							return;
+						}
 
-				{canDelete && (
-					<MenuItem
-						onClick={() => {
-							closeMenu();
-							onOpenBulkActionDialog('delete');
-						}}
-						sx={{ color: 'error.main' }}
-					>
-						<Iconify icon="solar:trash-bin-trash-bold" width={18} />
-						<ListItemText primary={t('bulk-delete')} sx={{ ml: 1 }} />
-					</MenuItem>
-				)}
+						onOpenBulkActionDialog('suspend');
+					}}
+				>
+					<Iconify icon="solar:forbidden-circle-bold" width={18} />
+					<ListItemText primary={t('bulk-suspend')} sx={{ ml: 1 }} />
+				</MenuItem>
+
+				<MenuItem
+					onClick={() => {
+						closeMenu();
+
+						if (!canReactivate) {
+							toast.warning(t('bulk-reactivate-disabled-no-suspended-users'));
+							return;
+						}
+
+						onOpenBulkActionDialog('reactivate');
+					}}
+				>
+					<Iconify icon="solar:play-circle-bold" width={18} />
+					<ListItemText primary={t('bulk-reactivate')} sx={{ ml: 1 }} />
+				</MenuItem>
+
+				<MenuItem
+					onClick={() => {
+						closeMenu();
+
+						if (!canDelete) {
+							toast.warning(t('bulk-delete-disabled-until-all-suspended'));
+							return;
+						}
+
+						onOpenBulkActionDialog('delete');
+					}}
+					sx={{ color: 'error.main' }}
+				>
+					<Iconify icon="solar:trash-bin-trash-bold" width={18} />
+					<ListItemText primary={t('bulk-delete')} sx={{ ml: 1 }} />
+				</MenuItem>
 			</Menu>
 		</>
 	);

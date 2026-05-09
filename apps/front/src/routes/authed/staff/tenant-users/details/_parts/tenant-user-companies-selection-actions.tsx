@@ -63,10 +63,6 @@ const TenantUserCompaniesSelectionActions = ({
 		: selectedRows;
 	const selectedTenantIds = eligibleRows.map((row) => row.tenantId);
 	const skippedCount = selectedRows.length - eligibleRows.length;
-	const suspendableCount = getEligibleRows('suspend', selectedRows).length;
-	const reactivatableCount = getEligibleRows('reactivate', selectedRows).length;
-	const canSuspendSelection = suspendableCount > 0;
-	const canReactivateSelection = reactivatableCount > 0;
 	const selectedCount = selectedRows.length;
 	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
 	const overLimitMessage = t('bulk-action-max-count-exceeded', {
@@ -147,11 +143,13 @@ const TenantUserCompaniesSelectionActions = ({
 		isBulkRemoving || isBulkSuspending || isBulkReactivating;
 
 	const openConfirmDialog = (action: BulkCompanyAction) => {
+		closeMenu();
+
 		if (getEligibleRows(action, selectedRows).length === 0) {
+			toast.warning(t(getNoEligibleRowsKey(action)));
 			return;
 		}
 
-		closeMenu();
 		setConfirmAction(action);
 	};
 
@@ -223,32 +221,28 @@ const TenantUserCompaniesSelectionActions = ({
 					<Iconify icon="solar:download-bold" width={18} />
 					<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
 				</MenuItem>
-				{canSuspendSelection && (
-					<MenuItem
-						onClick={() => {
-							openConfirmDialog('suspend');
-						}}
-					>
-						<Iconify icon="solar:stop-circle-bold" width={18} />
-						<ListItemText
-							primary={t('suspend-selected-organizations')}
-							sx={{ ml: 1 }}
-						/>
-					</MenuItem>
-				)}
-				{canReactivateSelection && (
-					<MenuItem
-						onClick={() => {
-							openConfirmDialog('reactivate');
-						}}
-					>
-						<Iconify icon="solar:restart-bold" width={18} />
-						<ListItemText
-							primary={t('reactivate-selected-organizations')}
-							sx={{ ml: 1 }}
-						/>
-					</MenuItem>
-				)}
+				<MenuItem
+					onClick={() => {
+						openConfirmDialog('suspend');
+					}}
+				>
+					<Iconify icon="solar:stop-circle-bold" width={18} />
+					<ListItemText
+						primary={t('suspend-selected-organizations')}
+						sx={{ ml: 1 }}
+					/>
+				</MenuItem>
+				<MenuItem
+					onClick={() => {
+						openConfirmDialog('reactivate');
+					}}
+				>
+					<Iconify icon="solar:restart-bold" width={18} />
+					<ListItemText
+						primary={t('reactivate-selected-organizations')}
+						sx={{ ml: 1 }}
+					/>
+				</MenuItem>
 				<MenuItem
 					onClick={() => {
 						openConfirmDialog('remove');
@@ -356,6 +350,18 @@ const getFailureKey = (action: BulkCompanyAction) => {
 	if (action === 'reactivate') {
 		return 'tenant-user-company-bulk-reactivate-failure';
 	}
+	return 'tenant-user-company-bulk-remove-failure';
+};
+
+const getNoEligibleRowsKey = (action: BulkCompanyAction) => {
+	if (action === 'suspend') {
+		return 'bulk-suspend-disabled-no-active-organizations';
+	}
+	if (action === 'reactivate') {
+		return 'bulk-reactivate-disabled-no-suspended-organizations';
+	}
+	// 'remove' has no eligibility filter — every selected row is removable —
+	// so this branch is unreachable while the selection bar is visible.
 	return 'tenant-user-company-bulk-remove-failure';
 };
 

@@ -56,6 +56,10 @@ const TenantProfilesSelectionActions = ({
 		max: BULK_ACTION_MAX_COUNT,
 		count: selectedCount,
 	});
+	const compareDisabledReason =
+		selectedCount > 3
+			? t('compare-selected-disabled-max')
+			: t('compare-selected-disabled-min');
 
 	const { mutateAsync: bulkDeleteProfiles, isPending: isBulkDeleting } =
 		useBulkDeleteTenantProfiles({
@@ -198,12 +202,20 @@ const TenantProfilesSelectionActions = ({
 					},
 				}}
 			>
-				{canCompare && (
-					<MenuItem onClick={handleOpenCompareDrawer}>
-						<Iconify icon="carbon:chevron-sort" width={18} />
-						<ListItemText primary={t('compare-selected')} sx={{ ml: 1 }} />
-					</MenuItem>
-				)}
+				<MenuItem
+					onClick={() => {
+						if (!canCompare) {
+							closeMenu();
+							toast.warning(compareDisabledReason);
+							return;
+						}
+
+						handleOpenCompareDrawer();
+					}}
+				>
+					<Iconify icon="carbon:chevron-sort" width={18} />
+					<ListItemText primary={t('compare-selected')} sx={{ ml: 1 }} />
+				</MenuItem>
 
 				<MenuItem
 					onClick={() => {
@@ -215,18 +227,26 @@ const TenantProfilesSelectionActions = ({
 					<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
 				</MenuItem>
 
-				{!hasDefaultSelected && (
-					<MenuItem
-						onClick={() => {
-							closeMenu();
-							setConfirmBulkDeleteOpen(true);
-						}}
-						sx={{ color: 'error.main' }}
-					>
-						<Iconify icon="solar:trash-bin-trash-bold" width={18} />
-						<ListItemText primary={t('bulk-delete')} sx={{ ml: 1 }} />
-					</MenuItem>
-				)}
+				<MenuItem
+					onClick={() => {
+						closeMenu();
+
+						if (hasDefaultSelected) {
+							toast.warning(
+								t('tenant-profile-default-delete-not-allowed', {
+									ns: 'response-message',
+								}),
+							);
+							return;
+						}
+
+						setConfirmBulkDeleteOpen(true);
+					}}
+					sx={{ color: 'error.main' }}
+				>
+					<Iconify icon="solar:trash-bin-trash-bold" width={18} />
+					<ListItemText primary={t('bulk-delete')} sx={{ ml: 1 }} />
+				</MenuItem>
 			</Menu>
 
 			<TenantProfilesCompareDrawer

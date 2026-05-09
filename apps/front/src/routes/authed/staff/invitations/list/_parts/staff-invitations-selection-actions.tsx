@@ -8,6 +8,7 @@ import type { MouseEvent } from 'react';
 import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { toast } from '#app/components/snackbar/index.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
 const SELECTION_MODE_MENU_MIN_WIDTH = 240;
@@ -77,15 +78,21 @@ export const StaffInvitationsSelectionActions = ({
 					<Iconify icon="solar:download-bold" width={18} />
 					<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
 				</MenuItem>
-				{eligibleBulkRevokeCount > 0 && (
-					<MenuItem
-						onClick={onOpenBulkRevokeDialog}
-						sx={{ color: 'error.main' }}
-					>
-						<Iconify icon="solar:close-circle-bold" width={18} />
-						<ListItemText primary={t('revoke-selected')} sx={{ ml: 1 }} />
-					</MenuItem>
-				)}
+				<MenuItem
+					onClick={() => {
+						if (eligibleBulkRevokeCount === 0) {
+							onCloseMenu();
+							toast.warning(t('only-pending-invitations-can-be-revoked'));
+							return;
+						}
+
+						onOpenBulkRevokeDialog();
+					}}
+					sx={{ color: 'error.main' }}
+				>
+					<Iconify icon="solar:close-circle-bold" width={18} />
+					<ListItemText primary={t('revoke-selected')} sx={{ ml: 1 }} />
+				</MenuItem>
 			</Menu>
 		</>
 	);
