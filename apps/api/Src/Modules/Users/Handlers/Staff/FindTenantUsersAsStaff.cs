@@ -74,11 +74,21 @@ public class FindTenantUsersAsStaffQueryValidator
 	: CursorPaginatedQueryValidator<
 		FindTenantUsersAsStaffQuery
 	> {
-	private static readonly HashSet<string> AllowedStatuses =
-		new(
-			["active", "suspended", "globally_suspended"],
-			StringComparer.OrdinalIgnoreCase
-		);
+	// Source of truth: nameof() — rename-safe, no hardcoded strings to maintain.
+	private static readonly string[] AllowedStatuses = [
+		nameof(TenantUserStatus.Active),
+		nameof(TenantUserStatus.Suspended),
+		nameof(TenantUserStatus.GloballySuspended),
+	];
+
+	private static readonly HashSet<string> AllowedStatusSet =
+		new(AllowedStatuses, StringComparer.OrdinalIgnoreCase);
+
+	// Lowercased once at type init so the validation message matches the wire
+	// contract (lowercase tokens). Comparison itself stays case-insensitive via
+	// OrdinalIgnoreCase — ToLowerInvariant never runs on the request path.
+	private static readonly string AllowedStatusesDisplay =
+		string.Join(", ", AllowedStatuses.Select(s => s.ToLowerInvariant()).Order());
 
 	public FindTenantUsersAsStaffQueryValidator() {
 		RuleFor(x => x.Search).MaximumLength(200);
@@ -90,9 +100,9 @@ public class FindTenantUsersAsStaffQueryValidator
 
 				var parts = raw
 					.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-				return parts.All(AllowedStatuses.Contains);
+				return parts.All(AllowedStatusSet.Contains);
 			})
-			.WithMessage("Invalid status value. Must be comma-separated: " + string.Join(",", AllowedStatuses));
+			.WithMessage($"Status must be one of: {AllowedStatusesDisplay}");
 	}
 }
 
