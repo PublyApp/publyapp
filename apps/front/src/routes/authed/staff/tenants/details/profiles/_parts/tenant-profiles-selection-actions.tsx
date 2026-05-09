@@ -1,4 +1,3 @@
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import ListItemText from '@mui/material/ListItemText';
@@ -50,21 +49,6 @@ const TenantProfilesSelectionActions = ({
 	const selectedCount = selectedRows.length;
 	const canCompare = selectedCount === 2 || selectedCount === 3;
 	const hasDefaultSelected = selectedRows.some((row) => row.isDefault);
-	const bulkDeleteBlockedReason = t(
-		'tenant-profile-default-delete-not-allowed',
-		{
-			ns: 'response-message',
-		},
-	);
-	let compareDisabledReason = '';
-
-	if (selectedCount < 2) {
-		compareDisabledReason = t('compare-selected-disabled-min');
-	}
-
-	if (selectedCount > 3) {
-		compareDisabledReason = t('compare-selected-disabled-max');
-	}
 
 	const { mutateAsync: bulkDeleteProfiles, isPending: isBulkDeleting } =
 		useBulkDeleteTenantProfiles({
@@ -196,19 +180,12 @@ const TenantProfilesSelectionActions = ({
 					},
 				}}
 			>
-				<Tooltip
-					title={canCompare ? '' : compareDisabledReason}
-					placement="left"
-					arrow
-					disableHoverListener={canCompare}
-				>
-					<Box component="span">
-						<MenuItem disabled={!canCompare} onClick={handleOpenCompareDrawer}>
-							<Iconify icon="carbon:chevron-sort" width={18} />
-							<ListItemText primary={t('compare-selected')} sx={{ ml: 1 }} />
-						</MenuItem>
-					</Box>
-				</Tooltip>
+				{canCompare && (
+					<MenuItem onClick={handleOpenCompareDrawer}>
+						<Iconify icon="carbon:chevron-sort" width={18} />
+						<ListItemText primary={t('compare-selected')} sx={{ ml: 1 }} />
+					</MenuItem>
+				)}
 
 				<MenuItem
 					onClick={() => {
@@ -220,29 +197,18 @@ const TenantProfilesSelectionActions = ({
 					<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
 				</MenuItem>
 
-				<Tooltip
-					title={hasDefaultSelected ? bulkDeleteBlockedReason : ''}
-					placement="left"
-					arrow
-					disableHoverListener={!hasDefaultSelected}
-				>
-					<Box component="span">
-						<MenuItem
-							disabled={hasDefaultSelected}
-							onClick={() => {
-								closeMenu();
-								setConfirmBulkDeleteOpen(true);
-							}}
-							sx={{
-								color: 'error.main',
-								'&.Mui-disabled': { color: 'action.disabled' },
-							}}
-						>
-							<Iconify icon="solar:trash-bin-trash-bold" width={18} />
-							<ListItemText primary={t('bulk-delete')} sx={{ ml: 1 }} />
-						</MenuItem>
-					</Box>
-				</Tooltip>
+				{!hasDefaultSelected && (
+					<MenuItem
+						onClick={() => {
+							closeMenu();
+							setConfirmBulkDeleteOpen(true);
+						}}
+						sx={{ color: 'error.main' }}
+					>
+						<Iconify icon="solar:trash-bin-trash-bold" width={18} />
+						<ListItemText primary={t('bulk-delete')} sx={{ ml: 1 }} />
+					</MenuItem>
+				)}
 			</Menu>
 
 			<TenantProfilesCompareDrawer

@@ -1,4 +1,3 @@
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import ListItemText from '@mui/material/ListItemText';
@@ -207,54 +206,32 @@ const TenantUserCompaniesSelectionActions = ({
 					<Iconify icon="solar:download-bold" width={18} />
 					<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
 				</MenuItem>
-				<Tooltip
-					title={
-						canSuspendSelection
-							? ''
-							: t('bulk-suspend-disabled-no-active-organizations')
-					}
-					placement="left"
-					arrow
-				>
-					<Box component="span">
-						<MenuItem
-							disabled={!canSuspendSelection}
-							onClick={() => {
-								openConfirmDialog('suspend');
-							}}
-						>
-							<Iconify icon="solar:stop-circle-bold" width={18} />
-							<ListItemText
-								primary={t('suspend-selected-organizations')}
-								sx={{ ml: 1 }}
-							/>
-						</MenuItem>
-					</Box>
-				</Tooltip>
-				<Tooltip
-					title={
-						canReactivateSelection
-							? ''
-							: t('bulk-reactivate-disabled-no-suspended-organizations')
-					}
-					placement="left"
-					arrow
-				>
-					<Box component="span">
-						<MenuItem
-							disabled={!canReactivateSelection}
-							onClick={() => {
-								openConfirmDialog('reactivate');
-							}}
-						>
-							<Iconify icon="solar:restart-bold" width={18} />
-							<ListItemText
-								primary={t('reactivate-selected-organizations')}
-								sx={{ ml: 1 }}
-							/>
-						</MenuItem>
-					</Box>
-				</Tooltip>
+				{canSuspendSelection && (
+					<MenuItem
+						onClick={() => {
+							openConfirmDialog('suspend');
+						}}
+					>
+						<Iconify icon="solar:stop-circle-bold" width={18} />
+						<ListItemText
+							primary={t('suspend-selected-organizations')}
+							sx={{ ml: 1 }}
+						/>
+					</MenuItem>
+				)}
+				{canReactivateSelection && (
+					<MenuItem
+						onClick={() => {
+							openConfirmDialog('reactivate');
+						}}
+					>
+						<Iconify icon="solar:restart-bold" width={18} />
+						<ListItemText
+							primary={t('reactivate-selected-organizations')}
+							sx={{ ml: 1 }}
+						/>
+					</MenuItem>
+				)}
 				<MenuItem
 					onClick={() => {
 						openConfirmDialog('remove');

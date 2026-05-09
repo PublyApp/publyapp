@@ -1,4 +1,3 @@
-import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import ListItemText from '@mui/material/ListItemText';
 import Menu from '@mui/material/Menu';
@@ -62,31 +61,15 @@ export const StaffInvitationsSelectionActions = ({
 					<Iconify icon="solar:download-bold" width={18} />
 					<ListItemText primary={t('export-selected')} sx={{ ml: 1 }} />
 				</MenuItem>
-				<Tooltip
-					title={
-						eligibleBulkRevokeCount === 0
-							? t('only-pending-invitations-can-be-revoked')
-							: ''
-					}
-					placement="left"
-					arrow
-					disableHoverListener={eligibleBulkRevokeCount > 0}
-				>
-					<Box component="span">
-						<MenuItem
-							disabled={eligibleBulkRevokeCount === 0}
-							onClick={onOpenBulkRevokeDialog}
-							sx={{
-								color: 'error.main',
-								width: '100%',
-								'&.Mui-disabled': { color: 'action.disabled' },
-							}}
-						>
-							<Iconify icon="solar:close-circle-bold" width={18} />
-							<ListItemText primary={t('revoke-selected')} sx={{ ml: 1 }} />
-						</MenuItem>
-					</Box>
-				</Tooltip>
+				{eligibleBulkRevokeCount > 0 && (
+					<MenuItem
+						onClick={onOpenBulkRevokeDialog}
+						sx={{ color: 'error.main' }}
+					>
+						<Iconify icon="solar:close-circle-bold" width={18} />
+						<ListItemText primary={t('revoke-selected')} sx={{ ml: 1 }} />
+					</MenuItem>
+				)}
 			</Menu>
 		</>
 	);
