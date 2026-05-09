@@ -937,6 +937,7 @@ const CopyInvitationLinkAction = ({ invitation }: InvitationRowActionProps) => {
 			<Box component="span">
 				<IconButton
 					color="default"
+					aria-label={canManage ? t('copy-link') : disabledReason}
 					loading={isPending}
 					onClick={handleCopy}
 					disabled={!canManage}
@@ -978,6 +979,7 @@ const ResendInvitationAction = ({ invitation }: InvitationRowActionProps) => {
 			<Box component="span">
 				<IconButton
 					color="default"
+					aria-label={canManage ? t('resend-invitation') : disabledReason}
 					loading={isPending}
 					onClick={handleResend}
 					disabled={!canManage}
@@ -1026,6 +1028,7 @@ const RevokeInvitationAction = ({ invitation }: InvitationRowActionProps) => {
 				<Box component="span">
 					<IconButton
 						color="default"
+						aria-label={canManage ? t('revoke-invitation') : disabledReason}
 						loading={isPending}
 						onClick={confirmDialog.onTrue}
 						disabled={!canManage}
