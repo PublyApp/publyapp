@@ -25,13 +25,13 @@ public record FindTenantInvitationsArgs {
 	public FindTenantInvitationsFilters Filters { get; init; } = new();
 }
 
-public record FindStaffInvitationsArgs(
-	Guid Cursor,
-	int? Limit,
-	string? SortId,
-	SortOrder? SortOrder,
-	IReadOnlySet<InvitationEffectiveStatus>? Statuses
-);
+public record FindStaffInvitationsArgs {
+	public Guid Cursor { get; init; }
+	public int? Limit { get; init; }
+	public string? SortId { get; init; }
+	public SortOrder? SortOrder { get; init; }
+	public IReadOnlySet<InvitationEffectiveStatus>? Statuses { get; init; }
+}
 
 public record CreateStaffInvitationArgs(
 	string Email,

@@ -101,13 +101,13 @@ public class FindStaffInvitations {
 		var sortId = findStaffInvitationsQuery.GetSortId();
 		var sortOrder = findStaffInvitationsQuery.GetSortOrder();
 		var statuses = findStaffInvitationsQuery.GetStatusesOrNull();
-		var args = new FindStaffInvitationsArgs(
-			Cursor: cursorGuid,
-			Limit: limit,
-			SortId: sortId,
-			SortOrder: sortOrder,
-			Statuses: statuses
-		);
+		var args = new FindStaffInvitationsArgs {
+			Cursor = cursorGuid,
+			Limit = limit,
+			SortId = sortId,
+			SortOrder = sortOrder,
+			Statuses = statuses,
+		};
 
 		var serviceResult = await invitationService.FindStaffInvitationsAsync(
 			args,
