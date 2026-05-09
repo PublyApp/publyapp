@@ -60,7 +60,13 @@ const TenantInvitationsExportDialogController = ({
 
 	const exportRows = (format: 'csv' | 'json') => {
 		if (format === 'csv') {
-			const headers = ['Email', 'Profiles', 'Status', 'Expires', 'Invited By'];
+			const headers = [
+				t('email'),
+				t('profiles'),
+				t('status'),
+				t('expires', { defaultValue: 'Expires' }),
+				t('invited-by'),
+			];
 			const csvRows = rowsToExport.map((row) => [
 				row.email,
 				row.profileName || '',

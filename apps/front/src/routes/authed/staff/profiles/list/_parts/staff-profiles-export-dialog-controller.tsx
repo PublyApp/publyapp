@@ -62,7 +62,7 @@ const StaffProfilesExportDialogController = ({
 		if (format === 'csv') {
 			// Reuse the shared CSV builder so profile names/descriptions with commas or
 			// quotes do not produce broken exports.
-			const headers = ['Name', 'Description', 'User accounts'];
+			const headers = [t('name'), t('description'), t('user-accounts')];
 			const csvRows = map(rowsToExport, (row) => {
 				return [
 					row.name,

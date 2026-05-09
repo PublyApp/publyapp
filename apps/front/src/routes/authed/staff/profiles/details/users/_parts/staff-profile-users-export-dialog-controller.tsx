@@ -62,7 +62,7 @@ const StaffProfileUsersExportDialogController = ({
 
 	const exportRows = (format: 'csv' | 'json') => {
 		if (format === 'csv') {
-			const headers = ['Name', 'Email', 'Status'];
+			const headers = [t('name'), t('email'), t('status')];
 			const csvRows = map(rowsToExport, (row) => {
 				return [
 					getUserFullName({ firstName: row.firstName, lastName: row.lastName }),
