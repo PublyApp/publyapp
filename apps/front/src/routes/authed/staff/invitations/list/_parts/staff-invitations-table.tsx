@@ -57,10 +57,10 @@ import { fDate, fIsAfter, fToNow } from '#app/utils/format-time.ts';
 
 import { NewInvitationButton } from './new-invitation-button';
 import {
+	parseStatusFilter,
 	STAFF_INVITATION_STATUS_VALUES,
 	type StaffInvitationStatus,
 	type StaffInvitationStatusOption,
-	parseStatusFilter,
 } from './staff-invitation-status';
 import { StaffInvitationsBulkRevokeDialog } from './staff-invitations-bulk-revoke-dialog';
 import { StaffInvitationsExportAction } from './staff-invitations-export-action';
@@ -512,15 +512,7 @@ const EmailCell: MRT_ColumnDef<StaffInvitationRowData, string>['Cell'] = (
 			<Link
 				component={RouterLink}
 				href={FRONT_PATH_NAMES.staff.invitations.details(id)}
-				underline="hover"
-				sx={{
-					color: 'text.primary',
-					display: 'block',
-					fontWeight: 600,
-					overflow: 'hidden',
-					textOverflow: 'ellipsis',
-					whiteSpace: 'nowrap',
-				}}
+				color="inherit"
 			>
 				{email || '-'}
 			</Link>
