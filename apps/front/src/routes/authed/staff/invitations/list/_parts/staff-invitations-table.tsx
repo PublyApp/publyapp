@@ -238,6 +238,11 @@ const StaffInvitationsTable = () => {
 		paginationMode: 'cursor',
 	});
 
+	const normalizedStatusFilter = useMemo(
+		() => parseStatusFilter(filterStates.status).join(','),
+		[filterStates.status],
+	);
+
 	useEffect(() => {
 		const nextStatusFilter = parseStatusFilter(filterStates.status);
 		if (!isEqual(nextStatusFilter, statusFilter)) {
@@ -245,12 +250,22 @@ const StaffInvitationsTable = () => {
 		}
 	}, [filterStates.status, statusFilter]);
 
+	// Rewrite the URL when the raw value contains unknown/malformed tokens so
+	// the API query, the UI checkbox state, and the URL all agree. Triggered
+	// only on mismatch, so user-driven updates via handleStatusChange (which
+	// already writes a normalized list) do not loop back through this effect.
+	useEffect(() => {
+		if (filterStates.status !== normalizedStatusFilter) {
+			void setFilterStates({ status: normalizedStatusFilter });
+		}
+	}, [filterStates.status, normalizedStatusFilter, setFilterStates]);
+
 	const invitationsQuery = useFindStaffInvitations({
 		variables: {
 			cursor: apiVariables.cursor || undefined,
 			limit: apiVariables.limit,
 			sort: apiVariables.sort,
-			status: filterStates.status || undefined,
+			status: normalizedStatusFilter || undefined,
 		},
 	});
 
