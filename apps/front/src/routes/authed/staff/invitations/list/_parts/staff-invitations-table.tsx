@@ -764,16 +764,25 @@ const EmailCell: MRT_ColumnDef<StaffInvitationRowData, string>['Cell'] = (
 				gap: 0.25,
 			}}
 		>
-			<Typography variant="body2" noWrap>
-				{email || '-'}
-			</Typography>
 			<Link
 				component={RouterLink}
 				href={FRONT_PATH_NAMES.staff.invitations.details(id)}
 				underline="hover"
 				sx={{
+					color: 'text.primary',
+					display: 'block',
+					fontWeight: 600,
+					overflow: 'hidden',
+					textOverflow: 'ellipsis',
+					whiteSpace: 'nowrap',
+				}}
+			>
+				{email || '-'}
+			</Link>
+			<Typography
+				variant="caption"
+				sx={{
 					color: 'text.disabled',
-					fontSize: '0.75rem',
 					display: 'block',
 					overflow: 'hidden',
 					textOverflow: 'ellipsis',
@@ -781,7 +790,7 @@ const EmailCell: MRT_ColumnDef<StaffInvitationRowData, string>['Cell'] = (
 				}}
 			>
 				{id}
-			</Link>
+			</Typography>
 		</Box>
 	);
 };
