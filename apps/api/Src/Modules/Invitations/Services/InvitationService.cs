@@ -90,6 +90,10 @@ public interface IInvitationService {
 		Guid invitationId,
 		CancellationToken cancellationToken = default);
 
+	Task<BulkStaffInvitationActionResult> BulkRevokeStaffInvitationsAsync(
+		IReadOnlyCollection<Guid> invitationIds,
+		CancellationToken cancellationToken = default);
+
 	Task<RevokeInvitationForTenantAsStaffResult> RevokeInvitationForTenantAsStaffAsync(
 		Guid tenantId,
 		Guid invitationId,
@@ -221,6 +225,22 @@ public abstract record RevokeInvitationForStaffResult {
 
 	public sealed record AlreadyAccepted : RevokeInvitationForStaffResult;
 }
+
+public static class BulkStaffInvitationActionFailureReasons {
+	public const string NotFound = "not_found";
+	public const string AlreadyAccepted = "already_accepted";
+}
+
+public record BulkStaffInvitationActionFailedItem(
+	Guid InvitationId,
+	string Reason
+);
+
+public record BulkStaffInvitationActionResult(
+	int SucceededCount,
+	int FailedCount,
+	List<BulkStaffInvitationActionFailedItem> FailedItems
+);
 
 public abstract record RevokeInvitationForTenantAsStaffResult {
 	public sealed record Success : RevokeInvitationForTenantAsStaffResult;
@@ -425,6 +445,41 @@ public class InvitationService : IInvitationService {
 			invitation,
 			invitationId,
 			cancellationToken
+		);
+	}
+
+	public async Task<BulkStaffInvitationActionResult> BulkRevokeStaffInvitationsAsync(
+		IReadOnlyCollection<Guid> invitationIds,
+		CancellationToken cancellationToken = default
+	) {
+		var requestedInvitationIds = invitationIds.Distinct().ToList();
+		var failedItems = new List<BulkStaffInvitationActionFailedItem>();
+		var succeededCount = 0;
+
+		foreach (var invitationId in requestedInvitationIds) {
+			RevokeInvitationForStaffResult result =
+				await RevokeInvitationForStaffAsync(invitationId, cancellationToken);
+
+			if (result is RevokeInvitationForStaffResult.Success) {
+				succeededCount++;
+				continue;
+			}
+
+			var reason = BulkStaffInvitationActionFailureReasons.NotFound;
+			if (result is RevokeInvitationForStaffResult.AlreadyAccepted) {
+				reason = BulkStaffInvitationActionFailureReasons.AlreadyAccepted;
+			}
+
+			failedItems.Add(new BulkStaffInvitationActionFailedItem(
+				invitationId,
+				reason
+			));
+		}
+
+		return new BulkStaffInvitationActionResult(
+			SucceededCount: succeededCount,
+			FailedCount: failedItems.Count,
+			FailedItems: failedItems
 		);
 	}
 

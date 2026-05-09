@@ -56,6 +56,7 @@ import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
 import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
 import {
+	useBulkRevokeStaffInvitations,
 	useFindStaffInvitations,
 	useGetStaffInvitationLink,
 	useResendStaffInvitation,
@@ -275,8 +276,8 @@ const StaffInvitationsTable = () => {
 		exportDialogRef.current?.open();
 	};
 
-	const { mutateAsync: revokeInvitationAsync, isPending: isBulkRevoking } =
-		useRevokeStaffInvitation({
+	const { mutateAsync: bulkRevokeStaffInvitations, isPending: isBulkRevoking } =
+		useBulkRevokeStaffInvitations({
 			meta: { skipGlobalErrorHandler: true },
 		});
 
@@ -287,67 +288,67 @@ const StaffInvitationsTable = () => {
 	const ineligibleBulkRevokeCount = selectedCount - eligibleBulkRevokeCount;
 
 	const handleBulkRevoke = async () => {
-		let succeeded = 0;
-		let failed = 0;
-		let firstFailureMessage: string | undefined;
-		const failedIds: string[] = [];
-
-		for (const invitation of eligibleBulkRevokeRows) {
-			try {
-				await revokeInvitationAsync({ invitationId: invitation.id });
-				succeeded += 1;
-			} catch (error) {
-				failed += 1;
-				failedIds.push(invitation.id);
-				const failure = toApiFailure(error);
-				if (firstFailureMessage == null) {
-					firstFailureMessage = getFailureMessage(failure, {
-						fallback: t('invitation-bulk-revoke-failure'),
-					});
-				}
-			}
-		}
-
-		setBulkRevokeDialogOpen(false);
-		await queryClient.invalidateQueries({
-			queryKey: useFindStaffInvitations.getKey(),
-		});
-
-		if (failed === 0) {
-			clearSelection();
-		} else {
-			// Reconcile selection so retried bulk revoke only acts on the still-failed rows.
-			setRowSelection((prev) => {
-				const next: typeof prev = {};
-				for (const id of failedIds) {
-					if (prev[id]) {
-						next[id] = true;
-					}
-				}
-				return next;
+		try {
+			const result = await bulkRevokeStaffInvitations({
+				invitationIds: eligibleBulkRevokeRows.map(
+					(invitation) => invitation.id,
+				),
 			});
-		}
+			const failedItems = result.failedItems ?? [];
+			const succeeded = result.succeededCount ?? 0;
+			const failed = result.failedCount ?? failedItems.length;
+			const failedIds = failedItems
+				.map((item) => item.invitationId)
+				.filter((id): id is string => Boolean(id));
 
-		if (succeeded === 0 && failed > 0) {
-			toast.error(firstFailureMessage || t('invitation-bulk-revoke-failure'));
-			return;
-		}
+			setBulkRevokeDialogOpen(false);
+			await queryClient.invalidateQueries({
+				queryKey: useFindStaffInvitations.getKey(),
+			});
 
-		if (failed > 0) {
-			toast.warning(
-				t('invitation-bulk-revoke-partial-success', {
-					succeeded,
-					failed,
+			if (failed === 0) {
+				clearSelection();
+			} else {
+				// Reconcile selection so retried bulk revoke only acts on still-failed rows.
+				setRowSelection((prev) => {
+					const next: typeof prev = {};
+					for (const id of failedIds) {
+						if (prev[id]) {
+							next[id] = true;
+						}
+					}
+					return next;
+				});
+			}
+
+			if (succeeded === 0 && failed > 0) {
+				toast.error(t('invitation-bulk-revoke-failure'));
+				return;
+			}
+
+			if (failed > 0) {
+				toast.warning(
+					t('invitation-bulk-revoke-partial-success', {
+						succeeded,
+						failed,
+					}),
+				);
+				return;
+			}
+
+			toast.success(
+				t('invitation-bulk-revoke-success', {
+					count: succeeded,
 				}),
 			);
-			return;
+		} catch (error) {
+			const failure = toApiFailure(error);
+			const message = getFailureMessage(failure, {
+				fallback: t('invitation-bulk-revoke-failure'),
+			});
+			setBulkRevokeDialogOpen(false);
+			toast.error(message);
 		}
-
-		toast.success(
-			t('invitation-bulk-revoke-success', {
-				count: succeeded,
-			}),
-		);
 	};
 
 	const columns = useMemo(() => {

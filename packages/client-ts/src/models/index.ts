@@ -289,6 +289,36 @@ export interface BulkReactivateTenantsResult extends AdditionalDataHolder, Parsa
      */
     succeededCount?: number | null;
 }
+export interface BulkRevokeStaffInvitationsBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The invitationIds property
+     */
+    invitationIds?: UntypedNode | null;
+}
+export interface BulkStaffInvitationActionFailedItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The invitationId property
+     */
+    invitationId?: Guid | null;
+    /**
+     * The reason property
+     */
+    reason?: string | null;
+}
+export interface BulkStaffInvitationActionResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The failedCount property
+     */
+    failedCount?: number | null;
+    /**
+     * The failedItems property
+     */
+    failedItems?: BulkStaffInvitationActionFailedItem[] | null;
+    /**
+     * The succeededCount property
+     */
+    succeededCount?: number | null;
+}
 export interface BulkStaffInvitationsCreated extends AdditionalDataHolder, Parsable {
     /**
      * The created property
@@ -593,6 +623,33 @@ export function createBulkReactivateTenantsAsStaffBodyFromDiscriminatorValue(par
 // @ts-ignore
 export function createBulkReactivateTenantsResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoBulkReactivateTenantsResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkRevokeStaffInvitationsBody}
+ */
+// @ts-ignore
+export function createBulkRevokeStaffInvitationsBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkRevokeStaffInvitationsBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkStaffInvitationActionFailedItem}
+ */
+// @ts-ignore
+export function createBulkStaffInvitationActionFailedItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkStaffInvitationActionFailedItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkStaffInvitationActionResult}
+ */
+// @ts-ignore
+export function createBulkStaffInvitationActionResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkStaffInvitationActionResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -2174,6 +2231,42 @@ export function deserializeIntoBulkReactivateTenantsResult(bulkReactivateTenants
         "failedCount": n => { bulkReactivateTenantsResult.failedCount = n.getNumberValue(); },
         "failedItems": n => { bulkReactivateTenantsResult.failedItems = n.getCollectionOfObjectValues<BulkReactivateFailedItem>(createBulkReactivateFailedItemFromDiscriminatorValue); },
         "succeededCount": n => { bulkReactivateTenantsResult.succeededCount = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param BulkRevokeStaffInvitationsBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkRevokeStaffInvitationsBody(bulkRevokeStaffInvitationsBody: Partial<BulkRevokeStaffInvitationsBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "invitationIds": n => { bulkRevokeStaffInvitationsBody.invitationIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param BulkStaffInvitationActionFailedItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkStaffInvitationActionFailedItem(bulkStaffInvitationActionFailedItem: Partial<BulkStaffInvitationActionFailedItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "invitationId": n => { bulkStaffInvitationActionFailedItem.invitationId = n.getGuidValue(); },
+        "reason": n => { bulkStaffInvitationActionFailedItem.reason = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param BulkStaffInvitationActionResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkStaffInvitationActionResult(bulkStaffInvitationActionResult: Partial<BulkStaffInvitationActionResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "failedCount": n => { bulkStaffInvitationActionResult.failedCount = n.getNumberValue(); },
+        "failedItems": n => { bulkStaffInvitationActionResult.failedItems = n.getCollectionOfObjectValues<BulkStaffInvitationActionFailedItem>(createBulkStaffInvitationActionFailedItemFromDiscriminatorValue); },
+        "succeededCount": n => { bulkStaffInvitationActionResult.succeededCount = n.getNumberValue(); },
     }
 }
 /**
@@ -4720,6 +4813,45 @@ export function serializeBulkReactivateTenantsResult(writer: SerializationWriter
     writer.writeCollectionOfObjectValues<BulkReactivateFailedItem>("failedItems", bulkReactivateTenantsResult.failedItems, serializeBulkReactivateFailedItem);
     writer.writeNumberValue("succeededCount", bulkReactivateTenantsResult.succeededCount);
     writer.writeAdditionalData(bulkReactivateTenantsResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param BulkRevokeStaffInvitationsBody The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkRevokeStaffInvitationsBody(writer: SerializationWriter, bulkRevokeStaffInvitationsBody: Partial<BulkRevokeStaffInvitationsBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkRevokeStaffInvitationsBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("invitationIds", bulkRevokeStaffInvitationsBody.invitationIds);
+    writer.writeAdditionalData(bulkRevokeStaffInvitationsBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param BulkStaffInvitationActionFailedItem The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkStaffInvitationActionFailedItem(writer: SerializationWriter, bulkStaffInvitationActionFailedItem: Partial<BulkStaffInvitationActionFailedItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkStaffInvitationActionFailedItem || isSerializingDerivedType) { return; }
+    writer.writeGuidValue("invitationId", bulkStaffInvitationActionFailedItem.invitationId);
+    writer.writeStringValue("reason", bulkStaffInvitationActionFailedItem.reason);
+    writer.writeAdditionalData(bulkStaffInvitationActionFailedItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param BulkStaffInvitationActionResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkStaffInvitationActionResult(writer: SerializationWriter, bulkStaffInvitationActionResult: Partial<BulkStaffInvitationActionResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkStaffInvitationActionResult || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("failedCount", bulkStaffInvitationActionResult.failedCount);
+    writer.writeCollectionOfObjectValues<BulkStaffInvitationActionFailedItem>("failedItems", bulkStaffInvitationActionResult.failedItems, serializeBulkStaffInvitationActionFailedItem);
+    writer.writeNumberValue("succeededCount", bulkStaffInvitationActionResult.succeededCount);
+    writer.writeAdditionalData(bulkStaffInvitationActionResult.additionalData);
 }
 /**
  * Serializes information the current object

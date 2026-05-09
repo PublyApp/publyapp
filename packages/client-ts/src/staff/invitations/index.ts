@@ -6,6 +6,8 @@ import { createAppProblemDetailsFromDiscriminatorValue, createFindStaffInvitatio
 // @ts-ignore
 import { BulkRequestBuilderRequestsMetadata, type BulkRequestBuilder } from './bulk/index.js';
 // @ts-ignore
+import { BulkRevokeRequestBuilderRequestsMetadata, type BulkRevokeRequestBuilder } from './bulkRevoke/index.js';
+// @ts-ignore
 import { type WithInvitationItemRequestBuilder, WithInvitationItemRequestBuilderNavigationMetadata, WithInvitationItemRequestBuilderRequestsMetadata } from './item/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
@@ -18,6 +20,10 @@ export interface InvitationsRequestBuilder extends BaseRequestBuilder<Invitation
      * The bulk property
      */
     get bulk(): BulkRequestBuilder;
+    /**
+     * The bulkRevoke property
+     */
+    get bulkRevoke(): BulkRevokeRequestBuilder;
     /**
      * Gets an item from the MainApi.Client.staff.invitations.item collection
      * @param invitationId Unique identifier of the item
@@ -94,6 +100,9 @@ export const InvitationsRequestBuilderNavigationMetadata: Record<Exclude<keyof I
     },
     bulk: {
         requestsMetadata: BulkRequestBuilderRequestsMetadata,
+    },
+    bulkRevoke: {
+        requestsMetadata: BulkRevokeRequestBuilderRequestsMetadata,
     },
 };
 /**

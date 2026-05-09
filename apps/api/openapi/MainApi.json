@@ -3951,6 +3951,77 @@
         }
       }
     },
+    "/staff/invitations/bulk-revoke": {
+      "post": {
+        "tags": [
+          "Staff Invitations"
+        ],
+        "summary": "Bulk revoke staff invitations",
+        "operationId": "BulkRevokeStaffInvitations",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkRevokeStaffInvitationsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkStaffInvitationActionResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/staff/invitations/{invitationId}": {
       "get": {
         "tags": [
@@ -8780,6 +8851,59 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/BulkReactivateFailedItem"
+            }
+          }
+        }
+      },
+      "BulkRevokeStaffInvitationsBody": {
+        "required": [
+          "invitationIds"
+        ],
+        "type": "object",
+        "properties": {
+          "invitationIds": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "BulkStaffInvitationActionFailedItem": {
+        "required": [
+          "invitationId",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "invitationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "BulkStaffInvitationActionResult": {
+        "required": [
+          "succeededCount",
+          "failedCount",
+          "failedItems"
+        ],
+        "type": "object",
+        "properties": {
+          "succeededCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "failedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "failedItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkStaffInvitationActionFailedItem"
             }
           }
         }
