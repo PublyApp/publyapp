@@ -311,6 +311,38 @@ public async Task ItShouldSendEmailOnInvite() {
 }
 ```
 
+### Coverage Matrix: Bulk-Action Endpoints
+
+When testing a bulk endpoint (revoke many, delete many, etc.), aim for at
+minimum these scenarios:
+
+- Happy path with a small, valid array
+- Empty array → `422` from the validator
+- Duplicate IDs in the array (handler should de-dupe, not double-act)
+- Over-limit array (size > `maxCount`) → `422`
+- Items already in the terminal state (no-op success **or** failure,
+  whichever the contract specifies — be explicit)
+- Expired / inactive / soft-deleted items mixed in
+- Auth rejections: tenant user hitting a staff endpoint → `403`;
+  unauthenticated → `401`
+- Audit-log assertion: one audit row per affected entity, with the
+  expected actor, action key, and target IDs
+
+### Coverage Matrix: Find Filter Validators
+
+For Find endpoints with filter + cursor pagination, cover:
+
+- Single filter value
+- Multi-filter combination
+- All-values / no-filter baseline
+- Invalid filter token → `422`
+- Duplicate filter values accepted (idempotent)
+- Mixed-case filter values accepted (case-insensitive parsing)
+- Invalid `sort_id` → `400`
+- Invalid `cursor` → `400`
+- Pagination + filter combined (cursor round-trip with the filter still
+  applied)
+
 ### Testing Tenant-Scoped Endpoints
 
 ```csharp

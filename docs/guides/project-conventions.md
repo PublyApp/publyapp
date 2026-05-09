@@ -85,6 +85,7 @@ public record ApiResponse {
 - Backend: FluentValidation validators applied via filters
 - Frontend: Zod schemas with React Hook Form
 - Shared validation logic in `packages/shared/lib/zod/`
+- Bulk-action endpoints cap input size via a shared constant: backend validators use `maxCount: 100` and the frontend mirrors it through `BULK_ACTION_MAX_COUNT` in `packages/shared-ts/lib/constants.ts`. Keep the two in sync when changing the cap.
 
 ## Error Handling
 
