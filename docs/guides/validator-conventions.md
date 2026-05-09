@@ -295,8 +295,6 @@ Conventions:
 >
 > AGENTS.md forbids `ToLower()` / `ToLowerInvariant()` as a *comparison or dispatch* strategy. The single `ToLowerInvariant()` call here runs once at type initialization for display only — not on the comparison path — so it is consistent with that rule.
 
-> **Migration TODO:** Existing validators may still use the older pattern (hardcoded lowercase literals or PascalCase tokens leaking into the validation message). When you touch a CSV-enum validator, migrate it to the `nameof()` + lowercase-at-display pattern above. To find candidates, grep `apps/api/Src/Modules/*/Handlers/` for `StringComparer.OrdinalIgnoreCase` next to a string-array literal, and `.WithMessage(...string.Join(",", ...)`.
-
 Example shape (handler-local):
 
 ```csharp
