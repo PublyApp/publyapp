@@ -193,7 +193,7 @@ const TenantInvitationsTable = () => {
 			}),
 			columnHelper.accessor('expiresAt', {
 				id: 'expires_at',
-				header: t('expires', { defaultValue: 'Expires' }),
+				header: t('expiry-date'),
 				Cell: ExpiresAtCell,
 				size: 150,
 				grow: false,
@@ -343,12 +343,7 @@ const TenantInvitationsTable = () => {
 		});
 
 		if (succeeded === 0 && failed > 0) {
-			toast.error(
-				firstFailureMessage ||
-					t('invitation-bulk-revoke-failure', {
-						defaultValue: 'Failed to revoke selected invitations.',
-					}),
-			);
+			toast.error(firstFailureMessage || t('invitation-bulk-revoke-failure'));
 			return;
 		}
 
@@ -357,8 +352,6 @@ const TenantInvitationsTable = () => {
 				t('invitation-bulk-revoke-partial-success', {
 					succeeded,
 					failed,
-					defaultValue:
-						'Revoked {{succeeded}} invitation(s), {{failed}} failed.',
 				}),
 			);
 			return;
@@ -367,7 +360,6 @@ const TenantInvitationsTable = () => {
 		toast.success(
 			t('invitation-bulk-revoke-success', {
 				count: succeeded,
-				defaultValue: 'Successfully revoked {{count}} invitation(s).',
 			}),
 		);
 	};
@@ -384,9 +376,7 @@ const TenantInvitationsTable = () => {
 					<Box component="span">
 						<TextField
 							size="small"
-							placeholder={t('search-invitations', {
-								defaultValue: 'Search invitations',
-							})}
+							placeholder={t('search-invitations')}
 							value={searchValue}
 							onChange={handleSearchChange}
 							disabled={isSelectionMode}
@@ -582,12 +572,7 @@ const TenantInvitationsTable = () => {
 						sx={{ color: 'text.secondary' }}
 					>
 						<Iconify icon="solar:trash-bin-trash-bold" width={18} />
-						<ListItemText
-							primary={t('revoke-selected', {
-								defaultValue: 'Revoke selected',
-							})}
-							sx={{ ml: 1 }}
-						/>
+						<ListItemText primary={t('revoke-selected')} sx={{ ml: 1 }} />
 					</MenuItem>
 				</Menu>
 			</>
@@ -682,13 +667,9 @@ const TenantInvitationsTable = () => {
 			<ConfirmDialog
 				open={bulkRevokeDialogOpen}
 				onClose={() => setBulkRevokeDialogOpen(false)}
-				title={t('revoke-selected', {
-					defaultValue: 'Revoke selected',
-				})}
+				title={t('revoke-selected')}
 				content={t('confirm-bulk-revoke-invitations', {
 					count: selectedCount,
-					defaultValue:
-						'Are you sure you want to revoke {{count}} selected invitation(s)?',
 				})}
 				action={
 					<Button
@@ -697,7 +678,7 @@ const TenantInvitationsTable = () => {
 						onClick={handleBulkRevoke}
 						disabled={isBulkRevoking}
 					>
-						{t('revoke', { defaultValue: 'Revoke' })}
+						{t('revoke')}
 					</Button>
 				}
 			/>
@@ -825,9 +806,7 @@ const RevokeInvitationAction = ({
 	const confirmDialog = useBoolean();
 
 	const canRevoke = getInvitationStatus(invitation) === 'pending';
-	const disabledReason = t('only-pending-invitations-can-be-revoked', {
-		defaultValue: 'Only pending invitations can be revoked.',
-	});
+	const disabledReason = t('only-pending-invitations-can-be-revoked');
 
 	const { mutate: revokeInvitation, isPending } = useRevokeTenantInvitation({
 		meta: { skipGlobalErrorHandler: true },
@@ -843,9 +822,7 @@ const RevokeInvitationAction = ({
 		onError: (error) => {
 			const failure = toApiFailure(error);
 			const message = getFailureMessage(failure, {
-				fallback: t('invitation-revoke-error', {
-					defaultValue: 'Failed to revoke invitation.',
-				}),
+				fallback: t('invitation-revoke-error'),
 			});
 			toast.error(message);
 		},
@@ -891,8 +868,6 @@ const RevokeInvitationAction = ({
 				title={t('revoke-invitation')}
 				content={t('confirm-revoke-invitation', {
 					email: invitation.email,
-					defaultValue:
-						'Are you sure you want to revoke the invitation for {{email}}?',
 				})}
 				action={
 					<Button

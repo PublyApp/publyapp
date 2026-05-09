@@ -68,7 +68,7 @@ const TenantInvitationsExportDialogController = ({
 				t('email'),
 				t('profiles'),
 				t('status'),
-				t('expires', { defaultValue: 'Expires' }),
+				t('expiry-date'),
 				t('invited-by'),
 			];
 			const csvRows = rowsToExport.map((row) => [
