@@ -35,63 +35,14 @@ export const useStaffInvitationBulkRevoke = ({
 		});
 
 	const handleBulkRevoke = async () => {
+		const invitationIds: string[] = [];
+		for (const invitation of eligibleRows) {
+			invitationIds.push(invitation.id);
+		}
+
+		let result: Awaited<ReturnType<typeof bulkRevokeStaffInvitations>>;
 		try {
-			const invitationIds: string[] = [];
-			for (const invitation of eligibleRows) {
-				invitationIds.push(invitation.id);
-			}
-
-			const result = await bulkRevokeStaffInvitations({ invitationIds });
-			const failedItems = result.failedItems ?? [];
-			const succeeded = result.succeededCount ?? 0;
-			const failed = result.failedCount ?? failedItems.length;
-			const failedIds: string[] = [];
-
-			for (const item of failedItems) {
-				if (item.invitationId) {
-					failedIds.push(item.invitationId);
-				}
-			}
-
-			closeDialog();
-			await queryClient.invalidateQueries({
-				queryKey: useFindStaffInvitations.getKey(),
-			});
-
-			if (failed === 0) {
-				clearSelection();
-			} else {
-				setRowSelection((prev) => {
-					const next: typeof prev = {};
-					for (const id of failedIds) {
-						if (prev[id]) {
-							next[id] = true;
-						}
-					}
-					return next;
-				});
-			}
-
-			if (succeeded === 0 && failed > 0) {
-				toast.error(t('invitation-bulk-revoke-failure'));
-				return;
-			}
-
-			if (failed > 0) {
-				toast.warning(
-					t('invitation-bulk-revoke-partial-success', {
-						succeeded,
-						failed,
-					}),
-				);
-				return;
-			}
-
-			toast.success(
-				t('invitation-bulk-revoke-success', {
-					count: succeeded,
-				}),
-			);
+			result = await bulkRevokeStaffInvitations({ invitationIds });
 		} catch (error) {
 			const failure = toApiFailure(error);
 			const message = getFailureMessage(failure, {
@@ -99,7 +50,59 @@ export const useStaffInvitationBulkRevoke = ({
 			});
 			closeDialog();
 			toast.error(message);
+			return;
 		}
+
+		const failedItems = result.failedItems ?? [];
+		const succeeded = result.succeededCount ?? 0;
+		const failed = result.failedCount ?? failedItems.length;
+		const failedIds: string[] = [];
+
+		for (const item of failedItems) {
+			if (item.invitationId) {
+				failedIds.push(item.invitationId);
+			}
+		}
+
+		closeDialog();
+		await queryClient.invalidateQueries({
+			queryKey: useFindStaffInvitations.getKey(),
+		});
+
+		if (failed === 0) {
+			clearSelection();
+		} else {
+			setRowSelection((prev) => {
+				const next: typeof prev = {};
+				for (const id of failedIds) {
+					if (prev[id]) {
+						next[id] = true;
+					}
+				}
+				return next;
+			});
+		}
+
+		if (succeeded === 0 && failed > 0) {
+			toast.error(t('invitation-bulk-revoke-failure'));
+			return;
+		}
+
+		if (failed > 0) {
+			toast.warning(
+				t('invitation-bulk-revoke-partial-success', {
+					succeeded,
+					failed,
+				}),
+			);
+			return;
+		}
+
+		toast.success(
+			t('invitation-bulk-revoke-success', {
+				count: succeeded,
+			}),
+		);
 	};
 
 	return {

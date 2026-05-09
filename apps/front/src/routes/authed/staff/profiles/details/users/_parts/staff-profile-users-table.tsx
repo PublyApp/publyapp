@@ -434,15 +434,16 @@ const ProfileUsersSelectionActions = ({
 				profileId: resolvedProfileId,
 				userIds: rows.map((row) => row.id),
 			});
-
-			toast.success(
-				t('staff-profile-users-unassigned-success', { ns: 'response-message' }),
-			);
-			setConfirmBulkUnassignOpen(false);
-			onClearSelection();
 		} catch {
 			toast.error(t('something-went-wrong'));
+			return;
 		}
+
+		toast.success(
+			t('staff-profile-users-unassigned-success', { ns: 'response-message' }),
+		);
+		setConfirmBulkUnassignOpen(false);
+		onClearSelection();
 	};
 
 	return (
