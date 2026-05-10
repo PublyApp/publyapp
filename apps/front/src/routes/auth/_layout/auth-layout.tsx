@@ -2,7 +2,7 @@ import i18next from 'i18next';
 import first from 'lodash/first';
 import some from 'lodash/some';
 import toLower from 'lodash/toLower';
-import { type ReactNode, Suspense } from 'react';
+import { Suspense } from 'react';
 import { isRouteErrorResponse, Outlet, redirect } from 'react-router';
 
 import {
@@ -225,39 +225,38 @@ export const HydrateFallback = () => {
 };
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
-	const { t } = useTranslate();
 	const failure = toApiFailure(error);
+	const routeStatus = isRouteErrorResponse(error) ? error.status : undefined;
 
-	const renderInLayout = (view: ReactNode) => {
-		return (
-			<AuthSplitLayout
-				slotProps={{
-					section: { title: t('auth-welcome-title'), subtitle: '' },
-				}}
-			>
-				{view}
-			</AuthSplitLayout>
-		);
-	};
-
-	// Route 404 (typo'd /auth/X)
-	if (isRouteErrorResponse(error) && error.status === 404) {
-		return renderInLayout(<View404 withLayout={false} />);
+	// Route 404 (typo'd auth route, or a 404 thrown from an auth loader).
+	if (routeStatus === 404) {
+		return <View404 />;
 	}
 
 	// CRITICAL: a 401 in the auth surface does NOT trigger logout. The user
 	// is not logged in to begin with — auth-surface 401s typically come from
 	// expired URL-borne tokens (invitation, reset). Show the view + back-to-
 	// login CTA. Contrast with authed-layout.tsx where 401 → logout.
-	if (failure.kind === 'problem' && failure.status === 401) {
-		return renderInLayout(<View401 withLayout={false} />);
+	//
+	// Detect both: a thrown Response(401) (caught by React Router as a route
+	// error response) AND an API failure that surfaced a 401 from the loader.
+	if (
+		routeStatus === 401 ||
+		(failure.kind === 'problem' && failure.status === 401)
+	) {
+		return <View401 />;
 	}
 
-	// Network failure (auth server unreachable)
-	if (failure.kind === 'network') {
-		return renderInLayout(<View500 withLayout={false} />);
+	// Network failure (auth server unreachable). 5xx route responses also
+	// surface here so the user gets a proper "server problem" view instead of
+	// the generic fallback.
+	if (
+		failure.kind === 'network' ||
+		(routeStatus !== undefined && routeStatus >= 500)
+	) {
+		return <View500 />;
 	}
 
-	// Render exception / unknown — generic with back-to-sign-in
-	return renderInLayout(<GenericErrorView withLayout={false} />);
+	// Render exception / unknown — generic with back-to-sign-in.
+	return <GenericErrorView />;
 };
