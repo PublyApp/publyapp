@@ -5,6 +5,7 @@ import { getLastPath } from '@org/shared-ts/utils/string.utils';
 
 import { actionsRoutes } from './routes/_tree/actions.routes';
 import { authRoutes } from './routes/_tree/auth.routes';
+import { devRoutes } from './routes/_tree/dev.routes';
 import { marketingRoutes } from './routes/_tree/marketing.routes';
 import { staffRoutes } from './routes/_tree/staff/staff.routes';
 import { tenantRoutes } from './routes/_tree/tenant/tenant.routes';
@@ -29,6 +30,7 @@ const routes = [
 	...marketingRoutes,
 	...authRoutes,
 	...authedRoutes,
+	...devRoutes,
 ] satisfies RouteConfig;
 
 export default routes;
