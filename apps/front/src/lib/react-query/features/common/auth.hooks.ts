@@ -50,6 +50,22 @@ export const useGetUserAuthData = createAuthSuspenseQuery({
 	retry: authRetry,
 });
 
+export const useGetScopeAuthData = createAuthSuspenseQuery({
+	queryKeyFn: (client) => client.auth.scopeAuthData.get,
+	fetcher: async (client, { tenantId }: { tenantId: string }) => {
+		const result = await client.auth.scopeAuthData.get({
+			queryParameters: {
+				scope: tenantId,
+			},
+		});
+		if (isNil(result)) {
+			throw new Error('useGetScopeAuthData: result is nil');
+		}
+		return result;
+	},
+	retry: authRetry,
+});
+
 export const useGetVerificationLink = createAuthQuery({
 	queryKeyFn: (client) => client.auth.verificationLink.get,
 	fetcher: async (client, { userId }: { userId: string }) => {

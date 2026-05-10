@@ -12,11 +12,15 @@ import {
 	readLegacyTenantFromBrowser,
 	updateTenantHintInBrowser,
 } from '#app/lib/cookies/tenant-hint-cookie.utils.ts';
-import { useGetUserAuthData } from '#app/lib/react-query/features/common/auth.hooks.ts';
+import {
+	useGetScopeAuthData,
+	useGetUserAuthData,
+} from '#app/lib/react-query/features/common/auth.hooks.ts';
 
 const TenantLayout = () => {
 	const { t } = useTranslate();
 	const { tenantId = '' } = useParams();
+	useGetScopeAuthData({ variables: { tenantId } });
 	const { data: userAuthData } = useGetUserAuthData();
 	const userId = userAuthData?.id;
 
