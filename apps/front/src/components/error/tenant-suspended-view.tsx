@@ -15,6 +15,11 @@ type TenantSuspendedViewProps = {
 	withLayout?: boolean;
 };
 
+// Note: this view uses the shell's `errorDetails` slot (NOT `description`) to
+// embed an inline mailto link. The shell's `description` prop is plain string
+// only — when the body needs JSX (a link, a code block, formatted markup),
+// build it as a node and pass via `errorDetails`. Skip the `description` prop
+// in that case so the shell renders only the slot content.
 export const TenantSuspendedView = ({
 	withLayout = true,
 }: TenantSuspendedViewProps) => {

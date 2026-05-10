@@ -15,9 +15,17 @@ type GenericErrorViewProps = {
 	withLayout?: boolean;
 	title?: string;
 	description?: string;
+	// Pass the raw `Error` (or string) when you have one and want it surfaced
+	// inline for support escalations / debugging. Renders in a monospace box
+	// via the shell's `errorDetails` slot. Omit when the user only needs the
+	// title + description (no underlying message worth showing).
 	error?: Error | string;
 };
 
+// Catch-all for "we don't know what went wrong". Used by the auth-layout
+// ErrorBoundary's fallthrough branch and as the QueryDisplay ErrorSlot for
+// tenant-portal-page (when the redirect-code query itself fails — system
+// error, NOT a permission state, so View403 would be wrong).
 export const GenericErrorView = ({
 	withLayout = true,
 	title,

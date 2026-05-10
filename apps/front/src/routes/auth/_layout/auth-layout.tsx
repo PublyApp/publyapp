@@ -225,6 +225,15 @@ export const HydrateFallback = () => {
 	return <SplashScreen />;
 };
 
+// Dual-detection note (`routeStatus` AND `failure.status`): React Router wraps
+// thrown Responses in an internal ErrorResponse class that is NOT
+// `instanceof Response`, so toApiFailure() can't classify them as
+// `kind: 'problem'`. The helpers split:
+//   - `routeStatus`  → "the framework caught a thrown Response (loader/action)"
+//   - `failure.kind` → "an API failure object reached the boundary"
+// Both paths can produce, e.g., a 401, so each branch checks both. Don't
+// collapse them into one — you'll silently miss either the synthetic-throw
+// case (loaders that throw) or the API-bubble case (actual server 401).
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	const failure = toApiFailure(error);
 	const routeStatus = isRouteErrorResponse(error) ? error.status : undefined;

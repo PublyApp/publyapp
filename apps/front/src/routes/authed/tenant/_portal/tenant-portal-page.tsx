@@ -36,8 +36,14 @@ const RedirectHandler = ({
 	const redirectCode = data.redirectCode;
 	const hasSuspendedTenants = data.hasSuspendedTenants ?? false;
 
-	// Render-in-place cases: no navigation, just show the matching view.
+	// Two render-in-place cases. Anything else triggers a navigation in the
+	// useEffect below. We can't navigate during render, so the effect handles
+	// the actual location change after first paint.
 	const showTenantPicker = redirectCode === REDIRECT_CODE.TENANT_PICKER;
+	// `!redirectCode` covers the "API returned data but no code" edge — same
+	// outcome as explicit UNAUTHORIZED: the user is signed in but has no scope
+	// they can access. View403 explains it; the previous behavior was to
+	// navigate to /unauthorized which has been deleted in PR #398.
 	const showNoAccess =
 		!redirectCode || redirectCode === REDIRECT_CODE.UNAUTHORIZED;
 
@@ -101,6 +107,11 @@ const TenantPortalPage = () => {
 		<QueryDisplay
 			query={query}
 			LoadingSlot={SplashScreen}
+			// ErrorSlot fires when the redirect-code query itself fails (network,
+			// 5xx, parse error). That is a SYSTEM error, semantically distinct
+			// from the no-scope case below — we use GenericErrorView (warning
+			// tone, generic copy) here, NOT View403, which would imply "you tried
+			// to access something forbidden" — the user hasn't tried anything yet.
 			ErrorSlot={() => <GenericErrorView withLayout={false} />}
 		>
 			{({ data }) => <RedirectHandler data={data} />}

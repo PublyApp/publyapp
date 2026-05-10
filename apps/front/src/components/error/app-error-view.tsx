@@ -16,24 +16,47 @@ import type { IconifyName } from '../iconify/register-icons';
 
 // ----------------------------------------------------------------------
 
+// Tone is intentionally narrow: 'primary' / 'error' / 'warning'. No 'default' /
+// 'info' escape — the canvas reserves color for the small status pill only, and
+// these three map cleanly to MUI palette tokens. Adding more tones would erode
+// the visual restraint that makes the error views feel like a coherent system.
 type AppErrorTone = 'primary' | 'error' | 'warning';
 
 export type AppErrorViewProps = {
 	icon: IconifyName;
 	tone: AppErrorTone;
 	title: string;
-	// Short status code for the monospace pill (e.g. "404", "401 — Unauthorized").
-	// Omit for non-HTTP errors (generic, tenant-suspended).
+	// Short status code for the monospace pill (e.g. "404 — Not Found"). The
+	// pill is the ONLY tone-colored element — keeping HTTP reason phrases in
+	// English is intentional (developer-facing convention, not user copy).
+	// Omit for non-HTTP errors (generic, tenant-suspended, coming-soon).
 	code?: string;
 	description?: string;
 	actions?: ReactNode;
+	// Slot that sits between description and actions. Use it when the body
+	// needs inline JSX (mailto link, code block) or when you want to surface
+	// an underlying Error.message inline. See ViewTenantSuspended (mailto) and
+	// GenericErrorView (Error.message in a monospace box) for the patterns.
 	errorDetails?: ReactNode;
+	// `true` (default) wraps in `SimpleLayout` — the standalone full-page
+	// chrome (logo top-left, centered content). Use for top-level catch-all
+	// boundaries (root.tsx, authed-layout, auth-layout) where this is the
+	// only thing on screen.
+	// `false` wraps in `SimpleCompactContent` only — no chrome of its own.
+	// Use when the parent already owns layout chrome (page-level inline
+	// errors inside an authenticated dashboard, e.g., a tenant-detail page
+	// rendering View404 inside the existing sidebar+topbar shell).
 	withLayout?: boolean;
-	// Diagnostic line at the bottom (correlation ID + timestamp). Useful for
-	// support escalations on 500 / generic. Omit if there's nothing to show.
+	// Optional small monospace footer (e.g. correlation ID + timestamp). Wired
+	// in for support escalations on 500/generic; currently unused — when we
+	// start surfacing trace IDs from the backend, plumb them through here.
 	diagnosticId?: string;
 };
 
+// Entry-motion override. The default `varFade('inUp')` runs at 640 ms which
+// drags on an error page; 320 ms feels more responsive without losing the
+// staggered-feel of the cascade. Distance is small (16 px) so each row barely
+// moves — the goal is a gentle settle, not an attention-grab.
 const FADE_DISTANCE = 16;
 const FADE_DURATION = 0.32;
 const fadeIn = () => {
@@ -62,6 +85,10 @@ export const AppErrorView = ({
 				sx={{ textAlign: 'center', py: { xs: 5, md: 8 } }}
 			>
 				<m.div variants={fadeIn()}>
+					{/* Icon circle stays neutral — `tone` does NOT color this. The
+					    canvas reserves color for the small status pill below; the
+					    circle uses background.paper + divider so it reads as a
+					    quiet container, not a warning. */}
 					<Box
 						sx={{
 							width: 88,

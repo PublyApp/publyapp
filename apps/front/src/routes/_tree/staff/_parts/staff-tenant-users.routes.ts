@@ -6,6 +6,14 @@ import { getLastPath } from '@org/shared-ts/utils/string.utils';
 export const staffTenantUsersRoutes = [
 	...prefix(getLastPath(FRONT_PATH_NAMES.staff.tenantUsers.root), [
 		route(
+			// `2` matches the two trailing segments of the URL pattern
+			// `details/:userId` — the route is mounted under the
+			// `staff/tenant-users` prefix above, so we only feed React Router
+			// the `details/:userId` portion.
+			//
+			// If the URL helper changes (e.g., adding/removing path segments
+			// from `tenantUsers.details(...)`), this count must change too.
+			// Mirror the pattern used by staff-tenants.routes.ts.
 			getLastPath(
 				FRONT_PATH_NAMES.staff.tenantUsers.details(':userId').root,
 				2,
