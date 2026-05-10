@@ -19,8 +19,8 @@ import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
-import View400 from '#app/components/error/400-view.tsx';
-import { NotFoundView } from '#app/components/error/not-found-view.tsx';
+import { View400 } from '#app/components/error/400-view.tsx';
+import { View404 } from '#app/components/error/404-view.tsx';
 import QueryDisplay from '#app/components/query-display.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
@@ -162,7 +162,7 @@ const ErrorView: FC<{ error: unknown }> = ({ error }) => {
 			(failure.status === 400 && failure.translationKey === 'malformed-id'))
 	) {
 		return (
-			<NotFoundView
+			<View404
 				withLayout={false}
 				title={capitalize(t('staff-user-not-found-title'))}
 				description={t('staff-user-not-found-description')}

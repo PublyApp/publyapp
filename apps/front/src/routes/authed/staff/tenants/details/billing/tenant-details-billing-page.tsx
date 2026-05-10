@@ -7,7 +7,7 @@ import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { AccountBilling } from '#app/components/billing/account-billing.tsx';
 import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
-import { View403 } from '#app/components/error/403-view.tsx';
+import { ComingSoonView } from '#app/components/error/coming-soon-view.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { FEATURES } from '#app/lib/features/flags.ts';
 
@@ -24,7 +24,7 @@ const TenantDetailsBillingPage = () => {
 	const { tenantName } = useOutletContext<TenantDetailsOutletContext>();
 
 	if (!FEATURES.staff.tenants.details.billing) {
-		return <View403 withLayout={false} />;
+		return <ComingSoonView withLayout={false} />;
 	}
 
 	return (

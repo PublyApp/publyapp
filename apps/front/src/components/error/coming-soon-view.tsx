@@ -8,22 +8,31 @@ import { AppErrorView } from './app-error-view';
 
 // ----------------------------------------------------------------------
 
-type View403Props = {
+type ComingSoonViewProps = {
 	withLayout?: boolean;
+	title?: string;
+	description?: string;
 };
 
-export const View403 = ({ withLayout = true }: View403Props) => {
+// Used by routes that are wired in IA but not built yet (or feature-flagged
+// off in this environment). Distinct from View403 which is for "you don't
+// have permission" — semantically these pages aren't forbidden, they're
+// simply not available yet.
+export const ComingSoonView = ({
+	withLayout = true,
+	title,
+	description,
+}: ComingSoonViewProps) => {
 	const { t } = useTranslate();
 	const homePath = useHomePath();
 
 	return (
 		<AppErrorView
 			withLayout={withLayout}
-			tone="error"
-			icon="solar:forbidden-circle-outline"
-			code="403 — Forbidden"
-			title={t('no-permission')}
-			description={t('forbidden-description')}
+			tone="primary"
+			icon="solar:clock-circle-outline"
+			title={title ?? t('coming-soon')}
+			description={description ?? t('coming-soon-sentence')}
 			actions={
 				<Button component={RouterLink} href={homePath} variant="contained">
 					{t('go-to-home')}

@@ -3,19 +3,25 @@ import first from 'lodash/first';
 import some from 'lodash/some';
 import toLower from 'lodash/toLower';
 import { Suspense } from 'react';
-import { Outlet, redirect } from 'react-router';
+import { isRouteErrorResponse, Outlet, redirect } from 'react-router';
 
 import {
-	FRONT_PATH_NAMES,
 	formActionKey,
+	FRONT_PATH_NAMES,
 	I18N_NAMESPACES,
 	REDIRECT_CODE,
 } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
+import { View401 } from '#app/components/error/401-view.tsx';
+import { View403 } from '#app/components/error/403-view.tsx';
+import { View404 } from '#app/components/error/404-view.tsx';
+import { View500 } from '#app/components/error/500-view.tsx';
+import { GenericErrorView } from '#app/components/error/generic-error-view.tsx';
 import { SplashScreen } from '#app/components/loading-screen/splash-screen.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { AuthSplitLayout } from '#app/layouts/auth-split/layout.tsx';
+import { toApiFailure } from '#app/lib/api-failure/index.ts';
 import {
 	clearSessionCookie,
 	getSessionCookieFromClient,
@@ -27,6 +33,8 @@ import { getQueryClient } from '#app/lib/react-query/query-client.tsx';
 import { getClientLoader } from '#app/lib/react-router/client-data.ts';
 import { safeRun } from '#app/lib/react-router/safeRun.ts';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
+
+import type { Route } from './+types/auth-layout';
 
 export const loader = getServerLoader({
 	loader: async ({ request, sessionToken, staffToken, tenantToken }) => {
@@ -215,4 +223,60 @@ export default AuthLayout;
 
 export const HydrateFallback = () => {
 	return <SplashScreen />;
+};
+
+// Dual-detection note (`routeStatus` AND `failure.status`): React Router wraps
+// thrown Responses in an internal ErrorResponse class that is NOT
+// `instanceof Response`, so toApiFailure() can't classify them as
+// `kind: 'problem'`. The helpers split:
+//   - `routeStatus`  → "the framework caught a thrown Response (loader/action)"
+//   - `failure.kind` → "an API failure object reached the boundary"
+// Both paths can produce, e.g., a 401, so each branch checks both. Don't
+// collapse them into one — you'll silently miss either the synthetic-throw
+// case (loaders that throw) or the API-bubble case (actual server 401).
+export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
+	const failure = toApiFailure(error);
+	const routeStatus = isRouteErrorResponse(error) ? error.status : undefined;
+
+	// Route 404 (typo'd auth route, or a 404 thrown from an auth loader).
+	if (routeStatus === 404) {
+		return <View404 />;
+	}
+
+	// CRITICAL: a 401 in the auth surface does NOT trigger logout. The user
+	// is not logged in to begin with — auth-surface 401s typically come from
+	// expired URL-borne tokens (invitation, reset). Show the view + back-to-
+	// login CTA. Contrast with authed-layout.tsx where 401 → logout.
+	//
+	// Detect both: a thrown Response(401) (caught by React Router as a route
+	// error response) AND an API failure that surfaced a 401 from the loader.
+	if (
+		routeStatus === 401 ||
+		(failure.kind === 'problem' && failure.status === 401)
+	) {
+		return <View401 />;
+	}
+
+	// 403 — login succeeded but the user has no scope they can access.
+	// Thrown from login-page's action with the session cookie preserved on
+	// responseHeaders. Replaces the previous /unauthorized standalone route.
+	if (
+		routeStatus === 403 ||
+		(failure.kind === 'problem' && failure.status === 403)
+	) {
+		return <View403 />;
+	}
+
+	// Network failure (auth server unreachable). 5xx route responses also
+	// surface here so the user gets a proper "server problem" view instead of
+	// the generic fallback.
+	if (
+		failure.kind === 'network' ||
+		(routeStatus !== undefined && routeStatus >= 500)
+	) {
+		return <View500 />;
+	}
+
+	// Render exception / unknown — generic with back-to-sign-in.
+	return <GenericErrorView />;
 };
