@@ -17,9 +17,9 @@ import {
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { View403 } from '#app/components/error/403-view.tsx';
+import { View404 } from '#app/components/error/404-view.tsx';
 import { View500 } from '#app/components/error/500-view.tsx';
-import { NotFoundView } from '#app/components/error/not-found-view.tsx';
-import { ViewTenantSuspended } from '#app/components/error/tenant-suspended-view.tsx';
+import { TenantSuspendedView } from '#app/components/error/tenant-suspended-view.tsx';
 import { SplashScreen } from '#app/components/loading-screen/splash-screen.tsx';
 import type { SettingsState } from '#app/components/settings/types.ts';
 import { toast } from '#app/components/snackbar/index.ts';
@@ -249,7 +249,7 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 			failure.status === 403 &&
 			failure.translationKey === 'tenant-suspended'
 		) {
-			return <ViewTenantSuspended />;
+			return <TenantSuspendedView />;
 		}
 
 		// Handle 403 Forbidden - user doesn't have access (no logout!)
@@ -259,7 +259,7 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 
 		// Handle 404 Not found
 		if (failure.status === 404) {
-			return <NotFoundView />;
+			return <View404 />;
 		}
 	}
 

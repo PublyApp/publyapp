@@ -1,14 +1,10 @@
-import { View403 } from '#app/components/error/403-view.tsx';
-import { FEATURES } from '#app/lib/features/flags.ts';
+import { ComingSoonView } from '#app/components/error/coming-soon-view.tsx';
 
+// This route is intentionally registered before the feature is built so the
+// sidebar IA can show the future tab. Both the flag-OFF case and the
+// not-yet-implemented case render the same ComingSoonView.
 const TenantDetailsUsagePage = () => {
-	if (!FEATURES.staff.tenants.details.usage) {
-		return <View403 withLayout={false} />;
-	}
-
-	// This route is intentionally registered before implementation so the
-	// sidebar IA can show the future tab while direct URL access stays locked.
-	return <View403 withLayout={false} />;
+	return <ComingSoonView withLayout={false} />;
 };
 
 export default TenantDetailsUsagePage;

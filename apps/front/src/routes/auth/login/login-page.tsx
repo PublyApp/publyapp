@@ -196,7 +196,18 @@ export const action = getServerAction({
 		if (redirectCode === REDIRECT_CODE.STAFF) {
 			redirectPath = FRONT_PATH_NAMES.staff.root;
 		} else if (redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
-			redirectPath = FRONT_PATH_NAMES.unauthorized;
+			// Login succeeded but the user has no scope they can access. We don't
+			// want to redirect to a /unauthorized landing (that route was deleted
+			// in PR #398) — instead we throw a 403 below so auth-layout's
+			// ErrorBoundary renders View403 in place.
+			//
+			// Why the throw is delayed (sentinel here, throw at the bottom): we
+			// still want all the responseHeaders side-effects above us (session
+			// cookie set on line ~194) AND below us (legacy-cookie clearing on
+			// line ~226) to apply. Throwing here would stop the function and we'd
+			// lose the legacy cookie cleanup. Setting an empty redirectPath is
+			// the cheapest way to signal "skip the final redirect; throw instead".
+			redirectPath = '';
 		} else if (redirectCode === REDIRECT_CODE.TENANT_PICKER) {
 			// Multiple tenants, no valid hint - go to tenant picker
 			redirectPath = FRONT_PATH_NAMES.tenant()._root;
@@ -231,6 +242,20 @@ export const action = getServerAction({
 			return redirect(redirectTo, {
 				headers: responseHeaders,
 			}) as never;
+		}
+
+		// No-scope user: see the matching `redirectPath = ''` sentinel above.
+		// React Router catches a thrown Response and routes it to the nearest
+		// ErrorBoundary's `error` prop — auth-layout has a 403 branch that
+		// renders View403. Passing `responseHeaders` here preserves the
+		// session cookie (Set-Cookie) AND the legacy-cookie clearing
+		// (also Set-Cookie) accumulated earlier, even though we're throwing
+		// instead of returning.
+		if (redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
+			throw new Response(null, {
+				status: 403,
+				headers: responseHeaders,
+			});
 		}
 
 		return redirect(redirectPath, {

@@ -8,22 +8,28 @@ import { AppErrorView } from './app-error-view';
 
 // ----------------------------------------------------------------------
 
-type View403Props = {
+type View404Props = {
 	withLayout?: boolean;
+	title?: string;
+	description?: string;
 };
 
-export const View403 = ({ withLayout = true }: View403Props) => {
+export const View404 = ({
+	withLayout = true,
+	title,
+	description,
+}: View404Props) => {
 	const { t } = useTranslate();
 	const homePath = useHomePath();
 
 	return (
 		<AppErrorView
 			withLayout={withLayout}
-			tone="error"
-			icon="solar:forbidden-circle-outline"
-			code="403 — Forbidden"
-			title={t('no-permission')}
-			description={t('forbidden-description')}
+			tone="primary"
+			icon="solar:magnifer-outline"
+			code="404 — Not Found"
+			title={title ?? t('page-not-found')}
+			description={description ?? t('not-found-sentence')}
 			actions={
 				<Button component={RouterLink} href={homePath} variant="contained">
 					{t('go-to-home')}

@@ -1,20 +1,13 @@
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Container from '@mui/material/Container';
-import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { m } from 'framer-motion';
 
 import { useHomePath } from '#app/hooks/use-home-path.ts';
 import { useRouter } from '#app/hooks/use-router.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { SimpleCompactContent } from '#app/layouts/simple/content.tsx';
-import { SimpleLayout } from '#app/layouts/simple/layout.tsx';
 
-import { MotionContainer } from '../animate/motion-container';
-import { varBounce } from '../animate/variants';
-import { Iconify } from '../iconify/iconify';
 import { RouterLink } from '../router-link';
+import { AppErrorView } from './app-error-view';
 
 // ----------------------------------------------------------------------
 
@@ -22,9 +15,17 @@ type GenericErrorViewProps = {
 	withLayout?: boolean;
 	title?: string;
 	description?: string;
+	// Pass the raw `Error` (or string) when you have one and want it surfaced
+	// inline for support escalations / debugging. Renders in a monospace box
+	// via the shell's `errorDetails` slot. Omit when the user only needs the
+	// title + description (no underlying message worth showing).
 	error?: Error | string;
 };
 
+// Catch-all for "we don't know what went wrong". Used by the auth-layout
+// ErrorBoundary's fallthrough branch and as the QueryDisplay ErrorSlot for
+// tenant-portal-page (when the redirect-code query itself fails — system
+// error, NOT a permission state, so View403 would be wrong).
 export const GenericErrorView = ({
 	withLayout = true,
 	title,
@@ -37,107 +38,49 @@ export const GenericErrorView = ({
 
 	const errorMessage = error instanceof Error ? error.message : error;
 
-	const renderContent = () => {
-		return (
-			<Container component={MotionContainer}>
-				<m.div variants={varBounce('in')}>
-					<Box
-						sx={{
-							display: 'flex',
-							justifyContent: 'center',
-							mb: 3,
-						}}
-					>
-						<Iconify
-							icon="solar:danger-triangle-bold"
-							width={80}
-							sx={{ color: 'warning.main' }}
-						/>
-					</Box>
-				</m.div>
-
-				<m.div variants={varBounce('in')}>
-					<Typography variant="h3" sx={{ mb: 2, textAlign: 'center' }}>
-						{title || t('generic-error-title')}
-					</Typography>
-				</m.div>
-
-				<m.div variants={varBounce('in')}>
-					<Typography
-						sx={{ color: 'text.secondary', mb: 2, textAlign: 'center' }}
-					>
-						{description || t('generic-error-description')}
-					</Typography>
-				</m.div>
-
-				{errorMessage && (
-					<m.div variants={varBounce('in')}>
-						<Box
-							sx={{
-								p: 2,
-								mb: 3,
-								borderRadius: 1,
-								bgcolor: 'error.lighter',
-								border: 1,
-								borderColor: 'error.light',
-							}}
-						>
-							<Typography
-								variant="body2"
-								sx={{
-									color: 'error.dark',
-									fontFamily: 'monospace',
-									wordBreak: 'break-word',
-								}}
-							>
-								{errorMessage}
-							</Typography>
-						</Box>
-					</m.div>
-				)}
-
-				<m.div variants={varBounce('in')}>
-					<Stack
-						direction={{ xs: 'column', sm: 'row' }}
-						spacing={2}
-						justifyContent="center"
-					>
-						<Button
-							size="large"
-							variant="contained"
-							onClick={() => router.refresh()}
-						>
-							{t('try-again')}
-						</Button>
-						<Button
-							component={RouterLink}
-							href={homePath}
-							size="large"
-							variant="outlined"
-						>
-							{t('go-to-home')}
-						</Button>
-					</Stack>
-				</m.div>
-			</Container>
-		);
-	};
-
-	if (!withLayout) {
-		return (
-			<SimpleCompactContent layoutQuery="md">
-				{renderContent()}
-			</SimpleCompactContent>
-		);
-	}
-
-	return (
-		<SimpleLayout
-			slotProps={{
-				content: { compact: true },
+	const errorDetails = errorMessage ? (
+		<Box
+			sx={{
+				p: 2,
+				borderRadius: 1,
+				bgcolor: 'background.neutral',
+				border: 1,
+				borderColor: 'divider',
+				textAlign: 'left',
 			}}
 		>
-			{renderContent()}
-		</SimpleLayout>
+			<Typography
+				variant="caption"
+				sx={{
+					color: 'text.secondary',
+					fontFamily: 'monospace',
+					wordBreak: 'break-word',
+					whiteSpace: 'pre-wrap',
+				}}
+			>
+				{errorMessage}
+			</Typography>
+		</Box>
+	) : undefined;
+
+	return (
+		<AppErrorView
+			withLayout={withLayout}
+			tone="warning"
+			icon="solar:danger-triangle-outline"
+			title={title ?? t('generic-error-title')}
+			description={description ?? t('generic-error-description')}
+			errorDetails={errorDetails}
+			actions={
+				<>
+					<Button variant="contained" onClick={() => router.refresh()}>
+						{t('try-again')}
+					</Button>
+					<Button component={RouterLink} href={homePath} variant="outlined">
+						{t('go-to-home')}
+					</Button>
+				</>
+			}
+		/>
 	);
 };

@@ -19,8 +19,8 @@ import {
 } from '@org/shared-ts/lib/constants';
 
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
-import View400 from '#app/components/error/400-view.tsx';
-import { NotFoundView } from '#app/components/error/not-found-view.tsx';
+import { View400 } from '#app/components/error/400-view.tsx';
+import { View404 } from '#app/components/error/404-view.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import QueryDisplay from '#app/components/query-display.tsx';
 import type { SettingsNavItem } from '#app/components/settings/settings-nav.tsx';
@@ -165,7 +165,7 @@ const LayoutErrorView: FC<{
 			(failure.status === 400 && failure.translationKey === 'malformed-id'))
 	) {
 		return (
-			<NotFoundView
+			<View404
 				withLayout={false}
 				title={capitalize(t('tenant-not-found-title'))}
 				description={t('tenant-not-found-description')}
