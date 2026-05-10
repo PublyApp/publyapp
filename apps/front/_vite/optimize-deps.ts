@@ -81,6 +81,7 @@ export const optimizeDepsIncludes = [
 	'@mui/material/ButtonBase',
 	'@mui/material/ButtonGroup',
 	'@mui/material/Card',
+	'@mui/material/CardActionArea',
 	'@mui/material/CardContent',
 	'@mui/material/CardHeader',
 	'@mui/material/Checkbox',
