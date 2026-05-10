@@ -22,7 +22,7 @@ The dashboard error visual is intentionally restrained: a neutral (88px) icon ci
 | `icon` | yes | `IconifyName` | Always rendered inside an 88px neutral circle at 40px. Prefer outline-style icons for the restrained diagnostic look (e.g. `"solar:magnifer-outline"`, `"solar:forbidden-circle-outline"`). |
 | `tone` | yes | `'primary' \| 'error' \| 'warning'` | Colors only the status pill (via `Chip color={tone}`). The icon circle stays neutral. |
 | `title` | yes | `string` | Heading text. Renders as semantic `<h1>` with explicit `fontSize: { xs: 24, md: 30 }`. |
-| `code` | no | `string` | Short status text for the monospace pill (e.g. `"404"`, `"500 — Server Error"`). Omit for non-HTTP errors. |
+| `code` | no | `string` | Short status text for the monospace pill, formatted `<NNN> — <Reason>` (e.g. `"404 — Not Found"`, `"500 — Server Error"`). HTTP reason phrases are kept English-only since they're a developer-facing convention. Omit for non-HTTP errors. |
 | `description` | no | `string` | Body text. Omit when the body needs inline JSX (e.g. a link); use the `errorDetails` slot instead. See `ViewTenantSuspended` for an example. |
 | `actions` | no | `ReactNode` | One or more `<Button>` elements. Rendered in a `Stack` (column on xs, row on sm+). Use default MUI sizing — do not pass custom `sx` paddings. |
 | `errorDetails` | no | `ReactNode` | Optional debug-style block, sits between description and actions. Used by `GenericErrorView` to surface the underlying `Error.message`, and by `ViewTenantSuspended` to render an inline mailto support link inside the body paragraph. |
@@ -42,11 +42,11 @@ The seven wrappers are thin compositions over `AppErrorView`. They exist so call
 
 | Wrapper | Tone | Icon | Code | Title key | Actions |
 |---|---|---|---|---|---|
-| `View400` | warning | `solar:info-circle-outline` | `400` | `bad-request` | Go home |
-| `View401` | primary | `solar:shield-keyhole-outline` | `401` | `authentication-required` | Go to login + Go home |
-| `View403` | error | `solar:forbidden-circle-outline` | `403` | `no-permission` | Go home |
-| `View404` | primary | `solar:magnifer-outline` | `404` | `page-not-found` | Go home |
-| `View500` | error | `solar:danger-triangle-outline` | `500` | `error-500-title` | Reload page |
+| `View400` | warning | `solar:info-circle-outline` | `400 — Bad Request` | `bad-request` | Go home |
+| `View401` | primary | `solar:shield-keyhole-outline` | `401 — Unauthorized` | `authentication-required` | Go to login + Go home |
+| `View403` | error | `solar:forbidden-circle-outline` | `403 — Forbidden` | `no-permission` | Go home |
+| `View404` | primary | `solar:magnifer-outline` | `404 — Not Found` | `page-not-found` | Go home |
+| `View500` | error | `solar:danger-triangle-outline` | `500 — Server Error` | `error-500-title` | Reload page |
 | `GenericErrorView` | warning | `solar:danger-triangle-outline` | — | `generic-error-title` | Try again + Go home |
 | `TenantSuspendedView` | warning | `solar:shield-keyhole-outline` | — | `tenant-suspended-title` | Go to organizations |
 

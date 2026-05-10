@@ -21,7 +21,7 @@ export const View403 = ({ withLayout = true }: View403Props) => {
 			withLayout={withLayout}
 			tone="error"
 			icon="solar:forbidden-circle-outline"
-			code="403"
+			code="403 — Forbidden"
 			title={t('no-permission')}
 			description={t('forbidden-description')}
 			actions={

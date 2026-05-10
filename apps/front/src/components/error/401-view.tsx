@@ -21,7 +21,7 @@ export const View401 = ({ withLayout = true }: View401Props) => {
 			withLayout={withLayout}
 			tone="primary"
 			icon="solar:shield-keyhole-outline"
-			code="401"
+			code="401 — Unauthorized"
 			title={t('authentication-required')}
 			description={t('unauthorized-description')}
 			actions={

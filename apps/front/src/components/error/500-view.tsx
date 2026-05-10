@@ -21,7 +21,7 @@ export const View500 = ({ withLayout = true }: View500Props) => {
 			withLayout={withLayout}
 			tone="error"
 			icon="solar:danger-triangle-outline"
-			code="500"
+			code="500 — Server Error"
 			title={t('error-500-title')}
 			description={t('error-500-description')}
 			actions={
