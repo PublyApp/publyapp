@@ -11,7 +11,9 @@ The two systems do not share a shell. Marketing's brand voice differs from the d
 
 Slot-composition shell at `apps/front/src/components/error/app-error-view.tsx`.
 
-The dashboard error visual is intentionally restrained: a small (64px) neutral icon circle, an optional small monospace status pill (the only tone-colored element), a `Typography variant="h4"` heading, default `body1` muted body, default MUI `<Button>` actions, and an optional diagnostic footer for support escalations. No giant numerals. No tone-colored hero visuals. Source: AIDesigner "Dashboard Error" canvas.
+The dashboard error visual is intentionally restrained: a small (64px) neutral icon circle, an optional small monospace status pill (the only tone-colored element), a prominent heading (~24–30 px), a muted body (~14–15 px), default MUI `<Button>` actions, and an optional diagnostic footer for support escalations. No giant numerals. No tone-colored hero visuals. Source: AIDesigner "Dashboard Error" canvas.
+
+> **Why explicit `fontSize` for title/body:** the app's MUI typography is Metronic-compact (h4 = 14 px, body1 = 13 px). That's right for dashboard density but wrong for an attention-grabbing error moment. The shell intentionally overrides with explicit `fontSize` values that match the canvas reference, while keeping `component="h1"` for semantics.
 
 ### Props
 
@@ -19,7 +21,7 @@ The dashboard error visual is intentionally restrained: a small (64px) neutral i
 |---|---|---|---|
 | `icon` | yes | `IconifyName` | Always rendered inside a small (64px) neutral circle. Use a registered icon (e.g. `"solar:magnifer-bold"`, `"solar:forbidden-circle-bold"`). |
 | `tone` | yes | `'primary' \| 'error' \| 'warning'` | Colors only the status pill (via `Chip color={tone}`). The icon circle stays neutral. |
-| `title` | yes | `string` | Heading text. Renders as `Typography variant="h4"`. |
+| `title` | yes | `string` | Heading text. Renders as semantic `<h1>` with explicit `fontSize: { xs: 24, md: 30 }`. |
 | `code` | no | `string` | Short status text for the monospace pill (e.g. `"404"`, `"500 — Server Error"`). Omit for non-HTTP errors. |
 | `description` | no | `string` | Body text. Omit when the body needs inline JSX (e.g. a link); use the `errorDetails` slot instead. See `ViewTenantSuspended` for an example. |
 | `actions` | no | `ReactNode` | One or more `<Button>` elements. Rendered in a `Stack` (column on xs, row on sm+). Use default MUI sizing — do not pass custom `sx` paddings. |

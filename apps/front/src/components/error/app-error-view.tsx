@@ -99,8 +99,18 @@ export const AppErrorView = ({
 
 				<m.div variants={fadeIn()}>
 					<Typography
-						variant="h4"
-						sx={{ mb: 1.5, fontWeight: 600, letterSpacing: '-0.01em' }}
+						component="h1"
+						sx={{
+							mb: 1.5,
+							fontWeight: 600,
+							letterSpacing: '-0.02em',
+							lineHeight: 1.2,
+							// Theme h-scale is Metronic-compact (h1 caps ~32 px, h4 is
+							// 14 px); error views need canvas-prominent sizing here, so
+							// override with explicit pxs that match the Dashboard Error
+							// canvas reference.
+							fontSize: { xs: 24, md: 30 },
+						}}
 					>
 						{title}
 					</Typography>
@@ -109,13 +119,13 @@ export const AppErrorView = ({
 				{description !== undefined && (
 					<m.div variants={fadeIn()}>
 						<Typography
-							variant="body1"
 							sx={{
 								color: 'text.secondary',
 								mb: errorDetails ? 2 : 4,
 								maxWidth: 460,
 								mx: 'auto',
 								lineHeight: 1.6,
+								fontSize: { xs: 14, md: 15 },
 							}}
 						>
 							{description}
