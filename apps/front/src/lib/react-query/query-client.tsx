@@ -166,7 +166,7 @@ const handleTenantSuspendedError = (
 	clearLegacyTenantFromBrowser();
 
 	// Don't navigate — let the error bubble to the ErrorBoundary
-	// which renders ViewTenantSuspended in-place
+	// which renders TenantSuspendedView in-place
 	logger.info('[Tenant Suspended] Letting error bubble to ErrorBoundary');
 
 	return true; // Error was handled - don't show generic toast

@@ -28,7 +28,7 @@ import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-bre
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { EmptyContent } from '#app/components/empty-content/empty-content.tsx';
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
-import View400 from '#app/components/error/400-view.tsx';
+import { View400 } from '#app/components/error/400-view.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import type { IconifyName } from '#app/components/iconify/register-icons.ts';
 import { Label } from '#app/components/label/label.tsx';

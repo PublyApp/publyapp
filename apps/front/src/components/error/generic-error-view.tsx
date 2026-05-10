@@ -60,8 +60,8 @@ export const GenericErrorView = ({
 			withLayout={withLayout}
 			tone="warning"
 			icon="solar:danger-triangle-bold"
-			title={title || t('generic-error-title')}
-			description={description || t('generic-error-description')}
+			title={title ?? t('generic-error-title')}
+			description={description ?? t('generic-error-description')}
 			errorDetails={errorDetails}
 			actions={
 				<>

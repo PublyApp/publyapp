@@ -14,9 +14,9 @@ import {
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { View401 } from '#app/components/error/401-view.tsx';
+import { View404 } from '#app/components/error/404-view.tsx';
 import { View500 } from '#app/components/error/500-view.tsx';
 import { GenericErrorView } from '#app/components/error/generic-error-view.tsx';
-import { NotFoundView } from '#app/components/error/not-found-view.tsx';
 import { SplashScreen } from '#app/components/loading-screen/splash-screen.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { AuthSplitLayout } from '#app/layouts/auth-split/layout.tsx';
@@ -242,7 +242,7 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 
 	// Route 404 (typo'd /auth/X)
 	if (isRouteErrorResponse(error) && error.status === 404) {
-		return renderInLayout(<NotFoundView withLayout={false} />);
+		return renderInLayout(<View404 withLayout={false} />);
 	}
 
 	// CRITICAL: a 401 in the auth surface does NOT trigger logout. The user

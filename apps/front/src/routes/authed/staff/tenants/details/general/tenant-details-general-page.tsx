@@ -29,7 +29,7 @@ import { mbToBytes } from '@org/shared-ts/utils/any.utils';
 import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
-import { NotFoundView } from '#app/components/error/not-found-view.tsx';
+import { View404 } from '#app/components/error/404-view.tsx';
 import { Field, Form } from '#app/components/hook-form/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import type { IconifyName } from '#app/components/iconify/register-icons.ts';
@@ -752,7 +752,7 @@ const ErrorView: FC<{
 			(failure.status === 400 && failure.translationKey === 'malformed-id'))
 	) {
 		return (
-			<NotFoundView
+			<View404
 				withLayout={false}
 				title={capitalize(t('tenant-not-found-title'))}
 				description={t('tenant-not-found-description')}

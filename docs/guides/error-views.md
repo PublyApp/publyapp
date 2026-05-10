@@ -36,26 +36,31 @@ The dashboard error visual is intentionally restrained: a small (64px) neutral i
 
 ## Wrapper inventory
 
-The seven wrappers are thin compositions over `AppErrorView`. They exist so call sites can import a meaningfully-named view (`<View403 />`) instead of repeating the slot config inline.
+The seven wrappers are thin compositions over `AppErrorView`. They exist so call sites can import a meaningfully-named view (`<View404 />`) instead of repeating the slot config inline.
 
 | Wrapper | Tone | Icon | Code | Title key | Actions |
 |---|---|---|---|---|---|
-| `View400` (default export) | warning | `solar:info-circle-bold` | `400` | `bad-request` | Go home |
+| `View400` | warning | `solar:info-circle-bold` | `400` | `bad-request` | Go home |
 | `View401` | primary | `solar:shield-keyhole-bold-duotone` | `401` | `authentication-required` | Go to login + Go home |
 | `View403` | error | `solar:forbidden-circle-bold` | `403` | `no-permission` | Go home |
+| `View404` | primary | `solar:magnifer-bold` | `404` | `page-not-found` | Go home |
 | `View500` | error | `solar:danger-triangle-bold` | `500` | `error-500-title` | Reload page |
-| `NotFoundView` | primary | `solar:magnifer-bold` | `404` | `page-not-found` | Go home |
 | `GenericErrorView` | warning | `solar:danger-triangle-bold` | — | `generic-error-title` | Try again + Go home |
-| `ViewTenantSuspended` | warning | `solar:shield-keyhole-bold-duotone` | — | `tenant-suspended-title` | Go to organizations |
+| `TenantSuspendedView` | warning | `solar:shield-keyhole-bold-duotone` | — | `tenant-suspended-title` | Go to organizations |
+
+**Naming conventions:**
+- HTTP-status wrappers: file `<NNN>-view.tsx`, named export `View<NNN>` (e.g. `404-view.tsx` exports `View404`).
+- Named wrappers (no HTTP status): file `<name>-view.tsx`, named export `<Name>View` (e.g. `tenant-suspended-view.tsx` exports `TenantSuspendedView`).
+- All wrappers use named exports (no `export default`).
 
 ## ErrorBoundary placement
 
 | Layout | Where | Catches | Renders |
 |---|---|---|---|
-| `apps/front/src/root.tsx` | top-level fallthrough | anything not caught by a child boundary | `View400` / `View403` / `NotFoundView` / `View500` |
+| `apps/front/src/root.tsx` | top-level fallthrough | anything not caught by a child boundary | `View400` / `View403` / `View404` / `View500` |
 | `apps/front/src/routes/marketing/_layout/marketing-layout.tsx` | marketing surface | route 404, marketing loader throws, render exceptions | `MarketingErrorView` |
-| `apps/front/src/routes/auth/_layout/auth-layout.tsx` | auth surface | route 404, 401 (no-logout), network, render exceptions | `NotFoundView` / `View401` / `View500` / `GenericErrorView` |
-| `apps/front/src/routes/authed/_layout/authed-layout.tsx` | staff + tenant surfaces | API failures (401-with-logout, 403, 403-tenant-suspended, 404, network) | `View401` / `View403` / `ViewTenantSuspended` / `NotFoundView` / `View500` |
+| `apps/front/src/routes/auth/_layout/auth-layout.tsx` | auth surface | route 404, 401 (no-logout), network, render exceptions | `View404` / `View401` / `View500` / `GenericErrorView` |
+| `apps/front/src/routes/authed/_layout/authed-layout.tsx` | staff + tenant surfaces | API failures (401-with-logout, 403, 403-tenant-suspended, 404, network) | `View401` / `View403` / `TenantSuspendedView` / `View404` / `View500` |
 
 ## When to add a new wrapper vs use the shell directly
 

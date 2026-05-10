@@ -14,7 +14,11 @@ type View400Props = {
 	description?: string;
 };
 
-const View400 = ({ withLayout = true, title, description }: View400Props) => {
+export const View400 = ({
+	withLayout = true,
+	title,
+	description,
+}: View400Props) => {
 	const { t } = useTranslate();
 	const homePath = useHomePath();
 
@@ -34,5 +38,3 @@ const View400 = ({ withLayout = true, title, description }: View400Props) => {
 		/>
 	);
 };
-
-export default View400;

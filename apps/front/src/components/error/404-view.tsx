@@ -8,17 +8,17 @@ import { AppErrorView } from './app-error-view';
 
 // ----------------------------------------------------------------------
 
-type NotFoundViewProps = {
+type View404Props = {
 	withLayout?: boolean;
 	title?: string;
 	description?: string;
 };
 
-export const NotFoundView = ({
+export const View404 = ({
 	withLayout = true,
 	title,
 	description,
-}: NotFoundViewProps) => {
+}: View404Props) => {
 	const { t } = useTranslate();
 	const homePath = useHomePath();
 
@@ -28,8 +28,8 @@ export const NotFoundView = ({
 			tone="primary"
 			icon="solar:magnifer-bold"
 			code="404"
-			title={title || t('page-not-found')}
-			description={description || t('not-found-sentence')}
+			title={title ?? t('page-not-found')}
+			description={description ?? t('not-found-sentence')}
 			actions={
 				<Button component={RouterLink} href={homePath} variant="contained">
 					{t('go-to-home')}

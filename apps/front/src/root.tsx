@@ -27,8 +27,8 @@ import {
 } from '@org/shared-ts/lib/constants';
 
 import { View403 } from '#app/components/error/403-view.tsx';
+import { View404 } from '#app/components/error/404-view.tsx';
 import { View500 } from '#app/components/error/500-view.tsx';
-import { NotFoundView } from '#app/components/error/not-found-view.tsx';
 import { SettingsDrawer } from '#app/components/settings/drawer/settings-drawer.tsx';
 import {
 	COLOR_SCHEME_STORAGE_KEY,
@@ -39,7 +39,7 @@ import {
 import './styles/main.css';
 import type { Route } from './+types/root';
 import { MotionLazy } from './components/animate/motion-lazy';
-import View400 from './components/error/400-view';
+import { View400 } from './components/error/400-view';
 import { ProgressBar } from './components/progress-bar/progress-bar';
 import { Snackbar } from './components/snackbar/snackbar';
 import { useNonce } from './hooks/use-nonce-context';
@@ -257,7 +257,7 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 			return <View403 />;
 		}
 		if (error.status === 404) {
-			return <NotFoundView />;
+			return <View404 />;
 		}
 	}
 

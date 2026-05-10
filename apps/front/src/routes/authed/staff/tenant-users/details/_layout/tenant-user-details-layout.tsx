@@ -19,8 +19,8 @@ import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
-import View400 from '#app/components/error/400-view.tsx';
-import { NotFoundView } from '#app/components/error/not-found-view.tsx';
+import { View400 } from '#app/components/error/400-view.tsx';
+import { View404 } from '#app/components/error/404-view.tsx';
 import QueryDisplay from '#app/components/query-display.tsx';
 import type { SettingsNavItem } from '#app/components/settings/settings-nav.tsx';
 import { SidebarSettingsLayout } from '#app/components/settings/sidebar-settings-layout.tsx';
@@ -154,7 +154,7 @@ const ErrorView: FC<{ error: unknown }> = ({ error }) => {
 			(failure.status === 400 && failure.translationKey === 'malformed-id'))
 	) {
 		return (
-			<NotFoundView
+			<View404
 				withLayout={false}
 				title={capitalize(t('tenant-user-not-found-title'))}
 				description={t('tenant-user-not-found-description')}

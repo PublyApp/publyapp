@@ -18,7 +18,7 @@ import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
 import { EmptyContent } from '#app/components/empty-content/empty-content.tsx';
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
-import View400 from '#app/components/error/400-view.tsx';
+import { View400 } from '#app/components/error/400-view.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import type { IconifyName } from '#app/components/iconify/register-icons.ts';
 import QueryDisplay from '#app/components/query-display.tsx';

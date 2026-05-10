@@ -11,13 +11,13 @@ import { AppErrorView } from './app-error-view';
 
 // ----------------------------------------------------------------------
 
-type ViewTenantSuspendedProps = {
+type TenantSuspendedViewProps = {
 	withLayout?: boolean;
 };
 
-export const ViewTenantSuspended = ({
+export const TenantSuspendedView = ({
 	withLayout = true,
-}: ViewTenantSuspendedProps) => {
+}: TenantSuspendedViewProps) => {
 	const { t } = useTranslate();
 
 	const description = (
