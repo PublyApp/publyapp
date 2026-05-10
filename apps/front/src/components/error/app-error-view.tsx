@@ -35,6 +35,13 @@ export type AppErrorViewProps = {
 };
 
 const FADE_DISTANCE = 16;
+const FADE_DURATION = 0.32;
+const fadeIn = () => {
+	return varFade('inUp', {
+		distance: FADE_DISTANCE,
+		transitionIn: { duration: FADE_DURATION },
+	});
+};
 
 export const AppErrorView = ({
 	icon,
@@ -54,7 +61,7 @@ export const AppErrorView = ({
 				maxWidth="sm"
 				sx={{ textAlign: 'center', py: { xs: 5, md: 8 } }}
 			>
-				<m.div variants={varFade('inUp', { distance: FADE_DISTANCE })}>
+				<m.div variants={fadeIn()}>
 					<Box
 						sx={{
 							width: 64,
@@ -74,7 +81,7 @@ export const AppErrorView = ({
 				</m.div>
 
 				{code && (
-					<m.div variants={varFade('inUp', { distance: FADE_DISTANCE })}>
+					<m.div variants={fadeIn()}>
 						<Chip
 							size="small"
 							color={tone}
@@ -90,9 +97,9 @@ export const AppErrorView = ({
 					</m.div>
 				)}
 
-				<m.div variants={varFade('inUp', { distance: FADE_DISTANCE })}>
+				<m.div variants={fadeIn()}>
 					<Typography
-						variant="h5"
+						variant="h4"
 						sx={{ mb: 1.5, fontWeight: 600, letterSpacing: '-0.01em' }}
 					>
 						{title}
@@ -100,13 +107,13 @@ export const AppErrorView = ({
 				</m.div>
 
 				{description !== undefined && (
-					<m.div variants={varFade('inUp', { distance: FADE_DISTANCE })}>
+					<m.div variants={fadeIn()}>
 						<Typography
-							variant="body2"
+							variant="body1"
 							sx={{
 								color: 'text.secondary',
 								mb: errorDetails ? 2 : 4,
-								maxWidth: 420,
+								maxWidth: 460,
 								mx: 'auto',
 								lineHeight: 1.6,
 							}}
@@ -117,13 +124,13 @@ export const AppErrorView = ({
 				)}
 
 				{errorDetails && (
-					<m.div variants={varFade('inUp', { distance: FADE_DISTANCE })}>
+					<m.div variants={fadeIn()}>
 						<Box sx={{ mb: 4 }}>{errorDetails}</Box>
 					</m.div>
 				)}
 
 				{actions && (
-					<m.div variants={varFade('inUp', { distance: FADE_DISTANCE })}>
+					<m.div variants={fadeIn()}>
 						<Stack
 							direction={{ xs: 'column', sm: 'row' }}
 							spacing={1.5}
@@ -135,7 +142,7 @@ export const AppErrorView = ({
 				)}
 
 				{diagnosticId && (
-					<m.div variants={varFade('inUp', { distance: FADE_DISTANCE })}>
+					<m.div variants={fadeIn()}>
 						<Typography
 							variant="caption"
 							sx={{
