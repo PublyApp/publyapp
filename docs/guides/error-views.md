@@ -47,8 +47,11 @@ The seven wrappers are thin compositions over `AppErrorView`. They exist so call
 | `View403` | error | `solar:forbidden-circle-outline` | `403 — Forbidden` | `no-permission` | Go home |
 | `View404` | primary | `solar:magnifer-outline` | `404 — Not Found` | `page-not-found` | Go home |
 | `View500` | error | `solar:danger-triangle-outline` | `500 — Server Error` | `error-500-title` | Reload page |
+| `ComingSoonView` | primary | `solar:clock-circle-outline` | — | `coming-soon` | Go home |
 | `GenericErrorView` | warning | `solar:danger-triangle-outline` | — | `generic-error-title` | Try again + Go home |
 | `TenantSuspendedView` | warning | `solar:shield-keyhole-outline` | — | `tenant-suspended-title` | Go to organizations |
+
+`ComingSoonView` is for routes that are wired in IA but not built yet (or feature-flagged off in this environment) — semantically distinct from `View403` "you don't have permission". Use it for placeholder pages and feature-flag fallbacks.
 
 **Naming conventions:**
 - HTTP-status wrappers: file `<NNN>-view.tsx`, named export `View<NNN>` (e.g. `404-view.tsx` exports `View404`).
@@ -61,7 +64,7 @@ The seven wrappers are thin compositions over `AppErrorView`. They exist so call
 |---|---|---|---|
 | `apps/front/src/root.tsx` | top-level fallthrough | anything not caught by a child boundary | `View400` / `View403` / `View404` / `View500` |
 | `apps/front/src/routes/marketing/_layout/marketing-layout.tsx` | marketing surface | route 404, marketing loader throws, render exceptions | `MarketingErrorView` |
-| `apps/front/src/routes/auth/_layout/auth-layout.tsx` | auth surface | route 404, 401 (no-logout), network, render exceptions | `View404` / `View401` / `View500` / `GenericErrorView` |
+| `apps/front/src/routes/auth/_layout/auth-layout.tsx` | auth surface | route 404, 401 (no-logout), 403 (no-scope after login), network, render exceptions | `View404` / `View401` / `View403` / `View500` / `GenericErrorView` |
 | `apps/front/src/routes/authed/_layout/authed-layout.tsx` | staff + tenant surfaces | API failures (401-with-logout, 403, 403-tenant-suspended, 404, network) | `View401` / `View403` / `TenantSuspendedView` / `View404` / `View500` |
 
 ## When to add a new wrapper vs use the shell directly

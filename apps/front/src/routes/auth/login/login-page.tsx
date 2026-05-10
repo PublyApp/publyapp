@@ -196,7 +196,9 @@ export const action = getServerAction({
 		if (redirectCode === REDIRECT_CODE.STAFF) {
 			redirectPath = FRONT_PATH_NAMES.staff.root;
 		} else if (redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
-			redirectPath = FRONT_PATH_NAMES.unauthorized;
+			// Sentinel — the throw happens after legacy cookie clearing below so
+			// the session cookie + clear-legacy headers are still applied.
+			redirectPath = '';
 		} else if (redirectCode === REDIRECT_CODE.TENANT_PICKER) {
 			// Multiple tenants, no valid hint - go to tenant picker
 			redirectPath = FRONT_PATH_NAMES.tenant()._root;
@@ -231,6 +233,16 @@ export const action = getServerAction({
 			return redirect(redirectTo, {
 				headers: responseHeaders,
 			}) as never;
+		}
+
+		// No-scope user: render View403 via auth-layout's ErrorBoundary instead
+		// of navigating to a dedicated /unauthorized route. Cookies set above
+		// are preserved by passing responseHeaders into the thrown Response.
+		if (redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
+			throw new Response(null, {
+				status: 403,
+				headers: responseHeaders,
+			});
 		}
 
 		return redirect(redirectPath, {

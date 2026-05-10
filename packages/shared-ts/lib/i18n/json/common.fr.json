@@ -379,6 +379,7 @@
 	"security-settings": "Paramètres de sécurité",
 	"app-name": "Nom de l'application",
 	"coming-soon": "Bientôt disponible",
+	"coming-soon-sentence": "Cette page fait partie d'une fonctionnalité que nous développons encore. Revenez plus tard — ou contactez-nous pour être prévenu de sa sortie.",
 	"toc": "Sommaire",
 	"on-this-page": "Sur cette page",
 	"smtp-configuration": "Configuration SMTP",

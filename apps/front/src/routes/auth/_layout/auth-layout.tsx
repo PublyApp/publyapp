@@ -14,6 +14,7 @@ import {
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { View401 } from '#app/components/error/401-view.tsx';
+import { View403 } from '#app/components/error/403-view.tsx';
 import { View404 } from '#app/components/error/404-view.tsx';
 import { View500 } from '#app/components/error/500-view.tsx';
 import { GenericErrorView } from '#app/components/error/generic-error-view.tsx';
@@ -245,6 +246,16 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 		(failure.kind === 'problem' && failure.status === 401)
 	) {
 		return <View401 />;
+	}
+
+	// 403 — login succeeded but the user has no scope they can access.
+	// Thrown from login-page's action with the session cookie preserved on
+	// responseHeaders. Replaces the previous /unauthorized standalone route.
+	if (
+		routeStatus === 403 ||
+		(failure.kind === 'problem' && failure.status === 403)
+	) {
+		return <View403 />;
 	}
 
 	// Network failure (auth server unreachable). 5xx route responses also

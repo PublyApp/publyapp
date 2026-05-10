@@ -8,6 +8,8 @@ import {
 	REDIRECT_CODE,
 } from '@org/shared-ts/lib/constants';
 
+import { View403 } from '#app/components/error/403-view.tsx';
+import { GenericErrorView } from '#app/components/error/generic-error-view.tsx';
 import { SplashScreen } from '#app/components/loading-screen/splash-screen.tsx';
 import QueryDisplay from '#app/components/query-display.tsx';
 import {
@@ -22,16 +24,6 @@ import {
 
 import { TenantPickerView } from '../_shared/tenant-picker-view';
 
-const RedirectToUnauthorized = () => {
-	const navigate = useNavigate();
-
-	useEffect(() => {
-		void navigate(FRONT_PATH_NAMES.unauthorized, { replace: true });
-	}, [navigate]);
-
-	return <SplashScreen />;
-};
-
 const RedirectHandler = ({
 	data,
 }: {
@@ -44,16 +36,15 @@ const RedirectHandler = ({
 	const redirectCode = data.redirectCode;
 	const hasSuspendedTenants = data.hasSuspendedTenants ?? false;
 
-	// Handle tenant-picker case - render picker UI instead of redirecting
+	// Render-in-place cases: no navigation, just show the matching view.
 	const showTenantPicker = redirectCode === REDIRECT_CODE.TENANT_PICKER;
+	const showNoAccess =
+		!redirectCode || redirectCode === REDIRECT_CODE.UNAUTHORIZED;
 
 	useEffect(() => {
-		// Don't redirect if showing tenant picker
-		if (showTenantPicker) return;
+		if (showTenantPicker || showNoAccess) return;
 
-		if (!redirectCode || redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
-			void navigate(FRONT_PATH_NAMES.unauthorized, { replace: true });
-		} else if (redirectCode === REDIRECT_CODE.STAFF) {
+		if (redirectCode === REDIRECT_CODE.STAFF) {
 			void navigate(FRONT_PATH_NAMES.staff.root, { replace: true });
 		} else {
 			// redirectCode is a tenant ID
@@ -63,10 +54,20 @@ const RedirectHandler = ({
 			}
 			void navigate(path, { replace: true });
 		}
-	}, [redirectCode, navigate, showTenantPicker, hasSuspendedTenants]);
+	}, [
+		redirectCode,
+		navigate,
+		showTenantPicker,
+		showNoAccess,
+		hasSuspendedTenants,
+	]);
 
 	if (showTenantPicker) {
 		return <TenantPickerView />;
+	}
+
+	if (showNoAccess) {
+		return <View403 withLayout={false} />;
 	}
 
 	return <SplashScreen />;
@@ -100,7 +101,7 @@ const TenantPortalPage = () => {
 		<QueryDisplay
 			query={query}
 			LoadingSlot={SplashScreen}
-			ErrorSlot={RedirectToUnauthorized}
+			ErrorSlot={() => <GenericErrorView withLayout={false} />}
 		>
 			{({ data }) => <RedirectHandler data={data} />}
 		</QueryDisplay>

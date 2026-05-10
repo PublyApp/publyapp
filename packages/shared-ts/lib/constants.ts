@@ -89,7 +89,6 @@ const ROOTS = {
 
 export const FRONT_PATH_NAMES = {
 	home: '/',
-	unauthorized: makePath('unauthorized'),
 	marketing: {
 		pricing: makePath('pricing'),
 		terms: makePath('terms'),
