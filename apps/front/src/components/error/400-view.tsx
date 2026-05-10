@@ -26,7 +26,7 @@ export const View400 = ({
 		<AppErrorView
 			withLayout={withLayout}
 			tone="warning"
-			icon="solar:info-circle-bold"
+			icon="solar:info-circle-outline"
 			code="400"
 			title={title ?? t('bad-request')}
 			description={description ?? t('bad-request-sentence')}

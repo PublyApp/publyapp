@@ -20,7 +20,7 @@ export const View401 = ({ withLayout = true }: View401Props) => {
 		<AppErrorView
 			withLayout={withLayout}
 			tone="primary"
-			icon="solar:shield-keyhole-bold-duotone"
+			icon="solar:shield-keyhole-outline"
 			code="401"
 			title={t('authentication-required')}
 			description={t('unauthorized-description')}

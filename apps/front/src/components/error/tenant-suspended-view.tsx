@@ -41,7 +41,7 @@ export const TenantSuspendedView = ({
 		<AppErrorView
 			withLayout={withLayout}
 			tone="warning"
-			icon="solar:shield-keyhole-bold-duotone"
+			icon="solar:shield-keyhole-outline"
 			title={t('tenant-suspended-title')}
 			errorDetails={description}
 			actions={

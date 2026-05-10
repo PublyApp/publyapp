@@ -64,8 +64,8 @@ export const AppErrorView = ({
 				<m.div variants={fadeIn()}>
 					<Box
 						sx={{
-							width: 64,
-							height: 64,
+							width: 88,
+							height: 88,
 							borderRadius: '50%',
 							display: 'inline-flex',
 							alignItems: 'center',
@@ -76,7 +76,7 @@ export const AppErrorView = ({
 							mb: 3,
 						}}
 					>
-						<Iconify icon={icon} width={28} sx={{ color: 'text.secondary' }} />
+						<Iconify icon={icon} width={40} sx={{ color: 'text.secondary' }} />
 					</Box>
 				</m.div>
 

@@ -26,7 +26,7 @@ export const View404 = ({
 		<AppErrorView
 			withLayout={withLayout}
 			tone="primary"
-			icon="solar:magnifer-bold"
+			icon="solar:magnifer-outline"
 			code="404"
 			title={title ?? t('page-not-found')}
 			description={description ?? t('not-found-sentence')}

@@ -20,7 +20,7 @@ export const View403 = ({ withLayout = true }: View403Props) => {
 		<AppErrorView
 			withLayout={withLayout}
 			tone="error"
-			icon="solar:forbidden-circle-bold"
+			icon="solar:forbidden-circle-outline"
 			code="403"
 			title={t('no-permission')}
 			description={t('forbidden-description')}

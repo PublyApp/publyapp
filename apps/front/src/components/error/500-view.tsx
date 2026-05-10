@@ -20,7 +20,7 @@ export const View500 = ({ withLayout = true }: View500Props) => {
 		<AppErrorView
 			withLayout={withLayout}
 			tone="error"
-			icon="solar:danger-triangle-bold"
+			icon="solar:danger-triangle-outline"
 			code="500"
 			title={t('error-500-title')}
 			description={t('error-500-description')}

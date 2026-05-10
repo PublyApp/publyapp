@@ -11,7 +11,7 @@ The two systems do not share a shell. Marketing's brand voice differs from the d
 
 Slot-composition shell at `apps/front/src/components/error/app-error-view.tsx`.
 
-The dashboard error visual is intentionally restrained: a small (64px) neutral icon circle, an optional small monospace status pill (the only tone-colored element), a prominent heading (~24–30 px), a muted body (~14–15 px), default MUI `<Button>` actions, and an optional diagnostic footer for support escalations. No giant numerals. No tone-colored hero visuals. Source: AIDesigner "Dashboard Error" canvas.
+The dashboard error visual is intentionally restrained: a neutral (88px) icon circle with a 40px outline-style icon, an optional small monospace status pill (the only tone-colored element), a prominent heading (~24–30 px), a muted body (~14–15 px), default MUI `<Button>` actions, and an optional diagnostic footer for support escalations. No giant numerals. No tone-colored hero visuals. Source: AIDesigner "Dashboard Error" canvas.
 
 > **Why explicit `fontSize` for title/body:** the app's MUI typography is Metronic-compact (h4 = 14 px, body1 = 13 px). That's right for dashboard density but wrong for an attention-grabbing error moment. The shell intentionally overrides with explicit `fontSize` values that match the canvas reference, while keeping `component="h1"` for semantics.
 
@@ -19,7 +19,7 @@ The dashboard error visual is intentionally restrained: a small (64px) neutral i
 
 | Prop | Required | Type | Description |
 |---|---|---|---|
-| `icon` | yes | `IconifyName` | Always rendered inside a small (64px) neutral circle. Use a registered icon (e.g. `"solar:magnifer-bold"`, `"solar:forbidden-circle-bold"`). |
+| `icon` | yes | `IconifyName` | Always rendered inside an 88px neutral circle at 40px. Prefer outline-style icons for the restrained diagnostic look (e.g. `"solar:magnifer-outline"`, `"solar:forbidden-circle-outline"`). |
 | `tone` | yes | `'primary' \| 'error' \| 'warning'` | Colors only the status pill (via `Chip color={tone}`). The icon circle stays neutral. |
 | `title` | yes | `string` | Heading text. Renders as semantic `<h1>` with explicit `fontSize: { xs: 24, md: 30 }`. |
 | `code` | no | `string` | Short status text for the monospace pill (e.g. `"404"`, `"500 — Server Error"`). Omit for non-HTTP errors. |
@@ -42,13 +42,13 @@ The seven wrappers are thin compositions over `AppErrorView`. They exist so call
 
 | Wrapper | Tone | Icon | Code | Title key | Actions |
 |---|---|---|---|---|---|
-| `View400` | warning | `solar:info-circle-bold` | `400` | `bad-request` | Go home |
-| `View401` | primary | `solar:shield-keyhole-bold-duotone` | `401` | `authentication-required` | Go to login + Go home |
-| `View403` | error | `solar:forbidden-circle-bold` | `403` | `no-permission` | Go home |
-| `View404` | primary | `solar:magnifer-bold` | `404` | `page-not-found` | Go home |
-| `View500` | error | `solar:danger-triangle-bold` | `500` | `error-500-title` | Reload page |
-| `GenericErrorView` | warning | `solar:danger-triangle-bold` | — | `generic-error-title` | Try again + Go home |
-| `TenantSuspendedView` | warning | `solar:shield-keyhole-bold-duotone` | — | `tenant-suspended-title` | Go to organizations |
+| `View400` | warning | `solar:info-circle-outline` | `400` | `bad-request` | Go home |
+| `View401` | primary | `solar:shield-keyhole-outline` | `401` | `authentication-required` | Go to login + Go home |
+| `View403` | error | `solar:forbidden-circle-outline` | `403` | `no-permission` | Go home |
+| `View404` | primary | `solar:magnifer-outline` | `404` | `page-not-found` | Go home |
+| `View500` | error | `solar:danger-triangle-outline` | `500` | `error-500-title` | Reload page |
+| `GenericErrorView` | warning | `solar:danger-triangle-outline` | — | `generic-error-title` | Try again + Go home |
+| `TenantSuspendedView` | warning | `solar:shield-keyhole-outline` | — | `tenant-suspended-title` | Go to organizations |
 
 **Naming conventions:**
 - HTTP-status wrappers: file `<NNN>-view.tsx`, named export `View<NNN>` (e.g. `404-view.tsx` exports `View404`).
