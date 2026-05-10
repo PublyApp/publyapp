@@ -892,7 +892,7 @@ const RemoveTenantUserCompanyAction = ({
 	const confirmDialog = useBoolean();
 
 	// Remove unlinks this company membership only; it must not delete the shared
-	// User identity behind /staff/tenant-users/{userId}.
+	// User identity behind /staff/tenant-users/details/{userId}.
 	const { mutate: removeUser, isPending: isRemoving } = useRemoveTenantUser({
 		onSuccess: async () => {
 			toast.success(t('user-removed-success'));

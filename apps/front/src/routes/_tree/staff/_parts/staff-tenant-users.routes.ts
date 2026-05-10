@@ -8,11 +8,11 @@ export const staffTenantUsersRoutes = [
 		route(
 			getLastPath(
 				FRONT_PATH_NAMES.staff.tenantUsers.details(':userId').root,
-				1,
+				2,
 			),
 			'routes/authed/staff/tenant-users/details/_layout/tenant-user-details-layout.tsx',
 			[
-				// Keep /staff/tenant-users/:userId bookmarkable while making each
+				// Keep /staff/tenant-users/details/:userId bookmarkable while making each
 				// visible details tab own its own route.
 				index(
 					'routes/authed/staff/tenant-users/details/_redirects/tenant-user-details-index-redirect-page.tsx',

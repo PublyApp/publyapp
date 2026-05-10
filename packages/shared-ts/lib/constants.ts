@@ -265,17 +265,19 @@ export const FRONT_PATH_NAMES = {
 			new: makePath(ROOTS.STAFF, RESOURCE.tenantUsers, 'new'),
 			details: (userId = '') => {
 				return {
-					root: makePath(ROOTS.STAFF, RESOURCE.tenantUsers, userId),
+					root: makePath(ROOTS.STAFF, RESOURCE.tenantUsers, 'details', userId),
 					tabs: {
 						general: makePath(
 							ROOTS.STAFF,
 							RESOURCE.tenantUsers,
+							'details',
 							userId,
 							'general',
 						),
 						organizations: makePath(
 							ROOTS.STAFF,
 							RESOURCE.tenantUsers,
+							'details',
 							userId,
 							'organizations',
 						),
