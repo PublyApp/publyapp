@@ -380,6 +380,8 @@
 	"app-name": "App name",
 	"coming-soon": "Coming soon",
 	"coming-soon-sentence": "This page is part of a feature we're still building. Check back later — or get in touch if you'd like to know when it ships.",
+	"staff-profile-not-found-title": "staff profile not found",
+	"staff-profile-not-found-description": "The staff profile you're looking for doesn't exist or may have been removed.",
 	"toc": "ToC",
 	"on-this-page": "On this page",
 	"smtp-configuration": "SMTP configuration",

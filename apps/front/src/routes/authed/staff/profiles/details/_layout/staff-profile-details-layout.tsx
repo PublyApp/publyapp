@@ -124,8 +124,8 @@ const StaffProfileDetailsLayout = () => {
 					return (
 						<View404
 							withLayout={false}
-							title={capitalize(t('not-found'))}
-							description={t('please-try-again-or-contact-support')}
+							title={capitalize(t('staff-profile-not-found-title'))}
+							description={t('staff-profile-not-found-description')}
 						/>
 					);
 				}
@@ -291,8 +291,8 @@ const LayoutErrorView = ({ error }: { error: unknown }) => {
 		return (
 			<View404
 				withLayout={false}
-				title={capitalize(t('not-found'))}
-				description={t('please-try-again-or-contact-support')}
+				title={capitalize(t('staff-profile-not-found-title'))}
+				description={t('staff-profile-not-found-description')}
 			/>
 		);
 	}
