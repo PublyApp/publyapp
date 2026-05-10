@@ -23,6 +23,7 @@ export const ViewTenantSuspended = ({
 	const description = (
 		<Typography
 			component="span"
+			variant="body2"
 			sx={{ color: 'text.secondary', lineHeight: 1.6 }}
 		>
 			{t('tenant-suspended-description')}{' '}
@@ -47,9 +48,7 @@ export const ViewTenantSuspended = ({
 				<Button
 					component={RouterLink}
 					href={FRONT_PATH_NAMES.tenant().organizations}
-					size="large"
 					variant="contained"
-					sx={{ px: 4, py: 1.5 }}
 				>
 					{t('go-to-my-organizations')}
 				</Button>

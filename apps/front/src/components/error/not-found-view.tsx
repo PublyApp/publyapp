@@ -26,16 +26,12 @@ export const NotFoundView = ({
 		<AppErrorView
 			withLayout={withLayout}
 			tone="primary"
-			numeral="404"
+			icon="solar:magnifer-bold"
+			code="404"
 			title={title || t('page-not-found')}
 			description={description || t('not-found-sentence')}
 			actions={
-				<Button
-					component={RouterLink}
-					href={homePath}
-					size="large"
-					variant="contained"
-				>
+				<Button component={RouterLink} href={homePath} variant="contained">
 					{t('go-to-home')}
 				</Button>
 			}
