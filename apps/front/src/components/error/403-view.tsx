@@ -20,17 +20,12 @@ export const View403 = ({ withLayout = true }: View403Props) => {
 		<AppErrorView
 			withLayout={withLayout}
 			tone="error"
-			numeral="403"
+			icon="solar:forbidden-circle-bold"
+			code="403"
 			title={t('no-permission')}
 			description={t('forbidden-description')}
 			actions={
-				<Button
-					component={RouterLink}
-					href={homePath}
-					size="large"
-					variant="contained"
-					sx={{ px: 4, py: 1.5 }}
-				>
+				<Button component={RouterLink} href={homePath} variant="contained">
 					{t('go-to-home')}
 				</Button>
 			}

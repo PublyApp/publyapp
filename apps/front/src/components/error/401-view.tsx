@@ -21,6 +21,7 @@ export const View401 = ({ withLayout = true }: View401Props) => {
 			withLayout={withLayout}
 			tone="primary"
 			icon="solar:shield-keyhole-bold-duotone"
+			code="401"
 			title={t('authentication-required')}
 			description={t('unauthorized-description')}
 			actions={
@@ -28,17 +29,11 @@ export const View401 = ({ withLayout = true }: View401Props) => {
 					<Button
 						component={RouterLink}
 						href={FRONT_PATH_NAMES.auth.login}
-						size="large"
 						variant="contained"
 					>
 						{t('go-to-login')}
 					</Button>
-					<Button
-						component={RouterLink}
-						href="/"
-						size="large"
-						variant="outlined"
-					>
+					<Button component={RouterLink} href="/" variant="outlined">
 						{t('go-to-home')}
 					</Button>
 				</>

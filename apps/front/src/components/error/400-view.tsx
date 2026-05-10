@@ -22,17 +22,12 @@ const View400 = ({ withLayout = true, title, description }: View400Props) => {
 		<AppErrorView
 			withLayout={withLayout}
 			tone="warning"
-			numeral="400"
+			icon="solar:info-circle-bold"
+			code="400"
 			title={title ?? t('bad-request')}
 			description={description ?? t('bad-request-sentence')}
 			actions={
-				<Button
-					component={RouterLink}
-					href={homePath}
-					size="large"
-					variant="contained"
-					sx={{ px: 4, py: 1.5, fontWeight: 600 }}
-				>
+				<Button component={RouterLink} href={homePath} variant="contained">
 					{t('go-to-home')}
 				</Button>
 			}

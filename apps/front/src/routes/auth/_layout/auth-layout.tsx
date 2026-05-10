@@ -6,8 +6,8 @@ import { type ReactNode, Suspense } from 'react';
 import { isRouteErrorResponse, Outlet, redirect } from 'react-router';
 
 import {
-	FRONT_PATH_NAMES,
 	formActionKey,
+	FRONT_PATH_NAMES,
 	I18N_NAMESPACES,
 	REDIRECT_CODE,
 } from '@org/shared-ts/lib/constants';

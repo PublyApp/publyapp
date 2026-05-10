@@ -21,15 +21,14 @@ export const View500 = ({ withLayout = true }: View500Props) => {
 			withLayout={withLayout}
 			tone="error"
 			icon="solar:danger-triangle-bold"
+			code="500"
 			title={t('error-500-title')}
 			description={t('error-500-description')}
 			actions={
 				<Button
-					size="large"
 					variant="contained"
-					color="primary"
 					onClick={() => router.refresh()}
-					startIcon={<Iconify icon="solar:restart-bold" width={20} />}
+					startIcon={<Iconify icon="solar:restart-bold" width={18} />}
 				>
 					{t('reload-page')}
 				</Button>

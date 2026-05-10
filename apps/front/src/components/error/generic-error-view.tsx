@@ -35,17 +35,19 @@ export const GenericErrorView = ({
 			sx={{
 				p: 2,
 				borderRadius: 1,
-				bgcolor: 'error.lighter',
+				bgcolor: 'background.neutral',
 				border: 1,
-				borderColor: 'error.light',
+				borderColor: 'divider',
+				textAlign: 'left',
 			}}
 		>
 			<Typography
-				variant="body2"
+				variant="caption"
 				sx={{
-					color: 'error.dark',
+					color: 'text.secondary',
 					fontFamily: 'monospace',
 					wordBreak: 'break-word',
+					whiteSpace: 'pre-wrap',
 				}}
 			>
 				{errorMessage}
@@ -63,19 +65,10 @@ export const GenericErrorView = ({
 			errorDetails={errorDetails}
 			actions={
 				<>
-					<Button
-						size="large"
-						variant="contained"
-						onClick={() => router.refresh()}
-					>
+					<Button variant="contained" onClick={() => router.refresh()}>
 						{t('try-again')}
 					</Button>
-					<Button
-						component={RouterLink}
-						href={homePath}
-						size="large"
-						variant="outlined"
-					>
+					<Button component={RouterLink} href={homePath} variant="outlined">
 						{t('go-to-home')}
 					</Button>
 				</>
