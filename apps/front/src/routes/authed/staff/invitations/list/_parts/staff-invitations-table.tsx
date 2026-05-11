@@ -309,9 +309,8 @@ const StaffInvitationsTable = () => {
 				setNextCursor,
 			],
 		);
-	// Derive from the freshest server response rather than reading the table-state
-	// hook's hasNextPage, which lags by one render until pagination is interacted
-	// with and would otherwise render an empty "next" page on initial load.
+	// Derive from the freshest server response rather than storing next-page
+	// availability in table state.
 	const hasNextPage = invitationsQuery.data?.nextCursor != null;
 
 	const dataTable = useMemo(() => {
