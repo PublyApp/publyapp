@@ -284,6 +284,10 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 
 		// Explicit relationships for Session -> User (two FKs to same principal)
 		modelBuilder.Entity<Session>()
+			.Property(s => s.Id)
+			.HasDefaultValueSql("uuidv7()");
+
+		modelBuilder.Entity<Session>()
 			.HasOne(s => s.User)
 			.WithMany(u => u.Sessions)
 			.HasForeignKey(s => s.UserId)
@@ -467,15 +471,34 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	private readonly HashSet<object> _forceHardDeleteEntities = new();
 
 	/// <summary>
-	/// Updates audit fields based on entity state: Added (CreatedAt, UpdatedAt), Modified (UpdatedAt), Deleted (soft delete).
+	/// Updates audit fields and applies soft-delete conversion where supported.
 	/// </summary>
 	private void UpdateAuditFields() {
 		var entries = ChangeTracker.Entries()
 			.Where(e => e.State == EntityState.Added || e.State == EntityState.Modified || e.State == EntityState.Deleted);
 
 		foreach (var entry in entries) {
+			// Handle Session timestamps; deletes remain physical.
+			if (entry.Entity is Session session) {
+				var now = DateTime.UtcNow;
+
+				switch (entry.State) {
+					case EntityState.Added:
+						session.CreatedAt = now;
+						session.UpdatedAt = now;
+						break;
+
+					case EntityState.Modified:
+						session.UpdatedAt = now;
+						break;
+
+					case EntityState.Deleted:
+						_forceHardDeleteEntities.Remove(entry.Entity);
+						continue;
+				}
+			}
 			// Handle BaseAttributesNoKey entities
-			if (entry.Entity is BaseAttributesNoKey baseEntity) {
+			else if (entry.Entity is BaseAttributesNoKey baseEntity) {
 				var now = DateTime.UtcNow;
 
 				switch (entry.State) {

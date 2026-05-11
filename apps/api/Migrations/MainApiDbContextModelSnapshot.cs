@@ -95,10 +95,6 @@ namespace MainApi.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
@@ -114,10 +110,6 @@ namespace MainApi.Migrations
                     b.Property<string>("ImpersonationReason")
                         .HasColumnType("text")
                         .HasColumnName("impersonation_reason");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
 
                     b.Property<bool>("IsImpersonation")
                         .HasColumnType("boolean")
