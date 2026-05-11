@@ -16,6 +16,7 @@ import {
 	downloadJsonFile,
 	withTimestamp,
 } from '#app/lib/export/download.ts';
+import type { InvitationStatus } from '#app/lib/invitations/invitation-status.ts';
 import { fDate } from '#app/utils/format-time.ts';
 
 import type { TenantInvitationRowData } from './tenant-invitations-table';
@@ -31,7 +32,7 @@ type TenantInvitationsExportDialogControllerProps = {
 	selectedCount: number;
 	rows: TenantInvitationRowData[];
 	selectedRows: TenantInvitationRowData[];
-	getInvitationStatus: (row: TenantInvitationRowData) => string;
+	getInvitationStatus: (row: TenantInvitationRowData) => InvitationStatus;
 	ref?: Ref<TenantInvitationsExportDialogControllerRef>;
 };
 
