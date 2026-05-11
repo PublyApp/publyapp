@@ -8,7 +8,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import capitalize from 'lodash/capitalize';
 import isEqual from 'lodash/isEqual';
 import map from 'lodash/map';
-import snakeCase from 'lodash/snakeCase';
 import {
 	createMRTColumnHelper,
 	MaterialReactTable,
@@ -48,6 +47,18 @@ import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import {
+	getInvitationStatus,
+	INVITATION_STATUS_ACCEPTED,
+	INVITATION_STATUS_EXPIRED,
+	INVITATION_STATUS_PENDING,
+	INVITATION_STATUS_REVOKED,
+	INVITATION_STATUS_VALUES,
+	parseStatusFilter,
+	type InvitationStatus,
+	type InvitationStatusOption,
+	type KnownInvitationStatus,
+} from '#app/lib/invitations/invitation-status.ts';
+import {
 	useFindStaffInvitations,
 	useGetStaffInvitationLink,
 	useResendStaffInvitation,
@@ -56,15 +67,6 @@ import {
 import { fDate, fIsAfter, fToNow } from '#app/utils/format-time.ts';
 
 import { NewInvitationButton } from './new-invitation-button';
-import {
-	parseStatusFilter,
-	STAFF_INVITATION_STATUS_VALUE_SET,
-	STAFF_INVITATION_STATUS_VALUES,
-	STAFF_INVITATION_UNKNOWN_STATUS,
-	type StaffInvitationRowStatus,
-	type StaffInvitationStatus,
-	type StaffInvitationStatusOption,
-} from './staff-invitation-status';
 import { StaffInvitationsBulkRevokeDialog } from './staff-invitations-bulk-revoke-dialog';
 import { StaffInvitationsExportAction } from './staff-invitations-export-action';
 import StaffInvitationsExportDialogController, {
@@ -78,25 +80,11 @@ export type StaffInvitationRowData = {
 	id: string;
 	email: string;
 	profileName: string;
-	status: StaffInvitationRowStatus;
+	status: InvitationStatus;
 	invitedByName: string;
 	expiresAt: Date | null;
 	acceptedAt: Date | null;
 	createdAt: Date | null;
-};
-
-const getInvitationStatus = (
-	invitation: InvitationListItem,
-): StaffInvitationRowStatus => {
-	const status = invitation.status ? snakeCase(invitation.status) : undefined;
-	if (status && STAFF_INVITATION_STATUS_VALUE_SET.has(status)) {
-		return status as StaffInvitationStatus;
-	}
-	logger.warn('[staff-invitations-table] unknown invitation status', {
-		invitationId: invitation.id,
-		rawStatus: invitation.status,
-	});
-	return STAFF_INVITATION_UNKNOWN_STATUS;
 };
 
 const StaffInvitationRowDataMapper = (
@@ -106,7 +94,7 @@ const StaffInvitationRowDataMapper = (
 		id: invitation.id || '',
 		email: invitation.email || '-',
 		profileName: invitation.profileName || '',
-		status: getInvitationStatus(invitation),
+		status: getInvitationStatus(invitation, 'staff-invitations-table'),
 		invitedByName: invitation.invitedByName || '-',
 		expiresAt: invitation.expiresAt || null,
 		acceptedAt: invitation.acceptedAt || null,
@@ -216,7 +204,7 @@ const StaffInvitationsTable = () => {
 	});
 	// Mirror the URL-backed filter so onChange handlers can write through optimistically
 	// without waiting for the next render.
-	const [statusFilter, setStatusFilter] = useState<StaffInvitationStatus[]>(
+	const [statusFilter, setStatusFilter] = useState<KnownInvitationStatus[]>(
 		() => parseStatusFilter(filterStates.status),
 	);
 	const [selectionActionAnchorEl, setSelectionActionAnchorEl] =
@@ -355,7 +343,9 @@ const StaffInvitationsTable = () => {
 	};
 
 	const eligibleBulkRevokeRows = useMemo(() => {
-		return selectedRows.filter((row) => row.status === 'pending');
+		return selectedRows.filter(
+			(row) => row.status === INVITATION_STATUS_PENDING,
+		);
 	}, [selectedRows]);
 	const eligibleBulkRevokeCount = eligibleBulkRevokeRows.length;
 	const ineligibleBulkRevokeCount = selectedCount - eligibleBulkRevokeCount;
@@ -370,8 +360,8 @@ const StaffInvitationsTable = () => {
 
 	const columns = useStaffInvitationColumns();
 
-	const statusOptions = useMemo<StaffInvitationStatusOption[]>(() => {
-		return STAFF_INVITATION_STATUS_VALUES.map((value) => ({
+	const statusOptions = useMemo<InvitationStatusOption[]>(() => {
+		return INVITATION_STATUS_VALUES.map((value) => ({
 			label: t(value),
 			value,
 		}));
@@ -384,7 +374,7 @@ const StaffInvitationsTable = () => {
 
 	const handleStatusChange = (
 		_event: SyntheticEvent,
-		selectedOptions: StaffInvitationStatusOption[],
+		selectedOptions: InvitationStatusOption[],
 	) => {
 		const nextStatusFilter = selectedOptions.map((option) => option.value);
 		// Filters invalidate cursor history, so reset to the first page.
@@ -567,7 +557,7 @@ const ProfileCell: MRT_ColumnDef<StaffInvitationRowData, string>['Cell'] = (
 
 const StatusCell: MRT_ColumnDef<
 	StaffInvitationRowData,
-	StaffInvitationRowStatus
+	InvitationStatus
 >['Cell'] = (props) => {
 	const { t } = useTranslate();
 	const status = props.cell.getValue();
@@ -577,16 +567,16 @@ const StatusCell: MRT_ColumnDef<
 	let label: string = t('unknown-item', { item: 'status' });
 	let color: LabelColor = 'default';
 
-	if (status === 'pending') {
+	if (status === INVITATION_STATUS_PENDING) {
 		label = t('pending');
 		color = 'warning';
-	} else if (status === 'accepted') {
+	} else if (status === INVITATION_STATUS_ACCEPTED) {
 		label = t('accepted');
 		color = 'success';
-	} else if (status === 'expired') {
+	} else if (status === INVITATION_STATUS_EXPIRED) {
 		label = t('expired');
 		color = 'error';
-	} else if (status === 'revoked') {
+	} else if (status === INVITATION_STATUS_REVOKED) {
 		label = t('revoked');
 		color = 'default';
 	}
@@ -680,7 +670,7 @@ type InvitationRowActionProps = {
 
 const CopyInvitationLinkAction = ({ invitation }: InvitationRowActionProps) => {
 	const { t } = useTranslate();
-	const canManage = invitation.status === 'pending';
+	const canManage = invitation.status === INVITATION_STATUS_PENDING;
 	const disabledReason = t('only-pending-invitations-can-be-copied');
 
 	const { mutateAsync, isPending } = useGetStaffInvitationLink();
@@ -726,7 +716,7 @@ const CopyInvitationLinkAction = ({ invitation }: InvitationRowActionProps) => {
 
 const ResendInvitationAction = ({ invitation }: InvitationRowActionProps) => {
 	const { t } = useTranslate();
-	const canManage = invitation.status === 'pending';
+	const canManage = invitation.status === INVITATION_STATUS_PENDING;
 	const disabledReason = t('only-pending-invitations-can-be-resent');
 
 	const { mutateAsync, isPending } = useResendStaffInvitation({
@@ -770,7 +760,7 @@ const RevokeInvitationAction = ({ invitation }: InvitationRowActionProps) => {
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
 	const confirmDialog = useBoolean();
-	const canManage = invitation.status === 'pending';
+	const canManage = invitation.status === INVITATION_STATUS_PENDING;
 	const disabledReason = t('only-pending-invitations-can-be-revoked');
 
 	const { mutateAsync, isPending } = useRevokeStaffInvitation({

@@ -6,19 +6,18 @@ import { varAlpha } from 'minimal-shared/utils';
 import { type SyntheticEvent, useId } from 'react';
 
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import type { InvitationStatusOption } from '#app/lib/invitations/invitation-status.ts';
 import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
-
-import type { StaffInvitationStatusOption } from './staff-invitation-status';
 
 type StaffInvitationsToolbarFiltersProps = {
 	isSelectionMode: boolean;
 	selectionModeDisabledReason: string;
-	statusOptions: StaffInvitationStatusOption[];
-	selectedStatusOptions: StaffInvitationStatusOption[];
+	statusOptions: InvitationStatusOption[];
+	selectedStatusOptions: InvitationStatusOption[];
 	statusFilterLength: number;
 	onStatusChange: (
 		event: SyntheticEvent,
-		selectedOptions: StaffInvitationStatusOption[],
+		selectedOptions: InvitationStatusOption[],
 	) => void;
 };
 

@@ -33,7 +33,6 @@ import {
 import { useParams } from 'react-router';
 
 import { DEFAULT_PAGE_SIZE } from '@org/shared-ts/lib/constants';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { ConfirmDialog } from '#app/components/custom-dialog/confirm-dialog.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
@@ -45,6 +44,17 @@ import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
+import {
+	getInvitationStatus,
+	INVITATION_STATUS_ACCEPTED,
+	INVITATION_STATUS_EXPIRED,
+	INVITATION_STATUS_PENDING,
+	INVITATION_STATUS_REVOKED,
+	parseStatusFilter,
+	type InvitationStatus,
+	type InvitationStatusOption,
+	type KnownInvitationStatus,
+} from '#app/lib/invitations/invitation-status.ts';
 import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
 import {
 	useFindTenantInvitations,
@@ -76,28 +86,18 @@ const defaultSorting: MRT_SortingState[number] = {
 };
 const SELECTION_MODE_MENU_MIN_WIDTH = 220;
 
-const parseStatusFilter = (value: string) => {
-	if (!value) {
-		return [];
-	}
-
-	return value.split(',').filter(Boolean);
-};
-
-const STATUS_OPTIONS = [
-	{ label: 'Pending', value: 'pending' },
-	{ label: 'Accepted', value: 'accepted' },
-	{ label: 'Expired', value: 'expired' },
-	{ label: 'Revoked', value: 'revoked' },
+const STATUS_OPTIONS: InvitationStatusOption[] = [
+	{ label: 'Pending', value: INVITATION_STATUS_PENDING },
+	{ label: 'Accepted', value: INVITATION_STATUS_ACCEPTED },
+	{ label: 'Expired', value: INVITATION_STATUS_EXPIRED },
+	{ label: 'Revoked', value: INVITATION_STATUS_REVOKED },
 ];
 
-// Sentinel used for backend status values that don't match the known set, so
-// the row can still render rather than being silently coerced to a known value.
-// Intentionally NOT included in STATUS_OPTIONS (filter values).
-const TENANT_INVITATION_UNKNOWN_STATUS = 'unknown' as const;
-const TENANT_INVITATION_STATUS_VALUE_SET = new Set<string>(
-	STATUS_OPTIONS.map((option) => option.value),
-);
+const getTenantInvitationStatus = (
+	invitation: TenantInvitationRowData,
+): InvitationStatus => {
+	return getInvitationStatus(invitation, 'tenant-invitations-table');
+};
 
 const TenantInvitationsTable = () => {
 	const { t } = useTranslate();
@@ -111,8 +111,8 @@ const TenantInvitationsTable = () => {
 		status: parseAsString.withDefault(''),
 	});
 
-	const [statusFilter, setStatusFilter] = useState<string[]>(() =>
-		parseStatusFilter(filterStates.status),
+	const [statusFilter, setStatusFilter] = useState<KnownInvitationStatus[]>(
+		() => parseStatusFilter(filterStates.status),
 	);
 	const [selectionActionAnchorEl, setSelectionActionAnchorEl] =
 		useState<null | HTMLElement>(null);
@@ -163,7 +163,7 @@ const TenantInvitationsTable = () => {
 
 	const handleStatusChange = (
 		_value: React.SyntheticEvent,
-		selectedOptions: typeof STATUS_OPTIONS,
+		selectedOptions: InvitationStatusOption[],
 	) => {
 		const nextStatusFilter = selectedOptions.map((option) => option.value);
 		resetCursorPagination?.();
@@ -181,7 +181,7 @@ const TenantInvitationsTable = () => {
 				header: t('email'),
 				size: 300,
 			}),
-			columnHelper.accessor((row) => getInvitationStatus(row), {
+			columnHelper.accessor((row) => getTenantInvitationStatus(row), {
 				id: 'status',
 				header: t('status'),
 				enableSorting: false,
@@ -667,7 +667,7 @@ const TenantInvitationsTable = () => {
 				selectedCount={selectedCount}
 				rows={rows}
 				selectedRows={selectedRows}
-				getInvitationStatus={getInvitationStatus}
+				getInvitationStatus={getTenantInvitationStatus}
 			/>
 
 			<ConfirmDialog
@@ -696,42 +696,31 @@ export default TenantInvitationsTable;
 
 // ----------------------------------------------------------------------
 
-const getInvitationStatus = (invitation: TenantInvitationRowData): string => {
-	const status = invitation.status ? _.snakeCase(invitation.status) : '';
-	if (status && TENANT_INVITATION_STATUS_VALUE_SET.has(status)) {
-		return status;
-	}
-	logger.warn('[tenant-invitations-table] unknown invitation status', {
-		invitationId: invitation.id,
-		rawStatus: invitation.status,
-	});
-	return TENANT_INVITATION_UNKNOWN_STATUS;
-};
-
-const StatusCell: MRT_ColumnDef<TenantInvitationRowData, string>['Cell'] = (
-	props,
-) => {
+const StatusCell: MRT_ColumnDef<
+	TenantInvitationRowData,
+	InvitationStatus
+>['Cell'] = (props) => {
 	const { t } = useTranslate();
 	const invitation = props.row.original;
-	const status = getInvitationStatus(invitation);
+	const status = getTenantInvitationStatus(invitation);
 
 	let label: string;
 	let color: 'success' | 'error' | 'warning' | 'default';
 
 	switch (status) {
-		case 'pending':
+		case INVITATION_STATUS_PENDING:
 			label = t('pending');
 			color = 'warning';
 			break;
-		case 'accepted':
+		case INVITATION_STATUS_ACCEPTED:
 			label = t('accepted');
 			color = 'success';
 			break;
-		case 'revoked':
+		case INVITATION_STATUS_REVOKED:
 			label = t('revoked');
 			color = 'error';
 			break;
-		case 'expired':
+		case INVITATION_STATUS_EXPIRED:
 			label = t('expired');
 			color = 'default';
 			break;
@@ -820,7 +809,8 @@ const RevokeInvitationAction = ({
 	const queryClient = useQueryClient();
 	const confirmDialog = useBoolean();
 
-	const canRevoke = getInvitationStatus(invitation) === 'pending';
+	const canRevoke =
+		getTenantInvitationStatus(invitation) === INVITATION_STATUS_PENDING;
 	const disabledReason = t('only-pending-invitations-can-be-revoked');
 
 	const { mutate: revokeInvitation, isPending } = useRevokeTenantInvitation({
