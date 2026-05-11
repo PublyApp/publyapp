@@ -129,17 +129,15 @@ namespace MainApi.Migrations {
 					name: "sessions",
 					columns: table => new {
 						id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "uuidv7()"),
+						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						user_id = table.Column<Guid>(type: "uuid", nullable: false),
 						token = table.Column<string>(type: "text", nullable: false),
 						expires_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						is_impersonation = table.Column<bool>(type: "boolean", nullable: false),
 						impersonating_staff_user_id = table.Column<Guid>(type: "uuid", nullable: true),
 						impersonation_reason = table.Column<string>(type: "text", nullable: true),
-						impersonation_expires_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
-						deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+						impersonation_expires_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
 					},
 					constraints: table => {
 						table.PrimaryKey("PK_sessions", x => x.id);
