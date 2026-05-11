@@ -14,9 +14,11 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
+import { ComingSoonView } from '#app/components/error/coming-soon-view.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { SettingsPageHeader } from '#app/components/settings/settings-page-header.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { FEATURES } from '#app/lib/features/flags.ts';
 
 const MOCK_MEMBERS = [
 	{
@@ -55,6 +57,10 @@ const MOCK_MEMBERS = [
 
 const SettingsMembersPage = () => {
 	const { t } = useTranslate();
+
+	if (!FEATURES.tenant.settings.members) {
+		return <ComingSoonView withLayout={false} />;
+	}
 
 	return (
 		<Stack spacing={3}>

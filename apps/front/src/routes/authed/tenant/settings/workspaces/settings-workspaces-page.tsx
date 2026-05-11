@@ -8,9 +8,11 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
+import { ComingSoonView } from '#app/components/error/coming-soon-view.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { SettingsPageHeader } from '#app/components/settings/settings-page-header.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { FEATURES } from '#app/lib/features/flags.ts';
 
 const MOCK_WORKSPACES = [
 	{
@@ -38,6 +40,10 @@ const MOCK_WORKSPACES = [
 
 const SettingsWorkspacesPage = () => {
 	const { t } = useTranslate();
+
+	if (!FEATURES.tenant.settings.workspaces) {
+		return <ComingSoonView withLayout={false} />;
+	}
 
 	return (
 		<Stack spacing={3}>
