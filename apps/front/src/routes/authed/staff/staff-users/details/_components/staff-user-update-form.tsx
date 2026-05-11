@@ -390,8 +390,8 @@ const DangerZoneCard = ({
 
 	const { mutate: updateEmail, isPending: isUpdatingEmail } =
 		useUpdateStaffUserEmail({
-			meta: { successMessage: 'staff-user-email-updated-success' },
 			onSuccess: () => {
+				toast.success(t('staff-user-email-updated-success'));
 				setEmailDialogOpen(false);
 				setNewEmail('');
 				setConfirmEmail('');
