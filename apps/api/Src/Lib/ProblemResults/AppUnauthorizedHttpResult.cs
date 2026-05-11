@@ -21,7 +21,12 @@ public sealed class AppUnauthorizedHttpResult : IResult, IEndpointMetadataProvid
 
 		httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
 		httpContext.Response.ContentType = "application/problem+json";
-		await httpContext.Response.WriteAsJsonAsync(_problemDetails, httpContext.RequestAborted);
+		await httpContext.Response.WriteAsJsonAsync(
+			_problemDetails,
+			options: null,
+			contentType: "application/problem+json",
+			cancellationToken: httpContext.RequestAborted
+		);
 	}
 
 	/// <summary>

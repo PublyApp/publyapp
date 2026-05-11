@@ -21,7 +21,12 @@ public sealed class AppForbiddenHttpResult : IResult, IEndpointMetadataProvider 
 
 		httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
 		httpContext.Response.ContentType = "application/problem+json";
-		await httpContext.Response.WriteAsJsonAsync(_problemDetails, httpContext.RequestAborted);
+		await httpContext.Response.WriteAsJsonAsync(
+			_problemDetails,
+			options: null,
+			contentType: "application/problem+json",
+			cancellationToken: httpContext.RequestAborted
+		);
 	}
 
 	/// <summary>
