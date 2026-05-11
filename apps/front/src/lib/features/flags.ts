@@ -56,4 +56,17 @@ export const FEATURES = deepFreeze({
 			},
 		},
 	},
+	tenant: {
+		settings: {
+			members: readFlag('VITE_FEATURE_TENANT_SETTINGS_MEMBERS', false),
+			roles: readFlag('VITE_FEATURE_TENANT_SETTINGS_ROLES', false),
+			workspaces: readFlag('VITE_FEATURE_TENANT_SETTINGS_WORKSPACES', false),
+			integrations: readFlag(
+				'VITE_FEATURE_TENANT_SETTINGS_INTEGRATIONS',
+				false,
+			),
+			billing: readFlag('VITE_FEATURE_TENANT_SETTINGS_BILLING', false),
+			security: readFlag('VITE_FEATURE_TENANT_SETTINGS_SECURITY', false),
+		},
+	},
 });

@@ -8,13 +8,19 @@ import Switch from '@mui/material/Switch';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
+import { ComingSoonView } from '#app/components/error/coming-soon-view.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { FormRow } from '#app/components/settings/form-row.tsx';
 import { SettingsPageHeader } from '#app/components/settings/settings-page-header.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { FEATURES } from '#app/lib/features/flags.ts';
 
 const SettingsSecurityPage = () => {
 	const { t } = useTranslate();
+
+	if (!FEATURES.tenant.settings.security) {
+		return <ComingSoonView withLayout={false} />;
+	}
 
 	return (
 		<Stack spacing={3}>

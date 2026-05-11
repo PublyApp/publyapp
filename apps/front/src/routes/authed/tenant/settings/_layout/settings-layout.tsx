@@ -10,9 +10,11 @@ import {
 	isServer,
 } from '@org/shared-ts/lib/constants';
 
+import { Iconify } from '#app/components/iconify/iconify.tsx';
 import type { SettingsNavItem } from '#app/components/settings/settings-nav.tsx';
 import { SidebarSettingsLayout } from '#app/components/settings/sidebar-settings-layout.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { FEATURES } from '#app/lib/features/flags.ts';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 import type { Route } from './+types/settings-layout';
@@ -55,6 +57,14 @@ export const loader = getServerLoader({
 	},
 });
 
+const getLockedEndIcon = (enabled: boolean) => {
+	if (enabled) {
+		return undefined;
+	}
+
+	return <Iconify icon="solar:lock-password-outline" width={16} />;
+};
+
 const SettingsLayout = () => {
 	const { t } = useTranslate();
 	const { tenantId = '' } = useParams();
@@ -68,26 +78,38 @@ const SettingsLayout = () => {
 		{
 			label: t('members'),
 			href: paths.members,
+			disabled: !FEATURES.tenant.settings.members,
+			endIcon: getLockedEndIcon(FEATURES.tenant.settings.members),
 		},
 		{
 			label: t('workspaces'),
 			href: paths.workspaces,
+			disabled: !FEATURES.tenant.settings.workspaces,
+			endIcon: getLockedEndIcon(FEATURES.tenant.settings.workspaces),
 		},
 		{
 			label: t('roles-and-permissions'),
 			href: paths.roles,
+			disabled: !FEATURES.tenant.settings.roles,
+			endIcon: getLockedEndIcon(FEATURES.tenant.settings.roles),
 		},
 		{
 			label: t('security'),
 			href: paths.security,
+			disabled: !FEATURES.tenant.settings.security,
+			endIcon: getLockedEndIcon(FEATURES.tenant.settings.security),
 		},
 		{
 			label: t('integrations'),
 			href: paths.integrations,
+			disabled: !FEATURES.tenant.settings.integrations,
+			endIcon: getLockedEndIcon(FEATURES.tenant.settings.integrations),
 		},
 		{
 			label: t('billing'),
 			href: paths.billing,
+			disabled: !FEATURES.tenant.settings.billing,
+			endIcon: getLockedEndIcon(FEATURES.tenant.settings.billing),
 		},
 	];
 
