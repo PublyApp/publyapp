@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MainApi.Migrations
 {
     [DbContext(typeof(MainApiDbContext))]
-    [Migration("20260507053632_Init")]
+    [Migration("20260511120526_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -98,10 +98,6 @@ namespace MainApi.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
@@ -117,10 +113,6 @@ namespace MainApi.Migrations
                     b.Property<string>("ImpersonationReason")
                         .HasColumnType("text")
                         .HasColumnName("impersonation_reason");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
 
                     b.Property<bool>("IsImpersonation")
                         .HasColumnType("boolean")
