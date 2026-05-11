@@ -68,7 +68,6 @@ export type UseTableStateReturn = {
 	// Cursor-specific fields
 	paginationMode: 'offset' | 'cursor';
 	setNextCursor?: (cursor: string | null | undefined) => void;
-	hasNextPage?: boolean;
 	hasPreviousPage?: boolean;
 	resetCursorPagination?: () => void;
 };
@@ -113,15 +112,11 @@ export const useTableState = (
 	const [_cursorHistory, setCursorHistory] = useState<string[]>([]);
 	const [currentCursor, setCurrentCursor] = useState<string | null>(null);
 	const [virtualPageIndex, setVirtualPageIndex] = useState(0);
-	// Track the next cursor in state so pagination updates stay explicit.
-	const [nextCursor, setNextCursorState] = useState<string | null | undefined>(
-		undefined,
-	);
+	// Track the next cursor in a ref so pagination updates use the freshest query result.
 	const nextCursorRef = useRef<string | null | undefined>(undefined);
 
 	const setNextCursor = useCallback((cursor: string | null | undefined) => {
 		nextCursorRef.current = cursor;
-		setNextCursorState(cursor);
 	}, []);
 
 	// Explicit reset for cursor pagination when external filters change.
@@ -342,10 +337,6 @@ export const useTableState = (
 	// Cursor-specific computed values
 	const hasPreviousPage =
 		paginationMode === 'cursor' ? virtualPageIndex > 0 : undefined;
-	const hasNextPage =
-		paginationMode === 'cursor'
-			? nextCursor !== null && nextCursor !== undefined
-			: undefined;
 
 	return {
 		paginationState,
@@ -358,7 +349,6 @@ export const useTableState = (
 		tableState,
 		paginationMode,
 		setNextCursor: paginationMode === 'cursor' ? setNextCursor : undefined,
-		hasNextPage,
 		hasPreviousPage,
 		resetCursorPagination:
 			paginationMode === 'cursor' ? resetCursorPagination : undefined,

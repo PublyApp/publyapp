@@ -191,18 +191,17 @@ const handleStatusChange = (statusCsv: string) => {
 };
 ```
 
-### Re-derive `hasNextPage` from the freshest server response
+### Derive `hasNextPage` from the freshest server response
 
-`useTableState`'s `hasNextPage` lags by one render until pagination is interacted with, so
-consumers that surface it (MRT pagination, "Load more" buttons) on initial load see a stale value
-and may render an empty next page. Derive it directly from the query payload instead:
+`useTableState` intentionally does not expose a hook-level `hasNextPage` value because that
+state can lag behind the latest query payload. Consumers that surface next-page availability
+(MRT pagination, "Load more" buttons) should derive it directly from the query payload instead:
 
 ```ts
 const hasNextPage = invitationsQuery.data?.nextCursor != null;
 ```
 
-Use this pattern in every cursor-paginated table consumer until the hook itself returns a
-freshness-correct value.
+Keep passing this derived value through table `meta.hasNextPage` when using cursor table presets.
 
 ## 7) Bulk Actions (List Tables)
 
