@@ -28,7 +28,7 @@ export type CursorPaginationMeta<TData extends MRT_RowData = MRT_RowData> =
 	SharedToolbarMeta<TData> & {
 		/** Pagination change handler from useTableState */
 		handlePaginationChange: OnChangeFn<MRT_PaginationState>;
-		/** Whether there's a next page available (from useTableState) */
+		/** Whether there's a next page available (derive from the freshest query result) */
 		hasNextPage?: boolean;
 		/** Whether there's a previous page available (from useTableState) */
 		hasPreviousPage?: boolean;

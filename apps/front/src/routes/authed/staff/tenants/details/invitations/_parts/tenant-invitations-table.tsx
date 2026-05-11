@@ -126,7 +126,6 @@ const TenantInvitationsTable = () => {
 		apiVariables,
 		tableState,
 		setNextCursor,
-		hasNextPage,
 		hasPreviousPage,
 		resetCursorPagination,
 	} = useTableState({
@@ -236,6 +235,8 @@ const TenantInvitationsTable = () => {
 			setNextCursor(tenantInvitationsQuery.data?.nextCursor);
 		}
 	}, [tenantInvitationsQuery.data?.nextCursor, setNextCursor]);
+
+	const hasNextPage = tenantInvitationsQuery.data?.nextCursor != null;
 
 	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
 		query: tenantInvitationsQuery,
