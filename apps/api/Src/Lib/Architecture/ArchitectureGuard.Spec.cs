@@ -4,6 +4,7 @@ using System.Reflection;
 using FluentAssertions;
 
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Modules.Auth.Entities;
 using MainApi.Src.Modules.Profiles.Entities;
 using MainApi.Src.Modules.Users.Entities;
 
@@ -15,6 +16,35 @@ namespace MainApi.Src.Lib.Architecture {
 	public sealed class ArchitectureGuardSpec {
 		static ArchitectureGuardSpec() {
 			AppEnvironment.Initialize();
+		}
+
+		[Fact]
+		public void
+		ItShouldKeepSessionCredentialRowsWithoutSoftDeleteColumns() {
+			var options = new DbContextOptionsBuilder<MainApiDbContext>()
+				.UseNpgsql("Host=localhost;Database=architecture_guard")
+				.Options;
+			using var dbContext = new MainApiDbContext(options);
+
+			var entityType = dbContext.Model.FindEntityType(typeof(Session));
+			entityType.Should().NotBeNull();
+			if (entityType is null) {
+				throw new InvalidOperationException("Session entity type was not found.");
+			}
+
+			entityType.FindProperty("Id").Should().NotBeNull();
+			entityType.FindProperty("CreatedAt").Should().NotBeNull();
+			entityType.FindProperty("UpdatedAt").Should().NotBeNull();
+			entityType.FindProperty("IsDeleted").Should().BeNull();
+			entityType.FindProperty("DeletedAt").Should().BeNull();
+
+			var idProperty = entityType.FindProperty("Id");
+			idProperty.Should().NotBeNull();
+			if (idProperty is null) {
+				throw new InvalidOperationException("Session id property was not found.");
+			}
+
+			idProperty.GetDefaultValueSql().Should().Be("uuidv7()");
 		}
 
 		[Fact]
