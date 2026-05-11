@@ -9,9 +9,11 @@ import { alpha } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import { nanoid } from 'nanoid';
 
+import { ComingSoonView } from '#app/components/error/coming-soon-view.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { SettingsPageHeader } from '#app/components/settings/settings-page-header.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { FEATURES } from '#app/lib/features/flags.ts';
 
 const _invoices = [
 	{ id: nanoid(), date: 'Dec 1, 2026', amount: '$49.00', status: 'Paid' },
@@ -22,6 +24,10 @@ const _invoices = [
 
 const SettingsBillingPage = () => {
 	const { t } = useTranslate();
+
+	if (!FEATURES.tenant.settings.billing) {
+		return <ComingSoonView withLayout={false} />;
+	}
 
 	return (
 		<Stack spacing={3}>

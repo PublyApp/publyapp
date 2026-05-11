@@ -8,9 +8,11 @@ import { alpha } from '@mui/material/styles';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 
+import { ComingSoonView } from '#app/components/error/coming-soon-view.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { SettingsPageHeader } from '#app/components/settings/settings-page-header.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { FEATURES } from '#app/lib/features/flags.ts';
 
 const INTEGRATIONS = [
 	{
@@ -63,8 +65,25 @@ const INTEGRATIONS = [
 	},
 ];
 
+type Integration = (typeof INTEGRATIONS)[number];
+
+const CONNECTED_INTEGRATIONS: Integration[] = [];
+const AVAILABLE_INTEGRATIONS: Integration[] = [];
+
+for (const integration of INTEGRATIONS) {
+	if (integration.connected) {
+		CONNECTED_INTEGRATIONS.push(integration);
+	} else {
+		AVAILABLE_INTEGRATIONS.push(integration);
+	}
+}
+
 const SettingsIntegrationsPage = () => {
 	const { t } = useTranslate();
+
+	if (!FEATURES.tenant.settings.integrations) {
+		return <ComingSoonView withLayout={false} />;
+	}
 
 	return (
 		<Stack spacing={3}>
@@ -80,7 +99,7 @@ const SettingsIntegrationsPage = () => {
 				</Typography>
 
 				<Stack spacing={2}>
-					{INTEGRATIONS.filter((i) => i.connected).map((integration) => (
+					{CONNECTED_INTEGRATIONS.map((integration) => (
 						<Box
 							key={integration.id}
 							sx={{
@@ -151,7 +170,7 @@ const SettingsIntegrationsPage = () => {
 						gap: 2,
 					}}
 				>
-					{INTEGRATIONS.filter((i) => !i.connected).map((integration) => (
+					{AVAILABLE_INTEGRATIONS.map((integration) => (
 						<Box
 							key={integration.id}
 							sx={{
