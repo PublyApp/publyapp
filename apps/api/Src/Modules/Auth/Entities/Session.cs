@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
@@ -12,7 +13,17 @@ namespace MainApi.Src.Modules.Auth.Entities;
 [Table("sessions")]
 [Index(nameof(Token), IsUnique = true)]
 [Index(nameof(ExpiresAt))]
-public class Session : BaseAttributes, INoTenantEntity {
+public class Session : INoTenantEntity {
+	[Key]
+	[Column("id")]
+	public Guid? Id { get; set; }
+
+	[Column("created_at")]
+	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+	[Column("updated_at")]
+	public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
 	[Column("user_id")]
 	public required Guid UserId { get; set; }
 
