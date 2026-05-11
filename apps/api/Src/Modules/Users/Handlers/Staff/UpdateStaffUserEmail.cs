@@ -6,6 +6,7 @@ using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.AuditLogs.Entities;
 using MainApi.Src.Modules.AuditLogs.Services;
 using MainApi.Src.Modules.Users.Entities;
@@ -28,18 +29,7 @@ public sealed class UpdateStaffUserEmailBodyValidator
 	: AbstractValidator<UpdateStaffUserEmailBody> {
 	public UpdateStaffUserEmailBodyValidator() {
 		RuleFor(x => x.Email)
-			.NotEmpty()
-			.WithMessage("Email is required")
-			.Must(e => e.ValueKind == JsonValueKind.String)
-			.WithMessage("Email must be a string")
-			.Must(e => {
-				var email = e.GetString();
-				if (string.IsNullOrWhiteSpace(email)) {
-					return false;
-				}
-				return System.Net.Mail.MailAddress.TryCreate(email, out _);
-			})
-			.WithMessage("Email must be a valid email address");
+			.MustBeRequiredEmail();
 	}
 }
 
