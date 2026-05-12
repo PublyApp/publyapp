@@ -57,8 +57,8 @@ export const DateRangeFilter = ({
 	};
 
 	const handleSelectPreset = (next: DateRange) => {
+		setDraft(next);
 		onChange(next);
-		handleClose();
 	};
 
 	// Calendar reports each click. Commit only when both endpoints
