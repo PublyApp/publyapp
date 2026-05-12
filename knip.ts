@@ -20,6 +20,7 @@ const config: KnipConfig = {
 			project: [
 				'src/**/*.{tsx,ts,mjs,js,cjs,json}',
 				'server/**/*.{ts,mjs,js,cjs,json}',
+				'_vite/**/*.{ts,mjs,js,cjs}',
 			],
 		},
 		'apps/api': {
