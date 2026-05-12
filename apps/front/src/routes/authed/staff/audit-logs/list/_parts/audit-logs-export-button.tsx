@@ -12,7 +12,7 @@ import { downloadTextFile } from '#app/lib/export/download.ts';
 import { getClientManager } from '#app/lib/js-client/client-manager.ts';
 
 type AuditLogsExportButtonProps = {
-	actionFilter?: string;
+	actions?: string[];
 	startDate?: string;
 	endDate?: string;
 };
@@ -27,7 +27,7 @@ const triggerDownload = (buffer: ArrayBuffer, format: string) => {
 };
 
 export const AuditLogsExportButton = ({
-	actionFilter,
+	actions,
 	startDate,
 	endDate,
 }: AuditLogsExportButtonProps) => {
@@ -53,7 +53,7 @@ export const AuditLogsExportButton = ({
 			const result = await client.staff.auditLogs.exportEscaped.get({
 				queryParameters: {
 					format,
-					action: actionFilter || undefined,
+					actions: actions && actions.length > 0 ? actions : undefined,
 					startDate: startDate || undefined,
 					endDate: endDate || undefined,
 				},

@@ -99,7 +99,7 @@ const StaffAuditLogsTable = () => {
 			cursor: apiVariables.cursor || undefined,
 			limit: apiVariables.limit,
 			sort: apiVariables.sort,
-			action: actionFilter || undefined,
+			actions: actionFilter ? [actionFilter] : undefined,
 			startDate: startDateIso,
 			endDate: endDateIso,
 		},
@@ -265,7 +265,7 @@ const StaffAuditLogsTable = () => {
 	const renderExportActions = () => {
 		return (
 			<AuditLogsExportButton
-				actionFilter={actionFilter}
+				actions={actionFilter ? [actionFilter] : undefined}
 				startDate={startDateIso}
 				endDate={endDateIso}
 			/>

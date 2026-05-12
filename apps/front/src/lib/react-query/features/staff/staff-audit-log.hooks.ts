@@ -7,7 +7,7 @@ type FindStaffAuditLogsParams = {
 	cursor?: string;
 	limit?: number;
 	sort?: { id: string; order: 'desc' | 'asc' };
-	action?: string;
+	actions?: string[];
 	userId?: string;
 	targetId?: string;
 	startDate?: string;
@@ -23,7 +23,7 @@ export const useFindStaffAuditLogs = createStaffQuery({
 				limit: params.limit ? params.limit.toString() : undefined,
 				sortId: params.sort?.id,
 				sortOrder: params.sort?.order,
-				action: params.action,
+				actions: params.actions,
 				userId: params.userId,
 				targetId: params.targetId,
 				startDate: params.startDate,
