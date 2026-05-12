@@ -4,6 +4,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import InputAdornment from '@mui/material/InputAdornment';
 import Skeleton from '@mui/material/Skeleton';
 import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import filter from 'lodash/filter';
 import map from 'lodash/map';
@@ -77,33 +78,50 @@ const renderListBody = ({
 				</Typography>
 			)}
 			{map(section.items, (opt) => (
-				<FormControlLabel
+				<Tooltip
 					key={opt.value}
-					sx={{
-						display: 'flex',
-						mx: 0,
-						px: 1.5,
-						py: 0.25,
-					}}
-					control={
-						<Checkbox
-							size="small"
-							checked={selected.includes(opt.value)}
-							onChange={() => onToggle(opt.value)}
-						/>
-					}
-					label={
-						<Typography
-							variant="body2"
-							sx={{
-								fontFamily: 'monospace',
-								fontSize: '0.8rem',
-							}}
-						>
-							{opt.label}
-						</Typography>
-					}
-				/>
+					title={opt.label}
+					placement="right"
+					enterDelay={600}
+					enterNextDelay={300}
+				>
+					<FormControlLabel
+						sx={{
+							display: 'flex',
+							mx: 0,
+							px: 1.5,
+							py: 0.25,
+							overflow: 'hidden',
+							'& .MuiFormControlLabel-label': {
+								flexGrow: 1,
+								minWidth: 0,
+								overflow: 'hidden',
+							},
+							'&:hover': { bgcolor: 'action.hover' },
+						}}
+						control={
+							<Checkbox
+								size="small"
+								checked={selected.includes(opt.value)}
+								onChange={() => onToggle(opt.value)}
+							/>
+						}
+						label={
+							<Typography
+								variant="body2"
+								sx={{
+									fontFamily: 'monospace',
+									fontSize: '0.8rem',
+									whiteSpace: 'nowrap',
+									overflow: 'hidden',
+									textOverflow: 'ellipsis',
+								}}
+							>
+								{opt.label}
+							</Typography>
+						}
+					/>
+				</Tooltip>
 			))}
 		</Box>
 	));
@@ -193,7 +211,7 @@ export const MultiSelectChipFilterList = ({
 					}}
 				/>
 			</Box>
-			<Box sx={{ overflowY: 'auto', flexGrow: 1 }}>
+			<Box sx={{ overflowY: 'auto', overflowX: 'hidden', flexGrow: 1 }}>
 				{renderListBody({
 					loading,
 					grouped,
