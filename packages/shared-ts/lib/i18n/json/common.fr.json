@@ -763,5 +763,14 @@
 	"reactivate-tenant-user-description": "L'accès à ce locataire sera restauré. Êtes-vous sûr de vouloir continuer ?",
 	"globally-suspended-row-disabled": "Cet utilisateur est suspendu globalement. Réactivez l'utilisateur globalement avant de gérer la membership du locataire.",
 	"email-must-be-different": "Saisissez une adresse email différente.",
-	"globally-suspended": "Suspendu globalement"
+	"globally-suspended": "Suspendu globalement",
+	"today": "Aujourd'hui",
+	"yesterday": "Hier",
+	"last-n-days": "{{count}} derniers jours",
+	"custom": "Personnalisé",
+	"apply": "Appliquer",
+	"clear": "Effacer",
+	"clear-all": "Tout effacer",
+	"selected-count": "{{count}} sélectionnés",
+	"no-results-found": "Aucun résultat trouvé"
 }
