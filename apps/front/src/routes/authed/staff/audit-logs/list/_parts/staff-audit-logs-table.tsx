@@ -30,7 +30,7 @@ import {
 	useFindStaffAuditLogs,
 	useGetStaffAuditLogActions,
 } from '#app/lib/react-query/features/staff/staff-audit-log.hooks.ts';
-import { fDateTime, fToNow } from '#app/utils/format-time.ts';
+import { dayjs, fDateTime, fToNow } from '#app/utils/format-time.ts';
 
 import { AuditLogsExportButton } from './audit-logs-export-button';
 import { useStaffAuditLogsFilters } from './use-staff-audit-logs-filters';
@@ -189,6 +189,8 @@ const StaffAuditLogsTable = () => {
 					label={t('date')}
 					value={dateRange}
 					onChange={setDateRange}
+					minDate={dayjs('2024-01-01')}
+					maxDate={dayjs()}
 				/>
 				<MultiSelectChipFilter
 					label={t('action')}

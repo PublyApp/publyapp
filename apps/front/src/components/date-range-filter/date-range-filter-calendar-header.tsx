@@ -1,11 +1,9 @@
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
-import Tooltip from '@mui/material/Tooltip';
 import type { PickersCalendarHeaderProps } from '@mui/x-date-pickers/PickersCalendarHeader';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
-import { useTranslate } from '#app/hooks/use-translate.ts';
 
 export const DateRangeCalendarHeader = ({
 	currentMonth,
@@ -13,8 +11,6 @@ export const DateRangeCalendarHeader = ({
 	onViewChange,
 	onMonthChange,
 }: PickersCalendarHeaderProps) => {
-	const { t } = useTranslate();
-
 	const handlePrev = () => {
 		onMonthChange(currentMonth.subtract(1, 'month'));
 	};
@@ -43,11 +39,9 @@ export const DateRangeCalendarHeader = ({
 						? currentMonth.format('YYYY')
 						: currentMonth.format('MMMM YYYY')}
 				</Box>
-				<Tooltip title={t('cancel')} placement="top" arrow>
-					<IconButton size="small" onClick={handleExit}>
-						<Iconify icon="carbon:close" width={18} />
-					</IconButton>
-				</Tooltip>
+				<IconButton size="small" onClick={handleExit}>
+					<Iconify icon="carbon:close" width={18} />
+				</IconButton>
 			</Box>
 		);
 	}
