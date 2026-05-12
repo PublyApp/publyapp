@@ -93,7 +93,6 @@ export const MultiSelectChipFilter = ({
 								py: 0.25,
 								borderRadius: 0.75,
 								bgcolor: 'action.selected',
-								color: 'text.primary',
 								fontWeight: 500,
 								fontSize: '0.8125rem',
 								minWidth: 20,
