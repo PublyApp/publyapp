@@ -20,12 +20,7 @@
 		"dayjs": "^1.11.10",
 		"i18next": "^24.2.2",
 		"lodash": "^4.17.21",
-		"mongodb": "^5.9.0",
-		"mongoose": "^8.0.4",
 		"ms": "^2.1.3",
-		"multer": "^2.0.1",
-		"numeral": "^2.0.6",
-		"parse": "6.0.0",
 		"posthog-js": "1.268.1",
 		"posthog-node": "4.17.1",
 		"winston": "^3.11.0",
@@ -37,9 +32,6 @@
 	"devDependencies": {
 		"@types/lodash": "^4.14.202",
 		"@types/ms": "^0.7.34",
-		"@types/multer": "^2.0.0",
-		"@types/numeral": "^2.0.5",
-		"@types/parse": "^3.0.9",
 		"tsconfig": "workspace:*"
 	}
 }
