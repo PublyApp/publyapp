@@ -1,12 +1,7 @@
 import Box from '@mui/material/Box';
-import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
-import InputLabel from '@mui/material/InputLabel';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import capitalize from 'lodash/capitalize';
 import map from 'lodash/map';
 import {
@@ -15,7 +10,7 @@ import {
 	type MRT_ColumnDef,
 	type MRT_SortingState,
 } from 'material-react-table';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import type { AuditLogListItem } from '@org/client-ts/src/models';
 import {
@@ -23,7 +18,9 @@ import {
 	FRONT_PATH_NAMES,
 } from '@org/shared-ts/lib/constants';
 
+import { DateRangeFilter } from '#app/components/date-range-filter/index.ts';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { MultiSelectChipFilter } from '#app/components/multi-select-chip-filter/index.ts';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
@@ -33,14 +30,10 @@ import {
 	useFindStaffAuditLogs,
 	useGetStaffAuditLogActions,
 } from '#app/lib/react-query/features/staff/staff-audit-log.hooks.ts';
-import {
-	type Dayjs,
-	fDateTime,
-	formatPatterns,
-	fToNow,
-} from '#app/utils/format-time.ts';
+import { fDateTime, fToNow } from '#app/utils/format-time.ts';
 
 import { AuditLogsExportButton } from './audit-logs-export-button';
+import { useStaffAuditLogsFilters } from './use-staff-audit-logs-filters';
 
 type AuditLogRowData = {
 	id: string;
@@ -73,9 +66,6 @@ const defaultSorting: MRT_SortingState[number] = {
 
 const StaffAuditLogsTable = () => {
 	const { t } = useTranslate();
-	const [actionFilter, setActionFilter] = useState<string>('');
-	const [startDate, setStartDate] = useState<Dayjs | null>(null);
-	const [endDate, setEndDate] = useState<Dayjs | null>(null);
 
 	const {
 		handlePaginationChange,
@@ -91,15 +81,18 @@ const StaffAuditLogsTable = () => {
 		paginationMode: 'cursor',
 	});
 
-	const startDateIso = startDate?.startOf('day').toISOString();
-	const endDateIso = endDate?.endOf('day').toISOString();
+	const { actions, dateRange, setActions, setDateRange } =
+		useStaffAuditLogsFilters(resetCursorPagination);
+
+	const startDateIso = dateRange.from?.startOf('day').toISOString();
+	const endDateIso = dateRange.to?.endOf('day').toISOString();
 
 	const auditLogsQuery = useFindStaffAuditLogs({
 		variables: {
 			cursor: apiVariables.cursor || undefined,
 			limit: apiVariables.limit,
 			sort: apiVariables.sort,
-			actions: actionFilter ? [actionFilter] : undefined,
+			actions: actions.length > 0 ? actions : undefined,
 			startDate: startDateIso,
 			endDate: endDateIso,
 		},
@@ -182,82 +175,28 @@ const StaffAuditLogsTable = () => {
 	}, [t]);
 
 	const actionOptions = useMemo(() => {
-		return actionsQuery.data?.actions ?? [];
+		return map(actionsQuery.data?.actions ?? [], (a) => ({
+			value: a,
+			label: a,
+			group: a.split('.')[0] ?? '',
+		}));
 	}, [actionsQuery.data]);
 
 	const renderToolbarFilters = () => {
 		return (
 			<>
-				<DatePicker
-					label={t('start-date')}
-					value={startDate}
-					onChange={(newValue) => {
-						resetCursorPagination?.();
-						setStartDate(newValue);
-					}}
-					format={formatPatterns.split.date}
-					maxDate={endDate ?? undefined}
-					slotProps={{
-						textField: { size: 'small' },
-						field: {
-							clearable: true,
-							onClear: () => {
-								resetCursorPagination?.();
-								setStartDate(null);
-							},
-						},
-					}}
+				<DateRangeFilter
+					label={t('date')}
+					value={dateRange}
+					onChange={setDateRange}
 				/>
-
-				<DatePicker
-					label={t('end-date')}
-					value={endDate}
-					onChange={(newValue) => {
-						resetCursorPagination?.();
-						setEndDate(newValue);
-					}}
-					format={formatPatterns.split.date}
-					minDate={startDate ?? undefined}
-					slotProps={{
-						textField: { size: 'small' },
-						field: {
-							clearable: true,
-							onClear: () => {
-								resetCursorPagination?.();
-								setEndDate(null);
-							},
-						},
-					}}
+				<MultiSelectChipFilter
+					label={t('action')}
+					options={actionOptions}
+					value={actions}
+					onChange={setActions}
+					loading={actionsQuery.isPending}
 				/>
-
-				<FormControl size="small" sx={{ minWidth: 240 }}>
-					<InputLabel id="audit-logs-action-filter-label">
-						{t('action')}
-					</InputLabel>
-					<Select
-						labelId="audit-logs-action-filter-label"
-						label={t('action')}
-						value={actionFilter}
-						onChange={(event) => {
-							resetCursorPagination?.();
-							setActionFilter(event.target.value);
-						}}
-						displayEmpty
-						renderValue={(selected) => {
-							if (!selected) {
-								return t('all');
-							}
-							return selected;
-						}}
-					>
-						<MenuItem value="">{t('all')}</MenuItem>
-						{actionOptions.map((action) => (
-							<MenuItem key={action} value={action}>
-								{action}
-							</MenuItem>
-						))}
-					</Select>
-				</FormControl>
 			</>
 		);
 	};
@@ -265,7 +204,7 @@ const StaffAuditLogsTable = () => {
 	const renderExportActions = () => {
 		return (
 			<AuditLogsExportButton
-				actions={actionFilter ? [actionFilter] : undefined}
+				actions={actions.length > 0 ? actions : undefined}
 				startDate={startDateIso}
 				endDate={endDateIso}
 			/>
