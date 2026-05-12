@@ -78,7 +78,6 @@ export const DateRangeFilterCalendar = ({
 				sx={{
 					...(inRange && {
 						bgcolor: 'action.selected',
-						borderRadius: 0,
 					}),
 				}}
 			/>
