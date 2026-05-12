@@ -1,6 +1,6 @@
 import { parseAsArrayOf, parseAsString, useQueryStates } from 'nuqs';
 
-import type { DateRange } from '#app/components/date-range-filter/index.ts';
+import type { DateRange } from '#app/components/date-range-filter/date-range-filter.types.ts';
 import { dayjs } from '#app/utils/format-time.ts';
 
 const parsers = {

@@ -18,9 +18,9 @@ import {
 	FRONT_PATH_NAMES,
 } from '@org/shared-ts/lib/constants';
 
-import { DateRangeFilter } from '#app/components/date-range-filter/index.ts';
+import { DateRangeFilter } from '#app/components/date-range-filter/date-range-filter.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
-import { MultiSelectChipFilter } from '#app/components/multi-select-chip-filter/index.ts';
+import { MultiSelectChipFilter } from '#app/components/multi-select-chip-filter/multi-select-chip-filter.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';

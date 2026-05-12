@@ -29,6 +29,86 @@ type GroupedSection = {
 	items: MultiSelectChipFilterOption[];
 };
 
+type RenderBodyArgs = {
+	loading?: boolean;
+	grouped: GroupedSection[];
+	filteredCount: number;
+	emptyLabel: string;
+	selected: string[];
+	onToggle: (value: string) => void;
+};
+
+const renderListBody = ({
+	loading,
+	grouped,
+	filteredCount,
+	emptyLabel,
+	selected,
+	onToggle,
+}: RenderBodyArgs) => {
+	if (loading) {
+		return map([0, 1, 2, 3, 4], (i) => (
+			<Box key={i} sx={{ px: 1.5, py: 0.5 }}>
+				<Skeleton variant="text" />
+			</Box>
+		));
+	}
+	if (filteredCount === 0) {
+		return (
+			<Box sx={{ p: 2, textAlign: 'center' }}>
+				<Typography variant="body2" sx={{ color: 'text.secondary' }}>
+					{emptyLabel}
+				</Typography>
+			</Box>
+		);
+	}
+	return map(grouped, (section) => (
+		<Box key={section.group ?? '_'} sx={{ py: 0.5 }}>
+			{section.group && (
+				<Typography
+					variant="overline"
+					sx={{
+						display: 'block',
+						px: 1.5,
+						color: 'text.secondary',
+					}}
+				>
+					{section.group}
+				</Typography>
+			)}
+			{map(section.items, (opt) => (
+				<FormControlLabel
+					key={opt.value}
+					sx={{
+						display: 'flex',
+						mx: 0,
+						px: 1.5,
+						py: 0.25,
+					}}
+					control={
+						<Checkbox
+							size="small"
+							checked={selected.includes(opt.value)}
+							onChange={() => onToggle(opt.value)}
+						/>
+					}
+					label={
+						<Typography
+							variant="body2"
+							sx={{
+								fontFamily: 'monospace',
+								fontSize: '0.8rem',
+							}}
+						>
+							{opt.label}
+						</Typography>
+					}
+				/>
+			))}
+		</Box>
+	));
+};
+
 const groupOptions = (
 	options: MultiSelectChipFilterOption[],
 	explicitOrder?: string[],
@@ -102,75 +182,26 @@ export const MultiSelectChipFilterList = ({
 					value={search}
 					onChange={(e) => setSearch(e.target.value)}
 					placeholder={searchPlaceholder ?? t('search')}
-					InputProps={{
-						startAdornment: (
-							<InputAdornment position="start">
-								<Iconify icon="eva:search-fill" width={16} />
-							</InputAdornment>
-						),
+					slotProps={{
+						input: {
+							startAdornment: (
+								<InputAdornment position="start">
+									<Iconify icon="eva:search-fill" width={16} />
+								</InputAdornment>
+							),
+						},
 					}}
 				/>
 			</Box>
 			<Box sx={{ overflowY: 'auto', flexGrow: 1 }}>
-				{loading ? (
-					map([0, 1, 2, 3, 4], (i) => (
-						<Box key={i} sx={{ px: 1.5, py: 0.5 }}>
-							<Skeleton variant="text" />
-						</Box>
-					))
-				) : filtered.length === 0 ? (
-					<Box sx={{ p: 2, textAlign: 'center' }}>
-						<Typography variant="body2" sx={{ color: 'text.secondary' }}>
-							{emptyLabel ?? t('no-results-found')}
-						</Typography>
-					</Box>
-				) : (
-					map(grouped, (section) => (
-						<Box key={section.group ?? '_'} sx={{ py: 0.5 }}>
-							{section.group && (
-								<Typography
-									variant="overline"
-									sx={{
-										display: 'block',
-										px: 1.5,
-										color: 'text.secondary',
-									}}
-								>
-									{section.group}
-								</Typography>
-							)}
-							{map(section.items, (opt) => (
-								<FormControlLabel
-									key={opt.value}
-									sx={{
-										display: 'flex',
-										mx: 0,
-										px: 1.5,
-										py: 0.25,
-									}}
-									control={
-										<Checkbox
-											size="small"
-											checked={selected.includes(opt.value)}
-											onChange={() => onToggle(opt.value)}
-										/>
-									}
-									label={
-										<Typography
-											variant="body2"
-											sx={{
-												fontFamily: 'monospace',
-												fontSize: '0.8rem',
-											}}
-										>
-											{opt.label}
-										</Typography>
-									}
-								/>
-							))}
-						</Box>
-					))
-				)}
+				{renderListBody({
+					loading,
+					grouped,
+					filteredCount: filtered.length,
+					emptyLabel: emptyLabel ?? t('no-results-found'),
+					selected,
+					onToggle,
+				})}
 			</Box>
 		</Box>
 	);
