@@ -64,21 +64,29 @@ export const DateRangeCalendarHeader = ({
 		>
 			<Button
 				size="small"
-				variant="contained"
+				variant="text"
 				color="inherit"
-				disableElevation
 				onClick={() => onViewChange?.('month')}
-				sx={{ textTransform: 'none' }}
+				sx={{
+					textTransform: 'none',
+					bgcolor: 'action.hover',
+					color: 'text.secondary',
+					'&:hover': { bgcolor: 'action.selected' },
+				}}
 			>
 				{currentMonth.format('MMMM')}
 			</Button>
 			<Button
 				size="small"
-				variant="contained"
+				variant="text"
 				color="inherit"
-				disableElevation
 				onClick={() => onViewChange?.('year')}
-				sx={{ textTransform: 'none' }}
+				sx={{
+					textTransform: 'none',
+					bgcolor: 'action.hover',
+					color: 'text.secondary',
+					'&:hover': { bgcolor: 'action.selected' },
+				}}
 			>
 				{currentMonth.format('YYYY')}
 			</Button>
