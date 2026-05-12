@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Popover from '@mui/material/Popover';
+import Stack from '@mui/material/Stack';
 import { useState, type MouseEvent } from 'react';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
@@ -44,11 +45,7 @@ export const DateRangeFilter = ({
 
 	const effectiveLabel = label ?? t('date');
 	const active = activePresetFor(value);
-
-	const triggerText = (() => {
-		const range = formatRange(value);
-		return range ? `${effectiveLabel} · ${range}` : effectiveLabel;
-	})();
+	const rangeText = formatRange(value);
 
 	const handleOpen = (event: MouseEvent<HTMLElement>) => {
 		setDraft(value);
@@ -91,9 +88,40 @@ export const DateRangeFilter = ({
 				color="inherit"
 				onClick={handleOpen}
 				endIcon={<Iconify icon="eva:chevron-down-fill" width={18} />}
-				sx={{ textTransform: 'none' }}
+				sx={{
+					textTransform: 'none',
+					pl: 1.5,
+					pr: 1,
+					gap: 0.5,
+				}}
 			>
-				{triggerText}
+				<Stack
+					direction="row"
+					spacing={1}
+					alignItems="center"
+					sx={{ overflow: 'hidden' }}
+				>
+					<Box component="span" sx={{ color: 'text.secondary' }}>
+						{effectiveLabel}
+					</Box>
+					{rangeText && (
+						<Box
+							component="span"
+							sx={{
+								px: 0.75,
+								py: 0.25,
+								borderRadius: 0.75,
+								bgcolor: 'action.selected',
+								color: 'text.primary',
+								fontWeight: 600,
+								fontSize: '0.8125rem',
+								whiteSpace: 'nowrap',
+							}}
+						>
+							{rangeText}
+						</Box>
+					)}
+				</Stack>
 			</Button>
 			<Popover
 				open={open}

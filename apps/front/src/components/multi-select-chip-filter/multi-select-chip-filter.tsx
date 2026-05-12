@@ -1,7 +1,7 @@
-import Badge from '@mui/material/Badge';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Popover from '@mui/material/Popover';
+import Stack from '@mui/material/Stack';
 import filter from 'lodash/filter';
 import { useState, type MouseEvent } from 'react';
 
@@ -47,12 +47,36 @@ export const MultiSelectChipFilter = ({
 				color="inherit"
 				onClick={(e: MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget)}
 				endIcon={<Iconify icon="eva:chevron-down-fill" width={18} />}
-				sx={{ textTransform: 'none' }}
+				sx={{
+					textTransform: 'none',
+					pl: 1.5,
+					pr: 1,
+					gap: 0.5,
+				}}
 			>
-				{label}
-				{value.length > 0 && (
-					<Badge color="primary" badgeContent={value.length} sx={{ ml: 1.5 }} />
-				)}
+				<Stack direction="row" spacing={1} alignItems="center">
+					<Box component="span" sx={{ color: 'text.secondary' }}>
+						{label}
+					</Box>
+					{value.length > 0 && (
+						<Box
+							component="span"
+							sx={{
+								px: 0.75,
+								py: 0.25,
+								borderRadius: 0.75,
+								bgcolor: 'action.selected',
+								color: 'text.primary',
+								fontWeight: 600,
+								fontSize: '0.8125rem',
+								minWidth: 20,
+								textAlign: 'center',
+							}}
+						>
+							{value.length}
+						</Box>
+					)}
+				</Stack>
 			</Button>
 			<Popover
 				open={open}

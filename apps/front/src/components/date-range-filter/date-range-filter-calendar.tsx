@@ -8,6 +8,7 @@ import { useState } from 'react';
 
 import { type Dayjs } from '#app/utils/format-time.ts';
 
+import { DateRangeCalendarHeader } from './date-range-filter-calendar-header';
 import type { DateRange } from './date-range-filter.types';
 
 type DateRangeFilterCalendarProps = {
@@ -77,7 +78,13 @@ export const DateRangeFilterCalendar = ({
 				onChange={handlePick}
 				minDate={minDate}
 				maxDate={maxDate}
-				slots={{ day: renderDay }}
+				slots={{
+					day: renderDay,
+					calendarHeader: DateRangeCalendarHeader,
+				}}
+				slotProps={{
+					calendarHeader: { minDate, maxDate } as never,
+				}}
 			/>
 		</Box>
 	);
