@@ -4,7 +4,7 @@ using System.Collections.Immutable;
 using System.Reflection;
 
 public static class AuditActionsRegistry {
-	private static readonly ImmutableArray<string> _all =
+	private static readonly ImmutableArray<string> CachedAll =
 		[.. typeof(AuditActions)
 			.GetFields(
 				BindingFlags.Public
@@ -15,16 +15,17 @@ public static class AuditActionsRegistry {
 				f.IsLiteral
 				&& !f.IsInitOnly
 				&& f.FieldType == typeof(string))
-			.Select(f => (string)f.GetRawConstantValue()!)
+			.Select(f => f.GetRawConstantValue() as string)
+			.OfType<string>()
 			.Distinct()
 			.Order()];
 
-	private static readonly ImmutableHashSet<string> _knownSet =
-		[.. _all];
+	private static readonly ImmutableHashSet<string> CachedKnownSet =
+		[.. CachedAll];
 
-	public static IReadOnlyList<string> All => _all;
+	public static IReadOnlyList<string> All => CachedAll;
 
 	public static bool IsKnown(string action) {
-		return _knownSet.Contains(action);
+		return CachedKnownSet.Contains(action);
 	}
 }
