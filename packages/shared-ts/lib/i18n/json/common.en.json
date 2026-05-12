@@ -763,5 +763,14 @@
 	"reactivate-tenant-user-description": "Access to this tenant will be restored. Are you sure you want to proceed?",
 	"globally-suspended-row-disabled": "This user is globally suspended. Reactivate the user globally before managing tenant membership.",
 	"email-must-be-different": "Enter a different email address.",
-	"globally-suspended": "Globally suspended"
+	"globally-suspended": "Globally suspended",
+	"today": "Today",
+	"yesterday": "Yesterday",
+	"last-n-days": "Last {{count}} days",
+	"custom": "Custom",
+	"apply": "Apply",
+	"clear": "Clear",
+	"clear-all": "Clear all",
+	"selected-count": "{{count}} selected",
+	"no-results-found": "No results found"
 }
