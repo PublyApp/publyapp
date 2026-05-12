@@ -22,6 +22,10 @@ public class FindAuditLogsQuery : CursorPaginatedQuery {
 	[FromQuery] public string? StartDate { get; set; }
 	[FromQuery] public string? EndDate { get; set; }
 
+	// [AsParameters] binding in minimal APIs requires every
+	// member to be primitive or implement TryParse. List<string>
+	// does not, so we provide an explicit BindAsync that pulls
+	// each field from the query collection ourselves.
 	public static ValueTask<FindAuditLogsQuery?> BindAsync(
 		HttpContext context
 	) {
@@ -56,9 +60,7 @@ public class FindAuditLogsQuery : CursorPaginatedQuery {
 			),
 		};
 
-		return ValueTask.FromResult<FindAuditLogsQuery?>(
-			query
-		);
+		return new ValueTask<FindAuditLogsQuery?>(query);
 	}
 
 	private static string? GetNullableQueryValue(

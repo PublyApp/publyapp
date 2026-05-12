@@ -88,7 +88,7 @@ public interface IAuditLogQueryService {
 		Guid id,
 		CancellationToken cancellationToken = default);
 
-	Task<IReadOnlyList<string>> GetDistinctActionsAsync(
+	ValueTask<IReadOnlyList<string>> GetDistinctActionsAsync(
 		CancellationToken cancellationToken = default);
 
 	Task<bool> ExportExceedsLimitAsync(
@@ -295,11 +295,11 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			.FirstOrDefaultAsync(cancellationToken);
 	}
 
-	public Task<IReadOnlyList<string>>
+	public ValueTask<IReadOnlyList<string>>
 		GetDistinctActionsAsync(
 		CancellationToken cancellationToken = default
 	) {
-		return Task.FromResult(AuditActionsRegistry.All);
+		return ValueTask.FromResult(AuditActionsRegistry.All);
 	}
 
 	public async Task<bool> ExportExceedsLimitAsync(
