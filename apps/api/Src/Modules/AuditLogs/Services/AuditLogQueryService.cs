@@ -1,5 +1,3 @@
-using System.Collections.Immutable;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 
 using MainApi.Src.Data.DbContext;
@@ -105,23 +103,6 @@ public interface IAuditLogQueryService {
 [Service(ServiceLifetime.Scoped)]
 public class AuditLogQueryService : IAuditLogQueryService {
 	private readonly MainApiDbContext _dbContext;
-
-	private static readonly ImmutableArray<string>
-		CachedActions =
-		[.. typeof(AuditActions)
-			.GetFields(
-				BindingFlags.Public
-				| BindingFlags.Static
-				| BindingFlags.FlattenHierarchy
-			)
-			.Where(f =>
-				f.IsLiteral
-				&& !f.IsInitOnly
-				&& f.FieldType == typeof(string))
-			.Select(f =>
-				(string)f.GetRawConstantValue()!)
-			.Distinct()
-			.Order()];
 
 	public AuditLogQueryService(MainApiDbContext dbContext) {
 		_dbContext = dbContext;
@@ -318,9 +299,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		GetDistinctActionsAsync(
 		CancellationToken cancellationToken = default
 	) {
-		return Task.FromResult<IReadOnlyList<string>>(
-			CachedActions
-		);
+		return Task.FromResult(AuditActionsRegistry.All);
 	}
 
 	public async Task<bool> ExportExceedsLimitAsync(
