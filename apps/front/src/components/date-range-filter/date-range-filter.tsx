@@ -137,6 +137,7 @@ export const DateRangeFilter = ({
 								py: 0.25,
 								borderRadius: 0.75,
 								bgcolor: 'action.selected',
+								color: 'text.secondary',
 								fontWeight: 500,
 								fontSize: '0.8125rem',
 								whiteSpace: 'nowrap',
