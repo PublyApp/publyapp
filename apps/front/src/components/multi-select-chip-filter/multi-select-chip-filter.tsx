@@ -43,12 +43,11 @@ export const MultiSelectChipFilter = ({
 	return (
 		<>
 			<Button
-				size="small"
 				variant="outlined"
 				color="inherit"
 				onClick={(e: MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget)}
-				endIcon={<Iconify icon="eva:chevron-down-fill" width={16} />}
-				sx={{ borderRadius: 999, textTransform: 'none' }}
+				endIcon={<Iconify icon="eva:chevron-down-fill" width={18} />}
+				sx={{ textTransform: 'none' }}
 			>
 				{label}
 				{value.length > 0 && (

@@ -1,7 +1,6 @@
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Popover from '@mui/material/Popover';
-import Stack from '@mui/material/Stack';
 import { useState, type MouseEvent } from 'react';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
@@ -40,7 +39,6 @@ export const DateRangeFilter = ({
 }: DateRangeFilterProps) => {
 	const { t } = useTranslate();
 	const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-	const [mode, setMode] = useState<'presets' | 'custom'>('presets');
 	const [draft, setDraft] = useState<DateRange>(value);
 	const open = Boolean(anchorEl);
 
@@ -53,11 +51,8 @@ export const DateRangeFilter = ({
 	})();
 
 	const handleOpen = (event: MouseEvent<HTMLElement>) => {
-		setAnchorEl(event.currentTarget);
-		setMode(
-			active === 'custom' && (value.from || value.to) ? 'custom' : 'presets',
-		);
 		setDraft(value);
+		setAnchorEl(event.currentTarget);
 	};
 
 	const handleClose = () => {
@@ -69,17 +64,20 @@ export const DateRangeFilter = ({
 		handleClose();
 	};
 
-	const handleApplyCustom = () => {
-		onChange(draft);
-		handleClose();
-	};
-
-	const handleCancelCustom = () => {
-		setDraft(value);
-		setMode('presets');
+	// Calendar reports each click. Commit only when both endpoints
+	// are set (a complete range). A half-picked range (just `from`,
+	// no `to`) stays as local draft so closing the popover doesn't
+	// produce a half-committed filter.
+	const handleCalendarChange = (next: DateRange) => {
+		setDraft(next);
+		if (next.from !== null && next.to !== null) {
+			onChange(next);
+			handleClose();
+		}
 	};
 
 	const handleClear = () => {
+		setDraft({ from: null, to: null });
 		onChange({ from: null, to: null });
 		handleClose();
 	};
@@ -89,12 +87,11 @@ export const DateRangeFilter = ({
 	return (
 		<>
 			<Button
-				size="small"
 				variant="outlined"
 				color="inherit"
 				onClick={handleOpen}
-				endIcon={<Iconify icon="eva:chevron-down-fill" width={16} />}
-				sx={{ borderRadius: 999, textTransform: 'none' }}
+				endIcon={<Iconify icon="eva:chevron-down-fill" width={18} />}
+				sx={{ textTransform: 'none' }}
 			>
 				{triggerText}
 			</Button>
@@ -102,54 +99,20 @@ export const DateRangeFilter = ({
 				open={open}
 				anchorEl={anchorEl}
 				onClose={handleClose}
-				anchorOrigin={{
-					vertical: 'bottom',
-					horizontal: 'left',
-				}}
-				transformOrigin={{
-					vertical: 'top',
-					horizontal: 'left',
-				}}
+				anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+				transformOrigin={{ vertical: 'top', horizontal: 'left' }}
 			>
 				<Box sx={{ display: 'flex' }}>
 					<DateRangeFilterPresets
 						active={active}
 						onSelectPreset={handleSelectPreset}
-						onSelectCustom={() => setMode('custom')}
 					/>
-					{mode === 'custom' && (
-						<Box>
-							<DateRangeFilterCalendar
-								value={draft}
-								onChange={setDraft}
-								minDate={minDate}
-								maxDate={maxDate}
-							/>
-							<Stack
-								direction="row"
-								spacing={1}
-								sx={{
-									p: 1,
-									justifyContent: 'flex-end',
-								}}
-							>
-								<Button
-									size="small"
-									color="inherit"
-									onClick={handleCancelCustom}
-								>
-									{t('cancel')}
-								</Button>
-								<Button
-									size="small"
-									variant="contained"
-									onClick={handleApplyCustom}
-								>
-									{t('apply')}
-								</Button>
-							</Stack>
-						</Box>
-					)}
+					<DateRangeFilterCalendar
+						value={draft}
+						onChange={handleCalendarChange}
+						minDate={minDate}
+						maxDate={maxDate}
+					/>
 				</Box>
 				{isActive && (
 					<Box

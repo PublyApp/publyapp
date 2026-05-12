@@ -81,13 +81,11 @@ export const activePresetFor = (value: DateRange): DateRangePreset => {
 type DateRangeFilterPresetsProps = {
 	active: DateRangePreset;
 	onSelectPreset: (next: DateRange) => void;
-	onSelectCustom: () => void;
 };
 
 export const DateRangeFilterPresets = ({
 	active,
 	onSelectPreset,
-	onSelectCustom,
 }: DateRangeFilterPresetsProps) => {
 	const { t } = useTranslate();
 
@@ -115,15 +113,6 @@ export const DateRangeFilterPresets = ({
 					{preset.getLabel(t as TFunction)}
 				</Button>
 			))}
-			<Button
-				size="small"
-				variant={active === 'custom' ? 'contained' : 'text'}
-				color={active === 'custom' ? 'primary' : 'inherit'}
-				sx={{ justifyContent: 'flex-start' }}
-				onClick={onSelectCustom}
-			>
-				{t('custom')}
-			</Button>
 		</Box>
 	);
 };
