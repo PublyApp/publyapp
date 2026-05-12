@@ -23,7 +23,7 @@ public record FindAuditLogsArgs(
 
 public record ExportAuditLogsArgs(
 	Guid? UserId,
-	string? Action,
+	IReadOnlyList<string>? Actions,
 	Guid? TargetId,
 	DateTime? StartDate,
 	DateTime? EndDate
@@ -317,7 +317,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		query = ApplyFilters(
 			query,
 			args.UserId,
-			args.Action is null ? null : new[] { args.Action },
+			args.Actions,
 			args.TargetId,
 			args.StartDate,
 			args.EndDate
@@ -346,7 +346,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		query = ApplyFilters(
 			query,
 			args.UserId,
-			args.Action is null ? null : new[] { args.Action },
+			args.Actions,
 			args.TargetId,
 			args.StartDate,
 			args.EndDate

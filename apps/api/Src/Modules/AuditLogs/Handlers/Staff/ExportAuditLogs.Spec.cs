@@ -176,7 +176,7 @@ public sealed class ExportAuditLogsSpec
 
 		var url = AuditLogTestHelper.GetExportUrl(
 			"csv",
-			action: AuditActions.StaffProfileCreated
+			actions: new[] { AuditActions.StaffProfileCreated }
 		);
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
@@ -210,44 +210,49 @@ public sealed class ExportAuditLogsSpec
 					TestConstants.StaffAdminEmail
 				);
 
-		var uniqueAction =
-			$"test.csv.injection.{Guid.NewGuid().ToString()[..8]}";
+		// Use a real registered AuditAction so the multi-action
+		// validator (which whitelists against AuditActionsRegistry)
+		// accepts the filter. Per-row uniqueness comes from each
+		// row's Details column.
+		var seededAction = AuditActions.SystemNoticeCreated;
+		var rowMarker =
+			$"row-marker-{Guid.NewGuid().ToString()[..8]}";
 
 		// Seed logs with formula-trigger details
 		await AuditLogTestHelper.SeedAuditLogAsync(
 			_fixture.Factory,
 			userId,
-			uniqueAction,
-			details: "=1+1"
+			seededAction,
+			details: $"=1+1 {rowMarker}"
 		);
 		await AuditLogTestHelper.SeedAuditLogAsync(
 			_fixture.Factory,
 			userId,
-			uniqueAction,
-			details: "+cmd|'/C calc'!A0"
+			seededAction,
+			details: $"+cmd|'/C calc'!A0 {rowMarker}"
 		);
 		await AuditLogTestHelper.SeedAuditLogAsync(
 			_fixture.Factory,
 			userId,
-			uniqueAction,
-			details: "-1+1"
+			seededAction,
+			details: $"-1+1 {rowMarker}"
 		);
 		await AuditLogTestHelper.SeedAuditLogAsync(
 			_fixture.Factory,
 			userId,
-			uniqueAction,
-			details: "@SUM(A1:A10)"
+			seededAction,
+			details: $"@SUM(A1:A10) {rowMarker}"
 		);
 		await AuditLogTestHelper.SeedAuditLogAsync(
 			_fixture.Factory,
 			userId,
-			uniqueAction,
-			details: "\t=bypass"
+			seededAction,
+			details: $"\t=bypass {rowMarker}"
 		);
 
 		var url = AuditLogTestHelper.GetExportUrl(
 			"csv",
-			action: uniqueAction
+			actions: new[] { seededAction }
 		);
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
@@ -264,18 +269,19 @@ public sealed class ExportAuditLogsSpec
 
 		// All formula triggers must be prefixed
 		// with a single quote
-		content.Should().Contain("'=1+1");
+		content.Should().Contain($"'=1+1 {rowMarker}");
 		content.Should().Contain(
-			"'+cmd|'/C calc'!A0"
+			$"'+cmd|'/C calc'!A0 {rowMarker}"
 		);
-		content.Should().Contain("'-1+1");
-		content.Should().Contain("'@SUM(A1:A10)");
-		content.Should().Contain("'\t=bypass");
+		content.Should().Contain($"'-1+1 {rowMarker}");
+		content.Should().Contain($"'@SUM(A1:A10) {rowMarker}");
+		content.Should().Contain($"'\t=bypass {rowMarker}");
 
 		// Raw formula triggers must NOT appear
-		// (without the single-quote prefix)
+		// (without the single-quote prefix). Limit the
+		// check to OUR seeded rows via rowMarker.
 		var lines = content.Split('\n')
-			.Where(l => l.Contains(uniqueAction))
+			.Where(l => l.Contains(rowMarker))
 			.ToList();
 		foreach (var line in lines) {
 			// Details column should never start
@@ -404,23 +410,24 @@ public sealed class ExportAuditLogsSpec
 					TestConstants.StaffAdminEmail
 				);
 
-		// Seed more logs than the export limit
-		// The default limit is 10000, but we use
-		// a targeted action filter to control count.
-		// Seed 3 logs, then query with a limit
-		// override that makes 3 exceed it.
-		var uniqueAction = $"test.export.limit.{Guid.NewGuid().ToString()[..8]}";
+		// Seed more logs than the export limit.
+		// The multi-action validator whitelists against
+		// AuditActionsRegistry, so the filter has to be a
+		// real action. Override the export max rows to a
+		// small number so the seeded count exceeds it.
+		var seededAction = AuditActions.SystemNoticeDeleted;
 		for (var i = 0; i < 3; i++) {
 			await AuditLogTestHelper
 				.SeedAuditLogAsync(
 					_fixture.Factory,
 					userId,
-					uniqueAction
+					seededAction
 				);
 		}
 
-		// Override the export max rows to 2
-		// so that 3 rows exceed the limit
+		// Override the export max rows to 2 so that 3
+		// (or more, if other tests share this action) rows
+		// exceed the limit.
 		var originalLimit = AppEnvironment.Instance
 			.AUDIT_LOG_EXPORT_MAX_ROWS;
 		SetExportMaxRows(2);
@@ -428,7 +435,7 @@ public sealed class ExportAuditLogsSpec
 		try {
 			var url = AuditLogTestHelper.GetExportUrl(
 				"csv",
-				action: uniqueAction
+				actions: new[] { seededAction }
 			);
 			var request = new HttpRequestMessage(
 				HttpMethod.Get, url
@@ -442,6 +449,77 @@ public sealed class ExportAuditLogsSpec
 		} finally {
 			SetExportMaxRows(originalLimit);
 		}
+	}
+
+	[Fact]
+	public async Task
+	ItShouldExportRowsForMultipleActionsWhenActionsProvided() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+		var userId =
+			await AuditLogTestHelper
+				.GetUserIdByEmailAsync(
+					_fixture.Factory,
+					TestConstants.StaffAdminEmail
+				);
+
+		await AuditLogTestHelper.SeedAuditLogAsync(
+			_fixture.Factory, userId,
+			AuditActions.LoginSucceeded
+		);
+		await AuditLogTestHelper.SeedAuditLogAsync(
+			_fixture.Factory, userId,
+			AuditActions.LoginFailed
+		);
+		await AuditLogTestHelper.SeedAuditLogAsync(
+			_fixture.Factory, userId,
+			AuditActions.InvitationCreated
+		);
+
+		var url = AuditLogTestHelper.GetExportUrl(
+			"csv",
+			actions: new[] {
+				AuditActions.LoginSucceeded,
+				AuditActions.LoginFailed
+			}
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(token);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var body = await response.Content
+			.ReadAsStringAsync();
+		body.Should().Contain(AuditActions.LoginSucceeded);
+		body.Should().Contain(AuditActions.LoginFailed);
+		body.Should()
+			.NotContain(AuditActions.InvitationCreated);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturn422WhenExportActionsContainsUnknown() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		var url = AuditLogTestHelper.GetExportUrl(
+			"csv",
+			actions: new[] { "totally.fake" }
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(token);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
 	}
 
 	/// <summary>

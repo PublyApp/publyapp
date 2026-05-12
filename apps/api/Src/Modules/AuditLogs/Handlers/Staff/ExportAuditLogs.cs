@@ -6,6 +6,7 @@ using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Validation;
+using MainApi.Src.Modules.AuditLogs.Entities;
 using MainApi.Src.Modules.AuditLogs.Services;
 
 using Microsoft.AspNetCore.Mvc;
@@ -15,10 +16,67 @@ namespace MainApi.Src.Modules.AuditLogs.Handlers.Staff;
 public class ExportAuditLogsQuery {
 	[FromQuery] public string? Format { get; set; }
 	[FromQuery] public string? UserId { get; set; }
-	[FromQuery] public string? Action { get; set; }
+	[FromQuery] public List<string>? Actions { get; set; }
 	[FromQuery] public string? TargetId { get; set; }
 	[FromQuery] public string? StartDate { get; set; }
 	[FromQuery] public string? EndDate { get; set; }
+
+	// [AsParameters] binding in minimal APIs requires every
+	// member to be primitive or implement TryParse. List<string>
+	// does not, so we provide an explicit BindAsync that pulls
+	// each field from the query collection ourselves.
+	public static ValueTask<ExportAuditLogsQuery?> BindAsync(
+		HttpContext context
+	) {
+		var requestQuery = context.Request.Query;
+		var query = new ExportAuditLogsQuery {
+			Format = GetNullableQueryValue(
+				requestQuery, "format"
+			),
+			UserId = GetNullableQueryValue(
+				requestQuery, "userId"
+			),
+			Actions = GetActionsQueryValue(
+				requestQuery
+			),
+			TargetId = GetNullableQueryValue(
+				requestQuery, "targetId"
+			),
+			StartDate = GetNullableQueryValue(
+				requestQuery, "startDate"
+			),
+			EndDate = GetNullableQueryValue(
+				requestQuery, "endDate"
+			),
+		};
+
+		return new ValueTask<ExportAuditLogsQuery?>(query);
+	}
+
+	private static string? GetNullableQueryValue(
+		IQueryCollection requestQuery,
+		string key
+	) {
+		if (!requestQuery.TryGetValue(key, out var value)) {
+			return null;
+		}
+		return value.ToString();
+	}
+
+	private static List<string>? GetActionsQueryValue(
+		IQueryCollection requestQuery
+	) {
+		if (!requestQuery.TryGetValue(
+			"actions", out var actions
+		)) {
+			return null;
+		}
+		var actionValues = new List<string>();
+		foreach (var action in actions) {
+			actionValues.Add(action ?? string.Empty);
+		}
+		return actionValues;
+	}
 
 	public string? GetFormat() {
 		if (Format is null) {
@@ -77,6 +135,23 @@ public class ExportAuditLogsQueryValidator
 				"UserId must be a valid GUID"
 			);
 
+		RuleFor(x => x.Actions)
+			.Must(actions => actions is null
+				|| actions.Count <= 50)
+			.WithMessage(
+				"At most 50 actions can be filtered at once."
+			);
+
+		RuleForEach(x => x.Actions)
+			.NotEmpty()
+			.WithMessage(
+				"Action values must not be empty."
+			)
+			.Must(AuditActionsRegistry.IsKnown)
+			.WithMessage(a =>
+				$"'{a}' is not a valid audit action."
+			);
+
 		RuleFor(x => x.TargetId)
 			.Must(QueryPredicates.BeValidNullableGuid)
 			.WithMessage(
@@ -132,7 +207,7 @@ public class ExportAuditLogsQueryValidator
 public class ExportAuditLogs {
 	public static async Task<IResult>
 		HandleExportAuditLogs(
-		[AsParameters] ExportAuditLogsQuery query,
+		ExportAuditLogsQuery query,
 		[FromServices]
 		IAuditLogQueryService auditLogQueryService,
 		HttpContext httpContext,
@@ -140,7 +215,7 @@ public class ExportAuditLogs {
 	) {
 		var exportArgs = new ExportAuditLogsArgs(
 			UserId: query.GetUserId(),
-			Action: query.Action,
+			Actions: query.Actions,
 			TargetId: query.GetTargetId(),
 			StartDate: query.GetStartDate(),
 			EndDate: query.GetEndDate()
