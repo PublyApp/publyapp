@@ -167,21 +167,24 @@ export const DateRangeFilter = ({
 						maxDate={maxDate}
 					/>
 				</Box>
-				{isActive && (
-					<Box
-						sx={{
-							p: 1,
-							borderTop: '1px solid',
-							borderColor: 'divider',
-							display: 'flex',
-							justifyContent: 'flex-end',
-						}}
+				<Box
+					sx={{
+						p: 1,
+						borderTop: '1px solid',
+						borderColor: 'divider',
+						display: 'flex',
+						justifyContent: 'flex-end',
+					}}
+				>
+					<Button
+						size="small"
+						color="inherit"
+						onClick={handleClear}
+						disabled={!isActive}
 					>
-						<Button size="small" color="inherit" onClick={handleClear}>
-							{t('clear')}
-						</Button>
-					</Box>
-				)}
+						{t('clear')}
+					</Button>
+				</Box>
 			</Popover>
 		</>
 	);
