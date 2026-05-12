@@ -138,7 +138,7 @@ export const DateRangeFilter = ({
 								borderRadius: 0.75,
 								bgcolor: 'action.selected',
 								color: 'text.primary',
-								fontWeight: 600,
+								fontWeight: 500,
 								fontSize: '0.8125rem',
 								whiteSpace: 'nowrap',
 							}}
