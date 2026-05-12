@@ -53,7 +53,7 @@ export const MultiSelectChipFilter = ({
 				variant="outlined"
 				color="inherit"
 				onClick={(e: MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget)}
-				startIcon={<Iconify icon="ic:round-filter-list" width={18} />}
+				startIcon={<Iconify icon="solar:filter-bold" width={18} />}
 				endIcon={
 					isActive ? (
 						<Box

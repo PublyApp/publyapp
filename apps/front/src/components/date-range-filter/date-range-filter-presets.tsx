@@ -113,6 +113,17 @@ export const DateRangeFilterPresets = ({
 					{preset.getLabel(t as TFunction)}
 				</Button>
 			))}
+			{active === 'custom' && (
+				<Button
+					size="small"
+					variant="contained"
+					color="primary"
+					disableRipple
+					sx={{ justifyContent: 'flex-start', pointerEvents: 'none' }}
+				>
+					{t('custom')}
+				</Button>
+			)}
 		</Box>
 	);
 };

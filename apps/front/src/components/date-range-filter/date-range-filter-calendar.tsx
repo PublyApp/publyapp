@@ -8,7 +8,6 @@ import { useState } from 'react';
 
 import { type Dayjs } from '#app/utils/format-time.ts';
 
-import { DateRangeCalendarHeader } from './date-range-filter-calendar-header';
 import type { DateRange } from './date-range-filter.types';
 
 type DateRangeFilterCalendarProps = {
@@ -28,6 +27,16 @@ const isInRange = (
 		(day.isAfter(from, 'day') || day.isSame(from, 'day')) &&
 		(day.isBefore(to, 'day') || day.isSame(to, 'day'))
 	);
+};
+
+const isEndpoint = (
+	day: Dayjs,
+	from: Dayjs | null,
+	to: Dayjs | null,
+): boolean => {
+	const matchesFrom = from !== null && day.isSame(from, 'day');
+	const matchesTo = to !== null && day.isSame(to, 'day');
+	return matchesFrom || matchesTo;
 };
 
 export const DateRangeFilterCalendar = ({
@@ -58,13 +67,17 @@ export const DateRangeFilterCalendar = ({
 	};
 
 	const renderDay = (props: PickersDayProps) => {
-		const inRange = isInRange(props.day, value.from, value.to ?? pendingFrom);
+		const endpoint = isEndpoint(props.day, value.from, value.to);
+		const inRange =
+			!endpoint && isInRange(props.day, value.from, value.to ?? pendingFrom);
 		return (
 			<PickersDay
 				{...props}
+				selected={endpoint || props.selected}
 				sx={{
 					...(inRange && {
 						bgcolor: 'action.selected',
+						borderRadius: 0,
 					}),
 				}}
 			/>
@@ -78,13 +91,9 @@ export const DateRangeFilterCalendar = ({
 				onChange={handlePick}
 				minDate={minDate}
 				maxDate={maxDate}
-				slots={{
-					day: renderDay,
-					calendarHeader: DateRangeCalendarHeader,
-				}}
-				slotProps={{
-					calendarHeader: { minDate, maxDate } as never,
-				}}
+				views={['year', 'month', 'day']}
+				openTo="day"
+				slots={{ day: renderDay }}
 			/>
 		</Box>
 	);
