@@ -77,9 +77,12 @@ dotnet_diagnostic.CA1507.severity = warning
 dotnet_diagnostic.IDE0030.severity = none
 # IDE0075: Simplify conditional expression
 dotnet_diagnostic.IDE0075.severity = none
-
+# IDE0300: Use collection initializers
+dotnet_diagnostic.IDE0300.severity = warning
 
 # EF Core Migrations - auto-generated code
 [**/Migrations/*.cs]
 # Disable unnecessary using directive check for generated migrations
 dotnet_diagnostic.IDE0005.severity = none
+# Generated migrations emit `new[] { ... }` arrays; do not auto-rewrite them
+dotnet_diagnostic.IDE0300.severity = none
