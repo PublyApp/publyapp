@@ -94,7 +94,7 @@ internal static class AuditLogTestHelper {
 		string? sortId = null,
 		string? sortOrder = null,
 		string? userId = null,
-		string? action = null,
+		IReadOnlyList<string>? actions = null,
 		string? targetId = null,
 		string? startDate = null,
 		string? endDate = null
@@ -118,8 +118,13 @@ internal static class AuditLogTestHelper {
 		if (userId is not null) {
 			queryParams.Add($"userId={userId}");
 		}
-		if (action is not null) {
-			queryParams.Add($"action={action}");
+		if (actions is not null) {
+			foreach (var action in actions) {
+				queryParams.Add(
+					"actions="
+					+ Uri.EscapeDataString(action)
+				);
+			}
 		}
 		if (targetId is not null) {
 			queryParams.Add($"targetId={targetId}");

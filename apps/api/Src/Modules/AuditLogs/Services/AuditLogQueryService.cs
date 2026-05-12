@@ -15,7 +15,7 @@ public record FindAuditLogsArgs(
 	string? SortId,
 	SortOrder? SortOrder,
 	Guid? UserId,
-	string? Action,
+	IReadOnlyList<string>? Actions,
 	Guid? TargetId,
 	DateTime? StartDate,
 	DateTime? EndDate
@@ -181,7 +181,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		query = ApplyFilters(
 			query,
 			args.UserId,
-			args.Action,
+			args.Actions,
 			args.TargetId,
 			args.StartDate,
 			args.EndDate
@@ -317,7 +317,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		query = ApplyFilters(
 			query,
 			args.UserId,
-			args.Action,
+			args.Action is null ? null : new[] { args.Action },
 			args.TargetId,
 			args.StartDate,
 			args.EndDate
@@ -346,7 +346,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		query = ApplyFilters(
 			query,
 			args.UserId,
-			args.Action,
+			args.Action is null ? null : new[] { args.Action },
 			args.TargetId,
 			args.StartDate,
 			args.EndDate
@@ -397,7 +397,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 	private static IQueryable<AuditLog> ApplyFilters(
 		IQueryable<AuditLog> query,
 		Guid? userId,
-		string? action,
+		IReadOnlyList<string>? actions,
 		Guid? targetId,
 		DateTime? startDate,
 		DateTime? endDate
@@ -406,9 +406,9 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			query = query.Where(a =>
 				a.UserId == userId.Value);
 		}
-		if (action is not null) {
+		if (actions is { Count: > 0 }) {
 			query = query.Where(a =>
-				a.Action == action);
+				actions.Contains(a.Action));
 		}
 		if (targetId.HasValue) {
 			query = query.Where(a =>

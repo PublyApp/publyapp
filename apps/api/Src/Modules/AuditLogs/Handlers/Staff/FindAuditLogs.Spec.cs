@@ -128,7 +128,9 @@ public sealed class FindAuditLogsSpec
 		);
 
 		var url = AuditLogTestHelper.GetFindUrl(
-			action: AuditActions.TenantSuspended
+			actions: new[] {
+				AuditActions.TenantSuspended
+			}
 		);
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
@@ -147,6 +149,114 @@ public sealed class FindAuditLogsSpec
 			a => a.Action.Should()
 				.Be(AuditActions.TenantSuspended)
 		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldFilterByMultipleActionsWhenActionsProvided() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+		var userId =
+			await AuditLogTestHelper
+				.GetUserIdByEmailAsync(
+					_fixture.Factory,
+					TestConstants.StaffAdminEmail
+				);
+
+		var firstLogId =
+			await AuditLogTestHelper.SeedAuditLogAsync(
+				_fixture.Factory,
+				userId,
+				AuditActions.LoginSucceeded
+			);
+		var secondLogId =
+			await AuditLogTestHelper.SeedAuditLogAsync(
+				_fixture.Factory,
+				userId,
+				AuditActions.InvitationCreated
+			);
+		var thirdLogId =
+			await AuditLogTestHelper.SeedAuditLogAsync(
+				_fixture.Factory,
+				userId,
+				AuditActions.TenantSuspended
+			);
+
+		var url = AuditLogTestHelper.GetFindUrl(
+			actions: new[] {
+				AuditActions.LoginSucceeded,
+				AuditActions.InvitationCreated
+			}
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(token);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		result!.Data.Should().Contain(
+			a => a.Id == firstLogId
+		);
+		result.Data.Should().Contain(
+			a => a.Id == secondLogId
+		);
+		result.Data.Should().NotContain(
+			a => a.Id == thirdLogId
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturn422WhenAnyActionIsUnknown() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		var url = AuditLogTestHelper.GetFindUrl(
+			actions: new[] {
+				AuditActions.LoginSucceeded,
+				"totally.fake"
+			}
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(token);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturn422WhenMoreThanFiftyActionsProvided() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+		var actions = new List<string>();
+		for (var i = 0; i < 51; i++) {
+			actions.Add(AuditActions.LoginSucceeded);
+		}
+
+		var url = AuditLogTestHelper.GetFindUrl(
+			actions: actions
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(token);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
 	}
 
 	[Fact]

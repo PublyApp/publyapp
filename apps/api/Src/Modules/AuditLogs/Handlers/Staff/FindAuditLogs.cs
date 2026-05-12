@@ -4,6 +4,7 @@ using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Validation;
+using MainApi.Src.Modules.AuditLogs.Entities;
 using MainApi.Src.Modules.AuditLogs.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -16,10 +17,77 @@ public class FindAuditLogsResponse
 
 public class FindAuditLogsQuery : CursorPaginatedQuery {
 	[FromQuery] public string? UserId { get; set; }
-	[FromQuery] public string? Action { get; set; }
+	[FromQuery] public List<string>? Actions { get; set; }
 	[FromQuery] public string? TargetId { get; set; }
 	[FromQuery] public string? StartDate { get; set; }
 	[FromQuery] public string? EndDate { get; set; }
+
+	public static ValueTask<FindAuditLogsQuery?> BindAsync(
+		HttpContext context
+	) {
+		var requestQuery = context.Request.Query;
+		var query = new FindAuditLogsQuery {
+			Cursor = GetNullableQueryValue(
+				requestQuery, "cursor"
+			),
+			Limit = GetNullableQueryValue(
+				requestQuery, "limit"
+			),
+			SortId = GetNullableQueryValue(
+				requestQuery, "sort_id"
+			),
+			SortOrder = GetNullableQueryValue(
+				requestQuery, "sort_order"
+			),
+			UserId = GetNullableQueryValue(
+				requestQuery, "userId"
+			),
+			Actions = GetActionsQueryValue(
+				requestQuery
+			),
+			TargetId = GetNullableQueryValue(
+				requestQuery, "targetId"
+			),
+			StartDate = GetNullableQueryValue(
+				requestQuery, "startDate"
+			),
+			EndDate = GetNullableQueryValue(
+				requestQuery, "endDate"
+			),
+		};
+
+		return ValueTask.FromResult<FindAuditLogsQuery?>(
+			query
+		);
+	}
+
+	private static string? GetNullableQueryValue(
+		IQueryCollection requestQuery,
+		string key
+	) {
+		if (!requestQuery.TryGetValue(key, out var value)) {
+			return null;
+		}
+
+		return value.ToString();
+	}
+
+	private static List<string>? GetActionsQueryValue(
+		IQueryCollection requestQuery
+	) {
+		if (!requestQuery.TryGetValue(
+			"actions", out var actions
+		)) {
+			return null;
+		}
+
+		var actionValues = new List<string>();
+		foreach (var action in actions) {
+			actionValues.Add(action ?? string.Empty);
+		}
+
+		return actionValues;
+	}
 
 	public Guid? GetUserId() {
 		return QueryPredicates.ParseNullableGuid(
@@ -53,6 +121,23 @@ public class FindAuditLogsQueryValidator
 			.Must(QueryPredicates.BeValidNullableGuid)
 			.WithMessage(
 				"UserId must be a valid GUID"
+			);
+
+		RuleFor(x => x.Actions)
+			.Must(actions => actions is null
+				|| actions.Count <= 50)
+			.WithMessage(
+				"At most 50 actions can be filtered at once."
+			);
+
+		RuleForEach(x => x.Actions)
+			.NotEmpty()
+			.WithMessage(
+				"Action values must not be empty."
+			)
+			.Must(AuditActionsRegistry.IsKnown)
+			.WithMessage(a =>
+				$"'{a}' is not a valid audit action."
 			);
 
 		RuleFor(x => x.TargetId)
@@ -99,7 +184,7 @@ public class FindAuditLogs {
 		Ok<FindAuditLogsResponse>,
 		AppBadRequestHttpResult
 	>> HandleFindAuditLogs(
-		[AsParameters] FindAuditLogsQuery query,
+		FindAuditLogsQuery query,
 		[FromServices]
 		IAuditLogQueryService auditLogQueryService,
 		CancellationToken cancellationToken = default
@@ -128,7 +213,7 @@ public class FindAuditLogs {
 				SortId: sortId,
 				SortOrder: sortOrder,
 				UserId: query.GetUserId(),
-				Action: query.Action,
+				Actions: query.Actions,
 				TargetId: query.GetTargetId(),
 				StartDate: query.GetStartDate(),
 				EndDate: query.GetEndDate()
