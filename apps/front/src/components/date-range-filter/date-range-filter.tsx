@@ -64,19 +64,24 @@ export const DateRangeFilter = ({
 	// Calendar reports each click. Commit only when both endpoints
 	// are set (a complete range). A half-picked range (just `from`,
 	// no `to`) stays as local draft so closing the popover doesn't
-	// produce a half-committed filter.
+	// produce a half-committed filter. The popover does NOT close
+	// after a complete range is picked — the user closes it
+	// explicitly (Escape, click outside, or clicking the trigger).
 	const handleCalendarChange = (next: DateRange) => {
 		setDraft(next);
 		if (next.from !== null && next.to !== null) {
 			onChange(next);
-			handleClose();
 		}
 	};
 
 	const handleClear = () => {
 		setDraft({ from: null, to: null });
 		onChange({ from: null, to: null });
-		handleClose();
+	};
+
+	const handleClearFromTrigger = (event: MouseEvent<HTMLElement>) => {
+		event.stopPropagation();
+		handleClear();
 	};
 
 	const isActive = value.from !== null || value.to !== null;
@@ -87,11 +92,31 @@ export const DateRangeFilter = ({
 				variant="outlined"
 				color="inherit"
 				onClick={handleOpen}
-				endIcon={<Iconify icon="eva:chevron-down-fill" width={18} />}
+				startIcon={<Iconify icon="solar:calendar-date-bold" width={18} />}
+				endIcon={
+					isActive ? (
+						<Box
+							component="span"
+							role="button"
+							aria-label={t('clear')}
+							onClick={handleClearFromTrigger}
+							sx={{
+								display: 'inline-flex',
+								alignItems: 'center',
+								justifyContent: 'center',
+								cursor: 'pointer',
+								color: 'text.secondary',
+								'&:hover': { color: 'text.primary' },
+							}}
+						>
+							<Iconify icon="solar:close-circle-bold" width={18} />
+						</Box>
+					) : undefined
+				}
 				sx={{
 					textTransform: 'none',
 					pl: 1.5,
-					pr: 1,
+					pr: isActive ? 1 : 1.5,
 					gap: 0.5,
 				}}
 			>

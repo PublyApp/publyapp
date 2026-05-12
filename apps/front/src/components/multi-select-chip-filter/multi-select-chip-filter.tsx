@@ -40,17 +40,44 @@ export const MultiSelectChipFilter = ({
 		onChange([]);
 	};
 
+	const handleClearFromTrigger = (event: MouseEvent<HTMLElement>) => {
+		event.stopPropagation();
+		handleClearAll();
+	};
+
+	const isActive = value.length > 0;
+
 	return (
 		<>
 			<Button
 				variant="outlined"
 				color="inherit"
 				onClick={(e: MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget)}
-				endIcon={<Iconify icon="eva:chevron-down-fill" width={18} />}
+				startIcon={<Iconify icon="ic:round-filter-list" width={18} />}
+				endIcon={
+					isActive ? (
+						<Box
+							component="span"
+							role="button"
+							aria-label="Clear"
+							onClick={handleClearFromTrigger}
+							sx={{
+								display: 'inline-flex',
+								alignItems: 'center',
+								justifyContent: 'center',
+								cursor: 'pointer',
+								color: 'text.secondary',
+								'&:hover': { color: 'text.primary' },
+							}}
+						>
+							<Iconify icon="solar:close-circle-bold" width={18} />
+						</Box>
+					) : undefined
+				}
 				sx={{
 					textTransform: 'none',
 					pl: 1.5,
-					pr: 1,
+					pr: isActive ? 1 : 1.5,
 					gap: 0.5,
 				}}
 			>
@@ -58,7 +85,7 @@ export const MultiSelectChipFilter = ({
 					<Box component="span" sx={{ color: 'text.secondary' }}>
 						{label}
 					</Box>
-					{value.length > 0 && (
+					{isActive && (
 						<Box
 							component="span"
 							sx={{
