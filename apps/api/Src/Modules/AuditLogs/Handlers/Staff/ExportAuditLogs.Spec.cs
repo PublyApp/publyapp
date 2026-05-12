@@ -176,7 +176,7 @@ public sealed class ExportAuditLogsSpec
 
 		var url = AuditLogTestHelper.GetExportUrl(
 			"csv",
-			actions: new[] { AuditActions.StaffProfileCreated }
+			actions: [AuditActions.StaffProfileCreated]
 		);
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
@@ -252,7 +252,7 @@ public sealed class ExportAuditLogsSpec
 
 		var url = AuditLogTestHelper.GetExportUrl(
 			"csv",
-			actions: new[] { seededAction }
+			actions: [seededAction]
 		);
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
@@ -435,7 +435,7 @@ public sealed class ExportAuditLogsSpec
 		try {
 			var url = AuditLogTestHelper.GetExportUrl(
 				"csv",
-				actions: new[] { seededAction }
+				actions: [seededAction]
 			);
 			var request = new HttpRequestMessage(
 				HttpMethod.Get, url
@@ -478,10 +478,10 @@ public sealed class ExportAuditLogsSpec
 
 		var url = AuditLogTestHelper.GetExportUrl(
 			"csv",
-			actions: new[] {
+			actions: [
 				AuditActions.LoginSucceeded,
-				AuditActions.LoginFailed
-			}
+				AuditActions.LoginFailed,
+			]
 		);
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
@@ -509,7 +509,7 @@ public sealed class ExportAuditLogsSpec
 
 		var url = AuditLogTestHelper.GetExportUrl(
 			"csv",
-			actions: new[] { "totally.fake" }
+			actions: ["totally.fake"]
 		);
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url

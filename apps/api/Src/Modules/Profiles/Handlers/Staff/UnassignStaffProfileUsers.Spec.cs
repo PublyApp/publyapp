@@ -151,7 +151,7 @@ public sealed class UnassignStaffProfileUsersSpec : IClassFixture<ApiFixture> {
 		var profileId = await CreateStaffProfileAsync(
 			token,
 			"Unassign Users Spec",
-			emails: new[] { TestConstants.StaffAdminEmail }
+			emails: [TestConstants.StaffAdminEmail]
 		);
 
 		var staffAdminUserId = await GetUserIdByEmailAsync(token, TestConstants.StaffAdminEmail);

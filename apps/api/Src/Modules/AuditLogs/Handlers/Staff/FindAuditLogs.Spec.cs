@@ -128,9 +128,7 @@ public sealed class FindAuditLogsSpec
 		);
 
 		var url = AuditLogTestHelper.GetFindUrl(
-			actions: new[] {
-				AuditActions.TenantSuspended
-			}
+			actions: [AuditActions.TenantSuspended]
 		);
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
@@ -183,10 +181,10 @@ public sealed class FindAuditLogsSpec
 			);
 
 		var url = AuditLogTestHelper.GetFindUrl(
-			actions: new[] {
+			actions: [
 				AuditActions.LoginSucceeded,
-				AuditActions.InvitationCreated
-			}
+				AuditActions.InvitationCreated,
+			]
 		);
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
@@ -219,10 +217,10 @@ public sealed class FindAuditLogsSpec
 			await _authClient.LoginAsStaffAdminAsync();
 
 		var url = AuditLogTestHelper.GetFindUrl(
-			actions: new[] {
+			actions: [
 				AuditActions.LoginSucceeded,
-				"totally.fake"
-			}
+				"totally.fake",
+			]
 		);
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url

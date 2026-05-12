@@ -103,12 +103,12 @@ public sealed class FindTenantPermissionsSpec
 		payload.Should().NotBeNull();
 		payload!.TryGetValue("modules", out var modules).Should().BeTrue();
 		var modulePermissions = modules!;
-		modulePermissions.Keys.Should().BeEquivalentTo(new[] {
+		modulePermissions.Keys.Should().BeEquivalentTo([
 			AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key,
 			AppPermissions.Tenant.Modules.ACCESS_BILLING.Key,
 			AppPermissions.Tenant.Modules.ACCESS_SETTINGS.Key,
 			AppPermissions.Tenant.Modules.ACCESS_USERS.Key
-		});
+		]);
 		modulePermissions.Keys.Should().OnlyContain(key => key.StartsWith(
 			"tenant.modules.",
 			StringComparison.Ordinal
