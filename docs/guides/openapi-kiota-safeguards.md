@@ -4,6 +4,9 @@
 
 **CRITICAL:** Several .NET patterns directly affect TypeScript type generation.
 
+**Key rules (always apply):**
+- Never use `List<T>?` or a custom static `BindAsync(HttpContext)` on an `[AsParameters]` query DTO — it silently drops all query-parameter metadata from the OpenAPI doc and breaks the Kiota TypeScript client. For multi-value filters, use a CSV-encoded `string?` with a parser method (see [`validator-conventions.md` Rule 8](validator-conventions.md#rule-8-csv-enum-list-filters-multi-select-query-params); canonical examples: `FindTenantUsersAsStaffQuery.Status` at `apps/api/Src/Modules/Users/Handlers/Staff/FindTenantUsersAsStaff.cs:36` and `FindAuditLogsQuery.Actions` at `apps/api/Src/Modules/AuditLogs/Handlers/Staff/FindAuditLogs.cs:20`).
+
 ## JsonElement Nullability and Kiota Types
 
 **The nullability of `JsonElement` properties directly affects generated TypeScript types:**
@@ -93,6 +96,45 @@ builder.Services.AddOpenApi(options => {
 ```
 
 **Rule:** If you see TypeScript types like `count?: number | UntypedNode` in response DTOs, check that the schema transformer is present and that `OpenApiGenerateDocuments` is `true` in `MainApi.csproj`.
+
+## Query DTO Multi-Value Filters
+
+**Problem:** On an `[AsParameters]` query DTO, `List<string>? Actions` plus a custom static `BindAsync(HttpContext)` causes ASP.NET's OpenAPI generator to omit every query parameter. Kiota then generates a URI template without query placeholders, so frontend `queryParameters` are dropped before the request leaves the browser.
+
+```csharp
+// WRONG - List<T>? forces a custom binder and removes query metadata
+public class FindAuditLogsQuery : CursorPaginatedQuery {
+    [FromQuery] public List<string>? Actions { get; set; }
+
+    public static ValueTask<FindAuditLogsQuery?> BindAsync(HttpContext context) {
+        // Custom query parsing...
+    }
+}
+```
+
+Keep the query DTO primitive and parse the CSV value in a getter instead:
+
+```csharp
+// CORRECT - primitive query property, parsed after binding
+public class FindAuditLogsQuery : CursorPaginatedQuery {
+    [FromQuery] public string? Actions { get; set; }
+
+    public IReadOnlyList<string>? GetActionsList() {
+        if (Actions is null) {
+            return null;
+        }
+
+        var parts = Actions.Split(
+            ',',
+            StringSplitOptions.RemoveEmptyEntries
+                | StringSplitOptions.TrimEntries
+        );
+        return parts.Length == 0 ? null : parts;
+    }
+}
+```
+
+**Rule:** For multi-value query filters on `[AsParameters]` DTOs, use the CSV `string?` pattern from [`validator-conventions.md` Rule 8](validator-conventions.md#rule-8-csv-enum-list-filters-multi-select-query-params). Canonical examples: `FindTenantUsersAsStaffQuery.Status` at `apps/api/Src/Modules/Users/Handlers/Staff/FindTenantUsersAsStaff.cs:36` and `GetStatusesOrNull()` at `apps/api/Src/Modules/Users/Handlers/Staff/FindTenantUsersAsStaff.cs:47`; `FindAuditLogsQuery.Actions` at `apps/api/Src/Modules/AuditLogs/Handlers/Staff/FindAuditLogs.cs:20` and `GetActionsList()` at `apps/api/Src/Modules/AuditLogs/Handlers/Staff/FindAuditLogs.cs:30`; `ExportAuditLogsQuery.Actions` at `apps/api/Src/Modules/AuditLogs/Handlers/Staff/ExportAuditLogs.cs:19` and `GetActionsList()` at `apps/api/Src/Modules/AuditLogs/Handlers/Staff/ExportAuditLogs.cs:29`.
 
 ## Client Regeneration Workflow
 

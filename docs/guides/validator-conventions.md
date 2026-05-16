@@ -284,6 +284,8 @@ private static bool BeValidNullableGuid(string? value) {
 
 For list pages, multi-select enum-like filters should be passed as a **comma-separated string** of **lowercase tokens** (e.g., `status=active,pending`).
 
+For the OpenAPI/Kiota reason this must stay a primitive `string?` on `[AsParameters]` DTOs, see [`openapi-kiota-safeguards.md`](openapi-kiota-safeguards.md#query-dto-multi-value-filters).
+
 Conventions:
 - Empty/whitespace means “no filter”.
 - Validate the raw string (and every token) in the query validator.
