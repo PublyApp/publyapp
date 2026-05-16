@@ -97,7 +97,7 @@ static string ToPascalCase(string input) {
 	if (string.IsNullOrEmpty(input))
 		return input;
 
-	var parts = input.Split(new[] { '-', '_' }, StringSplitOptions.RemoveEmptyEntries);
+	var parts = input.Split(['-', '_'], StringSplitOptions.RemoveEmptyEntries);
 	var result = new StringBuilder();
 
 	foreach (var part in parts) {
