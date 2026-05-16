@@ -23,7 +23,10 @@ export const useFindStaffAuditLogs = createStaffQuery({
 				limit: params.limit ? params.limit.toString() : undefined,
 				sortId: params.sort?.id,
 				sortOrder: params.sort?.order,
-				actions: params.actions,
+				actions:
+					params.actions && params.actions.length > 0
+						? params.actions.join(',')
+						: undefined,
 				userId: params.userId,
 				targetId: params.targetId,
 				startDate: params.startDate,

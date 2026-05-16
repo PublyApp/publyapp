@@ -118,13 +118,12 @@ internal static class AuditLogTestHelper {
 		if (userId is not null) {
 			queryParams.Add($"userId={userId}");
 		}
-		if (actions is not null) {
-			foreach (var action in actions) {
-				queryParams.Add(
-					"actions="
-					+ Uri.EscapeDataString(action)
-				);
-			}
+		if (actions is not null && actions.Count > 0) {
+			var csv = string.Join(
+				",",
+				actions.Select(Uri.EscapeDataString)
+			);
+			queryParams.Add($"actions={csv}");
 		}
 		if (targetId is not null) {
 			queryParams.Add($"targetId={targetId}");
@@ -176,12 +175,12 @@ internal static class AuditLogTestHelper {
 		if (userId is not null) {
 			queryParams.Add($"userId={userId}");
 		}
-		if (actions is not null) {
-			foreach (var action in actions) {
-				queryParams.Add(
-					$"actions={Uri.EscapeDataString(action)}"
-				);
-			}
+		if (actions is not null && actions.Count > 0) {
+			var csv = string.Join(
+				",",
+				actions.Select(Uri.EscapeDataString)
+			);
+			queryParams.Add($"actions={csv}");
 		}
 		if (targetId is not null) {
 			queryParams.Add($"targetId={targetId}");

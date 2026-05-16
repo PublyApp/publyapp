@@ -40,18 +40,44 @@ export interface AuditLogsRequestBuilder extends BaseRequestBuilder<AuditLogsReq
      * @throws {ValidationProblemDetails} error when the service returns a 422 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
-     get(requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<FindAuditLogsResponse | undefined>;
+     get(requestConfiguration?: RequestConfiguration<AuditLogsRequestBuilderGetQueryParameters> | undefined) : Promise<FindAuditLogsResponse | undefined>;
     /**
      * List audit logs with pagination and filters
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */
-     toGetRequestInformation(requestConfiguration?: RequestConfiguration<object> | undefined) : RequestInformation;
+     toGetRequestInformation(requestConfiguration?: RequestConfiguration<AuditLogsRequestBuilderGetQueryParameters> | undefined) : RequestInformation;
+}
+/**
+ * List audit logs with pagination and filters
+ */
+export interface AuditLogsRequestBuilderGetQueryParameters {
+    actions?: string;
+    cursor?: string;
+    endDate?: string;
+    limit?: string;
+    sortId?: string;
+    sortOrder?: string;
+    startDate?: string;
+    targetId?: string;
+    userId?: string;
 }
 /**
  * Uri template for the request builder.
  */
-export const AuditLogsRequestBuilderUriTemplate = "{+baseurl}/staff/audit-logs";
+export const AuditLogsRequestBuilderUriTemplate = "{+baseurl}/staff/audit-logs{?Actions*,EndDate*,StartDate*,TargetId*,UserId*,cursor*,limit*,sort_id*,sort_order*}";
+/**
+ * Mapper for query parameters from symbol name to serialization name represented as a constant.
+ */
+const AuditLogsRequestBuilderGetQueryParametersMapper: Record<string, string> = {
+    "actions": "Actions",
+    "endDate": "EndDate",
+    "sortId": "sort_id",
+    "sortOrder": "sort_order",
+    "startDate": "StartDate",
+    "targetId": "TargetId",
+    "userId": "UserId",
+};
 /**
  * Metadata for all the navigation properties in the request builder.
  */
@@ -83,6 +109,7 @@ export const AuditLogsRequestBuilderRequestsMetadata: RequestsMetadata = {
         },
         adapterMethodName: "send",
         responseBodyFactory:  createFindAuditLogsResponseFromDiscriminatorValue,
+        queryParametersMapper: AuditLogsRequestBuilderGetQueryParametersMapper,
     },
 };
 /* tslint:enable */

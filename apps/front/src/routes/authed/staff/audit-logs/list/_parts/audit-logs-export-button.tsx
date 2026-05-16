@@ -53,7 +53,8 @@ export const AuditLogsExportButton = ({
 			const result = await client.staff.auditLogs.exportEscaped.get({
 				queryParameters: {
 					format,
-					actions: actions && actions.length > 0 ? actions : undefined,
+					actions:
+						actions && actions.length > 0 ? actions.join(',') : undefined,
 					startDate: startDate || undefined,
 					endDate: endDate || undefined,
 				},

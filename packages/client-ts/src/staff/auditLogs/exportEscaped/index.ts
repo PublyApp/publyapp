@@ -19,18 +19,40 @@ export interface ExportRequestBuilder extends BaseRequestBuilder<ExportRequestBu
      * @throws {ValidationProblemDetails} error when the service returns a 422 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
-     get(requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<ArrayBuffer | undefined>;
+     get(requestConfiguration?: RequestConfiguration<ExportRequestBuilderGetQueryParameters> | undefined) : Promise<ArrayBuffer | undefined>;
     /**
      * Export audit logs as CSV or JSON
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */
-     toGetRequestInformation(requestConfiguration?: RequestConfiguration<object> | undefined) : RequestInformation;
+     toGetRequestInformation(requestConfiguration?: RequestConfiguration<ExportRequestBuilderGetQueryParameters> | undefined) : RequestInformation;
+}
+/**
+ * Export audit logs as CSV or JSON
+ */
+export interface ExportRequestBuilderGetQueryParameters {
+    actions?: string;
+    endDate?: string;
+    format?: string;
+    startDate?: string;
+    targetId?: string;
+    userId?: string;
 }
 /**
  * Uri template for the request builder.
  */
-export const ExportRequestBuilderUriTemplate = "{+baseurl}/staff/audit-logs/export";
+export const ExportRequestBuilderUriTemplate = "{+baseurl}/staff/audit-logs/export{?Actions*,EndDate*,Format*,StartDate*,TargetId*,UserId*}";
+/**
+ * Mapper for query parameters from symbol name to serialization name represented as a constant.
+ */
+const ExportRequestBuilderGetQueryParametersMapper: Record<string, string> = {
+    "actions": "Actions",
+    "endDate": "EndDate",
+    "format": "Format",
+    "startDate": "StartDate",
+    "targetId": "TargetId",
+    "userId": "UserId",
+};
 /**
  * Metadata for all the requests in the request builder.
  */
@@ -46,6 +68,7 @@ export const ExportRequestBuilderRequestsMetadata: RequestsMetadata = {
         },
         adapterMethodName: "sendPrimitive",
         responseBodyFactory:  "ArrayBuffer",
+        queryParametersMapper: ExportRequestBuilderGetQueryParametersMapper,
     },
 };
 /* tslint:enable */

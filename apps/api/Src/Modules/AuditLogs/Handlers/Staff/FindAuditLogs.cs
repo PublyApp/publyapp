@@ -17,78 +17,27 @@ public class FindAuditLogsResponse
 
 public class FindAuditLogsQuery : CursorPaginatedQuery {
 	[FromQuery] public string? UserId { get; set; }
-	[FromQuery] public List<string>? Actions { get; set; }
+	[FromQuery] public string? Actions { get; set; }
 	[FromQuery] public string? TargetId { get; set; }
 	[FromQuery] public string? StartDate { get; set; }
 	[FromQuery] public string? EndDate { get; set; }
 
-	// [AsParameters] binding in minimal APIs requires every
-	// member to be primitive or implement TryParse. List<string>
-	// does not, so we provide an explicit BindAsync that pulls
-	// each field from the query collection ourselves.
-	public static ValueTask<FindAuditLogsQuery?> BindAsync(
-		HttpContext context
-	) {
-		var requestQuery = context.Request.Query;
-		var query = new FindAuditLogsQuery {
-			Cursor = GetNullableQueryValue(
-				requestQuery, "cursor"
-			),
-			Limit = GetNullableQueryValue(
-				requestQuery, "limit"
-			),
-			SortId = GetNullableQueryValue(
-				requestQuery, "sort_id"
-			),
-			SortOrder = GetNullableQueryValue(
-				requestQuery, "sort_order"
-			),
-			UserId = GetNullableQueryValue(
-				requestQuery, "userId"
-			),
-			Actions = GetActionsQueryValue(
-				requestQuery
-			),
-			TargetId = GetNullableQueryValue(
-				requestQuery, "targetId"
-			),
-			StartDate = GetNullableQueryValue(
-				requestQuery, "startDate"
-			),
-			EndDate = GetNullableQueryValue(
-				requestQuery, "endDate"
-			),
-		};
-
-		return new ValueTask<FindAuditLogsQuery?>(query);
-	}
-
-	private static string? GetNullableQueryValue(
-		IQueryCollection requestQuery,
-		string key
-	) {
-		if (!requestQuery.TryGetValue(key, out var value)) {
+	// CSV-encoded so the property remains primitive — required for
+	// [AsParameters] binding and so the OpenAPI generator emits the
+	// param (a List<string>? property forces a custom BindAsync,
+	// which strips every query param from the OpenAPI doc and from
+	// the generated Kiota client URI template).
+	public IReadOnlyList<string>? GetActionsList() {
+		if (Actions is null) {
 			return null;
 		}
 
-		return value.ToString();
-	}
-
-	private static List<string>? GetActionsQueryValue(
-		IQueryCollection requestQuery
-	) {
-		if (!requestQuery.TryGetValue(
-			"actions", out var actions
-		)) {
-			return null;
-		}
-
-		var actionValues = new List<string>();
-		foreach (var action in actions) {
-			actionValues.Add(action ?? string.Empty);
-		}
-
-		return actionValues;
+		var parts = Actions.Split(
+			',',
+			StringSplitOptions.RemoveEmptyEntries
+				| StringSplitOptions.TrimEntries
+		);
+		return parts.Length == 0 ? null : parts;
 	}
 
 	public Guid? GetUserId() {
@@ -125,22 +74,40 @@ public class FindAuditLogsQueryValidator
 				"UserId must be a valid GUID"
 			);
 
-		RuleFor(x => x.Actions)
-			.Must(actions => actions is null
-				|| actions.Count <= 50)
+		RuleFor(x => x)
+			.Must(x => {
+				var list = x.GetActionsList();
+				return list is null || list.Count <= 50;
+			})
 			.WithMessage(
 				"At most 50 actions can be filtered at once."
 			);
 
-		RuleForEach(x => x.Actions)
-			.NotEmpty()
-			.WithMessage(
-				"Action values must not be empty."
-			)
-			.Must(AuditActionsRegistry.IsKnown)
-			.WithMessage(a =>
-				$"'{a}' is not a valid audit action."
-			);
+		RuleFor(x => x)
+			.Must(x => {
+				var list = x.GetActionsList();
+				if (list is null) {
+					return true;
+				}
+				foreach (var action in list) {
+					if (!AuditActionsRegistry.IsKnown(action)) {
+						return false;
+					}
+				}
+				return true;
+			})
+			.WithMessage(x => {
+				var list = x.GetActionsList();
+				if (list is null) {
+					return "Invalid action.";
+				}
+				foreach (var action in list) {
+					if (!AuditActionsRegistry.IsKnown(action)) {
+						return $"'{action}' is not a valid audit action.";
+					}
+				}
+				return "Invalid action.";
+			});
 
 		RuleFor(x => x.TargetId)
 			.Must(QueryPredicates.BeValidNullableGuid)
@@ -186,6 +153,7 @@ public class FindAuditLogs {
 		Ok<FindAuditLogsResponse>,
 		AppBadRequestHttpResult
 	>> HandleFindAuditLogs(
+		[AsParameters]
 		FindAuditLogsQuery query,
 		[FromServices]
 		IAuditLogQueryService auditLogQueryService,
@@ -215,7 +183,7 @@ public class FindAuditLogs {
 				SortId: sortId,
 				SortOrder: sortOrder,
 				UserId: query.GetUserId(),
-				Actions: query.Actions,
+				Actions: query.GetActionsList(),
 				TargetId: query.GetTargetId(),
 				StartDate: query.GetStartDate(),
 				EndDate: query.GetEndDate()
