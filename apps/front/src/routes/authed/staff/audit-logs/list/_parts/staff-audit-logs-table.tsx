@@ -1,4 +1,5 @@
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
@@ -10,7 +11,7 @@ import {
 	type MRT_ColumnDef,
 	type MRT_SortingState,
 } from 'material-react-table';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 
 import type { AuditLogListItem } from '@org/client-ts/src/models';
 import {
@@ -32,7 +33,9 @@ import {
 } from '#app/lib/react-query/features/staff/staff-audit-log.hooks.ts';
 import { dayjs, fDateTime, fToNow } from '#app/utils/format-time.ts';
 
-import { AuditLogsExportButton } from './audit-logs-export-button';
+import AuditLogsExportDialogController, {
+	type AuditLogsExportDialogControllerRef,
+} from './audit-logs-export-dialog-controller.tsx';
 import { useStaffAuditLogsFilters } from './use-staff-audit-logs-filters';
 
 type AuditLogRowData = {
@@ -66,6 +69,9 @@ const defaultSorting: MRT_SortingState[number] = {
 
 const StaffAuditLogsTable = () => {
 	const { t } = useTranslate();
+	const exportDialogRef = useRef<AuditLogsExportDialogControllerRef | null>(
+		null,
+	);
 
 	const {
 		handlePaginationChange,
@@ -205,11 +211,13 @@ const StaffAuditLogsTable = () => {
 
 	const renderExportActions = () => {
 		return (
-			<AuditLogsExportButton
-				actions={actions.length > 0 ? actions : undefined}
-				startDate={startDateIso}
-				endDate={endDateIso}
-			/>
+			<Button
+				variant="outlined"
+				onClick={() => exportDialogRef.current?.open()}
+				startIcon={<Iconify icon="solar:download-bold" width={18} />}
+			>
+				{t('export')}
+			</Button>
 		);
 	};
 
@@ -250,6 +258,13 @@ const StaffAuditLogsTable = () => {
 			}}
 		>
 			<MaterialReactTable table={table} />
+
+			<AuditLogsExportDialogController
+				ref={exportDialogRef}
+				actions={actions.length > 0 ? actions : undefined}
+				startDate={startDateIso}
+				endDate={endDateIso}
+			/>
 		</Box>
 	);
 };

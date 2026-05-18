@@ -363,6 +363,7 @@
 	"export": "Export",
 	"export-complete": "Export complete",
 	"export-failed": "Export failed",
+	"export-audit-logs-current-filters": "Export all audit logs matching the current filters.",
 	"filters": "Filters",
 	"start-date": "Start date",
 	"end-date": "End date",

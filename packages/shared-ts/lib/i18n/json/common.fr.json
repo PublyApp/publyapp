@@ -363,6 +363,7 @@
 	"export": "Exporter",
 	"export-complete": "Export terminé",
 	"export-failed": "Échec de l'export",
+	"export-audit-logs-current-filters": "Exporter tous les journaux d'audit correspondant aux filtres actuels.",
 	"filters": "Filtres",
 	"start-date": "Date de début",
 	"end-date": "Date de fin",
