@@ -29,6 +29,9 @@
 		"*.slnx": "xml",
 		"justfile": "makefile"
 	},
+	"files.exclude": {
+		"apps/api/.artifacts": true
+	},
 	"[jsonc]": {
 		"editor.defaultFormatter": "vscode.json-language-features"
 	},

@@ -69,3 +69,7 @@ voicetree*/
 .tmp/
 .aidesigner/*
 !.aidesigner/.gitkeep
+
+apps/api/.artifacts/
+packages/scripts-cs/bin/
+packages/scripts-cs/obj/

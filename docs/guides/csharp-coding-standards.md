@@ -196,12 +196,12 @@ response, frontend selection plumbing), see
 
 ```csharp
 // ✅ CORRECT - Everything in one file: Handler + DTOs + Validators
-// File: apps/api/Src/Modules/Invitations/Handlers/Staff/CreateStaffInvitation.cs
+// File: apps/api/Modules/Invitations/Handlers/Staff/CreateStaffInvitation.cs
 
 using FluentValidation;
 using System.Text.Json;
 
-namespace MainApi.Src.Modules.Invitations.Handlers.Staff;
+namespace MainApi.Modules.Invitations.Handlers.Staff;
 
 // Request DTO (Body suffix for request body, Query suffix for query params)
 public record CreateStaffInvitationBody {
@@ -359,7 +359,7 @@ public static async Task<Ok> HandleCreateUser(
 4. **Keep `id` separate:** Entity identifiers remain as separate parameters (they're routing concerns, not domain input)
 5. **Architecture guard:** When adding or refactoring service methods that should use
    Args records, add/update the relevant assertions in
-   `apps/api/Src/Lib/Architecture/ServiceArgsRecordConvention.Spec.cs`
+   `apps/api/Lib/Architecture/ServiceArgsRecordConvention.Spec.cs`
 
 ```csharp
 // ✅ CORRECT - Args record in the service file
@@ -424,7 +424,7 @@ Task<bool> DeleteAsync(
 
 ### Adding a New Application Service
 
-- **Namespace**: Place concrete class under `MainApi.Src.Modules.<Domain>.Services`
+- **Namespace**: Place concrete class under `MainApi.Modules.<Domain>.Services`
 - **Primary interface**: Define `I{ClassName}` interface (e.g., `UserService` → `IUserService`)
 - **Explicit lifetime**: Specify `ServiceLifetime` explicitly (Scoped, Transient, or Singleton)
 - **One unkeyed default**: Exactly one unkeyed registration per service type is allowed
@@ -448,7 +448,7 @@ When adding a second (or nth) implementation of an existing service interface:
 
 - **Web group** (`AddWebServices`): ASP.NET Core wiring (ProblemDetails, OpenAPI, CORS, compression)
 - **Infrastructure group** (`AddInfraServices`): External capabilities (DbContext, SDK clients, email, health checks)
-- **Application group** (`AddAppServices`): Business services only (`MainApi.Src.Modules.*.Services`)
+- **Application group** (`AddAppServices`): Business services only (`MainApi.Modules.*.Services`)
 
 ### Attribute-Based Application Service Registration (`[Service]`)
 
@@ -456,11 +456,11 @@ When adding a second (or nth) implementation of an existing service interface:
 
 Quick Do / Don't:
 
-- Do: Use `[Service]` only on concrete classes under `MainApi.Src.Modules.*.Services`
+- Do: Use `[Service]` only on concrete classes under `MainApi.Modules.*.Services`
 - Do: Implement the primary interface `I{ClassName}`
 - Don't: Add multiple unkeyed implementations for the same service type (only one default allowed; additional ones must be keyed)
 
-- **Allowed location**: Only concrete classes under `MainApi.Src.Modules.*.Services`
+- **Allowed location**: Only concrete classes under `MainApi.Modules.*.Services`
 - **Scanning scope**: Single assembly (Main API) only
 - **Lifetime**: Must be explicit (`ServiceLifetime` is required)
 - **Interface binding**: Registers ONLY the primary interface `I{ClassName}`
@@ -475,7 +475,7 @@ Quick Do / Don't:
   - Additional implementations MUST be keyed
   - Duplicate unkeyed defaults or duplicate keys are startup errors
 - **Migration guardrail**: If a service type is discovered via `[Service]`, it MUST NOT also have any explicit DI registrations (unkeyed or keyed). Startup fails fast to prevent half-migrated states.
-- **Misuse is a hard error**: Any `[Service]` attribute outside `MainApi.Src.Modules.*.Services` fails startup
+- **Misuse is a hard error**: Any `[Service]` attribute outside `MainApi.Modules.*.Services` fails startup
 
 ### Fail-Fast Validation (Troubleshooting)
 
@@ -485,7 +485,7 @@ On any violation, startup fails with `InvalidOperationException` and a bullet li
 Common failure categories and fixes:
 
 - **Abstract/open generic**: Remove `[Service]` or apply it only to a concrete, non-generic implementation.
-- **Invalid namespace**: Move the class to `MainApi.Src.Modules.<Domain>.Services` (or remove `[Service]` and wire explicitly).
+- **Invalid namespace**: Move the class to `MainApi.Modules.<Domain>.Services` (or remove `[Service]` and wire explicitly).
 - **Missing primary interface**: Ensure the class implements `I{ClassName}`.
 - **Invalid key**: Use a non-empty, lowercase key constant; use `null` for unkeyed default.
 - **Duplicate unkeyed**: Keep exactly one default; key additional implementations.
@@ -693,7 +693,7 @@ public static async Task<Results<
 **Note on framework/binding errors:**
 - Missing required query/body parameters can still produce a **400** (e.g., request body missing / required query parameter missing).
 - These are normalized by `UseCustomExceptionHandler()` to `AppProblemDetails` (`application/problem+json`), so endpoints may legitimately document both `400` (generic/binding) and `422` (validation).
-- `builder.Services.AddProblemDetails()` is registered (see `apps/api/Src/Lib/ServiceRegistration.cs`) for framework integration, but endpoints still return ProblemDetails explicitly via `TypedProblems.*`.
+- `builder.Services.AddProblemDetails()` is registered (see `apps/api/Lib/ServiceRegistration.cs`) for framework integration, but endpoints still return ProblemDetails explicitly via `TypedProblems.*`.
 
 ```csharp
 // 400 - Generic bad request (e.g., invalid credentials)
@@ -1348,7 +1348,7 @@ Handler file:
 
 > Full guide with examples, decision tree, anti-patterns, and validator patterns: [`docs/guides/patchfield-pattern.md`](patchfield-pattern.md)
 
-**CRITICAL:** `PatchField<T>` (`apps/api/Src/Lib/PatchField.cs`) is the **mandatory** way to represent three-state nullable fields in PATCH/update endpoints.
+**CRITICAL:** `PatchField<T>` (`apps/api/Lib/PatchField.cs`) is the **mandatory** way to represent three-state nullable fields in PATCH/update endpoints.
 
 **Checklist:**
 

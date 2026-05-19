@@ -108,8 +108,8 @@ Tenant users access their own resources with implicit tenant context from header
 ## Route Constants Location
 
 Routes are defined as C# constants in partial classes:
-- Base routes: `apps/api/Src/Lib/Routes/Routes.cs`
-- Domain routes: `apps/api/Src/Modules/<Domain>/Routes.<Domain>.cs`
+- Base routes: `apps/api/Lib/Routes/Routes.cs`
+- Domain routes: `apps/api/Modules/<Domain>/Routes.<Domain>.cs`
 
 ```csharp
 // Example: Routes.Users.cs

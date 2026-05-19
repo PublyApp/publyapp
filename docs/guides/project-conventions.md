@@ -5,7 +5,7 @@
 ## Route Naming
 
 - Backend routes use kebab-case: `/staff/staff-users`
-- Route constants defined in `apps/api/Src/Lib/RoutePath.cs`
+- Route constants defined in `apps/api/Lib/RoutePath.cs`
 - Frontend route constants in `packages/shared/lib/constants.ts`
 
 ## API Contract Naming

@@ -175,7 +175,7 @@ public class StaffProfileItem {
     public int UserAccountCount { get; set; }
 }
 
-// CursorPaginatedResult is already defined in Src/Lib/CursorPaginatedResult.cs
+// CursorPaginatedResult is already defined in Lib/CursorPaginatedResult.cs
 // public class CursorPaginatedResult<T> {
 //     public List<T> Data { get; set; } = [];
 //     public string? NextCursor { get; set; } = null;
@@ -394,7 +394,7 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
     );
 }
 
-// CursorSortFieldHandler<TEntity> lives in MainApi.Src.Lib.
+// CursorSortFieldHandler<TEntity> lives in MainApi.Lib.
 // Do not define a private SortFieldHandler helper in each service.
 ```
 
@@ -412,12 +412,12 @@ Create the endpoint handler with proper error handling:
 ```csharp
 // In your handler file (e.g., Handlers/FindEntities.cs)
 using MainApi.Localization;
-using MainApi.Src.Lib;
-using MainApi.Src.Lib.ProblemResults;
+using MainApi.Lib;
+using MainApi.Lib.ProblemResults;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Src.Modules.YourFeature.Handlers;
+namespace MainApi.Modules.YourFeature.Handlers;
 
 public class FindEntitiesResult : CursorPaginatedResult<EntityItem> { }
 
@@ -500,8 +500,8 @@ public class FindEntities {
 ## Complete Example
 
 For a complete, working example, see:
-- Service: `apps/api/Src/Modules/Profiles/Services/ProfileAsStaffService.cs`
-- Handler: `apps/api/Src/Modules/Profiles/Handlers/Staff/FindStaffProfiles.cs`
+- Service: `apps/api/Modules/Profiles/Services/ProfileAsStaffService.cs`
+- Handler: `apps/api/Modules/Profiles/Handlers/Staff/FindStaffProfiles.cs`
 
 ## Common Pitfalls
 

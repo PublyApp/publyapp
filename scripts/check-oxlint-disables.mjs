@@ -23,11 +23,8 @@ const ignoredSegments = new Set([
 // close to .oxlintrc.json's generated-output ignores so the guard follows the
 // same source-owned boundary as normal linting.
 const ignoredRelativeRoots = [
-	'apps/api/Generated',
+	'apps/api/.artifacts',
 	'apps/api/Migrations',
-	'apps/api/bin',
-	'apps/api/obj',
-	'apps/api/openapi',
 	'docs/superpowers/plans',
 	'packages/client-ts',
 ];

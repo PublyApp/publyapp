@@ -1,0 +1,9 @@
+<Project>
+	<Import Project="..\..\Directory.Build.props" />
+
+	<PropertyGroup>
+		<ApiArtifactsRoot>$(MSBuildThisFileDirectory).artifacts\</ApiArtifactsRoot>
+		<BaseOutputPath>$(ApiArtifactsRoot)bin\$(MSBuildProjectName)\</BaseOutputPath>
+		<BaseIntermediateOutputPath>$(ApiArtifactsRoot)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+	</PropertyGroup>
+</Project>
