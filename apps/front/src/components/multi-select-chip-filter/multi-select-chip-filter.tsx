@@ -49,9 +49,18 @@ export const MultiSelectChipFilter = ({
 
 	return (
 		<>
-			<Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+			<Box
+				sx={{
+					display: 'inline-flex',
+					alignItems: 'center',
+					overflow: 'hidden',
+					border: '1px solid',
+					borderColor: 'divider',
+					borderRadius: 1,
+				}}
+			>
 				<Button
-					variant="outlined"
+					variant="text"
 					color="inherit"
 					onClick={(e: MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget)}
 					startIcon={<Iconify icon="solar:filter-bold" width={18} />}
@@ -61,8 +70,13 @@ export const MultiSelectChipFilter = ({
 					sx={{
 						textTransform: 'none',
 						pl: 1.5,
-						pr: 1.5,
+						pr: isActive ? 1 : 1.5,
 						gap: 0.5,
+						borderRadius: 0,
+						minHeight: 30,
+						'&:hover': {
+							bgcolor: 'action.hover',
+						},
 					}}
 				>
 					<Stack direction="row" spacing={1} alignItems="center">
@@ -97,13 +111,19 @@ export const MultiSelectChipFilter = ({
 							onClick={handleClearAll}
 							aria-label={t('clear')}
 							sx={{
-								width: 34,
-								height: 34,
-								border: '1px solid',
+								width: 30,
+								height: 30,
+								borderLeft: '1px solid',
 								borderColor: 'divider',
+								borderRadius: 0,
+								color: 'text.secondary',
+								'&:hover': {
+									bgcolor: 'action.hover',
+									color: 'text.primary',
+								},
 							}}
 						>
-							<Iconify icon="solar:close-circle-bold" width={18} />
+							<Iconify icon="solar:close-circle-bold" width={16} />
 						</IconButton>
 					</Tooltip>
 				)}
