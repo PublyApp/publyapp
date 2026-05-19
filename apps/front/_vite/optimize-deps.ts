@@ -150,6 +150,7 @@ export const optimizeDepsIncludes = [
 	'@mui/material/Tabs',
 	'@mui/material/TextField',
 	'@mui/material/ToggleButton',
+	'@mui/material/ToggleButtonGroup',
 	'@mui/material/Tooltip',
 	'@mui/material/Typography',
 	'@mui/material/useMediaQuery',
