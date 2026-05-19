@@ -81,7 +81,7 @@ export const AuditLogInspectDrawer = () => {
 				EmptySlot={AuditLogInspectDrawerEmpty}
 			>
 				{({ data: auditLog }) => (
-					<Stack spacing={3} sx={{ p: 3, pt: 8 }}>
+					<Stack spacing={3} sx={{ p: 3 }}>
 						<Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
 							<Link
 								component={RouterLink}
@@ -118,7 +118,7 @@ export const AuditLogInspectDrawer = () => {
 
 const AuditLogInspectDrawerSkeleton = () => {
 	return (
-		<Stack spacing={3} sx={{ p: 3, pt: 8 }}>
+		<Stack spacing={3} sx={{ p: 3 }}>
 			<Skeleton variant="rounded" width={120} height={24} />
 			<Skeleton variant="text" width="70%" height={28} />
 			<Skeleton variant="text" width="40%" height={16} />
