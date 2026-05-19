@@ -91,18 +91,23 @@ export const DateRangeFilterPresets = ({
 
 	return (
 		<Box
-			sx={{
+			sx={(theme) => ({
 				display: 'flex',
 				flexDirection: { xs: 'row', sm: 'column' },
 				gap: 0.5,
 				p: 1,
-				borderRight: { xs: 'none', sm: '1px solid' },
-				borderBottom: { xs: '1px solid', sm: 'none' },
-				borderColor: 'divider',
+				borderRight: {
+					xs: 'none',
+					sm: `1px solid ${theme.vars.palette.divider}`,
+				},
+				borderBottom: {
+					xs: `1px solid ${theme.vars.palette.divider}`,
+					sm: 'none',
+				},
 				minWidth: { xs: 0, sm: 160 },
 				maxWidth: '100%',
 				overflowX: { xs: 'auto', sm: 'visible' },
-			}}
+			})}
 		>
 			{map(DATE_RANGE_PRESETS, (preset) => (
 				<Button
