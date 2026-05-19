@@ -2,6 +2,7 @@ using FluentValidation;
 
 using MainApi.Localization;
 using MainApi.Src.Lib.ProblemResults;
+using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.Auth.Utils;
 using MainApi.Src.Modules.Users.Services;
 
@@ -11,7 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Modules.Auth.Handlers;
 
 public class GetVerificationLinkQuery {
-	[FromQuery]
+	[FromQuery(Name = "user_id")]
 	public string UserId { get; set; } = string.Empty;
 
 	public Guid GetUserId() {
@@ -22,7 +23,10 @@ public class GetVerificationLinkQuery {
 public class GetVerificationLinkQueryValidator : AbstractValidator<GetVerificationLinkQuery> {
 	public GetVerificationLinkQueryValidator() {
 		RuleFor(x => x.UserId)
-			.NotEmpty().WithMessage("UserId is required");
+			.NotEmpty()
+			.WithMessage("user_id is required")
+			.Must(QueryPredicates.BeValidNullableGuid)
+			.WithMessage("user_id must be a valid GUID");
 	}
 }
 
@@ -45,6 +49,9 @@ public class GetVerificationLink {
 	) {
 		var userId = query.GetUserId();
 
+		// Endpoint query validation normally rejects malformed
+		// user_id before this handler; this guard is
+		// defense-in-depth for direct calls or missing filters.
 		if (userId == Guid.Empty) {
 			if (logger.IsEnabled(LogLevel.Debug)) {
 				logger.LogDebug(

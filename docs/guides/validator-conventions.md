@@ -104,16 +104,17 @@ public class FindUsersQueryValidator
 
 // ✅ CORRECT - Cursor pagination with extra rules
 public class FindAuditLogsQuery : CursorPaginatedQuery {
-    [FromQuery] public string? UserId { get; set; }
+    [FromQuery(Name = "user_id")]
+    public string? UserId { get; set; }
 }
 public class FindAuditLogsQueryValidator
     : CursorPaginatedQueryValidator<FindAuditLogsQuery> {
     public FindAuditLogsQueryValidator() {
-        // Base class validates Cursor, Limit, SortId, SortOrder
+        // Base class validates cursor, limit, sort_id, sort_order
         // Only add domain-specific rules here
         RuleFor(x => x.UserId)
-            .Must(PaginationPredicates.BeValidNullableString)
-            .WithMessage("UserId must be a valid string");
+            .Must(QueryPredicates.BeValidNullableGuid)
+            .WithMessage("user_id must be a valid GUID");
     }
 }
 
@@ -137,6 +138,10 @@ When adding custom query parameter rules to a paginated validator, reuse `Pagina
 | `BeValidNullableString` | Optional string query param (null OK, empty not OK) |
 | `BeValidNullableSort` | Optional sort direction (`"asc"` or `"desc"`) |
 | `BeValidNullableNumber` | Optional positive integer query param |
+
+> Use `PaginationPredicates` for pagination-owned checks only. For resource
+> filters such as `user_id`, `target_id`, and dates, prefer `QueryPredicates`
+> so validators and DTO parser getters share one implementation.
 
 ## Rule 3: Inherit `EncryptedIdTokenQuery` for Token-Check Endpoints
 
@@ -215,22 +220,27 @@ Password validation uses `AppEnvironment.Instance.PASSWORD_MIN_LENGTH`. **Never 
 
 ## Rule 7: Query Parameter DTO Conventions
 
-### `[FromQuery]` on Every Property
+### `[FromQuery(Name = "...")]` on Every Property
 
-All query parameter DTO properties must have the `[FromQuery]` attribute. This makes binding explicit and consistent across standalone queries and base-class-inherited queries (`OffsetPaginatedQuery`, `CursorPaginatedQuery`).
+All query parameter DTO properties must have the `[FromQuery(Name = "...")]` attribute with the
+snake_case wire name. This makes binding explicit and consistent across standalone queries and
+base-class-inherited queries (`OffsetPaginatedQuery`, `CursorPaginatedQuery`).
 
 ```csharp
 // ✅ CORRECT
 public class FindStaffPermissionsQuery {
-    [FromQuery]
+    [FromQuery(Name = "language")]
     public string? Language { get; set; }
 }
 
-// ❌ WRONG - missing [FromQuery]
+// ❌ WRONG - missing explicit snake_case wire name
 public class FindStaffPermissionsQuery {
     public string? Language { get; set; }
 }
 ```
+
+Using a bare query-binding attribute without `Name = "language"` is also wrong because it
+leaks the C# property name into the URL contract.
 
 ### Getter Methods for Type Conversion
 
@@ -239,7 +249,8 @@ Custom query properties that require type conversion (string to `Guid?`, `DateTi
 ```csharp
 // ✅ CORRECT - getter on the DTO, handler calls it
 public class FindAuditLogsQuery : CursorPaginatedQuery {
-    [FromQuery] public string? UserId { get; set; }
+    [FromQuery(Name = "user_id")]
+    public string? UserId { get; set; }
 
     public Guid? GetUserId() {
         return QueryPredicates.ParseNullableGuid(UserId);
@@ -284,6 +295,8 @@ private static bool BeValidNullableGuid(string? value) {
 
 For list pages, multi-select enum-like filters should be passed as a **comma-separated string** of **lowercase tokens** (e.g., `status=active,pending`).
 
+For the OpenAPI/Kiota reason this must stay a primitive `string?` on `[AsParameters]` DTOs, see [`openapi-kiota-safeguards.md`](openapi-kiota-safeguards.md#query-dto-multi-value-filters).
+
 Conventions:
 - Empty/whitespace means “no filter”.
 - Validate the raw string (and every token) in the query validator.
@@ -321,8 +334,7 @@ public class FindTenantsQuery : CursorPaginatedQuery {
 			return null;
 		}
 
-		var parts = Status.Split(',',
-			StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+		var parts = Status.Split(',', StringSplitOptions.TrimEntries);
 		if (parts.Length == 0) {
 			return null;
 		}

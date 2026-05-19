@@ -67,7 +67,7 @@ public sealed class BulkSuspendStaffUsersSpec : IClassFixture<ApiFixture> {
 
 		using var response = await BulkSuspendAsync(
 			staffToken,
-			new[] { "not-a-guid" }
+			["not-a-guid"]
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);

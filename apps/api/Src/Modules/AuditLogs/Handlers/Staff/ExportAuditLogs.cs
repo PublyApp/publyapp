@@ -13,12 +13,22 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Modules.AuditLogs.Handlers.Staff;
 
 public class ExportAuditLogsQuery {
-	[FromQuery] public string? Format { get; set; }
-	[FromQuery] public string? UserId { get; set; }
-	[FromQuery] public string? Action { get; set; }
-	[FromQuery] public string? TargetId { get; set; }
-	[FromQuery] public string? StartDate { get; set; }
-	[FromQuery] public string? EndDate { get; set; }
+	[FromQuery(Name = "format")] public string? Format { get; set; }
+	[FromQuery(Name = "user_id")] public string? UserId { get; set; }
+	[FromQuery(Name = AuditLogActionsCsv.WireName)]
+	public string? Actions { get; set; }
+	[FromQuery(Name = "target_id")] public string? TargetId { get; set; }
+	[FromQuery(Name = "start_date")] public string? StartDate { get; set; }
+	[FromQuery(Name = "end_date")] public string? EndDate { get; set; }
+
+	// CSV-encoded so the property remains primitive - required for
+	// [AsParameters] binding and so the OpenAPI generator emits the
+	// param (a List<string>? property forces a custom BindAsync,
+	// which strips every query param from the OpenAPI doc and from
+	// the generated Kiota client URI template).
+	public IReadOnlyList<string>? GetActionsList() {
+		return AuditLogActionsCsv.Parse(Actions);
+	}
 
 	public string? GetFormat() {
 		if (Format is null) {
@@ -65,56 +75,74 @@ public class ExportAuditLogsQueryValidator
 	public ExportAuditLogsQueryValidator() {
 		RuleFor(x => x.Format)
 			.NotEmpty()
-			.WithMessage("Format is required")
+			.WithMessage("format is required")
 			.Must(BeValidFormat)
 			.WithMessage(
-				"Format must be 'csv' or 'json'"
+				"format must be 'csv' or 'json'"
 			);
 
 		RuleFor(x => x.UserId)
 			.Must(QueryPredicates.BeValidNullableGuid)
 			.WithMessage(
-				"UserId must be a valid GUID"
+				"user_id must be a valid GUID"
 			);
+
+		RuleFor(x => x.Actions)
+			.Custom((raw, context) => {
+				var error =
+					AuditLogActionsCsv.GetValidationError(raw);
+				if (error is not null) {
+					context.AddFailure(
+						AuditLogActionsCsv.WireName,
+						error
+					);
+				}
+			});
 
 		RuleFor(x => x.TargetId)
 			.Must(QueryPredicates.BeValidNullableGuid)
 			.WithMessage(
-				"TargetId must be a valid GUID"
+				"target_id must be a valid GUID"
 			);
 
 		RuleFor(x => x.StartDate)
 			.Must(QueryPredicates.BeValidNullableDate)
 			.WithMessage(
-				"StartDate must be a valid"
+				"start_date must be a valid"
 				+ " ISO 8601 date"
 			);
 
 		RuleFor(x => x.EndDate)
 			.Must(QueryPredicates.BeValidNullableDate)
 			.WithMessage(
-				"EndDate must be a valid"
+				"end_date must be a valid"
 				+ " ISO 8601 date"
 			);
 
 		RuleFor(x => x)
-			.Must(q => QueryPredicates.BeValidDateRange(
-				q.StartDate, q.EndDate
-			))
-			.WithMessage(
-				"StartDate must be before or equal"
-				+ " to EndDate"
-			)
-			.When(x =>
-				x.StartDate is not null
-				&& x.EndDate is not null
-				&& QueryPredicates.BeValidNullableDate(
-					x.StartDate
-				)
-				&& QueryPredicates.BeValidNullableDate(
-					x.EndDate
-				)
-			);
+			.Custom((query, context) => {
+				if (query.StartDate is null
+					|| query.EndDate is null
+					|| !QueryPredicates.BeValidNullableDate(
+						query.StartDate
+					)
+					|| !QueryPredicates.BeValidNullableDate(
+						query.EndDate
+					)
+					|| QueryPredicates.BeValidDateRange(
+						query.StartDate,
+						query.EndDate
+					)
+				) {
+					return;
+				}
+
+				context.AddFailure(
+					"start_date",
+					"start_date must be before or equal"
+					+ " to end_date"
+				);
+			});
 	}
 
 	private static bool BeValidFormat(string? value) {
@@ -132,7 +160,8 @@ public class ExportAuditLogsQueryValidator
 public class ExportAuditLogs {
 	public static async Task<IResult>
 		HandleExportAuditLogs(
-		[AsParameters] ExportAuditLogsQuery query,
+		[AsParameters]
+		ExportAuditLogsQuery query,
 		[FromServices]
 		IAuditLogQueryService auditLogQueryService,
 		HttpContext httpContext,
@@ -140,7 +169,7 @@ public class ExportAuditLogs {
 	) {
 		var exportArgs = new ExportAuditLogsArgs(
 			UserId: query.GetUserId(),
-			Action: query.Action,
+			Actions: query.GetActionsList(),
 			TargetId: query.GetTargetId(),
 			StartDate: query.GetStartDate(),
 			EndDate: query.GetEndDate()
@@ -163,7 +192,7 @@ public class ExportAuditLogs {
 		var format = query.GetFormat();
 		if (format is null) {
 			return TypedProblems.BadRequest(
-				"Format is required",
+				"format is required",
 				ResponseKeys.BadRequest
 			);
 		}
@@ -176,6 +205,10 @@ public class ExportAuditLogs {
 		var fileName =
 			$"audit-logs-{timestamp}.{ext}";
 
+		// This endpoint streams the body itself instead of
+		// returning FileContentResult, so endpoint metadata in
+		// AuditLogEndpointsForStaff must stay in sync with these
+		// content types.
 		httpContext.Response.ContentType = contentType;
 		httpContext.Response.Headers.ContentDisposition =
 			$"attachment; filename=\"{fileName}\"";
@@ -245,6 +278,8 @@ public class ExportAuditLogs {
 		IAsyncEnumerable<AuditLogExportItem> items,
 		CancellationToken cancellationToken
 	) {
+		// Stream a top-level array so large exports do not need
+		// to be buffered before the response starts.
 		await using var writer = new Utf8JsonWriter(
 			stream,
 			new JsonWriterOptions {

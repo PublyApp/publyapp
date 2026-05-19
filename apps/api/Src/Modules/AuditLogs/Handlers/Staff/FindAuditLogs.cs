@@ -4,6 +4,7 @@ using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Validation;
+using MainApi.Src.Modules.AuditLogs.Entities;
 using MainApi.Src.Modules.AuditLogs.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -15,11 +16,21 @@ public class FindAuditLogsResponse
 	: CursorPaginatedResult<AuditLogListItem> { }
 
 public class FindAuditLogsQuery : CursorPaginatedQuery {
-	[FromQuery] public string? UserId { get; set; }
-	[FromQuery] public string? Action { get; set; }
-	[FromQuery] public string? TargetId { get; set; }
-	[FromQuery] public string? StartDate { get; set; }
-	[FromQuery] public string? EndDate { get; set; }
+	[FromQuery(Name = "user_id")] public string? UserId { get; set; }
+	[FromQuery(Name = AuditLogActionsCsv.WireName)]
+	public string? Actions { get; set; }
+	[FromQuery(Name = "target_id")] public string? TargetId { get; set; }
+	[FromQuery(Name = "start_date")] public string? StartDate { get; set; }
+	[FromQuery(Name = "end_date")] public string? EndDate { get; set; }
+
+	// CSV-encoded so the property remains primitive - required for
+	// [AsParameters] binding and so the OpenAPI generator emits the
+	// param (a List<string>? property forces a custom BindAsync,
+	// which strips every query param from the OpenAPI doc and from
+	// the generated Kiota client URI template).
+	public IReadOnlyList<string>? GetActionsList() {
+		return AuditLogActionsCsv.Parse(Actions);
+	}
 
 	public Guid? GetUserId() {
 		return QueryPredicates.ParseNullableGuid(
@@ -52,45 +63,112 @@ public class FindAuditLogsQueryValidator
 		RuleFor(x => x.UserId)
 			.Must(QueryPredicates.BeValidNullableGuid)
 			.WithMessage(
-				"UserId must be a valid GUID"
+				"user_id must be a valid GUID"
 			);
+
+		RuleFor(x => x.Actions)
+			.Custom((raw, context) => {
+				var error =
+					AuditLogActionsCsv.GetValidationError(raw);
+				if (error is not null) {
+					context.AddFailure(
+						AuditLogActionsCsv.WireName,
+						error
+					);
+				}
+			});
 
 		RuleFor(x => x.TargetId)
 			.Must(QueryPredicates.BeValidNullableGuid)
 			.WithMessage(
-				"TargetId must be a valid GUID"
+				"target_id must be a valid GUID"
 			);
 
 		RuleFor(x => x.StartDate)
 			.Must(QueryPredicates.BeValidNullableDate)
 			.WithMessage(
-				"StartDate must be a valid ISO 8601 date"
+				"start_date must be a valid ISO 8601 date"
 			);
 
 		RuleFor(x => x.EndDate)
 			.Must(QueryPredicates.BeValidNullableDate)
 			.WithMessage(
-				"EndDate must be a valid ISO 8601 date"
+				"end_date must be a valid ISO 8601 date"
 			);
 
 		RuleFor(x => x)
-			.Must(q => QueryPredicates.BeValidDateRange(
-				q.StartDate, q.EndDate
-			))
-			.WithMessage(
-				"StartDate must be before or equal"
-				+ " to EndDate"
-			)
-			.When(x =>
-				x.StartDate is not null
-				&& x.EndDate is not null
-				&& QueryPredicates.BeValidNullableDate(
-					x.StartDate
-				)
-				&& QueryPredicates.BeValidNullableDate(
-					x.EndDate
-				)
-			);
+			.Custom((query, context) => {
+				if (query.StartDate is null
+					|| query.EndDate is null
+					|| !QueryPredicates.BeValidNullableDate(
+						query.StartDate
+					)
+					|| !QueryPredicates.BeValidNullableDate(
+						query.EndDate
+					)
+					|| QueryPredicates.BeValidDateRange(
+						query.StartDate,
+						query.EndDate
+					)
+				) {
+					return;
+				}
+
+				context.AddFailure(
+					"start_date",
+					"start_date must be before or equal"
+					+ " to end_date"
+				);
+			});
+	}
+}
+
+internal static class AuditLogActionsCsv {
+	public const string WireName = "actions";
+
+	// Shared by list and export query DTOs; keep parsing and
+	// validation here so both endpoints expose the same actions
+	// CSV contract.
+	public static IReadOnlyList<string>? Parse(
+		string? raw
+	) {
+		if (string.IsNullOrWhiteSpace(raw)) {
+			return null;
+		}
+
+		// Do not remove empty entries here; validators must
+		// reject actions=a,,b instead of silently accepting it.
+		return raw.Split(
+			',',
+			StringSplitOptions.TrimEntries
+		);
+	}
+
+	public static string? GetValidationError(
+		string? raw
+	) {
+		var actions = Parse(raw);
+		if (actions is null) {
+			return null;
+		}
+
+		foreach (var action in actions) {
+			if (action.Length == 0) {
+				return "Actions cannot contain empty values.";
+			}
+		}
+
+		if (actions.Count > 50) {
+			return "At most 50 actions can be filtered at once.";
+		}
+
+		foreach (var action in actions) {
+			if (!AuditActionsRegistry.IsKnown(action)) {
+				return $"'{action}' is not a valid audit action.";
+			}
+		}
+
+		return null;
 	}
 }
 
@@ -99,7 +177,8 @@ public class FindAuditLogs {
 		Ok<FindAuditLogsResponse>,
 		AppBadRequestHttpResult
 	>> HandleFindAuditLogs(
-		[AsParameters] FindAuditLogsQuery query,
+		[AsParameters]
+		FindAuditLogsQuery query,
 		[FromServices]
 		IAuditLogQueryService auditLogQueryService,
 		CancellationToken cancellationToken = default
@@ -128,7 +207,7 @@ public class FindAuditLogs {
 				SortId: sortId,
 				SortOrder: sortOrder,
 				UserId: query.GetUserId(),
-				Action: query.Action,
+				Actions: query.GetActionsList(),
 				TargetId: query.GetTargetId(),
 				StartDate: query.GetStartDate(),
 				EndDate: query.GetEndDate()

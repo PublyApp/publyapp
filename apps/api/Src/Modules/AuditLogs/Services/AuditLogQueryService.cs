@@ -1,5 +1,3 @@
-using System.Collections.Immutable;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 
 using MainApi.Src.Data.DbContext;
@@ -17,7 +15,7 @@ public record FindAuditLogsArgs(
 	string? SortId,
 	SortOrder? SortOrder,
 	Guid? UserId,
-	string? Action,
+	IReadOnlyList<string>? Actions,
 	Guid? TargetId,
 	DateTime? StartDate,
 	DateTime? EndDate
@@ -25,7 +23,7 @@ public record FindAuditLogsArgs(
 
 public record ExportAuditLogsArgs(
 	Guid? UserId,
-	string? Action,
+	IReadOnlyList<string>? Actions,
 	Guid? TargetId,
 	DateTime? StartDate,
 	DateTime? EndDate
@@ -90,7 +88,7 @@ public interface IAuditLogQueryService {
 		Guid id,
 		CancellationToken cancellationToken = default);
 
-	Task<IReadOnlyList<string>> GetDistinctActionsAsync(
+	ValueTask<IReadOnlyList<string>> GetDistinctActionsAsync(
 		CancellationToken cancellationToken = default);
 
 	Task<bool> ExportExceedsLimitAsync(
@@ -106,23 +104,6 @@ public interface IAuditLogQueryService {
 public class AuditLogQueryService : IAuditLogQueryService {
 	private readonly MainApiDbContext _dbContext;
 
-	private static readonly ImmutableArray<string>
-		CachedActions =
-		[.. typeof(AuditActions)
-			.GetFields(
-				BindingFlags.Public
-				| BindingFlags.Static
-				| BindingFlags.FlattenHierarchy
-			)
-			.Where(f =>
-				f.IsLiteral
-				&& !f.IsInitOnly
-				&& f.FieldType == typeof(string))
-			.Select(f =>
-				(string)f.GetRawConstantValue()!)
-			.Distinct()
-			.Order()];
-
 	public AuditLogQueryService(MainApiDbContext dbContext) {
 		_dbContext = dbContext;
 	}
@@ -137,23 +118,28 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			args.SortOrder ?? SortOrder.Desc;
 		var effectiveSortId = args.SortId ?? "created_at";
 
+		// Keys are public sort_id wire values, not C# property
+		// names. Each handler keeps the cursor lookup, page
+		// predicate, and ordering in one place so tie-breakers
+		// stay consistent.
 		var sortFieldHandlers =
 			new Dictionary<string, CursorSortFieldHandler<AuditLog>>(
 				StringComparer.OrdinalIgnoreCase
 			) {
 				["created_at"] = new CursorSortFieldHandler<AuditLog>(
 				getCursorValue: async (guid) => {
-					var log = await _dbContext.AuditLog
-						.AsNoTracking()
-						.Where(a => a.Id == guid
-							&& a.IsDeleted == false)
-						.Select(a => new {
-							a.CreatedAt,
-							a.Id
-						})
-						.FirstOrDefaultAsync(
-							cancellationToken
-						);
+					var log = await (
+						from auditLog in _dbContext.AuditLog
+							.AsNoTracking()
+						where auditLog.Id == guid
+							&& auditLog.IsDeleted == false
+						select new {
+							auditLog.CreatedAt,
+							auditLog.Id
+						}
+					).FirstOrDefaultAsync(
+						cancellationToken
+					);
 					return log is not null
 						? (log.CreatedAt, log.Id)
 						: null;
@@ -165,22 +151,27 @@ public class AuditLogQueryService : IAuditLogQueryService {
 					var (cursorCreatedAt, cursorId) =
 						((DateTime, Guid?))cursorValue;
 					return isAsc
-						? q.Where(a =>
-							a.CreatedAt > cursorCreatedAt
-							|| (a.CreatedAt
+						? from auditLog in q
+							where auditLog.CreatedAt > cursorCreatedAt
+							|| (auditLog.CreatedAt
 								== cursorCreatedAt
-								&& a.Id > cursorId))
-						: q.Where(a =>
-							a.CreatedAt < cursorCreatedAt
-							|| (a.CreatedAt
+								&& auditLog.Id > cursorId)
+							select auditLog
+						: from auditLog in q
+							where auditLog.CreatedAt < cursorCreatedAt
+							|| (auditLog.CreatedAt
 								== cursorCreatedAt
-								&& a.Id < cursorId));
+								&& auditLog.Id < cursorId)
+							select auditLog;
 				},
 				applyOrdering: (q, isAsc) => isAsc
-					? q.OrderBy(a => a.CreatedAt)
-						.ThenBy(a => a.Id)
-					: q.OrderByDescending(a => a.CreatedAt)
-						.ThenByDescending(a => a.Id)
+					? from auditLog in q
+						orderby auditLog.CreatedAt, auditLog.Id
+						select auditLog
+					: from auditLog in q
+						orderby auditLog.CreatedAt descending,
+							auditLog.Id descending
+						select auditLog
 			),
 			};
 
@@ -192,15 +183,12 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			);
 		}
 
-		var query = _dbContext.AuditLog
-			.AsNoTracking()
-			.Where(a => a.IsDeleted == false
-				&& a.Id != null);
+		var query = BaseQuery();
 
 		query = ApplyFilters(
 			query,
 			args.UserId,
-			args.Action,
+			args.Actions,
 			args.TargetId,
 			args.StartDate,
 			args.EndDate
@@ -232,6 +220,8 @@ public class AuditLogQueryService : IAuditLogQueryService {
 				.Take(effectiveLimit + 1)
 			join u in _dbContext.User
 				.IgnoreQueryFilters()
+				// Audit rows outlive soft-deleted users; keep
+				// the historical actor visible when possible.
 				on (Guid?)a.UserId equals u.Id
 				into userJoin
 			from u in userJoin.DefaultIfEmpty()
@@ -280,10 +270,12 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var detailQuery =
 			from a in _dbContext.AuditLog
 				.AsNoTracking()
-				.Where(a => a.Id == id
-					&& a.IsDeleted == false)
+			where a.Id == id
+				&& a.IsDeleted == false
 			join u in _dbContext.User
 				.IgnoreQueryFilters()
+				// Audit rows outlive soft-deleted users; keep
+				// the historical actor visible when possible.
 				on (Guid?)a.UserId equals u.Id
 				into userJoin
 			from u in userJoin.DefaultIfEmpty()
@@ -314,13 +306,11 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			.FirstOrDefaultAsync(cancellationToken);
 	}
 
-	public Task<IReadOnlyList<string>>
+	public ValueTask<IReadOnlyList<string>>
 		GetDistinctActionsAsync(
 		CancellationToken cancellationToken = default
 	) {
-		return Task.FromResult<IReadOnlyList<string>>(
-			CachedActions
-		);
+		return ValueTask.FromResult(AuditActionsRegistry.All);
 	}
 
 	public async Task<bool> ExportExceedsLimitAsync(
@@ -330,15 +320,12 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var limit = AppEnvironment.Instance
 			.AUDIT_LOG_EXPORT_MAX_ROWS;
 
-		var query = _dbContext.AuditLog
-			.AsNoTracking()
-			.Where(a => a.IsDeleted == false
-				&& a.Id != null);
+		var query = BaseQuery();
 
 		query = ApplyFilters(
 			query,
 			args.UserId,
-			args.Action,
+			args.Actions,
 			args.TargetId,
 			args.StartDate,
 			args.EndDate
@@ -359,29 +346,30 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var limit = AppEnvironment.Instance
 			.AUDIT_LOG_EXPORT_MAX_ROWS;
 
-		var query = _dbContext.AuditLog
-			.AsNoTracking()
-			.Where(a => a.IsDeleted == false
-				&& a.Id != null);
+		var query = BaseQuery();
 
 		query = ApplyFilters(
 			query,
 			args.UserId,
-			args.Action,
+			args.Actions,
 			args.TargetId,
 			args.StartDate,
 			args.EndDate
 		);
 
-		var baseQuery = query
-			.OrderByDescending(a => a.CreatedAt)
-			.ThenByDescending(a => a.Id)
-			.Take(limit);
+		var baseQuery = (
+			from auditLog in query
+			orderby auditLog.CreatedAt descending,
+				auditLog.Id descending
+			select auditLog
+		).Take(limit);
 
 		var exportQuery =
 			from a in baseQuery
 			join u in _dbContext.User
 				.IgnoreQueryFilters()
+				// Audit rows outlive soft-deleted users; keep
+				// the historical actor visible when possible.
 				on (Guid?)a.UserId equals u.Id
 				into userJoin
 			from u in userJoin.DefaultIfEmpty()
@@ -418,32 +406,50 @@ public class AuditLogQueryService : IAuditLogQueryService {
 	private static IQueryable<AuditLog> ApplyFilters(
 		IQueryable<AuditLog> query,
 		Guid? userId,
-		string? action,
+		IReadOnlyList<string>? actions,
 		Guid? targetId,
 		DateTime? startDate,
 		DateTime? endDate
 	) {
 		if (userId.HasValue) {
-			query = query.Where(a =>
-				a.UserId == userId.Value);
+			query =
+				from auditLog in query
+				where auditLog.UserId == userId.Value
+				select auditLog;
 		}
-		if (action is not null) {
-			query = query.Where(a =>
-				a.Action == action);
+		if (actions is { Count: > 0 }) {
+			query =
+				from auditLog in query
+				where actions.Contains(auditLog.Action)
+				select auditLog;
 		}
 		if (targetId.HasValue) {
-			query = query.Where(a =>
-				a.TargetId == targetId.Value);
+			query =
+				from auditLog in query
+				where auditLog.TargetId == targetId.Value
+				select auditLog;
 		}
 		if (startDate.HasValue) {
-			query = query.Where(a =>
-				a.CreatedAt >= startDate.Value);
+			query =
+				from auditLog in query
+				where auditLog.CreatedAt >= startDate.Value
+				select auditLog;
 		}
 		if (endDate.HasValue) {
-			query = query.Where(a =>
-				a.CreatedAt <= endDate.Value);
+			query =
+				from auditLog in query
+				where auditLog.CreatedAt <= endDate.Value
+				select auditLog;
 		}
 		return query;
+	}
+
+	private IQueryable<AuditLog> BaseQuery() {
+		return
+			from auditLog in _dbContext.AuditLog.AsNoTracking()
+			where auditLog.IsDeleted == false
+				&& auditLog.Id != null
+			select auditLog;
 	}
 
 }

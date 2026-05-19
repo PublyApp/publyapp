@@ -93,10 +93,10 @@ public sealed class GetScopeAuthDataSpec
 				AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key,
 				AppPermissions.Tenant.Modules.ACCESS_BILLING.Key
 			},
-			new[] {
+			[
 				AppPermissions.Tenant.Modules.ACCESS_BILLING.Key,
 				AppPermissions.Tenant.Modules.ACCESS_SETTINGS.Key
-			}
+			]
 		};
 		var createdProfileIds = new List<Guid>();
 
@@ -181,28 +181,28 @@ public sealed class GetScopeAuthDataSpec
 		try {
 			var activeProfileId = await CreateTenantProfileWithPermissionsAsync(
 				acmeId,
-				new[] { AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key }
+				[AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key]
 			);
 			var revokedPermissionProfileId = await CreateTenantProfileWithPermissionsAsync(
 				acmeId,
-				new[] { AppPermissions.Tenant.Modules.ACCESS_USERS.Key }
+				[AppPermissions.Tenant.Modules.ACCESS_USERS.Key]
 			);
 			var softDeletedLinkProfileId = await CreateTenantProfileWithPermissionsAsync(
 				acmeId,
-				new[] { AppPermissions.Tenant.Modules.ACCESS_BILLING.Key }
+				[AppPermissions.Tenant.Modules.ACCESS_BILLING.Key]
 			);
 			var wrongScopeProfileId = await CreateTenantProfileWithPermissionsAsync(
 				acmeId,
-				Array.Empty<string>()
+				[]
 			);
 
 			createdProfileIds.AddRange(
-				new[] {
+				[
 					activeProfileId,
 					revokedPermissionProfileId,
 					softDeletedLinkProfileId,
-					wrongScopeProfileId
-				}
+					wrongScopeProfileId,
+				]
 			);
 
 			await AssignProfileToTenantUserAsync(
@@ -242,7 +242,7 @@ public sealed class GetScopeAuthDataSpec
 				.ReadFromJsonAsync<TenantScopeAuthDataResponse>();
 			result.Should().NotBeNull();
 			result!.Permissions.Should().BeEquivalentTo(
-				new[] { AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key }
+				[AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key]
 			);
 		} finally {
 			await CleanupScopeAuthDataTestArtifactsAsync(createdProfileIds);
@@ -269,7 +269,7 @@ public sealed class GetScopeAuthDataSpec
 				createdProfileIds.Add(
 					await CreateTenantProfileWithPermissionsAsync(
 						acmeId,
-						new[] { AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key }
+						[AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key]
 					)
 				);
 			}

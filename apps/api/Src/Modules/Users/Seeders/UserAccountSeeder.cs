@@ -83,10 +83,10 @@ public class UserAccountSeeder : IEntitySeeder {
 			staffAccountsData.Add((ownerEmail.Trim().ToLowerInvariant(), AccountLevel.Admin));
 		}
 
-		staffAccountsData.AddRange(new[] {
+		staffAccountsData.AddRange([
 			(SeedConstants.Staff.AdminEmail, AccountLevel.Admin),
 			(SeedConstants.Staff.UserEmail, AccountLevel.User)
-		});
+		]);
 
 		var staffEmails = staffAccountsData.Select(sa => sa.Email).ToList();
 		var users = await (

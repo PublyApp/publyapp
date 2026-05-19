@@ -87,14 +87,13 @@ export interface TenantsRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const TenantsRequestBuilderUriTemplate = "{+baseurl}/staff/tenants{?Status*,cursor*,limit*,q*,sort_id*,sort_order*}";
+export const TenantsRequestBuilderUriTemplate = "{+baseurl}/staff/tenants{?cursor*,limit*,q*,sort_id*,sort_order*,status*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
 const TenantsRequestBuilderGetQueryParametersMapper: Record<string, string> = {
     "sortId": "sort_id",
     "sortOrder": "sort_order",
-    "status": "Status",
 };
 /**
  * Metadata for all the navigation properties in the request builder.

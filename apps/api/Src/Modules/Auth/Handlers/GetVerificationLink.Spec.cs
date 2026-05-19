@@ -25,7 +25,7 @@ public sealed class GetVerificationLinkSpec
 	public async Task
 	ItShouldReturnNotFoundForNonExistentUserId() {
 		var url = Routes.Auth.GetVerificationLink
-			+ $"?userId={Guid.NewGuid()}";
+			+ $"?user_id={Guid.NewGuid()}";
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
@@ -44,9 +44,9 @@ public sealed class GetVerificationLinkSpec
 
 	[Fact]
 	public async Task
-	ItShouldReturnBadRequestForMalformedUserId() {
+	ItShouldReturnValidationErrorForMalformedUserId() {
 		var url = Routes.Auth.GetVerificationLink
-			+ "?userId=not-a-guid";
+			+ "?user_id=not-a-guid";
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
@@ -56,11 +56,16 @@ public sealed class GetVerificationLinkSpec
 			await _http.SendAsync(request);
 
 		response.StatusCode.Should()
-			.Be(HttpStatusCode.BadRequest);
+			.Be(HttpStatusCode.UnprocessableEntity);
 
 		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
+			.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
+		if (problem is null) {
+			return;
+		}
+		problem.Errors.Should().ContainKey("user_id");
+		problem.Errors.Should().NotContainKey(string.Empty);
 	}
 
 	[Fact]

@@ -107,7 +107,7 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 
 		using var response = await BulkDeleteAsync(
 			staffToken,
-			new[] { "not-a-guid" }
+			["not-a-guid"]
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);

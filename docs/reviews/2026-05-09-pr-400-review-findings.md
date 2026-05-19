@@ -23,6 +23,9 @@ The other GPT instance landed substantial improvements:
 
 Scoreboard at a glance:
 
+> Historical PR #400 snapshot. Later PRs may have resolved items marked open here;
+> verify against current code before treating this table as live repo status.
+
 | v1 ID | Status        | Notes |
 |-------|---------------|-------|
 | A1    | **Still open**| Wire-name `Status` (PascalCase) — see below |
@@ -62,27 +65,26 @@ Plus 9 **new findings** (N1–N9) coming from the second-pass code that didn't e
 
 ## A. BLOCKING (would fail review or breaks contract)
 
-### A1. Wire-name `Status` is PascalCase instead of `status` *(unchanged)*
+### A1. Wire-name `Status` was PascalCase instead of `status`
 
 **File:** `apps/api/Src/Modules/Invitations/Handlers/Staff/FindStaffInvitations.cs:18`
 
-```csharp
-[FromQuery] public string? Status { get; set; }     // wire-name still "Status"
-```
+Original issue: `Status` lacked an explicit `[FromQuery(Name = "status")]` attribute, so the
+wire-name was generated as PascalCase.
 
-The TS client was regenerated (`packages/client-ts/src/staff/invitations/index.ts`) and now bakes the bug in:
+The TS client had been regenerated (`packages/client-ts/src/staff/invitations/index.ts`) and baked
+the bug into the URL template. The corrected wire shape is:
 
 ```ts
 // line 83
 export const InvitationsRequestBuilderUriTemplate =
-  "{+baseurl}/staff/invitations{?Status*,cursor*,limit*,sort_id*,sort_order*}";
-                                  ^^^^^^^ PascalCase — odd-one-out vs sort_id/sort_order
+  "{+baseurl}/staff/invitations{?status*,cursor*,limit*,sort_id*,sort_order*}";
 
 // line 90
 const InvitationsRequestBuilderGetQueryParametersMapper: Record<string, string> = {
     "sortId": "sort_id",
     "sortOrder": "sort_order",
-    "status": "Status",   // ← maps lowercase symbol to PascalCase wire-name
+    "status": "status",
 };
 ```
 
@@ -824,6 +826,10 @@ Same name every export → users overwrite previous downloads silently. Append a
 
 ## E. Recommendation gear
 
+> Historical recommendation block for PR #400 only. Later PRs may have resolved
+> or superseded these items; treat this as review history, not the current merge
+> checklist.
+
 ### Apply in this PR (small + correctness/contract)
 
 - **A1 + A2** (single fix → regenerate client) ← **single highest-leverage action**
@@ -847,6 +853,9 @@ Same name every export → users overwrite previous downloads silently. Append a
 ---
 
 ## Quick checklist for the "apply now" set
+
+> Historical PR #400 checklist. Later PRs may have resolved items marked open here;
+> verify against current code before treating this checklist as live repo status.
 
 - [ ] **A1**: `[FromQuery(Name = "status")]` on `FindStaffInvitations.cs:18`
 - [ ] **A2**: `just build-api && just generate-client && just tsc-front` + commit artifacts
