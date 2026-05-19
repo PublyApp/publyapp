@@ -45,53 +45,15 @@ export const AuditLogInspectDrawer = () => {
 		}
 	}, [auditLogQuery.data]);
 
-	const renderBody = () => {
-		const auditLog = auditLogQuery.data ?? lastAuditLog;
-
-		if (auditLog) {
-			return (
-				<Stack spacing={3} sx={{ p: 3, pt: 8 }}>
-					{inspectedLogId && (
-						<Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-							<Link
-								component={RouterLink}
-								href={FRONT_PATH_NAMES.staff.auditLogs.details(inspectedLogId)}
-								underline="hover"
-								sx={{
-									display: 'inline-flex',
-									alignItems: 'center',
-									gap: 0.75,
-									fontSize: '0.8125rem',
-									fontWeight: 600,
-								}}
-							>
-								{capitalize(t('view-details'))}
-								<Iconify icon="eva:external-link-outline" width={16} />
-							</Link>
-						</Box>
-					)}
-					<AuditLogHero auditLog={auditLog} sx={{ p: 0 }} />
-					<AuditLogActor auditLog={auditLog} />
-					<AuditLogContextGrid
-						auditLog={auditLog}
-						fields={['ip', 'userAgent', 'targetId', 'eventId']}
-						layout="single-column"
-					/>
-					<AuditLogPayload details={auditLog.details} />
-				</Stack>
-			);
-		}
-
-		if (auditLogQuery.error) {
-			return <AuditLogInspectDrawerError error={auditLogQuery.error} />;
-		}
-
-		if (auditLogQuery.isPending && open) {
-			return <AuditLogInspectDrawerSkeleton />;
-		}
-
-		return null;
-	};
+	// When reopening the drawer with a different id, the held-over payload is
+	// stale — drop it so the body shows the skeleton until the new query
+	// resolves, instead of flashing the previous log.
+	const isStaleHoldover =
+		lastAuditLog !== null &&
+		inspectedLogId !== null &&
+		lastAuditLog.id !== inspectedLogId;
+	const effectiveAuditLog =
+		auditLogQuery.data ?? (isStaleHoldover ? null : lastAuditLog);
 
 	return (
 		<Drawer
@@ -120,9 +82,69 @@ export const AuditLogInspectDrawer = () => {
 				<Iconify icon="mingcute:close-line" width={18} />
 			</DrawerAnchor>
 
-			{renderBody()}
+			<AuditLogInspectDrawerBody
+				auditLog={effectiveAuditLog}
+				isPending={auditLogQuery.isPending && open}
+				error={auditLogQuery.error}
+			/>
 		</Drawer>
 	);
+};
+
+type AuditLogInspectDrawerBodyProps = {
+	auditLog: AuditLogDetail | null;
+	isPending: boolean;
+	error: unknown;
+};
+
+const AuditLogInspectDrawerBody = ({
+	auditLog,
+	isPending,
+	error,
+}: AuditLogInspectDrawerBodyProps) => {
+	const { t } = useTranslate();
+
+	if (auditLog?.id) {
+		return (
+			<Stack spacing={3} sx={{ p: 3, pt: 8 }}>
+				<Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+					<Link
+						component={RouterLink}
+						href={FRONT_PATH_NAMES.staff.auditLogs.details(auditLog.id)}
+						underline="hover"
+						sx={{
+							display: 'inline-flex',
+							alignItems: 'center',
+							gap: 0.75,
+							fontSize: '0.8125rem',
+							fontWeight: 600,
+						}}
+					>
+						{capitalize(t('view-details'))}
+						<Iconify icon="eva:external-link-outline" width={16} />
+					</Link>
+				</Box>
+				<AuditLogHero auditLog={auditLog} sx={{ p: 0 }} />
+				<AuditLogActor auditLog={auditLog} />
+				<AuditLogContextGrid
+					auditLog={auditLog}
+					fields={['ip', 'userAgent', 'targetId', 'eventId']}
+					layout="single-column"
+				/>
+				<AuditLogPayload details={auditLog.details} />
+			</Stack>
+		);
+	}
+
+	if (error) {
+		return <AuditLogInspectDrawerError error={error} />;
+	}
+
+	if (isPending) {
+		return <AuditLogInspectDrawerSkeleton />;
+	}
+
+	return null;
 };
 
 const AuditLogInspectDrawerSkeleton = () => {
