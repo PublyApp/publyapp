@@ -2,25 +2,63 @@ namespace MainApi.Src.Modules.AuditLogs.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Reflection;
 
 using FluentAssertions;
 
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Testing.Fixtures;
 using MainApi.Src.Lib.Testing.Helpers;
 using MainApi.Src.Modules.AuditLogs.Entities;
 
 using Xunit;
 
+using FromQueryAttribute = Microsoft.AspNetCore.Mvc.FromQueryAttribute;
+
 public sealed class FindAuditLogsSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 	private readonly ApiFixture _fixture;
+	public static TheoryData<string> MalformedActionsCsv =>
+		new() {
+			",",
+			$"{AuditActions.LoginSucceeded},",
+			$"{AuditActions.LoginSucceeded},,"
+				+ AuditActions.InvitationCreated,
+		};
+	public static TheoryData<string, string> QueryParameterNames =>
+		new() {
+			{ nameof(FindAuditLogsQuery.UserId), "user_id" },
+			{ nameof(FindAuditLogsQuery.Actions), "actions" },
+			{ nameof(FindAuditLogsQuery.TargetId), "target_id" },
+			{ nameof(FindAuditLogsQuery.StartDate), "start_date" },
+			{ nameof(FindAuditLogsQuery.EndDate), "end_date" },
+		};
 
 	public FindAuditLogsSpec(ApiFixture fixture) {
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);
 		_fixture = fixture;
+	}
+
+	[Theory]
+	[MemberData(nameof(QueryParameterNames))]
+	public void
+	ItShouldDeclareSnakeCaseQueryParameterNames(
+		string propertyName,
+		string expectedName
+	) {
+		var property = typeof(FindAuditLogsQuery)
+			.GetProperty(propertyName);
+		var attribute = property?
+			.GetCustomAttribute<FromQueryAttribute>();
+
+		attribute.Should().NotBeNull();
+		if (attribute is null) {
+			return;
+		}
+		attribute.Name.Should().Be(expectedName);
 	}
 
 	[Fact]
@@ -231,6 +269,47 @@ public sealed class FindAuditLogsSpec
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		if (problem is null) {
+			return;
+		}
+		problem.Errors.Should().ContainKey("actions");
+		problem.Errors.Should().NotContainKey(string.Empty);
+	}
+
+	[Theory]
+	[MemberData(nameof(MalformedActionsCsv))]
+	public async Task
+	ItShouldReturn422WithActionsErrorWhenActionsCsvContainsEmptyToken(
+		string actions
+	) {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		var url = AuditLogTestHelper.GetFindUrl()
+			+ "?actions="
+			+ Uri.EscapeDataString(actions);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(token);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		if (problem is null) {
+			return;
+		}
+		problem.Errors.Should().ContainKey("actions");
+		problem.Errors.Should().NotContainKey(string.Empty);
 	}
 
 	[Fact]
@@ -255,6 +334,45 @@ public sealed class FindAuditLogsSpec
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		if (problem is null) {
+			return;
+		}
+		problem.Errors.Should().ContainKey("actions");
+		problem.Errors.Should().NotContainKey(string.Empty);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnWireNamedMessagesForQueryValidationErrors() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		var url = AuditLogTestHelper.GetFindUrl()
+			+ "?user_id=abc&start_date=not-a-date";
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(token);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		if (problem is null) {
+			return;
+		}
+		problem.Errors["user_id"].Should()
+			.Contain("user_id must be a valid GUID");
+		problem.Errors["start_date"].Should()
+			.Contain("start_date must be a valid ISO 8601 date");
 	}
 
 	[Fact]
@@ -379,6 +497,15 @@ public sealed class FindAuditLogsSpec
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		if (problem is null) {
+			return;
+		}
+		problem.Errors.Should().ContainKey("start_date");
+		problem.Errors.Should().NotContainKey(string.Empty);
 	}
 
 	[Fact]

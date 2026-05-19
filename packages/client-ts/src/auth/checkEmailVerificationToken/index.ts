@@ -36,14 +36,7 @@ export interface CheckEmailVerificationTokenRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const CheckEmailVerificationTokenRequestBuilderUriTemplate = "{+baseurl}/auth/check-email-verification-token?Id={Id}&Token={Token}";
-/**
- * Mapper for query parameters from symbol name to serialization name represented as a constant.
- */
-const CheckEmailVerificationTokenRequestBuilderGetQueryParametersMapper: Record<string, string> = {
-    "id": "Id",
-    "token": "Token",
-};
+export const CheckEmailVerificationTokenRequestBuilderUriTemplate = "{+baseurl}/auth/check-email-verification-token?id={id}&token={token}";
 /**
  * Metadata for all the requests in the request builder.
  */
@@ -58,7 +51,6 @@ export const CheckEmailVerificationTokenRequestBuilderRequestsMetadata: Requests
         },
         adapterMethodName: "send",
         responseBodyFactory:  createCheckEmailVerificationTokenResultFromDiscriminatorValue,
-        queryParametersMapper: CheckEmailVerificationTokenRequestBuilderGetQueryParametersMapper,
     },
 };
 /* tslint:enable */

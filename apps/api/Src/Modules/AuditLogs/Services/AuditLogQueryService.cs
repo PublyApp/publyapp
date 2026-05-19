@@ -118,23 +118,28 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			args.SortOrder ?? SortOrder.Desc;
 		var effectiveSortId = args.SortId ?? "created_at";
 
+		// Keys are public sort_id wire values, not C# property
+		// names. Each handler keeps the cursor lookup, page
+		// predicate, and ordering in one place so tie-breakers
+		// stay consistent.
 		var sortFieldHandlers =
 			new Dictionary<string, CursorSortFieldHandler<AuditLog>>(
 				StringComparer.OrdinalIgnoreCase
 			) {
 				["created_at"] = new CursorSortFieldHandler<AuditLog>(
 				getCursorValue: async (guid) => {
-					var log = await _dbContext.AuditLog
-						.AsNoTracking()
-						.Where(a => a.Id == guid
-							&& a.IsDeleted == false)
-						.Select(a => new {
-							a.CreatedAt,
-							a.Id
-						})
-						.FirstOrDefaultAsync(
-							cancellationToken
-						);
+					var log = await (
+						from auditLog in _dbContext.AuditLog
+							.AsNoTracking()
+						where auditLog.Id == guid
+							&& auditLog.IsDeleted == false
+						select new {
+							auditLog.CreatedAt,
+							auditLog.Id
+						}
+					).FirstOrDefaultAsync(
+						cancellationToken
+					);
 					return log is not null
 						? (log.CreatedAt, log.Id)
 						: null;
@@ -146,22 +151,27 @@ public class AuditLogQueryService : IAuditLogQueryService {
 					var (cursorCreatedAt, cursorId) =
 						((DateTime, Guid?))cursorValue;
 					return isAsc
-						? q.Where(a =>
-							a.CreatedAt > cursorCreatedAt
-							|| (a.CreatedAt
+						? from auditLog in q
+							where auditLog.CreatedAt > cursorCreatedAt
+							|| (auditLog.CreatedAt
 								== cursorCreatedAt
-								&& a.Id > cursorId))
-						: q.Where(a =>
-							a.CreatedAt < cursorCreatedAt
-							|| (a.CreatedAt
+								&& auditLog.Id > cursorId)
+							select auditLog
+						: from auditLog in q
+							where auditLog.CreatedAt < cursorCreatedAt
+							|| (auditLog.CreatedAt
 								== cursorCreatedAt
-								&& a.Id < cursorId));
+								&& auditLog.Id < cursorId)
+							select auditLog;
 				},
 				applyOrdering: (q, isAsc) => isAsc
-					? q.OrderBy(a => a.CreatedAt)
-						.ThenBy(a => a.Id)
-					: q.OrderByDescending(a => a.CreatedAt)
-						.ThenByDescending(a => a.Id)
+					? from auditLog in q
+						orderby auditLog.CreatedAt, auditLog.Id
+						select auditLog
+					: from auditLog in q
+						orderby auditLog.CreatedAt descending,
+							auditLog.Id descending
+						select auditLog
 			),
 			};
 
@@ -173,10 +183,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			);
 		}
 
-		var query = _dbContext.AuditLog
-			.AsNoTracking()
-			.Where(a => a.IsDeleted == false
-				&& a.Id != null);
+		var query = BaseQuery();
 
 		query = ApplyFilters(
 			query,
@@ -213,6 +220,8 @@ public class AuditLogQueryService : IAuditLogQueryService {
 				.Take(effectiveLimit + 1)
 			join u in _dbContext.User
 				.IgnoreQueryFilters()
+				// Audit rows outlive soft-deleted users; keep
+				// the historical actor visible when possible.
 				on (Guid?)a.UserId equals u.Id
 				into userJoin
 			from u in userJoin.DefaultIfEmpty()
@@ -261,10 +270,12 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var detailQuery =
 			from a in _dbContext.AuditLog
 				.AsNoTracking()
-				.Where(a => a.Id == id
-					&& a.IsDeleted == false)
+			where a.Id == id
+				&& a.IsDeleted == false
 			join u in _dbContext.User
 				.IgnoreQueryFilters()
+				// Audit rows outlive soft-deleted users; keep
+				// the historical actor visible when possible.
 				on (Guid?)a.UserId equals u.Id
 				into userJoin
 			from u in userJoin.DefaultIfEmpty()
@@ -309,10 +320,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var limit = AppEnvironment.Instance
 			.AUDIT_LOG_EXPORT_MAX_ROWS;
 
-		var query = _dbContext.AuditLog
-			.AsNoTracking()
-			.Where(a => a.IsDeleted == false
-				&& a.Id != null);
+		var query = BaseQuery();
 
 		query = ApplyFilters(
 			query,
@@ -338,10 +346,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var limit = AppEnvironment.Instance
 			.AUDIT_LOG_EXPORT_MAX_ROWS;
 
-		var query = _dbContext.AuditLog
-			.AsNoTracking()
-			.Where(a => a.IsDeleted == false
-				&& a.Id != null);
+		var query = BaseQuery();
 
 		query = ApplyFilters(
 			query,
@@ -352,15 +357,19 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			args.EndDate
 		);
 
-		var baseQuery = query
-			.OrderByDescending(a => a.CreatedAt)
-			.ThenByDescending(a => a.Id)
-			.Take(limit);
+		var baseQuery = (
+			from auditLog in query
+			orderby auditLog.CreatedAt descending,
+				auditLog.Id descending
+			select auditLog
+		).Take(limit);
 
 		var exportQuery =
 			from a in baseQuery
 			join u in _dbContext.User
 				.IgnoreQueryFilters()
+				// Audit rows outlive soft-deleted users; keep
+				// the historical actor visible when possible.
 				on (Guid?)a.UserId equals u.Id
 				into userJoin
 			from u in userJoin.DefaultIfEmpty()
@@ -403,26 +412,44 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		DateTime? endDate
 	) {
 		if (userId.HasValue) {
-			query = query.Where(a =>
-				a.UserId == userId.Value);
+			query =
+				from auditLog in query
+				where auditLog.UserId == userId.Value
+				select auditLog;
 		}
 		if (actions is { Count: > 0 }) {
-			query = query.Where(a =>
-				actions.Contains(a.Action));
+			query =
+				from auditLog in query
+				where actions.Contains(auditLog.Action)
+				select auditLog;
 		}
 		if (targetId.HasValue) {
-			query = query.Where(a =>
-				a.TargetId == targetId.Value);
+			query =
+				from auditLog in query
+				where auditLog.TargetId == targetId.Value
+				select auditLog;
 		}
 		if (startDate.HasValue) {
-			query = query.Where(a =>
-				a.CreatedAt >= startDate.Value);
+			query =
+				from auditLog in query
+				where auditLog.CreatedAt >= startDate.Value
+				select auditLog;
 		}
 		if (endDate.HasValue) {
-			query = query.Where(a =>
-				a.CreatedAt <= endDate.Value);
+			query =
+				from auditLog in query
+				where auditLog.CreatedAt <= endDate.Value
+				select auditLog;
 		}
 		return query;
+	}
+
+	private IQueryable<AuditLog> BaseQuery() {
+		return
+			from auditLog in _dbContext.AuditLog.AsNoTracking()
+			where auditLog.IsDeleted == false
+				&& auditLog.Id != null
+			select auditLog;
 	}
 
 }

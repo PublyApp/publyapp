@@ -1,27 +1,29 @@
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import map from 'lodash/map';
+import type { MouseEvent } from 'react';
 
 import { useTranslate } from '#app/hooks/use-translate.ts';
 
 import {
 	AUDIT_LOG_DETAIL_VARIANTS,
-	type AuditLogDetailVariant,
 	useAuditLogDetailVariant,
 } from './use-audit-log-detail-variant';
+
+type AuditLogDetailVariant = (typeof AUDIT_LOG_DETAIL_VARIANTS)[number];
 
 export const AuditLogVariantSwitcher = () => {
 	const { t } = useTranslate();
 	const [variant, setVariant] = useAuditLogDetailVariant();
 
-	const handleChange = (
-		_event: React.MouseEvent<HTMLElement>,
+	const handleVariantChange = (
+		_event: MouseEvent<HTMLElement>,
 		next: AuditLogDetailVariant | null,
 	) => {
 		if (!next) {
 			return;
 		}
-		setVariant(next);
+		void setVariant(next);
 	};
 
 	return (
@@ -29,7 +31,7 @@ export const AuditLogVariantSwitcher = () => {
 			size="small"
 			exclusive
 			value={variant}
-			onChange={handleChange}
+			onChange={handleVariantChange}
 			aria-label={t('layout')}
 		>
 			{map(AUDIT_LOG_DETAIL_VARIANTS, (v) => (

@@ -14,6 +14,7 @@ export interface ExportRequestBuilder extends BaseRequestBuilder<ExportRequestBu
      * Export audit logs as CSV or JSON
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<ArrayBuffer>}
+     * @throws {AppProblemDetails} error when the service returns a 400 status code
      * @throws {AppProblemDetails} error when the service returns a 401 status code
      * @throws {AppProblemDetails} error when the service returns a 403 status code
      * @throws {ValidationProblemDetails} error when the service returns a 422 status code
@@ -41,17 +42,15 @@ export interface ExportRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const ExportRequestBuilderUriTemplate = "{+baseurl}/staff/audit-logs/export{?Actions*,EndDate*,Format*,StartDate*,TargetId*,UserId*}";
+export const ExportRequestBuilderUriTemplate = "{+baseurl}/staff/audit-logs/export{?actions*,end_date*,format*,start_date*,target_id*,user_id*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
 const ExportRequestBuilderGetQueryParametersMapper: Record<string, string> = {
-    "actions": "Actions",
-    "endDate": "EndDate",
-    "format": "Format",
-    "startDate": "StartDate",
-    "targetId": "TargetId",
-    "userId": "UserId",
+    "endDate": "end_date",
+    "startDate": "start_date",
+    "targetId": "target_id",
+    "userId": "user_id",
 };
 /**
  * Metadata for all the requests in the request builder.
@@ -59,8 +58,9 @@ const ExportRequestBuilderGetQueryParametersMapper: Record<string, string> = {
 export const ExportRequestBuilderRequestsMetadata: RequestsMetadata = {
     get: {
         uriTemplate: ExportRequestBuilderUriTemplate,
-        responseBodyContentType: "application/problem+json",
+        responseBodyContentType: "application/json",
         errorMappings: {
+            400: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             403: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             422: createValidationProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,

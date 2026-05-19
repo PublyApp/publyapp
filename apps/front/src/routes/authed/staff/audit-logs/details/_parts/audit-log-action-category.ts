@@ -1,17 +1,14 @@
 import capitalize from 'lodash/capitalize';
 
-export type AuditCategoryColor =
-	| 'success'
-	| 'warning'
-	| 'error'
-	| 'info'
-	| 'default';
+type AuditCategoryColor = 'success' | 'warning' | 'error' | 'info' | 'default';
 
-export type AuditCategory = {
+type AuditCategory = {
 	kind: string;
 	color: AuditCategoryColor;
 };
 
+// UI-only heuristic for dotted backend audit actions; keep
+// backend event names as the source of truth.
 const DESTRUCTIVE_VERBS = new Set(['deleted', 'removed', 'revoked']);
 
 export const categorizeAuditAction = (action: string): AuditCategory => {
@@ -22,6 +19,7 @@ export const categorizeAuditAction = (action: string): AuditCategory => {
 	const segments = action.split('.');
 	const first = segments[0] ?? '';
 	const last = segments[segments.length - 1] ?? '';
+	const kind = first === 'system' ? 'System' : capitalize(first) || 'Event';
 
 	if (first === 'auth') {
 		if (last === 'succeeded') {
@@ -30,7 +28,13 @@ export const categorizeAuditAction = (action: string): AuditCategory => {
 		if (last === 'failed') {
 			return { kind: 'Auth', color: 'error' };
 		}
-		return { kind: 'Auth', color: 'info' };
+		if (!DESTRUCTIVE_VERBS.has(last)) {
+			return { kind: 'Auth', color: 'info' };
+		}
+	}
+
+	if (DESTRUCTIVE_VERBS.has(last)) {
+		return { kind: first === 'auth' ? 'Auth' : kind, color: 'error' };
 	}
 
 	if (first === 'impersonation') {
@@ -41,11 +45,6 @@ export const categorizeAuditAction = (action: string): AuditCategory => {
 		return { kind: 'System', color: 'info' };
 	}
 
-	const kind = capitalize(first) || 'Event';
-
-	if (DESTRUCTIVE_VERBS.has(last)) {
-		return { kind, color: 'error' };
-	}
 	if (last === 'suspended') {
 		return { kind, color: 'warning' };
 	}

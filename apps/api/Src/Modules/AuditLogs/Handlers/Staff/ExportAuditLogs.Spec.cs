@@ -1,16 +1,20 @@
 namespace MainApi.Src.Modules.AuditLogs.Handlers.Staff;
 
 using System.Net;
+using System.Net.Http.Json;
 using System.Reflection;
 
 using FluentAssertions;
 
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Testing.Fixtures;
 using MainApi.Src.Lib.Testing.Helpers;
 using MainApi.Src.Modules.AuditLogs.Entities;
 
 using Xunit;
+
+using FromQueryAttribute = Microsoft.AspNetCore.Mvc.FromQueryAttribute;
 
 // SetExportMaxRows mutates the global AppEnvironment
 // singleton via reflection. DisableParallelization
@@ -28,11 +32,46 @@ public sealed class ExportAuditLogsSpec
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 	private readonly ApiFixture _fixture;
+	public static TheoryData<string> MalformedActionsCsv =>
+		new() {
+			",",
+			$"{AuditActions.LoginSucceeded},",
+			$"{AuditActions.LoginSucceeded},,"
+				+ AuditActions.InvitationCreated,
+		};
+	public static TheoryData<string, string> QueryParameterNames =>
+		new() {
+			{ nameof(ExportAuditLogsQuery.Format), "format" },
+			{ nameof(ExportAuditLogsQuery.UserId), "user_id" },
+			{ nameof(ExportAuditLogsQuery.Actions), "actions" },
+			{ nameof(ExportAuditLogsQuery.TargetId), "target_id" },
+			{ nameof(ExportAuditLogsQuery.StartDate), "start_date" },
+			{ nameof(ExportAuditLogsQuery.EndDate), "end_date" },
+		};
 
 	public ExportAuditLogsSpec(ApiFixture fixture) {
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);
 		_fixture = fixture;
+	}
+
+	[Theory]
+	[MemberData(nameof(QueryParameterNames))]
+	public void
+	ItShouldDeclareSnakeCaseQueryParameterNames(
+		string propertyName,
+		string expectedName
+	) {
+		var property = typeof(ExportAuditLogsQuery)
+			.GetProperty(propertyName);
+		var attribute = property?
+			.GetCustomAttribute<FromQueryAttribute>();
+
+		attribute.Should().NotBeNull();
+		if (attribute is null) {
+			return;
+		}
+		attribute.Name.Should().Be(expectedName);
 	}
 
 	[Fact]
@@ -149,6 +188,38 @@ public sealed class ExportAuditLogsSpec
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Theory]
+	[MemberData(nameof(MalformedActionsCsv))]
+	public async Task
+	ItShouldReturn422WithActionsErrorWhenActionsCsvContainsEmptyToken(
+		string actions
+	) {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		var url = AuditLogTestHelper.GetExportUrl("csv")
+			+ "&actions="
+			+ Uri.EscapeDataString(actions);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(token);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		if (problem is null) {
+			return;
+		}
+		problem.Errors.Should().ContainKey("actions");
+		problem.Errors.Should().NotContainKey(string.Empty);
 	}
 
 	[Fact]
@@ -333,6 +404,37 @@ public sealed class ExportAuditLogsSpec
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturn422WithStartDateKeyWhenStartDateIsAfterEndDate() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		var url = AuditLogTestHelper.GetExportUrl(
+			"csv",
+			startDate: "2025-12-31T00:00:00Z",
+			endDate: "2025-01-01T00:00:00Z"
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(token);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		if (problem is null) {
+			return;
+		}
+		problem.Errors.Should().ContainKey("start_date");
+		problem.Errors.Should().NotContainKey(string.Empty);
 	}
 
 	[Fact]
@@ -526,7 +628,7 @@ public sealed class ExportAuditLogsSpec
 	/// Uses reflection on the auto-property backing
 	/// field because AppEnvironment is a singleton
 	/// with a get-only property. This will break if
-	/// the property becomes a non-auto property —
+	/// the property becomes a non-auto property -
 	/// update the field name accordingly if that
 	/// happens.
 	/// </summary>

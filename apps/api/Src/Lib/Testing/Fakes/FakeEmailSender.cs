@@ -22,6 +22,9 @@ namespace MainApi.Src.Lib.Testing.Fakes {
 		public IReadOnlyCollection<EmailRequest> SentEmails =>
 			_sentEmails;
 
+		// This fake completes synchronously after recording the
+		// request; suppress CS1998 instead of adding an artificial
+		// await.
 #pragma warning disable CS1998
 		public async Task<EmailResult> SendAsync(
 			EmailRequest request

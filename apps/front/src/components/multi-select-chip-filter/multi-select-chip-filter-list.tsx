@@ -30,6 +30,14 @@ type GroupedSection = {
 	items: MultiSelectChipFilterOption[];
 };
 
+const LOADING_ROW_KEYS = [
+	'loading-row-one',
+	'loading-row-two',
+	'loading-row-three',
+	'loading-row-four',
+	'loading-row-five',
+];
+
 type RenderBodyArgs = {
 	loading?: boolean;
 	grouped: GroupedSection[];
@@ -39,7 +47,7 @@ type RenderBodyArgs = {
 	onToggle: (value: string) => void;
 };
 
-const renderListBody = ({
+const MultiSelectChipFilterListBody = ({
 	loading,
 	grouped,
 	filteredCount,
@@ -48,8 +56,8 @@ const renderListBody = ({
 	onToggle,
 }: RenderBodyArgs) => {
 	if (loading) {
-		return map([0, 1, 2, 3, 4], (i) => (
-			<Box key={i} sx={{ px: 1.5, py: 0.5 }}>
+		return map(LOADING_ROW_KEYS, (key) => (
+			<Box key={key} sx={{ px: 1.5, py: 0.5 }}>
 				<Skeleton variant="text" />
 			</Box>
 		));
@@ -166,6 +174,7 @@ export const MultiSelectChipFilterList = ({
 }: Props) => {
 	const { t } = useTranslate();
 	const [search, setSearch] = useState('');
+	const searchLabel = searchPlaceholder ?? t('search');
 
 	const filtered = useMemo(() => {
 		const needle = search.trim().toLowerCase();
@@ -199,8 +208,11 @@ export const MultiSelectChipFilterList = ({
 					fullWidth
 					value={search}
 					onChange={(e) => setSearch(e.target.value)}
-					placeholder={searchPlaceholder ?? t('search')}
+					placeholder={searchLabel}
 					slotProps={{
+						htmlInput: {
+							'aria-label': searchLabel,
+						},
 						input: {
 							startAdornment: (
 								<InputAdornment position="start">
@@ -212,14 +224,14 @@ export const MultiSelectChipFilterList = ({
 				/>
 			</Box>
 			<Box sx={{ overflowY: 'auto', overflowX: 'hidden', flexGrow: 1 }}>
-				{renderListBody({
-					loading,
-					grouped,
-					filteredCount: filtered.length,
-					emptyLabel: emptyLabel ?? t('no-results-found'),
-					selected,
-					onToggle,
-				})}
+				<MultiSelectChipFilterListBody
+					loading={loading}
+					grouped={grouped}
+					filteredCount={filtered.length}
+					emptyLabel={emptyLabel ?? t('no-results-found')}
+					selected={selected}
+					onToggle={onToggle}
+				/>
 			</Box>
 		</Box>
 	);

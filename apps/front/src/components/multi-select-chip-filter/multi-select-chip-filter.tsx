@@ -1,11 +1,14 @@
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
 import Popover from '@mui/material/Popover';
 import Stack from '@mui/material/Stack';
+import Tooltip from '@mui/material/Tooltip';
 import filter from 'lodash/filter';
-import { useState, type MouseEvent } from 'react';
+import { useId, useState, type MouseEvent } from 'react';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { useTranslate } from '#app/hooks/use-translate.ts';
 
 import { MultiSelectChipFilterList } from './multi-select-chip-filter-list';
 import { MultiSelectChipFilterSelected } from './multi-select-chip-filter-selected';
@@ -21,7 +24,9 @@ export const MultiSelectChipFilter = ({
 	emptyLabel,
 	groupOrder,
 }: MultiSelectChipFilterProps) => {
+	const { t } = useTranslate();
 	const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+	const popoverId = useId();
 	const open = Boolean(anchorEl);
 
 	const handleToggle = (val: string) => {
@@ -40,71 +45,69 @@ export const MultiSelectChipFilter = ({
 		onChange([]);
 	};
 
-	const handleClearFromTrigger = (event: MouseEvent<HTMLElement>) => {
-		event.stopPropagation();
-		handleClearAll();
-	};
-
 	const isActive = value.length > 0;
 
 	return (
 		<>
-			<Button
-				variant="outlined"
-				color="inherit"
-				onClick={(e: MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget)}
-				startIcon={<Iconify icon="solar:filter-bold" width={18} />}
-				endIcon={
-					isActive ? (
-						<Box
-							component="span"
-							role="button"
-							aria-label="Clear"
-							onClick={handleClearFromTrigger}
+			<Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+				<Button
+					variant="outlined"
+					color="inherit"
+					onClick={(e: MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget)}
+					startIcon={<Iconify icon="solar:filter-bold" width={18} />}
+					aria-haspopup="dialog"
+					aria-expanded={open}
+					aria-controls={open ? popoverId : undefined}
+					sx={{
+						textTransform: 'none',
+						pl: 1.5,
+						pr: 1.5,
+						gap: 0.5,
+					}}
+				>
+					<Stack direction="row" spacing={1} alignItems="center">
+						<Box component="span" sx={{ color: 'text.secondary' }}>
+							{label}
+						</Box>
+						{isActive && (
+							<Box
+								component="span"
+								sx={{
+									px: 0.75,
+									py: 0.25,
+									borderRadius: 0.75,
+									bgcolor: 'action.selected',
+									color: 'text.secondary',
+									fontWeight: 500,
+									fontSize: '0.8125rem',
+									minWidth: 20,
+									textAlign: 'center',
+								}}
+							>
+								{value.length}
+							</Box>
+						)}
+					</Stack>
+				</Button>
+				{isActive && (
+					<Tooltip title={t('clear')}>
+						<IconButton
+							size="small"
+							color="default"
+							onClick={handleClearAll}
+							aria-label={t('clear')}
 							sx={{
-								display: 'inline-flex',
-								alignItems: 'center',
-								justifyContent: 'center',
-								cursor: 'pointer',
-								color: 'text.secondary',
-								'&:hover': { color: 'text.primary' },
+								width: 34,
+								height: 34,
+								border: '1px solid',
+								borderColor: 'divider',
 							}}
 						>
 							<Iconify icon="solar:close-circle-bold" width={18} />
-						</Box>
-					) : undefined
-				}
-				sx={{
-					textTransform: 'none',
-					pl: 1.5,
-					pr: isActive ? 1 : 1.5,
-					gap: 0.5,
-				}}
-			>
-				<Stack direction="row" spacing={1} alignItems="center">
-					<Box component="span" sx={{ color: 'text.secondary' }}>
-						{label}
-					</Box>
-					{isActive && (
-						<Box
-							component="span"
-							sx={{
-								px: 0.75,
-								py: 0.25,
-								borderRadius: 0.75,
-								bgcolor: 'action.selected',
-								color: 'text.secondary',
-								fontWeight: 500,
-								fontSize: '0.8125rem',
-								minWidth: 20,
-								textAlign: 'center',
-							}}
-						>
-							{value.length}
-						</Box>
-					)}
-				</Stack>
-			</Button>
+						</IconButton>
+					</Tooltip>
+				)}
+			</Box>
 			<Popover
 				open={open}
 				anchorEl={anchorEl}
@@ -116,6 +119,11 @@ export const MultiSelectChipFilter = ({
 				transformOrigin={{
 					vertical: 'top',
 					horizontal: 'left',
+				}}
+				slotProps={{
+					paper: {
+						id: popoverId,
+					},
 				}}
 			>
 				<Box

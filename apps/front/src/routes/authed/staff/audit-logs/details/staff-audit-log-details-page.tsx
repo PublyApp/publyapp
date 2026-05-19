@@ -8,16 +8,17 @@ import Skeleton from '@mui/material/Skeleton';
 import { isServer } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import get from 'lodash/get';
 import { data, useParams } from 'react-router';
 
 import type { AuditLogDetail } from '@org/client-ts/src/models';
 import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import { CustomBreadcrumbs } from '#app/components/custom-breadcrumbs/custom-breadcrumbs.tsx';
-import { EmptyContent } from '#app/components/empty-content/empty-content.tsx';
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
 import { View400 } from '#app/components/error/400-view.tsx';
+import { View404 } from '#app/components/error/404-view.tsx';
 import QueryDisplay from '#app/components/query-display.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { DashboardContent } from '#app/layouts/dashboard/content.tsx';
@@ -35,7 +36,7 @@ import { useAuditLogDetailVariant } from './_parts/use-audit-log-detail-variant'
 // ----------------------------------------------------------------------
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(t('audit-log-details'));
+	let str: string = capitalize(t('audit-log-details'));
 
 	if (seo) {
 		str = `${str} | Staff Dashboard - ${APP_NAME}`;
@@ -46,7 +47,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
+		return get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;
@@ -86,8 +87,8 @@ const StaffAuditLogDetailsPage = () => {
 	if (!logId) {
 		return (
 			<View400
-				title={_.capitalize(t('bad-request'))}
-				description={_.capitalize(t('log-id-required'))}
+				title={capitalize(t('bad-request'))}
+				description={capitalize(t('log-id-required'))}
 			/>
 		);
 	}
@@ -102,10 +103,10 @@ const StaffAuditLogDetailsPage = () => {
 				heading={getPageTitle(t as never)}
 				links={[
 					{
-						name: _.capitalize(t('audit-logs')),
+						name: capitalize(t('audit-logs')),
 						href: FRONT_PATH_NAMES.staff.auditLogs.root,
 					},
-					{ name: _.capitalize(t('details')) },
+					{ name: capitalize(t('details')) },
 				]}
 				action={<AuditLogVariantSwitcher />}
 				sx={{ mb: { xs: 3, md: 5 } }}
@@ -153,17 +154,11 @@ const AuditLogDetailsEmpty = () => {
 	const { t } = useTranslate();
 
 	return (
-		<Box sx={{ py: 10 }}>
-			<EmptyContent
-				title={_.capitalize(
-					t('no-items-found', {
-						item: t('audit-log'),
-						ns: 'response-message',
-					}),
-				)}
-				imgUrl="/assets/icons/empty/ic-content.svg"
-			/>
-		</Box>
+		<View404
+			withLayout={false}
+			title={capitalize(t('audit-log-not-found-title'))}
+			description={t('audit-log-not-found-description')}
+		/>
 	);
 };
 
@@ -185,10 +180,8 @@ const AuditLogDetailsError = ({ error }: { error: unknown }) => {
 	return (
 		<Box sx={{ py: 10 }}>
 			<ErrorContent
-				title={t('error-loading-items', {
-					item: t('audit-log'),
-					ns: 'response-message',
-				})}
+				title={t('audit-log-details-error-title')}
+				description={t('audit-log-details-error-description')}
 			/>
 		</Box>
 	);

@@ -1,5 +1,9 @@
 # Audit Logs MVP Implementation Plan
 
+> Historical implementation plan for issue #171. The current contract lives in
+> OpenAPI and AGENTS.md-linked guides; verify unchecked tasks and code samples
+> against current code before using this file.
+
 **Issue:** #171 — feat(staff): Audit logs MVP (query endpoints + staff dashboard page)
 
 ---
@@ -28,13 +32,13 @@
 |-------|------|----------|---------|-------------|
 | `cursor` | string (Guid) | No | — | Cursor for keyset pagination |
 | `limit` | int | No | env default | Page size |
-| `sortId` | string | No | `created_at` | Sort field: `created_at` |
-| `sortOrder` | string | No | `desc` | `asc` or `desc` |
-| `userId` | string (Guid) | No | — | Filter by acting user |
-| `action` | string | No | — | Filter by action key (exact match) |
-| `targetId` | string (Guid) | No | — | Filter by target resource ID |
-| `startDate` | string (ISO 8601) | No | — | Filter: `CreatedAt >= startDate` |
-| `endDate` | string (ISO 8601) | No | — | Filter: `CreatedAt <= endDate` |
+| `sort_id` | string | No | `created_at` | Sort field: `created_at` |
+| `sort_order` | string | No | `desc` | `asc` or `desc` |
+| `user_id` | string (Guid) | No | - | Filter by acting user |
+| `actions` | string (CSV) | No | - | Filter by action keys (exact match) |
+| `target_id` | string (Guid) | No | - | Filter by target resource ID |
+| `start_date` | string (ISO 8601) | No | - | Filter: `CreatedAt >= start_date` |
+| `end_date` | string (ISO 8601) | No | - | Filter: `CreatedAt <= end_date` |
 
 **Response** `200 OK`:
 ```json
@@ -103,11 +107,11 @@ No parameters.
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
 | `format` | string | Yes | `csv` or `json` |
-| `userId` | string (Guid) | No | Filter by acting user |
-| `action` | string | No | Filter by action key |
-| `targetId` | string (Guid) | No | Filter by target resource ID |
-| `startDate` | string (ISO 8601) | No | Filter: `CreatedAt >= startDate` |
-| `endDate` | string (ISO 8601) | No | Filter: `CreatedAt <= endDate` |
+| `user_id` | string (Guid) | No | Filter by acting user |
+| `actions` | string (CSV) | No | Filter by action keys |
+| `target_id` | string (Guid) | No | Filter by target resource ID |
+| `start_date` | string (ISO 8601) | No | Filter: `CreatedAt >= start_date` |
+| `end_date` | string (ISO 8601) | No | Filter: `CreatedAt <= end_date` |
 
 **Response:**
 - `200 OK` with `Content-Type: text/csv` or `application/json`
@@ -192,10 +196,10 @@ AuditLogExportItem: Id, UserName, UserEmail, Action, TargetId, Details, IpAddres
 **Step 5: Create Find handler**
 - **Create** `apps/api/Src/Modules/AuditLogs/Handlers/Staff/FindAuditLogs.cs`
   - `FindAuditLogsQuery` extends `CursorPaginatedQuery` with additional filter properties:
-    - `[FromQuery] string? UserId`, `[FromQuery] string? Action`, `[FromQuery] string? TargetId`
-    - `[FromQuery] string? StartDate`, `[FromQuery] string? EndDate`
+    - `[FromQuery(Name = "user_id")] string? UserId`, `[FromQuery(Name = "actions")] string? Actions`, `[FromQuery(Name = "target_id")] string? TargetId`
+    - `[FromQuery(Name = "start_date")] string? StartDate`, `[FromQuery(Name = "end_date")] string? EndDate`
   - `FindAuditLogsQueryValidator` extends `CursorPaginatedQueryValidator<FindAuditLogsQuery>`
-    - Add rules: `UserId` must be valid Guid if provided, dates must be valid ISO 8601, `startDate <= endDate` when both provided
+    - Add rules: `user_id` must be valid Guid if provided, dates must be valid ISO 8601, `start_date <= end_date` when both provided
   - `FindAuditLogsResponse` extends `CursorPaginatedResult<AuditLogListItem>`
   - Handler: parse query, call service, map result
 
@@ -212,8 +216,8 @@ AuditLogExportItem: Id, UserName, UserEmail, Action, TargetId, Details, IpAddres
 
 **Step 8: Create Export handler**
 - **Create** `apps/api/Src/Modules/AuditLogs/Handlers/Staff/ExportAuditLogs.cs`
-  - `ExportAuditLogsQuery` with filter params + `[FromQuery] string Format` (csv/json)
-  - `ExportAuditLogsQueryValidator` validates format is `csv` or `json` (→ `422` on invalid), dates are valid ISO 8601, `startDate <= endDate` when both provided
+  - `ExportAuditLogsQuery` with filter params + `[FromQuery(Name = "format")] string Format` (csv/json)
+  - `ExportAuditLogsQueryValidator` validates format is `csv` or `json` (→ `422` on invalid), dates are valid ISO 8601, `start_date <= end_date` when both provided
   - Handler flow:
     1. Run a lightweight pre-check: `SELECT COUNT(1) FROM audit_logs WHERE <filters> LIMIT N+1` (uses indexed `COUNT` capped at `limit + 1` — not a full table scan, stops counting as soon as it exceeds the limit). If over limit, return `400` before streaming.
     2. Set `Content-Type` and `Content-Disposition` headers
@@ -238,8 +242,8 @@ AuditLogExportItem: Id, UserName, UserEmail, Action, TargetId, Details, IpAddres
 ### Phase 4 — Client Generation
 
 **Step 11: Build API + generate client**
-- Run `make build-api && make generate-client`
-- Run `make tsc-front` to verify no TS errors
+- Run `just build-api && just generate-client`
+- Run `just tsc-front` to verify no TS errors
 
 ---
 
@@ -306,7 +310,7 @@ AuditLogExportItem: Id, UserName, UserEmail, Action, TargetId, Details, IpAddres
   - Filter controls above table:
     - Action select dropdown (populated from `useGetAuditLogActions`)
     - Date range pickers (start/end date via MUI DatePicker)
-    - User autocomplete (MUI `Autocomplete` with debounced search querying the existing `FindStaffUsers` endpoint by name/email, resolves to `userId` for the API call)
+    - User autocomplete (MUI `Autocomplete` with debounced search querying the existing `FindStaffUsers` endpoint by name/email, resolves to `user_id` for the API call)
   - Row click navigates to detail page
 
 **Step 19: Create export button component**
@@ -347,11 +351,11 @@ All spec files co-located with handlers following `*.Spec.cs` convention.
   - `ItShouldReturnNextCursorWhenMoreResultsExist` — create entries, request with `limit=2`
   - `ItShouldFilterByAction` — create entries with different actions, filter by one
   - `ItShouldFilterByUserId` — filter by specific user
-  - `ItShouldFilterByDateRange` — create entries, filter by startDate/endDate
+  - `ItShouldFilterByDateRange` — create entries, filter by start_date/end_date
   - `ItShouldReturnBadRequestForInvalidCursor` — pass invalid Guid as cursor
   - `ItShouldReturn422WhenStartDateAfterEndDate` — inverted date range → 422
-  - `ItShouldReturn422WhenStartDateIsMalformed` — `startDate=not-a-date` → 422
-  - `ItShouldReturn422WhenUserIdIsNotValidGuid` — `userId=abc` → 422
+  - `ItShouldReturn422WhenStartDateIsMalformed` — `start_date=not-a-date` → 422
+  - `ItShouldReturn422WhenUserIdIsNotValidGuid` — `user_id=abc` → 422
   - `ItShouldReturnUnauthorizedWithoutSession` — no token → 401
   - `ItShouldReturnForbiddenForNonStaffUser` — tenant user token → 403 (tests `WithStaffAuthorization`)
   - `ItShouldReturnForbiddenForStaffWithoutPermission` — staff user lacking `audit_logs.list` permission → 403 (tests `WithPermission`)
@@ -383,8 +387,8 @@ All spec files co-located with handlers following `*.Spec.cs` convention.
   - `ItShouldReturn422ForInvalidFormat` — `format=xml` → 422
   - `ItShouldApplyFiltersToExport` — filter by action, verify filtered results in output
   - `ItShouldReturn400WhenExportExceedsLimit` — seed entries exceeding limit, verify 400
-  - `ItShouldReturn422WhenStartDateIsMalformed` — `startDate=xyz` → 422
-  - `ItShouldReturn422WhenTargetIdIsNotValidGuid` — `targetId=abc` → 422
+  - `ItShouldReturn422WhenStartDateIsMalformed` — `start_date=xyz` → 422
+  - `ItShouldReturn422WhenTargetIdIsNotValidGuid` — `target_id=abc` → 422
   - `ItShouldReturnUnauthorizedWithoutSession` — 401
   - `ItShouldReturnForbiddenForNonStaffUser` — 403
   - `ItShouldReturnForbiddenForStaffWithoutPermission` — 403
@@ -494,8 +498,8 @@ All questions resolved:
 ### Edge Cases
 - **Empty audit log table:** New installations will have an empty table. The list endpoint should return `{ data: [], nextCursor: null }` gracefully.
 - **Deleted users:** Soft-deleted users resolve normally via `IgnoreQueryFilters()` — their real name/email are shown. The FK is `ON DELETE CASCADE`, so hard-deleting a user cascades to their audit logs (orphaned rows shouldn't occur in practice). The `"(deleted user)"` / `"(unknown)"` fallback is defensive code for the left-join no-match path.
-- **Invalid date formats:** The validator must reject malformed `startDate`/`endDate` values with a clear 422 error.
-- **Inverted date range:** If `startDate > endDate`, the validator rejects with 422 — don't silently swap or return empty results.
+- **Invalid date formats:** The validator must reject malformed `start_date`/`end_date` values with a clear 422 error.
+- **Inverted date range:** If `start_date > end_date`, the validator rejects with 422 — don't silently swap or return empty results.
 - **Export with no results:** Return an empty CSV (headers only) or empty JSON array — not a 404.
 - **Export limit race condition:** A tiny race exists between the `limit + 1` pre-check and the actual stream — rows inserted in that window could make the result set slightly over limit while the response returns truncated `Take(limit)` data. Acceptable for MVP; a single-query strategy (e.g., streaming with inline count) can be added post-MVP if needed.
 
@@ -519,16 +523,16 @@ All questions resolved:
 - [ ] `ExportAuditLogs` handler with CSV/JSON format support
 - [ ] All endpoints registered in `AuditLogEndpointsForStaff` with correct permissions
 - [ ] Endpoints mapped in `Program.cs` under `staffGroup`
-- [ ] `make build-api` passes
-- [ ] `make generate-client` produces updated TypeScript client
-- [ ] `make tsc-front` passes after client generation
+- [ ] `just build-api` passes
+- [ ] `just generate-client` produces updated TypeScript client
+- [ ] `just tsc-front` passes after client generation
 
 ### Tests
 - [ ] Integration tests for FindAuditLogs (pagination, filters, auth, permissions)
 - [ ] Integration tests for GetAuditLogById (happy path, not found, auth)
 - [ ] Integration tests for GetAuditLogActions (happy path, auth)
 - [ ] Integration tests for ExportAuditLogs (CSV, JSON, invalid format, filters, auth)
-- [ ] `make test-api` passes
+- [ ] `just test-api` passes
 
 ### Frontend
 - [ ] `auditLogs` resource and path constants added

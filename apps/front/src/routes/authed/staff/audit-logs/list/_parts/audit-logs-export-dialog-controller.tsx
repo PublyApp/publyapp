@@ -15,8 +15,12 @@ import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import {
+	getFailureMessage,
+	toApiFailure,
+} from '#app/lib/api-failure/to-api-failure.ts';
 import { downloadTextFile, withTimestamp } from '#app/lib/export/download.ts';
-import { getClientManager } from '#app/lib/js-client/client-manager.ts';
+import { useExportStaffAuditLogs } from '#app/lib/react-query/features/staff/staff-audit-log.hooks.ts';
 
 export type AuditLogsExportDialogControllerRef = {
 	open: () => void;
@@ -40,7 +44,8 @@ const AuditLogsExportDialogController = ({
 	const { t } = useTranslate();
 	const [open, setOpen] = useState(false);
 	const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
-	const [isExporting, setIsExporting] = useState(false);
+	const exportMutation = useExportStaffAuditLogs();
+	const isExporting = exportMutation.isPending;
 
 	useImperativeHandle(ref, () => {
 		return {
@@ -52,22 +57,19 @@ const AuditLogsExportDialogController = ({
 	}, []);
 
 	const handleExport = async () => {
+		// XLSX is present as a disabled coming-soon option; do
+		// not call the export endpoint until it supports that
+		// format.
 		if (exportFormat === 'xlsx') {
 			return;
 		}
 
-		setIsExporting(true);
-
 		try {
-			const client = getClientManager().getOrCreateStaffClient();
-			const result = await client.staff.auditLogs.exportEscaped.get({
-				queryParameters: {
-					format: exportFormat,
-					actions:
-						actions && actions.length > 0 ? actions.join(',') : undefined,
-					startDate: startDate || undefined,
-					endDate: endDate || undefined,
-				},
+			const result = await exportMutation.mutateAsync({
+				format: exportFormat,
+				actions,
+				startDate: startDate || undefined,
+				endDate: endDate || undefined,
 			});
 
 			if (!result) {
@@ -82,10 +84,21 @@ const AuditLogsExportDialogController = ({
 			toast.success(t('export-complete'));
 			setOpen(false);
 		} catch (error) {
-			logger.error('Audit logs export failed', { error });
-			toast.error(t('export-failed'));
-		} finally {
-			setIsExporting(false);
+			const failure = toApiFailure(error);
+			logger.error('Audit logs export failed', { error, kind: failure.kind });
+
+			if (
+				failure.kind === 'abort' ||
+				(failure.kind === 'problem' && failure.status === 401)
+			) {
+				return;
+			}
+
+			toast.error(
+				getFailureMessage(failure, {
+					fallback: t('export-failed'),
+				}),
+			);
 		}
 	};
 
@@ -99,6 +112,7 @@ const AuditLogsExportDialogController = ({
 					</Typography>
 					<Tabs
 						value={exportFormat}
+						aria-label={t('choose-export-format')}
 						onChange={(_event, value: ExportFormat) => setExportFormat(value)}
 						sx={(theme) => ({
 							mt: 1.5,
@@ -161,7 +175,9 @@ const AuditLogsExportDialogController = ({
 				</Button>
 				<Button
 					variant="contained"
-					onClick={handleExport}
+					onClick={() => {
+						void handleExport();
+					}}
 					startIcon={<Iconify icon="solar:download-bold" width={18} />}
 					loading={isExporting}
 					disabled={exportFormat === 'xlsx'}

@@ -309,7 +309,7 @@
         "operationId": "GetVerificationLink",
         "parameters": [
           {
-            "name": "UserId",
+            "name": "user_id",
             "in": "query",
             "required": true,
             "schema": {
@@ -380,7 +380,7 @@
         "operationId": "GetRedirectCode",
         "parameters": [
           {
-            "name": "TenantId",
+            "name": "tenant_id",
             "in": "query",
             "schema": {
               "type": "string"
@@ -481,7 +481,7 @@
         "operationId": "CheckEmailVerificationToken",
         "parameters": [
           {
-            "name": "Id",
+            "name": "id",
             "in": "query",
             "required": true,
             "schema": {
@@ -489,7 +489,7 @@
             }
           },
           {
-            "name": "Token",
+            "name": "token",
             "in": "query",
             "required": true,
             "schema": {
@@ -550,7 +550,7 @@
         "operationId": "CheckResetPasswordToken",
         "parameters": [
           {
-            "name": "Id",
+            "name": "id",
             "in": "query",
             "required": true,
             "schema": {
@@ -558,7 +558,7 @@
             }
           },
           {
-            "name": "Token",
+            "name": "token",
             "in": "query",
             "required": true,
             "schema": {
@@ -853,7 +853,7 @@
         "operationId": "CheckInvitationToken",
         "parameters": [
           {
-            "name": "Id",
+            "name": "id",
             "in": "query",
             "required": true,
             "schema": {
@@ -861,7 +861,7 @@
             }
           },
           {
-            "name": "Token",
+            "name": "token",
             "in": "query",
             "required": true,
             "schema": {
@@ -2013,7 +2013,7 @@
             }
           },
           {
-            "name": "Status",
+            "name": "status",
             "in": "query",
             "schema": {
               "type": "string"
@@ -6767,7 +6767,7 @@
             }
           },
           {
-            "name": "Status",
+            "name": "status",
             "in": "query",
             "schema": {
               "type": "string"
@@ -8018,35 +8018,35 @@
         "operationId": "FindAuditLogs",
         "parameters": [
           {
-            "name": "UserId",
+            "name": "user_id",
             "in": "query",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "Actions",
+            "name": "actions",
             "in": "query",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "TargetId",
+            "name": "target_id",
             "in": "query",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "StartDate",
+            "name": "start_date",
             "in": "query",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "EndDate",
+            "name": "end_date",
             "in": "query",
             "schema": {
               "type": "string"
@@ -8205,42 +8205,42 @@
         "operationId": "ExportAuditLogs",
         "parameters": [
           {
-            "name": "Format",
+            "name": "format",
             "in": "query",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "UserId",
+            "name": "user_id",
             "in": "query",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "Actions",
+            "name": "actions",
             "in": "query",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "TargetId",
+            "name": "target_id",
             "in": "query",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "StartDate",
+            "name": "start_date",
             "in": "query",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "EndDate",
+            "name": "end_date",
             "in": "query",
             "schema": {
               "type": "string"
@@ -8270,6 +8270,33 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "format": "byte"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "format": "byte"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/problem+json": {
                 "schema": {

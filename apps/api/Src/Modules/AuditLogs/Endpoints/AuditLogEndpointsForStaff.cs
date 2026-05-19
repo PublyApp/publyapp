@@ -1,4 +1,5 @@
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Routes;
 using MainApi.Src.Modules.AuditLogs.Handlers.Staff;
@@ -52,6 +53,17 @@ public static class AuditLogEndpointsForStaff {
 			.WithName("ExportAuditLogs")
 			.WithSummary(
 				"Export audit logs as CSV or JSON"
+			)
+			// The handler streams CSV/JSON directly to
+			// Response.Body; this metadata exists only to
+			// publish both export media types in OpenAPI/Kiota.
+			.Produces<byte[]>(
+				StatusCodes.Status200OK,
+				"text/csv",
+				"application/json"
+			)
+			.ProducesAppProblem(
+				StatusCodes.Status400BadRequest
 			)
 			.WithReqQueryValidation<
 				ExportAuditLogsQuery>()

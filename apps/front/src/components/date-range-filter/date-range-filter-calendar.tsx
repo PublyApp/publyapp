@@ -4,7 +4,6 @@ import {
 	PickersDay,
 	type PickersDayProps,
 } from '@mui/x-date-pickers/PickersDay';
-import { useState } from 'react';
 
 import { type Dayjs } from '#app/utils/format-time.ts';
 
@@ -46,21 +45,21 @@ export const DateRangeFilterCalendar = ({
 	minDate,
 	maxDate,
 }: DateRangeFilterCalendarProps) => {
-	const [pendingFrom, setPendingFrom] = useState<Dayjs | null>(value.from);
+	// When `to` is null, `from` is an in-progress anchor
+	// used only for previewing the range until the second
+	// click commits the end date.
+	const pendingFrom = value.to === null ? value.from : null;
 
 	const handlePick = (day: Dayjs | null) => {
 		if (day === null) return;
-		const isStartingFresh =
-			pendingFrom === null || (value.from !== null && value.to !== null);
+		const isStartingFresh = pendingFrom === null || value.to !== null;
 		if (isStartingFresh) {
-			setPendingFrom(day);
 			onChange({ from: day.startOf('day'), to: null });
 			return;
 		}
 		const [from, to] = day.isBefore(pendingFrom, 'day')
 			? [day, pendingFrom]
 			: [pendingFrom, day];
-		setPendingFrom(null);
 		onChange({
 			from: from.startOf('day'),
 			to: to.endOf('day'),
@@ -85,7 +84,16 @@ export const DateRangeFilterCalendar = ({
 	};
 
 	return (
-		<Box sx={{ p: 1 }}>
+		<Box
+			sx={{
+				p: { xs: 0.5, sm: 1 },
+				maxWidth: '100%',
+				'& .MuiDateCalendar-root': {
+					width: { xs: '100%', sm: 320 },
+					maxWidth: '100%',
+				},
+			}}
+		>
 			<DateCalendar
 				value={value.from}
 				onChange={handlePick}

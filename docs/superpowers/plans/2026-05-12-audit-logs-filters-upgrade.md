@@ -1,5 +1,9 @@
 # Audit Logs Filters Upgrade Implementation Plan
 
+> Historical PR #401 working artifact. Do not execute this as a current
+> implementation plan without first checking the live code and AGENTS.md-linked
+> guides.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the staff audit-logs page's two date pickers and single-select action filter with two reusable shared components (DateRangeFilter, MultiSelectChipFilter), add multi-action filtering to the API, and move filter state to nuqs URL params.
@@ -242,14 +246,24 @@ In `apps/api/Src/Modules/AuditLogs/Handlers/Staff/FindAuditLogs.cs`, replace `Ac
 
 ```csharp
 public class FindAuditLogsQuery : CursorPaginatedQuery {
-	[FromQuery] public string? UserId { get; set; }
-	[FromQuery] public List<string>? Actions { get; set; }  // was: string? Action
-	[FromQuery] public string? TargetId { get; set; }
-	[FromQuery] public string? StartDate { get; set; }
-	[FromQuery] public string? EndDate { get; set; }
-	// ... existing Get* helpers unchanged
+	[FromQuery(Name = "user_id")]
+	public string? UserId { get; set; }
+	[FromQuery(Name = "actions")]
+	public string? Actions { get; set; }  // CSV; was: string? Action
+	[FromQuery(Name = "target_id")]
+	public string? TargetId { get; set; }
+	[FromQuery(Name = "start_date")]
+	public string? StartDate { get; set; }
+	[FromQuery(Name = "end_date")]
+	public string? EndDate { get; set; }
+
+	public IReadOnlyList<string>? GetActionsList() {
+		return AuditLogActionsCsv.Parse(Actions);
+	}
 }
 ```
+
+Keep `Actions` as primitive `string?` on the `[AsParameters]` DTO. `List<T>?` or a custom `BindAsync` removes OpenAPI query metadata and causes Kiota to generate a client that drops query parameters.
 
 Update the validator (same file):
 
@@ -260,16 +274,16 @@ public FindAuditLogsQueryValidator() {
 		.WithMessage("UserId must be a valid GUID");
 
 	RuleFor(x => x.Actions)
-		.Must(actions => actions == null || actions.Count <= 50)
-		.WithMessage(
-			"At most 50 actions can be filtered at once."
-		);
-
-	RuleForEach(x => x.Actions)
-		.NotEmpty()
-		.WithMessage("Action values must not be empty.")
-		.Must(AuditActionsRegistry.IsKnown)
-		.WithMessage(a => $"'{a}' is not a valid audit action.");
+		.Custom((raw, context) => {
+			var error =
+				AuditLogActionsCsv.GetValidationError(raw);
+			if (error is not null) {
+				context.AddFailure(
+					AuditLogActionsCsv.WireName,
+					error
+				);
+			}
+		});
 
 	RuleFor(x => x.TargetId)
 		.Must(QueryPredicates.BeValidNullableGuid)
@@ -292,7 +306,7 @@ var serviceResult =
 		SortId: sortId,
 		SortOrder: sortOrder,
 		UserId: query.GetUserId(),
-		Actions: query.Actions,        // was: Action: query.Action
+		Actions: query.GetActionsList(), // was: Action: query.Action
 		TargetId: query.GetTargetId(),
 		StartDate: query.GetStartDate(),
 		EndDate: query.GetEndDate()
@@ -332,23 +346,23 @@ public static string GetFindUrl(
 		queryParams.Add($"sort_order={sortOrder}");
 	}
 	if (userId is not null) {
-		queryParams.Add($"userId={userId}");
+		queryParams.Add($"user_id={userId}");
 	}
-	if (actions is not null) {
-		foreach (var action in actions) {
-			queryParams.Add(
-				$"actions={Uri.EscapeDataString(action)}"
-			);
-		}
+	if (actions is not null && actions.Count > 0) {
+		var csv = string.Join(
+			",",
+			actions.Select(Uri.EscapeDataString)
+		);
+		queryParams.Add($"actions={csv}");
 	}
 	if (targetId is not null) {
-		queryParams.Add($"targetId={targetId}");
+		queryParams.Add($"target_id={targetId}");
 	}
 	if (startDate is not null) {
-		queryParams.Add($"startDate={startDate}");
+		queryParams.Add($"start_date={startDate}");
 	}
 	if (endDate is not null) {
-		queryParams.Add($"endDate={endDate}");
+		queryParams.Add($"end_date={endDate}");
 	}
 
 	if (queryParams.Count == 0) {
@@ -487,8 +501,8 @@ git add apps/api/Src/Modules/AuditLogs/Handlers/Staff/FindAuditLogs.cs \
         apps/api/Src/Modules/AuditLogs/Handlers/Staff/FindAuditLogs.Spec.cs
 git commit -m "feat(audit-logs): support multi-action filter on FindAuditLogs
 
-Replace the singular Action query parameter with Actions (repeated
-query param), validated against AuditActionsRegistry with a 50-item
+Replace the singular Action query parameter with an `actions` CSV
+query param, validated against AuditActionsRegistry with a 50-item
 cap. ApplyFilters now uses Contains for SQL IN translation.
 
 Includes the temporary single-action bridge for ExportAuditLogs;
@@ -538,13 +552,22 @@ In `apps/api/Src/Modules/AuditLogs/Handlers/Staff/ExportAuditLogs.cs`:
 
 ```csharp
 public class ExportAuditLogsQuery {
-	[FromQuery] public string? Format { get; set; }
-	[FromQuery] public string? UserId { get; set; }
-	[FromQuery] public List<string>? Actions { get; set; } // was: string? Action
-	[FromQuery] public string? TargetId { get; set; }
-	[FromQuery] public string? StartDate { get; set; }
-	[FromQuery] public string? EndDate { get; set; }
-	// existing Get* helpers unchanged
+	[FromQuery(Name = "format")]
+	public string? Format { get; set; }
+	[FromQuery(Name = "user_id")]
+	public string? UserId { get; set; }
+	[FromQuery(Name = "actions")]
+	public string? Actions { get; set; } // CSV; was: string? Action
+	[FromQuery(Name = "target_id")]
+	public string? TargetId { get; set; }
+	[FromQuery(Name = "start_date")]
+	public string? StartDate { get; set; }
+	[FromQuery(Name = "end_date")]
+	public string? EndDate { get; set; }
+
+	public IReadOnlyList<string>? GetActionsList() {
+		return AuditLogActionsCsv.Parse(Actions);
+	}
 }
 ```
 
@@ -552,16 +575,16 @@ Update the validator block to add the same Actions rules:
 
 ```csharp
 RuleFor(x => x.Actions)
-	.Must(actions => actions == null || actions.Count <= 50)
-	.WithMessage(
-		"At most 50 actions can be filtered at once."
-	);
-
-RuleForEach(x => x.Actions)
-	.NotEmpty()
-	.WithMessage("Action values must not be empty.")
-	.Must(AuditActionsRegistry.IsKnown)
-	.WithMessage(a => $"'{a}' is not a valid audit action.");
+	.Custom((raw, context) => {
+		var error =
+			AuditLogActionsCsv.GetValidationError(raw);
+		if (error is not null) {
+			context.AddFailure(
+				AuditLogActionsCsv.WireName,
+				error
+			);
+		}
+	});
 ```
 
 Add `using MainApi.Src.Modules.AuditLogs.Entities;` if not already present.
@@ -571,7 +594,7 @@ Update `HandleExportAuditLogs` (in the same file):
 ```csharp
 var exportArgs = new ExportAuditLogsArgs(
 	UserId: query.GetUserId(),
-	Actions: query.Actions,         // was: Action: query.Action
+	Actions: query.GetActionsList(), // was: Action: query.Action
 	TargetId: query.GetTargetId(),
 	StartDate: query.GetStartDate(),
 	EndDate: query.GetEndDate()
@@ -596,23 +619,23 @@ public static string GetExportUrl(
 	};
 
 	if (userId is not null) {
-		queryParams.Add($"userId={userId}");
+		queryParams.Add($"user_id={userId}");
 	}
-	if (actions is not null) {
-		foreach (var action in actions) {
-			queryParams.Add(
-				$"actions={Uri.EscapeDataString(action)}"
-			);
-		}
+	if (actions is not null && actions.Count > 0) {
+		var csv = string.Join(
+			",",
+			actions.Select(Uri.EscapeDataString)
+		);
+		queryParams.Add($"actions={csv}");
 	}
 	if (targetId is not null) {
-		queryParams.Add($"targetId={targetId}");
+		queryParams.Add($"target_id={targetId}");
 	}
 	if (startDate is not null) {
-		queryParams.Add($"startDate={startDate}");
+		queryParams.Add($"start_date={startDate}");
 	}
 	if (endDate is not null) {
-		queryParams.Add($"endDate={endDate}");
+		queryParams.Add($"end_date={endDate}");
 	}
 
 	return ExportUrl + "?" + string.Join("&", queryParams);
@@ -717,7 +740,7 @@ git add apps/api/Src/Modules/AuditLogs/Handlers/Staff/ExportAuditLogs.cs \
         apps/api/Src/Modules/AuditLogs/Handlers/Staff/ExportAuditLogs.Spec.cs
 git commit -m "feat(audit-logs): support multi-action filter on ExportAuditLogs
 
-Mirrors the FindAuditLogs change: Actions repeated query param,
+Mirrors the FindAuditLogs change: Actions CSV query param,
 validated against AuditActionsRegistry with the same 50-item cap.
 Removes the temporary single-action bridge introduced in the
 previous commit."
@@ -727,7 +750,7 @@ previous commit."
 
 ## Task 4: Regenerate TS client and adapt existing call sites
 
-**Why:** Tasks 2 & 3 changed the API contract; the frontend will not compile until we regenerate. To keep the page working (single-select UX preserved) while the new components are built, we wrap the existing single string into an array.
+**Why:** Tasks 2 & 3 changed the API contract; the frontend will not compile until we regenerate. To keep the page working (single-select UX preserved) while the new components are built, pass the existing single string through the CSV `actions` query parameter.
 
 **Files:**
 - Modify (regenerated): `packages/client-ts/**` (do not edit by hand)
@@ -752,7 +775,7 @@ Run:
 grep -rn 'actions' packages/client-ts/src/staff/auditLogs/ | head -20
 ```
 
-Expected: see `actions?: string[]` (or kiota-equivalent) on the find/export query parameter types.
+Expected: see `actions?: string` (or kiota-equivalent) on the find/export query parameter types.
 
 - [ ] **Step 3: Update the find query call in `staff-audit-logs-table.tsx`**
 
@@ -764,7 +787,7 @@ const auditLogsQuery = useFindStaffAuditLogs({
 		cursor: apiVariables.cursor || undefined,
 		limit: apiVariables.limit,
 		sort: apiVariables.sort,
-		actions: actionFilter ? [actionFilter] : undefined, // was: action: actionFilter || undefined
+		actions: actionFilter || undefined, // was: action: actionFilter || undefined
 		startDate: startDateIso,
 		endDate: endDateIso,
 	},
@@ -785,13 +808,13 @@ const renderExportActions = () => {
 };
 ```
 
-- [ ] **Step 4: Update `audit-logs-export-button.tsx` to take an array**
+- [ ] **Step 4: Update `audit-logs-export-button.tsx` to accept the UI action selection**
 
 In `apps/front/src/routes/authed/staff/audit-logs/list/_parts/audit-logs-export-button.tsx`:
 
 ```ts
 type AuditLogsExportButtonProps = {
-	actions?: string[];     // was: actionFilter?: string
+	actions?: string[];     // UI selection; joined to CSV for the API
 	startDate?: string;
 	endDate?: string;
 };
@@ -810,7 +833,7 @@ Inside `handleExport`, replace the `action` field:
 ```ts
 queryParameters: {
 	format,
-	actions: actions && actions.length > 0 ? actions : undefined, // was: action: actionFilter || undefined
+	actions: actions && actions.length > 0 ? actions.join(',') : undefined, // was: action: actionFilter || undefined
 	startDate: startDate || undefined,
 	endDate: endDate || undefined,
 },
@@ -844,10 +867,9 @@ git add packages/client-ts \
         apps/front/src/routes/authed/staff/audit-logs/list/_parts/audit-logs-export-button.tsx
 git commit -m "chore(client): regenerate TS client for multi-action audit log filters
 
-Bridges the existing single-select Action UI through the new array
-parameter shape (actionFilter ? [actionFilter] : undefined). Keeps
-the page working while the new multi-select UI is built in
-subsequent commits."
+Bridges the existing single-select Action UI through the new CSV
+actions query parameter. Keeps the page working while the new
+multi-select UI is built in subsequent commits."
 ```
 
 ---
@@ -855,11 +877,12 @@ subsequent commits."
 ## Task 5: Add new i18n keys
 
 **Files:**
-- Modify: `apps/front/public/tx/common.en.json`
+- Modify: `packages/shared-ts/lib/i18n/json/common.en.json`
+- Modify: `packages/shared-ts/lib/i18n/json/common.fr.json`
 
 - [ ] **Step 1: Add the new keys**
 
-Open `apps/front/public/tx/common.en.json` and add the following keys in alphabetical position. Each key goes on its own line; preserve the surrounding format (tab indentation, trailing commas).
+Open the source locale JSON files under `packages/shared-ts/lib/i18n/json/` and add the following keys in alphabetical position. Each key goes on its own line; preserve the surrounding format (tab indentation, trailing commas). Runtime locale files are generated from the shared source locale files and should not be edited directly.
 
 ```json
 "apply": "Apply",
@@ -879,7 +902,7 @@ Do not delete or rename existing keys.
 - [ ] **Step 2: Verify the file is valid JSON**
 
 ```bash
-node -e "require('./apps/front/public/tx/common.en.json')"
+node -e "JSON.parse(require('node:fs').readFileSync('packages/shared-ts/lib/i18n/json/common.en.json','utf8')); JSON.parse(require('node:fs').readFileSync('packages/shared-ts/lib/i18n/json/common.fr.json','utf8'))"
 ```
 
 Expected: no output (silent success).
@@ -887,7 +910,7 @@ Expected: no output (silent success).
 - [ ] **Step 3: Commit**
 
 ```bash
-git add apps/front/public/tx/common.en.json
+git add packages/shared-ts/lib/i18n/json/common.en.json packages/shared-ts/lib/i18n/json/common.fr.json
 git commit -m "feat(i18n): add keys for date-range and multi-select filters
 
 apply, cancel, clear, clear-all, custom, last-n-days,
@@ -1967,7 +1990,7 @@ const StaffAuditLogsTable = () => {
 			cursor: apiVariables.cursor || undefined,
 			limit: apiVariables.limit,
 			sort: apiVariables.sort,
-			actions: actions.length > 0 ? actions : undefined,
+			actions: actions.length > 0 ? actions.join(',') : undefined,
 			startDate: startDateIso,
 			endDate: endDateIso,
 		},

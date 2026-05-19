@@ -28,6 +28,8 @@ public sealed class AuditActionsRegistrySpec {
 	[InlineData("")]
 	[InlineData("AUTH.LOGIN.SUCCEEDED")]
 	public void ItShouldReturnFalseWhenActionIsUnknown(string action) {
+		// Audit action keys are exact persisted contract
+		// values; case variants are intentionally rejected.
 		AuditActionsRegistry.IsKnown(action).Should().BeFalse();
 	}
 }

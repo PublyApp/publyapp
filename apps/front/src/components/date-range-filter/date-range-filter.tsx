@@ -1,8 +1,10 @@
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
 import Popover from '@mui/material/Popover';
 import Stack from '@mui/material/Stack';
-import { useState, type MouseEvent } from 'react';
+import Tooltip from '@mui/material/Tooltip';
+import { useEffect, useId, useState, type MouseEvent } from 'react';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
@@ -20,7 +22,7 @@ import type {
 
 const formatRange = (value: DateRange): string => {
 	if (value.from && value.to) {
-		return `${fDate(value.from)} – ${fDate(value.to)}`;
+		return `${fDate(value.from)} - ${fDate(value.to)}`;
 	}
 	if (value.from) {
 		return fDate(value.from);
@@ -40,7 +42,8 @@ export const DateRangeFilter = ({
 }: DateRangeFilterProps) => {
 	const { t } = useTranslate();
 	const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-	const [draft, setDraft] = useState<DateRange>(value);
+	const [draft, setDraft] = useState<DateRange>({ from: null, to: null });
+	const popoverId = useId();
 	const open = Boolean(anchorEl);
 
 	const effectiveLabel = label ?? t('date');
@@ -52,6 +55,12 @@ export const DateRangeFilter = ({
 		setAnchorEl(event.currentTarget);
 	};
 
+	useEffect(() => {
+		if (open) {
+			setDraft(value);
+		}
+	}, [open, value, value.from, value.to]);
+
 	const handleClose = () => {
 		setAnchorEl(null);
 	};
@@ -59,13 +68,14 @@ export const DateRangeFilter = ({
 	const handleSelectPreset = (next: DateRange) => {
 		setDraft(next);
 		onChange(next);
+		handleClose();
 	};
 
 	// Calendar reports each click. Commit only when both endpoints
 	// are set (a complete range). A half-picked range (just `from`,
 	// no `to`) stays as local draft so closing the popover doesn't
 	// produce a half-committed filter. The popover does NOT close
-	// after a complete range is picked — the user closes it
+	// after a complete range is picked - the user closes it
 	// explicitly (Escape, click outside, or clicking the trigger).
 	const handleCalendarChange = (next: DateRange) => {
 		setDraft(next);
@@ -79,83 +89,97 @@ export const DateRangeFilter = ({
 		onChange({ from: null, to: null });
 	};
 
-	const handleClearFromTrigger = (event: MouseEvent<HTMLElement>) => {
-		event.stopPropagation();
-		handleClear();
-	};
-
 	const isActive = value.from !== null || value.to !== null;
 
 	return (
 		<>
-			<Button
-				variant="outlined"
-				color="inherit"
-				onClick={handleOpen}
-				startIcon={<Iconify icon="solar:calendar-date-bold" width={18} />}
-				endIcon={
-					isActive ? (
-						<Box
-							component="span"
-							role="button"
+			<Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+				<Button
+					variant="outlined"
+					color="inherit"
+					onClick={handleOpen}
+					startIcon={<Iconify icon="solar:calendar-date-bold" width={18} />}
+					aria-haspopup="dialog"
+					aria-expanded={open}
+					aria-controls={open ? popoverId : undefined}
+					sx={{
+						textTransform: 'none',
+						pl: 1.5,
+						pr: 1.5,
+						gap: 0.5,
+						minWidth: 0,
+					}}
+				>
+					<Stack
+						direction="row"
+						spacing={1}
+						alignItems="center"
+						sx={{ overflow: 'hidden' }}
+					>
+						<Box component="span" sx={{ color: 'text.secondary' }}>
+							{effectiveLabel}
+						</Box>
+						{rangeText && (
+							<Box
+								component="span"
+								sx={{
+									px: 0.75,
+									py: 0.25,
+									borderRadius: 0.75,
+									bgcolor: 'action.selected',
+									color: 'text.secondary',
+									fontWeight: 500,
+									fontSize: '0.8125rem',
+									whiteSpace: 'nowrap',
+								}}
+							>
+								{rangeText}
+							</Box>
+						)}
+					</Stack>
+				</Button>
+				{isActive && (
+					<Tooltip title={t('clear')}>
+						<IconButton
+							size="small"
+							color="default"
+							onClick={handleClear}
 							aria-label={t('clear')}
-							onClick={handleClearFromTrigger}
 							sx={{
-								display: 'inline-flex',
-								alignItems: 'center',
-								justifyContent: 'center',
-								cursor: 'pointer',
-								color: 'text.secondary',
-								'&:hover': { color: 'text.primary' },
+								width: 34,
+								height: 34,
+								border: '1px solid',
+								borderColor: 'divider',
 							}}
 						>
 							<Iconify icon="solar:close-circle-bold" width={18} />
-						</Box>
-					) : undefined
-				}
-				sx={{
-					textTransform: 'none',
-					pl: 1.5,
-					pr: isActive ? 1 : 1.5,
-					gap: 0.5,
-				}}
-			>
-				<Stack
-					direction="row"
-					spacing={1}
-					alignItems="center"
-					sx={{ overflow: 'hidden' }}
-				>
-					<Box component="span" sx={{ color: 'text.secondary' }}>
-						{effectiveLabel}
-					</Box>
-					{rangeText && (
-						<Box
-							component="span"
-							sx={{
-								px: 0.75,
-								py: 0.25,
-								borderRadius: 0.75,
-								bgcolor: 'action.selected',
-								color: 'text.secondary',
-								fontWeight: 500,
-								fontSize: '0.8125rem',
-								whiteSpace: 'nowrap',
-							}}
-						>
-							{rangeText}
-						</Box>
-					)}
-				</Stack>
-			</Button>
+						</IconButton>
+					</Tooltip>
+				)}
+			</Box>
 			<Popover
 				open={open}
 				anchorEl={anchorEl}
 				onClose={handleClose}
 				anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
 				transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+				slotProps={{
+					paper: {
+						id: popoverId,
+						sx: {
+							width: { xs: 'calc(100vw - 32px)', sm: 'auto' },
+							maxWidth: 'calc(100vw - 32px)',
+							overflowX: 'hidden',
+						},
+					},
+				}}
 			>
-				<Box sx={{ display: 'flex' }}>
+				<Box
+					sx={{
+						display: 'flex',
+						flexDirection: { xs: 'column', sm: 'row' },
+					}}
+				>
 					<DateRangeFilterPresets
 						active={active}
 						onSelectPreset={handleSelectPreset}

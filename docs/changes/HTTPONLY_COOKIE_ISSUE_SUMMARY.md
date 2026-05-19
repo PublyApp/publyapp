@@ -2,7 +2,7 @@
 
 > **IMPORTANT UPDATE (2025-12-31):** The implementation described in this document has been superseded.
 > The query-param approach (`?_clearHttpOnly=true`) was vulnerable to CSRF attacks.
-> See [secure-httponly-cookie-clearing.md](./changes/secure-httponly-cookie-clearing.md) for the current POST-based implementation using `/auth/clear-session`.
+> See [secure-httponly-cookie-clearing.md](./secure-httponly-cookie-clearing.md) for the current POST-based implementation using `/auth/clear-session`.
 
 ## Table of Contents
 1. [Original Problem](#original-problem)
@@ -20,7 +20,7 @@
 ### Initial Report
 **Date:** Session 1
 **Issue:** Infinite API calls on the accept-invitation page after form submission
-**Symptom:** Continuous 401 errors to `/auth/tenant-auth-data?TenantId=staff` endpoint
+**Symptom:** Continuous 401 errors to `/auth/tenant-auth-data?tenant_id=staff` endpoint
 **Similar to:** Previously solved issue #78 (PR #98)
 
 ### Reproduction Steps

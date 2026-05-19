@@ -1,5 +1,9 @@
 # Staff Audit Logs — Filters Upgrade
 
+> Historical PR #401 working artifact. Do not execute this as a current
+> implementation plan without first checking the live code and AGENTS.md-linked
+> guides.
+
 **Date:** 2026-05-12
 **Branch:** `feat/280-staff-audit-logs-table-upgrade`
 **Status:** Design approved, ready for plan
@@ -113,7 +117,7 @@ Under `routes/authed/staff/audit-logs/list/_parts/`:
 
 - `use-staff-audit-logs-filters.ts` — nuqs-backed hook (see Section 6).
 - `staff-audit-logs-table.tsx` — existing file, edited to use the new hook + components.
-- `audit-logs-export-button.tsx` — existing file, prop signature changes (`actionFilter?: string` → `actions?: string[]`).
+- `audit-logs-export-button.tsx` — existing file, prop signature changes (`actionFilter?: string` → `actions?: string[]`), with the API query value emitted as CSV.
 
 ## 5. Backend changes
 
@@ -122,13 +126,18 @@ Under `routes/authed/staff/audit-logs/list/_parts/`:
 `FindAuditLogsQuery` (`apps/api/Src/Modules/AuditLogs/Handlers/Staff/FindAuditLogs.cs`):
 
 ```csharp
-// Was: [FromQuery] public string? Action { get; set; }
-[FromQuery] public List<string>? Actions { get; set; }
+// Was: [FromQuery(Name = "action")] public string? Action { get; set; }
+[FromQuery(Name = "actions")]
+public string? Actions { get; set; }
+
+public IReadOnlyList<string>? GetActionsList() {
+    return AuditLogActionsCsv.Parse(Actions);
+}
 ```
 
 `ExportAuditLogsQuery` (`apps/api/Src/Modules/AuditLogs/Handlers/Staff/ExportAuditLogs.cs`) — same change.
 
-ASP.NET model binding handles repeated query params natively (`?actions=a&actions=b`). Kiota generates `string[] | undefined` on the TS client. No CSV parsing.
+The public query contract is CSV: `?actions=a,b`. Keep the `[AsParameters]` DTO property primitive (`string? Actions`) and parse it in a getter. This follows the Kiota safeguard: `List<T>?` or a custom `BindAsync` causes OpenAPI query metadata to disappear, which makes the generated TypeScript client drop query parameters.
 
 ### 5.2 Service args
 
@@ -172,13 +181,12 @@ In `FindAuditLogsQueryValidator` and `ExportAuditLogsQueryValidator`:
 
 ```csharp
 RuleFor(x => x.Actions)
-    .Must(actions => actions == null || actions.Count <= 50)
-    .WithMessage("At most 50 actions can be filtered at once.");
-
-RuleForEach(x => x.Actions)
-    .NotEmpty().WithMessage("Action values must not be empty.")
-    .Must(AuditActionsRegistry.IsKnown)
-    .WithMessage(a => $"'{a}' is not a valid audit action.");
+    .Custom((raw, context) => {
+        var error = AuditLogActionsCsv.GetValidationError(raw);
+        if (error is not null) {
+            context.AddFailure(AuditLogActionsCsv.WireName, error);
+        }
+    });
 ```
 
 `AuditActionsRegistry` is a new static class placed alongside `AuditActions` in `apps/api/Src/Modules/AuditLogs/Entities/AuditLog.cs` (or extracted to a sibling file `AuditActionsRegistry.cs` in the same `Entities/` folder if `AuditLog.cs` grows too large). It exposes the reflection cache currently inlined as `CachedActions` in `AuditLogQueryService`. The query service is updated to consume it as well, so the cache lives in one place. Public surface: `IReadOnlyList<string> All { get; }`, `bool IsKnown(string action)`.
@@ -247,7 +255,7 @@ useFindStaffAuditLogs({
     cursor: apiVariables.cursor || undefined,
     limit:  apiVariables.limit,
     sort:   apiVariables.sort,
-    actions: actions.length > 0 ? actions : undefined,
+    actions: actions.length > 0 ? actions.join(',') : undefined,
     startDate: startDateIso,
     endDate:   endDateIso,
   },
@@ -284,7 +292,7 @@ The local `useState` for `actionFilter`, `startDate`, `endDate` is removed.
 
 ```ts
 type AuditLogsExportButtonProps = {
-  actions?: string[];       // was: actionFilter?: string
+  actions?: string[];       // UI selection; joined to CSV for the API
   startDate?: string;
   endDate?: string;
 };
@@ -292,7 +300,7 @@ type AuditLogsExportButtonProps = {
 // inside handleExport:
 queryParameters: {
   format,
-  actions: actions && actions.length > 0 ? actions : undefined,
+  actions: actions && actions.length > 0 ? actions.join(',') : undefined,
   startDate: startDate || undefined,
   endDate:   endDate   || undefined,
 },
@@ -300,7 +308,12 @@ queryParameters: {
 
 ## 7. i18n
 
-New keys in `apps/front/public/tx/common.en.json`:
+New keys in the source locale files:
+
+- `packages/shared-ts/lib/i18n/json/common.en.json`
+- `packages/shared-ts/lib/i18n/json/common.fr.json`
+
+Runtime locale files are generated from these sources and should not be edited directly.
 
 - `today` → `"Today"`
 - `yesterday` → `"Yesterday"`
@@ -327,7 +340,7 @@ Each filter setter calls the `onChange` callback passed into `useStaffAuditLogsF
 
 - Adapt existing `Action = "..."` specs to `Actions = [single]`.
 - `ItShouldFilterByMultipleActionsWhenActionsProvided` — seed three distinct actions, query with two of them, assert correct subset.
-- `ItShouldReturnAllLogsWhenActionsIsEmpty` — empty array behaves like null.
+- `ItShouldReturnAllLogsWhenActionsIsEmpty` — empty action selection/no `actions` query behaves like null.
 - `ItShouldReturn422WhenAnyActionIsUnknown` — `Actions = ["totally.fake"]` → 422 with validator error.
 - `ItShouldReturn422WhenMoreThanFiftyActionsProvided` — `Actions.Count = 51` → 422.
 

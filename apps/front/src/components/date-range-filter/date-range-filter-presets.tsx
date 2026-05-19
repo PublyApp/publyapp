@@ -17,7 +17,7 @@ type PresetEntry = {
 const startOf = (d: Dayjs) => d.startOf('day');
 const endOf = (d: Dayjs) => d.endOf('day');
 
-export const DATE_RANGE_PRESETS: PresetEntry[] = [
+const DATE_RANGE_PRESETS: PresetEntry[] = [
 	{
 		id: 'today',
 		getLabel: (t) => t('today'),
@@ -93,12 +93,15 @@ export const DateRangeFilterPresets = ({
 		<Box
 			sx={{
 				display: 'flex',
-				flexDirection: 'column',
+				flexDirection: { xs: 'row', sm: 'column' },
 				gap: 0.5,
 				p: 1,
-				borderRight: '1px solid',
+				borderRight: { xs: 'none', sm: '1px solid' },
+				borderBottom: { xs: '1px solid', sm: 'none' },
 				borderColor: 'divider',
-				minWidth: 160,
+				minWidth: { xs: 0, sm: 160 },
+				maxWidth: '100%',
+				overflowX: { xs: 'auto', sm: 'visible' },
 			}}
 		>
 			{map(DATE_RANGE_PRESETS, (preset) => (
@@ -118,9 +121,17 @@ export const DateRangeFilterPresets = ({
 					size="small"
 					variant="contained"
 					color="primary"
-					disableRipple
-					sx={{ justifyContent: 'flex-start', pointerEvents: 'none' }}
+					disabled
+					sx={{
+						justifyContent: 'flex-start',
+						'&.Mui-disabled': {
+							bgcolor: 'primary.main',
+							color: 'primary.contrastText',
+							opacity: 1,
+						},
+					}}
 				>
+					{/* Custom is a state marker, not a clickable preset. */}
 					{t('custom')}
 				</Button>
 			)}

@@ -9,7 +9,7 @@ public class OffsetPaginatedQueryValidator<T>
 			.Must(PaginationPredicates
 				.BeValidNullableNumber)
 			.WithMessage(
-				"Page must be a valid number "
+				"page must be a valid number "
 				+ "greater than or equal to 1"
 			);
 
@@ -17,7 +17,7 @@ public class OffsetPaginatedQueryValidator<T>
 			.Must(PaginationPredicates
 				.BeValidNullableNumber)
 			.WithMessage(
-				"Limit must be a valid number "
+				"limit must be a valid number "
 				+ "greater than or equal to 1"
 			);
 
@@ -25,14 +25,14 @@ public class OffsetPaginatedQueryValidator<T>
 			.Must(PaginationPredicates
 				.BeValidNullableString)
 			.WithMessage(
-				"SortId must be a valid string"
+				"sort_id must be a valid string"
 			);
 
 		RuleFor(x => x.SortOrder)
 			.Must(PaginationPredicates
 				.BeValidNullableSort)
 			.WithMessage(
-				"SortOrder must equal 'asc' or 'desc'"
+				"sort_order must equal 'asc' or 'desc'"
 			);
 	}
 }

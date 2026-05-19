@@ -1,5 +1,9 @@
 # Audit Log Detail Page — Layout Variants Design
 
+> Historical PR #401 working artifact. Do not execute this as a current
+> implementation plan without first checking the live code and AGENTS.md-linked
+> guides.
+
 ## Context
 
 The Staff audit log detail page at

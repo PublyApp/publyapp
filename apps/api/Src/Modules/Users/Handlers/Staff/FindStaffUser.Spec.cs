@@ -149,7 +149,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var problem =
 			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.Errors.Should().ContainKey("Status");
+		problem!.Errors.Should().ContainKey("status");
 	}
 
 	[Fact]
@@ -168,7 +168,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var problem =
 			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.Errors.Should().ContainKey("Status");
+		problem!.Errors.Should().ContainKey("status");
 	}
 
 	[Fact]
@@ -187,7 +187,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var problem =
 			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.Errors.Should().ContainKey("Status");
+		problem!.Errors.Should().ContainKey("status");
 	}
 
 	[Fact]
@@ -206,7 +206,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var problem =
 			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.Errors.Should().ContainKey("Status");
+		problem!.Errors.Should().ContainKey("status");
 	}
 
 	[Fact]

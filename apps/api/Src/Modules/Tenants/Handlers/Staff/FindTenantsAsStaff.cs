@@ -30,7 +30,7 @@ public class FindTenantsAsStaffQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "q")]
 	public string? Search { get; set; }
 
-	[FromQuery]
+	[FromQuery(Name = "status")]
 	public string? Status { get; set; }
 
 	public string? GetSearchNormalized() {
@@ -72,7 +72,7 @@ public class FindTenantsAsStaffQuery : CursorPaginatedQuery {
 public class FindTenantsAsStaffQueryValidator
 	: CursorPaginatedQueryValidator<FindTenantsAsStaffQuery> {
 
-	// Source of truth: nameof() — rename-safe, no hardcoded strings to maintain.
+	// Source of truth: nameof() - rename-safe, no hardcoded strings to maintain.
 	private static readonly string[] AllowedStatuses = [
 		nameof(TenantStatus.Pending),
 		nameof(TenantStatus.Active),
@@ -84,12 +84,14 @@ public class FindTenantsAsStaffQueryValidator
 
 	// Lowercased once at type init so the validation message matches the wire
 	// contract (lowercase tokens). Comparison itself stays case-insensitive via
-	// OrdinalIgnoreCase — ToLowerInvariant never runs on the request path.
+	// OrdinalIgnoreCase - ToLowerInvariant never runs on the request path.
 	private static readonly string AllowedStatusesDisplay =
 		string.Join(", ", AllowedStatuses.Select(s => s.ToLowerInvariant()).Order());
 
 	public FindTenantsAsStaffQueryValidator() {
-		RuleFor(x => x.Search).MaximumLength(200);
+		RuleFor(x => x.Search)
+			.MaximumLength(200)
+			.WithMessage("q must be at most 200 characters");
 
 		RuleFor(x => x.Status)
 			.Must(raw => {
@@ -105,7 +107,7 @@ public class FindTenantsAsStaffQueryValidator
 				}
 				return parts.All(p => p.Length > 0 && AllowedStatusSet.Contains(p));
 			})
-			.WithMessage($"Status must be one of: {AllowedStatusesDisplay}");
+			.WithMessage($"status must be one of: {AllowedStatusesDisplay}");
 	}
 }
 

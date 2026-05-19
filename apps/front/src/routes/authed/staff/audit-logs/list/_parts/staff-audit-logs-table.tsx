@@ -11,7 +11,7 @@ import {
 	type MRT_ColumnDef,
 	type MRT_SortingState,
 } from 'material-react-table';
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import type { AuditLogListItem } from '@org/client-ts/src/models';
 import {
@@ -22,6 +22,7 @@ import {
 import { DateRangeFilter } from '#app/components/date-range-filter/date-range-filter.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { MultiSelectChipFilter } from '#app/components/multi-select-chip-filter/multi-select-chip-filter.tsx';
+import QueryDisplay from '#app/components/query-display.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
@@ -87,15 +88,25 @@ const StaffAuditLogsTable = () => {
 		paginationMode: 'cursor',
 	});
 
-	const { actions, dateRange, setActions, setDateRange } =
+	const { actions, dateRange, filterSignature, setActions, setDateRange } =
 		useStaffAuditLogsFilters(resetCursorPagination);
+	const previousFilterSignatureRef = useRef(filterSignature);
+	const filtersChanged = previousFilterSignatureRef.current !== filterSignature;
 
 	const startDateIso = dateRange.from?.startOf('day').toISOString();
 	const endDateIso = dateRange.to?.endOf('day').toISOString();
+	// On the render where URL filters change, omit the old
+	// cursor so the next query starts at the first page even
+	// before table state finishes resetting.
+	const cursor = filtersChanged ? undefined : apiVariables.cursor || undefined;
+
+	useEffect(() => {
+		previousFilterSignatureRef.current = filterSignature;
+	}, [filterSignature]);
 
 	const auditLogsQuery = useFindStaffAuditLogs({
 		variables: {
-			cursor: apiVariables.cursor || undefined,
+			cursor,
 			limit: apiVariables.limit,
 			sort: apiVariables.sort,
 			actions: actions.length > 0 ? actions : undefined,
@@ -180,15 +191,31 @@ const StaffAuditLogsTable = () => {
 		];
 	}, [t]);
 
-	const actionOptions = useMemo(() => {
-		return map(actionsQuery.data?.actions ?? [], (a) => ({
-			value: a,
-			label: a,
-			group: a.split('.')[0] ?? '',
-		}));
-	}, [actionsQuery.data]);
+	const renderActionFilter = useCallback(
+		(actionValues: string[], loading = false) => {
+			// Audit action strings are namespaced as domain.event;
+			// group by prefix to keep the filter scannable without
+			// a separate taxonomy endpoint.
+			const options = map(actionValues, (action) => ({
+				value: action,
+				label: action,
+				group: action.split('.')[0] ?? '',
+			}));
 
-	const renderToolbarFilters = () => {
+			return (
+				<MultiSelectChipFilter
+					label={t('action')}
+					options={options}
+					value={actions}
+					onChange={setActions}
+					loading={loading}
+				/>
+			);
+		},
+		[actions, setActions, t],
+	);
+
+	const renderToolbarFilters = useCallback(() => {
 		return (
 			<>
 				<DateRangeFilter
@@ -198,28 +225,33 @@ const StaffAuditLogsTable = () => {
 					minDate={dayjs('2024-01-01')}
 					maxDate={dayjs()}
 				/>
-				<MultiSelectChipFilter
-					label={t('action')}
-					options={actionOptions}
-					value={actions}
-					onChange={setActions}
-					loading={actionsQuery.isPending}
-				/>
+				<QueryDisplay
+					query={actionsQuery}
+					LoadingSlot={() => renderActionFilter([], true)}
+					ErrorSlot={AuditLogActionsFilterError}
+					EmptySlot={() => renderActionFilter([])}
+				>
+					{({ data }) => renderActionFilter(data.actions ?? [])}
+				</QueryDisplay>
 			</>
 		);
-	};
+	}, [actionsQuery, dateRange, setDateRange, renderActionFilter, t]);
 
-	const renderExportActions = () => {
+	const handleOpenExportDialog = useCallback(() => {
+		exportDialogRef.current?.open();
+	}, []);
+
+	const renderExportActions = useCallback(() => {
 		return (
 			<Button
 				variant="outlined"
-				onClick={() => exportDialogRef.current?.open()}
+				onClick={handleOpenExportDialog}
 				startIcon={<Iconify icon="solar:download-bold" width={18} />}
 			>
 				{t('export')}
 			</Button>
 		);
-	};
+	}, [handleOpenExportDialog, t]);
 
 	const table = useMRTTable('minimal-cursor', {
 		columns,
@@ -270,6 +302,38 @@ const StaffAuditLogsTable = () => {
 };
 
 export default StaffAuditLogsTable;
+
+const AuditLogActionsFilterError = () => {
+	const { t } = useTranslate();
+	const title = capitalize(
+		t('error-loading-items', {
+			item: t('actions'),
+			ns: 'response-message',
+		}),
+	);
+
+	return (
+		<Box
+			role="status"
+			sx={{
+				minHeight: 36,
+				display: 'inline-flex',
+				alignItems: 'center',
+				gap: 1,
+				px: 1.5,
+				border: '1px solid',
+				borderColor: 'error.main',
+				borderRadius: 1,
+				color: 'error.main',
+			}}
+		>
+			<Iconify icon="solar:danger-triangle-bold" width={18} />
+			<Typography variant="body2" noWrap>
+				{title}
+			</Typography>
+		</Box>
+	);
+};
 
 const UserCell: MRT_ColumnDef<AuditLogRowData, string>['Cell'] = (props) => {
 	const userName = props.cell.getValue();

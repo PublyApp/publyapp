@@ -1,5 +1,9 @@
 # Audit Log Detail Variants Implementation Plan
 
+> Historical PR #401 working artifact. Do not execute this as a current
+> implementation plan without first checking the live code and AGENTS.md-linked
+> guides.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Refactor `staff-audit-log-details-page.tsx` to render one of three layout variants (`sectioned`, `split`, `stacked`) chosen via a nuqs-bound `?variant=` query param + a small `<ToggleButtonGroup>` switcher next to the page heading. The three variants share six reusable building blocks. Default variant is `stacked` (matches the app's existing `<Stack> + Cards` detail-page pattern).
@@ -34,7 +38,6 @@
 - `apps/front/src/routes/authed/staff/audit-logs/details/staff-audit-log-details-page.tsx` — drop in-file `AuditLogDetailsContent` and `DetailRow`; render `<VariantSwitcher>` via `CustomBreadcrumbs` `action` prop; dispatch on `variant` inside `QueryDisplay` success branch. Drop the hard-coded `width: 800`.
 - `packages/shared-ts/lib/i18n/json/common.en.json` — add new keys.
 - `packages/shared-ts/lib/i18n/json/common.fr.json` — add new keys.
-- `apps/front/public/tx/common.en.json` — mirror of the EN file consumed at runtime (the build copies it).
 
 ---
 
@@ -43,7 +46,6 @@
 **Files:**
 - Modify: `packages/shared-ts/lib/i18n/json/common.en.json`
 - Modify: `packages/shared-ts/lib/i18n/json/common.fr.json`
-- Modify: `apps/front/public/tx/common.en.json`
 
 The switcher needs three labels (`sectioned`, `split`, `stacked`) plus one new field label (`event-id`) used by the `ContextGrid`. Keep the existing flat-key style of the rest of the file.
 
@@ -58,20 +60,9 @@ Open `packages/shared-ts/lib/i18n/json/common.en.json`. Insert in alphabetical o
 "stacked": "Stacked",
 ```
 
-If alphabetical neighbours already exist with similar keys, place the new ones next to them so the diff stays tidy.
+If alphabetical neighbours already exist with similar keys, place the new ones next to them so the diff stays tidy. Runtime locale files are generated from the shared source locale files; do not edit generated copies directly.
 
-- [ ] **Step 2: Mirror the keys into the public runtime EN file**
-
-Open `apps/front/public/tx/common.en.json` and add the same four keys in the same alphabetical positions:
-
-```json
-"event-id": "Event ID",
-"sectioned": "Sectioned",
-"split": "Split",
-"stacked": "Stacked",
-```
-
-- [ ] **Step 3: Add the four FR keys**
+- [ ] **Step 2: Add the four FR keys**
 
 Open `packages/shared-ts/lib/i18n/json/common.fr.json` and add:
 
@@ -82,10 +73,10 @@ Open `packages/shared-ts/lib/i18n/json/common.fr.json` and add:
 "stacked": "Empilé",
 ```
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add packages/shared-ts/lib/i18n/json/common.en.json packages/shared-ts/lib/i18n/json/common.fr.json apps/front/public/tx/common.en.json
+git add packages/shared-ts/lib/i18n/json/common.en.json packages/shared-ts/lib/i18n/json/common.fr.json
 git commit -m "i18n: add keys for audit-log detail variant switcher + event-id"
 ```
 
@@ -695,7 +686,7 @@ export const AuditLogVariantSwitcher = () => {
 grep -E '"layout"\s*:' packages/shared-ts/lib/i18n/json/common.en.json
 ```
 
-Expected: at least one match. If the key does not exist, add it: `"layout": "Layout"` in EN, `"layout": "Disposition"` in FR, and mirror into `apps/front/public/tx/common.en.json`. Then stage those files together in Step 4.
+Expected: at least one match. If the key does not exist, add it: `"layout": "Layout"` in EN and `"layout": "Disposition"` in FR, then stage those source locale files together in Step 4.
 
 - [ ] **Step 3: Run type-check**
 
@@ -964,7 +955,8 @@ import Typography from '@mui/material/Typography';
 import { isServer } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import get from 'lodash/get';
 import { data, useParams } from 'react-router';
 
 import type { AuditLogDetail } from '@org/client-ts/src/models';
@@ -992,7 +984,7 @@ import type { Route } from './+types/staff-audit-log-details-page';
 // ----------------------------------------------------------------------
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(t('audit-log-details'));
+	let str: string = capitalize(t('audit-log-details'));
 
 	if (seo) {
 		str = `${str} | Staff Dashboard - ${APP_NAME}`;
@@ -1003,7 +995,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
+		return get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;

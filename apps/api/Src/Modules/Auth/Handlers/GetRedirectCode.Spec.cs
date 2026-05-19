@@ -6,6 +6,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using MainApi.Src.Data.Seeding;
+using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Routes;
 using MainApi.Src.Lib.Testing.Fixtures;
 using MainApi.Src.Lib.Testing.Helpers;
@@ -68,7 +69,7 @@ public sealed class GetRedirectCodeSpec
 		);
 
 		var url = $"{Routes.Auth.GetRedirectCode}"
-			+ $"?tenantId={acmeId}";
+			+ $"?tenant_id={acmeId}";
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
 			url
@@ -89,14 +90,14 @@ public sealed class GetRedirectCodeSpec
 
 	[Fact]
 	public async Task
-	ItShouldFallThroughOnInvalidGuidHint() {
+	ItShouldReturnValidationErrorForMalformedTenantId() {
 		var aliceToken = await _authClient.LoginAsync(
 			TestConstants.AliceEmail,
 			TestConstants.SeedPassword
 		);
 
 		var url = $"{Routes.Auth.GetRedirectCode}"
-			+ "?tenantId=not-a-guid";
+			+ "?tenant_id=not-a-guid";
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
 			url
@@ -105,13 +106,17 @@ public sealed class GetRedirectCodeSpec
 		using var response =
 			await _http.SendAsync(request);
 
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
 
-		var result = await response.Content
-			.ReadFromJsonAsync<RedirectCodeResponse>();
-		result.Should().NotBeNull();
-		// Falls through to selection -> tenant-picker
-		result!.RedirectCode.Should().Be("tenant-picker");
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		if (problem is null) {
+			return;
+		}
+		problem.Errors.Should().ContainKey("tenant_id");
+		problem.Errors.Should().NotContainKey(string.Empty);
 	}
 
 	[Fact]
@@ -207,7 +212,7 @@ public sealed class GetRedirectCodeSpec
 
 			// Hint to the suspended tenant
 			var url = $"{Routes.Auth.GetRedirectCode}"
-				+ $"?tenantId={acmeId}";
+				+ $"?tenant_id={acmeId}";
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
 				url
@@ -269,7 +274,7 @@ public sealed class GetRedirectCodeSpec
 
 			// Hint to the active tenant
 			var url = $"{Routes.Auth.GetRedirectCode}"
-				+ $"?tenantId={techStartId}";
+				+ $"?tenant_id={techStartId}";
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
 				url
