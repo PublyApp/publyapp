@@ -4,14 +4,15 @@ import Link from '@mui/material/Link';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import capitalize from 'lodash/capitalize';
+import { useEffect, useState } from 'react';
 
+import type { AuditLogDetail } from '@org/client-ts/src/models';
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import DrawerAnchor from '#app/components/drawer-anchor.tsx';
 import { EmptyContent } from '#app/components/empty-content/empty-content.tsx';
 import { ErrorContent } from '#app/components/empty-content/error-content.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
-import QueryDisplay from '#app/components/query-display.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { isProblemFailure, toApiFailure } from '#app/lib/api-failure/index.ts';
@@ -32,6 +33,65 @@ export const AuditLogInspectDrawer = () => {
 		variables: { logId: inspectedLogId ?? '' },
 		enabled: open,
 	});
+
+	// Hold on to the last successful payload so the closing transition keeps
+	// rendering content instead of flashing back to the skeleton when the query
+	// flips to disabled.
+	const [lastAuditLog, setLastAuditLog] = useState<AuditLogDetail | null>(null);
+
+	useEffect(() => {
+		if (auditLogQuery.data) {
+			setLastAuditLog(auditLogQuery.data);
+		}
+	}, [auditLogQuery.data]);
+
+	const renderBody = () => {
+		const auditLog = auditLogQuery.data ?? lastAuditLog;
+
+		if (auditLog) {
+			return (
+				<Stack spacing={3} sx={{ p: 3, pt: 8 }}>
+					{inspectedLogId && (
+						<Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+							<Link
+								component={RouterLink}
+								href={FRONT_PATH_NAMES.staff.auditLogs.details(inspectedLogId)}
+								underline="hover"
+								sx={{
+									display: 'inline-flex',
+									alignItems: 'center',
+									gap: 0.75,
+									fontSize: '0.8125rem',
+									fontWeight: 600,
+								}}
+							>
+								{capitalize(t('view-details'))}
+								<Iconify icon="eva:external-link-outline" width={16} />
+							</Link>
+						</Box>
+					)}
+					<AuditLogHero auditLog={auditLog} sx={{ p: 0 }} />
+					<AuditLogActor auditLog={auditLog} />
+					<AuditLogContextGrid
+						auditLog={auditLog}
+						fields={['ip', 'userAgent', 'targetId', 'eventId']}
+						layout="single-column"
+					/>
+					<AuditLogPayload details={auditLog.details} />
+				</Stack>
+			);
+		}
+
+		if (auditLogQuery.error) {
+			return <AuditLogInspectDrawerError error={auditLogQuery.error} />;
+		}
+
+		if (auditLogQuery.isPending && open) {
+			return <AuditLogInspectDrawerSkeleton />;
+		}
+
+		return null;
+	};
 
 	return (
 		<Drawer
@@ -60,45 +120,7 @@ export const AuditLogInspectDrawer = () => {
 				<Iconify icon="mingcute:close-line" width={18} />
 			</DrawerAnchor>
 
-			<QueryDisplay
-				query={auditLogQuery}
-				LoadingSlot={AuditLogInspectDrawerSkeleton}
-				ErrorSlot={AuditLogInspectDrawerError}
-				EmptySlot={AuditLogInspectDrawerEmpty}
-			>
-				{({ data: auditLog }) => (
-					<Stack spacing={3} sx={{ p: 3, pt: 8 }}>
-						{inspectedLogId && (
-							<Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-								<Link
-									component={RouterLink}
-									href={FRONT_PATH_NAMES.staff.auditLogs.details(
-										inspectedLogId,
-									)}
-									underline="none"
-									sx={{
-										display: 'inline-flex',
-										alignItems: 'center',
-										gap: 0.75,
-										fontSize: '0.8125rem',
-										fontWeight: 600,
-									}}
-								>
-									{capitalize(t('view-details'))}
-									<Iconify icon="eva:external-link-outline" width={16} />
-								</Link>
-							</Box>
-						)}
-						<AuditLogHero auditLog={auditLog} sx={{ p: 0 }} />
-						<AuditLogActor auditLog={auditLog} />
-						<AuditLogContextGrid
-							auditLog={auditLog}
-							fields={['ip', 'userAgent', 'targetId', 'eventId']}
-						/>
-						<AuditLogPayload details={auditLog.details} />
-					</Stack>
-				)}
-			</QueryDisplay>
+			{renderBody()}
 		</Drawer>
 	);
 };
