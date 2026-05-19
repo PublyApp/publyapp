@@ -144,7 +144,7 @@ const AuditLogsExportDialogController = ({
 					>
 						<Tab label="CSV" value="csv" />
 						<Tab label="JSON" value="json" />
-						<Tab label="XLSX" value="xlsx" disabled />
+						<Tab label="XLSX" value="xlsx" />
 					</Tabs>
 					<Typography
 						variant="body2"
