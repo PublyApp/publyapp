@@ -13,9 +13,12 @@ import { copyToClipboard } from '#app/lib/clipboard.ts';
 
 type AuditLogContextField = 'ip' | 'userAgent' | 'targetId' | 'eventId';
 
+type AuditLogContextGridLayout = 'two-column' | 'single-column';
+
 type AuditLogContextGridProps = {
 	auditLog: AuditLogDetail;
 	fields: AuditLogContextField[];
+	layout?: AuditLogContextGridLayout;
 };
 
 type Cell = {
@@ -30,6 +33,7 @@ const dash = '-';
 export const AuditLogContextGrid = ({
 	auditLog,
 	fields,
+	layout = 'two-column',
 }: AuditLogContextGridProps) => {
 	const { t } = useTranslate();
 	const [copiedField, setCopiedField] = useState<AuditLogContextField | null>(
@@ -98,6 +102,8 @@ export const AuditLogContextGrid = ({
 		}, 1600);
 	};
 
+	const cellSize = layout === 'single-column' ? { xs: 12 } : { xs: 12, sm: 6 };
+
 	return (
 		<Grid container spacing={2}>
 			{map(visible, (cell) => {
@@ -106,7 +112,7 @@ export const AuditLogContextGrid = ({
 				const isCopied = copiedField === cell.key;
 
 				return (
-					<Grid key={cell.key} size={{ xs: 12, sm: 6 }}>
+					<Grid key={cell.key} size={cellSize}>
 						<Typography
 							variant="caption"
 							sx={{
