@@ -1,6 +1,5 @@
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import capitalize from 'lodash/capitalize';
@@ -14,16 +13,12 @@ import {
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import type { AuditLogListItem } from '@org/client-ts/src/models';
-import {
-	DEFAULT_PAGE_SIZE,
-	FRONT_PATH_NAMES,
-} from '@org/shared-ts/lib/constants';
+import { DEFAULT_PAGE_SIZE } from '@org/shared-ts/lib/constants';
 
 import { DateRangeFilter } from '#app/components/date-range-filter/date-range-filter.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { MultiSelectChipFilter } from '#app/components/multi-select-chip-filter/multi-select-chip-filter.tsx';
 import QueryDisplay from '#app/components/query-display.tsx';
-import { RouterLink } from '#app/components/router-link.tsx';
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableQueryOptions } from '#app/hooks/use-table-query-options.tsx';
 import { useTableState } from '#app/hooks/use-table-state.ts';
@@ -34,9 +29,12 @@ import {
 } from '#app/lib/react-query/features/staff/staff-audit-log.hooks.ts';
 import { dayjs, fDateTime, fToNow } from '#app/utils/format-time.ts';
 
+import { AuditLogInspectDrawer } from './audit-log-inspect-drawer';
+import { AuditLogsEventCell } from './audit-logs-event-cell';
 import AuditLogsExportDialogController, {
 	type AuditLogsExportDialogControllerRef,
 } from './audit-logs-export-dialog-controller.tsx';
+import { AuditLogsInspectAction } from './audit-logs-inspect-action';
 import { useStaffAuditLogsFilters } from './use-staff-audit-logs-filters';
 
 type AuditLogRowData = {
@@ -153,17 +151,17 @@ const StaffAuditLogsTable = () => {
 
 	const columns = useMemo(() => {
 		return [
+			columnHelper.accessor('action', {
+				header: t('event'),
+				Cell: EventCell,
+				enableSorting: false,
+				size: 240,
+			}),
 			columnHelper.accessor('userName', {
 				header: t('user'),
 				Cell: UserCell,
 				enableSorting: false,
 				size: 220,
-			}),
-			columnHelper.accessor('action', {
-				header: t('action'),
-				Cell: ActionCell,
-				enableSorting: false,
-				size: 200,
 			}),
 			columnHelper.accessor('targetId', {
 				header: t('target-id'),
@@ -297,6 +295,8 @@ const StaffAuditLogsTable = () => {
 				startDate={startDateIso}
 				endDate={endDateIso}
 			/>
+
+			<AuditLogInspectDrawer />
 		</Box>
 	);
 };
@@ -362,20 +362,11 @@ const UserCell: MRT_ColumnDef<AuditLogRowData, string>['Cell'] = (props) => {
 	);
 };
 
-const ActionCell: MRT_ColumnDef<AuditLogRowData, string>['Cell'] = (props) => {
+const EventCell: MRT_ColumnDef<AuditLogRowData, string>['Cell'] = (props) => {
 	const action = props.cell.getValue();
+	const id = props.row.original.id;
 
-	return (
-		<Typography
-			variant="body2"
-			sx={{
-				fontFamily: 'monospace',
-				fontSize: '0.8rem',
-			}}
-		>
-			{action || '-'}
-		</Typography>
-	);
+	return <AuditLogsEventCell id={id} action={action} />;
 };
 
 const TargetIdCell: MRT_ColumnDef<AuditLogRowData, string>['Cell'] = (
@@ -450,20 +441,7 @@ const DateCell: MRT_ColumnDef<AuditLogRowData, Date | null>['Cell'] = (
 };
 
 const ActionsCell: MRT_ColumnDef<AuditLogRowData>['Cell'] = (props) => {
-	const { t } = useTranslate();
 	const logId = props.row.original.id;
 
-	return (
-		<Tooltip title={t('view-details')} placement="top" arrow>
-			<IconButton
-				color="default"
-				LinkComponent={RouterLink}
-				href={FRONT_PATH_NAMES.staff.auditLogs.details(logId)}
-				size="small"
-				aria-label={t('view-details')}
-			>
-				<Iconify icon="solar:eye-bold" />
-			</IconButton>
-		</Tooltip>
-	);
+	return <AuditLogsInspectAction logId={logId} />;
 };
