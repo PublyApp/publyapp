@@ -351,6 +351,7 @@ client regeneration workflow, and TypeScript patterns), see:
 **Key rules (always apply):**
 - Required body fields: non-nullable `JsonElement` (not `JsonElement?`) for cleaner TypeScript types
 - Never add XML comments to generic types (`<T>`) — triggers .NET 10 OpenAPI bug
+- `[AsParameters]` query DTOs: never use `List<T>?` or custom `BindAsync`; use CSV `string?` + parser method for multi-value filters — see [`openapi-kiota-safeguards.md`](docs/guides/openapi-kiota-safeguards.md#query-dto-multi-value-filters)
 - After DTO/endpoint changes: `just build-api && just generate-client && just tsc-front`
 - Use `createUntypedString()` / `createUntypedArray()` for request body fields in TypeScript
 

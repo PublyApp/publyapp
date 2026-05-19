@@ -32,7 +32,7 @@ public class FindTenantUsersAsStaffQuery
 	[FromQuery(Name = "q")]
 	public string? Search { get; set; }
 
-	[FromQuery]
+	[FromQuery(Name = "status")]
 	public string? Status { get; set; }
 
 	public string? GetSearchNormalized() {
@@ -76,7 +76,7 @@ public class FindTenantUsersAsStaffQueryValidator
 	: CursorPaginatedQueryValidator<
 		FindTenantUsersAsStaffQuery
 	> {
-	// Source of truth: nameof() — rename-safe, no hardcoded strings to maintain.
+	// Source of truth: nameof() - rename-safe, no hardcoded strings to maintain.
 	private static readonly string[] AllowedStatuses = [
 		nameof(TenantUserStatus.Active),
 		nameof(TenantUserStatus.Suspended),
@@ -98,7 +98,9 @@ public class FindTenantUsersAsStaffQueryValidator
 		string.Join(", ", AllowedStatuses.Select(ToSnakeCase).Order());
 
 	public FindTenantUsersAsStaffQueryValidator() {
-		RuleFor(x => x.Search).MaximumLength(200);
+		RuleFor(x => x.Search)
+			.MaximumLength(200)
+			.WithMessage("q must be at most 200 characters");
 		RuleFor(x => x.Status)
 			.Must(raw => {
 				if (string.IsNullOrEmpty(raw)) {
@@ -113,7 +115,7 @@ public class FindTenantUsersAsStaffQueryValidator
 				}
 				return parts.All(p => p.Length > 0 && AllowedStatusSet.Contains(p));
 			})
-			.WithMessage($"Status must be one of: {AllowedStatusesDisplay}");
+			.WithMessage($"status must be one of: {AllowedStatusesDisplay}");
 	}
 }
 

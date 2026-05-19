@@ -72,13 +72,21 @@ internal static class AuditLogTestHelper {
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<MainApiDbContext>();
 
-		var user = await dbContext.User
-			.Where(u => u.Email == email.ToLower()
-				&& u.IsDeleted == false)
-			.Select(u => new {
-				Id = u.Id ?? Guid.Empty
-			})
-			.FirstOrDefaultAsync(ct);
+		// Compare emails in memory to avoid ToLower in query
+		// expressions; this helper is test-only and operates on
+		// seeded test users.
+		var users = await (
+			from dbUser in dbContext.User
+			where !dbUser.IsDeleted
+			select new {
+				Id = dbUser.Id ?? Guid.Empty,
+				dbUser.Email
+			}
+		).ToListAsync(ct);
+
+		var user = users.FirstOrDefault(u =>
+			string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase)
+		);
 
 		if (user is null) {
 			throw new InvalidOperationException(
@@ -94,7 +102,7 @@ internal static class AuditLogTestHelper {
 		string? sortId = null,
 		string? sortOrder = null,
 		string? userId = null,
-		string? action = null,
+		IReadOnlyList<string>? actions = null,
 		string? targetId = null,
 		string? startDate = null,
 		string? endDate = null
@@ -116,21 +124,25 @@ internal static class AuditLogTestHelper {
 			);
 		}
 		if (userId is not null) {
-			queryParams.Add($"userId={userId}");
+			queryParams.Add($"user_id={userId}");
 		}
-		if (action is not null) {
-			queryParams.Add($"action={action}");
+		if (actions is not null && actions.Count > 0) {
+			var csv = string.Join(
+				",",
+				actions.Select(Uri.EscapeDataString)
+			);
+			queryParams.Add($"actions={csv}");
 		}
 		if (targetId is not null) {
-			queryParams.Add($"targetId={targetId}");
+			queryParams.Add($"target_id={targetId}");
 		}
 		if (startDate is not null) {
 			queryParams.Add(
-				$"startDate={startDate}"
+				$"start_date={startDate}"
 			);
 		}
 		if (endDate is not null) {
-			queryParams.Add($"endDate={endDate}");
+			queryParams.Add($"end_date={endDate}");
 		}
 
 		if (queryParams.Count == 0) {
@@ -159,7 +171,7 @@ internal static class AuditLogTestHelper {
 	public static string GetExportUrl(
 		string format,
 		string? userId = null,
-		string? action = null,
+		IReadOnlyList<string>? actions = null,
 		string? targetId = null,
 		string? startDate = null,
 		string? endDate = null
@@ -169,21 +181,25 @@ internal static class AuditLogTestHelper {
 		};
 
 		if (userId is not null) {
-			queryParams.Add($"userId={userId}");
+			queryParams.Add($"user_id={userId}");
 		}
-		if (action is not null) {
-			queryParams.Add($"action={action}");
+		if (actions is not null && actions.Count > 0) {
+			var csv = string.Join(
+				",",
+				actions.Select(Uri.EscapeDataString)
+			);
+			queryParams.Add($"actions={csv}");
 		}
 		if (targetId is not null) {
-			queryParams.Add($"targetId={targetId}");
+			queryParams.Add($"target_id={targetId}");
 		}
 		if (startDate is not null) {
 			queryParams.Add(
-				$"startDate={startDate}"
+				$"start_date={startDate}"
 			);
 		}
 		if (endDate is not null) {
-			queryParams.Add($"endDate={endDate}");
+			queryParams.Add($"end_date={endDate}");
 		}
 
 		return ExportUrl

@@ -5,7 +5,14 @@
 // dialog) on older browsers and SSR-safe in case `navigator` / `window` are
 // undefined. Returns false only when neither path is reachable (server-side
 // render path with no fallback).
-export const copyToClipboard = async (text: string): Promise<boolean> => {
+type CopyToClipboardOptions = {
+	promptLabel?: string;
+};
+
+export const copyToClipboard = async (
+	text: string,
+	options: CopyToClipboardOptions = {},
+): Promise<boolean> => {
 	if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
 		try {
 			await navigator.clipboard.writeText(text);
@@ -16,7 +23,9 @@ export const copyToClipboard = async (text: string): Promise<boolean> => {
 	}
 
 	if (typeof window !== 'undefined') {
-		window.prompt('Copy this URL', text);
+		// Treat showing the manual-copy prompt as success;
+		// browsers do not tell us whether the user copied from it.
+		window.prompt(options.promptLabel ?? 'Copy to clipboard', text);
 		return true;
 	}
 

@@ -36,14 +36,7 @@ export interface CheckRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const CheckRequestBuilderUriTemplate = "{+baseurl}/invitations/check?Id={Id}&Token={Token}";
-/**
- * Mapper for query parameters from symbol name to serialization name represented as a constant.
- */
-const CheckRequestBuilderGetQueryParametersMapper: Record<string, string> = {
-    "id": "Id",
-    "token": "Token",
-};
+export const CheckRequestBuilderUriTemplate = "{+baseurl}/invitations/check?id={id}&token={token}";
 /**
  * Metadata for all the requests in the request builder.
  */
@@ -58,7 +51,6 @@ export const CheckRequestBuilderRequestsMetadata: RequestsMetadata = {
         },
         adapterMethodName: "send",
         responseBodyFactory:  createCheckInvitationTokenResultFromDiscriminatorValue,
-        queryParametersMapper: CheckRequestBuilderGetQueryParametersMapper,
     },
 };
 /* tslint:enable */

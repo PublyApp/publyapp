@@ -36,12 +36,12 @@ export interface VerificationLinkRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const VerificationLinkRequestBuilderUriTemplate = "{+baseurl}/auth/verification-link?UserId={UserId}";
+export const VerificationLinkRequestBuilderUriTemplate = "{+baseurl}/auth/verification-link?user_id={user_id}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
 const VerificationLinkRequestBuilderGetQueryParametersMapper: Record<string, string> = {
-    "userId": "UserId",
+    "userId": "user_id",
 };
 /**
  * Metadata for all the requests in the request builder.

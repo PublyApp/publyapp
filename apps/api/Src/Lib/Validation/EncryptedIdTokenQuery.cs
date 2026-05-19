@@ -7,9 +7,9 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Lib.Validation;
 
 public class EncryptedIdTokenQuery {
-	[FromQuery]
+	[FromQuery(Name = "id")]
 	public required string Id { get; set; }
-	[FromQuery]
+	[FromQuery(Name = "token")]
 	public required string Token { get; set; }
 }
 
@@ -19,14 +19,14 @@ public class EncryptedIdTokenQueryValidator<T>
 	public EncryptedIdTokenQueryValidator() {
 		RuleFor(x => x.Id)
 			.NotEmpty()
-			.WithMessage("ID is required")
+			.WithMessage("id is required")
 			.Must(id =>
 				CryptoUtils.IsValidEncryptedString(id)
 			)
-			.WithMessage("Invalid ID format");
+			.WithMessage("id must be a valid encrypted string");
 
 		RuleFor(x => x.Token)
 			.NotEmpty()
-			.WithMessage("Token is required");
+			.WithMessage("token is required");
 	}
 }

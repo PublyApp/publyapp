@@ -1,6 +1,7 @@
 using FluentValidation;
 
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.Validation;
 using MainApi.Src.Modules.Tenants.Entities;
 using MainApi.Src.Modules.Users.Services;
 
@@ -10,17 +11,21 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Modules.Auth.Handlers;
 
 public class GetRedirectCodeQuery {
-	[FromQuery]
+	[FromQuery(Name = "tenant_id")]
 	public string? TenantId { get; set; }
 
+	// Query validation rejects malformed tenant_id before the
+	// handler runs; here null means no usable tenant hint.
 	public Guid? GetTenantId() {
-		return Guid.TryParse(TenantId, out var tenantId) ? tenantId : null;
+		return QueryPredicates.ParseNullableGuid(TenantId);
 	}
 }
 
 public class GetRedirectCodeQueryValidator : AbstractValidator<GetRedirectCodeQuery> {
 	public GetRedirectCodeQueryValidator() {
-		// TenantId is optional, so no validation rules needed
+		RuleFor(x => x.TenantId)
+			.Must(QueryPredicates.BeValidNullableGuid)
+			.WithMessage("tenant_id must be a valid GUID");
 	}
 }
 
@@ -56,7 +61,7 @@ public class GetRedirectCode {
 
 		if (logger.IsEnabled(LogLevel.Information)) {
 			logger.LogInformation(
-				"User {UserId} isStaffUser: {IsStaffUser}, tenantId from query: {TenantId}",
+				"User {UserId} isStaffUser: {IsStaffUser}, tenant_id from query: {TenantId}",
 				userId,
 				isUserStaffUser,
 				query.TenantId
@@ -68,7 +73,7 @@ public class GetRedirectCode {
 			return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "staff" });
 		}
 
-		// Load tenants once — used by both hint validation and fallback
+		// Load tenants once - used by both hint validation and fallback
 		var tenantsResult = await accountService.GetUserTenantsForPickerAsync(
 			userId, limit: 50, cancellationToken: cancellationToken
 		);
@@ -83,7 +88,7 @@ public class GetRedirectCode {
 				);
 
 			if (isMemberOfActiveTenant) {
-				// Hint is valid — auto-redirect to it
+				// Hint is valid - auto-redirect to it
 				if (logger.IsEnabled(LogLevel.Information)) {
 					logger.LogInformation(
 						"Using valid tenant hint {TenantId} for user {UserId}",
@@ -96,7 +101,7 @@ public class GetRedirectCode {
 				});
 			}
 
-			// Hint is stale/invalid — fall through to tenant selection
+			// Hint is stale/invalid - fall through to tenant selection
 			if (logger.IsEnabled(LogLevel.Information)) {
 				logger.LogInformation(
 					"Stale tenant hint {TenantId} for user {UserId}, "

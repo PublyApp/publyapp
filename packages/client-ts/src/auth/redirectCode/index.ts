@@ -35,12 +35,12 @@ export interface RedirectCodeRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const RedirectCodeRequestBuilderUriTemplate = "{+baseurl}/auth/redirect-code{?TenantId*}";
+export const RedirectCodeRequestBuilderUriTemplate = "{+baseurl}/auth/redirect-code{?tenant_id*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
 const RedirectCodeRequestBuilderGetQueryParametersMapper: Record<string, string> = {
-    "tenantId": "TenantId",
+    "tenantId": "tenant_id",
 };
 /**
  * Metadata for all the requests in the request builder.

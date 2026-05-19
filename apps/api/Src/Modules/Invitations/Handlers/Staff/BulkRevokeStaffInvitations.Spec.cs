@@ -42,7 +42,7 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 
 		using HttpResponseMessage response = await BulkRevokeAsync(
 			staffToken,
-			new[] { "not-a-guid" }
+			["not-a-guid"]
 		);
 
 		_ = response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
