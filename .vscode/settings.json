@@ -121,6 +121,8 @@
 		"openapi",
 		"originalname",
 		"outdir",
+		"oxfmt",
+		"Oxfmt",
 		"oxlint",
 		"oxlintrc",
 		"Parens",
