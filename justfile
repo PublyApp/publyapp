@@ -13,6 +13,7 @@ api_dir := "apps/api"
 front_dir := "apps/front"
 shared_dir := "packages/shared-ts"
 js_client_dir := "packages/client-ts"
+scripts_cs_dir := "packages/scripts-cs"
 
 [default]
 help:
@@ -210,6 +211,14 @@ docker-up:
 # Stop docker services
 docker-down:
   docker-compose -f docker-compose.services.yml down
+
+# =============================================================================
+# Code generation
+# =============================================================================
+
+# Generate API response translation key constants
+generate-response-keys:
+  dotnet run --project {{scripts_cs_dir}}/PublyApp.Scripts.csproj -- generate-translation-keys {{shared_dir}}/lib/i18n/json/response-message.en.json {{api_dir}}/Localization/ResponseKeys.g.cs
 
 # =============================================================================
 # Client generation (Kiota)
