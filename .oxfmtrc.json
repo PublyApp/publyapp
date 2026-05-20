@@ -57,6 +57,7 @@
 		"apps/api/openapi.json",
 		"apps/api/Migrations",
 		"apps/api/.artifacts",
+		"packages/scripts-cs/.artifacts",
 		".config/dotnet-tools.json",
 		"apps/api/Localization/ResponseKeys.g.cs",
 		".dump",

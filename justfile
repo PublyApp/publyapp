@@ -245,7 +245,7 @@ client-info:
 
 # Clean all build artifacts (cross-platform via node)
 clean:
-  node -e "const fs=require('fs'); const p=(x)=>fs.rmSync(x,{recursive:true,force:true}); ['node_modules','apps/api/node_modules','apps/front/node_modules','packages/shared-ts/node_modules','packages/client-ts/node_modules','apps/api/.artifacts','apps/front/build','apps/front/dist','apps/front/.next'].forEach(p)"
+  node -e "const fs=require('fs'); const p=(x)=>fs.rmSync(x,{recursive:true,force:true}); ['node_modules','apps/api/node_modules','apps/front/node_modules','packages/shared-ts/node_modules','packages/client-ts/node_modules','apps/api/.artifacts','packages/scripts-cs/.artifacts','packages/scripts-cs/bin','packages/scripts-cs/obj','apps/front/build','apps/front/dist','apps/front/.next'].forEach(p)"
 
 # Clean API artifacts
 clean-api:

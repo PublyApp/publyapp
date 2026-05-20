@@ -3,6 +3,8 @@
 
 	<PropertyGroup>
 		<ApiArtifactsRoot>$(MSBuildThisFileDirectory).artifacts\</ApiArtifactsRoot>
+		<LocalArtifactExcludes>.artifacts\**\*;bin\**\*;obj\**\*</LocalArtifactExcludes>
+		<DefaultItemExcludes>$(DefaultItemExcludes);$(LocalArtifactExcludes)</DefaultItemExcludes>
 		<BaseOutputPath>$(ApiArtifactsRoot)bin\$(MSBuildProjectName)\</BaseOutputPath>
 		<BaseIntermediateOutputPath>$(ApiArtifactsRoot)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
 	</PropertyGroup>
