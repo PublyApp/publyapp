@@ -7,11 +7,12 @@ const isGeneratedFile = (file) => {
 	const repoPath = getRepoPath(file);
 
 	return (
+		repoPath.startsWith('.artifacts/') ||
+		repoPath.includes('/.artifacts/') ||
 		repoPath.startsWith('packages/client-ts/') ||
 		repoPath.startsWith('apps/api/Migrations/') ||
 		repoPath.endsWith('.g.cs') ||
-		repoPath === 'apps/api/openapi.json' ||
-		repoPath === 'apps/api/Localization/ResponseKeys.g.cs'
+		repoPath === 'apps/api/openapi.json'
 	);
 };
 
