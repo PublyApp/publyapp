@@ -1,11 +1,7 @@
 <Project>
-	<Import Project="..\..\Directory.Build.props" />
-
 	<PropertyGroup>
-		<ScriptsCsArtifactsRoot>$(MSBuildThisFileDirectory).artifacts\</ScriptsCsArtifactsRoot>
-		<LocalArtifactExcludes>.artifacts\**\*;bin\**\*;obj\**\*</LocalArtifactExcludes>
-		<DefaultItemExcludes>$(DefaultItemExcludes);$(LocalArtifactExcludes)</DefaultItemExcludes>
-		<BaseOutputPath>$(ScriptsCsArtifactsRoot)bin\$(MSBuildProjectName)\</BaseOutputPath>
-		<BaseIntermediateOutputPath>$(ScriptsCsArtifactsRoot)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+		<DotNetArtifactsRoot>$(MSBuildThisFileDirectory).artifacts\</DotNetArtifactsRoot>
 	</PropertyGroup>
+
+	<Import Project="..\..\Directory.Build.props" />
 </Project>

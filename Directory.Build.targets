@@ -1,0 +1,15 @@
+<Project>
+  <Target Name="ValidateDotNetArtifactsConvention" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <NormalizedBaseOutputPath>$(BaseOutputPath.Replace('\', '/'))</NormalizedBaseOutputPath>
+      <NormalizedBaseIntermediateOutputPath>$(BaseIntermediateOutputPath.Replace('\', '/'))</NormalizedBaseIntermediateOutputPath>
+      <BaseOutputPathUsesArtifacts>$(NormalizedBaseOutputPath.Contains('.artifacts/'))</BaseOutputPathUsesArtifacts>
+      <BaseIntermediateOutputPathUsesArtifacts>$(NormalizedBaseIntermediateOutputPath.Contains('.artifacts/'))</BaseIntermediateOutputPathUsesArtifacts>
+    </PropertyGroup>
+
+    <Error Condition="'$(BaseOutputPathUsesArtifacts)' != 'True'"
+           Text="BaseOutputPath must use a .artifacts directory. Current value: $(BaseOutputPath)" />
+    <Error Condition="'$(BaseIntermediateOutputPathUsesArtifacts)' != 'True'"
+           Text="BaseIntermediateOutputPath must use a .artifacts directory. Current value: $(BaseIntermediateOutputPath)" />
+  </Target>
+</Project>

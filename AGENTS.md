@@ -333,6 +333,9 @@ For detailed conventions (route naming, API response format with JSON examples, 
 
 **Local access:** Frontend `localhost:5050` | API `localhost:5000` | Scalar docs `localhost:5000/scalar/v1` | Postgres `localhost:5454`
 **Env vars:** `.env.development` (committed), `.env.production` (not in repo), validated at startup via `AppEnvironment.Initialize()`
+**.NET artifacts:** New .NET projects must output under a local `.artifacts/` directory.
+Set `DotNetArtifactsRoot` in a project-area `Directory.Build.props` before importing the repo
+root props; `Directory.Build.targets` enforces this during builds.
 
 ## Deployment
 
