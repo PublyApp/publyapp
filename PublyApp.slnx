@@ -9,5 +9,7 @@
     <Project Path="apps/api/MainApi.csproj" />
     <Project Path="apps/api/Tests/MainApi.Tests.csproj" />
   </Folder>
-  <Folder Name="/packages/" />
+  <Folder Name="/packages/">
+    <Project Path="packages/scripts-cs/PublyApp.Scripts.csproj" />
+  </Folder>
 </Solution>

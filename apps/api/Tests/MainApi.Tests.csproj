@@ -23,8 +23,11 @@
 	<!-- Keep integration tests physically next to handlers (Vertical Slice friendly),
 	     but compile them into this dedicated test project. -->
 	<ItemGroup>
-		<Compile Include="..\Src\Lib\Testing\**\*.cs" Link="Src\Lib\Testing\%(RecursiveDir)%(Filename)%(Extension)" />
-		<Compile Include="..\Src\**\*.Spec.cs" Link="Src\%(RecursiveDir)%(Filename)%(Extension)" />
+		<Compile Include="..\Lib\Testing\**\*.cs" Link="Lib\Testing\%(RecursiveDir)%(Filename)%(Extension)" />
+		<Compile Include="..\Data\**\*.Spec.cs" Link="Data\%(RecursiveDir)%(Filename)%(Extension)" />
+		<Compile Include="..\Infrastructure\**\*.Spec.cs" Link="Infrastructure\%(RecursiveDir)%(Filename)%(Extension)" />
+		<Compile Include="..\Lib\**\*.Spec.cs" Link="Lib\%(RecursiveDir)%(Filename)%(Extension)" />
+		<Compile Include="..\Modules\**\*.Spec.cs" Link="Modules\%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
 
 </Project>

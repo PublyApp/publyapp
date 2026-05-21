@@ -5,12 +5,12 @@
 ## Adding a New Feature
 
 **Backend:**
-1. Create module directory: `apps/api/Src/Modules/<Domain>/`
+1. Create module directory: `apps/api/Modules/<Domain>/`
 2. Create service: `[Feature]Service.cs`
 3. Create handlers in `Handlers/` directory
 4. Create validators using FluentValidation
 5. Register endpoints in `[Feature]Endpoints.cs`
-6. Add route constants to `apps/api/Src/Lib/RoutePath.cs`
+6. Add route constants to `apps/api/Lib/RoutePath.cs`
 7. Add translation keys to `packages/shared/lib/i18n/json/en/response-message.json`
 8. If database changes: `make db-add NAME=MigrationName` then `make db-migrate`
 9. Generate client: `make generate-client`
@@ -40,7 +40,7 @@ The TypeScript client is auto-generated - never modify files in `packages/js-cli
 
 ## Adding Database Entities
 
-1. Create entity class in `apps/api/Src/Modules/<Domain>/Entities/[Entity].cs`
+1. Create entity class in `apps/api/Modules/<Domain>/Entities/[Entity].cs`
 2. Implement appropriate tenant interface: `ITenantEntity`, `IOptionalTenantEntity`, or `INoTenantEntity`
 3. Inherit from `BaseAttributes` for automatic audit tracking
 4. Add `DbSet<[Entity]>` to `MainApiDbContext`
@@ -73,7 +73,7 @@ backend + frontend checklist:
 ## Handling Permissions
 
 **Adding a new permission:**
-1. Add permission to database seed in `apps/api/Src/Data/Seeder.cs`
+1. Add permission to database seed in `apps/api/Data/Seeder.cs`
 2. Use `PermissionFilter` on endpoints that require it
 3. Check permissions in handlers via `AuthContext`
 

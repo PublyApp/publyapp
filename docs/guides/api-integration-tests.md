@@ -159,11 +159,11 @@ This means `.env.development` is the single source of truth for shared config. I
 Tests use data from the EF Core seeders. The seed values have a two-layer structure:
 
 ```
-SeedConstants (Src/Data/Seeding/SeedConstants.cs)
+SeedConstants (Data/Seeding/SeedConstants.cs)
 │  Single source of truth for ALL seed data
 │  Used by production seeders at runtime
 │
-└─► TestConstants (Src/Lib/Testing/Fixtures/TestConstants.cs)
+└─► TestConstants (Lib/Testing/Fixtures/TestConstants.cs)
     Convenience facade for test code
     Delegates to SeedConstants (const = compile-time resolution)
     Also defines test-only headers (X-Session-Token, X-PublyApp-TenantId)
@@ -191,13 +191,13 @@ Everything else (middleware, auth, routing, services) runs exactly as in product
 
 ### Why FakeEmailSender Lives in Testing/Fakes/
 
-`FakeEmailSender` is in `Src/Lib/Testing/Fakes/` rather than alongside `ResendEmailAdapter` in `Infrastructure/Messaging/Email/` because of how the build system works:
+`FakeEmailSender` is in `Lib/Testing/Fakes/` rather than alongside `ResendEmailAdapter` in `Infrastructure/Messaging/Email/` because of how the build system works:
 
-- `MainApi.csproj` **excludes** `Src/Lib/Testing/**/*.cs` from production builds
+- `MainApi.csproj` **excludes** `Lib/Testing/**/*.cs` from production builds
 - The test project **includes** them via `<Compile Include>`
 - If `FakeEmailSender` lived in `Infrastructure/`, it would compile into the **production binary**
 
-All test doubles follow this pattern: they live in `Src/Lib/Testing/Fakes/` so they're only compiled into the test assembly.
+All test doubles follow this pattern: they live in `Lib/Testing/Fakes/` so they're only compiled into the test assembly.
 
 ---
 
@@ -208,7 +208,7 @@ All test doubles follow this pattern: they live in `Src/Lib/Testing/Fakes/` so t
 1. **Create the test file** next to the handler it tests:
 
 ```
-apps/api/Src/Modules/<Domain>/Handlers/<Scope>/
+apps/api/Modules/<Domain>/Handlers/<Scope>/
 ├── MyHandler.cs
 └── MyHandler.Spec.cs   ← new file
 ```
@@ -216,18 +216,18 @@ apps/api/Src/Modules/<Domain>/Handlers/<Scope>/
 2. **Use the correct namespace** (must match folder path — `IDE0130`):
 
 ```csharp
-namespace MainApi.Src.Modules.<Domain>.Handlers.<Scope>;
+namespace MainApi.Modules.<Domain>.Handlers.<Scope>;
 ```
 
 3. **Follow this template:**
 
 ```csharp
-namespace MainApi.Src.Modules.MyDomain.Handlers.Staff;
+namespace MainApi.Modules.MyDomain.Handlers.Staff;
 
 using System.Net;
 using FluentAssertions;
-using MainApi.Src.Lib.Testing.Fixtures;
-using MainApi.Src.Lib.Testing.Helpers;
+using MainApi.Lib.Testing.Fixtures;
+using MainApi.Lib.Testing.Helpers;
 using Xunit;
 
 public sealed class MyHandlerSpec
@@ -392,7 +392,7 @@ Ensure `MainApi.csproj` has these exclusions:
 
 ```xml
 <Compile Remove="**/*.Spec.cs" />
-<Compile Remove="Src/Lib/Testing/**/*.cs" />
+<Compile Remove="Lib/Testing/**/*.cs" />
 ```
 
 ### Tests fail with 401/403 unexpectedly
@@ -401,12 +401,12 @@ Check that `SeedConstants.cs` matches the actual seeded data. Both seeders and `
 
 ### No autocompletion for `[Fact]`, `.Should()`, `FluentAssertions`, etc.
 
-This is expected when editing `*.Spec.cs` files. The test files live physically under `apps/api/Src/` (colocated with handlers), but they are **compiled by the test project** (`Tests/MainApi.Tests.csproj`), not the main API project. The main project explicitly excludes them:
+This is expected when editing `*.Spec.cs` files. The test files live physically under `apps/api/` (colocated with handlers), but they are **compiled by the test project** (`Tests/MainApi.Tests.csproj`), not the main API project. The main project explicitly excludes them:
 
 ```xml
 <!-- MainApi.csproj -->
 <Compile Remove="**/*.Spec.cs" />
-<Compile Remove="Src/Lib/Testing/**/*.cs" />
+<Compile Remove="Lib/Testing/**/*.cs" />
 ```
 
 Your editor sees the file under `MainApi.csproj`'s directory and resolves it against that project, which has no reference to FluentAssertions, xunit, or any test packages. **The build and test runner work correctly** — this is only an editor/IntelliSense issue.
@@ -422,35 +422,34 @@ Your editor sees the file under `MainApi.csproj`'s directory and resolves it aga
 
 ```
 apps/api/
-├── Src/
-│   ├── Data/
-│   │   └── Seeding/
-│   │       └── SeedConstants.cs              ← Single source of truth for seed data
-│   ├── Lib/
-│   │   └── Testing/                          ← Test infrastructure (NO test cases here)
-│   │       ├── Fixtures/                     ← Test environment setup
-│   │       │   ├── ApiFixture.cs             ← Per-class fixture
-│   │       │   ├── PostgresContainerFixture.cs ← Starts Postgres container (singleton)
-│   │       │   ├── MainApiFactory.cs         ← WebApplicationFactory override
-│   │       │   ├── DatabaseTemplateManager.cs ← Template DB create/clone/drop
-│   │       │   ├── TestEnvironment.cs        ← Loads .env.development + overrides
-│   │       │   └── TestConstants.cs          ← Facade over SeedConstants + headers
-│   │       ├── Helpers/                      ← Test utility methods
-│   │       │   ├── TestAuthClient.cs         ← Login helper
-│   │       │   ├── TenantTestHelper.cs       ← Tenant suspend/reactivate helpers
-│   │       │   ├── SystemNoticeTestHelper.cs ← SystemNotice CRUD helpers
-│   │       │   └── HttpRequestMessageExtensions.cs ← Header helpers
-│   │       └── Fakes/                        ← Test doubles
-│   │           └── FakeEmailSender.cs        ← Captures sent emails
-│   └── Modules/
-│       ├── Auth/Handlers/
-│       │   ├── PassWordLogin.cs
-│       │   └── PassWordLogin.Spec.cs         ← Colocated spec
-│       ├── Permissions/Handlers/Staff/
-│       │   ├── FindStaffPermissions.cs
-│       │   └── FindStaffPermissions.Spec.cs
-│       └── Health/
-│           └── Health.Spec.cs
+├── Data/
+│   └── Seeding/
+│       └── SeedConstants.cs              ← Single source of truth for seed data
+├── Lib/
+│   └── Testing/                          ← Test infrastructure (NO test cases here)
+│       ├── Fixtures/                     ← Test environment setup
+│       │   ├── ApiFixture.cs             ← Per-class fixture
+│       │   ├── PostgresContainerFixture.cs ← Starts Postgres container (singleton)
+│       │   ├── MainApiFactory.cs         ← WebApplicationFactory override
+│       │   ├── DatabaseTemplateManager.cs ← Template DB create/clone/drop
+│       │   ├── TestEnvironment.cs        ← Loads .env.development + overrides
+│       │   └── TestConstants.cs          ← Facade over SeedConstants + headers
+│       ├── Helpers/                      ← Test utility methods
+│       │   ├── TestAuthClient.cs         ← Login helper
+│       │   ├── TenantTestHelper.cs       ← Tenant suspend/reactivate helpers
+│       │   ├── SystemNoticeTestHelper.cs ← SystemNotice CRUD helpers
+│       │   └── HttpRequestMessageExtensions.cs ← Header helpers
+│       └── Fakes/                        ← Test doubles
+│           └── FakeEmailSender.cs        ← Captures sent emails
+├── Modules/
+│   ├── Auth/Handlers/
+│   │   ├── PassWordLogin.cs
+│   │   └── PassWordLogin.Spec.cs         ← Colocated spec
+│   ├── Permissions/Handlers/Staff/
+│   │   ├── FindStaffPermissions.cs
+│   │   └── FindStaffPermissions.Spec.cs
+│   └── Health/
+│       └── Health.Spec.cs
 └── Tests/
     ├── MainApi.Tests.csproj       ← Test project
     └── AssemblyInfo.cs                       ← Parallel config

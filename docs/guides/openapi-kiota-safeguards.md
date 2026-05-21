@@ -9,7 +9,7 @@
 > vertical-slice refactors.
 
 **Key rules (always apply):**
-- Never use `List<T>?` or a custom static `BindAsync(HttpContext)` on an `[AsParameters]` query DTO — it silently drops all query-parameter metadata from the OpenAPI doc and breaks the Kiota TypeScript client. For multi-value filters, use a CSV-encoded `string?` with a parser method (see [`validator-conventions.md` Rule 8](validator-conventions.md#rule-8-csv-enum-list-filters-multi-select-query-params); canonical examples: `FindTenantUsersAsStaffQuery.Status` at `apps/api/Src/Modules/Users/Handlers/Staff/FindTenantUsersAsStaff.cs:36` and `FindAuditLogsQuery.Actions` at `apps/api/Src/Modules/AuditLogs/Handlers/Staff/FindAuditLogs.cs:20`).
+- Never use `List<T>?` or a custom static `BindAsync(HttpContext)` on an `[AsParameters]` query DTO — it silently drops all query-parameter metadata from the OpenAPI doc and breaks the Kiota TypeScript client. For multi-value filters, use a CSV-encoded `string?` with a parser method (see [`validator-conventions.md` Rule 8](validator-conventions.md#rule-8-csv-enum-list-filters-multi-select-query-params); canonical examples: `FindTenantUsersAsStaffQuery.Status` at `apps/api/Modules/Users/Handlers/Staff/FindTenantUsersAsStaff.cs:36` and `FindAuditLogsQuery.Actions` at `apps/api/Modules/AuditLogs/Handlers/Staff/FindAuditLogs.cs:20`).
 
 ## JsonElement Nullability and Kiota Types
 
@@ -80,7 +80,7 @@ public class CursorPaginatedResult<T> {
 **Solution:** A schema transformer in `ServiceRegistration.cs` fixes this at OpenAPI generation time:
 
 ```csharp
-// apps/api/Src/Lib/ServiceRegistration.cs
+// apps/api/Lib/ServiceRegistration.cs
 builder.Services.AddOpenApi(options => {
     options.AddSchemaTransformer((schema, context, cancellationToken) => {
         if (schema.Type.HasValue) {
@@ -131,14 +131,14 @@ public class FindAuditLogsQuery : CursorPaginatedQuery {
 }
 ```
 
-**Rule:** For multi-value query filters on `[AsParameters]` DTOs, use the CSV `string?` pattern from [`validator-conventions.md` Rule 8](validator-conventions.md#rule-8-csv-enum-list-filters-multi-select-query-params). Canonical examples: `FindTenantUsersAsStaffQuery.Status` at `apps/api/Src/Modules/Users/Handlers/Staff/FindTenantUsersAsStaff.cs:36` and `GetStatusesOrNull()` at `apps/api/Src/Modules/Users/Handlers/Staff/FindTenantUsersAsStaff.cs:47`; `FindAuditLogsQuery.Actions` at `apps/api/Src/Modules/AuditLogs/Handlers/Staff/FindAuditLogs.cs:20` and `GetActionsList()` at `apps/api/Src/Modules/AuditLogs/Handlers/Staff/FindAuditLogs.cs:30`; `ExportAuditLogsQuery.Actions` at `apps/api/Src/Modules/AuditLogs/Handlers/Staff/ExportAuditLogs.cs:19` and `GetActionsList()` at `apps/api/Src/Modules/AuditLogs/Handlers/Staff/ExportAuditLogs.cs:29`.
+**Rule:** For multi-value query filters on `[AsParameters]` DTOs, use the CSV `string?` pattern from [`validator-conventions.md` Rule 8](validator-conventions.md#rule-8-csv-enum-list-filters-multi-select-query-params). Canonical examples: `FindTenantUsersAsStaffQuery.Status` at `apps/api/Modules/Users/Handlers/Staff/FindTenantUsersAsStaff.cs:36` and `GetStatusesOrNull()` at `apps/api/Modules/Users/Handlers/Staff/FindTenantUsersAsStaff.cs:47`; `FindAuditLogsQuery.Actions` at `apps/api/Modules/AuditLogs/Handlers/Staff/FindAuditLogs.cs:20` and `GetActionsList()` at `apps/api/Modules/AuditLogs/Handlers/Staff/FindAuditLogs.cs:30`; `ExportAuditLogsQuery.Actions` at `apps/api/Modules/AuditLogs/Handlers/Staff/ExportAuditLogs.cs:19` and `GetActionsList()` at `apps/api/Modules/AuditLogs/Handlers/Staff/ExportAuditLogs.cs:29`.
 
 ## Client Regeneration Workflow
 
 **After ANY changes to .NET DTOs or endpoints:**
 
 ```bash
-# 1. Build API to regenerate OpenAPI spec (apps/api/openapi/MainApi.json)
+# 1. Build API to regenerate OpenAPI spec (apps/api/openapi.json)
 just build-api
 
 # 2. Update TypeScript client from new OpenAPI spec

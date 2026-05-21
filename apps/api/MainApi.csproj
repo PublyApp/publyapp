@@ -2,20 +2,18 @@
 
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
-		<PublishDir>publish</PublishDir>
+		<PublishDir>$(ApiArtifactsRoot)publish\</PublishDir>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<Compile Remove="**/*.Spec.cs" />
-		<Compile Remove="scripts/**" />
-		<None Remove="scripts/**" />
-		<Compile Remove="Src/Lib/Testing/**/*.cs" />
+		<Compile Remove="Lib/Testing/**/*.cs" />
 		<Compile Remove="Tests/**/*.cs" />
-		<None Remove="Src/Lib/Testing/**" />
+		<None Remove="Lib/Testing/**" />
 		<None Remove="Tests/**" />
-		<Content Remove="Src/Lib/Testing/**" />
+		<Content Remove="Lib/Testing/**" />
 		<Content Remove="Tests/**" />
-		<EmbeddedResource Remove="Src/Lib/Testing/**" />
+		<EmbeddedResource Remove="Lib/Testing/**" />
 		<EmbeddedResource Remove="Tests/**" />
 	</ItemGroup>
 
@@ -50,7 +48,9 @@
 	<!-- for exporting openapi documents to json file at build time -->
 	<PropertyGroup Condition="'$(Configuration)' != 'Test'">
 		<OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
-		<OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)\openapi</OpenApiDocumentsDirectory>
+		<OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)</OpenApiDocumentsDirectory>
+		<OpenApiGeneratedProjectFile>$(MSBuildProjectDirectory)\MainApi.json</OpenApiGeneratedProjectFile>
+		<OpenApiJsonFile>$(MSBuildProjectDirectory)\openapi.json</OpenApiJsonFile>
 		<!-- Prevent duplicate assembly attributes when OpenAPI doc generation runs -->
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
@@ -60,22 +60,35 @@
 		<OpenApiGenerateDocuments>false</OpenApiGenerateDocuments>
 	</PropertyGroup>
 
-	<!-- Generate translation keys before build (.NET 10 file-based app) -->
+	<!-- Generate translation keys before build. -->
 	<PropertyGroup>
-		<GeneratedDir>Generated</GeneratedDir>
 		<TranslationJsonFile>$(MSBuildProjectDirectory)\..\..\packages\shared-ts\lib\i18n\json\response-message.en.json</TranslationJsonFile>
-		<GeneratedKeysFile>$(MSBuildProjectDirectory)\$(GeneratedDir)\ResponseKeys.g.cs</GeneratedKeysFile>
-		<TranslationKeyGenScript>$(MSBuildProjectDirectory)\scripts\generate-translation-keys.cs</TranslationKeyGenScript>
+		<GeneratedKeysFile>$(MSBuildProjectDirectory)\Localization\ResponseKeys.g.cs</GeneratedKeysFile>
+		<TranslationKeyGenProject>$(MSBuildProjectDirectory)\..\..\packages\scripts-cs\PublyApp.Scripts.csproj</TranslationKeyGenProject>
 	</PropertyGroup>
+
+	<ItemGroup>
+		<TranslationKeyGenSources Include="$(MSBuildProjectDirectory)\..\..\packages\scripts-cs\**\*.cs" />
+		<TranslationKeyGenSources Include="$(MSBuildProjectDirectory)\..\..\packages\scripts-cs\*.csproj" />
+	</ItemGroup>
 
 	<Target Name="GenerateTranslationKeys"
 			BeforeTargets="BeforeBuild"
 			Condition="'$(Configuration)' != 'Test'"
-			Inputs="$(TranslationJsonFile);$(TranslationKeyGenScript)"
+			Inputs="$(TranslationJsonFile);@(TranslationKeyGenSources)"
 			Outputs="$(GeneratedKeysFile)">
 		<Message Text="Generating translation keys from response-message.en.json..."
 				 Importance="high" />
-		<Exec Command="dotnet run --file &quot;$(TranslationKeyGenScript)&quot; -- &quot;$(TranslationJsonFile)&quot; &quot;$(GeneratedKeysFile)&quot;"
+		<Exec Command="dotnet run --project &quot;$(TranslationKeyGenProject)&quot; -- generate-translation-keys &quot;$(TranslationJsonFile)&quot; &quot;$(GeneratedKeysFile)&quot;"
 			  ContinueOnError="false" />
+	</Target>
+
+	<Target Name="RenameOpenApiDocument"
+			AfterTargets="GenerateOpenApiDocuments"
+			Condition="'$(Configuration)' != 'Test' And Exists('$(OpenApiGeneratedProjectFile)')">
+		<Copy SourceFiles="$(OpenApiGeneratedProjectFile)"
+			  DestinationFiles="$(OpenApiJsonFile)"
+			  SkipUnchangedFiles="true" />
+		<Delete Files="$(OpenApiGeneratedProjectFile)" />
 	</Target>
 </Project>
