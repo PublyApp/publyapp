@@ -1,0 +1,7 @@
+<Project>
+	<PropertyGroup>
+		<DotNetArtifactsRoot>$(MSBuildThisFileDirectory).artifacts\</DotNetArtifactsRoot>
+	</PropertyGroup>
+
+	<Import Project="..\..\Directory.Build.props" />
+</Project>

@@ -25,7 +25,7 @@ PatchField<T>.Set(null)    -> Field explicitly null (clear it)
 
 ## API Surface
 
-`PatchField<T>` is a readonly struct located at `apps/api/Src/Lib/PatchField.cs`.
+`PatchField<T>` is a readonly struct located at `apps/api/Lib/PatchField.cs`.
 
 | Member | Description |
 |--------|-------------|
@@ -274,6 +274,6 @@ private bool BeValidDateTimeOrUndefined(JsonElement element) {
 
 ## Reference Implementation
 
-- `PatchField<T>` struct: `apps/api/Src/Lib/PatchField.cs`
-- Real usage (DateTime): `apps/api/Src/Modules/SystemNotices/Handlers/Staff/UpdateSystemNotice.cs`
-- Service with args record: `apps/api/Src/Modules/SystemNotices/Services/SystemNoticeService.cs`
+- `PatchField<T>` struct: `apps/api/Lib/PatchField.cs`
+- Real usage (DateTime): `apps/api/Modules/SystemNotices/Handlers/Staff/UpdateSystemNotice.cs`
+- Service with args record: `apps/api/Modules/SystemNotices/Services/SystemNoticeService.cs`

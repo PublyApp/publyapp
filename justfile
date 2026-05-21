@@ -13,6 +13,7 @@ api_dir := "apps/api"
 front_dir := "apps/front"
 shared_dir := "packages/shared-ts"
 js_client_dir := "packages/client-ts"
+scripts_cs_dir := "packages/scripts-cs"
 
 [default]
 help:
@@ -187,11 +188,13 @@ seed-bulk-reset:
 
 # Run API integration tests (requires Docker)
 test-api:
+  cd {{api_dir}} && dotnet restore Tests/MainApi.Tests.csproj
   cd {{api_dir}} && dotnet test Tests/MainApi.Tests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=normal"
 
 # Run API integration tests with verbose diagnostics
 test-api-debug:
-  cd {{api_dir}} && dotnet test Tests/MainApi.Tests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=detailed" --environment TEST_VERBOSE_LOGS=1 --diag Tests/bin/Test/test-api-debug.log
+  cd {{api_dir}} && dotnet restore Tests/MainApi.Tests.csproj
+  cd {{api_dir}} && dotnet test Tests/MainApi.Tests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=detailed" --environment TEST_VERBOSE_LOGS=1 --diag .artifacts/logs/test-api-debug.log
 
 # =============================================================================
 # Docker
@@ -210,21 +213,31 @@ docker-down:
   docker-compose -f docker-compose.services.yml down
 
 # =============================================================================
+# Code generation
+# =============================================================================
+
+# Generate API response translation key constants
+generate-response-keys:
+  dotnet run --project {{scripts_cs_dir}}/PublyApp.Scripts.csproj -- generate-translation-keys {{shared_dir}}/lib/i18n/json/response-message.en.json {{api_dir}}/Localization/ResponseKeys.g.cs
+
+# =============================================================================
 # Client generation (Kiota)
 # =============================================================================
 
 # Build API + generate TypeScript client from OpenAPI
 generate-client:
   cd {{api_dir}} && dotnet build --no-restore
-  cd {{js_client_dir}} && dotnet kiota generate -d ../../{{api_dir}}/openapi/MainApi.json -o src -l typescript -n MainApi.Client -c ApiClient
+  cd {{js_client_dir}} && dotnet kiota generate -d ../../{{api_dir}}/openapi.json -o src -l typescript -n MainApi.Client -c ApiClient
+  cd {{js_client_dir}} && node -e "const fs=require('fs'); const p='src/kiota-lock.json'; if (fs.existsSync(p)) fs.writeFileSync(p, fs.readFileSync(p, 'utf8').replace(/\r\n?/g, '\n'))"
 
 # Update existing client
 update-client:
   cd {{js_client_dir}} && dotnet kiota update -o src
+  cd {{js_client_dir}} && node -e "const fs=require('fs'); const p='src/kiota-lock.json'; if (fs.existsSync(p)) fs.writeFileSync(p, fs.readFileSync(p, 'utf8').replace(/\r\n?/g, '\n'))"
 
 # Show client info
 client-info:
-  cd {{js_client_dir}} && dotnet kiota info -d ../../{{api_dir}}/openapi/MainApi.json -l typeScript
+  cd {{js_client_dir}} && dotnet kiota info -d ../../{{api_dir}}/openapi.json -l typeScript
 
 # =============================================================================
 # Cleaning
@@ -232,12 +245,12 @@ client-info:
 
 # Clean all build artifacts (cross-platform via node)
 clean:
-  node -e "const fs=require('fs'); const p=(x)=>fs.rmSync(x,{recursive:true,force:true}); ['node_modules','apps/api/node_modules','apps/front/node_modules','packages/shared-ts/node_modules','packages/client-ts/node_modules','apps/api/bin','apps/api/obj','apps/api/publish','apps/front/build','apps/front/dist','apps/front/.next'].forEach(p)"
+  node -e "const fs=require('fs'); const rm=(x)=>fs.rmSync(x,{recursive:true,force:true}); const glob=(dir)=>fs.existsSync(dir)?fs.readdirSync(dir,{withFileTypes:true}).filter((x)=>x.isDirectory()).map((x)=>`${dir}/${x.name}/.artifacts`):[]; ['node_modules','apps/api/node_modules','apps/front/node_modules','packages/shared-ts/node_modules','packages/client-ts/node_modules','packages/scripts-cs/bin','packages/scripts-cs/obj','apps/front/build','apps/front/dist','apps/front/.next',...glob('apps'),...glob('packages')].forEach(rm)"
 
 # Clean API artifacts
 clean-api:
   cd {{api_dir}} && dotnet clean
-  node -e "const fs=require('fs'); const p=(x)=>fs.rmSync(x,{recursive:true,force:true}); ['apps/api/bin','apps/api/obj','apps/api/publish'].forEach(p)"
+  node -e "const fs=require('fs'); const p=(x)=>fs.rmSync(x,{recursive:true,force:true}); ['apps/api/.artifacts'].forEach(p)"
 
 # Clean frontend artifacts
 clean-front:

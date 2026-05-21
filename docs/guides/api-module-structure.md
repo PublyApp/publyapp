@@ -6,7 +6,7 @@
 
 **CRITICAL:** The API is domain-first. Route scope is expressed via endpoint groups and handler folders — not via alternate module naming schemes like `UsersAsStaff`.
 
-Each `apps/api/Src/Modules/<Domain>/` module is a complete vertical slice containing:
+Each `apps/api/Modules/<Domain>/` module is a complete vertical slice containing:
 - **Entities** (`Entities/*.cs`) — database models for the domain
 - **Junction entities** — live with their primary entity's domain
 - **Services** (`Services/*.cs`) — domain business logic and orchestration
@@ -78,13 +78,13 @@ row identifiers like a standalone `id` column.
 
 ## Where to Put New Code
 
-- **Any new domain work** → `apps/api/Src/Modules/<Domain>/...` (domain-first)
+- **Any new domain work** → `apps/api/Modules/<Domain>/...` (domain-first)
 - **Scope-specific endpoints/handlers** → `Endpoints/*ForStaff.cs` / `Handlers/Staff/*` (same domain)
 - **New infrastructure service?** → Add to `Infrastructure/`
   - Email/SMS → `Infrastructure/Messaging/`
   - File storage → `Infrastructure/Storage/`
   - Caching → `Infrastructure/Caching/`
-- **Pure stateless helper** → `apps/api/Src/Lib/`
+- **Pure stateless helper** → `apps/api/Lib/`
 
 ## Architecture Docs Policy (Single Source of Truth)
 
@@ -97,7 +97,7 @@ row identifiers like a standalone `id` column.
 
 **Goal:** A single, obvious location for a domain, without suffixes.
 
-- **Domain module:** `apps/api/Src/Modules/<Domain>/` (preferred)
+- **Domain module:** `apps/api/Modules/<Domain>/` (preferred)
   - Example: `Modules/Users/`, `Modules/Invitations/`, `Modules/Auth/`
 - **Inside the domain**, scope/actor is expressed by folder + endpoint group:
   - `Handlers/Anonymous|Staff|Tenant/`
@@ -143,7 +143,7 @@ This is the canonical reference (replaces the old `docs/vertical-slice-design-pr
 When Staff and Tenant both touch the same domain, keep **one domain module** and split by actor inside it:
 
 ```
-apps/api/Src/Modules/Profiles/
+apps/api/Modules/Profiles/
 ├── Entities/
 ├── Services/
 ├── Endpoints/
@@ -166,7 +166,7 @@ Prefer a **single handler** when the operation is the same and only the permissi
 Example: one handler, mapped twice:
 
 ```
-apps/api/Src/Modules/Profiles/
+apps/api/Modules/Profiles/
 ├── Handlers/
 │   └── Common/
 │       └── UpdateProfile.cs

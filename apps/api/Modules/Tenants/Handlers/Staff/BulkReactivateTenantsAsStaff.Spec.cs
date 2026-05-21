@@ -1,0 +1,343 @@
+namespace MainApi.Modules.Tenants.Handlers.Staff;
+
+using System.Net;
+using System.Net.Http.Json;
+
+using FluentAssertions;
+
+using MainApi.Localization;
+using MainApi.Lib;
+using MainApi.Lib.ProblemResults;
+using MainApi.Lib.Testing.Fixtures;
+using MainApi.Lib.Testing.Helpers;
+using MainApi.Modules.AuditLogs.Entities;
+using MainApi.Modules.Tenants.Entities;
+
+using Xunit;
+
+public sealed class BulkReactivateTenantsAsStaffSpec
+	: IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
+	private readonly HttpClient _http;
+	private readonly TestAuthClient _authClient;
+
+	public BulkReactivateTenantsAsStaffSpec(ApiFixture fixture) {
+		_fixture = fixture;
+		_http = fixture.HttpClient;
+		_authClient = new TestAuthClient(_http);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReactivateSuspendedTenantsAndWriteAuditLog() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var firstTenant = await SeedTenantAsync(
+			"Bulk Reactivate Suspended A",
+			TenantStatus.Suspended
+		);
+		var secondTenant = await SeedTenantAsync(
+			"Bulk Reactivate Suspended B",
+			TenantStatus.Suspended
+		);
+
+		using var response = await _http.SendAsync(
+			CreateRequest(
+				staffToken,
+				new {
+					tenantIds = new[] {
+						firstTenant.TenantId,
+						secondTenant.TenantId,
+					},
+				}
+			)
+		);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<BulkTenantActionResponse>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"Bulk reactivate response was empty."
+			);
+		}
+		result.SucceededCount.Should().Be(2);
+		result.FailedCount.Should().Be(0);
+		result.FailedItems.Should().BeEmpty();
+
+		await AssertTenantStatusAsync(
+			firstTenant.TenantId,
+			TenantStatus.Active
+		);
+		await AssertTenantStatusAsync(
+			secondTenant.TenantId,
+			TenantStatus.Active
+		);
+
+		var auditLog = await TenantBulkActionSpecSupport
+			.GetLatestAuditLogAsync(
+				_fixture,
+				AuditActions.TenantBulkReactivated
+			);
+		auditLog.Should().NotBeNull();
+		if (auditLog is null) {
+			throw new InvalidOperationException(
+				"Bulk reactivate audit log was not written."
+			);
+		}
+		TenantBulkActionSpecSupport.AssertAuditDetails(
+			auditLog,
+			expectedCount: 2,
+			expectedFailedCount: 0
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnPartialResultForNonReactivatableTenants() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var suspendedTenant = await SeedTenantAsync(
+			"Bulk Reactivate Partial Suspended",
+			TenantStatus.Suspended
+		);
+		var activeTenant = await SeedTenantAsync(
+			"Bulk Reactivate Partial Active",
+			TenantStatus.Active
+		);
+		var missingTenantId = Guid.NewGuid();
+
+		using var response = await _http.SendAsync(
+			CreateRequest(
+				staffToken,
+				new {
+					tenantIds = new[] {
+						suspendedTenant.TenantId,
+						activeTenant.TenantId,
+						missingTenantId,
+					},
+				}
+			)
+		);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<BulkTenantActionResponse>();
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"Bulk reactivate response was empty."
+			);
+		}
+		result.SucceededCount.Should().Be(1);
+		result.FailedCount.Should().Be(2);
+		result.FailedItems.Should().Contain(item =>
+			item.TenantId == activeTenant.TenantId
+			&& item.Error == "Tenant is not suspended"
+		);
+		result.FailedItems.Should().Contain(item =>
+			item.TenantId == missingTenantId
+			&& item.Error == "Tenant not found"
+		);
+
+		await AssertTenantStatusAsync(
+			suspendedTenant.TenantId,
+			TenantStatus.Active
+		);
+		await AssertTenantStatusAsync(
+			activeTenant.TenantId,
+			TenantStatus.Active
+		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldAllowPermissionedNonAdminStaffUserToBulkReactivate() {
+		var staffToken = await TenantBulkActionSpecSupport
+			.CreateStaffUserTokenWithPermissionAsync(
+				_fixture,
+				_authClient,
+				"bulk-reactivate",
+				AppPermissions.Staff.Tenants.REACTIVATE.Key
+			);
+		var tenant = await SeedTenantAsync(
+			"Bulk Reactivate Permissioned",
+			TenantStatus.Suspended
+		);
+
+		using var response = await _http.SendAsync(
+			CreateRequest(
+				staffToken,
+				new { tenantIds = new[] { tenant.TenantId } }
+			)
+		);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnUnauthorizedWithoutSession() {
+		var tenant = await SeedTenantAsync(
+			"Bulk Reactivate Unauthorized",
+			TenantStatus.Suspended
+		);
+
+		using var response = await _http.SendAsync(
+			CreateRequest(
+				sessionToken: null,
+				body: new { tenantIds = new[] { tenant.TenantId } }
+			)
+		);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.Unauthorized);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnForbiddenForTenantUser() {
+		var tenantToken = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+		var tenant = await SeedTenantAsync(
+			"Bulk Reactivate Tenant User",
+			TenantStatus.Suspended
+		);
+
+		using var response = await _http.SendAsync(
+			CreateRequest(
+				tenantToken,
+				new { tenantIds = new[] { tenant.TenantId } }
+			)
+		);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.Forbidden);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnForbiddenForStaffWithoutPermission() {
+		var staffToken = await TenantBulkActionSpecSupport
+			.CreateStaffUserTokenWithoutPermissionAsync(
+				_fixture,
+				_authClient,
+				"bulk-reactivate-no-permission"
+			);
+		var tenant = await SeedTenantAsync(
+			"Bulk Reactivate No Permission",
+			TenantStatus.Suspended
+		);
+
+		using var response = await _http.SendAsync(
+			CreateRequest(
+				staffToken,
+				new { tenantIds = new[] { tenant.TenantId } }
+			)
+		);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.Forbidden);
+	}
+
+	[Theory]
+	[MemberData(nameof(InvalidBodies))]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenBodyIsInvalid(
+		string body
+	) {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		using var response = await _http.SendAsync(
+			TenantBulkActionSpecSupport.CreateRawJsonRequest(
+				TenantBulkActionSpecSupport.GetBulkReactivateUrl(),
+				staffToken,
+				body
+			)
+		);
+
+		await AssertValidationProblemAsync(response);
+	}
+
+	public static IEnumerable<object[]> InvalidBodies() {
+		yield return ["""{}"""];
+		yield return ["""{ "tenantIds": null }"""];
+		yield return ["""{ "tenantIds": "not-an-array" }"""];
+		yield return ["""{ "tenantIds": [] }"""];
+		yield return ["""{ "tenantIds": ["not-a-guid"] }"""];
+		yield return [
+			$$"""
+			{
+				"tenantIds": [
+					{{BulkTenantIdJsonFactory.CreateTooManyTenantIdsJson()}}
+				]
+			}
+			""",
+		];
+	}
+
+	private HttpRequestMessage CreateRequest(
+		string? sessionToken,
+		object body
+	) =>
+		TenantBulkActionSpecSupport.CreateJsonRequest(
+			TenantBulkActionSpecSupport.GetBulkReactivateUrl(),
+			sessionToken,
+			body
+		);
+
+	private Task<SeededTenantSnapshot> SeedTenantAsync(
+		string namePrefix,
+		TenantStatus status
+	) =>
+		TenantBulkActionSpecSupport.SeedTenantAsync(
+			_fixture,
+			namePrefix,
+			status
+		);
+
+	private async Task AssertTenantStatusAsync(
+		Guid tenantId,
+		TenantStatus expectedStatus
+	) {
+		var tenant = await TenantBulkActionSpecSupport
+			.GetTenantIgnoringFiltersAsync(_fixture, tenantId);
+		tenant.Should().NotBeNull();
+		if (tenant is null) {
+			throw new InvalidOperationException(
+				"Seeded tenant could not be loaded."
+			);
+		}
+
+		tenant.Status.Should().Be(expectedStatus);
+	}
+
+	private static async Task AssertValidationProblemAsync(
+		HttpResponseMessage response
+	) {
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		if (problem is null) {
+			throw new InvalidOperationException(
+				"Validation problem response was empty."
+			);
+		}
+		problem.TranslationKey.Should()
+			.Be(ResponseKeys.RequestBodyValidationFailed.Value);
+		problem.Errors.Keys.Should()
+			.Contain("TenantIds");
+	}
+}

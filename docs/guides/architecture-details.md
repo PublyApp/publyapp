@@ -52,7 +52,7 @@ DbSet<Project>            // Projects (future use)
 ```
 
 **Migration workflow:**
-1. Make entity changes in `apps/api/Src/Data/`
+1. Make entity changes in `apps/api/Data/`
 2. Run `make db-add NAME=DescriptiveName`
 3. Review generated migration in `apps/api/Migrations/`
 4. Run `make db-migrate` to apply
@@ -94,7 +94,7 @@ DbSet<Project>            // Projects (future use)
 
 **Translation workflow:**
 1. Add translations to `packages/shared/lib/i18n/json/*.json`
-2. Auto-generated C# constants in `apps/api/Src/Generated/ResponseKeys.g.cs`
+2. Auto-generated C# constants in `apps/api/Localization/ResponseKeys.g.cs`
 3. Auto-generated Zod i18n map on `pnpm install`
 
 **Translation namespaces:**
@@ -109,6 +109,7 @@ const { t } = useTranslation('common');
 t('key.path');
 
 // Backend
-using static PublyApp.Api.Generated.ResponseKeys;
-return TypedProblems.BadRequest("Validation failed", ValidationError);
+using MainApi.Localization;
+
+return TypedProblems.BadRequest("Validation failed", ResponseKeys.RequestBodyValidationFailed);
 ```

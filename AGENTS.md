@@ -25,7 +25,7 @@ just dev-db
 
 ### Configuration (AppEnvironment)
 
-The API reads configuration exclusively from environment variables via `AppEnvironment` (`apps/api/Src/Lib/AppEnvironment.cs`).
+The API reads configuration exclusively from environment variables via `AppEnvironment` (`apps/api/Lib/AppEnvironment.cs`).
 
 - Development defaults live in repo-root `.env.development` and are loaded when the host environment is `Development`.
 - `dotnet build` also runs the app during OpenAPI document generation; if `ASPNETCORE_ENVIRONMENT`/`DOTNET_ENVIRONMENT` are unset, `.env.development` is loaded to prevent build failures.
@@ -108,7 +108,7 @@ packages/
 The backend follows **Vertical Slice Architecture** using a **domain-first** module layout:
 
 ```
-apps/api/Src/Modules/<Domain>/
+apps/api/Modules/<Domain>/
 ├── Entities/                     # EF Core entities for the domain
 ├── Services/                     # Domain services (business logic)
 ├── Seeders/                      # Seeders for the domain
@@ -128,10 +128,10 @@ apps/api/Src/Modules/<Domain>/
 - **Namespace discipline**: `IDE0130` is treated as error — file namespace must match its folder path
 
 **Finding Backend Code:**
-- Domain modules (preferred): `apps/api/Src/Modules/<Domain>/` (e.g. `Auth`, `Users`, `Invitations`)
-- Legacy (migration in progress): `apps/api/Src/Modules/{Shared,Staff,Tenant}/` (do not add new code here unless you're migrating existing slices)
-- Cross-cutting utilities/middleware: `apps/api/Src/Lib/`
-- Infrastructure services (email, storage, etc.): `apps/api/Src/Infrastructure/`
+- Domain modules (preferred): `apps/api/Modules/<Domain>/` (e.g. `Auth`, `Users`, `Invitations`)
+- Legacy (migration in progress): `apps/api/Modules/{Shared,Staff,Tenant}/` (do not add new code here unless you're migrating existing slices)
+- Cross-cutting utilities/middleware: `apps/api/Lib/`
+- Infrastructure services (email, storage, etc.): `apps/api/Infrastructure/`
 
 ### API Module Structure Rules
 
@@ -140,7 +140,7 @@ slice boundaries, permission enforcement, vertical slice design principles, and 
 [`docs/guides/api-module-structure.md`](docs/guides/api-module-structure.md)
 
 **Key principles (always apply):**
-- Domain-first modules: `apps/api/Src/Modules/<Domain>/` — route scope expressed via handler folders + endpoint groups
+- Domain-first modules: `apps/api/Modules/<Domain>/` — route scope expressed via handler folders + endpoint groups
 - Junction entities live with their **primary entity**'s domain
 - Pure junction entities use a composite primary key made from their foreign keys; do not inherit
   `BaseAttributes`, do not add a surrogate `id`, and do not add `is_deleted`/`deleted_at`.
@@ -285,7 +285,7 @@ For FluentValidation conventions (shared extension methods, pagination validator
 - All errors use `TypedProblems.*` (RFC 7807), never `TypedResults.Forbid()`
 - Services MUST NOT depend on other services (only DbContext + infrastructure)
 - Use `[Service]` attribute for DI registration; `{Action}{Domain}Args` records for 3+ params;
-  update `apps/api/Src/Lib/Architecture/ServiceArgsRecordConvention.Spec.cs` assertions when adding/refactoring these methods
+  update `apps/api/Lib/Architecture/ServiceArgsRecordConvention.Spec.cs` assertions when adding/refactoring these methods
 - `PatchField<T>` for clearable nullable PATCH fields (see [`docs/guides/patchfield-pattern.md`](docs/guides/patchfield-pattern.md))
 - Max 100 char line length; always use braces on control flow blocks
 - "Find" prefix for list/collection retrieval (not "List")
@@ -305,7 +305,7 @@ For full test conventions (file naming, BDD method naming, folder structure, imp
 For writing and debugging integration tests, see:
 [`docs/guides/api-integration-tests.md`](docs/guides/api-integration-tests.md)
 
-**Key rules:** `*.Spec.cs` suffix, `ItShould{Expected}When{Scenario}` method names, specs co-located with source, test infra in `Src/Lib/Testing/{Fixtures,Helpers,Fakes}/`
+**Key rules:** `*.Spec.cs` suffix, `ItShould{Expected}When{Scenario}` method names, specs co-located with source, test infra in `Lib/Testing/{Fixtures,Helpers,Fakes}/`
 
 ## Common Workflows
 
@@ -333,6 +333,9 @@ For detailed conventions (route naming, API response format with JSON examples, 
 
 **Local access:** Frontend `localhost:5050` | API `localhost:5000` | Scalar docs `localhost:5000/scalar/v1` | Postgres `localhost:5454`
 **Env vars:** `.env.development` (committed), `.env.production` (not in repo), validated at startup via `AppEnvironment.Initialize()`
+**.NET artifacts:** New .NET projects must output under a local `.artifacts/` directory.
+Set `DotNetArtifactsRoot` in a project-area `Directory.Build.props` before importing the repo
+root props; `Directory.Build.targets` enforces this during builds.
 
 ## Deployment
 

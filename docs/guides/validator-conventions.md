@@ -2,9 +2,9 @@
 
 > Rules and patterns for FluentValidation validators in the PublyApp API.
 
-## Shared Validation Library (`Src/Lib/Validation/`)
+## Shared Validation Library (`Lib/Validation/`)
 
-All reusable validation code lives in `apps/api/Src/Lib/Validation/`. This directory contains:
+All reusable validation code lives in `apps/api/Lib/Validation/`. This directory contains:
 
 | File | Purpose |
 |------|---------|
@@ -84,7 +84,7 @@ If you find yourself writing the same validation chain in 2+ validators, extract
 
 ### Domain-Specific Validation Rules
 
-Validators that depend on domain entities (e.g., parsing enum values via entity methods) must **not** live in `Src/Lib/Validation/` — that would create a Lib→Module dependency. Instead, place them in the domain module's `Validation/` folder.
+Validators that depend on domain entities (e.g., parsing enum values via entity methods) must **not** live in `Lib/Validation/` — that would create a Lib→Module dependency. Instead, place them in the domain module's `Validation/` folder.
 
 | File | Methods | Used by |
 |------|---------|---------|
@@ -177,7 +177,7 @@ public class CheckResetPasswordTokenQueryValidator
 
 - **Body validators**: co-located in the handler file, next to the body DTO record
 - **Query validators**: co-located in the handler file, next to the query class
-- **Shared/reusable validators**: `Src/Lib/Validation/`
+- **Shared/reusable validators**: `Lib/Validation/`
 - **Never** create a separate `Validators/` folder inside a module
 
 ## Rule 5: Cross-Field Validation
@@ -268,7 +268,7 @@ if (query.UserId is not null) {
 
 ### Shared Predicates via `QueryPredicates`
 
-Common validation predicates for query parameters live in `Src/Lib/Validation/QueryPredicates.cs`. Use these instead of duplicating private methods in each validator.
+Common validation predicates for query parameters live in `Lib/Validation/QueryPredicates.cs`. Use these instead of duplicating private methods in each validator.
 
 | Method | Use when |
 |--------|----------|
@@ -321,7 +321,7 @@ Conventions:
 >     string.Join(", ", AllowedStatuses.Select(ToSnakeCase).Order());
 > ```
 >
-> See `apps/api/Src/Modules/Users/Handlers/Staff/FindTenantUsersAsStaff.cs` for the canonical multi-word example. If a future validator has multiple multi-word enums in different modules, lift `ToSnakeCase` into a shared helper under `MainApi.Src.Lib.Validation`.
+> See `apps/api/Modules/Users/Handlers/Staff/FindTenantUsersAsStaff.cs` for the canonical multi-word example. If a future validator has multiple multi-word enums in different modules, lift `ToSnakeCase` into a shared helper under `MainApi.Lib.Validation`.
 
 Example shape (handler-local):
 
@@ -388,6 +388,6 @@ public class FindTenantsQueryValidator : CursorPaginatedQueryValidator<FindTenan
 
 ## Namespace & Import Conventions
 
-- Shared validation classes live in `namespace MainApi.Src.Lib.Validation;`
-- Handlers using shared validators must add: `using MainApi.Src.Lib.Validation;`
-- Base query types (`OffsetPaginatedQuery`, `CursorPaginatedQuery`) remain in `namespace MainApi.Src.Lib;`
+- Shared validation classes live in `namespace MainApi.Lib.Validation;`
+- Handlers using shared validators must add: `using MainApi.Lib.Validation;`
+- Base query types (`OffsetPaginatedQuery`, `CursorPaginatedQuery`) remain in `namespace MainApi.Lib;`

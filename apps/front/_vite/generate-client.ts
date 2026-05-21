@@ -25,7 +25,7 @@ const generateKiotaClient = (): Plugin => {
 			const kiotaLockPath = path.join(jsClientPath, 'src/kiota-lock.json');
 			const openApiPath = path.resolve(
 				process.cwd(),
-				'../../apps/api/openapi/MainApi.json',
+				'../../apps/api/openapi.json',
 			);
 
 			// Check if OpenAPI spec exists
@@ -82,7 +82,7 @@ const generateKiotaClient = (): Plugin => {
 
 			// Watch the OpenAPI spec file for changes
 			const openApiPath = normalizePath(
-				path.resolve(process.cwd(), '../../apps/api/openapi/MainApi.json'),
+				path.resolve(process.cwd(), '../../apps/api/openapi.json'),
 			);
 
 			// Check if the OpenAPI spec exists before setting up watcher
@@ -112,13 +112,13 @@ const generateKiotaClient = (): Plugin => {
 				}, 100);
 			};
 
-			// Watch the OpenAPI directory for changes
+			// Watch the OpenAPI file's parent directory for changes
 			const openApiDir = path.dirname(openApiPath);
 			const watcher = watch(
 				openApiDir,
 				{ recursive: false },
 				async (_eventType, filename) => {
-					if (filename === 'MainApi.json') {
+					if (filename === 'openapi.json') {
 						const fullPath = path.join(openApiDir, filename);
 
 						// Check if file still exists

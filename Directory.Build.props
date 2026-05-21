@@ -1,4 +1,12 @@
 <Project>
+  <PropertyGroup>
+    <DotNetArtifactsRoot Condition="'$(DotNetArtifactsRoot)' == ''">$(MSBuildProjectDirectory)\.artifacts\</DotNetArtifactsRoot>
+    <LocalArtifactExcludes>.artifacts\**\*;bin\**\*;obj\**\*</LocalArtifactExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(LocalArtifactExcludes)</DefaultItemExcludes>
+    <BaseOutputPath Condition="'$(BaseOutputPath)' == ''">$(DotNetArtifactsRoot)bin\$(MSBuildProjectName)\</BaseOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(DotNetArtifactsRoot)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+
   <!-- Common properties for all projects -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>

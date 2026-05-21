@@ -18,7 +18,7 @@
 
 ## Testing/ Folder Structure
 
-Test infrastructure lives in `Src/Lib/Testing/` organized by purpose:
+Test infrastructure lives in `Lib/Testing/` organized by purpose:
 
 - `Testing/Fixtures/` — test environment setup (`ApiFixture`, `MainApiFactory`, `PostgresContainerFixture`, `DatabaseTemplateManager`, `TestEnvironment`, `TestConstants`)
 - `Testing/Helpers/` — test utility methods (`TestAuthClient`, `TenantTestHelper`, `SystemNoticeTestHelper`, `HttpRequestMessageExtensions`)
@@ -27,10 +27,10 @@ Test infrastructure lives in `Src/Lib/Testing/` organized by purpose:
 
 ## Architecture Tests
 
-Architecture tests enforce cross-cutting rules across the entire assembly (not testing a specific class). They follow the same conventions but live in `Src/Lib/Architecture/`:
+Architecture tests enforce cross-cutting rules across the entire assembly (not testing a specific class). They follow the same conventions but live in `Lib/Architecture/`:
 
 - Use `*.Spec.cs` suffix (e.g., `ArchitectureGuard.Spec.cs`)
-- Namespace: `MainApi.Src.Lib.Architecture`
+- Namespace: `MainApi.Lib.Architecture`
 - Tests scan the assembly to verify architectural compliance
 - Example: `ArchitectureGuard.Spec.cs` ensures `PatchField<T>` doesn't appear in HTTP DTOs
 
@@ -39,9 +39,9 @@ Architecture tests enforce cross-cutting rules across the entire assembly (not t
 Spec files reference test infrastructure via sub-namespaces:
 
 ```csharp
-using MainApi.Src.Lib.Testing.Fixtures;  // ApiFixture, TestConstants
-using MainApi.Src.Lib.Testing.Helpers;    // TestAuthClient, TenantTestHelper
-using MainApi.Src.Lib.Testing.Fakes;      // FakeEmailSender (rare)
+using MainApi.Lib.Testing.Fixtures;  // ApiFixture, TestConstants
+using MainApi.Lib.Testing.Helpers;    // TestAuthClient, TenantTestHelper
+using MainApi.Lib.Testing.Fakes;      // FakeEmailSender (rare)
 ```
 
 ## Full Integration Test Guide

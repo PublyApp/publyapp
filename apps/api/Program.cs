@@ -1,16 +1,16 @@
-using MainApi.Src.Lib;
-using MainApi.Src.Lib.Extensions;
-using MainApi.Src.Lib.Filters;
-using MainApi.Src.Lib.Routes;
-using MainApi.Src.Lib.Seeding;
-using MainApi.Src.Modules.AuditLogs.Endpoints;
-using MainApi.Src.Modules.Auth.Endpoints;
-using MainApi.Src.Modules.Invitations.Endpoints;
-using MainApi.Src.Modules.Permissions.Endpoints;
-using MainApi.Src.Modules.Profiles.Endpoints;
-using MainApi.Src.Modules.SystemNotices.Endpoints;
-using MainApi.Src.Modules.Tenants.Endpoints;
-using MainApi.Src.Modules.Users.Endpoints;
+using MainApi.Lib;
+using MainApi.Lib.Extensions;
+using MainApi.Lib.Filters;
+using MainApi.Lib.Routes;
+using MainApi.Lib.Seeding;
+using MainApi.Modules.AuditLogs.Endpoints;
+using MainApi.Modules.Auth.Endpoints;
+using MainApi.Modules.Invitations.Endpoints;
+using MainApi.Modules.Permissions.Endpoints;
+using MainApi.Modules.Profiles.Endpoints;
+using MainApi.Modules.SystemNotices.Endpoints;
+using MainApi.Modules.Tenants.Endpoints;
+using MainApi.Modules.Users.Endpoints;
 
 namespace MainApi;
 

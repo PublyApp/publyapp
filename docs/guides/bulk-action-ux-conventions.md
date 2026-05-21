@@ -177,7 +177,7 @@ Cite as canonical when in doubt:
 
 - Frontend selection menu: `apps/front/src/routes/authed/staff/invitations/list/_parts/staff-invitations-selection-actions.tsx`
 - Frontend mutation hook: `apps/front/src/routes/authed/staff/invitations/list/_parts/use-staff-invitation-bulk-revoke.ts`
-- Backend handler: `apps/api/Src/Modules/Invitations/Handlers/Staff/BulkRevokeStaffInvitations.cs`
+- Backend handler: `apps/api/Modules/Invitations/Handlers/Staff/BulkRevokeStaffInvitations.cs`
 - Backend service method: `InvitationService.BulkRevokeStaffInvitationsAsync` in
-  `apps/api/Src/Modules/Invitations/Services/InvitationService.cs`
+  `apps/api/Modules/Invitations/Services/InvitationService.cs`
 - Batched audit-log API: `AuditLogService.LogManyAsync`
