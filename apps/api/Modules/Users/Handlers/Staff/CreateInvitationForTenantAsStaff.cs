@@ -48,11 +48,11 @@ public class CreateInvitationForTenantAsStaffBodyValidator
 	}
 }
 
-public class CreateInvitationForTenantAsStaff {
+public sealed class CreateInvitationForTenantAsStaff {
 	public static async Task<Results<
 		Created<InvitationCreatedForTenant>,
 		AppBadRequestHttpResult
-	>> HandleCreateInvitationForTenantAsStaff(
+	>> Handle(
 		[FromRoute] string tenantId,
 		[FromBody] CreateInvitationForTenantAsStaffBody body,
 		[FromServices] IRequestAuthContext authContext,

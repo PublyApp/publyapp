@@ -49,13 +49,13 @@ public class SuspendTenantAsStaffBodyValidator : AbstractValidator<SuspendTenant
 	}
 }
 
-public class SuspendTenantAsStaff {
+public sealed class SuspendTenantAsStaff {
 	public static async Task<Results<
 		Ok<TenantSuspendedResult>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult,
 		AppConflictHttpResult
-	>> HandleSuspendTenantAsStaff(
+	>> Handle(
 		[FromRoute] string tenantId,
 		[FromServices] ITenantAsStaffService tenantService,
 		[FromServices] IAuditLogService auditLogService,

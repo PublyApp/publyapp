@@ -46,7 +46,7 @@ public sealed class BulkRevokeStaffInvitationsBodyValidator
 
 public sealed class BulkRevokeStaffInvitations {
 	public static async Task<Ok<BulkStaffInvitationActionResult>>
-		HandleBulkRevokeStaffInvitations(
+		Handle(
 			[FromBody] BulkRevokeStaffInvitationsBody body,
 			[FromServices] IRequestAuthContext authContext,
 			[FromServices] IInvitationService invitationService,

@@ -16,7 +16,7 @@ public static class UserEndpointsForStaff {
 		// code for now while we confirm no internal/bootstrap path still needs it.
 		// group.MapPost(
 		// 		Routes.Users.ForStaff.Create,
-		// 		CreateStaffUser.HandleCreateStaffUser
+		// 		CreateStaffUser.Handle
 		// 	)
 		// 	.WithName("CreateStaffUser")
 		// 	.WithSummary("Create a new staff user")
@@ -25,7 +25,7 @@ public static class UserEndpointsForStaff {
 
 		group.MapGet(
 				Routes.Users.ForStaff.GetById,
-				GetStaffUserById.HandleGetStaffUserById
+				GetStaffUserById.Handle
 			)
 			.WithName("GetStaffUserById")
 			.WithSummary("Get a staff user by id")
@@ -33,7 +33,7 @@ public static class UserEndpointsForStaff {
 
 		group.MapGet(
 				Routes.Users.ForStaff.Find,
-				FindStaffUsers.HandleFindStaffUsers
+				FindStaffUsers.Handle
 			)
 			.WithName("FindStaffUsers")
 			.WithSummary("Find staff users")
@@ -42,7 +42,7 @@ public static class UserEndpointsForStaff {
 
 		group.MapPatch(
 				Routes.Users.ForStaff.Update,
-				UpdateStaffUser.HandleUpdateStaffUser
+				UpdateStaffUser.Handle
 			)
 			.WithName("UpdateStaffUser")
 			.WithSummary("Update a staff user")
@@ -54,7 +54,7 @@ public static class UserEndpointsForStaff {
 		// via the generic "update staff user" PATCH.
 		group.MapPatch(
 				Routes.Users.ForStaff.UpdateEmail,
-				UpdateStaffUserEmail.HandleUpdateStaffUserEmail
+				UpdateStaffUserEmail.Handle
 			)
 			.WithName("UpdateStaffUserEmail")
 			.WithSummary("Update a staff user's email")
@@ -63,7 +63,7 @@ public static class UserEndpointsForStaff {
 
 		group.MapPost(
 				Routes.Users.ForStaff.Suspend,
-				SuspendStaffUser.HandleSuspendStaffUser
+				SuspendStaffUser.Handle
 			)
 			.WithName("SuspendStaffUser")
 			.WithSummary("Suspend a staff user")
@@ -71,7 +71,7 @@ public static class UserEndpointsForStaff {
 
 		group.MapPost(
 				Routes.Users.ForStaff.Reactivate,
-				ReactivateStaffUser.HandleReactivateStaffUser
+				ReactivateStaffUser.Handle
 			)
 			.WithName("ReactivateStaffUser")
 			.WithSummary("Reactivate a staff user")
@@ -79,7 +79,7 @@ public static class UserEndpointsForStaff {
 
 		group.MapPost(
 				Routes.Users.ForStaff.BulkSuspend,
-				BulkSuspendStaffUsers.HandleBulkSuspendStaffUsers
+				BulkSuspendStaffUsers.Handle
 			)
 			.WithName("BulkSuspendStaffUsers")
 			.WithSummary("Bulk suspend staff users")
@@ -88,7 +88,7 @@ public static class UserEndpointsForStaff {
 
 		group.MapPost(
 				Routes.Users.ForStaff.BulkReactivate,
-				BulkReactivateStaffUsers.HandleBulkReactivateStaffUsers
+				BulkReactivateStaffUsers.Handle
 			)
 			.WithName("BulkReactivateStaffUsers")
 			.WithSummary("Bulk reactivate staff users")
@@ -97,7 +97,7 @@ public static class UserEndpointsForStaff {
 
 		group.MapPost(
 				Routes.Users.ForStaff.BulkDelete,
-				BulkDeleteStaffUsers.HandleBulkDeleteStaffUsers
+				BulkDeleteStaffUsers.Handle
 			)
 			.WithName("BulkDeleteStaffUsers")
 			.WithSummary("Bulk delete staff users")
@@ -106,7 +106,7 @@ public static class UserEndpointsForStaff {
 
 		group.MapDelete(
 				Routes.Users.ForStaff.Delete,
-				DeleteStaffUser.HandleDeleteStaffUser
+				DeleteStaffUser.Handle
 			)
 			.WithName("DeleteStaffUser")
 			.WithSummary("Soft-delete a suspended staff user")
@@ -114,7 +114,7 @@ public static class UserEndpointsForStaff {
 
 		group.MapGet(
 				Routes.Users.ForStaff.Profiles.Get,
-				GetStaffUserProfiles.HandleGetStaffUserProfiles
+				GetStaffUserProfiles.Handle
 			)
 			.WithName("GetStaffUserProfiles")
 			.WithSummary("Get profiles assigned to a staff user")
@@ -122,7 +122,7 @@ public static class UserEndpointsForStaff {
 
 		group.MapPut(
 				Routes.Users.ForStaff.Profiles.Update,
-				UpdateStaffUserProfiles.HandleUpdateStaffUserProfiles
+				UpdateStaffUserProfiles.Handle
 			)
 			.WithName("UpdateStaffUserProfiles")
 			.WithSummary("Update profiles assigned to a staff user")

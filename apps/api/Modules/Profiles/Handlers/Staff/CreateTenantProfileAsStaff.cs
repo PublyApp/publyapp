@@ -147,12 +147,12 @@ public class CreateTenantProfileAsStaffBodyValidator
 	}
 }
 
-public class CreateTenantProfileAsStaff {
+public sealed class CreateTenantProfileAsStaff {
 	public static async Task<Results<
 		Created<GetTenantProfileByIdResponse>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleCreateTenantProfileAsStaff(
+	>> Handle(
 		[FromRoute] string tenantId,
 		[FromBody] CreateTenantProfileAsStaffBody body,
 		[FromServices] IRequestAuthContext authContext,

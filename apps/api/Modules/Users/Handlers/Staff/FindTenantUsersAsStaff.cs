@@ -119,13 +119,13 @@ public class FindTenantUsersAsStaffQueryValidator
 	}
 }
 
-public class FindTenantUsersAsStaff {
+public sealed class FindTenantUsersAsStaff {
 	public static async Task<
 		Results<
 			Ok<FindTenantUsersAsStaffResult>,
 			AppBadRequestHttpResult
 		>
-	> HandleFindTenantUsersAsStaff(
+	> Handle(
 		[FromServices] IUserService userService,
 		[AsParameters]
 			FindTenantUsersAsStaffQuery query,

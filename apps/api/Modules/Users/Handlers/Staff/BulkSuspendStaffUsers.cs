@@ -44,7 +44,7 @@ public sealed class BulkSuspendStaffUsersBodyValidator
 
 public sealed class BulkSuspendStaffUsers {
 	public static async Task<Ok<BulkStaffUserActionResult>>
-		HandleBulkSuspendStaffUsers(
+		Handle(
 			[FromBody] BulkSuspendStaffUsersBody body,
 			[FromServices] IUserService userService,
 			[FromServices] IAuditLogService auditLogService,

@@ -13,14 +13,14 @@ public class FindStaffProfilePermissionsResult {
 	public required List<string> PermissionKeys { get; init; }
 }
 
-public class FindStaffProfilePermissions {
+public sealed class FindStaffProfilePermissions {
 	public static async Task<
 		Results<
 			Ok<FindStaffProfilePermissionsResult>,
 			AppBadRequestHttpResult,
 			AppNotFoundHttpResult
 		>
-	> HandleFindStaffProfilePermissions(
+	> Handle(
 		[FromServices] IProfileAsStaffService profileAsStaffService,
 		[FromRoute] string profileId,
 		CancellationToken cancellationToken

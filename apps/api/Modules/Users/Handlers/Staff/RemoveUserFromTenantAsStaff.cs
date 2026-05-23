@@ -10,12 +10,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Modules.Users.Handlers.Staff;
 
-public class RemoveUserFromTenantAsStaff {
+public sealed class RemoveUserFromTenantAsStaff {
 	public static async Task<Results<
 		Ok<ApiResponse>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleRemoveUserFromTenantAsStaff(
+	>> Handle(
 		[FromRoute] string tenantId,
 		[FromRoute] string userId,
 		[FromServices] IRequestAuthContext authContext,

@@ -7,12 +7,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Modules.AuditLogs.Handlers.Staff;
 
-public class GetAuditLogById {
+public sealed class GetAuditLogById {
 	public static async Task<Results<
 		Ok<AuditLogDetail>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleGetAuditLogById(
+	>> Handle(
 		[FromServices]
 		IAuditLogQueryService auditLogQueryService,
 		[FromRoute] string logId,

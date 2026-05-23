@@ -43,11 +43,11 @@ public class BulkDeleteTenantsAsStaffBodyValidator : AbstractValidator<BulkDelet
 	}
 }
 
-public class BulkDeleteTenantsAsStaff {
+public sealed class BulkDeleteTenantsAsStaff {
 	public static async Task<Results<
 		Ok<BulkDeleteTenantsResult>,
 		AppBadRequestHttpResult
-	>> HandleBulkDeleteTenantsAsStaff(
+	>> Handle(
 		[FromBody] BulkDeleteTenantsAsStaffBody body,
 		[FromServices] ITenantAsStaffService tenantService,
 		[FromServices] IAuditLogService auditLogService,

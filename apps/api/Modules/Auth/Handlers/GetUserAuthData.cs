@@ -16,13 +16,13 @@ public class GetUserAuthDataResult {
 	public string? LastName { get; set; }
 }
 
-public class GetUserAuthData {
+public sealed class GetUserAuthData {
 	public static async Task<
 	Results<
 		Ok<GetUserAuthDataResult>,
 		AppUnauthorizedHttpResult
 		>
-	> HandleGetUserAuthData(
+	> Handle(
 		IRequestAuthContext authContext,
 		ILogger<GetUserAuthData> logger,
 		[FromServices] IUserService userService,

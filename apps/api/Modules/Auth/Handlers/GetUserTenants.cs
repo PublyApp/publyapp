@@ -17,10 +17,10 @@ public class GetUserTenantsResult {
 	public int TotalCount { get; set; }
 }
 
-public class GetUserTenants {
+public sealed class GetUserTenants {
 	private const int MaxTenantsInList = 5;
 
-	public static async Task<Ok<GetUserTenantsResult>> HandleGetUserTenants(
+	public static async Task<Ok<GetUserTenantsResult>> Handle(
 		IRequestAuthContext authContext,
 		ILogger<GetUserTenants> logger,
 		IAccountService accountService,

@@ -41,34 +41,32 @@ public class GetScopeAuthDataQueryValidator
 	}
 }
 
-public class GetScopeAuthDataResult {
-	public class Tenant {
-		public Guid Id { get; set; }
-		public string Name { get; set; } = string.Empty;
-		public string Code { get; set; } = string.Empty;
-		public List<ProfileItem> Profiles { get; set; } = [];
-		public string AccountLevel { get; set; } = string.Empty;
-		public bool IsAdmin { get; set; } = false;
-		public List<string> Permissions { get; set; } = [];
-	}
-
-	public class Staff {
-		public string Code { get; set; } = "staff";
-		public List<ProfileItem> Profiles { get; set; } = [];
-		public string AccountLevel { get; set; } = string.Empty;
-		public bool IsAdmin { get; set; } = false;
-		public List<string> Permissions { get; set; } = [];
-	}
+public class GetScopeAuthDataTenant {
+	public Guid Id { get; set; }
+	public string Name { get; set; } = string.Empty;
+	public string Code { get; set; } = string.Empty;
+	public List<ProfileItem> Profiles { get; set; } = [];
+	public string AccountLevel { get; set; } = string.Empty;
+	public bool IsAdmin { get; set; } = false;
+	public List<string> Permissions { get; set; } = [];
 }
 
-public class GetScopeAuthData {
+public class GetScopeAuthDataStaff {
+	public string Code { get; set; } = "staff";
+	public List<ProfileItem> Profiles { get; set; } = [];
+	public string AccountLevel { get; set; } = string.Empty;
+	public bool IsAdmin { get; set; } = false;
+	public List<string> Permissions { get; set; } = [];
+}
+
+public sealed class GetScopeAuthData {
 	public static async Task<
 		Results<
-			Ok<GetScopeAuthDataResult.Staff>,
-			Ok<GetScopeAuthDataResult.Tenant>,
+			Ok<GetScopeAuthDataStaff>,
+			Ok<GetScopeAuthDataTenant>,
 			AppForbiddenHttpResult
 		>
-	> HandleGetScopeAuthData(
+	> Handle(
 		IRequestAuthContext authContext,
 		ILogger<GetScopeAuthData> logger,
 		[AsParameters] GetScopeAuthDataQuery query,
@@ -125,7 +123,7 @@ public class GetScopeAuthData {
 				.ToList();
 
 			return TypedResults.Ok(
-				new GetScopeAuthDataResult.Staff {
+				new GetScopeAuthDataStaff {
 					Code = "staff",
 					Profiles = staffProfileItems,
 					AccountLevel = UserAccount.GetLevelDescription(staffAccount?.Level ?? AccountLevel.User),
@@ -216,7 +214,7 @@ public class GetScopeAuthData {
 			.ToList();
 
 		return TypedResults.Ok(
-			new GetScopeAuthDataResult.Tenant {
+			new GetScopeAuthDataTenant {
 				Id = tenantId,
 				Name = tenant.Name,
 				Code = tenant.Code,

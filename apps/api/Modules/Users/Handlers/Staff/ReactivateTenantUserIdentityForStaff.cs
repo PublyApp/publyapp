@@ -16,7 +16,7 @@ public sealed class ReactivateTenantUserIdentityForStaff {
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult,
 		AppConflictHttpResult
-	>> HandleReactivateTenantUserIdentityForStaff(
+	>> Handle(
 		[FromRoute] string userId,
 		[FromServices] IUserService userService,
 		[FromServices] IAuditLogService auditLogService,

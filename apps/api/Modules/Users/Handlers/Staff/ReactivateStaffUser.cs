@@ -16,13 +16,13 @@ public record StaffUserReactivatedResult {
 	public required string Status { get; init; }
 }
 
-public class ReactivateStaffUser {
+public sealed class ReactivateStaffUser {
 	public static async Task<Results<
 		Ok<StaffUserReactivatedResult>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult,
 		AppConflictHttpResult
-	>> HandleReactivateStaffUser(
+	>> Handle(
 		[FromRoute] string userId,
 		[FromServices] IUserService userService,
 		[FromServices] IAuditLogService auditLogService,

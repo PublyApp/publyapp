@@ -11,14 +11,14 @@ public class GetStaffProfileByIdResult {
 	public required StaffProfileItem Profile { get; set; }
 }
 
-public class GetStaffProfileById {
+public sealed class GetStaffProfileById {
 	public static async Task<
 		Results<
 			Ok<GetStaffProfileByIdResult>,
 			AppNotFoundHttpResult,
 			AppBadRequestHttpResult
 		>
-	> HandleGetStaffProfileById(
+	> Handle(
 		[FromServices] IProfileAsStaffService profileAsStaffService,
 		[FromRoute] string profileId,
 		CancellationToken cancellationToken

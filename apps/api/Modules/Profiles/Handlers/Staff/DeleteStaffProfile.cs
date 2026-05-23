@@ -15,7 +15,7 @@ public sealed class DeleteStaffProfile {
 			AppBadRequestHttpResult,
 			AppNotFoundHttpResult
 		>
-	> HandleDeleteStaffProfile(
+	> Handle(
 		[FromRoute] string profileId,
 		[FromServices] IProfileAsStaffService profileAsStaffService,
 		CancellationToken cancellationToken

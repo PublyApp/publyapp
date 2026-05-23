@@ -8,12 +8,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Modules.Users.Handlers.Staff;
 
-public class GetTenantUserAsStaff {
+public sealed class GetTenantUserAsStaff {
 	public static async Task<Results<
 		Ok<TenantUserDetailsResult>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleGetTenantUserAsStaff(
+	>> Handle(
 		[FromRoute] string tenantId,
 		[FromRoute] string userId,
 		[FromServices] IUserService userService,

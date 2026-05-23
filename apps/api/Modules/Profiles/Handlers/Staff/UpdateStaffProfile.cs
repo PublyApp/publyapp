@@ -91,12 +91,12 @@ public class UpdateStaffProfileBodyValidator
 	}
 }
 
-public class UpdateStaffProfile {
+public sealed class UpdateStaffProfile {
 	public static async Task<Results<
 		Ok<GetStaffProfileByIdResult>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleUpdateStaffProfile(
+	>> Handle(
 		[FromServices] IProfileAsStaffService profileAsStaffService,
 		[FromRoute] string profileId,
 		[FromBody] UpdateStaffProfileBody body,

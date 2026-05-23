@@ -85,13 +85,13 @@ public class CreateStaffUserBodyValidator
 	}
 }
 
-public class CreateStaffUser {
+public sealed class CreateStaffUser {
 	public static async Task<
 		Results<
 			Created<CreateStaffUserResult>,
 			AppBadRequestHttpResult
 		>
-	> HandleCreateStaffUser(
+	> Handle(
 		[FromBody] CreateStaffUserBody body,
 		[FromServices] IUserService userService,
 		[FromServices] IAccountService accountService,

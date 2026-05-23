@@ -57,12 +57,12 @@ public class AcceptInvitationBodyValidator
 	}
 }
 
-public class AcceptInvitation {
+public sealed class AcceptInvitation {
 	public static async Task<Results<
 		Ok<InvitationAccepted>,
 		AppNotFoundHttpResult,
 		AppBadRequestHttpResult
-	>> HandleAcceptInvitation(
+	>> Handle(
 		[FromRoute] string token,
 		[FromBody] AcceptInvitationBody body,
 		HttpContext httpContext,

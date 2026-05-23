@@ -95,8 +95,8 @@ public class FindInvitationsForTenantAsStaffQueryValidator : CursorPaginatedQuer
 	}
 }
 
-public class FindInvitationsForTenantAsStaff {
-	public static async Task<Results<Ok<FindInvitationsForTenantAsStaffResult>, AppBadRequestHttpResult>> HandleFindInvitationsForTenantAsStaff(
+public sealed class FindInvitationsForTenantAsStaff {
+	public static async Task<Results<Ok<FindInvitationsForTenantAsStaffResult>, AppBadRequestHttpResult>> Handle(
 		string tenantId,
 		[AsParameters] FindInvitationsForTenantAsStaffQuery query,
 		[FromServices] IInvitationService invitationService,

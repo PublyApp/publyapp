@@ -36,14 +36,14 @@ public class VerifyEmailRequestResult {
 	public string Status { get; set; } = "success";
 }
 
-public class VerifyEmailRequest {
+public sealed class VerifyEmailRequest {
 	public static async Task<
 		Results<
 			Ok<VerifyEmailRequestResult>,
 			AppBadRequestHttpResult,
 			AppNotFoundHttpResult
 		>
-	> HandleVerifyEmailRequest(
+	> Handle(
 		[FromBody] VerifyEmailRequestBody body,
 		[FromServices] IUserService userService,
 		[FromServices] IEmailService emailService,

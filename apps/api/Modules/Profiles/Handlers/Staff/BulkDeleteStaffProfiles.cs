@@ -46,7 +46,7 @@ public sealed class BulkDeleteStaffProfiles {
 	// Handles one bulk request for multiple staff profile IDs and returns a
 	// batched success/failure count response, never throwing per-item.
 	public static async Task<Ok<BulkProfileActionResult>>
-		HandleBulkDeleteStaffProfiles(
+		Handle(
 		[FromBody] BulkDeleteStaffProfilesBody body,
 		[FromServices] IProfileAsStaffService profileAsStaffService,
 		[FromServices] IAuditLogService auditLogService,

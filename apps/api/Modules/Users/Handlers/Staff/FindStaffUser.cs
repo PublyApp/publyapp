@@ -92,13 +92,13 @@ public class FindStaffUsersQueryValidator
 	}
 }
 
-public class FindStaffUsers {
+public sealed class FindStaffUsers {
 	public static async Task<
 		Results<
 			Ok<FindStaffUsersResponse>,
 			AppBadRequestHttpResult
 		>
-	> HandleFindStaffUsers(
+	> Handle(
 		[AsParameters] FindStaffUsersQuery findStaffUsersQuery,
 		[FromServices] IUserService userService,
 		CancellationToken cancellationToken

@@ -17,13 +17,13 @@ public record TenantReactivatedResult {
 	public required string Status { get; init; }
 }
 
-public class ReactivateTenantAsStaff {
+public sealed class ReactivateTenantAsStaff {
 	public static async Task<Results<
 		Ok<TenantReactivatedResult>,
 		AppNotFoundHttpResult,
 		AppBadRequestHttpResult,
 		AppConflictHttpResult
-	>> HandleReactivateTenantAsStaff(
+	>> Handle(
 		[FromRoute] string tenantId,
 		[FromServices] ITenantAsStaffService tenantService,
 		[FromServices] IAuditLogService auditLogService,

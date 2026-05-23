@@ -10,12 +10,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Modules.Tenants.Handlers.Staff;
 
-public class DeleteTenantAsStaff {
+public sealed class DeleteTenantAsStaff {
 	public static async Task<Results<
 		Ok<ApiResponse>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleDeleteTenantAsStaff(
+	>> Handle(
 		[FromRoute] string tenantId,
 		[FromServices] ITenantAsStaffService tenantService,
 		[FromServices] IAuditLogService auditLogService,

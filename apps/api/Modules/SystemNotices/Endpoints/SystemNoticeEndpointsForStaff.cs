@@ -14,7 +14,7 @@ public static class SystemNoticeEndpointsForStaff {
 
 		group.MapPost(
 				Routes.SystemNotices.ForStaff.Create,
-				CreateSystemNotice.HandleCreateSystemNotice
+				CreateSystemNotice.Handle
 			)
 			.WithName("CreateSystemNotice")
 			.WithSummary("Create a new system notice")
@@ -23,7 +23,7 @@ public static class SystemNoticeEndpointsForStaff {
 
 		group.MapGet(
 				Routes.SystemNotices.ForStaff.Find,
-				FindSystemNotices.HandleFindSystemNotices
+				FindSystemNotices.Handle
 			)
 			.WithName("FindSystemNotices")
 			.WithSummary("List all system notices with pagination")
@@ -32,7 +32,7 @@ public static class SystemNoticeEndpointsForStaff {
 
 		group.MapGet(
 				Routes.SystemNotices.ForStaff.GetById,
-				GetSystemNoticeById.HandleGetSystemNoticeById
+				GetSystemNoticeById.Handle
 			)
 			.WithName("GetSystemNoticeById")
 			.WithSummary("Get a system notice by ID")
@@ -40,7 +40,7 @@ public static class SystemNoticeEndpointsForStaff {
 
 		group.MapPatch(
 				Routes.SystemNotices.ForStaff.Update,
-				UpdateSystemNotice.HandleUpdateSystemNotice
+				UpdateSystemNotice.Handle
 			)
 			.WithName("UpdateSystemNotice")
 			.WithSummary("Update an existing system notice")
@@ -49,7 +49,7 @@ public static class SystemNoticeEndpointsForStaff {
 
 		group.MapDelete(
 				Routes.SystemNotices.ForStaff.Delete,
-				DeleteSystemNotice.HandleDeleteSystemNotice
+				DeleteSystemNotice.Handle
 			)
 			.WithName("DeleteSystemNotice")
 			.WithSummary("Delete a system notice (soft delete)")

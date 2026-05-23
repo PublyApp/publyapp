@@ -73,12 +73,12 @@ public static class TenantUserCompanyForStaffMapper {
 	}
 }
 
-public class FindTenantUserCompaniesForStaff {
+public sealed class FindTenantUserCompaniesForStaff {
 	public static async Task<Results<
 		Ok<FindTenantUserCompaniesForStaffResult>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleFindTenantUserCompaniesForStaff(
+	>> Handle(
 		[FromRoute] string userId,
 		[FromServices] IUserService userService,
 		[AsParameters] FindTenantUserCompaniesForStaffQuery query,

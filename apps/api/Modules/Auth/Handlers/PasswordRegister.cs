@@ -33,11 +33,11 @@ public class PasswordRegisterResult {
 	public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
-public class PasswordRegister {
+public sealed class PasswordRegister {
 	public static async Task<Results<
 		Ok<PasswordRegisterResult>,
 		AppBadRequestHttpResult
-	>> HandlePasswordRegister(
+	>> Handle(
 		[FromBody] PasswordRegisterBody body,
 		[FromServices] IUserService userService,
 		CancellationToken cancellationToken

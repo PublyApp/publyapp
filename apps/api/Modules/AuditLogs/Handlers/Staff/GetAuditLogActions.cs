@@ -11,9 +11,9 @@ public record GetAuditLogActionsResponse {
 	}
 }
 
-public class GetAuditLogActions {
+public sealed class GetAuditLogActions {
 	public static async Task<Ok<GetAuditLogActionsResponse>>
-		HandleGetAuditLogActions(
+		Handle(
 		[FromServices]
 		IAuditLogQueryService auditLogQueryService,
 		CancellationToken cancellationToken = default

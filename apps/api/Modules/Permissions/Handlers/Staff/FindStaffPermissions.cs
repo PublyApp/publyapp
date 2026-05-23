@@ -38,7 +38,7 @@ public class FindStaffPermissionsQueryValidator : AbstractValidator<FindStaffPer
 	}
 }
 
-public class FindStaffPermissions {
+public sealed class FindStaffPermissions {
 	public static async Task<
 			Results<
 				Ok<
@@ -49,7 +49,7 @@ public class FindStaffPermissions {
 				>,
 				AppBadRequestHttpResult
 			>
-		> HandleFindStaffPermissions(
+		> Handle(
 		[FromServices] IPermissionAsStaffService permissionAsStaffService,
 		[AsParameters] FindStaffPermissionsQuery findStaffPermissionsQuery,
 		CancellationToken cancellationToken
