@@ -191,6 +191,11 @@ test-api:
   cd {{api_dir}} && dotnet restore Tests/MainApi.Tests.csproj
   cd {{api_dir}} && dotnet test Tests/MainApi.Tests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=normal"
 
+# Run analyzer tests
+test-analyzers:
+  cd {{api_dir}} && dotnet restore Analyzers/PublyApp.Analyzers.Tests/PublyApp.Analyzers.Tests.csproj
+  cd {{api_dir}} && dotnet test Analyzers/PublyApp.Analyzers.Tests/PublyApp.Analyzers.Tests.csproj -c Release --no-restore --nologo
+
 # Run API integration tests with verbose diagnostics
 test-api-debug:
   cd {{api_dir}} && dotnet restore Tests/MainApi.Tests.csproj

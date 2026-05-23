@@ -3,6 +3,7 @@
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
 		<PublishDir>$(ApiArtifactsRoot)publish\</PublishDir>
+		<DefaultItemExcludes>$(DefaultItemExcludes);Analyzers\**</DefaultItemExcludes>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -43,6 +44,12 @@
 			<PrivateAssets>all</PrivateAssets>
 		</PackageReference>
 		<PackageReference Include="Bogus" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="Analyzers/PublyApp.Analyzers/PublyApp.Analyzers.csproj"
+						  OutputItemType="Analyzer"
+						  ReferenceOutputAssembly="false" />
 	</ItemGroup>
 
 	<!-- for exporting openapi documents to json file at build time -->
