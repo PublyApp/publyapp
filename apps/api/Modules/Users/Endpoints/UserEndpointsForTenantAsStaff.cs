@@ -14,7 +14,7 @@ public static class UserEndpointsForTenantAsStaff {
 
 		group.MapGet(
 			Routes.Users.ForTenantAsStaff.Find,
-			FindTenantUsersAsStaff.HandleFindTenantUsersAsStaff
+			FindTenantUsersAsStaff.Handle
 		)
 			.WithName("FindTenantUsersAsStaff")
 			.WithSummary("Find users for a tenant")
@@ -23,7 +23,7 @@ public static class UserEndpointsForTenantAsStaff {
 
 		group.MapGet(
 			Routes.Users.ForTenantAsStaff.GetById,
-			GetTenantUserAsStaff.HandleGetTenantUserAsStaff
+			GetTenantUserAsStaff.Handle
 		)
 			.WithName("GetTenantUserAsStaff")
 			.WithSummary("Get a tenant user")
@@ -31,7 +31,7 @@ public static class UserEndpointsForTenantAsStaff {
 
 		group.MapPost(
 			Routes.Users.ForTenantAsStaff.Invite,
-			CreateInvitationForTenantAsStaff.HandleCreateInvitationForTenantAsStaff
+			CreateInvitationForTenantAsStaff.Handle
 		)
 			.WithName("CreateInvitationForTenantAsStaff")
 			.WithSummary("Invite a user to a tenant")
@@ -40,7 +40,7 @@ public static class UserEndpointsForTenantAsStaff {
 
 		group.MapDelete(
 			Routes.Users.ForTenantAsStaff.Delete,
-			RemoveUserFromTenantAsStaff.HandleRemoveUserFromTenantAsStaff
+			RemoveUserFromTenantAsStaff.Handle
 		)
 			.WithName("RemoveUserFromTenantAsStaff")
 			.WithSummary("Remove a user from a tenant")
@@ -48,7 +48,7 @@ public static class UserEndpointsForTenantAsStaff {
 
 		group.MapPatch(
 			Routes.Users.ForTenantAsStaff.Update,
-			UpdateTenantUserAsStaff.HandleUpdateTenantUserAsStaff
+			UpdateTenantUserAsStaff.Handle
 		)
 			.WithName("UpdateTenantUserAsStaff")
 			.WithSummary("Update a tenant user's profile or account level")
@@ -57,7 +57,7 @@ public static class UserEndpointsForTenantAsStaff {
 
 		group.MapPost(
 			Routes.Users.ForTenantAsStaff.Suspend,
-			SuspendTenantUserAsStaff.HandleSuspendTenantUserAsStaff
+			SuspendTenantUserAsStaff.Handle
 		)
 			.WithName("SuspendTenantUserAsStaff")
 			.WithSummary("Suspend a tenant user")
@@ -65,7 +65,7 @@ public static class UserEndpointsForTenantAsStaff {
 
 		group.MapPost(
 			Routes.Users.ForTenantAsStaff.Reactivate,
-			ReactivateTenantUserAsStaff.HandleReactivateTenantUserAsStaff
+			ReactivateTenantUserAsStaff.Handle
 		)
 			.WithName("ReactivateTenantUserAsStaff")
 			.WithSummary("Reactivate a suspended tenant user")

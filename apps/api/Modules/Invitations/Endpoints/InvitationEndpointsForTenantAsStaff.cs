@@ -14,7 +14,7 @@ public static class InvitationEndpointsForTenantAsStaff {
 
 		group.MapGet(
 				Routes.Invitations.ForTenantAsStaff.Find,
-				FindInvitationsForTenantAsStaff.HandleFindInvitationsForTenantAsStaff
+				FindInvitationsForTenantAsStaff.Handle
 			)
 			.WithName("FindInvitationsForTenantAsStaff")
 			.WithSummary("Find invitations for a tenant")
@@ -23,7 +23,7 @@ public static class InvitationEndpointsForTenantAsStaff {
 
 		group.MapDelete(
 				Routes.Invitations.ForTenantAsStaff.RevokeById,
-				RevokeInvitationForTenantAsStaff.HandleRevokeInvitationForTenantAsStaff
+				RevokeInvitationForTenantAsStaff.Handle
 			)
 			.WithName("RevokeInvitationForTenantAsStaff")
 			.WithSummary("Revoke a tenant invitation")

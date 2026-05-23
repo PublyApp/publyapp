@@ -38,7 +38,7 @@ public sealed class UpdateTenantUserEmailForStaff {
 			AppNotFoundHttpResult,
 			AppValidationProblemHttpResult
 		>
-	> HandleUpdateTenantUserEmailForStaff(
+	> Handle(
 		[FromRoute] string userId,
 		[FromBody] UpdateTenantUserEmailForStaffBody body,
 		[FromServices] IUserService userService,

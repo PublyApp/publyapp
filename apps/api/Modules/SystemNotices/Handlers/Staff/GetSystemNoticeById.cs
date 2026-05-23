@@ -20,13 +20,13 @@ public record SystemNoticeDetail {
 	public required DateTime UpdatedAt { get; init; }
 }
 
-public class GetSystemNoticeById {
+public sealed class GetSystemNoticeById {
 	public static async Task<Results<
 		Ok<SystemNoticeDetail>,
 		AppNotFoundHttpResult,
 		AppBadRequestHttpResult,
 		AppForbiddenHttpResult
-	>> HandleGetSystemNoticeById(
+	>> Handle(
 		[FromServices] ISystemNoticeService systemNoticeService,
 		[FromRoute] string noticeId,
 		CancellationToken cancellationToken = default

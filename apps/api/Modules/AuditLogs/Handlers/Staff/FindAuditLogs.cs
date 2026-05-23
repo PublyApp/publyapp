@@ -172,11 +172,11 @@ internal static class AuditLogActionsCsv {
 	}
 }
 
-public class FindAuditLogs {
+public sealed class FindAuditLogs {
 	public static async Task<Results<
 		Ok<FindAuditLogsResponse>,
 		AppBadRequestHttpResult
-	>> HandleFindAuditLogs(
+	>> Handle(
 		[AsParameters]
 		FindAuditLogsQuery query,
 		[FromServices]

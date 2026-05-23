@@ -96,7 +96,7 @@ public sealed class UpdateStaffUserProfilesResult {
 	public required List<StaffUserProfileItem> AssignedProfiles { get; init; }
 }
 
-public class UpdateStaffUserProfiles {
+public sealed class UpdateStaffUserProfiles {
 	public static async Task<
 		Results<
 			Ok<UpdateStaffUserProfilesResult>,
@@ -104,7 +104,7 @@ public class UpdateStaffUserProfiles {
 			AppNotFoundHttpResult,
 			AppValidationProblemHttpResult
 		>
-	> HandleUpdateStaffUserProfiles(
+	> Handle(
 		[FromRoute] string userId,
 		[FromBody] UpdateStaffUserProfilesBody body,
 		[FromServices] IUserService userService,

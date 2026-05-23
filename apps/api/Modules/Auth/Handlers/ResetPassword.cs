@@ -77,13 +77,13 @@ public class ResetPasswordResult {
 	public string Status { get; set; } = "success";
 }
 
-public class ResetPassword {
+public sealed class ResetPassword {
 	public static async Task<
 		Results<
 			Ok<ResetPasswordResult>,
 			AppBadRequestHttpResult
 		>
-	> HandleResetPassword(
+	> Handle(
 		[FromBody] ResetPasswordBody body,
 		[FromServices] IUserService userService,
 		[FromServices] IEmailService emailService,

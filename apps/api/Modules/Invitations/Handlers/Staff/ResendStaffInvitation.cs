@@ -9,12 +9,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Modules.Invitations.Handlers.Staff;
 
-public class ResendStaffInvitation {
+public sealed class ResendStaffInvitation {
 	public static async Task<Results<
 		Ok<ApiResponse>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleResendStaffInvitation(
+	>> Handle(
 		[FromRoute] string invitationId,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IEmailService emailService,

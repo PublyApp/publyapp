@@ -17,7 +17,7 @@ public static class UserEndpointsForTenantUsersAsStaff {
 
 		group.MapGet(
 			Routes.Users.ForTenantUsersAsStaff.GetById,
-			GetTenantUserByIdForStaff.HandleGetTenantUserByIdForStaff
+			GetTenantUserByIdForStaff.Handle
 		)
 			.WithName("GetTenantUserByIdForStaff")
 			.WithSummary("Get a tenant user's shared identity details")
@@ -26,7 +26,7 @@ public static class UserEndpointsForTenantUsersAsStaff {
 		group.MapGet(
 			Routes.Users.ForTenantUsersAsStaff.FindCompanies,
 			FindTenantUserCompaniesForStaff
-				.HandleFindTenantUserCompaniesForStaff
+				.Handle
 		)
 			.WithName("FindTenantUserCompaniesForStaff")
 			.WithSummary("Find companies assigned to a tenant user")
@@ -36,7 +36,7 @@ public static class UserEndpointsForTenantUsersAsStaff {
 		group.MapPost(
 			Routes.Users.ForTenantUsersAsStaff.AssignCompanies,
 			AssignTenantUserCompaniesForStaff
-				.HandleAssignTenantUserCompaniesForStaff
+				.Handle
 		)
 			.WithName("AssignTenantUserCompaniesForStaff")
 			.WithSummary("Assign companies to a tenant user")
@@ -46,7 +46,7 @@ public static class UserEndpointsForTenantUsersAsStaff {
 		group.MapPost(
 			Routes.Users.ForTenantUsersAsStaff.BulkRemoveCompanies,
 			BulkRemoveTenantUserCompaniesForStaff
-				.HandleBulkRemoveTenantUserCompaniesForStaff
+				.Handle
 		)
 			.WithName("BulkRemoveTenantUserCompaniesForStaff")
 			.WithSummary("Remove a tenant user from selected companies")
@@ -56,7 +56,7 @@ public static class UserEndpointsForTenantUsersAsStaff {
 		group.MapPost(
 			Routes.Users.ForTenantUsersAsStaff.BulkSuspendCompanies,
 			BulkSuspendTenantUserCompaniesForStaff
-				.HandleBulkSuspendTenantUserCompaniesForStaff
+				.Handle
 		)
 			.WithName("BulkSuspendTenantUserCompaniesForStaff")
 			.WithSummary("Suspend a tenant user in selected companies")
@@ -66,7 +66,7 @@ public static class UserEndpointsForTenantUsersAsStaff {
 		group.MapPost(
 			Routes.Users.ForTenantUsersAsStaff.BulkReactivateCompanies,
 			BulkReactivateTenantUserCompaniesForStaff
-				.HandleBulkReactivateTenantUserCompaniesForStaff
+				.Handle
 		)
 			.WithName("BulkReactivateTenantUserCompaniesForStaff")
 			.WithSummary("Reactivate a tenant user in selected companies")
@@ -76,7 +76,7 @@ public static class UserEndpointsForTenantUsersAsStaff {
 		group.MapPatch(
 			Routes.Users.ForTenantUsersAsStaff.Update,
 			UpdateTenantUserIdentityForStaff
-				.HandleUpdateTenantUserIdentityForStaff
+				.Handle
 		)
 			.WithName("UpdateTenantUserIdentityForStaff")
 			.WithSummary("Update a tenant user's shared identity fields")
@@ -86,7 +86,7 @@ public static class UserEndpointsForTenantUsersAsStaff {
 		group.MapPatch(
 			Routes.Users.ForTenantUsersAsStaff.UpdateEmail,
 			UpdateTenantUserEmailForStaff
-				.HandleUpdateTenantUserEmailForStaff
+				.Handle
 		)
 			.WithName("UpdateTenantUserEmailForStaff")
 			.WithSummary("Update a tenant user's shared identity email")
@@ -96,7 +96,7 @@ public static class UserEndpointsForTenantUsersAsStaff {
 		group.MapPost(
 			Routes.Users.ForTenantUsersAsStaff.Suspend,
 			SuspendTenantUserIdentityForStaff
-				.HandleSuspendTenantUserIdentityForStaff
+				.Handle
 		)
 			.WithName("SuspendTenantUserIdentityForStaff")
 			.WithSummary("Globally suspend a tenant user identity")
@@ -105,7 +105,7 @@ public static class UserEndpointsForTenantUsersAsStaff {
 		group.MapPost(
 			Routes.Users.ForTenantUsersAsStaff.Reactivate,
 			ReactivateTenantUserIdentityForStaff
-				.HandleReactivateTenantUserIdentityForStaff
+				.Handle
 		)
 			.WithName("ReactivateTenantUserIdentityForStaff")
 			.WithSummary("Globally reactivate a tenant user identity")

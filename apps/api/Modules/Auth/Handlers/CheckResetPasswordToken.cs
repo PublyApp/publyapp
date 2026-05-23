@@ -23,13 +23,13 @@ public class CheckResetPasswordTokenResult {
 	public string Email { get; set; } = string.Empty;
 }
 
-public class CheckResetPasswordToken {
+public sealed class CheckResetPasswordToken {
 	public static async Task<
 		Results<
 			Ok<CheckResetPasswordTokenResult>,
 			AppBadRequestHttpResult
 		>
-	> HandleCheckResetPasswordToken(
+	> Handle(
 		[AsParameters] CheckResetPasswordTokenQuery query,
 		[FromServices] IUserService userService,
 		CancellationToken cancellationToken

@@ -27,13 +27,13 @@ public class CheckEmailVerificationTokenResult {
 	public string? ResetPasswordUrl { get; set; }
 }
 
-public class CheckEmailVerificationToken {
+public sealed class CheckEmailVerificationToken {
 	public static async Task<
 		Results<
 			Ok<CheckEmailVerificationTokenResult>,
 			AppBadRequestHttpResult
 		>
-	> HandleCheckEmailVerificationToken(
+	> Handle(
 		[AsParameters] CheckEmailVerificationTokenQuery query,
 		[FromServices] IUserService userService,
 		[FromServices] IEmailService emailService,

@@ -15,11 +15,11 @@ public record InvitationDetails {
 	public required DateTime ExpiresAt { get; init; }
 }
 
-public class GetInvitationDetails {
+public sealed class GetInvitationDetails {
 	public static async Task<Results<
 		Ok<InvitationDetails>,
 		AppNotFoundHttpResult
-	>> HandleGetInvitationDetails(
+	>> Handle(
 		[FromRoute] string token,
 		[FromServices] IInvitationService invitationService,
 		CancellationToken cancellationToken = default

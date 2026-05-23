@@ -89,7 +89,7 @@ public sealed class AssignTenantUserCompaniesForStaff {
 		Ok<TenantUserCompanyBulkActionResult>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleAssignTenantUserCompaniesForStaff(
+	>> Handle(
 		[FromRoute] string userId,
 		[FromBody] AssignTenantUserCompaniesForStaffBody body,
 		[FromServices] IUserService userService,
@@ -164,7 +164,7 @@ public sealed class BulkRemoveTenantUserCompaniesForStaff {
 		Ok<TenantUserCompanyBulkActionResult>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleBulkRemoveTenantUserCompaniesForStaff(
+	>> Handle(
 		[FromRoute] string userId,
 		[FromBody] TenantUserCompanyIdsForStaffBody body,
 		[FromServices] IUserService userService,
@@ -218,7 +218,7 @@ public sealed class BulkSuspendTenantUserCompaniesForStaff {
 		Ok<TenantUserCompanyBulkActionResult>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleBulkSuspendTenantUserCompaniesForStaff(
+	>> Handle(
 		[FromRoute] string userId,
 		[FromBody] TenantUserCompanyIdsForStaffBody body,
 		[FromServices] IUserService userService,
@@ -272,7 +272,7 @@ public sealed class BulkReactivateTenantUserCompaniesForStaff {
 		Ok<TenantUserCompanyBulkActionResult>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleBulkReactivateTenantUserCompaniesForStaff(
+	>> Handle(
 		[FromRoute] string userId,
 		[FromBody] TenantUserCompanyIdsForStaffBody body,
 		[FromServices] IUserService userService,

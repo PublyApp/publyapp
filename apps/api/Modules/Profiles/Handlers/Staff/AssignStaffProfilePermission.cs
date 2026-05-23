@@ -7,12 +7,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Modules.Profiles.Handlers.Staff;
 
-public class AssignStaffProfilePermission {
+public sealed class AssignStaffProfilePermission {
 	public static async Task<Results<
 		NoContent,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleAssignStaffProfilePermission(
+	>> Handle(
 		[FromServices] IProfileAsStaffService profileAsStaffService,
 		[FromRoute] string profileId,
 		[FromRoute] string permissionKey,

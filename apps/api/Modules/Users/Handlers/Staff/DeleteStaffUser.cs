@@ -10,12 +10,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Modules.Users.Handlers.Staff;
 
-public class DeleteStaffUser {
+public sealed class DeleteStaffUser {
 	public static async Task<Results<
 		Ok<ApiResponse>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleDeleteStaffUser(
+	>> Handle(
 		[FromRoute] string userId,
 		[FromServices] IUserService userService,
 		[FromServices] IAuditLogService auditLogService,

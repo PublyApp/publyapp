@@ -172,12 +172,12 @@ public class UpdateSystemNoticeBodyValidator
 	}
 }
 
-public class UpdateSystemNotice {
+public sealed class UpdateSystemNotice {
 	public static async Task<Results<
 		Ok<SystemNoticeUpdated>,
 		AppNotFoundHttpResult,
 		AppBadRequestHttpResult
-	>> HandleUpdateSystemNotice(
+	>> Handle(
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] ISystemNoticeService systemNoticeService,
 		[FromServices] IAuditLogService auditLogService,

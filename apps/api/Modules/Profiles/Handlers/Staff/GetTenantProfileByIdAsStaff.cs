@@ -11,12 +11,12 @@ public class GetTenantProfileByIdResponse {
 	public required TenantProfileItem Profile { get; init; }
 }
 
-public class GetTenantProfileByIdAsStaff {
+public sealed class GetTenantProfileByIdAsStaff {
 	public static async Task<Results<
 		Ok<GetTenantProfileByIdResponse>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleGetTenantProfileByIdAsStaff(
+	>> Handle(
 		[FromServices] IProfileAsStaffService profileAsStaffService,
 		[FromRoute] string tenantId,
 		[FromRoute] string profileId,

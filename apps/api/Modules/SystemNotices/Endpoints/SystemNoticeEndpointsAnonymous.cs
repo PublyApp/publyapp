@@ -14,7 +14,7 @@ public static class SystemNoticeEndpointsAnonymous {
 
 		group.MapGet(
 				PathUtils.GetLastSegment(Routes.SystemNotices.Anonymous.GetActive),
-				GetActiveSystemNotices.HandleGetActiveSystemNotices
+				GetActiveSystemNotices.Handle
 			)
 			.WithName("GetActiveSystemNotices")
 			.WithSummary("Get all currently active system notices")

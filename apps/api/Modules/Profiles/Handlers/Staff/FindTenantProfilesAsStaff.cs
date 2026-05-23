@@ -34,13 +34,13 @@ public class FindTenantProfilesAsStaffQueryValidator
 	}
 }
 
-public class FindTenantProfilesAsStaff {
+public sealed class FindTenantProfilesAsStaff {
 	public static async Task<
 		Results<
 			Ok<FindTenantProfilesAsStaffResult>,
 			AppBadRequestHttpResult
 		>
-	> HandleFindTenantProfilesAsStaff(
+	> Handle(
 		[FromServices] IProfileAsStaffService profileAsStaffService,
 		[AsParameters] FindTenantProfilesAsStaffQuery findTenantProfilesAsStaffQuery,
 		[FromRoute] string tenantId,

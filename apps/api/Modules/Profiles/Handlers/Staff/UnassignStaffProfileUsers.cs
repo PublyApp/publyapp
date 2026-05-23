@@ -97,7 +97,7 @@ public sealed class UnassignStaffProfileUsers {
 			AppNotFoundHttpResult,
 			AppValidationProblemHttpResult
 		>
-	> HandleUnassignStaffProfileUsers(
+	> Handle(
 		[FromRoute] string profileId,
 		[FromBody] UnassignStaffProfileUsersBody body,
 		[FromServices] IProfileAsStaffService profileAsStaffService,

@@ -44,7 +44,7 @@ public sealed class BulkDeleteStaffUsersBodyValidator
 
 public sealed class BulkDeleteStaffUsers {
 	public static async Task<Ok<BulkStaffUserActionResult>>
-		HandleBulkDeleteStaffUsers(
+		Handle(
 			[FromBody] BulkDeleteStaffUsersBody body,
 			[FromServices] IUserService userService,
 			[FromServices] IAuditLogService auditLogService,

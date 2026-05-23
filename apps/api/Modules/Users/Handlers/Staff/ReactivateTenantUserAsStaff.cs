@@ -28,13 +28,13 @@ public record ReactivateTenantUserResultDto {
 /// <summary>
 /// Reactivate a suspended tenant user (marks the UserAccount as not suspended).
 /// </summary>
-public class ReactivateTenantUserAsStaff {
+public sealed class ReactivateTenantUserAsStaff {
 	public static async Task<Results<
 		Ok<ReactivateTenantUserResultDto>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult,
 		AppConflictHttpResult
-	>> HandleReactivateTenantUserAsStaff(
+	>> Handle(
 		[FromRoute] string tenantId,
 		[FromRoute] string userId,
 		[FromServices] IUserService userService,

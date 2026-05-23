@@ -70,7 +70,7 @@ public class UpdateStaffUserBodyValidator
 	}
 }
 
-public class UpdateStaffUser {
+public sealed class UpdateStaffUser {
 	public static async Task<
 		Results<
 			Ok<GetStaffUserByIdResult>,
@@ -78,7 +78,7 @@ public class UpdateStaffUser {
 			AppNotFoundHttpResult,
 			AppInternalServerErrorHttpResult
 		>
-	> HandleUpdateStaffUser(
+	> Handle(
 		[FromRoute] string userId,
 		[FromBody] UpdateStaffUserBody body,
 		[FromServices] IUserService UserService,

@@ -54,12 +54,12 @@ public class CreateStaffInvitationBodyValidator
 	}
 }
 
-public class CreateStaffInvitation {
+public sealed class CreateStaffInvitation {
 	public static async Task<Results<
 		Created<InvitationCreated>,
 		AppBadRequestHttpResult,
 		AppForbiddenHttpResult
-	>> HandleCreateStaffInvitation(
+	>> Handle(
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IAccountService accountService,

@@ -28,13 +28,13 @@ public record SuspendTenantUserResultDto {
 /// <summary>
 /// Suspend a tenant user (marks the UserAccount as suspended).
 /// </summary>
-public class SuspendTenantUserAsStaff {
+public sealed class SuspendTenantUserAsStaff {
 	public static async Task<Results<
 		Ok<SuspendTenantUserResultDto>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult,
 		AppConflictHttpResult
-	>> HandleSuspendTenantUserAsStaff(
+	>> Handle(
 		[FromRoute] string tenantId,
 		[FromRoute] string userId,
 		[FromServices] IUserService userService,

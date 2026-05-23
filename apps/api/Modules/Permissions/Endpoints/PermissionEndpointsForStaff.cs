@@ -15,7 +15,7 @@ public static class PermissionEndpointsForStaff {
 
 		scopesGroup.MapGet(
 			Routes.Permissions.ForStaff.Scopes.Staff,
-			FindStaffPermissions.HandleFindStaffPermissions
+			FindStaffPermissions.Handle
 		)
 			.WithName("FindStaffPermissions")
 			.WithSummary("Find staff permissions")
@@ -27,7 +27,7 @@ public static class PermissionEndpointsForStaff {
 
 		scopesGroup.MapGet(
 			Routes.Permissions.ForStaff.Scopes.Tenant,
-			FindTenantPermissions.HandleFindTenantPermissions
+			FindTenantPermissions.Handle
 		)
 			.WithName("FindTenantPermissions")
 			.WithSummary("Find tenant permissions")

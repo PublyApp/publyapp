@@ -1050,6 +1050,15 @@ export function createGetRedirectCodeResultFromDiscriminatorValue(parseNode: Par
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {GetScopeAuthDataTenant}
+ */
+// @ts-ignore
+export function createGetScopeAuthDataTenantFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetScopeAuthDataTenant;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {GetStaffInvitationLinkResult}
  */
 // @ts-ignore
@@ -1559,15 +1568,6 @@ export interface CreateTenantAsStaffResult extends AdditionalDataHolder, Parsabl
 // @ts-ignore
 export function createTenantForPickerItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoTenantForPickerItem;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {Tenant}
- */
-// @ts-ignore
-export function createTenantFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoTenant;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -2792,6 +2792,23 @@ export function deserializeIntoGetRedirectCodeResult(getRedirectCodeResult: Part
 }
 /**
  * The deserialization information for the current model
+ * @param GetScopeAuthDataTenant The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoGetScopeAuthDataTenant(getScopeAuthDataTenant: Partial<GetScopeAuthDataTenant> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "accountLevel": n => { getScopeAuthDataTenant.accountLevel = n.getStringValue(); },
+        "code": n => { getScopeAuthDataTenant.code = n.getStringValue(); },
+        "id": n => { getScopeAuthDataTenant.id = n.getGuidValue(); },
+        "isAdmin": n => { getScopeAuthDataTenant.isAdmin = n.getBooleanValue(); },
+        "name": n => { getScopeAuthDataTenant.name = n.getStringValue(); },
+        "permissions": n => { getScopeAuthDataTenant.permissions = n.getCollectionOfPrimitiveValues<string>(); },
+        "profiles": n => { getScopeAuthDataTenant.profiles = n.getCollectionOfObjectValues<ProfileItem>(createProfileItemFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param GetStaffInvitationLinkResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -3398,23 +3415,6 @@ export function deserializeIntoSystemNoticeUpdated(systemNoticeUpdated: Partial<
         "startsAt": n => { systemNoticeUpdated.startsAt = n.getDateValue(); },
         "title": n => { systemNoticeUpdated.title = n.getStringValue(); },
         "updatedAt": n => { systemNoticeUpdated.updatedAt = n.getDateValue(); },
-    }
-}
-/**
- * The deserialization information for the current model
- * @param Tenant The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoTenant(tenant: Partial<Tenant> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        "accountLevel": n => { tenant.accountLevel = n.getStringValue(); },
-        "code": n => { tenant.code = n.getStringValue(); },
-        "id": n => { tenant.id = n.getGuidValue(); },
-        "isAdmin": n => { tenant.isAdmin = n.getBooleanValue(); },
-        "name": n => { tenant.name = n.getStringValue(); },
-        "permissions": n => { tenant.permissions = n.getCollectionOfPrimitiveValues<string>(); },
-        "profiles": n => { tenant.profiles = n.getCollectionOfObjectValues<ProfileItem>(createProfileItemFromDiscriminatorValue); },
     }
 }
 /**
@@ -4099,6 +4099,36 @@ export interface GetRedirectCodeResult extends AdditionalDataHolder, Parsable {
      * The redirectCode property
      */
     redirectCode?: string | null;
+}
+export interface GetScopeAuthDataTenant extends AdditionalDataHolder, Parsable {
+    /**
+     * The accountLevel property
+     */
+    accountLevel?: string | null;
+    /**
+     * The code property
+     */
+    code?: string | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The isAdmin property
+     */
+    isAdmin?: boolean | null;
+    /**
+     * The name property
+     */
+    name?: string | null;
+    /**
+     * The permissions property
+     */
+    permissions?: string[] | null;
+    /**
+     * The profiles property
+     */
+    profiles?: ProfileItem[] | null;
 }
 export interface GetStaffInvitationLinkResult extends AdditionalDataHolder, Parsable {
     /**
@@ -5408,6 +5438,24 @@ export function serializeGetRedirectCodeResult(writer: SerializationWriter, getR
 }
 /**
  * Serializes information the current object
+ * @param GetScopeAuthDataTenant The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeGetScopeAuthDataTenant(writer: SerializationWriter, getScopeAuthDataTenant: Partial<GetScopeAuthDataTenant> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getScopeAuthDataTenant || isSerializingDerivedType) { return; }
+    writer.writeStringValue("accountLevel", getScopeAuthDataTenant.accountLevel);
+    writer.writeStringValue("code", getScopeAuthDataTenant.code);
+    writer.writeGuidValue("id", getScopeAuthDataTenant.id);
+    writer.writeBooleanValue("isAdmin", getScopeAuthDataTenant.isAdmin);
+    writer.writeStringValue("name", getScopeAuthDataTenant.name);
+    writer.writeCollectionOfPrimitiveValues<string>("permissions", getScopeAuthDataTenant.permissions);
+    writer.writeCollectionOfObjectValues<ProfileItem>("profiles", getScopeAuthDataTenant.profiles, serializeProfileItem);
+    writer.writeAdditionalData(getScopeAuthDataTenant.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param GetStaffInvitationLinkResult The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -6057,24 +6105,6 @@ export function serializeSystemNoticeUpdated(writer: SerializationWriter, system
     writer.writeStringValue("title", systemNoticeUpdated.title);
     writer.writeDateValue("updatedAt", systemNoticeUpdated.updatedAt);
     writer.writeAdditionalData(systemNoticeUpdated.additionalData);
-}
-/**
- * Serializes information the current object
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param Tenant The instance to serialize from.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeTenant(writer: SerializationWriter, tenant: Partial<Tenant> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!tenant || isSerializingDerivedType) { return; }
-    writer.writeStringValue("accountLevel", tenant.accountLevel);
-    writer.writeStringValue("code", tenant.code);
-    writer.writeGuidValue("id", tenant.id);
-    writer.writeBooleanValue("isAdmin", tenant.isAdmin);
-    writer.writeStringValue("name", tenant.name);
-    writer.writeCollectionOfPrimitiveValues<string>("permissions", tenant.permissions);
-    writer.writeCollectionOfObjectValues<ProfileItem>("profiles", tenant.profiles, serializeProfileItem);
-    writer.writeAdditionalData(tenant.additionalData);
 }
 /**
  * Serializes information the current object
@@ -7001,36 +7031,6 @@ export interface SystemNoticeUpdated extends AdditionalDataHolder, Parsable {
      * The updatedAt property
      */
     updatedAt?: Date | null;
-}
-export interface Tenant extends AdditionalDataHolder, Parsable {
-    /**
-     * The accountLevel property
-     */
-    accountLevel?: string | null;
-    /**
-     * The code property
-     */
-    code?: string | null;
-    /**
-     * The id property
-     */
-    id?: Guid | null;
-    /**
-     * The isAdmin property
-     */
-    isAdmin?: boolean | null;
-    /**
-     * The name property
-     */
-    name?: string | null;
-    /**
-     * The permissions property
-     */
-    permissions?: string[] | null;
-    /**
-     * The profiles property
-     */
-    profiles?: ProfileItem[] | null;
 }
 export interface TenantAsStaffListItem extends AdditionalDataHolder, Parsable {
     /**
