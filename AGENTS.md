@@ -280,6 +280,7 @@ For FluentValidation conventions (shared extension methods, pagination validator
 - Guard clauses (flat `if`/early return) over `switch` expressions when handling discriminated union error results from services
 - Query syntax for database LINQ queries; method syntax only for terminal ops
 - Handlers orchestrate, services implement (no DbContext in handlers)
+- Handler entrypoint method is `Handle` (never `HandleX`); handler class is `public sealed class <Operation>`; HTTP `Body`/`Query`/`Result`/`Response`/`Item` + `*Validator` types are top-level siblings in the handler file, never nested — see [`docs/guides/csharp-coding-standards.md`](docs/guides/csharp-coding-standards.md)
 - Request body DTOs use `JsonElement` with `Get*()` methods for FluentValidation compatibility
 - In handlers, cache body DTO getter results in locals when they are used 2+ times or return parsing-sensitive values like `PatchField<T>`, trimmed strings, parsed timestamps, or parsed enums
 - All errors use `TypedProblems.*` (RFC 7807), never `TypedResults.Forbid()`
