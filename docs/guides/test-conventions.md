@@ -25,14 +25,55 @@ Test infrastructure lives in `Lib/Testing/` organized by purpose:
 - `Testing/Fakes/` — test doubles (`FakeEmailSender`)
 - NO test cases in Testing/ — specs live co-located with source
 
-## Architecture Tests
+## Architecture Tests (executable guardrails)
 
-Architecture tests enforce cross-cutting rules across the entire assembly (not testing a specific class). They follow the same conventions but live in `Lib/Architecture/`:
+Many backend conventions live only as prose in `AGENTS.md` and the guides — which
+means they get missed in review and silently regress. Architecture tests turn the
+highest-value conventions into **executable guardrails**: plain xUnit specs that
+scan the compiled model/assembly (via reflection) and **fail the build** when a
+convention is violated. They run in the normal API test project, need no Docker,
+and report the concrete offender (type / property / constant), not a generic
+failure.
 
-- Use `*.Spec.cs` suffix (e.g., `ArchitectureGuard.Spec.cs`)
-- Namespace: `MainApi.Lib.Architecture`
-- Tests scan the assembly to verify architectural compliance
-- Example: `ArchitectureGuard.Spec.cs` ensures `PatchField<T>` doesn't appear in HTTP DTOs
+They live in `Lib/Architecture/` and follow the standard spec conventions:
+
+- `*.Spec.cs` suffix; namespace `MainApi.Lib.Architecture`.
+- A shared reflection helper, `Lib/Testing/Helpers/ArchitectureDiscoveryHelper`,
+  enumerates handler types, HTTP wire DTO records, service types, and route
+  constants while excluding generated/build artifacts. New guards reuse it rather
+  than re-scanning the assembly ad hoc.
+- Every guard includes a **vacuity check** (assert discovery is non-empty) so a
+  broken filter can't make the guard pass for the wrong reason.
+
+### Current guards
+
+- `ArchitectureGuard.Spec.cs` — no `PatchField<T>` in HTTP wire DTOs; junction
+  tables use composite keys (no `Id`/soft-delete columns); `Session` rows carry no
+  soft-delete columns.
+- `RouteConstraintGuard.Spec.cs` — route path constants must not use inline route
+  constraints (`:guid`/`:int`). IDs are parsed in handlers with `Guid.TryParse`, so
+  a malformed ID returns 400 (BadRequest); an inline constraint would silently
+  regress that to a route-level 404.
+
+### Architecture test vs Roslyn analyzer — which to use
+
+Use an **architecture test** (here) when the rule is checkable from the compiled
+assembly: reflected types, endpoint metadata, route constants, constructor
+dependencies, or simple repo structure. Use a **Roslyn analyzer** (tracked by
+#350) when the rule needs syntax, invocation shape, control flow, or
+IDE/build-time feedback — e.g. forbidding `?? throw`, the null-forgiving `!`, or
+`TypedResults.Forbid()` at a call site. Issue #357 owns the full classification
+and backlog; analyzer-backed rules wait on the #350 framework.
+
+### Adding a new guard
+
+1. Add a `*.Spec.cs` in `Lib/Architecture/` (namespace `MainApi.Lib.Architecture`).
+2. Discover the types/constants via `ArchitectureDiscoveryHelper` (extend it if a
+   new category is needed).
+3. Assert there are no offenders, listing concrete names in the failure message.
+4. Add a vacuity check so the guard can't pass on an empty scan.
+5. If current code isn't clean yet, baseline/allowlist the known violations and
+   ratchet toward zero rather than weakening the rule.
 
 ## Test Using Statements
 
