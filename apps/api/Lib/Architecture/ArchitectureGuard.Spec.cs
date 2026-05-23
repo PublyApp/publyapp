@@ -4,6 +4,7 @@ using System.Reflection;
 using FluentAssertions;
 
 using MainApi.Data.DbContext;
+using MainApi.Lib.Testing.Helpers;
 using MainApi.Modules.Auth.Entities;
 using MainApi.Modules.Profiles.Entities;
 using MainApi.Modules.Users.Entities;
@@ -13,6 +14,17 @@ using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace MainApi.Lib.Architecture {
+	/// <summary>
+	/// Architecture guards: executable enforcement of backend conventions that
+	/// otherwise live only as prose in AGENTS.md / the guides. Each fact scans the
+	/// compiled EF model or assembly (via reflection) and fails the build with the
+	/// concrete offender when a convention regresses — cheaper and more reliable
+	/// than catching it in review. This class covers data-model invariants
+	/// (composite junction keys, no soft-delete columns on Session) and
+	/// HTTP-contract hygiene (no PatchField&lt;T&gt; in wire DTOs). See
+	/// docs/guides/test-conventions.md ("Architecture Tests") for the rationale and
+	/// the architecture-test vs Roslyn-analyzer split (#357 / #350).
+	/// </summary>
 	public sealed class ArchitectureGuardSpec {
 		static ArchitectureGuardSpec() {
 			AppEnvironment.Initialize();
@@ -50,16 +62,19 @@ namespace MainApi.Lib.Architecture {
 		[Fact]
 		public void
 		ItShouldRejectPatchFieldInHttpDtos() {
-			Assembly apiAssembly = typeof(Program).Assembly;
+			// Scan handler HTTP wire DTO records
+			// (Body/Query/Result/Response/Item) via the shared discovery
+			// helper so this guard tracks every contract type, not just an
+			// ad-hoc namespace scan. Report the concrete Type.Property pair.
+			IReadOnlyList<Type> dtoTypes =
+				ArchitectureDiscoveryHelper.EnumerateWireDtoTypes();
 
-			IEnumerable<Type> dtoTypes = apiAssembly
-				.GetTypes()
-				.Where(t =>
-					t.Namespace?.Contains(".Handlers.")
-						== true)
-				.Where(t =>
-					!t.Name.EndsWith("Validator")
-					&& !t.Name.Contains('<'));
+			// Vacuity guard: an empty discovery would make the offender
+			// check pass for the wrong reason.
+			_ = dtoTypes.Should().NotBeEmpty(
+				"handler wire DTO discovery must find Body/Query/"
+				+ "Result/Response/Item records to scan."
+			);
 
 			List<string> offenders = dtoTypes
 				.SelectMany(t =>
@@ -69,11 +84,12 @@ namespace MainApi.Lib.Architecture {
 					ContainsPatchField(x.Prop.PropertyType))
 				.Select(x =>
 					$"{x.Type.Name}.{x.Prop.Name}")
+				.OrderBy(name => name, StringComparer.Ordinal)
 				.ToList();
 
 			_ = offenders.Should().BeEmpty(
 				"PatchField<T> must not appear in HTTP "
-				+ "wire DTOs (Body/Query/Response records). "
+				+ "wire DTOs (Body/Query/Result/Response/Item records). "
 				+ "Use it only in service args records."
 			);
 		}
