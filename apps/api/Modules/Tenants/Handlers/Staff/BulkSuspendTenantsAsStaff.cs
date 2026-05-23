@@ -64,11 +64,11 @@ public class BulkSuspendTenantsAsStaffBodyValidator : AbstractValidator<BulkSusp
 	}
 }
 
-public class BulkSuspendTenantsAsStaff {
+public sealed class BulkSuspendTenantsAsStaff {
 	public static async Task<Results<
 		Ok<BulkSuspendTenantsResult>,
 		AppBadRequestHttpResult
-	>> HandleBulkSuspendTenantsAsStaff(
+	>> Handle(
 		[FromBody] BulkSuspendTenantsAsStaffBody body,
 		[FromServices] ITenantAsStaffService tenantService,
 		[FromServices] IAuditLogService auditLogService,

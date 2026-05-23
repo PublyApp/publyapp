@@ -49,7 +49,7 @@ public sealed class BulkDeleteTenantProfilesAsStaff {
 	// per-profile failures visible to the caller.
 	public static async Task<
 		Results<Ok<BulkProfileActionResult>, AppBadRequestHttpResult>
-	> HandleBulkDeleteTenantProfilesAsStaff(
+	> Handle(
 		[FromRoute] string tenantId,
 		[FromBody] BulkDeleteTenantProfilesBody body,
 		[FromServices] IProfileAsStaffService profileAsStaffService,

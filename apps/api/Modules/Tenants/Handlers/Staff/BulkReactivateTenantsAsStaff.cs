@@ -43,11 +43,11 @@ public class BulkReactivateTenantsAsStaffBodyValidator : AbstractValidator<BulkR
 	}
 }
 
-public class BulkReactivateTenantsAsStaff {
+public sealed class BulkReactivateTenantsAsStaff {
 	public static async Task<Results<
 		Ok<BulkReactivateTenantsResult>,
 		AppBadRequestHttpResult
-	>> HandleBulkReactivateTenantsAsStaff(
+	>> Handle(
 		[FromBody] BulkReactivateTenantsAsStaffBody body,
 		[FromServices] ITenantAsStaffService tenantService,
 		[FromServices] IAuditLogService auditLogService,

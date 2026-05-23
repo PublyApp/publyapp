@@ -15,7 +15,7 @@ public static class InvitationEndpointsAnonymous {
 
 		group.MapGet(
 				PathUtils.GetLastSegment(Routes.Invitations.Anonymous.DetailsByToken, 2),
-				GetInvitationDetails.HandleGetInvitationDetails
+				GetInvitationDetails.Handle
 			)
 			.WithName("GetInvitationDetails")
 			.WithSummary("Get invitation details by token")
@@ -23,7 +23,7 @@ public static class InvitationEndpointsAnonymous {
 
 		group.MapPost(
 				PathUtils.GetLastSegment(Routes.Invitations.Anonymous.AcceptByToken, 2),
-				AcceptInvitation.HandleAcceptInvitation
+				AcceptInvitation.Handle
 			)
 			.WithName("AcceptInvitation")
 			.WithSummary("Accept invitation with a new or existing account")
@@ -32,7 +32,7 @@ public static class InvitationEndpointsAnonymous {
 
 		group.MapGet(
 			PathUtils.GetLastSegment(Routes.Invitations.Anonymous.Check),
-			CheckInvitationToken.HandleCheckInvitationToken
+			CheckInvitationToken.Handle
 		)
 		.WithName("CheckInvitationToken")
 		.WithSummary("Check Invitation Token")

@@ -15,7 +15,7 @@ public sealed class DeleteTenantProfileAsStaff {
 		Ok<ApiResponse>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleDeleteTenantProfileAsStaff(
+	>> Handle(
 		[FromRoute] string tenantId,
 		[FromRoute] string profileId,
 		[FromServices] IRequestAuthContext authContext,

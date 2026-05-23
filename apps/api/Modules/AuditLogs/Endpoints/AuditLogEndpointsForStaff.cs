@@ -19,7 +19,7 @@ public static class AuditLogEndpointsForStaff {
 
 		group.MapGet(
 				Routes.AuditLogs.ForStaff.Find,
-				FindAuditLogs.HandleFindAuditLogs
+				FindAuditLogs.Handle
 			)
 			.WithName("FindAuditLogs")
 			.WithSummary(
@@ -35,7 +35,7 @@ public static class AuditLogEndpointsForStaff {
 		group.MapGet(
 				Routes.AuditLogs.ForStaff.Actions,
 				GetAuditLogActions
-					.HandleGetAuditLogActions
+					.Handle
 			)
 			.WithName("GetAuditLogActions")
 			.WithSummary(
@@ -48,7 +48,7 @@ public static class AuditLogEndpointsForStaff {
 
 		group.MapGet(
 				Routes.AuditLogs.ForStaff.Export,
-				ExportAuditLogs.HandleExportAuditLogs
+				ExportAuditLogs.Handle
 			)
 			.WithName("ExportAuditLogs")
 			.WithSummary(
@@ -74,7 +74,7 @@ public static class AuditLogEndpointsForStaff {
 		group.MapGet(
 				Routes.AuditLogs.ForStaff.GetById,
 				GetAuditLogById
-					.HandleGetAuditLogById
+					.Handle
 			)
 			.WithName("GetAuditLogById")
 			.WithSummary(

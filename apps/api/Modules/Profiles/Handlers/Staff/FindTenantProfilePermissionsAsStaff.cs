@@ -11,12 +11,12 @@ public class FindTenantProfilePermissionsAsStaffResult {
 	public required List<string> PermissionKeys { get; init; }
 }
 
-public class FindTenantProfilePermissionsAsStaff {
+public sealed class FindTenantProfilePermissionsAsStaff {
 	public static async Task<Results<
 		Ok<FindTenantProfilePermissionsAsStaffResult>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleFindTenantProfilePermissionsAsStaff(
+	>> Handle(
 		[FromServices] IProfileAsStaffService profileAsStaffService,
 		[FromRoute] string tenantId,
 		[FromRoute] string profileId,

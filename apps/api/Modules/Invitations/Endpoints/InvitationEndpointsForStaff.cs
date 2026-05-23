@@ -14,7 +14,7 @@ public static class InvitationEndpointsForStaff {
 
 		group.MapPost(
 				Routes.Invitations.ForStaff.Create,
-				CreateStaffInvitation.HandleCreateStaffInvitation
+				CreateStaffInvitation.Handle
 			)
 			.WithName("CreateStaffInvitation")
 			.WithSummary("Create a staff invitation (Admin only)")
@@ -23,7 +23,7 @@ public static class InvitationEndpointsForStaff {
 
 		group.MapPost(
 				Routes.Invitations.ForStaff.BulkCreate,
-				BulkCreateStaffInvitations.HandleBulkCreateStaffInvitations
+				BulkCreateStaffInvitations.Handle
 			)
 			.WithName("BulkCreateStaffInvitations")
 			.WithSummary("Bulk create staff invitations (Admin only)")
@@ -32,7 +32,7 @@ public static class InvitationEndpointsForStaff {
 
 		group.MapPost(
 				Routes.Invitations.ForStaff.BulkRevoke,
-				BulkRevokeStaffInvitations.HandleBulkRevokeStaffInvitations
+				BulkRevokeStaffInvitations.Handle
 			)
 			.WithName("BulkRevokeStaffInvitations")
 			.WithSummary("Bulk revoke staff invitations")
@@ -41,7 +41,7 @@ public static class InvitationEndpointsForStaff {
 
 		group.MapGet(
 				Routes.Invitations.ForStaff.Find,
-				FindStaffInvitations.HandleFindStaffInvitations
+				FindStaffInvitations.Handle
 			)
 			.WithName("FindStaffInvitations")
 			.WithSummary("Find staff invitations")
@@ -51,7 +51,7 @@ public static class InvitationEndpointsForStaff {
 
 		group.MapGet(
 				Routes.Invitations.ForStaff.GetById,
-				GetStaffInvitation.HandleGetStaffInvitation
+				GetStaffInvitation.Handle
 			)
 			.WithName("GetStaffInvitation")
 			.WithSummary("Get staff invitation details")
@@ -59,7 +59,7 @@ public static class InvitationEndpointsForStaff {
 
 		group.MapGet(
 				Routes.Invitations.ForStaff.GetLinkById,
-				GetStaffInvitationLink.HandleGetStaffInvitationLink
+				GetStaffInvitationLink.Handle
 			)
 			.WithName("GetStaffInvitationLink")
 			.WithSummary("Get staff invitation link")
@@ -67,7 +67,7 @@ public static class InvitationEndpointsForStaff {
 
 		group.MapPost(
 				Routes.Invitations.ForStaff.ResendById,
-				ResendStaffInvitation.HandleResendStaffInvitation
+				ResendStaffInvitation.Handle
 			)
 			.WithName("ResendStaffInvitation")
 			.WithSummary("Resend staff invitation email")
@@ -75,7 +75,7 @@ public static class InvitationEndpointsForStaff {
 
 		group.MapDelete(
 				Routes.Invitations.ForStaff.RevokeById,
-				RevokeInvitationForStaff.HandleRevokeInvitationForStaff
+				RevokeInvitationForStaff.Handle
 			)
 			.WithName("RevokeInvitationForStaff")
 			.WithSummary("Revoke a staff invitation (Admin only)")

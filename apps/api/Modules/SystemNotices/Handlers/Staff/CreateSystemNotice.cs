@@ -133,11 +133,11 @@ public class CreateSystemNoticeBodyValidator
 	}
 }
 
-public class CreateSystemNotice {
+public sealed class CreateSystemNotice {
 	public static async Task<Results<
 		Created<SystemNoticeCreated>,
 		AppBadRequestHttpResult
-	>> HandleCreateSystemNotice(
+	>> Handle(
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] ISystemNoticeService systemNoticeService,
 		[FromServices] IAuditLogService auditLogService,

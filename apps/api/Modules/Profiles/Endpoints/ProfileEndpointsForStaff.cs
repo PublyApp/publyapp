@@ -15,7 +15,7 @@ public static class ProfileEndpointsForStaff {
 
 		staffGroup.MapGet(
 			Routes.Profiles.ForStaff.Find,
-			FindStaffProfiles.HandleFindStaffProfiles
+			FindStaffProfiles.Handle
 		)
 			.WithName("FindStaffProfiles")
 			.WithSummary("Find profiles for a staff member")
@@ -24,7 +24,7 @@ public static class ProfileEndpointsForStaff {
 
 		staffGroup.MapPost(
 			Routes.Profiles.ForStaff.Create,
-			CreateStaffProfile.HandleCreateStaffProfile
+			CreateStaffProfile.Handle
 		)
 			.WithName("CreateStaffProfile")
 			.WithSummary("Create a new staff profile")
@@ -33,7 +33,7 @@ public static class ProfileEndpointsForStaff {
 
 		staffGroup.MapGet(
 			Routes.Profiles.ForStaff.Get,
-			GetStaffProfileById.HandleGetStaffProfileById
+			GetStaffProfileById.Handle
 		)
 			.WithName("GetStaffProfileById")
 			.WithSummary("Get a staff profile by id")
@@ -41,7 +41,7 @@ public static class ProfileEndpointsForStaff {
 
 		staffGroup.MapDelete(
 			Routes.Profiles.ForStaff.Delete,
-			DeleteStaffProfile.HandleDeleteStaffProfile
+			DeleteStaffProfile.Handle
 		)
 			.WithName("DeleteStaffProfile")
 			.WithSummary("Delete a staff profile")
@@ -51,7 +51,7 @@ public static class ProfileEndpointsForStaff {
 
 		staffGroup.MapPost(
 			Routes.Profiles.ForStaff.BulkDelete,
-			BulkDeleteStaffProfiles.HandleBulkDeleteStaffProfiles
+			BulkDeleteStaffProfiles.Handle
 		)
 			.WithName("BulkDeleteStaffProfiles")
 			.WithSummary("Bulk delete staff profiles")
@@ -62,7 +62,7 @@ public static class ProfileEndpointsForStaff {
 
 		staffGroup.MapPatch(
 			Routes.Profiles.ForStaff.Update,
-			UpdateStaffProfile.HandleUpdateStaffProfile
+			UpdateStaffProfile.Handle
 		)
 			.WithName("UpdateStaffProfile")
 			.WithSummary("Update a staff profile (name/description)")
@@ -73,7 +73,7 @@ public static class ProfileEndpointsForStaff {
 
 		staffGroup.MapGet(
 			Routes.Profiles.ForStaff.Permissions.Find,
-			FindStaffProfilePermissions.HandleFindStaffProfilePermissions
+			FindStaffProfilePermissions.Handle
 		)
 			.WithName("FindStaffProfilePermissions")
 			.WithSummary("List permission keys assigned to a staff profile")
@@ -82,7 +82,7 @@ public static class ProfileEndpointsForStaff {
 
 		staffGroup.MapPost(
 			Routes.Profiles.ForStaff.Permissions.Upsert,
-			AssignStaffProfilePermission.HandleAssignStaffProfilePermission
+			AssignStaffProfilePermission.Handle
 		)
 			.WithName("AssignStaffProfilePermission")
 			.WithSummary("Assign a permission key to a staff profile")
@@ -90,7 +90,7 @@ public static class ProfileEndpointsForStaff {
 
 		staffGroup.MapDelete(
 			Routes.Profiles.ForStaff.Permissions.Upsert,
-			UnassignStaffProfilePermission.HandleUnassignStaffProfilePermission
+			UnassignStaffProfilePermission.Handle
 		)
 			.WithName("UnassignStaffProfilePermission")
 			.WithSummary("Unassign a permission key from a staff profile")
@@ -98,7 +98,7 @@ public static class ProfileEndpointsForStaff {
 
 		staffGroup.MapGet(
 			Routes.Profiles.ForStaff.Users.Find,
-			FindStaffProfileUsers.HandleFindStaffProfileUsers
+			FindStaffProfileUsers.Handle
 		)
 			.WithName("FindStaffProfileUsers")
 			.WithSummary("Find users assigned to a staff profile")
@@ -109,7 +109,7 @@ public static class ProfileEndpointsForStaff {
 
 		staffGroup.MapPost(
 			Routes.Profiles.ForStaff.Users.ResolveAssignment,
-			ResolveStaffProfileUserAssignments.HandleResolveStaffProfileUserAssignments
+			ResolveStaffProfileUserAssignments.Handle
 		)
 			.WithName("ResolveStaffProfileUserAssignments")
 			.WithSummary("Resolve whether staff users are assigned to a staff profile (batch)")
@@ -118,7 +118,7 @@ public static class ProfileEndpointsForStaff {
 
 		staffGroup.MapPost(
 			Routes.Profiles.ForStaff.Users.Unassign,
-			UnassignStaffProfileUsers.HandleUnassignStaffProfileUsers
+			UnassignStaffProfileUsers.Handle
 		)
 			.WithName("UnassignStaffProfileUsers")
 			.WithSummary("Bulk-unassign staff users from a staff profile")
@@ -133,7 +133,7 @@ public static class ProfileEndpointsForStaff {
 
 		tenantGroup.MapGet(
 			Routes.Profiles.ForTenantAsStaff.Find,
-			FindTenantProfilesAsStaff.HandleFindTenantProfilesAsStaff
+			FindTenantProfilesAsStaff.Handle
 		)
 			.WithName("FindTenantProfiles")
 			.WithSummary("Find profiles for a tenant")
@@ -142,7 +142,7 @@ public static class ProfileEndpointsForStaff {
 
 		tenantGroup.MapGet(
 			Routes.Profiles.ForTenantAsStaff.Get,
-			GetTenantProfileByIdAsStaff.HandleGetTenantProfileByIdAsStaff
+			GetTenantProfileByIdAsStaff.Handle
 		)
 			.WithName("GetTenantProfileByIdAsStaff")
 			.WithSummary("Get a tenant profile by id")
@@ -150,7 +150,7 @@ public static class ProfileEndpointsForStaff {
 
 		tenantGroup.MapPost(
 			Routes.Profiles.ForTenantAsStaff.Create,
-			CreateTenantProfileAsStaff.HandleCreateTenantProfileAsStaff
+			CreateTenantProfileAsStaff.Handle
 		)
 			.WithName("CreateTenantProfileAsStaff")
 			.WithSummary("Create a tenant profile")
@@ -159,7 +159,7 @@ public static class ProfileEndpointsForStaff {
 
 		tenantGroup.MapPatch(
 			Routes.Profiles.ForTenantAsStaff.Update,
-			UpdateTenantProfileAsStaff.HandleUpdateTenantProfileAsStaff
+			UpdateTenantProfileAsStaff.Handle
 		)
 			.WithName("UpdateTenantProfileAsStaff")
 			.WithSummary("Update a tenant profile")
@@ -168,7 +168,7 @@ public static class ProfileEndpointsForStaff {
 
 		tenantGroup.MapDelete(
 			Routes.Profiles.ForTenantAsStaff.Delete,
-			DeleteTenantProfileAsStaff.HandleDeleteTenantProfileAsStaff
+			DeleteTenantProfileAsStaff.Handle
 		)
 			.WithName("DeleteTenantProfileAsStaff")
 			.WithSummary("Delete a tenant profile")
@@ -176,7 +176,7 @@ public static class ProfileEndpointsForStaff {
 
 		tenantGroup.MapPost(
 			Routes.Profiles.ForTenantAsStaff.BulkDelete,
-			BulkDeleteTenantProfilesAsStaff.HandleBulkDeleteTenantProfilesAsStaff
+			BulkDeleteTenantProfilesAsStaff.Handle
 		)
 			.WithName("BulkDeleteTenantProfilesAsStaff")
 			.WithSummary("Bulk delete tenant profiles")
@@ -186,7 +186,7 @@ public static class ProfileEndpointsForStaff {
 
 		tenantGroup.MapGet(
 			Routes.Profiles.ForTenantAsStaff.Permissions.Find,
-			FindTenantProfilePermissionsAsStaff.HandleFindTenantProfilePermissionsAsStaff
+			FindTenantProfilePermissionsAsStaff.Handle
 		)
 			.WithName("FindTenantProfilePermissionsAsStaff")
 			.WithSummary("List permission keys assigned to a tenant profile")
@@ -194,7 +194,7 @@ public static class ProfileEndpointsForStaff {
 
 		tenantGroup.MapPost(
 			Routes.Profiles.ForTenantAsStaff.Permissions.Upsert,
-			AssignTenantProfilePermissionAsStaff.HandleAssignTenantProfilePermissionAsStaff
+			AssignTenantProfilePermissionAsStaff.Handle
 		)
 			.WithName("AssignTenantProfilePermissionAsStaff")
 			.WithSummary("Assign a permission key to a tenant profile")
@@ -202,7 +202,7 @@ public static class ProfileEndpointsForStaff {
 
 		tenantGroup.MapDelete(
 			Routes.Profiles.ForTenantAsStaff.Permissions.Upsert,
-			UnassignTenantProfilePermissionAsStaff.HandleUnassignTenantProfilePermissionAsStaff
+			UnassignTenantProfilePermissionAsStaff.Handle
 		)
 			.WithName("UnassignTenantProfilePermissionAsStaff")
 			.WithSummary("Unassign a permission key from a tenant profile")

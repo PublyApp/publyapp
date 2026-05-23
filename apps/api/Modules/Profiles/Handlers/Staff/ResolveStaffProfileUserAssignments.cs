@@ -119,7 +119,7 @@ public sealed class ResolveStaffProfileUserAssignments {
 			AppNotFoundHttpResult,
 			AppValidationProblemHttpResult
 		>
-	> HandleResolveStaffProfileUserAssignments(
+	> Handle(
 		[FromRoute] string profileId,
 		[FromBody] ResolveStaffProfileUserAssignmentsBody body,
 		[FromServices] IProfileAsStaffService profileService,

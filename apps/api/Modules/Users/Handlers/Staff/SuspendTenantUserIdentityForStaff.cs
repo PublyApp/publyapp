@@ -16,7 +16,7 @@ public sealed class SuspendTenantUserIdentityForStaff {
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult,
 		AppConflictHttpResult
-	>> HandleSuspendTenantUserIdentityForStaff(
+	>> Handle(
 		[FromRoute] string userId,
 		[FromServices] IUserService userService,
 		[FromServices] IAuditLogService auditLogService,

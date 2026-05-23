@@ -72,12 +72,12 @@ public class UpdateTenantUserIdentityForStaffBodyValidator
 	}
 }
 
-public class UpdateTenantUserIdentityForStaff {
+public sealed class UpdateTenantUserIdentityForStaff {
 	public static async Task<Results<
 		Ok<TenantUserDetailsForStaffResult>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleUpdateTenantUserIdentityForStaff(
+	>> Handle(
 		[FromRoute] string userId,
 		[FromBody] UpdateTenantUserIdentityForStaffBody body,
 		[FromServices] IRequestAuthContext authContext,

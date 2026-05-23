@@ -34,8 +34,8 @@ public class GetRedirectCodeResult {
 	public bool HasSuspendedTenants { get; set; }
 }
 
-public class GetRedirectCode {
-	public static async Task<Ok<GetRedirectCodeResult>> HandleGetRedirectCode(
+public sealed class GetRedirectCode {
+	public static async Task<Ok<GetRedirectCodeResult>> Handle(
 		[AsParameters] GetRedirectCodeQuery query,
 		IRequestAuthContext authContext,
 		ILogger<GetRedirectCode> logger,

@@ -19,14 +19,14 @@ public sealed class GetStaffUserProfilesResult {
 	public required List<StaffUserProfileItem> AssignedProfiles { get; init; }
 }
 
-public class GetStaffUserProfiles {
+public sealed class GetStaffUserProfiles {
 	public static async Task<
 		Results<
 			Ok<GetStaffUserProfilesResult>,
 			AppBadRequestHttpResult,
 			AppNotFoundHttpResult
 		>
-	> HandleGetStaffUserProfiles(
+	> Handle(
 		[FromRoute] string userId,
 		[FromServices] IUserService userService,
 		ILogger<GetStaffUserProfiles> logger,

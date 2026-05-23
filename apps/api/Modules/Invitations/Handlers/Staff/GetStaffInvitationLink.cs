@@ -12,12 +12,12 @@ public class GetStaffInvitationLinkResult {
 	public required string Link { get; init; }
 }
 
-public class GetStaffInvitationLink {
+public sealed class GetStaffInvitationLink {
 	public static async Task<Results<
 		Ok<GetStaffInvitationLinkResult>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleGetStaffInvitationLink(
+	>> Handle(
 		[FromRoute] string invitationId,
 		[FromServices] IInvitationService invitationService,
 		CancellationToken cancellationToken = default

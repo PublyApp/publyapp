@@ -25,12 +25,12 @@ public record StaffInvitationDetails {
 	public required List<StaffInvitationProfile> Profiles { get; init; }
 }
 
-public class GetStaffInvitation {
+public sealed class GetStaffInvitation {
 	public static async Task<Results<
 		Ok<StaffInvitationDetails>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleGetStaffInvitation(
+	>> Handle(
 		[FromRoute] string invitationId,
 		[FromServices] IInvitationService invitationService,
 		CancellationToken cancellationToken = default

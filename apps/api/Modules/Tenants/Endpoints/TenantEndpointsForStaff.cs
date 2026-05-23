@@ -14,7 +14,7 @@ public static class TenantEndpointsForStaff {
 
 		group.MapPost(
 			Routes.Tenants.ForStaff.Create,
-			CreateTenantAsStaff.HandleCreateTenantAsStaff
+			CreateTenantAsStaff.Handle
 		)
 			.WithName("CreateTenant")
 			.WithSummary("Create a new tenant")
@@ -23,7 +23,7 @@ public static class TenantEndpointsForStaff {
 
 		group.MapGet(
 			Routes.Tenants.ForStaff.GetById,
-			GetTenantAsStaff.HandleGetTenantAsStaff
+			GetTenantAsStaff.Handle
 		)
 			.WithName("GetTenantById")
 			.WithSummary("Get a tenant by id")
@@ -31,7 +31,7 @@ public static class TenantEndpointsForStaff {
 
 		group.MapGet(
 			Routes.Tenants.ForStaff.Find,
-			FindTenantsAsStaff.HandleFindTenantsAsStaff
+			FindTenantsAsStaff.Handle
 		)
 			.WithName("FindTenants")
 			.WithSummary("Find tenants with pagination")
@@ -40,7 +40,7 @@ public static class TenantEndpointsForStaff {
 
 		group.MapPatch(
 			Routes.Tenants.ForStaff.Update,
-			UpdateTenantAsStaff.HandleUpdateTenantAsStaff
+			UpdateTenantAsStaff.Handle
 		)
 			.WithName("UpdateTenant")
 			.WithSummary("Update a tenant")
@@ -51,7 +51,7 @@ public static class TenantEndpointsForStaff {
 
 		group.MapPost(
 			Routes.Tenants.ForStaff.Suspend,
-			SuspendTenantAsStaff.HandleSuspendTenantAsStaff
+			SuspendTenantAsStaff.Handle
 		)
 			.WithName("SuspendTenant")
 			.WithSummary("Suspend a tenant")
@@ -60,7 +60,7 @@ public static class TenantEndpointsForStaff {
 
 		group.MapPost(
 			Routes.Tenants.ForStaff.Reactivate,
-			ReactivateTenantAsStaff.HandleReactivateTenantAsStaff
+			ReactivateTenantAsStaff.Handle
 		)
 			.WithName("ReactivateTenant")
 			.WithSummary("Reactivate a suspended tenant")
@@ -68,7 +68,7 @@ public static class TenantEndpointsForStaff {
 
 		group.MapDelete(
 			Routes.Tenants.ForStaff.Delete,
-			DeleteTenantAsStaff.HandleDeleteTenantAsStaff
+			DeleteTenantAsStaff.Handle
 		)
 			.WithName("DeleteTenant")
 			.WithSummary("Soft-delete a suspended tenant")
@@ -78,7 +78,7 @@ public static class TenantEndpointsForStaff {
 
 		group.MapPost(
 			Routes.Tenants.ForStaff.BulkSuspend,
-			BulkSuspendTenantsAsStaff.HandleBulkSuspendTenantsAsStaff
+			BulkSuspendTenantsAsStaff.Handle
 		)
 			.WithName("BulkSuspendTenants")
 			.WithSummary("Bulk suspend tenants")
@@ -87,7 +87,7 @@ public static class TenantEndpointsForStaff {
 
 		group.MapPost(
 			Routes.Tenants.ForStaff.BulkReactivate,
-			BulkReactivateTenantsAsStaff.HandleBulkReactivateTenantsAsStaff
+			BulkReactivateTenantsAsStaff.Handle
 		)
 			.WithName("BulkReactivateTenants")
 			.WithSummary("Bulk reactivate tenants")
@@ -96,7 +96,7 @@ public static class TenantEndpointsForStaff {
 
 		group.MapPost(
 			Routes.Tenants.ForStaff.BulkDelete,
-			BulkDeleteTenantsAsStaff.HandleBulkDeleteTenantsAsStaff
+			BulkDeleteTenantsAsStaff.Handle
 		)
 			.WithName("BulkDeleteTenants")
 			.WithSummary("Bulk delete tenants")

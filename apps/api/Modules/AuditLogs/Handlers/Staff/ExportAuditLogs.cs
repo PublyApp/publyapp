@@ -157,9 +157,9 @@ public class ExportAuditLogsQueryValidator
 	}
 }
 
-public class ExportAuditLogs {
+public sealed class ExportAuditLogs {
 	public static async Task<IResult>
-		HandleExportAuditLogs(
+		Handle(
 		[AsParameters]
 		ExportAuditLogsQuery query,
 		[FromServices]

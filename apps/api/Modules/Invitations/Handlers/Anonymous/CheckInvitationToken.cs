@@ -24,13 +24,13 @@ public class CheckInvitationTokenResult {
 	public bool UserExists { get; set; }
 }
 
-public class CheckInvitationToken {
+public sealed class CheckInvitationToken {
 	public static async Task<
 		Results<
 			Ok<CheckInvitationTokenResult>,
 			AppBadRequestHttpResult
 		>
-	> HandleCheckInvitationToken(
+	> Handle(
 		[AsParameters] CheckInvitationTokenQuery query,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] ILogger<CheckInvitationToken> logger,

@@ -84,12 +84,12 @@ public class UpdateTenantProfileAsStaffBodyValidator
 	}
 }
 
-public class UpdateTenantProfileAsStaff {
+public sealed class UpdateTenantProfileAsStaff {
 	public static async Task<Results<
 		Ok<GetTenantProfileByIdResponse>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleUpdateTenantProfileAsStaff(
+	>> Handle(
 		[FromRoute] string tenantId,
 		[FromRoute] string profileId,
 		[FromBody] UpdateTenantProfileAsStaffBody body,

@@ -20,14 +20,14 @@ public class GetStaffUserByIdResult {
 	public DateTime UpdatedAt { get; set; }
 }
 
-public class GetStaffUserById {
+public sealed class GetStaffUserById {
 	public static async Task<
 		Results<
 			Ok<GetStaffUserByIdResult>,
 			AppBadRequestHttpResult,
 			AppNotFoundHttpResult
 		>
-	> HandleGetStaffUserById(
+	> Handle(
 		[FromRoute] string userId,
 		[FromServices] IUserService UserService,
 		ILogger<GetStaffUserById> logger,

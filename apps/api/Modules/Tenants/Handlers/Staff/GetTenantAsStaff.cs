@@ -20,14 +20,14 @@ public class GetTenantAsStaffResult {
 	public DateTime UpdatedAt { get; set; }
 }
 
-public class GetTenantAsStaff {
+public sealed class GetTenantAsStaff {
 	public static async Task<
 		Results<
 			Ok<GetTenantAsStaffResult>,
 			AppBadRequestHttpResult,
 			AppNotFoundHttpResult
 		>
-	> HandleGetTenantAsStaff(
+	> Handle(
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		[FromRoute] string tenantId,
 		CancellationToken cancellationToken

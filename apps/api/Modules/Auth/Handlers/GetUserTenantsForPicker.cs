@@ -19,10 +19,10 @@ public class GetUserTenantsForPickerResponse {
 	public bool HasSuspendedTenants { get; set; }
 }
 
-public class GetUserTenantsForPicker {
+public sealed class GetUserTenantsForPicker {
 	private const int MaxTenantsInList = 50;
 
-	public static async Task<Ok<GetUserTenantsForPickerResponse>> HandleGetUserTenantsForPicker(
+	public static async Task<Ok<GetUserTenantsForPickerResponse>> Handle(
 		IRequestAuthContext authContext,
 		ILogger<GetUserTenantsForPicker> logger,
 		IAccountService accountService,

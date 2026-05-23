@@ -17,11 +17,11 @@ public class FindSystemNoticesQuery : CursorPaginatedQuery { }
 public class FindSystemNoticesQueryValidator
 	: CursorPaginatedQueryValidator<FindSystemNoticesQuery> { }
 
-public class FindSystemNotices {
+public sealed class FindSystemNotices {
 	public static async Task<Results<
 		Ok<FindSystemNoticesResponse>,
 		AppBadRequestHttpResult
-	>> HandleFindSystemNotices(
+	>> Handle(
 		[AsParameters] FindSystemNoticesQuery query,
 		[FromServices] ISystemNoticeService systemNoticeService,
 		CancellationToken cancellationToken = default

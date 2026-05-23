@@ -46,7 +46,7 @@ public class FindTenantPermissionsQueryValidator : AbstractValidator<FindTenantP
 	}
 }
 
-public class FindTenantPermissions {
+public sealed class FindTenantPermissions {
 	public static async Task<
 			Results<
 				Ok<
@@ -57,7 +57,7 @@ public class FindTenantPermissions {
 				>,
 				AppBadRequestHttpResult
 			>
-		> HandleFindTenantPermissions(
+		> Handle(
 		[FromServices] IPermissionAsStaffService permissionAsStaffService,
 		[AsParameters] FindTenantPermissionsQuery findTenantPermissionsQuery,
 		CancellationToken cancellationToken

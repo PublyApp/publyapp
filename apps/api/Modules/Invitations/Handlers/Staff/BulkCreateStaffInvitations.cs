@@ -226,13 +226,13 @@ public class BulkCreateStaffInvitationsBodyValidator
 	}
 }
 
-public class BulkCreateStaffInvitations {
+public sealed class BulkCreateStaffInvitations {
 	public static async Task<Results<
 		Created<BulkStaffInvitationsCreated>,
 		AppValidationProblemHttpResult,
 		AppBadRequestHttpResult,
 		AppInternalServerErrorHttpResult
-	>> HandleBulkCreateStaffInvitations(
+	>> Handle(
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IAccountService accountService,

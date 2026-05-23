@@ -15,7 +15,7 @@ public static class AuthEndpoints {
 
 		group.MapPost(
 			PathUtils.GetLastSegment(Routes.Auth.Login),
-			PasswordLogin.HandlePasswordLogin
+			PasswordLogin.Handle
 		)
 			.WithName("LoginWithEmailAndPassword")
 			.WithSummary("Password Login")
@@ -24,7 +24,7 @@ public static class AuthEndpoints {
 
 		group.MapPost(
 			PathUtils.GetLastSegment(Routes.Auth.Register),
-			PasswordRegister.HandlePasswordRegister
+			PasswordRegister.Handle
 		)
 			.WithName("RegisterWithEmailAndPassword")
 			.WithSummary("Password Register")
@@ -33,7 +33,7 @@ public static class AuthEndpoints {
 
 		group.MapGet(
 			PathUtils.GetLastSegment(Routes.Auth.GetUserAuthData),
-			GetUserAuthData.HandleGetUserAuthData
+			GetUserAuthData.Handle
 		)
 			.WithName("GetUserAuthData")
 			.WithSummary("Get User Auth Data")
@@ -42,7 +42,7 @@ public static class AuthEndpoints {
 
 		group.MapGet(
 			PathUtils.GetLastSegment(Routes.Auth.GetScopeAuthData),
-			GetScopeAuthData.HandleGetScopeAuthData
+			GetScopeAuthData.Handle
 		)
 			.WithName("GetScopeAuthData")
 			.WithSummary("Get Scope Auth Data")
@@ -51,7 +51,7 @@ public static class AuthEndpoints {
 
 		group.MapPost(
 			PathUtils.GetLastSegment(Routes.Auth.VerifyEmailRequest),
-			VerifyEmailRequest.HandleVerifyEmailRequest
+			VerifyEmailRequest.Handle
 		)
 			.WithName("VerifyEmailRequest")
 			.WithSummary("Verify Email Request")
@@ -60,7 +60,7 @@ public static class AuthEndpoints {
 
 		group.MapGet(
 			PathUtils.GetLastSegment(Routes.Auth.GetVerificationLink),
-			GetVerificationLink.HandleGetVerificationLink
+			GetVerificationLink.Handle
 		)
 			.WithName("GetVerificationLink")
 			.WithSummary("Get Verification Link")
@@ -69,7 +69,7 @@ public static class AuthEndpoints {
 
 		group.MapGet(
 			PathUtils.GetLastSegment(Routes.Auth.GetRedirectCode),
-			GetRedirectCode.HandleGetRedirectCode
+			GetRedirectCode.Handle
 		)
 			.WithName("GetRedirectCode")
 			.WithSummary("Get Redirect Code")
@@ -79,7 +79,7 @@ public static class AuthEndpoints {
 
 		group.MapGet(
 			PathUtils.GetLastSegment(Routes.Auth.GetUserTenants),
-			GetUserTenants.HandleGetUserTenants
+			GetUserTenants.Handle
 		)
 			.WithName("GetUserTenants")
 			.WithSummary("Get User Tenants")
@@ -88,7 +88,7 @@ public static class AuthEndpoints {
 
 		group.MapGet(
 			PathUtils.GetLastSegment(Routes.Auth.CheckEmailVerificationToken),
-			CheckEmailVerificationToken.HandleCheckEmailVerificationToken
+			CheckEmailVerificationToken.Handle
 		)
 			.WithName("CheckEmailVerificationToken")
 			.WithSummary("Check Email Verification Token")
@@ -97,7 +97,7 @@ public static class AuthEndpoints {
 
 		group.MapGet(
 			PathUtils.GetLastSegment(Routes.Auth.CheckResetPasswordToken),
-			CheckResetPasswordToken.HandleCheckResetPasswordToken
+			CheckResetPasswordToken.Handle
 		)
 			.WithName("CheckResetPasswordToken")
 			.WithSummary("Check Reset Password Token")
@@ -106,7 +106,7 @@ public static class AuthEndpoints {
 
 		group.MapPost(
 			PathUtils.GetLastSegment(Routes.Auth.ResetPassword),
-			ResetPassword.HandleResetPassword
+			ResetPassword.Handle
 		)
 			.WithName("ResetPassword")
 			.WithSummary("Reset Password")
@@ -115,7 +115,7 @@ public static class AuthEndpoints {
 
 		group.MapGet(
 			PathUtils.GetLastSegment(Routes.Auth.GetUserTenantsForPicker),
-			GetUserTenantsForPicker.HandleGetUserTenantsForPicker
+			GetUserTenantsForPicker.Handle
 		)
 			.WithName("GetUserTenantsForPicker")
 			.WithSummary("Get all user tenants for picker including suspended")

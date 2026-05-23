@@ -40,12 +40,12 @@ public static class TenantUserDetailsForStaffMapper {
 	}
 }
 
-public class GetTenantUserByIdForStaff {
+public sealed class GetTenantUserByIdForStaff {
 	public static async Task<Results<
 		Ok<TenantUserDetailsForStaffResult>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleGetTenantUserByIdForStaff(
+	>> Handle(
 		[FromRoute] string userId,
 		[FromServices] IUserService userService,
 		[FromServices] ILogger<GetTenantUserByIdForStaff> logger,

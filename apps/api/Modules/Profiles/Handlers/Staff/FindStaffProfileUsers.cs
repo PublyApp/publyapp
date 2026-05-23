@@ -48,14 +48,14 @@ public class FindStaffProfileUsersQueryValidator
 	}
 }
 
-public class FindStaffProfileUsers {
+public sealed class FindStaffProfileUsers {
 	public static async Task<
 		Results<
 			Ok<FindStaffProfileUsersResult>,
 			AppNotFoundHttpResult,
 			AppBadRequestHttpResult
 		>
-	> HandleFindStaffProfileUsers(
+	> Handle(
 		[FromServices] IProfileAsStaffService profileAsStaffService,
 		[AsParameters] FindStaffProfileUsersQuery query,
 		[FromRoute] string profileId,

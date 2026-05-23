@@ -16,13 +16,13 @@ public record StaffUserSuspendedResult {
 	public required string Status { get; init; }
 }
 
-public class SuspendStaffUser {
+public sealed class SuspendStaffUser {
 	public static async Task<Results<
 		Ok<StaffUserSuspendedResult>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult,
 		AppConflictHttpResult
-	>> HandleSuspendStaffUser(
+	>> Handle(
 		[FromRoute] string userId,
 		[FromServices] IUserService userService,
 		[FromServices] IAuditLogService auditLogService,

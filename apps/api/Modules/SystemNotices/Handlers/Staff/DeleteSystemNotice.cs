@@ -10,12 +10,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Modules.SystemNotices.Handlers.Staff;
 
-public class DeleteSystemNotice {
+public sealed class DeleteSystemNotice {
 	public static async Task<Results<
 		Ok<ApiResponse>,
 		AppNotFoundHttpResult,
 		AppBadRequestHttpResult
-	>> HandleDeleteSystemNotice(
+	>> Handle(
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] ISystemNoticeService systemNoticeService,
 		[FromServices] IAuditLogService auditLogService,

@@ -200,11 +200,11 @@ public class CreateStaffProfileBodyValidator
 	}
 }
 
-public class CreateStaffProfile {
+public sealed class CreateStaffProfile {
 	public static async Task<Results<
 		Created<StaffProfileCreated>,
 		AppBadRequestHttpResult
-	>> HandleCreateStaffProfile(
+	>> Handle(
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IProfileAsStaffService profileAsStaffService,
 		[FromServices] IEmailService emailService,

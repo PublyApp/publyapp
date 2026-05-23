@@ -46,11 +46,11 @@ public class PasswordLoginResult {
 	public double SessionExpiresInMs { get; set; }
 }
 
-public class PasswordLogin {
+public sealed class PasswordLogin {
 	public static async Task<Results<
 		Ok<PasswordLoginResult>,
 		AppBadRequestHttpResult
-	>> HandlePasswordLogin(
+	>> Handle(
 		[FromBody] PasswordLoginBody body,
 		[FromServices] IUserService userService,
 		[FromServices] ISessionService sessionService,

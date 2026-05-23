@@ -10,12 +10,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Modules.Profiles.Handlers.Staff;
 
-public class AssignTenantProfilePermissionAsStaff {
+public sealed class AssignTenantProfilePermissionAsStaff {
 	public static async Task<Results<
 		NoContent,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
-	>> HandleAssignTenantProfilePermissionAsStaff(
+	>> Handle(
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IProfileAsStaffService profileAsStaffService,
 		[FromServices] IAuditLogService auditLogService,

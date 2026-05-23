@@ -84,8 +84,8 @@ public class FindStaffInvitationsQueryValidator : CursorPaginatedQueryValidator<
 	}
 }
 
-public class FindStaffInvitations {
-	public static async Task<Results<Ok<FindStaffInvitationsResult>, AppBadRequestHttpResult>> HandleFindStaffInvitations(
+public sealed class FindStaffInvitations {
+	public static async Task<Results<Ok<FindStaffInvitationsResult>, AppBadRequestHttpResult>> Handle(
 		[AsParameters] FindStaffInvitationsQuery findStaffInvitationsQuery,
 		[FromServices] IInvitationService invitationService,
 		CancellationToken cancellationToken = default

@@ -113,9 +113,9 @@ public class FindTenantsAsStaffQueryValidator
 
 public class FindTenantsAsStaffResponse : CursorPaginatedResult<TenantAsStaffListItem> { }
 
-public class FindTenantsAsStaff {
+public sealed class FindTenantsAsStaff {
 	public static async Task<Results<Ok<FindTenantsAsStaffResponse>, AppBadRequestHttpResult>>
-	HandleFindTenantsAsStaff(
+	Handle(
 		[AsParameters] FindTenantsAsStaffQuery findTenantsAsStaffQuery,
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		CancellationToken cancellationToken

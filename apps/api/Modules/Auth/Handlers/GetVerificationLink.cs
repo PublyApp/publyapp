@@ -34,14 +34,14 @@ public class GetVerificationLinkResult {
 	public required string Link { get; set; }
 }
 
-public class GetVerificationLink {
+public sealed class GetVerificationLink {
 	public async static Task<
 		Results<
 			Ok<GetVerificationLinkResult>,
 			AppBadRequestHttpResult,
 			AppNotFoundHttpResult
 		>
-	> HandleGetVerificationLink(
+	> Handle(
 		[AsParameters] GetVerificationLinkQuery query,
 		[FromServices] ILogger<GetVerificationLink> logger,
 		[FromServices] IUserService UserService,

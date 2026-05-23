@@ -10,13 +10,13 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Modules.Invitations.Handlers.Staff;
 
-public class RevokeInvitationForTenantAsStaff {
+public sealed class RevokeInvitationForTenantAsStaff {
 	public static async Task<Results<
 		Ok<ApiResponse>,
 		AppNotFoundHttpResult,
 		AppBadRequestHttpResult,
 		AppForbiddenHttpResult
-	>> HandleRevokeInvitationForTenantAsStaff(
+	>> Handle(
 		[FromRoute] string tenantId,
 		[FromRoute] string invitationId,
 		[FromServices] IRequestAuthContext authContext,

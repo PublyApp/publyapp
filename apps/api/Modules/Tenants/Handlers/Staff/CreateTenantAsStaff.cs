@@ -18,6 +18,8 @@ using Polly;
 
 namespace MainApi.Modules.Tenants.Handlers.Staff;
 
+public record CreateTenantAsStaffInitialUserItem(string Email, string AccountLevel);
+
 public class CreateTenantAsStaffBody {
 	public JsonElement Name { get; set; }
 	public JsonElement MaxUsers { get; set; }
@@ -31,19 +33,18 @@ public class CreateTenantAsStaffBody {
 		return MaxUsers.GetValueAsInt32OrNull();
 	}
 
-	public record InitialUserItem(string Email, string AccountLevel);
 
-	public List<InitialUserItem> GetInitialUsers() {
+	public List<CreateTenantAsStaffInitialUserItem> GetInitialUsers() {
 		if (InitialUsers.ValueKind != JsonValueKind.Array) {
 			throw new Exception("InitialUsers must be an array");
 		}
 
-		var users = new List<InitialUserItem>();
+		var users = new List<CreateTenantAsStaffInitialUserItem>();
 		foreach (var item in InitialUsers.EnumerateArray()) {
 			var email = item.GetProperty("email").GetValueAsString();
 			var accountLevel = item.GetProperty("accountLevel").GetValueAsString();
 
-			users.Add(new InitialUserItem(email, accountLevel));
+			users.Add(new CreateTenantAsStaffInitialUserItem(email, accountLevel));
 		}
 
 		return users;
@@ -201,13 +202,13 @@ public class CreateTenantAsStaffResult {
 	public string Name { get; set; } = string.Empty;
 }
 
-public class CreateTenantAsStaff {
+public sealed class CreateTenantAsStaff {
 	public static async Task<
 	Results<
 	Created<CreateTenantAsStaffResult>,
 	AppBadRequestHttpResult
 	>>
-	HandleCreateTenantAsStaff(
+	Handle(
 		[FromBody] CreateTenantAsStaffBody body,
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		[FromServices] IEmailService emailService,
