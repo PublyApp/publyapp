@@ -1,3 +1,4 @@
+#!/usr/bin/env sh
 # makes sure fnm will make npx work
 # eval "$(fnm env --use-on-cd)"
 
