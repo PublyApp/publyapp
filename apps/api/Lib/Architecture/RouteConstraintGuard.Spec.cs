@@ -13,7 +13,8 @@ using Xunit;
 /// constraints (e.g. <c>{userId:guid}</c> or <c>{id:int}</c>). IDs are parsed in
 /// handlers with <c>Guid.TryParse</c>; a malformed ID must return 400 (BadRequest),
 /// not a route-level 404. Inline constraints would silently turn malformed IDs
-/// into 404s, regressing that contract.
+/// into 404s, regressing that contract. See docs/guides/test-conventions.md
+/// ("Architecture Tests") for the guardrail rationale and how to add new guards.
 /// </summary>
 public sealed class RouteConstraintGuardSpec {
 	static RouteConstraintGuardSpec() {

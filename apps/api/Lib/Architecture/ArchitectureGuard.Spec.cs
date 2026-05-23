@@ -14,6 +14,17 @@ using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace MainApi.Lib.Architecture {
+	/// <summary>
+	/// Architecture guards: executable enforcement of backend conventions that
+	/// otherwise live only as prose in AGENTS.md / the guides. Each fact scans the
+	/// compiled EF model or assembly (via reflection) and fails the build with the
+	/// concrete offender when a convention regresses — cheaper and more reliable
+	/// than catching it in review. This class covers data-model invariants
+	/// (composite junction keys, no soft-delete columns on Session) and
+	/// HTTP-contract hygiene (no PatchField&lt;T&gt; in wire DTOs). See
+	/// docs/guides/test-conventions.md ("Architecture Tests") for the rationale and
+	/// the architecture-test vs Roslyn-analyzer split (#357 / #350).
+	/// </summary>
 	public sealed class ArchitectureGuardSpec {
 		static ArchitectureGuardSpec() {
 			AppEnvironment.Initialize();
