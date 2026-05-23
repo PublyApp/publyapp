@@ -223,10 +223,10 @@ public class CreateStaffInvitationBodyValidator : AbstractValidator<CreateStaffI
     }
 }
 
-// Handler class (descriptive HandleX method name)
-public static class CreateStaffInvitation {
+// Handler class — `public sealed class <Operation>`, entrypoint always `Handle`
+public sealed class CreateStaffInvitation {
     public static async Task<Results<Ok<InvitationCreated>, AppBadRequestHttpResult, AppForbiddenHttpResult>>
-    HandleCreateStaffInvitation(  // ✅ Descriptive name, NOT just "Handle"
+    Handle(  // ✅ Always `Handle`; the class name carries the operation
         [FromServices] IAuthContext authContext,
         [FromServices] IInvitationService invitationService,  // ✅ Use service, NOT DbContext
         [FromBody] CreateStaffInvitationBody request,
@@ -240,15 +240,84 @@ public static class CreateStaffInvitation {
 ```
 
 **Rules:**
-1. **NO separate DTO files** - Define DTOs in handler file
-2. **NO separate Validator files** - Define validators in handler file
+1. **NO separate DTO files** - Define request/response types in the handler file
+2. **NO separate Validator files** - Define validators in the handler file
 3. **NO "Dto" suffix** - Use descriptive names like `InvitationCreated`, NOT `InvitationDto`
 4. **Request DTOs naming**:
    - `Body` suffix for request body params (e.g., `CreateUserBody`)
    - `Query` suffix for query params (e.g., `ListUsersQuery`)
-5. **Handler method names** - Use `HandleCreateUser`, NOT just `Handle`
-6. **NO DbContext in handlers** - All database access through service layer
-7. **Line length** - Maximum 100 characters, break long lines
+5. **Handler class** - `public sealed class <Operation>`. Sealed because handlers are leaf slices that are never inherited; `static class` is intentionally NOT used because handlers inject `ILogger<TheHandler>` and a static class cannot be a generic type argument. Sealing also satisfies .NET guideline CA1052 (a static-holder type should be `static` or sealed/`NotInheritable`), which a future analyzer may enforce
+6. **Entrypoint method name** - The public Minimal API delegate MUST be named `Handle` (NOT `HandleCreateUser` or any `HandleX`); the class name carries the operation. Keep descriptive names only for private helpers (e.g. `HandleSuccessAsync`)
+7. **Top-level sibling types** - Handler-specific `Body`/`Query`/`Result`/`Response`/`Item` and `*Validator` types are top-level types in the file namespace, NOT public nested types inside the handler class
+8. **NO DbContext in handlers** - All database access through the service layer
+9. **Line length** - Maximum 100 characters, break long lines
+
+See [Handler File Contract](#handler-file-contract) for the full file layout, type-placement rules, and responsibility boundary.
+
+## Handler File Contract
+
+Each handler file is a self-contained HTTP operation slice. The `.cs` file — not
+the handler class — is the vertical-slice boundary.
+
+**File:** `Modules/<Domain>/Handlers/<Scope>/<Operation>.cs`
+
+**Order of declarations in the file:**
+1. Request/query types (`<Operation>Body`, `<Operation>Query`)
+2. Validators (`<Operation>BodyValidator`, `<Operation>QueryValidator`)
+3. Response/result/item types (`<Operation>Result`, `<Operation>Response`, `<Operation>Item`)
+4. Handler class (`public sealed class <Operation>` with `public static ... Handle`)
+5. Handler-private helpers
+
+All HTTP wire types and validators are **top-level sibling types** in the handler
+file's namespace — never public nested types inside the handler class. Top-level
+types keep OpenAPI/schema names, test failures, reflection guards, and analyzer
+diagnostics simple and predictable. Private implementation-only helper types MAY
+be nested inside the handler class when they are not HTTP wire contracts and are
+not used by validation, endpoint mapping, tests, OpenAPI, or other handlers.
+
+### Type placement
+
+Keep in the handler file (specific to this operation): `<Operation>Body`,
+`<Operation>Query`, `<Operation>BodyValidator`, `<Operation>QueryValidator`,
+`<Operation>Result`, `<Operation>Response`, `<Operation>Item`.
+
+Move a type OUT of the handler file only when:
+- it is shared by multiple handlers in the domain and has a stable local API;
+- it is a validation rule shared across handlers (→ domain validation helper);
+- it is a service contract (`{Action}{Domain}Args` → service file);
+- it is an EF entity, value object, permission definition, or infrastructure contract.
+
+Prefer duplicating tiny HTTP wire types over sharing prematurely across unrelated
+handlers. Do not use a `Dto` suffix — use `Body`, `Query`, `Result`, `Response`,
+or `Item`.
+
+### Responsibility boundary
+
+Handlers MAY: parse route IDs (return `TypedProblems.BadRequest` for malformed
+IDs), read validated `Body`/`Query` getter values, guard impossible auth-context
+states, orchestrate service calls, map service result unions to `TypedResults.*`
+/ `TypedProblems.*`, and orchestrate audit logging or infrastructure side effects
+that are part of the HTTP workflow.
+
+Handlers MUST NOT: inject or use `MainApiDbContext`, own database query
+composition, implement transaction boundaries, contain reusable domain/business
+logic (that belongs in services), or return non-RFC-7807 helpers such as
+`TypedResults.Forbid()`.
+
+### Suggested parameter order
+
+```csharp
+Handle(
+    [FromRoute] string id,
+    [AsParameters] SomeQuery query,
+    [FromBody] SomeBody body,
+    [FromServices] IRequestAuthContext authContext,
+    [FromServices] ISomeService someService,
+    CancellationToken cancellationToken = default
+)
+```
+
+Omit any group that does not apply. Keep `CancellationToken` last.
 
 ## DTO and Request/Response Patterns
 
@@ -322,7 +391,7 @@ public static async Task<Ok> Handle(
 }
 
 // ✅ CORRECT - Handler delegates to service
-public static async Task<Ok> HandleCreateUser(
+public static async Task<Ok> Handle(
     [FromServices] IUserService userService,  // YES!
     [FromBody] CreateUserBody request
 ) {
@@ -588,8 +657,8 @@ public class InvitationService : IInvitationService {
 }
 
 // ✅ CORRECT - Handlers orchestrate multiple services
-public static class AcceptInvitation {
-    public static async Task<Results<...>> HandleAcceptInvitation(
+public sealed class AcceptInvitation {
+    public static async Task<Results<...>> Handle(
         [FromServices] IInvitationService invitationService,
         [FromServices] ISessionService sessionService,
         [FromServices] IPasswordService passwordService,
@@ -615,22 +684,23 @@ public static class AcceptInvitation {
 ```csharp
 // ❌ WRONG
 Task<List<Invitation>> ListStaffInvitationsAsync();
-public static class ListStaffInvitations { }
-public static async Task<...> HandleListStaffInvitations(...) { }
+public sealed class ListStaffInvitations { }
 
 // ✅ CORRECT
 Task<List<Invitation>> FindStaffInvitationsAsync();
-public static class FindStaffInvitations { }
-public static async Task<...> HandleFindStaffInvitations(...) { }
+public sealed class FindStaffInvitations {
+    public static async Task<...> Handle(...) { }
+}
 ```
 
-**Naming patterns:**
-- Get single item: `GetUserById`, `HandleGetUserById`
-- Get list/collection: `FindUsers`, `HandleFindUsers`
-- Create: `CreateUser`, `HandleCreateUser`
-- Update: `UpdateUser`, `HandleUpdateUser`
-- Delete: `DeleteUser`, `HandleDeleteUser`
-- Special actions: Use the verb (e.g., `RevokeInvitation`)
+**Naming patterns** — the handler class name carries the operation; the Minimal
+API entrypoint method is always `Handle`:
+- Get single item: class `GetUserById`
+- Get list/collection: class `FindUsers`
+- Create: class `CreateUser`
+- Update: class `UpdateUser`
+- Delete: class `DeleteUser`
+- Special actions: use the verb (e.g., class `RevokeInvitation`)
 
 ## API Response Pattern
 
@@ -646,7 +716,7 @@ public static async Task<...> HandleFindStaffInvitations(...) { }
 public static async Task<Results<
     Ok<User>,
     AppNotFoundHttpResult
->> HandleGetUser(...) {
+>> Handle(...) {
     var user = await userService.GetUserAsync(id);
 
     if (user is null) {
@@ -661,7 +731,7 @@ public static async Task<Results<
     Ok<User>,
     AppBadRequestHttpResult,
     AppForbiddenHttpResult
->> HandleUpdateUser(...) {
+>> Handle(...) {
     if (!hasPermission) {
         return TypedProblems.Forbidden(
             "User does not have the necessary permissions",
@@ -854,7 +924,7 @@ public static async Task<Results<
     Ok<Response>,
     AppBadRequestHttpResult,     // Auto-documented as 400 with AppProblemDetails
     AppForbiddenHttpResult       // Auto-documented as 403 with AppProblemDetails
->> HandleAction(...) {
+>> Handle(...) {
     if (!authorized) {
         return TypedProblems.Forbidden("Forbidden", ResponseKeys.Forbidden);
     }
@@ -862,7 +932,7 @@ public static async Task<Results<
 }
 
 // Endpoint registration - no manual status code documentation needed!
-group.MapPost("/", Handler.HandleAction)
+group.MapPost("/", CreateThing.Handle)
     .WithReqBodyValidation<CreateBody>();
     // ✅ 200 auto-documented by Ok<Response>
     // ✅ 400 auto-documented by AppBadRequestHttpResult (generic bad request)
@@ -889,7 +959,7 @@ Auth filter extension methods automatically add 500 to OpenAPI documentation:
 
 ```csharp
 // ✅ 500 is auto-documented via auth filter
-group.MapGet("/user", GetUser.HandleGetUser)
+group.MapGet("/user", GetUser.Handle)
     .WithSessionAuthentication();  // Adds 401, 500 automatically
 ```
 
@@ -898,12 +968,12 @@ Endpoints without auth filters do NOT automatically document 500, even though th
 
 ```csharp
 // ❌ WRONG - Anonymous endpoint missing 500 documentation
-group.MapPost("/login", Login.HandleLogin)
+group.MapPost("/login", Login.Handle)
     .WithReqBodyValidation<LoginBody>();
     // Global exception handler can return 500, but it's not documented!
 
 // ✅ CORRECT - Manually document 500 for anonymous endpoints
-group.MapPost("/login", Login.HandleLogin)
+group.MapPost("/login", Login.Handle)
     .WithReqBodyValidation<LoginBody>()
     .ProducesAppProblem(StatusCodes.Status500InternalServerError);
 ```
@@ -945,14 +1015,14 @@ Single-statement bodies are not exempt. This prevents subtle bugs when adding li
 
 ```csharp
 // ❌ WRONG - Line too long
-public static async Task<Results<Ok<Response>, AppBadRequestHttpResult, AppForbiddenHttpResult>> HandleAction([FromServices] IAuthContext authContext, [FromServices] IService service, [FromBody] CreateBody request, CancellationToken cancellationToken = default) {
+public static async Task<Results<Ok<Response>, AppBadRequestHttpResult, AppForbiddenHttpResult>> Handle([FromServices] IAuthContext authContext, [FromServices] IService service, [FromBody] CreateBody request, CancellationToken cancellationToken = default) {
 
 // ✅ CORRECT - Break into multiple lines
 public static async Task<Results<
     Ok<Response>,
     AppBadRequestHttpResult,
     AppForbiddenHttpResult
->> HandleAction(
+>> Handle(
     [FromServices] IAuthContext authContext,
     [FromServices] IService service,
     [FromBody] CreateBody request,
