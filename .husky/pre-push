@@ -1,9 +1,16 @@
 #!/usr/bin/env sh
-current_branch=$(git rev-parse --abbrev-ref HEAD)
+# Block pushes that TARGET a protected branch, regardless of which branch is
+# currently checked out. git feeds each ref being pushed on stdin as:
+#   <local ref> <local sha> <remote ref> <remote sha>
+protected="refs/heads/main refs/heads/develop"
 
-if [ "$current_branch" = "main" ] || [ "$current_branch" = "develop" ]; then
-	# Write to stderr
-  echo "Direct push to $current_branch branch is not allowed, please create a new branch then do a pull request" >&2
-  exit 1
-fi
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+	for branch in $protected; do
+		if [ "$remote_ref" = "$branch" ]; then
+			echo "Direct push to ${branch#refs/heads/} is not allowed, please create a new branch then open a pull request" >&2
+			exit 1
+		fi
+	done
+done
 
+exit 0
