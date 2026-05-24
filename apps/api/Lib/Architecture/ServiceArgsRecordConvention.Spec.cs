@@ -185,6 +185,11 @@ public sealed class ServiceArgsRecordConventionSpec {
 		);
 	}
 
+	// Filters to interfaces only. The args-record convention is defined at the
+	// contract boundary (the I*Service interface), not the implementation class.
+	// Scanning concrete implementations would double-count every method and would
+	// also pick up private/explicit-interface members that are not part of the
+	// public contract callers depend on.
 	private static IReadOnlyList<Type> EnumerateServiceInterfaces() {
 		return ArchitectureDiscoveryHelper
 			.EnumerateServiceTypes()

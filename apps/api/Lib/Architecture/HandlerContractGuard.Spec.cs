@@ -215,6 +215,14 @@ public sealed class HandlerContractGuardSpec {
 		);
 	}
 
+	// Yields "TypeName.member (kind)" strings for every DbContext-family dependency
+	// found on the given handler type. Covers all four injection surfaces a handler
+	// could use to sneak in a DbContext: constructor parameters (DI injection),
+	// stored fields/properties (assigned from ctor or static init), and the Handle
+	// method's own parameters (sometimes used for Minimal-API parameter binding).
+	// Other public methods are intentionally not scanned — they are not part of the
+	// Minimal-API contract and a non-Handle method that happens to accept a DbContext
+	// parameter would be a separate, unrelated design smell.
 	private static IEnumerable<string> FindDbContextDependencies(Type type) {
 		foreach (var constructor in type.GetConstructors()) {
 			foreach (var parameter in constructor.GetParameters()) {
