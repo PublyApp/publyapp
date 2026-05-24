@@ -43,11 +43,6 @@ public sealed class ServiceArgsRecordConventionSpec {
 		// the PermissionFilter. Ratchet target.
 		"IPermissionService.GetEffectivePermissionsAsync",
 
-		// Legacy positional-pagination overload kept alongside the newer
-		// FindTenantsAsStaffAsync(FindTenantsAsStaffArgs) variant; the args-record
-		// form already exists and this overload should retire to it. Ratchet target.
-		"ITenantAsStaffService.FindTenantsAsync",
-
 		// Three required identifiers/level for account creation; an args record is
 		// the eventual shape but this is a stable, internal seam. Ratchet target.
 		"IAccountService.CreateTenantAccountAsync",
@@ -185,6 +180,7 @@ public sealed class ServiceArgsRecordConventionSpec {
 	}
 
 	private static int CountNonTokenParameters(MethodInfo method) {
+		// Note: optional/defaulted parameters count toward the threshold.
 		return method
 			.GetParameters()
 			.Count(parameter =>

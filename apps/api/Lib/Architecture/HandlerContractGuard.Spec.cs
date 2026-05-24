@@ -7,6 +7,8 @@ using FluentAssertions;
 using MainApi.Data.DbContext;
 using MainApi.Lib.Testing.Helpers;
 
+using Microsoft.EntityFrameworkCore;
+
 using Xunit;
 
 /// <summary>
@@ -26,7 +28,8 @@ using Xunit;
 ///   <c>IDE0130</c> (treated as error), so it is intentionally NOT duplicated here.
 /// - B.5 "file name matches the primary class" is deferred: several handler files
 ///   legitimately declare multiple top-level handler/contract classes (e.g.
-///   <c>TenantUserCompanyActionsForStaff.cs</c> with four handlers,
+///   <c>TenantUserCompanyActionsForStaff.cs</c> with four handlers plus supporting
+///   contract/validator types,
 ///   <c>GetStaffUserProfiles.cs</c> with item/result/handler), and a few file names
 ///   match none of their declared classes by design (<c>PassWordLogin.cs</c> to
 ///   <c>PasswordLogin</c>, <c>FindStaffUser.cs</c> to <c>FindStaffUsers</c>). A robust
@@ -68,6 +71,9 @@ public sealed class HandlerContractGuardSpec {
 				.GetMethods(
 					BindingFlags.Public
 					| BindingFlags.Static
+					// Instance is deliberate: all current Handle entrypoints are
+					// static, but scanning instance methods too catches a
+					// hypothetical instance-method entrypoint regression.
 					| BindingFlags.Instance
 					| BindingFlags.DeclaredOnly
 				)
@@ -169,31 +175,34 @@ public sealed class HandlerContractGuardSpec {
 			}
 		}
 
+		// No DeclaredOnly: include inherited members so a MainApiDbContext stashed
+		// in a base class (not the handler's own declaration) is still caught.
 		var fieldFlags = BindingFlags.Public
 			| BindingFlags.NonPublic
 			| BindingFlags.Instance
-			| BindingFlags.Static
-			| BindingFlags.DeclaredOnly;
+			| BindingFlags.Static;
 		foreach (var field in type.GetFields(fieldFlags)) {
 			if (IsDbContext(field.FieldType)) {
 				yield return $"{type.FullName}.{field.Name} (field)";
 			}
 		}
 
+		// No DeclaredOnly: include inherited properties for the same reason.
 		var propertyFlags = BindingFlags.Public
 			| BindingFlags.NonPublic
 			| BindingFlags.Instance
-			| BindingFlags.Static
-			| BindingFlags.DeclaredOnly;
+			| BindingFlags.Static;
 		foreach (var property in type.GetProperties(propertyFlags)) {
 			if (IsDbContext(property.PropertyType)) {
 				yield return $"{type.FullName}.{property.Name} (property)";
 			}
 		}
 
+		// DeclaredOnly here on purpose: we want the handler's OWN Handle
+		// entrypoint, not an inherited one from a base type.
 		var handle = type.GetMethod(
 			"Handle",
-			BindingFlags.Public | BindingFlags.Static
+			BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly
 		);
 		if (handle is not null) {
 			foreach (var parameter in handle.GetParameters()) {
@@ -205,8 +214,18 @@ public sealed class HandlerContractGuardSpec {
 	}
 
 	private static bool IsDbContext(Type type) {
-		return type == typeof(MainApiDbContext)
-			|| typeof(MainApiDbContext).IsAssignableFrom(type);
+		if (type == typeof(MainApiDbContext)
+			|| typeof(MainApiDbContext).IsAssignableFrom(type)) {
+			return true;
+		}
+
+		// IDbContextFactory<MainApiDbContext> is a real DbContext-access vector
+		// (it hands out MainApiDbContext instances), so flag it too.
+		// IServiceProvider is intentionally NOT flagged: it is too broad and would
+		// false-positive on legitimate non-DbContext service resolution.
+		return type.IsGenericType
+			&& type.GetGenericTypeDefinition() == typeof(IDbContextFactory<>)
+			&& type.GetGenericArguments()[0] == typeof(MainApiDbContext);
 	}
 
 	private static bool IsValidValidatorTarget(Type? target) {
