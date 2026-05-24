@@ -2,6 +2,10 @@
 # Block pushes that TARGET a protected branch, regardless of which branch is
 # currently checked out. git feeds each ref being pushed on stdin as:
 #   <local ref> <local sha> <remote ref> <remote sha>
+# Exact full-ref comparison (refs/heads/main) is intentional: it avoids
+# partial matches against branches like "refs/heads/maintain", and it covers
+# deletions (git push origin :main) and force-pushes because git still reports
+# the same remote_ref value for those operations.
 protected="refs/heads/main refs/heads/develop"
 
 while read -r _local_ref _local_sha remote_ref _remote_sha; do
@@ -13,4 +17,6 @@ while read -r _local_ref _local_sha remote_ref _remote_sha; do
 	done
 done
 
+# Explicit exit 0: prevents a non-zero exit from the while-read loop itself
+# (e.g. when stdin closes unexpectedly) from being mistaken for a hook failure.
 exit 0
