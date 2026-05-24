@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
+		<!-- The test runner executes on the host .NET runtime, so net10.0 is appropriate here —
+		     unlike the analyzer project itself which must target netstandard2.0 to be loadable
+		     by any SDK version that hosts Roslyn. -->
 		<TargetFramework>net10.0</TargetFramework>
 		<IsTestProject>true</IsTestProject>
 		<IsPackable>false</IsPackable>

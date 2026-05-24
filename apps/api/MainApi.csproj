@@ -3,6 +3,10 @@
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
 		<PublishDir>$(ApiArtifactsRoot)publish\</PublishDir>
+		<!-- Prevent the SDK from compiling the Analyzers\ subtree as part of the API project.
+		     Without this exclusion, MSBuild would glob *.cs under Analyzers\ and the API
+		     would try to compile the analyzer source, which targets netstandard2.0 and has
+		     incompatible API surface (no ImmutableArray, DiagnosticAnalyzer, etc.). -->
 		<DefaultItemExcludes>$(DefaultItemExcludes);Analyzers\**</DefaultItemExcludes>
 	</PropertyGroup>
 
@@ -46,6 +50,11 @@
 		<PackageReference Include="Bogus" />
 	</ItemGroup>
 
+	<!-- Wire the analyzer assembly into the API build without making it a runtime dependency.
+	     OutputItemType="Analyzer" tells Roslyn to load the DLL as an in-process analyzer rather
+	     than adding it to the output/publish set. ReferenceOutputAssembly="false" ensures the
+	     analyzer DLL is never referenced or copied to the API's bin/ folder — it only runs at
+	     compile time. -->
 	<ItemGroup>
 		<ProjectReference Include="Analyzers/PublyApp.Analyzers/PublyApp.Analyzers.csproj"
 						  OutputItemType="Analyzer"
