@@ -1,5 +1,7 @@
 const path = require('node:path');
 
+const quoteArg = (value) => JSON.stringify(value);
+
 const getRepoPath = (file) =>
 	path.relative(process.cwd(), file).split(path.sep).join('/');
 
@@ -18,11 +20,11 @@ const isGeneratedFile = (file) => {
 
 const createOxfmtWriteCommand = (files) =>
 	files.length > 0
-		? `oxfmt --write --no-error-on-unmatched-pattern ${files.join(' ')}`
+		? `oxfmt --write --no-error-on-unmatched-pattern ${files.map(quoteArg).join(' ')}`
 		: [];
 
 module.exports = {
-	'*.{js,ts,jsx,tsx,html,svelte}': (filenames) => {
+	'*.{js,mjs,cjs,ts,jsx,tsx,html,svelte,css}': (filenames) => {
 		const filteredFiles = filenames.filter((file) => !isGeneratedFile(file));
 
 		return createOxfmtWriteCommand(filteredFiles);
@@ -45,7 +47,7 @@ module.exports = {
 		const relativePaths = filteredPaths.map((file) => path.relative(cwd, file));
 		// dotnet format expects each file path as a separate --include parameter
 		const includeParams = relativePaths
-			.map((path) => `--include ${path}`)
+			.map((file) => `--include ${quoteArg(file)}`)
 			.join(' ');
 		return `dotnet format ${includeParams} --exclude-diagnostics IDE0130`;
 	},
