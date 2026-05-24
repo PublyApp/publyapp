@@ -1,5 +1,8 @@
 const path = require('node:path');
 
+// Wrap a shell argument in double-quotes so that paths containing spaces are
+// passed as a single token rather than being split by the shell.
+// JSON.stringify produces a valid double-quoted string for any path the OS allows.
 const quoteArg = (value) => JSON.stringify(value);
 
 const getRepoPath = (file) =>
@@ -24,6 +27,8 @@ const createOxfmtWriteCommand = (files) =>
 		: [];
 
 module.exports = {
+	// Extension list mirrors the globs in the root package.json "format" / "format:write" scripts
+	// so that every file type oxfmt handles on a full run is also covered during staged-file runs.
 	'*.{js,mjs,cjs,ts,jsx,tsx,html,svelte,css}': (filenames) => {
 		const filteredFiles = filenames.filter((file) => !isGeneratedFile(file));
 
