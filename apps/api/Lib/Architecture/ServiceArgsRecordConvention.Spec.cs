@@ -70,7 +70,16 @@ public sealed class ServiceArgsRecordConventionSpec {
 
 	[Fact]
 	public void ItShouldUseArgsRecordsForMethodsWithThreeOrMoreParameters() {
-		List<string> offenders = EnumerateServiceInterfaces()
+		var serviceInterfaces = EnumerateServiceInterfaces();
+
+		// Vacuity check inside the guard: an empty scan (e.g. a broken namespace
+		// filter) would make this guard pass for the wrong reason.
+		_ = serviceInterfaces.Should().NotBeEmpty(
+			"service-interface discovery must find I*Service interfaces; an "
+			+ "empty result would make the args-record convention vacuous."
+		);
+
+		List<string> offenders = serviceInterfaces
 			.SelectMany(serviceInterface => serviceInterface
 				.GetMethods()
 				.Select(method => (
