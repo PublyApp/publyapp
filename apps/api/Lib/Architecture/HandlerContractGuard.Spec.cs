@@ -1,6 +1,7 @@
 namespace MainApi.Lib.Architecture;
 
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 using FluentAssertions;
 
@@ -17,9 +18,11 @@ using Xunit;
 /// concrete offender when the contract regresses — cheaper and more reliable than
 /// catching it in review. The contract: every handler is a non-abstract class whose
 /// public Minimal-API entrypoint is named exactly <c>Handle</c>; handlers never take
-/// or store <see cref="MainApiDbContext"/> (DbContext access is via services only);
-/// and HTTP wire/contract + validator types are top-level siblings, never public
-/// nested types inside the handler class. See
+/// or store any EF Core <see cref="DbContext"/> (including
+/// <see cref="MainApiDbContext"/>), a factory/wrapper that hands one out, or an
+/// <see cref="IServiceProvider"/> service-locator (DbContext access is via injected
+/// services only); and HTTP wire/contract + validator types are top-level siblings,
+/// never nested types (public or non-public) inside the handler class. See
 /// docs/guides/test-conventions.md ("Architecture Tests") for the rationale and the
 /// architecture-test vs Roslyn-analyzer split (#357 / #350).
 ///
@@ -63,10 +66,25 @@ public sealed class HandlerContractGuardSpec {
 	// other than exactly "Handle" (catches a leftover HandleCreate/HandleUpdate
 	// from before the #431 rename). Private helpers like HandleSuccessAsync are
 	// non-public and so are not considered.
+	//
+	// Candidate set: handlers exposing ANY public static Handle* method (NOT only
+	// those with an exact "Handle"). Using the strict entrypoint enumerator here
+	// would be vacuous — a handler regressed to HandleCreate only (no exact
+	// "Handle") would be filtered out before this guard could flag it.
 	[Fact]
 	public void ItShouldNameHandlerEntrypointsExactlyHandle() {
-		List<string> offenders = ArchitectureDiscoveryHelper
-			.EnumerateHandlerEntrypointTypes()
+		IReadOnlyList<Type> candidates =
+			ArchitectureDiscoveryHelper.EnumerateHandlerEntrypointCandidateTypes();
+
+		// Vacuity check inside the guard: an empty candidate set (e.g. a broken
+		// namespace filter) would make this guard pass for the wrong reason.
+		_ = candidates.Should().NotBeEmpty(
+			"handler entrypoint-candidate discovery must find classes exposing a "
+			+ "public static Handle* method; an empty result would make the "
+			+ "entrypoint-naming guard vacuous."
+		);
+
+		List<string> offenders = candidates
 			.SelectMany(type => type
 				.GetMethods(
 					BindingFlags.Public
@@ -98,8 +116,18 @@ public sealed class HandlerContractGuardSpec {
 	// parameters. DbContext access belongs in services, never in handlers.
 	[Fact]
 	public void ItShouldKeepHandlersFreeOfDbContext() {
-		List<string> offenders = ArchitectureDiscoveryHelper
-			.EnumerateHandlerEntrypointTypes()
+		IReadOnlyList<Type> entrypoints =
+			ArchitectureDiscoveryHelper.EnumerateHandlerEntrypointTypes();
+
+		// Vacuity check inside the guard: an empty entrypoint set would make this
+		// guard pass for the wrong reason.
+		_ = entrypoints.Should().NotBeEmpty(
+			"handler-entrypoint discovery must find classes exposing a public "
+			+ "static Handle method; an empty result would make the no-DbContext "
+			+ "guard vacuous."
+		);
+
+		List<string> offenders = entrypoints
 			.SelectMany(FindDbContextDependencies)
 			.OrderBy(name => name, StringComparer.Ordinal)
 			.ToList();
@@ -111,31 +139,51 @@ public sealed class HandlerContractGuardSpec {
 		);
 	}
 
-	// B.3 — handler classes expose no public nested types. HTTP contract types
+	// B.3 — handler classes expose no nested types. HTTP contract types
 	// (Body/Query/Result/Response/Item) and *Validator types must be top-level
-	// siblings in the handler file, never nested public types inside the class.
+	// siblings in the handler file, never nested inside the class.
+	// Both Public AND NonPublic nested types are scanned: an internal/protected
+	// internal nested Body/Query/Validator still violates the top-level-sibling
+	// convention and must not slip through a Public-only scan.
 	[Fact]
 	public void ItShouldKeepContractTypesOutOfHandlerClasses() {
-		List<string> offenders = ArchitectureDiscoveryHelper
-			.EnumerateHandlerEntrypointTypes()
+		IReadOnlyList<Type> entrypoints =
+			ArchitectureDiscoveryHelper.EnumerateHandlerEntrypointTypes();
+
+		// Vacuity check inside the guard: an empty entrypoint set would make this
+		// guard pass for the wrong reason.
+		_ = entrypoints.Should().NotBeEmpty(
+			"handler-entrypoint discovery must find classes exposing a public "
+			+ "static Handle method; an empty result would make the "
+			+ "nested-contract-type guard vacuous."
+		);
+
+		List<string> offenders = entrypoints
 			.SelectMany(type => type
-				.GetNestedTypes(BindingFlags.Public)
+				.GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic)
+				// Exclude compiler-generated nested types — an async Handle method
+				// emits a state machine (<Handle>d__N) and lambdas emit display
+				// classes (<>c) as NonPublic nested types. They are not authored
+				// contract/validator types and must not be flagged.
+				.Where(nested => !IsCompilerGenerated(nested))
 				.Select(nested => $"{type.FullName}+{nested.Name}"))
 			.OrderBy(name => name, StringComparer.Ordinal)
 			.ToList();
 
 		_ = offenders.Should().BeEmpty(
-			"handler classes must expose no public nested types — HTTP "
+			"handler classes must expose no authored nested types — HTTP "
 			+ "contract types (Body/Query/Result/Response/Item) and *Validator "
 			+ "types must be declared as top-level siblings in the handler file, "
-			+ "not nested inside the handler class."
+			+ "not nested inside the handler class (public or non-public)."
 		);
 	}
 
 	// B.4 — every FluentValidation AbstractValidator<T> declared in a .Handlers.
 	// namespace targets a T that is a top-level (non-nested) type whose name ends
-	// in "Body" or "Query". This keeps validators bound to the public request
-	// contract types (the body/query DTOs), never to nested or arbitrary shapes.
+	// in "Body" or "Query" AND lives in the SAME namespace as the validator. This
+	// keeps validators bound to the public request contract types (the body/query
+	// DTOs) of their OWN handler file, never to nested, arbitrary, or unrelated
+	// same-suffix types declared in another namespace.
 	[Fact]
 	public void ItShouldTargetTopLevelBodyOrQueryTypesFromHandlerValidators() {
 		IReadOnlyList<Type> validators =
@@ -153,7 +201,7 @@ public sealed class HandlerContractGuardSpec {
 				Validator: validator,
 				Target: ArchitectureDiscoveryHelper.GetValidatorTarget(validator)
 			))
-			.Where(pair => !IsValidValidatorTarget(pair.Target))
+			.Where(pair => !IsValidValidatorTarget(pair.Validator, pair.Target))
 			.Select(pair =>
 				$"{pair.Validator.Name} -> {DescribeTarget(pair.Target)}")
 			.OrderBy(name => name, StringComparer.Ordinal)
@@ -162,7 +210,8 @@ public sealed class HandlerContractGuardSpec {
 		_ = offenders.Should().BeEmpty(
 			"an AbstractValidator<T> in a handler namespace must target a "
 			+ "top-level (non-nested) request contract type whose name ends in "
-			+ "'Body' or 'Query'."
+			+ "'Body' or 'Query' and that lives in the SAME namespace as the "
+			+ "validator (its own handler file)."
 		);
 	}
 
@@ -213,23 +262,65 @@ public sealed class HandlerContractGuardSpec {
 		}
 	}
 
+	private static bool IsCompilerGenerated(Type type) {
+		// Belt-and-suspenders: the attribute is the contract, the angle-bracket name
+		// is the observable convention for state machines/display classes.
+		return type.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false)
+			|| type.Name.Contains('<', StringComparison.Ordinal);
+	}
+
 	private static bool IsDbContext(Type type) {
-		if (type == typeof(MainApiDbContext)
-			|| typeof(MainApiDbContext).IsAssignableFrom(type)) {
+		return IsDbContext(type, new HashSet<Type>());
+	}
+
+	// Recursive DbContext-access detector. Catches a direct DbContext, any wrapper
+	// that hands one out (IDbContextFactory<...>, Func<...>, Lazy<...>, arrays,
+	// by-ref/out params, …), and the IServiceProvider service-locator escape hatch.
+	private static bool IsDbContext(Type type, HashSet<Type> visited) {
+		// ANY EF Core DbContext, not just MainApiDbContext — a handler reaching for
+		// a base/other DbContext is just as much of a violation.
+		if (typeof(DbContext).IsAssignableFrom(type)) {
 			return true;
 		}
 
-		// IDbContextFactory<MainApiDbContext> is a real DbContext-access vector
-		// (it hands out MainApiDbContext instances), so flag it too.
-		// IServiceProvider is intentionally NOT flagged: it is too broad and would
-		// false-positive on legitimate non-DbContext service resolution.
-		return type.IsGenericType
-			&& type.GetGenericTypeDefinition() == typeof(IDbContextFactory<>)
-			&& type.GetGenericArguments()[0] == typeof(MainApiDbContext);
+		// IServiceProvider is a service-locator escape hatch a handler could use to
+		// resolve a DbContext (or a service) out of band, bypassing the
+		// orchestrate-via-injected-services contract. The stricter review wants it
+		// flagged (reversing the earlier "intentionally not flagged" note).
+		if (type == typeof(IServiceProvider)) {
+			return true;
+		}
+
+		// Unwrap by-ref/out (ref/out params), pointers, and arrays.
+		if (type.IsByRef || type.IsPointer || type.IsArray) {
+			Type? elementType = type.GetElementType();
+			return elementType is not null && IsDbContext(elementType, visited);
+		}
+
+		// Recurse through generic arguments so wrappers like
+		// IDbContextFactory<MainApiDbContext>, Func<MainApiDbContext>, and
+		// Lazy<MainApiDbContext> are all caught.
+		if (type.IsGenericType) {
+			foreach (var argument in type.GetGenericArguments()) {
+				if (visited.Add(argument) && IsDbContext(argument, visited)) {
+					return true;
+				}
+			}
+		}
+
+		return false;
 	}
 
-	private static bool IsValidValidatorTarget(Type? target) {
+	private static bool IsValidValidatorTarget(Type validator, Type? target) {
 		if (target is null || target.IsNested) {
+			return false;
+		}
+
+		// Must live in the validator's own namespace (its handler file), so a
+		// validator cannot bind to an unrelated top-level FooBody/FooQuery declared
+		// in some other namespace.
+		if (!string.Equals(
+			target.Namespace, validator.Namespace, StringComparison.Ordinal)) {
 			return false;
 		}
 
@@ -242,8 +333,12 @@ public sealed class HandlerContractGuardSpec {
 			return "<no AbstractValidator<T> base>";
 		}
 
-		return target.IsNested
-			? $"{target.Name} (nested)"
-			: target.Name;
+		if (target.IsNested) {
+			return $"{target.Name} (nested)";
+		}
+
+		// Include the namespace so a cross-namespace mismatch is legible in the
+		// offender message.
+		return $"{target.Namespace}.{target.Name}";
 	}
 }

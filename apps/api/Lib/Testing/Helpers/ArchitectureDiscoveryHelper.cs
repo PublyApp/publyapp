@@ -90,8 +90,15 @@ internal static class ArchitectureDiscoveryHelper {
 	/// that carry the Minimal-API delegate: a non-abstract class exposing a
 	/// <c>public static</c> method named exactly <c>Handle</c>. This excludes the
 	/// wire DTO records, <c>*Validator</c> types, and file-scoped helper classes that
-	/// also live in <c>.Handlers.</c> namespaces, so handler-class guards (entrypoint
-	/// naming, no DbContext, no public nested types) fault only the real handlers.
+	/// also live in <c>.Handlers.</c> namespaces, so handler-class guards that must
+	/// operate on real entrypoints (no DbContext, no nested contract types) fault
+	/// only the real handlers.
+	///
+	/// Note: this enumerator is deliberately <em>strict</em> (exact <c>Handle</c>), so
+	/// the entrypoint-naming guard (B.1) must NOT use it — a handler that regressed to
+	/// only <c>HandleCreate</c>/<c>HandleUpdate</c> would be filtered out here before
+	/// B.1 could flag it. Use <see cref="EnumerateHandlerEntrypointCandidateTypes"/>
+	/// for that guard instead.
 	/// </summary>
 	public static IReadOnlyList<Type> EnumerateHandlerEntrypointTypes() {
 		return EnumerateHandlerTypes()
@@ -101,6 +108,27 @@ internal static class ArchitectureDiscoveryHelper {
 					"Handle",
 					BindingFlags.Public | BindingFlags.Static
 				) is not null)
+			.ToList();
+	}
+
+	/// <summary>
+	/// Enumerates handler entrypoint <em>candidates</em> for the B.1 naming guard:
+	/// non-abstract handler classes exposing ANY <c>public static</c> method whose
+	/// name starts with <c>Handle</c> (<c>Handle</c>, <c>HandleCreate</c>,
+	/// <c>HandleUpdate</c>, …). This is intentionally broader than
+	/// <see cref="EnumerateHandlerEntrypointTypes"/> so the naming guard can CATCH a
+	/// handler that regressed to <c>HandleCreate</c> only (no exact <c>Handle</c>);
+	/// the strict enumerator would silently drop it. Wire DTO records and
+	/// <c>*Validator</c> types are already excluded by <see cref="EnumerateHandlerTypes"/>.
+	/// </summary>
+	public static IReadOnlyList<Type> EnumerateHandlerEntrypointCandidateTypes() {
+		return EnumerateHandlerTypes()
+			.Where(type =>
+				type is { IsClass: true, IsAbstract: false }
+				&& type
+					.GetMethods(BindingFlags.Public | BindingFlags.Static)
+					.Any(method =>
+						method.Name.StartsWith("Handle", StringComparison.Ordinal)))
 			.ToList();
 	}
 

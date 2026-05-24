@@ -30,10 +30,13 @@ public sealed class ServiceArgsRecordConventionSpec {
 	}
 
 	/// <summary>
-	/// Methods (<c>InterfaceName.MethodName</c>) that currently take 3+ non-token
-	/// parameters and are intentionally exempt from the args-record rule for now.
-	/// This is a baseline, not a blessing: each entry is a pre-existing case to
-	/// ratchet toward zero, never a way to weaken the rule for new code.
+	/// Methods that currently take 3+ non-token parameters and are intentionally
+	/// exempt from the args-record rule for now. The key is the FULL non-token
+	/// parameter-type signature (<c>InterfaceName.MethodName(Type1, Type2, …)</c>),
+	/// NOT just <c>Interface.Method</c>: keying by name alone would also suppress a
+	/// NEW 3+-param overload of an allowlisted method, silently widening the
+	/// baseline. This is a baseline, not a blessing: each entry is a pre-existing
+	/// case to ratchet toward zero, never a way to weaken the rule for new code.
 	/// </summary>
 	private static readonly HashSet<string> AllowedMultiParamMethods = new(
 		StringComparer.Ordinal
@@ -41,15 +44,16 @@ public sealed class ServiceArgsRecordConventionSpec {
 		// Optional permission-scope discriminators on a hot read path; folding three
 		// IDs into an args record here buys little and would churn every caller of
 		// the PermissionFilter. Ratchet target.
-		"IPermissionService.GetEffectivePermissionsAsync",
+		"IPermissionService.GetEffectivePermissionsAsync(Guid, Guid?, Guid?)",
 
 		// Three required identifiers/level for account creation; an args record is
 		// the eventual shape but this is a stable, internal seam. Ratchet target.
-		"IAccountService.CreateTenantAccountAsync",
+		"IAccountService.CreateTenantAccountAsync(Guid, Guid, AccountLevel)",
 
 		// (tenantId, userId, document) tenant-user update; should adopt an
 		// UpdateTenantUserArgs record like its siblings. Ratchet target.
-		"IUserService.UpdateTenantUserAsync",
+		"IUserService.UpdateTenantUserAsync"
+			+ "(Guid, Guid, UpdateTenantUserDocument)",
 	};
 
 	[Fact]
@@ -76,7 +80,7 @@ public sealed class ServiceArgsRecordConventionSpec {
 				)))
 			.Where(entry => entry.NonTokenCount >= 3)
 			.Select(entry => (
-				Key: $"{entry.Interface.Name}.{entry.Method.Name}",
+				Key: BuildSignatureKey(entry.Interface, entry.Method),
 				Count: entry.NonTokenCount
 			))
 			.Where(entry => !AllowedMultiParamMethods.Contains(entry.Key))
@@ -101,7 +105,7 @@ public sealed class ServiceArgsRecordConventionSpec {
 			.SelectMany(serviceInterface => serviceInterface
 				.GetMethods()
 				.Where(method => CountNonTokenParameters(method) >= 3)
-				.Select(method => $"{serviceInterface.Name}.{method.Name}"))
+				.Select(method => BuildSignatureKey(serviceInterface, method)))
 			.ToHashSet(StringComparer.Ordinal);
 
 		List<string> staleEntries = AllowedMultiParamMethods
@@ -185,6 +189,42 @@ public sealed class ServiceArgsRecordConventionSpec {
 			.GetParameters()
 			.Count(parameter =>
 				parameter.ParameterType != typeof(CancellationToken));
+	}
+
+	/// <summary>
+	/// Builds the allowlist/offender key for a method:
+	/// <c>InterfaceName.MethodName(Type1, Type2, …)</c> using the non-token
+	/// parameter TYPES (CancellationToken excluded). Keying by type signature — not
+	/// just <c>Interface.Method</c> — means a NEW 3+-param overload of an
+	/// allowlisted method is NOT suppressed by the existing entry.
+	/// </summary>
+	private static string BuildSignatureKey(
+		Type serviceInterface,
+		MethodInfo method
+	) {
+		var parameterTypes = method
+			.GetParameters()
+			.Where(parameter =>
+				parameter.ParameterType != typeof(CancellationToken))
+			.Select(parameter => RenderTypeName(parameter.ParameterType));
+
+		return $"{serviceInterface.Name}.{method.Name}"
+			+ $"({string.Join(", ", parameterTypes)})";
+	}
+
+	/// <summary>
+	/// Renders a readable, stable parameter type name for signature keys:
+	/// <c>Nullable&lt;Guid&gt;</c> becomes <c>Guid?</c>; everything else uses
+	/// <see cref="MemberInfo.Name"/> (so <c>Guid</c>, <c>AccountLevel</c>,
+	/// <c>UpdateTenantUserDocument</c>, …).
+	/// </summary>
+	private static string RenderTypeName(Type type) {
+		var underlying = Nullable.GetUnderlyingType(type);
+		if (underlying is not null) {
+			return $"{underlying.Name}?";
+		}
+
+		return type.Name;
 	}
 
 	private static void AssertMethodParameterTypeNames<TService>(
