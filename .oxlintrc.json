@@ -1,6 +1,7 @@
 {
 	"$schema": "./node_modules/oxlint/configuration_schema.json",
 	"plugins": ["unicorn", "typescript", "oxc", "react"],
+	"jsPlugins": ["./packages/oxlint-plugin-publy/src/index.js"],
 	"options": {
 		"typeAware": true
 	},

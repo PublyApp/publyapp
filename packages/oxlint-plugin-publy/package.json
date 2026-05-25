@@ -1,0 +1,18 @@
+{
+	"name": "@org/oxlint-plugin-publy",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Custom Oxlint JS plugin for PublyApp repo-specific lint rules (loaded via Oxlint jsPlugins).",
+	"type": "module",
+	"main": "src/index.js",
+	"exports": {
+		".": "./src/index.js",
+		"./package.json": "./package.json"
+	},
+	"scripts": {
+		"test": "node --test \"src/**/*.test.js\""
+	},
+	"devDependencies": {
+		"oxlint": "1.64.0"
+	}
+}

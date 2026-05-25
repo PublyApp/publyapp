@@ -431,6 +431,12 @@ importers:
         specifier: 1.0.0-preview.97
         version: 1.0.0-preview.97
 
+  packages/oxlint-plugin-publy:
+    devDependencies:
+      oxlint:
+        specifier: 1.64.0
+        version: 1.64.0(oxlint-tsgolint@0.22.1)
+
   packages/shared-ts:
     dependencies:
       axios:
