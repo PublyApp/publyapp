@@ -5,4 +5,4 @@
 
 Rule ID | Category | Severity | Notes
 --------|----------|----------|--------------------
-PUBLY0001 | PublyApp | Disabled | Placeholder rule
+PUBLY0001 | PublyApp.Nullability | Disabled | Avoid the null-forgiving operator
