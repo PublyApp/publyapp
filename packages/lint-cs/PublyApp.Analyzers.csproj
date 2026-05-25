@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<!-- Roslyn loads analyzers inside the compiler process, which runs on the host .NET SDK and
+		     may be any version. netstandard2.0 is the only target guaranteed to load correctly in
+		     all SDK versions; using net10.0 here would break older toolchains that host Roslyn. -->
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<LangVersion>latest</LangVersion>
+		<Nullable>enable</Nullable>
+		<!-- IsRoslynComponent tells the SDK to emit the analyzer into the right NuGet folder
+		     (analyzers/dotnet/cs/) and suppresses the warning about netstandard2.0 projects
+		     being unusual in a net10.0 repo. -->
+		<IsRoslynComponent>true</IsRoslynComponent>
+		<!-- EnforceExtendedAnalyzerRules enables additional Roslyn-analyzer-specific diagnostics
+		     (RS* rules) that catch common mistakes like registering actions after Initialize returns
+		     or calling non-thread-safe APIs when concurrent execution is enabled. -->
+		<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+	</PropertyGroup>
+
+	<!-- Co-located *.Spec.cs specs live next to the source they exercise (the same model apps/api
+	     uses). They must be compiled by the Tests/ runner shell, NOT by the analyzer assembly, so
+	     exclude them here along with the entire Tests/ folder. Mirrors MainApi.csproj's removals. -->
+	<ItemGroup>
+		<Compile Remove="**/*.Spec.cs" />
+		<Compile Remove="Tests/**/*.cs" />
+		<None Remove="Tests/**" />
+		<Content Remove="Tests/**" />
+		<EmbeddedResource Remove="Tests/**" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- PrivateAssets="all" keeps the Roslyn and analyzer SDK packages out of the consuming
+		     project's dependency graph — they are compile-time tools, not runtime dependencies. -->
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- The RS2008 release-tracking analyzer (part of Microsoft.CodeAnalysis.Analyzers) requires
+		     these files to be declared as AdditionalFiles so it can validate that every diagnostic
+		     descriptor is listed before being shipped. -->
+		<AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+		<AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+	</ItemGroup>
+
+</Project>
