@@ -273,6 +273,9 @@ DTOs, service layer, DI rules, API responses, formatting, and more), see:
 For FluentValidation conventions (shared extension methods, pagination validators, encrypted-ID queries), see:
 [`docs/guides/validator-conventions.md`](docs/guides/validator-conventions.md)
 
+For the repo-wide .NET project layout (placement under `apps/` vs `packages/*-cs`, co-located `*.Spec.cs` tests, the `Tests/` runner shell, `PublyApp.*` naming, and centralized `Directory.Build.props`/`.targets`/`Directory.Packages.props`), see:
+[`docs/guides/dotnet-project-layout.md`](docs/guides/dotnet-project-layout.md)
+
 **Key principles (always apply):**
 - Pattern matching for null checks (`is null` / `is not null`, never `== null`)
 - **Never** use `?? throw` — use traditional `if` guard clauses for null-then-throw patterns
