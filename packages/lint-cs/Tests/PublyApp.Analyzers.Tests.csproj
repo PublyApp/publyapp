@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<!-- The test runner executes on the host .NET runtime, so net10.0 is appropriate here —
+		     unlike the analyzer project itself which must target netstandard2.0 to be loadable
+		     by any SDK version that hosts Roslyn. -->
+		<TargetFramework>net10.0</TargetFramework>
+		<IsTestProject>true</IsTestProject>
+		<IsPackable>false</IsPackable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.NET.Test.Sdk" />
+		<PackageReference Include="xunit" />
+		<PackageReference Include="xunit.runner.visualstudio" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Analyzer.Testing.XUnit" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\PublyApp.Analyzers.csproj" />
+	</ItemGroup>
+
+	<!-- Keep analyzer specs physically next to the source they exercise (the same co-located model
+	     apps/api uses in MainApi.Tests.csproj), but compile them into this dedicated runner shell.
+	     The Exclude guard stops the ..\**\ glob from re-picking specs under this Tests/ folder, which
+	     the SDK already globs by default. -->
+	<ItemGroup>
+		<Compile Include="..\**\*.Spec.cs"
+				 Exclude="..\Tests\**\*.Spec.cs"
+				 Link="%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+
+</Project>
