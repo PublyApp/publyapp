@@ -51,7 +51,7 @@
 	     analyzer DLL is never referenced or copied to the API's bin/ folder — it only runs at
 	     compile time. -->
 	<ItemGroup>
-		<ProjectReference Include="../../packages/analyzers-cs/PublyApp.Analyzers.csproj"
+		<ProjectReference Include="../../packages/lint-cs/PublyApp.Analyzers.csproj"
 						  OutputItemType="Analyzer"
 						  ReferenceOutputAssembly="false" />
 	</ItemGroup>

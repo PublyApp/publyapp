@@ -193,8 +193,8 @@ test-api:
 
 # Run analyzer tests
 test-analyzers:
-  dotnet restore packages/analyzers-cs/Tests/PublyApp.Analyzers.Tests.csproj
-  dotnet test packages/analyzers-cs/Tests/PublyApp.Analyzers.Tests.csproj -c Release --no-restore --nologo
+  dotnet restore packages/lint-cs/Tests/PublyApp.Analyzers.Tests.csproj
+  dotnet test packages/lint-cs/Tests/PublyApp.Analyzers.Tests.csproj -c Release --no-restore --nologo
 
 # Run API integration tests with verbose diagnostics
 test-api-debug:
