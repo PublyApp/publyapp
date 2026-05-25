@@ -151,7 +151,7 @@ enforcement until a rule's target code is clean or exclusions are deliberate.
 
 | PR | Scope |
 | --- | --- |
-| **JS.1** | Scaffold `packages/oxlint-plugin-publy` (workspace pkg) + RuleTester harness + one Oxlint `jsPlugins` CLI fixture. Prove the plugin loads through the existing `pnpm lint` path with **no enforcement**. |
+| **JS.1** | Scaffold `packages/lint-ts` (workspace pkg, formerly `packages/oxlint-plugin-publy`) + RuleTester harness + one Oxlint `jsPlugins` CLI fixture. Prove the plugin loads through the existing `pnpm lint` path with **no enforcement**. |
 | **JS.2** | First high-signal rule, one per PR — candidate order: `prefer-specific-lodash-imports`, `no-direct-dayjs-in-components`, `no-console-in-source`, `no-raw-mui-textfield-register`, `no-native-html-in-mui-surfaces`, `no-manual-response-message-translation`. |
 | **JS.3** | Evaluate ESLint Stylistic via `jsPlugins` for layout rules (`padding-line-between-statements`, `lines-between-class-members`, `no-multiple-empty-lines`); fall back to a narrow `publy/*` rule only if compatibility/perf is poor. |
 
@@ -191,8 +191,8 @@ Keep `oxfmt` unchanged — it stays the formatter; policy checks live in Oxlint.
 
 ## Open questions (carry from the issues)
 
-- JS plugin package name: `oxlint-plugin-publy` vs `eslint-plugin-publy` vs
-  generic `lint-rules`? (Roadmap assumes `oxlint-plugin-publy`.)
+- ~~JS plugin package name: `oxlint-plugin-publy` vs `eslint-plugin-publy` vs
+  generic `lint-rules`?~~ Resolved: renamed to `packages/lint-ts` (`@org/lint-ts`); `publy/*` rule namespace unchanged.
 - Analyzer location permanent at `apps/api/Analyzers/` or later a repo-level
   package if reused beyond the API?
 - Analyzer tests under `just test-api` or a separate `just test-analyzers`?
