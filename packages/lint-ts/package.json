@@ -1,5 +1,5 @@
 {
-	"name": "@org/oxlint-plugin-publy",
+	"name": "@org/lint-ts",
 	"version": "0.0.0",
 	"private": true,
 	"description": "Custom Oxlint JS plugin for PublyApp repo-specific lint rules (loaded via Oxlint jsPlugins).",

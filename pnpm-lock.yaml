@@ -431,7 +431,7 @@ importers:
         specifier: 1.0.0-preview.97
         version: 1.0.0-preview.97
 
-  packages/oxlint-plugin-publy:
+  packages/lint-ts:
     devDependencies:
       oxlint:
         specifier: 1.64.0

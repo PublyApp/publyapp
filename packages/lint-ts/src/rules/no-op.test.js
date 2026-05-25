@@ -27,7 +27,7 @@ RuleTester.describe = describe;
 RuleTester.it = it;
 
 // ── Plugin entrypoint wiring assertions ─────────────────────────────────────
-describe('plugin entrypoint (@org/oxlint-plugin-publy)', () => {
+describe('plugin entrypoint (@org/lint-ts)', () => {
 	it('exports a default plugin with meta.name === "publy"', () => {
 		assert.strictEqual(plugin.meta.name, 'publy');
 	});
