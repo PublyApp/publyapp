@@ -8,10 +8,14 @@
  * What this proves:
  * - Plugin wiring: `index.js` exposes `rules['prefer-specific-lodash-imports']`
  *   pointing at the same rule object exported from the rule module.
- * - `valid`: sub-path lodash imports and non-lodash imports report nothing.
+ * - `valid`: sub-path lodash imports, look-alike package names (exact-string
+ *   match means `lodash-es` / `lodashy` / `@company/lodash` must NOT flag), and
+ *   non-lodash imports report nothing.
  * - `invalid`: full-package lodash imports (default / named / namespace / mixed /
  *   side-effect) all report, with the auto-fixed output asserted for the
- *   unambiguous named-import case (including aliases and `type` modifiers).
+ *   unambiguous value-only named-import case (including aliases). Type-only
+ *   members (`import { type Dictionary }` / `import type { … }`) are reported but
+ *   NOT auto-fixed, because lodash type members have no `lodash/<Type>` subpath.
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
@@ -45,9 +49,16 @@ const runCases = (rule, label) => {
 				"import isEqual from 'lodash/isEqual';",
 				"import { isPlainObject } from 'lodash/fp';",
 				"import capitalize from 'lodash/capitalize';",
-				// Lookalike package names must not be flagged.
+				// Lookalike / sibling package names must not be flagged — the rule
+				// matches the source string exactly against 'lodash'.
 				"import lodashes from 'lodashes';",
 				"import { thing } from 'not-lodash';",
+				"import x from 'lodash-es';",
+				"import x from 'lodashy';",
+				"import x from '@company/lodash';",
+				// Out of scope: re-export (ExportNamedDeclaration) is not an
+				// ImportDeclaration, so this rule never visits it.
+				"export { map } from 'lodash';",
 				// Unrelated imports.
 				"import { useState } from 'react';",
 				"import dayjs from 'dayjs';",
@@ -91,20 +102,31 @@ const runCases = (rule, label) => {
 					errors: [{ messageId: 'named' }],
 					output: "import mapValues from 'lodash/map';",
 				},
-				// Per-specifier `type` modifier is preserved (needs the TS parser).
+				// Per-specifier `type` modifier — reported but NOT auto-fixed, because
+				// `lodash/Dictionary` is not a real helper module. `output` omitted
+				// (RuleTester treats a missing `output` as "no fix expected").
 				{
 					code: "import { type Dictionary } from 'lodash';",
 					filename: 'file.ts',
 					errors: [{ messageId: 'named' }],
-					output: "import type Dictionary from 'lodash/Dictionary';",
 				},
-				// Declaration-level `import type` is preserved across all members.
+				// Declaration-level `import type` — reported, NOT auto-fixed.
+				{
+					code: "import type { Dictionary } from 'lodash';",
+					filename: 'file.ts',
+					errors: [{ messageId: 'named' }],
+				},
 				{
 					code: "import type { Dictionary, List } from 'lodash';",
 					filename: 'file.ts',
 					errors: [{ messageId: 'named' }],
-					output:
-						"import type Dictionary from 'lodash/Dictionary';\nimport type List from 'lodash/List';",
+				},
+				// Mixed value + type-only specifiers — a partial fix could emit broken
+				// code (`lodash/PartialObject` does not exist), so report, NO fix.
+				{
+					code: "import { type PartialObject, map } from 'lodash';",
+					filename: 'file.ts',
+					errors: [{ messageId: 'named' }],
 				},
 			],
 		});
