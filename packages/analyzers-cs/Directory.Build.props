@@ -2,11 +2,11 @@
 	<PropertyGroup>
 		<!-- DotNetArtifactsRoot must be set before the repo-root Directory.Build.props is imported.
 		     The root props derive BaseOutputPath and BaseIntermediateOutputPath from this value, so
-		     setting it here (relative to this file) gives the Analyzers subtree its own .artifacts\
-		     directory rather than inheriting the API project's artifacts root. -->
+		     setting it here (relative to this file) gives this repo-level package its own .artifacts\
+		     directory rather than inheriting another project's artifacts root. -->
 		<DotNetArtifactsRoot>$(MSBuildThisFileDirectory).artifacts\</DotNetArtifactsRoot>
 	</PropertyGroup>
 
 	<!-- Import after setting DotNetArtifactsRoot so the root props pick it up correctly. -->
-	<Import Project="..\..\..\Directory.Build.props" />
+	<Import Project="..\..\Directory.Build.props" />
 </Project>

@@ -3,11 +3,6 @@
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
 		<PublishDir>$(ApiArtifactsRoot)publish\</PublishDir>
-		<!-- Prevent the SDK from compiling the Analyzers\ subtree as part of the API project.
-		     Without this exclusion, MSBuild would glob *.cs under Analyzers\ and the API
-		     would try to compile the analyzer source, which targets netstandard2.0 and has
-		     incompatible API surface (no ImmutableArray, DiagnosticAnalyzer, etc.). -->
-		<DefaultItemExcludes>$(DefaultItemExcludes);Analyzers\**</DefaultItemExcludes>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -56,7 +51,7 @@
 	     analyzer DLL is never referenced or copied to the API's bin/ folder — it only runs at
 	     compile time. -->
 	<ItemGroup>
-		<ProjectReference Include="Analyzers/PublyApp.Analyzers/PublyApp.Analyzers.csproj"
+		<ProjectReference Include="../../packages/analyzers-cs/PublyApp.Analyzers/PublyApp.Analyzers.csproj"
 						  OutputItemType="Analyzer"
 						  ReferenceOutputAssembly="false" />
 	</ItemGroup>
