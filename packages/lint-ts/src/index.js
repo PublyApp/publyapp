@@ -10,10 +10,14 @@
  * experimental CLI flag is required in 1.64.0 — declaring `jsPlugins` activates
  * the loader. See https://oxc.rs/docs/guide/usage/linter/js-plugins.html
  *
- * JS.1 scaffold (issue #350): ships ONE inert `no-op` rule purely to prove the
- * plugin loads. No rule is enabled in config, so there is zero enforcement.
+ * JS.1 scaffold (issue #350): shipped the inert `no-op` rule purely to prove the
+ * plugin loads. JS.2 (issue #462) adds the first real rule,
+ * `prefer-specific-lodash-imports`. Rules are registered `"off"` in
+ * `.oxlintrc.json` until their target code is audited, so the plugin ships with
+ * zero enforcement.
  */
 import { noOp } from './rules/no-op.js';
+import { preferSpecificLodashImports } from './rules/prefer-specific-lodash-imports.js';
 
 // Plugin object shape (oxlint 1.64.0): `{ meta: { name }, rules: { [name]: Rule } }`.
 const plugin = {
@@ -22,6 +26,7 @@ const plugin = {
 	},
 	rules: {
 		'no-op': noOp,
+		'prefer-specific-lodash-imports': preferSpecificLodashImports,
 	},
 };
 

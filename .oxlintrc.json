@@ -40,6 +40,7 @@
 		"unicorn/no-array-for-each": "off",
 		"unicorn/no-array-reduce": "error",
 		"unicorn/no-document-cookie": "off",
-		"unicorn/prefer-number-properties": "error"
+		"unicorn/prefer-number-properties": "error",
+		"publy/prefer-specific-lodash-imports": "off"
 	}
 }
