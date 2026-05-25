@@ -4,9 +4,9 @@ using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 using AnalyzerUnderTest = PublyApp.Analyzers.PlaceholderAnalyzer;
 
-namespace PublyApp.Analyzers.Tests.Tests;
+namespace PublyApp.Analyzers;
 
-public sealed class PlaceholderAnalyzerTests
+public sealed class PlaceholderAnalyzerSpec
 {
 	[Fact]
 	public async Task ItShouldReturnNoDiagnosticsWhenCodeIsValid()

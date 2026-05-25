@@ -18,7 +18,17 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\PublyApp.Analyzers\PublyApp.Analyzers.csproj" />
+		<ProjectReference Include="..\PublyApp.Analyzers.csproj" />
+	</ItemGroup>
+
+	<!-- Keep analyzer specs physically next to the source they exercise (the same co-located model
+	     apps/api uses in MainApi.Tests.csproj), but compile them into this dedicated runner shell.
+	     The Exclude guard stops the ..\**\ glob from re-picking specs under this Tests/ folder, which
+	     the SDK already globs by default. -->
+	<ItemGroup>
+		<Compile Include="..\**\*.Spec.cs"
+				 Exclude="..\Tests\**\*.Spec.cs"
+				 Link="%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
 
 </Project>
