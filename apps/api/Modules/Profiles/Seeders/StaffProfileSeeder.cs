@@ -20,7 +20,11 @@ public class StaffProfileSeeder : IEntitySeeder {
 			?? SeederLoggerUtils.CreateDefault<StaffProfileSeeder>();
 	}
 
-	public int Order => 35;
+	public int Order {
+		get {
+			return 35;
+		}
+	}
 
 	public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
 		var staffProfiles = new List<(string Name, string Description)> {

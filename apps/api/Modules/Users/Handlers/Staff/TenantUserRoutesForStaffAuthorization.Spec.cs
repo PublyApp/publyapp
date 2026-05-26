@@ -347,19 +347,21 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 		);
 	}
 
-	private static string GetTenantUserUrl(Guid userId) =>
-		PathUtils.Join(
+	private static string GetTenantUserUrl(Guid userId) {
+		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForTenantUsersAsStaff.GetByIdFn(userId.ToString())
 		);
+	}
 
-	private static string GetTenantUserCompaniesUrl(Guid userId) =>
-		PathUtils.Join(
+	private static string GetTenantUserCompaniesUrl(Guid userId) {
+		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForTenantUsersAsStaff.FindCompaniesFn(
 				userId.ToString()
 			)
 		);
+	}
 
 	private static string GetTenantUserCompaniesActionUrl(
 		Guid userId,

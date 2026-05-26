@@ -57,16 +57,59 @@ public class BulkSeedDataGenerator {
 		_faker = new Faker { Random = new Randomizer(_random.Next()) };
 	}
 
-	public IReadOnlyList<Tenant> Tenants => _tenants;
-	public IReadOnlyList<User> Users => _allUsers;
-	public IReadOnlyList<UserAccount> UserAccounts => _allUserAccounts;
-	public IReadOnlyList<Project> Projects => _projects;
-	public IReadOnlyList<Invitation> Invitations => _invitations;
+	public IReadOnlyList<Tenant> Tenants {
+		get {
+			return _tenants;
+		}
+	}
 
-	public IReadOnlyList<User> TenantUsers => _tenantUsers;
-	public IReadOnlyList<UserAccount> TenantUserAccounts => _tenantUserAccounts;
-	public IReadOnlyList<User> StaffUsers => _staffUsers;
-	public IReadOnlyList<UserAccount> StaffUserAccounts => _staffUserAccounts;
+	public IReadOnlyList<User> Users {
+		get {
+			return _allUsers;
+		}
+	}
+
+	public IReadOnlyList<UserAccount> UserAccounts {
+		get {
+			return _allUserAccounts;
+		}
+	}
+
+	public IReadOnlyList<Project> Projects {
+		get {
+			return _projects;
+		}
+	}
+
+	public IReadOnlyList<Invitation> Invitations {
+		get {
+			return _invitations;
+		}
+	}
+
+	public IReadOnlyList<User> TenantUsers {
+		get {
+			return _tenantUsers;
+		}
+	}
+
+	public IReadOnlyList<UserAccount> TenantUserAccounts {
+		get {
+			return _tenantUserAccounts;
+		}
+	}
+
+	public IReadOnlyList<User> StaffUsers {
+		get {
+			return _staffUsers;
+		}
+	}
+
+	public IReadOnlyList<UserAccount> StaffUserAccounts {
+		get {
+			return _staffUserAccounts;
+		}
+	}
 
 	/// <summary>
 	/// Generates all bulk seed data in the correct order (dependencies first).

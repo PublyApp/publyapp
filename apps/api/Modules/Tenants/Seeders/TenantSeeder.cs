@@ -22,7 +22,11 @@ public class TenantSeeder : IEntitySeeder {
 			?? SeederLoggerUtils.CreateDefault<TenantSeeder>();
 	}
 
-	public int Order => 20;
+	public int Order {
+		get {
+			return 20;
+		}
+	}
 
 	public async Task SeedAsync(
 		MainApiDbContext dbContext,

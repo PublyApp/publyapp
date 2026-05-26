@@ -33,9 +33,23 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 	public bool IsDefault { get; set; }
 
 	// Computed properties for easy identification
-	public bool IsStaffProfile => Scope == ProfileScope.Staff && TenantId == null && ProjectId == null;
-	public bool IsTenantProfile => Scope == ProfileScope.Tenant && TenantId != null && ProjectId == null;
-	public bool IsProjectProfile => Scope == ProfileScope.Project && TenantId != null && ProjectId != null;
+	public bool IsStaffProfile {
+		get {
+			return Scope == ProfileScope.Staff && TenantId == null && ProjectId == null;
+		}
+	}
+
+	public bool IsTenantProfile {
+		get {
+			return Scope == ProfileScope.Tenant && TenantId != null && ProjectId == null;
+		}
+	}
+
+	public bool IsProjectProfile {
+		get {
+			return Scope == ProfileScope.Project && TenantId != null && ProjectId != null;
+		}
+	}
 
 	// Factory methods for type-safe creation
 	public static Profile CreateStaffProfile(string name, string? description = null) {

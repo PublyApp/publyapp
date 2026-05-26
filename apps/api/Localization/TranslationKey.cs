@@ -25,37 +25,51 @@ public readonly struct TranslationKey : IEquatable<TranslationKey> {
 	/// <summary>
 	/// Returns the translation key value
 	/// </summary>
-	public override string ToString() => Value;
+	public override string ToString() {
+		return Value;
+	}
 
 	/// <summary>
 	/// Implicitly converts a TranslationKey to its string value
 	/// </summary>
-	public static implicit operator string(TranslationKey key) => key.Value;
+	public static implicit operator string(TranslationKey key) {
+		return key.Value;
+	}
 
 	/// <summary>
 	/// Checks equality with another TranslationKey
 	/// </summary>
-	public bool Equals(TranslationKey other) => Value == other.Value;
+	public bool Equals(TranslationKey other) {
+		return Value == other.Value;
+	}
 
 	/// <summary>
 	/// Checks equality with an object
 	/// </summary>
-	public override bool Equals(object? obj) => obj is TranslationKey other && Equals(other);
+	public override bool Equals(object? obj) {
+		return obj is TranslationKey other && Equals(other);
+	}
 
 	/// <summary>
 	/// Gets the hash code for this TranslationKey
 	/// </summary>
-	public override int GetHashCode() => Value.GetHashCode();
+	public override int GetHashCode() {
+		return Value.GetHashCode();
+	}
 
 	/// <summary>
 	/// Equality operator
 	/// </summary>
-	public static bool operator ==(TranslationKey left, TranslationKey right) => left.Equals(right);
+	public static bool operator ==(TranslationKey left, TranslationKey right) {
+		return left.Equals(right);
+	}
 
 	/// <summary>
 	/// Inequality operator
 	/// </summary>
-	public static bool operator !=(TranslationKey left, TranslationKey right) => !left.Equals(right);
+	public static bool operator !=(TranslationKey left, TranslationKey right) {
+		return !left.Equals(right);
+	}
 }
 
 /// <summary>

@@ -668,47 +668,56 @@ public sealed class TenantUserCompanyActionsForStaffSpec
 		).WithSessionToken(sessionToken);
 	}
 
-	private static string GetTenantUserUrl(Guid userId) =>
-		PathUtils.Join(
+	private static string GetTenantUserUrl(Guid userId) {
+		return PathUtils.Join(
 			Routes.Staff.Root,
 			$"/tenant-users/{userId}"
 		);
+	}
 
-	private static string GetCompaniesUrl(Guid userId) =>
-		GetCompaniesUrl(userId.ToString());
+	private static string GetCompaniesUrl(Guid userId) {
+		return GetCompaniesUrl(userId.ToString());
+	}
 
-	private static string GetCompaniesUrl(string userId) =>
-		PathUtils.Join(
+	private static string GetCompaniesUrl(string userId) {
+		return PathUtils.Join(
 			Routes.Staff.Root,
 			$"/tenant-users/{userId}/companies"
 		);
+	}
 
-	private static string GetBulkSuspendUrl(Guid userId) =>
-		GetBulkSuspendUrl(userId.ToString());
+	private static string GetBulkSuspendUrl(Guid userId) {
+		return GetBulkSuspendUrl(userId.ToString());
+	}
 
-	private static string GetBulkSuspendUrl(string userId) =>
-		PathUtils.Join(
+	private static string GetBulkSuspendUrl(string userId) {
+		return PathUtils.Join(
 			Routes.Staff.Root,
 			$"/tenant-users/{userId}/companies/bulk-suspend"
 		);
+	}
 
-	private static string GetBulkReactivateUrl(Guid userId) =>
-		GetBulkReactivateUrl(userId.ToString());
+	private static string GetBulkReactivateUrl(Guid userId) {
+		return GetBulkReactivateUrl(userId.ToString());
+	}
 
-	private static string GetBulkReactivateUrl(string userId) =>
-		PathUtils.Join(
+	private static string GetBulkReactivateUrl(string userId) {
+		return PathUtils.Join(
 			Routes.Staff.Root,
 			$"/tenant-users/{userId}/companies/bulk-reactivate"
 		);
+	}
 
-	private static string GetBulkRemoveUrl(Guid userId) =>
-		GetBulkRemoveUrl(userId.ToString());
+	private static string GetBulkRemoveUrl(Guid userId) {
+		return GetBulkRemoveUrl(userId.ToString());
+	}
 
-	private static string GetBulkRemoveUrl(string userId) =>
-		PathUtils.Join(
+	private static string GetBulkRemoveUrl(string userId) {
+		return PathUtils.Join(
 			Routes.Staff.Root,
 			$"/tenant-users/{userId}/companies/bulk-remove"
 		);
+	}
 
 	private static string GetCompanyActionUrl(
 		string action,

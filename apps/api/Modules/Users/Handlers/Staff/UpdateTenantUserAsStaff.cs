@@ -2,11 +2,11 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Localization;
 using MainApi.Lib;
 using MainApi.Lib.Extensions;
 using MainApi.Lib.ProblemResults;
 using MainApi.Lib.Validation;
+using MainApi.Localization;
 using MainApi.Modules.AuditLogs.Entities;
 using MainApi.Modules.AuditLogs.Services;
 using MainApi.Modules.Users.Entities;
@@ -46,21 +46,23 @@ public class UpdateTenantUserAsStaffBody {
 	public JsonElement? Level { get; set; }
 
 	// Helper methods
-	public PatchField<string?> GetFirstName() =>
-		FirstName.ValueKind switch {
+	public PatchField<string?> GetFirstName() {
+		return FirstName.ValueKind switch {
 			JsonValueKind.Undefined => PatchField<string?>.Absent(),
 			JsonValueKind.Null => PatchField<string?>.Set(null),
 			JsonValueKind.String => PatchField<string?>.Set(FirstName.GetValueAsString()),
 			_ => throw new InvalidOperationException("FirstName must be a string, null, or omitted"),
 		};
+	}
 
-	public PatchField<string?> GetLastName() =>
-		LastName.ValueKind switch {
+	public PatchField<string?> GetLastName() {
+		return LastName.ValueKind switch {
 			JsonValueKind.Undefined => PatchField<string?>.Absent(),
 			JsonValueKind.Null => PatchField<string?>.Set(null),
 			JsonValueKind.String => PatchField<string?>.Set(LastName.GetValueAsString()),
 			_ => throw new InvalidOperationException("LastName must be a string, null, or omitted"),
 		};
+	}
 
 	public PatchField<string?> GetAvatarUrl() {
 		return AvatarUrl.ValueKind switch {
@@ -71,7 +73,9 @@ public class UpdateTenantUserAsStaffBody {
 		};
 	}
 
-	public string? GetLevel() => Level?.GetValueAsStringOrNull();
+	public string? GetLevel() {
+		return Level?.GetValueAsStringOrNull();
+	}
 }
 
 public class UpdateTenantUserAsStaffBodyValidator

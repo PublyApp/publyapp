@@ -2,10 +2,10 @@ using System.Text.RegularExpressions;
 
 using FluentValidation;
 
-using MainApi.Localization;
 using MainApi.Lib;
 using MainApi.Lib.ProblemResults;
 using MainApi.Lib.Validation;
+using MainApi.Localization;
 using MainApi.Modules.Users.Entities;
 using MainApi.Modules.Users.Services;
 
@@ -88,8 +88,9 @@ public class FindTenantUsersAsStaffQueryValidator
 	// lowercase via .ToLowerInvariant() would yield "globallysuspended" and
 	// break the existing wire format. Both the comparison set and the display
 	// string derive from the same conversion so they stay in sync.
-	private static string ToSnakeCase(string value) =>
-		Regex.Replace(value, "(?<!^)([A-Z])", "_$1").ToLowerInvariant();
+	private static string ToSnakeCase(string value) {
+		return Regex.Replace(value, "(?<!^)([A-Z])", "_$1").ToLowerInvariant();
+	}
 
 	private static readonly HashSet<string> AllowedStatusSet =
 		new(AllowedStatuses.Select(ToSnakeCase), StringComparer.OrdinalIgnoreCase);

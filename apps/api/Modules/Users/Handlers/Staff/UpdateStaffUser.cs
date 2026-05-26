@@ -2,11 +2,11 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Localization;
 using MainApi.Lib;
 using MainApi.Lib.Extensions;
 using MainApi.Lib.ProblemResults;
 using MainApi.Lib.Validation;
+using MainApi.Localization;
 using MainApi.Modules.Users.Entities;
 using MainApi.Modules.Users.Services;
 using MainApi.Modules.Users.Validation;
@@ -26,31 +26,36 @@ public class UpdateStaffUserBody {
 	public JsonElement AvatarUrl { get; init; }
 	public JsonElement? AccountLevel { get; set; }
 
-	public PatchField<string?> GetFirstName() =>
-		FirstName.ValueKind switch {
+	public PatchField<string?> GetFirstName() {
+		return FirstName.ValueKind switch {
 			JsonValueKind.Undefined => PatchField<string?>.Absent(),
 			JsonValueKind.Null => PatchField<string?>.Set(null),
 			JsonValueKind.String => PatchField<string?>.Set(FirstName.GetValueAsString()),
 			_ => throw new InvalidOperationException("FirstName must be a string, null, or omitted"),
 		};
+	}
 
-	public PatchField<string?> GetLastName() =>
-		LastName.ValueKind switch {
+	public PatchField<string?> GetLastName() {
+		return LastName.ValueKind switch {
 			JsonValueKind.Undefined => PatchField<string?>.Absent(),
 			JsonValueKind.Null => PatchField<string?>.Set(null),
 			JsonValueKind.String => PatchField<string?>.Set(LastName.GetValueAsString()),
 			_ => throw new InvalidOperationException("LastName must be a string, null, or omitted"),
 		};
+	}
 
-	public PatchField<string?> GetAvatarUrl() =>
-		AvatarUrl.ValueKind switch {
+	public PatchField<string?> GetAvatarUrl() {
+		return AvatarUrl.ValueKind switch {
 			JsonValueKind.Undefined => PatchField<string?>.Absent(),
 			JsonValueKind.Null => PatchField<string?>.Set(null),
 			JsonValueKind.String => PatchField<string?>.Set(AvatarUrl.GetValueAsString()),
 			_ => throw new InvalidOperationException("AvatarUrl must be a string, null, or omitted"),
 		};
+	}
 
-	public string? GetAccountLevel() => AccountLevel?.GetValueAsStringOrNull();
+	public string? GetAccountLevel() {
+		return AccountLevel?.GetValueAsStringOrNull();
+	}
 }
 
 public class UpdateStaffUserBodyValidator

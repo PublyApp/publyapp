@@ -5,23 +5,29 @@ public readonly struct PatchField<T> {
 
 	public bool IsPresent { get; }
 
-	public T? Value => IsPresent
+	public T? Value {
+		get {
+			return IsPresent
 		? _value
 		: throw new InvalidOperationException(
 			"Cannot access Value on an absent "
 			+ "PatchField. Check IsPresent first."
 		);
+		}
+	}
 
 	private PatchField(bool isPresent, T? value) {
 		IsPresent = isPresent;
 		_value = value;
 	}
 
-	public static PatchField<T> Absent() =>
-		new(false, default);
+	public static PatchField<T> Absent() {
+		return new(false, default);
+	}
 
-	public static PatchField<T> Set(T? value) =>
-		new(true, value);
+	public static PatchField<T> Set(T? value) {
+		return new(true, value);
+	}
 
 	public bool TryGetValue(out T? value) {
 		value = _value;

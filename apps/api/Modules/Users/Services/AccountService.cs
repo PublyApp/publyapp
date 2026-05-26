@@ -43,7 +43,11 @@ public record UserTenantsForPickerResult {
 	public required List<TenantForPicker> Tenants { get; init; }
 	public required int TotalCount { get; init; }
 	public required int ActiveCount { get; init; }
-	public bool HasSuspendedTenants => TotalCount > ActiveCount;
+	public bool HasSuspendedTenants {
+		get {
+			return TotalCount > ActiveCount;
+		}
+	}
 }
 
 public record TenantForPicker {

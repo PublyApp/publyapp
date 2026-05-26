@@ -19,8 +19,11 @@ namespace MainApi.Lib.Testing.Fakes {
 		private readonly ConcurrentBag<EmailRequest>
 			_sentEmails = [];
 
-		public IReadOnlyCollection<EmailRequest> SentEmails =>
-			_sentEmails;
+		public IReadOnlyCollection<EmailRequest> SentEmails {
+			get {
+				return _sentEmails;
+			}
+		}
 
 		// This fake completes synchronously after recording the
 		// request; suppress CS1998 instead of adding an artificial

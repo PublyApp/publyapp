@@ -20,21 +20,28 @@ public sealed class FindAuditLogsSpec
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 	private readonly ApiFixture _fixture;
-	public static TheoryData<string> MalformedActionsCsv =>
-		new() {
+	public static TheoryData<string> MalformedActionsCsv {
+		get {
+			return new() {
 			",",
 			$"{AuditActions.LoginSucceeded},",
 			$"{AuditActions.LoginSucceeded},,"
 				+ AuditActions.InvitationCreated,
 		};
-	public static TheoryData<string, string> QueryParameterNames =>
-		new() {
+		}
+	}
+
+	public static TheoryData<string, string> QueryParameterNames {
+		get {
+			return new() {
 			{ nameof(FindAuditLogsQuery.UserId), "user_id" },
 			{ nameof(FindAuditLogsQuery.Actions), "actions" },
 			{ nameof(FindAuditLogsQuery.TargetId), "target_id" },
 			{ nameof(FindAuditLogsQuery.StartDate), "start_date" },
 			{ nameof(FindAuditLogsQuery.EndDate), "end_date" },
 		};
+		}
+	}
 
 	public FindAuditLogsSpec(ApiFixture fixture) {
 		_http = fixture.HttpClient;

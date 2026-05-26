@@ -23,7 +23,11 @@ public class UserAccountSeeder : IEntitySeeder {
 			?? SeederLoggerUtils.CreateDefault<UserAccountSeeder>();
 	}
 
-	public int Order => 40;
+	public int Order {
+		get {
+			return 40;
+		}
+	}
 
 	public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
 		var newAccounts = new List<UserAccount>();

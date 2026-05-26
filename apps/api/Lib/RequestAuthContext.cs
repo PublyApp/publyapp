@@ -22,8 +22,11 @@ public class RequestAuthContext : IRequestAuthContext {
 	public string? SessionToken { get; set; }
 	public Guid? UserId { get; set; }
 
-	public bool IsAuthenticated =>
-		!string.IsNullOrEmpty(SessionToken) && UserId.HasValue;
+	public bool IsAuthenticated {
+		get {
+			return !string.IsNullOrEmpty(SessionToken) && UserId.HasValue;
+		}
+	}
 
 	// Staff scope
 	public UserAccount? AccountStaff { get; set; }
@@ -32,8 +35,11 @@ public class RequestAuthContext : IRequestAuthContext {
 	public string? TenantId { get; set; }
 	public UserAccount? AccountTenant { get; set; }
 
-	public bool IsTenantAuthorized =>
-		AccountTenant is not null &&
+	public bool IsTenantAuthorized {
+		get {
+			return AccountTenant is not null &&
 		!AccountTenant.IsSuspended() &&
 		AccountTenant.Scope == AccountScope.Tenant;
+		}
+	}
 }

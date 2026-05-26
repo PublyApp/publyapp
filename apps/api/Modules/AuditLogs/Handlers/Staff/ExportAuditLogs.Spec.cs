@@ -32,15 +32,20 @@ public sealed class ExportAuditLogsSpec
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 	private readonly ApiFixture _fixture;
-	public static TheoryData<string> MalformedActionsCsv =>
-		new() {
+	public static TheoryData<string> MalformedActionsCsv {
+		get {
+			return new() {
 			",",
 			$"{AuditActions.LoginSucceeded},",
 			$"{AuditActions.LoginSucceeded},,"
 				+ AuditActions.InvitationCreated,
 		};
-	public static TheoryData<string, string> QueryParameterNames =>
-		new() {
+		}
+	}
+
+	public static TheoryData<string, string> QueryParameterNames {
+		get {
+			return new() {
 			{ nameof(ExportAuditLogsQuery.Format), "format" },
 			{ nameof(ExportAuditLogsQuery.UserId), "user_id" },
 			{ nameof(ExportAuditLogsQuery.Actions), "actions" },
@@ -48,6 +53,8 @@ public sealed class ExportAuditLogsSpec
 			{ nameof(ExportAuditLogsQuery.StartDate), "start_date" },
 			{ nameof(ExportAuditLogsQuery.EndDate), "end_date" },
 		};
+		}
+	}
 
 	public ExportAuditLogsSpec(ApiFixture fixture) {
 		_http = fixture.HttpClient;

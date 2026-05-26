@@ -2,13 +2,13 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Localization;
 using MainApi.Infrastructure.Messaging.Email;
 using MainApi.Lib;
 using MainApi.Lib.Extensions;
 using MainApi.Lib.ProblemResults;
 using MainApi.Lib.Utils;
 using MainApi.Lib.Validation;
+using MainApi.Localization;
 using MainApi.Modules.Auth.Utils;
 using MainApi.Modules.Users.Entities;
 using MainApi.Modules.Users.Services;
@@ -34,11 +34,25 @@ public class CreateStaffUserBody {
 	public JsonElement? AccountLevel { get; set; }
 	public JsonElement? SendNotification { get; set; }
 
-	public string GetEmail() => Email.GetValueAsString();
-	public string GetLastName() => LastName.GetValueAsString();
-	public string? GetFirstName() => FirstName.GetValueAsStringOrNull();
-	public string? GetAvatarUrl() => AvatarUrl.GetValueAsStringOrNull();
-	public bool GetSendNotification() => SendNotification.GetValueAsBoolean();
+	public string GetEmail() {
+		return Email.GetValueAsString();
+	}
+
+	public string GetLastName() {
+		return LastName.GetValueAsString();
+	}
+
+	public string? GetFirstName() {
+		return FirstName.GetValueAsStringOrNull();
+	}
+
+	public string? GetAvatarUrl() {
+		return AvatarUrl.GetValueAsStringOrNull();
+	}
+
+	public bool GetSendNotification() {
+		return SendNotification.GetValueAsBoolean();
+	}
 
 	public AccountLevel GetAccountLevel() {
 		switch (AccountLevel?.ValueKind) {

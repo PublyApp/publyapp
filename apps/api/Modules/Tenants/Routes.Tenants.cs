@@ -13,15 +13,30 @@ public static partial class Routes {
 			public const string Create = "/";
 			public const string Find = "/";
 			public const string GetById = "/{tenantId}";
-			public static string GetByIdFn(string tenantId) => $"/{tenantId}";
+			public static string GetByIdFn(string tenantId) {
+				return $"/{tenantId}";
+			}
+
 			public const string Suspend = "/{tenantId}/suspend";
-			public static string SuspendFn(string tenantId) => $"/{tenantId}/suspend";
+			public static string SuspendFn(string tenantId) {
+				return $"/{tenantId}/suspend";
+			}
+
 			public const string Reactivate = "/{tenantId}/reactivate";
-			public static string ReactivateFn(string tenantId) => $"/{tenantId}/reactivate";
+			public static string ReactivateFn(string tenantId) {
+				return $"/{tenantId}/reactivate";
+			}
+
 			public const string Update = "/{tenantId}";
-			public static string UpdateFn(string tenantId) => $"/{tenantId}";
+			public static string UpdateFn(string tenantId) {
+				return $"/{tenantId}";
+			}
+
 			public const string Delete = "/{tenantId}";
-			public static string DeleteFn(string tenantId) => $"/{tenantId}";
+			public static string DeleteFn(string tenantId) {
+				return $"/{tenantId}";
+			}
+
 			public const string BulkSuspend = "/bulk-suspend";
 			public const string BulkReactivate = "/bulk-reactivate";
 			public const string BulkDelete = "/bulk-delete";

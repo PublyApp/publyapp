@@ -20,26 +20,29 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 internal static class TenantBulkActionSpecSupport {
-	public static string GetBulkSuspendUrl() =>
-		PathUtils.Join(
+	public static string GetBulkSuspendUrl() {
+		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Tenants.ForStaff.Root,
 			Routes.Tenants.ForStaff.BulkSuspend
 		);
+	}
 
-	public static string GetBulkReactivateUrl() =>
-		PathUtils.Join(
+	public static string GetBulkReactivateUrl() {
+		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Tenants.ForStaff.Root,
 			Routes.Tenants.ForStaff.BulkReactivate
 		);
+	}
 
-	public static string GetBulkDeleteUrl() =>
-		PathUtils.Join(
+	public static string GetBulkDeleteUrl() {
+		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Tenants.ForStaff.Root,
 			Routes.Tenants.ForStaff.BulkDelete
 		);
+	}
 
 	public static HttpRequestMessage CreateJsonRequest(
 		string url,
