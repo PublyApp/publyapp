@@ -17,5 +17,7 @@ public record ApiResponse {
 	/// <param name="message">The debug/fallback message</param>
 	/// <param name="key">The type-safe translation key</param>
 	/// <returns>A new ApiResponse</returns>
-	public static ApiResponse Create(string message, TranslationKey key) => new() { Message = message, Key = key };
+	public static ApiResponse Create(string message, TranslationKey key) {
+		return new() { Message = message, Key = key };
+	}
 }

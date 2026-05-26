@@ -58,28 +58,54 @@ public class AppEnvironment {
 
 	// ========== Constants (hardcoded, not from environment) ==========
 #pragma warning disable CA1822
-	public int PAGINATION_DEFAULT_LIMIT => 100;
-	public int MAX_BULK_INVITATIONS_SIZE => 1000;
-	public int DEFAULT_MAX_USERS_PER_TENANT => 5;
+	public int PAGINATION_DEFAULT_LIMIT {
+		get {
+			return 100;
+		}
+	}
+
+	public int MAX_BULK_INVITATIONS_SIZE {
+		get {
+			return 1000;
+		}
+	}
+
+	public int DEFAULT_MAX_USERS_PER_TENANT {
+		get {
+			return 5;
+		}
+	}
 
 	// ========== Computed properties ==========
-	public static bool IsDevelopment => string.Equals(
+	public static bool IsDevelopment {
+		get {
+			return string.Equals(
 		GetHostEnvironmentName(),
 		EnvironmentNames.Development,
 		StringComparison.OrdinalIgnoreCase
 	);
+		}
+	}
 
-	public static bool IsProduction => string.Equals(
+	public static bool IsProduction {
+		get {
+			return string.Equals(
 		GetHostEnvironmentName(),
 		EnvironmentNames.Production,
 		StringComparison.OrdinalIgnoreCase
 	);
+		}
+	}
 
-	public static bool IsTesting => string.Equals(
+	public static bool IsTesting {
+		get {
+			return string.Equals(
 		GetHostEnvironmentName(),
 		EnvironmentNames.Testing,
 		StringComparison.OrdinalIgnoreCase
 	);
+		}
+	}
 
 	public static bool IsTestVerboseLoggingEnabled {
 		get {
@@ -100,8 +126,11 @@ public class AppEnvironment {
 		}
 	}
 
-	public static string EnvironmentName =>
-		GetHostEnvironmentName();
+	public static string EnvironmentName {
+		get {
+			return GetHostEnvironmentName();
+		}
+	}
 #pragma warning restore CA1822
 
 	// Private constructor - use Initialize()
@@ -265,10 +294,11 @@ public class AppEnvironment {
 		return result;
 	}
 
-	private static string GetHostEnvironmentName() =>
-		Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+	private static string GetHostEnvironmentName() {
+		return Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
 		?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
 		?? EnvironmentNames.Production;
+	}
 
 	private static void LoadDotEnvIfDevelopment() {
 		// Why this exists (important, non-obvious):
@@ -420,18 +450,20 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 			.WithMessage("TENANT_ID_HEADER_KEY must be a valid HTTP header name");
 	}
 
-	private static bool BeValidUrl(string url) =>
-		Uri.TryCreate(url, UriKind.Absolute, out var uri)
+	private static bool BeValidUrl(string url) {
+		return Uri.TryCreate(url, UriKind.Absolute, out var uri)
 		&& (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
 		&& !string.IsNullOrWhiteSpace(uri.Host)
 		&& string.IsNullOrEmpty(uri.UserInfo)
 		&& uri.AbsolutePath is "/"
 		&& string.IsNullOrEmpty(uri.Query)
 		&& string.IsNullOrEmpty(uri.Fragment);
+	}
 
-	private static bool BeValidHeaderName(string headerName) =>
-		!string.IsNullOrWhiteSpace(headerName)
+	private static bool BeValidHeaderName(string headerName) {
+		return !string.IsNullOrWhiteSpace(headerName)
 		&& headerName.All(c => char.IsLetterOrDigit(c) || c == '-');
+	}
 
 	private static bool BeValidPostgresConnectionString(string connectionString) {
 		try {

@@ -12,8 +12,11 @@ namespace PublyApp.Analyzers;
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class PlaceholderAnalyzer : DiagnosticAnalyzer {
-	public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-		ImmutableArray.Create(DiagnosticCatalog.Placeholder);
+	public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics {
+		get {
+			return ImmutableArray.Create(DiagnosticCatalog.Placeholder);
+		}
+	}
 
 	public override void Initialize(AnalysisContext context) {
 		// Skip generated code (e.g. Kiota client, EF migrations) to avoid spurious diagnostics

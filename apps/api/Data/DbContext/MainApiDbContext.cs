@@ -107,7 +107,9 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	/// <summary>
 	/// Discovers all classes that implement <see cref="IEntitySeeder"/> using reflection.
 	/// </summary>
-	private static List<Type> DiscoverSeeders() => SeederTypeCache.Value;
+	private static List<Type> DiscoverSeeders() {
+		return SeederTypeCache.Value;
+	}
 
 	/// <summary>
 	/// Creates seeded instances via dependency injection with robust error handling.

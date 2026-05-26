@@ -2,11 +2,11 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Localization;
 using MainApi.Lib;
 using MainApi.Lib.Extensions;
 using MainApi.Lib.ProblemResults;
 using MainApi.Lib.Validation;
+using MainApi.Localization;
 using MainApi.Modules.AuditLogs.Entities;
 using MainApi.Modules.AuditLogs.Services;
 using MainApi.Modules.Users.Entities;
@@ -22,7 +22,9 @@ public sealed class UpdateStaffUserEmailBody {
 	// That keeps it symmetric with other write endpoints and allows FluentValidation + 422 responses.
 	public JsonElement Email { get; init; }
 
-	public string GetEmail() => Email.GetValueAsString();
+	public string GetEmail() {
+		return Email.GetValueAsString();
+	}
 }
 
 public sealed class UpdateStaffUserEmailBodyValidator

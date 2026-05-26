@@ -27,7 +27,11 @@ public static class AuditActionsRegistry {
 	private static readonly ImmutableHashSet<string> CachedKnownSet =
 		[.. CachedAll];
 
-	public static IReadOnlyList<string> All => CachedAll;
+	public static IReadOnlyList<string> All {
+		get {
+			return CachedAll;
+		}
+	}
 
 	// Audit action keys are canonical persisted values; keep
 	// validation case-sensitive rather than accepting case

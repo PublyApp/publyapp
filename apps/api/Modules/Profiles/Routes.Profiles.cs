@@ -16,13 +16,20 @@ public static partial class Routes {
 			// profiles in one request.
 			public const string BulkDelete = "/bulk-delete";
 			public const string Get = "/{profileId}";
-			public static string GetFn(string profileId) => $"/{profileId}";
+			public static string GetFn(string profileId) {
+				return $"/{profileId}";
+			}
 
 			// PATCH semantics: profile details are updated via a partial update (name/description).
 			public const string Update = "/{profileId}";
-			public static string UpdateFn(string profileId) => $"/{profileId}";
+			public static string UpdateFn(string profileId) {
+				return $"/{profileId}";
+			}
+
 			public const string Delete = "/{profileId}";
-			public static string DeleteFn(string profileId) => $"/{profileId}";
+			public static string DeleteFn(string profileId) {
+				return $"/{profileId}";
+			}
 
 			/// <summary>Staff profile permissions routes</summary>
 			public static class Permissions {
@@ -30,16 +37,21 @@ public static partial class Routes {
 				// We expose permission assignment as an idempotent "upsert" endpoint per key:
 				// POST assigns, DELETE unassigns.
 				public const string Root = "/{profileId}/permissions";
-				public static string RootFn(string profileId) => $"/{profileId}/permissions";
+				public static string RootFn(string profileId) {
+					return $"/{profileId}/permissions";
+				}
 
 				/// <summary>List permission keys assigned to a staff profile</summary>
 				public const string Find = Root;
-				public static string FindFn(string profileId) => RootFn(profileId);
+				public static string FindFn(string profileId) {
+					return RootFn(profileId);
+				}
 
 				/// <summary>Assign or unassign a permission key on a staff profile</summary>
 				public const string Upsert = Root + "/{permissionKey}";
-				public static string UpsertFn(string profileId, string permissionKey) =>
-					$"{RootFn(profileId)}/{permissionKey}";
+				public static string UpsertFn(string profileId, string permissionKey) {
+					return $"{RootFn(profileId)}/{permissionKey}";
+				}
 			}
 
 			/// <summary>
@@ -49,56 +61,82 @@ public static partial class Routes {
 			public static class Users {
 				// NOTE: This is relative to "/staff" and "/profiles" route grouping.
 				public const string Root = "/{profileId}/users";
-				public static string RootFn(string profileId) => $"/{profileId}/users";
+				public static string RootFn(string profileId) {
+					return $"/{profileId}/users";
+				}
 
 				/// <summary>Find users assigned to a staff profile</summary>
 				public const string Find = Root;
-				public static string FindFn(string profileId) => RootFn(profileId);
+				public static string FindFn(string profileId) {
+					return RootFn(profileId);
+				}
 
 				/// <summary>
 				/// Batch-resolve whether a set of staff users is assigned to a staff profile.
 				/// This exists to avoid N+1 per-row profile requests in list UIs (assignment drawers).
 				/// </summary>
 				public const string ResolveAssignment = Root + "/assignment-resolution";
-				public static string ResolveAssignmentFn(string profileId) =>
-					$"{RootFn(profileId)}/assignment-resolution";
+				public static string ResolveAssignmentFn(string profileId) {
+					return $"{RootFn(profileId)}/assignment-resolution";
+				}
 
 				/// <summary>
 				/// Bulk-unassign staff users from a staff profile.
 				/// </summary>
 				public const string Unassign = Root + "/unassign";
-				public static string UnassignFn(string profileId) => $"{RootFn(profileId)}/unassign";
+				public static string UnassignFn(string profileId) {
+					return $"{RootFn(profileId)}/unassign";
+				}
 			}
 		}
 
 		/// <summary>Tenant profile routes (staff viewing tenant profiles)</summary>
 		public static class ForTenantAsStaff {
 			public const string Root = "/tenants/{tenantId}/profiles";
-			public static string RootFn(string tenantId) => $"/tenants/{tenantId}/profiles";
+			public static string RootFn(string tenantId) {
+				return $"/tenants/{tenantId}/profiles";
+			}
+
 			public const string Find = "/";
-			public static string FindFn(string tenantId) => $"{RootFn(tenantId)}/";
+			public static string FindFn(string tenantId) {
+				return $"{RootFn(tenantId)}/";
+			}
+
 			// Bulk tenant profile deletion is scoped by tenantId route and uses one
 			// request body containing multiple profile IDs.
 			public const string BulkDelete = "/bulk-delete";
 			public const string Get = "/{profileId}";
-			public static string GetFn(string profileId) => $"/{profileId}";
+			public static string GetFn(string profileId) {
+				return $"/{profileId}";
+			}
+
 			public const string Create = "/";
 			public const string Update = "/{profileId}";
-			public static string UpdateFn(string profileId) => $"/{profileId}";
+			public static string UpdateFn(string profileId) {
+				return $"/{profileId}";
+			}
+
 			public const string Delete = "/{profileId}";
-			public static string DeleteFn(string profileId) => $"/{profileId}";
+			public static string DeleteFn(string profileId) {
+				return $"/{profileId}";
+			}
 
 			/// <summary>Tenant profile permissions routes</summary>
 			public static class Permissions {
 				public const string Root = "/{profileId}/permissions";
-				public static string RootFn(string profileId) => $"/{profileId}/permissions";
+				public static string RootFn(string profileId) {
+					return $"/{profileId}/permissions";
+				}
 
 				public const string Find = Root;
-				public static string FindFn(string profileId) => RootFn(profileId);
+				public static string FindFn(string profileId) {
+					return RootFn(profileId);
+				}
 
 				public const string Upsert = Root + "/{permissionKey}";
-				public static string UpsertFn(string profileId, string permissionKey) =>
-					$"{RootFn(profileId)}/{permissionKey}";
+				public static string UpsertFn(string profileId, string permissionKey) {
+					return $"{RootFn(profileId)}/{permissionKey}";
+				}
 			}
 		}
 	}

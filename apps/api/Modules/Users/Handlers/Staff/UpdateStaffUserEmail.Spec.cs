@@ -4,13 +4,13 @@ using System.Text.Json;
 
 using FluentAssertions;
 
-using MainApi.Localization;
 using MainApi.Data.DbContext;
 using MainApi.Lib.ProblemResults;
 using MainApi.Lib.Routes;
 using MainApi.Lib.Testing.Fixtures;
 using MainApi.Lib.Testing.Helpers;
 using MainApi.Lib.Utils;
+using MainApi.Localization;
 using MainApi.Modules.AuditLogs.Entities;
 using MainApi.Modules.Users.Entities;
 
@@ -32,12 +32,16 @@ public sealed class UpdateStaffUserEmailSpec : IClassFixture<ApiFixture> {
 		_authClient = new TestAuthClient(_http);
 	}
 
-	public static TheoryData<object> InvalidEmailBodies => new() {
+	public static TheoryData<object> InvalidEmailBodies {
+		get {
+			return new() {
 		new { },
 		new { email = 123 },
 		new { email = " " },
 		new { email = "not-an-email" },
 	};
+		}
+	}
 
 	private static string GetUrl(string userId) {
 		return PathUtils.Join(

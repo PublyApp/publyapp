@@ -8,7 +8,10 @@ public static partial class Routes {
 			public const string Root = "/audit-logs";
 			public const string Find = "/";
 			public const string GetById = "/{logId}";
-			public static string GetByIdFn(string logId) => $"/{logId}";
+			public static string GetByIdFn(string logId) {
+				return $"/{logId}";
+			}
+
 			public const string Actions = "/actions";
 			public const string Export = "/export";
 		}

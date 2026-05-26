@@ -24,12 +24,29 @@ csharp_new_line_before_else = false
 csharp_new_line_before_catch = false
 csharp_new_line_before_finally = false
 
+# ==== Expression-body preferences (block-bodied members) ====
+# Block-bodied methods, operators, and accessors (no expression-body shorthand)
+csharp_style_expression_bodied_methods = false:warning
+csharp_style_expression_bodied_constructors = false:warning
+csharp_style_expression_bodied_operators = false:warning
+csharp_style_expression_bodied_properties = false:warning
+csharp_style_expression_bodied_indexers = false:warning
+csharp_style_expression_bodied_accessors = false:warning
+csharp_style_expression_bodied_local_functions = false:warning
+
 # ==== Using-directive organization ====
 dotnet_sort_system_directives_first = true
 dotnet_separate_import_directive_groups = true
 
 # ==== Promoted to warning (rules we ENFORCE) ====
 dotnet_diagnostic.IDE0005.severity = warning   # Unused using directive
+dotnet_diagnostic.IDE0021.severity = warning   # Use block body for constructors
+dotnet_diagnostic.IDE0022.severity = warning   # Use block body for methods
+dotnet_diagnostic.IDE0023.severity = warning   # Use block body for conversion operators
+dotnet_diagnostic.IDE0024.severity = warning   # Use block body for operators
+dotnet_diagnostic.IDE0025.severity = warning   # Use block body for properties
+dotnet_diagnostic.IDE0026.severity = warning   # Use block body for indexers
+dotnet_diagnostic.IDE0027.severity = warning   # Use block body for accessors
 dotnet_diagnostic.IDE0059.severity = warning   # Unnecessary assignment of a value
 dotnet_diagnostic.IDE0060.severity = warning   # Remove unused parameter
 dotnet_diagnostic.IDE0130.severity = warning   # Namespace does not match folder structure

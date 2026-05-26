@@ -34,12 +34,14 @@ public class AppProblemDetails : ProblemDetails {
 		TranslationKey translationKey,
 		string? type = null,
 		string? instance = null
-	) => new() {
-		Status = statusCode,
-		Title = title,
-		Detail = detail,
-		TranslationKey = translationKey.Value,
-		Type = type ?? $"https://httpstatuses.com/{statusCode}",
-		Instance = instance
-	};
+	) {
+		return new() {
+			Status = statusCode,
+			Title = title,
+			Detail = detail,
+			TranslationKey = translationKey.Value,
+			Type = type ?? $"https://httpstatuses.com/{statusCode}",
+			Instance = instance
+		};
+	}
 }
