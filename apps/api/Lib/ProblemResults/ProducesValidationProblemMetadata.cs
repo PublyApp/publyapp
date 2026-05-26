@@ -7,7 +7,17 @@ namespace MainApi.Lib.ProblemResults;
 /// Used by validation filters to document the 422 response with the errors dictionary.
 /// </summary>
 internal sealed class ProducesValidationProblemMetadata : IProducesResponseTypeMetadata {
-	public Type? Type => typeof(ValidationProblemDetails);
-	public int StatusCode => StatusCodes.Status422UnprocessableEntity;
+	public Type? Type {
+		get {
+			return typeof(ValidationProblemDetails);
+		}
+	}
+
+	public int StatusCode {
+		get {
+			return StatusCodes.Status422UnprocessableEntity;
+		}
+	}
+
 	public IEnumerable<string> ContentTypes { get; } = ["application/problem+json"];
 }

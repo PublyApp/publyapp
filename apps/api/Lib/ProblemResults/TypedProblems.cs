@@ -23,12 +23,14 @@ public static class TypedProblems {
 		string detail,
 		TranslationKey translationKey,
 		string title = "Bad Request"
-	) => new(AppProblemDetails.Create(
+	) {
+		return new(AppProblemDetails.Create(
 		StatusCodes.Status400BadRequest,
 		title,
 		detail,
 		translationKey
 	));
+	}
 
 	/// <summary>
 	/// Creates a 401 Unauthorized response with ProblemDetails
@@ -40,12 +42,14 @@ public static class TypedProblems {
 		string detail,
 		TranslationKey translationKey,
 		string title = "Unauthorized"
-	) => new(AppProblemDetails.Create(
+	) {
+		return new(AppProblemDetails.Create(
 		StatusCodes.Status401Unauthorized,
 		title,
 		detail,
 		translationKey
 	));
+	}
 
 	/// <summary>
 	/// Creates a 403 Forbidden response with ProblemDetails
@@ -57,12 +61,14 @@ public static class TypedProblems {
 		string detail,
 		TranslationKey translationKey,
 		string title = "Forbidden"
-	) => new(AppProblemDetails.Create(
+	) {
+		return new(AppProblemDetails.Create(
 		StatusCodes.Status403Forbidden,
 		title,
 		detail,
 		translationKey
 	));
+	}
 
 	/// <summary>
 	/// Creates a 404 Not Found response with ProblemDetails
@@ -74,12 +80,14 @@ public static class TypedProblems {
 		string detail,
 		TranslationKey translationKey,
 		string title = "Not Found"
-	) => new(AppProblemDetails.Create(
+	) {
+		return new(AppProblemDetails.Create(
 		StatusCodes.Status404NotFound,
 		title,
 		detail,
 		translationKey
 	));
+	}
 
 	/// <summary>
 	/// Creates a 409 Conflict response with ProblemDetails
@@ -91,12 +99,14 @@ public static class TypedProblems {
 		string detail,
 		TranslationKey translationKey,
 		string title = "Conflict"
-	) => new(AppProblemDetails.Create(
+	) {
+		return new(AppProblemDetails.Create(
 		StatusCodes.Status409Conflict,
 		title,
 		detail,
 		translationKey
 	));
+	}
 
 	/// <summary>
 	/// Creates a 500 Internal Server Error response with ProblemDetails
@@ -108,12 +118,14 @@ public static class TypedProblems {
 		string detail,
 		TranslationKey translationKey,
 		string title = "Internal Server Error"
-	) => new(AppProblemDetails.Create(
+	) {
+		return new(AppProblemDetails.Create(
 		StatusCodes.Status500InternalServerError,
 		title,
 		detail,
 		translationKey
 	));
+	}
 
 	/// <summary>
 	/// Creates a 422 Unprocessable Entity response with validation errors
@@ -125,5 +137,7 @@ public static class TypedProblems {
 		string detail,
 		TranslationKey translationKey,
 		IDictionary<string, string[]> errors
-	) => new(ValidationProblemDetails.Create(detail, translationKey, errors));
+	) {
+		return new(ValidationProblemDetails.Create(detail, translationKey, errors));
+	}
 }

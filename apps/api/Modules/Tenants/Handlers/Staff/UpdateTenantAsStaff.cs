@@ -2,10 +2,10 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Localization;
 using MainApi.Lib;
 using MainApi.Lib.Extensions;
 using MainApi.Lib.ProblemResults;
+using MainApi.Localization;
 using MainApi.Modules.AuditLogs.Entities;
 using MainApi.Modules.AuditLogs.Services;
 using MainApi.Modules.Tenants.Entities;
@@ -21,8 +21,8 @@ public record UpdateTenantAsStaffBody {
 	public JsonElement LogoUrl { get; init; }
 	public JsonElement? MaxUsers { get; init; }
 
-	public string? GetName() =>
-		Name.ValueKind switch {
+	public string? GetName() {
+		return Name.ValueKind switch {
 			JsonValueKind.Undefined =>
 				null,
 			JsonValueKind.String =>
@@ -31,9 +31,10 @@ public record UpdateTenantAsStaffBody {
 				"Name must be a string or omitted"
 			),
 		};
+	}
 
-	public PatchField<string?> GetLogoUrl() =>
-		LogoUrl.ValueKind switch {
+	public PatchField<string?> GetLogoUrl() {
+		return LogoUrl.ValueKind switch {
 			JsonValueKind.Undefined =>
 				PatchField<string?>.Absent(),
 			JsonValueKind.Null =>
@@ -46,9 +47,11 @@ public record UpdateTenantAsStaffBody {
 				"LogoUrl must be a string, null, or omitted"
 			),
 		};
+	}
 
-	public int? GetMaxUsers() =>
-		MaxUsers?.GetValueAsInt32OrNull();
+	public int? GetMaxUsers() {
+		return MaxUsers?.GetValueAsInt32OrNull();
+	}
 }
 
 public class UpdateTenantAsStaffBodyValidator

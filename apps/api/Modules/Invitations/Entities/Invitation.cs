@@ -65,11 +65,29 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 
 	// Helper property for easy access
 	[NotMapped]
-	public List<Guid> ProfileIds => InvitationProfiles.Select(ip => ip.ProfileId).ToList();
+	public List<Guid> ProfileIds {
+		get {
+			return InvitationProfiles.Select(ip => ip.ProfileId).ToList();
+		}
+	}
 
-	public bool IsStaffInvitation => Scope == InvitationScope.Staff && TenantId is null && ProjectId is null;
-	public bool IsTenantInvitation => Scope == InvitationScope.Tenant && TenantId is not null && ProjectId is null;
-	public bool IsProjectInvitation => Scope == InvitationScope.Project && TenantId is not null && ProjectId is not null;
+	public bool IsStaffInvitation {
+		get {
+			return Scope == InvitationScope.Staff && TenantId is null && ProjectId is null;
+		}
+	}
+
+	public bool IsTenantInvitation {
+		get {
+			return Scope == InvitationScope.Tenant && TenantId is not null && ProjectId is null;
+		}
+	}
+
+	public bool IsProjectInvitation {
+		get {
+			return Scope == InvitationScope.Project && TenantId is not null && ProjectId is not null;
+		}
+	}
 
 	public static Invitation CreateStaffInvitationWithProfiles(
 		string email,

@@ -5,11 +5,11 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using MainApi.Localization;
 using MainApi.Lib;
 using MainApi.Lib.ProblemResults;
 using MainApi.Lib.Testing.Fixtures;
 using MainApi.Lib.Testing.Helpers;
+using MainApi.Localization;
 using MainApi.Modules.AuditLogs.Entities;
 using MainApi.Modules.Tenants.Entities;
 
@@ -276,22 +276,24 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 	private HttpRequestMessage CreateRequest(
 		string? sessionToken,
 		object body
-	) =>
-		TenantBulkActionSpecSupport.CreateJsonRequest(
+	) {
+		return TenantBulkActionSpecSupport.CreateJsonRequest(
 			TenantBulkActionSpecSupport.GetBulkDeleteUrl(),
 			sessionToken,
 			body
 		);
+	}
 
 	private Task<SeededTenantSnapshot> SeedTenantAsync(
 		string namePrefix,
 		TenantStatus status
-	) =>
-		TenantBulkActionSpecSupport.SeedTenantAsync(
+	) {
+		return TenantBulkActionSpecSupport.SeedTenantAsync(
 			_fixture,
 			namePrefix,
 			status
 		);
+	}
 
 	private async Task AssertTenantDeletedAsync(
 		Guid tenantId

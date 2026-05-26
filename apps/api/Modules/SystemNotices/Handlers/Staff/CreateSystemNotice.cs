@@ -23,20 +23,25 @@ public record CreateSystemNoticeBody {
 	public required JsonElement StartsAt { get; init; }
 	public JsonElement? ExpiresAt { get; init; }
 
-	public string GetSeverity() =>
-		Severity.GetValueAsString();
+	public string GetSeverity() {
+		return Severity.GetValueAsString();
+	}
 
-	public string GetTitle() =>
-		Title.GetValueAsString();
+	public string GetTitle() {
+		return Title.GetValueAsString();
+	}
 
-	public string GetMessage() =>
-		Message.GetValueAsString();
+	public string GetMessage() {
+		return Message.GetValueAsString();
+	}
 
-	public DateTime GetStartsAt() =>
-		StartsAt.GetValueAsDateTime();
+	public DateTime GetStartsAt() {
+		return StartsAt.GetValueAsDateTime();
+	}
 
-	public DateTime? GetExpiresAt() =>
-		ExpiresAt.GetValueAsDateTimeOrNull();
+	public DateTime? GetExpiresAt() {
+		return ExpiresAt.GetValueAsDateTimeOrNull();
+	}
 }
 
 public record SystemNoticeCreated {

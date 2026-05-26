@@ -2,11 +2,11 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Localization;
 using MainApi.Lib;
 using MainApi.Lib.Extensions;
 using MainApi.Lib.ProblemResults;
 using MainApi.Lib.Utils;
+using MainApi.Localization;
 using MainApi.Modules.AuditLogs.Entities;
 using MainApi.Modules.AuditLogs.Services;
 using MainApi.Modules.SystemNotices.Entities;
@@ -24,20 +24,24 @@ public record UpdateSystemNoticeBody {
 	public JsonElement? StartsAt { get; init; }
 	public JsonElement ExpiresAt { get; init; }
 
-	public string? GetSeverity() =>
-		Severity.GetValueAsStringOrNull();
+	public string? GetSeverity() {
+		return Severity.GetValueAsStringOrNull();
+	}
 
-	public string? GetTitle() =>
-		Title.GetValueAsStringOrNull();
+	public string? GetTitle() {
+		return Title.GetValueAsStringOrNull();
+	}
 
-	public string? GetMessage() =>
-		Message.GetValueAsStringOrNull();
+	public string? GetMessage() {
+		return Message.GetValueAsStringOrNull();
+	}
 
-	public DateTime? GetStartsAt() =>
-		StartsAt.GetValueAsDateTimeOrNull();
+	public DateTime? GetStartsAt() {
+		return StartsAt.GetValueAsDateTimeOrNull();
+	}
 
-	public PatchField<DateTime?> GetExpiresAt() =>
-		ExpiresAt.ValueKind switch {
+	public PatchField<DateTime?> GetExpiresAt() {
+		return ExpiresAt.ValueKind switch {
 			JsonValueKind.Undefined =>
 				PatchField<DateTime?>.Absent(),
 			JsonValueKind.Null =>
@@ -51,6 +55,7 @@ public record UpdateSystemNoticeBody {
 				+ "null, or omitted"
 			),
 		};
+	}
 }
 
 public record SystemNoticeUpdated {

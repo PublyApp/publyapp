@@ -27,12 +27,14 @@ public class ValidationProblemDetails : AppProblemDetails {
 		string detail,
 		TranslationKey translationKey,
 		IDictionary<string, string[]> errors
-	) => new() {
-		Status = StatusCodes.Status422UnprocessableEntity,
-		Title = "Validation Failed",
-		Detail = detail,
-		TranslationKey = translationKey.Value,
-		Type = "https://httpstatuses.com/422",
-		Errors = errors
-	};
+	) {
+		return new() {
+			Status = StatusCodes.Status422UnprocessableEntity,
+			Title = "Validation Failed",
+			Detail = detail,
+			TranslationKey = translationKey.Value,
+			Type = "https://httpstatuses.com/422",
+			Errors = errors
+		};
+	}
 }

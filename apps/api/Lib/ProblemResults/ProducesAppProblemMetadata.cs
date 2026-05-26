@@ -10,7 +10,12 @@ internal sealed class ProducesAppProblemMetadata : IProducesResponseTypeMetadata
 		StatusCode = statusCode;
 	}
 
-	public Type? Type => typeof(AppProblemDetails);
+	public Type? Type {
+		get {
+			return typeof(AppProblemDetails);
+		}
+	}
+
 	public int StatusCode { get; }
 	public IEnumerable<string> ContentTypes { get; } = ["application/problem+json"];
 }

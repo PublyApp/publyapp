@@ -28,7 +28,11 @@ public class UserSeeder : IEntitySeeder {
 			?? SeederLoggerUtils.CreateDefault<UserSeeder>();
 	}
 
-	public int Order => 30;
+	public int Order {
+		get {
+			return 30;
+		}
+	}
 
 	public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
 		var seedPassword = GetSeedPassword();

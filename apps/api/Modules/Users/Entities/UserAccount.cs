@@ -43,9 +43,23 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	public AccountStatus Status { get; set; } = AccountStatus.Active;
 
 	// Computed properties for easy identification
-	public bool IsStaffAccount => Scope == AccountScope.Staff && TenantId == null && ProjectId == null;
-	public bool IsTenantAccount => Scope == AccountScope.Tenant && TenantId != null && ProjectId == null;
-	public bool IsProjectAccount => Scope == AccountScope.Project && TenantId != null && ProjectId != null;
+	public bool IsStaffAccount {
+		get {
+			return Scope == AccountScope.Staff && TenantId == null && ProjectId == null;
+		}
+	}
+
+	public bool IsTenantAccount {
+		get {
+			return Scope == AccountScope.Tenant && TenantId != null && ProjectId == null;
+		}
+	}
+
+	public bool IsProjectAccount {
+		get {
+			return Scope == AccountScope.Project && TenantId != null && ProjectId != null;
+		}
+	}
 
 	// Factory methods for type-safe creation
 	public static UserAccount CreateStaffAccount(

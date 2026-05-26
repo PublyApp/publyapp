@@ -22,7 +22,11 @@ public class PermissionSeeder : IEntitySeeder {
 			?? SeederLoggerUtils.CreateDefault<PermissionSeeder>();
 	}
 
-	public int Order => 10;
+	public int Order {
+		get {
+			return 10;
+		}
+	}
 
 	public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
 		List<Permission> permissions = GetPermissionsPool();

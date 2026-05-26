@@ -43,12 +43,13 @@ public sealed class ApiFixture : IAsyncLifetime {
 	/// Creates a fresh HttpClient (no shared headers,
 	/// cookies disabled by default).
 	/// </summary>
-	public HttpClient CreateClient() =>
-		Factory.CreateClient(
+	public HttpClient CreateClient() {
+		return Factory.CreateClient(
 			new WebApplicationFactoryClientOptions {
 				HandleCookies = false
 			}
 		);
+	}
 
 	public async Task InitializeAsync() {
 		var container =
