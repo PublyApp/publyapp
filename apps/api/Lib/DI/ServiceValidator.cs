@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -51,7 +52,7 @@ public static class ServiceValidator {
 			message.AppendLine("[Service] attribute validation failed with the following errors:");
 			message.AppendLine();
 			foreach (var error in errors) {
-				message.AppendLine($"  - {error}");
+				message.AppendLine(CultureInfo.InvariantCulture, $"  - {error}");
 			}
 			throw new InvalidOperationException(message.ToString());
 		}
@@ -222,12 +223,16 @@ public static class ServiceValidator {
 		if (services.Count == 0) return null;
 
 		var sb = new StringBuilder();
-		sb.AppendLine($"[DI Manifest] Discovered {services.Count} [Service] attributed class(es):");
+		sb.AppendLine(
+			CultureInfo.InvariantCulture,
+			$"[DI Manifest] Discovered {services.Count} [Service] attributed class(es):"
+		);
 
 		foreach (var service in services.OrderBy(s => s.ImplementationType.FullName)) {
 			if (service.ServiceInterface is null) continue;
 			var keyInfo = service.Key is not null ? $", Key=\"{service.Key}\"" : "";
 			sb.AppendLine(
+				CultureInfo.InvariantCulture,
 				$"  - {service.ImplementationType.Name} -> {service.ServiceInterface.Name} " +
 				$"({service.Lifetime}{keyInfo})"
 			);

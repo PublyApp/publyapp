@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Reflection;
 
 namespace MainApi.Lib.DI;
@@ -50,11 +51,12 @@ public static class ServiceScanner {
 
 			var sb = new System.Text.StringBuilder();
 			sb.AppendLine(
+				CultureInfo.InvariantCulture,
 				$"[Service] scanner failed to load types from assembly '{assembly.GetName().Name}'. " +
 				$"Loader exceptions ({ex.LoaderExceptions.Length} total, showing up to 10 distinct):"
 			);
 			foreach (var message in loaderExceptions) {
-				sb.AppendLine($"  - {message}");
+				sb.AppendLine(CultureInfo.InvariantCulture, $"  - {message}");
 			}
 
 			throw new InvalidOperationException(sb.ToString(), ex);

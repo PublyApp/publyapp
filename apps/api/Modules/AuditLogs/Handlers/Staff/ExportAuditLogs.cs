@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
@@ -197,7 +198,7 @@ public sealed class ExportAuditLogs {
 			);
 		}
 		var timestamp = DateTime.UtcNow
-			.ToString("yyyyMMdd-HHmmss");
+			.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
 		var ext = format == "csv" ? "csv" : "json";
 		var contentType = format == "csv"
 			? "text/csv"
