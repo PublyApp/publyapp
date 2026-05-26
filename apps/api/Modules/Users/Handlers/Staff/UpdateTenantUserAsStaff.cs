@@ -92,10 +92,19 @@ public class UpdateTenantUserAsStaffBodyValidator
 
 		RuleFor(x => x.Level)
 			.Must(e => {
-				if (e is null) return true;
+				if (e is null) {
+					return true;
+				}
+
 				var element = e.Value;
-				if (element.ValueKind == JsonValueKind.Null) return true;
-				if (element.ValueKind != JsonValueKind.String) return false;
+				if (element.ValueKind == JsonValueKind.Null) {
+					return true;
+				}
+
+				if (element.ValueKind != JsonValueKind.String) {
+					return false;
+				}
+
 				var value = element.GetString();
 				return value == "Admin" || value == "User";
 			})

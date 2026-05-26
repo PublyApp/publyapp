@@ -2,12 +2,12 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Localization;
 using MainApi.Infrastructure.Messaging.Email;
 using MainApi.Lib;
 using MainApi.Lib.Extensions;
 using MainApi.Lib.ProblemResults;
 using MainApi.Lib.Validation;
+using MainApi.Localization;
 using MainApi.Modules.Tenants.Services;
 using MainApi.Modules.Users.Entities;
 
@@ -76,7 +76,10 @@ public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAs
 			.DependentRules(() => {
 				RuleFor(x => x.MaxUsers)
 					.Must(m => {
-						if (m.ValueKind != JsonValueKind.Number) return true;
+						if (m.ValueKind != JsonValueKind.Number) {
+							return true;
+						}
+
 						return m.TryGetInt32(out var value) && value > 0;
 					})
 					.WithMessage("MaxUsers must be greater than 0 when provided");
@@ -97,7 +100,7 @@ public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAs
 					return;
 				}
 
-				var body = context.InstanceToValidate as CreateTenantAsStaffBody;
+				var body = context.InstanceToValidate;
 				// Invalid numeric tokens are reported by the MaxUsers rule above; avoid
 				// throwing here while validating the independent InitialUsers rule.
 				var maxUsers = AppEnvironment.Instance.DEFAULT_MAX_USERS_PER_TENANT;
@@ -188,7 +191,10 @@ public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAs
 	}
 
 	private static bool IsValidEmail(string email) {
-		if (string.IsNullOrWhiteSpace(email)) return false;
+		if (string.IsNullOrWhiteSpace(email)) {
+			return false;
+		}
+
 		try {
 			return System.Net.Mail.MailAddress.TryCreate(email, out _);
 		} catch {

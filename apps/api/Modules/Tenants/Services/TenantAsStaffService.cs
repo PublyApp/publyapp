@@ -239,7 +239,10 @@ public class TenantAsStaffService : ITenantAsStaffService {
 					return tenant is not null ? (tenant.CreatedAt, tenant.Id) : null;
 				},
 				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) return q;
+					if (cursorValue is null) {
+						return q;
+					}
+
 					var (cursorCreatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
 					return isAsc
 						? q.Where(t => t.CreatedAt > cursorCreatedAt || (t.CreatedAt == cursorCreatedAt && t.Id > cursorId))
@@ -259,7 +262,10 @@ public class TenantAsStaffService : ITenantAsStaffService {
 					return tenant is not null ? (tenant.UpdatedAt, tenant.Id) : null;
 				},
 				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) return q;
+					if (cursorValue is null) {
+						return q;
+					}
+
 					var (cursorUpdatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
 					return isAsc
 						? q.Where(t => t.UpdatedAt > cursorUpdatedAt || (t.UpdatedAt == cursorUpdatedAt && t.Id > cursorId))
@@ -279,7 +285,10 @@ public class TenantAsStaffService : ITenantAsStaffService {
 					return tenant is not null ? (tenant.Name, tenant.Id) : null;
 				},
 				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) return q;
+					if (cursorValue is null) {
+						return q;
+					}
+
 					var (cursorName, cursorId) = ((string, Guid?))cursorValue;
 					return isAsc
 						? q.Where(t => t.Name.CompareTo(cursorName) > 0 || (t.Name == cursorName && t.Id > cursorId))
@@ -299,7 +308,10 @@ public class TenantAsStaffService : ITenantAsStaffService {
 					return tenant is not null ? (tenant.Status, tenant.Id) : null;
 				},
 				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) return q;
+					if (cursorValue is null) {
+						return q;
+					}
+
 					var (cursorStatus, cursorId) = ((TenantStatus, Guid?))cursorValue;
 					return isAsc
 						? q.Where(t => t.Status > cursorStatus || (t.Status == cursorStatus && t.Id > cursorId))

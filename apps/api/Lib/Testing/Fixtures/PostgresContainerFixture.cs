@@ -41,12 +41,16 @@ public sealed class PostgresContainerFixture {
 	public static async Task<PostgresContainerFixture>
 	GetSharedAsync() {
 		var instance = Volatile.Read(ref _sharedInstance);
-		if (instance is not null) return instance;
+		if (instance is not null) {
+			return instance;
+		}
 
 		await _initLock.WaitAsync();
 		try {
 			instance = Volatile.Read(ref _sharedInstance);
-			if (instance is not null) return instance;
+			if (instance is not null) {
+				return instance;
+			}
 
 			var fixture = new PostgresContainerFixture();
 			await fixture.InitializeAsync();

@@ -4,7 +4,6 @@ using System.Text.Json;
 
 using FluentAssertions;
 
-using MainApi.Localization;
 using MainApi.Data.DbContext;
 using MainApi.Lib;
 using MainApi.Lib.ProblemResults;
@@ -12,6 +11,7 @@ using MainApi.Lib.Routes;
 using MainApi.Lib.Testing.Fixtures;
 using MainApi.Lib.Testing.Helpers;
 using MainApi.Lib.Utils;
+using MainApi.Localization;
 using MainApi.Modules.AuditLogs.Entities;
 using MainApi.Modules.Users.Entities;
 
@@ -342,7 +342,7 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 				name = "Bulk Delete Staff User " + Guid.NewGuid().ToString("N")[..8],
 				description = "Profile used by BulkDeleteStaffUsersSpec",
 				permissions = new[] { AppPermissions.Staff.Users.LIST_FOR_STAFF.Key },
-				emails = new string[] { },
+				emails = Array.Empty<string>(),
 			}
 		);
 

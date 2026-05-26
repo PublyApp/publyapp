@@ -42,7 +42,10 @@ public static class OpenApiExtensions {
 	/// Usage: builder.ProducesAppProblem(StatusCodes.Status401Unauthorized, StatusCodes.Status500InternalServerError);
 	/// </summary>
 	public static RouteHandlerBuilder ProducesAppProblem(this RouteHandlerBuilder builder, params int[] statusCodes) {
-		if (statusCodes is null || statusCodes.Length == 0) return builder;
+		if (statusCodes is null || statusCodes.Length == 0) {
+			return builder;
+		}
+
 		foreach (var statusCode in statusCodes) {
 			builder = builder.Produces<AppProblemDetails>(statusCode, "application/problem+json");
 		}
@@ -55,7 +58,10 @@ public static class OpenApiExtensions {
 	/// Usage: group.ProducesAppProblem(StatusCodes.Status401Unauthorized, StatusCodes.Status403Forbidden);
 	/// </summary>
 	public static RouteGroupBuilder ProducesAppProblem(this RouteGroupBuilder builder, params int[] statusCodes) {
-		if (statusCodes is null || statusCodes.Length == 0) return builder;
+		if (statusCodes is null || statusCodes.Length == 0) {
+			return builder;
+		}
+
 		foreach (var statusCode in statusCodes) {
 			builder = builder.WithMetadata(new ProducesAppProblemMetadata(statusCode));
 		}

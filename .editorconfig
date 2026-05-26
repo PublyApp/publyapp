@@ -39,7 +39,9 @@ dotnet_sort_system_directives_first = true
 dotnet_separate_import_directive_groups = true
 
 # ==== Promoted to warning (rules we ENFORCE) ====
+dotnet_diagnostic.IDE0004.severity = warning   # Remove unnecessary cast
 dotnet_diagnostic.IDE0005.severity = warning   # Unused using directive
+dotnet_diagnostic.IDE0011.severity = warning   # Add braces to single-line statements
 dotnet_diagnostic.IDE0021.severity = warning   # Use block body for constructors
 dotnet_diagnostic.IDE0022.severity = warning   # Use block body for methods
 dotnet_diagnostic.IDE0023.severity = warning   # Use block body for conversion operators
@@ -47,6 +49,9 @@ dotnet_diagnostic.IDE0024.severity = warning   # Use block body for operators
 dotnet_diagnostic.IDE0025.severity = warning   # Use block body for properties
 dotnet_diagnostic.IDE0026.severity = warning   # Use block body for indexers
 dotnet_diagnostic.IDE0027.severity = warning   # Use block body for accessors
+dotnet_diagnostic.IDE0036.severity = warning   # Order modifiers
+dotnet_diagnostic.IDE0051.severity = warning   # Remove unread private members
+dotnet_diagnostic.IDE0052.severity = warning   # Remove unread private members (fields)
 dotnet_diagnostic.IDE0059.severity = warning   # Unnecessary assignment of a value
 dotnet_diagnostic.IDE0060.severity = warning   # Remove unused parameter
 dotnet_diagnostic.IDE0130.severity = warning   # Namespace does not match folder structure
@@ -57,10 +62,13 @@ dotnet_diagnostic.CA1305.severity = warning    # Specify IFormatProvider for for
 dotnet_diagnostic.CA1310.severity = warning    # Specify StringComparison for string ops
 dotnet_diagnostic.CA1311.severity = warning    # Specify culture or use invariant ToUpper/ToLower
 dotnet_diagnostic.CA1507.severity = warning    # Use nameof in place of string
+dotnet_diagnostic.CA1825.severity = warning    # Avoid zero-length array allocations (use Array.Empty<T>)
+dotnet_diagnostic.CA1827.severity = warning    # Use .Any() instead of .Count() > 0
 dotnet_diagnostic.CA1860.severity = warning    # Avoid using 'Enumerable.Any()' extension method
 dotnet_diagnostic.CA1873.severity = warning    # Avoid potentially expensive method calls as arguments
 dotnet_diagnostic.CS0168.severity = warning    # Variable declared but never used
 dotnet_diagnostic.CS0219.severity = warning    # Variable assigned but value never used
+dotnet_diagnostic.SYSLIB1045.severity = warning # Use [GeneratedRegex]
 
 # ==== Suppressed (severity = none — noise we don't enforce) ====
 dotnet_diagnostic.IDE0001.severity = none      # Simplify names
