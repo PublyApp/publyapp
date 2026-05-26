@@ -48,11 +48,14 @@ public record Permission : INoTenantEntity {
 			throw new Exception("Invalid scope");
 		}
 
-		if (scope == PermissionScope.Tenant && !key.StartsWith(ScopeKeyPrefix.Tenant)) {
+		if (scope == PermissionScope.Tenant
+			&& !key.StartsWith(ScopeKeyPrefix.Tenant, StringComparison.Ordinal)) {
 			throw new Exception("Tenant permission key must start with " + ScopeKeyPrefix.Tenant);
-		} else if (scope == PermissionScope.Staff && !key.StartsWith(ScopeKeyPrefix.Staff)) {
+		} else if (scope == PermissionScope.Staff
+			&& !key.StartsWith(ScopeKeyPrefix.Staff, StringComparison.Ordinal)) {
 			throw new Exception("Staff permission key must start with " + ScopeKeyPrefix.Staff);
-		} else if (scope == PermissionScope.Project && !key.StartsWith(ScopeKeyPrefix.Project)) {
+		} else if (scope == PermissionScope.Project
+			&& !key.StartsWith(ScopeKeyPrefix.Project, StringComparison.Ordinal)) {
 			throw new Exception("Project permission key must start with " + ScopeKeyPrefix.Project);
 		}
 
@@ -69,7 +72,7 @@ public record Permission : INoTenantEntity {
 		Dictionary<string, PermissionTranslation>? translations = null
 	) {
 		return new Permission(
-			string.Join(KeySeparator, new string[] { ScopeKeyPrefix.Tenant, key.ToLower() }),
+			string.Join(KeySeparator, new string[] { ScopeKeyPrefix.Tenant, key.ToLowerInvariant() }),
 			PermissionScope.Tenant
 		) {
 			Translations = translations ?? new()
@@ -81,7 +84,7 @@ public record Permission : INoTenantEntity {
 		Dictionary<string, PermissionTranslation>? translations = null
 	) {
 		return new Permission(
-			string.Join(KeySeparator, new string[] { ScopeKeyPrefix.Staff, key.ToLower() }),
+			string.Join(KeySeparator, new string[] { ScopeKeyPrefix.Staff, key.ToLowerInvariant() }),
 			PermissionScope.Staff
 		) {
 			Translations = translations ?? new()
@@ -93,7 +96,7 @@ public record Permission : INoTenantEntity {
 		Dictionary<string, PermissionTranslation>? translations = null
 	) {
 		return new Permission(
-			string.Join(KeySeparator, new string[] { ScopeKeyPrefix.Project, key.ToLower() }),
+			string.Join(KeySeparator, new string[] { ScopeKeyPrefix.Project, key.ToLowerInvariant() }),
 			PermissionScope.Project
 		) {
 			Translations = translations ?? new()

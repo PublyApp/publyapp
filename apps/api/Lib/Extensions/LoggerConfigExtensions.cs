@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
@@ -20,6 +22,7 @@ public static class LoggerConfigExtensions {
 					.Filter.ByIncludingOnly(e => e.Level == LogEventLevel.Information)
 					.WriteTo.File(
 						path: ".artifacts/logs/info.log",
+						formatProvider: CultureInfo.InvariantCulture,
 						rollingInterval: RollingInterval.Day,
 						fileSizeLimitBytes: 10 * 1024 * 1024, // 10MB
 						retainedFileCountLimit: 7
@@ -28,6 +31,7 @@ public static class LoggerConfigExtensions {
 					.Filter.ByIncludingOnly(e => e.Level == LogEventLevel.Warning)
 					.WriteTo.File(
 						path: ".artifacts/logs/warning.log",
+						formatProvider: CultureInfo.InvariantCulture,
 						rollingInterval: RollingInterval.Day,
 						fileSizeLimitBytes: 10 * 1024 * 1024, // 10MB
 						retainedFileCountLimit: 7
@@ -36,6 +40,7 @@ public static class LoggerConfigExtensions {
 					.Filter.ByIncludingOnly(e => e.Level == LogEventLevel.Error)
 					.WriteTo.File(
 						path: ".artifacts/logs/error.log",
+						formatProvider: CultureInfo.InvariantCulture,
 						rollingInterval: RollingInterval.Day,
 						fileSizeLimitBytes: 10 * 1024 * 1024, // 10MB
 						retainedFileCountLimit: 7
@@ -48,12 +53,14 @@ public static class LoggerConfigExtensions {
 					.WriteTo.Console(
 						theme: AnsiConsoleTheme.Code,
 						// outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
+						formatProvider: CultureInfo.InvariantCulture,
 						applyThemeToRedirectedOutput: true
 						)
 					.WriteTo.Async(writeTo => writeTo.Logger(l => l
 						.Filter.ByIncludingOnly(e => e.Level == LogEventLevel.Debug)
 						.WriteTo.File(
 							path: ".artifacts/logs/debug.log",
+							formatProvider: CultureInfo.InvariantCulture,
 							rollingInterval: RollingInterval.Day,
 							fileSizeLimitBytes: 10 * 1024 * 1024, // 10MB
 							retainedFileCountLimit: 7
@@ -67,6 +74,7 @@ public static class LoggerConfigExtensions {
 						.MinimumLevel.Override("Microsoft", LogEventLevel.Information)
 						.WriteTo.Console(
 							theme: AnsiConsoleTheme.Code,
+							formatProvider: CultureInfo.InvariantCulture,
 							restrictedToMinimumLevel: LogEventLevel.Information,
 							applyThemeToRedirectedOutput: false
 						);
@@ -78,6 +86,7 @@ public static class LoggerConfigExtensions {
 						.MinimumLevel.Override("Microsoft.EntityFrameworkCore.Query", LogEventLevel.Error)
 						.WriteTo.Console(
 							theme: AnsiConsoleTheme.Literate,
+							formatProvider: CultureInfo.InvariantCulture,
 							restrictedToMinimumLevel: LogEventLevel.Warning,
 							applyThemeToRedirectedOutput: false
 						);
@@ -93,6 +102,7 @@ public static class LoggerConfigExtensions {
 							e.Properties["SourceContext"].ToString().Contains("Microsoft.Hosting"))
 						.WriteTo.Console(
 							theme: AnsiConsoleTheme.Literate,
+							formatProvider: CultureInfo.InvariantCulture,
 							applyThemeToRedirectedOutput: true));
 			}
 		});

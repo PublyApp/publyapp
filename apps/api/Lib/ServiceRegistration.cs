@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 using FluentValidation;
@@ -201,9 +202,12 @@ public static class ServiceRegistration {
 			foreach (var group in conflictingDescriptors
 				.GroupBy(sd => sd.ServiceType)
 				.OrderBy(g => g.Key.FullName)) {
-				message.AppendLine($"  - {group.Key.FullName}");
+				message.AppendLine(CultureInfo.InvariantCulture, $"  - {group.Key.FullName}");
 				foreach (var descriptor in group) {
-					message.AppendLine($"      explicit: {DescribeServiceDescriptor(descriptor)}");
+					message.AppendLine(
+						CultureInfo.InvariantCulture,
+						$"      explicit: {DescribeServiceDescriptor(descriptor)}"
+					);
 				}
 			}
 			message.AppendLine();
