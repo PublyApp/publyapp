@@ -48,10 +48,6 @@ dotnet_diagnostic.CS0219.severity = warning    # Variable assigned but value nev
 # ==== Suppressed (severity = none — noise we don't enforce) ====
 dotnet_diagnostic.IDE0001.severity = none      # Simplify names
 dotnet_diagnostic.IDE0008.severity = none      # Use explicit type instead of 'var'
-dotnet_diagnostic.IDE0022.severity = none      # Use block body for methods
-dotnet_diagnostic.IDE0023.severity = none      # Use block body for conversion operator
-dotnet_diagnostic.IDE0024.severity = none      # Use block body for operator
-dotnet_diagnostic.IDE0027.severity = none      # Use expression body for accessor
 dotnet_diagnostic.IDE0028.severity = none      # Simplify collection initialization
 dotnet_diagnostic.IDE0030.severity = none      # Null check can be simplified
 dotnet_diagnostic.IDE0037.severity = none      # Member name can be simplified
