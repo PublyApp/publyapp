@@ -50,10 +50,14 @@ dotnet_diagnostic.IDE0042.severity = none      # Deconstruct variable declaratio
 dotnet_diagnostic.IDE0074.severity = none      # Use compound assignment
 dotnet_diagnostic.IDE0075.severity = none      # Simplify conditional expression
 dotnet_diagnostic.IDE0090.severity = none      # Use 'new(…)'
+dotnet_diagnostic.IDE0160.severity = none      # Convert to block scoped namespace
 dotnet_diagnostic.IDE0200.severity = none      # Remove unnecessary lambda expression
 dotnet_diagnostic.IDE0270.severity = none      # Null check can be simplified (use ??)
 dotnet_diagnostic.IDE0290.severity = none      # Use primary constructor
 dotnet_diagnostic.IDE0305.severity = none      # Simplify collection initialization
+dotnet_diagnostic.CA1000.severity = none       # Do not declare static members on generic types
+dotnet_diagnostic.CA1707.severity = none       # Identifiers should not contain underscores
+dotnet_diagnostic.CA1711.severity = none       # Identifiers should not have incorrect suffix
 dotnet_diagnostic.CA1848.severity = none       # Use the LoggerMessage delegates
 dotnet_diagnostic.CS1591.severity = none       # Missing XML comment for publicly visible type or member
 
