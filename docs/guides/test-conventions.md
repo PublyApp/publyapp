@@ -54,6 +54,20 @@ They live in `Lib/Architecture/` and follow the standard spec conventions:
   constraints (`:guid`/`:int`). IDs are parsed in handlers with `Guid.TryParse`, so
   a malformed ID returns 400 (BadRequest); an inline constraint would silently
   regress that to a route-level 404.
+- `HandlerContractGuard.Spec.cs` — locks in the #431 handler file contract: the
+  public Minimal-API entrypoint is named exactly `Handle` (no leftover
+  `Handle{Operation}`); handlers never inject/store/parameterize `MainApiDbContext`;
+  handler classes expose no public nested types (contract + validator types are
+  top-level siblings); and every `AbstractValidator<T>` in a handler namespace
+  targets a top-level `Body`/`Query` type. (The "file name matches primary class"
+  half of #357 B.5 is deferred to the #350 Roslyn track — multi-handler files make a
+  filesystem rule brittle — and the "namespace matches folder" half is already
+  enforced at build by `IDE0130`.)
+- `ServiceArgsRecordConvention.Spec.cs` — any public domain-service interface method
+  with 3+ parameters (excluding `CancellationToken`) must collapse them into a single
+  `{Action}{Domain}Args` record. Uses an explicit, justified allowlist to baseline
+  pre-existing exceptions (baseline-then-ratchet), retains positive coverage for
+  methods that already adopt args records, and self-prunes stale allowlist entries.
 
 ### Architecture test vs Roslyn analyzer — which to use
 
