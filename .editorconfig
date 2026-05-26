@@ -17,68 +17,47 @@ indent_style = space
 
 # C# files
 [*.cs]
-# IDE0001: Simplify Names
-dotnet_diagnostic.IDE0001.severity = none
-# IDE0290: Use primary constructor
-dotnet_diagnostic.IDE0290.severity = none
-# IDE0270: Null check can be simplified
-dotnet_diagnostic.IDE0270.severity = none
-# Using directive is unnecessary.
-dotnet_diagnostic.IDE0005.severity = warning
-# IDE0090: Use 'new'
-dotnet_diagnostic.IDE0090.severity = none
-# Use compound assignment
-dotnet_diagnostic.IDE0074.severity = none
-# Member name can be simplified
-dotnet_diagnostic.IDE0037.severity = none
-# IDE0305: Simplify collection initialization
-dotnet_diagnostic.IDE0305.severity = none
-# IDE0200: Remove unnecessary lambda expression
-dotnet_diagnostic.IDE0200.severity = none
-# IDE2000: Avoid multiple blank lines
-dotnet_diagnostic.IDE2000.severity = warning
-# ==== Braces syntax to follow Js/Java style ====
+
+# ==== Formatter style (Js/Java-style braces) ====
 csharp_new_line_before_open_brace = none
 csharp_new_line_before_else = false
 csharp_new_line_before_catch = false
 csharp_new_line_before_finally = false
-# ==== Braces syntax to follow Js/Java style ====
-# IDE0042: Deconstruct variable declaration
-dotnet_diagnostic.IDE0042.severity = none
-# IDE0028: Simplify collection initialization
-dotnet_diagnostic.IDE0028.severity = none
-# CA1860: Avoid using 'Enumerable.Any()' extension method
-dotnet_diagnostic.CA1860.severity = warning
-# IDE0130: Namespace declaration does not match folder structure
-dotnet_diagnostic.IDE0130.severity = warning
-# ==== Using directive organization ====
-# Sort System.* using directives first
+
+# ==== Using-directive organization ====
 dotnet_sort_system_directives_first = true
-# Separate using directive groups with blank lines
 dotnet_separate_import_directive_groups = true
-# ======================================
-# CS0168: The variable 'name' is declared but never used
-dotnet_diagnostic.CS0168.severity = warning
-# CS0219: Variable is assigned but its value is never used
-dotnet_diagnostic.CS0219.severity = warning
-# IDE0059: Unnecessary assignment of a value
-dotnet_diagnostic.IDE0059.severity = warning
-# IDE0060: Remove unused parameter
-dotnet_diagnostic.IDE0060.severity = warning
-# CS1591: Missing XML comment for publicly visible type or member
-dotnet_diagnostic.CS1591.severity = none
-# CA1848: Use the LoggerMessage delegates for performance
-dotnet_diagnostic.CA1848.severity = none
-# CA1062: Validate arguments of public methods
-dotnet_diagnostic.CA1873.severity = warning
-# Enable CA1507 as a warning (common choice)
-dotnet_diagnostic.CA1507.severity = warning
-# IDE0030: null check can be simplified
-dotnet_diagnostic.IDE0030.severity = none
-# IDE0075: Simplify conditional expression
-dotnet_diagnostic.IDE0075.severity = none
-# IDE0300: Use collection Initializers
-dotnet_diagnostic.IDE0300.severity = warning
+
+# ==== Promoted to warning (rules we ENFORCE) ====
+dotnet_diagnostic.IDE0005.severity = warning   # Unused using directive
+dotnet_diagnostic.IDE0059.severity = warning   # Unnecessary assignment of a value
+dotnet_diagnostic.IDE0060.severity = warning   # Remove unused parameter
+dotnet_diagnostic.IDE0130.severity = warning   # Namespace does not match folder structure
+dotnet_diagnostic.IDE0300.severity = warning   # Use collection initializers
+dotnet_diagnostic.IDE2000.severity = warning   # Avoid multiple blank lines
+dotnet_diagnostic.CA1507.severity = warning    # Use nameof in place of string
+dotnet_diagnostic.CA1860.severity = warning    # Avoid using 'Enumerable.Any()' extension method
+dotnet_diagnostic.CA1873.severity = warning    # Avoid potentially expensive method calls as arguments
+dotnet_diagnostic.CS0168.severity = warning    # Variable declared but never used
+dotnet_diagnostic.CS0219.severity = warning    # Variable assigned but value never used
+
+# ==== Suppressed (severity = none — noise we don't enforce) ====
+dotnet_diagnostic.IDE0001.severity = none      # Simplify names
+dotnet_diagnostic.IDE0028.severity = none      # Simplify collection initialization
+dotnet_diagnostic.IDE0030.severity = none      # Null check can be simplified
+dotnet_diagnostic.IDE0037.severity = none      # Member name can be simplified
+dotnet_diagnostic.IDE0042.severity = none      # Deconstruct variable declaration
+dotnet_diagnostic.IDE0074.severity = none      # Use compound assignment
+dotnet_diagnostic.IDE0075.severity = none      # Simplify conditional expression
+dotnet_diagnostic.IDE0090.severity = none      # Use 'new(…)'
+dotnet_diagnostic.IDE0200.severity = none      # Remove unnecessary lambda expression
+dotnet_diagnostic.IDE0270.severity = none      # Null check can be simplified (use ??)
+dotnet_diagnostic.IDE0290.severity = none      # Use primary constructor
+dotnet_diagnostic.IDE0305.severity = none      # Simplify collection initialization
+dotnet_diagnostic.CA1848.severity = none       # Use the LoggerMessage delegates
+dotnet_diagnostic.CS1591.severity = none       # Missing XML comment for publicly visible type or member
+
+# ==== Per-file overrides ====
 
 # EF Core Migrations - auto-generated code
 [**/Migrations/*.cs]
