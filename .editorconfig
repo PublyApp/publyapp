@@ -47,10 +47,13 @@ dotnet_diagnostic.CS0219.severity = warning    # Variable assigned but value nev
 
 # ==== Suppressed (severity = none — noise we don't enforce) ====
 dotnet_diagnostic.IDE0001.severity = none      # Simplify names
+dotnet_diagnostic.IDE0008.severity = none      # Use explicit type instead of 'var'
 dotnet_diagnostic.IDE0028.severity = none      # Simplify collection initialization
 dotnet_diagnostic.IDE0030.severity = none      # Null check can be simplified
 dotnet_diagnostic.IDE0037.severity = none      # Member name can be simplified
 dotnet_diagnostic.IDE0042.severity = none      # Deconstruct variable declaration
+dotnet_diagnostic.IDE0046.severity = none      # 'if' statement can be simplified
+dotnet_diagnostic.IDE0058.severity = none      # Expression value is never used
 dotnet_diagnostic.IDE0074.severity = none      # Use compound assignment
 dotnet_diagnostic.IDE0075.severity = none      # Simplify conditional expression
 dotnet_diagnostic.IDE0090.severity = none      # Use 'new(…)'
@@ -73,3 +76,8 @@ dotnet_diagnostic.CS1591.severity = none       # Missing XML comment for publicl
 dotnet_diagnostic.IDE0005.severity = none
 # Generated migrations emit `new[] { ... }` arrays; do not auto-rewrite them
 dotnet_diagnostic.IDE0300.severity = none
+
+# Test code overrides
+[**/Tests/**/*.cs]
+# Test infrastructure (response DTOs, fixtures, fakes) does not benefit from sealing
+dotnet_diagnostic.CA1852.severity = none
