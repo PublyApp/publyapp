@@ -11,11 +11,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Modules.Tenants.Services;
 
-public class TenantAsStaffItem {
-	public required Tenant Tenant { get; set; }
-	public int UsersCount { get; set; }
-}
-
 // Flattened API-safe DTO (no EF entities)
 public class TenantAsStaffListItem {
 	public required Guid Id { get; init; }
@@ -117,14 +112,6 @@ public interface ITenantAsStaffService {
 
 	Task<Tenant?> GetTenantByIdAsync(Guid tenantId, CancellationToken cancellationToken = default);
 
-	Task<List<TenantAsStaffItem>> FindTenantsAsync(
-		int? page = null,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
-		CancellationToken cancellationToken = default
-	);
-
 	Task<FindTenantsAsStaffServiceResult> FindTenantsAsStaffAsync(
 		FindTenantsAsStaffArgs args,
 		CancellationToken cancellationToken = default
@@ -218,58 +205,6 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		}
 
 		return foundTenant;
-	}
-
-	public async Task<List<TenantAsStaffItem>> FindTenantsAsync(
-		int? page = null,
-		int? limit = null,
-		string? sortId = null,
-		SortOrder? sortOrder = null,
-		CancellationToken cancellationToken = default
-	) {
-		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
-		var effectivePage = page ?? 1;
-		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-
-		var query =
-			from tenant in _dbContext.Tenant
-			where tenant.IsDeleted != true
-			join userAccount in _dbContext.UserAccount
-				.Where(ua => ua.Scope == AccountScope.Tenant && ua.IsDeleted != true)
-				on tenant.Id equals userAccount.TenantId into userAccounts
-			select new TenantAsStaffItem {
-				Tenant = tenant,
-				UsersCount = userAccounts.Count()
-			};
-
-		if (sortId is not null) {
-			var isAsc = effectiveSortOrder == SortOrder.Asc;
-			if (string.Equals(sortId, "created_at", StringComparison.OrdinalIgnoreCase)) {
-				query = isAsc ? query.OrderBy(t => t.Tenant.CreatedAt) : query.OrderByDescending(t => t.Tenant.CreatedAt);
-			}
-			if (string.Equals(sortId, "updated_at", StringComparison.OrdinalIgnoreCase)) {
-				query = isAsc ? query.OrderBy(t => t.Tenant.UpdatedAt) : query.OrderByDescending(t => t.Tenant.UpdatedAt);
-			}
-			if (string.Equals(sortId, "code", StringComparison.OrdinalIgnoreCase)) {
-				query = isAsc ? query.OrderBy(t => t.Tenant.Code) : query.OrderByDescending(t => t.Tenant.Code);
-			}
-			if (string.Equals(sortId, "name", StringComparison.OrdinalIgnoreCase)) {
-				query = isAsc ? query.OrderBy(t => t.Tenant.Name) : query.OrderByDescending(t => t.Tenant.Name);
-			}
-			if (string.Equals(sortId, "status", StringComparison.OrdinalIgnoreCase)) {
-				query = isAsc ? query.OrderBy(t => t.Tenant.Status) : query.OrderByDescending(t => t.Tenant.Status);
-			}
-			if (string.Equals(sortId, "users_count", StringComparison.OrdinalIgnoreCase)) {
-				query = isAsc ? query.OrderBy(t => t.UsersCount) : query.OrderByDescending(t => t.UsersCount);
-			}
-		}
-
-		query = query
-			.Skip((effectivePage - 1) * effectiveLimit)
-			.Take(effectiveLimit);
-
-		return await query
-			.ToListAsync(cancellationToken);
 	}
 
 	public async Task<int> CountTenantsAsync(CancellationToken cancellationToken = default) {

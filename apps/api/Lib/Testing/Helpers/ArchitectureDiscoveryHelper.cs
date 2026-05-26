@@ -2,6 +2,8 @@ namespace MainApi.Lib.Testing.Helpers;
 
 using System.Reflection;
 
+using FluentValidation;
+
 /// <summary>
 /// Shared reflection helper for architecture-guard specs. It loads the API
 /// assembly and enumerates the type categories guards care about (handler types,
@@ -81,6 +83,98 @@ internal static class ArchitectureDiscoveryHelper {
 				WireDtoSuffixes.Any(suffix =>
 					type.Name.EndsWith(suffix, StringComparison.Ordinal)))
 			.ToList();
+	}
+
+	/// <summary>
+	/// Enumerates handler <em>entrypoint</em> classes — the subset of handler types
+	/// that carry the Minimal-API delegate: a non-abstract class exposing a
+	/// <c>public static</c> method named exactly <c>Handle</c>. This excludes the
+	/// wire DTO records, <c>*Validator</c> types, and file-scoped helper classes that
+	/// also live in <c>.Handlers.</c> namespaces, so handler-class guards that must
+	/// operate on real entrypoints (no DbContext, no nested contract types) fault
+	/// only the real handlers.
+	///
+	/// Note: this enumerator is deliberately <em>strict</em> (exact <c>Handle</c>), so
+	/// the entrypoint-naming guard (B.1) must NOT use it — a handler that regressed to
+	/// only <c>HandleCreate</c>/<c>HandleUpdate</c> would be filtered out here before
+	/// B.1 could flag it. Use <see cref="EnumerateHandlerEntrypointCandidateTypes"/>
+	/// for that guard instead.
+	/// </summary>
+	public static IReadOnlyList<Type> EnumerateHandlerEntrypointTypes() {
+		return EnumerateHandlerTypes()
+			.Where(type =>
+				type is { IsClass: true, IsAbstract: false }
+				&& type.GetMethod(
+					"Handle",
+					BindingFlags.Public | BindingFlags.Static
+				) is not null)
+			.ToList();
+	}
+
+	/// <summary>
+	/// Enumerates handler entrypoint <em>candidates</em> for the B.1 naming guard:
+	/// non-abstract handler classes exposing ANY <c>public static</c> method whose
+	/// name starts with <c>Handle</c> (<c>Handle</c>, <c>HandleCreate</c>,
+	/// <c>HandleUpdate</c>, …). This is intentionally broader than
+	/// <see cref="EnumerateHandlerEntrypointTypes"/> so the naming guard can CATCH a
+	/// handler that regressed to <c>HandleCreate</c> only (no exact <c>Handle</c>);
+	/// the strict enumerator would silently drop it. Wire DTO records and
+	/// <c>*Validator</c> types are already excluded by <see cref="EnumerateHandlerTypes"/>.
+	/// </summary>
+	public static IReadOnlyList<Type> EnumerateHandlerEntrypointCandidateTypes() {
+		return EnumerateHandlerTypes()
+			.Where(type =>
+				type is { IsClass: true, IsAbstract: false }
+				&& type
+					.GetMethods(BindingFlags.Public | BindingFlags.Static)
+					.Any(method =>
+						method.Name.StartsWith("Handle", StringComparison.Ordinal)))
+			.ToList();
+	}
+
+	/// <summary>
+	/// Enumerates FluentValidation validators declared in handler namespaces —
+	/// non-abstract subclasses of <see cref="AbstractValidator{T}"/> living under
+	/// <c>MainApi.Modules.*.Handlers.*</c>, excluding generic type definitions and
+	/// generated/build artifacts. <see cref="IsHandWrittenType"/> deliberately filters
+	/// out <c>*Validator</c> names, so validators are enumerated separately here.
+	/// </summary>
+	public static IReadOnlyList<Type> EnumerateValidatorTypes() {
+		return LoadApiAssembly()
+			.GetTypes()
+			.Where(type =>
+				type.Namespace?.Contains(
+					HandlerNamespaceFragment,
+					StringComparison.Ordinal
+				) == true)
+			.Where(type =>
+				type is { IsClass: true, IsAbstract: false }
+				&& !type.IsGenericTypeDefinition)
+			.Where(type => GetValidatorTarget(type) is not null)
+			.Where(IsNotGeneratedType)
+			.OrderBy(type => type.FullName, StringComparer.Ordinal)
+			.ToList();
+	}
+
+	/// <summary>
+	/// Returns the <c>T</c> of the nearest <see cref="AbstractValidator{T}"/> base
+	/// type for <paramref name="type"/>, or <c>null</c> when the type does not derive
+	/// from a FluentValidation validator. Walks the base chain so subclassed
+	/// validators are resolved too.
+	/// </summary>
+	public static Type? GetValidatorTarget(Type type) {
+		var current = type.BaseType;
+		while (current is not null) {
+			if (current.IsGenericType
+				&& current.GetGenericTypeDefinition()
+					== typeof(AbstractValidator<>)) {
+				return current.GetGenericArguments()[0];
+			}
+
+			current = current.BaseType;
+		}
+
+		return null;
 	}
 
 	/// <summary>
@@ -180,6 +274,16 @@ internal static class ArchitectureDiscoveryHelper {
 			return false;
 		}
 
+		return IsNotGeneratedType(type);
+	}
+
+	/// <summary>
+	/// True when the type is not part of a generated/build-artifact namespace.
+	/// Unlike <see cref="IsHandWrittenType"/> this does <em>not</em> exclude
+	/// <c>*Validator</c> names, so the validator enumerator can reuse the same
+	/// generated-code exclusion without filtering out the very types it discovers.
+	/// </summary>
+	private static bool IsNotGeneratedType(Type type) {
 		var fullName = type.FullName;
 		if (fullName is null) {
 			return false;
