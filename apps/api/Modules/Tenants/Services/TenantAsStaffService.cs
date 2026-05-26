@@ -421,7 +421,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			// 1. Create tenant
 			var tenant = new Tenant {
 				Name = args.Name,
-				Code = CryptoUtils.RandomString(10).ToLower(),
+				Code = CryptoUtils.RandomString(10).ToLowerInvariant(),
 				Status = TenantStatus.Pending,
 				MaxUsers = args.MaxUsers
 			};

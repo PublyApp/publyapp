@@ -16,7 +16,7 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 	[Column("code")]
 	public required string Code {
 		get { return _code; }
-		set { _code = value.ToLower(); }
+		set { _code = value.ToLowerInvariant(); }
 	}
 
 	[Column("name")]
