@@ -23,7 +23,7 @@
 	"material-icon-theme.folders.associations": {
 		"front": "public"
 	},
-	"typescript.tsdk": "node_modules\\typescript\\lib",
+	"js/ts.tsdk.path": "node_modules\\typescript\\lib",
 	"files.eol": "\n",
 	"files.associations": {
 		"*.slnx": "xml",
