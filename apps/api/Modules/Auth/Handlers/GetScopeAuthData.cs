@@ -82,11 +82,11 @@ public sealed class GetScopeAuthData {
 					HasSessionToken = authContext.SessionToken is not null
 				});
 			}
-			throw new Exception($"GetScopeAuthData must be set behind SessionAuthFilter.");
+			throw new InvalidOperationException("GetScopeAuthData must be set behind SessionAuthFilter.");
 		}
 
 		if (authContext.UserId is not Guid userId) {
-			throw new Exception($"{nameof(authContext.UserId)} is not a GUID");
+			throw new InvalidOperationException($"{nameof(authContext.UserId)} is not a GUID");
 		}
 
 		if (query.IsStaffScope()) {

@@ -36,7 +36,7 @@ public class CreateTenantAsStaffBody {
 
 	public List<CreateTenantAsStaffInitialUserItem> GetInitialUsers() {
 		if (InitialUsers.ValueKind != JsonValueKind.Array) {
-			throw new Exception("InitialUsers must be an array");
+			throw new ArgumentException("InitialUsers must be an array", nameof(InitialUsers));
 		}
 
 		var users = new List<CreateTenantAsStaffInitialUserItem>();

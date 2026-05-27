@@ -45,18 +45,27 @@ public record Permission : INoTenantEntity {
 		}
 
 		if (!Enum.IsDefined(scope)) {
-			throw new Exception("Invalid scope");
+			throw new ArgumentOutOfRangeException(nameof(scope), "Invalid scope");
 		}
 
 		if (scope == PermissionScope.Tenant
 			&& !key.StartsWith(ScopeKeyPrefix.Tenant, StringComparison.Ordinal)) {
-			throw new Exception("Tenant permission key must start with " + ScopeKeyPrefix.Tenant);
+			throw new ArgumentException(
+				"Tenant permission key must start with " + ScopeKeyPrefix.Tenant,
+				nameof(key)
+			);
 		} else if (scope == PermissionScope.Staff
 			&& !key.StartsWith(ScopeKeyPrefix.Staff, StringComparison.Ordinal)) {
-			throw new Exception("Staff permission key must start with " + ScopeKeyPrefix.Staff);
+			throw new ArgumentException(
+				"Staff permission key must start with " + ScopeKeyPrefix.Staff,
+				nameof(key)
+			);
 		} else if (scope == PermissionScope.Project
 			&& !key.StartsWith(ScopeKeyPrefix.Project, StringComparison.Ordinal)) {
-			throw new Exception("Project permission key must start with " + ScopeKeyPrefix.Project);
+			throw new ArgumentException(
+				"Project permission key must start with " + ScopeKeyPrefix.Project,
+				nameof(key)
+			);
 		}
 
 		Key = key;

@@ -35,11 +35,13 @@ public sealed class GetUserTenantsForPicker {
 					HasSessionToken = authContext.SessionToken is not null
 				});
 			}
-			throw new Exception($"GetUserTenantsForPicker must be set behind SessionAuthFilter.");
+			throw new InvalidOperationException(
+				"GetUserTenantsForPicker must be set behind SessionAuthFilter."
+			);
 		}
 
 		if (authContext.UserId is not Guid userId) {
-			throw new Exception($"{nameof(authContext.UserId)} is not a GUID");
+			throw new InvalidOperationException($"{nameof(authContext.UserId)} is not a GUID");
 		}
 
 		var result = await accountService.GetUserTenantsForPickerAsync(
