@@ -285,7 +285,7 @@ public sealed class BulkReactivateTenantsAsStaffSpec
 		};
 	}
 
-	private HttpRequestMessage CreateRequest(
+	private static HttpRequestMessage CreateRequest(
 		string? sessionToken,
 		object body
 	) {

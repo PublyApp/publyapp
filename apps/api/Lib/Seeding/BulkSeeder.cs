@@ -141,7 +141,7 @@ public class BulkSeeder {
 		Console.WriteLine($"\rProjects: {count}/{projects.Count} done");
 	}
 
-	private async Task DeleteTenantsAsync(MainApiDbContext dbContext, CancellationToken cancellationToken) {
+	private static async Task DeleteTenantsAsync(MainApiDbContext dbContext, CancellationToken cancellationToken) {
 		var tenantCodes = await dbContext.Tenant
 			.Where(t => t.Code.StartsWith(BulkSeedConstants.TenantCodePrefix))
 			.Select(t => t.Code)
@@ -167,7 +167,7 @@ public class BulkSeeder {
 		}
 	}
 
-	private async Task DeleteUsersAsync(MainApiDbContext dbContext, CancellationToken cancellationToken) {
+	private static async Task DeleteUsersAsync(MainApiDbContext dbContext, CancellationToken cancellationToken) {
 		var domain = BulkSeedConstants.UserEmailDomain;
 		var userCount = await dbContext.User
 			.Where(u => u.Email.EndsWith($"@{domain}"))
@@ -193,7 +193,7 @@ public class BulkSeeder {
 		}
 	}
 
-	private async Task DeleteUserAccountsAsync(MainApiDbContext dbContext, CancellationToken cancellationToken) {
+	private static async Task DeleteUserAccountsAsync(MainApiDbContext dbContext, CancellationToken cancellationToken) {
 		var domain = BulkSeedConstants.UserEmailDomain;
 
 		Console.Write("Deleting user accounts... ");
@@ -212,7 +212,7 @@ public class BulkSeeder {
 		}
 	}
 
-	private async Task DeleteProjectsAsync(MainApiDbContext dbContext, CancellationToken cancellationToken) {
+	private static async Task DeleteProjectsAsync(MainApiDbContext dbContext, CancellationToken cancellationToken) {
 		var prefix = BulkSeedConstants.ProjectNamePrefix;
 
 		Console.Write("Deleting projects... ");
