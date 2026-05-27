@@ -50,7 +50,18 @@ public static class JsonElementExtensions {
 			JsonValueKind.Null => null,
 			JsonValueKind.Undefined => null,
 			JsonValueKind.String => element?.GetString(),
-			_ => throw new InvalidOperationException($"{propertyName} must be a string or null")
+			JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.Number
+				or JsonValueKind.True
+				or JsonValueKind.False => throw new InvalidOperationException(
+					$"{propertyName} must be a string or null"
+				),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(element),
+				element?.ValueKind,
+				$"Unhandled JsonValueKind: {element?.ValueKind}"
+			)
 		};
 	}
 
@@ -59,7 +70,18 @@ public static class JsonElementExtensions {
 			JsonValueKind.Null => null,
 			JsonValueKind.Undefined => null,
 			JsonValueKind.String => element.GetString(),
-			_ => throw new InvalidOperationException($"{propertyName} must be a string or null")
+			JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.Number
+				or JsonValueKind.True
+				or JsonValueKind.False => throw new InvalidOperationException(
+					$"{propertyName} must be a string or null"
+				),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(element),
+				element.ValueKind,
+				$"Unhandled JsonValueKind: {element.ValueKind}"
+			)
 		};
 	}
 
@@ -70,7 +92,17 @@ public static class JsonElementExtensions {
 			JsonValueKind.Undefined => false,
 			JsonValueKind.True => true,
 			JsonValueKind.False => false,
-			_ => throw new InvalidOperationException($"{propertyName} must be a boolean or null")
+			JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.String
+				or JsonValueKind.Number => throw new InvalidOperationException(
+					$"{propertyName} must be a boolean or null"
+				),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(element),
+				element?.ValueKind,
+				$"Unhandled JsonValueKind: {element?.ValueKind}"
+			)
 		};
 	}
 
@@ -80,7 +112,17 @@ public static class JsonElementExtensions {
 			JsonValueKind.Undefined => false,
 			JsonValueKind.True => true,
 			JsonValueKind.False => false,
-			_ => throw new InvalidOperationException($"{propertyName} must be a boolean or null")
+			JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.String
+				or JsonValueKind.Number => throw new InvalidOperationException(
+					$"{propertyName} must be a boolean or null"
+				),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(element),
+				element.ValueKind,
+				$"Unhandled JsonValueKind: {element.ValueKind}"
+			)
 		};
 	}
 
@@ -134,7 +176,20 @@ public static class JsonElementExtensions {
 	public static int GetValueAsInt32(this JsonElement element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
 		return element.ValueKind switch {
 			JsonValueKind.Number => element.GetInt32(),
-			_ => throw new InvalidOperationException($"{propertyName} must be a number")
+			JsonValueKind.Undefined
+				or JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.String
+				or JsonValueKind.True
+				or JsonValueKind.False
+				or JsonValueKind.Null => throw new InvalidOperationException(
+					$"{propertyName} must be a number"
+				),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(element),
+				element.ValueKind,
+				$"Unhandled JsonValueKind: {element.ValueKind}"
+			)
 		};
 	}
 
@@ -144,7 +199,18 @@ public static class JsonElementExtensions {
 			JsonValueKind.Null => null,
 			JsonValueKind.Undefined => null,
 			JsonValueKind.Number => element?.GetInt32(),
-			_ => throw new InvalidOperationException($"{propertyName} must be a number or null")
+			JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.String
+				or JsonValueKind.True
+				or JsonValueKind.False => throw new InvalidOperationException(
+					$"{propertyName} must be a number or null"
+				),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(element),
+				element?.ValueKind,
+				$"Unhandled JsonValueKind: {element?.ValueKind}"
+			)
 		};
 	}
 
@@ -153,7 +219,18 @@ public static class JsonElementExtensions {
 			JsonValueKind.Null => null,
 			JsonValueKind.Undefined => null,
 			JsonValueKind.Number => element.GetInt32(),
-			_ => throw new InvalidOperationException($"{propertyName} must be a number or null")
+			JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.String
+				or JsonValueKind.True
+				or JsonValueKind.False => throw new InvalidOperationException(
+					$"{propertyName} must be a number or null"
+				),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(element),
+				element.ValueKind,
+				$"Unhandled JsonValueKind: {element.ValueKind}"
+			)
 		};
 	}
 
@@ -181,8 +258,17 @@ public static class JsonElementExtensions {
 			JsonValueKind.String => ParseDateTimeUtcOrThrow(
 				element?.GetString(), propertyName
 			),
-			_ => throw new InvalidOperationException(
+			JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.Number
+				or JsonValueKind.True
+				or JsonValueKind.False => throw new InvalidOperationException(
 				$"{propertyName} must be a valid date or null"
+			),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(element),
+				element?.ValueKind,
+				$"Unhandled JsonValueKind: {element?.ValueKind}"
 			)
 		};
 	}
@@ -194,8 +280,17 @@ public static class JsonElementExtensions {
 			JsonValueKind.String => ParseDateTimeUtcOrThrow(
 				element.GetString(), propertyName
 			),
-			_ => throw new InvalidOperationException(
+			JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.Number
+				or JsonValueKind.True
+				or JsonValueKind.False => throw new InvalidOperationException(
 				$"{propertyName} must be a valid date or null"
+			),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(element),
+				element.ValueKind,
+				$"Unhandled JsonValueKind: {element.ValueKind}"
 			)
 		};
 	}
