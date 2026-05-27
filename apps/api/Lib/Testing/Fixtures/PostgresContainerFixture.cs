@@ -1,4 +1,3 @@
-namespace MainApi.Lib.Testing.Fixtures;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -6,6 +5,7 @@ using Npgsql;
 
 using Testcontainers.PostgreSql;
 
+namespace MainApi.Lib.Testing.Fixtures;
 /// <summary>
 /// Manages a shared Postgres container for the entire test
 /// run. Uses static lazy initialization so test classes can

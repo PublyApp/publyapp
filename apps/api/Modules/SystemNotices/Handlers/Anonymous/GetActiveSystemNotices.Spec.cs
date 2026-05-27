@@ -1,4 +1,3 @@
-namespace MainApi.Modules.SystemNotices.Handlers.Anonymous;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -11,6 +10,7 @@ using MainApi.Lib.Testing.Helpers;
 
 using Xunit;
 
+namespace MainApi.Modules.SystemNotices.Handlers.Anonymous;
 public sealed class GetActiveSystemNoticesSpec
 	: IClassFixture<ApiFixture> {
 	private static readonly string ActiveUrl =

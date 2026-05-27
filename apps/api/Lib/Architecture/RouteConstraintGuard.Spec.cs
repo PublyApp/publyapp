@@ -1,4 +1,3 @@
-namespace MainApi.Lib.Architecture;
 
 using System.Text.RegularExpressions;
 
@@ -8,6 +7,7 @@ using MainApi.Lib.Testing.Helpers;
 
 using Xunit;
 
+namespace MainApi.Lib.Architecture;
 /// <summary>
 /// Guards the repo convention that route path constants never carry inline route
 /// constraints (e.g. <c>{userId:guid}</c> or <c>{id:int}</c>). IDs are parsed in

@@ -1,17 +1,17 @@
-namespace MainApi.Modules.SystemNotices.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using MainApi.Localization;
 using MainApi.Lib.ProblemResults;
 using MainApi.Lib.Testing.Fixtures;
 using MainApi.Lib.Testing.Helpers;
+using MainApi.Localization;
 
 using Xunit;
 
+namespace MainApi.Modules.SystemNotices.Handlers.Staff;
 public sealed class GetSystemNoticeByIdSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;

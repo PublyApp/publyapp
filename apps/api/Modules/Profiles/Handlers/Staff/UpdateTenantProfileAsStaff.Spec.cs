@@ -1,4 +1,3 @@
-namespace MainApi.Modules.Profiles.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -7,7 +6,6 @@ using System.Text.Json;
 
 using FluentAssertions;
 
-using MainApi.Localization;
 using MainApi.Data.DbContext;
 using MainApi.Data.Seeding;
 using MainApi.Lib.ProblemResults;
@@ -15,6 +13,7 @@ using MainApi.Lib.Routes;
 using MainApi.Lib.Testing.Fixtures;
 using MainApi.Lib.Testing.Helpers;
 using MainApi.Lib.Utils;
+using MainApi.Localization;
 using MainApi.Modules.AuditLogs.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +21,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
+namespace MainApi.Modules.Profiles.Handlers.Staff;
 public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;

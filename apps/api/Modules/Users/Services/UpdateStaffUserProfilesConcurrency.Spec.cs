@@ -1,7 +1,5 @@
 using System.Data.Common;
 
-namespace MainApi.Modules.Users.Services;
-
 using FluentAssertions;
 
 using MainApi.Data.DbContext;
@@ -18,6 +16,7 @@ using Npgsql;
 
 using Xunit;
 
+namespace MainApi.Modules.Users.Services;
 public sealed class UpdateStaffUserProfilesConcurrencySpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;

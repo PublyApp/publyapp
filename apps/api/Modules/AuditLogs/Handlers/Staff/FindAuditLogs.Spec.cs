@@ -1,4 +1,3 @@
-namespace MainApi.Modules.AuditLogs.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -15,6 +14,7 @@ using Xunit;
 
 using FromQueryAttribute = Microsoft.AspNetCore.Mvc.FromQueryAttribute;
 
+namespace MainApi.Modules.AuditLogs.Handlers.Staff;
 public sealed class FindAuditLogsSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;

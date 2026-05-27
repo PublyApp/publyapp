@@ -37,6 +37,7 @@ csharp_style_expression_bodied_local_functions = false:warning
 # ==== Using-directive organization ====
 dotnet_sort_system_directives_first = true
 dotnet_separate_import_directive_groups = true
+csharp_using_directive_placement = outside_namespace:warning
 
 # ==== Promoted to warning (rules we ENFORCE) ====
 dotnet_diagnostic.IDE0004.severity = warning   # Remove unnecessary cast
@@ -55,6 +56,7 @@ dotnet_diagnostic.IDE0051.severity = warning   # Remove unread private members
 dotnet_diagnostic.IDE0052.severity = warning   # Remove unread private members (fields)
 dotnet_diagnostic.IDE0059.severity = warning   # Unnecessary assignment of a value
 dotnet_diagnostic.IDE0060.severity = warning   # Remove unused parameter
+dotnet_diagnostic.IDE0065.severity = warning   # Using directives must be placed outside the namespace
 dotnet_diagnostic.IDE0072.severity = warning   # Populate switch expression
 dotnet_diagnostic.IDE0130.severity = warning   # Namespace does not match folder structure
 dotnet_diagnostic.IDE0300.severity = warning   # Use collection initializers

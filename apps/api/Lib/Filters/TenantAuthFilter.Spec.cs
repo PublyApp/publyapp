@@ -1,4 +1,3 @@
-namespace MainApi.Lib.Filters;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -12,6 +11,7 @@ using MainApi.Lib.Testing.Helpers;
 
 using Xunit;
 
+namespace MainApi.Lib.Filters;
 public sealed class TenantAuthFilterSpec
 	: IClassFixture<ApiFixture> {
 	// The /test endpoint is behind tenantGroup

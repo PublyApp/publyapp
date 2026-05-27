@@ -1,4 +1,3 @@
-namespace MainApi.Lib.Testing.Fixtures;
 
 using MainApi.Lib.Testing.Fakes;
 
@@ -7,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
+namespace MainApi.Lib.Testing.Fixtures;
 /// <summary>
 /// Per-test-class fixture that creates its own cloned
 /// database from the shared template.

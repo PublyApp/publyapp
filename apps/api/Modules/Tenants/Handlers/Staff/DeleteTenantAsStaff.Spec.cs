@@ -1,4 +1,3 @@
-namespace MainApi.Modules.Tenants.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -22,6 +21,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
+namespace MainApi.Modules.Tenants.Handlers.Staff;
 public sealed class DeleteTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;

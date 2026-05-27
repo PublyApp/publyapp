@@ -1,11 +1,12 @@
-namespace MainApi.Lib.Testing.Helpers;
 
 using System.Net.Http.Json;
 using System.Text.Json;
 
-using MainApi.Lib.Routes;
 using MainApi.Lib.Utils;
 
+using AppRoutes = MainApi.Lib.Routes.Routes;
+
+namespace MainApi.Lib.Testing.Helpers;
 /// <summary>
 /// Shared helpers for tenant suspension integration tests.
 /// Provides methods to look up tenant IDs and perform
@@ -14,9 +15,9 @@ using MainApi.Lib.Utils;
 internal static class TenantTestHelper {
 	private static readonly string FindUrl =
 		PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.Tenants.ForStaff.Root,
-			Routes.Tenants.ForStaff.Find
+			AppRoutes.Staff.Root,
+			AppRoutes.Tenants.ForStaff.Root,
+			AppRoutes.Tenants.ForStaff.Find
 		);
 
 	public static string GetFindUrl(
@@ -126,9 +127,9 @@ internal static class TenantTestHelper {
 		CancellationToken ct = default
 	) {
 		var url = PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.Tenants.ForStaff.Root,
-			Routes.Tenants.ForStaff.SuspendFn(
+			AppRoutes.Staff.Root,
+			AppRoutes.Tenants.ForStaff.Root,
+			AppRoutes.Tenants.ForStaff.SuspendFn(
 				tenantId.ToString()
 			)
 		);
@@ -158,9 +159,9 @@ internal static class TenantTestHelper {
 		CancellationToken ct = default
 	) {
 		var url = PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.Tenants.ForStaff.Root,
-			Routes.Tenants.ForStaff.SuspendFn(
+			AppRoutes.Staff.Root,
+			AppRoutes.Tenants.ForStaff.Root,
+			AppRoutes.Tenants.ForStaff.SuspendFn(
 				tenantId.ToString()
 			)
 		);
@@ -189,9 +190,9 @@ internal static class TenantTestHelper {
 		CancellationToken ct = default
 	) {
 		var url = PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.Tenants.ForStaff.Root,
-			Routes.Tenants.ForStaff.ReactivateFn(
+			AppRoutes.Staff.Root,
+			AppRoutes.Tenants.ForStaff.Root,
+			AppRoutes.Tenants.ForStaff.ReactivateFn(
 				tenantId.ToString()
 			)
 		);
@@ -210,9 +211,9 @@ internal static class TenantTestHelper {
 	/// </summary>
 	public static string GetSuspendUrl(Guid tenantId) {
 		return PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.Tenants.ForStaff.Root,
-			Routes.Tenants.ForStaff.SuspendFn(
+			AppRoutes.Staff.Root,
+			AppRoutes.Tenants.ForStaff.Root,
+			AppRoutes.Tenants.ForStaff.SuspendFn(
 				tenantId.ToString()
 			)
 		);
@@ -223,9 +224,9 @@ internal static class TenantTestHelper {
 	/// </summary>
 	public static string GetReactivateUrl(Guid tenantId) {
 		return PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.Tenants.ForStaff.Root,
-			Routes.Tenants.ForStaff.ReactivateFn(
+			AppRoutes.Staff.Root,
+			AppRoutes.Tenants.ForStaff.Root,
+			AppRoutes.Tenants.ForStaff.ReactivateFn(
 				tenantId.ToString()
 			)
 		);
@@ -244,9 +245,9 @@ internal static class TenantTestHelper {
 		CancellationToken ct = default
 	) {
 		var url = PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.Tenants.ForStaff.Root,
-			Routes.Tenants.ForStaff.UpdateFn(
+			AppRoutes.Staff.Root,
+			AppRoutes.Tenants.ForStaff.Root,
+			AppRoutes.Tenants.ForStaff.UpdateFn(
 				tenantId.ToString()
 			)
 		);
@@ -273,9 +274,9 @@ internal static class TenantTestHelper {
 		CancellationToken ct = default
 	) {
 		var url = PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.Tenants.ForStaff.Root,
-			Routes.Tenants.ForStaff.DeleteFn(
+			AppRoutes.Staff.Root,
+			AppRoutes.Tenants.ForStaff.Root,
+			AppRoutes.Tenants.ForStaff.DeleteFn(
 				tenantId.ToString()
 			)
 		);
@@ -293,9 +294,9 @@ internal static class TenantTestHelper {
 	/// </summary>
 	public static string GetUpdateUrl(Guid tenantId) {
 		return PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.Tenants.ForStaff.Root,
-			Routes.Tenants.ForStaff.UpdateFn(
+			AppRoutes.Staff.Root,
+			AppRoutes.Tenants.ForStaff.Root,
+			AppRoutes.Tenants.ForStaff.UpdateFn(
 				tenantId.ToString()
 			)
 		);
@@ -306,9 +307,9 @@ internal static class TenantTestHelper {
 	/// </summary>
 	public static string GetDeleteUrl(Guid tenantId) {
 		return PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.Tenants.ForStaff.Root,
-			Routes.Tenants.ForStaff.DeleteFn(
+			AppRoutes.Staff.Root,
+			AppRoutes.Tenants.ForStaff.Root,
+			AppRoutes.Tenants.ForStaff.DeleteFn(
 				tenantId.ToString()
 			)
 		);
@@ -325,9 +326,9 @@ internal static class TenantTestHelper {
 		CancellationToken ct = default
 	) {
 		var url = PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.Tenants.ForStaff.Root,
-			Routes.Tenants.ForStaff.Create
+			AppRoutes.Staff.Root,
+			AppRoutes.Tenants.ForStaff.Root,
+			AppRoutes.Tenants.ForStaff.Create
 		);
 
 		using var request = new HttpRequestMessage(

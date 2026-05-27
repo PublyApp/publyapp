@@ -1,10 +1,8 @@
-namespace MainApi.Lib.DI;
 
 using System.Reflection;
 
 using FluentAssertions;
 
-using MainApi.Lib;
 using MainApi.Lib.Testing.Fixtures;
 using MainApi.Modules.AuditLogs.Services;
 using MainApi.Modules.Auth.Services;
@@ -21,6 +19,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
+namespace MainApi.Lib.DI;
 public sealed class ServiceAttributeRegistrationSpec
 	: IClassFixture<ApiFixture> {
 	private sealed record QualifyingService(
