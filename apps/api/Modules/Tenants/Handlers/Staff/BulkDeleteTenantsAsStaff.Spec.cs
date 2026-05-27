@@ -273,7 +273,7 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 		};
 	}
 
-	private HttpRequestMessage CreateRequest(
+	private static HttpRequestMessage CreateRequest(
 		string? sessionToken,
 		object body
 	) {

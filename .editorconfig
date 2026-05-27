@@ -64,6 +64,7 @@ dotnet_diagnostic.CA1305.severity = warning    # Specify IFormatProvider for for
 dotnet_diagnostic.CA1310.severity = warning    # Specify StringComparison for string ops
 dotnet_diagnostic.CA1311.severity = warning    # Specify culture or use invariant ToUpper/ToLower
 dotnet_diagnostic.CA1507.severity = warning    # Use nameof in place of string
+dotnet_diagnostic.CA1822.severity = warning    # Mark members as static when they don't use instance data
 dotnet_diagnostic.CA1725.severity = warning    # Parameter names should match base method declaration
 dotnet_diagnostic.CA1825.severity = warning    # Avoid zero-length array allocations (use Array.Empty<T>)
 dotnet_diagnostic.CA1827.severity = warning    # Use .Any() instead of .Count() > 0
