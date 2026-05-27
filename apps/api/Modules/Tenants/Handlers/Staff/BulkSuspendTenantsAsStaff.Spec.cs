@@ -322,7 +322,7 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 		};
 	}
 
-	private HttpRequestMessage CreateRequest(
+	private static HttpRequestMessage CreateRequest(
 		string? sessionToken,
 		object body
 	) {

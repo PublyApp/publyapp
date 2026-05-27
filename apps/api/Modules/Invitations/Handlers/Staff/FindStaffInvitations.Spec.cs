@@ -434,7 +434,7 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		_ = page2Ids.Should().NotIntersectWith(page1Ids);
 	}
 
-	private HttpRequestMessage CreateFindRequest(
+	private static HttpRequestMessage CreateFindRequest(
 		string staffToken,
 		string? status = null,
 		int? limit = null,
