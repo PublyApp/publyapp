@@ -35,11 +35,11 @@ public sealed class GetUserAuthData {
 					HasSessionToken = authContext.SessionToken is not null
 				});
 			}
-			throw new Exception($"GetUserAuthData must be set behind SessionAuthFilter.");
+			throw new InvalidOperationException("GetUserAuthData must be set behind SessionAuthFilter.");
 		}
 
 		if (authContext.UserId is not Guid userId) {
-			throw new Exception($"{nameof(authContext.UserId)} is not a GUID");
+			throw new InvalidOperationException($"{nameof(authContext.UserId)} is not a GUID");
 		}
 
 		var user = await userService.GetUserByIdAsync(userId, cancellationToken);

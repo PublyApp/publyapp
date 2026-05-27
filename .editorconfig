@@ -71,6 +71,7 @@ dotnet_diagnostic.CA1860.severity = warning    # Avoid using 'Enumerable.Any()' 
 dotnet_diagnostic.CA1862.severity = warning    # Use StringComparison method overloads (case-insensitive)
 dotnet_diagnostic.CA1869.severity = warning    # Cache and reuse JsonSerializerOptions instances
 dotnet_diagnostic.CA1873.severity = warning    # Avoid potentially expensive method calls as arguments
+dotnet_diagnostic.CA2201.severity = warning    # Do not raise reserved exception types
 dotnet_diagnostic.CA2251.severity = warning    # Use string.Equals overload instead of string.Compare
 dotnet_diagnostic.CS0168.severity = warning    # Variable declared but never used
 dotnet_diagnostic.CS0219.severity = warning    # Variable assigned but value never used

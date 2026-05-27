@@ -33,11 +33,11 @@ public sealed class GetUserTenants {
 					HasSessionToken = authContext.SessionToken is not null
 				});
 			}
-			throw new Exception($"GetUserTenants must be set behind SessionAuthFilter.");
+			throw new InvalidOperationException("GetUserTenants must be set behind SessionAuthFilter.");
 		}
 
 		if (authContext.UserId is not Guid userId) {
-			throw new Exception($"{nameof(authContext.UserId)} is not a GUID");
+			throw new InvalidOperationException($"{nameof(authContext.UserId)} is not a GUID");
 		}
 
 		var result = await accountService.GetUserTenantsAsync(userId, MaxTenantsInList, cancellationToken);
