@@ -13,9 +13,12 @@ public class ReqBodyValidationFilter<TRequest> : IEndpointFilter {
 		_validator = validator;
 	}
 
-	public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext httpContext, EndpointFilterDelegate next) {
+	public async ValueTask<object?> InvokeAsync(
+		EndpointFilterInvocationContext context,
+		EndpointFilterDelegate next
+	) {
 		// Find the argument that matches TRequest (skip route/query/service args)
-		var (found, idx) = httpContext.Arguments
+		var (found, idx) = context.Arguments
 			.Select((arg, i) => (arg, i))
 			.FirstOrDefault(x => x.arg is TRequest);
 
@@ -30,8 +33,11 @@ public class ReqBodyValidationFilter<TRequest> : IEndpointFilter {
 			);
 		}
 
-		var request = httpContext.GetArgument<TRequest>(idx);
-		var result = await _validator.ValidateAsync(request, httpContext.HttpContext.RequestAborted);
+		var request = context.GetArgument<TRequest>(idx);
+		var result = await _validator.ValidateAsync(
+			request,
+			context.HttpContext.RequestAborted
+		);
 
 		if (!result.IsValid) {
 			return TypedProblems.ValidationProblem(
@@ -41,7 +47,7 @@ public class ReqBodyValidationFilter<TRequest> : IEndpointFilter {
 			);
 		}
 
-		return await next(httpContext);
+		return await next(context);
 	}
 }
 

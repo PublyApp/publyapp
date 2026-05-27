@@ -284,31 +284,32 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 		);
 	}
 
-	public static IEnumerable<object[]> InvalidBodies() {
-		yield return ["""{}""", "TenantIds"];
-		yield return ["""{ "tenantIds": null }""", "TenantIds"];
-		yield return ["""{ "tenantIds": "not-an-array" }""", "TenantIds"];
-		yield return ["""{ "tenantIds": [] }""", "TenantIds"];
-		yield return ["""{ "tenantIds": ["not-a-guid"] }""", "TenantIds"];
-		yield return [
+	public static TheoryData<string, string> InvalidBodies() {
+		return new TheoryData<string, string> {
+			{ """{}""", "TenantIds" },
+			{ """{ "tenantIds": null }""", "TenantIds" },
+			{ """{ "tenantIds": "not-an-array" }""", "TenantIds" },
+			{ """{ "tenantIds": [] }""", "TenantIds" },
+			{ """{ "tenantIds": ["not-a-guid"] }""", "TenantIds" },
+			{
 			$$"""
 			{
 				"tenantIds": ["{{Guid.NewGuid()}}"],
 				"reason": 123
 			}
 			""",
-			"Reason",
-		];
-		yield return [
+			"Reason"
+			},
+			{
 			$$"""
 			{
 				"tenantIds": ["{{Guid.NewGuid()}}"],
 				"reason": "{{new string('x', 501)}}"
 			}
 			""",
-			"Reason",
-		];
-		yield return [
+			"Reason"
+			},
+			{
 			$$"""
 			{
 				"tenantIds": [
@@ -316,8 +317,9 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 				]
 			}
 			""",
-			"TenantIds",
-		];
+			"TenantIds"
+			},
+		};
 	}
 
 	private HttpRequestMessage CreateRequest(

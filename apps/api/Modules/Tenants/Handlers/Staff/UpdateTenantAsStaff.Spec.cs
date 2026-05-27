@@ -539,56 +539,58 @@ public sealed class UpdateTenantAsStaffSpec
 			.Be(HttpStatusCode.Forbidden);
 	}
 
-	public static IEnumerable<object[]>
+	public static TheoryData<string, string>
 	InvalidUpdateTenantBodies() {
-		yield return [
+		return new TheoryData<string, string> {
+			{
 			"""
 			{ "name": 123 }
 			""",
-			"Name",
-		];
-		yield return [
+			"Name"
+			},
+			{
 			"""
 			{ "name": null }
 			""",
-			"Name",
-		];
-		yield return [
+			"Name"
+			},
+			{
 			"""
 			{ "name": "Tiny" }
 			""",
-			"Name",
-		];
-		yield return [
+			"Name"
+			},
+			{
 			"""
 			{ "logoUrl": 123 }
 			""",
-			"LogoUrl",
-		];
-		yield return [
+			"LogoUrl"
+			},
+			{
 			"""
 			{ "maxUsers": "10" }
 			""",
-			"MaxUsers",
-		];
-		yield return [
+			"MaxUsers"
+			},
+			{
 			"""
 			{ "maxUsers": 1.5 }
 			""",
-			"MaxUsers",
-		];
-		yield return [
+			"MaxUsers"
+			},
+			{
 			"""
 			{ "maxUsers": 999999999999999999999999999999 }
 			""",
-			"MaxUsers",
-		];
-		yield return [
+			"MaxUsers"
+			},
+			{
 			"""
 			{ "maxUsers": -1 }
 			""",
-			"MaxUsers",
-		];
+			"MaxUsers"
+			},
+		};
 	}
 
 	private static HttpRequestMessage

@@ -21,7 +21,7 @@ public class FindTenantPermissionsQuery {
 
 		var language = SupportedLanguage.All
 			.FirstOrDefault(l =>
-				string.Compare(l, Language, StringComparison.OrdinalIgnoreCase) == 0
+				string.Equals(l, Language, StringComparison.OrdinalIgnoreCase)
 			);
 
 		if (language is null) {

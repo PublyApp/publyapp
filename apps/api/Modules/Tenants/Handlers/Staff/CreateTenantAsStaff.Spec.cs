@@ -274,263 +274,265 @@ public sealed class CreateTenantAsStaffSpec
 		await AssertValidationProblemAsync(response, expectedField);
 	}
 
-	public static IEnumerable<object[]> InvalidCreateTenantBodies() {
-		yield return [
-			"""
+	public static TheoryData<string, string> InvalidCreateTenantBodies() {
+		return new TheoryData<string, string> {
 			{
-				"maxUsers": 10,
-				"initialUsers": [
-					{ "email": "admin@example.com", "accountLevel": "Admin" }
-				]
-			}
-			""",
-			"Name",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"maxUsers": 10,
+					"initialUsers": [
+						{ "email": "admin@example.com", "accountLevel": "Admin" }
+					]
+				}
+				""",
+				"Name"
+			},
 			{
-				"name": 123,
-				"maxUsers": 10,
-				"initialUsers": [
-					{ "email": "admin@example.com", "accountLevel": "Admin" }
-				]
-			}
-			""",
-			"Name",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": 123,
+					"maxUsers": 10,
+					"initialUsers": [
+						{ "email": "admin@example.com", "accountLevel": "Admin" }
+					]
+				}
+				""",
+				"Name"
+			},
 			{
-				"name": "    ",
-				"maxUsers": 10,
-				"initialUsers": [
-					{ "email": "admin@example.com", "accountLevel": "Admin" }
-				]
-			}
-			""",
-			"Name",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": "    ",
+					"maxUsers": 10,
+					"initialUsers": [
+						{ "email": "admin@example.com", "accountLevel": "Admin" }
+					]
+				}
+				""",
+				"Name"
+			},
 			{
-				"name": "Tiny",
-				"maxUsers": 10,
-				"initialUsers": [
-					{ "email": "admin@example.com", "accountLevel": "Admin" }
-				]
-			}
-			""",
-			"Name",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": "Tiny",
+					"maxUsers": 10,
+					"initialUsers": [
+						{ "email": "admin@example.com", "accountLevel": "Admin" }
+					]
+				}
+				""",
+				"Name"
+			},
 			{
-				"name": "Invalid Max Zero",
-				"maxUsers": 0,
-				"initialUsers": [
-					{ "email": "admin@example.com", "accountLevel": "Admin" }
-				]
-			}
-			""",
-			"MaxUsers",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": "Invalid Max Zero",
+					"maxUsers": 0,
+					"initialUsers": [
+						{ "email": "admin@example.com", "accountLevel": "Admin" }
+					]
+				}
+				""",
+				"MaxUsers"
+			},
 			{
-				"name": "Invalid Max Negative",
-				"maxUsers": -1,
-				"initialUsers": [
-					{ "email": "admin@example.com", "accountLevel": "Admin" }
-				]
-			}
-			""",
-			"MaxUsers",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": "Invalid Max Negative",
+					"maxUsers": -1,
+					"initialUsers": [
+						{ "email": "admin@example.com", "accountLevel": "Admin" }
+					]
+				}
+				""",
+				"MaxUsers"
+			},
 			{
-				"name": "Invalid Max String",
-				"maxUsers": "10",
-				"initialUsers": [
-					{ "email": "admin@example.com", "accountLevel": "Admin" }
-				]
-			}
-			""",
-			"MaxUsers",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": "Invalid Max String",
+					"maxUsers": "10",
+					"initialUsers": [
+						{ "email": "admin@example.com", "accountLevel": "Admin" }
+					]
+				}
+				""",
+				"MaxUsers"
+			},
 			{
-				"name": "Invalid Max Decimal",
-				"maxUsers": 1.5,
-				"initialUsers": [
-					{ "email": "admin@example.com", "accountLevel": "Admin" }
-				]
-			}
-			""",
-			"MaxUsers",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": "Invalid Max Decimal",
+					"maxUsers": 1.5,
+					"initialUsers": [
+						{ "email": "admin@example.com", "accountLevel": "Admin" }
+					]
+				}
+				""",
+				"MaxUsers"
+			},
 			{
-				"name": "Invalid Max Huge",
-				"maxUsers": 999999999999999999999999999999,
-				"initialUsers": [
-					{ "email": "admin@example.com", "accountLevel": "Admin" }
-				]
-			}
-			""",
-			"MaxUsers",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": "Invalid Max Huge",
+					"maxUsers": 999999999999999999999999999999,
+					"initialUsers": [
+						{ "email": "admin@example.com", "accountLevel": "Admin" }
+					]
+				}
+				""",
+				"MaxUsers"
+			},
 			{
-				"name": "Missing Initial Users",
-				"maxUsers": 10
-			}
-			""",
-			"InitialUsers",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": "Missing Initial Users",
+					"maxUsers": 10
+				}
+				""",
+				"InitialUsers"
+			},
 			{
-				"name": "Invalid Initial Users",
-				"maxUsers": 10,
-				"initialUsers": {}
-			}
-			""",
-			"InitialUsers",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": "Invalid Initial Users",
+					"maxUsers": 10,
+					"initialUsers": {}
+				}
+				""",
+				"InitialUsers"
+			},
 			{
-				"name": "Empty Initial Users",
-				"maxUsers": 10,
-				"initialUsers": []
-			}
-			""",
-			"InitialUsers",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": "Empty Initial Users",
+					"maxUsers": 10,
+					"initialUsers": []
+				}
+				""",
+				"InitialUsers"
+			},
 			{
-				"name": "Bad Initial User Item",
-				"maxUsers": 10,
-				"initialUsers": ["admin@example.com"]
-			}
-			""",
-			"initialUsers[0]",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": "Bad Initial User Item",
+					"maxUsers": 10,
+					"initialUsers": ["admin@example.com"]
+				}
+				""",
+				"initialUsers[0]"
+			},
 			{
-				"name": "Missing Initial Email",
-				"maxUsers": 10,
-				"initialUsers": [
-					{ "accountLevel": "Admin" }
-				]
-			}
-			""",
-			"initialUsers[0].email",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": "Missing Initial Email",
+					"maxUsers": 10,
+					"initialUsers": [
+						{ "accountLevel": "Admin" }
+					]
+				}
+				""",
+				"initialUsers[0].email"
+			},
 			{
-				"name": "Invalid Initial Email Type",
-				"maxUsers": 10,
-				"initialUsers": [
-					{ "email": 123, "accountLevel": "Admin" }
-				]
-			}
-			""",
-			"initialUsers[0].email",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": "Invalid Initial Email Type",
+					"maxUsers": 10,
+					"initialUsers": [
+						{ "email": 123, "accountLevel": "Admin" }
+					]
+				}
+				""",
+				"initialUsers[0].email"
+			},
 			{
-				"name": "Invalid Initial Email",
-				"maxUsers": 10,
-				"initialUsers": [
-					{ "email": "not-an-email", "accountLevel": "Admin" }
-				]
-			}
-			""",
-			"initialUsers[0].email",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": "Invalid Initial Email",
+					"maxUsers": 10,
+					"initialUsers": [
+						{ "email": "not-an-email", "accountLevel": "Admin" }
+					]
+				}
+				""",
+				"initialUsers[0].email"
+			},
 			{
-				"name": "Missing Initial Level",
-				"maxUsers": 10,
-				"initialUsers": [
-					{ "email": "admin@example.com" }
-				]
-			}
-			""",
-			"initialUsers[0].accountLevel",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": "Missing Initial Level",
+					"maxUsers": 10,
+					"initialUsers": [
+						{ "email": "admin@example.com" }
+					]
+				}
+				""",
+				"initialUsers[0].accountLevel"
+			},
 			{
-				"name": "Invalid Initial Level Type",
-				"maxUsers": 10,
-				"initialUsers": [
-					{ "email": "admin@example.com", "accountLevel": 123 }
-				]
-			}
-			""",
-			"initialUsers[0].accountLevel",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": "Invalid Initial Level Type",
+					"maxUsers": 10,
+					"initialUsers": [
+						{ "email": "admin@example.com", "accountLevel": 123 }
+					]
+				}
+				""",
+				"initialUsers[0].accountLevel"
+			},
 			{
-				"name": "Invalid Initial Level",
-				"maxUsers": 10,
-				"initialUsers": [
-					{ "email": "admin@example.com", "accountLevel": "Owner" }
-				]
-			}
-			""",
-			"initialUsers[0].accountLevel",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": "Invalid Initial Level",
+					"maxUsers": 10,
+					"initialUsers": [
+						{ "email": "admin@example.com", "accountLevel": "Owner" }
+					]
+				}
+				""",
+				"initialUsers[0].accountLevel"
+			},
 			{
-				"name": "Duplicate Initial Emails",
-				"maxUsers": 10,
-				"initialUsers": [
-					{ "email": "duplicate@example.com", "accountLevel": "Admin" },
-					{ "email": "DUPLICATE@example.com", "accountLevel": "User" }
-				]
-			}
-			""",
-			"InitialUsers",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": "Duplicate Initial Emails",
+					"maxUsers": 10,
+					"initialUsers": [
+						{ "email": "duplicate@example.com", "accountLevel": "Admin" },
+						{ "email": "DUPLICATE@example.com", "accountLevel": "User" }
+					]
+				}
+				""",
+				"InitialUsers"
+			},
 			{
-				"name": "Missing Initial Admin",
-				"maxUsers": 10,
-				"initialUsers": [
-					{ "email": "user@example.com", "accountLevel": "User" }
-				]
-			}
-			""",
-			"InitialUsers",
-		];
-		yield return [
-			"""
+				"""
+				{
+					"name": "Missing Initial Admin",
+					"maxUsers": 10,
+					"initialUsers": [
+						{ "email": "user@example.com", "accountLevel": "User" }
+					]
+				}
+				""",
+				"InitialUsers"
+			},
 			{
-				"name": "Too Many Initial Users",
-				"maxUsers": 1,
-				"initialUsers": [
-					{ "email": "admin@example.com", "accountLevel": "Admin" },
-					{ "email": "user@example.com", "accountLevel": "User" }
-				]
-			}
-			""",
-			"InitialUsers",
-		];
+				"""
+				{
+					"name": "Too Many Initial Users",
+					"maxUsers": 1,
+					"initialUsers": [
+						{ "email": "admin@example.com", "accountLevel": "Admin" },
+						{ "email": "user@example.com", "accountLevel": "User" }
+					]
+				}
+				""",
+				"InitialUsers"
+			},
+		};
 	}
 
 	private static object CreateValidTenantBody(string namePrefix) {

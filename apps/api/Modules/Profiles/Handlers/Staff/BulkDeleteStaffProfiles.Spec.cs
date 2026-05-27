@@ -367,24 +367,24 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	public static IEnumerable<object[]> InvalidBodies() {
-		yield return ["""{}"""];
-		yield return ["""{ "profileIds": null }"""];
-		yield return ["""{ "profileIds": "not-an-array" }"""];
-		yield return ["""{ "profileIds": [null] }"""];
-		yield return ["""{ "profileIds": [123] }"""];
-		yield return ["""{ "profileIds": [{}] }"""];
-		yield return ["""{ "profileIds": [] }"""];
+	public static TheoryData<string> InvalidBodies() {
+		return new TheoryData<string> {
+			"""{}""",
+			"""{ "profileIds": null }""",
+			"""{ "profileIds": "not-an-array" }""",
+			"""{ "profileIds": [null] }""",
+			"""{ "profileIds": [123] }""",
+			"""{ "profileIds": [{}] }""",
+			"""{ "profileIds": [] }""",
 		// The validator allows at most 100 profile IDs per bulk request.
-		yield return [
 			$$"""
 			{
 				"profileIds": [
 					{{CreateProfileIdsJson(count: 101)}}
 				]
 			}
-			"""
-		];
+			""",
+		};
 	}
 
 	private async Task<Guid> CreateStaffProfileAsync(string staffToken) {

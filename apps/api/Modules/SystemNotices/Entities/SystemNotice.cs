@@ -43,24 +43,24 @@ public class SystemNotice : BaseAttributes, INoTenantEntity {
 	public static NoticeSeverity? ParseSeverity(
 		string severity
 	) {
-		var isInfo = string.Compare(
+		var isInfo = string.Equals(
 			severity, "info",
 			StringComparison.OrdinalIgnoreCase
-		) == 0;
+		);
 		if (isInfo) {
 			return NoticeSeverity.Info;
 		}
-		var isWarning = string.Compare(
+		var isWarning = string.Equals(
 			severity, "warning",
 			StringComparison.OrdinalIgnoreCase
-		) == 0;
+		);
 		if (isWarning) {
 			return NoticeSeverity.Warning;
 		}
-		var isCritical = string.Compare(
+		var isCritical = string.Equals(
 			severity, "critical",
 			StringComparison.OrdinalIgnoreCase
-		) == 0;
+		);
 		if (isCritical) {
 			return NoticeSeverity.Critical;
 		}
