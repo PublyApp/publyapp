@@ -1,4 +1,3 @@
-namespace MainApi.Modules.Auth.Handlers;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -11,6 +10,7 @@ using MainApi.Lib.Testing.Fixtures;
 
 using Xunit;
 
+namespace MainApi.Modules.Auth.Handlers;
 public sealed class GetVerificationLinkSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;

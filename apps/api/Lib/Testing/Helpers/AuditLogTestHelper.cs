@@ -1,7 +1,5 @@
-namespace MainApi.Lib.Testing.Helpers;
 
 using MainApi.Data.DbContext;
-using MainApi.Lib.Routes;
 using MainApi.Lib.Testing.Fixtures;
 using MainApi.Lib.Utils;
 using MainApi.Modules.AuditLogs.Entities;
@@ -9,26 +7,29 @@ using MainApi.Modules.AuditLogs.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using AppRoutes = MainApi.Lib.Routes.Routes;
+
+namespace MainApi.Lib.Testing.Helpers;
 internal static class AuditLogTestHelper {
 	private static readonly string FindUrl =
 		PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.AuditLogs.ForStaff.Root,
-			Routes.AuditLogs.ForStaff.Find
+			AppRoutes.Staff.Root,
+			AppRoutes.AuditLogs.ForStaff.Root,
+			AppRoutes.AuditLogs.ForStaff.Find
 		);
 
 	private static readonly string ActionsUrl =
 		PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.AuditLogs.ForStaff.Root,
-			Routes.AuditLogs.ForStaff.Actions
+			AppRoutes.Staff.Root,
+			AppRoutes.AuditLogs.ForStaff.Root,
+			AppRoutes.AuditLogs.ForStaff.Actions
 		);
 
 	private static readonly string ExportUrl =
 		PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.AuditLogs.ForStaff.Root,
-			Routes.AuditLogs.ForStaff.Export
+			AppRoutes.Staff.Root,
+			AppRoutes.AuditLogs.ForStaff.Root,
+			AppRoutes.AuditLogs.ForStaff.Export
 		);
 
 	public static async Task<Guid> SeedAuditLogAsync(
@@ -156,9 +157,9 @@ internal static class AuditLogTestHelper {
 
 	public static string GetDetailUrl(Guid logId) {
 		return PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.AuditLogs.ForStaff.Root,
-			Routes.AuditLogs.ForStaff.GetByIdFn(
+			AppRoutes.Staff.Root,
+			AppRoutes.AuditLogs.ForStaff.Root,
+			AppRoutes.AuditLogs.ForStaff.GetByIdFn(
 				logId.ToString()
 			)
 		);

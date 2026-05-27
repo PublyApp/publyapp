@@ -1,10 +1,11 @@
-namespace MainApi.Lib.Testing.Helpers;
 
 using System.Net.Http.Json;
 
-using MainApi.Lib.Routes;
 using MainApi.Lib.Testing.Fixtures;
 
+using AppRoutes = MainApi.Lib.Routes.Routes;
+
+namespace MainApi.Lib.Testing.Helpers;
 /// <summary>
 /// Helper for authenticating test requests.
 /// Returns session tokens — never mutates shared
@@ -45,7 +46,7 @@ internal sealed class TestAuthClient {
 		var loginRequest = new { email, password };
 
 		using var response = await _http.PostAsJsonAsync(
-			Routes.Auth.Login,
+			AppRoutes.Auth.Login,
 			loginRequest,
 			ct
 		);

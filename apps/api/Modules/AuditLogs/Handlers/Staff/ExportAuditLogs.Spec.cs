@@ -1,4 +1,3 @@
-namespace MainApi.Modules.AuditLogs.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -16,6 +15,7 @@ using Xunit;
 
 using FromQueryAttribute = Microsoft.AspNetCore.Mvc.FromQueryAttribute;
 
+namespace MainApi.Modules.AuditLogs.Handlers.Staff;
 // SetExportMaxRows mutates the global AppEnvironment
 // singleton via reflection. DisableParallelization
 // ensures this class never overlaps with other test

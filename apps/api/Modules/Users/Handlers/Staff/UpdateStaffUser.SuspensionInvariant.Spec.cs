@@ -1,4 +1,3 @@
-namespace MainApi.Modules.Users.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -18,6 +17,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
+namespace MainApi.Modules.Users.Handlers.Staff;
 public sealed class UpdateStaffUserSuspensionInvariantSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;

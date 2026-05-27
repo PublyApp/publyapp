@@ -1,4 +1,3 @@
-namespace MainApi.Modules.Profiles.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -15,6 +14,7 @@ using MainApi.Lib.Utils;
 
 using Xunit;
 
+namespace MainApi.Modules.Profiles.Handlers.Staff;
 public sealed class UpdateStaffProfileSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;

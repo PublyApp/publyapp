@@ -1,4 +1,3 @@
-namespace MainApi.Modules.Users.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -6,16 +5,17 @@ using System.Text.Json;
 
 using FluentAssertions;
 
-using MainApi.Localization;
 using MainApi.Data.Seeding;
 using MainApi.Lib.ProblemResults;
 using MainApi.Lib.Routes;
 using MainApi.Lib.Testing.Fixtures;
 using MainApi.Lib.Testing.Helpers;
 using MainApi.Lib.Utils;
+using MainApi.Localization;
 
 using Xunit;
 
+namespace MainApi.Modules.Users.Handlers.Staff;
 public sealed class UpdateTenantUserIdentityForStaffSpec
 	: IClassFixture<ApiFixture> {
 	private static readonly JsonSerializerOptions TenantUserDetailsJsonOptions = new() {

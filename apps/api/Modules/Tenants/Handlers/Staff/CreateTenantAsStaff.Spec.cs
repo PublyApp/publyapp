@@ -1,4 +1,3 @@
-namespace MainApi.Modules.Tenants.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -6,7 +5,6 @@ using System.Text;
 
 using FluentAssertions;
 
-using MainApi.Localization;
 using MainApi.Data.DbContext;
 using MainApi.Infrastructure.Messaging.Email;
 using MainApi.Lib;
@@ -16,6 +14,7 @@ using MainApi.Lib.Testing.Fakes;
 using MainApi.Lib.Testing.Fixtures;
 using MainApi.Lib.Testing.Helpers;
 using MainApi.Lib.Utils;
+using MainApi.Localization;
 using MainApi.Modules.Invitations.Entities;
 using MainApi.Modules.Profiles.Entities;
 using MainApi.Modules.Tenants.Entities;
@@ -26,6 +25,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
+namespace MainApi.Modules.Tenants.Handlers.Staff;
 public sealed class CreateTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;

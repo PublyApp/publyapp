@@ -1,4 +1,3 @@
-namespace MainApi.Modules.Tenants.Handlers.Staff;
 
 using System.Net.Http.Json;
 using System.Text;
@@ -19,6 +18,7 @@ using MainApi.Modules.Users.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+namespace MainApi.Modules.Tenants.Handlers.Staff;
 internal static class TenantBulkActionSpecSupport {
 	public static string GetBulkSuspendUrl() {
 		return PathUtils.Join(

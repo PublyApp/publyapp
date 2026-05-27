@@ -1,4 +1,3 @@
-namespace MainApi.Modules.Tenants.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -7,12 +6,12 @@ using System.Text.Json;
 
 using FluentAssertions;
 
-using MainApi.Localization;
 using MainApi.Data.DbContext;
 using MainApi.Data.Seeding;
 using MainApi.Lib.ProblemResults;
 using MainApi.Lib.Testing.Fixtures;
 using MainApi.Lib.Testing.Helpers;
+using MainApi.Localization;
 using MainApi.Modules.AuditLogs.Entities;
 using MainApi.Modules.Tenants.Entities;
 
@@ -21,6 +20,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
+namespace MainApi.Modules.Tenants.Handlers.Staff;
 public sealed class SuspendTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;

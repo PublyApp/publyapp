@@ -1,4 +1,3 @@
-namespace MainApi.Modules.AuditLogs.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -11,6 +10,7 @@ using MainApi.Modules.AuditLogs.Entities;
 
 using Xunit;
 
+namespace MainApi.Modules.AuditLogs.Handlers.Staff;
 public sealed class GetAuditLogActionsSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;

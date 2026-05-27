@@ -1,4 +1,3 @@
-namespace MainApi.Modules.Invitations.Handlers.Anonymous;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -16,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
+namespace MainApi.Modules.Invitations.Handlers.Anonymous;
 public sealed class GetInvitationDetailsSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;

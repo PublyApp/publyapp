@@ -1,4 +1,3 @@
-namespace MainApi.Modules.AuditLogs.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -17,6 +16,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
+namespace MainApi.Modules.AuditLogs.Handlers.Staff;
 public sealed class GetAuditLogByIdSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;

@@ -1,9 +1,9 @@
-namespace MainApi.Lib.Testing.Helpers;
 
 using System.Reflection;
 
 using FluentValidation;
 
+namespace MainApi.Lib.Testing.Helpers;
 /// <summary>
 /// Shared reflection helper for architecture-guard specs. It loads the API
 /// assembly and enumerates the type categories guards care about (handler types,

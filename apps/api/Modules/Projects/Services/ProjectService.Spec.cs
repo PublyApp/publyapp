@@ -1,4 +1,3 @@
-namespace MainApi.Modules.Projects.Services;
 
 using FluentAssertions;
 
@@ -12,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
+namespace MainApi.Modules.Projects.Services;
 public sealed class ProjectServiceSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;

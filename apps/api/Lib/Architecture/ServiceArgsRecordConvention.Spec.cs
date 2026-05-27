@@ -1,4 +1,3 @@
-namespace MainApi.Lib.Architecture;
 
 using System.Reflection;
 
@@ -13,6 +12,7 @@ using MainApi.Modules.SystemNotices.Services;
 
 using Xunit;
 
+namespace MainApi.Lib.Architecture;
 /// <summary>
 /// Architecture guard for the service-args convention (#357 Wave A, row A.4):
 /// any public method on a domain service interface that takes 3 or more parameters

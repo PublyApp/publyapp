@@ -1,4 +1,3 @@
-namespace MainApi.Modules.Invitations.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -19,6 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
+namespace MainApi.Modules.Invitations.Handlers.Staff;
 public sealed class CreateStaffInvitationSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;

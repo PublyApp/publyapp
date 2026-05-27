@@ -1,4 +1,3 @@
-namespace MainApi.Modules.Health;
 
 using System.Net;
 
@@ -8,6 +7,7 @@ using MainApi.Lib.Testing.Fixtures;
 
 using Xunit;
 
+namespace MainApi.Modules.Health;
 /// <summary>
 /// Integration tests for the health endpoint.
 /// </summary>
