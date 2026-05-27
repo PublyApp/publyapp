@@ -148,7 +148,7 @@ public static partial class ServiceValidator {
 				continue;
 			}
 
-			if (service.Key != service.Key.ToLowerInvariant()) {
+			if (!IsLowercaseKey(service.Key)) {
 				errors.Add(
 					$"[Service] attribute on '{service.ImplementationType.FullName}' has invalid key: " +
 					$"'{service.Key}' must be lowercase. Keys must be lowercase identifiers."
@@ -190,6 +190,16 @@ public static partial class ServiceValidator {
 				$"Only one unkeyed default is allowed; additional implementations must be keyed."
 			);
 		}
+	}
+
+	private static bool IsLowercaseKey(string key) {
+		foreach (var character in key) {
+			if (character is >= 'A' and <= 'Z') {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/// <summary>

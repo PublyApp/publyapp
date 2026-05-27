@@ -124,11 +124,19 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	public ICollection<UserAccountProfile> UserAccountProfiles { get; set; } = [];
 
 	public static AccountLevel? ParseLevel(string accountLevel) {
-		var isAdmin = string.Compare(accountLevel, nameof(AccountLevel.Admin), StringComparison.OrdinalIgnoreCase) == 0;
+		var isAdmin = string.Equals(
+			accountLevel,
+			nameof(AccountLevel.Admin),
+			StringComparison.OrdinalIgnoreCase
+		);
 		if (isAdmin) {
 			return AccountLevel.Admin;
 		}
-		var isUser = string.Compare(accountLevel, nameof(AccountLevel.User), StringComparison.OrdinalIgnoreCase) == 0;
+		var isUser = string.Equals(
+			accountLevel,
+			nameof(AccountLevel.User),
+			StringComparison.OrdinalIgnoreCase
+		);
 		if (isUser) {
 			return AccountLevel.User;
 		}

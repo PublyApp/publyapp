@@ -18,6 +18,10 @@ using Xunit;
 
 public sealed class GetTenantUserByIdForStaffSpec
 	: IClassFixture<ApiFixture> {
+	private static readonly JsonSerializerOptions TenantUserDetailsJsonOptions = new() {
+		PropertyNameCaseInsensitive = true,
+	};
+
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
@@ -76,9 +80,7 @@ public sealed class GetTenantUserByIdForStaffSpec
 		var json = await response.Content.ReadAsStringAsync();
 		var result = JsonSerializer.Deserialize<TenantUserDetailsResponse>(
 			json,
-			new JsonSerializerOptions {
-				PropertyNameCaseInsensitive = true,
-			}
+			TenantUserDetailsJsonOptions
 		);
 		result.Should().NotBeNull();
 		result!.Id.ToString().Should().Be(userId);

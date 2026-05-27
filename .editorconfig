@@ -66,9 +66,14 @@ dotnet_diagnostic.CA1825.severity = warning    # Avoid zero-length array allocat
 dotnet_diagnostic.CA1827.severity = warning    # Use .Any() instead of .Count() > 0
 dotnet_diagnostic.CA1860.severity = warning    # Avoid using 'Enumerable.Any()' extension method
 dotnet_diagnostic.CA1873.severity = warning    # Avoid potentially expensive method calls as arguments
+dotnet_diagnostic.CA1725.severity = warning
+dotnet_diagnostic.CA1862.severity = warning
+dotnet_diagnostic.CA1869.severity = warning
+dotnet_diagnostic.CA2251.severity = warning
 dotnet_diagnostic.CS0168.severity = warning    # Variable declared but never used
 dotnet_diagnostic.CS0219.severity = warning    # Variable assigned but value never used
 dotnet_diagnostic.SYSLIB1045.severity = warning # Use [GeneratedRegex]
+dotnet_diagnostic.xUnit1042.severity = warning
 
 # ==== Suppressed (severity = none — noise we don't enforce) ====
 dotnet_diagnostic.IDE0001.severity = none      # Simplify names
