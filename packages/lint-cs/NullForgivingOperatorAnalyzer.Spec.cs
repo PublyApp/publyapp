@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Globalization;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -411,7 +412,10 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 		var descriptor = Assert.Single(analyzer.SupportedDiagnostics);
 
 		Assert.Equal("PUBLY0001", descriptor.Id);
-		Assert.Equal("Avoid the null-forgiving operator", descriptor.Title.ToString());
+		Assert.Equal(
+			"Avoid the null-forgiving operator",
+			descriptor.Title.ToString(CultureInfo.InvariantCulture)
+		);
 		Assert.Equal("PublyApp.Nullability", descriptor.Category);
 		Assert.Equal(DiagnosticSeverity.Warning, descriptor.DefaultSeverity);
 		Assert.False(descriptor.IsEnabledByDefault);
