@@ -1,8 +1,6 @@
-namespace MainApi.Lib.Testing.Fixtures;
 
 using MainApi.Data.DbContext;
 using MainApi.Infrastructure.Messaging.Email;
-using MainApi.Lib;
 using MainApi.Lib.Testing.Fakes;
 
 using Microsoft.AspNetCore.Hosting;
@@ -13,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
+namespace MainApi.Lib.Testing.Fixtures;
 /// <summary>
 /// Custom WebApplicationFactory for integration testing.
 /// Replaces DbContext connection string and email service.

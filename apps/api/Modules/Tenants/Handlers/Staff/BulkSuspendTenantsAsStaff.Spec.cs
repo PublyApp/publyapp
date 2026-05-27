@@ -1,4 +1,3 @@
-namespace MainApi.Modules.Tenants.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -15,6 +14,7 @@ using MainApi.Modules.Tenants.Entities;
 
 using Xunit;
 
+namespace MainApi.Modules.Tenants.Handlers.Staff;
 public sealed class BulkSuspendTenantsAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;

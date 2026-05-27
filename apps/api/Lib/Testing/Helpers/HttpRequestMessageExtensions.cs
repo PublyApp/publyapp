@@ -1,7 +1,7 @@
-namespace MainApi.Lib.Testing.Helpers;
 
 using MainApi.Lib.Testing.Fixtures;
 
+namespace MainApi.Lib.Testing.Helpers;
 /// <summary>
 /// Extension methods for building test HTTP requests
 /// with auth headers.

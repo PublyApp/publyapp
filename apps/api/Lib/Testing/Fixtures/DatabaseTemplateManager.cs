@@ -1,4 +1,3 @@
-namespace MainApi.Lib.Testing.Fixtures;
 
 using System.Text.RegularExpressions;
 
@@ -8,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Npgsql;
 
+namespace MainApi.Lib.Testing.Fixtures;
 /// <summary>
 /// Manages PostgreSQL template database creation and
 /// cloning for test isolation.

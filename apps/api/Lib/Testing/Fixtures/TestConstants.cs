@@ -1,7 +1,7 @@
-namespace MainApi.Lib.Testing.Fixtures;
 
 using MainApi.Data.Seeding;
 
+namespace MainApi.Lib.Testing.Fixtures;
 /// <summary>
 /// Convenience facade over <see cref="SeedConstants"/>
 /// for test code. Delegates all seed data values to the

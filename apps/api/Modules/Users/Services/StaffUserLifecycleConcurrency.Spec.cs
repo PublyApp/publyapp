@@ -1,4 +1,3 @@
-namespace MainApi.Modules.Users.Services;
 
 using System.Data.Common;
 
@@ -15,6 +14,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using Xunit;
 
+namespace MainApi.Modules.Users.Services;
 public sealed class StaffUserLifecycleConcurrencySpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;

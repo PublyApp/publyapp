@@ -1,4 +1,3 @@
-namespace MainApi.Modules.Permissions.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -14,6 +13,7 @@ using MainApi.Modules.Permissions.Services;
 
 using Xunit;
 
+namespace MainApi.Modules.Permissions.Handlers.Staff;
 public sealed class FindTenantPermissionsSpec
 	: IClassFixture<ApiFixture> {
 	private static readonly string FindUrl = PathUtils.Join(

@@ -1,4 +1,3 @@
-namespace MainApi.Modules.SystemNotices.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -13,6 +12,7 @@ using MainApi.Lib.Utils;
 
 using Xunit;
 
+namespace MainApi.Modules.SystemNotices.Handlers.Staff;
 public sealed class UpdateSystemNoticeSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;

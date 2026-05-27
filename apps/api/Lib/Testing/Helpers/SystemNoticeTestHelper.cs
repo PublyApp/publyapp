@@ -1,15 +1,16 @@
-namespace MainApi.Lib.Testing.Helpers;
 
 using System.Net.Http.Json;
 
-using MainApi.Lib.Routes;
 using MainApi.Lib.Utils;
 
+using AppRoutes = MainApi.Lib.Routes.Routes;
+
+namespace MainApi.Lib.Testing.Helpers;
 internal static class SystemNoticeTestHelper {
 	private static readonly string CreateUrl = PathUtils.Join(
-		Routes.Staff.Root,
-		Routes.SystemNotices.ForStaff.Root,
-		Routes.SystemNotices.ForStaff.Create
+		AppRoutes.Staff.Root,
+		AppRoutes.SystemNotices.ForStaff.Root,
+		AppRoutes.SystemNotices.ForStaff.Create
 	);
 
 	public static async Task<Guid> CreateNoticeAsync(
@@ -79,9 +80,9 @@ internal static class SystemNoticeTestHelper {
 		CancellationToken ct = default
 	) {
 		var url = PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.SystemNotices.ForStaff.Root,
-			Routes.SystemNotices.ForStaff.DeleteFn(
+			AppRoutes.Staff.Root,
+			AppRoutes.SystemNotices.ForStaff.Root,
+			AppRoutes.SystemNotices.ForStaff.DeleteFn(
 				noticeId.ToString()
 			)
 		);
@@ -97,9 +98,9 @@ internal static class SystemNoticeTestHelper {
 
 	public static string GetNoticeUrl(Guid noticeId) {
 		return PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.SystemNotices.ForStaff.Root,
-			Routes.SystemNotices.ForStaff.GetByIdFn(
+			AppRoutes.Staff.Root,
+			AppRoutes.SystemNotices.ForStaff.Root,
+			AppRoutes.SystemNotices.ForStaff.GetByIdFn(
 				noticeId.ToString()
 			)
 		);

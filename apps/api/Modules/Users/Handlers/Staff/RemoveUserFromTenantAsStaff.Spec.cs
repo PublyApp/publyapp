@@ -1,11 +1,9 @@
-namespace MainApi.Modules.Users.Handlers.Staff;
 
 using System.Net;
 using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using MainApi.Localization;
 using MainApi.Data.DbContext;
 using MainApi.Data.Seeding;
 using MainApi.Lib;
@@ -14,6 +12,7 @@ using MainApi.Lib.Routes;
 using MainApi.Lib.Testing.Fixtures;
 using MainApi.Lib.Testing.Helpers;
 using MainApi.Lib.Utils;
+using MainApi.Localization;
 using MainApi.Modules.Tenants.Entities;
 using MainApi.Modules.Users.Entities;
 
@@ -21,6 +20,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
+namespace MainApi.Modules.Users.Handlers.Staff;
 public sealed class RemoveUserFromTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;

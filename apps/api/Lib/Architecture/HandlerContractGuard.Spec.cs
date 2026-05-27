@@ -1,4 +1,3 @@
-namespace MainApi.Lib.Architecture;
 
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -12,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Xunit;
 
+namespace MainApi.Lib.Architecture;
 /// <summary>
 /// Architecture guards locking in the #431 handler file contract (#357 Wave B).
 /// Each fact scans the compiled API assembly via reflection and fails with the
