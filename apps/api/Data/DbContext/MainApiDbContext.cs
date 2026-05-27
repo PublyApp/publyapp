@@ -497,6 +497,15 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 					case EntityState.Deleted:
 						_forceHardDeleteEntities.Remove(entry.Entity);
 						continue;
+					case EntityState.Detached:
+					case EntityState.Unchanged:
+						break;
+					default:
+						throw new ArgumentOutOfRangeException(
+							nameof(entry.State),
+							entry.State,
+							$"Unhandled EntityState: {entry.State}"
+						);
 				}
 			}
 			// Handle BaseAttributesNoKey entities
@@ -529,6 +538,15 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 						baseEntity.DeletedAt = now;
 						baseEntity.UpdatedAt = now;
 						break;
+					case EntityState.Detached:
+					case EntityState.Unchanged:
+						break;
+					default:
+						throw new ArgumentOutOfRangeException(
+							nameof(entry.State),
+							entry.State,
+							$"Unhandled EntityState: {entry.State}"
+						);
 				}
 			}
 			// Handle Permission record (has audit properties but doesn't inherit from BaseAttributesNoKey)
@@ -561,6 +579,15 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 						permission.DeletedAt = now;
 						permission.UpdatedAt = now;
 						break;
+					case EntityState.Detached:
+					case EntityState.Unchanged:
+						break;
+					default:
+						throw new ArgumentOutOfRangeException(
+							nameof(entry.State),
+							entry.State,
+							$"Unhandled EntityState: {entry.State}"
+						);
 				}
 			}
 		}

@@ -50,9 +50,18 @@ public record UpdateSystemNoticeBody {
 				PatchField<DateTime?>.Set(
 					ExpiresAt.GetValueAsDateTime()
 				),
-			_ => throw new InvalidOperationException(
+			JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.Number
+				or JsonValueKind.True
+				or JsonValueKind.False => throw new InvalidOperationException(
 				"ExpiresAt must be an ISO 8601 string, "
 				+ "null, or omitted"
+			),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(ExpiresAt),
+				ExpiresAt.ValueKind,
+				$"Unhandled JsonValueKind: {ExpiresAt.ValueKind}"
 			),
 		};
 	}

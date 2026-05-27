@@ -41,6 +41,7 @@ dotnet_separate_import_directive_groups = true
 # ==== Promoted to warning (rules we ENFORCE) ====
 dotnet_diagnostic.IDE0004.severity = warning   # Remove unnecessary cast
 dotnet_diagnostic.IDE0005.severity = warning   # Unused using directive
+dotnet_diagnostic.IDE0010.severity = warning   # Populate switch statement
 dotnet_diagnostic.IDE0011.severity = warning   # Add braces to single-line statements
 dotnet_diagnostic.IDE0021.severity = warning   # Use block body for constructors
 dotnet_diagnostic.IDE0022.severity = warning   # Use block body for methods
@@ -54,6 +55,7 @@ dotnet_diagnostic.IDE0051.severity = warning   # Remove unread private members
 dotnet_diagnostic.IDE0052.severity = warning   # Remove unread private members (fields)
 dotnet_diagnostic.IDE0059.severity = warning   # Unnecessary assignment of a value
 dotnet_diagnostic.IDE0060.severity = warning   # Remove unused parameter
+dotnet_diagnostic.IDE0072.severity = warning   # Populate switch expression
 dotnet_diagnostic.IDE0130.severity = warning   # Namespace does not match folder structure
 dotnet_diagnostic.IDE0300.severity = warning   # Use collection initializers
 dotnet_diagnostic.IDE2000.severity = warning   # Avoid multiple blank lines

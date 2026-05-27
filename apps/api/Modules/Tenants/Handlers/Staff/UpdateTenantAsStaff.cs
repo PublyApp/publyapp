@@ -27,8 +27,18 @@ public record UpdateTenantAsStaffBody {
 				null,
 			JsonValueKind.String =>
 				Name.GetValueAsString(),
-			_ => throw new InvalidOperationException(
+			JsonValueKind.Null
+				or JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.Number
+				or JsonValueKind.True
+				or JsonValueKind.False => throw new InvalidOperationException(
 				"Name must be a string or omitted"
+			),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(Name),
+				Name.ValueKind,
+				$"Unhandled JsonValueKind: {Name.ValueKind}"
 			),
 		};
 	}
@@ -43,8 +53,17 @@ public record UpdateTenantAsStaffBody {
 				PatchField<string?>.Set(
 					LogoUrl.GetValueAsString()
 				),
-			_ => throw new InvalidOperationException(
+			JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.Number
+				or JsonValueKind.True
+				or JsonValueKind.False => throw new InvalidOperationException(
 				"LogoUrl must be a string, null, or omitted"
+			),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(LogoUrl),
+				LogoUrl.ValueKind,
+				$"Unhandled JsonValueKind: {LogoUrl.ValueKind}"
 			),
 		};
 	}

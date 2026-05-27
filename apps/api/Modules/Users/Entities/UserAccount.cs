@@ -116,6 +116,12 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 					throw new InvalidOperationException("Project accounts must have both TenantId and ProjectId");
 				}
 				break;
+			default:
+				throw new ArgumentOutOfRangeException(
+					nameof(Scope),
+					Scope,
+					$"Unhandled AccountScope: {Scope}"
+				);
 		}
 	}
 

@@ -51,7 +51,18 @@ public class UpdateTenantUserAsStaffBody {
 			JsonValueKind.Undefined => PatchField<string?>.Absent(),
 			JsonValueKind.Null => PatchField<string?>.Set(null),
 			JsonValueKind.String => PatchField<string?>.Set(FirstName.GetValueAsString()),
-			_ => throw new InvalidOperationException("FirstName must be a string, null, or omitted"),
+			JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.Number
+				or JsonValueKind.True
+				or JsonValueKind.False => throw new InvalidOperationException(
+					"FirstName must be a string, null, or omitted"
+				),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(FirstName),
+				FirstName.ValueKind,
+				$"Unhandled JsonValueKind: {FirstName.ValueKind}"
+			),
 		};
 	}
 
@@ -60,7 +71,18 @@ public class UpdateTenantUserAsStaffBody {
 			JsonValueKind.Undefined => PatchField<string?>.Absent(),
 			JsonValueKind.Null => PatchField<string?>.Set(null),
 			JsonValueKind.String => PatchField<string?>.Set(LastName.GetValueAsString()),
-			_ => throw new InvalidOperationException("LastName must be a string, null, or omitted"),
+			JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.Number
+				or JsonValueKind.True
+				or JsonValueKind.False => throw new InvalidOperationException(
+					"LastName must be a string, null, or omitted"
+				),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(LastName),
+				LastName.ValueKind,
+				$"Unhandled JsonValueKind: {LastName.ValueKind}"
+			),
 		};
 	}
 
@@ -69,7 +91,18 @@ public class UpdateTenantUserAsStaffBody {
 			JsonValueKind.Undefined => PatchField<string?>.Absent(),
 			JsonValueKind.Null => PatchField<string?>.Set(null),
 			JsonValueKind.String => PatchField<string?>.Set(AvatarUrl.GetValueAsString()),
-			_ => throw new InvalidOperationException("AvatarUrl must be a string, null, or omitted"),
+			JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.Number
+				or JsonValueKind.True
+				or JsonValueKind.False => throw new InvalidOperationException(
+					"AvatarUrl must be a string, null, or omitted"
+				),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(AvatarUrl),
+				AvatarUrl.ValueKind,
+				$"Unhandled JsonValueKind: {AvatarUrl.ValueKind}"
+			),
 		};
 	}
 

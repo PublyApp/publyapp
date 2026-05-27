@@ -196,6 +196,12 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 					throw new InvalidOperationException("Project invitations must have TenantId and ProjectId");
 				}
 				break;
+			default:
+				throw new ArgumentOutOfRangeException(
+					nameof(Scope),
+					Scope,
+					$"Unhandled InvitationScope: {Scope}"
+				);
 		}
 	}
 
