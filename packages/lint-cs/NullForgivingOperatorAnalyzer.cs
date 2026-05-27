@@ -14,8 +14,9 @@ namespace PublyApp.Analyzers;
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class NullForgivingOperatorAnalyzer : DiagnosticAnalyzer {
-	public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-		ImmutableArray.Create(DiagnosticCatalog.NullForgivingOperator);
+	public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics {
+		get { return ImmutableArray.Create(DiagnosticCatalog.NullForgivingOperator); }
+	}
 
 	public override void Initialize(AnalysisContext context) {
 		// Skip generated code (e.g. Kiota client, EF migrations) to avoid penalizing code the repo
