@@ -33,6 +33,7 @@ public sealed class BulkDeleteTenantProfilesAsStaffSpec
 	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
+	private static readonly string[] MalformedProfileIds = ["not-a-guid"];
 
 	public BulkDeleteTenantProfilesAsStaffSpec(ApiFixture fixture) {
 		_fixture = fixture;
@@ -170,7 +171,7 @@ public sealed class BulkDeleteTenantProfilesAsStaffSpec
 		using var response = await BulkDeleteAsync(
 			staffToken,
 			tenantId.ToString(),
-			new { profileIds = new[] { "not-a-guid" } }
+			new { profileIds = MalformedProfileIds }
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);

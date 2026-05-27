@@ -68,6 +68,7 @@ dotnet_diagnostic.CA1725.severity = warning    # Parameter names should match ba
 dotnet_diagnostic.CA1825.severity = warning    # Avoid zero-length array allocations (use Array.Empty<T>)
 dotnet_diagnostic.CA1827.severity = warning    # Use .Any() instead of .Count() > 0
 dotnet_diagnostic.CA1860.severity = warning    # Avoid using 'Enumerable.Any()' extension method
+dotnet_diagnostic.CA1861.severity = warning    # Prefer static readonly fields over constant array arguments
 dotnet_diagnostic.CA1862.severity = warning    # Use StringComparison method overloads (case-insensitive)
 dotnet_diagnostic.CA1869.severity = warning    # Cache and reuse JsonSerializerOptions instances
 dotnet_diagnostic.CA1873.severity = warning    # Avoid potentially expensive method calls as arguments
@@ -109,6 +110,7 @@ dotnet_diagnostic.CS1591.severity = none       # Missing XML comment for publicl
 dotnet_diagnostic.IDE0005.severity = none
 # Generated migrations emit `new[] { ... }` arrays; do not auto-rewrite them
 dotnet_diagnostic.IDE0300.severity = none
+dotnet_diagnostic.CA1861.severity = none   # Migrations use new[] {} for column lists; don't auto-rewrite
 
 # Test code overrides
 [**/Tests/**/*.cs]
