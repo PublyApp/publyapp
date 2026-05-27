@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using MainApi.Localization;
 using MainApi.Data.DbContext;
 using MainApi.Lib;
 using MainApi.Lib.ProblemResults;
@@ -11,6 +10,7 @@ using MainApi.Lib.Routes;
 using MainApi.Lib.Testing.Fixtures;
 using MainApi.Lib.Testing.Helpers;
 using MainApi.Lib.Utils;
+using MainApi.Localization;
 using MainApi.Modules.Users.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -213,7 +213,7 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 				name = "Delete Staff User " + Guid.NewGuid().ToString("N")[..8],
 				description = "Profile used by DeleteStaffUserSpec",
 				permissions = new[] { AppPermissions.Staff.Users.LIST_FOR_STAFF.Key },
-				emails = new string[] { },
+				emails = Array.Empty<string>(),
 			}
 		);
 

@@ -145,7 +145,7 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
-			select (Guid?)ua.Id
+			select ua.Id
 		).SingleAsync();
 
 		if (staffAccountId is null) {
@@ -255,7 +255,7 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 				.IgnoreQueryFilters()
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Staff
-			select (Guid?)ua.Id
+			select ua.Id
 		).SingleAsync();
 
 		if (staffAccountId is null) {

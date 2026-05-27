@@ -92,13 +92,17 @@ public sealed class MainApiFactory
 		IHttpContextAccessor httpContextAccessor
 	) {
 		var httpContext = httpContextAccessor.HttpContext;
-		if (httpContext is null) return null;
+		if (httpContext is null) {
+			return null;
+		}
 
 		var tenantIdHeader = httpContext.Request.Headers[
 			AppEnvironment.Instance.TENANT_ID_HEADER_KEY
 		].FirstOrDefault();
 
-		if (string.IsNullOrEmpty(tenantIdHeader)) return null;
+		if (string.IsNullOrEmpty(tenantIdHeader)) {
+			return null;
+		}
 
 		return Guid.TryParse(
 			tenantIdHeader, out var tenantId

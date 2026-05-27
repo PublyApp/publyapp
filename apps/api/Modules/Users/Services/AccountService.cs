@@ -390,7 +390,9 @@ public class AccountService : IAccountService {
 	) {
 		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// Suspended accounts still count for mutual exclusivity (identity conflict).
-		if (emails.Count == 0) return [];
+		if (emails.Count == 0) {
+			return [];
+		}
 
 		var normalizedEmails = emails.Select(e => e.ToLowerInvariant()).ToList();
 
@@ -411,7 +413,9 @@ public class AccountService : IAccountService {
 	) {
 		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// Suspended accounts still count for mutual exclusivity (identity conflict).
-		if (emails.Count == 0) return [];
+		if (emails.Count == 0) {
+			return [];
+		}
 
 		var normalizedEmails = emails.Select(e => e.ToLowerInvariant()).ToList();
 

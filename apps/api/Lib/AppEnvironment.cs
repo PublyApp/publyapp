@@ -192,11 +192,15 @@ public class AppEnvironment {
 		// - We guarantee exactly-once initialization with a lock + Volatile reads/writes so that
 		//   any thread that reads `Instance` after initialization sees a fully-constructed object.
 		var existing = Volatile.Read(ref _instance);
-		if (existing is not null) return existing;
+		if (existing is not null) {
+			return existing;
+		}
 
 		lock (InitLock) {
 			existing = Volatile.Read(ref _instance);
-			if (existing is not null) return existing;
+			if (existing is not null) {
+				return existing;
+			}
 
 			LoadDotEnvIfDevelopment();
 
@@ -262,7 +266,9 @@ public class AppEnvironment {
 
 	private static bool GetOptionalBool(string name, bool defaultValue) {
 		var value = Environment.GetEnvironmentVariable(name);
-		if (string.IsNullOrWhiteSpace(value)) return defaultValue;
+		if (string.IsNullOrWhiteSpace(value)) {
+			return defaultValue;
+		}
 
 		var trimmed = value.Trim();
 		if (trimmed.Equals("true", StringComparison.OrdinalIgnoreCase) || trimmed.Equals("1", StringComparison.Ordinal)) {
@@ -279,7 +285,9 @@ public class AppEnvironment {
 
 	private static int GetOptionalInt(string name, int defaultValue) {
 		var value = Environment.GetEnvironmentVariable(name);
-		if (string.IsNullOrWhiteSpace(value)) return defaultValue;
+		if (string.IsNullOrWhiteSpace(value)) {
+			return defaultValue;
+		}
 
 		if (!int.TryParse(
 			value.Trim(),
@@ -338,7 +346,9 @@ public class AppEnvironment {
 			EnvironmentNames.Development,
 			StringComparison.OrdinalIgnoreCase
 		);
-		if (!isDevelopment && !isEnvironmentUnset) return;
+		if (!isDevelopment && !isEnvironmentUnset) {
+			return;
+		}
 
 		var path = FindDotEnvPath(".env.development");
 		if (path is null) {
@@ -362,7 +372,10 @@ public class AppEnvironment {
 		var directory = new DirectoryInfo(Directory.GetCurrentDirectory());
 		while (directory is not null) {
 			var candidate = Path.Combine(directory.FullName, fileName);
-			if (File.Exists(candidate)) return candidate;
+			if (File.Exists(candidate)) {
+				return candidate;
+			}
+
 			directory = directory.Parent;
 		}
 

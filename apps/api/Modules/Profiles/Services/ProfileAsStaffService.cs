@@ -1304,7 +1304,10 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 					// ApplyFilter: Simple comparison - WHERE Id > cursor (or < for descending)
 					applyFilter: (q, cursorValue, isAsc) => {
 						var cursorGuid = (Guid?)cursorValue;
-						if (cursorGuid is null) return q;
+						if (cursorGuid is null) {
+							return q;
+						}
+
 						return isAsc
 							? q.Where(p => p.Id > cursorGuid)  // Ascending: get Ids AFTER cursor
 							: q.Where(p => p.Id < cursorGuid); // Descending: get Ids BEFORE cursor
@@ -1339,7 +1342,10 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 					// DESC: WHERE (Name < 'cursorName') OR (Name = 'cursorName' AND Id < cursorId)
 					// This handles duplicate names correctly with consistent direction
 					applyFilter: (q, cursorValue, isAsc) => {
-						if (cursorValue is null) return q;
+						if (cursorValue is null) {
+							return q;
+						}
+
 						var (cursorName, cursorId) = ((string, Guid?))cursorValue;
 						return isAsc
 							? q.Where(
@@ -1381,7 +1387,10 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 					// ASC:  WHERE (CreatedAt > cursor) OR (CreatedAt = cursor AND Id > cursorId)
 					// DESC: WHERE (CreatedAt < cursor) OR (CreatedAt = cursor AND Id < cursorId)
 					applyFilter: (q, cursorValue, isAsc) => {
-						if (cursorValue is null) return q;
+						if (cursorValue is null) {
+							return q;
+						}
+
 						var (cursorCreatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
 						return isAsc
 							? q.Where(
@@ -1422,7 +1431,10 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 					// ASC:  WHERE (Count > cursor) OR (Count = cursor AND Id > cursorId)
 					// DESC: WHERE (Count < cursor) OR (Count = cursor AND Id < cursorId)
 					applyFilter: (q, cursorValue, isAsc) => {
-						if (cursorValue is null) return q;
+						if (cursorValue is null) {
+							return q;
+						}
+
 						var (cursorCount, cursorId) = ((int, Guid?))cursorValue;
 						return isAsc
 							? q.Where(

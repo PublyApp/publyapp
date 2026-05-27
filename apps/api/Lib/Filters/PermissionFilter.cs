@@ -1,6 +1,6 @@
-using MainApi.Localization;
 using MainApi.Lib.Extensions;
 using MainApi.Lib.ProblemResults;
+using MainApi.Localization;
 using MainApi.Modules.Permissions.Entities;
 using MainApi.Modules.Permissions.Services;
 using MainApi.Modules.Users.Entities;
@@ -13,8 +13,9 @@ public class PermissionFilter : IEndpointFilter {
 
 	public PermissionFilter(Permission[] requiredPermissions) {
 		ArgumentNullException.ThrowIfNull(requiredPermissions);
-		if (requiredPermissions.Length == 0)
+		if (requiredPermissions.Length == 0) {
 			throw new ArgumentException("At least one permission is required.", nameof(requiredPermissions));
+		}
 
 		_requiredPermissions = requiredPermissions;
 		_customPermissionChecker = null;

@@ -72,7 +72,7 @@ public class FindTenantUsersAsStaffQuery
 	}
 }
 
-public class FindTenantUsersAsStaffQueryValidator
+public partial class FindTenantUsersAsStaffQueryValidator
 	: CursorPaginatedQueryValidator<
 		FindTenantUsersAsStaffQuery
 	> {
@@ -88,8 +88,11 @@ public class FindTenantUsersAsStaffQueryValidator
 	// lowercase via .ToLowerInvariant() would yield "globallysuspended" and
 	// break the existing wire format. Both the comparison set and the display
 	// string derive from the same conversion so they stay in sync.
+	[GeneratedRegex("(?<!^)([A-Z])")]
+	private static partial Regex SnakeCaseBoundaryRegex();
+
 	private static string ToSnakeCase(string value) {
-		return Regex.Replace(value, "(?<!^)([A-Z])", "_$1").ToLowerInvariant();
+		return SnakeCaseBoundaryRegex().Replace(value, "_$1").ToLowerInvariant();
 	}
 
 	private static readonly HashSet<string> AllowedStatusSet =

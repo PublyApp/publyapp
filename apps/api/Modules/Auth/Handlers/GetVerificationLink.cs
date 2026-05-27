@@ -1,8 +1,8 @@
 using FluentValidation;
 
-using MainApi.Localization;
 using MainApi.Lib.ProblemResults;
 using MainApi.Lib.Validation;
+using MainApi.Localization;
 using MainApi.Modules.Auth.Utils;
 using MainApi.Modules.Users.Services;
 
@@ -35,7 +35,7 @@ public class GetVerificationLinkResult {
 }
 
 public sealed class GetVerificationLink {
-	public async static Task<
+	public static async Task<
 		Results<
 			Ok<GetVerificationLinkResult>,
 			AppBadRequestHttpResult,
