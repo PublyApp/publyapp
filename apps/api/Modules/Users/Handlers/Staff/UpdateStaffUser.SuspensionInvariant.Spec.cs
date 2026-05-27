@@ -30,14 +30,6 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 		_authClient = new TestAuthClient(_http);
 	}
 
-	private static string GetUrl(string userId) {
-		return PathUtils.Join(
-			Routes.Staff.Root,
-			Routes.Users.ForStaff.Root,
-			Routes.Users.ForStaff.UpdateFn(userId)
-		);
-	}
-
 	private static string GetSuspendUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
@@ -194,7 +186,7 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 		var userId = await (
 			from u in dbContext.User.AsNoTracking()
 			where u.Email == normalizedEmail
-			select (Guid?)u.Id
+			select u.Id
 		)
 			.FirstOrDefaultAsync();
 

@@ -2,9 +2,9 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Localization;
 using MainApi.Lib;
 using MainApi.Lib.ProblemResults;
+using MainApi.Localization;
 using MainApi.Modules.Users.Services;
 
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -41,7 +41,10 @@ public sealed class UpdateStaffUserProfilesBody {
 	}
 
 	public List<Guid> GetProfileIds() {
-		if (_parsed) return _profileIds;
+		if (_parsed) {
+			return _profileIds;
+		}
+
 		_profileIds = ParseProfileIds();
 		_parsed = true;
 		return _profileIds;

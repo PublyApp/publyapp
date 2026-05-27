@@ -8,19 +8,15 @@ namespace MainApi.Lib.DI;
 /// Validates discovered [Service] attributed classes against DI rules.
 /// Fails fast at startup if any validation rule is violated.
 /// </summary>
-public static class ServiceValidator {
+public static partial class ServiceValidator {
 	// Regex pattern for allowed namespace: MainApi.Modules.{Domain}.Services
-	private static readonly Regex AllowedNamespacePattern = new(
-		@"^MainApi\.Modules\.[^.]+\.Services(\..*)?$",
-		RegexOptions.Compiled
-	);
+	[GeneratedRegex(@"^MainApi\.Modules\.[^.]+\.Services(\..*)?$")]
+	private static partial Regex AllowedNamespacePattern();
 
 	// Keys must be stable identifiers (no whitespace/control chars), and must be lowercase.
 	// Allowed: a-z, 0-9, underscore, hyphen, dot. Must start with a-z or 0-9.
-	private static readonly Regex KeyPattern = new(
-		@"^[a-z0-9][a-z0-9._-]*$",
-		RegexOptions.Compiled
-	);
+	[GeneratedRegex(@"^[a-z0-9][a-z0-9._-]*$")]
+	private static partial Regex KeyPattern();
 
 	/// <summary>
 	/// Validates all discovered services and throws if any rule is violated.
@@ -101,7 +97,7 @@ public static class ServiceValidator {
 	/// </summary>
 	private static void ValidateNamespaces(List<DiscoveredService> services, List<string> errors) {
 		foreach (var service in services) {
-			if (!AllowedNamespacePattern.IsMatch(service.Namespace)) {
+			if (!AllowedNamespacePattern().IsMatch(service.Namespace)) {
 				errors.Add(
 					$"[Service] attribute on '{service.ImplementationType.FullName}' is invalid: " +
 					$"namespace '{service.Namespace}' is not allowed. " +
@@ -167,7 +163,7 @@ public static class ServiceValidator {
 				continue;
 			}
 
-			if (!KeyPattern.IsMatch(service.Key)) {
+			if (!KeyPattern().IsMatch(service.Key)) {
 				errors.Add(
 					$"[Service] attribute on '{service.ImplementationType.FullName}' has invalid key: " +
 					$"'{service.Key}' is not identifier-safe. Allowed chars: [a-z0-9._-] with no spaces."
@@ -220,7 +216,9 @@ public static class ServiceValidator {
 	/// Formats the discovered services manifest for logging (optional diagnostic).
 	/// </summary>
 	public static string? FormatManifest(List<DiscoveredService> services) {
-		if (services.Count == 0) return null;
+		if (services.Count == 0) {
+			return null;
+		}
 
 		var sb = new StringBuilder();
 		sb.AppendLine(
@@ -229,7 +227,10 @@ public static class ServiceValidator {
 		);
 
 		foreach (var service in services.OrderBy(s => s.ImplementationType.FullName)) {
-			if (service.ServiceInterface is null) continue;
+			if (service.ServiceInterface is null) {
+				continue;
+			}
+
 			var keyInfo = service.Key is not null ? $", Key=\"{service.Key}\"" : "";
 			sb.AppendLine(
 				CultureInfo.InvariantCulture,
@@ -245,10 +246,14 @@ public static class ServiceValidator {
 	/// Logs a summary of discovered services (optional diagnostic).
 	/// </summary>
 	public static void LogManifest(List<DiscoveredService> services, ILogger logger) {
-		if (!logger.IsEnabled(LogLevel.Information)) return;
+		if (!logger.IsEnabled(LogLevel.Information)) {
+			return;
+		}
 
 		var manifest = FormatManifest(services);
-		if (manifest is null) return;
+		if (manifest is null) {
+			return;
+		}
 
 		logger.LogInformation("{Manifest}", manifest);
 	}

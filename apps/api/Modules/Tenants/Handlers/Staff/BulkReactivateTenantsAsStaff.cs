@@ -34,7 +34,7 @@ public class BulkReactivateTenantsAsStaffBodyValidator : AbstractValidator<BulkR
 			.Cascade(CascadeMode.Stop)
 			.Must(x => x.ValueKind == JsonValueKind.Array)
 			.WithMessage("TenantIds must be an array")
-			.Must(x => x.EnumerateArray().Count() > 0)
+			.Must(x => x.EnumerateArray().Any())
 			.WithMessage("At least one tenant ID is required")
 			.Must(x => x.EnumerateArray().Count() <= 100)
 			.WithMessage("Maximum 100 tenant IDs allowed")

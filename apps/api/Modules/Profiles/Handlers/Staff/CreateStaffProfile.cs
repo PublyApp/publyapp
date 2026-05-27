@@ -3,11 +3,11 @@ using System.Text.RegularExpressions;
 
 using FluentValidation;
 
-using MainApi.Localization;
 using MainApi.Infrastructure.Messaging.Email;
 using MainApi.Lib;
 using MainApi.Lib.Extensions;
 using MainApi.Lib.ProblemResults;
+using MainApi.Localization;
 using MainApi.Modules.AuditLogs.Entities;
 using MainApi.Modules.AuditLogs.Services;
 using MainApi.Modules.Profiles.Services;
@@ -62,7 +62,7 @@ public record StaffProfileCreated {
 	public required int InvitationsSent { get; init; }
 }
 
-public class CreateStaffProfileBodyValidator
+public partial class CreateStaffProfileBodyValidator
 	: AbstractValidator<CreateStaffProfileBody> {
 	public CreateStaffProfileBodyValidator() {
 		RuleFor(x => x.Name)
@@ -184,16 +184,22 @@ public class CreateStaffProfileBodyValidator
 		}
 	}
 
-	private static readonly Regex EmailRegex = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
+	[GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
+	private static partial Regex EmailRegex();
 
 	private static bool BeValidEmailList(JsonElement? element) {
-		if (!element.HasValue) return true;
+		if (!element.HasValue) {
+			return true;
+		}
+
 		try {
 			var list = element.Value.Deserialize<List<string>>();
 
-			if (list is null) return false;
+			if (list is null) {
+				return false;
+			}
 
-			return list.All(email => EmailRegex.IsMatch(email));
+			return list.All(email => EmailRegex().IsMatch(email));
 		} catch {
 			return false;
 		}
@@ -365,7 +371,9 @@ public sealed class CreateStaffProfile {
 		List<(string Email, string Token)> invitationTokens,
 		CancellationToken cancellationToken
 	) {
-		if (invitationTokens.Count == 0) return;
+		if (invitationTokens.Count == 0) {
+			return;
+		}
 
 		const int maxConcurrency = 5;
 		using var semaphore = new SemaphoreSlim(maxConcurrency);
@@ -402,7 +410,9 @@ public sealed class CreateStaffProfile {
 		List<string> emails,
 		CancellationToken cancellationToken
 	) {
-		if (emails.Count == 0) return;
+		if (emails.Count == 0) {
+			return;
+		}
 
 		const int maxConcurrency = 5;
 		using var semaphore = new SemaphoreSlim(maxConcurrency);

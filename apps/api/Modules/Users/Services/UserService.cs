@@ -2135,7 +2135,7 @@ public class UserService : IUserService {
 		var companyCount = await (
 			from ua in _dbContext.UserAccount.AsNoTracking()
 			join tenant in _dbContext.Tenant.AsNoTracking()
-				on ua.TenantId equals (Guid?)tenant.Id
+				on ua.TenantId equals tenant.Id
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted
@@ -2169,7 +2169,7 @@ public class UserService : IUserService {
 						var item = await (
 							from ua in _dbContext.UserAccount.AsNoTracking()
 							join tenant in _dbContext.Tenant.AsNoTracking()
-								on ua.TenantId equals (Guid?)tenant.Id
+								on ua.TenantId equals tenant.Id
 							where ua.UserId == userId
 								&& ua.TenantId == guid
 								&& ua.Scope == AccountScope.Tenant
@@ -2215,7 +2215,7 @@ public class UserService : IUserService {
 							join u in _dbContext.User.AsNoTracking()
 								on ua.UserId equals u.Id
 							join tenant in _dbContext.Tenant.AsNoTracking()
-								on ua.TenantId equals (Guid?)tenant.Id
+								on ua.TenantId equals tenant.Id
 							where ua.UserId == userId
 								&& ua.TenantId == guid
 								&& ua.Scope == AccountScope.Tenant
@@ -2294,7 +2294,7 @@ public class UserService : IUserService {
 						var item = await (
 							from ua in _dbContext.UserAccount.AsNoTracking()
 							join tenant in _dbContext.Tenant.AsNoTracking()
-								on ua.TenantId equals (Guid?)tenant.Id
+								on ua.TenantId equals tenant.Id
 							where ua.UserId == userId
 								&& ua.TenantId == guid
 								&& ua.Scope == AccountScope.Tenant
@@ -2338,7 +2338,7 @@ public class UserService : IUserService {
 						var item = await (
 							from ua in _dbContext.UserAccount.AsNoTracking()
 							join tenant in _dbContext.Tenant.AsNoTracking()
-								on ua.TenantId equals (Guid?)tenant.Id
+								on ua.TenantId equals tenant.Id
 							where ua.UserId == userId
 								&& ua.TenantId == guid
 								&& ua.Scope == AccountScope.Tenant
@@ -2394,7 +2394,7 @@ public class UserService : IUserService {
 			join u in _dbContext.User.AsNoTracking()
 				on ua.UserId equals u.Id
 			join tenant in _dbContext.Tenant.AsNoTracking()
-				on ua.TenantId equals (Guid?)tenant.Id
+				on ua.TenantId equals tenant.Id
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.TenantId != null

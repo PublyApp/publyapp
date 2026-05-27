@@ -210,9 +210,17 @@ public class UserAccountSeeder : IEntitySeeder {
 
 		var newTenantAccounts = new List<UserAccount>();
 		foreach (var ta in tenantAccountsData) {
-			if (!emailToUserId.TryGetValue(ta.Email, out var userId)) continue;
-			if (!codeToTenantId.TryGetValue(ta.TenantCode, out var tenantId)) continue;
-			if (existingSet.Contains((userId, tenantId))) continue;
+			if (!emailToUserId.TryGetValue(ta.Email, out var userId)) {
+				continue;
+			}
+
+			if (!codeToTenantId.TryGetValue(ta.TenantCode, out var tenantId)) {
+				continue;
+			}
+
+			if (existingSet.Contains((userId, tenantId))) {
+				continue;
+			}
 
 			var account = UserAccount.CreateTenantAccount(userId, tenantId, ta.Level);
 			account.ValidateAccountType();

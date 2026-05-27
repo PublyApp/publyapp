@@ -217,7 +217,10 @@ public class BulkCreateStaffInvitationsBodyValidator
 	}
 
 	private static bool BeValidEmail(string email) {
-		if (string.IsNullOrWhiteSpace(email)) return false;
+		if (string.IsNullOrWhiteSpace(email)) {
+			return false;
+		}
+
 		try {
 			return System.Net.Mail.MailAddress.TryCreate(email, out _);
 		} catch {
@@ -384,7 +387,9 @@ public sealed class BulkCreateStaffInvitations {
 		List<(string Email, string Token)> invitationTokens,
 		CancellationToken cancellationToken
 	) {
-		if (invitationTokens.Count == 0) return;
+		if (invitationTokens.Count == 0) {
+			return;
+		}
 
 		const int maxConcurrency = 5;
 		using var semaphore = new SemaphoreSlim(maxConcurrency);

@@ -5,11 +5,9 @@ namespace MainApi.Infrastructure.Messaging.Email;
 // Adapts Resend SDK to IEmailSender interface
 public class ResendEmailAdapter : IEmailSender {
 	private readonly IResend _resendClient;
-	private readonly ILogger<ResendEmailAdapter> _logger;
 
-	public ResendEmailAdapter(IResend resendClient, ILogger<ResendEmailAdapter> logger) {
+	public ResendEmailAdapter(IResend resendClient) {
 		_resendClient = resendClient;
-		_logger = logger;
 	}
 
 	public async Task<EmailResult> SendAsync(EmailRequest request) {

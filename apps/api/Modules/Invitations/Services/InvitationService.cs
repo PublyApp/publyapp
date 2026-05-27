@@ -648,7 +648,10 @@ public class InvitationService : IInvitationService {
 					return invitation is not null ? (invitation.CreatedAt, invitation.Id) : null;
 				},
 				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) return q;
+					if (cursorValue is null) {
+						return q;
+					}
+
 					var (cursorCreatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
 					return isAsc
 						? q.Where(inv => inv.CreatedAt > cursorCreatedAt || (inv.CreatedAt == cursorCreatedAt && inv.Id > cursorId))
@@ -668,7 +671,10 @@ public class InvitationService : IInvitationService {
 					return invitation is not null ? (invitation.ExpiresAt, invitation.Id) : null;
 				},
 				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) return q;
+					if (cursorValue is null) {
+						return q;
+					}
+
 					var (cursorExpiresAt, cursorId) = ((DateTime, Guid?))cursorValue;
 					return isAsc
 						? q.Where(inv => inv.ExpiresAt > cursorExpiresAt || (inv.ExpiresAt == cursorExpiresAt && inv.Id > cursorId))
@@ -688,7 +694,10 @@ public class InvitationService : IInvitationService {
 					return invitation is not null ? (invitation.Email, invitation.Id) : null;
 				},
 				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) return q;
+					if (cursorValue is null) {
+						return q;
+					}
+
 					var (cursorEmail, cursorId) = ((string, Guid?))cursorValue;
 					return isAsc
 						? q.Where(inv => inv.Email.CompareTo(cursorEmail) > 0 || (inv.Email == cursorEmail && inv.Id > cursorId))
@@ -712,7 +721,10 @@ public class InvitationService : IInvitationService {
 					return invitation is not null ? (invitation.AcceptedAt, invitation.Id) : null;
 				},
 				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) return q;
+					if (cursorValue is null) {
+						return q;
+					}
+
 					var (cursorAcceptedAt, cursorId) = ((DateTime, Guid?))cursorValue;
 					return isAsc
 						? q.Where(inv =>
@@ -854,7 +866,10 @@ public class InvitationService : IInvitationService {
 					return invitation is not null ? (invitation.CreatedAt, invitation.Id) : null;
 				},
 				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) return q;
+					if (cursorValue is null) {
+						return q;
+					}
+
 					var (cursorCreatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
 					return isAsc
 						? q.Where(inv => inv.CreatedAt > cursorCreatedAt || (inv.CreatedAt == cursorCreatedAt && inv.Id > cursorId))
@@ -874,7 +889,10 @@ public class InvitationService : IInvitationService {
 					return invitation is not null ? (invitation.ExpiresAt, invitation.Id) : null;
 				},
 				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) return q;
+					if (cursorValue is null) {
+						return q;
+					}
+
 					var (cursorExpiresAt, cursorId) = ((DateTime, Guid?))cursorValue;
 					return isAsc
 						? q.Where(inv => inv.ExpiresAt > cursorExpiresAt || (inv.ExpiresAt == cursorExpiresAt && inv.Id > cursorId))
@@ -894,7 +912,10 @@ public class InvitationService : IInvitationService {
 					return invitation is not null ? (invitation.Email, invitation.Id) : null;
 				},
 				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) return q;
+					if (cursorValue is null) {
+						return q;
+					}
+
 					var (cursorEmail, cursorId) = ((string, Guid?))cursorValue;
 					return isAsc
 						? q.Where(inv => inv.Email.CompareTo(cursorEmail) > 0 || (inv.Email == cursorEmail && inv.Id > cursorId))
@@ -917,7 +938,10 @@ public class InvitationService : IInvitationService {
 					return invitation is not null ? (invitation.AcceptedAt, invitation.Id) : null;
 				},
 				applyFilter: (q, cursorValue, isAsc) => {
-					if (cursorValue is null) return q;
+					if (cursorValue is null) {
+						return q;
+					}
+
 					var (cursorAcceptedAt, cursorId) = ((DateTime, Guid?))cursorValue;
 					return isAsc
 						? q.Where(inv =>
