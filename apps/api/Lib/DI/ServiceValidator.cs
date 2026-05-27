@@ -194,7 +194,7 @@ public static partial class ServiceValidator {
 
 	private static bool IsLowercaseKey(string key) {
 		foreach (var character in key) {
-			if (character is >= 'A' and <= 'Z') {
+			if (char.ToLowerInvariant(character) != character) {
 				return false;
 			}
 		}
