@@ -23,11 +23,11 @@ public class ReqQueryValidationFilter<TRequest> : IEndpointFilter where TRequest
 	}
 
 	public async ValueTask<object?> InvokeAsync(
-		EndpointFilterInvocationContext httpContext,
+		EndpointFilterInvocationContext context,
 		EndpointFilterDelegate next
 	) {
 		// Find the query-bound argument that matches TRequest
-		var (found, idx) = httpContext.Arguments
+		var (found, idx) = context.Arguments
 			.Select((arg, i) => (arg, i))
 			.FirstOrDefault(x => x.arg is TRequest);
 
@@ -36,7 +36,7 @@ public class ReqQueryValidationFilter<TRequest> : IEndpointFilter where TRequest
 			var empty = (TRequest)RuntimeHelpers.GetUninitializedObject(typeof(TRequest));
 			var resultDefault = await _validator.ValidateAsync(
 				empty,
-				httpContext.HttpContext.RequestAborted
+				context.HttpContext.RequestAborted
 			);
 
 			if (!resultDefault.IsValid) {
@@ -47,12 +47,12 @@ public class ReqQueryValidationFilter<TRequest> : IEndpointFilter where TRequest
 				);
 			}
 
-			return await next(httpContext);
+			return await next(context);
 		}
 
 		// Get the query parameters and bind them to the request model
-		var request = httpContext.GetArgument<TRequest>(idx);
-		var result = await _validator.ValidateAsync(request, httpContext.HttpContext.RequestAborted);
+		var request = context.GetArgument<TRequest>(idx);
+		var result = await _validator.ValidateAsync(request, context.HttpContext.RequestAborted);
 
 		if (!result.IsValid) {
 			return TypedProblems.ValidationProblem(
@@ -62,7 +62,7 @@ public class ReqQueryValidationFilter<TRequest> : IEndpointFilter where TRequest
 			);
 		}
 
-		return await next(httpContext);
+		return await next(context);
 	}
 
 	private static Dictionary<string, string[]> ToQueryErrorDictionary(

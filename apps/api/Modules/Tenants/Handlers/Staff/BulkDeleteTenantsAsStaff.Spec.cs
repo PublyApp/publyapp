@@ -256,13 +256,13 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 		await AssertValidationProblemAsync(response);
 	}
 
-	public static IEnumerable<object[]> InvalidBodies() {
-		yield return ["""{}"""];
-		yield return ["""{ "tenantIds": null }"""];
-		yield return ["""{ "tenantIds": "not-an-array" }"""];
-		yield return ["""{ "tenantIds": [] }"""];
-		yield return ["""{ "tenantIds": ["not-a-guid"] }"""];
-		yield return [
+	public static TheoryData<string> InvalidBodies() {
+		return new TheoryData<string> {
+			"""{}""",
+			"""{ "tenantIds": null }""",
+			"""{ "tenantIds": "not-an-array" }""",
+			"""{ "tenantIds": [] }""",
+			"""{ "tenantIds": ["not-a-guid"] }""",
 			$$"""
 			{
 				"tenantIds": [
@@ -270,7 +270,7 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 				]
 			}
 			""",
-		];
+		};
 	}
 
 	private HttpRequestMessage CreateRequest(

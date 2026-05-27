@@ -19,7 +19,9 @@ public class FindStaffPermissionsQuery {
 		}
 
 		var language = SupportedLanguage.All
-			.FirstOrDefault(l => string.Compare(l, Language, StringComparison.OrdinalIgnoreCase) == 0);
+			.FirstOrDefault(l =>
+				string.Equals(l, Language, StringComparison.OrdinalIgnoreCase)
+			);
 
 		if (language is null) {
 			throw new ArgumentException($"Invalid language: {Language}");
