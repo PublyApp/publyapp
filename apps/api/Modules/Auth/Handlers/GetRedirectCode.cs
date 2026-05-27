@@ -49,11 +49,11 @@ public sealed class GetRedirectCode {
 					authContext.UserId
 				);
 			}
-			throw new Exception($"GetRedirectCode must be set behind SessionAuthFilter.");
+			throw new InvalidOperationException("GetRedirectCode must be set behind SessionAuthFilter.");
 		}
 
 		if (authContext.UserId is not Guid userId) {
-			throw new Exception($"{nameof(authContext.UserId)} is not a GUID");
+			throw new InvalidOperationException($"{nameof(authContext.UserId)} is not a GUID");
 		}
 
 		// Check if user is a staff member

@@ -438,7 +438,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 				// Set table name for non-tenant-filtered entities
 				modelBuilder.Entity(entityType.ClrType);
 			} else {
-				throw new Exception(
+				throw new InvalidOperationException(
 					$"{entityType.ClrType.Name} must implement {nameof(ITenantEntity)}, {nameof(IOptionalTenantEntity)}, or {nameof(INoTenantEntity)}"
 				);
 			}

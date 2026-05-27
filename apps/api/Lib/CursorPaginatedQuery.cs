@@ -22,7 +22,7 @@ public class CursorPaginatedQuery {
 		}
 
 		if (!int.TryParse(Limit, out var limit)) {
-			throw new Exception("Limit must be a valid number");
+			throw new ArgumentException("Limit must be a valid number", nameof(Limit));
 		}
 
 		return limit;
@@ -45,7 +45,7 @@ public class CursorPaginatedQuery {
 			!SortOrder.Equals("asc", StringComparison.OrdinalIgnoreCase)
 			&& !SortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase)
 		) {
-			throw new Exception("SortOrder must equal 'asc' or 'desc'");
+			throw new ArgumentException("SortOrder must equal 'asc' or 'desc'", nameof(SortOrder));
 		}
 
 		if (SortOrder.Equals("asc", StringComparison.OrdinalIgnoreCase)) {

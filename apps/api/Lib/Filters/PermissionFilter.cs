@@ -39,7 +39,7 @@ public class PermissionFilter : IEndpointFilter {
 		var logger = httpContext.RequestServices.GetRequiredService<ILogger<PermissionFilter>>();
 
 		if (accountStaff == null) {
-			throw new Exception("PermissionFilter must be set behind StaffAuthFilter.");
+			throw new InvalidOperationException("PermissionFilter must be set behind StaffAuthFilter.");
 		}
 
 		// if user is not admin, check user permissions

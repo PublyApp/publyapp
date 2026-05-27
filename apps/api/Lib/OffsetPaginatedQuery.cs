@@ -14,7 +14,7 @@ public class OffsetPaginatedQuery {
 		}
 
 		if (!int.TryParse(Page, out var page)) {
-			throw new Exception("Page must be a valid number");
+			throw new ArgumentException("Page must be a valid number", nameof(Page));
 		}
 		return page;
 	}
@@ -25,7 +25,7 @@ public class OffsetPaginatedQuery {
 		}
 
 		if (!int.TryParse(Limit, out var limit)) {
-			throw new Exception("Limit must be a valid number");
+			throw new ArgumentException("Limit must be a valid number", nameof(Limit));
 		}
 
 		return limit;
@@ -48,7 +48,7 @@ public class OffsetPaginatedQuery {
 			!SortOrder.Equals("asc", StringComparison.OrdinalIgnoreCase)
 			&& !SortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase)
 		) {
-			throw new Exception("SortOrder must equal 'asc' or 'desc'");
+			throw new ArgumentException("SortOrder must equal 'asc' or 'desc'", nameof(SortOrder));
 		}
 
 		if (SortOrder.Equals("asc", StringComparison.OrdinalIgnoreCase)) {
