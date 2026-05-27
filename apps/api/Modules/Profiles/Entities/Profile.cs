@@ -114,6 +114,12 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 					throw new InvalidOperationException("Project profiles cannot be default profiles");
 				}
 				break;
+			default:
+				throw new ArgumentOutOfRangeException(
+					nameof(Scope),
+					Scope,
+					$"Unhandled ProfileScope: {Scope}"
+				);
 		}
 	}
 

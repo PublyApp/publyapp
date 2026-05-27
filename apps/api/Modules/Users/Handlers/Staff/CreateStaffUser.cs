@@ -68,8 +68,18 @@ public class CreateStaffUserBody {
 					}
 					return accountLevel.Value;
 				}
-			default:
+			case JsonValueKind.Object:
+			case JsonValueKind.Array:
+			case JsonValueKind.Number:
+			case JsonValueKind.True:
+			case JsonValueKind.False:
 				throw new InvalidOperationException("AccountLevel must be a string or null");
+			default:
+				throw new ArgumentOutOfRangeException(
+					nameof(AccountLevel),
+					AccountLevel?.ValueKind,
+					$"Unhandled JsonValueKind: {AccountLevel?.ValueKind}"
+				);
 		}
 	}
 }

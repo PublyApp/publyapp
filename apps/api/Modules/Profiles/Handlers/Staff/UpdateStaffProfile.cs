@@ -32,8 +32,17 @@ public record UpdateStaffProfileBody {
 					// "name" is required at the entity level; PATCH supports "omit" but not "clear".
 					"Name cannot be null. Omit the field to keep the current value."
 				),
-			_ => throw new InvalidOperationException(
+			JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.Number
+				or JsonValueKind.True
+				or JsonValueKind.False => throw new InvalidOperationException(
 				"Name must be a string or omitted"
+			),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(Name),
+				Name.ValueKind,
+				$"Unhandled JsonValueKind: {Name.ValueKind}"
 			),
 		};
 	}
@@ -48,8 +57,17 @@ public record UpdateStaffProfileBody {
 				),
 			JsonValueKind.Null =>
 				PatchField<string?>.Set(null),
-			_ => throw new InvalidOperationException(
+			JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.Number
+				or JsonValueKind.True
+				or JsonValueKind.False => throw new InvalidOperationException(
 				"Description must be a string, null, or omitted"
+			),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(Description),
+				Description.ValueKind,
+				$"Unhandled JsonValueKind: {Description.ValueKind}"
 			),
 		};
 	}
