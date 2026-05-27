@@ -50,6 +50,7 @@
 	},
 	"dotnet.defaultSolution": "PublyApp.slnx",
 	"dotnet.formatting.organizeImportsOnFormat": true,
+	"dotnet.diagnostics.reportInformationAsHint": false,
 	"cSpell.words": [
 		"airbnb",
 		"Aktiv",
