@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 
 using FluentAssertions;
@@ -32,14 +33,14 @@ public sealed class UpdateStaffUserEmailSpec : IClassFixture<ApiFixture> {
 		_authClient = new TestAuthClient(_http);
 	}
 
-	public static TheoryData<object> InvalidEmailBodies {
+	public static TheoryData<string> InvalidEmailBodies {
 		get {
 			return new() {
-		new { },
-		new { email = 123 },
-		new { email = " " },
-		new { email = "not-an-email" },
-	};
+				"{}",
+				"{\"email\":123}",
+				"{\"email\":\" \"}",
+				"{\"email\":\"not-an-email\"}",
+			};
 		}
 	}
 
@@ -138,7 +139,7 @@ public sealed class UpdateStaffUserEmailSpec : IClassFixture<ApiFixture> {
 	[Theory]
 	[MemberData(nameof(InvalidEmailBodies))]
 	public async Task ItShouldReturnValidationProblemWhenStaffUserEmailBodyIsInvalid(
-		object body
+		string body
 	) {
 		var staffToken = await _authClient.LoginAsStaffAdminAsync();
 		var userId = await GetStaffUserIdByEmailAsync(TestConstants.StaffUserEmail);
@@ -147,7 +148,7 @@ public sealed class UpdateStaffUserEmailSpec : IClassFixture<ApiFixture> {
 			HttpMethod.Patch,
 			GetUrl(userId.ToString())
 		).WithSessionToken(staffToken);
-		request.Content = JsonContent.Create(body);
+		request.Content = new StringContent(body, Encoding.UTF8, "application/json");
 
 		using var response = await _http.SendAsync(request);
 
