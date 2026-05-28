@@ -65,7 +65,7 @@ internal static class ArchitectureDiscoveryHelper {
 				type.Namespace?.Contains(
 					HandlerNamespaceFragment,
 					StringComparison.Ordinal
-				) == true)
+				) is true)
 			.Where(IsHandWrittenType)
 			.OrderBy(type => type.FullName, StringComparer.Ordinal)
 			.ToList();
@@ -146,7 +146,7 @@ internal static class ArchitectureDiscoveryHelper {
 				type.Namespace?.Contains(
 					HandlerNamespaceFragment,
 					StringComparison.Ordinal
-				) == true)
+				) is true)
 			.Where(type =>
 				type is { IsClass: true, IsAbstract: false }
 				&& !type.IsGenericTypeDefinition)
@@ -188,7 +188,7 @@ internal static class ArchitectureDiscoveryHelper {
 				type.Namespace?.EndsWith(
 					ServiceNamespaceFragment,
 					StringComparison.Ordinal
-				) == true)
+				) is true)
 			.Where(IsHandWrittenType)
 			.OrderBy(type => type.FullName, StringComparer.Ordinal)
 			.ToList();

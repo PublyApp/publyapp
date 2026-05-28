@@ -75,6 +75,7 @@ dotnet_diagnostic.IDE0060.severity = warning   # Remove unused parameter
 dotnet_diagnostic.IDE0065.severity = warning   # Using directives must be placed outside the namespace
 dotnet_diagnostic.IDE0072.severity = warning   # Populate switch expression
 dotnet_diagnostic.IDE0078.severity = warning   # Use pattern matching
+dotnet_diagnostic.IDE0100.severity = warning   # Remove redundant equality (x == true -> x, x == false -> !x)
 dotnet_diagnostic.IDE0130.severity = warning   # Namespace does not match folder structure
 dotnet_diagnostic.IDE0300.severity = warning   # Use collection initializers
 dotnet_diagnostic.IDE2000.severity = warning   # Avoid multiple blank lines

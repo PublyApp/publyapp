@@ -35,7 +35,7 @@ public class SystemNotice : BaseAttributes, INoTenantEntity {
 
 	public bool IsActive() {
 		var now = DateTime.UtcNow;
-		return IsDeleted is false
+		return !IsDeleted
 			&& StartsAt <= now
 			&& (ExpiresAt is null || ExpiresAt > now);
 	}

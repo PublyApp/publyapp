@@ -66,7 +66,7 @@ public sealed class CheckEmailVerificationToken {
 		}
 
 		// check if token is for the given email
-		if (string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase) is false) {
+		if (!string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase)) {
 			return TypedProblems.BadRequest(
 				"Invalid or expired email verification token",
 				ResponseKeys.InvalidEmailVerificationToken

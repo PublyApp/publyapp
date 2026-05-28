@@ -210,7 +210,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 	public async Task<int> CountTenantsAsync(CancellationToken cancellationToken = default) {
 		var query =
 			from tenant in _dbContext.Tenant
-			where tenant.IsDeleted != true
+			where !tenant.IsDeleted
 			select tenant;
 
 		return await query.CountAsync(cancellationToken);
@@ -233,7 +233,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				getCursorValue: async (guid) => {
 					var tenant = await _dbContext.Tenant
 						.AsNoTracking()
-						.Where(t => t.Id == guid && t.IsDeleted != true)
+						.Where(t => t.Id == guid && !t.IsDeleted)
 						.Select(t => new { t.CreatedAt, t.Id })
 						.FirstOrDefaultAsync(cancellationToken);
 					return tenant is not null ? (tenant.CreatedAt, tenant.Id) : null;
@@ -256,7 +256,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				getCursorValue: async (guid) => {
 					var tenant = await _dbContext.Tenant
 						.AsNoTracking()
-						.Where(t => t.Id == guid && t.IsDeleted != true)
+						.Where(t => t.Id == guid && !t.IsDeleted)
 						.Select(t => new { t.UpdatedAt, t.Id })
 						.FirstOrDefaultAsync(cancellationToken);
 					return tenant is not null ? (tenant.UpdatedAt, tenant.Id) : null;
@@ -279,7 +279,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				getCursorValue: async (guid) => {
 					var tenant = await _dbContext.Tenant
 						.AsNoTracking()
-						.Where(t => t.Id == guid && t.IsDeleted != true)
+						.Where(t => t.Id == guid && !t.IsDeleted)
 						.Select(t => new { t.Name, t.Id })
 						.FirstOrDefaultAsync(cancellationToken);
 					return tenant is not null ? (tenant.Name, tenant.Id) : null;
@@ -302,7 +302,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				getCursorValue: async (guid) => {
 					var tenant = await _dbContext.Tenant
 						.AsNoTracking()
-						.Where(t => t.Id == guid && t.IsDeleted != true)
+						.Where(t => t.Id == guid && !t.IsDeleted)
 						.Select(t => new { t.Status, t.Id })
 						.FirstOrDefaultAsync(cancellationToken);
 					return tenant is not null ? (tenant.Status, tenant.Id) : null;
@@ -336,7 +336,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		// Build base query on Tenant entity only (no joins for pagination)
 		IQueryable<Tenant> baseQuery = _dbContext.Tenant
 			.AsNoTracking()
-			.Where(t => t.IsDeleted != true && t.Id.HasValue);
+			.Where(t => !t.IsDeleted && t.Id.HasValue);
 
 		// Apply search filter
 		if (args.Filters?.Search is { } search) {
@@ -387,7 +387,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		var usersCounts = await (
 			from ua in _dbContext.UserAccount.AsNoTracking()
 			where ua.Scope == AccountScope.Tenant
-				&& ua.IsDeleted != true
+				&& !ua.IsDeleted
 				&& ua.TenantId != null
 				&& tenantIds.Contains(ua.TenantId.Value)
 			group ua by ua.TenantId into g

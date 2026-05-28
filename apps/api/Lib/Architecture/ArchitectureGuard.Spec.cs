@@ -189,7 +189,7 @@ namespace MainApi.Lib.Architecture {
 				|| type == typeof(TimeSpan) || type.Namespace?.StartsWith(
 				"System",
 				StringComparison.Ordinal
-			) == true;
+			) is true;
 		}
 	}
 

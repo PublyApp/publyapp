@@ -207,7 +207,7 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 
 	public bool CanBeAccepted() {
 		return IsPending()
-			&& IsDeleted is false
+			&& !IsDeleted
 			&& ExpiresAt > DateTime.UtcNow;
 	}
 

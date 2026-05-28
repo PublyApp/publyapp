@@ -97,7 +97,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		var seeders = CreateSeeders(serviceProvider);
 
 		foreach (var seeder in seeders) {
-			if (logger?.IsEnabled(LogLevel.Information) == true) {
+			if (logger?.IsEnabled(LogLevel.Information) is true) {
 				logger.LogInformation("Running seeder {Seeder} with order {Order}", seeder.GetType().Name, seeder.Order);
 			}
 			await seeder.SeedAsync(dbContext, cancellationToken);
