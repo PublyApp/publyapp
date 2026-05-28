@@ -39,6 +39,10 @@ dotnet_sort_system_directives_first = true
 dotnet_separate_import_directive_groups = true
 csharp_using_directive_placement = outside_namespace:warning
 
+# ==== Object-initializer / creation style ====
+# Prefer multi-statement creation (var x = new T(...); x.P = value;) over folded object initializers
+dotnet_style_object_initializer = false:silent
+
 # ==== Promoted to warning (rules we ENFORCE) ====
 dotnet_diagnostic.IDE0004.severity = warning   # Remove unnecessary cast
 dotnet_diagnostic.IDE0005.severity = warning   # Unused using directive
@@ -85,6 +89,7 @@ dotnet_diagnostic.xUnit1042.severity = warning  # MemberData should return Theor
 # ==== Suppressed (severity = none — noise we don't enforce) ====
 dotnet_diagnostic.IDE0001.severity = none      # Simplify names
 dotnet_diagnostic.IDE0008.severity = none      # Use explicit type instead of 'var'
+dotnet_diagnostic.IDE0017.severity = none      # Object initialization can be simplified (codebase prefers multi-statement)
 dotnet_diagnostic.IDE0028.severity = none      # Simplify collection initialization
 dotnet_diagnostic.IDE0030.severity = none      # Null check can be simplified
 dotnet_diagnostic.IDE0037.severity = none      # Member name can be simplified
