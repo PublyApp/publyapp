@@ -477,7 +477,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	/// </summary>
 	private void UpdateAuditFields() {
 		var entries = ChangeTracker.Entries()
-			.Where(e => e.State == EntityState.Added || e.State == EntityState.Modified || e.State == EntityState.Deleted);
+			.Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted);
 
 		foreach (var entry in entries) {
 			// Handle Session timestamps; deletes remain physical.

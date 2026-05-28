@@ -77,8 +77,8 @@ public class UpdateTenantAsStaffBodyValidator
 	: AbstractValidator<UpdateTenantAsStaffBody> {
 	public UpdateTenantAsStaffBodyValidator() {
 		RuleFor(x => x.Name)
-			.Must(e => e.ValueKind == JsonValueKind.Undefined
-				|| e.ValueKind == JsonValueKind.String)
+			.Must(e => e.ValueKind is JsonValueKind.Undefined
+				or JsonValueKind.String)
 			.WithMessage("Name must be a string")
 			.DependentRules(() => {
 				RuleFor(x => x.Name)
@@ -92,16 +92,16 @@ public class UpdateTenantAsStaffBodyValidator
 
 		RuleFor(x => x.LogoUrl)
 			.Must(e =>
-				e.ValueKind == JsonValueKind.Undefined
-				|| e.ValueKind == JsonValueKind.Null
-				|| e.ValueKind == JsonValueKind.String)
+				e.ValueKind is JsonValueKind.Undefined
+					or JsonValueKind.Null
+					or JsonValueKind.String)
 			.WithMessage(
 				"LogoUrl must be a string, null, or omitted"
 			);
 
 		RuleFor(x => x.MaxUsers)
 			.Must(e => e is null
-				|| e.Value.ValueKind == JsonValueKind.Number)
+				or { ValueKind: JsonValueKind.Number })
 			.WithMessage("MaxUsers must be a number")
 			.DependentRules(() => {
 				RuleFor(x => x.MaxUsers)

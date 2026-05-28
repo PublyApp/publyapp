@@ -78,8 +78,8 @@ public class UpdateStaffProfileBodyValidator
 	public UpdateStaffProfileBodyValidator() {
 		RuleFor(x => x.Name)
 			.Must(e =>
-				e.ValueKind == JsonValueKind.Undefined
-				|| e.ValueKind == JsonValueKind.String)
+				e.ValueKind is JsonValueKind.Undefined
+					or JsonValueKind.String)
 			.WithMessage("Name must be a string")
 			.DependentRules(() => {
 				RuleFor(x => x.Name)
@@ -96,9 +96,9 @@ public class UpdateStaffProfileBodyValidator
 
 		RuleFor(x => x.Description)
 			.Must(e =>
-				e.ValueKind == JsonValueKind.Undefined
-				|| e.ValueKind == JsonValueKind.String
-				|| e.ValueKind == JsonValueKind.Null)
+				e.ValueKind is JsonValueKind.Undefined
+					or JsonValueKind.String
+					or JsonValueKind.Null)
 			.WithMessage("Description must be a string or null")
 			.DependentRules(() => {
 				RuleFor(x => x.Description)
