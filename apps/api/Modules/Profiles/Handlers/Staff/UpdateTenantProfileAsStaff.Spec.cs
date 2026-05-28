@@ -322,7 +322,7 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 			)
 		).WithSessionToken(staffToken);
 		request.Content = JsonContent.Create(new {
-			name = name ?? "Tenant Profile " + Guid.NewGuid().ToString("N")[..8],
+			name = name ?? ("Tenant Profile " + Guid.NewGuid().ToString("N")[..8]),
 			description = "Profile created for update tests",
 		});
 
