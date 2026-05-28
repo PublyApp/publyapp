@@ -64,7 +64,7 @@ public sealed class VerifyEmailRequest {
 			);
 		}
 
-		if (user.IsVerified == true) {
+		if (user.IsVerified) {
 			return TypedProblems.BadRequest("Email already verified", ResponseKeys.EmailAlreadyVerified);
 		}
 

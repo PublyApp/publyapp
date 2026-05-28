@@ -153,7 +153,7 @@ public class SystemNoticeService : ISystemNoticeService {
 					var notice = await _dbContext.SystemNotice
 						.AsNoTracking()
 						.Where(n => n.Id == guid
-							&& n.IsDeleted == false)
+							&& !n.IsDeleted)
 						.Select(n => new { n.CreatedAt, n.Id })
 						.FirstOrDefaultAsync(cancellationToken);
 					return notice is not null
@@ -187,7 +187,7 @@ public class SystemNoticeService : ISystemNoticeService {
 					var notice = await _dbContext.SystemNotice
 						.AsNoTracking()
 						.Where(n => n.Id == guid
-							&& n.IsDeleted == false)
+							&& !n.IsDeleted)
 						.Select(n => new { n.StartsAt, n.Id })
 						.FirstOrDefaultAsync(cancellationToken);
 					return notice is not null
@@ -221,7 +221,7 @@ public class SystemNoticeService : ISystemNoticeService {
 					var notice = await _dbContext.SystemNotice
 						.AsNoTracking()
 						.Where(n => n.Id == guid
-							&& n.IsDeleted == false)
+							&& !n.IsDeleted)
 						.Select(n => new { n.Severity, n.Id })
 						.FirstOrDefaultAsync(cancellationToken);
 					return notice is not null
@@ -262,7 +262,7 @@ public class SystemNoticeService : ISystemNoticeService {
 
 		var query = _dbContext.SystemNotice
 			.AsNoTracking()
-			.Where(n => n.IsDeleted == false && n.Id != null);
+			.Where(n => !n.IsDeleted && n.Id != null);
 
 		if (cursor != Guid.Empty) {
 			var cursorValue = await handler.GetCursorValue(cursor);
@@ -319,7 +319,7 @@ public class SystemNoticeService : ISystemNoticeService {
 	) {
 		var noticeQuery =
 			from n in _dbContext.SystemNotice
-			where n.Id == id && n.IsDeleted == false
+			where n.Id == id && !n.IsDeleted
 			select n;
 
 		return await noticeQuery
@@ -333,7 +333,7 @@ public class SystemNoticeService : ISystemNoticeService {
 	) {
 		var notice = await (
 			from n in _dbContext.SystemNotice
-			where n.Id == id && n.IsDeleted == false
+			where n.Id == id && !n.IsDeleted
 			select n
 		).FirstOrDefaultAsync(cancellationToken);
 
@@ -375,7 +375,7 @@ public class SystemNoticeService : ISystemNoticeService {
 	) {
 		var notice = await (
 			from n in _dbContext.SystemNotice
-			where n.Id == id && n.IsDeleted == false
+			where n.Id == id && !n.IsDeleted
 			select n
 		).FirstOrDefaultAsync(cancellationToken);
 
@@ -403,7 +403,7 @@ public class SystemNoticeService : ISystemNoticeService {
 
 		var activeNoticesQuery =
 			from n in _dbContext.SystemNotice
-			where n.IsDeleted == false
+			where !n.IsDeleted
 				&& n.StartsAt <= now
 				&& (n.ExpiresAt == null || n.ExpiresAt > now)
 			orderby n.Severity descending, n.StartsAt descending

@@ -42,7 +42,7 @@ public class AcceptInvitationBodyValidator
 	: AbstractValidator<AcceptInvitationBody> {
 	public AcceptInvitationBodyValidator() {
 		When(
-			x => x.UseExistingAccount.GetValueAsBoolean() is false,
+			x => !x.UseExistingAccount.GetValueAsBoolean(),
 			() => {
 				RuleFor(x => x.FirstName)
 					.MustBeRequiredString("FirstName");
