@@ -139,7 +139,7 @@ public class UpdateTenantUserAsStaffBodyValidator
 				}
 
 				var value = element.GetString();
-				return value == "Admin" || value == "User";
+				return value is "Admin" or "User";
 			})
 			.WithMessage("Level must be 'Admin' or 'User'");
 	}

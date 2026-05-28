@@ -51,7 +51,7 @@ public sealed class UnassignStaffProfilePermission {
 		// Unassign should be idempotent:
 		// if the permission doesn't exist (or isn't staff-scoped), we don't treat it as an error.
 		if (result is SetStaffProfilePermissionResult.Success
-			|| result is SetStaffProfilePermissionResult.PermissionNotFound) {
+			or SetStaffProfilePermissionResult.PermissionNotFound) {
 			// No payload: this endpoint is used by switch toggles and can be called frequently.
 			return TypedResults.NoContent();
 		}

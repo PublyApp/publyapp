@@ -125,9 +125,9 @@ public class UpdateSystemNoticeBodyValidator
 
 		RuleFor(x => x.ExpiresAt)
 			.Must(e =>
-				e.ValueKind == JsonValueKind.Undefined
-				|| e.ValueKind == JsonValueKind.Null
-				|| e.ValueKind == JsonValueKind.String)
+				e.ValueKind is JsonValueKind.Undefined
+					or JsonValueKind.Null
+					or JsonValueKind.String)
 			.WithMessage(
 				"ExpiresAt must be a string, null, or omitted"
 			)
@@ -172,9 +172,8 @@ public class UpdateSystemNoticeBodyValidator
 	private bool BeValidDateTimeOrUndefined(
 		JsonElement element
 	) {
-		if (element.ValueKind == JsonValueKind.Undefined
-			|| element.ValueKind
-				== JsonValueKind.Null) {
+		if (element.ValueKind is JsonValueKind.Undefined
+			or JsonValueKind.Null) {
 			return true;
 		}
 		if (element.ValueKind != JsonValueKind.String) {

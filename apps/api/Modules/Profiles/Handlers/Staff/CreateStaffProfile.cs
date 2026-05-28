@@ -146,9 +146,9 @@ public partial class CreateStaffProfileBodyValidator
 		if (element is null) {
 			return true;
 		}
-		return element?.ValueKind == JsonValueKind.String
-			|| element?.ValueKind == JsonValueKind.Null
-			|| element?.ValueKind == JsonValueKind.Undefined;
+		return element?.ValueKind is JsonValueKind.String
+			or JsonValueKind.Null
+			or JsonValueKind.Undefined;
 	}
 
 	private static bool BeValidDescriptionLength(JsonElement? element) {
