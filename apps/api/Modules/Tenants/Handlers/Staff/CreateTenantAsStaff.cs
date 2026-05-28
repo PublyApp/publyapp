@@ -69,9 +69,9 @@ public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAs
 			);
 
 		RuleFor(x => x.MaxUsers)
-			.Must(m => m.ValueKind == JsonValueKind.Number ||
-								 m.ValueKind == JsonValueKind.Null ||
-								 m.ValueKind == JsonValueKind.Undefined)
+			.Must(m => m.ValueKind is JsonValueKind.Number
+				or JsonValueKind.Null
+				or JsonValueKind.Undefined)
 			.WithMessage("MaxUsers must be a number, null, or undefined")
 			.DependentRules(() => {
 				RuleFor(x => x.MaxUsers)
