@@ -59,7 +59,7 @@ public sealed class CheckResetPasswordToken {
 		}
 
 		// check if token is for the given email
-		if (string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase) is false) {
+		if (!string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase)) {
 			return TypedProblems.BadRequest(
 				"Invalid or expired password reset token",
 				ResponseKeys.InvalidPasswordResetToken
@@ -83,4 +83,3 @@ public sealed class CheckResetPasswordToken {
 		});
 	}
 }
-

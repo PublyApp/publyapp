@@ -61,7 +61,7 @@ public sealed class CheckInvitationToken {
 		}
 
 		// check if invitation is for the given email
-		if (string.Equals(invitation.Email, email, StringComparison.OrdinalIgnoreCase) is false) {
+		if (!string.Equals(invitation.Email, email, StringComparison.OrdinalIgnoreCase)) {
 			if (logger.IsEnabled(LogLevel.Debug)) {
 				logger.LogDebug("Invalid invitation token: @{LogData}", new {
 					Email = email,
@@ -86,4 +86,3 @@ public sealed class CheckInvitationToken {
 		});
 	}
 }
-

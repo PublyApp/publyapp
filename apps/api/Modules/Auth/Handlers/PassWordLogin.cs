@@ -69,7 +69,7 @@ public sealed class PasswordLogin {
 			);
 		}
 
-		if (user.IsDeleted == true) {
+		if (user.IsDeleted) {
 			return TypedProblems.BadRequest(
 				"Invalid email or password",
 				ResponseKeys.InvalidEmailOrPassword
@@ -83,7 +83,7 @@ public sealed class PasswordLogin {
 			);
 		}
 
-		if (user.IsVerified != true) {
+		if (!user.IsVerified) {
 			return TypedProblems.BadRequest(
 				"User is not verified",
 				ResponseKeys.UserNotVerified
@@ -91,7 +91,7 @@ public sealed class PasswordLogin {
 		}
 
 		// Verify the password
-		if (PasswordUtils.VerifyPassword(password, user.Password) is false) {
+		if (!PasswordUtils.VerifyPassword(password, user.Password)) {
 			return TypedProblems.BadRequest(
 				"Invalid email or password",
 				ResponseKeys.InvalidEmailOrPassword

@@ -354,7 +354,7 @@ public class InvitationService : IInvitationService {
 			return null;
 		}
 
-		if (invitation.CanBeAccepted() is false) {
+		if (!invitation.CanBeAccepted()) {
 			if (_logger.IsEnabled(LogLevel.Warning)) {
 				_logger.LogWarning(
 					"Invitation {InvitationId} cannot be accepted (expired, revoked, or deleted)",

@@ -132,7 +132,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 						from auditLog in _dbContext.AuditLog
 							.AsNoTracking()
 						where auditLog.Id == guid
-							&& auditLog.IsDeleted == false
+							&& !auditLog.IsDeleted
 						select new {
 							auditLog.CreatedAt,
 							auditLog.Id
@@ -271,7 +271,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			from a in _dbContext.AuditLog
 				.AsNoTracking()
 			where a.Id == id
-				&& a.IsDeleted == false
+				&& !a.IsDeleted
 			join u in _dbContext.User
 				.IgnoreQueryFilters()
 				// Audit rows outlive soft-deleted users; keep
@@ -447,7 +447,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 	private IQueryable<AuditLog> BaseQuery() {
 		return
 			from auditLog in _dbContext.AuditLog.AsNoTracking()
-			where auditLog.IsDeleted == false
+			where !auditLog.IsDeleted
 				&& auditLog.Id != null
 			select auditLog;
 	}
