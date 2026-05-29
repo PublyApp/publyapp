@@ -44,6 +44,7 @@
 		"publy/prefer-specific-lodash-imports": "error",
 		"publy/no-console-in-source": "off",
 		"publy/no-raw-mui-textfield-register": "off",
-		"publy/no-direct-dayjs-in-components": "off"
+		"publy/no-direct-dayjs-in-components": "off",
+		"publy/no-native-html-in-mui-surfaces": "off"
 	}
 }
