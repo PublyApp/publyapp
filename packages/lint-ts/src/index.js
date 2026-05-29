@@ -1,4 +1,5 @@
 import { noConsoleInSource } from './rules/no-console-in-source.js';
+import { noManualResponseMessageTranslation } from './rules/no-manual-response-message-translation.js';
 /**
  * `@org/lint-ts` — custom Oxlint JS plugin for PublyApp.
  *
@@ -18,6 +19,7 @@ import { noConsoleInSource } from './rules/no-console-in-source.js';
  *   - `publy/no-raw-mui-textfield-register` → "off" (dormant)
  *   - `publy/no-direct-dayjs-in-components` → "off" (dormant)
  *   - `publy/no-native-html-in-mui-surfaces` → "off" (dormant)
+ *   - `publy/no-manual-response-message-translation` → "off" (dormant)
  */
 import { noDirectDayjsInComponents } from './rules/no-direct-dayjs-in-components.js';
 import { noNativeHtmlInMuiSurfaces } from './rules/no-native-html-in-mui-surfaces.js';
@@ -36,6 +38,7 @@ const plugin = {
 		'no-raw-mui-textfield-register': noRawMuiTextfieldRegister,
 		'no-direct-dayjs-in-components': noDirectDayjsInComponents,
 		'no-native-html-in-mui-surfaces': noNativeHtmlInMuiSurfaces,
+		'no-manual-response-message-translation': noManualResponseMessageTranslation,
 		'prefer-specific-lodash-imports': preferSpecificLodashImports,
 	},
 };
