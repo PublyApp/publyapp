@@ -1,4 +1,5 @@
-import _ from 'lodash';
+import forEach from 'lodash/forEach';
+import get from 'lodash/get';
 
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
@@ -44,18 +45,18 @@ export const deepFreeze = <T>(o: T): DeepReadonly<T> => {
 	const oIsFunction = typeof o === 'function';
 	const hasOwnProp = Object.prototype.hasOwnProperty;
 
-	_.forEach(Object.getOwnPropertyNames(o), (prop) => {
+	forEach(Object.getOwnPropertyNames(o), (prop) => {
 		if (
 			hasOwnProp.call(o, prop) &&
 			(oIsFunction
 				? prop !== 'caller' && prop !== 'callee' && prop !== 'arguments'
 				: true) &&
-			_.get(o, prop) !== null &&
-			(typeof _.get(o, prop) === 'object' ||
-				typeof _.get(o, prop) === 'function') &&
-			!Object.isFrozen(_.get(o, prop))
+			get(o, prop) !== null &&
+			(typeof get(o, prop) === 'object' ||
+				typeof get(o, prop) === 'function') &&
+			!Object.isFrozen(get(o, prop))
 		) {
-			deepFreeze(_.get(o, prop));
+			deepFreeze(get(o, prop));
 		}
 	});
 

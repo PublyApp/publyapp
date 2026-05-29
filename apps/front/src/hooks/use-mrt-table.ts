@@ -1,5 +1,9 @@
 import { useTheme } from '@mui/material';
-import _, { type MergeWithCustomizer } from 'lodash';
+import isArray from 'lodash/isArray';
+import isFunction from 'lodash/isFunction';
+import isObject from 'lodash/isObject';
+import merge from 'lodash/merge';
+import mergeWith from 'lodash/mergeWith';
 import {
 	type MRT_RowData,
 	type MRT_TableOptions,
@@ -9,6 +13,14 @@ import { useMemo } from 'react';
 
 import { type PresetKey, tablePresets } from '../lib/mrt-table/table-presets';
 
+type MergeWithCustomizer = (
+	objValue: unknown,
+	srcValue: unknown,
+	key?: string | number | symbol,
+	object?: unknown,
+	source?: unknown,
+) => unknown;
+
 export const useMRTTable = <TData extends MRT_RowData>(
 	preset: PresetKey,
 	overrides: MRT_TableOptions<TData>,
@@ -16,7 +28,7 @@ export const useMRTTable = <TData extends MRT_RowData>(
 	const theme = useTheme();
 
 	const mergedProps = useMemo(() => {
-		return _.mergeWith({}, tablePresets[preset](theme), overrides, customizer);
+		return mergeWith({}, tablePresets[preset](theme), overrides, customizer);
 	}, [preset, overrides, theme]);
 
 	return useMaterialReactTable<TData>(mergedProps);
@@ -35,39 +47,39 @@ const customizer: MergeWithCustomizer = (
 	if (key === 'sx') {
 		// If both are objects, merge them
 		if (
-			_.isObject(objValue) &&
-			!_.isArray(objValue) &&
-			!_.isFunction(objValue) &&
-			_.isObject(srcValue) &&
-			!_.isArray(srcValue) &&
-			!_.isFunction(srcValue)
+			isObject(objValue) &&
+			!isArray(objValue) &&
+			!isFunction(objValue) &&
+			isObject(srcValue) &&
+			!isArray(srcValue) &&
+			!isFunction(srcValue)
 		) {
-			return _.merge({}, objValue, srcValue);
+			return merge({}, objValue, srcValue);
 		}
 
 		// If both are arrays, concatenate them
-		if (_.isArray(objValue) && _.isArray(srcValue)) {
+		if (isArray(objValue) && isArray(srcValue)) {
 			return objValue.concat(srcValue);
 		}
 
 		// If one is function and other is object/array, create a function that handles both
-		if (_.isFunction(objValue) || _.isFunction(srcValue)) {
+		if (isFunction(objValue) || isFunction(srcValue)) {
 			return (...args: unknown[]) => {
-				const objResult = _.isFunction(objValue) ? objValue(...args) : objValue;
-				const srcResult = _.isFunction(srcValue) ? srcValue(...args) : srcValue;
+				const objResult = isFunction(objValue) ? objValue(...args) : objValue;
+				const srcResult = isFunction(srcValue) ? srcValue(...args) : srcValue;
 
 				// Merge results if both are objects
 				if (
-					_.isObject(objResult) &&
-					!_.isArray(objResult) &&
-					_.isObject(srcResult) &&
-					!_.isArray(srcResult)
+					isObject(objResult) &&
+					!isArray(objResult) &&
+					isObject(srcResult) &&
+					!isArray(srcResult)
 				) {
-					return _.merge({}, objResult, srcResult);
+					return merge({}, objResult, srcResult);
 				}
 
 				// Concatenate if both are arrays
-				if (_.isArray(objResult) && _.isArray(srcResult)) {
+				if (isArray(objResult) && isArray(srcResult)) {
 					return objResult.concat(srcResult);
 				}
 
@@ -81,28 +93,28 @@ const customizer: MergeWithCustomizer = (
 	}
 
 	// Handle arrays - concatenate them
-	if (_.isArray(objValue) && _.isArray(srcValue)) {
+	if (isArray(objValue) && isArray(srcValue)) {
 		return objValue.concat(srcValue);
 	}
 
 	// Handle functions - create a combined function
-	if (_.isFunction(objValue) && _.isFunction(srcValue)) {
+	if (isFunction(objValue) && isFunction(srcValue)) {
 		return (...args: unknown[]) => {
 			const objResult = objValue(...args);
 			const srcResult = srcValue(...args);
 
 			// Merge results if both are objects
 			if (
-				_.isObject(objResult) &&
-				!_.isArray(objResult) &&
-				_.isObject(srcResult) &&
-				!_.isArray(srcResult)
+				isObject(objResult) &&
+				!isArray(objResult) &&
+				isObject(srcResult) &&
+				!isArray(srcResult)
 			) {
-				return _.merge({}, objResult, srcResult);
+				return merge({}, objResult, srcResult);
 			}
 
 			// Concatenate if both are arrays
-			if (_.isArray(objResult) && _.isArray(srcResult)) {
+			if (isArray(objResult) && isArray(srcResult)) {
 				return objResult.concat(srcResult);
 			}
 
@@ -113,13 +125,13 @@ const customizer: MergeWithCustomizer = (
 
 	// Handle objects - merge them
 	if (
-		_.isObject(objValue) &&
-		!_.isArray(objValue) &&
-		!_.isFunction(objValue) &&
-		_.isObject(srcValue) &&
-		!_.isArray(srcValue) &&
-		!_.isFunction(srcValue)
+		isObject(objValue) &&
+		!isArray(objValue) &&
+		!isFunction(objValue) &&
+		isObject(srcValue) &&
+		!isArray(srcValue) &&
+		!isFunction(srcValue)
 	) {
-		return _.merge({}, objValue, srcValue);
+		return merge({}, objValue, srcValue);
 	}
 };

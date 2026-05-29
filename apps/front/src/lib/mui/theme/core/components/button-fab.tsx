@@ -4,7 +4,7 @@ import type {
 	ComponentsVariants,
 	Theme,
 } from '@mui/material/styles';
-import _ from 'lodash';
+import toString from 'lodash/toString';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
@@ -44,7 +44,7 @@ const filledVariant: Record<string, ComponentsVariants<Theme>['MuiFab']> = {
 			props: ({ ownerState }) => {
 				return (
 					!ownerState.disabled &&
-					FILLED_VARIANT.includes(_.toString(ownerState.variant)) &&
+					FILLED_VARIANT.includes(toString(ownerState.variant)) &&
 					ownerState.color === color
 				);
 			},
@@ -60,8 +60,8 @@ const filledVariant: Record<string, ComponentsVariants<Theme>['MuiFab']> = {
 		{
 			props: ({ ownerState }) => {
 				return (
-					FILLED_VARIANT.includes(_.toString(ownerState.variant)) &&
-					DEFAULT_COLORS.includes(_.toString(ownerState.color))
+					FILLED_VARIANT.includes(toString(ownerState.variant)) &&
+					DEFAULT_COLORS.includes(toString(ownerState.color))
 				);
 			},
 			style: ({ theme }) => {
@@ -100,7 +100,7 @@ const outlinedVariant: Record<string, ComponentsVariants<Theme>['MuiFab']> = {
 			props: ({ ownerState }) => {
 				return (
 					!ownerState.disabled &&
-					OUTLINED_VARIANT.includes(_.toString(ownerState.variant)) &&
+					OUTLINED_VARIANT.includes(toString(ownerState.variant)) &&
 					ownerState.color === color
 				);
 			},
@@ -121,7 +121,7 @@ const outlinedVariant: Record<string, ComponentsVariants<Theme>['MuiFab']> = {
 	base: [
 		{
 			props: ({ ownerState }) => {
-				return OUTLINED_VARIANT.includes(_.toString(ownerState.variant));
+				return OUTLINED_VARIANT.includes(toString(ownerState.variant));
 			},
 			style: ({ theme }) => {
 				return {
@@ -153,7 +153,7 @@ const softVariant: Record<string, ComponentsVariants<Theme>['MuiFab']> = {
 			props: ({ ownerState }) => {
 				return (
 					!ownerState.disabled &&
-					SOFT_VARIANT.includes(_.toString(ownerState.variant)) &&
+					SOFT_VARIANT.includes(toString(ownerState.variant)) &&
 					ownerState.color === color
 				);
 			},
@@ -183,8 +183,8 @@ const softVariant: Record<string, ComponentsVariants<Theme>['MuiFab']> = {
 		{
 			props: ({ ownerState }) => {
 				return (
-					SOFT_VARIANT.includes(_.toString(ownerState.variant)) &&
-					DEFAULT_COLORS.includes(_.toString(ownerState.color))
+					SOFT_VARIANT.includes(toString(ownerState.variant)) &&
+					DEFAULT_COLORS.includes(toString(ownerState.color))
 				);
 			},
 			style: ({ theme }) => {
@@ -224,7 +224,7 @@ const softVariant: Record<string, ComponentsVariants<Theme>['MuiFab']> = {
 const sizes: ComponentsVariants<Theme>['MuiFab'] = [
 	{
 		props: ({ ownerState }) => {
-			return EXTENDED_VARIANT.includes(_.toString(ownerState.variant));
+			return EXTENDED_VARIANT.includes(toString(ownerState.variant));
 		},
 		style: ({ theme }) => {
 			return {

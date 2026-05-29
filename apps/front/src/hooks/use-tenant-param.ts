@@ -1,4 +1,4 @@
-import _ from 'lodash';
+import get from 'lodash/get';
 import { useLocation, useParams } from 'react-router';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
@@ -19,7 +19,7 @@ export const useTenantParam = () => {
 	if (isStaffRoute) {
 		tenantId = 'staff';
 	} else if (isTenantRoute) {
-		const tenantIdPathParam = _.get(params, 'tenantId');
+		const tenantIdPathParam = get(params, 'tenantId');
 
 		if (tenantIdPathParam) {
 			tenantId = tenantIdPathParam;

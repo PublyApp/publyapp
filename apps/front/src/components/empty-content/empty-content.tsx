@@ -4,7 +4,7 @@ import type { SxProps, Theme } from '@mui/material/styles';
 import { styled } from '@mui/material/styles';
 import type { TypographyProps } from '@mui/material/Typography';
 import Typography from '@mui/material/Typography';
-import _ from 'lodash';
+import toNumber from 'lodash/toNumber';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
@@ -106,7 +106,7 @@ const ContentRoot = styled('div', {
 	justifyContent: 'center',
 	padding: theme.spacing(0, 3),
 	...(filled && {
-		borderRadius: _.toNumber(theme.shape.borderRadius) * 2,
+		borderRadius: toNumber(theme.shape.borderRadius) * 2,
 		backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.04),
 		border: `dashed 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
 	}),

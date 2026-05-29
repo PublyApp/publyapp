@@ -1,6 +1,6 @@
 import { styled } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
-import _ from 'lodash';
+import toNumber from 'lodash/toNumber';
 import { mergeClasses } from 'minimal-shared/utils';
 
 import { DownloadButton, RemoveButton } from './action-buttons';
@@ -113,7 +113,7 @@ const ItemRoot = styled('span')(({ theme }) => {
 		position: 'relative',
 		display: 'inline-flex',
 		justifyContent: 'center',
-		borderRadius: _.toNumber(theme.shape.borderRadius) * 1.25,
+		borderRadius: toNumber(theme.shape.borderRadius) * 1.25,
 	};
 });
 

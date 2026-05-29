@@ -1,7 +1,7 @@
 import ButtonBase from '@mui/material/ButtonBase';
 import { styled } from '@mui/material/styles';
 import SvgIcon from '@mui/material/SvgIcon';
-import _ from 'lodash';
+import toNumber from 'lodash/toNumber';
 
 import type { EditorToolbarItemProps } from '../types';
 
@@ -35,7 +35,7 @@ const ItemRoot = styled(ButtonBase, {
 		width: 28,
 		height: 28,
 		padding: theme.spacing(0, 0.75),
-		borderRadius: _.toNumber(theme.shape.borderRadius) * 0.75,
+		borderRadius: toNumber(theme.shape.borderRadius) * 0.75,
 		'&:hover': {
 			backgroundColor: theme.vars.palette.action.hover,
 		},

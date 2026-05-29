@@ -3,7 +3,9 @@ import axios, {
 	type AxiosRequestConfig,
 	type AxiosResponse,
 } from 'axios';
-import _ from 'lodash';
+import forEach from 'lodash/forEach';
+import isNil from 'lodash/isNil';
+import keys from 'lodash/keys';
 
 import { SESSION_TOKEN_HEADER_KEY, TENANT_ID_HEADER_KEY } from './constants';
 
@@ -61,8 +63,8 @@ export const getProtectionHeaders = (options: {
 			: 'application/json',
 	};
 
-	_.forEach(_.keys(headers), (key) => {
-		if (_.isNil((headers as never)[key])) {
+	forEach(keys(headers), (key) => {
+		if (isNil((headers as never)[key])) {
 			delete (headers as never)[key];
 		}
 	});
