@@ -1,3 +1,4 @@
+import { noConsoleInSource } from './rules/no-console-in-source.js';
 /**
  * `@org/lint-ts` — custom Oxlint JS plugin for PublyApp.
  *
@@ -12,8 +13,10 @@
  *
  * JS.1 scaffold (issue #350): shipped the inert `no-op` rule purely to prove the
  * plugin loads. JS.2 (issue #462) adds the first real rule,
- * `prefer-specific-lodash-imports`. Current `.oxlintrc.json` severities:
- * `publy/no-op` is `"off"`; `publy/prefer-specific-lodash-imports` is `"error"`.
+ * `prefer-specific-lodash-imports`. JS.4 (issue #499) registers the dormant
+ * `no-console-in-source` rule. Current `.oxlintrc.json` severities:
+ * `publy/no-op` is `"off"`; `publy/prefer-specific-lodash-imports` is `"error"`;
+ * `publy/no-console-in-source` is `"off"`.
  */
 import { noOp } from './rules/no-op.js';
 import { preferSpecificLodashImports } from './rules/prefer-specific-lodash-imports.js';
@@ -25,6 +28,7 @@ const plugin = {
 	},
 	rules: {
 		'no-op': noOp,
+		'no-console-in-source': noConsoleInSource,
 		'prefer-specific-lodash-imports': preferSpecificLodashImports,
 	},
 };
