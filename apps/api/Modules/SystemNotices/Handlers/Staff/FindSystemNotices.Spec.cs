@@ -12,6 +12,7 @@ using MainApi.Lib.Utils;
 using Xunit;
 
 namespace MainApi.Modules.SystemNotices.Handlers.Staff;
+
 public sealed class FindSystemNoticesSpec
 	: IClassFixture<ApiFixture> {
 	private static readonly string FindUrl = PathUtils.Join(
@@ -55,7 +56,8 @@ public sealed class FindSystemNoticesSpec
 			var result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			result.Should().NotBeNull();
-			result!.Data.Should().NotBeNull();
+			Assert.NotNull(result);
+			result.Data.Should().NotBeNull();
 			result.Data.Should().Contain(
 				n => n.Id == noticeId
 			);
@@ -137,7 +139,8 @@ public sealed class FindSystemNoticesSpec
 			var result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			result.Should().NotBeNull();
-			result!.Data.Count.Should().Be(2);
+			Assert.NotNull(result);
+			result.Data.Count.Should().Be(2);
 			result.NextCursor.Should()
 				.NotBeNullOrEmpty();
 		} finally {
@@ -201,8 +204,9 @@ public sealed class FindSystemNoticesSpec
 				.ReadFromJsonAsync<FindResponse>();
 			result.Should().NotBeNull();
 
-			var earlyIdx = result!.Data
-				.FindIndex(n => n.Id == earlyId);
+			Assert.NotNull(result);
+			var earlyIdx = result.Data
+							.FindIndex(n => n.Id == earlyId);
 			var lateIdx = result.Data
 				.FindIndex(n => n.Id == lateId);
 

@@ -20,6 +20,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Tenants.Handlers.Staff;
+
 public sealed class
 ReactivateTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
@@ -71,7 +72,8 @@ ReactivateTenantAsStaffSpec
 					TenantReactivatedResponse
 				>();
 			result.Should().NotBeNull();
-			result!.TenantId.Should().Be(tenantId);
+			Assert.NotNull(result);
+			result.TenantId.Should().Be(tenantId);
 			result.Status.Should().Be("Active");
 		} finally {
 			// Safety net: reactivate if assertions
@@ -151,8 +153,9 @@ ReactivateTenantAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be("tenant-not-suspended");
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be("tenant-not-suspended");
 	}
 
 	[Fact]
@@ -173,8 +176,9 @@ ReactivateTenantAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be("tenant-not-found");
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be("tenant-not-found");
 	}
 
 	[Fact]
@@ -306,8 +310,9 @@ ReactivateTenantAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -333,7 +338,8 @@ ReactivateTenantAsStaffSpec
 		var suspended = await suspendResponse.Content
 			.ReadFromJsonAsync<TenantSuspendedResponse>();
 		suspended.Should().NotBeNull();
-		suspended!.Status.Should().Be("Suspended");
+		Assert.NotNull(suspended);
+		suspended.Status.Should().Be("Suspended");
 
 		// Reactivate
 		using var reactivateResponse =
@@ -346,7 +352,8 @@ ReactivateTenantAsStaffSpec
 		var reactivated = await reactivateResponse.Content
 			.ReadFromJsonAsync<TenantReactivatedResponse>();
 		reactivated.Should().NotBeNull();
-		reactivated!.Status.Should().Be("Active");
+		Assert.NotNull(reactivated);
+		reactivated.Status.Should().Be("Active");
 	}
 
 	private record TenantSuspendedResponse {

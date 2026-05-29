@@ -15,6 +15,7 @@ using MainApi.Localization;
 using Xunit;
 
 namespace MainApi.Modules.Users.Handlers.Staff;
+
 public sealed class GetTenantUserAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
@@ -64,7 +65,8 @@ public sealed class GetTenantUserAsStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<TenantUserDetailsResponse>();
 		result.Should().NotBeNull();
-		result!.Id.ToString().Should().Be(userId);
+		Assert.NotNull(result);
+		result.Id.ToString().Should().Be(userId);
 		result.TenantId.Should().Be(tenantId);
 		result.Email.Should().Be(TestConstants.AcmeUserEmail);
 		result.Level.Should().NotBeNullOrWhiteSpace();
@@ -90,7 +92,8 @@ public sealed class GetTenantUserAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -116,7 +119,8 @@ public sealed class GetTenantUserAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -142,7 +146,8 @@ public sealed class GetTenantUserAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.NotFound);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.NotFound);
 		problem.Detail.Should().Be("User not found in tenant");
 	}
 

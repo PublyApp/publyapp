@@ -114,7 +114,8 @@ public sealed class UpdateStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -160,7 +161,8 @@ public sealed class UpdateStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 		var problem = await response.Content
 			.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MaxProfilesPerUserExceeded);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MaxProfilesPerUserExceeded);
 		problem.Errors.Should().ContainKey("profileIds");
 	}
 
@@ -210,7 +212,8 @@ public sealed class UpdateStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 		var problem = await response.Content
 			.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.ProfileNotStaffScope);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.ProfileNotStaffScope);
 	}
 
 	[Fact]
@@ -238,7 +241,8 @@ public sealed class UpdateStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 		var result = await response.Content
 			.ReadFromJsonAsync<UpdateStaffUserProfilesResult>();
 		result.Should().NotBeNull();
-		result!.AssignedProfiles.Should().ContainSingle(p => p.Id == Guid.Parse(profileId));
+		Assert.NotNull(result);
+		result.AssignedProfiles.Should().ContainSingle(p => p.Id == Guid.Parse(profileId));
 	}
 
 	// -- Helpers --
@@ -273,7 +277,8 @@ public sealed class UpdateStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 
 		var created = await response.Content.ReadFromJsonAsync<StaffProfileCreatedResponse>();
 		created.Should().NotBeNull();
-		return created!.ProfileId.ToString();
+		Assert.NotNull(created);
+		return created.ProfileId.ToString();
 	}
 
 	private async Task<string> CreateTenantProfileAsync() {

@@ -20,17 +20,37 @@ public class InvitationProfile : INoTenantEntity {
 	[Column("invitation_id")]
 	public required Guid InvitationId { get; set; }
 
+	private Invitation? _invitation;
 	[JsonIgnore]
 	[ForeignKey(nameof(InvitationId))]
-	public Invitation Invitation { get; set; } = null!;
+	public Invitation Invitation {
+		get {
+			return RequiredNavigation.Get(
+				_invitation,
+				nameof(InvitationProfile),
+				nameof(Invitation)
+			);
+		}
+		set { _invitation = value; }
+	}
 
 	// Foreign key to profiles.id; second half of the composite primary key.
 	[Column("profile_id")]
 	public required Guid ProfileId { get; set; }
 
+	private ProfileEntity? _profile;
 	[JsonIgnore]
 	[ForeignKey(nameof(ProfileId))]
-	public ProfileEntity Profile { get; set; } = null!;
+	public ProfileEntity Profile {
+		get {
+			return RequiredNavigation.Get(
+				_profile,
+				nameof(InvitationProfile),
+				nameof(Profile)
+			);
+		}
+		set { _profile = value; }
+	}
 
 	// Timestamp columns (cannot inherit from BaseAttributes due to composite PK)
 	[Column("created_at")]
@@ -39,4 +59,3 @@ public class InvitationProfile : INoTenantEntity {
 	[Column("updated_at")]
 	public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
-

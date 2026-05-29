@@ -59,7 +59,8 @@ namespace MainApi.Modules.Users.Handlers.Staff {
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 			SuspendTenantUserResultDto? result = await response.Content.ReadFromJsonAsync<SuspendTenantUserResultDto>();
 			_ = result.Should().NotBeNull();
-			_ = result!.Status.Should().Be("Suspended");
+			Assert.NotNull(result);
+			_ = result.Status.Should().Be("Suspended");
 		}
 
 		[Fact]
@@ -101,7 +102,8 @@ namespace MainApi.Modules.Users.Handlers.Staff {
 			// Assert
 			_ = response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 			AppProblemDetails? problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-			_ = problem!.TranslationKey.Should().Be(ResponseKeys.CannotSuspendLastAdmin);
+			Assert.NotNull(problem);
+			_ = problem.TranslationKey.Should().Be(ResponseKeys.CannotSuspendLastAdmin);
 		}
 
 		[Fact]
@@ -121,8 +123,9 @@ namespace MainApi.Modules.Users.Handlers.Staff {
 			_ = response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 			AppProblemDetails? problem = await response.Content
 				.ReadFromJsonAsync<AppProblemDetails>();
-			_ = problem!.TranslationKey.Should()
-				.Be(ResponseKeys.CannotSuspendLastAdmin);
+			Assert.NotNull(problem);
+			_ = problem.TranslationKey.Should()
+							.Be(ResponseKeys.CannotSuspendLastAdmin);
 		}
 
 		[Fact]
@@ -139,7 +142,8 @@ namespace MainApi.Modules.Users.Handlers.Staff {
 			// Assert
 			_ = response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 			AppProblemDetails? problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-			_ = problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+			Assert.NotNull(problem);
+			_ = problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 		}
 
 		[Fact]
@@ -162,7 +166,8 @@ namespace MainApi.Modules.Users.Handlers.Staff {
 			// Assert
 			_ = response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 			AppProblemDetails? problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-			_ = problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+			Assert.NotNull(problem);
+			_ = problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 		}
 
 		[Fact]

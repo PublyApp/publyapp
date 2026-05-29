@@ -22,29 +22,55 @@ namespace MainApi.Data.DbContext;
 public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	private static readonly Lazy<List<Type>> SeederTypeCache = new(DiscoverSeedersInternal, LazyThreadSafetyMode.ExecutionAndPublication);
 
-	public DbSet<Session> Session { get; init; } = null!;
-	public DbSet<User> User { get; init; } = null!;
-	public DbSet<Tenant> Tenant { get; init; } = null!;
+	public DbSet<Session> Session {
+		get { return Set<Session>(); }
+	}
+	public DbSet<User> User {
+		get { return Set<User>(); }
+	}
+	public DbSet<Tenant> Tenant {
+		get { return Set<Tenant>(); }
+	}
 
 	// Project system entities (still needed for Project entity)
-	public DbSet<Project> Project { get; init; } = null!;
+	public DbSet<Project> Project {
+		get { return Set<Project>(); }
+	}
 
 	// Unified permission system entities
-	public DbSet<Permission> Permission { get; init; } = null!;
-	public DbSet<Profile> Profile { get; init; } = null!;
-	public DbSet<ProfilePermission> ProfilePermission { get; init; } = null!;
-	public DbSet<UserAccountProfile> UserAccountProfile { get; init; } = null!;
+	public DbSet<Permission> Permission {
+		get { return Set<Permission>(); }
+	}
+	public DbSet<Profile> Profile {
+		get { return Set<Profile>(); }
+	}
+	public DbSet<ProfilePermission> ProfilePermission {
+		get { return Set<ProfilePermission>(); }
+	}
+	public DbSet<UserAccountProfile> UserAccountProfile {
+		get { return Set<UserAccountProfile>(); }
+	}
 
 	// Unified account system (handles Staff, Tenant, and Project accounts)
-	public DbSet<UserAccount> UserAccount { get; init; } = null!;
+	public DbSet<UserAccount> UserAccount {
+		get { return Set<UserAccount>(); }
+	}
 
 	// Unified invitation system (Staff/Tenant/Project)
-	public DbSet<Invitation> Invitation { get; init; } = null!;
-	public DbSet<InvitationProfile> InvitationProfile { get; init; } = null!;
+	public DbSet<Invitation> Invitation {
+		get { return Set<Invitation>(); }
+	}
+	public DbSet<InvitationProfile> InvitationProfile {
+		get { return Set<InvitationProfile>(); }
+	}
 
 	// Staff back-office entities
-	public DbSet<AuditLog> AuditLog { get; init; } = null!;
-	public DbSet<SystemNotice> SystemNotice { get; init; } = null!;
+	public DbSet<AuditLog> AuditLog {
+		get { return Set<AuditLog>(); }
+	}
+	public DbSet<SystemNotice> SystemNotice {
+		get { return Set<SystemNotice>(); }
+	}
 
 	public Guid? TenantId { get; set; }
 

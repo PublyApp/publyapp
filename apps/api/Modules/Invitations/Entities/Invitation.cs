@@ -53,8 +53,13 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 
 	[Column("invited_by_user_id")]
 	public required Guid InvitedByUserId { get; set; }
+
+	private UserEntity? _invitedByUser;
 	[JsonIgnore]
-	public UserEntity InvitedByUser { get; set; } = null!;
+	public UserEntity InvitedByUser {
+		get { return RequiredNavigation.Get(_invitedByUser, nameof(Invitation), nameof(InvitedByUser)); }
+		set { _invitedByUser = value; }
+	}
 
 	[Column("account_level")]
 	public AccountLevel? AccountLevel { get; set; }
@@ -110,7 +115,7 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 		// InvitationId will be set by EF Core when invitation is saved
 		foreach (var profileId in profileIds) {
 			invitation.InvitationProfiles.Add(new InvitationProfile {
-				InvitationId = default!, // Will be set by EF Core when invitation is saved
+				InvitationId = default, // Will be set by EF Core when invitation is saved
 				ProfileId = profileId
 			});
 		}
@@ -140,7 +145,7 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 		// InvitationId will be set by EF Core when invitation is saved
 		foreach (var profileId in profileIds) {
 			invitation.InvitationProfiles.Add(new InvitationProfile {
-				InvitationId = default!, // Will be set by EF Core when invitation is saved
+				InvitationId = default, // Will be set by EF Core when invitation is saved
 				ProfileId = profileId
 			});
 		}
@@ -171,7 +176,7 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 		// InvitationId will be set by EF Core when invitation is saved
 		foreach (var profileId in profileIds) {
 			invitation.InvitationProfiles.Add(new InvitationProfile {
-				InvitationId = default!, // Will be set by EF Core when invitation is saved
+				InvitationId = default, // Will be set by EF Core when invitation is saved
 				ProfileId = profileId
 			});
 		}

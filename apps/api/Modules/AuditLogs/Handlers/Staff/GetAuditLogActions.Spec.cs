@@ -11,6 +11,7 @@ using MainApi.Modules.AuditLogs.Entities;
 using Xunit;
 
 namespace MainApi.Modules.AuditLogs.Handlers.Staff;
+
 public sealed class GetAuditLogActionsSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
@@ -44,7 +45,8 @@ public sealed class GetAuditLogActionsSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<ActionsResponse>();
 		result.Should().NotBeNull();
-		result!.Actions.Should().NotBeEmpty();
+		Assert.NotNull(result);
+		result.Actions.Should().NotBeEmpty();
 		result.Actions.Should().Contain(
 			AuditActions.InvitationCreated
 		);

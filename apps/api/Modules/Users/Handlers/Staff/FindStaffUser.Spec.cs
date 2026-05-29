@@ -95,9 +95,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().Contain(user =>
-			string.Equals(user.Email, alphaEmail, StringComparison.OrdinalIgnoreCase)
-		);
+		Assert.NotNull(result);
+		result.Data.Should().Contain(user =>
+					string.Equals(user.Email, alphaEmail, StringComparison.OrdinalIgnoreCase)
+				);
 		result.Data.Should().NotContain(user =>
 			string.Equals(user.Email, betaEmail, StringComparison.OrdinalIgnoreCase)
 		);
@@ -129,7 +130,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().ContainSingle(user => user.Id == suspendedId);
+		Assert.NotNull(result);
+		result.Data.Should().ContainSingle(user => user.Id == suspendedId);
 		result.Data.Should().NotContain(user => user.Id == activeId);
 	}
 
@@ -149,7 +151,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var problem =
 			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.Errors.Should().ContainKey("status");
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("status");
 	}
 
 	[Fact]
@@ -168,7 +171,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var problem =
 			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.Errors.Should().ContainKey("status");
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("status");
 	}
 
 	[Fact]
@@ -187,7 +191,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var problem =
 			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.Errors.Should().ContainKey("status");
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("status");
 	}
 
 	[Fact]
@@ -206,7 +211,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var problem =
 			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.Errors.Should().ContainKey("status");
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("status");
 	}
 
 	[Fact]
@@ -232,7 +238,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 		var firstResult = await firstResponse.Content.ReadFromJsonAsync<FindResponse>();
 		firstResult.Should().NotBeNull();
-		firstResult!.Data.Should().HaveCount(1);
+		Assert.NotNull(firstResult);
+		firstResult.Data.Should().HaveCount(1);
 		firstResult.NextCursor.Should().NotBeNullOrWhiteSpace();
 
 		var secondRequest = new HttpRequestMessage(
@@ -251,7 +258,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 		var secondResult = await secondResponse.Content.ReadFromJsonAsync<FindResponse>();
 		secondResult.Should().NotBeNull();
-		secondResult!.Data.Should().HaveCount(1);
+		Assert.NotNull(secondResult);
+		secondResult.Data.Should().HaveCount(1);
 		secondResult.Data.Select(user => user.Email).Should()
 			.NotIntersectWith(firstResult.Data.Select(user => user.Email));
 	}
@@ -271,7 +279,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 		var problem = await ReadProblemAsync(response);
 		problem.Should().NotBeNull();
-		problem!.Status.Should().Be((int)HttpStatusCode.BadRequest);
+		Assert.NotNull(problem);
+		problem.Status.Should().Be((int)HttpStatusCode.BadRequest);
 		problem.TranslationKey.Should().NotBeNullOrWhiteSpace();
 	}
 
@@ -290,7 +299,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 		var problem = await ReadProblemAsync(response);
 		problem.Should().NotBeNull();
-		problem!.Status.Should().Be((int)HttpStatusCode.BadRequest);
+		Assert.NotNull(problem);
+		problem.Status.Should().Be((int)HttpStatusCode.BadRequest);
 		problem.TranslationKey.Should().NotBeNullOrWhiteSpace();
 	}
 
@@ -309,7 +319,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 		var problem = await ReadProblemAsync(response);
 		problem.Should().NotBeNull();
-		problem!.Status.Should().Be((int)HttpStatusCode.BadRequest);
+		Assert.NotNull(problem);
+		problem.Status.Should().Be((int)HttpStatusCode.BadRequest);
 		problem.TranslationKey.Should().NotBeNullOrWhiteSpace();
 	}
 
@@ -332,10 +343,11 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().Contain(user =>
-			string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase)
-			&& user.Status == "Suspended"
-		);
+		Assert.NotNull(result);
+		result.Data.Should().Contain(user =>
+					string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase)
+					&& user.Status == "Suspended"
+				);
 	}
 
 	[Fact]
@@ -361,9 +373,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().NotContain(user =>
-			string.Equals(user.Email, deletedUserEmail, StringComparison.OrdinalIgnoreCase)
-		);
+		Assert.NotNull(result);
+		result.Data.Should().NotContain(user =>
+					string.Equals(user.Email, deletedUserEmail, StringComparison.OrdinalIgnoreCase)
+				);
 		result.Data.Should().NotContain(user =>
 			string.Equals(user.Email, deletedAccountEmail, StringComparison.OrdinalIgnoreCase)
 		);

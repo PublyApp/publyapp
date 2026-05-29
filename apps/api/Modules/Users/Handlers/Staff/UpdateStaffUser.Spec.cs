@@ -197,7 +197,8 @@ namespace MainApi.Modules.Users.Handlers.Staff {
 			GetStaffUserByIdResult? result = await response.Content
 				.ReadFromJsonAsync<GetStaffUserByIdResult>();
 			_ = result.Should().NotBeNull();
-			_ = result!.FirstName.Should().Be("UpdatedFirstName");
+			Assert.NotNull(result);
+			_ = result.FirstName.Should().Be("UpdatedFirstName");
 		}
 
 		[Fact]
@@ -231,7 +232,8 @@ namespace MainApi.Modules.Users.Handlers.Staff {
 			GetStaffUserByIdResult? result = await response.Content
 				.ReadFromJsonAsync<GetStaffUserByIdResult>();
 			_ = result.Should().NotBeNull();
-			_ = result!.AccountLevel.Should().Be("Admin");
+			Assert.NotNull(result);
+			_ = result.AccountLevel.Should().Be("Admin");
 		}
 
 		// -- Helper methods --

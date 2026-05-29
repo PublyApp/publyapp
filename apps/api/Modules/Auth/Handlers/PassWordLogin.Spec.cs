@@ -10,6 +10,7 @@ using MainApi.Lib.Testing.Fixtures;
 using Xunit;
 
 namespace MainApi.Modules.Auth.Handlers;
+
 public sealed class PasswordLoginSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
@@ -38,7 +39,8 @@ public sealed class PasswordLoginSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<LoginResponse>();
 		result.Should().NotBeNull();
-		result!.SessionToken.Should().NotBeNullOrEmpty();
+		Assert.NotNull(result);
+		result.SessionToken.Should().NotBeNullOrEmpty();
 		result.UserId.Should().NotBeEmpty();
 	}
 
@@ -65,7 +67,8 @@ public sealed class PasswordLoginSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<LoginResponse>();
 		result.Should().NotBeNull();
-		result!.SessionToken.Should().NotBeNullOrEmpty();
+		Assert.NotNull(result);
+		result.SessionToken.Should().NotBeNullOrEmpty();
 		result.UserId.Should().NotBeEmpty();
 	}
 

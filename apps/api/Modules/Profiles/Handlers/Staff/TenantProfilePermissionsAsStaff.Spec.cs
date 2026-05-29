@@ -23,6 +23,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Profiles.Handlers.Staff;
+
 public sealed class TenantProfilePermissionsAsStaffSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
@@ -225,7 +226,8 @@ public sealed class TenantProfilePermissionsAsStaffSpec : IClassFixture<ApiFixtu
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -246,7 +248,8 @@ public sealed class TenantProfilePermissionsAsStaffSpec : IClassFixture<ApiFixtu
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -274,7 +277,8 @@ public sealed class TenantProfilePermissionsAsStaffSpec : IClassFixture<ApiFixtu
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.BadRequest);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.BadRequest);
 
 		var auditLogAfter = await GetLatestAuditLogAsync(
 			AuditActions.TenantProfilePermissionsAssigned,
@@ -302,7 +306,8 @@ public sealed class TenantProfilePermissionsAsStaffSpec : IClassFixture<ApiFixtu
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -323,7 +328,8 @@ public sealed class TenantProfilePermissionsAsStaffSpec : IClassFixture<ApiFixtu
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -345,7 +351,8 @@ public sealed class TenantProfilePermissionsAsStaffSpec : IClassFixture<ApiFixtu
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -363,7 +370,8 @@ public sealed class TenantProfilePermissionsAsStaffSpec : IClassFixture<ApiFixtu
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -409,7 +417,8 @@ public sealed class TenantProfilePermissionsAsStaffSpec : IClassFixture<ApiFixtu
 
 		var payload = await response.Content.ReadFromJsonAsync<ListPermissionsResponse>();
 		payload.Should().NotBeNull();
-		payload!.PermissionKeys.Should().BeInAscendingOrder();
+		Assert.NotNull(payload);
+		payload.PermissionKeys.Should().BeInAscendingOrder();
 	}
 
 	[Fact]
@@ -433,8 +442,9 @@ public sealed class TenantProfilePermissionsAsStaffSpec : IClassFixture<ApiFixtu
 			Guid.Parse(profileId)
 		);
 		assignedAuditLog.Should().NotBeNull();
-		assignedAuditLog!.Action.Should()
-			.Be(AuditActions.TenantProfilePermissionsAssigned);
+		Assert.NotNull(assignedAuditLog);
+		assignedAuditLog.Action.Should()
+					.Be(AuditActions.TenantProfilePermissionsAssigned);
 		AssertAuditDetails(
 			assignedAuditLog,
 			expectedTenantId: tenantId,
@@ -457,8 +467,9 @@ public sealed class TenantProfilePermissionsAsStaffSpec : IClassFixture<ApiFixtu
 			Guid.Parse(profileId)
 		);
 		unassignedAuditLog.Should().NotBeNull();
-		unassignedAuditLog!.Action.Should()
-			.Be(AuditActions.TenantProfilePermissionsUnassigned);
+		Assert.NotNull(unassignedAuditLog);
+		unassignedAuditLog.Action.Should()
+					.Be(AuditActions.TenantProfilePermissionsUnassigned);
 		AssertAuditDetails(
 			unassignedAuditLog,
 			expectedTenantId: tenantId,
@@ -595,7 +606,8 @@ public sealed class TenantProfilePermissionsAsStaffSpec : IClassFixture<ApiFixtu
 		string? expectedPermissionKey = null
 	) {
 		auditLog.Details.Should().NotBeNull();
-		using var document = JsonDocument.Parse(auditLog.Details!);
+		Assert.NotNull(auditLog.Details);
+		using var document = JsonDocument.Parse(auditLog.Details);
 		var details = document.RootElement;
 
 		details.GetProperty("TenantId").GetGuid().Should().Be(expectedTenantId);

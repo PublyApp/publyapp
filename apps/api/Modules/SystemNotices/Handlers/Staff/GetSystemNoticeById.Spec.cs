@@ -12,6 +12,7 @@ using MainApi.Localization;
 using Xunit;
 
 namespace MainApi.Modules.SystemNotices.Handlers.Staff;
+
 public sealed class GetSystemNoticeByIdSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
@@ -55,7 +56,8 @@ public sealed class GetSystemNoticeByIdSpec
 					NoticeDetailResponse
 				>();
 			result.Should().NotBeNull();
-			result!.Id.Should().Be(noticeId);
+			Assert.NotNull(result);
+			result.Id.Should().Be(noticeId);
 			result.Title.Should()
 				.Be("Get Test Notice");
 			result.Severity.Should().Be("critical");
@@ -130,8 +132,9 @@ public sealed class GetSystemNoticeByIdSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be("system-notice-not-found");
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be("system-notice-not-found");
 	}
 
 	[Fact]
@@ -162,8 +165,9 @@ public sealed class GetSystemNoticeByIdSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.MalformedId);
 	}
 
 	private record NoticeDetailResponse {

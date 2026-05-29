@@ -61,7 +61,8 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 
 			Invitation? invitation = await dbContext.Invitation.FindAsync(invitationId);
 			_ = invitation.Should().NotBeNull();
-			_ = invitation!.Status.Should().Be(InvitationStatus.Revoked);
+			Assert.NotNull(invitation);
+			_ = invitation.Status.Should().Be(InvitationStatus.Revoked);
 			_ = invitation.RevokedAt.Should().NotBeNull();
 		}
 
@@ -194,7 +195,8 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 
 			Invitation? invitation = await dbContext.Invitation.FindAsync(invitationId);
 			_ = invitation.Should().NotBeNull();
-			_ = invitation!.Status.Should().NotBe(InvitationStatus.Revoked);
+			Assert.NotNull(invitation);
+			_ = invitation.Status.Should().NotBe(InvitationStatus.Revoked);
 		}
 
 		[Fact]
@@ -333,7 +335,8 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 
 			Invitation? invitation = await dbContext.Invitation.FindAsync(invitationId);
 			_ = invitation.Should().NotBeNull();
-			_ = invitation!.Scope.Should().Be(InvitationScope.Staff);
+			Assert.NotNull(invitation);
+			_ = invitation.Scope.Should().Be(InvitationScope.Staff);
 			_ = invitation.Status.Should().Be(InvitationStatus.Revoked);
 		}
 
@@ -413,7 +416,8 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 				.ReadFromJsonAsync<InvitationCreatedResponse>();
 			_ = body.Should().NotBeNull();
 
-			return body!.InvitationId;
+			Assert.NotNull(body);
+			return body.InvitationId;
 		}
 
 		private async Task<string> CreateStaffUserTokenWithoutPermissionAsync() {
@@ -526,7 +530,8 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 				.ReadFromJsonAsync<InvitationCreatedResponse>();
 			_ = body.Should().NotBeNull();
 
-			return body!.InvitationId;
+			Assert.NotNull(body);
+			return body.InvitationId;
 		}
 
 		private sealed record InvitationCreatedResponse {

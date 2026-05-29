@@ -15,6 +15,7 @@ using Xunit;
 using FromQueryAttribute = Microsoft.AspNetCore.Mvc.FromQueryAttribute;
 
 namespace MainApi.Modules.AuditLogs.Handlers.Staff;
+
 public sealed class FindAuditLogsSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
@@ -102,7 +103,8 @@ public sealed class FindAuditLogsSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().NotBeNull();
+		Assert.NotNull(result);
+		result.Data.Should().NotBeNull();
 		result.Data.Should().Contain(
 			a => a.Id == logId
 		);
@@ -144,7 +146,8 @@ public sealed class FindAuditLogsSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Count.Should().Be(2);
+		Assert.NotNull(result);
+		result.Data.Count.Should().Be(2);
 		result.NextCursor.Should()
 			.NotBeNullOrEmpty();
 	}
@@ -188,10 +191,11 @@ public sealed class FindAuditLogsSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().AllSatisfy(
-			a => a.Action.Should()
-				.Be(AuditActions.TenantSuspended)
-		);
+		Assert.NotNull(result);
+		result.Data.Should().AllSatisfy(
+					a => a.Action.Should()
+						.Be(AuditActions.TenantSuspended)
+				);
 	}
 
 	[Fact]
@@ -244,9 +248,10 @@ public sealed class FindAuditLogsSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().Contain(
-			a => a.Id == firstLogId
-		);
+		Assert.NotNull(result);
+		result.Data.Should().Contain(
+					a => a.Id == firstLogId
+				);
 		result.Data.Should().Contain(
 			a => a.Id == secondLogId
 		);
@@ -416,9 +421,10 @@ public sealed class FindAuditLogsSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().AllSatisfy(
-			a => a.UserId.Should().Be(userId)
-		);
+		Assert.NotNull(result);
+		result.Data.Should().AllSatisfy(
+					a => a.UserId.Should().Be(userId)
+				);
 	}
 
 	[Fact]
@@ -462,7 +468,8 @@ public sealed class FindAuditLogsSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().NotBeEmpty();
+		Assert.NotNull(result);
+		result.Data.Should().NotBeEmpty();
 	}
 
 	[Fact]

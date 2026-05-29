@@ -21,6 +21,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Users.Handlers.Staff;
+
 public sealed class RemoveUserFromTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -79,7 +80,8 @@ public sealed class RemoveUserFromTenantAsStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<ApiResponse>();
 		result.Should().NotBeNull();
-		result!.Message.Should().Contain("removed");
+		Assert.NotNull(result);
+		result.Message.Should().Contain("removed");
 	}
 
 	[Fact]
@@ -117,8 +119,9 @@ public sealed class RemoveUserFromTenantAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.CannotRemoveLastAdmin);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.CannotRemoveLastAdmin);
 	}
 
 	[Fact]
@@ -143,8 +146,9 @@ public sealed class RemoveUserFromTenantAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.CannotRemoveLastAdmin);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.CannotRemoveLastAdmin);
 	}
 
 	[Fact]
@@ -170,8 +174,9 @@ public sealed class RemoveUserFromTenantAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -203,8 +208,9 @@ public sealed class RemoveUserFromTenantAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]

@@ -25,6 +25,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Tenants.Handlers.Staff;
+
 public sealed class UpdateTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -77,7 +78,8 @@ public sealed class UpdateTenantAsStaffSpec
 					GetTenantAsStaffResult
 				>();
 			result.Should().NotBeNull();
-			result!.TenantId.Should().Be(tenantId);
+			Assert.NotNull(result);
+			result.TenantId.Should().Be(tenantId);
 			result.Name.Should().Be(newName);
 			result.Code.Should().NotBeNullOrEmpty();
 			result.Status.Should().NotBeNullOrEmpty();
@@ -146,7 +148,8 @@ public sealed class UpdateTenantAsStaffSpec
 					GetTenantAsStaffResult
 				>();
 			result.Should().NotBeNull();
-			result!.LogoUrl.Should().BeNull();
+			Assert.NotNull(result);
+			result.LogoUrl.Should().BeNull();
 		} finally {
 			// No cleanup needed — null logo is fine
 		}
@@ -317,8 +320,9 @@ public sealed class UpdateTenantAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.TenantMaxUsersBelowCount);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.TenantMaxUsersBelowCount);
 	}
 
 	[Fact]
@@ -395,8 +399,9 @@ public sealed class UpdateTenantAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be("malformed-id");
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be("malformed-id");
 	}
 
 	[Fact]

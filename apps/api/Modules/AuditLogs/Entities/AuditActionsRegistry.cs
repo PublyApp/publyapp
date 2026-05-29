@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Reflection;
 
 namespace MainApi.Modules.AuditLogs.Entities;
+
 public static class AuditActionsRegistry {
 	// Audit action constants are the source of truth for
 	// filter validation and the staff action-picker endpoint.

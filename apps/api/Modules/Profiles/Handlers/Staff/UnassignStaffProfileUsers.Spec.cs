@@ -19,6 +19,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Profiles.Handlers.Staff;
+
 public sealed class UnassignStaffProfileUsersSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
@@ -197,7 +198,8 @@ public sealed class UnassignStaffProfileUsersSpec : IClassFixture<ApiFixture> {
 
 		var body = await response.Content.ReadFromJsonAsync<StaffProfileCreated>();
 		body.Should().NotBeNull();
-		body!.ProfileId.Should().NotBe(Guid.Empty);
+		Assert.NotNull(body);
+		body.ProfileId.Should().NotBe(Guid.Empty);
 
 		return body.ProfileId.ToString();
 	}
@@ -218,11 +220,13 @@ public sealed class UnassignStaffProfileUsersSpec : IClassFixture<ApiFixture> {
 		var result = await response.Content.ReadFromJsonAsync<FindStaffUsersResponse>();
 		result.Should().NotBeNull();
 
-		var user = result!.Data.FirstOrDefault(
-			u => string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase)
-		);
+		Assert.NotNull(result);
+		var user = result.Data.FirstOrDefault(
+					u => string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase)
+				);
 		user.Should().NotBeNull();
-		user!.Id.Should().NotBe(Guid.Empty);
+		Assert.NotNull(user);
+		user.Id.Should().NotBe(Guid.Empty);
 
 		return user.Id.ToString();
 	}
@@ -235,7 +239,8 @@ public sealed class UnassignStaffProfileUsersSpec : IClassFixture<ApiFixture> {
 
 		var result = await response.Content.ReadFromJsonAsync<FindStaffProfileUsersResult>();
 		result.Should().NotBeNull();
-		return result!.Users.Select(u => u.Id.ToString()).ToList();
+		Assert.NotNull(result);
+		return result.Users.Select(u => u.Id.ToString()).ToList();
 	}
 
 	private async Task<string> CreateUnprivilegedStaffUserTokenAsync() {

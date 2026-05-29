@@ -1715,10 +1715,12 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			.Distinct()
 			.ToListAsync(cancellationToken);
 
-		var assignedLookup = assignedUserIds
-			.Where(id => id is not null)
-			.Select(id => id!.Value)
-			.ToHashSet();
+		var assignedLookup = new HashSet<Guid>();
+		foreach (var assignedUserId in assignedUserIds) {
+			if (assignedUserId is Guid userId) {
+				assignedLookup.Add(userId);
+			}
+		}
 
 		var assignments = args.UserIds
 			.Distinct()

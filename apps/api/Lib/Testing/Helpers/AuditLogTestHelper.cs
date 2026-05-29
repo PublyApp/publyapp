@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using AppRoutes = MainApi.Lib.Routes.Routes;
 
 namespace MainApi.Lib.Testing.Helpers;
+
 internal static class AuditLogTestHelper {
 	private static readonly string FindUrl =
 		PathUtils.Join(

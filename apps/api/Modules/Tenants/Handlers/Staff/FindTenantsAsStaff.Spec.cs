@@ -20,6 +20,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Tenants.Handlers.Staff;
+
 public sealed class FindTenantsAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -52,7 +53,8 @@ public sealed class FindTenantsAsStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().NotBeEmpty();
+		Assert.NotNull(result);
+		result.Data.Should().NotBeEmpty();
 	}
 
 	[Fact]
@@ -131,7 +133,8 @@ public sealed class FindTenantsAsStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Count.Should().Be(2);
+		Assert.NotNull(result);
+		result.Data.Count.Should().Be(2);
 		result.NextCursor.Should()
 			.NotBeNullOrEmpty();
 	}
@@ -159,8 +162,9 @@ public sealed class FindTenantsAsStaffSpec
 		var page1 = await response1.Content
 			.ReadFromJsonAsync<FindResponse>();
 		page1.Should().NotBeNull();
-		page1!.NextCursor.Should()
-			.NotBeNullOrEmpty();
+		Assert.NotNull(page1);
+		page1.NextCursor.Should()
+					.NotBeNullOrEmpty();
 		page1.Data.Count.Should().Be(2);
 
 		var url2 = TenantTestHelper.GetFindUrl(
@@ -181,7 +185,8 @@ public sealed class FindTenantsAsStaffSpec
 		var page2 = await response2.Content
 			.ReadFromJsonAsync<FindResponse>();
 		page2.Should().NotBeNull();
-		page2!.Data.Should().NotBeEmpty();
+		Assert.NotNull(page2);
+		page2.Data.Should().NotBeEmpty();
 
 		var page1Ids = page1.Data.Select(t => t.Id).ToHashSet();
 		page2.Data.Should().OnlyContain(
@@ -295,9 +300,10 @@ public sealed class FindTenantsAsStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().Contain(
-			t => t.Name == SeedConstants.Tenants.AcmeName
-		);
+		Assert.NotNull(result);
+		result.Data.Should().Contain(
+					t => t.Name == SeedConstants.Tenants.AcmeName
+				);
 	}
 
 	[Fact]
@@ -324,9 +330,10 @@ public sealed class FindTenantsAsStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().Contain(
-			t => t.Name == SeedConstants.Tenants.AcmeName
-		);
+		Assert.NotNull(result);
+		result.Data.Should().Contain(
+					t => t.Name == SeedConstants.Tenants.AcmeName
+				);
 	}
 
 	[Fact]
@@ -367,9 +374,10 @@ public sealed class FindTenantsAsStaffSpec
 			var result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			result.Should().NotBeNull();
-			result!.Data.Should().Contain(
-				t => t.Status == "Suspended"
-			);
+			Assert.NotNull(result);
+			result.Data.Should().Contain(
+							t => t.Status == "Suspended"
+						);
 			result.Data.Should().Contain(
 				t => t.Status == "Active"
 			);
@@ -460,7 +468,8 @@ public sealed class FindTenantsAsStaffSpec
 		var created =
 			await response.Content.ReadFromJsonAsync<StaffProfileCreatedResponse>();
 		created.Should().NotBeNull();
-		return created!.ProfileId.ToString();
+		Assert.NotNull(created);
+		return created.ProfileId.ToString();
 	}
 
 	private async Task UpdateStaffUserProfilesAsync(

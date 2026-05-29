@@ -14,6 +14,7 @@ using MainApi.Modules.Permissions.Services;
 using Xunit;
 
 namespace MainApi.Modules.Permissions.Handlers.Staff;
+
 public sealed class FindTenantPermissionsSpec
 	: IClassFixture<ApiFixture> {
 	private static readonly string FindUrl = PathUtils.Join(
@@ -101,8 +102,10 @@ public sealed class FindTenantPermissionsSpec
 			Dictionary<string, Dictionary<string, PermissionAsStaffItem>>
 		>();
 		payload.Should().NotBeNull();
-		payload!.TryGetValue("modules", out var modules).Should().BeTrue();
-		var modulePermissions = modules!;
+		Assert.NotNull(payload);
+		payload.TryGetValue("modules", out var modules).Should().BeTrue();
+		Assert.NotNull(modules);
+		var modulePermissions = modules;
 		modulePermissions.Keys.Should().BeEquivalentTo([
 			AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key,
 			AppPermissions.Tenant.Modules.ACCESS_BILLING.Key,
@@ -140,8 +143,10 @@ public sealed class FindTenantPermissionsSpec
 		>();
 		payload.Should().NotBeNull();
 
-		payload!.TryGetValue("modules", out var modules).Should().BeTrue();
-		var modulePermissions = modules!;
+		Assert.NotNull(payload);
+		payload.TryGetValue("modules", out var modules).Should().BeTrue();
+		Assert.NotNull(modules);
+		var modulePermissions = modules;
 		modulePermissions[AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key].Name.Should()
 			.Be("Accéder au tableau de bord");
 		modulePermissions[AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key].Description.Should()
