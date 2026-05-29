@@ -87,6 +87,15 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
+	private static async Task<T> ReadRequiredJsonAsync<T>(HttpContent content) {
+		var value = await content.ReadFromJsonAsync<T>();
+		if (value is null) {
+			throw new InvalidOperationException($"Failed to deserialize {typeof(T).Name}.");
+		}
+
+		return value;
+	}
+
 	[Fact]
 	public async Task ItShouldSoftDeleteSuspendedStaffUserAndHideThemFromAllStaffSurfaces() {
 		var staffToken = await _authClient.LoginAsStaffAdminAsync();
@@ -106,8 +115,8 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		using var response = await DeleteStaffUserAsync(staffToken, userId);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		(await response.Content.ReadFromJsonAsync<ApiResponse>())!.Key
-			.Should().Be(ResponseKeys.StaffUserDeletedSuccess);
+		var body = await ReadRequiredJsonAsync<ApiResponse>(response.Content);
+		body.Key.Should().Be(ResponseKeys.StaffUserDeletedSuccess);
 
 		await AssertSoftDeletedRowsAsync(userId, expectedProfileLinkCount: 0);
 		await AssertFindStaffUsersDoesNotContainAsync(staffToken, userId);
@@ -122,8 +131,8 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		using var response = await DeleteStaffUserAsync(staffToken, "not-a-guid");
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-		(await response.Content.ReadFromJsonAsync<AppProblemDetails>())!.TranslationKey
-			.Should().Be(ResponseKeys.MalformedId);
+		var body = await ReadRequiredJsonAsync<AppProblemDetails>(response.Content);
+		body.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -136,8 +145,8 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-		(await response.Content.ReadFromJsonAsync<AppProblemDetails>())!.TranslationKey
-			.Should().Be(ResponseKeys.UserNotFound);
+		var body = await ReadRequiredJsonAsync<AppProblemDetails>(response.Content);
+		body.TranslationKey.Should().Be(ResponseKeys.UserNotFound);
 	}
 
 	[Fact]
@@ -151,8 +160,8 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		using var response = await DeleteStaffUserAsync(staffToken, userId);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-		(await response.Content.ReadFromJsonAsync<AppProblemDetails>())!.TranslationKey
-			.Should().Be(ResponseKeys.StaffUserNotSuspendedCannotDelete);
+		var body = await ReadRequiredJsonAsync<AppProblemDetails>(response.Content);
+		body.TranslationKey.Should().Be(ResponseKeys.StaffUserNotSuspendedCannotDelete);
 	}
 
 	private async Task AssertSoftDeletedRowsAsync(
@@ -168,7 +177,8 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 			.IgnoreQueryFilters()
 			.FirstOrDefaultAsync(x => x.Id == userIdGuid);
 		user.Should().NotBeNull();
-		user!.IsDeleted.Should().BeTrue();
+		Assert.NotNull(user);
+		user.IsDeleted.Should().BeTrue();
 		user.DeletedAt.Should().NotBeNull();
 
 		var staffAccount = await dbContext.UserAccount
@@ -178,7 +188,8 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 				&& x.Scope == AccountScope.Staff
 			);
 		staffAccount.Should().NotBeNull();
-		staffAccount!.IsDeleted.Should().BeTrue();
+		Assert.NotNull(staffAccount);
+		staffAccount.IsDeleted.Should().BeTrue();
 		staffAccount.DeletedAt.Should().NotBeNull();
 
 		var userAccountProfiles = await dbContext.UserAccountProfile
@@ -222,7 +233,8 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 
 		var created = await response.Content.ReadFromJsonAsync<StaffProfileCreatedResponse>();
 		created.Should().NotBeNull();
-		return created!.ProfileId.ToString();
+		Assert.NotNull(created);
+		return created.ProfileId.ToString();
 	}
 
 	private async Task AssignProfilesAsync(
@@ -271,7 +283,8 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 
 		var result = await response.Content.ReadFromJsonAsync<FindStaffUsersResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().NotContain(x => x.Id == Guid.Parse(userId));
+		Assert.NotNull(result);
+		result.Data.Should().NotContain(x => x.Id == Guid.Parse(userId));
 	}
 
 	private async Task AssertGetStaffUserReturnsNotFoundAsync(string staffToken, string userId) {

@@ -26,6 +26,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Tenants.Handlers.Staff;
+
 public sealed class CreateTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -79,7 +80,8 @@ public sealed class CreateTenantAsStaffSpec
 		var created = await response.Content
 			.ReadFromJsonAsync<CreateTenantAsStaffResult>();
 		created.Should().NotBeNull();
-		created!.Id.Should().NotBeEmpty();
+		Assert.NotNull(created);
+		created.Id.Should().NotBeEmpty();
 		created.Name.Should().Be(tenantName);
 
 		await using var scope =
@@ -610,7 +612,8 @@ public sealed class CreateTenantAsStaffSpec
 			.ReadFromJsonAsync<CreateTenantAsStaffResult>();
 		created.Should().NotBeNull();
 
-		return created!;
+		Assert.NotNull(created);
+		return created;
 	}
 
 	private async Task AssertTenantMaxUsersAsync(
@@ -701,8 +704,9 @@ public sealed class CreateTenantAsStaffSpec
 			await response.Content
 				.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.RequestBodyValidationFailed.Value);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.RequestBodyValidationFailed.Value);
 		problem.Errors.Keys.Should()
 			.Contain(fieldName);
 	}

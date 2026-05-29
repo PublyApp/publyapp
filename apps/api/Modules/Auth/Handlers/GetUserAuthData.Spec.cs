@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Auth.Handlers;
+
 public sealed class GetUserAuthDataSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;

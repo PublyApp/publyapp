@@ -9,6 +9,7 @@ using MainApi.Lib.Testing.Helpers;
 using Xunit;
 
 namespace MainApi.Lib.Architecture;
+
 public sealed class OpenApiContractSpec {
 	private static readonly Regex QueryParameterNamePattern =
 		new(

@@ -21,6 +21,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Tenants.Handlers.Staff;
+
 public sealed class SuspendTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -59,7 +60,8 @@ public sealed class SuspendTenantAsStaffSpec
 			var result = await response.Content
 				.ReadFromJsonAsync<TenantSuspendedResponse>();
 			result.Should().NotBeNull();
-			result!.TenantId.Should().Be(tenantId);
+			Assert.NotNull(result);
+			result.TenantId.Should().Be(tenantId);
 			result.Status.Should().Be("Suspended");
 		} finally {
 			// Safety net: don't let cleanup failures
@@ -104,7 +106,8 @@ public sealed class SuspendTenantAsStaffSpec
 			var result = await response.Content
 				.ReadFromJsonAsync<TenantSuspendedResponse>();
 			result.Should().NotBeNull();
-			result!.Status.Should().Be("Suspended");
+			Assert.NotNull(result);
+			result.Status.Should().Be("Suspended");
 		} finally {
 			// Safety net: don't let cleanup failures
 			// hide the real assertion failure.
@@ -215,8 +218,9 @@ public sealed class SuspendTenantAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.RequestBodyValidationFailed.Value);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.RequestBodyValidationFailed.Value);
 		problem.Errors.Keys.Should()
 			.Contain("Reason");
 	}
@@ -239,8 +243,9 @@ public sealed class SuspendTenantAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be("tenant-not-found");
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be("tenant-not-found");
 	}
 
 	[Fact]
@@ -275,8 +280,9 @@ public sealed class SuspendTenantAsStaffSpec
 			var problem = await second.Content
 				.ReadFromJsonAsync<AppProblemDetails>();
 			problem.Should().NotBeNull();
-			problem!.TranslationKey.Should()
-				.Be("tenant-already-suspended");
+			Assert.NotNull(problem);
+			problem.TranslationKey.Should()
+							.Be("tenant-already-suspended");
 		} finally {
 			// Cleanup
 			using var cleanup =
@@ -402,8 +408,9 @@ public sealed class SuspendTenantAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.MalformedId);
 	}
 
 	private record TenantSuspendedResponse {

@@ -104,7 +104,8 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -162,7 +163,8 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 		var result = await response.Content
 			.ReadFromJsonAsync<GetStaffUserProfilesResult>();
 		result.Should().NotBeNull();
-		result!.MaxProfilesPerUser.Should().BeGreaterThan(0);
+		Assert.NotNull(result);
+		result.MaxProfilesPerUser.Should().BeGreaterThan(0);
 		result.AssignedProfiles.Should().Contain(p => p.Id == Guid.Parse(profileId));
 	}
 
@@ -216,7 +218,8 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 		var result = await response.Content
 			.ReadFromJsonAsync<GetStaffUserProfilesResult>();
 		result.Should().NotBeNull();
-		result!.AssignedProfiles.Should().Contain(p => p.Id == Guid.Parse(profileId));
+		Assert.NotNull(result);
+		result.AssignedProfiles.Should().Contain(p => p.Id == Guid.Parse(profileId));
 	}
 
 	// -- Helpers --
@@ -251,7 +254,8 @@ public sealed class GetStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 
 		var created = await response.Content.ReadFromJsonAsync<StaffProfileCreatedResponse>();
 		created.Should().NotBeNull();
-		return created!.ProfileId.ToString();
+		Assert.NotNull(created);
+		return created.ProfileId.ToString();
 	}
 
 	private static async Task<string> GetStaffUserIdByEmailAsync(

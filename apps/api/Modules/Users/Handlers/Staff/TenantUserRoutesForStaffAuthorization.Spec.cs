@@ -18,6 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Users.Handlers.Staff;
+
 public sealed class TenantUserRoutesForStaffAuthorizationSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;

@@ -179,7 +179,7 @@ public static partial class ServiceValidator {
 		// Filter to only services with valid interfaces (not void) and no key
 		var unkeyedByInterface = services
 			.Where(s => s.ServiceInterface is not null && s.Key is null)
-			.GroupBy(s => s.ServiceInterface!)
+			.GroupBy(GetRequiredServiceInterface)
 			.Where(g => g.Count() > 1);
 
 		foreach (var group in unkeyedByInterface) {
@@ -202,6 +202,26 @@ public static partial class ServiceValidator {
 		return true;
 	}
 
+	private static Type GetRequiredServiceInterface(DiscoveredService service) {
+		if (service.ServiceInterface is null) {
+			throw new InvalidOperationException(
+				$"Discovered service '{service.ImplementationType.FullName}' has no service interface."
+			);
+		}
+
+		return service.ServiceInterface;
+	}
+
+	private static string GetRequiredServiceKey(DiscoveredService service) {
+		if (service.Key is null) {
+			throw new InvalidOperationException(
+				$"Discovered service '{service.ImplementationType.FullName}' has no service key."
+			);
+		}
+
+		return service.Key;
+	}
+
 	/// <summary>
 	/// Validates that there are no duplicate keys for the same service type.
 	/// </summary>
@@ -209,7 +229,10 @@ public static partial class ServiceValidator {
 		// Filter to only services with valid interfaces and a key
 		var keyedByInterfaceAndKey = services
 			.Where(s => s.ServiceInterface is not null && s.Key is not null)
-			.GroupBy(s => (ServiceInterface: s.ServiceInterface!, Key: s.Key))
+			.GroupBy(s => (
+				ServiceInterface: GetRequiredServiceInterface(s),
+				Key: GetRequiredServiceKey(s)
+			))
 			.Where(g => g.Count() > 1);
 
 		foreach (var group in keyedByInterfaceAndKey) {

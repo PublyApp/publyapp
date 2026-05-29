@@ -18,6 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Profiles.Handlers.Staff;
+
 public sealed class FindStaffProfileUsersSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -166,9 +167,10 @@ public sealed class FindStaffProfileUsersSpec
 
 		var result = await response.Content.ReadFromJsonAsync<FindStaffProfileUsersResponse>();
 		result.Should().NotBeNull();
-		result!.Users.Should().Contain(u =>
-			string.Equals(u.Email, TestConstants.StaffUserEmail, StringComparison.OrdinalIgnoreCase)
-		);
+		Assert.NotNull(result);
+		result.Users.Should().Contain(u =>
+					string.Equals(u.Email, TestConstants.StaffUserEmail, StringComparison.OrdinalIgnoreCase)
+				);
 		result.Count.Should().BeGreaterThan(0);
 	}
 
@@ -196,9 +198,10 @@ public sealed class FindStaffProfileUsersSpec
 
 		var result = await response.Content.ReadFromJsonAsync<FindStaffProfileUsersResponse>();
 		result.Should().NotBeNull();
-		result!.Users.Should().Contain(u =>
-			string.Equals(u.Email, alphaEmail, StringComparison.OrdinalIgnoreCase)
-		);
+		Assert.NotNull(result);
+		result.Users.Should().Contain(u =>
+					string.Equals(u.Email, alphaEmail, StringComparison.OrdinalIgnoreCase)
+				);
 		result.Users.Should().NotContain(u =>
 			string.Equals(u.Email, betaEmail, StringComparison.OrdinalIgnoreCase)
 		);
@@ -242,7 +245,8 @@ public sealed class FindStaffProfileUsersSpec
 
 		var result = await response.Content.ReadFromJsonAsync<FindStaffProfileUsersResponse>();
 		result.Should().NotBeNull();
-		result!.Users.Select(u => u.Email).Should().BeInAscendingOrder();
+		Assert.NotNull(result);
+		result.Users.Select(u => u.Email).Should().BeInAscendingOrder();
 	}
 
 	[Fact]
@@ -279,7 +283,8 @@ public sealed class FindStaffProfileUsersSpec
 		result.Should().NotBeNull();
 
 		// Sorting is based on enum numeric values: Suspended (30) comes before Active (40).
-		result!.Users.First().Email.Should().Be(suspendedEmail);
+		Assert.NotNull(result);
+		result.Users.First().Email.Should().Be(suspendedEmail);
 	}
 
 	[Fact]
@@ -379,7 +384,8 @@ public sealed class FindStaffProfileUsersSpec
 
 		var created = await response.Content.ReadFromJsonAsync<StaffProfileCreatedResponse>();
 		created.Should().NotBeNull();
-		return created!.ProfileId.ToString();
+		Assert.NotNull(created);
+		return created.ProfileId.ToString();
 	}
 
 	private async Task<string> CreateStaffUserAsync(

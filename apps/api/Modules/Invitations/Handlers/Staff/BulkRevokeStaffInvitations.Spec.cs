@@ -552,7 +552,8 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 			.FirstOrDefaultAsync();
 
 		_ = auditLog.Should().NotBeNull();
-		_ = auditLog!.UserId.Should().Be(expectedUserId);
+		Assert.NotNull(auditLog);
+		_ = auditLog.UserId.Should().Be(expectedUserId);
 		_ = auditLog.Action.Should().Be(AuditActions.InvitationRevoked);
 		_ = auditLog.TargetId.Should().Be(invitationId);
 	}

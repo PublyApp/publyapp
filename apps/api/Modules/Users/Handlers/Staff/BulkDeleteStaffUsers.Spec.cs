@@ -114,7 +114,8 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 
 		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.RequestBodyValidationFailed);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.RequestBodyValidationFailed);
 		problem.Errors.Values
 			.SelectMany(errors => errors)
 			.Should()
@@ -138,7 +139,8 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 
 		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.RequestBodyValidationFailed);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.RequestBodyValidationFailed);
 		problem.Errors.Values
 			.SelectMany(errors => errors)
 			.Should()
@@ -174,7 +176,8 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 
 		var result = await response.Content.ReadFromJsonAsync<BulkStaffUserActionResponse>();
 		result.Should().NotBeNull();
-		result!.SucceededCount.Should().Be(2);
+		Assert.NotNull(result);
+		result.SucceededCount.Should().Be(2);
 		result.FailedCount.Should().Be(0);
 		result.FailedItems.Should().BeEmpty();
 
@@ -212,7 +215,8 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 
 		var result = await response.Content.ReadFromJsonAsync<BulkStaffUserActionResponse>();
 		result.Should().NotBeNull();
-		result!.SucceededCount.Should().Be(1);
+		Assert.NotNull(result);
+		result.SucceededCount.Should().Be(1);
 		result.FailedCount.Should().Be(2);
 		result.FailedItems.Should().ContainSingle(
 			item => item.UserId == unsuspendedUserId
@@ -271,7 +275,8 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 
 		var result = await response.Content.ReadFromJsonAsync<BulkStaffUserActionResponse>();
 		result.Should().NotBeNull();
-		result!.SucceededCount.Should().Be(1);
+		Assert.NotNull(result);
+		result.SucceededCount.Should().Be(1);
 		result.FailedCount.Should().Be(2);
 
 		await AssertSoftDeletedRowsAsync(
@@ -351,7 +356,8 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 
 		var created = await response.Content.ReadFromJsonAsync<StaffProfileCreatedResponse>();
 		created.Should().NotBeNull();
-		return created!.ProfileId.ToString();
+		Assert.NotNull(created);
+		return created.ProfileId.ToString();
 	}
 
 	private async Task AssignProfilesAsync(
@@ -415,7 +421,8 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 			);
 
 		staffAccount.Should().NotBeNull();
-		staffAccount!.IsDeleted.Should().BeTrue();
+		Assert.NotNull(staffAccount);
+		staffAccount.IsDeleted.Should().BeTrue();
 		staffAccount.DeletedAt.Should().NotBeNull();
 
 		if (expectedProfileLinkCount is null) {
@@ -444,7 +451,8 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 			.FirstOrDefaultAsync(x => x.Id == userId);
 
 		user.Should().NotBeNull();
-		user!.Status.Should().Be(expectedStatus);
+		Assert.NotNull(user);
+		user.Status.Should().Be(expectedStatus);
 		user.IsDeleted.Should().Be(expectedDeleted);
 	}
 
@@ -459,7 +467,8 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 			.FirstOrDefaultAsync(x => x.Id == userId);
 
 		user.Should().NotBeNull();
-		user!.IsDeleted.Should().BeFalse();
+		Assert.NotNull(user);
+		user.IsDeleted.Should().BeFalse();
 		user.IsSuspended().Should().BeFalse();
 	}
 
@@ -477,7 +486,8 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 
 		var result = await response.Content.ReadFromJsonAsync<FindStaffUsersResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().NotContain(x => x.Id == Guid.Parse(userId));
+		Assert.NotNull(result);
+		result.Data.Should().NotContain(x => x.Id == Guid.Parse(userId));
 	}
 
 	private async Task AssertGetStaffUserReturnsNotFoundAsync(
@@ -527,14 +537,17 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 			.FirstOrDefaultAsync();
 
 		auditLog.Should().NotBeNull();
-		auditLog!.Details.Should().NotBeNull();
+		Assert.NotNull(auditLog);
+		auditLog.Details.Should().NotBeNull();
 
+		Assert.NotNull(auditLog.Details);
 		var details = JsonSerializer.Deserialize<BulkDeleteAuditDetails>(
-			auditLog.Details!
-		);
+					auditLog.Details
+				);
 
 		details.Should().NotBeNull();
-		details!.RequestedCount.Should().Be(requestedUserIds.Count);
+		Assert.NotNull(details);
+		details.RequestedCount.Should().Be(requestedUserIds.Count);
 		details.SucceededCount.Should().Be(succeededUserIds.Count);
 		details.FailedCount.Should().Be(failedItems.Count);
 		details.RequestedUserIds.Should().BeEquivalentTo(requestedUserIds);

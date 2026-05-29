@@ -20,6 +20,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Tenants.Handlers.Staff;
+
 public sealed class GetTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -229,7 +230,8 @@ public sealed class GetTenantAsStaffSpec
 					GetTenantAsStaffResult
 				>();
 			result.Should().NotBeNull();
-			result!.TenantId.Should().Be(tenantId);
+			Assert.NotNull(result);
+			result.TenantId.Should().Be(tenantId);
 			result.Code.Should().NotBeNullOrEmpty();
 			result.Status.Should().Be("Suspended");
 			result.MaxUsers.Should().BeGreaterThan(0);

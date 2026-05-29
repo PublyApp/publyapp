@@ -13,6 +13,7 @@ using MainApi.Lib.Utils;
 using Xunit;
 
 namespace MainApi.Modules.Users.Handlers.Staff;
+
 public sealed class GetStaffUserByIdSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;

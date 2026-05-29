@@ -4,6 +4,7 @@ using FluentAssertions;
 using Xunit;
 
 namespace MainApi.Lib.Utils;
+
 public sealed class DateUtilsSpec {
 	[Theory]
 	[InlineData("2026-02-12T10:00:00Z", true)]

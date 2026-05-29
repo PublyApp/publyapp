@@ -13,6 +13,7 @@ using MainApi.Lib.Testing.Helpers;
 using Xunit;
 
 namespace MainApi.Modules.Auth.Handlers;
+
 public sealed class GetRedirectCodeSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
@@ -47,7 +48,8 @@ public sealed class GetRedirectCodeSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<RedirectCodeResponse>();
 		result.Should().NotBeNull();
-		result!.HasSuspendedTenants.Should().BeFalse();
+		Assert.NotNull(result);
+		result.HasSuspendedTenants.Should().BeFalse();
 		result.RedirectCode.Should().Be("tenant-picker");
 	}
 
@@ -83,8 +85,9 @@ public sealed class GetRedirectCodeSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<RedirectCodeResponse>();
 		result.Should().NotBeNull();
-		result!.RedirectCode.Should()
-			.Be(acmeId.ToString());
+		Assert.NotNull(result);
+		result.RedirectCode.Should()
+					.Be(acmeId.ToString());
 		result.HasSuspendedTenants.Should().BeFalse();
 	}
 
@@ -158,7 +161,8 @@ public sealed class GetRedirectCodeSpec
 			var result = await response.Content
 				.ReadFromJsonAsync<RedirectCodeResponse>();
 			result.Should().NotBeNull();
-			result!.HasSuspendedTenants.Should().BeTrue();
+			Assert.NotNull(result);
+			result.HasSuspendedTenants.Should().BeTrue();
 			// 1 active tenant left -> direct redirect
 			var techStartId =
 				await TenantTestHelper
@@ -228,8 +232,9 @@ public sealed class GetRedirectCodeSpec
 				.ReadFromJsonAsync<RedirectCodeResponse>();
 			result.Should().NotBeNull();
 			// Hint invalid -> 1 active tenant -> direct
-			result!.RedirectCode.Should()
-				.Be(techStartId.ToString());
+			Assert.NotNull(result);
+			result.RedirectCode.Should()
+							.Be(techStartId.ToString());
 			result.HasSuspendedTenants.Should().BeTrue();
 		} finally {
 			using var cleanup =
@@ -289,8 +294,9 @@ public sealed class GetRedirectCodeSpec
 			var result = await response.Content
 				.ReadFromJsonAsync<RedirectCodeResponse>();
 			result.Should().NotBeNull();
-			result!.RedirectCode.Should()
-				.Be(techStartId.ToString());
+			Assert.NotNull(result);
+			result.RedirectCode.Should()
+							.Be(techStartId.ToString());
 			result.HasSuspendedTenants.Should().BeTrue();
 		} finally {
 			using var cleanup =
@@ -352,8 +358,9 @@ public sealed class GetRedirectCodeSpec
 			var result = await response.Content
 				.ReadFromJsonAsync<RedirectCodeResponse>();
 			result.Should().NotBeNull();
-			result!.RedirectCode.Should()
-				.Be("tenant-picker");
+			Assert.NotNull(result);
+			result.RedirectCode.Should()
+							.Be("tenant-picker");
 			result.HasSuspendedTenants.Should().BeTrue();
 		} finally {
 			using var r1 =
@@ -388,7 +395,8 @@ public sealed class GetRedirectCodeSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<RedirectCodeResponse>();
 		result.Should().NotBeNull();
-		result!.RedirectCode.Should().Be("staff");
+		Assert.NotNull(result);
+		result.RedirectCode.Should().Be("staff");
 	}
 
 	[Fact]
@@ -422,8 +430,9 @@ public sealed class GetRedirectCodeSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<RedirectCodeResponse>();
 		result.Should().NotBeNull();
-		result!.RedirectCode.Should()
-			.Be(acmeId.ToString());
+		Assert.NotNull(result);
+		result.RedirectCode.Should()
+					.Be(acmeId.ToString());
 		result.HasSuspendedTenants.Should().BeFalse();
 	}
 

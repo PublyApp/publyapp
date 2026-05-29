@@ -22,6 +22,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Profiles.Handlers.Staff;
+
 public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
@@ -101,7 +102,8 @@ public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -119,7 +121,8 @@ public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -159,9 +162,10 @@ public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(
-			ResponseKeys.TenantProfileDefaultDeleteNotAllowed
-		);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(
+					ResponseKeys.TenantProfileDefaultDeleteNotAllowed
+				);
 		problem.Detail.Should().Be("Default tenant profile cannot be deleted");
 
 		var auditLogAfter = await GetLatestAuditLogAsync(
@@ -193,7 +197,8 @@ public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 			profileGuid
 		);
 		auditLog.Should().NotBeNull();
-		auditLog!.Action.Should().Be(AuditActions.TenantProfileDeleted);
+		Assert.NotNull(auditLog);
+		auditLog.Action.Should().Be(AuditActions.TenantProfileDeleted);
 		AssertAuditDetails(
 			auditLog,
 			expectedTenantId: tenantId,
@@ -231,7 +236,8 @@ public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		var profile = await profileService.GetOrCreateDefaultTenantProfileAsync(tenantId);
 
 		profile.Should().NotBeNull("the seeded tenant should always have a default profile");
-		return profile!.GetRequiredId();
+		Assert.NotNull(profile);
+		return profile.GetRequiredId();
 	}
 
 	private async Task<(string ProfileId, string ProfileName)> CreateProfileAsync(
@@ -259,7 +265,8 @@ public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
 		payload.Should().NotBeNull();
-		return (payload!.Profile.Id.ToString(), profileName);
+		Assert.NotNull(payload);
+		return (payload.Profile.Id.ToString(), profileName);
 	}
 
 	private async Task<AuditLog?> GetLatestAuditLogAsync(
@@ -283,7 +290,8 @@ public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		bool expectedIsDefault
 	) {
 		auditLog.Details.Should().NotBeNull();
-		using var document = JsonDocument.Parse(auditLog.Details!);
+		Assert.NotNull(auditLog.Details);
+		using var document = JsonDocument.Parse(auditLog.Details);
 		var details = document.RootElement;
 
 		details.GetProperty("TenantId").GetGuid().Should().Be(expectedTenantId);

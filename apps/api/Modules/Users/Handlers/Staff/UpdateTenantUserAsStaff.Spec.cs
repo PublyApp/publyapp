@@ -20,6 +20,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Users.Handlers.Staff;
+
 public sealed class UpdateTenantUserAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -82,7 +83,8 @@ public sealed class UpdateTenantUserAsStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<TenantUserDetailsResult>();
 		result.Should().NotBeNull();
-		result!.Level.Should().Be("Admin");
+		Assert.NotNull(result);
+		result.Level.Should().Be("Admin");
 
 		var persistedLevel = await GetUserLevelByEmailAsync(
 			_http,
@@ -158,7 +160,8 @@ public sealed class UpdateTenantUserAsStaffSpec
 		var result = await clearResponse.Content
 			.ReadFromJsonAsync<TenantUserDetailsResult>();
 		result.Should().NotBeNull();
-		result!.AvatarUrl.Should().BeNull();
+		Assert.NotNull(result);
+		result.AvatarUrl.Should().BeNull();
 	}
 
 	[Fact]
@@ -225,8 +228,9 @@ public sealed class UpdateTenantUserAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -262,8 +266,9 @@ public sealed class UpdateTenantUserAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -321,7 +326,8 @@ public sealed class UpdateTenantUserAsStaffSpec
 		var result = await clearResponse.Content
 			.ReadFromJsonAsync<TenantUserDetailsResult>();
 		result.Should().NotBeNull();
-		result!.FirstName.Should().BeNull();
+		Assert.NotNull(result);
+		result.FirstName.Should().BeNull();
 		result.LastName.Should().Be("Doe");
 	}
 
@@ -366,8 +372,9 @@ public sealed class UpdateTenantUserAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.CannotDemoteLastAdmin);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.CannotDemoteLastAdmin);
 	}
 
 	[Fact]
@@ -396,8 +403,9 @@ public sealed class UpdateTenantUserAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.CannotDemoteLastAdmin);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.CannotDemoteLastAdmin);
 	}
 
 	[Fact]

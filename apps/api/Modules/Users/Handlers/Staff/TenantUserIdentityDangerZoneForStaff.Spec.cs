@@ -20,6 +20,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Users.Handlers.Staff;
+
 public sealed class TenantUserIdentityDangerZoneForStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -89,7 +90,8 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		var suspendedResult = await suspendResponse.Content
 			.ReadFromJsonAsync<TenantUserDetailsResponse>();
 		suspendedResult.Should().NotBeNull();
-		suspendedResult!.Status.Should().Be("Suspended");
+		Assert.NotNull(suspendedResult);
+		suspendedResult.Status.Should().Be("Suspended");
 
 		using var detailsRequest = new HttpRequestMessage(
 			HttpMethod.Get,
@@ -99,7 +101,8 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		var details = await detailsResponse.Content
 			.ReadFromJsonAsync<TenantUserDetailsResponse>();
 		details.Should().NotBeNull();
-		details!.Status.Should().Be("Suspended");
+		Assert.NotNull(details);
+		details.Status.Should().Be("Suspended");
 
 		using var reactivateRequest = new HttpRequestMessage(
 			HttpMethod.Post,
@@ -112,7 +115,8 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		var reactivatedResult = await reactivateResponse.Content
 			.ReadFromJsonAsync<TenantUserDetailsResponse>();
 		reactivatedResult.Should().NotBeNull();
-		reactivatedResult!.Status.Should().Be("Active");
+		Assert.NotNull(reactivatedResult);
+		reactivatedResult.Status.Should().Be("Active");
 	}
 
 	[Fact]
@@ -147,7 +151,8 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 			var result = await response.Content
 				.ReadFromJsonAsync<TenantUserDetailsResponse>();
 			result.Should().NotBeNull();
-			result!.Id.ToString().Should().Be(userId);
+			Assert.NotNull(result);
+			result.Id.ToString().Should().Be(userId);
 			result.Email.Should().Be(newEmail);
 		} finally {
 			using var resetRequest = new HttpRequestMessage(
@@ -197,7 +202,8 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.EmailAlreadyInUse);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.EmailAlreadyInUse);
 		problem.Errors.Should().ContainKey("email");
 	}
 
@@ -240,7 +246,8 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -263,7 +270,8 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.NotFound);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.NotFound);
 	}
 
 	[Theory]
@@ -287,7 +295,8 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Theory]
@@ -311,7 +320,8 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.NotFound);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.NotFound);
 	}
 
 	[Fact]
@@ -332,7 +342,8 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.UserSuspended);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.UserSuspended);
 	}
 
 	[Fact]
@@ -353,8 +364,9 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.CannotSuspendLastAdmin);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.CannotSuspendLastAdmin);
 	}
 
 	[Fact]
@@ -375,7 +387,8 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.UserNotSuspended);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.UserNotSuspended);
 	}
 
 	private async Task<SeededTenantUserIdentity>

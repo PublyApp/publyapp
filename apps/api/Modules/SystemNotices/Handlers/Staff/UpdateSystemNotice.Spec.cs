@@ -13,6 +13,7 @@ using MainApi.Lib.Utils;
 using Xunit;
 
 namespace MainApi.Modules.SystemNotices.Handlers.Staff;
+
 public sealed class UpdateSystemNoticeSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
@@ -57,7 +58,8 @@ public sealed class UpdateSystemNoticeSpec
 					NoticeUpdatedResponse
 				>();
 			result.Should().NotBeNull();
-			result!.Id.Should().Be(noticeId);
+			Assert.NotNull(result);
+			result.Id.Should().Be(noticeId);
 			result.Title.Should()
 				.Be("Updated Title");
 			result.Severity.Should().Be("critical");
@@ -132,8 +134,9 @@ public sealed class UpdateSystemNoticeSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be("system-notice-not-found");
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be("system-notice-not-found");
 	}
 
 	[Fact]
@@ -164,7 +167,8 @@ public sealed class UpdateSystemNoticeSpec
 				.ReadFromJsonAsync<
 					NoticeDetailResponse
 				>();
-			detail!.ExpiresAt.Should().NotBeNull();
+			Assert.NotNull(detail);
+			detail.ExpiresAt.Should().NotBeNull();
 
 			// Clear ExpiresAt by sending explicit null
 			var url = GetUpdateUrl(noticeId);
@@ -189,7 +193,8 @@ public sealed class UpdateSystemNoticeSpec
 					NoticeUpdatedResponse
 				>();
 			result.Should().NotBeNull();
-			result!.ExpiresAt.Should().BeNull();
+			Assert.NotNull(result);
+			result.ExpiresAt.Should().BeNull();
 		} finally {
 			try {
 				await SystemNoticeTestHelper
@@ -244,7 +249,8 @@ public sealed class UpdateSystemNoticeSpec
 					NoticeDetailResponse
 				>();
 			detail.Should().NotBeNull();
-			detail!.Severity.Should().Be("critical");
+			Assert.NotNull(detail);
+			detail.Severity.Should().Be("critical");
 			detail.Title.Should().Be("Keep Me");
 			detail.Message.Should()
 				.Be("Keep this message");
@@ -288,7 +294,8 @@ public sealed class UpdateSystemNoticeSpec
 				.ReadFromJsonAsync<
 					NoticeDetailResponse
 				>();
-			detail!.ExpiresAt.Should().NotBeNull();
+			Assert.NotNull(detail);
+			detail.ExpiresAt.Should().NotBeNull();
 			var originalExpiresAt = detail.ExpiresAt;
 
 			// PATCH without expiresAt — should preserve
@@ -315,8 +322,9 @@ public sealed class UpdateSystemNoticeSpec
 				.ReadFromJsonAsync<
 					NoticeDetailResponse
 				>();
-			detail2!.ExpiresAt.Should()
-				.Be(originalExpiresAt);
+			Assert.NotNull(detail2);
+			detail2.ExpiresAt.Should()
+							.Be(originalExpiresAt);
 		} finally {
 			try {
 				await SystemNoticeTestHelper
@@ -354,7 +362,8 @@ public sealed class UpdateSystemNoticeSpec
 				.ReadFromJsonAsync<
 					NoticeDetailResponse
 				>();
-			detail!.ExpiresAt.Should().BeNull();
+			Assert.NotNull(detail);
+			detail.ExpiresAt.Should().BeNull();
 
 			// PATCH with expiresAt string
 			var newExpiresAt = DateTime.UtcNow
@@ -377,12 +386,14 @@ public sealed class UpdateSystemNoticeSpec
 					NoticeUpdatedResponse
 				>();
 			result.Should().NotBeNull();
-			result!.ExpiresAt.Should().NotBeNull();
-			result.ExpiresAt!.Value.Should()
-				.BeCloseTo(
-					newExpiresAt,
-					TimeSpan.FromSeconds(1)
-				);
+			Assert.NotNull(result);
+			result.ExpiresAt.Should().NotBeNull();
+			Assert.NotNull(result.ExpiresAt);
+			result.ExpiresAt.Value.Should()
+							.BeCloseTo(
+								newExpiresAt,
+								TimeSpan.FromSeconds(1)
+							);
 		} finally {
 			try {
 				await SystemNoticeTestHelper

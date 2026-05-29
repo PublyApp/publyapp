@@ -25,6 +25,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Users.Handlers.Staff;
+
 public sealed class CreateInvitationForTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -77,7 +78,8 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		);
 
 		sentEmail.Should().NotBeNull();
-		sentEmail!.To.Should().Be(inviteeEmail);
+		Assert.NotNull(sentEmail);
+		sentEmail.To.Should().Be(inviteeEmail);
 		sentEmail.Subject.Should()
 			.Contain(SeedConstants.Tenants.AcmeName);
 		sentEmail.HtmlBody.Should()
@@ -148,9 +150,10 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<MainApiDbContext>();
 
+		Assert.NotNull(responseBody);
 		var invitationProfiles = await dbContext.InvitationProfile
-			.Where(ip => ip.InvitationId == responseBody!.InvitationId)
-			.ToListAsync();
+					.Where(ip => ip.InvitationId == responseBody.InvitationId)
+					.ToListAsync();
 
 		invitationProfiles.Should().HaveCount(1);
 	}
@@ -256,8 +259,9 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		var problem =
 			await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.PendingInvitationExists.Value);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.PendingInvitationExists.Value);
 	}
 
 	[Fact]
@@ -323,9 +327,11 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			.FirstOrDefaultAsync();
 
 		auditLog.Should().NotBeNull();
-		auditLog!.Details.Should().NotBeNull();
+		Assert.NotNull(auditLog);
+		auditLog.Details.Should().NotBeNull();
 
-		using var details = JsonDocument.Parse(auditLog.Details!);
+		Assert.NotNull(auditLog.Details);
+		using var details = JsonDocument.Parse(auditLog.Details);
 		var root = details.RootElement;
 		root.GetProperty("Email").GetString()
 			.Should().Be(inviteeEmail);
@@ -360,8 +366,9 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		var problem =
 			await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.MalformedId.Value);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.MalformedId.Value);
 	}
 
 	[Fact]
@@ -387,8 +394,9 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		var problem =
 			await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.TenantNotFound.Value);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.TenantNotFound.Value);
 	}
 
 	[Fact]
@@ -609,10 +617,11 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			var dbContext = scope.ServiceProvider
 				.GetRequiredService<MainApiDbContext>();
 
+			Assert.NotNull(responseBody);
 			var profileId = await dbContext.InvitationProfile
-				.Where(ip => ip.InvitationId == responseBody!.InvitationId)
-				.Select(ip => ip.ProfileId)
-				.SingleAsync();
+							.Where(ip => ip.InvitationId == responseBody.InvitationId)
+							.Select(ip => ip.ProfileId)
+							.SingleAsync();
 
 			var assignedProfile = await dbContext.Profile
 				.Where(p => p.Id == profileId)
@@ -691,7 +700,8 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				.ReadFromJsonAsync<InvitationCreatedForTenantResponse>();
 		responseBody.Should().NotBeNull();
 
-		return responseBody!;
+		Assert.NotNull(responseBody);
+		return responseBody;
 	}
 
 	private async Task<string> CreateUnprivilegedStaffUserTokenAsync() {
@@ -767,8 +777,9 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			await response.Content
 				.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.RequestBodyValidationFailed.Value);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.RequestBodyValidationFailed.Value);
 		problem.Errors.Keys.Should()
 			.Contain(fieldName);
 	}

@@ -16,6 +16,7 @@ using MainApi.Localization;
 using Xunit;
 
 namespace MainApi.Modules.Users.Handlers.Staff;
+
 public sealed class GetTenantUserByIdForStaffSpec
 	: IClassFixture<ApiFixture> {
 	private static readonly JsonSerializerOptions TenantUserDetailsJsonOptions = new() {
@@ -83,7 +84,8 @@ public sealed class GetTenantUserByIdForStaffSpec
 			TenantUserDetailsJsonOptions
 		);
 		result.Should().NotBeNull();
-		result!.Id.ToString().Should().Be(userId);
+		Assert.NotNull(result);
+		result.Id.ToString().Should().Be(userId);
 		result.Email.Should().Be(TestConstants.AcmeUserEmail);
 		result.Status.Should().NotBeNullOrWhiteSpace();
 		result.CreatedAt.Should().NotBe(default);
@@ -146,7 +148,8 @@ public sealed class GetTenantUserByIdForStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<TenantUserDetailsResponse>();
 		result.Should().NotBeNull();
-		result!.Id.ToString().Should().Be(userId);
+		Assert.NotNull(result);
+		result.Id.ToString().Should().Be(userId);
 		result.Email.Should().Be(SeedConstants.CrossTenant.BobEmail);
 		result.CompanyCount.Should().Be(0);
 	}
@@ -168,7 +171,8 @@ public sealed class GetTenantUserByIdForStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -188,7 +192,8 @@ public sealed class GetTenantUserByIdForStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.NotFound);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.NotFound);
 	}
 
 	[Fact]

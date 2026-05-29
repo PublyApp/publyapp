@@ -17,6 +17,9 @@ namespace MainApi.Modules.Profiles.Entities;
 /// </remarks>
 [Table("profile_permissions")]
 public class ProfilePermission : INoTenantEntity {
+	private Profile? _profile;
+	private Permission? _permission;
+
 	// Foreign key to profiles.id; first half of the composite primary key.
 	[Column("profile_id")]
 	public Guid ProfileId { get; set; }
@@ -27,10 +30,16 @@ public class ProfilePermission : INoTenantEntity {
 
 	// Navigation properties
 	[JsonIgnore]
-	public Profile Profile { get; set; } = null!;
+	public Profile Profile {
+		get { return RequiredNavigation.Get(_profile, nameof(ProfilePermission), nameof(Profile)); }
+		set { _profile = value; }
+	}
 
 	[JsonIgnore]
-	public Permission Permission { get; set; } = null!;
+	public Permission Permission {
+		get { return RequiredNavigation.Get(_permission, nameof(ProfilePermission), nameof(Permission)); }
+		set { _permission = value; }
+	}
 
 	// Permission assignment screens do not expose a row id, but timestamps remain useful
 	// when correlating permission changes with audit-log events.

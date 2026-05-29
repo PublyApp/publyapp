@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Auth.Entities;
+
 public sealed class SessionSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;

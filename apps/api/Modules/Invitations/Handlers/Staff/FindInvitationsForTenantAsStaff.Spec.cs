@@ -60,7 +60,8 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 			FindResponse? result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			_ = result.Should().NotBeNull();
-			_ = result!.Data.Should().NotBeNull();
+			Assert.NotNull(result);
+			_ = result.Data.Should().NotBeNull();
 		}
 
 		[Fact]
@@ -99,14 +100,16 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 			FindResponse? result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			_ = result.Should().NotBeNull();
-			_ = result!.Data.Should().NotBeEmpty();
+			Assert.NotNull(result);
+			_ = result.Data.Should().NotBeEmpty();
 
 			InvitationListItemDto? invitation = result.Data
 				.FirstOrDefault(i =>
 					i.Email.Equals(inviteeEmail, StringComparison.OrdinalIgnoreCase)
 				);
 			_ = invitation.Should().NotBeNull();
-			_ = invitation!.Id.Should().NotBeEmpty();
+			Assert.NotNull(invitation);
+			_ = invitation.Id.Should().NotBeEmpty();
 			_ = invitation.Email.Should().NotBeNullOrEmpty();
 			_ = invitation.Scope.Should().Be("Tenant");
 			_ = invitation.ProfileName.Should().NotBeNull();
@@ -172,9 +175,10 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 			FindResponse? result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			_ = result.Should().NotBeNull();
-			_ = result!.Data.Should().Contain(
-				i => i.Email.Equals(acmeEmail, StringComparison.OrdinalIgnoreCase)
-			);
+			Assert.NotNull(result);
+			_ = result.Data.Should().Contain(
+							i => i.Email.Equals(acmeEmail, StringComparison.OrdinalIgnoreCase)
+						);
 			_ = result.Data.Should().NotContain(
 				i => i.Email.Equals(techStartEmail, StringComparison.OrdinalIgnoreCase)
 			);
@@ -222,7 +226,8 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 			FindResponse? result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			_ = result.Should().NotBeNull();
-			_ = result!.Data.Should().HaveCount(1);
+			Assert.NotNull(result);
+			_ = result.Data.Should().HaveCount(1);
 			_ = result.NextCursor.Should()
 				.NotBeNullOrEmpty();
 		}
@@ -271,8 +276,9 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 			FindResponse? page1 = await response1.Content
 				.ReadFromJsonAsync<FindResponse>();
 			_ = page1.Should().NotBeNull();
-			_ = page1!.NextCursor.Should()
-				.NotBeNullOrEmpty();
+			Assert.NotNull(page1);
+			_ = page1.NextCursor.Should()
+							.NotBeNullOrEmpty();
 
 			// Get page 2
 			string url2 = GetFindUrl(
@@ -294,7 +300,8 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 			FindResponse? page2 = await response2.Content
 				.ReadFromJsonAsync<FindResponse>();
 			_ = page2.Should().NotBeNull();
-			_ = page2!.Data.Should().NotBeEmpty();
+			Assert.NotNull(page2);
+			_ = page2.Data.Should().NotBeEmpty();
 
 			// Page 2 should have different records than page 1
 			HashSet<Guid> page1Ids = page1.Data.Select(i => i.Id).ToHashSet();
@@ -501,7 +508,8 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 			FindResponse? result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			_ = result.Should().NotBeNull();
-			_ = result!.Data.Should().NotBeNull();
+			Assert.NotNull(result);
+			_ = result.Data.Should().NotBeNull();
 		}
 
 		[Fact]
@@ -536,7 +544,8 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 			FindResponse? result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			_ = result.Should().NotBeNull();
-			_ = result!.Data.Should().NotBeNull();
+			Assert.NotNull(result);
+			_ = result.Data.Should().NotBeNull();
 		}
 
 		[Fact]
@@ -580,7 +589,8 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 			FindResponse? result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			_ = result.Should().NotBeNull();
-			_ = result!.Data.Should().NotBeNull();
+			Assert.NotNull(result);
+			_ = result.Data.Should().NotBeNull();
 		}
 
 		#endregion
@@ -623,11 +633,12 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 			FindResponse? result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			_ = result.Should().NotBeNull();
-			_ = result!.Data.Should().Contain(
-				i =>
-					i.Email.Equals(pendingEmail, StringComparison.OrdinalIgnoreCase) &&
-					i.Status == "Pending"
-			);
+			Assert.NotNull(result);
+			_ = result.Data.Should().Contain(
+							i =>
+								i.Email.Equals(pendingEmail, StringComparison.OrdinalIgnoreCase) &&
+								i.Status == "Pending"
+						);
 		}
 
 		[Fact]
@@ -659,7 +670,8 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 					.GetRequiredService<MainApiDbContext>();
 				Invitation? invitation = await dbContext.Invitation
 					.FindAsync(invitationId);
-				invitation!.Status = InvitationStatus.Accepted;
+				Assert.NotNull(invitation);
+				invitation.Status = InvitationStatus.Accepted;
 				invitation.AcceptedAt = DateTime.UtcNow;
 				_ = await dbContext.SaveChangesAsync();
 			}
@@ -678,11 +690,12 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 			FindResponse? result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			_ = result.Should().NotBeNull();
-			_ = result!.Data.Should().Contain(
-				i =>
-					i.Email.Equals(acceptedEmail, StringComparison.OrdinalIgnoreCase) &&
-					i.Status == "Accepted"
-			);
+			Assert.NotNull(result);
+			_ = result.Data.Should().Contain(
+							i =>
+								i.Email.Equals(acceptedEmail, StringComparison.OrdinalIgnoreCase) &&
+								i.Status == "Accepted"
+						);
 		}
 
 		[Fact]
@@ -727,11 +740,12 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 			FindResponse? result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			_ = result.Should().NotBeNull();
-			_ = result!.Data.Should().Contain(
-				i =>
-					i.Email.Equals(revokedEmail, StringComparison.OrdinalIgnoreCase) &&
-					i.Status == "Revoked"
-			);
+			Assert.NotNull(result);
+			_ = result.Data.Should().Contain(
+							i =>
+								i.Email.Equals(revokedEmail, StringComparison.OrdinalIgnoreCase) &&
+								i.Status == "Revoked"
+						);
 			_ = result.Data.Should().OnlyContain(i => i.Status == "Revoked");
 		}
 
@@ -792,11 +806,12 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 			FindResponse? result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			_ = result.Should().NotBeNull();
-			_ = result!.Data.Should().Contain(
-				i =>
-					i.Email.Equals(expiredEmail, StringComparison.OrdinalIgnoreCase) &&
-					i.Status == "Expired"
-			);
+			Assert.NotNull(result);
+			_ = result.Data.Should().Contain(
+							i =>
+								i.Email.Equals(expiredEmail, StringComparison.OrdinalIgnoreCase) &&
+								i.Status == "Expired"
+						);
 		}
 
 		[Fact]
@@ -854,11 +869,12 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 			FindResponse? result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			_ = result.Should().NotBeNull();
-			_ = result!.Data.Should().Contain(
-				i =>
-					i.Email.Equals(pendingEmail, StringComparison.OrdinalIgnoreCase) &&
-					i.Status == "Pending"
-			);
+			Assert.NotNull(result);
+			_ = result.Data.Should().Contain(
+							i =>
+								i.Email.Equals(pendingEmail, StringComparison.OrdinalIgnoreCase) &&
+								i.Status == "Pending"
+						);
 			_ = result.Data.Should().Contain(
 				i =>
 					i.Email.Equals(revokedEmail, StringComparison.OrdinalIgnoreCase) &&
@@ -975,9 +991,10 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 			FindResponse? result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			_ = result.Should().NotBeNull();
-			_ = result!.Data.Should().Contain(
-				i => i.Email.Equals(targetEmail, StringComparison.OrdinalIgnoreCase)
-			);
+			Assert.NotNull(result);
+			_ = result.Data.Should().Contain(
+							i => i.Email.Equals(targetEmail, StringComparison.OrdinalIgnoreCase)
+						);
 			_ = result.Data.Should().NotContain(
 				i => i.Email.Equals(otherEmail, StringComparison.OrdinalIgnoreCase)
 			);
@@ -1019,9 +1036,10 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 			FindResponse? result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			_ = result.Should().NotBeNull();
-			_ = result!.Data.Should().Contain(
-				i => i.Email.Equals(targetEmail, StringComparison.OrdinalIgnoreCase)
-			);
+			Assert.NotNull(result);
+			_ = result.Data.Should().Contain(
+							i => i.Email.Equals(targetEmail, StringComparison.OrdinalIgnoreCase)
+						);
 		}
 
 		#endregion
@@ -1171,9 +1189,10 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 			FindResponse? result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			_ = result.Should().NotBeNull();
-			_ = result!.Data.Should().Contain(
-				i => i.Email.Equals(inviteeEmail, StringComparison.OrdinalIgnoreCase)
-			);
+			Assert.NotNull(result);
+			_ = result.Data.Should().Contain(
+							i => i.Email.Equals(inviteeEmail, StringComparison.OrdinalIgnoreCase)
+						);
 		}
 
 		#endregion
@@ -1235,12 +1254,14 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 				.ReadFromJsonAsync<FindResponse>();
 			_ = result.Should().NotBeNull();
 
-			InvitationListItemDto? foundInvitation = result!.Data
-				.FirstOrDefault(i =>
-					i.Email.Equals(noProfileEmail, StringComparison.OrdinalIgnoreCase)
-				);
+			Assert.NotNull(result);
+			InvitationListItemDto? foundInvitation = result.Data
+							.FirstOrDefault(i =>
+								i.Email.Equals(noProfileEmail, StringComparison.OrdinalIgnoreCase)
+							);
 			_ = foundInvitation.Should().NotBeNull();
-			_ = foundInvitation!.ProfileName.Should().BeEmpty();
+			Assert.NotNull(foundInvitation);
+			_ = foundInvitation.ProfileName.Should().BeEmpty();
 		}
 
 		[Fact]
@@ -1405,7 +1426,8 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 				.ReadFromJsonAsync<InvitationCreatedResponse>();
 			_ = responseBody.Should().NotBeNull();
 
-			return responseBody!.InvitationId;
+			Assert.NotNull(responseBody);
+			return responseBody.InvitationId;
 		}
 
 		private async Task RevokeTenantInvitationAsync(

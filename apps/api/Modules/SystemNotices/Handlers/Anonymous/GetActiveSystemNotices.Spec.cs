@@ -11,6 +11,7 @@ using MainApi.Lib.Testing.Helpers;
 using Xunit;
 
 namespace MainApi.Modules.SystemNotices.Handlers.Anonymous;
+
 public sealed class GetActiveSystemNoticesSpec
 	: IClassFixture<ApiFixture> {
 	private static readonly string ActiveUrl =
@@ -61,8 +62,9 @@ public sealed class GetActiveSystemNoticesSpec
 				n => n.Id == noticeId
 			);
 
-			var notice = result!
-				.First(n => n.Id == noticeId);
+			Assert.NotNull(result);
+			var notice = result
+							.First(n => n.Id == noticeId);
 			notice.Title.Should()
 				.Be("Active Test Notice");
 			notice.Severity.Should().Be("warning");

@@ -4,6 +4,7 @@ using FluentAssertions;
 using Xunit;
 
 namespace MainApi.Modules.AuditLogs.Entities;
+
 public sealed class AuditActionsRegistrySpec {
 	[Fact]
 	public void ItShouldExposeAllAuditActionConstantsSortedAlphabetically() {

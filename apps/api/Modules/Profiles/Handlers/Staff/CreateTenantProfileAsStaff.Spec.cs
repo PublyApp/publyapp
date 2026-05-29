@@ -23,6 +23,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Profiles.Handlers.Staff;
+
 public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
@@ -106,7 +107,8 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -144,7 +146,8 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
 		payload.Should().NotBeNull();
-		payload!.Profile.Name.Should().Be(name);
+		Assert.NotNull(payload);
+		payload.Profile.Name.Should().Be(name);
 		payload.Profile.Description.Should().Be("Created through tenant profile CRUD");
 		payload.Profile.IsDefault.Should().BeFalse();
 
@@ -153,7 +156,8 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 			payload.Profile.Id
 		);
 		auditLog.Should().NotBeNull();
-		auditLog!.Action.Should().Be(AuditActions.TenantProfileCreated);
+		Assert.NotNull(auditLog);
+		auditLog.Action.Should().Be(AuditActions.TenantProfileCreated);
 		AssertAuditDetails(
 			auditLog,
 			expectedTenantId: tenantId,
@@ -191,7 +195,8 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
 		payload.Should().NotBeNull();
 
-		var persistedPermissionKeys = await GetPermissionKeysAsync(payload!.Profile.Id);
+		Assert.NotNull(payload);
+		var persistedPermissionKeys = await GetPermissionKeysAsync(payload.Profile.Id);
 		persistedPermissionKeys.Should().BeEquivalentTo(permissionKeys);
 
 		var auditLog = await GetLatestAuditLogAsync(
@@ -199,15 +204,16 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 			payload.Profile.Id
 		);
 		auditLog.Should().NotBeNull();
+		Assert.NotNull(auditLog);
 		AssertAuditDetails(
-			auditLog!,
-			expectedTenantId: tenantId,
-			expectedProfileId: payload.Profile.Id,
-			expectedProfileName: name,
-			expectedIsDefault: false,
-			expectedInitialPermissionKeys: permissionKeys,
-			expectedInitialPermissionCount: permissionKeys.Length
-		);
+					auditLog,
+					expectedTenantId: tenantId,
+					expectedProfileId: payload.Profile.Id,
+					expectedProfileName: name,
+					expectedIsDefault: false,
+					expectedInitialPermissionKeys: permissionKeys,
+					expectedInitialPermissionCount: permissionKeys.Length
+				);
 	}
 
 	[Fact]
@@ -268,7 +274,8 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
 		payload.Should().NotBeNull();
 
-		var persistedPermissionKeys = await GetPermissionKeysAsync(payload!.Profile.Id);
+		Assert.NotNull(payload);
+		var persistedPermissionKeys = await GetPermissionKeysAsync(payload.Profile.Id);
 		persistedPermissionKeys.Should().Equal(duplicatedPermissionKey);
 
 		var auditLog = await GetLatestAuditLogAsync(
@@ -276,15 +283,16 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 			payload.Profile.Id
 		);
 		auditLog.Should().NotBeNull();
+		Assert.NotNull(auditLog);
 		AssertAuditDetails(
-			auditLog!,
-			expectedTenantId: tenantId,
-			expectedProfileId: payload.Profile.Id,
-			expectedProfileName: name,
-			expectedIsDefault: false,
-			expectedInitialPermissionKeys: [duplicatedPermissionKey],
-			expectedInitialPermissionCount: 1
-		);
+					auditLog,
+					expectedTenantId: tenantId,
+					expectedProfileId: payload.Profile.Id,
+					expectedProfileName: name,
+					expectedIsDefault: false,
+					expectedInitialPermissionKeys: [duplicatedPermissionKey],
+					expectedInitialPermissionCount: 1
+				);
 	}
 
 	[Fact]
@@ -313,7 +321,8 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.ProfileNameAlreadyExists);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.ProfileNameAlreadyExists);
 
 		var auditLogCountAfter = await GetAuditLogCountAsync(
 			AuditActions.TenantProfileCreated,
@@ -350,7 +359,8 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
 		payload.Should().NotBeNull();
-		return payload!.Profile.Id.ToString();
+		Assert.NotNull(payload);
+		return payload.Profile.Id.ToString();
 	}
 
 	private async Task<AuditLog?> GetLatestAuditLogAsync(
@@ -424,7 +434,8 @@ public sealed class CreateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		int expectedInitialPermissionCount
 	) {
 		auditLog.Details.Should().NotBeNull();
-		using var document = JsonDocument.Parse(auditLog.Details!);
+		Assert.NotNull(auditLog.Details);
+		using var document = JsonDocument.Parse(auditLog.Details);
 		var details = document.RootElement;
 
 		details.GetProperty("TenantId").GetGuid().Should().Be(expectedTenantId);

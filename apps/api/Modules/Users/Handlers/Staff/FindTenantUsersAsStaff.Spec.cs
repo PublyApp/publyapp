@@ -18,6 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Users.Handlers.Staff;
+
 public sealed class FindTenantUsersAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -59,7 +60,8 @@ public sealed class FindTenantUsersAsStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().NotBeEmpty();
+		Assert.NotNull(result);
+		result.Data.Should().NotBeEmpty();
 	}
 
 	[Fact]
@@ -89,7 +91,8 @@ public sealed class FindTenantUsersAsStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Count.Should().Be(1);
+		Assert.NotNull(result);
+		result.Data.Count.Should().Be(1);
 		result.NextCursor.Should()
 			.NotBeNullOrEmpty();
 	}
@@ -361,7 +364,8 @@ public sealed class FindTenantUsersAsStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().NotBeEmpty();
+		Assert.NotNull(result);
+		result.Data.Should().NotBeEmpty();
 		result.Data.Select(user => user.Status)
 			.Should()
 			.OnlyContain(status =>
@@ -425,14 +429,15 @@ public sealed class FindTenantUsersAsStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().Contain(user =>
-			string.Equals(
-				user.Email,
-				SeedConstants.Tenants.AcmeUserEmail,
-				StringComparison.OrdinalIgnoreCase
-			)
-			&& user.Status == "Suspended"
-		);
+		Assert.NotNull(result);
+		result.Data.Should().Contain(user =>
+					string.Equals(
+						user.Email,
+						SeedConstants.Tenants.AcmeUserEmail,
+						StringComparison.OrdinalIgnoreCase
+					)
+					&& user.Status == "Suspended"
+				);
 	}
 
 	[Fact]
@@ -472,14 +477,15 @@ public sealed class FindTenantUsersAsStaffSpec
 			var result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			result.Should().NotBeNull();
-			result!.Data.Should().Contain(user =>
-				string.Equals(
-					user.Email,
-					SeedConstants.Tenants.AcmeUserEmail,
-					StringComparison.OrdinalIgnoreCase
-				)
-				&& user.Status == "GloballySuspended"
-			);
+			Assert.NotNull(result);
+			result.Data.Should().Contain(user =>
+							string.Equals(
+								user.Email,
+								SeedConstants.Tenants.AcmeUserEmail,
+								StringComparison.OrdinalIgnoreCase
+							)
+							&& user.Status == "GloballySuspended"
+						);
 		} finally {
 			await SetTenantUserStatesAsync(
 				tenantId,
@@ -527,14 +533,15 @@ public sealed class FindTenantUsersAsStaffSpec
 			var result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			result.Should().NotBeNull();
-			result!.Data.Should().Contain(user =>
-				string.Equals(
-					user.Email,
-					SeedConstants.Tenants.AcmeUserEmail,
-					StringComparison.OrdinalIgnoreCase
-				)
-				&& user.Status == "GloballySuspended"
-			);
+			Assert.NotNull(result);
+			result.Data.Should().Contain(user =>
+							string.Equals(
+								user.Email,
+								SeedConstants.Tenants.AcmeUserEmail,
+								StringComparison.OrdinalIgnoreCase
+							)
+							&& user.Status == "GloballySuspended"
+						);
 		} finally {
 			await SetTenantUserStatesAsync(
 				tenantId,
@@ -582,13 +589,14 @@ public sealed class FindTenantUsersAsStaffSpec
 			var activeResult = await activeResponse.Content
 				.ReadFromJsonAsync<FindResponse>();
 			activeResult.Should().NotBeNull();
-			activeResult!.Data.Should().NotContain(user =>
-				string.Equals(
-					user.Email,
-					SeedConstants.Tenants.AcmeUserEmail,
-					StringComparison.OrdinalIgnoreCase
-				)
-			);
+			Assert.NotNull(activeResult);
+			activeResult.Data.Should().NotContain(user =>
+							string.Equals(
+								user.Email,
+								SeedConstants.Tenants.AcmeUserEmail,
+								StringComparison.OrdinalIgnoreCase
+							)
+						);
 
 			var suspendedRequest = new HttpRequestMessage(
 				HttpMethod.Get,
@@ -604,13 +612,14 @@ public sealed class FindTenantUsersAsStaffSpec
 			var suspendedResult = await suspendedResponse.Content
 				.ReadFromJsonAsync<FindResponse>();
 			suspendedResult.Should().NotBeNull();
-			suspendedResult!.Data.Should().NotContain(user =>
-				string.Equals(
-					user.Email,
-					SeedConstants.Tenants.AcmeUserEmail,
-					StringComparison.OrdinalIgnoreCase
-				)
-			);
+			Assert.NotNull(suspendedResult);
+			suspendedResult.Data.Should().NotContain(user =>
+							string.Equals(
+								user.Email,
+								SeedConstants.Tenants.AcmeUserEmail,
+								StringComparison.OrdinalIgnoreCase
+							)
+						);
 		} finally {
 			await SetTenantUserStatesAsync(
 				tenantId,
@@ -662,7 +671,8 @@ public sealed class FindTenantUsersAsStaffSpec
 			var result = await response.Content
 				.ReadFromJsonAsync<FindResponse>();
 			result.Should().NotBeNull();
-			result!.Data.Should().NotBeEmpty();
+			Assert.NotNull(result);
+			result.Data.Should().NotBeEmpty();
 			result.Data.Should().OnlyContain(user =>
 				user.Status == "GloballySuspended"
 			);
@@ -715,7 +725,8 @@ public sealed class FindTenantUsersAsStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().NotBeEmpty();
+		Assert.NotNull(result);
+		result.Data.Should().NotBeEmpty();
 	}
 
 	// -- URL builder --

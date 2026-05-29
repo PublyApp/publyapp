@@ -19,6 +19,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Profiles.Handlers.Staff;
+
 public sealed class DeleteStaffProfileSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
@@ -174,7 +175,8 @@ public sealed class DeleteStaffProfileSpec : IClassFixture<ApiFixture> {
 
 		var body = await response.Content.ReadFromJsonAsync<StaffProfileCreated>();
 		body.Should().NotBeNull();
-		body!.ProfileId.Should().NotBe(Guid.Empty);
+		Assert.NotNull(body);
+		body.ProfileId.Should().NotBe(Guid.Empty);
 
 		return body.ProfileId.ToString();
 	}

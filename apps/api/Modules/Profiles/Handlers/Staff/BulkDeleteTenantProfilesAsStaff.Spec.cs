@@ -28,6 +28,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Profiles.Handlers.Staff;
+
 public sealed class BulkDeleteTenantProfilesAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -142,7 +143,8 @@ public sealed class BulkDeleteTenantProfilesAsStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<BulkProfileActionResponse>();
 		result.Should().NotBeNull();
-		result!.SucceededCount.Should().Be(1);
+		Assert.NotNull(result);
+		result.SucceededCount.Should().Be(1);
 		result.FailedCount.Should().Be(0);
 	}
 
@@ -160,7 +162,8 @@ public sealed class BulkDeleteTenantProfilesAsStaffSpec
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -179,7 +182,8 @@ public sealed class BulkDeleteTenantProfilesAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.RequestBodyValidationFailed);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.RequestBodyValidationFailed);
 		problem.Errors.Keys.Should().Contain("ProfileIds");
 	}
 
@@ -200,7 +204,8 @@ public sealed class BulkDeleteTenantProfilesAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.RequestBodyValidationFailed);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.RequestBodyValidationFailed);
 		problem.Errors.Keys.Should().Contain("ProfileIds");
 	}
 
@@ -222,7 +227,8 @@ public sealed class BulkDeleteTenantProfilesAsStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<BulkProfileActionResponse>();
 		result.Should().NotBeNull();
-		result!.SucceededCount.Should().Be(0);
+		Assert.NotNull(result);
+		result.SucceededCount.Should().Be(0);
 		result.FailedCount.Should().Be(100);
 		result.FailedItems.Should().HaveCount(100);
 	}
@@ -248,7 +254,8 @@ public sealed class BulkDeleteTenantProfilesAsStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<BulkProfileActionResponse>();
 		result.Should().NotBeNull();
-		result!.SucceededCount.Should().Be(2);
+		Assert.NotNull(result);
+		result.SucceededCount.Should().Be(2);
 		result.FailedCount.Should().Be(0);
 		result.FailedItems.Should().BeEmpty();
 
@@ -284,7 +291,8 @@ public sealed class BulkDeleteTenantProfilesAsStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<BulkProfileActionResponse>();
 		result.Should().NotBeNull();
-		result!.SucceededCount.Should().Be(1);
+		Assert.NotNull(result);
+		result.SucceededCount.Should().Be(1);
 		result.FailedCount.Should().Be(0);
 		result.FailedItems.Should().BeEmpty();
 
@@ -326,7 +334,8 @@ public sealed class BulkDeleteTenantProfilesAsStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<BulkProfileActionResponse>();
 		result.Should().NotBeNull();
-		result!.SucceededCount.Should().Be(1);
+		Assert.NotNull(result);
+		result.SucceededCount.Should().Be(1);
 		result.FailedCount.Should().Be(2);
 		result.FailedItems.Should().ContainSingle(item =>
 			item.ProfileId == defaultProfileId
@@ -382,7 +391,8 @@ public sealed class BulkDeleteTenantProfilesAsStaffSpec
 		var result = await secondResponse.Content
 			.ReadFromJsonAsync<BulkProfileActionResponse>();
 		result.Should().NotBeNull();
-		result!.SucceededCount.Should().Be(0);
+		Assert.NotNull(result);
+		result.SucceededCount.Should().Be(0);
 		result.FailedCount.Should().Be(1);
 		result.FailedItems.Should().ContainSingle(item =>
 			item.ProfileId == profileId
@@ -426,7 +436,8 @@ public sealed class BulkDeleteTenantProfilesAsStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<BulkProfileActionResponse>();
 		result.Should().NotBeNull();
-		result!.SucceededCount.Should().Be(0);
+		Assert.NotNull(result);
+		result.SucceededCount.Should().Be(0);
 		result.FailedCount.Should().Be(1);
 		result.FailedItems.Should().ContainSingle(item =>
 			item.ProfileId == otherTenantProfileId
@@ -498,7 +509,8 @@ public sealed class BulkDeleteTenantProfilesAsStaffSpec
 
 		var payload = await response.Content.ReadFromJsonAsync<TenantProfileResponse>();
 		payload.Should().NotBeNull();
-		return payload!.Profile.Id;
+		Assert.NotNull(payload);
+		return payload.Profile.Id;
 	}
 
 	private async Task<Guid> SeedTenantProfileAsync(Guid tenantId) {
@@ -686,7 +698,8 @@ public sealed class BulkDeleteTenantProfilesAsStaffSpec
 		);
 		auditLog.UserId.Should().Be(expectedUserId);
 		auditLog.Details.Should().NotBeNull();
-		using var document = JsonDocument.Parse(auditLog.Details!);
+		Assert.NotNull(auditLog.Details);
+		using var document = JsonDocument.Parse(auditLog.Details);
 		var details = document.RootElement;
 
 		details.GetProperty("TenantId").GetGuid().Should().Be(tenantId);

@@ -2,6 +2,7 @@
 using System.Text.Json;
 
 namespace MainApi.Lib.Testing.Helpers;
+
 internal static class OpenApiDocumentHelper {
 	public static async Task<JsonDocument> ReadAsync() {
 		var openApiPath = FindOpenApiPath();

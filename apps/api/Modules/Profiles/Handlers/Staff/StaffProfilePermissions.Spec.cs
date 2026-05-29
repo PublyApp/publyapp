@@ -18,6 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Profiles.Handlers.Staff;
+
 public sealed class StaffProfilePermissionsSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -141,7 +142,8 @@ public sealed class StaffProfilePermissionsSpec
 
 		var payload = await response.Content.ReadFromJsonAsync<ListPermissionsResponse>();
 		payload.Should().NotBeNull();
-		payload!.PermissionKeys.Should().NotBeEmpty();
+		Assert.NotNull(payload);
+		payload.PermissionKeys.Should().NotBeEmpty();
 		payload.PermissionKeys.Should().BeInAscendingOrder();
 	}
 
@@ -275,7 +277,8 @@ public sealed class StaffProfilePermissionsSpec
 
 		var created = await response.Content.ReadFromJsonAsync<StaffProfileCreatedResponse>();
 		created.Should().NotBeNull();
-		return created!.ProfileId.ToString();
+		Assert.NotNull(created);
+		return created.ProfileId.ToString();
 	}
 
 	private async Task<List<string>> GetPermissionKeysAsync(string staffToken, string profileId) {

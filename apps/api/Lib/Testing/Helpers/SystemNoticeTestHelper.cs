@@ -6,6 +6,7 @@ using MainApi.Lib.Utils;
 using AppRoutes = MainApi.Lib.Routes.Routes;
 
 namespace MainApi.Lib.Testing.Helpers;
+
 internal static class SystemNoticeTestHelper {
 	private static readonly string CreateUrl = PathUtils.Join(
 		AppRoutes.Staff.Root,

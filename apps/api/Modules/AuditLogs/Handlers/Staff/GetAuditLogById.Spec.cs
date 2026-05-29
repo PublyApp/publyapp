@@ -17,6 +17,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.AuditLogs.Handlers.Staff;
+
 public sealed class GetAuditLogByIdSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
@@ -70,7 +71,8 @@ public sealed class GetAuditLogByIdSpec
 				AuditLogDetailResponse
 			>();
 		result.Should().NotBeNull();
-		result!.Id.Should().Be(logId);
+		Assert.NotNull(result);
+		result.Id.Should().Be(logId);
 		result.UserId.Should().Be(userId);
 		result.UserName.Should().NotBeNullOrEmpty();
 		result.UserEmail.Should()
@@ -128,7 +130,8 @@ public sealed class GetAuditLogByIdSpec
 					AuditLogDetailResponse
 				>();
 			result.Should().NotBeNull();
-			result!.Id.Should().Be(logId);
+			Assert.NotNull(result);
+			result.Id.Should().Be(logId);
 			result.UserName.Should()
 				.NotBe("(deleted user)");
 			result.UserEmail.Should()
