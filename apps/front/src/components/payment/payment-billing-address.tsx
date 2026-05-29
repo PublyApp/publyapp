@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -6,7 +7,7 @@ import Typography from '@mui/material/Typography';
 
 export function PaymentBillingAddress() {
 	return (
-		<div>
+		<Box>
 			<Typography variant="h6">Billing address</Typography>
 
 			<Stack spacing={3} mt={5}>
@@ -15,6 +16,6 @@ export function PaymentBillingAddress() {
 				<TextField fullWidth label="Email" />
 				<TextField fullWidth label="Address" />
 			</Stack>
-		</div>
+		</Box>
 	);
 }

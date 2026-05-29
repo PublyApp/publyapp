@@ -2,6 +2,7 @@ import Autocomplete, {
 	type AutocompleteProps,
 	type AutocompleteRenderInputParams,
 } from '@mui/material/Autocomplete';
+import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import { filledInputClasses } from '@mui/material/FilledInput';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -74,7 +75,7 @@ export const CountrySelect = ({
 			const country = getCountry(option);
 
 			return (
-				<li {...props} key={country.label}>
+				<Box component="li" {...props} key={country.label}>
 					<FlagIcon
 						key={country.label}
 						code={country.code}
@@ -86,7 +87,7 @@ export const CountrySelect = ({
 						}}
 					/>
 					{country.label} ({country.code}) +{country.phone}
-				</li>
+				</Box>
 			);
 		},
 		[getCountry],

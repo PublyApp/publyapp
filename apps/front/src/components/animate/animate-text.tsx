@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import { type SxProps, styled, type Theme } from '@mui/material/styles';
 import Typography, { type TypographyProps } from '@mui/material/Typography';
 import {
@@ -111,7 +112,9 @@ export const AnimateText = ({
 			]}
 			{...other}
 		>
-			<span className={animateTextClasses.srOnly}>{textArray.join(' ')}</span>
+			<Box component="span" className={animateTextClasses.srOnly}>
+				{textArray.join(' ')}
+			</Box>
 
 			<AnimatedTextContainer
 				ref={textRef}
