@@ -4,6 +4,7 @@ import {
 	queryParamKey,
 	queryParamValue,
 } from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import {
 	ClientManager,
@@ -103,7 +104,7 @@ export const logout = (options?: LogoutOptions): void => {
 		body: formData,
 	})
 		.catch((e) => {
-			console.error('Logout failed:', e);
+			logger.error('Logout failed:', e);
 			// Ignore fetch errors - navigate to login regardless
 		})
 		.finally(() => {
