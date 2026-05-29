@@ -8,7 +8,6 @@ import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import * as cookie from 'cookie';
-import dayjs from 'dayjs';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import capitalize from 'lodash/capitalize';
@@ -60,6 +59,7 @@ import {
 	getServerLoader,
 } from '#app/lib/react-router/server-data.server.ts';
 import { interZodClient } from '#app/lib/zod/zod.client.ts';
+import { dayjs } from '#app/utils/format-time.ts';
 
 import type { Route } from './+types/accept-invitation-page';
 
