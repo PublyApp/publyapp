@@ -44,4 +44,22 @@ public static class DiagnosticCatalog {
 		isEnabledByDefault: false,
 		description: "The '?? throw' pattern hides null handling inside an expression. Use "
 			+ "explicit guard clauses for null-then-throw patterns instead.");
+
+	/// <summary>
+	/// PUBLY0003 - disallow ToLower()/ToLowerInvariant() in comparison or dispatch contexts. Per
+	/// the repo C# standards, case-insensitive comparison should use StringComparison overloads or
+	/// case-insensitive comparers instead of allocating a normalized string first. Disabled by
+	/// default so the analyzer can ship dormant before enforcement is enabled in .editorconfig.
+	/// </summary>
+	public static readonly DiagnosticDescriptor ToLowerForComparison = new(
+		DiagnosticIds.PUBLY0003,
+		"Avoid ToLower() for comparison or dispatch",
+		"Do not use ToLower()/ToLowerInvariant() for comparison or dispatch; use "
+			+ "StringComparison overloads or case-insensitive comparers",
+		"PublyApp.Comparison",
+		DiagnosticSeverity.Warning,
+		isEnabledByDefault: false,
+		description: "Calling ToLower()/ToLowerInvariant() before comparison or dispatch can be "
+			+ "culture-sensitive, allocate unnecessarily, and hide the intended comparison "
+			+ "semantics. Use StringComparison overloads or case-insensitive comparers instead.");
 }
