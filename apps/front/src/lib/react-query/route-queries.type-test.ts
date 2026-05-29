@@ -30,6 +30,11 @@ const registry = routeQueries(({ userId }: { userId: string }) => ({
 		queryKey: ['staff-user', userId] as const,
 	}),
 	drawer: interactionRouteQuery(drawerOptions),
+	disabledDetails: secondaryRouteQuery({
+		...detailsOptions,
+		enabled: false,
+		queryKey: ['staff-user', userId, 'disabled'] as const,
+	}),
 	metrics: secondaryRouteQuery({
 		queryKey: ['metrics', userId] as const,
 		queryFn: async () => ({ count: 1 }),
@@ -45,6 +50,7 @@ const assertRouteQueriesTypes = async (queryClient: QueryClient) => {
 	built.auth.options.queryKey satisfies readonly ['auth'];
 	built.details.blocking satisfies true;
 	built.drawer.priority satisfies 'interaction';
+	built.disabledDetails.options.enabled satisfies boolean;
 	built.metrics.priority satisfies 'secondary';
 };
 

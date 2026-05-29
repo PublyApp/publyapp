@@ -5,19 +5,35 @@ export type RouteQueryPriority = 'critical' | 'secondary' | 'interaction';
 type QueryOptionsLike = {
 	queryKey: QueryKey;
 	queryFn?: unknown;
+	enabled?: unknown;
 };
 
 type EnsureQueryDataInput = Parameters<QueryClient['ensureQueryData']>[0];
+type PrefetchQueryInput = Parameters<QueryClient['prefetchQuery']>[0];
+
+const shouldPreloadRouteQuery = (options: QueryOptionsLike) => {
+	return options.enabled !== false;
+};
+
+const prefetchRouteQuery = (
+	queryClient: QueryClient,
+	options: QueryOptionsLike,
+) => {
+	// React Query Kit getOptions(...) returns TanStack-compatible query options,
+	// but callback-typed options remain bound to the specific query data shape.
+	// QueryClient.prefetchQuery accepts the same runtime shape, so keep the
+	// mismatch isolated at this cache-warming boundary instead of weakening route
+	// component hook types.
+	return queryClient.prefetchQuery(options as PrefetchQueryInput);
+};
 
 const ensureRouteQueryData = (
 	queryClient: QueryClient,
 	options: QueryOptionsLike,
 ) => {
-	// React Query Kit getOptions(...) returns TanStack-compatible query options,
-	// but its staleTime callback remains typed to the specific query data shape.
-	// QueryClient.ensureQueryData accepts the same runtime shape, so keep the
-	// mismatch isolated at this cache-warming boundary instead of weakening route
-	// component hook types.
+	// Blocking preloads need data/error semantics, so they use ensureQueryData.
+	// Keep the same isolated React Query Kit/TanStack type boundary as the
+	// non-blocking prefetch path.
 	return queryClient.ensureQueryData(options as EnsureQueryDataInput);
 };
 
@@ -87,7 +103,11 @@ export function routeQueries<
 					continue;
 				}
 
-				void ensureRouteQueryData(queryClient, query.options).catch(() => {
+				if (!shouldPreloadRouteQuery(query.options)) {
+					continue;
+				}
+
+				void prefetchRouteQuery(queryClient, query.options).catch(() => {
 					// Non-blocking route preloads are best-effort cache warming only.
 					// Component hooks keep the normal loading/error contract.
 				});
@@ -97,7 +117,7 @@ export function routeQueries<
 		async preloadBlocking(queryClient: QueryClient, context: TContext) {
 			const queries = factory(context);
 			const blockingQueries = Object.values(queries).filter(
-				(query) => query.blocking,
+				(query) => query.blocking && shouldPreloadRouteQuery(query.options),
 			);
 
 			await Promise.all(

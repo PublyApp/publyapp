@@ -23,12 +23,16 @@
 
 ## Proposed scope boundary
 
-This should be implemented in four staged slices:
+This should be implemented in validation-first staged slices:
 
 1. **Foundation:** helper + types + docs.
-2. **Pilot:** convert a small set of representative routes.
-3. **Enforcement:** custom `@org/lint-ts` / Oxlint rule that catches missing critical preloads.
-4. **Scale-out:** migrate route families gradually, using the check to prevent regressions.
+2. **Semantics hardening:** non-blocking preloads use `prefetchQuery(...)`; blocking preloads use `ensureQueryData(...)`; disabled query options are skipped.
+3. **Pilot:** convert the authed layout, then one params-based details route.
+4. **Manual verification:** prove no duplicate requests, warmed-cache reuse, safe invalid-param behavior, and unchanged component error behavior.
+5. **List/table feasibility:** spike one list/table route only after URL-derived variables are stable.
+6. **Documentation update:** keep the guide and agent pointer aligned with the hardened semantics and pilot findings.
+7. **Enforcement:** custom `@org/lint-ts` / Oxlint rule only after the pilots and verification notes show the convention is stable.
+8. **Scale-out:** migrate route families gradually, using the check to prevent regressions.
 
 Avoid trying to auto-hoist query hooks at runtime. That becomes unreliable with conditionals, drawers, tabs, responsive rendering, lazy children, infinite scroll, and interaction-triggered fetches.
 
@@ -50,7 +54,7 @@ Avoid trying to auto-hoist query hooks at runtime. That becomes unreliable with 
 - `docs/guides/frontend-route-query-preloading.md`
   - Documents when to preload and when not to preload.
   - Gives canonical examples for route registries.
-  - Documents non-blocking `void ensureQueryData(...)` vs blocking `await ensureQueryData(...)`.
+  - Documents non-blocking `void prefetchQuery(...)` vs blocking `await ensureQueryData(...)`.
 
 - `packages/lint-ts/src/rules/route-query-preload.js`
   - Later enforcement rule in the existing custom Oxlint JS plugin.
@@ -349,6 +353,65 @@ Expected: pass.
 
 ---
 
+## Task 3A: Harden helper semantics before the details pilot
+
+**Files:**
+
+- Modify: `apps/front/src/lib/react-query/route-queries.ts`
+- Modify: `apps/front/src/lib/react-query/route-queries.type-test.ts`
+
+- [x] **Step 1: Use `prefetchQuery(...)` for non-blocking preloads**
+
+`preload(...)` is cache warming, not a data-return path. Internally it should call `queryClient.prefetchQuery(...)` and keep errors best-effort/non-blocking.
+
+- [x] **Step 2: Keep `ensureQueryData(...)` for blocking preloads**
+
+`preloadBlocking(...)` should continue to use `ensureQueryData(...)` so route gates get data/error semantics and can propagate failures.
+
+- [x] **Step 3: Skip disabled query options**
+
+Extend the local query option shape with `enabled?: unknown` and skip entries when `enabled === false`. React Query options may also use function-valued `enabled`; those are preserved for TanStack Query. Route registries should still prefer omitting entries when params are invalid, but the helper provides a defensive guardrail.
+
+- [ ] **Step 4: Consider dev-only duplicate key logging later**
+
+Do not add duplicate-key detection in this slice unless real pilots show confusion. If added later, keep it dev-only and avoid noisy production logs.
+
+- [x] **Step 5: Run typecheck**
+
+```bash
+pnpm --filter front type-check
+```
+
+Expected: pass.
+
+---
+
+## Task 3B: Update documentation for hardened semantics and verification gates
+
+**Files:**
+
+- Modify: `docs/guides/frontend-route-query-preloading.md`
+- Modify: `docs/superpowers/plans/2026-05-27-route-query-preload-registry.md`
+- Possibly modify: `AGENTS.md` only if the guide path or summary changes.
+
+- [x] **Step 1: Document `prefetchQuery(...)` vs `ensureQueryData(...)`**
+
+The guide must state that non-blocking route preloads use `prefetchQuery(...)`, while blocking gates use `ensureQueryData(...)`.
+
+- [x] **Step 2: Document invalid-param handling**
+
+The guide must say registries should omit entries when params/search values are invalid, and that `enabled: false` is skipped defensively.
+
+- [x] **Step 3: Add pilot acceptance checklist**
+
+Document manual checks before enforcement: duplicate requests, navigation timing, cache reuse/dedupe, invalid params, redirect safety, and component error behavior.
+
+- [ ] **Step 4: Add pilot findings after browser verification**
+
+After manual browser checks are performed, record the observed results either in the PR description/checklist or this plan.
+
+---
+
 ## Task 4: Pilot on one details route
 
 **Files:**
@@ -401,7 +464,7 @@ Expected: pass.
 
 ---
 
-## Task 5: Add route-query preload enforcement to the existing Oxlint plugin
+## Task 5: Add route-query preload enforcement to the existing Oxlint plugin after pilots and manual verification
 
 **Files:**
 
@@ -409,6 +472,16 @@ Expected: pass.
 - Create: `packages/lint-ts/src/rules/route-query-preload.test.js`
 - Modify: `packages/lint-ts/src/index.js`
 - Modify later: `.oxlintrc.json`
+
+- [ ] **Step 0: Do not start until pilots have evidence**
+
+Only implement this rule after:
+
+- the authed layout pilot has browser verification notes
+- one params-based details route is converted and verified
+- one list/table feasibility pass has identified acceptable variable boundaries
+
+If those checks are not done, update docs/plan or continue pilots instead of writing the rule.
 
 - [ ] **Step 1: Build a conservative Oxlint rule**
 
@@ -575,9 +648,14 @@ Then inspect network timing for one converted details route and one converted li
 Completion is not just typecheck passing. The implementation is complete only when:
 
 - query registry helper exists
-- docs explain classification and examples
+- non-blocking preloads use `prefetchQuery(...)`
+- blocking preloads preserve `ensureQueryData(...)` data/error semantics
+- disabled query options are skipped defensively
+- docs explain classification, examples, invalid-param handling, and pilot acceptance criteria
 - at least one layout/details pilot route is converted
-- the Oxlint plugin rule reports useful candidates
+- manual pilot notes prove no duplicate requests and warmed-cache/in-flight dedupe behavior
+- list/table variable boundaries have been spiked before lint enforcement
+- the Oxlint plugin rule reports useful candidates after pilots, not before
 - no route loader becomes a second server-state store
 - component query hooks remain the normal data consumption API
 
@@ -598,7 +676,11 @@ Completion is not just typecheck passing. The implementation is complete only wh
 1. Foundation helper.
 2. Documentation.
 3. Authed layout pilot.
-4. One details route pilot.
-5. Oxlint plugin rule in advisory mode.
-6. One list/table pilot.
-7. Review results and decide whether to promote the Oxlint rule to required lint enforcement.
+4. Harden helper semantics: `prefetchQuery(...)` for non-blocking, `ensureQueryData(...)` for blocking, skip `enabled: false`.
+5. Documentation update for hardened semantics and pilot acceptance criteria.
+6. Manual authed-layout verification.
+7. One params-based details route pilot.
+8. Manual details-route verification.
+9. One list/table feasibility spike.
+10. Oxlint plugin rule in advisory/report-only mode.
+11. Review results and decide whether to promote the Oxlint rule to required lint enforcement.
