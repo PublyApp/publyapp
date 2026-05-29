@@ -13,6 +13,7 @@ using MainApi.Lib.Utils;
 using Xunit;
 
 namespace MainApi.Modules.Profiles.Handlers.Staff;
+
 public sealed class ResolveStaffProfileUserAssignmentsSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
@@ -127,10 +128,11 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 			.ReadFromJsonAsync<ResolveStaffProfileUserAssignmentsResult>();
 
 		result.Should().NotBeNull();
-		result!.Assignments.Should().Contain(x =>
-			x.UserId.ToString() == staffUserId
-			&& x.IsAssigned
-		);
+		Assert.NotNull(result);
+		result.Assignments.Should().Contain(x =>
+					x.UserId.ToString() == staffUserId
+					&& x.IsAssigned
+				);
 	}
 
 	private async Task<string> CreateStaffProfileAsync(string staffToken) {
@@ -158,7 +160,8 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 		var created = await response.Content
 			.ReadFromJsonAsync<StaffProfileCreatedResponse>();
 		created.Should().NotBeNull();
-		return created!.ProfileId.ToString();
+		Assert.NotNull(created);
+		return created.ProfileId.ToString();
 	}
 
 	private async Task<string> GetStaffUserIdByEmailAsync(
@@ -176,9 +179,10 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 		var result = await response.Content.ReadFromJsonAsync<FindStaffUsersResponse>();
 		result.Should().NotBeNull();
 
-		var user = result!.Data.FirstOrDefault(u =>
-			string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase)
-		);
+		Assert.NotNull(result);
+		var user = result.Data.FirstOrDefault(u =>
+					string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase)
+				);
 
 		if (user is null) {
 			throw new InvalidOperationException(

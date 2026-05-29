@@ -16,6 +16,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Invitations.Handlers.Anonymous;
+
 public sealed class GetInvitationDetailsSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -76,7 +77,8 @@ public sealed class GetInvitationDetailsSpec
 			.ReadFromJsonAsync<InvitationDetailsResponse>();
 
 		result.Should().NotBeNull();
-		result!.Email.Should().Be(inviteEmail);
+		Assert.NotNull(result);
+		result.Email.Should().Be(inviteEmail);
 		result.ProfileName.Should().Be("Admin");
 	}
 

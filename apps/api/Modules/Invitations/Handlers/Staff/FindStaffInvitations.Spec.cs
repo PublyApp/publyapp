@@ -408,7 +408,8 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		FindResponse? page1 = await page1Response.Content
 			.ReadFromJsonAsync<FindResponse>();
 		_ = page1.Should().NotBeNull();
-		_ = page1!.Data.Should().HaveCount(2);
+		Assert.NotNull(page1);
+		_ = page1.Data.Should().HaveCount(2);
 		_ = page1.Data.Should().OnlyContain(item => item.Status == "Pending");
 		_ = page1.NextCursor.Should().NotBeNullOrEmpty();
 
@@ -427,7 +428,8 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		FindResponse? page2 = await page2Response.Content
 			.ReadFromJsonAsync<FindResponse>();
 		_ = page2.Should().NotBeNull();
-		_ = page2!.Data.Should().OnlyContain(item => item.Status == "Pending");
+		Assert.NotNull(page2);
+		_ = page2.Data.Should().OnlyContain(item => item.Status == "Pending");
 
 		HashSet<Guid> page1Ids = page1.Data.Select(item => item.Id).ToHashSet();
 		HashSet<Guid> page2Ids = page2.Data.Select(item => item.Id).ToHashSet();

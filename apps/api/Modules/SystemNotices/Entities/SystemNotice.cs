@@ -13,6 +13,8 @@ namespace MainApi.Modules.SystemNotices.Entities;
 [Index(nameof(StartsAt), nameof(ExpiresAt))]
 [Index(nameof(Severity))]
 public class SystemNotice : BaseAttributes, INoTenantEntity {
+	private UserEntity? _createdByStaff;
+
 	[Column("severity")]
 	public required NoticeSeverity Severity { get; set; }
 
@@ -31,7 +33,10 @@ public class SystemNotice : BaseAttributes, INoTenantEntity {
 	[Column("created_by_staff_id")]
 	public required Guid CreatedByStaffId { get; set; }
 	[JsonIgnore]
-	public UserEntity CreatedByStaff { get; set; } = null!;
+	public UserEntity CreatedByStaff {
+		get { return RequiredNavigation.Get(_createdByStaff, nameof(SystemNotice), nameof(CreatedByStaff)); }
+		set { _createdByStaff = value; }
+	}
 
 	public bool IsActive() {
 		var now = DateTime.UtcNow;

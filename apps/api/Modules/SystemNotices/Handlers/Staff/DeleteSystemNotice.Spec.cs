@@ -15,6 +15,7 @@ using MainApi.Localization;
 using Xunit;
 
 namespace MainApi.Modules.SystemNotices.Handlers.Staff;
+
 public sealed class DeleteSystemNoticeSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
@@ -52,8 +53,9 @@ public sealed class DeleteSystemNoticeSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<ApiResponse>();
 		result.Should().NotBeNull();
-		result!.Key.Should()
-			.Be("system-notice-deleted-successfully");
+		Assert.NotNull(result);
+		result.Key.Should()
+					.Be("system-notice-deleted-successfully");
 	}
 
 	[Fact]
@@ -109,8 +111,9 @@ public sealed class DeleteSystemNoticeSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be("system-notice-not-found");
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be("system-notice-not-found");
 	}
 
 	[Fact]
@@ -173,8 +176,9 @@ public sealed class DeleteSystemNoticeSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be(ResponseKeys.MalformedId);
 	}
 
 	private static string GetDeleteUrl(Guid noticeId) {

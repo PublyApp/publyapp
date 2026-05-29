@@ -19,8 +19,13 @@ namespace MainApi.Modules.Users.Entities;
 public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	[Column("user_id")]
 	public required Guid UserId { get; set; }
+
+	private User? _user;
 	[JsonIgnore]
-	public User User { get; set; } = null!;
+	public User User {
+		get { return RequiredNavigation.Get(_user, nameof(UserAccount), nameof(User)); }
+		set { _user = value; }
+	}
 
 	[Column("tenant_id")]
 	public Guid? TenantId { get; set; }  // Nullable for staff accounts

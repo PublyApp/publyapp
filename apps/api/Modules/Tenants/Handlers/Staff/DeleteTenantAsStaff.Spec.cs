@@ -22,6 +22,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Tenants.Handlers.Staff;
+
 public sealed class DeleteTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -74,8 +75,9 @@ public sealed class DeleteTenantAsStaffSpec
 		var result = await deleteResponse.Content
 			.ReadFromJsonAsync<ApiResponse>();
 		result.Should().NotBeNull();
-		result!.Key.Should()
-			.Be("tenant-deleted-success");
+		Assert.NotNull(result);
+		result.Key.Should()
+					.Be("tenant-deleted-success");
 
 		// Verify tenant is now not found
 		var getUrl = PathUtils.Join(
@@ -172,8 +174,9 @@ public sealed class DeleteTenantAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be("tenant-not-suspended-cannot-delete");
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be("tenant-not-suspended-cannot-delete");
 	}
 
 	[Fact]
@@ -218,8 +221,9 @@ public sealed class DeleteTenantAsStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be("malformed-id");
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be("malformed-id");
 	}
 
 	[Fact]

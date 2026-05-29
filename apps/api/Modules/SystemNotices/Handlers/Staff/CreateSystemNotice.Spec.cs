@@ -12,6 +12,7 @@ using MainApi.Lib.Utils;
 using Xunit;
 
 namespace MainApi.Modules.SystemNotices.Handlers.Staff;
+
 public sealed class CreateSystemNoticeSpec
 	: IClassFixture<ApiFixture> {
 	private static readonly string CreateUrl = PathUtils.Join(
@@ -62,7 +63,8 @@ public sealed class CreateSystemNoticeSpec
 			var result = await response.Content
 				.ReadFromJsonAsync<NoticeCreatedResponse>();
 			result.Should().NotBeNull();
-			createdId = result!.Id;
+			Assert.NotNull(result);
+			createdId = result.Id;
 			result.Id.Should().NotBeEmpty();
 			result.Title.Should()
 				.Be("Maintenance Window");
@@ -111,7 +113,8 @@ public sealed class CreateSystemNoticeSpec
 			var result = await response.Content
 				.ReadFromJsonAsync<NoticeCreatedResponse>();
 			result.Should().NotBeNull();
-			createdId = result!.Id;
+			Assert.NotNull(result);
+			createdId = result.Id;
 			result.ExpiresAt.Should().BeNull();
 		} finally {
 			if (createdId.HasValue) {

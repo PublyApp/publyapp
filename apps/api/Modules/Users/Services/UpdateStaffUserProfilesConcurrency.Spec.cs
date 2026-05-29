@@ -17,6 +17,7 @@ using Npgsql;
 using Xunit;
 
 namespace MainApi.Modules.Users.Services;
+
 public sealed class UpdateStaffUserProfilesConcurrencySpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;

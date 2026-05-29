@@ -18,6 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Invitations.Handlers.Anonymous;
+
 public sealed class AcceptInvitationSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -89,7 +90,8 @@ public sealed class AcceptInvitationSpec
 		var accepted = await acceptResponse.Content
 			.ReadFromJsonAsync<InvitationAcceptedResponse>();
 		accepted.Should().NotBeNull();
-		accepted!.TenantId.Should().Be(invitation.TenantId);
+		Assert.NotNull(accepted);
+		accepted.TenantId.Should().Be(invitation.TenantId);
 		accepted.SessionToken.Should().NotBeNullOrWhiteSpace();
 
 		using var pickerRequest = new HttpRequestMessage(
@@ -104,7 +106,8 @@ public sealed class AcceptInvitationSpec
 		var picker = await pickerResponse.Content
 			.ReadFromJsonAsync<PickerResponse>();
 		picker.Should().NotBeNull();
-		picker!.HasSuspendedTenants.Should().BeFalse();
+		Assert.NotNull(picker);
+		picker.HasSuspendedTenants.Should().BeFalse();
 		picker.ActiveCount.Should().Be(1);
 		picker.Tenants.Should().ContainSingle(t =>
 			t.Id == invitation.TenantId &&
@@ -181,7 +184,8 @@ public sealed class AcceptInvitationSpec
 		var accepted = await acceptResponse.Content
 			.ReadFromJsonAsync<InvitationAcceptedResponse>();
 		accepted.Should().NotBeNull();
-		accepted!.TenantId.Should().Be(invitation.TenantId);
+		Assert.NotNull(accepted);
+		accepted.TenantId.Should().Be(invitation.TenantId);
 		accepted.UserId.Should().NotBeEmpty();
 		accepted.SessionToken.Should().Be(existingUserToken);
 
@@ -197,10 +201,11 @@ public sealed class AcceptInvitationSpec
 		var picker = await pickerResponse.Content
 			.ReadFromJsonAsync<PickerResponse>();
 		picker.Should().NotBeNull();
-		picker!.Tenants.Should().Contain(t =>
-			t.Id == invitation.TenantId &&
-			t.Status == "Active"
-		);
+		Assert.NotNull(picker);
+		picker.Tenants.Should().Contain(t =>
+					t.Id == invitation.TenantId &&
+					t.Status == "Active"
+				);
 
 		await using var assertScope = _fixture.Factory.Services.CreateAsyncScope();
 		var assertDbContext =

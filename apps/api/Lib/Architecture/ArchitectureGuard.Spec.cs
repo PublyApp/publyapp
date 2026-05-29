@@ -120,10 +120,11 @@ namespace MainApi.Lib.Architecture {
 			var entityType = dbContext.Model.FindEntityType(typeof(TEntity));
 			entityType.Should().NotBeNull();
 
-			var primaryKeyPropertyNames = entityType!.FindPrimaryKey()
-				?.Properties
-				.Select(property => property.Name)
-				.ToArray();
+			Assert.NotNull(entityType);
+			var primaryKeyPropertyNames = entityType.FindPrimaryKey()
+							?.Properties
+							.Select(property => property.Name)
+							.ToArray();
 
 			primaryKeyPropertyNames.Should().Equal(expectedKeyPropertyNames);
 			// The absence checks matter as much as the key check: inactive membership rows

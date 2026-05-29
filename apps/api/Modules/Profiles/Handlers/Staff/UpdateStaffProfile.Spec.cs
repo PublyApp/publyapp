@@ -15,6 +15,7 @@ using MainApi.Lib.Utils;
 using Xunit;
 
 namespace MainApi.Modules.Profiles.Handlers.Staff;
+
 public sealed class UpdateStaffProfileSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
@@ -135,7 +136,8 @@ public sealed class UpdateStaffProfileSpec
 
 		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.Errors.Should().ContainKey("Name");
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("Name");
 	}
 
 	[Fact]
@@ -158,7 +160,8 @@ public sealed class UpdateStaffProfileSpec
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be("profile-name-already-exists");
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be("profile-name-already-exists");
 	}
 
 	[Fact]
@@ -180,7 +183,8 @@ public sealed class UpdateStaffProfileSpec
 
 		var updated = await response.Content.ReadFromJsonAsync<GetStaffProfileByIdResponse>();
 		updated.Should().NotBeNull();
-		updated!.Profile.Name.Should().StartWith("Renamed ");
+		Assert.NotNull(updated);
+		updated.Profile.Name.Should().StartWith("Renamed ");
 		updated.Profile.Description.Should().Be("New description");
 	}
 
@@ -207,7 +211,8 @@ public sealed class UpdateStaffProfileSpec
 
 		var updated = await response.Content.ReadFromJsonAsync<GetStaffProfileByIdResponse>();
 		updated.Should().NotBeNull();
-		updated!.Profile.Description.Should().BeNull();
+		Assert.NotNull(updated);
+		updated.Profile.Description.Should().BeNull();
 	}
 
 	// -- Helpers --
@@ -241,7 +246,8 @@ public sealed class UpdateStaffProfileSpec
 
 		var created = await response.Content.ReadFromJsonAsync<StaffProfileCreatedResponse>();
 		created.Should().NotBeNull();
-		return created!.ProfileId.ToString();
+		Assert.NotNull(created);
+		return created.ProfileId.ToString();
 	}
 
 	private async Task<string> GetProfileNameAsync(string staffToken, string profileId) {

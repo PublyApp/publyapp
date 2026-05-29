@@ -63,7 +63,8 @@ namespace MainApi.Modules.Users.Handlers.Staff {
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 			ReactivateTenantUserResultDto? result = await response.Content.ReadFromJsonAsync<ReactivateTenantUserResultDto>();
 			_ = result.Should().NotBeNull();
-			_ = result!.Status.Should().Be("Active");
+			Assert.NotNull(result);
+			_ = result.Status.Should().Be("Active");
 		}
 
 		[Fact]
@@ -120,7 +121,8 @@ namespace MainApi.Modules.Users.Handlers.Staff {
 			// Assert
 			_ = response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 			AppProblemDetails? problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-			_ = problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+			Assert.NotNull(problem);
+			_ = problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 		}
 
 		[Fact]
@@ -143,7 +145,8 @@ namespace MainApi.Modules.Users.Handlers.Staff {
 			// Assert
 			_ = response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 			AppProblemDetails? problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-			_ = problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+			Assert.NotNull(problem);
+			_ = problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 		}
 
 		[Fact]

@@ -43,8 +43,8 @@ public static class ServiceScanner {
 		} catch (ReflectionTypeLoadException ex) {
 			// Fail fast with actionable diagnostics
 			var loaderExceptions = ex.LoaderExceptions
-				.Where(e => e is not null)
-				.Select(e => e!.Message)
+				.OfType<Exception>()
+				.Select(e => e.Message)
 				.Distinct()
 				.Take(10) // Truncate to first 10 distinct messages
 				.ToList();
@@ -67,7 +67,11 @@ public static class ServiceScanner {
 			.ToList();
 
 		foreach (var type in typesWithAttribute) {
-			var attribute = type.GetCustomAttribute<ServiceAttribute>()!;
+			var attribute = type.GetCustomAttribute<ServiceAttribute>();
+			if (attribute is null) {
+				continue;
+			}
+
 			var (primaryInterface, interfaceResolutionError) = FindPrimaryInterface(type);
 
 			discovered.Add(new DiscoveredService {

@@ -17,6 +17,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Auth.Handlers;
+
 public sealed class GetUserTenantsForPickerSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -52,7 +53,8 @@ public sealed class GetUserTenantsForPickerSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<PickerResponse>();
 		result.Should().NotBeNull();
-		result!.HasSuspendedTenants.Should().BeFalse();
+		Assert.NotNull(result);
+		result.HasSuspendedTenants.Should().BeFalse();
 		result.TotalCount.Should().Be(2);
 		result.ActiveCount.Should().Be(2);
 		result.Tenants.Should().HaveCount(2);
@@ -101,14 +103,16 @@ public sealed class GetUserTenantsForPickerSpec
 			var result = await response.Content
 				.ReadFromJsonAsync<PickerResponse>();
 			result.Should().NotBeNull();
-			result!.HasSuspendedTenants.Should().BeTrue();
+			Assert.NotNull(result);
+			result.HasSuspendedTenants.Should().BeTrue();
 			result.TotalCount.Should().Be(2);
 			result.ActiveCount.Should().Be(1);
 
 			var acmeTenant = result.Tenants
 				.FirstOrDefault(t => t.Id == acmeId);
 			acmeTenant.Should().NotBeNull();
-			acmeTenant!.Status.Should().Be("Suspended");
+			Assert.NotNull(acmeTenant);
+			acmeTenant.Status.Should().Be("Suspended");
 
 			// Other tenant should still be active
 			var otherTenants = result.Tenants
@@ -174,8 +178,9 @@ public sealed class GetUserTenantsForPickerSpec
 			var result = await response.Content
 				.ReadFromJsonAsync<PickerResponse>();
 			result.Should().NotBeNull();
-			result!.HasSuspendedTenants.Should()
-				.BeFalse();
+			Assert.NotNull(result);
+			result.HasSuspendedTenants.Should()
+							.BeFalse();
 			result.TotalCount.Should().Be(2);
 			result.ActiveCount.Should().Be(2);
 			result.Tenants.Should().AllSatisfy(t => {
@@ -217,7 +222,8 @@ public sealed class GetUserTenantsForPickerSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<PickerResponse>();
 		result.Should().NotBeNull();
-		result!.TotalCount.Should().Be(1);
+		Assert.NotNull(result);
+		result.TotalCount.Should().Be(1);
 		result.ActiveCount.Should().Be(1);
 		result.HasSuspendedTenants.Should().BeFalse();
 	}

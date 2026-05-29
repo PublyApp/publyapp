@@ -62,7 +62,8 @@ public sealed class BulkReactivateStaffUsersSpec : IClassFixture<ApiFixture> {
 
 		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.RequestBodyValidationFailed);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.RequestBodyValidationFailed);
 		problem.Errors.Values
 			.SelectMany(errors => errors)
 			.Should()
@@ -86,7 +87,8 @@ public sealed class BulkReactivateStaffUsersSpec : IClassFixture<ApiFixture> {
 
 		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.RequestBodyValidationFailed);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.RequestBodyValidationFailed);
 		problem.Errors.Values
 			.SelectMany(errors => errors)
 			.Should()
@@ -122,7 +124,8 @@ public sealed class BulkReactivateStaffUsersSpec : IClassFixture<ApiFixture> {
 
 		var result = await response.Content.ReadFromJsonAsync<BulkStaffUserActionResponse>();
 		result.Should().NotBeNull();
-		result!.SucceededCount.Should().Be(2);
+		Assert.NotNull(result);
+		result.SucceededCount.Should().Be(2);
 		result.FailedCount.Should().Be(0);
 		result.FailedItems.Should().BeEmpty();
 
@@ -160,7 +163,8 @@ public sealed class BulkReactivateStaffUsersSpec : IClassFixture<ApiFixture> {
 
 		var result = await response.Content.ReadFromJsonAsync<BulkStaffUserActionResponse>();
 		result.Should().NotBeNull();
-		result!.SucceededCount.Should().Be(1);
+		Assert.NotNull(result);
+		result.SucceededCount.Should().Be(1);
 		result.FailedCount.Should().Be(2);
 		result.FailedItems.Should().ContainSingle(
 			item => item.UserId == nonSuspendedUserId
@@ -223,7 +227,8 @@ public sealed class BulkReactivateStaffUsersSpec : IClassFixture<ApiFixture> {
 		).FirstOrDefaultAsync();
 
 		user.Should().NotBeNull();
-		user!.Status.Should().Be(expectedStatus);
+		Assert.NotNull(user);
+		user.Status.Should().Be(expectedStatus);
 	}
 
 	private sealed record BulkStaffUserActionResponse {

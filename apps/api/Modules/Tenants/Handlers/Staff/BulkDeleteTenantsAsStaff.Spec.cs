@@ -15,6 +15,7 @@ using MainApi.Modules.Tenants.Entities;
 using Xunit;
 
 namespace MainApi.Modules.Tenants.Handlers.Staff;
+
 public sealed class BulkDeleteTenantsAsStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;

@@ -22,9 +22,19 @@ public sealed class ApiFixture : IAsyncLifetime {
 	private readonly string _testDbName;
 	private DatabaseTemplateManager? _dbManager;
 	private string _testDbConnectionString = string.Empty;
+	private MainApiFactory? _factory;
+	private HttpClient? _httpClient;
 
-	public MainApiFactory Factory { get; private set; }
-		= null!;
+	public MainApiFactory Factory {
+		get {
+			if (_factory is null) {
+				throw new InvalidOperationException("API fixture factory has not been initialized.");
+			}
+
+			return _factory;
+		}
+		private set { _factory = value; }
+	}
 
 	/// <summary>
 	/// Default shared HttpClient with cookies disabled
@@ -32,8 +42,16 @@ public sealed class ApiFixture : IAsyncLifetime {
 	/// For tests that need cookie handling, use
 	/// CreateClient() with custom options.
 	/// </summary>
-	public HttpClient HttpClient { get; private set; }
-		= null!;
+	public HttpClient HttpClient {
+		get {
+			if (_httpClient is null) {
+				throw new InvalidOperationException("API fixture HTTP client has not been initialized.");
+			}
+
+			return _httpClient;
+		}
+		private set { _httpClient = value; }
+	}
 
 	public ApiFixture() {
 		_testDbName = $"mainapi_test_{Guid.NewGuid():N}";
@@ -97,14 +115,14 @@ public sealed class ApiFixture : IAsyncLifetime {
 		List<Exception> errors = [];
 
 		try {
-			HttpClient?.Dispose();
+			_httpClient?.Dispose();
 		} catch (Exception ex) {
 			errors.Add(ex);
 		}
 
-		if (Factory is not null) {
+		if (_factory is not null) {
 			try {
-				await Factory.DisposeAsync();
+				await _factory.DisposeAsync();
 			} catch (Exception ex) {
 				errors.Add(ex);
 			}

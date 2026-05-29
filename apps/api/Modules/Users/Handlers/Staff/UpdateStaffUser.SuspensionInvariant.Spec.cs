@@ -18,6 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Users.Handlers.Staff;
+
 public sealed class UpdateStaffUserSuspensionInvariantSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -69,7 +70,8 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<StaffUserSuspendedResult>();
 		result.Should().NotBeNull();
-		result!.Status.Should().Be("Suspended");
+		Assert.NotNull(result);
+		result.Status.Should().Be("Suspended");
 
 		await using (
 			var scope =
@@ -85,7 +87,8 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 				);
 
 			user.Should().NotBeNull();
-			user!.Status.Should().Be(UserStatus.Suspended);
+			Assert.NotNull(user);
+			user.Status.Should().Be(UserStatus.Suspended);
 		}
 
 		using var loginResponse =
@@ -146,7 +149,8 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 		var result = await reactivateResponse.Content
 			.ReadFromJsonAsync<StaffUserReactivatedResult>();
 		result.Should().NotBeNull();
-		result!.Status.Should().Be("Active");
+		Assert.NotNull(result);
+		result.Status.Should().Be("Active");
 
 		await using (
 			var scope =
@@ -162,7 +166,8 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 				);
 
 			user.Should().NotBeNull();
-			user!.Status.Should().Be(UserStatus.Active);
+			Assert.NotNull(user);
+			user.Status.Should().Be(UserStatus.Active);
 		}
 
 		var userToken = await _authClient.LoginAsync(

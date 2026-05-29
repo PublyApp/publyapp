@@ -22,6 +22,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Profiles.Handlers.Staff;
+
 public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
@@ -105,7 +106,8 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -124,7 +126,8 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -178,7 +181,8 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.ProfileNameAlreadyExists);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.ProfileNameAlreadyExists);
 	}
 
 	[Fact]
@@ -205,14 +209,16 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
 		payload.Should().NotBeNull();
-		payload!.Profile.Description.Should().Be(updatedDescription);
+		Assert.NotNull(payload);
+		payload.Profile.Description.Should().Be(updatedDescription);
 
 		var auditLog = await GetLatestAuditLogAsync(
 			AuditActions.TenantProfileUpdated,
 			Guid.Parse(profileId)
 		);
 		auditLog.Should().NotBeNull();
-		auditLog!.Action.Should().Be(AuditActions.TenantProfileUpdated);
+		Assert.NotNull(auditLog);
+		auditLog.Action.Should().Be(AuditActions.TenantProfileUpdated);
 		AssertAuditDetails(
 			auditLog,
 			expectedTenantId: tenantId,
@@ -248,14 +254,16 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
 		payload.Should().NotBeNull();
-		payload!.Profile.Description.Should().BeNull();
+		Assert.NotNull(payload);
+		payload.Profile.Description.Should().BeNull();
 
 		var auditLog = await GetLatestAuditLogAsync(
 			AuditActions.TenantProfileUpdated,
 			profileGuid
 		);
 		auditLog.Should().NotBeNull();
-		auditLog!.Action.Should().Be(AuditActions.TenantProfileUpdated);
+		Assert.NotNull(auditLog);
+		auditLog.Action.Should().Be(AuditActions.TenantProfileUpdated);
 		AssertAuditDetails(
 			auditLog,
 			expectedTenantId: tenantId,
@@ -290,7 +298,8 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
 		payload.Should().NotBeNull();
-		payload!.Profile.Description.Should().Be(noOpDescription);
+		Assert.NotNull(payload);
+		payload.Profile.Description.Should().Be(noOpDescription);
 
 		var auditLog = await GetLatestAuditLogAsync(
 			AuditActions.TenantProfileUpdated,
@@ -331,7 +340,8 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
 		payload.Should().NotBeNull();
-		return payload!.Profile.Id.ToString();
+		Assert.NotNull(payload);
+		return payload.Profile.Id.ToString();
 	}
 
 	private async Task<string> GetProfileNameAsync(
@@ -384,7 +394,8 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		string? expectedDescriptionNew
 	) {
 		auditLog.Details.Should().NotBeNull();
-		using var document = JsonDocument.Parse(auditLog.Details!);
+		Assert.NotNull(auditLog.Details);
+		using var document = JsonDocument.Parse(auditLog.Details);
 		var details = document.RootElement;
 
 		details.GetProperty("TenantId").GetGuid().Should().Be(expectedTenantId);

@@ -14,10 +14,15 @@ namespace MainApi.Modules.AuditLogs.Entities;
 [Index(nameof(Action), nameof(CreatedAt))]
 [Index(nameof(TargetId))]
 public class AuditLog : BaseAttributes, INoTenantEntity {
+	private UserEntity? _user;
+
 	[Column("user_id")]
 	public required Guid UserId { get; set; }
 	[JsonIgnore]
-	public UserEntity User { get; set; } = null!;
+	public UserEntity User {
+		get { return RequiredNavigation.Get(_user, nameof(AuditLog), nameof(User)); }
+		set { _user = value; }
+	}
 
 	[Column("action")]
 	public required string Action { get; set; }

@@ -20,6 +20,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Lib.DI;
+
 public sealed class ServiceAttributeRegistrationSpec
 	: IClassFixture<ApiFixture> {
 	private sealed record QualifyingService(
@@ -80,7 +81,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		var actualServices = discoveredServices
 			.Where(x => x.ServiceInterface is not null)
 			.Select(x => new {
-				ServiceType = x.ServiceInterface!,
+				ServiceType = x.ServiceInterface,
 				x.ImplementationType,
 				x.Lifetime,
 				x.Key
@@ -158,10 +159,18 @@ public sealed class ServiceAttributeRegistrationSpec
 					)
 			})
 			.Where(x => x.ServiceType is not null)
-			.Select(x => new QualifyingService(
-				x.ServiceType!,
-				x.ImplementationType
-			))
+			.Select(x => {
+				if (x.ServiceType is null) {
+					throw new InvalidOperationException(
+						$"Service '{x.ImplementationType.FullName}' has no matching interface."
+					);
+				}
+
+				return new QualifyingService(
+					x.ServiceType,
+					x.ImplementationType
+				);
+			})
 			.ToArray();
 	}
 }

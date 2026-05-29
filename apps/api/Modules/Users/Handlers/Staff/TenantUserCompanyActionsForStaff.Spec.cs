@@ -19,6 +19,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Users.Handlers.Staff;
+
 public sealed class TenantUserCompanyActionsForStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;

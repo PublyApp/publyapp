@@ -11,6 +11,7 @@ using MainApi.Lib.Utils;
 using Xunit;
 
 namespace MainApi.Modules.Permissions.Handlers.Staff;
+
 public sealed class FindStaffPermissionsSpec
 	: IClassFixture<ApiFixture> {
 	private static readonly string FindUrl = PathUtils.Join(

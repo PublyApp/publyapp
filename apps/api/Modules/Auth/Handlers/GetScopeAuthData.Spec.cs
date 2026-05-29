@@ -20,6 +20,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MainApi.Modules.Auth.Handlers;
+
 public sealed class GetScopeAuthDataSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -66,7 +67,8 @@ public sealed class GetScopeAuthDataSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<TenantScopeAuthDataResponse>();
 		result.Should().NotBeNull();
-		result!.Id.Should().Be(acmeId);
+		Assert.NotNull(result);
+		result.Id.Should().Be(acmeId);
 		result.Code.Should().Be(
 			SeedConstants.Tenants.AcmeCode
 		);
@@ -142,7 +144,8 @@ public sealed class GetScopeAuthDataSpec
 				.Distinct(StringComparer.OrdinalIgnoreCase)
 				.ToList();
 
-			result!.Permissions.Should().BeEquivalentTo(expectedPermissions);
+			Assert.NotNull(result);
+			result.Permissions.Should().BeEquivalentTo(expectedPermissions);
 			result.Permissions.Should().OnlyHaveUniqueItems();
 			result.Permissions.Should().OnlyContain(permission =>
 				permission.StartsWith(
@@ -241,9 +244,10 @@ public sealed class GetScopeAuthDataSpec
 			var result = await response.Content
 				.ReadFromJsonAsync<TenantScopeAuthDataResponse>();
 			result.Should().NotBeNull();
-			result!.Permissions.Should().BeEquivalentTo(
-				[AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key]
-			);
+			Assert.NotNull(result);
+			result.Permissions.Should().BeEquivalentTo(
+							[AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key]
+						);
 		} finally {
 			await CleanupScopeAuthDataTestArtifactsAsync(createdProfileIds);
 		}
@@ -302,7 +306,8 @@ public sealed class GetScopeAuthDataSpec
 			var result = await response.Content
 				.ReadFromJsonAsync<TenantScopeAuthDataResponse>();
 			result.Should().NotBeNull();
-			result!.Profiles.Should().HaveCount(requestedProfileCount);
+			Assert.NotNull(result);
+			result.Profiles.Should().HaveCount(requestedProfileCount);
 			result.Profiles.Select(profile => profile.Id)
 				.Should()
 				.BeEquivalentTo(createdProfileIds);
@@ -332,7 +337,8 @@ public sealed class GetScopeAuthDataSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<StaffScopeAuthDataResponse>();
 		result.Should().NotBeNull();
-		result!.Code.Should().Be("staff");
+		Assert.NotNull(result);
+		result.Code.Should().Be("staff");
 		result.IsAdmin.Should().BeTrue();
 	}
 
@@ -360,8 +366,9 @@ public sealed class GetScopeAuthDataSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be("not-a-staff-user");
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be("not-a-staff-user");
 	}
 
 	[Fact]
@@ -388,7 +395,8 @@ public sealed class GetScopeAuthDataSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be("forbidden");
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be("forbidden");
 	}
 
 	[Fact]
@@ -433,8 +441,9 @@ public sealed class GetScopeAuthDataSpec
 			var problem = await response.Content
 				.ReadFromJsonAsync<AppProblemDetails>();
 			problem.Should().NotBeNull();
-			problem!.TranslationKey.Should()
-				.Be("tenant-suspended");
+			Assert.NotNull(problem);
+			problem.TranslationKey.Should()
+							.Be("tenant-suspended");
 		} finally {
 			using var cleanup =
 				await TenantTestHelper
@@ -480,7 +489,8 @@ public sealed class GetScopeAuthDataSpec
 		problem.Should().NotBeNull();
 		// Non-member: generic forbidden, NOT
 		// "tenant-suspended"
-		problem!.TranslationKey.Should().Be("forbidden");
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be("forbidden");
 	}
 
 	[Fact]

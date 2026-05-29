@@ -14,6 +14,8 @@ namespace MainApi.Modules.Auth.Entities;
 [Index(nameof(Token), IsUnique = true)]
 [Index(nameof(ExpiresAt))]
 public class Session : INoTenantEntity {
+	private UserEntity? _user;
+
 	[Key]
 	[Column("id")]
 	public Guid? Id { get; set; }
@@ -28,7 +30,10 @@ public class Session : INoTenantEntity {
 	public required Guid UserId { get; set; }
 
 	[JsonIgnore]
-	public UserEntity User { get; set; } = null!;
+	public UserEntity User {
+		get { return RequiredNavigation.Get(_user, nameof(Session), nameof(User)); }
+		set { _user = value; }
+	}
 
 	[Column("token")]
 	public required string Token { get; set; } = string.Empty;

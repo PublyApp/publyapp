@@ -16,6 +16,7 @@ using MainApi.Localization;
 using Xunit;
 
 namespace MainApi.Modules.Users.Handlers.Staff;
+
 public sealed class UpdateTenantUserIdentityForStaffSpec
 	: IClassFixture<ApiFixture> {
 	private static readonly JsonSerializerOptions TenantUserDetailsJsonOptions = new() {
@@ -89,7 +90,8 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 			TenantUserDetailsJsonOptions
 		);
 		result.Should().NotBeNull();
-		result!.Id.ToString().Should().Be(userId);
+		Assert.NotNull(result);
+		result.Id.ToString().Should().Be(userId);
 		result.FirstName.Should().Be("Tenant");
 		result.LastName.Should().Be("Identity");
 		result.CompanyCount.Should().Be(1);
@@ -155,7 +157,8 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<TenantUserDetailsResponse>();
 		result.Should().NotBeNull();
-		result!.Id.ToString().Should().Be(userId);
+		Assert.NotNull(result);
+		result.Id.ToString().Should().Be(userId);
 		result.FirstName.Should().Be("Zero");
 		result.LastName.Should().Be("Companies");
 		result.CompanyCount.Should().Be(0);
@@ -191,7 +194,8 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.BadRequest);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.BadRequest);
 	}
 
 	[Fact]
@@ -214,7 +218,8 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -237,7 +242,8 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.NotFound);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.NotFound);
 	}
 
 	private async Task ResetUserNameAsync(

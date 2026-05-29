@@ -24,13 +24,23 @@ public sealed class PostgresContainerFixture {
 	private static PostgresContainerFixture? _sharedInstance;
 
 	// Keep container reference alive for process lifetime
-	private PostgreSqlContainer _container = null!;
+	private PostgreSqlContainer? _container;
 
 	public string AdminConnectionString { get; private set; }
 		= string.Empty;
 	public string TemplateDbName { get; } = "mainapi_template";
 
 	private PostgresContainerFixture() { }
+
+	private PostgreSqlContainer Container {
+		get {
+			if (_container is null) {
+				throw new InvalidOperationException("Postgres container has not been initialized.");
+			}
+
+			return _container;
+		}
+	}
 
 	/// <summary>
 	/// Returns the shared fixture instance, initializing
@@ -77,9 +87,10 @@ public sealed class PostgresContainerFixture {
 		}
 
 		_container = containerBuilder.Build();
+		var container = Container;
 
 		try {
-			await _container.StartAsync();
+			await container.StartAsync();
 		} catch (Exception ex) {
 			throw new InvalidOperationException(
 				"Failed to start Postgres container. "
@@ -92,7 +103,7 @@ public sealed class PostgresContainerFixture {
 		// Pooling=false on admin connection to avoid pool
 		// issues during CREATE/DROP DATABASE
 		var adminConnBuilder = new NpgsqlConnectionStringBuilder(
-			_container.GetConnectionString()
+			container.GetConnectionString()
 		) {
 			Pooling = false
 		};
@@ -113,7 +124,7 @@ public sealed class PostgresContainerFixture {
 			// local runs clean and avoids stale containers
 			// when Ryuk is disabled.
 			try {
-				await _container.DisposeAsync();
+				await container.DisposeAsync();
 			} catch {
 				// best-effort
 			}

@@ -112,15 +112,17 @@ public sealed class ExportAuditLogsSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
 
-		response.Content.Headers.ContentType!
-			.MediaType.Should().Be("text/csv");
+		Assert.NotNull(response.Content.Headers.ContentType);
+		response.Content.Headers.ContentType
+					.MediaType.Should().Be("text/csv");
 
 		var dispositionHeader =
 			response.Content.Headers
 				.ContentDisposition;
 		dispositionHeader.Should().NotBeNull();
-		dispositionHeader!.DispositionType.Should()
-			.Be("attachment");
+		Assert.NotNull(dispositionHeader);
+		dispositionHeader.DispositionType.Should()
+					.Be("attachment");
 		dispositionHeader.FileName.Should()
 			.StartWith("audit-logs-")
 			.And.EndWith(".csv");
@@ -164,9 +166,10 @@ public sealed class ExportAuditLogsSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
 
-		response.Content.Headers.ContentType!
-			.MediaType.Should()
-			.Be("application/json");
+		Assert.NotNull(response.Content.Headers.ContentType);
+		response.Content.Headers.ContentType
+					.MediaType.Should()
+					.Be("application/json");
 
 		var content = await response.Content
 			.ReadAsStringAsync();

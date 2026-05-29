@@ -12,6 +12,7 @@ using MainApi.Lib.Testing.Helpers;
 using Xunit;
 
 namespace MainApi.Lib.Filters;
+
 public sealed class TenantAuthFilterSpec
 	: IClassFixture<ApiFixture> {
 	// The /test endpoint is behind tenantGroup
@@ -100,8 +101,9 @@ public sealed class TenantAuthFilterSpec
 			var problem = await response.Content
 				.ReadFromJsonAsync<AppProblemDetails>();
 			problem.Should().NotBeNull();
-			problem!.TranslationKey.Should()
-				.Be("tenant-suspended");
+			Assert.NotNull(problem);
+			problem.TranslationKey.Should()
+							.Be("tenant-suspended");
 		} finally {
 			using var cleanup =
 				await TenantTestHelper
@@ -148,7 +150,8 @@ public sealed class TenantAuthFilterSpec
 		problem.Should().NotBeNull();
 		// Non-member gets generic forbidden, NOT
 		// "tenant-suspended"
-		problem!.TranslationKey.Should().Be("forbidden");
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be("forbidden");
 	}
 
 	[Fact]
@@ -182,7 +185,8 @@ public sealed class TenantAuthFilterSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be("forbidden");
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be("forbidden");
 	}
 
 	[Fact]
@@ -208,8 +212,9 @@ public sealed class TenantAuthFilterSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be("tenant-id-required");
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be("tenant-id-required");
 	}
 
 	[Fact]
@@ -239,8 +244,9 @@ public sealed class TenantAuthFilterSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should()
-			.Be("bad-request");
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+					.Be("bad-request");
 	}
 
 	[Fact]

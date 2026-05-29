@@ -15,6 +15,7 @@ using MainApi.Localization;
 using Xunit;
 
 namespace MainApi.Modules.Users.Handlers.Staff;
+
 public sealed class FindTenantUserCompaniesForStaffSpec
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
@@ -56,7 +57,8 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		var firstResult = await firstResponse.Content
 			.ReadFromJsonAsync<FindCompaniesResponse>();
 		firstResult.Should().NotBeNull();
-		firstResult!.Data.Should().ContainSingle();
+		Assert.NotNull(firstResult);
+		firstResult.Data.Should().ContainSingle();
 		firstResult.NextCursor.Should().NotBeNullOrWhiteSpace();
 
 		using var secondRequest = new HttpRequestMessage(
@@ -76,7 +78,8 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		var secondResult = await secondResponse.Content
 			.ReadFromJsonAsync<FindCompaniesResponse>();
 		secondResult.Should().NotBeNull();
-		secondResult!.Data.Should().ContainSingle();
+		Assert.NotNull(secondResult);
+		secondResult.Data.Should().ContainSingle();
 
 		var tenantNames = firstResult.Data
 			.Concat(secondResult.Data)
@@ -124,9 +127,10 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<FindCompaniesResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().ContainSingle(company =>
-			company.TenantName == SeedConstants.Tenants.TechStartName
-		);
+		Assert.NotNull(result);
+		result.Data.Should().ContainSingle(company =>
+					company.TenantName == SeedConstants.Tenants.TechStartName
+				);
 		result.NextCursor.Should().BeNull();
 	}
 
@@ -176,7 +180,8 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<FindCompaniesResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().BeEmpty();
+		Assert.NotNull(result);
+		result.Data.Should().BeEmpty();
 		result.NextCursor.Should().BeNull();
 	}
 
@@ -196,7 +201,8 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -240,7 +246,8 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.NotFound);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.NotFound);
 	}
 
 	[Fact]
@@ -298,7 +305,8 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		var result = await response.Content
 			.ReadFromJsonAsync<FindCompaniesResponse>();
 		result.Should().NotBeNull();
-		result!.Data.Should().NotBeEmpty();
+		Assert.NotNull(result);
+		result.Data.Should().NotBeEmpty();
 	}
 
 	[Fact]
@@ -317,7 +325,8 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.NotFound);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.NotFound);
 	}
 
 	[Fact]

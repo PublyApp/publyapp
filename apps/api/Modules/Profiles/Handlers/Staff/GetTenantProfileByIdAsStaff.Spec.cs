@@ -15,6 +15,7 @@ using MainApi.Localization;
 using Xunit;
 
 namespace MainApi.Modules.Profiles.Handlers.Staff;
+
 public sealed class GetTenantProfileByIdAsStaffSpec : IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
@@ -92,7 +93,8 @@ public sealed class GetTenantProfileByIdAsStaffSpec : IClassFixture<ApiFixture> 
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -110,7 +112,8 @@ public sealed class GetTenantProfileByIdAsStaffSpec : IClassFixture<ApiFixture> 
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
-		problem!.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -143,7 +146,8 @@ public sealed class GetTenantProfileByIdAsStaffSpec : IClassFixture<ApiFixture> 
 
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
 		payload.Should().NotBeNull();
-		payload!.Profile.Id.Should().Be(Guid.Parse(profileId));
+		Assert.NotNull(payload);
+		payload.Profile.Id.Should().Be(Guid.Parse(profileId));
 		payload.Profile.Name.Should().StartWith("Tenant Profile");
 		payload.Profile.IsDefault.Should().BeFalse();
 	}
@@ -182,7 +186,8 @@ public sealed class GetTenantProfileByIdAsStaffSpec : IClassFixture<ApiFixture> 
 
 		var created = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
 		created.Should().NotBeNull();
-		return created!.Profile.Id.ToString();
+		Assert.NotNull(created);
+		return created.Profile.Id.ToString();
 	}
 
 	private sealed record GetTenantProfileByIdResponse {

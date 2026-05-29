@@ -19,6 +19,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MainApi.Modules.Tenants.Handlers.Staff;
+
 internal static class TenantBulkActionSpecSupport {
 	public static string GetBulkSuspendUrl() {
 		return PathUtils.Join(

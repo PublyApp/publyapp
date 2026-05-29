@@ -184,8 +184,8 @@ public static class ServiceRegistration {
 	) {
 		// Build set of discovered service interfaces
 		var discoveredInterfaces = discoveredServices
-			.Where(s => s.ServiceInterface is not null)
-			.Select(s => s.ServiceInterface!)
+			.Select(s => s.ServiceInterface)
+			.OfType<Type>()
 			.ToHashSet();
 
 		// Fail fast if an explicit registration overlaps with a discovered [Service] mapping.
@@ -218,27 +218,39 @@ public static class ServiceRegistration {
 		// Register discovered services deterministically for stable IEnumerable<T> ordering and reproducible diagnostics
 		var ordered = discoveredServices
 			.Where(s => s.ServiceInterface is not null)
-			.OrderBy(s => s.ServiceInterface!.FullName, StringComparer.Ordinal)
+			.OrderBy(s => GetRequiredServiceInterface(s).FullName, StringComparer.Ordinal)
 			.ThenBy(s => s.Key ?? string.Empty, StringComparer.Ordinal)
 			.ThenBy(s => s.ImplementationType.FullName, StringComparer.Ordinal)
 			.ToList();
 
 		foreach (var service in ordered) {
+			var serviceInterface = GetRequiredServiceInterface(service);
+
 			if (service.Key is null) {
 				services.Add(new ServiceDescriptor(
-					service.ServiceInterface!,
+					serviceInterface,
 					service.ImplementationType,
 					service.Lifetime
 				));
 			} else {
 				services.Add(new ServiceDescriptor(
-					service.ServiceInterface!,
+					serviceInterface,
 					service.Key,
 					service.ImplementationType,
 					service.Lifetime
 				));
 			}
 		}
+	}
+
+	private static Type GetRequiredServiceInterface(DiscoveredService service) {
+		if (service.ServiceInterface is null) {
+			throw new InvalidOperationException(
+				$"Discovered service '{service.ImplementationType.FullName}' has no service interface."
+			);
+		}
+
+		return service.ServiceInterface;
 	}
 
 	private static string DescribeServiceDescriptor(ServiceDescriptor descriptor) {
