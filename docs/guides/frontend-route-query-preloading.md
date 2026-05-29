@@ -9,8 +9,10 @@ Use route query registries to declare the server data a route needs early enough
 - Keep TanStack Query as the only server-state store.
 - Use `routeQueries(...)` to declare route-critical preload intent near the route boundary.
 - Use React Query Kit `getOptions(...)` output as the query contract.
-- Default to non-blocking preloads with `preload(...)`.
-- Use blocking preloads only when rendering the route without that data is unsafe or misleading.
+- Default to non-blocking preloads with `preload(...)`; the helper uses `queryClient.prefetchQuery(...)` for cache warming.
+- Use blocking preloads only when rendering the route without that data is unsafe or misleading; blocking uses `ensureQueryData(...)` and propagates errors.
+- Guard invalid params before building preload entries. The helper also skips entries whose options contain `enabled: false`.
+- Run preloads after route guards/redirect decisions when the query is tenant/staff scoped or otherwise sensitive.
 - Do not preload interaction-triggered data such as drawers, popovers, hover cards, or exports.
 - Do not move query results into loader return data for authed product routes.
 
@@ -77,7 +79,7 @@ The registry preserves the query options created by the hook factory. It does no
 
 ## Non-blocking preload by default
 
-Most route preloads should warm the cache and let navigation continue.
+Most route preloads should warm the cache and let navigation continue. Non-blocking preloads use `queryClient.prefetchQuery(...)` internally so stale or missing cache entries are warmed without turning the loader into a data-return path.
 
 ```ts
 import { getQueryClient } from '#app/lib/react-query/query-client.tsx';
@@ -93,6 +95,26 @@ export const clientLoader = getClientLoader({
 ```
 
 `preload(...)` intentionally does not await the query. The component hook remains responsible for consuming the data, rendering loading state, and surfacing errors through the existing query/error-boundary path.
+
+If a route param or search param is missing/invalid, prefer omitting the registry entry or returning options with `enabled: false`; the preload helper skips disabled entries defensively.
+
+```ts
+export const staffUserDetailsRouteQueries = routeQueries(
+	({ params }: Route.ClientLoaderArgs) => {
+		if (!params.userId) {
+			return {};
+		}
+
+		return {
+			staffUser: criticalRouteQuery(
+				useGetStaffUserById.getOptions({
+					variables: { userId: params.userId },
+				}),
+			),
+		};
+	},
+);
+```
 
 ## Blocking preload for rare route gates
 
@@ -204,9 +226,26 @@ The custom `@org/lint-ts` Oxlint plugin can detect route files that directly cal
 Rollout order:
 
 1. Add the helper and docs.
-2. Convert one layout and one details route.
-3. Add the lint rule in advisory mode.
-4. Convert more route families.
-5. Promote the rule only after false positives are understood.
+2. Refine helper semantics: non-blocking preloads use `prefetchQuery(...)`, blocking preloads use `ensureQueryData(...)`, and disabled query options are skipped.
+3. Convert one layout pilot.
+4. Manually verify the layout pilot does not duplicate requests.
+5. Convert one params-based details route.
+6. Manually verify navigation timing, warmed-cache reuse, invalid-param behavior, and component-level error behavior.
+7. Do one list/table feasibility spike once URL-derived variables are stable.
+8. Add the lint rule in advisory/report-only mode.
+9. Convert more route families.
+10. Promote the rule only after false positives are understood.
 
 Escape comments must include a reason. Do not add silent ignores.
+
+## Pilot acceptance checklist
+
+Before promoting this convention beyond pilots, record manual verification notes in the implementation PR:
+
+- Authed layout preload uses the same browser QueryClient as `QueryClientProvider`.
+- Authed layout navigation does not produce duplicate auth-data requests for one navigation.
+- Details route preload starts during navigation, before the component query is evaluated.
+- Details component hook reuses warmed cache or dedupes the in-flight query.
+- Missing/invalid route params do not produce malformed preload requests.
+- Redirect paths do not start sensitive tenant/staff-scoped preloads before the redirect decision.
+- Non-blocking preload failure does not hide the component hook's normal loading/error path.
