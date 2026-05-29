@@ -12,9 +12,8 @@
  *
  * JS.1 scaffold (issue #350): shipped the inert `no-op` rule purely to prove the
  * plugin loads. JS.2 (issue #462) adds the first real rule,
- * `prefer-specific-lodash-imports`. Rules are registered `"off"` in
- * `.oxlintrc.json` until their target code is audited, so the plugin ships with
- * zero enforcement.
+ * `prefer-specific-lodash-imports`. Current `.oxlintrc.json` severities:
+ * `publy/no-op` is `"off"`; `publy/prefer-specific-lodash-imports` is `"error"`.
  */
 import { noOp } from './rules/no-op.js';
 import { preferSpecificLodashImports } from './rules/prefer-specific-lodash-imports.js';

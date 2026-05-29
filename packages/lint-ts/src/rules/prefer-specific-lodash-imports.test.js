@@ -91,6 +91,18 @@ const runCases = (rule, label) => {
 					output: "import map from 'lodash/map';",
 				},
 				{
+					code: "import { set } from 'lodash';\nset({}, 'a.b', 1);",
+					filename: 'file.ts',
+					errors: [{ messageId: 'named' }],
+					output: "import set from 'lodash/set';\nset({}, 'a.b', 1);",
+				},
+				{
+					code: "import { set } from 'lodash';\nset({}, 'a.b', 1);",
+					filename: 'file.mjs',
+					errors: [{ messageId: 'named' }],
+					output: "import set from 'lodash/set.js';\nset({}, 'a.b', 1);",
+				},
+				{
 					code: "import { map, trim } from 'lodash';",
 					errors: [{ messageId: 'named' }],
 					output:

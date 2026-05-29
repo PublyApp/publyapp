@@ -66,6 +66,18 @@ const LODASH_PACKAGE = 'lodash';
 const exportedName = (node) =>
 	node.type === 'Literal' ? node.value : node.name;
 
+const getContextFilename = (context) => {
+	if (typeof context.filename === 'string') {
+		return context.filename;
+	}
+
+	if (typeof context.getFilename === 'function') {
+		return context.getFilename();
+	}
+
+	return '';
+};
+
 /**
  * Build the replacement source for a fully-named, VALUE-only lodash import
  * declaration. Only reached when no specifier (and not the declaration) is
@@ -73,12 +85,12 @@ const exportedName = (node) =>
  * `import { map, trim as t } from 'lodash'`
  *   → `import map from 'lodash/map';\nimport t from 'lodash/trim';`
  */
-const buildSpecificImports = (specifiers) => {
+const buildSpecificImports = (specifiers, importPathExtension) => {
 	const lines = specifiers.map((specifier) => {
 		const imported = exportedName(specifier.imported);
 		const local = specifier.local.name;
 
-		return `import ${local} from '${LODASH_PACKAGE}/${imported}';`;
+		return `import ${local} from '${LODASH_PACKAGE}/${imported}${importPathExtension}';`;
 	});
 
 	return lines.join('\n');
@@ -102,6 +114,9 @@ export const preferSpecificLodashImports = {
 		},
 	},
 	create(context) {
+		const filename = getContextFilename(context);
+		const importPathExtension = filename.endsWith('.mjs') ? '.js' : '';
+
 		return {
 			ImportDeclaration(node) {
 				if (node.source.value !== LODASH_PACKAGE) {
@@ -134,7 +149,10 @@ export const preferSpecificLodashImports = {
 						node,
 						messageId: 'named',
 						fix(fixer) {
-							const replacement = buildSpecificImports(specifiers);
+							const replacement = buildSpecificImports(
+								specifiers,
+								importPathExtension,
+							);
 
 							return fixer.replaceText(node, replacement);
 						},
