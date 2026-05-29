@@ -1,5 +1,5 @@
 import type { Components, Theme } from '@mui/material/styles';
-import _ from 'lodash';
+import toNumber from 'lodash/toNumber';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
@@ -20,7 +20,7 @@ const MuiSkeleton: Components<Theme>['MuiSkeleton'] = {
 			};
 		},
 		rounded: ({ theme }) => {
-			return { borderRadius: _.toNumber(theme.shape.borderRadius) * 2 };
+			return { borderRadius: toNumber(theme.shape.borderRadius) * 2 };
 		},
 	},
 };

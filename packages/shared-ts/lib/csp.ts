@@ -3,7 +3,7 @@
  * Used by both frontend and backend to ensure consistent CSP policies
  */
 
-import _ from 'lodash';
+import entries from 'lodash/entries';
 
 export interface CSPDirectives {
 	defaultSrc?: string[];
@@ -84,7 +84,7 @@ export const createCSPDirectives = ({
 	// Convert to Helmet-compatible format
 	const helmetDirectives: HelmetCSPDirectives = {};
 
-	_.entries(baseDirectives).forEach(([key, value]) => {
+	entries(baseDirectives).forEach(([key, value]) => {
 		if (value === undefined) return;
 
 		const directiveName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
@@ -104,7 +104,7 @@ export const createCSPDirectives = ({
 export const directivesToString = (directives: CSPDirectives): string => {
 	const parts: string[] = [];
 
-	_.entries(directives).forEach(([key, value]) => {
+	entries(directives).forEach(([key, value]) => {
 		if (value === undefined) return;
 
 		const directiveName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
@@ -132,7 +132,7 @@ export const createCSPHeader = ({
 
 	// Convert Helmet format back to string format for Vite
 	const parts: string[] = [];
-	_.entries(directives).forEach(([directive, values]) => {
+	entries(directives).forEach(([directive, values]) => {
 		if (values && Array.from(values).length > 0) {
 			parts.push(`${directive} ${Array.from(values).join(' ')}`);
 		} else {

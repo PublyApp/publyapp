@@ -1,4 +1,4 @@
-import _ from 'lodash';
+import upperFirst from 'lodash/upperFirst';
 import { mergeClasses } from 'minimal-shared/utils';
 
 import { labelClasses } from './classes';
@@ -31,7 +31,7 @@ export const Label = ({
 				<LabelIcon className={labelClasses.icon}>{startIcon}</LabelIcon>
 			)}
 
-			{typeof children === 'string' ? _.upperFirst(children) : children}
+			{typeof children === 'string' ? upperFirst(children) : children}
 
 			{endIcon && (
 				<LabelIcon className={labelClasses.icon}>{endIcon}</LabelIcon>

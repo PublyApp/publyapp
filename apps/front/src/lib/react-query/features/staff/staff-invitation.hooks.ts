@@ -2,7 +2,7 @@ import {
 	createUntypedArray,
 	createUntypedString,
 } from '@microsoft/kiota-abstractions';
-import _ from 'lodash';
+import isNil from 'lodash/isNil';
 
 import type {
 	BulkRevokeStaffInvitationsBody,
@@ -35,7 +35,7 @@ export const useGetStaffInvitation = createStaffQuery({
 		const result = await client.staff.invitations
 			.byInvitationId(params.invitationId)
 			.get();
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useGetStaffInvitation: result is nil');
 		}
 		return result;
@@ -55,7 +55,7 @@ export const useFindStaffInvitations = createStaffQuery({
 				status: params.status,
 			},
 		});
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useFindStaffInvitations: result is nil');
 		}
 		return result;
@@ -68,7 +68,7 @@ export const useFindStaffProfilesFromInvitations = createStaffQuery({
 	fetcher: async (_client) => {
 		// const result = await client.staff.profiles.get();
 		const result = await delay(1500, []);
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useFindStaffProfilesFromInvitations: result is nil');
 		}
 		return result;
@@ -89,7 +89,7 @@ export const useCreateStaffInvitation = createStaffMutation({
 			profileId: createUntypedString(data.profileId) as typeof body.profileId,
 		};
 		const result = await client.staff.invitations.post(body);
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useCreateStaffInvitation: result is nil');
 		}
 		return result;
@@ -134,7 +134,7 @@ export const useBulkCreateStaffInvitations = createStaffMutation({
 		const result: BulkStaffInvitationsCreated | undefined =
 			await response.json();
 
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useBulkCreateStaffInvitations: result is nil');
 		}
 		return result;
@@ -152,7 +152,7 @@ export const useRevokeStaffInvitation = createStaffMutation({
 		const result = await client.staff.invitations
 			.byInvitationId(data.invitationId)
 			.delete();
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useRevokeStaffInvitation: result is nil');
 		}
 		return result;
@@ -173,7 +173,7 @@ export const useBulkRevokeStaffInvitations = createStaffMutation({
 		};
 
 		const result = await client.staff.invitations.bulkRevoke.post(body);
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useBulkRevokeStaffInvitations: result is nil');
 		}
 		return result;
@@ -192,7 +192,7 @@ export const useGetStaffInvitationLink = createStaffMutation({
 		const result = await client.staff.invitations
 			.byInvitationId(data.invitationId)
 			.link.get();
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useGetStaffInvitationLink: result is nil');
 		}
 		return result;
@@ -211,7 +211,7 @@ export const useResendStaffInvitation = createStaffMutation({
 		const result = await client.staff.invitations
 			.byInvitationId(data.invitationId)
 			.resend.post();
-		if (_.isNil(result)) {
+		if (isNil(result)) {
 			throw new Error('useResendStaffInvitation: result is nil');
 		}
 		return result;

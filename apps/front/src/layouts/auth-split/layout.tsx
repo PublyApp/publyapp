@@ -1,7 +1,7 @@
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import type { Breakpoint } from '@mui/material/styles';
-import _ from 'lodash';
+import merge from 'lodash/merge';
 
 import { Logo } from '#app/components/logo/logo.tsx';
 import { allLangs } from '#app/lib/locales/all-langs.ts';
@@ -89,7 +89,7 @@ export const AuthSplitLayout = ({
 				layoutQuery={layoutQuery}
 				{...slotProps?.header}
 				slots={{ ...headerSlots, ...slotProps?.header?.slots }}
-				slotProps={_.merge(headerSlotProps, slotProps?.header?.slotProps ?? {})}
+				slotProps={merge(headerSlotProps, slotProps?.header?.slotProps ?? {})}
 				sx={[
 					(theme) => ({
 						position: 'sticky',

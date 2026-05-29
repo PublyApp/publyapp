@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import _ from 'lodash';
+import set from 'lodash/set.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,7 +20,7 @@ for (const language of supportedLanguages) {
 		});
 		const zodData = zod.default;
 
-		_.set(
+		set(
 			zodData,
 			'errors.invalid_type_with_path',
 			'{{path}} is expected {{expected}}, received {{received}}',

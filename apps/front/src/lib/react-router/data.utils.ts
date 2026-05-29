@@ -1,5 +1,5 @@
 import * as cookie from 'cookie';
-import _ from 'lodash';
+import get from 'lodash/get';
 
 import {
 	LANGUAGE_DETECTION_METHOD,
@@ -20,7 +20,7 @@ export const getRequestLocale = (request: Request) => {
 	}
 
 	const reqCookies = cookie.parse(request.headers.get('cookie') || '');
-	const localeCookie = _.get(reqCookies, LOCALE_COOKIE_KEY);
+	const localeCookie = get(reqCookies, LOCALE_COOKIE_KEY);
 	const locale = getCorrectLocale(localeCookie);
 	return locale;
 };

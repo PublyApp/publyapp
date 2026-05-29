@@ -1,13 +1,16 @@
 // ----------------------------------------------------------------------
 
-import _ from 'lodash';
+import get from 'lodash/get';
+import isArray from 'lodash/isArray';
+import isEmpty from 'lodash/isEmpty';
+import map from 'lodash/map';
 
 export const flattenArray = <T>(list: T[], key = 'children'): T[] => {
 	let children: T[] = [];
 
-	const flatten = _.map(list, (item) => {
-		const property = _.get(item, key);
-		if (_.isArray(property) && !_.isEmpty(property)) {
+	const flatten = map(list, (item) => {
+		const property = get(item, key);
+		if (isArray(property) && !isEmpty(property)) {
 			children = [...children, ...property];
 		}
 

@@ -3,7 +3,8 @@ import 'react-router';
 import { createRequestHandler } from '@react-router/express';
 import express from 'express';
 import helmet from 'helmet';
-import _ from 'lodash';
+import get from 'lodash/get';
+import set from 'lodash/set';
 import { nanoid } from 'nanoid';
 
 import {
@@ -43,7 +44,7 @@ app.use((req, res, next) => {
 		? STATIC_PRE_RENDER_PATHS_MAP_NONCE
 		: nanoid();
 
-	_.set(req, '___NONCE___', nonce);
+	set(req, '___NONCE___', nonce);
 
 	return helmet({
 		contentSecurityPolicy: getUnifiedCSPConfig({
@@ -59,7 +60,7 @@ const reactRouterHandler = createRequestHandler({
 		return import('virtual:react-router/server-build');
 	},
 	getLoadContext: (req, _res) => {
-		const nonce = _.get(req, '___NONCE___');
+		const nonce = get(req, '___NONCE___');
 
 		if (!nonce) {
 			throw new Error('Nonce has not been set');

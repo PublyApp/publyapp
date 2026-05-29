@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import get from 'lodash/get';
 import { useMemo } from 'react';
 import { data } from 'react-router';
 
@@ -19,7 +20,7 @@ import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 import type { Route } from './+types/account-layout';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(t('account-settings'));
+	let str: string = capitalize(t('account-settings'));
 
 	if (seo) {
 		str = `${str} | ${APP_NAME}`;
@@ -30,7 +31,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
+		return get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;

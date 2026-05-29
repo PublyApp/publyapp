@@ -1,4 +1,4 @@
-import _ from 'lodash';
+import forEach from 'lodash/forEach';
 
 import type { NavSectionProps } from '#app/components/nav-section/types.ts';
 
@@ -22,7 +22,7 @@ const flattenNavItems = (
 ): OutputItem[] => {
 	let flattenedItems: OutputItem[] = [];
 
-	_.forEach(navItems, (navItem) => {
+	forEach(navItems, (navItem) => {
 		const currentGroup = parentGroup
 			? `${parentGroup}-${navItem.title}`
 			: navItem.title;
