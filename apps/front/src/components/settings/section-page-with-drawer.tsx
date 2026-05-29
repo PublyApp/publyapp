@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Drawer from '@mui/material/Drawer';
 import Stack from '@mui/material/Stack';
-import _ from 'lodash';
+import isArray from 'lodash/isArray';
 import { useBoolean } from 'minimal-shared/hooks';
 import { createContext, type ReactNode, useContext, useMemo } from 'react';
 
@@ -96,7 +96,7 @@ export const SectionPageWithDrawer = ({
 				}
 				sx={[
 					{ mb: { xs: 3, md: 5 } },
-					...(_.isArray(slotProps?.customBreadcrumbs?.sx)
+					...(isArray(slotProps?.customBreadcrumbs?.sx)
 						? (slotProps?.customBreadcrumbs?.sx ?? [])
 						: [slotProps?.customBreadcrumbs?.sx ?? {}]),
 				]}

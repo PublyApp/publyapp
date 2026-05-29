@@ -1,5 +1,6 @@
 import type { UseQueryResult } from '@tanstack/react-query';
-import _ from 'lodash';
+import isFunction from 'lodash/isFunction';
+import isNil from 'lodash/isNil';
 import { type FC, isValidElement, type ReactNode } from 'react';
 
 import { checkIfEmptyQueryData } from '../lib/react-query/query-utils';
@@ -30,10 +31,10 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 }: Props<TData, TError>) => {
 	// Helper to render loading slot
 	const renderLoading = () => {
-		if (_.isFunction(LoadingSlot)) {
+		if (isFunction(LoadingSlot)) {
 			return <LoadingSlot />;
 		}
-		if (isValidElement(LoadingSlot) && !_.isNil(LoadingSlot)) {
+		if (isValidElement(LoadingSlot) && !isNil(LoadingSlot)) {
 			return LoadingSlot;
 		}
 		return defaultLoadingElement;
@@ -41,7 +42,7 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 
 	// Helper to render error slot
 	const renderError = () => {
-		if (_.isFunction(ErrorSlot)) {
+		if (isFunction(ErrorSlot)) {
 			return (
 				<ErrorSlot
 					error={query.error ?? new Error('Forced error')}
@@ -49,7 +50,7 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 				/>
 			);
 		}
-		if (isValidElement(ErrorSlot) && !_.isNil(ErrorSlot)) {
+		if (isValidElement(ErrorSlot) && !isNil(ErrorSlot)) {
 			return ErrorSlot;
 		}
 		return defaultErrorElement;
@@ -57,10 +58,10 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 
 	// Helper to render empty slot
 	const renderEmpty = () => {
-		if (_.isFunction(EmptySlot)) {
+		if (isFunction(EmptySlot)) {
 			return <EmptySlot />;
 		}
-		if (isValidElement(EmptySlot) && !_.isNil(EmptySlot)) {
+		if (isValidElement(EmptySlot) && !isNil(EmptySlot)) {
 			return EmptySlot;
 		}
 		return null;
@@ -68,7 +69,7 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 
 	// Helper to render children/data
 	const renderData = () => {
-		if (_.isFunction(children)) {
+		if (isFunction(children)) {
 			return children({ data: query.data as TData });
 		}
 		return children;

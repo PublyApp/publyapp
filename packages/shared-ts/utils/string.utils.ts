@@ -1,7 +1,9 @@
-import _ from 'lodash';
+import forEach from 'lodash/forEach';
+import kebabCase from 'lodash/kebabCase';
+import takeRight from 'lodash/takeRight';
 
 export const slugify = (str?: string) => {
-	return _.kebabCase(str);
+	return kebabCase(str);
 };
 
 export const toPascalCase = (str: string) => {
@@ -27,7 +29,7 @@ export const toPascalCase = (str: string) => {
 export const makePath = (...params: string[]) => {
 	const _params: string[] = [];
 
-	_.forEach(params, (param) => {
+	forEach(params, (param) => {
 		if (param?.length <= 0 || param === '/') {
 			return;
 		}
@@ -45,6 +47,6 @@ export const makePath = (...params: string[]) => {
 };
 
 export const getLastPath = (path: string, n = 1) => {
-	const last = _.takeRight(path.split('/'), n).join('/');
+	const last = takeRight(path.split('/'), n).join('/');
 	return last;
 };

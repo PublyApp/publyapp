@@ -1,7 +1,7 @@
 import ButtonBase, { type ButtonBaseProps } from '@mui/material/ButtonBase';
 import { styled } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
-import _ from 'lodash';
+import toNumber from 'lodash/toNumber';
 import { varAlpha } from 'minimal-shared/utils';
 
 import { Iconify } from '../../iconify/iconify';
@@ -21,7 +21,7 @@ const LargeBlockRoot = styled('div')(({ theme }) => {
 		position: 'relative',
 		flexDirection: 'column',
 		padding: theme.spacing(4, 2, 2, 2),
-		borderRadius: _.toNumber(theme.shape.borderRadius) * 2,
+		borderRadius: toNumber(theme.shape.borderRadius) * 2,
 		border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)}`,
 	};
 });

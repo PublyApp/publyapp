@@ -1,5 +1,5 @@
 import * as cookie from 'cookie';
-import _ from 'lodash';
+import get from 'lodash/get';
 import {
 	type ActionFunctionArgs,
 	type AppLoadContext,
@@ -134,7 +134,7 @@ export const getServerLoader: GetServerLoader = <
 
 		// Extract and parse session token(s) from cookies
 		const reqCookies = cookie.parse(args.request.headers.get('Cookie') || '');
-		const rawCookieValue = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY) as
+		const rawCookieValue = get(reqCookies, SESSION_TOKEN_COOKIE_KEY) as
 			| string
 			| undefined;
 
@@ -245,7 +245,7 @@ export const getServerAction: GetServerAction = <
 
 		// Extract and parse session token(s) from cookies
 		const reqCookies = cookie.parse(args.request.headers.get('Cookie') || '');
-		const rawCookieValue = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY) as
+		const rawCookieValue = get(reqCookies, SESSION_TOKEN_COOKIE_KEY) as
 			| string
 			| undefined;
 

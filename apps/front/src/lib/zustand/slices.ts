@@ -1,4 +1,4 @@
-import _ from 'lodash';
+import assign from 'lodash/assign';
 
 import dummySlice from './features/dummy.slice';
 import settingsSlice from './features/settings.slice';
@@ -24,7 +24,7 @@ export const getInitialStore = (...a: StoreInitializerArgs): RootState => {
 	const store: Partial<RootState> = {};
 
 	slicesMap.forEach((slice) => {
-		_.assign(store, slice.initializer(...(a as [never, never, never])));
+		assign(store, slice.initializer(...(a as [never, never, never])));
 	});
 
 	return store as RootState;

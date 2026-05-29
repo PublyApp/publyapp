@@ -10,7 +10,10 @@ import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import { useQueryClient } from '@tanstack/react-query';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import isEqual from 'lodash/isEqual';
+import map from 'lodash/map';
+import toString from 'lodash/toString';
 import {
 	createMRTColumnHelper,
 	MaterialReactTable,
@@ -151,7 +154,7 @@ const TenantInvitationsTable = () => {
 
 	useEffect(() => {
 		const nextStatusFilter = parseStatusFilter(filterStates.status);
-		if (!_.isEqual(nextStatusFilter, statusFilter)) {
+		if (!isEqual(nextStatusFilter, statusFilter)) {
 			setStatusFilter(nextStatusFilter);
 			resetCursorPagination?.();
 		}
@@ -220,7 +223,7 @@ const TenantInvitationsTable = () => {
 
 	const tenantInvitationsQuery = useFindTenantInvitations({
 		variables: {
-			tenantId: _.toString(tenantId),
+			tenantId: toString(tenantId),
 			cursor: apiVariables.cursor || undefined,
 			limit: apiVariables.limit,
 			sort: apiVariables.sort,
@@ -241,7 +244,7 @@ const TenantInvitationsTable = () => {
 	const { renderEmptyRowsFallback, queryState } = useTableQueryOptions({
 		query: tenantInvitationsQuery,
 		emptyContent: {
-			title: _.capitalize(
+			title: capitalize(
 				t('no-items-found', {
 					item: t('invitations'),
 					ns: 'response-message',
@@ -249,7 +252,7 @@ const TenantInvitationsTable = () => {
 			),
 		},
 		errorContent: {
-			title: _.capitalize(
+			title: capitalize(
 				t('error-loading-items', {
 					item: t('invitations'),
 					ns: 'response-message',
@@ -263,7 +266,7 @@ const TenantInvitationsTable = () => {
 			return [];
 		}
 
-		return _.map(tenantInvitationsQuery.data.data, (invitation) => {
+		return map(tenantInvitationsQuery.data.data, (invitation) => {
 			return {
 				id: invitation.id || '',
 				email: invitation.email || '',
@@ -326,7 +329,7 @@ const TenantInvitationsTable = () => {
 		for (const invitationId of Object.keys(rowSelection)) {
 			try {
 				await revokeInvitationAsync({
-					tenantId: _.toString(tenantId),
+					tenantId: toString(tenantId),
 					invitationId,
 				});
 				succeeded += 1;
@@ -344,7 +347,7 @@ const TenantInvitationsTable = () => {
 		clearSelection();
 		await queryClient.invalidateQueries({
 			queryKey: useFindTenantInvitations.getKey({
-				tenantId: _.toString(tenantId),
+				tenantId: toString(tenantId),
 			}),
 		});
 

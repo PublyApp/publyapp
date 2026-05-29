@@ -1,6 +1,7 @@
 import Paper, { type PaperProps } from '@mui/material/Paper';
 import { styled } from '@mui/material/styles';
-import _ from 'lodash';
+import debounce from 'lodash/debounce';
+import throttle from 'lodash/throttle';
 import type { ReactNode, RefObject } from 'react';
 import { useEffect, useState } from 'react';
 
@@ -98,10 +99,10 @@ export function FloatingCard({
 		updatePosition();
 
 		// Throttle scroll events to ~60fps (16ms)
-		const throttledUpdate = _.throttle(updatePosition, 16);
+		const throttledUpdate = throttle(updatePosition, 16);
 
 		// Debounce resize events (wait 150ms after resize stops)
-		const debouncedUpdate = _.debounce(updatePosition, 150);
+		const debouncedUpdate = debounce(updatePosition, 150);
 
 		window.addEventListener('resize', debouncedUpdate);
 		window.addEventListener('scroll', throttledUpdate, true);

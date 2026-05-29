@@ -7,7 +7,7 @@ import InputLabel, { type InputLabelProps } from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import Select, { type SelectProps } from '@mui/material/Select';
 import TextField, { type TextFieldProps } from '@mui/material/TextField';
-import _ from 'lodash';
+import merge from 'lodash/merge';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import { HelperText } from './help-text';
@@ -60,7 +60,7 @@ export const RHFSelect = ({
 						fullWidth
 						error={!!error}
 						helperText={error?.message ?? helperText}
-						slotProps={_.merge(baseSlotProps, slotProps)}
+						slotProps={merge(baseSlotProps, slotProps)}
 						{...other}
 					>
 						{children}

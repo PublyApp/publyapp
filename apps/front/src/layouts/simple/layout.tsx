@@ -3,7 +3,7 @@ import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import type { Breakpoint } from '@mui/material/styles';
 import { mergeSx } from '@mui/x-date-pickers/internals';
-import _ from 'lodash';
+import merge from 'lodash/merge';
 
 import { Logo } from '#app/components/logo/logo.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
@@ -78,7 +78,7 @@ export const SimpleLayout = ({
 				layoutQuery={layoutQuery}
 				{...slotProps?.header}
 				slots={{ ...headerSlots, ...slotProps?.header?.slots }}
-				slotProps={_.merge(headerSlotProps, slotProps?.header?.slotProps ?? {})}
+				slotProps={merge(headerSlotProps, slotProps?.header?.slotProps ?? {})}
 				sx={mergeSx(slotProps?.header?.sx, {
 					borderBottom: 'none !important',
 				})}

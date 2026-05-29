@@ -1,4 +1,7 @@
-import _ from 'lodash';
+import entries from 'lodash/entries';
+import has from 'lodash/has';
+import isObject from 'lodash/isObject';
+import set from 'lodash/set';
 
 import { tryCatchWrapper } from '@org/shared-ts/utils/try-catch';
 
@@ -67,11 +70,11 @@ export const safeRun = <F extends GenericFunction>(
 
 			if (err instanceof Error) {
 				error = err;
-			} else if (_.isObject(err)) {
-				if (_.has(err, 'messageEscaped')) {
+			} else if (isObject(err)) {
+				if (has(err, 'messageEscaped')) {
 					// for Kiota client errors
 					error = new Error(err.messageEscaped);
-				} else if (_.has(err, 'message')) {
+				} else if (has(err, 'message')) {
 					error = new Error(err.message);
 				} else {
 					error = new Error(
@@ -80,9 +83,9 @@ export const safeRun = <F extends GenericFunction>(
 				}
 				// Only copy safe properties to avoid leaking
 				// headers, traceId, and other internal details
-				_.entries(err).forEach(([key, value]) => {
+				entries(err).forEach(([key, value]) => {
 					if (SAFE_ERROR_PROPERTIES.has(key)) {
-						_.set(error, key, value);
+						set(error, key, value);
 					}
 				});
 			} else {

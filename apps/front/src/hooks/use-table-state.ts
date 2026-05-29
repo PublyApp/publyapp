@@ -1,5 +1,6 @@
 import type { OnChangeFn } from '@tanstack/react-table';
-import _ from 'lodash';
+import isFunction from 'lodash/isFunction';
+import merge from 'lodash/merge';
 import type {
 	MRT_PaginationState,
 	MRT_SortingState,
@@ -94,7 +95,7 @@ export const useTableState = (
 		defaultPageSize = DEFAULT_PAGE_SIZE,
 		paginationMode = 'offset',
 	} = options;
-	const queryKeys = _.merge({}, defaultTableQueryKeys, options.queryKeys || {});
+	const queryKeys = merge({}, defaultTableQueryKeys, options.queryKeys || {});
 
 	const _sortOrder = ['asc', 'desc'] as const;
 
@@ -169,7 +170,7 @@ export const useTableState = (
 				| MRT_SortingState
 				| ((prev: MRT_SortingState) => MRT_SortingState),
 		) => {
-			if (_.isFunction(updaterOrValue)) {
+			if (isFunction(updaterOrValue)) {
 				const { desc, id } = updaterOrValue([
 					{
 						id: sortingState[queryKeys.sorting.id],
@@ -208,7 +209,7 @@ export const useTableState = (
 		) => {
 			if (paginationMode === 'cursor') {
 				// Cursor mode logic
-				const newPagination = _.isFunction(updaterOrValue)
+				const newPagination = isFunction(updaterOrValue)
 					? updaterOrValue({
 							pageIndex: virtualPageIndex,
 							pageSize: Number(paginationState[queryKeys.pagination.pageSize]),
@@ -262,7 +263,7 @@ export const useTableState = (
 				}
 			} else {
 				// Offset mode logic (original behavior)
-				if (_.isFunction(updaterOrValue)) {
+				if (isFunction(updaterOrValue)) {
 					const newPagination = updaterOrValue({
 						pageIndex: Number(paginationState[queryKeys.pagination.page]) - 1,
 						pageSize: Number(paginationState[queryKeys.pagination.pageSize]),

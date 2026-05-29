@@ -13,7 +13,8 @@ import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
-import _ from 'lodash';
+import capitalize from 'lodash/capitalize';
+import get from 'lodash/get';
 import { useBoolean } from 'minimal-shared/hooks';
 import { data, useParams } from 'react-router';
 
@@ -55,7 +56,7 @@ import type { Route } from './+types/staff-invitation-details-page';
 type InvitationStatus = 'pending' | 'accepted' | 'expired' | 'revoked';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(t('invitation-details'));
+	let str: string = capitalize(t('invitation-details'));
 
 	if (seo) {
 		str = `${str} | Staff Dashboard - ${APP_NAME}`;
@@ -66,7 +67,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
+		return get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;
@@ -137,10 +138,10 @@ const StaffInvitationDetailsPage = () => {
 				heading={getPageTitle(t as never)}
 				links={[
 					{
-						name: _.capitalize(t('staff-invitations')),
+						name: capitalize(t('staff-invitations')),
 						href: FRONT_PATH_NAMES.staff.invitations.root,
 					},
-					{ name: _.capitalize(t('details')) },
+					{ name: capitalize(t('details')) },
 				]}
 				sx={{ mb: { xs: 3, md: 5 } }}
 			/>
@@ -172,13 +173,13 @@ const InvitationDetailsEmpty = () => {
 	return (
 		<Box sx={{ py: 10 }}>
 			<EmptyContent
-				title={_.capitalize(
+				title={capitalize(
 					t('no-items-found', {
 						item: t('invitation'),
 						ns: 'response-message',
 					}),
 				)}
-				description={_.capitalize(t('invitation-not-found-description-empty'))}
+				description={capitalize(t('invitation-not-found-description-empty'))}
 				imgUrl="/assets/icons/empty/ic-content.svg"
 			/>
 		</Box>
@@ -284,7 +285,7 @@ const InvitationDetailsContent = ({
 		<>
 			<Card sx={{ width: 800, maxWidth: '100%', mx: 'auto' }}>
 				<CardHeader
-					title={_.capitalize(t('invitation-information'))}
+					title={capitalize(t('invitation-information'))}
 					sx={{ pb: 2 }}
 					action={
 						canManage && (
@@ -296,7 +297,7 @@ const InvitationDetailsContent = ({
 										loading={isResending}
 										onClick={handleResend}
 									>
-										{_.capitalize(t('resend'))}
+										{capitalize(t('resend'))}
 									</Button>
 								</Tooltip>
 								<Tooltip title={t('revoke-invitation')}>
@@ -308,7 +309,7 @@ const InvitationDetailsContent = ({
 										}
 										onClick={confirmDialog.onTrue}
 									>
-										{_.capitalize(t('staff-revoke'))}
+										{capitalize(t('staff-revoke'))}
 									</Button>
 								</Tooltip>
 							</Stack>
@@ -333,7 +334,7 @@ const InvitationDetailsContent = ({
 								label={t('status')}
 								value={
 									<Label color={getStatusColor(status)} variant="soft">
-										{_.capitalize(t(status))}
+										{capitalize(t(status))}
 									</Label>
 								}
 								icon="solar:tag-horizontal-bold-duotone"
@@ -487,11 +488,11 @@ const InvitationDetailsContent = ({
 								sx={{ display: 'block', mb: 1 }}
 							>
 								{status === 'accepted' &&
-									_.capitalize(t('invitation-already-accepted'))}
+									capitalize(t('invitation-already-accepted'))}
 								{status === 'expired' &&
-									_.capitalize(t('invitation-already-expired'))}
+									capitalize(t('invitation-already-expired'))}
 								{status === 'revoked' &&
-									_.capitalize(t('invitation-already-revoked'))}
+									capitalize(t('invitation-already-revoked'))}
 							</Typography>
 						)}
 						<Typography variant="caption" color="text.disabled">
@@ -529,7 +530,7 @@ const DetailRow = ({ label, value, icon }: DetailRowProps) => {
 			/>
 			<Box sx={{ flexGrow: 1 }}>
 				<Typography variant="body2" color="text.secondary">
-					{_.capitalize(label)}
+					{capitalize(label)}
 				</Typography>
 				{typeof value === 'string' ? (
 					<Typography variant="subtitle1">{value}</Typography>

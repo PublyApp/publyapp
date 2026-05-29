@@ -3,7 +3,7 @@ import Button from '@mui/material/Button';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { styled } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
-import _ from 'lodash';
+import toNumber from 'lodash/toNumber';
 import { varAlpha } from 'minimal-shared/utils';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
@@ -131,7 +131,7 @@ const ContentRoot = styled('div', {
 	justifyContent: 'center',
 	padding: theme.spacing(3),
 	...(filled && {
-		borderRadius: _.toNumber(theme.shape.borderRadius) * 2,
+		borderRadius: toNumber(theme.shape.borderRadius) * 2,
 		backgroundColor: varAlpha(theme.vars.palette.error.mainChannel, 0.04),
 		border: `dashed 1px ${varAlpha(theme.vars.palette.error.mainChannel, 0.16)}`,
 	}),

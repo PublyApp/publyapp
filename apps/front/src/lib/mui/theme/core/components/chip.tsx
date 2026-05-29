@@ -6,7 +6,8 @@ import type {
 	Theme,
 } from '@mui/material/styles';
 import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
-import _ from 'lodash';
+import toNumber from 'lodash/toNumber';
+import toString from 'lodash/toString';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
@@ -151,7 +152,7 @@ const MuiChip: Components<Theme>['MuiChip'] = {
 							color: theme.vars.palette.action.disabled,
 							borderColor: theme.vars.palette.action.disabledBackground,
 						}),
-						...(['filled', 'soft'].includes(_.toString(ownerState.variant)) && {
+						...(['filled', 'soft'].includes(toString(ownerState.variant)) && {
 							color: theme.vars.palette.action.disabled,
 							backgroundColor: theme.vars.palette.action.disabledBackground,
 						}),
@@ -184,10 +185,10 @@ const MuiChip: Components<Theme>['MuiChip'] = {
 		 * @sizes
 		 */
 		sizeMedium: ({ theme }) => {
-			return { borderRadius: _.toNumber(theme.shape.borderRadius) * 1.25 };
+			return { borderRadius: toNumber(theme.shape.borderRadius) * 1.25 };
 		},
 		sizeSmall: ({ theme }) => {
-			return { borderRadius: _.toNumber(theme.shape.borderRadius) };
+			return { borderRadius: toNumber(theme.shape.borderRadius) };
 		},
 		/**
 		 * @variant filled
