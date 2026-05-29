@@ -232,6 +232,78 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 	}
 
 	[Fact]
+	public async Task ItShouldReportDiagnosticWhenNullForgivingOperatorFollowsNullLiteral()
+	{
+		const string source = """
+			namespace Sample;
+
+			public sealed class Example
+			{
+				public void Read()
+				{
+					var x = (string?)null{|#0:!|};
+				}
+			}
+			""";
+
+		var expected = Verifier
+			.Diagnostic(DiagnosticIds.PUBLY0001)
+			.WithLocation(0);
+
+		await VerifyEnabledAsync(source, expected);
+	}
+
+	[Fact]
+	public async Task ItShouldReportDiagnosticWhenNullForgivingOperatorIsUsedInExpressionBodiedMember()
+	{
+		const string source = """
+			namespace Sample;
+
+			public sealed class Example
+			{
+				private string? _name;
+
+				public string Name => _name{|#0:!|};
+			}
+			""";
+
+		var expected = Verifier
+			.Diagnostic(DiagnosticIds.PUBLY0001)
+			.WithLocation(0);
+
+		await VerifyEnabledAsync(source, expected);
+	}
+
+	[Fact]
+	public async Task ItShouldReportDiagnosticWhenNullForgivingOperatorFollowsAwaitedExpression()
+	{
+		const string source = """
+			using System.Threading.Tasks;
+
+			namespace Sample;
+
+			public sealed class Example
+			{
+				public async Task Read()
+				{
+					var x = await GetValueAsync(){|#0:!|};
+				}
+
+				private static Task<string?> GetValueAsync()
+				{
+					return Task.FromResult<string?>("value");
+				}
+			}
+			""";
+
+		var expected = Verifier
+			.Diagnostic(DiagnosticIds.PUBLY0001)
+			.WithLocation(0);
+
+		await VerifyEnabledAsync(source, expected);
+	}
+
+	[Fact]
 	public async Task ItShouldReportDiagnosticWhenNullForgivingOperatorIsUsedInFieldInitializer()
 	{
 		const string source = """
