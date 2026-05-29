@@ -17,8 +17,10 @@ import { noConsoleInSource } from './rules/no-console-in-source.js';
  *   - `publy/no-console-in-source` → "off" (dormant)
  *   - `publy/no-raw-mui-textfield-register` → "off" (dormant)
  *   - `publy/no-direct-dayjs-in-components` → "off" (dormant)
+ *   - `publy/no-native-html-in-mui-surfaces` → "off" (dormant)
  */
 import { noDirectDayjsInComponents } from './rules/no-direct-dayjs-in-components.js';
+import { noNativeHtmlInMuiSurfaces } from './rules/no-native-html-in-mui-surfaces.js';
 import { noOp } from './rules/no-op.js';
 import { noRawMuiTextfieldRegister } from './rules/no-raw-mui-textfield-register.js';
 import { preferSpecificLodashImports } from './rules/prefer-specific-lodash-imports.js';
@@ -33,6 +35,7 @@ const plugin = {
 		'no-console-in-source': noConsoleInSource,
 		'no-raw-mui-textfield-register': noRawMuiTextfieldRegister,
 		'no-direct-dayjs-in-components': noDirectDayjsInComponents,
+		'no-native-html-in-mui-surfaces': noNativeHtmlInMuiSurfaces,
 		'prefer-specific-lodash-imports': preferSpecificLodashImports,
 	},
 };
