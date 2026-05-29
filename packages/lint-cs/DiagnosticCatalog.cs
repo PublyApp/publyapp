@@ -9,15 +9,21 @@ namespace PublyApp.Analyzers;
 /// </summary>
 public static class DiagnosticCatalog {
 	/// <summary>
-	/// Scaffold-only placeholder rule. <c>isEnabledByDefault: false</c> means Roslyn will load the
-	/// analyzer and register the action, but will never surface a diagnostic — this proves the
-	/// analyzer wires into the build without imposing any enforcement until a real rule is ready.
+	/// PUBLY0001 — disallow the null-forgiving operator (<c>x!</c>) in production C#. Per the repo
+	/// C# standards, the null state must be handled explicitly (guard clauses or safe accessors like
+	/// <c>GetRequiredId()</c>) instead of suppressing the nullable warning. <c>isEnabledByDefault:
+	/// false</c> means Roslyn loads the analyzer and registers the action but never surfaces the
+	/// diagnostic until it is turned on via <c>.editorconfig</c> — deferred until production code is
+	/// clean.
 	/// </summary>
-	public static readonly DiagnosticDescriptor Placeholder = new(
+	public static readonly DiagnosticDescriptor NullForgivingOperator = new(
 		DiagnosticIds.PUBLY0001,
-		"Placeholder rule",
-		"Placeholder: {0}",
-		"PublyApp",
+		"Avoid the null-forgiving operator",
+		"Do not use the null-forgiving operator '!'; handle null explicitly with a guard clause or "
+			+ "a safe accessor",
+		"PublyApp.Nullability",
 		DiagnosticSeverity.Warning,
-		isEnabledByDefault: false);
+		isEnabledByDefault: false,
+		description: "The null-forgiving operator '!' suppresses nullable warnings without handling "
+			+ "the null state. Use guard clauses or safe accessors (e.g. GetRequiredId()) instead.");
 }
