@@ -42,6 +42,7 @@
 		"unicorn/no-document-cookie": "off",
 		"unicorn/prefer-number-properties": "error",
 		"publy/prefer-specific-lodash-imports": "error",
-		"publy/no-console-in-source": "off"
+		"publy/no-console-in-source": "off",
+		"publy/no-raw-mui-textfield-register": "off"
 	}
 }

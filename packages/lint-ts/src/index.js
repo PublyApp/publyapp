@@ -11,14 +11,14 @@ import { noConsoleInSource } from './rules/no-console-in-source.js';
  * experimental CLI flag is required in 1.64.0 — declaring `jsPlugins` activates
  * the loader. See https://oxc.rs/docs/guide/usage/linter/js-plugins.html
  *
- * JS.1 scaffold (issue #350): shipped the inert `no-op` rule purely to prove the
- * plugin loads. JS.2 (issue #462) adds the first real rule,
- * `prefer-specific-lodash-imports`. JS.4 (issue #499) registers the dormant
- * `no-console-in-source` rule. Current `.oxlintrc.json` severities:
- * `publy/no-op` is `"off"`; `publy/prefer-specific-lodash-imports` is `"error"`;
- * `publy/no-console-in-source` is `"off"`.
+ * Rule severities are tracked in `.oxlintrc.json`. Current publy/* rules:
+ *   - `publy/no-op` → "off" (scaffold sentinel)
+ *   - `publy/prefer-specific-lodash-imports` → "error"
+ *   - `publy/no-console-in-source` → "off" (dormant)
+ *   - `publy/no-raw-mui-textfield-register` → "off" (dormant)
  */
 import { noOp } from './rules/no-op.js';
+import { noRawMuiTextfieldRegister } from './rules/no-raw-mui-textfield-register.js';
 import { preferSpecificLodashImports } from './rules/prefer-specific-lodash-imports.js';
 
 // Plugin object shape (oxlint 1.64.0): `{ meta: { name }, rules: { [name]: Rule } }`.
@@ -29,6 +29,7 @@ const plugin = {
 	rules: {
 		'no-op': noOp,
 		'no-console-in-source': noConsoleInSource,
+		'no-raw-mui-textfield-register': noRawMuiTextfieldRegister,
 		'prefer-specific-lodash-imports': preferSpecificLodashImports,
 	},
 };
