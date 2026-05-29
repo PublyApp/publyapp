@@ -288,10 +288,14 @@ public sealed class StaffUserLifecycleConcurrencySpec
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
 
-		return dbContext.Database.GetConnectionString()
-			?? throw new InvalidOperationException(
+		var connectionString = dbContext.Database.GetConnectionString();
+		if (connectionString is null) {
+			throw new InvalidOperationException(
 				"Test database connection string was unexpectedly null."
 			);
+		}
+
+		return connectionString;
 	}
 
 	private static async Task SoftDeleteStaffAccountAsync(
