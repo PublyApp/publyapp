@@ -26,4 +26,22 @@ public static class DiagnosticCatalog {
 		isEnabledByDefault: false,
 		description: "The null-forgiving operator '!' suppresses nullable warnings without handling "
 			+ "the null state. Use guard clauses or safe accessors (e.g. GetRequiredId()) instead.");
+
+	/// <summary>
+	/// PUBLY0002 — disallow null-coalescing throw expressions (<c>x ?? throw ...</c>) in
+	/// production C#. Per the repo C# standards, null-then-throw paths must use explicit guard
+	/// clauses instead of embedding a throw expression in a coalesce expression.
+	/// <c>isEnabledByDefault: false</c> means Roslyn loads the analyzer and registers the action
+	/// but never surfaces the diagnostic until it is turned on via <c>.editorconfig</c> — deferred
+	/// until production code is clean.
+	/// </summary>
+	public static readonly DiagnosticDescriptor CoalesceThrow = new(
+		DiagnosticIds.PUBLY0002,
+		"Avoid null-coalescing throw expressions",
+		"Do not use '?? throw'; use an explicit if guard clause for null-then-throw patterns",
+		"PublyApp.Nullability",
+		DiagnosticSeverity.Warning,
+		isEnabledByDefault: false,
+		description: "The '?? throw' pattern hides null handling inside an expression. Use "
+			+ "explicit guard clauses for null-then-throw patterns instead.");
 }
