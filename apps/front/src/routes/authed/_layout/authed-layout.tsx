@@ -36,16 +36,29 @@ import {
 } from '#app/lib/cookies/session-cookie.utils.ts';
 import { useGetUserAuthData } from '#app/lib/react-query/features/common/auth.hooks.ts';
 import {
+	getQueryClient,
 	resetAuthLogoutFlag,
 	resetTenantSuspendedFlag,
 } from '#app/lib/react-query/query-client.tsx';
+import {
+	criticalRouteQuery,
+	routeQueries,
+} from '#app/lib/react-query/route-queries.ts';
 import { getClientLoader } from '#app/lib/react-router/client-data.ts';
 import { useMainStore } from '#app/lib/zustand/store.ts';
 
 import type { Route } from './+types/authed-layout';
 
+export const authedLayoutRouteQueries = routeQueries(
+	(_args: Route.ClientLoaderArgs) => ({
+		userAuthData: criticalRouteQuery(useGetUserAuthData.getOptions({})),
+	}),
+);
+
 export const clientLoader = getClientLoader({
-	loader: async ({ url }) => {
+	loader: async (args) => {
+		const { url } = args;
+
 		i18next
 			.loadNamespaces([I18N_NAMESPACES.ZOD, I18N_NAMESPACES.RESPONSE_MESSAGE])
 			.catch((error) => {
@@ -77,6 +90,11 @@ export const clientLoader = getClientLoader({
 			);
 			return redirect(loginUrl.pathname + loginUrl.search);
 		}
+
+		// Warm the same browser QueryClient used by the root provider.
+		// Keep component-level useSuspenseQueries during the pilot so the UI
+		// contract and error behavior remain unchanged.
+		authedLayoutRouteQueries.preload(getQueryClient(), args);
 
 		// Guard against cross-scope navigation (tenant user on /staff, staff user on /app).
 		// Prefer cookie prefixes when available (s:/t:), but fall back to GetRedirectCode for

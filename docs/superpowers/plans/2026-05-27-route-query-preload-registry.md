@@ -135,7 +135,7 @@ Examples:
 - Create: `apps/front/src/lib/react-query/route-queries.ts`
 - Optional modify: `apps/front/src/lib/react-query/create-hooks.ts`
 
-- [ ] **Step 1: Write the helper API shape**
+- [x] **Step 1: Write the helper API shape**
 
 Create `apps/front/src/lib/react-query/route-queries.ts` with a minimal API like:
 
@@ -213,7 +213,7 @@ export function routeQueries<TContext, TQueries extends Record<string, RouteQuer
 }
 ```
 
-- [ ] **Step 2: Run typecheck**
+- [x] **Step 2: Run typecheck**
 
 Run:
 
@@ -223,13 +223,13 @@ pnpm --filter front type-check
 
 Expected: either passes, or exposes exact type friction around `QueryOptionsLike` that should be fixed without weakening route component types.
 
-- [ ] **Step 3: Refine types minimally**
+- [x] **Step 3: Refine types minimally**
 
 If React Query Kit `getOptions(...)` return types do not satisfy `QueryOptionsLike`, adjust `QueryOptionsLike` to use TanStack's actual `EnsureQueryDataOptions`/`FetchQueryOptions`-compatible type.
 
 Do not introduce `any` unless isolated to one cast at the `ensureQueryData(...)` boundary with a comment explaining the React Query Kit/TanStack type mismatch.
 
-- [ ] **Step 4: Run formatting and frontend typecheck**
+- [x] **Step 4: Run formatting and frontend typecheck**
 
 Run:
 
@@ -249,7 +249,7 @@ Expected: formatting completes and typecheck passes.
 - Create: `docs/guides/frontend-route-query-preloading.md`
 - Later modify: `AGENTS.md`
 
-- [ ] **Step 1: Write the guide**
+- [x] **Step 1: Write the guide**
 
 The guide must include:
 
@@ -272,7 +272,7 @@ export const staffUserDetailsRouteQueries = routeQueries(({ params }) => ({
 }));
 ```
 
-- [ ] **Step 2: Add anti-examples**
+- [x] **Step 2: Add anti-examples**
 
 Include examples of queries that should not be globally preloaded:
 
@@ -281,11 +281,11 @@ Include examples of queries that should not be globally preloaded:
 - inactive tabs
 - export link generation
 
-- [ ] **Step 3: Add a short AGENTS.md pointer**
+- [x] **Step 3: Add a short AGENTS.md pointer**
 
 After the guide is reviewed, add a short bullet to `AGENTS.md` pointing frontend work to `docs/guides/frontend-route-query-preloading.md`.
 
-- [ ] **Step 4: Verify docs formatting**
+- [x] **Step 4: Verify docs formatting**
 
 Run:
 
@@ -303,7 +303,7 @@ Expected: no formatting errors.
 
 - Modify: `apps/front/src/routes/authed/_layout/authed-layout.tsx`
 
-- [ ] **Step 1: Add a route query registry near the route exports**
+- [x] **Step 1: Add a route query registry near the route exports**
 
 Use the existing `useGetUserAuthData.getOptions({})` query as the first critical query.
 
@@ -313,7 +313,7 @@ export const authedLayoutRouteQueries = routeQueries(() => ({
 }));
 ```
 
-- [ ] **Step 2: Warm query cache in `clientLoader` if a browser QueryClient is safely accessible**
+- [x] **Step 2: Warm query cache in `clientLoader` if a browser QueryClient is safely accessible**
 
 If `getQueryClient()` can be imported from the query-client module without creating duplicate clients, call:
 
@@ -325,7 +325,7 @@ The call should be non-blocking.
 
 If this is unsafe because the loader and root provider might not share the same browser singleton, stop and fix that architecture first. The loader must warm the same client instance used by `QueryClientProvider`.
 
-- [ ] **Step 3: Keep `useSuspenseQueries` during pilot**
+- [x] **Step 3: Keep `useSuspenseQueries` during pilot**
 
 Do not remove the existing `useSuspenseQueries` yet. During the pilot it acts as the component-level consumer of the same query contract and preserves current UX.
 
@@ -339,7 +339,7 @@ just dev-front
 
 Navigate to an authed route and verify the auth query is not fetched twice from the same navigation.
 
-- [ ] **Step 5: Run typecheck**
+- [x] **Step 5: Run typecheck**
 
 ```bash
 pnpm --filter front type-check
