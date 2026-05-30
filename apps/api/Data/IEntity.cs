@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace MainApi.Data;
+namespace PublyApp.Api.Data;
 
 public interface IEntity {
 }

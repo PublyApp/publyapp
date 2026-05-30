@@ -4,13 +4,13 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fixtures;
 
 using Xunit;
 
-namespace MainApi.Modules.Auth.Handlers;
+namespace PublyApp.Api.Modules.Auth.Handlers;
 
 public sealed class VerifyEmailRequestSpec
 	: IClassFixture<ApiFixture> {

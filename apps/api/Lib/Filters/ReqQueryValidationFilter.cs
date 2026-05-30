@@ -4,13 +4,13 @@ using System.Runtime.CompilerServices;
 using FluentValidation;
 using FluentValidation.Results;
 
-using MainApi.Localization;
-using MainApi.Lib.Extensions;
-using MainApi.Lib.ProblemResults;
-
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Lib.Filters;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+
+namespace PublyApp.Api.Lib.Filters;
 
 public class ReqQueryValidationFilter<TRequest> : IEndpointFilter where TRequest : class {
 	private readonly IValidator<TRequest> _validator;

@@ -13,7 +13,7 @@ import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type 
  */
 export interface NoticesRequestBuilder extends BaseRequestBuilder<NoticesRequestBuilder> {
     /**
-     * Gets an item from the MainApi.Client.staff.notices.item collection
+     * Gets an item from the PublyApp.Api.Client.staff.notices.item collection
      * @param noticeId Unique identifier of the item
      * @returns {WithNoticeItemRequestBuilder}
      */

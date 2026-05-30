@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace MainApi.Lib.Utils;
+namespace PublyApp.Api.Lib.Utils;
 
 public static class CryptoUtils {
 	private static ReadOnlySpan<char> Chars {

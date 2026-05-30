@@ -1,8 +1,8 @@
-# DI Strategy and Migration Plan (PublyApp / MainApi, .NET 10)
+# DI Strategy and Migration Plan (PublyApp / PublyApp.Api, .NET 10)
 
 ## 1. Executive Summary
 
-This document defines the definitive Dependency Injection (DI) strategy for the Main API in PublyApp targeting .NET 10.
+This document defines the definitive Dependency Injection (DI) strategy for the PublyApp.Api project targeting .NET 10.
 
 The strategy introduces attribute-based registration for **application services only**, enforces **strict fail-fast rules** (duplicates, invalid usage, missing primary interface, duplicate keys), adopts **string-only keyed DI** with **centralized lowercase key constants**, and restructures the composition root into three explicit registration groups: **Web**, **Infrastructure**, and **Application**.
 
@@ -23,7 +23,7 @@ Migration is phased to keep the app running continuously, with mandatory hygiene
 - `apps/api/Lib/ServiceRegistration.cs` contains three registration methods:
   - `AddWebServices()`: ProblemDetails, OpenAPI, endpoint explorer, response compression, options binding/validation, HttpContextAccessor, CORS.
   - `AddInfraServices()`: Health checks, EF Core DbContext, Resend SDK client/adapters, email service implementation.
-  - `AddAppServices()`: `I*Service` → `*Service` registrations from `MainApi.Modules.*.Services`, FluentValidation, RequestAuthContext.
+  - `AddAppServices()`: `I*Service` → `*Service` registrations from `PublyApp.Api.Modules.*.Services`, FluentValidation, RequestAuthContext.
 - DI validation is enabled at build/startup (`ValidateOnBuild`, `ValidateScopes`).
 
 ### Hygiene status (Phase 1 complete)
@@ -74,7 +74,7 @@ Responsible for external capabilities and technical integrations, including:
 
 Responsible **only** for business/application services, defined strictly as:
 
-- Concrete classes under `MainApi.Modules.*.Services`
+- Concrete classes under `PublyApp.Api.Modules.*.Services`
 
 Application group registration is performed via attribute-based scanning with strict constraints (see below).
 
@@ -82,8 +82,8 @@ Application group registration is performed via attribute-based scanning with st
 
 ### Scope
 
-- Single assembly only: the Main API assembly.
-- Namespace allowlist enforced: only types in `MainApi.Modules.*.Services` are eligible.
+- Single assembly only: the PublyApp.Api assembly.
+- Namespace allowlist enforced: only types in `PublyApp.Api.Modules.*.Services` are eligible.
 - `[Service]` detected outside the allowed namespace is a hard startup error.
 
 ### Registration rules (authoritative)
@@ -113,8 +113,8 @@ The application must fail fast at startup for:
 **Implementation details (Phase 2):**
 
 - Validation runs inside `AddAppServices()` during service registration (before `builder.Build()`).
-- Scanning scope: single Main API assembly only (via `ServiceScanner.ScanAssembly<Program>()`).
-- Namespace allowlist: `MainApi.Modules.*.Services` only (regex enforced).
+- Scanning scope: single PublyApp.Api assembly only (via `ServiceScanner.ScanAssembly<Program>()`).
+- Namespace allowlist: `PublyApp.Api.Modules.*.Services` only (regex enforced).
 - On any violation, startup fails with `InvalidOperationException` listing all errors as bullet points.
 - See **Section 10: Troubleshooting** for detailed error categories and fixes.
 
@@ -221,7 +221,7 @@ Objective: introduce attribute + scanning infrastructure while preserving runtim
 Deliverables:
 
 - ✅ Added `[Service]` attribute definition (`Lib/DI/ServiceAttribute.cs`).
-- ✅ Added single-assembly scanner limited to `MainApi.Modules.*.Services` (`Lib/DI/ServiceScanner.cs`).
+- ✅ Added single-assembly scanner limited to `PublyApp.Api.Modules.*.Services` (`Lib/DI/ServiceScanner.cs`).
 - ✅ Implemented startup-time validation logic per fail-fast rules (`Lib/DI/ServiceValidator.cs`).
 - ✅ Explicit registrations remain authoritative (no cutover yet).
 - ✅ Added DI manifest logging (gated by `AppSettings:DI_MANIFEST_ENABLED`, defaults to `false`).
@@ -252,8 +252,8 @@ Deliverables:
   - Validation runs in `AddAppServices()` during service registration.
   - Manifest logging occurs once during startup (after `builder.Build()`), gated by `AppSettings:DI_MANIFEST_ENABLED`.
   - Explicit registrations remain authoritative in Phase 2.
-  - Scanning scope: single Main API assembly only.
-  - Namespace allowlist: `MainApi.Modules.*.Services` only.
+  - Scanning scope: single PublyApp.Api assembly only.
+  - Namespace allowlist: `PublyApp.Api.Modules.*.Services` only.
 - ✅ Added **Section 10: Troubleshooting** with all fail-fast error categories, causes, and fixes.
 - ✅ Documented expected error shape (startup fails with `InvalidOperationException`, errors listed as bullet points).
 
@@ -268,7 +268,7 @@ Objective: migrate application services to attribute-based registration module-b
 
 Cutover approach (per domain module):
 
-- Annotate eligible concrete services in `MainApi.Modules.<Domain>.Services` with `[Service]`.
+- Annotate eligible concrete services in `PublyApp.Api.Modules.<Domain>.Services` with `[Service]`.
 - Remove the corresponding explicit registrations from `AddAppServices(...)` only after startup validation is clean for that service type.
 - If a service must be resolved via additional business interfaces, add explicit manual registrations for those additional interfaces (attribute does not do this).
 
@@ -290,7 +290,7 @@ End state:
 - Mitigation: single-assembly scanning + strict namespace allowlist; recommended DI manifest; fail-fast enforcement.
 
 - Risk: misuse of `[Service]` on infrastructure/framework types causes hidden runtime behavior changes.
-- Mitigation: hard startup error when attribute is outside `MainApi.Modules.*.Services`.
+- Mitigation: hard startup error when attribute is outside `PublyApp.Api.Modules.*.Services`.
 
 - Risk: multiple implementations become ambiguous as keyed DI grows.
 - Mitigation: enforce exactly one unkeyed default; require keys for all additional implementations; fail fast on duplicates and key collisions.
@@ -309,7 +309,7 @@ End state:
 - FluentValidation registration remains unchanged (`AddValidatorsFromAssemblyContaining<Program>()`).
 - `[Service]` usage constraints are enforceable:
 - Concrete classes only
-- Only under `MainApi.Modules.*.Services`
+- Only under `PublyApp.Api.Modules.*.Services`
 - Explicit lifetime required
 - Optional string key supported (keys are centralized constants and lowercase)
 - Fail-fast validations are defined for:
@@ -330,7 +330,7 @@ End state:
 
 Use this checklist when creating a new domain service:
 
-- [ ] **Namespace**: Place concrete class under `MainApi.Modules.<Domain>.Services` (required for attribute-based registration eligibility)
+- [ ] **Namespace**: Place concrete class under `PublyApp.Api.Modules.<Domain>.Services` (required for attribute-based registration eligibility)
 - [ ] **Primary interface**: Define `I{ClassName}` interface in the same file or namespace (e.g., `UserService` → `IUserService`)
 - [ ] **Explicit lifetime**: Specify `ServiceLifetime` explicitly when registering (Scoped, Transient, or Singleton). Document your choice in PR if non-obvious.
 - [ ] **One unkeyed default**: Ensure exactly one unkeyed registration per service type. If another implementation already exists unkeyed, your new implementation must be keyed.
@@ -381,7 +381,7 @@ When `[Service]` attribute validation fails, the application throws an `InvalidO
 
 ### Invalid namespace
 
-**What it means:** The `[Service]` attribute was applied to a class outside the allowed namespace pattern `MainApi.Modules.*.Services`.
+**What it means:** The `[Service]` attribute was applied to a class outside the allowed namespace pattern `PublyApp.Api.Modules.*.Services`.
 
 **Common causes:**
 - Placing a service class in `Lib/` or `Infrastructure/` instead of `Modules/<Domain>/Services/`
@@ -389,7 +389,7 @@ When `[Service]` attribute validation fails, the application throws an `InvalidO
 - Service class in a namespace that does not match the allowlist pattern
 
 **How to fix:**
-- Move the class to `MainApi.Modules.<Domain>.Services`
+- Move the class to `PublyApp.Api.Modules.<Domain>.Services`
 - Or remove `[Service]` and use explicit registration in `AddAppServices()` or `AddInfraServices()`
 
 ### Missing primary interface I{ClassName}

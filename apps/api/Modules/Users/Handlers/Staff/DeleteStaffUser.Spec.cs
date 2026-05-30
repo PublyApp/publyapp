@@ -3,22 +3,22 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Lib;
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Lib.Utils;
-using MainApi.Localization;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Users.Entities;
+
 using Xunit;
 
-namespace MainApi.Modules.Users.Handlers.Staff;
+namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -171,7 +171,7 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		var userIdGuid = Guid.Parse(userId);
 
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = await dbContext.User
 			.IgnoreQueryFilters()

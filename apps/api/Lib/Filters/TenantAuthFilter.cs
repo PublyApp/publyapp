@@ -1,10 +1,10 @@
-using MainApi.Localization;
-using MainApi.Lib.Extensions;
-using MainApi.Lib.ProblemResults;
-using MainApi.Modules.Tenants.Services;
-using MainApi.Modules.Users.Services;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Tenants.Services;
+using PublyApp.Api.Modules.Users.Services;
 
-namespace MainApi.Lib.Filters;
+namespace PublyApp.Api.Lib.Filters;
 
 /// <summary>
 /// Tenant authorization filter that verifies the authenticated user has access to the tenant.

@@ -1,10 +1,10 @@
-using MainApi.Lib.Extensions;
-using MainApi.Lib.Filters;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Utils;
-using MainApi.Modules.Invitations.Handlers.Anonymous;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Invitations.Handlers.Anonymous;
 
-namespace MainApi.Modules.Invitations.Endpoints;
+namespace PublyApp.Api.Modules.Invitations.Endpoints;
 
 public static class InvitationEndpointsAnonymous {
 	public static IEndpointRouteBuilder MapInvitationEndpointsAnonymous(

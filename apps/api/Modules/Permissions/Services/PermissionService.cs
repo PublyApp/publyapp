@@ -1,11 +1,11 @@
-using MainApi.Data.DbContext;
-using MainApi.Lib.DI;
-using MainApi.Modules.Profiles.Entities;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.Permissions.Services;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Users.Entities;
+
+namespace PublyApp.Api.Modules.Permissions.Services;
 
 public interface IPermissionService {
 	Task<HashSet<string>> GetEffectivePermissionsAsync(Guid userId, Guid? tenantId = null, Guid? projectId = null);
@@ -15,9 +15,9 @@ public interface IPermissionService {
 
 [Service(ServiceLifetime.Scoped)]
 public class PermissionService : IPermissionService {
-	private readonly MainApiDbContext _context;
+	private readonly AppDbContext _context;
 
-	public PermissionService(MainApiDbContext context) {
+	public PermissionService(AppDbContext context) {
 		_context = context;
 	}
 

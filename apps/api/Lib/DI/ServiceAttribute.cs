@@ -1,8 +1,8 @@
-namespace MainApi.Lib.DI;
+namespace PublyApp.Api.Lib.DI;
 
 /// <summary>
 /// Marks a concrete class for attribute-based DI registration.
-/// Only valid on classes under MainApi.Modules.*.Services namespace.
+/// Only valid on classes under PublyApp.Api.Modules.*.Services namespace.
 /// Registers the class against its primary interface I{ClassName}.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]

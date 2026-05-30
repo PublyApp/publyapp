@@ -1,4 +1,4 @@
-namespace MainApi.Lib.Testing.Fixtures {
+namespace PublyApp.Api.Lib.Testing.Fixtures {
 	/// <summary>
 	/// Sets process-wide environment variables for the test run.
 	/// Must be called once before AppEnvironment.Initialize().
@@ -78,7 +78,7 @@ namespace MainApi.Lib.Testing.Fixtures {
 				);
 
 				// 4. Initialize AppEnvironment singleton BEFORE any
-				//    MainApiDbContext is created (OnModelCreating
+				//    AppDbContext is created (OnModelCreating
 				//    accesses AppEnvironment.Instance).
 				_ = AppEnvironment.Initialize();
 			} catch {

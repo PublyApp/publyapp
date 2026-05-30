@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Reflection;
 
-namespace MainApi.Lib.DI;
+namespace PublyApp.Api.Lib.DI;
 
 /// <summary>
 /// Represents a discovered service decorated with [Service] attribute.
@@ -16,7 +16,7 @@ public sealed record DiscoveredService {
 }
 
 /// <summary>
-/// Scans the Main API assembly for [Service] attributed classes and validates them.
+/// Scans the PublyApp.Api assembly for [Service] attributed classes and validates them.
 /// Phase 2: validation only, no registration changes.
 /// </summary>
 public static class ServiceScanner {

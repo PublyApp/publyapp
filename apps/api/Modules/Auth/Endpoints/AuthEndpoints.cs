@@ -1,12 +1,12 @@
 using FluentValidation;
 
-using MainApi.Lib.Extensions;
-using MainApi.Lib.Filters;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Utils;
-using MainApi.Modules.Auth.Handlers;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Auth.Handlers;
 
-namespace MainApi.Modules.Auth.Endpoints;
+namespace PublyApp.Api.Modules.Auth.Endpoints;
 
 public static class AuthEndpoints {
 	public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app) {

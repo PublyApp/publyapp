@@ -1,17 +1,17 @@
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Data.Seeding;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Modules.Projects.Entities;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Modules.Projects.Entities;
+
 using Xunit;
 
-namespace MainApi.Modules.Projects.Services;
+namespace PublyApp.Api.Modules.Projects.Services;
 
 public sealed class ProjectServiceSpec
 	: IClassFixture<ApiFixture> {
@@ -25,7 +25,7 @@ public sealed class ProjectServiceSpec
 	public async Task
 	ItShouldSoftDeleteProjectWithoutChangingLifecycleStatusWhenDeleting() {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var tenantId = await dbContext.Tenant
 			.Where(t => t.Code == SeedConstants.Tenants.AcmeCode)

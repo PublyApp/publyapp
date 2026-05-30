@@ -2,15 +2,15 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace MainApi.Lib.DI;
+namespace PublyApp.Api.Lib.DI;
 
 /// <summary>
 /// Validates discovered [Service] attributed classes against DI rules.
 /// Fails fast at startup if any validation rule is violated.
 /// </summary>
 public static partial class ServiceValidator {
-	// Regex pattern for allowed namespace: MainApi.Modules.{Domain}.Services
-	[GeneratedRegex(@"^MainApi\.Modules\.[^.]+\.Services(\..*)?$")]
+	// Regex pattern for allowed namespace: PublyApp.Api.Modules.{Domain}.Services
+	[GeneratedRegex(@"^PublyApp\.Api\.Modules\.[^.]+\.Services(\..*)?$")]
 	private static partial Regex AllowedNamespacePattern();
 
 	// Keys must be stable identifiers (no whitespace/control chars), and must be lowercase.
@@ -101,7 +101,7 @@ public static partial class ServiceValidator {
 				errors.Add(
 					$"[Service] attribute on '{service.ImplementationType.FullName}' is invalid: " +
 					$"namespace '{service.Namespace}' is not allowed. " +
-					$"[Service] may only be used on classes under 'MainApi.Modules.*.Services'."
+					$"[Service] may only be used on classes under 'PublyApp.Api.Modules.*.Services'."
 				);
 			}
 		}

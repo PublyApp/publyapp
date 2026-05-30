@@ -1,12 +1,12 @@
 
-using MainApi.Lib.Testing.Fakes;
-
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
+using PublyApp.Api.Lib.Testing.Fakes;
+
 using Xunit;
 
-namespace MainApi.Lib.Testing.Fixtures;
+namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// <summary>
 /// Per-test-class fixture that creates its own cloned
 /// database from the shared template.
@@ -22,10 +22,10 @@ public sealed class ApiFixture : IAsyncLifetime {
 	private readonly string _testDbName;
 	private DatabaseTemplateManager? _dbManager;
 	private string _testDbConnectionString = string.Empty;
-	private MainApiFactory? _factory;
+	private ApiFactory? _factory;
 	private HttpClient? _httpClient;
 
-	public MainApiFactory Factory {
+	public ApiFactory Factory {
 		get {
 			if (_factory is null) {
 				throw new InvalidOperationException("API fixture factory has not been initialized.");
@@ -54,7 +54,7 @@ public sealed class ApiFixture : IAsyncLifetime {
 	}
 
 	public ApiFixture() {
-		_testDbName = $"mainapi_test_{Guid.NewGuid():N}";
+		_testDbName = $"publyapp_api_test_{Guid.NewGuid():N}";
 	}
 
 	/// <summary>
@@ -83,7 +83,7 @@ public sealed class ApiFixture : IAsyncLifetime {
 				_testDbName
 			);
 
-		Factory = new MainApiFactory(_testDbConnectionString);
+		Factory = new ApiFactory(_testDbConnectionString);
 
 		// Cookies disabled to prevent cross-test session
 		// state leakage via cookie jar

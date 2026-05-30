@@ -1,9 +1,9 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
-using MainApi.Data;
+using PublyApp.Api.Data;
 
-namespace MainApi.Modules.Users.Entities;
+namespace PublyApp.Api.Modules.Users.Entities;
 
 /// <summary>
 /// Active membership between a user account and a profile.
@@ -38,9 +38,9 @@ public class UserAccountProfile : INoTenantEntity {
 	[Column("profile_id")]
 	public Guid ProfileId { get; set; }
 
-	private MainApi.Modules.Profiles.Entities.Profile? _profile;
+	private PublyApp.Api.Modules.Profiles.Entities.Profile? _profile;
 	[JsonIgnore]
-	public MainApi.Modules.Profiles.Entities.Profile Profile {
+	public PublyApp.Api.Modules.Profiles.Entities.Profile Profile {
 		get {
 			return RequiredNavigation.Get(
 				_profile,

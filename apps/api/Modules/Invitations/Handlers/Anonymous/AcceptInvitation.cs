@@ -2,26 +2,26 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Lib;
-using MainApi.Lib.Extensions;
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Validation;
-using MainApi.Localization;
-using MainApi.Modules.AuditLogs.Entities;
-using MainApi.Modules.AuditLogs.Services;
-using MainApi.Modules.Auth.Services;
-using MainApi.Modules.Auth.Utils;
-using MainApi.Modules.Invitations.Entities;
-using MainApi.Modules.Invitations.Services;
-using MainApi.Modules.Users.Entities;
-using MainApi.Modules.Users.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-using UserEntity = MainApi.Modules.Users.Entities.User;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Validation;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.AuditLogs.Services;
+using PublyApp.Api.Modules.Auth.Services;
+using PublyApp.Api.Modules.Auth.Utils;
+using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Invitations.Services;
+using PublyApp.Api.Modules.Users.Entities;
+using PublyApp.Api.Modules.Users.Services;
 
-namespace MainApi.Modules.Invitations.Handlers.Anonymous;
+using UserEntity = PublyApp.Api.Modules.Users.Entities.User;
+
+namespace PublyApp.Api.Modules.Invitations.Handlers.Anonymous;
 
 public record AcceptInvitationBody {
 	public JsonElement FirstName { get; init; }

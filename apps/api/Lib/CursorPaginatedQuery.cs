@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Lib;
+namespace PublyApp.Api.Lib;
 
 public class CursorPaginatedQuery {
 	[FromQuery(Name = "cursor")] public string? Cursor { get; set; }

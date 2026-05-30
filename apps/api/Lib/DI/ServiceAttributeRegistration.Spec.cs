@@ -3,23 +3,23 @@ using System.Reflection;
 
 using FluentAssertions;
 
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Modules.AuditLogs.Services;
-using MainApi.Modules.Auth.Services;
-using MainApi.Modules.Impersonations.Services;
-using MainApi.Modules.Invitations.Services;
-using MainApi.Modules.Permissions.Services;
-using MainApi.Modules.Profiles.Services;
-using MainApi.Modules.Projects.Services;
-using MainApi.Modules.SystemNotices.Services;
-using MainApi.Modules.Tenants.Services;
-using MainApi.Modules.Users.Services;
-
 using Microsoft.Extensions.DependencyInjection;
+
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Modules.AuditLogs.Services;
+using PublyApp.Api.Modules.Auth.Services;
+using PublyApp.Api.Modules.Impersonations.Services;
+using PublyApp.Api.Modules.Invitations.Services;
+using PublyApp.Api.Modules.Permissions.Services;
+using PublyApp.Api.Modules.Profiles.Services;
+using PublyApp.Api.Modules.Projects.Services;
+using PublyApp.Api.Modules.SystemNotices.Services;
+using PublyApp.Api.Modules.Tenants.Services;
+using PublyApp.Api.Modules.Users.Services;
 
 using Xunit;
 
-namespace MainApi.Lib.DI;
+namespace PublyApp.Api.Lib.DI;
 
 public sealed class ServiceAttributeRegistrationSpec
 	: IClassFixture<ApiFixture> {
@@ -143,7 +143,7 @@ public sealed class ServiceAttributeRegistrationSpec
 			.Where(type =>
 				type.Namespace is not null
 				&& type.Namespace.StartsWith(
-					"MainApi.Modules.",
+					"PublyApp.Api.Modules.",
 					StringComparison.Ordinal
 				)
 				&& type.Namespace.Contains(

@@ -1,10 +1,10 @@
-using MainApi.Lib;
-using MainApi.Lib.Extensions;
-using MainApi.Lib.Filters;
-using MainApi.Lib.Routes;
-using MainApi.Modules.AuditLogs.Handlers.Staff;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Modules.AuditLogs.Handlers.Staff;
 
-namespace MainApi.Modules.AuditLogs.Endpoints;
+namespace PublyApp.Api.Modules.AuditLogs.Endpoints;
 
 public static class AuditLogEndpointsForStaff {
 	public static IEndpointRouteBuilder

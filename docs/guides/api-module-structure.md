@@ -42,7 +42,7 @@ Required pattern:
 - Do **not** add `is_deleted` or `deleted_at` columns.
 - Keep `created_at`/`updated_at` manually when timestamps are useful for sorting,
   auditing context, or consistency with other junction entities.
-- Configure the composite key explicitly in `MainApiDbContext` with
+- Configure the composite key explicitly in `AppDbContext` with
   `entity.HasKey(e => new { e.LeftForeignKeyId, e.RightForeignKeyId });`.
 - Treat row existence as the active assignment state. Unassignment/revocation should
   hard-delete the junction row; historical assignment data belongs in `AuditLog`.

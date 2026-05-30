@@ -1,15 +1,15 @@
-using MainApi.Localization;
-using MainApi.Lib;
-using MainApi.Lib.ProblemResults;
-using MainApi.Modules.AuditLogs.Entities;
-using MainApi.Modules.AuditLogs.Services;
-using MainApi.Modules.Tenants.Entities;
-using MainApi.Modules.Tenants.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.Tenants.Handlers.Staff;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.AuditLogs.Services;
+using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Tenants.Services;
+
+namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 
 public record TenantReactivatedResult {
 	public required Guid TenantId { get; init; }

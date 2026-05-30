@@ -1,9 +1,9 @@
-using MainApi.Lib;
-using MainApi.Lib.Filters;
-using MainApi.Lib.Routes;
-using MainApi.Modules.Profiles.Handlers.Staff;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
-namespace MainApi.Modules.Profiles.Endpoints;
+namespace PublyApp.Api.Modules.Profiles.Endpoints;
 
 public static class ProfileEndpointsForStaff {
 	public static IEndpointRouteBuilder MapProfileEndpointsForStaff(

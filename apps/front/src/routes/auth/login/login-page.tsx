@@ -19,6 +19,7 @@ import {
 
 import { toast } from '#app/components/snackbar/index.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { getClientManager } from '#app/lib/api-client/client-manager.ts';
 import { formatSessionCookie } from '#app/lib/cookies/session-cookie.utils.ts';
 import {
 	getTenantHintForUser,
@@ -28,7 +29,6 @@ import {
 	serializeTenantHintsForResponse,
 	setTenantHintForUser,
 } from '#app/lib/cookies/tenant-hint-cookie.utils.ts';
-import { getClientManager } from '#app/lib/js-client/client-manager.ts';
 import { safeRun } from '#app/lib/react-router/safeRun.ts';
 import {
 	getServerAction,

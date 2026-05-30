@@ -2,11 +2,11 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
-using MainApi.Data;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.Users.Entities;
+using PublyApp.Api.Data;
+
+namespace PublyApp.Api.Modules.Users.Entities;
 
 [Table("users")]
 [Index(nameof(Email), IsUnique = true)]
@@ -56,7 +56,7 @@ public class User : BaseAttributes, INoTenantEntity {
 	[JsonIgnore]
 	public ICollection<UserAccount> UserAccounts { get; set; } = [];
 	[JsonIgnore]
-	public ICollection<MainApi.Modules.Auth.Entities.Session> Sessions { get; set; } = [];
+	public ICollection<PublyApp.Api.Modules.Auth.Entities.Session> Sessions { get; set; } = [];
 
 	public static string GetStatusDescription(UserStatus status) {
 		return status switch {

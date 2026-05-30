@@ -1,7 +1,7 @@
-using MainApi.Lib;
-using MainApi.Modules.Permissions.Entities;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Modules.Permissions.Entities;
 
-namespace MainApi.Modules.SystemNotices.Permissions;
+namespace PublyApp.Api.Modules.SystemNotices.Permissions;
 
 public class SystemNoticePermissionsForStaff : ISlicePermissions {
 	public string KeyPrefix { get; } = "system_notices";

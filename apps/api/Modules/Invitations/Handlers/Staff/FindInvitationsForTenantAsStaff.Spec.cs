@@ -4,21 +4,21 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Data.Seeding;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Lib.Utils;
-using MainApi.Modules.Invitations.Entities;
-using MainApi.Modules.Profiles.Entities;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Profiles.Entities;
+
 using Xunit;
 
-namespace MainApi.Modules.Invitations.Handlers.Staff {
+namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 	public sealed class FindInvitationsForTenantAsStaffSpec
 		: IClassFixture<ApiFixture> {
 		private readonly ApiFixture _fixture;
@@ -666,8 +666,8 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 			// Accept the invitation directly via DbContext
 			using (IServiceScope scope =
 				_fixture.Factory.Services.CreateScope()) {
-				MainApiDbContext dbContext = scope.ServiceProvider
-					.GetRequiredService<MainApiDbContext>();
+				AppDbContext dbContext = scope.ServiceProvider
+					.GetRequiredService<AppDbContext>();
 				Invitation? invitation = await dbContext.Invitation
 					.FindAsync(invitationId);
 				Assert.NotNull(invitation);
@@ -768,8 +768,8 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 
 			using (IServiceScope scope =
 				_fixture.Factory.Services.CreateScope()) {
-				MainApiDbContext dbContext = scope.ServiceProvider
-					.GetRequiredService<MainApiDbContext>();
+				AppDbContext dbContext = scope.ServiceProvider
+					.GetRequiredService<AppDbContext>();
 
 				Profile defaultProfile =
 					await GetOrCreateDefaultTenantProfileAsync(dbContext, tenantId);
@@ -1218,8 +1218,8 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 
 			using (IServiceScope scope =
 				_fixture.Factory.Services.CreateScope()) {
-				MainApiDbContext dbContext = scope.ServiceProvider
-					.GetRequiredService<MainApiDbContext>();
+				AppDbContext dbContext = scope.ServiceProvider
+					.GetRequiredService<AppDbContext>();
 
 				Users.Entities.User staffUser = await dbContext.User
 					.FirstAsync(u =>
@@ -1290,8 +1290,8 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 			Guid techStartInvitationId;
 			using (IServiceScope scope =
 				_fixture.Factory.Services.CreateScope()) {
-				MainApiDbContext dbContext = scope.ServiceProvider
-					.GetRequiredService<MainApiDbContext>();
+				AppDbContext dbContext = scope.ServiceProvider
+					.GetRequiredService<AppDbContext>();
 
 				Users.Entities.User staffUser = await dbContext.User
 					.FirstAsync(u =>
@@ -1454,7 +1454,7 @@ namespace MainApi.Modules.Invitations.Handlers.Staff {
 		}
 
 		private static async Task<Profile> GetOrCreateDefaultTenantProfileAsync(
-			MainApiDbContext dbContext,
+			AppDbContext dbContext,
 			Guid tenantId
 		) {
 			Profile? defaultProfile = await dbContext.Profile

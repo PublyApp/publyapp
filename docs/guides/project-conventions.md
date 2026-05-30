@@ -6,7 +6,7 @@
 
 - Backend routes use kebab-case: `/staff/staff-users`
 - Route constants defined in `apps/api/Lib/RoutePath.cs`
-- Frontend route constants in `packages/shared/lib/constants.ts`
+- Frontend route constants in `packages/shared-ts/lib/constants.ts`
 
 ## API Contract Naming
 
@@ -84,7 +84,7 @@ public record ApiResponse {
 
 - Backend: FluentValidation validators applied via filters
 - Frontend: Zod schemas with React Hook Form
-- Shared validation logic in `packages/shared/lib/zod/`
+- Shared validation logic in `packages/shared-ts/lib/zod/`
 - Bulk-action endpoints cap input size via a shared constant: backend validators use `maxCount: 100` and the frontend mirrors it through `BULK_ACTION_MAX_COUNT` in `packages/shared-ts/lib/constants.ts`. Keep the two in sync when changing the cap.
 
 ## Error Handling
@@ -92,7 +92,7 @@ public record ApiResponse {
 - Backend: Structured logging with Serilog, contextual error information
 - Frontend: React Router error boundaries, custom error pages (400, 403, 404, 500)
 - Always log before rethrowing exceptions
-- Frontend/Node app code: Prefer `logger` from `@/shared/lib/logger/iso-logger` over the global `console` object
+- Frontend/Node app code: Prefer `logger` from `@org/shared-ts/lib/logger/iso-logger` over the global `console` object
   - Rationale: consistent formatting + environment-safe (browser/SSR) behavior
   - If a request/loader context provides a logger (e.g. React Router `args.context.logger` / `getServerLoader`), prefer `context.logger` over importing the global singleton so logs can be request-scoped
   - Avoid committing `console.*` in React components, hooks, libs, SSR entrypoints, etc.

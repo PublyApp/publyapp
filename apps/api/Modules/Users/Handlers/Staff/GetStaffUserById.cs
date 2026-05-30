@@ -1,12 +1,12 @@
-using MainApi.Localization;
-using MainApi.Lib.ProblemResults;
-using MainApi.Modules.Users.Entities;
-using MainApi.Modules.Users.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.Users.Handlers.Staff;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Users.Entities;
+using PublyApp.Api.Modules.Users.Services;
+
+namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public class GetStaffUserByIdResult {
 	public Guid Id { get; set; }

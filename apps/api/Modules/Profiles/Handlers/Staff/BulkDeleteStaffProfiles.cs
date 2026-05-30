@@ -3,17 +3,17 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Lib;
-using MainApi.Lib.Extensions;
-using MainApi.Lib.Validation;
-using MainApi.Modules.AuditLogs.Entities;
-using MainApi.Modules.AuditLogs.Services;
-using MainApi.Modules.Profiles.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.Profiles.Handlers.Staff;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.Validation;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.AuditLogs.Services;
+using PublyApp.Api.Modules.Profiles.Services;
+
+namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
 public sealed class BulkDeleteStaffProfilesBody {
 	// Request payload intentionally holds JsonElement because API contract uses an

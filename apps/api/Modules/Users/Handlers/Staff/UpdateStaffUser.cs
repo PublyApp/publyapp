@@ -2,19 +2,19 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Lib;
-using MainApi.Lib.Extensions;
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Validation;
-using MainApi.Localization;
-using MainApi.Modules.Users.Entities;
-using MainApi.Modules.Users.Services;
-using MainApi.Modules.Users.Validation;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.Users.Handlers.Staff;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Validation;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Users.Entities;
+using PublyApp.Api.Modules.Users.Services;
+using PublyApp.Api.Modules.Users.Validation;
+
+namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public class UpdateStaffUserBody {
 	// NOTE: This is the "general details" PATCH endpoint for a staff user.

@@ -6,7 +6,7 @@ using FluentValidation;
 
 using Xunit;
 
-namespace MainApi.Lib.Validation;
+namespace PublyApp.Api.Lib.Validation;
 
 public sealed class JsonElementRulesSpec {
 	/// <summary>

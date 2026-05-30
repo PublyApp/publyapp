@@ -1,15 +1,15 @@
 using System.Data;
 
-using MainApi.Data.DbContext;
-using MainApi.Lib;
-using MainApi.Lib.DI;
-using MainApi.Modules.Profiles.Entities;
-using MainApi.Modules.Tenants.Entities;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.Users.Services;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Users.Entities;
+
+namespace PublyApp.Api.Modules.Users.Services;
 
 public abstract record CreateUserResult {
 	public sealed record Success(User User) : CreateUserResult;
@@ -425,10 +425,10 @@ public class UserService : IUserService {
 		public required Guid TenantId { get; init; }
 	}
 
-	private readonly MainApiDbContext _dbContext;
+	private readonly AppDbContext _dbContext;
 	private readonly ILogger<UserService> _logger;
 
-	public UserService(MainApiDbContext dbContext, ILogger<UserService> logger) {
+	public UserService(AppDbContext dbContext, ILogger<UserService> logger) {
 		_dbContext = dbContext;
 		_logger = logger;
 	}

@@ -20,7 +20,7 @@
 
 Test infrastructure lives in `Lib/Testing/` organized by purpose:
 
-- `Testing/Fixtures/` — test environment setup (`ApiFixture`, `MainApiFactory`, `PostgresContainerFixture`, `DatabaseTemplateManager`, `TestEnvironment`, `TestConstants`)
+- `Testing/Fixtures/` — test environment setup (`ApiFixture`, `ApiFactory`, `PostgresContainerFixture`, `DatabaseTemplateManager`, `TestEnvironment`, `TestConstants`)
 - `Testing/Helpers/` — test utility methods (`TestAuthClient`, `TenantTestHelper`, `SystemNoticeTestHelper`, `HttpRequestMessageExtensions`)
 - `Testing/Fakes/` — test doubles (`FakeEmailSender`)
 - NO test cases in Testing/ — specs live co-located with source
@@ -37,7 +37,7 @@ failure.
 
 They live in `Lib/Architecture/` and follow the standard spec conventions:
 
-- `*.Spec.cs` suffix; namespace `MainApi.Lib.Architecture`.
+- `*.Spec.cs` suffix; namespace `PublyApp.Api.Lib.Architecture`.
 - A shared reflection helper, `Lib/Testing/Helpers/ArchitectureDiscoveryHelper`,
   enumerates handler types, HTTP wire DTO records, service types, and route
   constants while excluding generated/build artifacts. New guards reuse it rather
@@ -56,7 +56,7 @@ They live in `Lib/Architecture/` and follow the standard spec conventions:
   regress that to a route-level 404.
 - `HandlerContractGuard.Spec.cs` — locks in the #431 handler file contract: the
   public Minimal-API entrypoint is named exactly `Handle` (no leftover
-  `Handle{Operation}`); handlers never inject/store/parameterize `MainApiDbContext`;
+  `Handle{Operation}`); handlers never inject/store/parameterize `AppDbContext`;
   handler classes expose no public nested types (contract + validator types are
   top-level siblings); and every `AbstractValidator<T>` in a handler namespace
   targets a top-level `Body`/`Query` type. (The "file name matches primary class"
@@ -81,7 +81,7 @@ and backlog; analyzer-backed rules wait on the #350 framework.
 
 ### Adding a new guard
 
-1. Add a `*.Spec.cs` in `Lib/Architecture/` (namespace `MainApi.Lib.Architecture`).
+1. Add a `*.Spec.cs` in `Lib/Architecture/` (namespace `PublyApp.Api.Lib.Architecture`).
 2. Discover the types/constants via `ArchitectureDiscoveryHelper` (extend it if a
    new category is needed).
 3. Assert there are no offenders, listing concrete names in the failure message.
@@ -94,9 +94,9 @@ and backlog; analyzer-backed rules wait on the #350 framework.
 Spec files reference test infrastructure via sub-namespaces:
 
 ```csharp
-using MainApi.Lib.Testing.Fixtures;  // ApiFixture, TestConstants
-using MainApi.Lib.Testing.Helpers;    // TestAuthClient, TenantTestHelper
-using MainApi.Lib.Testing.Fakes;      // FakeEmailSender (rare)
+using PublyApp.Api.Lib.Testing.Fixtures;  // ApiFixture, TestConstants
+using PublyApp.Api.Lib.Testing.Helpers;    // TestAuthClient, TenantTestHelper
+using PublyApp.Api.Lib.Testing.Fakes;      // FakeEmailSender (rare)
 ```
 
 ## Full Integration Test Guide

@@ -2,10 +2,10 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
-using MainApi.Data;
-using MainApi.Modules.Profiles.Entities;
+using PublyApp.Api.Data;
+using PublyApp.Api.Modules.Profiles.Entities;
 
-namespace MainApi.Modules.Permissions.Entities;
+namespace PublyApp.Api.Modules.Permissions.Entities;
 
 [Table("permissions")]
 public record Permission : INoTenantEntity {

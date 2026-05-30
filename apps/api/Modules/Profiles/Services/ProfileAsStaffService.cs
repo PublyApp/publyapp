@@ -1,15 +1,15 @@
-using MainApi.Data.DbContext;
-using MainApi.Lib;
-using MainApi.Lib.DI;
-using MainApi.Lib.Utils;
-using MainApi.Modules.Invitations.Entities;
-using MainApi.Modules.Permissions.Entities;
-using MainApi.Modules.Profiles.Entities;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.Profiles.Services;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Permissions.Entities;
+using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Users.Entities;
+
+namespace PublyApp.Api.Modules.Profiles.Services;
 
 public class StaffProfileItem {
 	public Guid Id { get; set; }
@@ -468,10 +468,10 @@ public interface IProfileAsStaffService {
 
 [Service(ServiceLifetime.Scoped)]
 public class ProfileAsStaffService : IProfileAsStaffService {
-	private readonly MainApiDbContext _dbContext;
+	private readonly AppDbContext _dbContext;
 	private readonly ILogger<ProfileAsStaffService> _logger;
 	public ProfileAsStaffService(
-		MainApiDbContext dbContext,
+		AppDbContext dbContext,
 		ILogger<ProfileAsStaffService> logger
 	) {
 		_dbContext = dbContext;

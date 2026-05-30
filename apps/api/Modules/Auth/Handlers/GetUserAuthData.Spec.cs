@@ -3,17 +3,17 @@ using System.Net;
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+
 using Xunit;
 
-namespace MainApi.Modules.Auth.Handlers;
+namespace PublyApp.Api.Modules.Auth.Handlers;
 
 public sealed class GetUserAuthDataSpec
 	: IClassFixture<ApiFixture> {
@@ -98,7 +98,7 @@ public sealed class GetUserAuthDataSpec
 		await using var scope =
 			_fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var updatedCount = await dbContext.Session
 			.Where(s => s.Token == token)
@@ -118,7 +118,7 @@ public sealed class GetUserAuthDataSpec
 		await using var scope =
 			_fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		return await dbContext.Session
 			.CountAsync(s => s.Token == token);

@@ -524,7 +524,7 @@ The old `isJsClientError` utility is **deleted**. Here's how to migrate:
 
 ```typescript
 // BEFORE
-import { isJsClientError } from '@/front/lib/js-client/js-client-error';
+// Deleted legacy utility; remove old isJsClientError usage at the call site.
 
 if (isJsClientError(error)) {
   toast.error(error.key ? t(error.key) : error.messageEscaped);

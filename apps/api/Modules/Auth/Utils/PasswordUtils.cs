@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 
-namespace MainApi.Modules.Auth.Utils;
+namespace PublyApp.Api.Modules.Auth.Utils;
 
 public static class PasswordUtils {
 	public static string HashPassword(string password) {

@@ -1,13 +1,13 @@
-using MainApi.Localization;
-using MainApi.Lib;
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Validation;
-using MainApi.Modules.SystemNotices.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.SystemNotices.Handlers.Staff;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Validation;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.SystemNotices.Services;
+
+namespace PublyApp.Api.Modules.SystemNotices.Handlers.Staff;
 
 public class FindSystemNoticesResponse
 	: CursorPaginatedResult<SystemNoticeListItem> { }

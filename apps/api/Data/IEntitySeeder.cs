@@ -1,6 +1,6 @@
-using MainApi.Data.DbContext;
+using PublyApp.Api.Data.DbContext;
 
-namespace MainApi.Data;
+namespace PublyApp.Api.Data;
 
 /// <summary>
 /// Marker interface for entity seeders.
@@ -15,6 +15,6 @@ public interface IEntitySeeder {
 	/// <summary>
 	/// Seeds data for the entity in the database.
 	/// </summary>
-	Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default);
+	Task SeedAsync(AppDbContext dbContext, CancellationToken cancellationToken = default);
 }
 

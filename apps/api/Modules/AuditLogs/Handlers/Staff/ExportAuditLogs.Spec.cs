@@ -5,17 +5,17 @@ using System.Reflection;
 
 using FluentAssertions;
 
-using MainApi.Lib;
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Modules.AuditLogs.Entities;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Modules.AuditLogs.Entities;
 
 using Xunit;
 
 using FromQueryAttribute = Microsoft.AspNetCore.Mvc.FromQueryAttribute;
 
-namespace MainApi.Modules.AuditLogs.Handlers.Staff;
+namespace PublyApp.Api.Modules.AuditLogs.Handlers.Staff;
 // SetExportMaxRows mutates the global AppEnvironment
 // singleton via reflection. DisableParallelization
 // ensures this class never overlaps with other test

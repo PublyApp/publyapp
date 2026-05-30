@@ -2,18 +2,18 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Localization;
-using MainApi.Lib.Extensions;
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Validation;
-using MainApi.Modules.Auth.Services;
-using MainApi.Modules.Auth.Utils;
-using MainApi.Modules.Users.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.Auth.Handlers;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Validation;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Auth.Services;
+using PublyApp.Api.Modules.Auth.Utils;
+using PublyApp.Api.Modules.Users.Services;
+
+namespace PublyApp.Api.Modules.Auth.Handlers;
 
 public class PasswordLoginBody {
 	public JsonElement Email { get; set; }

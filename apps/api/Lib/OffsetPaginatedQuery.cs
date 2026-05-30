@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Lib;
+namespace PublyApp.Api.Lib;
 
 public class OffsetPaginatedQuery {
 	[FromQuery(Name = "page")] public string? Page { get; set; }

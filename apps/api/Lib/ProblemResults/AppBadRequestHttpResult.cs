@@ -2,7 +2,7 @@ using System.Reflection;
 
 using Microsoft.AspNetCore.Http.Metadata;
 
-namespace MainApi.Lib.ProblemResults;
+namespace PublyApp.Api.Lib.ProblemResults;
 
 /// <summary>
 /// A 400 Bad Request result with AppProblemDetails body.

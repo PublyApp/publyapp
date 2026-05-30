@@ -1,6 +1,6 @@
-using MainApi.Localization;
+using PublyApp.Api.Localization;
 
-namespace MainApi.Lib.ProblemResults;
+namespace PublyApp.Api.Lib.ProblemResults;
 
 /// <summary>
 /// Factory methods for creating RFC 7807 ProblemDetails responses with translation keys.

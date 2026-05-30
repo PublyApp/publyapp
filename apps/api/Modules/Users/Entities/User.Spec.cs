@@ -2,7 +2,7 @@ using FluentAssertions;
 
 using Xunit;
 
-namespace MainApi.Modules.Users.Entities;
+namespace PublyApp.Api.Modules.Users.Entities;
 
 public sealed class UserSpec {
 	[Fact]

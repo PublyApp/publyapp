@@ -1,9 +1,9 @@
-using MainApi.Lib;
-using MainApi.Lib.Filters;
-using MainApi.Lib.Routes;
-using MainApi.Modules.SystemNotices.Handlers.Staff;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Modules.SystemNotices.Handlers.Staff;
 
-namespace MainApi.Modules.SystemNotices.Endpoints;
+namespace PublyApp.Api.Modules.SystemNotices.Endpoints;
 
 public static class SystemNoticeEndpointsForStaff {
 	public static IEndpointRouteBuilder MapSystemNoticeEndpointsForStaff(

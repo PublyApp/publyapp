@@ -321,7 +321,7 @@ Conventions:
 >     string.Join(", ", AllowedStatuses.Select(ToSnakeCase).Order());
 > ```
 >
-> See `apps/api/Modules/Users/Handlers/Staff/FindTenantUsersAsStaff.cs` for the canonical multi-word example. If a future validator has multiple multi-word enums in different modules, lift `ToSnakeCase` into a shared helper under `MainApi.Lib.Validation`.
+> See `apps/api/Modules/Users/Handlers/Staff/FindTenantUsersAsStaff.cs` for the canonical multi-word example. If a future validator has multiple multi-word enums in different modules, lift `ToSnakeCase` into a shared helper under `PublyApp.Api.Lib.Validation`.
 
 Example shape (handler-local):
 
@@ -388,6 +388,6 @@ public class FindTenantsQueryValidator : CursorPaginatedQueryValidator<FindTenan
 
 ## Namespace & Import Conventions
 
-- Shared validation classes live in `namespace MainApi.Lib.Validation;`
-- Handlers using shared validators must add: `using MainApi.Lib.Validation;`
-- Base query types (`OffsetPaginatedQuery`, `CursorPaginatedQuery`) remain in `namespace MainApi.Lib;`
+- Shared validation classes live in `namespace PublyApp.Api.Lib.Validation;`
+- Handlers using shared validators must add: `using PublyApp.Api.Lib.Validation;`
+- Base query types (`OffsetPaginatedQuery`, `CursorPaginatedQuery`) remain in `namespace PublyApp.Api.Lib;`

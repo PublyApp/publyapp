@@ -17,7 +17,7 @@ export interface InvitationsRequestBuilder extends BaseRequestBuilder<Invitation
      */
     get check(): CheckRequestBuilder;
     /**
-     * Gets an item from the MainApi.Client.invitations.item collection
+     * Gets an item from the PublyApp.Api.Client.invitations.item collection
      * @param token Unique identifier of the item
      * @returns {WithTokenItemRequestBuilder}
      */

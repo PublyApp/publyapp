@@ -4,7 +4,7 @@ using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 
-namespace MainApi.Lib.Extensions;
+namespace PublyApp.Api.Lib.Extensions;
 
 public static class LoggerConfigExtensions {
 	public static WebApplicationBuilder ConfigureLogger(this WebApplicationBuilder builder) {

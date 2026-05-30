@@ -1,11 +1,11 @@
 using System.Text.RegularExpressions;
 
-using MainApi.Localization;
-using MainApi.Lib.ProblemResults;
-
 using Microsoft.AspNetCore.Diagnostics;
 
-namespace MainApi.Lib.Extensions;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+
+namespace PublyApp.Api.Lib.Extensions;
 
 public static class CustomExceptionHandler {
 	public static void UseCustomExceptionHandler(this IApplicationBuilder app) {

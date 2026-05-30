@@ -1,7 +1,7 @@
-using MainApi.Lib;
-using MainApi.Modules.Permissions.Entities;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Modules.Permissions.Entities;
 
-namespace MainApi.Modules.Profiles.Permissions;
+namespace PublyApp.Api.Modules.Profiles.Permissions;
 
 public class ProfilePermissionsForStaff : ISlicePermissions {
 	public string KeyPrefix { get; } = "profiles";

@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace MainApi.Lib.Validation;
+namespace PublyApp.Api.Lib.Validation;
 
 /// <summary>
 /// Query parameter validation and parsing utilities.

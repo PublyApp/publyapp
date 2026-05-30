@@ -52,7 +52,7 @@ import { useUrlBackedDebouncedSearch } from '#app/hooks/table/use-url-backed-deb
 import { useMRTTable } from '#app/hooks/use-mrt-table.ts';
 import { useTableState } from '#app/hooks/use-table-state.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { getUntypedNumber } from '#app/lib/js-client/kiota-utils.ts';
+import { getUntypedNumber } from '#app/lib/api-client/kiota-utils.ts';
 import { SelectionLockedControl } from '#app/lib/mrt-table/components/selection-locked-control.tsx';
 import {
 	useFindStaffProfileUsers,

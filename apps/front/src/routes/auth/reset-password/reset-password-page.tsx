@@ -33,7 +33,7 @@ import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
 import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { getClientManager } from '#app/lib/js-client/client-manager.ts';
+import { getClientManager } from '#app/lib/api-client/client-manager.ts';
 import { safeRun } from '#app/lib/react-router/safeRun.ts';
 import {
 	getServerAction,

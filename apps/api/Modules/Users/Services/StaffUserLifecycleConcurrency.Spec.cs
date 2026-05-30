@@ -3,18 +3,18 @@ using System.Data.Common;
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Modules.Users.Entities;
+
 using Xunit;
 
-namespace MainApi.Modules.Users.Services;
+namespace PublyApp.Api.Modules.Users.Services;
 
 public sealed class StaffUserLifecycleConcurrencySpec
 	: IClassFixture<ApiFixture> {
@@ -209,7 +209,7 @@ public sealed class StaffUserLifecycleConcurrencySpec
 
 	private async Task<Guid> CreateStaffUserAsync(UserStatus status) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
 			Email = $"staff-lifecycle-{Guid.NewGuid():N}@example.com",
@@ -234,22 +234,22 @@ public sealed class StaffUserLifecycleConcurrencySpec
 
 	private async Task<TResult> RunWithConcurrentUsersUpdateAsync<TResult>(
 		Func<UserService, Task<TResult>> operationAsync,
-		Func<MainApiDbContext, CancellationToken, Task> mutateAsync
+		Func<AppDbContext, CancellationToken, Task> mutateAsync
 	) {
 		var connectionString = await GetConnectionStringAsync();
 		var interceptor = new BeforeUsersUpdateInterceptor(async cancellationToken => {
 			await using var mutateScope = _fixture.Factory.Services.CreateAsyncScope();
-			var mutateDbContext = mutateScope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+			var mutateDbContext = mutateScope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 			await mutateAsync(mutateDbContext, cancellationToken);
 		});
 
-		var options = new DbContextOptionsBuilder<MainApiDbContext>()
+		var options = new DbContextOptionsBuilder<AppDbContext>()
 			.UseNpgsql(connectionString)
 			.AddInterceptors(interceptor)
 			.Options;
 
-		await using var dbContext = new MainApiDbContext(options);
+		await using var dbContext = new AppDbContext(options);
 		var service = new UserService(
 			dbContext,
 			NullLogger<UserService>.Instance
@@ -260,22 +260,22 @@ public sealed class StaffUserLifecycleConcurrencySpec
 
 	private async Task<TResult> RunAfterSuccessfulUsersUpdateAsync<TResult>(
 		Func<UserService, Task<TResult>> operationAsync,
-		Func<MainApiDbContext, CancellationToken, Task> mutateAsync
+		Func<AppDbContext, CancellationToken, Task> mutateAsync
 	) {
 		var connectionString = await GetConnectionStringAsync();
 		var interceptor = new AfterUsersUpdateInterceptor(async cancellationToken => {
 			await using var mutateScope = _fixture.Factory.Services.CreateAsyncScope();
-			var mutateDbContext = mutateScope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+			var mutateDbContext = mutateScope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 			await mutateAsync(mutateDbContext, cancellationToken);
 		});
 
-		var options = new DbContextOptionsBuilder<MainApiDbContext>()
+		var options = new DbContextOptionsBuilder<AppDbContext>()
 			.UseNpgsql(connectionString)
 			.AddInterceptors(interceptor)
 			.Options;
 
-		await using var dbContext = new MainApiDbContext(options);
+		await using var dbContext = new AppDbContext(options);
 		var service = new UserService(
 			dbContext,
 			NullLogger<UserService>.Instance
@@ -286,7 +286,7 @@ public sealed class StaffUserLifecycleConcurrencySpec
 
 	private async Task<string> GetConnectionStringAsync() {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var connectionString = dbContext.Database.GetConnectionString();
 		if (connectionString is null) {
@@ -299,7 +299,7 @@ public sealed class StaffUserLifecycleConcurrencySpec
 	}
 
 	private static async Task SoftDeleteStaffAccountAsync(
-		MainApiDbContext dbContext,
+		AppDbContext dbContext,
 		Guid userId,
 		CancellationToken cancellationToken
 	) {
@@ -321,7 +321,7 @@ public sealed class StaffUserLifecycleConcurrencySpec
 	}
 
 	private static async Task SoftDeleteStaffUserAsync(
-		MainApiDbContext dbContext,
+		AppDbContext dbContext,
 		Guid userId,
 		CancellationToken cancellationToken
 	) {
@@ -345,7 +345,7 @@ public sealed class StaffUserLifecycleConcurrencySpec
 	}
 
 	private static async Task SetStaffUserStatusAsync(
-		MainApiDbContext dbContext,
+		AppDbContext dbContext,
 		Guid userId,
 		UserStatus status,
 		CancellationToken cancellationToken
@@ -362,7 +362,7 @@ public sealed class StaffUserLifecycleConcurrencySpec
 
 	private async Task<StaffUserState> GetStaffUserStateAsync(Guid userId) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = await dbContext.User
 			.IgnoreQueryFilters()

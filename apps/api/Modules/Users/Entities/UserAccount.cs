@@ -1,11 +1,11 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
-using MainApi.Data;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.Users.Entities;
+using PublyApp.Api.Data;
+
+namespace PublyApp.Api.Modules.Users.Entities;
 
 /// <summary>
 /// Unified account table for users across all scopes (Staff, Tenant, Project)
@@ -30,12 +30,12 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	[Column("tenant_id")]
 	public Guid? TenantId { get; set; }  // Nullable for staff accounts
 	[JsonIgnore]
-	public MainApi.Modules.Tenants.Entities.Tenant? Tenant { get; set; }
+	public PublyApp.Api.Modules.Tenants.Entities.Tenant? Tenant { get; set; }
 
 	[Column("project_id")]
 	public Guid? ProjectId { get; set; }  // Nullable for staff/tenant accounts
 	[JsonIgnore]
-	public MainApi.Modules.Projects.Entities.Project? Project { get; set; }
+	public PublyApp.Api.Modules.Projects.Entities.Project? Project { get; set; }
 
 	[Column("scope")]
 	public AccountScope Scope { get; set; } = AccountScope.Tenant;

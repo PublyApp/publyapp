@@ -5,26 +5,26 @@ using System.Text.Json;
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Data.Seeding;
-using MainApi.Infrastructure.Messaging.Email;
-using MainApi.Lib;
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Lib.Utils;
-using MainApi.Localization;
-using MainApi.Modules.AuditLogs.Entities;
-using MainApi.Modules.Profiles.Entities;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Infrastructure.Messaging.Email;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Users.Entities;
+
 using Xunit;
 
-namespace MainApi.Modules.Users.Handlers.Staff;
+namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public sealed class CreateInvitationForTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
@@ -148,7 +148,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		using var scope =
 			_fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		Assert.NotNull(responseBody);
 		var invitationProfiles = await dbContext.InvitationProfile
@@ -284,7 +284,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		using var scope =
 			_fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var invitation = await dbContext.Invitation
 			.Where(inv => inv.Id == responseBody.InvitationId)
@@ -316,7 +316,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		using var scope =
 			_fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var auditLog = await dbContext.AuditLog
 			.Where(log =>
@@ -569,7 +569,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		using (var scope =
 			_fixture.Factory.Services.CreateScope()) {
 			var dbContext = scope.ServiceProvider
-				.GetRequiredService<MainApiDbContext>();
+				.GetRequiredService<AppDbContext>();
 
 			var renamedDefaultProfile = await dbContext.Profile
 				.Where(p => p.TenantId == tenantId && p.Scope == ProfileScope.Tenant && p.IsDefault)
@@ -615,7 +615,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		using (var scope =
 			_fixture.Factory.Services.CreateScope()) {
 			var dbContext = scope.ServiceProvider
-				.GetRequiredService<MainApiDbContext>();
+				.GetRequiredService<AppDbContext>();
 
 			Assert.NotNull(responseBody);
 			var profileId = await dbContext.InvitationProfile
@@ -732,7 +732,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		using var scope =
 			_fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var staffAccount = await dbContext.UserAccount
 			.Where(account =>
@@ -786,7 +786,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 
 	private static async Task<EmailRequest?>
 	WaitForSingleEmailAsync(
-		MainApi.Lib.Testing.Fakes.FakeEmailSender fakeEmailSender,
+		PublyApp.Api.Lib.Testing.Fakes.FakeEmailSender fakeEmailSender,
 		string email
 	) {
 		const int maxAttempts = 10;

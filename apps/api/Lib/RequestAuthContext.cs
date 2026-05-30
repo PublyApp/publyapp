@@ -1,6 +1,6 @@
-using MainApi.Modules.Users.Entities;
+using PublyApp.Api.Modules.Users.Entities;
 
-namespace MainApi.Lib;
+namespace PublyApp.Api.Lib;
 
 public interface IRequestAuthContext {
 	// Session/Identity

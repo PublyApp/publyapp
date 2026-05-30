@@ -2,7 +2,7 @@ using System.Text.Json;
 
 using FluentValidation;
 
-namespace MainApi.Lib.Validation;
+namespace PublyApp.Api.Lib.Validation;
 
 public static class JsonElementRules {
 	/// <summary>

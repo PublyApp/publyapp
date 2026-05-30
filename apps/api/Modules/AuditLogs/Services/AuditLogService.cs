@@ -1,10 +1,10 @@
 using System.Text.Json;
 
-using MainApi.Data.DbContext;
-using MainApi.Lib.DI;
-using MainApi.Modules.AuditLogs.Entities;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.AuditLogs.Entities;
 
-namespace MainApi.Modules.AuditLogs.Services;
+namespace PublyApp.Api.Modules.AuditLogs.Services;
 
 public record CreateAuditLogArgs(
 	Guid UserId,
@@ -25,12 +25,12 @@ public interface IAuditLogService {
 
 [Service(ServiceLifetime.Scoped)]
 public class AuditLogService : IAuditLogService {
-	private readonly MainApiDbContext _dbContext;
+	private readonly AppDbContext _dbContext;
 	private readonly IHttpContextAccessor _httpContextAccessor;
 	private readonly ILogger<AuditLogService> _logger;
 
 	public AuditLogService(
-		MainApiDbContext dbContext,
+		AppDbContext dbContext,
 		IHttpContextAccessor httpContextAccessor,
 		ILogger<AuditLogService> logger
 	) {

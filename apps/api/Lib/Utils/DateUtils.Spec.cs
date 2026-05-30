@@ -3,7 +3,7 @@ using FluentAssertions;
 
 using Xunit;
 
-namespace MainApi.Lib.Utils;
+namespace PublyApp.Api.Lib.Utils;
 
 public sealed class DateUtilsSpec {
 	[Theory]

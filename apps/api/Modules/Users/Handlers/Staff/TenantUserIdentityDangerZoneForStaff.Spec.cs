@@ -4,22 +4,22 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Data.Seeding;
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Lib.Utils;
-using MainApi.Localization;
-using MainApi.Modules.Tenants.Entities;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.Extensions.DependencyInjection;
+
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
-namespace MainApi.Modules.Users.Handlers.Staff;
+namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public sealed class TenantUserIdentityDangerZoneForStaffSpec
 	: IClassFixture<ApiFixture> {
@@ -396,7 +396,7 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		await using var scope =
 			_fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var unique = Guid.NewGuid().ToString("N");
 		var user = new User {
@@ -438,7 +438,7 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		await using var scope =
 			_fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var unique = Guid.NewGuid().ToString("N");
 		var user = new User {

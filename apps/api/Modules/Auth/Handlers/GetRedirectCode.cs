@@ -1,14 +1,14 @@
 using FluentValidation;
 
-using MainApi.Lib;
-using MainApi.Lib.Validation;
-using MainApi.Modules.Tenants.Entities;
-using MainApi.Modules.Users.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.Auth.Handlers;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Validation;
+using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Users.Services;
+
+namespace PublyApp.Api.Modules.Auth.Handlers;
 
 public class GetRedirectCodeQuery {
 	[FromQuery(Name = "tenant_id")]

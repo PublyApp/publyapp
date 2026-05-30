@@ -1,16 +1,16 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
-using MainApi.Data;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-using ProjectEntity = MainApi.Modules.Projects.Entities.Project;
-using TenantEntity = MainApi.Modules.Tenants.Entities.Tenant;
-using UserEntity = MainApi.Modules.Users.Entities.User;
+using PublyApp.Api.Data;
+using PublyApp.Api.Modules.Users.Entities;
 
-namespace MainApi.Modules.Invitations.Entities;
+using ProjectEntity = PublyApp.Api.Modules.Projects.Entities.Project;
+using TenantEntity = PublyApp.Api.Modules.Tenants.Entities.Tenant;
+using UserEntity = PublyApp.Api.Modules.Users.Entities.User;
+
+namespace PublyApp.Api.Modules.Invitations.Entities;
 
 [Table("invitations")]
 [Index(nameof(Email), nameof(Scope), nameof(Status))]

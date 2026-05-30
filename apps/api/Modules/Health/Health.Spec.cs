@@ -3,11 +3,11 @@ using System.Net;
 
 using FluentAssertions;
 
-using MainApi.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Fixtures;
 
 using Xunit;
 
-namespace MainApi.Modules.Health;
+namespace PublyApp.Api.Modules.Health;
 /// <summary>
 /// Integration tests for the health endpoint.
 /// </summary>

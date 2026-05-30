@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace MainApi.Migrations {
+namespace PublyApp.Api.Migrations {
 	/// <inheritdoc />
 	public partial class Init : Migration {
 		/// <inheritdoc />

@@ -1,6 +1,6 @@
-using MainApi.Localization;
+using PublyApp.Api.Localization;
 
-namespace MainApi.Lib;
+namespace PublyApp.Api.Lib;
 
 /// <summary>
 /// Represents an API response with a message and a type-safe translation key

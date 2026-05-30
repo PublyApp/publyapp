@@ -1,11 +1,11 @@
-using MainApi.Data.DbContext;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Modules.Auth.Utils;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.Extensions.DependencyInjection;
 
-namespace MainApi.Lib.Testing.Helpers;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Modules.Auth.Utils;
+using PublyApp.Api.Modules.Users.Entities;
+
+namespace PublyApp.Api.Lib.Testing.Helpers;
 
 internal static class StaffUserTestHelper {
 	public static async Task<Guid> SeedStaffUserAsync(
@@ -17,7 +17,7 @@ internal static class StaffUserTestHelper {
 		UserStatus status = UserStatus.Active
 	) {
 		using var scope = fixture.Factory.Services.CreateScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
 			Email = email,

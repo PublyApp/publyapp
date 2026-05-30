@@ -1,9 +1,9 @@
-using MainApi.Lib.Extensions;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Utils;
-using MainApi.Modules.SystemNotices.Handlers.Anonymous;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.SystemNotices.Handlers.Anonymous;
 
-namespace MainApi.Modules.SystemNotices.Endpoints;
+namespace PublyApp.Api.Modules.SystemNotices.Endpoints;
 
 public static class SystemNoticeEndpointsAnonymous {
 	public static IEndpointRouteBuilder MapSystemNoticeEndpointsAnonymous(

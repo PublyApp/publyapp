@@ -201,7 +201,7 @@ response, frontend selection plumbing), see
 using FluentValidation;
 using System.Text.Json;
 
-namespace MainApi.Modules.Invitations.Handlers.Staff;
+namespace PublyApp.Api.Modules.Invitations.Handlers.Staff;
 
 // Request DTO (Body suffix for request body, Query suffix for query params)
 public record CreateStaffInvitationBody {
@@ -299,7 +299,7 @@ states, orchestrate service calls, map service result unions to `TypedResults.*`
 / `TypedProblems.*`, and orchestrate audit logging or infrastructure side effects
 that are part of the HTTP workflow.
 
-Handlers MUST NOT: inject or use `MainApiDbContext`, own database query
+Handlers MUST NOT: inject or use `AppDbContext`, own database query
 composition, implement transaction boundaries, contain reusable domain/business
 logic (that belongs in services), or return non-RFC-7807 helpers such as
 `TypedResults.Forbid()`.
@@ -383,7 +383,7 @@ public record ListUsersQuery {
 ```csharp
 // ❌ WRONG - Handler accesses DbContext
 public static async Task<Ok> Handle(
-    [FromServices] MainApiDbContext dbContext,  // NO!
+    [FromServices] AppDbContext dbContext,  // NO!
     [FromBody] CreateBody request
 ) {
     var user = await dbContext.User.FindAsync(id);  // NO!
@@ -493,7 +493,7 @@ Task<bool> DeleteAsync(
 
 ### Adding a New Application Service
 
-- **Namespace**: Place concrete class under `MainApi.Modules.<Domain>.Services`
+- **Namespace**: Place concrete class under `PublyApp.Api.Modules.<Domain>.Services`
 - **Primary interface**: Define `I{ClassName}` interface (e.g., `UserService` → `IUserService`)
 - **Explicit lifetime**: Specify `ServiceLifetime` explicitly (Scoped, Transient, or Singleton)
 - **One unkeyed default**: Exactly one unkeyed registration per service type is allowed
@@ -517,7 +517,7 @@ When adding a second (or nth) implementation of an existing service interface:
 
 - **Web group** (`AddWebServices`): ASP.NET Core wiring (ProblemDetails, OpenAPI, CORS, compression)
 - **Infrastructure group** (`AddInfraServices`): External capabilities (DbContext, SDK clients, email, health checks)
-- **Application group** (`AddAppServices`): Business services only (`MainApi.Modules.*.Services`)
+- **Application group** (`AddAppServices`): Business services only (`PublyApp.Api.Modules.*.Services`)
 
 ### Attribute-Based Application Service Registration (`[Service]`)
 
@@ -525,12 +525,12 @@ When adding a second (or nth) implementation of an existing service interface:
 
 Quick Do / Don't:
 
-- Do: Use `[Service]` only on concrete classes under `MainApi.Modules.*.Services`
+- Do: Use `[Service]` only on concrete classes under `PublyApp.Api.Modules.*.Services`
 - Do: Implement the primary interface `I{ClassName}`
 - Don't: Add multiple unkeyed implementations for the same service type (only one default allowed; additional ones must be keyed)
 
-- **Allowed location**: Only concrete classes under `MainApi.Modules.*.Services`
-- **Scanning scope**: Single assembly (Main API) only
+- **Allowed location**: Only concrete classes under `PublyApp.Api.Modules.*.Services`
+- **Scanning scope**: Single assembly (PublyApp.Api) only
 - **Lifetime**: Must be explicit (`ServiceLifetime` is required)
 - **Interface binding**: Registers ONLY the primary interface `I{ClassName}`
 - **No register-as-self**
@@ -544,7 +544,7 @@ Quick Do / Don't:
   - Additional implementations MUST be keyed
   - Duplicate unkeyed defaults or duplicate keys are startup errors
 - **Migration guardrail**: If a service type is discovered via `[Service]`, it MUST NOT also have any explicit DI registrations (unkeyed or keyed). Startup fails fast to prevent half-migrated states.
-- **Misuse is a hard error**: Any `[Service]` attribute outside `MainApi.Modules.*.Services` fails startup
+- **Misuse is a hard error**: Any `[Service]` attribute outside `PublyApp.Api.Modules.*.Services` fails startup
 
 ### Fail-Fast Validation (Troubleshooting)
 
@@ -554,7 +554,7 @@ On any violation, startup fails with `InvalidOperationException` and a bullet li
 Common failure categories and fixes:
 
 - **Abstract/open generic**: Remove `[Service]` or apply it only to a concrete, non-generic implementation.
-- **Invalid namespace**: Move the class to `MainApi.Modules.<Domain>.Services` (or remove `[Service]` and wire explicitly).
+- **Invalid namespace**: Move the class to `PublyApp.Api.Modules.<Domain>.Services` (or remove `[Service]` and wire explicitly).
 - **Missing primary interface**: Ensure the class implements `I{ClassName}`.
 - **Invalid key**: Use a non-empty, lowercase key constant; use `null` for unkeyed default.
 - **Duplicate unkeyed**: Keep exactly one default; key additional implementations.
@@ -622,7 +622,7 @@ public class InvitationService : IInvitationService {
     private readonly IPasswordService _passwordService;    // BAD!
 
     public InvitationService(
-        MainApiDbContext dbContext,
+        AppDbContext dbContext,
         ISessionService sessionService,
         IPasswordService passwordService
     ) { }
@@ -630,11 +630,11 @@ public class InvitationService : IInvitationService {
 
 // ✅ CORRECT - Services only depend on DbContext and infrastructure
 public class InvitationService : IInvitationService {
-    private readonly MainApiDbContext _dbContext;
+    private readonly AppDbContext _dbContext;
     private readonly ILogger<InvitationService> _logger;
 
     public InvitationService(
-        MainApiDbContext dbContext,
+        AppDbContext dbContext,
         ILogger<InvitationService> logger
     ) { }
 

@@ -1,13 +1,13 @@
 using Bogus;
 
-using MainApi.Data.Seeding;
-using MainApi.Modules.Auth.Utils;
-using MainApi.Modules.Invitations.Entities;
-using MainApi.Modules.Projects.Entities;
-using MainApi.Modules.Tenants.Entities;
-using MainApi.Modules.Users.Entities;
+using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Modules.Auth.Utils;
+using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Projects.Entities;
+using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Users.Entities;
 
-namespace MainApi.Lib.Seeding;
+namespace PublyApp.Api.Lib.Seeding;
 
 /// <summary>
 /// Generates bulk seed data using Bogus.

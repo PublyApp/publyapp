@@ -1,7 +1,7 @@
-using MainApi.Lib;
-using MainApi.Modules.Permissions.Entities;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Modules.Permissions.Entities;
 
-namespace MainApi.Modules.Users.Permissions;
+namespace PublyApp.Api.Modules.Users.Permissions;
 
 public class UserPermissionsForStaff : ISlicePermissions {
 	public string KeyPrefix { get; } = "users";

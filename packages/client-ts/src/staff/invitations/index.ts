@@ -25,7 +25,7 @@ export interface InvitationsRequestBuilder extends BaseRequestBuilder<Invitation
      */
     get bulkRevoke(): BulkRevokeRequestBuilder;
     /**
-     * Gets an item from the MainApi.Client.staff.invitations.item collection
+     * Gets an item from the PublyApp.Api.Client.staff.invitations.item collection
      * @param invitationId Unique identifier of the item
      * @returns {WithInvitationItemRequestBuilder}
      */

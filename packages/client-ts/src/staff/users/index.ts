@@ -31,7 +31,7 @@ export interface UsersRequestBuilder extends BaseRequestBuilder<UsersRequestBuil
      */
     get bulkSuspend(): BulkSuspendRequestBuilder;
     /**
-     * Gets an item from the MainApi.Client.staff.users.item collection
+     * Gets an item from the PublyApp.Api.Client.staff.users.item collection
      * @param userId Unique identifier of the item
      * @returns {WithUserItemRequestBuilder}
      */

@@ -1,15 +1,15 @@
-using MainApi.Data.DbContext;
-using MainApi.Lib;
-using MainApi.Lib.DI;
-using MainApi.Lib.Utils;
-using MainApi.Modules.Invitations.Entities;
-using MainApi.Modules.Profiles.Entities;
-using MainApi.Modules.Tenants.Entities;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.Tenants.Services;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Users.Entities;
+
+namespace PublyApp.Api.Modules.Tenants.Services;
 
 // Flattened API-safe DTO (no EF entities)
 public class TenantAsStaffListItem {
@@ -180,9 +180,9 @@ public interface ITenantAsStaffService {
 
 [Service(ServiceLifetime.Scoped)]
 public class TenantAsStaffService : ITenantAsStaffService {
-	private readonly MainApiDbContext _dbContext;
+	private readonly AppDbContext _dbContext;
 
-	public TenantAsStaffService(MainApiDbContext dbContext) {
+	public TenantAsStaffService(AppDbContext dbContext) {
 		_dbContext = dbContext;
 	}
 

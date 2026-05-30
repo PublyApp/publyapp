@@ -2,11 +2,6 @@ using System.Data.Common;
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Modules.Profiles.Entities;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,9 +9,14 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using Npgsql;
 
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Users.Entities;
+
 using Xunit;
 
-namespace MainApi.Modules.Users.Services;
+namespace PublyApp.Api.Modules.Users.Services;
 
 public sealed class UpdateStaffUserProfilesConcurrencySpec
 	: IClassFixture<ApiFixture> {
@@ -94,7 +94,7 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 
 	private async Task<Guid> CreateStaffUserAsync(UserStatus status) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
 			Email = $"staff-profile-concurrency-{Guid.NewGuid():N}@example.com",
@@ -119,7 +119,7 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 
 	private async Task<Guid> CreateStaffProfileAsync() {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var profile = Profile.CreateStaffProfile(
 			name: "Concurrency Profile " + Guid.NewGuid().ToString("N")[..8],
@@ -138,7 +138,7 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 		Guid profileId
 	) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var staffAccountId = await (
 			from ua in dbContext.UserAccount
@@ -180,12 +180,12 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 			coordinator.StartDeleteAndWaitUntilItIsBlockedByProfileCommitAsync
 		);
 
-		var options = new DbContextOptionsBuilder<MainApiDbContext>()
+		var options = new DbContextOptionsBuilder<AppDbContext>()
 			.UseNpgsql(connectionString)
 			.AddInterceptors(interceptor)
 			.Options;
 
-		await using var dbContext = new MainApiDbContext(options);
+		await using var dbContext = new AppDbContext(options);
 		var service = new UserService(
 			dbContext,
 			NullLogger<UserService>.Instance
@@ -215,12 +215,12 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 			}
 		);
 
-		var options = new DbContextOptionsBuilder<MainApiDbContext>()
+		var options = new DbContextOptionsBuilder<AppDbContext>()
 			.UseNpgsql(connectionString)
 			.AddInterceptors(interceptor)
 			.Options;
 
-		await using var dbContext = new MainApiDbContext(options);
+		await using var dbContext = new AppDbContext(options);
 		var service = new UserService(
 			dbContext,
 			NullLogger<UserService>.Instance
@@ -234,7 +234,7 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 
 	private async Task<string> GetConnectionStringAsync() {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var connectionString = dbContext.Database.GetConnectionString();
 		if (connectionString is null) {
@@ -248,7 +248,7 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 
 	private async Task<StaffUserProfileState> GetStaffUserProfileStateAsync(Guid userId) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = await dbContext.User
 			.IgnoreQueryFilters()

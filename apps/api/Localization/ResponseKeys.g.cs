@@ -3,7 +3,7 @@
 // Do not modify this file directly. It will be regenerated on build.
 #nullable enable
 
-namespace MainApi.Localization;
+namespace PublyApp.Api.Localization;
 
 /// <summary>
 /// Type-safe translation keys generated from response message JSON

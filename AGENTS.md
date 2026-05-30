@@ -76,10 +76,10 @@ just test-api          # Run API integration tests (requires Docker)
 
 ```bash
 # Run a specific test class
-cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test --filter "FullyQualifiedName~PasswordLoginSpec"
+cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~PasswordLoginSpec"
 
 # Run a specific test method
-cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test --filter "ItShouldReturnSessionTokenWithValidCredentials"
+cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "ItShouldReturnSessionTokenWithValidCredentials"
 
 # Frontend tests (when implemented)
 cd apps/front && pnpm test
@@ -98,8 +98,8 @@ apps/
 └── jobs/             # Background jobs (future)
 
 packages/
-├── shared/           # Shared utilities, validations, i18n
-├── js-client/        # Auto-generated TypeScript API client
+├── shared-ts/        # Shared TypeScript utilities, validations, i18n
+├── client-ts/        # Auto-generated TypeScript API client
 └── _tsconfig/        # Shared TypeScript configurations
 ```
 
@@ -337,7 +337,7 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 
 - Backend routes use kebab-case; constants in `RoutePath.cs` (backend) and `constants.ts` (frontend)
 - Errors: `AppProblemDetails` (400/401/403/404/500) + `ValidationProblemDetails` (422) — both RFC 7807
-- Frontend/Node: use `logger` from `@/shared/lib/logger/iso-logger` (not `console.*`) (enforced by `publy/no-console-in-source`)
+- Frontend/Node: use `logger` from `@org/shared-ts/lib/logger/iso-logger` (not `console.*`) (enforced by `publy/no-console-in-source`)
 - Frontend API errors: centralized via `ApiFailure` discriminated union — see [`docs/guides/frontend-error-handling.md`](docs/guides/frontend-error-handling.md)
 - Frontend local mutation handlers must derive user-facing error text through `getFailureMessage(toApiFailure(error), ...)`; never translate `response-message` keys manually at the call site (enforced by `publy/no-manual-response-message-translation`)
 

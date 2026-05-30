@@ -1,9 +1,9 @@
 
 using System.Collections.Concurrent;
 
-using MainApi.Infrastructure.Messaging.Email;
+using PublyApp.Api.Infrastructure.Messaging.Email;
 
-namespace MainApi.Lib.Testing.Fakes {
+namespace PublyApp.Api.Lib.Testing.Fakes {
 	/// <summary>
 	/// Fake email sender for tests. Captures emails instead
 	/// of sending.

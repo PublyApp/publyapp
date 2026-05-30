@@ -2,19 +2,19 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Infrastructure.Messaging.Email;
-using MainApi.Lib;
-using MainApi.Lib.Extensions;
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Utils;
-using MainApi.Lib.Validation;
-using MainApi.Localization;
-using MainApi.Modules.Users.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.Auth.Handlers;
+using PublyApp.Api.Infrastructure.Messaging.Email;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Lib.Validation;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Users.Services;
+
+namespace PublyApp.Api.Modules.Auth.Handlers;
 
 public class VerifyEmailRequestBody {
 	public required JsonElement Email { get; set; }

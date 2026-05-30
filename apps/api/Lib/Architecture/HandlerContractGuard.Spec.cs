@@ -4,14 +4,14 @@ using System.Runtime.CompilerServices;
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Lib.Testing.Helpers;
-
 using Microsoft.EntityFrameworkCore;
+
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.Testing.Helpers;
 
 using Xunit;
 
-namespace MainApi.Lib.Architecture;
+namespace PublyApp.Api.Lib.Architecture;
 /// <summary>
 /// Architecture guards locking in the #431 handler file contract (#357 Wave B).
 /// Each fact scans the compiled API assembly via reflection and fails with the
@@ -19,7 +19,7 @@ namespace MainApi.Lib.Architecture;
 /// catching it in review. The contract: every handler is a non-abstract class whose
 /// public Minimal-API entrypoint is named exactly <c>Handle</c>; handlers never take
 /// or store any EF Core <see cref="DbContext"/> (including
-/// <see cref="MainApiDbContext"/>), a factory/wrapper that hands one out, or an
+/// <see cref="AppDbContext"/>), a factory/wrapper that hands one out, or an
 /// <see cref="IServiceProvider"/> service-locator (DbContext access is via injected
 /// services only); and HTTP wire/contract + validator types are top-level siblings,
 /// never nested types (public or non-public) inside the handler class. See
@@ -111,7 +111,7 @@ public sealed class HandlerContractGuardSpec {
 		);
 	}
 
-	// B.2 — handler classes do not depend on MainApiDbContext. Scan constructor
+	// B.2 — handler classes do not depend on AppDbContext. Scan constructor
 	// parameters, instance/static fields, properties, and the Handle method's
 	// parameters. DbContext access belongs in services, never in handlers.
 	[Fact]
@@ -134,7 +134,7 @@ public sealed class HandlerContractGuardSpec {
 
 		_ = offenders.Should().BeEmpty(
 			"handlers must not inject, store, or parameterize "
-			+ "MainApiDbContext — DbContext access is via services only "
+			+ "AppDbContext — DbContext access is via services only "
 			+ "(handlers orchestrate, services implement)."
 		);
 	}
@@ -232,7 +232,7 @@ public sealed class HandlerContractGuardSpec {
 			}
 		}
 
-		// No DeclaredOnly: include inherited members so a MainApiDbContext stashed
+		// No DeclaredOnly: include inherited members so a AppDbContext stashed
 		// in a base class (not the handler's own declaration) is still caught.
 		var fieldFlags = BindingFlags.Public
 			| BindingFlags.NonPublic
@@ -285,7 +285,7 @@ public sealed class HandlerContractGuardSpec {
 	// that hands one out (IDbContextFactory<...>, Func<...>, Lazy<...>, arrays,
 	// by-ref/out params, …), and the IServiceProvider service-locator escape hatch.
 	private static bool IsDbContext(Type type, HashSet<Type> visited) {
-		// ANY EF Core DbContext, not just MainApiDbContext — a handler reaching for
+		// ANY EF Core DbContext, not just AppDbContext — a handler reaching for
 		// a base/other DbContext is just as much of a violation.
 		if (typeof(DbContext).IsAssignableFrom(type)) {
 			return true;
@@ -306,8 +306,8 @@ public sealed class HandlerContractGuardSpec {
 		}
 
 		// Recurse through generic arguments so wrappers like
-		// IDbContextFactory<MainApiDbContext>, Func<MainApiDbContext>, and
-		// Lazy<MainApiDbContext> are all caught.
+		// IDbContextFactory<AppDbContext>, Func<AppDbContext>, and
+		// Lazy<AppDbContext> are all caught.
 		if (type.IsGenericType) {
 			foreach (var argument in type.GetGenericArguments()) {
 				if (visited.Add(argument) && IsDbContext(argument, visited)) {

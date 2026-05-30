@@ -303,7 +303,7 @@ just knip              # find unused dependencies
 Run a single API test class or method with a filter:
 
 ```bash
-cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test --filter "FullyQualifiedName~PasswordLoginSpec"
+cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~PasswordLoginSpec"
 ```
 
 Quality gates also run automatically on commit via Husky. See

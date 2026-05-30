@@ -23,6 +23,7 @@ import { TenantSuspendedView } from '#app/components/error/tenant-suspended-view
 import { SplashScreen } from '#app/components/loading-screen/splash-screen.tsx';
 import type { SettingsState } from '#app/components/settings/types.ts';
 import { toast } from '#app/components/snackbar/index.ts';
+import { getClientManager } from '#app/lib/api-client/client-manager.ts';
 import { toApiFailure } from '#app/lib/api-failure/index.ts';
 import {
 	SIDEBAR_COOKIE_MAX_AGE,
@@ -33,7 +34,6 @@ import {
 	getSessionCookieFromClient,
 	getSessionTokensFromClient,
 } from '#app/lib/cookies/session-cookie.utils.ts';
-import { getClientManager } from '#app/lib/js-client/client-manager.ts';
 import { useGetUserAuthData } from '#app/lib/react-query/features/common/auth.hooks.ts';
 import {
 	resetAuthLogoutFlag,

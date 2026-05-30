@@ -4,22 +4,22 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Data.Seeding;
-using MainApi.Lib;
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Lib.Utils;
-using MainApi.Modules.Auth.Utils;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.Extensions.DependencyInjection;
+
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Auth.Utils;
+using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
-namespace MainApi.Modules.Tenants.Handlers.Staff;
+namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 
 public sealed class FindTenantsAsStaffSpec
 	: IClassFixture<ApiFixture> {
@@ -400,7 +400,7 @@ public sealed class FindTenantsAsStaffSpec
 		await using var scope =
 			_fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var user = new User {
 			Email = email,
