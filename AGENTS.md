@@ -245,6 +245,8 @@ For the marketing-vs-product surface split (what brand DNA must match vs what's 
 [`docs/guides/marketing-surface-conventions.md`](docs/guides/marketing-surface-conventions.md)
 
 **Key principles (always apply):**
+For the complete list of custom lint rules with severity and source, see [`docs/guides/lint-rules.md`](docs/guides/lint-rules.md).
+
 - MUI v6 only — never native HTML elements (`<div>` → `<Box>`, `<h1>` → `<Typography variant="h1">`)
 - `sx` prop for all styling — never Tailwind CSS or className
 - Day.js via `format-time.ts` utilities — never import dayjs directly in components
@@ -261,6 +263,8 @@ For the marketing-vs-product surface split (what brand DNA must match vs what's 
 ## JavaScript/TypeScript Conventions
 
 **Key principles (always apply):**
+For the complete list of custom lint rules with severity and source, see [`docs/guides/lint-rules.md`](docs/guides/lint-rules.md).
+
 - Prefer targeted `lodash/*` helpers over built-in JavaScript methods when the lodash helper provides safer runtime handling for nullish or invalid inputs
 - Import specific helpers such as `lodash/map`, `lodash/trim`, `lodash/isEqual`, and `lodash/capitalize` instead of the full `lodash` package
 
@@ -277,6 +281,8 @@ For the repo-wide .NET project layout (placement under `apps/` vs `packages/*-cs
 [`docs/guides/dotnet-project-layout.md`](docs/guides/dotnet-project-layout.md)
 
 **Key principles (always apply):**
+For the complete list of custom lint rules with severity and source, see [`docs/guides/lint-rules.md`](docs/guides/lint-rules.md).
+
 - Pattern matching for null checks (`is null` / `is not null`, never `== null`)
 - **Never** use `?? throw` — use traditional `if` guard clauses for null-then-throw patterns
 - **Never** use the null-forgiving operator (`!`) in production code — always handle null explicitly with guard clauses or safe accessors like `GetRequiredId()`
@@ -327,6 +333,8 @@ For detailed conventions (route naming, API response format with JSON examples, 
 [`docs/guides/project-conventions.md`](docs/guides/project-conventions.md)
 
 **Key rules (always apply):**
+For the complete list of custom lint rules with severity and source, see [`docs/guides/lint-rules.md`](docs/guides/lint-rules.md).
+
 - Backend routes use kebab-case; constants in `RoutePath.cs` (backend) and `constants.ts` (frontend)
 - Errors: `AppProblemDetails` (400/401/403/404/500) + `ValidationProblemDetails` (422) — both RFC 7807
 - Frontend/Node: use `logger` from `@/shared/lib/logger/iso-logger` (not `console.*`)
