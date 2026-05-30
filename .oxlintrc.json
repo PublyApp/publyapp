@@ -46,6 +46,6 @@
 		"publy/no-raw-mui-textfield-register": "off",
 		"publy/no-direct-dayjs-in-components": "error",
 		"publy/no-native-html-in-mui-surfaces": "error",
-		"publy/no-manual-response-message-translation": "off"
+		"publy/no-manual-response-message-translation": "error"
 	}
 }
