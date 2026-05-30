@@ -1,6 +1,8 @@
 import type { UseMutationOptions } from '@tanstack/react-query';
 import type { FieldValues, UseFormSetError } from 'react-hook-form';
 
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+
 import {
 	type MapValidationErrorsOptions,
 	mapValidationErrors,
@@ -72,7 +74,7 @@ export const withFormValidation = <
 
 				// Log unmapped errors in dev for debugging
 				if (result.unmappedErrors.length > 0 && import.meta.env.DEV) {
-					console.warn(
+					logger.warn(
 						'[withFormValidation] Unmapped validation errors:',
 						result.unmappedErrors,
 					);

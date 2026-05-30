@@ -148,7 +148,7 @@ class BrowserConsoleFormatter {
 						colors: true,
 					});
 				} else {
-					console.log(item);
+					consoleMethod(item);
 				}
 			}
 
