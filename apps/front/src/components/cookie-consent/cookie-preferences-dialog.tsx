@@ -80,7 +80,7 @@ const CategoryRow = ({
 						control={
 							disabled && disabledReason ? (
 								<Tooltip title={disabledReason} placement="left" arrow>
-									<span>{switchEl}</span>
+									<Box component="span">{switchEl}</Box>
 								</Tooltip>
 							) : (
 								switchEl
