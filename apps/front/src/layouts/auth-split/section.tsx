@@ -5,6 +5,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { varAlpha } from 'minimal-shared/utils';
 
+import { Image } from '#app/components/image/image.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
 
 // ----------------------------------------------------------------------
@@ -77,11 +78,11 @@ export const AuthSplitSection = ({
 				)}
 			</Box>
 
-			<Box
-				component="img"
+			<Image
 				alt="Dashboard illustration"
 				src={imgUrl}
-				sx={{ width: 1, aspectRatio: '4/3', objectFit: 'cover' }}
+				ratio="4/3"
+				sx={{ width: 1 }}
 			/>
 
 			{!!methods?.length && method && (
@@ -106,10 +107,10 @@ export const AuthSplitSection = ({
 										href={option.path}
 										sx={{ ...(!selected && { pointerEvents: 'none' }) }}
 									>
-										<Box
-											component="img"
+										<Image
 											alt={option.label}
 											src={option.icon}
+											ratio="1/1"
 											sx={{ width: 32, height: 32 }}
 										/>
 									</Link>

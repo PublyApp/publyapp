@@ -1,11 +1,11 @@
-import type { BoxProps } from '@mui/material/Box';
-import Box from '@mui/material/Box';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { styled } from '@mui/material/styles';
 import type { TypographyProps } from '@mui/material/Typography';
 import Typography from '@mui/material/Typography';
 import toNumber from 'lodash/toNumber';
 import { varAlpha } from 'minimal-shared/utils';
+
+import { Image, type ImageProps } from '#app/components/image/image.tsx';
 
 // ----------------------------------------------------------------------
 
@@ -17,7 +17,7 @@ export type EmptyContentProps = React.ComponentProps<'div'> & {
 	description?: string;
 	action?: React.ReactNode;
 	slotProps?: {
-		img?: BoxProps<'img'>;
+		img?: ImageProps;
 		title?: TypographyProps;
 		description?: TypographyProps;
 	};
@@ -35,10 +35,10 @@ export const EmptyContent = ({
 }: EmptyContentProps) => {
 	return (
 		<ContentRoot filled={filled} sx={sx} {...other}>
-			<Box
-				component="img"
+			<Image
 				alt="Empty content"
 				src={imgUrl ?? '/assets/icons/empty/ic-content.svg'}
+				ratio="1/1"
 				{...slotProps?.img}
 				sx={[
 					{
