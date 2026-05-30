@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import { useQueryErrorResetBoundary } from '@tanstack/react-query';
 import {
 	type ComponentType,
@@ -40,7 +41,7 @@ const getFallBackComponent = ({
 		}, [currentPathname, errorPathname, resetErrorBoundary]);
 
 		if (!FallbackComponent) {
-			return <div>Error: No fallback component provided</div>;
+			return <Box>Error: No fallback component provided</Box>;
 		}
 
 		return (

@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
 import { styled } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
@@ -25,7 +26,7 @@ export const SingleFilePreview = ({
 			sx={sx}
 			{...other}
 		>
-			<img alt={fileName} src={previewUrl} />
+			<Box component="img" alt={fileName} src={previewUrl} />
 		</PreviewRoot>
 	);
 };

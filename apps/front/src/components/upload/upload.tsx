@@ -127,7 +127,7 @@ export const Upload = ({
 					},
 				]}
 			>
-				<input {...getInputProps()} />
+				<Box component="input" {...getInputProps()} />
 
 				{/* Single file */}
 				{hasFile ? (

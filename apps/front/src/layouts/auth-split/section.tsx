@@ -63,7 +63,7 @@ export const AuthSplitSection = ({
 			]}
 			{...other}
 		>
-			<div>
+			<Box>
 				<Typography variant="h3" sx={{ textAlign: 'center' }}>
 					{title}
 				</Typography>
@@ -75,7 +75,7 @@ export const AuthSplitSection = ({
 						{subtitle}
 					</Typography>
 				)}
-			</div>
+			</Box>
 
 			<Box
 				component="img"

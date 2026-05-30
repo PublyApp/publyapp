@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import type { UseQueryResult } from '@tanstack/react-query';
 import isFunction from 'lodash/isFunction';
 import isNil from 'lodash/isNil';
@@ -17,8 +18,8 @@ type Props<TData = unknown, TError = Error> = {
 	forceRender?: 'loading' | 'error' | 'empty' | 'data';
 };
 
-const defaultLoadingElement = <div>Loading...</div>;
-const defaultErrorElement = <div>Error...</div>;
+const defaultLoadingElement = <Box>Loading...</Box>;
+const defaultErrorElement = <Box>Error...</Box>;
 
 const QueryDisplay = <TData = unknown, TError = Error>({
 	query,

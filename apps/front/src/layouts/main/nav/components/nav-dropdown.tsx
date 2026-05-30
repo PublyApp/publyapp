@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import Fade, { type FadeProps } from '@mui/material/Fade';
 import { styled } from '@mui/material/styles';
 import toNumber from 'lodash/toNumber';
@@ -25,9 +26,9 @@ export const NavDropdown = styled(
 	({ open, children, ...other }: NavDropdownProps) => {
 		return (
 			<Fade in={open}>
-				<div {...other}>
+				<Box {...other}>
 					<NavDropdownPaper>{children}</NavDropdownPaper>
-				</div>
+				</Box>
 			</Fade>
 		);
 	},
