@@ -247,13 +247,13 @@ For the marketing-vs-product surface split (what brand DNA must match vs what's 
 **Key principles (always apply):**
 For the complete list of custom lint rules with severity and source, see [`docs/guides/lint-rules.md`](docs/guides/lint-rules.md).
 
-- MUI v6 only — never native HTML elements (`<div>` → `<Box>`, `<h1>` → `<Typography variant="h1">`)
+- MUI v6 only — never native HTML elements (`<div>` → `<Box>`, `<h1>` → `<Typography variant="h1">`) (enforced by `publy/no-native-html-in-mui-surfaces`)
 - `sx` prop for all styling — never Tailwind CSS or className
-- Day.js via `format-time.ts` utilities — never import dayjs directly in components
+- Day.js via `format-time.ts` utilities — never import dayjs directly in components (enforced by `publy/no-direct-dayjs-in-components`)
 - Arrow function components only — never `function` declarations for components
 - `QueryDisplay` component for TanStack Query states — never manual conditional rendering
 - No `Array.reduce()` — use `find`, `filter+map`, `for...of`, or `Object.groupBy`
-- React Hook Form + Zod for form validation — always use `Form`/`Field.*` wrappers from `@/front/components/hook-form`, never raw MUI `TextField` with `register()`
+- React Hook Form + Zod for form validation — always use `Form`/`Field.*` wrappers from `@/front/components/hook-form`, never raw MUI `TextField` with `register()` (enforced by `publy/no-raw-mui-textfield-register`)
 - First-column table entity avatars/icons must use a neutral, muted, subtle fallback treatment; preserve real images when present, but avoid bright semantic or generated avatar colors for fallback icons
 - Bulk-action `MenuItem`s on list-page selection menus always render — never `disabled`, never conditionally hidden by per-row eligibility; ineligible clicks show an i18n toast. The trigger button gates on `BULK_ACTION_MAX_COUNT`. See [`docs/guides/bulk-action-ux-conventions.md`](docs/guides/bulk-action-ux-conventions.md).
 - Marketing surfaces (landing, pricing, future blog) may diverge from product defaults on radii (16–40 px), button sizing, spacing, and motion — but must match product on palette tokens, typography family, primary CTA color, and dark-mode mechanism. See `docs/guides/marketing-surface-conventions.md` for the full divergence table and approved hardcoded-color exceptions.
@@ -266,7 +266,7 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 For the complete list of custom lint rules with severity and source, see [`docs/guides/lint-rules.md`](docs/guides/lint-rules.md).
 
 - Prefer targeted `lodash/*` helpers over built-in JavaScript methods when the lodash helper provides safer runtime handling for nullish or invalid inputs
-- Import specific helpers such as `lodash/map`, `lodash/trim`, `lodash/isEqual`, and `lodash/capitalize` instead of the full `lodash` package
+- Import specific helpers such as `lodash/map`, `lodash/trim`, `lodash/isEqual`, and `lodash/capitalize` instead of the full `lodash` package (enforced by `publy/prefer-specific-lodash-imports`)
 
 ## C# Coding Standards
 
@@ -284,8 +284,8 @@ For the repo-wide .NET project layout (placement under `apps/` vs `packages/*-cs
 For the complete list of custom lint rules with severity and source, see [`docs/guides/lint-rules.md`](docs/guides/lint-rules.md).
 
 - Pattern matching for null checks (`is null` / `is not null`, never `== null`)
-- **Never** use `?? throw` — use traditional `if` guard clauses for null-then-throw patterns
-- **Never** use the null-forgiving operator (`!`) in production code — always handle null explicitly with guard clauses or safe accessors like `GetRequiredId()`
+- **Never** use `?? throw` — use traditional `if` guard clauses for null-then-throw patterns (enforced by `PUBLY0002`)
+- **Never** use the null-forgiving operator (`!`) in production code — always handle null explicitly with guard clauses or safe accessors like `GetRequiredId()` (enforced by `PUBLY0001`)
 - Guard clauses (flat `if`/early return) over `switch` expressions when handling discriminated union error results from services
 - Query syntax for database LINQ queries; method syntax only for terminal ops
 - Handlers orchestrate, services implement (no DbContext in handlers)
@@ -306,7 +306,7 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 - **Validators**: use `JsonElementRules.*` extension methods (never inline validation chains); inherit `OffsetPaginatedQueryValidator<T>`/`CursorPaginatedQueryValidator<T>` for pagination; inherit `EncryptedIdTokenQueryValidator<T>` for encrypted-ID + token queries
 - **Never** use `ToLower()` / `ToLowerInvariant()` as a comparison or dispatch strategy; use
   `StringComparison.OrdinalIgnoreCase`, `StringComparer.OrdinalIgnoreCase`, or explicit
-  case-insensitive parsers/dictionaries instead
+  case-insensitive parsers/dictionaries instead (enforced by `PUBLY0003`)
 
 ## Test Conventions
 
@@ -337,9 +337,9 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 
 - Backend routes use kebab-case; constants in `RoutePath.cs` (backend) and `constants.ts` (frontend)
 - Errors: `AppProblemDetails` (400/401/403/404/500) + `ValidationProblemDetails` (422) — both RFC 7807
-- Frontend/Node: use `logger` from `@/shared/lib/logger/iso-logger` (not `console.*`)
+- Frontend/Node: use `logger` from `@/shared/lib/logger/iso-logger` (not `console.*`) (enforced by `publy/no-console-in-source`)
 - Frontend API errors: centralized via `ApiFailure` discriminated union — see [`docs/guides/frontend-error-handling.md`](docs/guides/frontend-error-handling.md)
-- Frontend local mutation handlers must derive user-facing error text through `getFailureMessage(toApiFailure(error), ...)`; never translate `response-message` keys manually at the call site
+- Frontend local mutation handlers must derive user-facing error text through `getFailureMessage(toApiFailure(error), ...)`; never translate `response-message` keys manually at the call site (enforced by `publy/no-manual-response-message-translation`)
 
 ## Development Environment
 
