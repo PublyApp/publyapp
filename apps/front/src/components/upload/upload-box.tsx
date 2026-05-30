@@ -55,7 +55,7 @@ export const UploadBox = ({
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 		>
-			<input {...getInputProps()} />
+			<Box component="input" {...getInputProps()} />
 
 			{placeholder || <Iconify icon="eva:cloud-upload-fill" width={28} />}
 		</Box>

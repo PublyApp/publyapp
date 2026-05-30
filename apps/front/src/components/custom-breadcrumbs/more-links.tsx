@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import { styled } from '@mui/material/styles';
 
@@ -11,11 +12,11 @@ export function MoreLinks({ links, sx, ...other }: MoreLinksProps) {
 	return (
 		<MoreLinksRoot sx={sx} {...other}>
 			{links?.map((href) => (
-				<li key={href}>
+				<Box component="li" key={href}>
 					<Link href={href} variant="body2" target="_blank" rel="noopener">
 						{href}
 					</Link>
-				</li>
+				</Box>
 			))}
 		</MoreLinksRoot>
 	);

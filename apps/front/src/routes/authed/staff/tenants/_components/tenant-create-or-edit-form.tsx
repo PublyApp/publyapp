@@ -546,7 +546,7 @@ const InitialUsersCard = ({
 						disableHoverListener={!(fields.length >= maxUsers)}
 						placement="top"
 					>
-						<span>
+						<Box component="span">
 							<Button
 								variant="contained"
 								onClick={onAddUser}
@@ -554,7 +554,7 @@ const InitialUsersCard = ({
 							>
 								{capitalize(t('add-a-user'))}
 							</Button>
-						</span>
+						</Box>
 					</Tooltip>
 				</Stack>
 			</Card>
@@ -661,7 +661,7 @@ const UserRow = ({
 				placement="top"
 				disableHoverListener={!isTheOnlyAdmin}
 			>
-				<span>
+				<Box component="span">
 					<Field.Select
 						name={`initialUsers.${index}.accountLevel`}
 						label={t('level')}
@@ -675,7 +675,7 @@ const UserRow = ({
 							</MenuItem>
 						))}
 					</Field.Select>
-				</span>
+				</Box>
 			</Tooltip>
 
 			{/* <Box
@@ -713,7 +713,7 @@ const UserRow = ({
 					placement="top"
 					disableHoverListener={!isTheOnlyAdmin}
 				>
-					<span>
+					<Box component="span">
 						<IconButton
 							size="medium"
 							color="error"
@@ -722,7 +722,7 @@ const UserRow = ({
 						>
 							<Iconify icon="solar:trash-bin-trash-bold" />
 						</IconButton>
-					</span>
+					</Box>
 				</Tooltip>
 			</Box>
 		</>

@@ -153,7 +153,7 @@ export const UploadAvatar = ({
 					...(Array.isArray(sx) ? sx : [sx]),
 				]}
 			>
-				<input {...getInputProps()} />
+				<Box component="input" {...getInputProps()} />
 
 				{renderContent()}
 			</Box>

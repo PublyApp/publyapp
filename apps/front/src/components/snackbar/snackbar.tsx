@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import Portal from '@mui/material/Portal';
 
 import { Iconify } from '../iconify/iconify';
@@ -39,7 +40,9 @@ export const Snackbar = () => {
 					},
 				}}
 				icons={{
-					loading: <span className={snackbarClasses.loadingIcon} />,
+					loading: (
+						<Box component="span" className={snackbarClasses.loadingIcon} />
+					),
 					info: (
 						<Iconify
 							className={snackbarClasses.iconSvg}

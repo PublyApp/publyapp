@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import { type SxProps, styled, type Theme } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 
@@ -30,14 +31,14 @@ export const UploadPlaceholder = ({
 		>
 			<UploadIllustration hideBackground sx={{ width: 200 }} />
 			<PlaceholderContent>
-				<div className={uploadPlaceholderClasses.title}>
+				<Box className={uploadPlaceholderClasses.title}>
 					Drop or select file
-				</div>
-				<div className={uploadPlaceholderClasses.description}>
+				</Box>
+				<Box className={uploadPlaceholderClasses.description}>
 					Drop files here or click to
-					<span>browse</span>
+					<Box component="span">browse</Box>
 					through your machine.
-				</div>
+				</Box>
 			</PlaceholderContent>
 		</PlaceholderRoot>
 	);

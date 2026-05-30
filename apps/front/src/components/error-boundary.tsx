@@ -1,5 +1,7 @@
+import Box from '@mui/material/Box';
 import GlobalStyles from '@mui/material/GlobalStyles';
 import type { CSSObject, Theme } from '@mui/material/styles';
+import Typography from '@mui/material/Typography';
 import { isRouteErrorResponse } from 'react-router';
 
 import { isProblemFailure, toApiFailure } from '../lib/api-failure';
@@ -14,11 +16,11 @@ export const ErrorBoundary = ({ error }: ErrorBoundaryProps) => {
 		<>
 			{inputGlobalStyles()}
 
-			<div className={errorBoundaryClasses.root}>
-				<div className={errorBoundaryClasses.container}>
+			<Box className={errorBoundaryClasses.root}>
+				<Box className={errorBoundaryClasses.container}>
 					{renderErrorMessage(error)}
-				</div>
-			</div>
+				</Box>
+			</Box>
 		</>
 	);
 };
@@ -43,10 +45,12 @@ const renderErrorMessage = (error: unknown) => {
 	if (isRouteErrorResponse(_error)) {
 		return (
 			<>
-				<h1 className={errorBoundaryClasses.title}>
+				<Typography variant="h1" className={errorBoundaryClasses.title}>
 					{_error.status}: {_error.statusText}
-				</h1>
-				<p className={errorBoundaryClasses.message}>{_error.data}</p>
+				</Typography>
+				<Typography className={errorBoundaryClasses.message}>
+					{_error.data}
+				</Typography>
 			</>
 		);
 	}
@@ -55,10 +59,12 @@ const renderErrorMessage = (error: unknown) => {
 	if (isProblemFailure(failure)) {
 		return (
 			<>
-				<h1 className={errorBoundaryClasses.title}>
+				<Typography variant="h1" className={errorBoundaryClasses.title}>
 					{failure.status}: {failure.title}
-				</h1>
-				<p className={errorBoundaryClasses.message}>{failure.detail}</p>
+				</Typography>
+				<Typography className={errorBoundaryClasses.message}>
+					{failure.detail}
+				</Typography>
 				<pre className={errorBoundaryClasses.details}>
 					{failure.translationKey ? `Key: ${failure.translationKey}` : ''}
 					{failure.status ? `,\nStatus Code: ${failure.status}` : ''}
@@ -72,23 +78,27 @@ const renderErrorMessage = (error: unknown) => {
 
 		return (
 			<>
-				<h1 className={errorBoundaryClasses.title}>
+				<Typography variant="h1" className={errorBoundaryClasses.title}>
 					Unexpected Application Error!
-				</h1>
-				<p className={errorBoundaryClasses.message}>
+				</Typography>
+				<Typography className={errorBoundaryClasses.message}>
 					{_error.name}: {_error.message}
-				</p>
+				</Typography>
 				<pre className={errorBoundaryClasses.details}>{_error.stack}</pre>
 				{(filePath || functionName) && (
-					<p className={errorBoundaryClasses.filePath}>
+					<Typography className={errorBoundaryClasses.filePath}>
 						{filePath} ({functionName})
-					</p>
+					</Typography>
 				)}
 			</>
 		);
 	}
 
-	return <h1 className={errorBoundaryClasses.title}>Unknown Error</h1>;
+	return (
+		<Typography variant="h1" className={errorBoundaryClasses.title}>
+			Unknown Error
+		</Typography>
+	);
 };
 
 // ----------------------------------------------------------------------

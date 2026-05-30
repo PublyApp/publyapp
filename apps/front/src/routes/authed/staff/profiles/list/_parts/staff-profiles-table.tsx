@@ -784,7 +784,7 @@ const StaffProfilesSelectionActions = ({
 				placement="top"
 				arrow
 			>
-				<span>
+				<Box component="span">
 					<IconButton
 						size="small"
 						aria-label={isOverLimit ? overLimitMessage : t('actions')}
@@ -794,7 +794,7 @@ const StaffProfilesSelectionActions = ({
 					>
 						<Iconify icon="solar:menu-dots-bold-duotone" width={18} />
 					</IconButton>
-				</span>
+				</Box>
 			</Tooltip>
 
 			<Menu

@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import {
 	NodeViewContent,
 	type NodeViewProps,
@@ -18,12 +19,15 @@ export const CodeHighlightBlock = ({
 }: NodeViewProps) => {
 	return (
 		<NodeViewWrapper className={editorClasses.content.codeBlock}>
-			<select
+			<Box
+				component="select"
 				name="language"
 				contentEditable={false}
 				defaultValue={defaultLanguage}
 				onChange={(event) => {
-					return updateAttributes({ language: event.target.value });
+					return updateAttributes({
+						language: (event.target as HTMLSelectElement).value,
+					});
 				}}
 				className={editorClasses.content.langSelect}
 			>
@@ -36,7 +40,7 @@ export const CodeHighlightBlock = ({
 						</option>
 					);
 				})}
-			</select>
+			</Box>
 
 			<pre>
 				<NodeViewContent as="code" />

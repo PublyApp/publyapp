@@ -1,5 +1,6 @@
 import Avatar from '@mui/material/Avatar';
 import Badge, { type BadgeProps } from '@mui/material/Badge';
+import Box from '@mui/material/Box';
 import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
 import ListItemText from '@mui/material/ListItemText';
 import MenuItem from '@mui/material/MenuItem';
@@ -52,7 +53,7 @@ export const ContactsPopover = ({
 				slotProps={{ arrow: { offset: 20 } }}
 			>
 				<Typography variant="h6" sx={{ p: 1.5 }}>
-					Contacts <span>({data.length})</span>
+					Contacts <Box component="span">({data.length})</Box>
 				</Typography>
 
 				<Scrollbar sx={{ height: 320, width: 320 }}>

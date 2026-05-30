@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import ListItemText from '@mui/material/ListItemText';
@@ -185,7 +186,7 @@ const TenantUserCompaniesSelectionActions = ({
 				placement="top"
 				arrow
 			>
-				<span>
+				<Box component="span">
 					<IconButton
 						size="small"
 						aria-label={isOverLimit ? overLimitMessage : t('actions')}
@@ -195,7 +196,7 @@ const TenantUserCompaniesSelectionActions = ({
 					>
 						<Iconify icon="eva:more-vertical-fill" width={18} />
 					</IconButton>
-				</span>
+				</Box>
 			</Tooltip>
 
 			<Menu

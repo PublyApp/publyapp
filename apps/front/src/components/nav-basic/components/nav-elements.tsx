@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import { styled } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 
@@ -14,7 +15,8 @@ type NavLiProps = React.ComponentProps<'li'> & { disabled?: boolean };
 export const NavLi = styled(
 	(props: NavLiProps) => {
 		return (
-			<li
+			<Box
+				component="li"
 				{...props}
 				className={mergeClasses([navBasicClasses.li, props.className])}
 			/>
@@ -43,7 +45,8 @@ type NavUlProps = React.ComponentProps<'ul'>;
 
 export const NavUl = styled((props: NavUlProps) => {
 	return (
-		<ul
+		<Box
+			component="ul"
 			{...props}
 			className={mergeClasses([navBasicClasses.ul, props.className])}
 		/>

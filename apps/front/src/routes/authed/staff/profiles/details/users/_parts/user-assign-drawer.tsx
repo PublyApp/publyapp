@@ -1009,7 +1009,7 @@ const ProfileUserAssignmentAction = ({
 
 	return (
 		<Tooltip title={tooltipTitle} placement="left" arrow>
-			<span>
+			<Box component="span">
 				<Box sx={{ position: 'relative', display: 'inline-flex' }}>
 					{actionButton}
 
@@ -1026,7 +1026,7 @@ const ProfileUserAssignmentAction = ({
 						/>
 					) : null}
 				</Box>
-			</span>
+			</Box>
 		</Tooltip>
 	);
 };

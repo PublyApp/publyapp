@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import ListItemText from '@mui/material/ListItemText';
 import Menu from '@mui/material/Menu';
@@ -50,7 +51,7 @@ const StaffUsersSelectionActions = ({
 				placement="top"
 				arrow
 			>
-				<span>
+				<Box component="span">
 					<IconButton
 						size="small"
 						aria-label={isOverLimit ? overLimitMessage : t('more-actions')}
@@ -60,7 +61,7 @@ const StaffUsersSelectionActions = ({
 					>
 						<Iconify icon="eva:more-vertical-fill" width={18} />
 					</IconButton>
-				</span>
+				</Box>
 			</Tooltip>
 
 			<Menu
