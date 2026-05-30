@@ -15,7 +15,7 @@ RuleTester.it = it;
 
 const RULE_NAME = 'no-console-in-source';
 const LOGGER_IMPORT =
-	"import { logger } from '@/shared/lib/logger/iso-logger';";
+	"import { logger } from '@org/shared-ts/lib/logger/iso-logger';";
 
 describe('plugin entrypoint wiring (@org/lint-ts)', () => {
 	it(`wires rules["${RULE_NAME}"] to the rule object`, () => {

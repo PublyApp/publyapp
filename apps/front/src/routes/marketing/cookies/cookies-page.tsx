@@ -3,6 +3,8 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { varAlpha } from 'minimal-shared/utils';
 
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+
 import {
 	LegalDocPage,
 	LEGAL_H2_SX,
@@ -122,8 +124,7 @@ const CookiePreferencesCallout = () => {
 				type="button"
 				onClick={() => {
 					// Placeholder until the consent banner ships (out of scope per spec)
-					// eslint-disable-next-line no-console
-					console.info('[cookies] open preferences clicked');
+					logger.info('[cookies] open preferences clicked');
 				}}
 				sx={(theme) => ({
 					display: 'inline-flex',

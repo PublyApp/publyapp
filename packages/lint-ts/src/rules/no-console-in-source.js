@@ -10,7 +10,7 @@
  * reported; only direct global `console.<method>(...)` calls are rewritten.
  */
 
-const LOGGER_IMPORT_SOURCE = '@/shared/lib/logger/iso-logger';
+const LOGGER_IMPORT_SOURCE = '@org/shared-ts/lib/logger/iso-logger';
 const LOGGER_IMPORT = `import { logger } from '${LOGGER_IMPORT_SOURCE}';\n`;
 const CONSOLE_METHODS = new Set([
 	'log',
