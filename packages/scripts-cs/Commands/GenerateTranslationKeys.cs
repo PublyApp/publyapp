@@ -46,7 +46,7 @@ public static class GenerateTranslationKeys {
 		sb.AppendLine("// Do not modify this file directly. It will be regenerated on build.");
 		sb.AppendLine("#nullable enable");
 		sb.AppendLine();
-		sb.AppendLine("namespace MainApi.Localization;");
+		sb.AppendLine("namespace PublyApp.Api.Localization;");
 		sb.AppendLine();
 		sb.AppendLine("/// <summary>");
 		sb.AppendLine("/// Type-safe translation keys generated from response message JSON");

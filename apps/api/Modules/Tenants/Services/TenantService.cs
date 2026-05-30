@@ -1,10 +1,10 @@
-using MainApi.Data.DbContext;
-using MainApi.Lib.DI;
-using MainApi.Modules.Tenants.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.Tenants.Services;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.Tenants.Entities;
+
+namespace PublyApp.Api.Modules.Tenants.Services;
 
 public interface ITenantService {
 	Task<Tenant?> GetTenantByIdAsync(Guid tenantId, CancellationToken cancellationToken = default);
@@ -16,9 +16,9 @@ public interface ITenantService {
 
 [Service(ServiceLifetime.Scoped)]
 public class TenantService : ITenantService {
-	private readonly MainApiDbContext _dbContext;
+	private readonly AppDbContext _dbContext;
 
-	public TenantService(MainApiDbContext context) {
+	public TenantService(AppDbContext context) {
 		_dbContext = context;
 	}
 

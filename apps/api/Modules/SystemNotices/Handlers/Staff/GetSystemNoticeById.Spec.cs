@@ -4,14 +4,14 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Localization;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Localization;
 
 using Xunit;
 
-namespace MainApi.Modules.SystemNotices.Handlers.Staff;
+namespace PublyApp.Api.Modules.SystemNotices.Handlers.Staff;
 
 public sealed class GetSystemNoticeByIdSpec
 	: IClassFixture<ApiFixture> {

@@ -3,7 +3,7 @@ using FluentAssertions;
 
 using Xunit;
 
-namespace MainApi.Modules.AuditLogs.Entities;
+namespace PublyApp.Api.Modules.AuditLogs.Entities;
 
 public sealed class AuditActionsRegistrySpec {
 	[Fact]

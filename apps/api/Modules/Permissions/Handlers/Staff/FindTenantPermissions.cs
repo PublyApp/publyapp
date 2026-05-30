@@ -1,13 +1,13 @@
 using FluentValidation;
 
-using MainApi.Lib;
-using MainApi.Lib.ProblemResults;
-using MainApi.Modules.Permissions.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.Permissions.Handlers.Staff;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Modules.Permissions.Services;
+
+namespace PublyApp.Api.Modules.Permissions.Handlers.Staff;
 
 public class FindTenantPermissionsQuery {
 	// Keep the wire name lowercase to match repo query-parameter conventions and Kiota output.

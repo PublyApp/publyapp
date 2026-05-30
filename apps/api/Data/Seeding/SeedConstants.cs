@@ -1,4 +1,4 @@
-namespace MainApi.Data.Seeding;
+namespace PublyApp.Api.Data.Seeding;
 
 /// <summary>
 /// Single source of truth for all seed data values.

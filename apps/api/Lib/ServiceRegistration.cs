@@ -3,17 +3,17 @@ using System.Text;
 
 using FluentValidation;
 
-using MainApi.Data.DbContext;
-using MainApi.Infrastructure.Messaging.Email;
-using MainApi.Lib.DI;
-using MainApi.Lib.Extensions;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Infrastructure.Messaging.Email;
+using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Lib.Extensions;
+
 using Resend;
 
-namespace MainApi.Lib;
+namespace PublyApp.Api.Lib;
 
 public static class ServiceRegistration {
 	// Helper method to get current tenant ID
@@ -102,7 +102,7 @@ public static class ServiceRegistration {
 		builder.Services.AddHealthChecks();
 
 		// Register scoped DbContext (for per-request instances)
-		builder.Services.AddDbContext<MainApiDbContext>((serviceProvider, options) => {
+		builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) => {
 			var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
 			var tenantId = GetCurrentTenantId(httpContextAccessor);
 
@@ -124,7 +124,7 @@ public static class ServiceRegistration {
 	}
 
 	/// <summary>
-	/// Registers Application/business services from MainApi.Modules.*.Services.
+	/// Registers Application/business services from PublyApp.Api.Modules.*.Services.
 	/// </summary>
 	public static WebApplicationBuilder AddAppServices(this WebApplicationBuilder builder) {
 		// Validate [Service] attributed classes up front (fail-fast).
@@ -165,7 +165,7 @@ public static class ServiceRegistration {
 	/// Returns discovered services for registration and optional manifest logging.
 	/// </summary>
 	internal static List<DiscoveredService> ValidateServiceAttributes() {
-		// Scan the Main API assembly for [Service] attributed classes
+		// Scan the PublyApp.Api assembly for [Service] attributed classes
 		var discoveredServices = ServiceScanner.ScanAssembly<Program>();
 
 		// Validate all discovered services (fail-fast on any violation)

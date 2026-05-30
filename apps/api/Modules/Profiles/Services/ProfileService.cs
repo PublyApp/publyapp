@@ -1,12 +1,12 @@
-using MainApi.Data.DbContext;
-using MainApi.Lib.DI;
-using MainApi.Modules.Permissions.Entities;
-using MainApi.Modules.Profiles.Entities;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.Profiles.Services;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.Permissions.Entities;
+using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Users.Entities;
+
+namespace PublyApp.Api.Modules.Profiles.Services;
 
 public interface IProfileService {
 	Task<List<ProfileItem>> GetUserProfilesWithPermissionsForTenantAsync(
@@ -22,8 +22,8 @@ public interface IProfileService {
 
 [Service(ServiceLifetime.Scoped)]
 public class ProfileService : IProfileService {
-	private readonly MainApiDbContext _dbContext;
-	public ProfileService(MainApiDbContext dbContext) {
+	private readonly AppDbContext _dbContext;
+	public ProfileService(AppDbContext dbContext) {
 		_dbContext = dbContext;
 	}
 

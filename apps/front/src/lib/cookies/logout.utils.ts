@@ -9,7 +9,7 @@ import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import {
 	ClientManager,
 	getClientManager,
-} from '#app/lib/js-client/client-manager.ts';
+} from '#app/lib/api-client/client-manager.ts';
 import {
 	getQueryClient,
 	markAuthLogoutInProgress,

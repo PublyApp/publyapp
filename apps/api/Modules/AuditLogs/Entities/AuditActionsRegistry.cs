@@ -2,7 +2,7 @@
 using System.Collections.Immutable;
 using System.Reflection;
 
-namespace MainApi.Modules.AuditLogs.Entities;
+namespace PublyApp.Api.Modules.AuditLogs.Entities;
 
 public static class AuditActionsRegistry {
 	// Audit action constants are the source of truth for

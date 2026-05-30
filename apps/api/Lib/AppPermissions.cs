@@ -1,13 +1,13 @@
-using MainApi.Modules.AuditLogs.Permissions;
-using MainApi.Modules.Invitations.Permissions;
-using MainApi.Modules.Permissions.Entities;
-using MainApi.Modules.Permissions.Permissions;
-using MainApi.Modules.Profiles.Permissions;
-using MainApi.Modules.SystemNotices.Permissions;
-using MainApi.Modules.Tenants.Permissions;
-using MainApi.Modules.Users.Permissions;
+using PublyApp.Api.Modules.AuditLogs.Permissions;
+using PublyApp.Api.Modules.Invitations.Permissions;
+using PublyApp.Api.Modules.Permissions.Entities;
+using PublyApp.Api.Modules.Permissions.Permissions;
+using PublyApp.Api.Modules.Profiles.Permissions;
+using PublyApp.Api.Modules.SystemNotices.Permissions;
+using PublyApp.Api.Modules.Tenants.Permissions;
+using PublyApp.Api.Modules.Users.Permissions;
 
-namespace MainApi.Lib;
+namespace PublyApp.Api.Lib;
 
 public interface IScopePermissions {
 	string KeyPrefix { get; }

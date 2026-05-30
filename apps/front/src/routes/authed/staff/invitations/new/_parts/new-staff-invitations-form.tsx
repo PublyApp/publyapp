@@ -32,8 +32,8 @@ import { toast } from '#app/components/snackbar/index.ts';
 import { useRouter } from '#app/hooks/use-router.ts';
 import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
+import { getUntypedNumber } from '#app/lib/api-client/kiota-utils.ts';
 import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
-import { getUntypedNumber } from '#app/lib/js-client/kiota-utils.ts';
 import {
 	useBulkCreateStaffInvitations,
 	useFindStaffInvitations,

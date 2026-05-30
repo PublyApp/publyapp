@@ -1,8 +1,8 @@
 using System.Text.Json.Serialization;
 
-using MainApi.Localization;
+using PublyApp.Api.Localization;
 
-namespace MainApi.Lib.ProblemResults;
+namespace PublyApp.Api.Lib.ProblemResults;
 
 /// <summary>
 /// A ProblemDetails extension for validation errors.

@@ -25,7 +25,7 @@ export interface AuditLogsRequestBuilder extends BaseRequestBuilder<AuditLogsReq
      */
     get exportEscaped(): ExportRequestBuilder;
     /**
-     * Gets an item from the MainApi.Client.staff.auditLogs.item collection
+     * Gets an item from the PublyApp.Api.Client.staff.auditLogs.item collection
      * @param logId Unique identifier of the item
      * @returns {WithLogItemRequestBuilder}
      */

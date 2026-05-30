@@ -1,7 +1,7 @@
 
 using System.Text.Json;
 
-namespace MainApi.Lib.Testing.Helpers;
+namespace PublyApp.Api.Lib.Testing.Helpers;
 
 internal static class OpenApiDocumentHelper {
 	public static async Task<JsonDocument> ReadAsync() {

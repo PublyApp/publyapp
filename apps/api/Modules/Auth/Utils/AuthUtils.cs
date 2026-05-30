@@ -1,9 +1,9 @@
-using MainApi.Lib;
-using MainApi.Lib.Utils;
-
 using Microsoft.AspNetCore.WebUtilities;
 
-namespace MainApi.Modules.Auth.Utils;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Utils;
+
+namespace PublyApp.Api.Modules.Auth.Utils;
 
 public static class AuthUtils {
 	public static string CreateVerificationUrl(string token, string email) {

@@ -2,6 +2,8 @@
 
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
+		<AssemblyName>PublyApp.Api</AssemblyName>
+		<RootNamespace>PublyApp.Api</RootNamespace>
 		<PublishDir>$(ApiArtifactsRoot)publish\</PublishDir>
 	</PropertyGroup>
 
@@ -60,7 +62,7 @@
 	<PropertyGroup Condition="'$(Configuration)' != 'Test'">
 		<OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
 		<OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)</OpenApiDocumentsDirectory>
-		<OpenApiGeneratedProjectFile>$(MSBuildProjectDirectory)\MainApi.json</OpenApiGeneratedProjectFile>
+		<OpenApiGeneratedProjectFile>$(MSBuildProjectDirectory)\PublyApp.Api.json</OpenApiGeneratedProjectFile>
 		<OpenApiJsonFile>$(MSBuildProjectDirectory)\openapi.json</OpenApiJsonFile>
 		<!-- Prevent duplicate assembly attributes when OpenAPI doc generation runs -->
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>

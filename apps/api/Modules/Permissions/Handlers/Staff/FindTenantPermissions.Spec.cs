@@ -4,16 +4,16 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using MainApi.Lib;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Lib.Utils;
-using MainApi.Modules.Permissions.Services;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Permissions.Services;
 
 using Xunit;
 
-namespace MainApi.Modules.Permissions.Handlers.Staff;
+namespace PublyApp.Api.Modules.Permissions.Handlers.Staff;
 
 public sealed class FindTenantPermissionsSpec
 	: IClassFixture<ApiFixture> {

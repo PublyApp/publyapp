@@ -11,7 +11,7 @@ import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type 
  */
 export interface TenantUsersRequestBuilder extends BaseRequestBuilder<TenantUsersRequestBuilder> {
     /**
-     * Gets an item from the MainApi.Client.staff.tenantUsers.item collection
+     * Gets an item from the PublyApp.Api.Client.staff.tenantUsers.item collection
      * @param userId Unique identifier of the item
      * @returns {WithUserItemRequestBuilder}
      */

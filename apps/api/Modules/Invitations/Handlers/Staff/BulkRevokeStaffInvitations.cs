@@ -3,17 +3,17 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Lib;
-using MainApi.Lib.Extensions;
-using MainApi.Lib.Validation;
-using MainApi.Modules.AuditLogs.Entities;
-using MainApi.Modules.AuditLogs.Services;
-using MainApi.Modules.Invitations.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.Invitations.Handlers.Staff;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.Validation;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.AuditLogs.Services;
+using PublyApp.Api.Modules.Invitations.Services;
+
+namespace PublyApp.Api.Modules.Invitations.Handlers.Staff;
 
 public sealed class BulkRevokeStaffInvitationsBody {
 	[Required]

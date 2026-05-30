@@ -6,26 +6,26 @@ using System.Text.Json;
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Data.Seeding;
-using MainApi.Lib;
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Lib.Utils;
-using MainApi.Localization;
-using MainApi.Modules.AuditLogs.Entities;
-using MainApi.Modules.Profiles.Entities;
-using MainApi.Modules.Tenants.Handlers.Staff;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Tenants.Handlers.Staff;
+using PublyApp.Api.Modules.Users.Entities;
+
 using Xunit;
 
-namespace MainApi.Modules.Profiles.Handlers.Staff;
+namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
 public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -422,7 +422,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 
 	private async Task<Guid> SeedStaffProfileAsync() {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var profile = Profile.CreateStaffProfile(
 			"Seeded Staff Bulk Delete " + Guid.NewGuid().ToString("N")[..8],
 			"Profile seeded for permission-only bulk delete tests"
@@ -445,7 +445,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 
 	private async Task<Guid> SeedTenantProfileAsync(Guid tenantId) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var profile = Profile.CreateTenantProfile(
 			tenantId,
 			"Wrong Scope Bulk Delete " + Guid.NewGuid().ToString("N")[..8]
@@ -459,7 +459,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 
 	private async Task AttachStaffProfileUserLinkAsync(Guid profileId) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var userAccountId = await GetStaffAccountIdByEmailAsync(
 			dbContext,
 			TestConstants.StaffAdminEmail
@@ -534,7 +534,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 
 	private async Task AssertProfileRelationsRemovedAsync(Guid profileId) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		// Joins are hard-deleted on profile removal, so ignore query filters to catch
 		// both leftover active rows and accidental soft-deleted leftovers.
@@ -555,7 +555,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 
 	private async Task<Profile?> GetProfileIgnoringFiltersAsync(Guid profileId) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		return await (
 			from profile in dbContext.Profile.IgnoreQueryFilters()
@@ -573,7 +573,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 		IReadOnlyDictionary<Guid, string>? expectedFailedItems = null
 	) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var auditLog = await (
 			from log in dbContext.AuditLog
@@ -630,7 +630,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	}
 
 	private static async Task<Guid> GetStaffAccountIdByEmailAsync(
-		MainApiDbContext dbContext,
+		AppDbContext dbContext,
 		string email
 	) {
 		var accountId = await (
@@ -649,7 +649,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	}
 
 	private static async Task<Guid> GetUserIdByEmailAsync(
-		MainApiDbContext dbContext,
+		AppDbContext dbContext,
 		string email
 	) {
 		var userId = await (

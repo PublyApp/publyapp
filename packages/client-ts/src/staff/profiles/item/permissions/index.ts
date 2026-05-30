@@ -13,7 +13,7 @@ import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type 
  */
 export interface PermissionsRequestBuilder extends BaseRequestBuilder<PermissionsRequestBuilder> {
     /**
-     * Gets an item from the MainApi.Client.staff.profiles.item.permissions.item collection
+     * Gets an item from the PublyApp.Api.Client.staff.profiles.item.permissions.item collection
      * @param permissionKey Unique identifier of the item
      * @returns {WithPermissionKeyItemRequestBuilder}
      */

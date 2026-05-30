@@ -1,13 +1,13 @@
 
 using System.Text.RegularExpressions;
 
-using MainApi.Data.DbContext;
-
 using Microsoft.EntityFrameworkCore;
 
 using Npgsql;
 
-namespace MainApi.Lib.Testing.Fixtures;
+using PublyApp.Api.Data.DbContext;
+
+namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// <summary>
 /// Manages PostgreSQL template database creation and
 /// cloning for test isolation.
@@ -85,12 +85,12 @@ internal sealed partial class DatabaseTemplateManager {
 				}.ConnectionString;
 
 			var options =
-				new DbContextOptionsBuilder<MainApiDbContext>()
+				new DbContextOptionsBuilder<AppDbContext>()
 					.UseNpgsql(templateConnString)
 					.Options;
 
 			await using var dbContext =
-				new MainApiDbContext(options);
+				new AppDbContext(options);
 
 			// 1) Apply migrations (schema changes).
 			//    MigrateAsync does NOT trigger UseSeeding hooks.

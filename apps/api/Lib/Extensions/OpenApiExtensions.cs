@@ -1,8 +1,8 @@
-using MainApi.Lib.ProblemResults;
+using PublyApp.Api.Lib.ProblemResults;
 
 using Scalar.AspNetCore;
 
-namespace MainApi.Lib.Extensions;
+namespace PublyApp.Api.Lib.Extensions;
 
 public static class OpenApiExtensions {
 	/// <summary>

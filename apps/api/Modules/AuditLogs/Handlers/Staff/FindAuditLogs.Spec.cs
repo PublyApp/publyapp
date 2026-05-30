@@ -5,16 +5,16 @@ using System.Reflection;
 
 using FluentAssertions;
 
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Modules.AuditLogs.Entities;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Modules.AuditLogs.Entities;
 
 using Xunit;
 
 using FromQueryAttribute = Microsoft.AspNetCore.Mvc.FromQueryAttribute;
 
-namespace MainApi.Modules.AuditLogs.Handlers.Staff;
+namespace PublyApp.Api.Modules.AuditLogs.Handlers.Staff;
 
 public sealed class FindAuditLogsSpec
 	: IClassFixture<ApiFixture> {

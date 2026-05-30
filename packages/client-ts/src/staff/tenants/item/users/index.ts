@@ -19,7 +19,7 @@ export interface UsersRequestBuilder extends BaseRequestBuilder<UsersRequestBuil
      */
     get invitations(): InvitationsRequestBuilder;
     /**
-     * Gets an item from the MainApi.Client.staff.tenants.item.users.item collection
+     * Gets an item from the PublyApp.Api.Client.staff.tenants.item.users.item collection
      * @param userId Unique identifier of the item
      * @returns {WithUserItemRequestBuilder}
      */

@@ -1,9 +1,9 @@
-using MainApi.Lib;
-using MainApi.Modules.Users.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 
-namespace MainApi.Modules.Auth.Handlers;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Modules.Users.Services;
+
+namespace PublyApp.Api.Modules.Auth.Handlers;
 
 public class TenantForPickerItem {
 	public Guid Id { get; set; }

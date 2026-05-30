@@ -44,11 +44,11 @@ const generateKiotaClient = (): Plugin => {
 			if (shouldGenerate) {
 				_log(chalk.cyan('Generating Kiota client...'));
 				_debug(
-					`Running: dotnet kiota generate -d ${openApiPath} -o ${path.join(jsClientPath, 'src')} -l typescript -n MainApi.Client -c ApiClient`,
+					`Running: dotnet kiota generate -d ${openApiPath} -o ${path.join(jsClientPath, 'src')} -l typescript -n PublyApp.Api.Client -c ApiClient`,
 				);
 
 				execSync(
-					`dotnet kiota generate -d "${openApiPath}" -o "${path.join(jsClientPath, 'src')}" -l typescript -n MainApi.Client -c ApiClient`,
+					`dotnet kiota generate -d "${openApiPath}" -o "${path.join(jsClientPath, 'src')}" -l typescript -n PublyApp.Api.Client -c ApiClient`,
 					{
 						cwd: jsClientPath,
 						stdio: 'inherit',

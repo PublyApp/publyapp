@@ -4,13 +4,13 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using MainApi.Lib.Routes;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 
 using Xunit;
 
-namespace MainApi.Modules.SystemNotices.Handlers.Anonymous;
+namespace PublyApp.Api.Modules.SystemNotices.Handlers.Anonymous;
 
 public sealed class GetActiveSystemNoticesSpec
 	: IClassFixture<ApiFixture> {

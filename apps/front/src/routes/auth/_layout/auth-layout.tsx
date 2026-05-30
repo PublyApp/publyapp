@@ -21,13 +21,13 @@ import { GenericErrorView } from '#app/components/error/generic-error-view.tsx';
 import { SplashScreen } from '#app/components/loading-screen/splash-screen.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { AuthSplitLayout } from '#app/layouts/auth-split/layout.tsx';
+import { getClientManager } from '#app/lib/api-client/client-manager.ts';
 import { toApiFailure } from '#app/lib/api-failure/index.ts';
 import {
 	clearSessionCookie,
 	getSessionCookieFromClient,
 } from '#app/lib/cookies/session-cookie.utils.ts';
 import { readTenantHintsFromRequestHeaders } from '#app/lib/cookies/tenant-hint-cookie.utils.ts';
-import { getClientManager } from '#app/lib/js-client/client-manager.ts';
 import { useGetUserAuthData } from '#app/lib/react-query/features/common/auth.hooks.ts';
 import { getQueryClient } from '#app/lib/react-query/query-client.tsx';
 import { getClientLoader } from '#app/lib/react-router/client-data.ts';

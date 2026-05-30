@@ -188,8 +188,8 @@ seed-bulk-reset:
 
 # Run API integration tests (requires Docker)
 test-api:
-  cd {{api_dir}} && dotnet restore Tests/MainApi.Tests.csproj
-  cd {{api_dir}} && dotnet test Tests/MainApi.Tests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=normal"
+  cd {{api_dir}} && dotnet restore Tests/PublyApp.Api.Tests.csproj
+  cd {{api_dir}} && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=normal"
 
 # Run analyzer tests
 test-analyzers:
@@ -198,8 +198,8 @@ test-analyzers:
 
 # Run API integration tests with verbose diagnostics
 test-api-debug:
-  cd {{api_dir}} && dotnet restore Tests/MainApi.Tests.csproj
-  cd {{api_dir}} && dotnet test Tests/MainApi.Tests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=detailed" --environment TEST_VERBOSE_LOGS=1 --diag .artifacts/logs/test-api-debug.log
+  cd {{api_dir}} && dotnet restore Tests/PublyApp.Api.Tests.csproj
+  cd {{api_dir}} && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=detailed" --environment TEST_VERBOSE_LOGS=1 --diag .artifacts/logs/test-api-debug.log
 
 # =============================================================================
 # Docker
@@ -232,7 +232,7 @@ generate-response-keys:
 # Build API + generate TypeScript client from OpenAPI
 generate-client:
   cd {{api_dir}} && dotnet build --no-restore
-  cd {{js_client_dir}} && dotnet kiota generate -d ../../{{api_dir}}/openapi.json -o src -l typescript -n MainApi.Client -c ApiClient
+  cd {{js_client_dir}} && dotnet kiota generate -d ../../{{api_dir}}/openapi.json -o src -l typescript -n PublyApp.Api.Client -c ApiClient
   cd {{js_client_dir}} && node -e "const fs=require('fs'); const p='src/kiota-lock.json'; if (fs.existsSync(p)) fs.writeFileSync(p, fs.readFileSync(p, 'utf8').replace(/\r\n?/g, '\n'))"
 
 # Update existing client

@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http.Metadata;
 
-namespace MainApi.Lib.ProblemResults;
+namespace PublyApp.Api.Lib.ProblemResults;
 
 /// <summary>
 /// Metadata describing a AppProblemDetails response for OpenAPI documentation

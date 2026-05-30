@@ -1,16 +1,16 @@
 using FluentValidation;
 
-using MainApi.Localization;
-using MainApi.Lib;
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Validation;
-using MainApi.Modules.Users.Entities;
-using MainApi.Modules.Users.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.Users.Handlers.Staff;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Validation;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Users.Entities;
+using PublyApp.Api.Modules.Users.Services;
+
+namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public class TenantUserCompanyForStaffResult {
 	public Guid TenantId { get; set; }

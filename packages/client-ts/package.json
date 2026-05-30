@@ -4,7 +4,7 @@
 	"main": "src/index.ts",
 	"types": "src/index.d.ts",
 	"scripts": {
-		"kiota:generate": "dotnet kiota generate -d ../../apps/api/openapi.json -o src -l typescript -n MainApi.Client -c ApiClient",
+		"kiota:generate": "dotnet kiota generate -d ../../apps/api/openapi.json -o src -l typescript -n PublyApp.Api.Client -c ApiClient",
 		"kiota:update": "dotnet kiota update -o src",
 		"kiota:info": "dotnet kiota info -d ../../apps/api/openapi.json -l typeScript"
 	},

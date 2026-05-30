@@ -1,4 +1,4 @@
-namespace MainApi.Lib.Routes;
+namespace PublyApp.Api.Lib.Routes;
 
 /// <summary>
 /// Central route constants. Each domain module contributes via partial class.

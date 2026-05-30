@@ -1,11 +1,11 @@
-using MainApi.Data.DbContext;
-using MainApi.Lib;
-using MainApi.Lib.DI;
-using MainApi.Modules.SystemNotices.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.SystemNotices.Services;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.SystemNotices.Entities;
+
+namespace PublyApp.Api.Modules.SystemNotices.Services;
 
 public record CreateSystemNoticeArgs(
 	NoticeSeverity Severity,
@@ -91,11 +91,11 @@ public record ActiveSystemNotice {
 
 [Service(ServiceLifetime.Scoped)]
 public class SystemNoticeService : ISystemNoticeService {
-	private readonly MainApiDbContext _dbContext;
+	private readonly AppDbContext _dbContext;
 	private readonly ILogger<SystemNoticeService> _logger;
 
 	public SystemNoticeService(
-		MainApiDbContext dbContext,
+		AppDbContext dbContext,
 		ILogger<SystemNoticeService> logger
 	) {
 		_dbContext = dbContext;

@@ -1,4 +1,4 @@
-namespace MainApi.Lib;
+namespace PublyApp.Api.Lib;
 
 public sealed class CursorSortFieldHandler<TEntity>(
 	Func<Guid, Task<object?>> getCursorValue,

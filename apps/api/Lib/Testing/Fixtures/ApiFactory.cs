@@ -1,8 +1,4 @@
 
-using MainApi.Data.DbContext;
-using MainApi.Infrastructure.Messaging.Email;
-using MainApi.Lib.Testing.Fakes;
-
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -11,7 +7,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
-namespace MainApi.Lib.Testing.Fixtures;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Infrastructure.Messaging.Email;
+using PublyApp.Api.Lib.Testing.Fakes;
+
+namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// <summary>
 /// Custom WebApplicationFactory for integration testing.
 /// Replaces DbContext connection string and email service.
@@ -23,11 +23,11 @@ namespace MainApi.Lib.Testing.Fixtures;
 /// Any code that reads POSTGRES_CONNECTION_STRING directly
 /// will NOT see the test DB.
 /// </summary>
-public sealed class MainApiFactory
+public sealed class ApiFactory
 	: WebApplicationFactory<Program> {
 	private readonly string _dbConnectionString;
 
-	public MainApiFactory(string dbConnectionString) {
+	public ApiFactory(string dbConnectionString) {
 		_dbConnectionString = dbConnectionString;
 	}
 
@@ -43,10 +43,10 @@ public sealed class MainApiFactory
 			//    ServiceRegistration.cs but swaps the
 			//    connection string.
 			services.RemoveAll<
-				DbContextOptions<MainApiDbContext>>();
-			services.RemoveAll<MainApiDbContext>();
+				DbContextOptions<AppDbContext>>();
+			services.RemoveAll<AppDbContext>();
 
-			services.AddDbContext<MainApiDbContext>(
+			services.AddDbContext<AppDbContext>(
 				(serviceProvider, options) => {
 					// Tenant scoping — same logic as production
 					var httpContextAccessor = serviceProvider

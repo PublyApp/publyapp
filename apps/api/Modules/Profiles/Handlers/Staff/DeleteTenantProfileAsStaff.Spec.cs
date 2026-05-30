@@ -5,23 +5,23 @@ using System.Text.Json;
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Data.Seeding;
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Lib.Utils;
-using MainApi.Localization;
-using MainApi.Modules.AuditLogs.Entities;
-using MainApi.Modules.Profiles.Services;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.Profiles.Services;
+
 using Xunit;
 
-namespace MainApi.Modules.Profiles.Handlers.Staff;
+namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
 public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -274,7 +274,7 @@ public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		Guid targetId
 	) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		return await dbContext.AuditLog
 			.Where(log => log.Action == action && log.TargetId == targetId)

@@ -2,20 +2,20 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Lib;
-using MainApi.Lib.Extensions;
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Utils;
-using MainApi.Localization;
-using MainApi.Modules.AuditLogs.Entities;
-using MainApi.Modules.AuditLogs.Services;
-using MainApi.Modules.SystemNotices.Entities;
-using MainApi.Modules.SystemNotices.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.SystemNotices.Handlers.Staff;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.AuditLogs.Services;
+using PublyApp.Api.Modules.SystemNotices.Entities;
+using PublyApp.Api.Modules.SystemNotices.Services;
+
+namespace PublyApp.Api.Modules.SystemNotices.Handlers.Staff;
 
 public record UpdateSystemNoticeBody {
 	public JsonElement? Severity { get; init; }

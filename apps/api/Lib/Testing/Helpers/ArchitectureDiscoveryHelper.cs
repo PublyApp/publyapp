@@ -3,7 +3,7 @@ using System.Reflection;
 
 using FluentValidation;
 
-namespace MainApi.Lib.Testing.Helpers;
+namespace PublyApp.Api.Lib.Testing.Helpers;
 /// <summary>
 /// Shared reflection helper for architecture-guard specs. It loads the API
 /// assembly and enumerates the type categories guards care about (handler types,
@@ -11,7 +11,7 @@ namespace MainApi.Lib.Testing.Helpers;
 /// generated/build artifacts (generated client, OpenAPI, EF migrations, obj/bin).
 ///
 /// Lives under <c>Lib/Testing/Helpers/</c> so it compiles only into the test
-/// project — <c>MainApi.csproj</c> removes <c>Lib/Testing/**/*.cs</c> from the
+/// project — <c>PublyApp.Api.csproj</c> removes <c>Lib/Testing/**/*.cs</c> from the
 /// production assembly. Keep it small and offender-readable: every enumerator
 /// returns <see cref="Type"/>s so callers can report concrete
 /// <c>Type.Name</c>/member names rather than a generic failure.
@@ -55,7 +55,7 @@ internal static class ArchitectureDiscoveryHelper {
 
 	/// <summary>
 	/// Enumerates handler types: classes living under
-	/// <c>MainApi.Modules.*.Handlers.*</c>, excluding validators, generic type
+	/// <c>PublyApp.Api.Modules.*.Handlers.*</c>, excluding validators, generic type
 	/// definitions, and generated/build artifacts.
 	/// </summary>
 	public static IReadOnlyList<Type> EnumerateHandlerTypes() {
@@ -135,7 +135,7 @@ internal static class ArchitectureDiscoveryHelper {
 	/// <summary>
 	/// Enumerates FluentValidation validators declared in handler namespaces —
 	/// non-abstract subclasses of <see cref="AbstractValidator{T}"/> living under
-	/// <c>MainApi.Modules.*.Handlers.*</c>, excluding generic type definitions and
+	/// <c>PublyApp.Api.Modules.*.Handlers.*</c>, excluding generic type definitions and
 	/// generated/build artifacts. <see cref="IsHandWrittenType"/> deliberately filters
 	/// out <c>*Validator</c> names, so validators are enumerated separately here.
 	/// </summary>
@@ -179,7 +179,7 @@ internal static class ArchitectureDiscoveryHelper {
 
 	/// <summary>
 	/// Enumerates service types: classes/interfaces living under
-	/// <c>MainApi.Modules.*.Services</c>, excluding generated/build artifacts.
+	/// <c>PublyApp.Api.Modules.*.Services</c>, excluding generated/build artifacts.
 	/// </summary>
 	public static IReadOnlyList<Type> EnumerateServiceTypes() {
 		return LoadApiAssembly()
@@ -196,7 +196,7 @@ internal static class ArchitectureDiscoveryHelper {
 
 	/// <summary>
 	/// Enumerates the route-constant carrier classes — the nested static classes
-	/// reachable from the central <c>MainApi.Lib.Routes.Routes</c> partial class
+	/// reachable from the central <c>PublyApp.Api.Lib.Routes.Routes</c> partial class
 	/// (each domain contributes a partial). Returned types expose route path
 	/// constants via public <c>const string</c> fields.
 	/// </summary>
@@ -205,7 +205,7 @@ internal static class ArchitectureDiscoveryHelper {
 			.GetTypes()
 			.SingleOrDefault(type =>
 				type is { IsClass: true, IsAbstract: true, IsSealed: true }
-				&& type.FullName == "MainApi.Lib.Routes.Routes");
+				&& type.FullName == "PublyApp.Api.Lib.Routes.Routes");
 
 		if (routesRoot is null) {
 			return [];

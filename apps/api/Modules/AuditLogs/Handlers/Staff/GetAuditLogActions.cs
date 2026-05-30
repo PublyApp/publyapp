@@ -1,9 +1,9 @@
-using MainApi.Modules.AuditLogs.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.AuditLogs.Handlers.Staff;
+using PublyApp.Api.Modules.AuditLogs.Services;
+
+namespace PublyApp.Api.Modules.AuditLogs.Handlers.Staff;
 
 public record GetAuditLogActionsResponse {
 	public required IReadOnlyList<string> Actions {

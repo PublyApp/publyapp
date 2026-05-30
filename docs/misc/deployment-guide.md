@@ -62,5 +62,5 @@ node scripts/deploy.mjs --target front --upload --front-app-name web
 - Workspace packages are copied as a **skeleton**: `package.json` + `scripts/` (if present). This keeps artifacts small while still allowing pnpm workspace resolution.
 - The front artifact patches its copied root `package.json` to remove `scripts.prepare` (husky) so `pnpm install --prod` inside the container doesn’t fail.
 - The generated front `Dockerfile` starts the SSR server from `apps/front/` (required because `server.js` serves `build/**` using relative paths).
-- The API artifact uses a runtime image and runs the locally published `MainApi.dll`.
+- The API artifact uses a runtime image and runs the locally published `PublyApp.Api.dll`.
 

@@ -6,8 +6,8 @@
   </Configurations>
   <Folder Name="/apps/" />
   <Folder Name="/apps/api/">
-    <Project Path="apps/api/MainApi.csproj" />
-    <Project Path="apps/api/Tests/MainApi.Tests.csproj" />
+    <Project Path="apps/api/PublyApp.Api.csproj" />
+    <Project Path="apps/api/Tests/PublyApp.Api.Tests.csproj" />
   </Folder>
   <Folder Name="/packages/">
     <Project Path="packages/scripts-cs/PublyApp.Scripts.csproj" />

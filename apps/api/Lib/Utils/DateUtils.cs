@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace MainApi.Lib.Utils;
+namespace PublyApp.Api.Lib.Utils;
 
 public static class DateUtils {
 	private static readonly string[] IsoFormats = [

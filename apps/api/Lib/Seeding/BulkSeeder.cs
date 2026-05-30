@@ -1,13 +1,13 @@
 using System.Data;
 
-using MainApi.Data.DbContext;
-using MainApi.Modules.Projects.Entities;
-using MainApi.Modules.Tenants.Entities;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Lib.Seeding;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Modules.Projects.Entities;
+using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Users.Entities;
+
+namespace PublyApp.Api.Lib.Seeding;
 
 /// <summary>
 /// Handles bulk seeding of test data with memory-efficient batch processing.
@@ -22,7 +22,7 @@ public class BulkSeeder {
 	/// <summary>
 	/// Seeds bulk test data into the database.
 	/// </summary>
-	public async Task SeedBulkAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
+	public async Task SeedBulkAsync(AppDbContext dbContext, CancellationToken cancellationToken = default) {
 		var generator = new BulkSeedDataGenerator();
 		generator.GenerateAll();
 
@@ -41,7 +41,7 @@ public class BulkSeeder {
 	/// <summary>
 	/// Clears all bulk seed data from the database.
 	/// </summary>
-	public async Task ClearBulkDataAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
+	public async Task ClearBulkDataAsync(AppDbContext dbContext, CancellationToken cancellationToken = default) {
 		Console.WriteLine("Clearing bulk seed data...");
 
 		// Delete in reverse order of dependencies
@@ -53,7 +53,7 @@ public class BulkSeeder {
 		Console.WriteLine("Bulk data cleared!");
 	}
 
-	private async Task SeedTenantsInBatchesAsync(MainApiDbContext dbContext, IReadOnlyList<Tenant> tenants, CancellationToken cancellationToken) {
+	private async Task SeedTenantsInBatchesAsync(AppDbContext dbContext, IReadOnlyList<Tenant> tenants, CancellationToken cancellationToken) {
 		var batches = tenants.Chunk(_batchSize).ToList();
 		var count = 0;
 
@@ -75,7 +75,7 @@ public class BulkSeeder {
 		Console.WriteLine($"\rTenants: {count}/{tenants.Count} done");
 	}
 
-	private async Task SeedUsersInBatchesAsync(MainApiDbContext dbContext, IReadOnlyList<User> users, CancellationToken cancellationToken) {
+	private async Task SeedUsersInBatchesAsync(AppDbContext dbContext, IReadOnlyList<User> users, CancellationToken cancellationToken) {
 		var batches = users.Chunk(_batchSize).ToList();
 		var count = 0;
 
@@ -97,7 +97,7 @@ public class BulkSeeder {
 		Console.WriteLine($"\rUsers: {count}/{users.Count} done");
 	}
 
-	private async Task SeedUserAccountsInBatchesAsync(MainApiDbContext dbContext, IReadOnlyList<UserAccount> accounts, CancellationToken cancellationToken) {
+	private async Task SeedUserAccountsInBatchesAsync(AppDbContext dbContext, IReadOnlyList<UserAccount> accounts, CancellationToken cancellationToken) {
 		var batches = accounts.Chunk(_batchSize).ToList();
 		var count = 0;
 
@@ -119,7 +119,7 @@ public class BulkSeeder {
 		Console.WriteLine($"\rUserAccounts: {count}/{accounts.Count} done");
 	}
 
-	private async Task SeedProjectsInBatchesAsync(MainApiDbContext dbContext, IReadOnlyList<Project> projects, CancellationToken cancellationToken) {
+	private async Task SeedProjectsInBatchesAsync(AppDbContext dbContext, IReadOnlyList<Project> projects, CancellationToken cancellationToken) {
 		var batches = projects.Chunk(_batchSize).ToList();
 		var count = 0;
 
@@ -141,7 +141,7 @@ public class BulkSeeder {
 		Console.WriteLine($"\rProjects: {count}/{projects.Count} done");
 	}
 
-	private static async Task DeleteTenantsAsync(MainApiDbContext dbContext, CancellationToken cancellationToken) {
+	private static async Task DeleteTenantsAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
 		var tenantCodes = await dbContext.Tenant
 			.Where(t => t.Code.StartsWith(BulkSeedConstants.TenantCodePrefix))
 			.Select(t => t.Code)
@@ -167,7 +167,7 @@ public class BulkSeeder {
 		}
 	}
 
-	private static async Task DeleteUsersAsync(MainApiDbContext dbContext, CancellationToken cancellationToken) {
+	private static async Task DeleteUsersAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
 		var domain = BulkSeedConstants.UserEmailDomain;
 		var userCount = await dbContext.User
 			.Where(u => u.Email.EndsWith($"@{domain}"))
@@ -193,7 +193,7 @@ public class BulkSeeder {
 		}
 	}
 
-	private static async Task DeleteUserAccountsAsync(MainApiDbContext dbContext, CancellationToken cancellationToken) {
+	private static async Task DeleteUserAccountsAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
 		var domain = BulkSeedConstants.UserEmailDomain;
 
 		Console.Write("Deleting user accounts... ");
@@ -212,7 +212,7 @@ public class BulkSeeder {
 		}
 	}
 
-	private static async Task DeleteProjectsAsync(MainApiDbContext dbContext, CancellationToken cancellationToken) {
+	private static async Task DeleteProjectsAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
 		var prefix = BulkSeedConstants.ProjectNamePrefix;
 
 		Console.Write("Deleting projects... ");

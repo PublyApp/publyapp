@@ -1,11 +1,11 @@
-using MainApi.Localization;
-using MainApi.Lib.ProblemResults;
-using MainApi.Modules.SystemNotices.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.SystemNotices.Handlers.Staff;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.SystemNotices.Services;
+
+namespace PublyApp.Api.Modules.SystemNotices.Handlers.Staff;
 
 public record SystemNoticeDetail {
 	public required Guid Id { get; init; }

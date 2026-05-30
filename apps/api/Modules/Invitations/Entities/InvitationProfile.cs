@@ -1,11 +1,11 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
-using MainApi.Data;
+using PublyApp.Api.Data;
 
-using ProfileEntity = MainApi.Modules.Profiles.Entities.Profile;
+using ProfileEntity = PublyApp.Api.Modules.Profiles.Entities.Profile;
 
-namespace MainApi.Modules.Invitations.Entities;
+namespace PublyApp.Api.Modules.Invitations.Entities;
 
 /// <summary>
 /// Active membership between an invitation and a profile.

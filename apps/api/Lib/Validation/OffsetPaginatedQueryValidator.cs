@@ -1,6 +1,6 @@
 using FluentValidation;
 
-namespace MainApi.Lib.Validation;
+namespace PublyApp.Api.Lib.Validation;
 
 public class OffsetPaginatedQueryValidator<T>
 	: AbstractValidator<T> where T : OffsetPaginatedQuery {

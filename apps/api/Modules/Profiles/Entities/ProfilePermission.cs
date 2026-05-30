@@ -1,10 +1,10 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
-using MainApi.Data;
-using MainApi.Modules.Permissions.Entities;
+using PublyApp.Api.Data;
+using PublyApp.Api.Modules.Permissions.Entities;
 
-namespace MainApi.Modules.Profiles.Entities;
+namespace PublyApp.Api.Modules.Profiles.Entities;
 
 /// <summary>
 /// Active permission membership for a profile.

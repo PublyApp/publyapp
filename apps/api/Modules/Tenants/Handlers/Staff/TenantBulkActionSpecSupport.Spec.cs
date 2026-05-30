@@ -5,20 +5,20 @@ using System.Text.Json;
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Lib.Utils;
-using MainApi.Modules.AuditLogs.Entities;
-using MainApi.Modules.Profiles.Entities;
-using MainApi.Modules.Tenants.Entities;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace MainApi.Modules.Tenants.Handlers.Staff;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Users.Entities;
+
+namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 
 internal static class TenantBulkActionSpecSupport {
 	public static string GetBulkSuspendUrl() {
@@ -79,7 +79,7 @@ internal static class TenantBulkActionSpecSupport {
 		await using var scope =
 			fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var tenant = new Tenant {
 			Name = $"{namePrefix} {Guid.NewGuid():N}",
@@ -104,7 +104,7 @@ internal static class TenantBulkActionSpecSupport {
 		await using var scope =
 			fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var query =
 			from tenant in dbContext.Tenant.IgnoreQueryFilters()
@@ -121,7 +121,7 @@ internal static class TenantBulkActionSpecSupport {
 		await using var scope =
 			fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var query =
 			from log in dbContext.AuditLog
@@ -164,7 +164,7 @@ internal static class TenantBulkActionSpecSupport {
 		await using var scope =
 			fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var staffAccountQuery =
 			from account in dbContext.UserAccount

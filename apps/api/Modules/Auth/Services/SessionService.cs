@@ -1,14 +1,14 @@
-using MainApi.Data.DbContext;
-using MainApi.Lib;
-using MainApi.Lib.DI;
-using MainApi.Lib.Utils;
-using MainApi.Modules.Auth.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-using UserNs = MainApi.Modules.Users.Entities;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Auth.Entities;
 
-namespace MainApi.Modules.Auth.Services;
+using UserNs = PublyApp.Api.Modules.Users.Entities;
+
+namespace PublyApp.Api.Modules.Auth.Services;
 
 public class SessionData {
 	public required Session Session { get; set; }
@@ -22,9 +22,9 @@ public interface ISessionService {
 
 [Service(ServiceLifetime.Scoped)]
 public class SessionService : ISessionService {
-	private readonly MainApiDbContext _dbContext;
+	private readonly AppDbContext _dbContext;
 
-	public SessionService(MainApiDbContext dbContext) {
+	public SessionService(AppDbContext dbContext) {
 		_dbContext = dbContext;
 	}
 

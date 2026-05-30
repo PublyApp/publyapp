@@ -1,4 +1,4 @@
-namespace MainApi.Lib.Validation;
+namespace PublyApp.Api.Lib.Validation;
 
 public static class PaginationPredicates {
 	public static bool BeValidNullableString(

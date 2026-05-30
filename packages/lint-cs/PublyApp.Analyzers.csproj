@@ -19,7 +19,7 @@
 
 	<!-- Co-located *.Spec.cs specs live next to the source they exercise (the same model apps/api
 	     uses). They must be compiled by the Tests/ runner shell, NOT by the analyzer assembly, so
-	     exclude them here along with the entire Tests/ folder. Mirrors MainApi.csproj's removals. -->
+	     exclude them here along with the entire Tests/ folder. Mirrors PublyApp.Api.csproj's removals. -->
 	<ItemGroup>
 		<Compile Remove="**/*.Spec.cs" />
 		<Compile Remove="Tests/**/*.cs" />

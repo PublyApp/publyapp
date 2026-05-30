@@ -1,9 +1,9 @@
-using MainApi.Lib;
-using MainApi.Lib.Filters;
-using MainApi.Lib.Routes;
-using MainApi.Modules.Tenants.Handlers.Staff;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Modules.Tenants.Handlers.Staff;
 
-namespace MainApi.Modules.Tenants.Endpoints;
+namespace PublyApp.Api.Modules.Tenants.Endpoints;
 
 public static class TenantEndpointsForStaff {
 	public static IEndpointRouteBuilder MapTenantEndpointsForStaff(

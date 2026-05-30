@@ -1,11 +1,11 @@
-using MainApi.Localization;
-using MainApi.Lib.ProblemResults;
-using MainApi.Modules.AuditLogs.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.AuditLogs.Handlers.Staff;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.AuditLogs.Services;
+
+namespace PublyApp.Api.Modules.AuditLogs.Handlers.Staff;
 
 public sealed class GetAuditLogById {
 	public static async Task<Results<

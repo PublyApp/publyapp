@@ -2,7 +2,7 @@ using System.Reflection;
 
 using Microsoft.AspNetCore.Http.Metadata;
 
-namespace MainApi.Lib.ProblemResults;
+namespace PublyApp.Api.Lib.ProblemResults;
 
 /// <summary>
 /// A 403 Forbidden result with AppProblemDetails body.

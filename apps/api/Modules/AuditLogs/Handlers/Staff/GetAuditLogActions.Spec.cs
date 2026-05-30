@@ -4,13 +4,13 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Modules.AuditLogs.Entities;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Modules.AuditLogs.Entities;
 
 using Xunit;
 
-namespace MainApi.Modules.AuditLogs.Handlers.Staff;
+namespace PublyApp.Api.Modules.AuditLogs.Handlers.Staff;
 
 public sealed class GetAuditLogActionsSpec
 	: IClassFixture<ApiFixture> {

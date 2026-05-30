@@ -1,4 +1,4 @@
-namespace MainApi.Infrastructure.Messaging.Email;
+namespace PublyApp.Api.Infrastructure.Messaging.Email;
 
 // Simpler version for basic use cases
 public class EmailRequest {

@@ -19,7 +19,7 @@ export interface ProfilesRequestBuilder extends BaseRequestBuilder<ProfilesReque
      */
     get bulkDelete(): BulkDeleteRequestBuilder;
     /**
-     * Gets an item from the MainApi.Client.staff.tenants.item.profiles.item collection
+     * Gets an item from the PublyApp.Api.Client.staff.tenants.item.profiles.item collection
      * @param profileId Unique identifier of the item
      * @returns {WithProfileItemRequestBuilder}
      */

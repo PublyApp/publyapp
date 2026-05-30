@@ -3,25 +3,25 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Data.Seeding;
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Lib.Utils;
-using MainApi.Localization;
-using MainApi.Modules.AuditLogs.Entities;
-using MainApi.Modules.Invitations.Entities;
-using MainApi.Modules.Profiles.Entities;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Users.Entities;
+
 using Xunit;
 
-namespace MainApi.Modules.Invitations.Handlers.Staff;
+namespace PublyApp.Api.Modules.Invitations.Handlers.Staff;
 
 public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 	private const string BulkRevokeRoute = "/bulk-revoke";
@@ -332,8 +332,8 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 
 		// No audit-log row for the not-found id.
 		using IServiceScope scope = _fixture.Factory.Services.CreateScope();
-		MainApiDbContext dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+		AppDbContext dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
 		bool missingHasLog = await dbContext.AuditLog
 			.AnyAsync(log =>
 				log.TargetId == missingId
@@ -378,8 +378,8 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 
 	private async Task<Guid> CreateStaffInvitationAsync(string email) {
 		using IServiceScope scope = _fixture.Factory.Services.CreateScope();
-		MainApiDbContext dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+		AppDbContext dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
 
 		Profile staffProfile = await dbContext.Profile
 			.Where(profile =>
@@ -408,8 +408,8 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 
 	private async Task MarkStaffInvitationAcceptedAsync(Guid invitationId) {
 		using IServiceScope scope = _fixture.Factory.Services.CreateScope();
-		MainApiDbContext dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+		AppDbContext dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
 
 		Invitation? invitation = await dbContext.Invitation
 			.Where(inv => inv.Id == invitationId)
@@ -427,8 +427,8 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 
 	private async Task MarkStaffInvitationRevokedAsync(Guid invitationId) {
 		using IServiceScope scope = _fixture.Factory.Services.CreateScope();
-		MainApiDbContext dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+		AppDbContext dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
 
 		Invitation? invitation = await dbContext.Invitation
 			.Where(inv => inv.Id == invitationId)
@@ -446,8 +446,8 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 
 	private async Task<Guid> CreateExpiredStaffInvitationAsync(string email) {
 		using IServiceScope scope = _fixture.Factory.Services.CreateScope();
-		MainApiDbContext dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+		AppDbContext dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
 
 		Profile staffProfile = await dbContext.Profile
 			.Where(profile =>
@@ -476,8 +476,8 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 
 	private async Task<Guid> GetStaffAdminUserIdAsync() {
 		using IServiceScope scope = _fixture.Factory.Services.CreateScope();
-		MainApiDbContext dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+		AppDbContext dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
 
 		User staffUser = await dbContext.User
 			.Where(user => user.Email == SeedConstants.Staff.AdminEmail)
@@ -490,8 +490,8 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		InvitationStatus status
 	) {
 		using IServiceScope scope = _fixture.Factory.Services.CreateScope();
-		MainApiDbContext dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+		AppDbContext dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
 
 		Invitation? invitation = await dbContext.Invitation
 			.Where(inv => inv.Id == invitationId)
@@ -502,8 +502,8 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 
 	private async Task AssertInvitationRevokeAuditLogAsync(Guid invitationId) {
 		using IServiceScope scope = _fixture.Factory.Services.CreateScope();
-		MainApiDbContext dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+		AppDbContext dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
 
 		var auditLog =
 			await (
@@ -522,8 +522,8 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		int expectedCount
 	) {
 		using IServiceScope scope = _fixture.Factory.Services.CreateScope();
-		MainApiDbContext dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+		AppDbContext dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
 
 		int count = await dbContext.AuditLog
 			.Where(log =>
@@ -540,8 +540,8 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		Guid expectedUserId
 	) {
 		using IServiceScope scope = _fixture.Factory.Services.CreateScope();
-		MainApiDbContext dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+		AppDbContext dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
 
 		var auditLog = await dbContext.AuditLog
 			.Where(log =>

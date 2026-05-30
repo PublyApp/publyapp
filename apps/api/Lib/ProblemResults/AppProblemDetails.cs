@@ -1,10 +1,10 @@
 using System.Text.Json.Serialization;
 
-using MainApi.Localization;
-
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+
+namespace PublyApp.Api.Lib.ProblemResults;
 
 /// <summary>
 /// A ProblemDetails extension that includes a translation key for frontend i18n.

@@ -1,4 +1,4 @@
-namespace MainApi.Lib;
+namespace PublyApp.Api.Lib;
 
 // Note: XML comments removed to work around .NET 10 OpenAPI source generator bug
 // that causes duplicate key errors for generic types.

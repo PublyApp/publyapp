@@ -1,15 +1,15 @@
 using System.Data;
 using System.Reflection;
 
-using MainApi.Data;
-using MainApi.Data.DbContext;
-using MainApi.Lib;
-using MainApi.Lib.Utils;
-using MainApi.Modules.Permissions.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.Permissions.Seeders;
+using PublyApp.Api.Data;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Permissions.Entities;
+
+namespace PublyApp.Api.Modules.Permissions.Seeders;
 
 /// <summary>
 /// Seeds Permission entities in the database.
@@ -28,7 +28,7 @@ public class PermissionSeeder : IEntitySeeder {
 		}
 	}
 
-	public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
+	public async Task SeedAsync(AppDbContext dbContext, CancellationToken cancellationToken = default) {
 		List<Permission> permissions = GetPermissionsPool();
 
 		var existingKeysQuery =

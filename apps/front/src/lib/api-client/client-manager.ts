@@ -42,7 +42,7 @@ type CreateClientOptions = {
  * - Server: `getClientManager({ staffToken, tenantToken })` creates per-request instance
  *
  * @example
- * import { getClientManager } from '#app/lib/js-client/client-manager.ts';
+ * import { getClientManager } from '#app/lib/api-client/client-manager.ts';
  *
  * // Browser - returns singleton, tokens from cookie
  * getClientManager().createClient({ tenantId });

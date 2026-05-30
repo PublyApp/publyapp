@@ -3,8 +3,8 @@
 	"version": "1.0.0",
 	"private": true,
 	"scripts": {
-		"dev": "dotnet watch --project MainApi.csproj",
-		"build": "dotnet build MainApi.csproj",
+		"dev": "dotnet watch --project PublyApp.Api.csproj",
+		"build": "dotnet build PublyApp.Api.csproj",
 		"publish": "dotnet publish",
 		"db:reset": "dotnet ef database drop -f && dotnet ef database update",
 		"migrate:add": "dotnet ef migrations add",

@@ -3,16 +3,16 @@ using System.Reflection;
 
 using FluentAssertions;
 
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Modules.AuditLogs.Services;
-using MainApi.Modules.Impersonations.Services;
-using MainApi.Modules.Invitations.Services;
-using MainApi.Modules.Profiles.Services;
-using MainApi.Modules.SystemNotices.Services;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Modules.AuditLogs.Services;
+using PublyApp.Api.Modules.Impersonations.Services;
+using PublyApp.Api.Modules.Invitations.Services;
+using PublyApp.Api.Modules.Profiles.Services;
+using PublyApp.Api.Modules.SystemNotices.Services;
 
 using Xunit;
 
-namespace MainApi.Lib.Architecture;
+namespace PublyApp.Api.Lib.Architecture;
 /// <summary>
 /// Architecture guard for the service-args convention (#357 Wave A, row A.4):
 /// any public method on a domain service interface that takes 3 or more parameters

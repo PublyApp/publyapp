@@ -2,9 +2,9 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Modules.Users.Entities;
+using PublyApp.Api.Modules.Users.Entities;
 
-namespace MainApi.Modules.Users.Validation;
+namespace PublyApp.Api.Modules.Users.Validation;
 
 /// <summary>
 /// User domain-specific validation rules for JsonElement fields.

@@ -3,11 +3,11 @@ using System.Text.RegularExpressions;
 
 using FluentAssertions;
 
-using MainApi.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Testing.Helpers;
 
 using Xunit;
 
-namespace MainApi.Lib.Architecture;
+namespace PublyApp.Api.Lib.Architecture;
 /// <summary>
 /// Guards the repo convention that route path constants never carry inline route
 /// constraints (e.g. <c>{userId:guid}</c> or <c>{id:int}</c>). IDs are parsed in
