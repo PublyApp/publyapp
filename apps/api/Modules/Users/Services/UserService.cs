@@ -1539,13 +1539,18 @@ public class UserService : IUserService {
 			select new { p.Id, p.Name, p.Description }
 		).ToListAsync(cancellationToken);
 
-		var assignedProfiles = assignedProfilesRaw
-			.Select(p => new StaffUserProfileSummary(
-				p.Id ?? throw new InvalidOperationException("Profile id is null"),
-				p.Name,
-				p.Description
-			))
-			.ToList();
+		var assignedProfiles = new List<StaffUserProfileSummary>(assignedProfilesRaw.Count);
+		foreach (var profile in assignedProfilesRaw) {
+			if (profile.Id is null) {
+				throw new InvalidOperationException("Profile id is null");
+			}
+
+			assignedProfiles.Add(new StaffUserProfileSummary(
+				profile.Id.Value,
+				profile.Name,
+				profile.Description
+			));
+		}
 
 		// We intentionally do NOT return "available profiles" here.
 		// Returning the full universe can grow unbounded and becomes a performance smell.
