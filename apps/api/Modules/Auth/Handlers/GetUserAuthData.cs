@@ -1,12 +1,12 @@
-using MainApi.Localization;
-using MainApi.Lib;
-using MainApi.Lib.ProblemResults;
-using MainApi.Modules.Users.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.Auth.Handlers;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Users.Services;
+
+namespace PublyApp.Api.Modules.Auth.Handlers;
 
 public class GetUserAuthDataResult {
 	public Guid Id { get; set; }

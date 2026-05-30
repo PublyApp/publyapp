@@ -4,17 +4,17 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using MainApi.Lib;
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Localization;
-using MainApi.Modules.AuditLogs.Entities;
-using MainApi.Modules.Tenants.Entities;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.Tenants.Entities;
 
 using Xunit;
 
-namespace MainApi.Modules.Tenants.Handlers.Staff;
+namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 
 public sealed class BulkReactivateTenantsAsStaffSpec
 	: IClassFixture<ApiFixture> {

@@ -1,9 +1,9 @@
-using MainApi.Localization;
-using MainApi.Lib.Extensions;
-using MainApi.Lib.ProblemResults;
-using MainApi.Modules.Auth.Services;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Auth.Services;
 
-namespace MainApi.Lib.Filters;
+namespace PublyApp.Api.Lib.Filters;
 
 /// <summary>
 /// Authenticates the user by validating the session token.

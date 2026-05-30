@@ -5,7 +5,7 @@ using Npgsql;
 
 using Testcontainers.PostgreSql;
 
-namespace MainApi.Lib.Testing.Fixtures;
+namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// <summary>
 /// Manages a shared Postgres container for the entire test
 /// run. Uses static lazy initialization so test classes can
@@ -28,7 +28,7 @@ public sealed class PostgresContainerFixture {
 
 	public string AdminConnectionString { get; private set; }
 		= string.Empty;
-	public string TemplateDbName { get; } = "mainapi_template";
+	public string TemplateDbName { get; } = "publyapp_api_template";
 
 	private PostgresContainerFixture() { }
 

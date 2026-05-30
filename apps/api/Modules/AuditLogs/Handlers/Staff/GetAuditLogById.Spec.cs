@@ -4,19 +4,19 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Lib.Utils;
-using MainApi.Modules.AuditLogs.Entities;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+
 using Xunit;
 
-namespace MainApi.Modules.AuditLogs.Handlers.Staff;
+namespace PublyApp.Api.Modules.AuditLogs.Handlers.Staff;
 
 public sealed class GetAuditLogByIdSpec
 	: IClassFixture<ApiFixture> {
@@ -269,8 +269,8 @@ public sealed class GetAuditLogByIdSpec
 			_fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<
-				MainApi.Data.DbContext
-					.MainApiDbContext
+				PublyApp.Api.Data.DbContext
+					.AppDbContext
 			>();
 
 		var user = await dbContext.User
@@ -289,8 +289,8 @@ public sealed class GetAuditLogByIdSpec
 			_fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<
-				MainApi.Data.DbContext
-					.MainApiDbContext
+				PublyApp.Api.Data.DbContext
+					.AppDbContext
 			>();
 
 		var user = await dbContext.User

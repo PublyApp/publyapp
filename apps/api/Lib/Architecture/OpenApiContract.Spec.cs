@@ -4,11 +4,11 @@ using System.Text.RegularExpressions;
 
 using FluentAssertions;
 
-using MainApi.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Testing.Helpers;
 
 using Xunit;
 
-namespace MainApi.Lib.Architecture;
+namespace PublyApp.Api.Lib.Architecture;
 
 public sealed class OpenApiContractSpec {
 	private static readonly Regex QueryParameterNamePattern =

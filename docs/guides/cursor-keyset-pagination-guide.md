@@ -394,7 +394,7 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
     );
 }
 
-// CursorSortFieldHandler<TEntity> lives in MainApi.Lib.
+// CursorSortFieldHandler<TEntity> lives in PublyApp.Api.Lib.
 // Do not define a private SortFieldHandler helper in each service.
 ```
 
@@ -411,13 +411,13 @@ Create the endpoint handler with proper error handling:
 
 ```csharp
 // In your handler file (e.g., Handlers/FindEntities.cs)
-using MainApi.Localization;
-using MainApi.Lib;
-using MainApi.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.YourFeature.Handlers;
+namespace PublyApp.Api.Modules.YourFeature.Handlers;
 
 public class FindEntitiesResult : CursorPaginatedResult<EntityItem> { }
 

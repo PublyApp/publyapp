@@ -2,6 +2,8 @@
 
 	<PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
+		<AssemblyName>PublyApp.Api.Tests</AssemblyName>
+		<RootNamespace>PublyApp.Api.Tests</RootNamespace>
 		<IsTestProject>true</IsTestProject>
 		<IsPackable>false</IsPackable>
 	</PropertyGroup>
@@ -17,7 +19,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\MainApi.csproj" />
+		<ProjectReference Include="..\PublyApp.Api.csproj" />
 	</ItemGroup>
 
 	<!-- Keep integration tests physically next to handlers (Vertical Slice friendly),

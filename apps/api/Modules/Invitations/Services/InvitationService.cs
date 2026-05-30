@@ -1,17 +1,17 @@
-using MainApi.Data.DbContext;
-using MainApi.Lib;
-using MainApi.Lib.DI;
-using MainApi.Lib.Utils;
-using MainApi.Modules.Invitations.Entities;
-using MainApi.Modules.Profiles.Entities;
-using MainApi.Modules.Tenants.Entities;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-using UserEntity = MainApi.Modules.Users.Entities.User;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Users.Entities;
 
-namespace MainApi.Modules.Invitations.Services;
+using UserEntity = PublyApp.Api.Modules.Users.Entities.User;
+
+namespace PublyApp.Api.Modules.Invitations.Services;
 
 public record FindTenantInvitationsFilters {
 	public string? Search { get; init; }
@@ -252,11 +252,11 @@ public abstract record RevokeInvitationForTenantAsStaffResult {
 
 [Service(ServiceLifetime.Scoped)]
 public class InvitationService : IInvitationService {
-	private readonly MainApiDbContext _dbContext;
+	private readonly AppDbContext _dbContext;
 	private readonly ILogger<InvitationService> _logger;
 
 	public InvitationService(
-		MainApiDbContext dbContext,
+		AppDbContext dbContext,
 		ILogger<InvitationService> logger
 	) {
 		_dbContext = dbContext;

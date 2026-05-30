@@ -1,4 +1,4 @@
-namespace MainApi.Lib;
+namespace PublyApp.Api.Lib;
 
 public class OffsetPaginatedResult<T> {
 	public List<T> Data { get; set; } = [];

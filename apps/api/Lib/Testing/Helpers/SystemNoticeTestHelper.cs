@@ -1,11 +1,11 @@
 
 using System.Net.Http.Json;
 
-using MainApi.Lib.Utils;
+using PublyApp.Api.Lib.Utils;
 
-using AppRoutes = MainApi.Lib.Routes.Routes;
+using AppRoutes = PublyApp.Api.Lib.Routes.Routes;
 
-namespace MainApi.Lib.Testing.Helpers;
+namespace PublyApp.Api.Lib.Testing.Helpers;
 
 internal static class SystemNoticeTestHelper {
 	private static readonly string CreateUrl = PathUtils.Join(

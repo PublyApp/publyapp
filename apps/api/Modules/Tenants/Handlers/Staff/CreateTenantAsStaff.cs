@@ -2,21 +2,21 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Infrastructure.Messaging.Email;
-using MainApi.Lib;
-using MainApi.Lib.Extensions;
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Validation;
-using MainApi.Localization;
-using MainApi.Modules.Tenants.Services;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 using Polly;
 
-namespace MainApi.Modules.Tenants.Handlers.Staff;
+using PublyApp.Api.Infrastructure.Messaging.Email;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Validation;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Tenants.Services;
+using PublyApp.Api.Modules.Users.Entities;
+
+namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 
 public record CreateTenantAsStaffInitialUserItem(string Email, string AccountLevel);
 

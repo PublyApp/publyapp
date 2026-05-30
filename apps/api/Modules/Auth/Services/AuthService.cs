@@ -1,6 +1,6 @@
-using MainApi.Lib.DI;
+using PublyApp.Api.Lib.DI;
 
-namespace MainApi.Modules.Auth.Services;
+namespace PublyApp.Api.Modules.Auth.Services;
 
 public interface IAuthService { }
 

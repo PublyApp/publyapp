@@ -1,13 +1,13 @@
 using System.Data;
 
-using MainApi.Data;
-using MainApi.Data.DbContext;
-using MainApi.Lib.Utils;
-using MainApi.Modules.Profiles.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.Profiles.Seeders;
+using PublyApp.Api.Data;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Profiles.Entities;
+
+namespace PublyApp.Api.Modules.Profiles.Seeders;
 
 /// <summary>
 /// Seeds foundational staff profiles for runtime assignment.
@@ -26,7 +26,7 @@ public class StaffProfileSeeder : IEntitySeeder {
 		}
 	}
 
-	public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
+	public async Task SeedAsync(AppDbContext dbContext, CancellationToken cancellationToken = default) {
 		var staffProfiles = new List<(string Name, string Description)> {
 			("Staff Owner", "Platform owner with full system access"),
 			("Staff Admin", "Platform administrator with management access"),

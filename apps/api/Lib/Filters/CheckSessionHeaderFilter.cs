@@ -1,8 +1,8 @@
-using MainApi.Localization;
-using MainApi.Lib.Extensions;
-using MainApi.Lib.ProblemResults;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
 
-namespace MainApi.Lib.Filters;
+namespace PublyApp.Api.Lib.Filters;
 
 /// <summary>
 /// Validates that the X-Session-Token header is present in the request.

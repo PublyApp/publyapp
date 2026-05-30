@@ -1,4 +1,4 @@
-namespace MainApi.Lib;
+namespace PublyApp.Api.Lib;
 
 public static class EnvironmentNames {
 	public const string Development = "Development";

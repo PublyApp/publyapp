@@ -1,9 +1,9 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
-using MainApi.Data;
+using PublyApp.Api.Data;
 
-namespace MainApi.Modules.Profiles.Entities;
+namespace PublyApp.Api.Modules.Profiles.Entities;
 
 /// <summary>
 /// Unified profile table for all scopes (Staff, Tenant, Project)
@@ -13,12 +13,12 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 	[Column("tenant_id")]
 	public Guid? TenantId { get; set; }  // Nullable for staff profiles
 	[JsonIgnore]
-	public MainApi.Modules.Tenants.Entities.Tenant? Tenant { get; set; }
+	public PublyApp.Api.Modules.Tenants.Entities.Tenant? Tenant { get; set; }
 
 	[Column("project_id")]
 	public Guid? ProjectId { get; set; }  // Nullable for staff/tenant profiles
 	[JsonIgnore]
-	public MainApi.Modules.Projects.Entities.Project? Project { get; set; }
+	public PublyApp.Api.Modules.Projects.Entities.Project? Project { get; set; }
 
 	[Column("name")]
 	public string Name { get; set; } = string.Empty;
@@ -125,7 +125,7 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 
 	// navigation properties
 	[JsonIgnore]
-	public ICollection<MainApi.Modules.Users.Entities.UserAccountProfile> UserAccountProfiles { get; set; } = [];
+	public ICollection<PublyApp.Api.Modules.Users.Entities.UserAccountProfile> UserAccountProfiles { get; set; } = [];
 	[JsonIgnore]
 	public ICollection<ProfilePermission> ProfilePermissions { get; set; } = [];
 }

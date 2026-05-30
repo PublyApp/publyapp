@@ -54,7 +54,7 @@ make test-api
 This runs:
 
 ```bash
-cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test
+cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test
 ```
 
 ### First Run
@@ -78,19 +78,19 @@ Passed!  - Failed:     0, Passed:     7, Skipped:     0, Total:     7
 ### Verbose Output
 
 ```bash
-cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test -v normal
+cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test -v normal
 ```
 
 ### Running a Single Test Class
 
 ```bash
-cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test --filter "FullyQualifiedName~PasswordLoginSpec"
+cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~PasswordLoginSpec"
 ```
 
 ### Running a Single Test Method
 
 ```bash
-cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test --filter "ItShouldReturnSessionTokenWithValidCredentials"
+cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "ItShouldReturnSessionTokenWithValidCredentials"
 ```
 
 ---
@@ -110,7 +110,7 @@ xUnit Test Runner
 │
 ├── ApiFixture (once per test class)
 │   ├── Clones template DB → unique test database
-│   ├── Creates MainApiFactory (WebApplicationFactory)
+│   ├── Creates ApiFactory (WebApplicationFactory)
 │   ├── Creates HttpClient wired to test server
 │   └── Drops test DB on dispose
 │
@@ -180,9 +180,9 @@ Key credentials:
 
 If you need to change seed data, update `SeedConstants.cs` — seeders and `TestConstants` both reference it.
 
-### DI Overrides (MainApiFactory)
+### DI Overrides (ApiFactory)
 
-`MainApiFactory` extends `WebApplicationFactory<Program>` and overrides two DI registrations:
+`ApiFactory` extends `WebApplicationFactory<Program>` and overrides two DI registrations:
 
 1. **DbContext connection string** — points to the per-class test database (cloned from template), not the admin/template DB
 2. **IEmailSender** — replaced with `FakeEmailSender` (captures sent emails in memory instead of calling Resend API)
@@ -193,7 +193,7 @@ Everything else (middleware, auth, routing, services) runs exactly as in product
 
 `FakeEmailSender` is in `Lib/Testing/Fakes/` rather than alongside `ResendEmailAdapter` in `Infrastructure/Messaging/Email/` because of how the build system works:
 
-- `MainApi.csproj` **excludes** `Lib/Testing/**/*.cs` from production builds
+- `PublyApp.Api.csproj` **excludes** `Lib/Testing/**/*.cs` from production builds
 - The test project **includes** them via `<Compile Include>`
 - If `FakeEmailSender` lived in `Infrastructure/`, it would compile into the **production binary**
 
@@ -216,18 +216,18 @@ apps/api/Modules/<Domain>/Handlers/<Scope>/
 2. **Use the correct namespace** (must match folder path — `IDE0130`):
 
 ```csharp
-namespace MainApi.Modules.<Domain>.Handlers.<Scope>;
+namespace PublyApp.Api.Modules.<Domain>.Handlers.<Scope>;
 ```
 
 3. **Follow this template:**
 
 ```csharp
-namespace MainApi.Modules.MyDomain.Handlers.Staff;
+namespace PublyApp.Api.Modules.MyDomain.Handlers.Staff;
 
 using System.Net;
 using FluentAssertions;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using Xunit;
 
 public sealed class MyHandlerSpec
@@ -269,7 +269,7 @@ public sealed class MyHandlerSpec
 ### File Naming Convention
 
 - **Spec files:** `*.Spec.cs`
-- The `MainApi.csproj` excludes `**/*.Spec.cs` from production builds
+- The `PublyApp.Api.csproj` excludes `**/*.Spec.cs` from production builds
 - The test project includes them via `Compile Include`
 
 ### Test Method Naming (BDD)
@@ -388,7 +388,7 @@ This usually means pooled connections are lingering. The `DatabaseTemplateManage
 
 ### Build fails with test code in API project
 
-Ensure `MainApi.csproj` has these exclusions:
+Ensure `PublyApp.Api.csproj` has these exclusions:
 
 ```xml
 <Compile Remove="**/*.Spec.cs" />
@@ -401,19 +401,19 @@ Check that `SeedConstants.cs` matches the actual seeded data. Both seeders and `
 
 ### No autocompletion for `[Fact]`, `.Should()`, `FluentAssertions`, etc.
 
-This is expected when editing `*.Spec.cs` files. The test files live physically under `apps/api/` (colocated with handlers), but they are **compiled by the test project** (`Tests/MainApi.Tests.csproj`), not the main API project. The main project explicitly excludes them:
+This is expected when editing `*.Spec.cs` files. The test files live physically under `apps/api/` (colocated with handlers), but they are **compiled by the test project** (`Tests/PublyApp.Api.Tests.csproj`), not the main API project. The main project explicitly excludes them:
 
 ```xml
-<!-- MainApi.csproj -->
+<!-- PublyApp.Api.csproj -->
 <Compile Remove="**/*.Spec.cs" />
 <Compile Remove="Lib/Testing/**/*.cs" />
 ```
 
-Your editor sees the file under `MainApi.csproj`'s directory and resolves it against that project, which has no reference to FluentAssertions, xunit, or any test packages. **The build and test runner work correctly** — this is only an editor/IntelliSense issue.
+Your editor sees the file under `PublyApp.Api.csproj`'s directory and resolves it against that project, which has no reference to FluentAssertions, xunit, or any test packages. **The build and test runner work correctly** — this is only an editor/IntelliSense issue.
 
 **Workarounds by editor:**
 
-- **Visual Studio / Rider:** Navigate to test files through the `MainApi.Tests` project node in Solution Explorer (the files appear there via `Link`). Opening from the file system tree will use the wrong project context.
+- **Visual Studio / Rider:** Navigate to test files through the `PublyApp.Api.Tests` project node in Solution Explorer (the files appear there via `Link`). Opening from the file system tree will use the wrong project context.
 - **VS Code (C# Dev Kit):** Open the `.slnx` solution file so both projects are loaded. If the language server still picks the wrong project, check the status bar for a "Select Project" option.
 
 ---
@@ -430,7 +430,7 @@ apps/api/
 │       ├── Fixtures/                     ← Test environment setup
 │       │   ├── ApiFixture.cs             ← Per-class fixture
 │       │   ├── PostgresContainerFixture.cs ← Starts Postgres container (singleton)
-│       │   ├── MainApiFactory.cs         ← WebApplicationFactory override
+│       │   ├── ApiFactory.cs         ← WebApplicationFactory override
 │       │   ├── DatabaseTemplateManager.cs ← Template DB create/clone/drop
 │       │   ├── TestEnvironment.cs        ← Loads .env.development + overrides
 │       │   └── TestConstants.cs          ← Facade over SeedConstants + headers
@@ -451,7 +451,7 @@ apps/api/
 │   └── Health/
 │       └── Health.Spec.cs
 └── Tests/
-    ├── MainApi.Tests.csproj       ← Test project
+    ├── PublyApp.Api.Tests.csproj       ← Test project
     └── AssemblyInfo.cs                       ← Parallel config
 ```
 
@@ -464,5 +464,5 @@ apps/api/
 | Run all tests | `make test-api` |
 | Run specific class | `dotnet test ... --filter "FullyQualifiedName~ClassName"` |
 | Run specific method | `dotnet test ... --filter "MethodName"` |
-| Build test project only | `cd apps/api && dotnet build Tests/MainApi.Tests.csproj -c Test` |
+| Build test project only | `cd apps/api && dotnet build Tests/PublyApp.Api.Tests.csproj -c Test` |
 | Pull Postgres image | `docker pull postgres:18-alpine` |

@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Data;
+namespace PublyApp.Api.Data;
 
 /// <summary>
 /// Extension methods for DbSet to provide audit tracking for bulk operations.

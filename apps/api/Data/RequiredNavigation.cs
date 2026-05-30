@@ -1,4 +1,4 @@
-namespace MainApi.Data;
+namespace PublyApp.Api.Data;
 
 internal static class RequiredNavigation {
 	public static T Get<T>(T? value, string ownerName, string propertyName) where T : class {

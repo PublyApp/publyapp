@@ -9,7 +9,7 @@ import {
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
 
-import { getClientManager } from '#app/lib/js-client/client-manager.ts';
+import { getClientManager } from '#app/lib/api-client/client-manager.ts';
 
 import { getQueryKey } from './query-utils';
 

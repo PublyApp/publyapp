@@ -1,10 +1,10 @@
 using FluentValidation;
 
-using MainApi.Localization;
-using MainApi.Lib.Extensions;
-using MainApi.Lib.ProblemResults;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
 
-namespace MainApi.Lib.Filters;
+namespace PublyApp.Api.Lib.Filters;
 
 public class ReqBodyValidationFilter<TRequest> : IEndpointFilter {
 	private readonly IValidator<TRequest> _validator;

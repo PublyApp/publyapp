@@ -1,12 +1,12 @@
-using MainApi.Data.DbContext;
-using MainApi.Lib;
-using MainApi.Lib.DI;
-using MainApi.Modules.Tenants.Entities;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.Users.Services;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Users.Entities;
+
+namespace PublyApp.Api.Modules.Users.Services;
 
 public abstract record CreateStaffAccountResult {
 	public sealed record Success(UserAccount Account) : CreateStaffAccountResult;
@@ -90,9 +90,9 @@ public interface IAccountService {
 
 [Service(ServiceLifetime.Scoped)]
 public class AccountService : IAccountService {
-	private readonly MainApiDbContext _dbContext;
+	private readonly AppDbContext _dbContext;
 
-	public AccountService(MainApiDbContext dbContext) {
+	public AccountService(AppDbContext dbContext) {
 		_dbContext = dbContext;
 	}
 

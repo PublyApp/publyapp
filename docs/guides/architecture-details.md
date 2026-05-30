@@ -93,7 +93,7 @@ DbSet<Project>            // Projects (future use)
 ## Internationalization (i18n)
 
 **Translation workflow:**
-1. Add translations to `packages/shared/lib/i18n/json/*.json`
+1. Add translations to `packages/shared-ts/lib/i18n/json/*.json`
 2. Auto-generated C# constants in `apps/api/Localization/ResponseKeys.g.cs`
 3. Auto-generated Zod i18n map on `pnpm install`
 
@@ -109,7 +109,7 @@ const { t } = useTranslation('common');
 t('key.path');
 
 // Backend
-using MainApi.Localization;
+using PublyApp.Api.Localization;
 
 return TypedProblems.BadRequest("Validation failed", ResponseKeys.RequestBodyValidationFailed);
 ```

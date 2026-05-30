@@ -3,17 +3,17 @@ using System.Reflection;
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Modules.Auth.Entities;
-using MainApi.Modules.Profiles.Entities;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
+
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Modules.Auth.Entities;
+using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
-namespace MainApi.Lib.Architecture {
+namespace PublyApp.Api.Lib.Architecture {
 	/// <summary>
 	/// Architecture guards: executable enforcement of backend conventions that
 	/// otherwise live only as prose in AGENTS.md / the guides. Each fact scans the
@@ -33,10 +33,10 @@ namespace MainApi.Lib.Architecture {
 		[Fact]
 		public void
 		ItShouldKeepSessionCredentialRowsWithoutSoftDeleteColumns() {
-			var options = new DbContextOptionsBuilder<MainApiDbContext>()
+			var options = new DbContextOptionsBuilder<AppDbContext>()
 				.UseNpgsql("Host=localhost;Database=architecture_guard")
 				.Options;
-			using var dbContext = new MainApiDbContext(options);
+			using var dbContext = new AppDbContext(options);
 
 			var entityType = dbContext.Model.FindEntityType(typeof(Session));
 			entityType.Should().NotBeNull();
@@ -98,10 +98,10 @@ namespace MainApi.Lib.Architecture {
 		public void ItShouldUseCompositeKeysForJunctionTables() {
 			// This guard protects the junction-table convention from drifting back to
 			// BaseAttributes, which would silently reintroduce id/soft-delete columns.
-			var options = new DbContextOptionsBuilder<MainApiDbContext>()
+			var options = new DbContextOptionsBuilder<AppDbContext>()
 				.UseNpgsql("Host=localhost;Database=architecture_guard")
 				.Options;
-			using var dbContext = new MainApiDbContext(options);
+			using var dbContext = new AppDbContext(options);
 
 			AssertCompositeJunctionKey<UserAccountProfile>(
 				dbContext,
@@ -114,7 +114,7 @@ namespace MainApi.Lib.Architecture {
 		}
 
 		private static void AssertCompositeJunctionKey<TEntity>(
-			MainApiDbContext dbContext,
+			AppDbContext dbContext,
 			string[] expectedKeyPropertyNames
 		) {
 			var entityType = dbContext.Model.FindEntityType(typeof(TEntity));

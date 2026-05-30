@@ -47,7 +47,7 @@ import { Iconify } from '#app/components/iconify/iconify.tsx';
 import QueryDisplay from '#app/components/query-display.tsx';
 import { toast } from '#app/components/snackbar/index.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
-import { getClientManager } from '#app/lib/js-client/client-manager.ts';
+import { getClientManager } from '#app/lib/api-client/client-manager.ts';
 import {
 	useFindStaffProfileUsers,
 	useResolveStaffProfileUserAssignments,

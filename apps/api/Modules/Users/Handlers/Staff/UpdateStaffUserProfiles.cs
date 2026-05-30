@@ -2,15 +2,15 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Lib;
-using MainApi.Lib.ProblemResults;
-using MainApi.Localization;
-using MainApi.Modules.Users.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.Users.Handlers.Staff;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Users.Services;
+
+namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public sealed class UpdateStaffUserProfilesBody {
 	public JsonElement ProfileIds { get; init; }

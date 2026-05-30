@@ -1,10 +1,10 @@
 using FluentValidation;
 
-using MainApi.Lib.Utils;
-
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Lib.Validation;
+using PublyApp.Api.Lib.Utils;
+
+namespace PublyApp.Api.Lib.Validation;
 
 public class EncryptedIdTokenQuery {
 	[FromQuery(Name = "id")]

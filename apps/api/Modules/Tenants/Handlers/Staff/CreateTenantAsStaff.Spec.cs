@@ -5,27 +5,27 @@ using System.Text;
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Infrastructure.Messaging.Email;
-using MainApi.Lib;
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Testing.Fakes;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Lib.Utils;
-using MainApi.Localization;
-using MainApi.Modules.Invitations.Entities;
-using MainApi.Modules.Profiles.Entities;
-using MainApi.Modules.Tenants.Entities;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Infrastructure.Messaging.Email;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fakes;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Users.Entities;
+
 using Xunit;
 
-namespace MainApi.Modules.Tenants.Handlers.Staff;
+namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 
 public sealed class CreateTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
@@ -87,7 +87,7 @@ public sealed class CreateTenantAsStaffSpec
 		await using var scope =
 			_fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var tenant = await dbContext.Tenant
 			.Where(t => t.Id == created.Id)
@@ -623,7 +623,7 @@ public sealed class CreateTenantAsStaffSpec
 		await using var scope =
 			_fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var tenant = await dbContext.Tenant
 			.Where(t => t.Id == tenantId)
@@ -659,7 +659,7 @@ public sealed class CreateTenantAsStaffSpec
 		await using var scope =
 			_fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var staffAccount = await dbContext.UserAccount
 			.Where(account =>

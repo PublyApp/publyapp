@@ -5,19 +5,19 @@ using System.Text.Json;
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Modules.Invitations.Entities;
-using MainApi.Modules.Tenants.Entities;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Tenants.Entities;
+
 using Xunit;
 
-namespace MainApi.Modules.Invitations.Handlers.Anonymous;
+namespace PublyApp.Api.Modules.Invitations.Handlers.Anonymous;
 
 public sealed class AcceptInvitationSpec
 	: IClassFixture<ApiFixture> {
@@ -62,7 +62,7 @@ public sealed class AcceptInvitationSpec
 
 		await using var setupScope = _fixture.Factory.Services.CreateAsyncScope();
 		var setupDbContext =
-			setupScope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+			setupScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var invitation = await setupDbContext.Invitation
 			.Where(inv =>
 				inv.Email == inviteEmail &&
@@ -116,7 +116,7 @@ public sealed class AcceptInvitationSpec
 
 		await using var assertScope = _fixture.Factory.Services.CreateAsyncScope();
 		var assertDbContext =
-			assertScope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+			assertScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var tenant = await assertDbContext.Tenant
 			.Where(t => t.Id == invitation.TenantId)
 			.SingleAsync();
@@ -159,7 +159,7 @@ public sealed class AcceptInvitationSpec
 
 		await using var setupScope = _fixture.Factory.Services.CreateAsyncScope();
 		var setupDbContext =
-			setupScope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+			setupScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var invitation = await setupDbContext.Invitation
 			.Where(inv =>
 				inv.Email == inviteEmail &&
@@ -209,7 +209,7 @@ public sealed class AcceptInvitationSpec
 
 		await using var assertScope = _fixture.Factory.Services.CreateAsyncScope();
 		var assertDbContext =
-			assertScope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+			assertScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var tenant = await assertDbContext.Tenant
 			.Where(t => t.Id == invitation.TenantId)
 			.SingleAsync();

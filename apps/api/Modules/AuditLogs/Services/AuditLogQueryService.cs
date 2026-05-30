@@ -1,13 +1,13 @@
 using System.Runtime.CompilerServices;
 
-using MainApi.Data.DbContext;
-using MainApi.Lib;
-using MainApi.Lib.DI;
-using MainApi.Modules.AuditLogs.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.AuditLogs.Services;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+
+namespace PublyApp.Api.Modules.AuditLogs.Services;
 
 public record FindAuditLogsArgs(
 	Guid Cursor,
@@ -102,9 +102,9 @@ public interface IAuditLogQueryService {
 
 [Service(ServiceLifetime.Scoped)]
 public class AuditLogQueryService : IAuditLogQueryService {
-	private readonly MainApiDbContext _dbContext;
+	private readonly AppDbContext _dbContext;
 
-	public AuditLogQueryService(MainApiDbContext dbContext) {
+	public AuditLogQueryService(AppDbContext dbContext) {
 		_dbContext = dbContext;
 	}
 

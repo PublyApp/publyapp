@@ -6,7 +6,7 @@ using FluentValidation;
 
 using Xunit;
 
-namespace MainApi.Modules.Users.Validation;
+namespace PublyApp.Api.Modules.Users.Validation;
 
 public sealed class UserValidationRulesSpec {
 	private class AccountLevelModel {

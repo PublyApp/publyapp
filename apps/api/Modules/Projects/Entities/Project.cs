@@ -1,23 +1,23 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
-using MainApi.Data;
-using MainApi.Modules.Profiles.Entities;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.Projects.Entities;
+using PublyApp.Api.Data;
+using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Users.Entities;
+
+namespace PublyApp.Api.Modules.Projects.Entities;
 
 [Table("projects")]
 [Index(nameof(TenantId), nameof(Name), IsUnique = true)]
 public class Project : BaseAttributes, ITenantEntity {
-	private MainApi.Modules.Tenants.Entities.Tenant? _tenant;
+	private PublyApp.Api.Modules.Tenants.Entities.Tenant? _tenant;
 
 	[Column("tenant_id")]
 	public required Guid TenantId { get; set; }
 	[JsonIgnore]
-	public MainApi.Modules.Tenants.Entities.Tenant Tenant {
+	public PublyApp.Api.Modules.Tenants.Entities.Tenant Tenant {
 		get { return RequiredNavigation.Get(_tenant, nameof(Project), nameof(Tenant)); }
 		set { _tenant = value; }
 	}

@@ -1,9 +1,9 @@
-using MainApi.Lib;
-using MainApi.Lib.Filters;
-using MainApi.Lib.Routes;
-using MainApi.Modules.Users.Handlers.Staff;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Modules.Users.Handlers.Staff;
 
-namespace MainApi.Modules.Users.Endpoints;
+namespace PublyApp.Api.Modules.Users.Endpoints;
 
 public static class UserEndpointsForStaff {
 	public static IEndpointRouteBuilder MapUserEndpointsForStaff(this IEndpointRouteBuilder routes) {

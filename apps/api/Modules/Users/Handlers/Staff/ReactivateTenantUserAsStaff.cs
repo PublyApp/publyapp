@@ -1,15 +1,15 @@
-using MainApi.Localization;
-using MainApi.Lib;
-using MainApi.Lib.ProblemResults;
-using MainApi.Modules.AuditLogs.Entities;
-using MainApi.Modules.AuditLogs.Services;
-using MainApi.Modules.Users.Entities;
-using MainApi.Modules.Users.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.Users.Handlers.Staff;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.AuditLogs.Services;
+using PublyApp.Api.Modules.Users.Entities;
+using PublyApp.Api.Modules.Users.Services;
+
+namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 /// <summary>
 /// Result for reactivating a tenant user.

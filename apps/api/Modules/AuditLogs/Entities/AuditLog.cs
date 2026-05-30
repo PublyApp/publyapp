@@ -1,13 +1,13 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
-using MainApi.Data;
-
 using Microsoft.EntityFrameworkCore;
 
-using UserEntity = MainApi.Modules.Users.Entities.User;
+using PublyApp.Api.Data;
 
-namespace MainApi.Modules.AuditLogs.Entities;
+using UserEntity = PublyApp.Api.Modules.Users.Entities.User;
+
+namespace PublyApp.Api.Modules.AuditLogs.Entities;
 
 [Table("audit_logs")]
 [Index(nameof(UserId), nameof(CreatedAt))]

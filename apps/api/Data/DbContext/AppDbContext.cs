@@ -1,25 +1,25 @@
 using System.Linq.Expressions;
 
-using MainApi.Lib;
-using MainApi.Modules.AuditLogs.Entities;
-using MainApi.Modules.Auth.Entities;
-using MainApi.Modules.Invitations.Entities;
-using MainApi.Modules.Permissions.Entities;
-using MainApi.Modules.Profiles.Entities;
-using MainApi.Modules.Projects.Entities;
-using MainApi.Modules.SystemNotices.Entities;
-using MainApi.Modules.Tenants.Entities;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
-namespace MainApi.Data.DbContext;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.Auth.Entities;
+using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Permissions.Entities;
+using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Projects.Entities;
+using PublyApp.Api.Modules.SystemNotices.Entities;
+using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Users.Entities;
+
+namespace PublyApp.Api.Data.DbContext;
 
 /// <summary>
 /// Main database context with automatic audit tracking for all entities.
 /// </summary>
-public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
+public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	private static readonly Lazy<List<Type>> SeederTypeCache = new(DiscoverSeedersInternal, LazyThreadSafetyMode.ExecutionAndPublication);
 
 	public DbSet<Session> Session {
@@ -74,7 +74,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 
 	public Guid? TenantId { get; set; }
 
-	public MainApiDbContext(DbContextOptions options) : base(options) {
+	public AppDbContext(DbContextOptions options) : base(options) {
 		var extension = options.FindExtension<TenantExtension>();
 		TenantId = extension?.TenantId;
 	}
@@ -84,7 +84,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 
 		// EF Core 9: Define seeding logic here using reflection to discover all seeders
 		optionsBuilder.UseSeeding((context, _) => {
-			var dbContext = (MainApiDbContext)context;
+			var dbContext = (AppDbContext)context;
 
 			if (dbContext is null) {
 				throw new InvalidOperationException("Seeding context cannot be null");
@@ -95,7 +95,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		});
 
 		optionsBuilder.UseAsyncSeeding(async (context, _, cancellationToken) => {
-			var dbContext = (MainApiDbContext)context;
+			var dbContext = (AppDbContext)context;
 
 			if (dbContext is null) {
 				throw new InvalidOperationException("Seeding context cannot be null");
@@ -109,7 +109,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	/// <summary>
 	/// Discovers and executes all entity seeders synchronously.
 	/// </summary>
-	private static void SeedAll(MainApiDbContext dbContext, IServiceProvider serviceProvider) {
+	private static void SeedAll(AppDbContext dbContext, IServiceProvider serviceProvider) {
 		Task.Run(() => SeedAllAsync(dbContext, serviceProvider, CancellationToken.None))
 			.GetAwaiter()
 			.GetResult();
@@ -118,8 +118,8 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	/// <summary>
 	/// Discovers and executes all entity seeders asynchronously using reflection.
 	/// </summary>
-	private static async Task SeedAllAsync(MainApiDbContext dbContext, IServiceProvider serviceProvider, CancellationToken cancellationToken) {
-		var logger = serviceProvider.GetService<ILogger<MainApiDbContext>>();
+	private static async Task SeedAllAsync(AppDbContext dbContext, IServiceProvider serviceProvider, CancellationToken cancellationToken) {
+		var logger = serviceProvider.GetService<ILogger<AppDbContext>>();
 		var seeders = CreateSeeders(serviceProvider);
 
 		foreach (var seeder in seeders) {
@@ -165,7 +165,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	/// </summary>
 	private static List<System.Type> DiscoverSeedersInternal() {
 		var seederInterface = typeof(IEntitySeeder);
-		var assembly = typeof(MainApiDbContext).Assembly;
+		var assembly = typeof(AppDbContext).Assembly;
 
 		var seederTypes = assembly
 			.GetTypes()

@@ -1,7 +1,7 @@
-using MainApi.Lib;
-using MainApi.Modules.Permissions.Entities;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Modules.Permissions.Entities;
 
-namespace MainApi.Modules.Invitations.Permissions;
+namespace PublyApp.Api.Modules.Invitations.Permissions;
 
 public class InvitationPermissionsForStaff : ISlicePermissions {
 	public string KeyPrefix { get; } = "invitations";

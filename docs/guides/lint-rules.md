@@ -21,7 +21,7 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 - **Severity:** `error`
 - **Source:** `packages/lint-ts/src/rules/no-console-in-source.js`
 - **Spec:** `packages/lint-ts/src/rules/no-console-in-source.test.js`
-- **AGENTS.md:** "Frontend/Node: use `logger` from `@/shared/lib/logger/iso-logger` (not `console.*`)."
+- **AGENTS.md:** "Frontend/Node: use `logger` from `@org/shared-ts/lib/logger/iso-logger` (not `console.*`)."
 - **Autofix:** yes (`console.X` → `logger.X` + adds import)
 - **Shadow guard:** files declaring `const console = ...` are skipped
 - **Shipped in:** #506

@@ -1,9 +1,9 @@
-using MainApi.Lib;
-using MainApi.Lib.Filters;
-using MainApi.Lib.Routes;
-using MainApi.Modules.Invitations.Handlers.Staff;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Modules.Invitations.Handlers.Staff;
 
-namespace MainApi.Modules.Invitations.Endpoints;
+namespace PublyApp.Api.Modules.Invitations.Endpoints;
 
 public static class InvitationEndpointsForTenantAsStaff {
 	public static IEndpointRouteBuilder MapInvitationEndpointsForTenantAsStaff(

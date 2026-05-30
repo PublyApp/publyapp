@@ -13,7 +13,7 @@ import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type 
  */
 export interface InvitationsRequestBuilder extends BaseRequestBuilder<InvitationsRequestBuilder> {
     /**
-     * Gets an item from the MainApi.Client.staff.tenants.item.invitations.item collection
+     * Gets an item from the PublyApp.Api.Client.staff.tenants.item.invitations.item collection
      * @param invitationId Unique identifier of the item
      * @returns {WithInvitationItemRequestBuilder}
      */

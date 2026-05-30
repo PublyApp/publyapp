@@ -1,4 +1,4 @@
-namespace MainApi.Lib.Utils;
+namespace PublyApp.Api.Lib.Utils;
 
 public static class SeederLoggerUtils {
 	private static readonly Lazy<

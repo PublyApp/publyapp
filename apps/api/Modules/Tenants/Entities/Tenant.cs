@@ -1,12 +1,12 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
-using MainApi.Data;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.Tenants.Entities;
+using PublyApp.Api.Data;
+using PublyApp.Api.Modules.Users.Entities;
+
+namespace PublyApp.Api.Modules.Tenants.Entities;
 
 [Table("tenants")]
 [Index(nameof(Code), IsUnique = true)]
@@ -36,7 +36,7 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 	[JsonIgnore]
 	public ICollection<UserAccount> UserAccounts { get; set; } = [];
 	[JsonIgnore]
-	public ICollection<MainApi.Modules.Projects.Entities.Project> Projects { get; set; } = [];
+	public ICollection<PublyApp.Api.Modules.Projects.Entities.Project> Projects { get; set; } = [];
 
 	public static string GetStatusDescription(TenantStatus status) {
 		return status switch {

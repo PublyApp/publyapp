@@ -11,16 +11,16 @@
 4. Create validators using FluentValidation
 5. Register endpoints in `[Feature]Endpoints.cs`
 6. Add route constants to `apps/api/Lib/RoutePath.cs`
-7. Add translation keys to `packages/shared/lib/i18n/json/en/response-message.json`
-8. If database changes: `make db-add NAME=MigrationName` then `make db-migrate`
-9. Generate client: `make generate-client`
+7. Add translation keys to `packages/shared-ts/lib/i18n/json/en/response-message.json`
+8. If database changes: `just db-add MigrationName` then `just db-migrate`
+9. Generate client: `just generate-client`
 
 **Frontend:**
 1. Create route file in `app/routes/[section]/[page]/`
 2. Add route to `app/routes.ts`
 3. Create query/mutation hooks using `react-query-kit`
-4. Use auto-generated API client from `packages/js-client`
-5. Add translations to `packages/shared/lib/i18n/json/en/common.json`
+4. Use auto-generated API client from `packages/client-ts`
+5. Add translations to `packages/shared-ts/lib/i18n/json/en/common.json`
 
 ## Updating API Contract
 
@@ -28,25 +28,25 @@
 
 ```bash
 # 1. Build API to generate updated OpenAPI spec
-make build-api
+just build-api
 
 # 2. Generate updated TypeScript client
-make generate-client
+just generate-client
 
 # 3. Update frontend code to use new types
 ```
 
-The TypeScript client is auto-generated - never modify files in `packages/js-client/` manually.
+The TypeScript client is auto-generated - never modify files in `packages/client-ts/` manually.
 
 ## Adding Database Entities
 
 1. Create entity class in `apps/api/Modules/<Domain>/Entities/[Entity].cs`
 2. Implement appropriate tenant interface: `ITenantEntity`, `IOptionalTenantEntity`, or `INoTenantEntity`
 3. Inherit from `BaseAttributes` for automatic audit tracking
-4. Add `DbSet<[Entity]>` to `MainApiDbContext`
+4. Add `DbSet<[Entity]>` to `AppDbContext`
 5. Configure entity in `OnModelCreating` if needed
-6. Create migration: `make db-add NAME=Add[Entity]Table`
-7. Review and apply: `make db-migrate`
+6. Create migration: `just db-add Add[Entity]Table`
+7. Review and apply: `just db-migrate`
 
 ## Adding a Bulk Action Endpoint
 

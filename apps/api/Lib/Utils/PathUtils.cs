@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace MainApi.Lib.Utils;
+namespace PublyApp.Api.Lib.Utils;
 
 public static class PathUtils {
 #pragma warning disable SYSLIB1045 // Convert to 'GeneratedRegexAttribute'.

@@ -5,7 +5,7 @@
 ## API Client Integration
 
 - Microsoft Kiota auto-generated client from OpenAPI
-- Singleton `ClientManager` in `app/lib/js-client/`
+- Singleton `ClientManager` in `app/lib/api-client/`
 - Session token from `X-Session-Token` header (read fresh from cookies on every request)
 - Tenant ID from `X-PublyApp-TenantId` header (for multi-tenant data isolation)
 
@@ -34,7 +34,7 @@ In React Router loaders/actions:
 - Tokens are parsed by `getServerLoader` / `getServerAction` and passed to your loader/action
 
 ```typescript
-import { getClientManager } from '@/front/lib/js-client/client-manager';
+import { getClientManager } from '@/front/lib/api-client/client-manager';
 const apiClient = getClientManager({ staffToken, tenantToken }).createClient();
 ```
 

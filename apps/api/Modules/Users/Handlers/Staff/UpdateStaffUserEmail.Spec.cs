@@ -5,22 +5,22 @@ using System.Text.Json;
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Lib.Utils;
-using MainApi.Localization;
-using MainApi.Modules.AuditLogs.Entities;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.Users.Entities;
+
 using Xunit;
 
-namespace MainApi.Modules.Users.Handlers.Staff;
+namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public sealed class UpdateStaffUserEmailSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
@@ -259,7 +259,7 @@ public sealed class UpdateStaffUserEmailSpec : IClassFixture<ApiFixture> {
 	private async Task<Guid> GetStaffUserIdByEmailAsync(string email) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var query =
 			from account in dbContext.UserAccount
@@ -275,7 +275,7 @@ public sealed class UpdateStaffUserEmailSpec : IClassFixture<ApiFixture> {
 	private async Task<string> GetStaffUserEmailByIdAsync(Guid userId) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var query =
 			from user in dbContext.User
@@ -288,7 +288,7 @@ public sealed class UpdateStaffUserEmailSpec : IClassFixture<ApiFixture> {
 	private async Task SetStaffUserEmailAsync(Guid userId, string email) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var query =
 			from user in dbContext.User
@@ -306,7 +306,7 @@ public sealed class UpdateStaffUserEmailSpec : IClassFixture<ApiFixture> {
 	) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var query =
 			from log in dbContext.AuditLog

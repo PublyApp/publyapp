@@ -31,7 +31,7 @@ export interface TenantsRequestBuilder extends BaseRequestBuilder<TenantsRequest
      */
     get bulkSuspend(): BulkSuspendRequestBuilder;
     /**
-     * Gets an item from the MainApi.Client.staff.tenants.item collection
+     * Gets an item from the PublyApp.Api.Client.staff.tenants.item collection
      * @param tenantId Unique identifier of the item
      * @returns {WithTenantItemRequestBuilder}
      */

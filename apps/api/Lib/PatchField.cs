@@ -1,4 +1,4 @@
-namespace MainApi.Lib;
+namespace PublyApp.Api.Lib;
 
 public readonly struct PatchField<T> {
 	private readonly T? _value;

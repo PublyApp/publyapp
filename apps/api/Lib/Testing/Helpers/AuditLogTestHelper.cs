@@ -1,15 +1,15 @@
 
-using MainApi.Data.DbContext;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Utils;
-using MainApi.Modules.AuditLogs.Entities;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-using AppRoutes = MainApi.Lib.Routes.Routes;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.AuditLogs.Entities;
 
-namespace MainApi.Lib.Testing.Helpers;
+using AppRoutes = PublyApp.Api.Lib.Routes.Routes;
+
+namespace PublyApp.Api.Lib.Testing.Helpers;
 
 internal static class AuditLogTestHelper {
 	private static readonly string FindUrl =
@@ -34,7 +34,7 @@ internal static class AuditLogTestHelper {
 		);
 
 	public static async Task<Guid> SeedAuditLogAsync(
-		MainApiFactory factory,
+		ApiFactory factory,
 		Guid userId,
 		string action,
 		Guid? targetId = null,
@@ -46,7 +46,7 @@ internal static class AuditLogTestHelper {
 		using var scope =
 			factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var log = new AuditLog {
 			UserId = userId,
@@ -65,14 +65,14 @@ internal static class AuditLogTestHelper {
 
 	public static async Task<Guid>
 		GetUserIdByEmailAsync(
-		MainApiFactory factory,
+		ApiFactory factory,
 		string email,
 		CancellationToken ct = default
 	) {
 		using var scope =
 			factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		// Compare emails in memory to avoid ToLower in query
 		// expressions; this helper is test-only and operates on

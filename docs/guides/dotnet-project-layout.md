@@ -67,7 +67,7 @@ compilation**; the runner shell **links them in** and pulls the test packages
 
 ### The exact `apps/api` mechanism
 
-The main project (`apps/api/MainApi.csproj`) removes spec/test files and
+The main project (`apps/api/PublyApp.Api.csproj`) removes spec/test files and
 test-only helper folders from every item type it would otherwise glob:
 
 ```xml
@@ -84,13 +84,13 @@ test-only helper folders from every item type it would otherwise glob:
 </ItemGroup>
 ```
 
-The runner shell (`apps/api/Tests/MainApi.Tests.csproj`) references the main
+The runner shell (`apps/api/Tests/PublyApp.Api.Tests.csproj`) references the main
 project and **links** the co-located specs (and shared test infra) into the test
 compilation, preserving folder structure via the `Link` metadata:
 
 ```xml
 <ItemGroup>
-  <ProjectReference Include="..\MainApi.csproj" />
+  <ProjectReference Include="..\PublyApp.Api.csproj" />
 </ItemGroup>
 
 <!-- Keep integration tests physically next to handlers (Vertical Slice
@@ -119,15 +119,10 @@ keep the link tree explicit and avoid pulling unintended trees.
 - **Assembly / `.csproj` names** are `PublyApp.*` (e.g. `PublyApp.Scripts`).
   The project file name matches the assembly name (`PublyApp.Scripts.csproj`).
 - The test-runner shell is `<Assembly>.Tests.csproj` (e.g.
-  `MainApi.Tests.csproj`).
+  `PublyApp.Api.Tests.csproj`).
 - **Package folder names** are `<purpose>-<lang>` (`scripts-cs`, `lint-cs`).
   The folder name and the assembly name are independent: folder
   `packages/scripts-cs` holds assembly `PublyApp.Scripts`.
-
-> Deferred: the API project is still named `MainApi` / `MainApi.csproj`. The
-> `MainApi → PublyApp.Api` rename (to bring it in line with the `PublyApp.*`
-> convention) is tracked in issue #456 — do not perform it as part of unrelated
-> work.
 
 ## Build config (centralized)
 
@@ -181,7 +176,7 @@ into the wrong assembly.
 
 This is exactly why analyzer/tooling projects live in `packages/*-cs` and not
 under an app: an analyzer parked at `apps/api/Analyzers/` was swallowed by
-`MainApi`'s `**/*.cs` glob (its analyzer sources compiled into the API
+`PublyApp.Api`'s `**/*.cs` glob (its analyzer sources compiled into the API
 assembly), which is what motivated moving it out to `packages/lint-cs`.
 
 The **one deliberate exception** is the co-located `Tests/` runner shell. Its
@@ -198,7 +193,7 @@ nested-project arrangement is allowed.
 ```text
 apps/api/
 ├── Directory.Build.props        # sets DotNetArtifactsRoot, imports root props
-├── MainApi.csproj               # main project; Compile Remove **/*.Spec.cs, Tests/**
+├── PublyApp.Api.csproj               # main project; Compile Remove **/*.Spec.cs, Tests/**
 ├── Program.cs
 ├── Modules/
 │   └── Users/
@@ -217,7 +212,7 @@ apps/api/
 │       ├── Helpers/
 │       └── Fakes/
 └── Tests/
-    └── MainApi.Tests.csproj     # runner shell ONLY: references MainApi, links ..\**\*.Spec.cs
+    └── PublyApp.Api.Tests.csproj     # runner shell ONLY: references PublyApp.Api, links ..\**\*.Spec.cs
 ```
 
 ### Package with tests: `packages/lint-cs`

@@ -709,11 +709,11 @@ function StaffUsersPage() {
 
 When mapping a backend enum value to a known UI set (status filters, role tokens, etc.), surface
 drift instead of silently coercing. If the value falls outside the allowlist, log a warning via
-the shared logger (`@/shared/lib/logger/iso-logger`) and return an explicit `'unknown'` sentinel
+the shared logger (`@org/shared-ts/lib/logger/iso-logger`) and return an explicit `'unknown'` sentinel
 the UI can render as a neutral pill.
 
 ```ts
-import logger from '@/shared/lib/logger/iso-logger';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 export const STAFF_INVITATION_UNKNOWN_STATUS = 'unknown' as const;
 

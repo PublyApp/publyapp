@@ -1,11 +1,11 @@
-using MainApi.Data.DbContext;
-using MainApi.Lib;
-using MainApi.Lib.DI;
-using MainApi.Modules.Permissions.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.Permissions.Services;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.Permissions.Entities;
+
+namespace PublyApp.Api.Modules.Permissions.Services;
 
 public class PermissionAsStaffItem {
 	public string Key { get; set; } = string.Empty;
@@ -33,8 +33,8 @@ public interface IPermissionAsStaffService {
 
 [Service(ServiceLifetime.Scoped)]
 public class PermissionAsStaffService : IPermissionAsStaffService {
-	private readonly MainApiDbContext _dbContext;
-	public PermissionAsStaffService(MainApiDbContext dbContext) {
+	private readonly AppDbContext _dbContext;
+	public PermissionAsStaffService(AppDbContext dbContext) {
 		_dbContext = dbContext;
 	}
 

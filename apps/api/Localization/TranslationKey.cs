@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace MainApi.Localization;
+namespace PublyApp.Api.Localization;
 
 /// <summary>
 /// Represents a type-safe translation key that can only be created from generated constants

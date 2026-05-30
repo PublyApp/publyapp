@@ -1,18 +1,18 @@
-using MainApi.Lib;
-using MainApi.Lib.Extensions;
-using MainApi.Lib.Filters;
-using MainApi.Lib.Routes;
-using MainApi.Lib.Seeding;
-using MainApi.Modules.AuditLogs.Endpoints;
-using MainApi.Modules.Auth.Endpoints;
-using MainApi.Modules.Invitations.Endpoints;
-using MainApi.Modules.Permissions.Endpoints;
-using MainApi.Modules.Profiles.Endpoints;
-using MainApi.Modules.SystemNotices.Endpoints;
-using MainApi.Modules.Tenants.Endpoints;
-using MainApi.Modules.Users.Endpoints;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Seeding;
+using PublyApp.Api.Modules.AuditLogs.Endpoints;
+using PublyApp.Api.Modules.Auth.Endpoints;
+using PublyApp.Api.Modules.Invitations.Endpoints;
+using PublyApp.Api.Modules.Permissions.Endpoints;
+using PublyApp.Api.Modules.Profiles.Endpoints;
+using PublyApp.Api.Modules.SystemNotices.Endpoints;
+using PublyApp.Api.Modules.Tenants.Endpoints;
+using PublyApp.Api.Modules.Users.Endpoints;
 
-namespace MainApi;
+namespace PublyApp.Api;
 
 public class Program {
 	public static void Main(string[] args) {

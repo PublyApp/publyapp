@@ -2,7 +2,7 @@ using System.IO.Compression;
 
 using Microsoft.AspNetCore.ResponseCompression;
 
-namespace MainApi.Lib.Extensions;
+namespace PublyApp.Api.Lib.Extensions;
 
 public static class ResponseCompressionExtensions {
 	/// <summary>

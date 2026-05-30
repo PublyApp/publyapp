@@ -1,11 +1,11 @@
-using MainApi.Lib.Extensions;
-using MainApi.Lib.ProblemResults;
-using MainApi.Localization;
-using MainApi.Modules.Permissions.Entities;
-using MainApi.Modules.Permissions.Services;
-using MainApi.Modules.Users.Entities;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Permissions.Entities;
+using PublyApp.Api.Modules.Permissions.Services;
+using PublyApp.Api.Modules.Users.Entities;
 
-namespace MainApi.Lib.Filters;
+namespace PublyApp.Api.Lib.Filters;
 
 public class PermissionFilter : IEndpointFilter {
 	private readonly Permission[]? _requiredPermissions;

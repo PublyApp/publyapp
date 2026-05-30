@@ -2,11 +2,11 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 
-using MainApi.Lib.Utils;
+using PublyApp.Api.Lib.Utils;
 
-using AppRoutes = MainApi.Lib.Routes.Routes;
+using AppRoutes = PublyApp.Api.Lib.Routes.Routes;
 
-namespace MainApi.Lib.Testing.Helpers;
+namespace PublyApp.Api.Lib.Testing.Helpers;
 /// <summary>
 /// Shared helpers for tenant suspension integration tests.
 /// Provides methods to look up tenant IDs and perform

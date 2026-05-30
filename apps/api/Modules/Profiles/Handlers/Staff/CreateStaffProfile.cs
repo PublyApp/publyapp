@@ -3,21 +3,21 @@ using System.Text.RegularExpressions;
 
 using FluentValidation;
 
-using MainApi.Infrastructure.Messaging.Email;
-using MainApi.Lib;
-using MainApi.Lib.Extensions;
-using MainApi.Lib.ProblemResults;
-using MainApi.Localization;
-using MainApi.Modules.AuditLogs.Entities;
-using MainApi.Modules.AuditLogs.Services;
-using MainApi.Modules.Profiles.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 using Polly;
 
-namespace MainApi.Modules.Profiles.Handlers.Staff;
+using PublyApp.Api.Infrastructure.Messaging.Email;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.AuditLogs.Services;
+using PublyApp.Api.Modules.Profiles.Services;
+
+namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
 public record CreateStaffProfileBody {
 	public JsonElement? Name { get; init; }

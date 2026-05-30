@@ -1,7 +1,7 @@
-using MainApi.Localization;
-using MainApi.Lib.ProblemResults;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
 
-namespace MainApi.Lib.Extensions;
+namespace PublyApp.Api.Lib.Extensions;
 
 public static class NotFoundRouteExtension {
 	public static IEndpointRouteBuilder MapNotFoundRoute(this IEndpointRouteBuilder app) {

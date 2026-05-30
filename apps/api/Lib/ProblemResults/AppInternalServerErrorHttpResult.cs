@@ -2,7 +2,7 @@ using System.Reflection;
 
 using Microsoft.AspNetCore.Http.Metadata;
 
-namespace MainApi.Lib.ProblemResults;
+namespace PublyApp.Api.Lib.ProblemResults;
 
 /// <summary>
 /// A 500 Internal Server Error result with AppProblemDetails body.

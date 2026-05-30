@@ -1,4 +1,4 @@
-namespace MainApi.Lib.DI;
+namespace PublyApp.Api.Lib.DI;
 
 /// <summary>
 /// Holds a formatted DI manifest for logging after the host logging pipeline is configured.

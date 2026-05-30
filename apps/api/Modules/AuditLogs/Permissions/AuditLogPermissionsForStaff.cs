@@ -1,7 +1,7 @@
-using MainApi.Lib;
-using MainApi.Modules.Permissions.Entities;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Modules.Permissions.Entities;
 
-namespace MainApi.Modules.AuditLogs.Permissions;
+namespace PublyApp.Api.Modules.AuditLogs.Permissions;
 
 public class AuditLogPermissionsForStaff : ISlicePermissions {
 	public string KeyPrefix { get; } = "audit_logs";

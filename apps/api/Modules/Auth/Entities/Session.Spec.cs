@@ -1,15 +1,15 @@
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Lib.Testing.Fixtures;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.Testing.Fixtures;
+
 using Xunit;
 
-namespace MainApi.Modules.Auth.Entities;
+namespace PublyApp.Api.Modules.Auth.Entities;
 
 public sealed class SessionSpec
 	: IClassFixture<ApiFixture> {
@@ -27,7 +27,7 @@ public sealed class SessionSpec
 		await using var scope =
 			_fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
-			.GetRequiredService<MainApiDbContext>();
+			.GetRequiredService<AppDbContext>();
 
 		var user = await dbContext.User.FirstAsync(
 			u => u.Email == TestConstants.StaffAdminEmail

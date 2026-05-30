@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace MainApi.Data;
+namespace PublyApp.Api.Data;
 
 /// <summary>
 /// Base class for entities that need audit tracking without a primary key.

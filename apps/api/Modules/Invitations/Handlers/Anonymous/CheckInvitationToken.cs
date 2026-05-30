@@ -1,13 +1,13 @@
-using MainApi.Lib.ProblemResults;
-using MainApi.Lib.Utils;
-using MainApi.Lib.Validation;
-using MainApi.Localization;
-using MainApi.Modules.Invitations.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.Invitations.Handlers.Anonymous;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Lib.Validation;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Invitations.Services;
+
+namespace PublyApp.Api.Modules.Invitations.Handlers.Anonymous;
 
 public class CheckInvitationTokenQuery
 	: EncryptedIdTokenQuery {

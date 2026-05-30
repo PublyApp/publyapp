@@ -1,11 +1,11 @@
 {
-  "descriptionHash": "AD169716477CCC27CC377DAD7AC970C53C0808EA4094F0281DDD521913D85BADFEB137BA19699BFC0ACD66AAAA3EEE276124328F57A783DF067826CA0B8B17E3",
+  "descriptionHash": "A62373884853E071E44F863A6068E9C637AF9E7A4A937FA77E605AF889E30234774B42E42F84B67C22B23295F2B46915E07FD444677DCC7D9870582B8A472F9E",
   "descriptionLocation": "../../../apps/api/openapi.json",
   "lockFileVersion": "1.0.0",
   "kiotaVersion": "1.29.0",
   "clientClassName": "ApiClient",
   "typeAccessModifier": "Public",
-  "clientNamespaceName": "MainApi.Client",
+  "clientNamespaceName": "PublyApp.Api.Client",
   "language": "TypeScript",
   "usesBackingStore": false,
   "excludeBackwardCompatible": false,

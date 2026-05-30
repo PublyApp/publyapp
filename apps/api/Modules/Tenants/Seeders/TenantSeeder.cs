@@ -1,15 +1,15 @@
 using System.Data;
 
-using MainApi.Data;
-using MainApi.Data.DbContext;
-using MainApi.Data.Seeding;
-using MainApi.Lib;
-using MainApi.Lib.Utils;
-using MainApi.Modules.Tenants.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.Tenants.Seeders;
+using PublyApp.Api.Data;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Tenants.Entities;
+
+namespace PublyApp.Api.Modules.Tenants.Seeders;
 
 /// <summary>
 /// Seeds Tenant entities in the database.
@@ -29,7 +29,7 @@ public class TenantSeeder : IEntitySeeder {
 	}
 
 	public async Task SeedAsync(
-		MainApiDbContext dbContext,
+		AppDbContext dbContext,
 		CancellationToken cancellationToken = default
 	) {
 		var tenantsData = new List<(string Code, string Name, TenantStatus Status)> {

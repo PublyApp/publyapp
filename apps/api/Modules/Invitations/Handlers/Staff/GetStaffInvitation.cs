@@ -1,11 +1,11 @@
-using MainApi.Lib.ProblemResults;
-using MainApi.Localization;
-using MainApi.Modules.Invitations.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.Invitations.Handlers.Staff;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Invitations.Services;
+
+namespace PublyApp.Api.Modules.Invitations.Handlers.Staff;
 
 public record StaffInvitationProfile {
 	public required Guid Id { get; init; }

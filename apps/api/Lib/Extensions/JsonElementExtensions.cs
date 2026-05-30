@@ -1,9 +1,9 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 
-using MainApi.Lib.Utils;
+using PublyApp.Api.Lib.Utils;
 
-namespace MainApi.Lib.Extensions;
+namespace PublyApp.Api.Lib.Extensions;
 
 public static class JsonElementExtensions {
 	public static string GetValueAsString(

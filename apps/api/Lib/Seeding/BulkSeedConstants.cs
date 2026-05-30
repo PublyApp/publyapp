@@ -1,4 +1,4 @@
-namespace MainApi.Lib.Seeding;
+namespace PublyApp.Api.Lib.Seeding;
 
 /// <summary>
 /// Configuration constants for bulk seed operations.

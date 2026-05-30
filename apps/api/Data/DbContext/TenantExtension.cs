@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
-namespace MainApi.Data.DbContext;
+namespace PublyApp.Api.Data.DbContext;
 
 public class TenantExtension : IDbContextOptionsExtension {
 	public Guid? TenantId { get; set; }

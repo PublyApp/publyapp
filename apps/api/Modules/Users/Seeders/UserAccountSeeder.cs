@@ -1,15 +1,15 @@
 using System.Data;
 
-using MainApi.Data;
-using MainApi.Data.DbContext;
-using MainApi.Data.Seeding;
-using MainApi.Lib;
-using MainApi.Lib.Utils;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.Users.Seeders;
+using PublyApp.Api.Data;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Users.Entities;
+
+namespace PublyApp.Api.Modules.Users.Seeders;
 
 /// <summary>
 /// Seeds UserAccount entities in the database.
@@ -29,7 +29,7 @@ public class UserAccountSeeder : IEntitySeeder {
 		}
 	}
 
-	public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
+	public async Task SeedAsync(AppDbContext dbContext, CancellationToken cancellationToken = default) {
 		var newAccounts = new List<UserAccount>();
 
 		// Seed staff accounts
@@ -79,7 +79,7 @@ public class UserAccountSeeder : IEntitySeeder {
 		}
 	}
 
-	private async Task<List<UserAccount>> SeedStaffAccountsAsync(MainApiDbContext dbContext, CancellationToken cancellationToken) {
+	private async Task<List<UserAccount>> SeedStaffAccountsAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
 		var staffAccountsData = new List<(string Email, AccountLevel Level)>();
 
 		var ownerEmail = AppEnvironment.Instance.STAFF_OWNER_EMAIL;
@@ -131,7 +131,7 @@ public class UserAccountSeeder : IEntitySeeder {
 		return newStaffAccounts;
 	}
 
-	private async Task<List<UserAccount>> SeedTenantAccountsAsync(MainApiDbContext dbContext, CancellationToken cancellationToken) {
+	private async Task<List<UserAccount>> SeedTenantAccountsAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
 		// Define tenant accounts: (UserEmail, TenantCode, Level)
 		var tenantAccountsData = new List<(string Email, string TenantCode, AccountLevel Level)> {
 			// Acme Corporation users

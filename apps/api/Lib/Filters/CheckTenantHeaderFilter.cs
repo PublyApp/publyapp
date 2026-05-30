@@ -1,8 +1,8 @@
-using MainApi.Localization;
-using MainApi.Lib.Extensions;
-using MainApi.Lib.ProblemResults;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
 
-namespace MainApi.Lib.Filters;
+namespace PublyApp.Api.Lib.Filters;
 
 /// <summary>
 /// Validates that the tenant ID header (configured in AppEnvironment.TENANT_ID_HEADER_KEY) is present in the request.

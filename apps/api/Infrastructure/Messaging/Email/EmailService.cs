@@ -1,8 +1,8 @@
-using MainApi.Lib;
-using MainApi.Modules.Auth.Utils;
-using MainApi.Modules.Users.Entities;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Modules.Auth.Utils;
+using PublyApp.Api.Modules.Users.Entities;
 
-namespace MainApi.Infrastructure.Messaging.Email;
+namespace PublyApp.Api.Infrastructure.Messaging.Email;
 
 public interface IEmailService {
 	Task SendWelComeEmailAsync(string email, string token);

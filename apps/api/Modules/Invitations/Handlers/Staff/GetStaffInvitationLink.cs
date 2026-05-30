@@ -1,12 +1,12 @@
-using MainApi.Lib.ProblemResults;
-using MainApi.Localization;
-using MainApi.Modules.Auth.Utils;
-using MainApi.Modules.Invitations.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.Invitations.Handlers.Staff;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Auth.Utils;
+using PublyApp.Api.Modules.Invitations.Services;
+
+namespace PublyApp.Api.Modules.Invitations.Handlers.Staff;
 
 public class GetStaffInvitationLinkResult {
 	public required string Link { get; init; }

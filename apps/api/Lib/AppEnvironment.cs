@@ -4,7 +4,7 @@ using FluentValidation;
 
 using Npgsql;
 
-namespace MainApi.Lib;
+namespace PublyApp.Api.Lib;
 
 /// <summary>
 /// Provides access to environment variables with validation.

@@ -1,10 +1,10 @@
-using MainApi.Data.DbContext;
-using MainApi.Lib.DI;
-using MainApi.Modules.Projects.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.Projects.Services;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.Projects.Entities;
+
+namespace PublyApp.Api.Modules.Projects.Services;
 
 public interface IProjectService {
 	Task<Project?> GetProjectAsync(Guid projectId, CancellationToken cancellationToken = default);
@@ -19,9 +19,9 @@ public interface IProjectService {
 
 [Service(ServiceLifetime.Scoped)]
 public class ProjectService : IProjectService {
-	private readonly MainApiDbContext _dbContext;
+	private readonly AppDbContext _dbContext;
 
-	public ProjectService(MainApiDbContext context) {
+	public ProjectService(AppDbContext context) {
 		_dbContext = context;
 	}
 

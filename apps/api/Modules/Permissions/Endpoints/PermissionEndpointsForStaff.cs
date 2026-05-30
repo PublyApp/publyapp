@@ -1,9 +1,9 @@
-using MainApi.Lib;
-using MainApi.Lib.Filters;
-using MainApi.Lib.Routes;
-using MainApi.Modules.Permissions.Handlers.Staff;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Modules.Permissions.Handlers.Staff;
 
-namespace MainApi.Modules.Permissions.Endpoints;
+namespace PublyApp.Api.Modules.Permissions.Endpoints;
 
 public static class PermissionEndpointsForStaff {
 	public static IEndpointRouteBuilder MapPermissionEndpointsForStaff(

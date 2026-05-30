@@ -1,4 +1,4 @@
-namespace MainApi.Lib.Extensions;
+namespace PublyApp.Api.Lib.Extensions;
 
 public static class SecurityHeadersExtensions {
 	/// <summary>

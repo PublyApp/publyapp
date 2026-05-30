@@ -1,6 +1,6 @@
-using MainApi.Lib.DI;
+using PublyApp.Api.Lib.DI;
 
-namespace MainApi.Lib.Extensions;
+namespace PublyApp.Api.Lib.Extensions;
 
 public static class DiManifestLoggingExtensions {
 	public static WebApplication LogDiManifestIfPresent(this WebApplication app) {

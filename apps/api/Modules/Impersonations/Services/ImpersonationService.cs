@@ -1,14 +1,14 @@
-using MainApi.Data.DbContext;
-using MainApi.Lib.DI;
-using MainApi.Lib.Utils;
-using MainApi.Modules.AuditLogs.Entities;
-using MainApi.Modules.AuditLogs.Services;
-using MainApi.Modules.Auth.Entities;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Modules.Impersonations.Services;
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.AuditLogs.Services;
+using PublyApp.Api.Modules.Auth.Entities;
+using PublyApp.Api.Modules.Users.Entities;
+
+namespace PublyApp.Api.Modules.Impersonations.Services;
 
 public record CreateImpersonationSessionArgs(
 	Guid TenantId,
@@ -29,12 +29,12 @@ public interface IImpersonationService {
 
 [Service(ServiceLifetime.Scoped)]
 public class ImpersonationService : IImpersonationService {
-	private readonly MainApiDbContext _dbContext;
+	private readonly AppDbContext _dbContext;
 	private readonly IAuditLogService _auditLogService;
 	private readonly ILogger<ImpersonationService> _logger;
 
 	public ImpersonationService(
-		MainApiDbContext dbContext,
+		AppDbContext dbContext,
 		IAuditLogService auditLogService,
 		ILogger<ImpersonationService> logger
 	) {

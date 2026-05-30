@@ -1,13 +1,13 @@
-using MainApi.Lib.ProblemResults;
-using MainApi.Localization;
-using MainApi.Modules.Invitations.Entities;
-using MainApi.Modules.Invitations.Services;
-using MainApi.Modules.Users.Entities;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.Invitations.Handlers.Anonymous;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Invitations.Services;
+using PublyApp.Api.Modules.Users.Entities;
+
+namespace PublyApp.Api.Modules.Invitations.Handlers.Anonymous;
 
 public record InvitationDetails {
 	public required string Email { get; init; }

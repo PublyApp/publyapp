@@ -5,17 +5,17 @@ using System.Text.Json;
 
 using FluentAssertions;
 
-using MainApi.Data.DbContext;
-using MainApi.Lib.Testing.Fixtures;
-using MainApi.Lib.Testing.Helpers;
-using MainApi.Modules.Invitations.Entities;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Modules.Invitations.Entities;
+
 using Xunit;
 
-namespace MainApi.Modules.Invitations.Handlers.Anonymous;
+namespace PublyApp.Api.Modules.Invitations.Handlers.Anonymous;
 
 public sealed class GetInvitationDetailsSpec
 	: IClassFixture<ApiFixture> {
@@ -59,7 +59,7 @@ public sealed class GetInvitationDetailsSpec
 		createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var invitation = await dbContext.Invitation
 			.Where(inv =>
 				inv.Email == inviteEmail &&

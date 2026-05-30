@@ -2,14 +2,14 @@ using System.Text.Json;
 
 using FluentValidation;
 
-using MainApi.Localization;
-using MainApi.Lib.ProblemResults;
-using MainApi.Modules.Profiles.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Modules.Profiles.Handlers.Staff;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Profiles.Services;
+
+namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
 public sealed class ResolveStaffProfileUserAssignmentsBody {
 	public JsonElement UserIds { get; init; }

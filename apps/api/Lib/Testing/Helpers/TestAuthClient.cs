@@ -1,11 +1,11 @@
 
 using System.Net.Http.Json;
 
-using MainApi.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Fixtures;
 
-using AppRoutes = MainApi.Lib.Routes.Routes;
+using AppRoutes = PublyApp.Api.Lib.Routes.Routes;
 
-namespace MainApi.Lib.Testing.Helpers;
+namespace PublyApp.Api.Lib.Testing.Helpers;
 /// <summary>
 /// Helper for authenticating test requests.
 /// Returns session tokens — never mutates shared

@@ -1,9 +1,9 @@
-using MainApi.Localization;
-using MainApi.Lib.Extensions;
-using MainApi.Lib.ProblemResults;
-using MainApi.Modules.Users.Services;
+using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Users.Services;
 
-namespace MainApi.Lib.Filters;
+namespace PublyApp.Api.Lib.Filters;
 
 /// <summary>
 /// Verifies that the authenticated user has a staff account.

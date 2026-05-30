@@ -1,9 +1,9 @@
-using MainApi.Data.DbContext;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace MainApi.Lib.Seeding;
+using PublyApp.Api.Data.DbContext;
+
+namespace PublyApp.Api.Lib.Seeding;
 
 /// <summary>
 /// CLI entry points for bulk seeding operations.
@@ -30,7 +30,7 @@ public static class BulkSeedCli {
 		var builder = WebApplication.CreateBuilder(args);
 		builder.Logging.ClearProviders();
 		builder.Logging.AddConsole().SetMinimumLevel(LogLevel.None);
-		builder.Services.AddDbContext<MainApiDbContext>(options => {
+		builder.Services.AddDbContext<AppDbContext>(options => {
 			var env = AppEnvironment.Instance;
 			options.UseNpgsql(env.POSTGRES_CONNECTION_STRING);
 			options.LogTo(_ => { }, LogLevel.None);
@@ -39,7 +39,7 @@ public static class BulkSeedCli {
 
 		var app = builder.Build();
 		using var scope = app.Services.CreateScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var seeder = new BulkSeeder();
 
 		Console.WriteLine("Starting bulk seed operation...");
@@ -58,7 +58,7 @@ public static class BulkSeedCli {
 		var builder = WebApplication.CreateBuilder(args);
 		builder.Logging.ClearProviders();
 		builder.Logging.AddConsole().SetMinimumLevel(LogLevel.None);
-		builder.Services.AddDbContext<MainApiDbContext>(options => {
+		builder.Services.AddDbContext<AppDbContext>(options => {
 			var env = AppEnvironment.Instance;
 			options.UseNpgsql(env.POSTGRES_CONNECTION_STRING);
 			options.LogTo(_ => { }, LogLevel.None);
@@ -67,7 +67,7 @@ public static class BulkSeedCli {
 
 		var app = builder.Build();
 		using var scope = app.Services.CreateScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<MainApiDbContext>();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var seeder = new BulkSeeder();
 
 		Console.WriteLine("Starting bulk data cleanup...");

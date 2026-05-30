@@ -99,7 +99,7 @@ builder.Services.AddOpenApi(options => {
 });
 ```
 
-**Rule:** If you see TypeScript types like `count?: number | UntypedNode` in response DTOs, check that the schema transformer is present and that `OpenApiGenerateDocuments` is `true` in `MainApi.csproj`.
+**Rule:** If you see TypeScript types like `count?: number | UntypedNode` in response DTOs, check that the schema transformer is present and that `OpenApiGenerateDocuments` is `true` in `PublyApp.Api.csproj`.
 
 ## Query DTO Multi-Value Filters
 
@@ -179,7 +179,7 @@ const body: CreateUserBody = {
 **For response data with potential UntypedNode unions:**
 
 ```typescript
-import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
+import { getUntypedNumber } from '@/front/lib/api-client/kiota-utils';
 
 // ✅ CORRECT - Use utility to safely extract number
 const count = getUntypedNumber(response.count, 0);
@@ -188,7 +188,7 @@ const count = getUntypedNumber(response.count, 0);
 const count = response.count;  // Could be number | UntypedNode
 ```
 
-**Utility functions in `apps/front/app/lib/js-client/kiota-utils.ts`:**
+**Utility functions in `apps/front/app/lib/api-client/kiota-utils.ts`:**
 - `getUntypedNumber(value, defaultValue)` - Safely extract number from `number | UntypedNode`
 - `getUntypedString(value, defaultValue)` - Safely extract string from `string | UntypedNode`
 - `getUntypedArray(value)` - Safely extract array from `T[] | UntypedNode`
