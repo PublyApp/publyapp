@@ -59,6 +59,17 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 - **Shipped in:** #509
 - **Enforced in:** #523
 
+### `publy/no-raw-img-in-product-surfaces`
+
+- **Severity:** `error`
+- **Source:** `packages/lint-ts/src/rules/no-raw-img-in-product-surfaces.js`
+- **Spec:** `packages/lint-ts/src/rules/no-raw-img-in-product-surfaces.test.js`
+- **AGENTS.md:** "Content imagery (photos, avatars, hero illustrations) must use the `<Image>` primitive ... with a `ratio` prop — never raw `<img>` or `<Box component=\"img\">`."
+- **Autofix:** no
+- **Scope notes:** product surfaces only; marketing surfaces, brand wordmark/logo paths, inline SVG, and explicit full-bleed background comment opt-outs are intentionally excluded
+- **Shipped in:** #526
+- **Enforced in:** #526
+
 ### `publy/no-manual-response-message-translation`
 
 - **Severity:** `error`

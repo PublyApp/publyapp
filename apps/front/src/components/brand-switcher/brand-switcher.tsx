@@ -9,6 +9,7 @@ import { useCallback } from 'react';
 
 import { CustomPopover } from '#app/components/custom-popover/custom-popover.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { Image } from '#app/components/image/image.tsx';
 import { Scrollbar } from '#app/components/scrollbar/scrollbar.tsx';
 
 import { useBrand } from './brand-context';
@@ -52,10 +53,10 @@ export function BrandSwitcher({ sx }: BrandSwitcherProps) {
 			]}
 		>
 			{brand?.logo && (
-				<Box
-					component="img"
+				<Image
 					alt={brand.name}
 					src={brand.logo}
+					ratio="1/1"
 					sx={{ width: 16, height: 16, borderRadius: '50%' }}
 				/>
 			)}

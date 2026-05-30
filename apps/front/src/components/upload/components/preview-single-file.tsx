@@ -1,9 +1,9 @@
-import Box from '@mui/material/Box';
 import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
 import { styled } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 
 import { Iconify } from '../../iconify/iconify';
+import { Image } from '../../image/image';
 import { uploadClasses } from '../classes';
 import type { SingleFilePreviewProps } from '../types';
 
@@ -26,7 +26,12 @@ export const SingleFilePreview = ({
 			sx={sx}
 			{...other}
 		>
-			<Box component="img" alt={fileName} src={previewUrl} />
+			<Image
+				alt={fileName}
+				src={previewUrl}
+				ratio="4/3"
+				sx={{ width: 1, height: 1, borderRadius: 1 }}
+			/>
 		</PreviewRoot>
 	);
 };
@@ -41,10 +46,9 @@ const PreviewRoot = styled('div')(({ theme }) => {
 		height: '100%',
 		position: 'absolute',
 		padding: theme.spacing(1),
-		'& > img': {
+		'& > span': {
 			width: '100%',
 			height: '100%',
-			objectFit: 'cover',
 			borderRadius: theme.shape.borderRadius,
 		},
 	};
