@@ -12,6 +12,7 @@ import { useCallback, useState } from 'react';
 
 import { CustomPopover } from '#app/components/custom-popover/custom-popover.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
+import { Image } from '#app/components/image/image.tsx';
 import { Label } from '#app/components/label/label.tsx';
 import { Scrollbar } from '#app/components/scrollbar/scrollbar.tsx';
 
@@ -84,10 +85,10 @@ export const WorkspacesPopover = ({
 				]}
 				{...other}
 			>
-				<Box
-					component="img"
+				<Image
 					alt={workspace?.name}
 					src={workspace?.logo}
+					ratio="1/1"
 					sx={{ width: 24, height: 24, borderRadius: '50%' }}
 				/>
 
