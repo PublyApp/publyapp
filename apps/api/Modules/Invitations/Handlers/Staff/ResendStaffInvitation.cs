@@ -16,7 +16,7 @@ public sealed class ResendStaffInvitation {
 		AppNotFoundHttpResult
 	>> Handle(
 		[FromRoute] string invitationId,
-		[FromServices] IInvitationService invitationService,
+		[FromServices] IInvitationQueryService invitationQueryService,
 		[FromServices] IEmailService emailService,
 		CancellationToken cancellationToken = default
 	) {
@@ -27,7 +27,7 @@ public sealed class ResendStaffInvitation {
 			);
 		}
 
-		var invitation = await invitationService.GetStaffInvitationByIdAsync(
+		var invitation = await invitationQueryService.GetStaffInvitationByIdAsync(
 			invitationIdGuid,
 			cancellationToken
 		);

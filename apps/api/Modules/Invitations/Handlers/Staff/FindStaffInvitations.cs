@@ -87,7 +87,7 @@ public class FindStaffInvitationsQueryValidator : CursorPaginatedQueryValidator<
 public sealed class FindStaffInvitations {
 	public static async Task<Results<Ok<FindStaffInvitationsResult>, AppBadRequestHttpResult>> Handle(
 		[AsParameters] FindStaffInvitationsQuery findStaffInvitationsQuery,
-		[FromServices] IInvitationService invitationService,
+		[FromServices] IInvitationQueryService invitationQueryService,
 		CancellationToken cancellationToken = default
 	) {
 		var cursor = findStaffInvitationsQuery.GetCursor();
@@ -112,7 +112,7 @@ public sealed class FindStaffInvitations {
 			Statuses = statuses,
 		};
 
-		var serviceResult = await invitationService.FindStaffInvitationsAsync(
+		var serviceResult = await invitationQueryService.FindStaffInvitationsAsync(
 			args,
 			cancellationToken
 		);

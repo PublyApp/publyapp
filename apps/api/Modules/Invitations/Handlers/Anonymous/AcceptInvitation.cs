@@ -66,6 +66,7 @@ public sealed class AcceptInvitation {
 		[FromRoute] string token,
 		[FromBody] AcceptInvitationBody body,
 		HttpContext httpContext,
+		[FromServices] IInvitationQueryService invitationQueryService,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] ISessionService sessionService,
 		[FromServices] IAuditLogService auditLogService,
@@ -75,7 +76,7 @@ public sealed class AcceptInvitation {
 		var useExistingAccount = body.UseExistingAccount.GetValueAsBoolean();
 
 		// Validate invitation
-		var invitation = await invitationService.GetInvitationByTokenAsync(
+		var invitation = await invitationQueryService.GetInvitationByTokenAsync(
 			token,
 			cancellationToken
 		);
