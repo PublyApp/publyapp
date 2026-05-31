@@ -40,7 +40,7 @@ public sealed class ReactivateTenantUserAsStaff {
 	>> Handle(
 		[FromRoute] string tenantId,
 		[FromRoute] string userId,
-		[FromServices] IUserService userService,
+		[FromServices] ITenantUserMembershipService tenantUserMembershipService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
 		CancellationToken cancellationToken = default
@@ -61,7 +61,7 @@ public sealed class ReactivateTenantUserAsStaff {
 			);
 		}
 
-		var result = await userService.ReactivateTenantUserAsync(
+		var result = await tenantUserMembershipService.ReactivateTenantUserAsync(
 			tenantIdGuid,
 			userIdGuid,
 			cancellationToken
