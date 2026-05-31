@@ -22,6 +22,7 @@ public sealed class BulkReactivateTenantUserCompaniesForStaff {
 		[FromRoute] string userId,
 		[FromBody] TenantUserCompanyIdsForStaffBody body,
 		[FromServices] IUserService userService,
+		[FromServices] IUserQueryService userQueryService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
 		CancellationToken cancellationToken = default
@@ -33,7 +34,7 @@ public sealed class BulkReactivateTenantUserCompaniesForStaff {
 			);
 		}
 
-		var tenantUser = await userService.GetTenantUserDetailsForStaffAsync(
+		var tenantUser = await userQueryService.GetTenantUserDetailsForStaffAsync(
 			userIdGuid,
 			cancellationToken
 		);

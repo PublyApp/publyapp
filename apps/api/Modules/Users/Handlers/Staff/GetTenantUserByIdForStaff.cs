@@ -47,7 +47,7 @@ public sealed class GetTenantUserByIdForStaff {
 		AppNotFoundHttpResult
 	>> Handle(
 		[FromRoute] string userId,
-		[FromServices] IUserService userService,
+		[FromServices] IUserQueryService userService,
 		[FromServices] ILogger<GetTenantUserByIdForStaff> logger,
 		CancellationToken cancellationToken = default
 	) {
