@@ -176,11 +176,16 @@ public sealed class UpdateTenantUserAsStaff {
 			);
 		}
 
+		var firstName = body.GetFirstName();
+		var lastName = body.GetLastName();
+		var avatarUrl = body.GetAvatarUrl();
+		var level = body.GetLevel();
+
 		// Check if there's anything to update
-		if (!body.GetFirstName().IsPresent
-			&& !body.GetLastName().IsPresent
-			&& !body.GetAvatarUrl().IsPresent
-			&& body.GetLevel() is null) {
+		if (!firstName.IsPresent
+			&& !lastName.IsPresent
+			&& !avatarUrl.IsPresent
+			&& level is null) {
 			return TypedProblems.BadRequest(
 				"No fields to update",
 				ResponseKeys.BadRequest
@@ -188,10 +193,10 @@ public sealed class UpdateTenantUserAsStaff {
 		}
 
 		var updateDocument = new UpdateTenantUserDocument {
-			FirstName = body.GetFirstName(),
-			LastName = body.GetLastName(),
-			AvatarUrl = body.GetAvatarUrl(),
-			Level = body.GetLevel(),
+			FirstName = firstName,
+			LastName = lastName,
+			AvatarUrl = avatarUrl,
+			Level = level,
 		};
 
 		var result = await userService.UpdateTenantUserAsync(
@@ -229,10 +234,10 @@ public sealed class UpdateTenantUserAsStaff {
 						TenantUserId = userIdGuid,
 						UpdatedByUserId = account.UserId,
 						UpdatedFields = new {
-							FirstName = body.GetFirstName().IsPresent,
-							LastName = body.GetLastName().IsPresent,
-							AvatarUrl = body.GetAvatarUrl().IsPresent,
-							Level = body.GetLevel() is not null,
+							FirstName = firstName.IsPresent,
+							LastName = lastName.IsPresent,
+							AvatarUrl = avatarUrl.IsPresent,
+							Level = level is not null,
 						}
 					}
 				),
