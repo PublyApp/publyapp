@@ -35,7 +35,7 @@ namespace PublyApp.Api.Lib.Architecture;
 ///   contract/validator types,
 ///   <c>GetStaffUserProfiles.cs</c> with item/result/handler), and a few file names
 ///   match none of their declared classes by design (<c>PassWordLogin.cs</c> to
-///   <c>PasswordLogin</c>, <c>FindStaffUser.cs</c> to <c>FindStaffUsers</c>). A robust
+///   <c>PasswordLogin</c>). A robust
 ///   one-class-per-file rule would need a large, brittle allowlist; it belongs in
 ///   the #350 Roslyn track where the syntax tree can identify the primary
 ///   declaration directly. The repo-root locator was achievable, but the rule itself
