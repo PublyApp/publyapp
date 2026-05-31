@@ -14,7 +14,8 @@ using UserServices = PublyApp.Api.Modules.Users.Services;
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 /// <summary>
-/// Result for suspending a tenant user.
+/// HTTP wire result for the suspend tenant-user operation; top-level sibling per the
+/// handler file contract, with no Dto suffix on wire types.
 /// </summary>
 public record SuspendTenantUserResult {
 	public Guid Id { get; set; }
