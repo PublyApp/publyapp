@@ -41,7 +41,7 @@ public sealed class FindTenantProfilesAsStaff {
 			AppBadRequestHttpResult
 		>
 	> Handle(
-		[FromServices] ITenantProfileAsStaffService tenantProfileService,
+		[FromServices] ITenantProfileQueryAsStaffService tenantProfileService,
 		[AsParameters] FindTenantProfilesAsStaffQuery findTenantProfilesAsStaffQuery,
 		[FromRoute] string tenantId,
 		CancellationToken cancellationToken
