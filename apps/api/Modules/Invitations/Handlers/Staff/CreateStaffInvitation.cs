@@ -60,13 +60,13 @@ public sealed class CreateStaffInvitation {
 		AppBadRequestHttpResult,
 		AppForbiddenHttpResult
 	>> Handle(
+		[FromBody] CreateStaffInvitationBody body,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IAccountService accountService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILogger<CreateStaffInvitation> logger,
-		[FromBody] CreateStaffInvitationBody body,
 		CancellationToken cancellationToken = default
 	) {
 		// IMPOSSIBLE STATE: Staff endpoint without staff account
