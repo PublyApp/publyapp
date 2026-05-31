@@ -129,6 +129,13 @@ dotnet_diagnostic.CA1711.severity = none       # Identifiers should not have inc
 dotnet_diagnostic.CA1848.severity = none       # Use the LoggerMessage delegates
 dotnet_diagnostic.CS1591.severity = none       # Missing XML comment for publicly visible type or member
 
+# CA1716: 'Lib' namespace segment collides with VB/F# reserved word. PublyApp
+# is an internal SaaS — no VB/F# consumers exist or are planned, so the
+# analyzer's cross-language concern does not apply. Renaming 50+ sites
+# right after the MainApi → PublyApp.Api rename (#456) is not worth the
+# churn. Revisit only if a VB/F# package ever consumes PublyApp.Api directly.
+dotnet_diagnostic.CA1716.severity = none
+
 # ==== Per-file overrides ====
 
 # EF Core Migrations - auto-generated code
