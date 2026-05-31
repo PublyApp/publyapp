@@ -3,8 +3,6 @@ using System.Text.RegularExpressions;
 
 using FluentAssertions;
 
-using PublyApp.Api.Lib.Testing.Helpers;
-
 using Xunit;
 
 namespace PublyApp.Api.Lib.Architecture;
@@ -35,7 +33,7 @@ public sealed class RouteConstraintGuardSpec {
 
 	[Fact]
 	public void ItShouldRejectRouteConstraintsInRoutePathConstants() {
-		var offenders = ArchitectureDiscoveryHelper
+		var offenders = ArchitectureDiscovery
 			.EnumerateRouteConstants()
 			.Where(constant =>
 				RouteConstraintPattern.IsMatch(constant.Value))
@@ -57,7 +55,7 @@ public sealed class RouteConstraintGuardSpec {
 		// Sanity check: the guard above is only meaningful if discovery actually
 		// finds route constants. A silent zero-count would make the constraint
 		// guard vacuously pass.
-		ArchitectureDiscoveryHelper
+		ArchitectureDiscovery
 			.EnumerateRouteConstants()
 			.Should()
 			.NotBeEmpty(

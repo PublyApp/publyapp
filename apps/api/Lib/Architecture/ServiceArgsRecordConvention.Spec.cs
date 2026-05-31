@@ -3,7 +3,6 @@ using System.Reflection;
 
 using FluentAssertions;
 
-using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Impersonations.Services;
 using PublyApp.Api.Modules.Invitations.Services;
@@ -19,7 +18,7 @@ namespace PublyApp.Api.Lib.Architecture;
 /// (excluding <see cref="CancellationToken"/>) MUST collapse them into a single
 /// <c>{Action}{Domain}Args</c> record. This keeps service signatures stable as they
 /// grow and avoids long positional parameter lists. The guard discovers service
-/// interfaces via <see cref="ArchitectureDiscoveryHelper"/> and reports the concrete
+/// interfaces via <see cref="ArchitectureDiscovery"/> and reports the concrete
 /// <c>IService.Method (N params)</c> offender, replacing the original issue-specific
 /// hardcoded list. A small explicit allowlist baselines the legitimate pre-existing
 /// exceptions (baseline-then-ratchet); new violations fail the build.
@@ -191,8 +190,8 @@ public sealed class ServiceArgsRecordConventionSpec {
 	// also pick up private/explicit-interface members that are not part of the
 	// public contract callers depend on.
 	private static IReadOnlyList<Type> EnumerateServiceInterfaces() {
-		return ArchitectureDiscoveryHelper
-			.EnumerateServiceTypes()
+		return ArchitectureDiscovery
+			.EnumerateDomainServices()
 			.Where(type => type.IsInterface)
 			.ToList();
 	}
