@@ -6,8 +6,9 @@ using FluentValidation;
 namespace PublyApp.Api.Lib.Architecture;
 
 /// <summary>
-/// Shared reflection discovery for architecture specs. Keep exclusions centralized
-/// here so guards scan authored API code consistently.
+/// Centralizes discovery and exclusion logic so new architecture specs call this
+/// helper instead of reimplementing assembly enumeration.
+/// Every new architecture spec must call this helper for type enumeration.
 /// </summary>
 public static class ArchitectureDiscovery {
 	private const string HandlerNamespaceFragment = ".Handlers.";
@@ -23,11 +24,12 @@ public static class ArchitectureDiscovery {
 	];
 
 	/// <summary>
-	/// Returns non-generated types from the API runtime assembly. Excludes
-	/// Microsoft/System namespaces, EF migrations, generated OpenAPI/build output,
-	/// anonymous types, and compiler-generated types. Why: architecture guards must
-	/// fault only authored API code, never framework or generated artifacts.
+	/// Returns non-generated types from the API runtime assembly.
 	/// </summary>
+	/// <remarks>
+	/// Excludes Microsoft.*, System.*, PublyApp.Api.Migrations.*, generated
+	/// OpenAPI/build output, compiler-generated types, and anonymous types.
+	/// </remarks>
 	public static IReadOnlyList<Type> EnumerateApiTypes() {
 		return LoadApiAssembly()
 			.GetTypes()
@@ -37,11 +39,13 @@ public static class ArchitectureDiscovery {
 	}
 
 	/// <summary>
-	/// Returns handler <c>Handle</c> entrypoint methods from non-generated API
-	/// handler classes. Excludes DTOs, validators, generated artifacts, anonymous
-	/// types, and compiler-generated types. Why: handler-class guards should scan
-	/// real Minimal-API entrypoints only.
+	/// Returns handler <c>Handle</c> entrypoint methods from non-generated API handler classes.
 	/// </summary>
+	/// <remarks>
+	/// Excludes non-handler namespaces, validators, DTO-only types, Microsoft.*,
+	/// System.*, PublyApp.Api.Migrations.*, generated OpenAPI/build output,
+	/// compiler-generated types, and anonymous types.
+	/// </remarks>
 	public static IReadOnlyList<MethodInfo> EnumerateHandlerEntrypoints() {
 		return EnumerateHandlerTypes()
 			.Where(type =>
@@ -61,12 +65,12 @@ public static class ArchitectureDiscovery {
 	}
 
 	/// <summary>
-	/// Returns non-generated domain service types under
-	/// <c>PublyApp.Api.Modules.*.Services</c>. Excludes Microsoft/System types,
-	/// migrations, generated artifacts, anonymous types, and compiler-generated
-	/// types. Why: service convention guards operate on authored module service
-	/// contracts and implementations only.
+	/// Returns non-generated domain service types under <c>PublyApp.Api.Modules.*.Services</c>.
 	/// </summary>
+	/// <remarks>
+	/// Excludes non-service namespaces, Microsoft.*, System.*, PublyApp.Api.Migrations.*,
+	/// generated OpenAPI/build output, compiler-generated types, and anonymous types.
+	/// </remarks>
 	public static IReadOnlyList<Type> EnumerateDomainServices() {
 		return EnumerateApiTypes()
 			.Where(type =>
@@ -79,10 +83,11 @@ public static class ArchitectureDiscovery {
 
 	/// <summary>
 	/// Returns public route constants from the central Routes partial class.
-	/// Excludes generated/build artifacts through the route-carrier discovery.
-	/// Why: route guards need exact constant names/values without re-implementing
-	/// nested route-class traversal.
 	/// </summary>
+	/// <remarks>
+	/// Excludes Microsoft.*, System.*, PublyApp.Api.Migrations.*, generated
+	/// OpenAPI/build output, compiler-generated types, and anonymous types.
+	/// </remarks>
 	public static IReadOnlyList<RouteConstant> EnumerateRouteConstants() {
 		var constants = new List<RouteConstant>();
 
@@ -115,9 +120,13 @@ public static class ArchitectureDiscovery {
 	}
 
 	/// <summary>
-	/// Returns HTTP wire DTO records declared beside handlers. Excludes validators
-	/// and generated code through handler-type discovery.
+	/// Returns HTTP wire DTO records declared beside handlers.
 	/// </summary>
+	/// <remarks>
+	/// Excludes non-handler namespaces, validators, Microsoft.*, System.*,
+	/// PublyApp.Api.Migrations.*, generated OpenAPI/build output, compiler-generated
+	/// types, and anonymous types.
+	/// </remarks>
 	public static IReadOnlyList<Type> EnumerateWireDtoTypes() {
 		return EnumerateHandlerTypes()
 			.Where(type =>
@@ -130,6 +139,11 @@ public static class ArchitectureDiscovery {
 	/// Returns handler entrypoint classes by mapping discovered <c>Handle</c>
 	/// methods back to their declaring types.
 	/// </summary>
+	/// <remarks>
+	/// Excludes non-handler namespaces, validators, DTO-only types, Microsoft.*,
+	/// System.*, PublyApp.Api.Migrations.*, generated OpenAPI/build output,
+	/// compiler-generated types, and anonymous types.
+	/// </remarks>
 	public static IReadOnlyList<Type> EnumerateHandlerEntrypointTypes() {
 		return EnumerateHandlerEntrypoints()
 			.Select(method => method.DeclaringType)
@@ -140,10 +154,12 @@ public static class ArchitectureDiscovery {
 
 	/// <summary>
 	/// Returns handler classes exposing any public static <c>Handle*</c> method.
-	/// Excludes generated code but deliberately includes misnamed entrypoint
-	/// candidates. Why: the naming guard must catch <c>HandleCreate</c> regressions
-	/// that the strict entrypoint enumerator would drop.
 	/// </summary>
+	/// <remarks>
+	/// Excludes non-handler namespaces, validators, Microsoft.*, System.*,
+	/// PublyApp.Api.Migrations.*, generated OpenAPI/build output, compiler-generated
+	/// types, and anonymous types, but includes misnamed <c>Handle*</c> candidates.
+	/// </remarks>
 	public static IReadOnlyList<Type> EnumerateHandlerEntrypointCandidateTypes() {
 		return EnumerateHandlerTypes()
 			.Where(type =>
@@ -156,10 +172,12 @@ public static class ArchitectureDiscovery {
 	}
 
 	/// <summary>
-	/// Returns FluentValidation validators declared in handler namespaces. Excludes
-	/// generated code but not validator names. Why: validator guards need their own
-	/// discovery because normal handler discovery excludes <c>*Validator</c> types.
+	/// Returns FluentValidation validators declared in handler namespaces.
 	/// </summary>
+	/// <remarks>
+	/// Excludes non-handler namespaces, Microsoft.*, System.*, PublyApp.Api.Migrations.*,
+	/// generated OpenAPI/build output, compiler-generated types, and anonymous types.
+	/// </remarks>
 	public static IReadOnlyList<Type> EnumerateValidatorTypes() {
 		return EnumerateApiTypes()
 			.Where(type =>
@@ -180,6 +198,9 @@ public static class ArchitectureDiscovery {
 	/// <c>AbstractValidator&lt;T&gt;</c>, or <c>null</c> when the type is not a
 	/// FluentValidation validator.
 	/// </summary>
+	/// <remarks>
+	/// Applies no discovery exclusions; callers provide a type that was already discovered.
+	/// </remarks>
 	public static Type? GetValidatorTarget(Type type) {
 		var current = type.BaseType;
 		while (current is not null) {
@@ -252,12 +273,14 @@ public static class ArchitectureDiscovery {
 
 		if (type.Namespace == "PublyApp.Api.Migrations"
 			|| type.Namespace.Contains(".Migrations", StringComparison.Ordinal)) {
+			// EF Core migration types are generated; arch invariants do not apply.
 			return false;
 		}
 
 		if (type.Namespace.Contains(".Generated", StringComparison.Ordinal)
 			|| type.FullName.Contains(".Generated", StringComparison.Ordinal)
 			|| type.FullName.Contains("OpenApi", StringComparison.Ordinal)) {
+			// Generated OpenAPI/build output is not subject to authored API conventions.
 			return false;
 		}
 
@@ -265,6 +288,10 @@ public static class ArchitectureDiscovery {
 			|| type.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false)
 			|| type.Name.Contains('<', StringComparison.Ordinal)
 			|| IsAnonymousType(type)) {
+			// Compiler-generated types (state machines, closures) are not subject to
+			// handler/service conventions.
+			// Anonymous types compile to internal sealed classes with non-stable names;
+			// reflecting over them produces noise.
 			return false;
 		}
 
