@@ -256,58 +256,165 @@ See [Handler File Contract](#handler-file-contract) for the full file layout, ty
 
 ## Handler File Contract
 
-Each handler file is a self-contained HTTP operation slice. The `.cs` file — not
-the handler class — is the vertical-slice boundary.
+Each handler file is a self-contained HTTP operation slice. The `.cs` file, not
+the handler class, is the vertical-slice boundary.
 
-**File:** `Modules/<Domain>/Handlers/<Scope>/<Operation>.cs`
+### Handler file structure
 
-**Order of declarations in the file:**
-1. Request/query types (`<Operation>Body`, `<Operation>Query`)
-2. Validators (`<Operation>BodyValidator`, `<Operation>QueryValidator`)
-3. Response/result/item types (`<Operation>Result`, `<Operation>Response`, `<Operation>Item`)
-4. Handler class (`public sealed class <Operation>` with `public static ... Handle`)
-5. Handler-private helpers
+Use one primary HTTP operation per file. The file name matches the primary
+`public sealed class <Operation>`, and the public Minimal API delegate method is
+always named `Handle`, never `HandleCreateX` or another redundant `HandleX`
+name. The class name carries the operation name.
 
-All HTTP wire types and validators are **top-level sibling types** in the handler
-file's namespace — never public nested types inside the handler class. Top-level
-types keep OpenAPI/schema names, test failures, reflection guards, and analyzer
-diagnostics simple and predictable. Private implementation-only helper types MAY
-be nested inside the handler class when they are not HTTP wire contracts and are
-not used by validation, endpoint mapping, tests, OpenAPI, or other handlers.
+Handler-specific HTTP wire contracts stay in the handler file as top-level
+sibling types: `Body`, `Query`, `Result`, `Response`, `Item`, and their
+validators. Do not nest public HTTP wire contracts or validators inside the
+handler class. Do not use a `Dto` suffix for HTTP wire contracts.
+
+Service `Args` records stay in service files because they are service input
+contracts, not HTTP wire contracts. Handler-private helper methods stay inside
+the handler class. Private nested helper types are OK only when they are not
+HTTP wire contracts and are not used by validation, endpoint mapping, tests,
+OpenAPI, or other handlers. Domain/shared validation helpers move outside the
+handler file only when they are genuinely reused.
+
+Multiple public handler classes in one file should be rare and limited to a
+tightly coupled action family, such as
+`TenantUserCompanyActionsForStaff.cs`.
+
+Example from `CreateStaffInvitation.cs`, lightly abbreviated:
+
+```csharp
+public record CreateStaffInvitationBody {
+    public required JsonElement Email { get; init; }
+    public required JsonElement ProfileId { get; init; }
+}
+
+public record InvitationCreated {
+    public required Guid InvitationId { get; init; }
+    public required string Token { get; init; }
+    public required DateTime ExpiresAt { get; init; }
+}
+
+public class CreateStaffInvitationBodyValidator
+    : AbstractValidator<CreateStaffInvitationBody> {
+    public CreateStaffInvitationBodyValidator() {
+        RuleFor(x => x.Email)
+            .MustBeRequiredEmail();
+    }
+}
+
+public sealed class CreateStaffInvitation {
+    public static async Task<Results<
+        Created<InvitationCreated>,
+        AppBadRequestHttpResult,
+        AppForbiddenHttpResult
+    >> Handle(
+        [FromServices] IRequestAuthContext authContext,
+        [FromServices] IInvitationService invitationService,
+        [FromBody] CreateStaffInvitationBody body,
+        CancellationToken cancellationToken = default
+    ) {
+        var account = authContext.AccountStaff;
+        if (account is null) {
+            throw new InvalidOperationException(
+                "Staff account not found in auth context. "
+                + "Ensure the endpoint has .WithPermission() middleware."
+            );
+        }
+
+        var email = body.Email.GetValueAsString();
+        var profileId = Guid.Parse(body.ProfileId.GetValueAsString());
+        var createArgs = new CreateStaffInvitationArgs(
+            Email: email,
+            ProfileIds: [profileId],
+            InvitedByUserId: account.UserId
+        );
+        var (invitation, token) = await invitationService.CreateStaffInvitationAsync(
+            createArgs,
+            cancellationToken
+        );
+
+        return TypedResults.Created((string?)null, new InvitationCreated {
+            InvitationId = invitation.GetRequiredId(),
+            Token = token,
+            ExpiresAt = invitation.ExpiresAt
+        });
+    }
+}
+```
+
+`UpdateTenantAsStaff.cs` shows the same boundary for route parsing and service
+result mapping: the handler parses `tenantId` with `Guid.TryParse`, returns
+`TypedProblems.BadRequest` for malformed IDs, builds an
+`UpdateTenantAsStaffArgs`, delegates persistence to `ITenantAsStaffService`,
+and maps `UpdateTenantResult` cases to `TypedProblems.*` or `TypedResults.Ok`.
+
+```csharp
+if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
+    return TypedProblems.BadRequest(
+        "Invalid tenant ID",
+        ResponseKeys.MalformedId
+    );
+}
+
+var args = new UpdateTenantAsStaffArgs(
+    Name: body.GetName(),
+    LogoUrl: body.GetLogoUrl(),
+    MaxUsers: body.GetMaxUsers()
+);
+
+var result = await tenantService.UpdateTenantAsync(
+    tenantIdGuid, args, cancellationToken
+);
+
+if (result is UpdateTenantResult.NotFound) {
+    return TypedProblems.NotFound(
+        "Tenant not found",
+        ResponseKeys.TenantNotFound
+    );
+}
+```
+
+### Handler responsibility boundary
+
+Handlers MAY:
+
+- Parse route IDs and return `TypedProblems.BadRequest` for malformed IDs.
+- Read validated `Body`/`Query` getter values.
+- Guard impossible auth-context states from missing endpoint middleware.
+- Orchestrate one or more service calls.
+- Map service result unions to `TypedResults.*` or `TypedProblems.*`.
+- Orchestrate audit logging or infrastructure side effects when part of the
+  HTTP workflow.
+
+Handlers MUST NOT:
+
+- Inject or use `PublyApp.Api...DbContext` directly.
+- Own database query composition.
+- Implement transaction boundaries.
+- Contain reusable domain/business logic that belongs in services.
+- Return non-RFC-7807 error helpers such as `TypedResults.Forbid()`.
 
 ### Type placement
 
-Keep in the handler file (specific to this operation): `<Operation>Body`,
-`<Operation>Query`, `<Operation>BodyValidator`, `<Operation>QueryValidator`,
-`<Operation>Result`, `<Operation>Response`, `<Operation>Item`.
+| Belongs in the handler file | Belongs outside the handler file |
+|---|---|
+| `<Operation>Body` | Service `Args` records in service file |
+| `<Operation>Query` | EF entities in entity file |
+| `<Operation>BodyValidator` | Permission definitions in `Permissions` folder |
+| `<Operation>QueryValidator` | Infrastructure contracts in `Infrastructure` folder |
+| `<Operation>Result` | Domain/shared validation helpers when genuinely reused across handlers |
+| `<Operation>Response` |  |
+| `<Operation>Item` |  |
 
-Move a type OUT of the handler file only when:
-- it is shared by multiple handlers in the domain and has a stable local API;
-- it is a validation rule shared across handlers (→ domain validation helper);
-- it is a service contract (`{Action}{Domain}Args` → service file);
-- it is an EF entity, value object, permission definition, or infrastructure contract.
-
-Prefer duplicating tiny HTTP wire types over sharing prematurely across unrelated
-handlers. Do not use a `Dto` suffix — use `Body`, `Query`, `Result`, `Response`,
-or `Item`.
-
-### Responsibility boundary
-
-Handlers MAY: parse route IDs (return `TypedProblems.BadRequest` for malformed
-IDs), read validated `Body`/`Query` getter values, guard impossible auth-context
-states, orchestrate service calls, map service result unions to `TypedResults.*`
-/ `TypedProblems.*`, and orchestrate audit logging or infrastructure side effects
-that are part of the HTTP workflow.
-
-Handlers MUST NOT: inject or use `AppDbContext`, own database query
-composition, implement transaction boundaries, contain reusable domain/business
-logic (that belongs in services), or return non-RFC-7807 helpers such as
-`TypedResults.Forbid()`.
+*Prefer duplicating tiny HTTP wire types over sharing prematurely across
+unrelated handlers.*
 
 ### Suggested parameter order
 
 ```csharp
-Handle(
+public static async Task<...> Handle(
     [FromRoute] string id,
     [AsParameters] SomeQuery query,
     [FromBody] SomeBody body,
@@ -317,7 +424,8 @@ Handle(
 )
 ```
 
-Omit any group that does not apply. Keep `CancellationToken` last.
+Omit unused groups; always keep `CancellationToken cancellationToken = default`
+last.
 
 ## DTO and Request/Response Patterns
 
