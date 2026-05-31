@@ -36,7 +36,7 @@ public class FindStaffProfilesQueryValidator : CursorPaginatedQueryValidator<Fin
 public sealed class FindStaffProfiles {
 	public static async Task<Results<Ok<FindStaffProfilesResult>, AppBadRequestHttpResult>> Handle(
 		[AsParameters] FindStaffProfilesQuery findStaffProfilesQuery,
-		[FromServices] IStaffProfileAsStaffService profileAsStaffService,
+		[FromServices] IStaffProfileQueryAsStaffService profileQueryAsStaffService,
 		CancellationToken cancellationToken
 	) {
 		var cursor = findStaffProfilesQuery.GetCursor();
@@ -61,7 +61,7 @@ public sealed class FindStaffProfiles {
 			Search: findStaffProfilesQuery.GetSearchNormalized()
 		);
 
-		var serviceResult = await profileAsStaffService.FindStaffProfilesAsync(
+		var serviceResult = await profileQueryAsStaffService.FindStaffProfilesAsync(
 			args,
 			cancellationToken: cancellationToken
 		);

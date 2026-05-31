@@ -19,7 +19,7 @@ public sealed class GetStaffProfileById {
 			AppBadRequestHttpResult
 		>
 	> Handle(
-		[FromServices] IStaffProfileAsStaffService profileAsStaffService,
+		[FromServices] IStaffProfileQueryAsStaffService profileQueryAsStaffService,
 		[FromRoute] string profileId,
 		CancellationToken cancellationToken
 	) {
@@ -31,7 +31,7 @@ public sealed class GetStaffProfileById {
 		}
 
 		var serviceResult =
-			await profileAsStaffService.GetStaffProfileByIdAsync(
+			await profileQueryAsStaffService.GetStaffProfileByIdAsync(
 				profileId: profileIdGuid,
 				cancellationToken: cancellationToken
 			);
