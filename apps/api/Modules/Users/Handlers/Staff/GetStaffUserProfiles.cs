@@ -28,7 +28,7 @@ public sealed class GetStaffUserProfiles {
 		>
 	> Handle(
 		[FromRoute] string userId,
-		[FromServices] IUserService userService,
+		[FromServices] IStaffUserProfileAssignmentService userService,
 		ILogger<GetStaffUserProfiles> logger,
 		CancellationToken cancellationToken
 	) {
