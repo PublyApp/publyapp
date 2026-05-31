@@ -34,9 +34,21 @@ public class FindStaffPermissionsQuery {
 public class FindStaffPermissionsQueryValidator : AbstractValidator<FindStaffPermissionsQuery> {
 	public FindStaffPermissionsQueryValidator() {
 		RuleFor(x => x.Language)
-			.Must(l => SupportedLanguage.All.Contains(l, StringComparer.OrdinalIgnoreCase))
-			.WithMessage("Language must be one of the following: " + string.Join(", ", SupportedLanguage.All))
-			.When(x => !string.IsNullOrEmpty(x.Language));
+			.Must(BeSupportedLanguage)
+			.WithMessage(
+				"Language must be one of the following: "
+				+ string.Join(", ", SupportedLanguage.All)
+			)
+			.When(HasLanguage);
+	}
+
+	private static bool BeSupportedLanguage(string? language) {
+		return SupportedLanguage.All
+			.Contains(language, StringComparer.OrdinalIgnoreCase);
+	}
+
+	private static bool HasLanguage(FindStaffPermissionsQuery query) {
+		return !string.IsNullOrEmpty(query.Language);
 	}
 }
 
