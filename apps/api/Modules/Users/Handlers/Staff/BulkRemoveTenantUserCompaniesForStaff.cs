@@ -58,7 +58,7 @@ public sealed class BulkRemoveTenantUserCompaniesForStaff {
 	>> Handle(
 		[FromRoute] string userId,
 		[FromBody] TenantUserCompanyIdsForStaffBody body,
-		[FromServices] ITenantUserMembershipService tenantUserMembershipService,
+		[FromServices] ITenantUserCompanyMembershipService tenantUserCompanyMembershipService,
 		[FromServices] ITenantUserCompanyQueryService companyQueryService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
@@ -83,7 +83,7 @@ public sealed class BulkRemoveTenantUserCompaniesForStaff {
 		}
 
 		var tenantIds = body.GetTenantIds();
-		var result = await tenantUserMembershipService.BulkRemoveTenantUserCompaniesForStaffAsync(
+		var result = await tenantUserCompanyMembershipService.BulkRemoveTenantUserCompaniesForStaffAsync(
 			new TenantUserCompanyIdsArgs(
 				UserId: userIdGuid,
 				TenantIds: tenantIds

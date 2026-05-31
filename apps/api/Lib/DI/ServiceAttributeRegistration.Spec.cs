@@ -53,6 +53,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(ITenantService), typeof(TenantService)),
 		(typeof(ITenantUserIdentityService), typeof(TenantUserIdentityService)),
 		(typeof(ITenantUserMembershipService), typeof(TenantUserMembershipService)),
+		(typeof(ITenantUserCompanyMembershipService), typeof(TenantUserCompanyMembershipService)),
 		(typeof(ITenantUserCompanyQueryService), typeof(TenantUserCompanyQueryService)),
 		(typeof(ITenantUserQueryService), typeof(TenantUserQueryService)),
 		(typeof(IUserService), typeof(UserService))
