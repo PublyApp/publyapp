@@ -46,7 +46,7 @@ public sealed class UpdateStaffUserEmail {
 	> Handle(
 		[FromRoute] string userId,
 		[FromBody] UpdateStaffUserEmailBody body,
-		[FromServices] IUserService userService,
+		[FromServices] IStaffUserCoreService staffUserCoreService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
 		CancellationToken cancellationToken
@@ -63,7 +63,7 @@ public sealed class UpdateStaffUserEmail {
 		}
 
 		var email = body.GetEmail();
-		var result = await userService.UpdateStaffUserEmailAsync(
+		var result = await staffUserCoreService.UpdateStaffUserEmailAsync(
 			userIdGuid,
 			email,
 			cancellationToken

@@ -119,7 +119,7 @@ public sealed class UpdateStaffUser {
 	> Handle(
 		[FromRoute] string userId,
 		[FromBody] UpdateStaffUserBody body,
-		[FromServices] IUserService UserService,
+		[FromServices] IStaffUserCoreService staffUserCoreService,
 		ILogger<UpdateStaffUser> logger,
 		CancellationToken cancellationToken
 	) {
@@ -156,7 +156,7 @@ public sealed class UpdateStaffUser {
 		};
 
 		var result =
-			await UserService.UpdateStaffUserByIdAsync(
+			await staffUserCoreService.UpdateStaffUserByIdAsync(
 				userIdGuid,
 				updateUserDocument,
 				cancellationToken

@@ -4,9 +4,11 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -63,6 +65,44 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			AppProblemDetails? problem = await response.Content
 				.ReadFromJsonAsync<AppProblemDetails>();
 			_ = problem.Should().NotBeNull();
+		}
+
+		[Fact]
+		public async Task
+		ItShouldReturnNotFoundAndNotMutateTenantOnlyUser() {
+			string token =
+				await _authClient.LoginAsStaffAdminAsync();
+			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
+				_http,
+				token,
+				SeedConstants.Tenants.AcmeName
+			);
+			Guid userId = await CreateTenantOnlyUserAsync(tenantId);
+
+			string url = GetUrl(userId.ToString());
+			HttpRequestMessage request = new HttpRequestMessage(
+				HttpMethod.Patch, url
+			).WithSessionToken(token);
+
+			request.Content = JsonContent.Create(
+				new { firstName = "ShouldNotPersist" }
+			);
+
+			using HttpResponseMessage response =
+				await _http.SendAsync(request);
+
+			_ = response.StatusCode.Should()
+				.Be(HttpStatusCode.NotFound);
+
+			await using AsyncServiceScope scope =
+				_fixture.Factory.Services.CreateAsyncScope();
+			AppDbContext dbContext = scope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+			User user = await dbContext.User
+				.AsNoTracking()
+				.FirstAsync(u => u.Id == userId);
+
+			user.FirstName.Should().Be("TenantOnlyBefore");
 		}
 
 		[Fact]
@@ -320,6 +360,39 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			_ = await dbContext.SaveChangesAsync();
 
 			return await _authClient.LoginAsync(email, TestConstants.SeedPassword);
+		}
+
+		private async Task<Guid> CreateTenantOnlyUserAsync(Guid tenantId) {
+			string email = $"tenant-only-{Guid.NewGuid():N}@example.com";
+
+			await using AsyncServiceScope scope =
+				_fixture.Factory.Services.CreateAsyncScope();
+			AppDbContext dbContext = scope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+
+			User user = new User {
+				Email = email,
+				Password = PasswordUtils.HashPassword(TestConstants.SeedPassword),
+				FirstName = "TenantOnlyBefore",
+				LastName = "User",
+				IsVerified = true,
+				Status = UserStatus.Active,
+			};
+
+			_ = dbContext.User.Add(user);
+			_ = await dbContext.SaveChangesAsync();
+
+			Guid userId = user.GetRequiredId();
+			UserAccount tenantAccount = UserAccount.CreateTenantAccount(
+				userId,
+				tenantId,
+				AccountLevel.User
+			);
+			tenantAccount.ValidateAccountType();
+			_ = dbContext.UserAccount.Add(tenantAccount);
+			_ = await dbContext.SaveChangesAsync();
+
+			return userId;
 		}
 	}
 }
