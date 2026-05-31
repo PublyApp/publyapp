@@ -51,143 +51,172 @@ public class CreateTenantAsStaffBody {
 	}
 }
 
+/// <summary>
+/// Keeps staff tenant creation input checks centralized at the request boundary while preserving
+/// JsonElement request semantics. Follows the JsonElementRules.* convention in
+/// docs/guides/validator-conventions.md.
+/// </summary>
 public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAsStaffBody> {
 	public CreateTenantAsStaffBodyValidator() {
 		RuleFor(x => x.Name)
 			.MustBeRequiredString("Name")
-			.Must(e => {
-				if (e.ValueKind != JsonValueKind.String) {
-					return true;
-				}
-				var str = e.GetString();
-				return str is not null
-					&& str.Length >= 5;
-			})
+			.Must(HaveMinimumNameLength)
 			.WithMessage(
 				"Name must be at least"
 				+ " 5 characters long"
 			);
 
+		// Inline rule: no JsonElementRules.* equivalent for nullable positive JsonElement numbers.
+		//   See docs/guides/validator-conventions.md; extract if this shape repeats.
 		RuleFor(x => x.MaxUsers)
-			.Must(m => m.ValueKind is JsonValueKind.Number
-				or JsonValueKind.Null
-				or JsonValueKind.Undefined)
+			.Must(BeNumberNullOrUndefined)
 			.WithMessage("MaxUsers must be a number, null, or undefined")
-			.DependentRules(() => {
-				RuleFor(x => x.MaxUsers)
-					.Must(m => {
-						if (m.ValueKind != JsonValueKind.Number) {
-							return true;
-						}
+			.Must(BeGreaterThanZeroWhenProvided)
+			.WithMessage("MaxUsers must be greater than 0 when provided");
 
-						return m.TryGetInt32(out var value) && value > 0;
-					})
-					.WithMessage("MaxUsers must be greater than 0 when provided");
-			});
-
+		// Inline rule: no JsonElementRules.* equivalent for cross-item array/object invariants.
+		//   See docs/guides/validator-conventions.md; extract if this shape repeats.
 		RuleFor(x => x.InitialUsers)
 			.NotEmpty().WithMessage("InitialUsers is required")
-			.Custom((element, context) => {
-				if (element.ValueKind != JsonValueKind.Array) {
-					context.AddFailure("InitialUsers must be an array");
-					return;
-				}
+			.Custom(ValidateInitialUsers);
+	}
 
-				var array = element.EnumerateArray().ToList();
+	private static bool HaveMinimumNameLength(JsonElement element) {
+		if (element.ValueKind != JsonValueKind.String) {
+			return true;
+		}
 
-				if (array.Count == 0) {
-					context.AddFailure("At least one initial user is required");
-					return;
-				}
+		var value = element.GetString();
+		return value is not null
+			&& value.Length >= 5;
+	}
 
-				var body = context.InstanceToValidate;
-				// Invalid numeric tokens are reported by the MaxUsers rule above; avoid
-				// throwing here while validating the independent InitialUsers rule.
-				var maxUsers = AppEnvironment.Instance.DEFAULT_MAX_USERS_PER_TENANT;
-				if (
-					body?.MaxUsers.ValueKind == JsonValueKind.Number &&
-					body.MaxUsers.TryGetInt32(out var parsedMaxUsers)
-				) {
-					maxUsers = parsedMaxUsers;
-				}
+	private static bool BeNumberNullOrUndefined(JsonElement element) {
+		return element.ValueKind is JsonValueKind.Number
+			or JsonValueKind.Null
+			or JsonValueKind.Undefined;
+	}
 
-				if (array.Count > maxUsers) {
+	private static bool BeGreaterThanZeroWhenProvided(JsonElement element) {
+		if (element.ValueKind != JsonValueKind.Number) {
+			return true;
+		}
+
+		return element.TryGetInt32(out var value) && value > 0;
+	}
+
+	private static void ValidateInitialUsers(
+		JsonElement element,
+		ValidationContext<CreateTenantAsStaffBody> context
+	) {
+		if (element.ValueKind != JsonValueKind.Array) {
+			context.AddFailure("InitialUsers must be an array");
+			return;
+		}
+
+		var array = element.EnumerateArray().ToList();
+
+		if (array.Count == 0) {
+			context.AddFailure("At least one initial user is required");
+			return;
+		}
+
+		var body = context.InstanceToValidate;
+		// Invalid numeric tokens are reported by the MaxUsers rule above; avoid
+		// throwing here while validating the independent InitialUsers rule.
+		var maxUsers = AppEnvironment.Instance.DEFAULT_MAX_USERS_PER_TENANT;
+		if (
+			body?.MaxUsers.ValueKind == JsonValueKind.Number &&
+			body.MaxUsers.TryGetInt32(out var parsedMaxUsers)
+		) {
+			maxUsers = parsedMaxUsers;
+		}
+
+		if (array.Count > maxUsers) {
+			context.AddFailure(
+				$"InitialUsers count ({array.Count}) cannot exceed MaxUsers ({maxUsers})"
+			);
+			return;
+		}
+
+		var emailOccurrences = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
+		var hasAdmin = false;
+
+		for (var i = 0; i < array.Count; i++) {
+			var item = array[i];
+
+			if (item.ValueKind != JsonValueKind.Object) {
+				context.AddFailure($"initialUsers[{i}]", "Must be an object");
+				continue;
+			}
+
+			if (!item.TryGetProperty("email", out var emailElement)) {
+				context.AddFailure($"initialUsers[{i}].email", "Email is required");
+			} else if (emailElement.ValueKind != JsonValueKind.String) {
+				context.AddFailure($"initialUsers[{i}].email", "Must be a string");
+			} else {
+				ValidateInitialUserEmail(context, emailOccurrences, i, emailElement);
+			}
+
+			if (!item.TryGetProperty("accountLevel", out var levelElement)) {
+				context.AddFailure($"initialUsers[{i}].accountLevel", "AccountLevel is required");
+			} else if (levelElement.ValueKind != JsonValueKind.String) {
+				context.AddFailure($"initialUsers[{i}].accountLevel", "Must be a string");
+			} else {
+				var level = levelElement.GetString();
+				if (string.IsNullOrWhiteSpace(level)) {
 					context.AddFailure(
-						$"InitialUsers count ({array.Count}) cannot exceed MaxUsers ({maxUsers})"
+						$"initialUsers[{i}].accountLevel",
+						"AccountLevel is required"
 					);
-					return;
-				}
-
-				var emailOccurrences = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
-				var hasAdmin = false;
-
-				for (var i = 0; i < array.Count; i++) {
-					var item = array[i];
-
-					if (item.ValueKind != JsonValueKind.Object) {
-						context.AddFailure($"initialUsers[{i}]", "Must be an object");
-						continue;
-					}
-
-					if (!item.TryGetProperty("email", out var emailElement)) {
-						context.AddFailure($"initialUsers[{i}].email", "Email is required");
-					} else if (emailElement.ValueKind != JsonValueKind.String) {
-						context.AddFailure($"initialUsers[{i}].email", "Must be a string");
-					} else {
-						var email = emailElement.GetString();
-						if (string.IsNullOrWhiteSpace(email)) {
-							context.AddFailure($"initialUsers[{i}].email", "Email is required");
-						} else if (!IsValidEmail(email)) {
-							context.AddFailure($"initialUsers[{i}].email", "Invalid email format");
-						} else {
-							if (!emailOccurrences.TryGetValue(email, out var indices)) {
-								indices = [];
-								emailOccurrences[email] = indices;
-							}
-							indices.Add(i);
-						}
-					}
-
-					if (!item.TryGetProperty("accountLevel", out var levelElement)) {
-						context.AddFailure($"initialUsers[{i}].accountLevel", "AccountLevel is required");
-					} else if (levelElement.ValueKind != JsonValueKind.String) {
-						context.AddFailure($"initialUsers[{i}].accountLevel", "Must be a string");
-					} else {
-						var level = levelElement.GetString();
-						if (string.IsNullOrWhiteSpace(level)) {
-							context.AddFailure(
-								$"initialUsers[{i}].accountLevel",
-								"AccountLevel is required"
-							);
-						} else {
-							var parsedLevel = UserAccount.ParseLevel(level);
-							if (parsedLevel is null) {
-								context.AddFailure(
-									$"initialUsers[{i}].accountLevel",
-									"AccountLevel must be 'admin' or 'user'"
-								);
-							} else if (parsedLevel is AccountLevel.Admin) {
-								hasAdmin = true;
-							}
-						}
+				} else {
+					var parsedLevel = UserAccount.ParseLevel(level);
+					if (parsedLevel is null) {
+						context.AddFailure(
+							$"initialUsers[{i}].accountLevel",
+							"AccountLevel must be 'admin' or 'user'"
+						);
+					} else if (parsedLevel is AccountLevel.Admin) {
+						hasAdmin = true;
 					}
 				}
+			}
+		}
 
-				var duplicates = emailOccurrences
-					.Where(kvp => kvp.Value.Count > 1)
-					.Select(kvp => kvp.Key)
-					.ToList();
-				if (duplicates.Count > 0) {
-					context.AddFailure("InitialUsers", $"Duplicate emails: {string.Join(", ", duplicates)}");
-				}
+		var duplicates = emailOccurrences
+			.Where(kvp => kvp.Value.Count > 1)
+			.Select(kvp => kvp.Key)
+			.ToList();
+		if (duplicates.Count > 0) {
+			context.AddFailure("InitialUsers", $"Duplicate emails: {string.Join(", ", duplicates)}");
+		}
 
-				if (!hasAdmin) {
-					context.AddFailure(
-						"InitialUsers",
-						"At least one user with accountLevel 'admin' is required"
-					);
-				}
-			});
+		if (!hasAdmin) {
+			context.AddFailure(
+				"InitialUsers",
+				"At least one user with accountLevel 'admin' is required"
+			);
+		}
+	}
+
+	private static void ValidateInitialUserEmail(
+		ValidationContext<CreateTenantAsStaffBody> context,
+		Dictionary<string, List<int>> emailOccurrences,
+		int index,
+		JsonElement emailElement
+	) {
+		var email = emailElement.GetString();
+		if (string.IsNullOrWhiteSpace(email)) {
+			context.AddFailure($"initialUsers[{index}].email", "Email is required");
+		} else if (!IsValidEmail(email)) {
+			context.AddFailure($"initialUsers[{index}].email", "Invalid email format");
+		} else {
+			if (!emailOccurrences.TryGetValue(email, out var indices)) {
+				indices = [];
+				emailOccurrences[email] = indices;
+			}
+			indices.Add(index);
+		}
 	}
 
 	private static bool IsValidEmail(string email) {
