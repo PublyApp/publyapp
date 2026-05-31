@@ -48,7 +48,7 @@ public sealed class BulkDeleteStaffProfiles {
 	public static async Task<Ok<BulkProfileActionResult>>
 		Handle(
 		[FromBody] BulkDeleteStaffProfilesBody body,
-		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[FromServices] IStaffProfileAsStaffService profileAsStaffService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] ILogger<BulkDeleteStaffProfiles> logger,

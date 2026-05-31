@@ -18,20 +18,6 @@ public class StaffProfileItem {
 	public int UserAccountCount { get; set; }
 }
 
-// Represents per-item failures for bulk operations where some rows can succeed and
-// some fail independently.
-public sealed record BulkProfileActionFailedItem(
-	Guid ProfileId,
-	string Error
-);
-
-// Normalized aggregate result returned from bulk delete operations.
-public sealed record BulkProfileActionResult(
-	int SucceededCount,
-	int FailedCount,
-	List<BulkProfileActionFailedItem> FailedItems
-);
-
 public abstract record FindStaffProfilesResult {
 	/// <summary>
 	/// Successful result containing the paginated staff profiles.
@@ -158,7 +144,7 @@ public abstract record CreateStaffProfileResult {
 	public sealed record NoPermissionsProvided : CreateStaffProfileResult;
 }
 
-public interface IProfileAsStaffService {
+public interface IStaffProfileAsStaffService {
 	Task<FindStaffProfilesResult> FindStaffProfilesAsync(
 		FindStaffProfilesArgs args,
 		CancellationToken cancellationToken = default
@@ -201,12 +187,12 @@ public interface IProfileAsStaffService {
 }
 
 [Service(ServiceLifetime.Scoped)]
-public class ProfileAsStaffService : IProfileAsStaffService {
+public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 	private readonly AppDbContext _dbContext;
-	private readonly ILogger<ProfileAsStaffService> _logger;
-	public ProfileAsStaffService(
+	private readonly ILogger<StaffProfileAsStaffService> _logger;
+	public StaffProfileAsStaffService(
 		AppDbContext dbContext,
-		ILogger<ProfileAsStaffService> logger
+		ILogger<StaffProfileAsStaffService> logger
 	) {
 		_dbContext = dbContext;
 		_logger = logger;
