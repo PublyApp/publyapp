@@ -555,7 +555,7 @@ public sealed class BulkDeleteTenantProfilesAsStaffSpec
 	private async Task<Guid> GetDefaultTenantProfileIdAsync(Guid tenantId) {
 		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 		var profileService =
-			scope.ServiceProvider.GetRequiredService<IProfileAsStaffService>();
+			scope.ServiceProvider.GetRequiredService<ITenantProfileAsStaffService>();
 		var profile = await profileService.GetOrCreateDefaultTenantProfileAsync(tenantId);
 
 		profile.Should().NotBeNull("the seeded tenant should have a default profile");

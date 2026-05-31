@@ -17,7 +17,7 @@ public sealed class FindTenantProfilePermissionsAsStaff {
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
 	>> Handle(
-		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[FromServices] ITenantProfileAsStaffService tenantProfileService,
 		[FromRoute] string tenantId,
 		[FromRoute] string profileId,
 		CancellationToken cancellationToken
@@ -36,7 +36,7 @@ public sealed class FindTenantProfilePermissionsAsStaff {
 			);
 		}
 
-		var result = await profileAsStaffService
+		var result = await tenantProfileService
 			.FindTenantProfilePermissionKeysAsync(
 				new FindTenantProfilePermissionKeysArgs(
 					TenantId: tenantIdGuid,

@@ -20,7 +20,7 @@ public sealed class AssignTenantProfilePermissionAsStaff {
 		[FromRoute] string profileId,
 		[FromRoute] string permissionKey,
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[FromServices] ITenantProfileAsStaffService tenantProfileService,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken
 	) {
@@ -46,7 +46,7 @@ public sealed class AssignTenantProfilePermissionAsStaff {
 		}
 
 		var normalizedPermissionKey = permissionKey.Trim();
-		var result = await profileAsStaffService.SetTenantProfilePermissionAsync(
+		var result = await tenantProfileService.SetTenantProfilePermissionAsync(
 			new SetTenantProfilePermissionArgs(
 				TenantId: tenantIdGuid,
 				ProfileId: profileIdGuid,

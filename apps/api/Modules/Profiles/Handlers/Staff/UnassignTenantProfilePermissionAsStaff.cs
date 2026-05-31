@@ -17,7 +17,7 @@ public sealed class UnassignTenantProfilePermissionAsStaff {
 		AppNotFoundHttpResult
 	>> Handle(
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[FromServices] ITenantProfileAsStaffService tenantProfileService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromRoute] string tenantId,
 		[FromRoute] string profileId,
@@ -46,7 +46,7 @@ public sealed class UnassignTenantProfilePermissionAsStaff {
 		}
 
 		var normalizedPermissionKey = permissionKey.Trim();
-		var result = await profileAsStaffService.SetTenantProfilePermissionAsync(
+		var result = await tenantProfileService.SetTenantProfilePermissionAsync(
 			new SetTenantProfilePermissionArgs(
 				TenantId: tenantIdGuid,
 				ProfileId: profileIdGuid,

@@ -45,6 +45,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(IPermissionService), typeof(PermissionService)),
 		(typeof(IProfileAsStaffService), typeof(ProfileAsStaffService)),
 		(typeof(IProfileService), typeof(ProfileService)),
+		(typeof(ITenantProfileAsStaffService), typeof(TenantProfileAsStaffService)),
 		(typeof(IProjectService), typeof(ProjectService)),
 		(typeof(ISessionService), typeof(SessionService)),
 		(typeof(IStaffUserCoreService), typeof(StaffUserCoreService)),
