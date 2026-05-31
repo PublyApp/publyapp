@@ -31,8 +31,14 @@ public class FindStaffPermissionsQuery {
 	}
 }
 
+/// <summary>
+/// Keeps staff permission localization queries constrained to supported languages at the request
+/// boundary. Follows the JsonElementRules.* convention in docs/guides/validator-conventions.md.
+/// </summary>
 public class FindStaffPermissionsQueryValidator : AbstractValidator<FindStaffPermissionsQuery> {
 	public FindStaffPermissionsQueryValidator() {
+		// Inline rule: no JsonElementRules.* equivalent for query-string language allowlists.
+		//   See docs/guides/validator-conventions.md; extract if this shape repeats.
 		RuleFor(x => x.Language)
 			.Must(BeSupportedLanguage)
 			.WithMessage(

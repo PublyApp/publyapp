@@ -51,6 +51,11 @@ public class CreateTenantAsStaffBody {
 	}
 }
 
+/// <summary>
+/// Keeps staff tenant creation input checks centralized at the request boundary while preserving
+/// JsonElement request semantics. Follows the JsonElementRules.* convention in
+/// docs/guides/validator-conventions.md.
+/// </summary>
 public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAsStaffBody> {
 	public CreateTenantAsStaffBodyValidator() {
 		RuleFor(x => x.Name)
@@ -61,12 +66,16 @@ public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAs
 				+ " 5 characters long"
 			);
 
+		// Inline rule: no JsonElementRules.* equivalent for nullable positive JsonElement numbers.
+		//   See docs/guides/validator-conventions.md; extract if this shape repeats.
 		RuleFor(x => x.MaxUsers)
 			.Must(BeNumberNullOrUndefined)
 			.WithMessage("MaxUsers must be a number, null, or undefined")
 			.Must(BeGreaterThanZeroWhenProvided)
 			.WithMessage("MaxUsers must be greater than 0 when provided");
 
+		// Inline rule: no JsonElementRules.* equivalent for cross-item array/object invariants.
+		//   See docs/guides/validator-conventions.md; extract if this shape repeats.
 		RuleFor(x => x.InitialUsers)
 			.NotEmpty().WithMessage("InitialUsers is required")
 			.Custom(ValidateInitialUsers);
