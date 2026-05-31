@@ -29,7 +29,7 @@ public sealed class GetStaffUserById {
 		>
 	> Handle(
 		[FromRoute] string userId,
-		[FromServices] IUserQueryService UserService,
+		[FromServices] IStaffUserQueryService UserService,
 		ILogger<GetStaffUserById> logger,
 		CancellationToken cancellationToken
 	) {

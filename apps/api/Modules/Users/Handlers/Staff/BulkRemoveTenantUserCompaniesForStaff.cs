@@ -59,7 +59,7 @@ public sealed class BulkRemoveTenantUserCompaniesForStaff {
 		[FromRoute] string userId,
 		[FromBody] TenantUserCompanyIdsForStaffBody body,
 		[FromServices] ITenantUserMembershipService tenantUserMembershipService,
-		[FromServices] IUserQueryService userQueryService,
+		[FromServices] ITenantUserQueryService userQueryService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
 		CancellationToken cancellationToken = default
