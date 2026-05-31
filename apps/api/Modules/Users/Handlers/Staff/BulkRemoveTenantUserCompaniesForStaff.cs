@@ -47,6 +47,9 @@ public sealed class TenantUserCompanyIdsForStaffBodyValidator
 	}
 }
 
+/// <summary>
+/// Removes one or more company memberships from a tenant user as a staff admin.
+/// </summary>
 public sealed class BulkRemoveTenantUserCompaniesForStaff {
 	public static async Task<Results<
 		Ok<TenantUserCompanyBulkActionResult>,

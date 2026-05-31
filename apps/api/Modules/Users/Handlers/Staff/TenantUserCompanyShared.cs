@@ -4,6 +4,11 @@ using PublyApp.Api.Modules.Users.Services;
 
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
+/// <summary>
+/// Shared audit-log and guard helpers for all four bulk-action handlers in this
+/// action family; internal because it is scoped here, not a domain service.
+/// Extracted in #538 C when the original single-file action family split into four files.
+/// </summary>
 internal static class TenantUserCompanyShared {
 	public static async Task LogBulkActionAsync(
 		IAuditLogService auditLogService,
@@ -22,6 +27,7 @@ internal static class TenantUserCompanyShared {
 			);
 		}
 
+		// Audit logs deduplicate requested tenant IDs to align counts with bulk-result accounting.
 		var requestedTenantIds = tenantIds.Distinct().ToList();
 		await auditLogService.LogAsync(
 			new CreateAuditLogArgs(

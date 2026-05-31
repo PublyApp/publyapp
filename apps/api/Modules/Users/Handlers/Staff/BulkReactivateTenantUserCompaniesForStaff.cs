@@ -10,6 +10,9 @@ using PublyApp.Api.Modules.Users.Services;
 
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
+/// <summary>
+/// Reactivates one or more suspended company memberships for a tenant user as a staff admin.
+/// </summary>
 public sealed class BulkReactivateTenantUserCompaniesForStaff {
 	public static async Task<Results<
 		Ok<TenantUserCompanyBulkActionResult>,

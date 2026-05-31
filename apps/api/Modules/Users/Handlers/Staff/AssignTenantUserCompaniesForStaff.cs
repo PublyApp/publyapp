@@ -54,6 +54,9 @@ public sealed class AssignTenantUserCompaniesForStaffBodyValidator
 	}
 }
 
+/// <summary>
+/// Assigns one or more company memberships to a tenant user as a staff admin.
+/// </summary>
 public sealed class AssignTenantUserCompaniesForStaff {
 	public static async Task<Results<
 		Ok<TenantUserCompanyBulkActionResult>,
