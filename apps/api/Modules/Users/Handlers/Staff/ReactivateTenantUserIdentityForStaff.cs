@@ -18,7 +18,7 @@ public sealed class ReactivateTenantUserIdentityForStaff {
 		AppConflictHttpResult
 	>> Handle(
 		[FromRoute] string userId,
-		[FromServices] IUserService userService,
+		[FromServices] ITenantUserIdentityService tenantUserIdentityService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
 		CancellationToken cancellationToken = default
@@ -32,7 +32,7 @@ public sealed class ReactivateTenantUserIdentityForStaff {
 
 		// Reactivation clears the global User suspension only. Tenant-level
 		// memberships that were separately suspended remain suspended.
-		var result = await userService.ReactivateTenantUserIdentityForStaffAsync(
+		var result = await tenantUserIdentityService.ReactivateTenantUserIdentityForStaffAsync(
 			userIdGuid,
 			cancellationToken
 		);

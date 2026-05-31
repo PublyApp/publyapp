@@ -18,7 +18,7 @@ public sealed class SuspendTenantUserIdentityForStaff {
 		AppConflictHttpResult
 	>> Handle(
 		[FromRoute] string userId,
-		[FromServices] IUserService userService,
+		[FromServices] ITenantUserIdentityService tenantUserIdentityService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
 		CancellationToken cancellationToken = default
@@ -32,7 +32,7 @@ public sealed class SuspendTenantUserIdentityForStaff {
 
 		// This is a global User status change, not a per-tenant membership
 		// suspension. The service enforces last-admin protection across tenants.
-		var result = await userService.SuspendTenantUserIdentityForStaffAsync(
+		var result = await tenantUserIdentityService.SuspendTenantUserIdentityForStaffAsync(
 			userIdGuid,
 			cancellationToken
 		);

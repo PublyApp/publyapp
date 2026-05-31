@@ -1004,41 +1004,11 @@ public class UserQueryService : IUserQueryService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
-		// Treat tenant user details as a shared identity page. Live company
-		// memberships are counted separately so unlinking the last company does
-		// not imply the User record was deleted.
-		var user = await (
-			from u in _dbContext.User.AsNoTracking()
-			where u.Id == userId
-				&& !u.IsDeleted
-				&& (
-					from ua in _dbContext.UserAccount.AsNoTracking()
-					where ua.UserId == u.Id
-						&& ua.Scope == AccountScope.Tenant
-					select ua
-				).Any()
-			select u
-		).FirstOrDefaultAsync(cancellationToken);
-
-		if (user is null) {
-			return null;
-		}
-
-		var companyCount = await (
-			from ua in _dbContext.UserAccount.AsNoTracking()
-			join tenant in _dbContext.Tenant.AsNoTracking()
-				on ua.TenantId equals tenant.Id
-			where ua.UserId == userId
-				&& ua.Scope == AccountScope.Tenant
-				&& !ua.IsDeleted
-				&& !tenant.IsDeleted
-			select ua
-		).CountAsync(cancellationToken);
-
-		return new TenantUserDetailsData {
-			User = user,
-			CompanyCount = companyCount,
-		};
+		return await TenantUserDetailsQueries.GetForStaffAsync(
+			_dbContext,
+			userId,
+			cancellationToken
+		);
 	}
 
 	public async Task<FindTenantUserCompaniesResult>
