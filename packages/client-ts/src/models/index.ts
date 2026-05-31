@@ -1258,11 +1258,11 @@ export function createProfileItemFromDiscriminatorValue(parseNode: ParseNode | u
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {ReactivateTenantUserResultDto}
+ * @returns {ReactivateTenantUserResult}
  */
 // @ts-ignore
-export function createReactivateTenantUserResultDtoFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoReactivateTenantUserResultDto;
+export function createReactivateTenantUserResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoReactivateTenantUserResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1460,11 +1460,11 @@ export function createSuspendTenantAsStaffBodyFromDiscriminatorValue(parseNode: 
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {SuspendTenantUserResultDto}
+ * @returns {SuspendTenantUserResult}
  */
 // @ts-ignore
-export function createSuspendTenantUserResultDtoFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoSuspendTenantUserResultDto;
+export function createSuspendTenantUserResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSuspendTenantUserResult;
 }
 export interface CreateSystemNoticeBody extends AdditionalDataHolder, Parsable {
     /**
@@ -3091,20 +3091,20 @@ export function deserializeIntoProfileItem(profileItem: Partial<ProfileItem> | u
 }
 /**
  * The deserialization information for the current model
- * @param ReactivateTenantUserResultDto The instance to deserialize into.
+ * @param ReactivateTenantUserResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoReactivateTenantUserResultDto(reactivateTenantUserResultDto: Partial<ReactivateTenantUserResultDto> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+export function deserializeIntoReactivateTenantUserResult(reactivateTenantUserResult: Partial<ReactivateTenantUserResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "avatarUrl": n => { reactivateTenantUserResultDto.avatarUrl = n.getStringValue(); },
-        "email": n => { reactivateTenantUserResultDto.email = n.getStringValue(); },
-        "firstName": n => { reactivateTenantUserResultDto.firstName = n.getStringValue(); },
-        "id": n => { reactivateTenantUserResultDto.id = n.getGuidValue(); },
-        "lastName": n => { reactivateTenantUserResultDto.lastName = n.getStringValue(); },
-        "level": n => { reactivateTenantUserResultDto.level = n.getStringValue(); },
-        "status": n => { reactivateTenantUserResultDto.status = n.getStringValue(); },
-        "tenantId": n => { reactivateTenantUserResultDto.tenantId = n.getGuidValue(); },
+        "avatarUrl": n => { reactivateTenantUserResult.avatarUrl = n.getStringValue(); },
+        "email": n => { reactivateTenantUserResult.email = n.getStringValue(); },
+        "firstName": n => { reactivateTenantUserResult.firstName = n.getStringValue(); },
+        "id": n => { reactivateTenantUserResult.id = n.getGuidValue(); },
+        "lastName": n => { reactivateTenantUserResult.lastName = n.getStringValue(); },
+        "level": n => { reactivateTenantUserResult.level = n.getStringValue(); },
+        "status": n => { reactivateTenantUserResult.status = n.getStringValue(); },
+        "tenantId": n => { reactivateTenantUserResult.tenantId = n.getGuidValue(); },
     }
 }
 /**
@@ -3333,20 +3333,20 @@ export function deserializeIntoSuspendTenantAsStaffBody_reasonMember1(suspendTen
 }
 /**
  * The deserialization information for the current model
- * @param SuspendTenantUserResultDto The instance to deserialize into.
+ * @param SuspendTenantUserResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoSuspendTenantUserResultDto(suspendTenantUserResultDto: Partial<SuspendTenantUserResultDto> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+export function deserializeIntoSuspendTenantUserResult(suspendTenantUserResult: Partial<SuspendTenantUserResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "avatarUrl": n => { suspendTenantUserResultDto.avatarUrl = n.getStringValue(); },
-        "email": n => { suspendTenantUserResultDto.email = n.getStringValue(); },
-        "firstName": n => { suspendTenantUserResultDto.firstName = n.getStringValue(); },
-        "id": n => { suspendTenantUserResultDto.id = n.getGuidValue(); },
-        "lastName": n => { suspendTenantUserResultDto.lastName = n.getStringValue(); },
-        "level": n => { suspendTenantUserResultDto.level = n.getStringValue(); },
-        "status": n => { suspendTenantUserResultDto.status = n.getStringValue(); },
-        "tenantId": n => { suspendTenantUserResultDto.tenantId = n.getGuidValue(); },
+        "avatarUrl": n => { suspendTenantUserResult.avatarUrl = n.getStringValue(); },
+        "email": n => { suspendTenantUserResult.email = n.getStringValue(); },
+        "firstName": n => { suspendTenantUserResult.firstName = n.getStringValue(); },
+        "id": n => { suspendTenantUserResult.id = n.getGuidValue(); },
+        "lastName": n => { suspendTenantUserResult.lastName = n.getStringValue(); },
+        "level": n => { suspendTenantUserResult.level = n.getStringValue(); },
+        "status": n => { suspendTenantUserResult.status = n.getStringValue(); },
+        "tenantId": n => { suspendTenantUserResult.tenantId = n.getGuidValue(); },
     }
 }
 /**
@@ -4463,7 +4463,7 @@ export interface ProfileItem extends AdditionalDataHolder, Parsable {
 /**
  * Result for reactivating a tenant user.
  */
-export interface ReactivateTenantUserResultDto extends AdditionalDataHolder, Parsable {
+export interface ReactivateTenantUserResult extends AdditionalDataHolder, Parsable {
     /**
      * The avatarUrl property
      */
@@ -5760,21 +5760,21 @@ export function serializeProfileItem(writer: SerializationWriter, profileItem: P
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param ReactivateTenantUserResultDto The instance to serialize from.
+ * @param ReactivateTenantUserResult The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeReactivateTenantUserResultDto(writer: SerializationWriter, reactivateTenantUserResultDto: Partial<ReactivateTenantUserResultDto> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!reactivateTenantUserResultDto || isSerializingDerivedType) { return; }
-    writer.writeStringValue("avatarUrl", reactivateTenantUserResultDto.avatarUrl);
-    writer.writeStringValue("email", reactivateTenantUserResultDto.email);
-    writer.writeStringValue("firstName", reactivateTenantUserResultDto.firstName);
-    writer.writeGuidValue("id", reactivateTenantUserResultDto.id);
-    writer.writeStringValue("lastName", reactivateTenantUserResultDto.lastName);
-    writer.writeStringValue("level", reactivateTenantUserResultDto.level);
-    writer.writeStringValue("status", reactivateTenantUserResultDto.status);
-    writer.writeGuidValue("tenantId", reactivateTenantUserResultDto.tenantId);
-    writer.writeAdditionalData(reactivateTenantUserResultDto.additionalData);
+export function serializeReactivateTenantUserResult(writer: SerializationWriter, reactivateTenantUserResult: Partial<ReactivateTenantUserResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!reactivateTenantUserResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("avatarUrl", reactivateTenantUserResult.avatarUrl);
+    writer.writeStringValue("email", reactivateTenantUserResult.email);
+    writer.writeStringValue("firstName", reactivateTenantUserResult.firstName);
+    writer.writeGuidValue("id", reactivateTenantUserResult.id);
+    writer.writeStringValue("lastName", reactivateTenantUserResult.lastName);
+    writer.writeStringValue("level", reactivateTenantUserResult.level);
+    writer.writeStringValue("status", reactivateTenantUserResult.status);
+    writer.writeGuidValue("tenantId", reactivateTenantUserResult.tenantId);
+    writer.writeAdditionalData(reactivateTenantUserResult.additionalData);
 }
 /**
  * Serializes information the current object
@@ -6018,21 +6018,21 @@ export function serializeSuspendTenantAsStaffBody_reasonMember1(writer: Serializ
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param SuspendTenantUserResultDto The instance to serialize from.
+ * @param SuspendTenantUserResult The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeSuspendTenantUserResultDto(writer: SerializationWriter, suspendTenantUserResultDto: Partial<SuspendTenantUserResultDto> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!suspendTenantUserResultDto || isSerializingDerivedType) { return; }
-    writer.writeStringValue("avatarUrl", suspendTenantUserResultDto.avatarUrl);
-    writer.writeStringValue("email", suspendTenantUserResultDto.email);
-    writer.writeStringValue("firstName", suspendTenantUserResultDto.firstName);
-    writer.writeGuidValue("id", suspendTenantUserResultDto.id);
-    writer.writeStringValue("lastName", suspendTenantUserResultDto.lastName);
-    writer.writeStringValue("level", suspendTenantUserResultDto.level);
-    writer.writeStringValue("status", suspendTenantUserResultDto.status);
-    writer.writeGuidValue("tenantId", suspendTenantUserResultDto.tenantId);
-    writer.writeAdditionalData(suspendTenantUserResultDto.additionalData);
+export function serializeSuspendTenantUserResult(writer: SerializationWriter, suspendTenantUserResult: Partial<SuspendTenantUserResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!suspendTenantUserResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("avatarUrl", suspendTenantUserResult.avatarUrl);
+    writer.writeStringValue("email", suspendTenantUserResult.email);
+    writer.writeStringValue("firstName", suspendTenantUserResult.firstName);
+    writer.writeGuidValue("id", suspendTenantUserResult.id);
+    writer.writeStringValue("lastName", suspendTenantUserResult.lastName);
+    writer.writeStringValue("level", suspendTenantUserResult.level);
+    writer.writeStringValue("status", suspendTenantUserResult.status);
+    writer.writeGuidValue("tenantId", suspendTenantUserResult.tenantId);
+    writer.writeAdditionalData(suspendTenantUserResult.additionalData);
 }
 /**
  * Serializes information the current object
@@ -6878,7 +6878,7 @@ export interface SuspendTenantAsStaffBody_reasonMember1 extends AdditionalDataHo
 /**
  * Result for suspending a tenant user.
  */
-export interface SuspendTenantUserResultDto extends AdditionalDataHolder, Parsable {
+export interface SuspendTenantUserResult extends AdditionalDataHolder, Parsable {
     /**
      * The avatarUrl property
      */

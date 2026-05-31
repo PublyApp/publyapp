@@ -61,7 +61,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 
 			// Assert
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
-			ReactivateTenantUserResultDto? result = await response.Content.ReadFromJsonAsync<ReactivateTenantUserResultDto>();
+			ReactivateTenantUserResult? result = await response.Content.ReadFromJsonAsync<ReactivateTenantUserResult>();
 			_ = result.Should().NotBeNull();
 			Assert.NotNull(result);
 			_ = result.Status.Should().Be("Active");
