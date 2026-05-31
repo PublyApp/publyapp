@@ -59,7 +59,7 @@ public sealed class BulkRemoveTenantUserCompaniesForStaff {
 		[FromRoute] string userId,
 		[FromBody] TenantUserCompanyIdsForStaffBody body,
 		[FromServices] ITenantUserMembershipService tenantUserMembershipService,
-		[FromServices] ITenantUserQueryService userQueryService,
+		[FromServices] ITenantUserCompanyQueryService companyQueryService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
 		CancellationToken cancellationToken = default
@@ -71,11 +71,11 @@ public sealed class BulkRemoveTenantUserCompaniesForStaff {
 			);
 		}
 
-		var tenantUser = await userQueryService.GetTenantUserDetailsForStaffAsync(
+		var tenantUserExists = await companyQueryService.TenantUserExistsForCompanyActionsForStaffAsync(
 			userIdGuid,
 			cancellationToken
 		);
-		if (tenantUser is null) {
+		if (!tenantUserExists) {
 			return TypedProblems.NotFound(
 				"Tenant user not found",
 				ResponseKeys.NotFound
