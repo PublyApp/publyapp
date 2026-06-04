@@ -4,6 +4,7 @@ using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
 
+using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Modules.Auth.Handlers;
 
 using Xunit;
@@ -20,12 +21,28 @@ public sealed class ArchitectureDiscoverySpec {
 	}
 
 	[Fact]
+	public void ItShouldIncludeAuthoredOpenApiExtensionTypes() {
+		ArchitectureDiscovery
+			.EnumerateApiTypes()
+			.Should()
+			.Contain(typeof(OpenApiExtensions));
+	}
+
+	[Fact]
 	public void ItShouldExcludeEfMigrationTypes() {
 		ArchitectureDiscovery
 			.EnumerateApiTypes()
 			.Should()
 			.NotContain(type =>
 				type.Namespace == "PublyApp.Api.Migrations");
+	}
+
+	[Fact]
+	public void ItShouldExcludeEfMigrationImplementationTypes() {
+		ArchitectureDiscovery
+			.EnumerateApiTypes()
+			.Should()
+			.NotContain(typeof(PublyApp.Api.Migrations.Init));
 	}
 
 	[Fact]

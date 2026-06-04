@@ -100,7 +100,6 @@ public sealed class OpenApiContractSpec {
 	}
 
 	private static async Task<JsonDocument> ReadOpenApiDocumentAsync() {
-		_ = ArchitectureDiscovery.EnumerateApiTypes();
 		return await OpenApiDocumentHelper.ReadAsync();
 	}
 }

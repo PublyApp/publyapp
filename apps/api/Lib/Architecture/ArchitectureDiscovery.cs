@@ -14,6 +14,8 @@ public static class ArchitectureDiscovery {
 	private const string HandlerNamespaceFragment = ".Handlers.";
 	private const string ServiceNamespaceFragment = ".Services";
 	private const string RoutesRootFullName = "PublyApp.Api.Lib.Routes.Routes";
+	private const string EfMigrationsNamespacePrefix = "PublyApp.Api.Migrations";
+	private const string GeneratedNamespaceSegment = ".Generated.";
 
 	private static readonly string[] WireDtoSuffixes = [
 		"Body",
@@ -27,8 +29,8 @@ public static class ArchitectureDiscovery {
 	/// Returns non-generated types from the API runtime assembly.
 	/// </summary>
 	/// <remarks>
-	/// Excludes Microsoft.*, System.*, PublyApp.Api.Migrations.*, generated
-	/// OpenAPI/build output, compiler-generated types, and anonymous types.
+	/// Excludes Microsoft.*, System.*, PublyApp.Api.Migrations.*, generated build output,
+	/// compiler-generated types, and anonymous types.
 	/// </remarks>
 	public static IReadOnlyList<Type> EnumerateApiTypes() {
 		return LoadApiAssembly()
@@ -43,7 +45,7 @@ public static class ArchitectureDiscovery {
 	/// </summary>
 	/// <remarks>
 	/// Excludes non-handler namespaces, validators, DTO-only types, Microsoft.*,
-	/// System.*, PublyApp.Api.Migrations.*, generated OpenAPI/build output,
+	/// System.*, PublyApp.Api.Migrations.*, generated build output,
 	/// compiler-generated types, and anonymous types.
 	/// </remarks>
 	public static IReadOnlyList<MethodInfo> EnumerateHandlerEntrypoints() {
@@ -69,7 +71,7 @@ public static class ArchitectureDiscovery {
 	/// </summary>
 	/// <remarks>
 	/// Excludes non-service namespaces, Microsoft.*, System.*, PublyApp.Api.Migrations.*,
-	/// generated OpenAPI/build output, compiler-generated types, and anonymous types.
+	/// generated build output, compiler-generated types, and anonymous types.
 	/// </remarks>
 	public static IReadOnlyList<Type> EnumerateDomainServices() {
 		return EnumerateApiTypes()
@@ -85,8 +87,8 @@ public static class ArchitectureDiscovery {
 	/// Returns public route constants from the central Routes partial class.
 	/// </summary>
 	/// <remarks>
-	/// Excludes Microsoft.*, System.*, PublyApp.Api.Migrations.*, generated
-	/// OpenAPI/build output, compiler-generated types, and anonymous types.
+	/// Excludes Microsoft.*, System.*, PublyApp.Api.Migrations.*, generated build output,
+	/// compiler-generated types, and anonymous types.
 	/// </remarks>
 	public static IReadOnlyList<RouteConstant> EnumerateRouteConstants() {
 		var constants = new List<RouteConstant>();
@@ -124,7 +126,7 @@ public static class ArchitectureDiscovery {
 	/// </summary>
 	/// <remarks>
 	/// Excludes non-handler namespaces, validators, Microsoft.*, System.*,
-	/// PublyApp.Api.Migrations.*, generated OpenAPI/build output, compiler-generated
+	/// PublyApp.Api.Migrations.*, generated build output, compiler-generated
 	/// types, and anonymous types.
 	/// </remarks>
 	public static IReadOnlyList<Type> EnumerateWireDtoTypes() {
@@ -141,7 +143,7 @@ public static class ArchitectureDiscovery {
 	/// </summary>
 	/// <remarks>
 	/// Excludes non-handler namespaces, validators, DTO-only types, Microsoft.*,
-	/// System.*, PublyApp.Api.Migrations.*, generated OpenAPI/build output,
+	/// System.*, PublyApp.Api.Migrations.*, generated build output,
 	/// compiler-generated types, and anonymous types.
 	/// </remarks>
 	public static IReadOnlyList<Type> EnumerateHandlerEntrypointTypes() {
@@ -157,7 +159,7 @@ public static class ArchitectureDiscovery {
 	/// </summary>
 	/// <remarks>
 	/// Excludes non-handler namespaces, validators, Microsoft.*, System.*,
-	/// PublyApp.Api.Migrations.*, generated OpenAPI/build output, compiler-generated
+	/// PublyApp.Api.Migrations.*, generated build output, compiler-generated
 	/// types, and anonymous types, but includes misnamed <c>Handle*</c> candidates.
 	/// </remarks>
 	public static IReadOnlyList<Type> EnumerateHandlerEntrypointCandidateTypes() {
@@ -176,7 +178,7 @@ public static class ArchitectureDiscovery {
 	/// </summary>
 	/// <remarks>
 	/// Excludes non-handler namespaces, Microsoft.*, System.*, PublyApp.Api.Migrations.*,
-	/// generated OpenAPI/build output, compiler-generated types, and anonymous types.
+	/// generated build output, compiler-generated types, and anonymous types.
 	/// </remarks>
 	public static IReadOnlyList<Type> EnumerateValidatorTypes() {
 		return EnumerateApiTypes()
@@ -271,16 +273,19 @@ public static class ArchitectureDiscovery {
 			return false;
 		}
 
-		if (type.Namespace == "PublyApp.Api.Migrations"
-			|| type.Namespace.Contains(".Migrations", StringComparison.Ordinal)) {
+		if (type.Namespace.StartsWith(
+			EfMigrationsNamespacePrefix,
+			StringComparison.Ordinal
+		)) {
 			// EF Core migration types are generated; arch invariants do not apply.
 			return false;
 		}
 
-		if (type.Namespace.Contains(".Generated", StringComparison.Ordinal)
-			|| type.FullName.Contains(".Generated", StringComparison.Ordinal)
-			|| type.FullName.Contains("OpenApi", StringComparison.Ordinal)) {
-			// Generated OpenAPI/build output is not subject to authored API conventions.
+		if (type.FullName.Contains(
+			GeneratedNamespaceSegment,
+			StringComparison.Ordinal
+		)) {
+			// Generated build output is not subject to authored API conventions.
 			return false;
 		}
 
