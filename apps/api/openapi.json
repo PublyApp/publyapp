@@ -2555,7 +2555,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuspendTenantUserResultDto"
+                  "$ref": "#/components/schemas/SuspendTenantUserResult"
                 }
               }
             }
@@ -2654,7 +2654,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ReactivateTenantUserResultDto"
+                  "$ref": "#/components/schemas/ReactivateTenantUserResult"
                 }
               }
             }
@@ -8562,10 +8562,10 @@
           },
           "translationKey": {
             "type": "string",
-            "description": "The translation key for frontend localization.\nSerialized as \"translationKey\" in the JSON response."
+            "description": "The translation key for frontend localization.\r\nSerialized as \"translationKey\" in the JSON response."
           }
         },
-        "description": "A ProblemDetails extension that includes a translation key for frontend i18n.\nComplies with RFC 7807 while supporting localization."
+        "description": "A ProblemDetails extension that includes a translation key for frontend i18n.\r\nComplies with RFC 7807 while supporting localization."
       },
       "AssignTenantUserCompaniesForStaffBody": {
         "required": [
@@ -9978,7 +9978,7 @@
           }
         }
       },
-      "ReactivateTenantUserResultDto": {
+      "ReactivateTenantUserResult": {
         "type": "object",
         "properties": {
           "id": {
@@ -10369,7 +10369,7 @@
           }
         }
       },
-      "SuspendTenantUserResultDto": {
+      "SuspendTenantUserResult": {
         "type": "object",
         "properties": {
           "id": {
@@ -11180,14 +11180,14 @@
                 "type": "string"
               }
             },
-            "description": "Dictionary of field names to error messages.\nSerialized as \"errors\" in the JSON response."
+            "description": "Dictionary of field names to error messages.\r\nSerialized as \"errors\" in the JSON response."
           },
           "translationKey": {
             "type": "string",
-            "description": "The translation key for frontend localization.\nSerialized as \"translationKey\" in the JSON response."
+            "description": "The translation key for frontend localization.\r\nSerialized as \"translationKey\" in the JSON response."
           }
         },
-        "description": "A ProblemDetails extension for validation errors.\nIncludes field-level errors in addition to the translation key.\nComplies with RFC 7807 while supporting validation error details."
+        "description": "A ProblemDetails extension for validation errors.\r\nIncludes field-level errors in addition to the translation key.\r\nComplies with RFC 7807 while supporting validation error details."
       },
       "VerifyEmailRequestBody": {
         "required": [
