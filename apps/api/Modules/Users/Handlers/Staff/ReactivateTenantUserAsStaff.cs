@@ -9,12 +9,15 @@ using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Users.Entities;
 using PublyApp.Api.Modules.Users.Services;
 
+using UserServices = PublyApp.Api.Modules.Users.Services;
+
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 /// <summary>
-/// Result for reactivating a tenant user.
+/// HTTP wire result for the reactivate tenant-user operation; top-level sibling per the
+/// handler file contract, with no Dto suffix on wire types.
 /// </summary>
-public record ReactivateTenantUserResultDto {
+public record ReactivateTenantUserResult {
 	public Guid Id { get; set; }
 	public string Email { get; set; } = string.Empty;
 	public string? FirstName { get; set; }
@@ -30,7 +33,7 @@ public record ReactivateTenantUserResultDto {
 /// </summary>
 public sealed class ReactivateTenantUserAsStaff {
 	public static async Task<Results<
-		Ok<ReactivateTenantUserResultDto>,
+		Ok<ReactivateTenantUserResult>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult,
 		AppConflictHttpResult
@@ -64,14 +67,14 @@ public sealed class ReactivateTenantUserAsStaff {
 			cancellationToken
 		);
 
-		if (result is ReactivateTenantUserResult.NotFound) {
+		if (result is UserServices.ReactivateTenantUserResult.NotFound) {
 			return TypedProblems.NotFound(
 				"User not found in tenant",
 				ResponseKeys.NotFound
 			);
 		}
 
-		if (result is ReactivateTenantUserResult.NotSuspended) {
+		if (result is UserServices.ReactivateTenantUserResult.NotSuspended) {
 			return TypedProblems.Conflict(
 				"User is not currently suspended",
 				ResponseKeys.UserNotSuspended
@@ -86,7 +89,7 @@ public sealed class ReactivateTenantUserAsStaff {
 			);
 		}
 
-		if (result is not ReactivateTenantUserResult.Success success) {
+		if (result is not UserServices.ReactivateTenantUserResult.Success success) {
 			throw new InvalidOperationException(
 				$"Unknown reactivate tenant user result: {result.GetType().Name}"
 			);
@@ -110,7 +113,7 @@ public sealed class ReactivateTenantUserAsStaff {
 			cancellationToken
 		);
 
-		return TypedResults.Ok(new ReactivateTenantUserResultDto {
+		return TypedResults.Ok(new ReactivateTenantUserResult {
 			Id = userData.User.GetRequiredId(),
 			Email = userData.User.Email,
 			FirstName = userData.User.FirstName,

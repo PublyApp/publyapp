@@ -9,12 +9,15 @@ using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Users.Entities;
 using PublyApp.Api.Modules.Users.Services;
 
+using UserServices = PublyApp.Api.Modules.Users.Services;
+
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 /// <summary>
-/// Result for suspending a tenant user.
+/// HTTP wire result for the suspend tenant-user operation; top-level sibling per the
+/// handler file contract, with no Dto suffix on wire types.
 /// </summary>
-public record SuspendTenantUserResultDto {
+public record SuspendTenantUserResult {
 	public Guid Id { get; set; }
 	public string Email { get; set; } = string.Empty;
 	public string? FirstName { get; set; }
@@ -30,7 +33,7 @@ public record SuspendTenantUserResultDto {
 /// </summary>
 public sealed class SuspendTenantUserAsStaff {
 	public static async Task<Results<
-		Ok<SuspendTenantUserResultDto>,
+		Ok<SuspendTenantUserResult>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult,
 		AppConflictHttpResult
@@ -64,21 +67,21 @@ public sealed class SuspendTenantUserAsStaff {
 			cancellationToken
 		);
 
-		if (result is SuspendTenantUserResult.NotFound) {
+		if (result is UserServices.SuspendTenantUserResult.NotFound) {
 			return TypedProblems.NotFound(
 				"User not found in tenant",
 				ResponseKeys.NotFound
 			);
 		}
 
-		if (result is SuspendTenantUserResult.AlreadySuspended) {
+		if (result is UserServices.SuspendTenantUserResult.AlreadySuspended) {
 			return TypedProblems.Conflict(
 				"User is already suspended",
 				ResponseKeys.UserSuspended
 			);
 		}
 
-		if (result is SuspendTenantUserResult.CannotSuspendLastAdmin) {
+		if (result is UserServices.SuspendTenantUserResult.CannotSuspendLastAdmin) {
 			return TypedProblems.BadRequest(
 				"Cannot suspend the last admin from the tenant",
 				ResponseKeys.CannotSuspendLastAdmin
@@ -93,7 +96,7 @@ public sealed class SuspendTenantUserAsStaff {
 			);
 		}
 
-		if (result is not SuspendTenantUserResult.Success success) {
+		if (result is not UserServices.SuspendTenantUserResult.Success success) {
 			throw new InvalidOperationException(
 				$"Unknown suspend tenant user result: {result.GetType().Name}"
 			);
@@ -117,7 +120,7 @@ public sealed class SuspendTenantUserAsStaff {
 			cancellationToken
 		);
 
-		return TypedResults.Ok(new SuspendTenantUserResultDto {
+		return TypedResults.Ok(new SuspendTenantUserResult {
 			Id = userData.User.GetRequiredId(),
 			Email = userData.User.Email,
 			FirstName = userData.User.FirstName,
