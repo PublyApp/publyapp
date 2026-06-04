@@ -6,7 +6,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
-using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Auth.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
@@ -67,7 +66,7 @@ namespace PublyApp.Api.Lib.Architecture {
 			// helper so this guard tracks every contract type, not just an
 			// ad-hoc namespace scan. Report the concrete Type.Property pair.
 			IReadOnlyList<Type> dtoTypes =
-				ArchitectureDiscoveryHelper.EnumerateWireDtoTypes();
+				ArchitectureDiscovery.EnumerateWireDtoTypes();
 
 			// Vacuity guard: an empty discovery would make the offender
 			// check pass for the wrong reason.

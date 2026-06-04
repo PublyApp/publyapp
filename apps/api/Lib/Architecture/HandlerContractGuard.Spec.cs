@@ -7,7 +7,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
-using PublyApp.Api.Lib.Testing.Helpers;
 
 using Xunit;
 
@@ -51,8 +50,8 @@ public sealed class HandlerContractGuardSpec {
 		// Vacuity check shared by every handler-class guard below: a silent
 		// zero-count (e.g. a broken namespace filter) would make those guards
 		// pass for the wrong reason.
-		_ = ArchitectureDiscoveryHelper
-			.EnumerateHandlerEntrypointTypes()
+		_ = ArchitectureDiscovery
+			.EnumerateHandlerEntrypoints()
 			.Should()
 			.NotBeEmpty(
 				"handler-entrypoint discovery must find classes exposing a "
@@ -74,7 +73,7 @@ public sealed class HandlerContractGuardSpec {
 	[Fact]
 	public void ItShouldNameHandlerEntrypointsExactlyHandle() {
 		IReadOnlyList<Type> candidates =
-			ArchitectureDiscoveryHelper.EnumerateHandlerEntrypointCandidateTypes();
+			ArchitectureDiscovery.EnumerateHandlerEntrypointCandidateTypes();
 
 		// Vacuity check inside the guard: an empty candidate set (e.g. a broken
 		// namespace filter) would make this guard pass for the wrong reason.
@@ -117,7 +116,7 @@ public sealed class HandlerContractGuardSpec {
 	[Fact]
 	public void ItShouldKeepHandlersFreeOfDbContext() {
 		IReadOnlyList<Type> entrypoints =
-			ArchitectureDiscoveryHelper.EnumerateHandlerEntrypointTypes();
+			ArchitectureDiscovery.EnumerateHandlerEntrypointTypes();
 
 		// Vacuity check inside the guard: an empty entrypoint set would make this
 		// guard pass for the wrong reason.
@@ -148,7 +147,7 @@ public sealed class HandlerContractGuardSpec {
 	[Fact]
 	public void ItShouldKeepContractTypesOutOfHandlerClasses() {
 		IReadOnlyList<Type> entrypoints =
-			ArchitectureDiscoveryHelper.EnumerateHandlerEntrypointTypes();
+			ArchitectureDiscovery.EnumerateHandlerEntrypointTypes();
 
 		// Vacuity check inside the guard: an empty entrypoint set would make this
 		// guard pass for the wrong reason.
@@ -187,7 +186,7 @@ public sealed class HandlerContractGuardSpec {
 	[Fact]
 	public void ItShouldTargetTopLevelBodyOrQueryTypesFromHandlerValidators() {
 		IReadOnlyList<Type> validators =
-			ArchitectureDiscoveryHelper.EnumerateValidatorTypes();
+			ArchitectureDiscovery.EnumerateValidatorTypes();
 
 		// Vacuity check: an empty discovery would make the target check pass
 		// for the wrong reason.
@@ -199,7 +198,7 @@ public sealed class HandlerContractGuardSpec {
 		List<string> offenders = validators
 			.Select(validator => (
 				Validator: validator,
-				Target: ArchitectureDiscoveryHelper.GetValidatorTarget(validator)
+				Target: ArchitectureDiscovery.GetValidatorTarget(validator)
 			))
 			.Where(pair => !IsValidValidatorTarget(pair.Validator, pair.Target))
 			.Select(pair =>
