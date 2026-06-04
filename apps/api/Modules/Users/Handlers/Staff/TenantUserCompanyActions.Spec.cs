@@ -20,13 +20,13 @@ using Xunit;
 
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
-public sealed class TenantUserCompanyActionsForStaffSpec
+public sealed class TenantUserCompanyActionsSpec
 	: IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
-	public TenantUserCompanyActionsForStaffSpec(ApiFixture fixture) {
+	public TenantUserCompanyActionsSpec(ApiFixture fixture) {
 		_fixture = fixture;
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);
