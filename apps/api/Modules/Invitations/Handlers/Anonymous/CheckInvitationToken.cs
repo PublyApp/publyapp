@@ -32,6 +32,7 @@ public sealed class CheckInvitationToken {
 		>
 	> Handle(
 		[AsParameters] CheckInvitationTokenQuery query,
+		[FromServices] IInvitationQueryService invitationQueryService,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] ILogger<CheckInvitationToken> logger,
 		CancellationToken cancellationToken
@@ -51,7 +52,7 @@ public sealed class CheckInvitationToken {
 		}
 
 		// Query invitation by token
-		var invitation = await invitationService.GetInvitationByTokenAsync(token, cancellationToken);
+		var invitation = await invitationQueryService.GetInvitationByTokenAsync(token, cancellationToken);
 
 		if (invitation is null) {
 			return TypedProblems.BadRequest(
