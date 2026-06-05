@@ -24,7 +24,7 @@ public sealed class ReactivateStaffUser {
 		AppConflictHttpResult
 	>> Handle(
 		[FromRoute] string userId,
-		[FromServices] IUserService userService,
+		[FromServices] IStaffUserLifecycleService userService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
 		CancellationToken cancellationToken = default

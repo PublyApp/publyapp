@@ -6,7 +6,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -233,7 +232,7 @@ public sealed class StaffUserLifecycleConcurrencySpec
 	}
 
 	private async Task<TResult> RunWithConcurrentUsersUpdateAsync<TResult>(
-		Func<UserService, Task<TResult>> operationAsync,
+		Func<StaffUserLifecycleService, Task<TResult>> operationAsync,
 		Func<AppDbContext, CancellationToken, Task> mutateAsync
 	) {
 		var connectionString = await GetConnectionStringAsync();
@@ -250,16 +249,15 @@ public sealed class StaffUserLifecycleConcurrencySpec
 			.Options;
 
 		await using var dbContext = new AppDbContext(options);
-		var service = new UserService(
-			dbContext,
-			NullLogger<UserService>.Instance
+		var service = new StaffUserLifecycleService(
+			dbContext
 		);
 
 		return await operationAsync(service);
 	}
 
 	private async Task<TResult> RunAfterSuccessfulUsersUpdateAsync<TResult>(
-		Func<UserService, Task<TResult>> operationAsync,
+		Func<StaffUserLifecycleService, Task<TResult>> operationAsync,
 		Func<AppDbContext, CancellationToken, Task> mutateAsync
 	) {
 		var connectionString = await GetConnectionStringAsync();
@@ -276,9 +274,8 @@ public sealed class StaffUserLifecycleConcurrencySpec
 			.Options;
 
 		await using var dbContext = new AppDbContext(options);
-		var service = new UserService(
-			dbContext,
-			NullLogger<UserService>.Instance
+		var service = new StaffUserLifecycleService(
+			dbContext
 		);
 
 		return await operationAsync(service);

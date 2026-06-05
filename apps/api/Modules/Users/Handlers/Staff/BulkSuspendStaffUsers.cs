@@ -46,7 +46,7 @@ public sealed class BulkSuspendStaffUsers {
 	public static async Task<Ok<BulkStaffUserActionResult>>
 		Handle(
 			[FromBody] BulkSuspendStaffUsersBody body,
-			[FromServices] IUserService userService,
+			[FromServices] IStaffUserLifecycleService userService,
 			[FromServices] IAuditLogService auditLogService,
 			[FromServices] IRequestAuthContext authContext,
 			[FromServices] ILogger<BulkSuspendStaffUsers> logger,

@@ -70,6 +70,18 @@ row identifiers like a standalone `id` column.
 
 **Pure utilities**: Stateless helpers without dependencies → `Lib/`
 
+## Domain Service Split Rules
+
+- Services own database access, business rules, transactions, and concurrency invariants.
+- Handlers orchestrate HTTP concerns only; do not inject or use `AppDbContext` in handlers.
+- Services must not depend on other domain/application services. Inject `AppDbContext` and
+  infrastructure dependencies directly instead.
+- Split services by cohesive business capability, not one service per handler.
+- Good names: `StaffUserLifecycleService`, `StaffUserProfileAssignmentService`,
+  `TenantUserCompanyService`, `InvitationQueryService`.
+- Bad names: `UserHelper`, `UserManager`, `UserService2`, `CommonService`,
+  `SuspendStaffUserService`.
+
 ## Route Scopes (Staff/Tenant/Anonymous)
 
 - Scope is determined by the route group in `apps/api/Program.cs` (e.g. `/staff/*`, `/tenant/*`, `/auth/*`).
