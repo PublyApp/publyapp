@@ -157,12 +157,12 @@ public sealed class ServiceArgsRecordConventionSpec {
 			"FindStaffInvitationsArgs",
 			nameof(CancellationToken)
 		);
-		AssertMethodParameterTypeNames<IInvitationService>(
+		AssertMethodParameterTypeNames<IInvitationAcceptanceService>(
 			"AcceptStaffInvitationAsync",
 			"AcceptStaffInvitationArgs",
 			nameof(CancellationToken)
 		);
-		AssertMethodParameterTypeNames<IInvitationService>(
+		AssertMethodParameterTypeNames<IInvitationAcceptanceService>(
 			"AcceptTenantInvitationAsync",
 			"AcceptTenantInvitationArgs",
 			nameof(CancellationToken)
