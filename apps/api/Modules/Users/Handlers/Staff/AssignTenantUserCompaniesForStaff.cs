@@ -66,7 +66,7 @@ public sealed class AssignTenantUserCompaniesForStaff {
 		[FromRoute] string userId,
 		[FromBody] AssignTenantUserCompaniesForStaffBody body,
 		[FromServices] ITenantUserMembershipService tenantUserMembershipService,
-		[FromServices] IUserQueryService userQueryService,
+		[FromServices] ITenantUserQueryService userQueryService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
 		CancellationToken cancellationToken = default
