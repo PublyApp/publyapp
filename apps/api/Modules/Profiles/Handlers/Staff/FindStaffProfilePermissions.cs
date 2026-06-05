@@ -21,8 +21,8 @@ public sealed class FindStaffProfilePermissions {
 			AppNotFoundHttpResult
 		>
 	> Handle(
-		[FromServices] IStaffProfileQueryAsStaffService profileQueryAsStaffService,
 		[FromRoute] string profileId,
+		[FromServices] IStaffProfileQueryAsStaffService profileQueryAsStaffService,
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(profileId, out var profileIdGuid)) {

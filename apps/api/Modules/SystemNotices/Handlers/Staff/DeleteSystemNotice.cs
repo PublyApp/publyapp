@@ -16,10 +16,10 @@ public sealed class DeleteSystemNotice {
 		AppNotFoundHttpResult,
 		AppBadRequestHttpResult
 	>> Handle(
+		[FromRoute] string noticeId,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] ISystemNoticeService systemNoticeService,
 		[FromServices] IAuditLogService auditLogService,
-		[FromRoute] string noticeId,
 		CancellationToken cancellationToken = default
 	) {
 		var account = authContext.AccountStaff;

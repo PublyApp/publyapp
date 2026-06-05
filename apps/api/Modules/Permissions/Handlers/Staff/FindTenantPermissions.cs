@@ -57,9 +57,9 @@ public sealed class FindTenantPermissions {
 				>,
 				AppBadRequestHttpResult
 			>
-		> Handle(
-		[FromServices] IPermissionAsStaffService permissionAsStaffService,
+	> Handle(
 		[AsParameters] FindTenantPermissionsQuery findTenantPermissionsQuery,
+		[FromServices] IPermissionAsStaffService permissionAsStaffService,
 		CancellationToken cancellationToken
 	) {
 		var language = findTenantPermissionsQuery.GetLanguage();

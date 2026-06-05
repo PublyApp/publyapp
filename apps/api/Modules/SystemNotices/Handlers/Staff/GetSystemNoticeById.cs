@@ -27,8 +27,8 @@ public sealed class GetSystemNoticeById {
 		AppBadRequestHttpResult,
 		AppForbiddenHttpResult
 	>> Handle(
-		[FromServices] ISystemNoticeService systemNoticeService,
 		[FromRoute] string noticeId,
+		[FromServices] ISystemNoticeService systemNoticeService,
 		CancellationToken cancellationToken = default
 	) {
 		if (!Guid.TryParse(noticeId, out var noticeIdGuid)) {

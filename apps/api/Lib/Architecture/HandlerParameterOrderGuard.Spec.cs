@@ -210,12 +210,38 @@ public sealed class HandlerParameterOrderGuardSpec {
 			return 1;
 		}
 
-		// Unannotated simple-type scalar parameters (e.g. a route-bound
-		// string without an explicit [FromRoute]) are treated conservatively
-		// as group 1 (route-level) to avoid false positives. ASP.NET Core
-		// resolves these from route data by default when the route template
-		// contains a matching segment.
-		return 1;
+		// Unannotated simple/bindable scalar parameters are usually route/query
+		// inputs and are therefore treated as group 1 to match ASP.NET Core's
+		// default binding behavior for primitives.
+		//
+		// Unannotated complex reference/interface parameters are treated as
+		// service-like dependencies (group 4), which avoids false positives for
+		// DI-injected types like ILogger<T> that are intentionally omitted from
+		// [FromServices].
+		return IsUnannotatedScalarBindableType(parameter.ParameterType)
+			? 1
+			: 4;
+	}
+
+	private static bool IsUnannotatedScalarBindableType(Type type) {
+		if (type.IsGenericType
+			&& type.GetGenericTypeDefinition() == typeof(Nullable<>)) {
+			return IsUnannotatedScalarBindableType(
+				type.GetGenericArguments()[0]
+			);
+		}
+
+		// Value-type primitives used by ASP.NET Core model binding.
+		if (type.IsPrimitive || type.IsEnum) {
+			return true;
+		}
+
+		return type == typeof(string)
+			|| type == typeof(decimal)
+			|| type == typeof(Guid)
+			|| type == typeof(DateTime)
+			|| type == typeof(DateTimeOffset)
+			|| type == typeof(TimeSpan);
 	}
 
 	// Returns true for ASP.NET Core Minimal API "special" parameter types that

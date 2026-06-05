@@ -41,9 +41,9 @@ public sealed class FindTenantProfilesAsStaff {
 			AppBadRequestHttpResult
 		>
 	> Handle(
-		[FromServices] ITenantProfileQueryAsStaffService tenantProfileService,
-		[AsParameters] FindTenantProfilesAsStaffQuery findTenantProfilesAsStaffQuery,
 		[FromRoute] string tenantId,
+		[AsParameters] FindTenantProfilesAsStaffQuery findTenantProfilesAsStaffQuery,
+		[FromServices] ITenantProfileQueryAsStaffService tenantProfileService,
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
