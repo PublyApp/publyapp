@@ -67,6 +67,7 @@ public sealed class AcceptInvitation {
 		[FromBody] AcceptInvitationBody body,
 		HttpContext httpContext,
 		[FromServices] IInvitationQueryService invitationQueryService,
+		[FromServices] IInvitationAcceptanceService invitationAcceptanceService,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] ISessionService sessionService,
 		[FromServices] IAuditLogService auditLogService,
@@ -165,7 +166,7 @@ public sealed class AcceptInvitation {
 				UserEntity existingUser;
 				try {
 					existingUser =
-						await invitationService.AcceptTenantInvitationForExistingUserAsync(
+						await invitationAcceptanceService.AcceptTenantInvitationForExistingUserAsync(
 							invitation,
 							sessionData.User.GetRequiredId(),
 							cancellationToken
@@ -243,7 +244,7 @@ public sealed class AcceptInvitation {
 				LastName: lastName,
 				PasswordHash: passwordHash
 			);
-			user = await invitationService.AcceptStaffInvitationAsync(
+			user = await invitationAcceptanceService.AcceptStaffInvitationAsync(
 				acceptArgs,
 				cancellationToken
 			);
@@ -254,7 +255,7 @@ public sealed class AcceptInvitation {
 				LastName: lastName,
 				PasswordHash: passwordHash
 			);
-			user = await invitationService.AcceptTenantInvitationAsync(
+			user = await invitationAcceptanceService.AcceptTenantInvitationAsync(
 				acceptArgs,
 				cancellationToken
 			);
