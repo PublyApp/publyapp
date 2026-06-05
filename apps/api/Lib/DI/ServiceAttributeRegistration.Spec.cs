@@ -44,6 +44,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(IProfileService), typeof(ProfileService)),
 		(typeof(IProjectService), typeof(ProjectService)),
 		(typeof(ISessionService), typeof(SessionService)),
+		(typeof(IStaffUserCoreService), typeof(StaffUserCoreService)),
 		(typeof(IStaffUserLifecycleService), typeof(StaffUserLifecycleService)),
 		(typeof(IStaffUserProfileAssignmentService), typeof(StaffUserProfileAssignmentService)),
 		(typeof(ISystemNoticeService), typeof(SystemNoticeService)),
