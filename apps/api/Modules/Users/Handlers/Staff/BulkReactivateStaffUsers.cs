@@ -46,7 +46,7 @@ public sealed class BulkReactivateStaffUsers {
 	public static async Task<Ok<BulkStaffUserActionResult>>
 		Handle(
 			[FromBody] BulkReactivateStaffUsersBody body,
-			[FromServices] IUserService userService,
+			[FromServices] IStaffUserLifecycleService userService,
 			[FromServices] IAuditLogService auditLogService,
 			[FromServices] IRequestAuthContext authContext,
 			[FromServices] ILogger<BulkReactivateStaffUsers> logger,

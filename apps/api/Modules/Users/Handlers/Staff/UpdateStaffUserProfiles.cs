@@ -110,7 +110,7 @@ public sealed class UpdateStaffUserProfiles {
 	> Handle(
 		[FromRoute] string userId,
 		[FromBody] UpdateStaffUserProfilesBody body,
-		[FromServices] IUserService userService,
+		[FromServices] IStaffUserProfileAssignmentService userService,
 		ILogger<UpdateStaffUserProfiles> logger,
 		CancellationToken cancellationToken
 	) {

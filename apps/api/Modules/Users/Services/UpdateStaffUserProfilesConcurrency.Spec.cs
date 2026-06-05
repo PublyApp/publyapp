@@ -5,7 +5,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
 
 using Npgsql;
 
@@ -168,7 +167,7 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 		>
 	> RunWithConcurrentDeleteAtProfileTransactionCommitAsync(
 		Guid userId,
-		Func<UserService, Task<UpdateStaffUserProfilesServiceResult>> operationAsync
+		Func<StaffUserProfileAssignmentService, Task<UpdateStaffUserProfilesServiceResult>> operationAsync
 	) {
 		var connectionString = await GetConnectionStringAsync();
 		await using var coordinator =
@@ -186,9 +185,8 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 			.Options;
 
 		await using var dbContext = new AppDbContext(options);
-		var service = new UserService(
-			dbContext,
-			NullLogger<UserService>.Instance
+		var service = new StaffUserProfileAssignmentService(
+			dbContext
 		);
 
 		var operationResult = await operationAsync(service);
@@ -221,9 +219,8 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 			.Options;
 
 		await using var dbContext = new AppDbContext(options);
-		var service = new UserService(
-			dbContext,
-			NullLogger<UserService>.Instance
+		var service = new StaffUserLifecycleService(
+			dbContext
 		);
 
 		return await service.DeleteStaffUserAsync(
