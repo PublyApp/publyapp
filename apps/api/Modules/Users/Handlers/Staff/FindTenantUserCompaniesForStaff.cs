@@ -80,7 +80,7 @@ public sealed class FindTenantUserCompaniesForStaff {
 		AppNotFoundHttpResult
 	>> Handle(
 		[FromRoute] string userId,
-		[FromServices] IUserQueryService userService,
+		[FromServices] ITenantUserQueryService userService,
 		[AsParameters] FindTenantUserCompaniesForStaffQuery query,
 		CancellationToken cancellationToken = default
 	) {

@@ -47,12 +47,13 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(IStaffUserCoreService), typeof(StaffUserCoreService)),
 		(typeof(IStaffUserLifecycleService), typeof(StaffUserLifecycleService)),
 		(typeof(IStaffUserProfileAssignmentService), typeof(StaffUserProfileAssignmentService)),
+		(typeof(IStaffUserQueryService), typeof(StaffUserQueryService)),
 		(typeof(ISystemNoticeService), typeof(SystemNoticeService)),
 		(typeof(ITenantAsStaffService), typeof(TenantAsStaffService)),
 		(typeof(ITenantService), typeof(TenantService)),
 		(typeof(ITenantUserIdentityService), typeof(TenantUserIdentityService)),
 		(typeof(ITenantUserMembershipService), typeof(TenantUserMembershipService)),
-		(typeof(IUserQueryService), typeof(UserQueryService)),
+		(typeof(ITenantUserQueryService), typeof(TenantUserQueryService)),
 		(typeof(IUserService), typeof(UserService))
 	];
 
