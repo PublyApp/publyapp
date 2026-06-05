@@ -56,7 +56,7 @@ public sealed class FindStaffProfileUsers {
 			AppBadRequestHttpResult
 		>
 	> Handle(
-		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[FromServices] IStaffProfileUserAssignmentAsStaffService staffProfileUserAssignmentAsStaffService,
 		[AsParameters] FindStaffProfileUsersQuery query,
 		[FromRoute] string profileId,
 		CancellationToken cancellationToken
@@ -85,7 +85,7 @@ public sealed class FindStaffProfileUsers {
 		);
 
 		var serviceResult =
-			await profileAsStaffService.FindStaffProfileUsersAsync(
+			await staffProfileUserAssignmentAsStaffService.FindStaffProfileUsersAsync(
 				args: args,
 				cancellationToken: cancellationToken
 			);
