@@ -21,7 +21,7 @@ public sealed class FindStaffProfilePermissions {
 			AppNotFoundHttpResult
 		>
 	> Handle(
-		[FromServices] IStaffProfileAsStaffService profileAsStaffService,
+		[FromServices] IStaffProfileQueryAsStaffService profileQueryAsStaffService,
 		[FromRoute] string profileId,
 		CancellationToken cancellationToken
 	) {
@@ -32,7 +32,7 @@ public sealed class FindStaffProfilePermissions {
 			);
 		}
 
-		var result = await profileAsStaffService.FindStaffProfilePermissionKeysAsync(
+		var result = await profileQueryAsStaffService.FindStaffProfilePermissionKeysAsync(
 			profileIdGuid,
 			cancellationToken
 		);
