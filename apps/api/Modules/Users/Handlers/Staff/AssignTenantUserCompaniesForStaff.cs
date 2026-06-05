@@ -66,6 +66,7 @@ public sealed class AssignTenantUserCompaniesForStaff {
 		[FromRoute] string userId,
 		[FromBody] AssignTenantUserCompaniesForStaffBody body,
 		[FromServices] IUserService userService,
+		[FromServices] IUserQueryService userQueryService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
 		CancellationToken cancellationToken = default
@@ -77,7 +78,7 @@ public sealed class AssignTenantUserCompaniesForStaff {
 			);
 		}
 
-		var tenantUser = await userService.GetTenantUserDetailsForStaffAsync(
+		var tenantUser = await userQueryService.GetTenantUserDetailsForStaffAsync(
 			userIdGuid,
 			cancellationToken
 		);

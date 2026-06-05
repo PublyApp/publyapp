@@ -100,7 +100,7 @@ public sealed class FindStaffUsers {
 		>
 	> Handle(
 		[AsParameters] FindStaffUsersQuery findStaffUsersQuery,
-		[FromServices] IUserService userService,
+		[FromServices] IUserQueryService userService,
 		CancellationToken cancellationToken
 	) {
 		var cursor = findStaffUsersQuery.GetCursor();

@@ -16,7 +16,7 @@ public sealed class GetTenantUserAsStaff {
 	>> Handle(
 		[FromRoute] string tenantId,
 		[FromRoute] string userId,
-		[FromServices] IUserService userService,
+		[FromServices] IUserQueryService userService,
 		[FromServices] ILogger<GetTenantUserAsStaff> logger,
 		CancellationToken cancellationToken = default
 	) {
