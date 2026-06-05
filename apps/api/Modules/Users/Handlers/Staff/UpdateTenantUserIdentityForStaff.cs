@@ -111,7 +111,7 @@ public sealed class UpdateTenantUserIdentityForStaff {
 		[FromRoute] string userId,
 		[FromBody] UpdateTenantUserIdentityForStaffBody body,
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] IUserService userService,
+		[FromServices] ITenantUserIdentityService tenantUserIdentityService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILogger<UpdateTenantUserIdentityForStaff> logger,
 		CancellationToken cancellationToken = default
@@ -142,7 +142,7 @@ public sealed class UpdateTenantUserIdentityForStaff {
 			AvatarUrl = avatarUrl,
 		};
 
-		var result = await userService.UpdateTenantUserIdentityForStaffAsync(
+		var result = await tenantUserIdentityService.UpdateTenantUserIdentityForStaffAsync(
 			userIdGuid,
 			updateDocument,
 			cancellationToken

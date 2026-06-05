@@ -43,7 +43,7 @@ public sealed class UpdateTenantUserEmailForStaff {
 	> Handle(
 		[FromRoute] string userId,
 		[FromBody] UpdateTenantUserEmailForStaffBody body,
-		[FromServices] IUserService userService,
+		[FromServices] ITenantUserIdentityService tenantUserIdentityService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
 		CancellationToken cancellationToken
@@ -58,7 +58,7 @@ public sealed class UpdateTenantUserEmailForStaff {
 		var email = body.GetEmail();
 		// Email is stored on the shared User identity. The route is under
 		// tenant-users only because Staff reaches it from that details page.
-		var result = await userService.UpdateTenantUserEmailForStaffAsync(
+		var result = await tenantUserIdentityService.UpdateTenantUserEmailForStaffAsync(
 			userIdGuid,
 			email,
 			cancellationToken
