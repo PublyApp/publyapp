@@ -19,7 +19,7 @@ public sealed class RemoveUserFromTenantAsStaff {
 		[FromRoute] string tenantId,
 		[FromRoute] string userId,
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] IUserService userService,
+		[FromServices] ITenantUserMembershipService tenantUserMembershipService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILogger<RemoveUserFromTenantAsStaff> logger,
 		CancellationToken cancellationToken = default
@@ -40,7 +40,7 @@ public sealed class RemoveUserFromTenantAsStaff {
 			);
 		}
 
-		var result = await userService.RemoveUserFromTenantAsync(
+		var result = await tenantUserMembershipService.RemoveUserFromTenantAsync(
 			tenantIdGuid,
 			userIdGuid,
 			cancellationToken

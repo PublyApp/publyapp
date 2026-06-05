@@ -21,7 +21,7 @@ public sealed class BulkReactivateTenantUserCompaniesForStaff {
 	>> Handle(
 		[FromRoute] string userId,
 		[FromBody] TenantUserCompanyIdsForStaffBody body,
-		[FromServices] IUserService userService,
+		[FromServices] ITenantUserMembershipService tenantUserMembershipService,
 		[FromServices] IUserQueryService userQueryService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
@@ -46,7 +46,7 @@ public sealed class BulkReactivateTenantUserCompaniesForStaff {
 		}
 
 		var tenantIds = body.GetTenantIds();
-		var result = await userService.BulkReactivateTenantUserCompaniesForStaffAsync(
+		var result = await tenantUserMembershipService.BulkReactivateTenantUserCompaniesForStaffAsync(
 			new TenantUserCompanyIdsArgs(
 				UserId: userIdGuid,
 				TenantIds: tenantIds

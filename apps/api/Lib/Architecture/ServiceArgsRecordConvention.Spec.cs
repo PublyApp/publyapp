@@ -51,7 +51,7 @@ public sealed class ServiceArgsRecordConventionSpec {
 
 		// (tenantId, userId, document) tenant-user update; should adopt an
 		// UpdateTenantUserArgs record like its siblings. Ratchet target.
-		"IUserService.UpdateTenantUserAsync"
+		"ITenantUserMembershipService.UpdateTenantUserAsync"
 			+ "(Guid, Guid, UpdateTenantUserDocument)",
 	};
 

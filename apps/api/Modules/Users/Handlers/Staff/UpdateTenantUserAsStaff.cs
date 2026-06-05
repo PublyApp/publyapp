@@ -155,7 +155,7 @@ public sealed class UpdateTenantUserAsStaff {
 		[FromRoute] string userId,
 		[FromBody] UpdateTenantUserAsStaffBody body,
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] IUserService userService,
+		[FromServices] ITenantUserMembershipService tenantUserMembershipService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILogger<UpdateTenantUserAsStaff> logger,
 		CancellationToken cancellationToken = default
@@ -199,7 +199,7 @@ public sealed class UpdateTenantUserAsStaff {
 			Level = level,
 		};
 
-		var result = await userService.UpdateTenantUserAsync(
+		var result = await tenantUserMembershipService.UpdateTenantUserAsync(
 			tenantIdGuid,
 			userIdGuid,
 			updateDocument,
