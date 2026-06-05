@@ -17,7 +17,7 @@ public sealed class GetTenantProfileByIdAsStaff {
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
 	>> Handle(
-		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[FromServices] ITenantProfileAsStaffService tenantProfileService,
 		[FromRoute] string tenantId,
 		[FromRoute] string profileId,
 		CancellationToken cancellationToken
@@ -36,7 +36,7 @@ public sealed class GetTenantProfileByIdAsStaff {
 			);
 		}
 
-		var result = await profileAsStaffService.GetTenantProfileByIdAsync(
+		var result = await tenantProfileService.GetTenantProfileByIdAsync(
 			new GetTenantProfileByIdArgs(
 				TenantId: tenantIdGuid,
 				ProfileId: profileIdGuid

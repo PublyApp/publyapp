@@ -1,6 +1,6 @@
-using System.Text.Json;
-
 using FluentValidation;
+
+using System.Text.Json;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -112,7 +112,7 @@ public sealed class UpdateTenantProfileAsStaff {
 		[FromRoute] string profileId,
 		[FromBody] UpdateTenantProfileAsStaffBody body,
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[FromServices] ITenantProfileAsStaffService tenantProfileService,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken
 	) {
@@ -140,7 +140,7 @@ public sealed class UpdateTenantProfileAsStaff {
 			);
 		}
 
-		var result = await profileAsStaffService.UpdateTenantProfileAsync(
+		var result = await tenantProfileService.UpdateTenantProfileAsync(
 			new UpdateTenantProfileArgs(
 				TenantId: tenantIdGuid,
 				ProfileId: profileIdGuid,
