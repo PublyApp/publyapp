@@ -80,7 +80,7 @@ public sealed class FindTenantUserCompaniesForStaff {
 		AppNotFoundHttpResult
 	>> Handle(
 		[FromRoute] string userId,
-		[FromServices] ITenantUserQueryService userService,
+		[FromServices] ITenantUserCompanyQueryService companyQueryService,
 		[AsParameters] FindTenantUserCompaniesForStaffQuery query,
 		CancellationToken cancellationToken = default
 	) {
@@ -113,7 +113,7 @@ public sealed class FindTenantUserCompaniesForStaff {
 			)
 		);
 
-		var result = await userService.FindTenantUserCompaniesForStaffAsync(
+		var result = await companyQueryService.FindTenantUserCompaniesForStaffAsync(
 			userIdGuid,
 			args,
 			cancellationToken
