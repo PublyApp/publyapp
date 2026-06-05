@@ -21,10 +21,10 @@ public sealed class GetInvitationDetails {
 		AppNotFoundHttpResult
 	>> Handle(
 		[FromRoute] string token,
-		[FromServices] IInvitationService invitationService,
+		[FromServices] IInvitationQueryService invitationQueryService,
 		CancellationToken cancellationToken = default
 	) {
-		var invitation = await invitationService.GetInvitationByTokenAsync(
+		var invitation = await invitationQueryService.GetInvitationByTokenAsync(
 			token,
 			cancellationToken
 		);

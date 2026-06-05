@@ -99,7 +99,7 @@ public sealed class FindInvitationsForTenantAsStaff {
 	public static async Task<Results<Ok<FindInvitationsForTenantAsStaffResult>, AppBadRequestHttpResult>> Handle(
 		string tenantId,
 		[AsParameters] FindInvitationsForTenantAsStaffQuery query,
-		[FromServices] IInvitationService invitationService,
+		[FromServices] IInvitationQueryService invitationQueryService,
 		CancellationToken cancellationToken = default
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantGuid)) {
@@ -130,7 +130,7 @@ public sealed class FindInvitationsForTenantAsStaff {
 			},
 		};
 
-		var serviceResult = await invitationService.FindTenantInvitationsAsync(
+		var serviceResult = await invitationQueryService.FindTenantInvitationsAsync(
 			tenantId: tenantGuid,
 			args: args,
 			cancellationToken: cancellationToken

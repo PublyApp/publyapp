@@ -32,7 +32,7 @@ public sealed class GetStaffInvitation {
 		AppNotFoundHttpResult
 	>> Handle(
 		[FromRoute] string invitationId,
-		[FromServices] IInvitationService invitationService,
+		[FromServices] IInvitationQueryService invitationQueryService,
 		CancellationToken cancellationToken = default
 	) {
 		if (!Guid.TryParse(
@@ -45,7 +45,7 @@ public sealed class GetStaffInvitation {
 			);
 		}
 
-		var result = await invitationService
+		var result = await invitationQueryService
 			.GetStaffInvitationDetailsAsync(
 				invitationIdGuid,
 				cancellationToken
