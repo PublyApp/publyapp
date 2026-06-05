@@ -62,4 +62,20 @@ public static class DiagnosticCatalog {
 		description: "Calling ToLower()/ToLowerInvariant() before comparison or dispatch can be "
 			+ "culture-sensitive, allocate unnecessarily, and hide the intended comparison "
 			+ "semantics. Use StringComparison overloads or case-insensitive comparers instead.");
+
+	/// <summary>
+	/// PUBLY0006 — flags request DTO getter calls in handler entrypoints that are repeated without
+	/// local caching, or that return parsing-sensitive values (for ship phase, <c>PatchField&lt;T&gt;</c>).
+	/// <c>isEnabledByDefault: false</c> keeps this rule opt-in until phase-4 enforcement.
+	/// </summary>
+	public static readonly DiagnosticDescriptor UncachedBodyGetter = new(
+		DiagnosticIds.PUBLY0006,
+		"Cache request DTO getter results",
+		"Cache '{0}' to a local variable before reusing it",
+		"PublyApp.Correctness",
+		DiagnosticSeverity.Hidden,
+		isEnabledByDefault: false,
+		description: "In handler entrypoints, request DTO getters should be assigned to a local "
+			+ "variable once and reused rather than repeatedly invoked, especially for parsing-sensitive "
+			+ "returns such as PatchField<T>.");
 }

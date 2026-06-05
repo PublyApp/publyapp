@@ -8,3 +8,4 @@ Rule ID | Category | Severity | Notes
 PUBLY0001 | PublyApp.Nullability | Disabled | Avoid the null-forgiving operator
 PUBLY0002 | PublyApp.Nullability | Disabled | Avoid null-coalescing throw expressions
 PUBLY0003 | PublyApp.Comparison | Disabled | Avoid ToLower()/ToLowerInvariant() for comparison or dispatch
+PUBLY0006 | PublyApp.Correctness | Disabled | Avoid uncached request DTO getter calls
