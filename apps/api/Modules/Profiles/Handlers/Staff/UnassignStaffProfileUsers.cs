@@ -100,7 +100,7 @@ public sealed class UnassignStaffProfileUsers {
 	> Handle(
 		[FromRoute] string profileId,
 		[FromBody] UnassignStaffProfileUsersBody body,
-		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[FromServices] IStaffProfileUserAssignmentAsStaffService staffProfileUserAssignmentAsStaffService,
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(profileId, out var profileIdGuid)) {
@@ -119,7 +119,7 @@ public sealed class UnassignStaffProfileUsers {
 			);
 		}
 
-		var result = await profileAsStaffService.UnassignStaffProfileUsersAsync(
+		var result = await staffProfileUserAssignmentAsStaffService.UnassignStaffProfileUsersAsync(
 			new UnassignStaffProfileUsersArgs(ProfileId: profileIdGuid, UserIds: userIds),
 			cancellationToken
 		);

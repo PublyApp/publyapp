@@ -122,7 +122,7 @@ public sealed class ResolveStaffProfileUserAssignments {
 	> Handle(
 		[FromRoute] string profileId,
 		[FromBody] ResolveStaffProfileUserAssignmentsBody body,
-		[FromServices] IProfileAsStaffService profileService,
+		[FromServices] IStaffProfileUserAssignmentAsStaffService staffProfileUserAssignmentAsStaffService,
 		ILogger<ResolveStaffProfileUserAssignments> logger,
 		CancellationToken cancellationToken
 	) {
@@ -145,7 +145,7 @@ public sealed class ResolveStaffProfileUserAssignments {
 			UserIds: body.GetUserIds()
 		);
 
-		var serviceResult = await profileService.ResolveStaffProfileUserAssignmentsAsync(
+		var serviceResult = await staffProfileUserAssignmentAsStaffService.ResolveStaffProfileUserAssignmentsAsync(
 			args,
 			cancellationToken
 		);
