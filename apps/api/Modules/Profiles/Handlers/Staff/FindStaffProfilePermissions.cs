@@ -21,7 +21,7 @@ public sealed class FindStaffProfilePermissions {
 			AppNotFoundHttpResult
 		>
 	> Handle(
-		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[FromServices] IStaffProfileAsStaffService profileAsStaffService,
 		[FromRoute] string profileId,
 		CancellationToken cancellationToken
 	) {

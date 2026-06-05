@@ -212,7 +212,7 @@ public sealed class CreateStaffProfile {
 		AppBadRequestHttpResult
 	>> Handle(
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[FromServices] IStaffProfileAsStaffService profileAsStaffService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILogger<CreateStaffProfile> logger,

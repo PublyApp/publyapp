@@ -172,7 +172,7 @@ public sealed class ServiceArgsRecordConventionSpec {
 			"BulkCreateStaffInvitationsArgs",
 			nameof(CancellationToken)
 		);
-		AssertMethodParameterTypeNames<IProfileAsStaffService>(
+		AssertMethodParameterTypeNames<IStaffProfileAsStaffService>(
 			"CreateStaffProfileAsync",
 			"CreateStaffProfileArgs",
 			nameof(CancellationToken)

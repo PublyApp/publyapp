@@ -43,7 +43,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(IInvitationService), typeof(InvitationService)),
 		(typeof(IPermissionAsStaffService), typeof(PermissionAsStaffService)),
 		(typeof(IPermissionService), typeof(PermissionService)),
-		(typeof(IProfileAsStaffService), typeof(ProfileAsStaffService)),
+		(typeof(IStaffProfileAsStaffService), typeof(StaffProfileAsStaffService)),
 		(typeof(IProfileService), typeof(ProfileService)),
 		(typeof(IStaffProfileUserAssignmentAsStaffService), typeof(StaffProfileUserAssignmentAsStaffService)),
 		(typeof(ITenantProfileAsStaffService), typeof(TenantProfileAsStaffService)),
