@@ -19,7 +19,7 @@ public sealed class GetStaffProfileById {
 			AppBadRequestHttpResult
 		>
 	> Handle(
-		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[FromServices] IStaffProfileAsStaffService profileAsStaffService,
 		[FromRoute] string profileId,
 		CancellationToken cancellationToken
 	) {

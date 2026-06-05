@@ -17,7 +17,7 @@ public sealed class DeleteStaffProfile {
 		>
 	> Handle(
 		[FromRoute] string profileId,
-		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[FromServices] IStaffProfileAsStaffService profileAsStaffService,
 		CancellationToken cancellationToken
 	) {
 		// Keep route-level concerns here only: malformed IDs stay a 400, while

@@ -13,7 +13,7 @@ public sealed class AssignStaffProfilePermission {
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
 	>> Handle(
-		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[FromServices] IStaffProfileAsStaffService profileAsStaffService,
 		[FromRoute] string profileId,
 		[FromRoute] string permissionKey,
 		CancellationToken cancellationToken
