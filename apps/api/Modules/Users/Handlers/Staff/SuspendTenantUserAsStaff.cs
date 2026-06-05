@@ -40,7 +40,7 @@ public sealed class SuspendTenantUserAsStaff {
 	>> Handle(
 		[FromRoute] string tenantId,
 		[FromRoute] string userId,
-		[FromServices] IUserService userService,
+		[FromServices] ITenantUserMembershipService tenantUserMembershipService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
 		CancellationToken cancellationToken = default
@@ -61,7 +61,7 @@ public sealed class SuspendTenantUserAsStaff {
 			);
 		}
 
-		var result = await userService.SuspendTenantUserAsync(
+		var result = await tenantUserMembershipService.SuspendTenantUserAsync(
 			tenantIdGuid,
 			userIdGuid,
 			cancellationToken
