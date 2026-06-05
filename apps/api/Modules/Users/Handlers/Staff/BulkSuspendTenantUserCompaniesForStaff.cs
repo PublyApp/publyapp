@@ -21,7 +21,7 @@ public sealed class BulkSuspendTenantUserCompaniesForStaff {
 	>> Handle(
 		[FromRoute] string userId,
 		[FromBody] TenantUserCompanyIdsForStaffBody body,
-		[FromServices] ITenantUserMembershipService tenantUserMembershipService,
+		[FromServices] ITenantUserCompanyMembershipService tenantUserCompanyMembershipService,
 		[FromServices] ITenantUserCompanyQueryService companyQueryService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
@@ -46,7 +46,7 @@ public sealed class BulkSuspendTenantUserCompaniesForStaff {
 		}
 
 		var tenantIds = body.GetTenantIds();
-		var result = await tenantUserMembershipService.BulkSuspendTenantUserCompaniesForStaffAsync(
+		var result = await tenantUserCompanyMembershipService.BulkSuspendTenantUserCompaniesForStaffAsync(
 			new TenantUserCompanyIdsArgs(
 				UserId: userIdGuid,
 				TenantIds: tenantIds

@@ -65,7 +65,7 @@ public sealed class AssignTenantUserCompaniesForStaff {
 	>> Handle(
 		[FromRoute] string userId,
 		[FromBody] AssignTenantUserCompaniesForStaffBody body,
-		[FromServices] ITenantUserMembershipService tenantUserMembershipService,
+		[FromServices] ITenantUserCompanyMembershipService tenantUserCompanyMembershipService,
 		[FromServices] ITenantUserCompanyQueryService companyQueryService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
@@ -90,7 +90,7 @@ public sealed class AssignTenantUserCompaniesForStaff {
 		}
 
 		var tenantIds = body.GetTenantIds();
-		var result = await tenantUserMembershipService.AssignTenantUserCompaniesForStaffAsync(
+		var result = await tenantUserCompanyMembershipService.AssignTenantUserCompaniesForStaffAsync(
 			new AssignTenantUserCompaniesArgs(
 				UserId: userIdGuid,
 				TenantIds: tenantIds,
