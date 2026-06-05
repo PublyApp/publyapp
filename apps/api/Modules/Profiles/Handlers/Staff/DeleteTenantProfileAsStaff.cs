@@ -19,7 +19,7 @@ public sealed class DeleteTenantProfileAsStaff {
 		[FromRoute] string tenantId,
 		[FromRoute] string profileId,
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[FromServices] ITenantProfileAsStaffService tenantProfileService,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken
 	) {
@@ -37,7 +37,7 @@ public sealed class DeleteTenantProfileAsStaff {
 			);
 		}
 
-		var result = await profileAsStaffService.DeleteTenantProfileAsync(
+		var result = await tenantProfileService.DeleteTenantProfileAsync(
 			new DeleteTenantProfileArgs(
 				TenantId: tenantIdGuid,
 				ProfileId: profileIdGuid

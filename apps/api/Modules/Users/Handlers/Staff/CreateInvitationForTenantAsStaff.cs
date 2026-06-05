@@ -1,6 +1,6 @@
-using System.Text.Json;
-
 using FluentValidation;
+
+using System.Text.Json;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -59,7 +59,7 @@ public sealed class CreateInvitationForTenantAsStaff {
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IAccountService accountService,
 		[FromServices] IAuditLogService auditLogService,
-		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[FromServices] ITenantProfileAsStaffService tenantProfileService,
 		[FromServices] ITenantService tenantService,
 		[FromServices] IEmailService emailService,
 		[FromServices] ILogger<CreateInvitationForTenantAsStaff> logger,
@@ -142,7 +142,7 @@ public sealed class CreateInvitationForTenantAsStaff {
 
 		List<Guid> profileIds = [];
 		if (accountLevel != AccountLevel.Admin) {
-			var defaultProfile = await profileAsStaffService.GetOrCreateDefaultTenantProfileAsync(
+			var defaultProfile = await tenantProfileService.GetOrCreateDefaultTenantProfileAsync(
 				tenantIdGuid,
 				cancellationToken
 			);

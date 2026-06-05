@@ -41,7 +41,7 @@ public sealed class FindTenantProfilesAsStaff {
 			AppBadRequestHttpResult
 		>
 	> Handle(
-		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[FromServices] ITenantProfileAsStaffService tenantProfileService,
 		[AsParameters] FindTenantProfilesAsStaffQuery findTenantProfilesAsStaffQuery,
 		[FromRoute] string tenantId,
 		CancellationToken cancellationToken
@@ -72,7 +72,7 @@ public sealed class FindTenantProfilesAsStaff {
 			Search: findTenantProfilesAsStaffQuery.GetSearchNormalized()
 		);
 
-		var serviceResult = await profileAsStaffService.FindTenantProfilesAsync(
+		var serviceResult = await tenantProfileService.FindTenantProfilesAsync(
 			args,
 			cancellationToken: cancellationToken
 		);

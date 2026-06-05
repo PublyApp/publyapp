@@ -1,7 +1,7 @@
+using FluentValidation;
+
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
-
-using FluentValidation;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -52,7 +52,7 @@ public sealed class BulkDeleteTenantProfilesAsStaff {
 	> Handle(
 		[FromRoute] string tenantId,
 		[FromBody] BulkDeleteTenantProfilesBody body,
-		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[FromServices] ITenantProfileAsStaffService tenantProfileService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] ILogger<BulkDeleteTenantProfilesAsStaff> logger,
@@ -74,7 +74,7 @@ public sealed class BulkDeleteTenantProfilesAsStaff {
 		}
 
 		var distinctProfileIds = body.GetProfileIds().Distinct().ToList();
-		var result = await profileAsStaffService.BulkDeleteTenantProfilesAsync(
+		var result = await tenantProfileService.BulkDeleteTenantProfilesAsync(
 			new BulkDeleteTenantProfilesArgs(
 				TenantId: tenantIdGuid,
 				ProfileIds: distinctProfileIds

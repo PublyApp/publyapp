@@ -1,6 +1,6 @@
-using System.Text.Json;
-
 using FluentValidation;
+
+using System.Text.Json;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -156,7 +156,7 @@ public sealed class CreateTenantProfileAsStaff {
 		[FromRoute] string tenantId,
 		[FromBody] CreateTenantProfileAsStaffBody body,
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[FromServices] ITenantProfileAsStaffService tenantProfileService,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken
 	) {
@@ -171,7 +171,7 @@ public sealed class CreateTenantProfileAsStaff {
 		var description = body.GetDescription();
 		var permissionKeys = body.GetPermissionKeys();
 
-		var result = await profileAsStaffService.CreateTenantProfileAsync(
+		var result = await tenantProfileService.CreateTenantProfileAsync(
 			new CreateTenantProfileArgs(
 				TenantId: tenantIdGuid,
 				Name: name,
