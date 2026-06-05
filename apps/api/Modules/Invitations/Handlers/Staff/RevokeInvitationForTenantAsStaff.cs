@@ -20,7 +20,7 @@ public sealed class RevokeInvitationForTenantAsStaff {
 		[FromRoute] string tenantId,
 		[FromRoute] string invitationId,
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] IInvitationService invitationService,
+		[FromServices] IInvitationRevokeService invitationRevokeService,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
 	) {
@@ -47,7 +47,7 @@ public sealed class RevokeInvitationForTenantAsStaff {
 		}
 
 		RevokeInvitationForTenantAsStaffResult result =
-			await invitationService.RevokeInvitationForTenantAsStaffAsync(
+			await invitationRevokeService.RevokeInvitationForTenantAsStaffAsync(
 				tenantIdGuid,
 				invitationIdGuid,
 				cancellationToken
