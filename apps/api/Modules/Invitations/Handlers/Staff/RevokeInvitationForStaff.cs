@@ -19,7 +19,7 @@ public sealed class RevokeInvitationForStaff {
 	>> Handle(
 		[FromRoute] string invitationId,
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] IInvitationService invitationService,
+		[FromServices] IInvitationRevokeService invitationRevokeService,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
 	) {
@@ -41,7 +41,7 @@ public sealed class RevokeInvitationForStaff {
 		}
 
 		RevokeInvitationForStaffResult result =
-			await invitationService.RevokeInvitationForStaffAsync(
+			await invitationRevokeService.RevokeInvitationForStaffAsync(
 			invitationIdGuid,
 			cancellationToken
 		);

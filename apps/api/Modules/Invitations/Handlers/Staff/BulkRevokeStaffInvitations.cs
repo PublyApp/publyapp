@@ -49,7 +49,7 @@ public sealed class BulkRevokeStaffInvitations {
 		Handle(
 			[FromBody] BulkRevokeStaffInvitationsBody body,
 			[FromServices] IRequestAuthContext authContext,
-			[FromServices] IInvitationService invitationService,
+			[FromServices] IInvitationRevokeService invitationRevokeService,
 			[FromServices] IAuditLogService auditLogService,
 			[FromServices] ILogger<BulkRevokeStaffInvitations> logger,
 			CancellationToken cancellationToken = default
@@ -63,7 +63,7 @@ public sealed class BulkRevokeStaffInvitations {
 		}
 
 		var requestedInvitationIds = body.GetInvitationIds().Distinct().ToList();
-		var result = await invitationService.BulkRevokeStaffInvitationsAsync(
+		var result = await invitationRevokeService.BulkRevokeStaffInvitationsAsync(
 			requestedInvitationIds,
 			cancellationToken
 		);

@@ -38,6 +38,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(IAuthService), typeof(AuthService)),
 		(typeof(IImpersonationService), typeof(ImpersonationService)),
 		(typeof(IInvitationQueryService), typeof(InvitationQueryService)),
+		(typeof(IInvitationRevokeService), typeof(InvitationRevokeService)),
 		(typeof(IInvitationService), typeof(InvitationService)),
 		(typeof(IPermissionAsStaffService), typeof(PermissionAsStaffService)),
 		(typeof(IPermissionService), typeof(PermissionService)),
