@@ -330,6 +330,75 @@ public sealed class EqualityNullCheckAnalyzerSpec
 	}
 
 	[Fact]
+	public async Task ItShouldReturnNoDiagnosticsWhenNullEqualityIsInsideIQueryableQueryComprehension()
+	{
+		// LINQ query-comprehension syntax over IQueryable lowers to expression trees.
+		// 'is null' in expression trees is a CS8122 compile error, so the analyzer
+		// must skip these sites even though they look like plain == null checks.
+		const string source = """
+			using System;
+			using System.Collections;
+			using System.Collections.Generic;
+			using System.Linq;
+			using System.Linq.Expressions;
+
+			namespace Sample;
+
+			public sealed class Example
+			{
+				public List<Item> Read(IQueryable<Item> items)
+				{
+					var result =
+						from x in items
+						where x.Foo == null
+						select x;
+					return result.ToList();
+				}
+			}
+
+			public sealed class Item
+			{
+				public string? Foo { get; set; }
+			}
+			""";
+
+		await VerifyEnabledAsync(source);
+	}
+
+	[Fact]
+	public async Task ItShouldReportDiagnosticWhenNullEqualityIsInsideIEnumerableQueryComprehension()
+	{
+		// LINQ query-comprehension syntax over plain IEnumerable does NOT lower to an
+		// expression tree, so 'is null' is valid and the diagnostic must still fire.
+		const string source = """
+			using System;
+			using System.Collections.Generic;
+			using System.Linq;
+
+			namespace Sample;
+
+			public sealed class Example
+			{
+				public List<Item> Read(IEnumerable<Item> items)
+				{
+					var result =
+						from x in items
+						where x.Foo {|#0:==|} null
+						select x;
+					return result.ToList();
+				}
+			}
+
+			public sealed class Item
+			{
+				public string? Foo { get; set; }
+			}
+			""";
+
+		await VerifyEnabledAsync(source, ExpectedDiagnostic(0));
+	}
+
+	[Fact]
 	public void ItShouldExposeEqualityNullCheckDiagnosticMetadata()
 	{
 		var analyzer = new AnalyzerUnderTest();

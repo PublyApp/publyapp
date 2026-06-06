@@ -26,7 +26,7 @@ public static class CustomExceptionHandler {
 				var exceptionHandlerFeature = context.Features.Get<IExceptionHandlerFeature>();
 				var exceptionType = exceptionHandlerFeature?.Error;
 
-				if (exceptionType != null) {
+				if (exceptionType is not null) {
 					if (
 							exceptionType is Microsoft.AspNetCore.Http.BadHttpRequestException badRequestException
 							&& badRequestException.Message.Contains("Required parameter")

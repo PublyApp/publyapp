@@ -283,7 +283,7 @@ For the repo-wide .NET project layout (placement under `apps/` vs `packages/*-cs
 **Key principles (always apply):**
 For the complete list of custom lint rules with severity and source, see [`docs/guides/lint-rules.md`](docs/guides/lint-rules.md).
 
-- Pattern matching for null checks (`is null` / `is not null`, never `== null`)
+- Pattern matching for null checks (`is null` / `is not null`, never `== null`) (enforced by `PUBLY0008`; expression-tree/`IQueryable` contexts are exempt — `is null` is a CS8122 error there)
 - **Never** use `?? throw` — use traditional `if` guard clauses for null-then-throw patterns (enforced by `PUBLY0002`)
 - **Never** use the null-forgiving operator (`!`) in production code — always handle null explicitly with guard clauses or safe accessors like `GetRequiredId()` (enforced by `PUBLY0001`)
 - Guard clauses (flat `if`/early return) over `switch` expressions when handling discriminated union error results from services

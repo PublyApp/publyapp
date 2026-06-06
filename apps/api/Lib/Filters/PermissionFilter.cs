@@ -38,7 +38,7 @@ public class PermissionFilter : IEndpointFilter {
 		var permissionService = httpContext.RequestServices.GetRequiredService<IPermissionService>();
 		var logger = httpContext.RequestServices.GetRequiredService<ILogger<PermissionFilter>>();
 
-		if (accountStaff == null) {
+		if (accountStaff is null) {
 			throw new InvalidOperationException("PermissionFilter must be set behind StaffAuthFilter.");
 		}
 
@@ -87,7 +87,7 @@ public class PermissionFilter : IEndpointFilter {
 							accountId = accountStaff.Id,
 							userId = accountStaff.UserId,
 							userPermissionsCount = userPermissions.Count,
-							hasCustomChecker = _customPermissionChecker != null
+							hasCustomChecker = _customPermissionChecker is not null
 							// userPermissions = userPermissions.ToArray(),
 						});
 					}
