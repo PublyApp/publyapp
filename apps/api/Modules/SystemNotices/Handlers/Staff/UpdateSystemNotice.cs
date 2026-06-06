@@ -191,11 +191,11 @@ public sealed class UpdateSystemNotice {
 		AppNotFoundHttpResult,
 		AppBadRequestHttpResult
 	>> Handle(
+		[FromRoute] string noticeId,
+		[FromBody] UpdateSystemNoticeBody body,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] ISystemNoticeService systemNoticeService,
 		[FromServices] IAuditLogService auditLogService,
-		[FromRoute] string noticeId,
-		[FromBody] UpdateSystemNoticeBody body,
 		CancellationToken cancellationToken = default
 	) {
 		// IMPOSSIBLE STATE: Staff endpoint without staff account

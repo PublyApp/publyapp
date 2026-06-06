@@ -13,9 +13,9 @@ public sealed class AssignStaffProfilePermission {
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
 	>> Handle(
-		[FromServices] IStaffProfileAsStaffService profileAsStaffService,
 		[FromRoute] string profileId,
 		[FromRoute] string permissionKey,
+		[FromServices] IStaffProfileAsStaffService profileAsStaffService,
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(profileId, out var profileIdGuid)) {

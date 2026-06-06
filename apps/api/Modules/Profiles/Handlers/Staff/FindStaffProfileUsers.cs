@@ -56,9 +56,9 @@ public sealed class FindStaffProfileUsers {
 			AppBadRequestHttpResult
 		>
 	> Handle(
-		[FromServices] IStaffProfileUserAssignmentAsStaffService staffProfileUserAssignmentAsStaffService,
-		[AsParameters] FindStaffProfileUsersQuery query,
 		[FromRoute] string profileId,
+		[AsParameters] FindStaffProfileUsersQuery query,
+		[FromServices] IStaffProfileUserAssignmentAsStaffService staffProfileUserAssignmentAsStaffService,
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(profileId, out var profileIdGuid)) {

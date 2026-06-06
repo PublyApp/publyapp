@@ -69,9 +69,9 @@ public sealed class FindStaffPermissions {
 				>,
 				AppBadRequestHttpResult
 			>
-		> Handle(
-		[FromServices] IPermissionAsStaffService permissionAsStaffService,
+	> Handle(
 		[AsParameters] FindStaffPermissionsQuery findStaffPermissionsQuery,
+		[FromServices] IPermissionAsStaffService permissionAsStaffService,
 		CancellationToken cancellationToken
 	) {
 		var language = findStaffPermissionsQuery.GetLanguage();

@@ -211,12 +211,12 @@ public sealed class CreateStaffProfile {
 		Created<StaffProfileCreated>,
 		AppBadRequestHttpResult
 	>> Handle(
+		[FromBody] CreateStaffProfileBody body,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IStaffProfileAsStaffService profileAsStaffService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILogger<CreateStaffProfile> logger,
-		[FromBody] CreateStaffProfileBody body,
 		CancellationToken cancellationToken = default
 	) {
 		// Extract values after validation

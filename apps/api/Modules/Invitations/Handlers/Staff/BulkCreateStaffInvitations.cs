@@ -236,13 +236,13 @@ public sealed class BulkCreateStaffInvitations {
 		AppBadRequestHttpResult,
 		AppInternalServerErrorHttpResult
 	>> Handle(
+		[FromBody] BulkCreateStaffInvitationsBody body,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IAccountService accountService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILogger<BulkCreateStaffInvitations> logger,
-		[FromBody] BulkCreateStaffInvitationsBody body,
 		CancellationToken cancellationToken = default
 	) {
 		var account = authContext.AccountStaff;
