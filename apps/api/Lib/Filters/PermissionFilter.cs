@@ -115,6 +115,7 @@ public static class PermissionFilterExtensions {
 	) {
 		return builder
 			.AddEndpointFilter(new PermissionFilter(requiredPermissions))
+			.WithMetadata(new HasPermissionMetadata())
 			.ProducesAppProblem(StatusCodes.Status403Forbidden);
 	}
 
@@ -127,6 +128,7 @@ public static class PermissionFilterExtensions {
 	) {
 		return builder
 			.AddEndpointFilter(new PermissionFilter(customPermissionChecker))
+			.WithMetadata(new HasPermissionMetadata())
 			.ProducesAppProblem(StatusCodes.Status403Forbidden);
 	}
 
@@ -140,6 +142,7 @@ public static class PermissionFilterExtensions {
 	) {
 		return builder
 			.AddEndpointFilter(new PermissionFilter(requiredPermissions))
+			.WithMetadata(new HasPermissionMetadata())
 			.ProducesAppProblem(StatusCodes.Status403Forbidden);
 	}
 
@@ -152,6 +155,7 @@ public static class PermissionFilterExtensions {
 	) {
 		return builder
 			.AddEndpointFilter(new PermissionFilter(customPermissionChecker))
+			.WithMetadata(new HasPermissionMetadata())
 			.ProducesAppProblem(StatusCodes.Status403Forbidden);
 	}
 }
@@ -201,3 +205,11 @@ public static class PermissionLogic {
 		return userPermissions => userPermissions.Contains(permission.Key);
 	}
 }
+
+/// <summary>
+/// Endpoint metadata marker attached by every <c>.WithPermission(…)</c> call.
+/// Stored in <see cref="Microsoft.AspNetCore.Http.Endpoint.Metadata"/> so that
+/// architecture guards and tooling can detect permission enforcement without
+/// inspecting the runtime filter pipeline.
+/// </summary>
+public sealed class HasPermissionMetadata { }
