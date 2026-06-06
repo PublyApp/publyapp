@@ -138,6 +138,16 @@ Each rule has an ID, descriptor in `DiagnosticCatalog.cs`, and is referenced in 
 - **Shipped in:** #598
 - **Enforced in:** #603
 
+### `PUBLY0008` — pattern-matching null checks (`is null` / `is not null`)
+
+- **Severity in `.editorconfig`:** `warning` (enforced)
+- **Source:** `packages/lint-cs/EqualityNullCheckAnalyzer.cs`
+- **Spec:** `packages/lint-cs/EqualityNullCheckAnalyzer.Spec.cs`
+- **AGENTS.md:** "Pattern matching for null checks (`is null` / `is not null`, never `== null`)."
+- **Note:** skips expression-tree contexts (method-syntax `Expression<…>` lambdas and `IQueryable` query-comprehension clauses) where `is null` is a CS8122 compile error.
+- **Shipped in:** #599
+- **Enforced in:** #604
+
 ## How to add a new rule
 
 See the Phase-2 PRs (#463 for the JS scaffold pattern, #464 for the Roslyn scaffold pattern). The short version:

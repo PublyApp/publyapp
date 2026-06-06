@@ -35,19 +35,19 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 	// Computed properties for easy identification
 	public bool IsStaffProfile {
 		get {
-			return Scope == ProfileScope.Staff && TenantId == null && ProjectId == null;
+			return Scope == ProfileScope.Staff && TenantId is null && ProjectId is null;
 		}
 	}
 
 	public bool IsTenantProfile {
 		get {
-			return Scope == ProfileScope.Tenant && TenantId != null && ProjectId == null;
+			return Scope == ProfileScope.Tenant && TenantId is not null && ProjectId is null;
 		}
 	}
 
 	public bool IsProjectProfile {
 		get {
-			return Scope == ProfileScope.Project && TenantId != null && ProjectId != null;
+			return Scope == ProfileScope.Project && TenantId is not null && ProjectId is not null;
 		}
 	}
 
@@ -94,7 +94,7 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 	public void ValidateProfileType() {
 		switch (Scope) {
 			case ProfileScope.Staff:
-				if (TenantId != null || ProjectId != null) {
+				if (TenantId is not null || ProjectId is not null) {
 					throw new InvalidOperationException("Staff profiles cannot have TenantId or ProjectId");
 				}
 				if (IsDefault) {
@@ -102,12 +102,12 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 				}
 				break;
 			case ProfileScope.Tenant:
-				if (TenantId == null || ProjectId != null) {
+				if (TenantId is null || ProjectId is not null) {
 					throw new InvalidOperationException("Tenant profiles must have TenantId but not ProjectId");
 				}
 				break;
 			case ProfileScope.Project:
-				if (TenantId == null || ProjectId == null) {
+				if (TenantId is null || ProjectId is null) {
 					throw new InvalidOperationException("Project profiles must have both TenantId and ProjectId");
 				}
 				if (IsDefault) {
