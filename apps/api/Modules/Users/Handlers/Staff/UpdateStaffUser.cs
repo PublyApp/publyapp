@@ -137,10 +137,15 @@ public sealed class UpdateStaffUser {
 			);
 		}
 
-		if (!body.GetFirstName().IsPresent
-			&& !body.GetLastName().IsPresent
-			&& !body.GetAvatarUrl().IsPresent
-			&& body.GetAccountLevel() is null) {
+		var firstName = body.GetFirstName();
+		var lastName = body.GetLastName();
+		var avatarUrl = body.GetAvatarUrl();
+		var accountLevel = body.GetAccountLevel();
+
+		if (!firstName.IsPresent
+			&& !lastName.IsPresent
+			&& !avatarUrl.IsPresent
+			&& accountLevel is null) {
 			// PATCH-like endpoint: an empty request means the client sent no work.
 			return TypedProblems.BadRequest(
 				"No fields to update",
@@ -149,10 +154,10 @@ public sealed class UpdateStaffUser {
 		}
 
 		var updateUserDocument = new UpdateUserDocument {
-			LastName = body.GetLastName(),
-			FirstName = body.GetFirstName(),
-			AvatarUrl = body.GetAvatarUrl(),
-			AccountLevel = body.GetAccountLevel(),
+			LastName = lastName,
+			FirstName = firstName,
+			AvatarUrl = avatarUrl,
+			AccountLevel = accountLevel,
 		};
 
 		var result =

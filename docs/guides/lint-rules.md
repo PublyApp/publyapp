@@ -120,6 +120,15 @@ Each rule has an ID, descriptor in `DiagnosticCatalog.cs`, and is referenced in 
 - **Shipped in:** #596
 - **Enforced in:** #600
 
+### `PUBLY0006` — uncached request DTO getter calls
+
+- **Severity in `.editorconfig`:** `warning` (enforced)
+- **Source:** `packages/lint-cs/UncachedBodyGetterAnalyzer.cs`
+- **Spec:** `packages/lint-cs/UncachedBodyGetterAnalyzer.Spec.cs`
+- **AGENTS.md:** "In handlers, cache body DTO getter results in locals when they are used 2+ times or return parsing-sensitive values like `PatchField<T>`, trimmed strings, parsed timestamps, or parsed enums."
+- **Shipped in:** #591
+- **Enforced in:** #602
+
 ### `PUBLY0007` — staff handlers must call `*ForStaff*` service variants
 
 - **Severity in `.editorconfig`:** `warning` (enforced)
