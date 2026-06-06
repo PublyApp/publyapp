@@ -78,4 +78,19 @@ public static class DiagnosticCatalog {
 		description: "In handler entrypoints, request DTO getters should be assigned to a local "
 			+ "variable once and reused rather than repeatedly invoked, especially for parsing-sensitive "
 			+ "returns such as PatchField<T>.");
+	/// <summary>
+	/// PUBLY0004 - disallow Dto-suffixed type declarations in handler contracts. Handler wire
+	/// contracts should use suffixes like Body/Query/Result/Response/Item instead.
+	/// </summary>
+	public static readonly DiagnosticDescriptor DtoSuffixHandlerContract = new(
+		DiagnosticIds.PUBLY0004,
+		"Avoid Dto suffix on handler contract types",
+		"Do not use the Dto suffix for handler contract types; use named contracts like "
+			+ "Body, Query, Result, Response, or Item",
+		"PublyApp.Naming",
+		DiagnosticSeverity.Hidden,
+		isEnabledByDefault: false,
+		description: "Handler contract file types should use semantic suffixes such as "
+			+ "Body, Query, Result, Response, or Item. A Dto suffix does not align with handler "
+			+ "contract naming conventions.");
 }
