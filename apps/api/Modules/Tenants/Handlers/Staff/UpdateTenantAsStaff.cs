@@ -135,10 +135,14 @@ public sealed class UpdateTenantAsStaff {
 			);
 		}
 
+		var name = body.GetName();
+		var logoUrl = body.GetLogoUrl();
+		var maxUsers = body.GetMaxUsers();
+
 		// Guard against empty PATCH body
-		if (body.GetName() is null
-			&& !body.GetLogoUrl().IsPresent
-			&& body.GetMaxUsers() is null) {
+		if (name is null
+			&& !logoUrl.IsPresent
+			&& maxUsers is null) {
 			return TypedProblems.BadRequest(
 				"No fields to update",
 				ResponseKeys.BadRequest
@@ -146,9 +150,9 @@ public sealed class UpdateTenantAsStaff {
 		}
 
 		var args = new UpdateTenantAsStaffArgs(
-			Name: body.GetName(),
-			LogoUrl: body.GetLogoUrl(),
-			MaxUsers: body.GetMaxUsers()
+			Name: name,
+			LogoUrl: logoUrl,
+			MaxUsers: maxUsers
 		);
 
 		var result = await tenantService.UpdateTenantAsync(

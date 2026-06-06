@@ -126,6 +126,7 @@ public sealed class CreateStaffUser {
 		var env = AppEnvironment.Instance;
 		var password = CryptoUtils.RandomString(env.PASSWORD_MIN_LENGTH);
 		password = PasswordUtils.HashPassword(password);
+		var sendNotification = body.GetSendNotification();
 
 		var user = new User {
 			Email = body.GetEmail(),
@@ -139,7 +140,7 @@ public sealed class CreateStaffUser {
 			IsVerified = false,
 		};
 
-		if (body.GetSendNotification()) {
+		if (sendNotification) {
 			user.IsVerified = false;
 			user.EmailVerifyToken = CryptoUtils.RandomString(env.EMAIL_VERIFY_TOKEN_LENGTH);
 			user.EmailVerifyTokenExpiresAt = DateTime.UtcNow.AddDays(
@@ -204,7 +205,7 @@ public sealed class CreateStaffUser {
 		}
 
 		if (accountResult is CreateStaffAccountResult.Success accountSuccess) {
-			if (body.GetSendNotification()) {
+			if (sendNotification) {
 				if (shouldVerifyEmail) {
 					if (string.IsNullOrEmpty(user.EmailVerifyToken)) {
 						throw new InvalidOperationException("Email verify should not be null or empty");

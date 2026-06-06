@@ -78,9 +78,12 @@ public sealed class UncachedBodyGetterAnalyzer : DiagnosticAnalyzer {
 				byMethod[getterMethod] = usage;
 			}
 
+			var isCacheDecl = IsInvocationCachedToLocal(invocation);
 			usage.Invocations.Add(invocation);
-			if (IsInvocationCachedToLocal(invocation)) {
+			if (isCacheDecl) {
 				usage.IsCachedToLocal = true;
+			} else {
+				usage.DirectInvocations.Add(invocation);
 			}
 		}
 
@@ -98,7 +101,11 @@ public sealed class UncachedBodyGetterAnalyzer : DiagnosticAnalyzer {
 					}
 
 					var getterName = $"{requestParameter.Name}.{getterMethod.Name}()";
-					foreach (var invocation in usage.Invocations) {
+					// Report only the direct (uncached) invocations — not the cache-initializer.
+					var invocationsToReport = usage.IsCachedToLocal
+						? usage.DirectInvocations
+						: usage.Invocations;
+					foreach (var invocation in invocationsToReport) {
 						blockContext.ReportDiagnostic(
 							Diagnostic.Create(
 								DiagnosticCatalog.UncachedBodyGetter,
@@ -171,8 +178,14 @@ public sealed class UncachedBodyGetterAnalyzer : DiagnosticAnalyzer {
 	}
 
 	private static bool ShouldReport(GetterUsage usage) {
-		return usage.IsParsingSensitive
-			|| (usage.Invocations.Count >= 2 && !usage.IsCachedToLocal);
+		var directCount = usage.DirectInvocations.Count;
+		// Cached once and used only via the local → no report.
+		// Cached once + 1+ additional direct call → report (mixed anti-pattern).
+		// Not cached + 1 direct call, non-parsing-sensitive → no report.
+		// Not cached + 1 direct call, parsing-sensitive (PatchField<T>) → report.
+		// 2+ direct calls → report.
+		return directCount >= 2
+			|| ((usage.IsParsingSensitive || usage.IsCachedToLocal) && directCount >= 1);
 	}
 
 	private static bool IsParsingSensitiveReturnType(IMethodSymbol getterMethod) {
@@ -185,7 +198,11 @@ public sealed class UncachedBodyGetterAnalyzer : DiagnosticAnalyzer {
 	}
 
 	private sealed class GetterUsage {
+		/// <summary>All invocations of this getter, including any cache-initializer declaration.</summary>
 		public readonly global::System.Collections.Generic.List<IInvocationOperation> Invocations =
+			new();
+		/// <summary>Invocations that are NOT the local-declaration cache initializer.</summary>
+		public readonly global::System.Collections.Generic.List<IInvocationOperation> DirectInvocations =
 			new();
 		public bool IsCachedToLocal;
 		public bool IsParsingSensitive;

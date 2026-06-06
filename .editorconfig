@@ -101,6 +101,7 @@ dotnet_diagnostic.PUBLY0001.severity = warning   # Disallow null-forgiving opera
 dotnet_diagnostic.PUBLY0002.severity = warning   # Disallow ?? throw — use guard clauses
 dotnet_diagnostic.PUBLY0003.severity = warning   # Disallow ToLower()/ToLowerInvariant() for comparison/dispatch
 dotnet_diagnostic.PUBLY0004.severity = warning   # Disallow Dto suffix on handler contract types
+dotnet_diagnostic.PUBLY0006.severity = warning   # Cache request DTO getters to a local
 dotnet_diagnostic.PUBLY0007.severity = warning   # Require *ForStaff service variants in staff handlers
 dotnet_diagnostic.SYSLIB1045.severity = warning # Use [GeneratedRegex]
 dotnet_diagnostic.xUnit1042.severity = warning  # MemberData should return TheoryData<...> for type safety

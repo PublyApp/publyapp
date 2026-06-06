@@ -119,6 +119,45 @@ public sealed class UncachedBodyGetterAnalyzerSpec
 	}
 
 	[Fact]
+	public async Task ItShouldReturnNoDiagnosticsWhenPatchFieldGetterIsCachedToLocal()
+	{
+		const string source = """
+			using System;
+
+			public readonly struct PatchField<T>
+			{
+				private readonly T? _value;
+
+				public PatchField(T? value)
+				{
+					_value = value;
+				}
+
+				public bool IsPresent => true;
+			}
+
+			public sealed class Body
+			{
+				public PatchField<string?> GetTitle()
+				{
+					throw new InvalidOperationException();
+				}
+			}
+
+			public sealed class Handler
+			{
+				public static bool Handle(Body body)
+				{
+					var title = body.GetTitle();
+					return title.IsPresent;
+				}
+			}
+			""";
+
+		await VerifyEnabledAsync(source);
+	}
+
+	[Fact]
 	public async Task ItShouldSkipHandlerShapeChecksOutsideHandleMethodOrPublicSealedType()
 	{
 		const string source = """
@@ -196,6 +235,33 @@ public sealed class UncachedBodyGetterAnalyzerSpec
 			""";
 
 		await VerifyEnabledAsync(source);
+	}
+
+	[Fact]
+	public async Task ItShouldReportDiagnosticWhenGetterIsCachedToLocalButAlsoCalledDirectly()
+	{
+		const string source = """
+			namespace Sample;
+
+			public sealed class Body
+			{
+				public string GetFirstName()
+				{
+					return "Ada";
+				}
+			}
+
+			public sealed class Handler
+			{
+				public static string Handle(Body body)
+				{
+					var firstName = body.GetFirstName();
+					return firstName + {|#0:body.GetFirstName()|};
+				}
+			}
+			""";
+
+		await VerifyEnabledAsync(source, ExpectedDiagnostic(0, "body.GetFirstName()"));
 	}
 
 	[Fact]
