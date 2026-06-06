@@ -125,4 +125,19 @@ public static class DiagnosticCatalog {
 		description: "Staff handler code paths should call service methods suffixed with "
 			+ "ForStaff when present (for example, GetTenantByIdForStaffAsync) so tenant-scoped "
 			+ "filtering in the base variant is not reused in staff contexts.");
+	/// <summary>
+	/// PUBLY0008 — disallow direct null equality checks and require pattern matching null checks
+	/// (<c>x == null</c>/<c>x != null</c> -> <c>x is null</c>/<c>x is not null</c>) to enforce
+	/// explicit nullability semantics.
+	/// </summary>
+	public static readonly DiagnosticDescriptor EqualityNullCheck = new(
+		DiagnosticIds.PUBLY0008,
+		"Use pattern matching for null checks",
+		"Use 'is null' / 'is not null' pattern matching instead of direct null equality checks",
+		"PublyApp.Nullability",
+		DiagnosticSeverity.Hidden,
+		isEnabledByDefault: false,
+		description: "Prefer pattern-matching null checks to direct equality checks so null checks are "
+			+ "explicit and aligned with the project's nullability conventions."
+	);
 }

@@ -13,4 +13,5 @@ public static class DiagnosticIds {
 	public const string PUBLY0004 = "PUBLY0004";
 	public const string PUBLY0005 = "PUBLY0005";
 	public const string PUBLY0007 = "PUBLY0007";
+	public const string PUBLY0008 = "PUBLY0008";
 }
