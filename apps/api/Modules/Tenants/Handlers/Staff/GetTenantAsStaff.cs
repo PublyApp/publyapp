@@ -28,8 +28,8 @@ public sealed class GetTenantAsStaff {
 			AppNotFoundHttpResult
 		>
 	> Handle(
-		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		[FromRoute] string tenantId,
+		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {

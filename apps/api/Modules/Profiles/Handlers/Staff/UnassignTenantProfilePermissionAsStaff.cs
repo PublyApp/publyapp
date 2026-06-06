@@ -16,12 +16,12 @@ public sealed class UnassignTenantProfilePermissionAsStaff {
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
 	>> Handle(
-		[FromServices] IRequestAuthContext authContext,
-		[FromServices] ITenantProfileAsStaffService tenantProfileService,
-		[FromServices] IAuditLogService auditLogService,
 		[FromRoute] string tenantId,
 		[FromRoute] string profileId,
 		[FromRoute] string permissionKey,
+		[FromServices] IRequestAuthContext authContext,
+		[FromServices] ITenantProfileAsStaffService tenantProfileService,
+		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {

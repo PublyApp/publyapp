@@ -13,9 +13,9 @@ public sealed class GetAuditLogById {
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
 	>> Handle(
+		[FromRoute] string logId,
 		[FromServices]
 		IAuditLogQueryService auditLogQueryService,
-		[FromRoute] string logId,
 		CancellationToken cancellationToken = default
 	) {
 		if (!Guid.TryParse(logId, out var logIdGuid)) {

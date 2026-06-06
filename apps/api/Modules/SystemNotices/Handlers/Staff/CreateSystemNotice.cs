@@ -143,10 +143,10 @@ public sealed class CreateSystemNotice {
 		Created<SystemNoticeCreated>,
 		AppBadRequestHttpResult
 	>> Handle(
+		[FromBody] CreateSystemNoticeBody body,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] ISystemNoticeService systemNoticeService,
 		[FromServices] IAuditLogService auditLogService,
-		[FromBody] CreateSystemNoticeBody body,
 		CancellationToken cancellationToken = default
 	) {
 		var account = authContext.AccountStaff;

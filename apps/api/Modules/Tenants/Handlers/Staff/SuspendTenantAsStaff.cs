@@ -57,10 +57,10 @@ public sealed class SuspendTenantAsStaff {
 		AppConflictHttpResult
 	>> Handle(
 		[FromRoute] string tenantId,
+		[FromBody] SuspendTenantAsStaffBody request,
 		[FromServices] ITenantAsStaffService tenantService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IRequestAuthContext authContext,
-		[FromBody] SuspendTenantAsStaffBody request,
 		CancellationToken cancellationToken = default
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {

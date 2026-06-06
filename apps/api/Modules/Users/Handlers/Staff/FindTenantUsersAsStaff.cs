@@ -130,10 +130,10 @@ public sealed class FindTenantUsersAsStaff {
 			AppBadRequestHttpResult
 		>
 	> Handle(
-		[FromServices] ITenantUserQueryService userService,
+		[FromRoute] string tenantId,
 		[AsParameters]
 			FindTenantUsersAsStaffQuery query,
-		[FromRoute] string tenantId,
+		[FromServices] ITenantUserQueryService userService,
 		CancellationToken cancellationToken
 	) {
 		if (

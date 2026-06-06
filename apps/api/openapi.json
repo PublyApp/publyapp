@@ -8562,10 +8562,10 @@
           },
           "translationKey": {
             "type": "string",
-            "description": "The translation key for frontend localization.\r\nSerialized as \"translationKey\" in the JSON response."
+            "description": "The translation key for frontend localization.\nSerialized as \"translationKey\" in the JSON response."
           }
         },
-        "description": "A ProblemDetails extension that includes a translation key for frontend i18n.\r\nComplies with RFC 7807 while supporting localization."
+        "description": "A ProblemDetails extension that includes a translation key for frontend i18n.\nComplies with RFC 7807 while supporting localization."
       },
       "AssignTenantUserCompaniesForStaffBody": {
         "required": [
@@ -10020,7 +10020,7 @@
             "format": "uuid"
           }
         },
-        "description": "Result for reactivating a tenant user."
+        "description": "HTTP wire result for the reactivate tenant-user operation; top-level sibling per the\nhandler file contract, with no Dto suffix on wire types."
       },
       "ResetPasswordBody": {
         "required": [
@@ -10411,7 +10411,7 @@
             "format": "uuid"
           }
         },
-        "description": "Result for suspending a tenant user."
+        "description": "HTTP wire result for the suspend tenant-user operation; top-level sibling per the\nhandler file contract, with no Dto suffix on wire types."
       },
       "SystemNoticeCreated": {
         "required": [
@@ -11180,14 +11180,14 @@
                 "type": "string"
               }
             },
-            "description": "Dictionary of field names to error messages.\r\nSerialized as \"errors\" in the JSON response."
+            "description": "Dictionary of field names to error messages.\nSerialized as \"errors\" in the JSON response."
           },
           "translationKey": {
             "type": "string",
-            "description": "The translation key for frontend localization.\r\nSerialized as \"translationKey\" in the JSON response."
+            "description": "The translation key for frontend localization.\nSerialized as \"translationKey\" in the JSON response."
           }
         },
-        "description": "A ProblemDetails extension for validation errors.\r\nIncludes field-level errors in addition to the translation key.\r\nComplies with RFC 7807 while supporting validation error details."
+        "description": "A ProblemDetails extension for validation errors.\nIncludes field-level errors in addition to the translation key.\nComplies with RFC 7807 while supporting validation error details."
       },
       "VerifyEmailRequestBody": {
         "required": [

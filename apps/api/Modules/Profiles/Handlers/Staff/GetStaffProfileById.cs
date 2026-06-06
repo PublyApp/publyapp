@@ -19,8 +19,8 @@ public sealed class GetStaffProfileById {
 			AppBadRequestHttpResult
 		>
 	> Handle(
-		[FromServices] IStaffProfileQueryAsStaffService profileQueryAsStaffService,
 		[FromRoute] string profileId,
+		[FromServices] IStaffProfileQueryAsStaffService profileQueryAsStaffService,
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(profileId, out var profileIdGuid)) {
@@ -50,4 +50,3 @@ public sealed class GetStaffProfileById {
 		throw new InvalidOperationException("Unhandled result type");
 	}
 }
-

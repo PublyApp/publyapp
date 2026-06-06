@@ -115,9 +115,9 @@ public sealed class UpdateStaffProfile {
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
 	>> Handle(
-		[FromServices] IStaffProfileAsStaffService profileAsStaffService,
 		[FromRoute] string profileId,
 		[FromBody] UpdateStaffProfileBody body,
+		[FromServices] IStaffProfileAsStaffService profileAsStaffService,
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(profileId, out var profileIdGuid)) {
