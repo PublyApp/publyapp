@@ -109,4 +109,20 @@ public static class DiagnosticCatalog {
 		description: "Inline FluentValidation rule chains that call built-in validation "
 			+ "operators directly on JsonElement getters duplicate shared logic and should "
 			+ "use JsonElementRules extension methods instead.");
+	/// <summary>
+	/// PUBLY0007 — enforce staff-handler authorization invariants by requiring service calls in staff
+	/// handlers to use *ForStaff service variants when available. Staff variants are defined as
+	/// sibling methods suffixed with <c>ForStaff</c>, usually by inserting it before <c>Async</c>.
+	/// <c>isEnabledByDefault: false</c> keeps this rule dormant until enabled in configuration.
+	/// </summary>
+	public static readonly DiagnosticDescriptor StaffHandlerServiceVariant = new(
+		DiagnosticIds.PUBLY0007,
+		"Use the staff service variant in staff handlers",
+		"Call the staff service variant when available in staff handlers",
+		"PublyApp.Authorization",
+		DiagnosticSeverity.Hidden,
+		isEnabledByDefault: false,
+		description: "Staff handler code paths should call service methods suffixed with "
+			+ "ForStaff when present (for example, GetTenantByIdForStaffAsync) so tenant-scoped "
+			+ "filtering in the base variant is not reused in staff contexts.");
 }
