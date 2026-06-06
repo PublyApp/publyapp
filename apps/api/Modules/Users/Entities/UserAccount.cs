@@ -50,19 +50,19 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	// Computed properties for easy identification
 	public bool IsStaffAccount {
 		get {
-			return Scope == AccountScope.Staff && TenantId == null && ProjectId == null;
+			return Scope == AccountScope.Staff && TenantId is null && ProjectId is null;
 		}
 	}
 
 	public bool IsTenantAccount {
 		get {
-			return Scope == AccountScope.Tenant && TenantId != null && ProjectId == null;
+			return Scope == AccountScope.Tenant && TenantId is not null && ProjectId is null;
 		}
 	}
 
 	public bool IsProjectAccount {
 		get {
-			return Scope == AccountScope.Project && TenantId != null && ProjectId != null;
+			return Scope == AccountScope.Project && TenantId is not null && ProjectId is not null;
 		}
 	}
 
@@ -107,17 +107,17 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	public void ValidateAccountType() {
 		switch (Scope) {
 			case AccountScope.Staff:
-				if (TenantId != null || ProjectId != null) {
+				if (TenantId is not null || ProjectId is not null) {
 					throw new InvalidOperationException("Staff accounts cannot have TenantId or ProjectId");
 				}
 				break;
 			case AccountScope.Tenant:
-				if (TenantId == null || ProjectId != null) {
+				if (TenantId is null || ProjectId is not null) {
 					throw new InvalidOperationException("Tenant accounts must have TenantId but not ProjectId");
 				}
 				break;
 			case AccountScope.Project:
-				if (TenantId == null || ProjectId == null) {
+				if (TenantId is null || ProjectId is null) {
 					throw new InvalidOperationException("Project accounts must have both TenantId and ProjectId");
 				}
 				break;

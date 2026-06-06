@@ -425,7 +425,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.HasFilter("\"scope\" = 1 AND \"project_id\" IS NULL AND \"is_default\" = true AND \"is_deleted\" = false");
 
 		// Apply matching query filters to ensure consistent filtering
-		if (TenantId != null) {
+		if (TenantId is not null) {
 			// UserAccountProfile gets a filter that matches the Profile's tenant
 			// This ensures both entities in the relationship are filtered consistently
 			modelBuilder.Entity<UserAccountProfile>()
@@ -445,7 +445,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			if (typeof(ITenantEntity).IsAssignableFrom(entityType.ClrType)) {
 				modelBuilder.Entity(entityType.ClrType);
 
-				if (TenantId != null) {
+				if (TenantId is not null) {
 					// Dynamically apply query filter for tenant-filtered entities
 					var parameter = Expression.Parameter(entityType.ClrType, "x");
 					var tenantIdProperty = Expression.Property(parameter, nameof(TenantId));

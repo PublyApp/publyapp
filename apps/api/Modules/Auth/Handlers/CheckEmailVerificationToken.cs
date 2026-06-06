@@ -125,7 +125,7 @@ public sealed class CheckEmailVerificationToken {
 		// Send success email asynchronously
 		_ = emailService.SendEmailVerifiedNotificationAsync(user.Email)
 		.ContinueWith(t => {
-			if (t.Exception != null) {
+			if (t.Exception is not null) {
 				if (logger.IsEnabled(LogLevel.Error)) {
 					logger.LogError(
 						t.Exception,
