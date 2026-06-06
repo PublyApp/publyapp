@@ -299,7 +299,8 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 - `PatchField<T>` for clearable nullable PATCH fields (see [`docs/guides/patchfield-pattern.md`](docs/guides/patchfield-pattern.md))
 - Max 100 char line length; always use braces on control flow blocks
 - "Find" prefix for list/collection retrieval (not "List")
-- Staff handlers MUST use `*ForStaff*` service method variants (e.g., `GetTenantByIdForStaffAsync`) — base methods filter suspended entities
+- Staff handlers MUST use `*ForStaff*` service method variants (e.g., `GetTenantByIdForStaffAsync`) — base methods filter suspended entities (enforced by `PUBLY0007`)
+- Handler HTTP wire-contract types (the `Body`/`Query`/`Result`/`Response`/`Item` siblings) must not carry a `Dto` suffix (enforced by `PUBLY0004`)
 - For cursor/keyset pagination, see [`docs/guides/cursor-keyset-pagination-guide.md`](docs/guides/cursor-keyset-pagination-guide.md)
 - For list pages with search/filter + cursor pagination + bulk actions, see [`docs/guides/list-pages-search-filter-cursor-pagination.md`](docs/guides/list-pages-search-filter-cursor-pagination.md)
 - For bulk-action UX + backend conventions (always-render menu items, batched service queries, batched audit logs, mutation-hook split try/catch), see [`docs/guides/bulk-action-ux-conventions.md`](docs/guides/bulk-action-ux-conventions.md)

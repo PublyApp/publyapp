@@ -111,6 +111,24 @@ Each rule has an ID, descriptor in `DiagnosticCatalog.cs`, and is referenced in 
 - **Shipped in:** #503
 - **Enforced in:** #515
 
+### `PUBLY0004` — `Dto` suffix on handler contract types
+
+- **Severity in `.editorconfig`:** `warning` (enforced)
+- **Source:** `packages/lint-cs/DtoSuffixHandlerContractAnalyzer.cs`
+- **Spec:** `packages/lint-cs/DtoSuffixHandlerContractAnalyzer.Spec.cs`
+- **AGENTS.md:** "Handler HTTP wire-contract types (the `Body`/`Query`/`Result`/`Response`/`Item` siblings) must not carry a `Dto` suffix."
+- **Shipped in:** #596
+- **Enforced in:** #600
+
+### `PUBLY0007` — staff handlers must call `*ForStaff*` service variants
+
+- **Severity in `.editorconfig`:** `warning` (enforced)
+- **Source:** `packages/lint-cs/StaffHandlerServiceVariantAnalyzer.cs`
+- **Spec:** `packages/lint-cs/StaffHandlerServiceVariantAnalyzer.Spec.cs`
+- **AGENTS.md:** "Staff handlers MUST use `*ForStaff*` service method variants (e.g., `GetTenantByIdForStaffAsync`) — base methods filter suspended entities."
+- **Shipped in:** #598
+- **Enforced in:** #603
+
 ## How to add a new rule
 
 See the Phase-2 PRs (#463 for the JS scaffold pattern, #464 for the Roslyn scaffold pattern). The short version:
