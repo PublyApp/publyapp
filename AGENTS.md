@@ -291,7 +291,7 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 - Handlers orchestrate, services implement (no DbContext in handlers)
 - Handler entrypoint method is `Handle` (never `HandleX`); handler class is `public sealed class <Operation>`; HTTP `Body`/`Query`/`Result`/`Response`/`Item` + `*Validator` types are top-level siblings in the handler file, never nested — see [`docs/guides/csharp-coding-standards.md`](docs/guides/csharp-coding-standards.md)
 - Request body DTOs use `JsonElement` with `Get*()` methods for FluentValidation compatibility
-- In handlers, cache body DTO getter results in locals when they are used 2+ times or return parsing-sensitive values like `PatchField<T>`, trimmed strings, parsed timestamps, or parsed enums
+- In handlers, cache body DTO getter results in locals when they are used 2+ times or return parsing-sensitive values like `PatchField<T>`, trimmed strings, parsed timestamps, or parsed enums (enforced by `PUBLY0006`)
 - All errors use `TypedProblems.*` (RFC 7807), never `TypedResults.Forbid()`
 - Services MUST NOT depend on other services (only DbContext + infrastructure)
 - Use `[Service]` attribute for DI registration; `{Action}{Domain}Args` records for 3+ params;
