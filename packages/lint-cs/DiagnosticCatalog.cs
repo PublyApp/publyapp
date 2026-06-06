@@ -93,4 +93,20 @@ public static class DiagnosticCatalog {
 		description: "Handler contract file types should use semantic suffixes such as "
 			+ "Body, Query, Result, Response, or Item. A Dto suffix does not align with handler "
 			+ "contract naming conventions.");
+	/// <summary>
+	/// PUBLY0005 — discourage inline FluentValidation chains against JsonElement getters in
+	/// validator types and prefer shared <c>JsonElementRules</c> helpers. Disabled by default
+	/// because this ship rule requires rollout across existing validators.
+	/// </summary>
+	public static readonly DiagnosticDescriptor InlineFluentValidationChain = new(
+		DiagnosticIds.PUBLY0005,
+		"Use shared JsonElementRules helpers",
+		"Replace inline FluentValidation chains on JsonElement getters with JsonElementRules "
+			+ "helpers",
+		"PublyApp.Validation",
+		DiagnosticSeverity.Hidden,
+		isEnabledByDefault: false,
+		description: "Inline FluentValidation rule chains that call built-in validation "
+			+ "operators directly on JsonElement getters duplicate shared logic and should "
+			+ "use JsonElementRules extension methods instead.");
 }
