@@ -583,4 +583,451 @@ public sealed class JsonElementRulesSpec {
 			.Validate(model);
 		_ = result.IsValid.Should().BeFalse();
 	}
+
+	// ============= MustBeRequiredStringWithLength =============
+
+	private class RequiredStringLengthModel {
+		public JsonElement Value { get; set; }
+	}
+
+	private class RequiredStringLengthValidator
+		: AbstractValidator<RequiredStringLengthModel> {
+		public RequiredStringLengthValidator() {
+			RuleFor(x => x.Value)
+				.MustBeRequiredStringWithLength("Value", 2, 10);
+		}
+	}
+
+	[Fact]
+	public void ItShouldPassRequiredStringWithLengthWhenValid() {
+		var model = new RequiredStringLengthModel {
+			Value = JsonSerializer.SerializeToElement("hello"),
+		};
+		var result = new RequiredStringLengthValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailRequiredStringWithLengthWhenTooShort() {
+		var model = new RequiredStringLengthModel {
+			Value = JsonSerializer.SerializeToElement("a"),
+		};
+		var result = new RequiredStringLengthValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailRequiredStringWithLengthWhenTooLong() {
+		var model = new RequiredStringLengthModel {
+			Value = JsonSerializer.SerializeToElement("12345678901"),
+		};
+		var result = new RequiredStringLengthValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailRequiredStringWithLengthWhenEmpty() {
+		var model = new RequiredStringLengthModel {
+			Value = default,
+		};
+		var result = new RequiredStringLengthValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	// ============= MustBePatchFieldStringWithLength =============
+
+	private class PatchStringLengthModel {
+		public JsonElement Value { get; set; }
+	}
+
+	private class PatchStringLengthValidator
+		: AbstractValidator<PatchStringLengthModel> {
+		public PatchStringLengthValidator() {
+			RuleFor(x => x.Value)
+				.MustBePatchFieldStringWithLength("Value", 2, 10);
+		}
+	}
+
+	[Fact]
+	public void ItShouldPassPatchFieldStringWithLengthWhenUndefined() {
+		var model = new PatchStringLengthModel {
+			Value = default,
+		};
+		var result = new PatchStringLengthValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassPatchFieldStringWithLengthWhenValid() {
+		var model = new PatchStringLengthModel {
+			Value = JsonSerializer.SerializeToElement("hello"),
+		};
+		var result = new PatchStringLengthValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailPatchFieldStringWithLengthWhenTooShort() {
+		var model = new PatchStringLengthModel {
+			Value = JsonSerializer.SerializeToElement("a"),
+		};
+		var result = new PatchStringLengthValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailPatchFieldStringWithLengthWhenTooLong() {
+		var model = new PatchStringLengthModel {
+			Value = JsonSerializer.SerializeToElement("12345678901"),
+		};
+		var result = new PatchStringLengthValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	// ============= MustBeNullableStringWithMaxLength =============
+
+	private class NullableStringMaxLengthModel {
+		public JsonElement? Value { get; set; }
+	}
+
+	private class NullableStringMaxLengthValidator
+		: AbstractValidator<NullableStringMaxLengthModel> {
+		public NullableStringMaxLengthValidator() {
+			RuleFor(x => x.Value)
+				.MustBeNullableStringWithMaxLength("Value", 10);
+		}
+	}
+
+	[Fact]
+	public void ItShouldPassNullableStringWithMaxLengthWhenNull() {
+		var model = new NullableStringMaxLengthModel { Value = null };
+		var result = new NullableStringMaxLengthValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassNullableStringWithMaxLengthWhenJsonNull() {
+		var model = new NullableStringMaxLengthModel {
+			Value = JsonDocument.Parse("null").RootElement,
+		};
+		var result = new NullableStringMaxLengthValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassNullableStringWithMaxLengthWhenWithinLimit() {
+		var model = new NullableStringMaxLengthModel {
+			Value = JsonSerializer.SerializeToElement("hello"),
+		};
+		var result = new NullableStringMaxLengthValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailNullableStringWithMaxLengthWhenTooLong() {
+		var model = new NullableStringMaxLengthModel {
+			Value = JsonSerializer.SerializeToElement("12345678901"),
+		};
+		var result = new NullableStringMaxLengthValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	// ============= MustBePatchFieldStringWithMaxLength =============
+
+	private class PatchStringMaxLengthModel {
+		public JsonElement Value { get; set; }
+	}
+
+	private class PatchStringMaxLengthValidator
+		: AbstractValidator<PatchStringMaxLengthModel> {
+		public PatchStringMaxLengthValidator() {
+			RuleFor(x => x.Value)
+				.MustBePatchFieldStringWithMaxLength("Value", 10);
+		}
+	}
+
+	[Fact]
+	public void ItShouldPassPatchFieldStringWithMaxLengthWhenUndefined() {
+		var model = new PatchStringMaxLengthModel { Value = default };
+		var result = new PatchStringMaxLengthValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassPatchFieldStringWithMaxLengthWhenJsonNull() {
+		var model = new PatchStringMaxLengthModel {
+			Value = JsonDocument.Parse("null").RootElement,
+		};
+		var result = new PatchStringMaxLengthValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassPatchFieldStringWithMaxLengthWhenWithinLimit() {
+		var model = new PatchStringMaxLengthModel {
+			Value = JsonSerializer.SerializeToElement("hello"),
+		};
+		var result = new PatchStringMaxLengthValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailPatchFieldStringWithMaxLengthWhenTooLong() {
+		var model = new PatchStringMaxLengthModel {
+			Value = JsonSerializer.SerializeToElement("12345678901"),
+		};
+		var result = new PatchStringMaxLengthValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	// ============= MustBeRequiredIsoDateTime =============
+
+	private class RequiredIsoDateTimeModel {
+		public JsonElement Value { get; set; }
+	}
+
+	private class RequiredIsoDateTimeValidator
+		: AbstractValidator<RequiredIsoDateTimeModel> {
+		public RequiredIsoDateTimeValidator() {
+			RuleFor(x => x.Value)
+				.MustBeRequiredIsoDateTime("Value");
+		}
+	}
+
+	[Fact]
+	public void ItShouldPassRequiredIsoDateTimeWhenValid() {
+		var model = new RequiredIsoDateTimeModel {
+			Value = JsonSerializer.SerializeToElement(
+				"2024-01-15T10:30:00Z"
+			),
+		};
+		var result = new RequiredIsoDateTimeValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailRequiredIsoDateTimeWhenEmpty() {
+		var model = new RequiredIsoDateTimeModel { Value = default };
+		var result = new RequiredIsoDateTimeValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailRequiredIsoDateTimeWhenInvalidFormat() {
+		var model = new RequiredIsoDateTimeModel {
+			Value = JsonSerializer.SerializeToElement("not-a-date"),
+		};
+		var result = new RequiredIsoDateTimeValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	// ============= MustBeNullableIsoDateTime =============
+
+	private class NullableIsoDateTimeModel {
+		public JsonElement? Value { get; set; }
+	}
+
+	private class NullableIsoDateTimeValidator
+		: AbstractValidator<NullableIsoDateTimeModel> {
+		public NullableIsoDateTimeValidator() {
+			RuleFor(x => x.Value)
+				.MustBeNullableIsoDateTime("Value");
+		}
+	}
+
+	[Fact]
+	public void ItShouldPassNullableIsoDateTimeWhenNull() {
+		var model = new NullableIsoDateTimeModel { Value = null };
+		var result = new NullableIsoDateTimeValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassNullableIsoDateTimeWhenJsonNull() {
+		var model = new NullableIsoDateTimeModel {
+			Value = JsonDocument.Parse("null").RootElement,
+		};
+		var result = new NullableIsoDateTimeValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassNullableIsoDateTimeWhenValid() {
+		var model = new NullableIsoDateTimeModel {
+			Value = JsonSerializer.SerializeToElement(
+				"2024-01-15T10:30:00Z"
+			),
+		};
+		var result = new NullableIsoDateTimeValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailNullableIsoDateTimeWhenInvalidFormat() {
+		var model = new NullableIsoDateTimeModel {
+			Value = JsonSerializer.SerializeToElement("not-a-date"),
+		};
+		var result = new NullableIsoDateTimeValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	// ============= trim: true vs default (raw) on boundary values =============
+
+	private class RequiredStringLengthTrimModel {
+		public JsonElement Value { get; set; }
+	}
+
+	// trim: true — a string that is exactly minLength chars when trimmed but shorter raw should pass
+	// trim: false (default) — same string should fail the min check because raw < minLength
+	private class RequiredStringLengthTrimValidator
+		: AbstractValidator<RequiredStringLengthTrimModel> {
+		public RequiredStringLengthTrimValidator() {
+			// minLength=3, trim=true → "  ab  ".Trim().Length=2 → fail
+			// minLength=3, trim=true → "  abc  ".Trim().Length=3 → pass
+			RuleFor(x => x.Value)
+				.MustBeRequiredStringWithLength("Value", 3, 20, trim: true);
+		}
+	}
+
+	private class RequiredStringLengthRawValidator
+		: AbstractValidator<RequiredStringLengthTrimModel> {
+		public RequiredStringLengthRawValidator() {
+			// minLength=3, trim=false (default) → "  a  ".Length=5 → pass raw (but Trim=1 fail trim)
+			RuleFor(x => x.Value)
+				.MustBeRequiredStringWithLength("Value", 3, 20);
+		}
+	}
+
+	[Fact]
+	public void ItShouldPassRequiredStringWithLengthTrimWhenTrimmedMeetsMin() {
+		// "  abc  " → trimmed = "abc" (length 3) → passes with trim:true, min=3
+		var model = new RequiredStringLengthTrimModel {
+			Value = JsonSerializer.SerializeToElement("  abc  "),
+		};
+		var result = new RequiredStringLengthTrimValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailRequiredStringWithLengthTrimWhenTrimmedBelowMin() {
+		// "  ab  " → trimmed = "ab" (length 2) → fails with trim:true, min=3
+		var model = new RequiredStringLengthTrimModel {
+			Value = JsonSerializer.SerializeToElement("  ab  "),
+		};
+		var result = new RequiredStringLengthTrimValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldPassRequiredStringWithLengthRawWhenRawMeetsMinEvenIfTrimWouldFail() {
+		// "  a  " → raw length 5 → passes with trim:false (default), min=3
+		// but would fail if trim=true because "a".Length = 1 < 3
+		var model = new RequiredStringLengthTrimModel {
+			Value = JsonSerializer.SerializeToElement("  a  "),
+		};
+		var result = new RequiredStringLengthRawValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	private class NullableStringMaxLengthTrimModel {
+		public JsonElement? Value { get; set; }
+	}
+
+	private class NullableStringMaxLengthTrimValidator
+		: AbstractValidator<NullableStringMaxLengthTrimModel> {
+		public NullableStringMaxLengthTrimValidator() {
+			// maxLength=5, trim=true → "hello  ".Trim().Length=5 → pass; "hello!  ".Trim().Length=6 → fail
+			RuleFor(x => x.Value)
+				.MustBeNullableStringWithMaxLength("Value", 5, trim: true);
+		}
+	}
+
+	[Fact]
+	public void ItShouldPassNullableStringMaxLengthTrimWhenTrimmedAtMax() {
+		// "hello  " → trimmed = "hello" (length 5) → passes with trim:true, max=5
+		var model = new NullableStringMaxLengthTrimModel {
+			Value = JsonSerializer.SerializeToElement("hello  "),
+		};
+		var result = new NullableStringMaxLengthTrimValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailNullableStringMaxLengthTrimWhenTrimmedExceedsMax() {
+		// "hello!  " → trimmed = "hello!" (length 6) → fails with trim:true, max=5
+		var model = new NullableStringMaxLengthTrimModel {
+			Value = JsonSerializer.SerializeToElement("hello!  "),
+		};
+		var result = new NullableStringMaxLengthTrimValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldRejectNullableStringWithMaxLengthWhenJsonUndefined() {
+		// MustBeNullableStringWithMaxLength must NOT accept an explicit JsonValueKind.Undefined
+		// element (as opposed to wrapper-null which is OK).
+		var validator = new NullableStringMaxLengthValidator();
+
+		// wrapper-null (JsonElement? = null) → OK
+		var wrapperNull = new NullableStringMaxLengthModel { Value = null };
+		var wrapperNullResult = validator.Validate(wrapperNull);
+		_ = wrapperNullResult.IsValid.Should().BeTrue();
+
+		// explicit JsonValueKind.Undefined boxed as JsonElement? → must fail
+		var undefinedElement = new NullableStringMaxLengthModel {
+			Value = (JsonElement?)new JsonElement(), // default JsonElement has ValueKind=Undefined
+		};
+		var undefinedResult = validator.Validate(undefinedElement);
+		_ = undefinedResult.IsValid.Should().BeFalse();
+	}
+
+	// ============= MustBePatchFieldIsoDateTime =============
+
+	private class PatchIsoDateTimeModel {
+		public JsonElement Value { get; set; }
+	}
+
+	private class PatchIsoDateTimeValidator
+		: AbstractValidator<PatchIsoDateTimeModel> {
+		public PatchIsoDateTimeValidator() {
+			RuleFor(x => x.Value)
+				.MustBePatchFieldIsoDateTime("Value");
+		}
+	}
+
+	[Fact]
+	public void ItShouldPassPatchFieldIsoDateTimeWhenUndefined() {
+		var model = new PatchIsoDateTimeModel { Value = default };
+		var result = new PatchIsoDateTimeValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassPatchFieldIsoDateTimeWhenJsonNull() {
+		var model = new PatchIsoDateTimeModel {
+			Value = JsonDocument.Parse("null").RootElement,
+		};
+		var result = new PatchIsoDateTimeValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassPatchFieldIsoDateTimeWhenValid() {
+		var model = new PatchIsoDateTimeModel {
+			Value = JsonSerializer.SerializeToElement(
+				"2024-01-15T10:30:00Z"
+			),
+		};
+		var result = new PatchIsoDateTimeValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailPatchFieldIsoDateTimeWhenInvalidFormat() {
+		var model = new PatchIsoDateTimeModel {
+			Value = JsonSerializer.SerializeToElement("not-a-date"),
+		};
+		var result = new PatchIsoDateTimeValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
 }

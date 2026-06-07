@@ -59,56 +59,37 @@ public class CreateTenantAsStaffBody {
 public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAsStaffBody> {
 	public CreateTenantAsStaffBodyValidator() {
 		RuleFor(x => x.Name)
-			.MustBeRequiredString("Name")
-			.Must(HaveMinimumNameLength)
-			.WithMessage(
-				"Name must be at least"
-				+ " 5 characters long"
-			);
+			.MustBeRequiredStringWithLength("Name", 5, int.MaxValue);
 
-		// Inline rule: no JsonElementRules.* equivalent for nullable positive JsonElement numbers.
-		//   See docs/guides/validator-conventions.md; extract if this shape repeats.
-		RuleFor(x => x.MaxUsers)
-			.Must(BeNumberNullOrUndefined)
-			.WithMessage("MaxUsers must be a number, null, or undefined")
-			.Must(BeGreaterThanZeroWhenProvided)
-			.WithMessage("MaxUsers must be greater than 0 when provided");
+		RuleFor(x => x.MaxUsers).Custom((element, context) => {
+			var kind = element.ValueKind;
+			if (kind is JsonValueKind.Null or JsonValueKind.Undefined) {
+				return;
+			}
+			if (kind is JsonValueKind.Number) {
+				if (!element.TryGetInt32(out var v) || v <= 0) {
+					context.AddFailure("MaxUsers must be greater than 0 when provided");
+				}
+				return;
+			}
+			context.AddFailure("MaxUsers must be a number, null, or undefined");
+		});
 
-		// Inline rule: no JsonElementRules.* equivalent for cross-item array/object invariants.
-		//   See docs/guides/validator-conventions.md; extract if this shape repeats.
 		RuleFor(x => x.InitialUsers)
-			.NotEmpty().WithMessage("InitialUsers is required")
 			.Custom(ValidateInitialUsers);
-	}
-
-	private static bool HaveMinimumNameLength(JsonElement element) {
-		if (element.ValueKind != JsonValueKind.String) {
-			return true;
-		}
-
-		var value = element.GetString();
-		return value is not null
-			&& value.Length >= 5;
-	}
-
-	private static bool BeNumberNullOrUndefined(JsonElement element) {
-		return element.ValueKind is JsonValueKind.Number
-			or JsonValueKind.Null
-			or JsonValueKind.Undefined;
-	}
-
-	private static bool BeGreaterThanZeroWhenProvided(JsonElement element) {
-		if (element.ValueKind != JsonValueKind.Number) {
-			return true;
-		}
-
-		return element.TryGetInt32(out var value) && value > 0;
 	}
 
 	private static void ValidateInitialUsers(
 		JsonElement element,
 		ValidationContext<CreateTenantAsStaffBody> context
 	) {
+		if (element.ValueKind
+			is JsonValueKind.Undefined
+			or JsonValueKind.Null) {
+			context.AddFailure("InitialUsers is required");
+			return;
+		}
+
 		if (element.ValueKind != JsonValueKind.Array) {
 			context.AddFailure("InitialUsers must be an array");
 			return;

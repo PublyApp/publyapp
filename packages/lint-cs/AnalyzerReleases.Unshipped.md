@@ -1,5 +1,16 @@
 ; Unshipped analyzer release
 ; https://github.com/dotnet/roslyn-analyzers/blob/main/src/Microsoft.CodeAnalysis.Analyzers/ReleaseTrackingAnalyzers.Help.md
+;
+; NOTE: The "Severity" column below reflects each rule's `isEnabledByDefault` descriptor
+; default — which is why every PUBLY rule reads "Disabled". This is intentional: all PUBLY
+; rules ship dormant by default so they never break consumers that reference the analyzer
+; package without opting in.
+;
+; Effective per-repo enforcement is configured in the repo-root .editorconfig via
+; `dotnet_diagnostic.PUBLYxxxx.severity = warning`. Combined with
+; `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` in Directory.Build.props, this turns
+; each opted-in rule into a hard build error. Currently enforced as warnings:
+;   PUBLY0001, PUBLY0002, PUBLY0003, PUBLY0004, PUBLY0005, PUBLY0006, PUBLY0007, PUBLY0008.
 
 ### New Rules
 

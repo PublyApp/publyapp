@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
@@ -28,24 +29,7 @@ public record TenantSuspendedResult {
 public class SuspendTenantAsStaffBodyValidator : AbstractValidator<SuspendTenantAsStaffBody> {
 	public SuspendTenantAsStaffBodyValidator() {
 		RuleFor(x => x.Reason)
-			.Must(x => x is null ||
-				x.Value.ValueKind == JsonValueKind.Null ||
-				x.Value.ValueKind == JsonValueKind.Undefined ||
-				x.Value.ValueKind == JsonValueKind.String)
-			.WithMessage("Reason must be a string")
-			.DependentRules(() => {
-				RuleFor(x => x.Reason)
-					.Must(x => {
-						if (x is null ||
-							x.Value.ValueKind == JsonValueKind.Null ||
-							x.Value.ValueKind == JsonValueKind.Undefined) {
-							return true;
-						}
-						var reasonString = x.Value.GetString();
-						return reasonString is null || reasonString.Length <= 500;
-					})
-					.WithMessage("Reason must be 500 characters or less");
-			});
+			.MustBeNullableStringWithMaxLength("Reason", 500);
 	}
 }
 

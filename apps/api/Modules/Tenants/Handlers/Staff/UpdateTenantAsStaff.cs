@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
@@ -77,41 +78,23 @@ public class UpdateTenantAsStaffBodyValidator
 	: AbstractValidator<UpdateTenantAsStaffBody> {
 	public UpdateTenantAsStaffBodyValidator() {
 		RuleFor(x => x.Name)
-			.Must(e => e.ValueKind is JsonValueKind.Undefined
-				or JsonValueKind.String)
-			.WithMessage("Name must be a string")
-			.DependentRules(() => {
-				RuleFor(x => x.Name)
-					.Must(e => e.ValueKind == JsonValueKind.Undefined
-						|| (e.GetString()?.Length ?? 0)
-							>= 5)
-					.WithMessage(
-						"Name must be at least 5 characters"
-					);
-			});
+			.MustBePatchFieldStringWithLength("Name", 5, int.MaxValue);
 
 		RuleFor(x => x.LogoUrl)
-			.Must(e =>
-				e.ValueKind is JsonValueKind.Undefined
-					or JsonValueKind.Null
-					or JsonValueKind.String)
-			.WithMessage(
-				"LogoUrl must be a string, null, or omitted"
-			);
+			.MustBePatchFieldNullableString("LogoUrl");
 
-		RuleFor(x => x.MaxUsers)
-			.Must(e => e is null
-				or { ValueKind: JsonValueKind.Number })
-			.WithMessage("MaxUsers must be a number")
-			.DependentRules(() => {
-				RuleFor(x => x.MaxUsers)
-					.Must(e => e is null
-						|| (e.Value.TryGetInt32(out var v)
-							&& v > 0))
-					.WithMessage(
-						"MaxUsers must be greater than 0"
-					);
-			});
+		RuleFor(x => x.MaxUsers).Custom((element, context) => {
+			if (element is null) {
+				return; // field absent / wrapper-null → omitted, OK
+			}
+			if (element.Value.ValueKind != JsonValueKind.Number) {
+				context.AddFailure("MaxUsers must be a number");
+				return;
+			}
+			if (!element.Value.TryGetInt32(out var value) || value <= 0) {
+				context.AddFailure("MaxUsers must be greater than 0");
+			}
+		});
 	}
 }
 

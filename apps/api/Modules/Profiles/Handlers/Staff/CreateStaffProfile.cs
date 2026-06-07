@@ -12,6 +12,7 @@ using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
@@ -65,145 +66,74 @@ public record StaffProfileCreated {
 public partial class CreateStaffProfileBodyValidator
 	: AbstractValidator<CreateStaffProfileBody> {
 	public CreateStaffProfileBodyValidator() {
-		RuleFor(x => x.Name)
-			.Must(e => e.HasValue)
-			.WithMessage("Name is required")
-			.DependentRules(() => {
-				RuleFor(x => x.Name)
-					.Must(e =>
-						e is not null
-						&& e.Value.ValueKind
-							== JsonValueKind.String)
-					.WithMessage("Name must be a string")
-					.Must(e => {
-						if (!e.HasValue) {
-							return false;
-						}
-						var str = e.Value.GetString();
-						return !string
-							.IsNullOrWhiteSpace(str);
-					})
-					.WithMessage("Name cannot be empty")
-					.Must(e => {
-						if (!e.HasValue) {
-							return false;
-						}
-						var str = e.Value.GetString();
-						return str is not null
-							&& str.Trim().Length >= 2;
-					})
-					.WithMessage(
-						"Name must be at least "
-						+ "2 characters long"
-					)
-					.Must(e => {
-						if (!e.HasValue) {
-							return false;
-						}
-						var str = e.Value.GetString();
-						return str is not null
-							&& str.Trim().Length <= 100;
-					})
-					.WithMessage(
-						"Name must be at most "
-						+ "100 characters long"
-					);
-			});
+		RuleFor(x => x.Name).Custom((maybeElement, context) => {
+			if (!maybeElement.HasValue) {
+				context.AddFailure("Name is required");
+				return;
+			}
+			var e = maybeElement.Value;
+			if (e.ValueKind != JsonValueKind.String) {
+				context.AddFailure("Name must be a string");
+				return;
+			}
+			var str = e.GetString();
+			if (string.IsNullOrWhiteSpace(str)) {
+				context.AddFailure("Name cannot be empty");
+				return;
+			}
+			if (str.Trim().Length < 2) {
+				context.AddFailure("Name must be at least 2 characters long");
+				return;
+			}
+			if (str.Trim().Length > 100) {
+				context.AddFailure("Name must be at most 100 characters long");
+			}
+		});
 
 		RuleFor(x => x.Description)
-			.Must(BeNullableString)
-			.WithMessage("Description must be a string or null")
-			.DependentRules(() => {
-				RuleFor(x => x.Description)
-					.Must(BeValidDescriptionLength)
-					.WithMessage("Description must be at most 500 characters");
-			});
+			.MustBeNullableStringWithMaxLength("Description", 500, trim: true);
 
-		RuleFor(x => x.Permissions)
-			.Must(e => e.HasValue)
-			.WithMessage("Permissions is required")
-			.DependentRules(() => {
-				RuleFor(x => x.Permissions)
-					.Must(e =>
-						e is not null
-						&& e.Value.ValueKind
-							== JsonValueKind.Array)
-					.WithMessage("Permissions must be an array")
-					.DependentRules(() => {
-						RuleFor(x => x.Permissions)
-							.Must(BeValidPermissionsArray)
-							.WithMessage("At least one permission is required");
-					});
-			});
+		RuleFor(x => x.Permissions).Custom((maybeElement, context) => {
+			if (!maybeElement.HasValue) {
+				context.AddFailure("Permissions is required");
+				return;
+			}
+			var e = maybeElement.Value;
+			if (e.ValueKind != JsonValueKind.Array) {
+				context.AddFailure("Permissions must be an array");
+				return;
+			}
+			try {
+				var list = e.Deserialize<List<string>>();
+				if (list is null || list.Count == 0) {
+					context.AddFailure("At least one permission is required");
+				}
+			} catch {
+				context.AddFailure("At least one permission is required");
+			}
+		});
 
-		RuleFor(x => x.Emails)
-			.Must(BeValidEmailList)
-			.When(x => x.Emails.HasValue)
-			.WithMessage("Emails must be a list of valid email addresses");
-	}
-
-	private static bool BeNullableString(JsonElement? element) {
-		if (element is null) {
-			return true;
-		}
-		return element?.ValueKind is JsonValueKind.String
-			or JsonValueKind.Null
-			or JsonValueKind.Undefined;
-	}
-
-	private static bool BeValidDescriptionLength(JsonElement? element) {
-		if (element is null) {
-			return true;
-		}
-
-		if (element.Value.ValueKind != JsonValueKind.String) {
-			return true;
-		}
-
-		var description = element.Value.GetString();
-		if (string.IsNullOrWhiteSpace(description)) {
-			return true;
-		}
-
-		return description.Trim().Length <= 500;
-	}
-
-	private static bool BeValidPermissionsArray(JsonElement? element) {
-		// This is called only when we know it's an array (from DependentRules)
-		if (!element.HasValue) {
-			return false;
-		}
-
-		try {
-			var list = element.Value.Deserialize<List<string>>();
-
-			// Must have at least one permission
-			return list is not null && list.Count > 0;
-		} catch {
-			return false;
-		}
+		RuleFor(x => x.Emails).Custom((maybeElement, context) => {
+			if (!maybeElement.HasValue) {
+				return;
+			}
+			try {
+				var list = maybeElement.Value.Deserialize<List<string>>();
+				if (list is null) {
+					context.AddFailure("Emails must be a list of valid email addresses");
+					return;
+				}
+				if (!list.All(email => EmailRegex().IsMatch(email))) {
+					context.AddFailure("Emails must be a list of valid email addresses");
+				}
+			} catch {
+				context.AddFailure("Emails must be a list of valid email addresses");
+			}
+		});
 	}
 
 	[GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
 	private static partial Regex EmailRegex();
-
-	private static bool BeValidEmailList(JsonElement? element) {
-		if (!element.HasValue) {
-			return true;
-		}
-
-		try {
-			var list = element.Value.Deserialize<List<string>>();
-
-			if (list is null) {
-				return false;
-			}
-
-			return list.All(email => EmailRegex().IsMatch(email));
-		} catch {
-			return false;
-		}
-	}
 }
 
 public sealed class CreateStaffProfile {

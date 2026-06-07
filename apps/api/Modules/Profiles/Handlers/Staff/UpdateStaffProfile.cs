@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Profiles.Services;
 
@@ -77,35 +78,10 @@ public class UpdateStaffProfileBodyValidator
 	: AbstractValidator<UpdateStaffProfileBody> {
 	public UpdateStaffProfileBodyValidator() {
 		RuleFor(x => x.Name)
-			.Must(e =>
-				e.ValueKind is JsonValueKind.Undefined
-					or JsonValueKind.String)
-			.WithMessage("Name must be a string")
-			.DependentRules(() => {
-				RuleFor(x => x.Name)
-					.Must(e => e.ValueKind == JsonValueKind.Undefined
-						|| !string.IsNullOrWhiteSpace(e.GetString()))
-					.WithMessage("Name cannot be empty")
-					.Must(e => e.ValueKind == JsonValueKind.Undefined
-						|| (e.GetString()?.Trim().Length ?? 0) >= 2)
-					.WithMessage("Name must be at least 2 characters")
-					.Must(e => e.ValueKind == JsonValueKind.Undefined
-						|| (e.GetString()?.Trim().Length ?? 0) <= 100)
-					.WithMessage("Name must be at most 100 characters");
-			});
+			.MustBePatchFieldStringWithLength("Name", 2, 100, trim: true);
 
 		RuleFor(x => x.Description)
-			.Must(e =>
-				e.ValueKind is JsonValueKind.Undefined
-					or JsonValueKind.String
-					or JsonValueKind.Null)
-			.WithMessage("Description must be a string or null")
-			.DependentRules(() => {
-				RuleFor(x => x.Description)
-					.Must(e => e.ValueKind != JsonValueKind.String
-						|| (e.GetString()?.Trim().Length ?? 0) <= 500)
-					.WithMessage("Description must be at most 500 characters");
-			});
+			.MustBePatchFieldStringWithMaxLength("Description", 500, trim: true);
 	}
 }
 
