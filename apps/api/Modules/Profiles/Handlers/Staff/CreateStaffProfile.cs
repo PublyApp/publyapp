@@ -91,7 +91,7 @@ public partial class CreateStaffProfileBodyValidator
 		});
 
 		RuleFor(x => x.Description)
-			.MustBeNullableStringWithMaxLength("Description", 500);
+			.MustBeNullableStringWithMaxLength("Description", 500, trim: true);
 
 		RuleFor(x => x.Permissions).Custom((maybeElement, context) => {
 			if (!maybeElement.HasValue) {

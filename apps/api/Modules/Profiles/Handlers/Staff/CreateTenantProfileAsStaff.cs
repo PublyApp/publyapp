@@ -77,10 +77,10 @@ public class CreateTenantProfileAsStaffBodyValidator
 	: AbstractValidator<CreateTenantProfileAsStaffBody> {
 	public CreateTenantProfileAsStaffBodyValidator() {
 		RuleFor(x => x.Name)
-			.MustBeRequiredStringWithLength("Name", 2, 100);
+			.MustBeRequiredStringWithLength("Name", 2, 100, trim: true);
 
 		RuleFor(x => x.Description)
-			.MustBePatchFieldStringWithMaxLength("Description", 500);
+			.MustBePatchFieldStringWithMaxLength("Description", 500, trim: true);
 
 		RuleFor(x => x.PermissionKeys).Custom((element, context) => {
 			if (

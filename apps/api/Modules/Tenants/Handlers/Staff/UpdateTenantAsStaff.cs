@@ -85,19 +85,15 @@ public class UpdateTenantAsStaffBodyValidator
 
 		RuleFor(x => x.MaxUsers).Custom((element, context) => {
 			if (element is null) {
+				return; // field absent / wrapper-null → omitted, OK
+			}
+			if (element.Value.ValueKind != JsonValueKind.Number) {
+				context.AddFailure("MaxUsers must be a number");
 				return;
 			}
-			var kind = element.Value.ValueKind;
-			if (kind is JsonValueKind.Null or JsonValueKind.Undefined) {
-				return;
+			if (!element.Value.TryGetInt32(out var value) || value <= 0) {
+				context.AddFailure("MaxUsers must be greater than 0");
 			}
-			if (kind is JsonValueKind.Number) {
-				if (!element.Value.TryGetInt32(out var v) || v <= 0) {
-					context.AddFailure("MaxUsers must be greater than 0 when provided");
-				}
-				return;
-			}
-			context.AddFailure("MaxUsers must be a number, null, or undefined");
 		});
 	}
 }

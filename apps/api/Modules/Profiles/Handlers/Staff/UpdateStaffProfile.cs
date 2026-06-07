@@ -78,10 +78,10 @@ public class UpdateStaffProfileBodyValidator
 	: AbstractValidator<UpdateStaffProfileBody> {
 	public UpdateStaffProfileBodyValidator() {
 		RuleFor(x => x.Name)
-			.MustBePatchFieldStringWithLength("Name", 2, 100);
+			.MustBePatchFieldStringWithLength("Name", 2, 100, trim: true);
 
 		RuleFor(x => x.Description)
-			.MustBePatchFieldStringWithMaxLength("Description", 500);
+			.MustBePatchFieldStringWithMaxLength("Description", 500, trim: true);
 	}
 }
 

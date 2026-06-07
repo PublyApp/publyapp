@@ -871,6 +871,116 @@ public sealed class JsonElementRulesSpec {
 		_ = result.IsValid.Should().BeFalse();
 	}
 
+	// ============= trim: true vs default (raw) on boundary values =============
+
+	private class RequiredStringLengthTrimModel {
+		public JsonElement Value { get; set; }
+	}
+
+	// trim: true — a string that is exactly minLength chars when trimmed but shorter raw should pass
+	// trim: false (default) — same string should fail the min check because raw < minLength
+	private class RequiredStringLengthTrimValidator
+		: AbstractValidator<RequiredStringLengthTrimModel> {
+		public RequiredStringLengthTrimValidator() {
+			// minLength=3, trim=true → "  ab  ".Trim().Length=2 → fail
+			// minLength=3, trim=true → "  abc  ".Trim().Length=3 → pass
+			RuleFor(x => x.Value)
+				.MustBeRequiredStringWithLength("Value", 3, 20, trim: true);
+		}
+	}
+
+	private class RequiredStringLengthRawValidator
+		: AbstractValidator<RequiredStringLengthTrimModel> {
+		public RequiredStringLengthRawValidator() {
+			// minLength=3, trim=false (default) → "  a  ".Length=5 → pass raw (but Trim=1 fail trim)
+			RuleFor(x => x.Value)
+				.MustBeRequiredStringWithLength("Value", 3, 20);
+		}
+	}
+
+	[Fact]
+	public void ItShouldPassRequiredStringWithLengthTrimWhenTrimmedMeetsMin() {
+		// "  abc  " → trimmed = "abc" (length 3) → passes with trim:true, min=3
+		var model = new RequiredStringLengthTrimModel {
+			Value = JsonSerializer.SerializeToElement("  abc  "),
+		};
+		var result = new RequiredStringLengthTrimValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailRequiredStringWithLengthTrimWhenTrimmedBelowMin() {
+		// "  ab  " → trimmed = "ab" (length 2) → fails with trim:true, min=3
+		var model = new RequiredStringLengthTrimModel {
+			Value = JsonSerializer.SerializeToElement("  ab  "),
+		};
+		var result = new RequiredStringLengthTrimValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldPassRequiredStringWithLengthRawWhenRawMeetsMinEvenIfTrimWouldFail() {
+		// "  a  " → raw length 5 → passes with trim:false (default), min=3
+		// but would fail if trim=true because "a".Length = 1 < 3
+		var model = new RequiredStringLengthTrimModel {
+			Value = JsonSerializer.SerializeToElement("  a  "),
+		};
+		var result = new RequiredStringLengthRawValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	private class NullableStringMaxLengthTrimModel {
+		public JsonElement? Value { get; set; }
+	}
+
+	private class NullableStringMaxLengthTrimValidator
+		: AbstractValidator<NullableStringMaxLengthTrimModel> {
+		public NullableStringMaxLengthTrimValidator() {
+			// maxLength=5, trim=true → "hello  ".Trim().Length=5 → pass; "hello!  ".Trim().Length=6 → fail
+			RuleFor(x => x.Value)
+				.MustBeNullableStringWithMaxLength("Value", 5, trim: true);
+		}
+	}
+
+	[Fact]
+	public void ItShouldPassNullableStringMaxLengthTrimWhenTrimmedAtMax() {
+		// "hello  " → trimmed = "hello" (length 5) → passes with trim:true, max=5
+		var model = new NullableStringMaxLengthTrimModel {
+			Value = JsonSerializer.SerializeToElement("hello  "),
+		};
+		var result = new NullableStringMaxLengthTrimValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailNullableStringMaxLengthTrimWhenTrimmedExceedsMax() {
+		// "hello!  " → trimmed = "hello!" (length 6) → fails with trim:true, max=5
+		var model = new NullableStringMaxLengthTrimModel {
+			Value = JsonSerializer.SerializeToElement("hello!  "),
+		};
+		var result = new NullableStringMaxLengthTrimValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldRejectNullableStringWithMaxLengthWhenJsonUndefined() {
+		// MustBeNullableStringWithMaxLength must NOT accept an explicit JsonValueKind.Undefined
+		// element (as opposed to wrapper-null which is OK).
+		var validator = new NullableStringMaxLengthValidator();
+
+		// wrapper-null (JsonElement? = null) → OK
+		var wrapperNull = new NullableStringMaxLengthModel { Value = null };
+		var wrapperNullResult = validator.Validate(wrapperNull);
+		_ = wrapperNullResult.IsValid.Should().BeTrue();
+
+		// explicit JsonValueKind.Undefined boxed as JsonElement? → must fail
+		var undefinedElement = new NullableStringMaxLengthModel {
+			Value = (JsonElement?)new JsonElement(), // default JsonElement has ValueKind=Undefined
+		};
+		var undefinedResult = validator.Validate(undefinedElement);
+		_ = undefinedResult.IsValid.Should().BeFalse();
+	}
+
 	// ============= MustBePatchFieldIsoDateTime =============
 
 	private class PatchIsoDateTimeModel {

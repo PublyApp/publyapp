@@ -32,6 +32,7 @@ public record BulkDeleteFailedItem {
 public class BulkDeleteTenantsAsStaffBodyValidator : AbstractValidator<BulkDeleteTenantsAsStaffBody> {
 	public BulkDeleteTenantsAsStaffBodyValidator() {
 		RuleFor(x => x.TenantIds)
+			.Cascade(CascadeMode.Stop)
 			.MustBeRequiredGuidArray("TenantIds", "tenant ID", 100);
 	}
 }

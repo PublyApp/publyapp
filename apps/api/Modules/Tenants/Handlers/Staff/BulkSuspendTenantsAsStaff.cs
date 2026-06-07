@@ -33,6 +33,7 @@ public record BulkSuspendFailedItem {
 public class BulkSuspendTenantsAsStaffBodyValidator : AbstractValidator<BulkSuspendTenantsAsStaffBody> {
 	public BulkSuspendTenantsAsStaffBodyValidator() {
 		RuleFor(x => x.TenantIds)
+			.Cascade(CascadeMode.Stop)
 			.MustBeRequiredGuidArray("TenantIds", "tenant ID", 100);
 
 		RuleFor(x => x.Reason)

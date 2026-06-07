@@ -405,17 +405,20 @@ public static class JsonElementRules {
 	}
 
 	/// <summary>
-	/// Validates a required JsonElement string field with a bounded trimmed length:
-	/// NotEmpty → must be string → non-empty → trimmed length in [minLength, maxLength].
+	/// Validates a required JsonElement string field with a bounded length:
+	/// NotEmpty → must be string → non-empty → length in [minLength, maxLength].
 	/// Pass <paramref name="minLength"/> ≤ 1 to enforce only non-emptiness, and
 	/// <c>int.MaxValue</c> for <paramref name="maxLength"/> to leave the upper bound open.
+	/// When <paramref name="trim"/> is <c>true</c>, the min/max checks use the trimmed length;
+	/// otherwise raw length is used (default).
 	/// </summary>
 	public static IRuleBuilderOptions<T, JsonElement>
 		MustBeRequiredStringWithLength<T>(
 			this IRuleBuilder<T, JsonElement> ruleBuilder,
 			string fieldName,
 			int minLength,
-			int maxLength
+			int maxLength,
+			bool trim = false
 	) {
 		return ruleBuilder
 			.NotEmpty()
@@ -433,7 +436,7 @@ public static class JsonElementRules {
 				if (e.ValueKind != JsonValueKind.String || minLength <= 1) {
 					return true;
 				}
-				return (e.GetString()?.Trim().Length ?? 0) >= minLength;
+				return (trim ? (e.GetString()?.Trim().Length ?? 0) : (e.GetString()?.Length ?? 0)) >= minLength;
 			})
 			.WithMessage(
 				$"{fieldName} must be at least {minLength} characters long"
@@ -442,7 +445,7 @@ public static class JsonElementRules {
 				if (e.ValueKind != JsonValueKind.String) {
 					return true;
 				}
-				return (e.GetString()?.Trim().Length ?? 0) <= maxLength;
+				return (trim ? (e.GetString()?.Trim().Length ?? 0) : (e.GetString()?.Length ?? 0)) <= maxLength;
 			})
 			.WithMessage(
 				$"{fieldName} must be at most {maxLength} characters long"
@@ -450,16 +453,19 @@ public static class JsonElementRules {
 	}
 
 	/// <summary>
-	/// Validates a PATCH-style JsonElement string field with a bounded trimmed length:
-	/// Undefined OK (omit), otherwise must be a non-empty string whose trimmed length is
+	/// Validates a PATCH-style JsonElement string field with a bounded length:
+	/// Undefined OK (omit), otherwise must be a non-empty string whose length is
 	/// in [minLength, maxLength]. Null is rejected (use a nullable helper to allow clears).
+	/// When <paramref name="trim"/> is <c>true</c>, the min/max checks use the trimmed length;
+	/// otherwise raw length is used (default).
 	/// </summary>
 	public static IRuleBuilderOptions<T, JsonElement>
 		MustBePatchFieldStringWithLength<T>(
 			this IRuleBuilder<T, JsonElement> ruleBuilder,
 			string fieldName,
 			int minLength,
-			int maxLength
+			int maxLength,
+			bool trim = false
 	) {
 		return ruleBuilder
 			.Must(e => e.ValueKind
@@ -477,7 +483,7 @@ public static class JsonElementRules {
 				if (e.ValueKind != JsonValueKind.String || minLength <= 1) {
 					return true;
 				}
-				return (e.GetString()?.Trim().Length ?? 0) >= minLength;
+				return (trim ? (e.GetString()?.Trim().Length ?? 0) : (e.GetString()?.Length ?? 0)) >= minLength;
 			})
 			.WithMessage(
 				$"{fieldName} must be at least {minLength} characters long"
@@ -486,7 +492,7 @@ public static class JsonElementRules {
 				if (e.ValueKind != JsonValueKind.String) {
 					return true;
 				}
-				return (e.GetString()?.Trim().Length ?? 0) <= maxLength;
+				return (trim ? (e.GetString()?.Trim().Length ?? 0) : (e.GetString()?.Length ?? 0)) <= maxLength;
 			})
 			.WithMessage(
 				$"{fieldName} must be at most {maxLength} characters long"
@@ -495,14 +501,17 @@ public static class JsonElementRules {
 
 	/// <summary>
 	/// Validates a nullable JsonElement? string field with an upper length bound:
-	/// wrapper-null, JSON null, or Undefined OK; otherwise must be a string whose trimmed
-	/// length is ≤ <paramref name="maxLength"/>. Empty/whitespace strings are allowed.
+	/// wrapper-null or JSON null OK; otherwise must be a string whose length is
+	/// ≤ <paramref name="maxLength"/>. Empty/whitespace strings are allowed.
+	/// When <paramref name="trim"/> is <c>true</c>, the max check uses the trimmed length;
+	/// otherwise raw length is used (default).
 	/// </summary>
 	public static IRuleBuilderOptions<T, JsonElement?>
 		MustBeNullableStringWithMaxLength<T>(
 			this IRuleBuilder<T, JsonElement?> ruleBuilder,
 			string fieldName,
-			int maxLength
+			int maxLength,
+			bool trim = false
 	) {
 		return ruleBuilder
 			.Must(e => {
@@ -511,7 +520,6 @@ public static class JsonElementRules {
 				}
 				return e.Value.ValueKind
 					is JsonValueKind.Null
-					or JsonValueKind.Undefined
 					or JsonValueKind.String;
 			})
 			.WithMessage($"{fieldName} must be a string or null")
@@ -520,7 +528,7 @@ public static class JsonElementRules {
 					|| e.Value.ValueKind != JsonValueKind.String) {
 					return true;
 				}
-				return (e.Value.GetString()?.Trim().Length ?? 0) <= maxLength;
+				return (trim ? (e.Value.GetString()?.Trim().Length ?? 0) : (e.Value.GetString()?.Length ?? 0)) <= maxLength;
 			})
 			.WithMessage(
 				$"{fieldName} must be {maxLength} characters or less"
@@ -529,14 +537,17 @@ public static class JsonElementRules {
 
 	/// <summary>
 	/// Validates a PATCH-style JsonElement string field with an upper length bound:
-	/// Undefined OK (omit), JSON null OK (clear); otherwise must be a string whose trimmed
-	/// length is ≤ <paramref name="maxLength"/>. Empty/whitespace strings are allowed.
+	/// Undefined OK (omit), JSON null OK (clear); otherwise must be a string whose length is
+	/// ≤ <paramref name="maxLength"/>. Empty/whitespace strings are allowed.
+	/// When <paramref name="trim"/> is <c>true</c>, the max check uses the trimmed length;
+	/// otherwise raw length is used (default).
 	/// </summary>
 	public static IRuleBuilderOptions<T, JsonElement>
 		MustBePatchFieldStringWithMaxLength<T>(
 			this IRuleBuilder<T, JsonElement> ruleBuilder,
 			string fieldName,
-			int maxLength
+			int maxLength,
+			bool trim = false
 	) {
 		return ruleBuilder
 			.Must(e => e.ValueKind
@@ -548,7 +559,7 @@ public static class JsonElementRules {
 				if (e.ValueKind != JsonValueKind.String) {
 					return true;
 				}
-				return (e.GetString()?.Trim().Length ?? 0) <= maxLength;
+				return (trim ? (e.GetString()?.Trim().Length ?? 0) : (e.GetString()?.Length ?? 0)) <= maxLength;
 			})
 			.WithMessage(
 				$"{fieldName} must be {maxLength} characters or less"
