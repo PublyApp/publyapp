@@ -2006,6 +2006,14 @@
         "operationId": "FindTenantUsersAsStaff",
         "parameters": [
           {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "q",
             "in": "query",
             "schema": {
@@ -2043,14 +2051,6 @@
           {
             "name": "sort_order",
             "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "tenantId",
-            "in": "path",
-            "required": true,
             "schema": {
               "type": "string"
             }
@@ -5497,6 +5497,14 @@
         "operationId": "FindStaffProfileUsers",
         "parameters": [
           {
+            "name": "profileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "q",
             "in": "query",
             "schema": {
@@ -5527,14 +5535,6 @@
           {
             "name": "sort_order",
             "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "profileId",
-            "in": "path",
-            "required": true,
             "schema": {
               "type": "string"
             }
@@ -5825,6 +5825,14 @@
         "operationId": "FindTenantProfiles",
         "parameters": [
           {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "q",
             "in": "query",
             "schema": {
@@ -5855,14 +5863,6 @@
           {
             "name": "sort_order",
             "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "tenantId",
-            "in": "path",
-            "required": true,
             "schema": {
               "type": "string"
             }
@@ -8392,65 +8392,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/test": {
-      "get": {
-        "tags": [
-          "PublyApp.Api"
-        ],
-        "responses": {
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
                 }
               }
             }
@@ -11252,9 +11193,6 @@
     },
     {
       "name": "Staff Audit Logs"
-    },
-    {
-      "name": "PublyApp.Api"
     }
   ]
 }

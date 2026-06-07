@@ -56,12 +56,6 @@ public class Program {
 			.WithSessionAuthentication()      // 2. Authenticate session
 			.WithStaffAuthorization();        // 3. Verify staff account
 
-		var tenantGroup = app.MapGroup(Routes.Tenant.Root)
-			.WithCheckSessionHeader()         // 1. Check session header
-			.WithCheckTenantHeader()          // 2. Check tenant header
-			.WithSessionAuthentication()      // 3. Authenticate session
-			.WithTenantAuthorization();       // 4. Verify tenant access (placeholder)
-
 		// Staff endpoints
 		staffGroup.MapUserEndpointsForStaff();
 		staffGroup.MapUserEndpointsForTenantAsStaff();
@@ -73,9 +67,6 @@ public class Program {
 		staffGroup.MapTenantEndpointsForStaff();
 		staffGroup.MapSystemNoticeEndpointsForStaff();
 		staffGroup.MapAuditLogEndpointsForStaff();
-
-		// TODO: once we have a tenant endpoint, we can remove this
-		tenantGroup.MapGet("/test", () => "Hello, World!");
 
 		app.MapHealthChecks("/health");
 		app.MapNotFoundRoute();

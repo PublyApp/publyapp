@@ -132,13 +132,7 @@ public sealed class EndpointPermissionMetadataGuardSpec : IDisposable {
 	private static readonly HashSet<string> BaselinedDriftRoutes = new(
 		StringComparer.OrdinalIgnoreCase
 	) {
-		// TODO(#534 ratchet): Tenant test/placeholder route at /test.
-		// This is a temporary "Hello, World!" route in Program.cs that was
-		// used to verify tenant group wiring before real tenant endpoints existed.
-		// It is tenant-authenticated (session + TenantAuthFilter runs) but carries
-		// no PermissionFilter. Remove or protect this route before the tenant
-		// surface ships publicly.
-		"GET /test",
+		// No pre-existing drift — all protected endpoints carry PermissionFilter.
 	};
 
 	// ── Test factory (no real DB needed for route-metadata inspection) ──────
