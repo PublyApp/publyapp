@@ -55,9 +55,14 @@ public sealed class ResolveStaffProfileUserAssignmentsBodyValidator
 
 	public ResolveStaffProfileUserAssignmentsBodyValidator() {
 		RuleFor(x => x.UserIds)
-			.NotNull()
-			.WithMessage("UserIds is required")
 			.Custom((element, context) => {
+				if (element.ValueKind
+					is JsonValueKind.Undefined
+					or JsonValueKind.Null) {
+					context.AddFailure("UserIds is required");
+					return;
+				}
+
 				if (element.ValueKind != JsonValueKind.Array) {
 					context.AddFailure("UserIds must be an array");
 					return;

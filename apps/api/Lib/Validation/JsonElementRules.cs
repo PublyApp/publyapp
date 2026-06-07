@@ -2,6 +2,8 @@ using System.Text.Json;
 
 using FluentValidation;
 
+using PublyApp.Api.Lib.Utils;
+
 namespace PublyApp.Api.Lib.Validation;
 
 public static class JsonElementRules {
@@ -401,4 +403,242 @@ public static class JsonElementRules {
 			})
 			.WithMessage("Invalid ID format");
 	}
+
+	/// <summary>
+	/// Validates a required JsonElement string field with a bounded trimmed length:
+	/// NotEmpty → must be string → non-empty → trimmed length in [minLength, maxLength].
+	/// Pass <paramref name="minLength"/> ≤ 1 to enforce only non-emptiness, and
+	/// <c>int.MaxValue</c> for <paramref name="maxLength"/> to leave the upper bound open.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBeRequiredStringWithLength<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName,
+			int minLength,
+			int maxLength
+	) {
+		return ruleBuilder
+			.NotEmpty()
+			.WithMessage($"{fieldName} is required")
+			.Must(e => e.ValueKind == JsonValueKind.String)
+			.WithMessage($"{fieldName} must be a string")
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String) {
+					return false;
+				}
+				return !string.IsNullOrWhiteSpace(e.GetString());
+			})
+			.WithMessage($"{fieldName} must not be empty")
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String || minLength <= 1) {
+					return true;
+				}
+				return (e.GetString()?.Trim().Length ?? 0) >= minLength;
+			})
+			.WithMessage(
+				$"{fieldName} must be at least {minLength} characters long"
+			)
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+				return (e.GetString()?.Trim().Length ?? 0) <= maxLength;
+			})
+			.WithMessage(
+				$"{fieldName} must be at most {maxLength} characters long"
+			);
+	}
+
+	/// <summary>
+	/// Validates a PATCH-style JsonElement string field with a bounded trimmed length:
+	/// Undefined OK (omit), otherwise must be a non-empty string whose trimmed length is
+	/// in [minLength, maxLength]. Null is rejected (use a nullable helper to allow clears).
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBePatchFieldStringWithLength<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName,
+			int minLength,
+			int maxLength
+	) {
+		return ruleBuilder
+			.Must(e => e.ValueKind
+				is JsonValueKind.Undefined
+				or JsonValueKind.String)
+			.WithMessage($"{fieldName} must be a string")
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+				return !string.IsNullOrWhiteSpace(e.GetString());
+			})
+			.WithMessage($"{fieldName} cannot be empty")
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String || minLength <= 1) {
+					return true;
+				}
+				return (e.GetString()?.Trim().Length ?? 0) >= minLength;
+			})
+			.WithMessage(
+				$"{fieldName} must be at least {minLength} characters long"
+			)
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+				return (e.GetString()?.Trim().Length ?? 0) <= maxLength;
+			})
+			.WithMessage(
+				$"{fieldName} must be at most {maxLength} characters long"
+			);
+	}
+
+	/// <summary>
+	/// Validates a nullable JsonElement? string field with an upper length bound:
+	/// wrapper-null, JSON null, or Undefined OK; otherwise must be a string whose trimmed
+	/// length is ≤ <paramref name="maxLength"/>. Empty/whitespace strings are allowed.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement?>
+		MustBeNullableStringWithMaxLength<T>(
+			this IRuleBuilder<T, JsonElement?> ruleBuilder,
+			string fieldName,
+			int maxLength
+	) {
+		return ruleBuilder
+			.Must(e => {
+				if (e is null) {
+					return true;
+				}
+				return e.Value.ValueKind
+					is JsonValueKind.Null
+					or JsonValueKind.Undefined
+					or JsonValueKind.String;
+			})
+			.WithMessage($"{fieldName} must be a string or null")
+			.Must(e => {
+				if (e is null
+					|| e.Value.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+				return (e.Value.GetString()?.Trim().Length ?? 0) <= maxLength;
+			})
+			.WithMessage(
+				$"{fieldName} must be {maxLength} characters or less"
+			);
+	}
+
+	/// <summary>
+	/// Validates a PATCH-style JsonElement string field with an upper length bound:
+	/// Undefined OK (omit), JSON null OK (clear); otherwise must be a string whose trimmed
+	/// length is ≤ <paramref name="maxLength"/>. Empty/whitespace strings are allowed.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBePatchFieldStringWithMaxLength<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName,
+			int maxLength
+	) {
+		return ruleBuilder
+			.Must(e => e.ValueKind
+				is JsonValueKind.Undefined
+				or JsonValueKind.Null
+				or JsonValueKind.String)
+			.WithMessage($"{fieldName} must be a string, null, or omitted")
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+				return (e.GetString()?.Trim().Length ?? 0) <= maxLength;
+			})
+			.WithMessage(
+				$"{fieldName} must be {maxLength} characters or less"
+			);
+	}
+
+	/// <summary>
+	/// Validates a required JsonElement ISO 8601 UTC datetime field:
+	/// NotEmpty → must be string → parses via <see cref="DateUtils.TryParseIsoUtc"/>.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBeRequiredIsoDateTime<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName
+	) {
+		return ruleBuilder
+			.NotEmpty()
+			.WithMessage($"{fieldName} is required")
+			.Must(e => e.ValueKind == JsonValueKind.String)
+			.WithMessage($"{fieldName} must be a string")
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String) {
+					return false;
+				}
+				return DateUtils.TryParseIsoUtc(e.GetString(), out _);
+			})
+			.WithMessage($"{fieldName} must be a valid ISO 8601 date");
+	}
+
+	/// <summary>
+	/// Validates a nullable JsonElement? ISO 8601 UTC datetime field:
+	/// wrapper-null or JSON null OK; otherwise must be a string that parses via
+	/// <see cref="DateUtils.TryParseIsoUtc"/>.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement?>
+		MustBeNullableIsoDateTime<T>(
+			this IRuleBuilder<T, JsonElement?> ruleBuilder,
+			string fieldName
+	) {
+		return ruleBuilder
+			.Must(e => {
+				if (e is null) {
+					return true;
+				}
+				return e.Value.ValueKind
+					is JsonValueKind.Null
+					or JsonValueKind.String;
+			})
+			.WithMessage($"{fieldName} must be a string or null")
+			.Must(e => {
+				if (e is null
+					|| e.Value.ValueKind == JsonValueKind.Null) {
+					return true;
+				}
+				if (e.Value.ValueKind != JsonValueKind.String) {
+					return false;
+				}
+				return DateUtils.TryParseIsoUtc(e.Value.GetString(), out _);
+			})
+			.WithMessage($"{fieldName} must be a valid ISO 8601 date");
+	}
+
+	/// <summary>
+	/// Validates a PATCH-style JsonElement ISO 8601 UTC datetime field:
+	/// Undefined OK (omit), JSON null OK (clear); otherwise must be a string that parses
+	/// via <see cref="DateUtils.TryParseIsoUtc"/>.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBePatchFieldIsoDateTime<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName
+	) {
+		return ruleBuilder
+			.Must(e => e.ValueKind
+				is JsonValueKind.Undefined
+				or JsonValueKind.Null
+				or JsonValueKind.String)
+			.WithMessage($"{fieldName} must be a string, null, or omitted")
+			.Must(e => {
+				if (e.ValueKind
+					is JsonValueKind.Undefined
+					or JsonValueKind.Null) {
+					return true;
+				}
+				if (e.ValueKind != JsonValueKind.String) {
+					return false;
+				}
+				return DateUtils.TryParseIsoUtc(e.GetString(), out _);
+			})
+			.WithMessage($"{fieldName} must be a valid ISO 8601 date");
+	}
+
 }

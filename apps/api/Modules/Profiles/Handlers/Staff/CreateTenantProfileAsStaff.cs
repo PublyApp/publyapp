@@ -77,39 +77,10 @@ public class CreateTenantProfileAsStaffBodyValidator
 	: AbstractValidator<CreateTenantProfileAsStaffBody> {
 	public CreateTenantProfileAsStaffBodyValidator() {
 		RuleFor(x => x.Name)
-			.MustBeRequiredString("Name")
-			.DependentRules(() => {
-				RuleFor(x => x.Name)
-					.Must(e => {
-						var str = e.GetString();
-						return str is not null && str.Trim().Length >= 2;
-					})
-					.WithMessage("Name must be at least 2 characters long")
-					.Must(e => {
-						var str = e.GetString();
-						return str is not null && str.Trim().Length <= 100;
-					})
-					.WithMessage("Name must be at most 100 characters long");
-			});
+			.MustBeRequiredStringWithLength("Name", 2, 100);
 
 		RuleFor(x => x.Description)
-			.MustBePatchFieldNullableString("Description")
-			.DependentRules(() => {
-				RuleFor(x => x.Description)
-					.Must(e => {
-						if (e.ValueKind != JsonValueKind.String) {
-							return true;
-						}
-
-						var description = e.GetString();
-						if (string.IsNullOrWhiteSpace(description)) {
-							return true;
-						}
-
-						return description.Trim().Length <= 500;
-					})
-					.WithMessage("Description must be at most 500 characters");
-			});
+			.MustBePatchFieldStringWithMaxLength("Description", 500);
 
 		RuleFor(x => x.PermissionKeys).Custom((element, context) => {
 			if (

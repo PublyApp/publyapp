@@ -304,7 +304,7 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 - For cursor/keyset pagination, see [`docs/guides/cursor-keyset-pagination-guide.md`](docs/guides/cursor-keyset-pagination-guide.md)
 - For list pages with search/filter + cursor pagination + bulk actions, see [`docs/guides/list-pages-search-filter-cursor-pagination.md`](docs/guides/list-pages-search-filter-cursor-pagination.md)
 - For bulk-action UX + backend conventions (always-render menu items, batched service queries, batched audit logs, mutation-hook split try/catch), see [`docs/guides/bulk-action-ux-conventions.md`](docs/guides/bulk-action-ux-conventions.md)
-- **Validators**: use `JsonElementRules.*` extension methods (never inline validation chains); inherit `OffsetPaginatedQueryValidator<T>`/`CursorPaginatedQueryValidator<T>` for pagination; inherit `EncryptedIdTokenQueryValidator<T>` for encrypted-ID + token queries
+- **Validators**: use `JsonElementRules.*` extension methods (never inline validation chains) (enforced by `PUBLY0005`); inherit `OffsetPaginatedQueryValidator<T>`/`CursorPaginatedQueryValidator<T>` for pagination; inherit `EncryptedIdTokenQueryValidator<T>` for encrypted-ID + token queries
 - **Never** use `ToLower()` / `ToLowerInvariant()` as a comparison or dispatch strategy; use
   `StringComparison.OrdinalIgnoreCase`, `StringComparer.OrdinalIgnoreCase`, or explicit
   case-insensitive parsers/dictionaries instead (enforced by `PUBLY0003`)

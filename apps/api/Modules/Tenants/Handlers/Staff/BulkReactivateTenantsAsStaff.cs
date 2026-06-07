@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Tenants.Services;
@@ -31,15 +32,7 @@ public record BulkReactivateFailedItem {
 public class BulkReactivateTenantsAsStaffBodyValidator : AbstractValidator<BulkReactivateTenantsAsStaffBody> {
 	public BulkReactivateTenantsAsStaffBodyValidator() {
 		RuleFor(x => x.TenantIds)
-			.Cascade(CascadeMode.Stop)
-			.Must(x => x.ValueKind == JsonValueKind.Array)
-			.WithMessage("TenantIds must be an array")
-			.Must(x => x.EnumerateArray().Any())
-			.WithMessage("At least one tenant ID is required")
-			.Must(x => x.EnumerateArray().Count() <= 100)
-			.WithMessage("Maximum 100 tenant IDs allowed")
-			.Must(x => x.EnumerateArray().All(item => item.TryGetGuid(out _)))
-			.WithMessage("Every tenantId must be a valid GUID");
+			.MustBeRequiredGuidArray("TenantIds", "tenant ID", 100);
 	}
 }
 

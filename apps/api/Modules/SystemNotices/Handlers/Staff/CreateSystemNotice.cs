@@ -8,11 +8,12 @@ using Microsoft.AspNetCore.Mvc;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
-using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.SystemNotices.Entities;
 using PublyApp.Api.Modules.SystemNotices.Services;
+using PublyApp.Api.Modules.SystemNotices.Validation;
 
 namespace PublyApp.Api.Modules.SystemNotices.Handlers.Staff;
 
@@ -56,85 +57,19 @@ public class CreateSystemNoticeBodyValidator
 	: AbstractValidator<CreateSystemNoticeBody> {
 	public CreateSystemNoticeBodyValidator() {
 		RuleFor(x => x.Severity)
-			.Must(e => e.ValueKind == JsonValueKind.String)
-			.WithMessage("Severity must be a string")
-			.Must(BeValidSeverity)
-			.WithMessage(
-				"Severity must be one of: info, warning, critical"
-			);
+			.MustBeRequiredSeverity();
 
 		RuleFor(x => x.Title)
-			.Must(e => e.ValueKind == JsonValueKind.String)
-			.WithMessage("Title must be a string")
-			.Must(e =>
-				!string.IsNullOrWhiteSpace(e.GetString()))
-			.WithMessage("Title is required")
-			.Must(e => e.GetString()?.Length <= 200)
-			.WithMessage("Title must be 200 characters or less");
+			.MustBeRequiredStringWithLength("Title", 1, 200);
 
 		RuleFor(x => x.Message)
-			.Must(e => e.ValueKind == JsonValueKind.String)
-			.WithMessage("Message must be a string")
-			.Must(e =>
-				!string.IsNullOrWhiteSpace(e.GetString()))
-			.WithMessage("Message is required")
-			.Must(e => e.GetString()?.Length <= 2000)
-			.WithMessage(
-				"Message must be 2000 characters or less"
-			);
+			.MustBeRequiredStringWithLength("Message", 1, 2000);
 
 		RuleFor(x => x.StartsAt)
-			.Must(e => e.ValueKind == JsonValueKind.String)
-			.WithMessage("StartsAt must be a string")
-			.Must(BeValidDateTime)
-			.WithMessage(
-				"StartsAt must be a valid ISO 8601 date"
-			);
+			.MustBeRequiredIsoDateTime("StartsAt");
 
 		RuleFor(x => x.ExpiresAt)
-			.Must(e => e is null
-				|| e.Value.ValueKind == JsonValueKind.Null
-				|| e.Value.ValueKind == JsonValueKind.String)
-			.WithMessage("ExpiresAt must be a string or null")
-			.Must(BeValidDateTimeOrNull)
-			.WithMessage(
-				"ExpiresAt must be a valid ISO 8601 date"
-			);
-	}
-
-	private bool BeValidSeverity(JsonElement element) {
-		if (element.ValueKind != JsonValueKind.String) {
-			return false;
-		}
-		var value = element.GetString();
-		if (value is null) {
-			return false;
-		}
-		return SystemNotice.ParseSeverity(value) is not null;
-	}
-
-	private bool BeValidDateTime(JsonElement element) {
-		if (element.ValueKind != JsonValueKind.String) {
-			return false;
-		}
-		return DateUtils.TryParseIsoUtc(
-			element.GetString(), out _
-		);
-	}
-
-	private bool BeValidDateTimeOrNull(JsonElement? element) {
-		if (element is null
-			|| element.Value.ValueKind
-				== JsonValueKind.Null) {
-			return true;
-		}
-		if (element.Value.ValueKind
-			!= JsonValueKind.String) {
-			return false;
-		}
-		return DateUtils.TryParseIsoUtc(
-			element.Value.GetString(), out _
-		);
+			.MustBeNullableIsoDateTime("ExpiresAt");
 	}
 }
 

@@ -10,6 +10,7 @@ using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Users.Validation;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Users.Entities;
@@ -124,24 +125,7 @@ public class UpdateTenantUserAsStaffBodyValidator
 			.MustBePatchFieldUrl("AvatarUrl");
 
 		RuleFor(x => x.Level)
-			.Must(e => {
-				if (e is null) {
-					return true;
-				}
-
-				var element = e.Value;
-				if (element.ValueKind == JsonValueKind.Null) {
-					return true;
-				}
-
-				if (element.ValueKind != JsonValueKind.String) {
-					return false;
-				}
-
-				var value = element.GetString();
-				return value is "Admin" or "User";
-			})
-			.WithMessage("Level must be 'Admin' or 'User'");
+			.MustBeNullableAccountLevel();
 	}
 }
 

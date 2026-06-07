@@ -82,9 +82,14 @@ public class BulkCreateStaffInvitationsBodyValidator
 	: AbstractValidator<BulkCreateStaffInvitationsBody> {
 	public BulkCreateStaffInvitationsBodyValidator() {
 		RuleFor(x => x.Invitations)
-			.NotNull()
-			.WithMessage("Invitations is required")
 			.Custom((element, context) => {
+				if (element.ValueKind
+					is JsonValueKind.Undefined
+					or JsonValueKind.Null) {
+					context.AddFailure("Invitations is required");
+					return;
+				}
+
 				if (element.ValueKind != JsonValueKind.Array) {
 					context.AddFailure("Invitations must be an array");
 					return;
