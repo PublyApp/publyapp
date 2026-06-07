@@ -316,7 +316,7 @@ For full test conventions (file naming, BDD method naming, folder structure, imp
 For writing and debugging integration tests, see:
 [`docs/guides/api-integration-tests.md`](docs/guides/api-integration-tests.md)
 
-**Key rules:** `*.Spec.cs` suffix, `ItShould{Expected}When{Scenario}` method names, specs co-located with source, test infra in `Lib/Testing/{Fixtures,Helpers,Fakes}/`
+**Key rules:** `*.Spec.cs` suffix, `ItShould{Expected}{Connector}{Scenario}` method names (connector = `When`/`With`/`Without`/`For`), specs co-located with source, test infra in `Lib/Testing/{Fixtures,Helpers,Fakes}/`
 
 ## Common Workflows
 
