@@ -11,10 +11,16 @@
 
 ## Test Method Naming (BDD)
 
-- Use `ItShould{Expected}When{Scenario}` format
+- Use `ItShould{Expected}{Connector}{Scenario}` format, where `{Connector}` is a
+  natural-language linker — typically `When` (state/trigger), but `With`, `Without`,
+  and `For` are equally valid where they read more naturally (precondition/actor/input).
 - Always start with `ItShould`
 - No underscores in method names
-- Examples: `ItShouldReturnOkWithValidData`, `ItShouldReturnUnauthorizedWithoutAuth`, `ItShouldReturn403ForNonMember`
+- Examples: `ItShouldReturnOkWhenDataIsValid`, `ItShouldReturnOkWithValidData`,
+  `ItShouldReturnUnauthorizedWithoutAuth`, `ItShouldReturn403ForNonMember`
+- Rationale: enforcement was evaluated and declined (spike #536, NO-GO) — the suite
+  uses these connectors idiomatically across ~160+ methods; reviewers enforce the
+  spirit (clear Expected + Scenario), not a literal `When` token.
 
 ## Testing/ Folder Structure
 
