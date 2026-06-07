@@ -38,19 +38,26 @@ public class CreateStaffInvitationBodyValidator
 		RuleFor(x => x.Email)
 			.MustBeRequiredEmail();
 
-		RuleFor(x => x.ProfileId)
-			.MustBeRequiredString("ProfileId")
-			.Must(e => {
-				if (e.ValueKind != JsonValueKind.String) {
-					return false;
-				}
-				return Guid.TryParse(
-					e.GetString(), out _
-				);
-			})
-			.WithMessage(
-				"ProfileId must be a valid GUID"
-			);
+		RuleFor(x => x.ProfileId).Custom((element, context) => {
+			if (element.ValueKind
+				is JsonValueKind.Undefined
+				or JsonValueKind.Null) {
+				context.AddFailure("ProfileId is required");
+				return;
+			}
+			if (element.ValueKind != JsonValueKind.String) {
+				context.AddFailure("ProfileId must be a string");
+				return;
+			}
+			var str = element.GetString();
+			if (string.IsNullOrWhiteSpace(str)) {
+				context.AddFailure("ProfileId must not be empty");
+				return;
+			}
+			if (!Guid.TryParse(str, out _)) {
+				context.AddFailure("ProfileId must be a valid GUID");
+			}
+		});
 	}
 }
 

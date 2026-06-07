@@ -55,9 +55,14 @@ public sealed class UpdateStaffUserProfilesBodyValidator
 	: AbstractValidator<UpdateStaffUserProfilesBody> {
 	public UpdateStaffUserProfilesBodyValidator() {
 		RuleFor(x => x.ProfileIds)
-			.NotNull()
-			.WithMessage("ProfileIds is required")
 			.Custom((element, context) => {
+				if (element.ValueKind
+					is JsonValueKind.Undefined
+					or JsonValueKind.Null) {
+					context.AddFailure("ProfileIds is required");
+					return;
+				}
+
 				if (element.ValueKind != JsonValueKind.Array) {
 					context.AddFailure("ProfileIds must be an array");
 					return;

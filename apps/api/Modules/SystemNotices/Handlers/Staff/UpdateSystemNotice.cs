@@ -8,12 +8,13 @@ using Microsoft.AspNetCore.Mvc;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
-using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.SystemNotices.Entities;
 using PublyApp.Api.Modules.SystemNotices.Services;
+using PublyApp.Api.Modules.SystemNotices.Validation;
 
 namespace PublyApp.Api.Modules.SystemNotices.Handlers.Staff;
 
@@ -80,108 +81,19 @@ public class UpdateSystemNoticeBodyValidator
 	: AbstractValidator<UpdateSystemNoticeBody> {
 	public UpdateSystemNoticeBodyValidator() {
 		RuleFor(x => x.Severity)
-			.Must(e => e is null
-				|| e.Value.ValueKind == JsonValueKind.Null
-				|| e.Value.ValueKind == JsonValueKind.String)
-			.WithMessage("Severity must be a string or null")
-			.Must(BeValidSeverityOrNull)
-			.WithMessage(
-				"Severity must be one of: info, warning, critical"
-			);
+			.MustBeNullableSeverity();
 
 		RuleFor(x => x.Title)
-			.Must(e => e is null
-				|| e.Value.ValueKind == JsonValueKind.Null
-				|| e.Value.ValueKind == JsonValueKind.String)
-			.WithMessage("Title must be a string or null")
-			.Must(e => e is null
-				|| e.Value.ValueKind == JsonValueKind.Null
-				|| (e.Value.GetString()?.Length ?? 0) <= 200)
-			.WithMessage(
-				"Title must be 200 characters or less"
-			);
+			.MustBeNullableStringWithMaxLength("Title", 200);
 
 		RuleFor(x => x.Message)
-			.Must(e => e is null
-				|| e.Value.ValueKind == JsonValueKind.Null
-				|| e.Value.ValueKind == JsonValueKind.String)
-			.WithMessage("Message must be a string or null")
-			.Must(e => e is null
-				|| e.Value.ValueKind == JsonValueKind.Null
-				|| (e.Value.GetString()?.Length ?? 0) <= 2000)
-			.WithMessage(
-				"Message must be 2000 characters or less"
-			);
+			.MustBeNullableStringWithMaxLength("Message", 2000);
 
 		RuleFor(x => x.StartsAt)
-			.Must(e => e is null
-				|| e.Value.ValueKind == JsonValueKind.Null
-				|| e.Value.ValueKind == JsonValueKind.String)
-			.WithMessage("StartsAt must be a string or null")
-			.Must(BeValidDateTimeOrNull)
-			.WithMessage(
-				"StartsAt must be a valid ISO 8601 date"
-			);
+			.MustBeNullableIsoDateTime("StartsAt");
 
 		RuleFor(x => x.ExpiresAt)
-			.Must(e =>
-				e.ValueKind is JsonValueKind.Undefined
-					or JsonValueKind.Null
-					or JsonValueKind.String)
-			.WithMessage(
-				"ExpiresAt must be a string, null, or omitted"
-			)
-			.Must(BeValidDateTimeOrUndefined)
-			.WithMessage(
-				"ExpiresAt must be a valid ISO 8601 date"
-			);
-	}
-
-	private bool BeValidSeverityOrNull(JsonElement? element) {
-		if (element is null
-			|| element.Value.ValueKind
-				== JsonValueKind.Null) {
-			return true;
-		}
-		if (element.Value.ValueKind
-			!= JsonValueKind.String) {
-			return false;
-		}
-		var value = element.Value.GetString();
-		if (value is null) {
-			return false;
-		}
-		return SystemNotice.ParseSeverity(value) is not null;
-	}
-
-	private bool BeValidDateTimeOrNull(JsonElement? element) {
-		if (element is null
-			|| element.Value.ValueKind
-				== JsonValueKind.Null) {
-			return true;
-		}
-		if (element.Value.ValueKind
-			!= JsonValueKind.String) {
-			return false;
-		}
-		return DateUtils.TryParseIsoUtc(
-			element.Value.GetString(), out _
-		);
-	}
-
-	private bool BeValidDateTimeOrUndefined(
-		JsonElement element
-	) {
-		if (element.ValueKind is JsonValueKind.Undefined
-			or JsonValueKind.Null) {
-			return true;
-		}
-		if (element.ValueKind != JsonValueKind.String) {
-			return false;
-		}
-		return DateUtils.TryParseIsoUtc(
-			element.GetString(), out _
-		);
+			.MustBePatchFieldIsoDateTime("ExpiresAt");
 	}
 }
 

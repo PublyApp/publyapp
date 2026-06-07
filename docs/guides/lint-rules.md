@@ -120,6 +120,16 @@ Each rule has an ID, descriptor in `DiagnosticCatalog.cs`, and is referenced in 
 - **Shipped in:** #596
 - **Enforced in:** #600
 
+### `PUBLY0005` — inline FluentValidation chains on `JsonElement` getters
+
+- **Severity in `.editorconfig`:** `warning` (enforced)
+- **Source:** `packages/lint-cs/InlineFluentValidationChainAnalyzer.cs`
+- **Spec:** `packages/lint-cs/InlineFluentValidationChainAnalyzer.Spec.cs`
+- **AGENTS.md:** "Validators: use `JsonElementRules.*` extension methods (never inline validation chains)."
+- **Strategy:** HYBRID — recurring shapes extracted to `JsonElementRules.*` shared helpers or module `Validation/` helpers; bespoke array/object validators folded into `.Custom` blocks (not flagged by the analyzer).
+- **Shipped in:** #601
+- **Enforced in:** #601
+
 ### `PUBLY0006` — uncached request DTO getter calls
 
 - **Severity in `.editorconfig`:** `warning` (enforced)

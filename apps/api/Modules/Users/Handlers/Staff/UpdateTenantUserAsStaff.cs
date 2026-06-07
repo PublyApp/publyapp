@@ -123,25 +123,19 @@ public class UpdateTenantUserAsStaffBodyValidator
 		RuleFor(x => x.AvatarUrl)
 			.MustBePatchFieldUrl("AvatarUrl");
 
-		RuleFor(x => x.Level)
-			.Must(e => {
-				if (e is null) {
-					return true;
-				}
-
-				var element = e.Value;
-				if (element.ValueKind == JsonValueKind.Null) {
-					return true;
-				}
-
-				if (element.ValueKind != JsonValueKind.String) {
-					return false;
-				}
-
-				var value = element.GetString();
-				return value is "Admin" or "User";
-			})
-			.WithMessage("Level must be 'Admin' or 'User'");
+		RuleFor(x => x.Level).Custom((element, context) => {
+			if (element is null) {
+				return;
+			}
+			var kind = element.Value.ValueKind;
+			if (kind == JsonValueKind.Null) {
+				return;
+			}
+			if (kind != JsonValueKind.String
+				|| element.Value.GetString() is not ("Admin" or "User")) {
+				context.AddFailure("Level must be 'Admin' or 'User'");
+			}
+		});
 	}
 }
 
