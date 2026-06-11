@@ -47,6 +47,7 @@
 		"publy/no-direct-dayjs-in-components": "error",
 		"publy/no-native-html-in-mui-surfaces": "error",
 		"publy/no-raw-img-in-product-surfaces": "error",
-		"publy/no-manual-response-message-translation": "error"
+		"publy/no-manual-response-message-translation": "error",
+		"publy/arrow-function-components": "off"
 	}
 }
