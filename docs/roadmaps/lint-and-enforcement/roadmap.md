@@ -1,6 +1,6 @@
 # Roadmap: Handler Contract → Architecture Guards → Lint/Analyzer Framework
 
-> Status: planning · Created 2026-05-23 · Owner: @radandevist
+> Status: Phase 0 done · Phase 1 done · Phase 2 in progress (PUBLY0001–0008 all enforced) · Created 2026-05-23 · Owner: @radandevist
 >
 > Sequences three open issues into small, interruptible PRs so they can be
 > picked off individually.
@@ -66,10 +66,16 @@ foundation  cheap lock-in  heavy framework
 
 ---
 
-## Phase 0 — #431 Handler file contract (foundation)
+## Phase 0 — #431 Handler file contract (foundation) ✓ DONE
 
 Define the contract, then apply the rename smallest-domain-first so the pattern
 is proven on tiny domains before the large ones.
+
+> **Done.** All `Handle{Operation}` → `Handle` renames landed. Handler-file contract
+> (entrypoint `Handle`; HTTP `Body`/`Query`/`Result`/`Response`/`Item`/`*Validator` as
+> top-level siblings, not nested; `PUBLY0004` enforces the `Dto`-suffix ban on wire-contract
+> types) is documented in `docs/guides/csharp-coding-standards.md` and enforced by the
+> analyzer framework. See `docs/guides/lint-rules.md` → PUBLY0004.
 
 | PR | Scope | Verify |
 | --- | --- | --- |
@@ -95,10 +101,15 @@ is proven on tiny domains before the large ones.
 
 ---
 
-## Phase 1 — #357 Architecture guards (cheap enforcement, reflection/xUnit)
+## Phase 1 — #357 Architecture guards (cheap enforcement, reflection/xUnit) ✓ DONE
 
 Extends `apps/api/Lib/Architecture/*.Spec.cs`. Each guard reports concrete
 offenders (type/property names), not a generic failure.
+
+> **Done.** Architecture guards implemented in `apps/api/Lib/Architecture/`. Key rules
+> (service dependency boundaries, handler naming, permission enforcement) are enforced by
+> Roslyn analyzers PUBLY0007 (staff handler service variants) and the architecture spec
+> suite. See `docs/guides/lint-rules.md` for the full rule inventory.
 
 ### Wave A — independent of #431 (can start in parallel with Phase 0)
 
@@ -159,14 +170,23 @@ Keep `oxfmt` unchanged — it stays the formatter; policy checks live in Oxlint.
 
 ### .NET track (Roslyn analyzer)
 
-| PR | Scope |
-| --- | --- |
-| **NET.1** | Scaffold `apps/api/Analyzers/PublyApp.Analyzers` + `PublyApp.Analyzers.Tests`, referenced **analyzer-only** (`OutputItemType=Analyzer`, `ReferenceOutputAssembly=false`), `.artifacts` output via `Directory.Build.props`. Add `DiagnosticIds`/`DiagnosticCatalog`. Prove a trivial analyzer loads at build with no runtime dependency from the API assembly. |
-| **NET.2** | `PUBLY0001` — disallow null-forgiving `!` in production C#. Disabled-by-default descriptor; enabled via `.editorconfig` once code is clean. |
-| **NET.3** | `PUBLY0002` — disallow `?? throw`. |
-| **NET.4** | `PUBLY0003` — disallow `ToLower()`/`ToLowerInvariant()` as comparison/dispatch. |
-| **NET.5+** | Handler-contract analyzers `PUBLY02xx` (deferred here by #357 + the #350/#357 addenda): `Handle*` rename code-fix; nested public contract-type detection; `MainApiDbContext` in handler code; `TypedResults.Forbid()` → require `TypedProblems.*`; inline FluentValidation chains → `JsonElementRules.*`; uncached/parsing-sensitive body-getter calls. |
-| **NET.6** | Layout rules (`PUBLY01xx`) after framework is stable; prefer built-in `IDE2000`/`IDE0055` where reliable. |
+| PR | Scope | Status |
+| --- | --- | --- |
+| **NET.1** | Scaffold `apps/api/Analyzers/PublyApp.Analyzers` + `PublyApp.Analyzers.Tests`, referenced **analyzer-only** (`OutputItemType=Analyzer`, `ReferenceOutputAssembly=false`), `.artifacts` output via `Directory.Build.props`. Add `DiagnosticIds`/`DiagnosticCatalog`. Prove a trivial analyzer loads at build with no runtime dependency from the API assembly. | ✓ done |
+| **NET.2** | `PUBLY0001` — disallow null-forgiving `!` in production C#. Disabled-by-default descriptor; enabled via `.editorconfig` once code is clean. | ✓ shipped + enforced |
+| **NET.3** | `PUBLY0002` — disallow `?? throw`. | ✓ shipped + enforced |
+| **NET.4** | `PUBLY0003` — disallow `ToLower()`/`ToLowerInvariant()` as comparison/dispatch. | ✓ shipped + enforced |
+| **NET.5** | `PUBLY0004` — disallow `Dto` suffix on handler wire-contract types (`Body`/`Query`/`Result`/`Response`/`Item`). | ✓ shipped + enforced |
+| **NET.6** | `PUBLY0005` — replace inline FluentValidation chains on `JsonElement` getters with `JsonElementRules.*` helpers. | ✓ shipped + enforced |
+| **NET.7** | `PUBLY0006` — cache request DTO getter results in locals when called 2+ times or returning parsing-sensitive values. | ✓ shipped + enforced |
+| **NET.8** | `PUBLY0007` — staff handlers must call `*ForStaff*` service method variants. | ✓ shipped + enforced |
+| **NET.9** | `PUBLY0008` — prefer `is null` / `is not null` pattern checks over `== null` / `!= null` (expression-tree contexts exempted). | ✓ shipped + enforced |
+| **NET.10** | Layout rules (`PUBLY01xx`) after framework is stable; prefer built-in `IDE2000`/`IDE0055` where reliable. | planned |
+
+> All eight PUBLY rules (PUBLY0001–PUBLY0008) are enforced via `.editorconfig`
+> (`dotnet_diagnostic.PUBLYxxxx.severity = warning`) combined with
+> `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` in `Directory.Build.props`.
+> Rule details, sources, and spec locations: `docs/guides/lint-rules.md`.
 
 **Per-rule test matrix (both tracks):** valid fixture · invalid fixture (message + location) · generated-code ignored · config enable/disable · code-fix fixture where one exists.
 
