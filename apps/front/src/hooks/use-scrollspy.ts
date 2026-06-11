@@ -29,9 +29,7 @@ export const useScrollspy = ({
 	const previousActiveRef = useRef<string | null>(null);
 
 	useEffect(() => {
-		// Early return if no sections to observe
 		if (sectionIds.length === 0) {
-			setActiveSection(null);
 			return;
 		}
 
@@ -89,5 +87,8 @@ export const useScrollspy = ({
 		};
 	}, [sectionIds, offset, rootMargin]);
 
-	return activeSection;
+	// When sectionIds is empty there are no elements to observe, so there is no
+	// active section. Derive null here instead of calling the setter in the effect
+	// to avoid the extra render that effect-based reset causes.
+	return sectionIds.length === 0 ? null : activeSection;
 };

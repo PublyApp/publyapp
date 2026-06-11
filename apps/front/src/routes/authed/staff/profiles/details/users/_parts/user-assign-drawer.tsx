@@ -204,7 +204,17 @@ const useUserAssignDrawerController = (profileName: string) => {
 		setSentinelNode(node);
 	}, []);
 
-	const findUsersQuery = useInfiniteQuery<
+	const {
+		data: findUsersData,
+		isPending: findUsersIsPending,
+		isLoading: findUsersIsLoading,
+		isFetching: findUsersIsFetching,
+		isError: findUsersIsError,
+		error: findUsersError,
+		hasNextPage,
+		isFetchingNextPage,
+		fetchNextPage,
+	} = useInfiniteQuery<
 		FindStaffUsersResponse,
 		Error,
 		InfiniteData<FindStaffUsersResponse, string | undefined>,
@@ -239,6 +249,33 @@ const useUserAssignDrawerController = (profileName: string) => {
 		},
 		getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
 	});
+
+	// Re-assemble only the fields used externally so callers keep a stable interface
+	// while TanStack Query tracks only the consumed properties (not the full result object).
+	const findUsersQuery = useMemo(
+		() => ({
+			data: findUsersData,
+			isPending: findUsersIsPending,
+			isLoading: findUsersIsLoading,
+			isFetching: findUsersIsFetching,
+			isError: findUsersIsError,
+			error: findUsersError,
+			hasNextPage,
+			isFetchingNextPage,
+			fetchNextPage,
+		}),
+		[
+			findUsersData,
+			findUsersIsPending,
+			findUsersIsLoading,
+			findUsersIsFetching,
+			findUsersIsError,
+			findUsersError,
+			hasNextPage,
+			isFetchingNextPage,
+			fetchNextPage,
+		],
+	);
 
 	const { mutateAsync: updateUserProfiles } = useUpdateStaffUserProfiles({
 		// Error toasts handled by the shared mutation layer.
@@ -500,8 +537,8 @@ const useUserAssignDrawerController = (profileName: string) => {
 	};
 
 	const drawerUsers = useMemo(() => {
-		return findUsersQuery.data?.pages.flatMap((page) => page.data ?? []) ?? [];
-	}, [findUsersQuery.data]);
+		return findUsersData?.pages.flatMap((page) => page.data ?? []) ?? [];
+	}, [findUsersData]);
 
 	const resolveAssignmentForUserIds = useCallback(
 		async (userIds: string[]) => {

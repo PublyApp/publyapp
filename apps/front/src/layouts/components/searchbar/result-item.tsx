@@ -4,7 +4,6 @@ import ListItemButton, {
 } from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import { isExternalLink, varAlpha } from 'minimal-shared/utils';
-import { nanoid } from 'nanoid';
 
 import { Label } from '#app/components/label/label.tsx';
 import { RouterLink } from '#app/components/router-link.tsx';
@@ -56,10 +55,10 @@ export const ResultItem = ({
 			{...other}
 		>
 			<ListItemText
-				primary={title.map((part) => {
+				primary={title.map((part, i) => {
 					return (
 						<Box
-							key={nanoid()}
+							key={i}
 							component="span"
 							sx={{ color: part.highlight ? 'primary.main' : 'text.primary' }}
 						>
@@ -67,10 +66,10 @@ export const ResultItem = ({
 						</Box>
 					);
 				})}
-				secondary={path.map((part) => {
+				secondary={path.map((part, i) => {
 					return (
 						<Box
-							key={nanoid()}
+							key={i}
 							component="span"
 							sx={{ color: part.highlight ? 'primary.main' : 'text.secondary' }}
 						>
