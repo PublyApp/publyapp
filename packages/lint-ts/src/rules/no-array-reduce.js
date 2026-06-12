@@ -9,9 +9,12 @@
  * What it flags:
  *   - `arr.reduce((acc, x) => ..., init)`
  *   - `arr.reduceRight((acc, x) => ..., init)`
+ *   - `arr['reduce'](...)` / `arr['reduceRight'](...)` (computed string-literal key)
  *
- * The rule matches any CallExpression whose callee is a non-computed
- * MemberExpression with property name `reduce` or `reduceRight`. It does NOT
+ * The rule matches any CallExpression whose callee is a MemberExpression
+ * naming `reduce` or `reduceRight` — via non-computed identifier access or a
+ * computed string-literal key. Dynamic computed keys (`arr[method]`) are not
+ * flagged because the method name is not statically known. The rule does NOT
  * attempt to verify that the receiver is actually an array — a property named
  * `reduce` on a non-array object is statistically rare in this codebase and
  * false positives are preferable to missed violations.
@@ -24,6 +27,25 @@
  */
 
 const FORBIDDEN_METHODS = new Set(['reduce', 'reduceRight']);
+
+/**
+ * Resolves the statically-known method name from a MemberExpression callee,
+ * or returns `null` when the name cannot be determined (dynamic computed key,
+ * private field, non-string literal, etc.).
+ */
+const resolveMethodName = (callee) => {
+	const property = callee.property;
+
+	if (!callee.computed) {
+		return property.type === 'Identifier' ? property.name : null;
+	}
+
+	if (property.type === 'Literal' && typeof property.value === 'string') {
+		return property.value;
+	}
+
+	return null;
+};
 
 export const noArrayReduce = {
 	meta: {
@@ -48,24 +70,16 @@ export const noArrayReduce = {
 					return;
 				}
 
-				if (callee.computed) {
-					return;
-				}
+				const methodName = resolveMethodName(callee);
 
-				const property = callee.property;
-
-				if (property.type !== 'Identifier') {
-					return;
-				}
-
-				if (!FORBIDDEN_METHODS.has(property.name)) {
+				if (methodName === null || !FORBIDDEN_METHODS.has(methodName)) {
 					return;
 				}
 
 				context.report({
 					node,
 					messageId: 'noReduce',
-					data: { method: property.name },
+					data: { method: methodName },
 				});
 			},
 		};

@@ -77,7 +77,7 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 - **Spec:** `packages/lint-ts/src/rules/no-array-reduce.test.js`
 - **AGENTS.md:** "No `Array.reduce()` — use `find`, `filter+map`, `for...of`, or `Object.groupBy`."
 - **Autofix:** no
-- **Note:** flags both `.reduce(...)` and `.reduceRight(...)` on any receiver; `unicorn/no-array-reduce` already covers the base case — this rule adds `reduceRight` and the repo-specific guidance message.
+- **Note:** flags both `.reduce(...)` and `.reduceRight(...)` on any receiver, including optional-chaining (`arr?.reduce(...)`) and computed string-literal access (`arr['reduce'](...)`); `unicorn/no-array-reduce` already covers the base case — this rule adds `reduceRight`, bracket-access coverage, and the repo-specific guidance message.
 - **Shipped in:** #650
 - **Enforced in:** #650 (0 offenders at ship time → enforced immediately)
 

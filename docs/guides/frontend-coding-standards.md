@@ -276,7 +276,7 @@ for (const item of items) {
 }
 ```
 
-**Enforced by oxlint:** `unicorn/no-array-reduce` (covers `.reduce()`) and `publy/no-array-reduce` (extends coverage to `.reduceRight()` and emits the repo-specific guidance message).
+**Enforced by oxlint:** `unicorn/no-array-reduce` (covers `.reduce()`) and `publy/no-array-reduce` (extends coverage to `.reduceRight()` and bracket access like `arr['reduce']`, and emits the repo-specific guidance message).
 
 ## JavaScript/TypeScript Helpers: Prefer Targeted Lodash When Safer
 
@@ -317,7 +317,11 @@ const tenantId = lodashToString(id);
 ```tsx
 // ❌ WRONG - Using function expression/declaration
 function calculateTotal(items: Item[]): number {
-	return items.reduce((sum, item) => sum + item.price, 0);
+	let total = 0;
+	for (const item of items) {
+		total += item.price;
+	}
+	return total;
 }
 
 function processData(data: Data) {
@@ -326,7 +330,11 @@ function processData(data: Data) {
 
 // ✅ CORRECT - Using arrow functions
 const calculateTotal = (items: Item[]): number => {
-	return items.reduce((sum, item) => sum + item.price, 0);
+	let total = 0;
+	for (const item of items) {
+		total += item.price;
+	}
+	return total;
 };
 
 const processData = (data: Data) => {
