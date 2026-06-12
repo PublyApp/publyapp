@@ -568,7 +568,7 @@ const useTenantUsersTableController = () => {
 
 		setBulkRemoveDialogOpen(false);
 		clearSelection();
-		await queryClient.invalidateQueries({
+		void queryClient.invalidateQueries({
 			queryKey: useFindTenantUsers.getKey({ tenantId }),
 		});
 

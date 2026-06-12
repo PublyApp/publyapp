@@ -58,7 +58,7 @@ export const ResultItem = ({
 				primary={title.map((part, i) => {
 					return (
 						<Box
-							key={i}
+							key={`${i}:${part.text}`}
 							component="span"
 							sx={{ color: part.highlight ? 'primary.main' : 'text.primary' }}
 						>
@@ -69,7 +69,7 @@ export const ResultItem = ({
 				secondary={path.map((part, i) => {
 					return (
 						<Box
-							key={i}
+							key={`${i}:${part.text}`}
 							component="span"
 							sx={{ color: part.highlight ? 'primary.main' : 'text.secondary' }}
 						>

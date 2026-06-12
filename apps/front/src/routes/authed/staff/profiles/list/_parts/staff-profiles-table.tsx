@@ -715,20 +715,16 @@ const StaffProfilesSelectionActions = ({
 				queryKey: useFindStaffProfiles.getKey(),
 			});
 
-			for (const profileId of succeededProfileIds) {
-				await Promise.all([
+			await Promise.all(
+				succeededProfileIds.flatMap((profileId) => [
 					queryClient.invalidateQueries({
-						queryKey: useGetStaffProfileById.getKey({
-							profileId,
-						}),
+						queryKey: useGetStaffProfileById.getKey({ profileId }),
 					}),
 					queryClient.invalidateQueries({
-						queryKey: useFindStaffProfilePermissions.getKey({
-							profileId,
-						}),
+						queryKey: useFindStaffProfilePermissions.getKey({ profileId }),
 					}),
-				]);
-			}
+				]),
+			);
 
 			await Promise.all([
 				queryClient.invalidateQueries({

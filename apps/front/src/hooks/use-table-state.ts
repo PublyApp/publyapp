@@ -315,6 +315,9 @@ export const useTableState = (
 			setPaginationState,
 			virtualPageIndex,
 			currentCursor,
+			sortId,
+			sortOrder,
+			pageSize,
 		],
 	);
 
