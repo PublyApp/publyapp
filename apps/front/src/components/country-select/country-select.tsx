@@ -71,11 +71,15 @@ export const CountrySelect = ({
 	}, []);
 
 	const renderOption = useCallback(
-		(props: React.HTMLAttributes<HTMLLIElement>, option: Value) => {
+		(
+			props: React.HTMLAttributes<HTMLLIElement> & { key?: React.Key },
+			option: Value,
+		) => {
 			const country = getCountry(option);
+			const { key, ...listProps } = props;
 
 			return (
-				<Box key={country.label} component="li" {...props}>
+				<Box key={key} component="li" {...listProps}>
 					<FlagIcon
 						key={country.label}
 						code={country.code}
@@ -165,13 +169,28 @@ export const CountrySelect = ({
 				return null;
 			}
 
+			// When selected is an array we are in multiple mode, so getItemProps always
+			// returns a key. Cast via unknown to extract it safely — the non-multiple
+			// overload does not include key in its return type but is never reached here.
+			type MultipleItemPropsGetter = (args: { index: number }) => {
+				key: React.Key;
+				className: string;
+				disabled: boolean;
+				'data-item-index': number;
+				tabIndex: -1;
+				onDelete: (event: React.SyntheticEvent) => void;
+			};
+			const getMultipleItemProps =
+				getItemProps as unknown as MultipleItemPropsGetter;
+
 			return selected.map((option, index) => {
 				const country = getCountry(option);
+				const { key, ...itemProps } = getMultipleItemProps({ index });
 
 				return (
 					<Chip
-						key={country.label}
-						{...getItemProps({ index })}
+						key={key ?? country.label}
+						{...itemProps}
 						label={country.label}
 						size="small"
 						variant="soft"
