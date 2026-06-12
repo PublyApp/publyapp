@@ -16,6 +16,13 @@
  * - Null-only hook-calling PascalCase components are caught (finding #2).
  * - memo/forwardRef-wrapped function expressions are caught (finding #3).
  * - Anonymous default-exported function components are caught (finding #3).
+ * - Round-2: control-flow test expressions are scanned for hook calls.
+ * - Round-2: hook detection is import-binding-aware (locally-declared non-hook
+ *   `use*` utilities are not treated as React hooks).
+ * - Round-2: wrapper detection is import-binding-aware (locally-defined `memo`
+ *   functions do not trigger the wrapper check).
+ * - Round-2: expressionContainsJsx branches (parenthesized, TSAsExpression,
+ *   TSSatisfiesExpression, TSNonNullExpression) are exercised.
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
@@ -95,19 +102,19 @@ const runCases = (rule, label) => {
 					code: 'function Placeholder() { return null; }',
 					filename: 'apps/front/src/utils/placeholder.ts',
 				},
-				// Arrow-form component inside memo — valid (already arrow)
+				// Arrow-form component inside memo (imported from react) — valid (already arrow)
 				{
-					code: 'const Foo = memo(() => <div />);',
+					code: "import { memo } from 'react'; const Foo = memo(() => <div />);",
 					filename: 'apps/front/src/components/foo.tsx',
 				},
-				// Arrow-form component inside forwardRef — valid
+				// Arrow-form component inside forwardRef (imported from react) — valid
 				{
-					code: 'const Input = forwardRef((props, ref) => <input ref={ref} {...props} />);',
+					code: "import { forwardRef } from 'react'; const Input = forwardRef((props, ref) => <input ref={ref} {...props} />);",
 					filename: 'apps/front/src/components/input.tsx',
 				},
 				// Arrow-form inside React.memo — valid
 				{
-					code: 'const Foo = React.memo(() => <div />);',
+					code: "import React from 'react'; const Foo = React.memo(() => <div />);",
 					filename: 'apps/front/src/components/foo.tsx',
 				},
 				// Ternary JSX return in arrow function — valid
@@ -119,6 +126,30 @@ const runCases = (rule, label) => {
 				{
 					code: 'function EmptyState() { const x = 1; return null; }',
 					filename: 'apps/front/src/utils/empty.ts',
+				},
+
+				// Round-2 valid: PascalCase helper calling a locally-declared non-hook
+				// `use*` utility (not imported from 'react' or any module).
+				// useThing() is declared locally and does NOT itself call any hooks,
+				// so PascalCase helper calling it + returning null must NOT be flagged.
+				{
+					code: [
+						'function useThing() { return 42; }',
+						'function Helper() { const val = useThing(); return null; }',
+					].join('\n'),
+					filename: 'apps/front/src/utils/helper.ts',
+				},
+
+				// Round-2 valid: a locally-defined custom `memo` function that is NOT
+				// imported from 'react' must not trigger wrapper detection.
+				// The FunctionExpression argument `function() { return <span />; }` must
+				// NOT be flagged because the local `memo` is not React's memo.
+				{
+					code: [
+						'function memo(fn) { return fn; }',
+						'const Wrapped = memo(function() { return <span />; });',
+					].join('\n'),
+					filename: 'apps/front/src/utils/memo-util.tsx',
 				},
 			],
 			invalid: [
@@ -178,46 +209,46 @@ const runCases = (rule, label) => {
 					errors: [{ messageId: 'useArrowFunction' }],
 				},
 
-				// Finding #2: null-only component that calls a hook
+				// Finding #2: null-only component that calls a hook (imported from react)
 				{
-					code: 'function ProgressBar({ value }) { const x = useRef(null); return null; }',
+					code: "import { useRef } from 'react'; function ProgressBar({ value }) { const x = useRef(null); return null; }",
 					filename: 'apps/front/src/components/progress-bar.tsx',
 					errors: [{ messageId: 'useArrowFunction' }],
 				},
-				// Finding #2: null-only with useEffect hook
+				// Finding #2: null-only with useEffect hook (imported from react)
 				{
-					code: 'function SyncEffect({ id }) { useEffect(() => { sync(id); }, [id]); return null; }',
+					code: "import { useEffect } from 'react'; function SyncEffect({ id }) { useEffect(() => { sync(id); }, [id]); return null; }",
 					filename: 'apps/front/src/components/sync-effect.tsx',
 					errors: [{ messageId: 'useArrowFunction' }],
 				},
 
-				// Finding #3: memo(function Foo() {...}) — named function expression
+				// Finding #3: memo(function Foo() {...}) — named function expression (memo imported from react)
 				{
-					code: 'const Foo = memo(function Foo() { return <div />; });',
+					code: "import { memo } from 'react'; const Foo = memo(function Foo() { return <div />; });",
 					filename: 'apps/front/src/components/foo.tsx',
 					errors: [{ messageId: 'useArrowFunction' }],
 				},
-				// Finding #3: memo(function() {...}) — anonymous function expression
+				// Finding #3: memo(function() {...}) — anonymous function expression (memo imported from react)
 				{
-					code: 'const Bar = memo(function() { return <span />; });',
+					code: "import { memo } from 'react'; const Bar = memo(function() { return <span />; });",
 					filename: 'apps/front/src/components/bar.tsx',
 					errors: [{ messageId: 'useArrowFunction' }],
 				},
-				// Finding #3: forwardRef(function Input() {...})
+				// Finding #3: forwardRef(function Input() {...}) — imported from react
 				{
-					code: 'const Input = forwardRef(function Input(props, ref) { return <input ref={ref} />; });',
+					code: "import { forwardRef } from 'react'; const Input = forwardRef(function Input(props, ref) { return <input ref={ref} />; });",
 					filename: 'apps/front/src/components/input.tsx',
 					errors: [{ messageId: 'useArrowFunction' }],
 				},
-				// Finding #3: React.memo(function Foo() {...})
+				// Finding #3: React.memo(function Foo() {...}) — default import
 				{
-					code: 'const Foo = React.memo(function Foo() { return <div />; });',
+					code: "import React from 'react'; const Foo = React.memo(function Foo() { return <div />; });",
 					filename: 'apps/front/src/components/foo.tsx',
 					errors: [{ messageId: 'useArrowFunction' }],
 				},
-				// Finding #3: React.forwardRef(function() {...})
+				// Finding #3: React.forwardRef(function() {...}) — default import
 				{
-					code: 'const Input = React.forwardRef(function(props, ref) { return <input ref={ref} />; });',
+					code: "import React from 'react'; const Input = React.forwardRef(function(props, ref) { return <input ref={ref} />; });",
 					filename: 'apps/front/src/components/input.tsx',
 					errors: [{ messageId: 'useArrowFunction' }],
 				},
@@ -226,6 +257,51 @@ const runCases = (rule, label) => {
 					code: 'export default function() { return <div />; }',
 					filename: 'apps/front/src/routes/page.tsx',
 					errors: [{ messageId: 'useArrowFunctionAnonymous' }],
+				},
+
+				// Round-2 finding #1: hook call in `if` condition test expression is scanned.
+				// `function Gate() { if (useFeatureFlag()) { return null; } return null; }`
+				// useFeatureFlag is imported, so it IS a hook → component must be flagged.
+				{
+					code: "import { useFeatureFlag } from '#app/hooks'; function Gate() { if (useFeatureFlag()) { return null; } return null; }",
+					filename: 'apps/front/src/components/gate.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-2 finding #2: imported custom hook from non-react module counts as hook.
+				// Ensures PascalCase components calling imported use* helpers are correctly flagged.
+				{
+					code: "import { useStore } from '#app/store'; function StatusBar() { const state = useStore(); return null; }",
+					filename: 'apps/front/src/components/status-bar.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-2 finding #4: parenthesized JSX return from function-declaration component.
+				{
+					code: 'function Card() { return (<div />); }',
+					filename: 'apps/front/src/components/card.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+				// Round-2 finding #4: TSAsExpression-wrapped JSX return.
+				{
+					code: 'function Widget() { return <span /> as unknown; }',
+					filename: 'apps/front/src/components/widget.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+				// Round-2 finding #4: TSSatisfiesExpression-wrapped JSX return.
+				{
+					code: 'function Panel() { return <div /> satisfies React.ReactElement; }',
+					filename: 'apps/front/src/components/panel.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+				// Round-2 finding #4: TSNonNullExpression-wrapped JSX return.
+				// `(<span />)!` is TSNonNullExpression → ParenthesizedExpression → JSXElement,
+				// which exercises both the TSNonNullExpression and ParenthesizedExpression
+				// branches of expressionContainsJsx.
+				{
+					code: 'function Toast() { return (<span />)!; }',
+					filename: 'apps/front/src/components/toast.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
 				},
 			],
 		});
