@@ -313,11 +313,18 @@ export const useTableState = (
 								prev.forSortOrder !== sortOrder ||
 								prev.forPageSize !== pageSize;
 							if (isStale) {
+								// currentNextCursor is already validated as belonging to the current
+								// generation (the isNextCursorFresh check above). Advancing into the
+								// new generation mirrors the fresh 0→1 path: history stays empty
+								// (currentCursor is null on page 0 of any generation, so nothing to
+								// push), current becomes the stamped next cursor, pageIndex advances.
+								// Back from page 1 of the new generation will then see history.length
+								// === 0 and correctly land on null/page 0.
 								return {
 									...baseState,
 									history: [],
-									current: null,
-									pageIndex: 0,
+									current: currentNextCursor,
+									pageIndex: newPageIndex,
 								};
 							}
 							const newHistory = currentCursor
