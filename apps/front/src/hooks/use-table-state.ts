@@ -159,11 +159,58 @@ export const useTableState = (
 	const currentCursor = isCursorStateFresh ? cursorState.current : null;
 	const virtualPageIndex = isCursorStateFresh ? cursorState.pageIndex : 0;
 
-	// Track the next cursor in a ref so pagination updates use the freshest query result.
-	const nextCursorRef = useRef<string | null | undefined>(undefined);
+	// Generation-stamped next-cursor ref. Stores the cursor value together with the
+	// sort/pageSize params that were active when setNextCursor was called. This lets the
+	// forward-pagination handler validate that the cursor belongs to the CURRENT generation
+	// before using it.
+	//
+	// Scenario walk-through:
+	//   (a) Change sort → click Next BEFORE refetch lands
+	//       sortId/sortOrder/pageSize just changed. nextCursorRef still holds the
+	//       old-generation stamp (forSortId ≠ sortId). The forward path sees a generation
+	//       mismatch → treats cursor as undefined → no move. Correct.
+	//
+	//   (b) Change sort → refetch lands → consumer calls setNextCursor(freshCursor) →
+	//       click Next
+	//       setNextCursor reads latestParamsRef (updated on every render) and stamps the
+	//       NEW sortId/sortOrder/pageSize. The forward path now sees a generation match →
+	//       uses freshCursor → advances to page 1. Correct.
+	//
+	//   (c) Normal fresh-path pagination (no sort/pageSize change)
+	//       Stamp always matches current generation → identical behaviour to before this
+	//       fix. Correct.
+	type StampedCursor = {
+		cursor: string | null | undefined;
+		forSortId: string;
+		forSortOrder: string;
+		forPageSize: string;
+	};
 
+	// Mirror of the current render's sort/pageSize params, written on every render so the
+	// stable setNextCursor callback can read the freshest values without being recreated.
+	const latestParamsRef = useRef<{
+		sortId: string;
+		sortOrder: string;
+		pageSize: string;
+	}>({ sortId, sortOrder, pageSize });
+	latestParamsRef.current = { sortId, sortOrder, pageSize };
+
+	const nextCursorRef = useRef<StampedCursor | undefined>(undefined);
+
+	// External contract is unchanged: setNextCursor(cursor: string | null | undefined).
+	// The callback stays stable (deps []) by reading latestParamsRef for the generation stamp.
 	const setNextCursor = useCallback((cursor: string | null | undefined) => {
-		nextCursorRef.current = cursor;
+		const {
+			sortId: sid,
+			sortOrder: so,
+			pageSize: ps,
+		} = latestParamsRef.current;
+		nextCursorRef.current = {
+			cursor,
+			forSortId: sid,
+			forSortOrder: so,
+			forPageSize: ps,
+		};
 	}, []);
 
 	// Explicit reset for cursor pagination when external filters change.
@@ -237,7 +284,18 @@ export const useTableState = (
 
 				const newPageIndex = newPagination.pageIndex;
 				const currentPageIndex = virtualPageIndex;
-				const currentNextCursor = nextCursorRef.current;
+				// Use the stored cursor only when its generation matches the current
+				// sort/pageSize params; otherwise treat it as undefined so a stale (or
+				// not-yet-arrived) cursor from a previous generation cannot be used.
+				const stampedNext = nextCursorRef.current;
+				const isNextCursorFresh =
+					stampedNext !== undefined &&
+					stampedNext.forSortId === sortId &&
+					stampedNext.forSortOrder === sortOrder &&
+					stampedNext.forPageSize === pageSize;
+				const currentNextCursor = isNextCursorFresh
+					? stampedNext.cursor
+					: undefined;
 				const baseState = {
 					forSortId: sortId,
 					forSortOrder: sortOrder,
@@ -248,7 +306,8 @@ export const useTableState = (
 					if (currentNextCursor) {
 						setCursorState((prev) => {
 							// If prev belongs to a different sort/pageSize generation, discard its
-							// history and ignore the potentially stale next cursor.
+							// history and start fresh from page 0. currentNextCursor is already
+							// validated to match the current generation above, so it is safe to use.
 							const isStale =
 								prev.forSortId !== sortId ||
 								prev.forSortOrder !== sortOrder ||
