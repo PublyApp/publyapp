@@ -373,11 +373,11 @@ export const BlogCallout = ({
 export const BlogPullQuote = ({
 	children,
 	attribution,
-	role,
+	occupation,
 }: {
 	children: ReactNode;
 	attribution?: string;
-	role?: string;
+	occupation?: string;
 }) => {
 	return (
 		<Box
@@ -429,7 +429,7 @@ export const BlogPullQuote = ({
 					<strong style={{ color: 'inherit', fontWeight: 700 }}>
 						{attribution}
 					</strong>
-					{role ? `, ${role}` : null}
+					{occupation ? `, ${occupation}` : null}
 				</Typography>
 			) : null}
 		</Box>

@@ -75,7 +75,7 @@ export const CountrySelect = ({
 			const country = getCountry(option);
 
 			return (
-				<Box component="li" {...props} key={country.label}>
+				<Box key={country.label} component="li" {...props}>
 					<FlagIcon
 						key={country.label}
 						code={country.code}
@@ -170,8 +170,8 @@ export const CountrySelect = ({
 
 				return (
 					<Chip
-						{...getItemProps({ index })}
 						key={country.label}
+						{...getItemProps({ index })}
 						label={country.label}
 						size="small"
 						variant="soft"

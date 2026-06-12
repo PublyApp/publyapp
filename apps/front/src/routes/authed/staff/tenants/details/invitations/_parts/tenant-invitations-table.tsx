@@ -322,30 +322,30 @@ const TenantInvitationsTable = () => {
 		});
 
 	const handleBulkRevoke = async () => {
+		const outcomes = await Promise.allSettled(
+			Object.keys(rowSelection).map((invitationId) =>
+				revokeInvitationAsync({ tenantId: toString(tenantId), invitationId }),
+			),
+		);
+
 		let succeeded = 0;
 		let failed = 0;
 		let firstFailureMessage: string | undefined;
 
-		for (const invitationId of Object.keys(rowSelection)) {
-			try {
-				await revokeInvitationAsync({
-					tenantId: toString(tenantId),
-					invitationId,
-				});
+		for (const outcome of outcomes) {
+			if (outcome.status === 'fulfilled') {
 				succeeded += 1;
-			} catch (error) {
+			} else {
 				failed += 1;
-
-				const failure = toApiFailure(error);
 				if (firstFailureMessage == null) {
-					firstFailureMessage = getFailureMessage(failure);
+					firstFailureMessage = getFailureMessage(toApiFailure(outcome.reason));
 				}
 			}
 		}
 
 		setBulkRevokeDialogOpen(false);
 		clearSelection();
-		await queryClient.invalidateQueries({
+		void queryClient.invalidateQueries({
 			queryKey: useFindTenantInvitations.getKey({
 				tenantId: toString(tenantId),
 			}),

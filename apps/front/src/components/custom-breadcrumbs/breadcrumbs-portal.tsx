@@ -1,5 +1,5 @@
 import Box from '@mui/material/Box';
-import { createContext, useCallback, useContext, useMemo, useRef } from 'react';
+import { createContext, use, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 // ----------------------------------------------------------------------
@@ -40,7 +40,7 @@ export function BreadcrumbsPortalProvider({
 // ----------------------------------------------------------------------
 
 export function useBreadcrumbsPortal() {
-	return useContext(BreadcrumbsPortalContext);
+	return use(BreadcrumbsPortalContext);
 }
 
 // ----------------------------------------------------------------------

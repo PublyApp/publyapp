@@ -71,7 +71,7 @@ const TenantUserCompaniesSelectionActions = ({
 		count: selectedCount,
 	});
 
-	const handleBulkSuccess = async (
+	const handleBulkSuccess = (
 		action: BulkCompanyAction,
 		result: TenantUserCompanyBulkActionResult,
 	) => {
@@ -80,7 +80,7 @@ const TenantUserCompaniesSelectionActions = ({
 
 		setConfirmAction(null);
 		onClearSelection();
-		await invalidateTenantUserCompanyQueries({ queryClient, userId });
+		void invalidateTenantUserCompanyQueries({ queryClient, userId });
 
 		if (failed > 0) {
 			toast.warning(
@@ -111,7 +111,7 @@ const TenantUserCompaniesSelectionActions = ({
 		useBulkRemoveTenantUserCompanies({
 			meta: { skipGlobalErrorHandler: true },
 			onSuccess: (result) => {
-				void handleBulkSuccess('remove', result);
+				handleBulkSuccess('remove', result);
 			},
 			onError: (error: unknown) => {
 				handleBulkError('remove', error);
@@ -122,7 +122,7 @@ const TenantUserCompaniesSelectionActions = ({
 		useBulkSuspendTenantUserCompanies({
 			meta: { skipGlobalErrorHandler: true },
 			onSuccess: (result) => {
-				void handleBulkSuccess('suspend', result);
+				handleBulkSuccess('suspend', result);
 			},
 			onError: (error: unknown) => {
 				handleBulkError('suspend', error);
@@ -133,7 +133,7 @@ const TenantUserCompaniesSelectionActions = ({
 		useBulkReactivateTenantUserCompanies({
 			meta: { skipGlobalErrorHandler: true },
 			onSuccess: (result) => {
-				void handleBulkSuccess('reactivate', result);
+				handleBulkSuccess('reactivate', result);
 			},
 			onError: (error: unknown) => {
 				handleBulkError('reactivate', error);

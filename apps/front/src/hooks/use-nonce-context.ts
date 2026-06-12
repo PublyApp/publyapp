@@ -25,7 +25,7 @@
  *   return <script nonce={nonce}>logger.log('Allowed by CSP');</script>;
  * }
  */
-import { createContext, useContext } from 'react';
+import { createContext, use } from 'react';
 
 /**
  * Context for storing the CSP nonce value
@@ -41,4 +41,4 @@ export const NonceProvider = NonceContext.Provider;
  * Hook to access the current CSP nonce value
  * @returns The current nonce string
  */
-export const useNonce = () => useContext(NonceContext);
+export const useNonce = () => use(NonceContext);

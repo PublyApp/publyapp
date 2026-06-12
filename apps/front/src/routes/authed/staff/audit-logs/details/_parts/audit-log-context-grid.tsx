@@ -42,9 +42,11 @@ export const AuditLogContextGrid = ({
 	const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	useEffect(() => {
+		const timeoutRef = copiedTimeoutRef;
 		return () => {
-			if (copiedTimeoutRef.current) {
-				clearTimeout(copiedTimeoutRef.current);
+			const pendingTimeout = timeoutRef.current;
+			if (pendingTimeout) {
+				clearTimeout(pendingTimeout);
 			}
 		};
 	}, []);

@@ -6,7 +6,7 @@ import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import Stack from '@mui/material/Stack';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef } from 'react';
 
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
@@ -27,7 +27,7 @@ export function AccountBillingAddress({ addressBook }: Props) {
 	const menuActions = usePopover();
 	const newAddressForm = useBoolean();
 
-	const [addressId, setAddressId] = useState('');
+	const addressIdRef = useRef('');
 
 	const handleAddNewAddress = useCallback((address: IAddressItem) => {
 		logger.info('ADDRESS', { address });
@@ -36,14 +36,14 @@ export function AccountBillingAddress({ addressBook }: Props) {
 	const handleSelectedId = useCallback(
 		(event: React.MouseEvent<HTMLElement>, id: string) => {
 			menuActions.onOpen(event);
-			setAddressId(id);
+			addressIdRef.current = id;
 		},
 		[menuActions],
 	);
 
 	const handleClose = useCallback(() => {
 		menuActions.onClose();
-		setAddressId('');
+		addressIdRef.current = '';
 	}, [menuActions]);
 
 	const renderMenuActions = () => (
@@ -56,7 +56,7 @@ export function AccountBillingAddress({ addressBook }: Props) {
 				<MenuItem
 					onClick={() => {
 						handleClose();
-						logger.info('SET AS PRIMARY', { addressId });
+						logger.info('SET AS PRIMARY', { addressId: addressIdRef.current });
 					}}
 				>
 					<Iconify icon="eva:star-fill" />
@@ -66,7 +66,7 @@ export function AccountBillingAddress({ addressBook }: Props) {
 				<MenuItem
 					onClick={() => {
 						handleClose();
-						logger.info('EDIT', { addressId });
+						logger.info('EDIT', { addressId: addressIdRef.current });
 					}}
 				>
 					<Iconify icon="solar:pen-bold" />
@@ -76,7 +76,7 @@ export function AccountBillingAddress({ addressBook }: Props) {
 				<MenuItem
 					onClick={() => {
 						handleClose();
-						logger.info('DELETE', { addressId });
+						logger.info('DELETE', { addressId: addressIdRef.current });
 					}}
 					sx={{ color: 'error.main' }}
 				>
