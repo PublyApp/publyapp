@@ -2,7 +2,7 @@
 
 **Issue:** #656
 **Date:** 2026-06-12 (v2 — same day)
-**Branch:** spike/656-tanstack-start-feasibility
+**Author:** spike/656-tanstack-start-feasibility
 **Decision: GO — committed.** Migration of `apps/front` from React Router v7 (framework mode) to TanStack Start will be executed per `docs/implementation-plans/tanstack-start-migration-plan.md`.
 
 > **v2 changelog (2026-06-12):** merged a second, independent GPT evaluation (xhigh) with the

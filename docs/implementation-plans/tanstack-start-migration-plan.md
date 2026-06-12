@@ -135,7 +135,7 @@ is discarded afterwards; its output is a findings note on issue #656.
 
 ### 2.1 Dependencies + build scaffold
 Remove `react-router`, `react-router-dom`, `@react-router/{dev,express,node}`,
-`react-router-devtools` (plus `nuqs` once 2.7 lands). Add the pinned tuple. Vite config: replace
+`react-router-devtools` (`nuqs` is removed in §2.5 once the URL-state façade is reimplemented on Router search APIs). Add the pinned tuple. Vite config: replace
 `reactRouter()` + `reactRouterDevTools()` with `tanstackStart()`; **preserve** `copyI18nFiles()`,
 `generateClient()`, `checker()`, `devtoolsJson()`, `optimizeDeps` includes, and the production
 `ssr.noExternal` MUI list. Delete `react-router.config.ts`; prerender config per proof branch.
