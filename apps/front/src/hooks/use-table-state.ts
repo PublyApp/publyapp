@@ -247,6 +247,20 @@ export const useTableState = (
 					// Going forward
 					if (currentNextCursor) {
 						setCursorState((prev) => {
+							// If prev belongs to a different sort/pageSize generation, discard its
+							// history and ignore the potentially stale next cursor.
+							const isStale =
+								prev.forSortId !== sortId ||
+								prev.forSortOrder !== sortOrder ||
+								prev.forPageSize !== pageSize;
+							if (isStale) {
+								return {
+									...baseState,
+									history: [],
+									current: null,
+									pageIndex: 0,
+								};
+							}
 							const newHistory = currentCursor
 								? [...prev.history, currentCursor]
 								: prev.history;
@@ -261,7 +275,12 @@ export const useTableState = (
 				} else if (newPageIndex < currentPageIndex) {
 					// Going backward
 					setCursorState((prev) => {
-						if (prev.history.length === 0) {
+						// If prev belongs to a different sort/pageSize generation, reset to page 0.
+						const isStale =
+							prev.forSortId !== sortId ||
+							prev.forSortOrder !== sortOrder ||
+							prev.forPageSize !== pageSize;
+						if (isStale || prev.history.length === 0) {
 							return { ...baseState, history: [], current: null, pageIndex: 0 };
 						}
 						const newHistory = [...prev.history];
