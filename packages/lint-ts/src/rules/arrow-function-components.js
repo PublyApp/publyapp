@@ -31,20 +31,32 @@
  *   - Class declarations
  *   - `memo(() => <Foo/>)` / `forwardRef(() => <Foo/>)` — already arrow form
  *
- * Hook-call classification (binding-aware, round-2 fix):
+ * Hook-call classification (binding-aware, round-2; alias-aware, round-3):
  *   A call is counted as a hook signal when:
  *     (a) callee is `React.use*` / `<reactNamespace>.use*` member call; OR
- *     (b) callee is a bare `use*` identifier that is NOT locally declared in the
+ *     (b) callee is a bare identifier that is a react named import whose IMPORTED
+ *         name is hook-like (e.g. `import { useState as s }` → `s()` is a hook); OR
+ *     (c) callee is a bare `use*` identifier that is NOT locally declared in the
  *         file as a plain function/variable — imported names (from any module)
  *         and ambient names both count.  When a `use*` callee IS declared
  *         locally in the same file, it counts only if that local function's own
  *         body contains a hook signal (one level of recursion, cycle-guarded).
  *
- * Wrapper-call classification (binding-aware, round-2 fix):
- *   `memo(...)` / `forwardRef(...)` counts only when that local name is imported
- *   from 'react' (incl. aliased named imports) OR it is a `React.memo` /
+ * Wrapper-call classification (binding-aware, round-2; alias-aware, round-3):
+ *   `memo(...)` / `forwardRef(...)` counts only when the local name's IMPORTED name
+ *   (from 'react') is exactly `memo` or `forwardRef` — OR it is a `React.memo` /
  *   `React.forwardRef` member form via the tracked react namespace/default.
- *   A locally-defined `function memo(fn) {...}` does NOT trigger wrapper detection.
+ *   - `import { memo as m } from 'react'; m(fn)` → detected (imported name is 'memo').
+ *   - `import { useMemo as memo } from 'react'; memo(fn)` → NOT a wrapper (imported
+ *     name is 'useMemo', not 'memo').
+ *   - A locally-defined `function memo(fn) {...}` does NOT trigger wrapper detection.
+ *
+ * Local function map (round-3 fix):
+ *   Top-level arrow-function and function-expression variable declarators
+ *   (including exported ones) are now included in the local-function map used
+ *   for "is locally declared" checks and one-level hook-body recursion.
+ *   This prevents `const useThing = () => 42` from being mis-classified as an
+ *   ambient hook when called inside a PascalCase function.
  *
  * Control-flow test scanning (round-2 fix):
  *   The hook scanner now also walks `if (...)` conditions, `while`/`do-while`
@@ -124,17 +136,61 @@ const expressionContainsJsx = (node) => {
  *     Includes default imports (`import React from 'react'`) and namespace imports
  *     (`import * as R from 'react'`).
  *   - `reactImportedNames: Set<string>` — local names that are named imports from
- *     'react' (e.g. `import { memo, forwardRef, useRef as ref }` → memo, forwardRef, ref).
+ *     'react' whose IMPORTED name is exactly 'memo' or 'forwardRef' — i.e. the
+ *     genuine React wrappers, regardless of the local alias used.
+ *     Example: `import { memo as m } from 'react'` → 'm' is in the set.
+ *     Example: `import { useMemo as memo } from 'react'` → 'memo' is NOT in the set
+ *     (imported name is 'useMemo', not 'memo').
+ *   - `reactImportedNameToImported: Map<string, string>` — maps each react named-import
+ *     LOCAL name to its IMPORTED (original) name. Used for alias-aware hook detection.
  *   - `importedNames: Set<string>` — ALL imported local binding names from any module.
  *     Used to distinguish imported `use*` names from locally-declared ones.
- *   - `localFunctionDecls: Map<string, node>` — top-level FunctionDeclaration nodes
- *     keyed by name (for one-level hook-body recursion).
+ *   - `localFunctionDecls: Map<string, node>` — top-level function-like nodes keyed by
+ *     their binding name. Includes FunctionDeclarations AND top-level VariableDeclarator
+ *     bindings whose init is an ArrowFunctionExpression or FunctionExpression (including
+ *     exported variants). Used for "is locally declared" checks and one-level hook-body
+ *     recursion so that `const useThing = () => 42` is not mistaken for an ambient hook.
  */
 const buildImportInfo = (programNode) => {
 	const reactNamespaces = new Set();
+	// Local names of react named-imports whose IMPORTED name is 'memo' or 'forwardRef'.
 	const reactImportedNames = new Set();
+	// Local → imported name map for all react named imports (alias-aware hook detection).
+	const reactImportedNameToImported = new Map();
 	const importedNames = new Set();
 	const localFunctionDecls = new Map();
+
+	/**
+	 * Register a top-level function-like node (FunctionDeclaration, ArrowFunctionExpression,
+	 * or FunctionExpression) under `name` in the localFunctionDecls map so that the
+	 * hook-body recursion can correctly classify locally-declared `use*` identifiers.
+	 */
+	const registerLocalFn = (name, fnNode) => {
+		if (name) {
+			localFunctionDecls.set(name, fnNode);
+		}
+	};
+
+	/**
+	 * Walk a VariableDeclaration and register any declarator whose init is a function-like
+	 * node. Handles both plain `const useThing = () => ...` and exported variants handled
+	 * via ExportNamedDeclaration containing a VariableDeclaration.
+	 */
+	const collectVarDeclarators = (varDecl) => {
+		for (const decl of varDecl.declarations ?? []) {
+			const name = decl.id?.name;
+			const init = decl.init;
+
+			if (
+				name &&
+				init &&
+				(init.type === 'ArrowFunctionExpression' ||
+					init.type === 'FunctionExpression')
+			) {
+				registerLocalFn(name, init);
+			}
+		}
+	};
 
 	for (const node of programNode.body ?? []) {
 		if (node.type === 'ImportDeclaration') {
@@ -160,13 +216,25 @@ const buildImportInfo = (programNode) => {
 				} else if (specifier.type === 'ImportSpecifier') {
 					// import { memo, forwardRef, useRef as ref } from 'react'
 					// import { useSomething } from '#app/hooks'
+					// import { memo as m } from 'react'  → localName='m', importedName='memo'
+					// import { useMemo as memo } from 'react' → localName='memo', importedName='useMemo'
 					const localName = specifier.local?.name;
+					// The imported (original) name: for `{ foo as bar }` this is 'foo'.
+					// For `{ foo }` (no alias) oxlint uses the same node for both local/imported.
+					const importedName =
+						specifier.imported?.name ?? specifier.local?.name;
 
 					if (localName) {
 						importedNames.add(localName);
 
 						if (isReact) {
-							reactImportedNames.add(localName);
+							reactImportedNameToImported.set(localName, importedName);
+
+							// Only register as a React wrapper binding when the IMPORTED
+							// name is exactly 'memo' or 'forwardRef', not the local alias.
+							if (WRAPPER_FNS.has(importedName)) {
+								reactImportedNames.add(localName);
+							}
 						}
 					}
 				}
@@ -182,15 +250,18 @@ const buildImportInfo = (programNode) => {
 				node.declaration?.type === 'FunctionDeclaration'
 			) {
 				fn = node.declaration;
-			} else if (
-				node.type === 'ExportNamedDeclaration' &&
-				node.declaration?.type === 'FunctionDeclaration'
-			) {
-				fn = node.declaration;
+			} else if (node.type === 'ExportNamedDeclaration') {
+				if (node.declaration?.type === 'FunctionDeclaration') {
+					fn = node.declaration;
+				} else if (node.declaration?.type === 'VariableDeclaration') {
+					collectVarDeclarators(node.declaration);
+				}
+			} else if (node.type === 'VariableDeclaration') {
+				collectVarDeclarators(node);
 			}
 
 			if (fn?.id?.name) {
-				localFunctionDecls.set(fn.id.name, fn);
+				registerLocalFn(fn.id.name, fn);
 			}
 		}
 	}
@@ -198,6 +269,7 @@ const buildImportInfo = (programNode) => {
 	return {
 		reactNamespaces,
 		reactImportedNames,
+		reactImportedNameToImported,
 		importedNames,
 		localFunctionDecls,
 	};
@@ -241,11 +313,22 @@ const analyseBody = (body, importInfo, recursingFor = new Set()) => {
 		return result;
 	}
 
-	const { reactNamespaces, importedNames, localFunctionDecls } = importInfo;
+	const {
+		reactNamespaces,
+		reactImportedNameToImported,
+		importedNames,
+		localFunctionDecls,
+	} = importInfo;
 
 	/**
 	 * Determine whether a CallExpression callee node represents a React hook.
 	 * Binding-aware: avoids flagging locally-defined non-hook `use*` utilities.
+	 *
+	 * Alias-aware (round-3 fix): a react named import whose IMPORTED name is
+	 * hook-like counts as a hook even when the local alias is not hook-shaped.
+	 * E.g. `import { useState as s } from 'react'; s()` → s is a hook call.
+	 * Conversely, `import { useMemo as memo }` → memo's imported name 'useMemo'
+	 * is hook-like, so `memo()` is a hook call (not a wrapper call).
 	 */
 	const isHookCallee = (callee) => {
 		if (!callee) {
@@ -264,8 +347,25 @@ const analyseBody = (body, importInfo, recursingFor = new Set()) => {
 		}
 
 		// Bare identifier: binding-aware hook detection
-		if (callee.type === 'Identifier' && isHookLike(callee.name)) {
+		if (callee.type === 'Identifier') {
 			const name = callee.name;
+
+			// Alias-aware react hook: an aliased react named import counts as a hook
+			// when its IMPORTED name is hook-like, regardless of the local alias name.
+			// E.g. `import { useState as s }` → reactImportedNameToImported.get('s') === 'useState'
+			//      → isHookLike('useState') → true → s() is a hook call.
+			if (reactImportedNameToImported.has(name)) {
+				const importedName = reactImportedNameToImported.get(name);
+
+				if (isHookLike(importedName)) {
+					return true;
+				}
+			}
+
+			// Only proceed with the hook-name check when the local name itself is hook-like.
+			if (!isHookLike(name)) {
+				return false;
+			}
 
 			// Imported from any module → definitely a hook (custom hook or React hook)
 			if (importedNames.has(name)) {
@@ -520,9 +620,11 @@ const isWrapperCall = (node, importInfo) => {
 		return WRAPPER_FNS.has(callee.property.name);
 	}
 
-	// Bare identifier — only count when explicitly imported from 'react'
+	// Bare identifier — only count when explicitly imported from 'react' as a
+	// genuine wrapper (memo/forwardRef by imported name, regardless of local alias).
+	// `reactImportedNames` already encodes that the imported name is in WRAPPER_FNS.
 	if (callee.type === 'Identifier') {
-		return WRAPPER_FNS.has(callee.name) && reactImportedNames.has(callee.name);
+		return reactImportedNames.has(callee.name);
 	}
 
 	return false;
