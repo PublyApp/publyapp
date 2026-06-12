@@ -1,4 +1,3 @@
-import { noConsoleInSource } from './rules/no-console-in-source.js';
 /**
  * `@org/lint-ts` — custom Oxlint JS plugin for PublyApp.
  *
@@ -14,13 +13,16 @@ import { noConsoleInSource } from './rules/no-console-in-source.js';
  * Rule severities are tracked in `.oxlintrc.json`. Current publy/* rules:
  *   - `publy/no-op` → "off" (scaffold sentinel)
  *   - `publy/prefer-specific-lodash-imports` → "error"
- *   - `publy/no-console-in-source` → "off" (dormant)
- *   - `publy/no-raw-mui-textfield-register` → "off" (dormant)
- *   - `publy/no-direct-dayjs-in-components` → "off" (dormant)
- *   - `publy/no-native-html-in-mui-surfaces` → "off" (dormant)
+ *   - `publy/no-console-in-source` → "error"
+ *   - `publy/no-raw-mui-textfield-register` → "error"
+ *   - `publy/no-direct-dayjs-in-components` → "error"
+ *   - `publy/no-native-html-in-mui-surfaces` → "error"
  *   - `publy/no-raw-img-in-product-surfaces` → "error"
- *   - `publy/no-manual-response-message-translation` → "off" (dormant)
+ *   - `publy/no-manual-response-message-translation` → "error"
+ *   - `publy/no-array-reduce` → "error"
  */
+import { noArrayReduce } from './rules/no-array-reduce.js';
+import { noConsoleInSource } from './rules/no-console-in-source.js';
 import { noDirectDayjsInComponents } from './rules/no-direct-dayjs-in-components.js';
 import { noManualResponseMessageTranslation } from './rules/no-manual-response-message-translation.js';
 import { noNativeHtmlInMuiSurfaces } from './rules/no-native-html-in-mui-surfaces.js';
@@ -36,6 +38,7 @@ const plugin = {
 	},
 	rules: {
 		'no-op': noOp,
+		'no-array-reduce': noArrayReduce,
 		'no-console-in-source': noConsoleInSource,
 		'no-raw-mui-textfield-register': noRawMuiTextfieldRegister,
 		'no-direct-dayjs-in-components': noDirectDayjsInComponents,
