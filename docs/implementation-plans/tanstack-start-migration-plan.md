@@ -72,7 +72,7 @@ CSP nonce) can host Start.
 
 Steps:
 1. Express 5 app with helmet (per-request nonce in `res.locals`), morgan, compression — copy the
-   middleware stack shape from `apps/front/src/server/app.ts`.
+   middleware stack shape from `apps/front/server/app.ts` (helmet/nonce/analytics; morgan/compression are wired in `apps/front/server.js`).
 2. Mount the Start server entry via `toNodeHandler` (`srvx/node`) as the terminal handler
    (pattern: `e2e/react-start/custom-basepath/express-server.ts` in TanStack/router).
 3. Thread the helmet-generated nonce into Start's render: investigate `getGlobalStartContext()` /
@@ -106,10 +106,10 @@ auth, and one authed page manually smoke-checked; no behavior change intended.
 façade. Route-module contract exports (`loader`/`action`/`meta`/`ErrorBoundary`) stay as-is —
 they are replaced wholesale in Phase 2.
 
-**Why no-regret:** one import site to swap at flip time instead of ~79 files; also gives a place
+**Why no-regret:** one import site to swap at flip time instead of ~83 files; also gives a place
 to add deprecation notes steering new code.
 
-**Inventory command:** see Appendix C-1 (79 files import `react-router` as of 2026-06-12).
+**Inventory command:** see Appendix C-1 (83 files import `react-router` as of 2026-06-12).
 **Acceptance:** an oxlint `no-restricted-imports`-style rule (or grep check in CI) forbids direct
 `react-router` imports outside `src/lib/router/`, `src/routes/**` route modules, and entry files.
 
@@ -224,8 +224,7 @@ For each of marketing → auth → staff → tenant:
   TanStack Query `useMutation` (keep the existing mutation-hook conventions; centralized error
   handling via `ApiFailure` stays untouched).
 - `clientLoader` + `getClientLoader` → route `loader` (runs client-side under `ssr: false`)
-  calling the same query-prefetch helpers; keep cache-warming conventions of
-  `docs/guides/frontend-route-query-preloading.md` (guide updated in Phase 3).
+  calling the same query-prefetch helpers; keep the route-level cache-warming conventions documented in `docs/guides/frontend-architecture.md` (NB: AGENTS.md references `frontend-route-query-preloading.md`, which does not exist — resolve in Phase 3).
 - `meta` exports (26 files) → `head` route option; centralize the title/description builders.
 - `ErrorBoundary`/`useRouteError` (25 occurrences) → `errorComponent`/`notFoundComponent` mapped
   to the existing `AppErrorView` wrappers; **preserve the 401-no-logout invariant on the auth
@@ -236,9 +235,9 @@ For each of marketing → auth → staff → tenant:
 ### 2.5 — Hook/component swap via the façades
 
 - `src/lib/router/index.ts` re-points to `@tanstack/react-router` equivalents; fix typed `Link`
-  (`to` + `params`) fallout — expect most churn in nav components (48 `Outlet` files unaffected;
+  (`to` + `params`) fallout — expect most churn in nav components (8 `<Outlet>` render sites unaffected;
   `Link`-heavy nav/menus need `params` objects instead of interpolated strings).
-- `useParams` (63 sites): convert to `Route.useParams()`/`useParams({ from })` per route where
+- `useParams` (27 files): convert to `Route.useParams()`/`useParams({ from })` per route where
   types matter; a permissive façade shim is acceptable interim with a follow-up ratchet.
 - `src/lib/url-state/` re-implemented on `validateSearch` + `Route.useSearch()` + `useNavigate`;
   define zod search schemas on the list routes (staff lists, audit logs, tenant posts).
@@ -253,7 +252,7 @@ For each of marketing → auth → staff → tenant:
 
 ### 2.7 — Express server rewire
 
-- `src/server/app.ts`: keep helmet/morgan/compression/analytics; replace the
+- `apps/front/server/app.ts` (+ `server.js`): keep helmet/morgan/compression/analytics; replace the
   `@react-router/express` request handler with `toNodeHandler(startServerEntry.fetch)`;
   dev mode = Vite middleware mode (per PoC 0c).
 - Nonce carrier per PoC 0c findings.
@@ -308,7 +307,7 @@ Phase 3 smoke matrix's P0 rows.
   table (nuqs row → router search params), key-rules bullets (`getClientLoader` wrapper →
   new convention, `ClientOnly` wording → `ssr: false`).
 - Rewrite/retitle: `docs/guides/frontend-architecture.md`,
-  `docs/guides/frontend-route-file-organization.md`, `docs/guides/frontend-route-query-preloading.md`,
+  `docs/guides/frontend-route-file-organization.md`, `docs/guides/frontend-route-query-preloading.md` (referenced by AGENTS.md but currently MISSING from the repo — either create it or fix the AGENTS.md reference),
   `docs/guides/error-views.md` (ErrorBoundary placement map → errorComponent map).
 - Grep sweep for `react-router` mentions across `docs/` (Appendix C-3) and update or annotate.
 
