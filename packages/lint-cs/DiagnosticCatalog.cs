@@ -157,4 +157,28 @@ public static class DiagnosticCatalog {
 		description: "Error responses must be RFC 7807 'application/problem+json' returned via "
 			+ "TypedProblems.* helpers. TypedResults.Forbid() bypasses the RFC 7807 contract and the "
 			+ "frontend logout semantics tied to 401/403 handling.");
+
+	/// <summary>
+	/// PUBLY0010 — security regression guard: never pass a session-token value to a logger in any log
+	/// level. Per the AGENTS.md "Do Not Regress" invariant, the <c>X-Session-Token</c> value (and any
+	/// session-token value) must never be logged. Matching is deliberately conservative: it fires only
+	/// on a logging call (<c>Log*</c>/<c>BeginScope</c> on an <c>*logger*</c>-shaped receiver) whose
+	/// arguments reference the <c>SessionToken</c> identifier/member vocabulary or the literal
+	/// <c>X-Session-Token</c> header name. It does NOT fire on generic terms like "token",
+	/// "Authorization", or "csrf". <c>isEnabledByDefault: false</c> ships the analyzer dormant; the
+	/// repo-root <c>.editorconfig</c> flips it to <c>warning</c> for enforcement.
+	/// </summary>
+	public static readonly DiagnosticDescriptor SessionTokenLogging = new(
+		DiagnosticIds.PUBLY0010,
+		"Do not log session-token values",
+		"Do not pass a session-token value ('{0}') to a logger; session tokens must never be logged "
+			+ "in any log level",
+		"PublyApp.Security",
+		DiagnosticSeverity.Warning,
+		isEnabledByDefault: false,
+		description: "Session tokens are secrets. Logging the X-Session-Token header value (or any "
+			+ "value referenced via SessionToken identifiers/members) leaks credentials. Never pass a "
+			+ "session-token value to a logger in any log level; log a non-sensitive identifier "
+			+ "instead."
+	);
 }

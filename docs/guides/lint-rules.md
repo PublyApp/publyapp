@@ -158,6 +158,14 @@ Each rule has an ID, descriptor in `DiagnosticCatalog.cs`, and is referenced in 
 - **Shipped in:** #599
 - **Enforced in:** #604
 
+### `PUBLY0010` — never log session-token values
+
+- **Severity in `.editorconfig`:** `warning` (enforced)
+- **Source:** `packages/lint-cs/SessionTokenLoggingAnalyzer.cs`
+- **Spec:** `packages/lint-cs/SessionTokenLoggingAnalyzer.Spec.cs`
+- **AGENTS.md:** "Never log secrets: do not log `X-Session-Token` (or any session token value) in any log level."
+- **Strategy:** CONSERVATIVE security regression guard (0 offenders, ships enforced). Fires only on a logging call (`Log*`/`BeginScope` on an `*logger*`-shaped receiver) whose arguments reference the `SessionToken` identifier/member vocabulary or the literal `X-Session-Token` header name. Does NOT fire on generic terms like `token`, `Authorization`, or `csrf`.
+
 ## How to add a new rule
 
 See the Phase-2 PRs (#463 for the JS scaffold pattern, #464 for the Roslyn scaffold pattern). The short version:
