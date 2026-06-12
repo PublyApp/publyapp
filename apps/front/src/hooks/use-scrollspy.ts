@@ -87,8 +87,13 @@ export const useScrollspy = ({
 		};
 	}, [sectionIds, offset, rootMargin]);
 
-	// When sectionIds is empty there are no elements to observe, so there is no
-	// active section. Derive null here instead of calling the setter in the effect
-	// to avoid the extra render that effect-based reset causes.
-	return sectionIds.length === 0 ? null : activeSection;
+	// When sectionIds is empty, or when the currently tracked section is no longer
+	// in the list, there is no valid active section. Derive null here instead of
+	// calling the setter in the effect to avoid the extra render that effect-based
+	// reset causes — and to prevent a stale activeSection from flashing when
+	// sectionIds transitions from empty to non-empty.
+	return sectionIds.length === 0 ||
+		(activeSection !== null && !sectionIds.includes(activeSection))
+		? null
+		: activeSection;
 };

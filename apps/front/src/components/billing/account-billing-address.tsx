@@ -55,8 +55,9 @@ export function AccountBillingAddress({ addressBook }: Props) {
 			<MenuList>
 				<MenuItem
 					onClick={() => {
+						const addressId = addressIdRef.current;
 						handleClose();
-						logger.info('SET AS PRIMARY', { addressId: addressIdRef.current });
+						logger.info('SET AS PRIMARY', { addressId });
 					}}
 				>
 					<Iconify icon="eva:star-fill" />
@@ -65,8 +66,9 @@ export function AccountBillingAddress({ addressBook }: Props) {
 
 				<MenuItem
 					onClick={() => {
+						const addressId = addressIdRef.current;
 						handleClose();
-						logger.info('EDIT', { addressId: addressIdRef.current });
+						logger.info('EDIT', { addressId });
 					}}
 				>
 					<Iconify icon="solar:pen-bold" />
@@ -75,8 +77,9 @@ export function AccountBillingAddress({ addressBook }: Props) {
 
 				<MenuItem
 					onClick={() => {
+						const addressId = addressIdRef.current;
 						handleClose();
-						logger.info('DELETE', { addressId: addressIdRef.current });
+						logger.info('DELETE', { addressId });
 					}}
 					sx={{ color: 'error.main' }}
 				>

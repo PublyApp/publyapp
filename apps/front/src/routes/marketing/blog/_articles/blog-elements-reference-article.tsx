@@ -468,7 +468,7 @@ const QuotesSection = () => {
 			</ElementSpec>
 
 			<ElementSpec
-				name="<BlogPullQuote attribution=... role=...>"
+				name="<BlogPullQuote attribution=... occupation=...>"
 				when="Editorial pull quote with optional attribution. Loud typography. Use once or twice per article max."
 			>
 				<BlogPullQuote attribution="Adrian Marin" occupation="Bullet Train">
