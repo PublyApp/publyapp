@@ -15,7 +15,7 @@ Two motivations drive this evaluation (in priority order):
 1. **Type-safe routing + ecosystem fit.** TanStack Router provides statically typed paths, params,
    and search params. The frontend already commits heavily to the TanStack ecosystem
    (TanStack Query v5, TanStack Table, `react-query-kit`); routing is the largest remaining
-   untyped surface (63 `useParams` call sites across 41 files, all stringly typed).
+   untyped surface (`useParams` usage across 27 files, all stringly typed).
 2. **Server functions / RPC model.** TanStack Start's `createServerFn` (with built-in
    cookie/header/session helpers) is a first-class replacement for the hand-rolled
    `getServerLoader` / `getServerAction` / `getClientLoader` wrapper layer in
@@ -31,19 +31,21 @@ This spike is docs-only. No implementation occurs regardless of verdict.
 |---|---|
 | Framework | React Router **7.14.0** framework mode (`@react-router/{dev,express,node}` 7.14.0), SSR enabled |
 | Route definition | **Code-based** config: `src/routes.ts` + `src/routes/_tree/*.routes.ts` (11 tree files) |
-| Scale | ~73 `route()`/`index()` calls, 11 layout components, 216 files under `src/routes/` |
-| RR API surface | 79 files import `react-router`; `useParams` 63× (41 files), `Outlet` 48×, `ErrorBoundary`/`useRouteError` 25×, `meta` exports 26 files, `useNavigate` 16×, `useLocation` 16×, `useFetcher` 8×, `useSearchParams` 6×, `useLoaderData` 2× |
+| Scale | ~73 `route()`/`index()` calls, 11 layout components, ~217 files under `src/routes/` |
+| RR API surface | 83 files import `react-router`; `useParams` in 27 files, `<Outlet>` rendered in 8 layout/shell files, `ErrorBoundary`/`useRouteError` ~25 occurrences, `meta` exports 26 files, `useNavigate` 16×, `useLocation` 16×, `useFetcher` 8×, `useSearchParams` 6×, `useLoaderData` 2× |
 | Data-loading wrappers | `getServerLoader` (~30–40 routes), `getServerAction` (~15–20), `getClientLoader` (~5–10) in `src/lib/react-router/{server-data.server.ts,client-data.ts}` |
-| Server | Custom Express 5 (`server.js` + `src/server/app.ts`): helmet CSP + per-request nonce, morgan, compression, analytics middleware |
+| Server | Custom Express 5 (`server.js` + `server/app.ts`; helmet/nonce/analytics live in `server/app.ts`, morgan/compression are wired in `server.js`): helmet CSP + per-request nonce, morgan, compression, analytics middleware |
 | SSR | Streaming (`renderToPipeableStream`) in `src/entry.server.tsx`; `isbot` gates `onShellReady` vs `onAllReady`; per-request i18n init; per-request nonce |
 | SSR split | Marketing + auth pages SSR with server loaders (session-cookie validation, redirects); authed app is client-only behind `ClientOnly` (from `remix-utils`), data via TanStack Query |
 | Prerender | `PRE_RENDER_PATHS = ['/', '/login']` (`packages/shared-ts/lib/constants.ts:390`) |
 | i18n | i18next 24 + react-i18next + **remix-i18next** 7; cookie-based locale detection (`LANGUAGE_DETECTION_METHOD = cookie`); `i18next-fs-backend` (server) / `i18next-fetch-backend` (client); namespaces loaded per route |
 | Styling | MUI **v7** + Emotion 11; **user-toggleable RTL** via custom Emotion cache with `stylis-plugin-rtl` (`src/lib/mui/theme/with-settings/right-to-left.tsx`); RTL toggle lives in the authed settings drawer |
 | URL state | nuqs **2.4.3** with `nuqs/adapters/react-router/v7` (~18 files using `useQueryState`/`useQueryStates`) |
-| Data layer | TanStack Query v5 + `react-query-kit` 3 hook factories (`createStaffQuery`, `createTenantQuery`, …); 526-line `query-client.tsx` with centralized 401/403 semantics (401 = logout, 403 ≠ logout — do-not-regress invariant) |
+| Data layer | TanStack Query v5 + `react-query-kit` 3 hook factories (`createStaffQuery`, `createTenantQuery`, …); ~525-line `query-client.tsx` with centralized 401/403 semantics (401 = logout, 403 ≠ logout — do-not-regress invariant) |
 | Build/deploy | Vite 8, `react-router build` → `build/client` + `build/server/index.js`; Express serves both; Dokploy → Docker on VPS |
 | Package coupling | **Zero** `react-router` imports in `packages/shared-ts` / `packages/client-ts` — blast radius confined to `apps/front` |
+
+> Counts are a 2026-06-12 snapshot (commands in the plan's Appendix C); treat as approximate and re-run before executing any phase.
 
 ---
 
@@ -120,7 +122,7 @@ This spike is docs-only. No implementation occurs regardless of verdict.
 | # | Risk | Severity | Likelihood | Mitigation |
 |---|---|---|---|---|
 | R1 | Start still RC; near-daily patches; breaking change before GA | Medium | Medium | Gate G1 (wait for GA); pin exact versions; lockstep upgrade policy |
-| R2 | File-based routing forces full route-tree restructure (~73 routes, 216 files) + invalidates route-organization conventions in 4+ guides (`frontend-architecture.md`, `frontend-route-file-organization.md`, `frontend-route-query-preloading.md`, `error-views.md`) | High (effort) | Certain | Phase 1 pre-reshapes the tree under RR7 so the flip diff is mechanical; guides rewritten in Phase 3 |
+| R2 | File-based routing forces full route-tree restructure (~73 routes, 216 files) + invalidates route-organization conventions in guides (`frontend-architecture.md`, `frontend-route-file-organization.md`, `error-views.md`; NB: AGENTS.md also references `frontend-route-query-preloading.md`, which does not exist in the repo today — create it or fix the reference during Phase 3) | High (effort) | Certain | Phase 1 pre-reshapes the tree under RR7 so the flip diff is mechanical; guides rewritten in Phase 3 |
 | R3 | RTL Emotion cache + streaming SSR undocumented; MUI v7 unverified with Start | High (if hit) | Low–Medium | Phase 0a PoC with hard exit criteria; structural mitigation: RTL only exists in the client-only authed surface |
 | R4 | i18n server glue (locale cookie + per-route namespaces) must be hand-rolled; subtle hydration/locale-flash bugs possible | Medium | Medium | Phase 0b PoC; port the existing `entry.server.tsx` semantics 1:1; smoke matrix covers locale flip |
 | R5 | nuqs rewrite (~18 files) introduces behavior drift in list filters/pagination | Medium | Medium | Phase 1b façade isolates URL-state call sites first; per-page acceptance checks in Phase 2 |
