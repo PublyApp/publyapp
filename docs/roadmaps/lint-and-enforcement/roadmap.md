@@ -1,6 +1,6 @@
 # Roadmap: Handler Contract → Architecture Guards → Lint/Analyzer Framework
 
-> Status: Phase 0 done · Phase 1 done · Phase 2 in progress (PUBLY0001–0008 all enforced) · Created 2026-05-23 · Owner: @radandevist
+> Status: Phase 0 done · Phase 1 done · Phase 2 in progress (PUBLY0001–PUBLY0010 all enforced) · Created 2026-05-23 · Owner: @radandevist
 >
 > Sequences three open issues into small, interruptible PRs so they can be
 > picked off individually.
