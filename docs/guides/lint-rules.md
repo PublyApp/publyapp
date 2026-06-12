@@ -91,6 +91,17 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 - **Shipped in:** #507
 - **Enforced in:** #519
 
+### `publy/arrow-function-components`
+
+- **Severity:** `"off"` (dormant)
+- **Source:** `packages/lint-ts/src/rules/arrow-function-components.js`
+- **Spec:** `packages/lint-ts/src/rules/arrow-function-components.test.js`
+- **AGENTS.md:** "Arrow function components only — never `function` declarations for components."
+- **Autofix:** no
+- **Detection:** flags `FunctionDeclaration` (or `FunctionExpression` inside `memo`/`forwardRef`) whose name is PascalCase and whose body contains a `return` statement returning JSX (including ternary/logical/TS-wrapped returns), or calls at least one React hook and returns only null/JSX; pure helpers and non-PascalCase functions are left un-flagged
+- **Shipped in:** #653 (dormant)
+- **Enforced in:** future enforcement PR that converts the known offenders (37 real offenders across `apps/front/src/**/*.tsx`)
+
 ## Roslyn analyzers (`packages/lint-cs/`)
 
 Each rule has an ID, descriptor in `DiagnosticCatalog.cs`, and is referenced in `.editorconfig`. `isEnabledByDefault: false` ships dormant; `.editorconfig` flips to `warning` for enforcement (`TreatWarningsAsErrors=true` makes warning a build error).

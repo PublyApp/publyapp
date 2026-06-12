@@ -20,7 +20,9 @@
  *   - `publy/no-raw-img-in-product-surfaces` → "error"
  *   - `publy/no-manual-response-message-translation` → "error"
  *   - `publy/no-array-reduce` → "error"
+ *   - `publy/arrow-function-components` → "off" (dormant)
  */
+import { arrowFunctionComponents } from './rules/arrow-function-components.js';
 import { noArrayReduce } from './rules/no-array-reduce.js';
 import { noConsoleInSource } from './rules/no-console-in-source.js';
 import { noDirectDayjsInComponents } from './rules/no-direct-dayjs-in-components.js';
@@ -47,6 +49,7 @@ const plugin = {
 		'no-manual-response-message-translation':
 			noManualResponseMessageTranslation,
 		'prefer-specific-lodash-imports': preferSpecificLodashImports,
+		'arrow-function-components': arrowFunctionComponents,
 	},
 };
 
