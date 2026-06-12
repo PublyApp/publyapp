@@ -28,6 +28,9 @@
  * - Round-3: local arrow-function map: `const useThing = () => 42` is locally declared
  *   so Helper calling useThing() is NOT flagged; but a local arrow `useThing` that
  *   itself calls an imported hook DOES propagate hook-ness to the caller.
+ * - Round-4: expression-bodied local arrow hooks: `const useThing = () => useRef(null)`
+ *   has an expression body — analyseBody now scans it for hook calls (not early-return).
+ *   Helper calling useThing() is flagged; non-hook expression bodies stay clean.
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
@@ -189,6 +192,18 @@ const runCases = (rule, label) => {
 						'function Helper() { const val = useThing(); return null; }',
 					].join('\n'),
 					filename: 'apps/front/src/utils/helper.ts',
+				},
+
+				// Round-4 valid: expression-bodied local arrow that returns a plain value
+				// (not a hook call) must NOT cause Helper2 to be flagged.
+				// This is the companion to the Round-4 invalid case above —
+				// confirms the expression-body scanner correctly rejects non-hook expressions.
+				{
+					code: [
+						'const useThing = () => 42;',
+						'function Helper2() { useThing(); return null; }',
+					].join('\n'),
+					filename: 'apps/front/src/utils/helper2.ts',
 				},
 			],
 			invalid: [
@@ -360,6 +375,21 @@ const runCases = (rule, label) => {
 					code: [
 						"import { useRef } from 'react';",
 						'const useThing = () => { const r = useRef(null); return r; };',
+						'function Helper() { useThing(); return null; }',
+					].join('\n'),
+					filename: 'apps/front/src/components/helper.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-4 finding #1 (invalid): expression-bodied local arrow hook.
+				// `const useThing = () => useRef(null)` has an expression body (not a
+				// BlockStatement) — analyseBody must scan it for hook calls rather than
+				// returning early. Helper calls useThing() → useThing is a hook →
+				// Helper (PascalCase, returns only null) must be flagged.
+				{
+					code: [
+						"import { useRef } from 'react';",
+						'const useThing = () => useRef(null);',
 						'function Helper() { useThing(); return null; }',
 					].join('\n'),
 					filename: 'apps/front/src/components/helper.tsx',

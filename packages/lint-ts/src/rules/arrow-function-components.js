@@ -279,7 +279,8 @@ const buildImportInfo = (programNode) => {
  * Walk a function body and return information about what it returns and uses.
  *
  * Parameters:
- *   - `body`: the BlockStatement node of the function
+ *   - `body`: the BlockStatement node of the function, OR an expression node
+ *     for expression-bodied arrows (e.g. `() => useRef(null)`)
  *   - `importInfo`: the result of `buildImportInfo` for the Program node
  *   - `recursingFor`: Set of function names currently being analysed (cycle guard)
  *
@@ -309,7 +310,7 @@ const analyseBody = (body, importInfo, recursingFor = new Set()) => {
 		callsHook: false,
 	};
 
-	if (!body || body.type !== 'BlockStatement') {
+	if (!body) {
 		return result;
 	}
 
@@ -555,6 +556,15 @@ const analyseBody = (body, importInfo, recursingFor = new Set()) => {
 			}
 		}
 	};
+
+	// Expression-bodied arrow function (e.g. `() => useRef(null)`):
+	// body is the expression itself, not a BlockStatement.
+	// Walk it directly for hook calls so one-level recursion in isHookCallee
+	// correctly propagates hook-ness from local arrow hooks to their callers.
+	if (body.type !== 'BlockStatement') {
+		walkExprForHooks(body);
+		return result;
+	}
 
 	scanStatements(body.body);
 
