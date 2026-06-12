@@ -30,10 +30,30 @@
  *   - Generator functions (always excluded — `function*`)
  *   - Class declarations
  *   - `memo(() => <Foo/>)` / `forwardRef(() => <Foo/>)` — already arrow form
+ *
+ * Hook-call classification (binding-aware, round-2 fix):
+ *   A call is counted as a hook signal when:
+ *     (a) callee is `React.use*` / `<reactNamespace>.use*` member call; OR
+ *     (b) callee is a bare `use*` identifier that is NOT locally declared in the
+ *         file as a plain function/variable — imported names (from any module)
+ *         and ambient names both count.  When a `use*` callee IS declared
+ *         locally in the same file, it counts only if that local function's own
+ *         body contains a hook signal (one level of recursion, cycle-guarded).
+ *
+ * Wrapper-call classification (binding-aware, round-2 fix):
+ *   `memo(...)` / `forwardRef(...)` counts only when that local name is imported
+ *   from 'react' (incl. aliased named imports) OR it is a `React.memo` /
+ *   `React.forwardRef` member form via the tracked react namespace/default.
+ *   A locally-defined `function memo(fn) {...}` does NOT trigger wrapper detection.
+ *
+ * Control-flow test scanning (round-2 fix):
+ *   The hook scanner now also walks `if (...)` conditions, `while`/`do-while`
+ *   test expressions, `for` init/test, and `switch` discriminants — so a hook
+ *   call like `if (useFeatureFlag()) { return null; }` is correctly detected.
  */
 
 const isPascalCase = (name) => /^[A-Z]/.test(name);
-const isHookCall = (name) => /^use[A-Z]/.test(name);
+const isHookLike = (name) => /^use[A-Z]/.test(name);
 const WRAPPER_FNS = new Set(['memo', 'forwardRef']);
 
 /**
@@ -97,19 +117,120 @@ const expressionContainsJsx = (node) => {
 };
 
 /**
+ * Build an import-tracking map from a Program node.
+ *
+ * Returns an object with:
+ *   - `reactNamespaces: Set<string>` — local names bound to the React namespace.
+ *     Includes default imports (`import React from 'react'`) and namespace imports
+ *     (`import * as R from 'react'`).
+ *   - `reactImportedNames: Set<string>` — local names that are named imports from
+ *     'react' (e.g. `import { memo, forwardRef, useRef as ref }` → memo, forwardRef, ref).
+ *   - `importedNames: Set<string>` — ALL imported local binding names from any module.
+ *     Used to distinguish imported `use*` names from locally-declared ones.
+ *   - `localFunctionDecls: Map<string, node>` — top-level FunctionDeclaration nodes
+ *     keyed by name (for one-level hook-body recursion).
+ */
+const buildImportInfo = (programNode) => {
+	const reactNamespaces = new Set();
+	const reactImportedNames = new Set();
+	const importedNames = new Set();
+	const localFunctionDecls = new Map();
+
+	for (const node of programNode.body ?? []) {
+		if (node.type === 'ImportDeclaration') {
+			const source = node.source?.value ?? '';
+			const isReact = source === 'react';
+
+			for (const specifier of node.specifiers ?? []) {
+				if (
+					specifier.type === 'ImportDefaultSpecifier' ||
+					specifier.type === 'ImportNamespaceSpecifier'
+				) {
+					// import React from 'react'  /  import * as React from 'react'
+					// import R from 'some-lib'   /  import * as R from 'some-lib'
+					const localName = specifier.local?.name;
+
+					if (localName) {
+						importedNames.add(localName);
+
+						if (isReact) {
+							reactNamespaces.add(localName);
+						}
+					}
+				} else if (specifier.type === 'ImportSpecifier') {
+					// import { memo, forwardRef, useRef as ref } from 'react'
+					// import { useSomething } from '#app/hooks'
+					const localName = specifier.local?.name;
+
+					if (localName) {
+						importedNames.add(localName);
+
+						if (isReact) {
+							reactImportedNames.add(localName);
+						}
+					}
+				}
+			}
+		} else {
+			// Collect top-level function declarations for one-level hook recursion.
+			let fn = null;
+
+			if (node.type === 'FunctionDeclaration') {
+				fn = node;
+			} else if (
+				node.type === 'ExportDefaultDeclaration' &&
+				node.declaration?.type === 'FunctionDeclaration'
+			) {
+				fn = node.declaration;
+			} else if (
+				node.type === 'ExportNamedDeclaration' &&
+				node.declaration?.type === 'FunctionDeclaration'
+			) {
+				fn = node.declaration;
+			}
+
+			if (fn?.id?.name) {
+				localFunctionDecls.set(fn.id.name, fn);
+			}
+		}
+	}
+
+	return {
+		reactNamespaces,
+		reactImportedNames,
+		importedNames,
+		localFunctionDecls,
+	};
+};
+
+/**
  * Walk a function body and return information about what it returns and uses.
+ *
+ * Parameters:
+ *   - `body`: the BlockStatement node of the function
+ *   - `importInfo`: the result of `buildImportInfo` for the Program node
+ *   - `recursingFor`: Set of function names currently being analysed (cycle guard)
  *
  * Returns `{ returnsJsx, returnsOnlyNullOrJsx, callsHook }` where:
  *   - `returnsJsx`: at least one return statement contains/is JSX.
  *   - `returnsOnlyNullOrJsx`: every non-void return is null or JSX (no plain
  *     values, strings, object literals, etc.).
- *   - `callsHook`: at least one call to a `use*` identifier is present.
+ *   - `callsHook`: at least one genuine React hook call is present.
  *
  * We walk only one level of function nesting — nested function declarations
  * inside the body are skipped so we don't accidentally classify a PascalCase
  * helper-factory as a component because it contains an inline render helper.
+ *
+ * Hook-call classification (binding-aware):
+ *   A call `foo(...)` is a hook when:
+ *     (a) `foo` is a member-expression like `React.useRef` where the object is
+ *         a tracked react namespace.
+ *     (b) `foo` matches /^use[A-Z]/ AND is NOT locally declared in the same
+ *         file as a plain function — either it is imported (from any module)
+ *         or it is ambient.  When `foo` IS locally declared, we recurse one
+ *         level into that declaration's body to see if it itself calls hooks.
  */
-const analyseBody = (body) => {
+const analyseBody = (body, importInfo, recursingFor = new Set()) => {
 	const result = {
 		returnsJsx: false,
 		returnsOnlyNullOrJsx: true,
@@ -120,9 +241,64 @@ const analyseBody = (body) => {
 		return result;
 	}
 
+	const { reactNamespaces, importedNames, localFunctionDecls } = importInfo;
+
 	/**
-	 * Walk an expression looking for hook calls (identifiers matching
-	 * /^use[A-Z]/ used as the callee of a CallExpression).
+	 * Determine whether a CallExpression callee node represents a React hook.
+	 * Binding-aware: avoids flagging locally-defined non-hook `use*` utilities.
+	 */
+	const isHookCallee = (callee) => {
+		if (!callee) {
+			return false;
+		}
+
+		// React.useXxx / <namespace>.useXxx  (member form — always hook when namespace is react)
+		if (
+			callee.type === 'MemberExpression' &&
+			callee.object?.type === 'Identifier' &&
+			reactNamespaces.has(callee.object.name) &&
+			callee.property?.type === 'Identifier' &&
+			isHookLike(callee.property.name)
+		) {
+			return true;
+		}
+
+		// Bare identifier: binding-aware hook detection
+		if (callee.type === 'Identifier' && isHookLike(callee.name)) {
+			const name = callee.name;
+
+			// Imported from any module → definitely a hook (custom hook or React hook)
+			if (importedNames.has(name)) {
+				return true;
+			}
+
+			// Locally declared as a function → one-level recursion to check if it IS a hook
+			if (localFunctionDecls.has(name)) {
+				if (recursingFor.has(name)) {
+					// Cycle guard: treat as non-hook to be conservative
+					return false;
+				}
+
+				const localFn = localFunctionDecls.get(name);
+				const nextRecursingFor = new Set(recursingFor).add(name);
+				const localAnalysis = analyseBody(
+					localFn.body,
+					importInfo,
+					nextRecursingFor,
+				);
+
+				return localAnalysis.callsHook;
+			}
+
+			// Not locally declared and not imported → ambient (global shim, etc.) → count as hook
+			return true;
+		}
+
+		return false;
+	};
+
+	/**
+	 * Walk an expression looking for hook calls.
 	 */
 	const walkExprForHooks = (expr) => {
 		if (!expr) {
@@ -132,7 +308,7 @@ const analyseBody = (body) => {
 		if (expr.type === 'CallExpression') {
 			const callee = expr.callee;
 
-			if (callee.type === 'Identifier' && isHookCall(callee.name)) {
+			if (isHookCallee(callee)) {
 				result.callsHook = true;
 			}
 
@@ -141,8 +317,10 @@ const analyseBody = (body) => {
 				walkExprForHooks(arg);
 			}
 
-			// Walk the callee itself for member-expression hooks (unusual but possible).
-			walkExprForHooks(callee);
+			// Walk the callee itself for unusual chained member-expression hooks.
+			if (callee.type === 'MemberExpression') {
+				walkExprForHooks(callee.object);
+			}
 		}
 
 		if (expr.type === 'MemberExpression') {
@@ -155,6 +333,9 @@ const analyseBody = (body) => {
 	 * Stops descending into nested function bodies so that an inner
 	 * `function Render() { return <div/> }` does not cause the outer
 	 * helper to be flagged.
+	 *
+	 * Round-2 fix: also scans control-flow test/condition/discriminant expressions
+	 * for hook calls (e.g. `if (useFeatureFlag()) { return null; }`).
 	 */
 	const scanStatements = (statements) => {
 		for (const stmt of statements) {
@@ -211,8 +392,12 @@ const analyseBody = (body) => {
 			}
 
 			// Recurse into control-flow children.
+			// Round-2 fix: scan the condition/test/discriminant expression for hook calls.
 			if (stmt.type === 'IfStatement') {
+				// Scan the `if (condition)` expression for hook calls.
+				walkExprForHooks(stmt.test);
 				scanStatements([stmt.consequent]);
+
 				if (stmt.alternate) {
 					scanStatements([stmt.alternate]);
 				}
@@ -225,20 +410,33 @@ const analyseBody = (body) => {
 				continue;
 			}
 
-			if (
-				stmt.type === 'WhileStatement' ||
-				stmt.type === 'DoWhileStatement' ||
-				stmt.type === 'ForStatement' ||
-				stmt.type === 'ForInStatement' ||
-				stmt.type === 'ForOfStatement'
-			) {
+			if (stmt.type === 'WhileStatement' || stmt.type === 'DoWhileStatement') {
+				// Scan the loop condition for hook calls.
+				walkExprForHooks(stmt.test);
 				scanStatements([stmt.body]);
 				continue;
 			}
 
-			if (stmt.type === 'SwitchStatement' && stmt.cases) {
-				for (const switchCase of stmt.cases) {
-					scanStatements(switchCase.consequent);
+			if (stmt.type === 'ForStatement') {
+				// Scan the `for (init; test; update)` — test may contain hooks.
+				walkExprForHooks(stmt.test);
+				scanStatements([stmt.body]);
+				continue;
+			}
+
+			if (stmt.type === 'ForInStatement' || stmt.type === 'ForOfStatement') {
+				scanStatements([stmt.body]);
+				continue;
+			}
+
+			if (stmt.type === 'SwitchStatement') {
+				// Scan the switch discriminant expression for hook calls.
+				walkExprForHooks(stmt.discriminant);
+
+				if (stmt.cases) {
+					for (const switchCase of stmt.cases) {
+						scanStatements(switchCase.consequent);
+					}
 				}
 
 				continue;
@@ -271,14 +469,17 @@ const analyseBody = (body) => {
  *      (no other value types), which covers the null-short-circuit pattern
  *      where a PascalCase component always returns null at a given phase.
  */
-const bodyLooksLikeComponent = (body) => {
-	const { returnsJsx, returnsOnlyNullOrJsx, callsHook } = analyseBody(body);
+const bodyLooksLikeComponent = (body, importInfo) => {
+	const { returnsJsx, returnsOnlyNullOrJsx, callsHook } = analyseBody(
+		body,
+		importInfo,
+	);
 
 	if (returnsJsx) {
 		return true;
 	}
 
-	// Null-only + hooks heuristic (finding #2).
+	// Null-only + hooks heuristic.
 	if (callsHook && returnsOnlyNullOrJsx) {
 		return true;
 	}
@@ -288,26 +489,40 @@ const bodyLooksLikeComponent = (body) => {
 
 /**
  * Return `true` if `node` is a call to `memo(...)` or `forwardRef(...)`
- * (including `React.memo` / `React.forwardRef`).
+ * that is genuinely React's memo/forwardRef (binding-aware, round-2 fix).
+ *
+ * Counts as a React wrapper when:
+ *   - The callee is a member-expression whose object is a tracked react
+ *     namespace: `React.memo(...)`, `R.forwardRef(...)`.
+ *   - The callee is a bare identifier whose local name was imported from
+ *     'react' as a named import (possibly aliased).
+ *
+ * Does NOT count when:
+ *   - The bare identifier was declared locally in the same file (e.g. a
+ *     custom `function memo(fn) { ... }` utility).
+ *   - The bare identifier is imported from a module OTHER than 'react'.
  */
-const isWrapperCall = (node) => {
+const isWrapperCall = (node, importInfo) => {
 	if (!node || node.type !== 'CallExpression') {
 		return false;
 	}
 
+	const { reactNamespaces, reactImportedNames } = importInfo;
 	const callee = node.callee;
 
-	if (callee.type === 'Identifier') {
-		return WRAPPER_FNS.has(callee.name);
-	}
-
+	// React.memo / React.forwardRef / <namespace>.memo etc.
 	if (
 		callee.type === 'MemberExpression' &&
 		callee.object?.type === 'Identifier' &&
-		callee.object.name === 'React' &&
+		reactNamespaces.has(callee.object.name) &&
 		callee.property?.type === 'Identifier'
 	) {
 		return WRAPPER_FNS.has(callee.property.name);
+	}
+
+	// Bare identifier — only count when explicitly imported from 'react'
+	if (callee.type === 'Identifier') {
+		return WRAPPER_FNS.has(callee.name) && reactImportedNames.has(callee.name);
 	}
 
 	return false;
@@ -330,8 +545,15 @@ export const arrowFunctionComponents = {
 		},
 	},
 	create(context) {
+		// Import info collected in the Program visitor (populated before any
+		// function declaration visitors fire, since Program fires first).
+		let importInfo = null;
+
 		return {
-			// Finding #1 + #2 (original) + Finding #3 (anonymous export default):
+			Program(node) {
+				importInfo = buildImportInfo(node);
+			},
+
 			// Named FunctionDeclaration components, plus anonymous
 			// `export default function() {...}` which Oxlint parses as a
 			// FunctionDeclaration with no id and an ExportDefaultDeclaration parent.
@@ -341,6 +563,9 @@ export const arrowFunctionComponents = {
 					return;
 				}
 
+				// importInfo is always set by the time FunctionDeclaration fires
+				// (Program fires first in the traversal order).
+				const info = importInfo ?? buildImportInfo({ body: [] });
 				const name = node.id?.name;
 				const parent = node.parent;
 
@@ -348,7 +573,7 @@ export const arrowFunctionComponents = {
 				// Oxlint parses this as FunctionDeclaration (no id) whose parent is
 				// ExportDefaultDeclaration — handle it before the PascalCase guard.
 				if (!node.id && parent?.type === 'ExportDefaultDeclaration') {
-					if (!bodyLooksLikeComponent(node.body)) {
+					if (!bodyLooksLikeComponent(node.body, info)) {
 						return;
 					}
 
@@ -366,7 +591,7 @@ export const arrowFunctionComponents = {
 					return;
 				}
 
-				if (!bodyLooksLikeComponent(node.body)) {
+				if (!bodyLooksLikeComponent(node.body, info)) {
 					return;
 				}
 
@@ -377,7 +602,7 @@ export const arrowFunctionComponents = {
 				});
 			},
 
-			// Finding #3: FunctionExpression inside memo(...) / forwardRef(...).
+			// FunctionExpression inside memo(...) / forwardRef(...).
 			FunctionExpression(node) {
 				if (node.generator) {
 					return;
@@ -389,15 +614,17 @@ export const arrowFunctionComponents = {
 					return;
 				}
 
+				const info = importInfo ?? buildImportInfo({ body: [] });
+
 				// memo(function Foo() {...}) / forwardRef(function Foo() {...})
 				// The function may be named or anonymous — both are flagged when
 				// the wrapper call is detected.
 				if (
 					parent.type === 'CallExpression' &&
-					isWrapperCall(parent) &&
+					isWrapperCall(parent, info) &&
 					parent.arguments[0] === node
 				) {
-					if (!bodyLooksLikeComponent(node.body)) {
+					if (!bodyLooksLikeComponent(node.body, info)) {
 						return;
 					}
 
