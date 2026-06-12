@@ -24,7 +24,6 @@ import map from 'lodash/map';
 import lodashToString from 'lodash/toString';
 import values from 'lodash/values';
 import { useBoolean } from 'minimal-shared/hooks';
-import { nanoid } from 'nanoid';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
 	type FieldArrayWithId,
@@ -287,7 +286,7 @@ export const TenantCreateOrEditForm = ({
 				}
 
 				return (
-					<Typography key={nanoid()} sx={{ mb: 1 }}>
+					<Typography key={key} sx={{ mb: 1 }}>
 						<Box component="span" sx={{ fontWeight: 'bold' }}>
 							unhandled
 						</Box>

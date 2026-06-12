@@ -6,7 +6,7 @@ import type {
 	MRT_SortingState,
 } from 'material-react-table';
 import { parseAsString, parseAsStringLiteral, useQueryStates } from 'nuqs';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import { DEFAULT_PAGE_SIZE } from '@org/shared-ts/lib/constants';
 
@@ -109,28 +109,6 @@ export const useTableState = (
 		),
 	});
 
-	// Cursor-specific state (only used in cursor mode)
-	const [_cursorHistory, setCursorHistory] = useState<string[]>([]);
-	const [currentCursor, setCurrentCursor] = useState<string | null>(null);
-	const [virtualPageIndex, setVirtualPageIndex] = useState(0);
-	// Track the next cursor in a ref so pagination updates use the freshest query result.
-	const nextCursorRef = useRef<string | null | undefined>(undefined);
-
-	const setNextCursor = useCallback((cursor: string | null | undefined) => {
-		nextCursorRef.current = cursor;
-	}, []);
-
-	// Explicit reset for cursor pagination when external filters change.
-	const resetCursorPagination = useCallback(() => {
-		if (paginationMode !== 'cursor') {
-			return;
-		}
-		setCursorHistory([]);
-		setCurrentCursor(null);
-		setNextCursor(undefined);
-		setVirtualPageIndex(0);
-	}, [paginationMode, setNextCursor]);
-
 	// Pagination state (conditional based on mode)
 	const [paginationState, setPaginationState] = useQueryStates(
 		paginationMode === 'offset'
@@ -151,17 +129,58 @@ export const useTableState = (
 	const sortOrder = sortingState[queryKeys.sorting.order];
 	const pageSize = paginationState[queryKeys.pagination.pageSize];
 
-	// Reset cursor history when sorting or page size changes in cursor mode
-	// All dependencies are intentional (not accidental)
-	// Why they're needed: cursors become invalid when query params change
-	// What would break: without these deps, users would see invalid data when changing sort/size
-	useEffect(() => {
-		if (paginationMode === 'cursor') {
-			setCursorHistory([]);
-			setCurrentCursor(null);
-			setVirtualPageIndex(0);
+	// Cursor-specific state. Grouped with the sort/pageSize params that produced it so
+	// validity can be derived inline (no useEffect reset needed). When sort or pageSize
+	// changes the derived values below immediately return empty/null on the same render,
+	// preventing the stale-cursor API call that an effect-based reset would allow.
+	type CursorState = {
+		forSortId: string;
+		forSortOrder: string;
+		forPageSize: string;
+		history: string[];
+		current: string | null;
+		pageIndex: number;
+	};
+
+	const [cursorState, setCursorState] = useState<CursorState>(() => ({
+		forSortId: sortId,
+		forSortOrder: sortOrder,
+		forPageSize: pageSize,
+		history: [],
+		current: null,
+		pageIndex: 0,
+	}));
+
+	const isCursorStateFresh =
+		cursorState.forSortId === sortId &&
+		cursorState.forSortOrder === sortOrder &&
+		cursorState.forPageSize === pageSize;
+
+	const currentCursor = isCursorStateFresh ? cursorState.current : null;
+	const virtualPageIndex = isCursorStateFresh ? cursorState.pageIndex : 0;
+
+	// Track the next cursor in a ref so pagination updates use the freshest query result.
+	const nextCursorRef = useRef<string | null | undefined>(undefined);
+
+	const setNextCursor = useCallback((cursor: string | null | undefined) => {
+		nextCursorRef.current = cursor;
+	}, []);
+
+	// Explicit reset for cursor pagination when external filters change.
+	const resetCursorPagination = useCallback(() => {
+		if (paginationMode !== 'cursor') {
+			return;
 		}
-	}, [paginationMode, sortId, sortOrder, pageSize]);
+		setCursorState({
+			forSortId: sortId,
+			forSortOrder: sortOrder,
+			forPageSize: pageSize,
+			history: [],
+			current: null,
+			pageIndex: 0,
+		});
+		setNextCursor(undefined);
+	}, [paginationMode, setNextCursor, sortId, sortOrder, pageSize]);
 
 	// Sorting change handler
 	const handleSortingChange = useCallback<OnChangeFn<MRT_SortingState>>(
@@ -219,36 +238,40 @@ export const useTableState = (
 				const newPageIndex = newPagination.pageIndex;
 				const currentPageIndex = virtualPageIndex;
 				const currentNextCursor = nextCursorRef.current;
+				const baseState = {
+					forSortId: sortId,
+					forSortOrder: sortOrder,
+					forPageSize: pageSize,
+				};
 				if (newPageIndex > currentPageIndex) {
 					// Going forward
 					if (currentNextCursor) {
-						// Push current cursor to history (limit to MAX_CURSOR_HISTORY)
-						setCursorHistory((prev) => {
+						setCursorState((prev) => {
 							const newHistory = currentCursor
-								? [...prev, currentCursor]
-								: prev;
-							// Keep only the last MAX_CURSOR_HISTORY items
-							return newHistory.slice(-MAX_CURSOR_HISTORY);
+								? [...prev.history, currentCursor]
+								: prev.history;
+							return {
+								...baseState,
+								history: newHistory.slice(-MAX_CURSOR_HISTORY),
+								current: currentNextCursor,
+								pageIndex: newPageIndex,
+							};
 						});
-						setCurrentCursor(currentNextCursor);
-						setVirtualPageIndex(newPageIndex);
 					}
 				} else if (newPageIndex < currentPageIndex) {
 					// Going backward
-					setCursorHistory((prev) => {
-						if (prev.length === 0) {
-							// Back to first page
-							setCurrentCursor(null);
-							setVirtualPageIndex(0);
-							return [];
+					setCursorState((prev) => {
+						if (prev.history.length === 0) {
+							return { ...baseState, history: [], current: null, pageIndex: 0 };
 						}
-
-						// Pop last cursor from history
-						const newHistory = [...prev];
-						const previousCursor = newHistory.pop();
-						setCurrentCursor(previousCursor || null);
-						setVirtualPageIndex(newPageIndex);
-						return newHistory;
+						const newHistory = [...prev.history];
+						const previousCursor = newHistory.pop() ?? null;
+						return {
+							...baseState,
+							history: newHistory,
+							current: previousCursor,
+							pageIndex: newPageIndex,
+						};
 					});
 				}
 
@@ -292,6 +315,9 @@ export const useTableState = (
 			setPaginationState,
 			virtualPageIndex,
 			currentCursor,
+			sortId,
+			sortOrder,
+			pageSize,
 		],
 	);
 

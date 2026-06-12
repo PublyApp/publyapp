@@ -17,6 +17,10 @@ export const useScrollPosition = ({
 			return;
 		}
 
+		// Capture the mutable refs so cleanup always references the same objects.
+		const rafRef = rafIdRef;
+		const prevRef = previousPositionRef;
+
 		const getScrollPosition = (): number => {
 			if (target === document) {
 				return window.scrollY || window.pageYOffset;
@@ -28,28 +32,28 @@ export const useScrollPosition = ({
 		};
 
 		const updateScrollPosition = () => {
-			// Cancel any pending RAF
-			if (rafIdRef.current !== null) {
-				cancelAnimationFrame(rafIdRef.current);
+			const pendingRaf = rafRef.current;
+			if (pendingRaf !== null) {
+				cancelAnimationFrame(pendingRaf);
 			}
 
 			// Use requestAnimationFrame to sync with browser repaints
-			rafIdRef.current = requestAnimationFrame(() => {
+			rafRef.current = requestAnimationFrame(() => {
 				const newPosition = getScrollPosition();
 
 				// Only update state if the position actually changed
-				if (newPosition !== previousPositionRef.current) {
-					previousPositionRef.current = newPosition;
+				if (newPosition !== prevRef.current) {
+					prevRef.current = newPosition;
 					setScrollPosition(newPosition);
 				}
 
-				rafIdRef.current = null;
+				rafRef.current = null;
 			});
 		};
 
 		// Initial value
 		const initialPosition = getScrollPosition();
-		previousPositionRef.current = initialPosition;
+		prevRef.current = initialPosition;
 		setScrollPosition(initialPosition);
 
 		// Add event listener
@@ -64,10 +68,10 @@ export const useScrollPosition = ({
 		}
 
 		return () => {
-			// Cancel any pending RAF
-			if (rafIdRef.current !== null) {
-				cancelAnimationFrame(rafIdRef.current);
-				rafIdRef.current = null;
+			const pendingRaf = rafRef.current;
+			if (pendingRaf !== null) {
+				cancelAnimationFrame(pendingRaf);
+				rafRef.current = null;
 			}
 
 			if (target === document) {

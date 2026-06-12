@@ -471,7 +471,7 @@ const QuotesSection = () => {
 				name="<BlogPullQuote attribution=... role=...>"
 				when="Editorial pull quote with optional attribution. Loud typography. Use once or twice per article max."
 			>
-				<BlogPullQuote attribution="Adrian Marin" role="Bullet Train">
+				<BlogPullQuote attribution="Adrian Marin" occupation="Bullet Train">
 					The first 90% of multi-tenancy is database design. The second 90% is
 					everything else.
 				</BlogPullQuote>

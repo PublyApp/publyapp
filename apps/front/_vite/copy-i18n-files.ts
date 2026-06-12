@@ -40,19 +40,18 @@ const copyI18nFiles = (): Plugin => {
 					// Read source directory contents
 					const sourceFiles = await fs.promises.readdir(src);
 
-					// Copy each file individually
-					for (const file of sourceFiles) {
-						const srcPath = path.join(src, file);
-						const destPath = path.join(dest, file);
-
-						// Check if it's a file (not a directory)
-						const stat = await fs.promises.stat(srcPath);
-						if (stat.isFile() && file.endsWith('.json')) {
-							// Copy the file (overwrites existing file)
-							await fs.promises.copyFile(srcPath, destPath);
-							_debug(`copied ${srcPath} to ${destPath}`);
-						}
-					}
+					// Stat all files in parallel, then copy eligible ones in parallel.
+					await Promise.all(
+						sourceFiles.map(async (file) => {
+							const srcPath = path.join(src, file);
+							const destPath = path.join(dest, file);
+							const stat = await fs.promises.stat(srcPath);
+							if (stat.isFile() && file.endsWith('.json')) {
+								await fs.promises.copyFile(srcPath, destPath);
+								_debug(`copied ${srcPath} to ${destPath}`);
+							}
+						}),
+					);
 				} catch (error) {
 					console.error(`Error copying from ${src} to ${dest}:`, error);
 					throw error;

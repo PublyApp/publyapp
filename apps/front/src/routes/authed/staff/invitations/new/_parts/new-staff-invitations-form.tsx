@@ -79,8 +79,9 @@ const NewStaffInvitationsForm = () => {
 
 	// Auto-scroll to the actions when a new card is added
 	useEffect(() => {
+		let id: ReturnType<typeof setTimeout> | undefined;
 		if (fields.length > previousFieldsCount.current && actionsRef.current) {
-			setTimeout(() => {
+			id = setTimeout(() => {
 				actionsRef.current?.scrollIntoView({
 					behavior: 'smooth',
 					block: 'center',
@@ -89,6 +90,7 @@ const NewStaffInvitationsForm = () => {
 			}, 100);
 		}
 		previousFieldsCount.current = fields.length;
+		return () => clearTimeout(id);
 	}, [fields.length]);
 
 	const { mutate: createInvitations, isPending } =

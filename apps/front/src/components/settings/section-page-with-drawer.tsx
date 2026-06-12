@@ -4,7 +4,7 @@ import Drawer from '@mui/material/Drawer';
 import Stack from '@mui/material/Stack';
 import isArray from 'lodash/isArray';
 import { useBoolean } from 'minimal-shared/hooks';
-import { createContext, type ReactNode, useContext, useMemo } from 'react';
+import { createContext, use, type ReactNode, useMemo } from 'react';
 
 import DrawerAnchor from '#app/components/drawer-anchor.tsx';
 import { Iconify } from '#app/components/iconify/iconify.tsx';
@@ -24,7 +24,7 @@ const SectionPageWithDrawerContext =
 	createContext<SectionPageWithDrawerContextValue | null>(null);
 
 export const useSectionPageWithDrawer = () => {
-	const context = useContext(SectionPageWithDrawerContext);
+	const context = use(SectionPageWithDrawerContext);
 
 	if (context === null) {
 		throw new Error(
