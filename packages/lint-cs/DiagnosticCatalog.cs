@@ -140,4 +140,21 @@ public static class DiagnosticCatalog {
 		description: "Prefer pattern-matching null checks to direct equality checks so null checks are "
 			+ "explicit and aligned with the project's nullability conventions."
 	);
+
+	/// <summary>
+	/// PUBLY0009 — disallow <c>TypedResults.Forbid()</c> in error paths. Per the repo RFC 7807
+	/// conventions, all errors must be returned via <c>TypedProblems.*</c> (RFC 7807
+	/// <c>application/problem+json</c>) rather than the framework <c>Forbid</c> result.
+	/// <c>isEnabledByDefault: false</c> keeps this rule dormant until enabled in configuration.
+	/// </summary>
+	public static readonly DiagnosticDescriptor TypedResultsForbid = new(
+		DiagnosticIds.PUBLY0009,
+		"Avoid TypedResults.Forbid()",
+		"Do not use 'TypedResults.Forbid()'; use 'TypedProblems.*' (RFC 7807) instead",
+		"PublyApp.ErrorHandling",
+		DiagnosticSeverity.Warning,
+		isEnabledByDefault: false,
+		description: "Error responses must be RFC 7807 'application/problem+json' returned via "
+			+ "TypedProblems.* helpers. TypedResults.Forbid() bypasses the RFC 7807 contract and the "
+			+ "frontend logout semantics tied to 401/403 handling.");
 }
