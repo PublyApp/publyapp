@@ -276,7 +276,7 @@ for (const item of items) {
 }
 ```
 
-**Enforced by oxlint:** `unicorn/no-array-reduce`.
+**Enforced by oxlint:** `unicorn/no-array-reduce` (covers `.reduce()`) and `publy/no-array-reduce` (extends coverage to `.reduceRight()` and emits the repo-specific guidance message).
 
 ## JavaScript/TypeScript Helpers: Prefer Targeted Lodash When Safer
 
