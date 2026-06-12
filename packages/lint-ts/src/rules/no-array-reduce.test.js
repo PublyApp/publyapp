@@ -9,8 +9,9 @@
  *   the same rule object exported from the rule module.
  * - `valid`: preferred alternatives (`find`, `filter+map`, `for...of`,
  *   `Object.groupBy`) and edge cases that must NOT fire.
- * - `invalid`: `arr.reduce(...)` and `arr.reduceRight(...)` calls each report
- *   with `messageId: 'noReduce'`.
+ * - `invalid`: `arr.reduce(...)` / `arr.reduceRight(...)` calls — including
+ *   optional-chaining and computed string-literal (`arr['reduce']`) forms —
+ *   each report with `messageId: 'noReduce'`.
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
@@ -48,8 +49,10 @@ const runCases = (rule, label) => {
 				// A method literally named reduce on an object literal that is NOT
 				// called — not a CallExpression, so should not flag.
 				'const obj = { reduce: 42 };',
-				// Computed member access — rule only flags non-computed access.
-				"arr['reduce']((a, b) => a + b, 0);",
+				// Dynamic computed key — method name is not statically known.
+				'arr[method]((a, b) => a + b, 0);',
+				// Computed string-literal key that is not reduce/reduceRight.
+				"arr['reduceX']((a, b) => a + b, 0);",
 				// Unrelated method calls.
 				'arr.map((x) => x * 2);',
 				'arr.filter((x) => x > 0);',
@@ -102,6 +105,16 @@ const runCases = (rule, label) => {
 				// Optional-chaining reduceRight — also flagged.
 				{
 					code: 'const result = items?.reduceRight((acc, x) => [...acc, x], []);',
+					errors: [{ messageId: 'noReduce' }],
+				},
+				// Computed string-literal access — bracket form is still flagged.
+				{
+					code: "const sum = arr['reduce']((a, b) => a + b, 0);",
+					errors: [{ messageId: 'noReduce' }],
+				},
+				// Computed string-literal reduceRight — also flagged.
+				{
+					code: "const result = items['reduceRight']((acc, x) => [...acc, x], []);",
 					errors: [{ messageId: 'noReduce' }],
 				},
 			],
