@@ -4,15 +4,18 @@
 ; NOTE: All PUBLY rules intentionally remain in AnalyzerReleases.Unshipped.md and are NOT
 ; migrated here, even though they are enforced in this repo. This is deliberate policy:
 ;
-;   1. Every PUBLY rule ships with isEnabledByDefault: false (dormant). Moving a rule to
-;      Shipped.md is normally paired with enabling it by default — but PUBLY rules must
-;      never activate for consumers that reference the analyzer package without opting in.
+;   1. This analyzer package is consumed in-repo only and is never versioned or published
+;      externally, so there is no release boundary to promote across. Keeping all rules in
+;      Unshipped.md is a LOCAL repo convention — not a Roslyn constraint. (Roslyn's release-
+;      tracking format does allow "Disabled" entries in Shipped.md; the choice to keep them
+;      in Unshipped.md is intentional to signal that no external release has ever shipped.)
 ;
 ;   2. Effective per-repo enforcement is driven entirely by .editorconfig severities:
 ;        dotnet_diagnostic.PUBLYxxxx.severity = warning
 ;      Combined with <TreatWarningsAsErrors>true</TreatWarningsAsErrors> in
 ;      Directory.Build.props, this turns each opted-in rule into a hard build error.
-;      Currently all eight rules (PUBLY0001–PUBLY0008) are enforced this way.
+;      Currently every shipped PUBLY rule is enforced this way (see the list in
+;      AnalyzerReleases.Unshipped.md).
 ;
 ;   3. The Roslyn release-tracking analyzer treats "Disabled" (isEnabledByDefault: false)
 ;      as the correct steady-state for this package. The "Disabled" entries in
