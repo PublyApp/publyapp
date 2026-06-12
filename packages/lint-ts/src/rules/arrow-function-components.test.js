@@ -23,6 +23,11 @@
  *   functions do not trigger the wrapper check).
  * - Round-2: expressionContainsJsx branches (parenthesized, TSAsExpression,
  *   TSSatisfiesExpression, TSNonNullExpression) are exercised.
+ * - Round-3: alias-aware react imports for wrappers: `import { memo as m }` →
+ *   `m(fn)` IS flagged; `import { useMemo as memo }` → `memo(fn)` is NOT a wrapper.
+ * - Round-3: local arrow-function map: `const useThing = () => 42` is locally declared
+ *   so Helper calling useThing() is NOT flagged; but a local arrow `useThing` that
+ *   itself calls an imported hook DOES propagate hook-ness to the caller.
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
@@ -150,6 +155,40 @@ const runCases = (rule, label) => {
 						'const Wrapped = memo(function() { return <span />; });',
 					].join('\n'),
 					filename: 'apps/front/src/utils/memo-util.tsx',
+				},
+
+				// Round-3 valid: `import { useMemo as memo }` — local 'memo' has imported
+				// name 'useMemo', NOT 'memo', so `memo(fn, [])` must NOT be treated as a
+				// React.memo wrapper call. The inner `function computeX()` is NOT flagged
+				// (because memo() is not a React wrapper here).
+				{
+					code: [
+						"import { useMemo as memo } from 'react';",
+						'const Comp = () => {',
+						'  const val = memo(function computeX() { return 42; }, []);',
+						'  return <div>{val}</div>;',
+						'};',
+					].join('\n'),
+					filename: 'apps/front/src/components/comp.tsx',
+				},
+
+				// Round-3 valid: local arrow `useThing` is NOT a hook (returns a plain value,
+				// calls no hooks itself) → Helper calling it + returning null must NOT be flagged.
+				{
+					code: [
+						'const useThing = () => 42;',
+						'function Helper() { const val = useThing(); return null; }',
+					].join('\n'),
+					filename: 'apps/front/src/utils/helper.ts',
+				},
+
+				// Round-3 valid: exported const arrow non-hook useThing → no diagnostic.
+				{
+					code: [
+						"export const useThing = () => 'label';",
+						'function Helper() { const val = useThing(); return null; }',
+					].join('\n'),
+					filename: 'apps/front/src/utils/helper.ts',
 				},
 			],
 			invalid: [
@@ -301,6 +340,29 @@ const runCases = (rule, label) => {
 				{
 					code: 'function Toast() { return (<span />)!; }',
 					filename: 'apps/front/src/components/toast.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-3 finding #1 (invalid): aliased memo import IS treated as React.memo
+				// wrapper. `import { memo as m }` → imported name is 'memo' → m(fn) IS flagged.
+				{
+					code: [
+						"import { memo as m } from 'react';",
+						'const Foo = m(function Foo() { return <div />; });',
+					].join('\n'),
+					filename: 'apps/front/src/components/foo.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-3 finding #2 (invalid): local arrow `useThing` that itself calls an
+				// imported hook propagates hook-ness → Helper is correctly flagged.
+				{
+					code: [
+						"import { useRef } from 'react';",
+						'const useThing = () => { const r = useRef(null); return r; };',
+						'function Helper() { useThing(); return null; }',
+					].join('\n'),
+					filename: 'apps/front/src/components/helper.tsx',
 					errors: [{ messageId: 'useArrowFunction' }],
 				},
 			],
