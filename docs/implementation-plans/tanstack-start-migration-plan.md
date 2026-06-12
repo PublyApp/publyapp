@@ -1,391 +1,309 @@
 # Implementation Plan: React Router v7 → TanStack Start Migration
 
 **Issue:** #656
-**Date:** 2026-06-12
-**Status:** ⛔ **CONDITIONAL — do not execute before the spike gates pass.**
-See `docs/spikes/2026-06-12-tanstack-start-migration-feasibility.md` §H: G1 (Start GA),
-G2 (Phase 0 PoCs pass), G3 (scope sign-off). **Exception:** Phase 0 (PoCs) and Phase 1
-(no-regret decoupling) may be executed any time — they are valuable independently of the verdict.
+**Date:** 2026-06-12 (v2)
+**Status:** ✅ **COMMITTED** — execution model is prep → proof → flip (no decision gates; the
+checkpoints below are verification criteria, not reasons to idle).
+Companion evaluation: `docs/spikes/2026-06-12-tanstack-start-migration-feasibility.md`.
 
-**Strategy:** Prep-then-flip. Phases 0–1 run as small PRs on `develop` with React Router v7 still
-shipping; Phase 2 is one short-lived branch performing the atomic cutover; Phase 3 hardens and
-cleans up. Every step below is sized to be one PR (or one commit inside the Phase 2 branch),
-with acceptance criteria and verification commands.
+**Strategy.** Phase 0 ships small behavior-preserving PRs on `develop` while RR7 keeps running.
+Phase 1 is a throwaway **repo-local proof branch** that validates the exact pinned TanStack tuple
+against this monorepo's sharp edges. Phase 2 is one short-lived atomic flip branch. Phase 3 is
+the pre-merge verification matrix + post-merge cleanup. Every Phase 0 item is one PR; Phase 2
+steps are sequential commits on the flip branch.
 
-**Estimates** assume solo-dev weekend-sized sessions. Re-validate all file inventories at
-execution time (commands provided in Appendix C) — counts in this doc are a 2026-06-12 snapshot.
-
----
-
-## Phase 0 — De-risking PoCs (2–3 days total; may run before GA)
-
-Each PoC is an isolated throwaway app in a scratch directory (NOT in this repo; no PR). Output
-of each = a short findings comment on issue #656 with PASS/FAIL per exit criterion.
-Pin exact `@tanstack/*` versions in each PoC and record them in the findings.
-
-### 0a — MUI v7 + Emotion + RTL cache + streaming SSR (1 day)
-
-**Goal:** prove our exact styling stack survives Start's streaming SSR.
-
-Steps:
-1. Scaffold a minimal Start app (`pnpm create @tanstack/start` or copy `examples/react/start-material-ui`).
-2. Upgrade to MUI **v7** + Emotion 11 (match `apps/front` versions); add `CssBaseline`, a themed
-   page with portals (Menu, Dialog, Tooltip) and an `sx`-heavy data table.
-3. Add the RTL Emotion cache exactly as `apps/front/src/lib/mui/theme/with-settings/right-to-left.tsx`
-   does it (`createCache({ key: 'rtl', stylisPlugins: [rtlPlugin] })` + `CacheProvider`), behind a
-   runtime toggle.
-4. Add one route with `ssr: true` and one with `ssr: false`; toggle RTL on both.
-5. Throttle network in devtools; watch for FOUC/style flashes; check view-source for emitted styles.
-
-**Exit criteria (all must PASS):**
-- [ ] No hydration mismatch warnings in console (LTR and RTL, both routes)
-- [ ] No visible FOUC on the SSR route at throttled 3G
-- [ ] Portal components styled correctly post-hydration
-- [ ] RTL toggle works on the client-only route (this is our real product usage)
-- [ ] If RTL + `ssr: true` fails but RTL + `ssr: false` passes → record PASS-WITH-CONSTRAINT
-      (constraint: RTL stays an authed-surface-only feature — matches current product)
-
-### 0b — i18next SSR glue (replacement for remix-i18next) (1 day)
-
-**Goal:** prove cookie-locale detection + per-route namespace loading + no hydration flash.
-
-Steps:
-1. In the same or fresh PoC app: i18next + react-i18next + `i18next-fs-backend` (server).
-2. Global request middleware (`createStart` / `requestMiddleware`) reading the locale cookie
-   (replicate `LOCALE_COOKIE_KEY` semantics from `packages/shared-ts`); fall back to default locale.
-3. Per-request i18next instance on the server (mirror `iniI18nOnServer` in `src/entry.server.tsx`);
-   pass locale through router context.
-4. Route-level namespace loading in `loader`s; client hydration with preloaded resources
-   (no flash of translation keys).
-5. Verify `lang` attribute + translated SSR output in view-source for both locales.
-
-**Exit criteria:**
-- [ ] View-source shows translated strings for the cookie-selected locale (no keys)
-- [ ] No hydration mismatch; no flash-of-default-locale on slow network
-- [ ] Namespace lazily loaded per route (network tab shows only needed namespaces)
-- [ ] Locale switch (set cookie + reload) renders correctly server-side
-
-### 0c — Express + helmet nonce → Start fetch handler (½ day)
-
-**Goal:** prove our production server topology (Express 5 owns the port; helmet generates the
-CSP nonce) can host Start.
-
-Steps:
-1. Express 5 app with helmet (per-request nonce in `res.locals`), morgan, compression — copy the
-   middleware stack shape from `apps/front/server/app.ts` (helmet/nonce/analytics; morgan/compression are wired in `apps/front/server.js`).
-2. Mount the Start server entry via `toNodeHandler` (`srvx/node`) as the terminal handler
-   (pattern: `e2e/react-start/custom-basepath/express-server.ts` in TanStack/router).
-3. Thread the helmet-generated nonce into Start's render: investigate `getGlobalStartContext()` /
-   request headers as the carrier; pass to `createRouter({ ssr: { nonce } })` in `getRouter()`.
-   ⚠️ This is the one **undocumented** integration (spike §B); if no clean carrier exists,
-   fallback = generate the nonce inside Start's `getRouter()` and have an Express middleware read
-   it back for the CSP header — or set the CSP header from Start middleware and drop helmet's CSP
-   directive only (keep helmet for the other headers).
-4. Verify dev mode also works (Vite middleware mode inside Express).
-
-**Exit criteria:**
-- [ ] All inline scripts + emitted assets carry the nonce; page passes a strict CSP (no `unsafe-inline`)
-- [ ] helmet's non-CSP headers still present on responses
-- [ ] Dev server (HMR) and prod build both function behind Express
-- [ ] Document the chosen nonce-carrier pattern in the findings comment
+**Standing rules:** exact version pins for the whole TanStack tuple (no `^`); re-run all
+inventories (Appendix C) at execution time; the migration is behavior-preserving — any product
+change is a separate PR; **do not regress** 401 = logout / 403 ≠ logout, and the auth surface's
+401-no-logout semantics.
 
 ---
 
-## Phase 1 — No-regret decoupling on `develop` (RR7 keeps shipping)
+## Phase 0 — Prep on `develop` (RR7 keeps shipping; each item = 1 PR)
 
-Each item = one PR off `develop`, normal review flow, independently revertible. Order matters
-only where noted. **Each PR's standing acceptance criteria (in addition to per-PR ones):**
-`just tsc-front` clean; `just check-write` clean; app boots (`just dev-front`) with marketing,
-auth, and one authed page manually smoke-checked; no behavior change intended.
+Standing acceptance for every PR: `just tsc-front` clean, `just check-write` clean, app boots
+(`just dev-front`), marketing + auth + one authed page smoke-checked, no intended behavior change.
 
-### 1a — Router façade (`#app/lib/router`) — 2–3 PRs, split by section
+### 0a — Upgrade `@tanstack/react-query` to ≥ 5.90.0
+The lock currently resolves 5.82.0; `@tanstack/react-router-ssr-query@1.167.x` peers require
+`>= 5.90.0`. Upgrade now under RR7 so any Query-side fallout is isolated from the flip.
+**Acceptance:** 401-logout / 403-no-logout invariants manually verified; `react-query-kit`
+factories type-check and run; list pages and mutations behave unchanged.
 
-**What:** create `src/lib/router/index.ts` re-exporting the router APIs used app-wide
-(`Link`, `NavLink`, `Outlet`, `useNavigate`, `useParams`, `useLocation`, `useSearchParams`,
-`redirect`, navigation types). Codemod all non-route-module imports of `react-router` to the
-façade. Route-module contract exports (`loader`/`action`/`meta`/`ErrorBoundary`) stay as-is —
-they are replaced wholesale in Phase 2.
+### 0b — Router façade (`#app/lib/router`)
+Re-export the router APIs used outside route modules (`Link`, `Outlet`, `useNavigate`,
+`useParams`, `useLocation`, `useSearchParams`, `redirect`, navigation types) and codemod
+non-route-module imports (83 files import `react-router` today; route-module contract exports —
+`loader`/`action`/`meta`/`ErrorBoundary` — stay put until the flip). Include the hidden router
+dependencies: `RouterLink`, `ProgressBar` (navigation state), `usePathname`, `useHomePath`,
+`useMatchPath`, `useTenantParam`, `useRouter`.
+**Acceptance:** CI grep (or lint rule) forbids direct `react-router` imports outside
+`src/lib/router/`, `src/routes/**`, and entry files.
 
-**Why no-regret:** one import site to swap at flip time instead of ~83 files; also gives a place
-to add deprecation notes steering new code.
+### 0c — URL-state façade (`#app/lib/url-state`)
+Audit the 14 nuqs-importing files + `use-table-state.ts`; expose the subset actually used
+(parsers, `withDefault`, default-clearing, shallow routing) as repo-owned hooks delegating to
+nuqs for now. Freeze current behavior — no filter redesigns.
+**Acceptance:** no direct `nuqs` imports outside the façade; every list page's filters/sort/
+pagination + deep links + back/forward verified manually.
 
-**Inventory command:** see Appendix C-1 (83 files import `react-router` as of 2026-06-12).
-**Acceptance:** an oxlint `no-restricted-imports`-style rule (or grep check in CI) forbids direct
-`react-router` imports outside `src/lib/router/`, `src/routes/**` route modules, and entry files.
+### 0d — Extract framework-neutral cookie/session/locale helpers
+Pull the logic out of `src/lib/react-router/server-data.server.ts` into request-agnostic helpers
+(plain `Request`/header APIs): dual staff/tenant session-cookie parsing, Set-Cookie construction
+(secure/samesite/path/max-age as today), legacy httpOnly clear, locale-cookie read +
+`appLocales` validation, `InterZod` construction, safe Kiota client construction. RR wrappers
+become thin shells over these helpers.
+**Acceptance:** behavior identical under RR7; helpers have no `react-router` imports.
 
-### 1b — URL-state façade over nuqs — 1–2 PRs
+### 0e — Replace `remix-i18next` with in-repo glue
+Re-implement locale detection + namespace resolution against plain Request/cookie APIs (drop the
+RR `EntryContext` coupling in `init-i18n.server.ts`). Namespace policy: explicit per-route
+metadata table (or load all current shared namespaces per request first — `common`, `zod`,
+`response-message` — and optimize later). Remove the `remix-i18next` dependency.
+**Acceptance:** view-source shows translated SSR output for both locales on `/` and `/login`; no
+key-flash on hydration; `pnpm why remix-i18next` empty.
 
-**What:** create `src/lib/url-state/` exposing the repo's own `useUrlState`/`useUrlStates` with
-the subset of nuqs API actually used (audit the ~18 files first; expect parsers, `withDefault`,
-shallow routing, `clearOnDefault`). Implementation today = delegate to nuqs. Codemod the ~18 call
-sites.
+### 0f — Local `ClientOnly`; drop `remix-utils`
+**Acceptance:** authed surface still client-only (view-source); `pnpm why remix-utils` empty.
 
-**Why no-regret:** Phase 2 swaps the implementation to `Route.useSearch()` + `validateSearch`
-without touching the ~18 call sites again; also documents exactly which URL-state features we
-depend on.
+### 0g — Frontend `/health` endpoint
+`dokploy.yml` healthchecks `http://localhost:5050/health` but no frontend handler exists. Add an
+Express handler (before the framework handler) in `server/app.ts`.
+**Acceptance:** `curl localhost:5050/health` returns 200 in dev and prod-mode boot.
 
-**Acceptance:** no direct `nuqs` imports outside `src/lib/url-state/`; list pages (staff tenants,
-users, invitations, profiles, audit logs) keep working filters/sort/pagination — manual check of
-each list page + deep-link with query params + back/forward navigation.
+### 0h — Baselines & snapshots
+Scripts (checked in or `.dump/`-documented) capturing: the RR route inventory; page titles/meta
+for all routes (scripted curl); deep-link query-param behavior for each list page; bundle/chunk
+listing; Lighthouse for `/`, `/login`, one authed page.
+**Acceptance:** snapshots stored and re-runnable — they are the Phase 3 comparison baseline.
 
-### 1c — Replace `remix-i18next` with in-repo glue — 1 PR
-
-**What:** re-implement the locale-detection + namespace-resolution layer in
-`src/lib/i18n/server.ts` against plain Request/cookie APIs (the logic is small: read
-`LOCALE_COOKIE_KEY` → validate against `appLocales` → fallback `defaultLocale`; resolve
-namespaces per matched route). Drop the `remix-i18next` dependency. Keep behavior identical
-under RR7.
-
-**Why no-regret:** removes a Remix-only dependency that has no Start equivalent; the new glue is
-written against `Request`, so Phase 2 reuses it nearly verbatim (per PoC 0b).
-
-**Acceptance:** locale cookie flip renders SSR pages in the right language (view-source check
-both locales on `/` and `/login`); no key-flash on hydration; `pnpm why remix-i18next` empty.
-
-### 1d — Inline `remix-utils` usages — 1 small PR
-
-**What:** audit `remix-utils` imports (primarily `ClientOnly`); replace with a local
-`src/components/client-only.tsx` (or keep API-compatible wrapper). Drop the dependency.
-**Acceptance:** authed surface still renders client-only (no SSR of authed layout —
-view-source check); `pnpm why remix-utils` empty.
-
-### 1e — Route-tree reshaping toward file-based conventions — 3–4 PRs, one per section
-
-**What:** without leaving RR7 (code-based config keeps pointing at the moved files), reorganize
-`src/routes/**` so each route module's path mirrors its future TanStack file-route path
-(Appendix B conventions): one module file per route, layouts as future `route.tsx`/pathless
-layouts, `_parts`/`_components` folders renamed/kept per the chosen ignore-prefix convention
-(Start supports excluding non-route files via prefix/config — decide `-` prefix vs
-`routeFileIgnorePattern` here and record it).
-
-Split: (1) marketing + auth, (2) staff, (3) tenant, (4) actions/redirect stubs + error views.
-
-**Why no-regret:** the Phase 2 flip diff becomes "change file contents", not "move 200 files and
-change contents" — reviewable and bisectable. The reshape also forces resolution of every
-"which file owns this route" question while RR7 still runs as the safety net.
-
-**Acceptance per PR:** route inventory before/after identical (Appendix C-2 command); `just
-tsc-front` clean; manual click-through of the section's pages; `docs/guides/frontend-route-file-organization.md`
-updated in the same PR if a convention shifts.
-
-### 1f — (Optional, anytime) Typed-route hygiene under RR7
-
-**What:** ensure `react-router typegen` types are actually consumed where cheap (Route.LoaderArgs
-etc.) so the Phase 2 conversion starts from typed loaders. Skip if effort exceeds a half-day.
+### 0i — Minimal Playwright smoke suite
+The repo has no frontend test safety net; TypeScript will not catch CSP violations, cookie
+regressions, hydration blank screens, or filter-serialization drift. Cover: `/` + `/login` SSR
+content; login (cookie set) + logout; accept-invitation cookie path (if testable); authed
+invalid-session → logout; 403 → no logout; one staff list with query-param deep link; 404/error
+views; production server boot + `/health`; console-level CSP violation check.
+**Acceptance:** suite runs green against RR7 locally (CI wiring optional at this stage).
 
 ---
 
-## Phase 2 — The flip (single short-lived branch; target < 2 weeks wall-clock)
+## Phase 1 — Repo-local proof branch (throwaway; exit checklist is the deliverable)
 
-One branch `feat/tanstack-start-flip` off `develop`; steps below are sequential commits (or
-stacked mini-PRs into the branch if review granularity is wanted). `develop` merges into the
-branch daily. **The branch merges to `develop` only after the full Phase 3 smoke matrix passes.**
+Branch/worktree off `develop` after Phase 0a (Query upgrade) lands. Add the exact-pinned tuple
+(`@tanstack/react-start`, `@tanstack/react-router`, `@tanstack/virtual-file-routes`,
+`@tanstack/react-router-ssr-query`, `@tanstack/react-router-devtools`, `srvx`) and wire
+`tanstackStart({ router: { virtualRouteConfig, routesDirectory: './src/routes', generatedRouteTree: './src/routeTree.gen.ts' } })`
+with a PARTIAL route translation (marketing + auth + one authed staff list is enough). The branch
+is discarded afterwards; its output is a findings note on issue #656.
 
-### 2.1 — Dependency + build scaffold swap
-
-- Remove/add dependencies per Appendix A table (pin exact `@tanstack/*` versions).
-- `vite.config.ts`: drop `reactRouter()` + `reactRouterDevTools()`; add `tanstackStart()`;
-  keep `checker()`, `devtoolsJson()`, `copyI18nFiles()`, `generateClient()` plugins.
-- Delete `react-router.config.ts`; configure prerender + SPA/SSR options on the plugin.
-- `package.json` scripts: `build` → `vite build`; `type-check` → drop `react-router typegen`
-  (route tree generation is part of the plugin/dev flow); dev/start stay on `server.js`.
-- tsconfig: add generated `routeTree.gen.ts` handling per Start docs.
-- **Checkpoint:** `pnpm build` produces `dist/client` + a server entry; app does not need to run yet.
-
-### 2.2 — Root shell + router
-
-- `src/routes/__root.tsx`: document shell (`<html>`/`<head>` via `<HeadContent />`, `<Scripts />`),
-  provider stack ported from the current root route: Emotion cache + MUI theme + settings,
-  i18n provider, toasts, nprogress, error boundary shell per `docs/guides/error-views.md`.
-- `src/router.tsx`: `createRouter` per request; wire `ssr: { nonce }` (pattern from PoC 0c);
-  router context carries `{ queryClient, locale, session-ish flags }`.
-- `src/start.ts`: global request middleware — locale detection (from 1c glue), analytics
-  hooks currently in `entry.server.tsx`/`server/app.ts`.
-- Delete `src/entry.server.tsx` / `src/entry.client.tsx` (streaming, isbot, nonce are Start-native;
-  custom client entry only if hydration customization proves necessary).
-
-### 2.3 — File-based route tree
-
-- Convert the reshaped tree (1e) to real route files: layouts → layout routes, pages → route
-  files with `createFileRoute`, pathless groups for the three surfaces (marketing/auth/authed).
-- Encode the full route inventory (Appendix C-2 snapshot taken at execution time) and verify the
-  generated `routeTree.gen.ts` covers every path; add a route-inventory diff script as a
-  temporary guard (old RR config inventory vs new tree).
-- Authed root layout route: `ssr: false` (selective SSR) — replaces `ClientOnly` gating semantics
-  (keep the component for inner islands if still needed).
-- Marketing/auth routes: `ssr: true`; wire `head` exports (next step) and loaders.
-
-### 2.4 — Loader / action / meta conversion (mechanical, per section)
-
-For each of marketing → auth → staff → tenant:
-- `loader` + `getServerLoader` → `beforeLoad` (auth/session checks via `createServerFn` with
-  `getCookie`; redirects via `redirect({ to })`) and `loader` (data/i18n-namespace loading).
-- `action` + `getServerAction` + `useFetcher` (8 call sites) → `createServerFn` invoked through
-  TanStack Query `useMutation` (keep the existing mutation-hook conventions; centralized error
-  handling via `ApiFailure` stays untouched).
-- `clientLoader` + `getClientLoader` → route `loader` (runs client-side under `ssr: false`)
-  calling the same query-prefetch helpers; keep the route-level cache-warming conventions documented in `docs/guides/frontend-architecture.md` (NB: AGENTS.md references `frontend-route-query-preloading.md`, which does not exist — resolve in Phase 3).
-- `meta` exports (26 files) → `head` route option; centralize the title/description builders.
-- `ErrorBoundary`/`useRouteError` (25 occurrences) → `errorComponent`/`notFoundComponent` mapped
-  to the existing `AppErrorView` wrappers; **preserve the 401-no-logout invariant on the auth
-  surface and the 403-must-not-logout invariant globally** (explicit acceptance criterion).
-- Delete `src/lib/react-router/{server-data.server.ts,client-data.ts}` when the last consumer is
-  converted.
-
-### 2.5 — Hook/component swap via the façades
-
-- `src/lib/router/index.ts` re-points to `@tanstack/react-router` equivalents; fix typed `Link`
-  (`to` + `params`) fallout — expect most churn in nav components (8 `<Outlet>` render sites unaffected;
-  `Link`-heavy nav/menus need `params` objects instead of interpolated strings).
-- `useParams` (27 files): convert to `Route.useParams()`/`useParams({ from })` per route where
-  types matter; a permissive façade shim is acceptable interim with a follow-up ratchet.
-- `src/lib/url-state/` re-implemented on `validateSearch` + `Route.useSearch()` + `useNavigate`;
-  define zod search schemas on the list routes (staff lists, audit logs, tenant posts).
-  Drop the `NuqsAdapter` from providers; remove nuqs.
-
-### 2.6 — Query-client integration
-
-- `@tanstack/react-router-ssr-query`: `setupRouterSsrQueryIntegration({ router, queryClient })`;
-  per-request QueryClient on the server (the 526-line `query-client.tsx` global handlers port
-  unchanged — they are framework-agnostic).
-- Verify 401 → centralized logout and 403 → no-logout still hold (unit of the smoke matrix).
-
-### 2.7 — Express server rewire
-
-- `apps/front/server/app.ts` (+ `server.js`): keep helmet/morgan/compression/analytics; replace the
-  `@react-router/express` request handler with `toNodeHandler(startServerEntry.fetch)`;
-  dev mode = Vite middleware mode (per PoC 0c).
-- Nonce carrier per PoC 0c findings.
-- Prerender config: `prerender: { pages: PRE_RENDER_PATHS }` equivalent on the plugin; confirm
-  output artifacts and that `isPreRenderPath`-dependent logic (e.g. the
-  `STATIC_PRE_RENDER_PATHS_MAP_NONCE` placeholder flow) is ported or retired deliberately.
-
-### 2.8 — Devtools + lint/config sweep
-
-- `react-router-devtools` → `@tanstack/react-router-devtools` (dev-only).
-- oxlint config: retire the Phase 1a import-restriction rule or re-point it at
-  `@tanstack/react-router`; update `publy/*` custom rules if any reference react-router modules.
-- `knip` config: remove RR entries; run `just knip` to catch orphaned deps.
-- Delete dead files: RR config, entries, old `_tree/*.routes.ts` once inventory diff is green.
-
-### 2.9 — Flip-branch verification (before requesting review)
-
-```
-just tsc-front          # clean
-just check-write        # clean
-pnpm --filter front build   # client + server bundles
-node apps/front/server.js   # prod-mode boot
-just knip               # no orphans
-```
-Plus the route-inventory diff script (zero missing/extra routes) and a manual pass of the
-Phase 3 smoke matrix's P0 rows.
+**Exit checklist (all must pass before Phase 2 starts):**
+- [ ] Dev server boots; first load, HMR, and hydration work in THIS pnpm monorepo on Vite 8
+      (watch for #7418: `virtual:tanstack-start-client-entry` 404 / blank outlet). Keep
+      `experimental.bundledDev` OFF (#7491).
+- [ ] `#app/*` (package-imports + manual Vite alias) and `@org/shared-ts`/`@org/client-ts`
+      resolve in all four contexts: route-tree generator, client build, SSR build, Node runtime
+      (`server.js` importing the Start output). Route file targets stay inside `src/routes`
+      (#4984 avoidance).
+- [ ] Virtual route translation sample proves: `:param` → `$param`, splat/catch-all equivalent,
+      layout nesting, `_parts`/`_components` excluded from generation without renames,
+      feature-flagged marketing routes conditional in config.
+- [ ] Custom Express works in dev (Vite middleware mode) and prod-mode boot, with helmet,
+      compression, morgan, analytics middleware, static assets, and `/health` intact.
+- [ ] CSP nonce carrier proven: helmet-generated per-request nonce reaches
+      `createRouter({ ssr: { nonce } })`; every inline script (Start, query hydration, MUI
+      color-scheme) carries it under the enforced policy (which keeps `style-src
+      'unsafe-inline'` exactly as `packages/shared-ts/lib/csp.ts` does today). Fallback if the
+      carrier is brittle: CSP header set from Start request middleware; helmet keeps non-CSP
+      headers.
+- [ ] Prerender of `/` and `/login` via plugin `pages` + `prerender.enabled`; static output
+      inspected as files AND served through Express; static-nonce flow
+      (`STATIC_PRE_RENDER_PATHS_MAP_NONCE`) aligned between HTML and header; no session-dependent
+      state captured in `/login` output.
+- [ ] `@tanstack/react-router-ssr-query` wired with per-request QueryClient; one suspense query
+      streams; 401/403 global callbacks untouched.
+- [ ] i18n: per-request i18next instance; translated view-source from the PRODUCTION build
+      output (proves the `copyI18nFiles()`/fs-backend path in the new layout, not just dev).
+- [ ] MUI v7 + Emotion (LTR) on an SSR page: no hydration mismatch, no FOUC at throttled 3G,
+      portals styled. (RTL stays out of SSR scope — authed-only feature; optional recipe in
+      Appendix E if that ever changes.)
+- [ ] `vite build` output shape documented (expected `dist/client` + `dist/server/server.js`)
+      for the deploy-script update in Phase 2.
 
 ---
 
-## Phase 3 — Hardening, docs, deploy (after flip merges)
+## Phase 2 — Atomic flip branch (short-lived; merge `develop` daily)
 
-### 3.1 — Smoke matrix (release blocker; run on a staging deploy)
+### 2.1 Dependencies + build scaffold
+Remove `react-router`, `react-router-dom`, `@react-router/{dev,express,node}`,
+`react-router-devtools` (plus `nuqs` once 2.7 lands). Add the pinned tuple. Vite config: replace
+`reactRouter()` + `reactRouterDevTools()` with `tanstackStart()`; **preserve** `copyI18nFiles()`,
+`generateClient()`, `checker()`, `devtoolsJson()`, `optimizeDeps` includes, and the production
+`ssr.noExternal` MUI list. Delete `react-router.config.ts`; prerender config per proof branch.
+Scripts: `build` → `vite build`; `type-check` drops `react-router typegen`.
+
+### 2.2 Typegen + tooling sweep (same commit-series as 2.1)
+Remove `.react-router/types` tsconfig roots; route the 36 `./+types` consumers to TanStack route
+API types (inventory first — root/layout/page/helper categories — no blind search-and-replace).
+oxlint/formatter: drop `.react-router` ignores, add `src/routeTree.gen.ts` (respect its generated
+headers). knip: update for removed/added deps and generated/virtual imports; run `just knip` only
+once the build output has its final shape.
+
+### 2.3 Virtual route config + root shell
+Translate all `_tree/*.routes.ts` to `src/routes.virtual.ts` (full tree; conditional marketing
+routes preserved). `src/routes/__root.tsx`: document shell (`<HeadContent />`, `<Scripts />`) +
+provider stack ported from `root.tsx` (Emotion/MUI theme + settings, i18n, toasts, nprogress,
+error shell per `docs/guides/error-views.md`); drop `NuqsAdapter`. `src/router.tsx`: per-request
+`createRouter` with `ssr: { nonce }` + context `{ queryClient, locale }`. **Port-then-delete**
+for entries: `entry.client.tsx`'s `requestIdleCallback` hydration delay + `NonceProvider`, and
+`entry.server.tsx`'s analytics-on-bad-request + i18n init move into the Start equivalents
+(custom client entry / server entry / `src/start.ts` global middleware) before the old files go.
+Own the server entry explicitly (also mitigates #7285). Authed layout route: `ssr: false`.
+
+### 2.4 Server-data façade + per-route conversion (marketing → auth → staff → tenant)
+Build `createPublyServerFn` / `withPublyServerContext` on the Phase 0d helpers (request, locale,
+zod, session/staff/tenant tokens, Kiota client, redirect/problem mapping) — authorization lives
+in the server function/middleware, not only route guards. Then per section: `loader` →
+`beforeLoad`/`loader`; `action`/`useFetcher` → server functions + Query mutations with explicit
+pending/error/result mapping; `clientLoader` → client-only loaders; `meta` (26 files) → `head`;
+`ErrorBoundary`/`useRouteError` → `errorComponent`/`notFoundComponent` mapped to `AppErrorView`
+wrappers. **Auth actions are the riskiest conversion** — login + accept-invitation Set-Cookie
+behavior, clear-session legacy-httpOnly POST, reset-password/verify-email fetcher semantics, and
+the auth layout's server-vs-client cookie mismatch detection must match Appendix D exactly.
+Delete `src/lib/react-router/*` when the last consumer converts.
+
+### 2.5 Hooks/links + search params
+Re-point `#app/lib/router` to `@tanstack/react-router`; fix typed `Link` fallout (`to` +
+`params` objects — nav menus and breadcrumbs are the churn centers). `useParams` (27 files) →
+typed route APIs. Re-implement `#app/lib/url-state` on `validateSearch` (zod) +
+`Route.useSearch()`; schemas live on the list routes; verify against the 0h deep-link snapshots;
+remove nuqs.
+
+### 2.6 Query + devtools
+`setupRouterSsrQueryIntegration({ router, queryClient })`, per-request QueryClient on the server;
+the ~525-line global handlers port unchanged. Swap to `@tanstack/react-router-devtools`.
+
+### 2.7 Express + deploy contract
+`server/app.ts`: RR handler → `toNodeHandler(startEntry.fetch)`; middleware order, helmet, nonce
+carrier, analytics, `/health` preserved; dev = Vite middleware mode. **Update `server.js`'s
+server-bundle import path and `scripts/deploy.mjs`'s copy list to the Start output shape** (from
+the proof branch findings); inspect the generated Docker context locally.
+
+### 2.8 Flip-branch verification (before requesting review)
+`just tsc-front` · `just check-write` · `just knip` · `pnpm --filter front build` ·
+`node apps/front/server.js` (prod boot incl. `/health`) · deploy-context inspection · route
+inventory diff vs 0h snapshot (zero missing/extra) · Playwright suite green · Phase 3 P0 rows
+manually.
+
+---
+
+## Phase 3 — Pre-merge verification matrix + post-merge cleanup
+
+### 3.1 Verification matrix (release blocker; staging deploy)
 
 | # | Check | How |
 |---|---|---|
-| P0-1 | `/` and `/login` prerendered + SSR'd with translated content | view-source, both locales |
-| P0-2 | Auth flows: login, signup, verify-email, reset-password, accept-invitation, logout | manual |
-| P0-3 | Session semantics: expired/invalid session on authed page → logout; 403 → error view, **no logout** | manual + devtools |
-| P0-4 | Staff + tenant surfaces: every list page (filters/sort/pagination deep links work, back/forward OK) | manual per list |
-| P0-5 | CSP: zero violations in console with enforced policy; nonce on all inline scripts | devtools + view-source |
-| P0-6 | Bot rendering: `curl -A Googlebot` gets full HTML for marketing pages | curl |
-| P0-7 | i18n: locale cookie flip changes SSR output; no key flash | view-source + throttled load |
+| P0-1 | `/` + `/login` prerendered + SSR'd, translated, no user/session state embedded | view-source, both locales; inspect static files |
+| P0-2 | Auth flows: login, signup, verify-email, reset-password, accept-invitation, logout, clear-session POST | Playwright + manual; cookie matrix (Appendix D) |
+| P0-3 | Invalid/expired session on authed page → logout; 403 → error view, **no logout**; auth-surface 401 → no global logout; tenant-suspended clears hint cookie | manual + devtools |
+| P0-4 | Every staff/tenant list page: filters/sort/pagination deep links, back/forward — diff vs 0h snapshots | Playwright + manual |
+| P0-5 | CSP enforced, zero console violations; nonce on all inline scripts (incl. query hydration + MUI color-scheme); policy byte-identical to `csp.ts` intent | devtools + view-source |
+| P0-6 | `curl -A Googlebot` returns full HTML for marketing pages | curl |
+| P0-7 | Locale cookie flip changes SSR output; no key flash | view-source + throttled |
 | P0-8 | RTL toggle in authed settings drawer | manual |
-| P1-1 | Meta/SEO: titles + descriptions per route match pre-migration snapshot (capture before flip) | scripted curl diff |
-| P1-2 | Error views: 404 route, thrown loader error, network failure → correct `AppErrorView` wrappers | manual |
-| P1-3 | Perf: Lighthouse on `/`, `/login`, one authed page — no regression > 10% vs pre-flip baseline (capture before flip) | Lighthouse CI or manual |
-| P1-4 | Tenant header flows: tenant switcher, suspended-tenant 403 handling clears hint cookie | manual |
+| P0-9 | `/health` 200 via the production server; Dokploy healthcheck passes on staging | curl + deploy |
+| P1-1 | Titles/meta match the 0h snapshot | scripted curl diff |
+| P1-2 | Error views: 404, thrown loader error, network failure → correct `AppErrorView` wrappers | manual |
+| P1-3 | Lighthouse + bundle/chunk vs 0h baselines — no startup regression > 10% unexplained | Lighthouse |
 
-### 3.2 — Docs updates (1 PR)
+### 3.2 Docs + dependency cleanup (post-merge PR)
+AGENTS.md frontend sections (React Router v7 → TanStack Start; state-management table nuqs row →
+router search params; `ClientOnly` wording → `ssr: false`); rewrite
+`docs/guides/frontend-architecture.md`, `frontend-route-file-organization.md` (now describes
+virtual-route conventions + `_parts`/`_components` exclusion), `error-views.md` (errorComponent
+map); grep sweep for `react-router` mentions across `docs/` (Appendix C-3). Confirm every
+removed dep is gone (`pnpm why` each); decide `isbot` (Start handles bots; analytics may still
+want it) and `i18next-fetch-backend` deliberately.
 
-- `AGENTS.md`: Frontend Architecture section (React Router v7 → TanStack Start), state-management
-  table (nuqs row → router search params), key-rules bullets (`getClientLoader` wrapper →
-  new convention, `ClientOnly` wording → `ssr: false`).
-- Rewrite/retitle: `docs/guides/frontend-architecture.md`,
-  `docs/guides/frontend-route-file-organization.md`, `docs/guides/frontend-route-query-preloading.md` (referenced by AGENTS.md but currently MISSING from the repo — either create it or fix the AGENTS.md reference),
-  `docs/guides/error-views.md` (ErrorBoundary placement map → errorComponent map).
-- Grep sweep for `react-router` mentions across `docs/` (Appendix C-3) and update or annotate.
-
-### 3.3 — Dependency removal + lockfile hygiene (part of 3.2 PR or separate)
-
-- Confirm Appendix A "remove" column fully gone (`pnpm why` each); `i18next-fetch-backend` and
-  `isbot` reviewed deliberately (isbot: Start handles bots internally, but analytics may still
-  want it — decide and record).
-
-### 3.4 — Deploy validation + rollback readiness
-
-- Dokploy: deploy flip build to the VPS; verify Traefik routing, healthchecks, env vars
-  (`AppEnvironment` untouched — frontend env reading unchanged unless server entry moved files).
-- **Rollback plan:** previous RR7 Docker image stays tagged; rollback = redeploy previous image
-  + `git revert` of the flip merge on `develop`. Test the redeploy path once before cutover.
-- Keep the flip PR revertible: no destructive data/infra changes ride along with it.
+### 3.3 Deploy + rollback
+Dokploy staging deploy → verification matrix → production. Keep the last RR7 image tagged and
+deployable; **rollback = redeploy previous image + revert the flip merge on `develop`** — test
+the redeploy path once before cutover. No backend/API/data/infra change rides with the flip.
 
 ---
 
-## Appendix A — Dependency delta
+## Appendix A — Dependency delta (pin exact versions at flip time)
 
-| Remove | Add |
+| Remove | Add (pinned) |
 |---|---|
-| `react-router`, `react-router-dom` | `@tanstack/react-router` (pinned) |
-| `@react-router/dev`, `@react-router/express`, `@react-router/node` | `@tanstack/react-start` (pinned) |
+| `react-router`, `react-router-dom` | `@tanstack/react-router` |
+| `@react-router/dev`, `@react-router/express`, `@react-router/node` | `@tanstack/react-start` |
 | `react-router-devtools` | `@tanstack/react-router-devtools` (dev) |
-| `remix-i18next` (already gone after 1c) | `@tanstack/react-router-ssr-query` |
-| `remix-utils` (already gone after 1d) | `srvx` (for `toNodeHandler`) |
-| `nuqs` | — (native `validateSearch`) |
-| `isbot` (decide in 3.3 — Start bundles bot handling) | — |
+| `remix-i18next` (gone after 0e) | `@tanstack/react-router-ssr-query` (requires Query ≥ 5.90 — see 0a) |
+| `remix-utils` (gone after 0f) | `@tanstack/virtual-file-routes` |
+| `nuqs` | `srvx` (Node fetch-handler adapter) |
+| `isbot` (decide in 3.2) | — |
 
-## Appendix B — API mapping (conversion reference)
+## Appendix B — API mapping
 
 | RR7 | TanStack Start | Mechanical? |
 |---|---|---|
-| `route()/index()/layout()` code config | file-route conventions + generated `routeTree.gen.ts` | After 1e: yes |
+| `routes.ts` + `_tree/*.routes.ts` code config | `src/routes.virtual.ts` (`rootRoute`/`route`/`index`/`layout` from `@tanstack/virtual-file-routes`) + generated `routeTree.gen.ts`; files stay in place, gain `createFileRoute()` exports | Yes (config); per-file export additions |
+| `:param` / `*` path syntax | `$param` / Start splat conventions | Mostly (splat needs care) |
 | `useParams()` | `Route.useParams()` / `useParams({ from })` | Mostly |
-| `useNavigate()` | `useNavigate()` (typed `to`/`params`) | Mostly |
-| `useLocation()` | `useLocation()` | Yes |
+| `useNavigate()` / `<Link to>` | typed `useNavigate()` / `<Link to params>` | Mostly (nav components) |
 | `useSearchParams` / nuqs | `validateSearch` (zod) + `Route.useSearch()` | No — schema design per route |
-| `<Link to={string}>` | `<Link to="/x/$id" params={{ id }}>` | Mostly (nav components need care) |
-| `Outlet` | `Outlet` | Yes |
-| `loader` (server) | `beforeLoad` + `loader` + `createServerFn` | No — per-route judgment |
+| `loader` (server) | `beforeLoad` + `loader` + `createServerFn` (authz in handler/middleware) | Per-route judgment |
 | `clientLoader` | `loader` under `ssr: false` | Mostly |
-| `action` + `useFetcher` | `createServerFn` + `useMutation` | Mostly |
-| `meta` export | `head` route option + `<HeadContent />` | Yes |
-| `ErrorBoundary` / `useRouteError` | `errorComponent` / `notFoundComponent` | Mostly |
-| `redirect()` | `redirect({ to, ... })` | Yes |
-| `entry.server.tsx` streaming + isbot + nonce | built-in (`ssr.nonce` for nonce) | Yes (delete code) |
-| `ClientOnly` (remix-utils) | route `ssr: false` / built-in `ClientOnly` | Yes |
-| `prerender` (react-router.config.ts) | plugin `prerender.pages` | Yes |
-| `react-router typegen` | plugin-generated route tree | Yes |
-| `NuqsAdapter` provider | — | Yes (delete) |
-| `AppLoadContext`/`getLoadContext` | router context + global middleware | Per-usage |
+| `action` + `useFetcher` | `createServerFn` + `useMutation` (explicit pending/result mapping); auth actions per Appendix D | Careful |
+| `meta` export | `head` option + `<HeadContent />` | Yes |
+| `ErrorBoundary`/`useRouteError` | `errorComponent`/`notFoundComponent` | Mostly |
+| `./+types/*` imports (36 files) | route API types (`Route.useLoaderData` etc.) | Inventoried, not global-replace |
+| `entry.server.tsx`/`entry.client.tsx` | server entry + `src/start.ts` middleware + optional client entry — **port requestIdleCallback delay, NonceProvider, analytics, i18n init first** | No — behavior port |
+| `ClientOnly` (remix-utils) | built-in `ClientOnly` / route `ssr: false` | Yes |
+| prerender (react-router.config.ts) | plugin `pages` + `prerender.enabled` (sibling options) | Yes |
+| `react-router typegen` | plugin-generated route tree | Yes (CI scripts too) |
+| `AppLoadContext` | router context + global middleware | Per-usage |
 
 ## Appendix C — Inventory commands (re-run at execution time)
 
 ```bash
-# C-1: files importing react-router (façade codemod scope)
+# C-1: files importing react-router (83 on 2026-06-12)
 rg -l "from 'react-router'" apps/front/src | wc -l
-
-# C-2: route inventory (run against RR config before/after reshaping & after flip)
-rg -o "route\(['\"][^'\"]*" apps/front/src/routes/_tree -g '*.routes.ts'  # pre-flip
-# post-flip: parse routeTree.gen.ts or `npx tsr routes` equivalent; diff the two lists
-
+# C-2: route inventory (pre-flip) — diff against generated routeTree.gen.ts post-flip
+rg -o "route\(['\"][^'\"]*|index\(|layout\(" apps/front/src/routes/_tree -g '*.routes.ts'
 # C-3: docs mentioning react-router
 rg -li 'react.router' docs/ AGENTS.md
-
-# C-4: nuqs call sites
+# C-4: nuqs imports (14 files on 2026-06-12)
 rg -l "from 'nuqs'" apps/front/src
-
 # C-5: wrapper-layer consumers
 rg -l "getServerLoader|getServerAction|getClientLoader" apps/front/src
+# C-6: generated-type consumers (36 files on 2026-06-12)
+rg -l "from ['\"]\./\+types" apps/front/src
 ```
+
+## Appendix D — Auth-cookie regression matrix (release blocker)
+
+| Flow | Must preserve |
+|---|---|
+| Login (`login-page.tsx` action) | `SESSION_TOKEN_COOKIE_KEY` Set-Cookie: value, secure, samesite, path, max-age/expiry; post-login redirect |
+| Accept invitation | same Set-Cookie semantics + redirect |
+| Clear-session (POST action route) | clears legacy httpOnly cookie variants; safe to call repeatedly |
+| Auth layout mismatch detection | server-visible vs client-visible cookie divergence still triggers the clear-session path |
+| Logout | cookie cleared + query cache reset + redirect |
+| Expired/invalid session (authed) | 401 → centralized logout |
+| Auth surface 401 | **no** global logout (per `error-views.md` invariant) |
+| 403 anywhere | **no** logout; tenant-suspended 403 clears tenant hint cookie |
+
+## Appendix E — Optional RTL/MUI streaming PoC (only if RTL ever reaches SSR surfaces)
+
+Scaffold a Start app with MUI v7 + Emotion 11 matching repo versions; add the RTL cache exactly
+as `right-to-left.tsx` (`createCache({ key: 'rtl', stylisPlugins: [rtlPlugin] })` +
+`CacheProvider`) behind a toggle; one `ssr: true` and one `ssr: false` route; throttled-network
+FOUC check, hydration-mismatch check, portal styling check, view-source style audit. Not needed
+while RTL remains an authed-only (client-only) feature.
 
 ## Out of scope
 
-- Backend/API changes (none required; Kiota client untouched)
-- RSC adoption (experimental in Start — explicitly excluded)
-- Marketing redesigns, route renames, or behavior changes of any kind (migration must be
-  behavior-preserving; anything else is a separate PR before or after)
+Backend/API changes (none required; Kiota client untouched) · RSC adoption (experimental) ·
+route renames, redesigns, or any behavior change (separate PRs) · CSP hardening beyond parity
+(today's policy, including `style-src 'unsafe-inline'`, is preserved as-is).
