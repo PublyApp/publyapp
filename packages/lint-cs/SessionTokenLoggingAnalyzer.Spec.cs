@@ -315,6 +315,118 @@ public sealed class SessionTokenLoggingAnalyzerSpec
 		Assert.False(descriptor.IsEnabledByDefault);
 	}
 
+	[Fact]
+	public async Task ItShouldReturnNoDiagnosticsWhenAnonymousObjectPropertyNameContainsSessionToken()
+	{
+		// Production pattern: anonymous object property NAMED HasSessionToken whose value is a
+		// boolean presence check. The property name is a syntactic label (NameEquals), not a value
+		// expression, and the value is a null-presence check — neither should trigger PUBLY0010.
+		const string source = """
+			using Microsoft.Extensions.Logging;
+
+			namespace Sample;
+
+			public sealed class AuthContext
+			{
+				public string? SessionToken { get; set; }
+				public int? UserId { get; set; }
+			}
+
+			public sealed class Example
+			{
+				public void Run(ILogger logger, AuthContext authContext)
+				{
+					logger.LogError("{@Ctx}", new {
+						UserId = authContext.UserId,
+						HasSessionToken = authContext.SessionToken is not null
+					});
+				}
+			}
+			""";
+
+		await VerifyEnabledAsync(source);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnNoDiagnosticsWhenSessionTokenIsNullPresenceCheckArgument()
+	{
+		// Logging a bool derived from a null-check on a session-token identifier or member is safe;
+		// the token value itself never flows to the logger.
+		const string source = """
+			using Microsoft.Extensions.Logging;
+
+			namespace Sample;
+
+			public sealed class AuthContext
+			{
+				public string? SessionToken { get; set; }
+			}
+
+			public sealed class Example
+			{
+				public void Run(ILogger logger, string? sessionToken, AuthContext authContext)
+				{
+					logger.LogInformation("has token: {Has}", sessionToken is not null);
+					logger.LogInformation("is null: {IsNull}", sessionToken is null);
+					logger.LogInformation("neq null: {Has}", sessionToken != null);
+					logger.LogInformation("member: {Has}", authContext.SessionToken is not null);
+				}
+			}
+			""";
+
+		await VerifyEnabledAsync(source);
+	}
+
+	[Fact]
+	public async Task ItShouldReportDiagnosticWhenSessionTokenValueFlowsThroughTernaryToLogger()
+	{
+		// The condition occurrence (sessionToken is not null) is exempt, but the whenTrue branch
+		// passes the token value itself — the diagnostic must still fire for that occurrence.
+		const string source = """
+			using Microsoft.Extensions.Logging;
+
+			namespace Sample;
+
+			public sealed class Example
+			{
+				public void Run(ILogger logger, string? sessionToken)
+				{
+					logger.LogError("token={Token}", {|#0:sessionToken is not null ? sessionToken : "none"|});
+				}
+			}
+			""";
+
+		await VerifyEnabledAsync(
+			source,
+			ExpectedAt(0, "sessionToken is not null ? sessionToken : \"none\""));
+	}
+
+	[Fact]
+	public async Task ItShouldReportDiagnosticWhenSessionTokenMemberIsPassedDirectlyAsLogArgument()
+	{
+		// Regression guard: direct session.SessionToken passed as a log argument must still flag.
+		const string source = """
+			using Microsoft.Extensions.Logging;
+
+			namespace Sample;
+
+			public sealed class Session
+			{
+				public string SessionToken { get; set; } = string.Empty;
+			}
+
+			public sealed class Example
+			{
+				public void Run(ILogger logger, Session session)
+				{
+					logger.LogWarning("tok={T}", {|#0:session.SessionToken|});
+				}
+			}
+			""";
+
+		await VerifyEnabledAsync(source, ExpectedAt(0, "session.SessionToken"));
+	}
+
 	private static DiagnosticResult ExpectedAt(int marker, string matchedText)
 	{
 		return Verifier

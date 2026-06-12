@@ -165,6 +165,9 @@ Each rule has an ID, descriptor in `DiagnosticCatalog.cs`, and is referenced in 
 - **Spec:** `packages/lint-cs/SessionTokenLoggingAnalyzer.Spec.cs`
 - **AGENTS.md:** "Never log secrets: do not log `X-Session-Token` (or any session token value) in any log level."
 - **Strategy:** CONSERVATIVE security regression guard (0 offenders, ships enforced). Fires only on a logging call (`Log*`/`BeginScope` on an `*logger*`-shaped receiver) whose arguments reference the `SessionToken` identifier/member vocabulary or the literal `X-Session-Token` header name. Does NOT fire on generic terms like `token`, `Authorization`, or `csrf`.
+- **Exemptions:**
+  - **Anonymous-object property names:** the `NameEquals` label in `new { HasSessionToken = expr }` is a syntactic label, not a value expression — it is skipped. Only the value side is examined.
+  - **Null-presence checks:** an occurrence of a session-token identifier or member used solely as the operand of a null check (`M is null`, `M is not null`, `M == null`, `M != null`, `null == M`, `null != M`) yields a `bool`, not the token value, and is exempt. The exemption is per-occurrence: a ternary like `sessionToken is not null ? sessionToken : "none"` is still flagged because the `sessionToken` in the whenTrue branch flows the value to the logger.
 
 ## How to add a new rule
 
