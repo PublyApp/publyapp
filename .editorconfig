@@ -105,6 +105,7 @@ dotnet_diagnostic.PUBLY0005.severity = warning   # Replace inline FluentValidati
 dotnet_diagnostic.PUBLY0006.severity = warning   # Cache request DTO getters to a local
 dotnet_diagnostic.PUBLY0007.severity = warning   # Require *ForStaff service variants in staff handlers
 dotnet_diagnostic.PUBLY0008.severity = warning   # Prefer is null / is not null
+dotnet_diagnostic.PUBLY0009.severity = warning   # Disallow TypedResults.Forbid() — use TypedProblems.* (RFC 7807)
 dotnet_diagnostic.SYSLIB1045.severity = warning # Use [GeneratedRegex]
 dotnet_diagnostic.xUnit1042.severity = warning  # MemberData should return TheoryData<...> for type safety
 dotnet_diagnostic.xUnit1045.severity = warning  # TheoryData type argument must be serializable
