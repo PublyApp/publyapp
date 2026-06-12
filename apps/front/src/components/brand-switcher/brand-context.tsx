@@ -1,5 +1,5 @@
 import { useLocalStorage } from 'minimal-shared/hooks';
-import { createContext, useCallback, useContext, useMemo } from 'react';
+import { createContext, use, useCallback, useMemo } from 'react';
 
 import type { BrandContextValue, BrandItem } from './types';
 
@@ -58,7 +58,7 @@ export function BrandProvider({ children, data }: BrandProviderProps) {
 // ----------------------------------------------------------------------
 
 export function useBrand(): BrandContextValue {
-	const context = useContext(BrandContext);
+	const context = use(BrandContext);
 
 	if (!context) {
 		throw new Error('useBrand must be used within a BrandProvider');
