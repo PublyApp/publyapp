@@ -12,6 +12,10 @@
  *   and class declarations are all left un-flagged.
  * - `invalid`: PascalCase function declarations that return JSX are flagged,
  *   including context providers and JSX-fragment-returning layouts.
+ * - Ternary / logical JSX returns are caught (finding #1).
+ * - Null-only hook-calling PascalCase components are caught (finding #2).
+ * - memo/forwardRef-wrapped function expressions are caught (finding #3).
+ * - Anonymous default-exported function components are caught (finding #3).
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
@@ -85,6 +89,37 @@ const runCases = (rule, label) => {
 					code: 'function SideEffect() { console.log("hello"); }',
 					filename: 'apps/front/src/utils/side-effects.ts',
 				},
+				// PascalCase function returning null only, no hooks — NOT flagged
+				// (indistinguishable from a utility function without file-path heuristics)
+				{
+					code: 'function Placeholder() { return null; }',
+					filename: 'apps/front/src/utils/placeholder.ts',
+				},
+				// Arrow-form component inside memo — valid (already arrow)
+				{
+					code: 'const Foo = memo(() => <div />);',
+					filename: 'apps/front/src/components/foo.tsx',
+				},
+				// Arrow-form component inside forwardRef — valid
+				{
+					code: 'const Input = forwardRef((props, ref) => <input ref={ref} {...props} />);',
+					filename: 'apps/front/src/components/input.tsx',
+				},
+				// Arrow-form inside React.memo — valid
+				{
+					code: 'const Foo = React.memo(() => <div />);',
+					filename: 'apps/front/src/components/foo.tsx',
+				},
+				// Ternary JSX return in arrow function — valid
+				{
+					code: 'const Badge = ({ count }) => count > 0 ? <span>{count}</span> : null;',
+					filename: 'apps/front/src/components/badge.tsx',
+				},
+				// PascalCase function with null-only return AND no hooks — NOT flagged
+				{
+					code: 'function EmptyState() { const x = 1; return null; }',
+					filename: 'apps/front/src/utils/empty.ts',
+				},
 			],
 			invalid: [
 				// Basic function declaration component
@@ -117,11 +152,80 @@ const runCases = (rule, label) => {
 					filename: 'apps/front/src/components/nav-item.tsx',
 					errors: [{ messageId: 'useArrowFunction' }],
 				},
-				// Component with conditional JSX return
+				// Component with conditional JSX return (non-JSX guard + JSX return)
 				{
 					code: 'export function ProgressBar({ value }) { if (value < 0) { return null; } return <div style={{ width: value + "%" }} />; }',
 					filename: 'apps/front/src/components/progress-bar.tsx',
 					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Finding #1: ternary JSX return — `return ok ? <Foo /> : null`
+				{
+					code: 'function Badge({ count }) { return count > 0 ? <span>{count}</span> : null; }',
+					filename: 'apps/front/src/components/badge.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+				// Finding #1: logical-and JSX return — `return flag && <Foo />`
+				{
+					code: 'function Overlay({ visible }) { return visible && <div className="overlay" />; }',
+					filename: 'apps/front/src/components/overlay.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+				// Finding #1: nullish-coalescing JSX return — `return value ?? <Fallback />`
+				{
+					code: 'function MaybeContent({ node }) { return node ?? <Fallback />; }',
+					filename: 'apps/front/src/components/maybe-content.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Finding #2: null-only component that calls a hook
+				{
+					code: 'function ProgressBar({ value }) { const x = useRef(null); return null; }',
+					filename: 'apps/front/src/components/progress-bar.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+				// Finding #2: null-only with useEffect hook
+				{
+					code: 'function SyncEffect({ id }) { useEffect(() => { sync(id); }, [id]); return null; }',
+					filename: 'apps/front/src/components/sync-effect.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Finding #3: memo(function Foo() {...}) — named function expression
+				{
+					code: 'const Foo = memo(function Foo() { return <div />; });',
+					filename: 'apps/front/src/components/foo.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+				// Finding #3: memo(function() {...}) — anonymous function expression
+				{
+					code: 'const Bar = memo(function() { return <span />; });',
+					filename: 'apps/front/src/components/bar.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+				// Finding #3: forwardRef(function Input() {...})
+				{
+					code: 'const Input = forwardRef(function Input(props, ref) { return <input ref={ref} />; });',
+					filename: 'apps/front/src/components/input.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+				// Finding #3: React.memo(function Foo() {...})
+				{
+					code: 'const Foo = React.memo(function Foo() { return <div />; });',
+					filename: 'apps/front/src/components/foo.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+				// Finding #3: React.forwardRef(function() {...})
+				{
+					code: 'const Input = React.forwardRef(function(props, ref) { return <input ref={ref} />; });',
+					filename: 'apps/front/src/components/input.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+				// Finding #3: anonymous export default function
+				{
+					code: 'export default function() { return <div />; }',
+					filename: 'apps/front/src/routes/page.tsx',
+					errors: [{ messageId: 'useArrowFunctionAnonymous' }],
 				},
 			],
 		});
