@@ -180,6 +180,16 @@ Each rule has an ID, descriptor in `DiagnosticCatalog.cs`, and is referenced in 
 - **Shipped in:** #599
 - **Enforced in:** #604
 
+### `PUBLY0009` — Avoid TypedResults.Forbid()
+
+- **Severity in `.editorconfig`:** `warning` (enforced)
+- **Source:** `packages/lint-cs/TypedResultsForbidAnalyzer.cs`
+- **Spec:** `packages/lint-cs/TypedResultsForbidAnalyzer.Spec.cs`
+- **AGENTS.md:** "All errors use `TypedProblems.*` (RFC 7807), never `TypedResults.Forbid()`."
+- **Strategy:** syntactic name-based match on the `TypedResults` receiver + `Forbid` member (bare `TypedResults.Forbid()` and fully-qualified `Microsoft.AspNetCore.Http.TypedResults.Forbid()`); reported at the `Forbid` name; generated code skipped. 0-offender regression guard ships enforced.
+- **Shipped in:** #649
+- **Enforced in:** #649
+
 ### `PUBLY0010` — never log session-token values
 
 - **Severity in `.editorconfig`:** `warning` (enforced)
