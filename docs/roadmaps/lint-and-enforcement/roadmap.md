@@ -181,9 +181,11 @@ Keep `oxfmt` unchanged — it stays the formatter; policy checks live in Oxlint.
 | **NET.7** | `PUBLY0006` — cache request DTO getter results in locals when called 2+ times or returning parsing-sensitive values. | ✓ shipped + enforced |
 | **NET.8** | `PUBLY0007` — staff handlers must call `*ForStaff*` service method variants. | ✓ shipped + enforced |
 | **NET.9** | `PUBLY0008` — prefer `is null` / `is not null` pattern checks over `== null` / `!= null` (expression-tree contexts exempted). | ✓ shipped + enforced |
-| **NET.10** | Layout rules (`PUBLY01xx`) after framework is stable; prefer built-in `IDE2000`/`IDE0055` where reliable. | planned |
+| **NET.10** | `PUBLY0009` — forbid `TypedResults.Forbid()`; require `TypedProblems.*` (RFC 7807). | ✓ shipped + enforced |
+| **NET.11** | `PUBLY0010` — never log session-token values (`X-Session-Token` / `SessionToken`). | ✓ shipped + enforced |
+| **NET.12** | Layout rules (`PUBLY01xx`) after framework is stable; prefer built-in `IDE2000`/`IDE0055` where reliable. | planned |
 
-> All eight PUBLY rules (PUBLY0001–PUBLY0008) are enforced via `.editorconfig`
+> All shipped PUBLY rules (currently PUBLY0001–PUBLY0010) are enforced via `.editorconfig`
 > (`dotnet_diagnostic.PUBLYxxxx.severity = warning`) combined with
 > `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` in `Directory.Build.props`.
 > Rule details, sources, and spec locations: `docs/guides/lint-rules.md`.
