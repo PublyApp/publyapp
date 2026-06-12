@@ -78,8 +78,8 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 - **AGENTS.md:** "No `Array.reduce()` — use `find`, `filter+map`, `for...of`, or `Object.groupBy`."
 - **Autofix:** no
 - **Note:** flags both `.reduce(...)` and `.reduceRight(...)` on any receiver; `unicorn/no-array-reduce` already covers the base case — this rule adds `reduceRight` and the repo-specific guidance message.
-- **Shipped in:** #TBD
-- **Enforced in:** #TBD (0 offenders at ship time → enforced immediately)
+- **Shipped in:** #650
+- **Enforced in:** #650 (0 offenders at ship time → enforced immediately)
 
 ### `publy/no-manual-response-message-translation`
 
