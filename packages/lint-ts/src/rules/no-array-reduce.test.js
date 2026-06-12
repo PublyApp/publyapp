@@ -94,6 +94,16 @@ const runCases = (rule, label) => {
 					filename: 'file.ts',
 					errors: [{ messageId: 'noReduce' }],
 				},
+				// Optional-chaining — `arr?.reduce(...)` is still flagged.
+				{
+					code: 'const sum = arr?.reduce((acc, x) => acc + x, 0);',
+					errors: [{ messageId: 'noReduce' }],
+				},
+				// Optional-chaining reduceRight — also flagged.
+				{
+					code: 'const result = items?.reduceRight((acc, x) => [...acc, x], []);',
+					errors: [{ messageId: 'noReduce' }],
+				},
 			],
 		});
 	});
