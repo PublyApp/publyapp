@@ -35,12 +35,4 @@
 		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all" />
 	</ItemGroup>
 
-	<ItemGroup>
-		<!-- The RS2008 release-tracking analyzer (part of Microsoft.CodeAnalysis.Analyzers) requires
-		     these files to be declared as AdditionalFiles so it can validate that every diagnostic
-		     descriptor is listed before being shipped. -->
-		<AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
-		<AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
-	</ItemGroup>
-
 </Project>
