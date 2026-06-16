@@ -4461,7 +4461,7 @@ export interface ProfileItem extends AdditionalDataHolder, Parsable {
     permissions?: string[] | null;
 }
 /**
- * Result for reactivating a tenant user.
+ * HTTP wire result for the reactivate tenant-user operation; top-level sibling per thehandler file contract, with no Dto suffix on wire types.
  */
 export interface ReactivateTenantUserResult extends AdditionalDataHolder, Parsable {
     /**
@@ -6876,7 +6876,7 @@ export type SuspendTenantAsStaffBody_reason = JsonElement | SuspendTenantAsStaff
 export interface SuspendTenantAsStaffBody_reasonMember1 extends AdditionalDataHolder, Parsable {
 }
 /**
- * Result for suspending a tenant user.
+ * HTTP wire result for the suspend tenant-user operation; top-level sibling per thehandler file contract, with no Dto suffix on wire types.
  */
 export interface SuspendTenantUserResult extends AdditionalDataHolder, Parsable {
     /**
