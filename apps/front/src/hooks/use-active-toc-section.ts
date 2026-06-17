@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // ----------------------------------------------------------------------
 
@@ -30,6 +30,7 @@ export const useActiveTocSection = ({
 	rootMargin = '-20% 0px -70% 0px',
 }: UseActiveTocSectionOptions): string | null => {
 	const [activeId, setActiveId] = useState<string | null>(null);
+	const previousActiveRef = useRef<string | null>(null);
 
 	useEffect(() => {
 		if (typeof window === 'undefined') {
@@ -42,12 +43,32 @@ export const useActiveTocSection = ({
 
 		const observer = new IntersectionObserver(
 			(entries) => {
-				const visible = entries.filter((entry) => {
-					return entry.isIntersecting;
+				const visibleSections = [] as Array<{
+					id: string;
+					boundingTop: number;
+				}>;
+
+				for (const entry of entries) {
+					if (!entry.isIntersecting) {
+						continue;
+					}
+
+					visibleSections.push({
+						id: entry.target.id,
+						boundingTop: entry.boundingClientRect.top,
+					});
+				}
+
+				visibleSections.sort((a, b) => {
+					return Math.abs(a.boundingTop) - Math.abs(b.boundingTop);
 				});
 
-				if (visible.length > 0) {
-					setActiveId(visible[0].target.id);
+				const nextActiveId =
+					visibleSections.length > 0 ? visibleSections[0].id : null;
+
+				if (nextActiveId !== previousActiveRef.current) {
+					previousActiveRef.current = nextActiveId;
+					setActiveId(nextActiveId);
 				}
 			},
 			{ rootMargin, threshold: 0 },
@@ -66,9 +87,14 @@ export const useActiveTocSection = ({
 		}
 
 		return () => {
-			return observer.disconnect();
+			for (const el of elements) {
+				observer.unobserve(el);
+			}
+			observer.disconnect();
 		};
 	}, [ids, rootMargin]);
 
-	return activeId;
+	return ids.length === 0 || (activeId !== null && !ids.includes(activeId))
+		? null
+		: activeId;
 };

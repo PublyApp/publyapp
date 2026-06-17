@@ -1,7 +1,7 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useDropzone } from 'react-dropzone';
 
 import { Iconify } from '../iconify/iconify';
@@ -38,15 +38,27 @@ export const UploadAvatar = ({
 
 	const hasError = isDragReject || !!error;
 
-	const [preview, setPreview] = useState('');
+	const preview = useMemo(() => {
+		if (typeof value === 'string') {
+			return value;
+		}
+
+		if (value instanceof File) {
+			return URL.createObjectURL(value);
+		}
+
+		return '';
+	}, [value]);
 
 	useEffect(() => {
-		if (typeof value === 'string') {
-			setPreview(value);
-		} else if (value instanceof File) {
-			setPreview(URL.createObjectURL(value));
+		if (!(value instanceof File)) {
+			return;
 		}
-	}, [value]);
+
+		return () => {
+			URL.revokeObjectURL(preview);
+		};
+	}, [preview, value]);
 
 	const renderPreview = () => {
 		return (

@@ -371,14 +371,22 @@ const useTenantProfileFormDrawerController = ({
 
 	const assignedPermissionKeysValue =
 		assignedPermissionsQuery.data?.permissionKeys ?? EMPTY_PERMISSION_KEYS;
-
-	const [selectedPermissionKeys, setSelectedPermissionKeys] = useState<
-		string[]
-	>(() => {
-		return isEditMode ? assignedPermissionKeysValue : [];
+	const permissionSelectionScope = isEditMode ? profileId : 'create';
+	const [selectedPermissionState, setSelectedPermissionState] = useState<{
+		scope: string;
+		keys: string[];
+	}>({
+		scope: 'create',
+		keys: [],
 	});
+	let selectedPermissionKeys = EMPTY_PERMISSION_KEYS;
+	if (selectedPermissionState.scope === permissionSelectionScope) {
+		selectedPermissionKeys = selectedPermissionState.keys;
+	} else if (isEditMode) {
+		selectedPermissionKeys = assignedPermissionKeysValue;
+	}
 	const selectedPermissionKeysRef = useRef<string[]>(selectedPermissionKeys);
-	const hydratedProfileIdRef = useRef<string>('');
+	selectedPermissionKeysRef.current = selectedPermissionKeys;
 	const pendingPermissionKeysRef = useRef<Record<string, boolean>>({});
 	const [pendingPermissionKeys, setPendingPermissionKeys] = useState<
 		Record<string, boolean>
@@ -395,38 +403,6 @@ const useTenantProfileFormDrawerController = ({
 			onBusyChange(false);
 		};
 	}, [isBusy, onBusyChange]);
-
-	useEffect(() => {
-		selectedPermissionKeysRef.current = selectedPermissionKeys;
-	}, [selectedPermissionKeys]);
-
-	useEffect(() => {
-		if (!isEditMode) {
-			hydratedProfileIdRef.current = '';
-			setSelectedPermissionKeys([]);
-			selectedPermissionKeysRef.current = [];
-			return;
-		}
-
-		if (assignedPermissionsQuery.isPending) {
-			return;
-		}
-
-		if (hydratedProfileIdRef.current === profileId) {
-			return;
-		}
-
-		// Hydrate the toggles once per loaded profile. Without this guard, background refetches
-		// would overwrite in-progress edits inside the open drawer.
-		setSelectedPermissionKeys(assignedPermissionKeysValue);
-		selectedPermissionKeysRef.current = assignedPermissionKeysValue;
-		hydratedProfileIdRef.current = profileId;
-	}, [
-		assignedPermissionKeysValue,
-		assignedPermissionsQuery.isPending,
-		isEditMode,
-		profileId,
-	]);
 
 	const handleRequestClose = () => {
 		if (!isBusy) {
@@ -448,7 +424,10 @@ const useTenantProfileFormDrawerController = ({
 			: [...previousSelection, permissionKey];
 
 		selectedPermissionKeysRef.current = nextSelection;
-		setSelectedPermissionKeys(nextSelection);
+		setSelectedPermissionState({
+			scope: permissionSelectionScope,
+			keys: nextSelection,
+		});
 
 		if (!isEditMode || profileId.length === 0) {
 			return;
@@ -493,7 +472,10 @@ const useTenantProfileFormDrawerController = ({
 			}
 		} catch (error) {
 			selectedPermissionKeysRef.current = previousSelection;
-			setSelectedPermissionKeys(previousSelection);
+			setSelectedPermissionState({
+				scope: permissionSelectionScope,
+				keys: previousSelection,
+			});
 			queryClient.setQueryData(queryKey, previousPermissionsQueryData);
 			toast.error(
 				getFailureMessage(toApiFailure(error), {

@@ -6,7 +6,6 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
 import capitalize from 'lodash/capitalize';
-import isEqual from 'lodash/isEqual';
 import map from 'lodash/map';
 import {
 	createMRTColumnHelper,
@@ -202,10 +201,9 @@ const StaffInvitationsTable = () => {
 	const [filterStates, setFilterStates] = useQueryStates({
 		status: parseAsString.withDefault(''),
 	});
-	// Mirror the URL-backed filter so onChange handlers can write through optimistically
-	// without waiting for the next render.
-	const [statusFilter, setStatusFilter] = useState<KnownInvitationStatus[]>(
+	const statusFilter = useMemo<KnownInvitationStatus[]>(
 		() => parseStatusFilter(filterStates.status),
+		[filterStates.status],
 	);
 	const [selectionActionAnchorEl, setSelectionActionAnchorEl] =
 		useState<null | HTMLElement>(null);
@@ -223,28 +221,18 @@ const StaffInvitationsTable = () => {
 		defaultSorting,
 		defaultPageSize: DEFAULT_PAGE_SIZE,
 		paginationMode: 'cursor',
+		cursorGenerationKey: statusFilter.join(','),
 	});
 
 	const normalizedStatusFilter = useMemo(
-		() => parseStatusFilter(filterStates.status).join(','),
-		[filterStates.status],
+		() => statusFilter.join(','),
+		[statusFilter],
 	);
-
-	// Browser back/forward replays the URL filter without a click handler, so
-	// the cursor must be reset here too — a stale cursor paired with a different
-	// filter set produces phantom pages from the API.
-	useEffect(() => {
-		const nextStatusFilter = parseStatusFilter(filterStates.status);
-		if (!isEqual(nextStatusFilter, statusFilter)) {
-			setStatusFilter(nextStatusFilter);
-			resetCursorPagination?.();
-		}
-	}, [filterStates.status, statusFilter, resetCursorPagination]);
 
 	// Rewrite the URL when the raw value contains unknown/malformed tokens so
 	// the API query, the UI checkbox state, and the URL all agree. Triggered
 	// only on mismatch, so user-driven updates via handleStatusChange (which
-	// already writes a normalized list) do not loop back through this effect.
+	// already writes the normalized value) do not loop.
 	useEffect(() => {
 		if (filterStates.status !== normalizedStatusFilter) {
 			void setFilterStates({ status: normalizedStatusFilter });
@@ -377,9 +365,7 @@ const StaffInvitationsTable = () => {
 		selectedOptions: InvitationStatusOption[],
 	) => {
 		const nextStatusFilter = selectedOptions.map((option) => option.value);
-		// Filters invalidate cursor history, so reset to the first page.
 		resetCursorPagination?.();
-		setStatusFilter(nextStatusFilter);
 		void setFilterStates({ status: nextStatusFilter.join(',') });
 	};
 

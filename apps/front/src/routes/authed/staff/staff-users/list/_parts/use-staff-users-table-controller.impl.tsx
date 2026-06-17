@@ -9,7 +9,6 @@ import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import { useQueryClient } from '@tanstack/react-query';
 import capitalize from 'lodash/capitalize';
-import isEqual from 'lodash/isEqual';
 import map from 'lodash/map';
 import toStr from 'lodash/toString';
 import trim from 'lodash/trim';
@@ -26,7 +25,6 @@ import {
 	type ChangeEvent,
 	type SyntheticEvent,
 	useCallback,
-	useEffect,
 	useId,
 	useMemo,
 	useRef,
@@ -131,11 +129,9 @@ export const useStaffUsersTableController = () => {
 		q: parseAsString.withDefault(''),
 		status: parseAsString.withDefault(''),
 	});
-	const [statusFilter, setStatusFilter] = useState<StaffUserStatusFilter[]>(
-		() => {
-			return parseStatusFilter(filterStates.status);
-		},
-	);
+	const statusFilter = useMemo(() => {
+		return parseStatusFilter(filterStates.status);
+	}, [filterStates.status]);
 
 	const {
 		handlePaginationChange,
@@ -149,16 +145,8 @@ export const useStaffUsersTableController = () => {
 		defaultSorting,
 		defaultPageSize: DEFAULT_PAGE_SIZE,
 		paginationMode: 'cursor',
+		cursorGenerationKey: statusFilter.join(','),
 	});
-
-	useEffect(() => {
-		const nextStatusFilter = parseStatusFilter(filterStates.status);
-
-		if (!isEqual(nextStatusFilter, statusFilter)) {
-			setStatusFilter(nextStatusFilter);
-			resetCursorPagination?.();
-		}
-	}, [filterStates.status, statusFilter, resetCursorPagination]);
 
 	const staffUsersQuery = useFindStaffUser({
 		variables: {
@@ -283,9 +271,7 @@ export const useStaffUsersTableController = () => {
 		selectedOptions: StaffUserStatusFilter[],
 	) => {
 		const nextStatusFilter = selectedOptions;
-
 		resetCursorPagination?.();
-		setStatusFilter(nextStatusFilter);
 		void setFilterStates({
 			q: searchValue,
 			status: nextStatusFilter.join(','),
@@ -320,23 +306,6 @@ export const useStaffUsersTableController = () => {
 			clearSelection();
 		},
 	});
-
-	useEffect(() => {
-		if (selectedCount > 0 || !bulkActionDialog.open) {
-			return;
-		}
-
-		setBulkActionDialog((currentDialogState) => {
-			if (!currentDialogState.open) {
-				return currentDialogState;
-			}
-
-			return {
-				...currentDialogState,
-				open: false,
-			};
-		});
-	}, [bulkActionDialog.open, selectedCount]);
 
 	const handleCursorPaginationChange: typeof handlePaginationChange =
 		useCallback(

@@ -11,7 +11,6 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import { useQueryClient } from '@tanstack/react-query';
 import capitalize from 'lodash/capitalize';
-import isEqual from 'lodash/isEqual';
 import map from 'lodash/map';
 import toString from 'lodash/toString';
 import {
@@ -114,8 +113,9 @@ const TenantInvitationsTable = () => {
 		status: parseAsString.withDefault(''),
 	});
 
-	const [statusFilter, setStatusFilter] = useState<KnownInvitationStatus[]>(
+	const statusFilter = useMemo<KnownInvitationStatus[]>(
 		() => parseStatusFilter(filterStates.status),
+		[filterStates.status],
 	);
 	const [selectionActionAnchorEl, setSelectionActionAnchorEl] =
 		useState<null | HTMLElement>(null);
@@ -135,6 +135,7 @@ const TenantInvitationsTable = () => {
 		defaultSorting,
 		defaultPageSize: DEFAULT_PAGE_SIZE,
 		paginationMode: 'cursor',
+		cursorGenerationKey: statusFilter.join(','),
 	});
 
 	const handleDebouncedSearchChange = useCallback(
@@ -152,14 +153,6 @@ const TenantInvitationsTable = () => {
 		onDebouncedValueChange: handleDebouncedSearchChange,
 	});
 
-	useEffect(() => {
-		const nextStatusFilter = parseStatusFilter(filterStates.status);
-		if (!isEqual(nextStatusFilter, statusFilter)) {
-			setStatusFilter(nextStatusFilter);
-			resetCursorPagination?.();
-		}
-	}, [filterStates.status, statusFilter, resetCursorPagination]);
-
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setSearchValue(e.target.value);
 	};
@@ -170,7 +163,6 @@ const TenantInvitationsTable = () => {
 	) => {
 		const nextStatusFilter = selectedOptions.map((option) => option.value);
 		resetCursorPagination?.();
-		setStatusFilter(nextStatusFilter);
 		void setFilterStates({
 			q: searchValue,
 			status: nextStatusFilter.join(','),

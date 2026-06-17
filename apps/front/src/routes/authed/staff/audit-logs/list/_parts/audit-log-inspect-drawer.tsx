@@ -4,7 +4,7 @@ import Link from '@mui/material/Link';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import capitalize from 'lodash/capitalize';
-import { useEffect, useState } from 'react';
+import { useRef } from 'react';
 
 import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
@@ -34,14 +34,12 @@ export const AuditLogInspectDrawer = () => {
 	// transition. Without this, the query key flips to an empty id when
 	// `inspectedLogId` clears, abandoning the cached payload and flashing
 	// the LoadingSlot for the ~225ms slide-out.
-	const [stickyLogId, setStickyLogId] = useState<string | null>(null);
-	useEffect(() => {
-		if (inspectedLogId) {
-			setStickyLogId(inspectedLogId);
-		}
-	}, [inspectedLogId]);
+	const stickyLogIdRef = useRef<string | null>(null);
+	if (inspectedLogId) {
+		stickyLogIdRef.current = inspectedLogId;
+	}
 
-	const queryLogId = inspectedLogId ?? stickyLogId ?? '';
+	const queryLogId = inspectedLogId ?? stickyLogIdRef.current ?? '';
 	const auditLogQuery = useGetStaffAuditLog({
 		variables: { logId: queryLogId },
 		enabled: !!queryLogId,

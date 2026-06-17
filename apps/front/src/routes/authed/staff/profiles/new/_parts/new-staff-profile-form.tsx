@@ -26,7 +26,7 @@ import lodashMap from 'lodash/map';
 import startCase from 'lodash/startCase';
 import { useBoolean } from 'minimal-shared/hooks';
 import { isExternalLink } from 'minimal-shared/utils';
-import { type RefObject, useCallback, useEffect, useMemo, useRef } from 'react';
+import { type RefObject, useCallback, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type zod from 'zod';
 
@@ -769,22 +769,35 @@ const CustomNavList = ({
 	const sectionId = data.path.replace('#', '');
 	const isActive = activeSection === sectionId;
 
-	const { value: open, onFalse: onClose, onToggle } = useBoolean(isActive);
-
-	useEffect(() => {
-		if (!isActive) {
-			onClose();
-		}
-	}, [isActive, onClose]);
+	const [openState, setOpenState] = useState<{
+		sectionId: string;
+		value: boolean;
+	}>({
+		sectionId,
+		value: isActive,
+	});
+	const open =
+		isActive || (openState.sectionId === sectionId ? openState.value : false);
 
 	const handleNavItemClick = useCallback(() => {
 		if (data.children) {
-			onToggle();
+			setOpenState((previousOpenState) => {
+				const isCurrentlyOpen =
+					isActive ||
+					(previousOpenState.sectionId === sectionId
+						? previousOpenState.value
+						: false);
+
+				return {
+					sectionId,
+					value: !isCurrentlyOpen,
+				};
+			});
 		} else if (onSectionClick && data.path.startsWith('#')) {
 			// Handle scroll to section
 			onSectionClick(sectionId);
 		}
-	}, [data.children, data.path, onSectionClick, onToggle, sectionId]);
+	}, [data.children, data.path, isActive, onSectionClick, sectionId]);
 
 	// Hidden item by role
 	if (

@@ -6,22 +6,24 @@ import allIcons from './icon-sets';
 // ----------------------------------------------------------------------
 
 export const iconSets: IconifyJSON[] = [];
+const iconSetByPrefix = new Map<string, IconifyJSON>();
 
 for (const [key, value] of Object.entries(allIcons)) {
 	const [prefix, iconName] = key.split(':');
-	const existingPrefix = iconSets.find((item) => {
-		return item.prefix === prefix;
-	});
+	const existingPrefix = iconSetByPrefix.get(prefix);
 
 	if (existingPrefix) {
 		existingPrefix.icons[iconName] = value;
 	} else {
-		iconSets.push({
+		const iconSet = {
 			prefix,
 			icons: {
 				[iconName]: value,
 			},
-		});
+		};
+
+		iconSets.push(iconSet);
+		iconSetByPrefix.set(prefix, iconSet);
 	}
 }
 

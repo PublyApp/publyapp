@@ -40,23 +40,32 @@ export const useScrollspy = ({
 
 		const observer = new IntersectionObserver((entries) => {
 			// Find the section that is most visible
-			const visibleSections = entries
-				.filter((entry) => entry.isIntersecting)
-				.map((entry) => {
-					return {
-						id: entry.target.id,
-						intersectionRatio: entry.intersectionRatio,
-						boundingTop: entry.boundingClientRect.top,
-					};
-				})
-				.sort((a, b) => {
-					// Prefer sections with higher intersection ratio
-					if (Math.abs(a.intersectionRatio - b.intersectionRatio) > 0.1) {
-						return b.intersectionRatio - a.intersectionRatio;
-					}
-					// If ratios are similar, prefer the one closer to the top
-					return Math.abs(a.boundingTop) - Math.abs(b.boundingTop);
+			const visibleSections = [] as Array<{
+				id: string;
+				intersectionRatio: number;
+				boundingTop: number;
+			}>;
+
+			for (const entry of entries) {
+				if (!entry.isIntersecting) {
+					continue;
+				}
+
+				visibleSections.push({
+					id: entry.target.id,
+					intersectionRatio: entry.intersectionRatio,
+					boundingTop: entry.boundingClientRect.top,
 				});
+			}
+
+			visibleSections.sort((a, b) => {
+				// Prefer sections with higher intersection ratio
+				if (Math.abs(a.intersectionRatio - b.intersectionRatio) > 0.1) {
+					return b.intersectionRatio - a.intersectionRatio;
+				}
+				// If ratios are similar, prefer the one closer to the top
+				return Math.abs(a.boundingTop) - Math.abs(b.boundingTop);
+			});
 
 			const newActiveSection =
 				visibleSections.length > 0 ? visibleSections[0].id : null;

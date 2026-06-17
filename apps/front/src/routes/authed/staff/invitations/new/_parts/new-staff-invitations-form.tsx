@@ -258,7 +258,10 @@ const InvitationCard = ({
 
 	// Keep labels stable: once we learn a profile name for an ID, keep using it even if the
 	// current search result page doesn't include that item anymore.
-	const profileNameByIdRef = useRef(new Map<string, string>());
+	const profileNameByIdRef = useRef<Map<string, string> | null>(null);
+	if (profileNameByIdRef.current === null) {
+		profileNameByIdRef.current = new Map<string, string>();
+	}
 	const profileNameById = profileNameByIdRef.current;
 	useEffect(() => {
 		const profiles = profilesQuery.data?.data ?? [];

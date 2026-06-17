@@ -26,6 +26,7 @@ export type UseTableStateOptions = {
 	defaultSorting?: MRT_SortingState[number];
 	defaultPageSize?: number;
 	paginationMode?: 'offset' | 'cursor';
+	cursorGenerationKey?: string;
 };
 
 export type UseTableStateReturn = {
@@ -94,6 +95,7 @@ export const useTableState = (
 		defaultSorting,
 		defaultPageSize = DEFAULT_PAGE_SIZE,
 		paginationMode = 'offset',
+		cursorGenerationKey = '',
 	} = options;
 	const queryKeys = merge({}, defaultTableQueryKeys, options.queryKeys || {});
 
@@ -137,6 +139,7 @@ export const useTableState = (
 		forSortId: string;
 		forSortOrder: string;
 		forPageSize: string;
+		forCursorGenerationKey: string;
 		history: string[];
 		current: string | null;
 		pageIndex: number;
@@ -146,6 +149,7 @@ export const useTableState = (
 		forSortId: sortId,
 		forSortOrder: sortOrder,
 		forPageSize: pageSize,
+		forCursorGenerationKey: cursorGenerationKey,
 		history: [],
 		current: null,
 		pageIndex: 0,
@@ -154,7 +158,8 @@ export const useTableState = (
 	const isCursorStateFresh =
 		cursorState.forSortId === sortId &&
 		cursorState.forSortOrder === sortOrder &&
-		cursorState.forPageSize === pageSize;
+		cursorState.forPageSize === pageSize &&
+		cursorState.forCursorGenerationKey === cursorGenerationKey;
 
 	const currentCursor = isCursorStateFresh ? cursorState.current : null;
 	const virtualPageIndex = isCursorStateFresh ? cursorState.pageIndex : 0;
@@ -184,6 +189,7 @@ export const useTableState = (
 		forSortId: string;
 		forSortOrder: string;
 		forPageSize: string;
+		forCursorGenerationKey: string;
 	};
 
 	// Mirror of the current render's sort/pageSize params, written on every render so the
@@ -192,8 +198,14 @@ export const useTableState = (
 		sortId: string;
 		sortOrder: string;
 		pageSize: string;
-	}>({ sortId, sortOrder, pageSize });
-	latestParamsRef.current = { sortId, sortOrder, pageSize };
+		cursorGenerationKey: string;
+	}>({ sortId, sortOrder, pageSize, cursorGenerationKey });
+	latestParamsRef.current = {
+		sortId,
+		sortOrder,
+		pageSize,
+		cursorGenerationKey,
+	};
 
 	const nextCursorRef = useRef<StampedCursor | undefined>(undefined);
 
@@ -204,12 +216,14 @@ export const useTableState = (
 			sortId: sid,
 			sortOrder: so,
 			pageSize: ps,
+			cursorGenerationKey: cgk,
 		} = latestParamsRef.current;
 		nextCursorRef.current = {
 			cursor,
 			forSortId: sid,
 			forSortOrder: so,
 			forPageSize: ps,
+			forCursorGenerationKey: cgk,
 		};
 	}, []);
 
@@ -222,12 +236,20 @@ export const useTableState = (
 			forSortId: sortId,
 			forSortOrder: sortOrder,
 			forPageSize: pageSize,
+			forCursorGenerationKey: cursorGenerationKey,
 			history: [],
 			current: null,
 			pageIndex: 0,
 		});
 		setNextCursor(undefined);
-	}, [paginationMode, setNextCursor, sortId, sortOrder, pageSize]);
+	}, [
+		paginationMode,
+		setNextCursor,
+		sortId,
+		sortOrder,
+		pageSize,
+		cursorGenerationKey,
+	]);
 
 	// Sorting change handler
 	const handleSortingChange = useCallback<OnChangeFn<MRT_SortingState>>(
@@ -292,7 +314,8 @@ export const useTableState = (
 					stampedNext !== undefined &&
 					stampedNext.forSortId === sortId &&
 					stampedNext.forSortOrder === sortOrder &&
-					stampedNext.forPageSize === pageSize;
+					stampedNext.forPageSize === pageSize &&
+					stampedNext.forCursorGenerationKey === cursorGenerationKey;
 				const currentNextCursor = isNextCursorFresh
 					? stampedNext.cursor
 					: undefined;
@@ -300,6 +323,7 @@ export const useTableState = (
 					forSortId: sortId,
 					forSortOrder: sortOrder,
 					forPageSize: pageSize,
+					forCursorGenerationKey: cursorGenerationKey,
 				};
 				if (newPageIndex > currentPageIndex) {
 					// Going forward
@@ -311,7 +335,8 @@ export const useTableState = (
 							const isStale =
 								prev.forSortId !== sortId ||
 								prev.forSortOrder !== sortOrder ||
-								prev.forPageSize !== pageSize;
+								prev.forPageSize !== pageSize ||
+								prev.forCursorGenerationKey !== cursorGenerationKey;
 							if (isStale) {
 								// currentNextCursor is already validated as belonging to the current
 								// generation (the isNextCursorFresh check above). Advancing into the
@@ -345,7 +370,8 @@ export const useTableState = (
 						const isStale =
 							prev.forSortId !== sortId ||
 							prev.forSortOrder !== sortOrder ||
-							prev.forPageSize !== pageSize;
+							prev.forPageSize !== pageSize ||
+							prev.forCursorGenerationKey !== cursorGenerationKey;
 						if (isStale || prev.history.length === 0) {
 							return { ...baseState, history: [], current: null, pageIndex: 0 };
 						}
@@ -403,6 +429,7 @@ export const useTableState = (
 			sortId,
 			sortOrder,
 			pageSize,
+			cursorGenerationKey,
 		],
 	);
 

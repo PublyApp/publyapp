@@ -104,20 +104,30 @@ export const Editor = ({
 
 	useEffect(() => {
 		const timer = setTimeout(() => {
-			if (editor?.isEmpty && content !== '<p></p>') {
-				editor.commands.setContent(content);
+			if (!editor) {
+				return;
 			}
+
+			const normalizedContent = content || '<p></p>';
+			const currentContent = editor.getHTML();
+
+			if (currentContent === normalizedContent) {
+				return;
+			}
+
+			if (!content) {
+				if (resetValue || currentContent !== '<p></p>') {
+					editor.commands.clearContent();
+				}
+				return;
+			}
+
+			editor.commands.setContent(content);
 		}, 100);
 
 		return () => {
 			return clearTimeout(timer);
 		};
-	}, [content, editor]);
-
-	useEffect(() => {
-		if (resetValue && !content) {
-			editor?.commands.clearContent();
-		}
 	}, [content, editor, resetValue]);
 
 	useEffect(() => {

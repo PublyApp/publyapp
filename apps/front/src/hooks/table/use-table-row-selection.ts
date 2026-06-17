@@ -1,5 +1,5 @@
 import isEqual from 'lodash/isEqual';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { type SetStateAction, useCallback, useMemo, useState } from 'react';
 
 export type TableRowSelection = Record<string, boolean>;
 
@@ -34,38 +34,40 @@ export const useTableRowSelection = <TRow extends RowWithId>({
 	reconcileVisibleRows = false,
 	reconcileVisibleRowsEnabled = true,
 }: UseTableRowSelectionArgs<TRow>) => {
-	const [rowSelection, setRowSelection] = useState<TableRowSelection>({});
-	const reconciledRowSelection = useMemo(() => {
+	const [rawRowSelection, setRawRowSelection] = useState<TableRowSelection>({});
+	const rowSelection = useMemo(() => {
 		if (!reconcileVisibleRows || !reconcileVisibleRowsEnabled) {
-			return rowSelection;
+			return rawRowSelection;
 		}
 
-		return reconcileVisibleRowSelection(rowSelection, rows);
-	}, [reconcileVisibleRows, reconcileVisibleRowsEnabled, rowSelection, rows]);
-
-	useEffect(() => {
-		if (
-			!reconcileVisibleRows ||
-			!reconcileVisibleRowsEnabled ||
-			isEqual(reconciledRowSelection, rowSelection)
-		) {
-			return;
-		}
-
-		// This intentionally writes state from an effect because selection is an
-		// external MRT state bucket. After data mutations/refetches, selected row ids
-		// that are no longer visible must be pruned before bulk actions can use them.
-		setRowSelection(reconciledRowSelection);
+		return reconcileVisibleRowSelection(rawRowSelection, rows);
 	}, [
 		reconcileVisibleRows,
 		reconcileVisibleRowsEnabled,
-		reconciledRowSelection,
-		rowSelection,
+		rawRowSelection,
+		rows,
 	]);
+	const setRowSelection = useCallback(
+		(updater: SetStateAction<TableRowSelection>) => {
+			setRawRowSelection((previousRawRowSelection) => {
+				const baseRowSelection =
+					reconcileVisibleRows && reconcileVisibleRowsEnabled
+						? reconcileVisibleRowSelection(previousRawRowSelection, rows)
+						: previousRawRowSelection;
+				const nextRowSelection =
+					typeof updater === 'function' ? updater(baseRowSelection) : updater;
+
+				return isEqual(nextRowSelection, baseRowSelection)
+					? previousRawRowSelection
+					: nextRowSelection;
+			});
+		},
+		[reconcileVisibleRows, reconcileVisibleRowsEnabled, rows],
+	);
 
 	const selectedRows = useMemo(() => {
-		return rows.filter((row) => reconciledRowSelection[row.id]);
-	}, [reconciledRowSelection, rows]);
+		return rows.filter((row) => rowSelection[row.id]);
+	}, [rowSelection, rows]);
 	const selectedCount = selectedRows.length;
 	const isSelectionMode = selectedCount > 0;
 	const clearSelection = useCallback(() => {
@@ -73,7 +75,7 @@ export const useTableRowSelection = <TRow extends RowWithId>({
 	}, []);
 
 	return {
-		rowSelection: reconciledRowSelection,
+		rowSelection,
 		setRowSelection,
 		selectedRows,
 		selectedCount,

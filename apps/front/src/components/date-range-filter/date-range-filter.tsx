@@ -4,7 +4,7 @@ import IconButton from '@mui/material/IconButton';
 import Popover from '@mui/material/Popover';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
-import { useEffect, useId, useState, type MouseEvent } from 'react';
+import { useId, useState, type MouseEvent } from 'react';
 
 import { Iconify } from '#app/components/iconify/iconify.tsx';
 import { useTranslate } from '#app/hooks/use-translate.ts';
@@ -54,12 +54,6 @@ export const DateRangeFilter = ({
 		setDraft(value);
 		setAnchorEl(event.currentTarget);
 	};
-
-	useEffect(() => {
-		if (open) {
-			setDraft(value);
-		}
-	}, [open, value, value.from, value.to]);
 
 	const handleClose = () => {
 		setAnchorEl(null);

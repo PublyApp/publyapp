@@ -43,7 +43,10 @@ const StaffUsersTable = () => {
 			/>
 
 			<StaffUsersBulkActionDialogs
-				dialogState={bulkActionDialog}
+				dialogState={{
+					...bulkActionDialog,
+					open: bulkActionDialog.open && selectedCount > 0,
+				}}
 				selectedCount={selectedCount}
 				isBulkSuspending={isBulkSuspending}
 				isBulkReactivating={isBulkReactivating}

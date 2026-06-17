@@ -4,7 +4,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { inputBaseClasses } from '@mui/material/InputBase';
 import type { TextFieldProps } from '@mui/material/TextField';
 import TextField from '@mui/material/TextField';
-import { startTransition, useCallback, useEffect, useState } from 'react';
+import { startTransition, useCallback, useState } from 'react';
 import { parsePhoneNumber } from 'react-phone-number-input';
 import type { Country, Value } from 'react-phone-number-input/input';
 import PhoneNumberInput from 'react-phone-number-input/input';
@@ -32,7 +32,8 @@ export function PhoneInput({
 	const defaultCountryCode = getCountryCode(value, inputCountryCode);
 
 	const [searchCountry, setSearchCountry] = useState('');
-	const [selectedCountry, setSelectedCountry] = useState(defaultCountryCode);
+	const [selectedCountry, setSelectedCountry] = useState<Country | undefined>();
+	const countryCode = selectedCountry ?? defaultCountryCode;
 
 	// const hasLabel = !!label;
 
@@ -41,12 +42,6 @@ export function PhoneInput({
 	const handleClear = useCallback(() => {
 		onChange('' as Value);
 	}, [onChange]);
-
-	useEffect(() => {
-		if (!selectedCountry) {
-			setSelectedCountry(defaultCountryCode);
-		}
-	}, [defaultCountryCode, selectedCountry]);
 
 	const handleClickCountry = (inputValue: Country) => {
 		startTransition(() => {
@@ -79,7 +74,7 @@ export function PhoneInput({
 				<CountryListPopover
 					countries={countries}
 					searchCountry={searchCountry}
-					countryCode={selectedCountry}
+					countryCode={countryCode}
 					onClickCountry={handleClickCountry}
 					onSearchCountry={handleSearchCountry}
 					sx={{
@@ -99,7 +94,7 @@ export function PhoneInput({
 				variant={variant}
 				onChange={onChange}
 				hiddenLabel={!label}
-				country={selectedCountry}
+				country={countryCode}
 				inputComponent={CustomInput}
 				placeholder={placeholder ?? 'Enter phone number'}
 				slotProps={{

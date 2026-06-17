@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router';
+import { useMemo } from 'react';
+import { Navigate } from 'react-router';
 
 import {
 	FRONT_PATH_NAMES,
@@ -32,13 +32,11 @@ const RedirectHandler = ({
 		hasSuspendedTenants?: boolean | null;
 	};
 }) => {
-	const navigate = useNavigate();
 	const redirectCode = data.redirectCode;
 	const hasSuspendedTenants = data.hasSuspendedTenants ?? false;
 
-	// Two render-in-place cases. Anything else triggers a navigation in the
-	// useEffect below. We can't navigate during render, so the effect handles
-	// the actual location change after first paint.
+	// Two render-in-place cases. Anything else redirects with a declarative
+	// Navigate instead of triggering navigation from an effect after paint.
 	const showTenantPicker = redirectCode === REDIRECT_CODE.TENANT_PICKER;
 	// `!redirectCode` covers the "API returned data but no code" edge — same
 	// outcome as explicit UNAUTHORIZED: the user is signed in but has no scope
@@ -46,27 +44,6 @@ const RedirectHandler = ({
 	// navigate to /unauthorized which has been deleted in PR #398.
 	const showNoAccess =
 		!redirectCode || redirectCode === REDIRECT_CODE.UNAUTHORIZED;
-
-	useEffect(() => {
-		if (showTenantPicker || showNoAccess) return;
-
-		if (redirectCode === REDIRECT_CODE.STAFF) {
-			void navigate(FRONT_PATH_NAMES.staff.root, { replace: true });
-		} else {
-			// redirectCode is a tenant ID
-			let path = FRONT_PATH_NAMES.tenant(redirectCode).root;
-			if (hasSuspendedTenants) {
-				path += `?${queryParamKey.notice}=${queryParamValue.notice.org_suspended}`;
-			}
-			void navigate(path, { replace: true });
-		}
-	}, [
-		redirectCode,
-		navigate,
-		showTenantPicker,
-		showNoAccess,
-		hasSuspendedTenants,
-	]);
 
 	if (showTenantPicker) {
 		return <TenantPickerView />;
@@ -76,7 +53,16 @@ const RedirectHandler = ({
 		return <View403 withLayout={false} />;
 	}
 
-	return <SplashScreen />;
+	if (redirectCode === REDIRECT_CODE.STAFF) {
+		return <Navigate replace to={FRONT_PATH_NAMES.staff.root} />;
+	}
+
+	let path = FRONT_PATH_NAMES.tenant(redirectCode).root;
+	if (hasSuspendedTenants) {
+		path += `?${queryParamKey.notice}=${queryParamValue.notice.org_suspended}`;
+	}
+
+	return <Navigate replace to={path} />;
 };
 
 const TenantPortalPage = () => {

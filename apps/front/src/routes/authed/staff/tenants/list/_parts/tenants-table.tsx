@@ -21,7 +21,6 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
 import capitalize from 'lodash/capitalize';
-import isEqual from 'lodash/isEqual';
 import map from 'lodash/map';
 import toLower from 'lodash/toLower';
 import lodashToString from 'lodash/toString';
@@ -40,7 +39,6 @@ import { parseAsString, useQueryStates } from 'nuqs';
 import {
 	type Ref,
 	useCallback,
-	useEffect,
 	useId,
 	useImperativeHandle,
 	useMemo,
@@ -155,10 +153,9 @@ const useTenantsTableController = () => {
 		q: parseAsString.withDefault(''),
 		status: parseAsString.withDefault(''),
 	});
-
-	const [statusFilter, setStatusFilter] = useState<string[]>(() =>
-		parseStatusFilter(filterStates.status),
-	);
+	const statusFilter = useMemo(() => {
+		return parseStatusFilter(filterStates.status);
+	}, [filterStates.status]);
 
 	// Use the custom table state hook for cursor pagination
 	const {
@@ -173,6 +170,7 @@ const useTenantsTableController = () => {
 		defaultSorting,
 		defaultPageSize: DEFAULT_PAGE_SIZE,
 		paginationMode: 'cursor',
+		cursorGenerationKey: statusFilter.join(','),
 	});
 
 	const handleDebouncedSearchChange = useCallback(
@@ -190,17 +188,6 @@ const useTenantsTableController = () => {
 		onDebouncedValueChange: handleDebouncedSearchChange,
 	});
 
-	// Browser back/forward replays the URL filter without a click handler, so
-	// the cursor must be reset here too — a stale cursor paired with a different
-	// filter set produces phantom pages from the API.
-	useEffect(() => {
-		const nextStatusFilter = parseStatusFilter(filterStates.status);
-		if (!isEqual(nextStatusFilter, statusFilter)) {
-			setStatusFilter(nextStatusFilter);
-			resetCursorPagination?.();
-		}
-	}, [filterStates.status, statusFilter, resetCursorPagination]);
-
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setSearchValue(e.target.value);
 	};
@@ -212,7 +199,6 @@ const useTenantsTableController = () => {
 	) => {
 		const nextStatusFilter = map(selectedOptions, (option) => option.value);
 		resetCursorPagination?.();
-		setStatusFilter(nextStatusFilter);
 		void setFilterStates({
 			q: searchValue,
 			status: nextStatusFilter.join(','),

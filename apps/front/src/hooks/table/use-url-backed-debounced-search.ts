@@ -1,7 +1,5 @@
-import { useDebounce } from 'minimal-shared/hooks';
-import { useEffect, useRef, useState } from 'react';
-
-import { getSelectionLockedSearchAction } from '#app/lib/mrt-table/selection-locked-search.ts';
+import debounce from 'lodash/debounce';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 type UseUrlBackedDebouncedSearchArgs = {
 	persistedValue: string;
@@ -10,83 +8,76 @@ type UseUrlBackedDebouncedSearchArgs = {
 	onDebouncedValueChange: (value: string) => void;
 };
 
+type SearchDraftState = {
+	basePersistedValue: string;
+	value: string;
+};
+
 export const useUrlBackedDebouncedSearch = ({
 	persistedValue,
 	isSelectionMode = false,
 	debounceMs = 300,
 	onDebouncedValueChange,
 }: UseUrlBackedDebouncedSearchArgs) => {
-	const [searchValue, setSearchValue] = useState(persistedValue);
-	const debouncedValue = useDebounce(searchValue, debounceMs);
-	const isCancellingSelectionLockedSearchRef = useRef(false);
+	const [draftState, setDraftState] = useState<SearchDraftState>({
+		basePersistedValue: persistedValue,
+		value: persistedValue,
+	});
+	const onDebouncedValueChangeRef = useRef(onDebouncedValueChange);
 
 	useEffect(() => {
+		onDebouncedValueChangeRef.current = onDebouncedValueChange;
+	}, [onDebouncedValueChange]);
+
+	const debouncedCommit = useMemo(() => {
+		const commit = debounce((nextValue: string) => {
+			onDebouncedValueChangeRef.current(nextValue);
+		}, debounceMs);
+
 		if (isSelectionMode) {
-			return;
+			commit.cancel();
 		}
 
-		// This is an external-store sync, not derived-state mirroring. The URL query
-		// is the committed server filter, while searchValue is the immediate input
-		// draft. Keep the draft aligned when navigation/back-forward or a reset changes
-		// the URL outside this input. Do not depend on searchValue here: typing is
-		// allowed to diverge locally until the debounce commits back to the URL.
-		setSearchValue((currentValue) => {
-			return currentValue === persistedValue ? currentValue : persistedValue;
-		});
-	}, [isSelectionMode, persistedValue]);
+		return commit;
+	}, [debounceMs, isSelectionMode]);
 
 	useEffect(() => {
-		if (!isSelectionMode) {
-			return;
-		}
-
-		isCancellingSelectionLockedSearchRef.current = true;
-
-		// Bulk-selection mode freezes search so selected row ids cannot silently drift
-		// under a new query. Snap the draft back to the committed URL value and wait for
-		// the pending debounce cycle to settle before accepting future search changes.
-		setSearchValue((currentValue) => {
-			return currentValue === persistedValue ? currentValue : persistedValue;
-		});
-	}, [isSelectionMode, persistedValue]);
+		return () => {
+			debouncedCommit.cancel();
+		};
+	}, [debouncedCommit]);
 
 	useEffect(() => {
-		const searchAction = getSelectionLockedSearchAction({
-			isSelectionMode,
-			isCancellingSelectionLockedSearch:
-				isCancellingSelectionLockedSearchRef.current,
-			searchValue,
-			debouncedValue,
-			persistedValue,
+		debouncedCommit.cancel();
+	}, [debouncedCommit, persistedValue]);
+
+	const searchValue =
+		isSelectionMode || draftState.basePersistedValue !== persistedValue
+			? persistedValue
+			: draftState.value;
+
+	const handleSearchValueChange = (nextValue: string) => {
+		setDraftState({
+			basePersistedValue: persistedValue,
+			value: nextValue,
 		});
 
-		if (searchAction === 'wait' || searchAction === 'none') {
+		if (isSelectionMode) {
+			debouncedCommit.cancel();
 			return;
 		}
 
-		if (
-			searchAction === 'clear-cancel' ||
-			searchAction === 'clear-cancel-and-apply'
-		) {
-			isCancellingSelectionLockedSearchRef.current = false;
-
-			if (searchAction === 'clear-cancel') {
-				return;
-			}
+		if (nextValue === persistedValue) {
+			debouncedCommit.cancel();
+			return;
 		}
 
-		onDebouncedValueChange(debouncedValue);
-	}, [
-		debouncedValue,
-		isSelectionMode,
-		onDebouncedValueChange,
-		persistedValue,
-		searchValue,
-	]);
+		debouncedCommit(nextValue);
+	};
 
 	return {
 		searchValue,
-		setSearchValue,
-		debouncedValue,
+		setSearchValue: handleSearchValueChange,
+		debouncedValue: searchValue,
 	};
 };
