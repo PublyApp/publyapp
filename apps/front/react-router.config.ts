@@ -11,4 +11,7 @@ export default {
 
 	// specific paths
 	prerender: PRE_RENDER_PATHS as unknown as string[],
+	future: {
+		v8_splitRouteModules: true,
+	},
 } satisfies Config;
