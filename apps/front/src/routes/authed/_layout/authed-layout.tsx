@@ -45,7 +45,7 @@ import { useMainStore } from '#app/lib/zustand/store.ts';
 import type { Route } from './+types/authed-layout';
 
 export const clientLoader = getClientLoader({
-	loader: async (_args: Route.ClientLoaderArgs) => {
+	loader: async ({ url }) => {
 		i18next
 			.loadNamespaces([I18N_NAMESPACES.ZOD, I18N_NAMESPACES.RESPONSE_MESSAGE])
 			.catch((error) => {
@@ -82,7 +82,7 @@ export const clientLoader = getClientLoader({
 		// Prefer cookie prefixes when available (s:/t:), but fall back to GetRedirectCode for
 		// legacy cookies (raw token) to avoid redirect loops.
 		const { staffToken, tenantToken } = getSessionTokensFromClient();
-		const pathname = new URL(_args.request.url).pathname;
+		const pathname = url.pathname;
 		const isStaffPath = pathname.startsWith(FRONT_PATH_NAMES.staff.root);
 		const isTenantPath = pathname.startsWith(FRONT_PATH_NAMES.tenant().root);
 

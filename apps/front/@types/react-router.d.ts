@@ -1,10 +1,7 @@
-import type { IAnalytics } from '@org/shared-ts/lib/analytics/analytics.types';
-import type { ILogger } from '@org/shared-ts/lib/logger/logger.types';
+import type {} from 'react-router';
 
 declare module 'react-router' {
-	interface AppLoadContext {
-		logger: ILogger;
-		analytics: IAnalytics;
-		nonce: string;
+	interface Future {
+		v8_middleware: true;
 	}
 }

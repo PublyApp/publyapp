@@ -11,4 +11,11 @@ export default {
 
 	// specific paths
 	prerender: PRE_RENDER_PATHS as unknown as string[],
+	future: {
+		v8_splitRouteModules: true,
+		v8_viteEnvironmentApi: true,
+		v8_middleware: true,
+		v8_passThroughRequests: true,
+		v8_trailingSlashAwareDataRequests: true,
+	},
 } satisfies Config;

@@ -4,13 +4,13 @@ import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 
 import type { Route } from './+types/tenant-details-fallback-tab-page';
 
-export const clientLoader = (args: Route.ClientLoaderArgs) => {
-	const url = new URL(args.request.url);
-	url.pathname = FRONT_PATH_NAMES.staff.tenants.details(
-		args.params.tenantId,
+export const clientLoader = ({ params, url }: Route.ClientLoaderArgs) => {
+	const nextUrl = new URL(url);
+	nextUrl.pathname = FRONT_PATH_NAMES.staff.tenants.details(
+		params.tenantId,
 	).tabs.general;
 
-	return redirect(url.toString());
+	return redirect(nextUrl.toString());
 };
 
 const TenantDetailsFallbackTabPage = () => {

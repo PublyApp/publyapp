@@ -2,8 +2,8 @@ import * as cookie from 'cookie';
 import get from 'lodash/get';
 import {
 	type ActionFunctionArgs,
-	type AppLoadContext,
 	type LoaderFunctionArgs,
+	type RouterContextProvider,
 	redirect,
 } from 'react-router';
 
@@ -19,9 +19,11 @@ import { parseSessionCookie } from '../cookies/session-cookie.utils';
 import { remixI18NextServer } from '../i18n/i18n.server';
 import { getRequestLocale } from './data.utils';
 
+type ServerRouteContext = Readonly<RouterContextProvider>;
+
 type GetServerLoaderParamsWhenRequireUser<
-	T extends LoaderFunctionArgs<AppLoadContext> =
-		LoaderFunctionArgs<AppLoadContext>,
+	T extends LoaderFunctionArgs<ServerRouteContext> =
+		LoaderFunctionArgs<ServerRouteContext>,
 	D = unknown,
 > = {
 	requireUser: true;
@@ -40,8 +42,8 @@ type GetServerLoaderParamsWhenRequireUser<
 };
 
 type GetServerLoaderParamsWithoutAuthDataPromise<
-	T extends LoaderFunctionArgs<AppLoadContext> =
-		LoaderFunctionArgs<AppLoadContext>,
+	T extends LoaderFunctionArgs<ServerRouteContext> =
+		LoaderFunctionArgs<ServerRouteContext>,
 	D = unknown,
 > = {
 	requireUser?: false | undefined;
@@ -61,8 +63,8 @@ type GetServerLoaderParamsWithoutAuthDataPromise<
 };
 
 type GetServerLoaderParamsWithAuthDataPromise<
-	T extends LoaderFunctionArgs<AppLoadContext> =
-		LoaderFunctionArgs<AppLoadContext>,
+	T extends LoaderFunctionArgs<ServerRouteContext> =
+		LoaderFunctionArgs<ServerRouteContext>,
 	D = unknown,
 > = {
 	requireUser?: false | undefined;
@@ -83,22 +85,22 @@ type GetServerLoaderParamsWithAuthDataPromise<
 
 type GetServerLoader = {
 	<
-		T extends LoaderFunctionArgs<AppLoadContext> =
-			LoaderFunctionArgs<AppLoadContext>,
+		T extends LoaderFunctionArgs<ServerRouteContext> =
+			LoaderFunctionArgs<ServerRouteContext>,
 		D = unknown,
 	>(
 		params: GetServerLoaderParamsWhenRequireUser<T, D>,
 	): (args: T) => Promise<D>;
 	<
-		T extends LoaderFunctionArgs<AppLoadContext> =
-			LoaderFunctionArgs<AppLoadContext>,
+		T extends LoaderFunctionArgs<ServerRouteContext> =
+			LoaderFunctionArgs<ServerRouteContext>,
 		D = unknown,
 	>(
 		params: GetServerLoaderParamsWithoutAuthDataPromise<T, D>,
 	): (args: T) => Promise<D>;
 	<
-		T extends LoaderFunctionArgs<AppLoadContext> =
-			LoaderFunctionArgs<AppLoadContext>,
+		T extends LoaderFunctionArgs<ServerRouteContext> =
+			LoaderFunctionArgs<ServerRouteContext>,
 		D = unknown,
 	>(
 		params: GetServerLoaderParamsWithAuthDataPromise<T, D>,
@@ -106,8 +108,8 @@ type GetServerLoader = {
 };
 
 type GetServerLoaderParams<
-	T extends LoaderFunctionArgs<AppLoadContext> =
-		LoaderFunctionArgs<AppLoadContext>,
+	T extends LoaderFunctionArgs<ServerRouteContext> =
+		LoaderFunctionArgs<ServerRouteContext>,
 	D = unknown,
 > =
 	| GetServerLoaderParamsWhenRequireUser<T, D>
@@ -115,14 +117,14 @@ type GetServerLoaderParams<
 	| GetServerLoaderParamsWithAuthDataPromise<T, D>;
 
 export const getServerLoader: GetServerLoader = <
-	T extends LoaderFunctionArgs<AppLoadContext> =
-		LoaderFunctionArgs<AppLoadContext>,
+	T extends LoaderFunctionArgs<ServerRouteContext> =
+		LoaderFunctionArgs<ServerRouteContext>,
 	D = unknown,
 >(
 	params: GetServerLoaderParams<T, D>,
 ) => {
 	const loader = async (args: T) => {
-		const locale = getRequestLocale(args.request);
+		const locale = getRequestLocale(args.request, args.url);
 		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
 
 		if (isPromise(z.t)) {
@@ -202,15 +204,15 @@ type GetServerActionParamsWhenWhenUserNotRequired<
 
 type GetServerAction = {
 	<
-		T extends ActionFunctionArgs<AppLoadContext> =
-			ActionFunctionArgs<AppLoadContext>,
+		T extends ActionFunctionArgs<ServerRouteContext> =
+			ActionFunctionArgs<ServerRouteContext>,
 		D = unknown,
 	>(
 		params: GetServerActionParamsWhenRequireUser<T, D>,
 	): (args: T) => Promise<D>;
 	<
-		T extends ActionFunctionArgs<AppLoadContext> =
-			ActionFunctionArgs<AppLoadContext>,
+		T extends ActionFunctionArgs<ServerRouteContext> =
+			ActionFunctionArgs<ServerRouteContext>,
 		D = unknown,
 	>(
 		params: GetServerActionParamsWhenWhenUserNotRequired<T, D>,
@@ -218,22 +220,22 @@ type GetServerAction = {
 };
 
 type GetServerActionParams<
-	T extends ActionFunctionArgs<AppLoadContext> =
-		ActionFunctionArgs<AppLoadContext>,
+	T extends ActionFunctionArgs<ServerRouteContext> =
+		ActionFunctionArgs<ServerRouteContext>,
 	D = unknown,
 > =
 	| GetServerActionParamsWhenRequireUser<T, D>
 	| GetServerActionParamsWhenWhenUserNotRequired<T, D>;
 
 export const getServerAction: GetServerAction = <
-	T extends ActionFunctionArgs<AppLoadContext> =
-		ActionFunctionArgs<AppLoadContext>,
+	T extends ActionFunctionArgs<ServerRouteContext> =
+		ActionFunctionArgs<ServerRouteContext>,
 	D = unknown,
 >(
 	params: GetServerActionParams<T, D>,
 ) => {
 	const action = async (args: T) => {
-		const locale = getRequestLocale(args.request);
+		const locale = getRequestLocale(args.request, args.url);
 		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
 
 		if (isPromise(z.t)) {
