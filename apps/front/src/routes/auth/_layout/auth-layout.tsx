@@ -81,14 +81,14 @@ export const loader = getServerLoader({
 });
 
 export const clientLoader = getClientLoader({
-	loader: async ({ serverLoader, request }) => {
+	loader: async ({ serverLoader, url }) => {
 		i18next
 			.loadNamespaces([I18N_NAMESPACES.ZOD, I18N_NAMESPACES.RESPONSE_MESSAGE])
 			.catch((error) => {
 				logger.error('Failed to load namespaces', error);
 			});
 
-		const pathname = new URL(request.url).pathname;
+		const pathname = url.pathname;
 		const isInvitationRoute =
 			pathname === FRONT_PATH_NAMES.auth.acceptInvitation;
 

@@ -84,13 +84,11 @@ export const loader = getServerLoader({
 export type LoginActionResult = Awaited<ReturnType<typeof action>>['data'];
 
 export const action = getServerAction({
-	action: async ({ request, context }) => {
+	action: async ({ request, context, url }) => {
 		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const formData = await request.formData();
 		const redirectTo = getSafeRedirectTo(
-			new URL(request.url).searchParams.get(
-				queryParamKey.login_page.redirect_to,
-			),
+			url.searchParams.get(queryParamKey.login_page.redirect_to),
 		);
 
 		const email = toString(formData.get('email'));

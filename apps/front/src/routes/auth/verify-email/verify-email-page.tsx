@@ -96,9 +96,9 @@ export const action = getServerAction({
 });
 
 export const loader = getServerLoader({
-	loader: async ({ request, z, context }) => {
+	loader: async ({ z, context, url }) => {
 		const apiClient = getClientManager().createClient({ skipAuth: true });
-		const searchParams = new URL(request.url).searchParams;
+		const searchParams = url.searchParams;
 		const token = searchParams.get(queryParamKey.token);
 		const encodedEmail = searchParams.get(
 			queryParamKey.reset_password_page.encoded_email,
@@ -162,7 +162,7 @@ export const loader = getServerLoader({
 			redirectUrl = new URL(result.data?.resetPasswordUrl ?? '');
 		} catch (_error) {
 			context.logger.error('Error when creating redirect URL', _error);
-			redirectUrl = new URL(request.url);
+			redirectUrl = new URL(url);
 		}
 
 		redirectUrl.searchParams.set(

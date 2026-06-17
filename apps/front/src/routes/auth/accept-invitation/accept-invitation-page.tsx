@@ -90,9 +90,9 @@ type AcceptInvitationForm = z.infer<
 export type InvitationLoaderResult = Awaited<ReturnType<typeof loader>>;
 
 export const loader = getServerLoader({
-	loader: async ({ request, z, context, sessionToken }) => {
+	loader: async ({ z, context, sessionToken, url }) => {
 		const apiClient = getClientManager().createClient({ skipAuth: true });
-		const searchParams = new URL(request.url).searchParams;
+		const searchParams = url.searchParams;
 		const encodedEmail = searchParams.get(
 			queryParamKey.accept_invitation_page.encoded_email,
 		);

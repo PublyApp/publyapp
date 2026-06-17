@@ -122,7 +122,7 @@ export const getServerLoader: GetServerLoader = <
 	params: GetServerLoaderParams<T, D>,
 ) => {
 	const loader = async (args: T) => {
-		const locale = getRequestLocale(args.request);
+		const locale = getRequestLocale(args.request, args.url);
 		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
 
 		if (isPromise(z.t)) {
@@ -233,7 +233,7 @@ export const getServerAction: GetServerAction = <
 	params: GetServerActionParams<T, D>,
 ) => {
 	const action = async (args: T) => {
-		const locale = getRequestLocale(args.request);
+		const locale = getRequestLocale(args.request, args.url);
 		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
 
 		if (isPromise(z.t)) {

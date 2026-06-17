@@ -44,8 +44,8 @@ export const getClientLoader: GetCLientLoader = <
 	params: GetCLientLoaderParams<T, D>,
 ) => {
 	const loader = async (args: T) => {
-		const { request } = args;
-		const locale = getRequestLocale(request);
+		const { request, url } = args;
+		const locale = getRequestLocale(request, url);
 
 		const i18n = await initI18nOnClient();
 		const z = initZodOnClient(i18n);
