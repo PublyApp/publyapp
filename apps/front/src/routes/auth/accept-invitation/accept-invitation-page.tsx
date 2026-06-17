@@ -53,6 +53,7 @@ import {
 	setTenantHintForUser,
 } from '#app/lib/cookies/tenant-hint-cookie.utils.ts';
 import { env } from '#app/lib/env.ts';
+import { loggerContext } from '#app/lib/react-router/router-context.ts';
 import { safeRun } from '#app/lib/react-router/safeRun.ts';
 import {
 	getServerAction,
@@ -91,6 +92,7 @@ export type InvitationLoaderResult = Awaited<ReturnType<typeof loader>>;
 
 export const loader = getServerLoader({
 	loader: async ({ z, context, sessionToken, url }) => {
+		const logger = context.get(loggerContext);
 		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const searchParams = url.searchParams;
 		const encodedEmail = searchParams.get(
@@ -127,7 +129,7 @@ export const loader = getServerLoader({
 		const checkResult = await checkInvitationToken();
 
 		if (checkResult.status === 'error') {
-			context.logger.error('checkInvitationToken error', {
+			logger.error('checkInvitationToken error', {
 				error: serializeError(checkResult.error),
 			});
 
@@ -148,7 +150,7 @@ export const loader = getServerLoader({
 		const result = await getInvitationDetails();
 
 		if (result.status === 'error') {
-			context.logger.error('getInvitationDetails error', {
+			logger.error('getInvitationDetails error', {
 				error: serializeError(result.error),
 			});
 
@@ -193,6 +195,7 @@ export type AcceptInvitationActionResult = Awaited<ReturnType<typeof action>>;
 
 export const action = getServerAction({
 	action: async ({ request, context, sessionToken }) => {
+		const logger = context.get(loggerContext);
 		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const formData = await request.formData();
 
@@ -281,7 +284,7 @@ export const action = getServerAction({
 					title?: string;
 				} | null;
 
-				context.logger.error('acceptInvitation existing-user error', {
+				logger.error('acceptInvitation existing-user error', {
 					status: response.status,
 					error: errorBody,
 				});
@@ -348,7 +351,7 @@ export const action = getServerAction({
 		const result = await acceptInvitation();
 
 		if (result.status === 'error') {
-			context.logger.error('acceptInvitation error', {
+			logger.error('acceptInvitation error', {
 				error: serializeError(result.error),
 			});
 

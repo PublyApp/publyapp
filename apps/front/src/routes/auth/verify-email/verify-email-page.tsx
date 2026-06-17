@@ -26,6 +26,7 @@ import { RouterLink } from '#app/components/router-link.tsx';
 import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getClientManager } from '#app/lib/api-client/client-manager.ts';
+import { loggerContext } from '#app/lib/react-router/router-context.ts';
 import { safeRun } from '#app/lib/react-router/safeRun.ts';
 import {
 	getServerAction,
@@ -42,6 +43,7 @@ const actionIntent = {
 
 export const action = getServerAction({
 	action: async ({ request, context, z }) => {
+		const logger = context.get(loggerContext);
 		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const formData = await request.formData();
 		const intent = formData.get('intent');
@@ -74,7 +76,7 @@ export const action = getServerAction({
 					},
 				}).then((result) => {
 					if (result.status === 'error') {
-						context.logger.error('Error when requesting email verification', {
+						logger.error('Error when requesting email verification', {
 							error: serializeError(result.error),
 						});
 					}
@@ -97,6 +99,7 @@ export const action = getServerAction({
 
 export const loader = getServerLoader({
 	loader: async ({ z, context, url }) => {
+		const logger = context.get(loggerContext);
 		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const searchParams = url.searchParams;
 		const token = searchParams.get(queryParamKey.token);
@@ -161,7 +164,7 @@ export const loader = getServerLoader({
 		try {
 			redirectUrl = new URL(result.data?.resetPasswordUrl ?? '');
 		} catch (_error) {
-			context.logger.error('Error when creating redirect URL', _error);
+			logger.error('Error when creating redirect URL', _error);
 			redirectUrl = new URL(url);
 		}
 

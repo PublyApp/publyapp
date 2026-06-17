@@ -14,8 +14,8 @@ import {
 } from 'react-dom/server';
 import { I18nextProvider } from 'react-i18next';
 import {
-	type AppLoadContext,
 	type EntryContext,
+	type RouterContextProvider,
 	ServerRouter,
 } from 'react-router';
 
@@ -24,6 +24,8 @@ import {
 	LANGUAGE_DETECTION_METHOD,
 	LANGUAGE_DETECTION_METHOD_ENUM,
 	LOCALE_COOKIE_KEY,
+	isPreRenderPath,
+	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
 	queryParamKey,
 	REMIX_CLIENT_IP_HEADER_KEY,
 } from '@org/shared-ts/lib/constants';
@@ -34,6 +36,10 @@ import { getErrorMessage } from '@org/shared-ts/utils/error.utils';
 
 import { NonceProvider } from './hooks/use-nonce-context';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
+import {
+	analyticsContext,
+	nonceContext,
+} from './lib/react-router/router-context.ts';
 
 export const streamTimeout = import.meta.env.DEV ? 50_000 : 5_000;
 
@@ -42,12 +48,12 @@ const handleRequest = async (
 	responseStatusCode: number,
 	responseHeaders: Headers,
 	routerContext: EntryContext,
-	loadContext: AppLoadContext,
+	loadContext: Readonly<RouterContextProvider>,
 ) => {
 	const finalLoadContext = loadContext;
 	let statusCode = responseStatusCode;
 
-	const analytics = finalLoadContext.analytics;
+	const analytics = finalLoadContext.get(analyticsContext);
 
 	if (import.meta.env.PROD) {
 		if (!String(responseStatusCode).startsWith('2')) {
@@ -101,6 +107,7 @@ const handleRequest = async (
 	}
 
 	const i18nInstance = await iniI18nOnServer({ routerContext, locale });
+	const pathname = new URL(request.url).pathname;
 
 	return new Promise((resolve, reject) => {
 		let shellRendered = false;
@@ -113,13 +120,20 @@ const handleRequest = async (
 				? 'onAllReady'
 				: 'onShellReady';
 
-		// regardless of the environment, we want to set the nonce
-		// to the static pre render path nonce if the path is a pre render path
-		// if (isPreRenderPath(new URL(request.url).pathname)) {
-		// 	finalLoadContext.nonce = STATIC_PRE_RENDER_PATHS_MAP_NONCE;
-		// }
+		let nonce: string | undefined = undefined;
+		try {
+			nonce = finalLoadContext.get(nonceContext);
+		} catch {
+			nonce = undefined;
+		}
 
-		const nonce = finalLoadContext.nonce;
+		if (!nonce && isPreRenderPath(pathname)) {
+			nonce = STATIC_PRE_RENDER_PATHS_MAP_NONCE;
+		}
+
+		if (!nonce) {
+			throw new Error('Nonce has not been set');
+		}
 
 		const { pipe, abort } = renderToPipeableStream(
 			<I18nextProvider i18n={i18nInstance}>

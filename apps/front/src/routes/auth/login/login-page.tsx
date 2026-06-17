@@ -29,6 +29,7 @@ import {
 	serializeTenantHintsForResponse,
 	setTenantHintForUser,
 } from '#app/lib/cookies/tenant-hint-cookie.utils.ts';
+import { loggerContext } from '#app/lib/react-router/router-context.ts';
 import { safeRun } from '#app/lib/react-router/safeRun.ts';
 import {
 	getServerAction,
@@ -85,6 +86,7 @@ export type LoginActionResult = Awaited<ReturnType<typeof action>>['data'];
 
 export const action = getServerAction({
 	action: async ({ request, context, url }) => {
+		const logger = context.get(loggerContext);
 		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const formData = await request.formData();
 		const redirectTo = getSafeRedirectTo(
@@ -114,7 +116,7 @@ export const action = getServerAction({
 		const loginResult = await passwordLogin({ email, password });
 
 		if (loginResult.status === 'error') {
-			context.logger.error('Failed to login', {
+			logger.error('Failed to login', {
 				error: serializeError(loginResult.error),
 			});
 
@@ -135,7 +137,7 @@ export const action = getServerAction({
 		// Get userId from login response (required for identity-scoped cookie)
 		const userId = loginResult.data?.userId;
 		if (!userId) {
-			context.logger.error('Login response missing userId');
+			logger.error('Login response missing userId');
 			throw new Error('Failed to login');
 		}
 
@@ -163,7 +165,7 @@ export const action = getServerAction({
 		const getRedirectCodeResult = await getRedirectCode();
 
 		if (getRedirectCodeResult.status === 'error') {
-			context.logger.error('Failed to get redirect code', {
+			logger.error('Failed to get redirect code', {
 				error: serializeError(getRedirectCodeResult.error),
 			});
 			throw new Error('Failed to login');

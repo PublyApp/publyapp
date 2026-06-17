@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import get from 'lodash/get';
 import set from 'lodash/set';
 import { nanoid } from 'nanoid';
+import { RouterContextProvider } from 'react-router';
 
 import {
 	isPreRenderPath,
@@ -16,6 +17,11 @@ import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { LogLevelEnum } from '@org/shared-ts/lib/logger/logger.utils';
 
 import { analytics } from '#app/lib/analytics/analytics.ts';
+import {
+	analyticsContext,
+	loggerContext,
+	nonceContext,
+} from '#app/lib/react-router/router-context.ts';
 
 declare global {
 	namespace Express {
@@ -66,11 +72,12 @@ const reactRouterHandler = createRequestHandler({
 			throw new Error('Nonce has not been set');
 		}
 
-		return {
-			logger: logger,
-			analytics: analytics,
-			nonce,
-		};
+		const loadContext = new RouterContextProvider();
+		loadContext.set(loggerContext, logger);
+		loadContext.set(analyticsContext, analytics);
+		loadContext.set(nonceContext, nonce);
+
+		return loadContext;
 	},
 });
 

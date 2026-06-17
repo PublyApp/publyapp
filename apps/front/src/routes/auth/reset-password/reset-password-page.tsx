@@ -34,6 +34,7 @@ import { toast } from '#app/components/snackbar/index.ts';
 import { useSyncFormToLang } from '#app/hooks/use-sync-form-to-lang.ts';
 import { useTranslate } from '#app/hooks/use-translate.ts';
 import { getClientManager } from '#app/lib/api-client/client-manager.ts';
+import { loggerContext } from '#app/lib/react-router/router-context.ts';
 import { safeRun } from '#app/lib/react-router/safeRun.ts';
 import {
 	getServerAction,
@@ -46,6 +47,7 @@ import type { Route } from './+types/reset-password-page';
 
 export const action = getServerAction({
 	action: async ({ request, z, context, url }) => {
+		const logger = context.get(loggerContext);
 		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const searchParams = url.searchParams;
 		const token = searchParams.get(queryParamKey.token);
@@ -118,7 +120,7 @@ export const action = getServerAction({
 		});
 
 		if (result.status === 'error') {
-			context.logger.error('Failed to reset password', {
+			logger.error('Failed to reset password', {
 				error: serializeError(result.error),
 			});
 
@@ -145,6 +147,7 @@ export const action = getServerAction({
 
 export const loader = getServerLoader({
 	loader: async ({ context, url }) => {
+		const logger = context.get(loggerContext);
 		const apiClient = getClientManager().createClient({ skipAuth: true });
 		const searchParams = url.searchParams;
 		const token = searchParams.get(queryParamKey.token);
@@ -176,7 +179,7 @@ export const loader = getServerLoader({
 		});
 
 		if (result.status === 'error') {
-			context.logger.error('Failed to check reset password token', {
+			logger.error('Failed to check reset password token', {
 				error: serializeError(result.error),
 			});
 
