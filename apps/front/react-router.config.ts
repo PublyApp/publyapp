@@ -13,5 +13,6 @@ export default {
 	prerender: PRE_RENDER_PATHS as unknown as string[],
 	future: {
 		v8_splitRouteModules: true,
+		v8_viteEnvironmentApi: true,
 	},
 } satisfies Config;
