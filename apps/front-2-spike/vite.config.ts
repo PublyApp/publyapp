@@ -10,5 +10,14 @@ export default defineConfig({
 	resolve: {
 		tsconfigPaths: true,
 	},
-	plugins: [tailwindcss(), tanstackStart(), viteReact()],
+	plugins: [
+		tailwindcss(),
+		// Task 1.4 — Virtual File Routes (code-based tree in src/routes.ts).
+		// Primary attempt: nest virtualRouteConfig under tanstackStart's router opts.
+		tanstackStart({
+			srcDirectory: 'src',
+			router: { virtualRouteConfig: './src/routes.ts' },
+		}),
+		viteReact(),
+	],
 });

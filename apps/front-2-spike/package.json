@@ -22,6 +22,7 @@
 		"@tanstack/react-router-ssr-query": "1.167.1",
 		"@tanstack/react-start": "1.168.26",
 		"@tanstack/react-table": "8.21.3",
+		"@tanstack/virtual-file-routes": "1.162.0",
 		"react": "19.1.0",
 		"react-dom": "19.1.0",
 		"redaxios": "0.5.1",
@@ -29,6 +30,7 @@
 	},
 	"devDependencies": {
 		"@tailwindcss/vite": "4.3.1",
+		"@tanstack/router-plugin": "1.168.18",
 		"@types/node": "22.19.21",
 		"@types/react": "19.1.8",
 		"@types/react-dom": "19.1.3",

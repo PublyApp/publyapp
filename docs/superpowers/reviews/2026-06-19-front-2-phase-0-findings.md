@@ -253,3 +253,72 @@ The served `app.css` contains the **real** HeroUI v3 button stylesheet
 '@heroui/styles'` resolves and Tailwind v4 processes it. The `data-rac` /
 `data-react-aria-pressable` attributes confirm React Aria Components is driving the
 button. **Verdict: HeroUI v3 renders STYLED under Tailwind v4 + TanStack Start SSR.**
+
+---
+
+## VFR wiring
+
+**Task 1.4 — Virtual File Routes (code-based tree). Resolves UNVERIFIED #4: exact
+placement of `virtualRouteConfig` under `tanstackStart()`.**
+
+### Working wiring (PRIMARY attempt succeeded — no fallback needed)
+
+`virtualRouteConfig` nests under `tanstackStart`'s `router` option. **No
+`tanstackRouter()` from `@tanstack/router-plugin/vite` was needed** (the documented
+fallback was NOT required):
+
+```ts
+// vite.config.ts
+tanstackStart({
+  srcDirectory: 'src',
+  router: { virtualRouteConfig: './src/routes.ts' },
+})
+```
+
+Deps needed for `src/routes.ts`: `@tanstack/virtual-file-routes@1.162.0` added as a
+direct dep (exact, = transitive version) so `{ rootRoute, route, index, layout }` is
+importable under strict pnpm. `@tanstack/router-plugin@1.168.18` was also added
+(devDep) in case the fallback was needed — **it was not used** (kept for parity/future).
+
+### Gotcha resolved: VFR file paths are relative to `routesDirectory`, NOT `src`
+
+The plan's `src/routes.ts` used `rootRoute('routes/__root.tsx', …)`. With this version
+that produced **`expected root route to exist at src/routes/routes/__root.tsx`** — the
+generator joins each VFR `file` to `resolve(routesDirectory)` (= `src/routes`), not to
+`src`. Confirmed in `@tanstack/router-generator` source:
+`fullPath = join(resolve(tsrConfig.routesDirectory), virtualRouteConfig.file)`.
+
+**Fix:** drop the `routes/` prefix — paths are relative to `src/routes`:
+
+```ts
+export const routes = rootRoute('__root.tsx', [
+  index('index.tsx'),
+  route('/login', 'login.tsx'),
+  layout('authed-layout', 'authed/layout.tsx', [
+    route('/staff/staff-users', 'authed/staff-users.tsx'),
+    route('/_auth-echo', 'authed/auth-echo.tsx'),
+  ]),
+])
+```
+
+### Codegen result (verified in `routeTree.gen.ts`)
+
+The plugin generated the tree AND auto-rewrote each stub's `createFileRoute` id to the
+emitted id. Required routes all present:
+
+| URL | generated route id |
+| --- | --- |
+| `/login` | `/login` |
+| authed layout (pathless) | `/_authed-layout` |
+| `/staff/staff-users` | `/_authed-layout/staff/staff-users` |
+| `/_auth-echo` | `/_authed-layout/_auth-echo` |
+
+The VFR layout id `authed-layout` becomes the pathless route id **`/_authed-layout`**
+(leading `_` = pathless). **Task 2.6 must use the EXACT id
+`/_authed-layout/staff/staff-users`** for the staff-users `createFileRoute`.
+
+`pnpm dev` renders all three: `/` (200), `/login` (200), `/staff/staff-users` (200) —
+the SSR HTML for the last shows the nested
+`<div>Authed shell (stub)</div><div>Staff users (stub)</div>`, proving the authed
+layout wraps its children. The orphaned scaffold example routes (posts/users/deferred/
+_pathlessLayout/api/redirect) were deleted; `__root.tsx` nav trimmed to Home/Login/Staff.
