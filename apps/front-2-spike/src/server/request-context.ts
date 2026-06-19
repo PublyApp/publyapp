@@ -11,7 +11,7 @@ import { getSessionTokensFromClient } from '~/lib/session-cookie-client';
 
 import { LOCALE_COOKIE_KEY, isServer } from '@org/shared-ts/lib/constants';
 
-import { createCspForRequest } from './csp.server';
+import { createCspForRequest } from './csp';
 
 const THEME_COOKIE_KEY = 'publyapp-theme';
 
