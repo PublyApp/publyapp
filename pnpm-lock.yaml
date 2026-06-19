@@ -455,6 +455,12 @@ importers:
       i18next:
         specifier: 24.2.3
         version: 24.2.3(typescript@6.0.2)
+      lodash:
+        specifier: ^4.18.1
+        version: 4.18.1
+      nanoid:
+        specifier: 5.0.4
+        version: 5.0.4
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -4878,6 +4884,11 @@ packages:
   nanoid@3.3.12:
     resolution: {integrity: sha512-ZB9RH/39qpq5Vu6Y+NmUaFhQR6pp+M2Xt76XBnEwDaGcVAqhlvxrl3B2bKS5D3NH3QR76v3aSrKaF/Kiy7lEtQ==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
+    hasBin: true
+
+  nanoid@5.0.4:
+    resolution: {integrity: sha512-vAjmBf13gsmhXSgBrtIclinISzFFy22WwCYoyilZlsrRXNIHSwgFQ1bEdjRwMT3aoadeIF6HMuDRlOxzfXV8ig==}
+    engines: {node: ^18 || >=20}
     hasBin: true
 
   nanoid@5.1.5:
@@ -10485,6 +10496,8 @@ snapshots:
       '@types/react': 19.1.8
 
   nanoid@3.3.12: {}
+
+  nanoid@5.0.4: {}
 
   nanoid@5.1.5: {}
 

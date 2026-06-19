@@ -14,7 +14,6 @@ dist
 # Environment files
 .env
 .env.*
-!.env.production
 env.example
 
 # Logs
@@ -26,6 +25,9 @@ coverage
 test
 **/test
 **/tests
+
+# Keep client-ts fixture imported by generated API client code.
+!packages/client-ts/src/test
 
 # IDE files
 .vscode/
@@ -51,9 +53,6 @@ docker-compose*.yml
 **/*.test.*
 **/*.spec.*
 coverage/
-
-!packages/client-ts/src/test
-!packages/shared-ts/src/test
 
 # Temporary files
 tmp/

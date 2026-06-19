@@ -1,37 +1,52 @@
 # syntax=docker/dockerfile:1
 
-FROM node:22-alpine AS builder
+FROM node:24-alpine@sha256:156b55f92e98ccd5ef49578a8cea0df4679826564bad1c9d4ef04462b9f0ded6 AS prune
 
 WORKDIR /workspace
 
 RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
-COPY apps/front-2-spike ./apps/front-2-spike
-COPY packages/client-ts ./packages/client-ts
-COPY packages/shared-ts ./packages/shared-ts
-COPY packages/_tsconfig ./packages/_tsconfig
+COPY . .
+RUN pnpm dlx turbo prune front-2-spike --docker
 
-RUN pnpm install --frozen-lockfile --ignore-scripts --fix-lockfile
+FROM node:24-alpine@sha256:156b55f92e98ccd5ef49578a8cea0df4679826564bad1c9d4ef04462b9f0ded6 AS install
+
+WORKDIR /workspace
+
+RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
+
+COPY --from=prune /workspace/out/json/ ./
+
+RUN pnpm install --frozen-lockfile --ignore-scripts
+
+FROM node:24-alpine@sha256:156b55f92e98ccd5ef49578a8cea0df4679826564bad1c9d4ef04462b9f0ded6 AS build
+
+WORKDIR /workspace
+
+RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
+
+COPY --from=install /workspace/ ./
+COPY --from=prune /workspace/out/full/ ./
+
+RUN node apps/front-2-spike/scripts/assert-pinned.mjs
 RUN pnpm --filter front-2-spike build
-RUN pnpm --filter front-2-spike deploy --legacy --prod --ignore-scripts /workspace/runtime
-RUN cp -R /workspace/apps/front-2-spike/server.mjs /workspace/runtime/ \
- && cp -R /workspace/apps/front-2-spike/dist /workspace/runtime/
-RUN cp -R /workspace/node_modules/.pnpm/lodash@4.18.1/node_modules/lodash /workspace/runtime/node_modules/
+RUN pnpm --filter front-2-spike deploy --legacy --prod /workspace/deploy
 
-FROM node:22-alpine AS runtime
+FROM node:24-alpine@sha256:156b55f92e98ccd5ef49578a8cea0df4679826564bad1c9d4ef04462b9f0ded6 AS runtime
 
 RUN addgroup -S app && adduser -S -G app app
-RUN apk add --no-cache curl
 
 WORKDIR /app
-COPY --from=builder /workspace/runtime /app
+COPY --from=build /workspace/deploy/node_modules ./node_modules
+COPY --from=build /workspace/deploy/package.json /app/package.json
+COPY --from=build /workspace/deploy/server.mjs /app/server.mjs
+COPY --from=build /workspace/deploy/dist ./dist
 
 ENV PORT=3000
 ENV NODE_ENV=production
 EXPOSE 3000
 HEALTHCHECK --interval=5s --timeout=3s --start-period=15s --retries=20 \
-  CMD curl -fsS http://127.0.0.1:3000/login >/dev/null
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 USER app
 CMD ["node", "server.mjs"]
