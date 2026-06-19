@@ -11,15 +11,12 @@ import {
 import { useEffect } from 'react';
 import { View403 } from '~/components/View403';
 import { clearTenantSuspensionCookie, toApiFailure } from '~/lib/api-failure';
-import { getSessionTokensFromCookieHeader } from '~/lib/session-cookie';
-import { getCookieHeader } from '~/server/request-context';
+import { getSessionTokensIsomorphic } from '~/server/request-context';
 import { clearSession } from '~/server/session-actions';
 
 export const Route = createFileRoute('/_authed-layout')({
 	beforeLoad: async () => {
-		const cookieHeader = await getCookieHeader();
-		const { staffToken, tenantToken } =
-			getSessionTokensFromCookieHeader(cookieHeader);
+		const { staffToken, tenantToken } = await getSessionTokensIsomorphic();
 
 		if (!staffToken && !tenantToken) {
 			throw redirect({

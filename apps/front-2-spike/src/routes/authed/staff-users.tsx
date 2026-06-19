@@ -7,8 +7,14 @@ import {
 } from '~/lib/query';
 import { getCookieHeader } from '~/server/request-context';
 
+import { isServer } from '@org/shared-ts/lib/constants';
+
 export const Route = createFileRoute('/_authed-layout/staff/staff-users')({
 	loader: async ({ context }) => {
+		if (!isServer) {
+			return;
+		}
+
 		const cookieHeader = await getCookieHeader();
 		const serverClient = createServerClientFromCookie(
 			cookieHeader,
