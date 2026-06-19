@@ -322,3 +322,66 @@ the SSR HTML for the last shows the nested
 `<div>Authed shell (stub)</div><div>Staff users (stub)</div>`, proving the authed
 layout wraps its children. The orphaned scaffold example routes (posts/users/deferred/
 _pathlessLayout/api/redirect) were deleted; `__root.tsx` nav trimmed to Home/Login/Staff.
+
+---
+
+## Monorepo integration
+
+**Task 1.5 — turbo, tsconfig, workspace-TS transpilation.**
+
+### Workspace pickup
+`pnpm -r list` shows `front-2-spike` (picked up automatically via the `apps/*`
+workspace glob — no `pnpm-workspace.yaml` change needed).
+
+### Turbo
+- `build.outputs` += `.output/**` (forward-looking for Group 3; the current build emits `dist`, already covered).
+- `globalEnv` += `SERVER_API_BASE_URL`, `PUBLIC_API_BASE_URL`, `VITE_POSTHOG_API_KEY`.
+
+### Formatter/linter ignore (small repo-wide config change — DEVIATION called out)
+TanStack's generated `routeTree.gen.ts` (marked "exclude from your linter/formatter")
+was being reformatted by lint-staged's `oxfmt` on every commit, then re-rewritten by
+the dev server — perpetual churn. Added **`**/routeTree.gen.ts`** to `.oxfmtrc.json`
+AND `.oxlintrc.json` `ignorePatterns`. This is repo-wide (not spike-scoped) but is the
+correct home for a generated-file ignore and is consistent with the existing
+`**/.react-router` / `packages/client-ts` ignores. **Human confirm:** acceptable.
+
+### `ssr.noExternal` (workspace raw-TS transpilation — VERIFIED)
+`vite.config.ts` → `ssr: { noExternal: ['@org/client-ts', '@org/shared-ts'] }`. Proof:
+`index.tsx` imports `SESSION_TOKEN_HEADER_KEY` from `@org/shared-ts/lib/constants`
+(raw `.ts`) and renders it in SSR. The standalone build + `node server.mjs` serves
+**`session header key: X-Session-Token`** in the SSR HTML with **NO
+`ERR_UNKNOWN_FILE_EXTENSION`/raw-`.ts` error** — Vite transpiled the workspace TS.
+
+### tsconfig (`pnpm typecheck` → exit 0)
+- Extends `../../packages/_tsconfig/tsconfig.base.json`; `moduleResolution: Bundler`; `paths` keep `~/*`; `allowImportingTsExtensions` for the `@org/*` raw-`.ts` exports maps.
+- `noUnusedLocals`/`noUnusedParameters` turned **off** (the base turns them on; the scaffold/generated code is not unused-clean — acceptable for a throwaway spike).
+- Two typecheck issues found + fixed:
+  1. **HeroUI v3 `Button` has NO `color` prop** — v3 uses **`variant`** (`primary | secondary | tertiary | ghost | outline | danger | danger-soft`). Changed `<Button color="primary">` → `<Button variant="primary">` (the plan/grounding's `color="primary"` is a v2-ism; recorded for Group 2/Phase 1).
+  2. `@org/shared-ts` ships **ambient global types** (`ValueOf`, `ToPrimitive`, `Bun`) in `packages/shared-ts/@types/`. Because `ssr.noExternal` makes us typecheck its raw `.ts`, those globals must be in the program — added `../../packages/shared-ts/@types/**/*.d.ts` to the spike tsconfig `include` (mirrors how `front` resolves them).
+
+---
+
+## Standalone Node server (build-target divergence — RESOLVED)
+
+**The plan grounding assumed `vite build` emits a Nitro `.output/server/index.mjs`
+self-listening server. It does NOT for `@tanstack/react-start@1.168.26`.** This Start
+version's `tanstackStartOptionsObjectSchema` has **no Nitro/preset/`.output` option**;
+the build is Vite-native and emits:
+
+- `dist/client/` — static client assets
+- `dist/server/server.js` — a web **`{ fetch }` handler** (NOT a listening server; `node dist/server/server.js` does not bind a port)
+
+The scaffold's own `start` was `pnpx srvx --prod -s ../client dist/server/server.js`.
+
+**Resolution:** added a small standalone entry **`server.mjs`** (committed) that imports
+the built `{ fetch }` default from `dist/server/server.js`, serves `dist/client`
+statically, and binds a real Node HTTP listener via **`srvx@0.11.16`** (exact-pinned;
+the same runner the scaffold referenced). `start` script = **`node server.mjs`**.
+
+- `pnpm build && PORT=3100 node server.mjs` → **"listening on http://localhost:3100"**, HTTP 200, SSR HTML contains the HeroUI button (`button--primary`) + the shared-ts constant (`X-Session-Token`) + authed routes resolve — NO raw-`.ts` error.
+
+**HANDOFF for Group 3 (Task 3.2 Dockerfile):** the container `CMD` must be
+**`["node","server.mjs"]`** (and copy `dist/` + `server.mjs` + `srvx`), **NOT**
+`node .output/server/index.mjs` — that artifact does not exist with this Start version.
+The Group-3 author should re-check whether a later Start version restores a Nitro
+preset; until then `server.mjs` is the standalone entry.

@@ -22,12 +22,22 @@
 		"API_PATH",
 		"PARSE_PATH",
 		"DEV",
-		"JOB_INPUT"
+		"JOB_INPUT",
+		"SERVER_API_BASE_URL",
+		"PUBLIC_API_BASE_URL",
+		"VITE_POSTHOG_API_KEY"
 	],
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build"],
-			"outputs": [".next/**", "!.next/cache/**", ".svelte-kit", "dist", "build"]
+			"outputs": [
+				".next/**",
+				"!.next/cache/**",
+				".svelte-kit",
+				"dist",
+				"build",
+				".output/**"
+			]
 		},
 		"build:local": {
 			"dependsOn": ["^build:local"],

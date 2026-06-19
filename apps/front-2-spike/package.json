@@ -7,7 +7,7 @@
 		"preinstall": "node scripts/assert-pinned.mjs",
 		"dev": "vite dev",
 		"build": "vite build",
-		"start": "node .output/server/index.mjs",
+		"start": "node server.mjs",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
@@ -26,6 +26,7 @@
 		"react": "19.1.0",
 		"react-dom": "19.1.0",
 		"redaxios": "0.5.1",
+		"srvx": "0.11.16",
 		"tailwind-merge": "3.6.0"
 	},
 	"devDependencies": {
