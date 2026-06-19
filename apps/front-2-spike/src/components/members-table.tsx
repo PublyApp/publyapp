@@ -121,8 +121,11 @@ export const MembersTable = ({
 	);
 
 	const tableItems = useMemo(
-		() => (vars.q === 'NO_MATCH' ? items : buildProbeRows(items)),
-		[items, vars.q],
+		() =>
+			vars.probe === 'virtualization' && vars.q !== 'NO_MATCH'
+				? buildProbeRows(items)
+				: items,
+		[items, vars.q, vars.probe],
 	);
 
 	const columns = useMemo<ColumnDef<StaffUserItem>[]>(
@@ -176,6 +179,29 @@ export const MembersTable = ({
 
 	const hasItems = table.getRowModel().rows.length > 0;
 	const isNoMatch = vars.q === 'NO_MATCH';
+	// Virtualize ONLY in the opt-in virtualization probe. The normal product list
+	// renders all rows directly — React Aria's Virtualizer windows by measured
+	// viewport, which renders ~no rows during SSR for a normal page (the data is
+	// primed but never appears in the SSR HTML). See findings: Table parity.
+	const isVirtualized = vars.probe === 'virtualization';
+
+	const tableBody = (
+		<Table.Body items={table.getRowModel().rows}>
+			{(row) => (
+				<Table.Row
+					id={row.id}
+					key={row.id}
+					textValue={row.original.email ?? row.id}
+				>
+					{row.getVisibleCells().map((cell) => (
+						<Table.Cell key={cell.id}>
+							{flexRender(cell.column.columnDef.cell, cell.getContext())}
+						</Table.Cell>
+					))}
+				</Table.Row>
+			)}
+		</Table.Body>
+	);
 
 	const handleSortChange = (nextSortDescriptor?: SortDescriptor) => {
 		if (!nextSortDescriptor?.column) {
@@ -242,26 +268,11 @@ export const MembersTable = ({
 										)),
 									)}
 								</Table.Header>
-								<Virtualizer layout={TableLayout}>
-									<Table.Body items={table.getRowModel().rows}>
-										{(row) => (
-											<Table.Row
-												id={row.id}
-												key={row.id}
-												textValue={row.original.email ?? row.id}
-											>
-												{row.getVisibleCells().map((cell) => (
-													<Table.Cell key={cell.id}>
-														{flexRender(
-															cell.column.columnDef.cell,
-															cell.getContext(),
-														)}
-													</Table.Cell>
-												))}
-											</Table.Row>
-										)}
-									</Table.Body>
-								</Virtualizer>
+								{isVirtualized ? (
+									<Virtualizer layout={TableLayout}>{tableBody}</Virtualizer>
+								) : (
+									tableBody
+								)}
 							</Table.Content>
 						</Table.ScrollContainer>
 					</Table>

@@ -1,40 +1,44 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { MembersTable } from '~/components/members-table';
-import { createServerClientFromCookie } from '~/lib/api-client';
-import {
-	staffUsersBrowserQuery,
-	type StaffUsersVars,
-	staffUsersServerQueryOptions,
-} from '~/lib/query';
-import { getCookieHeader } from '~/server/request-context';
+import { staffUsersBrowserQuery, type StaffUsersVars } from '~/lib/query';
 
 const normalizeStaffUsersSearch = (search: {
 	q?: string;
 	sortId?: string;
 	sortOrder?: string;
 	cursor?: string;
+	probe?: string;
 }): StaffUsersVars => {
 	const sortOrder = search.sortOrder;
 	const normalizedSortOrder =
 		sortOrder === 'asc' || sortOrder === 'desc' ? sortOrder : undefined;
+	const probe =
+		search.probe === 'virtualization' ? ('virtualization' as const) : undefined;
 
 	return {
 		q: search.q,
 		sortId: search.sortId,
 		sortOrder: normalizedSortOrder,
 		cursor: search.cursor,
+		probe,
 	};
 };
 
-const parseRequestSearch = (request: Request): StaffUsersVars => {
-	const url = new URL(request.url);
-	return normalizeStaffUsersSearch({
-		q: url.searchParams.get('q') ?? undefined,
-		sortId: url.searchParams.get('sortId') ?? undefined,
-		sortOrder: url.searchParams.get('sortOrder') ?? undefined,
-		cursor: url.searchParams.get('cursor') ?? undefined,
-	});
+type LoaderDeps = Omit<StaffUsersVars, 'probe'>;
+
+const normalizeLoaderDeps = (search: {
+	q?: string;
+	sortId?: string;
+	sortOrder?: 'asc' | 'desc';
+	cursor?: string;
+}): LoaderDeps => {
+	return {
+		q: search.q,
+		sortId: search.sortId,
+		sortOrder: search.sortOrder,
+		cursor: search.cursor,
+	};
 };
 
 export const Route = createFileRoute('/_authed-layout/staff/staff-users')({
@@ -45,26 +49,11 @@ export const Route = createFileRoute('/_authed-layout/staff/staff-users')({
 			sortOrder:
 				typeof search.sortOrder === 'string' ? search.sortOrder : undefined,
 			cursor: typeof search.cursor === 'string' ? search.cursor : undefined,
+			probe: typeof search.probe === 'string' ? search.probe : undefined,
 		}),
-	loader: async (loaderContext) => {
-		const { context, request } = loaderContext as {
-			context: {
-				queryClient: {
-					ensureQueryData: (options: unknown) => Promise<unknown>;
-				};
-			};
-			request?: Request;
-		};
-		const vars = request ? parseRequestSearch(request) : {};
-		const cookieHeader = await getCookieHeader();
-		const serverClient = createServerClientFromCookie(
-			cookieHeader,
-			undefined,
-			'staff',
-		);
-		return context.queryClient.ensureQueryData(
-			staffUsersServerQueryOptions(vars, serverClient),
-		);
+	loaderDeps: ({ search }) => normalizeLoaderDeps(search),
+	loader: () => {
+		return undefined;
 	},
 	component: StaffUsersPage,
 });

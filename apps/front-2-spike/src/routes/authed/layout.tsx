@@ -15,6 +15,7 @@ import { getSessionTokensIsomorphic } from '~/server/request-context';
 import { clearSession } from '~/server/session-actions';
 
 export const Route = createFileRoute('/_authed-layout')({
+	ssr: false,
 	beforeLoad: async () => {
 		const { staffToken, tenantToken } = await getSessionTokensIsomorphic();
 

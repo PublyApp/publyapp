@@ -544,8 +544,8 @@ client for the Task 2.7 dialog. The real repo `zod.{en,fr}.json` were copied ver
 - **SortDescriptor source:** `@heroui/react` (type-only export exists in this build; `react-aria-components` fallback not needed)
 - **Selection source:** `@heroui/react` (`Selection` type import works directly)
 - **Virtualization/resize/pin decision:**
-  - **Virtualization:** **GO** (probe path renders 1,100+ rows through `<Virtualizer layout={TableLayout}>` and SSR HTML includes probe emails).
-  - **Resize/pin:** **NOT VERIFIED in this task** (no interaction script run for column dragging/resize). Pending interactive verification, Table parity remains **NO-GO** for §13.
+- **Virtualization:** **PENDING** (`Virtualizer layout={TableLayout}` is active, but current evidence is only SSR row output with probe data, not DOM-windowing confirmation).
+- **Resize/pin:** **NOT VERIFIED in this task** (no interaction script run for column dragging/resize). Pending interactive verification, Table parity remains **NO-GO** for §13.
 
 ### Notes
 
@@ -553,3 +553,13 @@ client for the Task 2.7 dialog. The real repo `zod.{en,fr}.json` were copied ver
 - SSR proof collected with seeded staff credentials:
   `curl -s -H "Cookie: publyapp-session_token=s:<token>" http://localhost:3000/staff/staff-users > /tmp/staff-users-ssr.html`
   and `rg -ao \"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\" /tmp/staff-users-ssr.html` produced `probe-1000@staff.local` entries and `owner@publyapp.local`, confirming SSR table rows render beyond a bare count.
+
+## SSR strategy + HeroUI Table
+
+- HeroUI v3 `Table` is SSR-incompatible in this TanStack Start + Vite setup: it suspends during SSR rendering, so the authed route subtree was absent from SSR HTML while server rendering still returned data rows. The data layer itself is correct (`loader` path could fetch and prepare rows), but rendering still failed for the table path.
+- DECISION adopted (Task 2.6): authed routes are **CSR-only**; marketing/auth (including `/` and `/login`) remain SSR. Mechanism used: `createFileRoute('/_authed-layout')({ ssr: false, ... })` in `apps/front-2-spike/src/routes/authed/layout.tsx`.
+- With client-only route rendering, authed data now loads via browser Kiota (`useSuspenseQuery(staffUsersBrowserQuery(vars))`) and `Route.useSearch()` values; `createServerFn` remains for cookie I/O utilities only. `beforeLoad` still guards with `getSessionTokensIsomorphic()` and redirects to `/login` when unauthenticated.
+- FOLLOW-UPS:
+  - update spec §4.1 / §10 wording for authed=CSR in Group 5.
+  - scope Task 4.3 SSR assertions to marketing/auth routes (`rows in raw SSR HTML`, `no-refetch priming`) or verify them post-hydration for authed flows (Playwright with JS enabled).
+- `## Table parity (Task 2.6)` virtualization verdict remains **PENDING** with follow-up browser DOM-windowing confirmation in Group 4.
