@@ -179,10 +179,9 @@ export const MembersTable = ({
 
 	const hasItems = table.getRowModel().rows.length > 0;
 	const isNoMatch = vars.q === 'NO_MATCH';
-	// Virtualize ONLY in the opt-in virtualization probe. The normal product list
-	// renders all rows directly — React Aria's Virtualizer windows by measured
-	// viewport, which renders ~no rows during SSR for a normal page (the data is
-	// primed but never appears in the SSR HTML). See findings: Table parity.
+	// Virtualize ONLY in the opt-in virtualization probe. Authed routes are CSR
+	// (ssr:false), so the default product list renders its client-loaded rows
+	// directly; the 1,100-row Virtualizer is gated behind ?probe=virtualization.
 	const isVirtualized = vars.probe === 'virtualization';
 
 	const tableBody = (

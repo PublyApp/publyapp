@@ -63,10 +63,7 @@ export const staffUsersBrowserQuery = (vars: StaffUsersVars = {}) =>
 export const getStaffUsersBrowserSessionToken = () =>
 	resolveStaffUsersBrowserSessionToken();
 
-export const staffUsersServerQueryOptions = (
-	vars: StaffUsersVars,
-	serverClient: ApiClient,
-) => ({
-	queryKey: staffUsersKey(vars),
-	queryFn: () => fetchStaffUsers(serverClient, vars),
-});
+// NOTE: authed routes are CSR (ssr:false), so there is no SSR server-prime for
+// staff data — the browser query above is the single client-side data path.
+// A per-request server-query helper (for a future SSR data route) would build a
+// per-request Kiota client from the request cookie; intentionally omitted here.
