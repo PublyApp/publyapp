@@ -3,10 +3,13 @@
 .gitignore
 .gitattributes
 
-# Documentation
-README.md
-docs/
-*.md
+# Build/system artifacts
+node_modules
+**/node_modules
+.turbo
+dist
+**/dist
+.output
 
 # Environment files
 .env
@@ -14,20 +17,15 @@ docs/
 !.env.production
 env.example
 
-# Node modules (will be installed in container)
-node_modules/
-**/node_modules/
-
-# Build outputs
-build/
-dist/
-**/build/
-**/dist/
-
 # Logs
-logs/
-*.log
-**/logs/
+**/*.log
+
+# Testing artifacts
+coverage
+**/coverage
+test
+**/test
+**/tests
 
 # IDE files
 .vscode/
@@ -53,6 +51,9 @@ docker-compose*.yml
 **/*.test.*
 **/*.spec.*
 coverage/
+
+!packages/client-ts/src/test
+!packages/shared-ts/src/test
 
 # Temporary files
 tmp/
