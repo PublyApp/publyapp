@@ -8,11 +8,14 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"start": "node server.mjs",
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run"
 	},
 	"dependencies": {
 		"@heroui/react": "3.2.1",
 		"@heroui/styles": "3.2.1",
+		"@microsoft/kiota-abstractions": "1.0.0-preview.97",
+		"@microsoft/kiota-http-fetchlibrary": "1.0.0-preview.97",
 		"@org/client-ts": "workspace:*",
 		"@org/shared-ts": "workspace:*",
 		"@tanstack/react-query": "5.101.0",
@@ -22,6 +25,7 @@
 		"@tanstack/react-router-ssr-query": "1.167.1",
 		"@tanstack/react-start": "1.168.26",
 		"@tanstack/virtual-file-routes": "1.162.0",
+		"cookie": "1.0.2",
 		"react": "19.1.0",
 		"react-dom": "19.1.0",
 		"srvx": "0.11.16"
@@ -35,6 +39,7 @@
 		"semver": "7.8.4",
 		"tailwindcss": "4.3.1",
 		"typescript": "6.0.2",
-		"vite": "8.0.16"
+		"vite": "8.0.16",
+		"vitest": "4.1.9"
 	}
 }
