@@ -94,6 +94,8 @@ type CreateClientOptions = {
 	tenantId?: string;
 	/** Which API base to target. */
 	base: ApiBase;
+	/** Injectable fetch (tests pass a fake; production omits → global fetch). */
+	fetchImpl?: typeof fetch;
 };
 
 /**
@@ -103,6 +105,7 @@ export const createClient = (options: CreateClientOptions): ApiClient => {
 	const customFetch = buildCustomFetch({
 		getSessionToken: () => options.sessionToken,
 		tenantId: options.tenantId,
+		fetchImpl: options.fetchImpl,
 	});
 
 	const authProvider = new AnonymousAuthenticationProvider();
@@ -117,21 +120,29 @@ export const createClient = (options: CreateClientOptions): ApiClient => {
 	return createApiClient(adapter);
 };
 
+export const getSessionTokenFromCookieHeaderForServer = (
+	cookieHeader: string | undefined,
+): string | undefined => {
+	const { staffToken, tenantToken } =
+		getSessionTokensFromCookieHeader(cookieHeader);
+	return tenantToken ?? staffToken;
+};
+
 /**
  * Builds a per-request SERVER client from a raw `Cookie` request header.
  *
  * Used by SSR loaders (Task 2.6): `getRequestHeader('cookie')` returns the FULL Cookie
  * header, so we extract the tokens with `getSessionTokensFromCookieHeader` (NOT
- * `parseSessionCookie`, which expects only the raw token value). Staff token wins;
- * tenant token is the fallback.
+ * `parseSessionCookie`, which expects only the raw token value). Tenant token wins;
+ * staff token only used when tenant token is absent.
  */
 export const createServerClientFromCookie = (
 	cookieHeader: string | undefined,
+	fetchImpl?: typeof fetch,
 ): ApiClient => {
-	const { staffToken, tenantToken } =
-		getSessionTokensFromCookieHeader(cookieHeader);
 	return createClient({
-		sessionToken: staffToken ?? tenantToken,
+		sessionToken: getSessionTokenFromCookieHeaderForServer(cookieHeader),
 		base: 'server',
+		fetchImpl,
 	});
 };

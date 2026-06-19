@@ -6,7 +6,7 @@ import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 // PURE session-cookie parse/format — NO `@tanstack/react-start` imports.
 //
 // Vitest imports this module directly (Task 2.2), and `api-client.ts` +
-// `session-cookie-client.ts` + `session.server.ts` all build on it. Keeping it pure
+// `session-cookie-client.ts` + `session-actions.ts` all build on it. Keeping it pure
 // (Finding #23) is what lets the parser be unit-tested without booting Start.
 //
 // DUAL-TOKEN COOKIE FORMAT (copied verbatim from

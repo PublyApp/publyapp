@@ -11,13 +11,15 @@ import {
 	type SupportedLanguage,
 } from './i18n.shared';
 
+type InterZodOptions = ConstructorParameters<typeof InterZod>[0];
+
+type InterZodI18nLike = InterZodOptions['i18n'];
+
 // =============================================================================
 // i18next CLIENT init + InterZod wiring.
 //
-// The locale is read from the SSR-rendered `<html lang>` attribute (the server already
-// resolved it from the `publyapp-locale` cookie), so client + server agree. Resources
-// are fetched from public/locales/{lng}/{ns}.json. InterZod resolves Zod validation
-// errors through the `zod` namespace (e.g. `zod:string.email` via zod-i18n-map).
+// InterZod is bound to the active i18next instance used by `__root.tsx` so Zod errors
+// resolve against the same runtime locale and namespace resources.
 // =============================================================================
 
 const fetchNamespace = async (
@@ -33,43 +35,68 @@ const fetchNamespace = async (
 	}
 };
 
-// Lazily built so the bundle doesn't double-init across HMR.
-// InterZod's `I18nLike` is typed for a single-namespace TFunction; the global i18next
-// `t` is the broader default-namespace function. The shapes are runtime-compatible
-// (InterZod only calls `i18n.t` / `i18n.getFixedT`), so cast the constructor arg.
-export const interZodClient = new InterZod({
-	i18n: i18next as unknown as ConstructorParameters<typeof InterZod>[0]['i18n'],
-});
-
+let activeClientI18n: I18nInstance = i18next;
+let activeLocale = FALLBACK_LANGUAGE;
 let initialized = false;
 
-export const initI18nOnClient = async (): Promise<I18nInstance> => {
-	if (initialized) return i18next;
+const bindInterZodToI18n = (
+	instance: I18nInstance,
+	locale: SupportedLanguage,
+) => {
+	const i18nLike: InterZodI18nLike = {
+		getFixedT: instance.getFixedT.bind(instance),
+		t: instance.t.bind(instance) as never,
+	};
 
-	const htmlLang = document.documentElement.lang;
-	const locale: SupportedLanguage = isSupportedLanguage(htmlLang)
-		? htmlLang
-		: FALLBACK_LANGUAGE;
+	return new InterZod({
+		i18n: i18nLike,
+		locale,
+	});
+};
 
-	const resources: Record<string, Record<string, unknown>> = {};
-	for (const ns of I18N_NAMESPACES) {
-		resources[ns] = await fetchNamespace(locale, ns);
+export let interZodClient = bindInterZodToI18n(activeClientI18n, activeLocale);
+
+const resolveLocale = (value: string | undefined): SupportedLanguage =>
+	isSupportedLanguage(value) ? value : FALLBACK_LANGUAGE;
+
+export const initI18nOnClient = async (
+	instance?: I18nInstance,
+): Promise<I18nInstance> => {
+	const i18n = instance ?? activeClientI18n;
+	const htmlLang =
+		typeof document !== 'undefined' ? document.documentElement.lang : undefined;
+	const activeLang = i18n.language ?? i18n.resolvedLanguage ?? i18n.options.lng;
+	const candidate = isSupportedLanguage(htmlLang) ? htmlLang : activeLang;
+	const locale = resolveLocale(
+		typeof candidate === 'string' ? candidate : undefined,
+	);
+
+	if (initialized && activeClientI18n === i18n && activeLocale === locale) {
+		return i18n;
 	}
 
-	await i18next.use(initReactI18next).init({
-		lng: locale,
-		fallbackLng: FALLBACK_LANGUAGE,
-		supportedLngs: [...SUPPORTED_LANGUAGES],
-		defaultNS: 'common',
-		ns: [...I18N_NAMESPACES],
-		resources: { [locale]: resources },
-		interpolation: { escapeValue: false },
-		react: { useSuspense: false },
-	});
+	activeClientI18n = i18n;
+	activeLocale = locale;
 
-	// Point InterZod at the resolved locale so zod errors translate.
-	interZodClient.setLocale(locale);
+	if (!i18n.isInitialized) {
+		const resources: Record<string, Record<string, unknown>> = {};
+		for (const ns of I18N_NAMESPACES) {
+			resources[ns] = await fetchNamespace(locale, ns);
+		}
 
+		await i18n.use(initReactI18next).init({
+			lng: locale,
+			fallbackLng: FALLBACK_LANGUAGE,
+			supportedLngs: [...SUPPORTED_LANGUAGES],
+			defaultNS: 'common',
+			ns: [...I18N_NAMESPACES],
+			resources: { [locale]: resources },
+			interpolation: { escapeValue: false },
+			react: { useSuspense: false },
+		});
+	}
+
+	interZodClient = bindInterZodToI18n(i18n, locale);
 	initialized = true;
-	return i18next;
+	return i18n;
 };

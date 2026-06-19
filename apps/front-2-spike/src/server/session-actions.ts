@@ -15,6 +15,10 @@ import { formatSessionCookie } from '../lib/session-cookie';
 
 type LoginInput = { email: string; password: string };
 
+export const getLoginSessionCookieValue = (sessionToken: string) => {
+	return formatSessionCookie({ tenantToken: sessionToken });
+};
+
 /**
  * Login — STEP 1 ONLY (set cookie + return ok).
  *
@@ -48,7 +52,8 @@ export const login = createServerFn({ method: 'POST' })
 
 		setCookie(
 			SESSION_TOKEN_COOKIE_KEY,
-			formatSessionCookie({ staffToken: res.sessionToken }),
+			// TODO(2.4): upgrade to staff slot after auth.redirectCode proves STAFF
+			getLoginSessionCookieValue(res.sessionToken),
 			{
 				httpOnly: false,
 				secure: true,

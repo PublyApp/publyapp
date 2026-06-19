@@ -1,6 +1,9 @@
+import { existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { cwd } from 'node:process';
+import { fileURLToPath } from 'node:url';
 
 import { getCookie } from '@tanstack/react-start/server';
 
@@ -32,13 +35,53 @@ export const resolveLocaleFromCookie = (): SupportedLanguage => {
 
 // The server is launched from the app root (cwd), where the locale JSON lives at
 // `public/locales/{lng}/{ns}.json` in dev and is mirrored to `dist/client/locales/...`
-// after build (Vite copies `public/`). Resolving from cwd works in BOTH — bundle-path
-// resolution (`import.meta.url`) breaks because the server fn is chunked into
-// `dist/server/assets/`, where `../../public/locales` does not exist.
-const LOCALE_DIR_CANDIDATES = [
-	join(cwd(), 'public', 'locales'),
-	join(cwd(), 'dist', 'client', 'locales'),
-];
+// after build (Vite copies `public/`).
+const moduleDir = dirname(fileURLToPath(import.meta.url));
+
+const readFront2PackageName = (path: string): string | undefined => {
+	try {
+		const packageJson = JSON.parse(
+			readFileSync(join(path, 'package.json'), 'utf-8'),
+		) as { name?: string };
+		return packageJson.name;
+	} catch {
+		return undefined;
+	}
+};
+
+const resolveAppRoot = (): string => {
+	let current = moduleDir;
+
+	for (let i = 0; i < 12; i += 1) {
+		const packageName = readFront2PackageName(current);
+		if (packageName === 'front-2-spike' && existsSync(join(current, 'src'))) {
+			return current;
+		}
+
+		const parent = dirname(current);
+		if (parent === current) break;
+		current = parent;
+	}
+
+	const projectRoot = join(cwd(), 'apps', 'front-2-spike');
+	if (existsSync(join(projectRoot, 'src'))) return projectRoot;
+
+	return resolve(cwd());
+};
+
+const APP_ROOT = resolveAppRoot();
+
+const LOCALHOST_CANDIDATES = [APP_ROOT, moduleDir].flatMap((root) => [
+	join(root, 'public', 'locales'),
+	join(root, 'dist', 'client', 'locales'),
+]);
+
+const LOCALE_DIR_CANDIDATES = Array.from(
+	new Set([
+		...LOCALHOST_CANDIDATES,
+		join(moduleDir, '..', '..', '..', '..', 'public', 'locales'),
+	]),
+).filter((candidate) => existsSync(candidate));
 
 const loadNamespace = async (
 	lng: SupportedLanguage,

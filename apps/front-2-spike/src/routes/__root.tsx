@@ -1,6 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-/// <reference types="vite/client" />
 import {
 	HeadContent,
 	Link,
@@ -9,6 +8,9 @@ import {
 	createRootRouteWithContext,
 } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
+/// <reference types="vite/client" />
+import { createClientOnlyFn } from '@tanstack/react-start';
+import type { i18n as I18nInstance } from 'i18next';
 import * as React from 'react';
 import { I18nProvider } from 'react-aria-components';
 import { I18nextProvider, useTranslation } from 'react-i18next';
@@ -25,6 +27,11 @@ import { loadI18nForRequest } from '~/server/i18n-locale';
 import { seo } from '~/utils/seo';
 
 import appCss from '~/styles/app.css?url';
+
+const initI18nOnClient = createClientOnlyFn(async (instance: I18nInstance) => {
+	const mod = await import('~/lib/i18n.client');
+	return mod.initI18nOnClient(instance);
+});
 
 type RootLoaderData = {
 	locale: SupportedLanguage;
@@ -109,6 +116,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 		() => createI18nFromResources(locale, resources),
 		[locale, resources],
 	);
+	if (typeof window !== 'undefined') {
+		void initI18nOnClient(i18n);
+	}
 
 	return (
 		<html lang={locale} dir={dirForLocale(locale)}>

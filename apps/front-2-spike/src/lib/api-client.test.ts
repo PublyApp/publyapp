@@ -1,6 +1,10 @@
 import { expect, test, vi } from 'vitest';
 
-import { buildCustomFetch } from './api-client';
+import {
+	buildCustomFetch,
+	createServerClientFromCookie,
+	getSessionTokenFromCookieHeaderForServer,
+} from './api-client';
 
 // Task 2.1 — Kiota custom-fetch header injection + redaction.
 //
@@ -55,4 +59,32 @@ test('omits both headers when no token and no tenant are provided', async () => 
 	const h = calls[0].headers;
 	expect(h.get('X-Session-Token')).toBeNull();
 	expect(h.get('X-PublyApp-TenantId')).toBeNull();
+});
+
+test('resolves server client session token from both tenant + staff cookie (tenant wins)', () => {
+	expect(
+		getSessionTokenFromCookieHeaderForServer(
+			'publyapp-locale=fr; publyapp-session_token=s:staff+t:tenant',
+		),
+	).toBe('tenant');
+});
+
+test('resolves server client session token from staff-only cookie', () => {
+	expect(
+		getSessionTokenFromCookieHeaderForServer(
+			'publyapp-locale=fr; publyapp-session_token=s:staff',
+		),
+	).toBe('staff');
+});
+
+test('createServerClientFromCookie uses server base without throwing when token precedence applies', () => {
+	process.env.SERVER_API_BASE_URL = 'https://api.test.local';
+	const fakeFetch = vi.fn(async () => new Response('{}')) as typeof fetch;
+	const client = createServerClientFromCookie(
+		'publyapp-locale=fr; publyapp-session_token=s:staff+t:tenant',
+		fakeFetch,
+	);
+
+	expect(client).toBeTruthy();
+	expect(fakeFetch).not.toHaveBeenCalled();
 });
