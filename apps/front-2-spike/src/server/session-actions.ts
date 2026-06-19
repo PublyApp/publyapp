@@ -1,11 +1,19 @@
 import { createServerFn } from '@tanstack/react-start';
-import { setCookie, setResponseHeader } from '@tanstack/react-start/server';
+import {
+	getRequestHeader,
+	setCookie,
+	setResponseHeader,
+} from '@tanstack/react-start/server';
 import * as cookie from 'cookie';
 
 import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
+import { REDIRECT_CODE } from '@org/shared-ts/lib/constants';
 
 import { createClient } from '../lib/api-client';
-import { formatSessionCookie } from '../lib/session-cookie';
+import {
+	formatSessionCookie,
+	getSessionTokensFromCookieHeader,
+} from '../lib/session-cookie';
 
 // =============================================================================
 // Cookie-I/O server functions — the ONLY legitimate use of createServerFn in this
@@ -68,6 +76,62 @@ export const login = createServerFn({ method: 'POST' })
 		// Redirect decided on the NEXT request (auth.redirectCode.get) per #5615.
 		return { ok: true };
 	});
+
+/**
+ * Login step 2 (new request): resolve the redirect scope from the session token
+ * now present in the request cookie, then return the target app path.
+ *
+ * This must be a separate request because `setCookie` updates are not visible
+ * inside the same request that writes them (see #5615).
+ */
+export const completeLoginRedirect = createServerFn({ method: 'POST' }).handler(
+	async () => {
+		const cookieHeader = getRequestHeader('cookie');
+		const { staffToken, tenantToken } =
+			getSessionTokensFromCookieHeader(cookieHeader);
+		const sessionToken = staffToken ?? tenantToken;
+
+		if (!sessionToken) {
+			throw new Response('missing session token', {
+				status: 401,
+			});
+		}
+
+		const result = await createClient({
+			sessionToken,
+			base: 'server',
+		}).auth.redirectCode.get();
+
+		const redirectCode = result?.redirectCode;
+
+		if (redirectCode === REDIRECT_CODE.STAFF) {
+			setCookie(
+				SESSION_TOKEN_COOKIE_KEY,
+				formatSessionCookie({ staffToken: sessionToken }),
+				{
+					httpOnly: false,
+					secure: true,
+					sameSite: 'lax',
+					path: '/',
+				},
+			);
+
+			return { targetPath: '/staff/staff-users' };
+		}
+
+		if (redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
+			throw new Response('user does not have access', {
+				status: 403,
+			});
+		}
+
+		if (redirectCode === REDIRECT_CODE.TENANT_PICKER) {
+			return { targetPath: '/' };
+		}
+
+		return { targetPath: '/' };
+	},
+);
 
 /**
  * clearSession — emit the FULL clear matrix (ported verbatim from
