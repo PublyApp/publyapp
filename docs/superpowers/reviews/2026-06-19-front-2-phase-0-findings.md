@@ -501,3 +501,31 @@ client for the Task 2.7 dialog. The real repo `zod.{en,fr}.json` were copied ver
 `react-aria-components@1.18.0`. **Pinned to the workspace-resolved versions, NOT the npm
 `latest`** — the shared-ts `InterZod` is written for the **zod v3** error-map API
 (`errorMap`/`ZodIssueCode`/`defaultErrorMap`); zod v4 (latest) would break it.
+
+## SSR request-header access — Group 2B auth slice fixes
+
+### Decision
+
+- Used a non-RPC, server-only request-header read for auth gating:
+  `src/server/request-context.ts` now contains:
+  - `export const getCookieHeader = () => getRequestHeader('cookie');`
+- `authed/layout.tsx` `beforeLoad` and `authed/staff-users.tsx` SSR loader now consume that helper
+  directly.
+- Token precedence is now scoped in `createServerClientFromCookie(cookieHeader, fetchImpl?, scope?)`.
+  Staff SSR call-sites pass `'staff'`, which selects staff token on dual-token cookies.
+
+### Evidence
+
+- Server-fn endpoint surface now includes:
+  - `GET /_serverFn/<id>/loadI18nForRequest`
+  - `POST /_serverFn/<id>/login`
+  - `POST /_serverFn/<id>/completeLoginRedirect`
+  - `POST /_serverFn/<id>/clearSession`
+- No RPC endpoint now exists for a raw `getCookieHeader` handler. A direct probe of any remaining server fn
+  returns non-secret payloads (or empty JSON), never raw `Cookie` or `sessionToken`.
+
+### Architectural tension
+
+- The helper is called from route modules, so correctness relies on Start running these gate points in server
+  execution paths. If execution shifts to client-side transitions in future router versions, this should be
+  refactored to a strict `createServerOnlyFn` wrapper.

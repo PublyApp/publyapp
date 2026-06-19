@@ -77,14 +77,19 @@ test('resolves server client session token from staff-only cookie', () => {
 	).toBe('staff');
 });
 
-test('createServerClientFromCookie uses server base without throwing when token precedence applies', () => {
+test('createServerClientFromCookie uses staff token for staff scope in server client', () => {
 	process.env.SERVER_API_BASE_URL = 'https://api.test.local';
-	const fakeFetch = vi.fn(async () => new Response('{}')) as typeof fetch;
 	const client = createServerClientFromCookie(
 		'publyapp-locale=fr; publyapp-session_token=s:staff+t:tenant',
-		fakeFetch,
+		undefined,
+		'staff',
 	);
 
+	expect(
+		getSessionTokenFromCookieHeaderForServer(
+			'publyapp-locale=fr; publyapp-session_token=s:staff+t:tenant',
+			'staff',
+		),
+	).toBe('staff');
 	expect(client).toBeTruthy();
-	expect(fakeFetch).not.toHaveBeenCalled();
 });

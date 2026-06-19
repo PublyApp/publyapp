@@ -32,20 +32,27 @@ const fetchStaffUsers = async (client: ApiClient, vars: StaffUsersVars) => {
 	return res;
 };
 
+const resolveStaffUsersBrowserSessionToken = () => {
+	const { staffToken, tenantToken } = getSessionTokensFromClient();
+	return staffToken ?? tenantToken;
+};
+
 export const staffUsersBrowserQuery = (vars: StaffUsersVars = {}) =>
 	queryOptions({
 		queryKey: staffUsersKey(vars),
 		queryFn: () => {
-			const { staffToken, tenantToken } = getSessionTokensFromClient();
 			return fetchStaffUsers(
 				createClient({
-					sessionToken: staffToken ?? tenantToken,
+					sessionToken: resolveStaffUsersBrowserSessionToken(),
 					base: 'public',
 				}),
 				vars,
 			);
 		},
 	});
+
+export const getStaffUsersBrowserSessionToken = () =>
+	resolveStaffUsersBrowserSessionToken();
 
 export const staffUsersServerQueryOptions = (
 	vars: StaffUsersVars,

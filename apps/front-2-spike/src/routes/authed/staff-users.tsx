@@ -10,7 +10,11 @@ import { getCookieHeader } from '~/server/request-context';
 export const Route = createFileRoute('/_authed-layout/staff/staff-users')({
 	loader: async ({ context }) => {
 		const cookieHeader = await getCookieHeader();
-		const serverClient = createServerClientFromCookie(cookieHeader);
+		const serverClient = createServerClientFromCookie(
+			cookieHeader,
+			undefined,
+			'staff',
+		);
 		return context.queryClient.ensureQueryData(
 			staffUsersServerQueryOptions({}, serverClient),
 		);

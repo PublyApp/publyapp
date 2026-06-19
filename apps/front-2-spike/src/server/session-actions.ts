@@ -22,6 +22,26 @@ import {
 // =============================================================================
 
 type LoginInput = { email: string; password: string };
+type LoginResult = { ok: true; sessionExpiresAt: string | undefined };
+type LoginRedirectInput = { sessionExpiresAt: string | undefined };
+
+const resolveSessionCookieMaxAge = (sessionExpiresAt: string | undefined) => {
+	if (!sessionExpiresAt) {
+		return undefined;
+	}
+
+	const expiresAt = new Date(sessionExpiresAt);
+	const maxAge = Math.floor((expiresAt.getTime() - Date.now()) / 1000);
+
+	if (Number.isNaN(maxAge)) {
+		return undefined;
+	}
+
+	return {
+		expires: expiresAt,
+		maxAge: Math.max(0, maxAge),
+	};
+};
 
 export const getLoginSessionCookieValue = (sessionToken: string) => {
 	return formatSessionCookie({ tenantToken: sessionToken });
@@ -48,15 +68,10 @@ export const login = createServerFn({ method: 'POST' })
 
 		if (!res?.sessionToken) throw new Error('login failed');
 
-		const sessionExpiresAt = res.sessionExpiresAt;
-		const maxAge = sessionExpiresAt
-			? Math.max(
-					0,
-					Math.floor(
-						(new Date(sessionExpiresAt).getTime() - Date.now()) / 1000,
-					),
-				)
+		const sessionExpiresAt = res.sessionExpiresAt
+			? res.sessionExpiresAt.toISOString()
 			: undefined;
+		const options = resolveSessionCookieMaxAge(sessionExpiresAt);
 
 		setCookie(
 			SESSION_TOKEN_COOKIE_KEY,
@@ -67,14 +82,14 @@ export const login = createServerFn({ method: 'POST' })
 				secure: true,
 				sameSite: 'lax',
 				path: '/',
-				...(maxAge !== undefined && sessionExpiresAt
-					? { maxAge, expires: new Date(sessionExpiresAt) }
+				...(options
+					? { maxAge: options.maxAge, expires: options.expires }
 					: {}),
 			},
 		);
 
 		// Redirect decided on the NEXT request (auth.redirectCode.get) per #5615.
-		return { ok: true };
+		return { ok: true, sessionExpiresAt } satisfies LoginResult;
 	});
 
 /**
@@ -84,8 +99,9 @@ export const login = createServerFn({ method: 'POST' })
  * This must be a separate request because `setCookie` updates are not visible
  * inside the same request that writes them (see #5615).
  */
-export const completeLoginRedirect = createServerFn({ method: 'POST' }).handler(
-	async () => {
+export const completeLoginRedirect = createServerFn({ method: 'POST' })
+	.validator((d: LoginRedirectInput) => d)
+	.handler(async ({ data }) => {
 		const cookieHeader = getRequestHeader('cookie');
 		const { staffToken, tenantToken } =
 			getSessionTokensFromCookieHeader(cookieHeader);
@@ -103,6 +119,7 @@ export const completeLoginRedirect = createServerFn({ method: 'POST' }).handler(
 		}).auth.redirectCode.get();
 
 		const redirectCode = result?.redirectCode;
+		const cookieMaxAge = resolveSessionCookieMaxAge(data?.sessionExpiresAt);
 
 		if (redirectCode === REDIRECT_CODE.STAFF) {
 			setCookie(
@@ -113,6 +130,9 @@ export const completeLoginRedirect = createServerFn({ method: 'POST' }).handler(
 					secure: true,
 					sameSite: 'lax',
 					path: '/',
+					...(cookieMaxAge
+						? { maxAge: cookieMaxAge.maxAge, expires: cookieMaxAge.expires }
+						: {}),
 				},
 			);
 
@@ -130,8 +150,7 @@ export const completeLoginRedirect = createServerFn({ method: 'POST' }).handler(
 		}
 
 		return { targetPath: '/' };
-	},
-);
+	});
 
 /**
  * clearSession — emit the FULL clear matrix (ported verbatim from

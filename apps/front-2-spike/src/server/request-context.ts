@@ -1,6 +1,6 @@
-import { createServerFn } from '@tanstack/react-start';
+import { createServerOnlyFn } from '@tanstack/react-start';
 import { getRequestHeader } from '@tanstack/react-start/server';
 
-export const getCookieHeader = createServerFn({ method: 'GET' }).handler(() =>
+export const getCookieHeader = createServerOnlyFn(() =>
 	getRequestHeader('cookie'),
 );

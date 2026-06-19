@@ -5,6 +5,7 @@ import { useServerFn } from '@tanstack/react-start';
 import { useState } from 'react';
 import type { SubmitHandler } from 'react-hook-form';
 import { useForm } from 'react-hook-form';
+import { View403 } from '~/components/View403';
 import { getFailureMessage, toApiFailure } from '~/lib/api-failure';
 import { completeLoginRedirect, login } from '~/server/session-actions';
 
@@ -35,6 +36,7 @@ function LoginPage() {
 	});
 
 	const [errorMessage, setErrorMessage] = useState<string>('');
+	const [isForbidden, setIsForbidden] = useState(false);
 
 	const onSubmit: SubmitHandler<LoginFormValues> = async ({
 		email,
@@ -42,12 +44,22 @@ function LoginPage() {
 	}) => {
 		try {
 			setErrorMessage('');
-			await loginAction({ data: { email, password } });
-			const redirect = await completeRedirectAction();
+			const { sessionExpiresAt } = await loginAction({
+				data: { email, password },
+			});
+			const redirect = await completeRedirectAction({
+				data: { sessionExpiresAt },
+			});
 			const next = redirect?.targetPath ?? '/';
 			await navigate({ to: next });
 		} catch (error) {
 			const failure = toApiFailure(error);
+
+			if (failure.kind === 'problem' && failure.status === 403) {
+				setIsForbidden(true);
+				return;
+			}
+
 			const message = getFailureMessage(failure, {
 				fallback: 'Login failed. Please check your credentials.',
 			});
@@ -55,6 +67,10 @@ function LoginPage() {
 			setErrorMessage(message);
 		}
 	};
+
+	if (isForbidden) {
+		return <View403 />;
+	}
 
 	return (
 		<div className="mx-auto max-w-md p-4">

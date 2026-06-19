@@ -9,6 +9,7 @@ import {
 	useNavigate,
 } from '@tanstack/react-router';
 import { useEffect } from 'react';
+import { View403 } from '~/components/View403';
 import { clearTenantSuspensionCookie, toApiFailure } from '~/lib/api-failure';
 import { getSessionTokensFromCookieHeader } from '~/lib/session-cookie';
 import { getCookieHeader } from '~/server/request-context';
@@ -118,23 +119,6 @@ function TenantSuspendedView() {
 	return (
 		<div className="p-6">
 			This tenant is suspended. Please contact support or switch accounts.
-		</div>
-	);
-}
-
-function View403() {
-	const navigate = useNavigate();
-	return (
-		<div className="p-6">
-			<div>You are not allowed to access this resource.</div>
-			<Button
-				variant="primary"
-				onPress={() => {
-					navigate({ to: '/login' });
-				}}
-			>
-				Back to Login
-			</Button>
 		</div>
 	);
 }

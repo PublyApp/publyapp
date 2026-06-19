@@ -122,10 +122,14 @@ export const createClient = (options: CreateClientOptions): ApiClient => {
 
 export const getSessionTokenFromCookieHeaderForServer = (
 	cookieHeader: string | undefined,
+	scope: 'tenant' | 'staff' = 'tenant',
 ): string | undefined => {
 	const { staffToken, tenantToken } =
 		getSessionTokensFromCookieHeader(cookieHeader);
-	return tenantToken ?? staffToken;
+
+	return scope === 'staff'
+		? (staffToken ?? tenantToken)
+		: (tenantToken ?? staffToken);
 };
 
 /**
@@ -139,9 +143,10 @@ export const getSessionTokenFromCookieHeaderForServer = (
 export const createServerClientFromCookie = (
 	cookieHeader: string | undefined,
 	fetchImpl?: typeof fetch,
+	scope: 'tenant' | 'staff' = 'tenant',
 ): ApiClient => {
 	return createClient({
-		sessionToken: getSessionTokenFromCookieHeaderForServer(cookieHeader),
+		sessionToken: getSessionTokenFromCookieHeaderForServer(cookieHeader, scope),
 		base: 'server',
 		fetchImpl,
 	});

@@ -73,13 +73,28 @@ export const toApiFailure = (error: unknown): ApiFailure => {
 			extractTranslationKeyFromBody(error as Record<string, unknown>) ??
 			directTranslationKey ??
 			nestedErrorTranslationKey;
+		const fieldErrors = extractFieldErrorsFromBody(body);
+		const status = Number.isNaN(responseStatusCode)
+			? Number.isNaN(statusFromBody)
+				? Number((error as { status?: number }).status ?? 500)
+				: statusFromBody
+			: responseStatusCode;
+
+		if (status === 422 && fieldErrors && Object.keys(fieldErrors).length > 0) {
+			return {
+				kind: 'validation',
+				status,
+				translationKey,
+				detail: (error as { detail?: unknown }).detail as string | undefined,
+				title: (error as { title?: unknown }).title as string | undefined,
+				fieldErrors,
+				raw: error,
+			};
+		}
+
 		return {
 			kind: 'problem',
-			status: Number.isNaN(responseStatusCode)
-				? Number.isNaN(statusFromBody)
-					? Number((error as { status?: number }).status ?? 500)
-					: statusFromBody
-				: responseStatusCode,
+			status,
 			translationKey,
 			detail: (error as { detail?: unknown }).detail as string | undefined,
 			title: (error as { title?: unknown }).title as string | undefined,
@@ -182,4 +197,32 @@ const extractTranslationKeyFromBody = (body: unknown): string | undefined => {
 	}
 
 	return undefined;
+};
+
+const extractFieldErrorsFromBody = (
+	body: unknown,
+): Record<string, string[]> | undefined => {
+	if (!body || typeof body !== 'object' || body === null) {
+		return undefined;
+	}
+
+	const candidate = (body as Record<string, unknown>).errors;
+	if (!candidate || typeof candidate !== 'object') {
+		return undefined;
+	}
+
+	const candidates = Object.entries(candidate as Record<string, unknown>);
+	const parsed = candidates.flatMap(([field, rawMessages]) => {
+		if (!Array.isArray(rawMessages)) {
+			return [];
+		}
+
+		const messages = rawMessages
+			.map((item) => (typeof item === 'string' ? item : String(item ?? '')))
+			.filter((item) => item.length > 0);
+
+		return messages.length > 0 ? [[field, messages]] : [];
+	});
+
+	return parsed.length > 0 ? Object.fromEntries(parsed) : undefined;
 };
