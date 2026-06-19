@@ -171,3 +171,56 @@ single copy — while making the directly-imported package resolvable. After add
 
 - `pnpm install` → success (workspace `front-2-spike` picked up via `apps/*`; transitive `@tanstack/react-router@1.170.16` confirmed in lockfile).
 - `pnpm dev` → **HTTP 200**, default example renders ("Welcome Home!!!" + nav + SSR streaming HTML).
+
+---
+
+## Supply-chain install policy
+
+**Task 1.2 — exact-pin assertion + `ignore-scripts` policy, CI-tested.**
+
+### Pin assertion (`scripts/assert-pinned.mjs`)
+
+- Validates that **every** non-`workspace:` dep in all four dep groups is a single exact SemVer (rejects `^`/`~`/tags/`latest`/git/`file:`/`link:`/`catalog:`). Prefers the real `semver` validator; falls back to a strict exact-version regex ONLY on the cold-`preinstall` path (before deps are on disk). Wired as `package.json` `preinstall`.
+- `node scripts/assert-pinned.mjs` → **`All deps exact-pinned ✔`**.
+
+### `--ignore-scripts` policy (allowlist trusted first-party postinstalls)
+
+A **blanket** `--ignore-scripts` is the supply-chain ban (a tampered transitive dep
+cannot run install-time code), but it ALSO skips `@org/shared-ts`'s real
+`postinstall` (`generate-zod-i18n-map.mjs`) that i18n/InterZod depend on. **Policy:
+ban all lifecycle scripts, then EXPLICITLY allowlist trusted first-party postinstalls**:
+
+```
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm --filter @org/shared-ts run postinstall   # trusted first-party — re-run explicitly
+```
+
+Verified locally:
+
+- `pnpm install --frozen-lockfile --ignore-scripts` → "Lockfile is up to date … Already up to date".
+- `pnpm --filter @org/shared-ts run postinstall` → regenerates `packages/shared-ts/lib/i18n/json/zod.{en,fr}.json` (both present, ~4 KB each).
+- `pnpm --filter front-2-spike build` → succeeds.
+
+The per-app `.npmrc` sets `prefer-frozen-lockfile=true`. NOTE: pnpm's `ignore-scripts`
+is a workspace-root/command-level setting (not honored from a per-app `.npmrc`), so the
+ban is applied on the install COMMAND (and in CI), not in the app `.npmrc`.
+
+### CI (path-filtered — DEVIATION called out)
+
+Added `.github/workflows/front-2-spike-supply-chain.yml`: assert-pinned → frozen +
+`--ignore-scripts` install → explicit shared-ts postinstall → spike build.
+**It is `paths`-filtered to `apps/front-2-spike/**` (and its own workflow file)** so it
+NEVER runs on unrelated PRs — this is a repo CI change for a throwaway app, kept
+isolated by design. **Human confirm:** acceptable to add this isolated, path-scoped
+CI job to the repo for the disposable spike.
+
+### Build-target divergence (recorded; resolved in Task 1.5)
+
+`pnpm --filter front-2-spike build` emits **`dist/client` + `dist/server/server.js`** —
+there is **NO `.output/server/index.mjs`** and no Nitro `.output/` directory with this
+Start version's default build. The scaffold's own `start` script was
+`pnpx srvx --prod -s ../client dist/server/server.js`. The plan grounding assumed a
+Nitro `node` preset emitting `.output/server/index.mjs`; that assumption does **not**
+hold for the default build here. Task 1.5 reconciles the standalone-Node boot
+(`start` script + the `node .output/server/index.mjs` acceptance) against the actual
+emitted artifact.
