@@ -4,7 +4,7 @@ import {
 	defineHandlerCallback,
 } from '@tanstack/react-start/server';
 
-import { createCSPHeader } from '@org/shared-ts/lib/csp';
+import { applyCspHeaders } from './server/csp';
 
 // Custom TanStack Start server entry (Task 3.1).
 //
@@ -21,24 +21,18 @@ const cspStreamHandler = defineHandlerCallback((ctx) => {
 	const nonce = ctx.router.options.ssr?.nonce;
 
 	if (typeof nonce === 'string' && nonce.length > 0) {
-		const cspPolicy = createCSPHeader({
-			isDevelopment: process.env.NODE_ENV === 'development',
+		applyCspHeaders(
+			ctx.responseHeaders,
 			nonce,
-		});
-
-		// Enforced is what the blocking test asserts; report-only mirrors it for parity
-		// with the current `front` (header presence), not as a separate diagnostic policy.
-		ctx.responseHeaders.set('Content-Security-Policy', cspPolicy);
-		ctx.responseHeaders.set('Content-Security-Policy-Report-Only', cspPolicy);
+			process.env.NODE_ENV === 'development',
+		);
 	}
 
 	return defaultStreamHandler(ctx);
 });
 
-const handleRequest = createStartHandler(cspStreamHandler);
-
+// Default-export `{ fetch }` to match the framework's default entry; `fetch` is the raw
+// handler so all `RequestHandler` args (request + optional opts) are forwarded intact.
 export default {
-	fetch(request: Request) {
-		return handleRequest(request);
-	},
+	fetch: createStartHandler(cspStreamHandler),
 };

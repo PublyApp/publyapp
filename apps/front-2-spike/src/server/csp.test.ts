@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 
 import { createCSPHeader } from '@org/shared-ts/lib/csp';
 
-import { mintCspNonce } from './csp';
+import { applyCspHeaders, mintCspNonce } from './csp';
 
 test('mintCspNonce returns a non-empty, unique nonce per call', () => {
 	const a = mintCspNonce();
@@ -46,4 +46,20 @@ test('style-src retains unsafe-inline (overlay inline styles cannot be nonced)',
 
 	expect(styleSrc).toBeDefined();
 	expect(styleSrc).toContain("'unsafe-inline'");
+});
+
+// Guards the exact logic the custom server entry (src/server.ts) delegates to: a given
+// nonce sets BOTH headers, byte-identical (parity), with the nonce embedded. The
+// entry-runs-on-404 propagation is asserted at the request level in Task 4.5.
+test('applyCspHeaders sets enforced + report-only with the same nonced policy', () => {
+	const nonce = mintCspNonce();
+	const headers = new Headers();
+
+	applyCspHeaders(headers, nonce, false);
+
+	const enforced = headers.get('Content-Security-Policy');
+	const reportOnly = headers.get('Content-Security-Policy-Report-Only');
+
+	expect(enforced).toContain(`'nonce-${nonce}'`);
+	expect(reportOnly).toBe(enforced);
 });
