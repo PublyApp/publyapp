@@ -563,3 +563,22 @@ client for the Task 2.7 dialog. The real repo `zod.{en,fr}.json` were copied ver
   - update spec §4.1 / §10 wording for authed=CSR in Group 5.
   - scope Task 4.3 SSR assertions to marketing/auth routes (`rows in raw SSR HTML`, `no-refetch priming`) or verify them post-hydration for authed flows (Playwright with JS enabled).
 - `## Table parity (Task 2.6)` virtualization verdict remains **PENDING** with follow-up browser DOM-windowing confirmation in Group 4.
+
+## CSP
+
+### Task 3.1
+
+- Implemented `apps/front-2-spike/src/server/csp.server.ts` and wired `front-2-spike` root loader through `src/server/request-context.ts` so each request gets a fresh nonce via `nanoid()` and sets both:
+  - `Content-Security-Policy`
+  - `Content-Security-Policy-Report-Only`
+- The CSP string mirrors `packages/shared-ts/lib/csp.ts` via `createCSPHeader()`:
+  - `script-src` includes `'nonce-{nonce}'`.
+  - `style-src` keeps `self` + `\'unsafe-inline\'` for this spike.
+- `__root.tsx` now emits both nonce tags in `<head>` with the same request value:
+  - `<meta name="csp-nonce" content={nonce} />`
+  - `<meta property="csp-nonce" content={nonce} />`
+- Both inline scripts in the SSR shell carry the nonce:
+  - pre-hydration theme script
+  - `window.__ENV__ = { PUBLIC_API_BASE_URL }` script
+- `<Scripts>` now receives `nonce={nonce}`.
+- **Style-src verdict (recorded):** keeping `style-src 'unsafe-inline'` remains necessary to match current `front` until React Aria runtime style handling is proven with nonce/hash coverage.

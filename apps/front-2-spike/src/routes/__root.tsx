@@ -27,6 +27,7 @@ import { loadI18nForRequest } from '~/server/i18n-locale';
 import {
 	getCookieHeaderIsomorphic,
 	getThemeFromCookieHeader,
+	getCspConfigForRequest,
 } from '~/server/request-context';
 import { seo } from '~/utils/seo';
 
@@ -45,6 +46,7 @@ type RootLoaderData = {
 	locale: SupportedLanguage;
 	resources: I18nResources;
 	initialTheme: 'light' | 'dark';
+	cspNonce: string;
 };
 
 export const Route = createRootRouteWithContext<{
@@ -56,11 +58,13 @@ export const Route = createRootRouteWithContext<{
 	loader: async (): Promise<RootLoaderData> => {
 		const cookieHeader = await getCookieHeaderIsomorphic();
 		const { locale, resources } = await loadI18nForRequest();
+		const { nonce: cspNonce } = await getCspConfigForRequest();
 		const initialTheme = getThemeFromCookieHeader(cookieHeader);
 		return {
 			locale,
 			resources,
 			initialTheme,
+			cspNonce,
 		};
 	},
 	head: () => ({
@@ -128,6 +132,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 	const locale = data?.locale ?? FALLBACK_LANGUAGE;
 	const resources = data?.resources ?? { [FALLBACK_LANGUAGE]: {} };
 	const initialTheme = data?.initialTheme ?? 'light';
+	const cspNonce = data?.cspNonce ?? '';
+	const ScriptsWithNonce = Scripts as unknown as React.ComponentType<{
+		nonce?: string;
+	}>;
 
 	// Per-request (server) / per-mount (client) synchronous i18next instance built from
 	// the SSR-resolved resources — so SSR HTML and the hydrated tree share one locale.
@@ -169,8 +177,16 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 		>
 			<head>
 				<HeadContent />
-				<script dangerouslySetInnerHTML={{ __html: preHydrateThemeScript }} />
-				<script dangerouslySetInnerHTML={{ __html: runtimeEnvScript }} />
+				<meta name="csp-nonce" content={cspNonce} />
+				<meta property="csp-nonce" content={cspNonce} />
+				<script
+					nonce={cspNonce || undefined}
+					dangerouslySetInnerHTML={{ __html: preHydrateThemeScript }}
+				/>
+				<script
+					nonce={cspNonce || undefined}
+					dangerouslySetInnerHTML={{ __html: runtimeEnvScript }}
+				/>
 			</head>
 			<body>
 				<I18nextProvider i18n={i18n}>
@@ -218,7 +234,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 						<ReactQueryDevtools buttonPosition="bottom-left" />
 					</>
 				) : null}
-				<Scripts />
+				<ScriptsWithNonce nonce={cspNonce || undefined} />
 			</body>
 		</html>
 	);
