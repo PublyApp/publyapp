@@ -10,6 +10,7 @@ import {
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 /// <reference types="vite/client" />
 import { createClientOnlyFn } from '@tanstack/react-start';
+import * as cookie from 'cookie';
 import type { i18n as I18nInstance } from 'i18next';
 import * as React from 'react';
 import { I18nProvider } from 'react-aria-components';
@@ -24,9 +25,19 @@ import {
 	type SupportedLanguage,
 } from '~/lib/i18n.shared';
 import { loadI18nForRequest } from '~/server/i18n-locale';
+import { getCookieHeader } from '~/server/request-context';
 import { seo } from '~/utils/seo';
 
 import appCss from '~/styles/app.css?url';
+
+const THEME_COOKIE_KEY = 'publyapp-theme';
+
+const getThemeFromCookieHeader = (
+	cookieHeader: string | undefined,
+): 'light' | 'dark' => {
+	const parsed = cookie.parse(cookieHeader ?? '');
+	return parsed[THEME_COOKIE_KEY] === 'dark' ? 'dark' : 'light';
+};
 
 const initI18nOnClient = createClientOnlyFn(async (instance: I18nInstance) => {
 	const mod = await import('~/lib/i18n.client');
@@ -36,6 +47,7 @@ const initI18nOnClient = createClientOnlyFn(async (instance: I18nInstance) => {
 type RootLoaderData = {
 	locale: SupportedLanguage;
 	resources: I18nResources;
+	initialTheme: 'light' | 'dark';
 };
 
 export const Route = createRootRouteWithContext<{
@@ -44,7 +56,16 @@ export const Route = createRootRouteWithContext<{
 	// COOKIE-DRIVEN locale resolution happens server-side via the i18n server fn, so the
 	// SSR `<html lang>` + first-paint copy already match the request locale (no FOUC of
 	// language). The fs-backed loader is hidden behind a server fn (client-bundle-safe).
-	loader: async (): Promise<RootLoaderData> => loadI18nForRequest(),
+	loader: async (): Promise<RootLoaderData> => {
+		const cookieHeader = await getCookieHeader();
+		const { locale, resources } = await loadI18nForRequest();
+		const initialTheme = getThemeFromCookieHeader(cookieHeader);
+		return {
+			locale,
+			resources,
+			initialTheme,
+		};
+	},
 	head: () => ({
 		meta: [
 			{
@@ -109,6 +130,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 		| undefined;
 	const locale = data?.locale ?? FALLBACK_LANGUAGE;
 	const resources = data?.resources ?? { [FALLBACK_LANGUAGE]: {} };
+	const initialTheme = data?.initialTheme ?? 'light';
 
 	// Per-request (server) / per-mount (client) synchronous i18next instance built from
 	// the SSR-resolved resources — so SSR HTML and the hydrated tree share one locale.
@@ -120,15 +142,40 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 		void initI18nOnClient(i18n);
 	}
 
+	const preHydrateThemeScript = `
+		(function () {
+			try {
+				var theme = window.localStorage.getItem('${THEME_COOKIE_KEY}');
+				if (theme === 'dark' || theme === 'light') {
+					document.documentElement.className = theme;
+					document.documentElement.dataset.theme = theme;
+				}
+			} catch (error) {
+				// no-op
+			}
+		})();
+	`;
+
+	const runtimeEnvScript = `window.__ENV__=${JSON.stringify({
+		PUBLIC_API_BASE_URL: process.env.PUBLIC_API_BASE_URL,
+	})}`;
+
 	return (
-		<html lang={locale} dir={dirForLocale(locale)}>
+		<html
+			className={initialTheme}
+			data-theme={initialTheme}
+			lang={locale}
+			dir={dirForLocale(locale)}
+		>
 			<head>
 				<HeadContent />
+				<script dangerouslySetInnerHTML={{ __html: preHydrateThemeScript }} />
+				<script dangerouslySetInnerHTML={{ __html: runtimeEnvScript }} />
 			</head>
 			<body>
 				<I18nextProvider i18n={i18n}>
 					{/* React Aria / HeroUI v3 locale (provider-less HeroUI; this only feeds
-					    React Aria's i18n) fed the SAME request locale on server + client. */}
+					React Aria's i18n) fed the SAME request locale on server + client. */}
 					<I18nProvider locale={locale}>
 						<LocaleProbe />
 						<div className="p-2 flex gap-2 text-lg">
@@ -140,7 +187,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 								activeOptions={{ exact: true }}
 							>
 								Home
-							</Link>{' '}
+							</Link>
 							<Link
 								to="/login"
 								activeProps={{
@@ -148,7 +195,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 								}}
 							>
 								Login
-							</Link>{' '}
+							</Link>
 							<Link
 								to="/staff/staff-users"
 								activeProps={{
@@ -163,8 +210,8 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 					</I18nProvider>
 				</I18nextProvider>
 				{/* Dev-only: devtools expose router/query state, so they must never
-				    ship to a deployed/prod build. import.meta.env.DEV is statically
-				    `false` in prod, so this branch is dead-code-eliminated. */}
+				ship to a deployed/prod build. import.meta.env.DEV is statically
+				false in prod, so this branch is dead-code-eliminated. */}
 				{import.meta.env.DEV ? (
 					<>
 						<TanStackRouterDevtools position="bottom-right" />

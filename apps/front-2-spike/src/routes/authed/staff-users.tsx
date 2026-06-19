@@ -1,13 +1,37 @@
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
+import { createServerClientFromCookie } from '~/lib/api-client';
+import {
+	staffUsersBrowserQuery,
+	staffUsersServerQueryOptions,
+} from '~/lib/query';
+import { getCookieHeader } from '~/server/request-context';
 
-// Task 1.4 stub — the real staff list (SSR loader prime + browser-Kiota Query +
-// HeroUI/TanStack Table + RHF/Zod dialog) lands in Tasks 2.6/2.7. The route id below
-// must match the one codegen emits (URL /staff/staff-users) — verified against
-// routeTree.gen.ts and copied verbatim by Task 2.6.
 export const Route = createFileRoute('/_authed-layout/staff/staff-users')({
+	loader: async ({ context }) => {
+		const cookieHeader = await getCookieHeader();
+		const serverClient = createServerClientFromCookie(cookieHeader);
+		return context.queryClient.ensureQueryData(
+			staffUsersServerQueryOptions({}, serverClient),
+		);
+	},
 	component: StaffUsersPage,
 });
 
 function StaffUsersPage() {
-	return <div className="p-2">Staff users (stub)</div>;
+	const { data } = useSuspenseQuery(staffUsersBrowserQuery());
+	const users = data?.data ?? [];
+	const preview = users.slice(0, 5);
+	const emails = preview
+		.map((item) => item.email)
+		.filter((value): value is string => Boolean(value))
+		.join(', ');
+
+	return (
+		<div className="p-4">
+			{/* PLACEHOLDER — Task 2.6 replaces this with the HeroUI + TanStack Table. */}
+			<div>Staff users: {data?.data?.length}</div>
+			<div>First emails: {emails}</div>
+		</div>
+	);
 }
