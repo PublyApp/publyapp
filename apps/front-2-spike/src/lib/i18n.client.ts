@@ -1,5 +1,6 @@
 import i18next, { type i18n as I18nInstance } from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import { z } from 'zod';
 
 import InterZod from '@org/shared-ts/lib/zod/InterZod';
 
@@ -56,6 +57,11 @@ const bindInterZodToI18n = (
 
 export let interZodClient = bindInterZodToI18n(activeClientI18n, activeLocale);
 
+// Install InterZod's locale-aware error map as zod's GLOBAL error map so plain
+// `z.*` schemas (e.g. in the dialog, which must not import this `.client` module)
+// produce translated validation messages. Re-applied on locale change below.
+z.setErrorMap(interZodClient.getErrorMap());
+
 const resolveLocale = (value: string | undefined): SupportedLanguage =>
 	isSupportedLanguage(value) ? value : FALLBACK_LANGUAGE;
 
@@ -97,6 +103,7 @@ export const initI18nOnClient = async (
 	}
 
 	interZodClient = bindInterZodToI18n(i18n, locale);
+	z.setErrorMap(interZodClient.getErrorMap());
 	initialized = true;
 	return i18n;
 };
