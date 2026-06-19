@@ -568,17 +568,20 @@ client for the Task 2.7 dialog. The real repo `zod.{en,fr}.json` were copied ver
 
 ### Task 3.1
 
-- Implemented `apps/front-2-spike/src/server/csp.server.ts` and wired `front-2-spike` root loader through `src/server/request-context.ts` so each request gets a fresh nonce via `nanoid()` and sets both:
-  - `Content-Security-Policy`
-  - `Content-Security-Policy-Report-Only`
+- `apps/front-2-spike/src/server/csp.ts` (`createServerOnlyFn`) mints one nonce per request via `nanoid()` and sets both response headers:
+  - `Content-Security-Policy` (enforced — what the blocking test asserts)
+  - `Content-Security-Policy-Report-Only` (diagnostics)
 - The CSP string mirrors `packages/shared-ts/lib/csp.ts` via `createCSPHeader()`:
-  - `script-src` includes `'nonce-{nonce}'`.
-  - `style-src` keeps `self` + `\'unsafe-inline\'` for this spike.
-- `__root.tsx` now emits both nonce tags in `<head>` with the same request value:
-  - `<meta name="csp-nonce" content={nonce} />`
-  - `<meta property="csp-nonce" content={nonce} />`
-- Both inline scripts in the SSR shell carry the nonce:
-  - pre-hydration theme script
-  - `window.__ENV__ = { PUBLIC_API_BASE_URL }` script
-- `<Scripts>` now receives `nonce={nonce}`.
-- **Style-src verdict (recorded):** keeping `style-src 'unsafe-inline'` remains necessary to match current `front` until React Aria runtime style handling is proven with nonce/hash coverage.
+  - `script-src` includes `'nonce-{nonce}'`. **In production `script-src` has NO `'unsafe-inline'`, and because a nonce is present, modern (CSP3) browsers ignore `'unsafe-inline'` even in dev — so EVERY inline script must carry the nonce or it is blocked.**
+  - `style-src` keeps `self` + `'unsafe-inline'` for this spike.
+- `__root.tsx` emits both nonce tags in `<head>` with the same request value:
+  - `<meta name="csp-nonce" content={nonce} />` (current-app convention)
+  - `<meta property="csp-nonce" content={nonce} />` (React Aria)
+
+#### Resolved gap — framework-injected scripts (root cause + fix)
+
+- **Symptom (pre-fix):** under enforced CSP the React Aria/theme scripts were nonced, but TanStack's own injected inline scripts were **not** — the `$tsr-stream-barrier`, the `ScriptOnce` hydration script, and React's bootstrap module — so an enforced policy would block hydration.
+- **Root cause:** the earlier wiring passed `nonce` as a **prop to `<Scripts>`**, which is **ignored**. TanStack reads the nonce from exactly one place — **`router.options.ssr.nonce`** — for: React's SSR stream (`renderRouterToStream` → `renderTo{Readable,Pipeable}Stream({ nonce })`), `Scripts`/`ScriptOnce` (`@tanstack/react-router`), and the streamed injects/barrier (`@tanstack/router-core` `ssr-server.js` `injectScript` + `takeBufferedScripts`). A `nonce` prop is dead.
+- **Fix:** `src/router.tsx` `getRouter()` now sets `ssr: { nonce }` per request. The nonce is minted **server-side in `getRouter`** (which also sets the CSP headers, so headers exist even on error/404 paths where the root loader never runs); on the **client** `getRouter` reads it back from `meta[name="csp-nonce"]` so client-rendered tags match the SSR markup (no hydration warning). `RootDocument` reads the single source via `useRouter().options.ssr?.nonce`; the dead `<Scripts nonce>` cast was removed (plain `<Scripts />`). The two manual inline scripts keep `suppressHydrationWarning` defensively.
+- **Verified (deployed standalone `node server.mjs`, `NODE_ENV=production`):** all 5 `<script>` tags on `/` and `/login` carry the matching nonce — theme, env, `$tsr-stream-barrier`, `ScriptOnce`, and the `src` module — with **0** inline scripts left un-nonced, and the nonce is **distinct per request**. Both enforced + report-only headers present. (Probe via Python text-extraction; `grep -o` mis-reads streamed SSR HTML as binary. Note router-core's `injectScript` emits `nonce='…'` with single quotes — valid HTML, matches CSP.)
+- **Style-src verdict (recorded):** keeping `style-src 'unsafe-inline'` remains necessary to match current `front` until React Aria runtime style handling is proven with nonce/hash coverage. Full enforced-blocking behavior (un-nonced script blocked, nonced runs) is asserted by the Playwright spec in Task 4.5.

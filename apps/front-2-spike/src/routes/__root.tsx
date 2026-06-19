@@ -6,6 +6,7 @@ import {
 	Outlet,
 	Scripts,
 	createRootRouteWithContext,
+	useRouter,
 } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 /// <reference types="vite/client" />
@@ -27,7 +28,6 @@ import { loadI18nForRequest } from '~/server/i18n-locale';
 import {
 	getCookieHeaderIsomorphic,
 	getThemeFromCookieHeader,
-	getCspConfigForRequest,
 } from '~/server/request-context';
 import { seo } from '~/utils/seo';
 
@@ -46,7 +46,6 @@ type RootLoaderData = {
 	locale: SupportedLanguage;
 	resources: I18nResources;
 	initialTheme: 'light' | 'dark';
-	cspNonce: string;
 };
 
 export const Route = createRootRouteWithContext<{
@@ -58,13 +57,11 @@ export const Route = createRootRouteWithContext<{
 	loader: async (): Promise<RootLoaderData> => {
 		const cookieHeader = await getCookieHeaderIsomorphic();
 		const { locale, resources } = await loadI18nForRequest();
-		const { nonce: cspNonce } = await getCspConfigForRequest();
 		const initialTheme = getThemeFromCookieHeader(cookieHeader);
 		return {
 			locale,
 			resources,
 			initialTheme,
-			cspNonce,
 		};
 	},
 	head: () => ({
@@ -132,10 +129,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 	const locale = data?.locale ?? FALLBACK_LANGUAGE;
 	const resources = data?.resources ?? { [FALLBACK_LANGUAGE]: {} };
 	const initialTheme = data?.initialTheme ?? 'light';
-	const cspNonce = data?.cspNonce ?? '';
-	const ScriptsWithNonce = Scripts as unknown as React.ComponentType<{
-		nonce?: string;
-	}>;
+	// Single source for the nonce: the router minted it per-request (server) / read it
+	// back from the SSR meta tag (client). `<Scripts>` reads the same value internally
+	// from `router.options.ssr.nonce`, so it needs no prop.
+	const router = useRouter();
+	const cspNonce = router.options.ssr?.nonce ?? '';
 
 	// Per-request (server) / per-mount (client) synchronous i18next instance built from
 	// the SSR-resolved resources — so SSR HTML and the hydrated tree share one locale.
@@ -181,10 +179,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 				<meta property="csp-nonce" content={cspNonce} />
 				<script
 					nonce={cspNonce || undefined}
+					suppressHydrationWarning
 					dangerouslySetInnerHTML={{ __html: preHydrateThemeScript }}
 				/>
 				<script
 					nonce={cspNonce || undefined}
+					suppressHydrationWarning
 					dangerouslySetInnerHTML={{ __html: runtimeEnvScript }}
 				/>
 			</head>
@@ -234,7 +234,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 						<ReactQueryDevtools buttonPosition="bottom-left" />
 					</>
 				) : null}
-				<ScriptsWithNonce nonce={cspNonce || undefined} />
+				<Scripts />
 			</body>
 		</html>
 	);

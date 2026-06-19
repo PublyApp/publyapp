@@ -11,8 +11,6 @@ import { getSessionTokensFromClient } from '~/lib/session-cookie-client';
 
 import { LOCALE_COOKIE_KEY, isServer } from '@org/shared-ts/lib/constants';
 
-import { createCspForRequest } from './csp';
-
 const THEME_COOKIE_KEY = 'publyapp-theme';
 
 export const getCookieHeader = createServerOnlyFn(() =>
@@ -44,14 +42,6 @@ export const getThemeFromCookieHeader = (
 ): 'light' | 'dark' => {
 	const parsed = cookie.parse(cookieHeader ?? '');
 	return parsed[THEME_COOKIE_KEY] === 'dark' ? 'dark' : 'light';
-};
-
-export const getCspConfigForRequest = async () => {
-	const { nonce } = await createCspForRequest({
-		isDevelopment: process.env.NODE_ENV === 'development',
-	});
-
-	return { nonce };
 };
 
 export const getLocaleFromCookieHeader = (
