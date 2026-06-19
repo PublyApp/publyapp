@@ -5,7 +5,7 @@ import {
 	staffUsersBrowserQuery,
 	staffUsersServerQueryOptions,
 } from '~/lib/query';
-import { getCookieHeader } from '~/server/request-context';
+import { getCookieHeaderIsomorphic } from '~/server/request-context';
 
 import { isServer } from '@org/shared-ts/lib/constants';
 
@@ -15,7 +15,7 @@ export const Route = createFileRoute('/_authed-layout/staff/staff-users')({
 			return;
 		}
 
-		const cookieHeader = await getCookieHeader();
+		const cookieHeader = await getCookieHeaderIsomorphic();
 		const serverClient = createServerClientFromCookie(
 			cookieHeader,
 			undefined,

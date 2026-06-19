@@ -10,7 +10,6 @@ import {
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 /// <reference types="vite/client" />
 import { createClientOnlyFn } from '@tanstack/react-start';
-import * as cookie from 'cookie';
 import type { i18n as I18nInstance } from 'i18next';
 import * as React from 'react';
 import { I18nProvider } from 'react-aria-components';
@@ -25,19 +24,17 @@ import {
 	type SupportedLanguage,
 } from '~/lib/i18n.shared';
 import { loadI18nForRequest } from '~/server/i18n-locale';
-import { getCookieHeader } from '~/server/request-context';
+import {
+	getCookieHeaderIsomorphic,
+	getThemeFromCookieHeader,
+} from '~/server/request-context';
 import { seo } from '~/utils/seo';
+
+import { isServer } from '@org/shared-ts/lib/constants';
 
 import appCss from '~/styles/app.css?url';
 
 const THEME_COOKIE_KEY = 'publyapp-theme';
-
-const getThemeFromCookieHeader = (
-	cookieHeader: string | undefined,
-): 'light' | 'dark' => {
-	const parsed = cookie.parse(cookieHeader ?? '');
-	return parsed[THEME_COOKIE_KEY] === 'dark' ? 'dark' : 'light';
-};
 
 const initI18nOnClient = createClientOnlyFn(async (instance: I18nInstance) => {
 	const mod = await import('~/lib/i18n.client');
@@ -57,7 +54,7 @@ export const Route = createRootRouteWithContext<{
 	// SSR `<html lang>` + first-paint copy already match the request locale (no FOUC of
 	// language). The fs-backed loader is hidden behind a server fn (client-bundle-safe).
 	loader: async (): Promise<RootLoaderData> => {
-		const cookieHeader = await getCookieHeader();
+		const cookieHeader = await getCookieHeaderIsomorphic();
 		const { locale, resources } = await loadI18nForRequest();
 		const initialTheme = getThemeFromCookieHeader(cookieHeader);
 		return {
@@ -156,8 +153,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 		})();
 	`;
 
+	const publicApiBaseUrl = isServer
+		? process.env.PUBLIC_API_BASE_URL
+		: window.__ENV__?.PUBLIC_API_BASE_URL;
 	const runtimeEnvScript = `window.__ENV__=${JSON.stringify({
-		PUBLIC_API_BASE_URL: process.env.PUBLIC_API_BASE_URL,
+		PUBLIC_API_BASE_URL: publicApiBaseUrl,
 	})}`;
 
 	return (
