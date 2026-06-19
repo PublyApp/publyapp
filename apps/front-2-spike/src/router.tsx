@@ -7,17 +7,18 @@ import { isServer } from '@org/shared-ts/lib/constants';
 import { DefaultCatchBoundary } from './components/DefaultCatchBoundary';
 import { NotFound } from './components/NotFound';
 import { routeTree } from './routeTree.gen';
-import { createCspForRequest } from './server/csp';
+import { mintCspNonce } from './server/csp';
 
 // The per-request CSP nonce. `router.options.ssr.nonce` is the ONLY channel TanStack
 // Start reads to nonce the scripts it injects — React's SSR stream bootstrap, the
 // `$tsr-stream-barrier`, buffered hydration scripts, and the `<Scripts>`/`ScriptOnce`
 // output (see @tanstack/react-router Scripts.js / router-core ssr-server.js). A `nonce`
 // prop on `<Scripts>` is ignored, so this is the load-bearing wiring for blocking CSP.
+// The matching CSP response headers are emitted in the server entry (`src/server.ts`).
 const resolveRequestNonce = (): string | undefined => {
 	if (isServer) {
-		// Server: mint the nonce AND set the CSP response headers in one shot.
-		return createCspForRequest().nonce;
+		// Server: mint the per-request nonce (headers are set in src/server.ts).
+		return mintCspNonce();
 	}
 
 	// Client (hydration): reuse the SSR nonce from the meta tag so client-rendered

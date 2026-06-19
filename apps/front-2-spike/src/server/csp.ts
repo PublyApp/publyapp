@@ -1,30 +1,9 @@
-import { createServerOnlyFn } from '@tanstack/react-start';
-import { setResponseHeader } from '@tanstack/react-start/server';
 import { nanoid } from 'nanoid';
 
-import { createCSPHeader } from '@org/shared-ts/lib/csp';
-
-type CspRequestOptions = {
-	isDevelopment?: boolean;
-};
-
-type CspRequestResult = {
-	nonce: string;
-};
-
-export const createCspForRequest = createServerOnlyFn(
-	({
-		isDevelopment = process.env.NODE_ENV === 'development',
-	}: CspRequestOptions = {}): CspRequestResult => {
-		const nonce = nanoid();
-		const cspPolicy = createCSPHeader({
-			isDevelopment,
-			nonce,
-		});
-
-		setResponseHeader('Content-Security-Policy', cspPolicy);
-		setResponseHeader('Content-Security-Policy-Report-Only', cspPolicy);
-
-		return { nonce };
-	},
-);
+// Mint a per-request CSP nonce. Header EMISSION lives in the custom server entry
+// (`src/server.ts`) so EVERY SSR'd HTML response — including 404/500 — receives the
+// enforced + report-only `Content-Security-Policy` headers (setting them per-request
+// in `getRouter` did NOT survive to non-200 responses). The nonce is threaded to
+// TanStack via `router.options.ssr.nonce` (see `router.tsx`), which is the only
+// channel the framework reads to nonce the scripts it injects.
+export const mintCspNonce = (): string => nanoid();

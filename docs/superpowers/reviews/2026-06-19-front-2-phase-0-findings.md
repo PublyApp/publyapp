@@ -568,20 +568,42 @@ client for the Task 2.7 dialog. The real repo `zod.{en,fr}.json` were copied ver
 
 ### Task 3.1
 
-- `apps/front-2-spike/src/server/csp.ts` (`createServerOnlyFn`) mints one nonce per request via `nanoid()` and sets both response headers:
+**Nonce minting vs header emission are split across two files:**
+- `apps/front-2-spike/src/server/csp.ts` → `mintCspNonce()` mints one `nanoid()` nonce per request (pure; no server-only import).
+- `apps/front-2-spike/src/server.ts` (**custom Start server entry**) emits both headers on **every** SSR'd HTML response (see "404 coverage" below), reading the nonce from `router.options.ssr.nonce`:
   - `Content-Security-Policy` (enforced — what the blocking test asserts)
-  - `Content-Security-Policy-Report-Only` (diagnostics)
+  - `Content-Security-Policy-Report-Only` — **byte-identical to enforced** (no `report-uri`/`report-to` endpoint), so it is **header-presence/parity only with the current `front`, not a separate diagnostic policy.**
 - The CSP string mirrors `packages/shared-ts/lib/csp.ts` via `createCSPHeader()`:
   - `script-src` includes `'nonce-{nonce}'`. **In production `script-src` has NO `'unsafe-inline'`, and because a nonce is present, modern (CSP3) browsers ignore `'unsafe-inline'` even in dev — so EVERY inline script must carry the nonce or it is blocked.**
-  - `style-src` keeps `self` + `'unsafe-inline'` for this spike.
+  - `style-src` keeps `self` + `'unsafe-inline'` (see style-src verdict below).
 - `__root.tsx` emits both nonce tags in `<head>` with the same request value:
   - `<meta name="csp-nonce" content={nonce} />` (current-app convention)
   - `<meta property="csp-nonce" content={nonce} />` (React Aria)
 
-#### Resolved gap — framework-injected scripts (root cause + fix)
+#### Resolved gap #1 — framework-injected scripts (root cause + fix)
 
 - **Symptom (pre-fix):** under enforced CSP the React Aria/theme scripts were nonced, but TanStack's own injected inline scripts were **not** — the `$tsr-stream-barrier`, the `ScriptOnce` hydration script, and React's bootstrap module — so an enforced policy would block hydration.
 - **Root cause:** the earlier wiring passed `nonce` as a **prop to `<Scripts>`**, which is **ignored**. TanStack reads the nonce from exactly one place — **`router.options.ssr.nonce`** — for: React's SSR stream (`renderRouterToStream` → `renderTo{Readable,Pipeable}Stream({ nonce })`), `Scripts`/`ScriptOnce` (`@tanstack/react-router`), and the streamed injects/barrier (`@tanstack/router-core` `ssr-server.js` `injectScript` + `takeBufferedScripts`). A `nonce` prop is dead.
-- **Fix:** `src/router.tsx` `getRouter()` now sets `ssr: { nonce }` per request. The nonce is minted **server-side in `getRouter`** (which also sets the CSP headers, so headers exist even on error/404 paths where the root loader never runs); on the **client** `getRouter` reads it back from `meta[name="csp-nonce"]` so client-rendered tags match the SSR markup (no hydration warning). `RootDocument` reads the single source via `useRouter().options.ssr?.nonce`; the dead `<Scripts nonce>` cast was removed (plain `<Scripts />`). The two manual inline scripts keep `suppressHydrationWarning` defensively.
-- **Verified (deployed standalone `node server.mjs`, `NODE_ENV=production`):** all 5 `<script>` tags on `/` and `/login` carry the matching nonce — theme, env, `$tsr-stream-barrier`, `ScriptOnce`, and the `src` module — with **0** inline scripts left un-nonced, and the nonce is **distinct per request**. Both enforced + report-only headers present. (Probe via Python text-extraction; `grep -o` mis-reads streamed SSR HTML as binary. Note router-core's `injectScript` emits `nonce='…'` with single quotes — valid HTML, matches CSP.)
-- **Style-src verdict (recorded):** keeping `style-src 'unsafe-inline'` remains necessary to match current `front` until React Aria runtime style handling is proven with nonce/hash coverage. Full enforced-blocking behavior (un-nonced script blocked, nonced runs) is asserted by the Playwright spec in Task 4.5.
+- **Fix:** `src/router.tsx` `getRouter()` sets `ssr: { nonce }` per request — minted server-side via `mintCspNonce()`; on the **client** `getRouter` reads it back from `meta[name="csp-nonce"]` so client-rendered tags match the SSR markup (no hydration warning). `RootDocument` reads the single source via `useRouter().options.ssr?.nonce`; the dead `<Scripts nonce>` cast was removed (plain `<Scripts />`). The two manual inline scripts keep `suppressHydrationWarning` defensively.
+
+#### Resolved gap #2 — CSP headers missing on non-200 responses (404/500)
+
+- **Symptom (pre-fix):** minting + `setResponseHeader` inside `getRouter` set the headers on 200 responses, but a production **404 returned NO CSP headers** while still shipping (nonced) framework scripts — `setResponseHeader` did not survive to the non-OK response path. (My earlier claim that headers held on error/404 was **false**.)
+- **Fix:** header emission moved out of `getRouter`/`csp.ts` into the **custom server entry `src/server.ts`** — a `defineHandlerCallback` wrapping `defaultStreamHandler` that sets both headers on `ctx.responseHeaders` for **every** rendered response, reading `ctx.router.options.ssr.nonce`. The Start vite plugin auto-resolves `src/server.ts` as the server entry; it default-exports `{ fetch }` so the standalone `server.mjs` is unchanged.
+
+#### Verification (deployed standalone `node server.mjs`, `NODE_ENV=production`)
+
+Probed via Python text-extraction (`grep -o` mis-reads streamed SSR HTML as binary). Across **`/`, `/login`, `/staff/staff-users` (authed CSR shell), and a missing route (404)**:
+- both `Content-Security-Policy` + `Content-Security-Policy-Report-Only` headers present (incl. on the **404**);
+- **every** inline `<script>` carries the matching nonce — theme, env, `$tsr-stream-barrier`, `ScriptOnce`, `src` module — **0 un-nonced inline** (router-core's `injectScript` emits `nonce='…'` single-quoted — valid HTML, matches CSP);
+- nonce is **distinct per request** (verified on `/login` and on the 404 path).
+
+This smoke matrix was run manually; the **automated** version (assert headers + matching/distinct nonces + an un-nonced script is *blocked* in a real browser) is Task 4.5's Playwright spec.
+
+#### Style-src verdict (evidenced) — retain `'unsafe-inline'`
+
+Task 3.1 Step 3 asked to try `style-src` **without** `'unsafe-inline'` and record what breaks. Evidence gathered:
+- **Initial SSR paint survives a tightened `style-src 'self'`:** the SSR HTML of `/` and `/login` contains **0** inline `<style>` tags and **0** inline `style=` attributes — only one `<link rel="stylesheet">` from `'self'` (Tailwind v4 app.css). So the first paint + hydration would NOT break.
+- **Runtime interactive surfaces require it:** the email-dialog client chunk contains inline `style:{…}`, and React Aria/HeroUI overlays (Modal/Popover) apply **inline `style=` positioning** at runtime. A CSP **nonce cannot cover `style=` attributes** (nonces apply only to `<style>`/`<link>` elements) — so tightening `style-src` would break interactive overlays with no nonce remedy; only `'unsafe-inline'` (or `style-src-attr 'unsafe-inline'`) admits them. This matches the current `front`.
+- **Live capture attempted, deferred:** I tried a real headless-Chromium run under a tightened-`style-src` proxy (raw CDP, no Playwright) to capture the exact runtime violation, but this sandbox **kills sustained browser processes** (signal 16 / exit 144); `chrome --version` runs but a live CDP session does not. The authoritative live enforced-CSP browser confirmation across interactive surfaces is therefore **Task 4.5** (which builds the proper Playwright harness with browser-lifecycle management).
+- **Verdict:** retain `style-src 'self' 'unsafe-inline' …`. Dropping `'unsafe-inline'` is infeasible for the full app without a hashing/inline-style-elimination effort that is **out of Phase-0 scope** and recorded as a Phase-1 follow-up.
