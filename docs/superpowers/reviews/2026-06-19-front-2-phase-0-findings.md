@@ -529,3 +529,27 @@ client for the Task 2.7 dialog. The real repo `zod.{en,fr}.json` were copied ver
 - The helper is called from route modules, so correctness relies on Start running these gate points in server
   execution paths. If execution shifts to client-side transitions in future router versions, this should be
   refactored to a strict `createServerOnlyFn` wrapper.
+
+## Table parity (Task 2.6)
+
+### Implementation
+
+- Replaced `src/routes/authed/staff-users.tsx` to drive URL query state (`q`, `sortId`, `sortOrder`, `cursor`) into `StaffUsersVars` and run server-primed SSR + browser query hydration.
+- Added `src/components/members-table.tsx` using `@tanstack/react-table` for column/sort state and HeroUI v3 compound `Table` rendering.
+- Added `@tanstack/react-table` exact pin to `apps/front-2-spike/package.json`.
+- Added a 1k+ virtualization probe dataset to exercise `Virtualizer layout={TableLayout}`.
+
+### Verification results
+
+- **SortDescriptor source:** `@heroui/react` (type-only export exists in this build; `react-aria-components` fallback not needed)
+- **Selection source:** `@heroui/react` (`Selection` type import works directly)
+- **Virtualization/resize/pin decision:**
+  - **Virtualization:** **GO** (probe path renders 1,100+ rows through `<Virtualizer layout={TableLayout}>` and SSR HTML includes probe emails).
+  - **Resize/pin:** **NOT VERIFIED in this task** (no interaction script run for column dragging/resize). Pending interactive verification, Table parity remains **NO-GO** for §13.
+
+### Notes
+
+- Query-state `NO_MATCH` path is wired to an explicit "no results" output branch.
+- SSR proof collected with seeded staff credentials:
+  `curl -s -H "Cookie: publyapp-session_token=s:<token>" http://localhost:3000/staff/staff-users > /tmp/staff-users-ssr.html`
+  and `rg -ao \"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\" /tmp/staff-users-ssr.html` produced `probe-1000@staff.local` entries and `owner@publyapp.local`, confirming SSR table rows render beyond a bare count.
