@@ -71,6 +71,46 @@ discrepancy for `@heroui/react@3.x`. Opening one is **deferred to the human**
 
 ---
 
+## Version gate
+
+**Task 0.2 — TanStack Start stability/version gate.** Goal: confirm dist-tags, the
+absence of a `1.0.0` GA milestone, and pin policy for `@tanstack/*` packages.
+
+### Observed evidence (curl, 2026-06-19)
+
+`curl -s https://registry.npmjs.org/@tanstack/react-start` → dist-tags + the
+`@tanstack/react-router` dependency of the `latest` version:
+
+```
+dist-tags: {'beta': '0.0.1-beta.204', 'alpha': '1.132.0-alpha.25', 'latest': '1.168.26'}
+router dep of latest: 1.170.16
+```
+
+- **`latest` = `1.168.26`** (observed).
+- **Transitive `@tanstack/react-router` = `1.170.16`** (declared dependency of the `latest` Start version — note it is *ahead* of Start's own version, confirming independent per-package version numbers within the monorepo).
+- **No `1.0.0` milestone / no GA dist-tag.** TanStack uses **lockstep monorepo versioning**: the high `1.x` number is a continuously-advancing monorepo version, not a stable-GA signal. `beta`/`alpha` channels exist but `latest` is the working channel.
+
+### Gate rule
+
+> **Pin EXACT versions (no `^` / `~`) for every directly-imported `@tanstack/*`
+> package; do NOT pin the transitive `@tanstack/react-router`; re-verify at each
+> Phase boundary.**
+
+Rationale: lockstep monorepo versioning means a floating range can silently pull a
+breaking minor across the whole `@tanstack/*` surface. Exact pins on direct
+dependencies keep the spike reproducible; the transitive `@tanstack/react-router`
+must stay unpinned so the resolver keeps it compatible with the pinned Start version.
+
+**Security note:** given the **May-2026 npm supply-chain incident**, the Task 1.2
+**exact-pin + `ignore-scripts`** policy is **mandatory** (not optional hardening) —
+floating ranges + lifecycle scripts are exactly the attack surface that incident
+exploited.
+
+**Gate state:** PASS for spike purposes (`latest` resolvable, lockstep versioning
+understood, pin policy defined). Re-verify versions at each Phase boundary.
+
+---
+
 ## Architecture gate
 
 **Placeholder (decision recorded now; a later Phase 0 task confirms it).** GO is
