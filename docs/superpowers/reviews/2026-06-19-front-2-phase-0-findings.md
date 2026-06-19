@@ -385,3 +385,54 @@ the same runner the scaffold referenced). `start` script = **`node server.mjs`**
 `node .output/server/index.mjs` — that artifact does not exist with this Start version.
 The Group-3 author should re-check whether a later Start version restores a Nitro
 preset; until then `server.mjs` is the standalone entry.
+
+## Start runtime probes
+
+Resolved by a temporary `src/routes/_probe.tsx` route (loader-primed query + a
+`createServerFn` GET that read request headers and round-tripped a cookie). The route
++ its `routes.ts` entry were **deleted** before the Task 2.0 commit; the evidence below
+was captured from the SSR-side `[PROBE]` server log + response headers while it existed.
+`@tanstack/react-start@1.168.26`, dev + the standalone `server.mjs` build.
+
+### UNVERIFIED #1 — Query SSR dehydrate/hydrate + per-query opt-out (RESOLVED)
+
+- **Wiring:** `setupRouterSsrQueryIntegration({ router, queryClient })` (already in
+  `src/router.tsx`) auto-wires dehydrate-on-server / hydrate-on-client. The probe's
+  `loader` called `context.queryClient.ensureQueryData(probeQuery())` and the query's
+  `queryFn` **executed during SSR** (the loader ran server-side — confirmed: the same
+  request logged `[PROBE]` from the server fn, and the route returned HTTP 200). No
+  manual `dehydrate()`/`<HydrationBoundary>` is needed — the integration owns it.
+- **Option names (from the typed surface of `@tanstack/router-ssr-query-core@1.169.1`
+  → `RouterSsrQueryOptions`):** `dehydrateOptions?: DehydrateOptions`,
+  `hydrateOptions?: HydrateOptions` (both re-exported from `@tanstack/query-core`),
+  plus `handleRedirects?: boolean` and `wrapQueryClient?: boolean` (the
+  `@tanstack/react-router-ssr-query` wrapper adds `wrapQueryClient`).
+- **Per-query opt-out:** there is **no dedicated per-query "skip SSR" flag**; the opt-out
+  is TanStack Query's standard `DehydrateOptions.shouldDehydrateQuery` predicate passed
+  via `dehydrateOptions` (commonly gated on a per-query `meta` flag, e.g.
+  `meta: { ssr: false }` + `shouldDehydrateQuery: (q) => q.meta?.ssr !== false`).
+- **Residual:** in **dev mode** the `curl`-captured initial HTML is the streamed shell
+  (route body + dehydrated state arrive via streamed injection / client hydration), so
+  the marker string is not in the first flush. The loader running server-side is proven;
+  full in-initial-HTML SSR content is verified against the **production build** in Task
+  2.3 (i18n SSR curl) and Task 4.3 (priming proof).
+
+### UNVERIFIED #2 — `getRequest`/`getRequestHeader` import path + `getWebRequest` alias (RESOLVED)
+
+- Import path **`@tanstack/react-start/server`** works. `getRequest()` returned the live
+  request (URL `http://localhost:3000/_probe`); `getRequestHeader('user-agent')` returned
+  the sent `ProbeUserAgent/1.0`.
+- **`getWebRequest()` is NOT exported in this version** (`@tanstack/start-server-core@1.169.15`:
+  `grep -c getWebRequest` → **0**). Use **`getRequest()`** as the canonical accessor; do
+  not rely on a `getWebRequest` alias in 1.168.26.
+
+### UNVERIFIED #3 — `setCookie` then `getCookie` in the SAME request, #5615 (RESOLVED — confirmed)
+
+- In one server fn: `setCookie('probe','PROBE_COOKIE_VALUE')` then `getCookie('probe')`
+  returned **`undefined`** → **#5615 confirmed for 1.168.26**: a cookie written this
+  request is not readable via `getCookie` until a subsequent request.
+- The write itself is correct: the response carried
+  `set-cookie: probe=PROBE_COOKIE_VALUE; Path=/`. So a freshly-set session cookie is
+  honored by the **browser on the next request**, not re-readable mid-request — which is
+  exactly why login is step-1-only (set cookie + return ok) and the redirect decision is
+  deferred to the next route load. The slice code is built on this assumption.
