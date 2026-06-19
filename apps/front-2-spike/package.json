@@ -11,6 +11,8 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
+		"@heroui/react": "3.2.1",
+		"@heroui/styles": "3.2.1",
 		"@org/client-ts": "workspace:*",
 		"@org/shared-ts": "workspace:*",
 		"@tanstack/react-query": "5.101.0",

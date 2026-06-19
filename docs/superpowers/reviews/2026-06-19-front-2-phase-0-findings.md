@@ -224,3 +224,32 @@ Nitro `node` preset emitting `.output/server/index.mjs`; that assumption does **
 hold for the default build here. Task 1.5 reconciles the standalone-Node boot
 (`start` script + the `node .output/server/index.mjs` acceptance) against the actual
 emitted artifact.
+
+---
+
+## HeroUI v3 + Tailwind v4 render proof
+
+**Task 1.3 — prove HeroUI v3 renders styled under Tailwind v4 + the Start SSR stack.**
+
+- Added `@heroui/react@3.2.1` + `@heroui/styles@3.2.1` (exact-pinned; both **MIT** on the npm artifact). HeroUI v3 bundles `react-aria-components@1.18.0` + `react-aria@3.49.0` transitively. Peers satisfied (`react>=19`, `tailwindcss>=4`).
+- `src/styles/app.css` (the three canonical lines, provider-less v3):
+  ```css
+  @import 'tailwindcss' source('../');
+  @import '@heroui/styles';
+  @custom-variant dark (&:is(.dark *));
+  ```
+- The scaffold already wired `tailwindcss()` first in `vite.config.ts` plugins and already imports `appCss from '~/styles/app.css?url'` in `__root.tsx` `head().links` — no extra wiring needed.
+- Rendered `<Button color="primary">HeroUI v3 works</Button>` on `index.tsx` (no `HeroUIProvider` — v3 is provider-less).
+
+### Observed (SSR HTML at `pnpm dev`, HTTP 200)
+
+```html
+<button data-slot="button" class="button button--md button--primary" data-rac="" type="button" data-react-aria-pressable="true" id="react-aria-«…»">HeroUI v3 works</button>
+```
+
+The served `app.css` contains the **real** HeroUI v3 button stylesheet
+(`.button`, `.button--primary`, `.button--md`, `.button--lg`, `.button--secondary`,
+`.button--outline`, `.button--icon-only`, `.button-group*`, …) — so `@import
+'@heroui/styles'` resolves and Tailwind v4 processes it. The `data-rac` /
+`data-react-aria-pressable` attributes confirm React Aria Components is driving the
+button. **Verdict: HeroUI v3 renders STYLED under Tailwind v4 + TanStack Start SSR.**
