@@ -112,8 +112,15 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 				</div>
 				<hr />
 				{children}
-				<TanStackRouterDevtools position="bottom-right" />
-				<ReactQueryDevtools buttonPosition="bottom-left" />
+				{/* Dev-only: devtools expose router/query state, so they must never
+				    ship to a deployed/prod build. import.meta.env.DEV is statically
+				    `false` in prod, so this branch is dead-code-eliminated. */}
+				{import.meta.env.DEV ? (
+					<>
+						<TanStackRouterDevtools position="bottom-right" />
+						<ReactQueryDevtools buttonPosition="bottom-left" />
+					</>
+				) : null}
 				<Scripts />
 			</body>
 		</html>

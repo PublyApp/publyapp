@@ -11,6 +11,15 @@ on:
     paths:
       - 'apps/front-2-spike/**'
       - '.github/workflows/front-2-spike-supply-chain.yml'
+      # Root install/supply-chain config: a PR touching only these (without any
+      # apps/front-2-spike/** change) would otherwise bypass this check.
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      # A wildcard-free pattern is an exact full-path match, so this hits the
+      # ROOT package.json only — nested apps/**/package.json have a different
+      # full path and do NOT match. (A leading slash is not valid here.)
+      - 'package.json'
+      - '.npmrc'
 
 permissions:
   contents: read
