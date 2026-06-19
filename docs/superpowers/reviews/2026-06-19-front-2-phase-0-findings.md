@@ -436,3 +436,68 @@ was captured from the SSR-side `[PROBE]` server log + response headers while it 
   honored by the **browser on the next request**, not re-readable mid-request — which is
   exactly why login is step-1-only (set cookie + return ok) and the redirect decision is
   deferred to the next route load. The slice code is built on this assumption.
+
+## i18next SSR (cookie-driven, fallback, 3 namespaces) + InterZod — Task 2.3
+
+`@tanstack/react-start@1.168.26`, built + run via the standalone `server.mjs`.
+
+### Result (acceptance curls, production build)
+
+```
+curl -s -H 'Cookie: publyapp-locale=fr' /  → "Bonjour depuis le spike"  ✔ FR via cookie
+curl -s -H 'Cookie: publyapp-locale=zz' /  → "Hello from the spike"     ✔ unsupported → en fallback
+curl -s -H 'Cookie: publyapp-locale=fr' /  → <html lang="fr" dir="ltr"> ✔ lang attr in SSR HTML
+curl -s (no cookie) /                      → <html lang="en"> + "Hello"  ✔ default en
+```
+
+The `zod` namespace (incl. `errors.invalid_string.email` + `validations.email`) is present
+in the dehydrated SSR state for both en + fr — so `zod:string.email` will translate on the
+client for the Task 2.7 dialog. The real repo `zod.{en,fr}.json` were copied verbatim into
+`public/locales/{en,fr}/zod.json` so the spike's zod-i18n-map structure matches production.
+
+### Architecture
+
+- **Cookie-driven locale, server-side:** `lib/i18n.server.ts` reads the `publyapp-locale`
+  cookie via `getCookie` (`@tanstack/react-start/server`) and falls back to `en` for any
+  unsupported value. `supportedLngs ['en','fr']`, `defaultNS 'common'`, `fallbackLng 'en'`,
+  `ns 'common'/'zod'/'response-message'` — mirrors `apps/front/src/lib/i18n/i18n.config.ts`.
+- **Server-fn boundary for the fs loader (IMPORTANT GOTCHA):** the fs-backed loader is
+  consumed through a `createServerFn` in `src/server/i18n-locale.ts` (NOT named
+  `*.server.ts`). Start's import-protection plugin **denies any `**/*.server.*` import
+  into a client-imported module** — and `__root.tsx` renders on the client. A
+  `createServerFn` IS the RPC bridge (Start replaces the handler with a client stub), so
+  the handler's `lib/i18n.server.ts` (node:fs) import stays server-only. Naming the wrapper
+  `i18n-locale.server.ts` made the build fail (`[import-protection] Import denied`); renaming
+  it (dropping `.server.`) fixed it. **Rule for the slice: a server fn called from a route
+  module must NOT live in a `*.server.ts` file; reserve `*.server.ts` for code never imported
+  (even transitively, behind a server fn) by a client-rendered module.**
+- **Locale resource path (runtime):** resolve from `process.cwd()` (`public/locales/...`
+  in dev, `dist/client/locales/...` after build — Vite copies `public/`), NOT
+  `import.meta.url` — the server fn is chunked into `dist/server/assets/`, so a bundle-
+  relative `../../public/locales` resolves to a non-existent path and silently yields empty
+  resources (every key rendered as its raw key). Two candidate roots are tried.
+- **Isomorphic instance builder:** `lib/i18n.shared.ts` (no node:fs / no start-server
+  imports) builds a synchronous i18next instance (`initImmediate: false`) from the
+  SSR-resolved resources; `__root.tsx` uses it on server + client so the SSR HTML and the
+  hydrated tree share one locale. Serializable resource type is BOUNDED-depth
+  (`string | { [k]: string | { [k]: string } }`) — a freely-recursive JSON type tripped
+  Start's server-fn serializer with `TS2589 "excessively deep"`.
+
+### UNVERIFIED #6 — `I18nProvider` import path (RESOLVED)
+
+- **`I18nProvider` is imported from `react-aria-components`** (`import { I18nProvider }
+  from 'react-aria-components'` — there is a dedicated `dist/exports/I18nProvider.js`).
+  HeroUI v3 (`@heroui/react@3.2.1`) resolves `react-aria-components@1.18.0`; the spike pins
+  `react-aria-components@1.18.0` directly to match. `@heroui/react` does NOT re-export it.
+- `__root.tsx` wraps the tree in BOTH `I18nProvider` (react-aria-components, feeds the
+  request locale to React Aria/HeroUI) AND `I18nextProvider` (react-i18next, for `t()`),
+  with the SAME server-resolved locale → no FOUC of language and no hydration locale drift.
+- `SortDescriptor`/`Selection` import paths (also UNVERIFIED #6) are deferred to Task 2.6
+  (the HeroUI Table task), not exercised here.
+
+### Pinned i18n deps (workspace-compatible, NOT latest)
+
+`i18next@24.2.3`, `react-i18next@14.1.3`, `zod@3.24.4`, `zod-i18n-map@2.27.0`,
+`react-aria-components@1.18.0`. **Pinned to the workspace-resolved versions, NOT the npm
+`latest`** — the shared-ts `InterZod` is written for the **zod v3** error-map API
+(`errorMap`/`ZodIssueCode`/`defaultErrorMap`); zod v4 (latest) would break it.
