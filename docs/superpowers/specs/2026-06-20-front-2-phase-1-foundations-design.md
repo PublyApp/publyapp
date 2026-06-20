@@ -162,6 +162,13 @@ in-rule path guard) for the non-scoped MUI rules so they do not fire on `apps/fr
 **config/rule test** asserting `apps/front` stays protected by the MUI rules AND `apps/front-2` is
 not blocked by them. The local JS plugin is alpha — keep changes config-level where possible.
 
+**Portable-rule coverage (round-3 nit):** the rules we want to *keep* are currently hardcoded to
+`apps/front/src` too — `no-console-in-source.js` (`apps/front/src/` prefix check) and
+`no-direct-dayjs-in-components.js` (`FRONT_SRC_PREFIX = 'apps/front/src/'`). So "keep the portable
+rules" requires a plan task to **widen their path helpers to also cover `apps/front-2/src`** (with a
+test), or to explicitly defer that coverage in `docs/guides/front-2/`. This is plan-level, not a
+spec blocker.
+
 ## 6. Milestone breakdown
 
 ### M0 — Bootstrap, proven baseline & staging design (parallel kickoff)
