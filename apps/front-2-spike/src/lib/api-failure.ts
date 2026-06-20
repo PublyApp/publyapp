@@ -48,45 +48,36 @@ export type ApiFailure =
 
 export const toApiFailure = (error: unknown): ApiFailure => {
 	// Kiota-style object failures (most common in this spike).
-	if (
-		error != null &&
-		typeof error === 'object' &&
-		'responseStatusCode' in error
-	) {
-		const responseStatusCode = Number(
-			(error as { responseStatusCode?: unknown }).responseStatusCode,
-		);
-		const body = (error as { body?: unknown })?.body;
-		const statusFromBody = Number(
-			(body as { status?: unknown }).status as number,
-		);
+	if (isApiProblemObject(error)) {
+		const body = error.body;
+		const responseStatusCode = getNumberField(error, 'responseStatusCode');
+		const statusFromBody = getNumberField(body, 'status');
+		const statusFromProblem = getNumberField(error, 'status');
 		const bodyTranslationKey = extractTranslationKeyFromBody(body);
 		const nestedErrorTranslationKey = extractTranslationKeyFromBody(
-			(error as { error?: unknown })?.error,
+			error.error,
 		);
 		const directTranslationKey =
-			typeof (error as { translationKey?: unknown }).translationKey === 'string'
-				? ((error as { translationKey?: unknown }).translationKey as string)
+			typeof error.translationKey === 'string'
+				? error.translationKey
 				: undefined;
 		const translationKey =
 			bodyTranslationKey ??
-			extractTranslationKeyFromBody(error as Record<string, unknown>) ??
+			extractTranslationKeyFromBody(error) ??
 			directTranslationKey ??
 			nestedErrorTranslationKey;
-		const fieldErrors = extractFieldErrorsFromBody(body);
-		const status = Number.isNaN(responseStatusCode)
-			? Number.isNaN(statusFromBody)
-				? Number((error as { status?: number }).status ?? 500)
-				: statusFromBody
-			: responseStatusCode;
+		const fieldErrors =
+			extractFieldErrorsFromBody(body) ?? extractFieldErrorsFromBody(error);
+		const status =
+			responseStatusCode ?? statusFromBody ?? statusFromProblem ?? 500;
 
 		if (status === 422 && fieldErrors && Object.keys(fieldErrors).length > 0) {
 			return {
 				kind: 'validation',
 				status,
 				translationKey,
-				detail: (error as { detail?: unknown }).detail as string | undefined,
-				title: (error as { title?: unknown }).title as string | undefined,
+				detail: getStringField(error, 'detail'),
+				title: getStringField(error, 'title'),
 				fieldErrors,
 				raw: error,
 			};
@@ -96,8 +87,8 @@ export const toApiFailure = (error: unknown): ApiFailure => {
 			kind: 'problem',
 			status,
 			translationKey,
-			detail: (error as { detail?: unknown }).detail as string | undefined,
-			title: (error as { title?: unknown }).title as string | undefined,
+			detail: getStringField(error, 'detail'),
+			title: getStringField(error, 'title'),
 			raw: error,
 		};
 	}
@@ -139,6 +130,57 @@ export const toApiFailure = (error: unknown): ApiFailure => {
 		message: typeof error === 'string' ? error : 'Unknown error',
 		raw: error,
 	};
+};
+
+const getNumberField = (source: unknown, key: string): number | undefined => {
+	if (!source || typeof source !== 'object') {
+		return undefined;
+	}
+
+	const value = (source as Record<string, unknown>)[key];
+
+	return typeof value === 'number' &&
+		Number.isInteger(value) &&
+		value >= 100 &&
+		value <= 599
+		? value
+		: undefined;
+};
+
+const getStringField = (
+	source: Record<string, unknown>,
+	key: string,
+): string | undefined => {
+	const value = source[key];
+
+	return typeof value === 'string' ? value : undefined;
+};
+
+const isApiProblemObject = (
+	error: unknown,
+): error is Record<string, unknown> => {
+	if (!error || typeof error !== 'object') {
+		return false;
+	}
+
+	const errorRecord = error as Record<string, unknown>;
+	const hasResponseStatusCode =
+		getNumberField(errorRecord, 'responseStatusCode') !== undefined;
+	const hasBodyStatus =
+		getNumberField(errorRecord.body, 'status') !== undefined;
+	const hasProblemStatus = getNumberField(errorRecord, 'status') !== undefined;
+
+	if (hasResponseStatusCode || hasBodyStatus) {
+		return true;
+	}
+
+	return (
+		hasProblemStatus &&
+		('type' in errorRecord ||
+			'title' in errorRecord ||
+			'detail' in errorRecord ||
+			'translationKey' in errorRecord)
+	);
 };
 
 export const getFailureMessage = (

@@ -5,6 +5,9 @@ import {
 	useRouter,
 } from '@tanstack/react-router';
 import type { ErrorComponentProps } from '@tanstack/react-router';
+import { toApiFailure } from '~/lib/api-failure';
+
+import { LogoutRedirect } from './LogoutRedirect';
 
 export const toSafeBoundaryLogPayload = (error: unknown) => {
 	const errorLike = error as Record<string, unknown> & Error;
@@ -28,6 +31,11 @@ export function DefaultCatchBoundary({ error }: ErrorComponentProps) {
 	const isRoot = useLocation({
 		select: (location) => location.pathname === '/',
 	});
+	const failure = toApiFailure(error);
+
+	if (failure.kind === 'problem' && failure.status === 401) {
+		return <LogoutRedirect />;
+	}
 
 	logRouteError(error);
 

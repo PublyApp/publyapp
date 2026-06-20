@@ -1,5 +1,4 @@
 import { Button, useTheme } from '@heroui/react';
-import { useQueryClient } from '@tanstack/react-query';
 import {
 	ErrorComponent,
 	createFileRoute,
@@ -9,10 +8,10 @@ import {
 	useNavigate,
 } from '@tanstack/react-router';
 import { useEffect } from 'react';
+import { LogoutRedirect } from '~/components/LogoutRedirect';
 import { View403 } from '~/components/View403';
 import { clearTenantSuspensionCookie, toApiFailure } from '~/lib/api-failure';
 import { getSessionTokensIsomorphic } from '~/server/request-context';
-import { clearSession } from '~/server/session-actions';
 
 export const Route = createFileRoute('/_authed-layout')({
 	ssr: false,
@@ -83,28 +82,6 @@ function AuthedLayoutErrorComponent(props: ErrorComponentProps) {
 			>
 				Go to login
 			</Button>
-		</div>
-	);
-}
-
-function LogoutRedirect() {
-	const navigate = useNavigate();
-	const queryClient = useQueryClient();
-
-	useEffect(() => {
-		queryClient.clear();
-		void clearSession().finally(() => {
-			void navigate({
-				to: '/login',
-				search: { redirect_cause: 'invalid_session' },
-			});
-		});
-	}, [navigate, queryClient]);
-
-	return (
-		<div className="p-6">
-			You were signed out because your session is no longer valid.
-			Redirecting...
 		</div>
 	);
 }
