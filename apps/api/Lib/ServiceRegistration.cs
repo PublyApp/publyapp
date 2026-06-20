@@ -68,6 +68,7 @@ public static class ServiceRegistration {
 				}
 				return Task.CompletedTask;
 			});
+			options.AddDocumentTransformer<OpenApiDocumentNormalizer>();
 		});
 
 		// Add HttpContextAccessor for accessing HTTP context in services
