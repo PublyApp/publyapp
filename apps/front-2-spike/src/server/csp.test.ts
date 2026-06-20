@@ -63,3 +63,51 @@ test('applyCspHeaders sets enforced + report-only with the same nonced policy', 
 	expect(enforced).toContain(`'nonce-${nonce}'`);
 	expect(reportOnly).toBe(enforced);
 });
+
+test('applyCspHeaders adds the public API origin to connect-src', () => {
+	const previousPublicApiBaseUrl = process.env.PUBLIC_API_BASE_URL;
+	process.env.PUBLIC_API_BASE_URL = 'https://api.front-2.localhost:8443';
+
+	try {
+		const headers = new Headers();
+
+		applyCspHeaders(headers, mintCspNonce(), false);
+
+		const enforced = headers.get('Content-Security-Policy') ?? '';
+		const connectSrc = enforced
+			.split(';')
+			.map((d) => d.trim())
+			.find((d) => d.startsWith('connect-src'));
+
+		expect(connectSrc).toContain('https://api.front-2.localhost:8443');
+		expect(headers.get('Content-Security-Policy-Report-Only')).toBe(enforced);
+	} finally {
+		if (previousPublicApiBaseUrl === undefined) {
+			delete process.env.PUBLIC_API_BASE_URL;
+		} else {
+			process.env.PUBLIC_API_BASE_URL = previousPublicApiBaseUrl;
+		}
+	}
+});
+
+test('applyCspHeaders does not duplicate an existing public API origin', () => {
+	const previousPublicApiBaseUrl = process.env.PUBLIC_API_BASE_URL;
+	process.env.PUBLIC_API_BASE_URL = 'https://publyapp.com/api';
+
+	try {
+		const headers = new Headers();
+
+		applyCspHeaders(headers, mintCspNonce(), false);
+
+		const enforced = headers.get('Content-Security-Policy') ?? '';
+		const occurrences = enforced.match(/https:\/\/publyapp\.com/g) ?? [];
+
+		expect(occurrences).toHaveLength(2);
+	} finally {
+		if (previousPublicApiBaseUrl === undefined) {
+			delete process.env.PUBLIC_API_BASE_URL;
+		} else {
+			process.env.PUBLIC_API_BASE_URL = previousPublicApiBaseUrl;
+		}
+	}
+});
