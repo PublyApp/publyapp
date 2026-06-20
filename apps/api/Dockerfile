@@ -1,0 +1,55 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:548d93f8a18a1acbe6cc127bc4f47281430d34a9e35c18afa80a8d6741c2adc3 AS build
+
+WORKDIR /src
+
+COPY Directory.Build.props Directory.Build.targets Directory.Packages.props ./
+COPY .config ./.config
+COPY apps/api ./apps/api
+COPY packages/lint-cs ./packages/lint-cs
+COPY packages/scripts-cs ./packages/scripts-cs
+COPY packages/shared-ts/lib/i18n/json/response-message.en.json ./packages/shared-ts/lib/i18n/json/response-message.en.json
+
+RUN dotnet tool restore
+RUN cd apps/api \
+	&& ASPNETCORE_ENVIRONMENT=Production \
+	DOTNET_ENVIRONMENT=Production \
+	POSTGRES_CONNECTION_STRING="Host=localhost;Port=5432;Database=publyapp_build;Username=postgres;Password=password;" \
+	FRONT_URL="http://localhost:5050" \
+	RESEND_API_KEY="build-placeholder" \
+	STAFF_OWNER_EMAIL="owner@publyapp.local" \
+	STAFF_OWNER_BOOTSTRAP_CODE="build-placeholder" \
+	APP_NAME="PublyApp" \
+	DEFAULT_EMAIL_SENDER_EMAIL="support@publyapp.local" \
+	DEFAULT_EMAIL_SENDER_NAME="PublyApp Support" \
+	SESSION_TOKEN_HEADER_KEY="X-Session-Token" \
+	TENANT_ID_HEADER_KEY="X-PublyApp-TenantId" \
+	SESSION_EXPIRY_DAYS="7" \
+	EMAIL_VERIFY_TOKEN_VALIDITY_DURATION="7" \
+	PASSWORD_RESET_TOKEN_VALIDITY_DURATION="7" \
+	PASSWORD_MIN_LENGTH="12" \
+	EMAIL_VERIFY_TOKEN_LENGTH="25" \
+	PASSWORD_RESET_TOKEN_LENGTH="25" \
+	INVITATION_TOKEN_LENGTH="25" \
+	dotnet publish -c Release -o /publish
+
+FROM build AS migrate
+
+WORKDIR /src/apps/api
+ENTRYPOINT ["dotnet", "tool", "run", "dotnet-ef", "database", "update", "--verbose"]
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:ddcf70ad1ab963a4fcd41fbd722a6b660e404e87567cfbd46fd2809c21b02088 AS runtime
+
+WORKDIR /app
+
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends libgssapi-krb5-2 wget \
+	&& rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /publish ./
+
+EXPOSE 5000
+ENV ASPNETCORE_URLS=http://+:5000
+
+USER $APP_UID
+
+ENTRYPOINT ["dotnet", "PublyApp.Api.dll"]

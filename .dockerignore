@@ -3,31 +3,31 @@
 .gitignore
 .gitattributes
 
-# Documentation
-README.md
-docs/
-*.md
+# Build/system artifacts
+node_modules
+**/node_modules
+.turbo
+dist
+**/dist
+.output
 
 # Environment files
 .env
 .env.*
-!.env.production
 env.example
 
-# Node modules (will be installed in container)
-node_modules/
-**/node_modules/
-
-# Build outputs
-build/
-dist/
-**/build/
-**/dist/
-
 # Logs
-logs/
-*.log
-**/logs/
+**/*.log
+
+# Testing artifacts
+coverage
+**/coverage
+test
+**/test
+**/tests
+
+# Keep client-ts fixture imported by generated API client code.
+!packages/client-ts/src/test
 
 # IDE files
 .vscode/
@@ -70,6 +70,7 @@ bin/
 obj/
 **/bin/
 **/obj/
+**/.artifacts/
 *.user
 *.suo
 *.cache

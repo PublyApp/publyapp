@@ -1,0 +1,7 @@
+/* Tailwind v4 + HeroUI v3 (provider-less) global stylesheet.
+   `source('../')` tells Tailwind to scan the src tree for utility classes. */
+@import 'tailwindcss' source('../');
+@import '@heroui/styles';
+
+/* HeroUI v3 dark mode = `.dark` class on an ancestor (set on <html>). */
+@custom-variant dark (&:is(.dark *));

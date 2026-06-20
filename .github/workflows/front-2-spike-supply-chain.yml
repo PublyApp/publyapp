@@ -1,0 +1,63 @@
+name: front-2-spike supply-chain
+
+# Throwaway-spike CI. Proves the front-2 spike's supply-chain install policy is
+# REPRODUCIBLE (exact-pins + frozen lockfile + ignore-scripts + allowlisted
+# first-party postinstall), not merely asserted locally. PATH-FILTERED to the
+# spike so it never runs on unrelated PRs — this is a disposable app and the job
+# is deliberately isolated from the rest of the monorepo's CI.
+
+on:
+  pull_request:
+    paths:
+      - 'apps/front-2-spike/**'
+      - '.github/workflows/front-2-spike-supply-chain.yml'
+      # Root install/supply-chain config: a PR touching only these (without any
+      # apps/front-2-spike/** change) would otherwise bypass this check.
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      # A wildcard-free pattern is an exact full-path match, so this hits the
+      # ROOT package.json only — nested apps/**/package.json have a different
+      # full path and do NOT match. (A leading slash is not valid here.)
+      - 'package.json'
+      - '.npmrc'
+
+permissions:
+  contents: read
+
+jobs:
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # 1) Every non-workspace dep must be exact-pinned (no ^/~/tags/git/ranges).
+      - name: Assert exact pins
+        run: node apps/front-2-spike/scripts/assert-pinned.mjs
+
+      # 2) Reproducible install with the supply-chain hardening flags. A blanket
+      #    --ignore-scripts is intentional: it bans ALL lifecycle scripts so a
+      #    tampered transitive dependency cannot execute install-time code.
+      - name: Install (frozen lockfile, no scripts)
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # 3) Re-run ONLY the trusted first-party postinstall that the blanket ban
+      #    skipped (the @org/shared-ts zod-i18n map generator that i18n/InterZod
+      #    need). This is the allowlist: trusted first-party postinstalls are
+      #    explicitly re-run, untrusted third-party scripts stay banned.
+      - name: Run trusted first-party postinstall (@org/shared-ts)
+        run: pnpm --filter @org/shared-ts run postinstall
+
+      # 4) The policy must still produce a buildable app end-to-end.
+      - name: Build spike
+        run: pnpm --filter front-2-spike build

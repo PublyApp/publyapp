@@ -1,0 +1,9 @@
+{
+	"hello": "Bonjour depuis le spike",
+	"greeting": "Bienvenue",
+	"login": "Connexion",
+	"email": "E-mail",
+	"password": "Mot de passe",
+	"submit": "Envoyer",
+	"staffUsers": "Utilisateurs du personnel"
+}

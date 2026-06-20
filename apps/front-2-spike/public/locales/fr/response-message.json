@@ -1,0 +1,6 @@
+{
+	"login-success": "Connexion réussie",
+	"login-failed": "Échec de la connexion",
+	"tenant-suspended": "Cette organisation est suspendue",
+	"session-expired": "Votre session a expiré"
+}

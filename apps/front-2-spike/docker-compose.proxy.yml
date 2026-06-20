@@ -1,0 +1,54 @@
+# Disposable front-2 deploy spike (Phase-0 de-risk): Traefik + front-2 behind reverse proxy.
+# API/DB/Toxiproxy/counter are intentionally deferred to Group 4 parity/fault de-risk.
+# Uses Traefik file provider only (no docker socket), which is safer for this spike and
+# avoids host-Docker API coupling; production routes in Dokploy are handled via label
+# translation and not expected to mirror this local compose layout. The HTTP→HTTPS redirect is
+# method-dependent (301 for GET, 308 for HEAD/POST) and its Location targets :443 (the websecure
+# entrypoint), so it is not directly followable against the local :8443 host mapping — future tests
+# should assert a 3xx response + Location header, not a fixed status code.
+name: publyapp-front2-proxy
+
+services:
+  traefik:
+    image: traefik:v3.3@sha256:2cd5cc75530c8d07ae0587c743d23eb30cae2436d07017a5ff78498b1a43d09f
+    restart: unless-stopped
+    command:
+      - --providers.file.filename=/etc/traefik/dynamic.yml
+      - --entryPoints.web.address=:80
+      - --entryPoints.websecure.address=:443
+      - --entryPoints.web.http.redirections.entryPoint.to=websecure
+      - --entryPoints.web.http.redirections.entryPoint.scheme=https
+      - --entryPoints.web.http.redirections.entryPoint.permanent=true
+      - --ping=true
+      - --api.dashboard=false
+    ports:
+      - "127.0.0.1:8080:80"
+      - "127.0.0.1:8443:443"
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    volumes:
+      - ./traefik-dynamic.yml:/etc/traefik/dynamic.yml:ro
+    networks:
+      - publyapp-network
+
+  front-2:
+    build:
+      context: ../..
+      dockerfile: apps/front-2-spike/Dockerfile
+    image: publyapp/front-2-spike:proxy
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      SERVER_API_BASE_URL: http://api.invalid:5000
+      PUBLIC_API_BASE_URL: https://api.front-2.localhost
+    networks:
+      - publyapp-network
+
+networks:
+  publyapp-network:
+    external: false

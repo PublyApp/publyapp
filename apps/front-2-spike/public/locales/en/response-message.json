@@ -1,0 +1,6 @@
+{
+	"login-success": "Logged in successfully",
+	"login-failed": "Login failed",
+	"tenant-suspended": "This organization is suspended",
+	"session-expired": "Your session has expired"
+}
