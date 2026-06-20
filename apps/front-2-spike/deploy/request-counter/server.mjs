@@ -8,6 +8,21 @@ import { join } from 'node:path';
 const UPSTREAM = new URL(process.env.API_UPSTREAM);
 const counts = new Map();
 
+const getCountKey = (method, path) => `${method} ${path}`;
+
+const getPathTotal = (path) => {
+	let total = 0;
+
+	for (const [key, count] of counts) {
+		const keyPath = key.slice(key.indexOf(' ') + 1);
+		if (keyPath === path) {
+			total += count;
+		}
+	}
+
+	return total;
+};
+
 const createTlsOptions = () => {
 	const dir = mkdtempSync(join(tmpdir(), 'request-counter-tls-'));
 	const keyPath = join(dir, 'key.pem');
@@ -49,14 +64,21 @@ const handleRequest = (req, res) => {
 	}
 
 	if (req.url?.startsWith('/__counter')) {
-		const path = new URL(req.url, 'http://x').searchParams.get('path') ?? '';
+		const params = new URL(req.url, 'http://x').searchParams;
+		const path = params.get('path') ?? '';
+		const method = params.get('method')?.toUpperCase();
+		const count = method
+			? (counts.get(getCountKey(method, path)) ?? 0)
+			: getPathTotal(path);
+
 		res.setHeader('content-type', 'application/json');
-		res.end(JSON.stringify({ count: counts.get(path) ?? 0 }));
+		res.end(JSON.stringify({ count }));
 		return;
 	}
 
 	const path = req.url?.split('?')[0] ?? '';
-	counts.set(path, (counts.get(path) ?? 0) + 1);
+	const countKey = getCountKey(req.method, path);
+	counts.set(countKey, (counts.get(countKey) ?? 0) + 1);
 
 	const up = httpRequest(
 		{
