@@ -10,6 +10,8 @@
 
 **Source-of-truth spec:** `docs/superpowers/specs/2026-06-20-front-2-phase-1-foundations-design.md` (Rev 3).
 
+**Rev 3 changelog (plan round-2):** all 8 round-1 blocking closed; fixed the 3 remaining items — M0.7 now copies the FULL e2e support stack (`toxiproxy` + `traefik-dynamic.test.yml`) that `log-leak.spec` depends on; M2.0 URL params include `size`; M1.5a commits the Dockerfile before pushing the `:<sha>` image.
+
 **Rev 2 changelog (plan-review reconciliation, GPT-5.5 xhigh):** M0.1 now scaffolds a *minimal buildable shell* (the spike router graph pulls transitive imports not yet copied) with a correct lockfile flow (non-frozen update → commit lock → frozen verify); added M0.7 (front-2 e2e harness) since the spike compose/playwright hard-code spike paths; M1.1 adds shared-ts test infra + a **scope-aware** client seam (`getOrCreateClient`/`getOrCreateStaffClient`/`getOrCreateAnonymousClient`, matching the real `ClientManager`) and writes `api-failure` tests from **current-app** precedence (body/problem-first), NOT the spike's transport-first (the Phase-0 watch-item); M2.0 uses **snake_case** URL params (`sort_id`/`sort_order`, per AGENTS.md); staging (M0.4) marks the domain + Dokploy token as an explicit **INFRA INPUT (Radan)**; M1.5 split into 3 PRs; added a staff-users **parity decision** pre-task; tightened every vague acceptance gate; added `@axe-core/playwright`; added front-2 to root format scripts.
 
 ---
@@ -86,12 +88,13 @@ Create `docs/guides/front-2/{index.md,conventions.md}` (HeroUI/Tailwind discipli
 - [ ] **Step 3: Implement** path-helper widening for portable rules → `apps/front-2/src`; ensure MUI-only rules stay scoped to `apps/front`. Config-level where possible (JS plugin alpha).
 - [ ] **Step 4:** test passes; `pnpm lint` clean. Commit.
 
-## Task M0.7: front-2 e2e harness (B6 fix)
-**Files:** Create `apps/front-2/playwright.config.ts`, `apps/front-2/docker-compose.test.yml`, `apps/front-2/e2e/helpers/*`. Reference (path-fix): spike `playwright.config.ts`, `docker-compose.test.yml`, `e2e/helpers/login.ts`.
-- [ ] **Step 1:** Create `apps/front-2/docker-compose.test.yml` (front-2 image + seeded Postgres + migrate + API + Traefik) with **front-2 paths/URLs** (not the spike's hard-coded ones).
-- [ ] **Step 2:** Create `apps/front-2/playwright.config.ts` (baseURL `https://front-2.localhost:8443`, `ignoreHTTPSErrors`, chromium, no `webServer`).
-- [ ] **Step 3:** Document exact commands: `docker compose -f apps/front-2/docker-compose.test.yml up -d --build` → `pnpm --filter front-2 exec playwright test` → `docker compose ... down -v`.
-- [ ] **Step 4:** A trivial smoke spec passes against the local stack. Commit.
+## Task M0.7: front-2 e2e harness — complete support stack (B6 / NEW-1 fix)
+**Files:** Create `apps/front-2/playwright.config.ts`, `apps/front-2/docker-compose.test.yml`, `apps/front-2/traefik-dynamic.test.yml`, `apps/front-2/deploy/toxiproxy/toxiproxy.json`, `apps/front-2/e2e/helpers/*`. Reference (copy + path-fix): the same-named spike files + `apps/front-2-spike/deploy/toxiproxy/`.
+- [ ] **Step 1: Copy the FULL support stack the harvested specs depend on** — the spike `docker-compose.test.yml` references `toxiproxy` + `traefik-dynamic.test.yml` (and the spike `e2e/log-leak.spec.ts` drives **toxiproxy fault injection** for the zero-token-logging sentinel). Copy/adapt `traefik-dynamic.test.yml` + `deploy/toxiproxy/toxiproxy.json` into `apps/front-2/`, fixing every spike path/hostname to front-2. (The `request-counter` sidecar is NOT needed — the `route-count` spec is out of Phase-1 scope; if it is added later, copy `deploy/request-counter/` then.)
+- [ ] **Step 2:** Create `apps/front-2/docker-compose.test.yml` (front-2 image + seeded Postgres + migrate + API + toxiproxy + Traefik) with **front-2 paths/URLs** only.
+- [ ] **Step 3:** Create `apps/front-2/playwright.config.ts` (baseURL `https://front-2.localhost:8443`, `ignoreHTTPSErrors`, chromium, no `webServer`); copy `e2e/helpers/login.ts` (path-fixed).
+- [ ] **Step 4:** Document exact commands: `docker compose -f apps/front-2/docker-compose.test.yml up -d --build` → `pnpm --filter front-2 exec playwright test` → `docker compose -f apps/front-2/docker-compose.test.yml down -v`.
+- [ ] **Step 5:** A trivial smoke spec + a toxiproxy-fault sanity check both pass against the local stack (proving the support artifacts are wired). Commit.
 
 **M0 EXIT GATE:** scaffold builds + typechecks + frozen install clean; M0.3 baseline captured; M0.4 artifact written (infra inputs flagged); M0.5 guide + M0.6 lint + M0.7 harness green. No deploy.
 
@@ -134,7 +137,7 @@ Create `docs/guides/front-2/{index.md,conventions.md}` (HeroUI/Tailwind discipli
 **M1 pre-staging EXIT GATE:** M1.1 `pnpm --filter @org/shared-ts test` + `pnpm --filter front-2 typecheck` green; M1.2–M1.4 e2e green via the **M0.7 harness** (`docker compose -f apps/front-2/docker-compose.test.yml up -d --build` → `playwright test` → `down -v`).
 
 ## Task M1.5a: front-2 production image
-Harvest `apps/front-2/Dockerfile` from spike (root context, vite-native, `CMD ["node","server.mjs"]`). Build locally; push `ghcr.io/radandevist/publyapp/front-2:<sha>`. Commit.
+Harvest `apps/front-2/Dockerfile` from spike (root context, vite-native, `CMD ["node","server.mjs"]`). **Commit the Dockerfile first** (so a commit SHA exists), then build + push `ghcr.io/radandevist/publyapp/front-2:<sha>` tagged with **that** commit SHA (NEW-3: do not push a `:<sha>` that predates the commit).
 
 ## Task M1.5b: staging infra wiring (blocked on M0.4 infra inputs)
 Add staging services to `dokploy.yml` (`publyapp-front-2-staging`, dedicated `publyapp-api-staging`, staging Postgres); staging API `FRONT_URL` = front-2 staging origin (single-origin CORS, isolated); migrate/seed job (`dotnet ef database update`); CSP `connect-src` + cookie domain. Requires the M0.4 FQDNs + Dokploy token secret. Commit.
@@ -150,7 +153,7 @@ Enable `front-2-staging-deploy.yml` (merge → build → Dokploy redeploy). Grad
 
 ## Task M2.0: URL-state adapter (typed, snake_case)
 **Files:** `apps/front-2/src/lib/url-state/{table-search-params,index}.ts` + `*.test.ts`. Reference: `apps/front/src/hooks/use-table-state.ts`.
-- [ ] **Step 1: Failing test** for typed search params **`{ q, sort_id, sort_order, cursor }` (snake_case, per AGENTS.md)** parse/serialize round-trip via TanStack Router `validateSearch`. (Note: the spike used camelCase `sortId`/`sortOrder` — do NOT copy that.)
+- [ ] **Step 1: Failing test** for typed search params **`{ q, sort_id, sort_order, cursor, size }` (snake_case, per AGENTS.md)** parse/serialize round-trip via TanStack Router `validateSearch`. Include `size` (page size) — current cursor URL state carries it (`apps/front/src/hooks/use-table-state.ts`; `docs/guides/list-pages-search-filter-cursor-pagination.md`). (Note: the spike used camelCase `sortId`/`sortOrder` — do NOT copy that.)
 - [ ] **Step 2:** Implement the typed table-state adapter; internal camelCase mapping only where needed. Tests pass. Commit.
 
 ## Task M2.0b: staff-users parity decision (MAJOR-5)
