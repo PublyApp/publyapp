@@ -1215,20 +1215,6 @@
         "operationId": "FindStaffUsers",
         "parameters": [
           {
-            "name": "q",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "cursor",
             "in": "query",
             "schema": {
@@ -1243,6 +1229,13 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "sort_id",
             "in": "query",
             "schema": {
@@ -1251,6 +1244,13 @@
           },
           {
             "name": "sort_order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
             "in": "query",
             "schema": {
               "type": "string"
@@ -2006,15 +2006,9 @@
         "operationId": "FindTenantUsersAsStaff",
         "parameters": [
           {
-            "name": "q",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "status",
-            "in": "query",
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
             "schema": {
               "type": "string"
             }
@@ -2028,6 +2022,13 @@
           },
           {
             "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
             "in": "query",
             "schema": {
               "type": "string"
@@ -2048,9 +2049,8 @@
             }
           },
           {
-            "name": "tenantId",
-            "in": "path",
-            "required": true,
+            "name": "status",
+            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -2889,13 +2889,6 @@
             }
           },
           {
-            "name": "q",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "cursor",
             "in": "query",
             "schema": {
@@ -2904,6 +2897,13 @@
           },
           {
             "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
             "in": "query",
             "schema": {
               "type": "string"
@@ -3771,13 +3771,6 @@
         "operationId": "FindStaffInvitations",
         "parameters": [
           {
-            "name": "status",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "cursor",
             "in": "query",
             "schema": {
@@ -3800,6 +3793,13 @@
           },
           {
             "name": "sort_order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
             "in": "query",
             "schema": {
               "type": "string"
@@ -4361,20 +4361,6 @@
             }
           },
           {
-            "name": "q",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "cursor",
             "in": "query",
             "schema": {
@@ -4389,6 +4375,13 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "sort_id",
             "in": "query",
             "schema": {
@@ -4397,6 +4390,13 @@
           },
           {
             "name": "sort_order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
             "in": "query",
             "schema": {
               "type": "string"
@@ -4737,13 +4737,6 @@
         "operationId": "FindStaffProfiles",
         "parameters": [
           {
-            "name": "q",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "cursor",
             "in": "query",
             "schema": {
@@ -4752,6 +4745,13 @@
           },
           {
             "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
             "in": "query",
             "schema": {
               "type": "string"
@@ -5497,7 +5497,15 @@
         "operationId": "FindStaffProfileUsers",
         "parameters": [
           {
-            "name": "q",
+            "name": "profileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
             "in": "query",
             "schema": {
               "type": "string"
@@ -5511,7 +5519,7 @@
             }
           },
           {
-            "name": "limit",
+            "name": "q",
             "in": "query",
             "schema": {
               "type": "string"
@@ -5527,14 +5535,6 @@
           {
             "name": "sort_order",
             "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "profileId",
-            "in": "path",
-            "required": true,
             "schema": {
               "type": "string"
             }
@@ -5825,8 +5825,9 @@
         "operationId": "FindTenantProfiles",
         "parameters": [
           {
-            "name": "q",
-            "in": "query",
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
             "schema": {
               "type": "string"
             }
@@ -5846,6 +5847,13 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "sort_id",
             "in": "query",
             "schema": {
@@ -5855,14 +5863,6 @@
           {
             "name": "sort_order",
             "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "tenantId",
-            "in": "path",
-            "required": true,
             "schema": {
               "type": "string"
             }
@@ -6760,20 +6760,6 @@
         "operationId": "FindTenants",
         "parameters": [
           {
-            "name": "q",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "cursor",
             "in": "query",
             "schema": {
@@ -6788,6 +6774,13 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "sort_id",
             "in": "query",
             "schema": {
@@ -6796,6 +6789,13 @@
           },
           {
             "name": "sort_order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
             "in": "query",
             "schema": {
               "type": "string"
@@ -8018,13 +8018,6 @@
         "operationId": "FindAuditLogs",
         "parameters": [
           {
-            "name": "user_id",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "actions",
             "in": "query",
             "schema": {
@@ -8032,14 +8025,7 @@
             }
           },
           {
-            "name": "target_id",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "start_date",
+            "name": "cursor",
             "in": "query",
             "schema": {
               "type": "string"
@@ -8047,13 +8033,6 @@
           },
           {
             "name": "end_date",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "cursor",
             "in": "query",
             "schema": {
               "type": "string"
@@ -8075,6 +8054,27 @@
           },
           {
             "name": "sort_order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "target_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "user_id",
             "in": "query",
             "schema": {
               "type": "string"
@@ -8205,20 +8205,6 @@
         "operationId": "ExportAuditLogs",
         "parameters": [
           {
-            "name": "format",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "user_id",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "actions",
             "in": "query",
             "schema": {
@@ -8226,7 +8212,14 @@
             }
           },
           {
-            "name": "target_id",
+            "name": "end_date",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
             "in": "query",
             "schema": {
               "type": "string"
@@ -8240,7 +8233,14 @@
             }
           },
           {
-            "name": "end_date",
+            "name": "target_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "user_id",
             "in": "query",
             "schema": {
               "type": "string"

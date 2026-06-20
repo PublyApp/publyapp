@@ -1,0 +1,93 @@
+name: OpenAPI Spec Drift
+
+# Guards determinism of the build-generated apps/api/openapi.json and the
+# Kiota-generated packages/client-ts. A clean build + client regeneration must
+# leave the tree byte-identical; a dirty tree means the committed artifacts
+# drifted and need regenerating + committing. See issue #683.
+
+on:
+  pull_request:
+    paths:
+      - "Directory.Build.props"
+      - "Directory.Build.targets"
+      - "Directory.Packages.props"
+      - "apps/api/**"
+      - "packages/client-ts/**"
+      - "justfile"
+      - "global.json"
+      - ".gitattributes"
+      - ".config/dotnet-tools.json"
+      - ".github/workflows/openapi-spec-drift.yml"
+  push:
+    branches: [develop]
+    paths:
+      - "Directory.Build.props"
+      - "Directory.Build.targets"
+      - "Directory.Packages.props"
+      - "apps/api/**"
+      - "packages/client-ts/**"
+      - "justfile"
+      - "global.json"
+      - ".gitattributes"
+      - ".config/dotnet-tools.json"
+      - ".github/workflows/openapi-spec-drift.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  spec-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET (pinned for CI determinism)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.102"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Set up just
+        uses: extractions/setup-just@v2
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Restore .NET tools (kiota, dotnet-ef)
+        run: dotnet tool restore
+
+      - name: Build API (regenerates openapi.json)
+        run: just build-api-full
+
+      - name: Fail if openapi.json drifted
+        run: |
+          if ! git diff --exit-code -- apps/api/openapi.json; then
+            echo "::error::apps/api/openapi.json is not byte-identical to a clean build. Run 'just build-api' locally and commit the result."
+            exit 1
+          fi
+
+      - name: Regenerate TypeScript client
+        run: just generate-client
+
+      - name: Fail if client drifted
+        run: |
+          git diff --exit-code -- packages/client-ts
+          if [ -n "$(git status --porcelain -- packages/client-ts)" ]; then
+            git status --short -- packages/client-ts
+            echo "::error::packages/client-ts is not byte-identical to a clean 'just generate-client'. Regenerate and commit."
+            exit 1
+          fi
+
+      - name: Run OpenAPI contract spec
+        run: |
+          cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test             --filter "FullyQualifiedName~OpenApiContractSpec"

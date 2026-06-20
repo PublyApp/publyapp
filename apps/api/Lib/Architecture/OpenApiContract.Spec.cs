@@ -19,6 +19,71 @@ public sealed class OpenApiContractSpec {
 		);
 
 	[Fact]
+	public async Task ItShouldPublishParametersInCanonicalOrder() {
+		using var openApiDocument =
+			await ReadOpenApiDocumentAsync();
+		var offenders = new List<string>();
+		var paths =
+			openApiDocument.RootElement
+				.GetProperty("paths");
+
+		foreach (var path in paths.EnumerateObject()) {
+			foreach (var operation in path.Value.EnumerateObject()) {
+				if (!operation.Value.TryGetProperty(
+					"parameters",
+					out var parameters
+				)) {
+					continue;
+				}
+
+				var actualParameters = parameters
+					.EnumerateArray()
+					.Select((parameter, index) => new ParameterContractItem(
+						parameter.GetProperty("name").GetString() ?? string.Empty,
+						parameter.GetProperty("in").GetString() ?? string.Empty,
+						index
+					))
+					.ToList();
+
+				var expectedParameters = actualParameters
+					.OrderBy(item => GetParameterLocationOrder(item.Location))
+					.ThenBy(item => GetPathParameterIndex(path.Name, item))
+					.ThenBy(item => item.Name, StringComparer.Ordinal)
+					.ThenBy(item => item.OriginalIndex)
+					.Select(FormatParameter)
+					.ToList();
+
+				var actualParameterNames = actualParameters
+					.Select(FormatParameter)
+					.ToList();
+				if (actualParameterNames.SequenceEqual(expectedParameters)) {
+					continue;
+				}
+
+				offenders.Add(
+					$"{operation.Name.ToUpperInvariant()} {path.Name}: "
+					+ string.Join(", ", actualParameterNames)
+				);
+			}
+		}
+
+		offenders.Should().BeEmpty(
+			"OpenAPI parameters must be emitted in canonical location/name order"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldNotPublishEscapedCarriageReturnsInDescriptions() {
+		var openApiDocumentText =
+			await OpenApiDocumentHelper.ReadTextAsync();
+
+		openApiDocumentText.Should().NotContain(
+			"\\r\\n",
+			"OpenAPI description text must use stable LF newlines across environments"
+		);
+	}
+
+	[Fact]
 	public async Task ItShouldPublishSnakeCaseQueryParameterNames() {
 		// This guards the public wire contract. Internal C#
 		// properties may remain PascalCase, but URL/query names
@@ -102,4 +167,36 @@ public sealed class OpenApiContractSpec {
 	private static async Task<JsonDocument> ReadOpenApiDocumentAsync() {
 		return await OpenApiDocumentHelper.ReadAsync();
 	}
+
+	private static int GetParameterLocationOrder(string location) {
+		return location switch {
+			"path" => 0,
+			"query" => 1,
+			"header" => 2,
+			"cookie" => 3,
+			_ => 4,
+		};
+	}
+
+	private static int GetPathParameterIndex(string path, ParameterContractItem parameter) {
+		if (parameter.Location != "path"
+			|| string.IsNullOrEmpty(parameter.Name)) {
+			return int.MaxValue;
+		}
+
+		var token = "{" + parameter.Name + "}";
+		var tokenIndex = path.IndexOf(token, StringComparison.Ordinal);
+
+		return tokenIndex >= 0 ? tokenIndex : int.MaxValue;
+	}
+
+	private static string FormatParameter(ParameterContractItem parameter) {
+		return $"{parameter.Location}:{parameter.Name}";
+	}
+
+	private sealed record ParameterContractItem(
+		string Name,
+		string Location,
+		int OriginalIndex
+	);
 }

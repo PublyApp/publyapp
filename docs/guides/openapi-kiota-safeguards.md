@@ -101,6 +101,23 @@ builder.Services.AddOpenApi(options => {
 
 **Rule:** If you see TypeScript types like `count?: number | UntypedNode` in response DTOs, check that the schema transformer is present and that `OpenApiGenerateDocuments` is `true` in `PublyApp.Api.csproj`.
 
+## Deterministic OpenAPI Output
+
+**Problem:** ASP.NET's generated operation `parameters` order can drift across
+SDK/tooling environments when minimal-API endpoints combine route parameters
+with `[AsParameters]` query DTOs. XML-comment descriptions can also preserve
+environment-specific CRLF newlines.
+
+**Solution:** `OpenApiDocumentNormalizer` is registered as an OpenAPI document
+transformer in `ServiceRegistration.cs`. It emits parameters in canonical order
+(`path`, `query`, `header`, `cookie`, then name order, with route-template order
+for path parameters) and normalizes description newlines to LF before
+`apps/api/openapi.json` is written.
+
+**Rule:** Do not manually reorder `apps/api/openapi.json` parameter arrays.
+Change the transformer and the `OpenApiContractSpec` guard instead, then run
+`just build-api && just generate-client`.
+
 ## Query DTO Multi-Value Filters
 
 **Problem:** On an `[AsParameters]` query DTO, a `List<T>?` multi-value filter plus a custom static `BindAsync(HttpContext)` causes ASP.NET's OpenAPI generator to omit every query parameter. Kiota then generates a URI template without query placeholders, so frontend `queryParameters` are dropped before the request leaves the browser.

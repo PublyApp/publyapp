@@ -11,6 +11,12 @@ internal static class OpenApiDocumentHelper {
 		return await JsonDocument.ParseAsync(stream);
 	}
 
+	public static async Task<string> ReadTextAsync() {
+		var openApiPath = FindOpenApiPath();
+
+		return await File.ReadAllTextAsync(openApiPath);
+	}
+
 	private static string FindOpenApiPath() {
 		var directory = new DirectoryInfo(AppContext.BaseDirectory);
 
