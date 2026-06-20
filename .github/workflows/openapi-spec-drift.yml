@@ -15,6 +15,7 @@ on:
       - "packages/client-ts/**"
       - "justfile"
       - "global.json"
+      - ".gitattributes"
       - ".config/dotnet-tools.json"
       - ".github/workflows/openapi-spec-drift.yml"
   push:
@@ -27,6 +28,7 @@ on:
       - "packages/client-ts/**"
       - "justfile"
       - "global.json"
+      - ".gitattributes"
       - ".config/dotnet-tools.json"
       - ".github/workflows/openapi-spec-drift.yml"
 
