@@ -1,0 +1,66 @@
+name: publyapp-front2-test
+
+services:
+  postgres:
+    image: postgres:18-alpine@sha256:1b1689b20d16a014a3d195653381cf2caa75a41a92d93b255a9d6ea29fd353aa
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: publyapp_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - publyapp-network
+
+  migrate:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+      target: migrate
+    env_file:
+      - ../../.env.development
+    environment:
+      POSTGRES_CONNECTION_STRING: Host=postgres;Port=5432;Database=publyapp_db;Username=postgres;Password=password;
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - publyapp-network
+
+  api:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+      target: runtime
+    env_file:
+      - ../../.env.development
+    environment:
+      POSTGRES_CONNECTION_STRING: Host=postgres;Port=5432;Database=publyapp_db;Username=postgres;Password=password;
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5000
+      FRONT_URL: https://front-2.localhost
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:5000/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    ports:
+      - "127.0.0.1:5001:5000"
+    networks:
+      - publyapp-network
+
+networks:
+  publyapp-network:
+    driver: bridge
+    external: false
