@@ -66,8 +66,37 @@ discrepancy for `@heroui/react@3.x`. Opening one is **deferred to the human**
 > artifact is the working assumption), but it FORCES `NO-GO for Phase 1
 > token/design work` until upstream confirms MIT governs `@heroui/react@3.x`.**
 
-**Gate state:** `PENDING-UPSTREAM`. Spike MAY proceed; Phase 1 token/design work is
-**blocked** until upstream confirmation.
+### Resolution (2026-06-20) — gate flipped to GO
+
+The `2026-06-19` capture only checked the moving **`v3` branch**. Re-checked against
+the **exact pinned tag** `v3.2.1` (= the consumed `@heroui/react@3.2.1`):
+
+| Source (at the pinned `3.2.1` / `v3.2.1`) | Observed value |
+| --- | --- |
+| Installed `@heroui/react` `package.json` `.license` (node_modules) | **`MIT`** |
+| Installed `@heroui/styles` `package.json` `.license` (node_modules) | **`MIT`** |
+| Published npm artifact `@heroui/react@3.2.1` `.license` (2026-06-19) | **`MIT`** |
+| Upstream repo `LICENSE` at tag `v3.2.1` (`raw.githubusercontent.com/heroui-inc/heroui/v3.2.1/LICENSE`) | **`Apache-2.0`** (header "Apache License, Version 2.0, January 2004"; "Copyright 2025 NextUI Inc.") |
+
+The MIT-vs-Apache **discrepancy is confirmed and persists at the pinned tag**, and
+**neither published package ships a `LICENSE` text file** in its npm tarball — both
+are upstream packaging bugs, not adopter blockers.
+
+**Why this resolves to GO regardless of which license controls:** **MIT and
+Apache-2.0 are both OSI-approved permissive licenses** with no copyleft, no
+source-disclosure, and no commercial-use restriction. Whichever one governs, PublyApp's
+use (consuming a compiled UI library in a closed-source SaaS) is **fully permitted**.
+The only practical Apache-2.0 obligation beyond MIT is **attribution / NOTICE
+preservation**, which we satisfy by retaining the package's license metadata — a
+Phase-1 packaging checklist item, not a legal risk. There is therefore **no licensing
+scenario** under which the adopted artifact blocks the migration.
+
+**Gate state:** **GO.** Resolves Finding #25. Carry-forward (non-blocking,
+Phase-1 packaging hygiene): (a) re-run this exact-tag check at each version bump, since
+the upstream metadata is internally inconsistent; (b) include HeroUI's license/NOTICE
+in our third-party attribution manifest; (c) optionally file/track an upstream issue to
+reconcile `package.json` (MIT) vs `LICENSE` (Apache-2.0) and ship a bundled LICENSE —
+outward-facing, deferred to the human.
 
 ---
 
