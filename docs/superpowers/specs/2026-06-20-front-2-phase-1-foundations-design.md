@@ -1,7 +1,7 @@
 # Front-2 Phase 1 — Foundations Design
 
-**Status:** Approved design (brainstorm output), **Rev 2** — reconciled against an adversarial
-senior-engineer review (GPT-5.5 xhigh, 2026-06-20). Source-of-truth for the Phase 1
+**Status:** Approved design (brainstorm output), **Rev 3** — reconciled against two rounds of
+adversarial senior-engineer review (GPT-5.5 xhigh, 2026-06-20). Source-of-truth for the Phase 1
 implementation plan. Scoped to **Phase 1 only** — the durable-foundations layer of the front-2
 migration, NOT the full migration.
 
@@ -14,14 +14,21 @@ not discovered while porting pages.
 (this is the Phase 1 row of §10). **Phase 0 outcome:** GO — see
 `docs/superpowers/reviews/2026-06-19-front-2-phase-0-findings.md`.
 
-**Rev 2 changelog (review reconciliation):** expanded the shared-ts fold to include the
-already-router-free query/client core (was too thin vs strategy); added a concrete staging
-runbook (M1.5 was hand-waved); added the AppErrorView/error-boundary foundation with the correct
-auth-vs-authed 401 split (the Rev 1 "401 wired to both boundaries" line was wrong); made a
-browser-confirmed current-app baseline a hard M0 exit gate; reworded the 401 back-port to
-evidence-driven (`apps/front` already maps status correctly — no bug present); decided the
-previously-punted foundations (URL state, analytics, Zustand, `<Image>`, SEO/meta, a11y);
-reduced lint scope.
+**Rev 2 changelog:** expanded shared-ts fold; added staging runbook; added AppErrorView with the
+correct 401 split; made a browser-confirmed current-app baseline a hard M0 gate; reworded the 401
+back-port to evidence-driven; decided the punted foundations (URL state, analytics, Zustand,
+`<Image>`, SEO/meta, a11y); reduced lint scope.
+
+**Rev 3 changelog (round-2 reconciliation — executability):** the round-1 fixes held, but round 2
+caught that the shared-ts fold over-corrected — the query/client core is **app-bound** (not just
+router-free): `client-manager.ts` imports app `env`+cookies, `create-hooks.ts` imports the app
+manager, `QueryDisplay` is MUI-bound, and `shared-ts` has no React/Query/Kiota deps. Rev 3
+rewrites the fold as **ports-and-adapters with injected seams** (§5.3): only pure, dependency-light
+contracts go to `shared-ts`; app-bound pieces stay app-local. Also: staging made concrete (named
+services/env/workflow/migration-runner/smoke/rollback) and authored as an **M0** artifact;
+**per-milestone exit gates** replace the contradictory blanket "deployed-smoke" DoD; lint
+path-scoping given mechanics + config tests; front-2 guide creation made a deliverable; fixed the
+D2 §-reference.
 
 ---
 
@@ -42,9 +49,9 @@ Phase 1 turns the proof into durable infrastructure. It is **foundations, not pa
 | # | Decision | Rationale |
 | --- | --- | --- |
 | D1 | **Characterization runs parallel, but a browser-confirmed current-app baseline is a hard M0 exit gate** | The full suite (#693/#694) is the Phase-2 fan-out gate and runs alongside foundations. BUT because Phase 0 never booted the current app in a browser, M0 must first prove `apps/front` boots and capture an auth / 401-split / URL-state / table smoke baseline — otherwise Phase 2 inherits an unknown parity target. (Review weakened the naive "fully parallel" framing; this is the reconciliation.) |
-| D2 | **Fresh `apps/front-2`, deliberate harvest** | The spike was disposable; its value is the proven recipe, not its probe-era code. A fresh app sets durable conventions cleanly. The harvest list is **executable** (§4.2), not informal. Spike kept as read-only reference until front-2 matches coverage, then deleted. |
-| D3 | **Staging stands up after the staging-capable shell**, against a concrete runbook (§7) | Continuous staging needs something integrated to deploy. Stand it up at end of M1 — but the infra gap is real (no staging in `dokploy.yml`; single-origin CORS; source-upload deploy script), so a **staging runbook (§7) is authored before M1 starts**, not improvised in M1.5. |
-| D4 | **Thin-but-complete shared-ts fold; back-port to `apps/front` only on proven need** | Fold the genuinely framework-agnostic, already-router-free core (api-failure, session, redaction **+ the React Query hook factories / query-utils / client-manager core** — these are already router-free in `apps/front`). Keep TanStack/HeroUI wiring app-local. **401 back-port:** `apps/front` already maps `problemDetails.status ?? responseStatusCode ?? 500` and has 401-only Query logout — **no bug present; the spike bug was spike-local.** M0.3 confirms via characterization; back-port only if it disproves this. |
+| D2 | **Fresh `apps/front-2`, deliberate harvest** | The spike was disposable; its value is the proven recipe, not its probe-era code. A fresh app sets durable conventions cleanly. The harvest map (§5.2) lists what graduates; the **implementation plan makes it file-path-specific**. Spike kept as read-only reference until front-2 matches coverage, then deleted. |
+| D3 | **Staging design authored in M0; staging stands up at M1.5** | Continuous staging needs something integrated to deploy, so standup is M1.5 — but the infra gap is real (no staging in `dokploy.yml`; single-origin CORS; source-upload deploy script), so the **concrete staging design artifact (§7) is authored in M0** (named services/env/workflow/migration-runner/smoke/rollback), before any shell work, so M1.5 is execution not discovery. |
+| D4 | **Ports-and-adapters shared fold; back-port to `apps/front` only on proven need** | Only **pure, dependency-light** code goes to `shared-ts` (api-failure types+mapping, session token parsing, redaction, query-key/query-state contracts). The **app-bound** pieces stay app-local behind injected seams: `ClientManager` (app env+cookies), the concrete `ApiClient`, cookie reader, logout/toast/tenant handlers, and the `QueryDisplay` renderer (HeroUI in front-2, MUI in front). The hook-factory generic is shared but takes an **injected client accessor** (not the app's `getClientManager`). See §5.3. **401 back-port:** `apps/front` already maps `problemDetails.status ?? responseStatusCode ?? 500` and has 401-only Query logout — **no bug present; the spike bug was spike-local.** M0.3 confirms; back-port only if disproven. |
 
 ## 3. Foundation decisions previously punted — now decided
 
@@ -104,21 +111,35 @@ Carried & hardened: auth/session + `beforeLoad` guard · i18n SSR (InterZod glob
 `@hookform/resolvers`; `noUnusedLocals` on; no probe routes; no "spike" naming; CI promoted to a
 real `apps/front-2` workflow.
 
-### 5.3 shared-ts fold (thin-but-complete — reconciled with strategy)
+### 5.3 shared fold — ports-and-adapters (corrected in Rev 3)
 
-`shared-ts/lib` already carries `csp`, `i18n`, `constants`, `zod`, `analytics`, `logger`. The fold
-**adds the genuinely framework-agnostic, already-router-free core**:
+`shared-ts/lib` already carries `csp`, `i18n`, `constants`, `zod`, `analytics`, `logger`.
+**Caveat round 2 verified:** the current query/client core is *router-free but app-bound* —
+`apps/front/src/lib/api-client/client-manager.ts` imports app `env` + cookie utils,
+`create-hooks.ts` imports the app `getClientManager`, and `query-display.tsx` imports
+`@mui/material`. Lifting them into `shared-ts` would drag app coupling + new React/Query/Kiota
+deps into a currently-light package. So the fold is **ports-and-adapters**, not lift-and-shift:
 
-- `lib/api-failure` — `ApiFailure` union + `toApiFailure` (the canonical mapping; matches the
-  fixed `apps/front` behavior)
-- `lib/session` — dual-token cookie model
-- Kiota header-redaction helpers
-- **the React Query hook factories + query-utils + client-manager core** (already router-free in
-  `apps/front/src/lib/react-query/` — ported, not rewritten), and the **QueryDisplay** equivalent
+**Goes to `shared-ts` (pure, dependency-light — type-only Query imports at most):**
+- `lib/api-failure` — `ApiFailure` union + `toApiFailure` mapping (no React/MUI)
+- `lib/session` — token parse/select over a cookie *string* (pure functions; no cookie I/O, no env)
+- redaction helpers (pure)
+- **query contracts:** the query-key builder (`query-utils`), the query-state predicate
+  (`checkIfEmptyQueryData`), and a hook-factory generic that accepts an **injected client
+  accessor** + key builder (not the app's `getClientManager`)
 
-Framework-specific TanStack/HeroUI wiring stays app-local. Each folded module is unit-tested in
-`shared-ts`. **No refactor of `apps/front`** onto these (it is retiring) — back-port only a proven
-production bug fix as a standalone PR.
+**Stays app-local in `apps/front-2` (implements the seams):**
+- `ClientManager` / Kiota `ApiClient` wiring (front-2's own `env` + cookie reader)
+- the `QueryDisplay` renderer (HeroUI), consuming the shared query-state contract
+- logout / toast / tenant-resolution handlers injected into the shared mapping/factory
+
+**Seam contract:** shared modules depend only on injected interfaces (`{ getClient, readCookie,
+onLogout, onToast, resolveTenant }`), never on a concrete app module. **Peer-deps:** any shared
+module that imports `@tanstack/react-query` / `react-query-kit` / Kiota at runtime adds them as
+**peer** dependencies of `shared-ts`; prefer type-only imports to avoid peers where possible.
+
+Each shared module is unit-tested in `shared-ts`. **No refactor of `apps/front`** onto these (it is
+retiring) — back-port only a proven production bug fix as a standalone PR.
 
 ### 5.4 Error views (D6) — the corrected 401 semantics
 
@@ -127,15 +148,23 @@ auth-surface boundary (**401 → no logout**, expired URL token → view + back-
 boundary (**401 → logout**), 404/403 views (**403 never logs out**). This is a hard invariant set,
 e2e-tested.
 
-### 5.5 Lint (D12) — path-scoped retirement only
+### 5.5 Lint (D12) — path-scoped retirement, with mechanics + tests
 
 Scope MUI-rule retirement to `apps/front-2/**`; `apps/front` keeps MUI rules until cutover. Keep
 portable rules (`no-direct-dayjs-in-components`, `no-console-in-source`, `no-array-reduce`,
-`no-manual-response-message-translation`). New custom rules deferred (advisory in the guide).
+`no-manual-response-message-translation`). New custom rules deferred (advisory in the front-2 guide).
+
+**Mechanics (round-2 nit):** the root `.oxlintrc.json` is global, and the custom rules are
+inconsistent — some hardcode the surface path (`no-native-html-in-mui-surfaces.js` targets
+`apps/front/src`), others do not (`no-raw-mui-textfield-register.js`). So Phase 1 must: (a) confirm
+the path-hardcoded rules already exclude `apps/front-2`; (b) add path-scoping (overrides block or
+in-rule path guard) for the non-scoped MUI rules so they do not fire on `apps/front-2`; (c) add a
+**config/rule test** asserting `apps/front` stays protected by the MUI rules AND `apps/front-2` is
+not blocked by them. The local JS plugin is alpha — keep changes config-level where possible.
 
 ## 6. Milestone breakdown
 
-### M0 — Bootstrap & proven baseline (parallel kickoff)
+### M0 — Bootstrap, proven baseline & staging design (parallel kickoff)
 - **M0.1 — Fresh scaffold.** `apps/front-2` (pinned, supply-chain policy, `assert-pinned`, real CI,
   `noUnusedLocals` on, no cruft). **Re-pin/re-verify TanStack Start** (phase-boundary gate).
 - **M0.2 — Characterization track (#693/#694).** Land test infra (Vitest + MSW + Playwright) + the
@@ -144,10 +173,16 @@ portable rules (`no-direct-dayjs-in-components`, `no-console-in-source`, `no-arr
   browser against seeded data; capture the smoke baseline (login redirect, **auth-401 vs authed-401
   vs 403 split**, typed-URL state, table render/search). Confirm `apps/front` has **no** 401 bug
   (expected) — back-port only if disproven. M1 does not start until this baseline is green.
+- **M0.4 — Staging deploy design artifact (§7).** Author the concrete staging plan: exact service
+  names, env vars, domains, GHCR workflow file path, migration/seed runner, smoke URL, rollback
+  path. No deploy yet — this de-risks M1.5 so it is execution, not discovery.
+- **M0.5 — front-2 guide scaffold.** Create `docs/guides/front-2/` (stack-scoped conventions incl.
+  the deferred lint rules as advisory). Grows through M1/M2; promoted to canonical at cutover.
 
 ### M1 — Staging-capable shell (gates staging standup)
-- **M1.1 — shared-ts fold (§5.3):** api-failure, session, redaction, **query/client core +
-  QueryDisplay**; unit-tested.
+- **M1.1 — shared fold (§5.3, ports-and-adapters):** pure `shared-ts` modules (api-failure, session,
+  redaction, query-key/query-state contracts, injected-client hook-factory generic), unit-tested;
+  front-2 app-local adapters (ClientManager, HeroUI QueryDisplay, injected handlers).
 - **M1.2 — App shell + nav + default theme + minimal Zustand (D8):** custom HeroUI shell, dark-mode
   toggle, brand primary; theme + sidebar state.
 - **M1.3 — Auth/session + error views (D6):** dual-token cookie, `beforeLoad` guard, login flow;
@@ -171,30 +206,46 @@ portable rules (`no-direct-dayjs-in-components`, `no-console-in-source`, `no-arr
 - **Exit:** staff-users beachhead runs production-grade on front-2 at staging; characterization suite
   green (with proven baseline) and wired as the Phase-2 fan-out gate.
 
-## 7. Staging runbook (authored before M1.5)
+## 7. Staging design (authored in M0.4; executed in M1.5)
 
 The infra does not exist today (`dokploy.yml` has only prod `publyapp-api` + `publyapp-front`; CORS
-is single-origin `WithOrigins(env.FRONT_URL)`; `scripts/deploy.mjs` is source-upload). M1.5 requires:
+is single-origin `WithOrigins(env.FRONT_URL)`; `scripts/deploy.mjs` is source-upload, not GHCR).
+M0.4 produces this as a concrete, executable artifact; M1.5 wires it:
 
-- **Image/build:** new `ghcr.io/radandevist/publyapp/front-2:latest` (the front-2 Dockerfile,
-  `node server.mjs`/srvx), built+pushed by CI on merge.
-- **Services/domains:** Dokploy `publyapp-front-2-staging` + a **dedicated staging API**
-  (`publyapp-api-staging`) + **staging Postgres** (ephemeral or isolated), on staging domains.
-- **CORS:** the staging API's `FRONT_URL` = the front-2 staging origin (single-origin CORS is fine
-  for a dedicated staging API; **no multi-origin change needed** as long as staging is isolated).
-- **CSP `connect-src`** includes the staging API origin; cookie domain set for the staging host.
-- **Secrets:** staging `.env` via Dokploy (DB conn, session keys) — never committed.
-- **Migrate/seed:** `dotnet ef database update` init step (as the spike's test env did) seeds staging.
-- **Smoke + rollback:** deployed smoke URL asserted post-deploy; per-deploy rollback via Dokploy
-  image pin. **No production surface touched.**
+- **CI workflow:** `.github/workflows/front-2-staging-deploy.yml` — on merge to `develop` touching
+  `apps/front-2/**`: build + push `ghcr.io/radandevist/publyapp/front-2:<sha>` (+ `:staging`), then
+  trigger the Dokploy redeploy. (Mirror the existing api/front image conventions in `dokploy.yml`.)
+- **Services/domains (dokploy delta):** add `publyapp-front-2-staging` + a **dedicated**
+  `publyapp-api-staging` + **staging Postgres** (isolated), on staging domains
+  (`front-2-staging.<domain>`, `api.front-2-staging.<domain>`).
+- **Migration/seed runner:** a one-shot `dotnet ef database update` init step/job against the
+  staging DB (same mechanism as the spike's `docker-compose.test.yml` migrate stage) — names the
+  exact image+command.
+- **CORS:** staging API `FRONT_URL` = the front-2 staging origin (single-origin CORS is fine for a
+  dedicated staging API; **no multi-origin code change** while staging is isolated).
+- **CSP/cookies:** `connect-src` includes the staging API origin; cookie domain set for the staging host.
+- **Secrets:** staging env via Dokploy (DB conn, session keys) — never committed.
+- **Smoke + rollback:** post-deploy smoke = the graduated spike `e2e/smoke` against
+  `https://front-2-staging.<domain>/login`; **rollback** = redeploy the previous `:<sha>` image tag
+  in Dokploy. **No production surface touched.**
 
 ## 8. Testing strategy
 
-Three layers: (1) `shared-ts` unit tests for the folded core (api-failure, session, redaction,
-query core); (2) `apps/front-2` e2e (harvested spike suites: CSP/nonce, log-leak sentinel,
-ApiFailure mapping, auth, error-view 401-split, **a11y axe/keyboard**, smoke) run against staging;
-(3) the parallel characterization suite (§11 strategy) against `apps/front` with the **proven
-browser baseline from M0.3**. **Per-milestone DoD = green suite + deployed-to-staging smoke.**
+Three layers: (1) `shared-ts` unit tests for the folded pure core (api-failure, session, redaction,
+query contracts); (2) `apps/front-2` e2e (harvested spike suites: CSP/nonce, log-leak sentinel,
+ApiFailure mapping, auth, error-view 401-split, **a11y axe/keyboard**, smoke); (3) the parallel
+characterization suite (§11 strategy) against `apps/front` with the **proven browser baseline from
+M0.3**.
+
+**Per-milestone exit gates (staging does not exist until M1.5, so the gate differs per milestone):**
+
+- **M0 exit:** scaffold builds + `tsc` clean; M0.3 browser baseline green; M0.4 staging artifact
+  written; M0.5 guide scaffolded. (No deploy.)
+- **M1 pre-staging exit (M1.1–M1.4):** unit + e2e green **locally against the spike's compose
+  harness** (the integration oracle until staging exists).
+- **M1.5 exit:** staging live; deployed smoke green against the staging URL.
+- **M2 exit:** staff-users beachhead production-grade at staging; characterization suite green and
+  wired as the Phase-2 fan-out gate.
 
 ## 9. Risks / open items
 
@@ -203,8 +254,10 @@ browser baseline from M0.3**. **Per-milestone DoD = green suite + deployed-to-st
   parity is undefined; the full suite must keep pace to gate Phase 2.
 - **Table mini-spec** — highest UI risk; mitigated by cursor-pagination being the real requirement.
 - **TanStack Start version drift** — re-pin/re-verify at M0.
-- **query/client core fold** — confirm it is truly router-free before porting; if any hidden router
-  coupling exists, keep that piece app-local.
+- **Shared-fold seam discipline (§5.3)** — the query/client core is app-bound today; only pure code
+  graduates and app pieces stay behind injected seams. If a "pure" module turns out to need runtime
+  React/Query/Kiota, add the peer dep deliberately or keep it app-local — do not let app coupling
+  leak into `shared-ts`.
 
 ## 10. References
 
@@ -212,5 +265,6 @@ browser baseline from M0.3**. **Per-milestone DoD = green suite + deployed-to-st
 - Phase 0 findings: `docs/superpowers/reviews/2026-06-19-front-2-phase-0-findings.md`
 - Parity contract: `docs/front-2-migration/parity-contract.md`
 - Error views: `docs/guides/error-views.md`
-- Adversarial review (Rev 2 input): GPT-5.5 xhigh, `.dump/phase1-spec-review-r1.out`
+- Adversarial reviews (Rev 2/3 inputs): GPT-5.5 xhigh — `.dump/phase1-spec-review-r1.out`,
+  `.dump/phase1-spec-review-r2.out`
 - Characterization issues: #693 (infra), #694 (design)
