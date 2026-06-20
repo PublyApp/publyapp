@@ -14,6 +14,80 @@
 
 ---
 
+## Phase 0 verdict — recommendation: **GO** (proceed to Phase 1)
+
+**Date:** 2026-06-20. **Scope of this verdict:** whether to proceed with migrating
+PublyApp's frontend to **TanStack Start + HeroUI v3** — NOT a commitment to any timeline.
+Every claim below is backed by an evidence section in this document (referenced inline).
+
+### Gates — all three GO
+
+| Gate | State | Evidence |
+| --- | --- | --- |
+| HeroUI v3 license | **GO** | MIT (npm) vs Apache-2.0 (repo `LICENSE` @ `v3.2.1`) — both OSI permissive, neither blocks closed-source SaaS use. See *License gate → Resolution (2026-06-20)*. |
+| TanStack Start version stability | **GO** (for spike; re-verify at Phase boundaries) | `latest 1.168.26`, lockstep monorepo versioning understood, exact-pin + `--ignore-scripts` policy mandatory. See *Version gate*. |
+| Architecture (direct-Kiota, not BFF) | **GO** | `.NET`/Kiota is the single source of truth; `createServerFn` is cookie-I/O only; authed=CSR matches the current `<ClientOnly>` app. See *Architecture gate* + *SSR strategy*. |
+
+### What Phase 0 proved (the de-risk)
+
+Deployed, browser-run vertical slice behind a Traefik-shaped proxy with enforced CSP:
+HeroUI v3 renders **styled** under Tailwind v4 + Start SSR (provider-less, React-Aria-driven);
+**dual-token cookie auth** reproduced (JS-readable session, no BFF); **i18next SSR** is
+cookie-driven with `en` fallback + `<html lang>` + InterZod; a **real Kiota → TanStack Query
+→ TanStack Table** staff-users list with search/sort/cursor vars; an **RHF/Zod dialog** with
+localized validation; **CSP + per-request nonce on every status incl. 404**, with framework-injected
+scripts correctly nonced. Standalone Node deploy (`server.mjs` via `srvx`) works (the assumed
+Nitro `.output` does not exist at this Start version — resolved).
+
+### Value delivered — real defects caught before any production migration
+
+1. **401 centralized-logout was broken (real bug, fixed).** `toApiFailure` ignored
+   `AppProblemDetails.status` and the logout effect was wired to only one of two error
+   boundaries → a 401 would NOT log the user out. Fixed both; hardened the status parse to
+   strict-integer. This is exactly the class of regression Phase 0 exists to surface. See commit `55070a0b8`.
+2. **Request-counter harness was method-blind (harness bug, fixed).** It conflated CORS
+   preflight with the data GET, faking a double-fetch; made method-aware. Steady-state GET=1
+   confirmed — **no app double-fetch**. See commit `c37892683`.
+3. **Negative log-leak test could vacuously pass (test-integrity gap, fixed).** Added a
+   positive-control proving the cookie needle equals the wire token + deterministic fault wait. See commit `209f826ea`.
+
+### Phase-1 reconciliation inputs (documented divergences — expected, not blockers)
+
+From the parity contract's *apps/front verification*: invite is a **separate route**
+(`/staff/invitations/new`) in the current app, not an on-page dialog; email is **secondary
+text** in the name cell, not a standalone column; the current app has a **UI language switcher**
+(spike proves cookie-configured locale only); theme uses MUI `useColorScheme` + `publyapp:color-scheme`
+(spike uses `.dark` variant). Table: current app uses **Material React Table**; Phase-1
+rebuilds that controller on HeroUI v3 `Table` + `@tanstack/react-table` (a build task).
+
+### Honest limits of this spike (verification gaps, not findings against the stack)
+
+- **Table row virtualization / column resize / column pin: not verified** — and **not
+  required for parity** (current app cursor-paginates modest pages; see *Reconciliation
+  (2026-06-20)*). Re-verify only if a future surface adopts a virtualized grid.
+- **`style-src 'unsafe-inline'` retained** — React Aria/HeroUI overlays apply runtime inline
+  `style=` that a nonce cannot cover; matches the current app. Tightening it is out of Phase-0
+  scope (Phase-1 follow-up). See *Style-src verdict*.
+- **TanStack Start cookie semantics** (`getCookie` not readable same-request, #5615;
+  `getWebRequest` absent) are confirmed and the slice is built around them — re-verify at version bumps.
+- **`apps/front` parity check fell back to API + source inspection** — its dev server exited
+  on first `GET /login` in-sandbox; the divergences above were spot-checked accurate against
+  source. Full browser-confirmation of the current app is Phase-1 (issue #693/#694 territory).
+
+### Conditions attached to GO
+
+(a) Re-run the exact-tag license check + add HeroUI to a third-party attribution manifest;
+(b) keep exact-pin + `--ignore-scripts` + frozen-lockfile policy for all `@tanstack/*`;
+(c) re-verify Start version/runtime story at each Phase boundary;
+(d) preserve the 401-only-logout invariant (regression-tested here) in the real migration;
+(e) treat the documented divergences as the Phase-1 parity backlog.
+
+**Bottom line: GO.** The architecture holds, every gate is green, the spike found and fixed a
+real migration-blocking bug, and all remaining unknowns are either non-parity capabilities or
+scoped Phase-1 build/verification tasks — none of them blocks committing to the migration.
+
+---
+
 ## License gate
 
 **Task 0.1 — HeroUI v3 license gate.** Goal: confirm the *consumed npm artifact*
@@ -592,6 +666,25 @@ client for the Task 2.7 dialog. The real repo `zod.{en,fr}.json` were copied ver
   - update spec §4.1 / §10 wording for authed=CSR in Group 5.
   - scope Task 4.3 SSR assertions to marketing/auth routes (`rows in raw SSR HTML`, `no-refetch priming`) or verify them post-hydration for authed flows (Playwright with JS enabled).
 - `## Table parity (Task 2.6)` virtualization verdict remains **PENDING** with follow-up browser DOM-windowing confirmation in Group 4.
+
+### Reconciliation (2026-06-20) — virtualization/resize/pin are NOT parity blockers
+
+The 2.6 "NO-GO for §13" tag was scoped to *DOM-windowing of the 1k probe dataset*, which
+was an exploration of a HeroUI v3 **capability**, not a parity requirement. Checked the
+**current app's** staff-users list (`apps/front/src/routes/authed/staff/staff-users/list/`):
+it renders via Material React Table with **`paginationMode: 'cursor'`** + `DEFAULT_PAGE_SIZE`
++ `hasNextPage` (`use-staff-users-table-controller.impl.tsx:150-151,349`). The shipped app
+**paginates modest pages — it never mounts a virtualized 1000-row grid**, and has no
+user-facing column-resize/column-pin on this surface.
+
+Therefore the real parity surface is: columns + sort + **cursor pagination** + search +
+row actions + bulk selection — **all demonstrated by the spike's staff-users table** (SSR
+rows beyond a bare count, search filtering, sort vars, `NO_MATCH` branch; lines 537-555).
+**Reconciled verdict:** Table **parity** is GO. Row **virtualization / column resize /
+column pin** are deferred HeroUI-v3 *capabilities* — needed only if a future surface adopts
+a virtualized grid, and re-verified then. They do **not** gate Phase 1. The genuine Phase-1
+table work is rebuilding the MRT-based controller (`useMRTTable`) on the HeroUI v3 compound
+`Table` + `@tanstack/react-table` — a build task, not an unproven risk.
 
 ## CSP
 
