@@ -1,0 +1,13 @@
+http:
+  routers:
+    front-2:
+      rule: Host(`front-2.localhost`)
+      entryPoints:
+        - websecure
+      service: front-2
+      tls: true
+  services:
+    front-2:
+      loadBalancer:
+        servers:
+          - url: http://front-2:3000
