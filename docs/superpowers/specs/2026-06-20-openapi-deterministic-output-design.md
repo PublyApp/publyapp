@@ -91,12 +91,13 @@ Closes AC #1 (cross-machine) and AC #4 (CI enforcement).
 
 ### Piece 2 — pinned SDK (prerequisite of Piece 1)
 
-Add a repo-root `global.json` with `version: 10.0.300`, `rollForward: latestFeature`. This is issue
+Add a repo-root `global.json` with `version: 10.0.102`, `rollForward: latestFeature`. This is issue
 approach #2, justified here because the drift guard must build with a known SDK to be reliably green.
-`latestFeature` keeps local devs on newer SDKs unblocked, while CI uses `setup-dotnet` honoring
-`global.json` to install exactly `10.0.300` — the band that produced the committed spec. If a future
-SDK feature band changes the generated output, the guard fails loudly and we regenerate + re-pin
-deliberately (rather than drifting silently).
+`latestFeature` keeps local devs on newer SDKs unblocked, while CI pins the exact version in
+`setup-dotnet` to install `10.0.102` — the band that produced the committed spec (confirmed via
+`dotnet --version` on the build machine; the issue text's `10.0.300` was a different environment).
+If a future SDK feature band changes the generated output, the guard fails loudly and we regenerate +
+re-pin deliberately (rather than drifting silently).
 
 ### Piece 3 — optional CRLF tidy
 
