@@ -4,7 +4,9 @@
 
 **Goal:** Stand up a durable `apps/front-2` (TanStack Start + HeroUI v3) carrying the proven foundation layer — app shell, auth/session, error views, i18n SSR, CSP/nonce, theme, table system, `Field.*` — deployed continuously to staging, with the framework-agnostic core folded into `shared-ts` via injected seams.
 
-**Architecture:** Fresh app, deliberate harvest from `apps/front-2-spike` (cleaned). Authed = CSR (`ssr:false`); marketing/auth = SSR. Direct-Kiota (no BFF); `createServerFn` = frontend-server concerns only (see "Server-function boundary" below). Shared fold is **ports-and-adapters**: pure contracts in `shared-ts`, app-bound pieces (ClientManager, HeroUI renderers, env/cookies) stay app-local behind injected seams. Milestones: M0 bootstrap+baseline+staging-design, M1 staging-capable shell, M2 data & form systems.
+**Architecture:** Fresh app, deliberate harvest from `apps/front-2-spike` (cleaned). Authed = CSR (`ssr:false`); marketing/auth = SSR. Direct-Kiota (no BFF); `createServerFn` = frontend-server concerns only (see "Server-function boundary" below). Shared fold is **ports-and-adapters**: pure contracts in `shared-ts`, app-bound pieces (ClientManager, HeroUI renderers, env/cookies) stay app-local behind injected seams. Milestones: M0 bootstrap+baseline, M1 shell, M2 data & form systems.
+
+**LOCAL-FIRST (Radan, 2026-06-21):** Phase 1 is validated entirely on the **local compose harness** (M0.7). Hosted staging (Dokploy/CI/GHCR deploy) is **deferred** until the local stack is green end-to-end — M1.5a/b/c and the deploy workflow are post-Phase-1-local steps, not blockers. Staging domains are **confirmed** for when we get there: `front-2.staging.publyapp.com` + `api.front-2.staging.publyapp.com`; staging DB = dedicated isolated Postgres. The local harness is the integration oracle for all of M1/M2.
 
 **Tech Stack:** TanStack Start 1.168.x (re-pin at M0), HeroUI v3.2.1, Tailwind v4, React 19, TanStack Query/Table, react-query-kit, RHF + Zod + InterZod + `@hookform/resolvers`, i18next, Kiota client (`@org/client-ts`), `@org/shared-ts`, Vitest, Playwright + `@axe-core/playwright`, srvx, Dokploy/Traefik staging.
 
@@ -75,11 +77,11 @@ Parallel track. (1) Land/confirm #694 design + #693 infra (Vitest+MSW+Playwright
 - [ ] **Step 3:** Confirm `apps/front/src/lib/api-failure/to-api-failure.ts` is **body/problem-first** (`problemDetails.status ?? responseStatusCode ?? 500`) and `react-query/query-client.tsx` logs out only on 401 → **no back-port** (expected). If disproven → separate bug-fix PR + regression test.
 - [ ] **Step 4: Commit doc only:** `git add docs/front-2-migration/parity-contract.md && git commit -m "docs(front-2): M0.3 current-app browser baseline + 401 verification"`. **GATE: M1 blocked until green.**
 
-## Task M0.4: Staging deploy design artifact (+ explicit infra-input gate)
-- [ ] **Step 1:** Write `docs/front-2-migration/staging-deploy.md` concretely: service names (`publyapp-front-2-staging`, `publyapp-api-staging`, staging Postgres), image scheme (`ghcr.io/radandevist/publyapp/front-2:<sha>` + `:staging`), the `dokploy.yml` delta, the `dotnet ef database update` migrate/seed job (mirror `apps/front-2-spike/docker-compose.test.yml` migrate stage), env-var **names** (`FRONT_URL`, `PUBLIC_API_BASE_URL`, `SERVER_API_BASE_URL`, session keys, DB conn), CSP `connect-src` + cookie domain, the Dokploy update **mechanism** (API/webhook redeploy), smoke command, rollback (redeploy previous `:<sha>`).
-- [ ] **Step 2 — INFRA INPUT REQUIRED (Radan):** the actual **staging FQDNs** and the **Dokploy project/token (secret)** are human inputs. Record them as named GitHub Actions secrets + a `staging-deploy.md` "inputs" section; mark M1.5 **blocked** on these. (Surfaced to Radan, not a silent placeholder.)
-- [ ] **Step 3:** Scaffold `.github/workflows/front-2-staging-deploy.yml` (build+push GHCR on merge touching `apps/front-2/**`, then Dokploy redeploy) — disabled until M1.5.
-- [ ] **Step 4: Commit:** `git commit -m "docs(front-2): M0.4 staging design artifact + workflow scaffold (infra inputs flagged)"`
+## Task M0.4: Staging deploy design artifact (DEFERRED hosted; documented for later)
+**Local-first:** Phase 1 does NOT stand up hosted staging or CI/Dokploy. This task only **records the design for later** so M1.5 is ready when we choose to go hosted.
+- [ ] **Step 1:** Write `docs/front-2-migration/staging-deploy.md` with the **confirmed** domains (`front-2.staging.publyapp.com`, `api.front-2.staging.publyapp.com`), service names (`publyapp-front-2-staging`, `publyapp-api-staging`, dedicated isolated staging Postgres), image scheme (`ghcr.io/radandevist/publyapp/front-2:<sha>` + `:staging`), the `dokploy.yml` delta, the `dotnet ef database update` migrate/seed job, env-var **names** (`FRONT_URL`, `PUBLIC_API_BASE_URL`, `SERVER_API_BASE_URL`, session keys, DB conn), CSP `connect-src` + cookie domain, smoke command, rollback. Mark it **"deferred — hosted staging stands up after local Phase 1 is green; Dokploy mechanism + secrets TBD then."**
+- [ ] **Step 2:** No CI workflow scaffold yet (local-first). No `.github/workflows/front-2-staging-deploy.yml`.
+- [ ] **Step 3: Commit:** `git commit -m "docs(front-2): M0.4 staging design (deferred, confirmed domains) — local-first"`
 
 ## Task M0.5: front-2 guide scaffold
 Create `docs/guides/front-2/{index.md,conventions.md}` (HeroUI/Tailwind discipline, deferred custom lint rules as advisory, ports-and-adapters seam rule, authed=CSR, snake_case URL params). Commit.
@@ -136,18 +138,13 @@ Create `docs/guides/front-2/{index.md,conventions.md}` (HeroUI/Tailwind discipli
 - [ ] **Step 3:** SEO/meta baseline (canonical/OG/robots/sitemap/locale) in `seo.ts`. **Acceptance:** `e2e/seo.spec.ts` asserts tags present on `/` and `/login`.
 - [ ] **Step 4:** `analytics.ts` wraps `@org/shared-ts/lib/analytics`; SSR bad-response capture mirroring `apps/front/src/entry.server.tsx`. Commit.
 
-**M1 pre-staging EXIT GATE:** M1.1 `pnpm --filter @org/shared-ts test` + `pnpm --filter front-2 typecheck` green; M1.2–M1.4 e2e green via the **M0.7 harness** (`docker compose -f apps/front-2/docker-compose.test.yml up -d --build` → `playwright test` → `down -v`).
+**M1 EXIT GATE (local):** M1.1 `pnpm --filter @org/shared-ts test` + `pnpm --filter front-2 typecheck` green; M1.2–M1.4 e2e green via the **M0.7 local harness** (`docker compose -f apps/front-2/docker-compose.test.yml up -d --build` → `playwright test` → `down -v`). This local stack is the integration oracle for the rest of Phase 1.
 
-## Task M1.5a: front-2 production image
-Harvest `apps/front-2/Dockerfile` from spike (root context, vite-native, `CMD ["node","server.mjs"]`). **Commit the Dockerfile first** (so a commit SHA exists), then build + push `ghcr.io/radandevist/publyapp/front-2:<sha>` tagged with **that** commit SHA (NEW-3: do not push a `:<sha>` that predates the commit).
-
-## Task M1.5b: staging infra wiring (blocked on M0.4 infra inputs)
-Add staging services to `dokploy.yml` (`publyapp-front-2-staging`, dedicated `publyapp-api-staging`, staging Postgres); staging API `FRONT_URL` = front-2 staging origin (single-origin CORS, isolated); migrate/seed job (`dotnet ef database update`); CSP `connect-src` + cookie domain. Requires the M0.4 FQDNs + Dokploy token secret. Commit.
-
-## Task M1.5c: deploy workflow + smoke
-Enable `front-2-staging-deploy.yml` (merge → build → Dokploy redeploy). Graduate spike `e2e/smoke.spec.ts` → run against `https://<staging-fqdn>/login`. **Acceptance:** post-deploy smoke green; rollback verified (redeploy previous `:<sha>`). Commit.
-
-**M1.5 EXIT GATE:** staging live; deployed smoke green; rollback verified.
+## Task M1.5 (DEFERRED — hosted staging, post-local)
+**Local-first:** hosted staging is **not** part of Phase 1 execution. Build the front-2 `Dockerfile` only as needed for the local compose harness (M0.7). The hosted-staging steps below are recorded for when we choose to go hosted (after local Phase 1 is green), per the M0.4 design:
+- **M1.5a — image:** commit the `Dockerfile` first, then build/push `ghcr.io/radandevist/publyapp/front-2:<sha>` from that commit.
+- **M1.5b — infra wiring:** staging services in `dokploy.yml` (`publyapp-front-2-staging`, dedicated `publyapp-api-staging`, isolated staging Postgres); staging API `FRONT_URL` = `https://front-2.staging.publyapp.com`; migrate/seed job; CSP `connect-src` + cookie domain. Needs the Dokploy mechanism + secrets (TBD then).
+- **M1.5c — deploy + smoke:** deploy workflow; graduate `e2e/smoke.spec.ts` → run against `https://front-2.staging.publyapp.com/login`; rollback verified.
 
 ---
 
@@ -173,11 +170,11 @@ Decide (and record in `docs/front-2-migration/parity-contract.md`) for each know
 
 ## Task M2.3: Staff-users beachhead + Phase-2 gate
 **Files:** `apps/front-2/src/routes/authed/staff/staff-users/*`; extend `e2e/parity-happy-path.spec.ts` (harvest). Implements the M2.0b parity decisions.
-- [ ] Assemble staff-users list (table + URL-state + shell + auth), deployed to staging.
+- [ ] Assemble staff-users list (table + URL-state + shell + auth), running on the local compose harness.
 - [ ] Wire the characterization suite (#693/#694) as the **Phase-2 fan-out gate** in CI; confirm green with the M0.3 baseline.
-- [ ] **Acceptance:** `playwright test e2e/parity-happy-path.spec.ts` green against staging. Commit.
+- [ ] **Acceptance:** `playwright test e2e/parity-happy-path.spec.ts` green against the **local harness**. Commit.
 
-**M2 EXIT GATE (Phase 1 done):** staff-users production-grade at staging; characterization suite green + wired as Phase-2 gate; all foundation invariants preserved.
+**M2 EXIT GATE (Phase 1 local done):** staff-users production-grade on the local compose harness; characterization suite green + wired as Phase-2 gate; all foundation invariants preserved. (Hosted staging = deferred M1.5, run when chosen.)
 
 ---
 
