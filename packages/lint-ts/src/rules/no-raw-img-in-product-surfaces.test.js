@@ -62,6 +62,14 @@ const runCases = (rule, label) => {
 					filename: 'apps/front/src/components/logo/logo.tsx',
 				},
 				{
+					code: 'const Preview = () => <img alt="Front 2 preview" src="/front-2.png" />;',
+					filename: 'apps/front-2/src/components/upload-preview.tsx',
+				},
+				{
+					code: 'const Preview = () => <img alt="Front 2 preview" src="/front-2.png" />;',
+					filename: 'apps/front-2/src/components/upload-preview.jsx',
+				},
+				{
 					code: [
 						'const Hero = () => (',
 						'\t<>',
@@ -77,6 +85,11 @@ const runCases = (rule, label) => {
 				{
 					code: 'const Preview = () => <img alt="Preview" src="/preview.png" />;',
 					filename: 'apps/front/src/components/upload-preview.tsx',
+					errors: [{ messageId: 'rawImg' }],
+				},
+				{
+					code: 'const Preview = () => <img alt="Preview" src="/preview.png" />;',
+					filename: 'apps/front/src/components/upload-preview.jsx',
 					errors: [{ messageId: 'rawImg' }],
 				},
 				{

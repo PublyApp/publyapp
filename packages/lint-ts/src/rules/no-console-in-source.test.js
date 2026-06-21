@@ -35,7 +35,11 @@ const runCases = (rule, label) => {
 				},
 				{
 					code: "console.log('allowed in tests');",
-					filename: 'apps/front/src/routes/example/example.test.ts',
+					filename: 'apps/front-2/src/routes/example/example.test.tsx',
+				},
+				{
+					code: "console.log('allowed in jsx tests');",
+					filename: 'apps/front-2\\src\\routes\\example\\example.test.jsx',
 				},
 				{
 					code: `${LOGGER_IMPORT}\n\nlogger.info('already using logger');`,
@@ -46,6 +50,10 @@ const runCases = (rule, label) => {
 						'const console = mockLogger;\n' +
 						'export const Example = () => console.log("x");',
 					filename: 'apps/front/src/routes/example/example.ts',
+				},
+				{
+					code: "console.log('windows test file is ignored');",
+					filename: 'apps/front-2\\src\\routes\\example\\example.test.tsx',
 				},
 			],
 			invalid: [
@@ -85,6 +93,32 @@ const runCases = (rule, label) => {
 						'export const report = () => {\n' +
 						"\tlogger.error('failed');\n" +
 						'};',
+				},
+				{
+					code: "console.debug('front-2 should still be checked');",
+					filename: 'apps/front-2/src/routes/example/example.tsx',
+					errors: [{ messageId: 'unexpected' }],
+					output:
+						`${LOGGER_IMPORT}\n` +
+						"logger.debug('front-2 should still be checked');",
+				},
+				{
+					code: "console.log('front component');",
+					filename: 'apps/front-2/src/components/auth/page.tsx',
+					errors: [{ messageId: 'unexpected' }],
+					output: `${LOGGER_IMPORT}\n` + "logger.log('front component');",
+				},
+				{
+					code: "console.log('front-2 parts');",
+					filename: 'apps/front-2/src/_parts/auth/page.tsx',
+					errors: [{ messageId: 'unexpected' }],
+					output: `${LOGGER_IMPORT}\n` + "logger.log('front-2 parts');",
+				},
+				{
+					code: "console.log('front-2 _components');",
+					filename: 'apps/front-2\\src\\_components\\auth\\page.tsx',
+					errors: [{ messageId: 'unexpected' }],
+					output: `${LOGGER_IMPORT}\n` + "logger.log('front-2 _components');",
 				},
 			],
 		});

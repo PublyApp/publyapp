@@ -26,18 +26,12 @@
  * Fix strategy: no autofix. Choosing the correct `ratio`, clipping, and layout
  * styles depends on the image's surrounding UI.
  */
+import { isFrontProductSurfaceFile, normalizeFilename } from './path-scopes.js';
 
 const MESSAGE =
 	'Use the Image primitive from @/app/components/image (with a ratio prop) ' +
 	'instead of raw img/Box component=img for content imagery. See AGENTS.md ' +
 	'content-imagery rule. Marketing surfaces and brand wordmarks are exempt.';
-
-const PRODUCT_SURFACE_PREFIXES = [
-	'apps/front/src/routes/',
-	'apps/front/src/components/',
-	'apps/front/src/layouts/',
-	'apps/front/src/lib/',
-];
 
 const MARKETING_EXCLUSIONS = [
 	'apps/front/src/routes/marketing/',
@@ -50,8 +44,6 @@ const BRAND_WORDMARK_PREFIXES = [
 ];
 
 const FULL_BLEED_BACKGROUND_MARKER = 'publy-allow full-bleed-background';
-
-const normalizeFilename = (filename) => filename.replaceAll('\\', '/');
 
 const getContextFilename = (context) => {
 	if (typeof context.filename === 'string') {
@@ -67,10 +59,6 @@ const getContextFilename = (context) => {
 
 const isProductSurfaceFile = (filename) => {
 	const normalizedFilename = normalizeFilename(filename);
-
-	if (!normalizedFilename.endsWith('.tsx')) {
-		return false;
-	}
 
 	if (normalizedFilename.includes('_marketing')) {
 		return false;
@@ -92,9 +80,11 @@ const isProductSurfaceFile = (filename) => {
 		return false;
 	}
 
-	return PRODUCT_SURFACE_PREFIXES.some((prefix) =>
-		normalizedFilename.includes(prefix),
-	);
+	if (!isFrontProductSurfaceFile(normalizedFilename)) {
+		return false;
+	}
+
+	return true;
 };
 
 const getJsxName = (name) => {

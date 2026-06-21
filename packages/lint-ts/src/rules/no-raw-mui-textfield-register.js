@@ -12,10 +12,33 @@
  * Aliased imports like `import { TextField as TF } from '@mui/material'`
  * used as `<TF .../>` are NOT detected and are out of scope.
  */
+import {
+	FRONT_SOURCE_EXTENSIONS,
+	FRONT_ONLY_SOURCE_PREFIX,
+	isFrontSourceFile,
+	normalizeFilename,
+} from './path-scopes.js';
 
 const MESSAGE =
 	'Use <Field.Text name="..."/> from @/front/components/hook-form instead of raw ' +
 	'<TextField> with register()';
+
+const getContextFilename = (context) => {
+	if (typeof context.filename === 'string') {
+		return context.filename;
+	}
+
+	if (typeof context.getFilename === 'function') {
+		return context.getFilename();
+	}
+
+	return '';
+};
+
+const isRuleTargetFile = (filename) =>
+	isFrontSourceFile(filename, FRONT_SOURCE_EXTENSIONS, [
+		FRONT_ONLY_SOURCE_PREFIX,
+	]);
 
 const isRegisterCall = (node) =>
 	node?.type === 'CallExpression' &&
@@ -86,6 +109,12 @@ export const noRawMuiTextfieldRegister = {
 		},
 	},
 	create(context) {
+		const filename = normalizeFilename(getContextFilename(context));
+
+		if (!isRuleTargetFile(filename)) {
+			return {};
+		}
+
 		return {
 			JSXElement(node) {
 				const { openingElement } = node;

@@ -23,6 +23,7 @@
  * routing behavior, form wiring, and image semantics, so the rule reports with
  * explicit guidance only.
  */
+import { isFrontProductSurfaceFile, normalizeFilename } from './path-scopes.js';
 
 const NATIVE_HTML_EQUIVALENTS = {
 	div: 'Box',
@@ -79,19 +80,10 @@ export const SVG_ELEMENTS = new Set([
 	'foreignObject',
 ]);
 
-const PRODUCT_SURFACE_PREFIXES = [
-	'apps/front/src/routes/',
-	'apps/front/src/components/',
-	'apps/front/src/layouts/',
-	'apps/front/src/lib/',
-];
-
 const MARKETING_EXCLUSIONS = [
 	'apps/front/src/routes/marketing/',
 	'apps/front/src/components/marketing/',
 ];
-
-const normalizeFilename = (filename) => filename.replaceAll('\\', '/');
 
 const getContextFilename = (context) => {
 	if (typeof context.filename === 'string') {
@@ -108,10 +100,6 @@ const getContextFilename = (context) => {
 const isProductSurfaceFile = (filename) => {
 	const normalizedFilename = normalizeFilename(filename);
 
-	if (!normalizedFilename.endsWith('.tsx')) {
-		return false;
-	}
-
 	if (normalizedFilename.includes('_marketing')) {
 		return false;
 	}
@@ -124,9 +112,11 @@ const isProductSurfaceFile = (filename) => {
 		return false;
 	}
 
-	return PRODUCT_SURFACE_PREFIXES.some((prefix) =>
-		normalizedFilename.includes(prefix),
-	);
+	if (!isFrontProductSurfaceFile(normalizedFilename)) {
+		return false;
+	}
+
+	return true;
 };
 
 const buildMessages = () => {

@@ -88,6 +88,10 @@ const marketingExceptionCases = [
 		filename: 'apps/front/src/components/marketing/hero.tsx',
 	},
 	{
+		code: 'const Front2 = () => <div />;',
+		filename: 'apps/front-2/src/components/page-card.tsx',
+	},
+	{
 		code: 'const Banner = () => <section><h2>Marketing</h2></section>;',
 		filename: 'apps/front/src/components/_marketing-banner.tsx',
 	},
@@ -189,6 +193,10 @@ const runCases = (rule, label) => {
 					filename: 'apps/front/src/routes/marketing/home.tsx',
 				},
 				{
+					code: 'const Hero = () => <div />;',
+					filename: 'apps/front/src/routes/marketing/home.jsx',
+				},
+				{
 					code: "const template = '<div></div>';",
 					filename: 'apps/front/src/components/template.ts',
 				},
@@ -208,6 +216,11 @@ const runCases = (rule, label) => {
 				{
 					code: 'const Component = () => <h1>Title</h1>;',
 					filename: 'apps/front/src/components/page-heading.tsx',
+					errors: [{ messageId: 'h1' }],
+				},
+				{
+					code: 'const Component = () => <h1>Title</h1>;',
+					filename: 'apps/front/src/components/page-heading.jsx',
 					errors: [{ messageId: 'h1' }],
 				},
 				{
