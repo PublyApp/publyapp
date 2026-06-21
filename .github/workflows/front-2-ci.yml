@@ -1,0 +1,80 @@
+name: front-2 supply-chain
+
+on:
+  pull_request:
+    paths:
+      - 'apps/front-2/**'
+      - '.github/workflows/front-2-ci.yml'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - '.npmrc'
+
+permissions:
+  contents: read
+
+jobs:
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Assert exact pins
+        run: node apps/front-2/scripts/assert-pinned.mjs
+
+      - name: Install (frozen lockfile, no scripts)
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Run trusted first-party postinstall (@org/shared-ts)
+        run: pnpm --filter @org/shared-ts run postinstall
+
+      - name: Check front-2 formatting
+        run: pnpm format
+
+      - name: Build front-2
+        run: pnpm --filter front-2 build
+
+      - name: Verify front-2 production build includes CSS and HTML link
+        run: node apps/front-2/scripts/verify-build-css-link.mjs
+
+      - name: Smoke start front-2 server and verify stylesheet tag
+        run: |
+          pnpm --filter front-2 start > /tmp/front-2-ci-server.log 2>&1 &
+          FRONT_2_SERVER_PID=$!
+          trap 'kill $FRONT_2_SERVER_PID || true' EXIT
+
+          for attempt in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:3000/ >/tmp/front-2-home.html; then
+              break
+            fi
+            sleep 1
+          done
+
+          if ! curl -fsS http://127.0.0.1:3000/ > /tmp/front-2-home.html; then
+            echo "front-2 standalone server failed to return HTML from /"
+            cat /tmp/front-2-ci-server.log
+            exit 1
+          fi
+
+          if ! grep -Eq 'rel="stylesheet"[^>]*href="[^"]+\\.css"' /tmp/front-2-home.html; then
+            echo "front-2 production HTML does not contain stylesheet link"
+            cat /tmp/front-2-home.html
+            exit 1
+          fi
+
+      - name: Typecheck front-2
+        run: pnpm --filter front-2 typecheck
+
+      - name: Test front-2
+        run: pnpm --filter front-2 test
