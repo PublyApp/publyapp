@@ -56,6 +56,66 @@ Results:
   language detection, client language changes persist that cookie, and InterZod
   is updated on `languageChanged`.
 
+## apps/front browser baseline (M0.3)
+
+Checked on 2026-06-26 from worktree `feat/front-2-phase-1` with headless
+Chromium (Playwright), against the live current app.
+
+Setup used:
+
+- Fresh Dell dev machine: installed .NET SDK `10.0.102` (per `global.json`) and
+  Playwright Chromium. The repo dev `docker-compose.services.yml` crash-loops with
+  the current `postgres:18-alpine` image (PG18 changed its data-dir convention,
+  docker-library #1259, so the `…:/var/lib/postgresql/data` volume mount is
+  rejected) — worked around with an **ephemeral** `postgres:18-alpine` container on
+  `localhost:5454` (no volume). This dev-compose breakage is a separate repo bug to
+  fix on its own.
+- EF `database update` migrated + seeded the DB (3 tenants, 12 users, 3 staff
+  profiles, 15 accounts). API `/health` healthy on `localhost:5000`. `apps/front`
+  served on `localhost:5050` from the `feat/front-2-phase-1` worktree.
+
+Phase-0 `GET /login` exit — RESOLVED:
+
+- `GET /login` returns `200` (repeated requests, process stays alive). The Phase-0
+  first-request exit (code `1` / `Empty reply from server`) did **not** reproduce.
+  Root cause: it was specific to the disposable `spike/front-2-phase-0` worktree's
+  environment (no clean workspace install / stack wiring), **not** a current-app
+  defect. No code change required.
+
+Browser-verified results (headless Chromium against the live app):
+
+- Seeded staff login (`staff-admin@example.com`) redirects to **`/staff`** (the
+  authenticated landing); the staff-users list lives at `/staff/staff-users`.
+- Staff-users renders seeded rows: `staff-admin@example.com` and
+  `owner@publyapp.local` visible. Columns are **`Name`, `Level`, `Status`,
+  `Actions`** — confirming the divergence that email is secondary text in the
+  `Name` cell, not a standalone column.
+- Search writes snake_case URL state: searching `staff-admin` yields
+  `/staff/staff-users?q=staff-admin`, keeps the matching row, and drops
+  non-matching seeded rows.
+- **Authed `401` → centralized logout → `/login`** (forced via route
+  interception of `GET /staff/**`). Confirmed live.
+- **Authed `403` → NO logout** (forced `403` keeps the user on
+  `/staff/staff-users`). Confirmed live.
+- Invalid credentials keep the user on `/login` and render an error without a
+  route crash (current app returns RFC 7807 `400` for bad credentials).
+- Login form selectors: `input[name="email"]` (no placeholder) and
+  `input[name="password"]` (placeholder `8+ characters`), submit button
+  `Sign in`. Note: the spike's e2e `login` helper used
+  `getByPlaceholder('Email')`, which would **not** match the current app — a
+  selector divergence to fix when the harness is enabled.
+
+Code-verified (M0.3 Step 3 — no back-port needed):
+
+- `apps/front/src/lib/api-failure/to-api-failure.ts:39` is body/problem-first
+  (`problemDetails.status ?? problemDetails.responseStatusCode ?? 500`).
+- `apps/front/src/lib/react-query/query-client.tsx:252,257` logs out on `401`
+  ONLY (403/500/network/etc. do not).
+
+Not browser-exercised here (remain source-verified / Phase-1 confirm): the
+dark-mode toggle (mechanism source-verified in Phase 0; `data-mui-color-scheme`
+is set after the settings interaction), the locale switch, and the invite flow.
+
 ## Evidence Legend
 
 | Evidence | Scope |
