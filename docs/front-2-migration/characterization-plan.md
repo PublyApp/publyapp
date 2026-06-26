@@ -59,18 +59,21 @@ fan-out gate.
 ## URL-State Characterization
 
 These rows map to the `URL State` invariant group in `parity-contract.md`.
-M0.3 supplies the captured `q=staff-admin` baseline; the exact `size` value is
-to be captured before the Phase-2 gate. The `q` filtering behavior is also
-backed by the existing staff-users search invariant.
+M0.3 supplies the captured `q=staff-admin` baseline.
+`size` round-trip is not part of the first Phase-2 gate.
+It will be promoted into the gate only after a follow-up capture records the
+current default page-size baseline.
+The `q` filtering behavior is also backed by the existing staff-users search
+invariant.
 Sort/cursor round-trip plus stale-`cursor` reset on search change are tracked by
 the second URL State parity-contract row as characterization backlog, not in the
 first gate.
 
 | Stable spec name | Behavior under test | Parity invariant | Layer | Concrete assertion |
 |---|---|---|---|---|
-| `table_url_state.round_trips_search_q_and_size` | Staff table URL state preserves search text and page size as current-app request state. | URL State: Staff-users table URL state round-trips `q` (search) and `size` (page size) and rehydrates those visible controls on load. | Playwright-e2e | Navigate to `/staff/staff-users` with the M0.3 captured `q` value and the `size` value to be captured before the Phase-2 gate; assert the table controller sends the captured `q` and pre-gate page-size/limit value to the method-specific `GET /staff/users`, the visible search and size controls rehydrate, and the filtered rows match the M0.3 baseline. |
+| `table_url_state.round_trips_search_q_and_size` | Staff table URL state preserves search text and page size as current-app request state; `size` is tracked as a follow-up gate item after baseline capture. | URL State: Staff-users table URL state round-trips `q` (search) in the first Phase-2 gate, while `size` remains follow-up until the current default page-size baseline is captured and promoted. | Playwright-e2e | Navigate to `/staff/staff-users` with the M0.3 captured `q` value; assert the table controller sends the captured `q` to the method-specific `GET /staff/users`, the visible search control rehydrates, and the filtered rows match the M0.3 baseline. |
 | `table_url_state.search_updates_q_request_and_url` | Search changes update the URL-backed `q` state before the next app-data request. | URL State: Staff-users table URL state round-trips `q` (search) and `size` (page size) and rehydrates those visible controls on load. | Playwright-e2e | Type the M0.3 search term; assert the next method-specific `GET /staff/users` includes the new `q`, the URL reflects the current-app `q` shape, and the rendered rows match the filtered seeded-list baseline. |
-| `table_url_state.page_size_round_trip` | Page size persists through current-app URL state and request variables. | URL State: Staff-users table URL state round-trips `q` (search) and `size` (page size) and rehydrates those visible controls on load. | Playwright-e2e | Change table page size to the value to be captured before the Phase-2 gate; assert URL `size` changes, reload preserves the selected visible size control, and the next method-specific `GET /staff/users` uses the same pre-gate page-size/limit value without introducing a duplicate app-data request. |
+| `table_url_state.page_size_round_trip` | Page size persists through current-app URL state and request variables; this is currently a follow-up item after the first Phase-2 gate. | URL State: Staff-users table URL state round-trips `size` after its current default page-size baseline is captured and promoted into the gate. | Playwright-e2e | Re-run this spec as the follow-up when default-size baseline capture is complete, then assert URL `size` changes, reload preserves the selected visible size control, and the next method-specific `GET /staff/users` uses the same `size` value without introducing a duplicate app-data request. |
 
 ## Staff-Users Characterization
 
@@ -107,7 +110,7 @@ these sections becomes the Phase-2 fan-out gate:
 - Auth Characterization.
 - ApiFailure And Query Handling.
 - Log-Redaction Characterization.
-- URL-State Characterization.
+- URL-State Characterization (`q` round-trip only; `size` follows in a later gate after baseline capture).
 - Staff-Users Characterization.
 
 - `apps/front` must stay green against this suite while front-2 is built.

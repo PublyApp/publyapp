@@ -18,6 +18,16 @@ const parseUpstream = () => {
 		throw new Error(`API_UPSTREAM must be a valid URL: ${error.message}`);
 	}
 
+	if (upstream.username !== '' || upstream.password !== '') {
+		throw new Error(
+			'API_UPSTREAM must not include credentials (username/password).',
+		);
+	}
+
+	if (upstream.search !== '') {
+		throw new Error('API_UPSTREAM must not include a query string.');
+	}
+
 	if (upstream.protocol !== 'http:') {
 		throw new Error(
 			`API_UPSTREAM must use http:, received ${upstream.protocol}`,
@@ -131,13 +141,17 @@ const handleRequest = (req, res) => {
 };
 
 createServer(handleRequest).listen(8800, '0.0.0.0', () => {
-	console.log('request-counter on :8800 -> ' + UPSTREAM.href);
+	console.log(
+		'request-counter on :8800 -> ' + UPSTREAM.origin + UPSTREAM.pathname,
+	);
 });
 
 createHttpsServer(createTlsOptions(), handleRequest).listen(
 	9443,
 	'0.0.0.0',
 	() => {
-		console.log('request-counter TLS on :9443 -> ' + UPSTREAM.href);
+		console.log(
+			'request-counter TLS on :9443 -> ' + UPSTREAM.origin + UPSTREAM.pathname,
+		);
 	},
 );
