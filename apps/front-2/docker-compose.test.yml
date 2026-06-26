@@ -24,6 +24,7 @@ services:
       - ../../.env.development
     environment:
       POSTGRES_CONNECTION_STRING: Host=postgres;Port=5432;Database=publyapp_db;Username=postgres;Password=password;
+      DOTNET_ENVIRONMENT: Production
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:5000
     depends_on:
@@ -41,6 +42,7 @@ services:
       - ../../.env.development
     environment:
       POSTGRES_CONNECTION_STRING: Host=postgres;Port=5432;Database=publyapp_db;Username=postgres;Password=password;
+      DOTNET_ENVIRONMENT: Production
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:5000
       FRONT_URL: https://front-2.localhost:8443

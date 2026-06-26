@@ -98,6 +98,9 @@ const handleRequest = (req, res) => {
 		return;
 	}
 
+	// Countering strips query strings so counts are path-based.
+	// Assertions for q/size/sort_id/sort_order/cursor changes should use Playwright
+	// network events, not this counter.
 	const path = req.url?.split('?')[0] ?? '';
 	const countKey = getCountKey(req.method, path);
 	counts.set(countKey, (counts.get(countKey) ?? 0) + 1);

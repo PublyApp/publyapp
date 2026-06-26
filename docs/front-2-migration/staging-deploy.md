@@ -409,7 +409,7 @@ curl --fail --show-error --silent \
   --output /dev/null
 ```
 
-Confirm the front page carries the staging API origin in CSP:
+Confirm the front-2 `/login` page carries the staging API origin in CSP:
 
 ```bash
 front2_login_headers="$(mktemp)"

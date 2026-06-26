@@ -7,6 +7,8 @@ WORKDIR /workspace
 RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
 
 COPY . .
+# Use pnpm dlx here because turbo prune runs before workspace deps are installed.
+# It is pinned to turbo@2.9.12 to keep this bootstrapping step reproducible.
 RUN pnpm dlx turbo@2.9.12 prune front-2 --docker
 
 FROM node:24-alpine@sha256:156b55f92e98ccd5ef49578a8cea0df4679826564bad1c9d4ef04462b9f0ded6 AS install

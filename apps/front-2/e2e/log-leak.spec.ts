@@ -73,10 +73,31 @@ const countOccurrences = (text: string, needle: string): number => {
 const maskSecretInLine = (line: string, secret: string): string =>
 	line.replaceAll(secret, '<token redacted>');
 
-const findFirstLeakingLine = (text: string, secret: string): string => {
+const tokenNeedlesForGuardCheck = (secret: string): string[] => [
+	secret,
+	encodeURIComponent(secret),
+	JSON.stringify(secret).slice(1, -1),
+];
+
+const countNeedlesOccurrences = (text: string, needles: string[]): number => {
+	let count = 0;
+
+	for (const needle of needles) {
+		count += countOccurrences(text, needle);
+	}
+
+	return count;
+};
+
+const findFirstLeakingLineForNeedles = (
+	text: string,
+	needles: string[],
+): string => {
 	for (const line of text.split(/\r?\n/)) {
-		if (line.includes(secret)) {
-			return maskSecretInLine(line, secret);
+		for (const needle of needles) {
+			if (line.includes(needle)) {
+				return maskSecretInLine(line, needle);
+			}
 		}
 	}
 
@@ -109,16 +130,29 @@ const assertSecretAbsentFromSink = (
 	sink: SinkCapture,
 	secret: string,
 ): OccurrenceCounts => {
-	assertNeedleIsPresent(secret, `${sink.name} search needle`);
+	const tokenNeedles = tokenNeedlesForGuardCheck(secret);
+	const headerNeedles = tokenNeedles.map(
+		(tokenValue) => `${SESSION_TOKEN_HEADER_KEY}: ${tokenValue}`,
+	);
 
-	const headerLiteral = `${SESSION_TOKEN_HEADER_KEY}: ${secret}`;
+	for (const needle of tokenNeedles) {
+		assertNeedleIsPresent(needle, `${sink.name} token search needle`);
+	}
+
+	for (const needle of headerNeedles) {
+		assertNeedleIsPresent(needle, `${sink.name} header search needle`);
+	}
+
 	const counts = {
-		token: countOccurrences(sink.text, secret),
-		header: countOccurrences(sink.text, headerLiteral),
+		token: countNeedlesOccurrences(sink.text, tokenNeedles),
+		header: countNeedlesOccurrences(sink.text, headerNeedles),
 	};
 
 	if (counts.token > 0 || counts.header > 0) {
-		const leakingLine = findFirstLeakingLine(sink.text, secret);
+		const leakingLine = findFirstLeakingLineForNeedles(sink.text, [
+			...tokenNeedles,
+			...headerNeedles,
+		]);
 		throw new Error(
 			[
 				`${sink.name} leaked <token redacted>`,
@@ -149,7 +183,7 @@ const assertSecretAbsentFromSinks = (
 };
 
 const buildSentinelToken = (suffix: string, testInfo: TestInfo): string =>
-	`LEAK_SENTINEL_${suffix}_${process.pid}_worker_${testInfo.workerIndex}_group_4_5b`;
+	`LEAK_SENTINEL_${suffix}_${process.pid}_worker_${testInfo.workerIndex}_group_4_5b_+%/"?`;
 
 const installBrowserLogCapture = async (page: Page): Promise<string[]> => {
 	const browserConsoleMessages: string[] = [];
