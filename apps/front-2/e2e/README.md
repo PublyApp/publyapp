@@ -3,7 +3,7 @@
 From the repo root, run the local e2e compose stack:
 
 ```bash
-docker compose -f apps/front-2/docker-compose.test.yml up -d --build
+docker compose -f apps/front-2/docker-compose.test.yml up -d --build --wait
 ```
 
 From the repo root, run Playwright:

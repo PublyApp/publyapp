@@ -136,7 +136,7 @@ services:
       PUBLIC_API_BASE_URL: https://api.front-2.localhost:8443
     depends_on:
       request-counter:
-        condition: service_started
+        condition: service_healthy
       traefik:
         condition: service_healthy
     networks:
