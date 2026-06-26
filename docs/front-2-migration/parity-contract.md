@@ -74,6 +74,7 @@ Results:
 |---|---|---|
 | Valid seeded staff login reaches the authenticated shell. | 4.4a / this commit, `valid staff login renders the seeded staff-users list` | Phase 0 API verified: `staff-admin@example.com` / seed password returns a session, and `/auth/redirect-code` returns `staff`. Not browser-verified in Phase 0 because `apps/front` exited on first `GET /login`; Phase 1 confirm the actual redirect lands on `/staff`. |
 | Invalid credentials show an error and do not crash the route. | Manual | Phase 0 API/source verified: syntactically valid wrong credentials return RFC 7807 `400` with `translationKey: invalid-email-or-password`, and the login form renders `getSerializedErrorMessage(...)` in a MUI error `Alert`. Not browser-verified in Phase 0 because `apps/front` exited on first `GET /login`; Phase 1 confirm the localized alert renders without route crash. |
+| An auth-surface `401` (login/auth page) stays on the auth surface and does NOT run authenticated app-data logout or clear an existing session. | Manual | Phase 1 confirm. |
 | `401` from an authenticated data path triggers centralized logout and redirects to `/login`. | 4.6 / `55070a0b` | Phase 1 confirm: query/client error handling clears session and navigates to `/login`. |
 | Logout is `401`-only: `403`, `500`, network failure, timeout, reset, and invalid JSON do not log the user out. | 4.6 / `55070a0b` | Phase 1 confirm: non-401 failures render the appropriate error state without clearing session. |
 | Session token values are never written to browser or container logs. | 4.5b / `209f826e` | Phase 1 confirm using the current-app log-leak sentinel. |
@@ -110,6 +111,13 @@ Results:
 | The configured language renders localized app strings. | 4.4a / this commit, `configured French locale renders localized copy and InterZod messages` | Phase 0 source verified: server SSR reads `publyapp-locale`, initializes i18next with `en`/`fr` resources, and client language changes persist the same cookie. Not browser-verified in Phase 0. |
 | InterZod validation messages resolve through the active locale. | 4.4a / this commit | Phase 0 schema/source verified: InterZod updates on `languageChanged`; invalid email resolves to `Invalid email` in English and `e-mail non valide` in French. |
 | UI language switching exists only if the app exposes a switcher. | Manual | Phase 0 source verified: current app exposes a language popover/user-menu item, while the spike has no UI switcher and only proves cookie-configured language. Phase 1 must preserve or consciously replace the current-app switcher behavior. |
+
+## URL State
+
+| Invariant | Verified by | Expected current-app behavior |
+|---|---|---|
+| Staff-users table URL state round-trips `q` (search) and `size` (page size) and rehydrates those visible controls on load. | Manual | Phase 1 confirm. |
+| Staff-users table URL state round-trips `sort_id`, `sort_order`, `cursor`, and resets stale `cursor` when search changes. | Manual | Phase 1 confirm — characterization backlog, not in the first Phase-2 gate. |
 
 ## Cross-Cutting
 
