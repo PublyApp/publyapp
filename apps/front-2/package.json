@@ -6,7 +6,7 @@
 	"scripts": {
 		"preinstall": "node scripts/assert-pinned.mjs",
 		"dev": "vite dev",
-		"build": "vite build",
+		"build": "vite build && node scripts/verify-build-css-link.mjs",
 		"verify:build": "node scripts/verify-build-css-link.mjs",
 		"start": "node server.mjs",
 		"typecheck": "tsc --noEmit",

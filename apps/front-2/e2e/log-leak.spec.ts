@@ -8,7 +8,8 @@ import { loginAsStaffAdmin } from './helpers/login';
 const COMPOSE_FILE = 'apps/front-2/docker-compose.test.yml';
 // Browser-origin requests must use the public Traefik TLS route.
 const API_BASE_URL = 'https://api.front-2.localhost:8443';
-const AUTHED_STAFF_USERS_PATH = '/staff/staff-users';
+const STAFF_USERS_ROUTE = '/staff/staff-users';
+const STAFF_USERS_API_PATH = '/staff/users';
 const SESSION_TOKEN_COOKIE_KEY = 'publyapp-session_token';
 const SESSION_TOKEN_HEADER_KEY = 'X-Session-Token';
 const TOXIPROXY_API_URL = 'http://127.0.0.1:8474';
@@ -286,18 +287,31 @@ const disableToxiproxy = async () => {
 	await setToxiproxyEnabled(false);
 };
 
+const isStaffUsersApiGet = (url: string, method: string): boolean => {
+	if (method !== 'GET') {
+		return false;
+	}
+
+	const parsedUrl = new URL(url);
+
+	return (
+		parsedUrl.origin === API_BASE_URL &&
+		parsedUrl.pathname === STAFF_USERS_API_PATH
+	);
+};
+
 const waitForStaffUsersFault = async (
 	page: Page,
 ): Promise<StaffUsersFaultSignal> => {
 	const requestFailedPromise = page
 		.waitForEvent('requestfailed', (request) =>
-			request.url().includes(AUTHED_STAFF_USERS_PATH),
+			isStaffUsersApiGet(request.url(), request.method()),
 		)
 		.then((): StaffUsersFaultSignal => ({ kind: 'requestfailed' }));
 	const nonOkResponsePromise = page
 		.waitForResponse(
 			(response) =>
-				response.url().includes(AUTHED_STAFF_USERS_PATH) &&
+				isStaffUsersApiGet(response.url(), response.request().method()) &&
 				response.status() !== 200,
 		)
 		.then(
@@ -329,7 +343,7 @@ test.describe.fixme('front-2 log leak guard', () => {
 		const sentinelToken = buildSentinelToken('A', testInfo);
 
 		const response = await request.get(
-			`${API_BASE_URL}${AUTHED_STAFF_USERS_PATH}`,
+			`${API_BASE_URL}${STAFF_USERS_API_PATH}`,
 			{
 				headers: {
 					[SESSION_TOKEN_HEADER_KEY]: sentinelToken,
@@ -352,14 +366,14 @@ test.describe.fixme('front-2 log leak guard', () => {
 		assertNeedleIsPresent(sessionToken, 'browser staff session token');
 
 		const firstStaffUsersRequest = page.waitForRequest((request) =>
-			request.url().includes(AUTHED_STAFF_USERS_PATH),
+			isStaffUsersApiGet(request.url(), request.method()),
 		);
 		const firstStaffUsersResponse = page.waitForResponse(
 			(response) =>
-				response.url().includes(AUTHED_STAFF_USERS_PATH) &&
+				isStaffUsersApiGet(response.url(), response.request().method()) &&
 				response.status() === 200,
 		);
-		await page.goto('/staff/staff-users?q=admin');
+		await page.goto(`${STAFF_USERS_ROUTE}?q=admin`);
 		const staffUsersRequest = await firstStaffUsersRequest;
 		await firstStaffUsersResponse;
 
@@ -377,7 +391,7 @@ test.describe.fixme('front-2 log leak guard', () => {
 			await disableToxiproxy();
 
 			const faultedStaffUsersSignal = waitForStaffUsersFault(page);
-			await page.goto('/staff/staff-users?q=toxiproxy-fault');
+			await page.goto(`${STAFF_USERS_ROUTE}?q=toxiproxy-fault`);
 			await faultedStaffUsersSignal;
 			await expect(
 				page.getByRole('button', { name: /try again/i }),

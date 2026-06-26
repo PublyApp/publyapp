@@ -6,6 +6,13 @@ From the repo root, run the local e2e compose stack:
 docker compose -f apps/front-2/docker-compose.test.yml up -d --build --wait
 ```
 
+`front-2.localhost` and `api.front-2.localhost` must resolve to loopback. On
+machines where `*.localhost` does not resolve, add them explicitly:
+
+```bash
+echo "127.0.0.1 front-2.localhost api.front-2.localhost" | sudo tee -a /etc/hosts
+```
+
 From the repo root, run Playwright:
 
 ```bash
