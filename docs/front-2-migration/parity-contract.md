@@ -137,5 +137,8 @@ Results:
 - `style-src` can only be tightened in Phase 1 if a positive nonce/hash path
   exists. 4.5a observed only `style-src-elem`, no `style-src-attr`, and the
   spike has no positioned overlay surface yet.
-- HeroUI license is `PENDING-UPSTREAM`; Phase 1 token/design work remains blocked
-  until upstream confirms the governing license for HeroUI v3.
+- HeroUI license gate is **resolved to GO** (Phase 0, 2026-06-20): at the pinned tag
+  `v3.2.1`, npm metadata declares MIT and the repo `LICENSE` is Apache-2.0 — both
+  OSI-permissive, neither blocks closed-source SaaS use, so Phase 1 token/design work is
+  **not** blocked. Carry-forward is attribution/NOTICE hygiene only. See the Phase 0
+  findings "License gate → Resolution (2026-06-20)".
