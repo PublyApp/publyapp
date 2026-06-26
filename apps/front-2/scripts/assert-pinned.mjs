@@ -44,4 +44,4 @@ if (bad.length) {
 	process.exit(1);
 }
 
-console.log('All deps exact-pinned ✔');
+console.log('All deps exact-pinned [OK]');

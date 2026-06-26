@@ -63,7 +63,7 @@ services:
     networks:
       - publyapp-front-2-staging-internal
     volumes:
-      - publyapp-postgres-staging-data:/var/lib/postgresql/data
+      - publyapp-postgres-staging-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
       interval: 30s

@@ -9,12 +9,12 @@ export const getInviteStaffUserButton = (page: Page) =>
 export const loginAsStaffAdmin = async (page: Page): Promise<void> => {
 	await page.goto('/login');
 
-	await expect(page.getByPlaceholder('Email')).toBeVisible();
-	await page.getByPlaceholder('Email').fill(STAFF_ADMIN_EMAIL);
-	await page.getByPlaceholder('Password').fill(STAFF_ADMIN_PASSWORD);
+	await expect(page.locator('input[name="email"]')).toBeVisible();
+	await page.locator('input[name="email"]').fill(STAFF_ADMIN_EMAIL);
+	await page.locator('input[name="password"]').fill(STAFF_ADMIN_PASSWORD);
 	await page.getByRole('button', { name: 'Sign in' }).click();
 
-	await page.waitForURL('**/staff/staff-users', {
+	await page.waitForURL(/\/staff(?:\/staff-users)?(?:[?#].*)?$/, {
 		waitUntil: 'domcontentloaded',
 	});
 	await expect(getInviteStaffUserButton(page)).toBeVisible({ timeout: 15_000 });

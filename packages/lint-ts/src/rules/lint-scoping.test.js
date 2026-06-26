@@ -458,6 +458,24 @@ describe('M0.6 rule scoping matrix', () => {
 				);
 			};
 
+			const frontDiagnosticCodes = new Set(
+				frontDiagnostics.map((diag) => diag.code),
+			);
+			const front2DiagnosticCodes = new Set(
+				front2Diagnostics.map((diag) => diag.code),
+			);
+
+			for (const ruleCode of FRONT_SCOPED_MUI_RULE_CODES) {
+				assert.ok(
+					frontDiagnosticCodes.has(ruleCode),
+					`${ruleCode} should report in apps/front`,
+				);
+				assert.ok(
+					!front2DiagnosticCodes.has(ruleCode),
+					`${ruleCode} should not report in apps/front-2`,
+				);
+			}
+
 			assert.ok(
 				hasDiagnosticForPath(
 					frontDiagnostics,
