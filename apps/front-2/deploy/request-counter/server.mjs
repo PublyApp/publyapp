@@ -102,11 +102,14 @@ const handleRequest = (req, res) => {
 	const countKey = getCountKey(req.method, path);
 	counts.set(countKey, (counts.get(countKey) ?? 0) + 1);
 
+	const basePath = UPSTREAM.pathname.replace(/\/$/, '');
+	const upstreamPath = `${basePath}${req.url}`;
+
 	const up = httpRequest(
 		{
 			hostname: UPSTREAM.hostname,
 			port: UPSTREAM.port,
-			path: req.url,
+			path: upstreamPath,
 			method: req.method,
 			headers: { ...req.headers, host: UPSTREAM.host },
 		},

@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 
 const STAFF_ADMIN_EMAIL = 'staff-admin@example.com';
+// Known dev seed credential. TODO(M1.4): source from shared fixture/env before ungating.
 const STAFF_ADMIN_PASSWORD = 'ChangeMe123!@3#lol';
 
 export const getInviteStaffUserButton = (page: Page) =>

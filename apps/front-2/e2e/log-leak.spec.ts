@@ -1,7 +1,14 @@
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import {
+	expect,
+	test,
+	type APIRequestContext,
+	type APIResponse,
+	type Page,
+	type TestInfo,
+} from '@playwright/test';
 
 import { loginAsStaffAdmin } from './helpers/login';
 
@@ -216,7 +223,12 @@ type ToxiproxyProxy = {
 	toxics?: Array<{ name: string }>;
 };
 
-const readResponseBody = async (response: Response): Promise<string> => {
+type ApiResponse = Response | APIResponse;
+
+const isResponseOk = (response: ApiResponse) =>
+	typeof response.ok === 'function' ? response.ok() : response.ok;
+
+const readResponseBody = async (response: ApiResponse): Promise<string> => {
 	try {
 		return await response.text();
 	} catch {
@@ -226,26 +238,33 @@ const readResponseBody = async (response: Response): Promise<string> => {
 
 const throwToxiproxyError = async (
 	action: string,
-	response: Response,
+	response: ApiResponse,
 ): Promise<never> => {
 	const body = await readResponseBody(response);
+	const status =
+		typeof response.status === 'function' ? response.status() : response.status;
+	const statusText =
+		typeof response.statusText === 'function'
+			? response.statusText()
+			: response.statusText;
 
-	throw new Error(
-		`${action}: ${response.status} ${response.statusText}; body=${body}`,
-	);
+	throw new Error(`${action}: ${status} ${statusText}; body=${body}`);
 };
 
-const setToxiproxyEnabled = async (enabled: boolean): Promise<void> => {
-	const response = await fetch(
+const setToxiproxyEnabled = async (
+	requestContext: APIRequestContext,
+	enabled: boolean,
+): Promise<void> => {
+	const response = await requestContext.fetch(
 		`${TOXIPROXY_API_URL}/proxies/${TOXIPROXY_PROXY_NAME}`,
 		{
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ enabled }),
+			data: JSON.stringify({ enabled }),
 		},
 	);
 
-	if (!response.ok) {
+	if (!isResponseOk(response)) {
 		await throwToxiproxyError(
 			`failed to ${enabled ? 'enable' : 'disable'} Toxiproxy api proxy`,
 			response,
@@ -253,24 +272,24 @@ const setToxiproxyEnabled = async (enabled: boolean): Promise<void> => {
 	}
 };
 
-const restoreToxiproxy = async () => {
-	const response = await fetch(
+const restoreToxiproxy = async (requestContext: APIRequestContext) => {
+	const response = await requestContext.fetch(
 		`${TOXIPROXY_API_URL}/proxies/${TOXIPROXY_PROXY_NAME}`,
 	);
 
-	if (!response.ok) {
+	if (!isResponseOk(response)) {
 		await throwToxiproxyError('failed to read Toxiproxy api proxy', response);
 	}
 
 	const proxy = (await response.json()) as ToxiproxyProxy;
 
 	for (const toxic of proxy.toxics ?? []) {
-		const deleteResponse = await fetch(
+		const deleteResponse = await requestContext.fetch(
 			`${TOXIPROXY_API_URL}/proxies/${TOXIPROXY_PROXY_NAME}/toxics/${toxic.name}`,
 			{ method: 'DELETE' },
 		);
 
-		if (!deleteResponse.ok) {
+		if (!isResponseOk(deleteResponse)) {
 			await throwToxiproxyError(
 				`failed to delete Toxiproxy toxic ${toxic.name}`,
 				deleteResponse,
@@ -279,12 +298,12 @@ const restoreToxiproxy = async () => {
 	}
 
 	if (proxy.enabled === false) {
-		await setToxiproxyEnabled(true);
+		await setToxiproxyEnabled(requestContext, true);
 	}
 };
 
-const disableToxiproxy = async () => {
-	await setToxiproxyEnabled(false);
+const disableToxiproxy = async (requestContext: APIRequestContext) => {
+	await setToxiproxyEnabled(requestContext, false);
 };
 
 const isStaffUsersApiGet = (url: string, method: string): boolean => {
@@ -333,16 +352,16 @@ test.describe.fixme('front-2 log leak guard', () => {
 	// ENABLE at M1.4: requires front-2 login + authed /staff/staff-users + session cookie
 	test.describe.configure({ mode: 'serial' });
 
-	test.afterEach(async () => {
-		await restoreToxiproxy();
+	test.afterEach(async ({ page }) => {
+		await restoreToxiproxy(page.request);
 	});
 
 	test('rejected session token is absent from deployed container logs', async ({
-		request,
+		page,
 	}, testInfo) => {
 		const sentinelToken = buildSentinelToken('A', testInfo);
 
-		const response = await request.get(
+		const response = await page.request.get(
 			`${API_BASE_URL}${STAFF_USERS_API_PATH}`,
 			{
 				headers: {
@@ -388,7 +407,7 @@ test.describe.fixme('front-2 log leak guard', () => {
 		).toBe(true);
 
 		try {
-			await disableToxiproxy();
+			await disableToxiproxy(page.request);
 
 			const faultedStaffUsersSignal = waitForStaffUsersFault(page);
 			await page.goto(`${STAFF_USERS_ROUTE}?q=toxiproxy-fault`);
@@ -398,7 +417,7 @@ test.describe.fixme('front-2 log leak guard', () => {
 				'front-2 route error view after staff users fault',
 			).toBeVisible({ timeout: 20_000 });
 		} finally {
-			await restoreToxiproxy();
+			await restoreToxiproxy(page.request);
 		}
 
 		assertSecretAbsentFromSinks(

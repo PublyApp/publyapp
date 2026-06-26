@@ -1,33 +1,41 @@
+/**
+ * Build-time guard: asserts the production build emitted at least one CSS asset under
+ * dist/client. The runtime check that the served SSR document actually links that CSS is
+ * done by the e2e/CI smoke step (curl + stylesheet grep), since the document is rendered at
+ * request time, not emitted as a static file.
+ */
 import { readdirSync } from 'node:fs';
 
 const clientDir = new URL('../dist/client/', import.meta.url);
-const clientPath = new URL('../dist/client/', import.meta.url).pathname;
 
-const collectCss = (directory) => {
-	const stack = [new URL(directory, clientDir)];
+const collectPaths = (rootDir, isMatch) => {
+	const stack = [rootDir];
 	const found = [];
 
 	while (stack.length) {
 		const currentDir = stack.pop();
 		for (const entry of readdirSync(currentDir, { withFileTypes: true })) {
-			const fullPath = new URL(entry.name, currentDir).pathname;
+			const fullPath = new URL(entry.name, currentDir);
+
 			if (entry.isDirectory()) {
 				stack.push(new URL(entry.name + '/', currentDir));
-			} else if (entry.isFile() && entry.name.endsWith('.css')) {
-				found.push(fullPath.replace(clientPath, ''));
+			} else if (entry.isFile() && isMatch(entry, fullPath)) {
+				found.push(fullPath);
 			}
 		}
 	}
+
 	return found;
 };
 
-const cssFiles = collectCss('./');
+const clientCssFiles = collectPaths(clientDir, (entry) =>
+	entry.name.endsWith('.css'),
+).map((path) => path.pathname.replace(clientDir.pathname, ''));
 
-if (cssFiles.length === 0) {
-	console.error('Expected at least one CSS file in dist/client, found none.');
+if (clientCssFiles.length === 0) {
+	console.error('Expected at least one CSS asset in dist/client, found none.');
 	process.exit(1);
 }
-console.log(`front-2 production CSS assets: ${cssFiles.join(', ')}`);
-console.log(
-	'front-2 production build contains at least one emitted CSS asset.',
-);
+
+console.log(`front-2 production CSS assets: ${clientCssFiles.join(', ')}`);
+console.log('front-2 production build contains emitted CSS assets.');

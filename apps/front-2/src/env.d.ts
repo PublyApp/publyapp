@@ -1,4 +1,4 @@
-// Runtime public-env contract for the browser.
+// Reserved runtime public-env injection contract for later migration.
 export type RuntimePublicEnv = {
 	PUBLIC_API_BASE_URL?: string;
 };

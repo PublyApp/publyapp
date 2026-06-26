@@ -67,7 +67,7 @@ jobs:
             exit 1
           fi
 
-          if ! grep -Eq 'rel="stylesheet"[^>]*href="[^"]+\\.css"' /tmp/front-2-home.html; then
+          if ! grep -aEq 'rel="stylesheet"[^>]*href="[^"]+\.css"' /tmp/front-2-home.html; then
             echo "front-2 production HTML does not contain stylesheet link"
             cat /tmp/front-2-home.html
             exit 1

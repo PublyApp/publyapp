@@ -208,7 +208,6 @@ const isRuleEnabledAsError = (value) => {
 };
 
 const runOxlint = (filePaths) => {
-	const absoluteWorkspaceDir = WORKSPACE_ROOT;
 	let output = '';
 
 	try {
@@ -217,7 +216,7 @@ const runOxlint = (filePaths) => {
 			['--config', OXLINTRC_PATH, '--format', 'json', '--quiet', ...filePaths],
 			{
 				encoding: 'utf8',
-				cwd: absoluteWorkspaceDir,
+				cwd: WORKSPACE_ROOT,
 			},
 		);
 	} catch (error) {

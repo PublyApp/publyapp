@@ -1,8 +1,7 @@
 import { readFileSync } from 'node:fs';
 
-// Prefer the real `semver` validator. On a cold `pnpm install`, the `preinstall`
-// hook runs BEFORE dependencies are on disk, so `semver` may not yet be
-// resolvable — fall back to a strict exact-version regex in that single case.
+// Local exact-version regex is the validator used here today.
+// `semver` is optional and used only when available as an installed dependency.
 /** @param {string} range */
 let isExact;
 try {

@@ -177,7 +177,7 @@ services:
       publyapp-api-staging:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -200,6 +200,8 @@ Notes:
   `PUBLIC_API_BASE_URL=https://api.front-2.staging.publyapp.com` for browser
   calls/CSP/runtime injection, and `SERVER_API_BASE_URL` only for SSR/server
   functions.
+- M0/M1.0 smoke checks target `/` for the current scaffold surface. At M1.4/M1.5,
+  after login route exists, migrate smoke to `/login`.
 - `SERVER_API_BASE_URL=http://publyapp-api-staging:5000` resolves over
   `publyapp-front-2-staging-internal`; only server-side front-2 calls use that
   container DNS path. Browser calls use
