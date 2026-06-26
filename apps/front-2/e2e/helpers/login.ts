@@ -18,5 +18,8 @@ export const loginAsStaffAdmin = async (page: Page): Promise<void> => {
 	await page.waitForURL(/\/staff(?:\/staff-users)?(?:[?#].*)?$/, {
 		waitUntil: 'domcontentloaded',
 	});
+	if (!new URL(page.url()).pathname.endsWith('/staff-users')) {
+		await page.goto('/staff/staff-users');
+	}
 	await expect(getInviteStaffUserButton(page)).toBeVisible({ timeout: 15_000 });
 };

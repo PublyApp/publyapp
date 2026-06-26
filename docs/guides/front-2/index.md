@@ -8,6 +8,8 @@ later migration work.
 and prior de-risking work, but do not treat spike code as canonical. Do not copy it
 verbatim; reimplement selected patterns after applying the Phase 1 cleanup rules.
 
+AGENTS.md remains authoritative for repo-wide API/error/URL/logging conventions; this guide governs front-2 styling/architecture specifics.
+
 ## Stack
 
 - TanStack Start with TanStack Router

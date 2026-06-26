@@ -29,6 +29,7 @@ COPY --from=install /workspace/ ./
 COPY --from=prune /workspace/out/full/ ./
 
 RUN node apps/front-2/scripts/assert-pinned.mjs
+RUN pnpm --filter @org/shared-ts run postinstall
 RUN pnpm --filter front-2 build
 # `deploy` is the pnpm workspace deploy subcommand, not a package script.
 RUN pnpm --filter=front-2 deploy --legacy --prod /workspace/deploy

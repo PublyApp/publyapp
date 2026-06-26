@@ -45,7 +45,7 @@ jobs:
       - name: Build front-2
         run: pnpm --filter front-2 build
 
-      - name: Verify front-2 production build includes CSS and HTML link
+      - name: Verify front-2 production build emits a CSS asset
         run: node apps/front-2/scripts/verify-build-css-link.mjs
 
       - name: Smoke start front-2 server and verify stylesheet tag

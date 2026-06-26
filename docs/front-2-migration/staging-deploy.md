@@ -4,7 +4,7 @@
 > mechanism + secrets are TBD then.**
 
 This document records the future hosted-staging shape for M1.5. Phase 1 remains
-local-first: do not add CI workflow files, do not stand up Dokploy services, and
+local-first: do not add hosted-staging DEPLOY workflow files, do not stand up Dokploy services, and
 do not wire production-adjacent secrets until the local compose harness is green.
 
 ## Locked Targets
