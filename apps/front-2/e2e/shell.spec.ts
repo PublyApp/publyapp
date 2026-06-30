@@ -1,0 +1,203 @@
+import { expect, type Page, test } from '@playwright/test';
+
+import { THEME_TOGGLE_TEST_ID } from '../src/components/app-shell/theme/theme-toggle';
+import { COLOR_SCHEME_STORAGE_KEY } from '../src/lib/store/ui-store';
+
+type ColorScheme = 'dark' | 'light';
+
+const HYDRATION_ERROR_TEXT = ['hydration', 'did not match', 'server rendered'];
+
+const trackHydrationConsoleErrors = (page: Page): (() => string[]) => {
+	const errors: string[] = [];
+
+	page.on('console', (message) => {
+		if (message.type() !== 'error') {
+			return;
+		}
+
+		const text = message.text();
+		for (const pattern of HYDRATION_ERROR_TEXT) {
+			if (text.toLowerCase().includes(pattern)) {
+				errors.push(text);
+				return;
+			}
+		}
+	});
+
+	return () => errors;
+};
+
+const seedTheme = async (
+	page: Page,
+	colorScheme: ColorScheme,
+): Promise<void> => {
+	await page.evaluate(
+		(payload) => {
+			const { key, colorScheme } = payload;
+
+			window.localStorage.setItem(
+				key,
+				JSON.stringify({
+					state: {
+						colorScheme,
+						sidebarOpen: true,
+					},
+					version: 0,
+				}),
+			);
+		},
+		{ key: COLOR_SCHEME_STORAGE_KEY, colorScheme },
+	);
+};
+
+const readStoredTheme = async (page: Page): Promise<string | null> => {
+	return page.evaluate((key) => {
+		const rawValue = window.localStorage.getItem(key);
+		if (!rawValue) {
+			return null;
+		}
+
+		try {
+			const parsed = JSON.parse(rawValue) as {
+				state?: { colorScheme?: unknown };
+				colorScheme?: unknown;
+			};
+
+			if (
+				typeof parsed?.state?.colorScheme === 'string' ||
+				typeof parsed?.colorScheme === 'string'
+			) {
+				return (parsed.state?.colorScheme ?? parsed.colorScheme ?? null) as
+					| string
+					| null;
+			}
+		} catch {
+			return rawValue;
+		}
+
+		return rawValue;
+	}, COLOR_SCHEME_STORAGE_KEY);
+};
+
+const getThemeFromStorage = async (page: Page): Promise<string | null> => {
+	const rawStoredTheme = await readStoredTheme(page);
+	if (rawStoredTheme === 'dark' || rawStoredTheme === 'light') {
+		return rawStoredTheme;
+	}
+
+	return null;
+};
+
+const readThemeMode = async (page: Page): Promise<ColorScheme | null> => {
+	return page.evaluate(() => {
+		if (document.documentElement.classList.contains('dark')) {
+			return 'dark';
+		}
+
+		if (document.documentElement.dataset.theme === 'light') {
+			return 'light';
+		}
+
+		return null;
+	});
+};
+
+const expectThemeMode = async (
+	page: Page,
+	colorScheme: ColorScheme,
+): Promise<void> => {
+	await expect.poll(() => readThemeMode(page)).toBe(colorScheme);
+};
+
+test('renders the front-2 shell', async ({ page }) => {
+	const getHydrationConsoleErrors = trackHydrationConsoleErrors(page);
+
+	await page.setViewportSize({ width: 390, height: 812 });
+	await page.goto('/');
+
+	await expect(
+		page.getByRole('heading', { name: /welcome to the front-2 shell/i }),
+	).toBeVisible();
+	await expect(page.getByTestId('app-shell-shell')).toBeVisible();
+	await expect(page.getByTestId('app-shell-shell')).toHaveAttribute(
+		'data-mode',
+		'marketing',
+	);
+	await expect(page.getByTestId(THEME_TOGGLE_TEST_ID)).toBeVisible();
+	await expect(page.getByTestId('app-shell-mobile-menu-toggle')).toBeVisible();
+	expect(getHydrationConsoleErrors()).toEqual([]);
+});
+
+test('theme toggle persists across page reload', async ({ page }) => {
+	await page.goto('/');
+	await seedTheme(page, 'dark');
+	await page.reload();
+
+	expect(await getThemeFromStorage(page)).toBe('dark');
+	await expectThemeMode(page, 'dark');
+
+	await page.getByTestId(THEME_TOGGLE_TEST_ID).click();
+
+	await expectThemeMode(page, 'light');
+	expect(await getThemeFromStorage(page)).toBe('light');
+
+	await page.reload();
+
+	await expectThemeMode(page, 'light');
+	expect(await getThemeFromStorage(page)).toBe('light');
+});
+
+test('renders the authed shell for /staff', async ({ page }) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.goto('/staff');
+
+	await expect(page).toHaveURL('/staff');
+	await expect(page.getByTestId('app-shell-shell')).toHaveAttribute(
+		'data-mode',
+		'authed',
+	);
+	await expect(page.getByTestId('app-shell-sidebar')).toBeVisible();
+	await expect(
+		page.getByTestId('app-shell-sidebar').getByRole('link', { name: 'Staff' }),
+	).toHaveAttribute('aria-current', 'page');
+});
+
+test('mobile shell menu is keyboard and route-aware', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 812 });
+	await page.goto('/');
+
+	await page.getByTestId('app-shell-mobile-menu-toggle').click();
+	await expect(page.getByRole('link', { name: 'Home' })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Home' })).toHaveAttribute(
+		'aria-current',
+		'page',
+	);
+	await page.keyboard.press('Escape');
+	await expect(page.getByRole('link', { name: 'Home' })).toBeHidden();
+
+	await page.getByTestId('app-shell-mobile-menu-toggle').click();
+	await page.getByRole('link', { name: 'Login' }).click();
+
+	await expect(page).toHaveURL('/login');
+	await expect(page.getByTestId('app-shell-shell')).toHaveAttribute(
+		'data-mode',
+		'auth',
+	);
+	await expect(
+		page.getByTestId('app-shell-mobile-menu-toggle'),
+	).toHaveAttribute('aria-expanded', 'false');
+	await expect(page.getByTestId('app-shell-mobile-links')).toBeHidden();
+
+	await page.getByRole('button', { name: 'Open navigation' }).click();
+	await expect(
+		page.getByRole('button', { name: 'Close navigation' }),
+	).toBeVisible();
+	const mobileLinks = page.getByTestId('app-shell-mobile-links');
+	await expect(mobileLinks).toBeVisible();
+	await expect(
+		mobileLinks.getByRole('link', { name: 'Sign in' }),
+	).toBeVisible();
+	await expect(
+		mobileLinks.getByRole('link', { name: 'Sign in' }),
+	).toHaveAttribute('aria-current', 'page');
+});

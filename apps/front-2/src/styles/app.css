@@ -1,4 +1,104 @@
 @import 'tailwindcss' source('../');
 @import '@heroui/styles';
 
+:root {
+	color-scheme: light;
+	--publy-primary-lighter: #dbeafe;
+	--publy-primary-light: #60a5fa;
+	--publy-primary-main: #2563eb;
+	--publy-primary-dark: #1d4ed8;
+	--publy-primary-darker: #1e3a8a;
+	--publy-primary-contrast: #ffffff;
+	--accent: var(--publy-primary-main);
+	--accent-hover: var(--publy-primary-dark);
+	--accent-foreground: var(--publy-primary-contrast);
+}
+
 @custom-variant dark (&:is(.dark *));
+
+html.dark {
+	color-scheme: dark;
+	--accent: var(--publy-primary-light);
+	--accent-hover: var(--publy-primary-main);
+	--accent-foreground: #0f172a;
+}
+
+html {
+	transition:
+		background-color 0.18s ease,
+		color 0.18s ease;
+}
+
+.front-2-shell {
+	@apply min-h-screen bg-slate-100 text-slate-900;
+}
+
+.front-2-shell.dark {
+	@apply bg-slate-950 text-slate-100;
+}
+
+.app-shell-shell {
+	@apply flex min-h-screen flex-col px-4 py-4;
+}
+
+.app-shell-header {
+	@apply rounded-xl border border-white/70 bg-white/70 p-4 shadow-sm backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/75;
+}
+
+.app-shell-main {
+	@apply mx-auto w-full max-w-6xl;
+}
+
+.app-shell-main-card {
+	@apply bg-white/75 dark:bg-slate-900/75;
+}
+
+.app-shell-content-wrap {
+	@apply mx-auto mt-4 flex w-full max-w-6xl gap-4 pb-8;
+}
+
+.app-shell-sidebar {
+	@apply rounded-xl border border-slate-200 bg-white/70 p-3 text-sm dark:border-slate-700 dark:bg-slate-900/75;
+	transition: width 0.18s ease;
+}
+
+.app-shell-sidebar--open {
+	@apply w-64;
+}
+
+.app-shell-sidebar--collapsed {
+	@apply w-16;
+}
+
+.app-shell-sidebar-title {
+	@apply mb-3 border-b border-slate-200 pb-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 dark:border-slate-700 dark:text-slate-300;
+}
+
+.app-shell-sidebar-link {
+	@apply mt-2 block rounded-lg border border-transparent px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-200/70 hover:text-slate-900 dark:text-slate-200 dark:hover:bg-slate-700/50 dark:hover:text-white;
+}
+
+.app-shell-sidebar-link[aria-current='page'] {
+	background-color: var(--accent);
+	color: var(--accent-foreground);
+}
+
+.app-shell-sidebar-link--collapsed {
+	@apply justify-center px-2;
+}
+
+.app-shell-sidebar-short-label {
+	@apply inline-block w-6 text-center font-semibold;
+}
+
+.app-shell-sidebar-label {
+	@apply ml-2;
+}
+
+.app-shell-sidebar-toggle {
+	@apply mt-4 w-full;
+}
+
+.app-shell-authed-loading {
+	@apply rounded-xl border border-slate-200/60 bg-white/75 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/75 dark:text-slate-300;
+}
