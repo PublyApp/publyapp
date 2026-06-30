@@ -685,6 +685,9 @@ importers:
       tsconfig:
         specifier: workspace:*
         version: link:../_tsconfig
+      vitest:
+        specifier: 4.1.9
+        version: 4.1.9
 
 packages:
 

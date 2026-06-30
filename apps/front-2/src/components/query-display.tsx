@@ -1,19 +1,27 @@
 import { Spinner, type SpinnerProps } from '@heroui/react';
-import isFunction from 'lodash/isFunction';
 import type { UseQueryResult } from '@tanstack/react-query';
-import { type FC, isValidElement, type ReactNode } from 'react';
+import {
+	type ComponentType,
+	isValidElement,
+	type ReactNode,
+} from 'react';
 
 import { checkIfEmptyQueryData } from '@org/shared-ts/lib/query/query-state';
 
 type LoadingMode = 'loading' | 'pending' | 'fetching';
 
+type RenderSlot<TProps = object> = ReactNode | ComponentType<TProps>;
+
 type Props<TData = unknown, TError = Error> = {
 	query: UseQueryResult<TData, TError>;
 	loadingStrategy?: LoadingMode; // defaults to 'pending'
-	LoadingSlot?: ReactNode | FC;
-	ErrorSlot?: ReactNode | FC<{ error: unknown; query: UseQueryResult<TData, TError> }>;
-	EmptySlot?: ReactNode | FC;
-	children?: ReactNode | FC<{ data: TData }>;
+	LoadingSlot?: RenderSlot;
+	ErrorSlot?: RenderSlot<{
+		error: unknown;
+		query: UseQueryResult<TData, TError>;
+	}>;
+	EmptySlot?: RenderSlot;
+	children?: ReactNode | ComponentType<{ data: TData }>;
 	forceRender?: 'loading' | 'error' | 'empty' | 'data';
 };
 
@@ -22,7 +30,7 @@ type DefaultLoadingProps = SpinnerProps & {
 };
 
 const renderLoading = (LoadingSlot?: Props['LoadingSlot']) => {
-	if (isFunction(LoadingSlot)) {
+	if (typeof LoadingSlot === 'function') {
 		return <LoadingSlot />;
 	}
 	if (isValidElement(LoadingSlot)) {
@@ -36,7 +44,7 @@ const renderError = <TData, TError>(
 	query: UseQueryResult<TData, TError>,
 	ErrorSlot?: Props<TData, TError>['ErrorSlot'],
 ) => {
-	if (isFunction(ErrorSlot)) {
+	if (typeof ErrorSlot === 'function') {
 		return <ErrorSlot error={error} query={query} />;
 	}
 	if (isValidElement(ErrorSlot)) {
@@ -46,7 +54,7 @@ const renderError = <TData, TError>(
 };
 
 const renderEmpty = (EmptySlot?: Props['EmptySlot']) => {
-	if (isFunction(EmptySlot)) {
+	if (typeof EmptySlot === 'function') {
 		return <EmptySlot />;
 	}
 	if (isValidElement(EmptySlot)) {
@@ -59,7 +67,7 @@ const renderData = <TData, TError>(
 	query: UseQueryResult<TData, TError>,
 	children?: Props<TData, TError>['children'],
 ) => {
-	if (isFunction(children)) {
+	if (typeof children === 'function') {
 		return children({ data: query.data as TData });
 	}
 	return children;
@@ -85,7 +93,7 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 			case 'loading':
 				return renderLoading(LoadingSlot);
 			case 'error':
-				return renderError(new Error('forced error'), query, ErrorSlot);
+				return renderError(query.error ?? new Error('forced error'), query, ErrorSlot);
 			case 'empty':
 				return renderEmpty(EmptySlot);
 			case 'data':

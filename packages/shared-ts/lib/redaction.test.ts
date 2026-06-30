@@ -32,3 +32,16 @@ test('redacts token when provided as Headers instance', () => {
 	expect(output['authorization']).not.toBeUndefined();
 	expect(JSON.stringify(output)).not.toContain(token);
 });
+
+test('redacts session token in cookie style headers', () => {
+	const output = redactHeaders({
+		cookie: `x-session-token=${token}`,
+		'Set-Cookie': `x-session-token=${token}; Path=/;`,
+		accept: 'application/json',
+	});
+
+	expect(output.cookie).toBe('[REDACTED]');
+	expect(output['set-cookie']).toBe('[REDACTED]');
+	expect(output.accept).toBe('application/json');
+	expect(JSON.stringify(output)).not.toContain(token);
+});

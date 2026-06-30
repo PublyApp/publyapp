@@ -147,8 +147,8 @@ const toProblemFailure = (error: unknown): ProblemFailure | undefined => {
 	const { source, root } = parsedProblem;
 	const status = pickResponseStatus(
 		source.status,
-		source.responseStatusCode,
 		root?.responseStatusCode,
+		source.responseStatusCode,
 		root?.status,
 	);
 
@@ -181,8 +181,8 @@ const toValidationFailure = (error: unknown): ValidationFailure | undefined => {
 
 	const status = pickResponseStatus(
 		source.status,
-		source.responseStatusCode,
 		parsedProblem.root?.responseStatusCode,
+		source.responseStatusCode,
 		parsedProblem.root?.status,
 	);
 
@@ -250,14 +250,21 @@ export const toApiFailure = (error: unknown): ApiFailure => {
 		'responseStatusCode' in error &&
 		typeof (error as Record<string, unknown>).responseStatusCode === 'number'
 	) {
-		const statusCode = (error as { responseStatusCode: number })
-			.responseStatusCode;
+		const statusCode = toNumber((error as { responseStatusCode: number }).responseStatusCode);
 		return {
 			kind: 'problem',
-			status: statusCode,
+			status: statusCode ?? 500,
 			translationKey: undefined,
-			detail: error instanceof Error ? error.message : `HTTP Error ${statusCode}`,
-			title: `HTTP Error ${statusCode}`,
+			detail:
+				statusCode === undefined
+					? `HTTP Error 500`
+					: error instanceof Error
+						? error.message
+						: `HTTP Error ${statusCode}`,
+			title:
+				statusCode === undefined
+					? 'HTTP Error 500'
+					: `HTTP Error ${statusCode}`,
 			raw: error,
 		};
 	}

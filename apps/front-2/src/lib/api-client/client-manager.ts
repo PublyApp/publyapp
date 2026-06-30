@@ -38,8 +38,6 @@ type ClientManagerOptions = {
 	sessionTokenProvider?: SessionTokenProvider;
 };
 
-const SESSION_COOKIE_HEADER = TENANT_ID_HEADER_KEY;
-
 const getDefaultCookieValue = (): string | undefined => {
 	if (typeof document === 'undefined') {
 		return undefined;
@@ -114,15 +112,15 @@ const resolveApiBaseUrl = (): string => {
 };
 
 const resolveRequestUrl = (input: RequestInfo | URL, baseUrl: string): URL => {
-	if (input instanceof Request) {
-		return new URL(input.url);
+	if (typeof Request !== 'undefined' && input instanceof Request) {
+		return new URL(input.url, baseUrl);
 	}
 
 	if (typeof input === 'string' || input instanceof URL) {
 		return new URL(String(input), baseUrl);
 	}
 
-	return new URL(baseUrl);
+	throw new Error('Unsupported fetch RequestInfo in client adapter');
 };
 
 const isSameOrigin = (target: URL, base: string): boolean => {
@@ -140,7 +138,15 @@ const buildCustomFetch = (options: BuildCustomFetchOptions): FetchFunction => {
 
 	return (input, init) => {
 		const requestUrl = resolveRequestUrl(input, baseUrl);
-		const headers = new Headers(init?.headers);
+		const headers = new Headers();
+		if (typeof Request !== 'undefined' && input instanceof Request) {
+			input.headers.forEach((value, key) => {
+				headers.set(key, value);
+			});
+		}
+		new Headers(init?.headers).forEach((value, key) => {
+			headers.set(key, value);
+		});
 
 		if (isSameOrigin(requestUrl, baseUrl)) {
 			const sessionToken = options.getSessionToken();
@@ -149,11 +155,20 @@ const buildCustomFetch = (options: BuildCustomFetchOptions): FetchFunction => {
 			}
 
 			if (options.tenantId) {
-				headers.set(SESSION_COOKIE_HEADER, options.tenantId);
+				headers.set(TENANT_ID_HEADER_KEY, options.tenantId);
 			}
 		}
 
-		return fetchImpl(input, { ...init, headers });
+		if (typeof Request !== 'undefined' && input instanceof Request) {
+			const mergedRequest = new Request(requestUrl, {
+				...init,
+				headers,
+			});
+
+			return fetchImpl(mergedRequest);
+		}
+
+		return fetchImpl(requestUrl, { ...init, headers });
 	};
 };
 
@@ -177,7 +192,13 @@ const buildClient = (options: BuildClientOptions): ApiClient => {
 };
 
 const getSessionTokensFromCookie = (cookieValueProvider: CookieValueProvider): ParsedSessionTokens => {
-	const rawCookieValue = cookieValueProvider();
+	let rawCookieValue: string | undefined;
+	try {
+		rawCookieValue = cookieValueProvider();
+	} catch {
+		return {};
+	}
+
 	if (!rawCookieValue) {
 		return {};
 	}

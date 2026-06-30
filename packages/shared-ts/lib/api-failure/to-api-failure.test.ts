@@ -126,6 +126,21 @@ test('uses body status then wrapper response/status fallback for problem failure
 	expect(failure.status).toBe(501);
 });
 
+test('uses wrapper responseStatusCode when body responseStatusCode is set without a status', () => {
+	const payload = {
+		responseStatusCode: 401,
+		body: {
+			responseStatusCode: 499,
+			detail: 'body detail',
+		},
+	};
+
+	const failure = toApiFailure(payload);
+	expect(failure.kind).toBe('problem');
+	expect(failure.status).toBe(401);
+	expect(failure.detail).toBe('body detail');
+});
+
 test('maps transport-level error when body is missing and fallback is responseStatusCode', () => {
 	const payload = {
 		responseStatusCode: 400,
@@ -177,4 +192,14 @@ test('maps unknown Error to unknown failure', () => {
 	const failure = toApiFailure(new Error('boom'));
 	expect(failure.kind).toBe('unknown');
 	expect(failure).toMatchObject({ message: 'boom' });
+});
+
+test('falls back to 500 for out-of-range response status', () => {
+	const failure = toApiFailure({
+		responseStatusCode: 700,
+		title: 'ignored',
+	});
+
+	expect(failure.kind).toBe('problem');
+	expect(failure.status).toBe(500);
 });

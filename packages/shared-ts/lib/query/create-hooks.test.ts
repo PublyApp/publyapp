@@ -120,6 +120,30 @@ test('tenant query key includes tenant and query variables', () => {
 	);
 });
 
+test('tenant query key sorts query variable keys consistently', () => {
+	const options = buildTenantQueryOptions(
+		{
+			queryKeyFn: (client) => `tenant:${client.scope}`,
+			fetcher: async (client, vars) =>
+				`${client.scope}-${vars.tenantId}-${vars.limit}-${vars.page}`,
+		},
+		createScopeOptions(accessor),
+	);
+
+	expect(
+		options.queryKey({
+			tenantId: 'tenant-1',
+			page: 2,
+			limit: 10,
+		} as { tenantId: string; page: number; limit: number }),
+	).toEqual([
+		'tenant',
+		'tenant:tenant',
+		'tenant-1',
+		{ limit: 10, page: 2 },
+	]);
+});
+
 test('tenant mutation key does not include fallback tenant at build time', () => {
 	const options = buildTenantMutationOptions(
 		{
@@ -133,6 +157,20 @@ test('tenant mutation key does not include fallback tenant at build time', () =>
 	);
 
 	expect(options.mutationKey).toEqual(['tenant', 'tenant-mutation:tenant']);
+});
+
+test('tenant query key throws when tenantId is not resolvable', () => {
+	const options = buildTenantQueryOptions(
+		{
+			queryKeyFn: (client) => `tenant:${client.scope}`,
+			fetcher: async (client, vars) => `${client.scope}-${vars.tenantId}-fetch`,
+		},
+		createScopeOptions(accessor),
+	);
+
+	expect(() =>
+		options.queryKey({} as { tenantId?: string }),
+	).toThrow('tenantId is required to create tenant-scoped client');
 });
 
 test('staff query uses staff client and not tenant/anonymous clients', async () => {
@@ -164,6 +202,21 @@ test('staff query key includes variables for cache separation', () => {
 		'staff',
 		'staff:staff',
 		{ page: 1 },
+	]);
+});
+
+test('staff query key does not include empty variables object', () => {
+	const options = buildStaffQueryOptions(
+		{
+			queryKeyFn: (client) => `staff:${client.scope}`,
+			fetcher: async (client) => client.scope,
+		},
+		createScopeOptions(accessor),
+	);
+
+	expect(options.queryKey({} as { page?: number })).toEqual([
+		'staff',
+		'staff:staff',
 	]);
 });
 
@@ -245,6 +298,33 @@ test('non-401 errors trigger onToast for tenant scope', async () => {
 	expect(onToast).toHaveBeenCalledTimes(1);
 	expect(onToast.mock.calls[0]?.[1]).toMatchObject({ scope: 'tenant' });
 	expect(onLogout).not.toHaveBeenCalled();
+});
+
+test('local onError is called even when generated handler throws', () => {
+	const onError = vi.fn();
+	const options = buildTenantQueryOptions(
+		{
+			queryKeyFn: (client) => `tenant:${client.scope}`,
+			fetcher: async () => 'unused',
+			onError,
+		},
+		{
+			...createScopeOptions(accessor),
+			handlers: {
+				onToast: () => {
+					throw new Error('toast failed');
+				},
+			},
+		},
+	);
+
+	expect(() =>
+		options.onError?.({
+			responseStatusCode: 400,
+			title: 'bad request',
+		}),
+	).toThrow('toast failed');
+	expect(onError).toHaveBeenCalledTimes(1);
 });
 
 test('anonymous auth errors do not trigger onLogout for 401', async () => {

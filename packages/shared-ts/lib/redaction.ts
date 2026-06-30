@@ -5,6 +5,8 @@ const REDACTED_SESSION_TOKEN = '[REDACTED]';
 const SESSION_HEADER_NAMES = new Set([
 	SESSION_TOKEN_HEADER_KEY.toLowerCase(),
 	'authorization',
+	'cookie',
+	'set-cookie',
 ]);
 
 type HeaderShape = HeadersInit | Record<string, string> | [string, string][];
