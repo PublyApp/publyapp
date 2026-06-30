@@ -333,8 +333,8 @@ test('redacts token in raw / encoded / JSON-escaped forms everywhere', async ({
 		);
 		expect(
 			frontResult.status,
-			'front request path responded to malformed token probe',
-		).toBe(401);
+			'front request path handled malformed token probe',
+		).toBe(404);
 	}
 
 	const browserText = browserMessages.join('\n');

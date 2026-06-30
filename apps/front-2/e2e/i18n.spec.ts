@@ -9,7 +9,6 @@ type BrowserContextLike = {
 				name: string;
 				value: string;
 				url: string;
-				path: string;
 			}>,
 		) => Promise<void>;
 		clearCookies: () => Promise<void>;
@@ -28,8 +27,7 @@ const setLocaleCookie = async (
 		{
 			name: LOCALE_COOKIE_KEY,
 			value: locale,
-			path: '/',
-			url: baseUrl,
+			url: new URL('/', baseUrl).origin,
 		},
 	]);
 };
@@ -38,7 +36,7 @@ test('renders / with locale from cookie and updates html lang', async ({
 	page,
 	baseURL,
 }) => {
-	const resolvedBaseUrl = baseURL ?? DEFAULT_BASE_URL;
+	const resolvedBaseUrl = baseURL || DEFAULT_BASE_URL;
 	await setLocaleCookie(page, 'fr', resolvedBaseUrl);
 	await page.goto('/');
 
@@ -50,7 +48,7 @@ test('falls back to English when locale cookie is unsupported', async ({
 	page,
 	baseURL,
 }) => {
-	const resolvedBaseUrl = baseURL ?? DEFAULT_BASE_URL;
+	const resolvedBaseUrl = baseURL || DEFAULT_BASE_URL;
 	await setLocaleCookie(page, 'zz', resolvedBaseUrl);
 	await page.goto('/');
 

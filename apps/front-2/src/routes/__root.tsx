@@ -5,6 +5,7 @@ import {
 	Outlet,
 	Scripts,
 	useLocation,
+	useRouter,
 } from '@tanstack/react-router';
 import { createClientOnlyFn } from '@tanstack/react-start';
 import type { i18n as I18nInstance } from 'i18next';
@@ -110,6 +111,8 @@ function RootComponent() {
 		() => createI18nFromResources(locale, resources),
 		[locale, resources],
 	);
+	const router = useRouter();
+	const cspNonce = router.options.ssr?.nonce ?? '';
 
 	React.useEffect(() => {
 		void initI18nOnClient(i18n);
@@ -124,6 +127,13 @@ function RootComponent() {
 		>
 			<head>
 				<HeadContent />
+				<script
+					nonce={cspNonce || undefined}
+					suppressHydrationWarning
+					dangerouslySetInnerHTML={{
+						__html: 'window.__front2CspNonceReady=true;',
+					}}
+				/>
 			</head>
 			<body>
 				<I18nextProvider i18n={i18n}>
