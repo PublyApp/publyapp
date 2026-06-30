@@ -3,12 +3,13 @@
  * the repo logger.
  *
  * The rule is intentionally scoped to application/source package files and is
- * registered dormant in `.oxlintrc.json`. It does not report test files,
+ * enabled in `.oxlintrc.json` at error level. It does not report test files,
  * scripts, server scripts, or obvious Node CLI entrypoints.
  *
  * Known phase-one limitation: `globalThis.console.<method>(...)` is not
  * reported; only direct global `console.<method>(...)` calls are rewritten.
  */
+import { isFrontSourceFile, normalizeFilename } from './path-scopes.js';
 
 const LOGGER_IMPORT_SOURCE = '@org/shared-ts/lib/logger/iso-logger';
 const LOGGER_IMPORT = `import { logger } from '${LOGGER_IMPORT_SOURCE}';\n`;
@@ -20,8 +21,6 @@ const CONSOLE_METHODS = new Set([
 	'debug',
 	'trace',
 ]);
-
-const normalizeFilename = (filename) => filename.replaceAll('\\', '/');
 
 const getContextFilename = (context) => {
 	if (typeof context.filename === 'string') {
@@ -38,19 +37,8 @@ const getContextFilename = (context) => {
 const exportedName = (node) =>
 	node.type === 'Literal' ? node.value : node.name;
 
-const hasAllowedExtension = (filename) =>
-	filename.endsWith('.ts') ||
-	filename.endsWith('.tsx') ||
-	filename.endsWith('.mjs') ||
-	filename.endsWith('.js');
-
 const isTestFile = (filename) =>
-	/(?:^|\/)[^/]+\.(?:test|spec)\.(?:ts|tsx|mjs|js)$/.test(filename);
-
-const isFrontSourceFile = (filename) =>
-	(filename.startsWith('apps/front/src/') ||
-		filename.includes('/apps/front/src/')) &&
-	(filename.endsWith('.ts') || filename.endsWith('.tsx'));
+	/(?:^|\/)[^/]+\.(?:test|spec)\.(?:ts|tsx|jsx|mjs|js)$/.test(filename);
 
 const isSharedSourceFile = (filename) =>
 	filename.startsWith('packages/shared-ts/') ||
@@ -73,10 +61,6 @@ const hasNodeShebang = (context) =>
 
 const shouldCheckFile = (rawFilename) => {
 	const filename = normalizeFilename(rawFilename);
-
-	if (!hasAllowedExtension(filename)) {
-		return false;
-	}
 
 	if (
 		isTestFile(filename) ||

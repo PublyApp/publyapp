@@ -1,0 +1,150 @@
+name: publyapp-front2-real-test
+
+services:
+  postgres:
+    image: postgres:18-alpine@sha256:1b1689b20d16a014a3d195653381cf2caa75a41a92d93b255a9d6ea29fd353aa
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: publyapp_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - publyapp-network
+
+  migrate:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+      target: migrate
+    env_file:
+      - ../../.env.development
+    environment:
+      POSTGRES_CONNECTION_STRING: Host=postgres;Port=5432;Database=publyapp_db;Username=postgres;Password=password;
+      DOTNET_ENVIRONMENT: Production
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - publyapp-network
+
+  api:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+      target: runtime
+    env_file:
+      - ../../.env.development
+    environment:
+      POSTGRES_CONNECTION_STRING: Host=postgres;Port=5432;Database=publyapp_db;Username=postgres;Password=password;
+      DOTNET_ENVIRONMENT: Production
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5000
+      FRONT_URL: https://front-2.localhost:8443
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:5000/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      - publyapp-network
+
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.12.0@sha256:9378ed52a28bc50edc1350f936f518f31fa95f0d15917d6eb40b8e376d1a214e
+    command:
+      - -host=0.0.0.0
+      - -config=/config/toxiproxy.json
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8474:8474"
+    volumes:
+      - ./deploy/toxiproxy/toxiproxy.json:/config/toxiproxy.json:ro
+    networks:
+      - publyapp-network
+
+  request-counter:
+    build:
+      context: ./deploy/request-counter
+      dockerfile: Dockerfile
+    environment:
+      API_UPSTREAM: http://toxiproxy:8666
+    depends_on:
+      toxiproxy:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8800/__counter').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    ports:
+      - "127.0.0.1:8800:8800"
+    networks:
+      - publyapp-network
+
+  traefik:
+    image: traefik:v3.3@sha256:2cd5cc75530c8d07ae0587c743d23eb30cae2436d07017a5ff78498b1a43d09f
+    command:
+      - --providers.file.filename=/etc/traefik/dynamic.yml
+      - --entryPoints.web.address=:80
+      - --entryPoints.websecure.address=:443
+      - --entryPoints.web.http.redirections.entryPoint.to=websecure
+      - --entryPoints.web.http.redirections.entryPoint.scheme=https
+      - --entryPoints.web.http.redirections.entryPoint.permanent=true
+      - --ping=true
+      - --api.dashboard=false
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    ports:
+      - "127.0.0.1:8080:80"
+      - "127.0.0.1:8443:443"
+    volumes:
+      - ./traefik-dynamic.test.yml:/etc/traefik/dynamic.yml:ro
+    networks:
+      - publyapp-network
+
+  front-2:
+    build:
+      context: ../..
+      dockerfile: apps/front-2/Dockerfile
+    image: publyapp/front-2:test
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      SERVER_API_BASE_URL: http://request-counter:8800
+      PUBLIC_API_BASE_URL: https://api.front-2.localhost:8443
+    depends_on:
+      request-counter:
+        condition: service_healthy
+      traefik:
+        condition: service_healthy
+    networks:
+      - publyapp-network
+
+networks:
+  publyapp-network:
+    driver: bridge
+    external: false

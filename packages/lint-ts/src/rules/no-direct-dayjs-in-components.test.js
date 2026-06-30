@@ -52,6 +52,10 @@ const runCases = (rule, label) => {
 				},
 				{
 					code: "import dayjs from 'dayjs';",
+					filename: 'apps/front-2/src/lib/format-time.ts',
+				},
+				{
+					code: "import dayjs from 'dayjs';",
 					filename: 'apps/front/src/pages/SomePage.tsx',
 				},
 				{
@@ -85,13 +89,34 @@ const runCases = (rule, label) => {
 					errors: [{ messageId: 'directDayjsImport' }],
 				},
 				{
+					code: "import { isDayjs } from 'dayjs';",
+					filename: 'apps/front-2/src/routes/staff/users/page.tsx',
+					errors: [{ messageId: 'directDayjsImport' }],
+				},
+				{
+					code: "import dayjs from 'dayjs';",
+					filename: 'apps/front-2/src/components/date-label.tsx',
+					errors: [{ messageId: 'directDayjsImport' }],
+				},
+				{
 					code: "import * as dayjs from 'dayjs';",
 					filename: 'apps/front/src/_parts/date-range-picker.tsx',
 					errors: [{ messageId: 'directDayjsImport' }],
 				},
 				{
 					code: "import dayjs from 'dayjs';",
+					filename: 'apps/front-2/src/_parts/date-range-picker.tsx',
+					errors: [{ messageId: 'directDayjsImport' }],
+				},
+				{
+					code: "import dayjs from 'dayjs';",
 					filename: 'apps/front/src/routes/some-page/_components/MyWidget.tsx',
+					errors: [{ messageId: 'directDayjsImport' }],
+				},
+				{
+					code: "import dayjs from 'dayjs';",
+					filename:
+						'apps/front-2\\src\\routes\\some-page\\_components\\MyWidget.tsx',
 					errors: [{ messageId: 'directDayjsImport' }],
 				},
 			],

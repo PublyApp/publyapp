@@ -56,6 +56,66 @@ Results:
   language detection, client language changes persist that cookie, and InterZod
   is updated on `languageChanged`.
 
+## apps/front browser baseline (M0.3)
+
+Checked on 2026-06-26 from worktree `feat/front-2-phase-1` with headless
+Chromium (Playwright), against the live current app.
+
+Setup used:
+
+- Fresh Dell dev machine: installed .NET SDK `10.0.102` (per `global.json`) and
+  Playwright Chromium. The repo dev `docker-compose.services.yml` crash-loops with
+  the current `postgres:18-alpine` image (PG18 changed its data-dir convention,
+  docker-library #1259, so the `…:/var/lib/postgresql/data` volume mount is
+  rejected) — worked around with an **ephemeral** `postgres:18-alpine` container on
+  `localhost:5454` (no volume). This dev-compose breakage is a separate repo bug to
+  fix on its own.
+- EF `database update` migrated + seeded the DB (3 tenants, 12 users, 3 staff
+  profiles, 15 accounts). API `/health` healthy on `localhost:5000`. `apps/front`
+  served on `localhost:5050` from the `feat/front-2-phase-1` worktree.
+
+Phase-0 `GET /login` exit — RESOLVED:
+
+- `GET /login` returns `200` (repeated requests, process stays alive). The Phase-0
+  first-request exit (code `1` / `Empty reply from server`) did **not** reproduce.
+  Root cause: it was specific to the disposable `spike/front-2-phase-0` worktree's
+  environment (no clean workspace install / stack wiring), **not** a current-app
+  defect. No code change required.
+
+Browser-verified results (headless Chromium against the live app):
+
+- Seeded staff login (`staff-admin@example.com`) redirects to **`/staff`** (the
+  authenticated landing); the staff-users list lives at `/staff/staff-users`.
+- Staff-users renders seeded rows: `staff-admin@example.com` and
+  `owner@publyapp.local` visible. Columns are **`Name`, `Level`, `Status`,
+  `Actions`** — confirming the divergence that email is secondary text in the
+  `Name` cell, not a standalone column.
+- Search writes snake_case URL state: searching `staff-admin` yields
+  `/staff/staff-users?q=staff-admin`, keeps the matching row, and drops
+  non-matching seeded rows.
+- **Authed `401` → centralized logout → `/login`** (forced via route
+  interception of `GET /staff/**`). Confirmed live.
+- **Authed `403` → NO logout** (forced `403` keeps the user on
+  `/staff/staff-users`). Confirmed live.
+- Invalid credentials keep the user on `/login` and render an error without a
+  route crash (current app returns RFC 7807 `400` for bad credentials).
+- Login form selectors: `input[name="email"]` (no placeholder) and
+  `input[name="password"]` (placeholder `8+ characters`), submit button
+  `Sign in`. Note: the spike's e2e `login` helper used
+  `getByPlaceholder('Email')`, which would **not** match the current app — a
+  selector divergence to fix when the harness is enabled.
+
+Code-verified (M0.3 Step 3 — no back-port needed):
+
+- `apps/front/src/lib/api-failure/to-api-failure.ts:39` is body/problem-first
+  (`problemDetails.status ?? problemDetails.responseStatusCode ?? 500`).
+- `apps/front/src/lib/react-query/query-client.tsx:252,257` logs out on `401`
+  ONLY (403/500/network/etc. do not).
+
+Not browser-exercised here (remain source-verified / Phase-1 confirm): the
+dark-mode toggle (mechanism source-verified in Phase 0; `data-mui-color-scheme`
+is set after the settings interaction), the locale switch, and the invite flow.
+
 ## Evidence Legend
 
 | Evidence | Scope |
@@ -74,6 +134,7 @@ Results:
 |---|---|---|
 | Valid seeded staff login reaches the authenticated shell. | 4.4a / this commit, `valid staff login renders the seeded staff-users list` | Phase 0 API verified: `staff-admin@example.com` / seed password returns a session, and `/auth/redirect-code` returns `staff`. Not browser-verified in Phase 0 because `apps/front` exited on first `GET /login`; Phase 1 confirm the actual redirect lands on `/staff`. |
 | Invalid credentials show an error and do not crash the route. | Manual | Phase 0 API/source verified: syntactically valid wrong credentials return RFC 7807 `400` with `translationKey: invalid-email-or-password`, and the login form renders `getSerializedErrorMessage(...)` in a MUI error `Alert`. Not browser-verified in Phase 0 because `apps/front` exited on first `GET /login`; Phase 1 confirm the localized alert renders without route crash. |
+| An auth-surface `401` (login/auth page) stays on the auth surface and does NOT run authenticated app-data logout or clear an existing session. | Manual | Phase 1 confirm. |
 | `401` from an authenticated data path triggers centralized logout and redirects to `/login`. | 4.6 / `55070a0b` | Phase 1 confirm: query/client error handling clears session and navigates to `/login`. |
 | Logout is `401`-only: `403`, `500`, network failure, timeout, reset, and invalid JSON do not log the user out. | 4.6 / `55070a0b` | Phase 1 confirm: non-401 failures render the appropriate error state without clearing session. |
 | Session token values are never written to browser or container logs. | 4.5b / `209f826e` | Phase 1 confirm using the current-app log-leak sentinel. |
@@ -110,6 +171,13 @@ Results:
 | The configured language renders localized app strings. | 4.4a / this commit, `configured French locale renders localized copy and InterZod messages` | Phase 0 source verified: server SSR reads `publyapp-locale`, initializes i18next with `en`/`fr` resources, and client language changes persist the same cookie. Not browser-verified in Phase 0. |
 | InterZod validation messages resolve through the active locale. | 4.4a / this commit | Phase 0 schema/source verified: InterZod updates on `languageChanged`; invalid email resolves to `Invalid email` in English and `e-mail non valide` in French. |
 | UI language switching exists only if the app exposes a switcher. | Manual | Phase 0 source verified: current app exposes a language popover/user-menu item, while the spike has no UI switcher and only proves cookie-configured language. Phase 1 must preserve or consciously replace the current-app switcher behavior. |
+
+## URL State
+
+| Invariant | Verified by | Expected current-app behavior |
+|---|---|---|
+| Staff-users table URL state round-trips `q` (search) and `size` (page size) and rehydrates those visible controls on load. | Manual | Phase 1 confirm. |
+| Staff-users table URL state round-trips `sort_id`, `sort_order`, `cursor`, and resets stale `cursor` when search changes. | Manual | Phase 1 confirm — characterization backlog, not in the first Phase-2 gate. |
 
 ## Cross-Cutting
 

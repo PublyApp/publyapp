@@ -15,17 +15,36 @@
  *
  * Component file heuristic:
  *   - file extension is `.tsx`
- *   - path is under `apps/front/src/components`, `apps/front/src/_parts`,
- *     `apps/front/src/_components`, or the `apps/front/src/routes` tree
+ *   - path is under `apps/front/src/components`, `apps/front-2/src/components`,
+ *     `apps/front/src/_parts`, `apps/front-2/src/_parts`,
+ *     `apps/front/src/_components`, `apps/front-2/src/_components`,
+ *     `apps/front/src/routes`, or `apps/front-2/src/routes`
  *
  * This rule deliberately has no fixer: the correct `format-time` utility depends
  * on how the component formats or parses the value.
  */
+import {
+	FRONT_SOURCE_PREFIXES,
+	isFrontComponentTsxFile,
+	normalizeFilename,
+} from './path-scopes.js';
 
 const DAYJS_PACKAGE = 'dayjs';
 const DAYJS_SUBPATH_PREFIX = 'dayjs/';
-const FRONT_SRC_PREFIX = 'apps/front/src/';
-const FORMAT_TIME_LIB_PREFIX = 'apps/front/src/lib/';
+const FORMAT_TIME_LIB_PREFIXES = FRONT_SOURCE_PREFIXES.map(
+	(prefix) => prefix + 'lib/',
+);
+
+const basename = (filename) => {
+	const parts = filename.split('/');
+
+	return parts[parts.length - 1] ?? '';
+};
+
+const isFormatTimeUtility = (filename) =>
+	FORMAT_TIME_LIB_PREFIXES.some((prefix) => filename.includes(prefix)) &&
+	basename(filename).startsWith('format-time') &&
+	filename.endsWith('.ts');
 
 const getContextFilename = (context) => {
 	if (typeof context.filename === 'string') {
@@ -39,48 +58,8 @@ const getContextFilename = (context) => {
 	return '';
 };
 
-const normalizePath = (filename) => filename.replaceAll('\\', '/');
-
-const basename = (filename) => {
-	const parts = filename.split('/');
-
-	return parts[parts.length - 1] ?? '';
-};
-
-const isFormatTimeUtility = (filename) =>
-	filename.includes(FORMAT_TIME_LIB_PREFIX) &&
-	basename(filename).startsWith('format-time') &&
-	filename.endsWith('.ts');
-
-const getFrontSrcRelativePath = (filename) => {
-	const frontSrcIndex = filename.indexOf(FRONT_SRC_PREFIX);
-
-	if (frontSrcIndex === -1) {
-		return '';
-	}
-
-	return filename.slice(frontSrcIndex + FRONT_SRC_PREFIX.length);
-};
-
-const isComponentPath = (filename) => {
-	const frontSrcRelativePath = getFrontSrcRelativePath(filename);
-
-	if (frontSrcRelativePath === '') {
-		return false;
-	}
-
-	return (
-		frontSrcRelativePath.startsWith('components/') ||
-		frontSrcRelativePath.startsWith('_parts/') ||
-		frontSrcRelativePath.startsWith('_components/') ||
-		frontSrcRelativePath.startsWith('routes/')
-	);
-};
-
 const isComponentTsxFile = (filename) =>
-	filename.endsWith('.tsx') &&
-	!isFormatTimeUtility(filename) &&
-	isComponentPath(filename);
+	isFrontComponentTsxFile(filename) && !isFormatTimeUtility(filename);
 
 const isForbiddenDayjsImport = (source) =>
 	source === DAYJS_PACKAGE || source.startsWith(DAYJS_SUBPATH_PREFIX);
@@ -100,7 +79,7 @@ export const noDirectDayjsInComponents = {
 		},
 	},
 	create(context) {
-		const filename = normalizePath(getContextFilename(context));
+		const filename = normalizeFilename(getContextFilename(context));
 
 		if (!isComponentTsxFile(filename)) {
 			return {};
