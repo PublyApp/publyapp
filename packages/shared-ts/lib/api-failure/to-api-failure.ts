@@ -147,7 +147,6 @@ const toProblemFailure = (error: unknown): ProblemFailure | undefined => {
 	const { source, root } = parsedProblem;
 	const status = pickResponseStatus(
 		source.status,
-		root?.status,
 		root?.responseStatusCode,
 	);
 
@@ -179,9 +178,7 @@ const toValidationFailure = (error: unknown): ValidationFailure | undefined => {
 
 	const status = pickResponseStatus(
 		source.status,
-		root?.status,
 		root?.responseStatusCode,
-		source.responseStatusCode,
 	);
 
 	return {

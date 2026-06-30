@@ -130,6 +130,26 @@ test('uses wrapper responseStatusCode for validation when nested responseStatusC
 	});
 });
 
+test('uses wrapper responseStatusCode instead of wrapper status for validation when selected status is missing', () => {
+	const payload = {
+		status: 409,
+		responseStatusCode: 422,
+		body: {
+			responseStatusCode: 499,
+			errors: {
+				email: ['required'],
+			},
+		},
+	};
+
+	const failure = toApiFailure(payload);
+	expect(failure.kind).toBe('validation');
+	expect(failure.status).toBe(422);
+	expect(failure.fieldErrors).toEqual({
+		email: ['required'],
+	});
+});
+
 test('uses body status then wrapper response/status fallback for problem failures', () => {
 	const payload = {
 		responseStatusCode: 500,

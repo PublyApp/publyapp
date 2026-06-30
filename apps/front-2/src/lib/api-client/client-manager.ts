@@ -399,5 +399,4 @@ export {
 	buildCustomFetch,
 	getClientManager,
 	resetClientManager,
-	setSessionTokenProvider,
 };
