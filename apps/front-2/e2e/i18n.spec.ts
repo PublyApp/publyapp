@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+
 import { LOCALE_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 
 type BrowserContextLike = {
@@ -42,6 +43,7 @@ test('renders / with locale from cookie and updates html lang', async ({
 	await page.goto('/');
 
 	await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
+	await expect(page.getByTestId('i18n-greeting')).toHaveText('Bonjour');
 });
 
 test('falls back to English when locale cookie is unsupported', async ({
@@ -53,4 +55,5 @@ test('falls back to English when locale cookie is unsupported', async ({
 	await page.goto('/');
 
 	await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+	await expect(page.getByTestId('i18n-greeting')).toHaveText('Hello');
 });

@@ -1,13 +1,11 @@
-import { parse as parseCookie } from 'cookie';
-
 import {
 	createStartHandler,
-	defaultStreamHandler,
 	defineHandlerCallback,
+	defaultStreamHandler,
 } from '@tanstack/react-start/server';
+import { parse as parseCookie } from 'cookie';
 
 import { LOCALE_COOKIE_KEY } from '@org/shared-ts/lib/constants';
-
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { captureBadRequest } from './lib/analytics';
@@ -27,11 +25,23 @@ const isHtml = (response: Response): boolean => {
 	return contentType.toLowerCase().includes('text/html');
 };
 
+const getStreamHandlerResponse = (
+	result: Awaited<ReturnType<typeof defaultStreamHandler>>,
+): Response => {
+	if (typeof result === 'object' && result !== null && 'response' in result) {
+		return result.response as Response;
+	}
+
+	return result as Response;
+};
+
 const resolveLocaleFromRequest = (request: Request): SupportedLanguage => {
 	const parsedCookie = parseCookie(request.headers.get('cookie') ?? '');
 	const localeFromCookie = parsedCookie[LOCALE_COOKIE_KEY];
 
-	return isSupportedLanguage(localeFromCookie) ? localeFromCookie : FALLBACK_LANGUAGE;
+	return isSupportedLanguage(localeFromCookie)
+		? localeFromCookie
+		: FALLBACK_LANGUAGE;
 };
 
 const escapeHtml = (value: string): string =>
@@ -42,11 +52,7 @@ const escapeHtml = (value: string): string =>
 		.replace(/"/g, '&quot;')
 		.replace(/'/g, '&#39;');
 
-
-const setRouterNonce = (
-	ctx: StreamHandlerContext,
-	nonce: string,
-): void => {
+const setRouterNonce = (ctx: StreamHandlerContext, nonce: string): void => {
 	ctx.router.options = {
 		...ctx.router.options,
 		ssr: {
@@ -56,7 +62,10 @@ const setRouterNonce = (
 	};
 };
 
-const replaceHtmlLanguage = (html: string, locale: SupportedLanguage): string => {
+const replaceHtmlLanguage = (
+	html: string,
+	locale: SupportedLanguage,
+): string => {
 	const language = escapeHtml(locale);
 	const direction = escapeHtml(dirForLocale(locale));
 
@@ -95,7 +104,8 @@ const renderLinkTag = (link: {
 	return `<link ${attributes} />`;
 };
 
-const renderTitleTag = (title: string): string => `<title>${escapeHtml(title)}</title>`;
+const renderTitleTag = (title: string): string =>
+	`<title>${escapeHtml(title)}</title>`;
 
 const injectSeoMarkup = (
 	html: string,
@@ -124,10 +134,15 @@ const injectSeoMarkup = (
 		image: `${origin}/images/social-share.png`,
 	});
 
-	const metaTags = [...payload.meta.map(renderMetaTag), ...payload.links.map(renderLinkTag)];
+	const metaTags = [
+		...payload.meta.map(renderMetaTag),
+		...payload.links.map(renderLinkTag),
+	];
 
 	if (!output.includes('name="csp-nonce"')) {
-		metaTags.unshift(`<meta name="csp-nonce" content="${escapeHtml(nonce)}" />`);
+		metaTags.unshift(
+			`<meta name="csp-nonce" content="${escapeHtml(nonce)}" />`,
+		);
 	}
 
 	if (!output.includes('<title')) {
@@ -137,8 +152,10 @@ const injectSeoMarkup = (
 	return output.replace('</head>', `${metaTags.join('\n')}\n</head>`);
 };
 
-
-const sendBadResponseCapture = (ctx: StreamHandlerContext, response: Response): void => {
+const sendBadResponseCapture = (
+	ctx: StreamHandlerContext,
+	response: Response,
+): void => {
 	if (response.status >= 200 && response.status < 300) {
 		return;
 	}
@@ -171,7 +188,8 @@ export default {
 				process.env.NODE_ENV === 'development',
 			);
 
-			const response = await defaultStreamHandler(ctx);
+			const handlerResult = await defaultStreamHandler(ctx);
+			const response = getStreamHandlerResponse(handlerResult);
 			sendBadResponseCapture(ctx, response);
 
 			if (!isHtml(response)) {
@@ -185,11 +203,13 @@ export default {
 			headers.delete('content-encoding');
 			headers.delete('content-length');
 
-			return new Response(updatedHtml, {
+			const finalResponse = new Response(updatedHtml, {
 				status: response.status,
 				statusText: response.statusText,
 				headers,
 			});
+
+			return finalResponse;
 		}),
 	),
 };

@@ -2,8 +2,8 @@ import { describe, expect, test } from 'vitest';
 
 import { LOCALE_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 
-import { FALLBACK_LANGUAGE, createI18nFromResources } from './i18n.shared';
 import { buildI18nResources, resolveLocaleFromCookie } from './i18n.server';
+import { FALLBACK_LANGUAGE, createI18nFromResources } from './i18n.shared';
 
 const makeCookie = (value: string | undefined): string => {
 	if (!value) {
@@ -32,7 +32,7 @@ describe('i18n.server', () => {
 
 	test('resolves French translation and falls back to English', async () => {
 		const resources = await buildI18nResources('fr');
-		const i18n = await createI18nFromResources('fr', resources);
+		const i18n = createI18nFromResources('fr', resources);
 
 		expect(i18n.t('common:hello')).toBe('Bonjour');
 		expect(i18n.t('common:hello', { lng: FALLBACK_LANGUAGE })).toBe('Hello');

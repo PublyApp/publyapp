@@ -14,6 +14,7 @@ const COMPOSE_FILE = 'apps/front-2/docker-compose.test.yml';
 const API_BASE_URL = 'https://api.front-2.localhost:8443';
 const STAFF_USERS_PATH = '/staff/users';
 const SESSION_TOKEN_HEADER_KEY = 'X-Session-Token';
+const SMOKE_BROWSER_MESSAGE = '[front-2] log-leak smoke probe';
 const CONTROL_REQUEST = {
 	method: 'GET',
 	path: STAFF_USERS_PATH,
@@ -23,7 +24,12 @@ const REPO_ROOT = process.cwd().endsWith('/apps/front-2')
 	? resolve(process.cwd(), '../..')
 	: process.cwd();
 
-const LOG_SINK_SERVICES = ['api', 'request-counter', 'front-2', 'traefik'] as const;
+const LOG_SINK_SERVICES = [
+	'api',
+	'request-counter',
+	'front-2',
+	'traefik',
+] as const;
 
 type LogServiceName = (typeof LOG_SINK_SERVICES)[number];
 type LogSinkName = LogServiceName | 'browser-console';
@@ -87,7 +93,9 @@ const tokenNeedles = (token: string): string[] =>
 const headerNeedles = (token: string): string[] =>
 	uniqueNeedles([
 		...tokenNeedles(token),
-		...tokenNeedles(token).map((needle) => `${SESSION_TOKEN_HEADER_KEY}: ${needle}`),
+		...tokenNeedles(token).map(
+			(needle) => `${SESSION_TOKEN_HEADER_KEY}: ${needle}`,
+		),
 		...tokenNeedles(token).map(
 			(needle) => `${SESSION_TOKEN_HEADER_KEY.toLowerCase()}: ${needle}`,
 		),
@@ -229,7 +237,7 @@ const requestTokenViaApi = (
 	request: APIRequestContext,
 	token: string,
 ): Promise<APIResponse> =>
-	request.get(`${API_BASE_URL}${CONTROL_REQUEST.path}`, {
+	request.fetch(`${API_BASE_URL}${CONTROL_REQUEST.path}`, {
 		method: CONTROL_REQUEST.method,
 		headers: {
 			[SESSION_TOKEN_HEADER_KEY]: token,
@@ -240,24 +248,27 @@ const requestTokenViaFront = async (
 	page: Page,
 	token: string,
 ): Promise<{ protocol: string; status: number }> => {
-	const result = await page.evaluate(async ({ path, method, headerKey, value }) => {
-		const response = await fetch(path, {
-			method,
-			headers: {
-				[headerKey]: value,
-			},
-		});
+	const result = await page.evaluate(
+		async ({ path, method, headerKey, value }) => {
+			const response = await fetch(path, {
+				method,
+				headers: {
+					[headerKey]: value,
+				},
+			});
 
-		return {
-			status: response.status,
-			protocol: new URL(response.url).protocol,
-		};
-	}, {
-		path: CONTROL_REQUEST.path,
-		method: CONTROL_REQUEST.method,
-		headerKey: SESSION_TOKEN_HEADER_KEY,
-		value: token,
-	});
+			return {
+				status: response.status,
+				protocol: new URL(response.url).protocol,
+			};
+		},
+		{
+			path: CONTROL_REQUEST.path,
+			method: CONTROL_REQUEST.method,
+			headerKey: SESSION_TOKEN_HEADER_KEY,
+			value: token,
+		},
+	);
 
 	return result;
 };
@@ -282,7 +293,10 @@ test('rejected token is absent from deployed container logs', async ({
 	expect(CONTROL_REQUEST.path, 'request-counter control path is explicit').toBe(
 		STAFF_USERS_PATH,
 	);
-	expect(CONTROL_REQUEST.method, 'request-counter control method is explicit').toBe('GET');
+	expect(
+		CONTROL_REQUEST.method,
+		'request-counter control method is explicit',
+	).toBe('GET');
 
 	const token = buildSentinelToken('invalid', testInfo);
 	await assertNoLeakAcrossSinks(request, token);
@@ -305,22 +319,26 @@ test('redacts token in raw / encoded / JSON-escaped forms everywhere', async ({
 	).toBe(3);
 
 	const tokenVariants = [rawToken, encodedToken, jsonToken];
-
-	await page.goto('/');
 	const browserMessages = await installBrowserLogCapture(page);
+	await page.addInitScript((smokeMessage) => {
+		console.info(smokeMessage);
+	}, SMOKE_BROWSER_MESSAGE);
+	await page.goto('/');
 
 	for (const token of tokenVariants) {
 		await assertNoLeakAcrossSinks(request, token);
 		const frontResult = await requestTokenViaFront(page, token);
-		expect(frontResult.protocol, 'front request transport is HTTPS').toBe('https:');
+		expect(frontResult.protocol, 'front request transport is HTTPS').toBe(
+			'https:',
+		);
 		expect(
 			frontResult.status,
 			'front request path responded to malformed token probe',
-		).toBeGreaterThanOrEqual(200);
+		).toBe(401);
 	}
 
 	const browserText = browserMessages.join('\n');
-	const browserAndContainerSinks = [
+	const browserAndContainerSinks: SinkCapture[] = [
 		{ name: 'browser-console', text: browserText },
 		...captureContainerLogSinks(),
 	];
@@ -328,5 +346,8 @@ test('redacts token in raw / encoded / JSON-escaped forms everywhere', async ({
 	for (const token of tokenVariants) {
 		assertSecretAbsentFromSinks(browserAndContainerSinks, token);
 	}
-	expect(browserText, 'browser console capture is readable').toBeTruthy();
+	expect(
+		browserText,
+		'browser console capture observed smoke probe message',
+	).toContain(SMOKE_BROWSER_MESSAGE);
 });

@@ -1,4 +1,4 @@
-import { nanoid } from 'nanoid';
+import { randomBytes } from 'node:crypto';
 
 import { createCSPHeader } from '@org/shared-ts/lib/csp';
 
@@ -47,7 +47,7 @@ const appendConnectSrcOrigin = (
 	return [...directives, `connect-src 'self' ${origin}`].join('; ');
 };
 
-export const mintCspNonce = (): string => nanoid();
+export const mintCspNonce = (): string => randomBytes(16).toString('base64url');
 
 export const applyCspHeaders = (
 	headers: Headers,
