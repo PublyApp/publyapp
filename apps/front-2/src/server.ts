@@ -3,18 +3,12 @@ import {
 	defineHandlerCallback,
 	defaultStreamHandler,
 } from '@tanstack/react-start/server';
-import { parse as parseCookie } from 'cookie';
 
-import { LOCALE_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { captureBadRequest } from './lib/analytics';
-import {
-	dirForLocale,
-	FALLBACK_LANGUAGE,
-	isSupportedLanguage,
-	type SupportedLanguage,
-} from './lib/i18n.shared';
+import { resolveLocaleFromCookie } from './lib/i18n.server';
+import { dirForLocale, type SupportedLanguage } from './lib/i18n.shared';
 import { mintCspNonce, applyCspHeaders } from './server/csp';
 import { seo } from './utils/seo';
 
@@ -36,12 +30,7 @@ const getStreamHandlerResponse = (
 };
 
 const resolveLocaleFromRequest = (request: Request): SupportedLanguage => {
-	const parsedCookie = parseCookie(request.headers.get('cookie') ?? '');
-	const localeFromCookie = parsedCookie[LOCALE_COOKIE_KEY];
-
-	return isSupportedLanguage(localeFromCookie)
-		? localeFromCookie
-		: FALLBACK_LANGUAGE;
+	return resolveLocaleFromCookie(request.headers.get('cookie') ?? undefined);
 };
 
 const escapeHtml = (value: string): string =>
@@ -107,37 +96,51 @@ const renderLinkTag = (link: {
 const renderTitleTag = (title: string): string =>
 	`<title>${escapeHtml(title)}</title>`;
 
+const isIndexableSeoRoute = (requestPath: string, status: number): boolean => {
+	return (
+		status >= 200 &&
+		status < 300 &&
+		(requestPath === '/' || requestPath === '/login')
+	);
+};
+
 const injectSeoMarkup = (
 	html: string,
 	request: Request,
 	locale: SupportedLanguage,
 	nonce: string,
+	seoAllowed: boolean,
 ): string => {
 	const requestUrl = new URL(request.url);
 	const requestPath = requestUrl.pathname;
 	const isLogin = requestPath === '/login';
 	let output = replaceHtmlLanguage(html, locale);
+
 	if (!output.includes('</head>')) {
 		return output;
 	}
 
 	const origin = requestUrl.origin;
 	const canonical = `${origin}${requestPath}`;
-	const payload = seo({
-		title: isLogin ? 'front-2 | Login' : 'front-2 | Foundation',
-		description: isLogin
-			? 'Sign in to front-2.'
-			: 'front-2 foundations: i18n, CSP, SEO, analytics.',
-		canonical,
-		sitemap: `${origin}/sitemap.xml`,
-		locale,
-		image: `${origin}/images/social-share.png`,
-	});
+	const metaTags: string[] = [];
 
-	const metaTags = [
-		...payload.meta.map(renderMetaTag),
-		...payload.links.map(renderLinkTag),
-	];
+	if (seoAllowed) {
+		const payload = seo({
+			title: isLogin ? 'front-2 | Login' : 'front-2 | Foundation',
+			description: isLogin
+				? 'Sign in to front-2.'
+				: 'front-2 foundations: i18n, CSP, SEO, analytics.',
+			canonical,
+			sitemap: `${origin}/sitemap.xml`,
+			locale,
+			image: `${origin}/images/social-share.png`,
+		});
+
+		metaTags.push(...payload.meta.map(renderMetaTag));
+		metaTags.push(...payload.links.map(renderLinkTag));
+	} else {
+		metaTags.push('<meta name="robots" content="noindex, nofollow" />');
+	}
 
 	if (!output.includes('name="csp-nonce"')) {
 		metaTags.unshift(
@@ -146,7 +149,12 @@ const injectSeoMarkup = (
 	}
 
 	if (!output.includes('<title')) {
-		metaTags.unshift(renderTitleTag(payload.title));
+		const title = isLogin
+			? 'front-2 | Login'
+			: seoAllowed
+				? 'front-2 | Foundation'
+				: 'front-2';
+		metaTags.unshift(renderTitleTag(title));
 	}
 
 	return output.replace('</head>', `${metaTags.join('\n')}\n</head>`);
@@ -197,19 +205,25 @@ export default {
 			}
 
 			const html = await response.text();
-			const updatedHtml = injectSeoMarkup(html, ctx.request, locale, nonce);
+			const requestPath = new URL(ctx.request.url).pathname;
+			const shouldInjectSeo = isIndexableSeoRoute(requestPath, response.status);
+			const updatedHtml = injectSeoMarkup(
+				html,
+				ctx.request,
+				locale,
+				nonce,
+				shouldInjectSeo,
+			);
 			const headers = new Headers(response.headers);
 
 			headers.delete('content-encoding');
 			headers.delete('content-length');
 
-			const finalResponse = new Response(updatedHtml, {
+			return new Response(updatedHtml, {
 				status: response.status,
 				statusText: response.statusText,
 				headers,
 			});
-
-			return finalResponse;
 		}),
 	),
 };

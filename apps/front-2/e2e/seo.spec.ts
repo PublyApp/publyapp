@@ -2,6 +2,84 @@ import { expect, test, type APIRequestContext } from '@playwright/test';
 
 const BASE_URL = 'https://front-2.localhost:8443';
 
+const extractAttribute = (tag: string, attribute: string): string | null => {
+	const match = tag.match(
+		new RegExp(
+			`\\b${attribute}\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))`,
+			'i',
+		),
+	);
+
+	if (match === null) {
+		return null;
+	}
+
+	return match[1] ?? match[2] ?? match[3] ?? null;
+};
+
+const findMetaTags = (html: string): string[] => {
+	return html.match(/<meta\b[^>]*>/gi) ?? [];
+};
+
+const findLinkTags = (html: string): string[] => {
+	return html.match(/<link\b[^>]*>/gi) ?? [];
+};
+
+const hasMetaTag = (
+	html: string,
+	selector: { name?: string; property?: string; content: string },
+): boolean => {
+	return findMetaTags(html).some((tag) => {
+		const rawName = extractAttribute(tag, 'name');
+		const rawProperty = extractAttribute(tag, 'property');
+		const rawContent = extractAttribute(tag, 'content');
+
+		if (rawContent !== selector.content) {
+			return false;
+		}
+
+		if (selector.name !== undefined && rawName !== selector.name) {
+			return false;
+		}
+
+		if (selector.property !== undefined && rawProperty !== selector.property) {
+			return false;
+		}
+
+		return selector.name !== undefined || selector.property !== undefined;
+	});
+};
+
+const hasLinkTag = (
+	html: string,
+	selector: { rel: string; href?: string; hreflang?: string },
+): boolean => {
+	return findLinkTags(html).some((tag) => {
+		const rawRel = extractAttribute(tag, 'rel');
+		const rawHref = extractAttribute(tag, 'href');
+		const rawHrefLang = extractAttribute(tag, 'hreflang');
+
+		if (rawRel !== selector.rel) {
+			return false;
+		}
+
+		if (selector.href !== undefined && rawHref !== selector.href) {
+			return false;
+		}
+
+		if (selector.hreflang !== undefined && rawHrefLang !== selector.hreflang) {
+			return false;
+		}
+
+		return true;
+	});
+};
+
+const expectedDescription = (path: string): string =>
+	path === '/login'
+		? 'Sign in to front-2.'
+		: 'front-2 foundations: i18n, CSP, SEO, analytics.';
+
 const assertMetaFromHtml = async (request: APIRequestContext, path: string) => {
 	const response = await request.get(path);
 	const html = await response.text();
@@ -11,28 +89,40 @@ const assertMetaFromHtml = async (request: APIRequestContext, path: string) => {
 	expect(response.status(), `${path} route status`).toBeGreaterThanOrEqual(200);
 	expect(response.status(), `${path} route status`).toBeLessThan(300);
 
-	expect(html).toContain('<meta name="description"');
-	expect(html).toContain('<meta name="robots" content="index, follow"');
-	expect(html).toContain(`<meta property="og:url" content="${canonical}"`);
-	expect(html).toContain(`<meta property="og:locale" content="en_US"`);
-	expect(html).toContain(
-		`<meta property="og:locale:alternate" content="fr_FR"`,
+	expect(
+		hasMetaTag(html, {
+			name: 'description',
+			content: expectedDescription(path),
+		}),
+	).toBe(true);
+	expect(hasMetaTag(html, { name: 'robots', content: 'index, follow' })).toBe(
+		true,
 	);
-	expect(html).toContain(`<link rel="canonical" href="${canonical}"`);
-	expect(html).toContain(
-		`<link rel="alternate" href="${canonical}" hrefLang="en"`,
+	expect(hasMetaTag(html, { property: 'og:url', content: canonical })).toBe(
+		true,
 	);
-	expect(html).toContain(
-		`<link rel="alternate" href="${canonical}" hrefLang="fr"`,
+	expect(hasMetaTag(html, { property: 'og:locale', content: 'en_US' })).toBe(
+		true,
 	);
-	expect(html).toContain(
-		`<link rel="alternate" href="${canonical}" hrefLang="x-default"`,
-	);
-	expect(html).toContain(`<meta name="robots" content="index, follow"`);
-	expect(html).toContain(`<link rel="sitemap" href="${sitemapUrl}"`);
-	expect(html, `/login route has matching og:url for ${path}`).toContain(
-		`<meta property="og:url" content="${canonical}"`,
-	);
+	expect(
+		hasMetaTag(html, { property: 'og:locale:alternate', content: 'fr_FR' }),
+	).toBe(true);
+	expect(hasLinkTag(html, { rel: 'canonical', href: canonical })).toBe(true);
+	expect(
+		hasLinkTag(html, { rel: 'alternate', href: canonical, hreflang: 'en' }),
+	).toBe(true);
+	expect(
+		hasLinkTag(html, { rel: 'alternate', href: canonical, hreflang: 'fr' }),
+	).toBe(true);
+	expect(
+		hasLinkTag(html, {
+			rel: 'alternate',
+			href: canonical,
+			hreflang: 'x-default',
+		}),
+	).toBe(true);
+	expect(hasMetaTag(html, { name: 'language', content: 'en-US' })).toBe(true);
+	expect(hasLinkTag(html, { rel: 'sitemap', href: sitemapUrl })).toBe(true);
 
 	return html;
 };
@@ -47,4 +137,28 @@ test('renders canonical/OG/robots/sitemap/locale tags on /login', async ({
 	request,
 }) => {
 	await assertMetaFromHtml(request, '/login');
+});
+
+test('does not emit indexable SEO metadata on unknown routes', async ({
+	request,
+}) => {
+	const response = await request.get('/nope-404');
+	const html = await response.text();
+
+	expect(response.status(), '/nope-404 status').toBe(404);
+	expect(
+		hasMetaTag(html, {
+			name: 'robots',
+			content: 'noindex, nofollow',
+		}),
+	).toBe(true);
+	expect(hasLinkTag(html, { rel: 'canonical' })).toBe(false);
+	expect(hasLinkTag(html, { rel: 'alternate', hreflang: 'en' })).toBe(false);
+	expect(hasLinkTag(html, { rel: 'alternate', hreflang: 'fr' })).toBe(false);
+	expect(hasLinkTag(html, { rel: 'alternate', hreflang: 'x-default' })).toBe(
+		false,
+	);
+	expect(
+		hasMetaTag(html, { property: 'og:url', content: `${BASE_URL}/nope-404` }),
+	).toBe(false);
 });
