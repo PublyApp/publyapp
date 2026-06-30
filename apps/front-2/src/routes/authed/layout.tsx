@@ -1,23 +1,28 @@
+import { useEffect } from 'react';
+
 import {
 	isRouteErrorResponse,
 	redirect,
 	createFileRoute,
 	useLocation,
 	Outlet,
+	useNavigate,
 } from '@tanstack/react-router';
-import { createClient, getSessionTokensFromBrowser } from '~/lib/api-client/client-manager';
+import { useQuery } from '@tanstack/react-query';
 
-import { AppErrorView } from '~/components/error-views/AppErrorView';
-import { View403 } from '~/components/error-views/View403';
-import { View404 } from '~/components/error-views/View404';
-import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { selectToken } from '@org/shared-ts/lib/session/parse';
+import { createClient, getSessionTokensFromBrowser } from '~/lib/api-client/client-manager';
+import { selectToken, type ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
 import {
 	queryParamKey,
 	queryParamValue,
 	REDIRECT_CODE,
 } from '@org/shared-ts/lib/constants';
 import { toApiFailure } from '~/lib/api-failure';
+
+import { AppErrorView } from '~/components/error-views/AppErrorView';
+import { View403 } from '~/components/error-views/View403';
+import { View404 } from '~/components/error-views/View404';
+import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { AuthedLayout } from '../../layouts/authed-layout';
 
 const STAFF_PATH = '/staff';
@@ -44,24 +49,54 @@ const getFailureStatus = (error: unknown): number | undefined => {
 	return failure.kind === 'problem' ? failure.status : undefined;
 };
 
+const getSessionExpiredSearch = () => ({
+	[queryParamKey.login_page.redirect_cause]:
+		queryParamValue.login_page.redirect_cause.invalid_session,
+});
+
 const determineSessionToken = (
-	tokens: ReturnType<typeof getSessionTokensFromBrowser>,
+	tokens: ParsedSessionTokens,
 	pathname: string,
-): string | undefined => {
-	if (pathname.startsWith(STAFF_PATH)) {
-		return tokens.staffToken ?? tokens.tenantToken;
+): { token: string | undefined; redirectPath?: string } => {
+	const isStaffPath = pathname.startsWith(STAFF_PATH);
+	const isTenantPath = pathname.startsWith(TENANT_PATH);
+	const staffToken = tokens.staffToken;
+	const tenantToken = selectToken(tokens, 'tenant');
+
+	if (!staffToken && !tenantToken) {
+		return { token: undefined };
 	}
 
-	if (pathname.startsWith(TENANT_PATH)) {
-		return selectToken(tokens, 'tenant') ?? selectToken(tokens, 'staff');
+	if (isStaffPath) {
+		if (!staffToken) {
+			return tenantToken
+				? { token: undefined, redirectPath: TENANT_PATH }
+				: { token: undefined };
+		}
+
+		return { token: staffToken };
 	}
 
-	return selectToken(tokens, 'tenant') ?? tokens.staffToken;
+	if (isTenantPath) {
+		if (!tenantToken) {
+			return staffToken
+				? { token: undefined, redirectPath: STAFF_PATH }
+				: { token: undefined };
+		}
+
+		return { token: tenantToken };
+	}
+
+	return staffToken ? { token: staffToken } : { token: tenantToken };
 };
 
 const parseRedirectCode = async (token: string): Promise<string | undefined> => {
 	const client = createClient({ getSessionToken: () => token });
 	const result = await client.auth.redirectCode.get();
+
+	if (result?.redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
+		throw new Response('user has no accessible scope', { status: 403 });
+	}
 
 	return result?.redirectCode;
 };
@@ -70,71 +105,17 @@ export const Route = createFileRoute('/_authed-layout')({
 	ssr: false,
 	beforeLoad: async ({ location }) => {
 		const tokens = getSessionTokensFromBrowser();
-		const hasSessionToken = Boolean(
-			selectToken(tokens, 'tenant') || selectToken(tokens, 'staff'),
-		);
+		const { redirectPath, token } = determineSessionToken(tokens, location.pathname);
 
-		if (!hasSessionToken) {
-			throw redirect({
-				to: '/login',
-				search: {
-					[queryParamKey.login_page.redirect_cause]:
-						queryParamValue.login_page.redirect_cause.invalid_session,
-				},
-			});
+		if (!token && redirectPath) {
+			throw redirect({ to: redirectPath });
 		}
 
-		const token = determineSessionToken(tokens, location.pathname);
 		if (!token) {
 			throw redirect({
 				to: '/login',
-				search: {
-					[queryParamKey.login_page.redirect_cause]:
-						queryParamValue.login_page.redirect_cause.invalid_session,
-				},
+				search: getSessionExpiredSearch(),
 			});
-		}
-
-		try {
-			const redirectCode = await parseRedirectCode(token);
-
-			const isStaffPath = location.pathname.startsWith(STAFF_PATH);
-			const isTenantPath = location.pathname.startsWith(TENANT_PATH);
-
-			if (isStaffPath) {
-				if (redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
-					throw new Response('user has no accessible surface', {
-						status: 403,
-					});
-				}
-
-				if (redirectCode !== REDIRECT_CODE.STAFF) {
-					return redirect('/tenant');
-				}
-			}
-
-			if (isTenantPath) {
-				if (redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
-					throw new Response('user has no accessible scope', { status: 403 });
-				}
-
-				if (redirectCode === REDIRECT_CODE.STAFF) {
-					return redirect('/staff');
-				}
-			}
-
-			return;
-		} catch (error) {
-			if (error instanceof Response) {
-				throw error;
-			}
-
-			const failure = toApiFailure(error);
-			if (failure.kind === 'problem' && failure.status) {
-				throw new Response(failure.title ?? undefined, { status: failure.status });
-			}
-
-			throw new Response('auth check failed', { status: 500 });
 		}
 	},
 	errorComponent: ({ error }: { error: unknown }) => {
@@ -166,6 +147,44 @@ export const Route = createFileRoute('/_authed-layout')({
 
 function AuthedRouteLayout() {
 	const location = useLocation();
+	const navigate = useNavigate();
+	const tokens = getSessionTokensFromBrowser();
+	const resolved = determineSessionToken(tokens, location.pathname);
+	const query = useQuery({
+		queryKey: ['front-2', 'auth', 'redirect-code', resolved.token, location.pathname],
+		queryFn: async () => {
+			if (!resolved.token) {
+				return undefined;
+			}
+
+			return parseRedirectCode(resolved.token);
+		},
+		enabled: Boolean(resolved.token),
+		retry: false,
+	});
+
+	if (query.isError && query.error) {
+		throw query.error;
+	}
+
+	useEffect(() => {
+		if (query.data === undefined) {
+			return;
+		}
+
+		if (location.pathname.startsWith(STAFF_PATH) && query.data !== REDIRECT_CODE.STAFF) {
+			void navigate({ to: TENANT_PATH, replace: true });
+			return;
+		}
+
+		if (location.pathname.startsWith(TENANT_PATH) && query.data === REDIRECT_CODE.STAFF) {
+			void navigate({ to: STAFF_PATH, replace: true });
+		}
+	}, [location.pathname, navigate, query.data]);
+
+	if (query.isLoading) {
+		return <AuthedLayout pathname={location.pathname}>Loading…</AuthedLayout>;
+	}
 
 	return (
 		<AuthedLayout pathname={location.pathname}>

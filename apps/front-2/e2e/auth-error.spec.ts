@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
+import { formatSessionCookie } from '@org/shared-ts/lib/session/parse';
 
-const TENANT_TOKEN_VALUE = 't%3Afront2-demo-token';
+const TENANT_TOKEN_VALUE = formatSessionCookie({ tenantToken: 'front2-demo-token' });
 
 const setSessionCookie = async (page: Page) => {
 	await page.goto('/');

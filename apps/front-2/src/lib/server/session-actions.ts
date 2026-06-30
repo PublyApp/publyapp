@@ -13,6 +13,7 @@ import {
 	formatSessionCookie,
 } from '@org/shared-ts/lib/session/parse';
 import { REDIRECT_CODE } from '@org/shared-ts/lib/constants';
+import { toApiFailure } from '@org/shared-ts/lib/api-failure';
 
 import { createClient } from '../api-client/client-manager';
 
@@ -23,6 +24,10 @@ type LoginInput = {
 
 type LoginResult = {
 	sessionExpiresAt?: string;
+};
+
+type LoginClientResult = LoginResult & {
+	sessionToken?: string;
 };
 
 type LoginRedirectInput = {
@@ -63,6 +68,29 @@ const getSessionCookieHeader = (): string | undefined => {
 	}
 };
 
+const getRequestHeaderSafe = (name: string): string | undefined => {
+	try {
+		return getRequestHeader(name);
+	} catch {
+		return undefined;
+	}
+};
+
+const isSecureCookieContext = (): boolean => {
+	const origin = getRequestHeaderSafe('origin');
+	if (origin?.startsWith('https://')) {
+		return true;
+	}
+
+	const forwardedProto = getRequestHeaderSafe('x-forwarded-proto');
+	if (forwardedProto) {
+		return forwardedProto.split(',')[0]?.trim() === 'https';
+	}
+
+	const referer = getRequestHeaderSafe('referer');
+	return referer?.startsWith('https://') ?? false;
+};
+
 const readSessionTokensFromCookie = (): RawCookieSessionTokens => {
 	const header = getSessionCookieHeader();
 	if (!header) {
@@ -81,9 +109,10 @@ const readSessionTokensFromCookie = (): RawCookieSessionTokens => {
 const getCookieOptions = (
 	sessionExpiresAt: string | undefined,
 ): Parameters<typeof setCookie>[2] => {
+	const isSecure = isSecureCookieContext();
 	const options: Parameters<typeof setCookie>[2] = {
 		path: '/',
-		secure: true,
+		secure: isSecure,
 		httpOnly: false,
 		sameSite: 'lax',
 	};
@@ -123,10 +152,26 @@ const resolveRedirectSessionCookieValue = (sessionToken: string, code: string) =
 export const login = createServerFn({ method: 'POST' })
 	.validator((data: LoginInput) => data)
 	.handler(async ({ data }) => {
-		const result = await createClient({ getSessionToken: () => undefined }).auth.login.post({
-			email: { getValue: () => data.email },
-			password: { getValue: () => data.password },
-		});
+		let result: LoginClientResult | undefined;
+		try {
+			result = await createClient({ getSessionToken: () => undefined }).auth.login.post({
+				email: { getValue: () => data.email },
+				password: { getValue: () => data.password },
+			});
+		} catch (error) {
+			const failure = toApiFailure(error);
+
+			if (
+				(failure.kind === 'problem' || failure.kind === 'validation') &&
+				failure.status
+			) {
+				throw new Response(failure.title ?? failure.detail ?? 'login failed', {
+					status: failure.status,
+				});
+			}
+
+			throw new Response('login failed', { status: 500 });
+		}
 
 		if (!result?.sessionToken) {
 			throw new Response('login failed', { status: 401 });

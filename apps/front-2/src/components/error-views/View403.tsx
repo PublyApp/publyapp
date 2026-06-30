@@ -1,5 +1,6 @@
-import { AppErrorView } from './AppErrorView';
 import { Button } from '@heroui/react';
+
+import { AppErrorView } from './AppErrorView';
 
 export const View403 = () => {
 	return (

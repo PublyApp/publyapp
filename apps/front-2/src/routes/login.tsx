@@ -1,15 +1,19 @@
 import { Button, Input, Spinner } from '@heroui/react';
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
 	isRouteErrorResponse,
+	useLocation,
 	useNavigate,
 	createFileRoute,
 } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
+import { View404 } from '~/components/error-views/View404';
 import { completeLoginRedirect, login } from '~/lib/server/session-actions';
 import {
 	queryParamKey,
@@ -23,6 +27,11 @@ type LoginFormValues = {
 	password: string;
 };
 
+const LoginFormSchema = z.object({
+	email: z.string().max(120).email('Enter a valid email address.'),
+	password: z.string().min(8, 'Password must be at least 8 characters.'),
+});
+
 const resolveRouteRedirect = (path: string | null): string => {
 	if (!path) {
 		return '/';
@@ -35,45 +44,56 @@ const resolveRouteRedirect = (path: string | null): string => {
 	return path;
 };
 
-const getSafeSearchRedirect = () => {
-	const params = new URLSearchParams(window.location.search);
+const getSafeSearchRedirect = (search: string): string => {
+	const params = new URLSearchParams(search);
 	return resolveRouteRedirect(params.get(queryParamKey.login_page.redirect_to));
+};
+
+const isSessionExpiredFromSearch = (search: string): boolean => {
+	const params = new URLSearchParams(search);
+	return (
+		params.get(queryParamKey.login_page.redirect_cause) ===
+		queryParamValue.login_page.redirect_cause.invalid_session
+	);
+};
+
+const getFailureStatus = (error: unknown): number | undefined => {
+	const failure = toApiFailure(error);
+	if (failure.kind === 'problem') {
+		return failure.status;
+	}
+
+	if (isRouteErrorResponse(error)) {
+		return error.status;
+	}
+
+	return undefined;
 };
 
 const LoginRoute = () => {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const [showForbidden, setShowForbidden] = useState(false);
-	const [showAuthUnauthorized, setShowAuthUnauthorized] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
-	const [isSessionExpired, setIsSessionExpired] = useState(false);
 	const loginAction = useServerFn(login);
 	const completeRedirect = useServerFn(completeLoginRedirect);
+	const isSessionExpired = isSessionExpiredFromSearch(location.search);
 
 	const {
 		register,
 		handleSubmit,
-		formState: { isSubmitting },
 		setError,
+		formState: { isSubmitting, errors },
 	} = useForm<LoginFormValues>({
+		resolver: zodResolver(LoginFormSchema),
 		defaultValues: {
 			email: '',
 			password: '',
 		},
 	});
 
-	useEffect(() => {
-		const params = new URLSearchParams(window.location.search);
-		if (
-			params.get(queryParamKey.login_page.redirect_cause) ===
-			queryParamValue.login_page.redirect_cause.invalid_session
-		) {
-			setIsSessionExpired(true);
-		}
-	}, []);
-
 	const onSubmit = async (values: LoginFormValues) => {
 		setShowForbidden(false);
-		setShowAuthUnauthorized(false);
 		setErrorMessage('');
 
 		try {
@@ -87,11 +107,11 @@ const LoginRoute = () => {
 			const redirect = await completeRedirect({
 				data: { sessionExpiresAt },
 			});
-			const target = getSafeSearchRedirect();
-
+			const target = getSafeSearchRedirect(location.search);
 			const resolvedTarget = resolveRouteRedirect(
 				target === '/' ? redirect.targetPath : target,
 			);
+
 			await navigate({
 				to: resolvedTarget,
 				replace: true,
@@ -100,7 +120,11 @@ const LoginRoute = () => {
 			const failure = toApiFailure(error);
 
 			if (failure.kind === 'problem' && failure.status === 401) {
-				setShowAuthUnauthorized(true);
+				setError('password', {
+					message: getFailureMessage(failure, {
+						fallback: 'Invalid credentials. Please check your email and password.',
+					}),
+				});
 				return;
 			}
 
@@ -136,81 +160,45 @@ const LoginRoute = () => {
 			) : null}
 
 			{showForbidden ? <View403 /> : null}
-			{showAuthUnauthorized ? (
-				<AppErrorView
-					icon="401"
-					code="401 — Unauthorized"
-					title="Authentication required"
-					description="Your login request could not be authorized. Please verify your credentials and try again."
-					testId="auth-401-view"
-					actions={
-						<Button
-							variant="solid"
-							color="primary"
-							as="a"
-							href="/login"
-						>
-							Back to login
-						</Button>
-					}
-				/>
-			) : null}
 
-			{showAuthUnauthorized ? null : (
-				<form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-					<Input
-						{...register('email', { required: true })}
-						isRequired
-						label="Email"
-						placeholder="name@company.com"
-						type="email"
-					/>
-					<Input
-						{...register('password', { required: true })}
-						isRequired
-						label="Password"
-						type="password"
-						placeholder="••••••••"
-					/>
-					{errorMessage ? (
-						<div
-							data-testid="login-error-message"
-							className="text-sm text-danger-500"
-						>
-							{errorMessage}
-						</div>
-					) : null}
-					<Button
-						type="submit"
-						variant="solid"
-						color="primary"
-						isDisabled={isSubmitting}
-						className="w-full"
-					>
-						{isSubmitting ? <Spinner color="white" size="sm" /> : null}
-						Sign in
-					</Button>
-				</form>
-			)}
+			<form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+				<Input
+					{...register('email')}
+					isRequired
+					isInvalid={Boolean(errors.email)}
+					errorMessage={errors.email?.message}
+					label="Email"
+					placeholder="name@company.com"
+					type="email"
+				/>
+				<Input
+					{...register('password')}
+					isRequired
+					isInvalid={Boolean(errors.password)}
+					errorMessage={errors.password?.message}
+					label="Password"
+					type="password"
+					placeholder="••••••••"
+				/>
+				{errorMessage ? (
+					<div className="text-sm text-danger-500">{errorMessage}</div>
+				) : null}
+				<Button
+					type="submit"
+					variant="solid"
+					color="primary"
+					isDisabled={isSubmitting}
+					className="w-full"
+				>
+					{isSubmitting ? <Spinner color="white" size="sm" /> : null}
+					Sign in
+				</Button>
+			</form>
 		</div>
 	);
 };
 
-const getFailureStatus = (error: unknown): number | undefined => {
-	const failure = toApiFailure(error);
-	if (failure.kind === 'problem') {
-		return failure.status;
-	}
-
-	if (isRouteErrorResponse(error)) {
-		return error.status;
-	}
-
-	return undefined;
-};
-
 const LoginErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
-	const navigate = useNavigate();
 	const routeStatus = getFailureStatus(error);
 
 	if (routeStatus === 401) {
@@ -240,7 +228,7 @@ const LoginErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	}
 
 	if (routeStatus === 404) {
-		return <AppErrorView icon="404" code="404 — Not Found" title="Page not found" />;
+		return <View404 />;
 	}
 
 	return (

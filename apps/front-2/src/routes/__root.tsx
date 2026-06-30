@@ -27,6 +27,7 @@ import { loadI18nForRequest } from '~/server/i18n-locale';
 import { AuthLayout } from '../layouts/auth-layout';
 import { MarketingLayout } from '../layouts/marketing-layout';
 import { AppErrorView } from '../components/error-views/AppErrorView';
+import { LogoutRedirect } from '../components/error-views/LogoutRedirect';
 import { View403 } from '../components/error-views/View403';
 import { View404 } from '../components/error-views/View404';
 import appCss from '../styles/app.css?url';
@@ -57,6 +58,10 @@ const isPathForSurface = (pathname: string, surfacePath: string) => {
 
 const isAuthSurface = (pathname: string): boolean => {
 	return pathname === '/login' || pathname.startsWith('/auth');
+};
+
+const isAuthedSurface = (pathname: string): boolean => {
+	return pathname.startsWith('/staff') || pathname.startsWith('/tenant');
 };
 
 const resolveRouteSurface = (pathname: string): RouteSurface => {
@@ -127,6 +132,10 @@ const RootErrorBoundary = ({ error }: { error: unknown }) => {
 					}
 				/>
 			);
+		}
+
+		if (isAuthedSurface(pathname)) {
+			return <LogoutRedirect />;
 		}
 
 		return (
