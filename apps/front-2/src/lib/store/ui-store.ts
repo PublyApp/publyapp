@@ -1,12 +1,9 @@
 import { create } from 'zustand';
-import {
-	createJSONStorage,
-	persist,
-	type StateStorage,
-} from 'zustand/middleware';
 
 export const COLOR_SCHEME_STORAGE_KEY = 'publyapp:color-scheme';
-const DEFAULT_COLOR_SCHEME = 'light';
+export const SIDEBAR_OPEN_STORAGE_KEY = 'publyapp:sidebar-open';
+
+const DEFAULT_COLOR_SCHEME: ColorScheme = 'light';
 const DEFAULT_SIDEBAR_OPEN = true;
 
 export type ColorScheme = 'dark' | 'light';
@@ -16,13 +13,17 @@ type UiState = {
 	sidebarOpen: boolean;
 };
 
-type PersistedUiState = {
+type PersistedColorState = {
 	state?: {
 		colorScheme?: unknown;
+	};
+	colorScheme?: unknown;
+};
+
+type PersistedColorValue = {
+	state?: {
 		sidebarOpen?: unknown;
 	} | null;
-	colorScheme?: unknown;
-	sidebarOpen?: unknown;
 };
 
 const isBrowser = typeof window !== 'undefined';
@@ -32,40 +33,16 @@ const DEFAULT_UI_STATE: UiState = {
 	sidebarOpen: DEFAULT_SIDEBAR_OPEN,
 };
 
-const resolveStorage: StateStorage = {
-	getItem: (name) => {
-		if (!isBrowser) {
-			return null;
-		}
+const readLocalStorageValue = (key: string): string | null => {
+	if (!isBrowser) {
+		return null;
+	}
 
-		try {
-			return window.localStorage.getItem(name);
-		} catch {
-			return null;
-		}
-	},
-	setItem: (name, value) => {
-		if (!isBrowser) {
-			return;
-		}
-
-		try {
-			window.localStorage.setItem(name, value);
-		} catch {
-			// no-op
-		}
-	},
-	removeItem: (name) => {
-		if (!isBrowser) {
-			return;
-		}
-
-		try {
-			window.localStorage.removeItem(name);
-		} catch {
-			// no-op
-		}
-	},
+	try {
+		return window.localStorage.getItem(key);
+	} catch {
+		return null;
+	}
 };
 
 const parseColorScheme = (value: string | null): ColorScheme => {
@@ -76,50 +53,125 @@ const parseColorScheme = (value: string | null): ColorScheme => {
 	return DEFAULT_COLOR_SCHEME;
 };
 
-const parsePersistedUiState = (value: string | null): UiState => {
-	if (value === null || value === '') {
-		return DEFAULT_UI_STATE;
+const parsePersistedColorState = (value: string | null): ColorScheme => {
+	if (!value) {
+		return DEFAULT_COLOR_SCHEME;
 	}
 
 	try {
-		const parsed = JSON.parse(value) as PersistedUiState;
-		const source =
-			typeof parsed.state === 'object' && parsed.state !== null ? parsed.state : parsed;
+		const parsed = JSON.parse(value) as PersistedColorState;
+		const colorScheme =
+			typeof parsed.state === 'object' && parsed.state !== null
+				? parsed.state.colorScheme
+				: parsed.colorScheme;
 
-		return {
-			colorScheme: parseColorScheme(
-				typeof source.colorScheme === 'string' ? source.colorScheme : null,
-			),
-			sidebarOpen: source.sidebarOpen !== false,
-		};
+		return parseColorScheme(
+			typeof colorScheme === 'string' ? colorScheme : null,
+		);
 	} catch {
-		return {
-			...DEFAULT_UI_STATE,
-			colorScheme: parseColorScheme(value),
-		};
+		return parseColorScheme(value);
 	}
 };
 
-const parsePersistedState = (value: unknown): UiState => {
-	if (typeof value === 'string') {
-		return parsePersistedUiState(value);
+const parsePersistedSidebarState = (value: string | null): boolean | null => {
+	if (!value) {
+		return null;
 	}
 
-	if (typeof value !== 'object' || value === null) {
+	try {
+		const parsed = JSON.parse(value);
+		if (typeof parsed === 'boolean') {
+			return parsed;
+		}
+	} catch {
+		return null;
+	}
+
+	return null;
+};
+
+const readInitialUiState = (): UiState => {
+	if (!isBrowser) {
 		return DEFAULT_UI_STATE;
 	}
 
-	const persisted = value as PersistedUiState;
-	if (typeof persisted.state === 'object' && persisted.state !== null) {
-		return parsePersistedUiState(
-			JSON.stringify({
-				colorScheme: persisted.state.colorScheme,
-				sidebarOpen: persisted.state.sidebarOpen,
-			}),
-		);
+	return readPersistedUiState();
+};
+
+const readLegacySidebarState = (): boolean => {
+	if (!isBrowser) {
+		return DEFAULT_SIDEBAR_OPEN;
 	}
 
-	return parsePersistedUiState(JSON.stringify(persisted));
+	const rawColorState = readLocalStorageValue(COLOR_SCHEME_STORAGE_KEY);
+	if (!rawColorState) {
+		return DEFAULT_SIDEBAR_OPEN;
+	}
+
+	try {
+		const parsed = JSON.parse(rawColorState) as PersistedColorValue;
+		const sidebarOpen =
+			typeof parsed.state === 'object' && parsed.state !== null
+				? parsed.state.sidebarOpen
+				: undefined;
+
+		return typeof sidebarOpen === 'boolean'
+			? sidebarOpen
+			: DEFAULT_SIDEBAR_OPEN;
+	} catch {
+		return DEFAULT_SIDEBAR_OPEN;
+	}
+};
+
+const readPersistedSidebarOpen = (): boolean => {
+	if (!isBrowser) {
+		return DEFAULT_SIDEBAR_OPEN;
+	}
+
+	const persistedSidebarOpen = parsePersistedSidebarState(
+		readLocalStorageValue(SIDEBAR_OPEN_STORAGE_KEY),
+	);
+
+	if (persistedSidebarOpen !== null) {
+		return persistedSidebarOpen;
+	}
+
+	return readLegacySidebarState();
+};
+
+const writeColorScheme = (colorScheme: ColorScheme) => {
+	if (!isBrowser) {
+		return;
+	}
+
+	try {
+		window.localStorage.setItem(
+			COLOR_SCHEME_STORAGE_KEY,
+			JSON.stringify({
+				state: {
+					colorScheme,
+				},
+				version: 0,
+			}),
+		);
+	} catch {
+		// no-op
+	}
+};
+
+const writeSidebarOpen = (sidebarOpen: boolean) => {
+	if (!isBrowser) {
+		return;
+	}
+
+	try {
+		window.localStorage.setItem(
+			SIDEBAR_OPEN_STORAGE_KEY,
+			JSON.stringify(sidebarOpen),
+		);
+	} catch {
+		// no-op
+	}
 };
 
 const applyThemeToDocument = (colorScheme: ColorScheme) => {
@@ -132,67 +184,62 @@ const applyThemeToDocument = (colorScheme: ColorScheme) => {
 	document.documentElement.dataset.theme = colorScheme;
 };
 
-const readInitialUiState = (): UiState => {
+const readPersistedUiState = (): UiState => {
 	if (!isBrowser) {
 		return DEFAULT_UI_STATE;
 	}
 
-	try {
-		return parsePersistedUiState(window.localStorage.getItem(COLOR_SCHEME_STORAGE_KEY));
-	} catch {
-		return DEFAULT_UI_STATE;
-	}
+	const colorScheme = parsePersistedColorState(
+		readLocalStorageValue(COLOR_SCHEME_STORAGE_KEY),
+	);
+	const sidebarOpen = readPersistedSidebarOpen();
+
+	return {
+		colorScheme,
+		sidebarOpen,
+	};
 };
+
+const bootstrapUiState = readInitialUiState();
+applyThemeToDocument(bootstrapUiState.colorScheme);
 
 type UiStore = UiState & {
 	setColorScheme: (colorScheme: ColorScheme) => void;
 	toggleColorScheme: () => void;
 	setSidebarOpen: (sidebarOpen: boolean) => void;
 	toggleSidebarOpen: () => void;
+	hydrateFromStorage: () => void;
 };
 
-export const useUiStore = create<UiStore>()(
-	persist(
-		(set, get) => ({
-			...readInitialUiState(),
-			setColorScheme: (colorScheme) => {
-				const normalizedColorScheme = parseColorScheme(colorScheme);
-				applyThemeToDocument(normalizedColorScheme);
-				set({ colorScheme: normalizedColorScheme });
-			},
-			toggleColorScheme: () => {
-				const nextColorScheme =
-					get().colorScheme === 'light' ? 'dark' : 'light';
-				get().setColorScheme(nextColorScheme);
-			},
-			setSidebarOpen: (sidebarOpen) => {
-				set({ sidebarOpen });
-			},
-			toggleSidebarOpen: () => {
-				get().setSidebarOpen(!get().sidebarOpen);
-			},
-		}),
-		{
-			name: COLOR_SCHEME_STORAGE_KEY,
-			storage: createJSONStorage(() => resolveStorage),
-			partialize: (state) => ({
-				colorScheme: state.colorScheme,
-				sidebarOpen: state.sidebarOpen,
-			}),
-			merge: (persistedState, currentState) => ({
-				...currentState,
-				...parsePersistedState(persistedState),
-			}),
-			onRehydrateStorage: () => (state, error) => {
-				if (error || !state) {
-					return;
-				}
-
-				applyThemeToDocument(state.colorScheme);
-			},
-		},
-	),
-);
-
-const initialState = readInitialUiState();
-applyThemeToDocument(initialState.colorScheme);
+export const useUiStore = create<UiStore>((set, get) => ({
+	...bootstrapUiState,
+	hydrateFromStorage: () => {
+		const { colorScheme, sidebarOpen } = readPersistedUiState();
+		applyThemeToDocument(colorScheme);
+		set({
+			colorScheme,
+			sidebarOpen,
+		});
+	},
+	setColorScheme: (colorScheme) => {
+		const normalizedColorScheme = parseColorScheme(colorScheme);
+		applyThemeToDocument(normalizedColorScheme);
+		writeColorScheme(normalizedColorScheme);
+		set({ colorScheme: normalizedColorScheme });
+	},
+	toggleColorScheme: () => {
+		const currentColorScheme =
+			isBrowser && document.documentElement.classList.contains('dark')
+				? 'dark'
+				: get().colorScheme;
+		const nextColorScheme = currentColorScheme === 'light' ? 'dark' : 'light';
+		get().setColorScheme(nextColorScheme);
+	},
+	setSidebarOpen: (sidebarOpen) => {
+		writeSidebarOpen(sidebarOpen);
+		set({ sidebarOpen });
+	},
+	toggleSidebarOpen: () => {
+		get().setSidebarOpen(!get().sidebarOpen);
+	},
+}));

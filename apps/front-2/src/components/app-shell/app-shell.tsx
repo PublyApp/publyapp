@@ -1,18 +1,6 @@
-import {
-	Button,
-	Card,
-	CardBody,
-	Navbar,
-	NavbarBrand,
-	NavbarContent,
-	NavbarItem,
-	NavbarMenu,
-	NavbarMenuItem,
-	NavbarMenuToggle,
-	Spacer,
-} from '@heroui/react';
+import { Button } from '@heroui/react';
 import { Link } from '@tanstack/react-router';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import { useUiStore } from '../../lib/store/ui-store';
 import { ThemeToggle } from './theme/theme-toggle';
@@ -22,6 +10,7 @@ type AppShellMode = 'auth' | 'authed' | 'marketing';
 type NavItem = {
 	label: string;
 	path: string;
+	shortLabel: string;
 };
 
 type AppShellProps = {
@@ -35,34 +24,41 @@ const NAV_ITEMS: Record<AppShellMode, NavItem[]> = {
 		{
 			label: 'Marketing',
 			path: '/',
+			shortLabel: 'Mk',
 		},
 		{
 			label: 'Sign in',
 			path: '/login',
+			shortLabel: 'SI',
 		},
 	],
 	authed: [
 		{
 			label: 'Staff',
 			path: '/staff',
+			shortLabel: 'St',
 		},
 		{
 			label: 'Tenant',
 			path: '/tenant',
+			shortLabel: 'Te',
 		},
 		{
 			label: 'Reports',
 			path: '/staff/reports',
+			shortLabel: 'Rp',
 		},
 	],
 	marketing: [
 		{
 			label: 'Home',
 			path: '/',
+			shortLabel: 'Hm',
 		},
 		{
 			label: 'Login',
 			path: '/login',
+			shortLabel: 'Lg',
 		},
 	],
 };
@@ -75,22 +71,12 @@ const isActivePath = (pathname: string, target: string) => {
 	return pathname === target || pathname.startsWith(`${target}/`);
 };
 
-const renderNavItem = (item: NavItem, pathname: string) => {
-	const isActive = isActivePath(pathname, item.path);
+const getActivePath = (items: NavItem[], pathname: string): string | null => {
+	const bestMatch = items
+		.filter((item) => isActivePath(pathname, item.path))
+		.sort((a, b) => b.path.length - a.path.length)[0];
 
-	return (
-		<NavbarItem isActive={isActive} key={item.label}>
-			<Button
-				as={Link}
-				to={item.path}
-				size="sm"
-				variant={isActive ? 'solid' : 'flat'}
-				color={isActive ? 'primary' : 'default'}
-			>
-				{item.label}
-			</Button>
-		</NavbarItem>
-	);
+	return bestMatch ? bestMatch.path : null;
 };
 
 const AppShellHeader = ({
@@ -102,14 +88,77 @@ const AppShellHeader = ({
 }) => {
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
 	const navItems = NAV_ITEMS[mode];
+	const activePath = getActivePath(navItems, pathname);
+	const closeMenu = () => setIsMenuOpen(false);
+
+	useEffect(() => {
+		if (!isMenuOpen) {
+			return;
+		}
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') {
+				closeMenu();
+			}
+		};
+
+		window.addEventListener('keydown', handleKeyDown);
+
+		return () => {
+			window.removeEventListener('keydown', handleKeyDown);
+		};
+	}, [isMenuOpen]);
+
+	useEffect(() => {
+		setIsMenuOpen(false);
+	}, [mode, pathname]);
+
+	const renderNavButtons = ({
+		closeOnSelect = false,
+		isMobile = false,
+	}: {
+		closeOnSelect?: boolean;
+		isMobile?: boolean;
+	}) => (
+		<nav
+			aria-label={isMobile ? 'Mobile navigation' : 'Primary navigation'}
+			className={
+				isMobile
+					? 'app-shell-mobile-menu'
+					: 'app-shell-desktop-nav hidden gap-2 sm:flex'
+			}
+			id={isMobile ? 'app-shell-mobile-menu' : undefined}
+			data-testid={isMobile ? 'app-shell-mobile-links' : undefined}
+		>
+			{navItems.map((item) => {
+				const isActive = activePath === item.path;
+				const variant = isActive ? 'primary' : 'tertiary';
+
+				return (
+					<Link
+						key={item.label}
+						to={item.path}
+						aria-current={isActive ? 'page' : undefined}
+					>
+						<Button
+							size={isMobile ? 'sm' : 'md'}
+							variant={variant}
+							onPress={closeOnSelect ? closeMenu : undefined}
+							className={isMobile ? 'w-full justify-start' : ''}
+						>
+							{item.label}
+						</Button>
+					</Link>
+				);
+			})}
+		</nav>
+	);
+
+	const navButtonLabel = isMenuOpen ? 'Close navigation' : 'Open navigation';
 
 	return (
-		<Navbar
-			isMenuOpen={isMenuOpen}
-			onMenuOpenChange={setIsMenuOpen}
-			className="app-shell-header"
-		>
-			<NavbarBrand>
+		<header className="app-shell-header">
+			<div className="app-shell-header-inner">
 				<div>
 					<div className="font-semibold tracking-wide text-slate-900 dark:text-slate-50">
 						PublyApp
@@ -118,41 +167,33 @@ const AppShellHeader = ({
 						front-2 shell
 					</div>
 				</div>
-			</NavbarBrand>
-			<NavbarContent className="hidden gap-2 sm:flex" justify="center">
-				{navItems.map((item) => renderNavItem(item, pathname))}
-			</NavbarContent>
-				<NavbarContent justify="end">
+				{renderNavButtons({})}
+				<div className="flex items-center gap-2">
 					<ThemeToggle />
-					<NavbarMenuToggle
+					<Button
+						onPress={() => setIsMenuOpen((next) => !next)}
+						variant="outline"
+						size="sm"
+						aria-expanded={isMenuOpen}
+						aria-controls="app-shell-mobile-menu"
+						aria-label={navButtonLabel}
 						className="sm:hidden"
 						data-testid="app-shell-mobile-menu-toggle"
-						aria-label="Main navigation"
-					/>
-				</NavbarContent>
-			<NavbarMenu>
-				{navItems.map((item) => (
-					<NavbarMenuItem key={item.label}>
-						<Button
-							as={Link}
-							to={item.path}
-							size="sm"
-							variant={
-								isActivePath(pathname, item.path) ? 'solid' : 'light'
-							}
-							color={
-								isActivePath(pathname, item.path)
-									? 'primary'
-									: 'default'
-							}
-							onPress={() => setIsMenuOpen(false)}
-						>
-							{item.label}
-						</Button>
-					</NavbarMenuItem>
-				))}
-			</NavbarMenu>
-		</Navbar>
+					>
+						{isMenuOpen ? 'Close' : 'Menu'}
+					</Button>
+				</div>
+			</div>
+			<div
+				className={
+					isMenuOpen
+						? 'app-shell-mobile-menu-wrap'
+						: 'app-shell-mobile-menu-wrap hidden'
+				}
+			>
+				{renderNavButtons({ closeOnSelect: true, isMobile: true })}
+			</div>
+		</header>
 	);
 };
 
@@ -170,14 +211,16 @@ const AppShellNavigation = ({
 	if (!showSidebar) {
 		return (
 			<main className="app-shell-main">
-				<Card className="app-shell-main-card" shadow="sm">
-					<CardBody>{children}</CardBody>
-				</Card>
+				<div className="app-shell-main-card">{children}</div>
 			</main>
 		);
 	}
 
-	return <AuthedAppShellNavigation pathname={pathname}>{children}</AuthedAppShellNavigation>;
+	return (
+		<AuthedAppShellNavigation pathname={pathname}>
+			{children}
+		</AuthedAppShellNavigation>
+	);
 };
 
 const AuthedAppShellNavigation = ({
@@ -187,46 +230,67 @@ const AuthedAppShellNavigation = ({
 	children: ReactNode;
 	pathname: string;
 }) => {
-	const sidebarOpen = useUiStore((state) => state.sidebarOpen);
-	const toggleSidebarOpen = useUiStore((state) => state.toggleSidebarOpen);
+	const { sidebarOpen, toggleSidebarOpen } = useUiStore(
+		({ sidebarOpen, toggleSidebarOpen }) => ({
+			sidebarOpen,
+			toggleSidebarOpen,
+		}),
+	);
+	const activePath = getActivePath(NAV_ITEMS.authed, pathname);
 	const sidebarStateClass = sidebarOpen
 		? 'app-shell-sidebar--open'
 		: 'app-shell-sidebar--collapsed';
-	const sidebarLinkLabelClass = sidebarOpen ? '' : 'sr-only';
+	const sidebarAffordanceClass = sidebarOpen
+		? ''
+		: 'app-shell-sidebar-link--collapsed';
 
 	return (
 		<div className="app-shell-content-wrap">
-			<Card
-				as="aside"
+			<aside
 				className={`app-shell-sidebar ${sidebarStateClass}`}
 				data-testid="app-shell-sidebar"
 				aria-label="Primary navigation"
 			>
 				<div className="app-shell-sidebar-title">Navigation</div>
 				{NAV_ITEMS.authed.map((item) => {
-					const isActive = isActivePath(pathname, item.path);
-					const linkLabel = item.label;
+					const isActive = activePath === item.path;
 
 					return (
-						<Button
+						<Link
 							key={item.label}
-							as={Link}
 							to={item.path}
-							className={`app-shell-sidebar-link w-full justify-start ${
-								sidebarOpen ? '' : 'app-shell-sidebar-link--collapsed'
-							}`}
-							variant={isActive ? 'solid' : 'light'}
-							color={isActive ? 'primary' : 'default'}
-							aria-label={linkLabel}
+							aria-label={item.label}
+							aria-current={isActive ? 'page' : undefined}
 						>
-							<span className={sidebarLinkLabelClass}>{linkLabel}</span>
-						</Button>
+							<Button
+								className={`app-shell-sidebar-link w-full justify-start ${sidebarAffordanceClass}`}
+								variant={isActive ? 'primary' : 'outline'}
+								aria-label={item.label}
+							>
+								<span
+									aria-hidden="true"
+									className={
+										sidebarOpen ? 'sr-only' : 'app-shell-sidebar-short-label'
+									}
+								>
+									{item.shortLabel}
+								</span>
+								<span
+									className={
+										sidebarOpen
+											? 'app-shell-sidebar-label'
+											: 'app-shell-sidebar-label sr-only'
+									}
+								>
+									{item.label}
+								</span>
+							</Button>
+						</Link>
 					);
 				})}
 				<Button
 					size="sm"
-					variant="flat"
-					color="primary"
+					variant="primary"
 					className="app-shell-sidebar-toggle"
 					onPress={toggleSidebarOpen}
 					aria-expanded={sidebarOpen}
@@ -234,11 +298,9 @@ const AuthedAppShellNavigation = ({
 				>
 					{sidebarOpen ? 'Collapse' : 'Expand'}
 				</Button>
-			</Card>
+			</aside>
 			<main className="app-shell-main">
-				<Card className="app-shell-main-card" shadow="sm">
-					<CardBody>{children}</CardBody>
-				</Card>
+				<div className="app-shell-main-card">{children}</div>
 			</main>
 		</div>
 	);
@@ -249,10 +311,22 @@ export const AppShell = ({
 	mode = 'marketing',
 	pathname = '/',
 }: AppShellProps) => {
+	const hydrateFromStorage = useUiStore(({ hydrateFromStorage }) => ({
+		hydrateFromStorage,
+	})).hydrateFromStorage;
+
+	useEffect(() => {
+		hydrateFromStorage();
+	}, [hydrateFromStorage]);
+
 	return (
-		<div className="app-shell-shell" data-mode={mode} data-testid="app-shell-shell">
+		<div
+			className="app-shell-shell"
+			data-mode={mode}
+			data-testid="app-shell-shell"
+		>
 			<AppShellHeader mode={mode} pathname={pathname} />
-			<Spacer y={6} />
+			<div className="h-6" />
 			<AppShellNavigation mode={mode} pathname={pathname}>
 				{children}
 			</AppShellNavigation>

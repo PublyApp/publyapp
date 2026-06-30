@@ -1,15 +1,20 @@
 import { expect, type Page, test } from '@playwright/test';
 
-import { COLOR_SCHEME_STORAGE_KEY } from '../src/lib/store/ui-store';
 import { THEME_TOGGLE_TEST_ID } from '../src/components/app-shell/theme/theme-toggle';
+import { COLOR_SCHEME_STORAGE_KEY } from '../src/lib/store/ui-store';
 
 type ColorScheme = 'dark' | 'light';
 
-const seedTheme = async (page: Page, colorScheme: ColorScheme): Promise<void> => {
-	await page.addInitScript(
+const seedTheme = async (
+	page: Page,
+	colorScheme: ColorScheme,
+): Promise<void> => {
+	await page.evaluate(
 		(payload) => {
+			const { key, colorScheme } = payload;
+
 			window.localStorage.setItem(
-				payload.key,
+				key,
 				JSON.stringify({
 					state: {
 						colorScheme,
@@ -40,7 +45,9 @@ const readStoredTheme = async (page: Page): Promise<string | null> => {
 				typeof parsed?.state?.colorScheme === 'string' ||
 				typeof parsed?.colorScheme === 'string'
 			) {
-				return (parsed.state?.colorScheme ?? parsed.colorScheme ?? null) as string | null;
+				return (parsed.state?.colorScheme ?? parsed.colorScheme ?? null) as
+					| string
+					| null;
 			}
 		} catch {
 			return rawValue;
@@ -73,6 +80,13 @@ const readThemeMode = async (page: Page): Promise<ColorScheme | null> => {
 	});
 };
 
+const expectThemeMode = async (
+	page: Page,
+	colorScheme: ColorScheme,
+): Promise<void> => {
+	await expect.poll(() => readThemeMode(page)).toBe(colorScheme);
+};
+
 test('renders the front-2 shell', async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 812 });
 	await page.goto('/');
@@ -81,26 +95,30 @@ test('renders the front-2 shell', async ({ page }) => {
 		page.getByRole('heading', { name: /welcome to the front-2 shell/i }),
 	).toBeVisible();
 	await expect(page.getByTestId('app-shell-shell')).toBeVisible();
-	await expect(page.getByTestId('app-shell-shell')).toHaveAttribute('data-mode', 'marketing');
+	await expect(page.getByTestId('app-shell-shell')).toHaveAttribute(
+		'data-mode',
+		'marketing',
+	);
 	await expect(page.getByTestId(THEME_TOGGLE_TEST_ID)).toBeVisible();
 	await expect(page.getByTestId('app-shell-mobile-menu-toggle')).toBeVisible();
 });
 
 test('theme toggle persists across page reload', async ({ page }) => {
-	await seedTheme(page, 'dark');
 	await page.goto('/');
+	await seedTheme(page, 'dark');
+	await page.reload();
 
 	expect(await getThemeFromStorage(page)).toBe('dark');
-	expect(await readThemeMode(page)).toBe('dark');
+	await expectThemeMode(page, 'dark');
 
 	await page.getByTestId(THEME_TOGGLE_TEST_ID).click();
 
-	expect(await readThemeMode(page)).toBe('light');
+	await expectThemeMode(page, 'light');
 	expect(await getThemeFromStorage(page)).toBe('light');
 
 	await page.reload();
 
-	expect(await readThemeMode(page)).toBe('light');
+	await expectThemeMode(page, 'light');
 	expect(await getThemeFromStorage(page)).toBe('light');
 });
 
@@ -109,7 +127,37 @@ test('mobile shell menu is keyboard and route-aware', async ({ page }) => {
 	await page.goto('/');
 
 	await page.getByTestId('app-shell-mobile-menu-toggle').click();
-	await expect(page.getByText('Login')).toBeVisible();
-	await expect(page.getByText('Home')).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Home' })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Home' })).toHaveAttribute(
+		'aria-current',
+		'page',
+	);
 	await page.keyboard.press('Escape');
+	await expect(page.getByRole('link', { name: 'Home' })).toBeHidden();
+
+	await page.getByTestId('app-shell-mobile-menu-toggle').click();
+	await page.getByRole('button', { name: 'Login' }).click();
+
+	await expect(page).toHaveURL('/login');
+	await expect(page.getByTestId('app-shell-shell')).toHaveAttribute(
+		'data-mode',
+		'auth',
+	);
+	await expect(
+		page.getByTestId('app-shell-mobile-menu-toggle'),
+	).toHaveAttribute('aria-expanded', 'false');
+	await expect(page.getByTestId('app-shell-mobile-links')).toBeHidden();
+
+	await page.getByRole('button', { name: 'Open navigation' }).click();
+	await expect(
+		page.getByRole('button', { name: 'Close navigation' }),
+	).toBeVisible();
+	const mobileLinks = page.getByTestId('app-shell-mobile-links');
+	await expect(mobileLinks).toBeVisible();
+	await expect(
+		mobileLinks.getByRole('link', { name: 'Sign in' }),
+	).toBeVisible();
+	await expect(
+		mobileLinks.getByRole('link', { name: 'Sign in' }),
+	).toHaveAttribute('aria-current', 'page');
 });

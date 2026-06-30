@@ -5,8 +5,10 @@ import { useUiStore } from '../../../lib/store/ui-store';
 export const THEME_TOGGLE_TEST_ID = 'theme-toggle';
 
 export const ThemeToggle = () => {
-	const colorScheme = useUiStore((state) => state.colorScheme);
-	const toggleColorScheme = useUiStore((state) => state.toggleColorScheme);
+	const { colorScheme, toggleColorScheme } = useUiStore((state) => ({
+		colorScheme: state.colorScheme,
+		toggleColorScheme: state.toggleColorScheme,
+	}));
 	const isDarkMode = colorScheme === 'dark';
 	const label = isDarkMode ? 'Switch to light mode' : 'Switch to dark mode';
 	const iconLabel = isDarkMode ? '☀︎' : '🌙';
@@ -15,8 +17,7 @@ export const ThemeToggle = () => {
 	return (
 		<Button
 			data-testid={THEME_TOGGLE_TEST_ID}
-			variant="solid"
-			color="primary"
+			variant="outline"
 			isIconOnly
 			aria-label={label}
 			aria-pressed={ariaPressed}

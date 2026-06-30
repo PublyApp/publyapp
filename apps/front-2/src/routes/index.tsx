@@ -7,9 +7,7 @@ export const IndexRoute = () => (
 		<p className="text-sm text-slate-700 dark:text-slate-300">
 			Explore navigation, theme, and auth surface foundations from here.
 		</p>
-		<Button variant="solid" color="primary">
-			HeroUI shell is active
-		</Button>
+		<Button variant="primary">HeroUI shell is active</Button>
 	</div>
 );
 
