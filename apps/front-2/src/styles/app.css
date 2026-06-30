@@ -6,8 +6,6 @@
 	--front-2-brand-rgb: 14 165 233;
 	--front-2-surface-rgb: 248 250 252;
 	--front-2-border-rgb: 226 232 240;
-	--nextui-colors-primary: var(--front-2-brand-rgb);
-	--nextui-colors-primary-foreground: 255 255 255;
 	--heroui-colors-primary: var(--front-2-brand-rgb);
 	--heroui-colors-primary-foreground: 255 255 255;
 }
@@ -63,6 +61,6 @@ html {
 	@apply mt-2 block rounded-lg border border-transparent px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-200/70 hover:text-slate-900 dark:text-slate-200 dark:hover:bg-slate-700/50 dark:hover:text-white;
 }
 
-.app-shell-sidebar-link.is-active {
-	@apply border-primary bg-primary/10 font-semibold text-slate-900 dark:text-white;
+.app-shell-sidebar-link--collapsed {
+	@apply justify-center px-2;
 }

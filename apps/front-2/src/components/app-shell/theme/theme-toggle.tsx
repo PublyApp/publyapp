@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import {
 	type ColorScheme,
 	useUiStore,
-	setColorScheme,
+	toggleColorScheme,
 } from '../../../lib/store/ui-store';
 
 export const THEME_TOGGLE_TEST_ID = 'theme-toggle';
@@ -18,8 +18,7 @@ export const ThemeToggle = () => {
 	}, []);
 
 	const onToggle = () => {
-		const nextTheme: ColorScheme = savedTheme === 'light' ? 'dark' : 'light';
-		setColorScheme(nextTheme);
+		toggleColorScheme();
 	};
 
 	const displayedTheme: ColorScheme = isHydrated ? savedTheme : 'light';

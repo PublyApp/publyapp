@@ -8,6 +8,7 @@ import {
 	NavbarItem,
 	Spacer,
 } from '@heroui/react';
+import { Link } from '@tanstack/react-router';
 import { type ReactNode } from 'react';
 
 import {
@@ -104,8 +105,8 @@ const AppShellHeader = ({
 					return (
 						<NavbarItem isActive={isActive} key={item.label}>
 							<Button
-								as="a"
-								href={item.path}
+								as={Link}
+								to={item.path}
 								size="sm"
 								variant={isActive ? 'solid' : 'flat'}
 								color={isActive ? 'primary' : 'default'}
@@ -144,8 +145,19 @@ const AppShellNavigation = ({
 		);
 	}
 
+	return <AuthedAppShellNavigation pathname={pathname}>{children}</AuthedAppShellNavigation>;
+};
+
+const AuthedAppShellNavigation = ({
+	children,
+	pathname,
+}: {
+	children: ReactNode;
+	pathname: string;
+}) => {
 	const sidebarOpen = useUiStore((state) => state.sidebarOpen);
-	const sidebarWidthClass = sidebarOpen ? 'w-64' : 'w-20';
+	const sidebarWidthClass = sidebarOpen ? 'w-64' : 'w-16';
+	const sidebarLinkLabelClass = sidebarOpen ? '' : 'sr-only';
 
 	return (
 		<div className="app-shell-content-wrap">
@@ -158,17 +170,21 @@ const AppShellNavigation = ({
 				<div className="app-shell-sidebar-title">Navigation</div>
 				{NAV_ITEMS.authed.map((item) => {
 					const isActive = isActivePath(pathname, item.path);
+					const linkLabel = item.label;
 
 					return (
 						<Button
 							key={item.label}
-							as="a"
-							href={item.path}
-							className="app-shell-sidebar-link w-full justify-start"
+							as={Link}
+							to={item.path}
+							className={`app-shell-sidebar-link w-full justify-start ${
+								sidebarOpen ? '' : 'app-shell-sidebar-link--collapsed'
+							}`}
 							variant={isActive ? 'solid' : 'light'}
 							color={isActive ? 'primary' : 'default'}
+							aria-label={linkLabel}
 						>
-							{item.label}
+							<span className={sidebarLinkLabelClass}>{linkLabel}</span>
 						</Button>
 					);
 				})}
@@ -179,8 +195,9 @@ const AppShellNavigation = ({
 					className="mt-4"
 					onPress={toggleSidebarOpen}
 					aria-expanded={sidebarOpen}
+					aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
 				>
-					Toggle sidebar
+					{sidebarOpen ? '◂' : '▸'}
 				</Button>
 			</Card>
 			<main className="app-shell-main">

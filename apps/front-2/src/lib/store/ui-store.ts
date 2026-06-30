@@ -137,7 +137,6 @@ type UiStore = UiState & {
 	toggleColorScheme: () => void;
 	setSidebarOpen: (sidebarOpen: boolean) => void;
 	toggleSidebarOpen: () => void;
-	hydrate: () => void;
 };
 
 export const useUiStore = create<UiStore>()(
@@ -160,12 +159,6 @@ export const useUiStore = create<UiStore>()(
 			},
 			toggleSidebarOpen: () => {
 				get().setSidebarOpen(!get().sidebarOpen);
-			},
-			hydrate: () => {
-				const nextTheme = readColorSchemeFromStorage();
-				const nextSidebarOpen = readSidebarStateFromStorage();
-				get().setColorScheme(nextTheme);
-				set({ sidebarOpen: nextSidebarOpen });
 			},
 		}),
 			{
@@ -208,8 +201,4 @@ export const setSidebarOpen = (sidebarOpen: boolean) => {
 
 export const toggleSidebarOpen = () => {
 	useUiStore.getState().toggleSidebarOpen();
-};
-
-export const hydrateUiStore = () => {
-	useUiStore.getState().hydrate();
 };
