@@ -1,7 +1,9 @@
+import { Button } from '@heroui/react';
 import type { QueryClient } from '@tanstack/react-query';
 import {
 	createRootRouteWithContext,
 	HeadContent,
+	isRouteErrorResponse,
 	Outlet,
 	Scripts,
 	useLocation,
@@ -11,6 +13,8 @@ import { createClientOnlyFn } from '@tanstack/react-start';
 import type { i18n as I18nInstance } from 'i18next';
 import * as React from 'react';
 import { I18nextProvider } from 'react-i18next';
+
+import { toApiFailure } from '@org/shared-ts/lib/api-failure';
 import {
 	createI18nFromResources,
 	dirForLocale,
@@ -22,6 +26,9 @@ import { loadI18nForRequest } from '~/server/i18n-locale';
 
 import { AuthLayout } from '../layouts/auth-layout';
 import { MarketingLayout } from '../layouts/marketing-layout';
+import { AppErrorView } from '../components/error-views/AppErrorView';
+import { View403 } from '../components/error-views/View403';
+import { View404 } from '../components/error-views/View404';
 import appCss from '../styles/app.css?url';
 
 type RootLoaderData = {
@@ -48,6 +55,10 @@ const isPathForSurface = (pathname: string, surfacePath: string) => {
 	return pathname === surfacePath || pathname.startsWith(`${surfacePath}/`);
 };
 
+const isAuthSurface = (pathname: string): boolean => {
+	return pathname === '/login' || pathname.startsWith('/auth');
+};
+
 const resolveRouteSurface = (pathname: string): RouteSurface => {
 	if (
 		isPathForSurface(pathname, '/login') ||
@@ -57,6 +68,15 @@ const resolveRouteSurface = (pathname: string): RouteSurface => {
 	}
 
 	return 'marketing';
+};
+
+const getRouteFailureStatus = (error: unknown): number | undefined => {
+	if (isRouteErrorResponse(error)) {
+		return error.status;
+	}
+
+	const failure = toApiFailure(error);
+	return failure.kind === 'problem' ? failure.status : undefined;
 };
 
 const RoutedShell = () => {
@@ -86,6 +106,57 @@ const RoutedShell = () => {
 	);
 };
 
+const RootErrorBoundary = ({ error }: { error: unknown }) => {
+	const pathname = useLocation({
+		select: (location) => location.pathname,
+	});
+	const routeStatus = getRouteFailureStatus(error);
+
+	if (routeStatus === 401) {
+		if (isAuthSurface(pathname)) {
+			return (
+				<AppErrorView
+					icon="401"
+					code="401 — Unauthorized"
+					title="Authentication required"
+					description="You are not signed in. Please log in again."
+					actions={
+						<Button as="a" href="/login" color="primary" variant="solid">
+							Back to login
+						</Button>
+					}
+				/>
+			);
+		}
+
+		return (
+			<AppErrorView
+				icon="401"
+				code="401 — Unauthorized"
+				title="Session expired"
+				description="Your session is no longer valid."
+			/>
+		);
+	}
+
+	if (routeStatus === 403) {
+		return <View403 />;
+	}
+
+	if (routeStatus === 404) {
+		return <View404 />;
+	}
+
+	return (
+		<AppErrorView
+			icon="!"
+			code="500 — Server Error"
+			title="Something went wrong"
+			description="The app hit an unexpected error."
+		/>
+	);
+};
+
 export const Route = createRootRouteWithContext<{
 	queryClient: QueryClient;
 }>()({
@@ -98,6 +169,8 @@ export const Route = createRootRouteWithContext<{
 		links: [{ rel: 'stylesheet', href: appCss }],
 	}),
 	loader: async (): Promise<RootLoaderData> => loadI18nForRequest(),
+	errorComponent: RootErrorBoundary,
+	notFoundComponent: () => <View404 />,
 	component: RootComponent,
 });
 
