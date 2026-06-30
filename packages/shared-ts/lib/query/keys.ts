@@ -1,4 +1,10 @@
-export type QueryKeySegment = string | number | boolean | null | Record<string, unknown>;
+export type QueryKeySegment =
+	| string
+	| number
+	| boolean
+	| null
+	| undefined
+	| Record<string, unknown>;
 
 type JsonRecord = Record<string, unknown>;
 

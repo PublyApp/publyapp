@@ -24,14 +24,19 @@ test('blank token input returns empty tokens', () => {
 	expect(parseSessionCookie('   ')).toEqual({});
 });
 
-test('does not parse scoped single-token strings as tenant token', () => {
-	expect(parseSessionCookie('s:RAW_TOKEN')).toEqual({});
-	expect(parseSessionCookie('t:RAW_TOKEN')).toEqual({});
+test('parses single scoped token strings using their declared scope', () => {
+	expect(parseSessionCookie('s:RAW_TOKEN')).toEqual({ staffToken: 'RAW_TOKEN' });
+	expect(parseSessionCookie('t:RAW_TOKEN')).toEqual({ tenantToken: 'RAW_TOKEN' });
 });
 
 test('roundtrips through formatter', () => {
 	const parsed = parseSessionCookie('s:STAFF+t:TENANT');
 	expect(formatSessionCookie(parsed)).toBe('s:STAFF+t:TENANT');
+});
+
+test('roundtrips through formatter for single scoped tokens', () => {
+	const parsed = parseSessionCookie(formatSessionCookie({ staffToken: 'STAFF' }));
+	expect(parsed).toEqual({ staffToken: 'STAFF' });
 });
 
 test('selects tenant token for tenant scope and staff scope token for staff scope', () => {

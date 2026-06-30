@@ -26,13 +26,23 @@ export const parseSessionCookie = (cookieValue: string): ParsedSessionTokens => 
 	}
 
 	const isScopedCookie = /^(?:s|t):/.test(value);
-	const isScopedPairFormat =
-		/^(?:s:[^+]+|t:[^+]+)\+(?:s:[^+]+|t:[^+]+)(?:\+(?:s:[^+]+|t:[^+]+))*$/.test(
-			value,
-		);
+	const isScopedPairFormat = /^[st]:[^+]+(?:\+[st]:[^+]+)+$/.test(value);
 
 	if (!isScopedCookie) {
 		return { tenantToken: value || undefined };
+	}
+
+	if (!isScopedPairFormat && (value.startsWith('s:') || value.startsWith('t:'))) {
+		const prefix = value[0];
+		const token = decodeToken(value.slice(2));
+		if (prefix === 's' && token) {
+			result.staffToken = token;
+		}
+		if (prefix === 't' && token) {
+			result.tenantToken = token;
+		}
+
+		return result;
 	}
 
 	if (!isScopedPairFormat) {

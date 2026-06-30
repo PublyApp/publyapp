@@ -111,6 +111,25 @@ test('uses body errors with wrapper response status when body.status is missing'
 	expect(failure.status).toBe(422);
 });
 
+test('uses wrapper responseStatusCode for validation when nested responseStatusCode is present', () => {
+	const payload = {
+		responseStatusCode: 422,
+		error: {
+			responseStatusCode: 499,
+			errors: {
+				name: ['is required'],
+			},
+		},
+	};
+
+	const failure = toApiFailure(payload);
+	expect(failure.kind).toBe('validation');
+	expect(failure.status).toBe(422);
+	expect(failure.fieldErrors).toEqual({
+		name: ['is required'],
+	});
+});
+
 test('uses body status then wrapper response/status fallback for problem failures', () => {
 	const payload = {
 		responseStatusCode: 500,

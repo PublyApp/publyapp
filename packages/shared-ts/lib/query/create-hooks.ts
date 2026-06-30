@@ -5,6 +5,7 @@ import type {
 	QueryErrorHandlers,
 	QueryFactoryOptions,
 } from './types';
+import type { QueryKeySegment } from './keys';
 import type { ApiFailure } from '../api-failure/types';
 
 type TenantQueryVariables<TVariables> = { tenantId?: string } & Omit<
@@ -12,7 +13,7 @@ type TenantQueryVariables<TVariables> = { tenantId?: string } & Omit<
 	'tenantId'
 >;
 
-type QueryKeySegment = string | number | boolean | null | Record<string, unknown>;
+type ScopedQueryKeySegment = QueryKeySegment | Record<string, unknown>;
 
 type TenantQueryVariablesRequired<TVariables> = { tenantId: string } & Omit<
 	TVariables,
@@ -241,7 +242,7 @@ const buildScopedQueryKey = (
 	tenantId?: string,
 	variables?: Record<string, unknown>,
 ) => {
-	const key: (string | Record<string, unknown>)[] = [
+	const key: ScopedQueryKeySegment[] = [
 		scope,
 		...queryKey,
 	];
@@ -379,7 +380,7 @@ export const buildTenantMutationOptions = <
 		...restOptions
 	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
-	const mutationKey = queryKeyFn();
+	const mutationKey = mutationKeyFn();
 
 	return {
 		mutationKey: buildScopedQueryKey('tenant', mutationKey),
@@ -497,7 +498,7 @@ export const buildStaffMutationOptions = <
 		...restOptions
 	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
-	const mutationKey = queryKeyFn();
+	const mutationKey = mutationKeyFn();
 
 	return {
 		mutationKey: buildScopedQueryKey('staff', mutationKey),
@@ -608,7 +609,7 @@ export const buildAnonymousMutationOptions = <
 		...restOptions
 	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
-	const mutationKey = queryKeyFn();
+	const mutationKey = mutationKeyFn();
 
 	return {
 		mutationKey: buildScopedQueryKey('anonymous', mutationKey),
@@ -719,7 +720,7 @@ export const buildAuthMutationOptions = <
 		...restOptions
 	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
-	const mutationKey = queryKeyFn();
+	const mutationKey = mutationKeyFn();
 
 	return {
 		mutationKey: buildScopedQueryKey('auth', mutationKey),

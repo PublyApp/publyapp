@@ -77,7 +77,9 @@ const defaultSessionTokenProvider: SessionTokenProvider = (scope) => {
 		return undefined;
 	}
 
-	const parsedCookie = cookie.parse(rawCookieValue);
+	const parsedCookie = cookie.parse(rawCookieValue, {
+		decode: (value) => value,
+	});
 	const rawCookie = parsedCookie[SESSION_TOKEN_COOKIE_KEY];
 	if (!rawCookie) {
 		return undefined;
@@ -303,7 +305,11 @@ const getSessionTokensFromCookie = (cookieValueProvider: CookieValueProvider): P
 		return {};
 	}
 
-	return parseSessionCookie(cookie.parse(rawCookieValue)[SESSION_TOKEN_COOKIE_KEY] ?? '');
+	return parseSessionCookie(
+		cookie.parse(rawCookieValue, {
+			decode: (value) => value,
+		})[SESSION_TOKEN_COOKIE_KEY] ?? '',
+	);
 };
 
 const getSessionTokensFromBrowser = (): ParsedSessionTokens =>
