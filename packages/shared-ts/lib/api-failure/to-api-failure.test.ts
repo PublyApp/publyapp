@@ -123,7 +123,7 @@ test('uses body status then wrapper response/status fallback for problem failure
 
 	const failure = toApiFailure(payload);
 	expect(failure.kind).toBe('problem');
-	expect(failure.status).toBe(501);
+	expect(failure.status).toBe(500);
 });
 
 test('uses wrapper responseStatusCode when body responseStatusCode is set without a status', () => {

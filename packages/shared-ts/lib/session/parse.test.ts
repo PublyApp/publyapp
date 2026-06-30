@@ -19,6 +19,12 @@ test('parses legacy raw token as tenant token', () => {
 	});
 });
 
+test('does not parse legacy token with single scope prefix as dual format', () => {
+	expect(parseSessionCookie('s:RAW_TOKEN')).toEqual({
+		tenantToken: 's:RAW_TOKEN',
+	});
+});
+
 test('roundtrips through formatter', () => {
 	const parsed = parseSessionCookie('s:STAFF+t:TENANT');
 	expect(formatSessionCookie(parsed)).toBe('s:STAFF+t:TENANT');

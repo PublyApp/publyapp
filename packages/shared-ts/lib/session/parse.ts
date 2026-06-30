@@ -21,7 +21,9 @@ export const parseSessionCookie = (cookieValue: string): ParsedSessionTokens => 
 	const result: ParsedSessionTokens = {};
 
 	const value = cookieValue.trim();
-	const isDualFormat = value.startsWith('s:') || value.startsWith('t:');
+	const isDualFormat = /^(?:s:[^+]+|t:[^+]+)(?:\+(?:s:[^+]+|t:[^+]+))*$/.test(
+		value,
+	);
 
 	if (!isDualFormat) {
 		return { tenantToken: value || undefined };

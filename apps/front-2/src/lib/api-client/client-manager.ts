@@ -74,6 +74,7 @@ let sessionTokenProvider: SessionTokenProvider = defaultSessionTokenProvider;
 
 export const setSessionTokenProvider = (provider: SessionTokenProvider | undefined): void => {
 	sessionTokenProvider = provider ?? defaultSessionTokenProvider;
+	resetClientManager();
 };
 
 const resolveSessionToken = (
@@ -102,10 +103,6 @@ const resolveApiBaseUrl = (): string => {
 		globalLike?.process?.env?.NEXT_PUBLIC_API_BASE_URL;
 	if (processBase) {
 		return processBase;
-	}
-
-	if (typeof window === 'undefined') {
-		return 'http://127.0.0.1:5000';
 	}
 
 	throw new Error('__ENV__.PUBLIC_API_BASE_URL is required in front-2 runtime env');
@@ -160,7 +157,7 @@ const buildCustomFetch = (options: BuildCustomFetchOptions): FetchFunction => {
 		}
 
 		if (typeof Request !== 'undefined' && input instanceof Request) {
-			const mergedRequest = new Request(requestUrl, {
+			const mergedRequest = new Request(input, {
 				...init,
 				headers,
 			});

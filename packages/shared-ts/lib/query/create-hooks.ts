@@ -2,11 +2,10 @@ import { toApiFailure } from '../api-failure/to-api-failure';
 import { getQueryKey } from './keys';
 import type {
 	ClientAccessor,
+	QueryScope,
 	QueryErrorHandlers,
 	QueryFactoryOptions,
 } from './types';
-
-type QueryScope = 'tenant' | 'staff' | 'anonymous' | 'auth';
 
 type TenantQueryVariables<TVariables> = { tenantId?: string } & Omit<
 	TVariables,

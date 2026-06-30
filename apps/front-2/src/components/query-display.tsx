@@ -36,7 +36,7 @@ const renderLoading = (LoadingSlot?: Props['LoadingSlot']) => {
 	if (isValidElement(LoadingSlot)) {
 		return LoadingSlot;
 	}
-	return <Spinner {...defaultLoadingProps} label="Loading..." />;
+	return LoadingSlot ?? <Spinner {...defaultLoadingProps} label="Loading..." />;
 };
 
 const renderError = <TData, TError>(
@@ -50,7 +50,7 @@ const renderError = <TData, TError>(
 	if (isValidElement(ErrorSlot)) {
 		return ErrorSlot;
 	}
-	return null;
+	return <span>An error occurred while loading data.</span>;
 };
 
 const renderEmpty = (EmptySlot?: Props['EmptySlot']) => {
@@ -60,7 +60,7 @@ const renderEmpty = (EmptySlot?: Props['EmptySlot']) => {
 	if (isValidElement(EmptySlot)) {
 		return EmptySlot;
 	}
-	return null;
+	return EmptySlot ?? null;
 };
 
 const renderData = <TData, TError>(

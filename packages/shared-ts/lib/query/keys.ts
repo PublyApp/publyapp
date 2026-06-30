@@ -44,20 +44,24 @@ const stringifyQueryArg = (arg: unknown, seen: StringifySeen): string => {
 		}
 
 		seen.add(arg);
-		const entries: string[] = [];
-		for (const key of Object.keys(arg as JsonRecord).sort()) {
-			entries.push(
-				`${key}:${stringifyQueryArg((arg as JsonRecord)[key], seen)}`,
-			);
-		}
+		try {
+			const entries: string[] = [];
+			for (const key of Object.keys(arg as JsonRecord).sort()) {
+				entries.push(
+					`${key}:${stringifyQueryArg((arg as JsonRecord)[key], seen)}`,
+				);
+			}
 
-		for (const symbolKey of Object.getOwnPropertySymbols(arg as object)) {
-			entries.push(
-				`${String(symbolKey)}:${stringifyQueryArg((arg as { [key: symbol]: unknown })[symbolKey], seen)}`,
-			);
-		}
+			for (const symbolKey of Object.getOwnPropertySymbols(arg as object)) {
+				entries.push(
+					`${String(symbolKey)}:${stringifyQueryArg((arg as { [key: symbol]: unknown })[symbolKey], seen)}`,
+				);
+			}
 
-		return `{${entries.join(',')}}`;
+			return `{${entries.join(',')}}`;
+		} finally {
+			seen.delete(arg);
+		}
 	}
 
 	return String(arg);
