@@ -6,15 +6,15 @@ import {
 	NavbarBrand,
 	NavbarContent,
 	NavbarItem,
+	NavbarMenu,
+	NavbarMenuItem,
+	NavbarMenuToggle,
 	Spacer,
 } from '@heroui/react';
 import { Link } from '@tanstack/react-router';
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
-import {
-	toggleSidebarOpen,
-	useUiStore,
-} from '../../lib/store/ui-store';
+import { useUiStore } from '../../lib/store/ui-store';
 import { ThemeToggle } from './theme/theme-toggle';
 
 type AppShellMode = 'auth' | 'authed' | 'marketing';
@@ -75,7 +75,23 @@ const isActivePath = (pathname: string, target: string) => {
 	return pathname === target || pathname.startsWith(`${target}/`);
 };
 
-const appShellShellClass = 'app-shell-shell';
+const renderNavItem = (item: NavItem, pathname: string) => {
+	const isActive = isActivePath(pathname, item.path);
+
+	return (
+		<NavbarItem isActive={isActive} key={item.label}>
+			<Button
+				as={Link}
+				to={item.path}
+				size="sm"
+				variant={isActive ? 'solid' : 'flat'}
+				color={isActive ? 'primary' : 'default'}
+			>
+				{item.label}
+			</Button>
+		</NavbarItem>
+	);
+};
 
 const AppShellHeader = ({
 	mode,
@@ -84,10 +100,15 @@ const AppShellHeader = ({
 	mode: AppShellMode;
 	pathname: string;
 }) => {
+	const [isMenuOpen, setIsMenuOpen] = useState(false);
 	const navItems = NAV_ITEMS[mode];
 
 	return (
-		<Navbar className="app-shell-header">
+		<Navbar
+			isMenuOpen={isMenuOpen}
+			onMenuOpenChange={setIsMenuOpen}
+			className="app-shell-header"
+		>
 			<NavbarBrand>
 				<div>
 					<div className="font-semibold tracking-wide text-slate-900 dark:text-slate-50">
@@ -98,28 +119,39 @@ const AppShellHeader = ({
 					</div>
 				</div>
 			</NavbarBrand>
-			<NavbarContent>
-				{navItems.map((item) => {
-					const isActive = isActivePath(pathname, item.path);
-
-					return (
-						<NavbarItem isActive={isActive} key={item.label}>
-							<Button
-								as={Link}
-								to={item.path}
-								size="sm"
-								variant={isActive ? 'solid' : 'flat'}
-								color={isActive ? 'primary' : 'default'}
-							>
-								{item.label}
-							</Button>
-						</NavbarItem>
-					);
-				})}
+			<NavbarContent className="hidden gap-2 sm:flex" justify="center">
+				{navItems.map((item) => renderNavItem(item, pathname))}
 			</NavbarContent>
-			<NavbarContent justify="end">
-				<ThemeToggle />
-			</NavbarContent>
+				<NavbarContent justify="end">
+					<ThemeToggle />
+					<NavbarMenuToggle
+						className="sm:hidden"
+						data-testid="app-shell-mobile-menu-toggle"
+						aria-label="Main navigation"
+					/>
+				</NavbarContent>
+			<NavbarMenu>
+				{navItems.map((item) => (
+					<NavbarMenuItem key={item.label}>
+						<Button
+							as={Link}
+							to={item.path}
+							size="sm"
+							variant={
+								isActivePath(pathname, item.path) ? 'solid' : 'light'
+							}
+							color={
+								isActivePath(pathname, item.path)
+									? 'primary'
+									: 'default'
+							}
+							onPress={() => setIsMenuOpen(false)}
+						>
+							{item.label}
+						</Button>
+					</NavbarMenuItem>
+				))}
+			</NavbarMenu>
 		</Navbar>
 	);
 };
@@ -156,14 +188,17 @@ const AuthedAppShellNavigation = ({
 	pathname: string;
 }) => {
 	const sidebarOpen = useUiStore((state) => state.sidebarOpen);
-	const sidebarWidthClass = sidebarOpen ? 'w-64' : 'w-16';
+	const toggleSidebarOpen = useUiStore((state) => state.toggleSidebarOpen);
+	const sidebarStateClass = sidebarOpen
+		? 'app-shell-sidebar--open'
+		: 'app-shell-sidebar--collapsed';
 	const sidebarLinkLabelClass = sidebarOpen ? '' : 'sr-only';
 
 	return (
 		<div className="app-shell-content-wrap">
 			<Card
 				as="aside"
-				className={`app-shell-sidebar ${sidebarWidthClass}`}
+				className={`app-shell-sidebar ${sidebarStateClass}`}
 				data-testid="app-shell-sidebar"
 				aria-label="Primary navigation"
 			>
@@ -192,12 +227,12 @@ const AuthedAppShellNavigation = ({
 					size="sm"
 					variant="flat"
 					color="primary"
-					className="mt-4"
+					className="app-shell-sidebar-toggle"
 					onPress={toggleSidebarOpen}
 					aria-expanded={sidebarOpen}
 					aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
 				>
-					{sidebarOpen ? '◂' : '▸'}
+					{sidebarOpen ? 'Collapse' : 'Expand'}
 				</Button>
 			</Card>
 			<main className="app-shell-main">
@@ -215,7 +250,7 @@ export const AppShell = ({
 	pathname = '/',
 }: AppShellProps) => {
 	return (
-		<div className={appShellShellClass} data-mode={mode} data-testid="app-shell-shell">
+		<div className="app-shell-shell" data-mode={mode} data-testid="app-shell-shell">
 			<AppShellHeader mode={mode} pathname={pathname} />
 			<Spacer y={6} />
 			<AppShellNavigation mode={mode} pathname={pathname}>

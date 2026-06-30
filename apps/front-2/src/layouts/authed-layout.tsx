@@ -15,14 +15,14 @@ export const AuthedLayout = ({ children, pathname }: AuthedLayoutProps) => {
 	}, []);
 
 	if (!ready) {
-		return null;
+		return (
+			<AppShell mode="authed" pathname={pathname}>
+				<div className="app-shell-authed-loading">Loading workspace shell...</div>
+			</AppShell>
+		);
 	}
 
-	return (
-		<AppShell mode="authed" pathname={pathname}>
-			{children}
-		</AppShell>
-	);
+	return <AppShell mode="authed" pathname={pathname}>{children}</AppShell>;
 };
 
 export default AuthedLayout;

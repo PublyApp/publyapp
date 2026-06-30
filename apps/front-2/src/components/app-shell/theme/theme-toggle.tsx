@@ -1,31 +1,16 @@
 import { Button } from '@heroui/react';
-import { useEffect, useState } from 'react';
 
-import {
-	type ColorScheme,
-	useUiStore,
-	toggleColorScheme,
-} from '../../../lib/store/ui-store';
+import { useUiStore } from '../../../lib/store/ui-store';
 
 export const THEME_TOGGLE_TEST_ID = 'theme-toggle';
 
 export const ThemeToggle = () => {
-	const [isHydrated, setIsHydrated] = useState(false);
-	const savedTheme = useUiStore((state) => state.colorScheme);
-
-	useEffect(() => {
-		setIsHydrated(true);
-	}, []);
-
-	const onToggle = () => {
-		toggleColorScheme();
-	};
-
-	const displayedTheme: ColorScheme = isHydrated ? savedTheme : 'light';
-	const label =
-		displayedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
-	const iconLabel = displayedTheme === 'dark' ? '☀︎' : '🌙';
-	const ariaPressed = displayedTheme === 'dark';
+	const colorScheme = useUiStore((state) => state.colorScheme);
+	const toggleColorScheme = useUiStore((state) => state.toggleColorScheme);
+	const isDarkMode = colorScheme === 'dark';
+	const label = isDarkMode ? 'Switch to light mode' : 'Switch to dark mode';
+	const iconLabel = isDarkMode ? '☀︎' : '🌙';
+	const ariaPressed = isDarkMode;
 
 	return (
 		<Button
@@ -35,7 +20,7 @@ export const ThemeToggle = () => {
 			isIconOnly
 			aria-label={label}
 			aria-pressed={ariaPressed}
-			onPress={onToggle}
+			onPress={toggleColorScheme}
 		>
 			{iconLabel}
 		</Button>

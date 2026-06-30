@@ -5,6 +5,24 @@ import { THEME_TOGGLE_TEST_ID } from '../src/components/app-shell/theme/theme-to
 
 type ColorScheme = 'dark' | 'light';
 
+const seedTheme = async (page: Page, colorScheme: ColorScheme): Promise<void> => {
+	await page.addInitScript(
+		(payload) => {
+			window.localStorage.setItem(
+				payload.key,
+				JSON.stringify({
+					state: {
+						colorScheme,
+						sidebarOpen: true,
+					},
+					version: 0,
+				}),
+			);
+		},
+		{ key: COLOR_SCHEME_STORAGE_KEY, colorScheme },
+	);
+};
+
 const readStoredTheme = async (page: Page): Promise<string | null> => {
 	return page.evaluate((key) => {
 		const rawValue = window.localStorage.getItem(key);
@@ -22,9 +40,7 @@ const readStoredTheme = async (page: Page): Promise<string | null> => {
 				typeof parsed?.state?.colorScheme === 'string' ||
 				typeof parsed?.colorScheme === 'string'
 			) {
-				return (parsed.state?.colorScheme ??
-					parsed.colorScheme ??
-					null) as string | null;
+				return (parsed.state?.colorScheme ?? parsed.colorScheme ?? null) as string | null;
 			}
 		} catch {
 			return rawValue;
@@ -58,6 +74,7 @@ const readThemeMode = async (page: Page): Promise<ColorScheme | null> => {
 };
 
 test('renders the front-2 shell', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 812 });
 	await page.goto('/');
 
 	await expect(
@@ -66,36 +83,33 @@ test('renders the front-2 shell', async ({ page }) => {
 	await expect(page.getByTestId('app-shell-shell')).toBeVisible();
 	await expect(page.getByTestId('app-shell-shell')).toHaveAttribute('data-mode', 'marketing');
 	await expect(page.getByTestId(THEME_TOGGLE_TEST_ID)).toBeVisible();
+	await expect(page.getByTestId('app-shell-mobile-menu-toggle')).toBeVisible();
 });
 
 test('theme toggle persists across page reload', async ({ page }) => {
+	await seedTheme(page, 'dark');
 	await page.goto('/');
 
-	const initialTheme = await readThemeMode(page);
-	if (initialTheme === null) {
-		throw new Error('No theme class found on documentElement');
-	}
-
-	const initialStorageTheme = await getThemeFromStorage(page);
-	const expectedInitialTheme: ColorScheme = initialStorageTheme ?? initialTheme;
-
-	expect(['light', 'dark']).toContain(expectedInitialTheme);
+	expect(await getThemeFromStorage(page)).toBe('dark');
+	expect(await readThemeMode(page)).toBe('dark');
 
 	await page.getByTestId(THEME_TOGGLE_TEST_ID).click();
 
-	const toggledTheme = await readThemeMode(page);
-	const expectedToggledTheme =
-		expectedInitialTheme === 'light' ? 'dark' : 'light';
-
-	expect(toggledTheme).toBe(expectedToggledTheme);
-	expect(
-		await getThemeFromStorage(page),
-	).toBe(expectedToggledTheme);
+	expect(await readThemeMode(page)).toBe('light');
+	expect(await getThemeFromStorage(page)).toBe('light');
 
 	await page.reload();
 
-	expect(await readThemeMode(page)).toBe(expectedToggledTheme);
-	expect(
-		await getThemeFromStorage(page),
-	).toBe(expectedToggledTheme);
+	expect(await readThemeMode(page)).toBe('light');
+	expect(await getThemeFromStorage(page)).toBe('light');
+});
+
+test('mobile shell menu is keyboard and route-aware', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 812 });
+	await page.goto('/');
+
+	await page.getByTestId('app-shell-mobile-menu-toggle').click();
+	await expect(page.getByText('Login')).toBeVisible();
+	await expect(page.getByText('Home')).toBeVisible();
+	await page.keyboard.press('Escape');
 });

@@ -6,8 +6,8 @@ import {
 } from 'zustand/middleware';
 
 export const COLOR_SCHEME_STORAGE_KEY = 'publyapp:color-scheme';
-const SIDEBAR_STORAGE_KEY = 'publyapp:sidebar-open';
 const DEFAULT_COLOR_SCHEME = 'light';
+const DEFAULT_SIDEBAR_OPEN = true;
 
 export type ColorScheme = 'dark' | 'light';
 
@@ -16,7 +16,21 @@ type UiState = {
 	sidebarOpen: boolean;
 };
 
+type PersistedUiState = {
+	state?: {
+		colorScheme?: unknown;
+		sidebarOpen?: unknown;
+	} | null;
+	colorScheme?: unknown;
+	sidebarOpen?: unknown;
+};
+
 const isBrowser = typeof window !== 'undefined';
+
+const DEFAULT_UI_STATE: UiState = {
+	colorScheme: DEFAULT_COLOR_SCHEME,
+	sidebarOpen: DEFAULT_SIDEBAR_OPEN,
+};
 
 const resolveStorage: StateStorage = {
 	getItem: (name) => {
@@ -62,47 +76,50 @@ const parseColorScheme = (value: string | null): ColorScheme => {
 	return DEFAULT_COLOR_SCHEME;
 };
 
-const parsePersistedTheme = (value: string | null): ColorScheme => {
-	if (value === null) {
-		return DEFAULT_COLOR_SCHEME;
+const parsePersistedUiState = (value: string | null): UiState => {
+	if (value === null || value === '') {
+		return DEFAULT_UI_STATE;
 	}
 
 	try {
-		const parsed = JSON.parse(value) as { state?: { colorScheme?: unknown } } & {
-			colorScheme?: unknown;
+		const parsed = JSON.parse(value) as PersistedUiState;
+		const source =
+			typeof parsed.state === 'object' && parsed.state !== null ? parsed.state : parsed;
+
+		return {
+			colorScheme: parseColorScheme(
+				typeof source.colorScheme === 'string' ? source.colorScheme : null,
+			),
+			sidebarOpen: source.sidebarOpen !== false,
 		};
+	} catch {
+		return {
+			...DEFAULT_UI_STATE,
+			colorScheme: parseColorScheme(value),
+		};
+	}
+};
 
-		return parseColorScheme(
-			((parsed?.state?.colorScheme ?? parsed?.colorScheme) as string | null) ??
-				null,
+const parsePersistedState = (value: unknown): UiState => {
+	if (typeof value === 'string') {
+		return parsePersistedUiState(value);
+	}
+
+	if (typeof value !== 'object' || value === null) {
+		return DEFAULT_UI_STATE;
+	}
+
+	const persisted = value as PersistedUiState;
+	if (typeof persisted.state === 'object' && persisted.state !== null) {
+		return parsePersistedUiState(
+			JSON.stringify({
+				colorScheme: persisted.state.colorScheme,
+				sidebarOpen: persisted.state.sidebarOpen,
+			}),
 		);
-	} catch {
-		return parseColorScheme(value);
-	}
-};
-
-const readColorSchemeFromStorage = (): ColorScheme => {
-	if (!isBrowser) {
-		return DEFAULT_COLOR_SCHEME;
 	}
 
-	try {
-		return parsePersistedTheme(window.localStorage.getItem(COLOR_SCHEME_STORAGE_KEY));
-	} catch {
-		return DEFAULT_COLOR_SCHEME;
-	}
-};
-
-const readSidebarStateFromStorage = (): boolean => {
-	if (!isBrowser) {
-		return true;
-	}
-
-	try {
-		return window.localStorage.getItem(SIDEBAR_STORAGE_KEY) !== 'false';
-	} catch {
-		return true;
-	}
+	return parsePersistedUiState(JSON.stringify(persisted));
 };
 
 const applyThemeToDocument = (colorScheme: ColorScheme) => {
@@ -115,20 +132,15 @@ const applyThemeToDocument = (colorScheme: ColorScheme) => {
 	document.documentElement.dataset.theme = colorScheme;
 };
 
-const readInitialUiState = (): UiState => ({
-	colorScheme: readColorSchemeFromStorage(),
-	sidebarOpen: readSidebarStateFromStorage(),
-});
-
-const persistSidebarState = (sidebarOpen: boolean) => {
+const readInitialUiState = (): UiState => {
 	if (!isBrowser) {
-		return;
+		return DEFAULT_UI_STATE;
 	}
 
 	try {
-		window.localStorage.setItem(SIDEBAR_STORAGE_KEY, sidebarOpen ? 'true' : 'false');
+		return parsePersistedUiState(window.localStorage.getItem(COLOR_SCHEME_STORAGE_KEY));
 	} catch {
-		// no-op
+		return DEFAULT_UI_STATE;
 	}
 };
 
@@ -154,51 +166,33 @@ export const useUiStore = create<UiStore>()(
 				get().setColorScheme(nextColorScheme);
 			},
 			setSidebarOpen: (sidebarOpen) => {
-				persistSidebarState(sidebarOpen);
 				set({ sidebarOpen });
 			},
 			toggleSidebarOpen: () => {
 				get().setSidebarOpen(!get().sidebarOpen);
 			},
 		}),
-			{
-				name: COLOR_SCHEME_STORAGE_KEY,
-				storage: createJSONStorage(() => resolveStorage),
-				partialize: (state) => ({ colorScheme: state.colorScheme }),
-				merge: (persistedState, currentState) => {
-					const persisted = (persistedState ??
-						{}) as { state?: { colorScheme?: unknown } } & {
-						colorScheme?: unknown;
-					};
+		{
+			name: COLOR_SCHEME_STORAGE_KEY,
+			storage: createJSONStorage(() => resolveStorage),
+			partialize: (state) => ({
+				colorScheme: state.colorScheme,
+				sidebarOpen: state.sidebarOpen,
+			}),
+			merge: (persistedState, currentState) => ({
+				...currentState,
+				...parsePersistedState(persistedState),
+			}),
+			onRehydrateStorage: () => (state, error) => {
+				if (error || !state) {
+					return;
+				}
 
-					return {
-						...currentState,
-						colorScheme: parseColorScheme(
-							((persisted.state?.colorScheme ??
-								persisted.colorScheme) as string | null) ??
-								null,
-						),
-					};
-				},
+				applyThemeToDocument(state.colorScheme);
 			},
-		),
-	);
+		},
+	),
+);
 
 const initialState = readInitialUiState();
 applyThemeToDocument(initialState.colorScheme);
-
-export const setColorScheme = (colorScheme: ColorScheme) => {
-	useUiStore.getState().setColorScheme(colorScheme);
-};
-
-export const toggleColorScheme = () => {
-	useUiStore.getState().toggleColorScheme();
-};
-
-export const setSidebarOpen = (sidebarOpen: boolean) => {
-	useUiStore.getState().setSidebarOpen(sidebarOpen);
-};
-
-export const toggleSidebarOpen = () => {
-	useUiStore.getState().toggleSidebarOpen();
-};
