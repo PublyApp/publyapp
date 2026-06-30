@@ -6,9 +6,17 @@
 	--front-2-brand-rgb: 14 165 233;
 	--front-2-surface-rgb: 248 250 252;
 	--front-2-border-rgb: 226 232 240;
+	--nextui-colors-primary: var(--front-2-brand-rgb);
+	--nextui-colors-primary-foreground: 255 255 255;
+	--heroui-colors-primary: var(--front-2-brand-rgb);
+	--heroui-colors-primary-foreground: 255 255 255;
 }
 
 @custom-variant dark (&:is(.dark *));
+
+html.dark {
+	color-scheme: dark;
+}
 
 html {
 	transition: background-color 0.18s ease, color 0.18s ease;
@@ -18,7 +26,7 @@ html {
 	@apply min-h-screen bg-slate-100 text-slate-900;
 }
 
-.dark .front-2-shell {
+.front-2-shell.dark {
 	@apply bg-slate-950 text-slate-100;
 }
 
@@ -28,10 +36,6 @@ html {
 
 .app-shell-header {
 	@apply rounded-xl border border-white/70 bg-white/70 p-4 shadow-sm backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/75;
-}
-
-.app-shell-brand-wrap {
-	@apply mx-auto flex w-full max-w-6xl items-center justify-between gap-3;
 }
 
 .app-shell-main {

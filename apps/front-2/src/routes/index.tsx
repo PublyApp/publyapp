@@ -7,7 +7,9 @@ export const IndexRoute = () => (
 		<p className="text-sm text-slate-700 dark:text-slate-300">
 			Theme and sidebar state are managed in the shared front-2 shell store.
 		</p>
-		<Button variant="primary">HeroUI shell is active</Button>
+		<Button variant="solid" color="primary">
+			HeroUI shell is active
+		</Button>
 	</div>
 );
 

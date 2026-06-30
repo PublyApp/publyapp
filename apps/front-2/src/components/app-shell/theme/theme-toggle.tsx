@@ -1,4 +1,5 @@
 import { Button } from '@heroui/react';
+import { useEffect, useState } from 'react';
 
 import {
 	type ColorScheme,
@@ -9,16 +10,23 @@ import {
 export const THEME_TOGGLE_TEST_ID = 'theme-toggle';
 
 export const ThemeToggle = () => {
+	const [isHydrated, setIsHydrated] = useState(false);
 	const savedTheme = useUiStore((state) => state.colorScheme);
+
+	useEffect(() => {
+		setIsHydrated(true);
+	}, []);
 
 	const onToggle = () => {
 		const nextTheme: ColorScheme = savedTheme === 'light' ? 'dark' : 'light';
 		setColorScheme(nextTheme);
 	};
 
-	const label = savedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
-	const iconLabel = savedTheme === 'dark' ? '☀︎' : '🌙';
-	const ariaPressed = savedTheme === 'dark';
+	const displayedTheme: ColorScheme = isHydrated ? savedTheme : 'light';
+	const label =
+		displayedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+	const iconLabel = displayedTheme === 'dark' ? '☀︎' : '🌙';
+	const ariaPressed = displayedTheme === 'dark';
 
 	return (
 		<Button

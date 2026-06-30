@@ -168,22 +168,28 @@ export const useUiStore = create<UiStore>()(
 				set({ sidebarOpen: nextSidebarOpen });
 			},
 		}),
-		{
-			name: COLOR_SCHEME_STORAGE_KEY,
-			storage: createJSONStorage(() => resolveStorage),
-			partialize: (state) => ({ colorScheme: state.colorScheme }),
-			merge: (persistedState, currentState) => {
-				const persisted = (persistedState as { state?: { colorScheme?: unknown } }) ?? {};
-				return {
-					...currentState,
-					colorScheme: parseColorScheme(
-						(persisted.state?.colorScheme as string) ?? null,
-					),
-				};
+			{
+				name: COLOR_SCHEME_STORAGE_KEY,
+				storage: createJSONStorage(() => resolveStorage),
+				partialize: (state) => ({ colorScheme: state.colorScheme }),
+				merge: (persistedState, currentState) => {
+					const persisted = (persistedState ??
+						{}) as { state?: { colorScheme?: unknown } } & {
+						colorScheme?: unknown;
+					};
+
+					return {
+						...currentState,
+						colorScheme: parseColorScheme(
+							((persisted.state?.colorScheme ??
+								persisted.colorScheme) as string | null) ??
+								null,
+						),
+					};
+				},
 			},
-		},
-	),
-);
+		),
+	);
 
 const initialState = readInitialUiState();
 applyThemeToDocument(initialState.colorScheme);

@@ -14,12 +14,16 @@ import { MarketingLayout } from '../layouts/marketing-layout';
 
 type RouteSurface = 'auth' | 'authed' | 'marketing';
 
+const isPathForSurface = (pathname: string, surfacePath: string) => {
+	return pathname === surfacePath || pathname.startsWith(`${surfacePath}/`);
+};
+
 const resolveRouteSurface = (pathname: string): RouteSurface => {
-	if (pathname.startsWith('/staff') || pathname.startsWith('/tenant')) {
+	if (isPathForSurface(pathname, '/staff') || isPathForSurface(pathname, '/tenant')) {
 		return 'authed';
 	}
 
-	if (pathname.startsWith('/login') || pathname.startsWith('/auth')) {
+	if (isPathForSurface(pathname, '/login') || isPathForSurface(pathname, '/auth')) {
 		return 'auth';
 	}
 

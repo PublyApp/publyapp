@@ -133,7 +133,6 @@ const AppShellNavigation = ({
 	pathname: string;
 }) => {
 	const showSidebar = mode === 'authed';
-	const sidebarOpen = useUiStore((state) => state.sidebarOpen);
 
 	if (!showSidebar) {
 		return (
@@ -145,6 +144,7 @@ const AppShellNavigation = ({
 		);
 	}
 
+	const sidebarOpen = useUiStore((state) => state.sidebarOpen);
 	const sidebarWidthClass = sidebarOpen ? 'w-64' : 'w-20';
 
 	return (
@@ -153,6 +153,7 @@ const AppShellNavigation = ({
 				as="aside"
 				className={`app-shell-sidebar ${sidebarWidthClass}`}
 				data-testid="app-shell-sidebar"
+				aria-label="Primary navigation"
 			>
 				<div className="app-shell-sidebar-title">Navigation</div>
 				{NAV_ITEMS.authed.map((item) => {
@@ -177,6 +178,7 @@ const AppShellNavigation = ({
 					color="primary"
 					className="mt-4"
 					onPress={toggleSidebarOpen}
+					aria-expanded={sidebarOpen}
 				>
 					Toggle sidebar
 				</Button>

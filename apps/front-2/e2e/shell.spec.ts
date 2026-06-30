@@ -43,7 +43,7 @@ const getThemeFromStorage = async (page: Page): Promise<string | null> => {
 	return null;
 };
 
-const readThemeMode = async (page: Page): Promise<string> => {
+const readThemeMode = async (page: Page): Promise<ColorScheme | null> => {
 	return page.evaluate(() => {
 		if (document.documentElement.classList.contains('dark')) {
 			return 'dark';
@@ -53,7 +53,7 @@ const readThemeMode = async (page: Page): Promise<string> => {
 			return 'light';
 		}
 
-		return 'light';
+		return null;
 	});
 };
 
@@ -72,6 +72,10 @@ test('theme toggle persists across page reload', async ({ page }) => {
 	await page.goto('/');
 
 	const initialTheme = await readThemeMode(page);
+	if (initialTheme === null) {
+		throw new Error('No theme class found on documentElement');
+	}
+
 	const initialStorageTheme = await getThemeFromStorage(page);
 	const expectedInitialTheme: ColorScheme = initialStorageTheme ?? initialTheme;
 
