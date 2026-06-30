@@ -687,7 +687,7 @@ importers:
         version: link:../_tsconfig
       vitest:
         specifier: 4.1.9
-        version: 4.1.9
+        version: 4.1.9(@opentelemetry/api@1.9.0)(@types/node@22.19.21)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.19.21)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
 
 packages:
 
