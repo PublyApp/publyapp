@@ -7,10 +7,10 @@ import {
 	useLocation,
 } from '@tanstack/react-router';
 
-import appCss from '../styles/app.css?url';
 import { AuthLayout } from '../layouts/auth-layout';
 import { AuthedLayout } from '../layouts/authed-layout';
 import { MarketingLayout } from '../layouts/marketing-layout';
+import appCss from '../styles/app.css?url';
 
 type RouteSurface = 'auth' | 'authed' | 'marketing';
 
@@ -19,11 +19,17 @@ const isPathForSurface = (pathname: string, surfacePath: string) => {
 };
 
 const resolveRouteSurface = (pathname: string): RouteSurface => {
-	if (isPathForSurface(pathname, '/staff') || isPathForSurface(pathname, '/tenant')) {
+	if (
+		isPathForSurface(pathname, '/staff') ||
+		isPathForSurface(pathname, '/tenant')
+	) {
 		return 'authed';
 	}
 
-	if (isPathForSurface(pathname, '/login') || isPathForSurface(pathname, '/auth')) {
+	if (
+		isPathForSurface(pathname, '/login') ||
+		isPathForSurface(pathname, '/auth')
+	) {
 		return 'auth';
 	}
 
@@ -70,7 +76,7 @@ export const Route = createRootRouteWithContext<{
 		links: [{ rel: 'stylesheet', href: appCss }],
 	}),
 	component: () => (
-		<html lang="en" className="front-2-shell">
+		<html lang="en" className="front-2-shell" suppressHydrationWarning>
 			<head>
 				<HeadContent />
 			</head>

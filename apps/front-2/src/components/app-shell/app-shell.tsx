@@ -1,4 +1,4 @@
-import { Button } from '@heroui/react';
+import { Button, buttonVariants } from '@heroui/react';
 import { Link } from '@tanstack/react-router';
 import { useEffect, useState, type ReactNode } from 'react';
 
@@ -139,15 +139,14 @@ const AppShellHeader = ({
 						key={item.label}
 						to={item.path}
 						aria-current={isActive ? 'page' : undefined}
+						onClick={closeOnSelect ? closeMenu : undefined}
+						className={buttonVariants({
+							variant,
+							size: isMobile ? 'sm' : 'md',
+							className: isMobile ? 'w-full justify-start' : '',
+						})}
 					>
-						<Button
-							size={isMobile ? 'sm' : 'md'}
-							variant={variant}
-							onPress={closeOnSelect ? closeMenu : undefined}
-							className={isMobile ? 'w-full justify-start' : ''}
-						>
-							{item.label}
-						</Button>
+						{item.label}
 					</Link>
 				);
 			})}
@@ -261,30 +260,29 @@ const AuthedAppShellNavigation = ({
 							to={item.path}
 							aria-label={item.label}
 							aria-current={isActive ? 'page' : undefined}
+							className={buttonVariants({
+								variant: isActive ? 'primary' : 'outline',
+								size: 'md',
+								className: `app-shell-sidebar-link w-full justify-start ${sidebarAffordanceClass}`,
+							})}
 						>
-							<Button
-								className={`app-shell-sidebar-link w-full justify-start ${sidebarAffordanceClass}`}
-								variant={isActive ? 'primary' : 'outline'}
-								aria-label={item.label}
+							<span
+								aria-hidden="true"
+								className={
+									sidebarOpen ? 'sr-only' : 'app-shell-sidebar-short-label'
+								}
 							>
-								<span
-									aria-hidden="true"
-									className={
-										sidebarOpen ? 'sr-only' : 'app-shell-sidebar-short-label'
-									}
-								>
-									{item.shortLabel}
-								</span>
-								<span
-									className={
-										sidebarOpen
-											? 'app-shell-sidebar-label'
-											: 'app-shell-sidebar-label sr-only'
-									}
-								>
-									{item.label}
-								</span>
-							</Button>
+								{item.shortLabel}
+							</span>
+							<span
+								className={
+									sidebarOpen
+										? 'app-shell-sidebar-label'
+										: 'app-shell-sidebar-label sr-only'
+								}
+							>
+								{item.label}
+							</span>
 						</Link>
 					);
 				})}

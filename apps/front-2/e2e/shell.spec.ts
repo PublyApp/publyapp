@@ -5,6 +5,28 @@ import { COLOR_SCHEME_STORAGE_KEY } from '../src/lib/store/ui-store';
 
 type ColorScheme = 'dark' | 'light';
 
+const HYDRATION_ERROR_TEXT = ['hydration', 'did not match', 'server rendered'];
+
+const trackHydrationConsoleErrors = (page: Page): (() => string[]) => {
+	const errors: string[] = [];
+
+	page.on('console', (message) => {
+		if (message.type() !== 'error') {
+			return;
+		}
+
+		const text = message.text();
+		for (const pattern of HYDRATION_ERROR_TEXT) {
+			if (text.toLowerCase().includes(pattern)) {
+				errors.push(text);
+				return;
+			}
+		}
+	});
+
+	return () => errors;
+};
+
 const seedTheme = async (
 	page: Page,
 	colorScheme: ColorScheme,
@@ -72,7 +94,7 @@ const readThemeMode = async (page: Page): Promise<ColorScheme | null> => {
 			return 'dark';
 		}
 
-		if (document.documentElement.classList.contains('light')) {
+		if (document.documentElement.dataset.theme === 'light') {
 			return 'light';
 		}
 
@@ -88,6 +110,8 @@ const expectThemeMode = async (
 };
 
 test('renders the front-2 shell', async ({ page }) => {
+	const getHydrationConsoleErrors = trackHydrationConsoleErrors(page);
+
 	await page.setViewportSize({ width: 390, height: 812 });
 	await page.goto('/');
 
@@ -101,6 +125,7 @@ test('renders the front-2 shell', async ({ page }) => {
 	);
 	await expect(page.getByTestId(THEME_TOGGLE_TEST_ID)).toBeVisible();
 	await expect(page.getByTestId('app-shell-mobile-menu-toggle')).toBeVisible();
+	expect(getHydrationConsoleErrors()).toEqual([]);
 });
 
 test('theme toggle persists across page reload', async ({ page }) => {
@@ -136,7 +161,7 @@ test('mobile shell menu is keyboard and route-aware', async ({ page }) => {
 	await expect(page.getByRole('link', { name: 'Home' })).toBeHidden();
 
 	await page.getByTestId('app-shell-mobile-menu-toggle').click();
-	await page.getByRole('button', { name: 'Login' }).click();
+	await page.getByRole('link', { name: 'Login' }).click();
 
 	await expect(page).toHaveURL('/login');
 	await expect(page.getByTestId('app-shell-shell')).toHaveAttribute(

@@ -90,14 +90,6 @@ const parsePersistedSidebarState = (value: string | null): boolean | null => {
 	return null;
 };
 
-const readInitialUiState = (): UiState => {
-	if (!isBrowser) {
-		return DEFAULT_UI_STATE;
-	}
-
-	return readPersistedUiState();
-};
-
 const readLegacySidebarState = (): boolean => {
 	if (!isBrowser) {
 		return DEFAULT_SIDEBAR_OPEN;
@@ -180,7 +172,9 @@ const applyThemeToDocument = (colorScheme: ColorScheme) => {
 	}
 
 	document.documentElement.classList.remove('dark', 'light');
-	document.documentElement.classList.add(colorScheme);
+	if (colorScheme === 'dark') {
+		document.documentElement.classList.add('dark');
+	}
 	document.documentElement.dataset.theme = colorScheme;
 };
 
@@ -200,9 +194,6 @@ const readPersistedUiState = (): UiState => {
 	};
 };
 
-const bootstrapUiState = readInitialUiState();
-applyThemeToDocument(bootstrapUiState.colorScheme);
-
 type UiStore = UiState & {
 	setColorScheme: (colorScheme: ColorScheme) => void;
 	toggleColorScheme: () => void;
@@ -212,7 +203,7 @@ type UiStore = UiState & {
 };
 
 export const useUiStore = create<UiStore>((set, get) => ({
-	...bootstrapUiState,
+	...DEFAULT_UI_STATE,
 	hydrateFromStorage: () => {
 		const { colorScheme, sidebarOpen } = readPersistedUiState();
 		applyThemeToDocument(colorScheme);
