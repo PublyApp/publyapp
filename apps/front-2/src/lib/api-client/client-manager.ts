@@ -60,15 +60,34 @@ const buildCustomFetch = (options: BuildCustomFetchOptions): typeof fetch => {
 
 const resolveApiBaseUrl = (): string => {
 	const runtimeBase =
-		typeof window === 'undefined'
-			? undefined
-			: window.__ENV__?.PUBLIC_API_BASE_URL;
-	if (!runtimeBase) {
-		throw new Error(
-			'window.__ENV__.PUBLIC_API_BASE_URL is required in front-2 runtime env',
-		);
+		typeof globalThis === 'object'
+			? (globalThis as { __ENV__?: { PUBLIC_API_BASE_URL?: string } })
+					.__ENV__?.PUBLIC_API_BASE_URL
+			: undefined;
+	if (runtimeBase) {
+		return runtimeBase;
 	}
-	return runtimeBase;
+
+	type ProcessEnv = { [key: string]: string | undefined };
+	type ProcessLike = { env?: ProcessEnv };
+	type GlobalLike = { process?: ProcessLike; __ENV__?: { PUBLIC_API_BASE_URL?: string } };
+
+	const globalLike = typeof globalThis === 'object'
+		? (globalThis as GlobalLike)
+		: undefined;
+
+	const processBase =
+		globalLike?.process?.env?.PUBLIC_API_BASE_URL ||
+		globalLike?.process?.env?.NEXT_PUBLIC_API_BASE_URL;
+
+	if (processBase) {
+		return processBase;
+	}
+
+	if (typeof window === 'undefined') {
+		return 'http://127.0.0.1:5000';
+	}
+	throw new Error('__ENV__.PUBLIC_API_BASE_URL is required in front-2 runtime env');
 };
 
 const buildClient = (options: {
@@ -102,22 +121,33 @@ const getSessionTokensFromBrowser = (): ParsedSessionTokens => {
 };
 
 class ClientManager implements ClientAccessor<ApiClient> {
+	private normalizeTenantId = (tenantId: string): string => {
+		const normalized = tenantId.trim();
+		if (!normalized) {
+			throw new Error('tenantId is required to create tenant-scoped client');
+		}
+
+		return normalized;
+	};
+
 	private tenantClientMap = new Map<string, ApiClient>();
 	private staffClient: ApiClient | undefined;
 	private anonymousClient: ApiClient | undefined;
 
 	getOrCreateClient(tenantId: string): ApiClient {
-		const cached = this.tenantClientMap.get(tenantId);
+		const safeTenantId = this.normalizeTenantId(tenantId);
+
+		const cached = this.tenantClientMap.get(safeTenantId);
 		if (cached) {
 			return cached;
 		}
 
 		const apiClient = buildClient({
 			getSessionToken: () => resolveSessionToken('tenant'),
-			tenantId,
+			tenantId: safeTenantId,
 		});
 
-		this.tenantClientMap.set(tenantId, apiClient);
+		this.tenantClientMap.set(safeTenantId, apiClient);
 		return apiClient;
 	}
 

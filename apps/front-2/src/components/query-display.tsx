@@ -1,6 +1,5 @@
 import { Spinner, type SpinnerProps } from '@heroui/react';
 import isFunction from 'lodash/isFunction';
-import isNil from 'lodash/isNil';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { type FC, isValidElement, type ReactNode } from 'react';
 
@@ -26,7 +25,7 @@ const renderLoading = (LoadingSlot?: Props['LoadingSlot']) => {
 	if (isFunction(LoadingSlot)) {
 		return <LoadingSlot />;
 	}
-	if (isValidElement(LoadingSlot) && !isNil(LoadingSlot)) {
+	if (isValidElement(LoadingSlot)) {
 		return LoadingSlot;
 	}
 	return <Spinner label="Loading..." {...(defaultLoadingProps satisfies DefaultLoadingProps)} />;
@@ -40,7 +39,7 @@ const renderError = <TData, TError>(
 	if (isFunction(ErrorSlot)) {
 		return <ErrorSlot error={error} query={query} />;
 	}
-	if (isValidElement(ErrorSlot) && !isNil(ErrorSlot)) {
+	if (isValidElement(ErrorSlot)) {
 		return ErrorSlot;
 	}
 	return <div className="text-sm text-danger">Error loading data</div>;
@@ -50,7 +49,7 @@ const renderEmpty = (EmptySlot?: Props['EmptySlot']) => {
 	if (isFunction(EmptySlot)) {
 		return <EmptySlot />;
 	}
-	if (isValidElement(EmptySlot) && !isNil(EmptySlot)) {
+	if (isValidElement(EmptySlot)) {
 		return EmptySlot;
 	}
 	return <div className="text-sm text-neutral-500">No data found</div>;
@@ -98,7 +97,7 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 	if (loadingStrategy === 'loading') {
 		showLoading = query.isLoading;
 	} else if (loadingStrategy === 'fetching') {
-		showLoading = query.isFetching;
+		showLoading = Boolean(query.isFetching);
 	}
 
 	if (showLoading) {

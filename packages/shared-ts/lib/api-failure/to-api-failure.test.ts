@@ -26,6 +26,71 @@ test('maps body/problem-first status via problemDetails.status ?? responseStatus
 	});
 });
 
+test('parses nested error container when body is empty and status resolves from wrapper', () => {
+	const payload = {
+		error: {
+			errors: {
+				email: ['required'],
+			},
+		},
+		responseStatusCode: 422,
+	};
+
+	const failure = toApiFailure(payload);
+	expect(failure.kind).toBe('validation');
+	expect(failure.status).toBe(422);
+	expect(failure.fieldErrors).toEqual({ email: ['required'] });
+});
+
+test('prefers nested error payload over empty wrapper metadata when nested contains validation errors', () => {
+	const payload = {
+		title: 'wrapped',
+		responseStatusCode: 422,
+		error: {
+			errors: {
+				password: ['too weak'],
+			},
+		},
+	};
+
+	const failure = toApiFailure(payload);
+	expect(failure.kind).toBe('validation');
+	expect(failure.status).toBe(422);
+	expect(failure.fieldErrors).toEqual({ password: ['too weak'] });
+});
+
+test('uses body errors with wrapper response status when body.status is missing', () => {
+	const payload = {
+		responseStatusCode: 422,
+		body: {
+			errors: {
+				name: ['is required'],
+			},
+			detail: 'nested validation',
+		},
+		title: 'ignored',
+	};
+
+	const failure = toApiFailure(payload);
+	expect(failure.kind).toBe('validation');
+	expect(failure.status).toBe(422);
+});
+
+test('uses body status then wrapper response/status fallback for problem failures', () => {
+	const payload = {
+		responseStatusCode: 500,
+		status: 501,
+		body: {
+			title: 'body title',
+			detail: 'bad shape',
+		},
+	};
+
+	const failure = toApiFailure(payload);
+	expect(failure.kind).toBe('problem');
+	expect(failure.status).toBe(501);
+});
+
 test('maps transport-level error when body is missing and fallback is responseStatusCode', () => {
 	const payload = {
 		responseStatusCode: 400,

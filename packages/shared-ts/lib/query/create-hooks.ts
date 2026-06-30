@@ -31,12 +31,12 @@ type TenantQueryVariablesRequired<TVariables> = { tenantId: string } & Omit<
 
 type BaseQueryOptions<TData, TVariables, TError = Error> = Omit<
 	CreateQueryOptions<TData, TVariables, TError>,
-	'queryKey' | 'fetcher' | 'onSuccess' | 'onError' | 'onSettled'
+ 	'queryKey' | 'fetcher'
 >;
 
 type BaseSuspenseQueryOptions<TData, TVariables, TError = Error> = Omit<
 	CreateSuspenseQueryOptions<TData, TVariables, TError>,
-	'queryKey' | 'fetcher' | 'onSuccess' | 'onError' | 'onSettled'
+ 	'queryKey' | 'fetcher'
 >;
 
 type BaseMutationOptions<TData, TVariables, TError = Error> = Omit<
@@ -92,7 +92,7 @@ type TenantMutationConfig<
 	handlers?: QueryErrorHandlers;
 } & Omit<
 	BaseMutationOptions<TData, TenantQueryVariables<TVariables>, TError>,
-	'onError' | 'onSuccess' | 'onSettled' | 'onMutate'
+ 	'use' | 'variables'
 >;
 
 type StaffQueryConfig<
@@ -139,6 +139,9 @@ const mergeHandlers = (
 	resolveTenant: localHandlers?.resolveTenant ?? globalHandlers?.resolveTenant,
 });
 
+const shouldLogoutForScope = (scope: QueryScope): boolean =>
+	scope === 'tenant' || scope === 'staff';
+
 const resolveTenantId = <TVariables>(
 	variables: TenantQueryVariables<TVariables>,
 	handlers?: QueryErrorHandlers,
@@ -148,6 +151,18 @@ const resolveTenantId = <TVariables>(
 		? handlers.resolveTenant()
 		: undefined);
 
+
+const composeOnError = <TError>(
+	localOnError: ((error: TError) => void) | undefined,
+	generatedOnError: (error: TError) => void,
+) =>
+	(localOnError === undefined
+		? generatedOnError
+		: (error: TError) => {
+			generatedOnError(error);
+			localOnError(error);
+		});
+
 const makeErrorHandler = (scope: QueryScope, handlers?: QueryErrorHandlers) => {
 	return (error: unknown): void => {
 		const failure = toApiFailure(error);
@@ -155,13 +170,39 @@ const makeErrorHandler = (scope: QueryScope, handlers?: QueryErrorHandlers) => {
 			return;
 		}
 
-		if (failure.kind === 'problem' && failure.status === 401) {
+		if (
+			shouldLogoutForScope(scope) &&
+			failure.kind === 'problem' &&
+			failure.status === 401
+		) {
 			handlers?.onLogout?.(failure);
 			return;
 		}
 
 		handlers?.onToast?.(failure, { scope });
 	};
+};
+
+const buildScopedQueryKey = (
+	scope: QueryScope,
+	queryKey: string[],
+	tenantId?: string,
+	variables?: Record<string, unknown>,
+) => {
+	const key: (string | Record<string, unknown> | undefined)[] = [
+		scope,
+		queryKey.join('.'),
+	];
+
+	if (tenantId) {
+		key.push(tenantId);
+	}
+
+	if (variables) {
+		key.push(variables);
+	}
+
+	return key;
 };
 
 export const buildTenantQueryOptions = <
@@ -173,12 +214,25 @@ export const buildTenantQueryOptions = <
 	config: TenantQueryConfig<TApiClient, TData, TVariables, TError>,
 	options: QueryFactoryOptionsForClient<TApiClient>,
 ) => {
-	const { queryKeyFn, fetcher, handlers: localHandlers, ...restOptions } = config;
+	const {
+		queryKeyFn,
+		fetcher,
+		handlers: localHandlers,
+		onError: localOnError,
+		...restOptions
+	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
 	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
+	const fallbackTenantId = resolveTenantId({} as TenantQueryVariables<TVariables>, mergedHandlers);
+
 
 	return {
-		queryKey: [queryKey] as const,
+		queryKey: buildScopedQueryKey(
+			'tenant',
+			queryKey,
+			fallbackTenantId,
+			undefined,
+		),
 		fetcher: async (
 			variables: TenantQueryVariables<TVariables>,
 		): Promise<TData> => {
@@ -190,7 +244,10 @@ export const buildTenantQueryOptions = <
 			const client = options.clientAccessor.getOrCreateClient(tenantId);
 			return fetcher(client, { ...(variables as TenantQueryVariables<TVariables>), tenantId });
 		},
-		onError: makeErrorHandler('tenant', mergedHandlers),
+		onError: composeOnError(
+			localOnError,
+			makeErrorHandler('tenant', mergedHandlers),
+		),
 		...restOptions,
 	};
 };
@@ -209,12 +266,27 @@ export const buildTenantSuspenseQueryOptions = <
 	>,
 	options: QueryFactoryOptionsForClient<TApiClient>,
 ) => {
-	const { queryKeyFn, fetcher, handlers: localHandlers, ...restOptions } = config;
+	const {
+		queryKeyFn,
+		fetcher,
+		handlers: localHandlers,
+		onError: localOnError,
+		...restOptions
+	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
 	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
+	const fallbackTenantId = resolveTenantId(
+		{} as TenantQueryVariables<TVariables>,
+		mergedHandlers,
+	);
 
 	return {
-		queryKey: [queryKey] as const,
+		queryKey: buildScopedQueryKey(
+			'tenant',
+			queryKey,
+			fallbackTenantId,
+			undefined,
+		),
 		fetcher: async (
 			variables: TenantQueryVariables<TVariables>,
 		): Promise<TData> => {
@@ -226,7 +298,10 @@ export const buildTenantSuspenseQueryOptions = <
 			const client = options.clientAccessor.getOrCreateClient(tenantId);
 			return fetcher(client, { ...(variables as TenantQueryVariables<TVariables>), tenantId });
 		},
-		onError: makeErrorHandler('tenant', mergedHandlers),
+		onError: composeOnError(
+			localOnError,
+			makeErrorHandler('tenant', mergedHandlers),
+		),
 		...restOptions,
 	};
 };
@@ -240,13 +315,24 @@ export const buildTenantMutationOptions = <
 	config: TenantMutationConfig<TApiClient, TData, TVariables, TError>,
 	options: QueryFactoryOptionsForClient<TApiClient>,
 ) => {
-	const { mutationKeyFn, mutationFn, handlers: localHandlers, ...restOptions } =
-		config;
+	const {
+		mutationKeyFn,
+		mutationFn,
+		handlers: localHandlers,
+		onError: localOnError,
+		...restOptions
+	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
 	const mutationKey = getQueryKey<TApiClient>(mutationKeyFn);
+	const fallbackTenantId = resolveTenantId({} as TenantQueryVariables<TVariables>, mergedHandlers);
 
 	return {
-		mutationKey: [mutationKey] as const,
+		mutationKey: buildScopedQueryKey(
+			'tenant',
+			mutationKey,
+			fallbackTenantId,
+			undefined,
+		),
 		mutationFn: async (
 			variables: TenantQueryVariables<TVariables>,
 		): Promise<TData> => {
@@ -261,7 +347,10 @@ export const buildTenantMutationOptions = <
 				tenantId,
 			});
 		},
-		onError: makeErrorHandler('tenant', mergedHandlers),
+		onError: composeOnError(
+			localOnError,
+			makeErrorHandler('tenant', mergedHandlers),
+		),
 		...restOptions,
 	};
 };
@@ -275,17 +364,26 @@ export const buildStaffQueryOptions = <
 	config: StaffQueryConfig<TApiClient, TData, TVariables, TError>,
 	options: QueryFactoryOptionsForClient<TApiClient>,
 ) => {
-	const { queryKeyFn, fetcher, handlers: localHandlers, ...restOptions } = config;
+	const {
+		queryKeyFn,
+		fetcher,
+		handlers: localHandlers,
+		onError: localOnError,
+		...restOptions
+	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
 	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
 
 	return {
-		queryKey: [queryKey] as const,
+		queryKey: buildScopedQueryKey('staff', queryKey),
 		fetcher: async (variables: TVariables): Promise<TData> => {
 			const client = options.clientAccessor.getOrCreateStaffClient();
 			return fetcher(client, variables);
 		},
-		onError: makeErrorHandler('staff', mergedHandlers),
+		onError: composeOnError(
+			localOnError,
+			makeErrorHandler('staff', mergedHandlers),
+		),
 		...restOptions,
 	};
 };
@@ -299,17 +397,26 @@ export const buildStaffSuspenseQueryOptions = <
 	config: StaffSuspenseQueryConfig<TApiClient, TData, TVariables, TError>,
 	options: QueryFactoryOptionsForClient<TApiClient>,
 ) => {
-	const { queryKeyFn, fetcher, handlers: localHandlers, ...restOptions } = config;
+	const {
+		queryKeyFn,
+		fetcher,
+		handlers: localHandlers,
+		onError: localOnError,
+		...restOptions
+	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
 	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
 
 	return {
-		queryKey: [queryKey] as const,
+		queryKey: buildScopedQueryKey('staff', queryKey),
 		fetcher: async (variables: TVariables): Promise<TData> => {
 			const client = options.clientAccessor.getOrCreateStaffClient();
 			return fetcher(client, variables);
 		},
-		onError: makeErrorHandler('staff', mergedHandlers),
+		onError: composeOnError(
+			localOnError,
+			makeErrorHandler('staff', mergedHandlers),
+		),
 		...restOptions,
 	};
 };
@@ -323,18 +430,26 @@ export const buildStaffMutationOptions = <
 	config: StaffMutationConfig<TApiClient, TData, TVariables, TError>,
 	options: QueryFactoryOptionsForClient<TApiClient>,
 ) => {
-	const { mutationKeyFn, mutationFn, handlers: localHandlers, ...restOptions } =
-		config;
+	const {
+		mutationKeyFn,
+		mutationFn,
+		handlers: localHandlers,
+		onError: localOnError,
+		...restOptions
+	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
 	const mutationKey = getQueryKey<TApiClient>(mutationKeyFn);
 
 	return {
-		mutationKey: [mutationKey] as const,
+		mutationKey: buildScopedQueryKey('staff', mutationKey),
 		mutationFn: async (variables: TVariables): Promise<TData> => {
 			const client = options.clientAccessor.getOrCreateStaffClient();
 			return mutationFn(client, variables);
 		},
-		onError: makeErrorHandler('staff', mergedHandlers),
+		onError: composeOnError(
+			localOnError,
+			makeErrorHandler('staff', mergedHandlers),
+		),
 		...restOptions,
 	};
 };
@@ -348,17 +463,26 @@ export const buildAnonymousQueryOptions = <
 	config: StaffQueryConfig<TApiClient, TData, TVariables, TError>,
 	options: QueryFactoryOptionsForClient<TApiClient>,
 ) => {
-	const { queryKeyFn, fetcher, handlers: localHandlers, ...restOptions } = config;
+	const {
+		queryKeyFn,
+		fetcher,
+		handlers: localHandlers,
+		onError: localOnError,
+		...restOptions
+	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
 	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
 
 	return {
-		queryKey: [queryKey] as const,
+		queryKey: buildScopedQueryKey('anonymous', queryKey),
 		fetcher: async (variables: TVariables): Promise<TData> => {
 			const client = options.clientAccessor.getOrCreateAnonymousClient();
 			return fetcher(client, variables);
 		},
-		onError: makeErrorHandler('anonymous', mergedHandlers),
+		onError: composeOnError(
+			localOnError,
+			makeErrorHandler('anonymous', mergedHandlers),
+		),
 		...restOptions,
 	};
 };
@@ -372,17 +496,26 @@ export const buildAnonymousSuspenseQueryOptions = <
 	config: StaffSuspenseQueryConfig<TApiClient, TData, TVariables, TError>,
 	options: QueryFactoryOptionsForClient<TApiClient>,
 ) => {
-	const { queryKeyFn, fetcher, handlers: localHandlers, ...restOptions } = config;
+	const {
+		queryKeyFn,
+		fetcher,
+		handlers: localHandlers,
+		onError: localOnError,
+		...restOptions
+	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
 	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
 
 	return {
-		queryKey: [queryKey] as const,
+		queryKey: buildScopedQueryKey('anonymous', queryKey),
 		fetcher: async (variables: TVariables): Promise<TData> => {
 			const client = options.clientAccessor.getOrCreateAnonymousClient();
 			return fetcher(client, variables);
 		},
-		onError: makeErrorHandler('anonymous', mergedHandlers),
+		onError: composeOnError(
+			localOnError,
+			makeErrorHandler('anonymous', mergedHandlers),
+		),
 		...restOptions,
 	};
 };
@@ -396,18 +529,26 @@ export const buildAnonymousMutationOptions = <
 	config: StaffMutationConfig<TApiClient, TData, TVariables, TError>,
 	options: QueryFactoryOptionsForClient<TApiClient>,
 ) => {
-	const { mutationKeyFn, mutationFn, handlers: localHandlers, ...restOptions } =
-		config;
+	const {
+		mutationKeyFn,
+		mutationFn,
+		handlers: localHandlers,
+		onError: localOnError,
+		...restOptions
+	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
 	const mutationKey = getQueryKey<TApiClient>(mutationKeyFn);
 
 	return {
-		mutationKey: [mutationKey] as const,
+		mutationKey: buildScopedQueryKey('anonymous', mutationKey),
 		mutationFn: async (variables: TVariables): Promise<TData> => {
 			const client = options.clientAccessor.getOrCreateAnonymousClient();
 			return mutationFn(client, variables);
 		},
-		onError: makeErrorHandler('anonymous', mergedHandlers),
+		onError: composeOnError(
+			localOnError,
+			makeErrorHandler('anonymous', mergedHandlers),
+		),
 		...restOptions,
 	};
 };
@@ -420,7 +561,7 @@ export const buildAuthQueryOptions = <
 >(
 	config: StaffQueryConfig<TApiClient, TData, TVariables, TError>,
 	options: QueryFactoryOptionsForClient<TApiClient>,
-) => buildStaffQueryOptions(config, options);
+) => buildAnonymousQueryOptions(config, options);
 
 export const buildAuthSuspenseQueryOptions = <
 	TApiClient,
@@ -430,7 +571,7 @@ export const buildAuthSuspenseQueryOptions = <
 >(
 	config: StaffSuspenseQueryConfig<TApiClient, TData, TVariables, TError>,
 	options: QueryFactoryOptionsForClient<TApiClient>,
-) => buildStaffSuspenseQueryOptions(config, options);
+) => buildAnonymousSuspenseQueryOptions(config, options);
 
 export const buildAuthMutationOptions = <
 	TApiClient,
@@ -440,7 +581,7 @@ export const buildAuthMutationOptions = <
 >(
 	config: StaffMutationConfig<TApiClient, TData, TVariables, TError>,
 	options: QueryFactoryOptionsForClient<TApiClient>,
-) => buildStaffMutationOptions(config, options);
+) => buildAnonymousMutationOptions(config, options);
 
 export const createTenantQuery = <
 	TApiClient,

@@ -7,7 +7,8 @@ type HeaderShape = HeadersInit | Record<string, string> | [string, string][];
 const normalizeHeaderName = (name: string): string => name.toLowerCase();
 
 const shouldRedactHeader = (name: string): boolean =>
-	normalizeHeaderName(name) === normalizeHeaderName(SESSION_TOKEN_HEADER_KEY);
+	normalizeHeaderName(name) === normalizeHeaderName(SESSION_TOKEN_HEADER_KEY) ||
+	normalizeHeaderName(name) === 'authorization';
 
 export const redactHeaders = (
 	headers: HeaderShape | undefined,

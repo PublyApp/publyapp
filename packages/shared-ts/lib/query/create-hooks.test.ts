@@ -134,10 +134,12 @@ test('tenant onError triggers onLogout for 401 and skips toast', async () => {
 test('non-401 errors trigger onToast for tenant scope', async () => {
 	const onLogout = vi.fn();
 	const onToast = vi.fn();
+	const onError = vi.fn();
 	const options = buildTenantQueryOptions(
 		{
 			queryKeyFn: (client) => `tenant:${client.scope}`,
 			fetcher: async () => 'unused',
+			onError,
 		},
 		{
 			...createScopeOptions(accessor),
@@ -149,7 +151,30 @@ test('non-401 errors trigger onToast for tenant scope', async () => {
 		responseStatusCode: 400,
 		title: 'bad request',
 	});
+	expect(onError).toHaveBeenCalledTimes(1);
 	expect(onToast).toHaveBeenCalledTimes(1);
 	expect(onToast.mock.calls[0]?.[1]).toMatchObject({ scope: 'tenant' });
 	expect(onLogout).not.toHaveBeenCalled();
+});
+
+test('anonymous auth errors do not trigger onLogout for 401', async () => {
+	const onLogout = vi.fn();
+	const onToast = vi.fn();
+	const options = buildAnonymousQueryOptions(
+		{
+			queryKeyFn: (client) => `anon:${client.scope}`,
+			fetcher: async () => 'unused',
+		},
+		{
+			...createScopeOptions(accessor),
+			handlers: { onLogout, onToast },
+		},
+	);
+
+	await options.onError?.({
+		responseStatusCode: 401,
+		title: 'unauthorized',
+	});
+	expect(onLogout).not.toHaveBeenCalled();
+	expect(onToast).toHaveBeenCalledTimes(1);
 });

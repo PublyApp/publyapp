@@ -48,7 +48,7 @@ const toRecordOfStringArrays = (
 		}
 
 		const messages = candidates
-			.map((item) => (typeof item === 'string' ? item : String(item ?? '')))
+			.filter((item): item is string => typeof item === 'string')
 			.filter(Boolean);
 		if (messages.length > 0) {
 			parsed[field] = messages;
@@ -66,6 +66,14 @@ type ProblemLike = {
 	responseStatusCode: number | undefined;
 	errors: Record<string, string[]> | undefined;
 };
+
+const hasMeaningfulProblemShape = (problem: ProblemLike): boolean =>
+	problem.status !== undefined ||
+	problem.responseStatusCode !== undefined ||
+	problem.title !== undefined ||
+	problem.detail !== undefined ||
+	problem.translationKey !== undefined ||
+	(problem.errors !== undefined && Object.keys(problem.errors).length > 0);
 
 const readProblemShape = (value: unknown): ProblemLike | undefined => {
 	const candidate = asRecord(value);
@@ -93,12 +101,14 @@ const pickResponseStatus = (...values: Array<number | undefined>): number => {
 	return 500;
 };
 
-const isValidationProblem = (problem: ProblemLike): boolean =>
-	problem.status === 422 &&
-	problem.errors !== undefined &&
-	Object.keys(problem.errors).length > 0;
+type ParsedProblemLike = {
+	source: ProblemLike;
+	body: ProblemLike | undefined;
+	root: ProblemLike | undefined;
+	nested: ProblemLike | undefined;
+};
 
-const parseProblem = (error: unknown): ProblemLike | undefined => {
+const parseProblem = (error: unknown): ParsedProblemLike | undefined => {
 	const errorRecord = asRecord(error);
 	if (!errorRecord) {
 		return undefined;
@@ -107,30 +117,47 @@ const parseProblem = (error: unknown): ProblemLike | undefined => {
 	const bodyProblem = asRecord(errorRecord.body);
 	const nestedProblem = asRecord(errorRecord.error);
 
-	const top = readProblemShape(errorRecord);
+	const root = readProblemShape(errorRecord);
 	const body = bodyProblem ? readProblemShape(bodyProblem) : undefined;
 	const nested = nestedProblem ? readProblemShape(nestedProblem) : undefined;
+	const candidates = [body, root, nested];
+	const source = candidates.find(
+		(candidate): candidate is ProblemLike =>
+			candidate !== undefined && hasMeaningfulProblemShape(candidate),
+	);
 
-	return body ?? top ?? nested;
-};
-
-const toProblemFailure = (error: unknown): ProblemFailure | undefined => {
-	const topRecord = asRecord(error);
-	const bodyRecord = topRecord ? asRecord(topRecord.body) : undefined;
-	const rootProblem = readProblemShape(topRecord);
-	const bodyProblem = bodyRecord ? readProblemShape(bodyRecord) : undefined;
-	const nestedProblem = readProblemShape(bodyRecord ?? topRecord?.error);
-
-	if (!topRecord && !bodyRecord) {
-		return undefined;
-	}
-
-	const source = bodyProblem ?? rootProblem ?? nestedProblem;
 	if (!source) {
 		return undefined;
 	}
 
-	const status = source.status ?? source.responseStatusCode ?? 500;
+	return {
+		source,
+		body,
+		root,
+		nested,
+	};
+};
+
+const toProblemFailure = (error: unknown): ProblemFailure | undefined => {
+	const parsedProblem = parseProblem(error);
+	if (!parsedProblem) {
+		return undefined;
+	}
+
+	const { source, body, root } = parsedProblem;
+	const status = body
+		? pickResponseStatus(
+			body.status,
+			body.responseStatusCode,
+			root?.responseStatusCode,
+			root?.status,
+		)
+		: pickResponseStatus(
+			source.status,
+			source.responseStatusCode,
+			root?.responseStatusCode,
+			root?.status,
+		);
 
 	return {
 		kind: 'problem',
@@ -143,14 +170,36 @@ const toProblemFailure = (error: unknown): ProblemFailure | undefined => {
 };
 
 const toValidationFailure = (error: unknown): ValidationFailure | undefined => {
-	const source = parseProblem(error);
-	if (!source || !isValidationProblem(source)) {
+	const parsedProblem = parseProblem(error);
+	if (!parsedProblem) {
+		return undefined;
+	}
+
+	const { body, nested, root } = parsedProblem;
+	const source = [body, nested, root].find(
+		(problem): problem is ProblemLike =>
+			problem !== undefined &&
+			problem.errors !== undefined &&
+			Object.keys(problem.errors).length > 0,
+	);
+	if (!source) {
+		return undefined;
+	}
+
+	const status = pickResponseStatus(
+		source.status,
+		source.responseStatusCode,
+		parsedProblem.root?.responseStatusCode,
+		parsedProblem.root?.status,
+	);
+
+	if (status !== 422) {
 		return undefined;
 	}
 
 	return {
 		kind: 'validation',
-		status: pickResponseStatus(source.status, source.responseStatusCode),
+		status,
 		translationKey: source.translationKey,
 		detail: source.detail,
 		title: source.title,
@@ -183,12 +232,9 @@ export const toApiFailure = (error: unknown): ApiFailure => {
 	}
 
 	if (error instanceof TypeError) {
-		const message = error.message.toLowerCase();
+		const message = error.message;
 		const isNetwork =
-			message.includes('fetch') ||
-			message.includes('network') ||
-			message.includes('failed to fetch') ||
-			message.includes('networkerror');
+			/(?:\bfetch\b|\bnetwork\b|failed to fetch|networkerror)/i.test(message);
 		if (isNetwork) {
 			return {
 				kind: 'network',

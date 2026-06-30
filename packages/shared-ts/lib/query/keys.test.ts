@@ -15,12 +15,12 @@ test('builds stable string keys from accessor path and primitive args', () => {
 	const key = getQueryKey<FakeApiClient>((client) => {
 		return client.health();
 	});
-	expect(key).toBe('health');
+	expect(key).toEqual(['health']);
 });
 
 test('builds stable string keys with args', () => {
 	const key = getQueryKey<FakeApiClient>((client) =>
 		client.users.list.byId('abc', true),
 	);
-	expect(key).toBe('users.list.byId.abc.true');
+	expect(key).toEqual(['users', 'list', 'byId', 'abc', 'true']);
 });

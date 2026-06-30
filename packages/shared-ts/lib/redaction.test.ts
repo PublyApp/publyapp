@@ -28,6 +28,7 @@ test('redacts token when provided as Headers instance', () => {
 	const output = redactHeaders(headers);
 
 	expect(output['x-session-token']).toBe('[REDACTED]');
-	expect(output.authorization).toBe(`Bearer ${token}`);
+	expect(output.authorization).toBe('[REDACTED]');
 	expect(output['authorization']).not.toBeUndefined();
+	expect(JSON.stringify(output)).not.toContain(token);
 });
