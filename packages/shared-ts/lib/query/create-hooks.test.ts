@@ -3,6 +3,7 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import {
 	buildAnonymousMutationOptions,
 	buildAnonymousQueryOptions,
+	buildAuthQueryOptions,
 	buildStaffMutationOptions,
 	buildStaffQueryOptions,
 	buildTenantMutationOptions,
@@ -75,6 +76,28 @@ test('tenant mutation resolves tenantId from handler fallback when variable is a
 	const value = await options.mutationFn({ limit: 5 } as { limit: number });
 	expect(accessor.getOrCreateClient).toHaveBeenCalledWith('tenant-fallback');
 	expect(value).toBe('tenant-tenant-fallback-mutate');
+});
+
+test('tenant query resolves blank tenantId via handler fallback', async () => {
+	const options = buildTenantQueryOptions(
+		{
+			queryKeyFn: (client) => `tenant:${client.scope}`,
+			fetcher: async (client, vars) =>
+				`${client.scope}-${vars.tenantId}-${vars.limit}`,
+			handlers: {
+				resolveTenant: () => ' tenant-fallback ',
+			},
+		},
+		createScopeOptions(accessor),
+	);
+
+	const value = await options.fetcher({
+		tenantId: '   ',
+		limit: 12,
+	} as { tenantId?: string; limit: number });
+
+	expect(accessor.getOrCreateClient).toHaveBeenCalledWith('tenant-fallback');
+	expect(value).toBe('tenant-tenant-fallback-12');
 });
 
 test('staff query uses staff client and not tenant/anonymous clients', async () => {
@@ -163,6 +186,28 @@ test('anonymous auth errors do not trigger onLogout for 401', async () => {
 	const options = buildAnonymousQueryOptions(
 		{
 			queryKeyFn: (client) => `anon:${client.scope}`,
+			fetcher: async () => 'unused',
+		},
+		{
+			...createScopeOptions(accessor),
+			handlers: { onLogout, onToast },
+		},
+	);
+
+	await options.onError?.({
+		responseStatusCode: 401,
+		title: 'unauthorized',
+	});
+	expect(onLogout).not.toHaveBeenCalled();
+	expect(onToast).toHaveBeenCalledTimes(1);
+});
+
+test('auth query errors follow anonymous-style 401 handling (no onLogout)', async () => {
+	const onLogout = vi.fn();
+	const onToast = vi.fn();
+	const options = buildAuthQueryOptions(
+		{
+			queryKeyFn: (client) => `auth:${client.scope}`,
 			fetcher: async () => 'unused',
 		},
 		{

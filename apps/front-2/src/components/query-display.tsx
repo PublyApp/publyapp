@@ -42,7 +42,7 @@ const renderError = <TData, TError>(
 	if (isValidElement(ErrorSlot)) {
 		return ErrorSlot;
 	}
-	return <div className="text-sm text-danger">Error loading data</div>;
+	return null;
 };
 
 const renderEmpty = (EmptySlot?: Props['EmptySlot']) => {
@@ -52,7 +52,7 @@ const renderEmpty = (EmptySlot?: Props['EmptySlot']) => {
 	if (isValidElement(EmptySlot)) {
 		return EmptySlot;
 	}
-	return <div className="text-sm text-neutral-500">No data found</div>;
+	return null;
 };
 
 const renderData = <TData, TError>(

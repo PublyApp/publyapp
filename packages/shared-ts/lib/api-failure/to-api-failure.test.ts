@@ -59,6 +59,24 @@ test('prefers nested error payload over empty wrapper metadata when nested conta
 	expect(failure.fieldErrors).toEqual({ password: ['too weak'] });
 });
 
+test('uses nested validation status over wrapper response status', () => {
+	const payload = {
+		responseStatusCode: 400,
+		title: 'wrapper',
+		error: {
+			status: 422,
+			errors: {
+				password: ['too weak'],
+			},
+		},
+	};
+
+	const failure = toApiFailure(payload);
+	expect(failure.kind).toBe('validation');
+	expect(failure.status).toBe(422);
+	expect(failure.fieldErrors).toEqual({ password: ['too weak'] });
+});
+
 test('uses body errors with wrapper response status when body.status is missing', () => {
 	const payload = {
 		responseStatusCode: 422,

@@ -16,11 +16,21 @@ import type { ClientAccessor } from '@org/shared-ts/lib/query/types';
 import type { ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
 
 type SessionScope = 'tenant' | 'staff';
+type FetchFunction = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 type BuildCustomFetchOptions = {
 	getSessionToken: () => string | undefined;
 	tenantId?: string;
-	fetchImpl?: typeof fetch;
+	fetchImpl?: FetchFunction;
+};
+
+const normalizeTenantId = (tenantId: string): string => {
+	const normalized = tenantId.trim();
+	if (!normalized) {
+		throw new Error('tenantId is required to create tenant-scoped client');
+	}
+
+	return normalized;
 };
 
 const resolveSessionToken = (
@@ -39,10 +49,13 @@ const resolveSessionToken = (
 	return selectToken(parseSessionCookie(rawCookie), scope);
 };
 
-const buildCustomFetch = (options: BuildCustomFetchOptions): typeof fetch => {
-	const fetchImpl = options.fetchImpl ?? fetch;
+const buildCustomFetch = (options: BuildCustomFetchOptions): FetchFunction => {
+	const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+	if (typeof fetchImpl !== 'function') {
+		throw new Error('fetch is required in the current runtime');
+	}
 
-	return (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+	return (input, init) => {
 		const headers = new Headers(init?.headers);
 		const sessionToken = options.getSessionToken();
 		const tenantId = options.tenantId;
@@ -81,7 +94,7 @@ const resolveApiBaseUrl = (): string => {
 		globalLike?.process?.env?.NEXT_PUBLIC_API_BASE_URL;
 
 	if (processBase) {
-		return processBase;
+	return processBase;
 	}
 
 	if (typeof window === 'undefined') {
@@ -93,7 +106,7 @@ const resolveApiBaseUrl = (): string => {
 const buildClient = (options: {
 	getSessionToken: () => string | undefined;
 	tenantId?: string;
-	fetchImpl?: typeof fetch;
+	fetchImpl?: FetchFunction;
 }): ApiClient => {
 	const customFetch = buildCustomFetch(options);
 	const adapter = new FetchRequestAdapter(
@@ -121,21 +134,12 @@ const getSessionTokensFromBrowser = (): ParsedSessionTokens => {
 };
 
 class ClientManager implements ClientAccessor<ApiClient> {
-	private normalizeTenantId = (tenantId: string): string => {
-		const normalized = tenantId.trim();
-		if (!normalized) {
-			throw new Error('tenantId is required to create tenant-scoped client');
-		}
-
-		return normalized;
-	};
-
 	private tenantClientMap = new Map<string, ApiClient>();
 	private staffClient: ApiClient | undefined;
 	private anonymousClient: ApiClient | undefined;
 
 	getOrCreateClient(tenantId: string): ApiClient {
-		const safeTenantId = this.normalizeTenantId(tenantId);
+		const safeTenantId = normalizeTenantId(tenantId);
 
 		const cached = this.tenantClientMap.get(safeTenantId);
 		if (cached) {

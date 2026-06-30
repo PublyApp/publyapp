@@ -144,20 +144,13 @@ const toProblemFailure = (error: unknown): ProblemFailure | undefined => {
 		return undefined;
 	}
 
-	const { source, body, root } = parsedProblem;
-	const status = body
-		? pickResponseStatus(
-			body.status,
-			body.responseStatusCode,
-			root?.responseStatusCode,
-			root?.status,
-		)
-		: pickResponseStatus(
-			source.status,
-			source.responseStatusCode,
-			root?.responseStatusCode,
-			root?.status,
-		);
+	const { source, root } = parsedProblem;
+	const status = pickResponseStatus(
+		source.status,
+		source.responseStatusCode,
+		root?.responseStatusCode,
+		root?.status,
+	);
 
 	return {
 		kind: 'problem',
@@ -299,16 +292,16 @@ export const getFailureMessage = (
 	switch (failure.kind) {
 		case 'validation':
 			return (
-				failure.title ??
 				failure.detail ??
+				failure.title ??
 				failure.translationKey ??
 				options?.fallback ??
 				'Validation failed'
 			);
 		case 'problem':
 			return (
-				failure.title ??
 				failure.detail ??
+				failure.title ??
 				failure.translationKey ??
 				options?.fallback ??
 				'An error occurred'
