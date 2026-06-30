@@ -23,7 +23,7 @@ const REPO_ROOT = process.cwd().endsWith('/apps/front-2')
 	? resolve(process.cwd(), '../..')
 	: process.cwd();
 
-const LOG_SINK_SERVICES = ['api', 'request-counter', 'front-2'] as const;
+const LOG_SINK_SERVICES = ['api', 'request-counter', 'front-2', 'traefik'] as const;
 
 type LogServiceName = (typeof LOG_SINK_SERVICES)[number];
 type LogSinkName = LogServiceName | 'browser-console';
@@ -36,6 +36,24 @@ type SinkCapture = {
 type TokenCounts = {
 	token: number;
 	header: number;
+};
+
+const uniqueNeedles = (needles: string[]): string[] => {
+	const seen = new Set<string>();
+	const output: string[] = [];
+
+	for (const needle of needles) {
+		if (!needle) {
+			continue;
+		}
+
+		if (!seen.has(needle)) {
+			seen.add(needle);
+			output.push(needle);
+		}
+	}
+
+	return output;
 };
 
 const countOccurrences = (text: string, needle: string): number => {
@@ -59,20 +77,21 @@ const countOccurrences = (text: string, needle: string): number => {
 	return count;
 };
 
-const tokenNeedles = (token: string): string[] => [
-	token,
-	encodeURIComponent(token),
-	JSON.stringify(token).slice(1, -1),
-];
+const tokenNeedles = (token: string): string[] =>
+	uniqueNeedles([
+		token,
+		encodeURIComponent(token),
+		JSON.stringify(token).slice(1, -1),
+	]);
 
-const headerNeedles = (token: string): string[] => {
-	const baseNeedles = tokenNeedles(token);
-	return [
-		...baseNeedles,
-		...baseNeedles.map((needle) => `${SESSION_TOKEN_HEADER_KEY}: ${needle}`),
-		...baseNeedles.map((needle) => `${SESSION_TOKEN_HEADER_KEY.toLowerCase()}: ${needle}`),
-	];
-};
+const headerNeedles = (token: string): string[] =>
+	uniqueNeedles([
+		...tokenNeedles(token),
+		...tokenNeedles(token).map((needle) => `${SESSION_TOKEN_HEADER_KEY}: ${needle}`),
+		...tokenNeedles(token).map(
+			(needle) => `${SESSION_TOKEN_HEADER_KEY.toLowerCase()}: ${needle}`,
+		),
+	]);
 
 const sanitizeLine = (line: string, needle: string): string => {
 	return line.split(needle).join('<token redacted>');
@@ -130,34 +149,33 @@ const assertSecretAbsentFromSink = (
 		assertNeedlePresence(needle, `${sink.name} search needle`);
 	}
 
-	const counts = {
-		token: tokenNeedles(token).reduce(
-			(total, needle) => total + countOccurrences(sink.text, needle),
-			0,
-		),
-		header: needles.reduce(
-			(total, needle) => total + countOccurrences(sink.text, needle),
-			0,
-		),
-	};
+	let tokenCount = 0;
+	for (const needle of tokenNeedles(token)) {
+		tokenCount += countOccurrences(sink.text, needle);
+	}
 
-	if (counts.token > 0 || counts.header > 0) {
+	let headerCount = 0;
+	for (const needle of needles) {
+		headerCount += countOccurrences(sink.text, needle);
+	}
+
+	if (tokenCount > 0 || headerCount > 0) {
 		const leakNeedles = [...tokenNeedles(token), ...needles];
 		const leakingLine = findFirstLeakLine(sink.text, leakNeedles);
 		throw new Error(
 			[
 				`${sink.name} leaked <token redacted>`,
-				`token=${counts.token}`,
-				`header=${counts.header}`,
+				`token=${tokenCount}`,
+				`header=${headerCount}`,
 				`firstLine=${leakingLine}`,
 			].join('; '),
 		);
 	}
 
-	expect(counts.token, `${sink.name} token occurrence count`).toBe(0);
-	expect(counts.header, `${sink.name} header occurrence count`).toBe(0);
+	expect(tokenCount, `${sink.name} token occurrence count`).toBe(0);
+	expect(headerCount, `${sink.name} header occurrence count`).toBe(0);
 
-	return counts;
+	return { token: tokenCount, header: headerCount };
 };
 
 const assertSecretAbsentFromSinks = (sinks: SinkCapture[], token: string) => {
@@ -171,7 +189,7 @@ const assertSecretAbsentFromSinks = (sinks: SinkCapture[], token: string) => {
 };
 
 const buildSentinelToken = (suffix: string, testInfo: TestInfo): string => {
-	return `LEAK_SENTINEL_${suffix}_${process.pid}_worker_${testInfo.workerIndex}_front_2`;
+	return `LEAK_SENTINEL_${suffix}_${process.pid}_worker_${testInfo.workerIndex}_front_2+%/\"?`;
 };
 
 const installBrowserLogCapture = async (page: Page): Promise<string[]> => {
@@ -179,6 +197,9 @@ const installBrowserLogCapture = async (page: Page): Promise<string[]> => {
 
 	page.on('console', (message) => {
 		messages.push(message.text());
+	});
+	page.on('pageerror', (error) => {
+		messages.push(`pageerror: ${error.name}: ${error.message}`);
 	});
 
 	await page.addInitScript(() => {
@@ -204,7 +225,7 @@ const installBrowserLogCapture = async (page: Page): Promise<string[]> => {
 	return messages;
 };
 
-const requestTokenViaFront = (
+const requestTokenViaApi = (
 	request: APIRequestContext,
 	token: string,
 ): Promise<APIResponse> =>
@@ -215,11 +236,37 @@ const requestTokenViaFront = (
 		},
 	});
 
+const requestTokenViaFront = async (
+	page: Page,
+	token: string,
+): Promise<{ protocol: string; status: number }> => {
+	const result = await page.evaluate(async ({ path, method, headerKey, value }) => {
+		const response = await fetch(path, {
+			method,
+			headers: {
+				[headerKey]: value,
+			},
+		});
+
+		return {
+			status: response.status,
+			protocol: new URL(response.url).protocol,
+		};
+	}, {
+		path: CONTROL_REQUEST.path,
+		method: CONTROL_REQUEST.method,
+		headerKey: SESSION_TOKEN_HEADER_KEY,
+		value: token,
+	});
+
+	return result;
+};
+
 const assertNoLeakAcrossSinks = async (
 	request: APIRequestContext,
 	token: string,
 ): Promise<void> => {
-	const response = await requestTokenViaFront(request, token);
+	const response = await requestTokenViaApi(request, token);
 	expect(response.status(), 'rejected session token status').toBe(401);
 	const protocol = new URL(response.url()).protocol;
 	expect(protocol, 'API response path is HTTPS').toBe('https:');
@@ -241,35 +288,45 @@ test('rejected token is absent from deployed container logs', async ({
 	await assertNoLeakAcrossSinks(request, token);
 });
 
+// M1.4 intentionally scopes request-counter fault-path work to invalid token and
+// encoded payload coverage while the authenticated fault-recovery branch remains a
+// separate backlog item in this phase's residuals.
 test('redacts token in raw / encoded / JSON-escaped forms everywhere', async ({
 	request,
 	page,
 }, testInfo) => {
-	const token = buildSentinelToken('encoded', testInfo);
-	const browserMessages = await installBrowserLogCapture(page);
+	const rawToken = buildSentinelToken('encoded', testInfo);
+	const encodedToken = encodeURIComponent(rawToken);
+	const jsonToken = JSON.stringify(rawToken).slice(1, -1);
 
-	await assertNoLeakAcrossSinks(request, token);
-	await requestTokenViaFront(request, encodeURIComponent(token));
-	await requestTokenViaFront(request, JSON.stringify(token).slice(1, -1));
+	expect(
+		new Set([rawToken, encodedToken, jsonToken]).size,
+		'token variants are distinct',
+	).toBe(3);
+
+	const tokenVariants = [rawToken, encodedToken, jsonToken];
 
 	await page.goto('/');
-	expect(page.url()).toContain('https://front-2.localhost:8443');
+	const browserMessages = await installBrowserLogCapture(page);
 
-	const browserText = browserMessages.join('\n');
-	const sinkText = captureContainerLogSinks()
-		.map((sink) => sink.text)
-		.join('\n');
-
-	for (const needle of [...tokenNeedles(token), ...headerNeedles(token)]) {
-		expect(sinkText.includes(needle), `container logs hide ${needle}`).toBe(false);
+	for (const token of tokenVariants) {
+		await assertNoLeakAcrossSinks(request, token);
+		const frontResult = await requestTokenViaFront(page, token);
+		expect(frontResult.protocol, 'front request transport is HTTPS').toBe('https:');
 		expect(
-			browserText.includes(needle),
-			`browser console logs hide ${needle}`,
-		).toBe(false);
+			frontResult.status,
+			'front request path responded to malformed token probe',
+		).toBeGreaterThanOrEqual(200);
 	}
 
-	assertSecretAbsentFromSinks([
+	const browserText = browserMessages.join('\n');
+	const browserAndContainerSinks = [
 		{ name: 'browser-console', text: browserText },
 		...captureContainerLogSinks(),
-	], token);
+	];
+
+	for (const token of tokenVariants) {
+		assertSecretAbsentFromSinks(browserAndContainerSinks, token);
+	}
+	expect(browserText, 'browser console capture is readable').toBeTruthy();
 });

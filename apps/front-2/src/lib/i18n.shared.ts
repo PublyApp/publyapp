@@ -27,19 +27,23 @@ export type I18nResources = Record<
 export const createI18nFromResources = (
 	locale: SupportedLanguage,
 	resources: I18nResources,
-): I18nInstance => {
-	const instance = createInstance();
-	void instance.use(initReactI18next).init({
-		lng: locale,
-		fallbackLng: FALLBACK_LANGUAGE,
-		supportedLngs: [...SUPPORTED_LANGUAGES],
-		defaultNS: 'common',
-		ns: [...I18N_NAMESPACES],
-		resources,
-		interpolation: { escapeValue: false },
-		react: { useSuspense: false },
-		initImmediate: false,
-	});
+): Promise<I18nInstance> => {
+	const initialize = async () => {
+		const instance = createInstance();
+		await instance.use(initReactI18next).init({
+			lng: locale,
+			fallbackLng: FALLBACK_LANGUAGE,
+			supportedLngs: [...SUPPORTED_LANGUAGES],
+			defaultNS: 'common',
+			ns: [...I18N_NAMESPACES],
+			resources,
+			interpolation: { escapeValue: false },
+			react: { useSuspense: false },
+			initImmediate: false,
+		});
 
-	return instance;
+		return instance;
+	};
+
+	return initialize();
 };

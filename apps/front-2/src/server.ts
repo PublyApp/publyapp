@@ -8,6 +8,8 @@ import {
 
 import { LOCALE_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+
 import { captureBadRequest } from './lib/analytics';
 import {
 	dirForLocale,
@@ -18,17 +20,7 @@ import {
 import { mintCspNonce, applyCspHeaders } from './server/csp';
 import { seo } from './utils/seo';
 
-type ResponseContext = {
-	request: Request;
-	router: {
-		options?: {
-			ssr?: {
-				nonce?: string;
-			};
-		};
-	};
-	responseHeaders: Headers;
-};
+type StreamHandlerContext = Parameters<typeof defaultStreamHandler>[0];
 
 const isHtml = (response: Response): boolean => {
 	const contentType = response.headers.get('content-type') ?? '';
@@ -50,14 +42,15 @@ const escapeHtml = (value: string): string =>
 		.replace(/"/g, '&quot;')
 		.replace(/'/g, '&#39;');
 
-const setRouterNonce = (ctx: ResponseContext, nonce: string): void => {
-	const routerOptions = ctx.router.options ?? {};
-	const ssrOptions = routerOptions.ssr ?? {};
 
+const setRouterNonce = (
+	ctx: StreamHandlerContext,
+	nonce: string,
+): void => {
 	ctx.router.options = {
-		...routerOptions,
+		...ctx.router.options,
 		ssr: {
-			...ssrOptions,
+			...ctx.router.options?.ssr,
 			nonce,
 		},
 	};
@@ -102,63 +95,72 @@ const renderLinkTag = (link: {
 	return `<link ${attributes} />`;
 };
 
+const renderTitleTag = (title: string): string => `<title>${escapeHtml(title)}</title>`;
+
 const injectSeoMarkup = (
 	html: string,
 	request: Request,
 	locale: SupportedLanguage,
 	nonce: string,
 ): string => {
+	const requestUrl = new URL(request.url);
+	const requestPath = requestUrl.pathname;
+	const isLogin = requestPath === '/login';
 	let output = replaceHtmlLanguage(html, locale);
 	if (!output.includes('</head>')) {
 		return output;
 	}
 
-	if (output.includes('name="csp-nonce"')) {
-		return output;
-	}
-
-	const origin = new URL(request.url).origin;
+	const origin = requestUrl.origin;
+	const canonical = `${origin}${requestPath}`;
 	const payload = seo({
-		title: request.url.includes('/login') ? 'front-2 | Login' : 'front-2 | Foundation',
-		description: request.url.includes('/login')
+		title: isLogin ? 'front-2 | Login' : 'front-2 | Foundation',
+		description: isLogin
 			? 'Sign in to front-2.'
 			: 'front-2 foundations: i18n, CSP, SEO, analytics.',
-		canonical: request.url,
+		canonical,
 		sitemap: `${origin}/sitemap.xml`,
 		locale,
 		image: `${origin}/images/social-share.png`,
 	});
 
-	const injected = [
-		`<meta name="csp-nonce" content="${escapeHtml(nonce)}" />`,
-		...payload.meta.map(renderMetaTag),
-		...payload.links.map(renderLinkTag),
-	].join('\n');
+	const metaTags = [...payload.meta.map(renderMetaTag), ...payload.links.map(renderLinkTag)];
 
-	return output.replace('</head>', `${injected}\n</head>`);
+	if (!output.includes('name="csp-nonce"')) {
+		metaTags.unshift(`<meta name="csp-nonce" content="${escapeHtml(nonce)}" />`);
+	}
+
+	if (!output.includes('<title')) {
+		metaTags.unshift(renderTitleTag(payload.title));
+	}
+
+	return output.replace('</head>', `${metaTags.join('\n')}\n</head>`);
 };
 
-const sendBadResponseCapture = async (
-	ctx: ResponseContext,
-	response: Response,
-): Promise<void> => {
+
+const sendBadResponseCapture = (ctx: StreamHandlerContext, response: Response): void => {
 	if (response.status >= 200 && response.status < 300) {
 		return;
 	}
 
-	await captureBadRequest({
+	void captureBadRequest({
 		request: ctx.request,
 		status: response.status,
 		path: new URL(ctx.request.url).pathname,
 		method: ctx.request.method,
-		userAgent: ctx.request.headers.get('user-agent'),
 		locale: resolveLocaleFromRequest(ctx.request),
+	}).catch((error) => {
+		logger.debug('bad-request analytics capture failed', {
+			error: `${error}`,
+			path: new URL(ctx.request.url).pathname,
+			status: response.status,
+		});
 	});
 };
 
 export default {
 	fetch: createStartHandler(
-		defineHandlerCallback(async (ctx: ResponseContext) => {
+		defineHandlerCallback(async (ctx: StreamHandlerContext) => {
 			const nonce = mintCspNonce();
 			const locale = resolveLocaleFromRequest(ctx.request);
 
@@ -170,7 +172,7 @@ export default {
 			);
 
 			const response = await defaultStreamHandler(ctx);
-			await sendBadResponseCapture(ctx, response);
+			sendBadResponseCapture(ctx, response);
 
 			if (!isHtml(response)) {
 				return response;

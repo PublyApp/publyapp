@@ -7,7 +7,7 @@ type Surface = {
 
 const SURFACES: Surface[] = [
 	{ path: '/', expectedStatus: 200 },
-	{ path: '/login', expectedStatus: [200, 404] },
+	{ path: '/login', expectedStatus: 200 },
 	{ path: '/nope-404', expectedStatus: 404 },
 ];
 
@@ -136,7 +136,7 @@ test('serves CSP headers and nonced inline scripts on every HTML surface', async
 
 test('mints unique nonce per document request', async ({ request }) => {
 	const first = await assertSurface(request, { path: '/', expectedStatus: 200 });
-	const second = await assertSurface(request, { path: '/login', expectedStatus: [200, 404] });
+	const second = await assertSurface(request, { path: '/login', expectedStatus: 200 });
 
 	expect(first.nonce).not.toBe(second.nonce);
 });

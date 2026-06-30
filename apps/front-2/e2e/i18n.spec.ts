@@ -15,11 +15,12 @@ type BrowserContextLike = {
 	};
 };
 
-const BASE_URL = 'https://front-2.localhost:8443';
+const DEFAULT_BASE_URL = 'https://front-2.localhost:8443';
 
 const setLocaleCookie = async (
 	page: BrowserContextLike,
 	locale: string,
+	baseUrl: string,
 ): Promise<void> => {
 	await page.context().clearCookies();
 	await page.context().addCookies([
@@ -27,15 +28,17 @@ const setLocaleCookie = async (
 			name: LOCALE_COOKIE_KEY,
 			value: locale,
 			path: '/',
-			url: BASE_URL,
+			url: baseUrl,
 		},
 	]);
 };
 
 test('renders / with locale from cookie and updates html lang', async ({
 	page,
+	baseURL,
 }) => {
-	await setLocaleCookie(page, 'fr');
+	const resolvedBaseUrl = baseURL ?? DEFAULT_BASE_URL;
+	await setLocaleCookie(page, 'fr', resolvedBaseUrl);
 	await page.goto('/');
 
 	await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
@@ -43,8 +46,10 @@ test('renders / with locale from cookie and updates html lang', async ({
 
 test('falls back to English when locale cookie is unsupported', async ({
 	page,
+	baseURL,
 }) => {
-	await setLocaleCookie(page, 'zz');
+	const resolvedBaseUrl = baseURL ?? DEFAULT_BASE_URL;
+	await setLocaleCookie(page, 'zz', resolvedBaseUrl);
 	await page.goto('/');
 
 	await expect(page.locator('html')).toHaveAttribute('lang', 'en');

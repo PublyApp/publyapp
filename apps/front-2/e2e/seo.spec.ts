@@ -8,6 +8,7 @@ const assertMetaFromHtml = async (
 	const html = await response.text();
 
 	expect(response.status(), `${path} route status`).toBeGreaterThanOrEqual(200);
+	expect(response.status(), `${path} route status`).toBeLessThan(300);
 
 	expect(html).toContain('<meta name="description"');
 	expect(html).toContain('<meta name="robots"');

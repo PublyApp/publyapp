@@ -1,4 +1,5 @@
-import { nanoid } from 'nanoid';
+import { createHash, randomUUID } from 'node:crypto';
+import { isIP } from 'node:net';
 
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { IsoAnalytics } from '@org/shared-ts/lib/analytics/iso-analytics';
@@ -14,16 +15,25 @@ type BadResponseCaptureArgs = {
 	status: number;
 	path: string;
 	method: string;
-	userAgent: string | null;
 	locale?: string;
 };
 
-const sanitizeIpHeaderValue = (value: string): string =>
-	value.trim() || 'anonymous';
+const sanitizeIpHeaderValue = (value: string): string => {
+	const firstValue = value.split(',')[0]?.trim() ?? '';
+	if (!firstValue || !isIP(firstValue)) {
+		return 'anonymous';
+	}
+
+	return firstValue;
+};
 
 const extractIpAddressFromHeader = (value: string): string => {
-	const firstValue = value.split(',')[0]?.trim() ?? '';
-	return sanitizeIpHeaderValue(firstValue);
+	const candidate = sanitizeIpHeaderValue(value);
+	if (candidate === 'anonymous') {
+		return candidate;
+	}
+
+	return createHash('sha256').update(candidate).digest('hex').slice(0, 16);
 };
 
 const getPosthogApiKey = (): string | undefined => {
@@ -46,7 +56,11 @@ const getRequestAddress = (request: Request): string => {
 	for (const headerKey of headerCandidates) {
 		const headerValue = request.headers.get(headerKey);
 		if (headerValue) {
-			return extractIpAddressFromHeader(headerValue);
+			const extracted = extractIpAddressFromHeader(headerValue);
+
+			if (extracted !== 'anonymous') {
+				return extracted;
+			}
 		}
 	}
 
@@ -57,18 +71,18 @@ const buildBadResponseProperties = ({
 	path,
 	method,
 	status,
-	userAgent,
 	locale,
-	request,
-}: BadResponseCaptureArgs & { request: Request }) => ({
+}: BadResponseCaptureArgs): {
+	path: string;
+	method: string;
+	status: number;
+	locale?: string;
+} => ({
 	path,
 	method,
 	status,
-	userAgent,
 	locale,
-	host: request.headers.get('host'),
-	protocol: request.url.startsWith('https:') ? 'https' : 'http',
-	});
+});
 
 const isBadStatus = (status: number): boolean => status < 200 || status >= 300;
 
@@ -100,11 +114,15 @@ export const captureBadRequest = async (
 
 	const properties = buildBadResponseProperties({
 		...input,
-		request: input.request,
 	});
 
+	const distinctId = getRequestAddress(input.request);
+	if (distinctId === 'anonymous' && process.env.NODE_ENV === 'production') {
+		logger.debug('bad-request analytics has no client IP for hashing');
+	}
+
 	analyticsClient.capture({
-		distinctId: getRequestAddress(input.request) || nanoid(),
+		distinctId: distinctId || randomUUID(),
 		event: 'bad_request',
 		properties,
 	});

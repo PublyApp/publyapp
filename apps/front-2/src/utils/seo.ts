@@ -37,7 +37,9 @@ const normalizeCanonical = (canonical: string | undefined): string => {
 		return '/';
 	}
 
-	return canonical.trim();
+	const value = canonical.trim();
+	const withoutQuery = value.split('?')[0] ?? value;
+	return withoutQuery || '/';
 };
 
 const toOgLocale = (locale: SupportedLanguage): string =>
