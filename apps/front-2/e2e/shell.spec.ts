@@ -147,6 +147,21 @@ test('theme toggle persists across page reload', async ({ page }) => {
 	expect(await getThemeFromStorage(page)).toBe('light');
 });
 
+test('renders the authed shell for /staff', async ({ page }) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.goto('/staff');
+
+	await expect(page).toHaveURL('/staff');
+	await expect(page.getByTestId('app-shell-shell')).toHaveAttribute(
+		'data-mode',
+		'authed',
+	);
+	await expect(page.getByTestId('app-shell-sidebar')).toBeVisible();
+	await expect(
+		page.getByTestId('app-shell-sidebar').getByRole('link', { name: 'Staff' }),
+	).toHaveAttribute('aria-current', 'page');
+});
+
 test('mobile shell menu is keyboard and route-aware', async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 812 });
 	await page.goto('/');

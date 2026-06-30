@@ -1,5 +1,3 @@
-import { useEffect, useState } from 'react';
-
 import { AppShell } from '../components/app-shell';
 
 type AuthedLayoutProps = {
@@ -8,18 +6,6 @@ type AuthedLayoutProps = {
 };
 
 export const AuthedLayout = ({ children, pathname }: AuthedLayoutProps) => {
-	const [ready, setReady] = useState(false);
-
-	useEffect(() => {
-		setReady(true);
-	}, []);
-
-	if (!ready) {
-		return (
-			<div className="app-shell-authed-loading">Loading workspace shell...</div>
-		);
-	}
-
 	return (
 		<AppShell mode="authed" pathname={pathname}>
 			{children}

@@ -8,24 +8,16 @@ import {
 } from '@tanstack/react-router';
 
 import { AuthLayout } from '../layouts/auth-layout';
-import { AuthedLayout } from '../layouts/authed-layout';
 import { MarketingLayout } from '../layouts/marketing-layout';
 import appCss from '../styles/app.css?url';
 
-type RouteSurface = 'auth' | 'authed' | 'marketing';
+type RouteSurface = 'auth' | 'marketing';
 
 const isPathForSurface = (pathname: string, surfacePath: string) => {
 	return pathname === surfacePath || pathname.startsWith(`${surfacePath}/`);
 };
 
 const resolveRouteSurface = (pathname: string): RouteSurface => {
-	if (
-		isPathForSurface(pathname, '/staff') ||
-		isPathForSurface(pathname, '/tenant')
-	) {
-		return 'authed';
-	}
-
 	if (
 		isPathForSurface(pathname, '/login') ||
 		isPathForSurface(pathname, '/auth')
@@ -41,12 +33,11 @@ const RoutedShell = () => {
 	const pathname = location.pathname;
 	const surface = resolveRouteSurface(pathname);
 
-	if (surface === 'authed') {
-		return (
-			<AuthedLayout pathname={pathname}>
-				<Outlet />
-			</AuthedLayout>
-		);
+	if (
+		isPathForSurface(pathname, '/staff') ||
+		isPathForSurface(pathname, '/tenant')
+	) {
+		return <Outlet />;
 	}
 
 	if (surface === 'auth') {
