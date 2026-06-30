@@ -6,9 +6,10 @@ import {
 	Outlet,
 	Scripts,
 } from '@tanstack/react-router';
+import { createClientOnlyFn } from '@tanstack/react-start';
+import type { i18n as I18nInstance } from 'i18next';
 import * as React from 'react';
 import { I18nextProvider } from 'react-i18next';
-import { initI18nOnClient } from '~/lib/i18n.client';
 import {
 	createI18nFromResources,
 	dirForLocale,
@@ -32,6 +33,11 @@ const FALLBACK_I18N_RESOURCES: I18nResources = {
 		'response-message': {},
 	},
 };
+
+const initI18nOnClient = createClientOnlyFn(async (instance: I18nInstance) => {
+	const mod = await import('~/lib/i18n.client');
+	return mod.initI18nOnClient(instance);
+});
 
 export const Route = createRootRouteWithContext<{
 	queryClient: QueryClient;
