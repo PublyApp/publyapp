@@ -45,3 +45,12 @@ test('redacts session token in cookie style headers', () => {
 	expect(output.accept).toBe('application/json');
 	expect(JSON.stringify(output)).not.toContain(token);
 });
+
+test('redacts proxy-authorization header', () => {
+	const output = redactHeaders({
+		'proxy-authorization': `Proxy ${token}`,
+	});
+
+	expect(output['proxy-authorization']).toBe('[REDACTED]');
+	expect(JSON.stringify(output)).not.toContain(token);
+});

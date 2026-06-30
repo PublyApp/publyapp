@@ -17,6 +17,22 @@ import type { ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
 
 type SessionScope = 'tenant' | 'staff';
 type FetchFunction = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+type RequestLike = {
+	url: string;
+	headers?: HeadersInit;
+	method?: RequestInit['method'];
+	body?: RequestInit['body'];
+	cache?: RequestInit['cache'];
+	credentials?: RequestInit['credentials'];
+	mode?: RequestInit['mode'];
+	redirect?: RequestInit['redirect'];
+	referrer?: RequestInit['referrer'];
+	referrerPolicy?: RequestInit['referrerPolicy'];
+	integrity?: RequestInit['integrity'];
+	keepalive?: RequestInit['keepalive'];
+	signal?: RequestInit['signal'];
+	duplex?: RequestInit['duplex'];
+};
 
 type CookieValueProvider = () => string | undefined;
 type SessionTokenProvider = (scope: SessionScope) => string | undefined;
@@ -108,12 +124,41 @@ const resolveApiBaseUrl = (): string => {
 	throw new Error('__ENV__.PUBLIC_API_BASE_URL is required in front-2 runtime env');
 };
 
+const isRequestLike = (input: RequestInfo | URL): input is RequestLike => {
+	if (typeof input !== 'object' || input === null) {
+		return false;
+	}
+
+	const candidate = input as {
+		url?: unknown;
+	};
+	return typeof candidate.url === 'string' && candidate.url.length > 0;
+};
+
+const isUrlLike = (input: RequestInfo | URL): input is URL => {
+	if (typeof input !== 'object' || input === null) {
+		return false;
+	}
+
+	const candidate = input as {
+		href?: unknown;
+		toString?: unknown;
+	};
+
+	const hasHref = typeof candidate.href === 'string';
+	return hasHref && typeof candidate.toString === 'function';
+};
+
 const resolveRequestUrl = (input: RequestInfo | URL, baseUrl: string): URL => {
-	if (typeof Request !== 'undefined' && input instanceof Request) {
+	if (isRequestLike(input)) {
 		return new URL(input.url, baseUrl);
 	}
 
-	if (typeof input === 'string' || input instanceof URL) {
+	if (typeof input === 'string') {
+		return new URL(input, baseUrl);
+	}
+
+	if (isUrlLike(input)) {
 		return new URL(String(input), baseUrl);
 	}
 
@@ -123,6 +168,59 @@ const resolveRequestUrl = (input: RequestInfo | URL, baseUrl: string): URL => {
 const isSameOrigin = (target: URL, base: string): boolean => {
 	const baseUrl = new URL(base);
 	return target.origin === baseUrl.origin;
+};
+
+const pickRequestInit = (input: RequestLike): RequestInit => {
+	const init: RequestInit = {};
+	if (input.method !== undefined) {
+		init.method = input.method;
+	}
+
+	if (input.body !== undefined) {
+		init.body = input.body;
+	}
+
+	if (input.cache !== undefined) {
+		init.cache = input.cache;
+	}
+
+	if (input.credentials !== undefined) {
+		init.credentials = input.credentials;
+	}
+
+	if (input.mode !== undefined) {
+		init.mode = input.mode;
+	}
+
+	if (input.redirect !== undefined) {
+		init.redirect = input.redirect;
+	}
+
+	if (input.referrer !== undefined) {
+		init.referrer = input.referrer;
+	}
+
+	if (input.referrerPolicy !== undefined) {
+		init.referrerPolicy = input.referrerPolicy;
+	}
+
+	if (input.integrity !== undefined) {
+		init.integrity = input.integrity;
+	}
+
+	if (input.keepalive !== undefined) {
+		init.keepalive = input.keepalive;
+	}
+
+	if (input.signal !== undefined) {
+		init.signal = input.signal;
+	}
+
+	if (input.duplex !== undefined) {
+		init.duplex = input.duplex;
+	}
+
+	return init;
 };
 
 const buildCustomFetch = (options: BuildCustomFetchOptions): FetchFunction => {
@@ -135,12 +233,16 @@ const buildCustomFetch = (options: BuildCustomFetchOptions): FetchFunction => {
 
 	return (input, init) => {
 		const requestUrl = resolveRequestUrl(input, baseUrl);
+		const requestLike = isRequestLike(input);
+		const requestInputInit = requestLike ? pickRequestInit(input) : {};
 		const headers = new Headers();
-		if (typeof Request !== 'undefined' && input instanceof Request) {
-			input.headers.forEach((value, key) => {
+
+		if (requestLike && input.headers) {
+			new Headers(input.headers).forEach((value, key) => {
 				headers.set(key, value);
 			});
 		}
+
 		new Headers(init?.headers).forEach((value, key) => {
 			headers.set(key, value);
 		});
@@ -156,8 +258,9 @@ const buildCustomFetch = (options: BuildCustomFetchOptions): FetchFunction => {
 			}
 		}
 
-		if (typeof Request !== 'undefined' && input instanceof Request) {
-			const mergedRequest = new Request(input, {
+		if (requestLike) {
+			const mergedRequest = new Request(input.url, {
+				...requestInputInit,
 				...init,
 				headers,
 			});

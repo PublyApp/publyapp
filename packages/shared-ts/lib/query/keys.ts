@@ -1,4 +1,4 @@
-export type QueryAccessor<T> = (root: T) => unknown;
+export type QueryKeySegment = string | number | boolean | null | Record<string, unknown>;
 
 type JsonRecord = Record<string, unknown>;
 
@@ -67,32 +67,6 @@ const stringifyQueryArg = (arg: unknown, seen: StringifySeen): string => {
 	return String(arg);
 };
 
-const isIgnoredAccessorProperty = (prop: string | symbol): boolean => {
-	if (typeof prop === 'symbol') {
-		return true;
-	}
-
-	return prop === 'then' || prop === 'inspect' || prop === 'toString';
+export const getQueryKey = (segments: readonly QueryKeySegment[]): string[] => {
+	return segments.map((segment) => stringifyQueryArg(segment, new Set<object>()));
 };
-
-export function getQueryKey<T>(fn: QueryAccessor<T>): string[] {
-	const path: string[] = [];
-
-	const proxy: unknown = new Proxy(() => {}, {
-		get(_target, prop) {
-			if (isIgnoredAccessorProperty(prop)) {
-				return undefined;
-			}
-
-			path.push(String(prop));
-			return proxy;
-		},
-		apply(_target, _thisArg, args) {
-			path.push(...args.map((arg) => stringifyQueryArg(arg, new Set<object>())));
-			return proxy;
-		},
-	});
-
-	fn(proxy as T);
-	return path;
-}

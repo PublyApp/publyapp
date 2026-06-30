@@ -2,48 +2,35 @@ import { expect, test } from 'vitest';
 
 import { getQueryKey } from './keys';
 
-type FakeApiClient = {
-	users: {
-		list: {
-			byId: (id: string, includeDeleted: boolean) => unknown;
-		};
-	};
-	health: () => unknown;
+type SharedNode = {
+	self?: SharedNode;
 };
 
-test('builds stable string keys from accessor path and primitive args', () => {
-	const key = getQueryKey<FakeApiClient>((client) => {
-		return client.health();
-	});
+test('builds stable string keys from explicit path segments', () => {
+	const key = getQueryKey(['health']);
 	expect(key).toEqual(['health']);
 });
 
-test('builds stable string keys with args', () => {
-	const key = getQueryKey<FakeApiClient>((client) =>
-		client.users.list.byId('abc', true),
-	);
+test('builds stable string keys with nested primitives', () => {
+	const key = getQueryKey(['users', 'list', 'byId', 'abc', true]);
 	expect(key).toEqual(['users', 'list', 'byId', 'abc', 'true']);
 });
 
-test('ignores promise-like then accessor access', () => {
-	type FakeApiClientWithThen = {
-		list: () => unknown;
-	};
-
-	const key = getQueryKey<FakeApiClientWithThen>((client) => client.list());
-	expect(key).toEqual(['list']);
+test('serializes undefined and null key segments', () => {
+	const key = getQueryKey(['users', undefined, null]);
+	expect(key).toEqual(['users', 'undefined', 'null']);
 });
 
 test('handles circular query args', () => {
-	type FakeCircularClient = {
-		users: {
-			byId: (arg: unknown) => unknown;
-		};
-	};
-
-	const circular: Record<string, unknown> = {};
+	const circular: SharedNode = {};
 	circular.self = circular;
 
-	const key = getQueryKey<FakeCircularClient>((client) => client.users.byId(circular));
-	expect(key).toEqual(['users', 'byId', '{self:[circular]}']);
+	const key = getQueryKey([circular]);
+	expect(key).toEqual(['{self:[circular]}']);
+});
+
+test('does not serialize shared non-cyclic objects as circular', () => {
+	const shared = { id: 1 };
+	const key = getQueryKey([{ left: shared, right: shared }]);
+	expect(key).toEqual(['{left:{id:1},right:{id:1}}']);
 });

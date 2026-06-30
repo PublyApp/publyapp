@@ -1,16 +1,19 @@
 import { toApiFailure } from '../api-failure/to-api-failure';
-import { getQueryKey } from './keys';
 import type {
 	ClientAccessor,
 	QueryScope,
 	QueryErrorHandlers,
 	QueryFactoryOptions,
 } from './types';
+import type { ApiFailure } from '../api-failure/types';
 
 type TenantQueryVariables<TVariables> = { tenantId?: string } & Omit<
 	TVariables,
 	'tenantId'
 >;
+
+type QueryKeySegment = string | number | boolean | null | Record<string, unknown>;
+
 type TenantQueryVariablesRequired<TVariables> = { tenantId: string } & Omit<
 	TVariables,
 	'tenantId'
@@ -42,7 +45,7 @@ type TenantQueryConfig<
 	TVariables extends Record<string, unknown>,
 	TError = Error,
 > = {
-	queryKeyFn: (client: TApiClient) => unknown;
+	queryKeyFn: () => QueryKeySegment[];
 	fetcher: (
 		client: TApiClient,
 		variables: TenantQueryVariablesRequired<TVariables>,
@@ -59,7 +62,7 @@ type TenantSuspenseQueryConfig<
 	TVariables extends Record<string, unknown>,
 	TError = Error,
 > = {
-	queryKeyFn: (client: TApiClient) => unknown;
+	queryKeyFn: () => QueryKeySegment[];
 	fetcher: (
 		client: TApiClient,
 		variables: TenantQueryVariablesRequired<TVariables>,
@@ -76,7 +79,7 @@ type TenantMutationConfig<
 	TVariables extends Record<string, unknown>,
 	TError = Error,
 > = {
-	mutationKeyFn: (client: TApiClient) => unknown;
+	mutationKeyFn: () => QueryKeySegment[];
 	mutationFn: (
 		client: TApiClient,
 		variables: TenantQueryVariablesRequired<TVariables>,
@@ -93,7 +96,7 @@ type StaffQueryConfig<
 	TVariables extends Record<string, unknown>,
 	TError = Error,
 > = {
-	queryKeyFn: (client: TApiClient) => unknown;
+	queryKeyFn: () => QueryKeySegment[];
 	fetcher: (client: TApiClient, variables: TVariables) => Promise<TData>;
 	handlers?: QueryErrorHandlers;
 } & BaseQueryOptions<TError>;
@@ -104,7 +107,7 @@ type StaffSuspenseQueryConfig<
 	TVariables extends Record<string, unknown>,
 	TError = Error,
 > = {
-	queryKeyFn: (client: TApiClient) => unknown;
+	queryKeyFn: () => QueryKeySegment[];
 	fetcher: (client: TApiClient, variables: TVariables) => Promise<TData>;
 	handlers?: QueryErrorHandlers;
 } & BaseSuspenseQueryOptions<TError>;
@@ -115,7 +118,7 @@ type StaffMutationConfig<
 	TVariables extends Record<string, unknown>,
 	TError = Error,
 > = {
-	mutationKeyFn: (client: TApiClient) => unknown;
+	mutationKeyFn: () => QueryKeySegment[];
 	mutationFn: (client: TApiClient, variables: TVariables) => Promise<TData>;
 	handlers?: QueryErrorHandlers;
 } & BaseMutationOptions<TError>;
@@ -217,8 +220,7 @@ const makeErrorHandler = (scope: QueryScope, handlers?: QueryErrorHandlers) => {
 
 		if (
 			shouldLogoutForScope(scope) &&
-			failure.kind === 'problem' &&
-			failure.status === 401
+			getFailureStatus(failure) === 401
 		) {
 			handlers?.onLogout?.(failure);
 			return;
@@ -228,9 +230,14 @@ const makeErrorHandler = (scope: QueryScope, handlers?: QueryErrorHandlers) => {
 	};
 };
 
+const getFailureStatus = (failure: ApiFailure): number | undefined =>
+	failure.kind === 'problem' || failure.kind === 'validation'
+		? failure.status
+		: undefined;
+
 const buildScopedQueryKey = (
 	scope: QueryScope,
-	queryKey: string[],
+	queryKey: QueryKeySegment[],
 	tenantId?: string,
 	variables?: Record<string, unknown>,
 ) => {
@@ -267,7 +274,7 @@ export const buildTenantQueryOptions = <
 		...restOptions
 	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
-	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
+	const queryKey = queryKeyFn();
 
 	return {
 		queryKey: (
@@ -322,7 +329,7 @@ export const buildTenantSuspenseQueryOptions = <
 		...restOptions
 	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
-	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
+	const queryKey = queryKeyFn();
 
 	return {
 		queryKey: (
@@ -372,7 +379,7 @@ export const buildTenantMutationOptions = <
 		...restOptions
 	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
-	const mutationKey = getQueryKey<TApiClient>(mutationKeyFn);
+	const mutationKey = queryKeyFn();
 
 	return {
 		mutationKey: buildScopedQueryKey('tenant', mutationKey),
@@ -412,7 +419,7 @@ export const buildStaffQueryOptions = <
 		...restOptions
 	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
-	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
+	const queryKey = queryKeyFn();
 
 	return {
 		queryKey: (variables: TVariables) =>
@@ -451,7 +458,7 @@ export const buildStaffSuspenseQueryOptions = <
 		...restOptions
 	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
-	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
+	const queryKey = queryKeyFn();
 
 	return {
 		queryKey: (variables: TVariables) =>
@@ -490,7 +497,7 @@ export const buildStaffMutationOptions = <
 		...restOptions
 	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
-	const mutationKey = getQueryKey<TApiClient>(mutationKeyFn);
+	const mutationKey = queryKeyFn();
 
 	return {
 		mutationKey: buildScopedQueryKey('staff', mutationKey),
@@ -523,7 +530,7 @@ export const buildAnonymousQueryOptions = <
 		...restOptions
 	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
-	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
+	const queryKey = queryKeyFn();
 
 	return {
 		queryKey: (variables: TVariables) =>
@@ -562,7 +569,7 @@ export const buildAnonymousSuspenseQueryOptions = <
 		...restOptions
 	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
-	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
+	const queryKey = queryKeyFn();
 
 	return {
 		queryKey: (variables: TVariables) =>
@@ -601,7 +608,7 @@ export const buildAnonymousMutationOptions = <
 		...restOptions
 	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
-	const mutationKey = getQueryKey<TApiClient>(mutationKeyFn);
+	const mutationKey = queryKeyFn();
 
 	return {
 		mutationKey: buildScopedQueryKey('anonymous', mutationKey),
@@ -634,7 +641,7 @@ export const buildAuthQueryOptions = <
 		...restOptions
 	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
-	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
+	const queryKey = queryKeyFn();
 
 	return {
 		queryKey: (variables: TVariables) =>
@@ -673,7 +680,7 @@ export const buildAuthSuspenseQueryOptions = <
 		...restOptions
 	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
-	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
+	const queryKey = queryKeyFn();
 
 	return {
 		queryKey: (variables: TVariables) =>
@@ -712,7 +719,7 @@ export const buildAuthMutationOptions = <
 		...restOptions
 	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
-	const mutationKey = getQueryKey<TApiClient>(mutationKeyFn);
+	const mutationKey = queryKeyFn();
 
 	return {
 		mutationKey: buildScopedQueryKey('auth', mutationKey),

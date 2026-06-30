@@ -21,12 +21,22 @@ export const parseSessionCookie = (cookieValue: string): ParsedSessionTokens => 
 	const result: ParsedSessionTokens = {};
 
 	const value = cookieValue.trim();
-	const isDualFormat = /^(?:s:[^+]+|t:[^+]+)(?:\+(?:s:[^+]+|t:[^+]+))*$/.test(
-		value,
-	);
+	if (!value) {
+		return result;
+	}
 
-	if (!isDualFormat) {
+	const isScopedCookie = /^(?:s|t):/.test(value);
+	const isScopedPairFormat =
+		/^(?:s:[^+]+|t:[^+]+)\+(?:s:[^+]+|t:[^+]+)(?:\+(?:s:[^+]+|t:[^+]+))*$/.test(
+			value,
+		);
+
+	if (!isScopedCookie) {
 		return { tenantToken: value || undefined };
+	}
+
+	if (!isScopedPairFormat) {
+		return result;
 	}
 
 	for (const part of value.split('+')) {

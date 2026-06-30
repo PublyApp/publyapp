@@ -19,10 +19,14 @@ test('parses legacy raw token as tenant token', () => {
 	});
 });
 
-test('does not parse legacy token with single scope prefix as dual format', () => {
-	expect(parseSessionCookie('s:RAW_TOKEN')).toEqual({
-		tenantToken: 's:RAW_TOKEN',
-	});
+test('blank token input returns empty tokens', () => {
+	expect(parseSessionCookie('')).toEqual({});
+	expect(parseSessionCookie('   ')).toEqual({});
+});
+
+test('does not parse scoped single-token strings as tenant token', () => {
+	expect(parseSessionCookie('s:RAW_TOKEN')).toEqual({});
+	expect(parseSessionCookie('t:RAW_TOKEN')).toEqual({});
 });
 
 test('roundtrips through formatter', () => {

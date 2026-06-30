@@ -4,7 +4,6 @@ export type ProblemFailure = {
 	translationKey: string | undefined;
 	detail: string | undefined;
 	title: string | undefined;
-	raw: unknown;
 };
 
 export type ValidationFailure = {
@@ -14,24 +13,20 @@ export type ValidationFailure = {
 	detail: string | undefined;
 	title: string | undefined;
 	fieldErrors: Record<string, string[]>;
-	raw: unknown;
 };
 
 export type NetworkFailure = {
 	kind: 'network';
 	message: string;
-	raw: unknown;
 };
 
 export type AbortFailure = {
 	kind: 'abort';
-	raw: unknown;
 };
 
 export type UnknownFailure = {
 	kind: 'unknown';
 	message: string;
-	raw: unknown;
 };
 
 export type ApiFailure =

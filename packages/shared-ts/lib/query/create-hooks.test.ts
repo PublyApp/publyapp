@@ -43,7 +43,7 @@ beforeEach(() => {
 test('tenant query resolves tenantId from variables and uses tenant client', async () => {
 	const options = buildTenantQueryOptions(
 		{
-			queryKeyFn: (client) => `tenant:${client.scope}`,
+			queryKeyFn: () => ['tenant:tenant'],
 			fetcher: async (client, vars) =>
 				`${client.scope}-${vars.tenantId}-${vars.limit}`,
 		},
@@ -63,7 +63,7 @@ test('tenant query resolves tenantId from variables and uses tenant client', asy
 test('tenant mutation resolves tenantId from handler fallback when variable is absent', async () => {
 	const options = buildTenantMutationOptions(
 		{
-			mutationKeyFn: (client) => `tenant-mutation:${client.scope}`,
+			mutationKeyFn: () => ['tenant-mutation:tenant'],
 			mutationFn: async (client, vars) =>
 				`${client.scope}-${vars.tenantId}-mutate`,
 			handlers: {
@@ -81,7 +81,7 @@ test('tenant mutation resolves tenantId from handler fallback when variable is a
 test('tenant query resolves blank tenantId via handler fallback', async () => {
 	const options = buildTenantQueryOptions(
 		{
-			queryKeyFn: (client) => `tenant:${client.scope}`,
+			queryKeyFn: () => ['tenant:tenant'],
 			fetcher: async (client, vars) =>
 				`${client.scope}-${vars.tenantId}-${vars.limit}`,
 			handlers: {
@@ -103,7 +103,7 @@ test('tenant query resolves blank tenantId via handler fallback', async () => {
 test('tenant query key includes tenant and query variables', () => {
 	const options = buildTenantQueryOptions(
 		{
-			queryKeyFn: (client) => `tenant:${client.scope}`,
+			queryKeyFn: () => ['tenant:tenant'],
 			fetcher: async (client, vars) => `${client.scope}-${vars.tenantId}-${vars.limit}`,
 		},
 		createScopeOptions(accessor),
@@ -123,7 +123,7 @@ test('tenant query key includes tenant and query variables', () => {
 test('tenant query key sorts query variable keys consistently', () => {
 	const options = buildTenantQueryOptions(
 		{
-			queryKeyFn: (client) => `tenant:${client.scope}`,
+			queryKeyFn: () => ['tenant:tenant'],
 			fetcher: async (client, vars) =>
 				`${client.scope}-${vars.tenantId}-${vars.limit}-${vars.page}`,
 		},
@@ -147,7 +147,7 @@ test('tenant query key sorts query variable keys consistently', () => {
 test('tenant mutation key does not include fallback tenant at build time', () => {
 	const options = buildTenantMutationOptions(
 		{
-			mutationKeyFn: (client) => `tenant-mutation:${client.scope}`,
+			mutationKeyFn: () => ['tenant-mutation:tenant'],
 			mutationFn: async (client, vars) => `${client.scope}-${vars.tenantId}-mutate`,
 			handlers: {
 				resolveTenant: () => 'tenant-fallback',
@@ -162,7 +162,7 @@ test('tenant mutation key does not include fallback tenant at build time', () =>
 test('tenant query key throws when tenantId is not resolvable', () => {
 	const options = buildTenantQueryOptions(
 		{
-			queryKeyFn: (client) => `tenant:${client.scope}`,
+			queryKeyFn: () => ['tenant:tenant'],
 			fetcher: async (client, vars) => `${client.scope}-${vars.tenantId}-fetch`,
 		},
 		createScopeOptions(accessor),
@@ -176,7 +176,7 @@ test('tenant query key throws when tenantId is not resolvable', () => {
 test('staff query uses staff client and not tenant/anonymous clients', async () => {
 	const options = buildStaffQueryOptions(
 		{
-			queryKeyFn: (client) => `staff:${client.scope}`,
+			queryKeyFn: () => ['staff:staff'],
 			fetcher: async (client) => client.scope,
 		},
 		createScopeOptions(accessor),
@@ -192,7 +192,7 @@ test('staff query uses staff client and not tenant/anonymous clients', async () 
 test('staff query key includes variables for cache separation', () => {
 	const options = buildStaffQueryOptions(
 		{
-			queryKeyFn: (client) => `staff:${client.scope}`,
+			queryKeyFn: () => ['staff:staff'],
 			fetcher: async (client) => client.scope,
 		},
 		createScopeOptions(accessor),
@@ -208,7 +208,7 @@ test('staff query key includes variables for cache separation', () => {
 test('staff query key does not include empty variables object', () => {
 	const options = buildStaffQueryOptions(
 		{
-			queryKeyFn: (client) => `staff:${client.scope}`,
+			queryKeyFn: () => ['staff:staff'],
 			fetcher: async (client) => client.scope,
 		},
 		createScopeOptions(accessor),
@@ -223,7 +223,7 @@ test('staff query key does not include empty variables object', () => {
 test('anonymous query uses anonymous client', async () => {
 	const options = buildAnonymousQueryOptions(
 		{
-			queryKeyFn: (client) => `anon:${client.scope}`,
+			queryKeyFn: () => ['anon:anonymous'],
 			fetcher: async (client) => client.scope,
 		},
 		createScopeOptions(accessor),
@@ -239,7 +239,7 @@ test('anonymous query uses anonymous client', async () => {
 test('anonymous query key includes variables for cache separation', () => {
 	const options = buildAnonymousQueryOptions(
 		{
-			queryKeyFn: (client) => `anon:${client.scope}`,
+			queryKeyFn: () => ['anon:anonymous'],
 			fetcher: async (client) => client.scope,
 		},
 		createScopeOptions(accessor),
@@ -257,7 +257,7 @@ test('tenant onError triggers onLogout for 401 and skips toast', async () => {
 	const onToast = vi.fn();
 	const options = buildTenantQueryOptions(
 		{
-			queryKeyFn: (client) => `tenant:${client.scope}`,
+			queryKeyFn: () => ['tenant:tenant'],
 			fetcher: async () => 'unused',
 		},
 		{
@@ -280,7 +280,7 @@ test('non-401 errors trigger onToast for tenant scope', async () => {
 	const onError = vi.fn();
 	const options = buildTenantQueryOptions(
 		{
-			queryKeyFn: (client) => `tenant:${client.scope}`,
+			queryKeyFn: () => ['tenant:tenant'],
 			fetcher: async () => 'unused',
 			onError,
 		},
@@ -304,7 +304,7 @@ test('local onError is called even when generated handler throws', () => {
 	const onError = vi.fn();
 	const options = buildTenantQueryOptions(
 		{
-			queryKeyFn: (client) => `tenant:${client.scope}`,
+			queryKeyFn: () => ['tenant:tenant'],
 			fetcher: async () => 'unused',
 			onError,
 		},
@@ -332,7 +332,7 @@ test('anonymous auth errors do not trigger onLogout for 401', async () => {
 	const onToast = vi.fn();
 	const options = buildAnonymousQueryOptions(
 		{
-			queryKeyFn: (client) => `anon:${client.scope}`,
+			queryKeyFn: () => ['anon:anonymous'],
 			fetcher: async () => 'unused',
 		},
 		{
@@ -354,7 +354,7 @@ test('auth query errors follow anonymous-style 401 handling (no onLogout)', asyn
 	const onToast = vi.fn();
 	const options = buildAuthQueryOptions(
 		{
-			queryKeyFn: (client) => `auth:${client.scope}`,
+			queryKeyFn: () => ['auth:anonymous'],
 			fetcher: async () => 'unused',
 		},
 		{

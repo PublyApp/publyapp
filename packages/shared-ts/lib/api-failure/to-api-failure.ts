@@ -157,7 +157,6 @@ const toProblemFailure = (error: unknown): ProblemFailure | undefined => {
 		translationKey: source.translationKey,
 		detail: source.detail,
 		title: source.title,
-		raw: error,
 	};
 };
 
@@ -191,7 +190,6 @@ const toValidationFailure = (error: unknown): ValidationFailure | undefined => {
 		detail: source.detail,
 		title: source.title,
 		fieldErrors: source.errors ?? {},
-		raw: error,
 	};
 };
 
@@ -214,7 +212,6 @@ export const toApiFailure = (error: unknown): ApiFailure => {
 	) {
 		return {
 			kind: 'abort',
-			raw: error,
 		} satisfies AbortFailure;
 	}
 
@@ -226,7 +223,6 @@ export const toApiFailure = (error: unknown): ApiFailure => {
 			return {
 				kind: 'network',
 				message: error.message || 'Network error - please check your connection',
-				raw: error,
 			} satisfies NetworkFailure;
 		}
 	}
@@ -238,7 +234,6 @@ export const toApiFailure = (error: unknown): ApiFailure => {
 			translationKey: undefined,
 			detail: error.statusText || `HTTP ${error.status}`,
 			title: error.statusText || `HTTP ${error.status}`,
-			raw: error,
 		};
 	}
 
@@ -263,7 +258,6 @@ export const toApiFailure = (error: unknown): ApiFailure => {
 				statusCode === undefined
 					? 'HTTP Error 500'
 					: `HTTP Error ${statusCode}`,
-			raw: error,
 		};
 	}
 
@@ -271,14 +265,12 @@ export const toApiFailure = (error: unknown): ApiFailure => {
 		return {
 			kind: 'unknown',
 			message: error.message || 'An unexpected error occurred',
-			raw: error,
 		} satisfies UnknownFailure;
 	}
 
 	return {
 		kind: 'unknown',
 		message: typeof error === 'string' ? error : 'An unexpected error occurred',
-		raw: error,
 	};
 };
 
