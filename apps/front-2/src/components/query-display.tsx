@@ -1,16 +1,14 @@
 import { Spinner, type SpinnerProps } from '@heroui/react';
 import type { UseQueryResult } from '@tanstack/react-query';
-import {
-	type ComponentType,
-	isValidElement,
-	type ReactNode,
-} from 'react';
+import { type ComponentType, isValidElement, type ReactNode } from 'react';
 
 import { checkIfEmptyQueryData } from '@org/shared-ts/lib/query/query-state';
 
 type LoadingMode = 'loading' | 'pending' | 'fetching';
 
-type RenderSlot<TProps = object> = ReactNode | ComponentType<TProps>;
+type RenderSlot<TProps = object> =
+	| ReactNode
+	| React.JSXElementConstructor<TProps>;
 
 type Props<TData = unknown, TError = Error> = {
 	query: UseQueryResult<TData, TError>;
@@ -25,18 +23,15 @@ type Props<TData = unknown, TError = Error> = {
 	forceRender?: 'loading' | 'error' | 'empty' | 'data';
 };
 
-type DefaultLoadingProps = SpinnerProps & {
-	label?: string;
-};
-
 const renderLoading = (LoadingSlot?: Props['LoadingSlot']) => {
 	if (typeof LoadingSlot === 'function') {
-		return <LoadingSlot />;
+		const Slot = LoadingSlot;
+		return <Slot />;
 	}
 	if (isValidElement(LoadingSlot)) {
 		return LoadingSlot;
 	}
-	return LoadingSlot ?? <Spinner {...defaultLoadingProps} label="Loading..." />;
+	return LoadingSlot ?? <Spinner {...defaultLoadingProps} />;
 };
 
 const renderError = <TData, TError>(
@@ -45,7 +40,8 @@ const renderError = <TData, TError>(
 	ErrorSlot?: Props<TData, TError>['ErrorSlot'],
 ) => {
 	if (typeof ErrorSlot === 'function') {
-		return <ErrorSlot error={error} query={query} />;
+		const Slot = ErrorSlot;
+		return <Slot error={error} query={query} />;
 	}
 	if (isValidElement(ErrorSlot)) {
 		return ErrorSlot;
@@ -55,7 +51,8 @@ const renderError = <TData, TError>(
 
 const renderEmpty = (EmptySlot?: Props['EmptySlot']) => {
 	if (typeof EmptySlot === 'function') {
-		return <EmptySlot />;
+		const Slot = EmptySlot;
+		return <Slot />;
 	}
 	if (isValidElement(EmptySlot)) {
 		return EmptySlot;
@@ -68,14 +65,16 @@ const renderData = <TData, TError>(
 	children?: Props<TData, TError>['children'],
 ) => {
 	if (typeof children === 'function') {
-		return children({ data: query.data as TData });
+		const Slot = children;
+		return <Slot data={query.data as TData} />;
+	}
+	if (isValidElement(children)) {
+		return children;
 	}
 	return children;
 };
 
-const defaultLoadingProps = {
-	color: 'default' as const,
-	variant: 'dots' as const,
+const defaultLoadingProps: SpinnerProps = {
 	size: 'sm' as const,
 };
 
@@ -93,7 +92,11 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 			case 'loading':
 				return renderLoading(LoadingSlot);
 			case 'error':
-				return renderError(query.error ?? new Error('forced error'), query, ErrorSlot);
+				return renderError(
+					query.error ?? new Error('forced error'),
+					query,
+					ErrorSlot,
+				);
 			case 'empty':
 				return renderEmpty(EmptySlot);
 			case 'data':

@@ -3,20 +3,29 @@ import {
 	FetchRequestAdapter,
 	KiotaClientFactory,
 } from '@microsoft/kiota-http-fetchlibrary';
-import type { ApiClient } from '@org/client-ts/src/apiClient';
-import { createApiClient } from '@org/client-ts/src/apiClient';
 import * as cookie from 'cookie';
 
+import type { ApiClient } from '@org/client-ts/src/apiClient';
+import { createApiClient } from '@org/client-ts/src/apiClient';
 import {
 	SESSION_TOKEN_COOKIE_KEY,
 	TENANT_ID_HEADER_KEY,
 } from '@org/shared-ts/lib/constants';
-import { parseSessionCookie, selectToken } from '@org/shared-ts/lib/session/parse';
 import type { ClientAccessor } from '@org/shared-ts/lib/query/types';
+import {
+	parseSessionCookie,
+	selectToken,
+} from '@org/shared-ts/lib/session/parse';
 import type { ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
 
 type SessionScope = 'tenant' | 'staff';
-type FetchFunction = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+type FetchFunction = (
+	input: RequestInfo | URL,
+	init?: RequestInit,
+) => Promise<Response>;
+type RequestInitWithDuplex = RequestInit & {
+	duplex?: 'half';
+};
 type RequestLike = {
 	url: string;
 	headers?: HeadersInit;
@@ -31,7 +40,7 @@ type RequestLike = {
 	integrity?: RequestInit['integrity'];
 	keepalive?: RequestInit['keepalive'];
 	signal?: RequestInit['signal'];
-	duplex?: RequestInit['duplex'];
+	duplex?: RequestInitWithDuplex['duplex'];
 };
 
 type CookieValueProvider = () => string | undefined;
@@ -90,7 +99,9 @@ const defaultSessionTokenProvider: SessionTokenProvider = (scope) => {
 
 let sessionTokenProvider: SessionTokenProvider = defaultSessionTokenProvider;
 
-export const setSessionTokenProvider = (provider: SessionTokenProvider | undefined): void => {
+export const setSessionTokenProvider = (
+	provider: SessionTokenProvider | undefined,
+): void => {
 	sessionTokenProvider = provider ?? defaultSessionTokenProvider;
 	resetClientManager();
 };
@@ -102,8 +113,8 @@ const resolveSessionToken = (
 const resolveApiBaseUrl = (): string => {
 	const runtimeBase =
 		typeof globalThis === 'object'
-			? (globalThis as { __ENV__?: { PUBLIC_API_BASE_URL?: string } })
-				.__ENV__?.PUBLIC_API_BASE_URL
+			? (globalThis as { __ENV__?: { PUBLIC_API_BASE_URL?: string } }).__ENV__
+					?.PUBLIC_API_BASE_URL
 			: undefined;
 	if (runtimeBase) {
 		return runtimeBase;
@@ -111,7 +122,10 @@ const resolveApiBaseUrl = (): string => {
 
 	type ProcessEnv = { [key: string]: string | undefined };
 	type ProcessLike = { env?: ProcessEnv };
-	type GlobalLike = { process?: ProcessLike; __ENV__?: { PUBLIC_API_BASE_URL?: string } };
+	type GlobalLike = {
+		process?: ProcessLike;
+		__ENV__?: { PUBLIC_API_BASE_URL?: string };
+	};
 
 	const globalLike =
 		typeof globalThis === 'object' ? (globalThis as GlobalLike) : undefined;
@@ -123,10 +137,12 @@ const resolveApiBaseUrl = (): string => {
 		return processBase;
 	}
 
-	throw new Error('__ENV__.PUBLIC_API_BASE_URL is required in front-2 runtime env');
+	throw new Error(
+		'__ENV__.PUBLIC_API_BASE_URL is required in front-2 runtime env',
+	);
 };
 
-const isRequestLike = (input: RequestInfo | URL): input is RequestLike => {
+const isRequestLike = (input: unknown): input is RequestLike => {
 	if (typeof input !== 'object' || input === null) {
 		return false;
 	}
@@ -173,7 +189,7 @@ const isSameOrigin = (target: URL, base: string): boolean => {
 };
 
 const pickRequestInit = (input: RequestLike): RequestInit => {
-	const init: RequestInit = {};
+	const init: RequestInitWithDuplex = {};
 	if (input.method !== undefined) {
 		init.method = input.method;
 	}
@@ -293,7 +309,9 @@ const buildClient = (options: BuildClientOptions): ApiClient => {
 	return createApiClient(adapter);
 };
 
-const getSessionTokensFromCookie = (cookieValueProvider: CookieValueProvider): ParsedSessionTokens => {
+const getSessionTokensFromCookie = (
+	cookieValueProvider: CookieValueProvider,
+): ParsedSessionTokens => {
 	let rawCookieValue: string | undefined;
 	try {
 		rawCookieValue = cookieValueProvider();
@@ -322,7 +340,8 @@ class ClientManager implements ClientAccessor<ApiClient> {
 	private readonly sessionTokenProvider: SessionTokenProvider;
 
 	public constructor(options: ClientManagerOptions = {}) {
-		this.sessionTokenProvider = options.sessionTokenProvider ?? sessionTokenProvider;
+		this.sessionTokenProvider =
+			options.sessionTokenProvider ?? sessionTokenProvider;
 	}
 
 	getOrCreateClient(tenantId: string): ApiClient {
