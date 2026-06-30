@@ -100,6 +100,41 @@ test('tenant query resolves blank tenantId via handler fallback', async () => {
 	expect(value).toBe('tenant-tenant-fallback-12');
 });
 
+test('tenant query key includes tenant and query variables', () => {
+	const options = buildTenantQueryOptions(
+		{
+			queryKeyFn: (client) => `tenant:${client.scope}`,
+			fetcher: async (client, vars) => `${client.scope}-${vars.tenantId}-${vars.limit}`,
+		},
+		createScopeOptions(accessor),
+	);
+
+	expect(options.queryKey({ tenantId: 'tenant-1', limit: 10, page: 2 })).toEqual([
+		'tenant',
+		'tenant:tenant',
+		'tenant-1',
+		{ limit: 10, page: 2 },
+	]);
+	expect(options.queryKey({ tenantId: 'tenant-1', limit: 11, page: 2 })).not.toEqual(
+		options.queryKey({ tenantId: 'tenant-1', limit: 10, page: 2 }),
+	);
+});
+
+test('tenant mutation key does not include fallback tenant at build time', () => {
+	const options = buildTenantMutationOptions(
+		{
+			mutationKeyFn: (client) => `tenant-mutation:${client.scope}`,
+			mutationFn: async (client, vars) => `${client.scope}-${vars.tenantId}-mutate`,
+			handlers: {
+				resolveTenant: () => 'tenant-fallback',
+			},
+		},
+		createScopeOptions(accessor),
+	);
+
+	expect(options.mutationKey).toEqual(['tenant', 'tenant-mutation:tenant']);
+});
+
 test('staff query uses staff client and not tenant/anonymous clients', async () => {
 	const options = buildStaffQueryOptions(
 		{
@@ -116,6 +151,22 @@ test('staff query uses staff client and not tenant/anonymous clients', async () 
 	expect(value).toBe('staff');
 });
 
+test('staff query key includes variables for cache separation', () => {
+	const options = buildStaffQueryOptions(
+		{
+			queryKeyFn: (client) => `staff:${client.scope}`,
+			fetcher: async (client) => client.scope,
+		},
+		createScopeOptions(accessor),
+	);
+
+	expect(options.queryKey({ page: 1 })).toEqual([
+		'staff',
+		'staff:staff',
+		{ page: 1 },
+	]);
+});
+
 test('anonymous query uses anonymous client', async () => {
 	const options = buildAnonymousQueryOptions(
 		{
@@ -130,6 +181,22 @@ test('anonymous query uses anonymous client', async () => {
 	expect(accessor.getOrCreateClient).not.toHaveBeenCalled();
 	expect(accessor.getOrCreateStaffClient).not.toHaveBeenCalled();
 	expect(value).toBe('anonymous');
+});
+
+test('anonymous query key includes variables for cache separation', () => {
+	const options = buildAnonymousQueryOptions(
+		{
+			queryKeyFn: (client) => `anon:${client.scope}`,
+			fetcher: async (client) => client.scope,
+		},
+		createScopeOptions(accessor),
+	);
+
+	expect(options.queryKey({ page: 1 })).toEqual([
+		'anonymous',
+		'anon:anonymous',
+		{ page: 1 },
+	]);
 });
 
 test('tenant onError triggers onLogout for 401 and skips toast', async () => {

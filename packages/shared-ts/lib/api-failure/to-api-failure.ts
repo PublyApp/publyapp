@@ -120,7 +120,7 @@ const parseProblem = (error: unknown): ParsedProblemLike | undefined => {
 	const root = readProblemShape(errorRecord);
 	const body = bodyProblem ? readProblemShape(bodyProblem) : undefined;
 	const nested = nestedProblem ? readProblemShape(nestedProblem) : undefined;
-	const candidates = [body, root, nested];
+	const candidates = [body, nested, root];
 	const source = candidates.find(
 		(candidate): candidate is ProblemLike =>
 			candidate !== undefined && hasMeaningfulProblemShape(candidate),
@@ -185,10 +185,6 @@ const toValidationFailure = (error: unknown): ValidationFailure | undefined => {
 		parsedProblem.root?.responseStatusCode,
 		parsedProblem.root?.status,
 	);
-
-	if (status !== 422) {
-		return undefined;
-	}
 
 	return {
 		kind: 'validation',

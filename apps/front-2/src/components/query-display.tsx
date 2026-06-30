@@ -28,7 +28,7 @@ const renderLoading = (LoadingSlot?: Props['LoadingSlot']) => {
 	if (isValidElement(LoadingSlot)) {
 		return LoadingSlot;
 	}
-	return <Spinner label="Loading..." {...(defaultLoadingProps satisfies DefaultLoadingProps)} />;
+	return <Spinner {...defaultLoadingProps} label="Loading..." />;
 };
 
 const renderError = <TData, TError>(

@@ -1,10 +1,10 @@
-type QueryState<TData, TError = Error> = {
+type QueryState<TData> = {
 	isPending: boolean;
 	data: TData;
 };
 
-export const checkIfEmptyQueryData = <TData = unknown, TError = Error>(
-	query: QueryState<TData, TError>,
+export const checkIfEmptyQueryData = <TData = unknown>(
+	query: QueryState<TData>,
 ): boolean => {
 	const isEmpty =
 		query.data === undefined ||

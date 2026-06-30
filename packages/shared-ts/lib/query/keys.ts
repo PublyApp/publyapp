@@ -1,6 +1,10 @@
 export type QueryAccessor<T> = (root: T) => unknown;
 
-const stringifyQueryArg = (arg: unknown): string => {
+type JsonRecord = Record<string, unknown>;
+
+type StringifySeen = Set<object>;
+
+const stringifyQueryArg = (arg: unknown, seen: StringifySeen): string => {
 	if (arg === undefined) {
 		return 'undefined';
 	}
@@ -9,7 +13,12 @@ const stringifyQueryArg = (arg: unknown): string => {
 		return 'null';
 	}
 
-	if (typeof arg === 'string' || typeof arg === 'number' || typeof arg === 'boolean' || typeof arg === 'bigint') {
+	if (
+		typeof arg === 'string' ||
+		typeof arg === 'number' ||
+		typeof arg === 'boolean' ||
+		typeof arg === 'bigint'
+	) {
 		return String(arg);
 	}
 
@@ -26,15 +35,40 @@ const stringifyQueryArg = (arg: unknown): string => {
 	}
 
 	if (Array.isArray(arg)) {
-		return `[${arg.map(stringifyQueryArg).join(',')}]`;
+		return `[${arg.map((item) => stringifyQueryArg(item, seen)).join(',')}]`;
 	}
 
 	if (typeof arg === 'object') {
-		const keys = Object.keys(arg as Record<string, unknown>).sort();
-		return `{${keys.map((key) => `${key}:${stringifyQueryArg((arg as Record<string, unknown>)[key])}`).join(',')}}`;
+		if (seen.has(arg)) {
+			return '[circular]';
+		}
+
+		seen.add(arg);
+		const entries: string[] = [];
+		for (const key of Object.keys(arg as JsonRecord).sort()) {
+			entries.push(
+				`${key}:${stringifyQueryArg((arg as JsonRecord)[key], seen)}`,
+			);
+		}
+
+		for (const symbolKey of Object.getOwnPropertySymbols(arg as object)) {
+			entries.push(
+				`${String(symbolKey)}:${stringifyQueryArg((arg as { [key: symbol]: unknown })[symbolKey], seen)}`,
+			);
+		}
+
+		return `{${entries.join(',')}}`;
 	}
 
 	return String(arg);
+};
+
+const isIgnoredAccessorProperty = (prop: string | symbol): boolean => {
+	if (typeof prop === 'symbol') {
+		return true;
+	}
+
+	return prop === 'then' || prop === 'inspect' || prop === 'toString';
 };
 
 export function getQueryKey<T>(fn: QueryAccessor<T>): string[] {
@@ -42,11 +76,15 @@ export function getQueryKey<T>(fn: QueryAccessor<T>): string[] {
 
 	const proxy: unknown = new Proxy(() => {}, {
 		get(_target, prop) {
+			if (isIgnoredAccessorProperty(prop)) {
+				return undefined;
+			}
+
 			path.push(String(prop));
 			return proxy;
 		},
-	apply(_target, _thisArg, args) {
-			path.push(...args.map((arg) => stringifyQueryArg(arg)));
+		apply(_target, _thisArg, args) {
+			path.push(...args.map((arg) => stringifyQueryArg(arg, new Set<object>())));
 			return proxy;
 		},
 	});

@@ -2,13 +2,15 @@ import { SESSION_TOKEN_HEADER_KEY } from './constants';
 
 const REDACTED_SESSION_TOKEN = '[REDACTED]';
 
+const SESSION_HEADER_NAMES = new Set([
+	SESSION_TOKEN_HEADER_KEY.toLowerCase(),
+	'authorization',
+]);
+
 type HeaderShape = HeadersInit | Record<string, string> | [string, string][];
 
-const normalizeHeaderName = (name: string): string => name.toLowerCase();
-
 const shouldRedactHeader = (name: string): boolean =>
-	normalizeHeaderName(name) === normalizeHeaderName(SESSION_TOKEN_HEADER_KEY) ||
-	normalizeHeaderName(name) === 'authorization';
+	SESSION_HEADER_NAMES.has(name.toLowerCase());
 
 export const redactHeaders = (
 	headers: HeaderShape | undefined,

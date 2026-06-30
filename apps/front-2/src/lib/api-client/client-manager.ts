@@ -18,10 +18,34 @@ import type { ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
 type SessionScope = 'tenant' | 'staff';
 type FetchFunction = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
+type CookieValueProvider = () => string | undefined;
+type SessionTokenProvider = (scope: SessionScope) => string | undefined;
+
 type BuildCustomFetchOptions = {
 	getSessionToken: () => string | undefined;
 	tenantId?: string;
 	fetchImpl?: FetchFunction;
+	apiBaseUrl: string;
+};
+
+type BuildClientOptions = {
+	getSessionToken: () => string | undefined;
+	tenantId?: string;
+	fetchImpl?: FetchFunction;
+};
+
+type ClientManagerOptions = {
+	sessionTokenProvider?: SessionTokenProvider;
+};
+
+const SESSION_COOKIE_HEADER = TENANT_ID_HEADER_KEY;
+
+const getDefaultCookieValue = (): string | undefined => {
+	if (typeof document === 'undefined') {
+		return undefined;
+	}
+
+	return document.cookie;
 };
 
 const normalizeTenantId = (tenantId: string): string => {
@@ -33,15 +57,14 @@ const normalizeTenantId = (tenantId: string): string => {
 	return normalized;
 };
 
-const resolveSessionToken = (
-	scope: SessionScope = 'tenant',
-): string | undefined => {
-	if (typeof document === 'undefined') {
+const defaultSessionTokenProvider: SessionTokenProvider = (scope) => {
+	const rawCookieValue = getDefaultCookieValue();
+	if (!rawCookieValue) {
 		return undefined;
 	}
 
-	const cookies = cookie.parse(document.cookie ?? '');
-	const rawCookie = cookies[SESSION_TOKEN_COOKIE_KEY];
+	const parsedCookie = cookie.parse(rawCookieValue);
+	const rawCookie = parsedCookie[SESSION_TOKEN_COOKIE_KEY];
 	if (!rawCookie) {
 		return undefined;
 	}
@@ -49,33 +72,21 @@ const resolveSessionToken = (
 	return selectToken(parseSessionCookie(rawCookie), scope);
 };
 
-const buildCustomFetch = (options: BuildCustomFetchOptions): FetchFunction => {
-	const fetchImpl = options.fetchImpl ?? globalThis.fetch;
-	if (typeof fetchImpl !== 'function') {
-		throw new Error('fetch is required in the current runtime');
-	}
+let sessionTokenProvider: SessionTokenProvider = defaultSessionTokenProvider;
 
-	return (input, init) => {
-		const headers = new Headers(init?.headers);
-		const sessionToken = options.getSessionToken();
-		const tenantId = options.tenantId;
-
-		if (sessionToken) {
-			headers.set('X-Session-Token', sessionToken);
-		}
-		if (tenantId) {
-			headers.set(TENANT_ID_HEADER_KEY, tenantId);
-		}
-
-		return fetchImpl(input, { ...init, headers });
-	};
+export const setSessionTokenProvider = (provider: SessionTokenProvider | undefined): void => {
+	sessionTokenProvider = provider ?? defaultSessionTokenProvider;
 };
+
+const resolveSessionToken = (
+	scope: SessionScope = 'tenant',
+): string | undefined => sessionTokenProvider(scope);
 
 const resolveApiBaseUrl = (): string => {
 	const runtimeBase =
 		typeof globalThis === 'object'
 			? (globalThis as { __ENV__?: { PUBLIC_API_BASE_URL?: string } })
-					.__ENV__?.PUBLIC_API_BASE_URL
+				.__ENV__?.PUBLIC_API_BASE_URL
 			: undefined;
 	if (runtimeBase) {
 		return runtimeBase;
@@ -85,30 +96,75 @@ const resolveApiBaseUrl = (): string => {
 	type ProcessLike = { env?: ProcessEnv };
 	type GlobalLike = { process?: ProcessLike; __ENV__?: { PUBLIC_API_BASE_URL?: string } };
 
-	const globalLike = typeof globalThis === 'object'
-		? (globalThis as GlobalLike)
-		: undefined;
+	const globalLike =
+		typeof globalThis === 'object' ? (globalThis as GlobalLike) : undefined;
 
 	const processBase =
 		globalLike?.process?.env?.PUBLIC_API_BASE_URL ||
 		globalLike?.process?.env?.NEXT_PUBLIC_API_BASE_URL;
-
 	if (processBase) {
-	return processBase;
+		return processBase;
 	}
 
 	if (typeof window === 'undefined') {
 		return 'http://127.0.0.1:5000';
 	}
+
 	throw new Error('__ENV__.PUBLIC_API_BASE_URL is required in front-2 runtime env');
 };
 
-const buildClient = (options: {
-	getSessionToken: () => string | undefined;
-	tenantId?: string;
-	fetchImpl?: FetchFunction;
-}): ApiClient => {
-	const customFetch = buildCustomFetch(options);
+const resolveRequestUrl = (input: RequestInfo | URL, baseUrl: string): URL => {
+	if (input instanceof Request) {
+		return new URL(input.url);
+	}
+
+	if (typeof input === 'string' || input instanceof URL) {
+		return new URL(String(input), baseUrl);
+	}
+
+	return new URL(baseUrl);
+};
+
+const isSameOrigin = (target: URL, base: string): boolean => {
+	const baseUrl = new URL(base);
+	return target.origin === baseUrl.origin;
+};
+
+const buildCustomFetch = (options: BuildCustomFetchOptions): FetchFunction => {
+	const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+	if (typeof fetchImpl !== 'function') {
+		throw new Error('fetch is required in the current runtime');
+	}
+
+	const baseUrl = options.apiBaseUrl;
+
+	return (input, init) => {
+		const requestUrl = resolveRequestUrl(input, baseUrl);
+		const headers = new Headers(init?.headers);
+
+		if (isSameOrigin(requestUrl, baseUrl)) {
+			const sessionToken = options.getSessionToken();
+			if (sessionToken) {
+				headers.set('X-Session-Token', sessionToken);
+			}
+
+			if (options.tenantId) {
+				headers.set(SESSION_COOKIE_HEADER, options.tenantId);
+			}
+		}
+
+		return fetchImpl(input, { ...init, headers });
+	};
+};
+
+const buildClient = (options: BuildClientOptions): ApiClient => {
+	const apiBaseUrl = resolveApiBaseUrl();
+	const customFetch = buildCustomFetch({
+		getSessionToken: options.getSessionToken,
+		tenantId: options.tenantId,
+		fetchImpl: options.fetchImpl,
+		apiBaseUrl,
+	});
 	const adapter = new FetchRequestAdapter(
 		new AnonymousAuthenticationProvider(),
 		undefined,
@@ -116,27 +172,31 @@ const buildClient = (options: {
 		KiotaClientFactory.create(customFetch),
 	);
 
-	adapter.baseUrl = resolveApiBaseUrl();
+	adapter.baseUrl = apiBaseUrl;
 	return createApiClient(adapter);
 };
 
-const getSessionTokensFromBrowser = (): ParsedSessionTokens => {
-	if (typeof document === 'undefined') {
-		return {};
-	}
-
-	const rawCookieValue = cookie.parse(document.cookie ?? '')[SESSION_TOKEN_COOKIE_KEY];
+const getSessionTokensFromCookie = (cookieValueProvider: CookieValueProvider): ParsedSessionTokens => {
+	const rawCookieValue = cookieValueProvider();
 	if (!rawCookieValue) {
 		return {};
 	}
 
-	return parseSessionCookie(rawCookieValue);
+	return parseSessionCookie(cookie.parse(rawCookieValue)[SESSION_TOKEN_COOKIE_KEY] ?? '');
 };
+
+const getSessionTokensFromBrowser = (): ParsedSessionTokens =>
+	getSessionTokensFromCookie(getDefaultCookieValue);
 
 class ClientManager implements ClientAccessor<ApiClient> {
 	private tenantClientMap = new Map<string, ApiClient>();
 	private staffClient: ApiClient | undefined;
 	private anonymousClient: ApiClient | undefined;
+	private readonly sessionTokenProvider: SessionTokenProvider;
+
+	public constructor(options: ClientManagerOptions = {}) {
+		this.sessionTokenProvider = options.sessionTokenProvider ?? sessionTokenProvider;
+	}
 
 	getOrCreateClient(tenantId: string): ApiClient {
 		const safeTenantId = normalizeTenantId(tenantId);
@@ -147,7 +207,7 @@ class ClientManager implements ClientAccessor<ApiClient> {
 		}
 
 		const apiClient = buildClient({
-			getSessionToken: () => resolveSessionToken('tenant'),
+			getSessionToken: () => this.sessionTokenProvider('tenant'),
 			tenantId: safeTenantId,
 		});
 
@@ -161,7 +221,7 @@ class ClientManager implements ClientAccessor<ApiClient> {
 		}
 
 		this.staffClient = buildClient({
-			getSessionToken: () => resolveSessionToken('staff'),
+			getSessionToken: () => this.sessionTokenProvider('staff'),
 		});
 		return this.staffClient;
 	}
@@ -186,12 +246,21 @@ class ClientManager implements ClientAccessor<ApiClient> {
 
 let clientManager: ClientManager | undefined;
 
-export const getClientManager = (): ClientManager => {
-	clientManager = clientManager ?? new ClientManager();
+const createClientManager = (): ClientManager => {
+	return new ClientManager({
+		sessionTokenProvider,
+	});
+};
+
+const getClientManager = (): ClientManager => {
+	if (!clientManager) {
+		clientManager = createClientManager();
+	}
+
 	return clientManager;
 };
 
-export const resetClientManager = (): void => {
+const resetClientManager = (): void => {
 	clientManager?.clearClients();
 	clientManager = undefined;
 };
@@ -203,4 +272,5 @@ export {
 	buildCustomFetch,
 	getClientManager,
 	resetClientManager,
+	setSessionTokenProvider,
 };

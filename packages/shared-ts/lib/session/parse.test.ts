@@ -24,14 +24,26 @@ test('roundtrips through formatter', () => {
 	expect(formatSessionCookie(parsed)).toBe('s:STAFF+t:TENANT');
 });
 
-test('selects tenant token for tenant scope and staff token fallback for staff scope', () => {
+test('selects tenant token for tenant scope and staff scope token for staff scope', () => {
 	const tokens = parseSessionCookie('s:STAFF+t:TENANT');
 
 	expect(selectToken(tokens, 'tenant')).toBe('TENANT');
 	expect(selectToken(tokens, 'staff')).toBe('STAFF');
 });
 
-test('selectToken for staff scope falls back to tenant when staff missing', () => {
+test('selectToken for staff scope does not fall back to tenant token', () => {
 	const tokens = parseSessionCookie('RAW_TOKEN');
-	expect(selectToken(tokens, 'staff')).toBe('RAW_TOKEN');
+	expect(selectToken(tokens, 'staff')).toBeUndefined();
+});
+
+test('formats and parses tokens with reserved delimiters', () => {
+	const parsed = {
+		staffToken: 'STAFF+ONE',
+		tenantToken: 't:TENANT:1',
+	};
+
+	const formatted = formatSessionCookie(parsed);
+	const roundTrip = parseSessionCookie(formatted);
+
+	expect(roundTrip).toEqual(parsed);
 });

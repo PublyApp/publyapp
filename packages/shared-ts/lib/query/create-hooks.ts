@@ -1,14 +1,3 @@
-import type {
-	CreateMutationOptions,
-	CreateQueryOptions,
-	CreateSuspenseQueryOptions,
-} from 'react-query-kit';
-import {
-	createMutation,
-	createQuery,
-	createSuspenseQuery,
-} from 'react-query-kit';
-
 import { toApiFailure } from '../api-failure/to-api-failure';
 import { getQueryKey } from './keys';
 import type {
@@ -19,7 +8,6 @@ import type {
 
 type QueryScope = 'tenant' | 'staff' | 'anonymous' | 'auth';
 
-type EmptyVariables = {};
 type TenantQueryVariables<TVariables> = { tenantId?: string } & Omit<
 	TVariables,
 	'tenantId'
@@ -29,18 +17,23 @@ type TenantQueryVariablesRequired<TVariables> = { tenantId: string } & Omit<
 	'tenantId'
 >;
 
+type QueryBaseOptions<TData, TVariables, TError = Error> = {
+	onError?: (error: TError) => void;
+	[key: string]: unknown;
+};
+
 type BaseQueryOptions<TData, TVariables, TError = Error> = Omit<
-	CreateQueryOptions<TData, TVariables, TError>,
- 	'queryKey' | 'fetcher'
+	QueryBaseOptions<TData, TVariables, TError>,
+	'queryKey' | 'fetcher'
 >;
 
 type BaseSuspenseQueryOptions<TData, TVariables, TError = Error> = Omit<
-	CreateSuspenseQueryOptions<TData, TVariables, TError>,
- 	'queryKey' | 'fetcher'
+	QueryBaseOptions<TData, TVariables, TError>,
+	'queryKey' | 'fetcher'
 >;
 
 type BaseMutationOptions<TData, TVariables, TError = Error> = Omit<
-	CreateMutationOptions<TData, TVariables, TError>,
+	QueryBaseOptions<TData, TVariables, TError>,
 	'mutationKey' | 'mutationFn'
 >;
 
@@ -92,7 +85,7 @@ type TenantMutationConfig<
 	handlers?: QueryErrorHandlers;
 } & Omit<
 	BaseMutationOptions<TData, TenantQueryVariables<TVariables>, TError>,
- 	'use' | 'variables'
+	'use' | 'variables'
 >;
 
 type StaffQueryConfig<
@@ -164,6 +157,24 @@ const resolveTenantId = <TVariables>(
 	return normalizeTenantId(fromHandler);
 };
 
+const stripTenantIdFromVariables = <TVariables>(
+	variables?: TenantQueryVariables<TVariables>,
+): Record<string, unknown> | undefined => {
+	if (!variables) {
+		return undefined;
+	}
+
+	const { tenantId: _tenantId, ...rest } = variables as Record<
+		string,
+		unknown
+	>;
+	const entries = Object.entries(rest).filter(([, value]) => value !== undefined);
+	if (entries.length === 0) {
+		return undefined;
+	}
+
+	return Object.fromEntries(entries);
+};
 
 const composeOnError = <TError>(
 	localOnError: ((error: TError) => void) | undefined,
@@ -202,7 +213,7 @@ const buildScopedQueryKey = (
 	tenantId?: string,
 	variables?: Record<string, unknown>,
 ) => {
-	const key: (string | Record<string, unknown> | undefined)[] = [
+	const key: (string | Record<string, unknown>)[] = [
 		scope,
 		queryKey.join('.'),
 	];
@@ -238,13 +249,17 @@ export const buildTenantQueryOptions = <
 	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
 
 	return {
-		queryKey: (variables: TenantQueryVariables<TVariables> = {} as TenantQueryVariables<TVariables>) =>
-			buildScopedQueryKey(
+		queryKey: (
+			variables: TenantQueryVariables<TVariables> = {} as TenantQueryVariables<TVariables>,
+		) => {
+			const tenantId = resolveTenantId(variables, mergedHandlers);
+			return buildScopedQueryKey(
 				'tenant',
 				queryKey,
-				resolveTenantId(variables, mergedHandlers),
-				undefined,
-			),
+				tenantId,
+				stripTenantIdFromVariables(variables),
+			);
+		},
 		fetcher: async (
 			variables: TenantQueryVariables<TVariables>,
 		): Promise<TData> => {
@@ -254,7 +269,10 @@ export const buildTenantQueryOptions = <
 			}
 
 			const client = options.clientAccessor.getOrCreateClient(tenantId);
-			return fetcher(client, { ...(variables as TenantQueryVariables<TVariables>), tenantId });
+			return fetcher(client, {
+				...(variables as TenantQueryVariables<TVariables>),
+				tenantId,
+			});
 		},
 		onError: composeOnError(
 			localOnError,
@@ -289,13 +307,17 @@ export const buildTenantSuspenseQueryOptions = <
 	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
 
 	return {
-		queryKey: (variables: TenantQueryVariables<TVariables> = {} as TenantQueryVariables<TVariables>) =>
-			buildScopedQueryKey(
+		queryKey: (
+			variables: TenantQueryVariables<TVariables> = {} as TenantQueryVariables<TVariables>,
+		) => {
+			const tenantId = resolveTenantId(variables, mergedHandlers);
+			return buildScopedQueryKey(
 				'tenant',
 				queryKey,
-				resolveTenantId(variables, mergedHandlers),
-				undefined,
-			),
+				tenantId,
+				stripTenantIdFromVariables(variables),
+			);
+		},
 		fetcher: async (
 			variables: TenantQueryVariables<TVariables>,
 		): Promise<TData> => {
@@ -305,7 +327,10 @@ export const buildTenantSuspenseQueryOptions = <
 			}
 
 			const client = options.clientAccessor.getOrCreateClient(tenantId);
-			return fetcher(client, { ...(variables as TenantQueryVariables<TVariables>), tenantId });
+			return fetcher(client, {
+				...(variables as TenantQueryVariables<TVariables>),
+				tenantId,
+			});
 		},
 		onError: composeOnError(
 			localOnError,
@@ -333,15 +358,9 @@ export const buildTenantMutationOptions = <
 	} = config;
 	const mergedHandlers = mergeHandlers(localHandlers, options.handlers);
 	const mutationKey = getQueryKey<TApiClient>(mutationKeyFn);
-	const fallbackTenantId = resolveTenantId({} as TenantQueryVariables<TVariables>, mergedHandlers);
 
 	return {
-		mutationKey: buildScopedQueryKey(
-			'tenant',
-			mutationKey,
-			fallbackTenantId,
-			undefined,
-		),
+		mutationKey: buildScopedQueryKey('tenant', mutationKey),
 		mutationFn: async (
 			variables: TenantQueryVariables<TVariables>,
 		): Promise<TData> => {
@@ -384,7 +403,8 @@ export const buildStaffQueryOptions = <
 	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
 
 	return {
-		queryKey: buildScopedQueryKey('staff', queryKey),
+		queryKey: (variables: TVariables) =>
+			buildScopedQueryKey('staff', queryKey, undefined, variables as Record<string, unknown>),
 		fetcher: async (variables: TVariables): Promise<TData> => {
 			const client = options.clientAccessor.getOrCreateStaffClient();
 			return fetcher(client, variables);
@@ -417,7 +437,8 @@ export const buildStaffSuspenseQueryOptions = <
 	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
 
 	return {
-		queryKey: buildScopedQueryKey('staff', queryKey),
+		queryKey: (variables: TVariables) =>
+			buildScopedQueryKey('staff', queryKey, undefined, variables as Record<string, unknown>),
 		fetcher: async (variables: TVariables): Promise<TData> => {
 			const client = options.clientAccessor.getOrCreateStaffClient();
 			return fetcher(client, variables);
@@ -483,7 +504,13 @@ export const buildAnonymousQueryOptions = <
 	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
 
 	return {
-		queryKey: buildScopedQueryKey('anonymous', queryKey),
+		queryKey: (variables: TVariables) =>
+			buildScopedQueryKey(
+				'anonymous',
+				queryKey,
+				undefined,
+				variables as Record<string, unknown>,
+			),
 		fetcher: async (variables: TVariables): Promise<TData> => {
 			const client = options.clientAccessor.getOrCreateAnonymousClient();
 			return fetcher(client, variables);
@@ -516,7 +543,13 @@ export const buildAnonymousSuspenseQueryOptions = <
 	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
 
 	return {
-		queryKey: buildScopedQueryKey('anonymous', queryKey),
+		queryKey: (variables: TVariables) =>
+			buildScopedQueryKey(
+				'anonymous',
+				queryKey,
+				undefined,
+				variables as Record<string, unknown>,
+			),
 		fetcher: async (variables: TVariables): Promise<TData> => {
 			const client = options.clientAccessor.getOrCreateAnonymousClient();
 			return fetcher(client, variables);
@@ -582,7 +615,8 @@ export const buildAuthQueryOptions = <
 	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
 
 	return {
-		queryKey: buildScopedQueryKey('auth', queryKey),
+		queryKey: (variables: TVariables) =>
+			buildScopedQueryKey('auth', queryKey, undefined, variables as Record<string, unknown>),
 		fetcher: async (variables: TVariables): Promise<TData> => {
 			const client = options.clientAccessor.getOrCreateAnonymousClient();
 			return fetcher(client, variables);
@@ -615,7 +649,8 @@ export const buildAuthSuspenseQueryOptions = <
 	const queryKey = getQueryKey<TApiClient>(queryKeyFn);
 
 	return {
-		queryKey: buildScopedQueryKey('auth', queryKey),
+		queryKey: (variables: TVariables) =>
+			buildScopedQueryKey('auth', queryKey, undefined, variables as Record<string, unknown>),
 		fetcher: async (variables: TVariables): Promise<TData> => {
 			const client = options.clientAccessor.getOrCreateAnonymousClient();
 			return fetcher(client, variables);
@@ -660,195 +695,3 @@ export const buildAuthMutationOptions = <
 		...restOptions,
 	};
 };
-
-export const createTenantQuery = <
-	TApiClient,
-	TData,
-	TVariables extends Record<string, unknown> = EmptyVariables,
-	TError = Error,
->(
-	config: Omit<
-		TenantQueryConfig<TApiClient, TData, TVariables, TError>,
-		'handlers'
-	>,
-	options: QueryFactoryOptionsForClient<TApiClient>,
-) =>
-	createQuery(
-		buildTenantQueryOptions(config, options),
-	);
-
-export const createTenantSuspenseQuery = <
-	TApiClient,
-	TData,
-	TVariables extends Record<string, unknown> = EmptyVariables,
-	TError = Error,
->(
-	config: Omit<
-		TenantSuspenseQueryConfig<TApiClient, TData, TVariables, TError>,
-		'handlers'
-	>,
-	options: QueryFactoryOptionsForClient<TApiClient>,
-) =>
-	createSuspenseQuery(
-		buildTenantSuspenseQueryOptions(config, options),
-	);
-
-export const createTenantMutation = <
-	TApiClient,
-	TData,
-	TVariables extends Record<string, unknown> = EmptyVariables,
-	TError = Error,
->(
-	config: Omit<
-		TenantMutationConfig<TApiClient, TData, TVariables, TError>,
-		'handlers'
-	>,
-	options: QueryFactoryOptionsForClient<TApiClient>,
-) =>
-	createMutation(
-		buildTenantMutationOptions(config, options),
-	);
-
-export const createStaffQuery = <
-	TApiClient,
-	TData,
-	TVariables extends Record<string, unknown> = EmptyVariables,
-	TError = Error,
->(
-	config: Omit<
-		StaffQueryConfig<TApiClient, TData, TVariables, TError>,
-		'handlers'
-	>,
-	options: QueryFactoryOptionsForClient<TApiClient>,
-) =>
-	createQuery(
-		buildStaffQueryOptions(config, options),
-	);
-
-export const createStaffSuspenseQuery = <
-	TApiClient,
-	TData,
-	TVariables extends Record<string, unknown> = EmptyVariables,
-	TError = Error,
->(
-	config: Omit<
-		StaffSuspenseQueryConfig<TApiClient, TData, TVariables, TError>,
-		'handlers'
-	>,
-	options: QueryFactoryOptionsForClient<TApiClient>,
-) =>
-	createSuspenseQuery(
-		buildStaffSuspenseQueryOptions(config, options),
-	);
-
-export const createStaffMutation = <
-	TApiClient,
-	TData,
-	TVariables extends Record<string, unknown> = EmptyVariables,
-	TError = Error,
->(
-	config: Omit<
-		StaffMutationConfig<TApiClient, TData, TVariables, TError>,
-		'handlers'
-	>,
-	options: QueryFactoryOptionsForClient<TApiClient>,
-) =>
-	createMutation(
-		buildStaffMutationOptions(config, options),
-	);
-
-export const createAuthQuery = <
-	TApiClient,
-	TData,
-	TVariables extends Record<string, unknown> = EmptyVariables,
-	TError = Error,
->(
-	config: Omit<
-		StaffQueryConfig<TApiClient, TData, TVariables, TError>,
-		'handlers'
-	>,
-	options: QueryFactoryOptionsForClient<TApiClient>,
-) =>
-	createQuery(
-		buildAuthQueryOptions(config, options),
-	);
-
-export const createAuthSuspenseQuery = <
-	TApiClient,
-	TData,
-	TVariables extends Record<string, unknown> = EmptyVariables,
-	TError = Error,
->(
-	config: Omit<
-		StaffSuspenseQueryConfig<TApiClient, TData, TVariables, TError>,
-		'handlers'
-	>,
-	options: QueryFactoryOptionsForClient<TApiClient>,
-) =>
-	createSuspenseQuery(
-		buildAuthSuspenseQueryOptions(config, options),
-	);
-
-export const createAuthMutation = <
-	TApiClient,
-	TData,
-	TVariables extends Record<string, unknown> = EmptyVariables,
-	TError = Error,
->(
-	config: Omit<
-		StaffMutationConfig<TApiClient, TData, TVariables, TError>,
-		'handlers'
-	>,
-	options: QueryFactoryOptionsForClient<TApiClient>,
-) =>
-	createMutation(
-		buildAuthMutationOptions(config, options),
-	);
-
-export const createAnonymousQuery = <
-	TApiClient,
-	TData,
-	TVariables extends Record<string, unknown> = EmptyVariables,
-	TError = Error,
->(
-	config: Omit<
-		StaffQueryConfig<TApiClient, TData, TVariables, TError>,
-		'handlers'
-	>,
-	options: QueryFactoryOptionsForClient<TApiClient>,
-) =>
-	createQuery(
-		buildAnonymousQueryOptions(config, options),
-	);
-
-export const createAnonymousSuspenseQuery = <
-	TApiClient,
-	TData,
-	TVariables extends Record<string, unknown> = EmptyVariables,
-	TError = Error,
->(
-	config: Omit<
-		StaffSuspenseQueryConfig<TApiClient, TData, TVariables, TError>,
-		'handlers'
-	>,
-	options: QueryFactoryOptionsForClient<TApiClient>,
-) =>
-	createSuspenseQuery(
-		buildAnonymousSuspenseQueryOptions(config, options),
-	);
-
-export const createAnonymousMutation = <
-	TApiClient,
-	TData,
-	TVariables extends Record<string, unknown> = EmptyVariables,
-	TError = Error,
->(
-	config: Omit<
-		StaffMutationConfig<TApiClient, TData, TVariables, TError>,
-		'handlers'
-	>,
-	options: QueryFactoryOptionsForClient<TApiClient>,
-) =>
-	createMutation(
-		buildAnonymousMutationOptions(config, options),
-	);
