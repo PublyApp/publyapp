@@ -1,6 +1,14 @@
-import { Button, Card, CardBody, Spacer } from '@heroui/react';
-import { useNavigate } from '@tanstack/react-router';
-import { type ReactNode, useMemo } from 'react';
+import {
+	Button,
+	Card,
+	CardBody,
+	Navbar,
+	NavbarBrand,
+	NavbarContent,
+	NavbarItem,
+	Spacer,
+} from '@heroui/react';
+import { type ReactNode } from 'react';
 
 import {
 	toggleSidebarOpen,
@@ -18,6 +26,7 @@ type NavItem = {
 type AppShellProps = {
 	children: ReactNode;
 	mode?: AppShellMode;
+	pathname?: string;
 };
 
 const NAV_ITEMS: Record<AppShellMode, NavItem[]> = {
@@ -42,7 +51,7 @@ const NAV_ITEMS: Record<AppShellMode, NavItem[]> = {
 		},
 		{
 			label: 'Reports',
-			path: '/staff',
+			path: '/staff/reports',
 		},
 	],
 	marketing: [
@@ -57,77 +66,71 @@ const NAV_ITEMS: Record<AppShellMode, NavItem[]> = {
 	],
 };
 
-const getVisiblePath = (path: string) => {
-	if (!path) {
-		return '/';
+const isActivePath = (pathname: string, target: string) => {
+	if (target === '/') {
+		return pathname === '/';
 	}
 
-	if (path === '/') {
-		return '/';
-	}
-
-	return path;
+	return pathname === target || pathname.startsWith(`${target}/`);
 };
 
 const appShellShellClass = 'app-shell-shell';
 
 const AppShellHeader = ({
 	mode,
-	onNavigate,
-	isActivePath,
+	pathname,
 }: {
-	isActivePath: (target: string) => boolean;
 	mode: AppShellMode;
-	onNavigate: (path: string) => void;
+	pathname: string;
 }) => {
-	const navItems = useMemo(() => NAV_ITEMS[mode], [mode]);
+	const navItems = NAV_ITEMS[mode];
 
 	return (
-		<header className="app-shell-header">
-			<div className="app-shell-brand-wrap">
+		<Navbar className="app-shell-header">
+			<NavbarBrand>
 				<div>
-					<h1 className="text-lg font-bold tracking-wide text-slate-900 dark:text-slate-50">
+					<div className="font-semibold tracking-wide text-slate-900 dark:text-slate-50">
 						PublyApp
-					</h1>
-					<p className="text-xs text-slate-500 dark:text-slate-400">
+					</div>
+					<div className="text-xs text-slate-500 dark:text-slate-400">
 						front-2 shell
-					</p>
+					</div>
 				</div>
-				<div className="flex items-center gap-2">
-					{navItems.map((item) => {
-						const path = getVisiblePath(item.path);
-						const isActive = isActivePath(path);
-						return (
+			</NavbarBrand>
+			<NavbarContent>
+				{navItems.map((item) => {
+					const isActive = isActivePath(pathname, item.path);
+
+					return (
+						<NavbarItem isActive={isActive} key={item.label}>
 							<Button
-								key={item.label}
+								as="a"
+								href={item.path}
 								size="sm"
 								variant={isActive ? 'solid' : 'flat'}
-								color="primary"
-								onPress={() => {
-									void onNavigate(item.path);
-								}}
+								color={isActive ? 'primary' : 'default'}
 							>
 								{item.label}
 							</Button>
-						);
-					})}
-					<ThemeToggle />
-				</div>
-			</div>
-		</header>
+						</NavbarItem>
+					);
+				})}
+			</NavbarContent>
+			<NavbarContent justify="end">
+				<ThemeToggle />
+			</NavbarContent>
+		</Navbar>
 	);
 };
 
 const AppShellNavigation = ({
 	children,
 	mode,
-	onNavigate,
-	isActivePath,
+	pathname,
 }: {
 	children: ReactNode;
-	isActivePath: (target: string) => boolean;
 	mode: AppShellMode;
-	onNavigate: (path: string) => void;
+	pathname: string;
 }) => {
 	const showSidebar = mode === 'authed';
 	const sidebarOpen = useUiStore((state) => state.sidebarOpen);
@@ -146,24 +149,23 @@ const AppShellNavigation = ({
 
 	return (
 		<div className="app-shell-content-wrap">
-			<aside
+			<Card
+				as="aside"
 				className={`app-shell-sidebar ${sidebarWidthClass}`}
 				data-testid="app-shell-sidebar"
 			>
 				<div className="app-shell-sidebar-title">Navigation</div>
 				{NAV_ITEMS.authed.map((item) => {
-					const path = getVisiblePath(item.path);
-					const isActive = isActivePath(path);
+					const isActive = isActivePath(pathname, item.path);
 
 					return (
 						<Button
 							key={item.label}
+							as="a"
+							href={item.path}
 							className="app-shell-sidebar-link w-full justify-start"
 							variant={isActive ? 'solid' : 'light'}
 							color={isActive ? 'primary' : 'default'}
-							onPress={() => {
-								void onNavigate(item.path);
-							}}
 						>
 							{item.label}
 						</Button>
@@ -174,13 +176,11 @@ const AppShellNavigation = ({
 					variant="flat"
 					color="primary"
 					className="mt-4"
-					onPress={() => {
-						toggleSidebarOpen();
-					}}
+					onPress={toggleSidebarOpen}
 				>
 					Toggle sidebar
 				</Button>
-			</aside>
+			</Card>
 			<main className="app-shell-main">
 				<Card className="app-shell-main-card" shadow="sm">
 					<CardBody>{children}</CardBody>
@@ -190,31 +190,16 @@ const AppShellNavigation = ({
 	);
 };
 
-export const AppShell = ({ children, mode = 'marketing' }: AppShellProps) => {
-	const navigate = useNavigate();
-	const pathname =
-		typeof window === 'undefined' ? '/' : window.location.pathname;
-
-	const isActivePath = (target: string) =>
-		pathname === target || pathname.startsWith(`${target}/`);
-
+export const AppShell = ({
+	children,
+	mode = 'marketing',
+	pathname = '/',
+}: AppShellProps) => {
 	return (
 		<div className={appShellShellClass} data-mode={mode} data-testid="app-shell-shell">
-			<AppShellHeader
-				mode={mode}
-				onNavigate={(path) => {
-					void navigate({ to: path });
-				}}
-				isActivePath={isActivePath}
-			/>
+			<AppShellHeader mode={mode} pathname={pathname} />
 			<Spacer y={6} />
-			<AppShellNavigation
-				mode={mode}
-				onNavigate={(path) => {
-					void navigate({ to: path });
-				}}
-				isActivePath={isActivePath}
-			>
+			<AppShellNavigation mode={mode} pathname={pathname}>
 				{children}
 			</AppShellNavigation>
 		</div>

@@ -4,9 +4,10 @@ import { AppShell } from '../components/app-shell';
 
 type AuthedLayoutProps = {
 	children: React.ReactNode;
+	pathname?: string;
 };
 
-export const AuthedLayout = ({ children }: AuthedLayoutProps) => {
+export const AuthedLayout = ({ children, pathname }: AuthedLayoutProps) => {
 	const [ready, setReady] = useState(false);
 
 	useEffect(() => {
@@ -17,7 +18,11 @@ export const AuthedLayout = ({ children }: AuthedLayoutProps) => {
 		return null;
 	}
 
-	return <AppShell mode="authed">{children}</AppShell>;
+	return (
+		<AppShell mode="authed" pathname={pathname}>
+			{children}
+		</AppShell>
+	);
 };
 
 export default AuthedLayout;

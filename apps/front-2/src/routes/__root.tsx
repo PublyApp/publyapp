@@ -4,54 +4,74 @@ import {
 	HeadContent,
 	Outlet,
 	Scripts,
+	useLocation,
 } from '@tanstack/react-router';
 
 import appCss from '../styles/app.css?url';
+import { AuthLayout } from '../layouts/auth-layout';
+import { AuthedLayout } from '../layouts/authed-layout';
 import { MarketingLayout } from '../layouts/marketing-layout';
 
-const THEME_STORAGE_KEY = 'publyapp:color-scheme';
-const preHydrateThemeScript = `
-	(() => {
-		try {
-			const nextTheme = localStorage.getItem('${THEME_STORAGE_KEY}');
-			const theme =
-				nextTheme === 'dark' || nextTheme === 'light' ? nextTheme : 'light';
-			const root = document.documentElement;
-			root.classList.remove('dark', 'light');
-			root.classList.add(theme);
-			root.dataset.theme = theme;
-		} catch {
-			const root = document.documentElement;
-			root.classList.add('light');
-			root.dataset.theme = 'light';
-		}
-	})();
-`;
+type RouteSurface = 'auth' | 'authed' | 'marketing';
+
+const resolveRouteSurface = (pathname: string): RouteSurface => {
+	if (pathname.startsWith('/staff') || pathname.startsWith('/tenant')) {
+		return 'authed';
+	}
+
+	if (pathname.startsWith('/login') || pathname.startsWith('/auth')) {
+		return 'auth';
+	}
+
+	return 'marketing';
+};
+
+const RoutedShell = () => {
+	const location = useLocation();
+	const pathname = location.pathname;
+	const surface = resolveRouteSurface(pathname);
+
+	if (surface === 'authed') {
+		return (
+			<AuthedLayout pathname={pathname}>
+				<Outlet />
+			</AuthedLayout>
+		);
+	}
+
+	if (surface === 'auth') {
+		return (
+			<AuthLayout pathname={pathname}>
+				<Outlet />
+			</AuthLayout>
+		);
+	}
+
+	return (
+		<MarketingLayout pathname={pathname}>
+			<Outlet />
+		</MarketingLayout>
+	);
+};
 
 export const Route = createRootRouteWithContext<{
 	queryClient: QueryClient;
 }>()({
 	head: () => ({
+		title: 'front-2',
 		meta: [
 			{ charSet: 'utf-8' },
 			{ name: 'viewport', content: 'width=device-width, initial-scale=1' },
-			{ title: 'front-2' },
 		],
 		links: [{ rel: 'stylesheet', href: appCss }],
 	}),
 	component: () => (
-		<html lang="en" className="front-2-shell light">
+		<html lang="en" className="front-2-shell">
 			<head>
-				<script
-					dangerouslySetInnerHTML={{ __html: preHydrateThemeScript }}
-					suppressHydrationWarning
-				/>
 				<HeadContent />
 			</head>
 			<body>
-				<MarketingLayout>
-					<Outlet />
-				</MarketingLayout>
+				<RoutedShell />
 				<Scripts />
 			</body>
 		</html>
