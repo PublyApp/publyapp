@@ -2,6 +2,11 @@
 
 This file provides guidance to AI coding assistants when working with code in this repository.
 
+## AI Orchestration
+
+For multi-task orchestration, follow `~/ai-orchestration-playbook/PLAYBOOK.md`
+and this repo's adapter at [`.ai/orchestration-adapter.md`](.ai/orchestration-adapter.md).
+
 ## Project Overview
 
 PublyApp is a modern full-stack multi-tenant SaaS application built with .NET 10.0 and React 19. The monorepo architecture uses Turborepo and pnpm workspaces with three user scopes: Staff (platform administrators), Tenant (organization-level users), and Project (project-level users).
