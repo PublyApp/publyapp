@@ -1,5 +1,8 @@
 import { expect, type Page, test } from '@playwright/test';
 
+import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
+import { formatSessionCookie } from '@org/shared-ts/lib/session/parse';
+
 import { THEME_TOGGLE_TEST_ID } from '../src/components/app-shell/theme/theme-toggle';
 import { COLOR_SCHEME_STORAGE_KEY } from '../src/lib/store/ui-store';
 
@@ -88,6 +91,32 @@ const getThemeFromStorage = async (page: Page): Promise<string | null> => {
 	return null;
 };
 
+const STAFF_TOKEN_VALUE = formatSessionCookie({
+	staffToken: 'front2-demo-staff-token',
+});
+
+const setSessionCookie = async (page: Page) => {
+	await page.goto('/');
+	await page.evaluate(
+		({ cookieName, value }) => {
+			document.cookie = `${cookieName}=${value}; path=/`;
+		},
+		{ cookieName: SESSION_TOKEN_COOKIE_KEY, value: STAFF_TOKEN_VALUE },
+	);
+};
+
+const mockAuthRedirectCode = async (page: Page) => {
+	await page.route('**/auth/redirect-code*', async (route) => {
+		await route.fulfill({
+			body: JSON.stringify({ redirectCode: 'staff' }),
+			headers: {
+				'content-type': 'application/json',
+			},
+			status: 200,
+		});
+	});
+};
+
 const readThemeMode = async (page: Page): Promise<ColorScheme | null> => {
 	return page.evaluate(() => {
 		if (document.documentElement.classList.contains('dark')) {
@@ -149,6 +178,8 @@ test('theme toggle persists across page reload', async ({ page }) => {
 
 test('renders the authed shell for /staff', async ({ page }) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
+	await setSessionCookie(page);
+	await mockAuthRedirectCode(page);
 	await page.goto('/staff');
 
 	await expect(page).toHaveURL('/staff');
