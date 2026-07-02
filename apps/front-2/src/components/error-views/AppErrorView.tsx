@@ -1,4 +1,4 @@
-import { Button, ButtonGroup, Card, CardBody, CardFooter } from '@heroui/react';
+import { ButtonGroup, Card, CardBody, CardFooter } from '@heroui/react';
 import type { ReactNode } from 'react';
 
 type AppErrorViewProps = {

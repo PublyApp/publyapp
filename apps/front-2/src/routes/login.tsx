@@ -1,7 +1,6 @@
 import { Button, Input, Spinner } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-	isRouteErrorResponse,
 	useLocation,
 	useNavigate,
 	createFileRoute,
@@ -19,8 +18,7 @@ import {
 	queryParamKey,
 	queryParamValue,
 } from '@org/shared-ts/lib/constants';
-import { getFailureMessage, toApiFailure } from '~/lib/api-failure';
-import type { Route } from './+types/login';
+import { getFailureMessage, toApiFailure } from '@org/shared-ts/lib/api-failure';
 
 type LoginFormValues = {
 	email: string;
@@ -29,7 +27,7 @@ type LoginFormValues = {
 
 const LoginFormSchema = z.object({
 	email: z.string().max(120).email('Enter a valid email address.'),
-	password: z.string().min(8, 'Password must be at least 8 characters.'),
+	password: z.string().min(1, 'Password is required.'),
 });
 
 const resolveRouteRedirect = (path: string | null): string => {
@@ -49,6 +47,26 @@ const getSafeSearchRedirect = (search: string): string => {
 	return resolveRouteRedirect(params.get(queryParamKey.login_page.redirect_to));
 };
 
+const isAllowedRedirectPath = (
+	requested: string,
+	surfacePath: string,
+): boolean => {
+	if (!requested || !requested.startsWith('/')) {
+		return false;
+	}
+
+	const normalizedSurface = surfacePath.replace(/\/$/, '');
+	if (requested === normalizedSurface) {
+		return true;
+	}
+
+	if (normalizedSurface === '/') {
+		return true;
+	}
+
+	return requested.startsWith(`${normalizedSurface}/`);
+};
+
 const isSessionExpiredFromSearch = (search: string): boolean => {
 	const params = new URLSearchParams(search);
 	return (
@@ -63,10 +81,6 @@ const getFailureStatus = (error: unknown): number | undefined => {
 		return failure.status;
 	}
 
-	if (isRouteErrorResponse(error)) {
-		return error.status;
-	}
-
 	return undefined;
 };
 
@@ -77,7 +91,8 @@ const LoginRoute = () => {
 	const [errorMessage, setErrorMessage] = useState('');
 	const loginAction = useServerFn(login);
 	const completeRedirect = useServerFn(completeLoginRedirect);
-	const isSessionExpired = isSessionExpiredFromSearch(location.search);
+	const search = location.searchStr ?? '';
+	const isSessionExpired = isSessionExpiredFromSearch(search);
 
 	const {
 		register,
@@ -107,10 +122,11 @@ const LoginRoute = () => {
 			const redirect = await completeRedirect({
 				data: { sessionExpiresAt },
 			});
-			const target = getSafeSearchRedirect(location.search);
-			const resolvedTarget = resolveRouteRedirect(
-				target === '/' ? redirect.targetPath : target,
-			);
+			const requested = getSafeSearchRedirect(search);
+			const finalTarget = isAllowedRedirectPath(requested, redirect.targetPath)
+				? requested
+				: redirect.targetPath;
+			const resolvedTarget = resolveRouteRedirect(finalTarget);
 
 			await navigate({
 				to: resolvedTarget,
@@ -159,46 +175,48 @@ const LoginRoute = () => {
 				</p>
 			) : null}
 
-			{showForbidden ? <View403 /> : null}
-
-			<form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-				<Input
-					{...register('email')}
-					isRequired
-					isInvalid={Boolean(errors.email)}
-					errorMessage={errors.email?.message}
-					label="Email"
-					placeholder="name@company.com"
-					type="email"
-				/>
-				<Input
-					{...register('password')}
-					isRequired
-					isInvalid={Boolean(errors.password)}
-					errorMessage={errors.password?.message}
-					label="Password"
-					type="password"
-					placeholder="••••••••"
-				/>
-				{errorMessage ? (
-					<div className="text-sm text-danger-500">{errorMessage}</div>
-				) : null}
-				<Button
-					type="submit"
-					variant="solid"
-					color="primary"
-					isDisabled={isSubmitting}
-					className="w-full"
-				>
-					{isSubmitting ? <Spinner color="white" size="sm" /> : null}
-					Sign in
-				</Button>
-			</form>
+			{showForbidden ? (
+				<View403 />
+			) : (
+				<form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+					<Input
+						{...register('email')}
+						isRequired
+						isInvalid={Boolean(errors.email)}
+						errorMessage={errors.email?.message}
+						label="Email"
+						placeholder="name@company.com"
+						type="email"
+					/>
+					<Input
+						{...register('password')}
+						isRequired
+						isInvalid={Boolean(errors.password)}
+						errorMessage={errors.password?.message}
+						label="Password"
+						type="password"
+						placeholder="••••••••"
+					/>
+					{errorMessage ? (
+						<div className="text-sm text-danger-500">{errorMessage}</div>
+					) : null}
+					<Button
+						type="submit"
+						variant="solid"
+						color="primary"
+						isDisabled={isSubmitting}
+						className="w-full"
+					>
+						{isSubmitting ? <Spinner color="white" size="sm" /> : null}
+						Sign in
+					</Button>
+				</form>
+			)}
 		</div>
 	);
 };
 
-const LoginErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
+const LoginErrorBoundary = ({ error }: { error: unknown }) => {
 	const routeStatus = getFailureStatus(error);
 
 	if (routeStatus === 401) {

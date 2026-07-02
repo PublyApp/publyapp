@@ -4,7 +4,9 @@ import {
 	setCookie,
 	setResponseHeader,
 } from '@tanstack/react-start/server';
+import { createUntypedString } from '@microsoft/kiota-abstractions';
 import * as cookie from 'cookie';
+import { z } from 'zod';
 
 import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 import {
@@ -149,32 +151,89 @@ const resolveRedirectSessionCookieValue = (sessionToken: string, code: string) =
 	return buildTenantSessionCookie(sessionToken);
 };
 
+const LoginInputSchema = z.object({
+	email: z.string().min(1).email().max(120),
+	password: z.string().min(1),
+});
+
+const LoginRedirectInputSchema = z.object({
+	sessionExpiresAt: z.string().optional(),
+});
+
+const toServerFailurePayload = (
+	error: unknown,
+	fallbackMessage: string,
+): { responseStatusCode: number; status: number; title: string; detail: string; errors?: Record<string, string[]>; translationKey?: string } => {
+	const failure = toApiFailure(error);
+
+	if (failure.kind === 'validation') {
+		return {
+			responseStatusCode: failure.status,
+			status: failure.status,
+			title: failure.title ?? 'Validation failed',
+			detail: failure.detail ?? 'One or more input fields are invalid.',
+			errors: failure.fieldErrors,
+			translationKey: failure.translationKey,
+		};
+	}
+
+	if (failure.kind === 'problem') {
+		return {
+			responseStatusCode: failure.status,
+			status: failure.status,
+			title: failure.title ?? 'Request failed',
+			detail: failure.detail ?? 'Request failed',
+			translationKey: failure.translationKey,
+		};
+	}
+
+	if (failure.kind === 'unknown' && failure.message) {
+		return {
+			responseStatusCode: 500,
+			status: 500,
+			title: 'Request failed',
+			detail: failure.message,
+		};
+	}
+
+	return {
+		responseStatusCode: 500,
+		status: 500,
+		title: 'Request failed',
+		detail: fallbackMessage,
+	};
+};
+
+const throwServerFailure = (
+	error: unknown,
+	fallbackMessage: string,
+): never => {
+	throw toServerFailurePayload(error, fallbackMessage);
+};
+
 export const login = createServerFn({ method: 'POST' })
-	.validator((data: LoginInput) => data)
+	.validator((data): LoginInput => LoginInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		let result: LoginClientResult | undefined;
 		try {
-			result = await createClient({ getSessionToken: () => undefined }).auth.login.post({
-				email: { getValue: () => data.email },
-				password: { getValue: () => data.password },
-			});
+			const client = createClient({ getSessionToken: () => undefined });
+			const body = {
+				email: createUntypedString(data.email),
+				password: createUntypedString(data.password),
+			} as Parameters<typeof client.auth.login.post>[0];
+
+			result = await client.auth.login.post(body);
 		} catch (error) {
-			const failure = toApiFailure(error);
-
-			if (
-				(failure.kind === 'problem' || failure.kind === 'validation') &&
-				failure.status
-			) {
-				throw new Response(failure.title ?? failure.detail ?? 'login failed', {
-					status: failure.status,
-				});
-			}
-
-			throw new Response('login failed', { status: 500 });
+			throwServerFailure(error, 'login failed');
 		}
 
 		if (!result?.sessionToken) {
-			throw new Response('login failed', { status: 401 });
+			throw {
+				responseStatusCode: 401,
+				status: 401,
+				title: 'Unauthorized',
+				detail: 'missing session token',
+			};
 		}
 
 		const sessionExpiresAt = result?.sessionExpiresAt
@@ -191,7 +250,7 @@ export const login = createServerFn({ method: 'POST' })
 	});
 
 export const completeLoginRedirect = createServerFn({ method: 'POST' })
-	.validator((data: LoginRedirectInput) => data)
+	.validator((data): LoginRedirectInput => LoginRedirectInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		const { staffToken, tenantToken } = readSessionTokensFromCookie();
 		const sessionToken = selectToken(
@@ -201,12 +260,22 @@ export const completeLoginRedirect = createServerFn({ method: 'POST' })
 			|| selectToken({ staffToken, tenantToken }, 'staff');
 
 		if (!sessionToken) {
-			throw new Response('missing session token', { status: 401 });
+			throw {
+				responseStatusCode: 401,
+				status: 401,
+				title: 'Unauthorized',
+				detail: 'missing session token',
+			};
 		}
 
-		const result = await createClient({
-			getSessionToken: () => sessionToken,
-		}).auth.redirectCode.get();
+		let result: { redirectCode?: string | null } | undefined;
+		try {
+			result = await createClient({
+				getSessionToken: () => sessionToken,
+			}).auth.redirectCode.get();
+		} catch (error) {
+			throwServerFailure(error, 'failed to resolve redirect scope');
+		}
 
 		const redirectCode = result?.redirectCode;
 
@@ -225,7 +294,12 @@ export const completeLoginRedirect = createServerFn({ method: 'POST' })
 		}
 
 		if (redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
-			throw new Response('user has no accessible scope', { status: 403 });
+			throw {
+				responseStatusCode: 403,
+				status: 403,
+				title: 'Forbidden',
+				detail: 'user has no accessible scope',
+			};
 		}
 
 		return { targetPath: '/tenant' } satisfies LoginRedirectResult;

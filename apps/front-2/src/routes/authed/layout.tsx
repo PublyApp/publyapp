@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 
 import {
-	isRouteErrorResponse,
 	redirect,
 	createFileRoute,
 	useLocation,
@@ -17,7 +16,7 @@ import {
 	queryParamValue,
 	REDIRECT_CODE,
 } from '@org/shared-ts/lib/constants';
-import { toApiFailure } from '~/lib/api-failure';
+import { toApiFailure } from '@org/shared-ts/lib/api-failure';
 
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
@@ -30,21 +29,10 @@ const TENANT_PATH = '/tenant';
 
 export const shouldLogoutForFailure = (error: unknown): boolean => {
 	const failure = toApiFailure(error);
-	if (failure.kind === 'problem' && failure.status === 401) {
-		return true;
-	}
-
-	return (
-		isRouteErrorResponse(error) &&
-		error.status === 401
-	);
+	return failure.kind === 'problem' && failure.status === 401;
 };
 
 const getFailureStatus = (error: unknown): number | undefined => {
-	if (isRouteErrorResponse(error)) {
-		return error.status;
-	}
-
 	const failure = toApiFailure(error);
 	return failure.kind === 'problem' ? failure.status : undefined;
 };
@@ -150,8 +138,17 @@ function AuthedRouteLayout() {
 	const navigate = useNavigate();
 	const tokens = getSessionTokensFromBrowser();
 	const resolved = determineSessionToken(tokens, location.pathname);
+	const isStaffSurface = location.pathname.startsWith(STAFF_PATH);
+	const isTenantSurface = location.pathname.startsWith(TENANT_PATH);
+	const surfaceScope = isStaffSurface ? 'staff' : isTenantSurface ? 'tenant' : 'other';
 	const query = useQuery({
-		queryKey: ['front-2', 'auth', 'redirect-code', resolved.token, location.pathname],
+		queryKey: [
+			'front-2',
+			'auth',
+			'surface-redirect-code',
+			surfaceScope,
+			location.pathname,
+		],
 		queryFn: async () => {
 			if (!resolved.token) {
 				return undefined;
@@ -162,27 +159,52 @@ function AuthedRouteLayout() {
 		enabled: Boolean(resolved.token),
 		retry: false,
 	});
+	const routeFailureStatus = query.isError && query.error ? getFailureStatus(query.error) : undefined;
 
 	if (query.isError && query.error) {
-		throw query.error;
+		if (shouldLogoutForFailure(query.error)) {
+			return <LogoutRedirect />;
+		}
+
+		if (routeFailureStatus === 403) {
+			return <View403 />;
+		}
+
+		if (routeFailureStatus === 404) {
+			return <View404 />;
+		}
+
+		return (
+			<AppErrorView
+				icon="!"
+				code="500 — Server Error"
+				title="Something went wrong"
+				description="There was a problem loading this page."
+			/>
+		);
 	}
 
 	useEffect(() => {
-		if (query.data === undefined) {
-			return;
-		}
-
-		if (location.pathname.startsWith(STAFF_PATH) && query.data !== REDIRECT_CODE.STAFF) {
+		if (
+			isStaffSurface &&
+			query.data !== undefined &&
+			query.data !== REDIRECT_CODE.STAFF
+		) {
 			void navigate({ to: TENANT_PATH, replace: true });
 			return;
 		}
 
-		if (location.pathname.startsWith(TENANT_PATH) && query.data === REDIRECT_CODE.STAFF) {
+		if (isTenantSurface && query.data === REDIRECT_CODE.STAFF) {
 			void navigate({ to: STAFF_PATH, replace: true });
 		}
 	}, [location.pathname, navigate, query.data]);
 
-	if (query.isLoading) {
+	const isSurfaceMismatch =
+		query.data !== undefined &&
+		((isStaffSurface && query.data !== REDIRECT_CODE.STAFF) ||
+			(isTenantSurface && query.data === REDIRECT_CODE.STAFF));
+
+	if (query.isLoading || isSurfaceMismatch) {
 		return <AuthedLayout pathname={location.pathname}>Loading…</AuthedLayout>;
 	}
 

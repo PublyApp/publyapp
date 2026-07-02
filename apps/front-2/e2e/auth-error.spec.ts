@@ -54,8 +54,8 @@ test('authed 401 does not stay authed and redirects through logout flow', async 
 
 	await page.goto('/tenant');
 
-	expect(page.url()).toContain('/login?rc=invalid_session');
-	await expect(page.getByText('Your session is no longer valid')).toBeVisible();
+	await expect(page).toHaveURL(/.*\\/login\\?rc=invalid_session/);
+	await expect(page.getByText('Your session expired. Please sign in again.')).toBeVisible();
 	const clearedCookie = await page.evaluate(() => document.cookie);
 	expect(clearedCookie).not.toContain(TENANT_TOKEN_VALUE);
 });
