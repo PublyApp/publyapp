@@ -28,7 +28,11 @@ describe('shouldLogoutForFailure', () => {
 	});
 
 	test('returns true for Response 401 and false for Response 403', () => {
-		expect(shouldLogoutForFailure(new Response(null, { status: 401 }))).toBe(true);
-		expect(shouldLogoutForFailure(new Response(null, { status: 403 }))).toBe(false);
+		expect(shouldLogoutForFailure(new Response(null, { status: 401 }))).toBe(
+			true,
+		);
+		expect(shouldLogoutForFailure(new Response(null, { status: 403 }))).toBe(
+			false,
+		);
 	});
 });

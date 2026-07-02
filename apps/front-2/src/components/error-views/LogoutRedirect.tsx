@@ -1,12 +1,11 @@
 import { Spinner } from '@heroui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useEffect } from 'react';
-
 import { useServerFn } from '@tanstack/react-start';
-import { queryParamKey, queryParamValue } from '@org/shared-ts/lib/constants';
-
+import { useEffect } from 'react';
 import { clearSession } from '~/lib/server/session-actions';
+
+import { queryParamKey, queryParamValue } from '@org/shared-ts/lib/constants';
 
 export const LogoutRedirect = () => {
 	const navigate = useNavigate();

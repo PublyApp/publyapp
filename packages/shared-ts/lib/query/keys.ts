@@ -74,5 +74,7 @@ const stringifyQueryArg = (arg: unknown, seen: StringifySeen): string => {
 };
 
 export const getQueryKey = (segments: readonly QueryKeySegment[]): string[] => {
-	return segments.map((segment) => stringifyQueryArg(segment, new Set<object>()));
+	return segments.map((segment) =>
+		stringifyQueryArg(segment, new Set<object>()),
+	);
 };

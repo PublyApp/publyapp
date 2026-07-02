@@ -10,7 +10,10 @@ export type QueryScope = 'tenant' | 'staff' | 'anonymous' | 'auth';
 
 export type OnLogout = (failure: ApiFailure) => void;
 
-export type OnToast = (failure: ApiFailure, context: { scope: QueryScope }) => void;
+export type OnToast = (
+	failure: ApiFailure,
+	context: { scope: QueryScope },
+) => void;
 
 export type ResolveTenant = () => string | undefined;
 

@@ -17,7 +17,9 @@ const encodeToken = (value: string): string => {
 	return encodeURIComponent(value);
 };
 
-export const parseSessionCookie = (cookieValue: string): ParsedSessionTokens => {
+export const parseSessionCookie = (
+	cookieValue: string,
+): ParsedSessionTokens => {
 	const result: ParsedSessionTokens = {};
 
 	const value = cookieValue.trim();
@@ -32,7 +34,10 @@ export const parseSessionCookie = (cookieValue: string): ParsedSessionTokens => 
 		return { tenantToken: value || undefined };
 	}
 
-	if (!isScopedPairFormat && (value.startsWith('s:') || value.startsWith('t:'))) {
+	if (
+		!isScopedPairFormat &&
+		(value.startsWith('s:') || value.startsWith('t:'))
+	) {
 		const prefix = value[0];
 		const token = decodeToken(value.slice(2));
 		if (prefix === 's' && token) {

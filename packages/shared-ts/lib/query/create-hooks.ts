@@ -1,12 +1,12 @@
 import { toApiFailure } from '../api-failure/to-api-failure';
+import type { ApiFailure } from '../api-failure/types';
+import type { QueryKeySegment } from './keys';
 import type {
 	ClientAccessor,
 	QueryScope,
 	QueryErrorHandlers,
 	QueryFactoryOptions,
 } from './types';
-import type { QueryKeySegment } from './keys';
-import type { ApiFailure } from '../api-failure/types';
 
 type TenantQueryVariables<TVariables> = { tenantId?: string } & Omit<
 	TVariables,
@@ -52,10 +52,7 @@ type TenantQueryConfig<
 		variables: TenantQueryVariablesRequired<TVariables>,
 	) => Promise<TData>;
 	handlers?: QueryErrorHandlers;
-} & Omit<
-	BaseQueryOptions<TError>,
-	'use' | 'variables'
->;
+} & Omit<BaseQueryOptions<TError>, 'use' | 'variables'>;
 
 type TenantSuspenseQueryConfig<
 	TApiClient,
@@ -69,10 +66,7 @@ type TenantSuspenseQueryConfig<
 		variables: TenantQueryVariablesRequired<TVariables>,
 	) => Promise<TData>;
 	handlers?: QueryErrorHandlers;
-} & Omit<
-	BaseSuspenseQueryOptions<TError>,
-	'use' | 'variables'
->;
+} & Omit<BaseSuspenseQueryOptions<TError>, 'use' | 'variables'>;
 
 type TenantMutationConfig<
 	TApiClient,
@@ -86,10 +80,7 @@ type TenantMutationConfig<
 		variables: TenantQueryVariablesRequired<TVariables>,
 	) => Promise<TData>;
 	handlers?: QueryErrorHandlers;
-} & Omit<
-	BaseMutationOptions<TError>,
-	'use' | 'variables'
->;
+} & Omit<BaseMutationOptions<TError>, 'use' | 'variables'>;
 
 type StaffQueryConfig<
 	TApiClient,
@@ -126,7 +117,9 @@ type StaffMutationConfig<
 
 type QueryFactoryOptionsForClient<TApiClient> = QueryFactoryOptions<TApiClient>;
 
-const normalizeTenantId = (tenantId: string | undefined): string | undefined => {
+const normalizeTenantId = (
+	tenantId: string | undefined,
+): string | undefined => {
 	const normalized = tenantId?.trim();
 	return normalized ? normalized : undefined;
 };
@@ -167,7 +160,9 @@ const stripUndefinedVariables = (
 		return undefined;
 	}
 
-	const entries = Object.entries(variables).filter(([, value]) => value !== undefined);
+	const entries = Object.entries(variables).filter(
+		([, value]) => value !== undefined,
+	);
 	if (entries.length === 0) {
 		return undefined;
 	}
@@ -183,10 +178,7 @@ const stripTenantIdFromVariables = <TVariables>(
 		return undefined;
 	}
 
-	const { tenantId: _tenantId, ...rest } = variables as Record<
-		string,
-		unknown
-	>;
+	const { tenantId: _tenantId, ...rest } = variables as Record<string, unknown>;
 	return stripUndefinedVariables(rest);
 };
 
@@ -202,15 +194,15 @@ const composeOnError = <TError>(
 	localOnError: ((error: TError) => void) | undefined,
 	generatedOnError: (error: TError) => void,
 ) =>
-	(localOnError === undefined
+	localOnError === undefined
 		? generatedOnError
 		: (error: TError) => {
-			try {
-				generatedOnError(error);
-			} finally {
-				localOnError(error);
-			}
-		});
+				try {
+					generatedOnError(error);
+				} finally {
+					localOnError(error);
+				}
+			};
 
 const makeErrorHandler = (scope: QueryScope, handlers?: QueryErrorHandlers) => {
 	return (error: unknown): void => {
@@ -219,10 +211,7 @@ const makeErrorHandler = (scope: QueryScope, handlers?: QueryErrorHandlers) => {
 			return;
 		}
 
-		if (
-			shouldLogoutForScope(scope) &&
-			getFailureStatus(failure) === 401
-		) {
+		if (shouldLogoutForScope(scope) && getFailureStatus(failure) === 401) {
 			handlers?.onLogout?.(failure);
 			return;
 		}
@@ -242,10 +231,7 @@ const buildScopedQueryKey = (
 	tenantId?: string,
 	variables?: Record<string, unknown>,
 ) => {
-	const key: ScopedQueryKeySegment[] = [
-		scope,
-		...queryKey,
-	];
+	const key: ScopedQueryKeySegment[] = [scope, ...queryKey];
 
 	if (tenantId) {
 		key.push(tenantId);
@@ -281,7 +267,9 @@ export const buildTenantQueryOptions = <
 		queryKey: (
 			variables: TenantQueryVariables<TVariables> = {} as TenantQueryVariables<TVariables>,
 		) => {
-			const tenantId = requireTenantId(resolveTenantId(variables, mergedHandlers));
+			const tenantId = requireTenantId(
+				resolveTenantId(variables, mergedHandlers),
+			);
 			return buildScopedQueryKey(
 				'tenant',
 				queryKey,
@@ -292,7 +280,9 @@ export const buildTenantQueryOptions = <
 		fetcher: async (
 			variables: TenantQueryVariables<TVariables>,
 		): Promise<TData> => {
-			const tenantId = requireTenantId(resolveTenantId(variables, mergedHandlers));
+			const tenantId = requireTenantId(
+				resolveTenantId(variables, mergedHandlers),
+			);
 
 			const client = options.clientAccessor.getOrCreateClient(tenantId);
 			return fetcher(client, {
@@ -314,12 +304,7 @@ export const buildTenantSuspenseQueryOptions = <
 	TVariables extends Record<string, unknown>,
 	TError = Error,
 >(
-	config: TenantSuspenseQueryConfig<
-		TApiClient,
-		TData,
-		TVariables,
-		TError
-	>,
+	config: TenantSuspenseQueryConfig<TApiClient, TData, TVariables, TError>,
 	options: QueryFactoryOptionsForClient<TApiClient>,
 ) => {
 	const {
@@ -336,7 +321,9 @@ export const buildTenantSuspenseQueryOptions = <
 		queryKey: (
 			variables: TenantQueryVariables<TVariables> = {} as TenantQueryVariables<TVariables>,
 		) => {
-			const tenantId = requireTenantId(resolveTenantId(variables, mergedHandlers));
+			const tenantId = requireTenantId(
+				resolveTenantId(variables, mergedHandlers),
+			);
 			return buildScopedQueryKey(
 				'tenant',
 				queryKey,
@@ -347,7 +334,9 @@ export const buildTenantSuspenseQueryOptions = <
 		fetcher: async (
 			variables: TenantQueryVariables<TVariables>,
 		): Promise<TData> => {
-			const tenantId = requireTenantId(resolveTenantId(variables, mergedHandlers));
+			const tenantId = requireTenantId(
+				resolveTenantId(variables, mergedHandlers),
+			);
 
 			const client = options.clientAccessor.getOrCreateClient(tenantId);
 			return fetcher(client, {
@@ -387,7 +376,9 @@ export const buildTenantMutationOptions = <
 		mutationFn: async (
 			variables: TenantQueryVariables<TVariables>,
 		): Promise<TData> => {
-			const tenantId = requireTenantId(resolveTenantId(variables, mergedHandlers));
+			const tenantId = requireTenantId(
+				resolveTenantId(variables, mergedHandlers),
+			);
 
 			const client = options.clientAccessor.getOrCreateClient(tenantId);
 			return mutationFn(client, {

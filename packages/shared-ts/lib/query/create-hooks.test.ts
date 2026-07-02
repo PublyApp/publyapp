@@ -104,20 +104,18 @@ test('tenant query key includes tenant and query variables', () => {
 	const options = buildTenantQueryOptions(
 		{
 			queryKeyFn: () => ['tenant:tenant'],
-			fetcher: async (client, vars) => `${client.scope}-${vars.tenantId}-${vars.limit}`,
+			fetcher: async (client, vars) =>
+				`${client.scope}-${vars.tenantId}-${vars.limit}`,
 		},
 		createScopeOptions(accessor),
 	);
 
-	expect(options.queryKey({ tenantId: 'tenant-1', limit: 10, page: 2 })).toEqual([
-		'tenant',
-		'tenant:tenant',
-		'tenant-1',
-		{ limit: 10, page: 2 },
-	]);
-	expect(options.queryKey({ tenantId: 'tenant-1', limit: 11, page: 2 })).not.toEqual(
+	expect(
 		options.queryKey({ tenantId: 'tenant-1', limit: 10, page: 2 }),
-	);
+	).toEqual(['tenant', 'tenant:tenant', 'tenant-1', { limit: 10, page: 2 }]);
+	expect(
+		options.queryKey({ tenantId: 'tenant-1', limit: 11, page: 2 }),
+	).not.toEqual(options.queryKey({ tenantId: 'tenant-1', limit: 10, page: 2 }));
 });
 
 test('tenant query key sorts query variable keys consistently', () => {
@@ -136,19 +134,15 @@ test('tenant query key sorts query variable keys consistently', () => {
 			page: 2,
 			limit: 10,
 		} as { tenantId: string; page: number; limit: number }),
-	).toEqual([
-		'tenant',
-		'tenant:tenant',
-		'tenant-1',
-		{ limit: 10, page: 2 },
-	]);
+	).toEqual(['tenant', 'tenant:tenant', 'tenant-1', { limit: 10, page: 2 }]);
 });
 
 test('tenant mutation key does not include fallback tenant at build time', () => {
 	const options = buildTenantMutationOptions(
 		{
 			mutationKeyFn: () => ['tenant-mutation:tenant'],
-			mutationFn: async (client, vars) => `${client.scope}-${vars.tenantId}-mutate`,
+			mutationFn: async (client, vars) =>
+				`${client.scope}-${vars.tenantId}-mutate`,
 			handlers: {
 				resolveTenant: () => 'tenant-fallback',
 			},
@@ -168,9 +162,9 @@ test('tenant query key throws when tenantId is not resolvable', () => {
 		createScopeOptions(accessor),
 	);
 
-	expect(() =>
-		options.queryKey({} as { tenantId?: string }),
-	).toThrow('tenantId is required to create tenant-scoped client');
+	expect(() => options.queryKey({} as { tenantId?: string })).toThrow(
+		'tenantId is required to create tenant-scoped client',
+	);
 });
 
 test('staff query uses staff client and not tenant/anonymous clients', async () => {

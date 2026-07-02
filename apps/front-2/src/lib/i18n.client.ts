@@ -2,7 +2,10 @@ import i18next, { type i18n as I18nInstance } from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { z } from 'zod';
 
+import enResource from '@org/shared-ts/lib/i18n/locales/en';
+import frResource from '@org/shared-ts/lib/i18n/locales/fr';
 import InterZod from '@org/shared-ts/lib/zod/InterZod';
+
 import {
 	FALLBACK_LANGUAGE,
 	type SupportedLanguage,
@@ -11,9 +14,6 @@ import {
 	SUPPORTED_LANGUAGES,
 } from './i18n.shared';
 import type { I18nResources } from './i18n.shared';
-
-import enResource from '@org/shared-ts/lib/i18n/locales/en';
-import frResource from '@org/shared-ts/lib/i18n/locales/fr';
 
 type LocaleResourceBundle = I18nResources[string];
 type InterZodOptions = ConstructorParameters<typeof InterZod>[0];
@@ -24,7 +24,10 @@ const embeddedResources: Record<SupportedLanguage, LocaleResourceBundle> = {
 	fr: frResource,
 };
 
-const bindInterZodToI18n = (instance: I18nInstance, locale: SupportedLanguage) => {
+const bindInterZodToI18n = (
+	instance: I18nInstance,
+	locale: SupportedLanguage,
+) => {
 	const i18nLike: InterZodI18nLike = {
 		getFixedT: instance.getFixedT.bind(instance),
 		t: instance.t.bind(instance) as never,

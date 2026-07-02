@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
 
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { IsoAnalytics } from '@org/shared-ts/lib/analytics/iso-analytics';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 type AddressHeader =
 	| 'cf-connecting-ip'

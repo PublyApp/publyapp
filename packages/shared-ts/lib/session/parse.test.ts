@@ -1,10 +1,6 @@
 import { expect, test } from 'vitest';
 
-import {
-	formatSessionCookie,
-	parseSessionCookie,
-	selectToken,
-} from './parse';
+import { formatSessionCookie, parseSessionCookie, selectToken } from './parse';
 
 test('parses staff + tenant dual-token cookie', () => {
 	expect(parseSessionCookie('s:STAFF+t:TENANT')).toEqual({
@@ -25,8 +21,12 @@ test('blank token input returns empty tokens', () => {
 });
 
 test('parses single scoped token strings using their declared scope', () => {
-	expect(parseSessionCookie('s:RAW_TOKEN')).toEqual({ staffToken: 'RAW_TOKEN' });
-	expect(parseSessionCookie('t:RAW_TOKEN')).toEqual({ tenantToken: 'RAW_TOKEN' });
+	expect(parseSessionCookie('s:RAW_TOKEN')).toEqual({
+		staffToken: 'RAW_TOKEN',
+	});
+	expect(parseSessionCookie('t:RAW_TOKEN')).toEqual({
+		tenantToken: 'RAW_TOKEN',
+	});
 });
 
 test('roundtrips through formatter', () => {
@@ -35,7 +35,9 @@ test('roundtrips through formatter', () => {
 });
 
 test('roundtrips through formatter for single scoped tokens', () => {
-	const parsed = parseSessionCookie(formatSessionCookie({ staffToken: 'STAFF' }));
+	const parsed = parseSessionCookie(
+		formatSessionCookie({ staffToken: 'STAFF' }),
+	);
 	expect(parsed).toEqual({ staffToken: 'STAFF' });
 });
 

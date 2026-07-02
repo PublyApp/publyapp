@@ -22,7 +22,9 @@ const toNumber = (value: unknown): number | undefined => {
 		return undefined;
 	}
 
-	return Number.isInteger(value) && value >= 100 && value <= 599 ? value : undefined;
+	return Number.isInteger(value) && value >= 100 && value <= 599
+		? value
+		: undefined;
 };
 
 const toString = (value: unknown): string | undefined => {
@@ -145,10 +147,7 @@ const toProblemFailure = (error: unknown): ProblemFailure | undefined => {
 	}
 
 	const { source, root } = parsedProblem;
-	const status = pickResponseStatus(
-		source.status,
-		root?.responseStatusCode,
-	);
+	const status = pickResponseStatus(source.status, root?.responseStatusCode);
 
 	return {
 		kind: 'problem',
@@ -176,10 +175,7 @@ const toValidationFailure = (error: unknown): ValidationFailure | undefined => {
 		return undefined;
 	}
 
-	const status = pickResponseStatus(
-		source.status,
-		root?.responseStatusCode,
-	);
+	const status = pickResponseStatus(source.status, root?.responseStatusCode);
 
 	return {
 		kind: 'validation',
@@ -220,7 +216,8 @@ export const toApiFailure = (error: unknown): ApiFailure => {
 		if (isNetwork) {
 			return {
 				kind: 'network',
-				message: error.message || 'Network error - please check your connection',
+				message:
+					error.message || 'Network error - please check your connection',
 			} satisfies NetworkFailure;
 		}
 	}
@@ -241,7 +238,9 @@ export const toApiFailure = (error: unknown): ApiFailure => {
 		'responseStatusCode' in error &&
 		typeof (error as Record<string, unknown>).responseStatusCode === 'number'
 	) {
-		const statusCode = toNumber((error as { responseStatusCode: number }).responseStatusCode);
+		const statusCode = toNumber(
+			(error as { responseStatusCode: number }).responseStatusCode,
+		);
 		return {
 			kind: 'problem',
 			status: statusCode ?? 500,
@@ -306,10 +305,6 @@ export const getFailureMessage = (
 		case 'abort':
 			return '';
 		case 'unknown':
-			return (
-				failure.message ||
-				options?.fallback ||
-				'Something went wrong'
-			);
+			return failure.message || options?.fallback || 'Something went wrong';
 	}
 };
