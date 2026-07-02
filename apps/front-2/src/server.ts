@@ -41,6 +41,18 @@ const escapeHtml = (value: string): string =>
 		.replace(/"/g, '&quot;')
 		.replace(/'/g, '&#39;');
 
+const resolvePublicApiBaseUrlEnv = (): string | undefined => {
+	const value = process.env.PUBLIC_API_BASE_URL?.trim();
+	if (!value) {
+		return undefined;
+	}
+
+	return JSON.stringify({ PUBLIC_API_BASE_URL: value }).replace(
+		/</g,
+		'\\u003c',
+	);
+};
+
 const setRouterNonce = (ctx: StreamHandlerContext, nonce: string): void => {
 	ctx.router.options = {
 		...ctx.router.options,
@@ -95,6 +107,9 @@ const renderLinkTag = (link: {
 
 const renderTitleTag = (title: string): string =>
 	`<title>${escapeHtml(title)}</title>`;
+
+const renderPublicEnvScript = (payload: string, nonce: string): string =>
+	`<script nonce="${escapeHtml(nonce)}">window.__ENV__ = Object.assign({}, window.__ENV__, ${payload});</script>`;
 
 const isIndexableSeoRoute = (requestPath: string, status: number): boolean => {
 	return (
@@ -160,6 +175,21 @@ const injectSeoMarkup = (
 	return output.replace('</head>', `${metaTags.join('\n')}\n</head>`);
 };
 
+const injectPublicRuntimeEnv = (
+	html: string,
+	payload: string | undefined,
+	nonce: string,
+): string => {
+	if (!payload || !html.includes('</head>')) {
+		return html;
+	}
+
+	return html.replace(
+		'</head>',
+		`${renderPublicEnvScript(payload, nonce)}\n</head>`,
+	);
+};
+
 const sendBadResponseCapture = (
 	ctx: StreamHandlerContext,
 	response: Response,
@@ -214,12 +244,17 @@ export default {
 				nonce,
 				shouldInjectSeo,
 			);
+			const withPublicRuntimeEnv = injectPublicRuntimeEnv(
+				updatedHtml,
+				resolvePublicApiBaseUrlEnv(),
+				nonce,
+			);
 			const headers = new Headers(response.headers);
 
 			headers.delete('content-encoding');
 			headers.delete('content-length');
 
-			return new Response(updatedHtml, {
+			return new Response(withPublicRuntimeEnv, {
 				status: response.status,
 				statusText: response.statusText,
 				headers,
