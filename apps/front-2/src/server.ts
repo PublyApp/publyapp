@@ -109,7 +109,9 @@ const renderTitleTag = (title: string): string =>
 	`<title>${escapeHtml(title)}</title>`;
 
 const renderPublicEnvScript = (payload: string, nonce: string): string =>
-	`<script nonce="${escapeHtml(nonce)}">window.__ENV__ = Object.assign({}, window.__ENV__, ${payload});</script>`;
+	`<script nonce="${escapeHtml(nonce)}">` +
+	`window.__ENV__ = Object.assign({}, window.__ENV__, ${payload});` +
+	`</script>`;
 
 const isIndexableSeoRoute = (requestPath: string, status: number): boolean => {
 	return (
