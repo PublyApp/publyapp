@@ -176,6 +176,10 @@ const parseRedirectCode = async (
 export const Route = createFileRoute('/_authed-layout')({
 	ssr: false,
 	beforeLoad: async ({ location }) => {
+		if (typeof document === 'undefined') {
+			return;
+		}
+
 		const tokens = getSessionTokensFromBrowser();
 		const pathname = location.pathname ?? '';
 		const { redirectPath, token } = determineSessionToken(tokens, pathname);
