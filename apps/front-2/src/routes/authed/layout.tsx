@@ -38,8 +38,66 @@ export const shouldLogoutForFailure = (error: unknown): boolean => {
 };
 
 const getFailureStatus = (error: unknown): number | undefined => {
+	const status = getFailureStatusFromError(error);
+	if (status !== undefined) {
+		return status;
+	}
+
 	const failure = toApiFailure(error);
 	return failure.kind === 'problem' ? failure.status : undefined;
+};
+
+const toStatus = (status: unknown): number | undefined => {
+	if (typeof status !== 'number' || Number.isNaN(status)) {
+		return undefined;
+	}
+
+	if (!Number.isInteger(status) || status < 100 || status > 599) {
+		return undefined;
+	}
+
+	return status;
+};
+
+const getFailureStatusFromError = (error: unknown): number | undefined => {
+	if (error instanceof Response) {
+		return toStatus(error.status);
+	}
+
+	if (typeof error !== 'object' || error === null) {
+		return undefined;
+	}
+
+	const record = error as Record<string, unknown>;
+	return (
+		toStatus(record.responseStatusCode) ??
+		toStatus(record.status) ??
+		toStatus((record.response as Record<string, unknown>)?.status) ??
+		undefined
+	);
+};
+
+const getProblemFromError = (
+	error: unknown,
+):
+	| {
+			status: number;
+			translationKey?: string;
+			detail?: string;
+			title?: string;
+	  }
+	| undefined => {
+	const failure = toApiFailure(error);
+	if (failure.kind !== 'problem') {
+		return undefined;
+	}
+
+	return {
+		status: failure.status,
+		translationKey: failure.translationKey,
+		detail: failure.detail,
+		title: failure.title,
+	};
 };
 
 const getSessionExpiredSearch = () => ({
@@ -87,13 +145,32 @@ const parseRedirectCode = async (
 	token: string,
 ): Promise<string | undefined> => {
 	const client = createClient({ getSessionToken: () => token });
-	const result = await client.auth.redirectCode.get();
+	try {
+		const result = await client.auth.redirectCode.get();
 
-	if (result?.redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
-		throw new Response('user has no accessible scope', { status: 403 });
+		if (result?.redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
+			throw {
+				status: 403,
+				responseStatusCode: 403,
+				title: 'Forbidden',
+				detail: 'User has no accessible scope.',
+			};
+		}
+
+		return result?.redirectCode ?? undefined;
+	} catch (error: unknown) {
+		const status = getFailureStatusFromError(error);
+		const asFailure = getProblemFromError(error);
+		if (status === undefined) {
+			throw error;
+		}
+
+		throw {
+			...asFailure,
+			status,
+			responseStatusCode: status,
+		};
 	}
-
-	return result?.redirectCode ?? undefined;
 };
 
 export const Route = createFileRoute('/_authed-layout')({
