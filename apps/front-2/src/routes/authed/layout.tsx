@@ -1,5 +1,4 @@
-import { useEffect } from 'react';
-
+import { useQuery } from '@tanstack/react-query';
 import {
 	redirect,
 	createFileRoute,
@@ -7,21 +6,27 @@ import {
 	Outlet,
 	useNavigate,
 } from '@tanstack/react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { AppErrorView } from '~/components/error-views/AppErrorView';
+import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { View403 } from '~/components/error-views/View403';
+import { View404 } from '~/components/error-views/View404';
+import {
+	createClient,
+	getSessionTokensFromBrowser,
+} from '~/lib/api-client/client-manager';
 
-import { createClient, getSessionTokensFromBrowser } from '~/lib/api-client/client-manager';
-import { selectToken, type ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
+import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import {
 	queryParamKey,
 	queryParamValue,
 	REDIRECT_CODE,
 } from '@org/shared-ts/lib/constants';
-import { toApiFailure } from '@org/shared-ts/lib/api-failure';
+import {
+	selectToken,
+	type ParsedSessionTokens,
+} from '@org/shared-ts/lib/session/parse';
 
-import { AppErrorView } from '~/components/error-views/AppErrorView';
-import { View403 } from '~/components/error-views/View403';
-import { View404 } from '~/components/error-views/View404';
-import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { AuthedLayout } from '../../layouts/authed-layout';
 
 const STAFF_PATH = '/staff';
@@ -78,7 +83,9 @@ const determineSessionToken = (
 	return staffToken ? { token: staffToken } : { token: tenantToken };
 };
 
-const parseRedirectCode = async (token: string): Promise<string | undefined> => {
+const parseRedirectCode = async (
+	token: string,
+): Promise<string | undefined> => {
 	const client = createClient({ getSessionToken: () => token });
 	const result = await client.auth.redirectCode.get();
 
@@ -86,14 +93,15 @@ const parseRedirectCode = async (token: string): Promise<string | undefined> => 
 		throw new Response('user has no accessible scope', { status: 403 });
 	}
 
-	return result?.redirectCode;
+	return result?.redirectCode ?? undefined;
 };
 
 export const Route = createFileRoute('/_authed-layout')({
 	ssr: false,
 	beforeLoad: async ({ location }) => {
 		const tokens = getSessionTokensFromBrowser();
-		const { redirectPath, token } = determineSessionToken(tokens, location.pathname);
+		const pathname = location.pathname ?? '';
+		const { redirectPath, token } = determineSessionToken(tokens, pathname);
 
 		if (!token && redirectPath) {
 			throw redirect({ to: redirectPath });
@@ -134,35 +142,61 @@ export const Route = createFileRoute('/_authed-layout')({
 });
 
 function AuthedRouteLayout() {
-	const location = useLocation();
+	const pathname = useLocation().pathname ?? '';
 	const navigate = useNavigate();
-	const tokens = getSessionTokensFromBrowser();
-	const resolved = determineSessionToken(tokens, location.pathname);
-	const isStaffSurface = location.pathname.startsWith(STAFF_PATH);
-	const isTenantSurface = location.pathname.startsWith(TENANT_PATH);
-	const surfaceScope = isStaffSurface ? 'staff' : isTenantSurface ? 'tenant' : 'other';
+	const isStaffSurface = pathname.startsWith(STAFF_PATH);
+	const isTenantSurface = pathname.startsWith(TENANT_PATH);
+	const surfaceScope = isStaffSurface
+		? 'staff'
+		: isTenantSurface
+			? 'tenant'
+			: 'other';
 	const query = useQuery({
-		queryKey: [
-			'front-2',
-			'auth',
-			'surface-redirect-code',
-			surfaceScope,
-			location.pathname,
-		],
+		queryKey: ['front-2', 'auth', 'surface-redirect-code', surfaceScope],
 		queryFn: async () => {
+			const tokens = getSessionTokensFromBrowser();
+			const resolved = determineSessionToken(tokens, pathname);
+
 			if (!resolved.token) {
 				return undefined;
 			}
 
 			return parseRedirectCode(resolved.token);
 		},
-		enabled: Boolean(resolved.token),
+		enabled: surfaceScope !== 'other',
 		retry: false,
 	});
-	const routeFailureStatus = query.isError && query.error ? getFailureStatus(query.error) : undefined;
+	const routeFailureStatus =
+		query.isError && query.error ? getFailureStatus(query.error) : undefined;
+	const hasQueryError = query.isError && Boolean(query.error);
 
-	if (query.isError && query.error) {
-		if (shouldLogoutForFailure(query.error)) {
+	useEffect(() => {
+		if (hasQueryError || query.data === undefined) {
+			return;
+		}
+
+		if (isStaffSurface && query.data !== REDIRECT_CODE.STAFF) {
+			void navigate({ to: TENANT_PATH, replace: true });
+		} else if (isTenantSurface && query.data === REDIRECT_CODE.STAFF) {
+			void navigate({ to: STAFF_PATH, replace: true });
+		}
+	}, [
+		hasQueryError,
+		isStaffSurface,
+		isTenantSurface,
+		pathname,
+		navigate,
+		query.data,
+	]);
+
+	const isSurfaceMismatch =
+		!hasQueryError &&
+		query.data !== undefined &&
+		((isStaffSurface && query.data !== REDIRECT_CODE.STAFF) ||
+			(isTenantSurface && query.data === REDIRECT_CODE.STAFF));
+
+	if (hasQueryError) {
+		if (query.error && shouldLogoutForFailure(query.error)) {
 			return <LogoutRedirect />;
 		}
 
@@ -184,32 +218,12 @@ function AuthedRouteLayout() {
 		);
 	}
 
-	useEffect(() => {
-		if (
-			isStaffSurface &&
-			query.data !== undefined &&
-			query.data !== REDIRECT_CODE.STAFF
-		) {
-			void navigate({ to: TENANT_PATH, replace: true });
-			return;
-		}
-
-		if (isTenantSurface && query.data === REDIRECT_CODE.STAFF) {
-			void navigate({ to: STAFF_PATH, replace: true });
-		}
-	}, [location.pathname, navigate, query.data]);
-
-	const isSurfaceMismatch =
-		query.data !== undefined &&
-		((isStaffSurface && query.data !== REDIRECT_CODE.STAFF) ||
-			(isTenantSurface && query.data === REDIRECT_CODE.STAFF));
-
 	if (query.isLoading || isSurfaceMismatch) {
-		return <AuthedLayout pathname={location.pathname}>Loading…</AuthedLayout>;
+		return <AuthedLayout pathname={pathname}>Loading…</AuthedLayout>;
 	}
 
 	return (
-		<AuthedLayout pathname={location.pathname}>
+		<AuthedLayout pathname={pathname}>
 			<Outlet />
 		</AuthedLayout>
 	);

@@ -3,7 +3,6 @@ import type { QueryClient } from '@tanstack/react-query';
 import {
 	createRootRouteWithContext,
 	HeadContent,
-	isRouteErrorResponse,
 	Outlet,
 	Scripts,
 	useLocation,
@@ -13,8 +12,6 @@ import { createClientOnlyFn } from '@tanstack/react-start';
 import type { i18n as I18nInstance } from 'i18next';
 import * as React from 'react';
 import { I18nextProvider } from 'react-i18next';
-
-import { toApiFailure } from '@org/shared-ts/lib/api-failure';
 import {
 	createI18nFromResources,
 	dirForLocale,
@@ -24,12 +21,14 @@ import {
 } from '~/lib/i18n.shared';
 import { loadI18nForRequest } from '~/server/i18n-locale';
 
-import { AuthLayout } from '../layouts/auth-layout';
-import { MarketingLayout } from '../layouts/marketing-layout';
+import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
+
 import { AppErrorView } from '../components/error-views/AppErrorView';
 import { LogoutRedirect } from '../components/error-views/LogoutRedirect';
 import { View403 } from '../components/error-views/View403';
 import { View404 } from '../components/error-views/View404';
+import { AuthLayout } from '../layouts/auth-layout';
+import { MarketingLayout } from '../layouts/marketing-layout';
 import appCss from '../styles/app.css?url';
 
 type RootLoaderData = {
@@ -76,10 +75,6 @@ const resolveRouteSurface = (pathname: string): RouteSurface => {
 };
 
 const getRouteFailureStatus = (error: unknown): number | undefined => {
-	if (isRouteErrorResponse(error)) {
-		return error.status;
-	}
-
 	const failure = toApiFailure(error);
 	return failure.kind === 'problem' ? failure.status : undefined;
 };
@@ -126,7 +121,12 @@ const RootErrorBoundary = ({ error }: { error: unknown }) => {
 					title="Authentication required"
 					description="You are not signed in. Please log in again."
 					actions={
-						<Button as="a" href="/login" color="primary" variant="solid">
+						<Button
+							variant="primary"
+							onPress={() => {
+								window.location.assign('/login');
+							}}
+						>
 							Back to login
 						</Button>
 					}

@@ -1,4 +1,5 @@
 import { Button } from '@heroui/react';
+
 import { AppErrorView } from './AppErrorView';
 
 export const View404 = () => {
@@ -10,7 +11,12 @@ export const View404 = () => {
 			description="The page you requested does not exist."
 			testId="view-404"
 			actions={
-				<Button as="a" href="/" color="primary" variant="solid">
+				<Button
+					variant="primary"
+					onPress={() => {
+						window.location.assign('/');
+					}}
+				>
 					Return home
 				</Button>
 			}

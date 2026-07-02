@@ -3,13 +3,18 @@ import { expect, test, type Page } from '@playwright/test';
 import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 import { formatSessionCookie } from '@org/shared-ts/lib/session/parse';
 
-const TENANT_TOKEN_VALUE = formatSessionCookie({ tenantToken: 'front2-demo-token' });
+const TENANT_TOKEN_VALUE = formatSessionCookie({
+	tenantToken: 'front2-demo-token',
+});
 
 const setSessionCookie = async (page: Page) => {
 	await page.goto('/');
-	await page.evaluate((cookieName: string, value: string) => {
-		document.cookie = `${cookieName}=${value}; path=/`;
-	}, SESSION_TOKEN_COOKIE_KEY, TENANT_TOKEN_VALUE);
+	await page.evaluate(
+		({ cookieName, value }) => {
+			document.cookie = `${cookieName}=${value}; path=/`;
+		},
+		{ cookieName: SESSION_TOKEN_COOKIE_KEY, value: TENANT_TOKEN_VALUE },
+	);
 };
 
 const mockAuthRedirectCode = async (
@@ -35,7 +40,9 @@ test('auth surface invalid session stays on login and stays reachable', async ({
 	await page.goto('/login?rc=invalid_session');
 
 	expect(
-		await page.getByText('Your session expired. Please sign in again.').isVisible(),
+		await page
+			.getByText('Your session expired. Please sign in again.')
+			.isVisible(),
 	).toBe(true);
 	const cookie = await page.evaluate(() => document.cookie);
 	expect(cookie).toContain(TENANT_TOKEN_VALUE);
@@ -54,15 +61,15 @@ test('authed 401 does not stay authed and redirects through logout flow', async 
 
 	await page.goto('/tenant');
 
-	await expect(page).toHaveURL(/.*\\/login\\?rc=invalid_session/);
-	await expect(page.getByText('Your session expired. Please sign in again.')).toBeVisible();
+	await expect(page).toHaveURL(/.*\/login\?rc=invalid_session/);
+	await expect(
+		page.getByText('Your session expired. Please sign in again.'),
+	).toBeVisible();
 	const clearedCookie = await page.evaluate(() => document.cookie);
 	expect(clearedCookie).not.toContain(TENANT_TOKEN_VALUE);
 });
 
-test('authed 403 renders forbidden view without logout', async ({
-	page,
-}) => {
+test('authed 403 renders forbidden view without logout', async ({ page }) => {
 	await setSessionCookie(page);
 	await mockAuthRedirectCode(page, 403, {
 		status: 403,

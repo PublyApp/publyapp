@@ -6,8 +6,10 @@ import { IndexRoute } from './index';
 describe('front-2 index route', () => {
 	test('renders minimal shell headline', () => {
 		const html = renderToStaticMarkup(<IndexRoute />);
-		expect(html).toContain('Welcome to front-2');
-		expect(html).toContain('Minimal buildable TanStack Start shell.');
-		expect(html).toContain('HeroUI placeholder');
+		expect(html).toContain('Welcome to the front-2 shell');
+		expect(html).toContain(
+			'Explore navigation, theme, and auth surface foundations from here.',
+		);
+		expect(html).toContain('HeroUI shell is active');
 	});
 });

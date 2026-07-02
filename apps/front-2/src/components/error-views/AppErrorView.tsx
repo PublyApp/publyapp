@@ -1,4 +1,4 @@
-import { ButtonGroup, Card, CardBody, CardFooter } from '@heroui/react';
+import { Card } from '@heroui/react';
 import type { ReactNode } from 'react';
 
 type AppErrorViewProps = {
@@ -25,7 +25,7 @@ export const AppErrorView = ({
 	return (
 		<main className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 py-12">
 			<Card className="w-full max-w-lg" data-testid={testId}>
-				<CardBody className="space-y-3 text-center">
+				<div className="space-y-3 p-6 text-center">
 					<div
 						className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-divider bg-content1 text-3xl"
 						aria-hidden="true"
@@ -46,16 +46,11 @@ export const AppErrorView = ({
 							{errorDetails}
 						</div>
 					) : null}
-				</CardBody>
+				</div>
 				{actions ? (
-					<CardFooter>
-						<ButtonGroup
-							className="w-full justify-center"
-							orientation="horizontal"
-						>
-							{actions}
-						</ButtonGroup>
-					</CardFooter>
+					<div className="w-full border-t border-divider px-6 py-4">
+						<div className="flex w-full justify-center gap-2">{actions}</div>
+					</div>
 				) : null}
 				{diagnosticId ? (
 					<div className="border-t border-divider px-6 pb-5 pt-2 text-left text-xs text-foreground-400">

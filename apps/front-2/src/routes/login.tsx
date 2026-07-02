@@ -9,16 +9,16 @@ import { useServerFn } from '@tanstack/react-start';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
 import { View404 } from '~/components/error-views/View404';
 import { completeLoginRedirect, login } from '~/lib/server/session-actions';
+
 import {
-	queryParamKey,
-	queryParamValue,
-} from '@org/shared-ts/lib/constants';
-import { getFailureMessage, toApiFailure } from '@org/shared-ts/lib/api-failure';
+	getFailureMessage,
+	toApiFailure,
+} from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { queryParamKey, queryParamValue } from '@org/shared-ts/lib/constants';
 
 type LoginFormValues = {
 	email: string;
@@ -138,7 +138,8 @@ const LoginRoute = () => {
 			if (failure.kind === 'problem' && failure.status === 401) {
 				setError('password', {
 					message: getFailureMessage(failure, {
-						fallback: 'Invalid credentials. Please check your email and password.',
+						fallback:
+							'Invalid credentials. Please check your email and password.',
 					}),
 				});
 				return;
@@ -179,35 +180,54 @@ const LoginRoute = () => {
 				<View403 />
 			) : (
 				<form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-					<Input
-						{...register('email')}
-						isRequired
-						isInvalid={Boolean(errors.email)}
-						errorMessage={errors.email?.message}
-						label="Email"
-						placeholder="name@company.com"
-						type="email"
-					/>
-					<Input
-						{...register('password')}
-						isRequired
-						isInvalid={Boolean(errors.password)}
-						errorMessage={errors.password?.message}
-						label="Password"
-						type="password"
-						placeholder="••••••••"
-					/>
+					<div className="space-y-1">
+						<label
+							className="text-sm font-medium text-foreground-700"
+							htmlFor="login-email"
+						>
+							Email
+						</label>
+						<Input
+							{...register('email')}
+							id="login-email"
+							required
+							placeholder="name@company.com"
+							type="email"
+						/>
+						{errors.email?.message ? (
+							<p className="text-sm text-danger-500">{errors.email?.message}</p>
+						) : null}
+					</div>
+					<div className="space-y-1">
+						<label
+							className="text-sm font-medium text-foreground-700"
+							htmlFor="login-password"
+						>
+							Password
+						</label>
+						<Input
+							{...register('password')}
+							id="login-password"
+							required
+							type="password"
+							placeholder="••••••••"
+						/>
+						{errors.password?.message ? (
+							<p className="text-sm text-danger-500">
+								{errors.password?.message}
+							</p>
+						) : null}
+					</div>
 					{errorMessage ? (
 						<div className="text-sm text-danger-500">{errorMessage}</div>
 					) : null}
 					<Button
 						type="submit"
-						variant="solid"
-						color="primary"
+						variant="primary"
 						isDisabled={isSubmitting}
 						className="w-full"
 					>
-						{isSubmitting ? <Spinner color="white" size="sm" /> : null}
+						{isSubmitting ? <Spinner size="sm" /> : null}
 						Sign in
 					</Button>
 				</form>
@@ -229,10 +249,10 @@ const LoginErrorBoundary = ({ error }: { error: unknown }) => {
 				testId="auth-401-view"
 				actions={
 					<Button
-						variant="solid"
-						color="primary"
-						as="a"
-						href="/login"
+						variant="primary"
+						onPress={() => {
+							window.location.assign('/login');
+						}}
 					>
 						Back to login
 					</Button>

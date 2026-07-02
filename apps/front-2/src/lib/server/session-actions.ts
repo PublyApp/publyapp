@@ -1,21 +1,21 @@
+import { createUntypedString } from '@microsoft/kiota-abstractions';
 import { createServerFn } from '@tanstack/react-start';
 import {
 	getRequestHeader,
 	setCookie,
 	setResponseHeader,
 } from '@tanstack/react-start/server';
-import { createUntypedString } from '@microsoft/kiota-abstractions';
 import * as cookie from 'cookie';
 import { z } from 'zod';
 
+import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
+import { REDIRECT_CODE } from '@org/shared-ts/lib/constants';
 import {
 	parseSessionCookie,
 	selectToken,
 	formatSessionCookie,
 } from '@org/shared-ts/lib/session/parse';
-import { REDIRECT_CODE } from '@org/shared-ts/lib/constants';
-import { toApiFailure } from '@org/shared-ts/lib/api-failure';
 
 import { createClient } from '../api-client/client-manager';
 
@@ -25,11 +25,11 @@ type LoginInput = {
 };
 
 type LoginResult = {
-	sessionExpiresAt?: string;
+	sessionExpiresAt?: string | Date | null;
 };
 
 type LoginClientResult = LoginResult & {
-	sessionToken?: string;
+	sessionToken?: string | null;
 };
 
 type LoginRedirectInput = {
@@ -143,7 +143,10 @@ const resolveLoginSessionCookieValue = (sessionToken: string) => {
 	return buildTenantSessionCookie(sessionToken);
 };
 
-const resolveRedirectSessionCookieValue = (sessionToken: string, code: string) => {
+const resolveRedirectSessionCookieValue = (
+	sessionToken: string,
+	code: string,
+) => {
 	if (code === REDIRECT_CODE.STAFF) {
 		return buildStaffSessionCookie(sessionToken);
 	}
@@ -163,7 +166,14 @@ const LoginRedirectInputSchema = z.object({
 const toServerFailurePayload = (
 	error: unknown,
 	fallbackMessage: string,
-): { responseStatusCode: number; status: number; title: string; detail: string; errors?: Record<string, string[]>; translationKey?: string } => {
+): {
+	responseStatusCode: number;
+	status: number;
+	title: string;
+	detail: string;
+	errors?: Record<string, string[]>;
+	translationKey?: string;
+} => {
 	const failure = toApiFailure(error);
 
 	if (failure.kind === 'validation') {
@@ -204,10 +214,7 @@ const toServerFailurePayload = (
 	};
 };
 
-const throwServerFailure = (
-	error: unknown,
-	fallbackMessage: string,
-): never => {
+const throwServerFailure = (error: unknown, fallbackMessage: string): never => {
 	throw toServerFailurePayload(error, fallbackMessage);
 };
 
@@ -253,11 +260,9 @@ export const completeLoginRedirect = createServerFn({ method: 'POST' })
 	.validator((data): LoginRedirectInput => LoginRedirectInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		const { staffToken, tenantToken } = readSessionTokensFromCookie();
-		const sessionToken = selectToken(
-			{ staffToken, tenantToken },
-			'tenant',
-		)
-			|| selectToken({ staffToken, tenantToken }, 'staff');
+		const sessionToken =
+			selectToken({ staffToken, tenantToken }, 'tenant') ||
+			selectToken({ staffToken, tenantToken }, 'staff');
 
 		if (!sessionToken) {
 			throw {
@@ -305,33 +310,35 @@ export const completeLoginRedirect = createServerFn({ method: 'POST' })
 		return { targetPath: '/tenant' } satisfies LoginRedirectResult;
 	});
 
-export const clearSession = createServerFn({ method: 'POST' }).handler(async () => {
-	const base: {
-		path: string;
-		expires: Date;
-		maxAge: number;
-	} = {
-		path: '/',
-		expires: new Date(0),
-		maxAge: 0,
-	};
+export const clearSession = createServerFn({ method: 'POST' }).handler(
+	async () => {
+		const base: {
+			path: string;
+			expires: Date;
+			maxAge: number;
+		} = {
+			path: '/',
+			expires: new Date(0),
+			maxAge: 0,
+		};
 
-	const variants = [
-		{},
-		{ httpOnly: true },
-		{ httpOnly: true, sameSite: 'lax' as const },
-		{ httpOnly: true, sameSite: 'strict' as const },
-		{ httpOnly: true, secure: true, sameSite: 'lax' as const },
-		{ httpOnly: true, secure: true, sameSite: 'strict' as const },
-		{ httpOnly: true, secure: true, sameSite: 'none' as const },
-	];
+		const variants = [
+			{},
+			{ httpOnly: true },
+			{ httpOnly: true, sameSite: 'lax' as const },
+			{ httpOnly: true, sameSite: 'strict' as const },
+			{ httpOnly: true, secure: true, sameSite: 'lax' as const },
+			{ httpOnly: true, secure: true, sameSite: 'strict' as const },
+			{ httpOnly: true, secure: true, sameSite: 'none' as const },
+		];
 
-	const headers = variants.map((variant) =>
-		cookie.serialize(SESSION_TOKEN_COOKIE_KEY, '', {
-			...base,
-			...variant,
-		}),
-	);
+		const headers = variants.map((variant) =>
+			cookie.serialize(SESSION_TOKEN_COOKIE_KEY, '', {
+				...base,
+				...variant,
+			}),
+		);
 
-	setResponseHeader('Set-Cookie', headers);
-});
+		setResponseHeader('Set-Cookie', headers);
+	},
+);
