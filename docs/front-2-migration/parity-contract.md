@@ -144,7 +144,7 @@ is set after the settings interaction), the locale switch, and the invite flow.
 | Invariant | Verified by | Expected current-app behavior |
 |---|---|---|
 | The staff-users page renders seeded staff rows, including `staff-admin@example.com`. | 4.4a / this commit, `valid staff login renders the seeded staff-users list` | Phase 0 API/source verified: `/staff/users` returns `staff-admin@example.com`, `owner@publyapp.local`, and `staff-user@example.com`; `StaffUsersTable` maps these into MRT rows. Not browser-verified in Phase 0 because `apps/front` exited on first request; Phase 1 confirm visual rendering. |
-| Staff list columns are present for email, name, status, and level. | 4.4a / this commit | Phase 0 source/API verified with divergence: current data contains `email`, `firstName`/`lastName`, `status`, and `level`, but the current table renders columns `Name`, `Level`, `Status`, and `Actions`; email appears as secondary text inside the `Name` cell, not as its own column. |
+| Staff list columns are `Name`, `Level`, `Status`, and `Actions`, with email rendered as secondary text in the `Name` cell. | 4.4a / this commit | Phase 0 source/API verified: current table columns are `Name`, `Level`, `Status`, and `Actions`, and email is shown as secondary text in the `Name` cell. |
 | Search filters the list to matching rows and clearing search restores the seeded list. | 4.4a / this commit, `staff-users search filters and clears back to the seeded list` | Phase 0 API/source verified: `q=staff-admin` returns only `staff-admin@example.com`; the toolbar writes `q` to URL state and passes it to `useFindStaffUser`. Not browser-verified in Phase 0; Phase 1 confirm debounce/clear behavior in the UI. |
 | A clean staff-users load issues exactly one `GET /staff/users` application data request. | 4.3 / `c3789268` | Phase 1 confirm: no duplicate browser/loader fetch for the migrated page. |
 
@@ -152,7 +152,7 @@ is set after the settings interaction), the locale switch, and the invite flow.
 
 | Invariant | Verified by | Expected current-app behavior |
 |---|---|---|
-| The invite dialog opens from the staff-users page. | 4.4a / this commit, `invite dialog validates email through localized RHF and Zod wiring` | Phase 0 source verified divergence: current `apps/front` has no staff-users invite dialog; the `Invite users` affordance is a link to `/staff/invitations/new`. Phase 1 must decide whether to preserve current route-based UX or adopt the spike dialog. |
+| Invite entry stays route-based on staff-users page. | 4.4a / this commit, `invite dialog validates email through localized RHF and Zod wiring` | Phase 0 source verified divergence: current `apps/front` has no staff-users invite dialog; the `Invite users` affordance is a link to `/staff/invitations/new`. M2.3 beachhead kept current-app parity by routing invite entry to `/staff/invitations/new` with no on-page dialog. |
 | Invalid email is rejected through the form validation stack and surfaces a localized InterZod/Zod message. | 4.4a / this commit; French locale covered by `configured French locale renders localized copy and InterZod messages` | Phase 0 schema/source verified: `/staff/invitations/new` uses RHF + `zodResolver(getBulkCreateInvitationsSchema(interZodClient))`; invalid email resolves to `Invalid email` in English and `e-mail non valide` in French. Not browser-verified in Phase 0. |
 | Correcting the email clears the validation error and leaves submit enabled. | 4.4a / this commit | Phase 0 schema verified: the same invitation schema rejects `not-an-email` and accepts `new-staff@example.com` with a valid profile UUID. Not browser-verified in Phase 0; Phase 1 confirm RHF visual error clearing and submit enabled state. |
 | Successful submit follows the current app's invite mutation/error handling contract. | Manual | Phase 1 confirm against current app; the spike submit is intentionally no-op and does not mutate seed data. |
@@ -170,11 +170,11 @@ is set after the settings interaction), the locale switch, and the invite flow.
 |---|---|---|
 | The configured language renders localized app strings. | 4.4a / this commit, `configured French locale renders localized copy and InterZod messages` | Phase 0 source verified: server SSR reads `publyapp-locale`, initializes i18next with `en`/`fr` resources, and client language changes persist the same cookie. Not browser-verified in Phase 0. |
 | InterZod validation messages resolve through the active locale. | 4.4a / this commit | Phase 0 schema/source verified: InterZod updates on `languageChanged`; invalid email resolves to `Invalid email` in English and `e-mail non valide` in French. |
-| UI language switching exists only if the app exposes a switcher. | Manual | Phase 0 source verified: current app exposes a language popover/user-menu item, while the spike has no UI switcher and only proves cookie-configured language. Phase 1 must preserve or consciously replace the current-app switcher behavior. |
+| UI language switching exists only if the app exposes a switcher. | Manual | Phase 0 source verified: current app exposes a language popover/user-menu item, while the spike has no UI switcher and only proves cookie-configured language. Current-app language switcher behavior/placement is preserved when the shell/user-menu surface is migrated. |
 
 ## M2.0b Staff-Users Parity Decisions
 
-- Invite entry: keep current-app parity. Staff-users “Invite users” stays a link to `/staff/invitations/new` (no on-page dialog for M2.0b).
+- Invite entry: keep current-app parity. Staff-users “Invite users” stays a link to `/staff/invitations/new` (no on-page dialog for the M2.3 beachhead).
 - Email display: keep current-app parity. Staff-users columns remain `Name`, `Level`, `Status`, `Actions`; email stays secondary text inside the `Name` cell.
 - Language switcher: keep current-app parity. Preserve existing language switcher behavior and placement when migrating the relevant shell/user-menu surface.
 
@@ -200,7 +200,7 @@ is set after the settings interaction), the locale switch, and the invite flow.
 - ApiFailure status precedence diverges only for malformed responses: the spike is
   transport-status-first, while `apps/front` is body `status`-first. They are
   identical for well-formed RFC 7807 responses.
-- M2.0b decision: preserve current-app invite UX parity for staff-users; keep the link to `/staff/invitations/new` (no on-page dialog).
+- M2.0b decision: preserve current-app invite UX parity for staff-users; keep the link to `/staff/invitations/new` (no on-page dialog for the M2.3 beachhead).
 - M2.0b decision: preserve current-app staff-users email presentation; keep table columns `Name`, `Level`, `Status`, `Actions`, with email as secondary text in the `Name` cell.
 - M2.0b decision: preserve current-app language-switcher behavior/placement in the shell/user-menu surface; do not remove or replace without later explicit decision.
 - `style-src` can only be tightened in Phase 1 if a positive nonce/hash path
