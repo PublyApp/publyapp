@@ -9,38 +9,93 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as loginRouteImport } from './routes/login'
+import { Route as authedLayoutRouteImport } from './routes/authed/layout'
 import { Route as indexRouteImport } from './routes/index'
+import { Route as authedTenantRouteImport } from './routes/authed/tenant'
+import { Route as authedStaffRouteImport } from './routes/authed/staff'
 
+const loginRoute = loginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const authedLayoutRoute = authedLayoutRouteImport.update({
+  id: '/_authed-layout',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const indexRoute = indexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const authedTenantRoute = authedTenantRouteImport.update({
+  id: '/tenant',
+  path: '/tenant',
+  getParentRoute: () => authedLayoutRoute,
+} as any)
+const authedStaffRoute = authedStaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
+  getParentRoute: () => authedLayoutRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof indexRoute
+  '/login': typeof loginRoute
+  '/staff': typeof authedStaffRoute
+  '/tenant': typeof authedTenantRoute
 }
 export interface FileRoutesByTo {
   '/': typeof indexRoute
+  '/login': typeof loginRoute
+  '/staff': typeof authedStaffRoute
+  '/tenant': typeof authedTenantRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof indexRoute
+  '/_authed-layout': typeof authedLayoutRouteWithChildren
+  '/login': typeof loginRoute
+  '/_authed-layout/staff': typeof authedStaffRoute
+  '/_authed-layout/tenant': typeof authedTenantRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/login' | '/staff' | '/tenant'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/login' | '/staff' | '/tenant'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authed-layout'
+    | '/login'
+    | '/_authed-layout/staff'
+    | '/_authed-layout/tenant'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   indexRoute: typeof indexRoute
+  authedLayoutRoute: typeof authedLayoutRouteWithChildren
+  loginRoute: typeof loginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof loginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authed-layout': {
+      id: '/_authed-layout'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof authedLayoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +103,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof indexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authed-layout/tenant': {
+      id: '/_authed-layout/tenant'
+      path: '/tenant'
+      fullPath: '/tenant'
+      preLoaderRoute: typeof authedTenantRouteImport
+      parentRoute: typeof authedLayoutRoute
+    }
+    '/_authed-layout/staff': {
+      id: '/_authed-layout/staff'
+      path: '/staff'
+      fullPath: '/staff'
+      preLoaderRoute: typeof authedStaffRouteImport
+      parentRoute: typeof authedLayoutRoute
+    }
   }
 }
 
+interface authedLayoutRouteChildren {
+  authedStaffRoute: typeof authedStaffRoute
+  authedTenantRoute: typeof authedTenantRoute
+}
+
+const authedLayoutRouteChildren: authedLayoutRouteChildren = {
+  authedStaffRoute: authedStaffRoute,
+  authedTenantRoute: authedTenantRoute,
+}
+
+const authedLayoutRouteWithChildren = authedLayoutRoute._addFileChildren(
+  authedLayoutRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   indexRoute: indexRoute,
+  authedLayoutRoute: authedLayoutRouteWithChildren,
+  loginRoute: loginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

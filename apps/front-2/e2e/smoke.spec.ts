@@ -8,6 +8,6 @@ test('renders the minimal front-2 shell from the deployed compose stack', async 
 	expect(response?.ok()).toBe(true);
 	await expect(page.locator('html')).toBeAttached();
 	await expect(
-		page.getByRole('heading', { name: 'Welcome to front-2' }),
+		page.getByRole('heading', { name: 'Welcome to the front-2 shell' }),
 	).toBeVisible();
 });
