@@ -172,6 +172,12 @@ is set after the settings interaction), the locale switch, and the invite flow.
 | InterZod validation messages resolve through the active locale. | 4.4a / this commit | Phase 0 schema/source verified: InterZod updates on `languageChanged`; invalid email resolves to `Invalid email` in English and `e-mail non valide` in French. |
 | UI language switching exists only if the app exposes a switcher. | Manual | Phase 0 source verified: current app exposes a language popover/user-menu item, while the spike has no UI switcher and only proves cookie-configured language. Phase 1 must preserve or consciously replace the current-app switcher behavior. |
 
+## M2.0b Staff-Users Parity Decisions
+
+- Invite entry: keep current-app parity. Staff-users “Invite users” stays a link to `/staff/invitations/new` (no on-page dialog for M2.0b).
+- Email display: keep current-app parity. Staff-users columns remain `Name`, `Level`, `Status`, `Actions`; email stays secondary text inside the `Name` cell.
+- Language switcher: keep current-app parity. Preserve existing language switcher behavior and placement when migrating the relevant shell/user-menu surface.
+
 ## URL State
 
 | Invariant | Verified by | Expected current-app behavior |
@@ -194,14 +200,9 @@ is set after the settings interaction), the locale switch, and the invite flow.
 - ApiFailure status precedence diverges only for malformed responses: the spike is
   transport-status-first, while `apps/front` is body `status`-first. They are
   identical for well-formed RFC 7807 responses.
-- Current `apps/front` invite UX diverges from the spike: the current app links
-  from staff-users to `/staff/invitations/new`, while the spike opens an
-  on-page invite dialog.
-- Current `apps/front` staff-users table diverges from the spike's explicit
-  column shape: email is secondary text in the name cell, not a standalone
-  email column.
-- Current `apps/front` exposes a UI language switcher; the spike only proves
-  cookie-configured language.
+- M2.0b decision: preserve current-app invite UX parity for staff-users; keep the link to `/staff/invitations/new` (no on-page dialog).
+- M2.0b decision: preserve current-app staff-users email presentation; keep table columns `Name`, `Level`, `Status`, `Actions`, with email as secondary text in the `Name` cell.
+- M2.0b decision: preserve current-app language-switcher behavior/placement in the shell/user-menu surface; do not remove or replace without later explicit decision.
 - `style-src` can only be tightened in Phase 1 if a positive nonce/hash path
   exists. 4.5a observed only `style-src-elem`, no `style-src-attr`, and the
   spike has no positioned overlay surface yet.
