@@ -5,9 +5,5 @@ export const Route = createFileRoute('/_authed-layout/staff')({
 });
 
 function StaffShellPlaceholder() {
-	return (
-		<div>
-			<h1>Staff</h1>
-		</div>
-	);
+	return null;
 }

@@ -1,6 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { buttonVariants, Button } from '@heroui/react';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { useRowSelection } from '~/components/table/use-row-selection';
@@ -22,6 +24,10 @@ const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 // Locked contract default (docs/front-2-migration/parity-contract.md): 100,
 // matching the current app and the selectable page-size options.
 const DEFAULT_SIZE = 100;
+
+const noop = (): void => {
+	// Kept as a keyboard-focusable placeholder until actions are fully migrated.
+};
 
 type StaffUserRow = {
 	id: string;
@@ -86,6 +92,18 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		accessorKey: 'status',
 		cell: ({ getValue }) => getValue<string | null>() ?? '—',
 	},
+	{
+		id: 'actions',
+		header: 'Actions',
+		enableSorting: false,
+		cell: () => (
+			<div className="flex justify-end">
+				<Button size="sm" variant="tertiary" onPress={noop}>
+					Actions
+				</Button>
+			</div>
+		),
+	},
 ];
 
 export const Route = createFileRoute('/_authed-layout/staff/staff-users')({
@@ -97,6 +115,7 @@ export const Route = createFileRoute('/_authed-layout/staff/staff-users')({
 function StaffUsersPage() {
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
+	const { t } = useTranslation('common');
 
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
@@ -136,7 +155,15 @@ function StaffUsersPage() {
 
 	return (
 		<div className="space-y-4 p-4">
-			<h1 className="text-xl font-semibold">Staff users</h1>
+			<div className="flex items-center justify-between gap-4">
+				<h1 className="text-xl font-semibold">Staff users</h1>
+				<Link
+					to={'/staff/invitations/new' as unknown as '/'}
+					className={buttonVariants({ variant: 'primary' })}
+				>
+					{t('invite-users')}
+				</Link>
+			</div>
 			<DataTable
 				testId="staff-users-table"
 				ariaLabel="Staff users"

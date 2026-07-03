@@ -1,0 +1,108 @@
+name: front-2 e2e
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - 'apps/front-2/**'
+      - 'packages/shared-ts/**'
+      - 'packages/client-ts/**'
+      - '.github/workflows/front-2-e2e.yml'
+
+
+permissions:
+  contents: read
+
+jobs:
+  front-2-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.13.1
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
+      - name: Assert exact pins
+        run: node apps/front-2/scripts/assert-pinned.mjs
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Bring up front-2 integration stack
+        run: docker compose -f apps/front-2/docker-compose.test.yml up -d --build
+
+      - name: Wait for front-2 stack health
+        run: |
+          timeout 180 bash -lc '
+            for attempt in $(seq 1 90); do
+              ids=(
+                front-2
+                api
+                request-counter
+                traefik
+                toxiproxy
+                postgres
+              )
+
+              all_running=true
+
+              for service in "${ids[@]}"; do
+                container_id="$(docker compose -f apps/front-2/docker-compose.test.yml ps -q "$service")"
+                if [ -z "$container_id" ]; then
+                  all_running=false
+                  break
+                fi
+
+                state="$(docker inspect --format "{{.State.Status}}" "$container_id")"
+                health="$(docker inspect --format "{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}" "$container_id")"
+
+                if [ "$state" != "running" ]; then
+                  all_running=false
+                  break
+                fi
+
+                if [ "$health" != "healthy" ] && [ "$health" != "no-healthcheck" ]; then
+                  all_running=false
+                  break
+                fi
+              done
+
+              docker ps --filter "name=publyapp-front2-real-test" --format "{{.Names}}\t{{.Status}}"
+
+              if [ "$all_running" = true ]; then
+                break
+              fi
+
+              sleep 2
+            done
+
+            if [ "$all_running" != true ]; then
+              exit 1
+            fi
+          '
+
+      - name: Run playwright browser tests
+        run: |
+          pnpm --filter front-2 exec playwright install chromium --with-deps
+          pnpm --filter front-2 exec playwright test
+
+      - name: Upload playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: front-2-e2e-playwright-report
+          path: apps/front-2/playwright-report
+          if-no-files-found: ignore
+
+      - name: Tear down front-2 stack
+        if: always()
+        run: docker compose -f apps/front-2/docker-compose.test.yml down -v

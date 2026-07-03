@@ -35,7 +35,7 @@ const NAV_ITEMS: Record<AppShellMode, NavItem[]> = {
 	authed: [
 		{
 			label: 'Staff',
-			path: '/staff',
+			path: '/staff/staff-users',
 			shortLabel: 'St',
 		},
 		{
@@ -61,6 +61,11 @@ const NAV_ITEMS: Record<AppShellMode, NavItem[]> = {
 const isActivePath = (pathname: string, target: string) => {
 	if (target === '/') {
 		return pathname === '/';
+	}
+
+	const parentPath = target.substring(0, target.lastIndexOf('/'));
+	if (parentPath.length > 1 && pathname === parentPath) {
+		return true;
 	}
 
 	return pathname === target || pathname.startsWith(`${target}/`);
