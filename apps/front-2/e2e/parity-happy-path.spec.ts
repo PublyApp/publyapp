@@ -151,7 +151,7 @@ test.describe('staff-users parity happy path', () => {
 
 		await search.fill('');
 		await expect(page).not.toHaveURL(/[?&]q=/);
-		await expect(staffUserRow(page, 'staff-user@example.com')).toBeVisible();
+		await assertSeededRowsVisible(page);
 	});
 
 	test('invite button navigates to invitations route', async ({ page }) => {
