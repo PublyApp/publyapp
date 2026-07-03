@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as loginRouteImport } from './routes/login'
+import { Route as fieldValidationRouteImport } from './routes/field-validation'
 import { Route as authedLayoutRouteImport } from './routes/authed/layout'
 import { Route as indexRouteImport } from './routes/index'
 import { Route as authedTenantRouteImport } from './routes/authed/tenant'
@@ -19,6 +20,11 @@ import { Route as authedStaffStaffUsersRouteImport } from './routes/authed/staff
 const loginRoute = loginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const fieldValidationRoute = fieldValidationRouteImport.update({
+  id: '/field-validation',
+  path: '/field-validation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const authedLayoutRoute = authedLayoutRouteImport.update({
@@ -48,6 +54,7 @@ const authedStaffStaffUsersRoute = authedStaffStaffUsersRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof indexRoute
+  '/field-validation': typeof fieldValidationRoute
   '/login': typeof loginRoute
   '/staff': typeof authedStaffRoute
   '/tenant': typeof authedTenantRoute
@@ -55,6 +62,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof indexRoute
+  '/field-validation': typeof fieldValidationRoute
   '/login': typeof loginRoute
   '/staff': typeof authedStaffRoute
   '/tenant': typeof authedTenantRoute
@@ -64,6 +72,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof indexRoute
   '/_authed-layout': typeof authedLayoutRouteWithChildren
+  '/field-validation': typeof fieldValidationRoute
   '/login': typeof loginRoute
   '/_authed-layout/staff': typeof authedStaffRoute
   '/_authed-layout/tenant': typeof authedTenantRoute
@@ -71,13 +80,26 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/staff' | '/tenant' | '/staff/staff-users'
+  fullPaths:
+    | '/'
+    | '/field-validation'
+    | '/login'
+    | '/staff'
+    | '/tenant'
+    | '/staff/staff-users'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/staff' | '/tenant' | '/staff/staff-users'
+  to:
+    | '/'
+    | '/field-validation'
+    | '/login'
+    | '/staff'
+    | '/tenant'
+    | '/staff/staff-users'
   id:
     | '__root__'
     | '/'
     | '/_authed-layout'
+    | '/field-validation'
     | '/login'
     | '/_authed-layout/staff'
     | '/_authed-layout/tenant'
@@ -87,6 +109,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   indexRoute: typeof indexRoute
   authedLayoutRoute: typeof authedLayoutRouteWithChildren
+  fieldValidationRoute: typeof fieldValidationRoute
   loginRoute: typeof loginRoute
 }
 
@@ -97,6 +120,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof loginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/field-validation': {
+      id: '/field-validation'
+      path: '/field-validation'
+      fullPath: '/field-validation'
+      preLoaderRoute: typeof fieldValidationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed-layout': {
@@ -156,6 +186,7 @@ const authedLayoutRouteWithChildren = authedLayoutRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   indexRoute: indexRoute,
   authedLayoutRoute: authedLayoutRouteWithChildren,
+  fieldValidationRoute: fieldValidationRoute,
   loginRoute: loginRoute,
 }
 export const routeTree = rootRouteImport

@@ -1,32 +1,40 @@
-import { Input, type InputProps } from '@heroui/react';
+import {
+	TextField,
+	FieldError,
+	Input,
+	type InputProps,
+	Label,
+} from '@heroui/react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 export type FieldTextProps = Omit<
 	InputProps,
-	'name' | 'onChange' | 'onBlur' | 'value'
+	'children' | 'isInvalid' | 'onChange' | 'onBlur' | 'value'
 > & {
 	name: string;
+	label: string;
 	helperText?: string;
 };
 
 export const FieldText = ({
 	name,
+	label,
 	helperText,
 	...inputProps
 }: FieldTextProps) => {
 	const { control } = useFormContext();
-	const message = (errorMessage: string | undefined, fallback?: string) =>
-		errorMessage ?? fallback;
 
 	return (
 		<Controller
 			name={name}
 			control={control}
 			render={({ field, fieldState: { error } }) => {
-				const helper = message(error?.message, helperText);
+				const helper = error?.message ?? helperText;
+				const isInvalid = Boolean(error);
 
 				return (
-					<div className="flex flex-col gap-1">
+					<TextField isInvalid={isInvalid} fullWidth={inputProps.fullWidth}>
+						<Label>{label}</Label>
 						<Input
 							{...field}
 							{...inputProps}
@@ -35,12 +43,15 @@ export const FieldText = ({
 								field.onChange(event.target.value);
 							}}
 							onBlur={field.onBlur}
-							autoComplete="off"
+							autoComplete={inputProps.autoComplete ?? 'off'}
+							name={name}
 						/>
 						{helper ? (
-							<p className="text-sm text-danger-500">{helper}</p>
+							<FieldError className="text-sm text-danger-500">
+								{helper}
+							</FieldError>
 						) : null}
-					</div>
+					</TextField>
 				);
 			}}
 		/>
