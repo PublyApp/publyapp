@@ -99,7 +99,12 @@ const readSessionTokensFromCookie = (): RawCookieSessionTokens => {
 		return {};
 	}
 
-	const parsed = cookie.parse(header, { decode: (value) => value });
+	// `setCookie` below percent-encodes the value (it contains a literal ":"
+	// scope prefix, e.g. "t:<token>"); use cookie.parse's default decoder
+	// (decodeURIComponent) to reverse that, not an identity no-op, or the
+	// scope prefix regex in parseSessionCookie never matches and the token is
+	// unusable (surfaces as a false "session token is invalid or expired").
+	const parsed = cookie.parse(header);
 	const sessionCookieValue = parsed[SESSION_TOKEN_COOKIE_KEY];
 	if (!sessionCookieValue || typeof sessionCookieValue !== 'string') {
 		return {};
