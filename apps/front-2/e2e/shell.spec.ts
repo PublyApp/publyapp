@@ -182,7 +182,7 @@ test('renders the authed shell for /staff', async ({ page }) => {
 	await mockAuthRedirectCode(page);
 	await page.goto('/staff');
 
-	await expect(page).toHaveURL('/staff');
+	await expect(page).toHaveURL('/staff/staff-users');
 	await expect(page.getByTestId('app-shell-shell')).toHaveAttribute(
 		'data-mode',
 		'authed',

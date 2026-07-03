@@ -25,10 +25,6 @@ const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 // matching the current app and the selectable page-size options.
 const DEFAULT_SIZE = 100;
 
-const noop = (): void => {
-	// Kept as a keyboard-focusable placeholder until actions are fully migrated.
-};
-
 type StaffUserRow = {
 	id: string;
 	email: string;
@@ -98,7 +94,7 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		enableSorting: false,
 		cell: () => (
 			<div className="flex justify-end">
-				<Button size="sm" variant="tertiary" onPress={noop}>
+				<Button size="sm" variant="tertiary" isDisabled>
 					Actions
 				</Button>
 			</div>
@@ -158,7 +154,7 @@ function StaffUsersPage() {
 			<div className="flex items-center justify-between gap-4">
 				<h1 className="text-xl font-semibold">Staff users</h1>
 				<Link
-					to={'/staff/invitations/new' as unknown as '/'}
+					to={'/staff/invitations/new' as never} // Route is not yet migrated for typed route checks; parity contract keeps this external path.
 					className={buttonVariants({ variant: 'primary' })}
 				>
 					{t('invite-users')}

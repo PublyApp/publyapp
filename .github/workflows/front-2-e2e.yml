@@ -100,7 +100,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: front-2-e2e-playwright-report
-          path: apps/front-2/playwright-report
+          path: |
+            apps/front-2/playwright-report
+            apps/front-2/test-results
           if-no-files-found: ignore
 
       - name: Tear down front-2 stack

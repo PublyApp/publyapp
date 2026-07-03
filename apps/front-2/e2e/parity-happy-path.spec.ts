@@ -192,6 +192,8 @@ test.describe('staff-users parity happy path', () => {
 		await loginAndWaitForSeededRows(page);
 
 		await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
-		await expect(getInviteStaffUserButton(page)).toBeVisible();
+		await expect(getInviteStaffUserButton(page)).toHaveText(
+			'Inviter des utilisateurs',
+		);
 	});
 });
