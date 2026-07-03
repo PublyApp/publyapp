@@ -5,10 +5,23 @@ const STAFF_ADMIN_CREDENTIALS = {
 	password: process.env.E2E_STAFF_ADMIN_PASSWORD ?? 'ChangeMe123!@3#lol',
 };
 
-// M2.3 will add an on-page "Invite staff user" entry point (parity-contract.md ->
-// invite stays a link to /staff/invitations/new). Not present yet in M2.1.
 export const getInviteStaffUserButton = (page: Page) =>
-	page.locator('button').filter({ hasText: /^Invite staff user$/ });
+	page.getByRole('link', {
+		name: /^(Invite users|Inviter des utilisateurs)$/,
+	});
+
+export const setLocaleCookie = async (page: Page, locale: 'fr') => {
+	await page.context().addCookies([
+		{
+			name: 'publyapp-locale',
+			value: locale,
+			domain: 'front-2.localhost',
+			path: '/',
+			secure: true,
+			sameSite: 'Lax',
+		},
+	]);
+};
 
 export const loginAsStaffAdmin = async (page: Page): Promise<void> => {
 	await page.goto('/login');

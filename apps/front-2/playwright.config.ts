@@ -6,7 +6,10 @@ export default defineConfig({
 	expect: {
 		timeout: 5_000,
 	},
-	reporter: 'list',
+	reporter: [
+		['list'],
+		['html', { outputFolder: 'playwright-report', open: 'never' }],
+	],
 	use: {
 		baseURL: 'https://front-2.localhost:8443',
 		headless: true,

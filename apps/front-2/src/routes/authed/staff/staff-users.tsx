@@ -1,6 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { buttonVariants, Button } from '@heroui/react';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { useRowSelection } from '~/components/table/use-row-selection';
@@ -86,6 +88,18 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		accessorKey: 'status',
 		cell: ({ getValue }) => getValue<string | null>() ?? '—',
 	},
+	{
+		id: 'actions',
+		header: 'Actions',
+		enableSorting: false,
+		cell: () => (
+			<div className="flex justify-end">
+				<Button size="sm" variant="tertiary" isDisabled>
+					Actions
+				</Button>
+			</div>
+		),
+	},
 ];
 
 export const Route = createFileRoute('/_authed-layout/staff/staff-users')({
@@ -97,6 +111,7 @@ export const Route = createFileRoute('/_authed-layout/staff/staff-users')({
 function StaffUsersPage() {
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
+	const { t } = useTranslation('common');
 
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
@@ -136,7 +151,15 @@ function StaffUsersPage() {
 
 	return (
 		<div className="space-y-4 p-4">
-			<h1 className="text-xl font-semibold">Staff users</h1>
+			<div className="flex items-center justify-between gap-4">
+				<h1 className="text-xl font-semibold">Staff users</h1>
+				<Link
+					to={'/staff/invitations/new' as never} // Route is not yet migrated for typed route checks; parity contract keeps this external path.
+					className={buttonVariants({ variant: 'primary' })}
+				>
+					{t('invite-users')}
+				</Link>
+			</div>
 			<DataTable
 				testId="staff-users-table"
 				ariaLabel="Staff users"

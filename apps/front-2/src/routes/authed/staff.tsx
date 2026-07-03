@@ -1,13 +1,17 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/_authed-layout/staff')({
+	beforeLoad: ({ location }) => {
+		const pathname = location.pathname ?? '';
+		if (pathname === '/staff') {
+			throw redirect({
+				to: '/staff/staff-users',
+			});
+		}
+	},
 	component: StaffShellPlaceholder,
 });
 
 function StaffShellPlaceholder() {
-	return (
-		<div>
-			<h1>Staff</h1>
-		</div>
-	);
+	return null;
 }
