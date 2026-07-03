@@ -14,6 +14,7 @@ import { Route as authedLayoutRouteImport } from './routes/authed/layout'
 import { Route as indexRouteImport } from './routes/index'
 import { Route as authedTenantRouteImport } from './routes/authed/tenant'
 import { Route as authedStaffRouteImport } from './routes/authed/staff'
+import { Route as authedStaffStaffUsersRouteImport } from './routes/authed/staff/staff-users'
 
 const loginRoute = loginRouteImport.update({
   id: '/login',
@@ -39,18 +40,25 @@ const authedStaffRoute = authedStaffRouteImport.update({
   path: '/staff',
   getParentRoute: () => authedLayoutRoute,
 } as any)
+const authedStaffStaffUsersRoute = authedStaffStaffUsersRouteImport.update({
+  id: '/staff/staff-users',
+  path: '/staff/staff-users',
+  getParentRoute: () => authedLayoutRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof indexRoute
   '/login': typeof loginRoute
   '/staff': typeof authedStaffRoute
   '/tenant': typeof authedTenantRoute
+  '/staff/staff-users': typeof authedStaffStaffUsersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof indexRoute
   '/login': typeof loginRoute
   '/staff': typeof authedStaffRoute
   '/tenant': typeof authedTenantRoute
+  '/staff/staff-users': typeof authedStaffStaffUsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -59,12 +67,13 @@ export interface FileRoutesById {
   '/login': typeof loginRoute
   '/_authed-layout/staff': typeof authedStaffRoute
   '/_authed-layout/tenant': typeof authedTenantRoute
+  '/_authed-layout/staff/staff-users': typeof authedStaffStaffUsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/staff' | '/tenant'
+  fullPaths: '/' | '/login' | '/staff' | '/tenant' | '/staff/staff-users'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/staff' | '/tenant'
+  to: '/' | '/login' | '/staff' | '/tenant' | '/staff/staff-users'
   id:
     | '__root__'
     | '/'
@@ -72,6 +81,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authed-layout/staff'
     | '/_authed-layout/tenant'
+    | '/_authed-layout/staff/staff-users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -117,17 +127,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authedStaffRouteImport
       parentRoute: typeof authedLayoutRoute
     }
+    '/_authed-layout/staff/staff-users': {
+      id: '/_authed-layout/staff/staff-users'
+      path: '/staff/staff-users'
+      fullPath: '/staff/staff-users'
+      preLoaderRoute: typeof authedStaffStaffUsersRouteImport
+      parentRoute: typeof authedLayoutRoute
+    }
   }
 }
 
 interface authedLayoutRouteChildren {
   authedStaffRoute: typeof authedStaffRoute
   authedTenantRoute: typeof authedTenantRoute
+  authedStaffStaffUsersRoute: typeof authedStaffStaffUsersRoute
 }
 
 const authedLayoutRouteChildren: authedLayoutRouteChildren = {
   authedStaffRoute: authedStaffRoute,
   authedTenantRoute: authedTenantRoute,
+  authedStaffStaffUsersRoute: authedStaffStaffUsersRoute,
 }
 
 const authedLayoutRouteWithChildren = authedLayoutRoute._addFileChildren(

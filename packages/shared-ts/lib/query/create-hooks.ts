@@ -2,7 +2,6 @@ import { toApiFailure } from '../api-failure/to-api-failure';
 import type { ApiFailure } from '../api-failure/types';
 import type { QueryKeySegment } from './keys';
 import type {
-	ClientAccessor,
 	QueryScope,
 	QueryErrorHandlers,
 	QueryFactoryOptions,
@@ -25,20 +24,17 @@ type QueryBaseOptions<TError = Error> = {
 	[key: string]: unknown;
 };
 
-type BaseQueryOptions<TError = Error> = Omit<
-	QueryBaseOptions<TError>,
-	'queryKey' | 'fetcher'
->;
+// NOTE: these were previously `Omit<QueryBaseOptions<TError>, 'queryKey' | 'fetcher'>`
+// (and similar) even though `QueryBaseOptions` never declared those keys — a no-op
+// Omit. `Omit` over a type with a string index signature widens `keyof` and can make
+// TS lose the precise `onError` property type on destructure (surfaces as bogus
+// "Argument of type 'unknown' is not assignable to ((error: TError) => void)"
+// errors at every call site). Plain aliases keep the identical type, without the bug.
+type BaseQueryOptions<TError = Error> = QueryBaseOptions<TError>;
 
-type BaseSuspenseQueryOptions<TError = Error> = Omit<
-	QueryBaseOptions<TError>,
-	'queryKey' | 'fetcher'
->;
+type BaseSuspenseQueryOptions<TError = Error> = QueryBaseOptions<TError>;
 
-type BaseMutationOptions<TError = Error> = Omit<
-	QueryBaseOptions<TError>,
-	'mutationKey' | 'mutationFn'
->;
+type BaseMutationOptions<TError = Error> = QueryBaseOptions<TError>;
 
 type TenantQueryConfig<
 	TApiClient,
@@ -52,7 +48,7 @@ type TenantQueryConfig<
 		variables: TenantQueryVariablesRequired<TVariables>,
 	) => Promise<TData>;
 	handlers?: QueryErrorHandlers;
-} & Omit<BaseQueryOptions<TError>, 'use' | 'variables'>;
+} & BaseQueryOptions<TError>;
 
 type TenantSuspenseQueryConfig<
 	TApiClient,
@@ -66,7 +62,7 @@ type TenantSuspenseQueryConfig<
 		variables: TenantQueryVariablesRequired<TVariables>,
 	) => Promise<TData>;
 	handlers?: QueryErrorHandlers;
-} & Omit<BaseSuspenseQueryOptions<TError>, 'use' | 'variables'>;
+} & BaseSuspenseQueryOptions<TError>;
 
 type TenantMutationConfig<
 	TApiClient,
@@ -80,7 +76,7 @@ type TenantMutationConfig<
 		variables: TenantQueryVariablesRequired<TVariables>,
 	) => Promise<TData>;
 	handlers?: QueryErrorHandlers;
-} & Omit<BaseMutationOptions<TError>, 'use' | 'variables'>;
+} & BaseMutationOptions<TError>;
 
 type StaffQueryConfig<
 	TApiClient,
@@ -204,8 +200,14 @@ const composeOnError = <TError>(
 				}
 			};
 
-const makeErrorHandler = (scope: QueryScope, handlers?: QueryErrorHandlers) => {
-	return (error: unknown): void => {
+// Generic over TError so its return type structurally matches composeOnError's
+// `(error: TError) => void` slot at every call site: the body only ever forwards
+// to `toApiFailure(unknown)`, so this is sound for any TError, not just `unknown`.
+const makeErrorHandler = <TError>(
+	scope: QueryScope,
+	handlers?: QueryErrorHandlers,
+): ((error: TError) => void) => {
+	return (error) => {
 		const failure = toApiFailure(error);
 		if (failure.kind === 'abort') {
 			return;
@@ -290,9 +292,9 @@ export const buildTenantQueryOptions = <
 				tenantId,
 			});
 		},
-		onError: composeOnError(
+		onError: composeOnError<TError>(
 			localOnError,
-			makeErrorHandler('tenant', mergedHandlers),
+			makeErrorHandler<TError>('tenant', mergedHandlers),
 		),
 		...restOptions,
 	};
@@ -344,9 +346,9 @@ export const buildTenantSuspenseQueryOptions = <
 				tenantId,
 			});
 		},
-		onError: composeOnError(
+		onError: composeOnError<TError>(
 			localOnError,
-			makeErrorHandler('tenant', mergedHandlers),
+			makeErrorHandler<TError>('tenant', mergedHandlers),
 		),
 		...restOptions,
 	};
@@ -386,9 +388,9 @@ export const buildTenantMutationOptions = <
 				tenantId,
 			});
 		},
-		onError: composeOnError(
+		onError: composeOnError<TError>(
 			localOnError,
-			makeErrorHandler('tenant', mergedHandlers),
+			makeErrorHandler<TError>('tenant', mergedHandlers),
 		),
 		...restOptions,
 	};
@@ -425,9 +427,9 @@ export const buildStaffQueryOptions = <
 			const client = options.clientAccessor.getOrCreateStaffClient();
 			return fetcher(client, variables);
 		},
-		onError: composeOnError(
+		onError: composeOnError<TError>(
 			localOnError,
-			makeErrorHandler('staff', mergedHandlers),
+			makeErrorHandler<TError>('staff', mergedHandlers),
 		),
 		...restOptions,
 	};
@@ -464,9 +466,9 @@ export const buildStaffSuspenseQueryOptions = <
 			const client = options.clientAccessor.getOrCreateStaffClient();
 			return fetcher(client, variables);
 		},
-		onError: composeOnError(
+		onError: composeOnError<TError>(
 			localOnError,
-			makeErrorHandler('staff', mergedHandlers),
+			makeErrorHandler<TError>('staff', mergedHandlers),
 		),
 		...restOptions,
 	};
@@ -497,9 +499,9 @@ export const buildStaffMutationOptions = <
 			const client = options.clientAccessor.getOrCreateStaffClient();
 			return mutationFn(client, variables);
 		},
-		onError: composeOnError(
+		onError: composeOnError<TError>(
 			localOnError,
-			makeErrorHandler('staff', mergedHandlers),
+			makeErrorHandler<TError>('staff', mergedHandlers),
 		),
 		...restOptions,
 	};
@@ -536,9 +538,9 @@ export const buildAnonymousQueryOptions = <
 			const client = options.clientAccessor.getOrCreateAnonymousClient();
 			return fetcher(client, variables);
 		},
-		onError: composeOnError(
+		onError: composeOnError<TError>(
 			localOnError,
-			makeErrorHandler('anonymous', mergedHandlers),
+			makeErrorHandler<TError>('anonymous', mergedHandlers),
 		),
 		...restOptions,
 	};
@@ -575,9 +577,9 @@ export const buildAnonymousSuspenseQueryOptions = <
 			const client = options.clientAccessor.getOrCreateAnonymousClient();
 			return fetcher(client, variables);
 		},
-		onError: composeOnError(
+		onError: composeOnError<TError>(
 			localOnError,
-			makeErrorHandler('anonymous', mergedHandlers),
+			makeErrorHandler<TError>('anonymous', mergedHandlers),
 		),
 		...restOptions,
 	};
@@ -608,9 +610,9 @@ export const buildAnonymousMutationOptions = <
 			const client = options.clientAccessor.getOrCreateAnonymousClient();
 			return mutationFn(client, variables);
 		},
-		onError: composeOnError(
+		onError: composeOnError<TError>(
 			localOnError,
-			makeErrorHandler('anonymous', mergedHandlers),
+			makeErrorHandler<TError>('anonymous', mergedHandlers),
 		),
 		...restOptions,
 	};
@@ -647,9 +649,9 @@ export const buildAuthQueryOptions = <
 			const client = options.clientAccessor.getOrCreateAnonymousClient();
 			return fetcher(client, variables);
 		},
-		onError: composeOnError(
+		onError: composeOnError<TError>(
 			localOnError,
-			makeErrorHandler('auth', mergedHandlers),
+			makeErrorHandler<TError>('auth', mergedHandlers),
 		),
 		...restOptions,
 	};
@@ -686,9 +688,9 @@ export const buildAuthSuspenseQueryOptions = <
 			const client = options.clientAccessor.getOrCreateAnonymousClient();
 			return fetcher(client, variables);
 		},
-		onError: composeOnError(
+		onError: composeOnError<TError>(
 			localOnError,
-			makeErrorHandler('auth', mergedHandlers),
+			makeErrorHandler<TError>('auth', mergedHandlers),
 		),
 		...restOptions,
 	};
@@ -719,9 +721,9 @@ export const buildAuthMutationOptions = <
 			const client = options.clientAccessor.getOrCreateAnonymousClient();
 			return mutationFn(client, variables);
 		},
-		onError: composeOnError(
+		onError: composeOnError<TError>(
 			localOnError,
-			makeErrorHandler('auth', mergedHandlers),
+			makeErrorHandler<TError>('auth', mergedHandlers),
 		),
 		...restOptions,
 	};

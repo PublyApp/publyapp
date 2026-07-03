@@ -86,9 +86,10 @@ const defaultSessionTokenProvider: SessionTokenProvider = (scope) => {
 		return undefined;
 	}
 
-	const parsedCookie = cookie.parse(rawCookieValue, {
-		decode: (value) => value,
-	});
+	// The server's `setCookie` percent-encodes the "t:"/"s:"-prefixed value;
+	// use the default decoder (decodeURIComponent) to reverse it, see the
+	// matching comment in lib/server/session-actions.ts.
+	const parsedCookie = cookie.parse(rawCookieValue);
 	const rawCookie = parsedCookie[SESSION_TOKEN_COOKIE_KEY];
 	if (!rawCookie) {
 		return undefined;
@@ -110,7 +111,31 @@ const resolveSessionToken = (
 	scope: SessionScope = 'tenant',
 ): string | undefined => sessionTokenProvider(scope);
 
+type ProcessEnv = { [key: string]: string | undefined };
+type ProcessLike = { env?: ProcessEnv };
+type GlobalLike = {
+	process?: ProcessLike;
+	__ENV__?: { PUBLIC_API_BASE_URL?: string };
+};
+
+const getGlobalLike = (): GlobalLike | undefined =>
+	typeof globalThis === 'object' ? (globalThis as GlobalLike) : undefined;
+
+// No `document` means this is running server-side (SSR / a server function
+// handler), which is a separate network namespace from the browser: in
+// Docker/Compose the browser-reachable PUBLIC_API_BASE_URL (Traefik host) is
+// NOT reachable from inside the server container, only the internal
+// SERVER_API_BASE_URL (e.g. a Docker service name) is.
+const isServerRuntime = (): boolean => typeof document === 'undefined';
+
 const resolveApiBaseUrl = (): string => {
+	if (isServerRuntime()) {
+		const serverBase = getGlobalLike()?.process?.env?.SERVER_API_BASE_URL;
+		if (serverBase) {
+			return serverBase;
+		}
+	}
+
 	const runtimeBase =
 		typeof globalThis === 'object'
 			? (globalThis as { __ENV__?: { PUBLIC_API_BASE_URL?: string } }).__ENV__
@@ -120,25 +145,15 @@ const resolveApiBaseUrl = (): string => {
 		return runtimeBase;
 	}
 
-	type ProcessEnv = { [key: string]: string | undefined };
-	type ProcessLike = { env?: ProcessEnv };
-	type GlobalLike = {
-		process?: ProcessLike;
-		__ENV__?: { PUBLIC_API_BASE_URL?: string };
-	};
-
-	const globalLike =
-		typeof globalThis === 'object' ? (globalThis as GlobalLike) : undefined;
-
 	const processBase =
-		globalLike?.process?.env?.PUBLIC_API_BASE_URL ||
-		globalLike?.process?.env?.NEXT_PUBLIC_API_BASE_URL;
+		getGlobalLike()?.process?.env?.PUBLIC_API_BASE_URL ||
+		getGlobalLike()?.process?.env?.NEXT_PUBLIC_API_BASE_URL;
 	if (processBase) {
 		return processBase;
 	}
 
 	throw new Error(
-		'__ENV__.PUBLIC_API_BASE_URL is required in front-2 runtime env',
+		'SERVER_API_BASE_URL (server) or __ENV__.PUBLIC_API_BASE_URL (browser) is required in front-2 runtime env',
 	);
 };
 
@@ -324,9 +339,7 @@ const getSessionTokensFromCookie = (
 	}
 
 	return parseSessionCookie(
-		cookie.parse(rawCookieValue, {
-			decode: (value) => value,
-		})[SESSION_TOKEN_COOKIE_KEY] ?? '',
+		cookie.parse(rawCookieValue)[SESSION_TOKEN_COOKIE_KEY] ?? '',
 	);
 };
 
