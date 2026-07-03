@@ -19,7 +19,9 @@ import { shouldLogoutForFailure } from '~/routes/authed/layout';
 import type { StaffUserItem } from '@org/client-ts/src/models/index.js';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
-const DEFAULT_SIZE = 25;
+// Locked contract default (docs/front-2-migration/parity-contract.md): 100,
+// matching the current app and the selectable page-size options.
+const DEFAULT_SIZE = 100;
 
 type StaffUserRow = {
 	id: string;

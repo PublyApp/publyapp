@@ -1,4 +1,8 @@
-import { describe, expect, test } from 'vitest';
+// @vitest-environment jsdom
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import type { Root } from 'react-dom/client';
+import { afterEach, describe, expect, test } from 'vitest';
 
 import {
 	MAX_CURSOR_HISTORY,
@@ -7,10 +11,71 @@ import {
 	initialCursorPaginationState,
 	resetCursorPagination,
 	retreatCursorPagination,
+	useCursorPagination,
 } from './use-cursor-pagination';
+import type {
+	CursorGeneration,
+	UseCursorPaginationResult,
+} from './use-cursor-pagination';
+
+// react-dom's `act` expects this flag when there's no test-runner integration
+// (e.g. @testing-library/react) declaring the environment for it.
+(
+	globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 const GEN_A = { sortId: 'created_at', sortOrder: 'desc' as const, size: 25 };
 const GEN_B = { sortId: 'created_at', sortOrder: 'asc' as const, size: 25 };
+
+// Renders the real `useCursorPagination` hook (not just its pure helpers) so
+// the regression test below can catch a bug in how the hook COMMITS state
+// across renders — something the pure-function tests above can't see, since
+// they never exercise the hook's internal useState across a prop change.
+const mountedRoots: Root[] = [];
+
+afterEach(() => {
+	for (const root of mountedRoots.splice(0)) {
+		act(() => {
+			root.unmount();
+		});
+	}
+});
+
+const renderCursorPagination = (
+	generation: CursorGeneration,
+): {
+	rerender: (next: CursorGeneration) => void;
+	result: () => UseCursorPaginationResult;
+} => {
+	let latest: UseCursorPaginationResult | undefined;
+
+	const Probe = (props: { generation: CursorGeneration }): null => {
+		latest = useCursorPagination(props.generation);
+		return null;
+	};
+
+	const container = document.createElement('div');
+	const root = createRoot(container);
+	mountedRoots.push(root);
+
+	const renderWith = (nextGeneration: CursorGeneration): void => {
+		act(() => {
+			root.render(createElement(Probe, { generation: nextGeneration }));
+		});
+	};
+
+	renderWith(generation);
+
+	return {
+		rerender: renderWith,
+		result: () => {
+			if (!latest) {
+				throw new Error('useCursorPagination did not render');
+			}
+			return latest;
+		},
+	};
+};
 
 describe('cursor pagination state', () => {
 	test('advance pushes the current cursor onto history and moves forward', () => {
@@ -116,5 +181,34 @@ describe('cursor pagination state', () => {
 		expect(state.pageIndex).toBe(total);
 		// the oldest entries were dropped; the tail is the most recent history.
 		expect(state.history.at(-1)).toBe(`cursor-${total - 2}`);
+	});
+});
+
+describe('useCursorPagination (hook, regression)', () => {
+	test('a generation round-trip (A -> B -> A) does not resurrect the stale A cursor stack', () => {
+		const hook = renderCursorPagination(GEN_A);
+
+		act(() => {
+			hook.result().advance('cursor-1');
+		});
+		act(() => {
+			hook.result().advance('cursor-2');
+		});
+		expect(hook.result().pageIndex).toBe(2);
+		expect(hook.result().cursor).toBe('cursor-2');
+
+		// Switch to generation B (e.g. a sort change) — no explicit reset call,
+		// just a prop change, matching how the real controller drives this hook.
+		hook.rerender(GEN_B);
+		expect(hook.result().cursor).toBeUndefined();
+		expect(hook.result().pageIndex).toBe(0);
+
+		// Switch back to generation A. Before the fix, the hook's internal
+		// `state` was never committed on the A -> B transition, so this
+		// resurrected the stale page-2 cursor stack.
+		hook.rerender(GEN_A);
+		expect(hook.result().cursor).toBeUndefined();
+		expect(hook.result().pageIndex).toBe(0);
+		expect(hook.result().hasPreviousPage).toBe(false);
 	});
 });

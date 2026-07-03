@@ -125,6 +125,16 @@ export const useTableController = (
 		debouncerRef.current = createDebouncer(searchDebounceMs);
 	}
 
+	// The debounced commit below fires later, after possibly several
+	// re-renders (e.g. a sort/size change while typing). It must read
+	// whatever `search` is current AT FIRE TIME, not the value captured when
+	// it was scheduled — otherwise it clobbers a sort/size change that
+	// happened in between. See use-table-controller.test.ts's regression test.
+	const searchRef = useRef(search);
+	useEffect(() => {
+		searchRef.current = search;
+	}, [search]);
+
 	// Keeps the draft aligned when the committed value changes from outside
 	// this hook's own commits (browser back/forward, a cleared URL, etc).
 	useEffect(() => {
@@ -145,7 +155,7 @@ export const useTableController = (
 		setDraft(value);
 		debouncerRef.current?.schedule(() => {
 			cursorPagination.reset();
-			onSearchChange(buildSearchCommitSearch(search, value));
+			onSearchChange(buildSearchCommitSearch(searchRef.current, value));
 		});
 	};
 

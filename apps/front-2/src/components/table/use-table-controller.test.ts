@@ -1,4 +1,8 @@
-import { describe, expect, test } from 'vitest';
+// @vitest-environment jsdom
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import type { Root } from 'react-dom/client';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import {
@@ -7,10 +11,72 @@ import {
 	buildSortChangeSearch,
 	resolveSize,
 	resolveSort,
+	useTableController,
 } from './use-table-controller';
+import type {
+	UseTableControllerOptions,
+	UseTableControllerResult,
+} from './use-table-controller';
+
+// react-dom's `act` expects this flag when there's no test-runner integration
+// (e.g. @testing-library/react) declaring the environment for it.
+(
+	globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 25;
+
+// Renders the real `useTableController` hook (not just its pure builder
+// helpers) so the regression test below can catch a stale-closure bug in the
+// debounced search commit — something a pure-function test can't see, since
+// it never exercises the hook across a prop change while a debounce is
+// in-flight.
+const mountedRoots: Root[] = [];
+
+afterEach(() => {
+	for (const root of mountedRoots.splice(0)) {
+		act(() => {
+			root.unmount();
+		});
+	}
+});
+
+const renderTableController = (
+	options: UseTableControllerOptions,
+): {
+	rerender: (next: UseTableControllerOptions) => void;
+	result: () => UseTableControllerResult;
+} => {
+	let latest: UseTableControllerResult | undefined;
+
+	const Probe = (props: { options: UseTableControllerOptions }): null => {
+		latest = useTableController(props.options);
+		return null;
+	};
+
+	const container = document.createElement('div');
+	const root = createRoot(container);
+	mountedRoots.push(root);
+
+	const renderWith = (nextOptions: UseTableControllerOptions): void => {
+		act(() => {
+			root.render(createElement(Probe, { options: nextOptions }));
+		});
+	};
+
+	renderWith(options);
+
+	return {
+		rerender: renderWith,
+		result: () => {
+			if (!latest) {
+				throw new Error('useTableController did not render');
+			}
+			return latest;
+		},
+	};
+};
 
 describe('resolveSort / resolveSize', () => {
 	test('falls back to defaults when the URL has no sort/size', () => {
@@ -88,5 +154,58 @@ describe('buildSearchCommitSearch', () => {
 			q: undefined,
 			cursor: undefined,
 		});
+	});
+});
+
+describe('useTableController (hook, regression)', () => {
+	test('a sort/size change before the debounce fires is preserved, not clobbered by a stale search closure', () => {
+		vi.useFakeTimers();
+
+		try {
+			const onSearchChange = vi.fn();
+			let search: TableSearchParams = {
+				sortId: 'created_at',
+				sortOrder: 'desc',
+				size: 25,
+			};
+			const baseOptions: UseTableControllerOptions = {
+				search,
+				onSearchChange,
+				defaultSort: DEFAULT_SORT,
+				defaultSize: DEFAULT_SIZE,
+				searchDebounceMs: 300,
+			};
+
+			const hook = renderTableController(baseOptions);
+
+			// Type into search — schedules the debounced commit, closing over
+			// whatever `search` the hook currently sees.
+			act(() => {
+				hook.result().search.onDraftChange('abc');
+			});
+
+			// Before the debounce fires, sort/size changes underneath it (e.g. the
+			// user clicked a column header, which writes a new URL and re-renders
+			// this hook with an updated `search` prop).
+			search = { ...search, sortId: 'level', sortOrder: 'asc' };
+			hook.rerender({ ...baseOptions, search });
+
+			act(() => {
+				vi.advanceTimersByTime(300);
+			});
+
+			// The committed search must reflect the NEWER sort/size, not the one
+			// captured when the debounce was scheduled — and still apply `q`.
+			expect(onSearchChange).toHaveBeenCalledTimes(1);
+			expect(onSearchChange).toHaveBeenCalledWith({
+				sortId: 'level',
+				sortOrder: 'asc',
+				size: 25,
+				q: 'abc',
+				cursor: undefined,
+			});
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });

@@ -104,6 +104,16 @@ export const useCursorPagination = (
 	);
 	const { sortId, sortOrder, size } = generation;
 
+	// Commit (not just derive) the reset when the generation changes, so a
+	// stale generation's cursor stack can never resurface if the caller later
+	// switches back to it (e.g. sort A -> sort B -> sort A). This is React's
+	// documented "adjust state during render" pattern: calling setState here
+	// bails out this render and re-renders with synced state before anything
+	// commits, so no stale cursor is ever read — on this render or a later one.
+	if (!sameGeneration(state.generation, generation)) {
+		setState(initialCursorPaginationState(generation));
+	}
+
 	const advance = useCallback(
 		(nextCursor: string | undefined) => {
 			setState((prev) =>
