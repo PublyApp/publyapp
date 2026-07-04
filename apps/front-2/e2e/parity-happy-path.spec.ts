@@ -8,13 +8,22 @@ import {
 
 const API_BASE_URL = 'https://api.front-2.localhost:8443';
 const AUTHED_STAFF_USERS_PATH = '/staff/users';
+const STAFF_INVITATIONS_NEW_PATH = '/staff/invitations/new';
+const STAFF_INVITATIONS_BULK_PATH = '/staff/invitations/bulk';
+const STAFF_PROFILES_PATH = '/staff/profiles';
 const STAFF_TABLE_TEST_ID = 'staff-users-table';
+const STAFF_INVITATIONS_CREATE_TEST_ID = 'staff-invitations-create-page';
 
 const EXPECTED_SEEDED_STAFF_EMAILS = [
 	'staff-admin@example.com',
 	'staff-user@example.com',
 	'owner@publyapp.local',
 ] as const;
+
+type StaffProfileFixture = {
+	id: string;
+	name: string;
+};
 
 const isStaffUsersResponse = (url: string): boolean => {
 	const parsed = new URL(url);
@@ -32,6 +41,15 @@ const waitForStaffUsersGetResponse = (page: Page) =>
 			response.status() === 200,
 	);
 
+const waitForStaffProfilesGetResponse = (page: Page) =>
+	page.waitForResponse(
+		(response) =>
+			new URL(response.url()).origin === API_BASE_URL &&
+			new URL(response.url()).pathname === STAFF_PROFILES_PATH &&
+			response.request().method() === 'GET' &&
+			response.status() === 200,
+	);
+
 const tableRows = (page: Page) =>
 	page
 		.getByRole('row')
@@ -42,6 +60,12 @@ const staffUserRow = (page: Page, email: string) =>
 
 const searchInput = (page: Page) =>
 	page.getByTestId(`${STAFF_TABLE_TEST_ID}-search`);
+
+const invitationEmailInput = (page: Page) =>
+	page.locator('input[name="invitations.0.email"]');
+
+const invitationSubmitButton = (page: Page) =>
+	page.getByTestId('staff-invitations-submit');
 
 const getThemeState = async (page: Page) =>
 	page.locator('html').evaluate((html) => ({
@@ -72,6 +96,36 @@ const mapRowsEmails = (rows: unknown[]): string[] => {
 	return emails;
 };
 
+const extractProfiles = async (response: {
+	json: () => Promise<unknown>;
+}): Promise<StaffProfileFixture[]> => {
+	const payload = (await response.json()) as {
+		data?: unknown;
+	};
+	const rows = Array.isArray(payload.data) ? payload.data : [];
+	const profiles: StaffProfileFixture[] = [];
+
+	for (const row of rows) {
+		if (
+			row &&
+			typeof row === 'object' &&
+			'id' in row &&
+			'name' in row &&
+			typeof row.id === 'string' &&
+			row.id.length > 0 &&
+			typeof row.name === 'string' &&
+			row.name.length > 0
+		) {
+			profiles.push({
+				id: row.id,
+				name: row.name,
+			});
+		}
+	}
+
+	return profiles;
+};
+
 const assertSeededRowsVisible = async (page: Page) => {
 	for (const email of EXPECTED_SEEDED_STAFF_EMAILS) {
 		await expect(staffUserRow(page, email)).toBeVisible();
@@ -98,6 +152,23 @@ const loginAndWaitForSeededRows = async (page: Page) => {
 
 	await expect(page.getByTestId(STAFF_TABLE_TEST_ID)).toBeVisible();
 	await expect(getInviteStaffUserButton(page)).toBeVisible();
+};
+
+const navigateToInviteUsersPage = async (
+	page: Page,
+): Promise<StaffProfileFixture[]> => {
+	const profilesResponse = waitForStaffProfilesGetResponse(page);
+	await Promise.all([
+		page.waitForURL(new RegExp(`${STAFF_INVITATIONS_NEW_PATH}$`)),
+		getInviteStaffUserButton(page).click(),
+	]);
+	const response = await profilesResponse;
+	const profiles = await extractProfiles(response);
+
+	await expect(
+		page.getByTestId(STAFF_INVITATIONS_CREATE_TEST_ID),
+	).toBeVisible();
+	return profiles;
 };
 
 const assertColumnShape = (page: Page) =>
@@ -159,10 +230,85 @@ test.describe('staff-users parity happy path', () => {
 
 		const invite = getInviteStaffUserButton(page);
 		await Promise.all([
-			page.waitForURL(/\/staff\/invitations\/new$/),
+			page.waitForURL(new RegExp(`${STAFF_INVITATIONS_NEW_PATH}$`)),
 			invite.click(),
 		]);
-		await expect(page).toHaveURL(/\/staff\/invitations\/new$/);
+		await expect(page).toHaveURL(new RegExp(`${STAFF_INVITATIONS_NEW_PATH}$`));
+	});
+
+	test('invite form shows English invalid email validation', async ({
+		page,
+	}) => {
+		await loginAndWaitForSeededRows(page);
+		await navigateToInviteUsersPage(page);
+
+		await invitationEmailInput(page).fill('invalid-email');
+		await invitationSubmitButton(page).click();
+
+		await expect(page.getByText('Invalid email')).toBeVisible();
+	});
+
+	test('invite form shows French invalid email validation', async ({
+		page,
+	}) => {
+		await setLocaleCookie(page, 'fr');
+		await loginAndWaitForSeededRows(page);
+		await navigateToInviteUsersPage(page);
+
+		await invitationEmailInput(page).fill('invalid-email');
+		await invitationSubmitButton(page).click();
+
+		await expect(page.getByText('e-mail non valide')).toBeVisible();
+	});
+
+	test('invite form requires a profile and submits with intercepted bulk create', async ({
+		page,
+	}) => {
+		await loginAndWaitForSeededRows(page);
+		const profiles = await navigateToInviteUsersPage(page);
+		const firstProfile = profiles[0];
+
+		expect(firstProfile, 'seeded staff profile for invite flow').toBeDefined();
+		if (!firstProfile) {
+			return;
+		}
+
+		let capturedBody:
+			| {
+					invitations?: Array<{
+						email?: string;
+						profileIds?: string[];
+					}>;
+			  }
+			| undefined;
+		await page.route(`**${STAFF_INVITATIONS_BULK_PATH}`, async (route) => {
+			capturedBody = route.request().postDataJSON() as typeof capturedBody;
+			await route.fulfill({
+				status: 201,
+				contentType: 'application/json',
+				body: JSON.stringify({ created: 1 }),
+			});
+		});
+
+		await invitationEmailInput(page).fill('new-staff@example.com');
+		await invitationSubmitButton(page).click();
+		await expect(
+			page.getByText('At least one profile is required'),
+		).toBeVisible();
+
+		const profileCheckbox = page.getByRole('checkbox', {
+			name: firstProfile.name,
+		});
+		await profileCheckbox.press('Space');
+		await expect(profileCheckbox).toBeChecked();
+		await invitationSubmitButton(page).click();
+
+		await expect(page.getByText('Invitations sent successfully')).toBeVisible();
+		await page.waitForURL(/\/staff\/staff-users$/);
+		expect(capturedBody?.invitations?.[0]?.email).toBe('new-staff@example.com');
+		expect(capturedBody?.invitations?.[0]?.profileIds).toEqual([
+			firstProfile.id,
+		]);
 	});
 
 	test('theme toggle persists across reload', async ({ page }) => {

@@ -46,6 +46,8 @@ let initialized = false;
 let interZodClient = bindInterZodToI18n(activeClientI18n, activeLocale);
 z.setErrorMap(interZodClient.getErrorMap());
 
+export const getInterZodClient = () => interZodClient;
+
 const resolveLocale = (value: string | undefined): SupportedLanguage =>
 	isSupportedLanguage(value) ? value : FALLBACK_LANGUAGE;
 
