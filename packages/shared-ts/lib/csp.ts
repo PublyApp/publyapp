@@ -23,13 +23,31 @@ export interface CSPDirectives {
 // Helmet-compatible CSP directives type
 export type HelmetCSPDirectives = Record<string, Iterable<string> | null>;
 
+type CSPConfigOptions = {
+	isDevelopment?: boolean;
+	nonce: string;
+	additionalConnectSrc?: string[];
+};
+
+const appendUnique = (values: string[], additions: string[]): string[] => {
+	const output = [...values];
+
+	for (const value of additions) {
+		if (!value || output.includes(value)) {
+			continue;
+		}
+
+		output.push(value);
+	}
+
+	return output;
+};
+
 export const createCSPDirectives = ({
 	isDevelopment = false,
 	nonce,
-}: {
-	isDevelopment?: boolean;
-	nonce: string;
-}): HelmetCSPDirectives => {
+	additionalConnectSrc = [],
+}: CSPConfigOptions): HelmetCSPDirectives => {
 	const _nonce = nonce ? `'nonce-${nonce}'` : '';
 
 	const baseDirectives: CSPDirectives = {
@@ -49,13 +67,16 @@ export const createCSPDirectives = ({
 		],
 		imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
 		fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
-		connectSrc: [
-			"'self'",
-			'https://www.publyapp.com',
-			'https://publyapp.com',
-			'https://us.i.posthog.com', // PostHog API
-			'https://us-assets.i.posthog.com', // PostHog Assets
-		],
+		connectSrc: appendUnique(
+			[
+				"'self'",
+				'https://www.publyapp.com',
+				'https://publyapp.com',
+				'https://us.i.posthog.com', // PostHog API
+				'https://us-assets.i.posthog.com', // PostHog Assets
+			],
+			additionalConnectSrc,
+		),
 		mediaSrc: ["'self'"],
 		objectSrc: ["'none'"],
 		baseUri: ["'self'"],
@@ -73,11 +94,12 @@ export const createCSPDirectives = ({
 			'blob:',
 		];
 		baseDirectives.connectSrc = [
-			...(baseDirectives.connectSrc || []),
-			'http://localhost:5000', // ASP server address
-			'http://localhost:5050', // vite server address
-			'ws:',
-			'wss:',
+			...appendUnique(baseDirectives.connectSrc || [], [
+				'http://localhost:5000', // ASP server address
+				'http://localhost:5050', // vite server address
+				'ws:',
+				'wss:',
+			]),
 		];
 	}
 
@@ -124,11 +146,13 @@ export const directivesToString = (directives: CSPDirectives): string => {
 export const createCSPHeader = ({
 	isDevelopment = false,
 	nonce,
-}: {
-	isDevelopment?: boolean;
-	nonce: string;
-}): string => {
-	const directives = createCSPDirectives({ isDevelopment, nonce });
+	additionalConnectSrc = [],
+}: CSPConfigOptions): string => {
+	const directives = createCSPDirectives({
+		isDevelopment,
+		nonce,
+		additionalConnectSrc,
+	});
 
 	// Convert Helmet format back to string format for Vite
 	const parts: string[] = [];
@@ -148,12 +172,18 @@ export const createCSPMetaTags = ({
 	isDevelopment = false,
 	reportOnly = true,
 	nonce,
+	additionalConnectSrc = [],
 }: {
 	isDevelopment?: boolean;
 	reportOnly?: boolean;
 	nonce: string;
+	additionalConnectSrc?: string[];
 }) => {
-	const cspPolicy = createCSPHeader({ isDevelopment, nonce });
+	const cspPolicy = createCSPHeader({
+		isDevelopment,
+		nonce,
+		additionalConnectSrc,
+	});
 
 	const metaTags = [
 		{ httpEquiv: 'Content-Security-Policy', content: cspPolicy },
@@ -174,28 +204,47 @@ export const getUnifiedCSPConfig = ({
 	isDevelopment = false,
 	reportOnly = true,
 	nonce,
+	additionalConnectSrc = [],
 }: {
 	isDevelopment?: boolean;
 	reportOnly?: boolean;
 	nonce: string;
+	additionalConnectSrc?: string[];
 }) => {
 	return {
-		directives: createCSPDirectives({ isDevelopment, nonce }),
+		directives: createCSPDirectives({
+			isDevelopment,
+			nonce,
+			additionalConnectSrc,
+		}),
 		headerKey: reportOnly
 			? 'Content-Security-Policy-Report-Only'
 			: 'Content-Security-Policy',
-		header: createCSPHeader({ isDevelopment, nonce: nonce || '' }),
+		header: createCSPHeader({
+			isDevelopment,
+			nonce: nonce || '',
+			additionalConnectSrc,
+		}),
 		metaTags: createCSPMetaTags({
 			isDevelopment,
 			reportOnly,
 			nonce: nonce || '',
+			additionalConnectSrc,
 		}),
 		// For Helmet configuration
 		helmetConfig: {
 			useDefaults: true,
 			reportOnly,
-			directives: createCSPDirectives({ isDevelopment, nonce: nonce || '' }),
-			policy: createCSPHeader({ isDevelopment, nonce: nonce || '' }),
+			directives: createCSPDirectives({
+				isDevelopment,
+				nonce: nonce || '',
+				additionalConnectSrc,
+			}),
+			policy: createCSPHeader({
+				isDevelopment,
+				nonce: nonce || '',
+				additionalConnectSrc,
+			}),
 		},
 	};
 };

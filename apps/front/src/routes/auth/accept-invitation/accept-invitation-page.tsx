@@ -370,6 +370,7 @@ export const action = getServerAction({
 		const cookieOptions = {
 			expires: sessionExpiry,
 			maxAge: duration.toSeconds('7d'),
+			path: '/',
 		};
 
 		// Determine where to send the user and encode cookie in dual-token format.
