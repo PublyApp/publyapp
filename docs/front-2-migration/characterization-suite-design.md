@@ -7,14 +7,14 @@ behavior as the golden reference before Phase 2 starts moving surfaces into
 
 ## Status
 
-- The first unit layer is already landed on `develop`: `apps/front` has Vitest,
-  a `front-unit` pull-request workflow, ApiFailure precedence specs, and
-  QueryClient 401-only logout specs.
-- #731 owns the remaining build work: the dev diagnostic redaction unit spec,
-  the compose-backed Playwright e2e harness, and the e2e specs listed in
+- The unit and e2e characterization layers are landed on `develop`.
+- `apps/front` has Vitest, ApiFailure precedence specs, QueryClient 401-only
+  logout specs, dev diagnostic redaction coverage, a minimal compose-backed
+  Playwright harness, and the first-gate e2e specs listed in
   `characterization-plan.md`.
-- The Phase-2 fan-out gate is not ready until the e2e suite is green on
-  `develop`. The gate wiring belongs to #725 after that.
+- The Phase-2 fan-out gate is the `front characterization` workflow. Its
+  `front-unit` and `front-e2e` jobs must stay green before a Phase-2 surface can
+  replace current-app behavior.
 
 ## Test Layers
 
@@ -58,8 +58,8 @@ The first merged unit slice covers:
 - `query_client.logout_is_401_only_for_queries`
 - `query_client.logout_is_401_only_for_mutations`
 
-The dev diagnostic redaction unit spec is still required before #725. It must
-stay unit-level because the relevant logger path is dev-mode browser code and
+The completed unit layer also covers dev diagnostic redaction. That coverage
+stays unit-level because the relevant logger path is dev-mode browser code and
 cannot be proven reliably by container log capture alone.
 
 ## Playwright E2E Harness
@@ -155,17 +155,27 @@ replaces current-app behavior.
 
 ## CI Shape
 
-The characterization workflow has two jobs over time:
+The characterization workflow lives at
+`.github/workflows/front-characterization.yml` and has two jobs:
 
-- `front-unit`: pull-request job that runs `pnpm --filter front run test`.
-  This already exists and is the fast guard for in-process invariants.
-- `front-e2e`: compose-backed job added with the e2e harness. It should run
-  after building a fresh stack and should upload the Playwright report on
-  failure.
+- `front-unit`: runs `pnpm --filter front run test` after frozen install,
+  trusted shared-ts postinstall, and format check. This is the fast guard for
+  in-process invariants.
+- `front-e2e`: installs Chromium, starts a fresh
+  `apps/front/docker-compose.test.yml` stack with `down -v` followed by
+  `up -d --build --wait`, runs `pnpm --filter front exec playwright test`, and
+  uploads Playwright plus compose logs on failure.
 
-Issue #725 should only wire the Phase-2 fan-out gate after #731 lands and both
-jobs are green on `develop`. Until then, #725 remains a follow-up gate issue,
-not a design or suite-build task.
+The workflow runs on every pull request so required checks cannot be left
+pending by workflow-level path filters. It also runs on `develop` pushes for
+current-app, front-2 migration, API, generated-client, shared package,
+migration-doc, and workflow changes. That keeps the current-app golden
+reference green while front-2 surfaces fan out.
+
+For the Phase-2 branch/ruleset gate, mark these status checks as blocking:
+
+- `front-unit`
+- `front-e2e`
 
 ## Non-Goals
 
