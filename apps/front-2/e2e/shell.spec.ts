@@ -193,6 +193,14 @@ test('renders the authed shell for /staff', async ({ page }) => {
 	).toHaveAttribute('aria-current', 'page');
 });
 
+test('redirects /staff/ to /staff/staff-users', async ({ page }) => {
+	await setSessionCookie(page);
+	await mockAuthRedirectCode(page);
+	await page.goto('/staff/');
+
+	await expect(page).toHaveURL('/staff/staff-users');
+});
+
 test('mobile shell menu is keyboard and route-aware', async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 812 });
 	await page.goto('/');
