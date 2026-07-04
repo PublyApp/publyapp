@@ -7,10 +7,18 @@ fan-out.
 
 This track belongs to:
 
-- #693: current-app test infrastructure in `apps/front` with Vitest, MSW, and
-  Playwright.
-- #694: current-app characterization testing design.
+- #693: the first current-app unit infrastructure slice in `apps/front`
+  (landed).
+- #730: current-app characterization testing design reconciliation.
+- #731: remaining suite build work, including the dev diagnostic redaction unit
+  spec, compose-backed Playwright harness, and first-gate e2e specs.
+- #725: Phase-2 fan-out gate wiring after #731 is green on `develop`.
 - #700: the front-2 migration epic.
+
+The stack design lives in
+[`characterization-suite-design.md`](characterization-suite-design.md). The
+current stack is Vitest unit tests plus Playwright e2e against a fresh compose
+stack. MSW is intentionally not part of this design.
 
 The assertion shapes below are authored against the M0.3 current-app baseline.
 M0.3 captures the current-app browser/API baseline values; this document lists
@@ -30,11 +38,11 @@ fan-out gate.
 | Stable spec name | Behavior under test | Parity invariant | Layer | Concrete assertion |
 |---|---|---|---|---|
 | `auth.login.redirects_seeded_staff_to_scope_home` | Valid seeded staff login redirects to the current staff landing target. | Auth: Valid seeded staff login reaches the authenticated shell. | Playwright-e2e | Submit the M0.3 seeded staff credentials on `/login`; assert the final URL and primary authenticated shell marker exactly match the M0.3 captured staff redirect target. |
-| `auth.login.seeded_staff_redirect_code_reaches_staff_shell` | Login redirect follows the current seeded staff redirect-code result. | Auth: Valid seeded staff login reaches the authenticated shell. | MSW-integration | Mock successful seeded staff login plus the M0.3 `/auth/redirect-code` response of `staff`; assert navigation chooses the captured current-app staff target and shell marker. |
+| `auth.login.seeded_staff_redirect_code_reaches_staff_shell` | Login redirect follows the current seeded staff redirect-code result. | Auth: Valid seeded staff login reaches the authenticated shell. | Playwright-e2e | Use the real seeded login flow, or force only the `/auth/redirect-code` response with Playwright `page.route(...)`; assert navigation chooses the captured current-app staff target and shell marker. |
 | `auth.login.invalid_credentials_renders_localized_problem` | Invalid credentials render an error and do not crash the route. | Auth: Invalid credentials show an error and do not crash the route. | Playwright-e2e | Submit a syntactically valid wrong password; assert the login route remains mounted, no authenticated shell is shown, and the alert text/translation key matches the M0.3 baseline. |
 | `auth.failure.auth_surface_401_does_not_logout` | A `401` produced by an auth-surface action stays on the auth surface and does not run authenticated app-data logout. | Auth: An auth-surface `401` (login/auth page) stays on the auth surface and does NOT run authenticated app-data logout or clear an existing session. | Playwright-e2e | Start with an authenticated browser session, replay the M0.3 captured `/login` form action where `apiClient.auth.login.post` returns `401`, and assert this auth-surface `401` renders the current login error state, keeps the current session cookie/token state unchanged, and does not redirect through authenticated app-data logout. Note: Phase 0 verified the current app returns RFC 7807 `400`, not `401`, for invalid credentials, so this spec pins auth-surface robustness for a synthetic/forced `401`. |
 | `auth.failure.authed_query_401_logs_out_once` | A `401` from authenticated app-data query handling clears session and redirects to `/login`. | Auth: `401` from an authenticated data path triggers centralized logout and redirects to `/login`. | Playwright-e2e | Navigate to the authenticated UI route `/staff/staff-users`, force the first method-specific `GET /staff/users` API data request to return RFC 7807 `401`, and assert one logout transition, cleared auth state, final `/login` URL, and no repeated redirect loop. |
-| `auth.failure.authed_mutation_401_logs_out_once` | A `401` from authenticated mutation handling uses the same centralized logout path. | Auth: `401` from an authenticated data path triggers centralized logout and redirects to `/login`. | MSW-integration | From `/staff/invitations/new`, submit the M0.3 valid bulk invite form and force `POST /staff/invitations/bulk` to return RFC 7807 `401`; assert the auth-error callback fires exactly once with status `401`, auth state is cleared, the final navigation target is `/login`, no repeated logout/redirect loop occurs, and no success/error toast path masks the logout. |
+| `auth.failure.authed_mutation_401_logs_out_once` | A `401` from authenticated mutation handling uses the same centralized auth-error path. | Auth: `401` from an authenticated data path triggers centralized logout; mutation handling must not double-fire. | Unit | Drive the mutation-cache error path through a real `QueryClient`; assert a normal mutation `401` calls the auth-error callback exactly once, `meta.skipAuthErrorHandler` suppresses it, and non-401 failures do not call it. The browser navigation consequence is covered by the authenticated query-401 e2e spec. |
 | `auth.failure.authed_403_does_not_logout` | `403` is forbidden, not invalid session. | Auth: Logout is `401`-only: `403`, `500`, network failure, timeout, reset, and invalid JSON do not log the user out. | Playwright-e2e | Navigate to the authenticated UI route `/staff/staff-users`, force app-data `GET /staff/users` to return RFC 7807 `403`, and assert the current session remains present, `/login` is not visited, and the current-app forbidden/error view matches M0.3. |
 
 ## ApiFailure And Query Handling
@@ -53,7 +61,7 @@ fan-out gate.
 | Stable spec name | Behavior under test | Parity invariant | Layer | Concrete assertion |
 |---|---|---|---|---|
 | `security.session_token_not_logged_browser_console` | Session token values never appear in browser-emitted diagnostics. | Auth: Session token values are never written to browser or container logs. | Playwright-e2e | Use a unique sentinel token/session value containing JSON- and URL-sensitive characters during login and route faults; collect app/browser-emitted console, page-error, and diagnostic log payloads; assert the raw token plus common URL-encoded and JSON-escaped forms never appear. Do not assert against harness-owned request/response objects that expose protocol headers by design. |
-| `security.session_token_not_logged_current_app_process` | Session token values never appear in current-app process output or browser diagnostics. | Cross-Cutting: Session tokens are redacted from deployed logs and browser diagnostic channels. | Playwright-e2e | Run the #693 current-app capture around the `apps/front` process stdout/stderr and browser diagnostics; exercise login, staff-users load, forced `401`, forced `403`, and network fault; assert the raw sentinel token plus common URL-encoded and JSON-escaped forms are absent from every captured current-app sink. |
+| `security.session_token_not_logged_current_app_process` | Session token values never appear in current-app process output or browser diagnostics. | Cross-Cutting: Session tokens are redacted from deployed logs and browser diagnostic channels. | Playwright-e2e | Run the #731 current-app e2e capture around the `apps/front` process stdout/stderr and browser diagnostics; exercise login, staff-users load, forced `401`, forced `403`, and network fault; assert the raw sentinel token plus common URL-encoded and JSON-escaped forms are absent from every captured current-app sink. |
 | `security.session_token_header_redacted_in_api_failure_debug` | Query/mutation debug logging does not leak request headers or raw token values into browser diagnostics. | Auth: Session token values are never written to browser or container logs. | Unit | In dev-mode error handling, pass failures containing headers/request metadata with `X-Session-Token`; assert browser logger payloads omit or redact the raw sentinel token plus common URL-encoded and JSON-escaped forms. |
 
 ## URL-State Characterization
@@ -89,8 +97,8 @@ first gate.
 ## Backlog Carry-Forward
 
 These are explicitly not part of the initial Phase-2 fan-out gate. They remain
-in the first design list so the #694 design has named coverage ready when #693
-infrastructure lands.
+in the design inventory so later migration work has named coverage ready when a
+task promotes a backlog behavior into the gate.
 
 These rows are design inventory, NOT part of the Phase-1 acceptance/gate
 coverage.
@@ -104,8 +112,8 @@ coverage.
 
 ## Phase-2 Gate
 
-When #693 and #694 are in place, the first green characterization suite from
-these sections becomes the Phase-2 fan-out gate:
+When the e2e harness/specs are green on `develop`, the first green
+characterization suite from these sections becomes the Phase-2 fan-out gate:
 
 - Auth Characterization.
 - ApiFailure And Query Handling.
