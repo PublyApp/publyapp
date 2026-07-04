@@ -16,8 +16,8 @@ import { z } from 'zod';
  * Uses .passthrough() to preserve any extra Kiota fields (responseHeaders, etc.)
  * that we don't explicitly define but might need later.
  *
- * IMPORTANT: Requires responseStatusCode (Kiota's discriminator) to prevent
- * false positives from random objects. This field is always present on Kiota errors.
+ * responseStatusCode is optional because SSR/error-boundary paths can receive
+ * plain RFC 7807 bodies without Kiota transport metadata.
  */
 export const AppProblemDetailsSchema = z
 	.object({
@@ -32,8 +32,7 @@ export const AppProblemDetailsSchema = z
 		translationKey: z.string().nullish(),
 
 		// Kiota's ApiError fields (added during error handling)
-		// responseStatusCode is REQUIRED - it's the discriminator that identifies Kiota errors
-		responseStatusCode: z.number(),
+		responseStatusCode: z.number().nullish(),
 		responseHeaders: z.record(z.array(z.string())).optional(),
 	})
 	.passthrough(); // Preserve any extra fields from Kiota
@@ -59,7 +58,8 @@ export type ValidationProblemDetailsShape = z.infer<
 export const isAppProblemDetailsShape = (
 	error: unknown,
 ): error is AppProblemDetailsShape => {
-	return AppProblemDetailsSchema.safeParse(error).success;
+	const result = AppProblemDetailsSchema.safeParse(error);
+	return result.success && hasProblemDetailsMarker(result.data);
 };
 
 /**
@@ -87,6 +87,9 @@ export const parseAppProblemDetails = (
 	if (!result.success) {
 		return undefined;
 	}
+	if (!hasProblemDetailsMarker(result.data)) {
+		return undefined;
+	}
 	return result.data;
 };
 
@@ -98,4 +101,13 @@ export const parseValidationProblemDetails = (
 	if (!result.data.errors || Object.keys(result.data.errors).length === 0)
 		return undefined;
 	return result.data;
+};
+
+const hasProblemDetailsMarker = (data: AppProblemDetailsShape): boolean => {
+	return (
+		data.type != null ||
+		data.instance != null ||
+		data.translationKey != null ||
+		data.responseStatusCode != null
+	);
 };
