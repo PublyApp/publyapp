@@ -2,6 +2,7 @@ const CONTROL_INDEX_PATH = '/__counter';
 const CONTROL_RESET_PATH = '/__counter/reset';
 
 const getCountKey = (method, path) => `${method} ${path}`;
+const getRawPath = (requestUrl) => (requestUrl ?? '/').split('?')[0] ?? '/';
 
 const getPathTotal = (counts, path) => {
 	let total = 0;
@@ -43,9 +44,10 @@ const json = (body) => ({
 
 export const getControlResponse = (request, counts) => {
 	const method = request.method ?? 'GET';
+	const rawPath = getRawPath(request.url);
 	const url = new URL(request.url ?? '/', 'http://request-counter.local');
 
-	if (url.pathname === CONTROL_RESET_PATH) {
+	if (rawPath === CONTROL_RESET_PATH) {
 		if (method !== 'POST') {
 			return methodNotAllowed('POST');
 		}
@@ -58,7 +60,7 @@ export const getControlResponse = (request, counts) => {
 		};
 	}
 
-	if (url.pathname === CONTROL_INDEX_PATH) {
+	if (rawPath === CONTROL_INDEX_PATH) {
 		if (method !== 'GET') {
 			return methodNotAllowed('GET');
 		}
@@ -72,7 +74,7 @@ export const getControlResponse = (request, counts) => {
 		return json({ count });
 	}
 
-	if (url.pathname.startsWith(`${CONTROL_INDEX_PATH}/`)) {
+	if (rawPath.startsWith(`${CONTROL_INDEX_PATH}/`)) {
 		return notFound();
 	}
 

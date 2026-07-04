@@ -10,7 +10,8 @@
 		"verify:build": "node scripts/verify-build-css-link.mjs",
 		"start": "node server.mjs",
 		"typecheck": "tsc --noEmit",
-		"test": "vitest run"
+		"test:request-counter": "node --test deploy/request-counter/control-routes.test.mjs",
+		"test": "vitest run && pnpm test:request-counter"
 	},
 	"dependencies": {
 		"@microsoft/kiota-abstractions": "1.0.0-preview.97",

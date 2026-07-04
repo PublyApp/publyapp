@@ -113,6 +113,31 @@ test('unknown /__counter/* paths return 404', () => {
 	});
 });
 
+test('dot-segment escapes under /__counter/* still return 404', () => {
+	const counts = buildCounts();
+
+	for (const url of [
+		'/__counter/../staff/users',
+		'/__counter/%2e%2e/staff/users',
+	]) {
+		const response = getControlResponse(
+			{
+				method: 'GET',
+				url,
+			},
+			counts,
+		);
+
+		assert.deepEqual(response, {
+			statusCode: 404,
+			headers: {
+				'content-type': 'text/plain; charset=utf-8',
+			},
+			body: 'Not Found',
+		});
+	}
+});
+
 test('non-control app paths that only start with /__counter fall through', () => {
 	const response = getControlResponse(
 		{
