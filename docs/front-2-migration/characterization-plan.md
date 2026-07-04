@@ -112,18 +112,25 @@ coverage.
 
 ## Phase-2 Gate
 
-When the e2e harness/specs are green on `develop`, the first green
-characterization suite from these sections becomes the Phase-2 fan-out gate:
+The first green characterization suite from these sections is the Phase-2
+fan-out gate:
 
 - Auth Characterization.
 - ApiFailure And Query Handling.
 - Log-Redaction Characterization.
-- URL-State Characterization (`q` round-trip only; `size` follows in a later gate after baseline capture).
+- URL-State Characterization (`q` round-trip only; `size` follows in a later
+  gate after baseline capture).
 - Staff-Users Characterization.
 
 - `apps/front` must stay green against this suite while front-2 is built.
 - `apps/front-2` must pass the same parity assertions before replacing or
   expanding a migrated surface.
+- The `front characterization` workflow must be green for every Phase-2 fan-out
+  PR that changes the current app, the new front-2 app, the API, generated
+  client, shared TypeScript package, or this migration contract.
+- Treat these status checks as blocking for Phase 2:
+  - `front-unit`
+  - `front-e2e`
 - Backlog Carry-Forward specs are excluded backlog until a later
   migration task explicitly promotes them into the gate.
 - Known current-app divergences from the spike are locked unless a later

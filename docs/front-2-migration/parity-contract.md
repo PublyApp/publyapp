@@ -9,6 +9,22 @@ Each migrated page must preserve the relevant invariants against the current
 already proven by the existing spike evidence. The next task checks `apps/front`
 against this contract.
 
+## Phase-2 Fan-Out Gate
+
+Every Phase-2 surface migration must keep the current-app golden reference
+green before it can replace `apps/front` behavior. The blocking CI checks are:
+
+- `front-unit`
+- `front-e2e`
+
+The `front characterization` workflow runs those checks on every pull request
+so required checks cannot be left pending by workflow-level path filters. It
+also runs on `develop` pushes for current-app, front-2 migration, API,
+generated-client, shared package, workflow, and migration-doc changes. A
+migration PR may add or strengthen front-2 parity assertions, but it must not
+weaken or remove the current-app characterization checks unless this contract
+records an explicit follow-up decision.
+
 ## apps/front verification (Phase 0)
 
 Checked on 2026-06-20 from worktree `spike/front-2-phase-0`.
