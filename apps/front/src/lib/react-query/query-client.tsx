@@ -4,8 +4,10 @@ import i18next from 'i18next';
 
 import { isServer } from '@org/shared-ts/lib/constants';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { redactHeaders } from '@org/shared-ts/lib/redaction';
 
 import { getFailureMessage, toApiFailure } from '#app/lib/api-failure/index.ts';
+import type { ApiFailure } from '#app/lib/api-failure/types.ts';
 import {
 	clearLegacyTenantFromBrowser,
 	clearTenantHintForUserInBrowser,
@@ -226,6 +228,116 @@ const safeTranslate = (
 	return defaultValue;
 };
 
+const LOG_URL_FIELDS = new Set(['href', 'uri', 'url']);
+const LOG_TEXT_FIELDS = new Set([
+	'detail',
+	'errors',
+	'fielderrors',
+	'message',
+	'title',
+]);
+
+const redactUrlForLog = (value: string): string => {
+	try {
+		const url = new URL(value);
+		if (url.origin === 'null') {
+			return '[REDACTED]';
+		}
+		return `${url.origin}/[REDACTED]`;
+	} catch {
+		return '[REDACTED]';
+	}
+};
+
+const sanitizeDiagnosticValue = (
+	value: unknown,
+	seen = new WeakSet<object>(),
+): unknown => {
+	if (typeof value === 'string') {
+		return '[REDACTED]';
+	}
+
+	if (value == null || typeof value !== 'object') {
+		return value;
+	}
+
+	if (typeof Headers !== 'undefined' && value instanceof Headers) {
+		return redactHeaders(value);
+	}
+
+	if (seen.has(value)) {
+		return '[Circular]';
+	}
+	seen.add(value);
+
+	if (Array.isArray(value)) {
+		return value.map((item) => sanitizeDiagnosticValue(item, seen));
+	}
+
+	if (value instanceof Error) {
+		return {
+			name: value.name,
+			message: '[REDACTED]',
+		};
+	}
+
+	const output: Record<string, unknown> = {};
+	for (const [key, entryValue] of Object.entries(value)) {
+		const normalizedKey = key.toLowerCase();
+
+		if (normalizedKey.endsWith('headers')) {
+			output[key] = redactHeaders(
+				entryValue as Parameters<typeof redactHeaders>[0],
+			);
+			continue;
+		}
+
+		if (LOG_TEXT_FIELDS.has(normalizedKey)) {
+			output[key] = '[REDACTED]';
+			continue;
+		}
+
+		if (
+			normalizedKey.includes('token') ||
+			normalizedKey === 'authorization' ||
+			normalizedKey === 'proxy-authorization' ||
+			normalizedKey === 'cookie' ||
+			normalizedKey === 'set-cookie'
+		) {
+			output[key] = '[REDACTED]';
+			continue;
+		}
+
+		if (LOG_URL_FIELDS.has(normalizedKey) && typeof entryValue === 'string') {
+			output[key] = redactUrlForLog(entryValue);
+			continue;
+		}
+
+		output[key] = sanitizeDiagnosticValue(entryValue, seen);
+	}
+
+	return output;
+};
+
+const sanitizeFailureForLog = (
+	failure: ApiFailure,
+): Record<string, unknown> => {
+	const output: Record<string, unknown> = {
+		kind: failure.kind,
+		raw: sanitizeDiagnosticValue(failure.raw),
+	};
+
+	if ('status' in failure) {
+		output.status = failure.status;
+	}
+
+	if ('translationKey' in failure && failure.translationKey) {
+		output.translationKey = failure.translationKey;
+	}
+
+	return output;
+};
+
 /**
  * Create a mutation error handler with auth callback.
  */
@@ -241,7 +353,10 @@ const createMutationErrorHandler = () => {
 
 		// Log all errors for debugging (even on server for SSR debugging)
 		if (import.meta.env.DEV) {
-			logger.error('[Mutation Error]', { kind: failure.kind, failure });
+			logger.error('[Mutation Error]', {
+				kind: failure.kind,
+				failure: sanitizeFailureForLog(failure),
+			});
 		}
 
 		// Abort errors are ALWAYS silent - user navigated away or request was cancelled
@@ -382,7 +497,10 @@ const createQueryErrorHandler = (onAuthError?: OnAuthErrorCallback) => {
 		if (failure.kind === 'abort') return;
 
 		if (import.meta.env.DEV) {
-			logger.error('[Query Error]', { kind: failure.kind, failure });
+			logger.error('[Query Error]', {
+				kind: failure.kind,
+				failure: sanitizeFailureForLog(failure),
+			});
 		}
 
 		// Centralized auth error handling - 401 ONLY triggers logout
@@ -401,7 +519,7 @@ const createQueryErrorHandler = (onAuthError?: OnAuthErrorCallback) => {
 			} else if (!currentOnAuthError && import.meta.env.DEV) {
 				logger.error('[Auth Error Handler Missing]', {
 					status: failure.status,
-					failure,
+					failure: sanitizeFailureForLog(failure),
 				});
 			}
 		}

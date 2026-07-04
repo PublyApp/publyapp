@@ -130,6 +130,7 @@ export const action = getServerAction({
 		const cookieOptions = {
 			expires: loginResult.data?.sessionExpiresAt || new Date(),
 			maxAge: fSecondsUntil(loginResult.data?.sessionExpiresAt),
+			path: '/',
 		};
 
 		const sessionToken = loginResult.data?.sessionToken || '';

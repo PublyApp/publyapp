@@ -33,6 +33,22 @@ declare global {
 
 const isDevelopment = import.meta.env.DEV;
 
+const getConfiguredApiConnectSrc = (): string[] => {
+	const apiBaseUrl = import.meta.env.VITE_ASP_SERVER_URL;
+	if (!apiBaseUrl) {
+		return [];
+	}
+
+	try {
+		const origin = new URL(apiBaseUrl).origin;
+		return origin === 'null' ? [] : [origin];
+	} catch {
+		return [];
+	}
+};
+
+const configuredApiConnectSrc = getConfiguredApiConnectSrc();
+
 if (isDevelopment) {
 	logger.logLevel = LogLevelEnum.DEBUG;
 } else {
@@ -57,6 +73,7 @@ app.use((req, res, next) => {
 			isDevelopment,
 			reportOnly: false,
 			nonce,
+			additionalConnectSrc: configuredApiConnectSrc,
 		}).helmetConfig,
 	})(req, res, next);
 });
