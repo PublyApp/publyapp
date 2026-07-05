@@ -298,6 +298,35 @@ describe('staff tenant user edit route', () => {
 		);
 	});
 
+	test('sends null for cleared nullable fields on success', async () => {
+		const mutateAsync = vi
+			.fn()
+			.mockResolvedValue({ id: '22222222-2222-2222-2222-222222222222' });
+		mocks.useUpdateStaffTenantUserMutation.mockReturnValue({
+			mutateAsync,
+			isPending: false,
+		});
+
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('First name'), {
+			target: { value: '   ' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() =>
+			expect(mutateAsync).toHaveBeenCalledWith(
+				expect.objectContaining({
+					tenantId: '11111111-1111-1111-1111-111111111111',
+					userId: '22222222-2222-2222-2222-222222222222',
+					firstName: null,
+				}),
+			),
+		);
+	});
+
 	test.each([
 		{
 			name: '400',

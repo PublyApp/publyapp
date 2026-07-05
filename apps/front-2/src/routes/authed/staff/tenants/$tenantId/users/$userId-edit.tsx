@@ -37,10 +37,10 @@ const EDIT_ACCOUNT_LEVEL_OPTIONS = ['Admin', 'User'] as const;
 
 const normalizeOptionalUpdateString = (
 	value: string | undefined,
-): string | null | undefined => {
+): string | null => {
 	const trimmed = value?.trim();
 	if (!trimmed) {
-		return undefined;
+		return null;
 	}
 
 	return trimmed;
