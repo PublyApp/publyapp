@@ -220,7 +220,7 @@ function StaffTenantProfileDetailsPage() {
 		<TenantDetailsPageShell
 			tenant={tenant}
 			activeSection="profiles"
-			summary="Read-only tenant profile details carried forward in the front-2 migration shell."
+			summary="Review tenant profile details and edit the profile name or description."
 			testId="staff-tenant-profile-details-page"
 		>
 			<div className="space-y-6">
@@ -250,11 +250,20 @@ function StaffTenantProfileDetailsPage() {
 							</p>
 						</div>
 
-						<div className="w-full max-w-xs">
+						<div className="flex w-full max-w-xs flex-col gap-3">
 							<DetailItem
 								label="Assigned users"
 								value={String(profile.userAccountCount)}
 							/>
+							<Link
+								to={
+									'/staff/tenants/$tenantId/profiles/$profileId/edit' as never
+								}
+								params={{ tenantId, profileId } as never}
+								className="inline-flex items-center justify-center rounded-medium border border-divider px-4 py-2 text-sm font-medium text-foreground transition hover:border-default-400 hover:bg-default-100"
+							>
+								Edit profile
+							</Link>
 						</div>
 					</div>
 				</div>

@@ -60,6 +60,13 @@ function StaffTenantProfilesPage() {
 					<p className="text-xs text-foreground-500">
 						{row.original.description ?? 'No description provided.'}
 					</p>
+					<Link
+						to={'/staff/tenants/$tenantId/profiles/$profileId/edit' as never}
+						params={{ tenantId, profileId: row.original.id } as never}
+						className="inline-flex text-xs font-medium text-foreground-500 underline-offset-4 hover:text-foreground hover:underline"
+					>
+						Edit profile
+					</Link>
 				</div>
 			),
 		},

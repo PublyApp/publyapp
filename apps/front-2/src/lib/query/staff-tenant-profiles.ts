@@ -11,6 +11,7 @@ import type {
 	FindTenantProfilesAsStaffResult,
 	GetTenantProfileByIdResponse,
 	TenantProfileItem,
+	UpdateTenantProfileAsStaffBody,
 } from '@org/client-ts/src/models/index.js';
 import {
 	buildStaffMutationOptions,
@@ -28,6 +29,13 @@ export type StaffTenantProfilesQueryVariables = {
 
 export type CreateStaffTenantProfileInput = {
 	tenantId: string;
+	name: string;
+	description?: string;
+};
+
+export type UpdateStaffTenantProfileInput = {
+	tenantId: string;
+	profileId: string;
 	name: string;
 	description?: string;
 };
@@ -113,6 +121,23 @@ export const buildCreateStaffTenantProfileBody = (
 			description,
 		) as typeof body.description;
 	}
+
+	return body;
+};
+
+export const buildUpdateStaffTenantProfileBody = (
+	input: Omit<UpdateStaffTenantProfileInput, 'tenantId' | 'profileId'>,
+): UpdateTenantProfileAsStaffBody => {
+	const body: UpdateTenantProfileAsStaffBody = {};
+	const description = normalizeString(input.description);
+
+	body.name = createUntypedString(input.name.trim()) as typeof body.name;
+	body.description =
+		description === undefined
+			? input.description === undefined
+				? undefined
+				: null
+			: (createUntypedString(description) as typeof body.description);
 
 	return body;
 };
@@ -218,6 +243,22 @@ const createStaffTenantProfileMutationOptions = buildStaffMutationOptions<
 	{ clientAccessor: getClientManager() },
 );
 
+const updateStaffTenantProfileMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	GetTenantProfileByIdResponse | undefined,
+	UpdateStaffTenantProfileInput
+>(
+	{
+		mutationKeyFn: () => ['staff-tenants', 'profiles', 'update'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.profiles.byProfileId(variables.profileId)
+				.patch(buildUpdateStaffTenantProfileBody(variables)),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
 const staffTenantProfileDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetTenantProfileByIdResponse,
@@ -280,6 +321,9 @@ export const useStaffTenantProfilesQuery = (
 
 export const useCreateStaffTenantProfileMutation = () =>
 	useMutation(createStaffTenantProfileMutationOptions);
+
+export const useUpdateStaffTenantProfileMutation = () =>
+	useMutation(updateStaffTenantProfileMutationOptions);
 
 export const useStaffTenantProfileDetailsQuery = (
 	variables: StaffTenantProfileDetailsQueryVariables,
