@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 
 import {
@@ -42,7 +43,13 @@ export const createInvitationColumns = ({
 		accessorKey: 'email',
 		cell: ({ row }) => (
 			<div>
-				<div>{row.original.email || '-'}</div>
+				<Link
+					to="/staff/invitations/$invitationId"
+					params={{ invitationId: row.original.id }}
+					className="font-medium text-primary underline-offset-4 hover:underline"
+				>
+					{row.original.email || '-'}
+				</Link>
 				<div className="text-xs text-muted">
 					{t('staff-invited-by')}: {row.original.invitedByName}
 				</div>

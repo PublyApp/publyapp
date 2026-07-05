@@ -9,9 +9,12 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type {
+	ApiResponse,
 	BulkCreateStaffInvitationsBody,
 	BulkStaffInvitationsCreated,
 	FindStaffInvitationsResult,
+	GetStaffInvitationLinkResult,
+	StaffInvitationDetails,
 } from '@org/client-ts/src/models/index.js';
 import {
 	buildStaffMutationOptions,
@@ -34,6 +37,14 @@ export type StaffInvitationsQueryVariables = {
 	cursor?: string;
 	size?: number;
 	status?: string;
+};
+
+export type StaffInvitationDetailsVariables = {
+	invitationId: string;
+};
+
+export type StaffInvitationActionVariables = {
+	invitationId: string;
 };
 
 const normalizeString = (value: string | undefined): string | undefined => {
@@ -118,6 +129,78 @@ const staffInvitationsQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
+const staffInvitationDetailsQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	StaffInvitationDetails,
+	StaffInvitationDetailsVariables
+>(
+	{
+		queryKeyFn: () => ['staff-invitations', 'details'],
+		fetcher: async (client, variables) => {
+			const result = await client.staff.invitations
+				.byInvitationId(variables.invitationId)
+				.get();
+
+			if (!result) {
+				throw new Error('staff invitation details result was empty');
+			}
+
+			return result;
+		},
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+const staffInvitationLinkMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	GetStaffInvitationLinkResult,
+	StaffInvitationActionVariables
+>(
+	{
+		mutationKeyFn: () => ['staff-invitations', 'link'],
+		mutationFn: async (client, variables) => {
+			const result = await client.staff.invitations
+				.byInvitationId(variables.invitationId)
+				.link.get();
+
+			if (!result) {
+				throw new Error('staff invitation link result was empty');
+			}
+
+			return result;
+		},
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+const resendStaffInvitationMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	ApiResponse | undefined,
+	StaffInvitationActionVariables
+>(
+	{
+		mutationKeyFn: () => ['staff-invitations', 'resend'],
+		mutationFn: (client, variables) =>
+			client.staff.invitations
+				.byInvitationId(variables.invitationId)
+				.resend.post(),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+const revokeStaffInvitationMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	ApiResponse | undefined,
+	StaffInvitationActionVariables
+>(
+	{
+		mutationKeyFn: () => ['staff-invitations', 'revoke'],
+		mutationFn: (client, variables) =>
+			client.staff.invitations.byInvitationId(variables.invitationId).delete(),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
 export const useBulkCreateStaffInvitationsMutation = () =>
 	useMutation(bulkCreateStaffInvitationsMutationOptions);
 
@@ -128,3 +211,20 @@ export const useStaffInvitationsQuery = (
 		queryKey: staffInvitationsQueryOptions.queryKey(variables),
 		queryFn: () => staffInvitationsQueryOptions.fetcher(variables),
 	});
+
+export const useStaffInvitationDetailsQuery = (
+	variables: StaffInvitationDetailsVariables,
+) =>
+	useQuery({
+		queryKey: staffInvitationDetailsQueryOptions.queryKey(variables),
+		queryFn: () => staffInvitationDetailsQueryOptions.fetcher(variables),
+	});
+
+export const useStaffInvitationLinkMutation = () =>
+	useMutation(staffInvitationLinkMutationOptions);
+
+export const useResendStaffInvitationMutation = () =>
+	useMutation(resendStaffInvitationMutationOptions);
+
+export const useRevokeStaffInvitationMutation = () =>
+	useMutation(revokeStaffInvitationMutationOptions);
