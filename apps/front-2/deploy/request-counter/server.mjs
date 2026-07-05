@@ -5,6 +5,8 @@ import { createServer as createHttpsServer } from 'node:https';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { getControlResponse, writeControlResponse } from './control-routes.mjs';
+
 const parseUpstream = () => {
 	if (!process.env.API_UPSTREAM) {
 		throw new Error('API_UPSTREAM is required');
@@ -42,19 +44,6 @@ const counts = new Map();
 
 const getCountKey = (method, path) => `${method} ${path}`;
 
-const getPathTotal = (path) => {
-	let total = 0;
-
-	for (const [key, count] of counts) {
-		const keyPath = key.slice(key.indexOf(' ') + 1);
-		if (keyPath === path) {
-			total += count;
-		}
-	}
-
-	return total;
-};
-
 const createTlsOptions = () => {
 	const dir = mkdtempSync(join(tmpdir(), 'request-counter-tls-'));
 	const keyPath = join(dir, 'key.pem');
@@ -89,22 +78,9 @@ const createTlsOptions = () => {
 };
 
 const handleRequest = (req, res) => {
-	if (req.method === 'POST' && req.url === '/__counter/reset') {
-		counts.clear();
-		res.end('ok');
-		return;
-	}
-
-	if (req.url?.startsWith('/__counter')) {
-		const params = new URL(req.url, 'http://x').searchParams;
-		const path = params.get('path') ?? '';
-		const method = params.get('method')?.toUpperCase();
-		const count = method
-			? (counts.get(getCountKey(method, path)) ?? 0)
-			: getPathTotal(path);
-
-		res.setHeader('content-type', 'application/json');
-		res.end(JSON.stringify({ count }));
+	const controlResponse = getControlResponse(req, counts);
+	if (controlResponse) {
+		writeControlResponse(res, controlResponse);
 		return;
 	}
 
