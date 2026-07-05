@@ -140,7 +140,7 @@ const getInterZodForI18n = (instance: I18nInstance) => {
 	});
 };
 
-export const Route = createFileRoute('/_authed-layout/staff/profiles-new')({
+export const Route = createFileRoute('/_authed-layout/staff/profiles/new')({
 	component: NewStaffProfileRoute,
 });
 
