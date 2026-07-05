@@ -36,6 +36,7 @@ type InvitationDetailsCardProps = {
 	invitationId: string;
 	invitation: StaffInvitationDetails;
 	onRefresh: () => Promise<unknown>;
+	onAuthFailure: () => void;
 };
 
 const NOT_FOUND_TRANSLATION_KEY = 'malformed-id';
@@ -155,6 +156,7 @@ const InvitationDetailsCard = ({
 	invitationId,
 	invitation,
 	onRefresh,
+	onAuthFailure,
 }: InvitationDetailsCardProps) => {
 	const { t, i18n } = useTranslation('common');
 	const locale = i18n?.language ?? 'en';
@@ -173,6 +175,11 @@ const InvitationDetailsCard = ({
 		copyLink.isPending || resend.isPending || revoke.isPending;
 
 	const handleActionError = (error: unknown, fallback: string) => {
+		if (shouldLogoutForFailure(error)) {
+			onAuthFailure();
+			return;
+		}
+
 		setFeedback({
 			tone: 'error',
 			message: getFailureMessage(toApiFailure(error), { fallback }),
@@ -407,11 +414,15 @@ export function StaffInvitationDetailsPage({
 }: {
 	invitationId: string;
 }) {
+	const [shouldLogout, setShouldLogout] = useState(false);
 	const detailQuery = useStaffInvitationDetailsQuery({
 		invitationId,
 	});
 
-	if (detailQuery.isError && shouldLogoutForFailure(detailQuery.error)) {
+	if (
+		shouldLogout ||
+		(detailQuery.isError && shouldLogoutForFailure(detailQuery.error))
+	) {
 		return <LogoutRedirect />;
 	}
 
@@ -428,6 +439,7 @@ export function StaffInvitationDetailsPage({
 						invitationId={invitationId}
 						invitation={data}
 						onRefresh={() => detailQuery.refetch()}
+						onAuthFailure={() => setShouldLogout(true)}
 					/>
 				)}
 			</QueryDisplay>

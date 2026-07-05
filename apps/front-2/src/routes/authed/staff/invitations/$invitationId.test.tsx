@@ -97,6 +97,7 @@ const renderPage = () => {
 describe('StaffInvitationDetailsPage', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		Object.assign(globalThis.navigator, {
 			clipboard: {
 				writeText: vi.fn().mockResolvedValue(undefined),
@@ -178,6 +179,44 @@ describe('StaffInvitationDetailsPage', () => {
 		renderPage();
 
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+	});
+
+	test('renders the logout redirect for a 401 resend action failure', async () => {
+		const resend = vi.fn().mockRejectedValue({
+			status: 401,
+			responseStatusCode: 401,
+			title: 'Unauthorized',
+			detail: 'Unauthorized',
+		});
+
+		mocks.shouldLogoutForFailure.mockReturnValue(true);
+		mocks.useStaffInvitationDetailsQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					id: '11111111-1111-1111-1111-111111111111',
+					email: 'pending-staff@example.com',
+					status: 'Pending',
+					invitedByName: 'Owner User',
+					createdAt: new Date('2026-07-01T09:00:00Z'),
+					expiresAt: new Date('2026-07-10T12:00:00Z'),
+					acceptedAt: null,
+					revokedAt: null,
+					profiles: [],
+				},
+			}),
+		);
+		mocks.useResendStaffInvitationMutation.mockReturnValue({
+			mutateAsync: resend,
+			isPending: false,
+		});
+
+		renderPage();
+		fireEvent.click(screen.getByRole('button', { name: 'Resend' }));
+
+		await waitFor(() => expect(resend).toHaveBeenCalledTimes(1));
+		await waitFor(() =>
+			expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
+		);
 	});
 
 	test('shows an inline resend error for a forbidden action without logging out', async () => {
