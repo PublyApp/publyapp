@@ -1,5 +1,6 @@
-import { Button } from '@heroui/react';
+import { buttonVariants, Button } from '@heroui/react';
 import { createFileRoute } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -7,7 +8,11 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
-import { useStaffProfilesQuery } from '~/lib/query/staff-profiles';
+import {
+	type StaffProfileRow,
+	toStaffProfileRows,
+	useStaffProfilesQuery,
+} from '~/lib/query/staff-profiles';
 import {
 	parseTableSearchParams,
 	serializeTableSearchParams,
@@ -18,39 +23,8 @@ import type {
 } from '~/lib/url-state/table-search-params';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
-import type { StaffProfileItem } from '@org/client-ts/src/models/index.js';
-
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
-
-export type StaffProfileRow = {
-	id: string;
-	name: string;
-	description: string | null;
-	userAccountCount: number;
-};
-
-export const toStaffProfileRows = (
-	items: StaffProfileItem[] | null | undefined,
-): StaffProfileRow[] => {
-	const list = items ?? [];
-	const rows: StaffProfileRow[] = [];
-
-	for (const item of list) {
-		if (typeof item.id !== 'string' || item.id.length === 0) {
-			continue;
-		}
-
-		rows.push({
-			id: item.id,
-			name: item.name?.trim() || '—',
-			description: item.description ?? null,
-			userAccountCount: item.userAccountCount ?? 0,
-		});
-	}
-
-	return rows;
-};
 
 const columns: ColumnDef<StaffProfileRow>[] = [
 	{
@@ -137,9 +111,12 @@ function StaffProfilesPage() {
 		<div className="space-y-4 p-4">
 			<div className="flex items-center justify-between gap-4">
 				<h1 className="text-xl font-semibold">Staff profiles</h1>
-				<Button variant="primary" isDisabled>
+				<Link
+					to={'/staff/profiles/new' as never}
+					className={buttonVariants({ variant: 'primary' })}
+				>
 					{t('new-item', { item: t('profile').toLowerCase() })}
-				</Button>
+				</Link>
 			</div>
 			<DataTable
 				testId="staff-profiles-table"
