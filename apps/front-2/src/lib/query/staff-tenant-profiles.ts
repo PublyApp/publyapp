@@ -6,6 +6,7 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type {
+	ApiResponse,
 	CreateTenantProfileAsStaffBody,
 	FindTenantProfilePermissionsAsStaffResult,
 	FindTenantProfilesAsStaffResult,
@@ -40,6 +41,11 @@ export type UpdateStaffTenantProfileInput = {
 	description?: string;
 };
 
+export type DeleteStaffTenantProfileInput = {
+	tenantId: string;
+	profileId: string;
+};
+
 export type StaffTenantProfileRow = {
 	id: string;
 	name: string;
@@ -70,6 +76,14 @@ export const STAFF_TENANT_PROFILES_QUERY_KEY = [
 	'staff',
 	'staff-tenants',
 	'profiles',
+] as const;
+export const STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY = [
+	...STAFF_TENANT_PROFILES_QUERY_KEY,
+	'detail',
+] as const;
+export const STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY = [
+	...STAFF_TENANT_PROFILES_QUERY_KEY,
+	'permission-keys',
 ] as const;
 
 const normalizeString = (
@@ -259,13 +273,30 @@ const updateStaffTenantProfileMutationOptions = buildStaffMutationOptions<
 	{ clientAccessor: getClientManager() },
 );
 
+export const deleteStaffTenantProfileMutationOptions =
+	buildStaffMutationOptions<
+		ApiClient,
+		ApiResponse | undefined,
+		DeleteStaffTenantProfileInput
+	>(
+		{
+			mutationKeyFn: () => ['staff-tenants', 'profiles', 'delete'],
+			mutationFn: (client, variables) =>
+				client.staff.tenants
+					.byTenantId(variables.tenantId)
+					.profiles.byProfileId(variables.profileId)
+					.delete(),
+		},
+		{ clientAccessor: getClientManager() },
+	);
+
 const staffTenantProfileDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetTenantProfileByIdResponse,
 	StaffTenantProfileDetailsQueryVariables
 >(
 	{
-		queryKeyFn: () => ['staff-tenants', 'profiles', 'detail'],
+		queryKeyFn: () => [...STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY.slice(1)],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.tenants
 				.byTenantId(variables.tenantId)
@@ -288,7 +319,9 @@ const staffTenantProfilePermissionKeysQueryOptions = buildStaffQueryOptions<
 	StaffTenantProfilePermissionKeysQueryVariables
 >(
 	{
-		queryKeyFn: () => ['staff-tenants', 'profiles', 'permission-keys'],
+		queryKeyFn: () => [
+			...STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY.slice(1),
+		],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.tenants
 				.byTenantId(variables.tenantId)
@@ -324,6 +357,9 @@ export const useCreateStaffTenantProfileMutation = () =>
 
 export const useUpdateStaffTenantProfileMutation = () =>
 	useMutation(updateStaffTenantProfileMutationOptions);
+
+export const useDeleteStaffTenantProfileMutation = () =>
+	useMutation(deleteStaffTenantProfileMutationOptions);
 
 export const useStaffTenantProfileDetailsQuery = (
 	variables: StaffTenantProfileDetailsQueryVariables,

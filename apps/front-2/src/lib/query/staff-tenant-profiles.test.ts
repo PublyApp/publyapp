@@ -1,6 +1,17 @@
-import { describe, expect, test } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+
+const mocks = vi.hoisted(() => ({
+	getOrCreateStaffClient: vi.fn(),
+}));
+
+vi.mock('~/lib/api-client/client-manager', () => ({
+	getClientManager: () => ({
+		getOrCreateStaffClient: mocks.getOrCreateStaffClient,
+	}),
+}));
 import {
 	buildCreateStaffTenantProfileBody,
+	deleteStaffTenantProfileMutationOptions,
 	buildFindStaffTenantProfilesQueryParameters,
 	buildUpdateStaffTenantProfileBody,
 	toStaffTenantProfileDetails,
@@ -13,6 +24,10 @@ import type {
 	GetTenantProfileByIdResponse,
 	TenantProfileItem,
 } from '@org/client-ts/src/models/index.js';
+
+beforeEach(() => {
+	vi.clearAllMocks();
+});
 
 describe('buildFindStaffTenantProfilesQueryParameters', () => {
 	test('trims supported values and stringifies page size', () => {
@@ -89,6 +104,52 @@ describe('buildUpdateStaffTenantProfileBody', () => {
 
 		expect(body.name).toBeDefined();
 		expect(body.description).toBeNull();
+	});
+});
+
+describe('deleteStaffTenantProfileMutationOptions', () => {
+	test('uses the generated tenant profile delete client path', async () => {
+		const deleteProfile = vi.fn().mockResolvedValue({
+			key: 'tenant-profile-deleted-success',
+			message: 'Tenant profile deleted successfully',
+		});
+		const byProfileId = vi.fn((profileId: string) => ({
+			delete: deleteProfile,
+			profileId,
+		}));
+		const byTenantId = vi.fn((tenantId: string) => ({
+			profiles: {
+				byProfileId,
+			},
+			tenantId,
+		}));
+
+		mocks.getOrCreateStaffClient.mockReturnValue({
+			staff: {
+				tenants: {
+					byTenantId,
+				},
+			},
+		});
+
+		const result = await deleteStaffTenantProfileMutationOptions.mutationFn({
+			tenantId: 'tenant-123',
+			profileId: 'profile-456',
+		});
+
+		expect(deleteStaffTenantProfileMutationOptions.mutationKey).toEqual([
+			'staff',
+			'staff-tenants',
+			'profiles',
+			'delete',
+		]);
+		expect(byTenantId).toHaveBeenCalledWith('tenant-123');
+		expect(byProfileId).toHaveBeenCalledWith('profile-456');
+		expect(deleteProfile).toHaveBeenCalledTimes(1);
+		expect(result).toEqual({
+			key: 'tenant-profile-deleted-success',
+			message: 'Tenant profile deleted successfully',
+		});
 	});
 });
 
