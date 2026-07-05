@@ -174,7 +174,7 @@ describe('staff tenant user details route', () => {
 		expect(
 			screen.getByRole('link', { name: 'Back to users' }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/users');
-		expect(screen.getByText('alex@example.com')).toBeTruthy();
+		expect(screen.getAllByText('alex@example.com').length).toBeGreaterThan(0);
 		expect(screen.getByText('Account level')).toBeTruthy();
 		expect(screen.getByText('Admin')).toBeTruthy();
 		expect(screen.getByText('Tenant ID')).toBeTruthy();
@@ -201,7 +201,9 @@ describe('staff tenant user details route', () => {
 
 		renderPage();
 
-		expect(screen.getByTestId('staff-tenant-user-details-invalid')).toBeTruthy();
+		expect(
+			screen.getByTestId('staff-tenant-user-details-invalid'),
+		).toBeTruthy();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 

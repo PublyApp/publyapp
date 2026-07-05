@@ -195,7 +195,7 @@ export const toStaffTenantUserDetails = (
 		accountLevel: normalizeNullableString(result?.level),
 		status: normalizeNullableString(result?.status),
 		avatarUrl: normalizeNullableString(result?.avatarUrl),
-		tenantId: normalizeString(result?.tenantId?.toString()),
+		tenantId: normalizeNullableString(result?.tenantId?.toString()),
 		createdAt: normalizeDate(result?.createdAt),
 		updatedAt: normalizeDate(result?.updatedAt),
 		displayName: getDisplayName({
