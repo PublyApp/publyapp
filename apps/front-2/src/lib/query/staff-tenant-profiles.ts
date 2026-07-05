@@ -1,7 +1,4 @@
-import {
-	createUntypedArray,
-	createUntypedString,
-} from '@microsoft/kiota-abstractions';
+import { createUntypedString } from '@microsoft/kiota-abstractions';
 import { useQuery } from '@tanstack/react-query';
 import { useMutation } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
@@ -33,7 +30,6 @@ export type CreateStaffTenantProfileInput = {
 	tenantId: string;
 	name: string;
 	description?: string;
-	permissionKeys: string[];
 };
 
 export type StaffTenantProfileRow = {
@@ -109,16 +105,8 @@ export const buildCreateStaffTenantProfileBody = (
 ): CreateTenantProfileAsStaffBody => {
 	const body: CreateTenantProfileAsStaffBody = {};
 	const description = normalizeString(input.description);
-	const permissionKeys = input.permissionKeys
-		.map((permissionKey) => normalizeString(permissionKey))
-		.filter(
-			(permissionKey): permissionKey is string => permissionKey !== undefined,
-		);
 
 	body.name = createUntypedString(input.name) as typeof body.name;
-	body.permissionKeys = createUntypedArray(
-		permissionKeys.map((permissionKey) => createUntypedString(permissionKey)),
-	) as typeof body.permissionKeys;
 
 	if (description) {
 		body.description = createUntypedString(

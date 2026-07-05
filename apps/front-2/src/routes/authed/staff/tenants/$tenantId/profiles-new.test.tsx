@@ -259,6 +259,14 @@ describe('staff tenant profile create route', () => {
 		expect(screen.getByTestId('staff-tenant-profile-create-page')).toBeTruthy();
 		expect(screen.getByText('Acme Corporation')).toBeTruthy();
 		expect(
+			screen.getByText('Create a tenant profile with a name and description.'),
+		).toBeTruthy();
+		expect(
+			screen.getByText(
+				'Add a profile name and optional description for this tenant.',
+			),
+		).toBeTruthy();
+		expect(
 			screen.getByText('Profiles', { selector: 'span[aria-current="page"]' }),
 		).toBeTruthy();
 		expect(
@@ -297,7 +305,6 @@ describe('staff tenant profile create route', () => {
 				tenantId: '11111111-1111-1111-1111-111111111111',
 				name: 'Approvers',
 				description: 'Can review approvals',
-				permissionKeys: [],
 			}),
 		);
 		await waitFor(() =>

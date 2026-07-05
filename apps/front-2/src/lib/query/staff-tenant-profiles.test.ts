@@ -46,28 +46,26 @@ describe('buildFindStaffTenantProfilesQueryParameters', () => {
 });
 
 describe('buildCreateStaffTenantProfileBody', () => {
-	test('includes trimmed description and normalized permission keys', () => {
+	test('includes a trimmed description without serializing permission keys', () => {
 		const body = buildCreateStaffTenantProfileBody({
 			name: 'Approvers',
 			description: '  Can review approvals  ',
-			permissionKeys: [' tenant.users.read ', '', 'tenant.billing.view'],
 		});
 
 		expect(body.name).toBeDefined();
 		expect(body.description).toBeDefined();
-		expect(body.permissionKeys).toBeDefined();
+		expect(body.permissionKeys).toBeUndefined();
 	});
 
-	test('sends an empty permissionKeys array when no permissions are provided', () => {
+	test('omits blank description and permission keys when not provided', () => {
 		const body = buildCreateStaffTenantProfileBody({
 			name: 'Approvers',
 			description: '   ',
-			permissionKeys: [],
 		});
 
 		expect(body.name).toBeDefined();
 		expect(body.description).toBeUndefined();
-		expect(body.permissionKeys).toBeDefined();
+		expect(body.permissionKeys).toBeUndefined();
 	});
 });
 

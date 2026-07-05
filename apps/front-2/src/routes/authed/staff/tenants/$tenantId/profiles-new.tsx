@@ -103,7 +103,6 @@ function StaffTenantProfileCreatePage() {
 				tenantId,
 				name: values.name,
 				description: values.description,
-				permissionKeys: [],
 			});
 			await queryClient.invalidateQueries({
 				queryKey: STAFF_TENANT_PROFILES_QUERY_KEY,
@@ -140,7 +139,7 @@ function StaffTenantProfileCreatePage() {
 		<TenantDetailsPageShell
 			tenant={tenant}
 			activeSection="profiles"
-			summary="Create a tenant profile with a name and description. Permission assignment lands in a later stack."
+			summary="Create a tenant profile with a name and description."
 			testId="staff-tenant-profile-create-page"
 		>
 			<div className="space-y-4">
@@ -156,8 +155,7 @@ function StaffTenantProfileCreatePage() {
 						{t('new-item', { item: t('profile') })}
 					</h2>
 					<p className="text-sm text-foreground-500">
-						Set the profile name and description now. Permission assignment will
-						land in a later change.
+						Add a profile name and optional description for this tenant.
 					</p>
 				</div>
 
