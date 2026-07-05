@@ -1,15 +1,26 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from '@testing-library/react';
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+	invalidateQueries: vi.fn(),
+	suspendTenantUserMutation: vi.fn(),
+	reactivateTenantUserMutation: vi.fn(),
 	toStaffTenantDetails: vi.fn(),
 	toStaffTenantUserDetails: vi.fn(),
 	useStaffTenantDetailsQuery: vi.fn(),
 	useStaffTenantUserDetailsQuery: vi.fn(),
+	useSuspendStaffTenantUserMutation: vi.fn(),
+	useReactivateStaffTenantUserMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 }));
 
@@ -82,8 +93,13 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-users', () => ({
+	STAFF_TENANT_USER_DETAILS_QUERY_KEY: ['staff-tenants', 'users', 'detail'],
+	STAFF_TENANT_USERS_QUERY_KEY: ['staff-tenants', 'users'],
 	toStaffTenantUserDetails: mocks.toStaffTenantUserDetails,
+	useReactivateStaffTenantUserMutation:
+		mocks.useReactivateStaffTenantUserMutation,
 	useStaffTenantUserDetailsQuery: mocks.useStaffTenantUserDetailsQuery,
+	useSuspendStaffTenantUserMutation: mocks.useSuspendStaffTenantUserMutation,
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
@@ -93,6 +109,12 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 
 vi.mock('~/routes/authed/layout', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
+}));
+
+vi.mock('@tanstack/react-query', () => ({
+	useQueryClient: () => ({
+		invalidateQueries: mocks.invalidateQueries,
+	}),
 }));
 
 import { Route } from './$userId';
@@ -121,6 +143,15 @@ describe('staff tenant user details route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
+		mocks.invalidateQueries.mockResolvedValue(undefined);
+		mocks.useSuspendStaffTenantUserMutation.mockReturnValue({
+			mutateAsync: mocks.suspendTenantUserMutation,
+			isPending: false,
+		});
+		mocks.useReactivateStaffTenantUserMutation.mockReturnValue({
+			mutateAsync: mocks.reactivateTenantUserMutation,
+			isPending: false,
+		});
 		mocks.useStaffTenantDetailsQuery.mockReturnValue(
 			buildQueryResult({
 				data: {
@@ -269,6 +300,147 @@ describe('staff tenant user details route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('staff-tenant-user-details-empty')).toBeTruthy();
+	});
+
+	test('renders a suspend action for an active tenant user and invalidates tenant data on success', async () => {
+		mocks.suspendTenantUserMutation.mockResolvedValue({ status: 'suspended' });
+
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+
+		await waitFor(() =>
+			expect(mocks.suspendTenantUserMutation).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				userId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+			}),
+		);
+		await waitFor(() =>
+			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(1, {
+				queryKey: ['staff', 'staff-tenants', 'users'],
+			}),
+		);
+		await waitFor(() =>
+			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(2, {
+				queryKey: ['staff', 'staff-tenants', 'users', 'detail'],
+			}),
+		);
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+		expect(screen.getByText('Suspend')).toBeTruthy();
+	});
+
+	test('renders a reactivate action for suspended tenant users and invalidates tenant data on success', async () => {
+		mocks.toStaffTenantUserDetails.mockReturnValue({
+			id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+			email: 'alex@example.com',
+			firstName: 'Alex',
+			lastName: 'User',
+			avatarUrl: 'https://example.com/avatar.png',
+			accountLevel: 'Admin',
+			status: 'suspended',
+			tenantId: '11111111-1111-1111-1111-111111111111',
+			createdAt: new Date('2026-07-01T09:00:00Z'),
+			updatedAt: new Date('2026-07-02T10:00:00Z'),
+			displayName: 'Alex User',
+		});
+		mocks.reactivateTenantUserMutation.mockResolvedValue({ status: 'active' });
+
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Reactivate' }));
+
+		await waitFor(() =>
+			expect(mocks.reactivateTenantUserMutation).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				userId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+			}),
+		);
+		await waitFor(() =>
+			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(1, {
+				queryKey: ['staff', 'staff-tenants', 'users'],
+			}),
+		);
+		await waitFor(() =>
+			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(2, {
+				queryKey: ['staff', 'staff-tenants', 'users', 'detail'],
+			}),
+		);
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+		expect(screen.getByText('Reactivate')).toBeTruthy();
+	});
+
+	test('hides membership actions for unknown tenant user statuses', () => {
+		mocks.toStaffTenantUserDetails.mockReturnValue({
+			id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+			email: 'alex@example.com',
+			firstName: 'Alex',
+			lastName: 'User',
+			avatarUrl: 'https://example.com/avatar.png',
+			accountLevel: 'Admin',
+			status: 'pending-review',
+			tenantId: '11111111-1111-1111-1111-111111111111',
+			createdAt: new Date('2026-07-01T09:00:00Z'),
+			updatedAt: new Date('2026-07-02T10:00:00Z'),
+			displayName: 'Alex User',
+		});
+
+		renderPage();
+
+		expect(
+			screen.getByText(
+				'Membership lifecycle actions are unavailable for this status.',
+			),
+		).toBeTruthy();
+		expect(screen.queryByRole('button', { name: 'Suspend' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Reactivate' })).toBeNull();
+	});
+
+	test.each([
+		[400, 'Bad request'],
+		[409, 'Membership already suspended'],
+		[422, 'Validation failed'],
+	])('keeps non-401 action failures local (%i)', async (status, message) => {
+		mocks.suspendTenantUserMutation.mockRejectedValue({
+			kind: 'problem',
+			status,
+			responseStatusCode: status,
+			title: message,
+			detail: message,
+		});
+
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+
+		await waitFor(() =>
+			expect(mocks.suspendTenantUserMutation).toHaveBeenCalledTimes(1),
+		);
+		await waitFor(() => expect(screen.getByText(message)).toBeTruthy());
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
+	});
+
+	test('redirects to logout only when membership action fails with 401', async () => {
+		mocks.shouldLogoutForFailure.mockReturnValue(true);
+		mocks.suspendTenantUserMutation.mockRejectedValue({
+			kind: 'problem',
+			status: 401,
+			responseStatusCode: 401,
+			title: 'Unauthorized',
+			detail: 'Session expired',
+		});
+
+		renderPage();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+
+		await waitFor(() =>
+			expect(mocks.suspendTenantUserMutation).toHaveBeenCalledTimes(1),
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
+		);
+		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
 	});
 
 	test('redirects to logout only when tenant user details query returns 401', () => {

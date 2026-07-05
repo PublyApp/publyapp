@@ -1,11 +1,17 @@
 import { Card } from '@heroui/react';
+import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import {
 	toStaffTenantUserDetails,
+	STAFF_TENANT_USER_DETAILS_QUERY_KEY,
+	STAFF_TENANT_USERS_QUERY_KEY,
+	useReactivateStaffTenantUserMutation,
+	useSuspendStaffTenantUserMutation,
 	useStaffTenantUserDetailsQuery,
 } from '~/lib/query/staff-tenant-users';
 import {
@@ -14,7 +20,10 @@ import {
 } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
-import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import {
+	getFailureMessage,
+	toApiFailure,
+} from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
 	DetailItem,
@@ -25,6 +34,13 @@ import {
 } from '../_tenant-details-shell';
 
 const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
+const TENANT_USER_STATUS_ACTIVE = 'active';
+const TENANT_USER_STATUS_GLOBALLY_SUSPENDED = 'globally_suspended';
+const TENANT_USER_STATUS_SUSPENDED = 'suspended';
+
+// The API surface is currently explicit for ACTIVE/SUSPENDED transitions on tenant
+// memberships. Any other status value is treated as ambiguous to avoid accidental
+// lifecycle actions we cannot confidently support.
 
 const isProblemStatus = (
 	error: unknown,
@@ -114,6 +130,24 @@ const TenantUserDetailsLoading = () => (
 	</div>
 );
 
+const getNormalizedTenantUserStatus = (
+	value: string | null | undefined,
+): string => value?.trim().toLowerCase() ?? '';
+
+const getMembershipActionLabel = (
+	status: string,
+): 'suspend' | 'reactivate' | null => {
+	if (status === TENANT_USER_STATUS_ACTIVE) {
+		return 'suspend';
+	}
+
+	if (status === TENANT_USER_STATUS_SUSPENDED) {
+		return 'reactivate';
+	}
+
+	return null;
+};
+
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/users/$userId',
 )({
@@ -123,6 +157,11 @@ export const Route = createFileRoute(
 function StaffTenantUserDetailsPage() {
 	const { tenantId, userId } = Route.useParams();
 	const { i18n } = useTranslation('common');
+	const queryClient = useQueryClient();
+	const [membershipActionError, setMembershipActionError] = useState('');
+	const [shouldLogout, setShouldLogout] = useState(false);
+	const suspendTenantUserMutation = useSuspendStaffTenantUserMutation();
+	const reactivateTenantUserMutation = useReactivateStaffTenantUserMutation();
 
 	const tenantQuery = useStaffTenantDetailsQuery(
 		{ tenantId },
@@ -189,6 +228,62 @@ function StaffTenantUserDetailsPage() {
 		);
 	}
 
+	if (shouldLogout) {
+		return <LogoutRedirect />;
+	}
+
+	const normalizedStatus = getNormalizedTenantUserStatus(user.status);
+	const canSuspend = normalizedStatus === TENANT_USER_STATUS_ACTIVE;
+	const canReactivate = normalizedStatus === TENANT_USER_STATUS_SUSPENDED;
+	const canChangeStatus = canSuspend || canReactivate;
+	const isGloballySuspended =
+		normalizedStatus === TENANT_USER_STATUS_GLOBALLY_SUSPENDED;
+	const isStatusActionPending =
+		suspendTenantUserMutation.isPending ||
+		reactivateTenantUserMutation.isPending;
+
+	const membershipAction = getMembershipActionLabel(normalizedStatus);
+	const membershipActionLabel =
+		membershipAction === 'suspend' ? 'Suspend' : 'Reactivate';
+	const membershipActionDisabled =
+		isStatusActionPending || isGloballySuspended || !membershipAction;
+
+	const invalidateTenantUserQueries = async () => {
+		await Promise.all([
+			queryClient.invalidateQueries({
+				queryKey: ['staff', ...STAFF_TENANT_USERS_QUERY_KEY],
+			}),
+			queryClient.invalidateQueries({
+				queryKey: ['staff', ...STAFF_TENANT_USER_DETAILS_QUERY_KEY],
+			}),
+		]);
+	};
+
+	const handleMembershipAction = async (action: 'suspend' | 'reactivate') => {
+		try {
+			setMembershipActionError('');
+
+			if (action === 'suspend') {
+				await suspendTenantUserMutation.mutateAsync({ tenantId, userId });
+			} else {
+				await reactivateTenantUserMutation.mutateAsync({ tenantId, userId });
+			}
+
+			await invalidateTenantUserQueries();
+		} catch (error) {
+			if (shouldLogoutForFailure(error)) {
+				setShouldLogout(true);
+				return;
+			}
+
+			setMembershipActionError(
+				getFailureMessage(toApiFailure(error), {
+					fallback: 'Unable to update tenant user membership status.',
+				}),
+			);
+		}
+	};
+
 	return (
 		<TenantDetailsPageShell
 			tenant={tenant}
@@ -221,6 +316,48 @@ function StaffTenantUserDetailsPage() {
 					</p>
 				</div>
 			</div>
+
+			<Card className="space-y-4 p-4">
+				<div className="flex flex-wrap items-center justify-between gap-3">
+					<div className="space-y-1">
+						<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
+							Tenant membership status
+						</p>
+						<p className="text-sm text-foreground">{user.status ?? '—'}</p>
+					</div>
+					<div className="flex items-center gap-2">
+						{canChangeStatus ? (
+							<button
+								type="button"
+								className="rounded-medium border border-divider bg-content2 px-3 py-2 text-sm text-foreground hover:bg-divider/30 disabled:cursor-not-allowed disabled:opacity-60"
+								onClick={() => {
+									if (!membershipAction) {
+										return;
+									}
+
+									void handleMembershipAction(membershipAction);
+								}}
+								disabled={membershipActionDisabled}
+							>
+								{membershipActionLabel}
+								{isStatusActionPending ? '…' : ''}
+							</button>
+						) : null}
+					</div>
+				</div>
+
+				{!canChangeStatus ? (
+					<p className="rounded-large border border-dashed border-divider bg-content1 p-2 text-xs text-foreground-500">
+						{isGloballySuspended
+							? 'Membership lifecycle actions are disabled for globally suspended users.'
+							: 'Membership lifecycle actions are unavailable for this status.'}
+					</p>
+				) : null}
+
+				{membershipActionError ? (
+					<p className="text-sm text-danger-600">{membershipActionError}</p>
+				) : null}
+			</Card>
 
 			<Card className="space-y-4 p-5">
 				<div className="grid gap-4 md:grid-cols-2">

@@ -184,6 +184,18 @@ describe('toStaffTenantUserDetails', () => {
 		});
 	});
 
+	test('preserves and trims tenant membership status values for lifecycle UI decisions', () => {
+		const result = toStaffTenantUserDetails({
+			id: ' user-9 ',
+			email: ' owner@publyapp.local ',
+			level: 'Admin',
+			status: ' Suspended ',
+			createdAt: new Date('2026-07-01T09:00:00Z'),
+		} as TenantUserDetailsResult);
+
+		expect(result?.status).toBe('Suspended');
+	});
+
 	test('returns null when the payload has no usable id', () => {
 		expect(
 			toStaffTenantUserDetails({
