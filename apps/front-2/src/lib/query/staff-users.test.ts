@@ -1,12 +1,14 @@
 import { describe, expect, test } from 'vitest';
 import {
 	buildFindStaffUsersQueryParameters,
+	toAssignedStaffProfiles,
 	toStaffUserDetails,
 	toStaffUserRows,
 } from '~/lib/query/staff-users';
 
 import type {
 	GetStaffUserByIdResult,
+	GetStaffUserProfilesResult,
 	StaffUserItem,
 } from '@org/client-ts/src/models/index.js';
 
@@ -129,5 +131,52 @@ describe('toStaffUserDetails', () => {
 				email: 'owner@publyapp.local',
 			} as GetStaffUserByIdResult),
 		).toBeNull();
+	});
+});
+
+describe('toAssignedStaffProfiles', () => {
+	test('normalizes assigned profiles and skips items without usable ids', () => {
+		const result = toAssignedStaffProfiles({
+			assignedProfiles: [
+				{
+					id: 'profile-1',
+					name: ' Platform admins ',
+					description: ' Full staff access ',
+				},
+				{
+					id: 'profile-2',
+					name: '   ',
+					description: ' ',
+				},
+				{
+					id: '',
+					name: 'Skip me',
+					description: 'Missing id',
+				},
+			],
+			maxProfilesPerUser: 3,
+		} as GetStaffUserProfilesResult);
+
+		expect(result).toEqual([
+			{
+				id: 'profile-1',
+				name: 'Platform admins',
+				description: 'Full staff access',
+			},
+			{
+				id: 'profile-2',
+				name: 'Unnamed profile',
+				description: null,
+			},
+		]);
+	});
+
+	test('returns an empty list when the payload is empty', () => {
+		expect(toAssignedStaffProfiles(undefined)).toEqual([]);
+		expect(
+			toAssignedStaffProfiles({
+				assignedProfiles: null,
+			} as GetStaffUserProfilesResult),
+		).toEqual([]);
 	});
 });

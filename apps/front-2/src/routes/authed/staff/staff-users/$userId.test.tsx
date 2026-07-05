@@ -6,7 +6,9 @@ import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+	toAssignedStaffProfiles: vi.fn(),
 	toStaffUserDetails: vi.fn(),
+	useStaffUserProfilesQuery: vi.fn(),
 	useStaffUserDetailsQuery: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 }));
@@ -21,15 +23,25 @@ vi.mock('@tanstack/react-router', () => ({
 	Link: ({
 		children,
 		to,
+		params,
 		...props
 	}: {
 		children: React.ReactNode;
 		to: string;
-	}) => (
-		<a href={to} {...props}>
-			{children}
-		</a>
-	),
+		params?: Record<string, string>;
+	}) => {
+		let href = to;
+
+		for (const [key, value] of Object.entries(params ?? {})) {
+			href = href.replace(`$${key}`, value);
+		}
+
+		return (
+			<a href={href} {...props}>
+				{children}
+			</a>
+		);
+	},
 }));
 
 vi.mock('react-i18next', () => ({
@@ -50,7 +62,9 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-users', () => ({
+	toAssignedStaffProfiles: mocks.toAssignedStaffProfiles,
 	toStaffUserDetails: mocks.toStaffUserDetails,
+	useStaffUserProfilesQuery: mocks.useStaffUserProfilesQuery,
 	useStaffUserDetailsQuery: mocks.useStaffUserDetailsQuery,
 }));
 
@@ -91,6 +105,24 @@ describe('staff user details route', () => {
 				},
 			}),
 		);
+		mocks.useStaffUserProfilesQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					assignedProfiles: [
+						{
+							id: 'profile-1',
+							name: 'Platform admin',
+							description: 'Full access',
+						},
+						{
+							id: 'profile-2',
+							name: 'Support staff',
+							description: null,
+						},
+					],
+				},
+			}),
+		);
 		mocks.toStaffUserDetails.mockReturnValue({
 			id: '11111111-1111-1111-1111-111111111111',
 			email: 'owner@publyapp.local',
@@ -103,13 +135,25 @@ describe('staff user details route', () => {
 			updatedAt: new Date('2026-07-02T10:00:00Z'),
 			displayName: 'Owner User',
 		});
+		mocks.toAssignedStaffProfiles.mockReturnValue([
+			{
+				id: 'profile-1',
+				name: 'Platform admin',
+				description: 'Full access',
+			},
+			{
+				id: 'profile-2',
+				name: 'Support staff',
+				description: null,
+			},
+		]);
 	});
 
 	afterEach(() => {
 		cleanup();
 	});
 
-	test('renders the read-only basics shell with the profiles placeholder', () => {
+	test('renders the read-only basics shell with the assigned profiles section', () => {
 		renderPage();
 
 		expect(screen.getByTestId('staff-user-details-page')).toBeTruthy();
@@ -119,7 +163,23 @@ describe('staff user details route', () => {
 		expect(screen.getByText('Owner')).toBeTruthy();
 		expect(screen.getByText('Active')).toBeTruthy();
 		expect(screen.getAllByText('Basics')).toHaveLength(2);
-		expect(screen.getByText('Profiles')).toBeTruthy();
+		expect(screen.getByRole('link', { name: 'Profiles' })).toBeTruthy();
+		expect(screen.getByText('Assigned profiles')).toBeTruthy();
+		expect(screen.getByText('2 assigned')).toBeTruthy();
+		expect(screen.getByRole('link', { name: 'Platform admin' })).toBeTruthy();
+		expect(screen.getByText('Full access')).toBeTruthy();
+		expect(screen.getByText('No description provided.')).toBeTruthy();
+	});
+
+	test('renders the assigned profiles empty state when none are assigned', () => {
+		mocks.toAssignedStaffProfiles.mockReturnValue([]);
+
+		renderPage();
+
+		expect(screen.getByText('0 assigned')).toBeTruthy();
+		expect(
+			screen.getByText('This staff user does not have any assigned profiles.'),
+		).toBeTruthy();
 	});
 
 	test('renders a local malformed id view for 400 malformed-id failures', () => {
@@ -180,6 +240,44 @@ describe('staff user details route', () => {
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 
+	test.each([
+		{
+			status: 400,
+			responseStatusCode: 400,
+			title: 'Bad Request',
+			detail: 'Invalid userId',
+			translationKey: 'malformed-id',
+		},
+		{
+			status: 403,
+			responseStatusCode: 403,
+			title: 'Forbidden',
+			detail: 'Forbidden',
+		},
+		{
+			status: 404,
+			responseStatusCode: 404,
+			title: 'Not Found',
+			detail: 'Missing assignments',
+		},
+	])(
+		'renders a local assigned profiles error for %o without logging out',
+		(error) => {
+			mocks.useStaffUserProfilesQuery.mockReturnValue(
+				buildQueryResult({
+					error,
+					isError: true,
+				}),
+			);
+
+			renderPage();
+
+			expect(screen.getByTestId('staff-user-details-page')).toBeTruthy();
+			expect(screen.getByTestId('staff-user-profiles-error')).toBeTruthy();
+			expect(screen.queryByTestId('logout-redirect')).toBeNull();
+		},
+	);
+
 	test('uses logout redirect for 401 failures', () => {
 		const error = {
 			status: 401,
@@ -189,6 +287,27 @@ describe('staff user details route', () => {
 		};
 
 		mocks.useStaffUserDetailsQuery.mockReturnValue(
+			buildQueryResult({
+				error,
+				isError: true,
+			}),
+		);
+		mocks.shouldLogoutForFailure.mockReturnValue(true);
+
+		renderPage();
+
+		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+	});
+
+	test('uses logout redirect for 401 failures from the assigned profiles query', () => {
+		const error = {
+			status: 401,
+			responseStatusCode: 401,
+			title: 'Unauthorized',
+			detail: 'Session expired',
+		};
+
+		mocks.useStaffUserProfilesQuery.mockReturnValue(
 			buildQueryResult({
 				error,
 				isError: true,
