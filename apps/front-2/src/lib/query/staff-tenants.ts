@@ -12,8 +12,11 @@ import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type {
 	CreateTenantAsStaffBody,
 	CreateTenantAsStaffResult,
+	ApiResponse,
 	FindTenantsAsStaffResponse,
 	GetTenantAsStaffResult,
+	TenantReactivatedResult,
+	TenantSuspendedResult,
 	UpdateTenantAsStaffBody,
 	TenantAsStaffListItem,
 } from '@org/client-ts/src/models/index.js';
@@ -48,6 +51,10 @@ export type StaffTenantUpdateInput = {
 	name?: string;
 	maxUsers?: number;
 	logoUrl?: string | null;
+};
+
+export type StaffTenantLifeCycleInput = {
+	tenantId: string;
 };
 
 export type StaffTenantDetails = {
@@ -341,3 +348,51 @@ export const useCreateStaffTenantMutation = () =>
 
 export const useUpdateStaffTenantMutation = () =>
 	useMutation(updateStaffTenantMutationOptions);
+
+export const suspendStaffTenantMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	TenantSuspendedResult | undefined,
+	StaffTenantLifeCycleInput
+>(
+	{
+		mutationKeyFn: () => [...STAFF_TENANTS_QUERY_KEY, 'suspend'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants.byTenantId(variables.tenantId).suspend.post({}),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const reactivateStaffTenantMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	TenantReactivatedResult | undefined,
+	StaffTenantLifeCycleInput
+>(
+	{
+		mutationKeyFn: () => [...STAFF_TENANTS_QUERY_KEY, 'reactivate'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants.byTenantId(variables.tenantId).reactivate.post(),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const deleteStaffTenantMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	ApiResponse | undefined,
+	StaffTenantLifeCycleInput
+>(
+	{
+		mutationKeyFn: () => [...STAFF_TENANTS_QUERY_KEY, 'delete'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants.byTenantId(variables.tenantId).delete(),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const useSuspendStaffTenantMutation = () =>
+	useMutation(suspendStaffTenantMutationOptions);
+
+export const useReactivateStaffTenantMutation = () =>
+	useMutation(reactivateStaffTenantMutationOptions);
+
+export const useDeleteStaffTenantMutation = () =>
+	useMutation(deleteStaffTenantMutationOptions);

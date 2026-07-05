@@ -3,6 +3,9 @@ import {
 	buildCreateStaffTenantBody,
 	buildUpdateStaffTenantBody,
 	buildFindStaffTenantsQueryParameters,
+	suspendStaffTenantMutationOptions,
+	reactivateStaffTenantMutationOptions,
+	deleteStaffTenantMutationOptions,
 	createStaffTenantMutationOptions,
 	STAFF_TENANTS_QUERY_KEY,
 	STAFF_TENANT_DETAILS_QUERY_KEY,
@@ -12,8 +15,11 @@ import {
 } from '~/lib/query/staff-tenants';
 
 import type {
+	ApiResponse,
 	CreateTenantAsStaffResult,
 	GetTenantAsStaffResult,
+	TenantReactivatedResult,
+	TenantSuspendedResult,
 	TenantAsStaffListItem,
 	UpdateTenantAsStaffBody,
 } from '@org/client-ts/src/models/index.js';
@@ -229,6 +235,115 @@ describe('updateStaffTenantMutationOptions', () => {
 		});
 		expect(result).toEqual({
 			tenantId: 'tenant-001',
+		});
+	});
+});
+
+describe('suspendStaffTenantMutationOptions', () => {
+	test('calls the generated tenant suspend path with an empty request body', async () => {
+		const post = vi.fn().mockResolvedValue({
+			tenantId: 'tenant-001',
+			name: 'Acme Corporation',
+			status: 'Suspended',
+		} as TenantSuspendedResult);
+		const byTenantId = vi.fn().mockReturnValue({
+			suspend: { post },
+		});
+		mocks.getOrCreateStaffClient.mockReturnValue({
+			staff: {
+				tenants: {
+					byTenantId,
+				},
+			},
+		});
+
+		const result = await suspendStaffTenantMutationOptions.mutationFn({
+			tenantId: 'tenant-001',
+		});
+
+		expect(suspendStaffTenantMutationOptions.mutationKey).toEqual([
+			'staff',
+			...STAFF_TENANTS_QUERY_KEY,
+			'suspend',
+		]);
+		expect(byTenantId).toHaveBeenCalledWith('tenant-001');
+		expect(post).toHaveBeenCalledWith({});
+		expect(result).toEqual({
+			tenantId: 'tenant-001',
+			name: 'Acme Corporation',
+			status: 'Suspended',
+		});
+	});
+});
+
+describe('reactivateStaffTenantMutationOptions', () => {
+	test('calls the generated tenant reactivate mutation path', async () => {
+		const post = vi.fn().mockResolvedValue({
+			tenantId: 'tenant-001',
+			name: 'Acme Corporation',
+			status: 'Active',
+		} as TenantReactivatedResult);
+		const byTenantId = vi.fn().mockReturnValue({
+			reactivate: { post },
+		});
+		mocks.getOrCreateStaffClient.mockReturnValue({
+			staff: {
+				tenants: {
+					byTenantId,
+				},
+			},
+		});
+
+		const result = await reactivateStaffTenantMutationOptions.mutationFn({
+			tenantId: 'tenant-001',
+		});
+
+		expect(reactivateStaffTenantMutationOptions.mutationKey).toEqual([
+			'staff',
+			...STAFF_TENANTS_QUERY_KEY,
+			'reactivate',
+		]);
+		expect(byTenantId).toHaveBeenCalledWith('tenant-001');
+		expect(post).toHaveBeenCalledWith();
+		expect(result).toEqual({
+			tenantId: 'tenant-001',
+			name: 'Acme Corporation',
+			status: 'Active',
+		});
+	});
+});
+
+describe('deleteStaffTenantMutationOptions', () => {
+	test('calls the generated tenant delete mutation path', async () => {
+		const deleteFn = vi.fn().mockResolvedValue({
+			key: 'tenant-deleted-success',
+			message: 'Tenant was deleted',
+		} as ApiResponse);
+		const byTenantId = vi.fn().mockReturnValue({
+			delete: deleteFn,
+		});
+		mocks.getOrCreateStaffClient.mockReturnValue({
+			staff: {
+				tenants: {
+					byTenantId,
+				},
+			},
+		});
+
+		const result = await deleteStaffTenantMutationOptions.mutationFn({
+			tenantId: 'tenant-001',
+		});
+
+		expect(deleteStaffTenantMutationOptions.mutationKey).toEqual([
+			'staff',
+			...STAFF_TENANTS_QUERY_KEY,
+			'delete',
+		]);
+		expect(byTenantId).toHaveBeenCalledWith('tenant-001');
+		expect(deleteFn).toHaveBeenCalledWith();
+		expect(result).toEqual({
+			key: 'tenant-deleted-success',
+			message: 'Tenant was deleted',
 		});
 	});
 });
