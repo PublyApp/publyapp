@@ -64,7 +64,7 @@ const getFailureDescription = (error: unknown, fallback: string): string => {
 };
 
 export const Route = createFileRoute(
-	'/_authed-layout/staff/tenants/$tenantId/edit' as never,
+	'/_authed-layout/staff/tenants/$tenantId/edit',
 )({
 	component: StaffTenantEditRoute,
 });
