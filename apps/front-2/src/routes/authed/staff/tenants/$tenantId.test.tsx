@@ -129,6 +129,10 @@ describe('staff tenant details route', () => {
 		expect(screen.getAllByText('12').length).toBeGreaterThan(0);
 		expect(screen.getAllByText('50').length).toBeGreaterThan(0);
 		expect(screen.getByText('https://cdn.example.com/acme.png')).toBeTruthy();
+		expect(screen.getByRole('link', { name: 'Edit tenant' })).toBeTruthy();
+		expect(
+			screen.getByRole('link', { name: 'Edit tenant' }).getAttribute('href'),
+		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/edit');
 		expect(screen.getAllByText('Basics')).toHaveLength(2);
 		expect(
 			screen.getByRole('link', { name: 'Profiles' }).getAttribute('href'),

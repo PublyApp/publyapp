@@ -14,6 +14,7 @@ import type {
 	CreateTenantAsStaffResult,
 	FindTenantsAsStaffResponse,
 	GetTenantAsStaffResult,
+	UpdateTenantAsStaffBody,
 	TenantAsStaffListItem,
 } from '@org/client-ts/src/models/index.js';
 import {
@@ -40,6 +41,13 @@ export type StaffTenantRow = {
 
 export type StaffTenantDetailsQueryVariables = {
 	tenantId: string;
+};
+
+export type StaffTenantUpdateInput = {
+	tenantId: string;
+	name?: string;
+	maxUsers?: number;
+	logoUrl?: string | null;
 };
 
 export type StaffTenantDetails = {
@@ -82,6 +90,17 @@ const normalizeNullableString = (
 	value: string | null | undefined,
 ): string | null => normalizeString(value) ?? null;
 
+const normalizeOptionalUpdateString = (
+	value: string | null | undefined,
+): string | null | undefined => {
+	if (value === undefined || value === null) {
+		return value;
+	}
+
+	const trimmed = value.trim();
+	return trimmed.length > 0 ? trimmed : null;
+};
+
 const normalizeDate = (value: Date | null | undefined): Date | null => {
 	if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
 		return null;
@@ -92,6 +111,11 @@ const normalizeDate = (value: Date | null | undefined): Date | null => {
 
 const isPositiveSafeInteger = (value: number | undefined): value is number =>
 	typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+
+export const STAFF_TENANT_DETAILS_QUERY_KEY = [
+	'staff-tenants',
+	'detail',
+] as const;
 
 export const buildFindStaffTenantsQueryParameters = (
 	variables: StaffTenantsQueryVariables,
@@ -197,13 +221,38 @@ export const buildCreateStaffTenantBody = (
 	return body;
 };
 
+export const buildUpdateStaffTenantBody = (
+	input: Omit<StaffTenantUpdateInput, 'tenantId'>,
+): UpdateTenantAsStaffBody => {
+	const body: UpdateTenantAsStaffBody = {};
+	const name = normalizeString(input.name);
+	const logoUrl = normalizeOptionalUpdateString(input.logoUrl);
+
+	if (name) {
+		body.name = createUntypedString(name) as typeof body.name;
+	}
+
+	if (isPositiveSafeInteger(input.maxUsers)) {
+		body.maxUsers = createUntypedNumber(input.maxUsers) as typeof body.maxUsers;
+	}
+
+	if (logoUrl !== undefined) {
+		body.logoUrl =
+			logoUrl === null
+				? null
+				: (createUntypedString(logoUrl) as typeof body.logoUrl);
+	}
+
+	return body;
+};
+
 const staffTenantsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindTenantsAsStaffResponse,
 	StaffTenantsQueryVariables
 >(
 	{
-		queryKeyFn: () => ['staff-tenants'],
+		queryKeyFn: () => [...STAFF_TENANTS_QUERY_KEY],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.tenants.get({
 				queryParameters: buildFindStaffTenantsQueryParameters(variables),
@@ -238,13 +287,28 @@ export const useStaffTenantsQuery = (variables: StaffTenantsQueryVariables) =>
 		queryFn: () => staffTenantsQueryOptions.fetcher(variables),
 	});
 
+export const updateStaffTenantMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	GetTenantAsStaffResult | undefined,
+	StaffTenantUpdateInput
+>(
+	{
+		mutationKeyFn: () => [...STAFF_TENANTS_QUERY_KEY, 'update'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.patch(buildUpdateStaffTenantBody(variables)),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
 const staffTenantDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetTenantAsStaffResult,
 	StaffTenantDetailsQueryVariables
 >(
 	{
-		queryKeyFn: () => ['staff-tenants', 'detail'],
+		queryKeyFn: () => [...STAFF_TENANT_DETAILS_QUERY_KEY],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.tenants
 				.byTenantId(variables.tenantId)
@@ -274,3 +338,6 @@ export const useStaffTenantDetailsQuery = (
 
 export const useCreateStaffTenantMutation = () =>
 	useMutation(createStaffTenantMutationOptions);
+
+export const useUpdateStaffTenantMutation = () =>
+	useMutation(updateStaffTenantMutationOptions);
