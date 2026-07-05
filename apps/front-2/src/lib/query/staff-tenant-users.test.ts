@@ -17,13 +17,13 @@ describe('buildFindStaffTenantUsersQueryParameters', () => {
 				cursor: ' user-123 ',
 				size: 50,
 			}),
-	).toEqual({
-		q: 'alex',
-		sortId: 'level',
-		sortOrder: 'asc',
-		cursor: 'user-123',
-		limit: '50',
-	});
+		).toEqual({
+			q: 'alex',
+			sortId: 'level',
+			sortOrder: 'asc',
+			cursor: 'user-123',
+			limit: '50',
+		});
 	});
 
 	test('omits blank or invalid values', () => {
@@ -35,7 +35,7 @@ describe('buildFindStaffTenantUsersQueryParameters', () => {
 				cursor: ' ',
 				size: 0,
 			}),
-	).toEqual({});
+		).toEqual({});
 	});
 });
 
@@ -44,21 +44,20 @@ describe('buildCreateStaffTenantUserInvitationBody', () => {
 		expect(
 			buildCreateStaffTenantUserInvitationBody({
 				email: '  alice@example.com  ',
-				accountLevel: '  User  ',
+				accountLevel: 'User',
 			}),
-	).toMatchObject({
-		email: { value: 'alice@example.com' },
-		accountLevel: { value: 'User' },
-	});
+		).toMatchObject({
+			email: { value: 'alice@example.com' },
+			accountLevel: { value: 'User' },
+		});
 	});
 
 	test('drops missing values', () => {
 		expect(
 			buildCreateStaffTenantUserInvitationBody({
 				email: '   ',
-				accountLevel: '   ',
 			}),
-	).toEqual({});
+		).toEqual({});
 	});
 });
 

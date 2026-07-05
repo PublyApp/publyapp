@@ -34,7 +34,7 @@ export type StaffTenantUserInvitationInput = {
 
 type StaffTenantUserInvitationBodyInput = Omit<
 	StaffTenantUserInvitationInput,
-	'tenantId'
+	'tenantId' | 'accountLevel'
 > & {
 	accountLevel?: string;
 };
@@ -50,10 +50,7 @@ export type StaffTenantUserRow = {
 	displayName: string;
 };
 
-export const STAFF_TENANT_USERS_QUERY_KEY = [
-	'staff-tenants',
-	'users',
-] as const;
+export const STAFF_TENANT_USERS_QUERY_KEY = ['staff-tenants', 'users'] as const;
 
 const normalizeString = (
 	value: string | null | undefined,
@@ -176,25 +173,26 @@ const staffTenantUsersQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const createStaffTenantUserInvitationMutationOptions = buildStaffMutationOptions<
-	ApiClient,
-	InvitationCreatedForTenant | undefined,
-	StaffTenantUserInvitationInput
->(
-	{
-		mutationKeyFn: () => ['staff-tenants', 'users', 'invitations'],
-		mutationFn: (client, variables) =>
-			client.staff.tenants
-				.byTenantId(variables.tenantId)
-				.users.invitations.post(
-					buildCreateStaffTenantUserInvitationBody({
-						email: variables.email,
-						accountLevel: variables.accountLevel,
-					}),
-				),
-	},
-	{ clientAccessor: getClientManager() },
-);
+const createStaffTenantUserInvitationMutationOptions =
+	buildStaffMutationOptions<
+		ApiClient,
+		InvitationCreatedForTenant | undefined,
+		StaffTenantUserInvitationInput
+	>(
+		{
+			mutationKeyFn: () => ['staff-tenants', 'users', 'invitations'],
+			mutationFn: (client, variables) =>
+				client.staff.tenants
+					.byTenantId(variables.tenantId)
+					.users.invitations.post(
+						buildCreateStaffTenantUserInvitationBody({
+							email: variables.email,
+							accountLevel: variables.accountLevel,
+						}),
+					),
+		},
+		{ clientAccessor: getClientManager() },
+	);
 
 export const useStaffTenantUsersQuery = (
 	variables: StaffTenantUsersQueryVariables,

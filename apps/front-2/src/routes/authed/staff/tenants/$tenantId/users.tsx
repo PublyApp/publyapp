@@ -147,7 +147,7 @@ function StaffTenantUsersPage() {
 				<div className="flex items-center justify-between gap-4">
 					<h2 className="text-lg font-semibold text-foreground">Users</h2>
 					<Link
-						to={'/staff/tenants/$tenantId/users/invite' as never}
+						to="/staff/tenants/$tenantId/users/invite"
 						params={{ tenantId }}
 						className={buttonVariants({ size: 'sm', variant: 'primary' })}
 					>
@@ -159,7 +159,7 @@ function StaffTenantUsersPage() {
 				</p>
 			</div>
 
-			<DataTable
+			<DataTable<StaffTenantUserRow>
 				testId="staff-tenant-users-table"
 				ariaLabel="Tenant users"
 				columns={columns}
@@ -183,7 +183,7 @@ function StaffTenantUsersPage() {
 				}
 				onPreviousPage={controller.cursor.onPreviousPage}
 				searchDraft={controller.search.draft}
-				onSearchDraftChange={controller.search.onSearchDraftChange}
+				onSearchDraftChange={controller.search.onDraftChange}
 			/>
 		</TenantDetailsPageShell>
 	);

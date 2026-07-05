@@ -1,7 +1,7 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Card } from '@heroui/react';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -13,19 +13,20 @@ import {
 	STAFF_TENANT_USERS_QUERY_KEY,
 	useInviteTenantUserMutation,
 } from '~/lib/query/staff-tenant-users';
+import { toStaffTenantDetails } from '~/lib/query/staff-tenants';
+import { useStaffTenantDetailsQuery } from '~/lib/query/staff-tenants';
+import { shouldLogoutForFailure } from '~/routes/authed/layout';
+
 import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
-import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
-import { toStaffTenantDetails } from '~/lib/query/staff-tenants';
 import {
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
 } from './_tenant-details-shell';
-import { useStaffTenantDetailsQuery } from '~/lib/query/staff-tenants';
 
 const inviteUserSchema = z.object({
 	email: z
@@ -94,7 +95,7 @@ function StaffTenantUsersInviteRoute() {
 			reset(DEFAULT_VALUES);
 			await invalidateTenantData();
 			void navigate({
-				to: '/staff/tenants/$tenantId/invitations' as never,
+				to: '/staff/tenants/$tenantId/invitations',
 				params: { tenantId },
 			});
 		} catch (error) {
@@ -111,10 +112,10 @@ function StaffTenantUsersInviteRoute() {
 					messages.length > 0
 						? messages
 						: [
-							getFailureMessage(failure, {
-								fallback: 'Invitation validation failed.',
-							}),
-						],
+								getFailureMessage(failure, {
+									fallback: 'Invitation validation failed.',
+								}),
+							],
 				);
 				return;
 			}
@@ -172,14 +173,16 @@ function StaffTenantUsersInviteRoute() {
 						Invite tenant user
 					</h2>
 					<Link
-						to={'/staff/tenants/$tenantId/users' as never}
+						to="/staff/tenants/$tenantId/users"
 						params={{ tenantId }}
 						className="text-sm text-foreground-500 underline underline-offset-2"
 					>
 						{t('back-to-users')}
 					</Link>
 				</div>
-				<p className="text-sm text-foreground-500">Send one tenant invitation.</p>
+				<p className="text-sm text-foreground-500">
+					Send one tenant invitation.
+				</p>
 			</div>
 
 			<Card className="space-y-4 p-4">
@@ -203,10 +206,7 @@ function StaffTenantUsersInviteRoute() {
 					</div>
 
 					<div className="space-y-2">
-						<label
-							htmlFor="tenant-invite-account-level"
-							className="text-sm"
-						>
+						<label htmlFor="tenant-invite-account-level" className="text-sm">
 							{t('account-level')}
 						</label>
 						<select

@@ -46,6 +46,8 @@ vi.mock('@heroui/react', () => ({
 		),
 	Card: ({ children, ...props }: { children: ReactNode }) =>
 		createElement('div', props, children),
+	Chip: ({ children, ...props }: { children: ReactNode }) =>
+		createElement('div', props, children),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -65,8 +67,8 @@ vi.mock('@tanstack/react-router', () => ({
 		children: React.ReactNode;
 		to: string;
 		params?: Record<string, string>;
-}) => {
-			let href = to;
+	}) => {
+		let href = to;
 
 		for (const [key, value] of Object.entries(params ?? {})) {
 			href = href.replace(`$${key}`, value);
@@ -223,7 +225,9 @@ describe('staff tenant user invite route', () => {
 		fireEvent.change(screen.getByLabelText('Account level'), {
 			target: { value: 'Admin' },
 		});
-		fireEvent.submit(screen.getByRole('button', { name: 'Invite user' }).closest('form')!);
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Invite user' }).closest('form')!,
+		);
 
 		await waitFor(() =>
 			expect(mocks.inviteMutation).toHaveBeenCalledWith({
@@ -258,7 +262,9 @@ describe('staff tenant user invite route', () => {
 		fireEvent.change(screen.getByLabelText('Email'), {
 			target: { value: 'invalid-email' },
 		});
-		fireEvent.submit(screen.getByRole('button', { name: 'Invite user' }).closest('form')!);
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Invite user' }).closest('form')!,
+		);
 
 		await waitFor(() =>
 			expect(screen.getByText('Invalid email address.')).toBeTruthy(),
@@ -266,13 +272,47 @@ describe('staff tenant user invite route', () => {
 		expect(mocks.inviteMutation).not.toHaveBeenCalled();
 	});
 
-	test('shows an inline server error for non-401 failures and stays on the page', async () => {
+	test.each([
+		[400, 'Bad request'],
+		[403, 'Forbidden'],
+	])(
+		'shows an inline server error for non-401 problem errors (%i) and stays on the page',
+		async (status, message) => {
+			mocks.inviteMutation.mockRejectedValue({
+				status,
+				responseStatusCode: status,
+				title: message,
+				detail: message,
+				kind: 'problem',
+			});
+
+			renderPage();
+
+			fireEvent.change(screen.getByLabelText('Email'), {
+				target: { value: 'alex@example.com' },
+			});
+			fireEvent.submit(
+				screen.getByRole('button', { name: 'Invite user' }).closest('form')!,
+			);
+
+			await waitFor(() =>
+				expect(mocks.inviteMutation).toHaveBeenCalledTimes(1),
+			);
+			await waitFor(() => expect(screen.getByText(message)).toBeTruthy());
+			expect(screen.queryByTestId('logout-redirect')).toBeNull();
+		},
+	);
+
+	test('shows validation errors for 422 failures and stays on the page', async () => {
 		mocks.inviteMutation.mockRejectedValue({
-			status: 403,
-			responseStatusCode: 403,
-			title: 'Forbidden',
-			detail: 'Forbidden',
-			kind: 'problem',
+			status: 422,
+			responseStatusCode: 422,
+			title: 'Validation failed',
+			detail: 'Validation failed',
+			errors: {
+				email: ['Invalid email address.'],
+				accountLevel: ['Invalid account level.'],
+			},
 		});
 
 		renderPage();
@@ -280,10 +320,15 @@ describe('staff tenant user invite route', () => {
 		fireEvent.change(screen.getByLabelText('Email'), {
 			target: { value: 'alex@example.com' },
 		});
-		fireEvent.submit(screen.getByRole('button', { name: 'Invite user' }).closest('form')!);
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Invite user' }).closest('form')!,
+		);
 
 		await waitFor(() => expect(mocks.inviteMutation).toHaveBeenCalledTimes(1));
-		await waitFor(() => expect(screen.getByText('Forbidden')).toBeTruthy());
+		await waitFor(() =>
+			expect(screen.getByText('Invalid email address.')).toBeTruthy(),
+		);
+		expect(screen.getByText('Invalid account level.')).toBeTruthy();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 
@@ -302,10 +347,14 @@ describe('staff tenant user invite route', () => {
 		fireEvent.change(screen.getByLabelText('Email'), {
 			target: { value: 'alex@example.com' },
 		});
-		fireEvent.submit(screen.getByRole('button', { name: 'Invite user' }).closest('form')!);
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Invite user' }).closest('form')!,
+		);
 
 		await waitFor(() => expect(mocks.inviteMutation).toHaveBeenCalledTimes(1));
-		await waitFor(() => expect(screen.getByTestId('logout-redirect')).toBeTruthy());
+		await waitFor(() =>
+			expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
+		);
 	});
 
 	test('redirects to logout for a tenant details 401 and does not render the form', () => {
