@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn(),
 	search: {} as Record<string, unknown>,
 	navigate: vi.fn(),
+	tenantId: '11111111-1111-1111-1111-111111111111',
 	toStaffTenantDetails: vi.fn(),
 	useStaffTenantDetailsQuery: vi.fn(),
 	toStaffTenantInvitationRows: vi.fn(),
@@ -34,7 +35,7 @@ vi.mock('@tanstack/react-router', () => ({
 		...options,
 		useNavigate: () => mocks.navigate,
 		useParams: () => ({
-			tenantId: '11111111-1111-1111-1111-111111111111',
+			tenantId: mocks.tenantId,
 		}),
 		useSearch: () => mocks.search,
 	}),
@@ -117,13 +118,15 @@ const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	...overrides,
 });
 
-const renderPage = () => {
-	const Component = (
+const getRouteComponent = () =>
+	(
 		Route as unknown as {
 			component: () => JSX.Element;
 		}
 	).component;
 
+const renderPage = () => {
+	const Component = getRouteComponent();
 	return render(<Component />);
 };
 
@@ -131,6 +134,7 @@ describe('staff tenant invitations route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.search = {};
+		mocks.tenantId = '11111111-1111-1111-1111-111111111111';
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.invalidateQueries.mockResolvedValue(undefined);
 		mocks.useRevokeStaffTenantInvitationMutation.mockReturnValue({

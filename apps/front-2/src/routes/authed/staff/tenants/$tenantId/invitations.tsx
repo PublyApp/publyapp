@@ -2,7 +2,7 @@ import { Button } from '@heroui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -199,55 +199,54 @@ function StaffTenantInvitationsPage() {
 		},
 	);
 
-	const handleRevoke = async (row: StaffTenantInvitationRow) => {
-		setFeedback(null);
+	const handleRevoke = useCallback(
+		async (row: StaffTenantInvitationRow) => {
+			setFeedback(null);
 
-		if (
-			typeof globalThis.confirm === 'function' &&
-			!globalThis.confirm('Revoke invitation?')
-		) {
-			return;
-		}
-
-		try {
-			await revokeInvitation.mutateAsync({
-				tenantId,
-				invitationId: row.id,
-			});
-			await queryClient.invalidateQueries({
-				queryKey: ['staff', ...STAFF_TENANT_INVITATIONS_QUERY_KEY],
-			});
-			setFeedback({
-				tone: 'success',
-				message: t('revoke-invitation-success'),
-			});
-		} catch (error) {
-			if (shouldLogoutForFailure(error)) {
-				setShouldRedirectToLogout(true);
+			if (
+				typeof globalThis.confirm === 'function' &&
+				!globalThis.confirm('Revoke invitation?')
+			) {
 				return;
 			}
 
-			setFeedback({
-				tone: 'error',
-				message: getFailureMessage(toApiFailure(error), {
-					fallback: 'Unable to revoke the invitation.',
-				}),
-			});
-		}
-	};
+			try {
+				await revokeInvitation.mutateAsync({
+					tenantId,
+					invitationId: row.id,
+				});
+				await queryClient.invalidateQueries({
+					queryKey: ['staff', ...STAFF_TENANT_INVITATIONS_QUERY_KEY],
+				});
+				setFeedback({
+					tone: 'success',
+					message: t('revoke-invitation-success'),
+				});
+			} catch (error) {
+				if (shouldLogoutForFailure(error)) {
+					setShouldRedirectToLogout(true);
+					return;
+				}
 
-	const columns = useMemo(
-		() =>
-			createColumns({
-				locale: i18n.language,
-				t,
-				isRevokePending: revokeInvitation.isPending,
-				onRevoke: (row) => {
-					void handleRevoke(row);
-				},
-			}),
-		[i18n.language, revokeInvitation.isPending, t],
+				setFeedback({
+					tone: 'error',
+					message: getFailureMessage(toApiFailure(error), {
+						fallback: 'Unable to revoke the invitation.',
+					}),
+				});
+			}
+		},
+		[queryClient, revokeInvitation, t, tenantId],
 	);
+
+	const columns = createColumns({
+		locale: i18n.language,
+		t,
+		isRevokePending: revokeInvitation.isPending,
+		onRevoke: (row) => {
+			void handleRevoke(row);
+		},
+	});
 
 	if (detailsQuery.isPending) {
 		return <TenantDetailsLoading />;
