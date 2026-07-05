@@ -10,6 +10,10 @@ export const routes = rootRoute('__root.tsx', [
 		route('/staff/profiles', 'authed/staff/profiles.tsx'),
 		route('/staff/profiles/new', 'authed/staff/profiles-new.tsx'),
 		route('/staff/profiles/$profileId', 'authed/staff/profiles/$profileId.tsx'),
+		route(
+			'/staff/profiles/$profileId/users',
+			'authed/staff/profiles/$profileId/users.tsx',
+		),
 		route('/staff/invitations', 'authed/staff/invitations/index.tsx'),
 		route('/staff/invitations/new', 'authed/staff/invitations/new.tsx'),
 		route(

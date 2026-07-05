@@ -52,7 +52,7 @@ export type DataTableProps<TData extends { id: string }> = {
 	searchDraft: string;
 	onSearchDraftChange: (value: string) => void;
 	density?: TableDensity;
-	selection: UseRowSelectionResult;
+	selection?: UseRowSelectionResult;
 };
 
 export const DataTable = <TData extends { id: string }>({
@@ -82,7 +82,7 @@ export const DataTable = <TData extends { id: string }>({
 	density = 'compact',
 	selection,
 }: DataTableProps<TData>) => {
-	const { isSelectionMode, selectedKeys, onSelectionChange } = selection;
+	const isSelectionMode = selection?.isSelectionMode ?? false;
 	const cellPaddingClass = DENSITY_CELL_CLASS[density];
 
 	const table = useReactTable({
@@ -103,6 +103,13 @@ export const DataTable = <TData extends { id: string }>({
 	});
 
 	const paginationDisabled = isSelectionMode || isPaginationPending;
+	const tableSelectionProps = selection
+		? {
+				selectionMode: 'multiple' as const,
+				selectedKeys: selection.selectedKeys,
+				onSelectionChange: selection.onSelectionChange,
+			}
+		: {};
 
 	return (
 		<div className="space-y-3" data-testid={testId}>
@@ -162,9 +169,7 @@ export const DataTable = <TData extends { id: string }>({
 				<Table aria-label={ariaLabel} data-testid={`${testId}-rows`}>
 					<Table.ScrollContainer>
 						<Table.Content
-							selectionMode="multiple"
-							selectedKeys={selectedKeys}
-							onSelectionChange={onSelectionChange}
+							{...tableSelectionProps}
 							sortDescriptor={sortDescriptor}
 							onSortChange={(descriptor) => {
 								if (isSelectionMode) {
