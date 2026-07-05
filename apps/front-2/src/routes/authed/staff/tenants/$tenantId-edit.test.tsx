@@ -299,28 +299,28 @@ describe('staff tenant edit route', () => {
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 		expect(mocks.shouldLogoutForFailure).toHaveBeenCalled();
 	});
-});
 
-test('redirects to logout when an update failure should end the session', async () => {
-	const updateError = {
-		status: 401,
-		responseStatusCode: 401,
-		title: 'Unauthorized',
-		detail: 'Session expired.',
-	};
-	mocks.updateTenantMutation.mockRejectedValue(updateError);
-	mocks.shouldLogoutForFailure.mockReturnValue(true);
+	test('redirects to logout when an update failure should end the session', async () => {
+		const updateError = {
+			status: 401,
+			responseStatusCode: 401,
+			title: 'Unauthorized',
+			detail: 'Session expired.',
+		};
+		mocks.updateTenantMutation.mockRejectedValue(updateError);
+		mocks.shouldLogoutForFailure.mockReturnValue(true);
 
-	renderPage();
+		renderPage();
 
-	fireEvent.change(screen.getByLabelText('Max users'), {
-		target: { value: '25' },
+		fireEvent.change(screen.getByLabelText('Max users'), {
+			target: { value: '25' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
+		);
+
+		await waitFor(() =>
+			expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
+		);
 	});
-	fireEvent.submit(
-		screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
-	);
-
-	await waitFor(() =>
-		expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
-	);
 });
