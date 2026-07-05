@@ -1,5 +1,5 @@
 import { Chip } from '@heroui/react';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -31,42 +31,6 @@ import {
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 
-const columns: ColumnDef<StaffTenantProfileRow>[] = [
-	{
-		id: 'name',
-		header: 'Name',
-		accessorKey: 'name',
-	},
-	{
-		id: 'description',
-		header: 'Description',
-		accessorKey: 'description',
-		enableSorting: false,
-		cell: ({ getValue }) => getValue<string | null>() ?? '—',
-	},
-	{
-		id: 'is_default',
-		header: 'Default',
-		accessorKey: 'isDefault',
-		enableSorting: false,
-		cell: ({ getValue }) =>
-			getValue<boolean>() ? (
-				<Chip color="accent" size="sm" variant="soft">
-					Default
-				</Chip>
-			) : (
-				'—'
-			),
-	},
-	{
-		id: 'user_account_count',
-		header: 'Assigned users',
-		accessorKey: 'userAccountCount',
-		enableSorting: false,
-		cell: ({ getValue }) => String(getValue<number>()),
-	},
-];
-
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/profiles',
 )({
@@ -79,6 +43,55 @@ function StaffTenantProfilesPage() {
 	const { tenantId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
+	const columns: ColumnDef<StaffTenantProfileRow>[] = [
+		{
+			id: 'name',
+			header: 'Name',
+			accessorKey: 'name',
+			cell: ({ row }) => (
+				<div className="space-y-1">
+					<Link
+						to={'/staff/tenants/$tenantId/profiles/$profileId' as never}
+						params={{ tenantId, profileId: row.original.id } as never}
+						className="font-medium text-primary underline-offset-4 hover:underline"
+					>
+						{row.original.name || '—'}
+					</Link>
+					<p className="text-xs text-foreground-500">
+						{row.original.description ?? 'No description provided.'}
+					</p>
+				</div>
+			),
+		},
+		{
+			id: 'description',
+			header: 'Description',
+			accessorKey: 'description',
+			enableSorting: false,
+			cell: ({ getValue }) => getValue<string | null>() ?? '—',
+		},
+		{
+			id: 'is_default',
+			header: 'Default',
+			accessorKey: 'isDefault',
+			enableSorting: false,
+			cell: ({ getValue }) =>
+				getValue<boolean>() ? (
+					<Chip color="accent" size="sm" variant="soft">
+						Default
+					</Chip>
+				) : (
+					'—'
+				),
+		},
+		{
+			id: 'user_account_count',
+			header: 'Assigned users',
+			accessorKey: 'userAccountCount',
+			enableSorting: false,
+			cell: ({ getValue }) => String(getValue<number>()),
+		},
+	];
 
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
