@@ -22,7 +22,7 @@ const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
 	useCreateStaffProfileMutation: vi.fn(),
 	useStaffPermissionCatalogQuery: vi.fn(),
-	shouldLogoutForFailure: vi.fn(() => false),
+	shouldLogoutForFailure: vi.fn((_: unknown) => false),
 }));
 
 vi.mock('@heroui/react', () => ({
@@ -222,6 +222,7 @@ vi.mock('~/components/field', () => ({
 }));
 
 vi.mock('~/lib/query/staff-profiles', () => ({
+	STAFF_PROFILES_QUERY_KEY: ['staff', 'staff-profiles'],
 	useCreateStaffProfileMutation: mocks.useCreateStaffProfileMutation,
 	useStaffPermissionCatalogQuery: mocks.useStaffPermissionCatalogQuery,
 }));
@@ -314,6 +315,29 @@ describe('staff profile create route', () => {
 		]);
 	});
 
+	test('skips malformed permission catalog entries without throwing', () => {
+		expect(
+			buildStaffPermissionOptions({
+				users: {
+					read: {
+						key: '  staff.users.read  ',
+						name: '  Read users  ',
+						description: '  View staff users  ',
+					},
+					invalid: null,
+				},
+				audit: null,
+				settings: 'not-an-object',
+			} as never),
+		).toEqual([
+			{
+				value: 'staff.users.read',
+				label: 'staff.users.read',
+				description: 'Users • Read users • View staff users',
+			},
+		]);
+	});
+
 	test('links back to the staff profiles list', () => {
 		renderPage();
 
@@ -367,5 +391,74 @@ describe('staff profile create route', () => {
 				emails: [],
 			}),
 		);
+		await waitFor(() =>
+			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
+				queryKey: ['staff', 'staff-profiles'],
+			}),
+		);
+		await waitFor(() =>
+			expect(mocks.navigate).toHaveBeenCalledWith({
+				to: '/staff/profiles',
+			}),
+		);
+	});
+
+	test('renders logout redirect for submit 401 failures', async () => {
+		const mutateAsync = vi
+			.fn()
+			.mockRejectedValue(new Response(null, { status: 401 }));
+
+		mocks.useCreateStaffProfileMutation.mockReturnValue({
+			mutateAsync,
+			isPending: false,
+		});
+		mocks.shouldLogoutForFailure.mockImplementation(
+			(error: unknown) => error instanceof Response && error.status === 401,
+		);
+
+		renderPage();
+
+		fireEvent.change(screen.getByRole('textbox', { name: 'Profile name' }), {
+			target: { value: 'Platform admin' },
+		});
+		fireEvent.click(screen.getByRole('checkbox', { name: 'staff.users.read' }));
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Create profile' }).closest('form')!,
+		);
+
+		await waitFor(() => expect(mutateAsync).toHaveBeenCalled());
+		await waitFor(() =>
+			expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
+		);
+	});
+
+	test('shows an inline error and stays on the page for submit 403 failures', async () => {
+		const mutateAsync = vi
+			.fn()
+			.mockRejectedValue(new Response(null, { status: 403 }));
+
+		mocks.useCreateStaffProfileMutation.mockReturnValue({
+			mutateAsync,
+			isPending: false,
+		});
+		mocks.shouldLogoutForFailure.mockImplementation(
+			(error: unknown) => error instanceof Response && error.status === 401,
+		);
+
+		renderPage();
+
+		fireEvent.change(screen.getByRole('textbox', { name: 'Profile name' }), {
+			target: { value: 'Platform admin' },
+		});
+		fireEvent.click(screen.getByRole('checkbox', { name: 'staff.users.read' }));
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Create profile' }).closest('form')!,
+		);
+
+		await waitFor(() => expect(mutateAsync).toHaveBeenCalled());
+		await waitFor(() =>
+			expect(screen.getByText('Unable to save the profile.')).toBeTruthy(),
+		);
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 });

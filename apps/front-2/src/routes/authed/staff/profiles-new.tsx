@@ -12,7 +12,6 @@ import { Field, Form } from '~/components/field';
 import { FALLBACK_LANGUAGE, isSupportedLanguage } from '~/lib/i18n.shared';
 import {
 	STAFF_PROFILES_QUERY_KEY,
-	type StaffPermissionCatalog,
 	type StaffPermissionCatalogEntry,
 	useCreateStaffProfileMutation,
 	useStaffPermissionCatalogQuery,
@@ -46,6 +45,18 @@ const DEFAULT_VALUES: NewStaffProfileValues = {
 	emails: [],
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+	typeof value === 'object' && value !== null;
+
+const normalizeOptionalString = (value: unknown): string | undefined => {
+	if (typeof value !== 'string') {
+		return undefined;
+	}
+
+	const trimmed = value.trim();
+	return trimmed.length > 0 ? trimmed : undefined;
+};
+
 const formatModuleLabel = (moduleKey: string): string =>
 	moduleKey
 		.trim()
@@ -57,36 +68,54 @@ const buildPermissionDescription = (
 	permission: StaffPermissionCatalogEntry,
 ): string | undefined => {
 	const segments = [formatModuleLabel(moduleKey)];
+	const name = normalizeOptionalString(permission.name);
+	const description = normalizeOptionalString(permission.description);
 
-	if (typeof permission.name === 'string' && permission.name.length > 0) {
-		segments.push(permission.name);
+	if (name) {
+		segments.push(name);
 	}
 
-	if (
-		typeof permission.description === 'string' &&
-		permission.description.length > 0
-	) {
-		segments.push(permission.description);
+	if (description) {
+		segments.push(description);
 	}
 
 	return segments.length > 0 ? segments.join(' • ') : undefined;
 };
 
 export const buildStaffPermissionOptions = (
-	catalog: StaffPermissionCatalog | null | undefined,
+	catalog: unknown,
 ): StaffPermissionOption[] => {
+	if (!isRecord(catalog)) {
+		return [];
+	}
+
 	const options: StaffPermissionOption[] = [];
 
-	for (const [moduleKey, permissions] of Object.entries(catalog ?? {})) {
+	for (const [moduleKey, permissions] of Object.entries(catalog)) {
+		if (!isRecord(permissions)) {
+			continue;
+		}
+
 		for (const permission of Object.values(permissions)) {
-			if (typeof permission.key !== 'string' || permission.key.length === 0) {
+			if (!isRecord(permission)) {
 				continue;
 			}
 
+			const key = normalizeOptionalString(permission.key);
+			if (!key) {
+				continue;
+			}
+
+			const entry: StaffPermissionCatalogEntry = {
+				key,
+				name: normalizeOptionalString(permission.name),
+				description: normalizeOptionalString(permission.description),
+			};
+
 			options.push({
-				value: permission.key,
-				label: permission.key,
-				description: buildPermissionDescription(moduleKey, permission),
+				value: key,
+				label: key,
+				description: buildPermissionDescription(moduleKey, entry),
 			});
 		}
 	}
@@ -119,6 +148,7 @@ function NewStaffProfileRoute() {
 	const navigate = Route.useNavigate();
 	const queryClient = useQueryClient();
 	const { t, i18n } = useTranslation('common');
+	const [shouldLogout, setShouldLogout] = useState(false);
 	const [serverError, setServerError] = useState('');
 
 	const resolver = useMemo(
@@ -137,18 +167,13 @@ function NewStaffProfileRoute() {
 	const createProfile = useCreateStaffProfileMutation();
 
 	const permissionOptions = useMemo(
-		() =>
-			buildStaffPermissionOptions(
-				(permissionsQuery.data?.additionalData ?? undefined) as
-					| StaffPermissionCatalog
-					| undefined,
-			),
+		() => buildStaffPermissionOptions(permissionsQuery.data?.additionalData),
 		[permissionsQuery.data],
 	);
 
 	if (
-		permissionsQuery.isError &&
-		shouldLogoutForFailure(permissionsQuery.error)
+		shouldLogout ||
+		(permissionsQuery.isError && shouldLogoutForFailure(permissionsQuery.error))
 	) {
 		return <LogoutRedirect />;
 	}
@@ -171,6 +196,7 @@ function NewStaffProfileRoute() {
 			});
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
+				setShouldLogout(true);
 				return;
 			}
 
