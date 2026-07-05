@@ -16,6 +16,7 @@ import { Route as indexRouteImport } from './routes/index'
 import { Route as authedTenantRouteImport } from './routes/authed/tenant'
 import { Route as authedStaffRouteImport } from './routes/authed/staff'
 import { Route as authedStaffStaffUsersRouteImport } from './routes/authed/staff/staff-users'
+import { Route as authedStaffProfilesRouteImport } from './routes/authed/staff/profiles'
 import { Route as authedStaffInvitationsIndexRouteImport } from './routes/authed/staff/invitations/index'
 import { Route as authedStaffInvitationsNewRouteImport } from './routes/authed/staff/invitations/new'
 import { Route as authedStaffInvitationsInvitationIdRouteImport } from './routes/authed/staff/invitations/$invitationId'
@@ -54,6 +55,11 @@ const authedStaffStaffUsersRoute = authedStaffStaffUsersRouteImport.update({
   path: '/staff/staff-users',
   getParentRoute: () => authedLayoutRoute,
 } as any)
+const authedStaffProfilesRoute = authedStaffProfilesRouteImport.update({
+  id: '/staff/profiles',
+  path: '/staff/profiles',
+  getParentRoute: () => authedLayoutRoute,
+} as any)
 const authedStaffInvitationsIndexRoute =
   authedStaffInvitationsIndexRouteImport.update({
     id: '/staff/invitations',
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/staff': typeof authedStaffRoute
   '/tenant': typeof authedTenantRoute
   '/staff/staff-users': typeof authedStaffStaffUsersRoute
+  '/staff/profiles': typeof authedStaffProfilesRoute
   '/staff/invitations': typeof authedStaffInvitationsIndexRoute
   '/staff/invitations/new': typeof authedStaffInvitationsNewRoute
   '/staff/invitations/$invitationId': typeof authedStaffInvitationsInvitationIdRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/staff': typeof authedStaffRoute
   '/tenant': typeof authedTenantRoute
   '/staff/staff-users': typeof authedStaffStaffUsersRoute
+  '/staff/profiles': typeof authedStaffProfilesRoute
   '/staff/invitations': typeof authedStaffInvitationsIndexRoute
   '/staff/invitations/new': typeof authedStaffInvitationsNewRoute
   '/staff/invitations/$invitationId': typeof authedStaffInvitationsInvitationIdRoute
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/_authed-layout/staff': typeof authedStaffRoute
   '/_authed-layout/tenant': typeof authedTenantRoute
   '/_authed-layout/staff/staff-users': typeof authedStaffStaffUsersRoute
+  '/_authed-layout/staff/profiles': typeof authedStaffProfilesRoute
   '/_authed-layout/staff/invitations/': typeof authedStaffInvitationsIndexRoute
   '/_authed-layout/staff/invitations/new': typeof authedStaffInvitationsNewRoute
   '/_authed-layout/staff/invitations/$invitationId': typeof authedStaffInvitationsInvitationIdRoute
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/tenant'
     | '/staff/staff-users'
+    | '/staff/profiles'
     | '/staff/invitations'
     | '/staff/invitations/new'
     | '/staff/invitations/$invitationId'
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/tenant'
     | '/staff/staff-users'
+    | '/staff/profiles'
     | '/staff/invitations'
     | '/staff/invitations/new'
     | '/staff/invitations/$invitationId'
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/_authed-layout/staff'
     | '/_authed-layout/tenant'
     | '/_authed-layout/staff/staff-users'
+    | '/_authed-layout/staff/profiles'
     | '/_authed-layout/staff/invitations/'
     | '/_authed-layout/staff/invitations/new'
     | '/_authed-layout/staff/invitations/$invitationId'
@@ -203,6 +215,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authedStaffStaffUsersRouteImport
       parentRoute: typeof authedLayoutRoute
     }
+    '/_authed-layout/staff/profiles': {
+      id: '/_authed-layout/staff/profiles'
+      path: '/staff/profiles'
+      fullPath: '/staff/profiles'
+      preLoaderRoute: typeof authedStaffProfilesRouteImport
+      parentRoute: typeof authedLayoutRoute
+    }
     '/_authed-layout/staff/invitations/': {
       id: '/_authed-layout/staff/invitations/'
       path: '/staff/invitations'
@@ -231,6 +250,7 @@ interface authedLayoutRouteChildren {
   authedStaffRoute: typeof authedStaffRoute
   authedTenantRoute: typeof authedTenantRoute
   authedStaffStaffUsersRoute: typeof authedStaffStaffUsersRoute
+  authedStaffProfilesRoute: typeof authedStaffProfilesRoute
   authedStaffInvitationsIndexRoute: typeof authedStaffInvitationsIndexRoute
   authedStaffInvitationsNewRoute: typeof authedStaffInvitationsNewRoute
   authedStaffInvitationsInvitationIdRoute: typeof authedStaffInvitationsInvitationIdRoute
@@ -240,6 +260,7 @@ const authedLayoutRouteChildren: authedLayoutRouteChildren = {
   authedStaffRoute: authedStaffRoute,
   authedTenantRoute: authedTenantRoute,
   authedStaffStaffUsersRoute: authedStaffStaffUsersRoute,
+  authedStaffProfilesRoute: authedStaffProfilesRoute,
   authedStaffInvitationsIndexRoute: authedStaffInvitationsIndexRoute,
   authedStaffInvitationsNewRoute: authedStaffInvitationsNewRoute,
   authedStaffInvitationsInvitationIdRoute:
