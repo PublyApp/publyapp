@@ -5,6 +5,7 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type {
 	FindTenantsAsStaffResponse,
+	GetTenantAsStaffResult,
 	TenantAsStaffListItem,
 } from '@org/client-ts/src/models/index.js';
 import { buildStaffQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
@@ -26,6 +27,22 @@ export type StaffTenantRow = {
 	maxUsers: number;
 };
 
+export type StaffTenantDetailsQueryVariables = {
+	tenantId: string;
+};
+
+export type StaffTenantDetails = {
+	id: string;
+	name: string;
+	code: string | null;
+	status: string | null;
+	usersCount: number;
+	maxUsers: number;
+	logoUrl: string | null;
+	createdAt: Date | null;
+	updatedAt: Date | null;
+};
+
 const normalizeString = (
 	value: string | null | undefined,
 ): string | undefined => {
@@ -40,6 +57,14 @@ const normalizeString = (
 const normalizeNullableString = (
 	value: string | null | undefined,
 ): string | null => normalizeString(value) ?? null;
+
+const normalizeDate = (value: Date | null | undefined): Date | null => {
+	if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
+		return null;
+	}
+
+	return value;
+};
 
 const isPositiveSafeInteger = (value: number | undefined): value is number =>
 	typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
@@ -87,6 +112,27 @@ export const toStaffTenantRows = (
 	return rows;
 };
 
+export const toStaffTenantDetails = (
+	result: GetTenantAsStaffResult | null | undefined,
+): StaffTenantDetails | null => {
+	const id = normalizeString(result?.tenantId?.toString() ?? undefined);
+	if (!id) {
+		return null;
+	}
+
+	return {
+		id,
+		name: normalizeString(result?.name) ?? '—',
+		code: normalizeNullableString(result?.code),
+		status: normalizeNullableString(result?.status),
+		usersCount: result?.usersCount ?? 0,
+		maxUsers: result?.maxUsers ?? 0,
+		logoUrl: normalizeNullableString(result?.logoUrl),
+		createdAt: normalizeDate(result?.createdAt),
+		updatedAt: normalizeDate(result?.updatedAt),
+	};
+};
+
 const staffTenantsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindTenantsAsStaffResponse,
@@ -113,4 +159,38 @@ export const useStaffTenantsQuery = (variables: StaffTenantsQueryVariables) =>
 	useQuery({
 		queryKey: staffTenantsQueryOptions.queryKey(variables),
 		queryFn: () => staffTenantsQueryOptions.fetcher(variables),
+	});
+
+const staffTenantDetailsQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	GetTenantAsStaffResult,
+	StaffTenantDetailsQueryVariables
+>(
+	{
+		queryKeyFn: () => ['staff-tenants', 'detail'],
+		fetcher: async (client, variables) => {
+			const result = await client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.get();
+
+			if (!result) {
+				throw new Error('staff tenant details result was empty');
+			}
+
+			return result;
+		},
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const useStaffTenantDetailsQuery = (
+	variables: StaffTenantDetailsQueryVariables,
+	options?: {
+		enabled?: boolean;
+	},
+) =>
+	useQuery({
+		queryKey: staffTenantDetailsQueryOptions.queryKey(variables),
+		queryFn: () => staffTenantDetailsQueryOptions.fetcher(variables),
+		enabled: options?.enabled ?? true,
 	});
