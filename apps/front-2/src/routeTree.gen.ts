@@ -16,6 +16,7 @@ import { Route as indexRouteImport } from './routes/index'
 import { Route as authedTenantRouteImport } from './routes/authed/tenant'
 import { Route as authedStaffRouteImport } from './routes/authed/staff'
 import { Route as authedStaffStaffUsersRouteImport } from './routes/authed/staff/staff-users'
+import { Route as authedStaffInvitationsIndexRouteImport } from './routes/authed/staff/invitations/index'
 import { Route as authedStaffInvitationsNewRouteImport } from './routes/authed/staff/invitations/new'
 
 const loginRoute = loginRouteImport.update({
@@ -52,6 +53,12 @@ const authedStaffStaffUsersRoute = authedStaffStaffUsersRouteImport.update({
   path: '/staff/staff-users',
   getParentRoute: () => authedLayoutRoute,
 } as any)
+const authedStaffInvitationsIndexRoute =
+  authedStaffInvitationsIndexRouteImport.update({
+    id: '/staff/invitations',
+    path: '/staff/invitations',
+    getParentRoute: () => authedLayoutRoute,
+  } as any)
 const authedStaffInvitationsNewRoute =
   authedStaffInvitationsNewRouteImport.update({
     id: '/staff/invitations/new',
@@ -66,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/staff': typeof authedStaffRoute
   '/tenant': typeof authedTenantRoute
   '/staff/staff-users': typeof authedStaffStaffUsersRoute
+  '/staff/invitations': typeof authedStaffInvitationsIndexRoute
   '/staff/invitations/new': typeof authedStaffInvitationsNewRoute
 }
 export interface FileRoutesByTo {
@@ -75,6 +83,7 @@ export interface FileRoutesByTo {
   '/staff': typeof authedStaffRoute
   '/tenant': typeof authedTenantRoute
   '/staff/staff-users': typeof authedStaffStaffUsersRoute
+  '/staff/invitations': typeof authedStaffInvitationsIndexRoute
   '/staff/invitations/new': typeof authedStaffInvitationsNewRoute
 }
 export interface FileRoutesById {
@@ -86,6 +95,7 @@ export interface FileRoutesById {
   '/_authed-layout/staff': typeof authedStaffRoute
   '/_authed-layout/tenant': typeof authedTenantRoute
   '/_authed-layout/staff/staff-users': typeof authedStaffStaffUsersRoute
+  '/_authed-layout/staff/invitations/': typeof authedStaffInvitationsIndexRoute
   '/_authed-layout/staff/invitations/new': typeof authedStaffInvitationsNewRoute
 }
 export interface FileRouteTypes {
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/tenant'
     | '/staff/staff-users'
+    | '/staff/invitations'
     | '/staff/invitations/new'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/tenant'
     | '/staff/staff-users'
+    | '/staff/invitations'
     | '/staff/invitations/new'
   id:
     | '__root__'
@@ -116,6 +128,7 @@ export interface FileRouteTypes {
     | '/_authed-layout/staff'
     | '/_authed-layout/tenant'
     | '/_authed-layout/staff/staff-users'
+    | '/_authed-layout/staff/invitations/'
     | '/_authed-layout/staff/invitations/new'
   fileRoutesById: FileRoutesById
 }
@@ -177,6 +190,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authedStaffStaffUsersRouteImport
       parentRoute: typeof authedLayoutRoute
     }
+    '/_authed-layout/staff/invitations/': {
+      id: '/_authed-layout/staff/invitations/'
+      path: '/staff/invitations'
+      fullPath: '/staff/invitations'
+      preLoaderRoute: typeof authedStaffInvitationsIndexRouteImport
+      parentRoute: typeof authedLayoutRoute
+    }
     '/_authed-layout/staff/invitations/new': {
       id: '/_authed-layout/staff/invitations/new'
       path: '/staff/invitations/new'
@@ -191,6 +211,7 @@ interface authedLayoutRouteChildren {
   authedStaffRoute: typeof authedStaffRoute
   authedTenantRoute: typeof authedTenantRoute
   authedStaffStaffUsersRoute: typeof authedStaffStaffUsersRoute
+  authedStaffInvitationsIndexRoute: typeof authedStaffInvitationsIndexRoute
   authedStaffInvitationsNewRoute: typeof authedStaffInvitationsNewRoute
 }
 
@@ -198,6 +219,7 @@ const authedLayoutRouteChildren: authedLayoutRouteChildren = {
   authedStaffRoute: authedStaffRoute,
   authedTenantRoute: authedTenantRoute,
   authedStaffStaffUsersRoute: authedStaffStaffUsersRoute,
+  authedStaffInvitationsIndexRoute: authedStaffInvitationsIndexRoute,
   authedStaffInvitationsNewRoute: authedStaffInvitationsNewRoute,
 }
 

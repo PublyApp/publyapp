@@ -63,6 +63,7 @@ export type UseTableControllerOptions = {
 	defaultSort: SortState;
 	defaultSize: number;
 	searchDebounceMs?: number;
+	cursorResetKey?: string;
 };
 
 export type UseTableControllerResult = {
@@ -107,6 +108,7 @@ export const useTableController = (
 		defaultSort,
 		defaultSize,
 		searchDebounceMs = DEFAULT_SEARCH_DEBOUNCE_MS,
+		cursorResetKey,
 	} = options;
 
 	const sort = resolveSort(search, defaultSort);
@@ -117,6 +119,7 @@ export const useTableController = (
 		sortId: sort.id,
 		sortOrder: sort.order,
 		size,
+		scopeKey: cursorResetKey,
 	});
 
 	const [draft, setDraft] = useState(committedQ);

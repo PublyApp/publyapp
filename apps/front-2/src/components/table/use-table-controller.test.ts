@@ -208,4 +208,35 @@ describe('useTableController (hook, regression)', () => {
 			vi.useRealTimers();
 		}
 	});
+
+	test('an external cursor reset key change resets pagination back to page 1', () => {
+		const onSearchChange = vi.fn();
+		const baseOptions: UseTableControllerOptions = {
+			search: {
+				sortId: 'created_at',
+				sortOrder: 'desc',
+				size: 25,
+			},
+			onSearchChange,
+			defaultSort: DEFAULT_SORT,
+			defaultSize: DEFAULT_SIZE,
+			cursorResetKey: 'pending',
+		};
+
+		const hook = renderTableController(baseOptions);
+
+		act(() => {
+			hook.result().cursor.onNextPage('cursor-1');
+		});
+
+		expect(hook.result().cursor.pageIndex).toBe(1);
+
+		hook.rerender({
+			...baseOptions,
+			cursorResetKey: 'accepted',
+		});
+
+		expect(hook.result().cursor.pageIndex).toBe(0);
+		expect(hook.result().cursor.hasPreviousPage).toBe(false);
+	});
 });

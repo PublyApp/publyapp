@@ -6,6 +6,7 @@ export type CursorGeneration = {
 	sortId: string;
 	sortOrder: SortOrder;
 	size: number;
+	scopeKey?: string;
 };
 
 export type CursorPaginationState = {
@@ -27,7 +28,10 @@ export const initialCursorPaginationState = (
 });
 
 const sameGeneration = (a: CursorGeneration, b: CursorGeneration): boolean =>
-	a.sortId === b.sortId && a.sortOrder === b.sortOrder && a.size === b.size;
+	a.sortId === b.sortId &&
+	a.sortOrder === b.sortOrder &&
+	a.size === b.size &&
+	a.scopeKey === b.scopeKey;
 
 /**
  * Reads `state` as of `generation`. A sort/size change invalidates the stored
@@ -102,7 +106,7 @@ export const useCursorPagination = (
 	const [state, setState] = useState<CursorPaginationState>(() =>
 		initialCursorPaginationState(generation),
 	);
-	const { sortId, sortOrder, size } = generation;
+	const { sortId, sortOrder, size, scopeKey } = generation;
 
 	// Commit (not just derive) the reset when the generation changes, so a
 	// stale generation's cursor stack can never resurface if the caller later
@@ -117,21 +121,25 @@ export const useCursorPagination = (
 	const advance = useCallback(
 		(nextCursor: string | undefined) => {
 			setState((prev) =>
-				advanceCursorPagination(prev, { sortId, sortOrder, size }, nextCursor),
+				advanceCursorPagination(
+					prev,
+					{ sortId, sortOrder, size, scopeKey },
+					nextCursor,
+				),
 			);
 		},
-		[sortId, sortOrder, size],
+		[scopeKey, size, sortId, sortOrder],
 	);
 
 	const retreat = useCallback(() => {
 		setState((prev) =>
-			retreatCursorPagination(prev, { sortId, sortOrder, size }),
+			retreatCursorPagination(prev, { sortId, sortOrder, size, scopeKey }),
 		);
-	}, [sortId, sortOrder, size]);
+	}, [scopeKey, size, sortId, sortOrder]);
 
 	const reset = useCallback(() => {
-		setState(resetCursorPagination({ sortId, sortOrder, size }));
-	}, [sortId, sortOrder, size]);
+		setState(resetCursorPagination({ sortId, sortOrder, size, scopeKey }));
+	}, [scopeKey, size, sortId, sortOrder]);
 
 	const derived = deriveCursorPaginationState(state, generation);
 
