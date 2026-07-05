@@ -165,6 +165,13 @@ describe('staff tenant users route', () => {
 		expect(screen.getByTestId('staff-tenant-users-page')).toBeTruthy();
 		expect(screen.getByText('Acme Corporation')).toBeTruthy();
 		expect(
+			screen
+				.getByRole('link', { name: 'Alex Johnson' })
+				.getAttribute('href'),
+		).toBe(
+			'/staff/tenants/11111111-1111-1111-1111-111111111111/users/user-1',
+		);
+		expect(
 			screen.getByText('Users', { selector: 'span[aria-current="page"]' }),
 		).toBeTruthy();
 		expect(screen.getByText('Alex Johnson')).toBeTruthy();

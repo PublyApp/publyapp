@@ -8,6 +8,7 @@ import type {
 	CreateInvitationForTenantAsStaffBody,
 	FindTenantUsersAsStaffResult,
 	InvitationCreatedForTenant,
+	TenantUserDetailsResult,
 	TenantUserItem,
 } from '@org/client-ts/src/models/index.js';
 import {
@@ -50,6 +51,25 @@ export type StaffTenantUserRow = {
 	displayName: string;
 };
 
+export type StaffTenantUserDetailsQueryVariables = {
+	tenantId: string;
+	userId: string;
+};
+
+export type StaffTenantUserDetails = {
+	id: string;
+	email: string;
+	firstName: string | null;
+	lastName: string | null;
+	accountLevel: string | null;
+	status: string | null;
+	avatarUrl: string | null;
+	tenantId: string | null;
+	createdAt: Date | null;
+	updatedAt: Date | null;
+	displayName: string;
+};
+
 export const STAFF_TENANT_USERS_QUERY_KEY = ['staff-tenants', 'users'] as const;
 
 const normalizeString = (
@@ -66,6 +86,14 @@ const normalizeString = (
 const normalizeNullableString = (
 	value: string | null | undefined,
 ): string | null => normalizeString(value) ?? null;
+
+const normalizeDate = (value: Date | null | undefined): Date | null => {
+	if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
+		return null;
+	}
+
+	return value;
+};
 
 const isPositiveSafeInteger = (value: number | undefined): value is number =>
 	typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
@@ -149,6 +177,35 @@ export const toStaffTenantUserRows = (
 	return rows;
 };
 
+export const toStaffTenantUserDetails = (
+	result: TenantUserDetailsResult | null | undefined,
+): StaffTenantUserDetails | null => {
+	const id = normalizeString(result?.id?.toString());
+	if (!id) {
+		return null;
+	}
+
+	const email = normalizeString(result?.email);
+
+	return {
+		id,
+		email: email ?? '',
+		firstName: normalizeNullableString(result?.firstName),
+		lastName: normalizeNullableString(result?.lastName),
+		accountLevel: normalizeNullableString(result?.level),
+		status: normalizeNullableString(result?.status),
+		avatarUrl: normalizeNullableString(result?.avatarUrl),
+		tenantId: normalizeString(result?.tenantId?.toString()),
+		createdAt: normalizeDate(result?.createdAt),
+		updatedAt: normalizeDate(result?.updatedAt),
+		displayName: getDisplayName({
+			firstName: normalizeNullableString(result?.firstName),
+			lastName: normalizeNullableString(result?.lastName),
+			email: email ?? '',
+		}),
+	};
+};
+
 const staffTenantUsersQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindTenantUsersAsStaffResult,
@@ -194,6 +251,29 @@ const createStaffTenantUserInvitationMutationOptions =
 		{ clientAccessor: getClientManager() },
 	);
 
+const staffTenantUserDetailsQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	TenantUserDetailsResult,
+	StaffTenantUserDetailsQueryVariables
+>(
+	{
+		queryKeyFn: () => ['staff-tenants', 'users', 'detail'],
+		fetcher: async (client, variables) => {
+			const result = await client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.users.byUserId(variables.userId)
+				.get();
+
+			if (!result) {
+				throw new Error('staff tenant user details result was empty');
+			}
+
+			return result;
+		},
+	},
+	{ clientAccessor: getClientManager() },
+);
+
 export const useStaffTenantUsersQuery = (
 	variables: StaffTenantUsersQueryVariables,
 	options?: {
@@ -203,6 +283,18 @@ export const useStaffTenantUsersQuery = (
 	useQuery({
 		queryKey: staffTenantUsersQueryOptions.queryKey(variables),
 		queryFn: () => staffTenantUsersQueryOptions.fetcher(variables),
+		enabled: options?.enabled ?? true,
+	});
+
+export const useStaffTenantUserDetailsQuery = (
+	variables: StaffTenantUserDetailsQueryVariables,
+	options?: {
+		enabled?: boolean;
+	},
+) =>
+	useQuery({
+		queryKey: staffTenantUserDetailsQueryOptions.queryKey(variables),
+		queryFn: () => staffTenantUserDetailsQueryOptions.fetcher(variables),
 		enabled: options?.enabled ?? true,
 	});
 
