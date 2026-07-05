@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { buildProfileOptions } from './new';
+import { buildProfileOptions, STAFF_INVITATIONS_INDEX_PATH } from './new';
 
 describe('buildProfileOptions', () => {
 	test('keeps selected profile ids visible when the current search result omits them', () => {
@@ -14,5 +14,9 @@ describe('buildProfileOptions', () => {
 			{ value: 'profile-admin', label: 'Admin' },
 			{ value: 'profile-editor', label: 'Editor' },
 		]);
+	});
+
+	test('uses the staff invitations list path for post-create navigation', () => {
+		expect(STAFF_INVITATIONS_INDEX_PATH).toBe('/staff/invitations');
 	});
 });
