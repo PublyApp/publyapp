@@ -1,5 +1,6 @@
 import {
 	createUntypedArray,
+	createUntypedNumber,
 	createUntypedObject,
 	createUntypedString,
 } from '@microsoft/kiota-abstractions';
@@ -184,9 +185,7 @@ export const buildCreateStaffTenantBody = (
 	}
 
 	if (isPositiveSafeInteger(input.maxUsers)) {
-		body.maxUsers = createUntypedString(
-			input.maxUsers.toString(),
-		) as typeof body.maxUsers;
+		body.maxUsers = createUntypedNumber(input.maxUsers) as typeof body.maxUsers;
 	}
 
 	if (initialUsers.length > 0) {

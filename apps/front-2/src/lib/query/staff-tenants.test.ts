@@ -81,7 +81,7 @@ describe('buildCreateStaffTenantBody', () => {
 		});
 
 		expect(unwrapUntyped(body.name)).toBe('Acme Tenant');
-		expect(unwrapUntyped(body.maxUsers)).toBe('12');
+		expect(unwrapUntyped(body.maxUsers)).toBe(12);
 		expect(unwrapUntyped(body.initialUsers)).toMatchObject([
 			{
 				email: 'user1@example.com',
@@ -151,7 +151,7 @@ describe('createStaffTenantMutationOptions', () => {
 		expect(post).toHaveBeenCalledTimes(1);
 		expect(unwrapUntyped(post.mock.calls[0][0])).toEqual({
 			name: 'Acme Tenant',
-			maxUsers: '5',
+			maxUsers: 5,
 			initialUsers: [
 				{
 					email: 'user@example.com',
