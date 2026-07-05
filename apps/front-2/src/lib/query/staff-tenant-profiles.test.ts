@@ -11,11 +11,11 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 }));
 import {
 	buildStaffTenantPermissionCatalogOptions,
-	staffTenantProfileAssignMutationOptions,
 	buildCreateStaffTenantProfileBody,
 	deleteStaffTenantProfileMutationOptions,
 	buildFindStaffTenantProfilesQueryParameters,
-	staffTenantProfileUnassignMutationOptions,
+	assignStaffTenantProfilePermissionMutationOptions,
+	unassignStaffTenantProfilePermissionMutationOptions,
 	buildUpdateStaffTenantProfileBody,
 	toStaffTenantProfileDetails,
 	toStaffTenantProfilePermissionKeys,
@@ -218,17 +218,20 @@ describe('deleteStaffTenantProfileMutationOptions', () => {
 	});
 });
 
-describe('staffTenantProfileAssignMutationOptions', () => {
+describe('assignStaffTenantProfilePermissionMutationOptions', () => {
 	test('calls tenant profile permission assignment path', async () => {
 		const post = vi.fn().mockResolvedValue(undefined);
-		const byPermissionKey = vi.fn((permissionKey: string) => ({ post, permissionKey }));
+		const byPermissionKey = vi.fn((permissionKey: string) => ({
+			post,
+			permissionKey,
+		}));
 		const permissions = vi.fn(() => ({ byPermissionKey }));
 		const byProfileId = vi.fn(() => ({
 			permissions: permissions(),
 		}));
 		const byTenantId = vi.fn((tenantId: string) => ({
 			profiles: {
-				byProfileId: byProfileId(tenantId),
+				byProfileId,
 			},
 			tenantId,
 		}));
@@ -241,13 +244,17 @@ describe('staffTenantProfileAssignMutationOptions', () => {
 			},
 		});
 
-		const result = await staffTenantProfileAssignMutationOptions.mutationFn({
-			tenantId: 'tenant-123',
-			profileId: 'profile-456',
-			permissionKey: 'tenant.users.read',
-		});
+		const result =
+			await assignStaffTenantProfilePermissionMutationOptions.mutationFn({
+				tenantId: 'tenant-123',
+				profileId: 'profile-456',
+				permissionKey: 'tenant.users.read',
+			});
 
-		expect(staffTenantProfileAssignMutationOptions.mutationKey).toEqual([
+		expect(
+			assignStaffTenantProfilePermissionMutationOptions.mutationKey,
+		).toEqual([
+			'staff',
 			'staff',
 			'staff-tenants',
 			'profiles',
@@ -262,7 +269,7 @@ describe('staffTenantProfileAssignMutationOptions', () => {
 	});
 });
 
-describe('staffTenantProfileUnassignMutationOptions', () => {
+describe('unassignStaffTenantProfilePermissionMutationOptions', () => {
 	test('calls tenant profile permission unassignment path', async () => {
 		const deletePermission = vi.fn().mockResolvedValue(undefined);
 		const byPermissionKey = vi.fn((permissionKey: string) => ({
@@ -275,7 +282,7 @@ describe('staffTenantProfileUnassignMutationOptions', () => {
 		}));
 		const byTenantId = vi.fn((tenantId: string) => ({
 			profiles: {
-				byProfileId: byProfileId(tenantId),
+				byProfileId,
 			},
 			tenantId,
 		}));
@@ -288,13 +295,17 @@ describe('staffTenantProfileUnassignMutationOptions', () => {
 			},
 		});
 
-		const result = await staffTenantProfileUnassignMutationOptions.mutationFn({
-			tenantId: 'tenant-123',
-			profileId: 'profile-456',
-			permissionKey: 'tenant.users.read',
-		});
+		const result =
+			await unassignStaffTenantProfilePermissionMutationOptions.mutationFn({
+				tenantId: 'tenant-123',
+				profileId: 'profile-456',
+				permissionKey: 'tenant.users.read',
+			});
 
-		expect(staffTenantProfileUnassignMutationOptions.mutationKey).toEqual([
+		expect(
+			unassignStaffTenantProfilePermissionMutationOptions.mutationKey,
+		).toEqual([
+			'staff',
 			'staff',
 			'staff-tenants',
 			'profiles',

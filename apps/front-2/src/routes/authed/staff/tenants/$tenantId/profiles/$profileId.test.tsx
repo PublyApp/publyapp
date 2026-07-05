@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
 	},
 	useStaffTenantDetailsQuery: vi.fn(),
 	toStaffTenantDetails: vi.fn(),
+	buildStaffTenantPermissionCatalogOptions: vi.fn(),
 	useStaffTenantProfileDetailsQuery: vi.fn(),
 	toStaffTenantProfileDetails: vi.fn(),
 	useStaffTenantProfilePermissionKeysQuery: vi.fn(),
@@ -28,7 +29,7 @@ const mocks = vi.hoisted(() => ({
 	useDeleteStaffTenantProfileMutation: vi.fn(),
 	useAssignStaffTenantProfilePermissionMutation: vi.fn(),
 	useUnassignStaffTenantProfilePermissionMutation: vi.fn(),
-	shouldLogoutForFailure: vi.fn(() => false),
+	shouldLogoutForFailure: vi.fn((_: unknown) => false),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -102,6 +103,8 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 		'profiles',
 		'permission-keys',
 	],
+	buildStaffTenantPermissionCatalogOptions:
+		mocks.buildStaffTenantPermissionCatalogOptions,
 	useStaffTenantProfileDetailsQuery: mocks.useStaffTenantProfileDetailsQuery,
 	toStaffTenantProfileDetails: mocks.toStaffTenantProfileDetails,
 	useStaffTenantProfilePermissionKeysQuery:
@@ -224,6 +227,50 @@ describe('staff tenant profile details route', () => {
 					},
 				},
 			}),
+		);
+		mocks.buildStaffTenantPermissionCatalogOptions.mockImplementation(
+			(
+				additionalData: Record<
+					string,
+					Record<string, { key?: string; description?: string | null }>
+				>,
+			) => {
+				const options: Array<{
+					key: string;
+					description: string | null;
+					label: string;
+				}> = [];
+
+				for (const modulePermissions of Object.values(additionalData)) {
+					if (typeof modulePermissions !== 'object' || !modulePermissions) {
+						continue;
+					}
+
+					for (const permission of Object.values(modulePermissions)) {
+						if (!permission || typeof permission !== 'object') {
+							continue;
+						}
+
+						const key = (permission as { key?: string }).key?.trim() ?? '';
+
+						if (!key) {
+							continue;
+						}
+
+						options.push({
+							key,
+							label: key,
+							description:
+								(permission as { description?: string | null })?.description ??
+								null,
+						});
+					}
+				}
+
+				return options.sort((left, right) =>
+					left.label.localeCompare(right.label),
+				);
+			},
 		);
 		mocks.useAssignStaffTenantProfilePermissionMutation.mockReturnValue({
 			isPending: false,
@@ -377,7 +424,9 @@ describe('staff tenant profile details route', () => {
 			}),
 		);
 
-		expect(await screen.findByText('Unable to add this permission')).toBeTruthy();
+		expect(
+			await screen.findByText('Unable to add this permission'),
+		).toBeTruthy();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 
@@ -392,10 +441,23 @@ describe('staff tenant profile details route', () => {
 			isPending: false,
 			mutateAsync: assignPermission,
 		});
-		mocks.shouldLogoutForFailure.mockImplementation(
-			(error: { status?: number; responseStatusCode?: number }) =>
-				(error.status ?? error.responseStatusCode) === 401,
-		);
+		mocks.shouldLogoutForFailure.mockImplementation((error: unknown) => {
+			if (typeof error !== 'object' || error === null) {
+				return false;
+			}
+
+			const responseStatusCode =
+				typeof (error as { status?: unknown }).status === 'number'
+					? (error as { status?: number }).status
+					: undefined;
+			const statusCode =
+				typeof (error as { responseStatusCode?: unknown })
+					.responseStatusCode === 'number'
+					? (error as { responseStatusCode?: number }).responseStatusCode
+					: undefined;
+
+			return (responseStatusCode ?? statusCode) === 401;
+		});
 
 		renderPage();
 

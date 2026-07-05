@@ -1,7 +1,7 @@
 import { Button, Card, Chip, Spinner } from '@heroui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import {
@@ -176,6 +176,49 @@ function StaffTenantProfileDetailsPage() {
 	const deleteProfile = useDeleteStaffTenantProfileMutation();
 	const assignPermission = useAssignStaffTenantProfilePermissionMutation();
 	const unassignPermission = useUnassignStaffTenantProfilePermissionMutation();
+	const profile = toStaffTenantProfileDetails(detailQuery.data);
+	const permissionKeys = toStaffTenantProfilePermissionKeys(
+		permissionKeysQuery.data,
+	);
+	const permissionCatalogOptions = buildStaffTenantPermissionCatalogOptions(
+		permissionCatalogQuery.data?.additionalData,
+	);
+	const permissionDescriptionsByKey = new Map<string, string | null>();
+
+	for (const option of permissionCatalogOptions) {
+		permissionDescriptionsByKey.set(option.key, option.description ?? null);
+	}
+	const assignedPermissionEntries = permissionKeys.map((permissionKey) => {
+		const catalogItem = permissionCatalogOptions.find(
+			(option) => option.key === permissionKey,
+		);
+
+		return {
+			key: permissionKey,
+			label: catalogItem?.label ?? permissionKey,
+			description: permissionDescriptionsByKey.get(permissionKey) ?? null,
+		};
+	});
+	const assignedPermissionKeySet = new Set(
+		assignedPermissionEntries.map((permission) => permission.key),
+	);
+	const availablePermissionEntries = permissionCatalogOptions.filter(
+		(option) => !assignedPermissionKeySet.has(option.key),
+	);
+
+	const isPermissionBusy = busyPermissionKey.length > 0;
+	const invalidatePermissionQueries = () =>
+		Promise.all([
+			queryClient.invalidateQueries({
+				queryKey: STAFF_TENANT_PROFILES_QUERY_KEY,
+			}),
+			queryClient.invalidateQueries({
+				queryKey: STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY,
+			}),
+			queryClient.invalidateQueries({
+				queryKey: STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY,
+			}),
+		]);
 
 	if (shouldRedirectToLogout) {
 		return <LogoutRedirect />;
@@ -228,7 +271,6 @@ function StaffTenantProfileDetailsPage() {
 		return <TenantProfileDetailsError error={permissionKeysQuery.error} />;
 	}
 
-	const profile = toStaffTenantProfileDetails(detailQuery.data);
 	if (!profile) {
 		return (
 			<AppErrorView
@@ -241,58 +283,6 @@ function StaffTenantProfileDetailsPage() {
 		);
 	}
 
-	const permissionKeys = toStaffTenantProfilePermissionKeys(
-		permissionKeysQuery.data,
-	);
-	const permissionCatalogOptions = useMemo(
-		() => buildStaffTenantPermissionCatalogOptions(permissionCatalogQuery.data?.additionalData),
-		[permissionCatalogQuery.data],
-	);
-	const permissionDescriptionsByKey = useMemo(() => {
-		const map = new Map<string, string | null>();
-
-		for (const option of permissionCatalogOptions) {
-			map.set(option.key, option.description ?? null);
-		}
-
-		return map;
-	}, [permissionCatalogOptions]);
-	const assignedPermissionEntries = useMemo(
-		() =>
-			permissionKeys.map((permissionKey) => ({
-				key: permissionKey,
-				label:
-					permissionCatalogOptions.find((option) => {
-						return option.key === permissionKey;
-					})?.label ?? permissionKey,
-				description: permissionDescriptionsByKey.get(permissionKey) ?? null,
-			})),
-		[permissionCatalogOptions, permissionDescriptionsByKey, permissionKeys],
-	);
-	const assignedPermissionKeySet = useMemo(
-		() => new Set(assignedPermissionEntries.map((item) => item.key)),
-		[assignedPermissionEntries],
-	);
-	const availablePermissionEntries = useMemo(
-		() =>
-			permissionCatalogOptions.filter(
-				(option) => !assignedPermissionKeySet.has(option.key),
-			),
-		[assignedPermissionKeySet, permissionCatalogOptions],
-	);
-	const isPermissionBusy = busyPermissionKey.length > 0;
-	const invalidatePermissionQueries = () =>
-		Promise.all([
-			queryClient.invalidateQueries({
-				queryKey: STAFF_TENANT_PROFILES_QUERY_KEY,
-			}),
-			queryClient.invalidateQueries({
-				queryKey: STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY,
-			}),
-			queryClient.invalidateQueries({
-				queryKey: STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY,
-			}),
-		]);
 	const handleAssignPermission = async (permissionKey: string) => {
 		setPermissionActionError('');
 		setBusyPermissionKey(permissionKey);
@@ -511,13 +501,16 @@ function StaffTenantProfileDetailsPage() {
 							{permissionCatalogQuery.isError ? (
 								<div className="rounded-large border border-dashed border-danger bg-danger-50 px-4 py-4 text-sm text-danger-700">
 									<p>
-										{getFailureMessage(toApiFailure(permissionCatalogQuery.error), {
-											fallback: 'Unable to load tenant permission catalog.',
-										})}
+										{getFailureMessage(
+											toApiFailure(permissionCatalogQuery.error),
+											{
+												fallback: 'Unable to load tenant permission catalog.',
+											},
+										)}
 									</p>
 									<Button
 										type="button"
-										variant="flat"
+										variant="outline"
 										size="sm"
 										onPress={() => {
 											void permissionCatalogQuery.refetch();
@@ -562,12 +555,7 @@ function StaffTenantProfileDetailsPage() {
 													<Button
 														type="button"
 														size="sm"
-														variant="flat"
-														color="danger"
-														isLoading={
-															isPermissionBusy &&
-															busyPermissionKey === permission.key
-														}
+														variant="outline"
 														isDisabled={
 															isPermissionBusy &&
 															busyPermissionKey !== permission.key
@@ -621,12 +609,7 @@ function StaffTenantProfileDetailsPage() {
 														<Button
 															type="button"
 															size="sm"
-															variant="flat"
-															color="primary"
-															isLoading={
-																isPermissionBusy &&
-																busyPermissionKey === permission.key
-															}
+															variant="outline"
 															isDisabled={
 																isPermissionBusy &&
 																busyPermissionKey !== permission.key
