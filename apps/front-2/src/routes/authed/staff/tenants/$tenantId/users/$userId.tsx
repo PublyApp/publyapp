@@ -4,6 +4,14 @@ import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
+import {
+	toStaffTenantUserDetails,
+	useStaffTenantUserDetailsQuery,
+} from '~/lib/query/staff-tenant-users';
+import {
+	toStaffTenantDetails,
+	useStaffTenantDetailsQuery,
+} from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
@@ -15,14 +23,6 @@ import {
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
 } from '../_tenant-details-shell';
-import {
-	toStaffTenantDetails,
-	useStaffTenantDetailsQuery,
-} from '~/lib/query/staff-tenants';
-import {
-	toStaffTenantUserDetails,
-	useStaffTenantUserDetailsQuery,
-} from '~/lib/query/staff-tenant-users';
 
 const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
 
@@ -130,13 +130,13 @@ function StaffTenantUserDetailsPage() {
 	);
 	const detailsQuery = useStaffTenantUserDetailsQuery(
 		{ tenantId, userId },
-	{
-		enabled:
-			tenantId.length > 0 &&
-			userId.length > 0 &&
-			!tenantQuery.isPending &&
-			!tenantQuery.isError,
-	},
+		{
+			enabled:
+				tenantId.length > 0 &&
+				userId.length > 0 &&
+				!tenantQuery.isPending &&
+				!tenantQuery.isError,
+		},
 	);
 
 	if (tenantQuery.isPending) {
@@ -218,10 +218,7 @@ function StaffTenantUserDetailsPage() {
 			<Card className="space-y-4 p-5">
 				<div className="grid gap-4 md:grid-cols-2">
 					<DetailItem label="Email" value={user.email || '—'} />
-					<DetailItem
-						label="Account level"
-						value={user.accountLevel ?? '—'}
-					/>
+					<DetailItem label="Account level" value={user.accountLevel ?? '—'} />
 					<DetailItem label="Status" value={user.status ?? '—'} />
 					<DetailItem label="User ID" value={user.id} />
 					<DetailItem label="Tenant ID" value={user.tenantId ?? '—'} />

@@ -6,7 +6,10 @@ import {
 	toStaffTenantUserRows,
 } from '~/lib/query/staff-tenant-users';
 
-import type { TenantUserDetailsResult, TenantUserItem } from '@org/client-ts/src/models/index.js';
+import type {
+	TenantUserDetailsResult,
+	TenantUserItem,
+} from '@org/client-ts/src/models/index.js';
 
 describe('buildFindStaffTenantUsersQueryParameters', () => {
 	test('trims supported values and stringifies page size', () => {
@@ -114,7 +117,8 @@ describe('toStaffTenantUserRows', () => {
 				avatarUrl: null,
 				displayName: 'second@example.com',
 			},
-	]);
+		]);
+	});
 });
 
 describe('toStaffTenantUserDetails', () => {
@@ -154,5 +158,4 @@ describe('toStaffTenantUserDetails', () => {
 			} as TenantUserDetailsResult),
 		).toBeNull();
 	});
-});
 });
