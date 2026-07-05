@@ -1,13 +1,19 @@
-import { useQuery } from '@tanstack/react-query';
+import { createUntypedString } from '@microsoft/kiota-abstractions';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type {
+	CreateInvitationForTenantAsStaffBody,
 	FindTenantUsersAsStaffResult,
+	InvitationCreatedForTenant,
 	TenantUserItem,
 } from '@org/client-ts/src/models/index.js';
-import { buildStaffQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
+import {
+	buildStaffMutationOptions,
+	buildStaffQueryOptions,
+} from '@org/shared-ts/lib/query/create-hooks';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 export type StaffTenantUsersQueryVariables = {
@@ -20,6 +26,12 @@ export type StaffTenantUsersQueryVariables = {
 	size?: number;
 };
 
+export type StaffTenantUserInvitationInput = {
+	tenantId: string;
+	email: string;
+	accountLevel: 'Admin' | 'User';
+};
+
 export type StaffTenantUserRow = {
 	id: string;
 	firstName: string | null;
@@ -30,6 +42,11 @@ export type StaffTenantUserRow = {
 	avatarUrl: string | null;
 	displayName: string;
 };
+
+export const STAFF_TENANT_USERS_QUERY_KEY = [
+	'staff-tenants',
+	'users',
+] as const;
 
 const normalizeString = (
 	value: string | null | undefined,
@@ -78,6 +95,26 @@ export const buildFindStaffTenantUsersQueryParameters = (
 		: undefined,
 });
 
+export const buildCreateStaffTenantUserInvitationBody = (
+	input: Omit<StaffTenantUserInvitationInput, 'tenantId'>,
+): CreateInvitationForTenantAsStaffBody => {
+	const body: CreateInvitationForTenantAsStaffBody = {};
+	const email = normalizeString(input.email);
+	const accountLevel = normalizeString(input.accountLevel);
+
+	if (email) {
+		body.email = createUntypedString(email) as typeof body.email;
+	}
+
+	if (accountLevel) {
+		body.accountLevel = createUntypedString(
+			accountLevel,
+		) as typeof body.accountLevel;
+	}
+
+	return body;
+};
+
 export const toStaffTenantUserRows = (
 	items: TenantUserItem[] | null | undefined,
 ): StaffTenantUserRow[] => {
@@ -114,7 +151,7 @@ const staffTenantUsersQueryOptions = buildStaffQueryOptions<
 	StaffTenantUsersQueryVariables
 >(
 	{
-		queryKeyFn: () => ['staff-tenants', 'users'],
+		queryKeyFn: () => [...STAFF_TENANT_USERS_QUERY_KEY],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.tenants
 				.byTenantId(variables.tenantId)
@@ -132,6 +169,26 @@ const staffTenantUsersQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
+const createStaffTenantUserInvitationMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	InvitationCreatedForTenant | undefined,
+	StaffTenantUserInvitationInput
+>(
+	{
+		mutationKeyFn: () => ['staff-tenants', 'users', 'invitations'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.users.invitations.post(
+					buildCreateStaffTenantUserInvitationBody({
+						email: variables.email,
+						accountLevel: variables.accountLevel,
+					}),
+				),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
 export const useStaffTenantUsersQuery = (
 	variables: StaffTenantUsersQueryVariables,
 	options?: {
@@ -143,3 +200,6 @@ export const useStaffTenantUsersQuery = (
 		queryFn: () => staffTenantUsersQueryOptions.fetcher(variables),
 		enabled: options?.enabled ?? true,
 	});
+
+export const useInviteTenantUserMutation = () =>
+	useMutation(createStaffTenantUserInvitationMutationOptions);

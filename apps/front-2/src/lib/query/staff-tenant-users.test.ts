@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+	buildCreateStaffTenantUserInvitationBody,
 	buildFindStaffTenantUsersQueryParameters,
 	toStaffTenantUserRows,
 } from '~/lib/query/staff-tenant-users';
@@ -16,13 +17,13 @@ describe('buildFindStaffTenantUsersQueryParameters', () => {
 				cursor: ' user-123 ',
 				size: 50,
 			}),
-		).toEqual({
-			q: 'alex',
-			sortId: 'level',
-			sortOrder: 'asc',
-			cursor: 'user-123',
-			limit: '50',
-		});
+	).toEqual({
+		q: 'alex',
+		sortId: 'level',
+		sortOrder: 'asc',
+		cursor: 'user-123',
+		limit: '50',
+	});
 	});
 
 	test('omits blank or invalid values', () => {
@@ -34,7 +35,30 @@ describe('buildFindStaffTenantUsersQueryParameters', () => {
 				cursor: ' ',
 				size: 0,
 			}),
-		).toEqual({});
+	).toEqual({});
+	});
+});
+
+describe('buildCreateStaffTenantUserInvitationBody', () => {
+	test('trims email and account level and wraps them for the API contract', () => {
+		expect(
+			buildCreateStaffTenantUserInvitationBody({
+				email: '  alice@example.com  ',
+				accountLevel: '  User  ',
+			}),
+	).toMatchObject({
+		email: { value: 'alice@example.com' },
+		accountLevel: { value: 'User' },
+	});
+	});
+
+	test('drops missing values', () => {
+		expect(
+			buildCreateStaffTenantUserInvitationBody({
+				email: '   ',
+				accountLevel: '   ',
+			}),
+	).toEqual({});
 	});
 });
 
