@@ -1,6 +1,5 @@
 import { buttonVariants, Button } from '@heroui/react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import type { ColumnDef } from '@tanstack/react-table';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -15,7 +14,6 @@ import type { InvitationListItem } from '@org/client-ts/src/models/index.js';
 import {
 	filterInvitationRows,
 	formatInvitationStatusLabel,
-	type InvitationDisplayStatus,
 	type InvitationListSearchParamInput,
 	type InvitationListSearchParams,
 	type KnownInvitationStatus,
@@ -26,31 +24,10 @@ import {
 	serializeInvitationStatusFilter,
 	KNOWN_INVITATION_STATUSES,
 } from './list-helpers';
+import { createInvitationColumns, type InvitationRow } from './table-columns';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
-
-type InvitationRow = {
-	id: string;
-	email: string;
-	profileName: string;
-	invitedByName: string;
-	status: InvitationDisplayStatus;
-	acceptedAt: Date | null;
-	createdAt: Date | null;
-	expiresAt: Date | null;
-};
-
-const formatDateTime = (value: Date | null, locale: string): string => {
-	if (!value) {
-		return '-';
-	}
-
-	return new Intl.DateTimeFormat(locale, {
-		dateStyle: 'medium',
-		timeStyle: 'short',
-	}).format(value);
-};
 
 const toRows = (
 	items: InvitationListItem[] | null | undefined,
@@ -114,6 +91,10 @@ function StaffInvitationsPage() {
 		q: controller.search.committed,
 		status: search.status,
 	});
+	const columns = createInvitationColumns({
+		t: (key) => t(key),
+		locale: i18n.language,
+	});
 	const rows = toRows(query.data?.data);
 	const filteredRows = filterInvitationRows(rows, controller.search.committed);
 	const selection = useRowSelection(filteredRows.map((row) => row.id));
@@ -148,55 +129,6 @@ function StaffInvitationsPage() {
 
 		setStatuses([...selectedStatuses, status]);
 	};
-
-	const columns: ColumnDef<InvitationRow>[] = [
-		{
-			id: 'email',
-			header: t('email'),
-			accessorKey: 'email',
-			cell: ({ row }) => (
-				<div>
-					<div>{row.original.email || '-'}</div>
-					<div className="text-xs text-muted">
-						{t('staff-invited-by')}: {row.original.invitedByName}
-					</div>
-				</div>
-			),
-		},
-		{
-			id: 'profile_name',
-			header: t('profiles'),
-			accessorKey: 'profileName',
-		},
-		{
-			id: 'status',
-			header: t('status'),
-			enableSorting: false,
-			cell: ({ row }) => (
-				<span className="inline-flex rounded-full bg-default-100 px-2 py-1 text-xs font-medium text-foreground">
-					{formatInvitationStatusLabel(row.original.status)}
-				</span>
-			),
-		},
-		{
-			id: 'expires_at',
-			header: t('expiry-date'),
-			accessorFn: (row) => row.expiresAt,
-			cell: ({ row }) => formatDateTime(row.original.expiresAt, i18n.language),
-		},
-		{
-			id: 'accepted_at',
-			header: t('accepted-at'),
-			accessorFn: (row) => row.acceptedAt,
-			cell: ({ row }) => formatDateTime(row.original.acceptedAt, i18n.language),
-		},
-		{
-			id: 'created_at',
-			header: t('created-at'),
-			accessorFn: (row) => row.createdAt,
-			cell: ({ row }) => formatDateTime(row.original.createdAt, i18n.language),
-		},
-	];
 
 	return (
 		<div className="space-y-4 p-4" data-testid="staff-invitations-list-page">
