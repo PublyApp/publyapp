@@ -1,15 +1,24 @@
+import {
+	createUntypedArray,
+	createUntypedString,
+} from '@microsoft/kiota-abstractions';
 import { useQuery } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type {
+	CreateTenantProfileAsStaffBody,
 	FindTenantProfilePermissionsAsStaffResult,
 	FindTenantProfilesAsStaffResult,
 	GetTenantProfileByIdResponse,
 	TenantProfileItem,
 } from '@org/client-ts/src/models/index.js';
-import { buildStaffQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
+import {
+	buildStaffMutationOptions,
+	buildStaffQueryOptions,
+} from '@org/shared-ts/lib/query/create-hooks';
 
 export type StaffTenantProfilesQueryVariables = {
 	tenantId: string;
@@ -18,6 +27,13 @@ export type StaffTenantProfilesQueryVariables = {
 	sortOrder?: SortOrder;
 	cursor?: string;
 	size?: number;
+};
+
+export type CreateStaffTenantProfileInput = {
+	tenantId: string;
+	name: string;
+	description?: string;
+	permissionKeys: string[];
 };
 
 export type StaffTenantProfileRow = {
@@ -45,6 +61,12 @@ export type StaffTenantProfilePermissionKeysQueryVariables = {
 	tenantId: string;
 	profileId: string;
 };
+
+export const STAFF_TENANT_PROFILES_QUERY_KEY = [
+	'staff',
+	'staff-tenants',
+	'profiles',
+] as const;
 
 const normalizeString = (
 	value: string | null | undefined,
@@ -81,6 +103,31 @@ export const buildFindStaffTenantProfilesQueryParameters = (
 		? String(variables.size)
 		: undefined,
 });
+
+export const buildCreateStaffTenantProfileBody = (
+	input: Omit<CreateStaffTenantProfileInput, 'tenantId'>,
+): CreateTenantProfileAsStaffBody => {
+	const body: CreateTenantProfileAsStaffBody = {};
+	const description = normalizeString(input.description);
+	const permissionKeys = input.permissionKeys
+		.map((permissionKey) => normalizeString(permissionKey))
+		.filter(
+			(permissionKey): permissionKey is string => permissionKey !== undefined,
+		);
+
+	body.name = createUntypedString(input.name) as typeof body.name;
+	body.permissionKeys = createUntypedArray(
+		permissionKeys.map((permissionKey) => createUntypedString(permissionKey)),
+	) as typeof body.permissionKeys;
+
+	if (description) {
+		body.description = createUntypedString(
+			description,
+		) as typeof body.description;
+	}
+
+	return body;
+};
 
 export const toStaffTenantProfileRows = (
 	items: TenantProfileItem[] | null | undefined,
@@ -149,7 +196,7 @@ const staffTenantProfilesQueryOptions = buildStaffQueryOptions<
 	StaffTenantProfilesQueryVariables
 >(
 	{
-		queryKeyFn: () => ['staff-tenants', 'profiles'],
+		queryKeyFn: () => [...STAFF_TENANT_PROFILES_QUERY_KEY.slice(1)],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.tenants
 				.byTenantId(variables.tenantId)
@@ -164,6 +211,21 @@ const staffTenantProfilesQueryOptions = buildStaffQueryOptions<
 
 			return result;
 		},
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+const createStaffTenantProfileMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	GetTenantProfileByIdResponse | undefined,
+	CreateStaffTenantProfileInput
+>(
+	{
+		mutationKeyFn: () => ['staff-tenants', 'profiles', 'create'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.profiles.post(buildCreateStaffTenantProfileBody(variables)),
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -227,6 +289,9 @@ export const useStaffTenantProfilesQuery = (
 		queryFn: () => staffTenantProfilesQueryOptions.fetcher(variables),
 		enabled: options?.enabled ?? true,
 	});
+
+export const useCreateStaffTenantProfileMutation = () =>
+	useMutation(createStaffTenantProfileMutationOptions);
 
 export const useStaffTenantProfileDetailsQuery = (
 	variables: StaffTenantProfileDetailsQueryVariables,

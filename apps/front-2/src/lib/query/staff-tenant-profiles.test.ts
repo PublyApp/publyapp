@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+	buildCreateStaffTenantProfileBody,
 	buildFindStaffTenantProfilesQueryParameters,
 	toStaffTenantProfileDetails,
 	toStaffTenantProfilePermissionKeys,
@@ -41,6 +42,32 @@ describe('buildFindStaffTenantProfilesQueryParameters', () => {
 				size: 0,
 			}),
 		).toEqual({});
+	});
+});
+
+describe('buildCreateStaffTenantProfileBody', () => {
+	test('includes trimmed description and normalized permission keys', () => {
+		const body = buildCreateStaffTenantProfileBody({
+			name: 'Approvers',
+			description: '  Can review approvals  ',
+			permissionKeys: [' tenant.users.read ', '', 'tenant.billing.view'],
+		});
+
+		expect(body.name).toBeDefined();
+		expect(body.description).toBeDefined();
+		expect(body.permissionKeys).toBeDefined();
+	});
+
+	test('sends an empty permissionKeys array when no permissions are provided', () => {
+		const body = buildCreateStaffTenantProfileBody({
+			name: 'Approvers',
+			description: '   ',
+			permissionKeys: [],
+		});
+
+		expect(body.name).toBeDefined();
+		expect(body.description).toBeUndefined();
+		expect(body.permissionKeys).toBeDefined();
 	});
 });
 
