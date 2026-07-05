@@ -32,6 +32,13 @@ export type StaffTenantUserInvitationInput = {
 	accountLevel: 'Admin' | 'User';
 };
 
+type StaffTenantUserInvitationBodyInput = Omit<
+	StaffTenantUserInvitationInput,
+	'tenantId'
+> & {
+	accountLevel?: string;
+};
+
 export type StaffTenantUserRow = {
 	id: string;
 	firstName: string | null;
@@ -96,7 +103,7 @@ export const buildFindStaffTenantUsersQueryParameters = (
 });
 
 export const buildCreateStaffTenantUserInvitationBody = (
-	input: Omit<StaffTenantUserInvitationInput, 'tenantId'>,
+	input: StaffTenantUserInvitationBodyInput,
 ): CreateInvitationForTenantAsStaffBody => {
 	const body: CreateInvitationForTenantAsStaffBody = {};
 	const email = normalizeString(input.email);
