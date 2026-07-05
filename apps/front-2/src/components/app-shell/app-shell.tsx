@@ -39,6 +39,11 @@ const NAV_ITEMS: Record<AppShellMode, NavItem[]> = {
 			shortLabel: 'St',
 		},
 		{
+			label: 'Profiles',
+			path: '/staff/profiles',
+			shortLabel: 'Pr',
+		},
+		{
 			label: 'Tenant',
 			path: '/tenant',
 			shortLabel: 'Te',
