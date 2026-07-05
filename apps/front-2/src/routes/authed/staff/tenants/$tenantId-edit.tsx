@@ -2,7 +2,7 @@ import { Button, Card } from '@heroui/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -82,6 +82,17 @@ function StaffTenantEditRoute() {
 	);
 	const updateTenant = useUpdateStaffTenantMutation();
 	const tenant = toStaffTenantDetails(detailsQuery.data);
+	const tenantFormValues = useMemo(
+		() =>
+			tenant === null
+				? null
+				: {
+						name: tenant.name,
+						maxUsers: tenant.maxUsers,
+						logoUrl: tenant.logoUrl ?? '',
+					},
+		[tenant?.id, tenant?.name, tenant?.maxUsers, tenant?.logoUrl],
+	);
 
 	const methods = useForm<EditTenantFormValues>({
 		resolver: zodResolver(editTenantSchema),
@@ -90,14 +101,6 @@ function StaffTenantEditRoute() {
 			maxUsers: 1,
 			logoUrl: '',
 		},
-		values:
-			tenant === null
-				? undefined
-				: {
-						name: tenant.name,
-						maxUsers: tenant.maxUsers,
-						logoUrl: tenant.logoUrl ?? '',
-					},
 	});
 	const {
 		formState: { dirtyFields, isDirty, isSubmitting },
@@ -108,16 +111,12 @@ function StaffTenantEditRoute() {
 	const isPending = isSubmitting || updateTenant.isPending;
 
 	useEffect(() => {
-		if (!tenant) {
+		if (tenantFormValues === null) {
 			return;
 		}
 
-		reset({
-			name: tenant.name,
-			maxUsers: tenant.maxUsers,
-			logoUrl: tenant.logoUrl ?? '',
-		});
-	}, [reset, tenant]);
+		reset(tenantFormValues);
+	}, [reset, tenantFormValues]);
 
 	if (shouldLogout) {
 		return <LogoutRedirect />;

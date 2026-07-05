@@ -158,15 +158,14 @@ const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	refetch: vi.fn().mockResolvedValue(undefined),
 	...overrides,
 });
+const RouteComponent = (
+	Route as unknown as {
+		component: () => JSX.Element;
+	}
+).component;
 
 const renderPage = () => {
-	const Component = (
-		Route as unknown as {
-			component: () => JSX.Element;
-		}
-	).component;
-
-	return render(<Component />);
+	return render(<RouteComponent />);
 };
 
 describe('staff tenant edit route', () => {
@@ -178,6 +177,17 @@ describe('staff tenant edit route', () => {
 			mutateAsync: mocks.updateTenantMutation,
 			isPending: false,
 		});
+		mocks.toStaffTenantDetails.mockImplementation(() => ({
+			id: '11111111-1111-1111-1111-111111111111',
+			name: 'Acme Corporation',
+			code: 'ACME',
+			status: 'Active',
+			usersCount: 12,
+			maxUsers: 12,
+			logoUrl: 'https://cdn.example.com/acme.png',
+			createdAt: new Date('2026-07-01T09:00:00Z'),
+			updatedAt: new Date('2026-07-02T10:00:00Z'),
+		}));
 		mocks.useStaffTenantDetailsQuery.mockReturnValue(
 			buildQueryResult({
 				data: {
@@ -193,21 +203,25 @@ describe('staff tenant edit route', () => {
 				},
 			}),
 		);
-		mocks.toStaffTenantDetails.mockReturnValue({
-			id: '11111111-1111-1111-1111-111111111111',
-			name: 'Acme Corporation',
-			code: 'ACME',
-			status: 'Active',
-			usersCount: 12,
-			maxUsers: 12,
-			logoUrl: 'https://cdn.example.com/acme.png',
-			createdAt: new Date('2026-07-01T09:00:00Z'),
-			updatedAt: new Date('2026-07-02T10:00:00Z'),
-		});
 	});
 
 	afterEach(() => {
 		cleanup();
+	});
+
+	test('does not reset unsaved edits when tenant query data is remapped on rerender', () => {
+		const renderResult = renderPage();
+		const nameInput = screen.getByLabelText('Tenant name') as HTMLInputElement;
+
+		fireEvent.change(nameInput, {
+			target: { value: 'Acme Corporation Edited' },
+		});
+
+		renderResult.rerender(<RouteComponent />);
+
+		expect(
+			(screen.getByLabelText('Tenant name') as HTMLInputElement).value,
+		).toBe('Acme Corporation Edited');
 	});
 
 	test('renders the edit form with tenant values and navigation action', () => {
