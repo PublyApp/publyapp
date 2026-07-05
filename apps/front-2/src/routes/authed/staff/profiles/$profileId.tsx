@@ -168,6 +168,10 @@ function StaffProfileDetailsPage() {
 		return <ProfileDetailsError error={permissionKeysQuery.error} />;
 	}
 
+	if (permissionCatalogQuery.isError) {
+		return <ProfileDetailsError error={permissionCatalogQuery.error} />;
+	}
+
 	const details = toStaffProfileDetails(detailQuery.data);
 	if (!details) {
 		return (
