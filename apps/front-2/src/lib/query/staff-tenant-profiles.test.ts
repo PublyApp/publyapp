@@ -10,9 +10,12 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 	}),
 }));
 import {
+	buildStaffTenantPermissionCatalogOptions,
+	staffTenantProfileAssignMutationOptions,
 	buildCreateStaffTenantProfileBody,
 	deleteStaffTenantProfileMutationOptions,
 	buildFindStaffTenantProfilesQueryParameters,
+	staffTenantProfileUnassignMutationOptions,
 	buildUpdateStaffTenantProfileBody,
 	toStaffTenantProfileDetails,
 	toStaffTenantProfilePermissionKeys,
@@ -58,6 +61,68 @@ describe('buildFindStaffTenantProfilesQueryParameters', () => {
 				size: 0,
 			}),
 		).toEqual({});
+	});
+});
+
+describe('buildStaffTenantPermissionCatalogOptions', () => {
+	test('flattens permissions and emits stable labels', () => {
+		const options = buildStaffTenantPermissionCatalogOptions({
+			tenant: {
+				'tenant.users.read': {
+					key: 'tenant.users.read',
+					name: 'Read users',
+					description: 'Read users permission',
+				},
+				'tenant.users.write': {
+					key: 'tenant.users.write',
+					name: 'Write users',
+					description: 'Write users permission',
+				},
+			},
+			reports: {
+				'reports.view': {
+					key: 'reports.view',
+					name: 'View reports',
+				},
+			},
+		});
+
+		expect(options).toEqual([
+			{
+				key: 'reports.view',
+				label: 'Reports • View reports',
+				description: null,
+			},
+			{
+				key: 'tenant.users.read',
+				label: 'Tenant • Read users',
+				description: 'Read users permission',
+			},
+			{
+				key: 'tenant.users.write',
+				label: 'Tenant • Write users',
+				description: 'Write users permission',
+			},
+		]);
+	});
+
+	test('ignores malformed catalog values', () => {
+		expect(
+			buildStaffTenantPermissionCatalogOptions({
+				tenant: {
+					invalid: {},
+					valid: {
+						key: 'tenant.valid',
+					},
+				},
+			}),
+		).toEqual([
+			{
+				key: 'tenant.valid',
+				label: 'tenant.valid',
+				description: null,
+			},
+		]);
 	});
 });
 
@@ -150,6 +215,97 @@ describe('deleteStaffTenantProfileMutationOptions', () => {
 			key: 'tenant-profile-deleted-success',
 			message: 'Tenant profile deleted successfully',
 		});
+	});
+});
+
+describe('staffTenantProfileAssignMutationOptions', () => {
+	test('calls tenant profile permission assignment path', async () => {
+		const post = vi.fn().mockResolvedValue(undefined);
+		const byPermissionKey = vi.fn((permissionKey: string) => ({ post, permissionKey }));
+		const permissions = vi.fn(() => ({ byPermissionKey }));
+		const byProfileId = vi.fn(() => ({
+			permissions: permissions(),
+		}));
+		const byTenantId = vi.fn((tenantId: string) => ({
+			profiles: {
+				byProfileId: byProfileId(tenantId),
+			},
+			tenantId,
+		}));
+
+		mocks.getOrCreateStaffClient.mockReturnValue({
+			staff: {
+				tenants: {
+					byTenantId,
+				},
+			},
+		});
+
+		const result = await staffTenantProfileAssignMutationOptions.mutationFn({
+			tenantId: 'tenant-123',
+			profileId: 'profile-456',
+			permissionKey: 'tenant.users.read',
+		});
+
+		expect(staffTenantProfileAssignMutationOptions.mutationKey).toEqual([
+			'staff',
+			'staff-tenants',
+			'profiles',
+			'permissions',
+			'assign',
+		]);
+		expect(byTenantId).toHaveBeenCalledWith('tenant-123');
+		expect(byProfileId).toHaveBeenCalledWith('profile-456');
+		expect(byPermissionKey).toHaveBeenCalledWith('tenant.users.read');
+		expect(post).toHaveBeenCalledTimes(1);
+		expect(result).toBeUndefined();
+	});
+});
+
+describe('staffTenantProfileUnassignMutationOptions', () => {
+	test('calls tenant profile permission unassignment path', async () => {
+		const deletePermission = vi.fn().mockResolvedValue(undefined);
+		const byPermissionKey = vi.fn((permissionKey: string) => ({
+			delete: deletePermission,
+			permissionKey,
+		}));
+		const permissions = vi.fn(() => ({ byPermissionKey }));
+		const byProfileId = vi.fn(() => ({
+			permissions: permissions(),
+		}));
+		const byTenantId = vi.fn((tenantId: string) => ({
+			profiles: {
+				byProfileId: byProfileId(tenantId),
+			},
+			tenantId,
+		}));
+
+		mocks.getOrCreateStaffClient.mockReturnValue({
+			staff: {
+				tenants: {
+					byTenantId,
+				},
+			},
+		});
+
+		const result = await staffTenantProfileUnassignMutationOptions.mutationFn({
+			tenantId: 'tenant-123',
+			profileId: 'profile-456',
+			permissionKey: 'tenant.users.read',
+		});
+
+		expect(staffTenantProfileUnassignMutationOptions.mutationKey).toEqual([
+			'staff',
+			'staff-tenants',
+			'profiles',
+			'permissions',
+			'unassign',
+		]);
+		expect(byTenantId).toHaveBeenCalledWith('tenant-123');
+		expect(byProfileId).toHaveBeenCalledWith('profile-456');
+		expect(byPermissionKey).toHaveBeenCalledWith('tenant.users.read');
+		expect(deletePermission).toHaveBeenCalledTimes(1);
+		expect(result).toBeUndefined();
 	});
 });
 
