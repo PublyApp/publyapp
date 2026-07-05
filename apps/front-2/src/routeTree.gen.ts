@@ -16,16 +16,17 @@ import { Route as indexRouteImport } from './routes/index'
 import { Route as authedTenantRouteImport } from './routes/authed/tenant'
 import { Route as authedStaffRouteImport } from './routes/authed/staff'
 import { Route as authedStaffInvitationsIndexRouteImport } from './routes/authed/staff/invitations/index'
-import { Route as authedStaffStaffUsersRouteImport } from './routes/authed/staff/staff-users'
 import { Route as authedStaffTenantsRouteImport } from './routes/authed/staff/tenants'
+import { Route as authedStaffStaffUsersRouteImport } from './routes/authed/staff/staff-users'
 import { Route as authedStaffProfilesRouteImport } from './routes/authed/staff/profiles'
-import { Route as authedStaffStaffUsersUserIdRouteImport } from './routes/authed/staff/staff-users/$userId'
 import { Route as authedStaffTenantsTenantIdRouteImport } from './routes/authed/staff/tenants/$tenantId'
-import { Route as authedStaffTenantsTenantIdProfilesRouteImport } from './routes/authed/staff/tenants/$tenantId/profiles'
+import { Route as authedStaffStaffUsersUserIdRouteImport } from './routes/authed/staff/staff-users/$userId'
 import { Route as authedStaffProfilesNewRouteImport } from './routes/authed/staff/profiles-new'
 import { Route as authedStaffProfilesProfileIdRouteImport } from './routes/authed/staff/profiles/$profileId'
 import { Route as authedStaffInvitationsNewRouteImport } from './routes/authed/staff/invitations/new'
 import { Route as authedStaffInvitationsInvitationIdRouteImport } from './routes/authed/staff/invitations/$invitationId'
+import { Route as authedStaffTenantsTenantIdUsersRouteImport } from './routes/authed/staff/tenants/$tenantId/users'
+import { Route as authedStaffTenantsTenantIdProfilesRouteImport } from './routes/authed/staff/tenants/$tenantId/profiles'
 import { Route as authedStaffProfilesProfileIdUsersRouteImport } from './routes/authed/staff/profiles/$profileId/users'
 
 const loginRoute = loginRouteImport.update({
@@ -63,14 +64,19 @@ const authedStaffInvitationsIndexRoute =
     path: '/staff/invitations',
     getParentRoute: () => authedLayoutRoute,
   } as any)
+const authedStaffTenantsRoute = authedStaffTenantsRouteImport.update({
+  id: '/staff/tenants',
+  path: '/staff/tenants',
+  getParentRoute: () => authedLayoutRoute,
+} as any)
 const authedStaffStaffUsersRoute = authedStaffStaffUsersRouteImport.update({
   id: '/staff/staff-users',
   path: '/staff/staff-users',
   getParentRoute: () => authedLayoutRoute,
 } as any)
-const authedStaffTenantsRoute = authedStaffTenantsRouteImport.update({
-  id: '/staff/tenants',
-  path: '/staff/tenants',
+const authedStaffProfilesRoute = authedStaffProfilesRouteImport.update({
+  id: '/staff/profiles',
+  path: '/staff/profiles',
   getParentRoute: () => authedLayoutRoute,
 } as any)
 const authedStaffTenantsTenantIdRoute =
@@ -79,17 +85,6 @@ const authedStaffTenantsTenantIdRoute =
     path: '/staff/tenants/$tenantId',
     getParentRoute: () => authedLayoutRoute,
   } as any)
-const authedStaffTenantsTenantIdProfilesRoute =
-  authedStaffTenantsTenantIdProfilesRouteImport.update({
-    id: '/staff/tenants/$tenantId/profiles',
-    path: '/staff/tenants/$tenantId/profiles',
-    getParentRoute: () => authedLayoutRoute,
-  } as any)
-const authedStaffProfilesRoute = authedStaffProfilesRouteImport.update({
-  id: '/staff/profiles',
-  path: '/staff/profiles',
-  getParentRoute: () => authedLayoutRoute,
-} as any)
 const authedStaffStaffUsersUserIdRoute =
   authedStaffStaffUsersUserIdRouteImport.update({
     id: '/staff/staff-users/$userId',
@@ -119,6 +114,18 @@ const authedStaffInvitationsInvitationIdRoute =
     path: '/staff/invitations/$invitationId',
     getParentRoute: () => authedLayoutRoute,
   } as any)
+const authedStaffTenantsTenantIdUsersRoute =
+  authedStaffTenantsTenantIdUsersRouteImport.update({
+    id: '/staff/tenants/$tenantId/users',
+    path: '/staff/tenants/$tenantId/users',
+    getParentRoute: () => authedLayoutRoute,
+  } as any)
+const authedStaffTenantsTenantIdProfilesRoute =
+  authedStaffTenantsTenantIdProfilesRouteImport.update({
+    id: '/staff/tenants/$tenantId/profiles',
+    path: '/staff/tenants/$tenantId/profiles',
+    getParentRoute: () => authedLayoutRoute,
+  } as any)
 const authedStaffProfilesProfileIdUsersRoute =
   authedStaffProfilesProfileIdUsersRouteImport.update({
     id: '/staff/profiles/$profileId/users',
@@ -135,15 +142,16 @@ export interface FileRoutesByFullPath {
   '/staff/profiles': typeof authedStaffProfilesRoute
   '/staff/staff-users': typeof authedStaffStaffUsersRoute
   '/staff/tenants': typeof authedStaffTenantsRoute
-  '/staff/tenants/$tenantId': typeof authedStaffTenantsTenantIdRoute
-  '/staff/tenants/$tenantId/profiles': typeof authedStaffTenantsTenantIdProfilesRoute
   '/staff/invitations': typeof authedStaffInvitationsIndexRoute
   '/staff/invitations/$invitationId': typeof authedStaffInvitationsInvitationIdRoute
   '/staff/invitations/new': typeof authedStaffInvitationsNewRoute
   '/staff/profiles/$profileId': typeof authedStaffProfilesProfileIdRoute
   '/staff/profiles/new': typeof authedStaffProfilesNewRoute
   '/staff/staff-users/$userId': typeof authedStaffStaffUsersUserIdRoute
+  '/staff/tenants/$tenantId': typeof authedStaffTenantsTenantIdRoute
   '/staff/profiles/$profileId/users': typeof authedStaffProfilesProfileIdUsersRoute
+  '/staff/tenants/$tenantId/profiles': typeof authedStaffTenantsTenantIdProfilesRoute
+  '/staff/tenants/$tenantId/users': typeof authedStaffTenantsTenantIdUsersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof indexRoute
@@ -154,15 +162,16 @@ export interface FileRoutesByTo {
   '/staff/profiles': typeof authedStaffProfilesRoute
   '/staff/staff-users': typeof authedStaffStaffUsersRoute
   '/staff/tenants': typeof authedStaffTenantsRoute
-  '/staff/tenants/$tenantId': typeof authedStaffTenantsTenantIdRoute
-  '/staff/tenants/$tenantId/profiles': typeof authedStaffTenantsTenantIdProfilesRoute
   '/staff/invitations': typeof authedStaffInvitationsIndexRoute
   '/staff/invitations/$invitationId': typeof authedStaffInvitationsInvitationIdRoute
   '/staff/invitations/new': typeof authedStaffInvitationsNewRoute
   '/staff/profiles/$profileId': typeof authedStaffProfilesProfileIdRoute
   '/staff/profiles/new': typeof authedStaffProfilesNewRoute
   '/staff/staff-users/$userId': typeof authedStaffStaffUsersUserIdRoute
+  '/staff/tenants/$tenantId': typeof authedStaffTenantsTenantIdRoute
   '/staff/profiles/$profileId/users': typeof authedStaffProfilesProfileIdUsersRoute
+  '/staff/tenants/$tenantId/profiles': typeof authedStaffTenantsTenantIdProfilesRoute
+  '/staff/tenants/$tenantId/users': typeof authedStaffTenantsTenantIdUsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -175,15 +184,16 @@ export interface FileRoutesById {
   '/_authed-layout/staff/profiles': typeof authedStaffProfilesRoute
   '/_authed-layout/staff/staff-users': typeof authedStaffStaffUsersRoute
   '/_authed-layout/staff/tenants': typeof authedStaffTenantsRoute
-  '/_authed-layout/staff/tenants/$tenantId': typeof authedStaffTenantsTenantIdRoute
-  '/_authed-layout/staff/tenants/$tenantId/profiles': typeof authedStaffTenantsTenantIdProfilesRoute
   '/_authed-layout/staff/invitations': typeof authedStaffInvitationsIndexRoute
   '/_authed-layout/staff/invitations/$invitationId': typeof authedStaffInvitationsInvitationIdRoute
   '/_authed-layout/staff/invitations/new': typeof authedStaffInvitationsNewRoute
   '/_authed-layout/staff/profiles/$profileId': typeof authedStaffProfilesProfileIdRoute
   '/_authed-layout/staff/profiles/new': typeof authedStaffProfilesNewRoute
   '/_authed-layout/staff/staff-users/$userId': typeof authedStaffStaffUsersUserIdRoute
+  '/_authed-layout/staff/tenants/$tenantId': typeof authedStaffTenantsTenantIdRoute
   '/_authed-layout/staff/profiles/$profileId/users': typeof authedStaffProfilesProfileIdUsersRoute
+  '/_authed-layout/staff/tenants/$tenantId/profiles': typeof authedStaffTenantsTenantIdProfilesRoute
+  '/_authed-layout/staff/tenants/$tenantId/users': typeof authedStaffTenantsTenantIdUsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -196,15 +206,16 @@ export interface FileRouteTypes {
     | '/staff/profiles'
     | '/staff/staff-users'
     | '/staff/tenants'
-    | '/staff/tenants/$tenantId'
-    | '/staff/tenants/$tenantId/profiles'
     | '/staff/invitations'
     | '/staff/invitations/$invitationId'
     | '/staff/invitations/new'
     | '/staff/profiles/$profileId'
     | '/staff/profiles/new'
     | '/staff/staff-users/$userId'
+    | '/staff/tenants/$tenantId'
     | '/staff/profiles/$profileId/users'
+    | '/staff/tenants/$tenantId/profiles'
+    | '/staff/tenants/$tenantId/users'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -215,15 +226,16 @@ export interface FileRouteTypes {
     | '/staff/profiles'
     | '/staff/staff-users'
     | '/staff/tenants'
-    | '/staff/tenants/$tenantId'
-    | '/staff/tenants/$tenantId/profiles'
     | '/staff/invitations'
     | '/staff/invitations/$invitationId'
     | '/staff/invitations/new'
     | '/staff/profiles/$profileId'
     | '/staff/profiles/new'
     | '/staff/staff-users/$userId'
+    | '/staff/tenants/$tenantId'
     | '/staff/profiles/$profileId/users'
+    | '/staff/tenants/$tenantId/profiles'
+    | '/staff/tenants/$tenantId/users'
   id:
     | '__root__'
     | '/'
@@ -235,15 +247,16 @@ export interface FileRouteTypes {
     | '/_authed-layout/staff/profiles'
     | '/_authed-layout/staff/staff-users'
     | '/_authed-layout/staff/tenants'
-    | '/_authed-layout/staff/tenants/$tenantId'
-    | '/_authed-layout/staff/tenants/$tenantId/profiles'
     | '/_authed-layout/staff/invitations'
     | '/_authed-layout/staff/invitations/$invitationId'
     | '/_authed-layout/staff/invitations/new'
     | '/_authed-layout/staff/profiles/$profileId'
     | '/_authed-layout/staff/profiles/new'
     | '/_authed-layout/staff/staff-users/$userId'
+    | '/_authed-layout/staff/tenants/$tenantId'
     | '/_authed-layout/staff/profiles/$profileId/users'
+    | '/_authed-layout/staff/tenants/$tenantId/profiles'
+    | '/_authed-layout/staff/tenants/$tenantId/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -304,13 +317,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authedStaffInvitationsIndexRouteImport
       parentRoute: typeof authedLayoutRoute
     }
-    '/_authed-layout/staff/staff-users': {
-      id: '/_authed-layout/staff/staff-users'
-      path: '/staff/staff-users'
-      fullPath: '/staff/staff-users'
-      preLoaderRoute: typeof authedStaffStaffUsersRouteImport
-      parentRoute: typeof authedLayoutRoute
-    }
     '/_authed-layout/staff/tenants': {
       id: '/_authed-layout/staff/tenants'
       path: '/staff/tenants'
@@ -318,18 +324,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authedStaffTenantsRouteImport
       parentRoute: typeof authedLayoutRoute
     }
-    '/_authed-layout/staff/tenants/$tenantId': {
-      id: '/_authed-layout/staff/tenants/$tenantId'
-      path: '/staff/tenants/$tenantId'
-      fullPath: '/staff/tenants/$tenantId'
-      preLoaderRoute: typeof authedStaffTenantsTenantIdRouteImport
-      parentRoute: typeof authedLayoutRoute
-    }
-    '/_authed-layout/staff/tenants/$tenantId/profiles': {
-      id: '/_authed-layout/staff/tenants/$tenantId/profiles'
-      path: '/staff/tenants/$tenantId/profiles'
-      fullPath: '/staff/tenants/$tenantId/profiles'
-      preLoaderRoute: typeof authedStaffTenantsTenantIdProfilesRouteImport
+    '/_authed-layout/staff/staff-users': {
+      id: '/_authed-layout/staff/staff-users'
+      path: '/staff/staff-users'
+      fullPath: '/staff/staff-users'
+      preLoaderRoute: typeof authedStaffStaffUsersRouteImport
       parentRoute: typeof authedLayoutRoute
     }
     '/_authed-layout/staff/profiles': {
@@ -337,6 +336,13 @@ declare module '@tanstack/react-router' {
       path: '/staff/profiles'
       fullPath: '/staff/profiles'
       preLoaderRoute: typeof authedStaffProfilesRouteImport
+      parentRoute: typeof authedLayoutRoute
+    }
+    '/_authed-layout/staff/tenants/$tenantId': {
+      id: '/_authed-layout/staff/tenants/$tenantId'
+      path: '/staff/tenants/$tenantId'
+      fullPath: '/staff/tenants/$tenantId'
+      preLoaderRoute: typeof authedStaffTenantsTenantIdRouteImport
       parentRoute: typeof authedLayoutRoute
     }
     '/_authed-layout/staff/staff-users/$userId': {
@@ -374,6 +380,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authedStaffInvitationsInvitationIdRouteImport
       parentRoute: typeof authedLayoutRoute
     }
+    '/_authed-layout/staff/tenants/$tenantId/users': {
+      id: '/_authed-layout/staff/tenants/$tenantId/users'
+      path: '/staff/tenants/$tenantId/users'
+      fullPath: '/staff/tenants/$tenantId/users'
+      preLoaderRoute: typeof authedStaffTenantsTenantIdUsersRouteImport
+      parentRoute: typeof authedLayoutRoute
+    }
+    '/_authed-layout/staff/tenants/$tenantId/profiles': {
+      id: '/_authed-layout/staff/tenants/$tenantId/profiles'
+      path: '/staff/tenants/$tenantId/profiles'
+      fullPath: '/staff/tenants/$tenantId/profiles'
+      preLoaderRoute: typeof authedStaffTenantsTenantIdProfilesRouteImport
+      parentRoute: typeof authedLayoutRoute
+    }
     '/_authed-layout/staff/profiles/$profileId/users': {
       id: '/_authed-layout/staff/profiles/$profileId/users'
       path: '/staff/profiles/$profileId/users'
@@ -390,15 +410,16 @@ interface authedLayoutRouteChildren {
   authedStaffProfilesRoute: typeof authedStaffProfilesRoute
   authedStaffStaffUsersRoute: typeof authedStaffStaffUsersRoute
   authedStaffTenantsRoute: typeof authedStaffTenantsRoute
-  authedStaffTenantsTenantIdRoute: typeof authedStaffTenantsTenantIdRoute
-  authedStaffTenantsTenantIdProfilesRoute: typeof authedStaffTenantsTenantIdProfilesRoute
   authedStaffInvitationsIndexRoute: typeof authedStaffInvitationsIndexRoute
   authedStaffInvitationsInvitationIdRoute: typeof authedStaffInvitationsInvitationIdRoute
   authedStaffInvitationsNewRoute: typeof authedStaffInvitationsNewRoute
   authedStaffProfilesProfileIdRoute: typeof authedStaffProfilesProfileIdRoute
   authedStaffProfilesNewRoute: typeof authedStaffProfilesNewRoute
   authedStaffStaffUsersUserIdRoute: typeof authedStaffStaffUsersUserIdRoute
+  authedStaffTenantsTenantIdRoute: typeof authedStaffTenantsTenantIdRoute
   authedStaffProfilesProfileIdUsersRoute: typeof authedStaffProfilesProfileIdUsersRoute
+  authedStaffTenantsTenantIdProfilesRoute: typeof authedStaffTenantsTenantIdProfilesRoute
+  authedStaffTenantsTenantIdUsersRoute: typeof authedStaffTenantsTenantIdUsersRoute
 }
 
 const authedLayoutRouteChildren: authedLayoutRouteChildren = {
@@ -407,9 +428,6 @@ const authedLayoutRouteChildren: authedLayoutRouteChildren = {
   authedStaffProfilesRoute: authedStaffProfilesRoute,
   authedStaffStaffUsersRoute: authedStaffStaffUsersRoute,
   authedStaffTenantsRoute: authedStaffTenantsRoute,
-  authedStaffTenantsTenantIdRoute: authedStaffTenantsTenantIdRoute,
-  authedStaffTenantsTenantIdProfilesRoute:
-    authedStaffTenantsTenantIdProfilesRoute,
   authedStaffInvitationsIndexRoute: authedStaffInvitationsIndexRoute,
   authedStaffInvitationsInvitationIdRoute:
     authedStaffInvitationsInvitationIdRoute,
@@ -417,8 +435,12 @@ const authedLayoutRouteChildren: authedLayoutRouteChildren = {
   authedStaffProfilesProfileIdRoute: authedStaffProfilesProfileIdRoute,
   authedStaffProfilesNewRoute: authedStaffProfilesNewRoute,
   authedStaffStaffUsersUserIdRoute: authedStaffStaffUsersUserIdRoute,
+  authedStaffTenantsTenantIdRoute: authedStaffTenantsTenantIdRoute,
   authedStaffProfilesProfileIdUsersRoute:
     authedStaffProfilesProfileIdUsersRoute,
+  authedStaffTenantsTenantIdProfilesRoute:
+    authedStaffTenantsTenantIdProfilesRoute,
+  authedStaffTenantsTenantIdUsersRoute: authedStaffTenantsTenantIdUsersRoute,
 }
 
 const authedLayoutRouteWithChildren = authedLayoutRoute._addFileChildren(

@@ -1,0 +1,180 @@
+import { createFileRoute } from '@tanstack/react-router';
+import type { ColumnDef } from '@tanstack/react-table';
+import { AppErrorView } from '~/components/error-views/AppErrorView';
+import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { DataTable } from '~/components/table/data-table';
+import { useTableController } from '~/components/table/use-table-controller';
+import {
+	type StaffTenantUserRow,
+	toStaffTenantUserRows,
+	useStaffTenantUsersQuery,
+} from '~/lib/query/staff-tenant-users';
+import {
+	toStaffTenantDetails,
+	useStaffTenantDetailsQuery,
+} from '~/lib/query/staff-tenants';
+import {
+	parseTableSearchParams,
+	serializeTableSearchParams,
+	type TableSearchParamInput,
+	type TableSearchParams,
+} from '~/lib/url-state/table-search-params';
+import { shouldLogoutForFailure } from '~/routes/authed/layout';
+
+import {
+	TenantDetailsError,
+	TenantDetailsLoading,
+	TenantDetailsPageShell,
+} from './_tenant-details-shell';
+
+const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
+const DEFAULT_SIZE = 100;
+
+const columns: ColumnDef<StaffTenantUserRow>[] = [
+	{
+		id: 'name',
+		header: 'Name',
+		enableSorting: false,
+		cell: ({ row }) => row.original.displayName,
+	},
+	{
+		id: 'email',
+		header: 'Email',
+		enableSorting: false,
+		accessorKey: 'email',
+		cell: ({ getValue }) => getValue<string>() || '—',
+	},
+	{
+		id: 'level',
+		header: 'Level',
+		accessorKey: 'level',
+		cell: ({ getValue }) => getValue<string | null>() ?? '—',
+	},
+	{
+		id: 'status',
+		header: 'Status',
+		accessorKey: 'status',
+		cell: ({ getValue }) => getValue<string | null>() ?? '—',
+	},
+];
+
+export const Route = createFileRoute(
+	'/_authed-layout/staff/tenants/$tenantId/users',
+)({
+	validateSearch: (search) =>
+		parseTableSearchParams(search as TableSearchParamInput),
+	component: StaffTenantUsersPage,
+});
+
+function StaffTenantUsersPage() {
+	const { tenantId } = Route.useParams();
+	const navigate = Route.useNavigate();
+	const search = Route.useSearch();
+
+	const onSearchChange = (next: TableSearchParams): void => {
+		void navigate({
+			search: serializeTableSearchParams(next) as unknown as TableSearchParams,
+			replace: true,
+		});
+	};
+
+	const controller = useTableController({
+		search,
+		onSearchChange,
+		defaultSort: DEFAULT_SORT,
+		defaultSize: DEFAULT_SIZE,
+		cursorResetKey: tenantId,
+	});
+	const detailsQuery = useStaffTenantDetailsQuery(
+		{ tenantId },
+		{ enabled: tenantId.length > 0 },
+	);
+	const usersQuery = useStaffTenantUsersQuery(
+		{
+			tenantId,
+			q: controller.apiVariables.q,
+			sortId: controller.apiVariables.sortId,
+			sortOrder: controller.apiVariables.sortOrder,
+			cursor: controller.apiVariables.cursor,
+			size: controller.apiVariables.size,
+		},
+		{
+			enabled:
+				tenantId.length > 0 && !detailsQuery.isPending && !detailsQuery.isError,
+		},
+	);
+
+	if (detailsQuery.isPending) {
+		return <TenantDetailsLoading />;
+	}
+
+	if (detailsQuery.isError) {
+		if (shouldLogoutForFailure(detailsQuery.error)) {
+			return <LogoutRedirect />;
+		}
+
+		return <TenantDetailsError error={detailsQuery.error} />;
+	}
+
+	const tenant = toStaffTenantDetails(detailsQuery.data);
+	if (!tenant) {
+		return (
+			<AppErrorView
+				icon="!"
+				code="500 — Server Error"
+				title="Unable to load this tenant"
+				description="The tenant response was incomplete."
+				testId="staff-tenant-details-error"
+			/>
+		);
+	}
+
+	if (usersQuery.isError && shouldLogoutForFailure(usersQuery.error)) {
+		return <LogoutRedirect />;
+	}
+
+	const rows = toStaffTenantUserRows(usersQuery.data?.data);
+
+	return (
+		<TenantDetailsPageShell
+			tenant={tenant}
+			activeSection="users"
+			summary="Read-only tenant users carried forward in the front-2 migration shell."
+			testId="staff-tenant-users-page"
+		>
+			<div className="space-y-2">
+				<h2 className="text-lg font-semibold text-foreground">Users</h2>
+				<p className="text-sm text-foreground-500">
+					Read-only tenant users with search, sorting, and cursor pagination.
+				</p>
+			</div>
+
+			<DataTable
+				testId="staff-tenant-users-table"
+				ariaLabel="Tenant users"
+				columns={columns}
+				rows={rows}
+				isPending={usersQuery.isPending}
+				isError={usersQuery.isError}
+				onRetry={() => void usersQuery.refetch()}
+				emptyContent="No tenant users found."
+				noMatchContent="No tenant users match your search."
+				hasActiveSearch={Boolean(controller.search.committed)}
+				sort={controller.sort}
+				onSortChange={controller.onSortChange}
+				size={controller.size}
+				onSizeChange={controller.onSizeChange}
+				pageIndex={controller.cursor.pageIndex}
+				hasPreviousPage={controller.cursor.hasPreviousPage}
+				hasNextPage={usersQuery.data?.nextCursor != null}
+				isPaginationPending={usersQuery.isFetching}
+				onNextPage={() =>
+					controller.cursor.onNextPage(usersQuery.data?.nextCursor ?? undefined)
+				}
+				onPreviousPage={controller.cursor.onPreviousPage}
+				searchDraft={controller.search.draft}
+				onSearchDraftChange={controller.search.onDraftChange}
+			/>
+		</TenantDetailsPageShell>
+	);
+}
