@@ -5,7 +5,6 @@ import { getClientManager } from '~/lib/api-client/client-manager';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
-import type { TenantGetResponse } from '@org/client-ts/src/staff/permissions/scopes/tenant/index.js';
 import type {
 	ApiResponse,
 	CreateTenantProfileAsStaffBody,
@@ -15,6 +14,7 @@ import type {
 	TenantProfileItem,
 	UpdateTenantProfileAsStaffBody,
 } from '@org/client-ts/src/models/index.js';
+import type { TenantGetResponse } from '@org/client-ts/src/staff/permissions/scopes/tenant/index.js';
 import {
 	buildStaffMutationOptions,
 	buildStaffQueryOptions,
@@ -143,9 +143,7 @@ const normalizeUnknownString = (value: unknown): string | undefined => {
 	return trimmed.length > 0 ? trimmed : undefined;
 };
 
-const isRecord = (
-	value: unknown,
-): value is Record<string, unknown> => {
+const isRecord = (value: unknown): value is Record<string, unknown> => {
 	return typeof value === 'object' && value !== null;
 };
 
@@ -194,9 +192,7 @@ export const buildStaffTenantPermissionCatalogOptions = (
 			moduleEntries.push({
 				key,
 				label:
-					labelParts.length > 1
-						? `${labelParts[0]} • ${labelParts[1]}`
-						: key,
+					labelParts.length > 1 ? `${labelParts[0]} • ${labelParts[1]}` : key,
 				description: description ?? null,
 			});
 		}
@@ -449,9 +445,7 @@ const staffTenantPermissionCatalogQueryOptions = buildStaffQueryOptions<
 	StaffTenantPermissionCatalogQueryVariables
 >(
 	{
-		queryKeyFn: () => [
-			...STAFF_TENANT_PERMISSION_CATALOG_QUERY_KEY.slice(1),
-		],
+		queryKeyFn: () => [...STAFF_TENANT_PERMISSION_CATALOG_QUERY_KEY.slice(1)],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.permissions.scopes.tenant.get({
 				queryParameters: {
