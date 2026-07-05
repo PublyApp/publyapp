@@ -178,13 +178,14 @@ export const TenantDetailsPageShell = ({
 	children,
 }: {
 	tenant: StaffTenantDetails;
-	activeSection: 'basics' | 'profiles' | 'users';
+	activeSection: 'basics' | 'profiles' | 'users' | 'invitations';
 	summary: string;
 	testId: string;
 	children: ReactNode;
 }) => {
 	const profilesHref = `/staff/tenants/${tenant.id}/profiles`;
 	const usersHref = `/staff/tenants/${tenant.id}/users`;
+	const invitationsHref = `/staff/tenants/${tenant.id}/invitations`;
 
 	return (
 		<div
@@ -234,6 +235,11 @@ export const TenantDetailsPageShell = ({
 						label="Profiles"
 						href={profilesHref}
 						isActive={activeSection === 'profiles'}
+					/>
+					<SectionNavLink
+						label="Invitations"
+						href={invitationsHref}
+						isActive={activeSection === 'invitations'}
 					/>
 					<SectionNavLink
 						label="Users"
