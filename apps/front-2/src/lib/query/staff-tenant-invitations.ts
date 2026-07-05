@@ -1,13 +1,17 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type {
+	ApiResponse,
 	FindInvitationsForTenantAsStaffResult,
 	InvitationListItem,
 } from '@org/client-ts/src/models/index.js';
-import { buildStaffQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
+import {
+	buildStaffMutationOptions,
+	buildStaffQueryOptions,
+} from '@org/shared-ts/lib/query/create-hooks';
 
 export type StaffTenantInvitationsQueryVariables = {
 	tenantId: string;
@@ -31,6 +35,16 @@ export type StaffTenantInvitationRow = {
 	expiresAt: Date | null;
 };
 
+export type StaffTenantInvitationActionVariables = {
+	tenantId: string;
+	invitationId: string;
+};
+
+export const STAFF_TENANT_INVITATIONS_QUERY_KEY = [
+	'staff-tenants',
+	'invitations',
+] as const;
+
 const normalizeString = (
 	value: string | null | undefined,
 ): string | undefined => {
@@ -45,6 +59,13 @@ const normalizeString = (
 const normalizeNullableString = (
 	value: string | null | undefined,
 ): string | null => normalizeString(value) ?? null;
+
+const normalizeStatusToken = (
+	value: string | null | undefined,
+): string | undefined => {
+	const normalized = normalizeString(value);
+	return normalized?.toLowerCase();
+};
 
 const isPositiveSafeInteger = (value: number | undefined): value is number =>
 	typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
@@ -96,13 +117,18 @@ export const toStaffTenantInvitationRows = (
 	return rows;
 };
 
+export const isStaffTenantInvitationRevocable = ({
+	status,
+}: Pick<StaffTenantInvitationRow, 'status'>): boolean =>
+	normalizeStatusToken(status) === 'pending';
+
 const staffTenantInvitationsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindInvitationsForTenantAsStaffResult,
 	StaffTenantInvitationsQueryVariables
 >(
 	{
-		queryKeyFn: () => ['staff-tenants', 'invitations'],
+		queryKeyFn: () => [...STAFF_TENANT_INVITATIONS_QUERY_KEY],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.tenants
 				.byTenantId(variables.tenantId)
@@ -121,6 +147,22 @@ const staffTenantInvitationsQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
+const revokeStaffTenantInvitationMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	ApiResponse | undefined,
+	StaffTenantInvitationActionVariables
+>(
+	{
+		mutationKeyFn: () => ['staff-tenants', 'invitations', 'revoke'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.invitations.byInvitationId(variables.invitationId)
+				.delete(),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
 export const useStaffTenantInvitationsQuery = (
 	variables: StaffTenantInvitationsQueryVariables,
 	options?: {
@@ -132,3 +174,6 @@ export const useStaffTenantInvitationsQuery = (
 		queryFn: () => staffTenantInvitationsQueryOptions.fetcher(variables),
 		enabled: options?.enabled ?? true,
 	});
+
+export const useRevokeStaffTenantInvitationMutation = () =>
+	useMutation(revokeStaffTenantInvitationMutationOptions);

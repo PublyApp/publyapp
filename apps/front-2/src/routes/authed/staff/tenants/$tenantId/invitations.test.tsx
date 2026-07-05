@@ -1,18 +1,32 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from '@testing-library/react';
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+	invalidateQueries: vi.fn(),
 	search: {} as Record<string, unknown>,
 	navigate: vi.fn(),
 	toStaffTenantDetails: vi.fn(),
 	useStaffTenantDetailsQuery: vi.fn(),
 	toStaffTenantInvitationRows: vi.fn(),
 	useStaffTenantInvitationsQuery: vi.fn(),
+	useRevokeStaffTenantInvitationMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+}));
+
+vi.mock('@tanstack/react-query', () => ({
+	useQueryClient: () => ({
+		invalidateQueries: mocks.invalidateQueries,
+	}),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -50,7 +64,14 @@ vi.mock('@tanstack/react-router', () => ({
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => key,
+		t: (key: string) => {
+			const labels: Record<string, string> = {
+				'staff-revoke': 'Revoke',
+				'revoke-invitation-success': 'Invitation revoked.',
+			};
+
+			return labels[key] ?? key;
+		},
 		i18n: {
 			language: 'en',
 		},
@@ -66,8 +87,13 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-invitations', () => ({
+	STAFF_TENANT_INVITATIONS_QUERY_KEY: ['staff-tenants', 'invitations'],
+	isStaffTenantInvitationRevocable: (row: { status: string | null }) =>
+		row.status?.trim().toLowerCase() === 'pending',
 	toStaffTenantInvitationRows: mocks.toStaffTenantInvitationRows,
 	useStaffTenantInvitationsQuery: mocks.useStaffTenantInvitationsQuery,
+	useRevokeStaffTenantInvitationMutation:
+		mocks.useRevokeStaffTenantInvitationMutation,
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
@@ -106,6 +132,12 @@ describe('staff tenant invitations route', () => {
 		vi.clearAllMocks();
 		mocks.search = {};
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
+		mocks.invalidateQueries.mockResolvedValue(undefined);
+		mocks.useRevokeStaffTenantInvitationMutation.mockReturnValue({
+			mutateAsync: vi.fn().mockResolvedValue({}),
+			isPending: false,
+		});
+		globalThis.confirm = vi.fn(() => true);
 		mocks.toStaffTenantDetails.mockReturnValue({
 			id: '11111111-1111-1111-1111-111111111111',
 			name: 'Acme Corporation',
@@ -191,6 +223,105 @@ describe('staff tenant invitations route', () => {
 				size: 100,
 			},
 			{ enabled: true },
+		);
+	});
+
+	test('shows a revoke action only for pending invitations', () => {
+		mocks.toStaffTenantInvitationRows.mockReturnValue([
+			{
+				id: 'invite-pending',
+				email: 'pending@example.com',
+				status: 'Pending',
+				scope: 'Tenant',
+				profileName: 'Approvers',
+				invitedByName: 'Taylor Smith',
+				acceptedAt: null,
+				createdAt: new Date('2026-07-01T09:00:00Z'),
+				expiresAt: new Date('2026-07-07T09:00:00Z'),
+			},
+			{
+				id: 'invite-accepted',
+				email: 'accepted@example.com',
+				status: 'Accepted',
+				scope: 'Tenant',
+				profileName: 'Approvers',
+				invitedByName: 'Taylor Smith',
+				acceptedAt: new Date('2026-07-02T09:00:00Z'),
+				createdAt: new Date('2026-07-01T09:00:00Z'),
+				expiresAt: new Date('2026-07-07T09:00:00Z'),
+			},
+		]);
+
+		renderPage();
+
+		expect(screen.getAllByRole('button', { name: 'Revoke' })).toHaveLength(1);
+		expect(screen.getByText('accepted@example.com')).toBeTruthy();
+	});
+
+	test('revokes a pending invitation, invalidates the tenant invitations query, and shows success feedback', async () => {
+		const revoke = vi.fn().mockResolvedValue({});
+		mocks.useRevokeStaffTenantInvitationMutation.mockReturnValue({
+			mutateAsync: revoke,
+			isPending: false,
+		});
+
+		renderPage();
+		fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+
+		await waitFor(() =>
+			expect(revoke).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				invitationId: 'invite-1',
+			}),
+		);
+		await waitFor(() =>
+			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
+				queryKey: ['staff', 'staff-tenants', 'invitations'],
+			}),
+		);
+		expect(globalThis.confirm).toHaveBeenCalledWith('Revoke invitation?');
+		expect(screen.getByText('Invitation revoked.')).toBeTruthy();
+	});
+
+	test('shows an inline revoke error for forbidden failures without logging out', async () => {
+		const revoke = vi.fn().mockRejectedValue({
+			status: 403,
+			responseStatusCode: 403,
+			title: 'Forbidden',
+			detail: 'Forbidden',
+		});
+		mocks.useRevokeStaffTenantInvitationMutation.mockReturnValue({
+			mutateAsync: revoke,
+			isPending: false,
+		});
+
+		renderPage();
+		fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+
+		await waitFor(() => expect(revoke).toHaveBeenCalledTimes(1));
+		await waitFor(() => expect(screen.getByText('Forbidden')).toBeTruthy());
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+	});
+
+	test('redirects to logout for a revoke 401 failure', async () => {
+		const revoke = vi.fn().mockRejectedValue({
+			status: 401,
+			responseStatusCode: 401,
+			title: 'Unauthorized',
+			detail: 'Unauthorized',
+		});
+		mocks.shouldLogoutForFailure.mockReturnValue(true);
+		mocks.useRevokeStaffTenantInvitationMutation.mockReturnValue({
+			mutateAsync: revoke,
+			isPending: false,
+		});
+
+		renderPage();
+		fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+
+		await waitFor(() => expect(revoke).toHaveBeenCalledTimes(1));
+		await waitFor(() =>
+			expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
 		);
 	});
 

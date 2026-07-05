@@ -101,6 +101,7 @@ export const DataTable = <TData extends { id: string }>({
 		rowCount: rows.length,
 		hasActiveSearch,
 	});
+	const rowHeaderColumnId = table.getAllLeafColumns()[0]?.id;
 
 	const paginationDisabled = isSelectionMode || isPaginationPending;
 	const tableSelectionProps = selection
@@ -187,6 +188,7 @@ export const DataTable = <TData extends { id: string }>({
 												id={header.id}
 												key={header.id}
 												allowsSorting={canSort}
+												isRowHeader={header.column.id === rowHeaderColumnId}
 												// `!text-*` (important) because HeroUI's own `.table__column` rule
 												// otherwise wins the cascade: its default header gray fails WCAG AA
 												// color-contrast against the header background.
