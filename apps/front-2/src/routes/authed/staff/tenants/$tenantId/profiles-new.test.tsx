@@ -372,4 +372,109 @@ describe('staff tenant profile create route', () => {
 		);
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
+
+	test('shows an inline error without logout, navigation, or invalidation for submit 400 problem failures', async () => {
+		const mutateAsync = vi.fn().mockRejectedValue({
+			status: 400,
+			responseStatusCode: 400,
+			title: 'Bad Request',
+			detail: 'Profile name already exists.',
+		});
+
+		mocks.useCreateStaffTenantProfileMutation.mockReturnValue({
+			mutateAsync,
+			isPending: false,
+		});
+		mocks.shouldLogoutForFailure.mockImplementation(
+			(error: unknown) => error instanceof Response && error.status === 401,
+		);
+
+		renderPage();
+
+		fireEvent.change(screen.getByRole('textbox', { name: 'Profile name' }), {
+			target: { value: 'Approvers' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Create profile' }).closest('form')!,
+		);
+
+		await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+		await waitFor(() =>
+			expect(screen.getByText('Profile name already exists.')).toBeTruthy(),
+		);
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+		expect(mocks.navigate).not.toHaveBeenCalled();
+		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
+	});
+
+	test('shows an inline error without logout, navigation, or invalidation for submit 422 validation failures', async () => {
+		const mutateAsync = vi.fn().mockRejectedValue({
+			status: 422,
+			responseStatusCode: 422,
+			title: 'Validation failed',
+			detail: 'Name is required.',
+			errors: {
+				name: ['Name is required.'],
+			},
+		});
+
+		mocks.useCreateStaffTenantProfileMutation.mockReturnValue({
+			mutateAsync,
+			isPending: false,
+		});
+		mocks.shouldLogoutForFailure.mockImplementation(
+			(error: unknown) => error instanceof Response && error.status === 401,
+		);
+
+		renderPage();
+
+		fireEvent.change(screen.getByRole('textbox', { name: 'Profile name' }), {
+			target: { value: 'Approvers' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Create profile' }).closest('form')!,
+		);
+
+		await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+		await waitFor(() =>
+			expect(screen.getByText('Name is required.')).toBeTruthy(),
+		);
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+		expect(mocks.navigate).not.toHaveBeenCalled();
+		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
+	});
+
+	test('shows an inline error without logout, navigation, or invalidation for ordinary problem failures', async () => {
+		const mutateAsync = vi.fn().mockRejectedValue({
+			status: 500,
+			responseStatusCode: 500,
+			title: 'Server Error',
+			detail: 'Unexpected failure',
+		});
+
+		mocks.useCreateStaffTenantProfileMutation.mockReturnValue({
+			mutateAsync,
+			isPending: false,
+		});
+		mocks.shouldLogoutForFailure.mockImplementation(
+			(error: unknown) => error instanceof Response && error.status === 401,
+		);
+
+		renderPage();
+
+		fireEvent.change(screen.getByRole('textbox', { name: 'Profile name' }), {
+			target: { value: 'Approvers' },
+		});
+		fireEvent.submit(
+			screen.getByRole('button', { name: 'Create profile' }).closest('form')!,
+		);
+
+		await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+		await waitFor(() =>
+			expect(screen.getByText('Unexpected failure')).toBeTruthy(),
+		);
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+		expect(mocks.navigate).not.toHaveBeenCalled();
+		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
+	});
 });
