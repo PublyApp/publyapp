@@ -6,6 +6,7 @@ import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type {
 	FindStaffUsersResponse,
 	GetStaffUserByIdResult,
+	GetStaffUserProfilesResult,
 	StaffUserItem,
 } from '@org/client-ts/src/models/index.js';
 import { buildStaffQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
@@ -22,6 +23,10 @@ export type StaffUserDetailsQueryVariables = {
 	userId: string;
 };
 
+export type StaffUserProfilesQueryVariables = {
+	userId: string;
+};
+
 export type StaffUserRow = {
 	id: string;
 	email: string;
@@ -30,6 +35,12 @@ export type StaffUserRow = {
 	level: string | null;
 	status: string | null;
 	displayName: string;
+};
+
+export type AssignedStaffProfile = {
+	id: string;
+	name: string;
+	description: string | null;
 };
 
 export type StaffUserDetails = {
@@ -159,6 +170,30 @@ export const toStaffUserDetails = (
 	};
 };
 
+export const toAssignedStaffProfiles = (
+	result: GetStaffUserProfilesResult | null | undefined,
+): AssignedStaffProfile[] => {
+	const profiles: AssignedStaffProfile[] = [];
+
+	for (const item of result?.assignedProfiles ?? []) {
+		const id = normalizeString(
+			typeof item.id === 'string' ? item.id : undefined,
+		);
+
+		if (!id) {
+			continue;
+		}
+
+		profiles.push({
+			id,
+			name: normalizeString(item.name) ?? 'Unnamed profile',
+			description: normalizeNullableString(item.description),
+		});
+	}
+
+	return profiles;
+};
+
 const staffUsersQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindStaffUsersResponse,
@@ -216,5 +251,39 @@ export const useStaffUserDetailsQuery = (
 	useQuery({
 		queryKey: staffUserDetailsQueryOptions.queryKey(variables),
 		queryFn: () => staffUserDetailsQueryOptions.fetcher(variables),
+		enabled: options?.enabled ?? true,
+	});
+
+const staffUserProfilesQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	GetStaffUserProfilesResult,
+	StaffUserProfilesQueryVariables
+>(
+	{
+		queryKeyFn: () => ['staff-users', 'detail', 'profiles'],
+		fetcher: async (client, variables) => {
+			const result = await client.staff.users
+				.byUserId(variables.userId)
+				.profiles.get();
+
+			if (!result) {
+				throw new Error('staff user profiles result was empty');
+			}
+
+			return result;
+		},
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const useStaffUserProfilesQuery = (
+	variables: StaffUserProfilesQueryVariables,
+	options?: {
+		enabled?: boolean;
+	},
+) =>
+	useQuery({
+		queryKey: staffUserProfilesQueryOptions.queryKey(variables),
+		queryFn: () => staffUserProfilesQueryOptions.fetcher(variables),
 		enabled: options?.enabled ?? true,
 	});
