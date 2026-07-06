@@ -234,12 +234,13 @@ function StaffProfileDetailsPage() {
 					<span className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
 						Basics
 					</span>
-					<span
-						aria-disabled="true"
-						className="rounded-full border border-divider px-4 py-2 text-sm text-foreground-400"
+					<Link
+						to="/staff/profiles/$profileId/users"
+						params={{ profileId }}
+						className="rounded-full border border-divider px-4 py-2 text-sm text-foreground-500 transition hover:border-default-400 hover:text-foreground"
 					>
 						Users
-					</span>
+					</Link>
 				</nav>
 			</div>
 

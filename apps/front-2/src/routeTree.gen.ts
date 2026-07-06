@@ -22,6 +22,7 @@ import { Route as authedStaffProfilesNewRouteImport } from './routes/authed/staf
 import { Route as authedStaffProfilesProfileIdRouteImport } from './routes/authed/staff/profiles/$profileId'
 import { Route as authedStaffInvitationsNewRouteImport } from './routes/authed/staff/invitations/new'
 import { Route as authedStaffInvitationsInvitationIdRouteImport } from './routes/authed/staff/invitations/$invitationId'
+import { Route as authedStaffProfilesProfileIdUsersRouteImport } from './routes/authed/staff/profiles/$profileId/users'
 
 const loginRoute = loginRouteImport.update({
   id: '/login',
@@ -91,6 +92,12 @@ const authedStaffInvitationsInvitationIdRoute =
     path: '/staff/invitations/$invitationId',
     getParentRoute: () => authedLayoutRoute,
   } as any)
+const authedStaffProfilesProfileIdUsersRoute =
+  authedStaffProfilesProfileIdUsersRouteImport.update({
+    id: '/staff/profiles/$profileId/users',
+    path: '/staff/profiles/$profileId/users',
+    getParentRoute: () => authedLayoutRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof indexRoute
@@ -105,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/staff/invitations/new': typeof authedStaffInvitationsNewRoute
   '/staff/profiles/$profileId': typeof authedStaffProfilesProfileIdRoute
   '/staff/profiles/new': typeof authedStaffProfilesNewRoute
+  '/staff/profiles/$profileId/users': typeof authedStaffProfilesProfileIdUsersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof indexRoute
@@ -119,6 +127,7 @@ export interface FileRoutesByTo {
   '/staff/invitations/new': typeof authedStaffInvitationsNewRoute
   '/staff/profiles/$profileId': typeof authedStaffProfilesProfileIdRoute
   '/staff/profiles/new': typeof authedStaffProfilesNewRoute
+  '/staff/profiles/$profileId/users': typeof authedStaffProfilesProfileIdUsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -135,6 +144,7 @@ export interface FileRoutesById {
   '/_authed-layout/staff/invitations/new': typeof authedStaffInvitationsNewRoute
   '/_authed-layout/staff/profiles/$profileId': typeof authedStaffProfilesProfileIdRoute
   '/_authed-layout/staff/profiles/new': typeof authedStaffProfilesNewRoute
+  '/_authed-layout/staff/profiles/$profileId/users': typeof authedStaffProfilesProfileIdUsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -151,6 +161,7 @@ export interface FileRouteTypes {
     | '/staff/invitations/new'
     | '/staff/profiles/$profileId'
     | '/staff/profiles/new'
+    | '/staff/profiles/$profileId/users'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -165,6 +176,7 @@ export interface FileRouteTypes {
     | '/staff/invitations/new'
     | '/staff/profiles/$profileId'
     | '/staff/profiles/new'
+    | '/staff/profiles/$profileId/users'
   id:
     | '__root__'
     | '/'
@@ -180,6 +192,7 @@ export interface FileRouteTypes {
     | '/_authed-layout/staff/invitations/new'
     | '/_authed-layout/staff/profiles/$profileId'
     | '/_authed-layout/staff/profiles/new'
+    | '/_authed-layout/staff/profiles/$profileId/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -282,6 +295,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authedStaffInvitationsInvitationIdRouteImport
       parentRoute: typeof authedLayoutRoute
     }
+    '/_authed-layout/staff/profiles/$profileId/users': {
+      id: '/_authed-layout/staff/profiles/$profileId/users'
+      path: '/staff/profiles/$profileId/users'
+      fullPath: '/staff/profiles/$profileId/users'
+      preLoaderRoute: typeof authedStaffProfilesProfileIdUsersRouteImport
+      parentRoute: typeof authedLayoutRoute
+    }
   }
 }
 
@@ -295,6 +315,7 @@ interface authedLayoutRouteChildren {
   authedStaffInvitationsNewRoute: typeof authedStaffInvitationsNewRoute
   authedStaffProfilesProfileIdRoute: typeof authedStaffProfilesProfileIdRoute
   authedStaffProfilesNewRoute: typeof authedStaffProfilesNewRoute
+  authedStaffProfilesProfileIdUsersRoute: typeof authedStaffProfilesProfileIdUsersRoute
 }
 
 const authedLayoutRouteChildren: authedLayoutRouteChildren = {
@@ -308,6 +329,8 @@ const authedLayoutRouteChildren: authedLayoutRouteChildren = {
   authedStaffInvitationsNewRoute: authedStaffInvitationsNewRoute,
   authedStaffProfilesProfileIdRoute: authedStaffProfilesProfileIdRoute,
   authedStaffProfilesNewRoute: authedStaffProfilesNewRoute,
+  authedStaffProfilesProfileIdUsersRoute:
+    authedStaffProfilesProfileIdUsersRoute,
 }
 
 const authedLayoutRouteWithChildren = authedLayoutRoute._addFileChildren(
