@@ -9,7 +9,9 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type {
 	CreateStaffProfileBody,
+	FindStaffProfilePermissionsResult,
 	FindStaffProfilesResult,
+	GetStaffProfileByIdResult,
 	StaffProfileItem,
 	StaffProfileCreated,
 } from '@org/client-ts/src/models/index.js';
@@ -56,6 +58,33 @@ export type StaffProfileRow = {
 	userAccountCount: number;
 };
 
+export type StaffProfileDetails = {
+	id: string;
+	name: string;
+	description: string | null;
+	userAccountCount: number;
+};
+
+export type StaffProfileDetailsQueryVariables = {
+	profileId: string;
+};
+
+export type StaffProfilePermissionKeysQueryVariables = {
+	profileId: string;
+};
+
+export type StaffAssignedPermission = {
+	key: string;
+	label: string;
+	description: string | null;
+};
+
+export type StaffAssignedPermissionGroup = {
+	key: string;
+	label: string;
+	permissions: StaffAssignedPermission[];
+};
+
 export const STAFF_PROFILES_QUERY_KEY = ['staff', 'staff-profiles'] as const;
 
 const normalizeString = (value: string | undefined): string | undefined => {
@@ -65,6 +94,32 @@ const normalizeString = (value: string | undefined): string | undefined => {
 
 	const trimmed = value.trim();
 	return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const normalizeOptionalString = (value: unknown): string | undefined => {
+	if (typeof value !== 'string') {
+		return undefined;
+	}
+
+	const trimmed = value.trim();
+	return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const formatModuleLabel = (moduleKey: string): string =>
+	moduleKey
+		.trim()
+		.replace(/[_-]+/g, ' ')
+		.replace(/\b\w/g, (value) => value.toUpperCase());
+
+const getPermissionGroupKey = (permissionKey: string): string => {
+	for (const separator of ['.', ':']) {
+		const separatorIndex = permissionKey.indexOf(separator);
+		if (separatorIndex > 0) {
+			return permissionKey.slice(0, separatorIndex);
+		}
+	}
+
+	return permissionKey;
 };
 
 export const toStaffProfileRows = (
@@ -87,6 +142,124 @@ export const toStaffProfileRows = (
 	}
 
 	return rows;
+};
+
+export const toStaffProfileDetails = (
+	result: GetStaffProfileByIdResult | null | undefined,
+): StaffProfileDetails | null => {
+	const profile = result?.profile;
+	const id = normalizeString(profile?.id ?? undefined);
+
+	if (!id) {
+		return null;
+	}
+
+	return {
+		id,
+		name: normalizeString(profile?.name ?? undefined) ?? '—',
+		description: profile?.description ?? null,
+		userAccountCount: profile?.userAccountCount ?? 0,
+	};
+};
+
+export const toAssignedStaffPermissionGroups = (
+	assignedKeys: string[] | null | undefined,
+	catalog?: StaffPermissionCatalog | null,
+): StaffAssignedPermissionGroup[] => {
+	const normalizedAssignedKeys: string[] = [];
+	const seenAssignedKeys = new Set<string>();
+
+	for (const permissionKey of assignedKeys ?? []) {
+		const normalizedKey = normalizeOptionalString(permissionKey);
+
+		if (!normalizedKey || seenAssignedKeys.has(normalizedKey)) {
+			continue;
+		}
+
+		normalizedAssignedKeys.push(normalizedKey);
+		seenAssignedKeys.add(normalizedKey);
+	}
+
+	if (normalizedAssignedKeys.length === 0) {
+		return [];
+	}
+
+	const catalogEntriesByKey = new Map<
+		string,
+		{
+			groupKey: string;
+			groupLabel: string;
+			label: string;
+			description: string | null;
+		}
+	>();
+
+	for (const [moduleKey, permissions] of Object.entries(catalog ?? {})) {
+		const normalizedModuleKey = normalizeOptionalString(moduleKey);
+		if (
+			!normalizedModuleKey ||
+			typeof permissions !== 'object' ||
+			permissions === null
+		) {
+			continue;
+		}
+
+		for (const permission of Object.values(permissions)) {
+			if (typeof permission !== 'object' || permission === null) {
+				continue;
+			}
+
+			const permissionKey = normalizeOptionalString(permission.key);
+			if (!permissionKey) {
+				continue;
+			}
+
+			catalogEntriesByKey.set(permissionKey, {
+				groupKey: normalizedModuleKey,
+				groupLabel: formatModuleLabel(normalizedModuleKey),
+				label: normalizeOptionalString(permission.name) ?? permissionKey,
+				description: normalizeOptionalString(permission.description) ?? null,
+			});
+		}
+	}
+
+	const groupsByKey = new Map<string, StaffAssignedPermissionGroup>();
+
+	for (const permissionKey of normalizedAssignedKeys) {
+		const catalogEntry = catalogEntriesByKey.get(permissionKey);
+		const groupKey =
+			catalogEntry?.groupKey ?? getPermissionGroupKey(permissionKey);
+		const groupLabel = catalogEntry?.groupLabel ?? formatModuleLabel(groupKey);
+		const group = groupsByKey.get(groupKey) ?? {
+			key: groupKey,
+			label: groupLabel,
+			permissions: [],
+		};
+
+		group.permissions.push({
+			key: permissionKey,
+			label: catalogEntry?.label ?? permissionKey,
+			description: catalogEntry?.description ?? null,
+		});
+
+		groupsByKey.set(groupKey, group);
+	}
+
+	const groups = Array.from(groupsByKey.values());
+
+	for (const group of groups) {
+		group.permissions.sort((left, right) => {
+			const byLabel = left.label.localeCompare(right.label);
+			return byLabel !== 0 ? byLabel : left.key.localeCompare(right.key);
+		});
+	}
+
+	groups.sort((left, right) => {
+		const byLabel = left.label.localeCompare(right.label);
+		return byLabel !== 0 ? byLabel : left.key.localeCompare(right.key);
+	});
+
+	return groups;
 };
 
 export const buildCreateStaffProfileBody = (
@@ -164,6 +337,50 @@ const createStaffProfileMutationOptions = buildStaffMutationOptions<
 	{ clientAccessor: getClientManager() },
 );
 
+const staffProfileDetailsQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	GetStaffProfileByIdResult,
+	StaffProfileDetailsQueryVariables
+>(
+	{
+		queryKeyFn: () => ['staff-profiles', 'details'],
+		fetcher: async (client, variables) => {
+			const result = await client.staff.profiles
+				.byProfileId(variables.profileId)
+				.get();
+
+			if (!result) {
+				throw new Error('staff profile details result was empty');
+			}
+
+			return result;
+		},
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+const staffProfilePermissionKeysQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindStaffProfilePermissionsResult,
+	StaffProfilePermissionKeysQueryVariables
+>(
+	{
+		queryKeyFn: () => ['staff-profiles', 'permission-keys'],
+		fetcher: async (client, variables) => {
+			const result = await client.staff.profiles
+				.byProfileId(variables.profileId)
+				.permissions.get();
+
+			if (!result) {
+				throw new Error('staff profile permission keys result was empty');
+			}
+
+			return result;
+		},
+	},
+	{ clientAccessor: getClientManager() },
+);
+
 const staffPermissionCatalogQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	StaffGetResponse,
@@ -196,6 +413,22 @@ export const useStaffProfilesQuery = (variables: StaffProfilesQueryVariables) =>
 
 export const useCreateStaffProfileMutation = () =>
 	useMutation(createStaffProfileMutationOptions);
+
+export const useStaffProfileDetailsQuery = (
+	variables: StaffProfileDetailsQueryVariables,
+) =>
+	useQuery({
+		queryKey: staffProfileDetailsQueryOptions.queryKey(variables),
+		queryFn: () => staffProfileDetailsQueryOptions.fetcher(variables),
+	});
+
+export const useStaffProfilePermissionKeysQuery = (
+	variables: StaffProfilePermissionKeysQueryVariables,
+) =>
+	useQuery({
+		queryKey: staffProfilePermissionKeysQueryOptions.queryKey(variables),
+		queryFn: () => staffProfilePermissionKeysQueryOptions.fetcher(variables),
+	});
 
 export const useStaffPermissionCatalogQuery = (
 	variables: StaffPermissionCatalogQueryVariables,

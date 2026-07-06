@@ -55,7 +55,7 @@ const toRows = (
 	return rows;
 };
 
-export const Route = createFileRoute('/_authed-layout/staff/invitations/')({
+export const Route = createFileRoute('/_authed-layout/staff/invitations')({
 	validateSearch: (search) =>
 		parseInvitationListSearchParams(search as InvitationListSearchParamInput),
 	component: StaffInvitationsPage,

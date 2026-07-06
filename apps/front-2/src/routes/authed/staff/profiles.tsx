@@ -1,4 +1,4 @@
-import { buttonVariants, Button } from '@heroui/react';
+import { buttonVariants } from '@heroui/react';
 import { createFileRoute } from '@tanstack/react-router';
 import { Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -31,8 +31,19 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 		id: 'name',
 		header: 'Name',
 		accessorKey: 'name',
-		cell: ({ getValue }) => (
-			<div className="font-medium">{getValue<string>() || '—'}</div>
+		cell: ({ row }) => (
+			<div className="space-y-1">
+				<Link
+					to={'/staff/profiles/$profileId' as never}
+					params={{ profileId: row.original.id } as never}
+					className="font-medium text-primary underline-offset-4 hover:underline"
+				>
+					{row.original.name || '—'}
+				</Link>
+				<p className="text-xs text-foreground-500">
+					{row.original.description ?? 'No description provided.'}
+				</p>
+			</div>
 		),
 	},
 	{
@@ -52,11 +63,15 @@ const columns: ColumnDef<StaffProfileRow>[] = [
 		id: 'actions',
 		header: 'Actions',
 		enableSorting: false,
-		cell: () => (
+		cell: ({ row }) => (
 			<div className="flex justify-end">
-				<Button size="sm" variant="tertiary" isDisabled>
-					Actions
-				</Button>
+				<Link
+					to={'/staff/profiles/$profileId' as never}
+					params={{ profileId: row.original.id } as never}
+					className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+				>
+					View
+				</Link>
 			</div>
 		),
 	},
