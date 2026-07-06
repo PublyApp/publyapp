@@ -68,6 +68,14 @@ function StaffTenantDetailsPage() {
 					Core tenant metadata carried forward from the current staff details
 					shell.
 				</p>
+				<div>
+					<a
+						href={`/staff/tenants/${tenant.id}/edit`}
+						className="inline-flex text-sm font-medium text-foreground underline-offset-4 hover:underline"
+					>
+						Edit tenant
+					</a>
+				</div>
 			</div>
 
 			<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

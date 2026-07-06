@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	buildCreateStaffTenantBody,
+	buildUpdateStaffTenantBody,
 	buildFindStaffTenantsQueryParameters,
 	createStaffTenantMutationOptions,
 	STAFF_TENANTS_QUERY_KEY,
+	STAFF_TENANT_DETAILS_QUERY_KEY,
+	updateStaffTenantMutationOptions,
 	toStaffTenantDetails,
 	toStaffTenantRows,
 } from '~/lib/query/staff-tenants';
@@ -12,6 +15,7 @@ import type {
 	CreateTenantAsStaffResult,
 	GetTenantAsStaffResult,
 	TenantAsStaffListItem,
+	UpdateTenantAsStaffBody,
 } from '@org/client-ts/src/models/index.js';
 
 const mocks = vi.hoisted(() => ({
@@ -124,6 +128,30 @@ describe('buildCreateStaffTenantBody', () => {
 	});
 });
 
+describe('buildUpdateStaffTenantBody', () => {
+	test('normalizes name, numeric, and nullable string fields', () => {
+		const body = buildUpdateStaffTenantBody({
+			name: '  Acme Tenant  ',
+			maxUsers: 10,
+			logoUrl: ' https://cdn.example.com/acme-logo.png ',
+		});
+
+		expect(unwrapUntyped(body.name)).toBe('Acme Tenant');
+		expect(unwrapUntyped(body.maxUsers)).toBe(10);
+		expect(unwrapUntyped(body.logoUrl)).toBe(
+			'https://cdn.example.com/acme-logo.png',
+		);
+	});
+
+	test('sends explicit null when optional string fields are cleared', () => {
+		const body = buildUpdateStaffTenantBody({
+			logoUrl: '   ',
+		});
+
+		expect((body as UpdateTenantAsStaffBody).logoUrl).toBeNull();
+	});
+});
+
 describe('createStaffTenantMutationOptions', () => {
 	test('calls the generated staff tenant create path with a normalized body', async () => {
 		const post = vi.fn().mockResolvedValue({
@@ -163,6 +191,48 @@ describe('createStaffTenantMutationOptions', () => {
 	});
 });
 
+describe('updateStaffTenantMutationOptions', () => {
+	test('calls the generated staff tenant patch path with a normalized body', async () => {
+		const patch = vi.fn().mockResolvedValue({
+			tenantId: 'tenant-001',
+		} as GetTenantAsStaffResult);
+		const byTenantId = vi.fn().mockReturnValue({
+			patch,
+		});
+		mocks.getOrCreateStaffClient.mockReturnValue({
+			staff: {
+				tenants: {
+					byTenantId,
+				},
+			},
+		});
+
+		const result = await updateStaffTenantMutationOptions.mutationFn({
+			tenantId: 'tenant-001',
+			name: '  Acme Tenant  ',
+			maxUsers: 25,
+			logoUrl: '   ',
+		});
+
+		expect(byTenantId).toHaveBeenCalledTimes(1);
+		expect(updateStaffTenantMutationOptions.mutationKey).toEqual([
+			'staff',
+			...STAFF_TENANTS_QUERY_KEY,
+			'update',
+		]);
+		expect(byTenantId).toHaveBeenCalledWith('tenant-001');
+		expect(patch).toHaveBeenCalledTimes(1);
+		expect(unwrapUntyped(patch.mock.calls[0][0])).toEqual({
+			name: 'Acme Tenant',
+			maxUsers: 25,
+			logoUrl: null,
+		});
+		expect(result).toEqual({
+			tenantId: 'tenant-001',
+		});
+	});
+});
+
 describe('buildFindStaffTenantsQueryParameters', () => {
 	test('trims supported values and stringifies page size', () => {
 		expect(
@@ -195,6 +265,10 @@ describe('buildFindStaffTenantsQueryParameters', () => {
 				size: 0,
 			}),
 		).toEqual({});
+	});
+
+	test('builds a tenant details query key with a stable prefix', () => {
+		expect(STAFF_TENANT_DETAILS_QUERY_KEY).toEqual(['staff-tenants', 'detail']);
 	});
 });
 
