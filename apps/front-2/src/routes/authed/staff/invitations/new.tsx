@@ -57,8 +57,7 @@ const DEFAULT_VALUES: InvitationFormValues = {
 	],
 };
 
-const STAFF_INVITATIONS_REDIRECT_PATH = '/staff/staff-users';
-// TODO(#736): redirect to `/staff/invitations` once the index route is migrated in front-2.
+export const STAFF_INVITATIONS_INDEX_PATH = '/staff/invitations';
 
 const getInterZodForI18n = (instance: I18nInstance) => {
 	const locale = isSupportedLanguage(instance.language)
@@ -239,7 +238,7 @@ function NewStaffInvitationsRoute() {
 			redirectTimeoutRef.current = setTimeout(() => {
 				startTransition(() => {
 					void navigate({
-						to: STAFF_INVITATIONS_REDIRECT_PATH,
+						to: STAFF_INVITATIONS_INDEX_PATH,
 					});
 				});
 			}, 600);
@@ -280,7 +279,7 @@ function NewStaffInvitationsRoute() {
 					<h1 className="text-2xl font-semibold">{t('invite-users')}</h1>
 				</div>
 				<Link
-					to="/staff/staff-users"
+					to={STAFF_INVITATIONS_INDEX_PATH}
 					className="text-sm font-medium text-primary underline-offset-4 hover:underline"
 				>
 					{t('staff-invitations')}
