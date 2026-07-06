@@ -1,14 +1,25 @@
-import { useQuery } from '@tanstack/react-query';
+import {
+	createUntypedArray,
+	createUntypedNumber,
+	createUntypedObject,
+	createUntypedString,
+} from '@microsoft/kiota-abstractions';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type {
+	CreateTenantAsStaffBody,
+	CreateTenantAsStaffResult,
 	FindTenantsAsStaffResponse,
 	GetTenantAsStaffResult,
 	TenantAsStaffListItem,
 } from '@org/client-ts/src/models/index.js';
-import { buildStaffQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
+import {
+	buildStaffMutationOptions,
+	buildStaffQueryOptions,
+} from '@org/shared-ts/lib/query/create-hooks';
 
 export type StaffTenantsQueryVariables = {
 	q?: string;
@@ -42,6 +53,19 @@ export type StaffTenantDetails = {
 	createdAt: Date | null;
 	updatedAt: Date | null;
 };
+
+export type StaffTenantInitialUserInput = {
+	email: string;
+	accountLevel: string;
+};
+
+export type CreateStaffTenantInput = {
+	name: string;
+	maxUsers: number;
+	initialUsers: StaffTenantInitialUserInput[];
+};
+
+export const STAFF_TENANTS_QUERY_KEY = ['staff-tenants'] as const;
 
 const normalizeString = (
 	value: string | null | undefined,
@@ -133,6 +157,46 @@ export const toStaffTenantDetails = (
 	};
 };
 
+export const buildCreateStaffTenantBody = (
+	input: CreateStaffTenantInput,
+): CreateTenantAsStaffBody => {
+	const body: CreateTenantAsStaffBody = {};
+	const name = normalizeString(input.name);
+	const rawInitialUsers = Array.isArray(input.initialUsers)
+		? input.initialUsers
+		: [];
+	const initialUsers = rawInitialUsers
+		.map((user) => ({
+			email: normalizeString(user.email),
+			accountLevel: normalizeString(user.accountLevel),
+		}))
+		.filter((user): user is { email: string; accountLevel: string } =>
+			Boolean(user.email && user.accountLevel),
+		)
+		.map((user) =>
+			createUntypedObject({
+				email: createUntypedString(user.email),
+				accountLevel: createUntypedString(user.accountLevel),
+			}),
+		);
+
+	if (name) {
+		body.name = createUntypedString(name) as typeof body.name;
+	}
+
+	if (isPositiveSafeInteger(input.maxUsers)) {
+		body.maxUsers = createUntypedNumber(input.maxUsers) as typeof body.maxUsers;
+	}
+
+	if (initialUsers.length > 0) {
+		body.initialUsers = createUntypedArray(
+			initialUsers,
+		) as typeof body.initialUsers;
+	}
+
+	return body;
+};
+
 const staffTenantsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindTenantsAsStaffResponse,
@@ -151,6 +215,19 @@ const staffTenantsQueryOptions = buildStaffQueryOptions<
 
 			return result;
 		},
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const createStaffTenantMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	CreateTenantAsStaffResult | undefined,
+	CreateStaffTenantInput
+>(
+	{
+		mutationKeyFn: () => [...STAFF_TENANTS_QUERY_KEY, 'create'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants.post(buildCreateStaffTenantBody(variables)),
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -194,3 +271,6 @@ export const useStaffTenantDetailsQuery = (
 		queryFn: () => staffTenantDetailsQueryOptions.fetcher(variables),
 		enabled: options?.enabled ?? true,
 	});
+
+export const useCreateStaffTenantMutation = () =>
+	useMutation(createStaffTenantMutationOptions);

@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
+import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
@@ -94,6 +95,7 @@ export const Route = createFileRoute('/_authed-layout/staff/tenants')({
 function StaffTenantsPage() {
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
+	const { t } = useTranslation('common');
 
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
@@ -118,6 +120,14 @@ function StaffTenantsPage() {
 	return (
 		<div className="space-y-4 p-4">
 			<h1 className="text-xl font-semibold">Tenants</h1>
+			<div className="text-right">
+				<a
+					href="/staff/tenants/new"
+					className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+				>
+					{t('new-item', { item: t('tenant') })}
+				</a>
+			</div>
 			<DataTable
 				testId="staff-tenants-table"
 				ariaLabel="Staff tenants"

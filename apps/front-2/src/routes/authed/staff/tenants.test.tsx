@@ -2,7 +2,8 @@
  * @vitest-environment jsdom
  */
 import { cleanup, render, screen } from '@testing-library/react';
-import type { JSX } from 'react';
+import type { JSX, ReactNode } from 'react';
+import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -18,6 +19,27 @@ vi.mock('@tanstack/react-router', () => ({
 		...options,
 		useNavigate: () => mocks.navigate,
 		useSearch: () => mocks.search,
+	}),
+	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) =>
+		createElement('a', { href: to, ...props }, children),
+}));
+
+vi.mock('react-i18next', () => ({
+	useTranslation: () => ({
+		t: (key: string, options?: Record<string, unknown>) => {
+			if (key === 'new-item' && typeof options?.item === 'string') {
+				return `New ${options.item}`;
+			}
+
+			const labels: Record<string, string> = {
+				tenant: 'Tenant',
+			};
+
+			return labels[key] ?? key;
+		},
+		i18n: {
+			language: 'en',
+		},
 	}),
 }));
 
