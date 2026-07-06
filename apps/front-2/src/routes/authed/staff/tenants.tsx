@@ -41,7 +41,12 @@ const columns: ColumnDef<StaffTenantRow>[] = [
 		accessorKey: 'name',
 		cell: ({ row }) => (
 			<div className="space-y-1">
-				<p className="font-medium text-foreground">{row.original.name}</p>
+				<a
+					href={`/staff/tenants/${row.original.id}`}
+					className="font-medium text-foreground underline-offset-4 hover:underline"
+				>
+					{row.original.name}
+				</a>
 			</div>
 		),
 	},

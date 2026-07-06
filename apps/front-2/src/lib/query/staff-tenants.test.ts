@@ -1,10 +1,14 @@
 import { describe, expect, test } from 'vitest';
 import {
 	buildFindStaffTenantsQueryParameters,
+	toStaffTenantDetails,
 	toStaffTenantRows,
 } from '~/lib/query/staff-tenants';
 
-import type { TenantAsStaffListItem } from '@org/client-ts/src/models/index.js';
+import type {
+	GetTenantAsStaffResult,
+	TenantAsStaffListItem,
+} from '@org/client-ts/src/models/index.js';
 
 describe('buildFindStaffTenantsQueryParameters', () => {
 	test('trims supported values and stringifies page size', () => {
@@ -83,5 +87,44 @@ describe('toStaffTenantRows', () => {
 				maxUsers: 0,
 			},
 		]);
+	});
+});
+
+describe('toStaffTenantDetails', () => {
+	test('normalizes a detail payload and preserves optional values', () => {
+		const createdAt = new Date('2026-07-01T08:30:00Z');
+
+		const result = toStaffTenantDetails({
+			tenantId: 'tenant-7',
+			name: ' Acme Corporation ',
+			code: ' ACME ',
+			status: ' Active ',
+			usersCount: 12,
+			maxUsers: 50,
+			logoUrl: ' https://cdn.example.com/acme.png ',
+			createdAt,
+			updatedAt: new Date('invalid'),
+		} as GetTenantAsStaffResult);
+
+		expect(result).toEqual({
+			id: 'tenant-7',
+			name: 'Acme Corporation',
+			code: 'ACME',
+			status: 'Active',
+			usersCount: 12,
+			maxUsers: 50,
+			logoUrl: 'https://cdn.example.com/acme.png',
+			createdAt,
+			updatedAt: null,
+		});
+	});
+
+	test('returns null when the payload has no usable tenant id', () => {
+		expect(
+			toStaffTenantDetails({
+				tenantId: ' ',
+				name: 'Acme Corporation',
+			} as GetTenantAsStaffResult),
+		).toBeNull();
 	});
 });
