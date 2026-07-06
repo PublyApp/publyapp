@@ -1,15 +1,19 @@
 import { Button } from '@heroui/react';
+import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useMemo } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
 import {
+	isStaffTenantInvitationRevocable,
+	STAFF_TENANT_INVITATIONS_QUERY_KEY,
 	type StaffTenantInvitationRow,
 	toStaffTenantInvitationRows,
+	useRevokeStaffTenantInvitationMutation,
 	useStaffTenantInvitationsQuery,
 } from '~/lib/query/staff-tenant-invitations';
 import {
@@ -17,6 +21,11 @@ import {
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
+
+import {
+	getFailureMessage,
+	toApiFailure,
+} from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
 	filterInvitationRows,
@@ -41,9 +50,29 @@ import {
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 
-const createColumns = (
-	locale: string,
-): ColumnDef<StaffTenantInvitationRow>[] => [
+type ActionFeedback = {
+	message: string;
+	tone: 'success' | 'error';
+};
+
+type CreateColumnsArgs = {
+	locale: string;
+	t: (key: string) => string;
+	isRevokePending: boolean;
+	onRevoke: (row: StaffTenantInvitationRow) => void;
+};
+
+const getFeedbackClassName = (tone: ActionFeedback['tone']): string =>
+	tone === 'success'
+		? 'border-success-200 bg-success-50 text-success-800'
+		: 'border-danger-200 bg-danger-50 text-danger-800';
+
+const createColumns = ({
+	locale,
+	t,
+	isRevokePending,
+	onRevoke,
+}: CreateColumnsArgs): ColumnDef<StaffTenantInvitationRow>[] => [
 	{
 		id: 'email',
 		header: 'Email',
@@ -91,6 +120,25 @@ const createColumns = (
 		accessorFn: (row) => row.acceptedAt,
 		cell: ({ row }) => formatDateTime(row.original.acceptedAt, locale),
 	},
+	{
+		id: 'actions',
+		header: 'Actions',
+		enableSorting: false,
+		cell: ({ row }) =>
+			isStaffTenantInvitationRevocable(row.original) ? (
+				<Button
+					type="button"
+					size="sm"
+					variant="danger-soft"
+					isDisabled={isRevokePending}
+					onPress={() => onRevoke(row.original)}
+				>
+					{t('staff-revoke')}
+				</Button>
+			) : (
+				<span className="text-foreground-300">—</span>
+			),
+	},
 ];
 
 export const Route = createFileRoute(
@@ -105,7 +153,10 @@ function StaffTenantInvitationsPage() {
 	const { tenantId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch() as InvitationListSearchParams;
-	const { i18n } = useTranslation('common');
+	const queryClient = useQueryClient();
+	const { i18n, t } = useTranslation('common');
+	const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
+	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
 
 	const selectedStatuses = parseInvitationStatusFilter(search.status);
 
@@ -131,6 +182,7 @@ function StaffTenantInvitationsPage() {
 		{ tenantId },
 		{ enabled: tenantId.length > 0 },
 	);
+	const revokeInvitation = useRevokeStaffTenantInvitationMutation();
 	const invitationsQuery = useStaffTenantInvitationsQuery(
 		{
 			tenantId,
@@ -146,7 +198,55 @@ function StaffTenantInvitationsPage() {
 				tenantId.length > 0 && !detailsQuery.isPending && !detailsQuery.isError,
 		},
 	);
-	const columns = useMemo(() => createColumns(i18n.language), [i18n.language]);
+
+	const handleRevoke = useCallback(
+		async (row: StaffTenantInvitationRow) => {
+			setFeedback(null);
+
+			if (
+				typeof globalThis.confirm === 'function' &&
+				!globalThis.confirm('Revoke invitation?')
+			) {
+				return;
+			}
+
+			try {
+				await revokeInvitation.mutateAsync({
+					tenantId,
+					invitationId: row.id,
+				});
+				await queryClient.invalidateQueries({
+					queryKey: ['staff', ...STAFF_TENANT_INVITATIONS_QUERY_KEY],
+				});
+				setFeedback({
+					tone: 'success',
+					message: t('revoke-invitation-success'),
+				});
+			} catch (error) {
+				if (shouldLogoutForFailure(error)) {
+					setShouldRedirectToLogout(true);
+					return;
+				}
+
+				setFeedback({
+					tone: 'error',
+					message: getFailureMessage(toApiFailure(error), {
+						fallback: 'Unable to revoke the invitation.',
+					}),
+				});
+			}
+		},
+		[queryClient, revokeInvitation, t, tenantId],
+	);
+
+	const columns = createColumns({
+		locale: i18n.language,
+		t,
+		isRevokePending: revokeInvitation.isPending,
+		onRevoke: (row) => {
+			void handleRevoke(row);
+		},
+	});
 
 	if (detailsQuery.isPending) {
 		return <TenantDetailsLoading />;
@@ -177,6 +277,10 @@ function StaffTenantInvitationsPage() {
 		invitationsQuery.isError &&
 		shouldLogoutForFailure(invitationsQuery.error)
 	) {
+		return <LogoutRedirect />;
+	}
+
+	if (shouldRedirectToLogout) {
 		return <LogoutRedirect />;
 	}
 
@@ -213,10 +317,19 @@ function StaffTenantInvitationsPage() {
 			<div className="space-y-2">
 				<h2 className="text-lg font-semibold text-foreground">Invitations</h2>
 				<p className="text-sm text-foreground-500">
-					Read-only tenant invitations with search, status filters, sorting, and
-					cursor pagination.
+					Tenant invitations with search, status filters, sorting, cursor
+					pagination, and pending-row revoke.
 				</p>
 			</div>
+
+			{feedback ? (
+				<div
+					className={`rounded-large border px-4 py-3 text-sm ${getFeedbackClassName(feedback.tone)}`}
+					role="status"
+				>
+					{feedback.message}
+				</div>
+			) : null}
 
 			<div className="flex flex-wrap items-center gap-2">
 				{KNOWN_INVITATION_STATUSES.map((status) => {

@@ -4,6 +4,7 @@ import type { InvitationListItem } from '@org/client-ts/src/models/index.js';
 
 import {
 	buildFindStaffTenantInvitationsQueryParameters,
+	isStaffTenantInvitationRevocable,
 	toStaffTenantInvitationRows,
 } from './staff-tenant-invitations';
 
@@ -102,5 +103,27 @@ describe('toStaffTenantInvitationRows', () => {
 				expiresAt: null,
 			},
 		]);
+	});
+});
+
+describe('isStaffTenantInvitationRevocable', () => {
+	test('returns true only for pending invitations', () => {
+		expect(
+			isStaffTenantInvitationRevocable({
+				status: ' Pending ',
+			}),
+		).toBe(true);
+
+		expect(
+			isStaffTenantInvitationRevocable({
+				status: 'Accepted',
+			}),
+		).toBe(false);
+
+		expect(
+			isStaffTenantInvitationRevocable({
+				status: ' ',
+			}),
+		).toBe(false);
 	});
 });
