@@ -10,6 +10,7 @@ import type {
 	InvitationCreatedForTenant,
 	TenantUserDetailsResult,
 	TenantUserItem,
+	UpdateTenantUserAsStaffBody,
 } from '@org/client-ts/src/models/index.js';
 import {
 	buildStaffMutationOptions,
@@ -56,6 +57,15 @@ export type StaffTenantUserDetailsQueryVariables = {
 	userId: string;
 };
 
+export type StaffTenantUserUpdateInput = {
+	tenantId: string;
+	userId: string;
+	firstName?: string | null;
+	lastName?: string | null;
+	avatarUrl?: string | null;
+	accountLevel?: string | null;
+};
+
 export type StaffTenantUserDetails = {
 	id: string;
 	email: string;
@@ -71,6 +81,10 @@ export type StaffTenantUserDetails = {
 };
 
 export const STAFF_TENANT_USERS_QUERY_KEY = ['staff-tenants', 'users'] as const;
+export const STAFF_TENANT_USER_DETAILS_QUERY_KEY = [
+	...STAFF_TENANT_USERS_QUERY_KEY,
+	'detail',
+] as const;
 
 const normalizeString = (
 	value: string | null | undefined,
@@ -86,6 +100,21 @@ const normalizeString = (
 const normalizeNullableString = (
 	value: string | null | undefined,
 ): string | null => normalizeString(value) ?? null;
+
+const normalizeUpdateStringField = (
+	value: string | null | undefined,
+): string | null | undefined => {
+	if (value === undefined) {
+		return undefined;
+	}
+
+	if (value === null) {
+		return null;
+	}
+
+	const trimmed = value.trim();
+	return trimmed.length > 0 ? trimmed : null;
+};
 
 const normalizeDate = (value: Date | null | undefined): Date | null => {
 	if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
@@ -142,6 +171,46 @@ export const buildCreateStaffTenantUserInvitationBody = (
 		body.accountLevel = createUntypedString(
 			accountLevel,
 		) as typeof body.accountLevel;
+	}
+
+	return body;
+};
+
+export const buildUpdateStaffTenantUserBody = (
+	input: Omit<StaffTenantUserUpdateInput, 'tenantId' | 'userId'>,
+): UpdateTenantUserAsStaffBody => {
+	const body: UpdateTenantUserAsStaffBody = {};
+	const firstName = normalizeUpdateStringField(input.firstName);
+	const lastName = normalizeUpdateStringField(input.lastName);
+	const avatarUrl = normalizeUpdateStringField(input.avatarUrl);
+	const accountLevel = normalizeUpdateStringField(input.accountLevel);
+
+	if (firstName !== undefined) {
+		body.firstName =
+			firstName === null
+				? null
+				: (createUntypedString(firstName) as typeof body.firstName);
+	}
+
+	if (lastName !== undefined) {
+		body.lastName =
+			lastName === null
+				? null
+				: (createUntypedString(lastName) as typeof body.lastName);
+	}
+
+	if (avatarUrl !== undefined) {
+		body.avatarUrl =
+			avatarUrl === null
+				? null
+				: (createUntypedString(avatarUrl) as typeof body.avatarUrl);
+	}
+
+	if (accountLevel !== undefined) {
+		body.level =
+			accountLevel === null
+				? null
+				: (createUntypedString(accountLevel) as typeof body.level);
 	}
 
 	return body;
@@ -257,7 +326,7 @@ const staffTenantUserDetailsQueryOptions = buildStaffQueryOptions<
 	StaffTenantUserDetailsQueryVariables
 >(
 	{
-		queryKeyFn: () => ['staff-tenants', 'users', 'detail'],
+		queryKeyFn: () => [...STAFF_TENANT_USER_DETAILS_QUERY_KEY],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.tenants
 				.byTenantId(variables.tenantId)
@@ -268,8 +337,24 @@ const staffTenantUserDetailsQueryOptions = buildStaffQueryOptions<
 				throw new Error('staff tenant user details result was empty');
 			}
 
-			return result;
+			return result as TenantUserDetailsResult;
 		},
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+const updateStaffTenantUserMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	TenantUserDetailsResult | undefined,
+	StaffTenantUserUpdateInput
+>(
+	{
+		mutationKeyFn: () => [...STAFF_TENANT_USERS_QUERY_KEY, 'update'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.users.byUserId(variables.userId)
+				.patch(buildUpdateStaffTenantUserBody(variables)),
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -300,3 +385,6 @@ export const useStaffTenantUserDetailsQuery = (
 
 export const useInviteTenantUserMutation = () =>
 	useMutation(createStaffTenantUserInvitationMutationOptions);
+
+export const useUpdateStaffTenantUserMutation = () =>
+	useMutation(updateStaffTenantUserMutationOptions);

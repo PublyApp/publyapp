@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
 	buildCreateStaffTenantUserInvitationBody,
 	buildFindStaffTenantUsersQueryParameters,
+	buildUpdateStaffTenantUserBody,
 	toStaffTenantUserDetails,
 	toStaffTenantUserRows,
 } from '~/lib/query/staff-tenant-users';
@@ -60,6 +61,39 @@ describe('buildCreateStaffTenantUserInvitationBody', () => {
 		expect(
 			buildCreateStaffTenantUserInvitationBody({
 				email: '   ',
+			}),
+		).toEqual({});
+	});
+
+	test('buildUpdateStaffTenantUserBody', () => {
+		expect(
+			buildUpdateStaffTenantUserBody({
+				firstName: ' Alex ',
+				lastName: '   ',
+				avatarUrl: ' https://example.com/avatar.png ',
+				accountLevel: 'Admin',
+			}),
+		).toMatchObject({
+			firstName: { value: 'Alex' },
+			lastName: null,
+			avatarUrl: { value: 'https://example.com/avatar.png' },
+		});
+
+		expect(
+			buildUpdateStaffTenantUserBody({
+				firstName: ' Alex ',
+				lastName: '   ',
+				avatarUrl: ' https://example.com/avatar.png ',
+				accountLevel: 'Admin',
+			}).level,
+		).toMatchObject({ value: 'Admin' });
+
+		expect(
+			buildUpdateStaffTenantUserBody({
+				firstName: undefined,
+				lastName: undefined,
+				avatarUrl: undefined,
+				accountLevel: undefined,
 			}),
 		).toEqual({});
 	});

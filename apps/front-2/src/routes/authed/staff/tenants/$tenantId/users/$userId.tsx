@@ -204,6 +204,13 @@ function StaffTenantUserDetailsPage() {
 				>
 					Back to users
 				</Link>
+				<Link
+					to="/staff/tenants/$tenantId/users/$userId/edit"
+					params={{ tenantId, userId }}
+					className="inline-flex text-sm font-medium text-foreground underline-offset-4 hover:text-foreground hover:underline"
+				>
+					Edit tenant user
+				</Link>
 
 				<div className="space-y-2">
 					<h1 className="text-2xl font-semibold tracking-tight text-foreground">

@@ -171,9 +171,17 @@ describe('staff tenant user details route', () => {
 		expect(screen.getByTestId('staff-tenant-user-details-page')).toBeTruthy();
 		expect(screen.getByText('Alex User')).toBeTruthy();
 		expect(screen.getByText('Back to users')).toBeTruthy();
+		expect(screen.getByText('Edit tenant user')).toBeTruthy();
 		expect(
 			screen.getByRole('link', { name: 'Back to users' }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/users');
+		expect(
+			screen
+				.getByRole('link', { name: 'Edit tenant user' })
+				.getAttribute('href'),
+		).toBe(
+			'/staff/tenants/11111111-1111-1111-1111-111111111111/users/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/edit',
+		);
 		expect(screen.getAllByText('alex@example.com').length).toBeGreaterThan(0);
 		expect(screen.getByText('Account level')).toBeTruthy();
 		expect(screen.getByText('Admin')).toBeTruthy();
