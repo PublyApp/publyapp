@@ -29,7 +29,7 @@ export type InvitationSearchableRow = {
 	email: string;
 	profileName?: string | null;
 	invitedByName?: string | null;
-	status: string;
+	status?: string | null;
 };
 
 const normalizeString = (value: unknown): string | undefined => {

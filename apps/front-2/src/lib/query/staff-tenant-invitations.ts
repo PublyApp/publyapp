@@ -1,0 +1,134 @@
+import { useQuery } from '@tanstack/react-query';
+import { getClientManager } from '~/lib/api-client/client-manager';
+import type { SortOrder } from '~/lib/url-state/table-search-params';
+
+import type { ApiClient } from '@org/client-ts/src/apiClient';
+import type {
+	FindInvitationsForTenantAsStaffResult,
+	InvitationListItem,
+} from '@org/client-ts/src/models/index.js';
+import { buildStaffQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
+
+export type StaffTenantInvitationsQueryVariables = {
+	tenantId: string;
+	q?: string;
+	status?: string;
+	sortId?: string;
+	sortOrder?: SortOrder;
+	cursor?: string;
+	size?: number;
+};
+
+export type StaffTenantInvitationRow = {
+	id: string;
+	email: string;
+	status: string | null;
+	scope: string | null;
+	profileName: string;
+	invitedByName: string;
+	acceptedAt: Date | null;
+	createdAt: Date | null;
+	expiresAt: Date | null;
+};
+
+const normalizeString = (
+	value: string | null | undefined,
+): string | undefined => {
+	if (typeof value !== 'string') {
+		return undefined;
+	}
+
+	const trimmed = value.trim();
+	return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const normalizeNullableString = (
+	value: string | null | undefined,
+): string | null => normalizeString(value) ?? null;
+
+const isPositiveSafeInteger = (value: number | undefined): value is number =>
+	typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+
+export const buildFindStaffTenantInvitationsQueryParameters = (
+	variables: Omit<StaffTenantInvitationsQueryVariables, 'tenantId'>,
+): {
+	q?: string;
+	status?: string;
+	sortId?: string;
+	sortOrder?: SortOrder;
+	cursor?: string;
+	limit?: string;
+} => ({
+	q: normalizeString(variables.q),
+	status: normalizeString(variables.status),
+	sortId: normalizeString(variables.sortId),
+	sortOrder: variables.sortOrder,
+	cursor: normalizeString(variables.cursor),
+	limit: isPositiveSafeInteger(variables.size)
+		? String(variables.size)
+		: undefined,
+});
+
+export const toStaffTenantInvitationRows = (
+	items: InvitationListItem[] | null | undefined,
+): StaffTenantInvitationRow[] => {
+	const rows: StaffTenantInvitationRow[] = [];
+
+	for (const item of items ?? []) {
+		const id = normalizeString(item.id?.toString());
+		if (!id) {
+			continue;
+		}
+
+		rows.push({
+			id,
+			email: normalizeString(item.email) ?? '—',
+			status: normalizeNullableString(item.status),
+			scope: normalizeNullableString(item.scope),
+			profileName: normalizeString(item.profileName) ?? '—',
+			invitedByName: normalizeString(item.invitedByName) ?? '—',
+			acceptedAt: item.acceptedAt ?? null,
+			createdAt: item.createdAt ?? null,
+			expiresAt: item.expiresAt ?? null,
+		});
+	}
+
+	return rows;
+};
+
+const staffTenantInvitationsQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindInvitationsForTenantAsStaffResult,
+	StaffTenantInvitationsQueryVariables
+>(
+	{
+		queryKeyFn: () => ['staff-tenants', 'invitations'],
+		fetcher: async (client, variables) => {
+			const result = await client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.invitations.get({
+					queryParameters:
+						buildFindStaffTenantInvitationsQueryParameters(variables),
+				});
+
+			if (!result) {
+				throw new Error('staff tenant invitations result was empty');
+			}
+
+			return result;
+		},
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const useStaffTenantInvitationsQuery = (
+	variables: StaffTenantInvitationsQueryVariables,
+	options?: {
+		enabled?: boolean;
+	},
+) =>
+	useQuery({
+		queryKey: staffTenantInvitationsQueryOptions.queryKey(variables),
+		queryFn: () => staffTenantInvitationsQueryOptions.fetcher(variables),
+		enabled: options?.enabled ?? true,
+	});

@@ -15,6 +15,10 @@ export const routes = rootRoute('__root.tsx', [
 			'authed/staff/tenants/$tenantId/users.tsx',
 		),
 		route(
+			'/staff/tenants/$tenantId/invitations',
+			'authed/staff/tenants/$tenantId/invitations.tsx',
+		),
+		route(
 			'/staff/tenants/$tenantId/profiles',
 			'authed/staff/tenants/$tenantId/profiles.tsx',
 		),
