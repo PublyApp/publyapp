@@ -1,4 +1,5 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { buttonVariants } from '@heroui/react';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -143,13 +144,22 @@ function StaffTenantUsersPage() {
 			testId="staff-tenant-users-page"
 		>
 			<div className="space-y-2">
-				<h2 className="text-lg font-semibold text-foreground">Users</h2>
+				<div className="flex items-center justify-between gap-4">
+					<h2 className="text-lg font-semibold text-foreground">Users</h2>
+					<Link
+						to="/staff/tenants/$tenantId/users/invite"
+						params={{ tenantId }}
+						className={buttonVariants({ size: 'sm', variant: 'primary' })}
+					>
+						Invite user
+					</Link>
+				</div>
 				<p className="text-sm text-foreground-500">
 					Read-only tenant users with search, sorting, and cursor pagination.
 				</p>
 			</div>
 
-			<DataTable
+			<DataTable<StaffTenantUserRow>
 				testId="staff-tenant-users-table"
 				ariaLabel="Tenant users"
 				columns={columns}

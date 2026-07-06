@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+	buildCreateStaffTenantUserInvitationBody,
 	buildFindStaffTenantUsersQueryParameters,
 	toStaffTenantUserRows,
 } from '~/lib/query/staff-tenant-users';
@@ -33,6 +34,28 @@ describe('buildFindStaffTenantUsersQueryParameters', () => {
 				sortOrder: undefined,
 				cursor: ' ',
 				size: 0,
+			}),
+		).toEqual({});
+	});
+});
+
+describe('buildCreateStaffTenantUserInvitationBody', () => {
+	test('trims email and account level and wraps them for the API contract', () => {
+		expect(
+			buildCreateStaffTenantUserInvitationBody({
+				email: '  alice@example.com  ',
+				accountLevel: 'User',
+			}),
+		).toMatchObject({
+			email: { value: 'alice@example.com' },
+			accountLevel: { value: 'User' },
+		});
+	});
+
+	test('drops missing values', () => {
+		expect(
+			buildCreateStaffTenantUserInvitationBody({
+				email: '   ',
 			}),
 		).toEqual({});
 	});
