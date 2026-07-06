@@ -8,6 +8,8 @@ import type {
 	CreateInvitationForTenantAsStaffBody,
 	FindTenantUsersAsStaffResult,
 	InvitationCreatedForTenant,
+	ReactivateTenantUserResult,
+	SuspendTenantUserResult,
 	TenantUserDetailsResult,
 	TenantUserItem,
 	UpdateTenantUserAsStaffBody,
@@ -359,6 +361,44 @@ const updateStaffTenantUserMutationOptions = buildStaffMutationOptions<
 	{ clientAccessor: getClientManager() },
 );
 
+const suspendTenantUserMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	SuspendTenantUserResult | undefined,
+	{
+		tenantId: string;
+		userId: string;
+	}
+>(
+	{
+		mutationKeyFn: () => [...STAFF_TENANT_USERS_QUERY_KEY, 'suspend'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.users.byUserId(variables.userId)
+				.suspend.post(),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+const reactivateTenantUserMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	ReactivateTenantUserResult | undefined,
+	{
+		tenantId: string;
+		userId: string;
+	}
+>(
+	{
+		mutationKeyFn: () => [...STAFF_TENANT_USERS_QUERY_KEY, 'reactivate'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.users.byUserId(variables.userId)
+				.reactivate.post(),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
 export const useStaffTenantUsersQuery = (
 	variables: StaffTenantUsersQueryVariables,
 	options?: {
@@ -388,3 +428,9 @@ export const useInviteTenantUserMutation = () =>
 
 export const useUpdateStaffTenantUserMutation = () =>
 	useMutation(updateStaffTenantUserMutationOptions);
+
+export const useSuspendStaffTenantUserMutation = () =>
+	useMutation(suspendTenantUserMutationOptions);
+
+export const useReactivateStaffTenantUserMutation = () =>
+	useMutation(reactivateTenantUserMutationOptions);
