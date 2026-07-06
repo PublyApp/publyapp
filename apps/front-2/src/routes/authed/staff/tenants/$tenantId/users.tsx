@@ -31,12 +31,29 @@ import {
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 
-const columns: ColumnDef<StaffTenantUserRow>[] = [
+const makeTenantUserColumns = (
+	tenantId: string,
+): ColumnDef<StaffTenantUserRow>[] => [
 	{
 		id: 'name',
 		header: 'Name',
 		enableSorting: false,
-		cell: ({ row }) => row.original.displayName,
+		cell: ({ row }) => {
+			const userId = row.original.id;
+
+			return (
+				<Link
+					to="/staff/tenants/$tenantId/users/$userId"
+					params={{
+						tenantId,
+						userId,
+					}}
+					className="font-medium text-primary underline-offset-4 hover:underline"
+				>
+					{row.original.displayName}
+				</Link>
+			);
+		},
 	},
 	{
 		id: 'email',
@@ -135,6 +152,7 @@ function StaffTenantUsersPage() {
 	}
 
 	const rows = toStaffTenantUserRows(usersQuery.data?.data);
+	const columns = makeTenantUserColumns(tenantId);
 
 	return (
 		<TenantDetailsPageShell

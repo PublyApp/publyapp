@@ -2,10 +2,14 @@ import { describe, expect, test } from 'vitest';
 import {
 	buildCreateStaffTenantUserInvitationBody,
 	buildFindStaffTenantUsersQueryParameters,
+	toStaffTenantUserDetails,
 	toStaffTenantUserRows,
 } from '~/lib/query/staff-tenant-users';
 
-import type { TenantUserItem } from '@org/client-ts/src/models/index.js';
+import type {
+	TenantUserDetailsResult,
+	TenantUserItem,
+} from '@org/client-ts/src/models/index.js';
 
 describe('buildFindStaffTenantUsersQueryParameters', () => {
 	test('trims supported values and stringifies page size', () => {
@@ -114,5 +118,44 @@ describe('toStaffTenantUserRows', () => {
 				displayName: 'second@example.com',
 			},
 		]);
+	});
+});
+
+describe('toStaffTenantUserDetails', () => {
+	test('normalizes a detail payload and builds a stable display name', () => {
+		const result = toStaffTenantUserDetails({
+			id: ' user-9 ',
+			email: ' owner@publyapp.local ',
+			firstName: ' Owner ',
+			lastName: ' User ',
+			avatarUrl: ' https://example.com/avatar.png ',
+			level: 'Admin',
+			status: ' Active ',
+			tenantId: ' 11111111-1111-1111-1111-111111111111 ',
+			createdAt: new Date('invalid'),
+		} as TenantUserDetailsResult);
+
+		expect(result).toEqual({
+			id: 'user-9',
+			email: 'owner@publyapp.local',
+			firstName: 'Owner',
+			lastName: 'User',
+			avatarUrl: 'https://example.com/avatar.png',
+			accountLevel: 'Admin',
+			status: 'Active',
+			tenantId: '11111111-1111-1111-1111-111111111111',
+			createdAt: null,
+			updatedAt: null,
+			displayName: 'Owner User',
+		});
+	});
+
+	test('returns null when the payload has no usable id', () => {
+		expect(
+			toStaffTenantUserDetails({
+				id: ' ',
+				email: 'owner@publyapp.local',
+			} as TenantUserDetailsResult),
+		).toBeNull();
 	});
 });
