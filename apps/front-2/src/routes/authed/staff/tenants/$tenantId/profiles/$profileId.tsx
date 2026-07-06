@@ -1,10 +1,16 @@
-import { Card, Chip, Spinner } from '@heroui/react';
+import { Button, Card, Chip, Spinner } from '@heroui/react';
+import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { useState } from 'react';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import {
+	STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY,
+	STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY,
+	STAFF_TENANT_PROFILES_QUERY_KEY,
 	toStaffTenantProfileDetails,
 	toStaffTenantProfilePermissionKeys,
+	useDeleteStaffTenantProfileMutation,
 	useStaffTenantProfileDetailsQuery,
 	useStaffTenantProfilePermissionKeysQuery,
 } from '~/lib/query/staff-tenant-profiles';
@@ -14,7 +20,10 @@ import {
 } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
 
-import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import {
+	getFailureMessage,
+	toApiFailure,
+} from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
 	DetailItem,
@@ -128,6 +137,10 @@ export const Route = createFileRoute(
 
 function StaffTenantProfileDetailsPage() {
 	const { tenantId, profileId } = Route.useParams();
+	const navigate = Route.useNavigate();
+	const queryClient = useQueryClient();
+	const [actionError, setActionError] = useState('');
+	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
 
 	const tenantQuery = useStaffTenantDetailsQuery(
 		{ tenantId },
@@ -153,6 +166,11 @@ function StaffTenantProfileDetailsPage() {
 				!tenantQuery.isError,
 		},
 	);
+	const deleteProfile = useDeleteStaffTenantProfileMutation();
+
+	if (shouldRedirectToLogout) {
+		return <LogoutRedirect />;
+	}
 
 	if (tenantQuery.isPending) {
 		return <TenantDetailsLoading />;
@@ -215,12 +233,56 @@ function StaffTenantProfileDetailsPage() {
 	const permissionKeys = toStaffTenantProfilePermissionKeys(
 		permissionKeysQuery.data,
 	);
+	const handleDelete = async () => {
+		setActionError('');
+
+		if (profile.isDefault) {
+			return;
+		}
+
+		if (
+			typeof globalThis.confirm === 'function' &&
+			!globalThis.confirm('Delete this tenant profile?')
+		) {
+			return;
+		}
+
+		try {
+			await deleteProfile.mutateAsync({ tenantId, profileId });
+			await Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: STAFF_TENANT_PROFILES_QUERY_KEY,
+				}),
+				queryClient.invalidateQueries({
+					queryKey: STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY,
+				}),
+				queryClient.invalidateQueries({
+					queryKey: STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY,
+				}),
+			]);
+			void navigate({
+				to: '/staff/tenants/$tenantId/profiles',
+				params: { tenantId },
+			});
+		} catch (error) {
+			if (shouldLogoutForFailure(error)) {
+				setShouldRedirectToLogout(true);
+				return;
+			}
+
+			setActionError(
+				getFailureMessage(toApiFailure(error), {
+					fallback: 'Unable to delete this tenant profile.',
+				}),
+			);
+		}
+	};
 
 	return (
 		<TenantDetailsPageShell
 			tenant={tenant}
 			activeSection="profiles"
-			summary="Review tenant profile details and edit the profile name or description."
+			summary="Review tenant profile details, edit the profile, or delete non-default profiles."
 			testId="staff-tenant-profile-details-page"
 		>
 			<div className="space-y-6">
@@ -264,6 +326,30 @@ function StaffTenantProfileDetailsPage() {
 							>
 								Edit profile
 							</Link>
+							{profile.isDefault ? (
+								<div className="rounded-large border border-default-200 bg-default-50 px-4 py-3 text-sm text-foreground-600">
+									Default profiles cannot be deleted.
+								</div>
+							) : (
+								<Button
+									type="button"
+									variant="danger-soft"
+									onPress={() => {
+										void handleDelete();
+									}}
+									isDisabled={deleteProfile.isPending}
+								>
+									Delete profile
+								</Button>
+							)}
+							{actionError ? (
+								<div
+									className="rounded-large border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700"
+									role="status"
+								>
+									{actionError}
+								</div>
+							) : null}
 						</div>
 					</div>
 				</div>
