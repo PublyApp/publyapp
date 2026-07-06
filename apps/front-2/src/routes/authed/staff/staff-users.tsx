@@ -1,4 +1,4 @@
-import { buttonVariants, Button } from '@heroui/react';
+import { buttonVariants } from '@heroui/react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useEffect } from 'react';
@@ -7,7 +7,11 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
-import { useStaffUsersQuery } from '~/lib/query/staff-users';
+import {
+	toStaffUserRows,
+	type StaffUserRow,
+	useStaffUsersQuery,
+} from '~/lib/query/staff-users';
 import {
 	parseTableSearchParams,
 	serializeTableSearchParams,
@@ -17,51 +21,10 @@ import type {
 	TableSearchParams,
 } from '~/lib/url-state/table-search-params';
 import { shouldLogoutForFailure } from '~/routes/authed/layout';
-
-import type { StaffUserItem } from '@org/client-ts/src/models/index.js';
-
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 // Locked contract default (docs/front-2-migration/parity-contract.md): 100,
 // matching the current app and the selectable page-size options.
 const DEFAULT_SIZE = 100;
-
-type StaffUserRow = {
-	id: string;
-	email: string;
-	firstName: string | null;
-	lastName: string | null;
-	level: string | null;
-	status: string | null;
-};
-
-const toRows = (items: StaffUserItem[] | null | undefined): StaffUserRow[] => {
-	const list = items ?? [];
-	const rows: StaffUserRow[] = [];
-
-	for (const item of list) {
-		if (typeof item.id !== 'string' || item.id.length === 0) {
-			continue;
-		}
-
-		rows.push({
-			id: item.id,
-			email: item.email ?? '',
-			firstName: item.firstName ?? null,
-			lastName: item.lastName ?? null,
-			level: item.level ?? null,
-			status: item.status ?? null,
-		});
-	}
-
-	return rows;
-};
-
-const formatFullName = (row: StaffUserRow): string => {
-	const firstName = row.firstName?.trim() ?? '';
-	const lastName = row.lastName?.trim() ?? '';
-	const fullName = `${firstName} ${lastName}`.trim();
-	return fullName.length > 0 ? fullName : row.email || '—';
-};
 
 // Name is not backend-sortable (parity contract); Level/Status map 1:1 to sort_id values.
 const columns: ColumnDef<StaffUserRow>[] = [
@@ -70,9 +33,17 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		header: 'Name',
 		enableSorting: false,
 		cell: ({ row }) => (
-			<div>
-				<div>{formatFullName(row.original)}</div>
-				<div className="text-xs text-muted">{row.original.email}</div>
+			<div className="space-y-1">
+				<Link
+					to={'/staff/staff-users/$userId' as never}
+					params={{ userId: row.original.id } as never}
+					className="font-medium text-primary underline-offset-4 hover:underline"
+				>
+					{row.original.displayName}
+				</Link>
+				<div className="text-xs text-muted">
+					{row.original.email || 'No email address'}
+				</div>
 			</div>
 		),
 	},
@@ -92,11 +63,15 @@ const columns: ColumnDef<StaffUserRow>[] = [
 		id: 'actions',
 		header: 'Actions',
 		enableSorting: false,
-		cell: () => (
+		cell: ({ row }) => (
 			<div className="flex justify-end">
-				<Button size="sm" variant="tertiary" isDisabled>
-					Actions
-				</Button>
+				<Link
+					to={'/staff/staff-users/$userId' as never}
+					params={{ userId: row.original.id } as never}
+					className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+				>
+					View
+				</Link>
 			</div>
 		),
 	},
@@ -133,7 +108,7 @@ function StaffUsersPage() {
 		defaultSize: DEFAULT_SIZE,
 	});
 	const query = useStaffUsersQuery(controller.apiVariables);
-	const rows = toRows(query.data?.data);
+	const rows = toStaffUserRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
 
 	const { resetDraftToCommitted } = controller.search;
