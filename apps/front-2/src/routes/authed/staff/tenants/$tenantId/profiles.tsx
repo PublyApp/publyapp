@@ -161,14 +161,24 @@ function StaffTenantProfilesPage() {
 		<TenantDetailsPageShell
 			tenant={tenant}
 			activeSection="profiles"
-			summary="Read-only tenant profiles carried forward in the front-2 migration shell."
+			summary="Tenant profiles with search, sorting, cursor pagination, and create."
 			testId="staff-tenant-profiles-page"
 		>
-			<div className="space-y-2">
-				<h2 className="text-lg font-semibold text-foreground">Profiles</h2>
-				<p className="text-sm text-foreground-500">
-					Read-only tenant profiles with search, sorting, and cursor pagination.
-				</p>
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+				<div className="space-y-2">
+					<h2 className="text-lg font-semibold text-foreground">Profiles</h2>
+					<p className="text-sm text-foreground-500">
+						Create tenant profiles here, then manage permissions in the
+						follow-up stack.
+					</p>
+				</div>
+				<Link
+					to={'/staff/tenants/$tenantId/profiles/new' as never}
+					params={{ tenantId } as never}
+					className="inline-flex items-center justify-center rounded-medium bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+				>
+					New profile
+				</Link>
 			</div>
 
 			<DataTable

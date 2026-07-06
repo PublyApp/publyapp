@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+	buildCreateStaffTenantProfileBody,
 	buildFindStaffTenantProfilesQueryParameters,
 	toStaffTenantProfileDetails,
 	toStaffTenantProfilePermissionKeys,
@@ -41,6 +42,30 @@ describe('buildFindStaffTenantProfilesQueryParameters', () => {
 				size: 0,
 			}),
 		).toEqual({});
+	});
+});
+
+describe('buildCreateStaffTenantProfileBody', () => {
+	test('includes a trimmed description without serializing permission keys', () => {
+		const body = buildCreateStaffTenantProfileBody({
+			name: 'Approvers',
+			description: '  Can review approvals  ',
+		});
+
+		expect(body.name).toBeDefined();
+		expect(body.description).toBeDefined();
+		expect(body.permissionKeys).toBeUndefined();
+	});
+
+	test('omits blank description and permission keys when not provided', () => {
+		const body = buildCreateStaffTenantProfileBody({
+			name: 'Approvers',
+			description: '   ',
+		});
+
+		expect(body.name).toBeDefined();
+		expect(body.description).toBeUndefined();
+		expect(body.permissionKeys).toBeUndefined();
 	});
 });
 
