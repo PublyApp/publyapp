@@ -11,22 +11,28 @@ import {
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+const originalConfirm = globalThis.confirm;
+
 const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn(),
 	suspendTenantUserMutation: vi.fn(),
 	reactivateTenantUserMutation: vi.fn(),
+	removeTenantUserMutation: vi.fn(),
+	navigate: vi.fn(),
 	toStaffTenantDetails: vi.fn(),
 	toStaffTenantUserDetails: vi.fn(),
 	useStaffTenantDetailsQuery: vi.fn(),
 	useStaffTenantUserDetailsQuery: vi.fn(),
 	useSuspendStaffTenantUserMutation: vi.fn(),
 	useReactivateStaffTenantUserMutation: vi.fn(),
+	useRemoveStaffTenantUserMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
+		useNavigate: () => mocks.navigate,
 		useParams: () => ({
 			tenantId: '11111111-1111-1111-1111-111111111111',
 			userId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
@@ -96,10 +102,11 @@ vi.mock('~/lib/query/staff-tenant-users', () => ({
 	STAFF_TENANT_USER_DETAILS_QUERY_KEY: ['staff-tenants', 'users', 'detail'],
 	STAFF_TENANT_USERS_QUERY_KEY: ['staff-tenants', 'users'],
 	toStaffTenantUserDetails: mocks.toStaffTenantUserDetails,
-	useReactivateStaffTenantUserMutation:
-		mocks.useReactivateStaffTenantUserMutation,
 	useStaffTenantUserDetailsQuery: mocks.useStaffTenantUserDetailsQuery,
 	useSuspendStaffTenantUserMutation: mocks.useSuspendStaffTenantUserMutation,
+	useReactivateStaffTenantUserMutation:
+		mocks.useReactivateStaffTenantUserMutation,
+	useRemoveStaffTenantUserMutation: mocks.useRemoveStaffTenantUserMutation,
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
@@ -143,6 +150,7 @@ describe('staff tenant user details route', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
+		globalThis.confirm = vi.fn(() => true);
 		mocks.invalidateQueries.mockResolvedValue(undefined);
 		mocks.useSuspendStaffTenantUserMutation.mockReturnValue({
 			mutateAsync: mocks.suspendTenantUserMutation,
@@ -150,6 +158,10 @@ describe('staff tenant user details route', () => {
 		});
 		mocks.useReactivateStaffTenantUserMutation.mockReturnValue({
 			mutateAsync: mocks.reactivateTenantUserMutation,
+			isPending: false,
+		});
+		mocks.useRemoveStaffTenantUserMutation.mockReturnValue({
+			mutateAsync: mocks.removeTenantUserMutation,
 			isPending: false,
 		});
 		mocks.useStaffTenantDetailsQuery.mockReturnValue(
@@ -193,6 +205,7 @@ describe('staff tenant user details route', () => {
 	});
 
 	afterEach(() => {
+		globalThis.confirm = originalConfirm;
 		cleanup();
 	});
 
@@ -393,6 +406,126 @@ describe('staff tenant user details route', () => {
 		).toBeTruthy();
 		expect(screen.queryByRole('button', { name: 'Suspend' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Reactivate' })).toBeNull();
+	});
+
+	test('renders a remove-from-tenant action and keeps it for all user statuses', () => {
+		renderPage();
+
+		expect(
+			screen.getByRole('button', { name: /Remove from tenant/i }),
+		).toBeTruthy();
+	});
+
+	test('requires explicit confirmation before removing a tenant user', () => {
+		globalThis.confirm = vi.fn(() => false);
+		mocks.removeTenantUserMutation.mockResolvedValue({
+			key: 'tenant-user-removed-success',
+			message: 'Tenant user removed from tenant',
+		});
+
+		renderPage();
+
+		fireEvent.click(
+			screen.getByRole('button', { name: /Remove from tenant/i }),
+		);
+
+		expect(globalThis.confirm).toHaveBeenCalledWith(
+			'Remove this tenant user from the tenant?',
+		);
+		expect(mocks.removeTenantUserMutation).not.toHaveBeenCalled();
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
+		expect(mocks.navigate).not.toHaveBeenCalled();
+	});
+
+	test('removes user from tenant, invalidates tenant data, and navigates back to users list', async () => {
+		mocks.removeTenantUserMutation.mockResolvedValue({
+			key: 'tenant-user-removed-success',
+			message: 'Tenant user removed from tenant',
+		});
+
+		renderPage();
+
+		fireEvent.click(
+			screen.getByRole('button', { name: /Remove from tenant/i }),
+		);
+
+		await waitFor(() =>
+			expect(mocks.removeTenantUserMutation).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				userId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+			}),
+		);
+		await waitFor(() =>
+			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(1, {
+				queryKey: ['staff', 'staff-tenants', 'users'],
+			}),
+		);
+		await waitFor(() =>
+			expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(2, {
+				queryKey: ['staff', 'staff-tenants', 'users', 'detail'],
+			}),
+		);
+		expect(mocks.navigate).toHaveBeenCalledWith({
+			to: '/staff/tenants/$tenantId/users',
+			params: {
+				tenantId: '11111111-1111-1111-1111-111111111111',
+			},
+		});
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+	});
+
+	test.each([
+		['400', 'Tenant cannot be removed'],
+		['409', 'Tenant user not in tenant'],
+		['422', 'Validation failed'],
+	])('keeps remove action %s failures local', async (status, message) => {
+		mocks.removeTenantUserMutation.mockRejectedValue({
+			kind: 'problem',
+			status: Number(status),
+			responseStatusCode: Number(status),
+			title: message,
+			detail: message,
+		});
+
+		renderPage();
+
+		fireEvent.click(
+			screen.getByRole('button', { name: /Remove from tenant/i }),
+		);
+
+		await waitFor(() =>
+			expect(mocks.removeTenantUserMutation).toHaveBeenCalledTimes(1),
+		);
+		await waitFor(() => expect(screen.getByText(message)).toBeTruthy());
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
+	});
+
+	test('redirects to logout only when remove action fails with 401', async () => {
+		mocks.shouldLogoutForFailure.mockReturnValue(true);
+		mocks.removeTenantUserMutation.mockRejectedValue({
+			kind: 'problem',
+			status: 401,
+			responseStatusCode: 401,
+			title: 'Unauthorized',
+			detail: 'Session expired',
+		});
+
+		renderPage();
+
+		fireEvent.click(
+			screen.getByRole('button', { name: /Remove from tenant/i }),
+		);
+
+		await waitFor(() =>
+			expect(mocks.removeTenantUserMutation).toHaveBeenCalledTimes(1),
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
+		);
+		expect(mocks.navigate).not.toHaveBeenCalled();
+		expect(mocks.invalidateQueries).not.toHaveBeenCalled();
 	});
 
 	test.each([

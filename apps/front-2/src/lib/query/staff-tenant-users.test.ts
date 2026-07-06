@@ -1,5 +1,6 @@
-import { describe, expect, test } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import {
+	removeStaffTenantUserMutationOptions,
 	buildCreateStaffTenantUserInvitationBody,
 	buildFindStaffTenantUsersQueryParameters,
 	buildUpdateStaffTenantUserBody,
@@ -11,6 +12,20 @@ import type {
 	TenantUserDetailsResult,
 	TenantUserItem,
 } from '@org/client-ts/src/models/index.js';
+
+const mocks = vi.hoisted(() => ({
+	getOrCreateStaffClient: vi.fn(),
+}));
+
+vi.mock('~/lib/api-client/client-manager', () => ({
+	getClientManager: () => ({
+		getOrCreateStaffClient: mocks.getOrCreateStaffClient,
+	}),
+}));
+
+beforeEach(() => {
+	vi.clearAllMocks();
+});
 
 describe('buildFindStaffTenantUsersQueryParameters', () => {
 	test('trims supported values and stringifies page size', () => {
@@ -203,5 +218,52 @@ describe('toStaffTenantUserDetails', () => {
 				email: 'owner@publyapp.local',
 			} as TenantUserDetailsResult),
 		).toBeNull();
+	});
+});
+
+describe('removeStaffTenantUserMutationOptions', () => {
+	test('calls the generated delete mutation for tenant-user removal', async () => {
+		const removeUser = vi.fn().mockResolvedValue({
+			key: 'tenant-user-removed-success',
+			message: 'Tenant user was removed',
+		});
+		const byUserId = vi.fn((userId: string) => ({
+			delete: removeUser,
+			userId,
+		}));
+		const users = {
+			byUserId,
+		};
+		const byTenantId = vi.fn((tenantId: string) => ({
+			users,
+			tenantId,
+		}));
+
+		mocks.getOrCreateStaffClient.mockReturnValue({
+			staff: {
+				tenants: {
+					byTenantId,
+				},
+			},
+		});
+
+		const result = await removeStaffTenantUserMutationOptions.mutationFn({
+			tenantId: 'tenant-001',
+			userId: 'user-999',
+		});
+
+		expect(removeStaffTenantUserMutationOptions.mutationKey).toEqual([
+			'staff',
+			'staff-tenants',
+			'users',
+			'remove',
+		]);
+		expect(byTenantId).toHaveBeenCalledWith('tenant-001');
+		expect(byUserId).toHaveBeenCalledWith('user-999');
+		expect(removeUser).toHaveBeenCalledTimes(1);
+		expect(result).toEqual({
+			key: 'tenant-user-removed-success',
+			message: 'Tenant user was removed',
+		});
 	});
 });

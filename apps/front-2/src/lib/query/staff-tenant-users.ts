@@ -6,6 +6,7 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 import type { ApiClient } from '@org/client-ts/src/apiClient';
 import type {
 	CreateInvitationForTenantAsStaffBody,
+	ApiResponse,
 	FindTenantUsersAsStaffResult,
 	InvitationCreatedForTenant,
 	ReactivateTenantUserResult,
@@ -66,6 +67,11 @@ export type StaffTenantUserUpdateInput = {
 	lastName?: string | null;
 	avatarUrl?: string | null;
 	accountLevel?: string | null;
+};
+
+export type StaffTenantUserRemoveInput = {
+	tenantId: string;
+	userId: string;
 };
 
 export type StaffTenantUserDetails = {
@@ -399,6 +405,22 @@ const reactivateTenantUserMutationOptions = buildStaffMutationOptions<
 	{ clientAccessor: getClientManager() },
 );
 
+export const removeStaffTenantUserMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	ApiResponse | undefined,
+	StaffTenantUserRemoveInput
+>(
+	{
+		mutationKeyFn: () => [...STAFF_TENANT_USERS_QUERY_KEY, 'remove'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.users.byUserId(variables.userId)
+				.delete(),
+	},
+	{ clientAccessor: getClientManager() },
+);
+
 export const useStaffTenantUsersQuery = (
 	variables: StaffTenantUsersQueryVariables,
 	options?: {
@@ -434,3 +456,6 @@ export const useSuspendStaffTenantUserMutation = () =>
 
 export const useReactivateStaffTenantUserMutation = () =>
 	useMutation(reactivateTenantUserMutationOptions);
+
+export const useRemoveStaffTenantUserMutation = () =>
+	useMutation(removeStaffTenantUserMutationOptions);

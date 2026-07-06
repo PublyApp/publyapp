@@ -10,6 +10,7 @@ import {
 	toStaffTenantUserDetails,
 	STAFF_TENANT_USER_DETAILS_QUERY_KEY,
 	STAFF_TENANT_USERS_QUERY_KEY,
+	useRemoveStaffTenantUserMutation,
 	useReactivateStaffTenantUserMutation,
 	useSuspendStaffTenantUserMutation,
 	useStaffTenantUserDetailsQuery,
@@ -156,12 +157,15 @@ export const Route = createFileRoute(
 
 function StaffTenantUserDetailsPage() {
 	const { tenantId, userId } = Route.useParams();
+	const navigate = Route.useNavigate();
 	const { i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [membershipActionError, setMembershipActionError] = useState('');
+	const [removeActionError, setRemoveActionError] = useState('');
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const suspendTenantUserMutation = useSuspendStaffTenantUserMutation();
 	const reactivateTenantUserMutation = useReactivateStaffTenantUserMutation();
+	const removeTenantUserMutation = useRemoveStaffTenantUserMutation();
 
 	const tenantQuery = useStaffTenantDetailsQuery(
 		{ tenantId },
@@ -241,6 +245,8 @@ function StaffTenantUserDetailsPage() {
 	const isStatusActionPending =
 		suspendTenantUserMutation.isPending ||
 		reactivateTenantUserMutation.isPending;
+	const isRemoveActionPending = removeTenantUserMutation.isPending;
+	const isAnyActionPending = isStatusActionPending || isRemoveActionPending;
 
 	const membershipAction = getMembershipActionLabel(normalizedStatus);
 	const membershipActionLabel =
@@ -279,6 +285,39 @@ function StaffTenantUserDetailsPage() {
 			setMembershipActionError(
 				getFailureMessage(toApiFailure(error), {
 					fallback: 'Unable to update tenant user membership status.',
+				}),
+			);
+		}
+	};
+
+	const handleRemoveAction = async () => {
+		setRemoveActionError('');
+
+		if (
+			typeof globalThis.confirm === 'function' &&
+			!globalThis.confirm('Remove this tenant user from the tenant?')
+		) {
+			return;
+		}
+
+		try {
+			await removeTenantUserMutation.mutateAsync({ tenantId, userId });
+			await invalidateTenantUserQueries();
+			void navigate({
+				to: '/staff/tenants/$tenantId/users',
+				params: {
+					tenantId,
+				},
+			});
+		} catch (error) {
+			if (shouldLogoutForFailure(error)) {
+				setShouldLogout(true);
+				return;
+			}
+
+			setRemoveActionError(
+				getFailureMessage(toApiFailure(error), {
+					fallback: 'Unable to remove this tenant user from the tenant.',
 				}),
 			);
 		}
@@ -356,6 +395,34 @@ function StaffTenantUserDetailsPage() {
 
 				{membershipActionError ? (
 					<p className="text-sm text-danger-600">{membershipActionError}</p>
+				) : null}
+			</Card>
+
+			<Card className="space-y-4 p-4">
+				<div className="flex flex-wrap items-center justify-between gap-3">
+					<div className="space-y-1">
+						<p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-500">
+							Tenant user removal
+						</p>
+						<p className="text-sm text-foreground">
+							Remove this user from this tenant.
+						</p>
+					</div>
+					<button
+						type="button"
+						className="rounded-medium border border-danger-500/40 bg-danger/10 px-3 py-2 text-sm text-danger-700 transition hover:bg-danger/15 disabled:cursor-not-allowed disabled:opacity-60"
+						onClick={() => {
+							void handleRemoveAction();
+						}}
+						disabled={isAnyActionPending}
+					>
+						Remove from tenant
+						{isRemoveActionPending ? '…' : ''}
+					</button>
+				</div>
+
+				{removeActionError ? (
+					<p className="text-sm text-danger-600">{removeActionError}</p>
 				) : null}
 			</Card>
 
