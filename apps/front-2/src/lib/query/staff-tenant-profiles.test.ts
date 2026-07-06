@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
 	buildCreateStaffTenantProfileBody,
 	buildFindStaffTenantProfilesQueryParameters,
+	buildUpdateStaffTenantProfileBody,
 	toStaffTenantProfileDetails,
 	toStaffTenantProfilePermissionKeys,
 	toStaffTenantProfileRows,
@@ -66,6 +67,28 @@ describe('buildCreateStaffTenantProfileBody', () => {
 		expect(body.name).toBeDefined();
 		expect(body.description).toBeUndefined();
 		expect(body.permissionKeys).toBeUndefined();
+	});
+});
+
+describe('buildUpdateStaffTenantProfileBody', () => {
+	test('includes a trimmed description when provided', () => {
+		const body = buildUpdateStaffTenantProfileBody({
+			name: '  Approvers  ',
+			description: '  Can review approvals  ',
+		});
+
+		expect(body.name).toBeDefined();
+		expect(body.description).toBeDefined();
+	});
+
+	test('clears description with null when the value is blank', () => {
+		const body = buildUpdateStaffTenantProfileBody({
+			name: 'Approvers',
+			description: '   ',
+		});
+
+		expect(body.name).toBeDefined();
+		expect(body.description).toBeNull();
 	});
 });
 
