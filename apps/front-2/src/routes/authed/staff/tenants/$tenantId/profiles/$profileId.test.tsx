@@ -20,12 +20,16 @@ const mocks = vi.hoisted(() => ({
 	},
 	useStaffTenantDetailsQuery: vi.fn(),
 	toStaffTenantDetails: vi.fn(),
+	buildStaffTenantPermissionCatalogOptions: vi.fn(),
 	useStaffTenantProfileDetailsQuery: vi.fn(),
 	toStaffTenantProfileDetails: vi.fn(),
 	useStaffTenantProfilePermissionKeysQuery: vi.fn(),
 	toStaffTenantProfilePermissionKeys: vi.fn(),
+	useStaffTenantPermissionCatalogQuery: vi.fn(),
 	useDeleteStaffTenantProfileMutation: vi.fn(),
-	shouldLogoutForFailure: vi.fn(() => false),
+	useAssignStaffTenantProfilePermissionMutation: vi.fn(),
+	useUnassignStaffTenantProfilePermissionMutation: vi.fn(),
+	shouldLogoutForFailure: vi.fn((_: unknown) => false),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -99,6 +103,8 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 		'profiles',
 		'permission-keys',
 	],
+	buildStaffTenantPermissionCatalogOptions:
+		mocks.buildStaffTenantPermissionCatalogOptions,
 	useStaffTenantProfileDetailsQuery: mocks.useStaffTenantProfileDetailsQuery,
 	toStaffTenantProfileDetails: mocks.toStaffTenantProfileDetails,
 	useStaffTenantProfilePermissionKeysQuery:
@@ -106,6 +112,12 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 	toStaffTenantProfilePermissionKeys: mocks.toStaffTenantProfilePermissionKeys,
 	useDeleteStaffTenantProfileMutation:
 		mocks.useDeleteStaffTenantProfileMutation,
+	useStaffTenantPermissionCatalogQuery:
+		mocks.useStaffTenantPermissionCatalogQuery,
+	useAssignStaffTenantProfilePermissionMutation:
+		mocks.useAssignStaffTenantProfilePermissionMutation,
+	useUnassignStaffTenantProfilePermissionMutation:
+		mocks.useUnassignStaffTenantProfilePermissionMutation,
 }));
 
 vi.mock('~/routes/authed/layout', () => ({
@@ -191,6 +203,83 @@ describe('staff tenant profile details route', () => {
 				},
 			}),
 		);
+		mocks.useStaffTenantPermissionCatalogQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					additionalData: {
+						tenant: {
+							'tenant.approvals.review': {
+								key: 'tenant.approvals.review',
+								name: 'Review approvals',
+								description: 'Review tenant approver workflows',
+							},
+							'tenant.users.read': {
+								key: 'tenant.users.read',
+								name: 'Read users',
+								description: 'Read tenant users',
+							},
+							'tenant.users.write': {
+								key: 'tenant.users.write',
+								name: 'Write users',
+								description: 'Write tenant users',
+							},
+						},
+					},
+				},
+			}),
+		);
+		mocks.buildStaffTenantPermissionCatalogOptions.mockImplementation(
+			(
+				additionalData: Record<
+					string,
+					Record<string, { key?: string; description?: string | null }>
+				>,
+			) => {
+				const options: Array<{
+					key: string;
+					description: string | null;
+					label: string;
+				}> = [];
+
+				for (const modulePermissions of Object.values(additionalData)) {
+					if (typeof modulePermissions !== 'object' || !modulePermissions) {
+						continue;
+					}
+
+					for (const permission of Object.values(modulePermissions)) {
+						if (!permission || typeof permission !== 'object') {
+							continue;
+						}
+
+						const key = (permission as { key?: string }).key?.trim() ?? '';
+
+						if (!key) {
+							continue;
+						}
+
+						options.push({
+							key,
+							label: key,
+							description:
+								(permission as { description?: string | null })?.description ??
+								null,
+						});
+					}
+				}
+
+				return options.sort((left, right) =>
+					left.label.localeCompare(right.label),
+				);
+			},
+		);
+		mocks.useAssignStaffTenantProfilePermissionMutation.mockReturnValue({
+			isPending: false,
+			mutateAsync: vi.fn().mockResolvedValue(undefined),
+		});
+		mocks.useUnassignStaffTenantProfilePermissionMutation.mockReturnValue({
+			isPending: false,
+			mutateAsync: vi.fn().mockResolvedValue(undefined),
+		});
 	});
 
 	afterEach(() => {
@@ -216,6 +305,15 @@ describe('staff tenant profile details route', () => {
 		expect(screen.getByText('7')).toBeTruthy();
 		expect(screen.getByText('tenant.approvals.review')).toBeTruthy();
 		expect(screen.getByText('tenant.users.read')).toBeTruthy();
+		expect(screen.getByText('tenant.users.write')).toBeTruthy();
+		expect(screen.getByText('Assigned')).toBeTruthy();
+		expect(screen.getByText('Available')).toBeTruthy();
+		expect(
+			screen.getByRole('button', { name: /Unassign tenant.approvals.review/ }),
+		).toBeTruthy();
+		expect(
+			screen.getByRole('button', { name: /Assign tenant.users.write/ }),
+		).toBeTruthy();
 		expect(
 			screen
 				.getByRole('link', { name: 'Back to profiles' })
@@ -235,6 +333,143 @@ describe('staff tenant profile details route', () => {
 			},
 			{ enabled: true },
 		);
+		expect(mocks.useStaffTenantPermissionCatalogQuery).toHaveBeenCalledWith({});
+	});
+
+	test('assigns a permission key and invalidates permission-backed queries', async () => {
+		const assignPermission = vi.fn().mockResolvedValue(undefined);
+		mocks.useAssignStaffTenantProfilePermissionMutation.mockReturnValue({
+			isPending: false,
+			mutateAsync: assignPermission,
+		});
+		renderPage();
+
+		fireEvent.click(
+			screen.getByRole('button', {
+				name: /Assign tenant.users.write/,
+			}),
+		);
+
+		await waitFor(() => {
+			expect(assignPermission).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				profileId: '22222222-2222-2222-2222-222222222222',
+				permissionKey: 'tenant.users.write',
+			});
+		});
+		await waitFor(() => {
+			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(1, {
+				queryKey: ['staff', 'staff-tenants', 'profiles'],
+			});
+			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(2, {
+				queryKey: ['staff', 'staff-tenants', 'profiles', 'detail'],
+			});
+			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(3, {
+				queryKey: ['staff', 'staff-tenants', 'profiles', 'permission-keys'],
+			});
+		});
+	});
+
+	test('unassigns a permission key and invalidates permission-backed queries', async () => {
+		const unassignPermission = vi.fn().mockResolvedValue(undefined);
+		mocks.useUnassignStaffTenantProfilePermissionMutation.mockReturnValue({
+			isPending: false,
+			mutateAsync: unassignPermission,
+		});
+		renderPage();
+
+		fireEvent.click(
+			screen.getByRole('button', {
+				name: /Unassign tenant.approvals.review/,
+			}),
+		);
+
+		await waitFor(() => {
+			expect(unassignPermission).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				profileId: '22222222-2222-2222-2222-222222222222',
+				permissionKey: 'tenant.approvals.review',
+			});
+		});
+		await waitFor(() => {
+			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(1, {
+				queryKey: ['staff', 'staff-tenants', 'profiles'],
+			});
+			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(2, {
+				queryKey: ['staff', 'staff-tenants', 'profiles', 'detail'],
+			});
+			expect(mocks.queryClient.invalidateQueries).toHaveBeenNthCalledWith(3, {
+				queryKey: ['staff', 'staff-tenants', 'profiles', 'permission-keys'],
+			});
+		});
+	});
+
+	test('renders permission operation failures locally without logging out', async () => {
+		const assignPermission = vi.fn().mockRejectedValue({
+			status: 400,
+			responseStatusCode: 400,
+			title: 'Bad Request',
+			detail: 'Unable to add this permission',
+		});
+		mocks.useAssignStaffTenantProfilePermissionMutation.mockReturnValue({
+			isPending: false,
+			mutateAsync: assignPermission,
+		});
+
+		renderPage();
+
+		fireEvent.click(
+			screen.getByRole('button', {
+				name: /Assign tenant.users.write/,
+			}),
+		);
+
+		expect(
+			await screen.findByText('Unable to add this permission'),
+		).toBeTruthy();
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+	});
+
+	test('redirects to logout for permission assignment session errors', async () => {
+		const assignPermission = vi.fn().mockRejectedValue({
+			status: 401,
+			responseStatusCode: 401,
+			title: 'Unauthorized',
+			detail: 'Session expired',
+		});
+		mocks.useAssignStaffTenantProfilePermissionMutation.mockReturnValue({
+			isPending: false,
+			mutateAsync: assignPermission,
+		});
+		mocks.shouldLogoutForFailure.mockImplementation((error: unknown) => {
+			if (typeof error !== 'object' || error === null) {
+				return false;
+			}
+
+			const responseStatusCode =
+				typeof (error as { status?: unknown }).status === 'number'
+					? (error as { status?: number }).status
+					: undefined;
+			const statusCode =
+				typeof (error as { responseStatusCode?: unknown })
+					.responseStatusCode === 'number'
+					? (error as { responseStatusCode?: number }).responseStatusCode
+					: undefined;
+
+			return (responseStatusCode ?? statusCode) === 401;
+		});
+
+		renderPage();
+
+		fireEvent.click(
+			screen.getByRole('button', {
+				name: /Assign tenant.users.write/,
+			}),
+		);
+
+		await waitFor(() => {
+			expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+		});
 	});
 
 	test('confirms deletion, invalidates tenant profile queries, and navigates back to the list', async () => {

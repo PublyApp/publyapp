@@ -8,11 +8,15 @@ import {
 	STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY,
 	STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY,
 	STAFF_TENANT_PROFILES_QUERY_KEY,
+	buildStaffTenantPermissionCatalogOptions,
+	useAssignStaffTenantProfilePermissionMutation,
 	toStaffTenantProfileDetails,
 	toStaffTenantProfilePermissionKeys,
 	useDeleteStaffTenantProfileMutation,
+	useStaffTenantPermissionCatalogQuery,
 	useStaffTenantProfileDetailsQuery,
 	useStaffTenantProfilePermissionKeysQuery,
+	useUnassignStaffTenantProfilePermissionMutation,
 } from '~/lib/query/staff-tenant-profiles';
 import {
 	toStaffTenantDetails,
@@ -140,6 +144,8 @@ function StaffTenantProfileDetailsPage() {
 	const navigate = Route.useNavigate();
 	const queryClient = useQueryClient();
 	const [actionError, setActionError] = useState('');
+	const [permissionActionError, setPermissionActionError] = useState('');
+	const [busyPermissionKey, setBusyPermissionKey] = useState('');
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
 
 	const tenantQuery = useStaffTenantDetailsQuery(
@@ -166,7 +172,53 @@ function StaffTenantProfileDetailsPage() {
 				!tenantQuery.isError,
 		},
 	);
+	const permissionCatalogQuery = useStaffTenantPermissionCatalogQuery({});
 	const deleteProfile = useDeleteStaffTenantProfileMutation();
+	const assignPermission = useAssignStaffTenantProfilePermissionMutation();
+	const unassignPermission = useUnassignStaffTenantProfilePermissionMutation();
+	const profile = toStaffTenantProfileDetails(detailQuery.data);
+	const permissionKeys = toStaffTenantProfilePermissionKeys(
+		permissionKeysQuery.data,
+	);
+	const permissionCatalogOptions = buildStaffTenantPermissionCatalogOptions(
+		permissionCatalogQuery.data?.additionalData,
+	);
+	const permissionDescriptionsByKey = new Map<string, string | null>();
+
+	for (const option of permissionCatalogOptions) {
+		permissionDescriptionsByKey.set(option.key, option.description ?? null);
+	}
+	const assignedPermissionEntries = permissionKeys.map((permissionKey) => {
+		const catalogItem = permissionCatalogOptions.find(
+			(option) => option.key === permissionKey,
+		);
+
+		return {
+			key: permissionKey,
+			label: catalogItem?.label ?? permissionKey,
+			description: permissionDescriptionsByKey.get(permissionKey) ?? null,
+		};
+	});
+	const assignedPermissionKeySet = new Set(
+		assignedPermissionEntries.map((permission) => permission.key),
+	);
+	const availablePermissionEntries = permissionCatalogOptions.filter(
+		(option) => !assignedPermissionKeySet.has(option.key),
+	);
+
+	const isPermissionBusy = busyPermissionKey.length > 0;
+	const invalidatePermissionQueries = () =>
+		Promise.all([
+			queryClient.invalidateQueries({
+				queryKey: STAFF_TENANT_PROFILES_QUERY_KEY,
+			}),
+			queryClient.invalidateQueries({
+				queryKey: STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY,
+			}),
+			queryClient.invalidateQueries({
+				queryKey: STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY,
+			}),
+		]);
 
 	if (shouldRedirectToLogout) {
 		return <LogoutRedirect />;
@@ -200,7 +252,9 @@ function StaffTenantProfileDetailsPage() {
 	if (
 		(detailQuery.isError && shouldLogoutForFailure(detailQuery.error)) ||
 		(permissionKeysQuery.isError &&
-			shouldLogoutForFailure(permissionKeysQuery.error))
+			shouldLogoutForFailure(permissionKeysQuery.error)) ||
+		(permissionCatalogQuery.isError &&
+			shouldLogoutForFailure(permissionCatalogQuery.error))
 	) {
 		return <LogoutRedirect />;
 	}
@@ -217,7 +271,6 @@ function StaffTenantProfileDetailsPage() {
 		return <TenantProfileDetailsError error={permissionKeysQuery.error} />;
 	}
 
-	const profile = toStaffTenantProfileDetails(detailQuery.data);
 	if (!profile) {
 		return (
 			<AppErrorView
@@ -230,9 +283,58 @@ function StaffTenantProfileDetailsPage() {
 		);
 	}
 
-	const permissionKeys = toStaffTenantProfilePermissionKeys(
-		permissionKeysQuery.data,
-	);
+	const handleAssignPermission = async (permissionKey: string) => {
+		setPermissionActionError('');
+		setBusyPermissionKey(permissionKey);
+
+		try {
+			await assignPermission.mutateAsync({
+				tenantId,
+				profileId,
+				permissionKey,
+			});
+			await invalidatePermissionQueries();
+		} catch (error) {
+			if (shouldLogoutForFailure(error)) {
+				setShouldRedirectToLogout(true);
+				return;
+			}
+
+			setPermissionActionError(
+				getFailureMessage(toApiFailure(error), {
+					fallback: 'Unable to update this tenant profile permission.',
+				}),
+			);
+		} finally {
+			setBusyPermissionKey('');
+		}
+	};
+	const handleUnassignPermission = async (permissionKey: string) => {
+		setPermissionActionError('');
+		setBusyPermissionKey(permissionKey);
+
+		try {
+			await unassignPermission.mutateAsync({
+				tenantId,
+				profileId,
+				permissionKey,
+			});
+			await invalidatePermissionQueries();
+		} catch (error) {
+			if (shouldLogoutForFailure(error)) {
+				setShouldRedirectToLogout(true);
+				return;
+			}
+
+			setPermissionActionError(
+				getFailureMessage(toApiFailure(error), {
+					fallback: 'Unable to update this tenant profile permission.',
+				}),
+			);
+		} finally {
+			setBusyPermissionKey('');
+		}
+	};
 	const handleDelete = async () => {
 		setActionError('');
 
@@ -249,17 +351,7 @@ function StaffTenantProfileDetailsPage() {
 
 		try {
 			await deleteProfile.mutateAsync({ tenantId, profileId });
-			await Promise.all([
-				queryClient.invalidateQueries({
-					queryKey: STAFF_TENANT_PROFILES_QUERY_KEY,
-				}),
-				queryClient.invalidateQueries({
-					queryKey: STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY,
-				}),
-				queryClient.invalidateQueries({
-					queryKey: STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY,
-				}),
-			]);
+			await invalidatePermissionQueries();
 			void navigate({
 				to: '/staff/tenants/$tenantId/profiles',
 				params: { tenantId },
@@ -389,31 +481,159 @@ function StaffTenantProfileDetailsPage() {
 					<Card className="space-y-4 p-5">
 						<div className="space-y-1">
 							<p className="text-lg font-semibold text-foreground">
-								Assigned permission keys
+								Permission keys
 							</p>
 							<p className="text-sm text-foreground-500">
-								Permissions currently assigned by the backend for this profile.
+								Manage assigned and available permission keys for this profile.
 							</p>
 						</div>
 
-						{permissionKeys.length === 0 ? (
-							<div className="rounded-large border border-dashed border-divider px-4 py-6 text-sm text-foreground-500">
-								No permission keys are assigned to this profile.
-							</div>
-						) : (
-							<ul className="space-y-2">
-								{permissionKeys.map((permissionKey) => (
-									<li
-										key={permissionKey}
-										className="rounded-large border border-divider bg-content1 px-4 py-3"
+						<div className="space-y-4">
+							{permissionCatalogQuery.isPending ? (
+								<div className="rounded-large border border-dashed border-divider px-4 py-6 text-sm text-foreground-500">
+									<div className="flex items-center gap-2">
+										<Spinner size="sm" />
+										<span>Loading available permissions…</span>
+									</div>
+								</div>
+							) : null}
+
+							{permissionCatalogQuery.isError ? (
+								<div className="rounded-large border border-dashed border-danger bg-danger-50 px-4 py-4 text-sm text-danger-700">
+									<p>
+										{getFailureMessage(
+											toApiFailure(permissionCatalogQuery.error),
+											{
+												fallback: 'Unable to load tenant permission catalog.',
+											},
+										)}
+									</p>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onPress={() => {
+											void permissionCatalogQuery.refetch();
+										}}
+										className="mt-3"
 									>
-										<p className="font-mono text-sm text-foreground">
-											{permissionKey}
-										</p>
-									</li>
-								))}
-							</ul>
-						)}
+										Retry
+									</Button>
+								</div>
+							) : null}
+
+							<section className="space-y-3">
+								<div className="flex items-center justify-between">
+									<p className="font-medium text-foreground">Assigned</p>
+									<span className="rounded-full bg-default-100 px-2 py-1 text-xs text-foreground-500">
+										{assignedPermissionEntries.length}
+									</span>
+								</div>
+
+								{assignedPermissionEntries.length === 0 ? (
+									<div className="rounded-large border border-dashed border-divider px-4 py-3 text-sm text-foreground-500">
+										No permissions are assigned to this profile.
+									</div>
+								) : (
+									<ul className="space-y-2">
+										{assignedPermissionEntries.map((permission) => (
+											<li
+												key={permission.key}
+												className="rounded-large border border-divider bg-content1 px-3 py-3"
+											>
+												<div className="flex items-start justify-between gap-3">
+													<div>
+														<p className="font-mono text-sm text-foreground">
+															{permission.label}
+														</p>
+														{permission.description ? (
+															<p className="mt-1 max-w-xl text-xs text-foreground-500">
+																{permission.description}
+															</p>
+														) : null}
+													</div>
+													<Button
+														type="button"
+														size="sm"
+														variant="outline"
+														isDisabled={
+															isPermissionBusy &&
+															busyPermissionKey !== permission.key
+														}
+														onPress={() => {
+															void handleUnassignPermission(permission.key);
+														}}
+													>
+														Unassign {permission.key}
+													</Button>
+												</div>
+											</li>
+										))}
+									</ul>
+								)}
+							</section>
+
+							{permissionCatalogQuery.isPending ? null : (
+								<section className="space-y-3">
+									<div className="flex items-center justify-between">
+										<p className="font-medium text-foreground">Available</p>
+										<span className="rounded-full bg-default-100 px-2 py-1 text-xs text-foreground-500">
+											{availablePermissionEntries.length}
+										</span>
+									</div>
+
+									{availablePermissionEntries.length === 0 ? (
+										<div className="rounded-large border border-dashed border-divider px-4 py-3 text-sm text-foreground-500">
+											{assignedPermissionEntries.length === 0
+												? 'No permission keys are available.'
+												: 'No additional permission keys are available to assign.'}
+										</div>
+									) : (
+										<ul className="space-y-2">
+											{availablePermissionEntries.map((permission) => (
+												<li
+													key={permission.key}
+													className="rounded-large border border-divider bg-content1 px-3 py-3"
+												>
+													<div className="flex items-start justify-between gap-3">
+														<div>
+															<p className="font-mono text-sm text-foreground">
+																{permission.label}
+															</p>
+															{permission.description ? (
+																<p className="mt-1 max-w-xl text-xs text-foreground-500">
+																	{permission.description}
+																</p>
+															) : null}
+														</div>
+														<Button
+															type="button"
+															size="sm"
+															variant="outline"
+															isDisabled={
+																isPermissionBusy &&
+																busyPermissionKey !== permission.key
+															}
+															onPress={() => {
+																void handleAssignPermission(permission.key);
+															}}
+														>
+															Assign {permission.key}
+														</Button>
+													</div>
+												</li>
+											))}
+										</ul>
+									)}
+								</section>
+							)}
+
+							{permissionActionError ? (
+								<p className="text-sm text-danger-600">
+									{permissionActionError}
+								</p>
+							) : null}
+						</div>
 					</Card>
 				</div>
 			</div>
