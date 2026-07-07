@@ -3,28 +3,41 @@ import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import viteReact from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 
-export default defineConfig({
-	server: {
-		port: 3000,
-	},
-	resolve: {
-		alias: {
-			'~': fileURLToPath(new URL('./src', import.meta.url)),
+const workspaceRootDir = fileURLToPath(new URL('../..', import.meta.url));
+
+export default defineConfig(({ mode }) => {
+	const rootEnv = loadEnv(mode, workspaceRootDir, '');
+	process.env.PUBLIC_API_BASE_URL ??=
+		rootEnv.PUBLIC_API_BASE_URL ?? rootEnv.VITE_ASP_SERVER_URL;
+	process.env.SERVER_API_BASE_URL ??=
+		rootEnv.SERVER_API_BASE_URL ??
+		rootEnv.PUBLIC_API_BASE_URL ??
+		rootEnv.VITE_ASP_SERVER_URL;
+
+	return {
+		envDir: workspaceRootDir,
+		server: {
+			port: 5050,
 		},
-	},
-	ssr: {
-		noExternal: ['@org/client-ts', '@org/shared-ts'],
-	},
-	plugins: [
-		tailwindcss(),
-		tanstackStart({
-			srcDirectory: 'src',
-			router: {
-				virtualRouteConfig: './src/routes.ts',
+		resolve: {
+			alias: {
+				'~': fileURLToPath(new URL('./src', import.meta.url)),
 			},
-		}),
-		viteReact(),
-	],
+		},
+		ssr: {
+			noExternal: ['@org/client-ts', '@org/shared-ts'],
+		},
+		plugins: [
+			tailwindcss(),
+			tanstackStart({
+				srcDirectory: 'src',
+				router: {
+					virtualRouteConfig: './src/routes.ts',
+				},
+			}),
+			viteReact(),
+		],
+	};
 });

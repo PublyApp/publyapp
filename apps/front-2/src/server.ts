@@ -7,6 +7,7 @@ import {
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import { captureBadRequest } from './lib/analytics';
+import { getOptionalPublicApiBaseUrl, isDevelopmentRuntime } from './lib/env';
 import { resolveLocaleFromCookie } from './lib/i18n.server';
 import { dirForLocale, type SupportedLanguage } from './lib/i18n.shared';
 import { mintCspNonce, applyCspHeaders } from './server/csp';
@@ -42,7 +43,7 @@ const escapeHtml = (value: string): string =>
 		.replace(/'/g, '&#39;');
 
 const resolvePublicApiBaseUrlEnv = (): string | undefined => {
-	const value = process.env.PUBLIC_API_BASE_URL?.trim();
+	const value = getOptionalPublicApiBaseUrl();
 	if (!value) {
 		return undefined;
 	}
@@ -222,11 +223,7 @@ export default {
 			const locale = resolveLocaleFromRequest(ctx.request);
 
 			setRouterNonce(ctx, nonce);
-			applyCspHeaders(
-				ctx.responseHeaders,
-				nonce,
-				process.env.NODE_ENV === 'development',
-			);
+			applyCspHeaders(ctx.responseHeaders, nonce, isDevelopmentRuntime());
 
 			const handlerResult = await defaultStreamHandler(ctx);
 			const response = getStreamHandlerResponse(handlerResult);

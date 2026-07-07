@@ -4,6 +4,8 @@ import { isIP } from 'node:net';
 import { IsoAnalytics } from '@org/shared-ts/lib/analytics/iso-analytics';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
+import { getPosthogApiKey, isProductionRuntime } from './env';
+
 type AddressHeader =
 	| 'cf-connecting-ip'
 	| 'x-forwarded-for'
@@ -34,15 +36,6 @@ const extractIpAddressFromHeader = (value: string): string => {
 	}
 
 	return createHash('sha256').update(candidate).digest('hex').slice(0, 16);
-};
-
-const getPosthogApiKey = (): string | undefined => {
-	const explicit = process.env.POSTHOG_API_KEY;
-	if (explicit?.trim()) {
-		return explicit.trim();
-	}
-
-	return process.env.PUBLIC_POSTHOG_API_KEY?.trim();
 };
 
 const getRequestAddress = (request: Request): string => {
@@ -106,7 +99,7 @@ export const captureBadRequest = async (
 		return;
 	}
 
-	if (process.env.NODE_ENV !== 'production') {
+	if (!isProductionRuntime()) {
 		return;
 	}
 
@@ -117,7 +110,7 @@ export const captureBadRequest = async (
 	});
 
 	const distinctId = getRequestAddress(input.request);
-	if (distinctId === 'anonymous' && process.env.NODE_ENV === 'production') {
+	if (distinctId === 'anonymous' && isProductionRuntime()) {
 		logger.debug('bad-request analytics has no client IP for hashing');
 	}
 
