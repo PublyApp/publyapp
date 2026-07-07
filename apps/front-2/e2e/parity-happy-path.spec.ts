@@ -304,7 +304,7 @@ test.describe('staff-users parity happy path', () => {
 		await invitationSubmitButton(page).click();
 
 		await expect(page.getByText('Invitations sent successfully')).toBeVisible();
-		await page.waitForURL(/\/staff\/staff-users$/);
+		await page.waitForURL(/\/staff\/invitations$/);
 		expect(capturedBody?.invitations?.[0]?.email).toBe('new-staff@example.com');
 		expect(capturedBody?.invitations?.[0]?.profileIds).toEqual([
 			firstProfile.id,
