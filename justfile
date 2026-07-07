@@ -54,7 +54,7 @@ dev-front:
 
 # Start docker services (postgres, etc.)
 dev-services:
-  docker-compose -f docker-compose.services.yml up -d
+  docker compose -f docker-compose.services.yml up -d
 
 # Start database (alias for dev-services)
 dev-db: dev-services
@@ -207,15 +207,15 @@ test-api-debug:
 
 # Build docker images
 docker-build:
-  docker-compose -f docker-compose.services.yml build
+  docker compose -f docker-compose.services.yml build
 
 # Start docker services
 docker-up:
-  docker-compose -f docker-compose.services.yml up -d
+  docker compose -f docker-compose.services.yml up -d
 
 # Stop docker services
 docker-down:
-  docker-compose -f docker-compose.services.yml down
+  docker compose -f docker-compose.services.yml down
 
 # =============================================================================
 # Code generation
