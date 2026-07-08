@@ -7,7 +7,7 @@ import {
 } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { AlertCircle, LockKeyhole } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
@@ -90,6 +90,12 @@ const LoginRoute = () => {
 	const location = useLocation();
 	const [showForbidden, setShowForbidden] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
+	const [isMounted, setIsMounted] = useState(false);
+
+	useEffect(() => {
+		setIsMounted(true);
+	}, []);
+
 	const loginAction = useServerFn(login);
 	const completeRedirect = useServerFn(completeLoginRedirect);
 	const search = location.searchStr ?? '';
@@ -181,56 +187,63 @@ const LoginRoute = () => {
 				<View403 />
 			) : (
 				<form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-					<div className="space-y-1">
-						<label
-							className="text-sm font-medium text-foreground-700"
-							htmlFor="login-email"
-						>
-							Email
-						</label>
-						<Input
-							{...register('email')}
-							id="login-email"
-							required
-							placeholder="name@company.com"
-							type="email"
-						/>
-						{errors.email?.message ? (
-							<p className="text-sm text-danger-500">{errors.email?.message}</p>
-						) : null}
-					</div>
-					<div className="space-y-1">
-						<label
-							className="text-sm font-medium text-foreground-700"
-							htmlFor="login-password"
-						>
-							Password
-						</label>
-						<Input
-							{...register('password')}
-							id="login-password"
-							required
-							type="password"
-							placeholder="••••••••"
-						/>
-						{errors.password?.message ? (
-							<p className="text-sm text-danger-500">
-								{errors.password?.message}
-							</p>
-						) : null}
-					</div>
-					{errorMessage ? (
-						<div className="text-sm text-danger-500">{errorMessage}</div>
-					) : null}
-					<Button
-						type="submit"
-						variant="primary"
-						isDisabled={isSubmitting}
-						className="w-full"
+					<fieldset
+						disabled={!isMounted}
+						className="space-y-3 border-0 p-0 m-0 min-w-0"
 					>
-						{isSubmitting ? <Spinner size="sm" /> : null}
-						Sign in
-					</Button>
+						<div className="space-y-1">
+							<label
+								className="text-sm font-medium text-foreground-700"
+								htmlFor="login-email"
+							>
+								Email
+							</label>
+							<Input
+								{...register('email')}
+								id="login-email"
+								required
+								placeholder="name@company.com"
+								type="email"
+							/>
+							{errors.email?.message ? (
+								<p className="text-sm text-danger-500">
+									{errors.email?.message}
+								</p>
+							) : null}
+						</div>
+						<div className="space-y-1">
+							<label
+								className="text-sm font-medium text-foreground-700"
+								htmlFor="login-password"
+							>
+								Password
+							</label>
+							<Input
+								{...register('password')}
+								id="login-password"
+								required
+								type="password"
+								placeholder="••••••••"
+							/>
+							{errors.password?.message ? (
+								<p className="text-sm text-danger-500">
+									{errors.password?.message}
+								</p>
+							) : null}
+						</div>
+						{errorMessage ? (
+							<div className="text-sm text-danger-500">{errorMessage}</div>
+						) : null}
+						<Button
+							type="submit"
+							variant="primary"
+							isDisabled={!isMounted || isSubmitting}
+							className="w-full"
+						>
+							{isSubmitting ? <Spinner size="sm" /> : null}
+							Sign in
+						</Button>
+					</fieldset>
 				</form>
 			)}
 		</div>

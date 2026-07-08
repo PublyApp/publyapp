@@ -364,7 +364,9 @@ const TenantLifecycleActionsCell = ({
 						void performAction(pendingAction);
 					}
 				}}
-				onOpenChange={() => setPendingAction(null)}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) setPendingAction(null);
+				}}
 			/>
 		</div>
 	);

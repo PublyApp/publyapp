@@ -433,7 +433,7 @@ function StaffTenantUserDetailsPage() {
 				onConfirm={() => {
 					void handleRemoveAction();
 				}}
-				onOpenChange={() => setPendingRemove(false)}
+				onOpenChange={setPendingRemove}
 			/>
 
 			<Card className="space-y-4 p-5">

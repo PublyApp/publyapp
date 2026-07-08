@@ -347,7 +347,9 @@ function StaffTenantInvitationsPage() {
 						void handleRevoke(row);
 					}
 				}}
-				onOpenChange={() => setPendingRevokeRowId(null)}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) setPendingRevokeRowId(null);
+				}}
 			/>
 
 			<div className="flex flex-wrap items-center gap-2">

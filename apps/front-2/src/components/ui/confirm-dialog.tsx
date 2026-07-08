@@ -25,39 +25,48 @@ export const ConfirmDialog = ({
 	onOpenChange,
 }: ConfirmDialogProps) => (
 	<AlertDialog.Root isOpen={isOpen} onOpenChange={onOpenChange}>
-		<AlertDialog.Backdrop />
-		<AlertDialog.Container placement="center">
-			<AlertDialog.Dialog>
-				<AlertDialog.Header>
-					<span
-						className="publy-state-icon"
-						data-tone={tone}
-						aria-hidden="true"
-					>
-						<AlertTriangle className="size-6" />
-					</span>
-					<AlertDialog.Heading>{title}</AlertDialog.Heading>
-				</AlertDialog.Header>
-				<AlertDialog.Body>
-					<p className="publy-type-helper">{description}</p>
-				</AlertDialog.Body>
-				<AlertDialog.Footer>
-					<Button
-						variant="ghost"
-						isDisabled={isPending}
-						onPress={() => onOpenChange(false)}
-					>
-						{cancelLabel}
-					</Button>
-					<Button
-						variant={tone === 'danger' ? 'danger' : 'primary'}
-						isDisabled={isPending}
-						onPress={onConfirm}
-					>
-						{confirmLabel}
-					</Button>
-				</AlertDialog.Footer>
-			</AlertDialog.Dialog>
-		</AlertDialog.Container>
+		<AlertDialog.Trigger
+			className="sr-only"
+			aria-hidden="true"
+			aria-label="Open confirmation dialog"
+			tabIndex={-1}
+		>
+			<span />
+		</AlertDialog.Trigger>
+		<AlertDialog.Backdrop variant="blur">
+			<AlertDialog.Container placement="center">
+				<AlertDialog.Dialog role="alertdialog" className="bg-content1">
+					<AlertDialog.Header>
+						<span
+							className="publy-state-icon"
+							data-tone={tone}
+							aria-hidden="true"
+						>
+							<AlertTriangle className="size-6" />
+						</span>
+						<AlertDialog.Heading>{title}</AlertDialog.Heading>
+					</AlertDialog.Header>
+					<AlertDialog.Body>
+						<p className="publy-type-helper">{description}</p>
+					</AlertDialog.Body>
+					<AlertDialog.Footer>
+						<Button
+							variant="ghost"
+							isDisabled={isPending}
+							onPress={() => onOpenChange(false)}
+						>
+							{cancelLabel}
+						</Button>
+						<Button
+							variant={tone === 'danger' ? 'danger' : 'primary'}
+							isDisabled={isPending}
+							onPress={onConfirm}
+						>
+							{confirmLabel}
+						</Button>
+					</AlertDialog.Footer>
+				</AlertDialog.Dialog>
+			</AlertDialog.Container>
+		</AlertDialog.Backdrop>
 	</AlertDialog.Root>
 );

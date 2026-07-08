@@ -309,7 +309,7 @@ const InvitationDetailsCard = ({
 				confirmLabel="Revoke"
 				isPending={revoke.isPending}
 				onConfirm={handleRevoke}
-				onOpenChange={() => setPendingRevoke(false)}
+				onOpenChange={setPendingRevoke}
 			/>
 
 			{feedback ? (

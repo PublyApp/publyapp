@@ -451,7 +451,7 @@ function StaffTenantProfileDetailsPage() {
 					onConfirm={() => {
 						void handleDelete();
 					}}
-					onOpenChange={() => setPendingDelete(false)}
+					onOpenChange={setPendingDelete}
 				/>
 
 				<div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]">

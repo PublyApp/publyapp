@@ -283,7 +283,9 @@ describe('staff tenants route', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
 
 		await waitFor(() =>
-			expect(screen.getByText('Suspend tenant')).toBeTruthy(),
+			expect(
+				screen.getByRole('heading', { name: 'Suspend tenant' }),
+			).toBeTruthy(),
 		);
 		fireEvent.click(
 			screen.getAllByRole('button', { name: 'Cancel' }).slice(-1)[0],
@@ -304,7 +306,9 @@ describe('staff tenants route', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
 
 		await waitFor(() =>
-			expect(screen.getByText('Suspend tenant')).toBeTruthy(),
+			expect(
+				screen.getByRole('heading', { name: 'Suspend tenant' }),
+			).toBeTruthy(),
 		);
 		fireEvent.click(
 			screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
@@ -341,7 +345,9 @@ describe('staff tenants route', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
 
 		await waitFor(() =>
-			expect(screen.getByText('Suspend tenant')).toBeTruthy(),
+			expect(
+				screen.getByRole('heading', { name: 'Suspend tenant' }),
+			).toBeTruthy(),
 		);
 		fireEvent.click(
 			screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
@@ -369,7 +375,9 @@ describe('staff tenants route', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
 
 		await waitFor(() =>
-			expect(screen.getByText('Suspend tenant')).toBeTruthy(),
+			expect(
+				screen.getByRole('heading', { name: 'Suspend tenant' }),
+			).toBeTruthy(),
 		);
 		fireEvent.click(
 			screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
