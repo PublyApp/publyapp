@@ -43,6 +43,8 @@
 
 ### Task 1: Handoff Token And Asset Baseline
 
+Status: accepted in commit `b639c1c6` after captain verification and Claude Sonnet review.
+
 **Files:**
 - Modify: `apps/front-2/src/styles/app.css`
 - Modify: `apps/front-2/src/components/app-shell/app-shell.tsx`
@@ -51,7 +53,7 @@
 - Add: `apps/front-2/src/assets/gray-ui/avatar-profile.jpg`
 - Test: `apps/front-2/scripts/check-design-system.test.mjs`
 
-- [ ] **Step 1: Write token guard tests**
+- [x] **Step 1: Write token guard tests**
 
 Add assertions in `apps/front-2/scripts/check-design-system.test.mjs` that fail if `app.css` does not contain:
 
@@ -64,13 +66,13 @@ assert.match(css, /--publy-shell-panel-width:\s*272px/);
 assert.match(css, /--publy-modal-radius:\s*28px/);
 ```
 
-- [ ] **Step 2: Run the guard and verify it fails**
+- [x] **Step 2: Run the guard and verify it fails**
 
 Run: `pnpm --filter front-2 test:design-system-guard`
 
 Expected: FAIL because current tokens still use Inter, blue primary, and wider shell values.
 
-- [ ] **Step 3: Copy handoff assets**
+- [x] **Step 3: Copy handoff assets**
 
 Copy exactly:
 
@@ -80,7 +82,7 @@ cp .dump/design_handoff_publyapp_staff_admin/assets/logo.svg apps/front-2/src/as
 cp .dump/design_handoff_publyapp_staff_admin/assets/avatar-profile.jpg apps/front-2/src/assets/gray-ui/avatar-profile.jpg
 ```
 
-- [ ] **Step 4: Replace base tokens**
+- [x] **Step 4: Replace base tokens**
 
 Update `:root` in `apps/front-2/src/styles/app.css` with the handoff values:
 
@@ -124,11 +126,11 @@ Update `:root` in `apps/front-2/src/styles/app.css` with the handoff values:
 
 Keep dark-mode variables only if they remain coherent; do not let dark-mode tokens override the light staff/admin handoff during visual smoke.
 
-- [ ] **Step 5: Make HeroUI primary buttons chrome**
+- [x] **Step 5: Make HeroUI primary buttons chrome**
 
 In `app.css`, style HeroUI primary buttons and `buttonVariants({ variant: 'primary' })` output so primary actions render yellow chrome: h36 pill, text `#733E0A`, border `1.33px rgba(255,255,255,0.12)`, and `--publy-shadow-chrome`.
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 Run:
 
@@ -139,7 +141,7 @@ pnpm --filter front-2 typecheck
 
 Expected: both pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add apps/front-2/src/styles/app.css apps/front-2/src/components/app-shell/app-shell.tsx apps/front-2/src/components/ui/product-page.tsx apps/front-2/src/assets/gray-ui apps/front-2/scripts/check-design-system.test.mjs
