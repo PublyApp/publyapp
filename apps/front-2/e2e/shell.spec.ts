@@ -187,10 +187,48 @@ test('renders the authed shell for /staff', async ({ page }) => {
 		'data-mode',
 		'authed',
 	);
-	await expect(page.getByTestId('app-shell-sidebar')).toBeVisible();
+	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+	await expect(page.getByTestId('app-shell-topbar')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 	await expect(
-		page.getByTestId('app-shell-sidebar').getByRole('link', { name: 'Staff' }),
+		page
+			.getByTestId('app-shell-rail')
+			.getByRole('link', { name: 'Staff users' }),
 	).toHaveAttribute('aria-current', 'page');
+	await expect(page.getByTestId('app-shell-sidebar')).toHaveCount(0);
+});
+
+test('collapses secondary panel on full-detail routes', async ({ page }) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await setSessionCookie(page);
+	await mockAuthRedirectCode(page);
+	await page.goto('/staff/staff-users/demo-user-id');
+
+	await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+});
+
+test('rail navigation preserves collapsed sidebar preference', async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await setSessionCookie(page);
+	await mockAuthRedirectCode(page);
+	await page.goto('/staff/staff-users');
+
+	await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+	await expect(
+		page.getByRole('button', { name: 'Collapse navigation panel' }),
+	).toBeVisible();
+
+	await page.getByRole('button', { name: 'Collapse navigation panel' }).click();
+
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
+
+	await page.getByRole('link', { name: 'Profiles' }).click();
+
+	await expect(page).toHaveURL('/staff/profiles');
+	await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(0);
 });
 
 test('redirects /staff/ to /staff/staff-users', async ({ page }) => {

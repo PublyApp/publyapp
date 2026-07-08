@@ -1,7 +1,21 @@
 import { Button, buttonVariants } from '@heroui/react';
 import { Link } from '@tanstack/react-router';
-import { useEffect, useState, type ReactNode } from 'react';
+import {
+	ChevronRight,
+	Menu,
+	PanelLeftClose,
+	PanelLeftOpen,
+	ShieldCheck,
+	X,
+} from 'lucide-react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 
+import {
+	PRIMARY_APP_ROUTES,
+	getActiveAppRoute,
+	getBreadcrumbsForPath,
+	getShellDisplayMode,
+} from '../../lib/navigation/route-metadata';
 import { useUiStore } from '../../lib/store/ui-store';
 import { ThemeToggle } from './theme/theme-toggle';
 
@@ -10,7 +24,6 @@ type AppShellMode = 'auth' | 'authed' | 'marketing';
 type NavItem = {
 	label: string;
 	path: string;
-	shortLabel: string;
 };
 
 type AppShellProps = {
@@ -19,46 +32,25 @@ type AppShellProps = {
 	pathname?: string;
 };
 
-const NAV_ITEMS: Record<AppShellMode, NavItem[]> = {
+const NAV_ITEMS: Record<Exclude<AppShellMode, 'authed'>, NavItem[]> = {
 	auth: [
 		{
 			label: 'Marketing',
 			path: '/',
-			shortLabel: 'Mk',
 		},
 		{
 			label: 'Sign in',
 			path: '/login',
-			shortLabel: 'SI',
-		},
-	],
-	authed: [
-		{
-			label: 'Staff',
-			path: '/staff/staff-users',
-			shortLabel: 'St',
-		},
-		{
-			label: 'Profiles',
-			path: '/staff/profiles',
-			shortLabel: 'Pr',
-		},
-		{
-			label: 'Tenant',
-			path: '/tenant',
-			shortLabel: 'Te',
 		},
 	],
 	marketing: [
 		{
 			label: 'Home',
 			path: '/',
-			shortLabel: 'Hm',
 		},
 		{
 			label: 'Login',
 			path: '/login',
-			shortLabel: 'Lg',
 		},
 	],
 };
@@ -92,7 +84,8 @@ const AppShellHeader = ({
 	pathname: string;
 }) => {
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
-	const navItems = NAV_ITEMS[mode];
+	const navItems =
+		mode === 'authed' ? [] : NAV_ITEMS[mode as keyof typeof NAV_ITEMS];
 	const activePath = getActivePath(navItems, pathname);
 	const closeMenu = () => setIsMenuOpen(false);
 
@@ -117,6 +110,10 @@ const AppShellHeader = ({
 	useEffect(() => {
 		setIsMenuOpen(false);
 	}, [mode, pathname]);
+
+	if (mode === 'authed') {
+		return null;
+	}
 
 	const renderNavButtons = ({
 		closeOnSelect = false,
@@ -164,12 +161,10 @@ const AppShellHeader = ({
 		<header className="app-shell-header">
 			<div className="app-shell-header-inner">
 				<div>
-					<div className="font-semibold tracking-wide text-slate-900 dark:text-slate-50">
+					<div className="font-semibold tracking-wide text-foreground">
 						PublyApp
 					</div>
-					<div className="text-xs text-slate-500 dark:text-slate-400">
-						front-2 shell
-					</div>
+					<div className="app-shell-header-subtitle text-xs">front-2 shell</div>
 				</div>
 				{renderNavButtons({})}
 				<div className="flex items-center gap-2">
@@ -177,14 +172,18 @@ const AppShellHeader = ({
 					<Button
 						onPress={() => setIsMenuOpen((next) => !next)}
 						variant="outline"
-						size="sm"
+						isIconOnly
 						aria-expanded={isMenuOpen}
 						aria-controls="app-shell-mobile-menu"
 						aria-label={navButtonLabel}
 						className="sm:hidden"
 						data-testid="app-shell-mobile-menu-toggle"
 					>
-						{isMenuOpen ? 'Close' : 'Menu'}
+						{isMenuOpen ? (
+							<X aria-hidden="true" className="size-4" />
+						) : (
+							<Menu aria-hidden="true" className="size-4" />
+						)}
 					</Button>
 				</div>
 			</div>
@@ -210,9 +209,7 @@ const AppShellNavigation = ({
 	mode: AppShellMode;
 	pathname: string;
 }) => {
-	const showSidebar = mode === 'authed';
-
-	if (!showSidebar) {
+	if (mode !== 'authed') {
 		return (
 			<main className="app-shell-main">
 				<div className="app-shell-main-card">{children}</div>
@@ -221,90 +218,158 @@ const AppShellNavigation = ({
 	}
 
 	return (
-		<AuthedAppShellNavigation pathname={pathname}>
-			{children}
-		</AuthedAppShellNavigation>
+		<AuthedWorkspaceShell pathname={pathname}>{children}</AuthedWorkspaceShell>
 	);
 };
 
-const AuthedAppShellNavigation = ({
+const AuthedWorkspaceShell = ({
 	children,
 	pathname,
 }: {
 	children: ReactNode;
 	pathname: string;
 }) => {
-	const { sidebarOpen, toggleSidebarOpen } = useUiStore(
-		({ sidebarOpen, toggleSidebarOpen }) => ({
-			sidebarOpen,
-			toggleSidebarOpen,
-		}),
-	);
-	const activePath = getActivePath(NAV_ITEMS.authed, pathname);
-	const sidebarStateClass = sidebarOpen
-		? 'app-shell-sidebar--open'
-		: 'app-shell-sidebar--collapsed';
-	const sidebarAffordanceClass = sidebarOpen
-		? ''
-		: 'app-shell-sidebar-link--collapsed';
+	const sidebarOpen = useUiStore((state) => state.sidebarOpen);
+	const toggleSidebarOpen = useUiStore((state) => state.toggleSidebarOpen);
+	const activeRoute = getActiveAppRoute(pathname);
+	const displayMode = getShellDisplayMode(pathname);
+	const breadcrumbs = getBreadcrumbsForPath(pathname);
+	const showSecondaryPanel = sidebarOpen && displayMode === 'default';
+
+	const displayBreadcrumbs =
+		breadcrumbs.length >= 2 &&
+		breadcrumbs[0].path &&
+		breadcrumbs[1].path &&
+		breadcrumbs[0].path === breadcrumbs[1].path
+			? breadcrumbs.slice(1)
+			: breadcrumbs;
 
 	return (
-		<div className="app-shell-content-wrap">
-			<aside
-				className={`app-shell-sidebar ${sidebarStateClass}`}
-				data-testid="app-shell-sidebar"
+		<div
+			className="app-shell-workspace"
+			data-testid="app-shell-shell"
+			data-mode="authed"
+		>
+			<nav
+				className="app-shell-rail"
 				aria-label="Primary navigation"
+				data-testid="app-shell-rail"
 			>
-				<div className="app-shell-sidebar-title">Navigation</div>
-				{NAV_ITEMS.authed.map((item) => {
-					const isActive = activePath === item.path;
-
-					return (
-						<Link
-							key={item.label}
-							to={item.path}
-							aria-label={item.label}
-							aria-current={isActive ? 'page' : undefined}
-							className={buttonVariants({
-								variant: isActive ? 'primary' : 'outline',
-								size: 'md',
-								className: `app-shell-sidebar-link w-full justify-start ${sidebarAffordanceClass}`,
-							})}
-						>
-							<span
-								aria-hidden="true"
-								className={
-									sidebarOpen ? 'sr-only' : 'app-shell-sidebar-short-label'
-								}
-							>
-								{item.shortLabel}
-							</span>
-							<span
-								className={
-									sidebarOpen
-										? 'app-shell-sidebar-label'
-										: 'app-shell-sidebar-label sr-only'
-								}
-							>
-								{item.label}
-							</span>
-						</Link>
-					);
-				})}
-				<Button
-					size="sm"
-					variant="primary"
-					className="app-shell-sidebar-toggle"
-					onPress={toggleSidebarOpen}
-					aria-expanded={sidebarOpen}
-					aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+				<Link
+					to="/staff/staff-users"
+					className="app-shell-brand"
+					aria-label="PublyApp workspace"
 				>
-					{sidebarOpen ? 'Collapse' : 'Expand'}
+					<ShieldCheck aria-hidden="true" className="size-4" />
+				</Link>
+				<div className="app-shell-rail-links">
+					{PRIMARY_APP_ROUTES.map((item) => {
+						const isActive = activeRoute?.id === item.id;
+						const Icon = item.Icon;
+
+						return (
+							<Link
+								key={item.id}
+								to={item.path as never}
+								aria-label={item.label}
+								aria-current={isActive ? 'page' : undefined}
+								className="app-shell-rail-link"
+								data-active={isActive ? 'true' : undefined}
+							>
+								<Icon aria-hidden="true" className="size-4" />
+							</Link>
+						);
+					})}
+				</div>
+				<Button
+					isIconOnly
+					size="sm"
+					variant="outline"
+					aria-label={
+						sidebarOpen
+							? 'Collapse navigation panel'
+							: 'Expand navigation panel'
+					}
+					onPress={toggleSidebarOpen}
+					className="app-shell-panel-toggle"
+				>
+					{sidebarOpen ? (
+						<PanelLeftClose aria-hidden="true" className="size-4" />
+					) : (
+						<PanelLeftOpen aria-hidden="true" className="size-4" />
+					)}
 				</Button>
-			</aside>
-			<main className="app-shell-main">
-				<div className="app-shell-main-card">{children}</div>
-			</main>
+			</nav>
+			{showSecondaryPanel && activeRoute ? (
+				<aside
+					className="app-shell-secondary-panel"
+					data-testid="app-shell-secondary-panel"
+					aria-labelledby="app-shell-secondary-heading"
+				>
+					<div
+						className="app-shell-secondary-heading"
+						id="app-shell-secondary-heading"
+					>
+						{activeRoute.label}
+					</div>
+					{activeRoute.secondaryItems.map((item) => {
+						const Icon = item.Icon;
+
+						return (
+							<Link
+								key={item.path}
+								to={item.path as never}
+								className="app-shell-secondary-link"
+							>
+								<Icon aria-hidden="true" className="size-4" />
+								<span>
+									<span className="app-shell-secondary-link-title">
+										{item.label}
+									</span>
+									<span className="app-shell-secondary-link-description">
+										{item.description}
+									</span>
+								</span>
+							</Link>
+						);
+					})}
+				</aside>
+			) : null}
+			<div className="app-shell-body">
+				<header className="app-shell-topbar" data-testid="app-shell-topbar">
+					<nav aria-label="Breadcrumb" className="app-shell-breadcrumbs">
+						{displayBreadcrumbs.map((item, index) => {
+							const isLast = index === displayBreadcrumbs.length - 1;
+							return (
+								<Fragment key={`${item.label}-${index}`}>
+									{index > 0 ? (
+										<ChevronRight
+											aria-hidden="true"
+											className="size-4 shrink-0"
+										/>
+									) : null}
+									{isLast ? (
+										<span
+											aria-current="page"
+											className="font-medium text-foreground"
+										>
+											{item.label}
+										</span>
+									) : item.path ? (
+										<Link to={item.path as never}>{item.label}</Link>
+									) : (
+										<span>{item.label}</span>
+									)}
+								</Fragment>
+							);
+						})}
+					</nav>
+					<div className="app-shell-topbar-actions">
+						<ThemeToggle />
+					</div>
+				</header>
+				<main className="app-shell-main">{children}</main>
+			</div>
 		</div>
 	);
 };
@@ -314,13 +379,19 @@ export const AppShell = ({
 	mode = 'marketing',
 	pathname = '/',
 }: AppShellProps) => {
-	const hydrateFromStorage = useUiStore(({ hydrateFromStorage }) => ({
-		hydrateFromStorage,
-	})).hydrateFromStorage;
+	const hydrateFromStorage = useUiStore((state) => state.hydrateFromStorage);
 
 	useEffect(() => {
 		hydrateFromStorage();
 	}, [hydrateFromStorage]);
+
+	if (mode === 'authed') {
+		return (
+			<AppShellNavigation mode={mode} pathname={pathname}>
+				{children}
+			</AppShellNavigation>
+		);
+	}
 
 	return (
 		<div

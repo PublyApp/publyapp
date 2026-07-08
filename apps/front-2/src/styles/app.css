@@ -105,78 +105,182 @@ html {
 	}
 }
 
-.front-2-shell {
-	@apply min-h-screen bg-slate-100 text-slate-900;
-}
-
-.front-2-shell.dark {
-	@apply bg-slate-950 text-slate-100;
-}
+/* ---- Non-authed shell (marketing / auth) ---- */
 
 .app-shell-shell {
-	@apply flex min-h-screen flex-col px-4 py-4;
+	@apply flex min-h-screen flex-col bg-background;
 }
 
 .app-shell-header {
-	@apply rounded-xl border border-white/70 bg-white/70 p-4 shadow-sm backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/75;
+	@apply border-b border-divider bg-content1;
 }
 
-.app-shell-main {
-	@apply mx-auto w-full max-w-6xl;
+.app-shell-header-inner {
+	@apply mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6;
+}
+
+.app-shell-header-inner .app-shell-desktop-nav {
+	@apply hidden gap-2 sm:flex;
+}
+
+.app-shell-mobile-menu-wrap {
+	@apply border-t border-divider bg-content1 sm:hidden;
+}
+
+.app-shell-mobile-menu {
+	@apply flex flex-col gap-1 p-4;
 }
 
 .app-shell-main-card {
-	@apply bg-white/75 dark:bg-slate-900/75;
+	@apply bg-content1;
 }
 
-.app-shell-content-wrap {
-	@apply mx-auto mt-4 flex w-full max-w-6xl gap-4 pb-8;
+.app-shell-header-subtitle {
+	color: var(--publy-foreground-muted);
 }
 
-.app-shell-sidebar {
-	@apply rounded-xl border border-slate-200 bg-white/70 p-3 text-sm dark:border-slate-700 dark:bg-slate-900/75;
-	transition: width 0.18s ease;
+.app-shell-shell > .app-shell-main {
+	@apply mx-auto w-full max-w-6xl;
 }
 
-.app-shell-sidebar--open {
-	@apply w-64;
+/* ---- Authenticated workspace shell (token-driven grid) ---- */
+
+.app-shell-workspace {
+	@apply grid min-h-screen;
+	grid-template-columns: var(--publy-shell-rail-width) minmax(0, 1fr);
+	background: var(--publy-background);
+	color: var(--publy-foreground);
 }
 
-.app-shell-sidebar--collapsed {
-	@apply w-16;
+.app-shell-workspace:has(.app-shell-secondary-panel) {
+	grid-template-columns:
+		var(--publy-shell-rail-width)
+		var(--publy-shell-panel-width)
+		minmax(0, 1fr);
 }
 
-.app-shell-sidebar-title {
-	@apply mb-3 border-b border-slate-200 pb-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 dark:border-slate-700 dark:text-slate-300;
+.app-shell-rail {
+	@apply sticky top-0 flex h-screen flex-col items-center gap-3 border-r px-2 py-3;
+	background: var(--publy-surface);
+	border-color: var(--publy-border);
 }
 
-.app-shell-sidebar-link {
-	@apply mt-2 block rounded-lg border border-transparent px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-200/70 hover:text-slate-900 dark:text-slate-200 dark:hover:bg-slate-700/50 dark:hover:text-white;
+.app-shell-brand,
+.app-shell-rail-link {
+	@apply flex size-9 items-center justify-center;
+	border-radius: var(--publy-radius-lg);
+	color: var(--publy-foreground-muted);
+	transition:
+		background-color var(--publy-motion-fast) var(--publy-motion-ease),
+		color var(--publy-motion-fast) var(--publy-motion-ease);
 }
 
-.app-shell-sidebar-link[aria-current='page'] {
-	background-color: var(--publy-primary);
+.app-shell-brand {
+	background: var(--publy-primary);
 	color: var(--publy-primary-foreground);
+	box-shadow: var(--publy-shadow-inset), var(--publy-shadow-raised);
 }
 
-.app-shell-sidebar-link--collapsed {
-	@apply justify-center px-2;
+.app-shell-rail-links {
+	@apply flex flex-1 flex-col items-center gap-1;
 }
 
-.app-shell-sidebar-short-label {
-	@apply inline-block w-6 text-center font-semibold;
+.app-shell-rail-link:hover,
+.app-shell-rail-link:focus-visible {
+	background: var(--publy-surface-hover);
+	color: var(--publy-foreground);
 }
 
-.app-shell-sidebar-label {
-	@apply ml-2;
+.app-shell-rail-link[data-active='true'] {
+	background: var(--publy-primary-soft);
+	color: var(--publy-primary);
+	box-shadow: inset 3px 0 0 var(--publy-primary);
 }
 
-.app-shell-sidebar-toggle {
-	@apply mt-4 w-full;
+.app-shell-secondary-panel {
+	@apply hidden h-screen min-w-0 border-r md:block;
+	background: var(--publy-surface-raised);
+	border-color: var(--publy-border);
 }
 
-.app-shell-authed-loading {
-	@apply rounded-xl border border-slate-200/60 bg-white/75 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/75 dark:text-slate-300;
+.app-shell-secondary-heading {
+	@apply flex h-14 items-center border-b px-4 text-sm font-semibold;
+	border-color: var(--publy-border);
+}
+
+.app-shell-secondary-link {
+	@apply flex gap-3 border-b px-4 py-3;
+	border-color: var(--publy-border);
+	color: var(--publy-foreground-muted);
+}
+
+.app-shell-secondary-link:hover {
+	background: var(--publy-surface-hover);
+	color: var(--publy-foreground);
+}
+
+.app-shell-secondary-link-title {
+	@apply block text-sm font-medium;
+	color: var(--publy-foreground);
+}
+
+.app-shell-secondary-link-description {
+	@apply mt-0.5 block text-xs leading-4;
+	color: var(--publy-foreground-subtle);
+}
+
+.app-shell-body {
+	@apply flex min-h-screen min-w-0 flex-col;
+}
+
+.app-shell-topbar {
+	@apply sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b px-4;
+	background: var(--publy-background);
+	border-color: var(--publy-border);
+}
+
+.app-shell-breadcrumbs {
+	@apply flex min-w-0 items-center gap-2 text-sm;
+	color: var(--publy-foreground-muted);
+}
+
+.app-shell-breadcrumbs a:hover {
+	color: var(--publy-foreground);
+}
+
+.app-shell-main {
+	@apply min-w-0 flex-1 overflow-x-hidden p-4 sm:p-5 lg:p-6;
+}
+
+.app-shell-topbar-actions {
+	@apply flex items-center gap-2;
+}
+
+@media (max-width: 767px) {
+	.app-shell-workspace,
+	.app-shell-workspace:has(.app-shell-secondary-panel) {
+		grid-template-columns: 1fr;
+	}
+
+	.app-shell-rail {
+		@apply fixed bottom-0 top-auto z-30 h-14 w-full flex-row border-r-0 border-t;
+	}
+
+	.app-shell-rail-links {
+		@apply flex-row;
+	}
+
+	.app-shell-secondary-panel {
+		@apply hidden;
+	}
+
+	.app-shell-panel-toggle {
+		@apply hidden;
+	}
+
+	.app-shell-main {
+		@apply pb-20;
+	}
 }
 
 @layer components {
