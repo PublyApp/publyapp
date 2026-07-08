@@ -163,7 +163,7 @@ describe('staff tenants route', () => {
 		expect(screen.getByText('Active')).toBeTruthy();
 		expect(screen.getByText('12')).toBeTruthy();
 		expect(screen.getAllByText('50').length).toBeGreaterThan(0);
-		expect(screen.getByDisplayValue('')).toBeTruthy();
+		expect(screen.getByTestId('staff-tenants-table-page-size')).toBeTruthy();
 		expect(mocks.useStaffTenantsQuery).toHaveBeenCalledWith({
 			q: undefined,
 			sortId: 'created_at',

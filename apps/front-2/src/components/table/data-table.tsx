@@ -1,11 +1,25 @@
-import { Button, Input, Skeleton, Spinner, Table } from '@heroui/react';
+import {
+	Button,
+	Input,
+	ListBox,
+	Select,
+	Skeleton,
+	Spinner,
+	Table,
+} from '@heroui/react';
 import {
 	type ColumnDef,
 	flexRender,
 	getCoreRowModel,
 	useReactTable,
 } from '@tanstack/react-table';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import type { ReactNode } from 'react';
+import {
+	ErrorStateSurface,
+	NoMatchStateSurface,
+	StateSurface,
+} from '~/components/ui/state-surface';
 
 import {
 	fromTableSortDescriptor,
@@ -112,17 +126,50 @@ export const DataTable = <TData extends { id: string }>({
 			}
 		: {};
 
+	const errorDescription =
+		typeof errorContent === 'string'
+			? errorContent
+			: errorContent
+				? undefined
+				: 'There was a problem loading this list.';
+	const errorActions =
+		typeof errorContent !== 'string' && errorContent ? errorContent : undefined;
+
+	const emptyDescription =
+		typeof emptyContent === 'string'
+			? emptyContent
+			: 'No records yet. Create one to get started.';
+	const emptyActions =
+		typeof emptyContent !== 'string' && emptyContent ? emptyContent : undefined;
+
+	const noMatchDescription =
+		typeof noMatchContent === 'string'
+			? noMatchContent
+			: 'No results match your search.';
+	const noMatchActions =
+		typeof noMatchContent !== 'string' && noMatchContent
+			? noMatchContent
+			: undefined;
+
 	return (
-		<div className="space-y-3" data-testid={testId}>
-			<Input
-				aria-label="Search"
-				value={searchDraft}
-				onChange={(event) => onSearchDraftChange(event.target.value)}
-				disabled={isSelectionMode}
-				title={isSelectionMode ? SELECTION_LOCKED_TITLE : undefined}
-				placeholder="Search"
-				data-testid={`${testId}-search`}
-			/>
+		<div className="publy-data-table-shell" data-testid={testId}>
+			<div
+				className="publy-data-table-toolbar"
+				data-testid={`${testId}-toolbar`}
+			>
+				<div className="publy-search-wrapper">
+					<Search aria-hidden="true" className="publy-search-icon" />
+					<Input
+						aria-label="Search"
+						value={searchDraft}
+						onChange={(event) => onSearchDraftChange(event.target.value)}
+						disabled={isSelectionMode}
+						title={isSelectionMode ? SELECTION_LOCKED_TITLE : undefined}
+						placeholder="Search"
+						data-testid={`${testId}-search`}
+					/>
+				</div>
+			</div>
 
 			{bodyState === 'loading' ? (
 				<div className="space-y-2" data-testid={`${testId}-loading`}>
@@ -133,41 +180,45 @@ export const DataTable = <TData extends { id: string }>({
 			) : null}
 
 			{bodyState === 'error' ? (
-				<div
-					className="flex flex-col items-center gap-3 rounded-md border border-border p-8 text-center"
-					data-testid={`${testId}-error`}
-				>
-					{errorContent ?? (
-						<p className="text-sm text-muted">
-							Something went wrong loading this list.
-						</p>
-					)}
-					<Button variant="secondary" onPress={onRetry} type="button">
-						Retry
-					</Button>
-				</div>
+				<ErrorStateSurface
+					title="List unavailable"
+					description={errorDescription}
+					actions={
+						<>
+							{errorActions}
+							<Button variant="secondary" onPress={onRetry} type="button">
+								Retry
+							</Button>
+						</>
+					}
+					testId={`${testId}-error`}
+				/>
 			) : null}
 
 			{bodyState === 'empty' ? (
-				<div
-					className="rounded-md border border-border p-8 text-center text-sm text-muted"
-					data-testid={`${testId}-empty`}
-				>
-					{emptyContent ?? 'No results found.'}
-				</div>
+				<StateSurface
+					title="No records yet"
+					description={emptyDescription}
+					actions={emptyActions}
+					testId={`${testId}-empty`}
+				/>
 			) : null}
 
 			{bodyState === 'no-match' ? (
-				<div
-					className="rounded-md border border-border p-8 text-center text-sm text-muted"
-					data-testid={`${testId}-no-match`}
-				>
-					{noMatchContent ?? 'No results match your search.'}
-				</div>
+				<NoMatchStateSurface
+					title="No matches"
+					description={noMatchDescription}
+					actions={noMatchActions}
+					testId={`${testId}-no-match`}
+				/>
 			) : null}
 
 			{bodyState === 'rows' ? (
-				<Table aria-label={ariaLabel} data-testid={`${testId}-rows`}>
+				<Table
+					aria-label={ariaLabel}
+					className="publy-data-table"
+					data-testid={`${testId}-rows`}
+				>
 					<Table.ScrollContainer>
 						<Table.Content
 							{...tableSelectionProps}
@@ -189,16 +240,13 @@ export const DataTable = <TData extends { id: string }>({
 												key={header.id}
 												allowsSorting={canSort}
 												isRowHeader={header.column.id === rowHeaderColumnId}
-												// `!text-*` (important) because HeroUI's own `.table__column` rule
-												// otherwise wins the cascade: its default header gray fails WCAG AA
-												// color-contrast against the header background.
-												className={`${cellPaddingClass} !text-foreground !font-medium`}
+												className={`${cellPaddingClass} publy-type-table-header`}
 											>
 												{canSort
 													? ({ sortDirection }) => (
 															<Table.SortableColumnHeader
 																sortDirection={sortDirection}
-																className="!text-foreground"
+																className="publy-type-table-header"
 															>
 																{flexRender(
 																	header.column.columnDef.header,
@@ -234,30 +282,38 @@ export const DataTable = <TData extends { id: string }>({
 				</Table>
 			) : null}
 
-			<div className="flex items-center justify-between gap-4">
-				<label className="flex items-center gap-2 text-sm text-muted">
-					Rows per page
-					<select
-						className="rounded-md border border-border bg-transparent px-2 py-1"
-						value={size}
-						disabled={paginationDisabled}
-						title={isSelectionMode ? SELECTION_LOCKED_TITLE : undefined}
-						onChange={(event) => onSizeChange(Number(event.target.value))}
+			<div className="publy-data-table-footer" data-testid={`${testId}-footer`}>
+				<div className="flex items-center gap-2">
+					<span className="text-sm text-foreground-500">Rows per page</span>
+					<Select.Root
+						aria-label="Rows per page"
+						selectedKey={String(size)}
+						onSelectionChange={(key) => {
+							if (key) {
+								onSizeChange(Number(key));
+							}
+						}}
+						isDisabled={paginationDisabled}
 						data-testid={`${testId}-page-size`}
 					>
-						{PAGE_SIZE_OPTIONS.map((option) => (
-							<option key={option} value={option}>
-								{option}
-							</option>
-						))}
-					</select>
-				</label>
+						<Select.Trigger data-testid={`${testId}-page-size-trigger`}>
+							<Select.Value />
+							<Select.Indicator />
+						</Select.Trigger>
+						<Select.Popover>
+							<ListBox>
+								{PAGE_SIZE_OPTIONS.map((option) => (
+									<ListBox.Item key={String(option)} id={String(option)}>
+										{option} rows
+									</ListBox.Item>
+								))}
+							</ListBox>
+						</Select.Popover>
+					</Select.Root>
+				</div>
 
 				<div className="flex items-center gap-2">
-					<span
-						className="text-sm text-muted"
-						data-testid={`${testId}-page-label`}
-					>
+					<span data-slot="page-label" data-testid={`${testId}-page-label`}>
 						Page {pageIndex + 1}
 					</span>
 					{isPaginationPending ? <Spinner size="sm" /> : null}
@@ -269,6 +325,7 @@ export const DataTable = <TData extends { id: string }>({
 							onPress={onPreviousPage}
 							data-testid={`${testId}-prev-page`}
 						>
+							<ChevronLeft className="size-4" />
 							Previous
 						</Button>
 					</span>
@@ -281,6 +338,7 @@ export const DataTable = <TData extends { id: string }>({
 							data-testid={`${testId}-next-page`}
 						>
 							Next
+							<ChevronRight className="size-4" />
 						</Button>
 					</span>
 				</div>

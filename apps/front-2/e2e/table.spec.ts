@@ -15,6 +15,28 @@ test.describe('staff users table', () => {
 		await expect(page.getByText('staff-admin@example.com')).toBeVisible();
 		await expect(page.getByText('staff-user@example.com')).toBeVisible();
 
+		await expect(page.getByTestId(`${TABLE}-toolbar`)).toBeVisible();
+		await expect(page.getByTestId(`${TABLE}-page-size-trigger`)).toBeVisible();
+		await expect(page.getByTestId(`${TABLE}-rows`)).toHaveClass(
+			/publy-data-table/,
+		);
+		const pageSizeTag = await page
+			.getByTestId(`${TABLE}-page-size`)
+			.evaluate((el) => el.tagName);
+		expect(pageSizeTag).not.toBe('SELECT');
+
+		const triggerTag = await page
+			.getByTestId(`${TABLE}-page-size-trigger`)
+			.evaluate((el) => el.tagName);
+		expect(triggerTag).not.toBe('SELECT');
+
+		await expect(page.getByTestId(`${TABLE}-page-size-trigger`)).toBeVisible();
+		await expect(
+			page.getByTestId(`${TABLE}-page-size-trigger`),
+		).toHaveAttribute('aria-label', 'Rows per page');
+
+		await expect(page.getByText('Rows per page')).toBeVisible();
+
 		const search = page.getByTestId(`${TABLE}-search`);
 		await search.fill('staff-admin');
 		await expect(page).toHaveURL(/[?&]q=staff-admin/);
@@ -39,8 +61,6 @@ test.describe('staff users table', () => {
 
 		await levelHeader.click();
 		await expect(page).toHaveURL(/[?&]sort_id=level/);
-		// A sort-key change starts a fresh TanStack Query cache entry (loading
-		// skeleton, no <td>s) until the refetch resolves — wait for real rows.
 		await expect
 			.poll(() => page.getByTestId(`${TABLE}-rows`).locator('td').count())
 			.toBeGreaterThan(0);
@@ -135,3 +155,38 @@ test.describe('staff users table', () => {
 		expect(activeCellAfter).not.toEqual(activeCellBefore);
 	});
 });
+
+for (const width of [1280, 768, 390]) {
+	test.describe(`viewport ${width}px`, () => {
+		test.use({ viewport: { width, height: 800 } });
+
+		test('table is responsive', async ({ page }) => {
+			await loginAsStaffAdmin(page);
+
+			const toolbar = page.getByTestId(`${TABLE}-toolbar`);
+			await expect(toolbar).toBeVisible();
+
+			const rows = page.getByTestId(`${TABLE}-rows`);
+			await expect(rows).toBeVisible();
+
+			const scrollWidth = await rows.evaluate((el: Element) => el.scrollWidth);
+			expect(scrollWidth).not.toBe(0);
+		});
+
+		test('footer does not overflow', async ({ page }) => {
+			await loginAsStaffAdmin(page);
+
+			const footer = page.getByTestId(`${TABLE}-footer`);
+			await expect(footer).toBeVisible();
+
+			const flexDirection = await footer.evaluate(
+				(el) => window.getComputedStyle(el).flexDirection,
+			);
+			if (width < 640) {
+				expect(flexDirection).toBe('column');
+			} else {
+				expect(flexDirection).toBe('row');
+			}
+		});
+	});
+}
