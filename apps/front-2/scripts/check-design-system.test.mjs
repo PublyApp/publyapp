@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -112,6 +112,62 @@ test('reports the actual internal anchor when another anchor appears first', asy
 	assert.equal(anchors.length, 1);
 	assert.match(anchors[0].source, /href="\/staff\/tenants"/);
 	assert.doesNotMatch(anchors[0].source, /href=\{href\}/);
+});
+
+test('primary button chrome is on .button--primary, sizing on .button--primary.button--md', async () => {
+	const css = await readFile(
+		new URL('../src/styles/app.css', import.meta.url),
+		'utf8',
+	);
+
+	// chrome properties on generic class
+	assert.match(css, /\.button--primary\s*\{/);
+	assert.match(
+		css,
+		/border:\s*1\.33px\s+solid\s+rgb[a]?\(255,\s*255,\s*255,\s*0\.12\)/,
+	);
+	assert.match(css, /border-radius:\s*999px/);
+	assert.match(css, /box-shadow:\s*var\(--publy-shadow-chrome\)/);
+
+	// generic .button--primary must not override sizing
+	assert.doesNotMatch(css, /\.button--primary\s*\{[^}]*height:/);
+	assert.doesNotMatch(css, /\.button--primary\s*\{[^}]*min-height:/);
+
+	// default/md size variant gets the 36px height
+	assert.match(css, /\.button--primary\.button--md\s*\{/);
+	assert.match(css, /height:\s*36px/);
+	assert.match(css, /min-height:\s*36px/);
+
+	// sm/lg size must not have a height override
+	assert.doesNotMatch(css, /\.button--primary\.button--sm\s*\{[^}]*height:/);
+	assert.doesNotMatch(
+		css,
+		/\.button--primary\.button--sm\s*\{[^}]*min-height:/,
+	);
+	assert.doesNotMatch(css, /\.button--primary\.button--lg\s*\{[^}]*height:/);
+	assert.doesNotMatch(
+		css,
+		/\.button--primary\.button--lg\s*\{[^}]*min-height:/,
+	);
+});
+
+test('handoff design tokens are present in app.css', async () => {
+	const css = await readFile(
+		new URL('../src/styles/app.css', import.meta.url),
+		'utf8',
+	);
+
+	assert.match(css, /--publy-font-sans:\s*Geist, ui-sans-serif/);
+	assert.match(css, /--publy-primary:\s*#fdc700/i);
+	assert.match(css, /--publy-primary-foreground:\s*#733e0a/i);
+	assert.match(css, /--publy-shell-rail-width:\s*48px/);
+	assert.match(css, /--publy-shell-panel-width:\s*272px/);
+	assert.match(css, /--publy-shell-topbar-height:\s*64px/);
+	assert.match(
+		css,
+		/--publy-shadow-chrome:\s*0\s+0\s+0\s+0\.67px\s+rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\.2\s*\)\s+inset,?\s*0\s+2px\s+2px\s+rgba\(\s*255\s*,\s*255\s*,\s*255\s*,\s*0\.1\s*\)\s+inset,?\s*0\s+2px\s+2\.67px\s+-0\.67px\s+rgba\(\s*42\s*,\s*42\s*,\s*42\s*,\s*0\.1\s*\),?\s*0\s+0\.67px\s+0\.67px\s+rgba\(\s*42\s*,\s*42\s*,\s*42\s*,\s*0\.08\s*\)/,
+	);
+	assert.match(css, /--publy-modal-radius:\s*28px/);
 });
 
 test('allows issue references that look like numeric hex values in comments', async () => {
